@@ -1,6 +1,50 @@
+<p align="center">
+  <img src="docs/images/go-automation-logo.png" alt="GO Automation Logo" width="400">
+</p>
+
 # GO Automation
 
-Repository centralizzato per gli script di automazione e gestione operativa del team **GO** (Gestione Operativa) per i prodotti **SEND**, **INTEROP** e strumenti interni.
+**GO Automation** e parte del **GO Software Development Kit (GO SDK)**, un toolkit progettato per abilitare processi e automazioni affidabili, osservabili e scalabili all'interno della Service Line QA&OPS di PagoPA.
+
+## Panoramica Tecnica e Architettura
+
+GO Automation costituisce il nucleo operativo del GO SDK ed e implementato come monorepo TypeScript. Il sistema adotta un approccio ingegneristico alle attivita di Quality Assurance e Gestione Operativa, trattando gli script e le automazioni come componenti software a tutti gli effetti: soggetti a processi formali di analisi, progettazione, sviluppo e manutenzione.
+
+L'architettura del sistema si fonda su tre principi cardine che ne garantiscono affidabilita, manutenibilita e scalabilita nel tempo.
+
+### Code Quality
+
+Il controllo qualitativo del codice rappresenta il primo requisito architetturale. L'intera codebase opera in **TypeScript strict mode**, abilitando la rilevazione statica di errori, inconsistenze tipologiche e casi limite non gestiti in fase di compilazione anziche a runtime.
+
+Il sistema di type-checking e integrato da strumenti di **analisi statica (ESLint)** configurati secondo standard rigorosi, che impongono uniformita stilistica e prevengono pattern problematici. Questo approccio consente di:
+
+- Anticipare l'identificazione di difetti a *compile-time*
+- Ridurre il rischio operativo in ambiente di produzione
+- Concentrare l'effort di sviluppo sulla logica di business
+
+### Common Core
+
+La libreria `@go-automation/go-common` implementa il livello di astrazione condiviso dell'SDK. Questo componente centralizza le funzionalita trasversali, fornendo un'interfaccia unificata per:
+
+| Funzionalita | Descrizione |
+|--------------|-------------|
+| Inizializzazione | Bootstrap e configurazione degli script |
+| Validazione | Parsing e verifica di parametri CLI e variabili d'ambiente |
+| Logging | Sistema di logging strutturato con livelli di severita |
+| Error Handling | Gestione standardizzata delle eccezioni |
+| Output | Formattazione consistente dei risultati |
+
+L'adozione di un core condiviso garantisce che gli script rimangano snelli e focalizzati, delegando le responsabilita infrastrutturali a componenti gia validati. Ogni ottimizzazione al core si propaga automaticamente a tutti i moduli dipendenti.
+
+### Clean Structure
+
+L'organizzazione del repository segue una struttura modulare domain-driven, con separazione netta tra componenti core e script eseguibili. I principi organizzativi includono:
+
+- **Namespace gerarchico**: script raggruppati per dominio (`go/`, `send/`, `interop/`)
+- **Convenzioni di naming uniformi**: coerenza tra package, file e identificatori
+- **Configurazioni standardizzate**: template condivisi per `tsconfig.json` e `package.json`
+
+Questa struttura riduce la complessita cognitiva, accelera l'onboarding di nuovi sviluppatori e minimizza il rischio di errori derivanti da ambiguita architetturali. Il sistema e progettato per scalare in modo ordinato, mantenendo governabilita anche al crescere della codebase.
 
 ## Quick Start
 
@@ -31,26 +75,6 @@ pnpm --filter=go-report-alarms dev -- --help
 | [**Deploy**](docs/DEPLOY.md) | **Guida alla pacchettizzazione e rilascio degli script** |
 | [**Troubleshooting**](docs/TROUBLESHOOTING.md) | **Soluzioni ai problemi comuni e FAQ** |
 
-## Struttura del Repository
-
-```
-go-automation/
-├── packages/
-│   └── go-common/              # Libreria condivisa @go-automation/go-common
-├── scripts/
-│   ├── go/                     # Script per team GO
-│   │   └── go-report-alarms/   # Analisi allarmi CloudWatch
-│   ├── send/                   # Script per team SEND
-│   │   ├── send-monitor-tpp-messages/
-│   │   └── send-import-notifications/
-│   └── interop/                # Script per team INTEROP (futuro)
-├── docs/                       # Documentazione
-├── bins/                       # Script di utility (scaffolding)
-├── tsconfig.base.json          # Configurazione TypeScript condivisa
-├── pnpm-workspace.yaml         # Configurazione workspace pnpm
-└── package.json                # Root package.json
-```
-
 ## Comandi Principali
 
 ### Build
@@ -77,30 +101,12 @@ pnpm --filter=<script-name> start -- [options]
 ./bins/create-script.sh
 ```
 
-## Requisiti
-
-| Software | Versione |
-|----------|----------|
-| Node.js  | >= 24.0.0 |
-| pnpm     | >= 10.0.0 |
-| Git      | qualsiasi |
-
-## Convenzioni di Naming
-
-Gli script seguono il pattern: `{prodotto}-{verbo}-{descrizione}`
-
-- **Prodotti**: `go`, `send`, `interop`
-- **Verbi**: `check`, `monitor`, `fetch`, `update`, `manage`, `generate`, `sync`, `import`, `export`, `analyze`
-
-Esempi:
-- `go-report-alarms` - Genera report allarmi CloudWatch
-- `send-import-notifications` - Importa notifiche SEND
-- `send-monitor-tpp-messages` - Monitora messaggi TPP
-
 ## Team e Contatti
 
 **Team**: GO - Gestione Operativa (PagoPa)
 
+**Repository**: [github.com/pagopa/go-automation](https://github.com/pagopa/go-automation)
+
 ---
 
-**Ultima modifica**: 2026-01-21
+**Ultima modifica**: 2026-01-23

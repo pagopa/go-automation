@@ -5,9 +5,11 @@ dist/
 tsconfig.tsbuildinfo
 .pnpm-store/
 
-# Ignora tutto sotto artifacts
+# Ignora cartelle di dati e artifacts, ma mantieni i file .gitkeep
 artifacts/*
 !artifacts/.gitkeep
+data/*
+!data/.gitkeep
 
 # Reports generati
 reports/
