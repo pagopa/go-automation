@@ -6,15 +6,16 @@
 
 1. [Overview](#overview)
 2. [Struttura delle Directory](#struttura-delle-directory)
-3. [Introduzione a pnpm](#introduzione-a-pnpm)
-4. [Workspace pnpm](#workspace-pnpm)
-5. [Sistema di Build](#sistema-di-build)
-6. [Dipendenze tra Package](#dipendenze-tra-package)
-7. [TypeScript Configuration](#typescript-configuration)
-8. [Convenzioni di Naming](#convenzioni-di-naming)
-9. [Struttura Standard degli Script](#struttura-standard-degli-script)
-10. [Directory Data Centralizzata](#directory-data-centralizzata)
-11. [Deployment Modes](#deployment-modes)
+3. [Descrizione Dettagliata delle Cartelle](#descrizione-dettagliata-delle-cartelle)
+4. [Introduzione a pnpm](#introduzione-a-pnpm)
+5. [Workspace pnpm](#workspace-pnpm)
+6. [Sistema di Build](#sistema-di-build)
+7. [Dipendenze tra Package](#dipendenze-tra-package)
+8. [TypeScript Configuration](#typescript-configuration)
+9. [Convenzioni di Naming](#convenzioni-di-naming)
+10. [Struttura Standard degli Script](#struttura-standard-degli-script)
+11. [Directory Data Centralizzata](#directory-data-centralizzata)
+12. [Deployment Modes](#deployment-modes)
 
 ---
 
@@ -72,15 +73,39 @@ go-automation/
 │   │
 │   └── interop/                 # Script team INTEROP (futuro)
 │
+├── infra/                       # Infrastruttura condivisa
+│   └── docker/                  # File Docker comuni
+│       ├── Dockerfile.runtime   # Dockerfile base per tutti gli script
+│       └── docker-entrypoint.sh # Entrypoint condiviso
+│
+├── artifacts/                   # Output di build e deploy (gitignored)
+│   └── {script-name}/           # Package standalone per script
+│       ├── dist/                # Codice compilato
+│       ├── node_modules/        # Solo dipendenze production
+│       └── package.json         # Manifest ridotto
+│
 ├── docs/                        # Documentazione
 │   ├── ARCHITECTURE.md          # Questo file
 │   ├── GOCOMMON.md              # Documentazione go-common
 │   ├── GUIDE_LINES.md           # Coding guidelines
-│   └── NEW_SCRIPT.md            # Guida creazione script
+│   ├── NEW_SCRIPT.md            # Guida creazione script
+│   ├── DEPLOY.md                # Guida al deployment
+│   ├── ONBOARDING.md            # Guida per nuovi sviluppatori
+│   ├── README-TEMPLATE.md       # Template README per script
+│   └── TROUBLESHOOTING.md       # Risoluzione problemi comuni
 │
 ├── bins/                        # Script di utility
 │   ├── create-script.sh         # Scaffolding nuovo script
+│   ├── build-image.sh           # Build immagine Docker
+│   ├── docker-run.sh            # Esecuzione container Docker
+│   ├── deploy.sh                # Deploy script standalone
 │   └── script-templates/        # Template per scaffolding
+│       ├── index.ts.template
+│       ├── config.ts.template
+│       ├── main.ts.template
+│       ├── package.json.template
+│       ├── tsconfig.json.template
+│       └── README.md.template
 │
 ├── data/                        # Directory centralizzata dati script
 │   └── {script-name}/
@@ -105,9 +130,197 @@ go-automation/
 | `scripts/go/` | Script per gestione operativa interna |
 | `scripts/send/` | Script specifici per prodotto SEND |
 | `scripts/interop/` | Script specifici per prodotto INTEROP |
+| `infra/` | Infrastruttura condivisa (Docker, Terraform) |
+| `artifacts/` | Output di build/deploy per standalone mode |
 | `docs/` | Documentazione tecnica e guide |
 | `bins/` | Script bash di utility (scaffolding, CI/CD) |
 | `data/` | Directory centralizzata per input/output script |
+
+---
+
+## Descrizione Dettagliata delle Cartelle
+
+### `infra/` - Infrastruttura Condivisa
+
+La cartella `infra/` contiene file di infrastruttura riutilizzabili da tutti gli script del monorepo.
+
+```
+infra/
+└── docker/
+    ├── Dockerfile.runtime     # Immagine base Alpine con Node.js
+    └── docker-entrypoint.sh   # Entrypoint multi-mode (once/cron)
+```
+
+| File | Descrizione |
+|------|-------------|
+| `Dockerfile.runtime` | Dockerfile base per tutti gli script. Usa Alpine Linux, installa Node.js, AWS CLI, e configura un utente non-root (`gouser`). Viene usato da `bins/build-image.sh` per costruire le immagini Docker degli script. |
+| `docker-entrypoint.sh` | Script di entrypoint che gestisce le modalita di esecuzione: `once` (esecuzione singola) e `cron` (scheduling con croner). Riceve la modalita dalla variabile `RUN_MODE`. |
+
+**Uso tipico:**
+
+```bash
+# Build immagine usando l'infrastruttura condivisa
+./bins/build-image.sh send-monitor-tpp-messages latest
+```
+
+---
+
+### `artifacts/` - Output di Build e Deploy
+
+La cartella `artifacts/` contiene i package standalone generati dal comando `pnpm deploy`. Ogni script deployato ha la sua sottocartella con tutto il necessario per l'esecuzione isolata.
+
+```
+artifacts/
+├── .gitkeep
+├── go-report-alarms/
+│   ├── dist/                  # Codice TypeScript compilato
+│   ├── node_modules/          # Solo dipendenze production
+│   ├── configs/               # File di configurazione
+│   └── package.json           # Manifest con dipendenze
+│
+└── send-monitor-tpp-messages/
+    ├── dist/
+    ├── node_modules/
+    ├── configs/
+    └── package.json
+```
+
+| Contenuto | Descrizione |
+|-----------|-------------|
+| `dist/` | Codice JavaScript compilato (output di `tsc`) |
+| `node_modules/` | Solo dipendenze production (no devDependencies) |
+| `configs/` | File di configurazione copiati dallo script |
+| `package.json` | Manifest ridotto con solo le informazioni necessarie |
+
+**Caratteristiche:**
+
+- **Gitignored**: La cartella e in `.gitignore` (tranne `.gitkeep`)
+- **Generata automaticamente**: Creata da `bins/deploy.sh` o `pnpm deploy`
+- **Self-contained**: Ogni sottocartella contiene tutto per l'esecuzione standalone
+- **Usata per Docker**: Le immagini Docker copiano da `artifacts/{script}/`
+
+**Generazione:**
+
+```bash
+# Deploy singolo script
+./bins/deploy.sh go-report-alarms
+
+# Risultato in artifacts/go-report-alarms/
+```
+
+---
+
+### `bins/` - Script di Utility
+
+La cartella `bins/` contiene script bash per automazione di operazioni comuni nel monorepo.
+
+```
+bins/
+├── create-script.sh           # Crea nuovo script con scaffolding
+├── build-image.sh             # Build immagine Docker
+├── docker-run.sh              # Esecuzione container Docker
+├── deploy.sh                  # Deploy script standalone
+└── script-templates/          # Template per scaffolding
+    ├── index.ts.template      # Entry point
+    ├── config.ts.template     # Configurazione
+    ├── main.ts.template       # Business logic
+    ├── package.json.template  # Manifest npm
+    ├── tsconfig.json.template # Config TypeScript
+    └── README.md.template     # Documentazione
+```
+
+| Script | Descrizione |
+|--------|-------------|
+| `create-script.sh` | Wizard interattivo per creare un nuovo script. Genera la struttura completa con template, package.json, tsconfig.json e README. |
+| `build-image.sh` | Costruisce l'immagine Docker di uno script. Usa `infra/docker/Dockerfile.runtime` come base. |
+| `docker-run.sh` | Helper per eseguire container Docker degli script. Supporta modalita interattiva e scheduled. |
+| `deploy.sh` | Genera il package standalone in `artifacts/`. Usa `pnpm deploy` per includere solo dipendenze production. |
+
+**Uso comune:**
+
+```bash
+# Creare nuovo script
+./bins/create-script.sh
+
+# Build immagine Docker
+./bins/build-image.sh send-monitor-tpp-messages latest
+
+# Eseguire container
+./bins/docker-run.sh send-monitor-tpp-messages run
+./bins/docker-run.sh send-monitor-tpp-messages up --scheduled
+
+# Deploy standalone
+./bins/deploy.sh go-report-alarms
+```
+
+---
+
+### `docs/` - Documentazione
+
+La cartella `docs/` contiene tutta la documentazione tecnica del monorepo.
+
+```
+docs/
+├── ARCHITECTURE.md        # Architettura del monorepo (questo file)
+├── GOCOMMON.md            # Documentazione libreria go-common
+├── GUIDE_LINES.md         # Coding standards e best practices
+├── NEW_SCRIPT.md          # Guida dettagliata creazione script
+├── DEPLOY.md              # Guida al deployment (Docker, standalone)
+├── ONBOARDING.md          # Guida per nuovi sviluppatori
+├── README-TEMPLATE.md     # Template README per nuovi script
+└── TROUBLESHOOTING.md     # Risoluzione problemi comuni
+```
+
+| Documento | Destinatari | Contenuto |
+|-----------|-------------|-----------|
+| `ARCHITECTURE.md` | Tutti | Struttura monorepo, pnpm, TypeScript config |
+| `GOCOMMON.md` | Sviluppatori | API della libreria go-common |
+| `GUIDE_LINES.md` | Sviluppatori | Convenzioni codice, TypeScript strict |
+| `NEW_SCRIPT.md` | Sviluppatori | Tutorial creazione nuovo script |
+| `DEPLOY.md` | DevOps | Docker, standalone, AWS deployment |
+| `ONBOARDING.md` | Nuovi membri | Setup ambiente, primi passi |
+| `README-TEMPLATE.md` | Sviluppatori | Template per README degli script |
+| `TROUBLESHOOTING.md` | Tutti | Problemi comuni e soluzioni |
+
+---
+
+### `data/` - Dati Centralizzati
+
+La cartella `data/` fornisce una struttura centralizzata per input, output e configurazioni degli script.
+
+```
+data/
+├── go-report-alarms/
+│   ├── inputs/            # File CSV/JSON di input
+│   ├── outputs/           # Report generati
+│   │   └── run_2024-01-15_10-30/
+│   │       ├── report.csv
+│   │       └── execution.log
+│   └── configs/           # Configurazioni centralizzate
+│       └── config.json
+│
+├── send-import-notifications/
+│   ├── inputs/
+│   │   └── notifications.csv
+│   ├── outputs/
+│   └── configs/
+│
+└── go-crea-template/
+    └── ...
+```
+
+| Sottocartella | Descrizione |
+|---------------|-------------|
+| `inputs/` | File di input (CSV, JSON) da processare |
+| `outputs/` | Output generati, organizzati per run con timestamp |
+| `configs/` | Configurazioni centralizzate (priorita su quelle locali) |
+
+**Caratteristiche:**
+
+- **Gitignored**: La cartella e in `.gitignore` per non committare dati
+- **Priorita config**: `data/{script}/configs/` ha priorita su `scripts/{team}/{script}/configs/`
+- **Persistenza**: I file persistono tra esecuzioni dello script
+- **Condivisione**: Piu script possono accedere agli stessi dati
 
 ---
 
@@ -953,5 +1166,5 @@ node dist/main.js
 
 ---
 
-**Ultima modifica**: 2026-01-22
+**Ultima modifica**: 2026-01-23
 **Maintainer**: Team GO - Gestione Operativa
