@@ -1,0 +1,51 @@
+{
+  "name": "go-automation",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GO Automation Scripts and Tools Monorepo",
+  "scripts": {
+    "build": "pnpm -r --filter='@go-automation/*' build",
+    "build:common": "pnpm --filter=@go-automation/go-common build",
+    "build:scripts": "pnpm -r --filter='./scripts/**' build",
+    "clean": "pnpm -r run clean",
+    "clean:all": "pnpm clean && pnpm -r exec rm -rf node_modules && rm -rf node_modules",
+    "go:report:alarms:build": "pnpm --filter=go-report-alarms build",
+    "go:report:alarms:dev": "pnpm --filter=go-report-alarms dev",
+    "go:report:alarms:prod": "pnpm --filter=go-report-alarms start",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:packages": "eslint packages",
+    "lint:scripts": "eslint scripts",
+    "send:import:notifications:build": "pnpm --filter=send-import-notifications build",
+    "send:import:notifications:dev": "pnpm --filter=send-import-notifications dev",
+    "send:import:notifications:prod": "pnpm --filter=send-import-notifications start",
+    "send:monitor:tpp:messages:build": "pnpm --filter=send-monitor-tpp-messages build",
+    "send:monitor:tpp:messages:dev": "pnpm --filter=send-monitor-tpp-messages dev",
+    "send:monitor:tpp:messages:prod": "pnpm --filter=send-monitor-tpp-messages start",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "aws",
+    "automation",
+    "monorepo",
+    "go-team",
+    "typescript"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "engines": {
+    "node": ">=24.13.0",
+    "pnpm": ">=10.28.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@typescript-eslint/eslint-plugin": "^8.53.1",
+    "@typescript-eslint/parser": "^8.53.1",
+    "eslint": "^9.39.2",
+    "globals": "^17.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.53.1"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "{{SCRIPT_NAME}}",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "{{SCRIPT_DESCRIPTION}}",
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "pnpm build && node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "keywords": [
+    "{{PRODUCT}}",
+    "go-automation"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "dependencies": {
+    "@go-automation/go-common": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.9"
+  }
+}

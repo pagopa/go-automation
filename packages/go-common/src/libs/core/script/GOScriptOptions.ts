@@ -1,0 +1,201 @@
+/**
+ * GOScript Options
+ * Configuration options for creating a new script
+ */
+
+import type { GOConfigParameterOptions } from '../config/GOConfigParameter.js';
+import type { GOConfigProvider } from '../config/GOConfigProvider.js';
+import type { GOConfigSchemaOptions } from '../config/GOConfigSchema.js';
+import type { GOFileCopierSubdirDefaults } from '../files/GOFileCopierOptions.js';
+import type { GOLoggerHandler } from '../logging/GOLoggerHandler.js';
+
+/**
+ * Script metadata
+ */
+export interface GOScriptMetadata {
+  /** Script name */
+  name: string;
+
+  /** Script version */
+  version: string;
+
+  /** Script description */
+  description: string;
+
+  /** Script author */
+  authors: [string];
+}
+
+/**
+ * Script logging options
+ */
+export interface GOScriptLoggingOptions {
+  /** Enable console logging (default: true) */
+  console?: boolean;
+
+  /** Enable file logging (default: true) */
+  file?: boolean;
+
+  /** Custom log file path (default: auto-generated) */
+  logFilePath?: string;
+
+  /** Custom logger handlers */
+  handlers?: GOLoggerHandler[];
+
+  /** Enable automatic logging of config values at startup (default: true) */
+  logConfigOnStart?: boolean;
+}
+
+/**
+ * AWS credentials management options
+ */
+export interface GOScriptAWSCredentialsOptions {
+  /**
+   * Enable automatic SSO login when credentials expire
+   * Default: true
+   */
+  autoLogin?: boolean | undefined;
+
+  /**
+   * Enable interactive mode (prompt user before login)
+   * Default: true
+   * Set to false for CI/batch mode (will skip login prompts)
+   */
+  interactive?: boolean | undefined;
+
+  /**
+   * Maximum retry attempts after SSO login
+   * Default: 1
+   */
+  maxRetries?: number | undefined;
+
+  /**
+   * Timeout for SSO login process in milliseconds
+   * Default: 120000 (2 minutes)
+   */
+  loginTimeout?: number | undefined;
+}
+
+/**
+ * Script configuration options
+ */
+export interface GOScriptConfigOptions {
+  /** Config schema options */
+  schema?: GOConfigSchemaOptions;
+
+  /** Config reader providers */
+  configProviders?: GOConfigProvider[];
+
+  /** Configuration parameters to register */
+  parameters?: GOConfigParameterOptions[];
+
+  /** Enable automatic help generation with --help flag (default: true) */
+  autoHelp?: boolean;
+
+  /** Exit after showing help (default: true) */
+  exitAfterHelp?: boolean;
+
+  /** AWS credentials management options - Controls automatic SSO login when credentials expire*/
+  awsCredentials?: GOScriptAWSCredentialsOptions;
+}
+
+/**
+ * Script lifecycle hooks
+ */
+export interface GOScriptLifecycleHooks {
+  /** Called before script initialization */
+  onBeforeInit?: () => void | Promise<void>;
+
+  /** Called after script initialization */
+  onAfterInit?: () => void | Promise<void>;
+
+  /** Called before config is loaded */
+  onBeforeConfigLoad?: () => void | Promise<void>;
+
+  /** Called after config is loaded */
+  onAfterConfigLoad?: (config: Record<string, unknown>) => void | Promise<void>;
+
+  /** Called before main script execution */
+  onBeforeRun?: () => void | Promise<void>;
+
+  /** Called after main script execution */
+  onAfterRun?: () => void | Promise<void>;
+
+  /** Called on script error */
+  onError?: (error: Error) => void | Promise<void>;
+
+  /** Called on script cleanup/exit */
+  onCleanup?: () => void | Promise<void>;
+}
+
+/**
+ * File copier configuration options for GOScript
+ */
+export interface GOScriptFileCopierOptions {
+  /**
+   * Enable file copier functionality.
+   * Default: true
+   */
+  enabled?: boolean | undefined;
+
+  /**
+   * Enable interactive mode for large files.
+   * When true, prompts user before copying files exceeding promptThreshold.
+   * Default: true
+   */
+  interactive?: boolean | undefined;
+
+  /**
+   * File size threshold (in bytes) above which user is prompted in interactive mode.
+   * Default: 10 MB (10 * 1024 * 1024)
+   */
+  promptThreshold?: number | undefined;
+
+  /**
+   * Maximum file size (in bytes) allowed for copying.
+   * Files exceeding this size are always skipped.
+   * Default: 100 MB (100 * 1024 * 1024)
+   */
+  maxFileSize?: number | undefined;
+
+  /**
+   * Whether to generate a manifest file listing all copied files.
+   * Default: true
+   */
+  generateManifest?: boolean | undefined;
+
+  /**
+   * Custom subdirectory defaults per path type.
+   * If not provided, uses built-in defaults:
+   * - INPUT -> 'inputs'
+   * - CONFIG -> 'configs'
+   * - OUTPUT -> null (root)
+   */
+  subdirDefaults?: Partial<GOFileCopierSubdirDefaults> | undefined;
+
+  /**
+   * Whether to overwrite existing files at destination.
+   * Default: false (skip if exists)
+   */
+  overwrite?: boolean | undefined;
+}
+
+/**
+ * Complete GOScript options
+ */
+export interface GOScriptOptions {
+  /** Script metadata */
+  metadata: GOScriptMetadata;
+
+  /** Logging configuration */
+  logging?: GOScriptLoggingOptions | undefined;
+
+  /** Configuration options */
+  config?: GOScriptConfigOptions | undefined;
+
+  /** File copier configuration */
+  fileCopier?: GOScriptFileCopierOptions | undefined;
+
+  /** Lifecycle hooks */
+  hooks?: GOScriptLifecycleHooks | undefined;
+}

@@ -1,0 +1,69 @@
+{
+  "name": "@go-automation/go-common",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Libreria condivisa per operazioni AWS comuni utilizzata negli script GO automation",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "watch": "tsc --build --watch",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "prepublish": "pnpm run build"
+  },
+  "keywords": [
+    "aws",
+    "wrapper",
+    "athena",
+    "sts",
+    "dynamodb",
+    "sqs",
+    "go-automation"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "peerDependencies": {
+    "@aws-sdk/client-athena": "^3.0.0",
+    "@aws-sdk/client-cloudformation": "^3.0.0",
+    "@aws-sdk/client-cloudwatch": "^3.0.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.0.0",
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/client-ec2": "^3.0.0",
+    "@aws-sdk/client-ecs": "^3.0.0",
+    "@aws-sdk/client-eventbridge": "^3.0.0",
+    "@aws-sdk/client-kinesis": "^3.0.0",
+    "@aws-sdk/client-kms": "^3.0.0",
+    "@aws-sdk/client-lambda": "^3.0.0",
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@aws-sdk/client-sqs": "^3.0.0",
+    "@aws-sdk/client-ssm": "^3.0.0",
+    "@aws-sdk/client-sts": "^3.0.0",
+    "@aws-sdk/credential-provider-ini": "^3.0.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sts": "^3.0.0",
+    "@aws-sdk/credential-provider-ini": "^3.0.0",
+    "@aws-sdk/credential-providers": "^3.955.0",
+    "cli-table3": "^0.6.5",
+    "csv-parse": "^5.5.3",
+    "csv-stringify": "^6.4.5",
+    "luxon": "^3.7.2",
+    "minimatch": "^10.1.1",
+    "prompts": "^2.4.2",
+    "undici": "^7.18.2",
+    "yaml": "^2.3.4"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-athena": "^3.0.0",
+    "@types/luxon": "^3.7.1",
+    "@types/node": "^24.10.9",
+    "@types/node-fetch": "^2.6.9",
+    "@types/prompts": "^2.4.9"
+  }
+}

@@ -1,0 +1,417 @@
+/**
+ * GOMultiSpinner - Multi-task spinner with single-spinner compatibility
+ *
+ * Supports both multi-spinner mode (multiple tasks) and single-spinner mode (backward compatible with GOSpinner)
+ *
+ * @example Multi-spinner mode
+ * ```typescript
+ * const spinner = new GOMultiSpinner();
+ * spinner.spin('task1', 'Processing file 1...');
+ * spinner.spin('task2', 'Processing file 2...');
+ * spinner.succeed('task1', 'File 1 processed');
+ * spinner.fail('task2', 'File 2 failed');
+ * ```
+ *
+ * @example Single-spinner mode (backward compatible)
+ * ```typescript
+ * const spinner = new GOMultiSpinner();
+ * spinner.start('Loading...');
+ * spinner.update('Still loading...');
+ * spinner.succeed('Done!');
+ * ```
+ */
+
+import * as readline from 'readline';
+
+interface SpinnerTask {
+  id: string;
+  text: string;
+  status: 'spinning';
+}
+
+export interface GOMultiSpinnerOptions {
+  /** Spinner animation frames */
+  frames?: string[];
+  /** Animation interval in milliseconds */
+  interval?: number;
+  /** Default indentation */
+  indent?: string | number;
+  /** Color for spinner icon (ANSI color code) */
+  spinnerColor?: string;
+  /** Color for success symbol */
+  successColor?: string;
+  /** Color for error symbol */
+  errorColor?: string;
+  /** Color for warning symbol */
+  warningColor?: string;
+  /** Color for info symbol */
+  infoColor?: string;
+}
+
+const DEFAULT_OPTIONS: Required<GOMultiSpinnerOptions> = {
+  frames: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'],
+  interval: 80,
+  indent: '',
+  spinnerColor: '\x1b[36m',  // Cyan
+  successColor: '\x1b[32m',  // Green
+  errorColor: '\x1b[31m',    // Red
+  warningColor: '\x1b[33m',  // Yellow
+  infoColor: '\x1b[36m',     // Cyan
+};
+
+export class GOMultiSpinner {
+  private readonly tasks: Map<string, SpinnerTask> = new Map();
+  private readonly frames: string[];
+  private currentFrame: number = 0;
+  private interval?: NodeJS.Timeout | undefined;
+  private isRunning: boolean = false;
+  private lastLineCount: number = 0;
+  private indent: string = '';
+  private readonly animationInterval: number;
+
+  // Colors
+  private readonly spinnerColor: string;
+  private readonly successColor: string;
+  private readonly errorColor: string;
+  private readonly warningColor: string;
+  private readonly infoColor: string;
+
+  // Single-spinner mode state (backward compatibility)
+  private singleSpinnerMode: boolean = false;
+  private readonly singleSpinnerId = '__single__';
+
+  constructor(options?: GOMultiSpinnerOptions) {
+    const opts = { ...DEFAULT_OPTIONS, ...options };
+    this.frames = opts.frames;
+    this.animationInterval = opts.interval;
+    this.setIndent(opts.indent);
+    this.spinnerColor = opts.spinnerColor;
+    this.successColor = opts.successColor;
+    this.errorColor = opts.errorColor;
+    this.warningColor = opts.warningColor;
+    this.infoColor = opts.infoColor;
+
+    this.render = this.render.bind(this);
+  }
+
+  /**
+   * Set indentation for all spinner output
+   */
+  public setIndent(indent: string | number): void {
+    this.indent = typeof indent === 'number' ? ' '.repeat(indent) : indent;
+  }
+
+  // ==================== Multi-Spinner API ====================
+
+  /**
+   * Start or update a spinner task
+   * @param id Unique task identifier
+   * @param text Display text for this task
+   */
+  public spin(id: string, text: string): void {
+    this.tasks.set(id, { id, text, status: 'spinning' });
+    if (!this.isRunning) {
+      this.startAnimation();
+    }
+  }
+
+  /**
+   * Update a spinner task (alias for spin)
+   * @param id Unique task identifier
+   * @param text Updated display text
+   */
+  public update(id: string, text: string): void {
+    this.spin(id, text);
+  }
+
+  /**
+   * Remove a task without logging (silent removal)
+   * @param id Task identifier
+   */
+  public remove(id: string): void {
+    if (this.tasks.has(id)) {
+      this.tasks.delete(id);
+      if (this.tasks.size === 0) {
+        this.stopAnimation();
+      } else {
+        this.render();
+      }
+    }
+  }
+
+  /**
+   * Log a message above spinners without affecting them
+   * @param message Message to log
+   */
+  public log(message: string): void {
+    this.clear();
+    console.log(this.indent + message);
+    this.lastLineCount = 0;
+    if (this.tasks.size > 0) {
+      this.render();
+    }
+  }
+
+  // ==================== Single-Spinner API (Backward Compatible) ====================
+
+  /**
+   * Start single-spinner mode (backward compatible with GOSpinner)
+   * @param message Spinner message
+   */
+  public start(message: string): void {
+    // If already in single-spinner mode, stop first
+    if (this.singleSpinnerMode) {
+      this.stopSingle();
+    }
+
+    this.singleSpinnerMode = true;
+    this.spin(this.singleSpinnerId, message);
+  }
+
+  /**
+   * Update single-spinner message (backward compatible with GOSpinner)
+   * @param message Updated message
+   */
+  public updateMessage(message: string): void {
+    if (this.singleSpinnerMode) {
+      this.spin(this.singleSpinnerId, message);
+    }
+  }
+
+  /**
+   * Stop single-spinner without message (backward compatible with GOSpinner)
+   * @param message Optional final message to display
+   */
+  public stop(message?: string): void {
+    if (this.singleSpinnerMode) {
+      this.stopSingle(message);
+    } else {
+      this.stopAll();
+    }
+  }
+
+  /**
+   * Complete single-spinner with success (backward compatible with GOSpinner)
+   * This is an overload that works in single-spinner mode
+   * @param message Success message
+   */
+  public succeed(message?: string): void;
+  /**
+   * Complete a task with success (multi-spinner mode)
+   * @param id Task identifier
+   * @param text Final message (optional, uses current text if not provided)
+   */
+  public succeed(id: string, text?: string): void;
+  public succeed(messageOrId?: string, text?: string): void {
+    if (this.singleSpinnerMode && arguments.length <= 1) {
+      // Single-spinner mode: succeed(message?)
+      this.completeTask(this.singleSpinnerId, messageOrId, 'success');
+    } else {
+      // Multi-spinner mode: succeed(id, text?)
+      this.completeTask(messageOrId!, text, 'success');
+    }
+  }
+
+  /**
+   * Complete single-spinner with failure (backward compatible with GOSpinner)
+   * This is an overload that works in single-spinner mode
+   * @param message Failure message
+   */
+  public fail(message?: string): void;
+  /**
+   * Complete a task with failure (multi-spinner mode)
+   * @param id Task identifier
+   * @param text Final message (optional, uses current text if not provided)
+   */
+  public fail(id: string, text?: string): void;
+  public fail(messageOrId?: string, text?: string): void {
+    if (this.singleSpinnerMode && arguments.length <= 1) {
+      // Single-spinner mode: fail(message?)
+      this.completeTask(this.singleSpinnerId, messageOrId, 'fail');
+    } else {
+      // Multi-spinner mode: fail(id, text?)
+      this.completeTask(messageOrId!, text, 'fail');
+    }
+  }
+
+  /**
+   * Complete single-spinner with warning (backward compatible with GOSpinner)
+   * This is an overload that works in single-spinner mode
+   * @param message Warning message
+   */
+  public warn(message?: string): void;
+  /**
+   * Complete a task with warning (multi-spinner mode)
+   * @param id Task identifier
+   * @param text Final message (optional, uses current text if not provided)
+   */
+  public warn(id: string, text?: string): void;
+  public warn(messageOrId?: string, text?: string): void {
+    if (this.singleSpinnerMode && arguments.length <= 1) {
+      // Single-spinner mode: warn(message?)
+      this.completeTask(this.singleSpinnerId, messageOrId, 'warn');
+    } else {
+      // Multi-spinner mode: warn(id, text?)
+      this.completeTask(messageOrId!, text, 'warn');
+    }
+  }
+
+  /**
+   * Complete single-spinner with info (backward compatible with GOSpinner)
+   * This is an overload that works in single-spinner mode
+   * @param message Info message
+   */
+  public info(message?: string): void;
+  /**
+   * Complete a task with info (multi-spinner mode)
+   * @param id Task identifier
+   * @param text Final message (optional, uses current text if not provided)
+   */
+  public info(id: string, text?: string): void;
+  public info(messageOrId?: string, text?: string): void {
+    if (this.singleSpinnerMode && arguments.length <= 1) {
+      // Single-spinner mode: info(message?)
+      this.completeTask(this.singleSpinnerId, messageOrId, 'info');
+    } else {
+      // Multi-spinner mode: info(id, text?)
+      this.completeTask(messageOrId!, text, 'info');
+    }
+  }
+
+  private stopSingle(message?: string): void {
+    if (this.tasks.has(this.singleSpinnerId)) {
+      this.tasks.delete(this.singleSpinnerId);
+      this.clear();
+
+      if (message) {
+        console.log(this.indent + message);
+      }
+
+      this.lastLineCount = 0;
+      this.stopAnimation();
+      this.singleSpinnerMode = false;
+    }
+  }
+
+  // ==================== Common Methods ====================
+
+  /**
+   * Stop all spinners and clear display
+   */
+  public stopAll(): void {
+    this.clear();
+    this.tasks.clear();
+    this.stopAnimation();
+    this.singleSpinnerMode = false;
+  }
+
+  /**
+   * Check if any spinners are active
+   */
+  public isActive(): boolean {
+    return this.isRunning;
+  }
+
+  /**
+   * Get count of active tasks
+   */
+  public getActiveCount(): number {
+    return this.tasks.size;
+  }
+
+  // ==================== Private Methods ====================
+
+  private completeTask(id: string, text: string | undefined, status: 'success' | 'fail' | 'warn' | 'info'): void {
+    const task = this.tasks.get(id);
+    if (!task) return;
+
+    const finalText = text ?? task.text;
+    this.tasks.delete(id);
+    this.clear();
+
+    let symbol: string;
+    switch (status) {
+      case 'success':
+        symbol = `${this.successColor}✔︎\x1b[0m`;
+        break;
+      case 'fail':
+        symbol = `${this.errorColor}✖︎\x1b[0m`;
+        break;
+      case 'warn':
+        symbol = `${this.warningColor}⚠\x1b[0m`;
+        break;
+      case 'info':
+        symbol = `${this.infoColor}ℹ\x1b[0m`;
+        break;
+      default:
+        symbol = `${this.infoColor}\x1b[0m`;
+        break;
+    }
+
+    // eslint-disable-next-line no-console
+    console.log(`${this.indent}${symbol} ${finalText}`);
+    this.lastLineCount = 0;
+
+    if (this.tasks.size === 0) {
+      this.stopAnimation();
+      if (id === this.singleSpinnerId) {
+        this.singleSpinnerMode = false;
+      }
+    } else {
+      this.render();
+    }
+  }
+
+  private startAnimation(): void {
+    if (this.isRunning) return;
+    this.isRunning = true;
+    process.stdout.write('\x1B[?25l'); // Hide cursor
+    this.interval = setInterval(() => this.render(), this.animationInterval);
+    this.render();
+  }
+
+  private stopAnimation(): void {
+    if (!this.isRunning) return;
+    this.clear();
+    this.isRunning = false;
+    if (this.interval) {
+      clearInterval(this.interval);
+      this.interval = undefined;
+    }
+    process.stdout.write('\x1B[?25h'); // Show cursor
+    this.lastLineCount = 0;
+  }
+
+  private clear(): void {
+    if (this.lastLineCount > 0) {
+      readline.moveCursor(process.stdout, 0, -this.lastLineCount);
+      readline.clearScreenDown(process.stdout);
+    }
+  }
+
+  private render(): void {
+    this.clear();
+
+    const frame = this.frames[this.currentFrame];
+    this.currentFrame = (this.currentFrame + 1) % this.frames.length;
+
+    let output = '';
+    let count = 0;
+
+    for (const [, task] of this.tasks) {
+      const maxWidth = process.stdout.columns ? process.stdout.columns - this.indent.length - 3 : 80;
+      let text = task.text;
+      if (text.length > maxWidth) {
+        text = `${text.substring(0, maxWidth - 3)}...`;
+      }
+      output += `${this.indent}${this.spinnerColor}${frame}\x1b[0m ${text}\n`;
+      count++;
+    }
+
+    if (output.length > 0) {
+      process.stdout.write(output);
+    }
+
+    this.lastLineCount = count;
+  }
+}

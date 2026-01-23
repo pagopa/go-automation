@@ -1,0 +1,68 @@
+# Configurazione AWS
+aws:
+  profile: 
+  environment: 
+  region: 
+
+# Configurazione Athena
+athena:
+  database: 
+  catalog: 
+  workGroup: 
+  outputLocation:
+  maxRetries: 60         # Numero massimo di tentativi per controllare lo stato della query
+  retryDelay: 10000      # Delay in millisecondi tra un tentativo e l'altro 
+
+  # Query SQL da eseguire
+  # Placeholder disponibili:
+  #   Date complete: {{startDate}}, {{endDate}} (formato: YYYY-MM-DD HH:MI:SS)
+  #   Partizioni: {{startYear}}, {{startMonth}}, {{startDay}}, {{startHour}}
+  #               {{endYear}}, {{endMonth}}, {{endDay}}, {{endHour}}
+  query: |
+    WITH interesting_timelines AS (
+      SELECT
+        timelineElementId,
+        date_trunc( 'hour', at_timezone(from_iso8601_timestamp(timestamp), 'Europe/Rome')) as ora_invio
+      FROM
+        pn_timelines_json_view
+      WHERE
+        timelineElementId LIKE '%TPP%'
+        AND CONCAT(p_year, p_month, p_day, p_hour) >= '{{startYear}}{{startMonth}}{{startDay}}{{startHour}}'
+        AND CONCAT(p_year, p_month, p_day, p_hour) <= '{{endYear}}{{endMonth}}{{endDay}}{{endHour}}'
+    )
+    SELECT
+      ora_invio,
+      count(*) as notifiche_tpp
+    FROM 
+      interesting_timelines
+    GROUP BY 
+      ora_invio
+    ORDER BY 
+      ora_invio
+
+# Configurazione Slack
+slack:
+  token: 
+  channel: 
+  messageTemplate: |
+    📊 *Report TPP Messages*
+
+    *Periodo analizzato:*
+    • Da: {{startDate}}
+    • A: {{endDate}}
+
+    *Risultati:*
+    • Righe totali: {{rowCount}}
+    • File generato: `{{fileName}}`
+
+    *Analisi preliminare:*
+    {{analysis}}
+
+    _Report generato il {{timestamp}}_
+
+analysis:
+  thresholdField: notifiche_tpp
+  threshold: 100
+
+output:
+  reportsFolder: reports

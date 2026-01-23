@@ -1,0 +1,117 @@
+# =============================================================================
+# Docker Compose - send-import-notifications
+# =============================================================================
+# Local development and testing configuration
+#
+# Usage:
+#   Build:     docker compose build
+#   Run:       docker compose run --rm app
+#   Shell:     docker compose run --rm app /bin/sh
+#   Logs:      docker compose logs -f
+#
+# Volume Strategy:
+#   The data/ directory is mounted as a bind mount, allowing:
+#   - Input files to be placed in data/send-import-notifications/inputs/
+#   - Output files to be generated in data/send-import-notifications/outputs/
+#   - Config files to be edited in data/send-import-notifications/configs/
+# =============================================================================
+
+services:
+  app:
+    build:
+      context: ../../..  # Monorepo root
+      dockerfile: scripts/send/send-import-notifications/Dockerfile
+    image: go-automation/send-import-notifications:latest
+    container_name: send-import-notifications
+
+    # Volume mounts
+    volumes:
+      # Mount the centralized data directory (read-write)
+      # This preserves the monorepo data structure:
+      #   data/send-import-notifications/
+      #     configs/   - Configuration files
+      #     inputs/    - Input CSV files
+      #     outputs/   - Generated outputs (logs, exports)
+      - ../../../data/send-import-notifications:/app/data/send-import-notifications:rw
+
+    # Environment variables
+    environment:
+      # Node.js settings
+      - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=4096
+      # Optional: Timezone
+      - TZ=Europe/Rome
+
+    # Environment file for secrets (API keys, etc.)
+    # Create .env file with: PN_API_KEY=your-api-key
+    env_file:
+      - .env.docker
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+    # Security settings
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # Needs write for outputs
+
+    # Network mode
+    network_mode: bridge
+
+    # Restart policy
+    restart: "no"
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Development variant with additional tools
+  dev:
+    build:
+      context: ../../..
+      dockerfile: scripts/send/send-import-notifications/Dockerfile
+      target: build  # Use build stage for dev (includes dev dependencies)
+    image: go-automation/send-import-notifications:dev
+    container_name: send-import-notifications-dev
+
+    volumes:
+      # Mount entire monorepo for development
+      - ../../..:/app:rw
+      # Named volume for node_modules (performance on macOS)
+      - node_modules:/app/node_modules
+      - go_common_modules:/app/packages/go-common/node_modules
+      - script_modules:/app/scripts/send/send-import-notifications/node_modules
+
+    environment:
+      - NODE_ENV=development
+      - NODE_OPTIONS=--max-old-space-size=4096
+      - TZ=Europe/Rome
+
+    env_file:
+      - .env.docker
+
+    working_dir: /app/scripts/send/send-import-notifications
+
+    # Override command for dev mode
+    command: ["pnpm", "dev"]
+
+    # Keep container running for development
+    stdin_open: true
+    tty: true
+
+volumes:
+  # Named volumes for node_modules (better performance on macOS)
+  node_modules:
+  go_common_modules:
+  script_modules:

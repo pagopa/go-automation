@@ -1,0 +1,73 @@
+{
+  "compilerOptions": {
+    // Language and Environment
+    "target": "ES2024",
+    "lib": [
+      "ES2024"
+    ],
+    // Module System - Native ESM for Node.js
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    // Emit
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "removeComments": false,
+    "importHelpers": false,
+    "downlevelIteration": true,
+    "newLine": "lf",
+    // Type Checking - Ultra Strict Mode
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "useUnknownInCatchVariables": true,
+    // Unused Code Detection
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowUnusedLabels": false,
+    // Control Flow Analysis
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "allowUnreachableCode": false,
+    // Index & Property Access Safety
+    // noUncheckedIndexedAccess: array[i] returns T|undefined, previene runtime errors
+    "noUncheckedIndexedAccess": true,
+    "noPropertyAccessFromIndexSignature": true,
+    // Override & Optional Properties
+    "noImplicitOverride": true,
+    // exactOptionalPropertyTypes: distingue tra "omesso" e "undefined esplicito"
+    // TODO: Abilitare dopo aver fixato go-common (richiede refactoring di ~200 assegnazioni)
+    "exactOptionalPropertyTypes": true,
+    // Modules
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "preserveSymlinks": false,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    // verbatimModuleSyntax: forza "import type" e estensioni .js esplicite
+    // TODO: Abilitare dopo migrazione completa a ESM (richiede ~500 import updates)
+    "verbatimModuleSyntax": true,
+    // Emit Constraints
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    // Interop Constraints
+    "allowJs": false,
+    "checkJs": false,
+    // Completeness
+    "skipDefaultLibCheck": true,
+    // Developer Experience
+    // noErrorTruncation: mostra messaggi di errore TypeScript completi
+    "noErrorTruncation": true
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.spec.ts",
+    "**/*.test.ts"
+  ]
+}

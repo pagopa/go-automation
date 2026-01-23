@@ -1,0 +1,40 @@
+{
+  "name": "go-report-alarms",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Script di analisi degli allarmi CloudWatch per il team GO - Gestione Operativa",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "pnpm build && node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "keywords": [
+    "cloudwatch",
+    "alarms",
+    "aws",
+    "report",
+    "typescript",
+    "go-automation"
+  ],
+  "files": [
+    "dist",
+    "package.json",
+    "configs/config.json"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.0.0",
+    "@aws-sdk/credential-provider-ini": "^3.0.0",
+    "@go-automation/go-common": "workspace:*",
+    "luxon": "^3.7.2"
+  },
+  "devDependencies": {
+    "@types/luxon": "^3.7.1",
+    "@types/node": "^24.10.9"
+  }
+}

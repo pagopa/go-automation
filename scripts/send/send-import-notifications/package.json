@@ -1,0 +1,38 @@
+{
+  "name": "send-import-notifications",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Script di importazione notifiche SEND da CSV con upload documenti e polling IUN",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "pnpm build && node dist/index.js",
+    "dev": "NODE_EXTRA_CA_CERTS=/Users/massimo/Desktop/Proxyman.pem tsx src/index.ts",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "docker:build": "docker compose build",
+    "docker:run": "docker compose run --rm app",
+    "docker:dry-run": "./docker-run.sh dry-run",
+    "docker:shell": "docker compose run --rm app /bin/sh",
+    "docker:logs": "docker compose logs -f"
+  },
+  "keywords": [
+    "send",
+    "notifications",
+    "import",
+    "csv",
+    "pn",
+    "typescript",
+    "go-automation"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "dependencies": {
+    "@go-automation/go-common": "workspace:*",
+    "dotenv": "^16.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.9"
+  }
+}

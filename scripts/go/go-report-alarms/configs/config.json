@@ -1,0 +1,16 @@
+{
+  "ignore": {
+    "patterns": [
+      "-CumulativeAlarm",
+      "workday-SLAViolations-",
+      "autoscaling-rest",
+      "-DLQ-IncreasingMessage",
+      "-DLQ-HasMessage",
+      "pn-paper-channel-autoscaling-custom",
+      "pn-radd-SSL-Certificate-Expiration-Alarm",
+      "pn-web-logout-api-ErrorAlarm",
+      "pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm",
+      "redshift-interop-analytics"
+    ]
+  }
+}

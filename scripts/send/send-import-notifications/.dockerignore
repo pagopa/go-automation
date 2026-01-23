@@ -1,0 +1,88 @@
+# =============================================================================
+# .dockerignore - send-import-notifications
+# =============================================================================
+# Note: This file is placed in the script directory but the build context
+# is the monorepo root. For monorepo-wide exclusions, use /.dockerignore
+# =============================================================================
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Dependencies (will be installed in container)
+node_modules
+**/node_modules
+.pnpm-store
+
+# Build artifacts (will be built in container)
+dist
+**/dist
+**/*.tsbuildinfo
+.tsbuildinfo
+
+# Development files
+*.log
+logs
+**/logs
+
+# IDE and editor
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files (secrets - should be passed via env vars)
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+**/configs/.env
+
+# Test files
+**/*.test.ts
+**/*.spec.ts
+coverage
+.nyc_output
+
+# Documentation (not needed at runtime)
+*.md
+docs
+
+# Large data files (should be mounted as volumes)
+data
+**/data
+
+# Reports and outputs (generated at runtime)
+reports
+**/reports
+**/outputs
+
+# Temporary files
+tmp
+temp
+*.tmp
+*.temp
+
+# CI/CD
+.github
+.gitlab-ci.yml
+
+# Lock files backup
+pnpm-lock.yaml.bak
+package-lock.json
+
+# Example and sample files
+examples
+**/examples
+*.example
+*.sample
+
+# CSV files (data should be mounted)
+*.csv
