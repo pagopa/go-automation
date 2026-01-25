@@ -55,9 +55,9 @@ RUN pnpm --filter=@go-automation/go-common build
 # Build the script
 RUN pnpm --filter=send-import-notifications build
 
-# Use pnpm deploy to prepare production deployment (preserves workspace links)
-# pnpm v10+ changed prune behavior, use deploy --legacy instead for monorepo workspaces
-RUN pnpm --filter=send-import-notifications deploy --prod --legacy /tmp/prod-deploy
+# Use pnpm deploy to prepare production deployment
+# pnpm v10+ with inject-workspace-packages=true resolves workspace deps properly
+RUN pnpm --filter=send-import-notifications deploy --prod /tmp/prod-deploy
 
 # -----------------------------------------------------------------------------
 # Stage 3: Production

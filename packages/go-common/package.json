@@ -15,6 +15,7 @@
     "build": "tsc --build",
     "watch": "tsc --build --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
+    "prepare": "pnpm run build",
     "prepublish": "pnpm run build"
   },
   "keywords": [

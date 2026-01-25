@@ -68,7 +68,7 @@ function setupEventListeners(
 
       if (event.errors && event.errors.length > 0) {
         const errorDetails = event.errors
-          .map(err => typeof err === 'string' ? err : JSON.stringify(err))
+          .map((err: string | Record<string, unknown>) => typeof err === 'string' ? err : JSON.stringify(err))
           .join('\n    ');
         message += ` Errors: ${errorDetails}`;
         prompt.spinFail(spinnerId, message);
@@ -173,9 +173,12 @@ function displayResults(
   if (result.errors && result.errors.length > 0) {
     script.logger.newline();
     script.logger.warning(`Errors encountered: ${result.errors.length}`);
-    result.errors.slice(0, 5).forEach((error, index) => {
-      script.logger.error(`  ${index + 1}. Row ${error.rowIndex} [${error.type}]: ${error.message}`);
-    });
+    const errorsToShow: readonly SEND.SENDNotificationImportWorkerError[] = result.errors.slice(0, 5);
+    let errorIndex = 0;
+    for (const error of errorsToShow) {
+      errorIndex += 1;
+      script.logger.error(`  ${errorIndex}. Row ${error.rowIndex} [${error.type}]: ${error.message}`);
+    }
     if (result.errors.length > 5) {
       script.logger.info(`  ... and ${result.errors.length - 5} more errors`);
     }

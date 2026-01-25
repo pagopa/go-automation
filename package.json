@@ -5,7 +5,7 @@
   "type": "module",
   "description": "GO Automation Scripts and Tools Monorepo",
   "scripts": {
-    "build": "pnpm -r --filter='@go-automation/*' build",
+    "build": "pnpm build:common && pnpm build:scripts",
     "build:common": "pnpm --filter=@go-automation/go-common build",
     "build:scripts": "pnpm -r --filter='./scripts/**' build",
     "clean": "pnpm -r run clean",
