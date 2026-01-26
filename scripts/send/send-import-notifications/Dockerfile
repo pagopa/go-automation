@@ -14,7 +14,7 @@
 # -----------------------------------------------------------------------------
 # Stage 1: Base
 # -----------------------------------------------------------------------------
-FROM node:24-alpine AS base
+FROM node:24-alpine@sha256:931d7d57f8c1fd0e2179dbff7cc7da4c9dd100998bc2b32afc85142d8efbc213 AS base
 
 # Install pnpm globally
 # RUN corepack enable && corepack prepare pnpm@9 --activate
@@ -62,7 +62,7 @@ RUN pnpm --filter=send-import-notifications deploy --prod /tmp/prod-deploy
 # -----------------------------------------------------------------------------
 # Stage 3: Production
 # -----------------------------------------------------------------------------
-FROM node:24-alpine AS production
+FROM node:24-alpine@sha256:931d7d57f8c1fd0e2179dbff7cc7da4c9dd100998bc2b32afc85142d8efbc213 AS production
 
 # Add labels for container identification
 LABEL org.opencontainers.image.title="send-import-notifications"
