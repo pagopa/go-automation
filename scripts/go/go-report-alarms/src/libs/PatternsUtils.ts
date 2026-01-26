@@ -47,7 +47,7 @@ export function validateIgnorePatterns(config: unknown): string[] {
  * Falls back to default patterns if file doesn't exist or is invalid
  */
 export async function loadIgnorePatterns(): Promise<ReadonlyArray<string>> {
-  const configPath = path.join(__dirname, '../configs/ignore-patterns.json');
+  const configPath = path.join(import.meta.dirname, '../configs/ignore-patterns.json');
 
   try {
     const configData = await fs.readFile(configPath, 'utf-8');

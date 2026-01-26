@@ -7,7 +7,6 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import * as url from 'url';
 
 import { Core } from '@go-automation/go-common';
 
@@ -27,8 +26,6 @@ import type { CSVRow } from './types/CSVRow.js';
 import type { QueryParams } from './types/QueryParams.js';
 import type { TPPMonitorConfig } from './types/TPPMonitorConfig.js';
 
-const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
-
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -40,7 +37,7 @@ const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
  * @throws Error if config file is missing or invalid
  */
 async function loadQueryTemplate(): Promise<string> {
-  const configPath = path.join(__dirname, '..', 'configs', 'config.yaml');
+  const configPath = path.join(import.meta.dirname, '..', 'configs', 'config.yaml');
   try {
     const { parse: parseYaml } = await import('yaml');
     const configData = await fs.readFile(configPath, 'utf-8');
@@ -52,7 +49,7 @@ async function loadQueryTemplate(): Promise<string> {
     return query;
   } catch (error) {
     throw new Error(
-      `Failed to load query from config: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Failed to load query from config: ${error instanceof Error ? error.message : 'Unknown error'}`,
     );
   }
 }
@@ -63,7 +60,7 @@ async function loadQueryTemplate(): Promise<string> {
  * @returns Message template string
  */
 async function loadSlackMessageTemplate(): Promise<string> {
-  const configPath = path.join(__dirname, '..', 'configs', 'config.yaml');
+  const configPath = path.join(import.meta.dirname, '..', 'configs', 'config.yaml');
   try {
     const { parse: parseYaml } = await import('yaml');
     const configData = await fs.readFile(configPath, 'utf-8');
@@ -112,7 +109,7 @@ async function executeAthenaQuery(
   executor: AthenaQueryExecutor,
   queryTemplate: string,
   athenaConfig: AthenaQueryConfig,
-  queryParams: QueryParams
+  queryParams: QueryParams,
 ): Promise<AthenaQueryResults> {
   return executor.executeQuery(queryTemplate, athenaConfig, queryParams);
 }
@@ -130,7 +127,7 @@ function saveAndAnalyzeResults(
   csvManager: CSVManager,
   results: AthenaQueryResults,
   thresholdField?: string,
-  threshold?: number
+  threshold?: number,
 ): {
   csvFilePath: string | null;
   rowCount: number;
@@ -179,7 +176,7 @@ async function sendSlackReport(
   csvFilePath: string | null,
   rowCount: number,
   analysis: string,
-  csvManager: CSVManager
+  csvManager: CSVManager,
 ): Promise<boolean> {
   if (!slackNotifier) {
     return false;
@@ -233,10 +230,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     region: config.awsRegion,
   });
 
-  const athenaExecutor = new AthenaQueryExecutor(
-    athenaService,
-    (msg) => script.logger.info(msg)
-  );
+  const athenaExecutor = new AthenaQueryExecutor(athenaService, (msg) => script.logger.info(msg));
 
   // Initialize CSV Manager
   const csvManager = new CSVManager(config.reportsFolder);
@@ -272,7 +266,12 @@ export async function main(script: Core.GOScript): Promise<void> {
     // Execute query
     script.logger.section('Executing Athena Query');
     script.prompt.startSpinner('Running query...');
-    const results = await executeAthenaQuery(athenaExecutor, queryTemplate, athenaConfig, queryParams);
+    const results = await executeAthenaQuery(
+      athenaExecutor,
+      queryTemplate,
+      athenaConfig,
+      queryParams,
+    );
     script.prompt.spinnerStop('Query completed');
 
     // Save and analyze results
@@ -281,7 +280,7 @@ export async function main(script: Core.GOScript): Promise<void> {
       csvManager,
       results,
       config.analysisThresholdField,
-      config.analysisThreshold
+      config.analysisThreshold,
     );
 
     script.logger.info(`Total rows: ${rowCount}`);
@@ -291,7 +290,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     }
 
     // Send Slack report
-    const messageTemplate = config.slackMessageTemplate ?? await loadSlackMessageTemplate();
+    const messageTemplate = config.slackMessageTemplate ?? (await loadSlackMessageTemplate());
     const slackSent = await sendSlackReport(
       slackNotifier,
       messageTemplate,
@@ -300,7 +299,7 @@ export async function main(script: Core.GOScript): Promise<void> {
       csvFilePath,
       rowCount,
       analysis,
-      csvManager
+      csvManager,
     );
 
     // Summary
@@ -308,18 +307,17 @@ export async function main(script: Core.GOScript): Promise<void> {
     script.logger.info(`CSV report: ${csvFilePath ?? 'N/A (no data)'}`);
     script.logger.info(`Total rows: ${rowCount}`);
     script.logger.info(`Slack notification: ${slackSent ? 'SENT' : 'SKIPPED (not configured)'}`);
-
   } catch (error) {
     // Attempt to send error to Slack
     if (slackNotifier) {
       try {
         await slackNotifier.sendError(
           'Error during report generation',
-          error instanceof Error ? error : undefined
+          error instanceof Error ? error : undefined,
         );
       } catch (slackError) {
         script.logger.error(
-          `Failed to send error to Slack: ${slackError instanceof Error ? slackError.message : 'Unknown error'}`
+          `Failed to send error to Slack: ${slackError instanceof Error ? slackError.message : 'Unknown error'}`,
         );
       }
     }

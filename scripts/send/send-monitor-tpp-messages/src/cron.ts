@@ -6,14 +6,9 @@
  */
 
 import { spawn } from 'child_process';
-import { dirname, resolve } from 'path';
-import { fileURLToPath } from 'url';
+import { resolve } from 'path';
 
 import { Cron } from 'croner';
-
-// ES module equivalent of __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 /**
  * Runs the main script as a child process
@@ -23,7 +18,7 @@ function runJob(): void {
   const startTime = new Date().toISOString();
   console.log(`[${startTime}] Starting scheduled job...`);
 
-  const scriptPath = resolve(__dirname, 'index.js');
+  const scriptPath = resolve(import.meta.dirname, 'index.js');
   const child = spawn('node', [scriptPath], {
     stdio: 'inherit',
     env: process.env,

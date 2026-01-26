@@ -6,8 +6,8 @@
  * Strategy for handling column name conflicts when merging original data
  */
 export type ColumnConflictStrategy =
-  | 'keep-generated'   // Generated values override original (default)
-  | 'keep-original'    // Original values override generated
+  | 'keep-generated' // Generated values override original (default)
+  | 'keep-original' // Original values override generated
   | 'prefix-generated' // Prefix generated columns that conflict (e.g., '_gen_iun')
   | 'prefix-original'; // Prefix original columns that conflict (e.g., '_orig_iun')
 

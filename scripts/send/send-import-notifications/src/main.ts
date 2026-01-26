@@ -25,7 +25,7 @@ function setupEventListeners(
   worker: SEND.SENDNotificationImportWorker,
   importer: Core.GOCSVListImporter,
   exporter: Core.GOCSVListExporter<Record<string, unknown>> | undefined,
-  prompt: Core.GOPrompt
+  prompt: Core.GOPrompt,
 ): void {
   // Worker events
   worker.on('worker:progress', (event) => {
@@ -33,7 +33,7 @@ function setupEventListeners(
     let msg = '';
     if (progress.phase === 'importing') {
       msg = `[IMPORT] ${progress.percentage}% - Rows: ${progress.processedRows}, Valid: ${progress.processedRows - progress.failedRows}, Invalid: ${progress.failedRows}`;
-      prompt.spin("importing", `\x1b[36m>\x1b[0m ${msg}`);
+      prompt.spin('importing', `\x1b[36m>\x1b[0m ${msg}`);
     } else {
       msg = `[PROCESS] ${progress.percentage}% - Processed: ${progress.processedRows}/${progress.totalRows}, Uploaded: ${progress.documentsUploaded}, Sent: ${progress.notificationsSent}, IUNs: ${progress.iunsObtained}, Failed: ${progress.failedRows}`;
       prompt.spinLog(`\x1b[36m>\x1b[0m ${msg}`);
@@ -68,7 +68,9 @@ function setupEventListeners(
 
       if (event.errors && event.errors.length > 0) {
         const errorDetails = event.errors
-          .map((err: string | Record<string, unknown>) => typeof err === 'string' ? err : JSON.stringify(err))
+          .map((err: string | Record<string, unknown>) =>
+            typeof err === 'string' ? err : JSON.stringify(err),
+          )
           .join('\n    ');
         message += ` Errors: ${errorDetails}`;
         prompt.spinFail(spinnerId, message);
@@ -83,7 +85,7 @@ function setupEventListeners(
       const spinnerId = event.notificationRequestId;
       prompt.spinFail(
         spinnerId,
-        `IUN polling failed after ${event.attempts} attempts: ${event.row.subject}`
+        `IUN polling failed after ${event.attempts} attempts: ${event.row.subject}`,
       );
     }
   });
@@ -92,9 +94,10 @@ function setupEventListeners(
     let errorMsg = `\x1b[31mX\x1b[0m Error at row ${event.error.rowIndex} [${event.error.type}]: ${event.error.message}`;
 
     if (event.error.details) {
-      const details = typeof event.error.details === 'object'
-        ? JSON.stringify(event.error.details, null, 2)
-        : String(event.error.details);
+      const details =
+        typeof event.error.details === 'object'
+          ? JSON.stringify(event.error.details, null, 2)
+          : String(event.error.details);
       errorMsg += `\n    Details: ${details}`;
     }
 
@@ -107,9 +110,10 @@ function setupEventListeners(
   });
 
   importer.on('import:completed', (event) => {
-    prompt.spinSucceed("importing",
+    prompt.spinSucceed(
+      'importing',
       `\x1b[32mOK\x1b[0m Import completed: ${event.totalItems} items, ` +
-      `${event.invalidItems} invalid (${event.duration}ms)`
+        `${event.invalidItems} invalid (${event.duration}ms)`,
     );
   });
 
@@ -121,7 +125,7 @@ function setupEventListeners(
 
     exporter.on('export:completed', (event) => {
       prompt.spinLog(
-        `\x1b[32mOK\x1b[0m Export completed: ${event.totalItems} items (${event.duration}ms)`
+        `\x1b[32mOK\x1b[0m Export completed: ${event.totalItems} items (${event.duration}ms)`,
       );
     });
   }
@@ -141,7 +145,7 @@ function setupEventListeners(
 function displayResults(
   script: Core.GOScript,
   result: SEND.SENDNotificationImportWorkerResult,
-  exportFilePath?: string
+  exportFilePath?: string,
 ): void {
   script.logger.newline();
   script.logger.section('Workflow Results');
@@ -173,11 +177,16 @@ function displayResults(
   if (result.errors && result.errors.length > 0) {
     script.logger.newline();
     script.logger.warning(`Errors encountered: ${result.errors.length}`);
-    const errorsToShow: readonly SEND.SENDNotificationImportWorkerError[] = result.errors.slice(0, 5);
+    const errorsToShow: ReadonlyArray<SEND.SENDNotificationImportWorkerError> = result.errors.slice(
+      0,
+      5,
+    );
     let errorIndex = 0;
     for (const error of errorsToShow) {
       errorIndex += 1;
-      script.logger.error(`  ${errorIndex}. Row ${error.rowIndex} [${error.type}]: ${error.message}`);
+      script.logger.error(
+        `  ${errorIndex}. Row ${error.rowIndex} [${error.type}]: ${error.message}`,
+      );
     }
     if (result.errors.length > 5) {
       script.logger.info(`  ... and ${result.errors.length - 5} more errors`);
@@ -206,7 +215,10 @@ export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<ImportNotificationsConfig>();
 
   // Resolve export file path using convenience method
-  const exportPathInfo = script.paths.resolvePathWithInfo(config.exportFile, Core.GOPathType.OUTPUT);
+  const exportPathInfo = script.paths.resolvePathWithInfo(
+    config.exportFile,
+    Core.GOPathType.OUTPUT,
+  );
   if (exportPathInfo) {
     if (exportPathInfo.isAbsolute) {
       script.logger.info(`Export path (absolute): ${exportPathInfo.path}`);
@@ -238,7 +250,7 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   const importerOptions = {
     ...importerBaseOptions,
-    preserveOriginalData: config.preserveAllColumns
+    preserveOriginalData: config.preserveAllColumns,
   };
 
   const importer = new Core.GOCSVListImporter(importerOptions);
@@ -280,7 +292,7 @@ export async function main(script: Core.GOScript): Promise<void> {
       delimiter: ',',
       mergeOriginalColumns: config.preserveAllColumns,
       columnConflictStrategy: 'keep-generated',
-      skipInvalidItems: true
+      skipInvalidItems: true,
     };
 
     exporterBaseOptions.columns = exportColumns;
@@ -326,10 +338,11 @@ export async function main(script: Core.GOScript): Promise<void> {
     displayResults(script, result, exportPathInfo?.path);
 
     script.logger.success('Workflow completed successfully');
-
   } catch (error) {
     if (error instanceof Core.GOHttpClientError) {
-      script.logger.error(`Workflow failed: ${error.message} - response: ${JSON.stringify(error.response, null, 2)}`);
+      script.logger.error(
+        `Workflow failed: ${error.message} - response: ${JSON.stringify(error.response, null, 2)}`,
+      );
     } else if (error instanceof Error) {
       script.logger.error(`Workflow failed: ${error.message}`);
       script.logger.fatal(`Stack trace:\n${error.stack}`);

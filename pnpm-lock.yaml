@@ -3,7 +3,6 @@ lockfileVersion: '9.0'
 settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
-  injectWorkspacePackages: true
 
 importers:
 
@@ -144,7 +143,7 @@ importers:
         version: 3.955.0
       '@go-automation/go-common':
         specifier: workspace:*
-        version: file:packages/go-common(@aws-sdk/client-athena@3.954.0)(@aws-sdk/client-cloudformation@3.954.0)(@aws-sdk/client-cloudwatch-logs@3.954.0)(@aws-sdk/client-cloudwatch@3.954.0)(@aws-sdk/client-dynamodb@3.954.0)(@aws-sdk/client-ec2@3.954.0)(@aws-sdk/client-ecs@3.954.0)(@aws-sdk/client-eventbridge@3.954.0)(@aws-sdk/client-kinesis@3.954.0)(@aws-sdk/client-kms@3.954.0)(@aws-sdk/client-lambda@3.954.0)(@aws-sdk/client-s3@3.954.0)(@aws-sdk/client-sqs@3.954.0)(@aws-sdk/client-ssm@3.954.0)(@aws-sdk/client-sts@3.954.0)(@aws-sdk/credential-provider-ini@3.955.0)
+        version: link:../../../packages/go-common
       luxon:
         specifier: ^3.7.2
         version: 3.7.2
@@ -160,7 +159,7 @@ importers:
     dependencies:
       '@go-automation/go-common':
         specifier: workspace:*
-        version: file:packages/go-common(@aws-sdk/client-athena@3.954.0)(@aws-sdk/client-cloudformation@3.954.0)(@aws-sdk/client-cloudwatch-logs@3.954.0)(@aws-sdk/client-cloudwatch@3.954.0)(@aws-sdk/client-dynamodb@3.954.0)(@aws-sdk/client-ec2@3.954.0)(@aws-sdk/client-ecs@3.954.0)(@aws-sdk/client-eventbridge@3.954.0)(@aws-sdk/client-kinesis@3.954.0)(@aws-sdk/client-kms@3.954.0)(@aws-sdk/client-lambda@3.954.0)(@aws-sdk/client-s3@3.954.0)(@aws-sdk/client-sqs@3.954.0)(@aws-sdk/client-ssm@3.954.0)(@aws-sdk/client-sts@3.954.0)(@aws-sdk/credential-provider-ini@3.955.0)
+        version: link:../../../packages/go-common
       dotenv:
         specifier: ^16.6.1
         version: 16.6.1
@@ -693,26 +692,6 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@go-automation/go-common@file:packages/go-common':
-    resolution: {directory: packages/go-common, type: directory}
-    peerDependencies:
-      '@aws-sdk/client-athena': ^3.0.0
-      '@aws-sdk/client-cloudformation': ^3.0.0
-      '@aws-sdk/client-cloudwatch': ^3.0.0
-      '@aws-sdk/client-cloudwatch-logs': ^3.0.0
-      '@aws-sdk/client-dynamodb': ^3.0.0
-      '@aws-sdk/client-ec2': ^3.0.0
-      '@aws-sdk/client-ecs': ^3.0.0
-      '@aws-sdk/client-eventbridge': ^3.0.0
-      '@aws-sdk/client-kinesis': ^3.0.0
-      '@aws-sdk/client-kms': ^3.0.0
-      '@aws-sdk/client-lambda': ^3.0.0
-      '@aws-sdk/client-s3': ^3.0.0
-      '@aws-sdk/client-sqs': ^3.0.0
-      '@aws-sdk/client-ssm': ^3.0.0
-      '@aws-sdk/client-sts': ^3.0.0
-      '@aws-sdk/credential-provider-ini': ^3.0.0
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -3205,36 +3184,6 @@ snapshots:
     dependencies:
       '@eslint/core': 0.17.0
       levn: 0.4.1
-
-  '@go-automation/go-common@file:packages/go-common(@aws-sdk/client-athena@3.954.0)(@aws-sdk/client-cloudformation@3.954.0)(@aws-sdk/client-cloudwatch-logs@3.954.0)(@aws-sdk/client-cloudwatch@3.954.0)(@aws-sdk/client-dynamodb@3.954.0)(@aws-sdk/client-ec2@3.954.0)(@aws-sdk/client-ecs@3.954.0)(@aws-sdk/client-eventbridge@3.954.0)(@aws-sdk/client-kinesis@3.954.0)(@aws-sdk/client-kms@3.954.0)(@aws-sdk/client-lambda@3.954.0)(@aws-sdk/client-s3@3.954.0)(@aws-sdk/client-sqs@3.954.0)(@aws-sdk/client-ssm@3.954.0)(@aws-sdk/client-sts@3.954.0)(@aws-sdk/credential-provider-ini@3.955.0)':
-    dependencies:
-      '@aws-sdk/client-athena': 3.954.0
-      '@aws-sdk/client-cloudformation': 3.954.0
-      '@aws-sdk/client-cloudwatch': 3.954.0
-      '@aws-sdk/client-cloudwatch-logs': 3.954.0
-      '@aws-sdk/client-dynamodb': 3.954.0
-      '@aws-sdk/client-ec2': 3.954.0
-      '@aws-sdk/client-ecs': 3.954.0
-      '@aws-sdk/client-eventbridge': 3.954.0
-      '@aws-sdk/client-kinesis': 3.954.0
-      '@aws-sdk/client-kms': 3.954.0
-      '@aws-sdk/client-lambda': 3.954.0
-      '@aws-sdk/client-s3': 3.954.0
-      '@aws-sdk/client-sqs': 3.954.0
-      '@aws-sdk/client-ssm': 3.954.0
-      '@aws-sdk/client-sts': 3.954.0
-      '@aws-sdk/credential-provider-ini': 3.955.0
-      '@aws-sdk/credential-providers': 3.955.0
-      cli-table3: 0.6.5
-      csv-parse: 5.6.0
-      csv-stringify: 6.6.0
-      luxon: 3.7.2
-      minimatch: 10.1.1
-      prompts: 2.4.2
-      undici: 7.18.2
-      yaml: 2.8.2
-    transitivePeerDependencies:
-      - aws-crt
 
   '@humanfs/core@0.19.1': {}
 

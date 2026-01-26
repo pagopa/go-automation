@@ -12,11 +12,18 @@ import * as fs from 'fs';
 
 import { GOEventEmitterBase } from '../../../core/events/GOEventEmitterBase.js';
 import type { GOListImporter } from '../../../core/importers/GOListImporter.js';
-import type { GOListImportErrorEvent, GOListImportProgressEvent } from '../../../core/importers/GOListImporterEvents.js';
+import type {
+  GOListImportErrorEvent,
+  GOListImportProgressEvent,
+} from '../../../core/importers/GOListImporterEvents.js';
 import { SENDNotifications } from '../../SENDNotifications.js';
 
 import { SENDNotificationImportBatchProcessor } from './SENDNotificationImportBatchProcessor.js';
-import { SENDNotificationImportRowProcessor, toExportRow, type ToExportRowOptions } from './SENDNotificationImportRowProcessor.js';
+import {
+  SENDNotificationImportRowProcessor,
+  toExportRow,
+  type ToExportRowOptions,
+} from './SENDNotificationImportRowProcessor.js';
 import type { SENDNotificationImportWorkerError } from './SENDNotificationImportWorkerError.js';
 import type { SENDNotificationImportWorkerEventMap } from './SENDNotificationImportWorkerEvents.js';
 import type { SENDNotificationImportWorkerOptions } from './SENDNotificationImportWorkerOptions.js';
@@ -29,37 +36,56 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
   private readonly rowProcessor: SENDNotificationImportRowProcessor;
   private readonly batchProcessor: SENDNotificationImportBatchProcessor;
 
-  constructor(private readonly importer: GOListImporter, sdk: SENDNotifications) {
+  constructor(
+    private readonly importer: GOListImporter,
+    sdk: SENDNotifications,
+  ) {
     super();
     this.rowProcessor = new SENDNotificationImportRowProcessor(sdk);
     this.batchProcessor = new SENDNotificationImportBatchProcessor(this.rowProcessor);
 
     // Register to rowProcessor events and propagate them
-    this.rowProcessor.on('worker:document:uploaded', (event) => this.emit('worker:document:uploaded', event));
-    this.rowProcessor.on('worker:notification:sent', (event) => this.emit('worker:notification:sent', event));
+    this.rowProcessor.on('worker:document:uploaded', (event) =>
+      this.emit('worker:document:uploaded', event),
+    );
+    this.rowProcessor.on('worker:notification:sent', (event) =>
+      this.emit('worker:notification:sent', event),
+    );
     this.rowProcessor.on('worker:iun:obtained', (event) => this.emit('worker:iun:obtained', event));
-    this.rowProcessor.on('worker:iun:polling:attempt', (event) => this.emit('worker:iun:polling:attempt', event));
-    this.rowProcessor.on('worker:iun:polling:failed', (event) => this.emit('worker:iun:polling:failed', event));
+    this.rowProcessor.on('worker:iun:polling:attempt', (event) =>
+      this.emit('worker:iun:polling:attempt', event),
+    );
+    this.rowProcessor.on('worker:iun:polling:failed', (event) =>
+      this.emit('worker:iun:polling:failed', event),
+    );
 
     // Register to batchProcessor events and propagate them
     this.batchProcessor.on('worker:progress', (event) => this.emit('worker:progress', event));
     this.batchProcessor.on('worker:error', (event) => this.emit('worker:error', event));
   }
 
-  async process(source: ImportSource, options: SENDNotificationImportWorkerOptions): Promise<SENDNotificationImportWorkerResult> {
+  async process(
+    source: ImportSource,
+    options: SENDNotificationImportWorkerOptions,
+  ): Promise<SENDNotificationImportWorkerResult> {
     const startTime = Date.now();
     // Choose streaming mode for large files (>10MB by default) or if explicitly requested
     // Streaming mode processes rows incrementally to reduce memory usage
-    const shouldUseStreaming = this.shouldUseStreaming(source, options) && typeof source === 'string';
+    const shouldUseStreaming =
+      this.shouldUseStreaming(source, options) && typeof source === 'string';
 
     if (shouldUseStreaming) {
-      return this.processWithStreaming(source, options, startTime)
+      return this.processWithStreaming(source, options, startTime);
     } else {
       return this.processWithImport(source, options, startTime);
     }
   }
 
-  private async processWithImport(source: ImportSource, options: SENDNotificationImportWorkerOptions, startTime: number): Promise<SENDNotificationImportWorkerResult> {
+  private async processWithImport(
+    source: ImportSource,
+    options: SENDNotificationImportWorkerOptions,
+    startTime: number,
+  ): Promise<SENDNotificationImportWorkerResult> {
     this.emit('worker:progress', {
       progress: {
         phase: 'importing',
@@ -70,8 +96,8 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
         iunsObtained: 0,
         failedRows: 0,
         currentBatch: 0,
-        percentage: 0
-      }
+        percentage: 0,
+      },
     });
 
     // Register event listeners for import progress and errors
@@ -86,8 +112,8 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
           iunsObtained: 0,
           failedRows: importProgress.invalidItems,
           currentBatch: 0,
-          percentage: importProgress.percentage ?? 0
-        }
+          percentage: importProgress.percentage ?? 0,
+        },
       });
     };
 
@@ -97,8 +123,8 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
           rowIndex: importError.itemIndex,
           rowData: importError.itemData,
           message: importError.message,
-          type: 'import'
-        }
+          type: 'import',
+        },
       });
     };
 
@@ -109,21 +135,21 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
       const importResult = await this.importer.import(source);
 
       const errors: SENDNotificationImportWorkerError[] = [
-        ...(importResult.errors || []).map((e) => ({
+        ...(importResult.errors ?? []).map((e) => ({
           rowIndex: e.itemIndex,
           rowData: e.itemData,
           message: e.message,
-          type: 'import' as const
-        }))
+          type: 'import' as const,
+        })),
       ];
 
       const result = await this.batchProcessor.processBatch(
         importResult.items,
         options,
-        0,  // baseProcessedRows = 0 (no rows processed yet)
+        0, // baseProcessedRows = 0 (no rows processed yet)
         importResult.stats.invalidItems,
         errors,
-        importResult.items.length  // totalRows = all imported items
+        importResult.items.length, // totalRows = all imported items
       );
 
       if (options.exporter) {
@@ -134,8 +160,8 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
         ...result,
         stats: {
           ...result.stats,
-          processingTime: Date.now() - startTime
-        }
+          processingTime: Date.now() - startTime,
+        },
       };
     } finally {
       // Clean up event listeners
@@ -144,10 +170,24 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
     }
   }
 
-  private async processWithStreaming(source: string, options: SENDNotificationImportWorkerOptions, startTime: number): Promise<SENDNotificationImportWorkerResult> {
-    const sentNotifications: { row: SENDNotificationRow; notificationRequestId: string, iun?: string | undefined }[] = [];
+  private async processWithStreaming(
+    source: string,
+    options: SENDNotificationImportWorkerOptions,
+    startTime: number,
+  ): Promise<SENDNotificationImportWorkerResult> {
+    const sentNotifications: {
+      row: SENDNotificationRow;
+      notificationRequestId: string;
+      iun?: string | undefined;
+    }[] = [];
     const errors: SENDNotificationImportWorkerError[] = [];
-    const stats = { processedRows: 0, documentsUploaded: 0, notificationsSent: 0, iunsObtained: 0, failedRows: 0 };
+    const stats = {
+      processedRows: 0,
+      documentsUploaded: 0,
+      notificationsSent: 0,
+      iunsObtained: 0,
+      failedRows: 0,
+    };
     let totalRowsFromImport = 0; // Track total rows from import phase
 
     // Register event listeners for import progress and errors
@@ -165,8 +205,8 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
           iunsObtained: stats.iunsObtained,
           failedRows: importProgress.invalidItems + stats.failedRows,
           currentBatch: 0,
-          percentage: importProgress.percentage ?? 0
-        }
+          percentage: importProgress.percentage ?? 0,
+        },
       });
     };
 
@@ -176,8 +216,8 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
           rowIndex: importError.itemIndex,
           rowData: importError.itemData,
           message: importError.message,
-          type: 'import'
-        }
+          type: 'import',
+        },
       });
     };
 
@@ -187,7 +227,9 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
     try {
       // Initialize streaming exporter if provided
       // This allows incremental export as notifications are processed
-      let exportWriter: Awaited<ReturnType<NonNullable<typeof options.exporter>['exportStream']>> | undefined;
+      let exportWriter:
+        | Awaited<ReturnType<NonNullable<typeof options.exporter>['exportStream']>>
+        | undefined;
       if (options.exporter) {
         exportWriter = await options.exporter.exportStream();
       }
@@ -208,7 +250,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
               stats.processedRows,
               stats.failedRows,
               errors,
-              totalRowsFromImport
+              totalRowsFromImport,
             );
             sentNotifications.push(...result.sentNotifications);
             stats.processedRows += result.stats.processedRows;
@@ -236,7 +278,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
             stats.processedRows,
             stats.failedRows,
             errors,
-            totalRowsFromImport
+            totalRowsFromImport,
           );
           sentNotifications.push(...result.sentNotifications);
           stats.processedRows += result.stats.processedRows;
@@ -260,9 +302,9 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
           stats: {
             totalRows: stats.processedRows,
             ...stats,
-            processingTime: Date.now() - startTime
+            processingTime: Date.now() - startTime,
           },
-          errors: errors.length > 0 ? errors : undefined
+          errors: errors.length > 0 ? errors : undefined,
         };
       } catch (error) {
         // Ensure export stream is closed on error
@@ -282,7 +324,10 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
     }
   }
 
-  private shouldUseStreaming(source: string | Buffer, options: SENDNotificationImportWorkerOptions): boolean {
+  private shouldUseStreaming(
+    source: string | Buffer,
+    options: SENDNotificationImportWorkerOptions,
+  ): boolean {
     if (options.useStreaming === true) return true;
     if (options.useStreaming === false) return false;
 
@@ -306,7 +351,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
   private buildExportRowOptions(options: SENDNotificationImportWorkerOptions): ToExportRowOptions {
     return {
       requireIun: !(options.exportAllRows ?? false),
-      includeStatus: options.includeStatusColumns ?? false
+      includeStatus: options.includeStatusColumns ?? false,
     };
   }
 
@@ -314,16 +359,28 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
    * Export batch results to file
    * Collects all notifications with IUN and exports them at once
    */
-  private async exportBatch(result: SENDNotificationImportWorkerResult, options: SENDNotificationImportWorkerOptions): Promise<void> {
+  private async exportBatch(
+    result: SENDNotificationImportWorkerResult,
+    options: SENDNotificationImportWorkerOptions,
+  ): Promise<void> {
     if (!options.exporter) return;
 
     const exportRowOptions = this.buildExportRowOptions(options);
 
     const exportRows = result.sentNotifications
-      .map(sent => toExportRow(
-        { row: sent.row, docUploaded: false, notificationResult: { notificationRequestId: sent.notificationRequestId, iun: sent.iun } },
-        exportRowOptions
-      ))
+      .map((sent) =>
+        toExportRow(
+          {
+            row: sent.row,
+            docUploaded: false,
+            notificationResult: {
+              notificationRequestId: sent.notificationRequestId,
+              iun: sent.iun,
+            },
+          },
+          exportRowOptions,
+        ),
+      )
       .filter((row): row is NonNullable<typeof row> => row !== null);
 
     if (exportRows.length > 0) {
@@ -335,13 +392,23 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
    * Export notifications in streaming mode
    * Each notification with IUN is appended to the export file immediately
    */
-  private async exportStreaming(result: SENDNotificationImportWorkerResult, exportWriter: Awaited<ReturnType<NonNullable<SENDNotificationImportWorkerOptions['exporter']>['exportStream']>>, options: SENDNotificationImportWorkerOptions): Promise<void> {
+  private async exportStreaming(
+    result: SENDNotificationImportWorkerResult,
+    exportWriter: Awaited<
+      ReturnType<NonNullable<SENDNotificationImportWorkerOptions['exporter']>['exportStream']>
+    >,
+    options: SENDNotificationImportWorkerOptions,
+  ): Promise<void> {
     const exportRowOptions = this.buildExportRowOptions(options);
 
     for (const sent of result.sentNotifications) {
       const exportRow = toExportRow(
-        { row: sent.row, docUploaded: false, notificationResult: { notificationRequestId: sent.notificationRequestId, iun: sent.iun } },
-        exportRowOptions
+        {
+          row: sent.row,
+          docUploaded: false,
+          notificationResult: { notificationRequestId: sent.notificationRequestId, iun: sent.iun },
+        },
+        exportRowOptions,
       );
       if (exportRow) {
         await exportWriter.append(exportRow);

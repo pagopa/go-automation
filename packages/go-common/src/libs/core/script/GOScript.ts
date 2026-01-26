@@ -65,7 +65,7 @@ export class GOScript {
   private initialized: boolean = false;
   private configLoaded: boolean = false;
   private configValues: Record<string, unknown> = {};
-  private configSources: Map<string, string> = new Map();  // Track which provider supplied each value
+  private configSources: Map<string, string> = new Map(); // Track which provider supplied each value
   private signalHandlersSetup: boolean = false;
   private isShuttingDown: boolean = false;
 
@@ -100,8 +100,11 @@ export class GOScript {
   /**
    * Initialize AWS credentials manager if aws.profile parameter is defined.
    */
-  private initializeCredentialManager(configOptions?: GOScriptConfigOptions): GOAWSCredentialsManager | undefined {
-    const hasAwsProfileParam = configOptions?.parameters?.some(p => p.name === 'aws.profile') ?? false;
+  private initializeCredentialManager(
+    configOptions?: GOScriptConfigOptions,
+  ): GOAWSCredentialsManager | undefined {
+    const hasAwsProfileParam =
+      configOptions?.parameters?.some((p) => p.name === 'aws.profile') ?? false;
     const awsCredentialsConfig = configOptions?.awsCredentials;
 
     if (awsCredentialsConfig ?? hasAwsProfileParam) {
@@ -109,7 +112,8 @@ export class GOScript {
         autoLogin: awsCredentialsConfig?.autoLogin ?? defaultAwsCredentialsOptions.autoLogin,
         interactive: awsCredentialsConfig?.interactive ?? defaultAwsCredentialsOptions.interactive,
         maxRetries: awsCredentialsConfig?.maxRetries ?? defaultAwsCredentialsOptions.maxRetries,
-        loginTimeout: awsCredentialsConfig?.loginTimeout ?? defaultAwsCredentialsOptions.loginTimeout,
+        loginTimeout:
+          awsCredentialsConfig?.loginTimeout ?? defaultAwsCredentialsOptions.loginTimeout,
         onLog: this.createLogCallback(),
         onPrompt: this.createPromptCallback(false),
       });
@@ -180,17 +184,20 @@ export class GOScript {
     const envConfigInfo = this.paths.getConfigFilePathWithInfo('.env');
 
     // Build user-friendly display names based on config source
-    const jsonDisplayName = jsonConfigInfo.source === 'centralized'
-      ? `JSON(data/${this.paths.getScriptName()}/configs/config.json)`
-      : `JSON(configs/config.json)`;
+    const jsonDisplayName =
+      jsonConfigInfo.source === 'centralized'
+        ? `JSON(data/${this.paths.getScriptName()}/configs/config.json)`
+        : `JSON(configs/config.json)`;
 
-    const yamlDisplayName = yamlConfigInfo.source === 'centralized'
-      ? `YAML(data/${this.paths.getScriptName()}/configs/config.yaml)`
-      : `YAML(configs/config.yaml)`;
+    const yamlDisplayName =
+      yamlConfigInfo.source === 'centralized'
+        ? `YAML(data/${this.paths.getScriptName()}/configs/config.yaml)`
+        : `YAML(configs/config.yaml)`;
 
-    const envDisplayName = envConfigInfo.source === 'centralized'
-      ? `Environment(data/${this.paths.getScriptName()}/configs/.env)`
-      : `Environment(configs/.env)`;
+    const envDisplayName =
+      envConfigInfo.source === 'centralized'
+        ? `Environment(data/${this.paths.getScriptName()}/configs/.env)`
+        : `Environment(configs/.env)`;
 
     const configProviders = configOptions?.configProviders ?? [
       new GOCommandLineConfigProvider(),
@@ -208,7 +215,7 @@ export class GOScript {
         environmentFilePath: envConfigInfo.path,
         displayName: envDisplayName,
       }),
-    ]
+    ];
 
     const configReader = new GOConfigReader(configProviders);
     return configReader;
@@ -264,7 +271,9 @@ export class GOScript {
    * Initialize the script
    */
   public async initialize(): Promise<void> {
-    if (this.initialized) { return; }
+    if (this.initialized) {
+      return;
+    }
 
     try {
       // Before init hook
@@ -288,7 +297,6 @@ export class GOScript {
 
       // After init hook
       await this.hooks.onAfterInit?.();
-
     } catch (error) {
       await this.handleError(error as Error);
       throw error;
@@ -332,7 +340,7 @@ export class GOScript {
         const params = this.configSchema.getAllParameters();
         const errorMessage = GOScriptConfigLoader.formatMissingParametersError(
           loadResult.missingRequired,
-          params
+          params,
         );
         console.error(`\n${errorMessage}\n`);
         this.showHelp();
@@ -350,7 +358,6 @@ export class GOScript {
       await this.hooks.onAfterConfigLoad?.(this.configValues);
 
       return this.configValues;
-
     } catch (error) {
       //this.prompt.spinner.fail('Configuration loading failed');
       await this.handleError(error as Error);
@@ -385,20 +392,25 @@ export class GOScript {
    * ```
    */
   async getConfiguration<TConfiguration>(
-    propertyMapping?: Partial<Record<keyof TConfiguration, string>>
+    propertyMapping?: Partial<Record<keyof TConfiguration, string>>,
   ): Promise<TConfiguration> {
     const result = {} as TConfiguration;
     const missingParams: string[] = [];
 
     for (const param of this.configSchema.getAllParameters()) {
       const propertyName = this.parameterNameToPropertyName(param.name);
-      const finalPropertyName = (propertyMapping?.[propertyName as keyof TConfiguration] ?? propertyName) as keyof TConfiguration;
+      const finalPropertyName = (propertyMapping?.[propertyName as keyof TConfiguration] ??
+        propertyName) as keyof TConfiguration;
 
       try {
         const value: unknown = await param.getValueAsync(this.configReader);
         result[finalPropertyName] = value as TConfiguration[keyof TConfiguration];
       } catch (error) {
-        if (error instanceof Error && error.message.includes('Required parameter') && error.message.includes('is missing')) {
+        if (
+          error instanceof Error &&
+          error.message.includes('Required parameter') &&
+          error.message.includes('is missing')
+        ) {
           missingParams.push(param.name);
         } else {
           throw error;
@@ -407,8 +419,10 @@ export class GOScript {
     }
 
     if (missingParams.length > 0) {
-      const cliParams = missingParams.map(p => GOConfigKeyTransformer.toCLIFlag(p));
-      console.error(`\nMissing required parameter${missingParams.length > 1 ? 's' : ''}: ${cliParams.join(', ')}\n`);
+      const cliParams = missingParams.map((p) => GOConfigKeyTransformer.toCLIFlag(p));
+      console.error(
+        `\nMissing required parameter${missingParams.length > 1 ? 's' : ''}: ${cliParams.join(', ')}\n`,
+      );
       this.showHelp();
       process.exit(1);
     }
@@ -418,11 +432,11 @@ export class GOScript {
 
   private parameterNameToPropertyName(paramName: string): string {
     // "start.date" -> "startDate"
-    // "profile" -> "profile"  
+    // "profile" -> "profile"
     // "alarm.name" -> "alarmName"
     return paramName
       .split('.')
-      .map((part, i) => i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1))
+      .map((part, i) => (i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
       .join('');
   }
 
@@ -476,7 +490,6 @@ export class GOScript {
 
       // After run hook
       await this.hooks.onAfterRun?.();
-
     } catch (error) {
       await this.handleError(error as Error);
       throw error;
@@ -498,7 +511,9 @@ export class GOScript {
    * Check if --help flag is present
    */
   private hasHelpFlag(): boolean {
-    return process.argv.includes('--help') || process.argv.includes('-h') || process.argv.includes('--h');
+    return (
+      process.argv.includes('--help') || process.argv.includes('-h') || process.argv.includes('--h')
+    );
   }
 
   /**
@@ -513,8 +528,8 @@ export class GOScript {
     const sourceContentWidth = sourceWidth - padding;
 
     const tableData = params
-      .filter(param => this.configValues[param.name] !== undefined)
-      .map(param => ({
+      .filter((param) => this.configValues[param.name] !== undefined)
+      .map((param) => ({
         parameter: param.name,
         value: this.formatConfigValue(param.name),
         source: GOScriptConfigLoader.getSourceDisplayName(this.configSources.get(param.name)),
@@ -683,7 +698,7 @@ export class GOScript {
    * Check if script has aws.profile parameter configured
    */
   private hasAwsProfileParameter(): boolean {
-    return this.options.config?.parameters?.some(p => p.name === 'aws.profile') ?? false;
+    return this.options.config?.parameters?.some((p) => p.name === 'aws.profile') ?? false;
   }
 
   /**
@@ -729,10 +744,10 @@ export class GOScript {
     if (!isValid) {
       throw new Error(
         `AWS credentials not valid for profile: ${profile}\n` +
-        'In CI environments, ensure credentials are available via:\n' +
-        '  - Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)\n' +
-        '  - IAM role (if running in AWS)\n' +
-        '  - Web identity token (OIDC federation)'
+          'In CI environments, ensure credentials are available via:\n' +
+          '  - Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)\n' +
+          '  - IAM role (if running in AWS)\n' +
+          '  - Web identity token (OIDC federation)',
       );
     }
     this.logger.info('AWS credentials validated successfully');
@@ -800,15 +815,16 @@ export class GOScript {
   public resolveAndRegisterFile(
     filename: string,
     pathType: GOPathTypeValue,
-    options?: GOFileCopyFileOptions
+    options?: GOFileCopyFileOptions,
   ): string {
     // Resolve the path
     const resolvedPath = this.paths.resolvePath(filename, pathType);
 
     // Determine subdirectory: use provided option, or default based on pathType
-    const subdir = options?.subdir !== undefined
-      ? options.subdir
-      : getDefaultSubdirForPathType(pathType, this.fileCopierOptions?.subdirDefaults);
+    const subdir =
+      options?.subdir !== undefined
+        ? options.subdir
+        : getDefaultSubdirForPathType(pathType, this.fileCopierOptions?.subdirDefaults);
 
     // Register the file
     const copier = this.initializeFileCopier();
