@@ -4,19 +4,19 @@
 
 # GO Automation
 
-**GO Automation** e parte del **GO Software Development Kit (GO SDK)**, un toolkit progettato per abilitare processi e automazioni affidabili, osservabili e scalabili all'interno della Service Line QA&OPS di PagoPA.
+**GO Automation** è parte del **GO Software Development Kit (GO SDK)**, un toolkit progettato per abilitare processi e automazioni affidabili, osservabili e scalabili all'interno della Service Line QA&OPS di PagoPA.
 
 ## Panoramica Tecnica e Architettura
 
-GO Automation costituisce il nucleo operativo del GO SDK ed e implementato come monorepo TypeScript. Il sistema adotta un approccio ingegneristico alle attivita di Quality Assurance e Gestione Operativa, trattando gli script e le automazioni come componenti software a tutti gli effetti: soggetti a processi formali di analisi, progettazione, sviluppo e manutenzione.
+GO Automation costituisce il nucleo operativo del GO SDK ed è implementato come monorepo TypeScript. Il sistema adotta un approccio ingegneristico alle attivita di Quality Assurance e Gestione Operativa, trattando gli script e le automazioni come componenti software a tutti gli effetti: soggetti a processi formali di analisi, progettazione, sviluppo e manutenzione.
 
-L'architettura del sistema si fonda su tre principi cardine che ne garantiscono affidabilita, manutenibilita e scalabilita nel tempo.
+L'architettura del sistema si fonda su tre principi cardine che ne garantiscono affidabilità, manutenibilità e scalabilità nel tempo.
 
 ### Code Quality
 
-Il controllo qualitativo del codice rappresenta il primo requisito architetturale. L'intera codebase opera in **TypeScript strict mode**, abilitando la rilevazione statica di errori, inconsistenze tipologiche e casi limite non gestiti in fase di compilazione anziche a runtime.
+Il controllo qualitativo del codice rappresenta il primo requisito architetturale. L'intera codebase opera in **TypeScript strict mode**, abilitando la rilevazione statica di errori, inconsistenze tipologiche e casi limite non gestiti in fase di compilazione anziché a runtime.
 
-Il sistema di type-checking e integrato da strumenti di **analisi statica (ESLint)** configurati secondo standard rigorosi, che impongono uniformita stilistica e prevengono pattern problematici. Questo approccio consente di:
+Il sistema di type-checking e integrato da strumenti di **analisi statica (ESLint)** configurati secondo standard rigorosi, che impongono uniformità stilistica e prevengono pattern problematici. Questo approccio consente di:
 
 - Anticipare l'identificazione di difetti a *compile-time*
 - Ridurre il rischio operativo in ambiente di produzione
@@ -24,17 +24,17 @@ Il sistema di type-checking e integrato da strumenti di **analisi statica (ESLin
 
 ### Common Core
 
-La libreria `@go-automation/go-common` implementa il livello di astrazione condiviso dell'SDK. Questo componente centralizza le funzionalita trasversali, fornendo un'interfaccia unificata per:
+La libreria `@go-automation/go-common` implementa il livello di astrazione condiviso dell'SDK. Questo componente centralizza le funzionalità trasversali, fornendo un'interfaccia unificata per:
 
 | Funzionalita | Descrizione |
 |--------------|-------------|
 | Inizializzazione | Bootstrap e configurazione degli script |
 | Validazione | Parsing e verifica di parametri CLI e variabili d'ambiente |
-| Logging | Sistema di logging strutturato con livelli di severita |
+| Logging | Sistema di logging strutturato con livelli di severità |
 | Error Handling | Gestione standardizzata delle eccezioni |
 | Output | Formattazione consistente dei risultati |
 
-L'adozione di un core condiviso garantisce che gli script rimangano snelli e focalizzati, delegando le responsabilita infrastrutturali a componenti gia validati. Ogni ottimizzazione al core si propaga automaticamente a tutti i moduli dipendenti.
+L'adozione di un core condiviso garantisce che gli script rimangano snelli e focalizzati, delegando le responsabilità infrastrutturali a componenti già validati. Ogni ottimizzazione al core si propaga automaticamente a tutti i moduli dipendenti.
 
 ### Clean Structure
 
@@ -44,7 +44,7 @@ L'organizzazione del repository segue una struttura modulare domain-driven, con 
 - **Convenzioni di naming uniformi**: coerenza tra package, file e identificatori
 - **Configurazioni standardizzate**: template condivisi per `tsconfig.json` e `package.json`
 
-Questa struttura riduce la complessita cognitiva, accelera l'onboarding di nuovi sviluppatori e minimizza il rischio di errori derivanti da ambiguita architetturali. Il sistema e progettato per scalare in modo ordinato, mantenendo governabilita anche al crescere della codebase.
+Questa struttura riduce la complessità cognitiva, accelera l'onboarding di nuovi sviluppatori e minimizza il rischio di errori derivanti da ambiguità architetturali. Il sistema e progettato per scalare in modo ordinato, mantenendo governabilità anche al crescere della codebase.
 
 ## Quick Start
 
