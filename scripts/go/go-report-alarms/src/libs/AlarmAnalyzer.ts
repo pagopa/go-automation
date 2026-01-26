@@ -24,7 +24,9 @@ export interface CombinedAnalysisResult {
 }
 
 /** Utility type for objects with a count property */
-interface WithCount { readonly count: number }
+interface WithCount {
+  readonly count: number;
+}
 
 /**
  * Service for analyzing CloudWatch alarms
@@ -40,17 +42,17 @@ export class AlarmAnalyzer {
    * @param ignorePatterns Array of patterns to ignore
    * @returns Filtered alarms (ignored and not ignored)
    */
-  filterAlarms(alarmHistoryItems: ReadonlyArray<AlarmHistoryItem>, ignorePatterns: ReadonlyArray<string>): FilteredAlarms {
+  filterAlarms(
+    alarmHistoryItems: ReadonlyArray<AlarmHistoryItem>,
+    ignorePatterns: ReadonlyArray<string>
+  ): FilteredAlarms {
     // Pre-compile single RegExp for all patterns
-    const escapedPatterns = ignorePatterns.map(p =>
-      p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    );
-    const combinedPattern = ignorePatterns.length > 0
-      ? new RegExp(escapedPatterns.join('|'))
-      : null;
+    const escapedPatterns = ignorePatterns.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const combinedPattern =
+      ignorePatterns.length > 0 ? new RegExp(escapedPatterns.join('|')) : null;
 
     const stateUpdateItems = alarmHistoryItems.filter(
-      (item) => item.HistorySummary === AlarmAnalyzer.stateUpdateSummary
+      item => item.HistorySummary === AlarmAnalyzer.stateUpdateSummary
     );
 
     const ignored: AlarmHistoryItem[] = [];
@@ -108,14 +110,13 @@ export class AlarmAnalyzer {
         } else {
           dataMap.set(alarmName, {
             count: 1,
-            timestamps: timestamp ? [timestamp] : []
+            timestamps: timestamp ? [timestamp] : [],
           });
         }
       }
     }
 
-    const sorted = Array.from(dataMap.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]));
+    const sorted = Array.from(dataMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
 
     return {
       summary: sorted.map(([alarmName, { count }]) => ({ alarmName, count })),

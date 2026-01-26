@@ -22,8 +22,11 @@ const script = new Core.GOScript({
 /**
  * Run the script with lifecycle management
  */
-script.run(async () => {
-  await main(script);
-}).catch(() => {
-  process.exit(1);
-});
+script
+  .run(async () => {
+    await main(script);
+  })
+  .catch(() => {
+    process.exit(1);
+  });
+

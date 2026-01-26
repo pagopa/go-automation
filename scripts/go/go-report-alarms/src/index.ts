@@ -30,8 +30,10 @@ const script = new Core.GOScript({
  * 2. configure() validates and builds typed config
  * 3. main() receives script + config for business logic
  */
-script.run(async () => {
-  await main(script);
-}).catch(() => {
-  process.exit(1);
-});
+script
+  .run(async () => {
+    await main(script);
+  })
+  .catch(() => {
+    process.exit(1);
+  });

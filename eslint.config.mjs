@@ -7,6 +7,7 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import globals from 'globals';
+import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 
 export default tseslint.config(
   // Base ESLint recommended
@@ -195,5 +196,8 @@ export default tseslint.config(
     rules: {
       'no-console': 'off',
     },
-  }
+  },
+
+  // Prettier integration - MUST be last to override other configs
+  eslintPluginPrettierRecommended
 );
