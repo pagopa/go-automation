@@ -2,10 +2,7 @@
  * CloudWatch Service - Handles CloudWatch API operations
  */
 
-import {
-  CloudWatchClient,
-  DescribeAlarmHistoryCommand,
-} from '@aws-sdk/client-cloudwatch';
+import { CloudWatchClient, DescribeAlarmHistoryCommand } from '@aws-sdk/client-cloudwatch';
 import type {
   CloudWatchClientConfig,
   AlarmHistoryItem,
@@ -16,7 +13,7 @@ import type {
  * Service for interacting with AWS CloudWatch
  */
 export class CloudWatchService {
-  private client: CloudWatchClient;
+  private readonly client: CloudWatchClient;
 
   constructor(config: CloudWatchClientConfig) {
     this.client = new CloudWatchClient(config);
@@ -30,7 +27,11 @@ export class CloudWatchService {
    * @returns Array of alarm history items
    * @throws Error if dates are invalid
    */
-  async describeAlarmHistory(startDate: string, endDate: string, alarmName?: string): Promise<AlarmHistoryItem[]> {
+  async describeAlarmHistory(
+    startDate: string,
+    endDate: string,
+    alarmName?: string,
+  ): Promise<AlarmHistoryItem[]> {
     // Validate dates
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -59,13 +60,13 @@ export class CloudWatchService {
     // Paginate through all results
     do {
       const command = new DescribeAlarmHistoryCommand(input);
-      const { AlarmHistoryItems, NextToken } = await this.client.send(command);
+      const { AlarmHistoryItems: items, NextToken: token } = await this.client.send(command);
 
-      if (AlarmHistoryItems) {
-        result.push(...AlarmHistoryItems);
+      if (items) {
+        result.push(...items);
       }
 
-      input.NextToken = NextToken;
+      input.NextToken = token;
     } while (input.NextToken);
 
     return result;
@@ -74,7 +75,7 @@ export class CloudWatchService {
   /**
    * Close the CloudWatch client
    */
-  async close(): Promise<void> {
+  close(): void {
     this.client.destroy();
   }
 }

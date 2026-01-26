@@ -44,15 +44,15 @@ export class AlarmAnalyzer {
    */
   filterAlarms(
     alarmHistoryItems: ReadonlyArray<AlarmHistoryItem>,
-    ignorePatterns: ReadonlyArray<string>
+    ignorePatterns: ReadonlyArray<string>,
   ): FilteredAlarms {
     // Pre-compile single RegExp for all patterns
-    const escapedPatterns = ignorePatterns.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const escapedPatterns = ignorePatterns.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
     const combinedPattern =
       ignorePatterns.length > 0 ? new RegExp(escapedPatterns.join('|')) : null;
 
     const stateUpdateItems = alarmHistoryItems.filter(
-      item => item.HistorySummary === AlarmAnalyzer.stateUpdateSummary
+      (item) => item.HistorySummary === AlarmAnalyzer.stateUpdateSummary,
     );
 
     const ignored: AlarmHistoryItem[] = [];
