@@ -66,9 +66,7 @@ export class AWSClientProvider {
    * Creates the client on first access.
    */
   get dynamoDB(): DynamoDBClient {
-    if (this.cachedDynamoDBClient === null) {
-      this.cachedDynamoDBClient = new DynamoDBClient(this.clientConfig);
-    }
+    this.cachedDynamoDBClient ??= new DynamoDBClient(this.clientConfig);
     return this.cachedDynamoDBClient;
   }
 

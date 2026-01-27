@@ -18,15 +18,19 @@ import type { GOCSVListImporterOptions } from '../../../../core/importers/csv/GO
 import { validateSENDCSVRow } from '../SENDCSVRowValidator.js';
 
 export class QATestFormatAdapter implements GOCSVFormatAdapter {
-  getName(): string { return 'qa-test'; }
-  getDescription(): string { return 'QA Test format (semicolon-separated, multi-line header, test-specific columns)'; }
+  getName(): string {
+    return 'qa-test';
+  }
+  getDescription(): string {
+    return 'QA Test format (semicolon-separated, multi-line header, test-specific columns)';
+  }
 
   canHandle(csvContent: string): boolean {
     if (!csvContent || csvContent.trim().length === 0) {
       return false;
     }
 
-    const lines = csvContent.split('\n').filter(l => l.trim().length > 0);
+    const lines = csvContent.split('\n').filter((l) => l.trim().length > 0);
 
     if (lines.length < 4) {
       return false;
@@ -41,9 +45,20 @@ export class QATestFormatAdapter implements GOCSVFormatAdapter {
       return false;
     }
 
+    if (!firstLine.includes(',')) {
+      return false;
+    }
+
     // Check for QA-specific columns
-    const qaColumns = ['ID_Scenario', 'Scenario', 'Destinatario', 'Denomination', 'Sender', 'Tax ID'];
-    const matchCount = qaColumns.filter(col => firstLine.includes(col)).length;
+    const qaColumns = [
+      'ID_Scenario',
+      'Scenario',
+      'Destinatario',
+      'Denomination',
+      'Sender',
+      'Tax ID',
+    ];
+    const matchCount = qaColumns.filter((col) => firstLine.includes(col)).length;
 
     // At least 4 out of 6 QA columns should be present
     return matchCount >= 4;
@@ -51,7 +66,7 @@ export class QATestFormatAdapter implements GOCSVFormatAdapter {
 
   getOptions(): GOCSVListImporterOptions {
     return {
-      delimiter: ';',
+      delimiter: ',',
       hasHeaders: true,
 
       // Skip first 2 lines before the actual header (line 3)
@@ -62,18 +77,18 @@ export class QATestFormatAdapter implements GOCSVFormatAdapter {
 
       // Map QA column names to standard SEND column names
       columnMapping: {
-        'Scenario': 'subject',
-        'Destinatario': 'recipientTaxId',
-        'Denomination': 'recipientDenomination',
+        Scenario: 'subject',
+        Destinatario: 'recipientTaxId',
+        Denomination: 'recipientDenomination',
         'Indirizzo PEC': 'digitalAddress',
-        'CAP': 'physicalZip',
-        'Provincia': 'physicalProvince',
-        'Citta': 'physicalMunicipality',
-        'Stato': 'physicalForeignState',
-        'Indirizzo': 'physicalAddress',
-        'Sender': 'senderDenomination',
+        CAP: 'physicalZip',
+        Provincia: 'physicalProvince',
+        Citta: 'physicalMunicipality',
+        Stato: 'physicalForeignState',
+        Indirizzo: 'physicalAddress',
+        Sender: 'senderDenomination',
         'Tax ID': 'senderTaxId',
-        'physicalCommunicationType': 'physicalCommunicationType',
+        physicalCommunicationType: 'physicalCommunicationType',
         //'ID_Scenario': 'paProtocolNumber',
       },
 
