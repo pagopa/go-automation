@@ -78,11 +78,11 @@ function displayDetailedTimeline(
     script.logger.text(`[${entry.timestamps.length}] ${entry.alarmName}`);
 
     if (!config.verbose && entry.timestamps.length > 2) {
-      const first = entry.timestamps[0];
-      const last = entry.timestamps[entry.timestamps.length - 1];
+      const last = entry.timestamps[0];
+      const first = entry.timestamps[entry.timestamps.length - 1];
       if (first && last) {
-        script.logger.text(` - First: ${first.toISOString()} - (${googleSheetTimestamp(first)})`);
         script.logger.text(` - Last:  ${last.toISOString()} - (${googleSheetTimestamp(last)})`);
+        script.logger.text(` - First: ${first.toISOString()} - (${googleSheetTimestamp(first)})`);
       }
     } else {
       for (const timestamp of entry.timestamps) {
