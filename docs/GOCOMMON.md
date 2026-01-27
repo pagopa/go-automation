@@ -15,8 +15,10 @@
 9. [Core - File Operations](#core---file-operations)
 10. [Core - Environment Detection](#core---environment-detection)
 11. [Core - Deployment Mode](#core---deployment-mode)
-12. [AWS - Credentials Management](#aws---credentials-management)
-13. [SEND SDK](#send-sdk)
+12. [Core - DynamoDB Query Service](#core---dynamodb-query-service)
+13. [AWS - Credentials Management](#aws---credentials-management)
+14. [SEND SDK](#send-sdk)
+15. [SEND - Timeline Service](#send---timeline-service)
 
 ---
 
@@ -30,7 +32,9 @@
 - **Prompts** - Spinner, barre di caricamento, input utente
 - **Importers/Exporters** - Lettura/scrittura CSV, JSON, HTML
 - **AWS Credentials** - Gestione automatica credenziali SSO
+- **DynamoDB Query Service** - Query generiche su DynamoDB con unmarshalling automatico
 - **SEND SDK** - Client per API notifiche SEND
+- **SEND Timeline Service** - Query timeline notifiche da DynamoDB
 
 ### Esportazioni Principali
 
@@ -42,8 +46,14 @@ const script = new Core.GOScript({ ... });
 const logger = new Core.GOLogger([...]);
 const importer = new Core.GOCSVListImporter({ ... });
 
+// DynamoDB Query Service (generico)
+const queryService = new Core.DynamoDBQueryService(script.aws.dynamoDB);
+
 // SEND SDK
 const sdk = new SEND.SENDNotifications({ ... });
+
+// SEND Timeline Service (DynamoDB)
+const timelineService = new SEND.SENDTimelineService(script.aws.dynamoDB);
 
 // AWS Credentials
 const credManager = new GOAWSCredentialsManager({ ... });
@@ -1165,6 +1175,114 @@ La nuova funzionalita e **completamente retrocompatibile**:
 
 ---
 
+## Core - DynamoDB Query Service
+
+Servizio generico per query su tabelle DynamoDB con supporto per prefix/suffix, unmarshalling automatico e query batch con concorrenza controllata.
+
+### Inizializzazione
+
+```typescript
+import { Core } from '@go-automation/go-common';
+
+// Usa il client DynamoDB da GOScript
+const queryService = new Core.DynamoDBQueryService(script.aws.dynamoDB);
+```
+
+### Query Singola
+
+```typescript
+// Query base
+const result = await queryService.queryByPartitionKey('IUN-123', {
+  tableName: 'pn-Timelines',
+  keyName: 'iun',
+});
+
+console.log(`Found ${result.count} items`);
+console.log('Items:', result.items);
+
+// Query con prefix/suffix
+const result2 = await queryService.queryByPartitionKey('12345', {
+  tableName: 'pn-EcRichiesteMetadati',
+  keyName: 'requestId',
+  prefix: 'pn-cons-000~',
+  suffix: '.PCRETRY_0',
+});
+// fullKey = "pn-cons-000~12345.PCRETRY_0"
+```
+
+### Query Multiple (Batch)
+
+Query multiple chiavi con concorrenza controllata (10 parallele):
+
+```typescript
+const keys = ['key1', 'key2', 'key3', 'key4', 'key5'];
+
+const results = await queryService.queryMultipleByPartitionKey(
+  keys,
+  {
+    tableName: 'my-table',
+    keyName: 'pk',
+  },
+  (current, total) => {
+    console.log(`Progress: ${current}/${total}`);
+  },
+);
+
+for (const result of results) {
+  console.log(`Key: ${result.keyValue}, Items: ${result.count}`);
+}
+```
+
+### Tipizzazione Risultati
+
+Usa generics per tipizzare i risultati:
+
+```typescript
+interface MyItem {
+  readonly id: string;
+  readonly status: string;
+  readonly createdAt: string;
+}
+
+const result = await queryService.queryByPartitionKey<MyItem>('key1', {
+  tableName: 'my-table',
+  keyName: 'pk',
+});
+
+// result.items e di tipo ReadonlyArray<MyItem>
+for (const item of result.items) {
+  console.log(item.status);  // Tipizzato!
+}
+```
+
+### DynamoDBQueryOptions
+
+| Proprieta | Tipo | Descrizione |
+|-----------|------|-------------|
+| `tableName` | `string` | Nome della tabella DynamoDB |
+| `keyName` | `string` | Nome dell'attributo partition key |
+| `prefix` | `string?` | Prefisso da aggiungere al valore chiave |
+| `suffix` | `string?` | Suffisso da aggiungere al valore chiave |
+
+### DynamoDBQueryResult<T>
+
+| Proprieta | Tipo | Descrizione |
+|-----------|------|-------------|
+| `keyValue` | `string` | Valore chiave originale (senza prefix/suffix) |
+| `fullKey` | `string` | Chiave completa con prefix/suffix |
+| `items` | `ReadonlyArray<T>` | Risultati unmarshalled |
+| `count` | `number` | Numero di items |
+
+### Caratteristiche
+
+- **Unmarshalling automatico**: Usa `@aws-sdk/util-dynamodb` per convertire il formato DynamoDB in oggetti JS
+- **Pagination automatica**: Gestisce `LastEvaluatedKey` per risultati > 1MB
+- **Concorrenza controllata**: Query batch con chunk di 10 parallele
+- **Progress callback**: Notifica avanzamento per operazioni lunghe
+- **Generics**: Tipizzazione opzionale dei risultati
+
+---
+
 ## AWS - Credentials Management
 
 Gestione automatica delle credenziali AWS SSO.
@@ -1343,6 +1461,159 @@ SEND.SENDNotificationFeePolicy.DELIVERY_MODE
 
 ---
 
+## SEND - Timeline Service
+
+Servizio per query delle timeline notifiche SEND dalla tabella DynamoDB `pn-Timelines`.
+
+### Inizializzazione
+
+```typescript
+import { SEND } from '@go-automation/go-common';
+
+// Usa il client DynamoDB da GOScript
+const timelineService = new SEND.SENDTimelineService(script.aws.dynamoDB);
+```
+
+### Query Timeline Singola
+
+```typescript
+const result = await timelineService.queryTimeline({
+  iun: 'ABCD-EFGH-IJKL-202401-A-1',
+  dateFilter: null,
+});
+
+console.log(`IUN: ${result.iun}`);
+console.log(`PA ID: ${result.paId}`);
+console.log(`Notification Sent At: ${result.notificationSentAt}`);
+console.log(`Timeline elements: ${result.timeline.length}`);
+
+for (const element of result.timeline) {
+  console.log(`- ${element.category}: ${element.timelineElementId}`);
+}
+```
+
+### Query Timeline Multiple (Batch)
+
+```typescript
+const iuns = [
+  { iun: 'IUN-1', dateFilter: null },
+  { iun: 'IUN-2', dateFilter: null },
+  { iun: 'IUN-3', dateFilter: '2024-01-15' },  // Con filtro data
+];
+
+const results = await timelineService.queryTimelines(
+  iuns,
+  (current, total) => {
+    console.log(`Progress: ${current}/${total}`);
+  },
+);
+
+for (const result of results) {
+  console.log(`${result.iun}: ${result.timeline.length} elements`);
+}
+```
+
+### Filtro per Data
+
+Il `dateFilter` permette di filtrare gli elementi della timeline:
+
+```typescript
+// Solo elementi dal 2024-01-15 in poi
+const result = await timelineService.queryTimeline({
+  iun: 'ABCD-EFGH-IJKL-202401-A-1',
+  dateFilter: '2024-01-15',
+});
+```
+
+### Tipi
+
+#### SENDParsedIun
+
+```typescript
+interface SENDParsedIun {
+  /** IUN della notifica */
+  readonly iun: string;
+  /** Filtro data opzionale (formato: YYYY-MM-DD) */
+  readonly dateFilter: string | null;
+}
+```
+
+#### SENDTimelineElement
+
+```typescript
+interface SENDTimelineElement {
+  /** ID univoco dell'elemento timeline */
+  readonly timelineElementId: string;
+  /** Categoria dell'evento (es. PREPARE_ANALOG_DOMICILE, SEND_ANALOG_DOMICILE) */
+  readonly category: string;
+  /** Timestamp dell'evento */
+  readonly timestamp: string;
+}
+```
+
+#### SENDTimelineResult
+
+```typescript
+interface SENDTimelineResult {
+  /** IUN della notifica */
+  readonly iun: string;
+  /** ID della PA mittente */
+  readonly paId: string | null;
+  /** Data/ora invio notifica */
+  readonly notificationSentAt: string | null;
+  /** Elementi della timeline (ordinati per timestamp) */
+  readonly timeline: ReadonlyArray<SENDTimelineElement>;
+}
+```
+
+### Categorie Timeline Comuni
+
+| Categoria | Descrizione |
+|-----------|-------------|
+| `REQUEST_ACCEPTED` | Notifica accettata |
+| `AAR_GENERATION` | Generazione AAR |
+| `GET_ADDRESS` | Recupero indirizzo |
+| `PREPARE_ANALOG_DOMICILE` | Preparazione invio analogico |
+| `SEND_ANALOG_DOMICILE` | Invio analogico |
+| `ANALOG_SUCCESS_WORKFLOW` | Workflow analogico completato |
+| `REFINEMENT` | Perfezionamento |
+| `NOTIFICATION_VIEWED` | Notifica visualizzata |
+
+### Esempio: Estrazione RequestId
+
+```typescript
+import { SEND } from '@go-automation/go-common';
+
+const timelineService = new SEND.SENDTimelineService(script.aws.dynamoDB);
+
+// Query timeline
+const results = await timelineService.queryTimelines(iuns);
+
+// Estrai requestId da elementi PREPARE_ANALOG_DOMICILE
+const requestIdMap = new Map<string, string>();
+
+for (const result of results) {
+  for (const element of result.timeline) {
+    if (element.category === 'PREPARE_ANALOG_DOMICILE') {
+      requestIdMap.set(result.iun, element.timelineElementId);
+      break;  // Prendi solo il primo
+    }
+  }
+}
+
+console.log('Request IDs:', requestIdMap);
+```
+
+### Caratteristiche
+
+- **Concorrenza controllata**: Query batch con chunk di 10 parallele
+- **Date filter**: Filtra elementi per data
+- **Ordinamento**: Timeline ordinata per timestamp
+- **Progress callback**: Notifica avanzamento per operazioni lunghe
+- **Integrazione GOScript**: Usa `script.aws.dynamoDB` per il client
+
+---
+
 ## Riferimenti
 
 - [Architettura Monorepo](ARCHITECTURE.md)
@@ -1352,5 +1623,5 @@ SEND.SENDNotificationFeePolicy.DELIVERY_MODE
 
 ---
 
-**Ultima modifica**: 2026-01-22
+**Ultima modifica**: 2026-01-27
 **Maintainer**: Team GO - Gestione Operativa
