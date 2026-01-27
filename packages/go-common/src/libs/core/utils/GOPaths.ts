@@ -42,7 +42,7 @@ export const GOPathType = {
 /**
  * Type of path resolution
  */
-export type GOPathTypeValue = typeof GOPathType[keyof typeof GOPathType];
+export type GOPathTypeValue = (typeof GOPathType)[keyof typeof GOPathType];
 
 /**
  * Result when path was already absolute
@@ -126,7 +126,7 @@ export class GOPaths {
     if (this.isStandalone()) {
       throw new Error(
         'getProjectRoot() is not available in standalone mode. ' +
-        'Use getDataDir() or getBaseDir() instead.'
+          'Use getDataDir() or getBaseDir() instead.',
       );
     }
 
@@ -134,7 +134,7 @@ export class GOPaths {
     if (!monorepoRoot) {
       throw new Error(
         'Could not find project root (go-automation). ' +
-        'Make sure you are running from within the project or set GO_DEPLOYMENT_MODE=standalone.'
+          'Make sure you are running from within the project or set GO_DEPLOYMENT_MODE=standalone.',
       );
     }
 
@@ -245,8 +245,7 @@ export class GOPaths {
    * Format: 2024-12-24T15-30-45 (local time, not UTC)
    */
   private formatTimestamp(): string {
-    return DateTime.fromJSDate(this.startTime)
-      .toFormat("yyyy-MM-dd'T'HH-mm-ss");
+    return DateTime.fromJSDate(this.startTime).toFormat("yyyy-MM-dd'T'HH-mm-ss");
   }
 
   /**
@@ -255,10 +254,7 @@ export class GOPaths {
    * Example: send-import-notifications_2024-12-24T15-30-45
    */
   public getExecutionOutputDir(): string {
-    return path.join(
-      this.getOutputsBaseDir(),
-      `${this.scriptName}_${this.formatTimestamp()}`
-    );
+    return path.join(this.getOutputsBaseDir(), `${this.scriptName}_${this.formatTimestamp()}`);
   }
 
   /**
@@ -281,11 +277,7 @@ export class GOPaths {
    * Creates: data/{script-name}/inputs/, data/{script-name}/outputs/, and data/{script-name}/configs/
    */
   public ensureDirectoriesExist(): void {
-    const dirs = [
-      this.getInputsDir(),
-      this.getOutputsBaseDir(),
-      this.getDataConfigDir(),
-    ];
+    const dirs = [this.getInputsDir(), this.getOutputsBaseDir(), this.getDataConfigDir()];
 
     for (const dir of dirs) {
       if (!fs.existsSync(dir)) {
@@ -465,8 +457,10 @@ export class GOPaths {
     }
 
     // Priority 3: Monorepo root (if monorepo mode)
-    if (this.environmentInfo.deploymentMode === GODeploymentMode.MONOREPO
-        && this.environmentInfo.monorepoRoot) {
+    if (
+      this.environmentInfo.deploymentMode === GODeploymentMode.MONOREPO &&
+      this.environmentInfo.monorepoRoot
+    ) {
       return this.environmentInfo.monorepoRoot;
     }
 
@@ -496,8 +490,14 @@ export class GOPaths {
    * ```
    */
   public resolvePath(filePath: string, pathType: GOPathTypeValue): string;
-  public resolvePath(filePath: string | null | undefined, pathType: GOPathTypeValue): string | undefined;
-  public resolvePath(filePath: string | null | undefined, pathType: GOPathTypeValue): string | undefined {
+  public resolvePath(
+    filePath: string | null | undefined,
+    pathType: GOPathTypeValue,
+  ): string | undefined;
+  public resolvePath(
+    filePath: string | null | undefined,
+    pathType: GOPathTypeValue,
+  ): string | undefined {
     const result = this.resolvePathWithInfo(filePath, pathType);
     return result?.path;
   }
@@ -529,8 +529,14 @@ export class GOPaths {
    * ```
    */
   public resolvePathWithInfo(filePath: string, pathType: GOPathTypeValue): GOPathResolutionResult;
-  public resolvePathWithInfo(filePath: string | null | undefined, pathType: GOPathTypeValue): GOPathResolutionResult | undefined;
-  public resolvePathWithInfo(filePath: string | null | undefined, pathType: GOPathTypeValue): GOPathResolutionResult | undefined {
+  public resolvePathWithInfo(
+    filePath: string | null | undefined,
+    pathType: GOPathTypeValue,
+  ): GOPathResolutionResult | undefined;
+  public resolvePathWithInfo(
+    filePath: string | null | undefined,
+    pathType: GOPathTypeValue,
+  ): GOPathResolutionResult | undefined {
     if (filePath === null || filePath === undefined) {
       return undefined;
     }

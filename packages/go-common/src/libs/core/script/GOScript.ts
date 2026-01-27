@@ -3,7 +3,7 @@
  * Integrates logging, configuration, and prompts into a unified script framework
  */
 
-import { GOAWSCredentialsManager } from '../../aws/index.js';
+import { AWSClientProvider, GOAWSCredentialsManager } from '../../aws/index.js';
 import { GOConfigKeyTransformer } from '../config/GOConfigKeyTransformer.js';
 import { GOConfigReader } from '../config/GOConfigReader.js';
 import { GOConfigSchema } from '../config/GOConfigSchema.js';
@@ -60,6 +60,7 @@ export class GOScript {
   private readonly credentialsManager?: GOAWSCredentialsManager | undefined;
   private fileCopier?: GOFileCopier | undefined;
   private readonly fileCopierOptions?: GOScriptFileCopierOptions | undefined;
+  private awsClientProvider?: AWSClientProvider | undefined;
 
   // State
   private initialized: boolean = false;
@@ -589,6 +590,12 @@ export class GOScript {
       // Cleanup hook
       await this.hooks.onCleanup?.();
 
+      // Close AWS client provider
+      if (this.awsClientProvider !== undefined) {
+        this.awsClientProvider.close();
+        this.awsClientProvider = undefined;
+      }
+
       // Close file handlers
       const handlers = this.logger.getHandlers();
       for (const handler of handlers) {
@@ -765,6 +772,45 @@ export class GOScript {
    */
   public isConfigLoaded(): boolean {
     return this.configLoaded;
+  }
+
+  // ============================================================================
+  // AWS Client Provider
+  // ============================================================================
+
+  /**
+   * Returns the AWSClientProvider for accessing AWS SDK clients.
+   *
+   * The provider is created lazily on first access using the 'aws.profile'
+   * configuration parameter. Subsequent accesses return the same instance.
+   *
+   * @throws Error if 'aws.profile' parameter is not configured
+   *
+   * @example
+   * ```typescript
+   * // Access DynamoDB client
+   * const dynamoDB = script.aws.dynamoDB;
+   *
+   * // Use the client
+   * const result = await dynamoDB.send(new QueryCommand(params));
+   * ```
+   */
+  get aws(): AWSClientProvider {
+    if (this.awsClientProvider === undefined) {
+      const awsProfile = this.configValues['aws.profile'] as string | undefined;
+
+      if (!awsProfile) {
+        throw new Error(
+          'Cannot access AWS client provider: "aws.profile" parameter is not configured. ' +
+            'Add aws.profile to your script parameters.',
+        );
+      }
+
+      this.awsClientProvider = new AWSClientProvider({
+        profile: awsProfile,
+      });
+    }
+    return this.awsClientProvider;
   }
 
   // ============================================================================

@@ -273,7 +273,7 @@ echo -e "    ${YELLOW}Examples: report-alarms, send-notifications, import-data${
 echo ""
 
 while true; do
-    read -p "Script name: " SCRIPT_NAME_INPUT
+    read -e -p "Script name: " SCRIPT_NAME_INPUT
 
     if validate_script_name "$SCRIPT_NAME_INPUT"; then
         break
@@ -293,7 +293,7 @@ echo ""
 
 # Step 3: Get Description
 print_step "Enter a brief description for the script:"
-read -p "Description: " SCRIPT_DESCRIPTION
+read -e -p "Description: " SCRIPT_DESCRIPTION
 
 if [[ -z "$SCRIPT_DESCRIPTION" ]]; then
     SCRIPT_DESCRIPTION="Script for $SCRIPT_TITLE"

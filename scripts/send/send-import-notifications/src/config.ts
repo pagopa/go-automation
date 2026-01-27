@@ -96,7 +96,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'preserve.all.columns',
     type: Core.GOConfigParameterType.BOOL,
-    description: 'Preserva tutte le colonne originali del CSV nell\'export (CSV passthrough)',
+    description: "Preserva tutte le colonne originali del CSV nell'export (CSV passthrough)",
     required: false,
     defaultValue: true,
     aliases: ['preserve-columns'],
@@ -111,7 +111,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'include.status.columns',
     type: Core.GOConfigParameterType.BOOL,
-    description: 'Includi colonne di stato (_status, _processedAt, _errorMessage) nell\'export',
+    description: "Includi colonne di stato (_status, _processedAt, _errorMessage) nell'export",
     required: false,
     defaultValue: false,
   },

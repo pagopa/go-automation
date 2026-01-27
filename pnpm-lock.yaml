@@ -92,6 +92,9 @@ importers:
       '@aws-sdk/credential-providers':
         specifier: ^3.955.0
         version: 3.955.0
+      '@aws-sdk/util-dynamodb':
+        specifier: ^3.0.0
+        version: 3.975.0(@aws-sdk/client-dynamodb@3.954.0)
       cli-table3:
         specifier: ^0.6.5
         version: 0.6.5
@@ -151,6 +154,16 @@ importers:
       '@types/luxon':
         specifier: ^3.7.1
         version: 3.7.1
+      '@types/node':
+        specifier: ^24.10.9
+        version: 24.10.9
+
+  scripts/send/send-fetch-timeline-from-iun:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+    devDependencies:
       '@types/node':
         specifier: ^24.10.9
         version: 24.10.9
@@ -462,6 +475,12 @@ packages:
   '@aws-sdk/util-arn-parser@3.953.0':
     resolution: {integrity: sha512-9hqdKkn4OvYzzaLryq2xnwcrPc8ziY34i9szUdgBfSqEC6pBxbY9/lLXmrgzfwMSL2Z7/v2go4Od0p5eukKLMQ==}
     engines: {node: '>=18.0.0'}
+
+  '@aws-sdk/util-dynamodb@3.975.0':
+    resolution: {integrity: sha512-ZsziF8m5Syn+kA2YJLEG2kk6zfxea8yRl/7SkSFpAls8RFYkt8EUmVUMBhX2hBpGw+nbZL7+AcRi4S2LxAcYWA==}
+    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      '@aws-sdk/client-dynamodb': 3.975.0
 
   '@aws-sdk/util-endpoints@3.953.0':
     resolution: {integrity: sha512-rjaS6jrFksopXvNg6YeN+D1lYwhcByORNlFuYesFvaQNtPOufbE5tJL4GJ3TMXyaY0uFR28N5BHHITPyWWfH/g==}
@@ -3014,6 +3033,11 @@ snapshots:
 
   '@aws-sdk/util-arn-parser@3.953.0':
     dependencies:
+      tslib: 2.8.1
+
+  '@aws-sdk/util-dynamodb@3.975.0(@aws-sdk/client-dynamodb@3.954.0)':
+    dependencies:
+      '@aws-sdk/client-dynamodb': 3.954.0
       tslib: 2.8.1
 
   '@aws-sdk/util-endpoints@3.953.0':

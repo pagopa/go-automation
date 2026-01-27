@@ -33,3 +33,9 @@ export * from './environment/index.js';
 
 // Export script framework
 export * from './script/index.js';
+
+// Export AWS utilities (DynamoDB query service)
+export { DynamoDBQueryService } from '../aws/DynamoDBQueryService.js';
+export type { DynamoDBQueryProgressCallback } from '../aws/DynamoDBQueryService.js';
+export type { DynamoDBQueryOptions } from '../aws/models/DynamoDBQueryOptions.js';
+export type { DynamoDBQueryResult } from '../aws/models/DynamoDBQueryResult.js';
