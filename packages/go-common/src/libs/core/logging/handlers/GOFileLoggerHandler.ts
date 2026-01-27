@@ -28,7 +28,11 @@ export class GOFileLoggerHandler implements GOLoggerHandler {
 
     // Get output path from GOPaths if not provided
     const logPath = outputPath ?? paths.getExecutionLogFilePath();
-    this.exporter = new GOFileListExporter({ outputPath: logPath, encoding: 'utf8', skipInvalidItems: false });
+    this.exporter = new GOFileListExporter({
+      outputPath: logPath,
+      encoding: 'utf8',
+      skipInvalidItems: false,
+    });
   }
 
   /**
@@ -73,7 +77,7 @@ export class GOFileLoggerHandler implements GOLoggerHandler {
 
       // Start initialization if not already started
       if (!this.isInitializing) {
-        this.initialize().catch(error => {
+        this.initialize().catch((error) => {
           console.error('Failed to initialize file logger:', error);
         });
       }
@@ -103,7 +107,7 @@ export class GOFileLoggerHandler implements GOLoggerHandler {
       .then(async () => {
         await writer.append(formatted);
       })
-      .catch(error => {
+      .catch((error) => {
         console.error('Failed to write log to file:', error);
       });
   }
@@ -156,7 +160,9 @@ export class GOFileLoggerHandler implements GOLoggerHandler {
       this.isClosing = true;
 
       // Wait for all pending writes to complete
-      await this.writeQueue.catch(() => { /* Ignore errors, we're closing anyway */ });
+      await this.writeQueue.catch(() => {
+        /* Ignore errors, we're closing anyway */
+      });
 
       // Now close the writer
       await this.writer.close();

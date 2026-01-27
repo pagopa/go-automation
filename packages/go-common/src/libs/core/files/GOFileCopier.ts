@@ -35,7 +35,11 @@ import path from 'path';
 
 import type { GOFileCopyResult, GOFileCopySkipReason } from './GOFileCopyResult.js';
 import type { GOFileCopyReport, GOFileCopyReportSummary } from './GOFileCopyReport.js';
-import type { GOFileCopierOptions, GOFileCopyFileOptions, GOFileCopierSubdirDefaults } from './GOFileCopierOptions.js';
+import type {
+  GOFileCopierOptions,
+  GOFileCopyFileOptions,
+  GOFileCopierSubdirDefaults,
+} from './GOFileCopierOptions.js';
 import { GO_FILE_COPIER_DEFAULTS } from './GOFileCopierOptions.js';
 
 /**
@@ -66,7 +70,7 @@ interface ManifestFile {
   readonly executionDir: string;
   readonly totalFiles: number;
   readonly totalBytesCopied: number;
-  readonly files: readonly ManifestEntry[];
+  readonly files: ReadonlyArray<ManifestEntry>;
 }
 
 /**
@@ -82,7 +86,9 @@ interface GOFileCopierResolvedOptions {
   readonly overwrite: boolean;
   readonly preserveTimestamps: boolean;
   readonly onLog?: ((message: string, level: 'info' | 'warn' | 'error') => void) | undefined;
-  readonly onPrompt?: ((message: string, filePath: string, sizeHuman: string) => Promise<boolean>) | undefined;
+  readonly onPrompt?:
+    | ((message: string, filePath: string, sizeHuman: string) => Promise<boolean>)
+    | undefined;
   readonly subdirDefaults?: Partial<GOFileCopierSubdirDefaults> | undefined;
 }
 
@@ -175,7 +181,7 @@ export class GOFileCopier {
    *
    * @returns Array of registered source paths
    */
-  public getRegisteredFiles(): readonly string[] {
+  public getRegisteredFiles(): ReadonlyArray<string> {
     return Array.from(this.registeredFiles.keys());
   }
 
@@ -204,7 +210,7 @@ export class GOFileCopier {
    */
   public async copyFile(
     sourcePath: string,
-    options?: GOFileCopyFileOptions
+    options?: GOFileCopyFileOptions,
   ): Promise<GOFileCopyResult> {
     const absolutePath = path.isAbsolute(sourcePath)
       ? sourcePath
@@ -233,7 +239,7 @@ export class GOFileCopier {
     if (sizeBytes > this.options.maxFileSize) {
       this.log(
         `Skipping file (exceeds max size ${this.formatFileSize(this.options.maxFileSize)}): ${absolutePath}`,
-        'warn'
+        'warn',
       );
       return this.createResult(absolutePath, destinationPath, {
         success: true,
@@ -263,7 +269,7 @@ export class GOFileCopier {
       const shouldCopy = await this.options.onPrompt(
         `File ${path.basename(absolutePath)} is ${sizeHuman}. Copy to execution directory?`,
         absolutePath,
-        sizeHuman
+        sizeHuman,
       );
 
       if (!shouldCopy) {
@@ -382,7 +388,7 @@ export class GOFileCopier {
    *
    * @returns Array of all copy results
    */
-  public getAllResults(): readonly GOFileCopyResult[] {
+  public getAllResults(): ReadonlyArray<GOFileCopyResult> {
     return [...this.copyResults];
   }
 
@@ -418,7 +424,7 @@ export class GOFileCopier {
       sizeBytes: number;
       skipReason?: GOFileCopySkipReason;
       error?: string;
-    }
+    },
   ): GOFileCopyResult {
     return {
       sourcePath,
@@ -436,7 +442,7 @@ export class GOFileCopier {
   /**
    * Calculate summary statistics from results.
    */
-  private calculateSummary(results: readonly GOFileCopyResult[]): GOFileCopyReportSummary {
+  private calculateSummary(results: ReadonlyArray<GOFileCopyResult>): GOFileCopyReportSummary {
     let copiedFiles = 0;
     let skippedFiles = 0;
     let failedFiles = 0;
@@ -466,15 +472,15 @@ export class GOFileCopier {
   /**
    * Generate manifest file with all copied files.
    */
-  private async generateManifest(results: readonly GOFileCopyResult[]): Promise<string> {
-    const copiedResults = results.filter(r => r.copied);
+  private async generateManifest(results: ReadonlyArray<GOFileCopyResult>): Promise<string> {
+    const copiedResults = results.filter((r) => r.copied);
 
     const manifest: ManifestFile = {
       generatedAt: new Date().toISOString(),
       executionDir: this.options.executionDir,
       totalFiles: copiedResults.length,
       totalBytesCopied: copiedResults.reduce((sum, r) => sum + r.sizeBytes, 0),
-      files: copiedResults.map(r => {
+      files: copiedResults.map((r) => {
         // Find the registered file to get subdir
         const registered = this.findRegisteredForResult(r);
         return {

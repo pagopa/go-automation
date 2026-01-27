@@ -38,7 +38,10 @@ export class GOEnvFileParser {
    * @param existingVars - Existing variables for expansion (default: process.env)
    * @returns Map of environment variable name to value
    */
-  static parseContent(content: string, existingVars: Record<string, string | undefined> = process.env): Map<string, string> {
+  static parseContent(
+    content: string,
+    existingVars: Record<string, string | undefined> = process.env,
+  ): Map<string, string> {
     const result = new Map<string, string>();
     const lines = content.split('\n');
 
@@ -135,7 +138,7 @@ export class GOEnvFileParser {
   private static expandVariables(
     value: string,
     currentVars: Map<string, string>,
-    existingVars: Record<string, string | undefined>
+    existingVars: Record<string, string | undefined>,
   ): string {
     // Expand ${VAR} syntax
     value = value.replace(/\$\{([A-Za-z0-9_]+)\}/g, (_match, varName) => {
@@ -161,7 +164,7 @@ export class GOEnvFileParser {
   static parseFiles(filePaths: string[], encoding: BufferEncoding = 'utf8'): Map<string, string> {
     const result = new Map<string, string>();
 
-    filePaths.forEach(filePath => {
+    filePaths.forEach((filePath) => {
       const vars = this.parseFile(filePath, encoding);
       vars.forEach((value, key) => {
         result.set(key, value);

@@ -11,7 +11,10 @@ import type { GOListExporter } from '../GOListExporter.js';
 import type { GOListExporterEventMap } from '../GOListExporterEvents.js';
 import type { GOListExporterStreamWriter } from '../GOListExporterStreamWriter.js';
 
-import type { GOCSVListExporterOptions, ColumnConflictStrategy } from './GOCSVListExporterOptions.js';
+import type {
+  GOCSVListExporterOptions,
+  ColumnConflictStrategy,
+} from './GOCSVListExporterOptions.js';
 
 /**
  * Type alias for the row transformer function to help with type inference
@@ -49,8 +52,8 @@ export interface ResolvedCSVExporterOptions<TItem> {
  */
 export class GOCSVListExporter<TItem extends Record<string, unknown>>
   extends GOEventEmitterBase<GOListExporterEventMap>
-  implements GOListExporter<TItem> {
-
+  implements GOListExporter<TItem>
+{
   private readonly options: ResolvedCSVExporterOptions<TItem>;
   private writeStream?: fs.WriteStream;
   private stringifier?: Stringifier;
@@ -79,7 +82,9 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
       columnConflictStrategy: options.columnConflictStrategy ?? 'keep-generated',
       ...(options.columns !== undefined && { columns: options.columns }),
       ...(options.columnOrder !== undefined && { columnOrder: options.columnOrder }),
-      ...(options.excludeOriginalColumns !== undefined && { excludeOriginalColumns: options.excludeOriginalColumns }),
+      ...(options.excludeOriginalColumns !== undefined && {
+        excludeOriginalColumns: options.excludeOriginalColumns,
+      }),
       ...(options.columnMapper !== undefined && { columnMapper: options.columnMapper }),
       ...(options.rowTransformer !== undefined && { rowTransformer: options.rowTransformer }),
     };
@@ -99,7 +104,11 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
     this.cachedMappedColumns = undefined;
     this.excludeOriginalColumnsSet = undefined;
 
-    this.emit('export:started', { itemCount: items.length, destination: this.options.outputPath, mode: 'batch' });
+    this.emit('export:started', {
+      itemCount: items.length,
+      destination: this.options.outputPath,
+      mode: 'batch',
+    });
 
     const writer = this.initializeStream();
 
@@ -138,7 +147,11 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
     this.excludeOriginalColumnsSet = undefined;
 
     // emit export started event
-    this.emit('export:started', { itemCount: 0, destination: this.options.outputPath, mode: 'stream' });
+    this.emit('export:started', {
+      itemCount: 0,
+      destination: this.options.outputPath,
+      mode: 'stream',
+    });
     return Promise.resolve(this.initializeStream());
   }
 
@@ -147,7 +160,9 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
    */
   private initializeStream(): GOListExporterStreamWriter<TItem> {
     // Create write stream
-    this.writeStream = fs.createWriteStream(this.options.outputPath, { encoding: this.options.encoding });
+    this.writeStream = fs.createWriteStream(this.options.outputPath, {
+      encoding: this.options.encoding,
+    });
 
     // Create CSV stringifier
     this.stringifier = stringify({ delimiter: this.options.delimiter, header: false });
@@ -162,7 +177,7 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
       },
       close: async () => {
         await this.closeStream();
-      }
+      },
     };
   }
 
@@ -193,7 +208,7 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
             totalItems: this.exportedCount,
             failedItems: this.failedCount,
             destination: this.options.outputPath,
-            duration: Date.now() - this.startTime
+            duration: Date.now() - this.startTime,
           });
           resolve();
         }
@@ -243,8 +258,8 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
         : transformedItem;
 
       // Filter out skip columns and get values
-      const filteredColumns = columns.filter(col => !col.startsWith('_skip_'));
-      const values = filteredColumns.map(col => String(mergedItem[col] ?? ''));
+      const filteredColumns = columns.filter((col) => !col.startsWith('_skip_'));
+      const values = filteredColumns.map((col) => String(mergedItem[col] ?? ''));
 
       this.stringifier.write(values);
 
@@ -252,8 +267,14 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
       this.emit('export:item', { item, index: currentIndex });
 
       // Emit progress
-      const percentage = this.totalItems ? Math.round((this.exportedCount / this.totalItems) * 100) : undefined;
-      this.emit('export:progress', { exportedItems: this.exportedCount, totalItems: this.totalItems, percentage: percentage });
+      const percentage = this.totalItems
+        ? Math.round((this.exportedCount / this.totalItems) * 100)
+        : undefined;
+      this.emit('export:progress', {
+        exportedItems: this.exportedCount,
+        totalItems: this.totalItems,
+        percentage: percentage,
+      });
     } catch (error) {
       this.failedCount++;
       const finalError = error instanceof Error ? error : new Error(String(error));
@@ -281,12 +302,16 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
       if (this.options.columns) {
         // Use explicit columns list
         this.cachedColumns = this.options.columns;
-      } else if (this.options.mergeOriginalColumns && '_originalRow' in item && item['_originalRow']) {
+      } else if (
+        this.options.mergeOriginalColumns &&
+        '_originalRow' in item &&
+        item['_originalRow']
+      ) {
         // Merge original columns with generated columns
         this.cachedColumns = this.computeMergedColumns(item);
       } else {
         // Default: use object keys (excluding _originalRow)
-        this.cachedColumns = Object.keys(item).filter(key => key !== '_originalRow');
+        this.cachedColumns = Object.keys(item).filter((key) => key !== '_originalRow');
       }
     }
     return this.cachedColumns;
@@ -299,14 +324,14 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
   private computeMergedColumns(item: TItem): string[] {
     const originalRow = item['_originalRow'] as Record<string, unknown> | undefined;
     if (!originalRow) {
-      return Object.keys(item).filter(key => key !== '_originalRow');
+      return Object.keys(item).filter((key) => key !== '_originalRow');
     }
 
     // Get original column names (in original order)
     const originalColumnNames = Object.keys(originalRow);
 
     // Get generated column names (excluding _originalRow)
-    const generatedColumnNames = Object.keys(item).filter(key => key !== '_originalRow');
+    const generatedColumnNames = Object.keys(item).filter((key) => key !== '_originalRow');
 
     // Build final column list based on conflict strategy
     const strategy = this.options.columnConflictStrategy;
@@ -374,7 +399,7 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
   private resolveColumnConflict(
     columnName: string,
     strategy: ColumnConflictStrategy,
-    source: 'original' | 'generated'
+    source: 'original' | 'generated',
   ): string {
     switch (strategy) {
       case 'keep-generated':
@@ -398,11 +423,11 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
   private getMappedColumnsOnce(columns: string[]): string[] {
     if (!this.cachedMappedColumns) {
       // Filter out skip columns (used for conflict resolution)
-      const filteredColumns = columns.filter(col => !col.startsWith('_skip_'));
+      const filteredColumns = columns.filter((col) => !col.startsWith('_skip_'));
 
       if (this.options.columnMapper) {
         const mapper = this.options.columnMapper;
-        this.cachedMappedColumns = filteredColumns.map(col => mapper(col));
+        this.cachedMappedColumns = filteredColumns.map((col) => mapper(col));
       } else {
         this.cachedMappedColumns = filteredColumns;
       }
@@ -437,7 +462,9 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
 
     // Get original column names for conflict detection
     const originalColumnNames = new Set(Object.keys(originalRow));
-    const generatedColumnNames = new Set(Object.keys(transformedItem).filter(k => k !== '_originalRow'));
+    const generatedColumnNames = new Set(
+      Object.keys(transformedItem).filter((k) => k !== '_originalRow'),
+    );
 
     for (const col of columns) {
       // Skip internal columns

@@ -11,7 +11,7 @@ import type { SENDPreloadRequest } from './models/SENDPreloadRequest.js';
 import type { SENDAttachmentResult } from './models/SENDAttachmentResult.js';
 
 export class SENDAttachmentService {
-  constructor(private readonly httpClient: GOHttpClient) { }
+  constructor(private readonly httpClient: GOHttpClient) {}
 
   /**
    * Calculate SHA256 hash of a buffer
@@ -32,7 +32,10 @@ export class SENDAttachmentService {
   /**
    * Request preload URL from SafeStorage
    */
-  private async requestPreloadUrl(sha256: string, contentType: string = 'application/pdf'): Promise<SENDPreloadResponse> {
+  private async requestPreloadUrl(
+    sha256: string,
+    contentType: string = 'application/pdf',
+  ): Promise<SENDPreloadResponse> {
     const preloadRequest: SENDPreloadRequest[] = [
       {
         preloadIdx: '0',
@@ -43,7 +46,7 @@ export class SENDAttachmentService {
 
     const response = await this.httpClient.post<SENDPreloadResponse[]>(
       '/delivery/attachments/preload',
-      preloadRequest
+      preloadRequest,
     );
 
     if (!response || response.length === 0) {
@@ -61,7 +64,12 @@ export class SENDAttachmentService {
   /**
    * Upload file to SafeStorage using presigned URL
    */
-  private async uploadToSafeStorage(url: string, buffer: Buffer, sha256: string, secret: string): Promise<void> {
+  private async uploadToSafeStorage(
+    url: string,
+    buffer: Buffer,
+    sha256: string,
+    secret: string,
+  ): Promise<void> {
     const headers = {
       'Content-Type': 'application/pdf',
       'x-amz-checksum-sha256': sha256,
@@ -79,7 +87,10 @@ export class SENDAttachmentService {
    */
   async uploadPDF(filePathOrBuffer: string | Buffer): Promise<SENDAttachmentResult> {
     // Read file if path is provided
-    const buffer = typeof filePathOrBuffer === 'string' ? await this.readFileFromDisk(filePathOrBuffer) : filePathOrBuffer;
+    const buffer =
+      typeof filePathOrBuffer === 'string'
+        ? await this.readFileFromDisk(filePathOrBuffer)
+        : filePathOrBuffer;
 
     // Calculate SHA256
     const sha256 = this.calculateSHA256(buffer);
@@ -164,7 +175,10 @@ export class SENDAttachmentService {
 
     const promise = (async (): Promise<SENDAttachmentResult> => {
       // Read file if path is provided
-      const buffer = typeof filePathOrBuffer === 'string' ? await this.readFileFromDisk(filePathOrBuffer) : filePathOrBuffer;
+      const buffer =
+        typeof filePathOrBuffer === 'string'
+          ? await this.readFileFromDisk(filePathOrBuffer)
+          : filePathOrBuffer;
 
       if (controller.signal.aborted) {
         throw new Error('Upload aborted');
@@ -181,16 +195,12 @@ export class SENDAttachmentService {
       }
 
       // Upload to SafeStorage (abortable)
-      const uploadAbortable = this.httpClient.putAbortable(
-        preloadResponse.url,
-        buffer,
-        {
-          'Content-Type': 'application/pdf',
-          'x-amz-checksum-sha256': sha256,
-          'Content-Length': buffer.length.toString(),
-          'x-amz-meta-secret': preloadResponse.secret,
-        }
-      );
+      const uploadAbortable = this.httpClient.putAbortable(preloadResponse.url, buffer, {
+        'Content-Type': 'application/pdf',
+        'x-amz-checksum-sha256': sha256,
+        'Content-Length': buffer.length.toString(),
+        'x-amz-meta-secret': preloadResponse.secret,
+      });
 
       // Link external abort to internal upload abort
       const abortListener = () => uploadAbortable.abort();
@@ -249,16 +259,12 @@ export class SENDAttachmentService {
       }
 
       // Upload to SafeStorage (abortable)
-      const uploadAbortable = this.httpClient.putAbortable(
-        preloadResponse.url,
-        buffer,
-        {
-          'Content-Type': 'application/json',
-          'x-amz-checksum-sha256': sha256,
-          'Content-Length': buffer.length.toString(),
-          'x-amz-meta-secret': preloadResponse.secret,
-        }
-      );
+      const uploadAbortable = this.httpClient.putAbortable(preloadResponse.url, buffer, {
+        'Content-Type': 'application/json',
+        'x-amz-checksum-sha256': sha256,
+        'Content-Length': buffer.length.toString(),
+        'x-amz-meta-secret': preloadResponse.secret,
+      });
 
       // Link external abort to internal upload abort
       const abortListener = () => uploadAbortable.abort();

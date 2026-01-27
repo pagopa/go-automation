@@ -1,4 +1,4 @@
-import type { GOEventEmitter, GOEventHandler } from "./GOEventEmitter.js";
+import type { GOEventEmitter, GOEventHandler } from './GOEventEmitter.js';
 
 // Re-export GOEventHandler for convenience
 export type { GOEventHandler };
@@ -7,7 +7,9 @@ export type { GOEventHandler };
  * Generic Event Emitter
  * Provides type-safe event emission and listener registration
  */
-export class GOEventEmitterBase<TEventMap extends Record<string, any>> implements GOEventEmitter<TEventMap> {
+export class GOEventEmitterBase<
+  TEventMap extends Record<string, any>,
+> implements GOEventEmitter<TEventMap> {
   private listeners: Partial<Record<keyof TEventMap, GOEventHandler<any>[]>> = {};
 
   /**
@@ -17,7 +19,10 @@ export class GOEventEmitterBase<TEventMap extends Record<string, any>> implement
    * @param event - The event name
    * @param handler - The handler function to call when event is emitted
    */
-  on<TEvent extends keyof TEventMap>(event: TEvent, handler: GOEventHandler<TEventMap[TEvent]>): void {
+  on<TEvent extends keyof TEventMap>(
+    event: TEvent,
+    handler: GOEventHandler<TEventMap[TEvent]>,
+  ): void {
     if (!this.listeners[event]) {
       this.listeners[event] = [];
     }
@@ -30,9 +35,12 @@ export class GOEventEmitterBase<TEventMap extends Record<string, any>> implement
    * @param event - The event name
    * @param handler - The handler function to remove
    */
-  off<TEvent extends keyof TEventMap>(event: TEvent, handler: GOEventHandler<TEventMap[TEvent]>): void {
+  off<TEvent extends keyof TEventMap>(
+    event: TEvent,
+    handler: GOEventHandler<TEventMap[TEvent]>,
+  ): void {
     if (!this.listeners[event]) return;
-    this.listeners[event] = this.listeners[event]!.filter(h => h !== handler);
+    this.listeners[event] = this.listeners[event].filter((h) => h !== handler);
   }
 
   /**
@@ -69,7 +77,7 @@ export class GOEventEmitterBase<TEventMap extends Record<string, any>> implement
     const handlers = this.listeners[event];
     if (!handlers) return;
 
-    handlers.forEach(handler => {
+    handlers.forEach((handler) => {
       try {
         handler(payload);
       } catch (error) {
@@ -85,18 +93,21 @@ export class GOEventEmitterBase<TEventMap extends Record<string, any>> implement
    * @param event - The event name
    * @param payload - The event payload
    */
-  protected async emitAsync<TEvent extends keyof TEventMap>(event: TEvent, payload: TEventMap[TEvent]): Promise<void> {
+  protected async emitAsync<TEvent extends keyof TEventMap>(
+    event: TEvent,
+    payload: TEventMap[TEvent],
+  ): Promise<void> {
     const handlers = this.listeners[event];
     if (!handlers) return;
 
     await Promise.all(
-      handlers.map(async handler => {
+      handlers.map(async (handler) => {
         try {
           await handler(payload);
         } catch (error) {
           console.error(`Error in async event handler for "${String(event)}":`, error);
         }
-      })
+      }),
     );
   }
 }

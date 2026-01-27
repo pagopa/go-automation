@@ -79,7 +79,7 @@ export class GOConfigHelpGenerator {
       showDefaults: options.showDefaults !== false,
       showEnvVars: options.showEnvVars !== false,
       header: options.header ?? '',
-      footer: options.footer ?? ''
+      footer: options.footer ?? '',
     };
   }
 
@@ -105,7 +105,7 @@ export class GOConfigHelpGenerator {
     // Usage
     if (this.options.usage && this.options.usage.length > 0) {
       lines.push('Usage:');
-      this.options.usage.forEach(usage => {
+      this.options.usage.forEach((usage) => {
         lines.push(`  ${usage}`);
       });
       lines.push('');
@@ -119,7 +119,7 @@ export class GOConfigHelpGenerator {
       lines.push(groupName);
       lines.push('');
 
-      params.forEach(param => {
+      params.forEach((param) => {
         lines.push(...this.generateParameterHelp(param));
       });
 
@@ -148,7 +148,7 @@ export class GOConfigHelpGenerator {
       lines.push(groupName);
       lines.push('');
 
-      params.forEach(param => {
+      params.forEach((param) => {
         const usage = this.padRight(param.getCliUsage(), this.options.columnWidth);
         const abstract = param.abstract ?? '';
         lines.push(`  ${usage}${abstract}`);
@@ -195,7 +195,7 @@ export class GOConfigHelpGenerator {
     if (parameter.description) {
       lines.push('');
       lines.push('Description:');
-      this.wrapText(parameter.description, 80).forEach(line => {
+      this.wrapText(parameter.description, 80).forEach((line) => {
         lines.push(`  ${line}`);
       });
     }
@@ -203,7 +203,7 @@ export class GOConfigHelpGenerator {
     if (parameter.help) {
       lines.push('');
       lines.push('Help:');
-      this.wrapText(parameter.help, 80).forEach(line => {
+      this.wrapText(parameter.help, 80).forEach((line) => {
         lines.push(`  ${line}`);
       });
     }
@@ -272,7 +272,7 @@ export class GOConfigHelpGenerator {
   private groupParameters(parameters: GOConfigParameter[]): Record<string, GOConfigParameter[]> {
     const grouped: Record<string, GOConfigParameter[]> = {};
 
-    parameters.forEach(param => {
+    parameters.forEach((param) => {
       const groupName = param.group || 'General';
       if (!grouped[groupName]) {
         grouped[groupName] = [];
@@ -281,7 +281,7 @@ export class GOConfigHelpGenerator {
     });
 
     // Sort parameters within each group by name
-    Object.values(grouped).forEach(params => {
+    Object.values(grouped).forEach((params) => {
       params.sort((a, b) => a.name.localeCompare(b.name));
     });
 
@@ -319,7 +319,7 @@ export class GOConfigHelpGenerator {
     const lines: string[] = [];
     let currentLine = '';
 
-    words.forEach(word => {
+    words.forEach((word) => {
       if (currentLine.length + word.length + 1 <= width) {
         currentLine += (currentLine ? ' ' : '') + word;
       } else {
@@ -341,13 +341,13 @@ export class GOConfigHelpGenerator {
    * Generate usage string for a parameter
    */
   generateUsageString(parameters: GOConfigParameter[]): string {
-    const required = parameters.filter(p => p.required);
-    const optional = parameters.filter(p => !p.required);
+    const required = parameters.filter((p) => p.required);
+    const optional = parameters.filter((p) => !p.required);
 
     const parts: string[] = [this.options.programName];
 
     // Add required parameters
-    required.forEach(param => {
+    required.forEach((param) => {
       parts.push(param.getCliUsage());
     });
 

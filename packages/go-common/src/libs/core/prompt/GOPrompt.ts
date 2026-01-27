@@ -374,12 +374,15 @@ export class GOPrompt {
   /**
    * Ask to select one option from a list
    */
-  public async select<T = unknown>(message: string, choices: GOPromptSelectOption[]): Promise<T | undefined> {
+  public async select<T = unknown>(
+    message: string,
+    choices: GOPromptSelectOption[],
+  ): Promise<T | undefined> {
     const response = await prompts({
       type: 'select',
       name: 'value',
       message: message,
-      choices: choices.map(choice => ({
+      choices: choices.map((choice) => ({
         title: choice.title,
         value: choice.value,
         description: choice.description,
@@ -389,7 +392,7 @@ export class GOPrompt {
     const value = response.value as T;
 
     if (this.logger && this.logResponses) {
-      const selected = choices.find(c => c.value === value);
+      const selected = choices.find((c) => c.value === value);
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${selected?.title ?? String(value)}`);
     }
 
@@ -399,12 +402,15 @@ export class GOPrompt {
   /**
    * Ask to select multiple options from a list
    */
-  public async multiselect<T = unknown>(message: string, choices: GOPromptMultiselectOption[]): Promise<T[]> {
+  public async multiselect<T = unknown>(
+    message: string,
+    choices: GOPromptMultiselectOption[],
+  ): Promise<T[]> {
     const response = await prompts({
       type: 'multiselect',
       name: 'value',
       message: message,
-      choices: choices.map(choice => ({
+      choices: choices.map((choice) => ({
         title: choice.title,
         value: choice.value,
         selected: choice.selected ?? false,
@@ -415,8 +421,8 @@ export class GOPrompt {
     const values = response.value ?? [];
 
     if (this.logger && this.logResponses) {
-      const selected = choices.filter(c => values.includes(c.value));
-      const titles = selected.map(s => s.title).join(', ');
+      const selected = choices.filter((c) => values.includes(c.value));
+      const titles = selected.map((s) => s.title).join(', ');
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${titles || 'None'}`);
     }
 
@@ -432,7 +438,7 @@ export class GOPrompt {
       name: 'value',
       message: message,
       initial: initial,
-      choices: choices.map(choice => ({ title: choice, value: choice })),
+      choices: choices.map((choice) => ({ title: choice, value: choice })),
     });
 
     const value = response.value ?? '';

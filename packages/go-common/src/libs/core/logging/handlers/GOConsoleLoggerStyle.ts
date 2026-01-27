@@ -59,19 +59,47 @@ export interface CategoryStyle {
  * Console logger style configuration
  */
 export class GOConsoleLoggerStyle {
-  private styles: Map<GOLogEventCategory, CategoryStyle>;
+  private readonly styles: Map<GOLogEventCategory, CategoryStyle>;
 
   constructor() {
     this.styles = new Map([
-      [GOLogEventCategory.HEADER, { color: ConsoleColors.BRIGHT + ConsoleColors.CYAN, format: '{prefix}{message}{suffix}', }],
-      [GOLogEventCategory.SECTION, { color: ConsoleColors.BRIGHT + ConsoleColors.BLUE, format: '\n{prefix}{message}', prefix: '⏵ ', }],
-      [GOLogEventCategory.STEP, { color: ConsoleColors.WHITE, format: '{prefix}{message}', prefix: '→ ', }],
+      [
+        GOLogEventCategory.HEADER,
+        { color: ConsoleColors.BRIGHT + ConsoleColors.CYAN, format: '{prefix}{message}{suffix}' },
+      ],
+      [
+        GOLogEventCategory.SECTION,
+        {
+          color: ConsoleColors.BRIGHT + ConsoleColors.BLUE,
+          format: '\n{prefix}{message}',
+          prefix: '⏵ ',
+        },
+      ],
+      [
+        GOLogEventCategory.STEP,
+        { color: ConsoleColors.WHITE, format: '{prefix}{message}', prefix: '→ ' },
+      ],
       [GOLogEventCategory.TEXT, { color: ConsoleColors.WHITE, format: '{message}' }],
-      [GOLogEventCategory.SUCCESS, { color: ConsoleColors.GREEN, format: '{prefix}{message}', prefix: '✓ ', }],
-      [GOLogEventCategory.ERROR, { color: ConsoleColors.RED, format: '{prefix}{message}', prefix: '✗ ERROR: ', }],
-      [GOLogEventCategory.FATAL, { color: ConsoleColors.RED, format: '{prefix}{message}', prefix: '✗ FATAL: ', }],
-      [GOLogEventCategory.WARNING, { color: ConsoleColors.YELLOW, format: '{prefix}{message}', prefix: '⚠ WARNING: ', }],
-      [GOLogEventCategory.INFO, { color: ConsoleColors.MAGENTA, format: '{prefix}{message}', prefix: 'ℹ ', }],
+      [
+        GOLogEventCategory.SUCCESS,
+        { color: ConsoleColors.GREEN, format: '{prefix}{message}', prefix: '✓ ' },
+      ],
+      [
+        GOLogEventCategory.ERROR,
+        { color: ConsoleColors.RED, format: '{prefix}{message}', prefix: '✗ ERROR: ' },
+      ],
+      [
+        GOLogEventCategory.FATAL,
+        { color: ConsoleColors.RED, format: '{prefix}{message}', prefix: '✗ FATAL: ' },
+      ],
+      [
+        GOLogEventCategory.WARNING,
+        { color: ConsoleColors.YELLOW, format: '{prefix}{message}', prefix: '⚠ WARNING: ' },
+      ],
+      [
+        GOLogEventCategory.INFO,
+        { color: ConsoleColors.MAGENTA, format: '{prefix}{message}', prefix: 'ℹ ' },
+      ],
     ]);
   }
 
@@ -79,7 +107,7 @@ export class GOConsoleLoggerStyle {
    * Get style for a category
    */
   public getStyle(category: GOLogEventCategory): CategoryStyle {
-    return this.styles.get(category) || this.styles.get(GOLogEventCategory.STEP)!;
+    return this.styles.get(category) ?? this.styles.get(GOLogEventCategory.STEP)!;
   }
 
   /**
@@ -99,8 +127,8 @@ export class GOConsoleLoggerStyle {
     // Replace placeholders
     const timestamp = DateTime.fromJSDate(event.timestamp).toFormat('yyyy-MM-dd HH:mm:ss.SSS');
     formatted = formatted
-      .replace('{prefix}', style.prefix || '')
-      .replace('{suffix}', style.suffix || '')
+      .replace('{prefix}', style.prefix ?? '')
+      .replace('{suffix}', style.suffix ?? '')
       .replace('{message}', event.message)
       .replace('{timestamp}', timestamp);
 

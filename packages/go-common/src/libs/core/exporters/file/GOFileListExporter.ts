@@ -19,8 +19,8 @@ import type { GOFileListExporterOptions } from './GOFileListExporterOptions.js';
  */
 export class GOFileListExporter
   extends GOEventEmitterBase<GOListExporterEventMap>
-  implements GOListExporter<string> {
-
+  implements GOListExporter<string>
+{
   private writeStream?: fs.WriteStream;
   private exportedCount: number = 0;
   private failedCount: number = 0;
@@ -41,7 +41,11 @@ export class GOFileListExporter
     this.totalItems = items.length;
 
     const destination = this.options.outputPath;
-    this.emit('export:started', { itemCount: items.length, destination: destination, mode: 'batch' });
+    this.emit('export:started', {
+      itemCount: items.length,
+      destination: destination,
+      mode: 'batch',
+    });
 
     const writer = this.initializeStream();
 
@@ -108,7 +112,7 @@ export class GOFileListExporter
       },
       close: async () => {
         await this.closeStream();
-      }
+      },
     };
   }
 
@@ -139,7 +143,7 @@ export class GOFileListExporter
             totalItems: this.exportedCount,
             failedItems: this.failedCount,
             destination: this.options.outputPath,
-            duration: Date.now() - this.startTime
+            duration: Date.now() - this.startTime,
           });
           resolve();
         }
@@ -187,8 +191,14 @@ export class GOFileListExporter
       this.emit('export:item', { item, index: currentIndex });
 
       // Emit progress
-      const percentage = this.totalItems ? Math.round((this.exportedCount / this.totalItems) * 100) : undefined;
-      this.emit('export:progress', { exportedItems: this.exportedCount, totalItems: this.totalItems, percentage: percentage });
+      const percentage = this.totalItems
+        ? Math.round((this.exportedCount / this.totalItems) * 100)
+        : undefined;
+      this.emit('export:progress', {
+        exportedItems: this.exportedCount,
+        totalItems: this.totalItems,
+        percentage: percentage,
+      });
     } catch (error) {
       this.failedCount++;
       const finalError = error instanceof Error ? error : new Error(String(error));

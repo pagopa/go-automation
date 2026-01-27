@@ -42,7 +42,7 @@ export class SlackNotifier {
   private replacePlaceholders(template: string, data: ReportData): string {
     return Object.entries(data).reduce(
       (msg, [key, val]) => msg.replace(new RegExp(`{{${key}}}`, 'g'), String(val)),
-      template
+      template,
     );
   }
 
@@ -117,7 +117,7 @@ export class SlackNotifier {
   public async sendReport(
     messageTemplate: string,
     reportData: Partial<ReportData>,
-    csvFilePath?: string | null
+    csvFilePath?: string | null,
   ): Promise<unknown> {
     const message = this.formatReportMessage(messageTemplate, reportData);
 

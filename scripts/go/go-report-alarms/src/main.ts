@@ -8,11 +8,13 @@
 import { fromIni } from '@aws-sdk/credential-provider-ini';
 import { Core } from '@go-automation/go-common';
 
+import type { AlarmHistoryItem } from '@aws-sdk/client-cloudwatch';
 import type { GoReportAlarmsConfig } from './config.js';
+import type { AlarmReportSummary, AlarmTimelineEntry } from './types/alarms.types.js';
+
 import { AlarmAnalyzer } from './libs/AlarmAnalyzer.js';
 import { CloudWatchService } from './libs/CloudWatchService.js';
 import { googleSheetTimestamp } from './libs/DateUtils.js';
-import type { AlarmReportSummary, AlarmTimelineEntry } from './types/alarms.types.js';
 
 /** AWS region for CloudWatch operations */
 const AWS_REGION = 'eu-south-1';
@@ -27,7 +29,7 @@ const AWS_REGION = 'eu-south-1';
 function displayIgnoredAlarmsReport(
   script: Core.GOScript,
   analyzer: AlarmAnalyzer,
-  ignored: ReadonlyArray<import('@aws-sdk/client-cloudwatch').AlarmHistoryItem>
+  ignored: ReadonlyArray<AlarmHistoryItem>,
 ): void {
   if (ignored.length === 0) {
     script.logger.section('No Alarms Ignored');
@@ -52,7 +54,7 @@ function displayIgnoredAlarmsReport(
 function displayAnalyzableSummary(
   script: Core.GOScript,
   analyzer: AlarmAnalyzer,
-  summary: ReadonlyArray<AlarmReportSummary>
+  summary: ReadonlyArray<AlarmReportSummary>,
 ): void {
   script.logger.section('Analyzable Alarms Report');
 
@@ -70,7 +72,7 @@ function displayAnalyzableSummary(
 function displayDetailedTimeline(
   script: Core.GOScript,
   config: GoReportAlarmsConfig,
-  timeline: ReadonlyArray<AlarmTimelineEntry>
+  timeline: ReadonlyArray<AlarmTimelineEntry>,
 ): void {
   script.logger.section('Analyzable Alarms Details');
 
@@ -126,7 +128,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     const alarmHistoryItems = await cloudWatchService.describeAlarmHistory(
       config.startDate,
       config.endDate,
-      config.alarmName
+      config.alarmName,
     );
 
     script.prompt.spinnerStop(`Retrieved ${alarmHistoryItems.length} alarm history items`);
@@ -134,7 +136,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     // Filter alarms
     const { notIgnored, ignored } = alarmAnalyzer.filterAlarms(
       alarmHistoryItems,
-      config.ignorePatterns
+      config.ignorePatterns,
     );
 
     // Display Ignored Alarms Report
@@ -158,6 +160,6 @@ export async function main(script: Core.GOScript): Promise<void> {
     await script.logger.reset();
   } finally {
     // Cleanup CloudWatch service
-    await cloudWatchService.close();
+    cloudWatchService.close();
   }
 }

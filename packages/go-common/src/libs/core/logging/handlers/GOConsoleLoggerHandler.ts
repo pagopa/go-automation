@@ -17,7 +17,7 @@ export class GOConsoleLoggerHandler implements GOLoggerHandler {
   private readonly indentSize: number = 2;
 
   constructor(style?: GOConsoleLoggerStyle) {
-    this.style = style || new GOConsoleLoggerStyle();
+    this.style = style ?? new GOConsoleLoggerStyle();
   }
 
   /**

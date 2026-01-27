@@ -29,4 +29,4 @@ export type GOPathEnvVarKey = keyof typeof GOPathEnvironmentVariables;
 /**
  * Type for environment variable values
  */
-export type GOPathEnvVarValue = typeof GOPathEnvironmentVariables[GOPathEnvVarKey];
+export type GOPathEnvVarValue = (typeof GOPathEnvironmentVariables)[GOPathEnvVarKey];

@@ -36,7 +36,7 @@ export enum GOConfigParameterType {
   BUFFER = 'buffer',
 
   /** Array of buffers */
-  BUFFER_ARRAY = 'buffer[]'
+  BUFFER_ARRAY = 'buffer[]',
 }
 
 /**

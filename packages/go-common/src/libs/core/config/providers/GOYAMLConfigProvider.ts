@@ -39,17 +39,17 @@ export interface GOYAMLConfigProviderOptions {
  */
 export class GOYAMLConfigProvider extends GOConfigProviderBase {
   protected values: Map<string, string | string[]>;
-  private secretRedactor: GOSecretRedactor;
-  private filePath?: string | undefined;
-  private isOptional: boolean;
-  private displayName?: string | undefined;
+  private readonly secretRedactor: GOSecretRedactor;
+  private readonly filePath?: string | undefined;
+  private readonly isOptional: boolean;
+  private readonly displayName?: string | undefined;
 
   constructor(options: GOYAMLConfigProviderOptions) {
     super();
 
     this.values = new Map();
     this.secretRedactor = new GOSecretRedactor(
-      options.secretsSpecifier || GOSecretsSpecifierFactory.none()
+      options.secretsSpecifier || GOSecretsSpecifierFactory.none(),
     );
     this.filePath = options.filePath;
     this.isOptional = options.optional || false;
@@ -136,7 +136,10 @@ export class GOYAMLConfigProvider extends GOConfigProviderBase {
 
       if (Array.isArray(value)) {
         // Handle arrays - convert all elements to strings
-        result.set(fullKey, value.map(v => this.valueToString(v)));
+        result.set(
+          fullKey,
+          value.map((v) => this.valueToString(v)),
+        );
       } else if (typeof value === 'object' && !Buffer.isBuffer(value) && !(value instanceof Date)) {
         // Recursively flatten nested objects (but not Dates)
         const nested = this.flattenObject(value, fullKey);

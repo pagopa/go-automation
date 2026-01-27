@@ -61,12 +61,15 @@ export class SENDNotificationService {
    * @param apiVersion - API version to use (default: 'v2.5')
    * @returns Creation response with notificationRequestId
    */
-  async sendNotification(notification: SENDNotificationRequest, apiVersion: 'v2.5' | 'v2.4' = 'v2.4'): Promise<SENDNotificationCreationResponse> {
+  async sendNotification(
+    notification: SENDNotificationRequest,
+    apiVersion: 'v2.5' | 'v2.4' = 'v2.4',
+  ): Promise<SENDNotificationCreationResponse> {
     const path = `/delivery/${apiVersion}/requests`;
 
     const response = await this.httpClient.post<SENDNotificationCreationResponse>(
       path,
-      notification
+      notification,
     );
 
     return response;
@@ -77,7 +80,9 @@ export class SENDNotificationService {
    * @param notificationRequestId - Notification request ID
    * @returns Notification status
    */
-  async getNotificationStatus(notificationRequestId: string): Promise<SENDNotificationStatusResponse> {
+  async getNotificationStatus(
+    notificationRequestId: string,
+  ): Promise<SENDNotificationStatusResponse> {
     const path = `/delivery/requests?notificationRequestId=${notificationRequestId}`;
     const response = await this.httpClient.get<SENDNotificationStatusResponse>(path);
     return response;
@@ -112,7 +117,7 @@ export class SENDNotificationService {
     }
 
     throw new Error(
-      `IUN not available after ${maxAttempts} attempts for notification ${notificationRequestId}`
+      `IUN not available after ${maxAttempts} attempts for notification ${notificationRequestId}`,
     );
   }
 
@@ -122,7 +127,10 @@ export class SENDNotificationService {
    * @param pollOptions - Polling options
    * @returns Object with notificationRequestId and IUN
    */
-  async sendAndWaitForIun(notification: SENDNotificationRequest, pollOptions?: PollIunOptions): Promise<{ notificationRequestId: string; iun: string }> {
+  async sendAndWaitForIun(
+    notification: SENDNotificationRequest,
+    pollOptions?: PollIunOptions,
+  ): Promise<{ notificationRequestId: string; iun: string }> {
     const response = await this.sendNotification(notification);
     const iun = await this.pollForIun(response.notificationRequestId, pollOptions);
 
@@ -159,7 +167,10 @@ export class SENDNotificationService {
    * @param apiVersion - API version to use (default: 'v2.5')
    * @returns Abortable request with promise and abort function
    */
-  sendNotificationAbortable(notification: SENDNotificationRequest, apiVersion: 'v2.5' | 'v2.4' = 'v2.5'): GOAbortableRequest<SENDNotificationCreationResponse> {
+  sendNotificationAbortable(
+    notification: SENDNotificationRequest,
+    apiVersion: 'v2.5' | 'v2.4' = 'v2.5',
+  ): GOAbortableRequest<SENDNotificationCreationResponse> {
     const path = `/delivery/${apiVersion}/requests`;
     return this.httpClient.postAbortable<SENDNotificationCreationResponse>(path, notification);
   }
@@ -170,7 +181,9 @@ export class SENDNotificationService {
    * @param notificationRequestId - Notification request ID
    * @returns Abortable request with promise and abort function
    */
-  getNotificationStatusAbortable(notificationRequestId: string): GOAbortableRequest<SENDNotificationStatusResponse> {
+  getNotificationStatusAbortable(
+    notificationRequestId: string,
+  ): GOAbortableRequest<SENDNotificationStatusResponse> {
     const path = `/delivery/requests?notificationRequestId=${notificationRequestId}`;
     return this.httpClient.getAbortable<SENDNotificationStatusResponse>(path);
   }

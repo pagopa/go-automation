@@ -63,7 +63,7 @@ export class GOScriptConfigLoader {
     return {
       values: configValues,
       sources,
-      missingRequired
+      missingRequired,
     };
   }
 
@@ -129,16 +129,16 @@ export class GOScriptConfigLoader {
 
     // Build a map from all possible keys (including aliases) to parameter names
     const keyToParamName = new Map<string, string>();
-    params.forEach(param => {
+    params.forEach((param) => {
       keyToParamName.set(param.name, param.name);
-      param.aliases.forEach(alias => {
+      param.aliases.forEach((alias) => {
         keyToParamName.set(alias, param.name);
       });
     });
 
     // Get access report to track which provider supplied each value
     const accessReport = this.configReader.getAccessReport();
-    accessReport.accessedKeys.forEach(entry => {
+    accessReport.accessedKeys.forEach((entry) => {
       // Map the accessed key (which might be an alias) back to the parameter name
       const paramName = keyToParamName.get(entry.key);
       if (paramName) {
@@ -157,7 +157,10 @@ export class GOScriptConfigLoader {
     const params = this.configSchema.getAllParameters();
 
     for (const param of params) {
-      if (param.required && (configValues[param.name] === undefined || configValues[param.name] === null)) {
+      if (
+        param.required &&
+        (configValues[param.name] === undefined || configValues[param.name] === null)
+      ) {
         missingRequired.push(param.name);
       }
     }
@@ -176,10 +179,13 @@ export class GOScriptConfigLoader {
   /**
    * Format missing parameters error message
    */
-  static formatMissingParametersError(missingRequired: string[], params: GOConfigParameter[]): string {
-    const paramMap = new Map(params.map(p => [p.name, p]));
+  static formatMissingParametersError(
+    missingRequired: string[],
+    params: GOConfigParameter[],
+  ): string {
+    const paramMap = new Map(params.map((p) => [p.name, p]));
     const formatted = missingRequired
-      .map(name => {
+      .map((name) => {
         const param = paramMap.get(name);
         return param ? GOScriptConfigLoader.formatParameterName(param) : name;
       })

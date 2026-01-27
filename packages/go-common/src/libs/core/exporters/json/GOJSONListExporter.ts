@@ -21,8 +21,8 @@ import type { GOListExporterEventMap } from '../GOListExporterEvents.js';
  */
 export class GOJSONListExporter<TItem extends Record<string, any>>
   extends GOEventEmitterBase<GOListExporterEventMap>
-  implements GOListExporter<TItem> {
-
+  implements GOListExporter<TItem>
+{
   private writeStream?: fs.WriteStream;
   private isFirstItem: boolean = true;
   private exportedCount: number = 0;
@@ -53,7 +53,11 @@ export class GOJSONListExporter<TItem extends Record<string, any>>
     this.isFirstItem = true;
 
     const destination = this.options.outputPath;
-    this.emit('export:started', { itemCount: items.length, destination: destination, mode: 'batch' });
+    this.emit('export:started', {
+      itemCount: items.length,
+      destination: destination,
+      mode: 'batch',
+    });
 
     const writer = await this.initializeStream();
 
@@ -120,7 +124,7 @@ export class GOJSONListExporter<TItem extends Record<string, any>>
       },
       close: async () => {
         await this.closeStream();
-      }
+      },
     };
   }
 
@@ -151,7 +155,7 @@ export class GOJSONListExporter<TItem extends Record<string, any>>
             totalItems: this.exportedCount,
             failedItems: this.failedCount,
             destination: this.options.outputPath,
-            duration: Date.now() - this.startTime
+            duration: Date.now() - this.startTime,
           });
           resolve();
         }
@@ -216,7 +220,7 @@ export class GOJSONListExporter<TItem extends Record<string, any>>
           const indent = this.options.indent ?? 2;
           const itemJson = JSON.stringify(transformedItem, null, indent);
           // Add 2-space indentation to each line for array item
-          jsonItem = '  ' + itemJson.replace(/\n/g, '\n  ');
+          jsonItem = `  ${itemJson.replace(/\n/g, '\n  ')}`;
         } else {
           jsonItem = JSON.stringify(transformedItem);
         }
@@ -228,8 +232,14 @@ export class GOJSONListExporter<TItem extends Record<string, any>>
       this.emit('export:item', { item, index: currentIndex });
 
       // Emit progress
-      const percentage = this.totalItems ? Math.round((this.exportedCount / this.totalItems) * 100) : undefined;
-      this.emit('export:progress', { exportedItems: this.exportedCount, totalItems: this.totalItems, percentage: percentage });
+      const percentage = this.totalItems
+        ? Math.round((this.exportedCount / this.totalItems) * 100)
+        : undefined;
+      this.emit('export:progress', {
+        exportedItems: this.exportedCount,
+        totalItems: this.totalItems,
+        percentage: percentage,
+      });
     } catch (error) {
       this.failedCount++;
       const finalError = error instanceof Error ? error : new Error(String(error));

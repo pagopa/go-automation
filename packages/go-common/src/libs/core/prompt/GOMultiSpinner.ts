@@ -52,11 +52,11 @@ const DEFAULT_OPTIONS: Required<GOMultiSpinnerOptions> = {
   frames: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'],
   interval: 80,
   indent: '',
-  spinnerColor: '\x1b[36m',  // Cyan
-  successColor: '\x1b[32m',  // Green
-  errorColor: '\x1b[31m',    // Red
-  warningColor: '\x1b[33m',  // Yellow
-  infoColor: '\x1b[36m',     // Cyan
+  spinnerColor: '\x1b[36m', // Cyan
+  successColor: '\x1b[32m', // Green
+  errorColor: '\x1b[31m', // Red
+  warningColor: '\x1b[33m', // Yellow
+  infoColor: '\x1b[36m', // Cyan
 };
 
 export class GOMultiSpinner {
@@ -321,7 +321,11 @@ export class GOMultiSpinner {
 
   // ==================== Private Methods ====================
 
-  private completeTask(id: string, text: string | undefined, status: 'success' | 'fail' | 'warn' | 'info'): void {
+  private completeTask(
+    id: string,
+    text: string | undefined,
+    status: 'success' | 'fail' | 'warn' | 'info',
+  ): void {
     const task = this.tasks.get(id);
     if (!task) return;
 
@@ -399,7 +403,9 @@ export class GOMultiSpinner {
     let count = 0;
 
     for (const [, task] of this.tasks) {
-      const maxWidth = process.stdout.columns ? process.stdout.columns - this.indent.length - 3 : 80;
+      const maxWidth = process.stdout.columns
+        ? process.stdout.columns - this.indent.length - 3
+        : 80;
       let text = task.text;
       if (text.length > maxWidth) {
         text = `${text.substring(0, maxWidth - 3)}...`;

@@ -147,7 +147,7 @@ export class CSVManager {
    * @param threshold - Threshold value
    * @returns Array of rows exceeding the threshold
    */
-  public analyzeThreshold(data: readonly CSVRow[], field: string, threshold: number): CSVRow[] {
+  public analyzeThreshold(data: ReadonlyArray<CSVRow>, field: string, threshold: number): CSVRow[] {
     if (!Array.isArray(data)) {
       throw new Error('Data must be an array');
     }
@@ -172,9 +172,9 @@ export class CSVManager {
    * @returns Formatted report string
    */
   public generateThresholdReport(
-    flaggedRows: readonly CSVRow[],
+    flaggedRows: ReadonlyArray<CSVRow>,
     field: string,
-    threshold: number
+    threshold: number,
   ): string {
     if (!flaggedRows || flaggedRows.length === 0) {
       return `No rows exceed the threshold of ${threshold} for field '${field}'`;

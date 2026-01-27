@@ -121,20 +121,20 @@ export class GOConfigParameter {
 
   constructor(options: GOConfigParameterOptions) {
     this.name = options.name;
-    this.displayName = options.displayName || this.generateDisplayName(options.name);
+    this.displayName = options.displayName ?? this.generateDisplayName(options.name);
     this.type = options.type;
     this.abstract = options.abstract;
     this.description = options.description;
     this.help = options.help;
     this.defaultValue = options.defaultValue;
-    this.required = options.required || false;
-    this.group = options.group || 'General';
-    this.envVar = options.envVar || GOConfigKeyTransformer.toEnvironmentKey(options.name);
-    this.cliFlag = options.cliFlag || GOConfigKeyTransformer.toCLIFlag(options.name);
-    this.placeholder = options.placeholder || getTypePlaceholder(options.type);
+    this.required = options.required ?? false;
+    this.group = options.group ?? 'General';
+    this.envVar = options.envVar ?? GOConfigKeyTransformer.toEnvironmentKey(options.name);
+    this.cliFlag = options.cliFlag ?? GOConfigKeyTransformer.toCLIFlag(options.name);
+    this.placeholder = options.placeholder ?? getTypePlaceholder(options.type);
     this.validator = options.validator;
-    this.aliases = options.aliases || [];
-    this.deprecated = options.deprecated || false;
+    this.aliases = options.aliases ?? [];
+    this.deprecated = options.deprecated ?? false;
     this.deprecationMessage = options.deprecationMessage;
     this.asyncFallback = options.asyncFallback;
   }
@@ -146,7 +146,7 @@ export class GOConfigParameter {
   private generateDisplayName(name: string): string {
     return name
       .split('.')
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(' ');
   }
 
@@ -160,9 +160,10 @@ export class GOConfigParameter {
     if (value !== undefined && this.validator) {
       const validationResult = this.validator(value);
       if (validationResult !== true) {
-        const message = typeof validationResult === 'string'
-          ? validationResult
-          : `Validation failed for parameter "${this.name}"`;
+        const message =
+          typeof validationResult === 'string'
+            ? validationResult
+            : `Validation failed for parameter "${this.name}"`;
         throw new Error(message);
       }
     }
@@ -203,9 +204,10 @@ export class GOConfigParameter {
     if (value !== undefined && this.validator) {
       const validationResult = this.validator(value);
       if (validationResult !== true) {
-        const message = typeof validationResult === 'string'
-          ? validationResult
-          : `Validation failed for parameter "${this.name}"`;
+        const message =
+          typeof validationResult === 'string'
+            ? validationResult
+            : `Validation failed for parameter "${this.name}"`;
         throw new Error(message);
       }
     }
@@ -285,6 +287,6 @@ export class GOConfigParameter {
    * Check if this parameter matches a CLI flag
    */
   matchesCliFlag(flag: string): boolean {
-    return this.getAllCliFlags().some(f => f === flag || f === `--${flag}` || f === `-${flag}`);
+    return this.getAllCliFlags().some((f) => f === flag || f === `--${flag}` || f === `-${flag}`);
   }
 }

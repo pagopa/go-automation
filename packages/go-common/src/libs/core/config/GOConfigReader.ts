@@ -33,8 +33,11 @@ export interface GOConfigAccessReport {
  * Configuration reader with provider hierarchy support
  */
 export class GOConfigReader {
-  private providers: GOConfigProvider[];
-  private accessLog: Map<string, { provider: string; count: number; isSecret: boolean; value?: string | string[] | undefined }>;
+  private readonly providers: GOConfigProvider[];
+  private readonly accessLog: Map<
+    string,
+    { provider: string; count: number; isSecret: boolean; value?: string | string[] | undefined }
+  >;
 
   /**
    * Create a configuration reader
@@ -204,7 +207,11 @@ export class GOConfigReader {
    * @param encoding - Buffer encoding (default: 'base64')
    * @returns Buffer or default
    */
-  buffer(forKey: string, defaultValue?: Buffer, encoding: BufferEncoding = 'base64'): Buffer | undefined {
+  buffer(
+    forKey: string,
+    defaultValue?: Buffer,
+    encoding: BufferEncoding = 'base64',
+  ): Buffer | undefined {
     const value = this.getRawValue(forKey);
     if (value === undefined) return defaultValue;
 
@@ -224,7 +231,12 @@ export class GOConfigReader {
    * @param encoding - Buffer encoding (default: 'base64')
    * @returns Array of Buffers or default
    */
-  bufferArray(forKey: string, defaultValue?: Buffer[], separator = ',', encoding: BufferEncoding = 'base64'): Buffer[] | undefined {
+  bufferArray(
+    forKey: string,
+    defaultValue?: Buffer[],
+    separator = ',',
+    encoding: BufferEncoding = 'base64',
+  ): Buffer[] | undefined {
     const value = this.getRawValue(forKey);
     if (value === undefined) return defaultValue;
 
@@ -255,7 +267,12 @@ export class GOConfigReader {
   /**
    * Log access to a configuration key
    */
-  private logAccess(key: string, providerName: string, isSecret: boolean, value?: string | string[]): void {
+  private logAccess(
+    key: string,
+    providerName: string,
+    isSecret: boolean,
+    value?: string | string[],
+  ): void {
     const existing = this.accessLog.get(key);
     if (existing) {
       existing.count++;
@@ -264,7 +281,7 @@ export class GOConfigReader {
         provider: providerName,
         count: 1,
         isSecret,
-        value: isSecret ? undefined : value
+        value: isSecret ? undefined : value,
       });
     }
   }
@@ -278,7 +295,7 @@ export class GOConfigReader {
       this.accessLog.set(key, {
         provider: 'NONE',
         count: 1,
-        isSecret: false
+        isSecret: false,
       });
     }
   }
@@ -305,30 +322,27 @@ export class GOConfigReader {
         provider: log.provider,
         accessCount: log.count,
         isSecret: log.isSecret,
-        lastValue: log.value
+        lastValue: log.value,
       });
 
       totalAccesses += log.count;
 
       if (log.provider !== 'NONE') {
-        providerUsageStats.set(
-          log.provider,
-          (providerUsageStats.get(log.provider) || 0) + 1
-        );
+        providerUsageStats.set(log.provider, (providerUsageStats.get(log.provider) || 0) + 1);
       }
     });
 
     // Find unused providers
     const usedProviders = new Set(providerUsageStats.keys());
     const unusedProviders = this.providers
-      .map(p => p.getName())
-      .filter(name => !usedProviders.has(name));
+      .map((p) => p.getName())
+      .filter((name) => !usedProviders.has(name));
 
     return {
       accessedKeys,
       unusedProviders,
       providerUsageStats,
-      totalAccesses
+      totalAccesses,
     };
   }
 
@@ -349,7 +363,7 @@ export class GOConfigReader {
 
     if (report.unusedProviders.length > 0) {
       console.log('\nUnused Providers:');
-      report.unusedProviders.forEach(name => {
+      report.unusedProviders.forEach((name) => {
         console.log(`  ${name}`);
       });
     }
@@ -357,7 +371,7 @@ export class GOConfigReader {
     console.log('\nAccessed Keys:');
     report.accessedKeys
       .sort((a, b) => b.accessCount - a.accessCount)
-      .forEach(entry => {
+      .forEach((entry) => {
         const value = entry.isSecret
           ? '[REDACTED]'
           : entry.lastValue !== undefined
@@ -366,7 +380,9 @@ export class GOConfigReader {
               : entry.lastValue
             : 'NOT FOUND';
 
-        console.log(`  ${entry.key}: ${value} (from ${entry.provider}, accessed ${entry.accessCount}x)`);
+        console.log(
+          `  ${entry.key}: ${value} (from ${entry.provider}, accessed ${entry.accessCount}x)`,
+        );
       });
 
     console.log('===================================\n');
@@ -376,7 +392,7 @@ export class GOConfigReader {
    * Get provider chain (order of providers)
    */
   getProviderChain(): string[] {
-    return this.providers.map(p => p.getName());
+    return this.providers.map((p) => p.getName());
   }
 
   /**
@@ -390,7 +406,7 @@ export class GOConfigReader {
    * Check if a key exists in any provider
    */
   hasKey(key: string): boolean {
-    return this.providers.some(p => p.hasKey(key));
+    return this.providers.some((p) => p.hasKey(key));
   }
 
   /**
@@ -398,8 +414,8 @@ export class GOConfigReader {
    */
   getAllKeys(): string[] {
     const allKeys = new Set<string>();
-    this.providers.forEach(provider => {
-      provider.getAllKeys().forEach(key => allKeys.add(key));
+    this.providers.forEach((provider) => {
+      provider.getAllKeys().forEach((key) => allKeys.add(key));
     });
     return Array.from(allKeys);
   }

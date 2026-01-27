@@ -61,7 +61,9 @@ export class GOLogger {
     } else if (message !== undefined) {
       event = new GOLogEvent(message, eventOrCategory);
     } else {
-      throw new Error('Invalid log arguments: must provide either GOLogEvent or (category, message)');
+      throw new Error(
+        'Invalid log arguments: must provide either GOLogEvent or (category, message)',
+      );
     }
 
     // Distribute to all handlers
@@ -71,15 +73,15 @@ export class GOLogger {
   }
 
   /**
-  * Log a plain text message
-  */
+   * Log a plain text message
+   */
   public text(message: string): void {
     this.log(GOLogEvent.text(message));
   }
 
   /**
-  * Log a newline message
-  */
+   * Log a newline message
+   */
   public newline(): void {
     this.log(GOLogEvent.newline());
   }
@@ -106,8 +108,8 @@ export class GOLogger {
   }
 
   /**
-  * Log a fatal error message
-  */
+   * Log a fatal error message
+   */
   public fatal(message: string): void {
     this.log(GOLogEvent.fatal(message));
   }
@@ -201,15 +203,15 @@ export class GOLogger {
     if (!firstRow) {
       return;
     }
-    const columns: GOTableColumn[] = Object.keys(firstRow).map(key => ({
+    const columns: GOTableColumn[] = Object.keys(firstRow).map((key) => ({
       header: this.capitalizeFirstLetter(key),
-      key: key
+      key: key,
     }));
 
     this.table({
       ...options,
       columns,
-      data
+      data,
     } as GOTableOptions);
   }
 
@@ -229,16 +231,16 @@ export class GOLogger {
   public keyValueTable(data: Record<string, unknown>, options?: Partial<GOTableOptions>): void {
     const tableData = Object.entries(data).map(([key, value]) => ({
       key,
-      value: String(value)
+      value: String(value),
     }));
 
     this.table({
       ...options,
       columns: [
         { header: 'Key', key: 'key', width: 25 },
-        { header: 'Value', key: 'value', width: 50 }
+        { header: 'Value', key: 'value', width: 50 },
       ],
-      data: tableData
+      data: tableData,
     } as GOTableOptions);
   }
 

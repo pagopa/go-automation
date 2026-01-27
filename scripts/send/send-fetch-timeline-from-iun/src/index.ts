@@ -29,4 +29,3 @@ script
   .catch(() => {
     process.exit(1);
   });
-

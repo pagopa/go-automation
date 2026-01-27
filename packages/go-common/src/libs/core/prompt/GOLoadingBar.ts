@@ -7,11 +7,11 @@ import * as readline from 'readline';
 import type { GOLoadingBarOptions } from './GOLoadingBarOptions.js';
 
 export class GOLoadingBar {
-  private width: number;
-  private completeChar: string;
-  private incompleteChar: string;
-  private showPercentage: boolean;
-  private showMessage: boolean;
+  private readonly width: number;
+  private readonly completeChar: string;
+  private readonly incompleteChar: string;
+  private readonly showPercentage: boolean;
+  private readonly showMessage: boolean;
   private message: string = '';
   private percentage: number = 0;
   private isRunning: boolean = false;

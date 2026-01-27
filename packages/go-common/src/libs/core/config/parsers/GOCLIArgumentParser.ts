@@ -69,7 +69,7 @@ export class GOCLIArgumentParser {
    */
   private static parseFlag(
     args: string[],
-    index: number
+    index: number,
   ): { key: string; value: string | string[]; consumed: number } | null {
     const arg = args[index];
     if (!arg) return null;
@@ -98,7 +98,7 @@ export class GOCLIArgumentParser {
       return {
         key,
         value: this.parseValue(inlineValue),
-        consumed: 1
+        consumed: 1,
       };
     }
 
@@ -110,7 +110,7 @@ export class GOCLIArgumentParser {
       return {
         key,
         value: 'true',
-        consumed: 1
+        consumed: 1,
       };
     }
 
@@ -134,11 +134,11 @@ export class GOCLIArgumentParser {
     // If we collected multiple values, return as array
     if (values.length > 1) {
       // Flatten any comma-separated values
-      const flattened = values.flatMap(v => this.parseValue(v));
+      const flattened = values.flatMap((v) => this.parseValue(v));
       return {
         key,
         value: Array.isArray(flattened) ? flattened.flat() : flattened,
-        consumed
+        consumed,
       };
     }
 
@@ -149,14 +149,14 @@ export class GOCLIArgumentParser {
       return {
         key,
         value: 'true',
-        consumed: 1
+        consumed: 1,
       };
     }
 
     return {
       key,
       value: this.parseValue(firstValue),
-      consumed
+      consumed,
     };
   }
 
@@ -168,8 +168,8 @@ export class GOCLIArgumentParser {
     if (value.includes(',')) {
       return value
         .split(',')
-        .map(v => v.trim())
-        .filter(v => v.length > 0);
+        .map((v) => v.trim())
+        .filter((v) => v.length > 0);
     }
 
     return value;
@@ -184,7 +184,7 @@ export class GOCLIArgumentParser {
     schema: {
       booleanFlags?: string[];
       arrayFlags?: string[];
-    }
+    },
   ): Map<string, string | string[]> {
     const booleanFlags = new Set(schema.booleanFlags || []);
     const result = new Map<string, string | string[]>();
@@ -254,7 +254,7 @@ export class GOCLIArgumentParser {
           this.mergeValue(result, flagName, value);
         }
       } else {
-        const flattened = values.flatMap(v => this.parseValue(v));
+        const flattened = values.flatMap((v) => this.parseValue(v));
         this.mergeValue(result, flagName, flattened);
       }
 
@@ -270,7 +270,7 @@ export class GOCLIArgumentParser {
   private static mergeValue(
     result: Map<string, string | string[]>,
     key: string,
-    value: string | string[]
+    value: string | string[],
   ): void {
     const existing = result.get(key);
 

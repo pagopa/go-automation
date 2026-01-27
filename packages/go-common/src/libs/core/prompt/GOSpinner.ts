@@ -6,7 +6,7 @@
 import * as readline from 'readline';
 
 export class GOSpinner {
-  private frames: string[] = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+  private readonly frames: string[] = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
   private currentFrame: number = 0;
   private interval?: NodeJS.Timeout | undefined;
   private message: string = '';
@@ -85,7 +85,7 @@ export class GOSpinner {
    */
   public succeed(message?: string): void {
     this.stop();
-    const finalMessage = message || this.message;
+    const finalMessage = message ?? this.message;
     console.log(`${this.indent}\x1b[32m✓\x1b[0m ${finalMessage}`);
   }
 
@@ -94,7 +94,7 @@ export class GOSpinner {
    */
   public fail(message?: string): void {
     this.stop();
-    const finalMessage = message || this.message;
+    const finalMessage = message ?? this.message;
     console.log(`${this.indent}\x1b[31m✗\x1b[0m ${finalMessage}`);
   }
 
@@ -103,7 +103,7 @@ export class GOSpinner {
    */
   public warn(message?: string): void {
     this.stop();
-    const finalMessage = message || this.message;
+    const finalMessage = message ?? this.message;
     console.log(`${this.indent}\x1b[33m⚠\x1b[0m ${finalMessage}`);
   }
 
@@ -112,7 +112,7 @@ export class GOSpinner {
    */
   public info(message?: string): void {
     this.stop();
-    const finalMessage = message || this.message;
+    const finalMessage = message ?? this.message;
     console.log(`${this.indent}\x1b[36mℹ\x1b[0m ${finalMessage}`);
   }
 

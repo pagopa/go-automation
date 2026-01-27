@@ -7,11 +7,11 @@ import type { SENDNotificationImportWorkerError } from './SENDNotificationImport
 
 export interface SENDNotificationImportWorkerResult {
   /** Sent notifications (if sendNotifications=true) */
-  sentNotifications: Array<{
+  sentNotifications: {
     row: SENDNotificationRow;
     notificationRequestId: string;
     iun?: string | undefined;
-  }>;
+  }[];
 
   /** Statistics */
   stats: {

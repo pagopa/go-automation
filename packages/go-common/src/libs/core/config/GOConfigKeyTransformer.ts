@@ -23,7 +23,7 @@ export class GOConfigKeyTransformer {
   static toEnvironmentKey(key: string): string {
     return key
       .split('.')
-      .flatMap(part => this.splitCamelCase(part))
+      .flatMap((part) => this.splitCamelCase(part))
       .join('_')
       .toUpperCase()
       .replace(/[^A-Z0-9_]/g, '_');
@@ -39,12 +39,12 @@ export class GOConfigKeyTransformer {
    * "api.v2.endpoint" -> "--api-v2-endpoint"
    */
   static toCLIFlag(key: string): string {
-    return '--' + key
+    return `--${key
       .split('.')
-      .flatMap(part => this.splitCamelCase(part))
+      .flatMap((part) => this.splitCamelCase(part))
       .join('-')
       .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '-');
+      .replace(/[^a-z0-9-]/g, '-')}`;
   }
 
   /**
@@ -69,7 +69,7 @@ export class GOConfigKeyTransformer {
     // Split camelCase into separate parts
     normalized = normalized
       .split('.')
-      .flatMap(part => this.splitCamelCase(part))
+      .flatMap((part) => this.splitCamelCase(part))
       .join('.');
 
     return normalized.toLowerCase();
@@ -112,8 +112,8 @@ export class GOConfigKeyTransformer {
     // Insert dots before uppercase letters that follow lowercase letters
     // or before uppercase letters that are followed by lowercase letters
     const withDots = str
-      .replace(/([a-z])([A-Z])/g, '$1.$2')  // camelCase -> camel.Case
-      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1.$2');  // HTTPSClient -> HTTPS.Client
+      .replace(/([a-z])([A-Z])/g, '$1.$2') // camelCase -> camel.Case
+      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1.$2'); // HTTPSClient -> HTTPS.Client
 
     return withDots.split('.');
   }

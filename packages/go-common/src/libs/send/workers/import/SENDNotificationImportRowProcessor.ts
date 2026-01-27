@@ -56,18 +56,18 @@ export interface ToExportRowOptions {
  */
 export function toExportRow(
   result: ProcessRowResult,
-  options: ToExportRowOptions = {}
-): Record<string, any> | null {
+  options: ToExportRowOptions = {},
+): Record<string, unknown> | null {
   const { requireIun = true, includeStatus = false, errorMessage } = options;
 
   // Check IUN requirement
   if (requireIun && !result.notificationResult?.iun) return null;
 
   // Cast row to CSVRow to access all fields
-  const csvRow = result.row as SENDNotificationRow;
+  const csvRow = result.row;
 
   // Build the export row with generated/processed data
-  const exportRow: Record<string, any> = {
+  const exportRow: Record<string, unknown> = {
     // Generated fields (from notification processing)
     iun: result.notificationResult?.iun ?? '',
     notificationRequestId: result.notificationResult?.notificationRequestId ?? '',
@@ -124,14 +124,18 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
     super();
   }
 
-  async processRow(row: SENDNotificationRow, options?: SENDNotificationImportWorkerOptions): Promise<ProcessRowResult> {
+  async processRow(
+    row: SENDNotificationRow,
+    options?: SENDNotificationImportWorkerOptions,
+  ): Promise<ProcessRowResult> {
     // Step 1: Handle document - upload new file or use existing document reference
     const documentRef = await this.handleDocument(row);
     const docUploaded = this.hasDocumentFilePath(row) && !!documentRef;
 
     // Step 2: Build notification request object with all row data (sender, recipient, payment, document)
-    const notification = await this.buildNotification(row, documentRef);
-    let notificationResult: { notificationRequestId: string; iun?: string | undefined } | null = null;
+    const notification = this.buildNotification(row, documentRef);
+    let notificationResult: { notificationRequestId: string; iun?: string | undefined } | null =
+      null;
 
     // Step 3: Send notification to PN API if enabled
     if (options?.sendNotifications) {
@@ -144,33 +148,34 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
       if (options.pollForIun) {
         const maxAttempts = options.pollMaxAttempts ?? 8;
         try {
-          const iun = await this.sdk.notifications.pollForIun(
-            response.notificationRequestId,
-            {
-              maxAttempts,
-              delayMs: options.pollDelayMs ?? 30000,
-              onAttempt: (attempt, status) => {
-                this.emit('worker:iun:polling:attempt', {
-                  row,
-                  notificationRequestId: response.notificationRequestId,
-                  attempt,
-                  maxAttempts,
-                  status: status.notificationRequestStatus || 'UNKNOWN',
-                  iunFound: !!status.iun,
-                  errors: status.errors
-                });
-              }
-            }
-          );
+          const iun = await this.sdk.notifications.pollForIun(response.notificationRequestId, {
+            maxAttempts,
+            delayMs: options.pollDelayMs ?? 30000,
+            onAttempt: (attempt, status) => {
+              this.emit('worker:iun:polling:attempt', {
+                row,
+                notificationRequestId: response.notificationRequestId,
+                attempt,
+                maxAttempts,
+                status: status.notificationRequestStatus || 'UNKNOWN',
+                iunFound: !!status.iun,
+                errors: status.errors,
+              });
+            },
+          });
           notificationResult.iun = iun;
-          this.emit('worker:iun:obtained', { row, notificationRequestId: response.notificationRequestId, iun });
+          this.emit('worker:iun:obtained', {
+            row,
+            notificationRequestId: response.notificationRequestId,
+            iun,
+          });
         } catch (error) {
           const errorMessage = (error as Error).message;
           this.emit('worker:iun:polling:failed', {
             row,
             notificationRequestId: response.notificationRequestId,
             attempts: maxAttempts,
-            error: errorMessage
+            error: errorMessage,
           });
           throw error;
         }
@@ -193,19 +198,24 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
       return {
         ref: {
           key: row.documentKey,
-          versionToken: row.documentVersionToken
+          versionToken: row.documentVersionToken,
         },
         digests: {
-          sha256: row.documentSha256
+          sha256: row.documentSha256,
         },
-        buffer: Buffer.from('')
+        buffer: Buffer.from(''),
       };
     }
 
-    throw new Error('Document required: CSV must include either documentFilePath OR (documentKey + documentVersionToken + documentSha256)');
+    throw new Error(
+      'Document required: CSV must include either documentFilePath OR (documentKey + documentVersionToken + documentSha256)',
+    );
   }
 
-  private async buildNotification(row: SENDNotificationRow, documentRef: SENDAttachmentResult): Promise<SENDNotificationRequest> {
+  private buildNotification(
+    row: SENDNotificationRow,
+    documentRef: SENDAttachmentResult,
+  ): SENDNotificationRequest {
     if (!this.isCSVRow(row)) throw new Error('Only CSVRow supported');
 
     const builder = new SENDNotificationBuilder();
@@ -223,7 +233,11 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
     if (row.taxonomyCode) builder.setTaxonomyCode(row.taxonomyCode);
 
     // Determine recipient type based on available addresses
-    const hasPhysicalAddress = !!(row.physicalAddress && row.physicalZip && row.physicalMunicipality);
+    const hasPhysicalAddress = !!(
+      row.physicalAddress &&
+      row.physicalZip &&
+      row.physicalMunicipality
+    );
     const hasDigitalDomicile = !!(row.digitalType && row.digitalAddress);
 
     // Add recipient with appropriate delivery method
@@ -239,15 +253,15 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
           zip: row.physicalZip!,
           municipality: row.physicalMunicipality!,
           municipalityDetails: row.physicalMunicipalityDetails,
-          province: row.physicalProvince || '',
+          province: row.physicalProvince ?? '',
           foreignState: row.physicalForeignState,
-          at: undefined
+          at: undefined,
         },
         {
           type: row.digitalType as any,
-          address: row.digitalAddress!
+          address: row.digitalAddress!,
         },
-        row.recipientType as SENDRecipientType
+        row.recipientType as SENDRecipientType,
       );
     } else if (hasPhysicalAddress) {
       builder.addAnalogRecipient(
@@ -259,11 +273,11 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
           zip: row.physicalZip!,
           municipality: row.physicalMunicipality!,
           municipalityDetails: row.physicalMunicipalityDetails,
-          province: row.physicalProvince || '',
+          province: row.physicalProvince ?? '',
           foreignState: row.physicalForeignState,
-          at: undefined
+          at: undefined,
         },
-        row.recipientType as SENDRecipientType
+        row.recipientType as SENDRecipientType,
       );
     } else {
       throw new Error('Recipient must have at least a physical address');
@@ -274,12 +288,12 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
       builder.addPaymentToLastRecipient({
         noticeCode: row.pagoPaNoticeCode,
         creditorTaxId: row.pagoPaCreditorTaxId,
-        applyCost: true
+        applyCost: true,
       });
     }
 
     // Attach document and build final notification request
-    builder.addDocument(row.documentTitle || 'Document', documentRef);
+    builder.addDocument(row.documentTitle ?? 'Document', documentRef);
     return builder.build();
   }
 

@@ -160,7 +160,7 @@ export class SENDNotificationBuilder {
     taxId: string,
     denomination: string,
     address: SENDPhysicalAddress,
-    recipientType: SENDRecipientType = SENDRecipientType.PF
+    recipientType: SENDRecipientType = SENDRecipientType.PF,
   ): this {
     this.currentRecipients.push({
       taxId,
@@ -178,7 +178,7 @@ export class SENDNotificationBuilder {
     taxId: string,
     denomination: string,
     digitalDomicile: SENDDigitalDomicile,
-    recipientType: SENDRecipientType = SENDRecipientType.PF
+    recipientType: SENDRecipientType = SENDRecipientType.PF,
   ): this {
     this.currentRecipients.push({
       taxId,
@@ -197,7 +197,7 @@ export class SENDNotificationBuilder {
     denomination: string,
     address: SENDPhysicalAddress,
     digitalDomicile: SENDDigitalDomicile,
-    recipientType: SENDRecipientType = SENDRecipientType.PF
+    recipientType: SENDRecipientType = SENDRecipientType.PF,
   ): this {
     this.currentRecipients.push({
       taxId,
@@ -231,9 +231,7 @@ export class SENDNotificationBuilder {
     }
     // Safe to assert non-null: array length is at least 1
     const lastRecipient = this.currentRecipients[this.currentRecipients.length - 1]!;
-    if (!lastRecipient.payments) {
-      lastRecipient.payments = [];
-    }
+    lastRecipient.payments ??= [];
     lastRecipient.payments.push(f24);
     return this;
   }
@@ -267,7 +265,9 @@ export class SENDNotificationBuilder {
     const errors: string[] = [];
 
     if (!this.request.paProtocolNumber) {
-      errors.push('Protocol number is required. Use setProtocolNumber() or generateProtocolNumber()');
+      errors.push(
+        'Protocol number is required. Use setProtocolNumber() or generateProtocolNumber()',
+      );
     }
     if (!this.request.subject) {
       errors.push('Subject is required. Use setSubject()');
@@ -279,7 +279,9 @@ export class SENDNotificationBuilder {
       errors.push('Sender denomination is required. Use setSender()');
     }
     if (this.currentRecipients.length === 0) {
-      errors.push('At least one recipient is required. Use addAnalogRecipient() or addDigitalRecipient()');
+      errors.push(
+        'At least one recipient is required. Use addAnalogRecipient() or addDigitalRecipient()',
+      );
     }
     if (this.currentDocuments.length === 0) {
       errors.push('At least one document is required. Use addDocument()');

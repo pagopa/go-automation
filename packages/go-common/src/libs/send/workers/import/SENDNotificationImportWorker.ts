@@ -236,7 +236,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
 
       try {
         // GOListImporter yields single items, so we batch them for processing
-        const batchSize = options.concurrency || 10;
+        const batchSize = options.concurrency ?? 10;
         let rowBatch: SENDNotificationRow[] = [];
 
         for await (const row of this.importer.importStream(source)) {

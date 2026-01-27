@@ -15,7 +15,7 @@ import type { AwsAthenaService } from './AwsAthenaService.js';
  * Delays execution for a specified duration
  * @param ms - Milliseconds to wait
  */
-function sleep(ms: number): Promise<void> {
+async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
@@ -61,9 +61,16 @@ export class AthenaQueryExecutor {
   public async executeQuery(
     queryTemplate: string,
     config: AthenaQueryConfig,
-    params: QueryParams = {}
+    params: QueryParams = {},
   ): Promise<AthenaQueryResults> {
-    const { database, catalog, workGroup, outputLocation, maxRetries = 60, retryDelay = 5000 } = config;
+    const {
+      database,
+      catalog,
+      workGroup,
+      outputLocation,
+      maxRetries = 60,
+      retryDelay = 5000,
+    } = config;
 
     if (!database) {
       throw new Error('Athena database is required');
@@ -148,13 +155,13 @@ export class AthenaQueryExecutor {
   private async waitForQueryCompletion(
     queryExecutionId: string,
     maxRetries: number,
-    retryDelay: number
+    retryDelay: number,
   ): Promise<AthenaQueryExecution> {
     let retries = 0;
 
     while (retries < maxRetries) {
       const execution = (await this.athenaService.getQueryExecution(
-        queryExecutionId
+        queryExecutionId,
       )) as AthenaQueryExecution;
       const state = execution.QueryExecution.Status.State;
 
@@ -177,7 +184,7 @@ export class AthenaQueryExecutor {
    * @returns Combined results from all pages
    */
   private async fetchAllResults(queryExecutionId: string): Promise<AthenaQueryResults> {
-    const allRows: Array<{ Data: Array<{ VarCharValue?: string }> }> = [];
+    const allRows: { Data: { VarCharValue?: string }[] }[] = [];
     let nextToken: string | undefined = undefined;
     let isFirstPage = true;
 
@@ -187,7 +194,7 @@ export class AthenaQueryExecutor {
 
       // Filter and map rows to ensure Data is defined
       const validRows = resultRows
-        .filter((row): row is { Data: Array<{ VarCharValue?: string }> } => row.Data !== undefined)
+        .filter((row): row is { Data: { VarCharValue?: string }[] } => row.Data !== undefined)
         .map((row) => ({ Data: row.Data }));
 
       if (isFirstPage) {

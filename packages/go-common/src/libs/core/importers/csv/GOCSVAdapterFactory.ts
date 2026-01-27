@@ -15,7 +15,7 @@ import type { GOCSVFormatAdapter } from './GOCSVFormatAdapter.js';
  * Can be extended or used directly for any CSV import scenario
  */
 export class GOCSVAdapterFactory {
-  private static adapters: Map<string, GOCSVFormatAdapter> = new Map();
+  private static readonly adapters: Map<string, GOCSVFormatAdapter> = new Map();
 
   /**
    * Register an adapter
@@ -70,7 +70,7 @@ export class GOCSVAdapterFactory {
     if (!adapter) {
       const availableAdapters = Array.from(this.adapters.keys()).join(', ');
       throw new Error(
-        `Adapter '${name}' not found. Available adapters: ${availableAdapters || 'none'}`
+        `Adapter '${name}' not found. Available adapters: ${availableAdapters || 'none'}`,
       );
     }
 
@@ -97,8 +97,8 @@ export class GOCSVAdapterFactory {
    * Get information about all available adapters
    * @returns Array of adapter information
    */
-  static getAdapterInfo(): Array<{ name: string; description: string }> {
-    return Array.from(this.adapters.values()).map(adapter => ({
+  static getAdapterInfo(): { name: string; description: string }[] {
+    return Array.from(this.adapters.values()).map((adapter) => ({
       name: adapter.getName(),
       description: adapter.getDescription(),
     }));

@@ -40,7 +40,7 @@ export function isPath(value: string): boolean {
   const hasPathSeparator = value.includes('/') || value.includes('\\');
 
   // Check for common path patterns
-  const matchesPattern = PATH_PATTERNS.some(pattern => pattern.test(value));
+  const matchesPattern = PATH_PATTERNS.some((pattern) => pattern.test(value));
 
   return hasPathSeparator || matchesPattern;
 }

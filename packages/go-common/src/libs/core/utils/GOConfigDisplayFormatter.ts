@@ -85,7 +85,7 @@ export function formatConfigSourceDisplay(source: string, maxLength: number): st
   // Truncate only the path part, preserving the type
   const truncatedPath = smartTruncate(path, {
     maxLength: availableForPath,
-    forcePathStyle: true  // Always treat as path
+    forcePathStyle: true, // Always treat as path
   });
 
   return `${type}(${truncatedPath})`;
@@ -128,8 +128,10 @@ export function formatConfigValueDisplay(value: string, maxLength: number): stri
 
   // Remove outer quotes if present (double or single)
   // JSON.stringify uses double quotes; single quotes for compatibility
-  if ((cleanValue.startsWith('"') && cleanValue.endsWith('"')) ||
-    (cleanValue.startsWith("'") && cleanValue.endsWith("'"))) {
+  if (
+    (cleanValue.startsWith('"') && cleanValue.endsWith('"')) ||
+    (cleanValue.startsWith("'") && cleanValue.endsWith("'"))
+  ) {
     cleanValue = cleanValue.slice(1, -1);
   }
 
@@ -165,7 +167,7 @@ export function formatConfigDisplay(
   value: string,
   source: string,
   maxValueLength: number,
-  maxSourceLength: number
+  maxSourceLength: number,
 ): FormattedConfigDisplay {
   return {
     value: formatConfigValueDisplay(value, maxValueLength),

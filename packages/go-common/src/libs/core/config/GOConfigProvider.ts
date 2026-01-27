@@ -92,11 +92,9 @@ export abstract class GOConfigProviderBase implements GOConfigProvider {
     const keys = this.getAllKeys();
     const lines = [`${this.getName()} (${keys.length} keys)`];
 
-    keys.forEach(key => {
+    keys.forEach((key) => {
       const displayValue = this.getDisplayValue(key);
-      const valueStr = Array.isArray(displayValue)
-        ? `[${displayValue.join(', ')}]`
-        : displayValue;
+      const valueStr = Array.isArray(displayValue) ? `[${displayValue.join(', ')}]` : displayValue;
       lines.push(`  ${key}: ${valueStr}`);
     });
 

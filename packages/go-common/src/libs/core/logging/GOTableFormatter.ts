@@ -52,7 +52,16 @@ export interface GOTableOptions {
     /** Enable colors in headers (default: false) */
     colors?: boolean;
     /** Header color (default: 'cyan') */
-    headerColor?: 'black' | 'red' | 'green' | 'yellow' | 'blue' | 'magenta' | 'cyan' | 'white' | 'gray';
+    headerColor?:
+      | 'black'
+      | 'red'
+      | 'green'
+      | 'yellow'
+      | 'blue'
+      | 'magenta'
+      | 'cyan'
+      | 'white'
+      | 'gray';
   };
 }
 
@@ -60,8 +69,8 @@ export interface GOTableOptions {
  * Table formatter utility using cli-table3
  */
 export class GOTableFormatter {
-  private options: Required<GOTableOptions>;
-  private columns: GOTableColumn[];
+  private readonly options: Required<GOTableOptions>;
+  private readonly columns: GOTableColumn[];
 
   constructor(options: GOTableOptions) {
     // Set defaults
@@ -69,11 +78,11 @@ export class GOTableFormatter {
       ...options,
       border: options.border !== false,
       headerSeparator: options.headerSeparator !== false,
-      compact: options.compact || false,
-      maxColumnWidth: options.maxColumnWidth || 50,
+      compact: options.compact ?? false,
+      maxColumnWidth: options.maxColumnWidth ?? 50,
       style: {
-        colors: options.style?.colors || true,
-        headerColor: options.style?.headerColor || 'cyan',
+        colors: options.style?.colors ?? true,
+        headerColor: options.style?.headerColor ?? 'cyan',
       },
     };
 
@@ -89,11 +98,11 @@ export class GOTableFormatter {
 
     // Create table with cli-table3
     const table = new Table({
-      head: this.columns.map(col => col.header),
+      head: this.columns.map((col) => col.header),
       colWidths: colWidths,
-      colAligns: this.columns.map(col => col.align || 'left') as Array<'left' | 'right' | 'center'>,
+      colAligns: this.columns.map((col) => col.align ?? 'left'),
       style: {
-        head: this.options.style.colors ? [this.options.style.headerColor || 'cyan'] : [],
+        head: this.options.style.colors ? [this.options.style.headerColor ?? 'cyan'] : [],
         border: [],
       },
       chars: this.getTableChars(),
@@ -101,7 +110,7 @@ export class GOTableFormatter {
 
     // Add data rows
     for (const row of this.options.data) {
-      const rowData = this.columns.map(col => {
+      const rowData = this.columns.map((col) => {
         const value = row[col.key];
         return this.formatValue(value, col);
       });
@@ -115,7 +124,7 @@ export class GOTableFormatter {
    * Calculate optimal column widths
    */
   private calculateColumnWidths(): number[] {
-    return this.columns.map(col => {
+    return this.columns.map((col) => {
       // Use explicit width if provided
       if (col.width) {
         return col.width;
@@ -125,18 +134,15 @@ export class GOTableFormatter {
       const headerLen = col.header.length;
       const maxDataLen = Math.max(
         0,
-        ...this.options.data.map(row => {
+        ...this.options.data.map((row) => {
           const value = this.formatValue(row[col.key], col);
           return value.length;
-        })
+        }),
       );
 
       // Use max of header and data, but cap at maxColumnWidth
       // Add padding of 2 for better readability
-      const width = Math.min(
-        Math.max(headerLen, maxDataLen) + 2,
-        this.options.maxColumnWidth
-      );
+      const width = Math.min(Math.max(headerLen, maxDataLen) + 2, this.options.maxColumnWidth);
 
       return width;
     });
@@ -170,62 +176,62 @@ export class GOTableFormatter {
     if (this.options.compact) {
       // Compact mode: minimal borders
       return {
-        'top': '',
+        top: '',
         'top-mid': '',
         'top-left': '',
         'top-right': '',
-        'bottom': '',
+        bottom: '',
         'bottom-mid': '',
         'bottom-left': '',
         'bottom-right': '',
-        'left': '',
+        left: '',
         'left-mid': '',
-        'mid': '',
+        mid: '',
         'mid-mid': '',
-        'right': '',
+        right: '',
         'right-mid': '',
-        'middle': ' ',
+        middle: ' ',
       };
     }
 
     if (!this.options.border) {
       // No border mode: only show content and separators
       return {
-        'top': '',
+        top: '',
         'top-mid': '',
         'top-left': '',
         'top-right': '',
-        'bottom': '',
+        bottom: '',
         'bottom-mid': '',
         'bottom-left': '',
         'bottom-right': '',
-        'left': '',
+        left: '',
         'left-mid': '',
-        'mid': '─',
+        mid: '─',
         'mid-mid': '┼',
-        'right': '',
+        right: '',
         'right-mid': '',
-        'middle': '│',
+        middle: '│',
       };
     }
 
     // Default: full borders
     return {
-      'top': '─',
+      top: '─',
       'top-mid': '┬',
       'top-left': '┌',
       'top-right': '┐',
-      'bottom': '─',
+      bottom: '─',
       'bottom-mid': '┴',
       'bottom-left': '└',
       'bottom-right': '┘',
-      'left': '│',
+      left: '│',
       'left-mid': '├',
-      'mid': '─',
+      mid: '─',
       'mid-mid': '┼',
-      'right': '│',
+      right: '│',
       'right-mid': '┤',
-      'middle': '│',
+      middle: '│',
     };
   }
 }

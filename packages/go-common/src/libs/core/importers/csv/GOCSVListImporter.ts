@@ -20,8 +20,8 @@ import type { GOListImporterEventMap } from '../GOListImporterEvents.js';
  */
 export class GOCSVListImporter<TItem extends Record<string, any> = Record<string, any>>
   extends GOEventEmitterBase<GOListImporterEventMap<TItem>>
-  implements GOListImporter<TItem> {
-
+  implements GOListImporter<TItem>
+{
   // Cached parser options to avoid recalculation
   private parserOptions?: any;
 
@@ -38,7 +38,7 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
   async import(source: string | Buffer): Promise<GOListImporterResult<TItem>> {
     const startTime = Date.now();
     const items: TItem[] = [];
-    const errors: Array<{ itemIndex: number; itemData: any; message: string }> = [];
+    const errors: { itemIndex: number; itemData: any; message: string }[] = [];
     const skipInvalidItems = this.options.skipInvalidItems ?? false;
 
     let processedItems = 0;
@@ -61,8 +61,8 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
         stats: {
           totalItems: items.length,
           invalidItems: 0, // Tracked in stream
-          duration: Date.now() - startTime
-        }
+          duration: Date.now() - startTime,
+        },
       };
     }
 
@@ -99,7 +99,7 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
         processedItems,
         invalidItems,
         totalItems,
-        percentage: Math.round((processedItems / totalItems) * 100)
+        percentage: Math.round((processedItems / totalItems) * 100),
       });
     }
 
@@ -113,7 +113,7 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
       items,
       itemCount: totalItems,
       stats: { totalItems: validItems, invalidItems, duration },
-      errors
+      errors,
     };
   }
 
@@ -133,7 +133,7 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
 
     this.emit('import:started', { source, mode: 'stream' });
 
-    const stream = createReadStream(source, { encoding: this.options.encoding || 'utf8' });
+    const stream = createReadStream(source, { encoding: this.options.encoding ?? 'utf8' });
     const parser = stream.pipe(parse(this.getParserOptions()));
 
     for await (const record of parser) {
@@ -153,7 +153,7 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
           itemIndex: processedItems,
           itemData: record,
           message: error.message,
-          error: error instanceof Error ? error : new Error(error.message)
+          error: error instanceof Error ? error : new Error(error.message),
         });
 
         if (!skipInvalidItems) {
@@ -169,7 +169,7 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
       processedItems,
       invalidItems,
       totalItems: validItems,
-      percentage: 100
+      percentage: 100,
     });
 
     // Emit completion event
@@ -187,7 +187,7 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
 
       this.parserOptions = {
         delimiter,
-        columns: this.options.columns || hasHeaders,
+        columns: this.options.columns ?? hasHeaders,
         skip_empty_lines: true,
         trim: true,
         relax_quotes: true,
@@ -202,7 +202,7 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
   /**
    * Parse CSV from buffer
    */
-  private parseCSVBuffer(buffer: Buffer): Promise<any[]> {
+  private async parseCSVBuffer(buffer: Buffer): Promise<any[]> {
     return new Promise((resolve, reject) => {
       parse(buffer, this.getParserOptions(), (error, records) => {
         if (error) {
@@ -229,7 +229,7 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
 
       for (const [sourceKey, value] of Object.entries(item)) {
         // Use mapped name if available, otherwise keep original
-        const targetKey = this.options.columnMapping[sourceKey] || sourceKey;
+        const targetKey = this.options.columnMapping[sourceKey] ?? sourceKey;
         mapped[targetKey] = value;
       }
 

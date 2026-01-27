@@ -51,8 +51,8 @@ const DEFAULT_ROW_TEMPLATE = `<tr>{{cells}}</tr>`;
  */
 export class GOHTMLListExporter<TItem extends Record<string, any>>
   extends GOEventEmitterBase<GOListExporterEventMap>
-  implements GOListExporter<TItem> {
-
+  implements GOListExporter<TItem>
+{
   private exportedCount: number = 0;
   private failedCount: number = 0;
   private startTime: number = 0;
@@ -78,7 +78,11 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
     this.columns = undefined;
 
     const destination = this.options.outputPath;
-    this.emit('export:started', { itemCount: items.length, destination: destination, mode: 'batch' });
+    this.emit('export:started', {
+      itemCount: items.length,
+      destination: destination,
+      mode: 'batch',
+    });
 
     // Build HTML content
     const rowsHtml: string[] = [];
@@ -94,12 +98,22 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
           this.exportedCount++;
           this.emit('export:item', { item: transformedItem, index: currentIndex });
 
-          const percentage = this.totalItems ? Math.round((this.exportedCount / this.totalItems) * 100) : undefined;
-          this.emit('export:progress', { exportedItems: this.exportedCount, totalItems: this.totalItems, percentage });
+          const percentage = this.totalItems
+            ? Math.round((this.exportedCount / this.totalItems) * 100)
+            : undefined;
+          this.emit('export:progress', {
+            exportedItems: this.exportedCount,
+            totalItems: this.totalItems,
+            percentage,
+          });
         } catch (error) {
           this.failedCount++;
           const finalError = error instanceof Error ? error : new Error(String(error));
-          this.emit('export:error', { error: finalError, item: transformedItem, index: currentIndex });
+          this.emit('export:error', {
+            error: finalError,
+            item: transformedItem,
+            index: currentIndex,
+          });
 
           if (!this.options.skipInvalidItems) {
             throw error;
@@ -120,13 +134,15 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
       .replace('{{date}}', date);
 
     // Write to file
-    await fs.promises.writeFile(this.options.outputPath, html, { encoding: this.options.encoding || 'utf8' });
+    await fs.promises.writeFile(this.options.outputPath, html, {
+      encoding: this.options.encoding || 'utf8',
+    });
 
     this.emit('export:completed', {
       totalItems: this.exportedCount,
       failedItems: this.failedCount,
       destination: this.options.outputPath,
-      duration: Date.now() - this.startTime
+      duration: Date.now() - this.startTime,
     });
   }
 
@@ -151,7 +167,7 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
       },
       close: async () => {
         await this.closeStream();
-      }
+      },
     };
   }
 
@@ -171,8 +187,14 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
       this.exportedCount++;
       this.emit('export:item', { item: transformedItem, index: currentIndex });
 
-      const percentage = this.totalItems ? Math.round((this.exportedCount / this.totalItems) * 100) : undefined;
-      this.emit('export:progress', { exportedItems: this.exportedCount, totalItems: this.totalItems, percentage });
+      const percentage = this.totalItems
+        ? Math.round((this.exportedCount / this.totalItems) * 100)
+        : undefined;
+      this.emit('export:progress', {
+        exportedItems: this.exportedCount,
+        totalItems: this.totalItems,
+        percentage,
+      });
     } catch (error) {
       this.failedCount++;
       const finalError = error instanceof Error ? error : new Error(String(error));
@@ -198,13 +220,15 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
       .replace('{{count}}', String(this.exportedCount))
       .replace('{{date}}', date);
 
-    await fs.promises.writeFile(this.options.outputPath, html, { encoding: this.options.encoding || 'utf8' });
+    await fs.promises.writeFile(this.options.outputPath, html, {
+      encoding: this.options.encoding || 'utf8',
+    });
 
     this.emit('export:completed', {
       totalItems: this.exportedCount,
       failedItems: this.failedCount,
       destination: this.options.outputPath,
-      duration: Date.now() - this.startTime
+      duration: Date.now() - this.startTime,
     });
   }
 
@@ -231,7 +255,7 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
       return '';
     }
 
-    const headers = this.columns.map(col => `<th>${this.escapeHtml(col)}</th>`).join('');
+    const headers = this.columns.map((col) => `<th>${this.escapeHtml(col)}</th>`).join('');
     return `<tr>${headers}</tr>\n`;
   }
 
@@ -247,12 +271,14 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
     const rowTemplate = this.options.rowTemplate || DEFAULT_ROW_TEMPLATE;
 
     // Build cells
-    const cells = this.columns.map(col => {
-      const value = item[col];
-      const displayValue = value !== null && value !== undefined ? String(value) : '';
-      const shouldAllowRawHtml = this.shouldAllowRawHtml(col);
-      return `<td>${shouldAllowRawHtml ? displayValue : this.escapeHtml(displayValue)}</td>`;
-    }).join('');
+    const cells = this.columns
+      .map((col) => {
+        const value = item[col];
+        const displayValue = value !== null && value !== undefined ? String(value) : '';
+        const shouldAllowRawHtml = this.shouldAllowRawHtml(col);
+        return `<td>${shouldAllowRawHtml ? displayValue : this.escapeHtml(displayValue)}</td>`;
+      })
+      .join('');
 
     return rowTemplate.replace('{{cells}}', cells);
   }
@@ -275,7 +301,7 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
       '<': '&lt;',
       '>': '&gt;',
       '"': '&quot;',
-      "'": '&#039;'
+      "'": '&#039;',
     };
     return text.replace(/[&<>"']/g, (m) => map[m] || m);
   }

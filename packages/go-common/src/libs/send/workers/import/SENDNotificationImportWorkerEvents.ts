@@ -61,7 +61,7 @@ export interface SENDNotificationImportWorkerIunPollingAttemptEvent {
   /** Whether IUN was found in this attempt */
   iunFound: boolean;
   /** List of errors (if any) - can be strings or error objects */
-  errors?: Array<string | Record<string, any>> | undefined;
+  errors?: (string | Record<string, unknown>)[] | undefined;
 }
 
 /**

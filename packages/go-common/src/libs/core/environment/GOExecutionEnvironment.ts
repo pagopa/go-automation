@@ -26,7 +26,10 @@ import path from 'path';
 
 import { GOCredentialSource } from './GOCredentialSource.js';
 import { GODeploymentMode } from './GODeploymentMode.js';
-import type { GOEnvironmentDetectionDetails, GOExecutionEnvironmentInfo } from './GOExecutionEnvironmentInfo.js';
+import type {
+  GOEnvironmentDetectionDetails,
+  GOExecutionEnvironmentInfo,
+} from './GOExecutionEnvironmentInfo.js';
 import { GOExecutionEnvironmentType } from './GOExecutionEnvironmentType.js';
 
 /**
@@ -104,7 +107,8 @@ export class GOExecutionEnvironment {
       lambdaFunctionName: process.env['AWS_LAMBDA_FUNCTION_NAME'],
       detectionDetails: details,
       deploymentMode,
-      monorepoRoot: deploymentMode === GODeploymentMode.MONOREPO ? details.detectedMonorepoRoot : undefined,
+      monorepoRoot:
+        deploymentMode === GODeploymentMode.MONOREPO ? details.detectedMonorepoRoot : undefined,
     };
   }
 
@@ -163,7 +167,7 @@ export class GOExecutionEnvironment {
     if (info.deploymentMode !== GODeploymentMode.MONOREPO || !info.monorepoRoot) {
       throw new Error(
         `getMonorepoRoot() is only available in monorepo mode. ` +
-        `Current deployment mode: ${info.deploymentMode}`
+          `Current deployment mode: ${info.deploymentMode}`,
       );
     }
     return info.monorepoRoot;
@@ -217,9 +221,12 @@ export class GOExecutionEnvironment {
       stdinIsTTY: process.stdin.isTTY ?? false,
       hasTerminal: !!process.env['TERM'],
       hasCIVariable: !!process.env['CI'],
-      hasEnvCredentials: !!process.env['AWS_ACCESS_KEY_ID'] && !!process.env['AWS_SECRET_ACCESS_KEY'],
+      hasEnvCredentials:
+        !!process.env['AWS_ACCESS_KEY_ID'] && !!process.env['AWS_SECRET_ACCESS_KEY'],
       hasWebIdentity: !!process.env['AWS_WEB_IDENTITY_TOKEN_FILE'],
-      hasECSMetadata: !!process.env['ECS_CONTAINER_METADATA_URI_V4'] || !!process.env['ECS_CONTAINER_METADATA_URI'],
+      hasECSMetadata:
+        !!process.env['ECS_CONTAINER_METADATA_URI_V4'] ||
+        !!process.env['ECS_CONTAINER_METADATA_URI'],
       hasLambdaEnv: !!process.env['AWS_LAMBDA_FUNCTION_NAME'],
       hasCodeBuildEnv: !!process.env['CODEBUILD_BUILD_ID'],
       envDeploymentMode: process.env[GO_DEPLOYMENT_MODE_ENV],
@@ -232,7 +239,9 @@ export class GOExecutionEnvironment {
   /**
    * Determine the environment type based on detection signals
    */
-  private static determineEnvironmentType(details: GOEnvironmentDetectionDetails): GOExecutionEnvironmentType {
+  private static determineEnvironmentType(
+    details: GOEnvironmentDetectionDetails,
+  ): GOExecutionEnvironmentType {
     // AWS Lambda - highest priority
     if (details.hasLambdaEnv) {
       return GOExecutionEnvironmentType.AWS_LAMBDA;
@@ -267,7 +276,7 @@ export class GOExecutionEnvironment {
    */
   private static determineCredentialSource(
     type: GOExecutionEnvironmentType,
-    details: GOEnvironmentDetectionDetails
+    details: GOEnvironmentDetectionDetails,
   ): GOCredentialSource {
     // AWS managed environments use default chain (IAM roles)
     if (this.isAWSManagedEnvironment(type)) {
@@ -314,10 +323,12 @@ export class GOExecutionEnvironment {
    * Check if environment type is AWS-managed
    */
   private static isAWSManagedEnvironment(type: GOExecutionEnvironmentType): boolean {
-    return type === GOExecutionEnvironmentType.AWS_LAMBDA
-      || type === GOExecutionEnvironmentType.AWS_ECS
-      || type === GOExecutionEnvironmentType.AWS_EC2
-      || type === GOExecutionEnvironmentType.AWS_CODEBUILD;
+    return (
+      type === GOExecutionEnvironmentType.AWS_LAMBDA ||
+      type === GOExecutionEnvironmentType.AWS_ECS ||
+      type === GOExecutionEnvironmentType.AWS_EC2 ||
+      type === GOExecutionEnvironmentType.AWS_CODEBUILD
+    );
   }
 
   /**

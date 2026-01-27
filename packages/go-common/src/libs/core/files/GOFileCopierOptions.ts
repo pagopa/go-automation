@@ -105,7 +105,9 @@ export interface GOFileCopierOptions {
    * Callback for prompting user (used in interactive mode).
    * Should return true to proceed with copy, false to skip.
    */
-  readonly onPrompt?: ((message: string, filePath: string, sizeHuman: string) => Promise<boolean>) | undefined;
+  readonly onPrompt?:
+    | ((message: string, filePath: string, sizeHuman: string) => Promise<boolean>)
+    | undefined;
 }
 
 /**
@@ -138,7 +140,7 @@ export const GO_FILE_COPIER_DEFAULTS = {
  */
 export function getDefaultSubdirForPathType(
   pathType: GOPathTypeValue,
-  customDefaults?: Partial<GOFileCopierSubdirDefaults>
+  customDefaults?: Partial<GOFileCopierSubdirDefaults>,
 ): string | null {
   const defaults = {
     ...GO_FILE_COPIER_DEFAULTS.SUBDIR_DEFAULTS,

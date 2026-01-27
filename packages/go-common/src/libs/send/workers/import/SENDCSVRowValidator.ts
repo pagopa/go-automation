@@ -45,6 +45,8 @@ export function validateSENDCSVRow(record: any): void {
   );
 
   if (!hasPhysicalAddress) {
-    throw new Error('Physical address required: must have at least physicalAddress, physicalZip, physicalMunicipality');
+    throw new Error(
+      'Physical address required: must have at least physicalAddress, physicalZip, physicalMunicipality',
+    );
   }
 }

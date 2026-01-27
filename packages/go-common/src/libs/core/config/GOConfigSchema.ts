@@ -26,8 +26,8 @@ export interface GOConfigSchemaOptions extends GOConfigHelpGeneratorOptions {
  * Configuration schema with parameters and help generation
  */
 export class GOConfigSchema {
-  private parameters: Map<string, GOConfigParameter>;
-  private helpGenerator: GOConfigHelpGenerator;
+  private readonly parameters: Map<string, GOConfigParameter>;
+  private readonly helpGenerator: GOConfigHelpGenerator;
   readonly name: string;
   readonly version: string;
 
@@ -51,7 +51,7 @@ export class GOConfigSchema {
    * Add multiple parameters
    */
   addParameters(parameterOptions: GOConfigParameterOptions[]): void {
-    parameterOptions.forEach(options => this.addParameter(options));
+    parameterOptions.forEach((options) => this.addParameter(options));
   }
 
   /**
@@ -72,7 +72,7 @@ export class GOConfigSchema {
    * Get parameters by group
    */
   getParametersByGroup(group: string): GOConfigParameter[] {
-    return this.getAllParameters().filter(p => p.group === group);
+    return this.getAllParameters().filter((p) => p.group === group);
   }
 
   /**
@@ -80,7 +80,7 @@ export class GOConfigSchema {
    */
   getAllGroups(): string[] {
     const groups = new Set<string>();
-    this.getAllParameters().forEach(p => groups.add(p.group));
+    this.getAllParameters().forEach((p) => groups.add(p.group));
     return Array.from(groups).sort();
   }
 
@@ -88,21 +88,21 @@ export class GOConfigSchema {
    * Get required parameters
    */
   getRequiredParameters(): GOConfigParameter[] {
-    return this.getAllParameters().filter(p => p.required);
+    return this.getAllParameters().filter((p) => p.required);
   }
 
   /**
    * Get optional parameters
    */
   getOptionalParameters(): GOConfigParameter[] {
-    return this.getAllParameters().filter(p => !p.required);
+    return this.getAllParameters().filter((p) => !p.required);
   }
 
   /**
    * Find parameter by CLI flag
    */
   findByCliFlag(flag: string): GOConfigParameter | undefined {
-    return this.getAllParameters().find(p => p.matchesCliFlag(flag));
+    return this.getAllParameters().find((p) => p.matchesCliFlag(flag));
   }
 
   /**
@@ -149,7 +149,7 @@ export class GOConfigSchema {
     const result: Record<string, any> = {};
     const errors: string[] = [];
 
-    this.getAllParameters().forEach(param => {
+    this.getAllParameters().forEach((param) => {
       try {
         const value = param.getValue(config);
         if (value !== undefined) {
@@ -173,7 +173,7 @@ export class GOConfigSchema {
   validate(config: GOConfigReader): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 
-    this.getAllParameters().forEach(param => {
+    this.getAllParameters().forEach((param) => {
       try {
         param.getValue(config);
       } catch (error: any) {
@@ -183,7 +183,7 @@ export class GOConfigSchema {
 
     return {
       valid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -191,7 +191,7 @@ export class GOConfigSchema {
    * Check if --help flag is present in arguments
    */
   static hasHelpFlag(args: string[] = process.argv.slice(2)): boolean {
-    return args.some(arg => arg === '--help' || arg === '-h' || arg === 'help');
+    return args.some((arg) => arg === '--help' || arg === '-h' || arg === 'help');
   }
 
   /**
@@ -220,7 +220,7 @@ export class GOConfigSchema {
     return {
       name: this.name,
       version: this.version,
-      parameters: this.getAllParameters().map(p => ({
+      parameters: this.getAllParameters().map((p) => ({
         name: p.name,
         displayName: p.displayName,
         type: p.type,
@@ -232,8 +232,8 @@ export class GOConfigSchema {
         cliFlag: p.cliFlag,
         envVar: p.envVar,
         aliases: p.aliases,
-        deprecated: p.deprecated
-      }))
+        deprecated: p.deprecated,
+      })),
     };
   }
 
@@ -251,19 +251,19 @@ export class GOConfigSchema {
     // Table of contents
     lines.push('## Table of Contents');
     lines.push('');
-    this.getAllGroups().forEach(group => {
+    this.getAllGroups().forEach((group) => {
       const anchor = group.toLowerCase().replace(/\s+/g, '-');
       lines.push(`- [${group}](#${anchor})`);
     });
     lines.push('');
 
     // Parameters by group
-    this.getAllGroups().forEach(group => {
+    this.getAllGroups().forEach((group) => {
       lines.push(`## ${group}`);
       lines.push('');
 
       const params = this.getParametersByGroup(group);
-      params.forEach(param => {
+      params.forEach((param) => {
         lines.push(`### ${param.displayName}`);
         lines.push('');
         lines.push(`**Key:** \`${param.name}\``);

@@ -45,12 +45,23 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
     baseProcessedRows: number,
     baseFailedRows: number,
     errors: SENDNotificationImportWorkerError[],
-    totalRowsFromImport: number): Promise<SENDNotificationImportWorkerResult> {
+    totalRowsFromImport: number,
+  ): Promise<SENDNotificationImportWorkerResult> {
     const concurrency = options?.concurrency ?? 1;
     const skipFailedNotifications = options?.skipFailedNotifications ?? false;
 
-    const sentNotifications: { row: SENDNotificationRow; notificationRequestId: string, iun?: string | undefined }[] = [];
-    const stats = { processedRows: 0, documentsUploaded: 0, notificationsSent: 0, iunsObtained: 0, failedRows: 0 };
+    const sentNotifications: {
+      row: SENDNotificationRow;
+      notificationRequestId: string;
+      iun?: string | undefined;
+    }[] = [];
+    const stats = {
+      processedRows: 0,
+      documentsUploaded: 0,
+      notificationsSent: 0,
+      iunsObtained: 0,
+      failedRows: 0,
+    };
 
     // Process rows in slices of size 'concurrency' to control parallelism
     // This prevents overwhelming the API with too many concurrent requests
@@ -60,7 +71,9 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
       // Use Promise.allSettled when skipFailedNotifications=true to continue processing even if some rows fail
       // Use Promise.all when skipFailedNotifications=false to stop immediately on first error
       if (skipFailedNotifications) {
-        const results = await Promise.allSettled(slice.map(async row => this.rowProcessor.processRow(row, options)));
+        const results = await Promise.allSettled(
+          slice.map(async (row) => this.rowProcessor.processRow(row, options)),
+        );
         results.forEach((result, idx) => {
           if (result.status === 'fulfilled') {
             this.handleSuccess(result.value, sentNotifications, stats);
@@ -72,8 +85,10 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
           }
         });
       } else {
-        const results = await Promise.all(slice.map(async row => this.rowProcessor.processRow(row, options)));
-        results.forEach(result => this.handleSuccess(result, sentNotifications, stats));
+        const results = await Promise.all(
+          slice.map(async (row) => this.rowProcessor.processRow(row, options)),
+        );
+        results.forEach((result) => this.handleSuccess(result, sentNotifications, stats));
       }
 
       // Fix: Use totalRowsFromImport instead of calculating incorrectly
@@ -91,8 +106,8 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
           iunsObtained: stats.iunsObtained,
           failedRows: baseFailedRows + stats.failedRows,
           currentBatch: 0,
-          percentage
-        }
+          percentage,
+        },
       });
     }
 
@@ -101,22 +116,37 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
       stats: {
         totalRows: rows.length,
         ...stats,
-        processingTime: 0
+        processingTime: 0,
       },
-      errors: undefined
+      errors: undefined,
     };
   }
 
   private handleSuccess(
-    result: { row: SENDNotificationRow; docUploaded: boolean; notificationResult: { notificationRequestId: string; iun?: string | undefined } | null },
-    sentNotifications: { row: SENDNotificationRow; notificationRequestId: string, iun?: string | undefined }[],
-    stats: { processedRows: number; documentsUploaded: number; notificationsSent: number; iunsObtained: number; failedRows: number }) {
+    result: {
+      row: SENDNotificationRow;
+      docUploaded: boolean;
+      notificationResult: { notificationRequestId: string; iun?: string | undefined } | null;
+    },
+    sentNotifications: {
+      row: SENDNotificationRow;
+      notificationRequestId: string;
+      iun?: string | undefined;
+    }[],
+    stats: {
+      processedRows: number;
+      documentsUploaded: number;
+      notificationsSent: number;
+      iunsObtained: number;
+      failedRows: number;
+    },
+  ) {
     if (result.docUploaded) stats.documentsUploaded++;
     if (result.notificationResult) {
       sentNotifications.push({
         row: result.row,
         notificationRequestId: result.notificationResult.notificationRequestId,
-        iun: result.notificationResult.iun
+        iun: result.notificationResult.iun,
       });
       stats.notificationsSent++;
       if (result.notificationResult.iun) stats.iunsObtained++;
@@ -124,11 +154,23 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
     stats.processedRows++;
   }
 
-  private handleError(error: any, row: SENDNotificationRow, rowIndex: number, errors: SENDNotificationImportWorkerError[], stats: { processedRows: number; documentsUploaded: number; notificationsSent: number; iunsObtained: number; failedRows: number }) {
+  private handleError(
+    error: any,
+    row: SENDNotificationRow,
+    rowIndex: number,
+    errors: SENDNotificationImportWorkerError[],
+    stats: {
+      processedRows: number;
+      documentsUploaded: number;
+      notificationsSent: number;
+      iunsObtained: number;
+      failedRows: number;
+    },
+  ) {
     stats.failedRows++;
 
     // Enhanced error message for better debugging
-    let errorMessage = error.message || 'Unknown error';
+    let errorMessage = error.message ?? 'Unknown error';
     if (error.name === 'AbortError' || errorMessage.includes('Request aborted')) {
       errorMessage = `${errorMessage} (Timeout or network issue - check API response time)`;
     }
@@ -138,7 +180,7 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
       rowData: row,
       message: errorMessage,
       type: this.getErrorType(error),
-      details: error.response || error
+      details: error.response ?? error,
     };
     errors.push(workerError);
     this.emit('worker:error', { error: workerError });

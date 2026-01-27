@@ -7,7 +7,7 @@ import type { GOFileCopyResult } from './GOFileCopyResult.js';
 
 export interface GOFileCopyReport {
   /** All file copy results */
-  readonly results: readonly GOFileCopyResult[];
+  readonly results: ReadonlyArray<GOFileCopyResult>;
 
   /** Summary statistics */
   readonly summary: GOFileCopyReportSummary;

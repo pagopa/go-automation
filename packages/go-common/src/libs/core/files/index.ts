@@ -7,10 +7,7 @@
 export { GOFileCopier } from './GOFileCopier.js';
 
 // Options and Configuration
-export {
-  GO_FILE_COPIER_DEFAULTS,
-  getDefaultSubdirForPathType,
-} from './GOFileCopierOptions.js';
+export { GO_FILE_COPIER_DEFAULTS, getDefaultSubdirForPathType } from './GOFileCopierOptions.js';
 export type {
   GOFileCopierOptions,
   GOFileCopyFileOptions,
@@ -18,13 +15,7 @@ export type {
 } from './GOFileCopierOptions.js';
 
 // Result Types
-export type {
-  GOFileCopyResult,
-  GOFileCopySkipReason,
-} from './GOFileCopyResult.js';
+export type { GOFileCopyResult, GOFileCopySkipReason } from './GOFileCopyResult.js';
 
 // Report Types
-export type {
-  GOFileCopyReport,
-  GOFileCopyReportSummary,
-} from './GOFileCopyReport.js';
+export type { GOFileCopyReport, GOFileCopyReportSummary } from './GOFileCopyReport.js';

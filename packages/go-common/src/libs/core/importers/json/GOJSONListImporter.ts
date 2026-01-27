@@ -18,8 +18,8 @@ import type { GOListImporterEventMap } from '../GOListImporterEvents.js';
  */
 export class GOJSONListImporter<TItem = any>
   extends GOEventEmitterBase<GOListImporterEventMap<TItem>>
-  implements GOListImporter<TItem> {
-
+  implements GOListImporter<TItem>
+{
   constructor(private readonly options: GOJSONListImporterOptions = {}) {
     super();
   }
@@ -33,7 +33,7 @@ export class GOJSONListImporter<TItem = any>
   async import(source: string | Buffer): Promise<GOListImporterResult<TItem>> {
     const startTime = Date.now();
     const items: TItem[] = [];
-    const errors: Array<{ itemIndex: number; itemData: any; message: string }> = [];
+    const errors: { itemIndex: number; itemData: any; message: string }[] = [];
     const skipInvalidItems = this.options.skipInvalidItems ?? false;
 
     let processedItems = 0;
@@ -61,7 +61,7 @@ export class GOJSONListImporter<TItem = any>
           const importError = {
             itemIndex: i + 1,
             itemData: data[i],
-            message: error.message
+            message: error.message,
           };
 
           // Emit error event
@@ -79,7 +79,7 @@ export class GOJSONListImporter<TItem = any>
           processedItems,
           invalidItems,
           totalItems,
-          percentage: Math.round((processedItems / totalItems) * 100)
+          percentage: Math.round((processedItems / totalItems) * 100),
         });
       }
 
@@ -90,7 +90,7 @@ export class GOJSONListImporter<TItem = any>
       this.emit('import:completed', {
         totalItems: validItems,
         invalidItems,
-        duration
+        duration,
       });
 
       return {
@@ -98,9 +98,9 @@ export class GOJSONListImporter<TItem = any>
         stats: {
           totalItems: validItems,
           invalidItems,
-          duration
+          duration,
         },
-        errors
+        errors,
       };
     } catch (error: any) {
       const finalError = error instanceof Error ? error : new Error(String(error));
@@ -108,7 +108,7 @@ export class GOJSONListImporter<TItem = any>
         itemIndex: 0,
         itemData: null,
         message: finalError.message,
-        error: finalError
+        error: finalError,
       });
       throw finalError;
     }
@@ -158,7 +158,7 @@ export class GOJSONListImporter<TItem = any>
             itemIndex: processedItems,
             itemData: data[i],
             message: error.message,
-            error: error instanceof Error ? error : new Error(error.message)
+            error: error instanceof Error ? error : new Error(error.message),
           });
 
           if (!skipInvalidItems) {
@@ -170,7 +170,7 @@ export class GOJSONListImporter<TItem = any>
           processedItems,
           invalidItems,
           totalItems,
-          percentage: Math.round((processedItems / totalItems) * 100)
+          percentage: Math.round((processedItems / totalItems) * 100),
         });
       }
 
@@ -178,7 +178,7 @@ export class GOJSONListImporter<TItem = any>
       this.emit('import:completed', {
         totalItems: validItems,
         invalidItems,
-        duration: 0 // Duration calculated externally for streams
+        duration: 0, // Duration calculated externally for streams
       });
     } catch (error: any) {
       const finalError = error instanceof Error ? error : new Error(String(error));
@@ -186,7 +186,7 @@ export class GOJSONListImporter<TItem = any>
         itemIndex: 0,
         itemData: null,
         message: finalError.message,
-        error: finalError
+        error: finalError,
       });
       throw finalError;
     }
@@ -198,9 +198,10 @@ export class GOJSONListImporter<TItem = any>
    */
   private async parseJSON(source: string | Buffer): Promise<any[]> {
     // Read content
-    const content = typeof source === 'string'
-      ? await fs.promises.readFile(source, { encoding: this.options.encoding || 'utf8' })
-      : source.toString(this.options.encoding || 'utf8');
+    const content =
+      typeof source === 'string'
+        ? await fs.promises.readFile(source, { encoding: this.options.encoding ?? 'utf8' })
+        : source.toString(this.options.encoding ?? 'utf8');
 
     // Parse JSON
     let data = JSON.parse(content);

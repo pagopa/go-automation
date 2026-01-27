@@ -30,15 +30,29 @@ export class GOFileLoggerStyle {
 
   constructor() {
     this.styles = new Map([
-      [GOLogEventCategory.HEADER, { format: '[{timestamp}] [HEADER] {prefix}{message}{suffix}', prefix: '=== ', suffix: ' ===', },],
-      [GOLogEventCategory.SECTION, { format: '[{timestamp}] [SECTION] {prefix}{message}{suffix}', prefix: '--- ', suffix: ' ---', },],
-      [GOLogEventCategory.STEP, { format: '[{timestamp}] [STEP] {message}', },],
-      [GOLogEventCategory.SUCCESS, { format: '[{timestamp}] [SUCCESS] {message}', },],
-      [GOLogEventCategory.ERROR, { format: '[{timestamp}] [ERROR] {message}', },],
-      [GOLogEventCategory.FATAL, { format: '[{timestamp}] [FATAL] {message}', },],
-      [GOLogEventCategory.WARNING, { format: '[{timestamp}] [WARNING] {message}', },],
-      [GOLogEventCategory.INFO, { format: '[{timestamp}] [INFO] {message}', },],
-      [GOLogEventCategory.TEXT, { format: '[{timestamp}] {message}', },],
+      [
+        GOLogEventCategory.HEADER,
+        {
+          format: '[{timestamp}] [HEADER] {prefix}{message}{suffix}',
+          prefix: '=== ',
+          suffix: ' ===',
+        },
+      ],
+      [
+        GOLogEventCategory.SECTION,
+        {
+          format: '[{timestamp}] [SECTION] {prefix}{message}{suffix}',
+          prefix: '--- ',
+          suffix: ' ---',
+        },
+      ],
+      [GOLogEventCategory.STEP, { format: '[{timestamp}] [STEP] {message}' }],
+      [GOLogEventCategory.SUCCESS, { format: '[{timestamp}] [SUCCESS] {message}' }],
+      [GOLogEventCategory.ERROR, { format: '[{timestamp}] [ERROR] {message}' }],
+      [GOLogEventCategory.FATAL, { format: '[{timestamp}] [FATAL] {message}' }],
+      [GOLogEventCategory.WARNING, { format: '[{timestamp}] [WARNING] {message}' }],
+      [GOLogEventCategory.INFO, { format: '[{timestamp}] [INFO] {message}' }],
+      [GOLogEventCategory.TEXT, { format: '[{timestamp}] {message}' }],
     ]);
   }
 

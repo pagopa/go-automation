@@ -21,18 +21,18 @@
  * ```
  */
 
-import { ProxyAgent } from "undici";
-import type { Dispatcher } from "undici";
+import { ProxyAgent } from 'undici';
+import type { Dispatcher } from 'undici';
 
-import { GOEventEmitterBase } from "../events/GOEventEmitterBase.js";
+import { GOEventEmitterBase } from '../events/GOEventEmitterBase.js';
 
-import type { GOAbortableRequest } from "./GOAbortableRequest.js";
-import type { GOHttpClientConfig } from "./GOHttpClientConfig.js";
-import { GOHttpClientError } from "./GOHttpClientError.js";
-import type { GOHttpClientEventMap } from "./GOHttpClientEvents.js";
+import type { GOAbortableRequest } from './GOAbortableRequest.js';
+import type { GOHttpClientConfig } from './GOHttpClientConfig.js';
+import { GOHttpClientError } from './GOHttpClientError.js';
+import type { GOHttpClientEventMap } from './GOHttpClientEvents.js';
 
 /** HTTP method type for type-safe method handling */
-type HttpMethod = "GET" | "POST" | "PUT";
+type HttpMethod = 'GET' | 'POST' | 'PUT';
 
 /**
  * Type for the request body that can be sent via fetch.
@@ -116,7 +116,7 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
    * Ensures the base URL has a protocol prefix.
    */
   private buildUrl(path: string): string {
-    const base = this.baseUrl.startsWith("http") ? this.baseUrl : `https://${this.baseUrl}`;
+    const base = this.baseUrl.startsWith('http') ? this.baseUrl : `https://${this.baseUrl}`;
     return `${base}${path}`;
   }
 
@@ -138,8 +138,8 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
   private async handleResponse<T>(response: Response): Promise<T> {
     this.logDebug(`Response status: ${response.status}`);
 
-    const contentType = response.headers.get("content-type");
-    const isJson = contentType?.includes("application/json") === true;
+    const contentType = response.headers.get('content-type');
+    const isJson = contentType?.includes('application/json') === true;
 
     let responseData: unknown;
     if (isJson) {
@@ -152,7 +152,7 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
       throw new GOHttpClientError(
         `HTTP ${response.status}: ${response.statusText}`,
         response.status,
-        responseData
+        responseData,
       );
     }
 
@@ -178,7 +178,7 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
     if (Buffer.isBuffer(body)) {
       return `Buffer(${body.length} bytes)`;
     }
-    if (typeof body === "string") {
+    if (typeof body === 'string') {
       return `String(${body.length} chars)`;
     }
     return JSON.stringify(body, null, 2);
@@ -198,7 +198,7 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
       return body as Uint8Array;
     }
 
-    if (typeof body === "string") {
+    if (typeof body === 'string') {
       return body;
     }
 
@@ -221,18 +221,18 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
     urlOrPath: string,
     body?: unknown,
     headers?: Record<string, string>,
-    isFullUrl: boolean = false
+    isFullUrl: boolean = false,
   ): GOAbortableRequest<T> {
     const url = isFullUrl ? urlOrPath : this.buildUrl(urlOrPath);
     const mergedHeaders = this.mergeHeaders(headers);
     const startTime = Date.now();
 
-    this.emit("http:request:started", { method, url, headers: mergedHeaders, body });
+    this.emit('http:request:started', { method, url, headers: mergedHeaders, body });
 
     if (this.debug) {
       this.logDebug(`${method} ${url}`);
-      if (body !== undefined && (method === "POST" || method === "PUT")) {
-        this.logDebug("Body", this.formatBodyForLog(body));
+      if (body !== undefined && (method === 'POST' || method === 'PUT')) {
+        this.logDebug('Body', this.formatBodyForLog(body));
       }
     }
 
@@ -251,7 +251,7 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
         };
 
         // Add body for POST/PUT requests
-        if (body !== undefined && (method === "POST" || method === "PUT")) {
+        if (body !== undefined && (method === 'POST' || method === 'PUT')) {
           const preparedBody = this.prepareRequestBody(body);
           if (preparedBody !== undefined) {
             baseOptions.body = preparedBody;
@@ -277,17 +277,23 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
         const response = await fetch(url, fetchOptions);
         const duration = Date.now() - startTime;
 
-        if (method === "PUT") {
+        if (method === 'PUT') {
           if (!response.ok) {
             const error = new GOHttpClientError(
               `HTTP ${response.status}: ${response.statusText}`,
-              response.status
+              response.status,
             );
-            this.emit("http:request:error", { method, url, error, status: response.status, duration });
+            this.emit('http:request:error', {
+              method,
+              url,
+              error,
+              status: response.status,
+              duration,
+            });
             throw error;
           }
 
-          this.emit("http:response:received", {
+          this.emit('http:response:received', {
             method,
             url,
             status: response.status,
@@ -302,7 +308,7 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
 
         const result = await this.handleResponse<T>(response);
 
-        this.emit("http:response:received", {
+        this.emit('http:response:received', {
           method,
           url,
           status: response.status,
@@ -316,14 +322,14 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
       } catch (error) {
         const duration = Date.now() - startTime;
 
-        if (error instanceof Error && error.name === "AbortError") {
-          const abortError = new GOHttpClientError("Request aborted");
-          this.emit("http:request:error", { method, url, error: abortError, duration });
+        if (error instanceof Error && error.name === 'AbortError') {
+          const abortError = new GOHttpClientError('Request aborted');
+          this.emit('http:request:error', { method, url, error: abortError, duration });
           throw abortError;
         }
 
         if (error instanceof Error) {
-          this.emit("http:request:error", {
+          this.emit('http:request:error', {
             method,
             url,
             error,
@@ -388,7 +394,7 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
    * @returns Abortable request object
    */
   getAbortable<T>(path: string, headers?: Record<string, string>): GOAbortableRequest<T> {
-    return this.executeRequest<T>("GET", path, undefined, headers);
+    return this.executeRequest<T>('GET', path, undefined, headers);
   }
 
   /**
@@ -399,8 +405,12 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
    * @param headers - Additional request headers
    * @returns Abortable request object
    */
-  postAbortable<T>(path: string, body?: unknown, headers?: Record<string, string>): GOAbortableRequest<T> {
-    return this.executeRequest<T>("POST", path, body, headers);
+  postAbortable<T>(
+    path: string,
+    body?: unknown,
+    headers?: Record<string, string>,
+  ): GOAbortableRequest<T> {
+    return this.executeRequest<T>('POST', path, body, headers);
   }
 
   /**
@@ -411,7 +421,11 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
    * @param headers - Additional request headers
    * @returns Abortable request object
    */
-  putAbortable(url: string, body: Buffer | string, headers?: Record<string, string>): GOAbortableRequest<void> {
-    return this.executeRequest<void>("PUT", url, body, headers, true);
+  putAbortable(
+    url: string,
+    body: Buffer | string,
+    headers?: Record<string, string>,
+  ): GOAbortableRequest<void> {
+    return this.executeRequest<void>('PUT', url, body, headers, true);
   }
 }

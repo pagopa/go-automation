@@ -15,7 +15,7 @@ export class GOConfigTypeConverter {
    * @returns String value (first element if array)
    */
   static toString(value: string | string[]): string {
-    return Array.isArray(value) ? value[0] || '' : value;
+    return Array.isArray(value) ? (value[0] ?? '') : value;
   }
 
   /**
@@ -94,8 +94,8 @@ export class GOConfigTypeConverter {
     if (value.includes(separator)) {
       return value
         .split(separator)
-        .map(v => v.trim())
-        .filter(v => v.length > 0);
+        .map((v) => v.trim())
+        .filter((v) => v.length > 0);
     }
 
     // Single value becomes single-element array
@@ -109,7 +109,7 @@ export class GOConfigTypeConverter {
    * @returns Array of integers
    */
   static toIntArray(value: string | string[], separator = ','): number[] {
-    return this.toStringArray(value, separator).map(v => {
+    return this.toStringArray(value, separator).map((v) => {
       const num = parseInt(v.trim(), 10);
       if (isNaN(num)) {
         throw new Error(`Cannot convert "${v}" to integer in array`);
@@ -125,7 +125,7 @@ export class GOConfigTypeConverter {
    * @returns Array of numbers
    */
   static toDoubleArray(value: string | string[], separator = ','): number[] {
-    return this.toStringArray(value, separator).map(v => {
+    return this.toStringArray(value, separator).map((v) => {
       const num = parseFloat(v.trim());
       if (isNaN(num)) {
         throw new Error(`Cannot convert "${v}" to number in array`);
@@ -141,7 +141,7 @@ export class GOConfigTypeConverter {
    * @returns Array of booleans
    */
   static toBoolArray(value: string | string[], separator = ','): boolean[] {
-    return this.toStringArray(value, separator).map(v => this.toBool(v));
+    return this.toStringArray(value, separator).map((v) => this.toBool(v));
   }
 
   /**
@@ -155,7 +155,9 @@ export class GOConfigTypeConverter {
     try {
       return Buffer.from(str, encoding);
     } catch (error: any) {
-      throw new Error(`Cannot convert "${str}" to Buffer with encoding ${encoding}: ${error.message}`);
+      throw new Error(
+        `Cannot convert "${str}" to Buffer with encoding ${encoding}: ${error.message}`,
+      );
     }
   }
 
@@ -166,12 +168,18 @@ export class GOConfigTypeConverter {
    * @param encoding - Buffer encoding (default: 'base64')
    * @returns Array of Buffers
    */
-  static toBufferArray(value: string | string[], separator = ',', encoding: BufferEncoding = 'base64'): Buffer[] {
-    return this.toStringArray(value, separator).map(v => {
+  static toBufferArray(
+    value: string | string[],
+    separator = ',',
+    encoding: BufferEncoding = 'base64',
+  ): Buffer[] {
+    return this.toStringArray(value, separator).map((v) => {
       try {
         return Buffer.from(v, encoding);
       } catch (error: any) {
-        throw new Error(`Cannot convert "${v}" to Buffer with encoding ${encoding}: ${error.message}`);
+        throw new Error(
+          `Cannot convert "${v}" to Buffer with encoding ${encoding}: ${error.message}`,
+        );
       }
     });
   }
@@ -186,7 +194,7 @@ export class GOConfigTypeConverter {
   static tryConvert<T>(
     converter: (value: string | string[]) => T,
     value: string | string[] | undefined,
-    defaultValue: T
+    defaultValue: T,
   ): T {
     if (value === undefined) {
       return defaultValue;

@@ -4,18 +4,18 @@
 export type GOEventHandler<TPayload = any> = (payload: TPayload) => void | Promise<void>;
 
 export interface GOEventEmitter<TEvents extends Record<string | symbol, any>> {
-    /**
-     * Register an event listener
-     */
-    on<TEvent extends keyof TEvents>(event: TEvent, handler: GOEventHandler<TEvents[TEvent]>): void;
+  /**
+   * Register an event listener
+   */
+  on<TEvent extends keyof TEvents>(event: TEvent, handler: GOEventHandler<TEvents[TEvent]>): void;
 
-    /**
-     * Remove an event listener
-     */
-    off<TEvent extends keyof TEvents>(event: TEvent, handler: GOEventHandler<TEvents[TEvent]>): void;
+  /**
+   * Remove an event listener
+   */
+  off<TEvent extends keyof TEvents>(event: TEvent, handler: GOEventHandler<TEvents[TEvent]>): void;
 
-    /**
-     * Remove all listeners for an event, or all listeners if no event specified
-     */
-    removeAllListeners<TEvent extends keyof TEvents>(event?: TEvent): void;
+  /**
+   * Remove all listeners for an event, or all listeners if no event specified
+   */
+  removeAllListeners<TEvent extends keyof TEvents>(event?: TEvent): void;
 }

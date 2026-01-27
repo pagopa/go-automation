@@ -11,7 +11,6 @@ import { SENDAttachmentService } from './services/attachment/SENDAttachmentServi
 import type { SENDNotificationServiceConfig } from './services/notification/models/SENDNotificationServiceConfig.js';
 import { SENDNotificationService } from './services/notification/SENDNotificationService.js';
 
-
 /**
  * Main SDK class providing access to all services
  */
