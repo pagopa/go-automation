@@ -123,7 +123,7 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
     }
 
     // Generate final HTML
-    const template = this.options.template || DEFAULT_TEMPLATE;
+    const template = this.options.template ?? DEFAULT_TEMPLATE;
     const headerRow = this.buildHeaderRow();
     const allRows = headerRow + rowsHtml.join('\n');
     const date = new Date().toLocaleString();
@@ -135,7 +135,7 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
 
     // Write to file
     await fs.promises.writeFile(this.options.outputPath, html, {
-      encoding: this.options.encoding || 'utf8',
+      encoding: this.options.encoding ?? 'utf8',
     });
 
     this.emit('export:completed', {
@@ -174,6 +174,7 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
   /**
    * Append a single item to the stream
    */
+  // eslint-disable-next-line @typescript-eslint/require-await
   private async appendItem(item: TItem): Promise<void> {
     const transformedItem = this.transformItem(item);
     if (!transformedItem) return;
@@ -210,7 +211,7 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
    * Close the stream and write final HTML
    */
   private async closeStream(): Promise<void> {
-    const template = this.options.template || DEFAULT_TEMPLATE;
+    const template = this.options.template ?? DEFAULT_TEMPLATE;
     const headerRow = this.buildHeaderRow();
     const allRows = headerRow + this.htmlBuffer.join('\n');
     const date = new Date().toLocaleString();
@@ -221,7 +222,7 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
       .replace('{{date}}', date);
 
     await fs.promises.writeFile(this.options.outputPath, html, {
-      encoding: this.options.encoding || 'utf8',
+      encoding: this.options.encoding ?? 'utf8',
     });
 
     this.emit('export:completed', {
@@ -264,11 +265,8 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
    */
   private buildRow(item: TItem): string {
     // Extract columns from first item
-    if (!this.columns) {
-      this.columns = Object.keys(item);
-    }
-
-    const rowTemplate = this.options.rowTemplate || DEFAULT_ROW_TEMPLATE;
+    this.columns ??= Object.keys(item);
+    const rowTemplate = this.options.rowTemplate ?? DEFAULT_ROW_TEMPLATE;
 
     // Build cells
     const cells = this.columns
@@ -303,6 +301,6 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
       '"': '&quot;',
       "'": '&#039;',
     };
-    return text.replace(/[&<>"']/g, (m) => map[m] || m);
+    return text.replace(/[&<>"']/g, (m) => map[m] ?? m);
   }
 }

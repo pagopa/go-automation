@@ -30,17 +30,17 @@ export interface GOInMemoryConfigProviderOptions {
  */
 export class GOInMemoryConfigProvider extends GOConfigProviderBase {
   protected values: Map<string, string | string[]>;
-  private secretRedactor: GOSecretRedactor;
-  private providerName: string;
+  private readonly secretRedactor: GOSecretRedactor;
+  private readonly providerName: string;
 
   constructor(options: GOInMemoryConfigProviderOptions = {}) {
     super();
 
     this.values = new Map();
     this.secretRedactor = new GOSecretRedactor(
-      options.secretsSpecifier || GOSecretsSpecifierFactory.none()
+      options.secretsSpecifier ?? GOSecretsSpecifierFactory.none(),
     );
-    this.providerName = options.name || 'InMemory';
+    this.providerName = options.name ?? 'InMemory';
 
     // Initialize with provided values
     if (options.values) {

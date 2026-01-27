@@ -143,12 +143,12 @@ export class GOEnvFileParser {
     // Expand ${VAR} syntax
     value = value.replace(/\$\{([A-Za-z0-9_]+)\}/g, (_match, varName) => {
       // Check current vars first, then existing vars
-      return currentVars.get(varName) || existingVars[varName] || '';
+      return currentVars.get(varName) ?? existingVars[varName] ?? '';
     });
 
     // Expand $VAR syntax (but not ${ or escaped \$)
     value = value.replace(/(?<!\\)\$([A-Za-z_][A-Za-z0-9_]*)/g, (_match, varName) => {
-      return currentVars.get(varName) || existingVars[varName] || '';
+      return currentVars.get(varName) ?? existingVars[varName] ?? '';
     });
 
     // Remove escaped dollar signs

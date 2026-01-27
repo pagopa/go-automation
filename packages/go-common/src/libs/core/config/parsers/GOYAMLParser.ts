@@ -50,7 +50,7 @@ export class GOYAMLParser {
   static parseFiles(filePaths: string[], encoding: BufferEncoding = 'utf8'): any {
     const result: any = {};
 
-    filePaths.forEach(filePath => {
+    filePaths.forEach((filePath) => {
       const content = this.parseFile(filePath, encoding);
       this.deepMerge(result, content);
     });
@@ -66,7 +66,7 @@ export class GOYAMLParser {
   private static deepMerge(target: any, source: any): void {
     if (!source) return;
 
-    Object.keys(source).forEach(key => {
+    Object.keys(source).forEach((key) => {
       const sourceValue = source[key];
       const targetValue = target[key];
 
@@ -112,7 +112,7 @@ export class GOYAMLParser {
     filePath: string,
     data: any,
     options?: YAML.ToStringOptions,
-    encoding: BufferEncoding = 'utf8'
+    encoding: BufferEncoding = 'utf8',
   ): void {
     try {
       const yamlContent = this.stringify(data, options);

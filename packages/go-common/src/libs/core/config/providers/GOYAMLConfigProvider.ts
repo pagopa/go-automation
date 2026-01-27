@@ -49,15 +49,15 @@ export class GOYAMLConfigProvider extends GOConfigProviderBase {
 
     this.values = new Map();
     this.secretRedactor = new GOSecretRedactor(
-      options.secretsSpecifier || GOSecretsSpecifierFactory.none(),
+      options.secretsSpecifier ?? GOSecretsSpecifierFactory.none(),
     );
     this.filePath = options.filePath;
-    this.isOptional = options.optional || false;
+    this.isOptional = options.optional ?? false;
     this.displayName = options.displayName;
 
     // Load configuration
     if (options.filePath) {
-      this.loadFromFile(options.filePath, options.encoding || 'utf8');
+      this.loadFromFile(options.filePath, options.encoding ?? 'utf8');
     } else if (options.data) {
       this.loadFromData(options.data);
     } else if (!this.isOptional) {

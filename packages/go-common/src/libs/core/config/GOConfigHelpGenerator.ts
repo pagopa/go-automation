@@ -274,9 +274,7 @@ export class GOConfigHelpGenerator {
 
     parameters.forEach((param) => {
       const groupName = param.group || 'General';
-      if (!grouped[groupName]) {
-        grouped[groupName] = [];
-      }
+      grouped[groupName] ??= [];
       grouped[groupName].push(param);
     });
 

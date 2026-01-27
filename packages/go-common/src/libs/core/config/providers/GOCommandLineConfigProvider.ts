@@ -39,17 +39,17 @@ export interface GOCommandLineConfigProviderOptions {
  */
 export class GOCommandLineConfigProvider extends GOConfigProviderBase {
   protected values: Map<string, string | string[]>;
-  private secretRedactor: GOSecretRedactor;
-  private rawArgs: string[];
+  private readonly secretRedactor: GOSecretRedactor;
+  private readonly rawArgs: string[];
 
   constructor(options: GOCommandLineConfigProviderOptions = {}) {
     super();
 
     this.values = new Map();
     this.secretRedactor = new GOSecretRedactor(
-      options.secretsSpecifier || GOSecretsSpecifierFactory.none()
+      options.secretsSpecifier ?? GOSecretsSpecifierFactory.none(),
     );
-    this.rawArgs = options.arguments || process.argv.slice(2);
+    this.rawArgs = options.arguments ?? process.argv.slice(2);
 
     // Parse arguments
     this.parseArguments(options.schema);
@@ -77,7 +77,7 @@ export class GOCommandLineConfigProvider extends GOConfigProviderBase {
 
     // Try converting from hierarchical format to CLI flag format
     // e.g., "http.timeout" -> "http-timeout"
-    const cliKey = GOConfigKeyTransformer.fromCLIFlag('--' + key.replace(/\./g, '-'));
+    const cliKey = GOConfigKeyTransformer.fromCLIFlag(`--${key.replace(/\./g, '-')}`);
     if (this.values.has(cliKey)) {
       return this.values.get(cliKey);
     }
@@ -93,7 +93,7 @@ export class GOCommandLineConfigProvider extends GOConfigProviderBase {
       return true;
     }
 
-    const cliKey = GOConfigKeyTransformer.fromCLIFlag('--' + key.replace(/\./g, '-'));
+    const cliKey = GOConfigKeyTransformer.fromCLIFlag(`--${key.replace(/\./g, '-')}`);
     return this.values.has(cliKey);
   }
 
@@ -133,7 +133,7 @@ export class GOCommandLineConfigProvider extends GOConfigProviderBase {
   getProvidedFlags(): string[] {
     const flags = new Set<string>();
 
-    this.rawArgs.forEach(arg => {
+    this.rawArgs.forEach((arg) => {
       if (arg.startsWith('--')) {
         const part = arg.split('=')[0];
         if (part) {

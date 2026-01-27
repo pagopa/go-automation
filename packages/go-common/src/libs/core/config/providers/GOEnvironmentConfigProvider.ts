@@ -43,32 +43,32 @@ export interface GOEnvironmentConfigProviderOptions {
  */
 export class GOEnvironmentConfigProvider extends GOConfigProviderBase {
   protected values: Map<string, string | string[]>;
-  private secretRedactor: GOSecretRedactor;
-  private envFilePath?: string | undefined;
-  private arraySeparator: string;
-  private displayName?: string | undefined;
+  private readonly secretRedactor: GOSecretRedactor;
+  private readonly envFilePath?: string | undefined;
+  private readonly arraySeparator: string;
+  private readonly displayName?: string | undefined;
 
   constructor(options: GOEnvironmentConfigProviderOptions = {}) {
     super();
 
     this.values = new Map();
     this.secretRedactor = new GOSecretRedactor(
-      options.secretsSpecifier || GOSecretsSpecifierFactory.none()
+      options.secretsSpecifier ?? GOSecretsSpecifierFactory.none(),
     );
     this.envFilePath = options.environmentFilePath;
-    this.arraySeparator = options.arraySeparator || ',';
+    this.arraySeparator = options.arraySeparator ?? ',';
     this.displayName = options.displayName;
 
     // Load environment variables
     if (options.environmentFilePath) {
       try {
-        this.loadFromFile(options.environmentFilePath, options.encoding || 'utf8');
+        this.loadFromFile(options.environmentFilePath, options.encoding ?? 'utf8');
       } catch (error) {
         // Fallback to process.env if file doesn't exist or can't be read
-        this.loadFromEnvironment(options.source || process.env);
+        this.loadFromEnvironment(options.source ?? process.env);
       }
     } else {
-      this.loadFromEnvironment(options.source || process.env);
+      this.loadFromEnvironment(options.source ?? process.env);
     }
   }
 
@@ -144,8 +144,8 @@ export class GOEnvironmentConfigProvider extends GOConfigProviderBase {
     if (value.includes(this.arraySeparator)) {
       const parts = value
         .split(this.arraySeparator)
-        .map(v => v.trim())
-        .filter(v => v.length > 0);
+        .map((v) => v.trim())
+        .filter((v) => v.length > 0);
 
       // Return array only if we have multiple parts
       return parts.length > 1 ? parts : value;

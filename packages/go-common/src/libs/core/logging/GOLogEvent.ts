@@ -23,14 +23,14 @@ export class GOLogEvent {
 
   /**
    * Create a newline log event
-  */
+   */
   public static newline(): GOLogEvent {
     return new GOLogEvent('', GOLogEventCategory.TEXT);
   }
 
   /**
- * Create a newline log event
-*/
+   * Create a newline log event
+   */
   public static text(text: string): GOLogEvent {
     return new GOLogEvent(text, GOLogEventCategory.TEXT);
   }
