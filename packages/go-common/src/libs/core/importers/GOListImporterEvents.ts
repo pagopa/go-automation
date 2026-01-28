@@ -29,7 +29,7 @@ export interface GOListImportProgressEvent {
 /**
  * Event emitted when a valid item is imported
  */
-export interface GOListItemImportedEvent<TItem = any> {
+export interface GOListItemImportedEvent<TItem = unknown> {
   /** The imported item data */
   item: TItem;
   /** Index of this item in the import (0-based) */
@@ -43,7 +43,7 @@ export interface GOListImportErrorEvent {
   /** Item number where error occurred */
   itemIndex: number;
   /** The raw data that failed to import */
-  itemData: any;
+  itemData: unknown;
   /** Error message */
   message: string;
   /** Error object */
@@ -66,7 +66,7 @@ export interface GOListImportCompletedEvent {
  * Map of all importer events
  * Used for type-safe event emission and listening
  */
-export interface GOListImporterEventMap<TItem = any> {
+export interface GOListImporterEventMap<TItem = unknown> {
   /** Emitted when import starts */
   'import:started': GOListImportStartedEvent;
 

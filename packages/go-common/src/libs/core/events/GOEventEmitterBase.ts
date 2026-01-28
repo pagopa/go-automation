@@ -7,10 +7,8 @@ export type { GOEventHandler };
  * Generic Event Emitter
  * Provides type-safe event emission and listener registration
  */
-export class GOEventEmitterBase<
-  TEventMap extends Record<string, any>,
-> implements GOEventEmitter<TEventMap> {
-  private listeners: Partial<Record<keyof TEventMap, GOEventHandler<any>[]>> = {};
+export class GOEventEmitterBase<TEventMap extends object> implements GOEventEmitter<TEventMap> {
+  private listeners: Partial<Record<keyof TEventMap, GOEventHandler<unknown>[]>> = {};
 
   /**
    * Register an event listener
@@ -26,7 +24,7 @@ export class GOEventEmitterBase<
     if (!this.listeners[event]) {
       this.listeners[event] = [];
     }
-    this.listeners[event]!.push(handler as GOEventHandler<any>);
+    this.listeners[event]!.push(handler as GOEventHandler<unknown>);
   }
 
   /**

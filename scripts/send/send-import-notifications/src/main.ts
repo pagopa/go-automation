@@ -23,7 +23,7 @@ import type { ImportNotificationsConfig } from './config.js';
  */
 function setupEventListeners(
   worker: SEND.SENDNotificationImportWorker,
-  importer: Core.GOCSVListImporter,
+  importer: Core.GOCSVListImporter<SEND.SENDNotificationRow>,
   exporter: Core.GOCSVListExporter<Record<string, unknown>> | undefined,
   prompt: Core.GOPrompt,
 ): void {
@@ -253,7 +253,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     preserveOriginalData: config.preserveAllColumns,
   };
 
-  const importer = new Core.GOCSVListImporter(importerOptions);
+  const importer = new Core.GOCSVListImporter<SEND.SENDNotificationRow>(importerOptions);
 
   // Create exporter (if export file specified)
   let exporter: Core.GOCSVListExporter<Record<string, unknown>> | undefined;

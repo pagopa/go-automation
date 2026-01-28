@@ -16,8 +16,9 @@
 import type { GOCSVFormatAdapter } from '../../../../core/importers/csv/GOCSVFormatAdapter.js';
 import type { GOCSVListImporterOptions } from '../../../../core/importers/csv/GOCSVListImporterOptions.js';
 import { validateSENDCSVRow } from '../SENDCSVRowValidator.js';
+import type { SENDNotificationRow } from '../SENDNotificationRow.js';
 
-export class QATestFormatAdapter implements GOCSVFormatAdapter {
+export class QATestFormatAdapter implements GOCSVFormatAdapter<SENDNotificationRow> {
   getName(): string {
     return 'qa-test';
   }
@@ -64,7 +65,7 @@ export class QATestFormatAdapter implements GOCSVFormatAdapter {
     return matchCount >= 4;
   }
 
-  getOptions(): GOCSVListImporterOptions {
+  getOptions(): GOCSVListImporterOptions<SENDNotificationRow> {
     return {
       delimiter: ',',
       hasHeaders: true,
@@ -106,29 +107,62 @@ export class QATestFormatAdapter implements GOCSVFormatAdapter {
       rowValidator: validateSENDCSVRow,
 
       // Additional transformations after mapping and defaults
-      rowTransformer: (item: Record<string, any>) => {
+      rowTransformer: (item: Record<string, string>): SENDNotificationRow => {
         // Set digitalType only if digitalAddress is present and not empty
-        if (item['digitalAddress'] && item['digitalAddress'].trim() !== '') {
-          item['digitalType'] = 'PEC';
-        } else {
-          // Clear digitalType if no digitalAddress
-          item['digitalType'] = '';
-        }
+        const digitalAddress = item['digitalAddress'];
+        const digitalType =
+          digitalAddress !== undefined && digitalAddress.trim() !== '' ? 'PEC' : undefined;
 
         // Normalize physicalForeignState (convert "ITALIA" to empty string for domestic addresses)
-        if (item['physicalForeignState']?.toUpperCase() === 'ITALIA') {
-          item['physicalForeignState'] = '';
-        }
+        const physicalForeignState = item['physicalForeignState'];
+        const normalizedPhysicalForeignState =
+          physicalForeignState?.toUpperCase() === 'ITALIA' ? '' : physicalForeignState;
 
-        // Remove QA-specific columns that are not part of SEND format
-        delete item['Range'];
-        delete item['RequestID'];
-        delete item['Data invio Test'];
-        delete item['Stato'];
-        delete item['Esito'];
-        delete item['Note'];
+        // Build the SENDNotificationRow from the mapped item
+        // Required fields
+        const row: SENDNotificationRow = {
+          subject: item['subject'] ?? '',
+          senderTaxId: item['senderTaxId'] ?? '',
+          senderDenomination: item['senderDenomination'] ?? '',
+          recipientTaxId: item['recipientTaxId'] ?? '',
+          recipientType: (item['recipientType'] as 'PF' | 'PG') ?? 'PF',
+          recipientDenomination: item['recipientDenomination'] ?? '',
+        };
 
-        return item;
+        // Optional fields - only add if they have values
+        if (item['group']) row.group = item['group'];
+        if (item['taxonomyCode']) row.taxonomyCode = item['taxonomyCode'];
+        if (item['paProtocolNumber']) row.paProtocolNumber = item['paProtocolNumber'];
+
+        // Physical address fields
+        if (item['physicalAddress']) row.physicalAddress = item['physicalAddress'];
+        if (item['physicalAddressDetails'])
+          row.physicalAddressDetails = item['physicalAddressDetails'];
+        if (item['physicalZip']) row.physicalZip = item['physicalZip'];
+        if (item['physicalMunicipality']) row.physicalMunicipality = item['physicalMunicipality'];
+        if (item['physicalMunicipalityDetails'])
+          row.physicalMunicipalityDetails = item['physicalMunicipalityDetails'];
+        if (item['physicalProvince']) row.physicalProvince = item['physicalProvince'];
+        if (normalizedPhysicalForeignState)
+          row.physicalForeignState = normalizedPhysicalForeignState;
+
+        // Digital domicile fields
+        if (digitalType) row.digitalType = digitalType;
+        if (digitalAddress) row.digitalAddress = digitalAddress;
+
+        // Payment fields
+        if (item['pagoPaNoticeCode']) row.pagoPaNoticeCode = item['pagoPaNoticeCode'];
+        if (item['pagoPaCreditorTaxId']) row.pagoPaCreditorTaxId = item['pagoPaCreditorTaxId'];
+        if (item['pagoPaAmount']) row.pagoPaAmount = item['pagoPaAmount'];
+
+        // Document fields
+        if (item['documentTitle']) row.documentTitle = item['documentTitle'];
+        if (item['documentKey']) row.documentKey = item['documentKey'];
+        if (item['documentVersionToken']) row.documentVersionToken = item['documentVersionToken'];
+        if (item['documentSha256']) row.documentSha256 = item['documentSha256'];
+        if (item['documentFilePath']) row.documentFilePath = item['documentFilePath'];
+
+        return row;
       },
     };
   }

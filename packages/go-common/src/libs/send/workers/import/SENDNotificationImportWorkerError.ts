@@ -6,11 +6,11 @@ export interface SENDNotificationImportWorkerError {
   /** Row number */
   rowIndex: number;
   /** Row data */
-  rowData: Record<string, any>;
+  rowData: unknown;
   /** Error message */
   message: string;
   /** Error type */
-  type: 'import' | 'upload' | 'build' | 'send';
+  type: 'import' | 'upload' | 'build' | 'send' | 'export';
   /** Additional error details */
-  details?: any;
+  details?: unknown;
 }

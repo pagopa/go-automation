@@ -29,6 +29,7 @@ import type { SENDNotificationImportWorkerEventMap } from './SENDNotificationImp
 import type { SENDNotificationImportWorkerOptions } from './SENDNotificationImportWorkerOptions.js';
 import type { SENDNotificationImportWorkerResult } from './SENDNotificationImportWorkerResult.js';
 import type { SENDNotificationRow } from './SENDNotificationRow.js';
+import { getErrorMessage } from '../../../core/index.js';
 
 type ImportSource = string | Buffer;
 
@@ -37,7 +38,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
   private readonly batchProcessor: SENDNotificationImportBatchProcessor;
 
   constructor(
-    private readonly importer: GOListImporter,
+    private readonly importer: GOListImporter<SENDNotificationRow>,
     sdk: SENDNotifications,
   ) {
     super();
@@ -312,7 +313,14 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
           try {
             await exportWriter.close();
           } catch (closeError) {
-            // Ignore close errors
+            this.emit('worker:error', {
+              error: {
+                rowIndex: 0,
+                rowData: {},
+                message: `Failed to close export stream: ${getErrorMessage(closeError)}`,
+                type: 'export',
+              },
+            });
           }
         }
         throw error;
@@ -337,7 +345,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
         const sizeMB = stats.size / (1024 * 1024);
         const threshold = options.streamingThresholdMB ?? 10;
         return sizeMB > threshold;
-      } catch (error) {
+      } catch {
         return false;
       }
     }

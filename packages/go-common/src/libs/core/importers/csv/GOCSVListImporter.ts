@@ -5,11 +5,14 @@
 
 import { createReadStream } from 'fs';
 import { parse } from 'csv-parse';
+import type { Options as CSVParseOptions } from 'csv-parse';
 import type { GOListImporter } from '../GOListImporter.js';
 import type { GOListImporterResult } from '../GOListImporterResult.js';
-import type { GOCSVListImporterOptions } from './GOCSVListImporterOptions.js';
+import type { GOListImportError } from '../GOListImporterResult.js';
+import type { GOCSVListImporterOptions, CSVRecord } from './GOCSVListImporterOptions.js';
 import { GOEventEmitterBase } from '../../events/GOEventEmitterBase.js';
 import type { GOListImporterEventMap } from '../GOListImporterEvents.js';
+import { getErrorMessage, toError } from '../../errors/GOErrorUtils.js';
 
 /**
  * Generic CSV List Importer
@@ -18,14 +21,14 @@ import type { GOListImporterEventMap } from '../GOListImporterEvents.js';
  *
  * @template TItem - The type of items to import
  */
-export class GOCSVListImporter<TItem extends Record<string, any> = Record<string, any>>
+export class GOCSVListImporter<TItem = CSVRecord>
   extends GOEventEmitterBase<GOListImporterEventMap<TItem>>
   implements GOListImporter<TItem>
 {
   // Cached parser options to avoid recalculation
-  private parserOptions?: any;
+  private parserOptions?: CSVParseOptions;
 
-  constructor(private readonly options: GOCSVListImporterOptions) {
+  constructor(private readonly options: GOCSVListImporterOptions<TItem>) {
     super();
   }
 
@@ -38,7 +41,7 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
   async import(source: string | Buffer): Promise<GOListImporterResult<TItem>> {
     const startTime = Date.now();
     const items: TItem[] = [];
-    const errors: { itemIndex: number; itemData: any; message: string }[] = [];
+    const errors: GOListImportError[] = [];
     const skipInvalidItems = this.options.skipInvalidItems ?? false;
 
     let processedItems = 0;
@@ -73,17 +76,28 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
     // Process each item
     for (let i = 0; i < totalItems; i++) {
       processedItems++;
+      const currentRecord = records[i];
+
+      // Safety check for undefined record (noUncheckedIndexedAccess)
+      if (currentRecord === undefined) {
+        continue;
+      }
 
       try {
-        const item = this.transformItem(records[i]);
+        const item = this.transformItem(currentRecord);
         items.push(item);
         this.emit('import:item', { item, index: i });
-      } catch (error: any) {
+      } catch (error: unknown) {
         invalidItems++;
 
         // Emit error event
-        const importError = { itemIndex: i + 1, itemData: records[i], message: error.message };
-        const finalError = error instanceof Error ? error : new Error(String(error));
+        const errorMessage = getErrorMessage(error);
+        const importError: GOListImportError = {
+          itemIndex: i + 1,
+          itemData: currentRecord,
+          message: errorMessage,
+        };
+        const finalError = toError(error);
 
         // Emit error event
         this.emit('import:error', { ...importError, error: finalError });
@@ -139,21 +153,25 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
     for await (const record of parser) {
       processedItems++;
 
+      // Type assertion for csv-parse record which is typed as unknown in stream mode
+      const csvRecord = record as CSVRecord;
+
       try {
-        const item = this.transformItem(record);
+        const item = this.transformItem(csvRecord);
         validItems++;
         this.emit('import:item', { item, index: validItems - 1 });
 
         yield item;
-      } catch (error: any) {
+      } catch (error: unknown) {
         invalidItems++;
 
         // Emit error event
+        const errorMessage = getErrorMessage(error);
         this.emit('import:error', {
           itemIndex: processedItems,
-          itemData: record,
-          message: error.message,
-          error: error instanceof Error ? error : new Error(error.message),
+          itemData: csvRecord,
+          message: errorMessage,
+          error: toError(error),
         });
 
         if (!skipInvalidItems) {
@@ -179,7 +197,7 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
   /**
    * Get parser options (cached for performance)
    */
-  private getParserOptions(): any {
+  private getParserOptions(): CSVParseOptions {
     if (!this.parserOptions) {
       const delimiter = this.options.delimiter ?? ',';
       const hasHeaders = this.options.hasHeaders ?? true;
@@ -202,13 +220,13 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
   /**
    * Parse CSV from buffer
    */
-  private async parseCSVBuffer(buffer: Buffer): Promise<any[]> {
+  private async parseCSVBuffer(buffer: Buffer): Promise<CSVRecord[]> {
     return new Promise((resolve, reject) => {
-      parse(buffer, this.getParserOptions(), (error, records) => {
+      parse(buffer, this.getParserOptions(), (error, records: CSVRecord[] | undefined) => {
         if (error) {
           reject(error);
         } else {
-          resolve(records);
+          resolve(records ?? []);
         }
       });
     });
@@ -217,15 +235,17 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
   /**
    * Validate and transform raw CSV record to typed item
    */
-  private transformItem(record: any): TItem {
+  private transformItem(record: CSVRecord): TItem {
     // Preserve original record before any transformation if enabled
-    const originalRow = this.options.preserveOriginalData ? { ...record } : undefined;
+    const originalRow: CSVRecord | undefined = this.options.preserveOriginalData
+      ? { ...record }
+      : undefined;
 
-    let item = { ...record };
+    let item: CSVRecord = { ...record };
 
     // Step 1: Apply column mapping (rename columns)
     if (this.options.columnMapping) {
-      const mapped: Record<string, any> = {};
+      const mapped: CSVRecord = {};
 
       for (const [sourceKey, value] of Object.entries(item)) {
         // Use mapped name if available, otherwise keep original
@@ -240,7 +260,8 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
     if (this.options.defaultValues) {
       for (const [key, defaultValue] of Object.entries(this.options.defaultValues)) {
         // Only apply default if value is undefined, null, or empty string
-        if (item[key] === undefined || item[key] === null || item[key] === '') {
+        const currentValue = item[key];
+        if (currentValue === undefined || currentValue === null || currentValue === '') {
           item[key] = defaultValue;
         }
       }
@@ -253,38 +274,19 @@ export class GOCSVListImporter<TItem extends Record<string, any> = Record<string
 
     // Step 4: Transform (if validator passed)
     if (this.options.rowTransformer) {
-      item = this.options.rowTransformer(item);
+      const transformed = this.options.rowTransformer(item);
+      // Step 5: Attach original row data if preserveOriginalData is enabled
+      if (originalRow) {
+        (transformed as CSVRecord & { _originalRow?: CSVRecord })._originalRow = originalRow;
+      }
+      return transformed;
     }
 
-    // Step 5: Attach original row data if preserveOriginalData is enabled
+    // Step 5: Attach original row data if preserveOriginalData is enabled (no transformer case)
     if (originalRow) {
-      item._originalRow = originalRow;
+      (item as CSVRecord & { _originalRow?: CSVRecord })._originalRow = originalRow;
     }
 
     return item as TItem;
   }
 }
-
-// async function countLinesStream(filePath: string): Promise<number> {
-//   return new Promise((resolve, reject) => {
-//     let count = 0;
-//     const stream = createReadStream(filePath);
-
-//     stream.on('data', (chunk) => {
-//       // Scansioniamo il buffer binario cercando il byte 10 (\n)
-//       for (let i = 0; i < chunk.length; i++) {
-//         if (chunk[i] === 10) count++;
-//       }
-//     });
-
-//     stream.on('end', () => { resolve(count); });
-//     stream.on('error', (err) => reject(err));
-//   });
-
-// }
-
-//  // Esempio di utilizzo
-//  countLinesStream('./notifications-100000.csv').then(count => {
-//        console.log(`Righe trovate: ${count}`);
-
-// });

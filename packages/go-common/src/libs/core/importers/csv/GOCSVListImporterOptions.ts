@@ -3,9 +3,16 @@
  */
 
 /**
- * Options for CSV list importer
+ * Type representing a CSV record with string keys and string values
  */
-export interface GOCSVListImporterOptions {
+export type CSVRecord = Record<string, string>;
+
+/**
+ * Options for CSV list importer
+ *
+ * @template TItem - The output type after transformation (defaults to CSVRecord)
+ */
+export interface GOCSVListImporterOptions<TItem = CSVRecord> {
   /** CSV delimiter (default: ',') */
   delimiter?: string;
 
@@ -58,13 +65,13 @@ export interface GOCSVListImporterOptions {
    *   digitalType: 'PEC'
    * }
    */
-  defaultValues?: Record<string, any> | undefined;
+  defaultValues?: Record<string, string> | undefined;
 
   /** Row validation function (applied after columnMapping and defaultValues, before transformation) */
-  rowValidator?: (item: Record<string, any>) => void;
+  rowValidator?: (item: CSVRecord) => void;
 
   /** Row transformation function (applied after validation) */
-  rowTransformer?: ((item: Record<string, any>) => any) | undefined;
+  rowTransformer?: ((item: CSVRecord) => TItem) | undefined;
 
   /**
    * Preserve original CSV row data in a special `_originalRow` property

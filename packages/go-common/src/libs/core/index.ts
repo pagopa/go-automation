@@ -3,6 +3,9 @@
  * Core utilities and services for GO automation scripts
  */
 
+// Export error handling utilities
+export * from './errors/index.js';
+
 // Export events
 export * from './events/index.js';
 

@@ -14,8 +14,10 @@ import type { GOCSVListImporterOptions } from './GOCSVListImporterOptions.js';
  * Interface for CSV format adapters
  * Each adapter provides a complete GOCSVListImporterOptions configuration
  * for a specific CSV format
+ *
+ * @template TItem - The output type after transformation (defaults to CSVRecord)
  */
-export interface GOCSVFormatAdapter {
+export interface GOCSVFormatAdapter<TItem = unknown> {
   /**
    * Get adapter name/identifier
    * @returns Unique identifier for this adapter
@@ -35,7 +37,7 @@ export interface GOCSVFormatAdapter {
    * This is the main method that returns the adapter configuration
    * @returns Complete importer options for this CSV format
    */
-  getOptions(): GOCSVListImporterOptions;
+  getOptions(): GOCSVListImporterOptions<TItem>;
 
   /**
    * Check if this adapter can handle the given CSV content

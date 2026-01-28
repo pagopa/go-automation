@@ -9,7 +9,7 @@ export interface GOListImportError {
   /** Item number where error occurred */
   itemIndex: number;
   /** The raw data that failed to import */
-  itemData: any;
+  itemData: unknown;
   /** Error message */
   message: string;
 }
@@ -29,7 +29,7 @@ export interface GOListImportStats {
 /**
  * Result of an import operation
  */
-export interface GOListImporterResult<TItem = any> {
+export interface GOListImporterResult<TItem = unknown> {
   /** Successfully imported items */
   items: TItem[];
   /** Import statistics */

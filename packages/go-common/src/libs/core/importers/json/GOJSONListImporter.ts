@@ -5,9 +5,11 @@
 import * as fs from 'fs';
 import type { GOListImporter } from '../GOListImporter.js';
 import type { GOListImporterResult } from '../GOListImporterResult.js';
+import type { GOListImportError } from '../GOListImporterResult.js';
 import type { GOJSONListImporterOptions } from './GOJSONListImporterOptions.js';
 import { GOEventEmitterBase } from '../../events/GOEventEmitterBase.js';
 import type { GOListImporterEventMap } from '../GOListImporterEvents.js';
+import { getErrorMessage, toError } from '../../errors/GOErrorUtils.js';
 
 /**
  * Generic JSON List Importer
@@ -16,11 +18,11 @@ import type { GOListImporterEventMap } from '../GOListImporterEvents.js';
  *
  * @template TItem - The type of items to import
  */
-export class GOJSONListImporter<TItem = any>
+export class GOJSONListImporter<TItem = unknown>
   extends GOEventEmitterBase<GOListImporterEventMap<TItem>>
   implements GOListImporter<TItem>
 {
-  constructor(private readonly options: GOJSONListImporterOptions = {}) {
+  constructor(private readonly options: GOJSONListImporterOptions<unknown, TItem> = {}) {
     super();
   }
 
@@ -33,7 +35,7 @@ export class GOJSONListImporter<TItem = any>
   async import(source: string | Buffer): Promise<GOListImporterResult<TItem>> {
     const startTime = Date.now();
     const items: TItem[] = [];
-    const errors: { itemIndex: number; itemData: any; message: string }[] = [];
+    const errors: GOListImportError[] = [];
     const skipInvalidItems = this.options.skipInvalidItems ?? false;
 
     let processedItems = 0;
@@ -51,21 +53,28 @@ export class GOJSONListImporter<TItem = any>
       // Process each item
       for (let i = 0; i < totalItems; i++) {
         processedItems++;
+        const currentItem = data[i];
+
+        // Safety check for undefined (noUncheckedIndexedAccess)
+        if (currentItem === undefined) {
+          continue;
+        }
 
         try {
-          const item = this.transformItem(data[i]);
+          const item = this.transformItem(currentItem);
           items.push(item);
           this.emit('import:item', { item, index: i });
-        } catch (error: any) {
+        } catch (error: unknown) {
           invalidItems++;
-          const importError = {
+          const errorMessage = getErrorMessage(error);
+          const importError: GOListImportError = {
             itemIndex: i + 1,
-            itemData: data[i],
-            message: error.message,
+            itemData: currentItem,
+            message: errorMessage,
           };
 
           // Emit error event
-          const finalError = error instanceof Error ? error : new Error(String(error));
+          const finalError = toError(error);
           this.emit('import:error', { ...importError, error: finalError });
 
           if (skipInvalidItems) {
@@ -102,8 +111,8 @@ export class GOJSONListImporter<TItem = any>
         },
         errors,
       };
-    } catch (error: any) {
-      const finalError = error instanceof Error ? error : new Error(String(error));
+    } catch (error: unknown) {
+      const finalError = toError(error);
       this.emit('import:error', {
         itemIndex: 0,
         itemData: null,
@@ -139,9 +148,15 @@ export class GOJSONListImporter<TItem = any>
       // Process and yield each item
       for (let i = 0; i < totalItems; i++) {
         processedItems++;
+        const currentItem = data[i];
+
+        // Safety check for undefined (noUncheckedIndexedAccess)
+        if (currentItem === undefined) {
+          continue;
+        }
 
         try {
-          const item = this.transformItem(data[i]);
+          const item = this.transformItem(currentItem);
           validItems++;
 
           // Emit item event only if there are listeners
@@ -150,15 +165,16 @@ export class GOJSONListImporter<TItem = any>
           }
 
           yield item;
-        } catch (error: any) {
+        } catch (error: unknown) {
           invalidItems++;
 
           // Emit error event
+          const errorMessage = getErrorMessage(error);
           this.emit('import:error', {
             itemIndex: processedItems,
-            itemData: data[i],
-            message: error.message,
-            error: error instanceof Error ? error : new Error(error.message),
+            itemData: currentItem,
+            message: errorMessage,
+            error: toError(error),
           });
 
           if (!skipInvalidItems) {
@@ -180,8 +196,8 @@ export class GOJSONListImporter<TItem = any>
         invalidItems,
         duration: 0, // Duration calculated externally for streams
       });
-    } catch (error: any) {
-      const finalError = error instanceof Error ? error : new Error(String(error));
+    } catch (error: unknown) {
+      const finalError = toError(error);
       this.emit('import:error', {
         itemIndex: 0,
         itemData: null,
@@ -196,7 +212,7 @@ export class GOJSONListImporter<TItem = any>
    * Parse JSON from source and extract array
    * Shared logic between import() and importStream()
    */
-  private async parseJSON(source: string | Buffer): Promise<any[]> {
+  private async parseJSON(source: string | Buffer): Promise<unknown[]> {
     // Read content
     const content =
       typeof source === 'string'
@@ -204,7 +220,7 @@ export class GOJSONListImporter<TItem = any>
         : source.toString(this.options.encoding ?? 'utf8');
 
     // Parse JSON
-    let data = JSON.parse(content);
+    let data: unknown = JSON.parse(content);
 
     // Extract array from nested structure if jsonPath is provided
     if (this.options.jsonPath) {
@@ -216,19 +232,19 @@ export class GOJSONListImporter<TItem = any>
       throw new Error('JSON content must be an array or contain an array at the specified path');
     }
 
-    return data;
+    return data as unknown[];
   }
 
   /**
    * Extract data from nested object using path
    */
-  private extractFromPath(data: any, path: string): any {
+  private extractFromPath(data: unknown, path: string): unknown {
     const keys = path.split('.');
-    let result = data;
+    let result: unknown = data;
 
     for (const key of keys) {
-      if (result && typeof result === 'object' && key in result) {
-        result = result[key];
+      if (result !== null && typeof result === 'object' && key in result) {
+        result = (result as Record<string, unknown>)[key];
       } else {
         throw new Error(`Path "${path}" not found in JSON data`);
       }
@@ -240,7 +256,7 @@ export class GOJSONListImporter<TItem = any>
   /**
    * Validate and transform raw item to typed item
    */
-  private transformItem(item: any): TItem {
+  private transformItem(item: unknown): TItem {
     // Step 1: Validate (throws error if invalid)
     if (this.options.itemValidator) {
       this.options.itemValidator(item);
@@ -248,7 +264,7 @@ export class GOJSONListImporter<TItem = any>
 
     // Step 2: Transform (if validator passed)
     if (this.options.itemTransformer) {
-      return this.options.itemTransformer(item) as TItem;
+      return this.options.itemTransformer(item);
     }
 
     return item as TItem;

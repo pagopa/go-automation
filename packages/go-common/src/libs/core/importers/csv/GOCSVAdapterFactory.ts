@@ -64,7 +64,7 @@ export class GOCSVAdapterFactory {
    * @returns GOCSVListImporterOptions configured for the specified format
    * @throws Error if adapter not found
    */
-  static getOptionsByName(name: string): GOCSVListImporterOptions {
+  static getOptionsByName(name: string): GOCSVListImporterOptions<unknown> {
     const adapter = this.getAdapter(name);
 
     if (!adapter) {
@@ -83,7 +83,7 @@ export class GOCSVAdapterFactory {
    * @returns GOCSVListImporterOptions for the detected format
    * @throws Error if format cannot be detected
    */
-  static getOptionsByAutoDetect(csvContent: string): GOCSVListImporterOptions {
+  static getOptionsByAutoDetect(csvContent: string): GOCSVListImporterOptions<unknown> {
     const adapter = this.detectAdapter(csvContent);
 
     if (!adapter) {
