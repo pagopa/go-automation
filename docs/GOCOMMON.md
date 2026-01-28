@@ -81,11 +81,11 @@ pnpm add @go-automation/go-common@workspace:*
 
 ## Moduli Disponibili
 
-| Modulo | Namespace | Descrizione |
-|--------|-----------|-------------|
-| Core | `Core` | Utilities core (script, logging, config, importers) |
-| SEND | `SEND` | SDK per notifiche digitali SEND |
-| AWS | (export diretto) | Gestione credenziali AWS SSO |
+| Modulo | Namespace        | Descrizione                                         |
+| ------ | ---------------- | --------------------------------------------------- |
+| Core   | `Core`           | Utilities core (script, logging, config, importers) |
+| SEND   | `SEND`           | SDK per notifiche digitali SEND                     |
+| AWS    | (export diretto) | Gestione credenziali AWS SSO                        |
 
 ### Import Examples
 
@@ -154,44 +154,46 @@ interface MyConfig {
   readonly verbose: boolean;
 }
 
-script.run(async () => {
-  // Ottieni configurazione tipizzata (ASYNC - usa await!)
-  const config = await script.getConfiguration<MyConfig>();
+script
+  .run(async () => {
+    // Ottieni configurazione tipizzata (ASYNC - usa await!)
+    const config = await script.getConfiguration<MyConfig>();
 
-  script.logger.section('Avvio elaborazione');
-  script.logger.info(`File input: ${config.inputFile}`);
+    script.logger.section('Avvio elaborazione');
+    script.logger.info(`File input: ${config.inputFile}`);
 
-  // Spinner per operazioni lunghe
-  script.prompt.startSpinner('Elaborazione in corso...');
+    // Spinner per operazioni lunghe
+    script.prompt.startSpinner('Elaborazione in corso...');
 
-  try {
-    await processData(config);
-    script.prompt.spinnerStop('Elaborazione completata');
-  } catch (error) {
-    script.prompt.spinnerFail('Elaborazione fallita');
-    throw error;
-  }
+    try {
+      await processData(config);
+      script.prompt.spinnerStop('Elaborazione completata');
+    } catch (error) {
+      script.prompt.spinnerFail('Elaborazione fallita');
+      throw error;
+    }
 
-  script.logger.success('Script completato');
-}).catch(() => {
-  process.exit(1);
-});
+    script.logger.success('Script completato');
+  })
+  .catch(() => {
+    process.exit(1);
+  });
 ```
 
 **Nota importante**: `getConfiguration<T>()` e ora **async** e richiede sempre `await`. Questo permette il supporto per `asyncFallback` nei parametri.
 
 ### Tipi di Parametro
 
-| Tipo | Descrizione | CLI Example |
-|------|-------------|-------------|
-| `STRING` | Stringa | `--name "valore"` |
-| `INT` | Intero | `--count 10` |
-| `DOUBLE` | Decimale | `--threshold 0.5` |
-| `BOOL` | Booleano | `--verbose` |
-| `STRING_ARRAY` | Array stringhe | `--tags a,b,c` |
-| `INT_ARRAY` | Array interi | `--ids 1,2,3` |
+| Tipo           | Descrizione    | CLI Example        |
+| -------------- | -------------- | ------------------ |
+| `STRING`       | Stringa        | `--name "valore"`  |
+| `INT`          | Intero         | `--count 10`       |
+| `DOUBLE`       | Decimale       | `--threshold 0.5`  |
+| `BOOL`         | Booleano       | `--verbose`        |
+| `STRING_ARRAY` | Array stringhe | `--tags a,b,c`     |
+| `INT_ARRAY`    | Array interi   | `--ids 1,2,3`      |
 | `DOUBLE_ARRAY` | Array decimali | `--values 1.5,2.5` |
-| `BUFFER` | Dati binari | `--data <base64>` |
+| `BUFFER`       | Dati binari    | `--data <base64>`  |
 
 ### Async Fallback per Parametri
 
@@ -257,18 +259,18 @@ script.run(async () => {
 
 #### Casi d'Uso Tipici
 
-| Caso d'Uso | Descrizione |
-|------------|-------------|
-| Caricamento da file | Pattern, whitelist, configurazioni esterne |
-| Chiamate API | Recupero configurazione da servizi remoti |
-| Database | Lettura configurazione da database |
-| Secret Manager | Recupero secrets da AWS Secrets Manager, Vault, etc. |
+| Caso d'Uso          | Descrizione                                          |
+| ------------------- | ---------------------------------------------------- |
+| Caricamento da file | Pattern, whitelist, configurazioni esterne           |
+| Chiamate API        | Recupero configurazione da servizi remoti            |
+| Database            | Lettura configurazione da database                   |
+| Secret Manager      | Recupero secrets da AWS Secrets Manager, Vault, etc. |
 
 #### Differenza tra `defaultValue` e `asyncFallback`
 
-| Proprieta | Tipo | Quando Usare |
-|-----------|------|--------------|
-| `defaultValue` | Valore statico | Valori semplici e costanti |
+| Proprieta       | Tipo               | Quando Usare                                       |
+| --------------- | ------------------ | -------------------------------------------------- |
+| `defaultValue`  | Valore statico     | Valori semplici e costanti                         |
 | `asyncFallback` | `() => Promise<T>` | Valori che richiedono I/O, API calls, computazione |
 
 **Nota**: Se entrambi sono definiti, `defaultValue` ha la precedenza su `asyncFallback`.
@@ -279,11 +281,11 @@ Il metodo `run()` di GOScript configura automaticamente i signal handlers per un
 
 #### Segnali Gestiti
 
-| Segnale | Trigger | Descrizione |
-|---------|---------|-------------|
-| `SIGTERM` | `docker stop`, Kubernetes termination | Segnale standard di terminazione |
-| `SIGINT` | `Ctrl+C` nel terminale | Interrupt da tastiera |
-| `SIGQUIT` | `Ctrl+\` nel terminale | Quit con core dump (gestito gracefully) |
+| Segnale   | Trigger                               | Descrizione                             |
+| --------- | ------------------------------------- | --------------------------------------- |
+| `SIGTERM` | `docker stop`, Kubernetes termination | Segnale standard di terminazione        |
+| `SIGINT`  | `Ctrl+C` nel terminale                | Interrupt da tastiera                   |
+| `SIGQUIT` | `Ctrl+\` nel terminale                | Quit con core dump (gestito gracefully) |
 
 #### Comportamento
 
@@ -344,10 +346,10 @@ const script = new Core.GOScript({
 
   hooks: {
     onBeforeInit: async () => {
-      console.log('Prima dell\'inizializzazione');
+      console.log("Prima dell'inizializzazione");
     },
     onAfterInit: async () => {
-      console.log('Dopo l\'inizializzazione');
+      console.log("Dopo l'inizializzazione");
     },
     onBeforeConfigLoad: async () => {
       console.log('Prima del caricamento config');
@@ -356,10 +358,10 @@ const script = new Core.GOScript({
       console.log('Config caricata:', config);
     },
     onBeforeRun: async () => {
-      console.log('Prima dell\'esecuzione');
+      console.log("Prima dell'esecuzione");
     },
     onAfterRun: async () => {
-      console.log('Dopo l\'esecuzione');
+      console.log("Dopo l'esecuzione");
     },
     onError: async (error) => {
       console.error('Errore:', error.message);
@@ -378,8 +380,8 @@ const script = new Core.GOScript({
   // ...
 
   logging: {
-    console: true,          // Abilita console logging (default: true)
-    file: true,             // Abilita file logging (default: true)
+    console: true, // Abilita console logging (default: true)
+    file: true, // Abilita file logging (default: true)
     logConfigOnStart: true, // Log configurazione all'avvio (default: true)
     logFilePath: './custom.log', // Path custom per log file
   },
@@ -403,10 +405,10 @@ const script = new Core.GOScript({
       },
     ],
     awsCredentials: {
-      autoLogin: true,       // Login automatico se scadute
-      interactive: true,     // Chiedi conferma prima del login
-      maxRetries: 1,         // Tentativi dopo login
-      loginTimeout: 120000,  // Timeout login (2 min)
+      autoLogin: true, // Login automatico se scadute
+      interactive: true, // Chiedi conferma prima del login
+      maxRetries: 1, // Tentativi dopo login
+      loginTimeout: 120000, // Timeout login (2 min)
     },
   },
 });
@@ -438,18 +440,18 @@ script.logger.success('Completato');
 
 ### Metodi Disponibili
 
-| Metodo | Descrizione | Stile Console |
-|--------|-------------|---------------|
-| `text(msg)` | Testo semplice | Normale |
-| `info(msg)` | Informazione | Blu |
-| `success(msg)` | Successo | Verde |
-| `warning(msg)` | Avviso | Giallo |
-| `error(msg)` | Errore | Rosso |
-| `fatal(msg)` | Errore fatale | Solo su file |
-| `section(msg)` | Sezione | Header formattato |
-| `step(msg)` | Step di processo | Con bullet point |
-| `header(msg)` | Header principale | Bold |
-| `newline()` | Linea vuota | - |
+| Metodo         | Descrizione       | Stile Console     |
+| -------------- | ----------------- | ----------------- |
+| `text(msg)`    | Testo semplice    | Normale           |
+| `info(msg)`    | Informazione      | Blu               |
+| `success(msg)` | Successo          | Verde             |
+| `warning(msg)` | Avviso            | Giallo            |
+| `error(msg)`   | Errore            | Rosso             |
+| `fatal(msg)`   | Errore fatale     | Solo su file      |
+| `section(msg)` | Sezione           | Header formattato |
+| `step(msg)`    | Step di processo  | Con bullet point  |
+| `header(msg)`  | Header principale | Bold              |
+| `newline()`    | Linea vuota       | -                 |
 
 ### Tabelle Formattate
 
@@ -476,8 +478,8 @@ script.logger.simpleTable([
 
 // Tabella key-value
 script.logger.keyValueTable({
-  'Profile': 'my-profile',
-  'Region': 'eu-south-1',
+  Profile: 'my-profile',
+  Region: 'eu-south-1',
   'Start Date': '2024-12-01',
 });
 ```
@@ -499,10 +501,10 @@ script.prompt.updateSpinner('Elaborazione file 1...');
 script.prompt.updateSpinner('Elaborazione file 2...');
 
 // Stop con stato
-script.prompt.spinnerStop('Completato');     // Successo (verde)
-script.prompt.spinnerFail('Fallito');        // Errore (rosso)
-script.prompt.spinnerWarn('Attenzione');     // Warning (giallo)
-script.prompt.spinnerInfo('Info');           // Info (blu)
+script.prompt.spinnerStop('Completato'); // Successo (verde)
+script.prompt.spinnerFail('Fallito'); // Errore (rosso)
+script.prompt.spinnerWarn('Attenzione'); // Warning (giallo)
+script.prompt.spinnerInfo('Info'); // Info (blu)
 ```
 
 ### Multi-Spinner (Task Paralleli)
@@ -567,9 +569,7 @@ const features = await script.prompt.multiselect('Features:', [
 ]);
 
 // Autocomplete
-const city = await script.prompt.autocomplete('Citta:', [
-  'Roma', 'Milano', 'Napoli', 'Torino'
-]);
+const city = await script.prompt.autocomplete('Citta:', ['Roma', 'Milano', 'Napoli', 'Torino']);
 ```
 
 ---
@@ -588,11 +588,11 @@ Sistema di configurazione multi-provider con priorita definita.
 
 ### Trasformazione Nomi
 
-| Formato Sorgente | CLI Flag | Env Variable | Property |
-|------------------|----------|--------------|----------|
-| `start.date` | `--start-date` | `START_DATE` | `startDate` |
-| `aws.profile` | `--aws-profile` | `AWS_PROFILE` | `awsProfile` |
-| `verbose` | `--verbose` | `VERBOSE` | `verbose` |
+| Formato Sorgente | CLI Flag        | Env Variable  | Property     |
+| ---------------- | --------------- | ------------- | ------------ |
+| `start.date`     | `--start-date`  | `START_DATE`  | `startDate`  |
+| `aws.profile`    | `--aws-profile` | `AWS_PROFILE` | `awsProfile` |
+| `verbose`        | `--verbose`     | `VERBOSE`     | `verbose`    |
 
 ### Config Providers Disponibili
 
@@ -628,12 +628,7 @@ const memProvider = new Core.GOInMemoryConfigProvider({
 ### Config Reader Diretto
 
 ```typescript
-const reader = new Core.GOConfigReader([
-  cliProvider,
-  jsonProvider,
-  yamlProvider,
-  envProvider,
-]);
+const reader = new Core.GOConfigReader([cliProvider, jsonProvider, yamlProvider, envProvider]);
 
 // Leggi valore (restituisce undefined se non trovato)
 const value = reader.getValue('param.name');
@@ -752,7 +747,7 @@ const paths = new Core.GOPaths('my-script');
 // Costruttore con opzioni
 const pathsWithOptions = new Core.GOPaths({
   scriptName: 'my-script',
-  baseDir: '/custom/base/dir',  // Override per standalone mode
+  baseDir: '/custom/base/dir', // Override per standalone mode
 });
 ```
 
@@ -769,13 +764,13 @@ interface GOPathsOptions {
 
 #### Path Resolution per Deployment Mode
 
-| Directory | Monorepo | Standalone |
-|-----------|----------|------------|
-| Base | `{monorepoRoot}` | `{baseDir}` (default: cwd) |
-| Data | `{root}/data/{script}/` | `{baseDir}/data/` |
-| Config | `{root}/data/{script}/configs/` | `{baseDir}/configs/` |
-| Input | `{dataDir}/inputs/` | `{dataDir}/inputs/` |
-| Output | `{dataDir}/outputs/` | `{dataDir}/outputs/` |
+| Directory | Monorepo                        | Standalone                 |
+| --------- | ------------------------------- | -------------------------- |
+| Base      | `{monorepoRoot}`                | `{baseDir}` (default: cwd) |
+| Data      | `{root}/data/{script}/`         | `{baseDir}/data/`          |
+| Config    | `{root}/data/{script}/configs/` | `{baseDir}/configs/`       |
+| Input     | `{dataDir}/inputs/`             | `{dataDir}/inputs/`        |
+| Output    | `{dataDir}/outputs/`            | `{dataDir}/outputs/`       |
 
 #### Risoluzione Path
 
@@ -804,7 +799,7 @@ const configPath = paths.resolvePath('config.json', Core.GOPathType.CONFIG);
 const paths = new Core.GOPaths('my-script');
 
 // Check deployment mode
-console.log('Mode:', paths.getDeploymentMode());  // 'monorepo' o 'standalone'
+console.log('Mode:', paths.getDeploymentMode()); // 'monorepo' o 'standalone'
 console.log('Is monorepo:', paths.isMonorepo());
 console.log('Is standalone:', paths.isStandalone());
 
@@ -828,15 +823,15 @@ console.log(paths.getSummary());
 const paths = new Core.GOPaths('my-script');
 
 // Directory dati script
-paths.getDataDir();           // data/{script}/ o {baseDir}/data/
+paths.getDataDir(); // data/{script}/ o {baseDir}/data/
 
 // Directory configurazione
-paths.getDataConfigDir();     // configs centralizzata
-paths.getLocalConfigsDir();   // configs locale (fallback)
+paths.getDataConfigDir(); // configs centralizzata
+paths.getLocalConfigsDir(); // configs locale (fallback)
 
 // Directory input/output
-paths.getInputsDir();         // inputs/
-paths.getOutputsBaseDir();    // outputs/
+paths.getInputsDir(); // inputs/
+paths.getOutputsBaseDir(); // outputs/
 paths.getExecutionOutputDir(); // outputs/{script}_{timestamp}/
 ```
 
@@ -844,14 +839,14 @@ paths.getExecutionOutputDir(); // outputs/{script}_{timestamp}/
 
 Tutte le directory possono essere sovrascritte tramite variabili d'ambiente:
 
-| Variabile | Descrizione | Priorita |
-|-----------|-------------|----------|
-| `GO_DEPLOYMENT_MODE` | Forza `monorepo` o `standalone` | 1 (massima) |
-| `GO_BASE_DIR` | Override base directory per standalone | 2 |
-| `GO_DATA_DIR` | Override data directory | 3 |
-| `GO_CONFIG_DIR` | Override config directory | 3 |
-| `GO_INPUT_DIR` | Override input directory | 3 |
-| `GO_OUTPUT_DIR` | Override output directory | 3 |
+| Variabile            | Descrizione                            | Priorita    |
+| -------------------- | -------------------------------------- | ----------- |
+| `GO_DEPLOYMENT_MODE` | Forza `monorepo` o `standalone`        | 1 (massima) |
+| `GO_BASE_DIR`        | Override base directory per standalone | 2           |
+| `GO_DATA_DIR`        | Override data directory                | 3           |
+| `GO_CONFIG_DIR`      | Override config directory              | 3           |
+| `GO_INPUT_DIR`       | Override input directory               | 3           |
+| `GO_OUTPUT_DIR`      | Override output directory              | 3           |
 
 ```bash
 # Forza standalone mode con directory custom
@@ -900,23 +895,23 @@ Rilevamento automatico dell'ambiente di esecuzione e della modalita di deploymen
 
 ### Tipi di Ambiente
 
-| Tipo | Descrizione |
-|------|-------------|
+| Tipo                | Descrizione                               |
+| ------------------- | ----------------------------------------- |
 | `LOCAL_INTERACTIVE` | Sviluppo locale con terminale interattivo |
-| `CI` | Pipeline CI/CD (GitHub Actions, etc.) |
-| `AWS_LAMBDA` | AWS Lambda |
-| `AWS_ECS` | AWS ECS/Fargate |
-| `AWS_EC2` | AWS EC2 |
-| `AWS_CODEBUILD` | AWS CodeBuild |
-| `UNKNOWN` | Ambiente non riconosciuto |
+| `CI`                | Pipeline CI/CD (GitHub Actions, etc.)     |
+| `AWS_LAMBDA`        | AWS Lambda                                |
+| `AWS_ECS`           | AWS ECS/Fargate                           |
+| `AWS_EC2`           | AWS EC2                                   |
+| `AWS_CODEBUILD`     | AWS CodeBuild                             |
+| `UNKNOWN`           | Ambiente non riconosciuto                 |
 
 ### Modalita di Deployment (GODeploymentMode)
 
 Il sistema rileva automaticamente se lo script e in esecuzione dentro il monorepo o come deployment standalone.
 
-| Modalita | Descrizione |
-|----------|-------------|
-| `MONOREPO` | Esecuzione all'interno della struttura monorepo (pnpm workspace) |
+| Modalita     | Descrizione                                                       |
+| ------------ | ----------------------------------------------------------------- |
+| `MONOREPO`   | Esecuzione all'interno della struttura monorepo (pnpm workspace)  |
 | `STANDALONE` | Esecuzione come deployment standalone (Docker, Lambda, EC2, etc.) |
 
 ### Utilizzo Base
@@ -954,9 +949,9 @@ if (Core.GOExecutionEnvironment.isStandalone()) {
 }
 
 // Altri metodi utili
-Core.GOExecutionEnvironment.isInteractive();  // true se puo interagire con utente
-Core.GOExecutionEnvironment.isAWSManaged();   // true se in ambiente AWS gestito
-Core.GOExecutionEnvironment.isCI();           // true se in pipeline CI/CD
+Core.GOExecutionEnvironment.isInteractive(); // true se puo interagire con utente
+Core.GOExecutionEnvironment.isAWSManaged(); // true se in ambiente AWS gestito
+Core.GOExecutionEnvironment.isCI(); // true se in pipeline CI/CD
 
 // Summary per debug
 console.log(Core.GOExecutionEnvironment.getSummary());
@@ -1034,13 +1029,13 @@ interface GOEnvironmentDetectionDetails {
 
 ### Credential Sources
 
-| Source | Descrizione |
-|--------|-------------|
-| `SSO_PROFILE` | AWS SSO Profile |
-| `ENVIRONMENT` | Variabili ambiente (AWS_ACCESS_KEY_ID, etc.) |
-| `WEB_IDENTITY` | OIDC Federation Token |
-| `DEFAULT_CHAIN` | Default AWS credential chain (IAM Role) |
-| `NONE` | Nessuna credenziale rilevata |
+| Source          | Descrizione                                  |
+| --------------- | -------------------------------------------- |
+| `SSO_PROFILE`   | AWS SSO Profile                              |
+| `ENVIRONMENT`   | Variabili ambiente (AWS_ACCESS_KEY_ID, etc.) |
+| `WEB_IDENTITY`  | OIDC Federation Token                        |
+| `DEFAULT_CHAIN` | Default AWS credential chain (IAM Role)      |
+| `NONE`          | Nessuna credenziale rilevata                 |
 
 ---
 
@@ -1052,10 +1047,10 @@ Supporto per esecuzione in modalita monorepo e standalone.
 
 La libreria go-common supporta due modalita di deployment:
 
-| Modalita | Descrizione | Uso Tipico |
-|----------|-------------|------------|
-| **MONOREPO** | Esecuzione all'interno della struttura monorepo | Sviluppo locale, CI/CD del monorepo |
-| **STANDALONE** | Esecuzione come deployment indipendente | Docker, Lambda, EC2, deployment isolati |
+| Modalita       | Descrizione                                     | Uso Tipico                              |
+| -------------- | ----------------------------------------------- | --------------------------------------- |
+| **MONOREPO**   | Esecuzione all'interno della struttura monorepo | Sviluppo locale, CI/CD del monorepo     |
+| **STANDALONE** | Esecuzione come deployment indipendente         | Docker, Lambda, EC2, deployment isolati |
 
 ### Rilevamento Automatico
 
@@ -1080,14 +1075,14 @@ GO_DEPLOYMENT_MODE=standalone node dist/main.js
 
 ### Variabili d'Ambiente per Path
 
-| Variabile | Descrizione |
-|-----------|-------------|
-| `GO_DEPLOYMENT_MODE` | Forza `monorepo` o `standalone` |
-| `GO_BASE_DIR` | Override base directory (standalone) |
-| `GO_DATA_DIR` | Override data directory |
-| `GO_CONFIG_DIR` | Override config directory |
-| `GO_INPUT_DIR` | Override input directory |
-| `GO_OUTPUT_DIR` | Override output directory |
+| Variabile            | Descrizione                          |
+| -------------------- | ------------------------------------ |
+| `GO_DEPLOYMENT_MODE` | Forza `monorepo` o `standalone`      |
+| `GO_BASE_DIR`        | Override base directory (standalone) |
+| `GO_DATA_DIR`        | Override data directory              |
+| `GO_CONFIG_DIR`      | Override config directory            |
+| `GO_INPUT_DIR`       | Override input directory             |
+| `GO_OUTPUT_DIR`      | Override output directory            |
 
 ### Esempio: Docker Standalone
 
@@ -1251,27 +1246,27 @@ const result = await queryService.queryByPartitionKey<MyItem>('key1', {
 
 // result.items e di tipo ReadonlyArray<MyItem>
 for (const item of result.items) {
-  console.log(item.status);  // Tipizzato!
+  console.log(item.status); // Tipizzato!
 }
 ```
 
 ### DynamoDBQueryOptions
 
-| Proprieta | Tipo | Descrizione |
-|-----------|------|-------------|
-| `tableName` | `string` | Nome della tabella DynamoDB |
-| `keyName` | `string` | Nome dell'attributo partition key |
-| `prefix` | `string?` | Prefisso da aggiungere al valore chiave |
-| `suffix` | `string?` | Suffisso da aggiungere al valore chiave |
+| Proprieta   | Tipo      | Descrizione                             |
+| ----------- | --------- | --------------------------------------- |
+| `tableName` | `string`  | Nome della tabella DynamoDB             |
+| `keyName`   | `string`  | Nome dell'attributo partition key       |
+| `prefix`    | `string?` | Prefisso da aggiungere al valore chiave |
+| `suffix`    | `string?` | Suffisso da aggiungere al valore chiave |
 
 ### DynamoDBQueryResult<T>
 
-| Proprieta | Tipo | Descrizione |
-|-----------|------|-------------|
-| `keyValue` | `string` | Valore chiave originale (senza prefix/suffix) |
-| `fullKey` | `string` | Chiave completa con prefix/suffix |
-| `items` | `ReadonlyArray<T>` | Risultati unmarshalled |
-| `count` | `number` | Numero di items |
+| Proprieta  | Tipo               | Descrizione                                   |
+| ---------- | ------------------ | --------------------------------------------- |
+| `keyValue` | `string`           | Valore chiave originale (senza prefix/suffix) |
+| `fullKey`  | `string`           | Chiave completa con prefix/suffix             |
+| `items`    | `ReadonlyArray<T>` | Risultati unmarshalled                        |
+| `count`    | `number`           | Numero di items                               |
 
 ### Caratteristiche
 
@@ -1293,10 +1288,10 @@ Gestione automatica delle credenziali AWS SSO.
 import { GOAWSCredentialsManager } from '@go-automation/go-common';
 
 const manager = new GOAWSCredentialsManager({
-  autoLogin: true,        // Tenta login automatico se scadute
-  interactive: true,      // Chiedi conferma prima del login
-  maxRetries: 1,          // Tentativi dopo il login
-  loginTimeout: 120000,   // Timeout per il login (ms)
+  autoLogin: true, // Tenta login automatico se scadute
+  interactive: true, // Chiedi conferma prima del login
+  maxRetries: 1, // Tentativi dopo il login
+  loginTimeout: 120000, // Timeout per il login (ms)
   onLog: (msg, level) => console.log(`[${level}] ${msg}`),
   onPrompt: async (msg) => {
     // Ritorna true per procedere, false per annullare
@@ -1357,7 +1352,8 @@ const sdk = new SEND.SENDNotifications({
 
 ```typescript
 // Crea notifica con builder
-const notification = sdk.createNotificationBuilder()
+const notification = sdk
+  .createNotificationBuilder()
   .setSenderDenomination('Comune di Roma')
   .setSenderTaxId('12345678901')
   .setSubject('Avviso di pagamento')
@@ -1441,22 +1437,22 @@ console.log(`Completate: ${result.successful}, Fallite: ${result.failed}`);
 import { SEND } from '@go-automation/go-common';
 
 // Tipi destinatario
-SEND.SENDRecipientType.PF  // Persona Fisica
-SEND.SENDRecipientType.PG  // Persona Giuridica
+SEND.SENDRecipientType.PF; // Persona Fisica
+SEND.SENDRecipientType.PG; // Persona Giuridica
 
 // Stati notifica
-SEND.SENDNotificationStatus.ACCEPTED
-SEND.SENDNotificationStatus.DELIVERING
-SEND.SENDNotificationStatus.DELIVERED
-SEND.SENDNotificationStatus.CANCELLED
+SEND.SENDNotificationStatus.ACCEPTED;
+SEND.SENDNotificationStatus.DELIVERING;
+SEND.SENDNotificationStatus.DELIVERED;
+SEND.SENDNotificationStatus.CANCELLED;
 
 // Tipi domicilio digitale
-SEND.SENDDigitalDomicileType.PEC
-SEND.SENDDigitalDomicileType.EMAIL
+SEND.SENDDigitalDomicileType.PEC;
+SEND.SENDDigitalDomicileType.EMAIL;
 
 // Policy commissioni
-SEND.SENDNotificationFeePolicy.FLAT_RATE
-SEND.SENDNotificationFeePolicy.DELIVERY_MODE
+SEND.SENDNotificationFeePolicy.FLAT_RATE;
+SEND.SENDNotificationFeePolicy.DELIVERY_MODE;
 ```
 
 ---
@@ -1498,15 +1494,12 @@ for (const element of result.timeline) {
 const iuns = [
   { iun: 'IUN-1', dateFilter: null },
   { iun: 'IUN-2', dateFilter: null },
-  { iun: 'IUN-3', dateFilter: '2024-01-15' },  // Con filtro data
+  { iun: 'IUN-3', dateFilter: '2024-01-15' }, // Con filtro data
 ];
 
-const results = await timelineService.queryTimelines(
-  iuns,
-  (current, total) => {
-    console.log(`Progress: ${current}/${total}`);
-  },
-);
+const results = await timelineService.queryTimelines(iuns, (current, total) => {
+  console.log(`Progress: ${current}/${total}`);
+});
 
 for (const result of results) {
   console.log(`${result.iun}: ${result.timeline.length} elements`);
@@ -1568,16 +1561,16 @@ interface SENDTimelineResult {
 
 ### Categorie Timeline Comuni
 
-| Categoria | Descrizione |
-|-----------|-------------|
-| `REQUEST_ACCEPTED` | Notifica accettata |
-| `AAR_GENERATION` | Generazione AAR |
-| `GET_ADDRESS` | Recupero indirizzo |
-| `PREPARE_ANALOG_DOMICILE` | Preparazione invio analogico |
-| `SEND_ANALOG_DOMICILE` | Invio analogico |
+| Categoria                 | Descrizione                   |
+| ------------------------- | ----------------------------- |
+| `REQUEST_ACCEPTED`        | Notifica accettata            |
+| `AAR_GENERATION`          | Generazione AAR               |
+| `GET_ADDRESS`             | Recupero indirizzo            |
+| `PREPARE_ANALOG_DOMICILE` | Preparazione invio analogico  |
+| `SEND_ANALOG_DOMICILE`    | Invio analogico               |
 | `ANALOG_SUCCESS_WORKFLOW` | Workflow analogico completato |
-| `REFINEMENT` | Perfezionamento |
-| `NOTIFICATION_VIEWED` | Notifica visualizzata |
+| `REFINEMENT`              | Perfezionamento               |
+| `NOTIFICATION_VIEWED`     | Notifica visualizzata         |
 
 ### Esempio: Estrazione RequestId
 
@@ -1596,7 +1589,7 @@ for (const result of results) {
   for (const element of result.timeline) {
     if (element.category === 'PREPARE_ANALOG_DOMICILE') {
       requestIdMap.set(result.iun, element.timelineElementId);
-      break;  // Prendi solo il primo
+      break; // Prendi solo il primo
     }
   }
 }

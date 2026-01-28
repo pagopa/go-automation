@@ -29,13 +29,13 @@ GO Automation e un **monorepo TypeScript** gestito con **pnpm workspaces**. Cont
 
 ### Vantaggi del Monorepo
 
-| Vantaggio | Descrizione |
-|-----------|-------------|
-| **Codice condiviso** | La libreria `go-common` e riutilizzabile da tutti gli script |
-| **Configurazione unificata** | TypeScript strict mode e ESLint condivisi |
-| **Build incrementali** | TypeScript project references per build veloci |
-| **Gestione dipendenze** | pnpm workspace protocol per dipendenze locali |
-| **Atomic changes** | Modifiche cross-package in un singolo commit |
+| Vantaggio                    | Descrizione                                                  |
+| ---------------------------- | ------------------------------------------------------------ |
+| **Codice condiviso**         | La libreria `go-common` e riutilizzabile da tutti gli script |
+| **Configurazione unificata** | TypeScript strict mode e ESLint condivisi                    |
+| **Build incrementali**       | TypeScript project references per build veloci               |
+| **Gestione dipendenze**      | pnpm workspace protocol per dipendenze locali                |
+| **Atomic changes**           | Modifiche cross-package in un singolo commit                 |
 
 ---
 
@@ -124,17 +124,17 @@ go-automation/
 
 ### Descrizione delle Cartelle
 
-| Directory | Scopo |
-|-----------|-------|
-| `packages/` | Librerie condivise pubblicate come npm packages |
-| `scripts/go/` | Script per gestione operativa interna |
-| `scripts/send/` | Script specifici per prodotto SEND |
-| `scripts/interop/` | Script specifici per prodotto INTEROP |
-| `infra/` | Infrastruttura condivisa (Docker, Terraform) |
-| `artifacts/` | Output di build/deploy per standalone mode |
-| `docs/` | Documentazione tecnica e guide |
-| `bins/` | Script bash di utility (scaffolding, CI/CD) |
-| `data/` | Directory centralizzata per input/output script |
+| Directory          | Scopo                                           |
+| ------------------ | ----------------------------------------------- |
+| `packages/`        | Librerie condivise pubblicate come npm packages |
+| `scripts/go/`      | Script per gestione operativa interna           |
+| `scripts/send/`    | Script specifici per prodotto SEND              |
+| `scripts/interop/` | Script specifici per prodotto INTEROP           |
+| `infra/`           | Infrastruttura condivisa (Docker, Terraform)    |
+| `artifacts/`       | Output di build/deploy per standalone mode      |
+| `docs/`            | Documentazione tecnica e guide                  |
+| `bins/`            | Script bash di utility (scaffolding, CI/CD)     |
+| `data/`            | Directory centralizzata per input/output script |
 
 ---
 
@@ -151,10 +151,10 @@ infra/
     └── docker-entrypoint.sh   # Entrypoint multi-mode (once/cron)
 ```
 
-| File | Descrizione |
-|------|-------------|
-| `Dockerfile.runtime` | Dockerfile base per tutti gli script. Usa Alpine Linux, installa Node.js, AWS CLI, e configura un utente non-root (`gouser`). Viene usato da `bins/build-image.sh` per costruire le immagini Docker degli script. |
-| `docker-entrypoint.sh` | Script di entrypoint che gestisce le modalita di esecuzione: `once` (esecuzione singola) e `cron` (scheduling con croner). Riceve la modalita dalla variabile `RUN_MODE`. |
+| File                   | Descrizione                                                                                                                                                                                                       |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Dockerfile.runtime`   | Dockerfile base per tutti gli script. Usa Alpine Linux, installa Node.js, AWS CLI, e configura un utente non-root (`gouser`). Viene usato da `bins/build-image.sh` per costruire le immagini Docker degli script. |
+| `docker-entrypoint.sh` | Script di entrypoint che gestisce le modalita di esecuzione: `once` (esecuzione singola) e `cron` (scheduling con croner). Riceve la modalita dalla variabile `RUN_MODE`.                                         |
 
 **Uso tipico:**
 
@@ -185,12 +185,12 @@ artifacts/
     └── package.json
 ```
 
-| Contenuto | Descrizione |
-|-----------|-------------|
-| `dist/` | Codice JavaScript compilato (output di `tsc`) |
-| `node_modules/` | Solo dipendenze production (no devDependencies) |
-| `configs/` | File di configurazione copiati dallo script |
-| `package.json` | Manifest ridotto con solo le informazioni necessarie |
+| Contenuto       | Descrizione                                          |
+| --------------- | ---------------------------------------------------- |
+| `dist/`         | Codice JavaScript compilato (output di `tsc`)        |
+| `node_modules/` | Solo dipendenze production (no devDependencies)      |
+| `configs/`      | File di configurazione copiati dallo script          |
+| `package.json`  | Manifest ridotto con solo le informazioni necessarie |
 
 **Caratteristiche:**
 
@@ -229,12 +229,12 @@ bins/
     └── README.md.template     # Documentazione
 ```
 
-| Script | Descrizione |
-|--------|-------------|
+| Script             | Descrizione                                                                                                                     |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
 | `create-script.sh` | Wizard interattivo per creare un nuovo script. Genera la struttura completa con template, package.json, tsconfig.json e README. |
-| `build-image.sh` | Costruisce l'immagine Docker di uno script. Usa `infra/docker/Dockerfile.runtime` come base. |
-| `docker-run.sh` | Helper per eseguire container Docker degli script. Supporta modalita interattiva e scheduled. |
-| `deploy.sh` | Genera il package standalone in `artifacts/`. Usa `pnpm deploy` per includere solo dipendenze production. |
+| `build-image.sh`   | Costruisce l'immagine Docker di uno script. Usa `infra/docker/Dockerfile.runtime` come base.                                    |
+| `docker-run.sh`    | Helper per eseguire container Docker degli script. Supporta modalita interattiva e scheduled.                                   |
+| `deploy.sh`        | Genera il package standalone in `artifacts/`. Usa `pnpm deploy` per includere solo dipendenze production.                       |
 
 **Uso comune:**
 
@@ -271,16 +271,16 @@ docs/
 └── TROUBLESHOOTING.md     # Risoluzione problemi comuni
 ```
 
-| Documento | Destinatari | Contenuto |
-|-----------|-------------|-----------|
-| `ARCHITECTURE.md` | Tutti | Struttura monorepo, pnpm, TypeScript config |
-| `GOCOMMON.md` | Sviluppatori | API della libreria go-common |
-| `GUIDE_LINES.md` | Sviluppatori | Convenzioni codice, TypeScript strict |
-| `NEW_SCRIPT.md` | Sviluppatori | Tutorial creazione nuovo script |
-| `DEPLOY.md` | DevOps | Docker, standalone, AWS deployment |
-| `ONBOARDING.md` | Nuovi membri | Setup ambiente, primi passi |
-| `README-TEMPLATE.md` | Sviluppatori | Template per README degli script |
-| `TROUBLESHOOTING.md` | Tutti | Problemi comuni e soluzioni |
+| Documento            | Destinatari  | Contenuto                                   |
+| -------------------- | ------------ | ------------------------------------------- |
+| `ARCHITECTURE.md`    | Tutti        | Struttura monorepo, pnpm, TypeScript config |
+| `GOCOMMON.md`        | Sviluppatori | API della libreria go-common                |
+| `GUIDE_LINES.md`     | Sviluppatori | Convenzioni codice, TypeScript strict       |
+| `NEW_SCRIPT.md`      | Sviluppatori | Tutorial creazione nuovo script             |
+| `DEPLOY.md`          | DevOps       | Docker, standalone, AWS deployment          |
+| `ONBOARDING.md`      | Nuovi membri | Setup ambiente, primi passi                 |
+| `README-TEMPLATE.md` | Sviluppatori | Template per README degli script            |
+| `TROUBLESHOOTING.md` | Tutti        | Problemi comuni e soluzioni                 |
 
 ---
 
@@ -309,11 +309,11 @@ data/
     └── ...
 ```
 
-| Sottocartella | Descrizione |
-|---------------|-------------|
-| `inputs/` | File di input (CSV, JSON) da processare |
-| `outputs/` | Output generati, organizzati per run con timestamp |
-| `configs/` | Configurazioni centralizzate (priorita su quelle locali) |
+| Sottocartella | Descrizione                                              |
+| ------------- | -------------------------------------------------------- |
+| `inputs/`     | File di input (CSV, JSON) da processare                  |
+| `outputs/`    | Output generati, organizzati per run con timestamp       |
+| `configs/`    | Configurazioni centralizzate (priorita su quelle locali) |
 
 **Caratteristiche:**
 
@@ -374,25 +374,25 @@ project/
 
 ### Vantaggi di pnpm
 
-| Caratteristica | npm/yarn | pnpm |
-|----------------|----------|------|
-| **Spazio disco** | Copia completa per progetto | Hard links al global store |
-| **Velocita install** | Lento (download + copia) | Veloce (link se gia presente) |
-| **Strict mode** | Permette accesso a dipendenze non dichiarate | Blocca phantom dependencies |
-| **Struttura node_modules** | Flat (hoisting) | Nested + symlinks |
-| **Determinismo** | Puo variare | Garantito dal lockfile |
+| Caratteristica             | npm/yarn                                     | pnpm                          |
+| -------------------------- | -------------------------------------------- | ----------------------------- |
+| **Spazio disco**           | Copia completa per progetto                  | Hard links al global store    |
+| **Velocita install**       | Lento (download + copia)                     | Veloce (link se gia presente) |
+| **Strict mode**            | Permette accesso a dipendenze non dichiarate | Blocca phantom dependencies   |
+| **Struttura node_modules** | Flat (hoisting)                              | Nested + symlinks             |
+| **Determinismo**           | Puo variare                                  | Garantito dal lockfile        |
 
 ### Confronto Comandi npm vs pnpm
 
-| Operazione | npm | pnpm |
-|------------|-----|------|
-| Installa dipendenze | `npm install` | `pnpm install` |
-| Aggiungi pacchetto | `npm install lodash` | `pnpm add lodash` |
-| Aggiungi dev dependency | `npm install -D typescript` | `pnpm add -D typescript` |
-| Rimuovi pacchetto | `npm uninstall lodash` | `pnpm remove lodash` |
-| Esegui script | `npm run build` | `pnpm build` o `pnpm run build` |
-| Aggiorna pacchetti | `npm update` | `pnpm update` |
-| Pulisci cache | `npm cache clean` | `pnpm store prune` |
+| Operazione              | npm                         | pnpm                            |
+| ----------------------- | --------------------------- | ------------------------------- |
+| Installa dipendenze     | `npm install`               | `pnpm install`                  |
+| Aggiungi pacchetto      | `npm install lodash`        | `pnpm add lodash`               |
+| Aggiungi dev dependency | `npm install -D typescript` | `pnpm add -D typescript`        |
+| Rimuovi pacchetto       | `npm uninstall lodash`      | `pnpm remove lodash`            |
+| Esegui script           | `npm run build`             | `pnpm build` o `pnpm run build` |
+| Aggiorna pacchetti      | `npm update`                | `pnpm update`                   |
+| Pulisci cache           | `npm cache clean`           | `pnpm store prune`              |
 
 ### Comandi pnpm Specifici
 
@@ -429,18 +429,18 @@ pnpm list --depth=2
 
 ```yaml
 packages:
-  - packages/*          # Librerie condivise
-  - scripts/go/*        # Script team GO
-  - scripts/send/*      # Script team SEND
-  - scripts/interop/*   # Script team INTEROP
+  - packages/* # Librerie condivise
+  - scripts/go/* # Script team GO
+  - scripts/send/* # Script team SEND
+  - scripts/interop/* # Script team INTEROP
 ```
 
 ### Naming Conventions
 
-| Tipo | Pattern | Esempio |
-|------|---------|---------|
-| Packages | `@go-automation/{name}` | `@go-automation/go-common` |
-| Scripts | `{team}-{name}` | `go-report-alarms`, `send-import-notifications` |
+| Tipo     | Pattern                 | Esempio                                         |
+| -------- | ----------------------- | ----------------------------------------------- |
+| Packages | `@go-automation/{name}` | `@go-automation/go-common`                      |
+| Scripts  | `{team}-{name}`         | `go-report-alarms`, `send-import-notifications` |
 
 ### Comandi Workspace
 
@@ -564,14 +564,14 @@ pnpm --filter=go-report-alarms build
 
 ### Dipendenze Esterne Principali
 
-| Package | Uso |
-|---------|-----|
+| Package             | Uso                        |
+| ------------------- | -------------------------- |
 | `@aws-sdk/client-*` | AWS SDK v3 per servizi AWS |
-| `prompts` | Prompt interattivi CLI |
-| `ora` | Spinner per CLI |
-| `yaml` | Parsing file YAML |
-| `csv-parse` | Parsing file CSV |
-| `chalk` | Colori per output console |
+| `prompts`           | Prompt interattivi CLI     |
+| `ora`               | Spinner per CLI            |
+| `yaml`              | Parsing file YAML          |
+| `csv-parse`         | Parsing file CSV           |
+| `chalk`             | Colori per output console  |
 
 ---
 
@@ -620,9 +620,7 @@ pnpm --filter=go-report-alarms build
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [
-    { "path": "../../../packages/go-common" }
-  ]
+  "references": [{ "path": "../../../packages/go-common" }]
 }
 ```
 
@@ -640,173 +638,173 @@ I project references abilitano:
 
 ### Directory e File
 
-| Tipo | Convenzione | Esempio |
-|------|-------------|---------|
-| Directory script | kebab-case | `go-report-alarms/` |
-| File TypeScript | PascalCase per classi | `GOScript.ts`, `ConfigManager.ts` |
-| File types | PascalCase | `AlarmData.ts`, `Config.ts` |
-| File index | lowercase | `index.ts` |
-| File config | lowercase | `config.json`, `config.yaml` |
+| Tipo             | Convenzione           | Esempio                           |
+| ---------------- | --------------------- | --------------------------------- |
+| Directory script | kebab-case            | `go-report-alarms/`               |
+| File TypeScript  | PascalCase per classi | `GOScript.ts`, `ConfigManager.ts` |
+| File types       | PascalCase            | `AlarmData.ts`, `Config.ts`       |
+| File index       | lowercase             | `index.ts`                        |
+| File config      | lowercase             | `config.json`, `config.yaml`      |
 
 ### Nomenclatura Script
 
 Pattern: `{prodotto}-{verbo}-{descrizione}`
 
-| Prodotto | Prefisso | Esempi |
-|----------|----------|--------|
-| GO (interno) | `go-` | `go-report-alarms`, `go-manage-lambda` |
-| SEND | `send-` | `send-import-notifications`, `send-monitor-tpp` |
-| INTEROP | `interop-` | `interop-sync-catalog` |
+| Prodotto     | Prefisso   | Esempi                                          |
+| ------------ | ---------- | ----------------------------------------------- |
+| GO (interno) | `go-`      | `go-report-alarms`, `go-manage-lambda`          |
+| SEND         | `send-`    | `send-import-notifications`, `send-monitor-tpp` |
+| INTEROP      | `interop-` | `interop-sync-catalog`                          |
 
 ### Verbi Standard
 
 #### Operazioni CRUD e Dati
 
-| Verbo | Uso | Esempio |
-|-------|-----|---------|
-| `get` | Recupero singolo elemento | `go-get-alarm-details` |
-| `set` | Impostazione valore | `go-set-alarm-threshold` |
-| `fetch` | Recupero dati (da API/remote) | `interop-fetch-catalog-data` |
-| `load` | Caricamento dati (da file/storage) | `go-load-configuration` |
-| `save` | Salvataggio dati | `send-save-notification-batch` |
-| `store` | Memorizzazione persistente | `go-store-audit-logs` |
-| `create` | Creazione nuova risorsa | `send-create-notification-template` |
-| `delete` | Eliminazione risorsa | `go-delete-expired-logs` |
-| `remove` | Rimozione elemento | `send-remove-failed-messages` |
-| `update` | Aggiornamento record | `send-update-notification-metadata` |
-| `add` | Aggiunta elemento a collezione | `go-add-alarm-rule` |
-| `import` | Importazione dati | `send-import-notifications` |
-| `export` | Esportazione dati | `send-export-metrics-csv` |
+| Verbo    | Uso                                | Esempio                             |
+| -------- | ---------------------------------- | ----------------------------------- |
+| `get`    | Recupero singolo elemento          | `go-get-alarm-details`              |
+| `set`    | Impostazione valore                | `go-set-alarm-threshold`            |
+| `fetch`  | Recupero dati (da API/remote)      | `interop-fetch-catalog-data`        |
+| `load`   | Caricamento dati (da file/storage) | `go-load-configuration`             |
+| `save`   | Salvataggio dati                   | `send-save-notification-batch`      |
+| `store`  | Memorizzazione persistente         | `go-store-audit-logs`               |
+| `create` | Creazione nuova risorsa            | `send-create-notification-template` |
+| `delete` | Eliminazione risorsa               | `go-delete-expired-logs`            |
+| `remove` | Rimozione elemento                 | `send-remove-failed-messages`       |
+| `update` | Aggiornamento record               | `send-update-notification-metadata` |
+| `add`    | Aggiunta elemento a collezione     | `go-add-alarm-rule`                 |
+| `import` | Importazione dati                  | `send-import-notifications`         |
+| `export` | Esportazione dati                  | `send-export-metrics-csv`           |
 
 #### Trasformazione e Validazione
 
-| Verbo | Uso | Esempio |
-|-------|-----|---------|
-| `parse` | Parsing di dati strutturati | `go-parse-cloudwatch-logs` |
-| `format` | Formattazione output | `send-format-notification-report` |
-| `transform` | Trasformazione dati | `interop-transform-catalog-schema` |
-| `convert` | Conversione formato | `go-convert-csv-to-json` |
-| `validate` | Validazione dati/input | `send-validate-notification-payload` |
-| `verify` | Verifica integrita/correttezza | `go-verify-backup-integrity` |
-| `check` | Verifiche di stato | `go-check-backup-status` |
-| `ensure` | Garanzia precondizioni | `go-ensure-lambda-permissions` |
+| Verbo       | Uso                            | Esempio                              |
+| ----------- | ------------------------------ | ------------------------------------ |
+| `parse`     | Parsing di dati strutturati    | `go-parse-cloudwatch-logs`           |
+| `format`    | Formattazione output           | `send-format-notification-report`    |
+| `transform` | Trasformazione dati            | `interop-transform-catalog-schema`   |
+| `convert`   | Conversione formato            | `go-convert-csv-to-json`             |
+| `validate`  | Validazione dati/input         | `send-validate-notification-payload` |
+| `verify`    | Verifica integrita/correttezza | `go-verify-backup-integrity`         |
+| `check`     | Verifiche di stato             | `go-check-backup-status`             |
+| `ensure`    | Garanzia precondizioni         | `go-ensure-lambda-permissions`       |
 
 #### Monitoraggio e Analisi
 
-| Verbo | Uso | Esempio |
-|-------|-----|---------|
-| `monitor` | Monitoraggio continuo | `send-monitor-tpp-messages` |
-| `analyze` | Analisi dati/logs | `send-analyze-delivery-failures` |
-| `report` | Generazione report | `go-report-alarms` |
-| `audit` | Controllo conformita | `go-audit-iam-policies` |
-| `trace` | Tracciamento richieste | `send-trace-notification-flow` |
-| `profile` | Profilazione performance | `go-profile-lambda-executions` |
+| Verbo     | Uso                      | Esempio                          |
+| --------- | ------------------------ | -------------------------------- |
+| `monitor` | Monitoraggio continuo    | `send-monitor-tpp-messages`      |
+| `analyze` | Analisi dati/logs        | `send-analyze-delivery-failures` |
+| `report`  | Generazione report       | `go-report-alarms`               |
+| `audit`   | Controllo conformita     | `go-audit-iam-policies`          |
+| `trace`   | Tracciamento richieste   | `send-trace-notification-flow`   |
+| `profile` | Profilazione performance | `go-profile-lambda-executions`   |
 
 #### Lifecycle e Controllo
 
-| Verbo | Uso | Esempio |
-|-------|-----|---------|
-| `start` | Avvio processo/servizio | `go-start-batch-processor` |
-| `stop` | Arresto processo/servizio | `go-stop-scheduled-task` |
-| `init` | Inizializzazione | `go-init-environment` |
-| `shutdown` | Spegnimento graceful | `go-shutdown-workers` |
-| `restart` | Riavvio | `go-restart-ecs-service` |
-| `pause` | Sospensione temporanea | `send-pause-notification-queue` |
-| `resume` | Ripresa esecuzione | `send-resume-notification-queue` |
+| Verbo      | Uso                       | Esempio                          |
+| ---------- | ------------------------- | -------------------------------- |
+| `start`    | Avvio processo/servizio   | `go-start-batch-processor`       |
+| `stop`     | Arresto processo/servizio | `go-stop-scheduled-task`         |
+| `init`     | Inizializzazione          | `go-init-environment`            |
+| `shutdown` | Spegnimento graceful      | `go-shutdown-workers`            |
+| `restart`  | Riavvio                   | `go-restart-ecs-service`         |
+| `pause`    | Sospensione temporanea    | `send-pause-notification-queue`  |
+| `resume`   | Ripresa esecuzione        | `send-resume-notification-queue` |
 
 #### Comunicazione e Messaggistica
 
-| Verbo | Uso | Esempio |
-|-------|-----|---------|
-| `send` | Invio messaggio/notifica | `send-send-bulk-notifications` |
-| `receive` | Ricezione messaggi | `go-receive-sqs-messages` |
-| `emit` | Emissione eventi | `go-emit-cloudwatch-events` |
-| `handle` | Gestione eventi/richieste | `send-handle-delivery-callback` |
-| `notify` | Notifica utenti/sistemi | `go-notify-on-alarm` |
-| `broadcast` | Invio a tutti i destinatari | `send-broadcast-announcement` |
-| `publish` | Pubblicazione su topic | `go-publish-sns-message` |
-| `subscribe` | Iscrizione a eventi | `go-subscribe-alarm-notifications` |
-| `unsubscribe` | Disiscrizione da eventi | `go-unsubscribe-deprecated-alarms` |
+| Verbo         | Uso                         | Esempio                            |
+| ------------- | --------------------------- | ---------------------------------- |
+| `send`        | Invio messaggio/notifica    | `send-send-bulk-notifications`     |
+| `receive`     | Ricezione messaggi          | `go-receive-sqs-messages`          |
+| `emit`        | Emissione eventi            | `go-emit-cloudwatch-events`        |
+| `handle`      | Gestione eventi/richieste   | `send-handle-delivery-callback`    |
+| `notify`      | Notifica utenti/sistemi     | `go-notify-on-alarm`               |
+| `broadcast`   | Invio a tutti i destinatari | `send-broadcast-announcement`      |
+| `publish`     | Pubblicazione su topic      | `go-publish-sns-message`           |
+| `subscribe`   | Iscrizione a eventi         | `go-subscribe-alarm-notifications` |
+| `unsubscribe` | Disiscrizione da eventi     | `go-unsubscribe-deprecated-alarms` |
 
 #### Build e Generazione
 
-| Verbo | Uso | Esempio |
-|-------|-----|---------|
-| `build` | Compilazione/costruzione | `go-build-deployment-package` |
-| `compile` | Compilazione codice | `go-compile-templates` |
-| `generate` | Generazione automatica | `go-generate-daily-report` |
-| `render` | Rendering template | `send-render-notification-email` |
-| `assemble` | Assemblaggio componenti | `go-assemble-infrastructure` |
+| Verbo      | Uso                      | Esempio                          |
+| ---------- | ------------------------ | -------------------------------- |
+| `build`    | Compilazione/costruzione | `go-build-deployment-package`    |
+| `compile`  | Compilazione codice      | `go-compile-templates`           |
+| `generate` | Generazione automatica   | `go-generate-daily-report`       |
+| `render`   | Rendering template       | `send-render-notification-email` |
+| `assemble` | Assemblaggio componenti  | `go-assemble-infrastructure`     |
 
 #### Ricerca e Filtraggio
 
-| Verbo | Uso | Esempio |
-|-------|-----|---------|
-| `find` | Ricerca elementi | `go-find-orphan-resources` |
-| `search` | Ricerca full-text | `send-search-notification-logs` |
-| `filter` | Filtraggio per criteri | `go-filter-alarms-by-severity` |
-| `sort` | Ordinamento dati | `go-sort-metrics-by-value` |
-| `list` | Elenco elementi | `go-list-active-alarms` |
-| `query` | Query complessa | `send-query-delivery-stats` |
+| Verbo    | Uso                    | Esempio                         |
+| -------- | ---------------------- | ------------------------------- |
+| `find`   | Ricerca elementi       | `go-find-orphan-resources`      |
+| `search` | Ricerca full-text      | `send-search-notification-logs` |
+| `filter` | Filtraggio per criteri | `go-filter-alarms-by-severity`  |
+| `sort`   | Ordinamento dati       | `go-sort-metrics-by-value`      |
+| `list`   | Elenco elementi        | `go-list-active-alarms`         |
+| `query`  | Query complessa        | `send-query-delivery-stats`     |
 
 #### File e I/O
 
-| Verbo | Uso | Esempio |
-|-------|-----|---------|
-| `open` | Apertura risorsa | `go-open-log-stream` |
-| `close` | Chiusura risorsa | `go-close-db-connections` |
-| `read` | Lettura dati | `go-read-configuration-file` |
-| `write` | Scrittura dati | `go-write-execution-log` |
-| `copy` | Copia file/dati | `go-copy-logs-to-s3` |
-| `move` | Spostamento file/dati | `go-move-processed-files` |
-| `archive` | Archiviazione | `go-archive-old-logs` |
-| `backup` | Backup dati | `go-backup-dynamodb-table` |
-| `restore` | Ripristino dati | `go-restore-backup` |
+| Verbo     | Uso                   | Esempio                      |
+| --------- | --------------------- | ---------------------------- |
+| `open`    | Apertura risorsa      | `go-open-log-stream`         |
+| `close`   | Chiusura risorsa      | `go-close-db-connections`    |
+| `read`    | Lettura dati          | `go-read-configuration-file` |
+| `write`   | Scrittura dati        | `go-write-execution-log`     |
+| `copy`    | Copia file/dati       | `go-copy-logs-to-s3`         |
+| `move`    | Spostamento file/dati | `go-move-processed-files`    |
+| `archive` | Archiviazione         | `go-archive-old-logs`        |
+| `backup`  | Backup dati           | `go-backup-dynamodb-table`   |
+| `restore` | Ripristino dati       | `go-restore-backup`          |
 
 #### Stato e Toggle
 
-| Verbo | Uso | Esempio |
-|-------|-----|---------|
-| `enable` | Abilitazione feature | `go-enable-alarm` |
-| `disable` | Disabilitazione feature | `go-disable-maintenance-alarm` |
-| `toggle` | Cambio stato on/off | `go-toggle-feature-flag` |
-| `activate` | Attivazione risorsa | `send-activate-notification-channel` |
-| `deactivate` | Disattivazione risorsa | `send-deactivate-old-template` |
-| `lock` | Blocco risorsa | `go-lock-deployment` |
-| `unlock` | Sblocco risorsa | `go-unlock-deployment` |
+| Verbo        | Uso                     | Esempio                              |
+| ------------ | ----------------------- | ------------------------------------ |
+| `enable`     | Abilitazione feature    | `go-enable-alarm`                    |
+| `disable`    | Disabilitazione feature | `go-disable-maintenance-alarm`       |
+| `toggle`     | Cambio stato on/off     | `go-toggle-feature-flag`             |
+| `activate`   | Attivazione risorsa     | `send-activate-notification-channel` |
+| `deactivate` | Disattivazione risorsa  | `send-deactivate-old-template`       |
+| `lock`       | Blocco risorsa          | `go-lock-deployment`                 |
+| `unlock`     | Sblocco risorsa         | `go-unlock-deployment`               |
 
 #### UI e Visualizzazione
 
-| Verbo | Uso | Esempio |
-|-------|-----|---------|
-| `show` | Visualizzazione dati | `go-show-alarm-summary` |
-| `hide` | Nascondere elementi | `go-hide-resolved-alarms` |
+| Verbo     | Uso                  | Esempio                        |
+| --------- | -------------------- | ------------------------------ |
+| `show`    | Visualizzazione dati | `go-show-alarm-summary`        |
+| `hide`    | Nascondere elementi  | `go-hide-resolved-alarms`      |
 | `display` | Presentazione output | `go-display-metrics-dashboard` |
-| `print` | Stampa su console | `go-print-execution-summary` |
+| `print`   | Stampa su console    | `go-print-execution-summary`   |
 
 #### Connessione e Registrazione
 
-| Verbo | Uso | Esempio |
-|-------|-----|---------|
-| `connect` | Connessione a servizio | `go-connect-database` |
-| `disconnect` | Disconnessione | `go-disconnect-idle-sessions` |
-| `register` | Registrazione risorsa | `send-register-webhook` |
-| `unregister` | Deregistrazione risorsa | `send-unregister-webhook` |
-| `bind` | Collegamento risorse | `go-bind-alarm-to-topic` |
-| `unbind` | Scollegamento risorse | `go-unbind-alarm-from-topic` |
+| Verbo        | Uso                     | Esempio                       |
+| ------------ | ----------------------- | ----------------------------- |
+| `connect`    | Connessione a servizio  | `go-connect-database`         |
+| `disconnect` | Disconnessione          | `go-disconnect-idle-sessions` |
+| `register`   | Registrazione risorsa   | `send-register-webhook`       |
+| `unregister` | Deregistrazione risorsa | `send-unregister-webhook`     |
+| `bind`       | Collegamento risorse    | `go-bind-alarm-to-topic`      |
+| `unbind`     | Scollegamento risorse   | `go-unbind-alarm-from-topic`  |
 
 #### Sincronizzazione e Gestione
 
-| Verbo | Uso | Esempio |
-|-------|-----|---------|
-| `sync` | Sincronizzazione dati | `interop-sync-catalog` |
-| `manage` | Gestione multi-operazione | `go-manage-lambda-concurrency` |
-| `orchestrate` | Orchestrazione workflow | `go-orchestrate-deployment` |
-| `schedule` | Pianificazione task | `go-schedule-maintenance` |
-| `cleanup` | Pulizia risorse | `go-cleanup-temp-files` |
-| `migrate` | Migrazione dati/schema | `go-migrate-dynamodb-schema` |
-| `deploy` | Deployment risorse | `go-deploy-lambda-function` |
-| `rollback` | Rollback modifiche | `go-rollback-deployment` |
+| Verbo         | Uso                       | Esempio                        |
+| ------------- | ------------------------- | ------------------------------ |
+| `sync`        | Sincronizzazione dati     | `interop-sync-catalog`         |
+| `manage`      | Gestione multi-operazione | `go-manage-lambda-concurrency` |
+| `orchestrate` | Orchestrazione workflow   | `go-orchestrate-deployment`    |
+| `schedule`    | Pianificazione task       | `go-schedule-maintenance`      |
+| `cleanup`     | Pulizia risorse           | `go-cleanup-temp-files`        |
+| `migrate`     | Migrazione dati/schema    | `go-migrate-dynamodb-schema`   |
+| `deploy`      | Deployment risorse        | `go-deploy-lambda-function`    |
+| `rollback`    | Rollback modifiche        | `go-rollback-deployment`       |
 
 ---
 
@@ -869,11 +867,13 @@ const script = new Core.GOScript({
 /**
  * Run the script with lifecycle management
  */
-script.run(async () => {
-  await main(script);
-}).catch(() => {
-  process.exit(1);
-});
+script
+  .run(async () => {
+    await main(script);
+  })
+  .catch(() => {
+    process.exit(1);
+  });
 ```
 
 #### 2. `config.ts` - Configurazione
@@ -985,7 +985,6 @@ export async function main(script: Core.GOScript): Promise<void> {
     // Mostra risultati
     script.logger.section('Risultati');
     script.logger.info(`Processati: ${result.count} elementi`);
-
   } finally {
     // Cleanup risorse
     await service.close();
@@ -995,13 +994,13 @@ export async function main(script: Core.GOScript): Promise<void> {
 
 ### Vantaggi della Struttura a 3 File
 
-| Vantaggio | Descrizione |
-|-----------|-------------|
-| **Separazione delle responsabilita** | Ogni file ha un ruolo specifico e ben definito |
-| **Testabilita** | `main.ts` puo essere testato indipendentemente |
-| **Riutilizzo** | La configurazione puo essere importata da altri moduli |
-| **Manutenibilita** | Modifiche isolate in file specifici |
-| **Leggibilita** | Entry point minimale, logica concentrata in `main.ts` |
+| Vantaggio                            | Descrizione                                            |
+| ------------------------------------ | ------------------------------------------------------ |
+| **Separazione delle responsabilita** | Ogni file ha un ruolo specifico e ben definito         |
+| **Testabilita**                      | `main.ts` puo essere testato indipendentemente         |
+| **Riutilizzo**                       | La configurazione puo essere importata da altri moduli |
+| **Manutenibilita**                   | Modifiche isolate in file specifici                    |
+| **Leggibilita**                      | Entry point minimale, logica concentrata in `main.ts`  |
 
 ### Note Importanti
 
@@ -1052,10 +1051,10 @@ Gli script supportano due modalita di deployment: **monorepo** (default) e **sta
 
 ### GODeploymentMode
 
-| Modalita | Descrizione | Uso |
-|----------|-------------|-----|
-| `MONOREPO` | Esecuzione dentro il monorepo | Sviluppo, CI/CD monorepo |
-| `STANDALONE` | Deployment isolato | Docker, Lambda, EC2 |
+| Modalita     | Descrizione                   | Uso                      |
+| ------------ | ----------------------------- | ------------------------ |
+| `MONOREPO`   | Esecuzione dentro il monorepo | Sviluppo, CI/CD monorepo |
+| `STANDALONE` | Deployment isolato            | Docker, Lambda, EC2      |
 
 ### Rilevamento Automatico
 
@@ -1075,14 +1074,14 @@ Il sistema rileva automaticamente la modalita cercando marker del monorepo:
 
 ### Variabili d'Ambiente
 
-| Variabile | Descrizione | Esempio |
-|-----------|-------------|---------|
-| `GO_DEPLOYMENT_MODE` | Forza modalita deployment | `monorepo` o `standalone` |
-| `GO_BASE_DIR` | Base directory (standalone) | `/app` |
-| `GO_DATA_DIR` | Override data directory | `/app/data` |
-| `GO_CONFIG_DIR` | Override config directory | `/app/configs` |
-| `GO_INPUT_DIR` | Override input directory | `/app/data/inputs` |
-| `GO_OUTPUT_DIR` | Override output directory | `/app/data/outputs` |
+| Variabile            | Descrizione                 | Esempio                   |
+| -------------------- | --------------------------- | ------------------------- |
+| `GO_DEPLOYMENT_MODE` | Forza modalita deployment   | `monorepo` o `standalone` |
+| `GO_BASE_DIR`        | Base directory (standalone) | `/app`                    |
+| `GO_DATA_DIR`        | Override data directory     | `/app/data`               |
+| `GO_CONFIG_DIR`      | Override config directory   | `/app/configs`            |
+| `GO_INPUT_DIR`       | Override input directory    | `/app/data/inputs`        |
+| `GO_OUTPUT_DIR`      | Override output directory   | `/app/data/outputs`       |
 
 ### Struttura Directory per Mode
 

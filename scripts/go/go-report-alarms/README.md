@@ -26,12 +26,12 @@ Script di analisi degli allarmi CloudWatch AWS per identificare e categorizzare 
 
 ### Software Richiesto
 
-| Software   | Versione Minima | Note                    |
-|------------|-----------------|-------------------------|
-| Node.js    | >= 18.0.0       | LTS consigliata (v24+)  |
-| pnpm       | >= 8.0.0        | Package manager         |
-| TypeScript | >= 5.0.0        | Incluso nel progetto    |
-| AWS CLI    | >= 2.0          | Per configurazione SSO  |
+| Software   | Versione Minima | Note                   |
+| ---------- | --------------- | ---------------------- |
+| Node.js    | >= 18.0.0       | LTS consigliata (v24+) |
+| pnpm       | >= 8.0.0        | Package manager        |
+| TypeScript | >= 5.0.0        | Incluso nel progetto   |
+| AWS CLI    | >= 2.0          | Per configurazione SSO |
 
 ### Account e Permessi AWS
 
@@ -54,14 +54,14 @@ aws sso login --profile sso_pn-core-prod
 
 ### Parametri CLI
 
-| Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
-|-----------|-------|------|--------------|---------|-------------|
-| `--start.date` | `-sd` | string | Si | - | Data inizio analisi (formato ISO 8601) |
-| `--end.date` | `-ed` | string | Si | - | Data fine analisi (formato ISO 8601) |
-| `--aws.profile` | `-ap` | string | Si | - | Nome profilo AWS SSO |
-| `--alarm.name` | `-an` | string | No | - | Filtro per nome allarme specifico |
-| `--verbose` | `-v` | boolean | No | `false` | Mostra tutti i timestamp (non solo primo/ultimo) |
-| `--ignore.patterns` | `-ip` | string[] | No | Da config | Pattern da ignorare (separati da virgola) |
+| Parametro           | Alias | Tipo     | Obbligatorio | Default   | Descrizione                                      |
+| ------------------- | ----- | -------- | ------------ | --------- | ------------------------------------------------ |
+| `--start.date`      | `-sd` | string   | Si           | -         | Data inizio analisi (formato ISO 8601)           |
+| `--end.date`        | `-ed` | string   | Si           | -         | Data fine analisi (formato ISO 8601)             |
+| `--aws.profile`     | `-ap` | string   | Si           | -         | Nome profilo AWS SSO                             |
+| `--alarm.name`      | `-an` | string   | No           | -         | Filtro per nome allarme specifico                |
+| `--verbose`         | `-v`  | boolean  | No           | `false`   | Mostra tutti i timestamp (non solo primo/ultimo) |
+| `--ignore.patterns` | `-ip` | string[] | No           | Da config | Pattern da ignorare (separati da virgola)        |
 
 ### Formato Date
 
@@ -108,6 +108,7 @@ I pattern vengono utilizzati per escludere allarmi non rilevanti dall'analisi:
 - Un allarme viene ignorato se il suo nome **contiene** uno dei pattern
 
 **Esempi di pattern**:
+
 - `-CumulativeAlarm`: Ignora tutti gli allarmi il cui nome contiene "-CumulativeAlarm"
 - `workday-`: Ignora allarmi che iniziano con "workday-"
 - `-DLQ-`: Ignora allarmi relativi alle Dead Letter Queue
@@ -251,6 +252,7 @@ Lo script genera un output strutturato in sezioni:
 ### Formato Timestamp
 
 I timestamp sono mostrati in due formati:
+
 1. **ISO 8601**: `2024-12-01T08:15:30.000Z` (UTC)
 2. **Google Sheets**: `01/12/2024 09:15:30` (Europe/Rome, formato dd/MM/yyyy HH:mm:ss)
 
@@ -265,6 +267,7 @@ Il formato Google Sheets e ottimizzato per il copia-incolla diretto in fogli di 
 ### Log Files
 
 I log vengono salvati automaticamente in:
+
 ```
 logs/go-report-alarms_YYYY-MM-DD.log
 ```
@@ -278,6 +281,7 @@ logs/go-report-alarms_YYYY-MM-DD.log
 **Causa**: Sessione AWS SSO scaduta o profilo non configurato.
 
 **Soluzione**:
+
 ```bash
 # Verificare il profilo
 aws configure list --profile sso_pn-core-prod
@@ -294,6 +298,7 @@ aws sts get-caller-identity --profile sso_pn-core-prod
 **Causa**: Formato data non valido.
 
 **Soluzione**: Usare formato ISO 8601 completo:
+
 ```bash
 # Corretto
 --start.date "2024-12-01T00:00:00Z"
@@ -314,6 +319,7 @@ aws sts get-caller-identity --profile sso_pn-core-prod
 **Causa**: La libreria comune non e stata compilata.
 
 **Soluzione**:
+
 ```bash
 # Dalla root del monorepo
 pnpm build:common
@@ -323,11 +329,13 @@ pnpm --filter=go-report-alarms build
 #### Nessun Allarme Trovato
 
 **Causa possibili**:
+
 1. Nessuna transizione OK->ALARM nel periodo specificato
 2. Tutti gli allarmi sono stati filtrati dai pattern di ignore
 3. Range temporale troppo ristretto
 
 **Soluzione**:
+
 - Ampliare il range di date
 - Verificare i pattern di ignore in `configs/config.json`
 - Usare `--alarm.name` per verificare un allarme specifico

@@ -9,5 +9,5 @@ export interface SENDNotificationStatusResponse {
   /** IUN (Identificativo Univoco Notifica) */
   iun?: string | undefined;
   /** List of errors (if any) - can be strings or error objects */
-  errors?: Array<string | Record<string, any>> | undefined;
+  errors?: (string | Record<string, unknown>)[] | undefined;
 }

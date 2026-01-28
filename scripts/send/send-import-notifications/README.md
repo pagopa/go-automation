@@ -31,11 +31,11 @@ Script di importazione massiva notifiche SEND da file CSV con upload automatico 
 
 ### Software Richiesto
 
-| Software   | Versione Minima | Note                    |
-|------------|-----------------|-------------------------|
-| Node.js    | >= 18.0.0       | LTS consigliata (v24+)  |
-| pnpm       | >= 8.0.0        | Package manager         |
-| TypeScript | >= 5.0.0        | Incluso nel progetto    |
+| Software   | Versione Minima | Note                     |
+| ---------- | --------------- | ------------------------ |
+| Node.js    | >= 18.0.0       | LTS consigliata (v24+)   |
+| pnpm       | >= 8.0.0        | Package manager          |
+| TypeScript | >= 5.0.0        | Incluso nel progetto     |
 | Docker     | >= 20.0         | Opzionale, per container |
 
 ### Account e Permessi PN
@@ -57,55 +57,55 @@ Il CSV di input deve seguire il formato QA Test (vedi sezione [Formato CSV](#for
 
 #### Input/Output
 
-| Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
-|-----------|-------|------|--------------|---------|-------------|
-| `--csv.file` | `-c` | string | Si | - | Path file CSV input |
-| `--export.file` | `-e` | string | No | - | Path file CSV output |
+| Parametro       | Alias | Tipo   | Obbligatorio | Default | Descrizione          |
+| --------------- | ----- | ------ | ------------ | ------- | -------------------- |
+| `--csv.file`    | `-c`  | string | Si           | -       | Path file CSV input  |
+| `--export.file` | `-e`  | string | No           | -       | Path file CSV output |
 
 #### Connessione PN
 
-| Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
-|-----------|-------|------|--------------|---------|-------------|
-| `--base.path` | `-b` | string | Si | - | Base URL API PN |
-| `--pn.api.key` | `-k` | string | Si | - | API Key PN |
+| Parametro      | Alias | Tipo   | Obbligatorio | Default | Descrizione     |
+| -------------- | ----- | ------ | ------------ | ------- | --------------- |
+| `--base.path`  | `-b`  | string | Si           | -       | Base URL API PN |
+| `--pn.api.key` | `-k`  | string | Si           | -       | API Key PN      |
 
 #### Comportamento
 
-| Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
-|-----------|-------|------|--------------|---------|-------------|
-| `--send.notifications` | `-s` | boolean | No | `false` | Invia notifiche (false = dry-run) |
-| `--concurrency` | `-n` | int | No | `3` | Parallelismo invio |
+| Parametro              | Alias | Tipo    | Obbligatorio | Default | Descrizione                       |
+| ---------------------- | ----- | ------- | ------------ | ------- | --------------------------------- |
+| `--send.notifications` | `-s`  | boolean | No           | `false` | Invia notifiche (false = dry-run) |
+| `--concurrency`        | `-n`  | int     | No           | `3`     | Parallelismo invio                |
 
 #### Polling IUN
 
-| Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
-|-----------|-------|------|--------------|---------|-------------|
-| `--poll.for.iun` | `-p` | boolean | No | `true` | Attiva polling IUN |
-| `--poll.max.attempts` | - | int | No | `8` | Tentativi max polling |
-| `--poll.delay.ms` | - | int | No | `30000` | Delay tra tentativi (ms) |
+| Parametro             | Alias | Tipo    | Obbligatorio | Default | Descrizione              |
+| --------------------- | ----- | ------- | ------------ | ------- | ------------------------ |
+| `--poll.for.iun`      | `-p`  | boolean | No           | `true`  | Attiva polling IUN       |
+| `--poll.max.attempts` | -     | int     | No           | `8`     | Tentativi max polling    |
+| `--poll.delay.ms`     | -     | int     | No           | `30000` | Delay tra tentativi (ms) |
 
 #### Streaming e Export
 
-| Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
-|-----------|-------|------|--------------|---------|-------------|
-| `--streaming.threshold.mb` | - | int | No | `10` | Soglia MB per streaming |
-| `--preserve.all.columns` | `--preserve-columns` | boolean | No | `true` | Preserva colonne originali |
-| `--export.all.rows` | - | boolean | No | `false` | Esporta anche righe fallite |
-| `--include.status.columns` | - | boolean | No | `false` | Aggiungi colonne stato |
+| Parametro                  | Alias                | Tipo    | Obbligatorio | Default | Descrizione                 |
+| -------------------------- | -------------------- | ------- | ------------ | ------- | --------------------------- |
+| `--streaming.threshold.mb` | -                    | int     | No           | `10`    | Soglia MB per streaming     |
+| `--preserve.all.columns`   | `--preserve-columns` | boolean | No           | `true`  | Preserva colonne originali  |
+| `--export.all.rows`        | -                    | boolean | No           | `false` | Esporta anche righe fallite |
+| `--include.status.columns` | -                    | boolean | No           | `false` | Aggiungi colonne stato      |
 
 #### Debug
 
-| Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
-|-----------|-------|------|--------------|---------|-------------|
-| `--proxy.url` | - | string | No | - | URL proxy HTTP (debug) |
+| Parametro     | Alias | Tipo   | Obbligatorio | Default | Descrizione            |
+| ------------- | ----- | ------ | ------------ | ------- | ---------------------- |
+| `--proxy.url` | -     | string | No           | -       | URL proxy HTTP (debug) |
 
 ### Variabili d'Ambiente
 
-| Variabile | Descrizione | Esempio |
-|-----------|-------------|---------|
-| `PN_API_KEY` | API Key PN | `abc123...` |
+| Variabile      | Descrizione  | Esempio                         |
+| -------------- | ------------ | ------------------------------- |
+| `PN_API_KEY`   | API Key PN   | `abc123...`                     |
 | `PN_BASE_PATH` | Base URL API | `api.test.notifichedigitali.it` |
-| `PROXY_URL` | Proxy debug | `http://127.0.0.1:9090` |
+| `PROXY_URL`    | Proxy debug  | `http://127.0.0.1:9090`         |
 
 ### File di Configurazione
 
@@ -238,23 +238,23 @@ pnpm --filter=send-import-notifications dev -- \
 
 Il CSV di input deve seguire il formato QA Test con le seguenti colonne:
 
-| Colonna | Obbligatorio | Descrizione |
-|---------|--------------|-------------|
-| `ID_Scenario` | Si | Identificativo scenario test |
-| `Scenario` | Si | Nome scenario |
-| `Prodotto` | Si | Tipo prodotto (es. "AR") |
-| `Destinatario` | Si | Tipo destinatario (PF/PG) |
-| `Denomination` | Si | Nome/Ragione sociale |
-| `Indirizzo PEC` | No | PEC per domicilio digitale |
-| `physicalCommunicationType` | Si | Tipo comunicazione (AR/890) |
-| `CAP` | Si | Codice postale |
-| `Provincia` | Si | Sigla provincia |
-| `Citta` | Si | Nome citta |
-| `Stato` | Si | Codice stato (IT) |
-| `Range` | No | Range test |
-| `Indirizzo` | Si | Indirizzo fisico |
-| `Sender` | Si | PA mittente |
-| `Tax ID` | Si | Codice fiscale destinatario |
+| Colonna                     | Obbligatorio | Descrizione                  |
+| --------------------------- | ------------ | ---------------------------- |
+| `ID_Scenario`               | Si           | Identificativo scenario test |
+| `Scenario`                  | Si           | Nome scenario                |
+| `Prodotto`                  | Si           | Tipo prodotto (es. "AR")     |
+| `Destinatario`              | Si           | Tipo destinatario (PF/PG)    |
+| `Denomination`              | Si           | Nome/Ragione sociale         |
+| `Indirizzo PEC`             | No           | PEC per domicilio digitale   |
+| `physicalCommunicationType` | Si           | Tipo comunicazione (AR/890)  |
+| `CAP`                       | Si           | Codice postale               |
+| `Provincia`                 | Si           | Sigla provincia              |
+| `Citta`                     | Si           | Nome citta                   |
+| `Stato`                     | Si           | Codice stato (IT)            |
+| `Range`                     | No           | Range test                   |
+| `Indirizzo`                 | Si           | Indirizzo fisico             |
+| `Sender`                    | Si           | PA mittente                  |
+| `Tax ID`                    | Si           | Codice fiscale destinatario  |
 
 ### Esempio CSV Input
 
@@ -268,21 +268,21 @@ ID_Scenario,Scenario,Prodotto,Destinatario,Denomination,Indirizzo PEC,physicalCo
 
 Il CSV di output include tutte le colonne originali piu:
 
-| Colonna | Descrizione |
-|---------|-------------|
-| `RequestID` | ID richiesta notifica |
-| `iun` | Identificativo Univoco Notifica |
-| `Data invio Test` | Timestamp invio |
-| `Stato` | Stato elaborazione |
-| `Esito` | Esito (OK/KO) |
-| `Note` | Eventuali note/errori |
+| Colonna           | Descrizione                     |
+| ----------------- | ------------------------------- |
+| `RequestID`       | ID richiesta notifica           |
+| `iun`             | Identificativo Univoco Notifica |
+| `Data invio Test` | Timestamp invio                 |
+| `Stato`           | Stato elaborazione              |
+| `Esito`           | Esito (OK/KO)                   |
+| `Note`            | Eventuali note/errori           |
 
 Con `--include.status.columns`:
 
-| Colonna | Descrizione |
-|---------|-------------|
-| `_status` | Stato interno workflow |
-| `_processedAt` | Timestamp elaborazione |
+| Colonna         | Descrizione                    |
+| --------------- | ------------------------------ |
+| `_status`       | Stato interno workflow         |
+| `_processedAt`  | Timestamp elaborazione         |
 | `_errorMessage` | Messaggio errore (se presente) |
 
 ## Output
@@ -343,15 +343,15 @@ Con `--include.status.columns`:
 
 La tabella finale mostra:
 
-| Metrica | Descrizione |
-|---------|-------------|
-| Total rows | Righe nel CSV |
-| Processed | Righe elaborate |
+| Metrica            | Descrizione        |
+| ------------------ | ------------------ |
+| Total rows         | Righe nel CSV      |
+| Processed          | Righe elaborate    |
 | Documents uploaded | Documenti caricati |
-| Notifications sent | Notifiche inviate |
-| IUNs obtained | IUN ottenuti |
-| Failed | Righe fallite |
-| Processing time | Tempo totale |
+| Notifications sent | Notifiche inviate  |
+| IUNs obtained      | IUN ottenuti       |
+| Failed             | Righe fallite      |
+| Processing time    | Tempo totale       |
 
 ## Docker
 
@@ -437,23 +437,23 @@ docker compose run --rm app node dist/index.js \
 
 ### Variabili Docker
 
-| Variabile | Default | Descrizione |
-|-----------|---------|-------------|
-| `NODE_ENV` | `production` | Ambiente Node |
-| `NODE_OPTIONS` | `--max-old-space-size=4096` | Memoria heap |
-| `TZ` | `Europe/Rome` | Timezone |
-| `PN_API_KEY` | - | API Key PN (obbligatoria) |
-| `PN_BASE_PATH` | - | Override base URL |
-| `PROXY_URL` | - | Proxy debug |
+| Variabile      | Default                     | Descrizione               |
+| -------------- | --------------------------- | ------------------------- |
+| `NODE_ENV`     | `production`                | Ambiente Node             |
+| `NODE_OPTIONS` | `--max-old-space-size=4096` | Memoria heap              |
+| `TZ`           | `Europe/Rome`               | Timezone                  |
+| `PN_API_KEY`   | -                           | API Key PN (obbligatoria) |
+| `PN_BASE_PATH` | -                           | Override base URL         |
+| `PROXY_URL`    | -                           | Proxy debug               |
 
 ### Risorse Container
 
 Limiti configurati in `docker-compose.yaml`:
 
-| Risorsa | Limite | Reservation |
-|---------|--------|-------------|
-| CPU | 2 cores | 0.5 cores |
-| Memoria | 4 GB | 512 MB |
+| Risorsa | Limite  | Reservation |
+| ------- | ------- | ----------- |
+| CPU     | 2 cores | 0.5 cores   |
+| Memoria | 4 GB    | 512 MB      |
 
 ## Troubleshooting
 
@@ -464,6 +464,7 @@ Limiti configurati in `docker-compose.yaml`:
 **Causa**: Colonne mancanti o formato non conforme.
 
 **Soluzione**:
+
 1. Verificare le colonne obbligatorie
 2. Controllare il delimitatore (deve essere virgola)
 3. Verificare encoding (UTF-8)
@@ -473,6 +474,7 @@ Limiti configurati in `docker-compose.yaml`:
 **Causa**: API Key non valida o scaduta.
 
 **Soluzione**:
+
 1. Verificare API Key in Piattaforma Notifiche
 2. Controllare ambiente (test/prod) corretto
 3. Rigenerare API Key se necessario
@@ -482,6 +484,7 @@ Limiti configurati in `docker-compose.yaml`:
 **Causa**: Documento troppo grande o formato non supportato.
 
 **Soluzione**:
+
 1. Verificare dimensione documento (max 10 MB)
 2. Verificare formato (PDF)
 3. Controllare URL presigned non scaduto
@@ -491,6 +494,7 @@ Limiti configurati in `docker-compose.yaml`:
 **Causa**: Troppo tempo per ottenere IUN.
 
 **Soluzione**:
+
 ```bash
 # Aumentare tentativi e delay
 --poll.max.attempts 15 --poll.delay.ms 60000
@@ -501,6 +505,7 @@ Limiti configurati in `docker-compose.yaml`:
 **Causa**: Problemi connettivita o firewall.
 
 **Soluzione**:
+
 1. Verificare connessione internet
 2. Controllare firewall/proxy aziendale
 3. Usare `--proxy.url` per debug
@@ -510,6 +515,7 @@ Limiti configurati in `docker-compose.yaml`:
 **Causa**: File CSV troppo grande.
 
 **Soluzione**:
+
 1. Aumentare memoria: `NODE_OPTIONS="--max-old-space-size=8192"`
 2. Abbassare `--streaming.threshold.mb` per forzare streaming
 3. Dividere il file in batch piu piccoli

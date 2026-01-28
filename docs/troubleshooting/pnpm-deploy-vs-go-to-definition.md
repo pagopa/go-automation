@@ -13,7 +13,7 @@
 2. [Causa Tecnica](#causa-tecnica)
 3. [Tentativi Falliti](#tentativi-falliti)
 4. [Soluzione Finale](#soluzione-finale)
-5. [Problema Secondario: __dirname in ES Modules](#problema-secondario-__dirname-in-es-modules)
+5. [Problema Secondario: \_\_dirname in ES Modules](#problema-secondario-__dirname-in-es-modules)
 6. [Configurazione Finale](#configurazione-finale)
 7. [Riferimenti](#riferimenti)
 
@@ -33,10 +33,10 @@ La funzionalita "Go to Definition" (F12 o Cmd+Click) di VSCode deve navigare dir
 
 ### Il Conflitto
 
-| Configurazione | pnpm deploy | Go to Definition |
-|----------------|-------------|------------------|
-| `inject-workspace-packages=true` | Funziona | **NON funziona** - naviga a `node_modules/.pnpm/...` |
-| `inject-workspace-packages=false` (o assente) | **NON funziona** - errore `ERR_MODULE_NOT_FOUND` | Funziona - naviga a `packages/` |
+| Configurazione                                | pnpm deploy                                      | Go to Definition                                     |
+| --------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------- |
+| `inject-workspace-packages=true`              | Funziona                                         | **NON funziona** - naviga a `node_modules/.pnpm/...` |
+| `inject-workspace-packages=false` (o assente) | **NON funziona** - errore `ERR_MODULE_NOT_FOUND` | Funziona - naviga a `packages/`                      |
 
 ---
 
@@ -131,6 +131,7 @@ La soluzione e usare `force-legacy-deploy=true` invece di `inject-workspace-pack
 ### Cosa fa force-legacy-deploy
 
 Questa opzione forza pnpm a usare l'**implementazione legacy** del comando deploy, che:
+
 - Funziona correttamente con i symlink dei workspace packages
 - Non richiede `inject-workspace-packages`
 - Mantiene i symlink intatti per lo sviluppo locale
@@ -159,7 +160,7 @@ Shared workspace lockfile detected but configuration forces legacy deploy implem
 
 ---
 
-## Problema Secondario: __dirname in ES Modules
+## Problema Secondario: \_\_dirname in ES Modules
 
 Durante i test, e emerso un problema correlato con `__dirname` non definito in produzione.
 
@@ -167,13 +168,14 @@ Durante i test, e emerso un problema correlato con `__dirname` non definito in p
 
 Quando un pacchetto usa `"type": "module"` in `package.json`:
 
-| Ambiente | `__dirname` | `__filename` |
-|----------|-------------|--------------|
-| CommonJS | Definito | Definito |
-| ES Modules con `tsx` (dev) | Polyfill automatico | Polyfill automatico |
-| ES Modules con `node` (prod) | **undefined** | **undefined** |
+| Ambiente                     | `__dirname`         | `__filename`        |
+| ---------------------------- | ------------------- | ------------------- |
+| CommonJS                     | Definito            | Definito            |
+| ES Modules con `tsx` (dev)   | Polyfill automatico | Polyfill automatico |
+| ES Modules con `node` (prod) | **undefined**       | **undefined**       |
 
 Questo causa errori come:
+
 ```
 ReferenceError: __dirname is not defined in ES module scope
 ```
@@ -194,11 +196,12 @@ A partire da Node.js 20.11, sono disponibili nuove proprieta su `import.meta`:
 
 ```typescript
 // Nuovo modo - piu semplice e pulito
-const currentDir = import.meta.dirname;   // equivalente a __dirname
+const currentDir = import.meta.dirname; // equivalente a __dirname
 const currentFile = import.meta.filename; // equivalente a __filename
 ```
 
 **Vantaggi**:
+
 - Sintassi piu concisa
 - Non richiede import aggiuntivi
 - Comportamento coerente con CommonJS
@@ -261,9 +264,9 @@ const configPath = path.join(import.meta.dirname, 'config.json');
 
 ## Riepilogo
 
-| Problema | Soluzione |
-|----------|-----------|
-| `pnpm deploy` non funziona | Usare `force-legacy-deploy=true` |
-| "Go to Definition" naviga a `node_modules` | Rimuovere `inject-workspace-packages=true` |
-| `__dirname is not defined` in ES Modules | Usare `import.meta.dirname` (Node.js 20.11+) |
-| Warning "legacy deploy implementation" | Ignorare, e comportamento atteso |
+| Problema                                   | Soluzione                                    |
+| ------------------------------------------ | -------------------------------------------- |
+| `pnpm deploy` non funziona                 | Usare `force-legacy-deploy=true`             |
+| "Go to Definition" naviga a `node_modules` | Rimuovere `inject-workspace-packages=true`   |
+| `__dirname is not defined` in ES Modules   | Usare `import.meta.dirname` (Node.js 20.11+) |
+| Warning "legacy deploy implementation"     | Ignorare, e comportamento atteso             |

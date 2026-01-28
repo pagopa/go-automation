@@ -6,16 +6,8 @@
     "composite": true,
     "types": ["node"]
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "configs",
-    "logs",
-    "reports"
-  ],
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "configs", "logs", "reports"],
   "references": [
     {
       "path": "../../../packages/go-common"

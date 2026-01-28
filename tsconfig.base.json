@@ -2,9 +2,7 @@
   "compilerOptions": {
     // Language and Environment
     "target": "ES2024",
-    "lib": [
-      "ES2024"
-    ],
+    "lib": ["ES2024"],
     // Module System - Native ESM for Node.js
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
@@ -64,10 +62,5 @@
     // noErrorTruncation: mostra messaggi di errore TypeScript completi
     "noErrorTruncation": true
   },
-  "exclude": [
-    "node_modules",
-    "dist",
-    "**/*.spec.ts",
-    "**/*.test.ts"
-  ]
+  "exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.test.ts"]
 }

@@ -35,8 +35,8 @@ export interface GOFileCopyResult {
  * Reasons why a file copy might be skipped
  */
 export type GOFileCopySkipReason =
-  | 'user_declined'           // User chose not to copy when prompted
-  | 'size_exceeded'           // File exceeds maximum size threshold
-  | 'already_exists'          // File already exists at destination
-  | 'source_not_found'        // Source file does not exist
+  | 'user_declined' // User chose not to copy when prompted
+  | 'size_exceeded' // File exceeds maximum size threshold
+  | 'already_exists' // File already exists at destination
+  | 'source_not_found' // Source file does not exist
   | 'destination_not_writable'; // Cannot write to destination

@@ -8,7 +8,7 @@
 
 ## Struttura del Template
 
-```markdown
+````markdown
 # [Nome Script]
 
 > Versione: X.Y.Z | Autore: Team GO - Gestione Operativa
@@ -36,11 +36,11 @@ Elenco delle funzionalita principali:
 
 ### Software Richiesto
 
-| Software | Versione Minima | Note |
-|----------|-----------------|------|
-| Node.js  | >= 18.0.0       | LTS consigliata |
-| pnpm     | >= 8.0.0        | Package manager |
-| TypeScript | >= 5.0.0      | Incluso nel progetto |
+| Software   | Versione Minima | Note                 |
+| ---------- | --------------- | -------------------- |
+| Node.js    | >= 18.0.0       | LTS consigliata      |
+| pnpm       | >= 8.0.0        | Package manager      |
+| TypeScript | >= 5.0.0        | Incluso nel progetto |
 
 ### Account e Permessi
 
@@ -56,14 +56,14 @@ Descrivere come configurare le credenziali AWS (profili SSO, IAM, etc.)
 
 ### Parametri CLI
 
-| Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
-|-----------|-------|------|--------------|---------|-------------|
-| `--param.name` | `-p` | string | Si | - | Descrizione |
+| Parametro      | Alias | Tipo   | Obbligatorio | Default | Descrizione |
+| -------------- | ----- | ------ | ------------ | ------- | ----------- |
+| `--param.name` | `-p`  | string | Si           | -       | Descrizione |
 
 ### Variabili d'Ambiente
 
-| Variabile | Descrizione | Esempio |
-|-----------|-------------|---------|
+| Variabile  | Descrizione | Esempio  |
+| ---------- | ----------- | -------- |
 | `VAR_NAME` | Descrizione | `valore` |
 
 ### File di Configurazione
@@ -78,6 +78,7 @@ Percorso: `configs/config.json` o `configs/config.yaml`
   }
 }
 ```
+````
 
 ### Priorita di Configurazione
 
@@ -186,6 +187,7 @@ Descrivere il formato dell'output generato:
 **Causa**: Profilo AWS non configurato o sessione SSO scaduta.
 
 **Soluzione**:
+
 ```bash
 # Effettuare login SSO
 aws sso login --profile [nome-profilo]
@@ -196,6 +198,7 @@ aws sso login --profile [nome-profilo]
 **Causa**: Dipendenze non installate o build non eseguito.
 
 **Soluzione**:
+
 ```bash
 pnpm install
 pnpm build:common
@@ -222,6 +225,7 @@ pnpm --filter=[nome-script] exec tsc --noEmit
 
 **Ultima modifica**: YYYY-MM-DD
 **Maintainer**: Team GO - Gestione Operativa
+
 ```
 
 ---
@@ -240,3 +244,4 @@ pnpm --filter=[nome-script] exec tsc --noEmit
 - **Cron/Scheduling**: Solo se lo script supporta esecuzione schedulata
 - **API Reference**: Solo per script con API complesse
 - **Changelog**: Per script con versioning attivo
+```

@@ -71,6 +71,7 @@ pnpm build
 Per una migliore esperienza di sviluppo, raccomandiamo l'installazione delle seguenti estensioni (alcune verranno suggerite all'apertura del progetto):
 
 ### Core & Linting
+
 - **ESLint**: Per il controllo della qualità del codice.
 - **Prettier**: Per la formattazione automatica.
 - **npm intellisense**: Autocompletamento per le dipendenze in `package.json`.
@@ -78,15 +79,18 @@ Per una migliore esperienza di sviluppo, raccomandiamo l'installazione delle seg
 - **YAML (RedHat)**: Fondamentale per i file di config e pnpm workspaces.
 
 ### TypeScript Stack
+
 - **JavaScript and TypeScript Nightly**: Per le ultime feature del linguaggio.
 - **Pretty TypeScript Errors**: Rende gli errori TS molto più leggibili.
 
 ### Cloud & Infrastruttura
+
 - **AWS Toolkit**: Gestione profili AWS, Lambda ed Explorer risorse.
 - **Docker (Container Tools)**: Gestione container, immagini e Dockerfile.
 - **Dev Containers**: Per lavorare dentro i container se previsto.
 
 ### Utilities & Documentazione
+
 - **CSV (Edit csv)**: [Link Marketplace](https://marketplace.visualstudio.com/items?itemName=ReprEng.csv) - Ottimo per gestire i dati di input/output.
 - **Markdown All in One**: Per gestire facilmente la documentazione del progetto.
 
@@ -132,4 +136,5 @@ Segui le istruzioni a video per generare la struttura del progetto. Consulta [NE
 - [Testing Strategy](./TESTING_STRATEGY.md)
 
 ---
+
 **Hai problemi?** Consulta la guida [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).

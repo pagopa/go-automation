@@ -1,0 +1,73 @@
+version: 2
+
+updates:
+  # Root package.json (devDependencies)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Rome"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+    groups:
+      # Group TypeScript and ESLint updates together
+      typescript-eslint:
+        patterns:
+          - "typescript*"
+          - "@typescript-eslint/*"
+          - "eslint*"
+          - "@eslint/*"
+      # Group AWS SDK updates together
+      aws-sdk:
+        patterns:
+          - "@aws-sdk/*"
+      # Group minor/patch updates
+      minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+        exclude-patterns:
+          - "typescript*"
+          - "@typescript-eslint/*"
+          - "eslint*"
+          - "@aws-sdk/*"
+
+  # go-common package
+  - package-ecosystem: "npm"
+    directory: "/packages/go-common"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Rome"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(go-common)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "go-common"
+      - "automated"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Rome"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "ci"
+      - "automated"

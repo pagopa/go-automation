@@ -1,0 +1,22 @@
+# Build outputs
+dist/
+*.tsbuildinfo
+
+# Dependencies
+node_modules/
+pnpm-lock.yaml
+
+# Data and logs
+data/
+logs/
+*.log
+
+# IDE
+.idea/
+.vscode/
+
+# Coverage
+coverage/
+
+# OS files
+.DS_Store

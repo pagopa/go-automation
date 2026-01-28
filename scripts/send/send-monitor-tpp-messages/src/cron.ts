@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Lightweight cron scheduler using croner
  *

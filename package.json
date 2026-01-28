@@ -13,6 +13,8 @@
     "go:report:alarms:build": "pnpm --filter=go-report-alarms build",
     "go:report:alarms:dev": "pnpm --filter=go-report-alarms dev",
     "go:report:alarms:prod": "pnpm --filter=go-report-alarms start",
+    "format": "prettier --write \"**/*.{ts,js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "lint:packages": "eslint packages",

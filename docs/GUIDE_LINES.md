@@ -26,6 +26,7 @@
 ## Principi Fondamentali
 
 ### Performance First
+
 - Scegli sempre algoritmi O(N) invece di O(N^2)
 - Usa `Map`/`Set` per lookups invece di `Array.find()`/`Array.includes()`
 - Compila RegExp una volta, riutilizza piu volte
@@ -33,12 +34,14 @@
 - Usa `readonly` per evitare copie difensive
 
 ### Immutabilita
+
 - Usa `readonly` per proprieta che non cambiano
 - Crea nuovi oggetti invece di mutare quelli esistenti
 - Usa `readonly` nei parametri delle funzioni
 - Preferisci `const` a `let`
 
 ### Type Safety
+
 - Evita `any` - usa `unknown` e type guards
 - Abilita strict mode completo
 - Documenta le asserzioni di tipo con commenti
@@ -49,13 +52,13 @@
 
 ### Identificatori
 
-| Identificatore | Convenzione | Esempi |
-|----------------|-------------|--------|
-| Classi, Interfacce, Tipi | `UpperCamelCase` | `AlarmAnalyzer`, `FilteredAlarms` |
-| Variabili, Funzioni, Parametri | `lowerCamelCase` | `alarmCount`, `processData` |
-| Costanti, Enum Values | `CONSTANT_CASE` | `MAX_RETRIES`, `DEFAULT_TIMEOUT` |
-| Campi privati | `lowerCamelCase` | `private items` (NON `_items`) |
-| Type parameters | `T` o `UpperCamelCase` | `T`, `TKey`, `TValue` |
+| Identificatore                 | Convenzione            | Esempi                            |
+| ------------------------------ | ---------------------- | --------------------------------- |
+| Classi, Interfacce, Tipi       | `UpperCamelCase`       | `AlarmAnalyzer`, `FilteredAlarms` |
+| Variabili, Funzioni, Parametri | `lowerCamelCase`       | `alarmCount`, `processData`       |
+| Costanti, Enum Values          | `CONSTANT_CASE`        | `MAX_RETRIES`, `DEFAULT_TIMEOUT`  |
+| Campi privati                  | `lowerCamelCase`       | `private items` (NON `_items`)    |
+| Type parameters                | `T` o `UpperCamelCase` | `T`, `TKey`, `TValue`             |
 
 ### Abbreviazioni
 
@@ -150,7 +153,7 @@ type ID = string | number;
 // CORRETTO: Proprieta opzionali
 interface Config {
   readonly apiUrl: string;
-  readonly timeout?: number;  // Opzionale
+  readonly timeout?: number; // Opzionale
 }
 
 // SBAGLIATO: | undefined nel tipo
@@ -186,11 +189,11 @@ export type Status = 'active' | 'inactive';
 
 ### Naming dei File
 
-| Tipo | Convenzione | Esempio |
-|------|-------------|---------|
-| Classi/Interfacce | PascalCase | `User.ts`, `ConfigManager.ts` |
-| Index files | lowercase | `index.ts` |
-| Config files | lowercase | `config.json`, `config.yaml` |
+| Tipo              | Convenzione | Esempio                       |
+| ----------------- | ----------- | ----------------------------- |
+| Classi/Interfacce | PascalCase  | `User.ts`, `ConfigManager.ts` |
+| Index files       | lowercase   | `index.ts`                    |
+| Config files      | lowercase   | `config.json`, `config.yaml`  |
 
 ---
 
@@ -253,7 +256,7 @@ export function analyze(data: Data): AnalysisResult {
 
 // OK: Ometti per tipi banalmente inferibili
 function add(a: number, b: number) {
-  return a + b;  // Ovviamente ritorna number
+  return a + b; // Ovviamente ritorna number
 }
 ```
 
@@ -268,7 +271,7 @@ function add(a: number, b: number) {
 class Service {
   constructor(
     private readonly client: HttpClient,
-    private readonly logger: Logger
+    private readonly logger: Logger,
   ) {}
 }
 
@@ -371,7 +374,7 @@ for (const item of items) {
 }
 
 // SBAGLIATO: forEach
-items.forEach(item => console.log(item));
+items.forEach((item) => console.log(item));
 ```
 
 ### Mai for...in su Array
@@ -402,7 +405,7 @@ for (const [key, value] of Object.entries(obj)) {
 
 // SBAGLIATO: for...in senza hasOwnProperty
 for (const key in obj) {
-  console.log(obj[key]);  // Non sicuro!
+  console.log(obj[key]); // Non sicuro!
 }
 ```
 
@@ -420,9 +423,9 @@ for (const item of items) {
 }
 
 // SBAGLIATO: O(N^2) con filter ripetuti
-const counts = items.map(item => ({
+const counts = items.map((item) => ({
   id: item.id,
-  count: items.filter(i => i.id === item.id).length
+  count: items.filter((i) => i.id === item.id).length,
 }));
 ```
 
@@ -430,15 +433,15 @@ const counts = items.map(item => ({
 
 ```typescript
 // CORRETTO: Compila una volta
-const patterns = ignoreList.map(p => new RegExp(p, 'i'));
+const patterns = ignoreList.map((p) => new RegExp(p, 'i'));
 
 function matches(text: string): boolean {
-  return patterns.some(regex => regex.test(text));
+  return patterns.some((regex) => regex.test(text));
 }
 
 // SBAGLIATO: Ricompila ogni volta
 function matches(text: string, ignoreList: string[]): boolean {
-  return ignoreList.some(p => new RegExp(p, 'i').test(text));
+  return ignoreList.some((p) => new RegExp(p, 'i').test(text));
 }
 ```
 
@@ -469,7 +472,7 @@ function calculateTotal(items: readonly Item[]): number {
 // SBAGLIATO: Side effects
 let total = 0;
 function addToTotal(item: Item): void {
-  total += item.price;  // Side effect!
+  total += item.price; // Side effect!
 }
 ```
 
@@ -480,13 +483,13 @@ function addToTotal(item: Item): void {
 function addItem(state: State, item: Item): State {
   return {
     ...state,
-    items: [...state.items, item]
+    items: [...state.items, item],
   };
 }
 
 // SBAGLIATO: Mutazione
 function addItem(state: State, item: Item): State {
-  state.items.push(item);  // Mutazione!
+  state.items.push(item); // Mutazione!
   return state;
 }
 ```
@@ -497,15 +500,15 @@ function addItem(state: State, item: Item): State {
 // CORRETTO: readonly per prevenire mutazioni
 function processAlarms(alarms: readonly Alarm[]): readonly ProcessedAlarm[] {
   return alarms
-    .filter(alarm => alarm.severity === 'high')
-    .map(alarm => ({ ...alarm, processed: true }));
+    .filter((alarm) => alarm.severity === 'high')
+    .map((alarm) => ({ ...alarm, processed: true }));
 }
 
 // SBAGLIATO: Mutazioni interne
 function processAlarms(alarms: Alarm[]): Alarm[] {
   for (const alarm of alarms) {
     if (alarm.severity === 'high') {
-      alarm.processed = true;  // Mutazione!
+      alarm.processed = true; // Mutazione!
     }
   }
   return alarms;
@@ -518,7 +521,7 @@ function processAlarms(alarms: Alarm[]): Alarm[] {
 
 ### Funzioni Pubbliche
 
-```typescript
+````typescript
 /**
  * Filtra gli allarmi in base ai pattern di ignore
  * Complexity: O(N) dove N e il numero di allarmi
@@ -535,11 +538,11 @@ function processAlarms(alarms: Alarm[]): Alarm[] {
  */
 export function filterAlarms(
   alarms: readonly Alarm[],
-  patterns: readonly string[]
+  patterns: readonly string[],
 ): FilteredAlarms {
   // Implementation
 }
-```
+````
 
 ### Classi
 
@@ -613,12 +616,7 @@ function isError(value: unknown): value is Error {
 }
 
 function isUser(obj: unknown): obj is User {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    'id' in obj &&
-    'name' in obj
-  );
+  return typeof obj === 'object' && obj !== null && 'id' in obj && 'name' in obj;
 }
 ```
 
@@ -640,7 +638,7 @@ function validateEmail(email: string): ValidatedEmail {
 ```typescript
 const config = {
   apiUrl: 'https://api.example.com',
-  timeout: 5000
+  timeout: 5000,
 } as const;
 
 // Type: { readonly apiUrl: "https://api.example.com"; readonly timeout: 5000 }
@@ -701,11 +699,11 @@ Con questa opzione abilitata, l'accesso agli array include `undefined`:
 
 ```typescript
 const items = [1, 2, 3];
-const first = items[0];  // Type: number | undefined
+const first = items[0]; // Type: number | undefined
 
 // Gestione corretta
 if (items.length > 0) {
-  const first = items[0]!;  // Safe: verificato che esiste
+  const first = items[0]!; // Safe: verificato che esiste
 }
 
 // Oppure optional chaining

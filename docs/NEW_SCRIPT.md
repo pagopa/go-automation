@@ -42,7 +42,7 @@ GO Automation e un monorepo TypeScript che contiene script di automazione per i 
 ### Software Richiesto
 
 | Software | Versione Minima | Verifica Installazione |
-|----------|-----------------|------------------------|
+| -------- | --------------- | ---------------------- |
 | Node.js  | >= 24.0.0       | `node --version`       |
 | pnpm     | >= 10.0.0       | `pnpm --version`       |
 | Git      | qualsiasi       | `git --version`        |
@@ -91,6 +91,7 @@ Il modo piu veloce per creare un nuovo script e usare lo script di scaffolding i
 Lo script ti guidera attraverso un processo interattivo:
 
 1. **Selezione del prodotto** - Usa i tasti freccia per navigare:
+
    ```
    [*] Select the product for your new script:
    (Use arrow keys to navigate, Enter to select)
@@ -101,14 +102,17 @@ Lo script ti guidera attraverso un processo interattivo:
    ```
 
 2. **Nome dello script** - Inserisci il nome nel formato `verbo-descrizione`:
+
    ```
    Script name: report-metrics
    ```
+
    Il nome finale sara `{prodotto}-{nome}` (es. `go-report-metrics`)
 
 3. **Descrizione** - Inserisci una breve descrizione dello script
 
 Lo script creera automaticamente:
+
 - Directory `scripts/{prodotto}/{prodotto}-{nome}/`
 - Sottocartelle `src/libs`, `src/types`, `configs`, `logs`
 - File `package.json`, `tsconfig.json`
@@ -133,6 +137,7 @@ Lo script creera automaticamente:
 ```
 
 4. **Aggiunta shortcuts** - Lo script chiede se aggiungere gli shortcuts al `package.json` root:
+
    ```
    [?] Add shortcuts to root package.json?
 
@@ -196,20 +201,20 @@ go-automation/
 
 ```yaml
 packages:
-  - packages/*          # Librerie condivise (@go-automation/*)
-  - scripts/go/*        # Script team GO
-  - scripts/send/*      # Script team SEND
-  - scripts/interop/*   # Script team INTEROP
+  - packages/* # Librerie condivise (@go-automation/*)
+  - scripts/go/* # Script team GO
+  - scripts/send/* # Script team SEND
+  - scripts/interop/* # Script team INTEROP
 ```
 
 ### Naming Conventions
 
-| Tipo     | Convenzione                          | Esempio                        |
-|----------|--------------------------------------|--------------------------------|
-| Packages | `@go-automation/package-name`        | `@go-automation/go-common`     |
-| Scripts  | `team-nome-script` (senza scope)     | `go-report-alarms`             |
-| Team GO  | `go-*`                               | `go-report-alarms`             |
-| Team SEND| `send-*`                             | `send-import-notifications`    |
+| Tipo      | Convenzione                      | Esempio                     |
+| --------- | -------------------------------- | --------------------------- |
+| Packages  | `@go-automation/package-name`    | `@go-automation/go-common`  |
+| Scripts   | `team-nome-script` (senza scope) | `go-report-alarms`          |
+| Team GO   | `go-*`                           | `go-report-alarms`          |
+| Team SEND | `send-*`                         | `send-import-notifications` |
 
 ---
 
@@ -252,11 +257,7 @@ Crea il file `package.json` nella directory dello script:
     "watch": "tsc --watch",
     "clean": "rm -rf dist *.tsbuildinfo"
   },
-  "keywords": [
-    "automation",
-    "typescript",
-    "go-automation"
-  ],
+  "keywords": ["automation", "typescript", "go-automation"],
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
@@ -468,11 +469,13 @@ const script = new Core.GOScript({
  * Note: Signal handlers (SIGTERM, SIGINT, SIGQUIT) are automatically
  * configured by GOScript.run() for graceful shutdown.
  */
-script.run(async () => {
-  await main(script);
-}).catch(() => {
-  process.exit(1);
-});
+script
+  .run(async () => {
+    await main(script);
+  })
+  .catch(() => {
+    process.exit(1);
+  });
 ```
 
 ### Passo 5: Struttura Raccomandata delle Directory
@@ -562,10 +565,10 @@ const pathType = Core.GOPathType.INPUT;
 ```typescript
 const script = new Core.GOScript({
   metadata: {
-    name: 'Nome Script',           // Nome visualizzato
-    version: '1.0.0',              // Versione (SemVer)
-    description: 'Descrizione',    // Descrizione dettagliata
-    authors: ['Team GO'],          // Autori (array)
+    name: 'Nome Script', // Nome visualizzato
+    version: '1.0.0', // Versione (SemVer)
+    description: 'Descrizione', // Descrizione dettagliata
+    authors: ['Team GO'], // Autori (array)
   },
   // ... altre opzioni
 });
@@ -573,17 +576,17 @@ const script = new Core.GOScript({
 
 ### Tipi di Parametro (GOConfigParameterType)
 
-| Tipo           | Descrizione              | Esempio CLI                    |
-|----------------|--------------------------|--------------------------------|
-| `STRING`       | Stringa                  | `--name "valore"`              |
-| `INT`          | Intero                   | `--count 10`                   |
-| `DOUBLE`       | Decimale                 | `--threshold 0.5`              |
-| `BOOL`         | Booleano                 | `--verbose` o `--verbose=true` |
-| `STRING_ARRAY` | Array di stringhe        | `--tags tag1,tag2,tag3`        |
-| `INT_ARRAY`    | Array di interi          | `--ids 1,2,3`                  |
-| `DOUBLE_ARRAY` | Array di decimali        | `--values 1.5,2.5,3.5`         |
-| `BOOL_ARRAY`   | Array di booleani        | `--flags true,false,true`      |
-| `BUFFER`       | Dati binari (base64)     | `--data <base64>`              |
+| Tipo           | Descrizione          | Esempio CLI                    |
+| -------------- | -------------------- | ------------------------------ |
+| `STRING`       | Stringa              | `--name "valore"`              |
+| `INT`          | Intero               | `--count 10`                   |
+| `DOUBLE`       | Decimale             | `--threshold 0.5`              |
+| `BOOL`         | Booleano             | `--verbose` o `--verbose=true` |
+| `STRING_ARRAY` | Array di stringhe    | `--tags tag1,tag2,tag3`        |
+| `INT_ARRAY`    | Array di interi      | `--ids 1,2,3`                  |
+| `DOUBLE_ARRAY` | Array di decimali    | `--values 1.5,2.5,3.5`         |
+| `BOOL_ARRAY`   | Array di booleani    | `--flags true,false,true`      |
+| `BUFFER`       | Dati binari (base64) | `--data <base64>`              |
 
 ### Definizione Parametri
 
@@ -656,17 +659,17 @@ I valori vengono letti in ordine di priorita (il primo vince):
 ```typescript
 // Definisci l'interfaccia
 interface MyConfig {
-  readonly inputFile: string;      // da 'input.file'
-  readonly outputFormat: string;   // da 'output.format'
-  readonly dryRun: boolean;        // da 'dry.run'
-  readonly awsProfile: string;     // da 'aws.profile'
+  readonly inputFile: string; // da 'input.file'
+  readonly outputFormat: string; // da 'output.format'
+  readonly dryRun: boolean; // da 'dry.run'
+  readonly awsProfile: string; // da 'aws.profile'
 }
 
 // Ottieni i valori tipizzati
 const config = script.getConfiguration<MyConfig>();
 
-console.log(config.inputFile);     // string
-console.log(config.dryRun);        // boolean
+console.log(config.inputFile); // string
+console.log(config.dryRun); // boolean
 ```
 
 ### Lifecycle Hooks
@@ -996,7 +999,7 @@ export interface MyScriptConfig {
 
 ### src/libs/MyService.ts
 
-```typescript
+````typescript
 /**
  * MyService - Servizio di elaborazione dati
  * Implementa la logica di business dello script
@@ -1055,7 +1058,7 @@ export class MyService {
     };
   }
 }
-```
+````
 
 ### src/main.ts
 
@@ -1112,7 +1115,6 @@ export async function main(script: Core.GOScript): Promise<void> {
     if (result.errorCount > 0) {
       script.logger.warning(`Completato con ${result.errorCount} errori`);
     }
-
   } catch (error) {
     script.prompt.spinnerFail('Elaborazione fallita');
     throw error;
@@ -1158,11 +1160,13 @@ const script = new Core.GOScript({
  * Note: Signal handlers (SIGTERM, SIGINT, SIGQUIT) are automatically
  * configured by GOScript.run() for graceful shutdown.
  */
-script.run(async () => {
-  await main(script);
-}).catch(() => {
-  process.exit(1);
-});
+script
+  .run(async () => {
+    await main(script);
+  })
+  .catch(() => {
+    process.exit(1);
+  });
 ```
 
 ### configs/config.json (esempio)
@@ -1265,16 +1269,16 @@ Il progetto usa `tsconfig.base.json` con strict mode completo. Punti chiave:
 ```typescript
 // noUncheckedIndexedAccess: array[i] e sempre T | undefined
 const items = [1, 2, 3];
-const first = items[0];  // Type: number | undefined
+const first = items[0]; // Type: number | undefined
 
 // Controllo esplicito necessario
 if (items.length > 0) {
-  const first = items[0]!;  // Safe: verificato che esiste
+  const first = items[0]!; // Safe: verificato che esiste
 }
 
 // Usa Map per lookup sicuri
 const map = new Map<string, number>();
-const value = map.get('key');  // Type: number | undefined
+const value = map.get('key'); // Type: number | undefined
 ```
 
 ### One Type Per File
@@ -1318,9 +1322,9 @@ for (const item of items) {
 }
 
 // SBAGLIATO: O(N^2) con filter ripetuti
-const counts = items.map(item => ({
+const counts = items.map((item) => ({
   id: item.id,
-  count: items.filter(i => i.id === item.id).length
+  count: items.filter((i) => i.id === item.id).length,
 }));
 ```
 
@@ -1345,12 +1349,12 @@ for (const item of items) {
 }
 
 // SBAGLIATO: forEach
-items.forEach(item => console.log(item));
+items.forEach((item) => console.log(item));
 ```
 
 ### JSDoc per Funzioni Pubbliche
 
-```typescript
+````typescript
 /**
  * Elabora gli allarmi in base ai pattern di ignore
  * Complexity: O(N) dove N e il numero di allarmi
@@ -1367,11 +1371,11 @@ items.forEach(item => console.log(item));
  */
 export function filterAlarms(
   alarms: readonly Alarm[],
-  patterns: readonly string[]
+  patterns: readonly string[],
 ): FilteredAlarms {
   // ...
 }
-```
+````
 
 ---
 
@@ -1381,10 +1385,10 @@ Gli script possono essere eseguiti in modalita "standalone" al di fuori del mono
 
 ### Modalita di Deployment
 
-| Modalita | Descrizione | Rilevamento |
-|----------|-------------|-------------|
-| `MONOREPO` | Esecuzione nel monorepo | Automatico se trova pnpm-workspace.yaml |
-| `STANDALONE` | Deployment isolato | Default se non trova marker monorepo |
+| Modalita     | Descrizione             | Rilevamento                             |
+| ------------ | ----------------------- | --------------------------------------- |
+| `MONOREPO`   | Esecuzione nel monorepo | Automatico se trova pnpm-workspace.yaml |
+| `STANDALONE` | Deployment isolato      | Default se non trova marker monorepo    |
 
 ### Configurazione Standalone
 
@@ -1537,6 +1541,7 @@ export const handler = async (event: unknown) => {
 **Causa**: go-common non e stato buildato.
 
 **Soluzione**:
+
 ```bash
 pnpm build:common
 ```
@@ -1546,6 +1551,7 @@ pnpm build:common
 **Causa**: Manca l'estensione `.js` nell'import (richiesta da ESM).
 
 **Soluzione**:
+
 ```typescript
 // CORRETTO
 import { MyService } from './libs/MyService.js';
@@ -1559,6 +1565,7 @@ import { MyService } from './libs/MyService';
 **Causa**: Configurazione tsconfig non corretta.
 
 **Soluzione**: Verifica che `tsconfig.json` abbia:
+
 ```json
 {
   "compilerOptions": {
@@ -1569,11 +1576,12 @@ import { MyService } from './libs/MyService';
 }
 ```
 
-### Errore: "workspace:* dependency not found"
+### Errore: "workspace:\* dependency not found"
 
 **Causa**: pnpm non ha installato le dipendenze workspace.
 
 **Soluzione**:
+
 ```bash
 # Dalla root
 pnpm install
@@ -1584,6 +1592,7 @@ pnpm install
 **Causa**: Il working directory e diverso dalla directory dello script.
 
 **Soluzione**: Esegui sempre dalla root del monorepo:
+
 ```bash
 # CORRETTO (dalla root)
 pnpm --filter=go-my-script dev
@@ -1597,6 +1606,7 @@ cd scripts/go/go-my-script && pnpm dev
 **Causa**: Le credenziali SSO sono scadute.
 
 **Soluzione**:
+
 ```bash
 # Login manuale
 aws sso login --profile nome-profilo
@@ -1610,6 +1620,7 @@ aws sso login --profile nome-profilo
 **Causa**: Parametro required non fornito.
 
 **Soluzione**:
+
 1. Passa il parametro via CLI: `--param-name value`
 2. Definiscilo in `configs/config.json` o `configs/config.yaml`
 3. Impostalo come variabile d'ambiente
@@ -1619,6 +1630,7 @@ aws sso login --profile nome-profilo
 **Causa**: Accesso a indici array senza controlli.
 
 **Soluzione**:
+
 ```typescript
 // Opzione 1: Controllo esplicito
 if (items.length > 0) {

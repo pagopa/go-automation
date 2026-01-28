@@ -152,14 +152,19 @@ export class CSVManager {
       throw new Error('Data must be an array');
     }
 
-    const flaggedRows = data.filter((row) => {
-      const fieldValue = row[field];
+    const typedData: ReadonlyArray<CSVRow> = data;
+    const flaggedRows: CSVRow[] = [];
+
+    for (const row of typedData) {
+      const fieldValue: string | undefined = field in row ? row[field] : undefined;
       if (fieldValue === undefined) {
-        return false;
+        continue;
       }
       const value = parseFloat(fieldValue);
-      return !isNaN(value) && value > threshold;
-    });
+      if (!isNaN(value) && value > threshold) {
+        flaggedRows.push(row);
+      }
+    }
 
     return flaggedRows;
   }

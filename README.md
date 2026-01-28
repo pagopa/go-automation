@@ -18,7 +18,7 @@ Il controllo qualitativo del codice rappresenta il primo requisito architettural
 
 Il sistema di type-checking e integrato da strumenti di **analisi statica (ESLint)** configurati secondo standard rigorosi, che impongono uniformità stilistica e prevengono pattern problematici. Questo approccio consente di:
 
-- Anticipare l'identificazione di difetti a *compile-time*
+- Anticipare l'identificazione di difetti a _compile-time_
 - Ridurre il rischio operativo in ambiente di produzione
 - Concentrare l'effort di sviluppo sulla logica di business
 
@@ -26,13 +26,13 @@ Il sistema di type-checking e integrato da strumenti di **analisi statica (ESLin
 
 La libreria `@go-automation/go-common` implementa il livello di astrazione condiviso dell'SDK. Questo componente centralizza le funzionalità trasversali, fornendo un'interfaccia unificata per:
 
-| Funzionalita | Descrizione |
-|--------------|-------------|
-| Inizializzazione | Bootstrap e configurazione degli script |
-| Validazione | Parsing e verifica di parametri CLI e variabili d'ambiente |
-| Logging | Sistema di logging strutturato con livelli di severità |
-| Error Handling | Gestione standardizzata delle eccezioni |
-| Output | Formattazione consistente dei risultati |
+| Funzionalita     | Descrizione                                                |
+| ---------------- | ---------------------------------------------------------- |
+| Inizializzazione | Bootstrap e configurazione degli script                    |
+| Validazione      | Parsing e verifica di parametri CLI e variabili d'ambiente |
+| Logging          | Sistema di logging strutturato con livelli di severità     |
+| Error Handling   | Gestione standardizzata delle eccezioni                    |
+| Output           | Formattazione consistente dei risultati                    |
 
 L'adozione di un core condiviso garantisce che gli script rimangano snelli e focalizzati, delegando le responsabilità infrastrutturali a componenti già validati. Ogni ottimizzazione al core si propaga automaticamente a tutti i moduli dipendenti.
 
@@ -65,15 +65,15 @@ pnpm --filter=go-report-alarms dev -- --help
 
 ## Documentazione
 
-| Documento | Descrizione |
-|-----------|-------------|
-| [**Onboarding**](docs/ONBOARDING.md) | **Guida rapida per i nuovi sviluppatori (Setup IDE, AWS SSO)** |
-| [Architettura](docs/ARCHITECTURE.md) | Struttura del monorepo, workspace pnpm, build system |
-| [go-common](docs/GOCOMMON.md) | Documentazione della libreria `@go-automation/go-common` |
-| [Coding Guidelines](docs/GUIDE_LINES.md) | Standard di codifica, naming conventions, best practices |
-| [Creare Nuovi Script](docs/NEW_SCRIPT.md) | Guida passo-passo per creare nuovi script |
-| [**Deploy**](docs/DEPLOY.md) | **Guida alla pacchettizzazione e rilascio degli script** |
-| [**Troubleshooting**](docs/TROUBLESHOOTING.md) | **Soluzioni ai problemi comuni e FAQ** |
+| Documento                                      | Descrizione                                                    |
+| ---------------------------------------------- | -------------------------------------------------------------- |
+| [**Onboarding**](docs/ONBOARDING.md)           | **Guida rapida per i nuovi sviluppatori (Setup IDE, AWS SSO)** |
+| [Architettura](docs/ARCHITECTURE.md)           | Struttura del monorepo, workspace pnpm, build system           |
+| [go-common](docs/GOCOMMON.md)                  | Documentazione della libreria `@go-automation/go-common`       |
+| [Coding Guidelines](docs/GUIDE_LINES.md)       | Standard di codifica, naming conventions, best practices       |
+| [Creare Nuovi Script](docs/NEW_SCRIPT.md)      | Guida passo-passo per creare nuovi script                      |
+| [**Deploy**](docs/DEPLOY.md)                   | **Guida alla pacchettizzazione e rilascio degli script**       |
+| [**Troubleshooting**](docs/TROUBLESHOOTING.md) | **Soluzioni ai problemi comuni e FAQ**                         |
 
 ## Comandi Principali
 

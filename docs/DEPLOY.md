@@ -21,21 +21,24 @@ Il monorepo fornisce uno strumento dedicato per estrarre uno script e tutte le s
 Questo script utilizza `pnpm deploy` per generare un pacchetto pronto per la produzione.
 
 **Utilizzo Interattivo:**
+
 ```bash
 ./bins/deploy.sh
 ```
+
 Ti verra mostrato un menu per selezionare lo script e la modalita (Production/Dev).
 
 **Utilizzo CLI (CI/CD):**
+
 ```bash
 # Esempio: Deploy di go-report-alarms in production mode
 ./bins/deploy.sh --prod --clean --script go-report-alarms
 ```
 
-| Flag | Descrizione |
-|------|-------------|
-| `--prod` | Esclude `devDependencies` (riduce dimensione) |
-| `--clean` | Pulisce la cartella di destinazione prima del deploy |
+| Flag              | Descrizione                                             |
+| ----------------- | ------------------------------------------------------- |
+| `--prod`          | Esclude `devDependencies` (riduce dimensione)           |
+| `--clean`         | Pulisce la cartella di destinazione prima del deploy    |
 | `--script <name>` | Specifica il nome dello script (es. `go-report-alarms`) |
 
 ### Output
@@ -43,6 +46,7 @@ Ti verra mostrato un menu per selezionare lo script e la modalita (Production/De
 L'artefatto viene generato in: `artifacts/<script-name>/`
 
 Contenuto tipico:
+
 ```
 artifacts/go-report-alarms/
 ├── package.json         # Deps appiattite (go-common e ora una dipendenza file:)
@@ -63,10 +67,12 @@ Il repository fornisce uno strumento automatizzato per creare immagini Docker ot
 ### Strumento: `bins/build-image.sh`
 
 Questo script orchestra l'intero processo:
+
 1. Chiama `deploy.sh` per creare l'artefatto (clean + prod mode).
 2. Usa `infra/docker/Dockerfile.runtime` (leggero e universale) per pacchettizzare l'artefatto.
 
 **Utilizzo:**
+
 ```bash
 # Sintassi: ./bins/build-image.sh <script-name> [tag]
 ./bins/build-image.sh send-monitor-tpp-messages v1.2.0
@@ -83,12 +89,12 @@ Questo script orchestra l'intero processo:
 
 L'immagine Docker (`infra/docker/Dockerfile.runtime`) include:
 
-| Componente | Descrizione |
-|------------|-------------|
-| Node.js 24-alpine | Runtime leggero |
-| tzdata | Supporto timezone |
-| ca-certificates | Certificati SSL/TLS |
-| aws-cli | AWS credential chain e comandi CLI |
+| Componente        | Descrizione                        |
+| ----------------- | ---------------------------------- |
+| Node.js 24-alpine | Runtime leggero                    |
+| tzdata            | Supporto timezone                  |
+| ca-certificates   | Certificati SSL/TLS                |
+| aws-cli           | AWS credential chain e comandi CLI |
 
 **Nota**: Lo scheduling cron viene gestito da Node.js (libreria `croner`), non da un daemon di sistema come dcron. Questo elimina la necessita di permessi root.
 
@@ -129,7 +135,7 @@ services:
       RUN_MODE: once
     volumes:
       - ../reports:/app/reports:rw
-    restart: "no"
+    restart: 'no'
 
   # Esecuzione schedulata (RUN_MODE=cron)
   scheduled:
@@ -164,6 +170,7 @@ Il container supporta tre modalita di esecuzione, controllate dalla variabile d'
 ### once (default)
 
 Esegue lo script una volta e termina. Ideale per:
+
 - Test manuali
 - Esecuzioni interattive
 - CI/CD pipelines
@@ -175,6 +182,7 @@ docker run --rm \
 ```
 
 Con argomenti CLI:
+
 ```bash
 docker run --rm \
   go-automation/send-monitor-tpp-messages:latest \
@@ -186,6 +194,7 @@ docker run --rm \
 Mantiene il container attivo e esegue lo script secondo lo schedule definito. Usa la libreria Node.js `croner` per lo scheduling.
 
 **Vantaggi rispetto al cron di sistema:**
+
 - Non richiede permessi root
 - Nativo Node.js, nessuna dipendenza esterna
 - Supporta timezone
@@ -233,26 +242,27 @@ Per semplificare la gestione dei container, usa lo script helper `bins/docker-ru
 
 ### Comandi Disponibili
 
-| Comando | Descrizione |
-|---------|-------------|
-| `run` | Esegui script una volta (modalita interattiva) |
-| `up` | Avvia container in background |
-| `down` | Ferma e rimuovi container |
-| `logs` | Visualizza log del container |
-| `shell` | Apri shell interattiva nel container |
-| `ps` | Lista container in esecuzione |
-| `build` | Build immagine + esegui |
+| Comando | Descrizione                                    |
+| ------- | ---------------------------------------------- |
+| `run`   | Esegui script una volta (modalita interattiva) |
+| `up`    | Avvia container in background                  |
+| `down`  | Ferma e rimuovi container                      |
+| `logs`  | Visualizza log del container                   |
+| `shell` | Apri shell interattiva nel container           |
+| `ps`    | Lista container in esecuzione                  |
+| `build` | Build immagine + esegui                        |
 
 ### Opzioni
 
-| Opzione | Descrizione |
-|---------|-------------|
-| `--scheduled` | Usa il profilo scheduled (modalita cron) |
-| `--follow, -f` | Segui i log in tempo reale |
+| Opzione        | Descrizione                              |
+| -------------- | ---------------------------------------- |
+| `--scheduled`  | Usa il profilo scheduled (modalita cron) |
+| `--follow, -f` | Segui i log in tempo reale               |
 
 ### Esempi
 
 **Esecuzione singola (interattiva):**
+
 ```bash
 # Esegui script una volta
 ./bins/docker-run.sh send-monitor-tpp-messages run
@@ -265,6 +275,7 @@ Per semplificare la gestione dei container, usa lo script helper `bins/docker-ru
 ```
 
 **Esecuzione schedulata (cron):**
+
 ```bash
 # Avvia scheduler cron in background
 ./bins/docker-run.sh send-monitor-tpp-messages up --scheduled
@@ -277,6 +288,7 @@ Per semplificare la gestione dei container, usa lo script helper `bins/docker-ru
 ```
 
 **Debug:**
+
 ```bash
 # Apri shell nel container
 ./bins/docker-run.sh send-monitor-tpp-messages shell
@@ -296,6 +308,7 @@ cd scripts/send/send-monitor-tpp-messages/docker/
 ```
 
 **Esecuzione singola:**
+
 ```bash
 # Run interattivo
 docker compose run --rm app
@@ -305,6 +318,7 @@ docker compose run --rm app --from 2025-01-01 --to 2025-01-15
 ```
 
 **Esecuzione schedulata:**
+
 ```bash
 # Avvia in background
 docker compose --profile scheduled up -d
@@ -325,11 +339,13 @@ docker compose --profile scheduled down
 Per testare localmente con credenziali AWS SSO:
 
 1. Effettua login SSO:
+
    ```bash
    aws sso login --profile tuo-profilo
    ```
 
 2. Monta la directory `.aws` nel container:
+
    ```bash
    docker run --rm \
      -e AWS_PROFILE=tuo-profilo \
@@ -338,6 +354,7 @@ Per testare localmente con credenziali AWS SSO:
    ```
 
    Oppure decommenta la riga nel `docker-compose.yml`:
+
    ```yaml
    volumes:
      - ~/.aws:/home/gouser/.aws:ro
@@ -436,6 +453,7 @@ cp scripts/send/send-monitor-tpp-messages/src/cron.ts \
 ```
 
 Assicurati che `croner` sia nelle dipendenze:
+
 ```bash
 cd scripts/<team>/<script-name>
 pnpm add croner
@@ -463,9 +481,10 @@ Includi `cron.ts` nella compilazione se presente.
 
 ## CI/CD (GitHub Actions)
 
-*Sezione da completare quando verranno implementati i workflow automatici.*
+_Sezione da completare quando verranno implementati i workflow automatici._
 
 Al momento, il flusso suggerito e:
+
 1. Bump versione in `package.json` dello script.
 2. Esecuzione `bins/build-image.sh` (Docker build).
 3. Push immagine su ECR.
@@ -480,6 +499,7 @@ Al momento, il flusso suggerito e:
 **Sintomo**: Errori come `Unable to locate credentials`
 
 **Soluzione**:
+
 - Verifica che il profilo SSO sia valido: `aws sts get-caller-identity --profile tuo-profilo`
 - Monta correttamente la directory `.aws`
 - Verifica che il path sia `/home/gouser/.aws` (non `/root/.aws`)
@@ -489,6 +509,7 @@ Al momento, il flusso suggerito e:
 **Sintomo**: Container termina immediatamente in modalita cron
 
 **Soluzione**:
+
 - Verifica che `CRON_SCHEDULE` sia impostata
 - Controlla che il formato sia valido (5 campi: MIN HOUR DAY MONTH WEEKDAY)
 - Verifica i log: `docker logs <container-name>`
@@ -498,6 +519,7 @@ Al momento, il flusso suggerito e:
 **Sintomo**: `Permission denied` quando si scrive su `/app/reports`
 
 **Soluzione**:
+
 - Il container gira come `gouser` (non root)
 - Crea la directory reports localmente: `mkdir -p reports`
 - Verifica i permessi: `chmod 777 reports` (solo per sviluppo locale)
@@ -507,6 +529,7 @@ Al momento, il flusso suggerito e:
 **Sintomo**: `Error: No such image: go-automation/script-name:latest`
 
 **Soluzione**:
+
 ```bash
 # Build l'immagine
 ./bins/build-image.sh <script-name> latest

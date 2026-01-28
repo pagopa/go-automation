@@ -27,12 +27,12 @@ Script di monitoraggio messaggi TPP (Third Party Provider) tramite query Athena 
 
 ### Software Richiesto
 
-| Software   | Versione Minima | Note                    |
-|------------|-----------------|-------------------------|
-| Node.js    | >= 18.0.0       | LTS consigliata (v24+)  |
-| pnpm       | >= 8.0.0        | Package manager         |
-| TypeScript | >= 5.0.0        | Incluso nel progetto    |
-| AWS CLI    | >= 2.0          | Per configurazione SSO  |
+| Software   | Versione Minima | Note                   |
+| ---------- | --------------- | ---------------------- |
+| Node.js    | >= 18.0.0       | LTS consigliata (v24+) |
+| pnpm       | >= 8.0.0        | Package manager        |
+| TypeScript | >= 5.0.0        | Incluso nel progetto   |
+| AWS CLI    | >= 2.0          | Per configurazione SSO |
 
 ### Account e Permessi AWS
 
@@ -62,49 +62,49 @@ Script di monitoraggio messaggi TPP (Third Party Provider) tramite query Athena 
 
 #### Date Range
 
-| Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
-|-----------|-------|------|--------------|---------|-------------|
-| `--from` | `-f` | string | No | 24 ore fa | Data/ora inizio |
-| `--to` | `-t` | string | No | Ora corrente | Data/ora fine |
+| Parametro | Alias | Tipo   | Obbligatorio | Default      | Descrizione     |
+| --------- | ----- | ------ | ------------ | ------------ | --------------- |
+| `--from`  | `-f`  | string | No           | 24 ore fa    | Data/ora inizio |
+| `--to`    | `-t`  | string | No           | Ora corrente | Data/ora fine   |
 
 #### AWS
 
-| Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
-|-----------|-------|------|--------------|---------|-------------|
-| `--aws.profile` | `-ap` | string | Si | - | Profilo AWS SSO |
-| `--aws.region` | `-ar` | string | No | `eu-south-1` | Regione AWS |
+| Parametro       | Alias | Tipo   | Obbligatorio | Default      | Descrizione     |
+| --------------- | ----- | ------ | ------------ | ------------ | --------------- |
+| `--aws.profile` | `-ap` | string | Si           | -            | Profilo AWS SSO |
+| `--aws.region`  | `-ar` | string | No           | `eu-south-1` | Regione AWS     |
 
 #### Athena
 
-| Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
-|-----------|-------|------|--------------|---------|-------------|
-| `--athena.database` | `-ad` | string | Si | - | Database Athena |
-| `--athena.catalog` | `-ac` | string | No | `AwsDataCatalog` | Data catalog |
-| `--athena.workgroup` | `-aw` | string | No | `primary` | Workgroup Athena |
-| `--athena.output.location` | `-ao` | string | Si | - | S3 path per output |
-| `--athena.max.retries` | `-amr` | int | No | `60` | Tentativi max polling |
-| `--athena.retry.delay` | `-ard` | int | No | `5000` | Delay polling (ms) |
+| Parametro                  | Alias  | Tipo   | Obbligatorio | Default          | Descrizione           |
+| -------------------------- | ------ | ------ | ------------ | ---------------- | --------------------- |
+| `--athena.database`        | `-ad`  | string | Si           | -                | Database Athena       |
+| `--athena.catalog`         | `-ac`  | string | No           | `AwsDataCatalog` | Data catalog          |
+| `--athena.workgroup`       | `-aw`  | string | No           | `primary`        | Workgroup Athena      |
+| `--athena.output.location` | `-ao`  | string | Si           | -                | S3 path per output    |
+| `--athena.max.retries`     | `-amr` | int    | No           | `60`             | Tentativi max polling |
+| `--athena.retry.delay`     | `-ard` | int    | No           | `5000`           | Delay polling (ms)    |
 
 #### Slack (Opzionale)
 
-| Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
-|-----------|-------|------|--------------|---------|-------------|
-| `--slack.token` | `-st` | string | No | - | Token bot Slack |
-| `--slack.channel` | `-sc` | string | No | - | Canale Slack |
-| `--slack.message.template` | `-smt` | string | No | Da config | Template messaggio |
+| Parametro                  | Alias  | Tipo   | Obbligatorio | Default   | Descrizione        |
+| -------------------------- | ------ | ------ | ------------ | --------- | ------------------ |
+| `--slack.token`            | `-st`  | string | No           | -         | Token bot Slack    |
+| `--slack.channel`          | `-sc`  | string | No           | -         | Canale Slack       |
+| `--slack.message.template` | `-smt` | string | No           | Da config | Template messaggio |
 
 #### Analisi
 
-| Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
-|-----------|-------|------|--------------|---------|-------------|
-| `--analysis.threshold.field` | `-atf` | string | No | - | Campo per analisi soglia |
-| `--analysis.threshold` | `-at` | int | No | `0` | Valore soglia |
+| Parametro                    | Alias  | Tipo   | Obbligatorio | Default | Descrizione              |
+| ---------------------------- | ------ | ------ | ------------ | ------- | ------------------------ |
+| `--analysis.threshold.field` | `-atf` | string | No           | -       | Campo per analisi soglia |
+| `--analysis.threshold`       | `-at`  | int    | No           | `0`     | Valore soglia            |
 
 #### Output
 
-| Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
-|-----------|-------|------|--------------|---------|-------------|
-| `--reports.folder` | `-rf` | string | No | `reports` | Cartella output CSV |
+| Parametro          | Alias | Tipo   | Obbligatorio | Default   | Descrizione         |
+| ------------------ | ----- | ------ | ------------ | --------- | ------------------- |
+| `--reports.folder` | `-rf` | string | No           | `reports` | Cartella output CSV |
 
 ### Formati Data Supportati
 
@@ -196,29 +196,29 @@ output:
 
 La query SQL supporta i seguenti placeholder:
 
-| Placeholder | Descrizione | Esempio |
-|-------------|-------------|---------|
-| `{{startDate}}` | Data inizio (YYYY-MM-DD HH:MI:SS) | `2024-12-01 10:30:00` |
-| `{{endDate}}` | Data fine (YYYY-MM-DD HH:MI:SS) | `2024-12-15 18:00:00` |
-| `{{startYear}}` | Anno inizio (YYYY) | `2024` |
-| `{{startMonth}}` | Mese inizio (MM) | `12` |
-| `{{startDay}}` | Giorno inizio (DD) | `01` |
-| `{{startHour}}` | Ora inizio (HH) | `10` |
-| `{{endYear}}` | Anno fine (YYYY) | `2024` |
-| `{{endMonth}}` | Mese fine (MM) | `12` |
-| `{{endDay}}` | Giorno fine (DD) | `15` |
-| `{{endHour}}` | Ora fine (HH) | `18` |
+| Placeholder      | Descrizione                       | Esempio               |
+| ---------------- | --------------------------------- | --------------------- |
+| `{{startDate}}`  | Data inizio (YYYY-MM-DD HH:MI:SS) | `2024-12-01 10:30:00` |
+| `{{endDate}}`    | Data fine (YYYY-MM-DD HH:MI:SS)   | `2024-12-15 18:00:00` |
+| `{{startYear}}`  | Anno inizio (YYYY)                | `2024`                |
+| `{{startMonth}}` | Mese inizio (MM)                  | `12`                  |
+| `{{startDay}}`   | Giorno inizio (DD)                | `01`                  |
+| `{{startHour}}`  | Ora inizio (HH)                   | `10`                  |
+| `{{endYear}}`    | Anno fine (YYYY)                  | `2024`                |
+| `{{endMonth}}`   | Mese fine (MM)                    | `12`                  |
+| `{{endDay}}`     | Giorno fine (DD)                  | `15`                  |
+| `{{endHour}}`    | Ora fine (HH)                     | `18`                  |
 
 ### Placeholder Messaggio Slack
 
-| Placeholder | Descrizione |
-|-------------|-------------|
+| Placeholder     | Descrizione             |
+| --------------- | ----------------------- |
 | `{{startDate}}` | Data inizio query (ISO) |
-| `{{endDate}}` | Data fine query (ISO) |
-| `{{rowCount}}` | Numero righe risultato |
-| `{{fileName}}` | Nome file CSV |
-| `{{analysis}}` | Testo analisi soglia |
-| `{{timestamp}}` | Timestamp generazione |
+| `{{endDate}}`   | Data fine query (ISO)   |
+| `{{rowCount}}`  | Numero righe risultato  |
+| `{{fileName}}`  | Nome file CSV           |
+| `{{analysis}}`  | Testo analisi soglia    |
+| `{{timestamp}}` | Timestamp generazione   |
 
 ### Priorita di Configurazione
 
@@ -322,6 +322,7 @@ report_YYYY-MM-DD_HH-MM-SS.csv
 ```
 
 **Formato colonne**:
+
 ```csv
 ora_invio,notifiche_tpp
 "2024-12-15 09:00:00",1234
@@ -414,12 +415,13 @@ CRON_SCHEDULE="0 9 * * *" pnpm --filter=send-monitor-tpp-messages start:cron
 
 **Variabili ambiente per cron**:
 
-| Variabile | Descrizione | Esempio |
-|-----------|-------------|---------|
-| `CRON_SCHEDULE` | Espressione cron (obbligatoria) | `0 9 * * *` |
-| `TZ` | Timezone | `Europe/Rome` |
+| Variabile       | Descrizione                     | Esempio       |
+| --------------- | ------------------------------- | ------------- |
+| `CRON_SCHEDULE` | Espressione cron (obbligatoria) | `0 9 * * *`   |
+| `TZ`            | Timezone                        | `Europe/Rome` |
 
 **Esempi schedule**:
+
 - `0 9 * * *` - Ogni giorno alle 9:00
 - `0 */6 * * *` - Ogni 6 ore
 - `0 9 * * 1-5` - Giorni feriali alle 9:00
@@ -460,6 +462,7 @@ In alternativa allo scheduler integrato:
 **Causa**: Errore nella query SQL o permessi insufficienti.
 
 **Soluzione**:
+
 1. Verificare la sintassi SQL in `config.yaml`
 2. Testare la query direttamente nella console Athena
 3. Verificare permessi IAM su database e tabelle
@@ -469,6 +472,7 @@ In alternativa allo scheduler integrato:
 **Causa**: Query troppo lenta o `maxRetries` troppo basso.
 
 **Soluzione**:
+
 ```bash
 # Aumentare timeout
 --athena.max.retries 120 --athena.retry.delay 10000
@@ -481,6 +485,7 @@ Tempo max = `maxRetries * retryDelay / 1000` secondi
 **Causa**: Token Slack non valido o bot non configurato.
 
 **Soluzione**:
+
 1. Verificare il token inizia con `xoxb-`
 2. Verificare che il bot sia nel canale target
 3. Verificare permessi: `chat:write`, `files:write`
@@ -490,6 +495,7 @@ Tempo max = `maxRetries * retryDelay / 1000` secondi
 **Causa**: Nessun dato nel periodo specificato.
 
 **Soluzione**:
+
 - Ampliare il range di date
 - Verificare che la tabella contenga dati TPP
 - Controllare i filtri nella query
@@ -499,6 +505,7 @@ Tempo max = `maxRetries * retryDelay / 1000` secondi
 **Causa**: Sessione SSO scaduta.
 
 **Soluzione**:
+
 ```bash
 aws sso login --profile sso_pn-core-prod
 ```
@@ -508,6 +515,7 @@ aws sso login --profile sso_pn-core-prod
 Per debuggare la query generata:
 
 1. Aggiungere log in `main.ts`:
+
 ```typescript
 script.logger.info(`Query: ${queryTemplate}`);
 script.logger.info(`Params: ${JSON.stringify(queryParams)}`);

@@ -5,13 +5,21 @@
  * Use this with GOCSVListImporter to get the same validation behavior.
  */
 
+import type { SENDNotificationRow } from './SENDNotificationRow.js';
+
+/**
+ * Input type for CSV row validation.
+ * All fields are optional since validation checks for required field presence.
+ */
+type SENDCSVRowInput = Partial<SENDNotificationRow>;
+
 /**
  * Validate SEND CSV row for PagoPa Notifications
  * Throws error if row is invalid
  *
  * @param record - The CSV record to validate
  */
-export function validateSENDCSVRow(record: any): void {
+export function validateSENDCSVRow(record: SENDCSVRowInput): void {
   // Required fields validation
   if (!record.subject) {
     throw new Error('Missing required field: subject');
