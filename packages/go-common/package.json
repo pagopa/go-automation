@@ -54,7 +54,7 @@
     "@aws-sdk/credential-providers": "^3.955.0",
     "@aws-sdk/util-dynamodb": "^3.0.0",
     "cli-table3": "^0.6.5",
-    "csv-parse": "^5.5.3",
+    "csv-parse": "^6.1.0",
     "csv-stringify": "^6.4.5",
     "luxon": "^3.7.2",
     "minimatch": "^10.1.1",
