@@ -396,6 +396,11 @@ export class GOScript {
   async getConfiguration<TConfiguration>(
     propertyMapping?: Partial<Record<keyof TConfiguration, string>>,
   ): Promise<TConfiguration> {
+    // Ensure config is loaded (loadConfig handles aliases properly via GOScriptConfigLoader)
+    if (!this.configLoaded) {
+      await this.loadConfig();
+    }
+
     const result = {} as TConfiguration;
     const missingParams: string[] = [];
 
@@ -404,19 +409,13 @@ export class GOScript {
       const finalPropertyName = (propertyMapping?.[propertyName as keyof TConfiguration] ??
         propertyName) as keyof TConfiguration;
 
-      try {
-        const value: unknown = await param.getValueAsync(this.configReader);
+      // Use configValues (populated by loadConfig with proper alias support)
+      const value: unknown = this.configValues[param.name];
+
+      if (param.required && value === undefined) {
+        missingParams.push(param.name);
+      } else if (value !== undefined) {
         result[finalPropertyName] = value as TConfiguration[keyof TConfiguration];
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          error.message.includes('Required parameter') &&
-          error.message.includes('is missing')
-        ) {
-          missingParams.push(param.name);
-        } else {
-          throw error;
-        }
       }
     }
 
