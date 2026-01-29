@@ -4,8 +4,9 @@
 
 /**
  * Options for HTML list exporter
+ * @template TItem - The type of items to export
  */
-export interface GOHTMLListExporterOptions {
+export interface GOHTMLListExporterOptions<TItem = Record<string, unknown>> {
   /** Output file path */
   outputPath: string;
 
@@ -16,7 +17,7 @@ export interface GOHTMLListExporterOptions {
   rowTemplate?: string;
 
   /** Row transformation function (applied before HTML generation) */
-  rowTransformer?: (item: any) => any;
+  rowTransformer?: (item: TItem) => TItem;
 
   /** Skip invalid items and continue export (default: false) */
   skipInvalidItems?: boolean;

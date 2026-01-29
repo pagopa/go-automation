@@ -258,13 +258,13 @@ export class GOJSONListImporter<TItem = unknown>
    */
   private transformItem(item: unknown): TItem {
     // Step 1: Validate (throws error if invalid)
-    if (this.options.itemValidator) {
-      this.options.itemValidator(item);
+    if (this.options.rowValidator) {
+      this.options.rowValidator(item);
     }
 
     // Step 2: Transform (if validator passed)
-    if (this.options.itemTransformer) {
-      return this.options.itemTransformer(item);
+    if (this.options.rowTransformer) {
+      return this.options.rowTransformer(item);
     }
 
     return item as TItem;

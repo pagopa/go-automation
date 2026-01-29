@@ -87,7 +87,7 @@ export class GOLoadingBar {
       // Give a moment to see 100%
       setTimeout(() => {
         this.stop();
-        const finalMessage = message || this.message;
+        const finalMessage = message ?? this.message;
         console.log(`\x1b[32m✓\x1b[0m ${finalMessage}`);
       }, 100);
     }
@@ -98,7 +98,7 @@ export class GOLoadingBar {
    */
   public fail(message?: string): void {
     this.stop();
-    const finalMessage = message || this.message;
+    const finalMessage = message ?? this.message;
     console.log(`\x1b[31m✗\x1b[0m ${finalMessage}`);
   }
 

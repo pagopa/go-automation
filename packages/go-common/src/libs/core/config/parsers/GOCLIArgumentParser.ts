@@ -186,7 +186,7 @@ export class GOCLIArgumentParser {
       arrayFlags?: string[];
     },
   ): Map<string, string | string[]> {
-    const booleanFlags = new Set(schema.booleanFlags || []);
+    const booleanFlags = new Set(schema.booleanFlags ?? []);
     const result = new Map<string, string | string[]>();
 
     let i = 0;
@@ -220,7 +220,7 @@ export class GOCLIArgumentParser {
 
       // Check if this is a boolean flag
       if (booleanFlags.has(flagName)) {
-        result.set(flagName, inlineValue || 'true');
+        result.set(flagName, inlineValue ?? 'true');
         i++;
         continue;
       }

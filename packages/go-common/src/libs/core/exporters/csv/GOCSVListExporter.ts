@@ -7,6 +7,7 @@ import * as fs from 'fs';
 import { stringify, Stringifier } from 'csv-stringify';
 
 import { GOEventEmitterBase } from '../../events/GOEventEmitterBase.js';
+import { valueToString } from '../../utils/GOValueToString.js';
 import type { GOListExporter } from '../GOListExporter.js';
 import type { GOListExporterEventMap } from '../GOListExporterEvents.js';
 import type { GOListExporterStreamWriter } from '../GOListExporterStreamWriter.js';
@@ -15,6 +16,7 @@ import type {
   GOCSVListExporterOptions,
   ColumnConflictStrategy,
 } from './GOCSVListExporterOptions.js';
+import { toError } from '../../errors/GOErrorUtils.js';
 
 /**
  * Type alias for the row transformer function to help with type inference
@@ -123,10 +125,10 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
       try {
         await writer.close();
       } catch (closeError) {
-        // Ignore close errors
+        this.emit('export:error', { error: toError(closeError) });
       }
 
-      const finalError = error instanceof Error ? error : new Error(String(error));
+      const finalError = toError(error);
       this.emit('export:error', { error: finalError });
       throw error;
     }
@@ -259,7 +261,7 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
 
       // Filter out skip columns and get values
       const filteredColumns = columns.filter((col) => !col.startsWith('_skip_'));
-      const values = filteredColumns.map((col) => String(mergedItem[col] ?? ''));
+      const values = filteredColumns.map((col) => valueToString(mergedItem[col]));
 
       this.stringifier.write(values);
 
@@ -277,7 +279,7 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
       });
     } catch (error) {
       this.failedCount++;
-      const finalError = error instanceof Error ? error : new Error(String(error));
+      const finalError = toError(error);
       this.emit('export:error', { error: finalError, item, index: currentIndex });
 
       // If skipInvalidItems is false (default), re-throw the error

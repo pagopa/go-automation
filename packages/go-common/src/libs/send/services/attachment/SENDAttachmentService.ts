@@ -203,7 +203,7 @@ export class SENDAttachmentService {
       });
 
       // Link external abort to internal upload abort
-      const abortListener = () => uploadAbortable.abort();
+      const abortListener = (): void => uploadAbortable.abort();
       controller.signal.addEventListener('abort', abortListener);
 
       try {
@@ -267,7 +267,7 @@ export class SENDAttachmentService {
       });
 
       // Link external abort to internal upload abort
-      const abortListener = () => uploadAbortable.abort();
+      const abortListener = (): void => uploadAbortable.abort();
       controller.signal.addEventListener('abort', abortListener);
 
       try {

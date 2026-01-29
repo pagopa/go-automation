@@ -86,7 +86,7 @@ export class GOSpinner {
   public succeed(message?: string): void {
     this.stop();
     const finalMessage = message ?? this.message;
-    console.log(`${this.indent}\x1b[32m✓\x1b[0m ${finalMessage}`);
+    process.stdout.write(`${this.indent}\x1b[32m✓\x1b[0m ${finalMessage}\n`);
   }
 
   /**
@@ -95,7 +95,7 @@ export class GOSpinner {
   public fail(message?: string): void {
     this.stop();
     const finalMessage = message ?? this.message;
-    console.log(`${this.indent}\x1b[31m✗\x1b[0m ${finalMessage}`);
+    process.stdout.write(`${this.indent}\x1b[31m✗\x1b[0m ${finalMessage}\n`);
   }
 
   /**
@@ -104,7 +104,7 @@ export class GOSpinner {
   public warn(message?: string): void {
     this.stop();
     const finalMessage = message ?? this.message;
-    console.log(`${this.indent}\x1b[33m⚠\x1b[0m ${finalMessage}`);
+    process.stdout.write(`${this.indent}\x1b[33m⚠\x1b[0m ${finalMessage}\n`);
   }
 
   /**
@@ -113,7 +113,7 @@ export class GOSpinner {
   public info(message?: string): void {
     this.stop();
     const finalMessage = message ?? this.message;
-    console.log(`${this.indent}\x1b[36mℹ\x1b[0m ${finalMessage}`);
+    process.stdout.write(`${this.indent}\x1b[36mℹ\x1b[0m ${finalMessage}\n`);
   }
 
   /**

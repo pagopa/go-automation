@@ -4,6 +4,9 @@
  * A Result type inspired by Rust's Result<T, E> for type-safe error handling.
  * Provides an alternative to throwing exceptions, making error handling explicit.
  *
+ * Note: This file imports from GOErrorUtils.ts. To avoid circular dependencies,
+ * GOErrorUtils.ts should not import from this file.
+ *
  * @example
  * ```typescript
  * import { ok, err, isOk, isErr, unwrapOr } from '@go-automation/go-common';
@@ -27,6 +30,8 @@
  * const value = unwrapOr(result, 0);
  * ```
  */
+
+import { toError } from './GOErrorUtils.js';
 
 /**
  * Represents a successful result containing a value.
@@ -168,11 +173,7 @@ export function unwrap<T, E>(result: GOResult<T, E>): T {
     return result.value;
   }
 
-  if (result.error instanceof Error) {
-    throw result.error;
-  }
-
-  throw new Error(String(result.error));
+  throw toError(result.error);
 }
 
 /**
@@ -337,10 +338,7 @@ export async function fromPromise<T>(promise: Promise<T>): Promise<GOResult<T, E
     const value = await promise;
     return ok(value);
   } catch (error) {
-    if (error instanceof Error) {
-      return err(error);
-    }
-    return err(new Error(String(error)));
+    return err(toError(error));
   }
 }
 
@@ -366,9 +364,6 @@ export function tryCatch<T>(fn: () => T): GOResult<T, Error> {
   try {
     return ok(fn());
   } catch (error) {
-    if (error instanceof Error) {
-      return err(error);
-    }
-    return err(new Error(String(error)));
+    return err(toError(error));
   }
 }

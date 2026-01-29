@@ -3,11 +3,13 @@
  */
 
 import * as fs from 'fs';
+
+import { GOEventEmitterBase } from '../../events/GOEventEmitterBase.js';
+import { toError } from '../../errors/GOErrorUtils.js';
 import type { GOListExporter } from '../GOListExporter.js';
+import type { GOListExporterEventMap } from '../GOListExporterEvents.js';
 import type { GOListExporterStreamWriter } from '../GOListExporterStreamWriter.js';
 import type { GOJSONListExporterOptions } from './GOJSONListExporterOptions.js';
-import { GOEventEmitterBase } from '../../events/GOEventEmitterBase.js';
-import type { GOListExporterEventMap } from '../GOListExporterEvents.js';
 
 /**
  * Generic JSON list exporter
@@ -19,7 +21,7 @@ import type { GOListExporterEventMap } from '../GOListExporterEvents.js';
  *
  * @template TItem - The type of items to export
  */
-export class GOJSONListExporter<TItem extends Record<string, any>>
+export class GOJSONListExporter<TItem extends Record<string, unknown>>
   extends GOEventEmitterBase<GOListExporterEventMap>
   implements GOListExporter<TItem>
 {
@@ -30,7 +32,7 @@ export class GOJSONListExporter<TItem extends Record<string, any>>
   private startTime: number = 0;
   private totalItems?: number | undefined;
 
-  constructor(private readonly options: GOJSONListExporterOptions) {
+  constructor(private readonly options: GOJSONListExporterOptions<TItem>) {
     super();
   }
 
@@ -72,10 +74,10 @@ export class GOJSONListExporter<TItem extends Record<string, any>>
       try {
         await writer.close();
       } catch (closeError) {
-        // Ignore close errors
+        this.emit('export:error', { error: toError(closeError) });
       }
 
-      const finalError = error instanceof Error ? error : new Error(String(error));
+      const finalError = toError(error);
       this.emit('export:error', { error: finalError });
       throw error;
     }
@@ -101,6 +103,7 @@ export class GOJSONListExporter<TItem extends Record<string, any>>
   /**
    * Initialize streaming
    */
+  // eslint-disable-next-line @typescript-eslint/require-await
   private async initializeStream(): Promise<GOListExporterStreamWriter<TItem>> {
     // Create write stream
     const encoding = this.options.encoding ?? 'utf8';
@@ -140,7 +143,7 @@ export class GOJSONListExporter<TItem extends Record<string, any>>
 
       let errorOccurred = false;
 
-      const errorHandler = (error: Error) => {
+      const errorHandler = (error: Error): void => {
         if (!errorOccurred) {
           errorOccurred = true;
           cleanup();
@@ -148,7 +151,7 @@ export class GOJSONListExporter<TItem extends Record<string, any>>
         }
       };
 
-      const finishHandler = () => {
+      const finishHandler = (): void => {
         if (!errorOccurred) {
           cleanup();
           this.emit('export:completed', {
@@ -161,7 +164,7 @@ export class GOJSONListExporter<TItem extends Record<string, any>>
         }
       };
 
-      const cleanup = () => {
+      const cleanup = (): void => {
         this.writeStream?.removeListener('error', errorHandler);
         this.writeStream?.removeListener('finish', finishHandler);
       };
@@ -186,6 +189,7 @@ export class GOJSONListExporter<TItem extends Record<string, any>>
   /**
    * Append a single item in streaming mode
    */
+  // eslint-disable-next-line @typescript-eslint/require-await
   private async appendItem(item: TItem): Promise<void> {
     if (!this.writeStream) {
       throw new Error('Export stream not initialized. Call exportStream() first.');
@@ -242,7 +246,7 @@ export class GOJSONListExporter<TItem extends Record<string, any>>
       });
     } catch (error) {
       this.failedCount++;
-      const finalError = error instanceof Error ? error : new Error(String(error));
+      const finalError = toError(error);
       this.emit('export:error', { error: finalError, item, index: currentIndex });
 
       // If skipInvalidItems is false (default), re-throw the error

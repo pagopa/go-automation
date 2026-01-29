@@ -9,7 +9,10 @@ import * as fs from 'fs';
 import { GOConfigProviderBase } from '../GOConfigProvider.js';
 import { GOSecretRedactor, GOSecretsSpecifierFactory } from '../GOSecretsSpecifier.js';
 import type { GOSecretsSpecifier } from '../GOSecretsSpecifier.js';
-import { GOYAMLParser } from '../parsers/GOYAMLParser.js';
+import { GOYAMLParser, isYAMLObject } from '../parsers/GOYAMLParser.js';
+import type { YAMLValue } from '../parsers/GOYAMLParser.js';
+import { getErrorMessage } from '../../errors/GOErrorUtils.js';
+import { valueToString } from '../../utils/GOValueToString.js';
 
 /**
  * Options for YAML config provider
@@ -94,27 +97,29 @@ export class GOYAMLConfigProvider extends GOConfigProviderBase {
 
     try {
       const data = GOYAMLParser.parseFile(filePath, encoding);
-      this.loadFromData(data);
+      if (isYAMLObject(data)) {
+        this.loadFromData(data);
+      }
       // TODO: EMIT EVENT??
       // console.debug(`[GOYAMLConfigProvider] Loaded ${this.values.size} keys from ${filePath}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (this.isOptional) {
         // TODO: EMIT EVENT??
-        // console.warn(`[GOYAMLConfigProvider] Optional file could not be loaded: ${filePath} - ${error.message}`);
+        // console.warn(`[GOYAMLConfigProvider] Optional file could not be loaded: ${filePath} - ${getErrorMessage(error)}`);
         return;
       }
-      throw new Error(`Failed to load YAML config from ${filePath}: ${error.message}`);
+      throw new Error(`Failed to load YAML config from ${filePath}: ${getErrorMessage(error)}`);
     }
   }
 
   /**
    * Load configuration from YAML object
    */
-  private loadFromData(data: Record<string, any>): void {
+  private loadFromData(data: Record<string, YAMLValue> | Record<string, unknown>): void {
     const flattened = this.flattenObject(data);
-    flattened.forEach((value, key) => {
+    for (const [key, value] of flattened) {
       this.values.set(key, value);
-    });
+    }
   }
 
   /**
@@ -123,56 +128,39 @@ export class GOYAMLConfigProvider extends GOConfigProviderBase {
    * @example
    * { http: { client: { timeout: 60 } } } -> { "http.client.timeout": "60" }
    */
-  private flattenObject(obj: any, prefix = ''): Map<string, string | string[]> {
+  private flattenObject(
+    obj: Record<string, YAMLValue> | Record<string, unknown>,
+    prefix = '',
+  ): Map<string, string | string[]> {
     const result = new Map<string, string | string[]>();
 
-    Object.entries(obj).forEach(([key, value]) => {
+    for (const [key, value] of Object.entries(obj)) {
       const fullKey = prefix ? `${prefix}.${key}` : key;
 
       if (value === null || value === undefined) {
         // Skip null/undefined values
-        return;
+        continue;
       }
 
       if (Array.isArray(value)) {
         // Handle arrays - convert all elements to strings
         result.set(
           fullKey,
-          value.map((v) => this.valueToString(v)),
+          value.map((v) => valueToString(v)),
         );
       } else if (typeof value === 'object' && !Buffer.isBuffer(value) && !(value instanceof Date)) {
         // Recursively flatten nested objects (but not Dates)
-        const nested = this.flattenObject(value, fullKey);
-        nested.forEach((nestedValue, nestedKey) => {
+        const nested = this.flattenObject(value as Record<string, unknown>, fullKey);
+        for (const [nestedKey, nestedValue] of nested) {
           result.set(nestedKey, nestedValue);
-        });
+        }
       } else {
         // Primitive values (including Date)
-        result.set(fullKey, this.valueToString(value));
+        result.set(fullKey, valueToString(value));
       }
-    });
+    }
 
     return result;
-  }
-
-  /**
-   * Convert any value to string for storage
-   */
-  private valueToString(value: any): string {
-    if (typeof value === 'string') {
-      return value;
-    }
-    if (typeof value === 'number' || typeof value === 'boolean') {
-      return String(value);
-    }
-    if (value instanceof Date) {
-      return value.toISOString();
-    }
-    if (Buffer.isBuffer(value)) {
-      return value.toString('base64');
-    }
-    // For other types, use JSON
-    return JSON.stringify(value);
   }
 
   /**
@@ -198,27 +186,31 @@ export class GOYAMLConfigProvider extends GOConfigProviderBase {
   /**
    * Convert flat configuration back to nested object
    */
-  private unflattenObject(): Record<string, any> {
-    const result: Record<string, any> = {};
+  private unflattenObject(): Record<string, YAMLValue> {
+    const result: Record<string, YAMLValue> = {};
 
-    this.values.forEach((value, key) => {
+    for (const [key, value] of this.values) {
       const parts = key.split('.');
-      let current = result;
+      let current: Record<string, YAMLValue> = result;
 
       for (let i = 0; i < parts.length - 1; i++) {
         const part = parts[i];
-        if (!part) continue;
-        if (!current[part]) {
+        if (!part) {
+          continue;
+        }
+
+        const existing = current[part];
+        if (!isYAMLObject(existing)) {
           current[part] = {};
         }
-        current = current[part];
+        current = current[part] as Record<string, YAMLValue>;
       }
 
       const lastPart = parts[parts.length - 1];
       if (lastPart) {
         current[lastPart] = value;
       }
-    });
+    }
 
     return result;
   }

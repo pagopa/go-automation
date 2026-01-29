@@ -21,5 +21,5 @@ export interface SENDNotificationRecipient {
   /** Payment information */
   payment?: SENDPagoPaPayment;
   /** F24 metadata */
-  payments?: Array<SENDPagoPaPayment | SENDF24Metadata>;
+  payments?: (SENDPagoPaPayment | SENDF24Metadata)[];
 }

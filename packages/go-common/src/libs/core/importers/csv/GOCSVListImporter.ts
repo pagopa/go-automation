@@ -5,7 +5,14 @@
 
 import { createReadStream } from 'fs';
 import { parse } from 'csv-parse';
-import type { Options as CSVParseOptions } from 'csv-parse';
+import type { Options } from 'csv-parse';
+
+/**
+ * CSV parse options type alias
+ * We use a simplified type because csv-parse's overloaded signatures
+ * are incompatible with exactOptionalPropertyTypes: true
+ */
+type CSVParseOptions = Options;
 import type { GOListImporter } from '../GOListImporter.js';
 import type { GOListImporterResult } from '../GOListImporterResult.js';
 import type { GOListImportError } from '../GOListImporterResult.js';
@@ -148,7 +155,10 @@ export class GOCSVListImporter<TItem = CSVRecord>
     this.emit('import:started', { source, mode: 'stream' });
 
     const stream = createReadStream(source, { encoding: this.options.encoding ?? 'utf8' });
-    const parser = stream.pipe(parse(this.getParserOptions()));
+    // Type assertion needed: csv-parse overloads are incompatible with exactOptionalPropertyTypes
+    const parser = stream.pipe(
+      (parse as (options: CSVParseOptions) => ReturnType<typeof parse>)(this.getParserOptions()),
+    );
 
     for await (const record of parser) {
       processedItems++;
@@ -222,13 +232,24 @@ export class GOCSVListImporter<TItem = CSVRecord>
    */
   private async parseCSVBuffer(buffer: Buffer): Promise<CSVRecord[]> {
     return new Promise((resolve, reject) => {
-      parse(buffer, this.getParserOptions(), (error, records: CSVRecord[] | undefined) => {
+      // Type assertion needed due to csv-parse's complex overloaded types
+      // When columns: true, records will be CSVRecord[], otherwise string[][]
+      const callback = (error: Error | undefined, records: CSVRecord[] | undefined): void => {
         if (error) {
           reject(error);
         } else {
           resolve(records ?? []);
         }
-      });
+      };
+
+      // Type assertion needed: csv-parse overloads are incompatible with exactOptionalPropertyTypes
+      // This is safe because we always set columns: true or provide column names
+      type ParseCallback = (error: Error | undefined, records: CSVRecord[] | undefined) => void;
+      (parse as (input: Buffer, options: CSVParseOptions, callback: ParseCallback) => void)(
+        buffer,
+        this.getParserOptions(),
+        callback,
+      );
     });
   }
 

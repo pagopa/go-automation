@@ -25,29 +25,7 @@
  * ```
  */
 
-/**
- * Type guard to check if a value is an Error instance.
- * Useful for narrowing unknown types in catch blocks.
- *
- * @param value - The value to check
- * @returns True if the value is an Error instance
- *
- * @example
- * ```typescript
- * try {
- *   await fetch(url);
- * } catch (error: unknown) {
- *   if (isError(error)) {
- *     // TypeScript knows error is Error here
- *     console.log(error.message);
- *     console.log(error.stack);
- *   }
- * }
- * ```
- */
-export function isError(value: unknown): value is Error {
-  return value instanceof Error;
-}
+import { isError, hasMessage } from '../utils/GOTypeGuards.js';
 
 /**
  * Extracts the error message from an unknown error type.
@@ -84,8 +62,8 @@ export function getErrorMessage(error: unknown): string {
   }
 
   // For objects with a message property
-  if (typeof error === 'object' && 'message' in error) {
-    const message = (error as { message: unknown }).message;
+  if (hasMessage(error)) {
+    const message = error.message;
     if (typeof message === 'string') {
       return message;
     }

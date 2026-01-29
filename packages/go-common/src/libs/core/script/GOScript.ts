@@ -22,6 +22,7 @@ import { GOLogger } from '../logging/GOLogger.js';
 import { GOConsoleLoggerHandler } from '../logging/handlers/GOConsoleLoggerHandler.js';
 import { GOFileLoggerHandler } from '../logging/handlers/GOFileLoggerHandler.js';
 import { GOPrompt } from '../prompt/GOPrompt.js';
+import { getErrorMessage } from '../errors/GOErrorUtils.js';
 import { GOPaths, formatConfigValueDisplay, formatConfigSourceDisplay } from '../utils/index.js';
 import type { GOPathTypeValue } from '../utils/index.js';
 
@@ -648,8 +649,7 @@ export class GOScript {
             process.exit(0);
           })
           .catch((error: unknown) => {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            this.logger.error(`Error during cleanup: ${errorMessage}`);
+            this.logger.error(`Error during cleanup: ${getErrorMessage(error)}`);
             process.exit(1);
           });
       });

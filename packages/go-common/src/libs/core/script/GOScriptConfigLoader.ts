@@ -12,7 +12,7 @@ import { GOConfigParameterType } from '../config/GOConfigParameterType.js';
  * Configuration loading result
  */
 export interface ConfigLoadResult {
-  values: Record<string, any>;
+  values: Record<string, unknown>;
   sources: Map<string, string>;
   missingRequired: string[];
 }
@@ -20,7 +20,7 @@ export interface ConfigLoadResult {
 /**
  * Type handler function signature
  */
-type TypeHandler = (key: string) => any;
+type TypeHandler = (key: string) => unknown;
 
 /**
  * Config Loader for GOScript
@@ -76,8 +76,8 @@ export class GOScriptConfigLoader {
    * 2. defaultValue (if set)
    * 3. asyncFallback (if set, awaited)
    */
-  private async loadConfigValues(): Promise<Record<string, any>> {
-    const configValues: Record<string, any> = {};
+  private async loadConfigValues(): Promise<Record<string, unknown>> {
+    const configValues: Record<string, unknown> = {};
     const params = this.configSchema.getAllParameters();
 
     for (const param of params) {
@@ -109,7 +109,7 @@ export class GOScriptConfigLoader {
 
       // If still no value, try async fallback
       if (value === undefined && param.hasAsyncFallback()) {
-        value = await param.asyncFallback!();
+        value = await param.asyncFallback?.();
       }
 
       if (value !== undefined) {
@@ -152,7 +152,7 @@ export class GOScriptConfigLoader {
   /**
    * Validate required parameters and return list of missing ones
    */
-  private validateRequiredParameters(configValues: Record<string, any>): string[] {
+  private validateRequiredParameters(configValues: Record<string, unknown>): string[] {
     const missingRequired: string[] = [];
     const params = this.configSchema.getAllParameters();
 

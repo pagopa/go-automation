@@ -6,9 +6,11 @@
  */
 
 import * as fs from 'fs';
+
 import { GOConfigProviderBase } from '../GOConfigProvider.js';
 import { GOSecretRedactor, GOSecretsSpecifierFactory } from '../GOSecretsSpecifier.js';
 import type { GOSecretsSpecifier } from '../GOSecretsSpecifier.js';
+import { valueToString } from '../../utils/GOValueToString.js';
 
 /**
  * Options for JSON config provider
@@ -138,7 +140,7 @@ export class GOJSONConfigProvider extends GOConfigProviderBase {
         // Handle arrays - convert all elements to strings
         result.set(
           fullKey,
-          value.map((v) => this.valueToString(v)),
+          value.map((v) => valueToString(v)),
         );
       } else if (typeof value === 'object' && !Buffer.isBuffer(value)) {
         // Recursively flatten nested objects
@@ -148,28 +150,11 @@ export class GOJSONConfigProvider extends GOConfigProviderBase {
         });
       } else {
         // Primitive values
-        result.set(fullKey, this.valueToString(value));
+        result.set(fullKey, valueToString(value));
       }
     });
 
     return result;
-  }
-
-  /**
-   * Convert any value to string for storage
-   */
-  private valueToString(value: any): string {
-    if (typeof value === 'string') {
-      return value;
-    }
-    if (typeof value === 'number' || typeof value === 'boolean') {
-      return String(value);
-    }
-    if (Buffer.isBuffer(value)) {
-      return value.toString('base64');
-    }
-    // For other types, use JSON
-    return JSON.stringify(value);
   }
 
   /**

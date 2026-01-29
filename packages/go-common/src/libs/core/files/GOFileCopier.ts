@@ -33,6 +33,7 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 
+import { getErrorMessage } from '../errors/GOErrorUtils.js';
 import type { GOFileCopyResult, GOFileCopySkipReason } from './GOFileCopyResult.js';
 import type { GOFileCopyReport, GOFileCopyReportSummary } from './GOFileCopyReport.js';
 import type {
@@ -305,7 +306,7 @@ export class GOFileCopier {
         sizeBytes,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       this.log(`Failed to copy ${absolutePath}: ${errorMessage}`, 'error');
 
       return this.createResult(absolutePath, destinationPath, {

@@ -37,9 +37,13 @@ export class QATestFormatAdapter implements GOCSVFormatAdapter<SENDNotificationR
       return false;
     }
 
+    if (lines[0] === undefined) {
+      return false;
+    }
+
     // Check first line for characteristic QA columns
     // Safe to assert non-null: array length is at least 4
-    const firstLine = lines[0]!;
+    const firstLine = lines[0];
 
     // Must use semicolon delimiter
     if (!firstLine.includes(';')) {

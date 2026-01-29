@@ -145,7 +145,7 @@ export class GOMultiSpinner {
    */
   public log(message: string): void {
     this.clear();
-    console.log(this.indent + message);
+    process.stdout.write(`${this.indent}${message}\n`);
     this.lastLineCount = 0;
     if (this.tasks.size > 0) {
       this.render();
@@ -284,7 +284,7 @@ export class GOMultiSpinner {
       this.clear();
 
       if (message) {
-        console.log(this.indent + message);
+        process.stdout.write(`${this.indent}${message}\n`);
       }
 
       this.lastLineCount = 0;
@@ -352,8 +352,7 @@ export class GOMultiSpinner {
         break;
     }
 
-    // eslint-disable-next-line no-console
-    console.log(`${this.indent}${symbol} ${finalText}`);
+    process.stdout.write(`${this.indent}${symbol} ${finalText}\n`);
     this.lastLineCount = 0;
 
     if (this.tasks.size === 0) {

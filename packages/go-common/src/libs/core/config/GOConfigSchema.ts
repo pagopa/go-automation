@@ -10,6 +10,7 @@ import type { GOConfigParameterOptions } from './GOConfigParameter.js';
 import { GOConfigReader } from './GOConfigReader.js';
 import { GOConfigHelpGenerator } from './GOConfigHelpGenerator.js';
 import type { GOConfigHelpGeneratorOptions } from './GOConfigHelpGenerator.js';
+import { getErrorMessage } from '../errors/GOErrorUtils.js';
 
 /**
  * Configuration schema options
@@ -33,8 +34,8 @@ export class GOConfigSchema {
 
   constructor(options: GOConfigSchemaOptions = {}) {
     this.parameters = new Map();
-    this.name = options.name || 'Configuration';
-    this.version = options.version || '1.0.0';
+    this.name = options.name ?? 'Configuration';
+    this.version = options.version ?? '1.0.0';
     this.helpGenerator = new GOConfigHelpGenerator(options);
   }
 
@@ -145,8 +146,8 @@ export class GOConfigSchema {
   /**
    * Load configuration from reader with validation
    */
-  loadConfig(config: GOConfigReader): Record<string, any> {
-    const result: Record<string, any> = {};
+  loadConfig(config: GOConfigReader): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
     const errors: string[] = [];
 
     this.getAllParameters().forEach((param) => {
@@ -155,8 +156,9 @@ export class GOConfigSchema {
         if (value !== undefined) {
           result[param.name] = value;
         }
-      } catch (error: any) {
-        errors.push(`${param.name}: ${error.message}`);
+      } catch (error: unknown) {
+        const message = getErrorMessage(error);
+        errors.push(`${param.name}: ${message}`);
       }
     });
 
@@ -176,8 +178,8 @@ export class GOConfigSchema {
     this.getAllParameters().forEach((param) => {
       try {
         param.getValue(config);
-      } catch (error: any) {
-        errors.push(`${param.name}: ${error.message}`);
+      } catch (error: unknown) {
+        errors.push(`${param.name}: ${getErrorMessage(error)}`);
       }
     });
 
@@ -216,7 +218,7 @@ export class GOConfigSchema {
   /**
    * Export schema as JSON (for documentation)
    */
-  toJSON(): any {
+  toJSON(): unknown {
     return {
       name: this.name,
       version: this.version,

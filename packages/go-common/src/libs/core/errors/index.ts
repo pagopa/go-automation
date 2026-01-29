@@ -5,9 +5,11 @@
  * Provides type-safe utilities for working with unknown errors.
  */
 
-// Error utilities
+export { GOError } from './GOError.js';
+export type { GOErrorOptions } from './GOError.js';
+export type { GOResult, GOResultOk, GOResultErr } from './GOResult.js';
+
 export {
-  isError,
   getErrorMessage,
   toError,
   wrapError,
@@ -16,12 +18,6 @@ export {
   errorMessageContains,
 } from './GOErrorUtils.js';
 
-// Base error class
-export { GOError } from './GOError.js';
-export type { GOErrorOptions } from './GOError.js';
-
-// Result type (Rust-style error handling)
-export type { GOResult, GOResultOk, GOResultErr } from './GOResult.js';
 export {
   ok,
   err,

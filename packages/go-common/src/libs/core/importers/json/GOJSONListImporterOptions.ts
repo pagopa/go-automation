@@ -15,11 +15,11 @@ export interface GOJSONListImporterOptions<TInput = unknown, TOutput = TInput> {
   /** Encoding for input file (default: 'utf8') */
   encoding?: BufferEncoding;
 
-  /** Item validation function (applied before transformation, throws error if invalid) */
-  itemValidator?: (item: TInput) => void;
+  /** Row validation function (applied before transformation, throws error if invalid) */
+  rowValidator?: (item: TInput) => void;
 
-  /** Item transformation function (applied after validation) */
-  itemTransformer?: (item: TInput) => TOutput;
+  /** Row transformation function (applied after validation) */
+  rowTransformer?: (item: TInput) => TOutput;
 
   /** JSON path to extract array from nested structure (e.g., 'data.items') */
   jsonPath?: string;

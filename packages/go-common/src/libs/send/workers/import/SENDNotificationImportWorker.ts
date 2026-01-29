@@ -102,7 +102,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
     });
 
     // Register event listeners for import progress and errors
-    const progressHandler = (importProgress: GOListImportProgressEvent) => {
+    const progressHandler = (importProgress: GOListImportProgressEvent): void => {
       this.emit('worker:progress', {
         progress: {
           phase: 'importing',
@@ -192,7 +192,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
     let totalRowsFromImport = 0; // Track total rows from import phase
 
     // Register event listeners for import progress and errors
-    const progressHandler = (importProgress: GOListImportProgressEvent) => {
+    const progressHandler = (importProgress: GOListImportProgressEvent): void => {
       // Update totalRows from import progress
       totalRowsFromImport = importProgress.totalItems ?? importProgress.processedItems;
 
@@ -211,7 +211,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
       });
     };
 
-    const errorHandler = (importError: GOListImportErrorEvent) => {
+    const errorHandler = (importError: GOListImportErrorEvent): void => {
       this.emit('worker:error', {
         error: {
           rowIndex: importError.itemIndex,

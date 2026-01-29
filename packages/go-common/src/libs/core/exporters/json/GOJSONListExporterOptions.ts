@@ -4,8 +4,9 @@
 
 /**
  * Options for JSON list exporter
+ * @template TItem - The type of items to export
  */
-export interface GOJSONListExporterOptions {
+export interface GOJSONListExporterOptions<TItem = Record<string, unknown>> {
   /** Output file path */
   outputPath: string;
 
@@ -24,7 +25,7 @@ export interface GOJSONListExporterOptions {
   jsonl?: boolean;
 
   /** Row transformation function (applied before JSON conversion) */
-  rowTransformer?: (item: any) => any;
+  rowTransformer?: (item: TItem) => TItem;
 
   /** Skip invalid items and continue export (default: false) */
   skipInvalidItems?: boolean;

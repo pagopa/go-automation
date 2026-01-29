@@ -10,6 +10,20 @@ import { GOConfigReader } from './GOConfigReader.js';
 import { GOConfigKeyTransformer } from './GOConfigKeyTransformer.js';
 
 /**
+ * Union type for all possible configuration parameter values.
+ * Corresponds to the types supported by GOConfigParameterType.
+ */
+export type GOConfigParameterValue =
+  | string
+  | number
+  | boolean
+  | Buffer
+  | ReadonlyArray<string>
+  | ReadonlyArray<number>
+  | ReadonlyArray<boolean>
+  | ReadonlyArray<Buffer>;
+
+/**
  * Async fallback function type.
  * Called when parameter value is not found in any provider and no defaultValue is set.
  *
@@ -23,7 +37,8 @@ import { GOConfigKeyTransformer } from './GOConfigKeyTransformer.js';
  * };
  * ```
  */
-export type GOConfigParameterFallback<T = unknown> = () => Promise<T>;
+export type GOConfigParameterFallback<T extends GOConfigParameterValue = GOConfigParameterValue> =
+  () => Promise<T>;
 
 /**
  * Configuration parameter definition
@@ -48,7 +63,7 @@ export interface GOConfigParameterOptions {
   help?: string;
 
   /** Default value */
-  defaultValue?: any;
+  defaultValue?: GOConfigParameterValue;
 
   /** Whether this parameter is required */
   required?: boolean;
@@ -66,7 +81,7 @@ export interface GOConfigParameterOptions {
   placeholder?: string;
 
   /** Validation function */
-  validator?: (value: any) => boolean | string;
+  validator?: (value: GOConfigParameterValue) => boolean | string;
 
   /** Aliases for CLI flags */
   aliases?: string[] | undefined;
@@ -107,13 +122,13 @@ export class GOConfigParameter {
   readonly abstract?: string | undefined;
   readonly description?: string | undefined;
   readonly help?: string | undefined;
-  readonly defaultValue?: any;
+  readonly defaultValue?: GOConfigParameterValue | undefined;
   readonly required: boolean;
   readonly group: string;
   readonly envVar: string;
   readonly cliFlag: string;
   readonly placeholder: string;
-  readonly validator?: ((value: any) => boolean | string) | undefined;
+  readonly validator?: ((value: GOConfigParameterValue) => boolean | string) | undefined;
   readonly aliases: string[];
   readonly deprecated: boolean;
   readonly deprecationMessage?: string | undefined;
@@ -153,7 +168,7 @@ export class GOConfigParameter {
   /**
    * Get value from config reader with type safety
    */
-  getValue(config: GOConfigReader): any {
+  getValue(config: GOConfigReader): GOConfigParameterValue | undefined {
     const value = this.getValueInternal(config);
 
     // Validate if validator is provided
@@ -192,8 +207,8 @@ export class GOConfigParameter {
    * const value = await param.getValueAsync(configReader);
    * ```
    */
-  async getValueAsync(config: GOConfigReader): Promise<any> {
-    let value = this.getValueInternal(config);
+  async getValueAsync(config: GOConfigReader): Promise<GOConfigParameterValue | undefined> {
+    let value: GOConfigParameterValue | undefined = this.getValueInternal(config);
 
     // Use async fallback if still no value
     if (value === undefined && this.asyncFallback) {
@@ -228,43 +243,87 @@ export class GOConfigParameter {
   }
 
   /**
-   * Internal method to get value based on type
+   * Internal method to get value based on type.
+   * Each case extracts the appropriate default value type from the union.
    */
-  private getValueInternal(config: GOConfigReader): any {
+  private getValueInternal(config: GOConfigReader): GOConfigParameterValue | undefined {
+    // Helper to safely extract typed default values from the union
+    const defaultVal = this.defaultValue;
+
     switch (this.type) {
       case GOConfigParameterType.STRING:
-        return config.string(this.name, this.defaultValue);
+        return config.string(this.name, typeof defaultVal === 'string' ? defaultVal : undefined);
 
       case GOConfigParameterType.INT:
-        return config.int(this.name, this.defaultValue);
+        return config.int(this.name, typeof defaultVal === 'number' ? defaultVal : undefined);
 
       case GOConfigParameterType.DOUBLE:
-        return config.double(this.name, this.defaultValue);
+        return config.double(this.name, typeof defaultVal === 'number' ? defaultVal : undefined);
 
       case GOConfigParameterType.BOOL:
-        return config.bool(this.name, this.defaultValue);
+        return config.bool(this.name, typeof defaultVal === 'boolean' ? defaultVal : undefined);
 
-      case GOConfigParameterType.STRING_ARRAY:
-        return config.stringArray(this.name, this.defaultValue);
+      case GOConfigParameterType.STRING_ARRAY: {
+        const stringDefault = this.isStringArray(defaultVal) ? [...defaultVal] : undefined;
+        return config.stringArray(this.name, stringDefault);
+      }
 
-      case GOConfigParameterType.INT_ARRAY:
-        return config.intArray(this.name, this.defaultValue);
+      case GOConfigParameterType.INT_ARRAY: {
+        const intDefault = this.isNumberArray(defaultVal) ? [...defaultVal] : undefined;
+        return config.intArray(this.name, intDefault);
+      }
 
-      case GOConfigParameterType.DOUBLE_ARRAY:
-        return config.doubleArray(this.name, this.defaultValue);
+      case GOConfigParameterType.DOUBLE_ARRAY: {
+        const doubleDefault = this.isNumberArray(defaultVal) ? [...defaultVal] : undefined;
+        return config.doubleArray(this.name, doubleDefault);
+      }
 
-      case GOConfigParameterType.BOOL_ARRAY:
-        return config.boolArray(this.name, this.defaultValue);
+      case GOConfigParameterType.BOOL_ARRAY: {
+        const boolDefault = this.isBooleanArray(defaultVal) ? [...defaultVal] : undefined;
+        return config.boolArray(this.name, boolDefault);
+      }
 
       case GOConfigParameterType.BUFFER:
-        return config.buffer(this.name, this.defaultValue);
+        return config.buffer(this.name, Buffer.isBuffer(defaultVal) ? defaultVal : undefined);
 
-      case GOConfigParameterType.BUFFER_ARRAY:
-        return config.bufferArray(this.name, this.defaultValue);
+      case GOConfigParameterType.BUFFER_ARRAY: {
+        const bufferDefault = this.isBufferArray(defaultVal) ? [...defaultVal] : undefined;
+        return config.bufferArray(this.name, bufferDefault);
+      }
 
       default:
-        return config.string(this.name, this.defaultValue);
+        return config.string(this.name, typeof defaultVal === 'string' ? defaultVal : undefined);
     }
+  }
+
+  /**
+   * Type guard for string arrays
+   */
+  private isStringArray(value: GOConfigParameterValue | undefined): value is ReadonlyArray<string> {
+    return Array.isArray(value) && value.every((item) => typeof item === 'string');
+  }
+
+  /**
+   * Type guard for number arrays
+   */
+  private isNumberArray(value: GOConfigParameterValue | undefined): value is ReadonlyArray<number> {
+    return Array.isArray(value) && value.every((item) => typeof item === 'number');
+  }
+
+  /**
+   * Type guard for boolean arrays
+   */
+  private isBooleanArray(
+    value: GOConfigParameterValue | undefined,
+  ): value is ReadonlyArray<boolean> {
+    return Array.isArray(value) && value.every((item) => typeof item === 'boolean');
+  }
+
+  /**
+   * Type guard for Buffer arrays
+   */
+  private isBufferArray(value: GOConfigParameterValue | undefined): value is ReadonlyArray<Buffer> {
+    return Array.isArray(value) && value.every((item) => Buffer.isBuffer(item));
   }
 
   /**

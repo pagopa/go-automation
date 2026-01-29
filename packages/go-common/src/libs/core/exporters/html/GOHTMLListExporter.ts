@@ -3,11 +3,14 @@
  */
 
 import * as fs from 'fs';
+
+import { GOEventEmitterBase } from '../../events/GOEventEmitterBase.js';
+import { toError } from '../../errors/GOErrorUtils.js';
+import { valueToString } from '../../utils/GOValueToString.js';
 import type { GOListExporter } from '../GOListExporter.js';
+import type { GOListExporterEventMap } from '../GOListExporterEvents.js';
 import type { GOListExporterStreamWriter } from '../GOListExporterStreamWriter.js';
 import type { GOHTMLListExporterOptions } from './GOHTMLListExporterOptions.js';
-import { GOEventEmitterBase } from '../../events/GOEventEmitterBase.js';
-import type { GOListExporterEventMap } from '../GOListExporterEvents.js';
 
 /**
  * Default HTML template for the document
@@ -49,7 +52,7 @@ const DEFAULT_ROW_TEMPLATE = `<tr>{{cells}}</tr>`;
  *
  * @template TItem - The type of items to export
  */
-export class GOHTMLListExporter<TItem extends Record<string, any>>
+export class GOHTMLListExporter<TItem extends Record<string, unknown>>
   extends GOEventEmitterBase<GOListExporterEventMap>
   implements GOListExporter<TItem>
 {
@@ -61,7 +64,7 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
   private isHeaderWritten: boolean = false;
   private columns?: string[] | undefined;
 
-  constructor(private readonly options: GOHTMLListExporterOptions) {
+  constructor(private readonly options: GOHTMLListExporterOptions<TItem>) {
     super();
   }
 
@@ -108,7 +111,7 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
           });
         } catch (error) {
           this.failedCount++;
-          const finalError = error instanceof Error ? error : new Error(String(error));
+          const finalError = toError(error);
           this.emit('export:error', {
             error: finalError,
             item: transformedItem,
@@ -149,6 +152,7 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
   /**
    * Initialize streaming export mode
    */
+  // eslint-disable-next-line @typescript-eslint/require-await
   async exportStream(): Promise<GOListExporterStreamWriter<TItem>> {
     this.startTime = Date.now();
     this.exportedCount = 0;
@@ -198,7 +202,7 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
       });
     } catch (error) {
       this.failedCount++;
-      const finalError = error instanceof Error ? error : new Error(String(error));
+      const finalError = toError(error);
       this.emit('export:error', { error: finalError, item: transformedItem, index: currentIndex });
 
       if (!this.options.skipInvalidItems) {
@@ -238,8 +242,12 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
    */
   private transformItem(item: TItem): TItem | null {
     try {
-      return this.options.rowTransformer ? this.options.rowTransformer(item) : item;
+      if (this.options.rowTransformer) {
+        return this.options.rowTransformer(item);
+      }
+      return item;
     } catch (error) {
+      this.emit('export:error', { error: toError(error) });
       return null;
     }
   }
@@ -272,7 +280,7 @@ export class GOHTMLListExporter<TItem extends Record<string, any>>
     const cells = this.columns
       .map((col) => {
         const value = item[col];
-        const displayValue = value !== null && value !== undefined ? String(value) : '';
+        const displayValue = valueToString(value);
         const shouldAllowRawHtml = this.shouldAllowRawHtml(col);
         return `<td>${shouldAllowRawHtml ? displayValue : this.escapeHtml(displayValue)}</td>`;
       })

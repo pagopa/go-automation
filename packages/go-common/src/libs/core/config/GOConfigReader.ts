@@ -328,7 +328,7 @@ export class GOConfigReader {
       totalAccesses += log.count;
 
       if (log.provider !== 'NONE') {
-        providerUsageStats.set(log.provider, (providerUsageStats.get(log.provider) || 0) + 1);
+        providerUsageStats.set(log.provider, (providerUsageStats.get(log.provider) ?? 0) + 1);
       }
     });
 

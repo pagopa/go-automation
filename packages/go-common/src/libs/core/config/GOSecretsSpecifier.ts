@@ -72,6 +72,9 @@ export class GOSecretRedactor {
 
       case 'dynamic':
         return this.specifier.predicate(key, value);
+
+      default:
+        return false;
     }
   }
 

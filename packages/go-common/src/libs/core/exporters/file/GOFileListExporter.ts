@@ -7,6 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { GOEventEmitterBase } from '../../events/GOEventEmitterBase.js';
+import { toError } from '../../errors/GOErrorUtils.js';
 import type { GOListExporter } from '../GOListExporter.js';
 import type { GOListExporterEventMap } from '../GOListExporterEvents.js';
 import type { GOListExporterStreamWriter } from '../GOListExporterStreamWriter.js';
@@ -60,10 +61,10 @@ export class GOFileListExporter
       try {
         await writer.close();
       } catch (closeError) {
-        // Ignore close errors
+        this.emit('export:error', { error: toError(closeError) });
       }
 
-      const finalError = error instanceof Error ? error : new Error(String(error));
+      const finalError = toError(error);
       this.emit('export:error', { error: finalError });
       throw error;
     }
@@ -201,7 +202,7 @@ export class GOFileListExporter
       });
     } catch (error) {
       this.failedCount++;
-      const finalError = error instanceof Error ? error : new Error(String(error));
+      const finalError = toError(error);
       this.emit('export:error', { error: finalError, item, index: currentIndex });
 
       // If skipInvalidItems is false (default), re-throw the error

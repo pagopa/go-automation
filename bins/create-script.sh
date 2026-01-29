@@ -326,13 +326,13 @@ fi
 mkdir -p "$SCRIPT_PATH/src/libs"
 mkdir -p "$SCRIPT_PATH/src/types"
 mkdir -p "$SCRIPT_PATH/configs"
-mkdir -p "$SCRIPT_PATH/logs"
+mkdir -p "$SCRIPT_PATH/data"
 
 print_success "Created: $SCRIPT_PATH"
 print_success "Created: $SCRIPT_PATH/src/libs"
 print_success "Created: $SCRIPT_PATH/src/types"
 print_success "Created: $SCRIPT_PATH/configs"
-print_success "Created: $SCRIPT_PATH/logs"
+print_success "Created: $SCRIPT_PATH/data"
 echo ""
 
 # Step 6: Generate Files from Templates
@@ -357,32 +357,13 @@ sed -e "s|{{SCRIPT_NAME}}|$FULL_SCRIPT_NAME|g" \
     "$TEMPLATES_DIR/index.ts.template" > "$SCRIPT_PATH/src/index.ts"
 print_success "Created: src/index.ts"
 
-# Generate config.ts directly (avoids awk multiline issues)
+# Process config.ts from template using temp files for multiline content
+TEMP_PARAMS=$(mktemp)
+TEMP_CONFIG=$(mktemp)
+trap "rm -f $TEMP_PARAMS $TEMP_CONFIG" EXIT
+
 if [[ "$INCLUDE_AWS_PROFILE" == "true" ]]; then
-    cat > "$SCRIPT_PATH/src/config.ts" << EOF
-/**
- * $SCRIPT_TITLE - Configuration Module
- *
- * Contains script metadata, parameters definition, configuration interface,
- * and configuration builder function.
- */
-
-import { Core } from '@go-automation/go-common';
-
-/**
- * Script metadata
- */
-export const scriptMetadata: Core.GOScriptMetadata = {
-  name: '$SCRIPT_TITLE',
-  version: '1.0.0',
-  description: '$SCRIPT_DESCRIPTION',
-  authors: ['Team GO - Gestione Operativa'],
-};
-
-/**
- * Script parameter definitions
- */
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+    cat > "$TEMP_PARAMS" << 'PARAMS_EOF'
   {
     name: 'aws.profile',
     type: Core.GOConfigParameterType.STRING,
@@ -390,42 +371,13 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     required: true,
     aliases: ['ap'],
   },
-] as const;
-
-/**
- * Script configuration interface
- * Represents all validated configuration parameters
- */
-export interface $SCRIPT_CONFIG_NAME {
+PARAMS_EOF
+    cat > "$TEMP_CONFIG" << 'CONFIG_EOF'
   /** AWS profile name */
   readonly awsProfile: string;
-}
-EOF
+CONFIG_EOF
 else
-    cat > "$SCRIPT_PATH/src/config.ts" << EOF
-/**
- * $SCRIPT_TITLE - Configuration Module
- *
- * Contains script metadata, parameters definition, configuration interface,
- * and configuration builder function.
- */
-
-import { Core } from '@go-automation/go-common';
-
-/**
- * Script metadata
- */
-export const scriptMetadata: Core.GOScriptMetadata = {
-  name: '$SCRIPT_TITLE',
-  version: '1.0.0',
-  description: '$SCRIPT_DESCRIPTION',
-  authors: ['Team GO - Gestione Operativa'],
-};
-
-/**
- * Script parameter definitions
- */
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+    cat > "$TEMP_PARAMS" << 'PARAMS_EOF'
   // Add your parameters here
   // Example:
   // {
@@ -435,20 +387,23 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   //   required: true,
   //   aliases: ['i'],
   // },
-] as const;
-
-/**
- * Script configuration interface
- * Represents all validated configuration parameters
- */
-export interface $SCRIPT_CONFIG_NAME {
+PARAMS_EOF
+    cat > "$TEMP_CONFIG" << 'CONFIG_EOF'
   // Add your configuration fields here
   // Example:
   // readonly inputFile: string;
-  readonly _placeholder?: never; // Remove this when adding real properties
-}
-EOF
+CONFIG_EOF
 fi
+
+sed -e "s|{{SCRIPT_TITLE}}|$SCRIPT_TITLE|g" \
+    -e "s|{{SCRIPT_DESCRIPTION}}|$SCRIPT_DESCRIPTION|g" \
+    -e "s|{{SCRIPT_CONFIG_NAME}}|$SCRIPT_CONFIG_NAME|g" \
+    "$TEMPLATES_DIR/config.ts.template" | \
+    awk -v pfile="$TEMP_PARAMS" -v cfile="$TEMP_CONFIG" '
+        /{{PARAMETERS_CONTENT}}/ { while ((getline line < pfile) > 0) print line; close(pfile); next }
+        /{{CONFIG_INTERFACE_CONTENT}}/ { while ((getline line < cfile) > 0) print line; close(cfile); next }
+        { print }
+    ' > "$SCRIPT_PATH/src/config.ts"
 print_success "Created: src/config.ts"
 
 # Process main.ts (business logic)
@@ -459,29 +414,29 @@ sed -e "s|{{SCRIPT_NAME}}|$FULL_SCRIPT_NAME|g" \
     "$TEMPLATES_DIR/main.ts.template" > "$SCRIPT_PATH/src/main.ts"
 print_success "Created: src/main.ts"
 
+# Create types barrel file
+cat > "$SCRIPT_PATH/src/types/index.ts" << 'EOF'
+/**
+ * Types barrel file
+ * Re-export all types from this directory
+ *
+ * Usage: Create type files in PascalCase (e.g., User.ts, Config.ts)
+ * then export them here:
+ *   export type { User } from './User.js';
+ *   export type { Config } from './Config.js';
+ */
+EOF
+print_success "Created: src/types/index.ts"
+
 # Create empty .gitkeep files
-touch "$SCRIPT_PATH/logs/.gitkeep"
+touch "$SCRIPT_PATH/data/.gitkeep"
 touch "$SCRIPT_PATH/configs/.gitkeep"
-print_success "Created: logs/.gitkeep"
+print_success "Created: data/.gitkeep"
 print_success "Created: configs/.gitkeep"
 
 # Process README.md
 CURRENT_DATE=$(date +%Y-%m-%d)
-# Derive team name from product
-case "$PRODUCT" in
-    "go")
-        TEAM_NAME="Team GO - Gestione Operativa"
-        ;;
-    "send")
-        TEAM_NAME="Team SEND"
-        ;;
-    "interop")
-        TEAM_NAME="Team INTEROP"
-        ;;
-    *)
-        TEAM_NAME="Team GO - Gestione Operativa"
-        ;;
-esac
+TEAM_NAME="Team GO - Gestione Operativa"
 
 sed -e "s|{{SCRIPT_NAME}}|$FULL_SCRIPT_NAME|g" \
     -e "s|{{SCRIPT_TITLE}}|$SCRIPT_TITLE|g" \
@@ -508,10 +463,16 @@ print_step "Verifying TypeScript build..."
 # Build from project root using filter (resolves project references correctly)
 cd "$PROJECT_ROOT"
 
-if pnpm --filter="$FULL_SCRIPT_NAME" build 2>/dev/null; then
+BUILD_OUTPUT=$(pnpm --filter="$FULL_SCRIPT_NAME" build 2>&1)
+BUILD_EXIT_CODE=$?
+
+if [[ $BUILD_EXIT_CODE -eq 0 ]]; then
     print_success "Build successful"
 else
-    print_warning "Build had issues - check that go-common is built (pnpm build:common)"
+    print_warning "Build had issues:"
+    echo "$BUILD_OUTPUT" | tail -15
+    echo ""
+    print_warning "Tip: ensure go-common is built first (pnpm build:common)"
 fi
 
 echo ""

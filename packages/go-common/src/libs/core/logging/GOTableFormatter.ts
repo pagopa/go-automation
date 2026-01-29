@@ -5,6 +5,8 @@
 
 import Table from 'cli-table3';
 
+import { valueToString } from '../utils/GOValueToString.js';
+
 /**
  * Table column configuration
  */
@@ -151,22 +153,13 @@ export class GOTableFormatter {
   /**
    * Format a value using column formatter or default
    */
-  private formatValue(value: any, col: GOTableColumn): string {
-    if (value === undefined || value === null) {
-      return '';
-    }
-
+  private formatValue(value: unknown, col: GOTableColumn): string {
     // Use custom formatter if provided
     if (col.formatter) {
       return col.formatter(value);
     }
 
-    // Default formatting
-    if (typeof value === 'object') {
-      return JSON.stringify(value);
-    }
-
-    return String(value);
+    return valueToString(value);
   }
 
   /**
