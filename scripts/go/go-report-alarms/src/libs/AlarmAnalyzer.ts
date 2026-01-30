@@ -39,8 +39,6 @@ interface AlarmHistoryData {
  * Note: This class is stateless by design - all methods are pure functions
  */
 export class AlarmAnalyzer {
-  private static readonly stateUpdateSummary = 'Alarm updated from OK to ALARM';
-
   /**
    * Filter alarms based on ignore patterns
    * Uses compiled RegExp for O(N) complexity instead of O(N*P*M)
