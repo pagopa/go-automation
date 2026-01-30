@@ -28,6 +28,12 @@ interface WithCount {
   readonly count: number;
 }
 
+/** Structure of alarm history data */
+interface AlarmHistoryData {
+  oldState: { stateValue: string };
+  newState: { stateValue: string };
+}
+
 /**
  * Service for analyzing CloudWatch alarms
  * Note: This class is stateless by design - all methods are pure functions
@@ -51,9 +57,15 @@ export class AlarmAnalyzer {
     const combinedPattern =
       ignorePatterns.length > 0 ? new RegExp(escapedPatterns.join('|')) : null;
 
-    const stateUpdateItems = alarmHistoryItems.filter(
-      (item) => item.HistorySummary === AlarmAnalyzer.stateUpdateSummary,
-    );
+    const stateUpdateItems = alarmHistoryItems.filter((item) => {
+      try {
+        if (item.HistoryData === undefined) return false;
+        const parsed = JSON.parse(item.HistoryData) as AlarmHistoryData;
+        return parsed.newState.stateValue === 'ALARM';
+      } catch {
+        return false;
+      }
+    });
 
     const ignored: AlarmHistoryItem[] = [];
     const notIgnored: AlarmHistoryItem[] = [];
