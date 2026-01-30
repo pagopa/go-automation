@@ -24,7 +24,7 @@ export interface GOTableColumn {
   align?: 'left' | 'right' | 'center';
 
   /** Custom formatter function */
-  formatter?: (value: any) => string;
+  formatter?: (value: unknown) => string;
 }
 
 /**
@@ -35,7 +35,7 @@ export interface GOTableOptions {
   columns: GOTableColumn[];
 
   /** Data rows (array of objects) */
-  data: Record<string, any>[];
+  data: Record<string, unknown>[];
 
   /** Show border lines (default: true) */
   border?: boolean;
@@ -165,7 +165,7 @@ export class GOTableFormatter {
   /**
    * Get table characters based on options
    */
-  private getTableChars(): any {
+  private getTableChars(): Record<string, string> {
     if (this.options.compact) {
       // Compact mode: minimal borders
       return {

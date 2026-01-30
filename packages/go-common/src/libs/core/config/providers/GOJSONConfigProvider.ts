@@ -11,6 +11,7 @@ import { GOConfigProviderBase } from '../GOConfigProvider.js';
 import { GOSecretRedactor, GOSecretsSpecifierFactory } from '../GOSecretsSpecifier.js';
 import type { GOSecretsSpecifier } from '../GOSecretsSpecifier.js';
 import { valueToString } from '../../utils/GOValueToString.js';
+import { getErrorMessage } from '../../errors/GOErrorUtils.js';
 
 /**
  * Options for JSON config provider
@@ -95,28 +96,28 @@ export class GOJSONConfigProvider extends GOConfigProviderBase {
 
     try {
       const content = fs.readFileSync(filePath, encoding);
-      const data = JSON.parse(content);
+      const data = JSON.parse(content) as Record<string, unknown>;
       this.loadFromData(data);
       // TODO: EMIT EVENT??
       // console.debug(`[GOJSONConfigProvider] Loaded ${this.values.size} keys from ${filePath}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (this.isOptional) {
         // TODO: EMIT EVENT??
-        // console.warn(`[GOJSONConfigProvider] Optional file could not be loaded: ${filePath} - ${error.message}`);
+        // console.warn(`[GOJSONConfigProvider] Optional file could not be loaded: ${filePath} - ${getErrorMessage(error)}`);
         return;
       }
-      throw new Error(`Failed to load JSON config from ${filePath}: ${error.message}`);
+      throw new Error(`Failed to load JSON config from ${filePath}: ${getErrorMessage(error)}`);
     }
   }
 
   /**
    * Load configuration from JSON object
    */
-  private loadFromData(data: Record<string, any>): void {
+  private loadFromData(data: Record<string, unknown>): void {
     const flattened = this.flattenObject(data);
-    flattened.forEach((value, key) => {
+    for (const [key, value] of flattened) {
       this.values.set(key, value);
-    });
+    }
   }
 
   /**
@@ -125,34 +126,34 @@ export class GOJSONConfigProvider extends GOConfigProviderBase {
    * @example
    * { http: { client: { timeout: 60 } } } -> { "http.client.timeout": "60" }
    */
-  private flattenObject(obj: any, prefix = ''): Map<string, string | string[]> {
+  private flattenObject(obj: Record<string, unknown>, prefix = ''): Map<string, string | string[]> {
     const result = new Map<string, string | string[]>();
 
-    Object.entries(obj).forEach(([key, value]) => {
+    for (const [key, value] of Object.entries(obj)) {
       const fullKey = prefix ? `${prefix}.${key}` : key;
 
       if (value === null || value === undefined) {
         // Skip null/undefined values
-        return;
+        continue;
       }
 
       if (Array.isArray(value)) {
         // Handle arrays - convert all elements to strings
         result.set(
           fullKey,
-          value.map((v) => valueToString(v)),
+          value.map((v: unknown) => valueToString(v)),
         );
       } else if (typeof value === 'object' && !Buffer.isBuffer(value)) {
         // Recursively flatten nested objects
-        const nested = this.flattenObject(value, fullKey);
-        nested.forEach((nestedValue, nestedKey) => {
+        const nested = this.flattenObject(value as Record<string, unknown>, fullKey);
+        for (const [nestedKey, nestedValue] of nested) {
           result.set(nestedKey, nestedValue);
-        });
+        }
       } else {
         // Primitive values
         result.set(fullKey, valueToString(value));
       }
-    });
+    }
 
     return result;
   }

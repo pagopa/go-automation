@@ -8,6 +8,7 @@ import { GOLogEventCategory } from './GOLogEventCategory.js';
 import type { GOLoggerHandler } from './GOLoggerHandler.js';
 import { GOTableFormatter } from './GOTableFormatter.js';
 import type { GOTableOptions, GOTableColumn } from './GOTableFormatter.js';
+import { valueToString } from '../utils/GOValueToString.js';
 
 /**
  * Main logger class
@@ -231,7 +232,7 @@ export class GOLogger {
   public keyValueTable(data: Record<string, unknown>, options?: Partial<GOTableOptions>): void {
     const tableData = Object.entries(data).map(([key, value]) => ({
       key,
-      value: String(value),
+      value: valueToString(value),
     }));
 
     this.table({

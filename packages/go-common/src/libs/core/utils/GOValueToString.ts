@@ -32,15 +32,20 @@ export interface GOValueToStringOptions {
   readonly handleCircular?: boolean;
   /** Max depth for object serialization (default: 10) */
   readonly maxDepth?: number;
+  /** Separator for joining array elements (default: undefined = use JSON) */
+  readonly arrayJoin?: string;
+  /** Whether to wrap strings in quotes (default: false) */
+  readonly quoteStrings?: boolean;
 }
 
-const DEFAULT_OPTIONS: Required<GOValueToStringOptions> = {
+const DEFAULT_OPTIONS: GOValueToStringOptions = {
   nullValue: '',
   undefinedValue: '',
   dateFormat: 'iso',
   bufferFormat: 'base64',
   handleCircular: true,
   maxDepth: 10,
+  quoteStrings: false,
 };
 
 /**
@@ -147,15 +152,15 @@ export function valueToString(value: unknown, options?: GOValueToStringOptions):
 
   // Handle null and undefined first
   if (value === null) {
-    return opts.nullValue;
+    return opts.nullValue ?? '';
   }
   if (value === undefined) {
-    return opts.undefinedValue;
+    return opts.undefinedValue ?? '';
   }
 
   // Handle primitives
   if (typeof value === 'string') {
-    return value;
+    return opts.quoteStrings ? `"${value}"` : value;
   }
   if (typeof value === 'number') {
     return value.toString();
@@ -207,10 +212,7 @@ export function valueToString(value: unknown, options?: GOValueToStringOptions):
 
   // Handle Error (before generic object check)
   if (value instanceof Error) {
-    return JSON.stringify({
-      name: value.name,
-      message: value.message,
-    });
+    return JSON.stringify({ name: value.name, message: value.message });
   }
 
   // Handle RegExp
@@ -218,28 +220,32 @@ export function valueToString(value: unknown, options?: GOValueToStringOptions):
     return value.toString();
   }
 
+  // Resolve options with defaults for safeJsonStringify
+  const handleCircular = opts.handleCircular ?? true;
+  const maxDepth = opts.maxDepth ?? 10;
+
   // Handle Map
   if (value instanceof Map) {
-    return safeJsonStringify(Object.fromEntries(value), {
-      handleCircular: opts.handleCircular,
-      maxDepth: opts.maxDepth,
-    });
+    return safeJsonStringify(Object.fromEntries(value), { handleCircular, maxDepth });
   }
 
   // Handle Set
   if (value instanceof Set) {
-    return safeJsonStringify([...value], {
-      handleCircular: opts.handleCircular,
-      maxDepth: opts.maxDepth,
-    });
+    return safeJsonStringify([...value], { handleCircular, maxDepth });
   }
 
-  // Handle Array and Object
+  // Handle Array with optional join
+  if (Array.isArray(value)) {
+    if (opts.arrayJoin !== undefined) {
+      return value.map((item) => valueToString(item, opts)).join(opts.arrayJoin);
+    }
+
+    return safeJsonStringify(value, { handleCircular, maxDepth });
+  }
+
+  // Handle Object
   if (typeof value === 'object') {
-    return safeJsonStringify(value, {
-      handleCircular: opts.handleCircular,
-      maxDepth: opts.maxDepth,
-    });
+    return safeJsonStringify(value, { handleCircular, maxDepth });
   }
 
   // Fallback (should never reach here)

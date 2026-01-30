@@ -5,6 +5,7 @@
  */
 
 import { GOConfigParameter } from './GOConfigParameter.js';
+import { valueToString } from '../utils/GOValueToString.js';
 
 /**
  * Options for help generation
@@ -300,13 +301,7 @@ export class GOConfigHelpGenerator {
    * Format value for display
    */
   private formatValue(value: unknown): string {
-    if (Array.isArray(value)) {
-      return value.join(',');
-    }
-    if (typeof value === 'string') {
-      return `"${value}"`;
-    }
-    return String(value);
+    return valueToString(value, { arrayJoin: ',', quoteStrings: true });
   }
 
   /**

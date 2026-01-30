@@ -6,8 +6,8 @@
  * Event emitted when import starts
  */
 export interface GOListImportStartedEvent {
-  /** Source file or buffer being imported */
-  source: string | 'buffer';
+  /** Source file path or 'buffer' if importing from memory */
+  source: string;
   /** Import mode: batch or stream */
   mode: 'batch' | 'stream';
 }

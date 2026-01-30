@@ -21,10 +21,9 @@ export class GOEventEmitterBase<TEventMap extends object> implements GOEventEmit
     event: TEvent,
     handler: GOEventHandler<TEventMap[TEvent]>,
   ): void {
-    if (!this.listeners[event]) {
-      this.listeners[event] = [];
-    }
-    this.listeners[event]!.push(handler as GOEventHandler<unknown>);
+    const handlers = this.listeners[event] ?? [];
+    handlers.push(handler as GOEventHandler<unknown>);
+    this.listeners[event] = handlers;
   }
 
   /**
@@ -75,14 +74,20 @@ export class GOEventEmitterBase<TEventMap extends object> implements GOEventEmit
     const handlers = this.listeners[event];
     if (!handlers) return;
 
-    handlers.forEach((handler) => {
+    for (const handler of handlers) {
       try {
-        handler(payload);
+        const result = handler(payload);
+        // If handler returns a promise, catch any errors
+        if (result instanceof Promise) {
+          result.catch((error: unknown) => {
+            console.error(`Error in async event handler for "${String(event)}":`, error);
+          });
+        }
       } catch (error) {
         // Log error but don't stop other handlers
         console.error(`Error in event handler for "${String(event)}":`, error);
       }
-    });
+    }
   }
 
   /**

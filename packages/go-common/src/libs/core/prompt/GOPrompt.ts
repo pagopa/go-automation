@@ -7,6 +7,7 @@ import prompts from 'prompts';
 
 import { GOLogEventCategory } from '../logging/GOLogEventCategory.js';
 import { GOLogger } from '../logging/GOLogger.js';
+import { valueToString } from '../utils/GOValueToString.js';
 
 import { GOLoadingBar } from './GOLoadingBar.js';
 import { GOMultiSpinner } from './GOMultiSpinner.js';
@@ -393,7 +394,10 @@ export class GOPrompt {
 
     if (this.logger && this.logResponses) {
       const selected = choices.find((c) => c.value === value);
-      this.logger.log(GOLogEventCategory.INFO, `${message} → ${selected?.title ?? String(value)}`);
+      this.logger.log(
+        GOLogEventCategory.INFO,
+        `${message} → ${selected?.title ?? valueToString(value)}`,
+      );
     }
 
     return value;

@@ -14,6 +14,7 @@ import { GOSecretRedactor, GOSecretsSpecifierFactory } from '../GOSecretsSpecifi
 import type { GOSecretsSpecifier } from '../GOSecretsSpecifier.js';
 import { GOConfigKeyTransformer } from '../GOConfigKeyTransformer.js';
 import { GOEnvFileParser } from '../parsers/GOEnvFileParser.js';
+import { getErrorMessage } from '../../errors/GOErrorUtils.js';
 
 /**
  * Options for environment config provider
@@ -63,7 +64,7 @@ export class GOEnvironmentConfigProvider extends GOConfigProviderBase {
     if (options.environmentFilePath) {
       try {
         this.loadFromFile(options.environmentFilePath, options.encoding ?? 'utf8');
-      } catch (error) {
+      } catch {
         // Fallback to process.env if file doesn't exist or can't be read
         this.loadFromEnvironment(options.source ?? process.env);
       }
@@ -118,11 +119,11 @@ export class GOEnvironmentConfigProvider extends GOConfigProviderBase {
   private loadFromFile(filePath: string, encoding: BufferEncoding): void {
     try {
       const parsed = GOEnvFileParser.parseFile(filePath, encoding);
-      parsed.forEach((value, key) => {
+      for (const [key, value] of parsed) {
         this.values.set(key, this.parseArrayValue(value));
-      });
-    } catch (error: any) {
-      throw new Error(`Failed to load environment file ${filePath}: ${error.message}`);
+      }
+    } catch (error: unknown) {
+      throw new Error(`Failed to load environment file ${filePath}: ${getErrorMessage(error)}`);
     }
   }
 

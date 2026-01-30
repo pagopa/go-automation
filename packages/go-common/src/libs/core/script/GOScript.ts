@@ -22,8 +22,13 @@ import { GOLogger } from '../logging/GOLogger.js';
 import { GOConsoleLoggerHandler } from '../logging/handlers/GOConsoleLoggerHandler.js';
 import { GOFileLoggerHandler } from '../logging/handlers/GOFileLoggerHandler.js';
 import { GOPrompt } from '../prompt/GOPrompt.js';
-import { getErrorMessage } from '../errors/GOErrorUtils.js';
-import { GOPaths, formatConfigValueDisplay, formatConfigSourceDisplay } from '../utils/index.js';
+import { getErrorMessage, getErrorStack, toError } from '../errors/GOErrorUtils.js';
+import {
+  GOPaths,
+  formatConfigValueDisplay,
+  formatConfigSourceDisplay,
+  valueToString,
+} from '../utils/index.js';
 import type { GOPathTypeValue } from '../utils/index.js';
 
 import { GOScriptConfigLoader } from './GOScriptConfigLoader.js';
@@ -544,13 +549,13 @@ export class GOScript {
           header: 'Value',
           key: 'value',
           width: valueWidth,
-          formatter: (value: string) => formatConfigValueDisplay(value, valueContentWidth),
+          formatter: (value) => formatConfigValueDisplay(valueToString(value), valueContentWidth),
         },
         {
           header: 'Source',
           key: 'source',
           width: sourceWidth,
-          formatter: (value: string) => formatConfigSourceDisplay(value, sourceContentWidth),
+          formatter: (value) => formatConfigSourceDisplay(valueToString(value), sourceContentWidth),
         },
       ],
       data: tableData,
@@ -565,21 +570,21 @@ export class GOScript {
   private formatConfigValue(paramName: string): string {
     const value = this.configValues[paramName];
     const isSecret = /key|secret|password|token/i.test(paramName);
-    return isSecret ? '***REDACTED***' : JSON.stringify(value);
+    return isSecret ? '***REDACTED***' : valueToString(value);
   }
 
   /**
    * Handle errors
    */
-  private async handleError(error: Error): Promise<void> {
-    const errorMessage = error.message ?? String(error);
-    const errorStack = error.stack ?? String(error);
+  private async handleError(error: unknown): Promise<void> {
+    const errorMessage = getErrorMessage(error);
+    const errorStack = getErrorStack(error);
 
     this.logger.error(`Error: ${errorMessage}`);
     this.logger.fatal(`Error: \n${errorStack}`);
 
     // On error hook
-    await this.hooks.onError?.(error);
+    await this.hooks.onError?.(toError(error));
   }
 
   /**
