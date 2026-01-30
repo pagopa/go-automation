@@ -202,14 +202,9 @@ export class GOMultiSpinner {
    * @param text Final message (optional, uses current text if not provided)
    */
   public succeed(id: string, text?: string): void;
-  public succeed(messageOrId?: string, text?: string): void {
-    if (this.singleSpinnerMode && arguments.length <= 1) {
-      // Single-spinner mode: succeed(message?)
-      this.completeTask(this.singleSpinnerId, messageOrId, 'success');
-    } else {
-      // Multi-spinner mode: succeed(id, text?)
-      this.completeTask(messageOrId!, text, 'success');
-    }
+  public succeed(idOrMessage?: string, text?: string): void {
+    const { id, text: finalText } = this.resolveIdAndText(idOrMessage, text);
+    this.completeTask(id, finalText, 'success');
   }
 
   /**
@@ -224,14 +219,9 @@ export class GOMultiSpinner {
    * @param text Final message (optional, uses current text if not provided)
    */
   public fail(id: string, text?: string): void;
-  public fail(messageOrId?: string, text?: string): void {
-    if (this.singleSpinnerMode && arguments.length <= 1) {
-      // Single-spinner mode: fail(message?)
-      this.completeTask(this.singleSpinnerId, messageOrId, 'fail');
-    } else {
-      // Multi-spinner mode: fail(id, text?)
-      this.completeTask(messageOrId!, text, 'fail');
-    }
+  public fail(idOrMessage?: string, text?: string): void {
+    const { id, text: finalText } = this.resolveIdAndText(idOrMessage, text);
+    this.completeTask(id, finalText, 'fail');
   }
 
   /**
@@ -246,14 +236,9 @@ export class GOMultiSpinner {
    * @param text Final message (optional, uses current text if not provided)
    */
   public warn(id: string, text?: string): void;
-  public warn(messageOrId?: string, text?: string): void {
-    if (this.singleSpinnerMode && arguments.length <= 1) {
-      // Single-spinner mode: warn(message?)
-      this.completeTask(this.singleSpinnerId, messageOrId, 'warn');
-    } else {
-      // Multi-spinner mode: warn(id, text?)
-      this.completeTask(messageOrId!, text, 'warn');
-    }
+  public warn(idOrMessage?: string, text?: string): void {
+    const { id, text: finalText } = this.resolveIdAndText(idOrMessage, text);
+    this.completeTask(id, finalText, 'warn');
   }
 
   /**
@@ -268,14 +253,9 @@ export class GOMultiSpinner {
    * @param text Final message (optional, uses current text if not provided)
    */
   public info(id: string, text?: string): void;
-  public info(messageOrId?: string, text?: string): void {
-    if (this.singleSpinnerMode && arguments.length <= 1) {
-      // Single-spinner mode: info(message?)
-      this.completeTask(this.singleSpinnerId, messageOrId, 'info');
-    } else {
-      // Multi-spinner mode: info(id, text?)
-      this.completeTask(messageOrId!, text, 'info');
-    }
+  public info(idOrMessage?: string, text?: string): void {
+    const { id, text: finalText } = this.resolveIdAndText(idOrMessage, text);
+    this.completeTask(id, finalText, 'info');
   }
 
   private stopSingle(message?: string): void {
@@ -320,6 +300,23 @@ export class GOMultiSpinner {
   }
 
   // ==================== Private Methods ====================
+
+  /**
+   * Resolve task ID and text based on current mode.
+   * In single-spinner mode with only one argument, treat it as message.
+   * Otherwise, treat first arg as ID (defaults to singleSpinnerId).
+   */
+  private resolveIdAndText(
+    idOrMessage: string | undefined,
+    text: string | undefined,
+  ): { id: string; text: string | undefined } {
+    // In single-spinner mode with only one argument, treat it as message
+    if (this.singleSpinnerMode && text === undefined) {
+      return { id: this.singleSpinnerId, text: idOrMessage };
+    }
+    // Otherwise treat first arg as id (default to singleSpinnerId if not provided)
+    return { id: idOrMessage ?? this.singleSpinnerId, text };
+  }
 
   private completeTask(
     id: string,

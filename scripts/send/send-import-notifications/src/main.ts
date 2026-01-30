@@ -93,11 +93,11 @@ function setupEventListeners(
   worker.on('worker:error', (event) => {
     let errorMsg = `\x1b[31mX\x1b[0m Error at row ${event.error.rowIndex} [${event.error.type}]: ${event.error.message}`;
 
-    if (event.error.details) {
+    if (event.error.details !== undefined && event.error.details !== null) {
       const details =
         typeof event.error.details === 'object'
           ? JSON.stringify(event.error.details, null, 2)
-          : String(event.error.details);
+          : JSON.stringify(event.error.details);
       errorMsg += `\n    Details: ${details}`;
     }
 

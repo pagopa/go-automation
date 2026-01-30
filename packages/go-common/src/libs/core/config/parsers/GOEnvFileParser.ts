@@ -12,6 +12,7 @@
  */
 
 import * as fs from 'fs';
+import { getErrorMessage } from '../../errors/GOErrorUtils.js';
 
 /**
  * Parses .env style environment files
@@ -27,8 +28,8 @@ export class GOEnvFileParser {
     try {
       const content = fs.readFileSync(filePath, encoding);
       return this.parseContent(content);
-    } catch (error: any) {
-      throw new Error(`Failed to parse env file ${filePath}: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to parse env file ${filePath}: ${getErrorMessage(error)}`);
     }
   }
 
@@ -141,15 +142,18 @@ export class GOEnvFileParser {
     existingVars: Record<string, string | undefined>,
   ): string {
     // Expand ${VAR} syntax
-    value = value.replace(/\$\{([A-Za-z0-9_]+)\}/g, (_match, varName) => {
+    value = value.replace(/\$\{([A-Za-z0-9_]+)\}/g, (_match: string, varName: string): string => {
       // Check current vars first, then existing vars
       return currentVars.get(varName) ?? existingVars[varName] ?? '';
     });
 
     // Expand $VAR syntax (but not ${ or escaped \$)
-    value = value.replace(/(?<!\\)\$([A-Za-z_][A-Za-z0-9_]*)/g, (_match, varName) => {
-      return currentVars.get(varName) ?? existingVars[varName] ?? '';
-    });
+    value = value.replace(
+      /(?<!\\)\$([A-Za-z_][A-Za-z0-9_]*)/g,
+      (_match: string, varName: string): string => {
+        return currentVars.get(varName) ?? existingVars[varName] ?? '';
+      },
+    );
 
     // Remove escaped dollar signs
     value = value.replace(/\\\$/g, '$');

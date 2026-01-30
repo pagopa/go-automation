@@ -56,6 +56,15 @@ export interface CategoryStyle {
 }
 
 /**
+ * Default style used as fallback when category style is not found
+ */
+const DEFAULT_STYLE: CategoryStyle = {
+  color: ConsoleColors.WHITE,
+  format: '{prefix}{message}',
+  prefix: '→ ',
+};
+
+/**
  * Console logger style configuration
  */
 export class GOConsoleLoggerStyle {
@@ -107,7 +116,7 @@ export class GOConsoleLoggerStyle {
    * Get style for a category
    */
   public getStyle(category: GOLogEventCategory): CategoryStyle {
-    return this.styles.get(category) ?? this.styles.get(GOLogEventCategory.STEP)!;
+    return this.styles.get(category) ?? DEFAULT_STYLE;
   }
 
   /**

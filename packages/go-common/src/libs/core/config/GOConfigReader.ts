@@ -7,6 +7,7 @@
 
 import type { GOConfigProvider } from './GOConfigProvider.js';
 import { GOConfigTypeConverter } from './GOConfigTypeConverter.js';
+import { getErrorMessage } from '../errors/GOErrorUtils.js';
 
 /**
  * Access log entry for a configuration key
@@ -64,7 +65,7 @@ export class GOConfigReader {
 
     try {
       return GOConfigTypeConverter.toString(value);
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.logConversionError(forKey, 'string', error);
       return defaultValue;
     }
@@ -82,7 +83,7 @@ export class GOConfigReader {
 
     try {
       return GOConfigTypeConverter.toInt(value);
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.logConversionError(forKey, 'int', error);
       return defaultValue;
     }
@@ -100,7 +101,7 @@ export class GOConfigReader {
 
     try {
       return GOConfigTypeConverter.toDouble(value);
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.logConversionError(forKey, 'double', error);
       return defaultValue;
     }
@@ -118,7 +119,7 @@ export class GOConfigReader {
 
     try {
       return GOConfigTypeConverter.toBool(value);
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.logConversionError(forKey, 'bool', error);
       return defaultValue;
     }
@@ -137,7 +138,7 @@ export class GOConfigReader {
 
     try {
       return GOConfigTypeConverter.toStringArray(value, separator);
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.logConversionError(forKey, 'stringArray', error);
       return defaultValue;
     }
@@ -156,7 +157,7 @@ export class GOConfigReader {
 
     try {
       return GOConfigTypeConverter.toIntArray(value, separator);
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.logConversionError(forKey, 'intArray', error);
       return defaultValue;
     }
@@ -175,7 +176,7 @@ export class GOConfigReader {
 
     try {
       return GOConfigTypeConverter.toDoubleArray(value, separator);
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.logConversionError(forKey, 'doubleArray', error);
       return defaultValue;
     }
@@ -194,7 +195,7 @@ export class GOConfigReader {
 
     try {
       return GOConfigTypeConverter.toBoolArray(value, separator);
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.logConversionError(forKey, 'boolArray', error);
       return defaultValue;
     }
@@ -217,7 +218,7 @@ export class GOConfigReader {
 
     try {
       return GOConfigTypeConverter.toBuffer(value, encoding);
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.logConversionError(forKey, 'buffer', error);
       return defaultValue;
     }
@@ -242,7 +243,7 @@ export class GOConfigReader {
 
     try {
       return GOConfigTypeConverter.toBufferArray(value, separator, encoding);
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.logConversionError(forKey, 'bufferArray', error);
       return defaultValue;
     }
@@ -303,8 +304,10 @@ export class GOConfigReader {
   /**
    * Log type conversion error
    */
-  private logConversionError(key: string, targetType: string, error: Error): void {
-    console.warn(`[GOConfigReader] Failed to convert "${key}" to ${targetType}: ${error.message}`);
+  private logConversionError(key: string, targetType: string, error: unknown): void {
+    console.warn(
+      `[GOConfigReader] Failed to convert "${key}" to ${targetType}: ${getErrorMessage(error)}`,
+    );
   }
 
   /**
@@ -316,7 +319,7 @@ export class GOConfigReader {
     const providerUsageStats = new Map<string, number>();
     let totalAccesses = 0;
 
-    this.accessLog.forEach((log, key) => {
+    for (const [key, log] of this.accessLog) {
       accessedKeys.push({
         key,
         provider: log.provider,
@@ -330,7 +333,7 @@ export class GOConfigReader {
       if (log.provider !== 'NONE') {
         providerUsageStats.set(log.provider, (providerUsageStats.get(log.provider) ?? 0) + 1);
       }
-    });
+    }
 
     // Find unused providers
     const usedProviders = new Set(providerUsageStats.keys());
@@ -352,40 +355,39 @@ export class GOConfigReader {
   printReport(): void {
     const report = this.getAccessReport();
 
-    console.log('\n=== Configuration Access Report ===');
-    console.log(`Total accesses: ${report.totalAccesses}`);
-    console.log(`Unique keys accessed: ${report.accessedKeys.length}`);
+    process.stdout.write('\n=== Configuration Access Report ===\n');
+    process.stdout.write(`Total accesses: ${report.totalAccesses}\n`);
+    process.stdout.write(`Unique keys accessed: ${report.accessedKeys.length}\n`);
 
-    console.log('\nProvider Usage:');
-    report.providerUsageStats.forEach((count, provider) => {
-      console.log(`  ${provider}: ${count} keys`);
-    });
-
-    if (report.unusedProviders.length > 0) {
-      console.log('\nUnused Providers:');
-      report.unusedProviders.forEach((name) => {
-        console.log(`  ${name}`);
-      });
+    process.stdout.write('\nProvider Usage:\n');
+    for (const [provider, count] of report.providerUsageStats) {
+      process.stdout.write(`  ${provider}: ${count} keys\n`);
     }
 
-    console.log('\nAccessed Keys:');
-    report.accessedKeys
-      .sort((a, b) => b.accessCount - a.accessCount)
-      .forEach((entry) => {
-        const value = entry.isSecret
-          ? '[REDACTED]'
-          : entry.lastValue !== undefined
-            ? Array.isArray(entry.lastValue)
-              ? `[${entry.lastValue.join(', ')}]`
-              : entry.lastValue
-            : 'NOT FOUND';
+    if (report.unusedProviders.length > 0) {
+      process.stdout.write('\nUnused Providers:\n');
+      for (const name of report.unusedProviders) {
+        process.stdout.write(`  ${name}\n`);
+      }
+    }
 
-        console.log(
-          `  ${entry.key}: ${value} (from ${entry.provider}, accessed ${entry.accessCount}x)`,
-        );
-      });
+    process.stdout.write('\nAccessed Keys:\n');
+    const sortedKeys = [...report.accessedKeys].sort((a, b) => b.accessCount - a.accessCount);
+    for (const entry of sortedKeys) {
+      const value = entry.isSecret
+        ? '[REDACTED]'
+        : entry.lastValue !== undefined
+          ? Array.isArray(entry.lastValue)
+            ? `[${entry.lastValue.join(', ')}]`
+            : entry.lastValue
+          : 'NOT FOUND';
 
-    console.log('===================================\n');
+      process.stdout.write(
+        `  ${entry.key}: ${value} (from ${entry.provider}, accessed ${entry.accessCount}x)\n`,
+      );
+    }
+
+    process.stdout.write('===================================\n\n');
   }
 
   /**
@@ -414,9 +416,11 @@ export class GOConfigReader {
    */
   getAllKeys(): string[] {
     const allKeys = new Set<string>();
-    this.providers.forEach((provider) => {
-      provider.getAllKeys().forEach((key) => allKeys.add(key));
-    });
+    for (const provider of this.providers) {
+      for (const key of provider.getAllKeys()) {
+        allKeys.add(key);
+      }
+    }
     return Array.from(allKeys);
   }
 }

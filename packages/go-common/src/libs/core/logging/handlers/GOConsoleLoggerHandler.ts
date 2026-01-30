@@ -41,7 +41,7 @@ export class GOConsoleLoggerHandler implements GOLoggerHandler {
 
     // Format and output
     const formatted = this.style.format(event, indent);
-    console.log(formatted);
+    process.stdout.write(`${formatted}\n`);
 
     // Increase indentation after header/section
     if (
@@ -74,6 +74,7 @@ export class GOConsoleLoggerHandler implements GOLoggerHandler {
   /**
    * Reset indentation to zero
    */
+  // eslint-disable-next-line @typescript-eslint/require-await
   public async reset(): Promise<void> {
     this.indentLevel = 0;
   }

@@ -5,6 +5,8 @@
  * (numbers, booleans, arrays, buffers, etc.)
  */
 
+import { getErrorMessage } from '../errors/GOErrorUtils.js';
+
 /**
  * Converts raw configuration values to specific types
  */
@@ -154,9 +156,9 @@ export class GOConfigTypeConverter {
     const str = this.toString(value);
     try {
       return Buffer.from(str, encoding);
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw new Error(
-        `Cannot convert "${str}" to Buffer with encoding ${encoding}: ${error.message}`,
+        `Cannot convert "${str}" to Buffer with encoding ${encoding}: ${getErrorMessage(error)}`,
       );
     }
   }
@@ -176,9 +178,9 @@ export class GOConfigTypeConverter {
     return this.toStringArray(value, separator).map((v) => {
       try {
         return Buffer.from(v, encoding);
-      } catch (error: any) {
+      } catch (error: unknown) {
         throw new Error(
-          `Cannot convert "${v}" to Buffer with encoding ${encoding}: ${error.message}`,
+          `Cannot convert "${v}" to Buffer with encoding ${encoding}: ${getErrorMessage(error)}`,
         );
       }
     });
@@ -202,7 +204,7 @@ export class GOConfigTypeConverter {
 
     try {
       return converter(value);
-    } catch (error) {
+    } catch {
       return defaultValue;
     }
   }

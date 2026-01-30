@@ -3,6 +3,7 @@
  */
 
 import { GOEventEmitterBase } from '../../../core/events/GOEventEmitterBase.js';
+import { getErrorMessage } from '../../../core/errors/GOErrorUtils.js';
 
 import { SENDNotificationImportRowProcessor } from './SENDNotificationImportRowProcessor.js';
 import type { SENDNotificationImportWorkerError } from './SENDNotificationImportWorkerError.js';
@@ -18,7 +19,6 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
     // Forward events from RowProcessor to enable real-time export
     // When IUN is obtained, Worker can export immediately instead of waiting for batch completion
     this.rowProcessor.on('worker:iun:obtained', (event) => {
-      console.log(`[DEBUG] BatchProcessor forwarding IUN event: ${event.iun}`);
       this.emit('worker:iun:obtained', event);
     });
 
@@ -140,7 +140,7 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
       iunsObtained: number;
       failedRows: number;
     },
-  ) {
+  ): void {
     if (result.docUploaded) stats.documentsUploaded++;
     if (result.notificationResult) {
       sentNotifications.push({
@@ -155,7 +155,7 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
   }
 
   private handleError(
-    error: any,
+    error: unknown,
     row: SENDNotificationRow,
     rowIndex: number,
     errors: SENDNotificationImportWorkerError[],
@@ -166,12 +166,13 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
       iunsObtained: number;
       failedRows: number;
     },
-  ) {
+  ): void {
     stats.failedRows++;
 
     // Enhanced error message for better debugging
-    let errorMessage = error.message ?? 'Unknown error';
-    if (error.name === 'AbortError' || errorMessage.includes('Request aborted')) {
+    let errorMessage = getErrorMessage(error);
+    const isAbortError = this.isAbortError(error);
+    if (isAbortError || errorMessage.includes('Request aborted')) {
       errorMessage = `${errorMessage} (Timeout or network issue - check API response time)`;
     }
 
@@ -180,16 +181,45 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
       rowData: row,
       message: errorMessage,
       type: this.getErrorType(error),
-      details: error.response ?? error,
+      details: this.getErrorDetails(error),
     };
     errors.push(workerError);
     this.emit('worker:error', { error: workerError });
   }
 
-  private getErrorType(error: any): SENDNotificationImportWorkerError['type'] {
-    if (error.message?.includes('upload') || error.message?.includes('document')) return 'upload';
-    if (error.message?.includes('build') || error.message?.includes('validation')) return 'build';
-    if (error.statusCode || error.response) return 'send';
+  /**
+   * Check if error is an AbortError (timeout or cancelled request)
+   */
+  private isAbortError(error: unknown): boolean {
+    return (
+      error instanceof Error &&
+      (error.name === 'AbortError' || error.message.includes('Request aborted'))
+    );
+  }
+
+  /**
+   * Extract error details (response data if available)
+   */
+  private getErrorDetails(error: unknown): unknown {
+    if (typeof error === 'object' && error !== null && 'response' in error) {
+      return (error as { response: unknown }).response;
+    }
+    return error;
+  }
+
+  /**
+   * Determine error type based on error content
+   */
+  private getErrorType(error: unknown): SENDNotificationImportWorkerError['type'] {
+    const message = getErrorMessage(error);
+    if (message.includes('upload') || message.includes('document')) return 'upload';
+    if (message.includes('build') || message.includes('validation')) return 'build';
+
+    // Check for API response errors
+    if (typeof error === 'object' && error !== null) {
+      if ('statusCode' in error || 'response' in error) return 'send';
+    }
+
     return 'build';
   }
 }

@@ -11,6 +11,7 @@ import { GOConfigReader } from './GOConfigReader.js';
 import { GOConfigHelpGenerator } from './GOConfigHelpGenerator.js';
 import type { GOConfigHelpGeneratorOptions } from './GOConfigHelpGenerator.js';
 import { getErrorMessage } from '../errors/GOErrorUtils.js';
+import { valueToString } from '../utils/GOValueToString.js';
 
 /**
  * Configuration schema options
@@ -133,14 +134,14 @@ export class GOConfigSchema {
    * Print help to console
    */
   printHelp(): void {
-    console.log(this.generateHelp());
+    process.stdout.write(`${this.generateHelp()}\n`);
   }
 
   /**
    * Print compact help to console
    */
   printCompactHelp(): void {
-    console.log(this.generateCompactHelp());
+    process.stdout.write(`${this.generateCompactHelp()}\n`);
   }
 
   /**
@@ -283,7 +284,7 @@ export class GOConfigSchema {
         }
 
         if (param.defaultValue !== undefined) {
-          lines.push(`**Default:** \`${param.defaultValue}\``);
+          lines.push(`**Default:** \`${valueToString(param.defaultValue)}\``);
           lines.push('');
         }
 

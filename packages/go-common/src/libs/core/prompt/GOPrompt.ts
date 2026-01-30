@@ -406,7 +406,7 @@ export class GOPrompt {
     message: string,
     choices: GOPromptMultiselectOption[],
   ): Promise<T[]> {
-    const response = await prompts({
+    const response: { value?: T[] } = await prompts({
       type: 'multiselect',
       name: 'value',
       message: message,
@@ -418,10 +418,10 @@ export class GOPrompt {
       })),
     });
 
-    const values = response.value ?? [];
+    const values: T[] = response.value ?? [];
 
     if (this.logger && this.logResponses) {
-      const selected = choices.filter((c) => values.includes(c.value));
+      const selected = choices.filter((c) => values.includes(c.value as T));
       const titles = selected.map((s) => s.title).join(', ');
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${titles || 'None'}`);
     }
@@ -433,7 +433,7 @@ export class GOPrompt {
    * Ask for autocomplete text input
    */
   public async autocomplete(message: string, choices: string[], initial?: string): Promise<string> {
-    const response = await prompts({
+    const response: { value?: string } = await prompts({
       type: 'autocomplete',
       name: 'value',
       message: message,
@@ -441,7 +441,7 @@ export class GOPrompt {
       choices: choices.map((choice) => ({ title: choice, value: choice })),
     });
 
-    const value = response.value ?? '';
+    const value: string = response.value ?? '';
 
     if (this.logger && this.logResponses) {
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${value}`);

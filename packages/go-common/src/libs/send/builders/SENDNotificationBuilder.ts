@@ -213,11 +213,10 @@ export class SENDNotificationBuilder {
    * Add payment to the last recipient
    */
   addPaymentToLastRecipient(payment: SENDPagoPaPayment): this {
-    if (this.currentRecipients.length === 0) {
+    const lastRecipient = this.currentRecipients.at(-1);
+    if (!lastRecipient) {
       throw new Error('No recipients added. Add a recipient before adding payment.');
     }
-    // Safe to assert non-null: array length is at least 1
-    const lastRecipient = this.currentRecipients[this.currentRecipients.length - 1]!;
     lastRecipient.payment = payment;
     return this;
   }
@@ -226,11 +225,10 @@ export class SENDNotificationBuilder {
    * Add F24 metadata to the last recipient
    */
   addF24ToLastRecipient(f24: SENDF24Metadata): this {
-    if (this.currentRecipients.length === 0) {
+    const lastRecipient = this.currentRecipients.at(-1);
+    if (!lastRecipient) {
       throw new Error('No recipients added. Add a recipient before adding F24.');
     }
-    // Safe to assert non-null: array length is at least 1
-    const lastRecipient = this.currentRecipients[this.currentRecipients.length - 1]!;
     lastRecipient.payments ??= [];
     lastRecipient.payments.push(f24);
     return this;

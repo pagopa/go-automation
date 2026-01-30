@@ -8,6 +8,7 @@ import type { SENDNotificationRow } from './SENDNotificationRow.js';
 import type { SENDAttachmentResult } from '../../services/attachment/models/SENDAttachmentResult.js';
 import type { SENDNotificationRequest } from '../../services/notification/models/SENDNotificationRequest.js';
 import { SENDRecipientType } from '../../services/notification/models/SENDRecipientType.js';
+import { SENDDigitalDomicileType } from '../../services/notification/models/SENDDigitalDomicileType.js';
 import type { SENDNotificationImportWorkerOptions } from './SENDNotificationImportWorkerOptions.js';
 import { GOEventEmitterBase } from '../../../core/events/GOEventEmitterBase.js';
 import type { SENDNotificationImportWorkerEventMap } from './SENDNotificationImportWorkerEvents.js';
@@ -232,13 +233,17 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
     if (row.group) builder.setGroup(row.group);
     if (row.taxonomyCode) builder.setTaxonomyCode(row.taxonomyCode);
 
-    // Determine recipient type based on available addresses
-    const hasPhysicalAddress = !!(
-      row.physicalAddress &&
-      row.physicalZip &&
-      row.physicalMunicipality
-    );
-    const hasDigitalDomicile = !!(row.digitalType && row.digitalAddress);
+    // Validate and extract physical address (required for both analog and mixed)
+    const physicalAddress = row.physicalAddress;
+    const physicalZip = row.physicalZip;
+    const physicalMunicipality = row.physicalMunicipality;
+
+    const hasPhysicalAddress = !!(physicalAddress && physicalZip && physicalMunicipality);
+
+    // Validate and extract digital domicile (required for mixed delivery)
+    const digitalType = row.digitalType;
+    const digitalAddress = row.digitalAddress;
+    const hasDigitalDomicile = !!(digitalType && digitalAddress);
 
     // Add recipient with appropriate delivery method
     // Mixed: both physical (analog) and digital delivery
@@ -248,18 +253,18 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
         row.recipientTaxId,
         row.recipientDenomination,
         {
-          address: row.physicalAddress!,
+          address: physicalAddress,
           addressDetails: row.physicalAddressDetails,
-          zip: row.physicalZip!,
-          municipality: row.physicalMunicipality!,
+          zip: physicalZip,
+          municipality: physicalMunicipality,
           municipalityDetails: row.physicalMunicipalityDetails,
           province: row.physicalProvince ?? '',
           foreignState: row.physicalForeignState,
           at: undefined,
         },
         {
-          type: row.digitalType as any,
-          address: row.digitalAddress!,
+          type: digitalType as SENDDigitalDomicileType,
+          address: digitalAddress,
         },
         row.recipientType as SENDRecipientType,
       );
@@ -268,10 +273,10 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
         row.recipientTaxId,
         row.recipientDenomination,
         {
-          address: row.physicalAddress!,
+          address: physicalAddress,
           addressDetails: row.physicalAddressDetails,
-          zip: row.physicalZip!,
-          municipality: row.physicalMunicipality!,
+          zip: physicalZip,
+          municipality: physicalMunicipality,
           municipalityDetails: row.physicalMunicipalityDetails,
           province: row.physicalProvince ?? '',
           foreignState: row.physicalForeignState,
