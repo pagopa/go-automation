@@ -38,8 +38,6 @@ jobs:
 
       - name: Lint
         run: pnpm lint
-        # TODO: Remove continue-on-error after fixing existing lint issues
-        continue-on-error: true
 
       - name: Check formatting
         run: pnpm format:check
