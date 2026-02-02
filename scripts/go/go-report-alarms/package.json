@@ -1,6 +1,6 @@
 {
   "name": "go-report-alarms",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "description": "Script di analisi degli allarmi CloudWatch per il team GO - Gestione Operativa",
