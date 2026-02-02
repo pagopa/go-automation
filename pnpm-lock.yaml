@@ -136,6 +136,16 @@ importers:
         specifier: ^2.4.9
         version: 2.4.9
 
+  scripts/go/go-analyze-alarm:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+    devDependencies:
+      '@types/node':
+        specifier: ^24.10.9
+        version: 24.10.9
+
   scripts/go/go-report-alarms:
     dependencies:
       '@aws-sdk/client-cloudwatch':
@@ -154,16 +164,6 @@ importers:
       '@types/luxon':
         specifier: ^3.7.1
         version: 3.7.1
-      '@types/node':
-        specifier: ^24.10.9
-        version: 24.10.9
-
-  scripts/go/go-uno-tre:
-    dependencies:
-      '@go-automation/go-common':
-        specifier: workspace:*
-        version: link:../../../packages/go-common
-    devDependencies:
       '@types/node':
         specifier: ^24.10.9
         version: 24.10.9
