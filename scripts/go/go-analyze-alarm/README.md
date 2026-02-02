@@ -25,11 +25,11 @@ Elenco delle funzionalita principali:
 
 ### Software Richiesto
 
-| Software | Versione Minima | Note |
-|----------|-----------------|------|
-| Node.js  | >= 18.0.0       | LTS consigliata |
-| pnpm     | >= 8.0.0        | Package manager |
-| TypeScript | >= 5.0.0      | Incluso nel progetto |
+| Software   | Versione Minima | Note                 |
+| ---------- | --------------- | -------------------- |
+| Node.js    | >= 18.0.0       | LTS consigliata      |
+| pnpm       | >= 8.0.0        | Package manager      |
+| TypeScript | >= 5.0.0        | Incluso nel progetto |
 
 ### Account e Permessi
 
@@ -49,15 +49,15 @@ aws sso login --profile <nome-profilo>
 
 ### Parametri CLI
 
-| Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
-|-----------|-------|------|--------------|---------|-------------|
-| TODO: Aggiungere parametri | | | | | |
+| Parametro                  | Alias | Tipo | Obbligatorio | Default | Descrizione |
+| -------------------------- | ----- | ---- | ------------ | ------- | ----------- |
+| TODO: Aggiungere parametri |       |      |              |         |             |
 
 ### Variabili d'Ambiente
 
-| Variabile | Descrizione | Esempio |
-|-----------|-------------|---------|
-| TODO: Aggiungere variabili | | |
+| Variabile                  | Descrizione | Esempio |
+| -------------------------- | ----------- | ------- |
+| TODO: Aggiungere variabili |             |         |
 
 ### File di Configurazione
 
@@ -156,6 +156,7 @@ Descrivere il formato dell'output generato:
 **Causa**: Profilo AWS non configurato o sessione SSO scaduta.
 
 **Soluzione**:
+
 ```bash
 # Effettuare login SSO
 aws sso login --profile <nome-profilo>
@@ -166,6 +167,7 @@ aws sso login --profile <nome-profilo>
 **Causa**: Dipendenze non installate o build non eseguito.
 
 **Soluzione**:
+
 ```bash
 pnpm install
 pnpm build:common
