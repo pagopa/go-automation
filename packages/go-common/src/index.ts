@@ -14,4 +14,4 @@ export * as Core from './libs/core/index.js';
 export * as SEND from './libs/send/index.js';
 
 // Export AWS credentials management
-export * from './libs/aws/index.js';
+export * as AWS from './libs/aws/index.js';

@@ -3,7 +3,11 @@
  * Integrates logging, configuration, and prompts into a unified script framework
  */
 
-import { AWSClientProvider, GOAWSCredentialsManager } from '../../aws/index.js';
+import {
+  AWSClientProvider,
+  AWSMultiClientProvider,
+  GOAWSCredentialsManager,
+} from '../../aws/index.js';
 import { GOConfigKeyTransformer } from '../config/GOConfigKeyTransformer.js';
 import { GOConfigReader } from '../config/GOConfigReader.js';
 import { GOConfigSchema } from '../config/GOConfigSchema.js';
@@ -67,6 +71,7 @@ export class GOScript {
   private fileCopier?: GOFileCopier | undefined;
   private readonly fileCopierOptions?: GOScriptFileCopierOptions | undefined;
   private awsClientProvider?: AWSClientProvider | undefined;
+  private awsMultiClientProvider?: AWSMultiClientProvider | undefined;
 
   // State
   private initialized: boolean = false;
@@ -105,16 +110,18 @@ export class GOScript {
   }
 
   /**
-   * Initialize AWS credentials manager if aws.profile parameter is defined.
+   * Initialize AWS credentials manager if aws.profile or aws.profiles parameter is defined.
    */
   private initializeCredentialManager(
     configOptions?: GOScriptConfigOptions,
   ): GOAWSCredentialsManager | undefined {
     const hasAwsProfileParam =
       configOptions?.parameters?.some((p) => p.name === 'aws.profile') ?? false;
+    const hasAwsProfilesParam =
+      configOptions?.parameters?.some((p) => p.name === 'aws.profiles') ?? false;
     const awsCredentialsConfig = configOptions?.awsCredentials;
 
-    if (awsCredentialsConfig ?? hasAwsProfileParam) {
+    if (awsCredentialsConfig || hasAwsProfileParam || hasAwsProfilesParam) {
       return new GOAWSCredentialsManager({
         autoLogin: awsCredentialsConfig?.autoLogin ?? defaultAwsCredentialsOptions.autoLogin,
         interactive: awsCredentialsConfig?.interactive ?? defaultAwsCredentialsOptions.interactive,
@@ -595,10 +602,14 @@ export class GOScript {
       // Cleanup hook
       await this.hooks.onCleanup?.();
 
-      // Close AWS client provider
+      // Close AWS client providers
       if (this.awsClientProvider !== undefined) {
         this.awsClientProvider.close();
         this.awsClientProvider = undefined;
+      }
+      if (this.awsMultiClientProvider !== undefined) {
+        this.awsMultiClientProvider.close();
+        this.awsMultiClientProvider = undefined;
       }
 
       // Close file handlers
@@ -664,7 +675,7 @@ export class GOScript {
    * Handle AWS credentials based on execution environment
    *
    * Decision tree:
-   * 1. No aws.profile param -> skip
+   * 1. No aws.profile/aws.profiles param -> skip
    * 2. AWS-managed (Lambda, ECS, EC2) -> use default credential chain
    * 3. Environment credentials -> use as-is
    * 4. Web identity token -> use as-is
@@ -673,7 +684,7 @@ export class GOScript {
    */
   private async handleAWSCredentials(): Promise<void> {
     // Guard: No AWS config needed
-    if (!this.hasAwsProfileParameter()) return;
+    if (!this.hasAwsProfileParameter() && !this.hasAwsProfilesParameter()) return;
 
     this.logAWSEnvironmentInfo();
 
@@ -695,7 +706,16 @@ export class GOScript {
       return;
     }
 
-    // Main logic: SSO profile validation
+    // Handle multi-profile if aws.profiles is configured
+    if (this.hasAwsProfilesParameter()) {
+      const profiles = this.configValues['aws.profiles'] as ReadonlyArray<string> | undefined;
+      if (profiles && profiles.length > 0) {
+        await this.handleMultiProfileAWSCredentials(profiles);
+        return;
+      }
+    }
+
+    // Fall back to single profile handling
     const profile = this.configValues['aws.profile'] as string | undefined;
 
     if (this.environment.isInteractive) {
@@ -710,6 +730,53 @@ export class GOScript {
    */
   private hasAwsProfileParameter(): boolean {
     return this.options.config?.parameters?.some((p) => p.name === 'aws.profile') ?? false;
+  }
+
+  /**
+   * Check if script has aws.profiles parameter configured
+   */
+  private hasAwsProfilesParameter(): boolean {
+    return this.options.config?.parameters?.some((p) => p.name === 'aws.profiles') ?? false;
+  }
+
+  /**
+   * Handle AWS credentials for multiple profiles
+   * Validates all profiles and performs SSO login as needed
+   */
+  private async handleMultiProfileAWSCredentials(profiles: ReadonlyArray<string>): Promise<void> {
+    if (!this.credentialsManager) {
+      this.logger.warning('No credentials manager configured');
+      return;
+    }
+
+    this.logger.info(`Validating ${profiles.length} AWS profile(s): ${profiles.join(', ')}`);
+
+    const result = await this.credentialsManager.ensureValidCredentialsMultiple(profiles, {
+      failFast: false, // Continue validating all profiles
+    });
+
+    // Log results
+    if (result.successfulProfiles.length > 0) {
+      this.logger.info(`Valid profiles: ${result.validProfileNames.join(', ')}`);
+    }
+
+    if (result.failedProfiles.length > 0) {
+      for (const failure of result.failedProfiles) {
+        this.logger.warning(`Profile '${failure.profile}' failed: ${failure.error.message}`);
+      }
+    }
+
+    // Throw if all profiles failed
+    if (result.successfulProfiles.length === 0) {
+      throw new Error(`All AWS profiles failed validation. Profiles: ${profiles.join(', ')}`);
+    }
+
+    // Warn if some profiles failed but we have at least one valid
+    if (!result.allSucceeded) {
+      this.logger.warning(
+        `Continuing with ${result.successfulProfiles.length}/${result.profileCount} valid profiles`,
+      );
+    }
   }
 
   /**
@@ -815,6 +882,44 @@ export class GOScript {
       });
     }
     return this.awsClientProvider;
+  }
+
+  /**
+   * Returns the AWSMultiClientProvider for accessing AWS SDK clients across multiple profiles.
+   *
+   * The provider is created lazily on first access using the 'aws.profiles'
+   * configuration parameter. Subsequent accesses return the same instance.
+   *
+   * @throws Error if 'aws.profiles' parameter is not configured or empty
+   *
+   * @example
+   * ```typescript
+   * // Get client provider for a specific profile
+   * const devClient = script.awsMulti.getClientProvider('sso_pn-core-dev');
+   * const dynamoDB = devClient.dynamoDB;
+   *
+   * // Execute operation across all profiles
+   * const results = await script.awsMulti.mapParallelSettled(async (profile, client) => {
+   *   return client.dynamoDB.send(new ScanCommand({ TableName: 'my-table' }));
+   * });
+   * ```
+   */
+  get awsMulti(): AWSMultiClientProvider {
+    if (this.awsMultiClientProvider === undefined) {
+      const awsProfiles = this.configValues['aws.profiles'] as ReadonlyArray<string> | undefined;
+
+      if (!awsProfiles || awsProfiles.length === 0) {
+        throw new Error(
+          'Cannot access AWS multi-client provider: "aws.profiles" parameter is not configured or empty. ' +
+            'Add aws.profiles to your script parameters.',
+        );
+      }
+
+      this.awsMultiClientProvider = new AWSMultiClientProvider({
+        profiles: awsProfiles,
+      });
+    }
+    return this.awsMultiClientProvider;
   }
 
   // ============================================================================

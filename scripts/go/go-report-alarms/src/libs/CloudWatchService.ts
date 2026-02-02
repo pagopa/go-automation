@@ -4,7 +4,6 @@
 
 import { CloudWatchClient, DescribeAlarmHistoryCommand } from '@aws-sdk/client-cloudwatch';
 import type {
-  CloudWatchClientConfig,
   AlarmHistoryItem,
   DescribeAlarmHistoryCommandInput,
 } from '@aws-sdk/client-cloudwatch';
@@ -13,10 +12,8 @@ import type {
  * Service for interacting with AWS CloudWatch
  */
 export class CloudWatchService {
-  private readonly client: CloudWatchClient;
-
-  constructor(config: CloudWatchClientConfig) {
-    this.client = new CloudWatchClient(config);
+  constructor(private readonly client: CloudWatchClient) {
+    this.client = client;
   }
 
   /**

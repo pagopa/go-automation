@@ -33,6 +33,7 @@ export {
   isNullish,
   isPrimitive,
   isError,
+  isNodeError,
   isPlainObject,
   isObject,
   isArray,

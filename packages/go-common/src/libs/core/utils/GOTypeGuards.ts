@@ -70,6 +70,21 @@ export function isError(value: unknown): value is Error {
 }
 
 /**
+ * Type guard for Node.js errors with code property.
+ *
+ * @param error - Value to check
+ * @returns  returns true if value is a NodeJS.ErrnoException
+ *
+ * @example
+ * ```typescript
+ * isNodeError(someError); // true if someError is a NodeJS.ErrnoException
+ * ```
+ */
+export function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && 'code' in error;
+}
+
+/**
  * Checks if a value is a plain object (not null, not array, not Date, etc.).
  *
  * @param value - Value to check

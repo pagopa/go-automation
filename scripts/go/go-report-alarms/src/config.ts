@@ -13,8 +13,9 @@ import { loadIgnorePatterns } from './libs/PatternsUtils.js';
  */
 export const scriptMetadata: Core.GOScriptMetadata = {
   name: 'GO Report Alarms',
-  version: '1.0.0',
-  description: 'Analizza gli allarmi CloudWatch per i prodotti del team GO',
+  version: '2.0.0',
+  description:
+    'Analizza gli allarmi CloudWatch per i prodotti del team GO (supporto multi-account)',
   authors: ['Team GO - Gestione Operativa'],
 };
 
@@ -60,11 +61,11 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     asyncFallback: loadIgnorePatterns,
   },
   {
-    name: 'aws.profile',
-    type: Core.GOConfigParameterType.STRING,
-    description: 'AWS SSO profile name (e.g., sso_pn-core-dev)',
-    required: true,
-    aliases: ['ap'],
+    name: 'aws.profiles',
+    type: Core.GOConfigParameterType.STRING_ARRAY,
+    description: 'AWS SSO profile names for multi-account mode (comma-separated)',
+    required: false,
+    aliases: ['aps'],
   },
 ] as const;
 
@@ -88,6 +89,6 @@ export interface GoReportAlarmsConfig {
   /** Enable verbose output */
   readonly verbose: boolean;
 
-  /** AWS profile name */
-  readonly awsProfile: string;
+  /** Multiple AWS profile names (for multi-account mode) */
+  readonly awsProfiles: ReadonlyArray<string> | undefined;
 }

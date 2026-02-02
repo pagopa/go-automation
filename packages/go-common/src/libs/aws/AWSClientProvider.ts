@@ -7,6 +7,8 @@
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import type { DynamoDBClientConfig } from '@aws-sdk/client-dynamodb';
+import { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
+import type { CloudWatchClientConfig } from '@aws-sdk/client-cloudwatch';
 import { fromIni } from '@aws-sdk/credential-provider-ini';
 
 import { AWS_REGION } from './AWSRegion.js';
@@ -47,15 +49,21 @@ export interface AWSClientProviderConfig {
 export class AWSClientProvider {
   private readonly profile: string;
   private readonly region: string;
-  private readonly clientConfig: DynamoDBClientConfig;
+  private readonly dynamoDBClientConfig: DynamoDBClientConfig;
+  private readonly cloudWatchClientConfig: CloudWatchClientConfig;
 
   // Cached client instances (lazy initialization)
   private cachedDynamoDBClient: DynamoDBClient | null = null;
+  private cachedCloudWatchClient: CloudWatchClient | null = null;
 
   constructor(config: AWSClientProviderConfig) {
     this.profile = config.profile;
     this.region = config.region ?? AWS_REGION;
-    this.clientConfig = {
+    this.dynamoDBClientConfig = {
+      region: this.region,
+      credentials: fromIni({ profile: this.profile }),
+    };
+    this.cloudWatchClientConfig = {
       region: this.region,
       credentials: fromIni({ profile: this.profile }),
     };
@@ -66,8 +74,17 @@ export class AWSClientProvider {
    * Creates the client on first access.
    */
   get dynamoDB(): DynamoDBClient {
-    this.cachedDynamoDBClient ??= new DynamoDBClient(this.clientConfig);
+    this.cachedDynamoDBClient ??= new DynamoDBClient(this.dynamoDBClientConfig);
     return this.cachedDynamoDBClient;
+  }
+
+  /**
+   * Returns the cached CloudWatchClient instance.
+   * Creates the client on first access.
+   */
+  get cloudWatch(): CloudWatchClient {
+    this.cachedCloudWatchClient ??= new CloudWatchClient(this.cloudWatchClientConfig);
+    return this.cachedCloudWatchClient;
   }
 
   /**
@@ -92,6 +109,11 @@ export class AWSClientProvider {
     if (this.cachedDynamoDBClient !== null) {
       this.cachedDynamoDBClient.destroy();
       this.cachedDynamoDBClient = null;
+    }
+
+    if (this.cachedCloudWatchClient !== null) {
+      this.cachedCloudWatchClient.destroy();
+      this.cachedCloudWatchClient = null;
     }
   }
 }

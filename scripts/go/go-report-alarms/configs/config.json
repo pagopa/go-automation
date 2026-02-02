@@ -12,5 +12,8 @@
       "pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm",
       "redshift-interop-analytics"
     ]
+  },
+  "aws": {
+    "profiles": ["sso_pn-core-prod_readonly", "sso_pn-confinfo-prod"]
   }
 }

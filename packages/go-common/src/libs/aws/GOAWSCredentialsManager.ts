@@ -13,6 +13,12 @@ import { GOAWSCredentialsErrorType } from './GOAWSCredentialsError.js';
 import type { GOAWSCredentialsManagerOptions } from './GOAWSCredentialsManagerOptions.js';
 import type { GOAWSLoginResult } from './GOAWSLoginResult.js';
 import type { GOAWSRetryContext, GOAWSRetryOptions } from './GOAWSRetryContext.js';
+import type { AWSMultiProfileValidationResult } from './AWSMultiProfileValidationResult.js';
+import type {
+  AWSProfileValidationResult,
+  AWSProfileValidationSuccess,
+  AWSProfileValidationFailure,
+} from './AWSProfileValidationResult.js';
 
 /**
  * Internal options type with all required fields (no undefined)
@@ -449,6 +455,205 @@ export class GOAWSCredentialsManager {
 
     this.log('Credentials still invalid after login', 'error');
     return false;
+  }
+
+  /**
+   * Ensure valid AWS credentials for multiple profiles.
+   * Validates all profiles and handles SSO login for expired sessions.
+   *
+   * Behavior:
+   * - Validates all profiles in parallel
+   * - If interactive, prompts once to login for ALL invalid profiles
+   * - Executes SSO login sequentially for each invalid profile (browser can only handle one at a time)
+   * - Returns detailed results for each profile
+   *
+   * @param profiles - Array of AWS profile names to validate
+   * @param options - Optional settings for validation behavior
+   * @returns Detailed validation result for all profiles
+   *
+   * @example
+   * ```typescript
+   * const result = await manager.ensureValidCredentialsMultiple(
+   *   ['sso_pn-core-dev', 'sso_pn-core-uat', 'sso_pn-core-prod'],
+   *   { failFast: false }
+   * );
+   *
+   * if (result.allSucceeded) {
+   *   console.log('All profiles validated');
+   * } else {
+   *   console.log(`Valid: ${result.validProfileNames.join(', ')}`);
+   *   for (const failure of result.failedProfiles) {
+   *     console.log(`Failed: ${failure.profile} - ${failure.error.message}`);
+   *   }
+   * }
+   * ```
+   */
+  public async ensureValidCredentialsMultiple(
+    profiles: ReadonlyArray<string>,
+    options: {
+      readonly region?: string;
+      readonly failFast?: boolean;
+    } = {},
+  ): Promise<AWSMultiProfileValidationResult> {
+    const region = options.region ?? 'eu-south-1';
+    const failFast = options.failFast ?? false;
+
+    // Deduplicate profiles
+    const uniqueProfiles = [...new Set(profiles)];
+
+    if (uniqueProfiles.length === 0) {
+      return {
+        successfulProfiles: [],
+        failedProfiles: [],
+        allSucceeded: true,
+        profileCount: 0,
+        validProfileNames: [],
+      };
+    }
+
+    this.log(`Validating ${uniqueProfiles.length} AWS profile(s)...`, 'info');
+
+    // Phase 1: Validate all profiles in parallel
+    const validationResults = await this.validateProfilesParallel(uniqueProfiles, region);
+
+    // Separate valid and invalid profiles
+    const validProfiles: AWSProfileValidationSuccess[] = [];
+    const invalidProfiles: AWSProfileValidationFailure[] = [];
+
+    for (const result of validationResults) {
+      if (result.status === 'success') {
+        validProfiles.push(result);
+        this.log(`Profile '${result.profile}' credentials valid`, 'info');
+      } else {
+        invalidProfiles.push(result);
+        this.log(`Profile '${result.profile}' credentials invalid or expired`, 'warn');
+      }
+    }
+
+    // If all valid, return early
+    if (invalidProfiles.length === 0) {
+      return this.buildValidationResult(validProfiles, [], uniqueProfiles.length);
+    }
+
+    // If failFast and we have failures, return immediately
+    if (failFast && invalidProfiles.length > 0) {
+      this.log('Fail-fast enabled, stopping on first invalid profile', 'warn');
+      return this.buildValidationResult(validProfiles, invalidProfiles, uniqueProfiles.length);
+    }
+
+    // Phase 2: Attempt SSO login for recoverable failures
+    if (!this.options.autoLogin) {
+      this.log('Auto-login is disabled, skipping SSO login attempts', 'warn');
+      return this.buildValidationResult(validProfiles, invalidProfiles, uniqueProfiles.length);
+    }
+
+    const recoverableProfiles = invalidProfiles.filter((p) => p.isRecoverable);
+    if (recoverableProfiles.length === 0) {
+      this.log('No recoverable profiles found', 'warn');
+      return this.buildValidationResult(validProfiles, invalidProfiles, uniqueProfiles.length);
+    }
+
+    // Prompt user once for all profiles
+    if (this.options.interactive && this.onPrompt) {
+      const profileList = recoverableProfiles.map((p) => p.profile).join(', ');
+      const confirmed = await this.onPrompt(
+        `AWS SSO session expired for ${recoverableProfiles.length} profile(s): ${profileList}.\nLogin to all profiles?`,
+      );
+      if (!confirmed) {
+        this.log('User declined SSO login for multiple profiles', 'info');
+        return this.buildValidationResult(validProfiles, invalidProfiles, uniqueProfiles.length);
+      }
+    }
+
+    // Execute SSO login sequentially (browser can only handle one at a time)
+    const finalValid: AWSProfileValidationSuccess[] = [...validProfiles];
+    const finalInvalid: AWSProfileValidationFailure[] = invalidProfiles.filter(
+      (p) => !p.isRecoverable,
+    );
+
+    for (const failedProfile of recoverableProfiles) {
+      this.log(`Attempting SSO login for profile: ${failedProfile.profile}`, 'info');
+
+      const loginResult = await this.executeAWSSSOLogin(failedProfile.profile);
+
+      if (!loginResult.success) {
+        this.log(
+          `SSO login failed for ${failedProfile.profile}: ${loginResult.errorMessage}`,
+          'error',
+        );
+        finalInvalid.push(failedProfile);
+        continue;
+      }
+
+      // Verify credentials after login
+      if (await this.validateCredentialsAsync(failedProfile.profile, region)) {
+        this.log(`Profile '${failedProfile.profile}' now valid after login`, 'info');
+        finalValid.push({
+          status: 'success',
+          profile: failedProfile.profile,
+        });
+      } else {
+        this.log(`Profile '${failedProfile.profile}' still invalid after login`, 'error');
+        finalInvalid.push({
+          status: 'failure',
+          profile: failedProfile.profile,
+          error: new Error('Credentials still invalid after SSO login'),
+          isRecoverable: false,
+        });
+      }
+    }
+
+    return this.buildValidationResult(finalValid, finalInvalid, uniqueProfiles.length);
+  }
+
+  /**
+   * Validate multiple profiles in parallel
+   */
+  private async validateProfilesParallel(
+    profiles: ReadonlyArray<string>,
+    region: string,
+  ): Promise<ReadonlyArray<AWSProfileValidationResult>> {
+    const promises = profiles.map(async (profile): Promise<AWSProfileValidationResult> => {
+      try {
+        const isValid = await this.validateCredentialsAsync(profile, region);
+        if (isValid) {
+          return { status: 'success', profile };
+        }
+        return {
+          status: 'failure',
+          profile,
+          error: new Error('Credentials expired or invalid'),
+          isRecoverable: true,
+        };
+      } catch (error) {
+        const analysis = this.analyzeError(error);
+        return {
+          status: 'failure',
+          profile,
+          error: error instanceof Error ? error : new Error(String(error)),
+          isRecoverable: analysis.isRecoverable,
+        };
+      }
+    });
+
+    return Promise.all(promises);
+  }
+
+  /**
+   * Build the final validation result object
+   */
+  private buildValidationResult(
+    successfulProfiles: ReadonlyArray<AWSProfileValidationSuccess>,
+    failedProfiles: ReadonlyArray<AWSProfileValidationFailure>,
+    profileCount: number,
+  ): AWSMultiProfileValidationResult {
+    return {
+      successfulProfiles,
+      failedProfiles,
+      allSucceeded: failedProfiles.length === 0,
+      profileCount,
+      validProfileNames: successfulProfiles.map((p) => p.profile),
+    };
   }
 
   // ============================================================================

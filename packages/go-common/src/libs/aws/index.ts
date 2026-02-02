@@ -8,9 +8,13 @@
 export { AWS_REGION } from './AWSRegion.js';
 export type { AWSRegion } from './AWSRegion.js';
 
-// Client provider
+// Client provider (single profile)
 export { AWSClientProvider } from './AWSClientProvider.js';
 export type { AWSClientProviderConfig } from './AWSClientProvider.js';
+
+// Multi-client provider (multiple profiles)
+export { AWSMultiClientProvider } from './AWSMultiClientProvider.js';
+export type { AWSMultiClientProviderConfig } from './AWSMultiClientProvider.js';
 
 // DynamoDB query service
 export { DynamoDBQueryService } from './DynamoDBQueryService.js';
@@ -25,3 +29,15 @@ export type { GOAWSCredentialsErrorAnalysis } from './GOAWSCredentialsError.js';
 export type { GOAWSCredentialsManagerOptions } from './GOAWSCredentialsManagerOptions.js';
 export type { GOAWSLoginResult } from './GOAWSLoginResult.js';
 export type { GOAWSRetryContext, GOAWSRetryOptions } from './GOAWSRetryContext.js';
+
+// Multi-profile validation results
+export type { AWSMultiProfileValidationResult } from './AWSMultiProfileValidationResult.js';
+export type {
+  AWSProfileValidationResult,
+  AWSProfileValidationSuccess,
+  AWSProfileValidationFailure,
+} from './AWSProfileValidationResult.js';
+export {
+  isProfileValidationSuccess,
+  isProfileValidationFailure,
+} from './AWSProfileValidationResult.js';
