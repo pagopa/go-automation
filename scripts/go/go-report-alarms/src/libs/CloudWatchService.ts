@@ -45,7 +45,7 @@ export class CloudWatchService {
 
     const input: DescribeAlarmHistoryCommandInput = {
       AlarmName: alarmName,
-      HistoryItemType: 'StateUpdate',
+      HistoryItemType: 'Action',
       StartDate: start,
       EndDate: end,
       ScanBy: 'TimestampDescending',

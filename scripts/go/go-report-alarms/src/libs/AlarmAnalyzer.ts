@@ -10,6 +10,11 @@ import type {
   AlarmTimelineEntry,
   AlarmReportSummary,
 } from '../types/alarms.types.js';
+import type {
+  ActionHistoryData,
+  HistoryDataPublishedMessage,
+  PublishedMessageDefault,
+} from '../types/ActionHistoryData.js';
 
 /** Alarm data aggregated by name */
 interface AggregatedAlarmData {
@@ -26,12 +31,6 @@ export interface CombinedAnalysisResult {
 /** Utility type for objects with a count property */
 interface WithCount {
   readonly count: number;
-}
-
-/** Structure of alarm history data */
-interface AlarmHistoryData {
-  oldState: { stateValue: string };
-  newState: { stateValue: string };
 }
 
 /**
@@ -58,8 +57,28 @@ export class AlarmAnalyzer {
     const stateUpdateItems = alarmHistoryItems.filter((item) => {
       try {
         if (item.HistoryData === undefined) return false;
-        const parsed = JSON.parse(item.HistoryData) as AlarmHistoryData;
-        return parsed.newState.stateValue === 'ALARM';
+        /**
+         * Parse the HistoryData to check if NewStateValue is 'ALARM'.
+         * This involves multiple parsing steps due to nested JSON strings.
+         *
+         * The structure is:
+         * a. AlarmHistoryItem.HistoryData (string) -> ActionHistoryData
+         * b. ActionHistoryData.publishedMessage (string) -> HistoryDataPublishedMessage
+         * c. HistoryDataPublishedMessage.default (string) -> PublishedMessageDefault
+         * d. PublishedMessageDefault.NewStateValue (string)
+         *
+         * Finally, check if NewStateValue is 'ALARM'
+         * If any parsing step fails, we ignore the item (treat as not matching)
+         */
+
+        // First parse: HistoryData string -> object with publishedMessage as string
+        const data = JSON.parse(item.HistoryData) as ActionHistoryData;
+        // Second parse: publishedMessage string -> object with default as string
+        const message = JSON.parse(data.publishedMessage) as HistoryDataPublishedMessage;
+        // Third parse: default string -> PublishedMessageDefault object
+        const defaultMessage = JSON.parse(message.default) as PublishedMessageDefault;
+        // Check if NewStateValue is 'ALARM'
+        return defaultMessage.NewStateValue === 'ALARM';
       } catch {
         return false;
       }
