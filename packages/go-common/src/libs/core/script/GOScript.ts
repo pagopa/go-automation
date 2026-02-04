@@ -9,6 +9,7 @@ import {
   GOAWSCredentialsManager,
 } from '../../aws/index.js';
 import { GOConfigKeyTransformer } from '../config/GOConfigKeyTransformer.js';
+import type { GOConfigProvider } from '../config/GOConfigProvider.js';
 import { GOConfigReader } from '../config/GOConfigReader.js';
 import { GOConfigSchema } from '../config/GOConfigSchema.js';
 import { GOCommandLineConfigProvider } from '../config/providers/GOCommandLineConfigProvider.js';
@@ -213,27 +214,64 @@ export class GOScript {
         ? `Environment(data/${this.paths.getScriptName()}/configs/.env)`
         : `Environment(configs/.env)`;
 
-    const configProviders = configOptions?.configProviders ?? [
-      new GOCommandLineConfigProvider(),
-      new GOJSONConfigProvider({
-        filePath: jsonConfigInfo.path,
-        optional: true,
-        displayName: jsonDisplayName,
-      }),
-      new GOYAMLConfigProvider({
-        filePath: yamlConfigInfo.path,
-        optional: true,
-        displayName: yamlDisplayName,
-      }),
-      new GOEnvironmentConfigProvider({
-        environmentFilePath: envConfigInfo.path,
-        displayName: envDisplayName,
-      }),
-    ];
+    let configProviders: GOConfigProvider[];
+    try {
+      configProviders = configOptions?.configProviders ?? [
+        new GOCommandLineConfigProvider(),
+        new GOJSONConfigProvider({
+          filePath: jsonConfigInfo.path,
+          optional: true,
+          displayName: jsonDisplayName,
+        }),
+        new GOYAMLConfigProvider({
+          filePath: yamlConfigInfo.path,
+          optional: true,
+          displayName: yamlDisplayName,
+        }),
+        new GOEnvironmentConfigProvider({
+          environmentFilePath: envConfigInfo.path,
+          displayName: envDisplayName,
+        }),
+      ];
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error);
+      const fileType = this.detectConfigFileType(errorMessage);
+
+      this.logger.newline();
+      this.logger.section('Configuration Error');
+      this.logger.error('A configuration file was found but could not be parsed.');
+      this.logger.error(`Details: ${errorMessage}`);
+      this.logger.newline();
+      this.logger.info(
+        `Please verify that your configuration file contains valid ${fileType} syntax.`,
+      );
+      process.exit(1);
+    }
 
     const configReader = new GOConfigReader(configProviders);
     return configReader;
   }
+
+  /**
+   * Detect the configuration file type from a provider error message.
+   * Returns the specific file format name for user-facing messages.
+   *
+   * @param errorMessage - The error message thrown by a config provider
+   * @returns The detected file type label (e.g., "JSON", "YAML", ".env")
+   */
+  private detectConfigFileType(errorMessage: string): string {
+    if (errorMessage.includes('JSON')) {
+      return 'JSON';
+    }
+    if (errorMessage.includes('YAML')) {
+      return 'YAML';
+    }
+    if (errorMessage.includes('environment file') || errorMessage.includes('env file')) {
+      return '.env';
+    }
+    return 'JSON/YAML/.env';
+  }
+
   /**
    * Initialize configuration schema
    */

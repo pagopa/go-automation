@@ -9,6 +9,8 @@
  * - Type conversion for all supported types
  */
 
+import * as fs from 'fs';
+
 import { GOConfigProviderBase } from '../GOConfigProvider.js';
 import { GOSecretRedactor, GOSecretsSpecifierFactory } from '../GOSecretsSpecifier.js';
 import type { GOSecretsSpecifier } from '../GOSecretsSpecifier.js';
@@ -61,14 +63,11 @@ export class GOEnvironmentConfigProvider extends GOConfigProviderBase {
     this.displayName = options.displayName;
 
     // Load environment variables
-    if (options.environmentFilePath) {
-      try {
-        this.loadFromFile(options.environmentFilePath, options.encoding ?? 'utf8');
-      } catch {
-        // Fallback to process.env if file doesn't exist or can't be read
-        this.loadFromEnvironment(options.source ?? process.env);
-      }
+    if (options.environmentFilePath && fs.existsSync(options.environmentFilePath)) {
+      // File exists: parse it (throws if malformed)
+      this.loadFromFile(options.environmentFilePath, options.encoding ?? 'utf8');
     } else {
+      // No file path or file not found: fall back to process.env
       this.loadFromEnvironment(options.source ?? process.env);
     }
   }

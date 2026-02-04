@@ -87,8 +87,6 @@ export class GOJSONConfigProvider extends GOConfigProviderBase {
     // Check file existence for optional files
     if (!fs.existsSync(filePath)) {
       if (this.isOptional) {
-        // TODO: EMIT EVENT??
-        // console.debug(`[GOJSONConfigProvider] Optional file not found: ${filePath}`);
         return;
       }
       throw new Error(`Configuration file not found: ${filePath}`);
@@ -98,14 +96,7 @@ export class GOJSONConfigProvider extends GOConfigProviderBase {
       const content = fs.readFileSync(filePath, encoding);
       const data = JSON.parse(content) as Record<string, unknown>;
       this.loadFromData(data);
-      // TODO: EMIT EVENT??
-      // console.debug(`[GOJSONConfigProvider] Loaded ${this.values.size} keys from ${filePath}`);
     } catch (error: unknown) {
-      if (this.isOptional) {
-        // TODO: EMIT EVENT??
-        // console.warn(`[GOJSONConfigProvider] Optional file could not be loaded: ${filePath} - ${getErrorMessage(error)}`);
-        return;
-      }
       throw new Error(`Failed to load JSON config from ${filePath}: ${getErrorMessage(error)}`);
     }
   }
