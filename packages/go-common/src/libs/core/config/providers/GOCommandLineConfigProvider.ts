@@ -110,14 +110,14 @@ export class GOCommandLineConfigProvider extends GOConfigProviderBase {
     }
 
     // Normalize keys and store values
-    parsed.forEach((value, flagName) => {
+    for (const [flagName, value] of parsed) {
       // Store with normalized key (remove dashes, use dots)
       const normalizedKey = flagName.replace(/-/g, '.');
       this.values.set(normalizedKey, value);
 
       // Also store with original flag name for direct lookup
       this.values.set(flagName, value);
-    });
+    }
   }
 
   /**
@@ -133,7 +133,7 @@ export class GOCommandLineConfigProvider extends GOConfigProviderBase {
   getProvidedFlags(): string[] {
     const flags = new Set<string>();
 
-    this.rawArgs.forEach((arg) => {
+    for (const arg of this.rawArgs) {
       if (arg.startsWith('--')) {
         const part = arg.split('=')[0];
         if (part) {
@@ -147,7 +147,7 @@ export class GOCommandLineConfigProvider extends GOConfigProviderBase {
           flags.add(flagName);
         }
       }
-    });
+    }
 
     return Array.from(flags);
   }

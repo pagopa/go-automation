@@ -95,6 +95,14 @@ export interface GOScriptConfigOptions {
   /** Exit after showing help (default: true) */
   exitAfterHelp?: boolean;
 
+  /**
+   * When true, unknown CLI parameters cause the script to exit with an error
+   * and suggest the closest matching valid parameter.
+   * When false, unknown parameters are silently ignored (legacy behavior).
+   * Default: true
+   */
+  rejectUnknownParameters?: boolean;
+
   /** AWS credentials management options - Controls automatic SSO login when credentials expire*/
   awsCredentials?: GOScriptAWSCredentialsOptions;
 }

@@ -29,3 +29,6 @@ export * from './providers/GOCommandLineConfigProvider.js';
 export * from './parsers/GOEnvFileParser.js';
 export * from './parsers/GOCLIArgumentParser.js';
 export * from './parsers/GOYAMLParser.js';
+
+// Validation
+export * from './validation/index.js';

@@ -16,6 +16,7 @@ import { GOCommandLineConfigProvider } from '../config/providers/GOCommandLineCo
 import { GOEnvironmentConfigProvider } from '../config/providers/GOEnvironmentConfigProvider.js';
 import { GOJSONConfigProvider } from '../config/providers/GOJSONConfigProvider.js';
 import { GOYAMLConfigProvider } from '../config/providers/GOYAMLConfigProvider.js';
+import { GOUnknownParameterDetector } from '../config/validation/GOUnknownParameterDetector.js';
 import { GOCredentialSource } from '../environment/GOCredentialSource.js';
 import { GOExecutionEnvironment } from '../environment/GOExecutionEnvironment.js';
 import type { GOExecutionEnvironmentInfo } from '../environment/GOExecutionEnvironmentInfo.js';
@@ -68,6 +69,7 @@ export class GOScript {
 
   // Managers
   private readonly configLoader: GOScriptConfigLoader;
+  private cliProvider?: GOCommandLineConfigProvider | undefined;
   private readonly credentialsManager?: GOAWSCredentialsManager | undefined;
   private fileCopier?: GOFileCopier | undefined;
   private readonly fileCopierOptions?: GOScriptFileCopierOptions | undefined;
@@ -216,23 +218,32 @@ export class GOScript {
 
     let configProviders: GOConfigProvider[];
     try {
-      configProviders = configOptions?.configProviders ?? [
-        new GOCommandLineConfigProvider(),
-        new GOJSONConfigProvider({
-          filePath: jsonConfigInfo.path,
-          optional: true,
-          displayName: jsonDisplayName,
-        }),
-        new GOYAMLConfigProvider({
-          filePath: yamlConfigInfo.path,
-          optional: true,
-          displayName: yamlDisplayName,
-        }),
-        new GOEnvironmentConfigProvider({
-          environmentFilePath: envConfigInfo.path,
-          displayName: envDisplayName,
-        }),
-      ];
+      if (configOptions?.configProviders) {
+        // Custom providers: skip CLI provider tracking (cannot assume structure)
+        configProviders = configOptions.configProviders;
+      } else {
+        // Default providers: track CLI provider for unknown parameter detection
+        const cliProvider = new GOCommandLineConfigProvider();
+        this.cliProvider = cliProvider;
+
+        configProviders = [
+          cliProvider,
+          new GOJSONConfigProvider({
+            filePath: jsonConfigInfo.path,
+            optional: true,
+            displayName: jsonDisplayName,
+          }),
+          new GOYAMLConfigProvider({
+            filePath: yamlConfigInfo.path,
+            optional: true,
+            displayName: yamlDisplayName,
+          }),
+          new GOEnvironmentConfigProvider({
+            environmentFilePath: envConfigInfo.path,
+            displayName: envDisplayName,
+          }),
+        ];
+      }
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error);
       const fileType = this.detectConfigFileType(errorMessage);
@@ -376,6 +387,19 @@ export class GOScript {
           process.exit(0);
         }
         return {};
+      }
+
+      // Validate unknown CLI parameters (before loading for better UX)
+      if (this.options.config?.rejectUnknownParameters !== false && this.cliProvider) {
+        const providedFlags = this.cliProvider.getProvidedFlags();
+        const unknownErrors = GOUnknownParameterDetector.detect(providedFlags, this.configSchema);
+
+        if (unknownErrors.length > 0) {
+          const errorMessage = GOUnknownParameterDetector.formatErrorMessage(unknownErrors);
+          console.error(`\n${errorMessage}\n`);
+          this.showHelp();
+          process.exit(1);
+        }
       }
 
       // Load configuration using the config loader
