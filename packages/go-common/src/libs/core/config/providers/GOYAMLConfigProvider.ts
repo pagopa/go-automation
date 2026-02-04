@@ -88,8 +88,6 @@ export class GOYAMLConfigProvider extends GOConfigProviderBase {
     // Check file existence for optional files
     if (!fs.existsSync(filePath)) {
       if (this.isOptional) {
-        // TODO: EMIT EVENT??
-        // console.debug(`[GOYAMLConfigProvider] Optional file not found: ${filePath}`);
         return;
       }
       throw new Error(`Configuration file not found: ${filePath}`);
@@ -100,14 +98,7 @@ export class GOYAMLConfigProvider extends GOConfigProviderBase {
       if (isYAMLObject(data)) {
         this.loadFromData(data);
       }
-      // TODO: EMIT EVENT??
-      // console.debug(`[GOYAMLConfigProvider] Loaded ${this.values.size} keys from ${filePath}`);
     } catch (error: unknown) {
-      if (this.isOptional) {
-        // TODO: EMIT EVENT??
-        // console.warn(`[GOYAMLConfigProvider] Optional file could not be loaded: ${filePath} - ${getErrorMessage(error)}`);
-        return;
-      }
       throw new Error(`Failed to load YAML config from ${filePath}: ${getErrorMessage(error)}`);
     }
   }
