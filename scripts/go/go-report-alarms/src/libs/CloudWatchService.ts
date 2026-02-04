@@ -45,6 +45,7 @@ export class CloudWatchService {
 
     const input: DescribeAlarmHistoryCommandInput = {
       AlarmName: alarmName,
+      AlarmTypes: ['CompositeAlarm', 'MetricAlarm'],
       HistoryItemType: 'Action',
       StartDate: start,
       EndDate: end,
