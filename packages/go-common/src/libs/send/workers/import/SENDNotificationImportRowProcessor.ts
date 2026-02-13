@@ -312,10 +312,13 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
     address: string | undefined,
     municipality: string | undefined,
   ): SENDPhysicalAddress {
+    if (!address || !municipality) {
+      throw new Error('Address and municipality must be defined');
+    }
     // Safe: caller guarantees address and municipality are defined via hasPhysicalAddress check
     const obj: SENDPhysicalAddress = {
-      address: address!, // Safe: validated by hasPhysicalAddress
-      municipality: municipality!, // Safe: validated by hasPhysicalAddress
+      address: address,
+      municipality: municipality,
     };
     if (row.physicalAddressDetails) obj.addressDetails = row.physicalAddressDetails;
     if (row.physicalZip) obj.zip = row.physicalZip;
