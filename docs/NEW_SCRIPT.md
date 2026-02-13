@@ -1369,10 +1369,7 @@ items.forEach((item) => console.log(item));
  * console.log(result.notIgnored.length);
  * ```
  */
-export function filterAlarms(
-  alarms: readonly Alarm[],
-  patterns: readonly string[],
-): FilteredAlarms {
+export function filterAlarms(alarms: readonly Alarm[], patterns: readonly string[]): FilteredAlarms {
   // ...
 }
 ````

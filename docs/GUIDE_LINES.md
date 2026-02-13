@@ -499,9 +499,7 @@ function addItem(state: State, item: Item): State {
 ```typescript
 // CORRETTO: readonly per prevenire mutazioni
 function processAlarms(alarms: readonly Alarm[]): readonly ProcessedAlarm[] {
-  return alarms
-    .filter((alarm) => alarm.severity === 'high')
-    .map((alarm) => ({ ...alarm, processed: true }));
+  return alarms.filter((alarm) => alarm.severity === 'high').map((alarm) => ({ ...alarm, processed: true }));
 }
 
 // SBAGLIATO: Mutazioni interne
@@ -536,10 +534,7 @@ function processAlarms(alarms: Alarm[]): Alarm[] {
  * console.log(result.notIgnored.length);
  * ```
  */
-export function filterAlarms(
-  alarms: readonly Alarm[],
-  patterns: readonly string[],
-): FilteredAlarms {
+export function filterAlarms(alarms: readonly Alarm[], patterns: readonly string[]): FilteredAlarms {
   // Implementation
 }
 ````
