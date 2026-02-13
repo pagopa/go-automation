@@ -831,7 +831,7 @@ export class GOScript {
    */
   private async handleInteractiveAWSCredentials(profile: string | undefined): Promise<void> {
     if (!profile) {
-      throw new Error('AWS profile is required but not provided (--aws-profile)');
+      throw new Error('AWS profile is required but not provided (--aws-profile | --aws-profiles)');
     }
 
     if (!this.credentialsManager) {

@@ -262,6 +262,32 @@ export class GOConfigReader {
   }
 
   /**
+   * Get raw value trying multiple keys, respecting provider priority.
+   * For each provider (in priority order), tries all keys before moving to the next provider.
+   * This ensures a higher-priority provider with an alias key wins over
+   * a lower-priority provider with the primary key.
+   *
+   * @param keys - Keys to try (e.g., [param.name, ...param.aliases])
+   * @returns The raw value from the highest-priority provider that has any of the keys
+   */
+  getRawValueForKeys(keys: ReadonlyArray<string>): string | string[] | undefined {
+    for (const provider of this.providers) {
+      for (const key of keys) {
+        if (provider.hasKey(key)) {
+          const value = provider.getValue(key);
+          this.logAccess(key, provider.getName(), provider.isSecret(key), value);
+          return value;
+        }
+      }
+    }
+
+    for (const key of keys) {
+      this.logMissing(key);
+    }
+    return undefined;
+  }
+
+  /**
    * Log access to a configuration key
    */
   private logAccess(key: string, providerName: string, isSecret: boolean, value?: string | string[]): void {

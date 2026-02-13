@@ -7,6 +7,7 @@ import { GOConfigSchema } from '../config/GOConfigSchema.js';
 import { GOConfigReader } from '../config/GOConfigReader.js';
 import { GOConfigParameter } from '../config/GOConfigParameter.js';
 import { GOConfigParameterType } from '../config/GOConfigParameterType.js';
+import { GOConfigTypeConverter } from '../config/GOConfigTypeConverter.js';
 
 /**
  * Configuration loading result
@@ -18,11 +19,6 @@ export interface ConfigLoadResult {
 }
 
 /**
- * Type handler function signature
- */
-type TypeHandler = (key: string) => unknown;
-
-/**
  * Config Loader for GOScript
  * Handles loading, validation, and source tracking of configuration values
  */
@@ -30,21 +26,9 @@ export class GOScriptConfigLoader {
   private readonly configSchema: GOConfigSchema;
   private readonly configReader: GOConfigReader;
 
-  // Type Strategy Map - maps parameter types to reader methods
-  private readonly typeHandlers: Map<GOConfigParameterType, TypeHandler>;
-
   constructor(configSchema: GOConfigSchema, configReader: GOConfigReader) {
     this.configSchema = configSchema;
     this.configReader = configReader;
-
-    // Initialize type handlers map (Strategy Pattern)
-    this.typeHandlers = new Map<GOConfigParameterType, TypeHandler>([
-      [GOConfigParameterType.INT, (key: string) => this.configReader.int(key)],
-      [GOConfigParameterType.DOUBLE, (key: string) => this.configReader.double(key)],
-      [GOConfigParameterType.BOOL, (key: string) => this.configReader.bool(key)],
-      [GOConfigParameterType.STRING, (key: string) => this.configReader.string(key)],
-      [GOConfigParameterType.STRING_ARRAY, (key: string) => this.configReader.stringArray(key)],
-    ]);
   }
 
   /**
@@ -72,34 +56,28 @@ export class GOScriptConfigLoader {
    * Supports async fallback for parameters that define asyncFallback function.
    *
    * Resolution order for each parameter:
-   * 1. Value from providers (CLI, config files, env vars)
+   * 1. Value from providers (CLI, config files, env vars) - respecting provider priority
    * 2. defaultValue (if set)
    * 3. asyncFallback (if set, awaited)
+   *
+   * Provider priority is respected across all keys (name + aliases):
+   * A higher-priority provider (e.g., CLI) with an alias key wins over
+   * a lower-priority provider (e.g., JSON config) with the primary key.
    */
   private async loadConfigValues(): Promise<Record<string, unknown>> {
     const configValues: Record<string, unknown> = {};
     const params = this.configSchema.getAllParameters();
 
     for (const param of params) {
-      let value = undefined;
-
-      // Try to get value with parameter name first, then aliases
+      // Get raw value respecting provider priority across all keys (name + aliases)
       const keysToTry = [param.name, ...param.aliases];
+      const rawValue = this.configReader.getRawValueForKeys(keysToTry);
 
-      for (const key of keysToTry) {
-        // Use type handler strategy to get value
-        const handler = this.typeHandlers.get(param.type);
-        if (handler) {
-          value = handler(key);
-        } else {
-          // Fallback to string for unknown types
-          value = this.configReader.string(key);
-        }
+      let value: unknown;
 
-        // If we found a value, stop trying other keys
-        if (value !== undefined) {
-          break;
-        }
+      if (rawValue !== undefined) {
+        // Convert raw value using type handler
+        value = this.convertRawValue(rawValue, param.type);
       }
 
       // If no value found, use default
@@ -118,6 +96,26 @@ export class GOScriptConfigLoader {
     }
 
     return configValues;
+  }
+
+  /**
+   * Convert a raw value to the appropriate type based on parameter type
+   */
+  private convertRawValue(rawValue: string | string[], paramType: GOConfigParameterType): unknown {
+    switch (paramType) {
+      case GOConfigParameterType.INT:
+        return GOConfigTypeConverter.toInt(rawValue);
+      case GOConfigParameterType.DOUBLE:
+        return GOConfigTypeConverter.toDouble(rawValue);
+      case GOConfigParameterType.BOOL:
+        return GOConfigTypeConverter.toBool(rawValue);
+      case GOConfigParameterType.STRING:
+        return GOConfigTypeConverter.toString(rawValue);
+      case GOConfigParameterType.STRING_ARRAY:
+        return GOConfigTypeConverter.toStringArray(rawValue);
+      default:
+        return GOConfigTypeConverter.toString(rawValue);
+    }
   }
 
   /**
