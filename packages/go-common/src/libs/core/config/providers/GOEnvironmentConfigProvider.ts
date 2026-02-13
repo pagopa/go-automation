@@ -55,9 +55,7 @@ export class GOEnvironmentConfigProvider extends GOConfigProviderBase {
     super();
 
     this.values = new Map();
-    this.secretRedactor = new GOSecretRedactor(
-      options.secretsSpecifier ?? GOSecretsSpecifierFactory.none(),
-    );
+    this.secretRedactor = new GOSecretRedactor(options.secretsSpecifier ?? GOSecretsSpecifierFactory.none());
     this.envFilePath = options.environmentFilePath;
     this.arraySeparator = options.arraySeparator ?? ',';
     this.displayName = options.displayName;

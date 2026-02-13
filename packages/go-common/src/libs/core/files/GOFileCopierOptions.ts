@@ -105,9 +105,7 @@ export interface GOFileCopierOptions {
    * Callback for prompting user (used in interactive mode).
    * Should return true to proceed with copy, false to skip.
    */
-  readonly onPrompt?:
-    | ((message: string, filePath: string, sizeHuman: string) => Promise<boolean>)
-    | undefined;
+  readonly onPrompt?: ((message: string, filePath: string, sizeHuman: string) => Promise<boolean>) | undefined;
 }
 
 /**

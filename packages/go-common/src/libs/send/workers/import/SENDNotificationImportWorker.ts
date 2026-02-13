@@ -46,19 +46,11 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
     this.batchProcessor = new SENDNotificationImportBatchProcessor(this.rowProcessor);
 
     // Register to rowProcessor events and propagate them
-    this.rowProcessor.on('worker:document:uploaded', (event) =>
-      this.emit('worker:document:uploaded', event),
-    );
-    this.rowProcessor.on('worker:notification:sent', (event) =>
-      this.emit('worker:notification:sent', event),
-    );
+    this.rowProcessor.on('worker:document:uploaded', (event) => this.emit('worker:document:uploaded', event));
+    this.rowProcessor.on('worker:notification:sent', (event) => this.emit('worker:notification:sent', event));
     this.rowProcessor.on('worker:iun:obtained', (event) => this.emit('worker:iun:obtained', event));
-    this.rowProcessor.on('worker:iun:polling:attempt', (event) =>
-      this.emit('worker:iun:polling:attempt', event),
-    );
-    this.rowProcessor.on('worker:iun:polling:failed', (event) =>
-      this.emit('worker:iun:polling:failed', event),
-    );
+    this.rowProcessor.on('worker:iun:polling:attempt', (event) => this.emit('worker:iun:polling:attempt', event));
+    this.rowProcessor.on('worker:iun:polling:failed', (event) => this.emit('worker:iun:polling:failed', event));
 
     // Register to batchProcessor events and propagate them
     this.batchProcessor.on('worker:progress', (event) => this.emit('worker:progress', event));
@@ -72,8 +64,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
     const startTime = Date.now();
     // Choose streaming mode for large files (>10MB by default) or if explicitly requested
     // Streaming mode processes rows incrementally to reduce memory usage
-    const shouldUseStreaming =
-      this.shouldUseStreaming(source, options) && typeof source === 'string';
+    const shouldUseStreaming = this.shouldUseStreaming(source, options) && typeof source === 'string';
 
     if (shouldUseStreaming) {
       return this.processWithStreaming(source, options, startTime);
@@ -228,9 +219,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
     try {
       // Initialize streaming exporter if provided
       // This allows incremental export as notifications are processed
-      let exportWriter:
-        | Awaited<ReturnType<NonNullable<typeof options.exporter>['exportStream']>>
-        | undefined;
+      let exportWriter: Awaited<ReturnType<NonNullable<typeof options.exporter>['exportStream']>> | undefined;
       if (options.exporter) {
         exportWriter = await options.exporter.exportStream();
       }
@@ -332,10 +321,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
     }
   }
 
-  private shouldUseStreaming(
-    source: string | Buffer,
-    options: SENDNotificationImportWorkerOptions,
-  ): boolean {
+  private shouldUseStreaming(source: string | Buffer, options: SENDNotificationImportWorkerOptions): boolean {
     if (options.useStreaming === true) return true;
     if (options.useStreaming === false) return false;
 
@@ -402,9 +388,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
    */
   private async exportStreaming(
     result: SENDNotificationImportWorkerResult,
-    exportWriter: Awaited<
-      ReturnType<NonNullable<SENDNotificationImportWorkerOptions['exporter']>['exportStream']>
-    >,
+    exportWriter: Awaited<ReturnType<NonNullable<SENDNotificationImportWorkerOptions['exporter']>['exportStream']>>,
     options: SENDNotificationImportWorkerOptions,
   ): Promise<void> {
     const exportRowOptions = this.buildExportRowOptions(options);

@@ -157,10 +157,7 @@ export class GOScriptConfigLoader {
     const params = this.configSchema.getAllParameters();
 
     for (const param of params) {
-      if (
-        param.required &&
-        (configValues[param.name] === undefined || configValues[param.name] === null)
-      ) {
+      if (param.required && (configValues[param.name] === undefined || configValues[param.name] === null)) {
         missingRequired.push(param.name);
       }
     }
@@ -179,10 +176,7 @@ export class GOScriptConfigLoader {
   /**
    * Format missing parameters error message
    */
-  static formatMissingParametersError(
-    missingRequired: string[],
-    params: GOConfigParameter[],
-  ): string {
+  static formatMissingParametersError(missingRequired: string[], params: GOConfigParameter[]): string {
     const paramMap = new Map(params.map((p) => [p.name, p]));
     const formatted = missingRequired
       .map((name) => {

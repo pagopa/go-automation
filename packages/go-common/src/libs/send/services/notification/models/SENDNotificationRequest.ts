@@ -10,13 +10,19 @@ import type { SENDPagoPaIntMode } from './SENDPagoPaIntMode.js';
 export interface SENDNotificationRequest {
   /** PA protocol number (unique identifier from sender) */
   paProtocolNumber: string;
-  /** Notification subject */
+  /** Notification subject (max 134 chars) */
   subject: string;
-  /** Abstract/summary */
+  /** Abstract/summary (max 1024 chars) */
   abstract?: string;
+  /** Idempotence token for retry on rejected requests (max 256 chars) */
+  idempotenceToken?: string;
+  /** IUN of the notification to cancel */
+  cancelledIun?: string;
+  /** Notification amount in euro cents */
+  amount?: number;
   /** List of recipients */
   recipients: SENDNotificationRecipient[];
-  /** List of documents/attachments */
+  /** List of documents/attachments (min 1) */
   documents: SENDNotificationDocument[];
   /** Sender PA tax ID */
   senderTaxId: string;
@@ -24,20 +30,18 @@ export interface SENDNotificationRequest {
   senderDenomination: string;
   /** Physical communication type */
   physicalCommunicationType: SENDPhysicalCommunicationType;
-  /** Taxonomy code */
+  /** Taxonomy code (pattern: 6 digits + 1 letter, e.g. '010202N') */
   taxonomyCode: string;
   /** Notification fee policy */
   notificationFeePolicy: SENDNotificationFeePolicy;
-  /** PA fee in euro cents */
+  /** PA fee in euro cents (required when notificationFeePolicy=DELIVERY_MODE, default 100) */
   paFee?: number;
-  /** VAT in euro cents */
+  /** VAT percentage (required when notificationFeePolicy=DELIVERY_MODE, default 22) */
   vat?: number;
   /** PagoPA integration mode */
   pagoPaIntMode?: SENDPagoPaIntMode;
-  /** Group ID (for multi-group PAs) */
+  /** Group ID (for multi-group PAs, max 1024 chars) */
   group?: string;
-  /** Sender email for communications */
-  senderPecAddress?: string;
-  /** Payment expiration date */
+  /** Payment expiration date (format: YYYY-MM-DD) */
   paymentExpirationDate?: string;
 }

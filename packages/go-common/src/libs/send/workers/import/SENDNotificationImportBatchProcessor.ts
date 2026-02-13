@@ -71,9 +71,7 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
       // Use Promise.allSettled when skipFailedNotifications=true to continue processing even if some rows fail
       // Use Promise.all when skipFailedNotifications=false to stop immediately on first error
       if (skipFailedNotifications) {
-        const results = await Promise.allSettled(
-          slice.map(async (row) => this.rowProcessor.processRow(row, options)),
-        );
+        const results = await Promise.allSettled(slice.map(async (row) => this.rowProcessor.processRow(row, options)));
         results.forEach((result, idx) => {
           if (result.status === 'fulfilled') {
             this.handleSuccess(result.value, sentNotifications, stats);
@@ -85,9 +83,7 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
           }
         });
       } else {
-        const results = await Promise.all(
-          slice.map(async (row) => this.rowProcessor.processRow(row, options)),
-        );
+        const results = await Promise.all(slice.map(async (row) => this.rowProcessor.processRow(row, options)));
         results.forEach((result) => this.handleSuccess(result, sentNotifications, stats));
       }
 
@@ -191,10 +187,7 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
    * Check if error is an AbortError (timeout or cancelled request)
    */
   private isAbortError(error: unknown): boolean {
-    return (
-      error instanceof Error &&
-      (error.name === 'AbortError' || error.message.includes('Request aborted'))
-    );
+    return error instanceof Error && (error.name === 'AbortError' || error.message.includes('Request aborted'));
   }
 
   /**

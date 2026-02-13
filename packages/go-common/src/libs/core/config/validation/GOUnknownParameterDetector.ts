@@ -67,10 +67,7 @@ export class GOUnknownParameterDetector {
    * @param schema - The configuration schema with registered parameters
    * @returns Array of unknown parameter errors (empty if all flags are valid)
    */
-  static detect(
-    providedFlags: ReadonlyArray<string>,
-    schema: GOConfigSchema,
-  ): ReadonlyArray<UnknownParameterError> {
+  static detect(providedFlags: ReadonlyArray<string>, schema: GOConfigSchema): ReadonlyArray<UnknownParameterError> {
     const validFlags = this.buildValidFlagsSet(schema);
     const errors: UnknownParameterError[] = [];
     const validFlagsList = Array.from(validFlags);
@@ -169,8 +166,7 @@ export class GOUnknownParameterDetector {
     unknownFlag: string,
     validFlags: ReadonlyArray<string>,
   ): ParameterSuggestion | undefined {
-    const maxDistance =
-      unknownFlag.length <= SHORT_FLAG_LENGTH_THRESHOLD ? 1 : MAX_SUGGESTION_DISTANCE;
+    const maxDistance = unknownFlag.length <= SHORT_FLAG_LENGTH_THRESHOLD ? 1 : MAX_SUGGESTION_DISTANCE;
 
     let bestMatch: ParameterSuggestion | undefined;
 

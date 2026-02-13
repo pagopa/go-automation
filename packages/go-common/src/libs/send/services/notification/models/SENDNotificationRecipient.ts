@@ -1,11 +1,10 @@
 import type { SENDRecipientType } from './SENDRecipientType.js';
 import type { SENDPhysicalAddress } from './SENDPhysicalAddress.js';
 import type { SENDDigitalDomicile } from './SENDDigitalDomicile.js';
-import type { SENDPagoPaPayment } from './SENDPagoPaPayment.js';
-import type { SENDF24Metadata } from './SENDF24Metadata.js';
+import type { SENDNotificationPaymentItem } from './SENDNotificationPaymentItem.js';
 
 /**
- * Notification recipient
+ * Notification recipient (aligned with NotificationRecipientV23)
  */
 export interface SENDNotificationRecipient {
   /** Recipient type (PF/PG) */
@@ -14,12 +13,10 @@ export interface SENDNotificationRecipient {
   taxId: string;
   /** Recipient name/denomination */
   denomination: string;
-  /** Physical address (for analog notifications) */
-  physicalAddress?: SENDPhysicalAddress;
+  /** Physical address (required by API for all recipients) */
+  physicalAddress: SENDPhysicalAddress;
   /** Digital domicile (for digital notifications) */
   digitalDomicile?: SENDDigitalDomicile;
-  /** Payment information */
-  payment?: SENDPagoPaPayment;
-  /** F24 metadata */
-  payments?: (SENDPagoPaPayment | SENDF24Metadata)[];
+  /** Payment items (each can contain pagoPa, f24, or both) */
+  payments?: SENDNotificationPaymentItem[];
 }

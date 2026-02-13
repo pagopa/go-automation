@@ -3,10 +3,7 @@
  */
 
 import { CloudWatchClient, DescribeAlarmHistoryCommand } from '@aws-sdk/client-cloudwatch';
-import type {
-  AlarmHistoryItem,
-  DescribeAlarmHistoryCommandInput,
-} from '@aws-sdk/client-cloudwatch';
+import type { AlarmHistoryItem, DescribeAlarmHistoryCommandInput } from '@aws-sdk/client-cloudwatch';
 
 /**
  * Service for interacting with AWS CloudWatch
@@ -24,11 +21,7 @@ export class CloudWatchService {
    * @returns Array of alarm history items
    * @throws Error if dates are invalid
    */
-  async describeAlarmHistory(
-    startDate: string,
-    endDate: string,
-    alarmName?: string,
-  ): Promise<AlarmHistoryItem[]> {
+  async describeAlarmHistory(startDate: string, endDate: string, alarmName?: string): Promise<AlarmHistoryItem[]> {
     // Validate dates
     const start = new Date(startDate);
     const end = new Date(endDate);

@@ -84,31 +84,13 @@ export class GOConsoleLoggerStyle {
           prefix: '⏵ ',
         },
       ],
-      [
-        GOLogEventCategory.STEP,
-        { color: ConsoleColors.WHITE, format: '{prefix}{message}', prefix: '→ ' },
-      ],
+      [GOLogEventCategory.STEP, { color: ConsoleColors.WHITE, format: '{prefix}{message}', prefix: '→ ' }],
       [GOLogEventCategory.TEXT, { color: ConsoleColors.WHITE, format: '{message}' }],
-      [
-        GOLogEventCategory.SUCCESS,
-        { color: ConsoleColors.GREEN, format: '{prefix}{message}', prefix: '✓ ' },
-      ],
-      [
-        GOLogEventCategory.ERROR,
-        { color: ConsoleColors.RED, format: '{prefix}{message}', prefix: '✗ ERROR: ' },
-      ],
-      [
-        GOLogEventCategory.FATAL,
-        { color: ConsoleColors.RED, format: '{prefix}{message}', prefix: '✗ FATAL: ' },
-      ],
-      [
-        GOLogEventCategory.WARNING,
-        { color: ConsoleColors.YELLOW, format: '{prefix}{message}', prefix: '⚠ WARNING: ' },
-      ],
-      [
-        GOLogEventCategory.INFO,
-        { color: ConsoleColors.MAGENTA, format: '{prefix}{message}', prefix: 'ℹ ' },
-      ],
+      [GOLogEventCategory.SUCCESS, { color: ConsoleColors.GREEN, format: '{prefix}{message}', prefix: '✓ ' }],
+      [GOLogEventCategory.ERROR, { color: ConsoleColors.RED, format: '{prefix}{message}', prefix: '✗ ERROR: ' }],
+      [GOLogEventCategory.FATAL, { color: ConsoleColors.RED, format: '{prefix}{message}', prefix: '✗ FATAL: ' }],
+      [GOLogEventCategory.WARNING, { color: ConsoleColors.YELLOW, format: '{prefix}{message}', prefix: '⚠ WARNING: ' }],
+      [GOLogEventCategory.INFO, { color: ConsoleColors.MAGENTA, format: '{prefix}{message}', prefix: 'ℹ ' }],
     ]);
   }
 

@@ -55,14 +55,7 @@ export class QATestFormatAdapter implements GOCSVFormatAdapter<SENDNotificationR
     }
 
     // Check for QA-specific columns
-    const qaColumns = [
-      'ID_Scenario',
-      'Scenario',
-      'Destinatario',
-      'Denomination',
-      'Sender',
-      'Tax ID',
-    ];
+    const qaColumns = ['ID_Scenario', 'Scenario', 'Destinatario', 'Denomination', 'Sender', 'Tax ID'];
     const matchCount = qaColumns.filter((col) => firstLine.includes(col)).length;
 
     // At least 4 out of 6 QA columns should be present
@@ -114,8 +107,7 @@ export class QATestFormatAdapter implements GOCSVFormatAdapter<SENDNotificationR
       rowTransformer: (item: Record<string, string>): SENDNotificationRow => {
         // Set digitalType only if digitalAddress is present and not empty
         const digitalAddress = item['digitalAddress'];
-        const digitalType =
-          digitalAddress !== undefined && digitalAddress.trim() !== '' ? 'PEC' : undefined;
+        const digitalType = digitalAddress !== undefined && digitalAddress.trim() !== '' ? 'PEC' : undefined;
 
         // Normalize physicalForeignState (convert "ITALIA" to empty string for domestic addresses)
         const physicalForeignState = item['physicalForeignState'];
@@ -140,15 +132,12 @@ export class QATestFormatAdapter implements GOCSVFormatAdapter<SENDNotificationR
 
         // Physical address fields
         if (item['physicalAddress']) row.physicalAddress = item['physicalAddress'];
-        if (item['physicalAddressDetails'])
-          row.physicalAddressDetails = item['physicalAddressDetails'];
+        if (item['physicalAddressDetails']) row.physicalAddressDetails = item['physicalAddressDetails'];
         if (item['physicalZip']) row.physicalZip = item['physicalZip'];
         if (item['physicalMunicipality']) row.physicalMunicipality = item['physicalMunicipality'];
-        if (item['physicalMunicipalityDetails'])
-          row.physicalMunicipalityDetails = item['physicalMunicipalityDetails'];
+        if (item['physicalMunicipalityDetails']) row.physicalMunicipalityDetails = item['physicalMunicipalityDetails'];
         if (item['physicalProvince']) row.physicalProvince = item['physicalProvince'];
-        if (normalizedPhysicalForeignState)
-          row.physicalForeignState = normalizedPhysicalForeignState;
+        if (normalizedPhysicalForeignState) row.physicalForeignState = normalizedPhysicalForeignState;
 
         // Digital domicile fields
         if (digitalType) row.digitalType = digitalType;
@@ -165,6 +154,19 @@ export class QATestFormatAdapter implements GOCSVFormatAdapter<SENDNotificationR
         if (item['documentVersionToken']) row.documentVersionToken = item['documentVersionToken'];
         if (item['documentSha256']) row.documentSha256 = item['documentSha256'];
         if (item['documentFilePath']) row.documentFilePath = item['documentFilePath'];
+
+        // Notification optional metadata fields
+        if (item['abstract']) row.abstract = item['abstract'];
+        if (item['physicalCommunicationType'])
+          row.physicalCommunicationType = item['physicalCommunicationType'] as
+            | 'AR_REGISTERED_LETTER'
+            | 'REGISTERED_LETTER_890';
+        if (item['notificationFeePolicy'])
+          row.notificationFeePolicy = item['notificationFeePolicy'] as 'FLAT_RATE' | 'DELIVERY_MODE';
+        if (item['paFee']) row.paFee = item['paFee'];
+        if (item['vat']) row.vat = item['vat'];
+        if (item['pagoPaIntMode']) row.pagoPaIntMode = item['pagoPaIntMode'] as 'NONE' | 'SYNC' | 'ASYNC';
+        if (item['paymentExpirationDate']) row.paymentExpirationDate = item['paymentExpirationDate'];
 
         return row;
       },

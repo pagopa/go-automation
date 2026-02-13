@@ -54,16 +54,7 @@ export interface GOTableOptions {
     /** Enable colors in headers (default: false) */
     colors?: boolean;
     /** Header color (default: 'cyan') */
-    headerColor?:
-      | 'black'
-      | 'red'
-      | 'green'
-      | 'yellow'
-      | 'blue'
-      | 'magenta'
-      | 'cyan'
-      | 'white'
-      | 'gray';
+    headerColor?: 'black' | 'red' | 'green' | 'yellow' | 'blue' | 'magenta' | 'cyan' | 'white' | 'gray';
   };
 }
 

@@ -24,6 +24,7 @@ export * from './SENDNotificationDocument.js';
 // Payment types
 export * from './SENDPagoPaPayment.js';
 export * from './SENDF24Metadata.js';
+export * from './SENDNotificationPaymentItem.js';
 
 // Recipient types
 export * from './SENDNotificationRecipient.js';

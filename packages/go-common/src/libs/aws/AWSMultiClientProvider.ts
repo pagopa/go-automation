@@ -72,13 +72,10 @@ export class AWSMultiClientProvider {
    */
   getClientProvider(profile: string): AWSClientProvider {
     if (!this.profiles.includes(profile)) {
-      throw new Error(
-        `Profile '${profile}' is not in the configured profiles: ${this.profiles.join(', ')}`,
-      );
+      throw new Error(`Profile '${profile}' is not in the configured profiles: ${this.profiles.join(', ')}`);
     }
 
-    const provider =
-      this.providers.get(profile) ?? new AWSClientProvider({ profile, region: this.region });
+    const provider = this.providers.get(profile) ?? new AWSClientProvider({ profile, region: this.region });
     this.providers.set(profile, provider);
 
     return provider;
@@ -138,9 +135,7 @@ export class AWSMultiClientProvider {
    * console.log(`Succeeded: ${results.size}, Failed: ${errors.size}`);
    * ```
    */
-  async mapParallelSettled<T>(
-    operation: (profile: string, clientProvider: AWSClientProvider) => Promise<T>,
-  ): Promise<{
+  async mapParallelSettled<T>(operation: (profile: string, clientProvider: AWSClientProvider) => Promise<T>): Promise<{
     readonly results: Map<string, T>;
     readonly errors: Map<string, Error>;
   }> {

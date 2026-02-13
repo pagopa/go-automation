@@ -5,11 +5,7 @@
  * Supports prefix/suffix on keys, automatic unmarshalling, and pagination.
  */
 
-import type {
-  DynamoDBClient,
-  QueryCommandInput,
-  QueryCommandOutput,
-} from '@aws-sdk/client-dynamodb';
+import type { DynamoDBClient, QueryCommandInput, QueryCommandOutput } from '@aws-sdk/client-dynamodb';
 import { QueryCommand } from '@aws-sdk/client-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 import type { AttributeValue } from '@aws-sdk/client-dynamodb';

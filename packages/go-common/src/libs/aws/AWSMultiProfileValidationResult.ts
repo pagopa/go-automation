@@ -2,10 +2,7 @@
  * AWSMultiProfileValidationResult - Aggregated result of validating multiple AWS profiles
  */
 
-import type {
-  AWSProfileValidationSuccess,
-  AWSProfileValidationFailure,
-} from './AWSProfileValidationResult.js';
+import type { AWSProfileValidationSuccess, AWSProfileValidationFailure } from './AWSProfileValidationResult.js';
 
 /**
  * Aggregated result from validating multiple AWS profiles

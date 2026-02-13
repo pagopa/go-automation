@@ -37,9 +37,7 @@ export class GOInMemoryConfigProvider extends GOConfigProviderBase {
     super();
 
     this.values = new Map();
-    this.secretRedactor = new GOSecretRedactor(
-      options.secretsSpecifier ?? GOSecretsSpecifierFactory.none(),
-    );
+    this.secretRedactor = new GOSecretRedactor(options.secretsSpecifier ?? GOSecretsSpecifierFactory.none());
     this.providerName = options.name ?? 'InMemory';
 
     // Initialize with provided values

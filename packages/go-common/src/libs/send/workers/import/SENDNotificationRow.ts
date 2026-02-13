@@ -20,6 +20,22 @@ export interface SENDNotificationRow {
   recipientType: 'PF' | 'PG';
   recipientDenomination: string;
 
+  // Notification optional metadata
+  /** Abstract/summary of the notification */
+  abstract?: string;
+  /** Physical communication type: AR_REGISTERED_LETTER or REGISTERED_LETTER_890 */
+  physicalCommunicationType?: 'AR_REGISTERED_LETTER' | 'REGISTERED_LETTER_890';
+  /** Notification fee policy: FLAT_RATE or DELIVERY_MODE */
+  notificationFeePolicy?: 'FLAT_RATE' | 'DELIVERY_MODE';
+  /** PA fee in euro cents (string from CSV, converted to number for API) */
+  paFee?: string;
+  /** VAT in euro cents (string from CSV, converted to number for API) */
+  vat?: string;
+  /** PagoPA integration mode: NONE, SYNC or ASYNC */
+  pagoPaIntMode?: 'NONE' | 'SYNC' | 'ASYNC';
+  /** Payment expiration date */
+  paymentExpirationDate?: string;
+
   // Physical address (for analog/mixed)
   physicalAddress?: string;
   physicalAddressDetails?: string;

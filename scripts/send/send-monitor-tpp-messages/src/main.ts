@@ -48,9 +48,7 @@ async function loadQueryTemplate(): Promise<string> {
     }
     return query;
   } catch (error) {
-    throw new Error(
-      `Failed to load query from config: ${error instanceof Error ? error.message : 'Unknown error'}`,
-    );
+    throw new Error(`Failed to load query from config: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -266,12 +264,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     // Execute query
     script.logger.section('Executing Athena Query');
     script.prompt.startSpinner('Running query...');
-    const results = await executeAthenaQuery(
-      athenaExecutor,
-      queryTemplate,
-      athenaConfig,
-      queryParams,
-    );
+    const results = await executeAthenaQuery(athenaExecutor, queryTemplate, athenaConfig, queryParams);
     script.prompt.spinnerStop('Query completed');
 
     // Save and analyze results
@@ -311,10 +304,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     // Attempt to send error to Slack
     if (slackNotifier) {
       try {
-        await slackNotifier.sendError(
-          'Error during report generation',
-          error instanceof Error ? error : undefined,
-        );
+        await slackNotifier.sendError('Error during report generation', error instanceof Error ? error : undefined);
       } catch (slackError) {
         script.logger.error(
           `Failed to send error to Slack: ${slackError instanceof Error ? slackError.message : 'Unknown error'}`,

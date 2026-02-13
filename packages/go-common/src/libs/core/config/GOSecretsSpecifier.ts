@@ -43,9 +43,7 @@ export class GOSecretsSpecifierFactory {
    * Dynamic predicate to determine if a key is secret
    * @param predicate - Function that returns true if key/value is secret
    */
-  static dynamic(
-    predicate: (key: string, value: string | string[]) => boolean,
-  ): GOSecretsSpecifier {
+  static dynamic(predicate: (key: string, value: string | string[]) => boolean): GOSecretsSpecifier {
     return { type: 'dynamic', predicate };
   }
 }

@@ -13,6 +13,7 @@
       "redshift-interop-analytics"
     ]
   },
+  "verbose": true,
   "aws": {
     "profiles": ["sso_pn-core-prod_readonly", "sso_pn-confinfo-prod"]
   }

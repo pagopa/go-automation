@@ -125,8 +125,7 @@ export class GOPaths {
   public getProjectRoot(): string {
     if (this.isStandalone()) {
       throw new Error(
-        'getProjectRoot() is not available in standalone mode. ' +
-          'Use getDataDir() or getBaseDir() instead.',
+        'getProjectRoot() is not available in standalone mode. Use getDataDir() or getBaseDir() instead.',
       );
     }
 
@@ -457,10 +456,7 @@ export class GOPaths {
     }
 
     // Priority 3: Monorepo root (if monorepo mode)
-    if (
-      this.environmentInfo.deploymentMode === GODeploymentMode.MONOREPO &&
-      this.environmentInfo.monorepoRoot
-    ) {
+    if (this.environmentInfo.deploymentMode === GODeploymentMode.MONOREPO && this.environmentInfo.monorepoRoot) {
       return this.environmentInfo.monorepoRoot;
     }
 
@@ -490,14 +486,8 @@ export class GOPaths {
    * ```
    */
   public resolvePath(filePath: string, pathType: GOPathTypeValue): string;
-  public resolvePath(
-    filePath: string | null | undefined,
-    pathType: GOPathTypeValue,
-  ): string | undefined;
-  public resolvePath(
-    filePath: string | null | undefined,
-    pathType: GOPathTypeValue,
-  ): string | undefined {
+  public resolvePath(filePath: string | null | undefined, pathType: GOPathTypeValue): string | undefined;
+  public resolvePath(filePath: string | null | undefined, pathType: GOPathTypeValue): string | undefined {
     const result = this.resolvePathWithInfo(filePath, pathType);
     return result?.path;
   }

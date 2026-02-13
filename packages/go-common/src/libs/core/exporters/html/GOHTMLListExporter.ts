@@ -101,9 +101,7 @@ export class GOHTMLListExporter<TItem extends Record<string, unknown>>
           this.exportedCount++;
           this.emit('export:item', { item: transformedItem, index: currentIndex });
 
-          const percentage = this.totalItems
-            ? Math.round((this.exportedCount / this.totalItems) * 100)
-            : undefined;
+          const percentage = this.totalItems ? Math.round((this.exportedCount / this.totalItems) * 100) : undefined;
           this.emit('export:progress', {
             exportedItems: this.exportedCount,
             totalItems: this.totalItems,
@@ -192,9 +190,7 @@ export class GOHTMLListExporter<TItem extends Record<string, unknown>>
       this.exportedCount++;
       this.emit('export:item', { item: transformedItem, index: currentIndex });
 
-      const percentage = this.totalItems
-        ? Math.round((this.exportedCount / this.totalItems) * 100)
-        : undefined;
+      const percentage = this.totalItems ? Math.round((this.exportedCount / this.totalItems) * 100) : undefined;
       this.emit('export:progress', {
         exportedItems: this.exportedCount,
         totalItems: this.totalItems,

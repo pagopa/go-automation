@@ -8,8 +8,8 @@ export interface SENDPagoPaPayment {
   noticeCode: string;
   /** Creditor tax ID */
   creditorTaxId: string;
-  /** Whether to apply cost to citizen */
-  applyCost?: boolean;
+  /** Whether to apply notification cost to the payment (required by API, nullable: false) */
+  applyCost: boolean;
   /** Payment attachment (PagoPA form PDF) */
-  pagoPaForm?: SENDNotificationDocument;
+  attachment?: SENDNotificationDocument;
 }

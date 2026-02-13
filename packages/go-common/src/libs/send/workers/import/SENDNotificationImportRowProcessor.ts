@@ -7,8 +7,12 @@ import { SENDNotificationBuilder } from '../../builders/SENDNotificationBuilder.
 import type { SENDNotificationRow } from './SENDNotificationRow.js';
 import type { SENDAttachmentResult } from '../../services/attachment/models/SENDAttachmentResult.js';
 import type { SENDNotificationRequest } from '../../services/notification/models/SENDNotificationRequest.js';
+import type { SENDPhysicalAddress } from '../../services/notification/models/SENDPhysicalAddress.js';
 import { SENDRecipientType } from '../../services/notification/models/SENDRecipientType.js';
 import { SENDDigitalDomicileType } from '../../services/notification/models/SENDDigitalDomicileType.js';
+import { SENDPhysicalCommunicationType } from '../../services/notification/models/SENDPhysicalCommunicationType.js';
+import { SENDNotificationFeePolicy } from '../../services/notification/models/SENDNotificationFeePolicy.js';
+import { SENDPagoPaIntMode } from '../../services/notification/models/SENDPagoPaIntMode.js';
 import type { SENDNotificationImportWorkerOptions } from './SENDNotificationImportWorkerOptions.js';
 import { GOEventEmitterBase } from '../../../core/events/GOEventEmitterBase.js';
 import type { SENDNotificationImportWorkerEventMap } from './SENDNotificationImportWorkerEvents.js';
@@ -100,6 +104,15 @@ export function toExportRow(
     documentVersionToken: csvRow.documentVersionToken,
     documentSha256: csvRow.documentSha256,
     documentFilePath: csvRow.documentFilePath,
+
+    // Notification optional metadata
+    abstract: csvRow.abstract,
+    physicalCommunicationType: csvRow.physicalCommunicationType,
+    notificationFeePolicy: csvRow.notificationFeePolicy,
+    paFee: csvRow.paFee,
+    vat: csvRow.vat,
+    pagoPaIntMode: csvRow.pagoPaIntMode,
+    paymentExpirationDate: csvRow.paymentExpirationDate,
   };
 
   // Add status fields if requested
@@ -125,18 +138,14 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
     super();
   }
 
-  async processRow(
-    row: SENDNotificationRow,
-    options?: SENDNotificationImportWorkerOptions,
-  ): Promise<ProcessRowResult> {
+  async processRow(row: SENDNotificationRow, options?: SENDNotificationImportWorkerOptions): Promise<ProcessRowResult> {
     // Step 1: Handle document - upload new file or use existing document reference
     const documentRef = await this.handleDocument(row);
     const docUploaded = this.hasDocumentFilePath(row) && !!documentRef;
 
     // Step 2: Build notification request object with all row data (sender, recipient, payment, document)
     const notification = this.buildNotification(row, documentRef);
-    let notificationResult: { notificationRequestId: string; iun?: string | undefined } | null =
-      null;
+    let notificationResult: { notificationRequestId: string; iun?: string | undefined } | null = null;
 
     // Step 3: Send notification to PN API if enabled
     if (options?.sendNotifications) {
@@ -213,10 +222,7 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
     );
   }
 
-  private buildNotification(
-    row: SENDNotificationRow,
-    documentRef: SENDAttachmentResult,
-  ): SENDNotificationRequest {
+  private buildNotification(row: SENDNotificationRow, documentRef: SENDAttachmentResult): SENDNotificationRequest {
     if (!this.isCSVRow(row)) throw new Error('Only CSVRow supported');
 
     const builder = new SENDNotificationBuilder();
@@ -232,6 +238,19 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
     // Set optional metadata
     if (row.group) builder.setGroup(row.group);
     if (row.taxonomyCode) builder.setTaxonomyCode(row.taxonomyCode);
+    if (row.abstract) builder.setAbstract(row.abstract);
+    if (row.physicalCommunicationType) {
+      builder.setPhysicalCommunicationType(row.physicalCommunicationType as SENDPhysicalCommunicationType);
+    }
+    if (row.notificationFeePolicy) {
+      builder.setNotificationFeePolicy(row.notificationFeePolicy as SENDNotificationFeePolicy);
+    }
+    if (row.paFee) builder.setPaFee(Number(row.paFee));
+    if (row.vat) builder.setVat(Number(row.vat));
+    if (row.pagoPaIntMode) {
+      builder.setPagoPaIntMode(row.pagoPaIntMode as SENDPagoPaIntMode);
+    }
+    if (row.paymentExpirationDate) builder.setPaymentExpirationDate(row.paymentExpirationDate);
 
     // Validate and extract physical address (required for both analog and mixed)
     const physicalAddress = row.physicalAddress;
@@ -249,19 +268,12 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
     // Mixed: both physical (analog) and digital delivery
     // Analog: only physical delivery (registered mail)
     if (hasPhysicalAddress && hasDigitalDomicile) {
+      // Safe: hasPhysicalAddress guarantees address and municipality are defined
+      const physicalAddressObj = this.buildPhysicalAddress(row, physicalAddress, physicalMunicipality);
       builder.addMixedRecipient(
         row.recipientTaxId,
         row.recipientDenomination,
-        {
-          address: physicalAddress,
-          addressDetails: row.physicalAddressDetails,
-          zip: physicalZip,
-          municipality: physicalMunicipality,
-          municipalityDetails: row.physicalMunicipalityDetails,
-          province: row.physicalProvince ?? '',
-          foreignState: row.physicalForeignState,
-          at: undefined,
-        },
+        physicalAddressObj,
         {
           type: digitalType as SENDDigitalDomicileType,
           address: digitalAddress,
@@ -269,19 +281,12 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
         row.recipientType as SENDRecipientType,
       );
     } else if (hasPhysicalAddress) {
+      // Safe: hasPhysicalAddress guarantees address and municipality are defined
+      const physicalAddressObj = this.buildPhysicalAddress(row, physicalAddress, physicalMunicipality);
       builder.addAnalogRecipient(
         row.recipientTaxId,
         row.recipientDenomination,
-        {
-          address: physicalAddress,
-          addressDetails: row.physicalAddressDetails,
-          zip: physicalZip,
-          municipality: physicalMunicipality,
-          municipalityDetails: row.physicalMunicipalityDetails,
-          province: row.physicalProvince ?? '',
-          foreignState: row.physicalForeignState,
-          at: undefined,
-        },
+        physicalAddressObj,
         row.recipientType as SENDRecipientType,
       );
     } else {
@@ -290,7 +295,7 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
 
     // Add payment information if present (PagoPa notice)
     if (row.pagoPaNoticeCode && row.pagoPaCreditorTaxId && row.pagoPaAmount) {
-      builder.addPaymentToLastRecipient({
+      builder.addPagoPaPaymentToLastRecipient({
         noticeCode: row.pagoPaNoticeCode,
         creditorTaxId: row.pagoPaCreditorTaxId,
         applyCost: true,
@@ -300,6 +305,24 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
     // Attach document and build final notification request
     builder.addDocument(row.documentTitle ?? 'Document', documentRef);
     return builder.build();
+  }
+
+  private buildPhysicalAddress(
+    row: SENDNotificationRow,
+    address: string | undefined,
+    municipality: string | undefined,
+  ): SENDPhysicalAddress {
+    // Safe: caller guarantees address and municipality are defined via hasPhysicalAddress check
+    const obj: SENDPhysicalAddress = {
+      address: address!, // Safe: validated by hasPhysicalAddress
+      municipality: municipality!, // Safe: validated by hasPhysicalAddress
+    };
+    if (row.physicalAddressDetails) obj.addressDetails = row.physicalAddressDetails;
+    if (row.physicalZip) obj.zip = row.physicalZip;
+    if (row.physicalMunicipalityDetails) obj.municipalityDetails = row.physicalMunicipalityDetails;
+    if (row.physicalProvince) obj.province = row.physicalProvince;
+    if (row.physicalForeignState) obj.foreignState = row.physicalForeignState;
+    return obj;
   }
 
   private isCSVRow(row: SENDNotificationRow): row is SENDNotificationRow {

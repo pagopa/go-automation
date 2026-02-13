@@ -12,10 +12,7 @@ import type { GOListExporter } from '../GOListExporter.js';
 import type { GOListExporterEventMap } from '../GOListExporterEvents.js';
 import type { GOListExporterStreamWriter } from '../GOListExporterStreamWriter.js';
 
-import type {
-  GOCSVListExporterOptions,
-  ColumnConflictStrategy,
-} from './GOCSVListExporterOptions.js';
+import type { GOCSVListExporterOptions, ColumnConflictStrategy } from './GOCSVListExporterOptions.js';
 import { toError } from '../../errors/GOErrorUtils.js';
 
 /**
@@ -269,9 +266,7 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
       this.emit('export:item', { item, index: currentIndex });
 
       // Emit progress
-      const percentage = this.totalItems
-        ? Math.round((this.exportedCount / this.totalItems) * 100)
-        : undefined;
+      const percentage = this.totalItems ? Math.round((this.exportedCount / this.totalItems) * 100) : undefined;
       this.emit('export:progress', {
         exportedItems: this.exportedCount,
         totalItems: this.totalItems,
@@ -304,11 +299,7 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
       if (this.options.columns) {
         // Use explicit columns list
         this.cachedColumns = this.options.columns;
-      } else if (
-        this.options.mergeOriginalColumns &&
-        '_originalRow' in item &&
-        item['_originalRow']
-      ) {
+      } else if (this.options.mergeOriginalColumns && '_originalRow' in item && item['_originalRow']) {
         // Merge original columns with generated columns
         this.cachedColumns = this.computeMergedColumns(item);
       } else {
@@ -464,9 +455,7 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
 
     // Get original column names for conflict detection
     const originalColumnNames = new Set(Object.keys(originalRow));
-    const generatedColumnNames = new Set(
-      Object.keys(transformedItem).filter((k) => k !== '_originalRow'),
-    );
+    const generatedColumnNames = new Set(Object.keys(transformedItem).filter((k) => k !== '_originalRow'));
 
     for (const col of columns) {
       // Skip internal columns

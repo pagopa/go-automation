@@ -68,9 +68,7 @@ function setupEventListeners(
 
       if (event.errors && event.errors.length > 0) {
         const errorDetails = event.errors
-          .map((err: string | Record<string, unknown>) =>
-            typeof err === 'string' ? err : JSON.stringify(err),
-          )
+          .map((err: string | Record<string, unknown>) => (typeof err === 'string' ? err : JSON.stringify(err)))
           .join('\n    ');
         message += ` Errors: ${errorDetails}`;
         prompt.spinFail(spinnerId, message);
@@ -83,10 +81,7 @@ function setupEventListeners(
   worker.on('worker:iun:polling:failed', (event) => {
     if ('subject' in event.row) {
       const spinnerId = event.notificationRequestId;
-      prompt.spinFail(
-        spinnerId,
-        `IUN polling failed after ${event.attempts} attempts: ${event.row.subject}`,
-      );
+      prompt.spinFail(spinnerId, `IUN polling failed after ${event.attempts} attempts: ${event.row.subject}`);
     }
   });
 
@@ -124,9 +119,7 @@ function setupEventListeners(
     });
 
     exporter.on('export:completed', (event) => {
-      prompt.spinLog(
-        `\x1b[32mOK\x1b[0m Export completed: ${event.totalItems} items (${event.duration}ms)`,
-      );
+      prompt.spinLog(`\x1b[32mOK\x1b[0m Export completed: ${event.totalItems} items (${event.duration}ms)`);
     });
   }
 }
@@ -177,16 +170,11 @@ function displayResults(
   if (result.errors && result.errors.length > 0) {
     script.logger.newline();
     script.logger.warning(`Errors encountered: ${result.errors.length}`);
-    const errorsToShow: ReadonlyArray<SEND.SENDNotificationImportWorkerError> = result.errors.slice(
-      0,
-      5,
-    );
+    const errorsToShow: ReadonlyArray<SEND.SENDNotificationImportWorkerError> = result.errors.slice(0, 5);
     let errorIndex = 0;
     for (const error of errorsToShow) {
       errorIndex += 1;
-      script.logger.error(
-        `  ${errorIndex}. Row ${error.rowIndex} [${error.type}]: ${error.message}`,
-      );
+      script.logger.error(`  ${errorIndex}. Row ${error.rowIndex} [${error.type}]: ${error.message}`);
     }
     if (result.errors.length > 5) {
       script.logger.info(`  ... and ${result.errors.length - 5} more errors`);
@@ -215,10 +203,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<ImportNotificationsConfig>();
 
   // Resolve export file path using convenience method
-  const exportPathInfo = script.paths.resolvePathWithInfo(
-    config.exportFile,
-    Core.GOPathType.OUTPUT,
-  );
+  const exportPathInfo = script.paths.resolvePathWithInfo(config.exportFile, Core.GOPathType.OUTPUT);
   if (exportPathInfo) {
     if (exportPathInfo.isAbsolute) {
       script.logger.info(`Export path (absolute): ${exportPathInfo.path}`);
@@ -340,9 +325,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     script.logger.success('Workflow completed successfully');
   } catch (error) {
     if (error instanceof Core.GOHttpClientError) {
-      script.logger.error(
-        `Workflow failed: ${error.message} - response: ${JSON.stringify(error.response, null, 2)}`,
-      );
+      script.logger.error(`Workflow failed: ${error.message} - response: ${JSON.stringify(error.response, null, 2)}`);
     } else if (error instanceof Error) {
       script.logger.error(`Workflow failed: ${error.message}`);
       script.logger.fatal(`Stack trace:\n${error.stack}`);

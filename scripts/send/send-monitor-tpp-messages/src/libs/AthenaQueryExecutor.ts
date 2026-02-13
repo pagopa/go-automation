@@ -63,14 +63,7 @@ export class AthenaQueryExecutor {
     config: AthenaQueryConfig,
     params: QueryParams = {},
   ): Promise<AthenaQueryResults> {
-    const {
-      database,
-      catalog,
-      workGroup,
-      outputLocation,
-      maxRetries = 60,
-      retryDelay = 5000,
-    } = config;
+    const { database, catalog, workGroup, outputLocation, maxRetries = 60, retryDelay = 5000 } = config;
 
     if (!database) {
       throw new Error('Athena database is required');
@@ -160,9 +153,7 @@ export class AthenaQueryExecutor {
     let retries = 0;
 
     while (retries < maxRetries) {
-      const execution = (await this.athenaService.getQueryExecution(
-        queryExecutionId,
-      )) as AthenaQueryExecution;
+      const execution = (await this.athenaService.getQueryExecution(queryExecutionId)) as AthenaQueryExecution;
       const state = execution.QueryExecution.Status.State;
 
       this.log(`Query status: ${state} (check ${retries + 1}/${maxRetries})`);

@@ -50,9 +50,7 @@ export class GOJSONConfigProvider extends GOConfigProviderBase {
     super();
 
     this.values = new Map();
-    this.secretRedactor = new GOSecretRedactor(
-      options.secretsSpecifier ?? GOSecretsSpecifierFactory.none(),
-    );
+    this.secretRedactor = new GOSecretRedactor(options.secretsSpecifier ?? GOSecretsSpecifierFactory.none());
     this.filePath = options.filePath;
     this.isOptional = options.optional ?? false;
     this.displayName = options.displayName;

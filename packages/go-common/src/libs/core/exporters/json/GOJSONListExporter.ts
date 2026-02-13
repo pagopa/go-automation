@@ -236,9 +236,7 @@ export class GOJSONListExporter<TItem extends Record<string, unknown>>
       this.emit('export:item', { item, index: currentIndex });
 
       // Emit progress
-      const percentage = this.totalItems
-        ? Math.round((this.exportedCount / this.totalItems) * 100)
-        : undefined;
+      const percentage = this.totalItems ? Math.round((this.exportedCount / this.totalItems) * 100) : undefined;
       this.emit('export:progress', {
         exportedItems: this.exportedCount,
         totalItems: this.totalItems,

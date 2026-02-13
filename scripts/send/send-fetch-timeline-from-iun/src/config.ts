@@ -13,8 +13,7 @@ import { Core } from '@go-automation/go-common';
 export const scriptMetadata: Core.GOScriptMetadata = {
   name: 'Send Fetch Timeline From Iun',
   version: '1.0.0',
-  description:
-    'Reads a list of IUNs from a TXT file and downloads the timelines from DynamoDB, writing to JSON file',
+  description: 'Reads a list of IUNs from a TXT file and downloads the timelines from DynamoDB, writing to JSON file',
   authors: ['Team GO - Gestione Operativa'],
 };
 

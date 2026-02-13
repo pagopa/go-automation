@@ -59,9 +59,7 @@ export class AwsAthenaService {
    * @param queryExecutionId - ID of the query execution to check
    * @returns Query execution details including status
    */
-  public async getQueryExecution(
-    queryExecutionId: string,
-  ): Promise<GetQueryExecutionCommandOutput> {
+  public async getQueryExecution(queryExecutionId: string): Promise<GetQueryExecutionCommandOutput> {
     const client = this.getAthenaClient();
     const command = new GetQueryExecutionCommand({ QueryExecutionId: queryExecutionId });
     return client.send(command);
@@ -73,10 +71,7 @@ export class AwsAthenaService {
    * @param nextToken - Pagination token for fetching next page
    * @returns Query results including rows and pagination token
    */
-  public async getQueryResults(
-    queryExecutionId: string,
-    nextToken?: string,
-  ): Promise<GetQueryResultsCommandOutput> {
+  public async getQueryResults(queryExecutionId: string, nextToken?: string): Promise<GetQueryResultsCommandOutput> {
     const client = this.getAthenaClient();
     const command = new GetQueryResultsCommand({
       QueryExecutionId: queryExecutionId,

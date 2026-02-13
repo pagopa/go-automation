@@ -375,10 +375,7 @@ export class GOPrompt {
   /**
    * Ask to select one option from a list
    */
-  public async select<T = unknown>(
-    message: string,
-    choices: GOPromptSelectOption[],
-  ): Promise<T | undefined> {
+  public async select<T = unknown>(message: string, choices: GOPromptSelectOption[]): Promise<T | undefined> {
     const response = await prompts({
       type: 'select',
       name: 'value',
@@ -394,10 +391,7 @@ export class GOPrompt {
 
     if (this.logger && this.logResponses) {
       const selected = choices.find((c) => c.value === value);
-      this.logger.log(
-        GOLogEventCategory.INFO,
-        `${message} → ${selected?.title ?? valueToString(value)}`,
-      );
+      this.logger.log(GOLogEventCategory.INFO, `${message} → ${selected?.title ?? valueToString(value)}`);
     }
 
     return value;
@@ -406,10 +400,7 @@ export class GOPrompt {
   /**
    * Ask to select multiple options from a list
    */
-  public async multiselect<T = unknown>(
-    message: string,
-    choices: GOPromptMultiselectOption[],
-  ): Promise<T[]> {
+  public async multiselect<T = unknown>(message: string, choices: GOPromptMultiselectOption[]): Promise<T[]> {
     const response: { value?: T[] } = await prompts({
       type: 'multiselect',
       name: 'value',

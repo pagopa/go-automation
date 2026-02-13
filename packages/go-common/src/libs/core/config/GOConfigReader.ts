@@ -208,11 +208,7 @@ export class GOConfigReader {
    * @param encoding - Buffer encoding (default: 'base64')
    * @returns Buffer or default
    */
-  buffer(
-    forKey: string,
-    defaultValue?: Buffer,
-    encoding: BufferEncoding = 'base64',
-  ): Buffer | undefined {
+  buffer(forKey: string, defaultValue?: Buffer, encoding: BufferEncoding = 'base64'): Buffer | undefined {
     const value = this.getRawValue(forKey);
     if (value === undefined) return defaultValue;
 
@@ -268,12 +264,7 @@ export class GOConfigReader {
   /**
    * Log access to a configuration key
    */
-  private logAccess(
-    key: string,
-    providerName: string,
-    isSecret: boolean,
-    value?: string | string[],
-  ): void {
+  private logAccess(key: string, providerName: string, isSecret: boolean, value?: string | string[]): void {
     const existing = this.accessLog.get(key);
     if (existing) {
       existing.count++;
@@ -305,9 +296,7 @@ export class GOConfigReader {
    * Log type conversion error
    */
   private logConversionError(key: string, targetType: string, error: unknown): void {
-    console.warn(
-      `[GOConfigReader] Failed to convert "${key}" to ${targetType}: ${getErrorMessage(error)}`,
-    );
+    console.warn(`[GOConfigReader] Failed to convert "${key}" to ${targetType}: ${getErrorMessage(error)}`);
   }
 
   /**
@@ -337,9 +326,7 @@ export class GOConfigReader {
 
     // Find unused providers
     const usedProviders = new Set(providerUsageStats.keys());
-    const unusedProviders = this.providers
-      .map((p) => p.getName())
-      .filter((name) => !usedProviders.has(name));
+    const unusedProviders = this.providers.map((p) => p.getName()).filter((name) => !usedProviders.has(name));
 
     return {
       accessedKeys,
@@ -382,9 +369,7 @@ export class GOConfigReader {
             : entry.lastValue
           : 'NOT FOUND';
 
-      process.stdout.write(
-        `  ${entry.key}: ${value} (from ${entry.provider}, accessed ${entry.accessCount}x)\n`,
-      );
+      process.stdout.write(`  ${entry.key}: ${value} (from ${entry.provider}, accessed ${entry.accessCount}x)\n`);
     }
 
     process.stdout.write('===================================\n\n');

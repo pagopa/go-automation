@@ -41,9 +41,7 @@ export function isNullish(value: unknown): value is null | undefined {
  * isPrimitive([]);          // false
  * ```
  */
-export function isPrimitive(
-  value: unknown,
-): value is string | number | boolean | bigint | null | undefined {
+export function isPrimitive(value: unknown): value is string | number | boolean | bigint | null | undefined {
   if (value === null || value === undefined) {
     return true;
   }

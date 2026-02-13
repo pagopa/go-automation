@@ -59,7 +59,7 @@ export class SENDPagoPaPaymentBuilder {
    * Set PagoPA form (payment slip PDF)
    */
   setPagoPaForm(uploadResult: SENDAttachmentResult): this {
-    this.payment.pagoPaForm = {
+    this.payment.attachment = {
       title: 'Avviso PagoPA',
       contentType: 'application/pdf',
       ref: uploadResult.ref,

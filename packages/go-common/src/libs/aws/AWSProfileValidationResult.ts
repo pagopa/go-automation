@@ -31,9 +31,7 @@ export interface AWSProfileValidationFailure {
  * @param result - The validation result to check
  * @returns True if the result represents a successful validation
  */
-export function isProfileValidationSuccess(
-  result: AWSProfileValidationResult,
-): result is AWSProfileValidationSuccess {
+export function isProfileValidationSuccess(result: AWSProfileValidationResult): result is AWSProfileValidationSuccess {
   return result.status === 'success';
 }
 
@@ -42,8 +40,6 @@ export function isProfileValidationSuccess(
  * @param result - The validation result to check
  * @returns True if the result represents a failed validation
  */
-export function isProfileValidationFailure(
-  result: AWSProfileValidationResult,
-): result is AWSProfileValidationFailure {
+export function isProfileValidationFailure(result: AWSProfileValidationResult): result is AWSProfileValidationFailure {
   return result.status === 'failure';
 }

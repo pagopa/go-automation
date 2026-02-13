@@ -44,10 +44,7 @@ export class GOConsoleLoggerHandler implements GOLoggerHandler {
     process.stdout.write(`${formatted}\n`);
 
     // Increase indentation after header/section
-    if (
-      event.category === GOLogEventCategory.HEADER ||
-      event.category === GOLogEventCategory.SECTION
-    ) {
+    if (event.category === GOLogEventCategory.HEADER || event.category === GOLogEventCategory.SECTION) {
       this.indentLevel++;
     }
   }

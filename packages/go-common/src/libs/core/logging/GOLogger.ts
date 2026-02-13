@@ -62,9 +62,7 @@ export class GOLogger {
     } else if (message !== undefined) {
       event = new GOLogEvent(message, eventOrCategory);
     } else {
-      throw new Error(
-        'Invalid log arguments: must provide either GOLogEvent or (category, message)',
-      );
+      throw new Error('Invalid log arguments: must provide either GOLogEvent or (category, message)');
     }
 
     // Distribute to all handlers

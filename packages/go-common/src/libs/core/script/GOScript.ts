@@ -3,11 +3,7 @@
  * Integrates logging, configuration, and prompts into a unified script framework
  */
 
-import {
-  AWSClientProvider,
-  AWSMultiClientProvider,
-  GOAWSCredentialsManager,
-} from '../../aws/index.js';
+import { AWSClientProvider, AWSMultiClientProvider, GOAWSCredentialsManager } from '../../aws/index.js';
 import { GOConfigKeyTransformer } from '../config/GOConfigKeyTransformer.js';
 import type { GOConfigProvider } from '../config/GOConfigProvider.js';
 import { GOConfigReader } from '../config/GOConfigReader.js';
@@ -29,12 +25,7 @@ import { GOConsoleLoggerHandler } from '../logging/handlers/GOConsoleLoggerHandl
 import { GOFileLoggerHandler } from '../logging/handlers/GOFileLoggerHandler.js';
 import { GOPrompt } from '../prompt/GOPrompt.js';
 import { getErrorMessage, getErrorStack, toError } from '../errors/GOErrorUtils.js';
-import {
-  GOPaths,
-  formatConfigValueDisplay,
-  formatConfigSourceDisplay,
-  valueToString,
-} from '../utils/index.js';
+import { GOPaths, formatConfigValueDisplay, formatConfigSourceDisplay, valueToString } from '../utils/index.js';
 import type { GOPathTypeValue } from '../utils/index.js';
 
 import { GOScriptConfigLoader } from './GOScriptConfigLoader.js';
@@ -115,13 +106,9 @@ export class GOScript {
   /**
    * Initialize AWS credentials manager if aws.profile or aws.profiles parameter is defined.
    */
-  private initializeCredentialManager(
-    configOptions?: GOScriptConfigOptions,
-  ): GOAWSCredentialsManager | undefined {
-    const hasAwsProfileParam =
-      configOptions?.parameters?.some((p) => p.name === 'aws.profile') ?? false;
-    const hasAwsProfilesParam =
-      configOptions?.parameters?.some((p) => p.name === 'aws.profiles') ?? false;
+  private initializeCredentialManager(configOptions?: GOScriptConfigOptions): GOAWSCredentialsManager | undefined {
+    const hasAwsProfileParam = configOptions?.parameters?.some((p) => p.name === 'aws.profile') ?? false;
+    const hasAwsProfilesParam = configOptions?.parameters?.some((p) => p.name === 'aws.profiles') ?? false;
     const awsCredentialsConfig = configOptions?.awsCredentials;
 
     if (awsCredentialsConfig || hasAwsProfileParam || hasAwsProfilesParam) {
@@ -129,8 +116,7 @@ export class GOScript {
         autoLogin: awsCredentialsConfig?.autoLogin ?? defaultAwsCredentialsOptions.autoLogin,
         interactive: awsCredentialsConfig?.interactive ?? defaultAwsCredentialsOptions.interactive,
         maxRetries: awsCredentialsConfig?.maxRetries ?? defaultAwsCredentialsOptions.maxRetries,
-        loginTimeout:
-          awsCredentialsConfig?.loginTimeout ?? defaultAwsCredentialsOptions.loginTimeout,
+        loginTimeout: awsCredentialsConfig?.loginTimeout ?? defaultAwsCredentialsOptions.loginTimeout,
         onLog: this.createLogCallback(),
         onPrompt: this.createPromptCallback(false),
       });
@@ -253,9 +239,7 @@ export class GOScript {
       this.logger.error('A configuration file was found but could not be parsed.');
       this.logger.error(`Details: ${errorMessage}`);
       this.logger.newline();
-      this.logger.info(
-        `Please verify that your configuration file contains valid ${fileType} syntax.`,
-      );
+      this.logger.info(`Please verify that your configuration file contains valid ${fileType} syntax.`);
       process.exit(1);
     }
 
@@ -414,10 +398,7 @@ export class GOScript {
       // Validate required parameters BEFORE showing config summary
       if (loadResult.missingRequired.length > 0) {
         const params = this.configSchema.getAllParameters();
-        const errorMessage = GOScriptConfigLoader.formatMissingParametersError(
-          loadResult.missingRequired,
-          params,
-        );
+        const errorMessage = GOScriptConfigLoader.formatMissingParametersError(loadResult.missingRequired, params);
         console.error(`\n${errorMessage}\n`);
         this.showHelp();
         process.exit(1);
@@ -495,9 +476,7 @@ export class GOScript {
 
     if (missingParams.length > 0) {
       const cliParams = missingParams.map((p) => GOConfigKeyTransformer.toCLIFlag(p));
-      console.error(
-        `\nMissing required parameter${missingParams.length > 1 ? 's' : ''}: ${cliParams.join(', ')}\n`,
-      );
+      console.error(`\nMissing required parameter${missingParams.length > 1 ? 's' : ''}: ${cliParams.join(', ')}\n`);
       this.showHelp();
       process.exit(1);
     }
@@ -586,9 +565,7 @@ export class GOScript {
    * Check if --help flag is present
    */
   private hasHelpFlag(): boolean {
-    return (
-      process.argv.includes('--help') || process.argv.includes('-h') || process.argv.includes('--h')
-    );
+    return process.argv.includes('--help') || process.argv.includes('-h') || process.argv.includes('--h');
   }
 
   /**
@@ -835,9 +812,7 @@ export class GOScript {
 
     // Warn if some profiles failed but we have at least one valid
     if (!result.allSucceeded) {
-      this.logger.warning(
-        `Continuing with ${result.successfulProfiles.length}/${result.profileCount} valid profiles`,
-      );
+      this.logger.warning(`Continuing with ${result.successfulProfiles.length}/${result.profileCount} valid profiles`);
     }
   }
 
@@ -1029,11 +1004,7 @@ export class GOScript {
    * });
    * ```
    */
-  public resolveAndRegisterFile(
-    filename: string,
-    pathType: GOPathTypeValue,
-    options?: GOFileCopyFileOptions,
-  ): string {
+  public resolveAndRegisterFile(filename: string, pathType: GOPathTypeValue, options?: GOFileCopyFileOptions): string {
     // Resolve the path
     const resolvedPath = this.paths.resolvePath(filename, pathType);
 

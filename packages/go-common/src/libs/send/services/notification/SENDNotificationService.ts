@@ -67,10 +67,7 @@ export class SENDNotificationService {
   ): Promise<SENDNotificationCreationResponse> {
     const path = `/delivery/${apiVersion}/requests`;
 
-    const response = await this.httpClient.post<SENDNotificationCreationResponse>(
-      path,
-      notification,
-    );
+    const response = await this.httpClient.post<SENDNotificationCreationResponse>(path, notification);
 
     return response;
   }
@@ -80,9 +77,7 @@ export class SENDNotificationService {
    * @param notificationRequestId - Notification request ID
    * @returns Notification status
    */
-  async getNotificationStatus(
-    notificationRequestId: string,
-  ): Promise<SENDNotificationStatusResponse> {
+  async getNotificationStatus(notificationRequestId: string): Promise<SENDNotificationStatusResponse> {
     const path = `/delivery/requests?notificationRequestId=${notificationRequestId}`;
     const response = await this.httpClient.get<SENDNotificationStatusResponse>(path);
     return response;
@@ -116,9 +111,7 @@ export class SENDNotificationService {
       }
     }
 
-    throw new Error(
-      `IUN not available after ${maxAttempts} attempts for notification ${notificationRequestId}`,
-    );
+    throw new Error(`IUN not available after ${maxAttempts} attempts for notification ${notificationRequestId}`);
   }
 
   /**
@@ -181,9 +174,7 @@ export class SENDNotificationService {
    * @param notificationRequestId - Notification request ID
    * @returns Abortable request with promise and abort function
    */
-  getNotificationStatusAbortable(
-    notificationRequestId: string,
-  ): GOAbortableRequest<SENDNotificationStatusResponse> {
+  getNotificationStatusAbortable(notificationRequestId: string): GOAbortableRequest<SENDNotificationStatusResponse> {
     const path = `/delivery/requests?notificationRequestId=${notificationRequestId}`;
     return this.httpClient.getAbortable<SENDNotificationStatusResponse>(path);
   }

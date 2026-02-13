@@ -4,11 +4,7 @@
  * Executes queries in parallel and aggregates results with comprehensive error handling.
  */
 
-import type {
-  ProfileQueryResult,
-  ProfileQuerySuccess,
-  ProfileQueryFailure,
-} from '../types/ProfileQueryResult.js';
+import type { ProfileQueryResult, ProfileQuerySuccess, ProfileQueryFailure } from '../types/ProfileQueryResult.js';
 import type { MultiProfileQueryResult } from '../types/MultiProfileQueryResult.js';
 import type { AlarmHistoryItem } from '@aws-sdk/client-cloudwatch';
 import { isProfileQuerySuccess, isProfileQueryFailure } from '../types/ProfileQueryResult.js';
@@ -94,13 +90,7 @@ export class MultiProfileQueryCoordinator {
       }
 
       // Execute queries in parallel
-      const results = await this.executeParallelQueries(
-        serviceMap,
-        startDate,
-        endDate,
-        alarmName,
-        onProgress,
-      );
+      const results = await this.executeParallelQueries(serviceMap, startDate, endDate, alarmName, onProgress);
 
       return this.aggregateResults(results, uniqueProfiles.length);
     } finally {
@@ -223,9 +213,7 @@ export class MultiProfileQueryCoordinator {
    * Note: Duplicates are unlikely since each profile queries a different AWS account.
    * This is a safety measure for edge cases (e.g., cross-account alarm forwarding).
    */
-  private deduplicateAlarmItems(
-    items: ReadonlyArray<AlarmHistoryItem>,
-  ): ReadonlyArray<AlarmHistoryItem> {
+  private deduplicateAlarmItems(items: ReadonlyArray<AlarmHistoryItem>): ReadonlyArray<AlarmHistoryItem> {
     const seen = new Map<string, AlarmHistoryItem>();
 
     for (const item of items) {

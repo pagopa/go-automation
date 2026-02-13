@@ -176,11 +176,7 @@ export class CSVManager {
    * @param threshold - Threshold value used
    * @returns Formatted report string
    */
-  public generateThresholdReport(
-    flaggedRows: ReadonlyArray<CSVRow>,
-    field: string,
-    threshold: number,
-  ): string {
+  public generateThresholdReport(flaggedRows: ReadonlyArray<CSVRow>, field: string, threshold: number): string {
     if (!flaggedRows || flaggedRows.length === 0) {
       return `No rows exceed the threshold of ${threshold} for field '${field}'`;
     }

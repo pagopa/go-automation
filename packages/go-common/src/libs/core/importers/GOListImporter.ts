@@ -14,9 +14,7 @@ import type { GOListImporterResult } from './GOListImporterResult.js';
  *
  * @template TItem - The type of items to import
  */
-export interface GOListImporter<TItem = unknown> extends GOEventEmitter<
-  GOListImporterEventMap<TItem>
-> {
+export interface GOListImporter<TItem = unknown> extends GOEventEmitter<GOListImporterEventMap<TItem>> {
   /**
    * Import items from source in batch mode
    *

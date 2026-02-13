@@ -8,14 +8,14 @@ export interface SENDPhysicalAddress {
   address: string;
   /** Additional address details */
   addressDetails?: string | undefined;
-  /** ZIP code */
-  zip: string;
+  /** ZIP code (optional for foreign addresses) */
+  zip?: string;
   /** Municipality/City */
   municipality: string;
   /** Municipality details */
   municipalityDetails?: string | undefined;
-  /** Province code (2 letters) */
-  province: string;
+  /** Province (optional for foreign addresses) */
+  province?: string;
   /** Foreign state (for international addresses) */
   foreignState?: string | undefined;
 }

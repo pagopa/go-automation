@@ -267,11 +267,7 @@ export class GOCLIArgumentParser {
   /**
    * Merge a value into the result map
    */
-  private static mergeValue(
-    result: Map<string, string | string[]>,
-    key: string,
-    value: string | string[],
-  ): void {
+  private static mergeValue(result: Map<string, string | string[]>, key: string, value: string | string[]): void {
     const existing = result.get(key);
 
     if (existing === undefined) {

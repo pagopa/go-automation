@@ -36,11 +36,7 @@ import path from 'path';
 import { getErrorMessage } from '../errors/GOErrorUtils.js';
 import type { GOFileCopyResult, GOFileCopySkipReason } from './GOFileCopyResult.js';
 import type { GOFileCopyReport, GOFileCopyReportSummary } from './GOFileCopyReport.js';
-import type {
-  GOFileCopierOptions,
-  GOFileCopyFileOptions,
-  GOFileCopierSubdirDefaults,
-} from './GOFileCopierOptions.js';
+import type { GOFileCopierOptions, GOFileCopyFileOptions, GOFileCopierSubdirDefaults } from './GOFileCopierOptions.js';
 import { GO_FILE_COPIER_DEFAULTS } from './GOFileCopierOptions.js';
 
 /**
@@ -87,9 +83,7 @@ interface GOFileCopierResolvedOptions {
   readonly overwrite: boolean;
   readonly preserveTimestamps: boolean;
   readonly onLog?: ((message: string, level: 'info' | 'warn' | 'error') => void) | undefined;
-  readonly onPrompt?:
-    | ((message: string, filePath: string, sizeHuman: string) => Promise<boolean>)
-    | undefined;
+  readonly onPrompt?: ((message: string, filePath: string, sizeHuman: string) => Promise<boolean>) | undefined;
   readonly subdirDefaults?: Partial<GOFileCopierSubdirDefaults> | undefined;
 }
 
@@ -135,9 +129,7 @@ export class GOFileCopier {
    * ```
    */
   public registerFile(sourcePath: string, options?: GOFileCopyFileOptions): void {
-    const absolutePath = path.isAbsolute(sourcePath)
-      ? sourcePath
-      : path.resolve(process.cwd(), sourcePath);
+    const absolutePath = path.isAbsolute(sourcePath) ? sourcePath : path.resolve(process.cwd(), sourcePath);
 
     const subdir = options?.subdir === undefined ? null : options.subdir;
 
@@ -156,9 +148,7 @@ export class GOFileCopier {
    * @returns True if the file is registered
    */
   public isRegistered(sourcePath: string): boolean {
-    const absolutePath = path.isAbsolute(sourcePath)
-      ? sourcePath
-      : path.resolve(process.cwd(), sourcePath);
+    const absolutePath = path.isAbsolute(sourcePath) ? sourcePath : path.resolve(process.cwd(), sourcePath);
 
     return this.registeredFiles.has(absolutePath);
   }
@@ -170,9 +160,7 @@ export class GOFileCopier {
    * @returns True if the file was unregistered, false if it wasn't registered
    */
   public unregisterFile(sourcePath: string): boolean {
-    const absolutePath = path.isAbsolute(sourcePath)
-      ? sourcePath
-      : path.resolve(process.cwd(), sourcePath);
+    const absolutePath = path.isAbsolute(sourcePath) ? sourcePath : path.resolve(process.cwd(), sourcePath);
 
     return this.registeredFiles.delete(absolutePath);
   }
@@ -209,13 +197,8 @@ export class GOFileCopier {
    * }
    * ```
    */
-  public async copyFile(
-    sourcePath: string,
-    options?: GOFileCopyFileOptions,
-  ): Promise<GOFileCopyResult> {
-    const absolutePath = path.isAbsolute(sourcePath)
-      ? sourcePath
-      : path.resolve(process.cwd(), sourcePath);
+  public async copyFile(sourcePath: string, options?: GOFileCopyFileOptions): Promise<GOFileCopyResult> {
+    const absolutePath = path.isAbsolute(sourcePath) ? sourcePath : path.resolve(process.cwd(), sourcePath);
 
     const subdir = options?.subdir === undefined ? null : options.subdir;
     const destinationPath = this.getDestinationPath(absolutePath, subdir);
@@ -262,11 +245,7 @@ export class GOFileCopier {
     }
 
     // Interactive prompt for large files
-    if (
-      this.options.interactive &&
-      sizeBytes > this.options.promptThreshold &&
-      this.options.onPrompt
-    ) {
+    if (this.options.interactive && sizeBytes > this.options.promptThreshold && this.options.onPrompt) {
       const shouldCopy = await this.options.onPrompt(
         `File ${path.basename(absolutePath)} is ${sizeHuman}. Copy to execution directory?`,
         absolutePath,

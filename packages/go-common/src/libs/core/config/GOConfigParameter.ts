@@ -37,8 +37,7 @@ export type GOConfigParameterValue =
  * };
  * ```
  */
-export type GOConfigParameterFallback<T extends GOConfigParameterValue = GOConfigParameterValue> =
-  () => Promise<T>;
+export type GOConfigParameterFallback<T extends GOConfigParameterValue = GOConfigParameterValue> = () => Promise<T>;
 
 /**
  * Configuration parameter definition
@@ -176,9 +175,7 @@ export class GOConfigParameter {
       const validationResult = this.validator(value);
       if (validationResult !== true) {
         const message =
-          typeof validationResult === 'string'
-            ? validationResult
-            : `Validation failed for parameter "${this.name}"`;
+          typeof validationResult === 'string' ? validationResult : `Validation failed for parameter "${this.name}"`;
         throw new Error(message);
       }
     }
@@ -220,9 +217,7 @@ export class GOConfigParameter {
       const validationResult = this.validator(value);
       if (validationResult !== true) {
         const message =
-          typeof validationResult === 'string'
-            ? validationResult
-            : `Validation failed for parameter "${this.name}"`;
+          typeof validationResult === 'string' ? validationResult : `Validation failed for parameter "${this.name}"`;
         throw new Error(message);
       }
     }
@@ -313,9 +308,7 @@ export class GOConfigParameter {
   /**
    * Type guard for boolean arrays
    */
-  private isBooleanArray(
-    value: GOConfigParameterValue | undefined,
-  ): value is ReadonlyArray<boolean> {
+  private isBooleanArray(value: GOConfigParameterValue | undefined): value is ReadonlyArray<boolean> {
     return Array.isArray(value) && value.every((item) => typeof item === 'boolean');
   }
 

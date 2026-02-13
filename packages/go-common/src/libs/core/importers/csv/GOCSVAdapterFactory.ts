@@ -69,9 +69,7 @@ export class GOCSVAdapterFactory {
 
     if (!adapter) {
       const availableAdapters = Array.from(this.adapters.keys()).join(', ');
-      throw new Error(
-        `Adapter '${name}' not found. Available adapters: ${availableAdapters || 'none'}`,
-      );
+      throw new Error(`Adapter '${name}' not found. Available adapters: ${availableAdapters || 'none'}`);
     }
 
     return adapter.getOptions();

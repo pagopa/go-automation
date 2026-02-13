@@ -18,10 +18,7 @@ import type { GOFileListExporterOptions } from './GOFileListExporterOptions.js';
  * Generic file list exporter
  * Exports text items (strings) to a file, one per line
  */
-export class GOFileListExporter
-  extends GOEventEmitterBase<GOListExporterEventMap>
-  implements GOListExporter<string>
-{
+export class GOFileListExporter extends GOEventEmitterBase<GOListExporterEventMap> implements GOListExporter<string> {
   private writeStream?: fs.WriteStream;
   private exportedCount: number = 0;
   private failedCount: number = 0;
@@ -192,9 +189,7 @@ export class GOFileListExporter
       this.emit('export:item', { item, index: currentIndex });
 
       // Emit progress
-      const percentage = this.totalItems
-        ? Math.round((this.exportedCount / this.totalItems) * 100)
-        : undefined;
+      const percentage = this.totalItems ? Math.round((this.exportedCount / this.totalItems) * 100) : undefined;
       this.emit('export:progress', {
         exportedItems: this.exportedCount,
         totalItems: this.totalItems,

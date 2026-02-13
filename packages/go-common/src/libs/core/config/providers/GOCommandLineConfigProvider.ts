@@ -46,9 +46,7 @@ export class GOCommandLineConfigProvider extends GOConfigProviderBase {
     super();
 
     this.values = new Map();
-    this.secretRedactor = new GOSecretRedactor(
-      options.secretsSpecifier ?? GOSecretsSpecifierFactory.none(),
-    );
+    this.secretRedactor = new GOSecretRedactor(options.secretsSpecifier ?? GOSecretsSpecifierFactory.none());
     this.rawArgs = options.arguments ?? process.argv.slice(2);
 
     // Parse arguments

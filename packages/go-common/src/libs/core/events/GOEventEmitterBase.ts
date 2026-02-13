@@ -17,10 +17,7 @@ export class GOEventEmitterBase<TEventMap extends object> implements GOEventEmit
    * @param event - The event name
    * @param handler - The handler function to call when event is emitted
    */
-  on<TEvent extends keyof TEventMap>(
-    event: TEvent,
-    handler: GOEventHandler<TEventMap[TEvent]>,
-  ): void {
+  on<TEvent extends keyof TEventMap>(event: TEvent, handler: GOEventHandler<TEventMap[TEvent]>): void {
     const handlers = this.listeners[event] ?? [];
     handlers.push(handler as GOEventHandler<unknown>);
     this.listeners[event] = handlers;
@@ -32,10 +29,7 @@ export class GOEventEmitterBase<TEventMap extends object> implements GOEventEmit
    * @param event - The event name
    * @param handler - The handler function to remove
    */
-  off<TEvent extends keyof TEventMap>(
-    event: TEvent,
-    handler: GOEventHandler<TEventMap[TEvent]>,
-  ): void {
+  off<TEvent extends keyof TEventMap>(event: TEvent, handler: GOEventHandler<TEventMap[TEvent]>): void {
     if (!this.listeners[event]) return;
     this.listeners[event] = this.listeners[event].filter((h) => h !== handler);
   }
@@ -96,10 +90,7 @@ export class GOEventEmitterBase<TEventMap extends object> implements GOEventEmit
    * @param event - The event name
    * @param payload - The event payload
    */
-  protected async emitAsync<TEvent extends keyof TEventMap>(
-    event: TEvent,
-    payload: TEventMap[TEvent],
-  ): Promise<void> {
+  protected async emitAsync<TEvent extends keyof TEventMap>(event: TEvent, payload: TEventMap[TEvent]): Promise<void> {
     const handlers = this.listeners[event];
     if (!handlers) return;
 

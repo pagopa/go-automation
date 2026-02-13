@@ -157,9 +157,7 @@ export class GOConfigTypeConverter {
     try {
       return Buffer.from(str, encoding);
     } catch (error: unknown) {
-      throw new Error(
-        `Cannot convert "${str}" to Buffer with encoding ${encoding}: ${getErrorMessage(error)}`,
-      );
+      throw new Error(`Cannot convert "${str}" to Buffer with encoding ${encoding}: ${getErrorMessage(error)}`);
     }
   }
 
@@ -170,18 +168,12 @@ export class GOConfigTypeConverter {
    * @param encoding - Buffer encoding (default: 'base64')
    * @returns Array of Buffers
    */
-  static toBufferArray(
-    value: string | string[],
-    separator = ',',
-    encoding: BufferEncoding = 'base64',
-  ): Buffer[] {
+  static toBufferArray(value: string | string[], separator = ',', encoding: BufferEncoding = 'base64'): Buffer[] {
     return this.toStringArray(value, separator).map((v) => {
       try {
         return Buffer.from(v, encoding);
       } catch (error: unknown) {
-        throw new Error(
-          `Cannot convert "${v}" to Buffer with encoding ${encoding}: ${getErrorMessage(error)}`,
-        );
+        throw new Error(`Cannot convert "${v}" to Buffer with encoding ${encoding}: ${getErrorMessage(error)}`);
       }
     });
   }

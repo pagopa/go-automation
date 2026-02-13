@@ -258,9 +258,7 @@ export class GOCSVListImporter<TItem = CSVRecord>
    */
   private transformItem(record: CSVRecord): TItem {
     // Preserve original record before any transformation if enabled
-    const originalRow: CSVRecord | undefined = this.options.preserveOriginalData
-      ? { ...record }
-      : undefined;
+    const originalRow: CSVRecord | undefined = this.options.preserveOriginalData ? { ...record } : undefined;
 
     let item: CSVRecord = { ...record };
 

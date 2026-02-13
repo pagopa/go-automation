@@ -44,10 +44,7 @@ export class SENDAttachmentService {
       },
     ];
 
-    const response = await this.httpClient.post<SENDPreloadResponse[]>(
-      '/delivery/attachments/preload',
-      preloadRequest,
-    );
+    const response = await this.httpClient.post<SENDPreloadResponse[]>('/delivery/attachments/preload', preloadRequest);
 
     if (!response || response.length === 0) {
       throw new Error('Empty preload response from SafeStorage');
@@ -64,12 +61,7 @@ export class SENDAttachmentService {
   /**
    * Upload file to SafeStorage using presigned URL
    */
-  private async uploadToSafeStorage(
-    url: string,
-    buffer: Buffer,
-    sha256: string,
-    secret: string,
-  ): Promise<void> {
+  private async uploadToSafeStorage(url: string, buffer: Buffer, sha256: string, secret: string): Promise<void> {
     const headers = {
       'Content-Type': 'application/pdf',
       'x-amz-checksum-sha256': sha256,
@@ -88,9 +80,7 @@ export class SENDAttachmentService {
   async uploadPDF(filePathOrBuffer: string | Buffer): Promise<SENDAttachmentResult> {
     // Read file if path is provided
     const buffer =
-      typeof filePathOrBuffer === 'string'
-        ? await this.readFileFromDisk(filePathOrBuffer)
-        : filePathOrBuffer;
+      typeof filePathOrBuffer === 'string' ? await this.readFileFromDisk(filePathOrBuffer) : filePathOrBuffer;
 
     // Calculate SHA256
     const sha256 = this.calculateSHA256(buffer);
@@ -176,9 +166,7 @@ export class SENDAttachmentService {
     const promise = (async (): Promise<SENDAttachmentResult> => {
       // Read file if path is provided
       const buffer =
-        typeof filePathOrBuffer === 'string'
-          ? await this.readFileFromDisk(filePathOrBuffer)
-          : filePathOrBuffer;
+        typeof filePathOrBuffer === 'string' ? await this.readFileFromDisk(filePathOrBuffer) : filePathOrBuffer;
 
       if (controller.signal.aborted) {
         throw new Error('Upload aborted');

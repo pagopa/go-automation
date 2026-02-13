@@ -160,8 +160,7 @@ export class GOAWSCredentialsManager {
     const analysis = this.analyzeError(error);
     return (
       analysis.type === GOAWSCredentialsErrorType.SSO_SESSION_EXPIRED ||
-      (analysis.type === GOAWSCredentialsErrorType.CREDENTIALS_PROVIDER_FAILED &&
-        analysis.isRecoverable)
+      (analysis.type === GOAWSCredentialsErrorType.CREDENTIALS_PROVIDER_FAILED && analysis.isRecoverable)
     );
   }
 
@@ -246,10 +245,7 @@ export class GOAWSCredentialsManager {
    * @returns The result of the operation
    * @throws The original error if not recoverable or retry fails
    */
-  public async withCredentialRetry<T>(
-    operation: () => Promise<T>,
-    options: GOAWSRetryOptions,
-  ): Promise<T> {
+  public async withCredentialRetry<T>(operation: () => Promise<T>, options: GOAWSRetryOptions): Promise<T> {
     const maxRetries = options.maxRetries ?? this.options.maxRetries;
     const maxAttempts = maxRetries + 1;
     let lastError: unknown;
@@ -316,10 +312,7 @@ export class GOAWSCredentialsManager {
           loginPerformed: true,
         });
 
-        this.log(
-          `Retrying operation after successful login (attempt ${attempt + 1}/${maxAttempts})`,
-          'info',
-        );
+        this.log(`Retrying operation after successful login (attempt ${attempt + 1}/${maxAttempts})`, 'info');
       }
     }
 
@@ -351,14 +344,10 @@ export class GOAWSCredentialsManager {
    * @returns True if credentials are valid, false otherwise
    */
   public validateCredentials(profile: string, region: string = 'eu-south-1'): boolean {
-    const result = spawnSync(
-      'aws',
-      ['sts', 'get-caller-identity', `--profile=${profile}`, `--region=${region}`],
-      {
-        stdio: 'ignore',
-        timeout: 10000, // 10 second timeout
-      },
-    );
+    const result = spawnSync('aws', ['sts', 'get-caller-identity', `--profile=${profile}`, `--region=${region}`], {
+      stdio: 'ignore',
+      timeout: 10000, // 10 second timeout
+    });
 
     return result.status === 0;
   }
@@ -371,10 +360,7 @@ export class GOAWSCredentialsManager {
    * @param region - Optional AWS region (default: eu-south-1)
    * @returns True if credentials are valid, false otherwise
    */
-  public async validateCredentialsAsync(
-    profile: string,
-    region: string = 'eu-south-1',
-  ): Promise<boolean> {
+  public async validateCredentialsAsync(profile: string, region: string = 'eu-south-1'): Promise<boolean> {
     try {
       const client = new STSClient({
         region,
@@ -410,10 +396,7 @@ export class GOAWSCredentialsManager {
    * const client = new CloudWatchClient(config);
    * ```
    */
-  public async ensureValidCredentials(
-    profile: string,
-    region: string = 'eu-south-1',
-  ): Promise<boolean> {
+  public async ensureValidCredentials(profile: string, region: string = 'eu-south-1'): Promise<boolean> {
     // First, check if credentials are already valid using SDK (same path as actual operations)
     if (await this.validateCredentialsAsync(profile, region)) {
       this.log(`AWS credentials valid for profile: ${profile}`, 'info');
@@ -567,9 +550,7 @@ export class GOAWSCredentialsManager {
 
     // Execute SSO login sequentially (browser can only handle one at a time)
     const finalValid: AWSProfileValidationSuccess[] = [...validProfiles];
-    const finalInvalid: AWSProfileValidationFailure[] = invalidProfiles.filter(
-      (p) => !p.isRecoverable,
-    );
+    const finalInvalid: AWSProfileValidationFailure[] = invalidProfiles.filter((p) => !p.isRecoverable);
 
     for (const failedProfile of recoverableProfiles) {
       this.log(`Attempting SSO login for profile: ${failedProfile.profile}`, 'info');
@@ -577,10 +558,7 @@ export class GOAWSCredentialsManager {
       const loginResult = await this.executeAWSSSOLogin(failedProfile.profile);
 
       if (!loginResult.success) {
-        this.log(
-          `SSO login failed for ${failedProfile.profile}: ${loginResult.errorMessage}`,
-          'error',
-        );
+        this.log(`SSO login failed for ${failedProfile.profile}: ${loginResult.errorMessage}`, 'error');
         finalInvalid.push(failedProfile);
         continue;
       }
@@ -683,10 +661,7 @@ export class GOAWSCredentialsManager {
     if (!(error instanceof Error)) {
       return false;
     }
-    return (
-      error.name === 'CredentialsProviderError' ||
-      error.constructor.name === 'CredentialsProviderError'
-    );
+    return error.name === 'CredentialsProviderError' || error.constructor.name === 'CredentialsProviderError';
   }
 
   /**

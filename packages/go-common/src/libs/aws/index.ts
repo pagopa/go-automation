@@ -37,7 +37,4 @@ export type {
   AWSProfileValidationSuccess,
   AWSProfileValidationFailure,
 } from './AWSProfileValidationResult.js';
-export {
-  isProfileValidationSuccess,
-  isProfileValidationFailure,
-} from './AWSProfileValidationResult.js';
+export { isProfileValidationSuccess, isProfileValidationFailure } from './AWSProfileValidationResult.js';

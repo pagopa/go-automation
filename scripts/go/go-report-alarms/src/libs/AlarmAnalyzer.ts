@@ -5,11 +5,7 @@
 
 import type { AlarmHistoryItem } from '@aws-sdk/client-cloudwatch';
 
-import type {
-  FilteredAlarms,
-  AlarmTimelineEntry,
-  AlarmReportSummary,
-} from '../types/alarms.types.js';
+import type { FilteredAlarms, AlarmTimelineEntry, AlarmReportSummary } from '../types/alarms.types.js';
 import type {
   ActionHistoryData,
   HistoryDataPublishedMessage,
@@ -51,8 +47,7 @@ export class AlarmAnalyzer {
   ): FilteredAlarms {
     // Pre-compile single RegExp for all patterns
     const escapedPatterns = ignorePatterns.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    const combinedPattern =
-      ignorePatterns.length > 0 ? new RegExp(escapedPatterns.join('|')) : null;
+    const combinedPattern = ignorePatterns.length > 0 ? new RegExp(escapedPatterns.join('|')) : null;
 
     const stateUpdateItems = alarmHistoryItems.filter((item) => {
       try {

@@ -149,11 +149,7 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
     }
 
     if (!response.ok) {
-      throw new GOHttpClientError(
-        `HTTP ${response.status}: ${response.statusText}`,
-        response.status,
-        responseData,
-      );
+      throw new GOHttpClientError(`HTTP ${response.status}: ${response.statusText}`, response.status, responseData);
     }
 
     return responseData as T;
@@ -279,10 +275,7 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
 
         if (method === 'PUT') {
           if (!response.ok) {
-            const error = new GOHttpClientError(
-              `HTTP ${response.status}: ${response.statusText}`,
-              response.status,
-            );
+            const error = new GOHttpClientError(`HTTP ${response.status}: ${response.statusText}`, response.status);
             this.emit('http:request:error', {
               method,
               url,
@@ -405,11 +398,7 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
    * @param headers - Additional request headers
    * @returns Abortable request object
    */
-  postAbortable<T>(
-    path: string,
-    body?: unknown,
-    headers?: Record<string, string>,
-  ): GOAbortableRequest<T> {
+  postAbortable<T>(path: string, body?: unknown, headers?: Record<string, string>): GOAbortableRequest<T> {
     return this.executeRequest<T>('POST', path, body, headers);
   }
 
@@ -421,11 +410,7 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
    * @param headers - Additional request headers
    * @returns Abortable request object
    */
-  putAbortable(
-    url: string,
-    body: Buffer | string,
-    headers?: Record<string, string>,
-  ): GOAbortableRequest<void> {
+  putAbortable(url: string, body: Buffer | string, headers?: Record<string, string>): GOAbortableRequest<void> {
     return this.executeRequest<void>('PUT', url, body, headers, true);
   }
 }

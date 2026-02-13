@@ -14,8 +14,7 @@ import { loadIgnorePatterns } from './libs/PatternsUtils.js';
 export const scriptMetadata: Core.GOScriptMetadata = {
   name: 'GO Report Alarms',
   version: '2.0.0',
-  description:
-    'Analizza gli allarmi CloudWatch per i prodotti del team GO (supporto multi-account)',
+  description: 'Analizza gli allarmi CloudWatch per i prodotti del team GO (supporto multi-account)',
   authors: ['Team GO - Gestione Operativa'],
 };
 

@@ -305,10 +305,7 @@ export function mapErr<T, E, F>(result: GOResult<T, E>, fn: (error: E) => F): GO
  * // err('Must be positive')
  * ```
  */
-export function andThen<T, U, E>(
-  result: GOResult<T, E>,
-  fn: (value: T) => GOResult<U, E>,
-): GOResult<U, E> {
+export function andThen<T, U, E>(result: GOResult<T, E>, fn: (value: T) => GOResult<U, E>): GOResult<U, E> {
   if (isOk(result)) {
     return fn(result.value);
   }

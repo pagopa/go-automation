@@ -12,8 +12,7 @@ import { Core } from '@go-automation/go-common';
 export const scriptMetadata: Core.GOScriptMetadata = {
   name: 'SEND Monitor TPP Messages',
   version: '2.0.0',
-  description:
-    'Monitors TPP messages via Athena queries and generates reports with optional Slack notifications',
+  description: 'Monitors TPP messages via Athena queries and generates reports with optional Slack notifications',
   authors: ['Team GO - Gestione Operativa'],
 };
 
@@ -25,16 +24,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'from',
     type: Core.GOConfigParameterType.STRING,
-    description:
-      'Start date/time (ISO 8601, date-only, or Unix timestamp). Defaults to 24 hours ago.',
+    description: 'Start date/time (ISO 8601, date-only, or Unix timestamp). Defaults to 24 hours ago.',
     required: false,
     aliases: ['f'],
   },
   {
     name: 'to',
     type: Core.GOConfigParameterType.STRING,
-    description:
-      'End date/time (ISO 8601, date-only, or Unix timestamp). Defaults to current time.',
+    description: 'End date/time (ISO 8601, date-only, or Unix timestamp). Defaults to current time.',
     required: false,
     aliases: ['t'],
   },

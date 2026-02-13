@@ -102,9 +102,7 @@ export class SENDTimelineService {
     for (let i = 0; i < parsedIuns.length; i += CHUNK_SIZE) {
       const chunk = parsedIuns.slice(i, i + CHUNK_SIZE);
 
-      const chunkResults = await Promise.all(
-        chunk.map(async (parsedIun) => this.queryTimeline(parsedIun)),
-      );
+      const chunkResults = await Promise.all(chunk.map(async (parsedIun) => this.queryTimeline(parsedIun)));
 
       results.push(...chunkResults);
       processed += chunk.length;

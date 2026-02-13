@@ -4,9 +4,9 @@
 
 import type { SENDAttachmentResult } from '../services/attachment/models/SENDAttachmentResult.js';
 import type { SENDDigitalDomicile } from '../services/notification/models/SENDDigitalDomicile.js';
-import type { SENDF24Metadata } from '../services/notification/models/SENDF24Metadata.js';
 import type { SENDNotificationDocument } from '../services/notification/models/SENDNotificationDocument.js';
 import { SENDNotificationFeePolicy } from '../services/notification/models/SENDNotificationFeePolicy.js';
+import type { SENDNotificationPaymentItem } from '../services/notification/models/SENDNotificationPaymentItem.js';
 import type { SENDNotificationRecipient } from '../services/notification/models/SENDNotificationRecipient.js';
 import type { SENDNotificationRequest } from '../services/notification/models/SENDNotificationRequest.js';
 import { SENDPagoPaIntMode } from '../services/notification/models/SENDPagoPaIntMode.js';
@@ -50,9 +50,7 @@ export class SENDNotificationBuilder {
     const random = Math.floor(Math.random() * 9999999)
       .toString()
       .padStart(7, '0');
-    this.request.paProtocolNumber = `2025${(random + timestamp.substring(0, 13))
-      .padStart(20, '0')
-      .substring(0, 20)}`;
+    this.request.paProtocolNumber = `2025${(random + timestamp.substring(0, 13)).padStart(20, '0').substring(0, 20)}`;
     return this;
   }
 
@@ -78,14 +76,6 @@ export class SENDNotificationBuilder {
   setSender(taxId: string, denomination: string): this {
     this.request.senderTaxId = taxId;
     this.request.senderDenomination = denomination;
-    return this;
-  }
-
-  /**
-   * Set sender PEC address
-   */
-  setSenderPecAddress(pecAddress: string): this {
-    this.request.senderPecAddress = pecAddress;
     return this;
   }
 
@@ -173,10 +163,12 @@ export class SENDNotificationBuilder {
 
   /**
    * Add a recipient with digital domicile (digital notification)
+   * Note: physicalAddress is required by PN API for all recipients
    */
   addDigitalRecipient(
     taxId: string,
     denomination: string,
+    address: SENDPhysicalAddress,
     digitalDomicile: SENDDigitalDomicile,
     recipientType: SENDRecipientType = SENDRecipientType.PF,
   ): this {
@@ -184,6 +176,7 @@ export class SENDNotificationBuilder {
       taxId,
       denomination,
       recipientType,
+      physicalAddress: address,
       digitalDomicile,
     });
     return this;
@@ -210,28 +203,23 @@ export class SENDNotificationBuilder {
   }
 
   /**
-   * Add payment to the last recipient
+   * Add a payment item to the last recipient
    */
-  addPaymentToLastRecipient(payment: SENDPagoPaPayment): this {
+  addPaymentToLastRecipient(payment: SENDNotificationPaymentItem): this {
     const lastRecipient = this.currentRecipients.at(-1);
     if (!lastRecipient) {
       throw new Error('No recipients added. Add a recipient before adding payment.');
     }
-    lastRecipient.payment = payment;
+    lastRecipient.payments ??= [];
+    lastRecipient.payments.push(payment);
     return this;
   }
 
   /**
-   * Add F24 metadata to the last recipient
+   * Add a PagoPA payment to the last recipient (convenience method)
    */
-  addF24ToLastRecipient(f24: SENDF24Metadata): this {
-    const lastRecipient = this.currentRecipients.at(-1);
-    if (!lastRecipient) {
-      throw new Error('No recipients added. Add a recipient before adding F24.');
-    }
-    lastRecipient.payments ??= [];
-    lastRecipient.payments.push(f24);
-    return this;
+  addPagoPaPaymentToLastRecipient(pagoPa: SENDPagoPaPayment): this {
+    return this.addPaymentToLastRecipient({ pagoPa });
   }
 
   /**
@@ -263,9 +251,7 @@ export class SENDNotificationBuilder {
     const errors: string[] = [];
 
     if (!this.request.paProtocolNumber) {
-      errors.push(
-        'Protocol number is required. Use setProtocolNumber() or generateProtocolNumber()',
-      );
+      errors.push('Protocol number is required. Use setProtocolNumber() or generateProtocolNumber()');
     }
     if (!this.request.subject) {
       errors.push('Subject is required. Use setSubject()');
@@ -277,9 +263,7 @@ export class SENDNotificationBuilder {
       errors.push('Sender denomination is required. Use setSender()');
     }
     if (this.currentRecipients.length === 0) {
-      errors.push(
-        'At least one recipient is required. Use addAnalogRecipient() or addDigitalRecipient()',
-      );
+      errors.push('At least one recipient is required. Use addAnalogRecipient() or addDigitalRecipient()');
     }
     if (this.currentDocuments.length === 0) {
       errors.push('At least one document is required. Use addDocument()');

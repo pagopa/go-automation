@@ -13,14 +13,7 @@ import { getErrorMessage } from '../../errors/GOErrorUtils.js';
  * Represents a YAML value which can be a primitive, array, or nested object.
  * Used for type-safe handling of parsed YAML content.
  */
-export type YAMLValue =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | YAMLValue[]
-  | { [key: string]: YAMLValue };
+export type YAMLValue = string | number | boolean | null | undefined | YAMLValue[] | { [key: string]: YAMLValue };
 
 /**
  * Type guard to check if a value is a YAML object (non-array, non-null object).
@@ -81,10 +74,7 @@ export class GOYAMLParser {
    * @param encoding - File encoding (default: 'utf8')
    * @returns Merged YAML content
    */
-  static parseFiles(
-    filePaths: ReadonlyArray<string>,
-    encoding: BufferEncoding = 'utf8',
-  ): Record<string, YAMLValue> {
+  static parseFiles(filePaths: ReadonlyArray<string>, encoding: BufferEncoding = 'utf8'): Record<string, YAMLValue> {
     const result: Record<string, YAMLValue> = {};
 
     for (const filePath of filePaths) {
@@ -102,10 +92,7 @@ export class GOYAMLParser {
    * @param target - Target object
    * @param source - Source object
    */
-  private static deepMerge(
-    target: Record<string, YAMLValue>,
-    source: Record<string, YAMLValue>,
-  ): void {
+  private static deepMerge(target: Record<string, YAMLValue>, source: Record<string, YAMLValue>): void {
     for (const key of Object.keys(source)) {
       const sourceValue = source[key];
       const targetValue = target[key];

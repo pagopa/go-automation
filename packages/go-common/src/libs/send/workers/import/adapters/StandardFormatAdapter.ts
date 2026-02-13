@@ -39,9 +39,7 @@ export class StandardFormatAdapter implements GOCSVFormatAdapter {
 
     // Check for required standard SEND columns
     const requiredColumns = ['subject', 'senderTaxId', 'recipientTaxId', 'recipientType'];
-    const hasAllRequired = requiredColumns.every((col) =>
-      firstLine.toLowerCase().includes(col.toLowerCase()),
-    );
+    const hasAllRequired = requiredColumns.every((col) => firstLine.toLowerCase().includes(col.toLowerCase()));
 
     return hasAllRequired;
   }
