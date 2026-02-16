@@ -23,11 +23,25 @@ export const scriptMetadata: Core.GOScriptMetadata = {
  */
 export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
-    name: 'aws.profile',
+    name: 'alarm.name',
     type: Core.GOConfigParameterType.STRING,
-    description: 'AWS SSO profile name',
+    description: 'Name of the CloudWatch alarm that triggered',
     required: true,
-    aliases: ['ap'],
+    aliases: ['an'],
+  },
+  {
+    name: 'alarm.datetime',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'Timestamp when the alarm triggered (ISO 8601 format, e.g. 2025-10-01T18:55:00Z)',
+    required: true,
+    aliases: ['ad'],
+  },
+  {
+    name: 'aws.profiles',
+    type: Core.GOConfigParameterType.STRING_ARRAY,
+    description: 'AWS SSO profile names for multi-account mode (comma-separated)',
+    required: true,
+    aliases: ['aps'],
   },
 ] as const;
 
@@ -36,6 +50,10 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
  * Represents all validated configuration parameters
  */
 export interface GoAnalyzeAlarmConfig {
-  /** AWS profile name */
-  readonly awsProfile: string;
+  /** Name of the CloudWatch alarm */
+  readonly alarmName: string;
+  /** Timestamp when the alarm triggered (ISO 8601) */
+  readonly alarmDatetime: string;
+  /** AWS SSO profile names */
+  readonly awsProfiles: ReadonlyArray<string>;
 }

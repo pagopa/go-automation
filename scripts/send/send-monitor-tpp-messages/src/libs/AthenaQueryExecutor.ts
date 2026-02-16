@@ -4,6 +4,7 @@
  */
 
 import { StartQueryExecutionCommand } from '@aws-sdk/client-athena';
+import { Core } from '@go-automation/go-common';
 
 import type { AthenaQueryConfig } from '../types/AthenaQueryConfig.js';
 import type { AthenaQueryExecution } from '../types/AthenaQueryExecution.js';
@@ -11,13 +12,8 @@ import type { AthenaQueryResults } from '../types/AthenaQueryResults.js';
 import type { QueryParams } from '../types/QueryParams.js';
 import type { AwsAthenaService } from './AwsAthenaService.js';
 
-/**
- * Delays execution for a specified duration
- * @param ms - Milliseconds to wait
- */
-async function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+/** Terminal states for Athena query execution */
+const ATHENA_TERMINAL_STATES: ReadonlySet<string> = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED']);
 
 /**
  * Executes Athena queries with template parameter substitution
@@ -150,23 +146,21 @@ export class AthenaQueryExecutor {
     maxRetries: number,
     retryDelay: number,
   ): Promise<AthenaQueryExecution> {
-    let retries = 0;
+    return Core.pollUntilComplete(
+      { maxAttempts: maxRetries, backoff: Core.fixedBackoff(retryDelay) },
+      async (attempt) => {
+        const execution = (await this.athenaService.getQueryExecution(queryExecutionId)) as AthenaQueryExecution;
+        const state = execution.QueryExecution.Status.State;
 
-    while (retries < maxRetries) {
-      const execution = (await this.athenaService.getQueryExecution(queryExecutionId)) as AthenaQueryExecution;
-      const state = execution.QueryExecution.Status.State;
+        this.log(`Query status: ${state} (check ${attempt + 1}/${maxRetries})`);
 
-      this.log(`Query status: ${state} (check ${retries + 1}/${maxRetries})`);
+        if (ATHENA_TERMINAL_STATES.has(state)) {
+          return execution;
+        }
 
-      if (state === 'SUCCEEDED' || state === 'FAILED' || state === 'CANCELLED') {
-        return execution;
-      }
-
-      await sleep(retryDelay);
-      retries++;
-    }
-
-    throw new Error(`Query execution timeout after ${maxRetries} retries`);
+        return undefined;
+      },
+    );
   }
 
   /**

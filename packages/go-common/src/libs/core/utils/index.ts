@@ -40,3 +40,12 @@ export {
   hasProperty,
   hasMessage,
 } from './GOTypeGuards.js';
+export {
+  pollUntilComplete,
+  exponentialBackoff,
+  fixedBackoff,
+  DEFAULT_MAX_POLL_ATTEMPTS,
+  DEFAULT_BACKOFF_BASE_MS,
+  DEFAULT_BACKOFF_CAP_MS,
+} from './pollUntilComplete.js';
+export type { PollOptions, PollAttemptInfo, BackoffFn } from './pollUntilComplete.js';

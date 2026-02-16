@@ -47,7 +47,7 @@ export interface CloudWatchLogsQueryConfig {
  * });
  * ```
  */
-export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ResultField[]>> {
+export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -70,7 +70,7 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ResultField[]
    * @param context - The runbook execution context
    * @returns Step result containing an array of result rows
    */
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ResultField[]>>> {
+  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<ResultField>>>> {
     try {
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
       const interpolatedQuery = interpolateTemplate(this.query, context);

@@ -1,11 +1,15 @@
-import type { AthenaClient } from '@aws-sdk/client-athena';
+import type { AthenaClient, Row } from '@aws-sdk/client-athena';
 import { StartQueryExecutionCommand, GetQueryExecutionCommand, GetQueryResultsCommand } from '@aws-sdk/client-athena';
+import { pollUntilComplete, fixedBackoff } from '../../core/utils/pollUntilComplete.js';
 
-/** Polling interval for Athena query results */
-const QUERY_POLL_INTERVAL_MS = 2000;
+/** Default polling interval for Athena query results */
+const ATHENA_POLL_INTERVAL_MS = 2000;
 
-/** Maximum polling attempts before timing out */
-const MAX_POLL_ATTEMPTS = 120;
+/** Default maximum polling attempts for Athena queries */
+const ATHENA_MAX_POLL_ATTEMPTS = 120;
+
+/** Terminal states for Athena query execution */
+const ATHENA_TERMINAL_STATES: ReadonlySet<string> = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED']);
 
 /**
  * Service for executing Athena queries.
@@ -44,34 +48,45 @@ export class AthenaService {
     }
 
     // Poll for completion
-    for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+    const pollOptions = {
+      maxAttempts: ATHENA_MAX_POLL_ATTEMPTS,
+      backoff: fixedBackoff(ATHENA_POLL_INTERVAL_MS),
+    };
+
+    await pollUntilComplete(pollOptions, async () => {
       const statusResponse = await this.client.send(new GetQueryExecutionCommand({ QueryExecutionId: executionId }));
 
       const state = statusResponse.QueryExecution?.Status?.State;
-      if (state === 'SUCCEEDED') {
-        break;
-      }
-      if (state === 'FAILED' || state === 'CANCELLED') {
-        const reason = statusResponse.QueryExecution?.Status?.StateChangeReason ?? 'Unknown';
-        throw new Error(`Athena query ${state}: ${reason}`);
+
+      if (state !== undefined && ATHENA_TERMINAL_STATES.has(state)) {
+        if (state !== 'SUCCEEDED') {
+          const reason = statusResponse.QueryExecution?.Status?.StateChangeReason ?? 'Unknown';
+          throw new Error(`Athena query ${state}: ${reason}`);
+        }
+        return true;
       }
 
-      await this.sleep(QUERY_POLL_INTERVAL_MS);
-
-      if (attempt === MAX_POLL_ATTEMPTS - 1) {
-        throw new Error(`Athena query timed out after ${MAX_POLL_ATTEMPTS} attempts: ${executionId}`);
-      }
-    }
+      return undefined;
+    });
 
     // Fetch results
     const resultsResponse = await this.client.send(new GetQueryResultsCommand({ QueryExecutionId: executionId }));
 
-    const rows = resultsResponse.ResultSet?.Rows ?? [];
+    return this.parseResultRows(resultsResponse.ResultSet?.Rows ?? []);
+  }
+
+  /**
+   * Parses Athena result rows into key-value records.
+   * The first row is treated as the header row.
+   *
+   * @param rows - Raw Athena result rows
+   * @returns Parsed records with header values as keys
+   */
+  private parseResultRows(rows: ReadonlyArray<Row>): ReadonlyArray<Record<string, string>> {
     if (rows.length === 0) {
       return [];
     }
 
-    // First row is the header
     const headerRow = rows[0];
     const headers = headerRow?.Data?.map((d) => d.VarCharValue ?? '') ?? [];
 
@@ -93,14 +108,5 @@ export class AthenaService {
     }
 
     return results;
-  }
-
-  /**
-   * Sleeps for the specified milliseconds.
-   */
-  private async sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => {
-      setTimeout(resolve, ms);
-    });
   }
 }
