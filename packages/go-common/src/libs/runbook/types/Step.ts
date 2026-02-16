@@ -17,4 +17,15 @@ export interface Step<TOutput = unknown> {
   readonly kind: StepKind;
   /** Executes the step and returns the result */
   execute(context: RunbookContext): Promise<StepResult<TOutput>>;
+  /**
+   * Returns step-specific trace information for debugging and audit.
+   * Called by the engine before execute() to capture resolved configuration
+   * (interpolated queries, URLs, expressions, etc.) in the execution trace.
+   *
+   * Optional: steps that have no meaningful trace info can omit this method.
+   *
+   * @param context - The runbook execution context (for template interpolation)
+   * @returns Key-value record of resolved step configuration
+   */
+  getTraceInfo?(context: RunbookContext): Readonly<Record<string, unknown>>;
 }

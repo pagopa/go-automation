@@ -48,6 +48,19 @@ export class DynamoDBGetStep implements Step<Record<string, unknown> | undefined
   }
 
   /**
+   * Returns resolved DynamoDB GetItem configuration for the execution trace.
+   *
+   * @param context - The runbook execution context
+   * @returns Trace info with resolved table name and key
+   */
+  getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
+    return {
+      tableName: interpolateTemplate(this.tableName, context),
+      key: resolveKey(this.key, context),
+    };
+  }
+
+  /**
    * Retrieves a single item from DynamoDB using the configured key.
    *
    * @param context - The runbook execution context

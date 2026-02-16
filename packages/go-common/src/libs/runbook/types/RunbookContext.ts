@@ -21,9 +21,6 @@ export interface RunbookContext {
   readonly logs: ReadonlyArray<LogEntry>;
   /** Injected AWS and HTTP services */
   readonly services: ServiceRegistry;
-  /**
-   * (v5) Errors recovered from steps with continueOnFailure enabled.
-   * Allows inspection of which steps failed without blocking execution.
-   */
+  /** Errors recovered from steps with continueOnFailure enabled. Allows inspection of which steps failed without blocking execution. */
   readonly recoveredErrors: ReadonlyArray<ErrorRecoveryInfo>;
 }

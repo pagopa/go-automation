@@ -1,7 +1,25 @@
 import type { GOLogger } from '../../core/logging/GOLogger.js';
 import type { CaseAction } from './CaseAction.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
-import type { ActionTrace } from '../trace/ActionTrace.js';
+
+/**
+ * Result of executing an action.
+ * Contains all data needed by TraceBuilder.traceAction().
+ */
+export interface ActionExecutionResult {
+  /** The action that was executed */
+  readonly action: CaseAction;
+  /** Action type string */
+  readonly actionType: 'log' | 'notify' | 'update' | 'escalate' | 'composite' | 'fallback';
+  /** Execution status */
+  readonly status: 'success' | 'failed';
+  /** Duration in milliseconds */
+  readonly durationMs: number;
+  /** Resolved message (interpolated template), if applicable */
+  readonly resolvedMessage?: string;
+  /** Error message, if failed */
+  readonly error?: string;
+}
 
 /**
  * Executes case actions by type.
@@ -11,30 +29,61 @@ export class ActionExecutor {
   constructor(private readonly logger: GOLogger) {}
 
   /**
-   * Executes a case action and returns a trace.
+   * Executes a case action and returns execution result data.
    *
    * @param action - The action to execute
    * @param context - The current runbook context
-   * @returns Trace of the action execution
+   * @returns Result containing all data for trace
    */
-  async execute(action: CaseAction, context: RunbookContext): Promise<ActionTrace> {
+  async execute(action: CaseAction, context: RunbookContext): Promise<ActionExecutionResult> {
     const startTime = Date.now();
 
     try {
+      const resolvedMessage = this.getResolvedMessage(action, context);
       await this.executeAction(action, context);
       return {
+        action,
         actionType: action.type,
-        success: true,
+        status: 'success',
         durationMs: Date.now() - startTime,
+        ...(resolvedMessage !== undefined ? { resolvedMessage } : {}),
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const resolvedMessage = this.getResolvedMessage(action, context);
       return {
+        action,
         actionType: action.type,
-        success: false,
+        status: 'failed',
         durationMs: Date.now() - startTime,
         error: errorMessage,
+        ...(resolvedMessage !== undefined ? { resolvedMessage } : {}),
       };
+    }
+  }
+
+  /**
+   * Extracts and resolves the message template from an action, if applicable.
+   *
+   * @param action - The action
+   * @param context - The runbook context
+   * @returns Resolved message or undefined if action has no message
+   */
+  private getResolvedMessage(action: CaseAction, context: RunbookContext): string | undefined {
+    switch (action.type) {
+      case 'log':
+        return this.interpolate(action.message, context);
+      case 'notify':
+        return this.interpolate(action.template, context);
+      case 'escalate':
+        return this.interpolate(action.message, context);
+      case 'update':
+      case 'composite':
+        return undefined;
+      default: {
+        const _exhaustive: never = action;
+        throw new Error(`Unknown action type: ${(_exhaustive as CaseAction).type}`);
+      }
     }
   }
 

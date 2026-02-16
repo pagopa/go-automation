@@ -1,7 +1,7 @@
 import type { Step } from './Step.js';
 
 /**
- * Descriptor wrapping a step with execution options (v5 feature).
+ * Descriptor wrapping a step with execution options.
  * Associates a step with runtime configuration like `continueOnFailure`.
  *
  * @typeParam TOutput - The type of output produced by the wrapped step

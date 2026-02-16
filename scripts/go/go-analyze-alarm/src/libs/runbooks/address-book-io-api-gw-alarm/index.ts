@@ -378,7 +378,7 @@ export function buildAddressBookIoApiGwAlarmRunbook(): Runbook.Runbook {
         condition: {
           type: 'pattern',
           ref: 'vars.userAttributesErrorMsg',
-          regex: 'error saving address book.*AUD_AB_DA_IO_INSUP.*FAILURE.*Transaction cancelled.*TransactionConflict',
+          regex: 'AUD_AB_DA_IO_INSUP.*FAILURE.*Transaction cancelled.*TransactionConflict',
         },
         action: {
           type: 'log',

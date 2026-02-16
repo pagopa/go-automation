@@ -19,8 +19,12 @@ export interface RunbookExecutionResult {
   readonly stepsExecuted: number;
   /** Final execution context */
   readonly finalContext: RunbookContext;
-  /** (v5) Recovered errors from steps with continueOnFailure */
+  /** Recovered errors from steps with continueOnFailure */
   readonly recoveredErrors: ReadonlyArray<ErrorRecoveryInfo>;
-  /** (v5) Detailed execution trace */
+  /** Detailed execution trace */
   readonly trace: RunbookExecutionTrace;
+  /** Whether the runbook was resolved early via the 'resolve' signal */
+  readonly earlyResolution?: boolean;
+  /** Step ID that triggered the successful early resolution */
+  readonly resolvedAtStep?: string;
 }

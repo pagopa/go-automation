@@ -65,6 +65,24 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
   }
 
   /**
+   * Returns resolved query and log group configuration for the execution trace.
+   *
+   * @param context - The runbook execution context
+   * @returns Trace info with resolved query, log groups, and time range
+   */
+  getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
+    const interpolatedQuery = interpolateTemplate(this.query, context);
+    const startStr = context.params.get(this.timeRangeFromParams.start);
+    const endStr = context.params.get(this.timeRangeFromParams.end);
+
+    return {
+      query: interpolatedQuery,
+      logGroups: [...this.logGroups],
+      timeRange: { start: startStr ?? null, end: endStr ?? null },
+    };
+  }
+
+  /**
    * Executes the CloudWatch Logs Insights query against the configured log groups.
    *
    * @param context - The runbook execution context

@@ -1,6 +1,6 @@
 /**
  * Error thrown when the maximum number of iterations is exceeded during
- * runbook execution. Indicates a possible infinite loop (v5 feature).
+ * runbook execution. Indicates a possible infinite loop.
  */
 export class RunbookMaxIterationsError extends Error {
   override readonly name = 'RunbookMaxIterationsError';

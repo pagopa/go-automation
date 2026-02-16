@@ -58,6 +58,26 @@ export class HttpRequestStep implements Step<RunbookHttpResponse> {
   }
 
   /**
+   * Returns resolved HTTP request configuration for the execution trace.
+   *
+   * @param context - The runbook execution context
+   * @returns Trace info with resolved method, URL, headers, and body
+   */
+  getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
+    const info: Record<string, unknown> = {
+      method: this.method,
+      url: interpolateTemplate(this.url, context),
+    };
+    if (this.headers !== undefined) {
+      info['headers'] = resolveHeaders(this.headers, context);
+    }
+    if (this.body !== undefined) {
+      info['body'] = resolveBody(this.body, context);
+    }
+    return info;
+  }
+
+  /**
    * Executes the HTTP request with interpolated URL, headers, and body.
    *
    * @param context - The runbook execution context

@@ -34,7 +34,7 @@ function isSwitchStepWithGoTo(step: Step): step is Step & {
 
 /**
  * Fluent builder for creating validated runbook definitions.
- * Includes automatic validation before build (v5 feature).
+ * Includes automatic validation before build.
  *
  * @example
  * ```typescript
@@ -89,7 +89,7 @@ export class RunbookBuilder {
 
   /**
    * Adds a step to the runbook.
-   * Supports an optional second parameter for execution options (v5).
+   * Supports an optional second parameter for execution options.
    *
    * @param step - The step to add
    * @param options - Execution options (e.g. continueOnFailure)
@@ -106,7 +106,7 @@ export class RunbookBuilder {
   }
 
   /**
-   * (v5) Adds an IfStep with inline sub-pipelines.
+   * Adds an IfStep with inline sub-pipelines.
    * Alternative to ifCondition with goTo: the then/else pipelines
    * are executed inline in a child context.
    *
@@ -120,7 +120,7 @@ export class RunbookBuilder {
   }
 
   /**
-   * (v5) Adds a SwitchStep with inline sub-pipelines.
+   * Adds a SwitchStep with inline sub-pipelines.
    *
    * @param config - Switch branch configuration with sub-pipelines
    * @returns This builder for chaining
@@ -154,7 +154,7 @@ export class RunbookBuilder {
   }
 
   /**
-   * (v5) Configures the maximum number of iterations.
+   * Configures the maximum number of iterations.
    *
    * @param max - Maximum iteration limit (default: 1000)
    * @returns This builder for chaining
@@ -165,7 +165,7 @@ export class RunbookBuilder {
   }
 
   /**
-   * (v5) Validates the runbook configuration.
+   * Validates the runbook configuration.
    * Checks: duplicate step IDs, invalid goTo references,
    * cycles in the goTo graph, duplicate KnownCase IDs/priorities.
    *

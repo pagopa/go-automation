@@ -28,6 +28,20 @@ type ConditionType = string | number | boolean;
  */
 export class ConditionEvaluator {
   /**
+   * Collects all resolved reference values from a condition.
+   * Used to populate resolvedValues in CaseEvaluationTrace.
+   *
+   * @param condition - The condition to inspect
+   * @param context - The current runbook context
+   * @returns Record mapping reference strings to their resolved values
+   */
+  collectResolvedValues(condition: Condition, context: RunbookContext): Readonly<Record<string, unknown>> {
+    const values: Record<string, unknown> = {};
+    this.collectRefs(condition, context, values);
+    return values;
+  }
+
+  /**
    * Evaluates a condition against the runbook context.
    *
    * @param condition - The condition to evaluate
@@ -118,6 +132,40 @@ export class ConditionEvaluator {
     const actual = this.resolveRef(ref, context);
     const actualStr = valueToString(actual);
     return actual !== undefined && actual !== null && actualStr !== '';
+  }
+
+  /**
+   * Recursively collects all reference values from a condition tree.
+   */
+  private collectRefs(condition: Condition, context: RunbookContext, values: Record<string, unknown>): void {
+    switch (condition.type) {
+      case 'compare':
+        values[condition.ref] = this.resolveRef(condition.ref, context);
+        break;
+      case 'pattern':
+        values[condition.ref] = this.resolveRef(condition.ref, context);
+        break;
+      case 'exists':
+        values[condition.ref] = this.resolveRef(condition.ref, context);
+        break;
+      case 'and':
+        for (const c of condition.conditions) {
+          this.collectRefs(c, context, values);
+        }
+        break;
+      case 'or':
+        for (const c of condition.conditions) {
+          this.collectRefs(c, context, values);
+        }
+        break;
+      case 'not':
+        this.collectRefs(condition.condition, context, values);
+        break;
+      default: {
+        const _exhaustive: never = condition;
+        throw new Error(`Unknown condition type: ${(_exhaustive as Condition).type}`);
+      }
+    }
   }
 
   /**

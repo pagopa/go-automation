@@ -1,5 +1,5 @@
 /**
- * Runbook Engine v5 - Public API
+ * Runbook Engine
  *
  * Provides a declarative, composable framework for defining and executing
  * operational runbooks with support for AWS service integration, flow control,
@@ -73,11 +73,13 @@ export type { GoToReference } from './validation/GoToGraphAnalyzer.js';
 
 // Trace
 export type { RunbookExecutionTrace } from './trace/RunbookExecutionTrace.js';
-export type { ExecutionInfo } from './trace/ExecutionInfo.js';
+export type { ExecutionInfo, ExecutionEnvironment } from './trace/ExecutionInfo.js';
 export type { StepTrace } from './trace/StepTrace.js';
 export type { CaseMatchingTrace } from './trace/CaseMatchingTrace.js';
+export type { CaseEvaluationTrace } from './trace/CaseEvaluationTrace.js';
 export type { ActionTrace } from './trace/ActionTrace.js';
 export type { ExecutionSummary } from './trace/ExecutionSummary.js';
+export type { EarlyResolutionTrace } from './trace/EarlyResolutionTrace.js';
 export { TraceBuilder } from './trace/TraceBuilder.js';
 
 // Actions
@@ -90,6 +92,7 @@ export type {
   CompositeAction,
 } from './actions/CaseAction.js';
 export { ActionExecutor } from './actions/ActionExecutor.js';
+export type { ActionExecutionResult } from './actions/ActionExecutor.js';
 export { logAction, notifyAction, escalateAction, compositeAction } from './actions/ActionFactories.js';
 
 // Services

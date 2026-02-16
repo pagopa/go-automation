@@ -116,7 +116,7 @@ export const KNOWN_ERROR_PATTERNS: ReadonlyArray<KnownErrorPattern> = [
   // ── DynamoDB TransactionConflict (400) ────────────────────────────────
   {
     id: 'dynamodb-transaction-conflict',
-    pattern: /error saving address book.*AUD_AB_DA_IO_INSUP.*FAILURE.*Transaction cancelled.*TransactionConflict/,
+    pattern: /AUD_AB_DA_IO_INSUP.*FAILURE.*Transaction cancelled.*TransactionConflict/,
     microservice: 'pn-user-attributes',
     downstream: 'N/A',
     description: 'Errore su transazione DynamoDB - TransactionConflict',

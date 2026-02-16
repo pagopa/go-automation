@@ -18,9 +18,6 @@ export interface StepResult<TOutput = unknown> {
   readonly vars?: Readonly<Record<string, string>>;
   /** Flow directive: which step to execute next */
   readonly next?: FlowDirective;
-  /**
-   * (v5) Recovery information if the step failed but execution continued
-   * thanks to continueOnFailure.
-   */
+  /** Recovery information if the step failed but execution continued thanks to continueOnFailure. */
   readonly errorRecovery?: ErrorRecoveryInfo;
 }

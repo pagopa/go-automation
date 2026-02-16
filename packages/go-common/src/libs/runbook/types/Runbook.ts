@@ -16,6 +16,6 @@ export interface Runbook {
   readonly knownCases: ReadonlyArray<KnownCase>;
   /** Action to execute if no known case matches */
   readonly fallbackAction: CaseAction;
-  /** (v5) Maximum number of iterations for anti-loop protection */
+  /** Maximum number of iterations for anti-loop protection */
   readonly maxIterations?: number;
 }
