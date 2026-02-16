@@ -68,6 +68,26 @@ export class CloudWatchMetricsStep implements Step<ReadonlyArray<MetricDatapoint
   }
 
   /**
+   * Returns resolved CloudWatch Metrics configuration for the execution trace.
+   *
+   * @param context - The runbook execution context
+   * @returns Trace info with namespace, metric name, dimensions, period, stat, and time range
+   */
+  getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
+    const startStr = context.params.get(this.timeRangeFromParams.start);
+    const endStr = context.params.get(this.timeRangeFromParams.end);
+
+    return {
+      namespace: this.namespace,
+      metricName: this.metricName,
+      dimensions: resolveDimensions(this.dimensions, context),
+      periodSeconds: this.periodSeconds,
+      stat: this.stat,
+      timeRange: { start: startStr ?? null, end: endStr ?? null },
+    };
+  }
+
+  /**
    * Retrieves metric datapoints from CloudWatch Metrics.
    *
    * @param context - The runbook execution context

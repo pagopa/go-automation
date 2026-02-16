@@ -1,23 +1,24 @@
 /**
- * High-level summary of a runbook execution for dashboards and LLM consumption.
+ * Synthetic summary of a runbook execution.
+ * Designed for dashboards, notifications, and quick analysis.
  */
 export interface ExecutionSummary {
-  /** Final status */
-  readonly status: 'completed' | 'failed' | 'stopped';
-  /** Total steps executed */
+  /** Human-readable description of the execution result */
+  readonly description: string;
+  /** Total number of steps in the runbook */
   readonly totalSteps: number;
-  /** Steps that succeeded */
-  readonly successfulSteps: number;
-  /** Steps that failed */
-  readonly failedSteps: number;
-  /** Steps skipped due to continueOnFailure */
-  readonly skippedSteps: number;
-  /** Whether a known case was matched */
-  readonly caseMatched: boolean;
-  /** ID of the matched case (if any) */
-  readonly matchedCaseId?: string;
-  /** Total execution duration in milliseconds */
-  readonly durationMs: number;
-  /** Final variables snapshot */
-  readonly finalVars: Readonly<Record<string, string>>;
+  /** Number of steps actually executed */
+  readonly stepsExecuted: number;
+  /** Number of steps that failed */
+  readonly stepsFailed: number;
+  /** Number of steps recovered with continueOnFailure */
+  readonly stepsRecovered: number;
+  /** Number of steps skipped (not reached by the flow) */
+  readonly stepsSkipped: number;
+  /** Synthetic outcome: identified case and executed action */
+  readonly outcome: string;
+  /** Whether the pipeline was terminated early via 'resolve' signal */
+  readonly earlyResolution?: boolean;
+  /** Step ID that triggered the successful early resolution */
+  readonly resolvedAtStep?: string;
 }

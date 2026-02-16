@@ -100,6 +100,9 @@ class AnalyzeServiceLogsStepImpl implements Runbook.Step<ServiceLogsAnalysis> {
       success: true,
       output: { errorMessage, logCount: results.length, nextService, nextTraceId },
       vars,
+      // Signal 'resolve' when an error is found so the engine
+      // can evaluate known cases immediately and stop early if a match is found.
+      ...(errorMessage !== '' ? { next: 'resolve' as const } : {}),
     };
   }
 }

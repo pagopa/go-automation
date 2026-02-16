@@ -7,7 +7,7 @@ import { ConditionEvaluator } from '../../core/ConditionEvaluator.js';
 import { executeSubPipeline } from './executeSubPipeline.js';
 
 /**
- * Control step that evaluates a condition and executes an inline sub-pipeline (v5 feature).
+ * Control step that evaluates a condition and executes an inline sub-pipeline.
  * When the condition is true, the `thenSteps` pipeline is executed.
  * When the condition is false, the `elseSteps` pipeline is executed (if provided).
  *

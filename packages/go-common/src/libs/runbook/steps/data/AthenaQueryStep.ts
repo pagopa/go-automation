@@ -48,6 +48,19 @@ export class AthenaQueryStep implements Step<ReadonlyArray<Record<string, string
   }
 
   /**
+   * Returns resolved query and database for the execution trace.
+   *
+   * @param context - The runbook execution context
+   * @returns Trace info with resolved query and database name
+   */
+  getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
+    return {
+      query: interpolateTemplate(this.query, context),
+      database: this.database,
+    };
+  }
+
+  /**
    * Executes the Athena SQL query with interpolated template variables.
    *
    * @param context - The runbook execution context

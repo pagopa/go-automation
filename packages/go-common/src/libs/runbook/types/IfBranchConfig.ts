@@ -2,7 +2,7 @@ import type { Condition } from './Condition.js';
 import type { Step } from './Step.js';
 
 /**
- * Configuration for an inline if-branch with sub-pipelines (v5 feature).
+ * Configuration for an inline if-branch with sub-pipelines.
  * The then/else pipelines are executed inline in a child context.
  */
 export interface IfBranchConfig {

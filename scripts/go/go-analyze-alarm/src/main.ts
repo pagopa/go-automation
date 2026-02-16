@@ -5,6 +5,8 @@
  * selects the appropriate runbook, and executes it via the RunbookEngine.
  */
 
+import * as fs from 'fs/promises';
+
 import { CloudWatchLogsClient } from '@aws-sdk/client-cloudwatch-logs';
 import { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
 import { AthenaClient } from '@aws-sdk/client-athena';
@@ -123,7 +125,15 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.section('Executing Runbook');
 
   const engine = new Runbook.RunbookEngine(script.logger, new Runbook.ConditionEvaluator());
-  const result = await engine.execute(runbook, params, services);
+
+  // Build execution environment for trace
+  const environment: Runbook.ExecutionEnvironment = {
+    awsProfiles: config.awsProfiles,
+    region: 'eu-south-1',
+    invokedBy: 'manual',
+  };
+
+  const result = await engine.execute(runbook, params, services, environment);
 
   // Display results
   script.logger.section('Runbook Result');
@@ -143,4 +153,29 @@ export async function main(script: Core.GOScript): Promise<void> {
       script.logger.text(`  - [${err.stepId}] ${err.originalError}`);
     }
   }
+
+  // Save execution trace to data directory
+  await saveExecutionTrace(script, result, config.alarmName);
+}
+
+/**
+ * Saves the RunbookExecutionTrace as a JSON file in the script's data directory.
+ * File name: trace-{alarmName}-{timestamp}.json
+ *
+ * @param script - The GOScript instance for path resolution
+ * @param result - The runbook execution result containing the trace
+ * @param alarmName - Alarm name used in the file name
+ */
+async function saveExecutionTrace(
+  script: Core.GOScript,
+  result: Runbook.RunbookExecutionResult,
+  alarmName: string,
+): Promise<void> {
+  const fileName = `trace-${alarmName}.json`;
+  const traceInfoPath = script.paths.resolvePathWithInfo(fileName, Core.GOPathType.OUTPUT);
+  const tracePath = traceInfoPath.path;
+
+  await fs.writeFile(tracePath, JSON.stringify(result.trace, null, 2), 'utf-8');
+
+  script.logger.info(`Execution trace saved: ${tracePath}`);
 }

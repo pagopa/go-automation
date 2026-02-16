@@ -58,6 +58,23 @@ export class DynamoDBQueryStep implements Step<ReadonlyArray<Record<string, unkn
   }
 
   /**
+   * Returns resolved DynamoDB query configuration for the execution trace.
+   *
+   * @param context - The runbook execution context
+   * @returns Trace info with resolved table name, expression, and attribute values
+   */
+  getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
+    return {
+      tableName: interpolateTemplate(this.tableName, context),
+      keyConditionExpression: interpolateTemplate(this.keyConditionExpression, context),
+      expressionAttributeValues: resolveAttributeValues(this.expressionAttributeValues, context),
+      ...(this.expressionAttributeNames !== undefined
+        ? { expressionAttributeNames: { ...this.expressionAttributeNames } }
+        : {}),
+    };
+  }
+
+  /**
    * Executes a DynamoDB query with the configured key condition.
    *
    * @param context - The runbook execution context

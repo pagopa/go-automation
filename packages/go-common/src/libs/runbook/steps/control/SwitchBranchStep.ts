@@ -7,7 +7,7 @@ import { executeSubPipeline } from './executeSubPipeline.js';
 
 /**
  * Control step that resolves a reference, matches it against cases, and executes
- * the corresponding inline sub-pipeline (v5 feature).
+ * the corresponding inline sub-pipeline.
  *
  * Each case maps a string value to a sequence of steps that run sequentially
  * in a child context. If no case matches, the `defaultSteps` pipeline runs (if provided).

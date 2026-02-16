@@ -1,7 +1,7 @@
 import type { Step } from './Step.js';
 
 /**
- * Configuration for an inline switch-branch with sub-pipelines (v5 feature).
+ * Configuration for an inline switch-branch with sub-pipelines.
  * Each case maps a value to a sub-pipeline that runs inline.
  */
 export interface SwitchBranchConfig {

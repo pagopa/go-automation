@@ -1,6 +1,6 @@
 /**
  * Recovery information for steps that failed but continued execution
- * thanks to the `continueOnFailure` flag (v5 feature).
+ * thanks to the `continueOnFailure` flag.
  */
 export interface ErrorRecoveryInfo {
   /** ID of the step that generated the error */
