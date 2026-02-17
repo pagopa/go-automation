@@ -45,6 +45,7 @@ export class CloudWatchMetricsService {
    * @param timeRange - Time range for the query
    * @param periodSeconds - Aggregation period in seconds (default 300)
    * @param stat - Statistic to retrieve (default 'Sum')
+   * @param signal - Optional abort signal to cancel the request
    * @returns Array of metric datapoints
    */
   async getMetricData(
@@ -54,6 +55,7 @@ export class CloudWatchMetricsService {
     timeRange: TimeRange,
     periodSeconds: number = 300,
     stat: string = 'Sum',
+    signal?: AbortSignal,
   ): Promise<ReadonlyArray<MetricDatapoint>> {
     const response = await this.client.send(
       new GetMetricDataCommand({
@@ -77,6 +79,7 @@ export class CloudWatchMetricsService {
           },
         ],
       }),
+      ...(signal !== undefined ? [{ abortSignal: signal }] : []),
     );
 
     const results = response.MetricDataResults?.[0];

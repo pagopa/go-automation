@@ -4,6 +4,7 @@ import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { RunbookHttpResponse } from '../../services/RunbookHttpService.js';
 import { interpolateTemplate } from './interpolateTemplate.js';
+import { executeStep } from './executeStep.js';
 
 /**
  * Configuration for the HTTP request data step.
@@ -69,7 +70,7 @@ export class HttpRequestStep implements Step<RunbookHttpResponse> {
       url: interpolateTemplate(this.url, context),
     };
     if (this.headers !== undefined) {
-      info['headers'] = resolveHeaders(this.headers, context);
+      info['headers'] = maskSensitiveHeaders(resolveHeaders(this.headers, context));
     }
     if (this.body !== undefined) {
       info['body'] = resolveBody(this.body, context);
@@ -79,35 +80,78 @@ export class HttpRequestStep implements Step<RunbookHttpResponse> {
 
   /**
    * Executes the HTTP request with interpolated URL, headers, and body.
+   * URL values are encoded with `encodeURIComponent` to prevent SSRF.
+   * Header values are validated to reject control characters.
    *
    * @param context - The runbook execution context
    * @returns Step result containing the HTTP response
    */
   async execute(context: RunbookContext): Promise<StepResult<RunbookHttpResponse>> {
-    try {
-      const resolvedUrl = interpolateTemplate(this.url, context);
+    return executeStep('HTTP request', async () => {
+      const resolvedUrl = interpolateTemplate(this.url, context, encodeURIComponent);
       const resolvedHeaders = this.headers !== undefined ? resolveHeaders(this.headers, context) : undefined;
-      const resolvedBody = resolveBody(this.body, context);
+      const resolvedBody = this.body !== undefined ? resolveBody(this.body, context) : undefined;
 
-      const response = await context.services.http.request(this.method, resolvedUrl, resolvedBody, resolvedHeaders);
+      const response = await context.services.http.request(
+        this.method,
+        resolvedUrl,
+        resolvedBody,
+        resolvedHeaders,
+        undefined,
+        context.signal,
+      );
 
       return { success: true, output: response };
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      return { success: false, error: `HTTP request failed: ${message}` };
-    }
+    });
   }
 }
 
+/** Header names whose values must be redacted in execution traces. */
+const SENSITIVE_HEADERS: ReadonlySet<string> = new Set([
+  'authorization',
+  'x-api-key',
+  'cookie',
+  'set-cookie',
+  'proxy-authorization',
+]);
+
+/** Redaction placeholder for sensitive header values in traces. */
+const REDACTED = '***REDACTED***';
+
+/** Pattern matching control characters that must not appear in HTTP header values. */
+const HEADER_CONTROL_CHARS = /[\r\n\0]/;
+
 /**
  * Resolves template placeholders in header values.
+ * Validates that resolved values do not contain control characters (CR, LF, NUL)
+ * to prevent header injection attacks.
+ *
+ * @param headers - Header key-value pairs with template placeholders
+ * @param context - The runbook execution context
+ * @returns Resolved headers with interpolated and validated values
  */
 function resolveHeaders(headers: Readonly<Record<string, string>>, context: RunbookContext): Record<string, string> {
   const resolved: Record<string, string> = {};
   for (const [key, value] of Object.entries(headers)) {
-    resolved[key] = interpolateTemplate(value, context);
+    const interpolated = interpolateTemplate(value, context);
+    if (HEADER_CONTROL_CHARS.test(interpolated)) {
+      throw new Error(`Invalid header value for '${key}': contains control characters`);
+    }
+    resolved[key] = interpolated;
   }
   return resolved;
+}
+
+/**
+ * Replaces values of sensitive headers (Authorization, API keys, cookies) with a
+ * redaction placeholder. Used in `getTraceInfo` to prevent credential leakage in traces.
+ */
+function maskSensitiveHeaders(headers: Readonly<Record<string, string>>): Record<string, string> {
+  const masked: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    masked[key] = SENSITIVE_HEADERS.has(key.toLowerCase()) ? REDACTED : value;
+  }
+  return masked;
 }
 
 /**

@@ -2,7 +2,8 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
-import { interpolateTemplate } from './interpolateTemplate.js';
+import { interpolateTemplate, extractTemplateParameters } from './interpolateTemplate.js';
+import { executeStep } from './executeStep.js';
 
 /**
  * Configuration for the Athena query data step.
@@ -20,7 +21,10 @@ export interface AthenaQueryConfig {
 
 /**
  * Data step that executes an Athena SQL query.
- * Template variables in the query string are interpolated from context params and vars.
+ *
+ * Template placeholders (`{{params.xxx}}`, `{{vars.xxx}}`) are extracted and passed
+ * to Athena as `ExecutionParameters` (positional `?` placeholders), preventing SQL injection.
+ * The query structure is separated from user-supplied values at the SDK level.
  *
  * @example
  * ```typescript
@@ -30,6 +34,8 @@ export interface AthenaQueryConfig {
  *   database: 'send_analytics',
  *   query: "SELECT * FROM deliveries WHERE iun = '{{params.iun}}' LIMIT 100",
  * });
+ * // Executed as: query = "SELECT * FROM deliveries WHERE iun = ? LIMIT 100"
+ * //              parameters = ['ABCD-1234']
  * ```
  */
 export class AthenaQueryStep implements Step<ReadonlyArray<Record<string, string>>> {
@@ -49,6 +55,7 @@ export class AthenaQueryStep implements Step<ReadonlyArray<Record<string, string
 
   /**
    * Returns resolved query and database for the execution trace.
+   * Shows the interpolated query (with values inlined) for readability in traces.
    *
    * @param context - The runbook execution context
    * @returns Trace info with resolved query and database name
@@ -61,22 +68,19 @@ export class AthenaQueryStep implements Step<ReadonlyArray<Record<string, string
   }
 
   /**
-   * Executes the Athena SQL query with interpolated template variables.
+   * Executes the Athena SQL query using parameterized execution.
+   * Template placeholders are extracted and passed as `ExecutionParameters`
+   * to prevent SQL injection.
    *
    * @param context - The runbook execution context
    * @returns Step result containing an array of key-value result rows
    */
   async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<Record<string, string>>>> {
-    try {
-      const interpolatedQuery = interpolateTemplate(this.query, context);
-
-      const results = await context.services.athena.query(this.database, interpolatedQuery);
-
+    return executeStep('Athena query', async () => {
+      const { query, parameters } = extractTemplateParameters(this.query, context);
+      const results = await context.services.athena.query(this.database, query, parameters, context.signal);
       return { success: true, output: results };
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      return { success: false, error: `Athena query failed: ${message}` };
-    }
+    });
   }
 }
 

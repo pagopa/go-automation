@@ -23,4 +23,6 @@ export interface RunbookContext {
   readonly services: ServiceRegistry;
   /** Errors recovered from steps with continueOnFailure enabled. Allows inspection of which steps failed without blocking execution. */
   readonly recoveredErrors: ReadonlyArray<ErrorRecoveryInfo>;
+  /** Abort signal for cancelling the execution. Propagated to all service calls. */
+  readonly signal?: AbortSignal;
 }

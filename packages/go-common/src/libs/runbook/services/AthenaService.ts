@@ -29,17 +29,30 @@ export class AthenaService {
   /**
    * Executes an Athena query and waits for results.
    *
+   * When `parameters` are provided, they are passed as `ExecutionParameters`
+   * to Athena, replacing `?` positional placeholders in the query string.
+   * This prevents SQL injection by separating query structure from user data.
+   *
    * @param database - Athena database name
-   * @param query - SQL query string
+   * @param query - SQL query string (may contain `?` positional placeholders)
+   * @param parameters - Optional values for positional `?` placeholders
+   * @param signal - Optional abort signal to cancel the query
    * @returns Array of result rows as key-value records
    */
-  async query(database: string, query: string): Promise<ReadonlyArray<Record<string, string>>> {
+  async query(
+    database: string,
+    query: string,
+    parameters?: ReadonlyArray<string>,
+    signal?: AbortSignal,
+  ): Promise<ReadonlyArray<Record<string, string>>> {
     const startResponse = await this.client.send(
       new StartQueryExecutionCommand({
         QueryString: query,
         QueryExecutionContext: { Database: database },
         ResultConfiguration: { OutputLocation: this.outputLocation },
+        ...(parameters !== undefined && parameters.length > 0 ? { ExecutionParameters: [...parameters] } : {}),
       }),
+      ...(signal !== undefined ? [{ abortSignal: signal }] : []),
     );
 
     const executionId = startResponse.QueryExecutionId;
@@ -51,6 +64,7 @@ export class AthenaService {
     const pollOptions = {
       maxAttempts: ATHENA_MAX_POLL_ATTEMPTS,
       backoff: fixedBackoff(ATHENA_POLL_INTERVAL_MS),
+      ...(signal !== undefined ? { signal } : {}),
     };
 
     await pollUntilComplete(pollOptions, async () => {
@@ -69,10 +83,26 @@ export class AthenaService {
       return undefined;
     });
 
-    // Fetch results
-    const resultsResponse = await this.client.send(new GetQueryResultsCommand({ QueryExecutionId: executionId }));
+    // Fetch results with pagination
+    const allRows: Row[] = [];
+    let nextToken: string | undefined;
 
-    return this.parseResultRows(resultsResponse.ResultSet?.Rows ?? []);
+    do {
+      const resultsResponse = await this.client.send(
+        new GetQueryResultsCommand({
+          QueryExecutionId: executionId,
+          ...(nextToken !== undefined ? { NextToken: nextToken } : {}),
+        }),
+      );
+
+      const rows = resultsResponse.ResultSet?.Rows ?? [];
+
+      allRows.push(...rows);
+
+      nextToken = resultsResponse.NextToken;
+    } while (nextToken !== undefined);
+
+    return this.parseResultRows(allRows);
   }
 
   /**
