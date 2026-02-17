@@ -15,3 +15,7 @@ export * from './json/GOJSONListExporterOptions.js';
 // HTML Exporter
 export * from './html/GOHTMLListExporter.js';
 export * from './html/GOHTMLListExporterOptions.js';
+
+// File Exporter
+export * from './file/GOFileListExporter.js';
+export * from './file/GOFileListExporterOptions.js';

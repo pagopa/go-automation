@@ -3,6 +3,8 @@
  */
 
 import * as fs from 'fs';
+import { createReadStream } from 'fs';
+import * as readline from 'readline';
 import type { GOListImporter } from '../GOListImporter.js';
 import type { GOListImporterResult } from '../GOListImporterResult.js';
 import type { GOListImportError } from '../GOListImporterResult.js';
@@ -125,11 +127,19 @@ export class GOJSONListImporter<TItem = unknown>
 
   /**
    * Import items in streaming mode
-   * Note: JSON doesn't support true streaming, so this loads all data and yields items one by one
+   *
+   * For standard JSON: loads all data and yields items one by one (JSON does not support true streaming).
+   * For JSONL mode: uses true line-by-line streaming via readline.createInterface.
    */
   async *importStream(source: string): AsyncGenerator<TItem, void, unknown> {
     if (typeof source !== 'string') {
       throw new Error('Streaming mode only supports file paths, not buffers');
+    }
+
+    // Delegate to true streaming for JSONL mode
+    if (this.options.jsonl) {
+      yield* this.importStreamJsonl(source);
+      return;
     }
 
     const skipInvalidItems = this.options.skipInvalidItems ?? false;
@@ -209,8 +219,101 @@ export class GOJSONListImporter<TItem = unknown>
   }
 
   /**
+   * True streaming import for NDJSON/JSONL files
+   * Uses readline.createInterface for memory-efficient line-by-line processing
+   *
+   * @param source - File path to a JSONL file
+   * @returns AsyncGenerator yielding parsed and transformed items
+   */
+  private async *importStreamJsonl(source: string): AsyncGenerator<TItem, void, unknown> {
+    const skipInvalidItems = this.options.skipInvalidItems ?? false;
+
+    let processedItems = 0;
+    let validItems = 0;
+    let invalidItems = 0;
+
+    this.emit('import:started', { source, mode: 'stream' });
+
+    try {
+      const fileStream = createReadStream(source, { encoding: this.options.encoding ?? 'utf8' });
+      const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity,
+      });
+
+      for await (const rawLine of rl) {
+        const line = rawLine.trim();
+        if (line.length === 0) {
+          continue;
+        }
+
+        processedItems++;
+
+        try {
+          const parsed: unknown = JSON.parse(line);
+          const item = this.transformItem(parsed);
+          validItems++;
+
+          // Emit item event only if there are listeners
+          if (this.listenerCount('import:item') > 0) {
+            this.emit('import:item', { item, index: validItems - 1 });
+          }
+
+          yield item;
+        } catch (error: unknown) {
+          invalidItems++;
+
+          // Emit error event
+          const errorMessage = getErrorMessage(error);
+          this.emit('import:error', {
+            itemIndex: processedItems,
+            itemData: rawLine,
+            message: errorMessage,
+            error: toError(error),
+          });
+
+          if (!skipInvalidItems) {
+            throw error;
+          }
+        }
+
+        this.emit('import:progress', {
+          processedItems,
+          invalidItems,
+          percentage: undefined,
+        });
+      }
+
+      // Emit final progress
+      this.emit('import:progress', {
+        processedItems,
+        invalidItems,
+        totalItems: validItems,
+        percentage: 100,
+      });
+
+      // Emit completion event
+      this.emit('import:completed', {
+        totalItems: validItems,
+        invalidItems,
+        duration: 0, // Duration calculated externally for streams
+      });
+    } catch (error: unknown) {
+      const finalError = toError(error);
+      this.emit('import:error', {
+        itemIndex: 0,
+        itemData: null,
+        message: finalError.message,
+        error: finalError,
+      });
+      throw finalError;
+    }
+  }
+
+  /**
    * Parse JSON from source and extract array
    * Shared logic between import() and importStream()
+   * Supports both standard JSON arrays and NDJSON/JSONL format
    */
   private async parseJSON(source: string | Buffer): Promise<unknown[]> {
     // Read content
@@ -218,6 +321,11 @@ export class GOJSONListImporter<TItem = unknown>
       typeof source === 'string'
         ? await fs.promises.readFile(source, { encoding: this.options.encoding ?? 'utf8' })
         : source.toString(this.options.encoding ?? 'utf8');
+
+    // Branch on JSONL mode
+    if (this.options.jsonl) {
+      return this.parseJsonlContent(content);
+    }
 
     // Parse JSON
     let data: unknown = JSON.parse(content);
@@ -233,6 +341,28 @@ export class GOJSONListImporter<TItem = unknown>
     }
 
     return data as unknown[];
+  }
+
+  /**
+   * Parse NDJSON/JSONL content (one JSON object per line)
+   * Skips empty lines. Each non-empty line is parsed as independent JSON.
+   *
+   * @param content - Raw file content with newline-separated JSON objects
+   * @returns Array of parsed objects
+   */
+  private parseJsonlContent(content: string): unknown[] {
+    const lines = content.split('\n');
+    const items: unknown[] = [];
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (line.length === 0) {
+        continue;
+      }
+      items.push(JSON.parse(line));
+    }
+
+    return items;
   }
 
   /**

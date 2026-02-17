@@ -16,3 +16,7 @@ export * from './csv/GOCSVAdapterFactory.js';
 // JSON Importers
 export * from './json/GOJSONListImporter.js';
 export * from './json/GOJSONListImporterOptions.js';
+
+// File Importers
+export * from './file/GOFileListImporter.js';
+export * from './file/GOFileListImporterOptions.js';
