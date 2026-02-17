@@ -46,6 +46,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     type: Core.GOConfigParameterType.STRING,
     description: 'API Key per autenticazione PN',
     required: true,
+    sensitive: true,
     aliases: ['k'],
   },
   {
