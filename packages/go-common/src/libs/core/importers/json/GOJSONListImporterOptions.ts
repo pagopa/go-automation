@@ -23,4 +23,22 @@ export interface GOJSONListImporterOptions<TInput = unknown, TOutput = TInput> {
 
   /** JSON path to extract array from nested structure (e.g., 'data.items') */
   jsonPath?: string;
+
+  /**
+   * Enable NDJSON/JSONL mode (newline-delimited JSON)
+   *
+   * When true, the source is treated as one JSON object per line instead of
+   * a single JSON array. Each non-empty line is parsed independently.
+   * The `jsonPath` option is ignored in JSONL mode.
+   *
+   * @default false
+   *
+   * @example
+   * ```typescript
+   * // Import a .jsonl file
+   * const importer = new GOJSONListImporter({ jsonl: true });
+   * const result = await importer.import('data.jsonl');
+   * ```
+   */
+  jsonl?: boolean;
 }
