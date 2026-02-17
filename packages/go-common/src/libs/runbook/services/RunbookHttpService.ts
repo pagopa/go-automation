@@ -33,6 +33,7 @@ export class RunbookHttpService {
    * @param body - Optional request body (will be JSON-serialized if object)
    * @param headers - Optional request headers
    * @param timeout - Optional timeout in milliseconds
+   * @param signal - Optional external abort signal to cancel the request
    * @returns HTTP response
    */
   async request(
@@ -41,9 +42,19 @@ export class RunbookHttpService {
     body?: unknown,
     headers?: Readonly<Record<string, string>>,
     timeout?: number,
+    signal?: AbortSignal,
   ): Promise<RunbookHttpResponse> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout ?? this.defaultTimeout);
+
+    // Compose external abort signal with internal timeout controller
+    if (signal !== undefined) {
+      if (signal.aborted) {
+        controller.abort();
+      } else {
+        signal.addEventListener('abort', () => controller.abort(), { once: true });
+      }
+    }
 
     try {
       const requestInit: RequestInit = {

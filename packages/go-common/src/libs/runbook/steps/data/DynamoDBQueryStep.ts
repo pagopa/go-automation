@@ -4,6 +4,7 @@ import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import { interpolateTemplate } from './interpolateTemplate.js';
+import { executeStep } from './executeStep.js';
 
 /**
  * Configuration for the DynamoDB query data step.
@@ -15,11 +16,15 @@ export interface DynamoDBQueryConfig {
   readonly label: string;
   /** DynamoDB table name (supports {{params.xxx}} and {{vars.xxx}} templates) */
   readonly tableName: string;
-  /** Key condition expression (supports {{params.xxx}} and {{vars.xxx}} templates) */
+  /**
+   * Key condition expression using DynamoDB placeholders (`:val`, `#name`).
+   * Do NOT use `{{params.xxx}}` templates here — use `expressionAttributeValues`
+   * for values and `expressionAttributeNames` for dynamic field names.
+   */
   readonly keyConditionExpression: string;
-  /** Expression attribute values for the key condition */
+  /** Expression attribute values for the key condition (string S values support {{params.xxx}} templates) */
   readonly expressionAttributeValues: Readonly<Record<string, AttributeValue>>;
-  /** Optional expression attribute names for reserved word handling */
+  /** Optional expression attribute names for reserved words or dynamic field references (values support {{params.xxx}} templates) */
   readonly expressionAttributeNames?: Readonly<Record<string, string>>;
 }
 
@@ -66,10 +71,10 @@ export class DynamoDBQueryStep implements Step<ReadonlyArray<Record<string, unkn
   getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
     return {
       tableName: interpolateTemplate(this.tableName, context),
-      keyConditionExpression: interpolateTemplate(this.keyConditionExpression, context),
+      keyConditionExpression: this.keyConditionExpression,
       expressionAttributeValues: resolveAttributeValues(this.expressionAttributeValues, context),
       ...(this.expressionAttributeNames !== undefined
-        ? { expressionAttributeNames: { ...this.expressionAttributeNames } }
+        ? { expressionAttributeNames: resolveAttributeNames(this.expressionAttributeNames, context) }
         : {}),
     };
   }
@@ -81,23 +86,24 @@ export class DynamoDBQueryStep implements Step<ReadonlyArray<Record<string, unkn
    * @returns Step result containing an array of unmarshalled DynamoDB items
    */
   async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<Record<string, unknown>>>> {
-    try {
+    return executeStep('DynamoDB query', async () => {
       const resolvedTableName = interpolateTemplate(this.tableName, context);
-      const resolvedExpression = interpolateTemplate(this.keyConditionExpression, context);
       const resolvedValues = resolveAttributeValues(this.expressionAttributeValues, context);
+      const resolvedNames = this.expressionAttributeNames !== undefined
+        ? resolveAttributeNames(this.expressionAttributeNames, context)
+        : undefined;
 
       const results = await context.services.dynamodb.query(
         resolvedTableName,
-        resolvedExpression,
+        this.keyConditionExpression,
         resolvedValues,
-        this.expressionAttributeNames !== undefined ? { ...this.expressionAttributeNames } : undefined,
+        resolvedNames,
+        undefined,
+        context.signal,
       );
 
       return { success: true, output: results };
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      return { success: false, error: `DynamoDB query failed: ${message}` };
-    }
+    });
   }
 }
 
@@ -116,6 +122,21 @@ function resolveAttributeValues(
     } else {
       resolved[key] = attr;
     }
+  }
+  return resolved;
+}
+
+/**
+ * Resolves template placeholders in expression attribute name values.
+ * Used for dynamic field references via `#name` aliases in DynamoDB expressions.
+ */
+function resolveAttributeNames(
+  names: Readonly<Record<string, string>>,
+  context: RunbookContext,
+): Record<string, string> {
+  const resolved: Record<string, string> = {};
+  for (const [key, value] of Object.entries(names)) {
+    resolved[key] = interpolateTemplate(value, context);
   }
   return resolved;
 }

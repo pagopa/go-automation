@@ -15,9 +15,14 @@ import type { ServiceRegistry } from '../services/ServiceRegistry.js';
  *
  * @param params - Input parameters for the runbook
  * @param services - Service registry
+ * @param signal - Optional abort signal to cancel the runbook execution
  * @returns A new initial context
  */
-export function createInitialContext(params: ReadonlyMap<string, string>, services: ServiceRegistry): RunbookContext {
+export function createInitialContext(
+  params: ReadonlyMap<string, string>,
+  services: ServiceRegistry,
+  signal?: AbortSignal,
+): RunbookContext {
   return {
     executionId: randomUUID(),
     startedAt: new Date(),
@@ -27,6 +32,7 @@ export function createInitialContext(params: ReadonlyMap<string, string>, servic
     logs: [],
     services,
     recoveredErrors: [],
+    ...(signal ? { signal } : {}),
   };
 }
 

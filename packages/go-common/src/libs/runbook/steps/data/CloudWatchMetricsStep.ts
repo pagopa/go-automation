@@ -5,6 +5,8 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { MetricDatapoint, MetricDimension } from '../../services/CloudWatchMetricsService.js';
 import type { TimeRangeFromParams } from './CloudWatchLogsQueryStep.js';
 import { interpolateTemplate } from './interpolateTemplate.js';
+import { resolveTimeRange } from './resolveTimeRange.js';
+import { executeStep } from './executeStep.js';
 
 /**
  * Configuration for the CloudWatch Metrics data step.
@@ -94,7 +96,7 @@ export class CloudWatchMetricsStep implements Step<ReadonlyArray<MetricDatapoint
    * @returns Step result containing an array of metric datapoints
    */
   async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<MetricDatapoint>>> {
-    try {
+    return executeStep('CloudWatch Metrics query', async () => {
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
       const resolvedDimensions = resolveDimensions(this.dimensions, context);
 
@@ -105,44 +107,12 @@ export class CloudWatchMetricsStep implements Step<ReadonlyArray<MetricDatapoint
         timeRange,
         this.periodSeconds,
         this.stat,
+        context.signal,
       );
 
       return { success: true, output: results };
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      return { success: false, error: `CloudWatch Metrics query failed: ${message}` };
-    }
+    });
   }
-}
-
-/**
- * Resolves a TimeRange from context parameters using the configured parameter names.
- */
-function resolveTimeRange(
-  context: RunbookContext,
-  config: TimeRangeFromParams,
-): { readonly start: Date; readonly end: Date } {
-  const startStr = context.params.get(config.start);
-  const endStr = context.params.get(config.end);
-
-  if (startStr === undefined) {
-    throw new Error(`Missing required parameter '${config.start}' for time range start`);
-  }
-  if (endStr === undefined) {
-    throw new Error(`Missing required parameter '${config.end}' for time range end`);
-  }
-
-  const start = new Date(startStr);
-  const end = new Date(endStr);
-
-  if (Number.isNaN(start.getTime())) {
-    throw new Error(`Invalid ISO date for parameter '${config.start}': ${startStr}`);
-  }
-  if (Number.isNaN(end.getTime())) {
-    throw new Error(`Invalid ISO date for parameter '${config.end}': ${endStr}`);
-  }
-
-  return { start, end };
 }
 
 /**

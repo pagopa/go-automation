@@ -3,6 +3,7 @@ import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import { interpolateTemplate } from './interpolateTemplate.js';
+import { executeStep } from './executeStep.js';
 
 /**
  * Configuration for the DynamoDB GetItem data step.
@@ -67,17 +68,14 @@ export class DynamoDBGetStep implements Step<Record<string, unknown> | undefined
    * @returns Step result containing the unmarshalled item, or undefined if not found
    */
   async execute(context: RunbookContext): Promise<StepResult<Record<string, unknown> | undefined>> {
-    try {
+    return executeStep('DynamoDB GetItem', async () => {
       const resolvedTableName = interpolateTemplate(this.tableName, context);
       const resolvedKey = resolveKey(this.key, context);
 
-      const result = await context.services.dynamodb.getItem(resolvedTableName, resolvedKey);
+      const result = await context.services.dynamodb.getItem(resolvedTableName, resolvedKey, context.signal);
 
       return { success: true, output: result };
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      return { success: false, error: `DynamoDB GetItem failed: ${message}` };
-    }
+    });
   }
 }
 

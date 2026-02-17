@@ -73,6 +73,7 @@ export class RunbookEngine {
    * @param params - Input parameters (alarmName, timeRange, etc.)
    * @param services - AWS/HTTP service registry
    * @param environment - Execution environment info (optional)
+   * @param signal - Optional abort signal to cancel the execution
    * @returns Complete execution result with trace
    * @throws RunbookMaxIterationsError if iteration limit is exceeded
    */
@@ -81,8 +82,9 @@ export class RunbookEngine {
     params: ReadonlyMap<string, string>,
     services: ServiceRegistry,
     environment?: ExecutionEnvironment,
+    signal?: AbortSignal,
   ): Promise<RunbookExecutionResult> {
-    const context = createInitialContext(params, services);
+    const context: RunbookContext = createInitialContext(params, services, signal);
     const maxIterations = runbook.maxIterations ?? DEFAULT_MAX_ITERATIONS;
     const env = environment ?? DEFAULT_ENVIRONMENT;
 
@@ -204,6 +206,12 @@ export class RunbookEngine {
       if (iterations > maxIterations) {
         const lastStepId = visitedSequence[visitedSequence.length - 1] ?? 'unknown';
         throw new RunbookMaxIterationsError(runbookId, maxIterations, lastStepId, visitedSequence);
+      }
+
+      // Abort check before each step
+      if (context.signal?.aborted === true) {
+        this.logger.warning('Runbook execution aborted by signal');
+        break;
       }
 
       const descriptor = stepDescriptors[currentIndex];

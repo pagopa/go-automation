@@ -3,6 +3,9 @@ import { QueryCommand, GetItemCommand, UpdateItemCommand, PutItemCommand } from 
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import type { AttributeValue } from '@aws-sdk/client-dynamodb';
 
+/** Default maximum number of items returned by a query to prevent unbounded memory growth. */
+const DEFAULT_MAX_ITEMS = 10_000;
+
 /**
  * DynamoDB service wrapper for runbook steps.
  * Provides query, get, update, and put operations.
@@ -18,11 +21,14 @@ export class RunbookDynamoDBService {
 
   /**
    * Queries a DynamoDB table with automatic pagination.
+   * Stops after `maxItems` to prevent unbounded memory growth on large result sets.
    *
    * @param tableName - Table name
    * @param keyConditionExpression - Key condition expression
    * @param expressionAttributeValues - Expression attribute values
    * @param expressionAttributeNames - Optional expression attribute names
+   * @param maxItems - Maximum items to return (default 10,000)
+   * @param signal - Optional abort signal to cancel the query
    * @returns Array of unmarshalled items
    */
   async query(
@@ -30,9 +36,12 @@ export class RunbookDynamoDBService {
     keyConditionExpression: string,
     expressionAttributeValues: Record<string, AttributeValue>,
     expressionAttributeNames?: Record<string, string>,
+    maxItems: number = DEFAULT_MAX_ITEMS,
+    signal?: AbortSignal,
   ): Promise<ReadonlyArray<Record<string, unknown>>> {
     const items: Record<string, unknown>[] = [];
     let exclusiveStartKey: Record<string, AttributeValue> | undefined;
+    const sendOptions = signal !== undefined ? { abortSignal: signal } : undefined;
 
     do {
       const input: QueryCommandInput = {
@@ -46,7 +55,7 @@ export class RunbookDynamoDBService {
         input.ExpressionAttributeNames = expressionAttributeNames;
       }
 
-      const response: QueryCommandOutput = await this.client.send(new QueryCommand(input));
+      const response: QueryCommandOutput = await this.client.send(new QueryCommand(input), sendOptions);
 
       if (response.Items) {
         for (const item of response.Items) {
@@ -55,7 +64,7 @@ export class RunbookDynamoDBService {
       }
 
       exclusiveStartKey = response.LastEvaluatedKey;
-    } while (exclusiveStartKey !== undefined);
+    } while (exclusiveStartKey !== undefined && items.length < maxItems);
 
     return items;
   }
@@ -65,14 +74,20 @@ export class RunbookDynamoDBService {
    *
    * @param tableName - Table name
    * @param key - Item key as a plain object
+   * @param signal - Optional abort signal to cancel the request
    * @returns The unmarshalled item, or undefined if not found
    */
-  async getItem(tableName: string, key: Record<string, unknown>): Promise<Record<string, unknown> | undefined> {
+  async getItem(
+    tableName: string,
+    key: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): Promise<Record<string, unknown> | undefined> {
     const response = await this.client.send(
       new GetItemCommand({
         TableName: tableName,
         Key: marshall(key),
       }),
+      ...(signal !== undefined ? [{ abortSignal: signal }] : []),
     );
 
     if (response.Item === undefined) {
@@ -90,6 +105,7 @@ export class RunbookDynamoDBService {
    * @param updateExpression - Update expression
    * @param expressionAttributeValues - Expression attribute values (plain objects, auto-marshalled)
    * @param expressionAttributeNames - Optional expression attribute names
+   * @param signal - Optional abort signal to cancel the request
    */
   async updateItem(
     tableName: string,
@@ -97,6 +113,7 @@ export class RunbookDynamoDBService {
     updateExpression: string,
     expressionAttributeValues: Record<string, unknown>,
     expressionAttributeNames?: Record<string, string>,
+    signal?: AbortSignal,
   ): Promise<void> {
     await this.client.send(
       new UpdateItemCommand({
@@ -106,6 +123,7 @@ export class RunbookDynamoDBService {
         ExpressionAttributeValues: marshall(expressionAttributeValues),
         ExpressionAttributeNames: expressionAttributeNames,
       }),
+      ...(signal !== undefined ? [{ abortSignal: signal }] : []),
     );
   }
 
@@ -114,13 +132,15 @@ export class RunbookDynamoDBService {
    *
    * @param tableName - Table name
    * @param item - Item to put (plain object, auto-marshalled)
+   * @param signal - Optional abort signal to cancel the request
    */
-  async putItem(tableName: string, item: Record<string, unknown>): Promise<void> {
+  async putItem(tableName: string, item: Record<string, unknown>, signal?: AbortSignal): Promise<void> {
     await this.client.send(
       new PutItemCommand({
         TableName: tableName,
         Item: marshall(item),
       }),
+      ...(signal !== undefined ? [{ abortSignal: signal }] : []),
     );
   }
 }

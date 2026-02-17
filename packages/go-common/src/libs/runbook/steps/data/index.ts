@@ -20,4 +20,6 @@ export type { DynamoDBGetConfig } from './DynamoDBGetStep.js';
 export { HttpRequestStep, httpRequest } from './HttpRequestStep.js';
 export type { HttpRequestConfig } from './HttpRequestStep.js';
 
-export { interpolateTemplate } from './interpolateTemplate.js';
+export { interpolateTemplate, escapeSqlString, extractTemplateParameters } from './interpolateTemplate.js';
+export { resolveTimeRange } from './resolveTimeRange.js';
+export { executeStep } from './executeStep.js';
