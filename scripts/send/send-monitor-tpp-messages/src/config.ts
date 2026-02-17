@@ -107,6 +107,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     type: Core.GOConfigParameterType.STRING,
     description: 'Slack bot token for notifications',
     required: false,
+    sensitive: true,
     aliases: ['st'],
   },
   {

@@ -92,6 +92,13 @@ export interface GOConfigParameterOptions {
   deprecationMessage?: string;
 
   /**
+   * Whether this parameter contains sensitive data (secrets, passwords, tokens).
+   * When true, the value is redacted in configuration summaries and logs.
+   * Default: false
+   */
+  sensitive?: boolean;
+
+  /**
    * Async fallback function called when value is not found in providers.
    * Executed AFTER checking defaultValue.
    * If both defaultValue and asyncFallback are set, defaultValue takes precedence.
@@ -131,6 +138,7 @@ export class GOConfigParameter {
   readonly aliases: string[];
   readonly deprecated: boolean;
   readonly deprecationMessage?: string | undefined;
+  readonly sensitive: boolean;
   readonly asyncFallback?: GOConfigParameterFallback | undefined;
 
   constructor(options: GOConfigParameterOptions) {
@@ -150,6 +158,7 @@ export class GOConfigParameter {
     this.aliases = options.aliases ?? [];
     this.deprecated = options.deprecated ?? false;
     this.deprecationMessage = options.deprecationMessage;
+    this.sensitive = options.sensitive ?? false;
     this.asyncFallback = options.asyncFallback;
   }
 

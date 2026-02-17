@@ -6,6 +6,7 @@
 import { AWSClientProvider, AWSMultiClientProvider, GOAWSCredentialsManager } from '../../aws/index.js';
 import { GOConfigKeyTransformer } from '../config/GOConfigKeyTransformer.js';
 import type { GOConfigProvider } from '../config/GOConfigProvider.js';
+import { GOSecretRedactor, GOSecretsSpecifierFactory } from '../config/GOSecretsSpecifier.js';
 import { GOConfigReader } from '../config/GOConfigReader.js';
 import { GOConfigSchema } from '../config/GOConfigSchema.js';
 import { GOCommandLineConfigProvider } from '../config/providers/GOCommandLineConfigProvider.js';
@@ -64,6 +65,7 @@ export class GOScript {
   private readonly credentialsManager?: GOAWSCredentialsManager | undefined;
   private fileCopier?: GOFileCopier | undefined;
   private readonly fileCopierOptions?: GOScriptFileCopierOptions | undefined;
+  private readonly secretRedactor: GOSecretRedactor;
   private awsClientProvider?: AWSClientProvider | undefined;
   private awsMultiClientProvider?: AWSMultiClientProvider | undefined;
 
@@ -101,6 +103,9 @@ export class GOScript {
 
     // Store file copier options for lazy initialization
     this.fileCopierOptions = options.fileCopier;
+
+    // Initialize secret redactor from parameter flags + script-level specifier
+    this.secretRedactor = this.initializeSecretRedactor(options.config);
   }
 
   /**
@@ -611,12 +616,54 @@ export class GOScript {
   }
 
   /**
+   * Initialize the secret redactor by merging per-parameter `sensitive` flags
+   * with any script-level secrets specifier. Uses union (OR) semantics:
+   * a parameter is secret if either its flag is set or the specifier matches.
+   */
+  private initializeSecretRedactor(configOptions?: GOScriptConfigOptions): GOSecretRedactor {
+    const sensitiveKeys: string[] = this.configSchema
+      .getAllParameters()
+      .filter((p) => p.sensitive)
+      .map((p) => p.name);
+
+    const scriptSpecifier = configOptions?.secrets;
+
+    // No sensitive params and no script-level specifier → nothing to redact
+    if (sensitiveKeys.length === 0 && scriptSpecifier === undefined) {
+      return new GOSecretRedactor(GOSecretsSpecifierFactory.none());
+    }
+
+    // Only sensitive params, no script-level specifier
+    if (scriptSpecifier === undefined) {
+      return new GOSecretRedactor(GOSecretsSpecifierFactory.specific(sensitiveKeys));
+    }
+
+    // Only script-level specifier, no sensitive params
+    if (sensitiveKeys.length === 0) {
+      return new GOSecretRedactor(scriptSpecifier);
+    }
+
+    // Both exist → merge with union semantics via dynamic predicate
+    const sensitiveKeySet = new Set(sensitiveKeys);
+    const scriptRedactor = new GOSecretRedactor(scriptSpecifier);
+
+    return new GOSecretRedactor(
+      GOSecretsSpecifierFactory.dynamic(
+        (key, value) => sensitiveKeySet.has(key) || scriptRedactor.isSecret(key, value),
+      ),
+    );
+  }
+
+  /**
    * Format a config value for display, redacting secrets
    */
   private formatConfigValue(paramName: string): string {
     const value = this.configValues[paramName];
-    const isSecret = /key|secret|password|token/i.test(paramName);
-    return isSecret ? '***REDACTED***' : valueToString(value);
+    const stringValue = valueToString(value);
+    if (this.secretRedactor.isSecret(paramName, stringValue)) {
+      return this.secretRedactor.redact(stringValue);
+    }
+    return stringValue;
   }
 
   /**

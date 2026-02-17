@@ -236,6 +236,7 @@ export class GOConfigSchema {
         envVar: p.envVar,
         aliases: p.aliases,
         deprecated: p.deprecated,
+        sensitive: p.sensitive,
       })),
     };
   }

@@ -1,7 +1,7 @@
 /**
- * {{SCRIPT_TITLE}} - Entry Point
+ * Send Fetch Dynamodb Data - Entry Point
  *
- * {{SCRIPT_DESCRIPTION}}
+ * Script che recupera le info tramite query da una tabella dynamo
  */
 
 import { Core } from '@go-automation/go-common';

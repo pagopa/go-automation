@@ -5,6 +5,7 @@
 
 import type { GOConfigParameterOptions } from '../config/GOConfigParameter.js';
 import type { GOConfigProvider } from '../config/GOConfigProvider.js';
+import type { GOSecretsSpecifier } from '../config/GOSecretsSpecifier.js';
 import type { GOConfigSchemaOptions } from '../config/GOConfigSchema.js';
 import type { GOFileCopierSubdirDefaults } from '../files/GOFileCopierOptions.js';
 import type { GOLoggerHandler } from '../logging/GOLoggerHandler.js';
@@ -105,6 +106,25 @@ export interface GOScriptConfigOptions {
 
   /** AWS credentials management options - Controls automatic SSO login when credentials expire*/
   awsCredentials?: GOScriptAWSCredentialsOptions;
+
+  /**
+   * Script-level secrets specifier for advanced redaction strategies.
+   * Merged with per-parameter `sensitive` flags using union (OR) semantics:
+   * a parameter is treated as secret if EITHER the parameter has `sensitive: true`
+   * OR this specifier identifies it as secret.
+   *
+   * If omitted and no parameters have `sensitive: true`, defaults to `{ type: 'none' }`.
+   *
+   * @example
+   * ```typescript
+   * // Redact all values
+   * secrets: GOSecretsSpecifierFactory.all()
+   *
+   * // Dynamic predicate
+   * secrets: GOSecretsSpecifierFactory.dynamic((key) => key.includes('internal'))
+   * ```
+   */
+  secrets?: GOSecretsSpecifier;
 }
 
 /**

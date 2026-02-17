@@ -67,7 +67,6 @@ export class SENDTimelineService {
 
     const command: QueryCommand = new QueryCommand(input);
     const response: QueryCommandOutput = await this.client.send(command);
-
     const items = (response.Items ?? []) as ReadonlyArray<DynamoDBTimelineItem>;
 
     return this.buildTimelineResult(parsedIun, items);
