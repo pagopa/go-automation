@@ -1,4 +1,4 @@
 /**
  * Types barrel file
  */
-export type { SendFetchDynamodbDataConfig } from './SendFetchDynamodbDataConfig.js';
+export type { SendFetchDynamodbDataConfig, InputFormat } from './SendFetchDynamodbDataConfig.js';

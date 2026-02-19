@@ -127,22 +127,22 @@ export class GOScriptConfigLoader {
 
     // Build a map from all possible keys (including aliases) to parameter names
     const keyToParamName = new Map<string, string>();
-    params.forEach((param) => {
+    for (const param of params) {
       keyToParamName.set(param.name, param.name);
-      param.aliases.forEach((alias) => {
+      for (const alias of param.aliases) {
         keyToParamName.set(alias, param.name);
-      });
-    });
+      }
+    }
 
     // Get access report to track which provider supplied each value
     const accessReport = this.configReader.getAccessReport();
-    accessReport.accessedKeys.forEach((entry) => {
+    for (const entry of accessReport.accessedKeys) {
       // Map the accessed key (which might be an alias) back to the parameter name
       const paramName = keyToParamName.get(entry.key);
       if (paramName) {
         sources.set(paramName, entry.provider);
       }
-    });
+    }
 
     return sources;
   }
@@ -183,7 +183,7 @@ export class GOScriptConfigLoader {
       })
       .join(', ');
 
-    return `Missing required parameters: ${formatted}`;
+    return `Missing required parameters: ${formatted}\n`;
   }
 
   /**

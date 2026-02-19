@@ -459,7 +459,7 @@ import { main } from './main.js';
 const script = new Core.GOScript({
   metadata: scriptMetadata,
   config: {
-    parameters: [...scriptParameters],
+    parameters: scriptParameters,
   },
 });
 
@@ -1145,7 +1145,7 @@ import { main } from './main.js';
 const script = new Core.GOScript({
   metadata: scriptMetadata,
   config: {
-    parameters: [...scriptParameters],
+    parameters: scriptParameters,
   },
   logging: {
     console: true,

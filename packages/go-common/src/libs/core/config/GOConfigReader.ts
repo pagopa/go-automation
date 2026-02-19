@@ -33,19 +33,23 @@ export interface GOConfigAccessReport {
 /**
  * Configuration reader with provider hierarchy support
  */
+interface GOConfigProvideLog {
+  provider: string;
+  count: number;
+  isSecret: boolean;
+  value?: string | string[] | undefined;
+}
+
 export class GOConfigReader {
-  private readonly providers: GOConfigProvider[];
-  private readonly accessLog: Map<
-    string,
-    { provider: string; count: number; isSecret: boolean; value?: string | string[] | undefined }
-  >;
+  private readonly providers: ReadonlyArray<GOConfigProvider>;
+  private readonly accessLog: Map<string, GOConfigProvideLog>;
 
   /**
    * Create a configuration reader
    * @param providers - Single provider or array of providers (checked in order)
    */
-  constructor(providers: GOConfigProvider | GOConfigProvider[]) {
-    this.providers = Array.isArray(providers) ? providers : [providers];
+  constructor(providers: ReadonlyArray<GOConfigProvider>) {
+    this.providers = providers;
     this.accessLog = new Map();
 
     if (this.providers.length === 0) {

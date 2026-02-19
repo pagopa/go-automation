@@ -52,8 +52,10 @@ export class GOConfigSchema {
   /**
    * Add multiple parameters
    */
-  addParameters(parameterOptions: GOConfigParameterOptions[]): void {
-    parameterOptions.forEach((options) => this.addParameter(options));
+  addParameters(parameterOptions: ReadonlyArray<GOConfigParameterOptions>): void {
+    for (const options of parameterOptions) {
+      this.addParameter(options);
+    }
   }
 
   /**

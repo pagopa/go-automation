@@ -1,12 +1,10 @@
 /**
  * Send Fetch Dynamodb Data - Configuration Module
  *
- * Contains script metadata, parameters definition, configuration interface,
- * and configuration builder function.
+ * Contains script metadata, parameters definition, and configuration re-export.
  */
 
 import { Core } from '@go-automation/go-common';
-
 /**
  * Script metadata
  */
@@ -29,11 +27,32 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     aliases: ['ap'],
   },
   {
-    name: 'input.pkfile',
+    name: 'input.file',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Input TXT file containing the list of PKs to query (one per line)',
+    description: 'Input file containing the list of PKs to query',
     required: true,
     aliases: ['input'],
+  },
+  {
+    name: 'input.format',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'Input file format: txt (one PK per line), jsonl (one JSON string per line), csv',
+    required: false,
+    defaultValue: 'txt',
+    aliases: ['if'],
+  },
+  {
+    name: 'csv.column',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'CSV column name to extract PKs from (default: first column)',
+    required: false,
+  },
+  {
+    name: 'csv.delimiter',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'CSV delimiter character (default: ",")',
+    required: false,
+    defaultValue: ',',
   },
   {
     name: 'output.file',
@@ -77,5 +96,13 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     description: 'Optional suffix to append to each PK value before querying',
     required: false,
     aliases: ['suffix'],
+  },
+  {
+    name: 'dry.run',
+    type: Core.GOConfigParameterType.BOOL,
+    description: 'Preview mode: reads input and shows PKs with prefix/suffix without querying DynamoDB',
+    required: false,
+    defaultValue: false,
+    aliases: ['dry'],
   },
 ] as const;
