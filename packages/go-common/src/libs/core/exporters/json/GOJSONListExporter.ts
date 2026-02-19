@@ -21,7 +21,7 @@ import type { GOJSONListExporterOptions } from './GOJSONListExporterOptions.js';
  *
  * @template TItem - The type of items to export
  */
-export class GOJSONListExporter<TItem extends Record<string, unknown>>
+export class GOJSONListExporter<TItem = Record<string, unknown>>
   extends GOEventEmitterBase<GOListExporterEventMap>
   implements GOListExporter<TItem>
 {
@@ -47,7 +47,7 @@ export class GOJSONListExporter<TItem extends Record<string, unknown>>
    * Export items in batch mode
    * Uses streaming internally for memory efficiency
    */
-  async export(items: TItem[]): Promise<void> {
+  async export(items: ReadonlyArray<TItem>): Promise<void> {
     this.startTime = Date.now();
     this.exportedCount = 0;
     this.failedCount = 0;

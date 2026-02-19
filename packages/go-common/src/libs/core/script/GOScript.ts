@@ -4,7 +4,6 @@
  */
 
 import { AWSClientProvider, AWSMultiClientProvider, GOAWSCredentialsManager } from '../../aws/index.js';
-import { GOConfigKeyTransformer } from '../config/GOConfigKeyTransformer.js';
 import type { GOConfigProvider } from '../config/GOConfigProvider.js';
 import { GOSecretRedactor, GOSecretsSpecifierFactory } from '../config/GOSecretsSpecifier.js';
 import { GOConfigReader } from '../config/GOConfigReader.js';
@@ -12,6 +11,7 @@ import { GOConfigSchema } from '../config/GOConfigSchema.js';
 import { GOCommandLineConfigProvider } from '../config/providers/GOCommandLineConfigProvider.js';
 import { GOEnvironmentConfigProvider } from '../config/providers/GOEnvironmentConfigProvider.js';
 import { GOJSONConfigProvider } from '../config/providers/GOJSONConfigProvider.js';
+import { GOLambdaEventConfigProvider } from '../config/providers/GOLambdaEventConfigProvider.js';
 import { GOYAMLConfigProvider } from '../config/providers/GOYAMLConfigProvider.js';
 import { GOUnknownParameterDetector } from '../config/validation/GOUnknownParameterDetector.js';
 import { GOCredentialSource } from '../environment/GOCredentialSource.js';
@@ -62,6 +62,7 @@ export class GOScript {
   // Managers
   private readonly configLoader: GOScriptConfigLoader;
   private cliProvider?: GOCommandLineConfigProvider | undefined;
+  private lambdaEventProvider?: GOLambdaEventConfigProvider | undefined;
   private readonly credentialsManager?: GOAWSCredentialsManager | undefined;
   private fileCopier?: GOFileCopier | undefined;
   private readonly fileCopierOptions?: GOScriptFileCopierOptions | undefined;
@@ -69,13 +70,29 @@ export class GOScript {
   private awsClientProvider?: AWSClientProvider | undefined;
   private awsMultiClientProvider?: AWSMultiClientProvider | undefined;
 
+  // Cached AWS parameter presence flags (computed once in constructor — avoids repeated array scans)
+  private readonly hasAwsProfileParam: boolean;
+  private readonly hasAwsProfilesParam: boolean;
+
   // State
   private initialized: boolean = false;
   private configLoaded: boolean = false;
   private configValues: Record<string, unknown> = {};
-  private configSources: Map<string, string> = new Map(); // Track which provider supplied each value
+  private configSources: Map<string, string> = new Map();
   private signalHandlersSetup: boolean = false;
   private isShuttingDown: boolean = false;
+
+  // Signal handler references kept for removal in cleanup() (prevents memory leaks)
+  private readonly signalHandlerRefs: { signal: NodeJS.Signals; handler: () => void }[] = [];
+
+  // Tracks errors already logged by a specific throw site (e.g. loadConfig validation).
+  // executeLifecycle() skips handleError() for these and only calls hooks.onError,
+  // preventing the same message from being printed twice.
+  private readonly preloggedErrors = new WeakSet<Error>();
+
+  // Last AWS profile keys used by cached clients — used to detect changes in Lambda between invocations
+  private lastAwsProfile: string | undefined;
+  private lastAwsProfilesKey: string | undefined; // join(',') of profiles array
 
   constructor(options: GOScriptOptions) {
     this.options = options;
@@ -84,6 +101,10 @@ export class GOScript {
 
     // Detect execution environment
     this.environment = GOExecutionEnvironment.detect();
+
+    // Cache AWS parameter presence flags (single scan — reused by handleAWSCredentials and client getters)
+    this.hasAwsProfileParam = options.config?.parameters?.some((p) => p.name === 'aws.profile') ?? false;
+    this.hasAwsProfilesParam = options.config?.parameters?.some((p) => p.name === 'aws.profiles') ?? false;
 
     // Initialize
     const scriptName = this.metadata.name.replace(/\s+/g, '-').toLowerCase();
@@ -112,11 +133,9 @@ export class GOScript {
    * Initialize AWS credentials manager if aws.profile or aws.profiles parameter is defined.
    */
   private initializeCredentialManager(configOptions?: GOScriptConfigOptions): GOAWSCredentialsManager | undefined {
-    const hasAwsProfileParam = configOptions?.parameters?.some((p) => p.name === 'aws.profile') ?? false;
-    const hasAwsProfilesParam = configOptions?.parameters?.some((p) => p.name === 'aws.profiles') ?? false;
     const awsCredentialsConfig = configOptions?.awsCredentials;
 
-    if (awsCredentialsConfig || hasAwsProfileParam || hasAwsProfilesParam) {
+    if (awsCredentialsConfig || this.hasAwsProfileParam || this.hasAwsProfilesParam) {
       return new GOAWSCredentialsManager({
         autoLogin: awsCredentialsConfig?.autoLogin ?? defaultAwsCredentialsOptions.autoLogin,
         interactive: awsCredentialsConfig?.interactive ?? defaultAwsCredentialsOptions.interactive,
@@ -155,23 +174,40 @@ export class GOScript {
   }
 
   /**
-   * Initialize logger with handlers
+   * Initialize logger with handlers.
+   *
+   * File logging behaviour differs by environment:
+   * - Local: enabled by default (creates execution output directory)
+   * - AWS-managed (Lambda/ECS/CodeBuild): disabled by default because the runtime
+   *   already captures stdout/stderr (CloudWatch Logs, etc.). Set `logging.file: true`
+   *   to opt in; the log file will be written to /tmp/ (the only writable path in Lambda).
    */
   private initializeLogger(loggingOptions?: GOScriptLoggingOptions): GOLogger {
     const handlers = [];
 
-    // Console handler (default: enabled)
+    // Console handler (default: enabled in all environments)
     if (loggingOptions?.console !== false) {
       handlers.push(new GOConsoleLoggerHandler());
     }
 
-    // File handler (default: enabled)
-    if (loggingOptions?.file !== false) {
-      // Create execution output directory before initializing file logger
-      this.paths.createExecutionOutputDir();
+    // File handler:
+    // - Local:        enabled by default (loggingOptions?.file !== false)
+    // - AWS-managed:  disabled by default; opt-in with logging.file = true
+    const isFileEnabled = this.environment.isAWSManaged
+      ? loggingOptions?.file === true
+      : loggingOptions?.file !== false;
 
-      const logPath = loggingOptions?.logFilePath ?? this.paths.getExecutionLogFilePath();
-      handlers.push(new GOFileLoggerHandler(this.paths, undefined, logPath));
+    if (isFileEnabled) {
+      if (this.environment.isAWSManaged) {
+        // Only /tmp/ is writable in Lambda/ECS — do NOT call createExecutionOutputDir()
+        const logPath = loggingOptions?.logFilePath ?? `/tmp/${this.paths.getScriptName()}.log`;
+        handlers.push(new GOFileLoggerHandler(this.paths, undefined, logPath));
+      } else {
+        // Local: create execution output directory then use its default log path
+        this.paths.createExecutionOutputDir();
+        const logPath = loggingOptions?.logFilePath ?? this.paths.getExecutionLogFilePath();
+        handlers.push(new GOFileLoggerHandler(this.paths, undefined, logPath));
+      }
     }
 
     // Custom handlers
@@ -207,18 +243,14 @@ export class GOScript {
         ? `Environment(data/${this.paths.getScriptName()}/configs/.env)`
         : `Environment(configs/.env)`;
 
-    let configProviders: GOConfigProvider[];
+    let configProviders: ReadonlyArray<GOConfigProvider>;
     try {
       if (configOptions?.configProviders) {
         // Custom providers: skip CLI provider tracking (cannot assume structure)
         configProviders = configOptions.configProviders;
       } else {
-        // Default providers: track CLI provider for unknown parameter detection
-        const cliProvider = new GOCommandLineConfigProvider();
-        this.cliProvider = cliProvider;
-
-        configProviders = [
-          cliProvider,
+        // Shared file/env providers — identical for both Lambda and local/CI
+        const sharedProviders: GOConfigProvider[] = [
           new GOJSONConfigProvider({
             filePath: jsonConfigInfo.path,
             optional: true,
@@ -234,6 +266,20 @@ export class GOScript {
             displayName: envDisplayName,
           }),
         ];
+
+        if (this.environment.isAWSManaged) {
+          // AWS-managed (Lambda/ECS/CodeBuild): process.argv is irrelevant — skip CLI provider.
+          // Prepend a Lambda event provider (initially empty; populated per-invocation by
+          // createLambdaHandler before loadConfig is called).
+          const eventProvider = new GOLambdaEventConfigProvider({});
+          this.lambdaEventProvider = eventProvider;
+          configProviders = [eventProvider, ...sharedProviders];
+        } else {
+          // Local / CI: track CLI provider for unknown parameter detection
+          const cliProvider = new GOCommandLineConfigProvider();
+          this.cliProvider = cliProvider;
+          configProviders = [cliProvider, ...sharedProviders];
+        }
       }
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error);
@@ -245,7 +291,10 @@ export class GOScript {
       this.logger.error(`Details: ${errorMessage}`);
       this.logger.newline();
       this.logger.info(`Please verify that your configuration file contains valid ${fileType} syntax.`);
-      process.exit(1);
+
+      // Always throw — internal methods must not call process.exit().
+      // CLI entry points wrap the script in .catch(() => process.exit(1)).
+      throw error instanceof Error ? error : new Error(errorMessage);
     }
 
     const configReader = new GOConfigReader(configProviders);
@@ -327,32 +376,27 @@ export class GOScript {
       return;
     }
 
-    try {
-      // Before init hook
-      await this.hooks.onBeforeInit?.();
+    // Before init hook
+    await this.hooks.onBeforeInit?.();
 
-      // Ensure data directories exist (inputs, outputs)
-      this.paths.ensureDirectoriesExist();
+    // Ensure data directories exist (inputs, outputs)
+    this.paths.ensureDirectoriesExist();
 
-      // Log script info
-      this.logger.text(`${this.metadata.name} ${this.metadata.version || ''}`);
-      if (this.metadata.description) {
-        this.logger.newline();
-        this.logger.text(this.metadata.description);
-      }
-      if (this.metadata.authors.length > 0) {
-        this.logger.text(`Authors: ${this.metadata.authors.join(', ')}`);
-      }
-
+    // Log script info
+    this.logger.text(`${this.metadata.name} ${this.metadata.version || ''}`);
+    if (this.metadata.description) {
       this.logger.newline();
-      this.initialized = true;
-
-      // After init hook
-      await this.hooks.onAfterInit?.();
-    } catch (error) {
-      await this.handleError(error as Error);
-      throw error;
+      this.logger.text(this.metadata.description);
     }
+    if (this.metadata.authors.length > 0) {
+      this.logger.text(`Authors: ${this.metadata.authors.join(', ')}`);
+    }
+
+    this.logger.newline();
+    this.initialized = true;
+
+    // After init hook
+    await this.hooks.onAfterInit?.();
   }
 
   /**
@@ -363,68 +407,59 @@ export class GOScript {
       return this.configValues;
     }
 
-    try {
-      // Before config load hook
-      await this.hooks.onBeforeConfigLoad?.();
+    // Before config load hook
+    await this.hooks.onBeforeConfigLoad?.();
 
-      //this.logger.section('Loading Configuration');
-
-      // Check for --help flag
-      if (this.options.config?.autoHelp !== false && this.hasHelpFlag()) {
-        this.showHelp();
-        if (this.options.config?.exitAfterHelp !== false) {
-          process.exit(0);
-        }
-        return {};
+    // Check for --help flag (only in interactive environments — process.argv is meaningless in Lambda)
+    if (this.options.config?.autoHelp !== false && !this.environment.isAWSManaged && this.hasHelpFlag()) {
+      this.showHelp();
+      if (this.options.config?.exitAfterHelp !== false) {
+        process.exit(0);
       }
-
-      // Validate unknown CLI parameters (before loading for better UX)
-      if (this.options.config?.rejectUnknownParameters !== false && this.cliProvider) {
-        const providedFlags = this.cliProvider.getProvidedFlags();
-        const unknownErrors = GOUnknownParameterDetector.detect(providedFlags, this.configSchema);
-
-        if (unknownErrors.length > 0) {
-          const errorMessage = GOUnknownParameterDetector.formatErrorMessage(unknownErrors);
-          console.error(`\n${errorMessage}\n`);
-          this.showHelp();
-          process.exit(1);
-        }
-      }
-
-      // Load configuration using the config loader
-      //this.prompt.spinner.start('Reading configuration...');
-
-      const loadResult = await this.configLoader.load();
-      this.configValues = loadResult.values;
-      this.configSources = loadResult.sources;
-
-      //this.prompt.spinner.stop('Configuration loaded');
-
-      // Validate required parameters BEFORE showing config summary
-      if (loadResult.missingRequired.length > 0) {
-        const params = this.configSchema.getAllParameters();
-        const errorMessage = GOScriptConfigLoader.formatMissingParametersError(loadResult.missingRequired, params);
-        console.error(`\n${errorMessage}\n`);
-        this.showHelp();
-        process.exit(1);
-      }
-
-      // Log config values (if enabled)
-      if (this.options.logging?.logConfigOnStart !== false) {
-        this.logConfigValues();
-      }
-
-      this.configLoaded = true;
-
-      // After config load hook
-      await this.hooks.onAfterConfigLoad?.(this.configValues);
-
-      return this.configValues;
-    } catch (error) {
-      //this.prompt.spinner.fail('Configuration loading failed');
-      await this.handleError(error as Error);
-      throw error;
+      return {};
     }
+
+    // Validate unknown CLI parameters (before loading for better UX).
+    // this.cliProvider is undefined in AWS-managed environments, so this block is already
+    // skipped there; the explicit isAWSManaged guard is added for clarity only.
+    if (this.options.config?.rejectUnknownParameters !== false && !this.environment.isAWSManaged && this.cliProvider) {
+      const providedFlags = this.cliProvider.getProvidedFlags();
+      const unknownErrors = GOUnknownParameterDetector.detect(providedFlags, this.configSchema);
+
+      if (unknownErrors.length > 0) {
+        const errorMessage = GOUnknownParameterDetector.formatErrorMessage(unknownErrors);
+        this.logger.error(errorMessage);
+        this.showHelp();
+        this.throwPrelogged(errorMessage);
+      }
+    }
+
+    const loadResult = await this.configLoader.load();
+    this.configValues = loadResult.values;
+    this.configSources = loadResult.sources;
+
+    // Validate required parameters BEFORE showing config summary
+    if (loadResult.missingRequired.length > 0) {
+      const params = this.configSchema.getAllParameters();
+      const errorMessage = GOScriptConfigLoader.formatMissingParametersError(loadResult.missingRequired, params);
+      this.logger.error(errorMessage);
+      if (!this.environment.isAWSManaged) {
+        this.showHelp();
+      }
+      this.throwPrelogged(errorMessage);
+    }
+
+    // Log config values (if enabled)
+    if (this.options.logging?.logConfigOnStart !== false) {
+      this.logConfigValues();
+    }
+
+    this.configLoaded = true;
+
+    // After config load hook
+    await this.hooks.onAfterConfigLoad?.(this.configValues);
+
+    return this.configValues;
   }
 
   /**
@@ -461,8 +496,9 @@ export class GOScript {
       await this.loadConfig();
     }
 
+    // loadConfig() (called above if needed) already validates required parameters and throws
+    // on missing ones — no need to repeat the check here.
     const result = {} as TConfiguration;
-    const missingParams: string[] = [];
 
     for (const param of this.configSchema.getAllParameters()) {
       const propertyName = this.parameterNameToPropertyName(param.name);
@@ -472,18 +508,12 @@ export class GOScript {
       // Use configValues (populated by loadConfig with proper alias support)
       const value: unknown = this.configValues[param.name];
 
-      if (param.required && value === undefined) {
-        missingParams.push(param.name);
-      } else if (value !== undefined) {
+      if (value !== undefined) {
+        // Safe: the type system cannot verify that configValues[param.name] matches
+        // TConfiguration[key] at runtime — callers must ensure their Config interface
+        // matches the declared parameter types and GOConfigTypeConverter output.
         result[finalPropertyName] = value as TConfiguration[keyof TConfiguration];
       }
-    }
-
-    if (missingParams.length > 0) {
-      const cliParams = missingParams.map((p) => GOConfigKeyTransformer.toCLIFlag(p));
-      console.error(`\nMissing required parameter${missingParams.length > 1 ? 's' : ''}: ${cliParams.join(', ')}\n`);
-      this.showHelp();
-      process.exit(1);
     }
 
     return result;
@@ -497,6 +527,119 @@ export class GOScript {
       .split('.')
       .map((part, i) => (i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
       .join('');
+  }
+
+  // ============================================================================
+  // Type-safe config value accessors (avoids unchecked `as` casts on configValues)
+  // ============================================================================
+
+  /**
+   * Log `message` as an error and throw it as a "pre-logged" Error.
+   *
+   * Use this instead of bare `throw new Error(message)` at any site that already
+   * emits its own `this.logger.error(...)` context. The error is registered in
+   * `preloggedErrors` so `executeLifecycle()`'s catch block will skip the generic
+   * `handleError()` logging and avoid printing the same message twice.
+   */
+  private throwPrelogged(message: string): never {
+    const err = new Error(message);
+    this.preloggedErrors.add(err);
+    throw err;
+  }
+
+  /**
+   * Return the config value for `key` as a string, or undefined if absent or wrong type.
+   * Prefer this over `this.configValues[key] as string | undefined`.
+   */
+  private getConfigString(key: string): string | undefined {
+    const value = this.configValues[key];
+    return typeof value === 'string' ? value : undefined;
+  }
+
+  /**
+   * Return the config value for `key` as a readonly string array, or undefined if absent or wrong type.
+   * Prefer this over `this.configValues[key] as ReadonlyArray<string> | undefined`.
+   */
+  private getConfigStringArray(key: string): ReadonlyArray<string> | undefined {
+    const value = this.configValues[key];
+    return Array.isArray(value) ? (value as string[]) : undefined;
+  }
+
+  // ============================================================================
+  // Shared lifecycle executor
+  // ============================================================================
+
+  /**
+   * Execute the standard script lifecycle: initialize → loadConfig → credentials → main → cleanup.
+   *
+   * Both `run()` (CLI) and the handler returned by `createLambdaHandler()` (Lambda) delegate
+   * here so the lifecycle stays in one place. Each caller handles its own pre-lifecycle setup
+   * (signal handlers for CLI; state reset + event injection for Lambda).
+   *
+   * @param mainFn - The async function containing the script's business logic
+   * @param successMessage - Message logged on successful completion
+   */
+  private async executeLifecycle<T>(mainFn: () => Promise<T>, successMessage: string): Promise<T> {
+    try {
+      if (!this.initialized) {
+        await this.initialize();
+      }
+
+      if (!this.configLoaded) {
+        await this.loadConfig();
+      }
+
+      // In Lambda: invalidate cached AWS clients if the profile changed since the last invocation
+      if (this.environment.isAWSManaged) {
+        this.refreshAwsClientsIfProfileChanged();
+      }
+
+      await this.hooks.onBeforeRun?.();
+      await this.handleAWSCredentials();
+
+      const result = await mainFn();
+
+      this.logger.success(successMessage);
+      await this.hooks.onAfterRun?.();
+
+      return result;
+    } catch (error) {
+      if (error instanceof Error && this.preloggedErrors.has(error)) {
+        // Already logged by a specific throw site — only call the hook, skip generic re-logging.
+        await this.hooks.onError?.(toError(error));
+      } else {
+        // Unexpected runtime error — log generically (message + stack).
+        await this.handleError(error);
+      }
+      throw error;
+    } finally {
+      await this.cleanup();
+    }
+  }
+
+  /**
+   * Invalidate cached AWS client providers when the active profile changes.
+   *
+   * Lambda containers are reused across invocations. If different invocations supply
+   * different `aws.profile` or `aws.profiles` values via the event payload, the providers
+   * built for the previous profile must be closed and recreated so they use the correct credentials.
+   */
+  private refreshAwsClientsIfProfileChanged(): void {
+    const newProfile = this.getConfigString('aws.profile');
+    const newProfilesKey = this.getConfigStringArray('aws.profiles')?.join(',');
+
+    if (newProfile !== this.lastAwsProfile && this.awsClientProvider !== undefined) {
+      this.awsClientProvider.close();
+      this.awsClientProvider = undefined;
+    }
+
+    if (newProfilesKey !== this.lastAwsProfilesKey && this.awsMultiClientProvider !== undefined) {
+      this.awsMultiClientProvider.close();
+      this.awsMultiClientProvider = undefined;
+    }
+
+    this.lastAwsProfile = newProfile;
+    this.lastAwsProfilesKey = newProfilesKey;
   }
 
   /**
@@ -522,39 +665,88 @@ export class GOScript {
    * ```
    */
   public async run(mainFunction: () => void | Promise<void>): Promise<void> {
-    // Setup graceful shutdown handlers (once)
+    // Setup graceful shutdown handlers (once, local/CI only — skipped in Lambda)
     this.setupSignalHandlers();
+    await this.executeLifecycle(async () => Promise.resolve(mainFunction()), 'Script completed successfully');
+  }
 
-    try {
-      // Initialize if not done
-      if (!this.initialized) {
-        await this.initialize();
+  /**
+   * Create a Lambda-compatible handler function from this script.
+   *
+   * The returned handler:
+   * - Injects the Lambda event payload as the highest-priority config provider,
+   *   so event fields map directly to script parameters (see GOLambdaEventConfigProvider
+   *   for key normalization rules: camelCase / snake_case → dot.notation).
+   * - Supports Lambda container reuse: per-invocation state (config values, init flags)
+   *   is reset on each call while expensive resources (AWS client connections) are kept alive.
+   * - Never calls process.exit() — errors are thrown so the Lambda runtime can mark the
+   *   invocation as failed and trigger retries / DLQ routing as configured.
+   * - Does not register SIGTERM/SIGINT signal handlers (the runtime manages lifecycle).
+   *
+   * The existing main() function does not need to change: it calls
+   * script.getConfiguration<T>() as usual and receives values sourced from the event
+   * payload, environment variables, and bundled config files — in that priority order.
+   *
+   * @param mainFunction - Async function that receives the typed Lambda event and returns a result
+   * @returns Lambda handler: (event: TEvent) => Promise<TResult>
+   *
+   * @example
+   * ```typescript
+   * // index.ts — dual-mode entry point
+   * const script = new Core.GOScript({ metadata, config: { parameters } });
+   *
+   * // Lambda export (handler name must match the function configuration)
+   * export const handler = script.createLambdaHandler(async (event) => {
+   *   return await main(script, event);
+   * });
+   *
+   * // CLI entry point (unchanged)
+   * script.run(async () => {
+   *   await main(script, null);
+   * }).catch(() => process.exit(1));
+   * ```
+   *
+   * @example Event payload mapping
+   * ```json
+   * { "startDate": "2024-01", "awsProfile": "pn-core-prod", "limit": 100 }
+   * ```
+   * is resolved as:
+   * ```
+   * start.date  = "2024-01"
+   * aws.profile = "pn-core-prod"
+   * limit       = "100"
+   * ```
+   */
+  public createLambdaHandler<TEvent = unknown, TResult = unknown>(
+    mainFunction: (event: TEvent) => Promise<TResult>,
+  ): (event: TEvent) => Promise<TResult> {
+    return async (event: TEvent): Promise<TResult> => {
+      // Reset per-invocation state to support Lambda container reuse.
+      // AWS client providers are intentionally NOT reset (connection-pool reuse).
+      this.initialized = false;
+      this.configLoaded = false;
+      this.configValues = {};
+      this.configSources = new Map();
+
+      // Inject the event payload into the pre-registered event config provider.
+      // The provider was created (empty) during construction in initializeConfigReader();
+      // here we populate it for this specific invocation before loadConfig() runs.
+      // Array events (SQS batch, etc.) are skipped — flat key mapping only applies to objects.
+      if (
+        this.lambdaEventProvider !== undefined &&
+        event !== null &&
+        event !== undefined &&
+        typeof event === 'object' &&
+        !Array.isArray(event)
+      ) {
+        this.lambdaEventProvider.updateValues(event as Record<string, unknown>);
       }
 
-      // Load config if not done
-      if (!this.configLoaded) {
-        await this.loadConfig();
-      }
-
-      // Before run hook
-      await this.hooks.onBeforeRun?.();
-
-      // Handle AWS credentials based on execution environment
-      await this.handleAWSCredentials();
-
-      // Execute main function (credentials already validated)
-      await mainFunction();
-
-      this.logger.success('Script completed successfully');
-
-      // After run hook
-      await this.hooks.onAfterRun?.();
-    } catch (error) {
-      await this.handleError(error as Error);
-      throw error;
-    } finally {
-      await this.cleanup();
-    }
+      // Delegate to shared lifecycle executor.
+      // Re-throws on error so the Lambda runtime can mark the invocation as failed
+      // and trigger retries / DLQ routing as configured.
+      return this.executeLifecycle(async () => mainFunction(event), 'Lambda handler completed successfully');
+    };
   }
 
   /**
@@ -681,24 +873,39 @@ export class GOScript {
   }
 
   /**
-   * Cleanup resources
+   * Cleanup resources.
+   *
+   * AWS client providers are intentionally kept alive in AWS-managed environments
+   * (Lambda/ECS/CodeBuild) to allow connection-pool reuse across invocations.
+   * They are only closed in local/CI environments where the process exits after
+   * each script run anyway.
    */
   public async cleanup(): Promise<void> {
     try {
       // Cleanup hook
       await this.hooks.onCleanup?.();
 
-      // Close AWS client providers
-      if (this.awsClientProvider !== undefined) {
-        this.awsClientProvider.close();
-        this.awsClientProvider = undefined;
-      }
-      if (this.awsMultiClientProvider !== undefined) {
-        this.awsMultiClientProvider.close();
-        this.awsMultiClientProvider = undefined;
+      // Close AWS client providers only in local/CI (not in Lambda — container reuse)
+      if (!this.environment.isAWSManaged) {
+        if (this.awsClientProvider !== undefined) {
+          this.awsClientProvider.close();
+          this.awsClientProvider = undefined;
+        }
+        if (this.awsMultiClientProvider !== undefined) {
+          this.awsMultiClientProvider.close();
+          this.awsMultiClientProvider = undefined;
+        }
       }
 
-      // Close file handlers
+      // Remove registered signal handlers to prevent listener accumulation
+      // if the same GOScript instance is reused across multiple run() calls.
+      for (const { signal, handler } of this.signalHandlerRefs) {
+        process.removeListener(signal, handler);
+      }
+      this.signalHandlerRefs.splice(0);
+      this.signalHandlersSetup = false;
+
+      // Always close file log handlers (flush buffers / release file descriptors)
       const handlers = this.logger.getHandlers();
       for (const handler of handlers) {
         if (handler instanceof GOFileLoggerHandler) {
@@ -728,12 +935,20 @@ export class GOScript {
     if (this.signalHandlersSetup) {
       return;
     }
+
+    // In AWS-managed environments the runtime manages the process lifecycle.
+    // Registering our own SIGTERM/SIGINT handlers here would interfere with
+    // Lambda's graceful shutdown and ECS task stop behaviour.
+    if (this.environment.isAWSManaged) {
+      return;
+    }
+
     this.signalHandlersSetup = true;
 
     const signals: NodeJS.Signals[] = ['SIGTERM', 'SIGINT', 'SIGQUIT'];
 
     for (const signal of signals) {
-      process.on(signal, () => {
+      const handler = (): void => {
         // Force exit if shutdown already in progress
         if (this.isShuttingDown) {
           this.logger.warning(`${signal} received again, forcing exit...`);
@@ -753,7 +968,12 @@ export class GOScript {
             this.logger.error(`Error during cleanup: ${getErrorMessage(error)}`);
             process.exit(1);
           });
-      });
+      };
+
+      // Store reference so cleanup() can remove it, preventing listener accumulation
+      // if the same GOScript instance is reused across multiple run() calls.
+      this.signalHandlerRefs.push({ signal, handler });
+      process.on(signal, handler);
     }
   }
 
@@ -769,8 +989,8 @@ export class GOScript {
    * 6. CI without credentials -> validate or fail with clear error
    */
   private async handleAWSCredentials(): Promise<void> {
-    // Guard: No AWS config needed
-    if (!this.hasAwsProfileParameter() && !this.hasAwsProfilesParameter()) return;
+    // Guard: No AWS config needed (cached flags — set once in constructor)
+    if (!this.hasAwsProfileParam && !this.hasAwsProfilesParam) return;
 
     this.logAWSEnvironmentInfo();
 
@@ -793,8 +1013,8 @@ export class GOScript {
     }
 
     // Handle multi-profile if aws.profiles is configured
-    if (this.hasAwsProfilesParameter()) {
-      const profiles = this.configValues['aws.profiles'] as ReadonlyArray<string> | undefined;
+    if (this.hasAwsProfilesParam) {
+      const profiles = this.getConfigStringArray('aws.profiles');
       if (profiles && profiles.length > 0) {
         await this.handleMultiProfileAWSCredentials(profiles);
         return;
@@ -802,27 +1022,13 @@ export class GOScript {
     }
 
     // Fall back to single profile handling
-    const profile = this.configValues['aws.profile'] as string | undefined;
+    const profile = this.getConfigString('aws.profile');
 
     if (this.environment.isInteractive) {
       await this.handleInteractiveAWSCredentials(profile);
     } else {
       await this.handleNonInteractiveAWSCredentials(profile);
     }
-  }
-
-  /**
-   * Check if script has aws.profile parameter configured
-   */
-  private hasAwsProfileParameter(): boolean {
-    return this.options.config?.parameters?.some((p) => p.name === 'aws.profile') ?? false;
-  }
-
-  /**
-   * Check if script has aws.profiles parameter configured
-   */
-  private hasAwsProfilesParameter(): boolean {
-    return this.options.config?.parameters?.some((p) => p.name === 'aws.profiles') ?? false;
   }
 
   /**
@@ -952,7 +1158,7 @@ export class GOScript {
    */
   get aws(): AWSClientProvider {
     if (this.awsClientProvider === undefined) {
-      const awsProfile = this.configValues['aws.profile'] as string | undefined;
+      const awsProfile = this.getConfigString('aws.profile');
 
       if (!awsProfile) {
         throw new Error(
@@ -990,7 +1196,7 @@ export class GOScript {
    */
   get awsMulti(): AWSMultiClientProvider {
     if (this.awsMultiClientProvider === undefined) {
-      const awsProfiles = this.configValues['aws.profiles'] as ReadonlyArray<string> | undefined;
+      const awsProfiles = this.getConfigStringArray('aws.profiles');
 
       if (!awsProfiles || awsProfiles.length === 0) {
         throw new Error(

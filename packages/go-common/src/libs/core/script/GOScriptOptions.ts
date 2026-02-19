@@ -23,8 +23,8 @@ export interface GOScriptMetadata {
   /** Script description */
   description: string;
 
-  /** Script author */
-  authors: [string];
+  /** Script authors */
+  authors: ReadonlyArray<string>;
 }
 
 /**
@@ -41,7 +41,7 @@ export interface GOScriptLoggingOptions {
   logFilePath?: string;
 
   /** Custom logger handlers */
-  handlers?: GOLoggerHandler[];
+  handlers?: ReadonlyArray<GOLoggerHandler>;
 
   /** Enable automatic logging of config values at startup (default: true) */
   logConfigOnStart?: boolean;
@@ -85,10 +85,10 @@ export interface GOScriptConfigOptions {
   schema?: GOConfigSchemaOptions;
 
   /** Config reader providers */
-  configProviders?: GOConfigProvider[];
+  configProviders?: ReadonlyArray<GOConfigProvider>;
 
   /** Configuration parameters to register */
-  parameters?: GOConfigParameterOptions[];
+  parameters?: ReadonlyArray<GOConfigParameterOptions>;
 
   /** Enable automatic help generation with --help flag (default: true) */
   autoHelp?: boolean;

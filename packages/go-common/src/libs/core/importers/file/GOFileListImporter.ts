@@ -286,8 +286,7 @@ export class GOFileListImporter<TItem = string>
   private filterLine(rawLine: string): string | undefined {
     const trim = this.options.trim ?? true;
     const skipEmptyLines = this.options.skipEmptyLines ?? true;
-
-    let line = trim ? rawLine.trim() : rawLine;
+    const line = trim ? rawLine.trim() : rawLine;
 
     // Skip empty lines
     if (skipEmptyLines && line.length === 0) {

@@ -23,7 +23,7 @@ export interface GOListExporter<TItem> extends GOEventEmitter<GOListExporterEven
    * @param items - Array of items to export
    * @returns Promise that resolves when export is complete
    */
-  export(items: TItem[]): Promise<void>;
+  export(items: ReadonlyArray<TItem>): Promise<void>;
 
   /**
    * Initialize streaming export mode

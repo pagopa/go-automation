@@ -71,7 +71,7 @@ export class GOHTMLListExporter<TItem extends Record<string, unknown>>
   /**
    * Export items in batch mode
    */
-  async export(items: TItem[]): Promise<void> {
+  async export(items: ReadonlyArray<TItem>): Promise<void> {
     this.startTime = Date.now();
     this.exportedCount = 0;
     this.failedCount = 0;

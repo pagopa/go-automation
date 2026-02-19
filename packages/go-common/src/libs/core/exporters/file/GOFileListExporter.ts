@@ -32,7 +32,7 @@ export class GOFileListExporter extends GOEventEmitterBase<GOListExporterEventMa
   /**
    * Export items in batch mode
    */
-  async export(items: string[]): Promise<void> {
+  async export(items: ReadonlyArray<string>): Promise<void> {
     this.startTime = Date.now();
     this.exportedCount = 0;
     this.failedCount = 0;

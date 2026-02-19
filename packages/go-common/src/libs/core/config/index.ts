@@ -24,6 +24,7 @@ export * from './providers/GOJSONConfigProvider.js';
 export * from './providers/GOYAMLConfigProvider.js';
 export * from './providers/GOEnvironmentConfigProvider.js';
 export * from './providers/GOCommandLineConfigProvider.js';
+export * from './providers/GOLambdaEventConfigProvider.js';
 
 // Parsers
 export * from './parsers/GOEnvFileParser.js';

@@ -115,7 +115,7 @@ export class GOUnknownParameterDetector {
     }
 
     lines.push('');
-    lines.push('Run with --help to see all available parameters.');
+    lines.push('Run with --help to see all available parameters.\n');
 
     return lines.join('\n');
   }
