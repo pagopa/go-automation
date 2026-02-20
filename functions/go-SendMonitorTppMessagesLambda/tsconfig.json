@@ -8,8 +8,5 @@
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [
-    { "path": "../../scripts/send/send-monitor-tpp-messages" },
-    { "path": "../../packages/go-common" }
-  ]
+  "references": [{ "path": "../../scripts/send/send-monitor-tpp-messages" }, { "path": "../../packages/go-common" }]
 }

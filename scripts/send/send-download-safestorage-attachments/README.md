@@ -52,7 +52,7 @@ go-automation/data/send-download-safestorage-attachments/inputs/
 
 Lo script supporta due formati di input selezionabili con `--input-mode`.
 
-### `uri-list` — Lista di URI *(default)*
+### `uri-list` — Lista di URI _(default)_
 
 Un file di testo con **una URI Safe Storage per riga**.
 
@@ -151,18 +151,18 @@ outputs/send-download-safestorage-attachments_2026-02-20T11-30-00/
 
 ## Parametri
 
-| Parametro          | Alias   | Obbligatorio | Default    | Descrizione                                                              |
-|--------------------|---------|:------------:|------------|--------------------------------------------------------------------------|
-| `--input-file`     | `-i`    | ✓            | —          | File di input (relativo a `inputs/` oppure path assoluto)                |
-| `--input-mode`     | `-m`    | —            | `uri-list` | Formato del file: `uri-list` oppure `jsonl`                              |
-| `--aws-profile`    | `-p`    | ✓            | —          | AWS SSO profile con accesso al bucket Safe Storage dell'account confinfo |
-| `--file-extensions`| `--ext` | —            | *(tutti)*  | Filtra per estensione: lista separata da virgola, es. `pdf,txt,bin`      |
+| Parametro           | Alias   | Obbligatorio | Default    | Descrizione                                                              |
+| ------------------- | ------- | :----------: | ---------- | ------------------------------------------------------------------------ |
+| `--input-file`      | `-i`    |      ✓       | —          | File di input (relativo a `inputs/` oppure path assoluto)                |
+| `--input-mode`      | `-m`    |      —       | `uri-list` | Formato del file: `uri-list` oppure `jsonl`                              |
+| `--aws-profile`     | `-p`    |      ✓       | —          | AWS SSO profile con accesso al bucket Safe Storage dell'account confinfo |
+| `--file-extensions` | `--ext` |      —       | _(tutti)_  | Filtra per estensione: lista separata da virgola, es. `pdf,txt,bin`      |
 
 ---
 
 ## Utilizzo
 
-### Produzione *(consigliato)*
+### Produzione _(consigliato)_
 
 ```bash
 pnpm send:download:safestorage:attachments:prod \
@@ -171,7 +171,7 @@ pnpm send:download:safestorage:attachments:prod \
   --aws-profile <profile>
 ```
 
-### Development *(no build, usa tsx)*
+### Development _(no build, usa tsx)_
 
 ```bash
 pnpm send:download:safestorage:attachments:dev \
@@ -264,6 +264,7 @@ go-automation/data/send-download-safestorage-attachments/outputs/
 Al termine viene generato `download-report.jsonl`. Ogni riga è il risultato di un singolo download.
 
 **Download riuscito:**
+
 ```json
 {
   "uri": "safestorage://PN_EXTERNAL_LEGAL_FACTS-e579...f3.bin",
@@ -277,6 +278,7 @@ Al termine viene generato `download-report.jsonl`. Ogni riga è il risultato di 
 ```
 
 **Download fallito:**
+
 ```json
 {
   "uri": "safestorage://PN_EXTERNAL_LEGAL_FACTS-xyz.bin",
@@ -310,13 +312,13 @@ aws:
 
 ## Troubleshooting
 
-| Errore | Causa | Soluzione |
-|--------|-------|-----------|
-| `Safe Storage bucket not found` | Profilo sbagliato o senza accesso all'account `confinfo` | Verificare il profilo e fare `aws sso login` |
-| `ExpiredTokenException` | Sessione SSO scaduta | `aws sso login --profile <profile>` |
-| `NoSuchKey` | La chiave non esiste nel bucket | Verificare la URI e che il profilo punti all'environment corretto |
-| `No Safe Storage attachments found` | Nessuna URI `safestorage://` trovata nel file | Verificare che `--input-mode` corrisponda al formato del file |
-| `0 attachments` con file JSONL | Tutti gli eventi hanno `attachments: []` | Normale: quegli eventi non hanno file allegati |
+| Errore                              | Causa                                                    | Soluzione                                                         |
+| ----------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------- |
+| `Safe Storage bucket not found`     | Profilo sbagliato o senza accesso all'account `confinfo` | Verificare il profilo e fare `aws sso login`                      |
+| `ExpiredTokenException`             | Sessione SSO scaduta                                     | `aws sso login --profile <profile>`                               |
+| `NoSuchKey`                         | La chiave non esiste nel bucket                          | Verificare la URI e che il profilo punti all'environment corretto |
+| `No Safe Storage attachments found` | Nessuna URI `safestorage://` trovata nel file            | Verificare che `--input-mode` corrisponda al formato del file     |
+| `0 attachments` con file JSONL      | Tutti gli eventi hanno `attachments: []`                 | Normale: quegli eventi non hanno file allegati                    |
 
 ---
 
