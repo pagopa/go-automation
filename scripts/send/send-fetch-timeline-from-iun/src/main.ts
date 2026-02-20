@@ -78,6 +78,4 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.info(`Total IUNs processed: ${results.length}`);
   script.logger.info(`Timelines with data: ${timelinesWithData.length}`);
   script.logger.info(`Empty timelines: ${timelinesEmpty.length}`);
-
-  await script.logger.reset();
 }

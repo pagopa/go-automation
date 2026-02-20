@@ -113,41 +113,49 @@ export class GOFileLoggerHandler implements GOLoggerHandler {
   }
 
   /**
-   * Reset the handler (closes and reopens the file)
-   * Properly awaits pending operations before resetting state
+   * Reset the handler.
+   *
+   * For file handlers, reset is a no-op: the stream stays open and continues
+   * appending. Closing and re-opening would truncate the file (fs.createWriteStream
+   * defaults to flags:'w'), losing all previously written log entries.
+   *
+   * The GOLogger.reset() contract is primarily useful for console handlers
+   * (resetting indentation level, etc.) and does not require file handlers
+   * to discard their output.
    */
+
   public async reset(): Promise<void> {
+    // Intentionally no-op — file stream stays open.
+    // If we were to close and re-open the stream here, it would truncate the log file, causing loss of all previous logs.
+    // By keeping the stream open, we ensure that all logs are preserved across resets.
+    //
+    //
     // If already closing, wait for close to complete
-    if (this.isClosing) {
-      return;
-    }
-
-    if (this.writer) {
-      this.isClosing = true;
-
-      // Capture writer reference before clearing
-      const writerToClose = this.writer;
-
-      try {
-        // Wait for all pending writes to complete
-        await this.writeQueue.catch(() => {
-          /* Ignore write errors, we're resetting anyway */
-        });
-
-        // Now close the writer
-        await writerToClose.close();
-      } catch (error) {
-        console.error('Failed to close log file during reset:', error);
-      }
-
-      // Only reset state AFTER async operations complete
-      this.writer = undefined;
-      this.isInitialized = false;
-      this.isInitializing = false;
-      this.eventQueue = [];
-      this.writeQueue = Promise.resolve();
-      this.isClosing = false; // Reset at the END, after everything is done
-    }
+    // if (this.isClosing) {
+    //   return;
+    // }
+    // if (this.writer) {
+    //   this.isClosing = true;
+    //   // Capture writer reference before clearing
+    //   const writerToClose = this.writer;
+    //   try {
+    //     // Wait for all pending writes to complete
+    //     await this.writeQueue.catch(() => {
+    //       /* Ignore write errors, we're resetting anyway */
+    //     });
+    //     // Now close the writer
+    //     await writerToClose.close();
+    //   } catch (error) {
+    //     console.error('Failed to close log file during reset:', error);
+    //   }
+    //   // Only reset state AFTER async operations complete
+    //   this.writer = undefined;
+    //   this.isInitialized = false;
+    //   this.isInitializing = false;
+    //   this.eventQueue = [];
+    //   this.writeQueue = Promise.resolve();
+    //   this.isClosing = false; // Reset at the END, after everything is done
+    // }
   }
 
   /**
