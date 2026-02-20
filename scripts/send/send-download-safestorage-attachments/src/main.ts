@@ -391,7 +391,8 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.info(`Input mode  : ${config.inputMode}`);
   script.logger.info(`AWS profile : ${config.awsProfile}`);
 
-  const allowedExtensions = config.fileExtensions !== undefined ? parseExtensions(config.fileExtensions) : new Set<string>();
+  const allowedExtensions =
+    config.fileExtensions !== undefined ? parseExtensions(config.fileExtensions) : new Set<string>();
   if (allowedExtensions.size > 0) {
     script.logger.info(`Filter ext  : ${[...allowedExtensions].join(', ')}`);
   }
