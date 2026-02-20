@@ -1,0 +1,33 @@
+{
+  "name": "send-download-safestorage-attachments",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Download attachments from safe storage",
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "pnpm build && node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "keywords": [
+    "send",
+    "go-automation"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.994.0",
+    "@aws-sdk/credential-provider-ini": "^3.972.9",
+    "@go-automation/go-common": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.13"
+  }
+}
