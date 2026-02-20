@@ -211,5 +211,4 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   // Display Detailed Timeline
   displayDetailedTimeline(script, config, timeline);
-
 }

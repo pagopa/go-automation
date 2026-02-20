@@ -208,6 +208,22 @@ importers:
         specifier: ^24.10.10
         version: 24.10.10
 
+  scripts/send/send-download-safestorage-attachments:
+    dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.989.0
+        version: 3.989.0
+      '@aws-sdk/credential-provider-ini':
+        specifier: ^3.972.7
+        version: 3.972.7
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+    devDependencies:
+      '@types/node':
+        specifier: ^24.10.9
+        version: 24.10.13
+
   scripts/send/send-fetch-dynamodb-data:
     dependencies:
       '@go-automation/go-common':

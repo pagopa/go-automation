@@ -5,6 +5,8 @@
  * Each client type is lazily initialized on first access and reused thereafter.
  */
 
+import { S3Client } from '@aws-sdk/client-s3';
+import type { S3ClientConfig } from '@aws-sdk/client-s3';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import type { DynamoDBClientConfig } from '@aws-sdk/client-dynamodb';
 import { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
@@ -51,10 +53,12 @@ export class AWSClientProvider {
   private readonly region: string;
   private readonly dynamoDBClientConfig: DynamoDBClientConfig;
   private readonly cloudWatchClientConfig: CloudWatchClientConfig;
+  private readonly secClientConfig: S3ClientConfig;
 
   // Cached client instances (lazy initialization)
   private cachedDynamoDBClient: DynamoDBClient | null = null;
   private cachedCloudWatchClient: CloudWatchClient | null = null;
+  private cachedS3Client: S3Client | null = null;
 
   constructor(config: AWSClientProviderConfig) {
     this.profile = config.profile;
@@ -67,6 +71,19 @@ export class AWSClientProvider {
       region: this.region,
       credentials: fromIni({ profile: this.profile }),
     };
+    this.secClientConfig = {
+      region: this.region,
+      credentials: fromIni({ profile: this.profile }),
+    };
+  }
+
+  /**
+   * Returns the cached S3Client instance.
+   * Creates the client on first access.
+   */
+  get s3(): S3Client {
+    this.cachedS3Client ??= new S3Client(this.secClientConfig);
+    return this.cachedS3Client;
   }
 
   /**

@@ -25,6 +25,8 @@ export default tseslint.config(
       '**/dist/',
       'build/',
       'coverage/',
+      'artifacts/',
+      '**/artifacts/',
       '**/*.js',
       '**/*.d.ts',
       '**/*.mjs',
@@ -190,9 +192,9 @@ export default tseslint.config(
     },
   },
 
-  // CLI entry points - allow console
+  // CLI entry points and local test harnesses - allow console
   {
-    files: ['**/src/index.ts', '**/src/main.ts', '**/cli.ts'],
+    files: ['**/src/index.ts', '**/src/main.ts', '**/cli.ts', '**/src/test-local.ts'],
     rules: {
       'no-console': 'off',
     },

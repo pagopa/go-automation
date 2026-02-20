@@ -60,8 +60,8 @@ export async function main(script: Core.GOScript): Promise<void> {
     const previewLimit = 20;
     const previewCount = Math.min(pks.length, previewLimit);
 
-    for (let i = 0; i < previewCount; i++) {
-      script.logger.info(`  ${prefix}${pks[i]!}${suffix}`);
+    for (const pk of pks.slice(0, previewCount)) {
+      script.logger.info(`  ${prefix}${pk}${suffix}`);
     }
     if (pks.length > previewLimit) {
       script.logger.info(`  ... and ${pks.length - previewLimit} more`);
