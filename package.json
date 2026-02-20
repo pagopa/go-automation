@@ -7,6 +7,7 @@
   "scripts": {
     "build": "pnpm build:common && pnpm build:scripts",
     "build:common": "pnpm --filter=@go-automation/go-common build",
+    "build:functions": "pnpm -r --filter='./functions/**' build",
     "build:scripts": "pnpm -r --filter='./scripts/**' build",
     "clean": "pnpm -r run clean",
     "clean:all": "pnpm clean && pnpm -r exec rm -rf node_modules && rm -rf node_modules",
@@ -31,6 +32,8 @@
     "send:import:notifications:build": "pnpm --filter=send-import-notifications build",
     "send:import:notifications:dev": "pnpm --filter=send-import-notifications dev",
     "send:import:notifications:prod": "pnpm --filter=send-import-notifications start",
+    "lambda:monitor:tpp:build": "pnpm --filter=go-send-monitor-tpp-messages-lambda build",
+    "lambda:monitor:tpp:test:local": "pnpm --filter=go-send-monitor-tpp-messages-lambda test:local",
     "send:monitor:tpp:messages:build": "pnpm --filter=send-monitor-tpp-messages build",
     "send:monitor:tpp:messages:dev": "pnpm --filter=send-monitor-tpp-messages dev",
     "send:monitor:tpp:messages:prod": "pnpm --filter=send-monitor-tpp-messages start",

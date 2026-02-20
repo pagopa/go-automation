@@ -42,6 +42,31 @@ importers:
         specifier: ^8.55.0
         version: 8.55.0(eslint@9.39.2)(typescript@5.9.3)
 
+  functions/go-SendMonitorTppMessagesLambda:
+    dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.989.0
+        version: 3.989.0
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../packages/go-common
+      send-monitor-tpp-messages:
+        specifier: workspace:*
+        version: link:../../scripts/send/send-monitor-tpp-messages
+    devDependencies:
+      '@types/aws-lambda':
+        specifier: ^8.10.147
+        version: 8.10.160
+      '@types/node':
+        specifier: ^24.10.13
+        version: 24.10.13
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/go-common:
     dependencies:
       '@aws-sdk/client-cloudformation':
@@ -190,7 +215,7 @@ importers:
         version: link:../../../packages/go-common
     devDependencies:
       '@types/node':
-        specifier: ^24.10.9
+        specifier: ^24.10.13
         version: 24.10.13
 
   scripts/send/send-fetch-timeline-from-iun:
@@ -997,6 +1022,9 @@ packages:
   '@smithy/uuid@1.1.0':
     resolution: {integrity: sha512-4aUIteuyxtBUhVdiQqcDhKFitwfd9hqoSDYY2KRXiWtgoWJ9Bmise+KfEPDiVHWeJepvF8xJO9/9+WDIciMFFw==}
     engines: {node: '>=18.0.0'}
+
+  '@types/aws-lambda@8.10.160':
+    resolution: {integrity: sha512-uoO4QVQNWFPJMh26pXtmtrRfGshPUSpMZGUyUQY20FhfHEElEBOPKgVmFs1z+kbpyBsRs2JnoOPT7++Z4GA9pA==}
 
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
@@ -3550,6 +3578,8 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
+  '@types/aws-lambda@8.10.160': {}
+
   '@types/estree@1.0.8': {}
 
   '@types/json-schema@7.0.15': {}
@@ -3558,7 +3588,7 @@ snapshots:
 
   '@types/node-fetch@2.6.13':
     dependencies:
-      '@types/node': 24.10.10
+      '@types/node': 24.10.13
       form-data: 4.0.5
 
   '@types/node@24.10.10':
@@ -3571,7 +3601,7 @@ snapshots:
 
   '@types/prompts@2.4.9':
     dependencies:
-      '@types/node': 24.10.10
+      '@types/node': 24.10.13
       kleur: 3.0.3
 
   '@types/retry@0.12.0': {}

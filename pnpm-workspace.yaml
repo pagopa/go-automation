@@ -3,6 +3,7 @@ packages:
   - scripts/go/*
   - scripts/send/*
   - scripts/interop/*
+  - functions/*
   
 allowBuilds:
   esbuild: true

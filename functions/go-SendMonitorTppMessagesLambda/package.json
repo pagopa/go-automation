@@ -1,0 +1,23 @@
+{
+  "name": "go-send-monitor-tpp-messages-lambda",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/handler.js",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test:local": "tsx src/test-local.ts"
+  },
+  "dependencies": {
+    "send-monitor-tpp-messages": "workspace:*",
+    "@go-automation/go-common": "workspace:*",
+    "@aws-sdk/client-s3": "^3.989.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.147",
+    "@types/node": "^24.10.13",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

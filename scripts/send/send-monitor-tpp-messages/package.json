@@ -4,7 +4,18 @@
   "private": true,
   "type": "module",
   "description": "Monitor TPP messages via Athena queries and generate reports with optional Slack notifications",
-  "main": "dist/main.js",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./config": "./dist/config.js",
+    "./main": "./dist/main.js",
+    "./libs": "./dist/libs/index.js",
+    "./types": "./dist/types/index.js"
+  },
+  "files": [
+    "dist",
+    "configs"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "pnpm build && node dist/index.js",
