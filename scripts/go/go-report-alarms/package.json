@@ -28,13 +28,13 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-cloudwatch": "^3.989.0",
-    "@aws-sdk/credential-provider-ini": "^3.972.7",
+    "@aws-sdk/client-cloudwatch": "^3.994.0",
+    "@aws-sdk/credential-provider-ini": "^3.972.9",
     "@go-automation/go-common": "workspace:*",
     "luxon": "^3.7.2"
   },
   "devDependencies": {
     "@types/luxon": "^3.7.1",
-    "@types/node": "^24.10.10"
+    "@types/node": "^24.10.13"
   }
 }
