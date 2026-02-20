@@ -66,9 +66,6 @@ export async function main(script: Core.GOScript): Promise<void> {
     if (pks.length > previewLimit) {
       script.logger.info(`  ... and ${pks.length - previewLimit} more`);
     }
-
-    await script.logger.reset();
-    return;
   }
 
   // Step 2: Query DynamoDB for each PK
@@ -140,6 +137,4 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.info(`Total items retrieved: ${totalItems}`);
   script.logger.info(`Input format: ${formatLabel}`);
   script.logger.info(`Output format: ${outputFormatLabel}`);
-
-  await script.logger.reset();
 }

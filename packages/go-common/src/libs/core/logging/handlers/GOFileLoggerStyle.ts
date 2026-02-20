@@ -102,10 +102,11 @@ export class GOFileLoggerStyle {
    */
   private stripAnsiCodes(text: string): string {
     // Pattern matches ANSI escape sequences:
-    // \x1b or \u001b - escape character
+    // \x1b or \u001b - escape character (ESC)
     // [ - start of CSI (Control Sequence Introducer)
     // [0-9;]* - parameters (numbers and semicolons)
     // [a-zA-Z] - final command character (m for colors, others for cursor movement, etc.)
-    return text.replace(/\\x1b\[[0-9;]*[a-zA-Z]/g, '');
+    // eslint-disable-next-line no-control-regex
+    return text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
   }
 }
