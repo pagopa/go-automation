@@ -2,195 +2,229 @@
 
 > Versione: 1.0.0 | Autore: Team GO - Gestione Operativa
 
-Analyzes an alarm, executes its associated runbook, and determines the correct operational outcome and next action based on collected evidence and known cases.
+Dato un allarme CloudWatch e il momento in cui e scattato, esegue automaticamente il runbook associato: interroga i log dei microservizi coinvolti, identifica la causa tramite pattern noti e determina la risoluzione operativa corretta. Salva la traccia di esecuzione in `data/` per revisione successiva.
 
 ## Indice
 
-- [Funzionalita](#funzionalita)
+- [Come funziona](#come-funziona)
+- [Runbook disponibili](#runbook-disponibili)
 - [Prerequisiti](#prerequisiti)
-- [Configurazione](#configurazione)
+- [Parametri CLI](#parametri-cli)
 - [Utilizzo](#utilizzo)
 - [Output](#output)
 - [Troubleshooting](#troubleshooting)
 
-## Funzionalita
+## Come funziona
 
-Elenco delle funzionalita principali:
+1. **Lookup runbook**: lo script cerca il runbook registrato per il nome dell'allarme fornito
+2. **Calcolo time window**: costruisce un intervallo `[alarmDatetime - 5min, alarmDatetime + 5min]`
+3. **Esecuzione step-by-step**: ogni step del runbook interroga CloudWatch Logs (o altri servizi) con query Insights; le variabili estratte passano agli step successivi
+4. **Match casi noti**: al termine degli step, il RunbookEngine confronta i dati raccolti con i pattern dei casi noti e restituisce il primo match (o un fallback)
+5. **Salvataggio trace**: l'intera traccia di esecuzione (step, variabili, risultato) viene salvata in `data/trace-{alarmName}.json`
 
-- TODO: Funzionalita 1
-- TODO: Funzionalita 2
-- TODO: Funzionalita 3
+## Runbook disponibili
+
+| Allarme                            | Microservizi analizzati                                                          |
+| ---------------------------------- | -------------------------------------------------------------------------------- |
+| `pn-address-book-io-IO-ApiGwAlarm` | pn-user-attributes, pn-data-vault, pn-external-registries, pn-ioAuthorizerLambda |
+
+### pn-address-book-io-IO-ApiGwAlarm
+
+Analizza gli errori HTTP sull'API Gateway del microservizio `pn-user-attributes` (rubrica AppIO).
+
+**Catena di analisi** (10 step):
+
+1. Query API GW AccessLog — filtra `status >= 400` nella time window
+2. Parse errori API GW — estrae `errorCount`, `xRayTraceId`, `statusCode`; si ferma se non ci sono errori
+3. Query + analisi `pn-ioAuthorizerLambda` — cerca timeout lambda (`duration >= 5000ms`)
+4. Query + analisi `pn-user-attributes` — segue il trace ID estratto dall'API GW
+5. Query + analisi `pn-data-vault` — cerca lo stesso trace ID (continueOnFailure)
+6. Query + analisi `pn-external-registries` — cerca lo stesso trace ID (continueOnFailure)
+
+**Casi noti riconosciuti** (in ordine di priorita):
+
+| ID                              | Descrizione                                       | Risoluzione                         |
+| ------------------------------- | ------------------------------------------------- | ----------------------------------- |
+| `io-authorizer-lambda-timeout`  | Lambda timeout > 5000ms                           | Nessuna azione se saltuario         |
+| `gateway-timeout-504`           | Gateway Timeout 504                               | Transitorio, nessuna azione         |
+| `pdv-404`                       | Record mancante su Personal Data Vault            | Caso noto, vedi PN-15981            |
+| `appio-activation-not-found`    | AppIO 404 - Activation not found                  | Chiusura, caso noto                 |
+| `appio-cosmos-429`              | AppIO Cosmos DB rate limit (429)                  | Transitorio lato AppIO              |
+| `io-activation-save-failed-pdv` | Salvataggio io-activation-service fallito         | Vedi caso PDV 404, PN-16877         |
+| `io-status-activated-readding`  | Re-inserimento in addressbook dopo attivazione IO | Nessuna azione                      |
+| `dynamodb-transaction-conflict` | TransactionConflict su DynamoDB                   | Caso noto, vedi PN-17228            |
+| `internal-error-sqs`            | InternalError / SQS sendMessageBatch              | Caso noto al gruppo Infra, PN-16131 |
 
 ## Prerequisiti
 
-### Software Richiesto
+| Software | Versione Minima | Note            |
+| -------- | --------------- | --------------- |
+| Node.js  | >= 24.0.0       | LTS consigliata |
+| pnpm     | >= 10.0.0       | Package manager |
+| AWS CLI  | >= 2.0          | Per SSO         |
 
-| Software   | Versione Minima | Note                 |
-| ---------- | --------------- | -------------------- |
-| Node.js    | >= 18.0.0       | LTS consigliata      |
-| pnpm       | >= 8.0.0        | Package manager      |
-| TypeScript | >= 5.0.0        | Incluso nel progetto |
-
-### Account e Permessi
-
-- [ ] Accesso AWS con profilo SSO configurato
-- [ ] Permessi IAM necessari (elencare)
-- [ ] (Opzionale) Token Slack per notifiche
-
-### Credenziali AWS
-
-Configurare le credenziali AWS utilizzando AWS SSO:
+**Permessi AWS richiesti**: `logs:StartQuery`, `logs:GetQueryResults`, `cloudwatch:DescribeAlarms`
 
 ```bash
-aws sso login --profile <nome-profilo>
+# Login SSO prima dell'esecuzione
+aws sso login --profile sso_pn-core-prod
 ```
 
-## Configurazione
+## Parametri CLI
 
-### Parametri CLI
+| Parametro          | Alias  | Tipo     | Obbligatorio | Descrizione                         |
+| ------------------ | ------ | -------- | ------------ | ----------------------------------- |
+| `--alarm-name`     | `-an`  | string   | Si           | Nome esatto dell'allarme CloudWatch |
+| `--alarm-datetime` | `-ad`  | string   | Si           | Timestamp allarme (ISO 8601)        |
+| `--aws-profiles`   | `-aps` | string[] | Si           | Profili AWS SSO (virgola-separati)  |
 
-| Parametro                  | Alias | Tipo | Obbligatorio | Default | Descrizione |
-| -------------------------- | ----- | ---- | ------------ | ------- | ----------- |
-| TODO: Aggiungere parametri |       |      |              |         |             |
-
-### Variabili d'Ambiente
-
-| Variabile                  | Descrizione | Esempio |
-| -------------------------- | ----------- | ------- |
-| TODO: Aggiungere variabili |             |         |
-
-### File di Configurazione
-
-Percorso: `configs/config.json`
-
-```json
-{
-  "TODO": "Aggiungere configurazione"
-}
-```
-
-### Priorita di Configurazione
-
-1. Parametri CLI (priorita massima)
-2. Variabili d'ambiente
-3. File di configurazione
-4. Valori di default
+Il timestamp deve essere in formato **ISO 8601**: `YYYY-MM-DDTHH:MM:SSZ`
 
 ## Utilizzo
 
-### Modalita Development (via pnpm/tsx)
+### Analisi di un allarme (caso tipico)
 
 ```bash
-# Dalla root del monorepo
-pnpm go:analyze:alarm:dev
-
-# Oppure con filter
-pnpm --filter=go-analyze-alarm dev
-
-# Con parametri
-pnpm go:analyze:alarm:dev -- --param valore
+pnpm go:analyze:alarm:dev -- \
+  --alarm-name "pn-address-book-io-IO-ApiGwAlarm" \
+  --alarm-datetime "2025-02-20T14:30:00Z" \
+  --aws-profiles "sso_pn-core-prod"
 ```
 
-### Modalita Production (build + node)
+### Con alias corti
 
 ```bash
-# Build
-pnpm --filter=go-analyze-alarm build
-
-# Esecuzione
-pnpm --filter=go-analyze-alarm start
-
-# Oppure direttamente
-node dist/index.js --param valore
+pnpm go:analyze:alarm:dev -- \
+  -an "pn-address-book-io-IO-ApiGwAlarm" \
+  -ad "2025-02-20T14:30:00Z" \
+  -aps "sso_pn-core-prod"
 ```
 
-### Esempi Pratici
+### Analisi su piu profili AWS
+
+Utile se i microservizi della catena appartengono ad account diversi:
 
 ```bash
-# Esempio 1: Caso d'uso comune
-pnpm go:analyze:alarm:dev -- --param1 valore1 --param2 valore2
+pnpm go:analyze:alarm:dev -- \
+  -an "pn-address-book-io-IO-ApiGwAlarm" \
+  -ad "2025-02-20T14:30:00Z" \
+  -aps "sso_pn-core-prod,sso_pn-confinfo-prod"
+```
 
-# Esempio 2: Con date
-pnpm go:analyze:alarm:dev -- --from "2024-01-01T00:00:00Z" --to "2024-01-31T23:59:59Z"
+> Lo script usa il **primo profilo** della lista per costruire il `ServiceRegistry`. I profili aggiuntivi sono disponibili per estensioni future del runbook.
 
-# Esempio 3: Modalita verbose
-pnpm go:analyze:alarm:dev -- --verbose
+### Modalita production (build + node)
+
+```bash
+pnpm go:analyze:alarm:build
+pnpm go:analyze:alarm:prod -- \
+  -an "pn-address-book-io-IO-ApiGwAlarm" \
+  -ad "2025-02-20T14:30:00Z" \
+  -aps "sso_pn-core-prod"
 ```
 
 ## Output
 
-### Formato Report
+### Console
 
-Descrivere il formato dell'output generato:
-
-- **File CSV**: `reports/report_YYYY-MM-DD_HH-MM-SS.csv`
-- **Notifiche Slack**: Formato del messaggio
-- **Log**: `logs/go-analyze-alarm_YYYY-MM-DD.log`
-
-### Esempio Output Console
+Lo script stampa il risultato dell'analisi in tre sezioni:
 
 ```
-+-------------------------------------------+
-|  Go Analyze Alarm v1.0.0                  |
-|  Team GO - Gestione Operativa                            |
-+-------------------------------------------+
+=== Go Analyze Alarm ===
+Alarm:    pn-address-book-io-IO-ApiGwAlarm
+Datetime: 2025-02-20T14:30:00Z
+AWS Profiles: sso_pn-core-prod
+Time range: 2025-02-20T14:25:00.000Z → 2025-02-20T14:35:00.000Z
 
-> Sezione 1
-  Messaggio informativo...
+=== Executing Runbook ===
+[OK] query-api-gw-logs         — 3 results
+[OK] parse-api-gw-errors       — errors: 3, statusCode: 500, traceId: 1-abc123
+[OK] query-io-authorizer-lambda — 0 results
+...
 
-> Sezione 2
-  [OK] Operazione completata
+=== Runbook Result ===
+Status:         completed
+Steps executed: 10
+Duration:       4823ms
+Matched case:   PDV 404 - Record mancante su Personal Data Vault
 
-> Risultati
-  Totale: 100
-  Elaborati: 95
-  Errori: 5
+[CASO NOTO] Record mancante su PDV (Personal Data Vault)
+Risoluzione: Scenario di errore già noto ed in via di risoluzione sul codice applicativo
+Task JIRA: PN-15981
 ```
+
+Se nessun caso noto e riconosciuto, lo script stampa un **fallback** con tutti i valori raccolti:
+
+```
+[CASO NON RICONOSCIUTO] Impossibile identificare univocamente la causa dell'errore.
+Errori API GW: 2
+Status Code: 429
+User Attributes: <messaggio di errore grezzo>
+...
+```
+
+### File trace
+
+Ogni esecuzione produce un file JSON in `data/`:
+
+```
+data/trace-pn-address-book-io-IO-ApiGwAlarm.json
+```
+
+Il file contiene la traccia completa: step eseguiti, variabili estratte, caso matched, durata. Utile per post-mortem o debugging del runbook.
 
 ## Troubleshooting
 
-### Problemi Comuni
+### "No runbook found for alarm: ..."
 
-#### Errore: "AWS credentials not found"
-
-**Causa**: Profilo AWS non configurato o sessione SSO scaduta.
-
-**Soluzione**:
+L'allarme fornito non ha un runbook registrato in `RUNBOOK_REGISTRY`.
 
 ```bash
-# Effettuare login SSO
-aws sso login --profile <nome-profilo>
+# Verificare il nome esatto dell'allarme (case-sensitive)
+# Runbook disponibili: pn-address-book-io-IO-ApiGwAlarm
 ```
 
-#### Errore: "Module not found"
+### "Invalid alarm datetime"
 
-**Causa**: Dipendenze non installate o build non eseguito.
-
-**Soluzione**:
+Il formato del timestamp non e ISO 8601 valido.
 
 ```bash
-pnpm install
+# Corretto
+-ad "2025-02-20T14:30:00Z"
+
+# Errato
+-ad "20/02/2025 14:30"
+-ad "2025-02-20"
+```
+
+### "ExpiredToken" / credenziali scadute
+
+```bash
+aws sso login --profile sso_pn-core-prod
+aws sts get-caller-identity --profile sso_pn-core-prod  # verifica
+```
+
+### Nessun risultato dai log CloudWatch
+
+- La time window e ±5 minuti dall'`alarm.datetime`: assicurarsi che il timestamp sia preciso
+- I log potrebbero non essere ancora disponibili (latenza di ingestione CloudWatch ~1-2 min)
+- Verificare che il profilo SSO abbia i permessi `logs:StartQuery` / `logs:GetQueryResults`
+
+### "Cannot find module '@go-automation/go-common'"
+
+```bash
+# Dalla root del monorepo
 pnpm build:common
-pnpm --filter=go-analyze-alarm build
+pnpm go:analyze:alarm:build
 ```
 
-#### Errore: "Invalid date format"
-
-**Causa**: Formato data non valido.
-
-**Soluzione**: Usare formato ISO 8601: `YYYY-MM-DDTHH:MM:SSZ`
-
-### Debug Mode
+### Verifica type errors
 
 ```bash
-# Eseguire con debug output
-DEBUG=* pnpm go:analyze:alarm:dev
-
-# Type check senza build
 pnpm --filter=go-analyze-alarm exec tsc --noEmit
 ```
 
 ---
 
-**Ultima modifica**: 2026-02-01
+**Ultima modifica**: 2026-02-23
 **Maintainer**: Team GO - Gestione Operativa
