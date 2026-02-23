@@ -55,7 +55,7 @@ importers:
         version: link:../../scripts/send/send-monitor-tpp-messages
     devDependencies:
       '@types/aws-lambda':
-        specifier: ^8.10.147
+        specifier: ^8.10.160
         version: 8.10.160
       '@types/node':
         specifier: ^24.10.13
