@@ -14,8 +14,6 @@
  *
  * Microservices: pn-user-attributes, pn-data-vault, pn-external-registries
  * Downstream: AppIO, Personal Data Vault (PDV)
- *
- * Known cases source: Runbook PDF "GO-pn-address-book-io-IO-ApiGwAlarm"
  */
 
 import { Runbook } from '@go-automation/go-common';
@@ -192,7 +190,7 @@ export function buildAddressBookIoApiGwAlarmRunbook(): Runbook.Runbook {
       )
 
       // ══════════════════════════════════════════════════════════════════════
-      // ── Known Cases (from Runbook PDF "Casi Noti" table) ─────────────────
+      // ── Known Cases ─────────────────
       // ══════════════════════════════════════════════════════════════════════
 
       // ── Livello 0: pn-ioAuthorizerLambda timeout (5000ms) ───────────────

@@ -74,6 +74,7 @@ pnpm --filter=go-report-alarms dev -- --help
 | [Creare Nuovi Script](docs/NEW_SCRIPT.md)      | Guida passo-passo per creare nuovi script                      |
 | [**Deploy**](docs/DEPLOY.md)                   | **Guida alla pacchettizzazione e rilascio degli script**       |
 | [**Troubleshooting**](docs/TROUBLESHOOTING.md) | **Soluzioni ai problemi comuni e FAQ**                         |
+| [Runbook Engine](docs/RUNBOOKENGINE.md)        | Reference del motore di esecuzione runbook (go-common)         |
 
 ## Comandi Principali
 
