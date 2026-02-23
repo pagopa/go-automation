@@ -44,12 +44,12 @@
     "@aws-sdk/client-s3": "^3.994.0",
     "@aws-sdk/client-sqs": "^3.994.0",
     "@aws-sdk/client-ssm": "^3.994.0",
-    "@aws-sdk/client-sts": "^3.994.0",
+    "@aws-sdk/client-sts": "^3.995.0",
     "@aws-sdk/credential-provider-ini": "^3.972.9"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.994.0",
-    "@aws-sdk/client-sts": "^3.994.0",
+    "@aws-sdk/client-sts": "^3.995.0",
     "@aws-sdk/credential-provider-ini": "^3.972.9",
     "@aws-sdk/credential-providers": "^3.994.0",
     "@aws-sdk/util-dynamodb": "^3.994.0",
