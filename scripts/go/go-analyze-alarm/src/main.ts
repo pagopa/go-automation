@@ -17,11 +17,13 @@ import { Core, Runbook } from '@go-automation/go-common';
 
 import type { GoAnalyzeAlarmConfig } from './config.js';
 import { buildAddressBookIoApiGwAlarmRunbook } from './libs/runbooks/address-book-io-api-gw-alarm/index.js';
+import { buildDeliveryB2BApiGwAlarmRunbook } from './libs/runbooks/delivery-b2b-api-gw-alarm/index.js';
 import { DEFAULT_TIME_WINDOW_MINUTES } from './libs/runbooks/address-book-io-api-gw-alarm/constants.js';
 
 /** Runbook registry: maps alarm names to their runbook builders */
 const RUNBOOK_REGISTRY = new Map<string, () => Runbook.Runbook>([
   ['pn-address-book-io-IO-ApiGwAlarm', buildAddressBookIoApiGwAlarmRunbook],
+  ['pn-delivery-B2B-ApiGwAlarm', buildDeliveryB2BApiGwAlarmRunbook],
 ]);
 
 /**
