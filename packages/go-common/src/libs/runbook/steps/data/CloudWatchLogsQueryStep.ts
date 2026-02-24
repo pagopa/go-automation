@@ -94,10 +94,9 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
       const interpolatedQuery = interpolateTemplate(this.query, context);
 
-      const results = await context.services.cloudWatchLogs.query(
-        this.logGroups, interpolatedQuery, timeRange,
-        { ...(context.signal !== undefined ? { signal: context.signal } : {}) },
-      );
+      const results = await context.services.cloudWatchLogs.query(this.logGroups, interpolatedQuery, timeRange, {
+        ...(context.signal !== undefined ? { signal: context.signal } : {}),
+      });
 
       return { success: true, output: results };
     });
