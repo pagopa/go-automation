@@ -80,12 +80,12 @@ select_option() {
 
     # Read input
     while true; do
-        # Read a single character
-        IFS= read -rsn1 key
+        # Read a single character (force /dev/tty to avoid stdin consumed by pnpm)
+        IFS= read -rsn1 key < /dev/tty
 
         # Check for escape sequence (arrow keys)
         if [[ $key == $'\x1b' ]]; then
-            read -rsn2 key
+            read -rsn2 key < /dev/tty
             case $key in
                 '[A') # Up arrow
                     ((selected--))
@@ -195,12 +195,12 @@ confirm_yes_no() {
         echo -e "     ${DIM}Yes${NC}  ${CHECK}  ${BOLD}No${NC}"
     fi
 
-    # Read input
+    # Read input (force /dev/tty to avoid stdin consumed by pnpm)
     while true; do
-        IFS= read -rsn1 key
+        IFS= read -rsn1 key < /dev/tty
 
         if [[ $key == $'\x1b' ]]; then
-            read -rsn2 key
+            read -rsn2 key < /dev/tty
             case $key in
                 '[C'|'[D') # Left/Right arrow
                     selected=$((1 - selected))
@@ -463,8 +463,10 @@ print_step "Verifying TypeScript build..."
 # Build from project root using filter (resolves project references correctly)
 cd "$PROJECT_ROOT"
 
+set +e
 BUILD_OUTPUT=$(pnpm --filter="$FULL_SCRIPT_NAME" build 2>&1)
 BUILD_EXIT_CODE=$?
+set -e
 
 if [[ $BUILD_EXIT_CODE -eq 0 ]]; then
     print_success "Build successful"

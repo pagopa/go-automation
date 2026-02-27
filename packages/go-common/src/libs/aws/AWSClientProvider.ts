@@ -11,6 +11,8 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import type { DynamoDBClientConfig } from '@aws-sdk/client-dynamodb';
 import { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
 import type { CloudWatchClientConfig } from '@aws-sdk/client-cloudwatch';
+import { SQSClient } from '@aws-sdk/client-sqs';
+import type { SQSClientConfig } from '@aws-sdk/client-sqs';
 import { fromIni } from '@aws-sdk/credential-provider-ini';
 
 import { AWS_REGION } from './AWSRegion.js';
@@ -53,11 +55,13 @@ export class AWSClientProvider {
   private readonly region: string;
   private readonly dynamoDBClientConfig: DynamoDBClientConfig;
   private readonly cloudWatchClientConfig: CloudWatchClientConfig;
+  private readonly sqsClientConfig: SQSClientConfig;
   private readonly secClientConfig: S3ClientConfig;
 
   // Cached client instances (lazy initialization)
   private cachedDynamoDBClient: DynamoDBClient | null = null;
   private cachedCloudWatchClient: CloudWatchClient | null = null;
+  private cachedSQSClient: SQSClient | null = null;
   private cachedS3Client: S3Client | null = null;
 
   constructor(config: AWSClientProviderConfig) {
@@ -68,6 +72,10 @@ export class AWSClientProvider {
       credentials: fromIni({ profile: this.profile }),
     };
     this.cloudWatchClientConfig = {
+      region: this.region,
+      credentials: fromIni({ profile: this.profile }),
+    };
+    this.sqsClientConfig = {
       region: this.region,
       credentials: fromIni({ profile: this.profile }),
     };
@@ -105,6 +113,15 @@ export class AWSClientProvider {
   }
 
   /**
+   * Returns the cached SQSClient instance.
+   * Creates the client on first access.
+   */
+  get sqs(): SQSClient {
+    this.cachedSQSClient ??= new SQSClient(this.sqsClientConfig);
+    return this.cachedSQSClient;
+  }
+
+  /**
    * Returns the configured AWS profile name
    */
   getProfile(): string {
@@ -131,6 +148,11 @@ export class AWSClientProvider {
     if (this.cachedCloudWatchClient !== null) {
       this.cachedCloudWatchClient.destroy();
       this.cachedCloudWatchClient = null;
+    }
+
+    if (this.cachedSQSClient !== null) {
+      this.cachedSQSClient.destroy();
+      this.cachedSQSClient = null;
     }
   }
 }

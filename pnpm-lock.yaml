@@ -297,6 +297,16 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  scripts/send/send-report-dlq:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+    devDependencies:
+      '@types/node':
+        specifier: ^24.10.9
+        version: 24.10.13
+
 packages:
 
   '@aws-crypto/crc32@5.2.0':
