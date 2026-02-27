@@ -7,7 +7,7 @@ on:
       - 'pnpm-lock.yaml'
       - '**/package.json'
   pull_request:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - 'pnpm-lock.yaml'
       - '**/package.json'
