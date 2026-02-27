@@ -328,6 +328,10 @@ export async function main(script: Core.GOScript): Promise<void> {
       script.logger.error(`Workflow failed: ${error.message} - response: ${JSON.stringify(error.response, null, 2)}`);
     } else if (error instanceof Error) {
       script.logger.error(`Workflow failed: ${error.message}`);
+      if (error.cause !== undefined) {
+        const causeMsg = error.cause instanceof Error ? error.cause.message : String(error.cause);
+        script.logger.error(`Caused by: ${causeMsg}`);
+      }
       script.logger.fatal(`Stack trace:\n${error.stack}`);
     } else {
       script.logger.error(`Workflow failed: ${String(error)}`);
