@@ -40,6 +40,9 @@
     "send:monitor:tpp:messages:build": "pnpm --filter=send-monitor-tpp-messages build",
     "send:monitor:tpp:messages:dev": "pnpm --filter=send-monitor-tpp-messages dev",
     "send:monitor:tpp:messages:prod": "pnpm --filter=send-monitor-tpp-messages start",
+    "send:report:dlq:build": "pnpm --filter=send-report-dlq build",
+    "send:report:dlq:dev": "pnpm --filter=send-report-dlq dev",
+    "send:report:dlq:prod": "pnpm --filter=send-report-dlq start",
     "type-check": "tsc --noEmit"
   },
   "keywords": [

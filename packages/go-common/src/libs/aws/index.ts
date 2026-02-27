@@ -16,6 +16,10 @@ export type { AWSClientProviderConfig } from './AWSClientProvider.js';
 export { AWSMultiClientProvider } from './AWSMultiClientProvider.js';
 export type { AWSMultiClientProviderConfig } from './AWSMultiClientProvider.js';
 
+// SQS service
+export { AWSSQSService } from './AWSSQSService.js';
+export type { DLQStats } from './models/DLQStats.js';
+
 // DynamoDB query service
 export { DynamoDBQueryService } from './DynamoDBQueryService.js';
 export type { DynamoDBQueryProgressCallback } from './DynamoDBQueryService.js';
