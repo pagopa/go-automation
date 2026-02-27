@@ -48,7 +48,9 @@
     "@aws-sdk/credential-provider-ini": "^3.972.9"
   },
   "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.995.0",
     "@aws-sdk/client-dynamodb": "^3.995.0",
+    "@aws-sdk/client-sqs": "^3.995.0",
     "@aws-sdk/client-sts": "^3.995.0",
     "@aws-sdk/credential-provider-ini": "^3.972.9",
     "@aws-sdk/credential-providers": "^3.995.0",
