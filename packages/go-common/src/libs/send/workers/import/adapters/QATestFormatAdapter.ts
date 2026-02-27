@@ -96,8 +96,8 @@ export class QATestFormatAdapter implements GOCSVFormatAdapter<SENDNotificationR
         documentKey: 'PN_NOTIFICATION_ATTACHMENTS-2d278594387b4a55a062981236165af8.pdf',
         documentVersionToken: 'v1',
         documentSha256: 'B916a8083NjVXZV0nDm7iSRU0ijXZUGFyGvXvIvneBs=',
-        group: '695fcc3d48f30c04cb3fbca4',
-        physicalMunicipalityDetails: 'Roma',
+        group: '699f08faf8a140751720e3e0', // vecchio forse è stato cancellato -> '695fcc3d48f30c04cb3fbca4',
+        //physicalMunicipalityDetails: 'Roma',
       },
 
       // Use standard SEND validator
