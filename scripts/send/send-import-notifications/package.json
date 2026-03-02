@@ -33,6 +33,6 @@
     "dotenv": "^17.3.1"
   },
   "devDependencies": {
-    "@types/node": "^24.10.13"
+    "@types/node": "^24.11.0"
   }
 }
