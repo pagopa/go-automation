@@ -36,10 +36,10 @@ Script che interroga le **Dead Letter Queue (DLQ)** di uno o più account AWS SE
 
 ### Software
 
-| Software | Versione minima | Note             |
-| -------- | --------------- | ---------------- |
-| Node.js  | >= 24.0.0       | LTS consigliata  |
-| pnpm     | >= 10.0.0       | Package manager  |
+| Software | Versione minima | Note            |
+| -------- | --------------- | --------------- |
+| Node.js  | >= 24.0.0       | LTS consigliata |
+| pnpm     | >= 10.0.0       | Package manager |
 
 ### Credenziali AWS
 
@@ -54,11 +54,11 @@ aws sso login --profile sso_pn-confinfo-dev
 
 ## Parametri
 
-| Parametro          | Alias  | Tipo              | Obbligatorio | Default                                        | Descrizione                                                                |
-| ------------------ | ------ | ----------------- | ------------ | ---------------------------------------------- | -------------------------------------------------------------------------- |
-| `--aws-profiles`   | `--aps`| `string[]`        | Sì           | —                                              | Uno o più profili AWS SSO, separati da virgola                             |
-| `--output-file`    | `-of`  | `string`          | No           | `send-report-dlq_YYYY-MM-DD.<formato>`         | Percorso del file di output (assoluto, o nome relativo alla dir `output/`) |
-| `--output-format`  | `-ff`  | `json\|csv\|html` | No           | `json`                                         | Formato del file di output                                                 |
+| Parametro         | Alias   | Tipo              | Obbligatorio | Default                                | Descrizione                                                                |
+| ----------------- | ------- | ----------------- | ------------ | -------------------------------------- | -------------------------------------------------------------------------- |
+| `--aws-profiles`  | `--aps` | `string[]`        | Sì           | —                                      | Uno o più profili AWS SSO, separati da virgola                             |
+| `--output-file`   | `-of`   | `string`          | No           | `send-report-dlq_YYYY-MM-DD.<formato>` | Percorso del file di output (assoluto, o nome relativo alla dir `output/`) |
+| `--output-format` | `-ff`   | `json\|csv\|html` | No           | `json`                                 | Formato del file di output                                                 |
 
 ### Note sui parametri
 
@@ -246,6 +246,7 @@ Tabella HTML con le stesse colonne del CSV, stilizzata e pronta per essere apert
 **Causa**: La sessione SSO è scaduta.
 
 **Soluzione**:
+
 ```bash
 aws sso login --profile <nome-profilo>
 ```
@@ -275,6 +276,7 @@ aws sso login --profile <nome-profilo>
 **Causa**: Tutti i profili specificati hanno restituito un errore (credenziali scadute, nome profilo errato, permessi mancanti).
 
 **Soluzione**:
+
 1. Verificare che i nomi dei profili siano corretti: `aws configure list-profiles`
 2. Rinnovare le sessioni SSO per tutti i profili
 3. Verificare i permessi IAM (`sqs:ListQueues`, `sqs:GetQueueAttributes`, `cloudwatch:GetMetricStatistics`)
@@ -284,6 +286,7 @@ aws sso login --profile <nome-profilo>
 **Causa**: La libreria `go-common` non è stata compilata, oppure le dipendenze non sono installate.
 
 **Soluzione**:
+
 ```bash
 # Dalla root del monorepo
 pnpm install
@@ -294,6 +297,7 @@ pnpm send:report:dlq:build
 ### L'età del messaggio appare sempre "N/A"
 
 **Causa**: CloudWatch non ha dati recenti per la metrica `ApproximateAgeOfOldestMessage`. Questo può accadere se:
+
 - La coda ha messaggi ma la metrica non è ancora stata pubblicata (ritardo CloudWatch fino a 5 minuti)
 - Il periodo di campionamento è troppo breve (lo script usa una finestra di 5 minuti)
 
