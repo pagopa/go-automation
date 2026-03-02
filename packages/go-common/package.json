@@ -57,7 +57,7 @@
     "csv-parse": "^6.1.0",
     "csv-stringify": "^6.6.0",
     "luxon": "^3.7.2",
-    "minimatch": "^10.2.2",
+    "minimatch": "^10.2.4",
     "prompts": "^2.4.2",
     "undici": "^7.22.0",
     "yaml": "^2.8.2"
