@@ -1,9 +1,9 @@
 {
-  "name": "send-fetch-timeline-from-iun",
+  "name": "send-report-dlq",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Reads a list of IUNs from a TXT file and downloads the timelines from DynamoDB, writing to JSON file",
+  "description": "dsa",
   "main": "dist/index.js",
   "files": [
     "dist",
@@ -18,10 +18,7 @@
   },
   "keywords": [
     "send",
-    "go-automation",
-    "dynamodb",
-    "timelines",
-    "iun"
+    "go-automation"
   ],
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",

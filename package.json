@@ -40,6 +40,9 @@
     "send:monitor:tpp:messages:build": "pnpm --filter=send-monitor-tpp-messages build",
     "send:monitor:tpp:messages:dev": "pnpm --filter=send-monitor-tpp-messages dev",
     "send:monitor:tpp:messages:prod": "pnpm --filter=send-monitor-tpp-messages start",
+    "send:report:dlq:build": "pnpm --filter=send-report-dlq build",
+    "send:report:dlq:dev": "pnpm --filter=send-report-dlq dev",
+    "send:report:dlq:prod": "pnpm --filter=send-report-dlq start",
     "type-check": "tsc --noEmit"
   },
   "keywords": [
@@ -57,15 +60,15 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.3",
-    "@typescript-eslint/eslint-plugin": "^8.56.0",
-    "@typescript-eslint/parser": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/parser": "^8.56.1",
     "eslint": "^9.39.3",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
-    "globals": "^17.3.0",
+    "globals": "^17.4.0",
     "prettier": "3.8.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.56.0"
+    "typescript-eslint": "^8.56.1"
   }
 }
