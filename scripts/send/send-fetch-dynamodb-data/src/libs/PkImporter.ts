@@ -8,7 +8,6 @@
 import { Core } from '@go-automation/go-common';
 
 import type { InputFormat } from '../types/index.js';
-import { valueToString } from '../../../../../packages/go-common/src/libs/core/index.js';
 
 /**
  * Options for importing partition keys
@@ -55,7 +54,7 @@ export async function importPks(filePath: string, options: PkImportOptions): Pro
     case 'csv':
       return importFromCsv(filePath, options.csvColumn, options.csvDelimiter);
     default: {
-      throw new Error(`Unsupported input format: ${valueToString(options.format)}`);
+      throw new Error(`Unsupported input format: ${Core.valueToString(options.format)}`);
     }
   }
 }
