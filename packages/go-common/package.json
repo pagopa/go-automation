@@ -30,7 +30,7 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "peerDependencies": {
-    "@aws-sdk/client-athena": "^3.1000.0",
+    "@aws-sdk/client-athena": "^3.1004.0",
     "@aws-sdk/client-cloudformation": "^3.1000.0",
     "@aws-sdk/client-cloudwatch": "^3.1000.0",
     "@aws-sdk/client-cloudwatch-logs": "^3.1000.0",
@@ -65,7 +65,7 @@
     "yaml": "^2.8.2"
   },
   "devDependencies": {
-    "@aws-sdk/client-athena": "^3.1000.0",
+    "@aws-sdk/client-athena": "^3.1004.0",
     "@types/luxon": "^3.7.1",
     "@types/node": "^24.11.0",
     "@types/node-fetch": "^2.6.13",
