@@ -95,7 +95,7 @@ aws sso login --profile sso_pn-confinfo-dev
 
 ```bash
 # Dalla root del monorepo
-pnpm send:report:dlq:dev -- --aws-profiles sso_pn-core-dev
+pnpm send:report:dlq:dev --aws-profiles sso_pn-core-dev
 ```
 
 ### Production (build + node)
@@ -105,7 +105,7 @@ pnpm send:report:dlq:dev -- --aws-profiles sso_pn-core-dev
 pnpm send:report:dlq:build
 
 # Esecuzione
-pnpm send:report:dlq:prod -- --aws-profiles sso_pn-core-dev
+pnpm send:report:dlq:prod --aws-profiles sso_pn-core-dev
 ```
 
 ### Direttamente nel package
@@ -114,50 +114,44 @@ pnpm send:report:dlq:prod -- --aws-profiles sso_pn-core-dev
 cd scripts/send/send-report-dlq
 
 # Dev
-pnpm dev -- --aws-profiles sso_pn-core-dev
+pnpm dev --aws-profiles sso_pn-core-dev
 
 # Production
-pnpm start -- --aws-profiles sso_pn-core-dev
+pnpm start --aws-profiles sso_pn-core-dev
 ```
 
 ### Esempi pratici
 
 ```bash
 # 1. Report singolo ambiente — esporta automaticamente output/send-report-dlq_2026-02-27.json
-pnpm send:report:dlq:dev -- \
-  --aws-profiles sso_pn-core-dev
+pnpm send:report:dlq:dev --aws-profiles sso_pn-core-dev
 
 # 2. Report multi-ambiente — esporta automaticamente output/send-report-dlq_2026-02-27.json
-pnpm send:report:dlq:dev -- \
-  --aws-profiles sso_pn-core-dev,sso_pn-confinfo-dev,sso_pn-core-uat,sso_pn-confinfo-uat
+pnpm send:report:dlq:dev --aws-profiles sso_pn-core-dev,sso_pn-confinfo-dev,sso_pn-core-uat,sso_pn-confinfo-uat
 
 # 3. Nome file personalizzato nella directory output/
-pnpm send:report:dlq:dev -- \
-  --aws-profiles sso_pn-core-dev,sso_pn-confinfo-dev \
-  --output-file report-dev.json
+pnpm send:report:dlq:dev --aws-profiles sso_pn-core-dev,sso_pn-confinfo-dev --output-file report-dev.json
 
 # 4. Export in CSV — default: output/send-report-dlq_2026-02-27.csv
-pnpm send:report:dlq:dev -- \
-  --aws-profiles sso_pn-core-dev,sso_pn-confinfo-dev \
-  --output-format csv
+pnpm send:report:dlq:dev --aws-profiles sso_pn-core-dev,sso_pn-confinfo-dev --output-format csv
 
 # 5. Export in CSV con percorso assoluto
-pnpm send:report:dlq:dev -- \
+pnpm send:report:dlq:dev \
   --aws-profiles sso_pn-core-dev,sso_pn-confinfo-dev \
   --output-file /tmp/dlq-report.csv \
   --output-format csv
 
 # 6. Export in HTML
-pnpm send:report:dlq:dev -- \
+pnpm send:report:dlq:dev \
   --aws-profiles sso_pn-core-dev,sso_pn-confinfo-dev \
   --output-format html
 
 # 7. Tutti gli ambienti prod (export automatico in JSON)
-pnpm send:report:dlq:prod -- \
+pnpm send:report:dlq:prod \
   --aws-profiles sso_pn-core-prod,sso_pn-confinfo-prod
 
 # 8. Usando gli alias brevi
-pnpm send:report:dlq:dev -- \
+pnpm send:report:dlq:dev \
   --aps sso_pn-core-dev,sso_pn-confinfo-dev \
   -ff csv
 ```

@@ -7,7 +7,6 @@
  */
 
 import { AWS, Core } from '@go-automation/go-common';
-import { valueToString } from '../../../../packages/go-common/src/libs/core/index.js';
 
 import { displayProfileResults, displaySummary } from './libs/DLQReportDisplay.js';
 import { exportReport } from './libs/DLQReportExporter.js';
@@ -77,7 +76,7 @@ export async function main(script: Core.GOScript): Promise<void> {
       script.logger.section(`Profile: ${profile}`);
       script.logger.error(`Failed: ${error.message}`);
       if (error.cause !== undefined) {
-        const causeMsg = error.cause instanceof Error ? error.cause.message : valueToString(error.cause);
+        const causeMsg = error.cause instanceof Error ? error.cause.message : Core.valueToString(error.cause);
         script.logger.error(`Caused by: ${causeMsg}`);
       }
       script.logger.newline();

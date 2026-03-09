@@ -8,7 +8,6 @@
 import { Core, SEND } from '@go-automation/go-common';
 
 import type { ImportNotificationsConfig } from './config.js';
-import { valueToString } from '../../../../packages/go-common/src/libs/core/index.js';
 
 // ============================================================================
 // Event Listeners
@@ -330,7 +329,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     } else if (error instanceof Error) {
       script.logger.error(`Workflow failed: ${error.message}`);
       if (error.cause !== undefined) {
-        const causeMsg = error.cause instanceof Error ? error.cause.message : valueToString(error.cause);
+        const causeMsg = error.cause instanceof Error ? error.cause.message : Core.valueToString(error.cause);
         script.logger.error(`Caused by: ${causeMsg}`);
       }
       script.logger.fatal(`Stack trace:\n${error.stack}`);
