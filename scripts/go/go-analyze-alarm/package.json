@@ -23,14 +23,14 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-athena": "^3.1000.0",
-    "@aws-sdk/client-cloudwatch": "^3.1000.0",
-    "@aws-sdk/client-cloudwatch-logs": "^3.1000.0",
-    "@aws-sdk/client-dynamodb": "^3.1000.0",
-    "@aws-sdk/credential-provider-ini": "^3.972.13",
+    "@aws-sdk/client-athena": "^3.1004.0",
+    "@aws-sdk/client-cloudwatch": "^3.1004.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.1004.0",
+    "@aws-sdk/client-dynamodb": "^3.1004.0",
+    "@aws-sdk/credential-provider-ini": "^3.972.17",
     "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^24.11.0"
+    "@types/node": "^24.12.0"
   }
 }
