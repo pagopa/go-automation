@@ -11,7 +11,6 @@ Script di importazione massiva notifiche SEND da file CSV con upload automatico 
 - [Configurazione](#configurazione)
 - [Utilizzo](#utilizzo)
 - [Formato CSV](#formato-csv)
-- [Output](#output)
 - [Docker](#docker)
 - [Troubleshooting](#troubleshooting)
 
@@ -33,7 +32,7 @@ Script di importazione massiva notifiche SEND da file CSV con upload automatico 
 
 | Software   | Versione Minima | Note                     |
 | ---------- | --------------- | ------------------------ |
-| Node.js    | >= 18.0.0       | LTS consigliata (v24+)   |
+| Node.js    | >= 18.0.0       | LTS consigliata (v24+)  |
 | pnpm       | >= 8.0.0        | Package manager          |
 | TypeScript | >= 5.0.0        | Incluso nel progetto     |
 | Docker     | >= 20.0         | Opzionale, per container |
@@ -55,56 +54,58 @@ Il CSV di input deve seguire il formato QA Test (vedi sezione [Formato CSV](#for
 
 ### Parametri CLI
 
+I parametri sono definiti internamente con il punto come separatore (es. `csv.file`) ma sulla riga di comando vanno passati con il trattino (es. `--csv-file`). Il framework GOScript effettua la conversione automaticamente.
+
 #### Input/Output
 
 | Parametro       | Alias | Tipo   | Obbligatorio | Default | Descrizione          |
 | --------------- | ----- | ------ | ------------ | ------- | -------------------- |
-| `--csv.file`    | `-c`  | string | Si           | -       | Path file CSV input  |
-| `--export.file` | `-e`  | string | No           | -       | Path file CSV output |
+| `--csv-file`    | `-c`  | string | Si           | -       | Path file CSV input  |
+| `--export-file` | `-e`  | string | No           | -       | Path file CSV output |
 
 #### Connessione PN
 
 | Parametro      | Alias | Tipo   | Obbligatorio | Default | Descrizione     |
 | -------------- | ----- | ------ | ------------ | ------- | --------------- |
-| `--base.path`  | `-b`  | string | Si           | -       | Base URL API PN |
-| `--pn.api.key` | `-k`  | string | Si           | -       | API Key PN      |
+| `--base-path`  | `-b`  | string | Si           | -       | Base URL API PN |
+| `--pn-api-key` | `-k`  | string | Si           | -       | API Key PN      |
 
 #### Comportamento
 
 | Parametro              | Alias | Tipo    | Obbligatorio | Default | Descrizione                       |
 | ---------------------- | ----- | ------- | ------------ | ------- | --------------------------------- |
-| `--send.notifications` | `-s`  | boolean | No           | `false` | Invia notifiche (false = dry-run) |
+| `--send-notifications` | `-s`  | boolean | No           | `false` | Invia notifiche (false = dry-run) |
 | `--concurrency`        | `-n`  | int     | No           | `3`     | Parallelismo invio                |
 
 #### Polling IUN
 
 | Parametro             | Alias | Tipo    | Obbligatorio | Default | Descrizione              |
 | --------------------- | ----- | ------- | ------------ | ------- | ------------------------ |
-| `--poll.for.iun`      | `-p`  | boolean | No           | `true`  | Attiva polling IUN       |
-| `--poll.max.attempts` | -     | int     | No           | `8`     | Tentativi max polling    |
-| `--poll.delay.ms`     | -     | int     | No           | `30000` | Delay tra tentativi (ms) |
+| `--poll-for-iun`      | `-p`  | boolean | No           | `true`  | Attiva polling IUN       |
+| `--poll-max-attempts`  | -     | int     | No           | `8`     | Tentativi max polling    |
+| `--poll-delay-ms`      | -     | int     | No           | `30000` | Delay tra tentativi (ms) |
 
 #### Streaming e Export
 
 | Parametro                  | Alias                | Tipo    | Obbligatorio | Default | Descrizione                 |
 | -------------------------- | -------------------- | ------- | ------------ | ------- | --------------------------- |
-| `--streaming.threshold.mb` | -                    | int     | No           | `10`    | Soglia MB per streaming     |
-| `--preserve.all.columns`   | `--preserve-columns` | boolean | No           | `true`  | Preserva colonne originali  |
-| `--export.all.rows`        | -                    | boolean | No           | `false` | Esporta anche righe fallite |
-| `--include.status.columns` | -                    | boolean | No           | `false` | Aggiungi colonne stato      |
+| `--streaming-threshold-mb` | -                    | int     | No           | `10`    | Soglia MB per streaming     |
+| `--preserve-all-columns`   | `--preserve-columns` | boolean | No           | `true`  | Preserva colonne originali  |
+| `--export-all-rows`        | -                    | boolean | No           | `false` | Esporta anche righe fallite |
+| `--include-status-columns` | -                    | boolean | No           | `false` | Aggiungi colonne stato      |
 
 #### Debug
 
 | Parametro     | Alias | Tipo   | Obbligatorio | Default | Descrizione            |
 | ------------- | ----- | ------ | ------------ | ------- | ---------------------- |
-| `--proxy.url` | -     | string | No           | -       | URL proxy HTTP (debug) |
+| `--proxy-url` | -     | string | No           | -       | URL proxy HTTP (debug) |
 
 ### Variabili d'Ambiente
 
-| Variabile      | Descrizione  | Esempio                         |
-| -------------- | ------------ | ------------------------------- |
-| `PN_API_KEY`   | API Key PN   | `abc123...`                     |
-| `PN_BASE_PATH` | Base URL API | `api.test.notifichedigitali.it` |
+| Variabile      | Descrizione  | Esempio                          |
+| -------------- | ------------ | -------------------------------- |
+| `PN_API_KEY`   | API Key PN   | `abc123...`                      |
+| `PN_BASE_PATH` | Base URL API | `api.test.notifichedigitali.it`  |
 | `PROXY_URL`    | Proxy debug  | `http://127.0.0.1:9090`         |
 
 ### File di Configurazione
@@ -135,17 +136,17 @@ PN_BASE_PATH=api.test.notifichedigitali.it
 
 # Dry-run (validazione senza invio)
 pnpm --filter=send-import-notifications dev -- \
-  --csv.file "./data/input.csv" \
-  --base.path "api.test.notifichedigitali.it" \
-  --pn.api.key "your-api-key"
+  --csv-file "./data/input.csv" \
+  --base-path "api.test.notifichedigitali.it" \
+  --pn-api-key "your-api-key"
 
 # Invio effettivo con export
 pnpm --filter=send-import-notifications dev -- \
-  --csv.file "./data/input.csv" \
-  --export.file "./data/output.csv" \
-  --base.path "api.test.notifichedigitali.it" \
-  --pn.api.key "your-api-key" \
-  --send.notifications
+  --csv-file "./data/input.csv" \
+  --export-file "./data/output.csv" \
+  --base-path "api.test.notifichedigitali.it" \
+  --pn-api-key "your-api-key" \
+  --send-notifications
 ```
 
 ### Modalita Production (build + node)
@@ -156,11 +157,33 @@ pnpm --filter=send-import-notifications build
 
 # Esecuzione
 pnpm --filter=send-import-notifications start -- \
-  --csv.file "./data/input.csv" \
-  --export.file "./data/output.csv" \
-  --base.path "api.test.notifichedigitali.it" \
-  --pn.api.key "your-api-key" \
-  --send.notifications
+  --csv-file "./data/input.csv" \
+  --export-file "./data/output.csv" \
+  --base-path "api.test.notifichedigitali.it" \
+  --pn-api-key "your-api-key" \
+  --send-notifications
+```
+
+### Shortcut dalla Root del Monorepo
+
+Il `package.json` root espone comandi abbreviati:
+
+```bash
+# Development (tsx)
+pnpm send:import:notifications:dev -- \
+  --csv-file "./data/input.csv" \
+  --base-path "api.test.notifichedigitali.it" \
+  --pn-api-key "your-api-key"
+
+# Production (build + node)
+pnpm send:import:notifications:prod -- \
+  --csv-file "./data/input.csv" \
+  --base-path "api.test.notifichedigitali.it" \
+  --pn-api-key "your-api-key" \
+  --send-notifications
+
+# Solo build
+pnpm send:import:notifications:build
 ```
 
 ### Modalita Standalone
@@ -171,113 +194,122 @@ cd scripts/send/send-import-notifications
 
 # Esecuzione diretta
 node dist/index.js \
-  --csv.file "./data/input.csv" \
-  --export.file "./data/output.csv" \
-  --base.path "api.test.notifichedigitali.it" \
-  --pn.api.key "your-api-key" \
-  --send.notifications
+  --csv-file "./data/input.csv" \
+  --export-file "./data/output.csv" \
+  --base-path "api.test.notifichedigitali.it" \
+  --pn-api-key "your-api-key" \
+  --send-notifications
 ```
 
 ### Esempi Pratici
 
 ```bash
 # Dry-run per validazione CSV
-pnpm --filter=send-import-notifications dev -- \
-  --csv.file "./test-notifications.csv" \
-  --base.path "api.test.notifichedigitali.it" \
-  --pn.api.key "$PN_API_KEY"
+pnpm send:import:notifications:dev -- \
+  --csv-file "./test-notifications.csv" \
+  --base-path "api.test.notifichedigitali.it" \
+  --pn-api-key "$PN_API_KEY"
 
 # Invio con alta concorrenza
-pnpm --filter=send-import-notifications dev -- \
-  --csv.file "./notifications.csv" \
-  --export.file "./results.csv" \
-  --base.path "api.test.notifichedigitali.it" \
-  --pn.api.key "$PN_API_KEY" \
-  --send.notifications \
+pnpm send:import:notifications:dev -- \
+  --csv-file "./notifications.csv" \
+  --export-file "./results.csv" \
+  --base-path "api.test.notifichedigitali.it" \
+  --pn-api-key "$PN_API_KEY" \
+  --send-notifications \
   --concurrency 5
 
 # Invio senza polling IUN (piu veloce)
-pnpm --filter=send-import-notifications dev -- \
-  --csv.file "./notifications.csv" \
-  --export.file "./results.csv" \
-  --base.path "api.test.notifichedigitali.it" \
-  --pn.api.key "$PN_API_KEY" \
-  --send.notifications \
-  --poll.for.iun false
+pnpm send:import:notifications:dev -- \
+  --csv-file "./notifications.csv" \
+  --export-file "./results.csv" \
+  --base-path "api.test.notifichedigitali.it" \
+  --pn-api-key "$PN_API_KEY" \
+  --send-notifications \
+  --poll-for-iun false
 
-# Export con colonne di stato
-pnpm --filter=send-import-notifications dev -- \
-  --csv.file "./notifications.csv" \
-  --export.file "./results.csv" \
-  --base.path "api.test.notifichedigitali.it" \
-  --pn.api.key "$PN_API_KEY" \
-  --send.notifications \
-  --export.all.rows \
-  --include.status.columns
+# Export con tutte le righe e colonne di stato
+pnpm send:import:notifications:dev -- \
+  --csv-file "./notifications.csv" \
+  --export-file "./results.csv" \
+  --base-path "api.test.notifichedigitali.it" \
+  --pn-api-key "$PN_API_KEY" \
+  --send-notifications \
+  --export-all-rows \
+  --include-status-columns
 
 # Con proxy per debug
-pnpm --filter=send-import-notifications dev -- \
-  --csv.file "./notifications.csv" \
-  --base.path "api.test.notifichedigitali.it" \
-  --pn.api.key "$PN_API_KEY" \
-  --send.notifications \
-  --proxy.url "http://127.0.0.1:9090"
+pnpm send:import:notifications:dev -- \
+  --csv-file "./notifications.csv" \
+  --base-path "api.test.notifichedigitali.it" \
+  --pn-api-key "$PN_API_KEY" \
+  --send-notifications \
+  --proxy-url "http://127.0.0.1:9090"
 
 # Usando variabili d'ambiente
 PN_API_KEY="your-key" \
 PN_BASE_PATH="api.test.notifichedigitali.it" \
-pnpm --filter=send-import-notifications dev -- \
-  --csv.file "./notifications.csv" \
-  --export.file "./results.csv" \
-  --send.notifications
+pnpm send:import:notifications:dev -- \
+  --csv-file "./notifications.csv" \
+  --export-file "./results.csv" \
+  --send-notifications
 ```
 
 ## Formato CSV
 
 ### Formato QA Test (Input)
 
-Il CSV di input deve seguire il formato QA Test con le seguenti colonne:
+Il CSV di input deve seguire il formato QA Test con delimitatore virgola (`,`) e codifica UTF-8.
 
-| Colonna                     | Obbligatorio | Descrizione                  |
-| --------------------------- | ------------ | ---------------------------- |
-| `ID_Scenario`               | Si           | Identificativo scenario test |
-| `Scenario`                  | Si           | Nome scenario                |
-| `Prodotto`                  | Si           | Tipo prodotto (es. "AR")     |
-| `Destinatario`              | Si           | Tipo destinatario (PF/PG)    |
-| `Denomination`              | Si           | Nome/Ragione sociale         |
-| `Indirizzo PEC`             | No           | PEC per domicilio digitale   |
-| `physicalCommunicationType` | Si           | Tipo comunicazione (AR/890)  |
-| `CAP`                       | Si           | Codice postale               |
-| `Provincia`                 | Si           | Sigla provincia              |
-| `Citta`                     | Si           | Nome citta                   |
-| `Stato`                     | Si           | Codice stato (IT)            |
-| `Range`                     | No           | Range test                   |
-| `Indirizzo`                 | Si           | Indirizzo fisico             |
-| `Sender`                    | Si           | PA mittente                  |
-| `Tax ID`                    | Si           | Codice fiscale destinatario  |
+Le colonne attese sono:
+
+| Colonna                     | Obbligatorio | Descrizione                               |
+| --------------------------- | ------------ | ----------------------------------------- |
+| `ID_Scenario`               | No           | Identificativo scenario test              |
+| `Scenario`                  | Si           | Nome scenario (mappato a `subject`)       |
+| `Prodotto`                  | No           | Tipo prodotto (es. "AR")                  |
+| `Destinatario`              | Si           | Codice fiscale destinatario               |
+| `Denomination`              | Si           | Nome/Ragione sociale destinatario         |
+| `Indirizzo PEC`             | No           | PEC per domicilio digitale                |
+| `physicalCommunicationType` | No           | Tipo comunicazione (AR/890)               |
+| `CAP`                       | Si           | Codice postale                            |
+| `Provincia`                 | Si           | Sigla provincia                           |
+| `Citta`                     | Si           | Nome citta                                |
+| `Stato`                     | No           | Stato (es. "IT", "ITALIA" normalizzato)   |
+| `Range`                     | No           | Range test                                |
+| `Indirizzo`                 | Si           | Indirizzo fisico                          |
+| `Sender`                    | Si           | PA mittente (denominazione)               |
+| `Tax ID`                    | Si           | Codice fiscale PA mittente (`senderTaxId`) |
+
+L'adapter QA Test applica le seguenti trasformazioni automatiche:
+
+- **Mapping colonne**: le colonne CSV vengono mappate ai nomi standard SEND (es. `Scenario` -> `subject`, `Destinatario` -> `recipientTaxId`)
+- **Valori default**: `recipientType` = `PF`, `documentKey`, `documentVersionToken`, `documentSha256` e `group` vengono impostati automaticamente
+- **Normalizzazione**: il valore `ITALIA` nella colonna `Stato` viene convertito in stringa vuota (indirizzo domestico)
+- **Domicilio digitale**: se `Indirizzo PEC` ha un valore, viene impostato automaticamente `digitalType = PEC`
 
 ### Esempio CSV Input
 
 ```csv
 ID_Scenario,Scenario,Prodotto,Destinatario,Denomination,Indirizzo PEC,physicalCommunicationType,CAP,Provincia,Citta,Stato,Range,Indirizzo,Sender,Tax ID
-1,Test AR,AR,PF,Mario Rossi,,AR,00100,RM,Roma,IT,,Via Roma 1,COMUNE DI TEST,RSSMRA80A01H501U
-2,Test PEC,AR,PG,Azienda SRL,pec@azienda.it,890,20100,MI,Milano,IT,,Via Milano 2,COMUNE DI TEST,12345678901
+1,Test AR,AR,RSSMRA80A01H501U,Mario Rossi,,AR,00100,RM,Roma,IT,,Via Roma 1,COMUNE DI TEST,01234567890
+2,Test PEC,AR,12345678901,Azienda SRL,pec@azienda.it,890,20100,MI,Milano,IT,,Via Milano 2,COMUNE DI TEST,01234567890
 ```
 
 ### Formato CSV Output
 
-Il CSV di output include tutte le colonne originali piu:
+Il CSV di output include le colonne originali (se `--preserve-all-columns` e attivo, default `true`) piu le seguenti colonne generate:
 
-| Colonna           | Descrizione                     |
-| ----------------- | ------------------------------- |
-| `RequestID`       | ID richiesta notifica           |
-| `iun`             | Identificativo Univoco Notifica |
-| `Data invio Test` | Timestamp invio                 |
-| `Stato`           | Stato elaborazione              |
-| `Esito`           | Esito (OK/KO)                   |
-| `Note`            | Eventuali note/errori           |
+| Colonna          | Descrizione                     |
+| ---------------- | ------------------------------- |
+| `RequestID`      | ID richiesta notifica           |
+| `iun`            | Identificativo Univoco Notifica |
+| `Data invio Test` | Timestamp invio                |
+| `Stato`          | Stato elaborazione              |
+| `Esito`          | Esito (OK/KO)                   |
+| `Note`           | Eventuali note/errori           |
 
-Con `--include.status.columns`:
+Con `--include-status-columns`:
 
 | Colonna         | Descrizione                    |
 | --------------- | ------------------------------ |
@@ -285,73 +317,7 @@ Con `--include.status.columns`:
 | `_processedAt`  | Timestamp elaborazione         |
 | `_errorMessage` | Messaggio errore (se presente) |
 
-## Output
-
-### Report Console
-
-```
-╭─────────────────────────────────────────────╮
-│  SEND Import Notifications v1.0.0           │
-│  Team GO - Gestione Operativa               │
-╰─────────────────────────────────────────────╯
-
-► Output directory: /app/data/outputs
-  Export file will be saved to: /app/data/outputs/results.csv
-
-► Initializing SEND SDK
-  ✓ SDK initialized
-
-► Setting up CSV Importer
-  Export file: /app/data/outputs/results.csv
-  CSV passthrough enabled: all original columns will be preserved
-  ✓ Components initialized
-
-► Starting Import Workflow
-  Input file: /app/data/inputs/notifications.csv
-  Send mode: LIVE
-  Concurrency: 3
-  Poll for IUN: true
-
-  > [IMPORT] 100% - Rows: 10, Valid: 10, Invalid: 0
-  ✓ Import completed: 10 items, 0 invalid (523ms)
-
-  > [PROCESS] 50% - Processed: 5/10, Uploaded: 5, Sent: 5, IUNs: 3, Failed: 0
-  Document uploaded: Notifica Test 1
-  Notification sent, waiting for IUN: Notifica Test 1
-  ✓ IUN obtained: Notifica Test 1 - ABCD-EFGH-IJKL-123456-A-1
-
-  > [PROCESS] 100% - Processed: 10/10, Uploaded: 10, Sent: 10, IUNs: 10, Failed: 0
-
-► Workflow Results
-┌─────────────────────┬────────┐
-│ Metric              │ Value  │
-├─────────────────────┼────────┤
-│ Total rows          │ 10     │
-│ Processed           │ 10     │
-│ Documents uploaded  │ 10     │
-│ Notifications sent  │ 10     │
-│ IUNs obtained       │ 10     │
-│ Failed              │ 0      │
-│ Processing time     │ 45.23s │
-└─────────────────────┴────────┘
-
-  Exported 10 notifications to: /app/data/outputs/results.csv
-  ✓ Workflow completed successfully
-```
-
-### Tabella Risultati
-
-La tabella finale mostra:
-
-| Metrica            | Descrizione        |
-| ------------------ | ------------------ |
-| Total rows         | Righe nel CSV      |
-| Processed          | Righe elaborate    |
-| Documents uploaded | Documenti caricati |
-| Notifications sent | Notifiche inviate  |
-| IUNs obtained      | IUN ottenuti       |
-| Failed             | Righe fallite      |
-| Processing time    | Tempo totale       |
+In caso di conflitto tra colonne originali e colonne generate, prevalgono le colonne generate (strategia `keep-generated`).
 
 ## Docker
 
@@ -378,8 +344,7 @@ data/send-import-notifications/
 ├── inputs/           # File CSV da processare
 │   └── notifications.csv
 └── outputs/          # Risultati
-    ├── results.csv   # CSV con IUN
-    └── logs/         # Log esecuzione
+    └── results.csv   # CSV con IUN
 ```
 
 ### Configurazione Docker
@@ -405,6 +370,9 @@ PN_API_KEY=your-api-key-here
 
 # Optional: Debug proxy
 # PROXY_URL=http://host.docker.internal:9090
+
+# Optional: Node.js memory settings (default: 4096MB)
+# NODE_OPTIONS=--max-old-space-size=8192
 ```
 
 ### Esecuzione Docker
@@ -428,11 +396,20 @@ pnpm docker:logs
 ```bash
 # Run con parametri
 docker compose run --rm app node dist/index.js \
-  --csv.file "/app/data/send-import-notifications/inputs/notifications.csv" \
-  --export.file "/app/data/send-import-notifications/outputs/results.csv" \
-  --base.path "api.test.notifichedigitali.it" \
-  --pn.api.key "$PN_API_KEY" \
-  --send.notifications
+  --csv-file "/app/data/send-import-notifications/inputs/notifications.csv" \
+  --export-file "/app/data/send-import-notifications/outputs/results.csv" \
+  --base-path "api.test.notifichedigitali.it" \
+  --pn-api-key "$PN_API_KEY" \
+  --send-notifications
+```
+
+### Servizio Dev con Docker Compose
+
+Il file `docker-compose.yaml` include un servizio `dev` che monta l'intero monorepo e usa lo stage `build` del Dockerfile (con le devDependencies):
+
+```bash
+# Avvia il servizio dev
+docker compose run --rm dev
 ```
 
 ### Variabili Docker
@@ -465,8 +442,8 @@ Limiti configurati in `docker-compose.yaml`:
 
 **Soluzione**:
 
-1. Verificare le colonne obbligatorie
-2. Controllare il delimitatore (deve essere virgola)
+1. Verificare le colonne obbligatorie (vedi sezione [Formato CSV](#formato-csv))
+2. Controllare il delimitatore (deve essere virgola `,`)
 3. Verificare encoding (UTF-8)
 
 #### Errore: "API Key invalid"
@@ -497,7 +474,7 @@ Limiti configurati in `docker-compose.yaml`:
 
 ```bash
 # Aumentare tentativi e delay
---poll.max.attempts 15 --poll.delay.ms 60000
+--poll-max-attempts 15 --poll-delay-ms 60000
 ```
 
 #### Errore: "Network error"
@@ -508,7 +485,7 @@ Limiti configurati in `docker-compose.yaml`:
 
 1. Verificare connessione internet
 2. Controllare firewall/proxy aziendale
-3. Usare `--proxy.url` per debug
+3. Usare `--proxy-url` per debug
 
 #### Memory Heap Out of Memory
 
@@ -517,7 +494,7 @@ Limiti configurati in `docker-compose.yaml`:
 **Soluzione**:
 
 1. Aumentare memoria: `NODE_OPTIONS="--max-old-space-size=8192"`
-2. Abbassare `--streaming.threshold.mb` per forzare streaming
+2. Abbassare `--streaming-threshold-mb` per forzare streaming
 3. Dividere il file in batch piu piccoli
 
 ### Debug con Proxy
@@ -531,25 +508,25 @@ Per ispezionare le richieste HTTP:
 ```bash
 # Con certificato CA custom
 NODE_EXTRA_CA_CERTS=/path/to/Proxyman.pem \
-pnpm --filter=send-import-notifications dev -- \
-  --csv.file "./data/input.csv" \
-  --base.path "api.test.notifichedigitali.it" \
-  --pn.api.key "$PN_API_KEY" \
-  --proxy.url "http://127.0.0.1:9090"
+pnpm send:import:notifications:dev -- \
+  --csv-file "./data/input.csv" \
+  --base-path "api.test.notifichedigitali.it" \
+  --pn-api-key "$PN_API_KEY" \
+  --proxy-url "http://127.0.0.1:9090"
 ```
 
 ### Verifica Configurazione
 
 ```bash
 # Dry-run per validare setup
-pnpm --filter=send-import-notifications dev -- \
-  --csv.file "./test.csv" \
-  --base.path "api.test.notifichedigitali.it" \
-  --pn.api.key "$PN_API_KEY"
+pnpm send:import:notifications:dev -- \
+  --csv-file "./test.csv" \
+  --base-path "api.test.notifichedigitali.it" \
+  --pn-api-key "$PN_API_KEY"
 ```
 
 ---
 
-**Ultima modifica**: 2025-01-23
+**Ultima modifica**: 2026-03-05
 **Maintainer**: Team GO - Gestione Operativa
 **Repository**: [go-automation](https://github.com/pagopa/go-automation)
