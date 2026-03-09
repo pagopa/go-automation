@@ -34,7 +34,7 @@
     "@aws-sdk/client-cloudformation": "^3.1000.0",
     "@aws-sdk/client-cloudwatch": "^3.1000.0",
     "@aws-sdk/client-cloudwatch-logs": "^3.1000.0",
-    "@aws-sdk/client-dynamodb": "^3.1000.0",
+    "@aws-sdk/client-dynamodb": "^3.1004.0",
     "@aws-sdk/client-ec2": "^3.1000.0",
     "@aws-sdk/client-ecs": "^3.1000.0",
     "@aws-sdk/client-eventbridge": "^3.1000.0",
@@ -49,7 +49,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-cloudwatch": "^3.1000.0",
-    "@aws-sdk/client-dynamodb": "^3.1000.0",
+    "@aws-sdk/client-dynamodb": "^3.1004.0",
     "@aws-sdk/client-sqs": "^3.1000.0",
     "@aws-sdk/client-sts": "^3.1000.0",
     "@aws-sdk/credential-provider-ini": "^3.972.13",
