@@ -73,9 +73,9 @@ Parameters:
     Description: 'The timezone to use for date formatting in notifications and reports'
     Default: 'Europe/Rome'
     
-  SlackMessageTemplate:
+  SlackMessageTemplateParameterName:
     Type: String
-    Description: 'The S3 key of the template used for formatting Slack messages'
+    Description: 'The name of the SSM parameter that contains the Slack message template'
   
   SlackTokenSecretName:
     Type: String
@@ -105,7 +105,7 @@ Resources:
           SLACK_CHANNEL: !Ref SlackChannel
           REPORTS_S3_BUCKET: !Ref ReportS3Bucket
           TZ: !Ref Timezone
-          SLACK_MESSAGE_TEMPLATE: !Ref SlackMessageTemplate
+          SLACK_MESSAGE_TEMPLATE: !Sub "{{resolve:ssm:${SlackMessageTemplateParameterName}}}"
           SLACK_TOKEN: !Sub "{{resolve:secretsmanager:${SlackTokenSecretName}}}"
           VERSION: !Ref Version
       TracingConfig:
