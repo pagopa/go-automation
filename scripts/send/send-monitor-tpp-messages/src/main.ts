@@ -48,7 +48,9 @@ async function loadQueryTemplate(): Promise<string> {
     }
     return query;
   } catch (error) {
-    throw new Error(`Failed to load query from config: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to load query from config: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+      cause: error,
+    });
   }
 }
 
@@ -140,7 +142,7 @@ function saveAndAnalyzeResults(
     csvFilePath = csvManager.saveToCSV(data);
   }
 
-  let analysis = '';
+  let analysis: string;
   if (rowCount === 0) {
     analysis = 'No data found in the specified time range';
   } else if (thresholdField && threshold !== undefined && threshold > 0) {

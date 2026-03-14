@@ -50,7 +50,7 @@ export class GOYAMLParser {
       const content = fs.readFileSync(filePath, encoding);
       return this.parseContent(content);
     } catch (error: unknown) {
-      throw new Error(`Failed to parse YAML file ${filePath}: ${getErrorMessage(error)}`);
+      throw new Error(`Failed to parse YAML file ${filePath}: ${getErrorMessage(error)}`, { cause: error });
     }
   }
 
@@ -63,7 +63,7 @@ export class GOYAMLParser {
     try {
       return YAML.parse(content) as YAMLValue;
     } catch (error: unknown) {
-      throw new Error(`Failed to parse YAML content: ${getErrorMessage(error)}`);
+      throw new Error(`Failed to parse YAML content: ${getErrorMessage(error)}`, { cause: error });
     }
   }
 
@@ -117,7 +117,7 @@ export class GOYAMLParser {
     try {
       return YAML.stringify(data, options);
     } catch (error: unknown) {
-      throw new Error(`Failed to stringify to YAML: ${getErrorMessage(error)}`);
+      throw new Error(`Failed to stringify to YAML: ${getErrorMessage(error)}`, { cause: error });
     }
   }
 
@@ -138,7 +138,7 @@ export class GOYAMLParser {
       const yamlContent = this.stringify(data, options);
       fs.writeFileSync(filePath, yamlContent, encoding);
     } catch (error: unknown) {
-      throw new Error(`Failed to write YAML file ${filePath}: ${getErrorMessage(error)}`);
+      throw new Error(`Failed to write YAML file ${filePath}: ${getErrorMessage(error)}`, { cause: error });
     }
   }
 }

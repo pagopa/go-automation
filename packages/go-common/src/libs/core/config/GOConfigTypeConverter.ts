@@ -157,7 +157,9 @@ export class GOConfigTypeConverter {
     try {
       return Buffer.from(str, encoding);
     } catch (error: unknown) {
-      throw new Error(`Cannot convert "${str}" to Buffer with encoding ${encoding}: ${getErrorMessage(error)}`);
+      throw new Error(`Cannot convert "${str}" to Buffer with encoding ${encoding}: ${getErrorMessage(error)}`, {
+        cause: error,
+      });
     }
   }
 
@@ -173,7 +175,9 @@ export class GOConfigTypeConverter {
       try {
         return Buffer.from(v, encoding);
       } catch (error: unknown) {
-        throw new Error(`Cannot convert "${v}" to Buffer with encoding ${encoding}: ${getErrorMessage(error)}`);
+        throw new Error(`Cannot convert "${v}" to Buffer with encoding ${encoding}: ${getErrorMessage(error)}`, {
+          cause: error,
+        });
       }
     });
   }

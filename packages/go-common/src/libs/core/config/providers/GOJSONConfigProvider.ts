@@ -95,7 +95,7 @@ export class GOJSONConfigProvider extends GOConfigProviderBase {
       const data = JSON.parse(content) as Record<string, unknown>;
       this.loadFromData(data);
     } catch (error: unknown) {
-      throw new Error(`Failed to load JSON config from ${filePath}: ${getErrorMessage(error)}`);
+      throw new Error(`Failed to load JSON config from ${filePath}: ${getErrorMessage(error)}`, { cause: error });
     }
   }
 
