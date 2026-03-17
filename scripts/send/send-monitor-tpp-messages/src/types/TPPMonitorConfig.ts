@@ -33,6 +33,9 @@ export interface TPPMonitorConfig {
   /** Delay between retries in milliseconds */
   readonly athenaRetryDelay: number;
 
+  /** SQL query template with placeholders */
+  readonly athenaQuery: string;
+
   /** Slack bot token (optional) */
   readonly slackToken?: string;
 
