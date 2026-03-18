@@ -9,7 +9,6 @@
     "SlackChannel": "C09RSL0QUTV",
     "ReportS3Bucket": "pn-go-reports-eu-south-1",
     "Timezone": "Europe/Rome",
-    "SlackMessageTemplateParameterName": "/go/send-monitor-tpp-messages/slack-message-template",
     "SlackTokenSecretName": "go/send-monitor-tpp-messages/slack-token"
   }
 }
