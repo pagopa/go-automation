@@ -1,0 +1,14 @@
+{
+  "Parameters" : {
+    "AthenaDatabase": "cdc_analytics_database",
+    "AthenaCatalog": "AwsDataCatalog",
+    "AthenaWorkgroup": "primary",
+    "AthenaOutputLocation": "s3://pn-cdc-analytics-athena-results-eu-south-1-830192246553-001/",
+    "AthenaMaxRetries": "60",
+    "AthenaRetryDelay": "5000",
+    "SlackChannel": "C09RSL0QUTV",
+    "ReportS3Bucket": "pn-go-reports-eu-south-1",
+    "Timezone": "Europe/Rome",
+    "SlackTokenSecretName": "go/send-monitor-tpp-messages/slack-token"
+  }
+}

@@ -5,6 +5,7 @@
   "type": "module",
   "main": "dist/handler.mjs",
   "scripts": {
+    "test-build": "pnpm build && cd ../../artifacts/go-SendMonitorTppMessagesLambda && zip -r ../../functions/go-SendMonitorTppMessagesLambda/function.zip .",
     "build": "node esbuild.config.mjs",
     "build:typecheck": "tsc --noEmit",
     "clean": "rm -rf dist *.tsbuildinfo",
