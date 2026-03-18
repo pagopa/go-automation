@@ -188,8 +188,9 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   const athenaExecutor = new AthenaQueryExecutor(athenaService, (msg) => script.logger.info(msg));
 
-  // Initialize CSV Manager
-  const csvManager = new CSVManager(config.reportsFolder);
+  // Initialize CSV Manager — resolve relative paths via GOPaths so Lambda uses /tmp
+  const reportsPath = script.paths.resolvePath(config.reportsFolder, Core.GOPathType.OUTPUT) ?? config.reportsFolder;
+  const csvManager = new CSVManager(reportsPath);
 
   // Initialize Slack (optional)
   let slackNotifier: SlackNotifier | null = null;
