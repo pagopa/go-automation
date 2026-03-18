@@ -83,7 +83,7 @@ Resources:
     Properties:
       FunctionName: !Ref GoSendMonitorTppMessagesLambdaName
       Runtime: nodejs22.x
-      Handler: "index.handler"
+      Handler: "handler.handler"
       Code:
         S3Bucket: !Ref LambdasBucketName
         S3Key: !Sub "${BucketBasePath}/go-SendMonitorTppMessagesLambda.zip"
