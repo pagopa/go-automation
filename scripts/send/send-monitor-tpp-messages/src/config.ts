@@ -40,8 +40,8 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'aws.profile',
     type: Core.GOConfigParameterType.STRING,
-    description: 'AWS SSO profile name (e.g., sso_pn-core-prod)',
-    required: true,
+    description: 'AWS SSO profile name (e.g., sso_pn-core-prod). Not required in AWS-managed environments.',
+    required: false,
     aliases: ['ap'],
   },
   {

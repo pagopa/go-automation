@@ -9,8 +9,8 @@ export interface TPPMonitorConfig {
   /** End date for the query range */
   readonly to: string;
 
-  /** AWS SSO profile name */
-  readonly awsProfile: string;
+  /** AWS SSO profile name (optional in AWS-managed environments) */
+  readonly awsProfile?: string;
 
   /** AWS region (default: eu-south-1) */
   readonly awsRegion: string;
