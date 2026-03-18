@@ -34,6 +34,9 @@ await esbuild.build({
   external: [
     '@aws-sdk/*',
   ],
+  banner: {
+    js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
+  },
 });
 
 /** Copy configs directory alongside the bundle */
