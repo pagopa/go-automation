@@ -97,7 +97,7 @@ export class GOYAMLConfigProvider extends GOConfigProviderBase {
         this.loadFromData(data);
       }
     } catch (error: unknown) {
-      throw new Error(`Failed to load YAML config from ${filePath}: ${getErrorMessage(error)}`);
+      throw new Error(`Failed to load YAML config from ${filePath}: ${getErrorMessage(error)}`, { cause: error });
     }
   }
 

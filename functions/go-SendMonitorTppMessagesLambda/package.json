@@ -3,21 +3,24 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "main": "dist/handler.js",
+  "main": "dist/handler.mjs",
   "scripts": {
-    "test-build": "cd ../../ pnpm --filter=send-monitor-tpp-messages build && pnpm lambda:monitor:tpp:build && pnpm --filter=go-send-monitor-tpp-messages-lambda deploy --prod artifacts/go-SendMonitorTppMessagesLambda && cd artifacts/go-SendMonitorTppMessagesLambda/ && zip -r ../../functions/go-SendMonitorTppMessagesLambda/function.zip .",
-    "build": "tsc",
+    "test-build": "pnpm build && cd ../../artifacts/go-SendMonitorTppMessagesLambda && zip -r ../../functions/go-SendMonitorTppMessagesLambda/function.zip .",
+    "build": "node esbuild.config.mjs",
+    "build:typecheck": "tsc --noEmit",
     "clean": "rm -rf dist *.tsbuildinfo",
+    "package": "pnpm build && cd ../../artifacts/go-SendMonitorTppMessagesLambda && zip -r ../../functions/go-SendMonitorTppMessagesLambda/function.zip .",
     "test:local": "tsx src/test-local.ts"
   },
   "dependencies": {
-    "send-monitor-tpp-messages": "workspace:*",
+    "@aws-sdk/client-s3": "^3.1010.0",
     "@go-automation/go-common": "workspace:*",
-    "@aws-sdk/client-s3": "^3.1004.0"
+    "send-monitor-tpp-messages": "workspace:*"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.161",
-    "@types/node": "^24.11.0",
+    "@types/node": "^24.12.0",
+    "esbuild": "^0.27.4",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }

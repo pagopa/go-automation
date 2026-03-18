@@ -100,6 +100,13 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     aliases: ['ard'],
     defaultValue: 5000,
   },
+  {
+    name: 'athena.query',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'SQL query template with placeholders ({{startDate}}, {{endDate}}, partition keys, etc.)',
+    required: true,
+    aliases: ['aq'],
+  },
 
   // Slack configuration (optional)
   {

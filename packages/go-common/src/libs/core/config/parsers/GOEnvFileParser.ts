@@ -29,7 +29,7 @@ export class GOEnvFileParser {
       const content = fs.readFileSync(filePath, encoding);
       return this.parseContent(content);
     } catch (error: unknown) {
-      throw new Error(`Failed to parse env file ${filePath}: ${getErrorMessage(error)}`);
+      throw new Error(`Failed to parse env file ${filePath}: ${getErrorMessage(error)}`, { cause: error });
     }
   }
 

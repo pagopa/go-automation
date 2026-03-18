@@ -32,7 +32,7 @@ Script di importazione massiva notifiche SEND da file CSV con upload automatico 
 
 | Software   | Versione Minima | Note                     |
 | ---------- | --------------- | ------------------------ |
-| Node.js    | >= 18.0.0       | LTS consigliata (v24+)  |
+| Node.js    | >= 18.0.0       | LTS consigliata (v24+)   |
 | pnpm       | >= 8.0.0        | Package manager          |
 | TypeScript | >= 5.0.0        | Incluso nel progetto     |
 | Docker     | >= 20.0         | Opzionale, per container |
@@ -82,8 +82,8 @@ I parametri sono definiti internamente con il punto come separatore (es. `csv.fi
 | Parametro             | Alias | Tipo    | Obbligatorio | Default | Descrizione              |
 | --------------------- | ----- | ------- | ------------ | ------- | ------------------------ |
 | `--poll-for-iun`      | `-p`  | boolean | No           | `true`  | Attiva polling IUN       |
-| `--poll-max-attempts`  | -     | int     | No           | `8`     | Tentativi max polling    |
-| `--poll-delay-ms`      | -     | int     | No           | `30000` | Delay tra tentativi (ms) |
+| `--poll-max-attempts` | -     | int     | No           | `8`     | Tentativi max polling    |
+| `--poll-delay-ms`     | -     | int     | No           | `30000` | Delay tra tentativi (ms) |
 
 #### Streaming e Export
 
@@ -102,10 +102,10 @@ I parametri sono definiti internamente con il punto come separatore (es. `csv.fi
 
 ### Variabili d'Ambiente
 
-| Variabile      | Descrizione  | Esempio                          |
-| -------------- | ------------ | -------------------------------- |
-| `PN_API_KEY`   | API Key PN   | `abc123...`                      |
-| `PN_BASE_PATH` | Base URL API | `api.test.notifichedigitali.it`  |
+| Variabile      | Descrizione  | Esempio                         |
+| -------------- | ------------ | ------------------------------- |
+| `PN_API_KEY`   | API Key PN   | `abc123...`                     |
+| `PN_BASE_PATH` | Base URL API | `api.test.notifichedigitali.it` |
 | `PROXY_URL`    | Proxy debug  | `http://127.0.0.1:9090`         |
 
 ### File di Configurazione
@@ -263,22 +263,22 @@ Il CSV di input deve seguire il formato QA Test con delimitatore virgola (`,`) e
 
 Le colonne attese sono:
 
-| Colonna                     | Obbligatorio | Descrizione                               |
-| --------------------------- | ------------ | ----------------------------------------- |
-| `ID_Scenario`               | No           | Identificativo scenario test              |
-| `Scenario`                  | Si           | Nome scenario (mappato a `subject`)       |
-| `Prodotto`                  | No           | Tipo prodotto (es. "AR")                  |
-| `Destinatario`              | Si           | Codice fiscale destinatario               |
-| `Denomination`              | Si           | Nome/Ragione sociale destinatario         |
-| `Indirizzo PEC`             | No           | PEC per domicilio digitale                |
-| `physicalCommunicationType` | No           | Tipo comunicazione (AR/890)               |
-| `CAP`                       | Si           | Codice postale                            |
-| `Provincia`                 | Si           | Sigla provincia                           |
-| `Citta`                     | Si           | Nome citta                                |
-| `Stato`                     | No           | Stato (es. "IT", "ITALIA" normalizzato)   |
-| `Range`                     | No           | Range test                                |
-| `Indirizzo`                 | Si           | Indirizzo fisico                          |
-| `Sender`                    | Si           | PA mittente (denominazione)               |
+| Colonna                     | Obbligatorio | Descrizione                                |
+| --------------------------- | ------------ | ------------------------------------------ |
+| `ID_Scenario`               | No           | Identificativo scenario test               |
+| `Scenario`                  | Si           | Nome scenario (mappato a `subject`)        |
+| `Prodotto`                  | No           | Tipo prodotto (es. "AR")                   |
+| `Destinatario`              | Si           | Codice fiscale destinatario                |
+| `Denomination`              | Si           | Nome/Ragione sociale destinatario          |
+| `Indirizzo PEC`             | No           | PEC per domicilio digitale                 |
+| `physicalCommunicationType` | No           | Tipo comunicazione (AR/890)                |
+| `CAP`                       | Si           | Codice postale                             |
+| `Provincia`                 | Si           | Sigla provincia                            |
+| `Citta`                     | Si           | Nome citta                                 |
+| `Stato`                     | No           | Stato (es. "IT", "ITALIA" normalizzato)    |
+| `Range`                     | No           | Range test                                 |
+| `Indirizzo`                 | Si           | Indirizzo fisico                           |
+| `Sender`                    | Si           | PA mittente (denominazione)                |
 | `Tax ID`                    | Si           | Codice fiscale PA mittente (`senderTaxId`) |
 
 L'adapter QA Test applica le seguenti trasformazioni automatiche:
@@ -300,14 +300,14 @@ ID_Scenario,Scenario,Prodotto,Destinatario,Denomination,Indirizzo PEC,physicalCo
 
 Il CSV di output include le colonne originali (se `--preserve-all-columns` e attivo, default `true`) piu le seguenti colonne generate:
 
-| Colonna          | Descrizione                     |
-| ---------------- | ------------------------------- |
-| `RequestID`      | ID richiesta notifica           |
-| `iun`            | Identificativo Univoco Notifica |
-| `Data invio Test` | Timestamp invio                |
-| `Stato`          | Stato elaborazione              |
-| `Esito`          | Esito (OK/KO)                   |
-| `Note`           | Eventuali note/errori           |
+| Colonna           | Descrizione                     |
+| ----------------- | ------------------------------- |
+| `RequestID`       | ID richiesta notifica           |
+| `iun`             | Identificativo Univoco Notifica |
+| `Data invio Test` | Timestamp invio                 |
+| `Stato`           | Stato elaborazione              |
+| `Esito`           | Esito (OK/KO)                   |
+| `Note`            | Eventuali note/errori           |
 
 Con `--include-status-columns`:
 
