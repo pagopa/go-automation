@@ -1,5 +1,5 @@
 {
-  "Parameters" : {
+  "Parameters": {
     "AthenaDatabase": "cdc_analytics_database",
     "AthenaCatalog": "AwsDataCatalog",
     "AthenaWorkgroup": "primary",
