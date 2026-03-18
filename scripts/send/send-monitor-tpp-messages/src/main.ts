@@ -182,7 +182,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   // Initialize Athena service
   script.logger.section('Initializing AWS Athena');
   const athenaService = new AwsAthenaService({
-    ssoProfile: config.awsProfile,
+    ssoProfile: config.awsProfile ?? null,
     region: config.awsRegion,
   });
 
