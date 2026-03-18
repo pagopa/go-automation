@@ -82,7 +82,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Ref GoSendMonitorTppMessagesLambdaName
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Handler: "handler.handler"
       Code:
         S3Bucket: !Ref LambdasBucketName
