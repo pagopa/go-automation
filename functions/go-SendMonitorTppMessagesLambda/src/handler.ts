@@ -67,7 +67,7 @@ export const handler = script.createLambdaHandler<ScheduledEvent>(async (_event)
   const reportsBucket = process.env['REPORTS_S3_BUCKET'];
   if (reportsBucket) {
     const prefix = process.env['REPORTS_S3_PREFIX'] ?? 'reports/tpp-monitor';
-    const reportsDir = '/tmp/reports';
+    const reportsDir = script.paths.resolvePath('reports', Core.GOPathType.OUTPUT) ?? '/tmp/reports';
 
     const uploader = new S3Uploader(reportsBucket);
     const uploaded = await uploader.uploadDirectory(reportsDir, prefix);
