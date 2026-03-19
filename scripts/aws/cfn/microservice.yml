@@ -46,9 +46,9 @@ Parameters:
     Type: String
     Description: 'The name of the Athena workgroup to use for query execution'
     
-  AthenaOutputLocation:
+  AthenaOutputBucket:
     Type: String
-    Description: 'The S3 location where Athena query results are stored'
+    Description: 'The S3 bucket where Athena query results are stored'
     
   AthenaMaxRetries:
     Type: Number
@@ -95,7 +95,7 @@ Resources:
           ATHENA_DATABASE: !Ref AthenaDatabase
           ATHENA_CATALOG: !Ref AthenaCatalog
           ATHENA_WORKGROUP: !Ref AthenaWorkgroup
-          ATHENA_OUTPUT_LOCATION: !Ref AthenaOutputLocation
+          ATHENA_OUTPUT_LOCATION: !Sub "s3://${AthenaOutputBucket}/"
           ATHENA_MAX_RETRIES: !Ref AthenaMaxRetries
           ATHENA_RETRY_DELAY: !Ref AthenaRetryDelay
           SLACK_CHANNEL: !Ref SlackChannel
@@ -158,8 +158,8 @@ Resources:
                   - s3:ListBucket
                   - s3:PutObject
                 Resource:
-                  - !Sub "arn:aws:s3:::${AthenaOutputLocation}" 
-                  - !Sub "arn:aws:s3:::${AthenaOutputLocation}/*"
+                  - !Sub "arn:aws:s3:::${AthenaOutputBucket}" 
+                  - !Sub "arn:aws:s3:::${AthenaOutputBucket}/*"
               - Effect: Allow
                 Action:
                   - s3:PutObject
