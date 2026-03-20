@@ -30,12 +30,11 @@ function setupEventListeners(
   // Worker events
   worker.on('worker:progress', (event) => {
     const progress = event.progress;
-    let msg = '';
     if (progress.phase === 'importing') {
-      msg = `[IMPORT] ${progress.percentage}% - Rows: ${progress.processedRows}, Valid: ${progress.processedRows - progress.failedRows}, Invalid: ${progress.failedRows}`;
+      const msg = `[IMPORT] ${progress.percentage}% - Rows: ${progress.processedRows}, Valid: ${progress.processedRows - progress.failedRows}, Invalid: ${progress.failedRows}`;
       prompt.spin('importing', `\x1b[36m>\x1b[0m ${msg}`);
     } else {
-      msg = `[PROCESS] ${progress.percentage}% - Processed: ${progress.processedRows}/${progress.totalRows}, Uploaded: ${progress.documentsUploaded}, Sent: ${progress.notificationsSent}, IUNs: ${progress.iunsObtained}, Failed: ${progress.failedRows}`;
+      const msg = `[PROCESS] ${progress.percentage}% - Processed: ${progress.processedRows}/${progress.totalRows}, Uploaded: ${progress.documentsUploaded}, Sent: ${progress.notificationsSent}, IUNs: ${progress.iunsObtained}, Failed: ${progress.failedRows}`;
       prompt.spinLog(`\x1b[36m>\x1b[0m ${msg}`);
     }
   });

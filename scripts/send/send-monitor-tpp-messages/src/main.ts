@@ -5,9 +5,6 @@
  * Receives typed dependencies (script) for clean separation of concerns.
  */
 
-import * as fs from 'fs/promises';
-import * as path from 'path';
-
 import { Core } from '@go-automation/go-common';
 
 import {
@@ -29,45 +26,6 @@ import type { TPPMonitorConfig } from './types/TPPMonitorConfig.js';
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-/**
- * Loads the Athena query template from config file
- *
- * @returns Query template string
- * @throws Error if config file is missing or invalid
- */
-async function loadQueryTemplate(): Promise<string> {
-  const configPath = path.join(import.meta.dirname, '..', 'configs', 'config.yaml');
-  try {
-    const { parse: parseYaml } = await import('yaml');
-    const configData = await fs.readFile(configPath, 'utf-8');
-    const config = parseYaml(configData) as { athena?: { query?: string } };
-    const query = config?.athena?.query;
-    if (!query) {
-      throw new Error('Query not found in config.yaml');
-    }
-    return query;
-  } catch (error) {
-    throw new Error(`Failed to load query from config: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
-
-/**
- * Loads Slack message template from config file
- *
- * @returns Message template string
- */
-async function loadSlackMessageTemplate(): Promise<string> {
-  const configPath = path.join(import.meta.dirname, '..', 'configs', 'config.yaml');
-  try {
-    const { parse: parseYaml } = await import('yaml');
-    const configData = await fs.readFile(configPath, 'utf-8');
-    const config = parseYaml(configData) as { slack?: { messageTemplate?: string } };
-    return config?.slack?.messageTemplate ?? 'Report generated';
-  } catch {
-    return 'Report generated';
-  }
-}
 
 /**
  * Builds query parameters from parsed date range
@@ -140,7 +98,7 @@ function saveAndAnalyzeResults(
     csvFilePath = csvManager.saveToCSV(data);
   }
 
-  let analysis = '';
+  let analysis: string;
   if (rowCount === 0) {
     analysis = 'No data found in the specified time range';
   } else if (thresholdField && threshold !== undefined && threshold > 0) {
@@ -224,14 +182,15 @@ export async function main(script: Core.GOScript): Promise<void> {
   // Initialize Athena service
   script.logger.section('Initializing AWS Athena');
   const athenaService = new AwsAthenaService({
-    ssoProfile: config.awsProfile,
+    ssoProfile: config.awsProfile ?? null,
     region: config.awsRegion,
   });
 
   const athenaExecutor = new AthenaQueryExecutor(athenaService, (msg) => script.logger.info(msg));
 
-  // Initialize CSV Manager
-  const csvManager = new CSVManager(config.reportsFolder);
+  // Initialize CSV Manager — resolve relative paths via GOPaths so Lambda uses /tmp
+  const reportsPath = script.paths.resolvePath(config.reportsFolder, Core.GOPathType.OUTPUT) ?? config.reportsFolder;
+  const csvManager = new CSVManager(reportsPath);
 
   // Initialize Slack (optional)
   let slackNotifier: SlackNotifier | null = null;
@@ -243,10 +202,10 @@ export async function main(script: Core.GOScript): Promise<void> {
   }
 
   try {
-    // Load query template from config file
-    script.logger.section('Loading Query Template');
-    const queryTemplate = await loadQueryTemplate();
-    script.logger.info('Query template loaded from config.yaml');
+    // Query template from configuration (loaded automatically from config.yaml by GOScript)
+    script.logger.section('Query Template');
+    const queryTemplate = config.athenaQuery;
+    script.logger.info('Query template loaded from configuration');
 
     // Build query parameters
     const queryParams = buildQueryParams(startDate, endDate);
@@ -283,7 +242,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     }
 
     // Send Slack report
-    const messageTemplate = config.slackMessageTemplate ?? (await loadSlackMessageTemplate());
+    const messageTemplate = config.slackMessageTemplate ?? 'Report generated';
     const slackSent = await sendSlackReport(
       slackNotifier,
       messageTemplate,

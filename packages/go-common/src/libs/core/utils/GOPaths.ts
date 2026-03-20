@@ -441,7 +441,8 @@ export class GOPaths {
    * 1. Constructor option (baseDir)
    * 2. GO_BASE_DIR environment variable
    * 3. Monorepo root (if monorepo mode)
-   * 4. Current working directory
+   * 4. /tmp in AWS-managed environments (Lambda, ECS, etc. where cwd is read-only)
+   * 5. Current working directory
    */
   private resolveBaseDir(): string {
     // Priority 1: Constructor option
@@ -460,7 +461,12 @@ export class GOPaths {
       return this.environmentInfo.monorepoRoot;
     }
 
-    // Priority 4: Current working directory
+    // Priority 4: AWS-managed environments have read-only filesystems except /tmp
+    if (this.environmentInfo.isAWSManaged) {
+      return '/tmp';
+    }
+
+    // Priority 5: Current working directory
     return process.cwd();
   }
 

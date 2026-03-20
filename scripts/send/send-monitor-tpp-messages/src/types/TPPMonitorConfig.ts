@@ -9,8 +9,8 @@ export interface TPPMonitorConfig {
   /** End date for the query range */
   readonly to: string;
 
-  /** AWS SSO profile name */
-  readonly awsProfile: string;
+  /** AWS SSO profile name (optional in AWS-managed environments) */
+  readonly awsProfile?: string;
 
   /** AWS region (default: eu-south-1) */
   readonly awsRegion: string;
@@ -32,6 +32,9 @@ export interface TPPMonitorConfig {
 
   /** Delay between retries in milliseconds */
   readonly athenaRetryDelay: number;
+
+  /** SQL query template with placeholders */
+  readonly athenaQuery: string;
 
   /** Slack bot token (optional) */
   readonly slackToken?: string;

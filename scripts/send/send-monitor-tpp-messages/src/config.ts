@@ -40,8 +40,8 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'aws.profile',
     type: Core.GOConfigParameterType.STRING,
-    description: 'AWS SSO profile name (e.g., sso_pn-core-prod)',
-    required: true,
+    description: 'AWS SSO profile name (e.g., sso_pn-core-prod). Not required in AWS-managed environments.',
+    required: false,
     aliases: ['ap'],
   },
   {
@@ -99,6 +99,13 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     required: false,
     aliases: ['ard'],
     defaultValue: 5000,
+  },
+  {
+    name: 'athena.query',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'SQL query template with placeholders ({{startDate}}, {{endDate}}, partition keys, etc.)',
+    required: true,
+    aliases: ['aq'],
   },
 
   // Slack configuration (optional)

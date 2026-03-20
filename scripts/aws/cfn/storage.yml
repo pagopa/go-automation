@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Go Automation storage with input and output
+
+Parameters:
+  # Unused but required by CD pipeline
+  TemplateBucketBaseUrl:
+    Type: String
+    Description: URL da cui caricare i frammenti di template di infrastruttura
+  
+  LogRetention:
+    Type: Number
+    Default: 14
+    Description: 'Number of days to retain logs in CloudWatch.'
+
+Resources:
+  GoSendMonitorTppMessagesLambdaLogGroup:
+    Type: AWS::CloudFormation::Stack
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain    
+    Properties:
+      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/log-group.yaml"
+      Parameters:
+        LogGroupName: go-SendMonitorTppMessagesLambda
+        LogGroupPrefix: '/aws/lambda'
+        LogGroupRetention: !Ref LogRetention
+
+Outputs:
+  GoSendMonitorTppMessagesLambdaName:
+    Value: go-SendMonitorTppMessagesLambda

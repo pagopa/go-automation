@@ -120,7 +120,7 @@ export class GOEnvironmentConfigProvider extends GOConfigProviderBase {
         this.values.set(key, this.parseArrayValue(value));
       }
     } catch (error: unknown) {
-      throw new Error(`Failed to load environment file ${filePath}: ${getErrorMessage(error)}`);
+      throw new Error(`Failed to load environment file ${filePath}: ${getErrorMessage(error)}`, { cause: error });
     }
   }
 

@@ -1,0 +1,175 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: 'Go Automation Microservice stack'
+
+Parameters:
+  AlarmSNSTopicArn:
+    Type: String
+    Description: ARN of alarm topic
+
+  TemplateBucketBaseUrl:
+    Type: String
+    Description: 'The S3 bucket from which to fetch the templates used by this stack.'
+
+  Version:
+    Type: String
+    Description: 'keep track of used projects commitIds'
+
+  GoSendMonitorTppMessagesLambdaName:
+    Type: String
+    Description: 'The name of the lambda function used as wrapper for notification'
+    
+  GoSendMonitorTppMessagesLambdaTimeout:
+    Type: Number
+    Default: 30 
+    
+  GoSendMonitorTppMessagesLambdaMemorySize:
+    Type: Number
+    Default: 128
+
+  LambdasBucketName:
+    Type: String
+    Description: 'The name of the S3 bucket where lambda code is stored'
+    
+  BucketBasePath:
+    Type: String
+    Description: 'The base path inside the S3 bucket where lambda code and other resources are stored'
+
+  AthenaDatabase:
+    Type: String
+    Description: 'The name of the Athena database to query'
+    
+  AthenaCatalog:
+    Type: String
+    Description: 'The name of the Athena catalog to use'
+    
+  AthenaWorkgroup:
+    Type: String
+    Description: 'The name of the Athena workgroup to use for query execution'
+    
+  AthenaOutputBucket:
+    Type: String
+    Description: 'The S3 bucket where Athena query results are stored'
+    
+  AthenaMaxRetries:
+    Type: Number
+    Default: 3
+    Description: 'The maximum number of retry attempts for failed Athena queries'
+    
+  AthenaRetryDelay:
+    Type: Number
+    Default: 2000
+    Description: 'The delay in milliseconds between Athena query retry attempts'
+    
+  SlackChannel:
+    Type: String
+    Description: 'The Slack channel where notifications will be sent'
+    
+  ReportS3Bucket:
+    Type: String
+    Description: 'The S3 bucket where generated reports will be stored'
+    
+  Timezone:
+    Type: String
+    Description: 'The timezone to use for date formatting in notifications and reports'
+    Default: 'Europe/Rome'
+    
+  SlackTokenSecretName:
+    Type: String
+    Description: 'The name of the Secrets Manager secret that contains the Slack token'
+Resources:
+
+  GoSendMonitorTppMessagesLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref GoSendMonitorTppMessagesLambdaName
+      Runtime: nodejs24.x
+      Handler: "handler.handler"
+      Code:
+        S3Bucket: !Ref LambdasBucketName
+        S3Key: !Sub "${BucketBasePath}/go-SendMonitorTppMessagesLambda.zip"
+      Role: !GetAtt GoSendMonitorTppMessagesLambdaRole.Arn
+      Timeout: !Ref GoSendMonitorTppMessagesLambdaTimeout
+      MemorySize: !Ref GoSendMonitorTppMessagesLambdaMemorySize
+      Environment:
+        Variables:
+          ATHENA_DATABASE: !Ref AthenaDatabase
+          ATHENA_CATALOG: !Ref AthenaCatalog
+          ATHENA_WORKGROUP: !Ref AthenaWorkgroup
+          ATHENA_OUTPUT_LOCATION: !Sub "s3://${AthenaOutputBucket}/"
+          ATHENA_MAX_RETRIES: !Ref AthenaMaxRetries
+          ATHENA_RETRY_DELAY: !Ref AthenaRetryDelay
+          SLACK_CHANNEL: !Ref SlackChannel
+          REPORTS_S3_BUCKET: !Ref ReportS3Bucket
+          TZ: !Ref Timezone
+          SLACK_TOKEN: !Sub "{{resolve:secretsmanager:${SlackTokenSecretName}}}"
+          VERSION: !Ref Version
+      TracingConfig:
+        Mode: Active
+
+  GoSendMonitorTppMessagesLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: go-SendMonitorTppMessagesLambdaRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: AthenaGlueAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - athena:StartQueryExecution
+                  - athena:GetQueryExecution
+                  - athena:GetQueryResults
+                  - athena:StopQueryExecution
+                  - athena:GetDataCatalog
+                Resource:
+                  - !Sub "arn:aws:athena:${AWS::Region}:${AWS::AccountId}:workgroup/${AthenaWorkgroup}"
+                  - !Sub "arn:aws:athena:${AWS::Region}:${AWS::AccountId}:datacatalog/${AthenaCatalog}"
+              - Effect: Allow
+                Action:
+                  - glue:GetDatabase
+                  - glue:GetTable
+                  - glue:GetPartitions
+                  - glue:GetDatabases
+                  - glue:GetTables
+                Resource:
+                  - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog"
+                  - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/${AthenaDatabase}"
+                  - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/${AthenaDatabase}/*"
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:PutObject
+                Resource:
+                  - !Sub "arn:aws:s3:::${AthenaOutputBucket}" 
+                  - !Sub "arn:aws:s3:::${AthenaOutputBucket}/*"
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource:
+                  - !Sub "arn:aws:s3:::${ReportS3Bucket}/*"
+
+  GoSendMonitorTppMessagesLambdaAlarms:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/lambda-alarms.yaml"
+      Parameters:
+        FunctionName: !Ref GoSendMonitorTppMessagesLambda
+        AlarmSNSTopicArn: !Ref AlarmSNSTopicArn
