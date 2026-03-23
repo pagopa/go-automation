@@ -57,7 +57,7 @@
     "@aws-sdk/util-dynamodb": "^3.996.2",
     "cli-table3": "^0.6.5",
     "csv-parse": "^6.1.0",
-    "csv-stringify": "^6.6.0",
+    "csv-stringify": "^6.7.0",
     "luxon": "^3.7.2",
     "minimatch": "^10.2.4",
     "prompts": "^2.4.2",
