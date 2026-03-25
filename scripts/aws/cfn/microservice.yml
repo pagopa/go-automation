@@ -76,6 +76,15 @@ Parameters:
   SlackTokenSecretName:
     Type: String
     Description: 'The name of the Secrets Manager secret that contains the Slack token'
+    
+  LogsBucketKmsKeyArn:
+    Type: String
+    Description: 'The ARN of the KMS key used to encrypt the logs bucket'
+
+  LogsBucketName:
+    Type: String
+    Description: 'The name of the S3 bucket where Lambda logs will be stored'
+
 Resources:
 
   GoSendMonitorTppMessagesLambda:
@@ -165,6 +174,23 @@ Resources:
                   - s3:PutObject
                 Resource:
                   - !Sub "arn:aws:s3:::${ReportS3Bucket}/*"
+        - PolicyName: LogsBucketAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "arn:aws:s3:::${LogsBucketName}" 
+                  - !Sub "arn:aws:s3:::${LogsBucketName}/*"
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                Resource:
+                  - !Ref LogsBucketKmsKeyArn
 
   GoSendMonitorTppMessagesLambdaAlarms:
     Type: AWS::CloudFormation::Stack
