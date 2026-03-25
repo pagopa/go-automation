@@ -6,14 +6,14 @@ Script di automazione per il monitoraggio dello stato di cluster, servizi e task
 
 ## Indice
 
-- [Funzionalita](#funzionalita)
+- [Funzionalità](#funzionalità)
 - [Prerequisiti](#prerequisiti)
 - [Configurazione](#configurazione)
 - [Utilizzo](#utilizzo)
 - [Output](#output)
 - [Troubleshooting](#troubleshooting)
 
-## Funzionalita
+## Funzionalità
 
 Lo script esegue le seguenti operazioni:
 
@@ -41,11 +41,11 @@ Lo script esegue le seguenti operazioni:
 
 ### Parametri CLI
 
-| Parametro       | Alias | Tipo   | Obbligatorio | Default      | Descrizione                                      |
-| --------------- | ----- | ------ | ------------ | ------------ | ------------------------------------------------ |
-| `--aws-profiles`| `-aps`| array  | Si           | -            | Nomi dei profili AWS SSO (separati da virgola).  |
-| `--aws-region`  | `-r`  | string | No           | eu-south-1   | Regione AWS per le operazioni.                   |
-| `--ecs-clusters`| `-c`  | array  | No           | -            | Nomi o parti di nomi dei cluster da controllare. |
+| Parametro        | Alias  | Tipo   | Obbligatorio | Default    | Descrizione                                      |
+| ---------------- | ------ | ------ | ------------ | ---------- | ------------------------------------------------ |
+| `--aws-profiles` | `-aps` | array  | Si           | -          | Nomi dei profili AWS SSO (separati da virgola).  |
+| `--aws-region`   | `-r`   | string | No           | eu-south-1 | Regione AWS per le operazioni.                   |
+| `--ecs-clusters` | `-c`   | array  | No           | -          | Nomi o parti di nomi dei cluster da controllare. |
 
 ## Utilizzo
 
@@ -77,7 +77,7 @@ pnpm send:check:ecs:prod --aws-profiles <profile1>
   Target Clusters: ALL
 
 ► Profile: sso_pn-core-prod
-  
+
   Cluster: pn-core-prod (HEALTHY)
   Status: ACTIVE
   ARN: arn:aws:ecs:eu-south-1:123456789:cluster/pn-core-prod
