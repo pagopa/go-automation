@@ -13,7 +13,7 @@ import type { SendCheckEcsConfig } from './types/index.js';
  */
 export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<SendCheckEcsConfig>();
-  const region = config.awsRegion ?? 'eu-south-1';
+  const region = config.awsRegion ?? AWS.AWS_REGION;
 
   script.logger.section('ECS Check');
   script.logger.info(`Profiles: ${config.awsProfiles.join(', ')}`);
@@ -72,6 +72,5 @@ export async function main(script: Core.GOScript): Promise<void> {
     script.logger.success('All checks completed.');
   } finally {
     multiProvider.close();
-    script.prompt.stopSpinner();
   }
 }
