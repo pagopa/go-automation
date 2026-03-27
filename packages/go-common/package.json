@@ -45,7 +45,7 @@
     "@aws-sdk/client-sqs": "^3.1010.0",
     "@aws-sdk/client-ssm": "^3.1010.0",
     "@aws-sdk/client-sts": "^3.1010.0",
-    "@aws-sdk/credential-provider-ini": "^3.972.20"
+    "@aws-sdk/credential-provider-ini": "^3.972.25"
   },
   "dependencies": {
     "@aws-sdk/client-cloudwatch": "^3.1010.0",
@@ -53,7 +53,7 @@
     "@aws-sdk/client-ecs": "^3.1010.0",
     "@aws-sdk/client-sqs": "^3.1010.0",
     "@aws-sdk/client-sts": "^3.1010.0",
-    "@aws-sdk/credential-provider-ini": "^3.972.20",
+    "@aws-sdk/credential-provider-ini": "^3.972.25",
     "@aws-sdk/credential-providers": "^3.1010.0",
     "@aws-sdk/util-dynamodb": "^3.996.2",
     "cli-table3": "^0.6.5",
