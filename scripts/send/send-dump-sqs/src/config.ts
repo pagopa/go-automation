@@ -27,13 +27,27 @@ export const scriptMetadata: Core.GOScriptMetadata = {
   name: 'SEND Dump SQS',
   version: '1.1.0',
   description: 'Read-only dump of all messages from an SQS queue in NDJSON format.',
-  authors: ['Team GO'],
+  authors: ['Team GO - Gestione Operativa'],
 };
 
 /**
  * Script parameter definitions
  */
 export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+  {
+    name: 'aws.profile',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'AWS SSO profile name',
+    required: true,
+    aliases: ['ap'],
+  },
+  {
+    name: 'aws.region',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'AWS region (default: eu-south-1)',
+    required: false,
+    aliases: ['r'],
+  },
   {
     name: 'queue.name',
     type: Core.GOConfigParameterType.STRING,
@@ -44,10 +58,10 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'visibility.timeout',
     type: Core.GOConfigParameterType.INT,
-    description: 'Visibility timeout for received messages in seconds (default: 30)',
+    description: 'Visibility timeout for received messages in seconds (default: 60)',
     required: false,
     aliases: ['vt'],
-    defaultValue: 30,
+    defaultValue: 60,
   },
   {
     name: 'limit',
@@ -85,6 +99,12 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
  * Script configuration interface
  */
 export interface SendDumpSqsConfig {
+  /** AWS SSO profile name */
+  readonly awsProfile: string;
+
+  /** AWS region */
+  readonly awsRegion: string | undefined;
+
   /** Target SQS queue name */
   readonly queueName: string;
 

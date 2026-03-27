@@ -17,7 +17,7 @@ Script che effettua il dump di tutti i messaggi presenti in una coda **SQS** in 
 
 ## Come funziona
 
-1. **Inizializzazione** — Recupera l'URL e gli attributi della coda (dimensione, tipo FIFO). Mostra un warning se la dimensione supera i limiti di messaggi "in-flight" di SQS.
+1. **Inizializzazione** — Recupera l'URL e gli attributi della coda (dimensione, tipo FIFO) utilizzando il profilo e la regione specificati. Mostra un warning se la dimensione supera i limiti di messaggi "in-flight" di SQS.
 2. **Long Polling** — Utilizza il long polling (20 secondi) per ridurre le risposte vuote e interrogare tutti i server SQS distribuite.
 3. **Ricezione e Deduplicazione** — Riceve messaggi in batch e applica la logica di deduplicazione scelta (default: `message-id`).
 4. **Export NDJSON** — Ogni messaggio unico viene salvato in una riga del file di output.
@@ -38,12 +38,18 @@ Script che effettua il dump di tutti i messaggi presenti in una coda **SQS** in 
 
 La sessione SSO deve essere attiva per il profilo AWS utilizzato.
 
+```bash
+aws sso login --profile <nome-profilo>
+```
+
 ---
 
 ## Parametri
 
 | Parametro              | Alias   | Tipo     | Obbligatorio | Default      | Descrizione                                                                 |
 | ---------------------- | ------- | -------- | ------------ | ------------ | --------------------------------------------------------------------------- |
+| `--aws-profile`        | `--ap`  | `string` | Sì           | —            | Nome del profilo AWS SSO                                                    |
+| `--aws-region`         | `-r`    | `string` | No           | `eu-south-1` | Regione AWS                                                                 |
 | `--queue-name`         | `--qn`  | `string` | Sì           | —            | Nome della coda SQS                                                         |
 | `--visibility-timeout` | `--vt`  | `number` | No           | `30`         | Timeout di visibilità per i messaggi ricevuti                               |
 | `--limit`              | `-l`    | `number` | No           | —            | Numero massimo di messaggi da scaricare                                     |
@@ -78,13 +84,13 @@ Dato che i messaggi non vengono eliminati, lo script potrebbe ricevere lo stesso
 pnpm --filter=send-dump-sqs start --qn la-mia-coda --aws-profile mio-profilo
 
 # Dump con filtro sul contenuto (MD5)
-pnpm --filter=send-dump-sqs start --qn la-mia-coda --dm content-md5
+pnpm --filter=send-dump-sqs start --qn la-mia-coda --dm content-md5 --aws-profile mio-profilo
 
 # Dump veloce con limite di messaggi
-pnpm --filter=send-dump-sqs start --qn la-mia-coda -l 1000
+pnpm --filter=send-dump-sqs start --qn la-mia-coda -l 1000 --aws-profile mio-profilo
 ```
 
 ---
 
 **Ultima modifica**: 2026-03-27
-**Maintainer**: Team SEND
+**Maintainer**: Team GO - Gestione Operativa

@@ -11,8 +11,13 @@
  * - Progress estimation and capacity warnings.
  */
 
-import { GetQueueAttributesCommand, GetQueueUrlCommand, ReceiveMessageCommand } from '@aws-sdk/client-sqs';
-import { Core } from '@go-automation/go-common';
+import {
+  GetQueueAttributesCommand,
+  GetQueueUrlCommand,
+  ReceiveMessageCommand,
+  type QueueAttributeName,
+} from '@aws-sdk/client-sqs';
+import { AWS, Core } from '@go-automation/go-common';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -29,14 +34,24 @@ const WAIT_TIME_SECONDS = 20;
  */
 export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<SendDumpSqsConfig>();
-  const sqsClient = script.aws.sqs;
 
   script.logger.section('SEND Dump SQS');
+  script.logger.info(`Profile: ${config.awsProfile}`);
+  script.logger.info(`Region: ${config.awsRegion}`);
   script.logger.info(`Queue: ${config.queueName}`);
   script.logger.info(`Visibility Timeout: ${config.visibilityTimeout}s`);
   script.logger.info(`Deduplication Mode: ${config.dedupMode}`);
   if (config.limit !== undefined) {
     script.logger.info(`Limit: ${config.limit} messages`);
+  }
+
+  // Warning if visibility timeout is too short compared to polling strategy
+  const pollingWindow = WAIT_TIME_SECONDS * config.maxEmptyReceives;
+  if (config.visibilityTimeout < pollingWindow) {
+    script.logger.warning(
+      `Visibility Timeout (${config.visibilityTimeout}s) is shorter than the polling window (${pollingWindow}s). ` +
+        'Messages may reappear and be received again before the dump completes.',
+    );
   }
 
   // Resolve output path
@@ -54,53 +69,74 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.info(`Output file: ${outputPathInfo.path}`);
   script.logger.newline();
 
-  // Get Queue URL and Attributes
-  script.prompt.spin('init', `Initializing dump for queue "${config.queueName}"...`);
-  let queueUrl: string;
+  // Initialize AWS provider with specific profile and region
+  const region = config.awsRegion ?? AWS.AWS_REGION; // Ensure region is always a string
+  script.logger.info(`Region: ${region}`); // Log the determined region
+
+  const awsProviderConfig: AWS.AWSClientProviderConfig = {
+    profile: config.awsProfile,
+    region: region, // Pass the guaranteed string region
+  };
+  const awsProvider = new AWS.AWSClientProvider(awsProviderConfig);
+
+  const sqsClient = awsProvider.sqs;
+
   try {
-    const getUrlResponse = await sqsClient.send(new GetQueueUrlCommand({ QueueName: config.queueName }));
-    if (getUrlResponse.QueueUrl === undefined) {
-      throw new Error(`Queue URL not found for "${config.queueName}"`);
-    }
-    queueUrl = getUrlResponse.QueueUrl;
+    // Get Queue URL and Attributes
+    script.prompt.spin('init', `Initializing dump for queue "${config.queueName}"...`);
+    let queueUrl: string;
+    try {
+      const getUrlResponse = await sqsClient.send(new GetQueueUrlCommand({ QueueName: config.queueName }));
+      if (getUrlResponse.QueueUrl === undefined) {
+        throw new Error(`Queue URL not found for "${config.queueName}"`);
+      }
+      queueUrl = getUrlResponse.QueueUrl;
 
-    const getAttrResponse = await sqsClient.send(
-      new GetQueueAttributesCommand({
-        QueueUrl: queueUrl,
-        AttributeNames: ['ApproximateNumberOfMessages', 'FifoQueue'],
-      }),
-    );
+      const isFifoByName = config.queueName.endsWith('.fifo');
+      const attributeNames: QueueAttributeName[] = ['ApproximateNumberOfMessages'];
+      if (isFifoByName) {
+        attributeNames.push('FifoQueue');
+      }
 
-    const isFifo = getAttrResponse.Attributes?.FifoQueue === 'true';
-    const approxMessages = parseInt(getAttrResponse.Attributes?.ApproximateNumberOfMessages ?? '0', 10);
-    const inFlightLimit = isFifo ? 20000 : 120000;
-
-    script.prompt.spinSucceed(
-      'init',
-      `Queue initialized. Approx. messages: ${approxMessages}${isFifo ? ' (FIFO)' : ''}`,
-    );
-
-    if (approxMessages > inFlightLimit) {
-      script.logger.warning(
-        `Queue size (${approxMessages}) exceeds SQS in-flight message limit (${inFlightLimit}). ` +
-          'Dumping without deleting will stop once the limit is reached.',
+      const getAttrResponse = await sqsClient.send(
+        new GetQueueAttributesCommand({
+          QueueUrl: queueUrl,
+          AttributeNames: attributeNames,
+        }),
       );
+
+      const isFifo = isFifoByName || getAttrResponse.Attributes?.FifoQueue === 'true';
+      const approxMessages = parseInt(getAttrResponse.Attributes?.ApproximateNumberOfMessages ?? '0', 10);
+      const inFlightLimit = isFifo ? 20000 : 120000;
+
+      script.prompt.spinSucceed(
+        'init',
+        `Queue initialized. Approx. messages: ${approxMessages}${isFifo ? ' (FIFO)' : ''}`,
+      );
+
+      if (approxMessages > inFlightLimit) {
+        script.logger.warning(
+          `Queue size (${approxMessages}) exceeds SQS in-flight message limit (${inFlightLimit}). ` +
+            'Dumping without deleting will stop once the limit is reached.',
+        );
+      }
+    } catch (error) {
+      script.prompt.spinFail(
+        'init',
+        `Failed to initialize queue: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw error;
     }
-  } catch (error) {
-    script.prompt.spinFail('init', `Failed to initialize queue: ${error instanceof Error ? error.message : String(error)}`);
-    throw error;
-  }
 
-  // Dump loop state
-  let totalReceived = 0;
-  let totalDumped = 0;
-  let totalDuplicates = 0;
-  let consecutiveEmptyReceives = 0;
-  const seenKeys = new Set<string>();
+    // Dump loop state
+    let totalReceived = 0;
+    let totalDumped = 0;
+    let totalDuplicates = 0;
+    let consecutiveEmptyReceives = 0;
+    const seenKeys = new Set<string>();
 
-  script.prompt.startSpinner('Dumping messages...');
+    script.prompt.startSpinner('Dumping messages...');
 
-  try {
     while (consecutiveEmptyReceives < config.maxEmptyReceives) {
       // Check limit
       if (config.limit !== undefined && totalDumped >= config.limit) {
@@ -135,11 +171,8 @@ export async function main(script: Core.GOScript): Promise<void> {
         continue;
       }
 
-      // Reset empty counter on success
-      consecutiveEmptyReceives = 0;
-      totalReceived += messages.length;
-
-      // Process messages
+      // Process messages and count unique
+      let newMessagesInBatch = 0;
       for (const message of messages) {
         let isDuplicate = false;
 
@@ -167,10 +200,26 @@ export async function main(script: Core.GOScript): Promise<void> {
           // Append to NDJSON file
           fs.appendFileSync(outputPathInfo.path, `${JSON.stringify(message)}\n`, 'utf-8');
           totalDumped++;
+          newMessagesInBatch++;
         }
       }
 
-      script.prompt.updateSpinner(`Dumped: ${totalDumped} | Received: ${totalReceived} | Duplicates: ${totalDuplicates}`);
+      totalReceived += messages.length;
+
+      if (newMessagesInBatch > 0) {
+        // Reset empty counter only if we found NEW unique messages
+        consecutiveEmptyReceives = 0;
+      } else {
+        // If we got messages but all were duplicates, treat it as a "non-productive" poll
+        consecutiveEmptyReceives++;
+        script.prompt.updateSpinner(
+          `Only duplicates received (${consecutiveEmptyReceives}/${config.maxEmptyReceives})... Still searching...`,
+        );
+      }
+
+      script.prompt.updateSpinner(
+        `Dumped: ${totalDumped} | Received: ${totalReceived} | Duplicates: ${totalDuplicates}`,
+      );
     }
 
     const stopReason =
@@ -186,8 +235,9 @@ export async function main(script: Core.GOScript): Promise<void> {
         `  - File: ${outputPathInfo.path}`,
     );
   } catch (error) {
-    script.prompt.spinnerStop();
     script.logger.error(`Error during dump: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
+  } finally {
+    awsProvider.close();
   }
 }
