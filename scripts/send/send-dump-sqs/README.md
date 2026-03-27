@@ -46,16 +46,16 @@ aws sso login --profile <nome-profilo>
 
 ## Parametri
 
-| Parametro              | Alias   | Tipo     | Obbligatorio | Default      | Descrizione                                                                 |
-| ---------------------- | ------- | -------- | ------------ | ------------ | --------------------------------------------------------------------------- |
-| `--aws-profile`        | `--ap`  | `string` | Sì           | —            | Nome del profilo AWS SSO                                                    |
-| `--aws-region`         | `-r`    | `string` | No           | `eu-south-1` | Regione AWS                                                                 |
-| `--queue-name`         | `--qn`  | `string` | Sì           | —            | Nome della coda SQS                                                         |
-| `--visibility-timeout` | `--vt`  | `number` | No           | `30`         | Timeout di visibilità per i messaggi ricevuti                               |
-| `--limit`              | `-l`    | `number` | No           | —            | Numero massimo di messaggi da scaricare                                     |
-| `--dedup-mode`         | `--dm`  | `enum`   | No           | `message-id` | Modalità di deduplicazione (`message-id`, `content-md5`, `none`)            |
-| `--max-empty-receives` | `--mer` | `number` | No           | `3`          | Poll vuoti consecutivi prima di fermarsi                                    |
-| `--output-file`        | `-o`    | `string` | No           | —            | Percorso personalizzato del file di output (relativo a `data/` o assoluto)  |
+| Parametro              | Alias   | Tipo     | Obbligatorio | Default      | Descrizione                                                                |
+| ---------------------- | ------- | -------- | ------------ | ------------ | -------------------------------------------------------------------------- |
+| `--aws-profile`        | `--ap`  | `string` | Sì           | —            | Nome del profilo AWS SSO                                                   |
+| `--aws-region`         | `-r`    | `string` | No           | `eu-south-1` | Regione AWS                                                                |
+| `--queue-name`         | `--qn`  | `string` | Sì           | —            | Nome della coda SQS                                                        |
+| `--visibility-timeout` | `--vt`  | `number` | No           | `30`         | Timeout di visibilità per i messaggi ricevuti                              |
+| `--limit`              | `-l`    | `number` | No           | —            | Numero massimo di messaggi da scaricare                                    |
+| `--dedup-mode`         | `--dm`  | `enum`   | No           | `message-id` | Modalità di deduplicazione (`message-id`, `content-md5`, `none`)           |
+| `--max-empty-receives` | `--mer` | `number` | No           | `3`          | Poll vuoti consecutivi prima di fermarsi                                   |
+| `--output-file`        | `-o`    | `string` | No           | —            | Percorso personalizzato del file di output (relativo a `data/` o assoluto) |
 
 ---
 
