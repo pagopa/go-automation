@@ -23,8 +23,8 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1010.0",
-    "@aws-sdk/credential-provider-ini": "^3.972.20",
+    "@aws-sdk/client-s3": "^3.1018.0",
+    "@aws-sdk/credential-provider-ini": "^3.972.25",
     "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {
