@@ -13,6 +13,8 @@ import { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
 import type { CloudWatchClientConfig } from '@aws-sdk/client-cloudwatch';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import type { SQSClientConfig } from '@aws-sdk/client-sqs';
+import { ECSClient } from '@aws-sdk/client-ecs';
+import type { ECSClientConfig } from '@aws-sdk/client-ecs';
 import { fromIni } from '@aws-sdk/credential-provider-ini';
 
 import { AWS_REGION } from './AWSRegion.js';
@@ -57,12 +59,14 @@ export class AWSClientProvider {
   private readonly cloudWatchClientConfig: CloudWatchClientConfig;
   private readonly sqsClientConfig: SQSClientConfig;
   private readonly secClientConfig: S3ClientConfig;
+  private readonly ecsClientConfig: ECSClientConfig;
 
   // Cached client instances (lazy initialization)
   private cachedDynamoDBClient: DynamoDBClient | null = null;
   private cachedCloudWatchClient: CloudWatchClient | null = null;
   private cachedSQSClient: SQSClient | null = null;
   private cachedS3Client: S3Client | null = null;
+  private cachedECSClient: ECSClient | null = null;
 
   constructor(config: AWSClientProviderConfig) {
     this.profile = config.profile;
@@ -80,6 +84,10 @@ export class AWSClientProvider {
       credentials: fromIni({ profile: this.profile }),
     };
     this.secClientConfig = {
+      region: this.region,
+      credentials: fromIni({ profile: this.profile }),
+    };
+    this.ecsClientConfig = {
       region: this.region,
       credentials: fromIni({ profile: this.profile }),
     };
@@ -122,6 +130,15 @@ export class AWSClientProvider {
   }
 
   /**
+   * Returns the cached ECSClient instance.
+   * Creates the client on first access.
+   */
+  get ecs(): ECSClient {
+    this.cachedECSClient ??= new ECSClient(this.ecsClientConfig);
+    return this.cachedECSClient;
+  }
+
+  /**
    * Returns the configured AWS profile name
    */
   getProfile(): string {
@@ -153,6 +170,16 @@ export class AWSClientProvider {
     if (this.cachedSQSClient !== null) {
       this.cachedSQSClient.destroy();
       this.cachedSQSClient = null;
+    }
+
+    if (this.cachedECSClient !== null) {
+      this.cachedECSClient.destroy();
+      this.cachedECSClient = null;
+    }
+
+    if (this.cachedS3Client !== null) {
+      this.cachedS3Client.destroy();
+      this.cachedS3Client = null;
     }
   }
 }

@@ -1,10 +1,14 @@
 {
-  "name": "go-report-alarms",
-  "version": "1.2.0",
+  "name": "send-check-ecs",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Script di analisi degli allarmi CloudWatch per il team GO - Gestione Operativa",
+  "description": "Checks status of ECS clusters, services and tasks",
   "main": "dist/index.js",
+  "files": [
+    "dist",
+    "package.json"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "pnpm build && node dist/index.js",
@@ -13,28 +17,18 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "keywords": [
-    "cloudwatch",
-    "alarms",
-    "aws",
-    "report",
-    "typescript",
-    "go-automation"
-  ],
-  "files": [
-    "dist",
-    "package.json",
-    "configs/config.json"
+    "send",
+    "go-automation",
+    "ecs"
   ],
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-cloudwatch": "^3.1018.0",
+    "@aws-sdk/client-ecs": "^3.1018.0",
     "@aws-sdk/credential-provider-ini": "^3.972.25",
-    "@go-automation/go-common": "workspace:*",
-    "luxon": "^3.7.2"
+    "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {
-    "@types/luxon": "^3.7.1",
     "@types/node": "^24.12.0"
   }
 }
