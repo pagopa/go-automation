@@ -211,6 +211,22 @@ importers:
         specifier: ^24.12.0
         version: 24.12.0
 
+  scripts/send/send-check-ecs:
+    dependencies:
+      '@aws-sdk/client-ecs':
+        specifier: ^3.1010.0
+        version: 3.1011.0
+      '@aws-sdk/credential-provider-ini':
+        specifier: ^3.972.20
+        version: 3.972.20
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+    devDependencies:
+      '@types/node':
+        specifier: ^24.12.0
+        version: 24.12.0
+
   scripts/send/send-download-safestorage-attachments:
     dependencies:
       '@aws-sdk/client-s3':
