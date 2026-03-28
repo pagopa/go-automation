@@ -31,7 +31,7 @@ export async function main(script: Core.GOScript): Promise<void> {
       if (!line.trim()) continue;
       try {
         const obj = JSON.parse(line) as unknown;
-        processObject(obj, config.field, values);
+        processObject(obj, config.field, values, logger, `linea ${lineNum}`);
       } catch (_err) {
         logger.warning(`Linea ${lineNum} non valida JSON: saltata.`);
       }
@@ -41,9 +41,9 @@ export async function main(script: Core.GOScript): Promise<void> {
     const content = fs.readFileSync(inputPath, 'utf8');
     const data = JSON.parse(content) as unknown;
     if (Array.isArray(data)) {
-      data.forEach((obj) => processObject(obj as unknown, config.field, values));
+      data.forEach((obj, index) => processObject(obj as unknown, config.field, values, logger, `indice ${index}`));
     } else {
-      processObject(data, config.field, values);
+      processObject(data, config.field, values, logger);
     }
   }
 
@@ -58,10 +58,18 @@ export async function main(script: Core.GOScript): Promise<void> {
   logger.info(`Estrazione completata! ${values.size} valori unici salvati in: ${outputPath}`);
 }
 
-function processObject(obj: unknown, field: string, collector: Set<string>): void {
+function processObject(
+  obj: unknown,
+  field: string,
+  collector: Set<string>,
+  logger: Core.GOLogger,
+  context?: string,
+): void {
   const val = ExtractionEngine.extract(obj, field);
   if (val !== undefined && val !== null) {
     collector.add(typeof val === 'string' ? val : JSON.stringify(val));
+  } else {
+    logger.warning(`Campo "${field}" non trovato nell'oggetto${context ? ` (${context})` : ''}: saltato.`);
   }
 }
 
