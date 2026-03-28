@@ -20,57 +20,62 @@ export async function main(script: Core.GOScript): Promise<void> {
   if (isNDJSON) {
     logger.info('File rilevato come NDJSON. Inizio streaming...');
     const fileStream = fs.createReadStream(inputPath);
-    const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+    const rl = readline.createInterface({
+      input: fileStream,
+      crlfDelay: Infinity,
+    });
 
     let lineNum = 0;
     for await (const line of rl) {
       lineNum++;
       if (!line.trim()) continue;
       try {
-        const obj = JSON.parse(line);
+        const obj = JSON.parse(line) as unknown;
         processObject(obj, config.field, values);
-      } catch (err) {
+      } catch (_err) {
         logger.warning(`Linea ${lineNum} non valida JSON: saltata.`);
       }
     }
   } else {
     logger.info('File rilevato come JSON Standard. Caricamento in memoria...');
     const content = fs.readFileSync(inputPath, 'utf8');
-    const data = JSON.parse(content);
+    const data = JSON.parse(content) as unknown;
     if (Array.isArray(data)) {
-      data.forEach((obj) => processObject(obj, config.field, values));
+      data.forEach((obj) => processObject(obj as unknown, config.field, values));
     } else {
       processObject(data, config.field, values);
     }
   }
 
   const result = Array.from(values).sort().join('\n');
-  const outputPath = config.outputFile 
-    ? path.resolve(config.outputFile) 
+  const outputPath = config.outputFile
+    ? path.resolve(config.outputFile)
     : path.join(process.cwd(), 'data', `extracted_${Date.now()}.txt`);
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, result);
-  
+
   logger.info(`Estrazione completata! ${values.size} valori unici salvati in: ${outputPath}`);
 }
 
-function processObject(obj: any, field: string, collector: Set<string>): void {
+function processObject(obj: unknown, field: string, collector: Set<string>): void {
   const val = ExtractionEngine.extract(obj, field);
   if (val !== undefined && val !== null) {
-    collector.add(String(val));
+    collector.add(typeof val === 'string' ? val : JSON.stringify(val));
   }
 }
 
 async function detectNDJSON(filePath: string): Promise<boolean> {
   if (filePath.endsWith('.ndjson')) return true;
   if (filePath.endsWith('.jsonl')) return true;
-  
+
   const stream = fs.createReadStream(filePath, { start: 0, end: 10 });
   for await (const chunk of stream) {
-    const start = chunk.toString().trim();
-    if (start.startsWith('{')) return true;
-    if (start.startsWith('[')) return false;
+    if (Buffer.isBuffer(chunk) || typeof chunk === 'string') {
+      const start = chunk.toString().trim();
+      if (start.startsWith('{')) return true;
+      if (start.startsWith('[')) return false;
+    }
   }
   return false;
 }

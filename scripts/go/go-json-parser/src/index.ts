@@ -7,6 +7,8 @@ const script = new Core.GOScript({
   config: { parameters: scriptParameters },
 });
 
-script.run(async () => {
-  await main(script);
-}).catch(() => process.exit(1));
+script
+  .run(async () => {
+    await main(script);
+  })
+  .catch(() => process.exit(1));
