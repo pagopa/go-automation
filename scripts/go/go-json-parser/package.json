@@ -1,5 +1,5 @@
 {
-  "name": "@go-automation/go-json-parser",
+  "name": "go-json-parser",
   "version": "1.0.0",
   "description": "Extract fields from JSON/NDJSON files with path-first and recursive fallback",
   "main": "dist/index.js",
