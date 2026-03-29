@@ -61,9 +61,9 @@ pnpm go:json:parser:prod --input-file ./data/input.json --field metadata.id --ou
 
 Lo script utilizza una strategia "Path-First with Recursive Fallback":
 
-1.  **Percorso Esatto**: Tenta di risolvere il campo usando il percorso fornito (es. `user.address.city`).
-2.  **Ricerca Ricorsiva**: Se il percorso non produce risultati, lo script cerca l'ultima parte della stringa (es. `city`) ricorsivamente all'interno di tutto l'oggetto.
-3.  **Salvataggio**: Se il valore viene trovato, viene convertito in stringa e aggiunto alla collezione dei risultati.
+1. **Percorso Esatto**: Tenta di risolvere il campo usando il percorso fornito (es. `user.address.city`).
+2. **Ricerca Ricorsiva**: Se il percorso non produce risultati, lo script cerca l'ultima parte della stringa (es. `city`) ricorsivamente all'interno di tutto l'oggetto.
+3. **Salvataggio**: Se il valore viene trovato, viene convertito in stringa e aggiunto alla collezione dei risultati.
 
 ## Output
 
