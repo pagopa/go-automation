@@ -1,0 +1,33 @@
+{
+  "name": "send-dump-sqs",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Read-only dump of all messages from an SQS queue in NDJSON format.",
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "pnpm build && node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "keywords": [
+    "send",
+    "go-automation",
+    "sqs"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-sqs": "^3.1010.0",
+    "@go-automation/go-common": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.0"
+  }
+}
