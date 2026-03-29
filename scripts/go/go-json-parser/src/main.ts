@@ -9,7 +9,10 @@ export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<GoJsonParserConfig>();
   const logger = script.logger;
 
-  const inputPath = path.resolve(config.inputFile);
+  const inputPath = path.isAbsolute(config.inputFile)
+    ? config.inputFile
+    : path.resolve(script.paths.getBaseDir(), config.inputFile);
+
   if (!fs.existsSync(inputPath)) {
     throw new Error(`File non trovato: ${inputPath}`);
   }
@@ -49,8 +52,10 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   const result = Array.from(values).sort().join('\n');
   const outputPath = config.outputFile
-    ? path.resolve(config.outputFile)
-    : path.join(process.cwd(), 'data', `extracted_${Date.now()}.txt`);
+    ? path.isAbsolute(config.outputFile)
+      ? config.outputFile
+      : path.resolve(script.paths.getBaseDir(), config.outputFile)
+    : path.join(script.paths.getOutputsBaseDir(), `extracted_${Date.now()}.txt`);
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, result);

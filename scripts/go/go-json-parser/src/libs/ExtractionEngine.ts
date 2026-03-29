@@ -18,14 +18,29 @@ export class ExtractionEngine {
   }
 
   private static recursiveSearch(obj: unknown, key: string): unknown {
-    if (obj === null || typeof obj !== 'object') return undefined;
-    const record = obj as Record<string, unknown>;
-    if (Object.prototype.hasOwnProperty.call(record, key)) return record[key];
+    if (obj === null) return undefined;
 
-    for (const value of Object.values(record)) {
-      const found = this.recursiveSearch(value, key);
-      if (found !== undefined) return found;
+    // Se è un oggetto, cerchiamo nelle sue chiavi
+    if (typeof obj === 'object') {
+      const record = obj as Record<string, unknown>;
+      if (Object.prototype.hasOwnProperty.call(record, key)) return record[key];
+
+      for (const value of Object.values(record)) {
+        const found = this.recursiveSearch(value, key);
+        if (found !== undefined) return found;
+      }
     }
+
+    // Se è una stringa, proviamo a vedere se è un JSON validabile (es. SQS Body)
+    if (typeof obj === 'string' && (obj.startsWith('{') || obj.startsWith('['))) {
+      try {
+        const parsed = JSON.parse(obj) as unknown;
+        return this.recursiveSearch(parsed, key);
+      } catch (_err) {
+        // Non è un JSON valido, ignoriamo
+      }
+    }
+
     return undefined;
   }
 }
