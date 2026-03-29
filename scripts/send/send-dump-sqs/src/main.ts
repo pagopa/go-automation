@@ -17,9 +17,8 @@ import {
   ReceiveMessageCommand,
   type QueueAttributeName,
 } from '@aws-sdk/client-sqs';
-import { AWS, Core } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 
 import { SendDumpSqsDedupMode, type SendDumpSqsConfig } from './config.js';
 
@@ -36,14 +35,6 @@ export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<SendDumpSqsConfig>();
 
   script.logger.section('SEND Dump SQS');
-  script.logger.info(`Profile: ${config.awsProfile}`);
-  script.logger.info(`Region: ${config.awsRegion}`);
-  script.logger.info(`Queue: ${config.queueName}`);
-  script.logger.info(`Visibility Timeout: ${config.visibilityTimeout}s`);
-  script.logger.info(`Deduplication Mode: ${config.dedupMode}`);
-  if (config.limit !== undefined) {
-    script.logger.info(`Limit: ${config.limit} messages`);
-  }
 
   // Warning if visibility timeout is too short compared to polling strategy
   const pollingWindow = WAIT_TIME_SECONDS * config.maxEmptyReceives;
@@ -60,26 +51,10 @@ export async function main(script: Core.GOScript): Promise<void> {
   const outputFile = config.outputFile ?? defaultOutputFile;
   const outputPathInfo = script.paths.resolvePathWithInfo(outputFile, Core.GOPathType.OUTPUT);
 
-  // Ensure output directory exists
-  const outputDir = path.dirname(outputPathInfo.path);
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
-
   script.logger.info(`Output file: ${outputPathInfo.path}`);
   script.logger.newline();
 
-  // Initialize AWS provider with specific profile and region
-  const region = config.awsRegion ?? AWS.AWS_REGION; // Ensure region is always a string
-  script.logger.info(`Region: ${region}`); // Log the determined region
-
-  const awsProviderConfig: AWS.AWSClientProviderConfig = {
-    profile: config.awsProfile,
-    region: region, // Pass the guaranteed string region
-  };
-  const awsProvider = new AWS.AWSClientProvider(awsProviderConfig);
-
-  const sqsClient = awsProvider.sqs;
+  const sqsClient = script.aws.sqs;
 
   try {
     // Get Queue URL and Attributes
@@ -237,7 +212,5 @@ export async function main(script: Core.GOScript): Promise<void> {
   } catch (error) {
     script.logger.error(`Error during dump: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
-  } finally {
-    awsProvider.close();
   }
 }

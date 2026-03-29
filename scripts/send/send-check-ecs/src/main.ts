@@ -1,4 +1,4 @@
-import { AWS, Core } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
 
 import { displayClusterReport } from './libs/ECSReportDisplay.js';
 import { ECSService } from './libs/ECSService.js';
@@ -13,11 +13,8 @@ import type { SendCheckEcsConfig } from './types/index.js';
  */
 export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<SendCheckEcsConfig>();
-  const region = config.awsRegion ?? AWS.AWS_REGION;
 
   script.logger.section('ECS Check');
-  script.logger.info(`Profiles: ${config.awsProfiles.join(', ')}`);
-  script.logger.info(`Region: ${region}`);
   if (config.ecsClusters && config.ecsClusters.length > 0) {
     script.logger.info(`Target Clusters: ${config.ecsClusters.join(', ')}`);
   } else {
@@ -25,15 +22,10 @@ export async function main(script: Core.GOScript): Promise<void> {
   }
   script.logger.newline();
 
-  const multiProvider = new AWS.AWSMultiClientProvider({
-    profiles: config.awsProfiles,
-    region,
-  });
-
   try {
     script.prompt.spin('fetch', 'Fetching ECS data from all profiles...');
 
-    const { results, errors } = await multiProvider.mapParallelSettled(async (_, clientProvider) => {
+    const { results, errors } = await script.awsMulti.mapParallelSettled(async (_, clientProvider) => {
       const ecsService = new ECSService(clientProvider.ecs);
 
       const clusterArns = await ecsService.listClusters(config.ecsClusters);
@@ -70,7 +62,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     }
 
     script.logger.success('All checks completed.');
-  } finally {
-    multiProvider.close();
+  } catch (error) {
+    throw error;
   }
 }

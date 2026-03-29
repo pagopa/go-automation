@@ -42,13 +42,6 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     aliases: ['ap'],
   },
   {
-    name: 'aws.region',
-    type: Core.GOConfigParameterType.STRING,
-    description: 'AWS region (default: eu-south-1)',
-    required: false,
-    aliases: ['r'],
-  },
-  {
     name: 'queue.name',
     type: Core.GOConfigParameterType.STRING,
     description: 'Target SQS queue name',
@@ -101,9 +94,6 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
 export interface SendDumpSqsConfig {
   /** AWS SSO profile name */
   readonly awsProfile: string;
-
-  /** AWS region */
-  readonly awsRegion: string | undefined;
 
   /** Target SQS queue name */
   readonly queueName: string;
