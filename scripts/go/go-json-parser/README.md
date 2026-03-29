@@ -37,11 +37,11 @@ Lo script esegue le seguenti operazioni:
 
 ### Parametri CLI
 
-| Parametro        | Alias | Tipo   | Obbligatorio | Descrizione                                                                 |
-| ---------------- | ----- | ------ | ------------ | --------------------------------------------------------------------------- |
-| `--input-file`   | `-i`  | string | Sì           | Percorso del file JSON o NDJSON da analizzare.                              |
-| `--field`        | `-f`  | string | Sì           | Nome del campo da estrarre (es. `id`, `user.profile.email`).                |
-| `--output-file`  | `-o`  | string | No           | Percorso del file di output (TXT). Default: `data/extracted_[timestamp].txt`. |
+| Parametro       | Alias | Tipo   | Obbligatorio | Descrizione                                                                   |
+| --------------- | ----- | ------ | ------------ | ----------------------------------------------------------------------------- |
+| `--input-file`  | `-i`  | string | Sì           | Percorso del file JSON o NDJSON da analizzare.                                |
+| `--field`       | `-f`  | string | Sì           | Nome del campo da estrarre (es. `id`, `user.profile.email`).                  |
+| `--output-file` | `-o`  | string | No           | Percorso del file di output (TXT). Default: `data/extracted_[timestamp].txt`. |
 
 ## Utilizzo
 
