@@ -243,16 +243,6 @@ importers:
         specifier: ^24.12.0
         version: 24.12.0
 
-  scripts/send/send-fetch-dynamodb-data:
-    dependencies:
-      '@go-automation/go-common':
-        specifier: workspace:*
-        version: link:../../../packages/go-common
-    devDependencies:
-      '@types/node':
-        specifier: ^24.12.0
-        version: 24.12.0
-
   scripts/send/send-fetch-timeline-from-iun:
     dependencies:
       '@go-automation/go-common':
@@ -315,6 +305,22 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+
+  scripts/send/send-query-dynamodb:
+    dependencies:
+      '@aws-sdk/client-dynamodb':
+        specifier: ^3.1018.0
+        version: 3.1018.0
+      '@aws-sdk/util-dynamodb':
+        specifier: ^3.996.2
+        version: 3.996.2(@aws-sdk/client-dynamodb@3.1018.0)
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+    devDependencies:
+      '@types/node':
+        specifier: ^24.12.0
+        version: 24.12.0
 
   scripts/send/send-report-dlq:
     dependencies:
