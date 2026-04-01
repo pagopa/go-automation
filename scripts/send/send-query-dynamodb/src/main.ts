@@ -36,10 +36,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   let pks: string[];
 
   if (config.inputPks) {
-    pks = config.inputPks
-      .split(',')
-      .map((pk) => pk.trim())
-      .filter((pk) => pk !== '');
+    pks = config.inputPks.map((pk) => pk.trim()).filter((pk) => pk !== '');
     script.logger.info(`Found ${pks.length} PKs from command line`);
   } else if (config.inputFile) {
     // Path resolution: try absolute, then relative to INIT_CWD (where pnpm was run),

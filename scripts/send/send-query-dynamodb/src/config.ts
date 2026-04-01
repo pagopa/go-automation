@@ -35,7 +35,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'input.pks',
-    type: Core.GOConfigParameterType.STRING,
+    type: Core.GOConfigParameterType.STRING_ARRAY,
     description: 'Comma-separated list of partition keys to query directly from command line',
     required: false,
     aliases: ['pks', 'keys'],

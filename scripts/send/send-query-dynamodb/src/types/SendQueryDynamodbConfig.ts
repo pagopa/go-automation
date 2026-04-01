@@ -19,8 +19,8 @@ export interface SendQueryDynamodbConfig {
   /** Input PK file path (optional if inputPks is provided) */
   readonly inputFile?: string;
 
-  /** Comma-separated list of PKs to query (CLI input, optional if inputFile is provided) */
-  readonly inputPks?: string;
+  /** List of PKs to query (CLI input, optional if inputFile is provided) */
+  readonly inputPks?: ReadonlyArray<string>;
 
   /** Input file format: txt (one PK per line), jsonl (one JSON string per line), csv */
   readonly inputFormat: InputFormat;
