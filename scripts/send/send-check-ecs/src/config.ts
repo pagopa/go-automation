@@ -22,14 +22,6 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     aliases: ['aps'],
   },
   {
-    name: 'aws.region',
-    type: Core.GOConfigParameterType.STRING,
-    description: 'AWS region (default: eu-south-1)',
-    required: false,
-    aliases: ['r'],
-    defaultValue: 'eu-south-1',
-  },
-  {
     name: 'ecs.clusters',
     type: Core.GOConfigParameterType.STRING_ARRAY,
     description: 'Specific clusters to check. If empty, checks all.',
