@@ -46,6 +46,9 @@
     "send:report:dlq:build": "pnpm --filter=send-report-dlq build",
     "send:report:dlq:dev": "pnpm --filter=send-report-dlq dev",
     "send:report:dlq:prod": "pnpm --filter=send-report-dlq start",
+    "send:dump:sqs:build": "pnpm --filter=send-dump-sqs build",
+    "send:dump:sqs:dev": "pnpm --filter=send-dump-sqs dev",
+    "send:dump:sqs:prod": "pnpm --filter=send-dump-sqs start",
     "type-check": "tsc --noEmit"
   },
   "keywords": [
