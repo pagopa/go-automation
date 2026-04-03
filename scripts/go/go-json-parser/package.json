@@ -8,14 +8,14 @@
     "build": "tsc -b",
     "dev": "tsx src/index.ts",
     "start": "pnpm build && node dist/index.js",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
     "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.7.3",
-    "tsx": "^4.19.2",
     "@types/node": "^24.12.0"
   }
 }

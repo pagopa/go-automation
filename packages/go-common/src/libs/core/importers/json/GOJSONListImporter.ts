@@ -12,6 +12,8 @@ import type { GOJSONListImporterOptions } from './GOJSONListImporterOptions.js';
 import { GOEventEmitterBase } from '../../events/GOEventEmitterBase.js';
 import type { GOListImporterEventMap } from '../GOListImporterEvents.js';
 import { getErrorMessage, toError } from '../../errors/GOErrorUtils.js';
+import { navigateFieldPath } from '../../json/fieldPath.js';
+import { GOJSONFormatDetector } from '../../json/GOJSONFormatDetector.js';
 
 /**
  * Generic JSON List Importer
@@ -136,8 +138,11 @@ export class GOJSONListImporter<TItem = unknown>
       throw new Error('Streaming mode only supports file paths, not buffers');
     }
 
+    // Resolve JSONL mode (handles 'auto' detection)
+    const isJsonl = await this.resolveJsonlMode(source);
+
     // Delegate to true streaming for JSONL mode
-    if (this.options.jsonl) {
+    if (isJsonl) {
       yield* this.importStreamJsonl(source);
       return;
     }
@@ -322,8 +327,11 @@ export class GOJSONListImporter<TItem = unknown>
         ? await fs.promises.readFile(source, { encoding: this.options.encoding ?? 'utf8' })
         : source.toString(this.options.encoding ?? 'utf8');
 
+    // Resolve JSONL mode (handles 'auto' detection for batch mode)
+    const isJsonl = typeof source === 'string' ? await this.resolveJsonlMode(source) : this.options.jsonl === true;
+
     // Branch on JSONL mode
-    if (this.options.jsonl) {
+    if (isJsonl) {
       return this.parseJsonlContent(content);
     }
 
@@ -332,7 +340,10 @@ export class GOJSONListImporter<TItem = unknown>
 
     // Extract array from nested structure if jsonPath is provided
     if (this.options.jsonPath) {
-      data = this.extractFromPath(data, this.options.jsonPath);
+      data = navigateFieldPath(data, this.options.jsonPath);
+      if (data === undefined) {
+        throw new Error(`Path "${this.options.jsonPath}" not found in JSON data`);
+      }
     }
 
     // Ensure data is an array
@@ -366,21 +377,22 @@ export class GOJSONListImporter<TItem = unknown>
   }
 
   /**
-   * Extract data from nested object using path
+   * Resolves the effective JSONL mode.
+   * For boolean values, returns directly. For 'auto', runs GOJSONFormatDetector.
+   *
+   * @param source - File path to detect format from
+   * @returns true if JSONL mode should be used
    */
-  private extractFromPath(data: unknown, path: string): unknown {
-    const keys = path.split('.');
-    let result: unknown = data;
+  private async resolveJsonlMode(source: string): Promise<boolean> {
+    const jsonlOption = this.options.jsonl;
 
-    for (const key of keys) {
-      if (result !== null && typeof result === 'object' && key in result) {
-        result = (result as Record<string, unknown>)[key];
-      } else {
-        throw new Error(`Path "${path}" not found in JSON data`);
-      }
+    if (jsonlOption === 'auto') {
+      const detector = new GOJSONFormatDetector(this.options.formatDetection);
+      const result = await detector.detect(source);
+      return result.format === 'jsonl';
     }
 
-    return result;
+    return jsonlOption === true;
   }
 
   /**

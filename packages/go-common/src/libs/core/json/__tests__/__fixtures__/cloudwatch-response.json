@@ -1,0 +1,12 @@
+{
+  "MetricAlarms": [
+    {
+      "AlarmName": "pn-delivery-B2B-ApiGwAlarm",
+      "StateValue": "ALARM"
+    },
+    {
+      "AlarmName": "pn-core-HealthCheckAlarm",
+      "StateValue": "OK"
+    }
+  ]
+}

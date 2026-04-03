@@ -1,94 +1,53 @@
-import fs from 'node:fs';
-import readline from 'node:readline';
-import path from 'node:path';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { Core } from '@go-automation/go-common';
 import type { GoJsonParserConfig } from './config.js';
-import { ExtractionEngine } from './libs/ExtractionEngine.js';
 
 export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<GoJsonParserConfig>();
   const logger = script.logger;
 
-  const inputPath = path.isAbsolute(config.inputFile)
-    ? config.inputFile
-    : path.resolve(script.paths.getBaseDir(), config.inputFile);
+  const inputPath = resolvePath(config.inputFile, script.paths.getBaseDir());
 
-  if (!fs.existsSync(inputPath)) {
+  await fs.access(inputPath).catch(() => {
     throw new Error(`File non trovato: ${inputPath}`);
-  }
+  });
+
+  const extractor = new Core.GOJSONFieldExtractor({ parseEmbeddedJson: true });
+
+  const importer = new Core.GOJSONListImporter<string | undefined>({
+    jsonl: 'auto',
+    skipInvalidItems: true,
+    rowTransformer: (item) => {
+      const val = extractor.extract(item, config.field);
+      if (val == null) return undefined;
+      return typeof val === 'string' ? val : JSON.stringify(val);
+    },
+  });
+
+  importer.on('import:error', (event) => {
+    logger.warning(`Campo "${config.field}" non trovato (${event.message}): saltato.`);
+  });
 
   const values = new Set<string>();
-  const isNDJSON = await detectNDJSON(inputPath);
 
-  if (isNDJSON) {
-    logger.info('File rilevato come NDJSON. Inizio streaming...');
-    const fileStream = fs.createReadStream(inputPath);
-    const rl = readline.createInterface({
-      input: fileStream,
-      crlfDelay: Infinity,
-    });
-
-    let lineNum = 0;
-    for await (const line of rl) {
-      lineNum++;
-      if (!line.trim()) continue;
-      try {
-        const obj = JSON.parse(line) as unknown;
-        processObject(obj, config.field, values, logger, `linea ${lineNum}`);
-      } catch (_err) {
-        logger.warning(`Linea ${lineNum} non valida JSON: saltata.`);
-      }
-    }
-  } else {
-    logger.info('File rilevato come JSON Standard. Caricamento in memoria...');
-    const content = fs.readFileSync(inputPath, 'utf8');
-    const data = JSON.parse(content) as unknown;
-    if (Array.isArray(data)) {
-      data.forEach((obj, index) => processObject(obj as unknown, config.field, values, logger, `indice ${index}`));
-    } else {
-      processObject(data, config.field, values, logger);
+  for await (const value of importer.importStream(inputPath)) {
+    if (value !== undefined) {
+      values.add(value);
     }
   }
 
   const result = Array.from(values).sort().join('\n');
   const outputPath = config.outputFile
-    ? path.isAbsolute(config.outputFile)
-      ? config.outputFile
-      : path.resolve(script.paths.getBaseDir(), config.outputFile)
+    ? resolvePath(config.outputFile, script.paths.getBaseDir())
     : path.join(script.paths.getOutputsBaseDir(), `extracted_${Date.now()}.txt`);
 
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, result);
+  await fs.mkdir(path.dirname(outputPath), { recursive: true });
+  await fs.writeFile(outputPath, result);
 
   logger.info(`Estrazione completata! ${values.size} valori unici salvati in: ${outputPath}`);
 }
 
-function processObject(
-  obj: unknown,
-  field: string,
-  collector: Set<string>,
-  logger: Core.GOLogger,
-  context?: string,
-): void {
-  const val = ExtractionEngine.extract(obj, field);
-  if (val !== undefined && val !== null) {
-    collector.add(typeof val === 'string' ? val : JSON.stringify(val));
-  } else {
-    logger.warning(`Campo "${field}" non trovato nell'oggetto${context ? ` (${context})` : ''}: saltato.`);
-  }
-}
-
-async function detectNDJSON(filePath: string): Promise<boolean> {
-  if (filePath.endsWith('.ndjson')) return true;
-  if (filePath.endsWith('.jsonl')) return true;
-
-  const stream = fs.createReadStream(filePath, { start: 0, end: 10 });
-  for await (const chunk of stream) {
-    if (Buffer.isBuffer(chunk) || typeof chunk === 'string') {
-      const start = chunk.toString().trim();
-      if (start.startsWith('{')) return true;
-      if (start.startsWith('[')) return false;
-    }
-  }
-  return false;
+function resolvePath(filePath: string, baseDir: string): string {
+  return path.isAbsolute(filePath) ? filePath : path.resolve(baseDir, filePath);
 }
