@@ -7,6 +7,7 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import globals from 'globals';
+import eslintPluginSecurity from 'eslint-plugin-security';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 
 export default tseslint.config(
@@ -201,6 +202,28 @@ export default tseslint.config(
     },
   },
 
+  // ===== Security: detect vulnerable patterns =====
+  eslintPluginSecurity.configs.recommended,
+  {
+    files: ['**/*.ts'],
+    rules: {
+      'security/detect-eval-with-expression': 'warn',
+      'security/detect-child-process': 'warn',
+      'security/detect-unsafe-regex': 'warn',
+      'security/detect-non-literal-require': 'warn',
+      'security/detect-non-literal-fs-filename': 'warn',
+      'security/detect-object-injection': 'warn',
+      'security/detect-new-buffer': 'warn',
+      'security/detect-pseudoRandomBytes': 'warn',
+      'security/detect-possible-timing-attacks': 'errwarnor',
+      'security/detect-bidi-characters': 'warn',
+      'security/detect-buffer-noassert': 'warn',
+      'security/detect-disable-mustache-escape': 'warn',
+      'security/detect-no-csrf-before-method-override': 'warn',
+      'security/detect-non-literal-regexp': 'warn',
+    },
+  },
+
   // ===== Scripts: enforce go-common usage =====
   // Prevents scripts from reimplementing features already provided by @go-automation/go-common.
   // Bypass with: // eslint-disable-next-line <rule> -- <justification>
@@ -381,12 +404,13 @@ export default tseslint.config(
         // Direct EventEmitter → use GOEventEmitterBase
         {
           selector: "NewExpression[callee.name='EventEmitter']",
-          message: 'Extend GOEventEmitterBase from @go-automation/go-common instead of using EventEmitter directly. See CONVENTIONS.md.',
+          message:
+            'Extend GOEventEmitterBase from @go-automation/go-common instead of using EventEmitter directly. See CONVENTIONS.md.',
         },
       ],
     },
   },
 
   // Prettier integration - MUST be last to override other configs
-  eslintPluginPrettierRecommended
+  eslintPluginPrettierRecommended,
 );
