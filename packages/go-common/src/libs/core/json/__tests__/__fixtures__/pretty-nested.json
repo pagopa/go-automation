@@ -1,0 +1,5 @@
+{
+  "name": "test",
+  "items": [{ "id": 1 }, { "id": 2 }],
+  "count": 2
+}
