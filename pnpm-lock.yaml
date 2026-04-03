@@ -202,6 +202,16 @@ importers:
         specifier: ^24.12.2
         version: 24.12.2
 
+  scripts/go/go-json-parser:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+    devDependencies:
+      '@types/node':
+        specifier: ^24.12.0
+        version: 24.12.0
+
   scripts/go/go-report-alarms:
     dependencies:
       '@aws-sdk/client-cloudwatch':
