@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
+
   pull_request:
     branches: [main, develop]
 
@@ -14,51 +15,57 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality:
-    name: Code Quality
-    runs-on: ubuntu-latest
+  typecheck:
+    name: Type Check
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      command: type-check
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+  lint:
+    name: Lint
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      command: lint
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4
-        with:
-          version: 10
+  format:
+    name: Format Check
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      command: format:check
 
-      - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version: '24'
-          cache: 'pnpm'
+  knip:
+    name: Unused Code
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      command: knip
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+  build:
+    name: Build
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      command: build
 
-      - name: Type check
-        run: pnpm type-check
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Check formatting
-        run: pnpm format:check
-
-      - name: Build
-        run: pnpm build
+  test:
+    name: Test
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      pre-command: build
+      command: test
 
   # Summary job for branch protection
   ci-success:
     name: CI Success
-    needs: [quality]
+    needs: [typecheck, lint, format, knip, build, test]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
-          if [[ "${{ needs.quality.result }}" != "success" ]]; then
-            echo "Quality check failed"
-            exit 1
-          fi
+          results=("${{ needs.typecheck.result }}" "${{ needs.lint.result }}" "${{ needs.format.result }}" "${{ needs.knip.result }}" "${{ needs.build.result }}" "${{ needs.test.result }}")
+          for result in "${results[@]}"; do
+            if [[ "$result" != "success" ]]; then
+              echo "One or more checks failed"
+              exit 1
+            fi
+          done
           echo "All checks passed!"
