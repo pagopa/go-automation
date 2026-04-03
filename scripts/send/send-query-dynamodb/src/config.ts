@@ -1,5 +1,5 @@
 /**
- * Send Fetch Dynamodb Data - Configuration Module
+ * SEND Query DynamoDB - Configuration Module
  *
  * Contains script metadata, parameters definition, and configuration re-export.
  */
@@ -9,7 +9,7 @@ import { Core } from '@go-automation/go-common';
  * Script metadata
  */
 export const scriptMetadata: Core.GOScriptMetadata = {
-  name: 'Send Fetch Dynamodb Data',
+  name: 'SEND Query DynamoDB',
   version: '1.0.0',
   description: 'Queries a DynamoDB table by partition key for a list of PKs read from a text file',
   authors: ['Team GO - Gestione Operativa'],
@@ -29,9 +29,16 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'input.file',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Input file containing the list of PKs to query',
-    required: true,
+    description: 'Input file containing the list of PKs to query (supports TXT, JSONL, CSV)',
+    required: false,
     aliases: ['input'],
+  },
+  {
+    name: 'input.pks',
+    type: Core.GOConfigParameterType.STRING_ARRAY,
+    description: 'Comma-separated list of partition keys to query directly from command line',
+    required: false,
+    aliases: ['pks', 'keys'],
   },
   {
     name: 'input.format',
@@ -57,14 +64,21 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'output.file',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Output JSON file path for query results',
-    required: true,
+    description: 'Output file path for query results',
+    required: false,
     aliases: ['output'],
+  },
+  {
+    name: 'output.attributes',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'Comma-separated list of item attributes to return (if omitted, returns whole item)',
+    required: false,
+    aliases: ['attributes', 'attrs'],
   },
   {
     name: 'output.format',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Output format: json (standard JSON array) or ndjson (newline-delimited JSON)',
+    description: 'Output format: dynamo-json, json, ndjson, csv (attrs only), text (attrs only)',
     required: false,
     defaultValue: 'json',
     aliases: ['format'],
@@ -77,11 +91,32 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     aliases: ['table'],
   },
   {
+    name: 'index.name',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'Optional name of the Global Secondary Index (GSI) or Local Secondary Index (LSI) to query',
+    required: false,
+    aliases: ['index'],
+  },
+  {
     name: 'table.key',
     type: Core.GOConfigParameterType.STRING,
     description: 'Name of the partition key attribute in the DynamoDB table',
     required: true,
     aliases: ['key'],
+  },
+  {
+    name: 'table.sort-key',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'Optional name of the sort key attribute',
+    required: false,
+    aliases: ['sort-key', 'sk'],
+  },
+  {
+    name: 'table.sort-value',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'Optional value for the sort key (required if sort-key is specified)',
+    required: false,
+    aliases: ['sort-value', 'sv'],
   },
   {
     name: 'key.prefix',

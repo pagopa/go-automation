@@ -1,5 +1,5 @@
 /**
- * Send Fetch Dynamodb Data - Entry Point
+ * SEND Query DynamoDB - Entry Point
  *
  * Script che recupera le info tramite query da una tabella dynamo
  */

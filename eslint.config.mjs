@@ -7,6 +7,7 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import globals from 'globals';
+import eslintPluginSecurity from 'eslint-plugin-security';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 
 export default tseslint.config(
@@ -189,6 +190,7 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-floating-promises': 'off',
     },
   },
 
@@ -200,6 +202,215 @@ export default tseslint.config(
     },
   },
 
+  // ===== Security: detect vulnerable patterns =====
+  eslintPluginSecurity.configs.recommended,
+  {
+    files: ['**/*.ts'],
+    rules: {
+      'security/detect-eval-with-expression': 'warn',
+      'security/detect-child-process': 'warn',
+      'security/detect-unsafe-regex': 'warn',
+      'security/detect-non-literal-require': 'warn',
+      'security/detect-non-literal-fs-filename': 'warn',
+      'security/detect-object-injection': 'warn',
+      'security/detect-new-buffer': 'warn',
+      'security/detect-pseudoRandomBytes': 'warn',
+      'security/detect-possible-timing-attacks': 'warn',
+      'security/detect-bidi-characters': 'warn',
+      'security/detect-buffer-noassert': 'warn',
+      'security/detect-disable-mustache-escape': 'warn',
+      'security/detect-no-csrf-before-method-override': 'warn',
+      'security/detect-non-literal-regexp': 'warn',
+    },
+  },
+
+  // ===== Scripts: enforce go-common usage =====
+  // Prevents scripts from reimplementing features already provided by @go-automation/go-common.
+  // Bypass with: // eslint-disable-next-line <rule> -- <justification>
+  // See CONVENTIONS.md for the full mapping of go-common capabilities.
+  {
+    files: ['scripts/**/*.ts'],
+    ignores: ['**/*.test.ts', '**/*.spec.ts'],
+    rules: {
+      // ---- Restricted third-party packages ----
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            // CSV processing → GOCSVListExporter / GOCSVListImporter
+            {
+              name: 'csv-stringify',
+              message: 'Use GOCSVListExporter from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
+              name: 'csv-stringify/sync',
+              message: 'Use GOCSVListExporter from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
+              name: 'csv-parse',
+              message: 'Use GOCSVListImporter from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
+              name: 'csv-parse/sync',
+              message: 'Use GOCSVListImporter from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            // Prompts → GOPrompt
+            {
+              name: 'prompts',
+              message: 'Use GOPrompt from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
+              name: 'enquirer',
+              message: 'Use GOPrompt from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
+              name: 'inquirer',
+              message: 'Use GOPrompt from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            // Spinners / progress → GOMultiSpinner / GOLoadingBar
+            {
+              name: 'ora',
+              message: 'Use GOMultiSpinner or GOLoadingBar from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
+              name: 'cli-spinners',
+              message: 'Use GOMultiSpinner or GOLoadingBar from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            // Colors → GOLogger (handles colors internally)
+            {
+              name: 'chalk',
+              message: 'Use GOLogger from @go-automation/go-common for colored output. See CONVENTIONS.md.',
+            },
+            {
+              name: 'kleur',
+              message: 'Use GOLogger from @go-automation/go-common for colored output. See CONVENTIONS.md.',
+            },
+            {
+              name: 'picocolors',
+              message: 'Use GOLogger from @go-automation/go-common for colored output. See CONVENTIONS.md.',
+            },
+            {
+              name: 'colorette',
+              message: 'Use GOLogger from @go-automation/go-common for colored output. See CONVENTIONS.md.',
+            },
+            // HTTP client → GOHttpClient
+            {
+              name: 'undici',
+              message: 'Use GOHttpClient from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
+              name: 'node-fetch',
+              message: 'Use GOHttpClient from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
+              name: 'axios',
+              message: 'Use GOHttpClient from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
+              name: 'got',
+              message: 'Use GOHttpClient from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            // CLI argument parsing → GOScript / GOConfigReader
+            {
+              name: 'yargs',
+              message: 'Use GOScript config from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
+              name: 'commander',
+              message: 'Use GOScript config from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
+              name: 'minimist',
+              message: 'Use GOScript config from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
+              name: 'meow',
+              message: 'Use GOScript config from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            // Tables → GOTableFormatter
+            {
+              name: 'cli-table3',
+              message: 'Use GOTableFormatter from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
+              name: 'table',
+              message: 'Use GOTableFormatter from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            // Logging → GOLogger
+            {
+              name: 'winston',
+              message: 'Use GOLogger from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
+              name: 'pino',
+              message: 'Use GOLogger from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
+              name: 'bunyan',
+              message: 'Use GOLogger from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
+              name: 'log4js',
+              message: 'Use GOLogger from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            // YAML → go-common utilities
+            {
+              name: 'yaml',
+              message: 'Use utilities from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
+              name: 'js-yaml',
+              message: 'Use utilities from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+          ],
+        },
+      ],
+
+      // ---- Restricted code patterns ----
+      // Overrides global no-restricted-syntax for scripts — includes ForInStatement from global config.
+      'no-restricted-syntax': [
+        'error',
+        // Global (inherited: must repeat because flat config replaces per-rule)
+        {
+          selector: 'ForInStatement',
+          message: 'Use for...of, Object.keys(), or Object.entries() instead of for...in',
+        },
+        // File writing → use go-common exporters
+        {
+          selector: "CallExpression[callee.object.name='fs'][callee.property.name='writeFile']",
+          message:
+            'Use go-common exporters (GOFileListExporter, GOJSONListExporter, GOCSVListExporter, GOHTMLListExporter) instead of fs.writeFile. See CONVENTIONS.md.',
+        },
+        {
+          selector: "CallExpression[callee.object.name='fs'][callee.property.name='writeFileSync']",
+          message: 'Use go-common exporters instead of fs.writeFileSync. See CONVENTIONS.md.',
+        },
+        {
+          selector: "CallExpression[callee.object.name='fs'][callee.property.name='createWriteStream']",
+          message: 'Use go-common exporters instead of fs.createWriteStream. See CONVENTIONS.md.',
+        },
+        // File reading for import → use go-common importers
+        {
+          selector: "CallExpression[callee.object.name='readline'][callee.property.name='createInterface']",
+          message:
+            'Use go-common importers (GOJSONListImporter, GOCSVListImporter, GOFileListImporter) instead of readline. See CONVENTIONS.md.',
+        },
+        // Direct process.env → use GOScript config
+        {
+          selector: "MemberExpression[object.name='process'][property.name='env']",
+          message:
+            'Use GOScript configuration (GOConfigReader / GOConfigParameterProvider) instead of process.env. See CONVENTIONS.md.',
+        },
+        // Direct EventEmitter → use GOEventEmitterBase
+        {
+          selector: "NewExpression[callee.name='EventEmitter']",
+          message:
+            'Extend GOEventEmitterBase from @go-automation/go-common instead of using EventEmitter directly. See CONVENTIONS.md.',
+        },
+      ],
+    },
+  },
+
   // Prettier integration - MUST be last to override other configs
-  eslintPluginPrettierRecommended
+  eslintPluginPrettierRecommended,
 );

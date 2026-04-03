@@ -119,9 +119,26 @@ export class ConditionEvaluator {
     if (actual === undefined || actual === null) {
       return false;
     }
-    const compiled = new RegExp(regex);
+    const compiled = this.compileRegex(regex);
     const actualStr = valueToString(actual);
     return compiled.test(actualStr);
+  }
+
+  /**
+   * Safely compiles a regex pattern, throwing a descriptive error for invalid patterns.
+   *
+   * @param pattern - The regex pattern string to compile
+   * @returns The compiled RegExp
+   * @throws Error if the pattern is invalid
+   */
+  private compileRegex(pattern: string): RegExp {
+    try {
+      // eslint-disable-next-line security/detect-non-literal-regexp -- Pattern comes from runbook config (trusted), validated here
+      return new RegExp(pattern);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Invalid regex pattern "${pattern}": ${message}`, { cause: err });
+    }
   }
 
   /**
