@@ -56,7 +56,8 @@
     "send:dump:sqs:build": "pnpm --filter=send-dump-sqs build",
     "send:dump:sqs:dev": "pnpm --filter=send-dump-sqs dev",
     "send:dump:sqs:prod": "pnpm --filter=send-dump-sqs start",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "knip": "knip"
   },
   "keywords": [
     "aws",
@@ -80,6 +81,7 @@
     "eslint-plugin-prettier": "^5.5.5",
     "eslint-plugin-security": "^4.0.0",
     "globals": "^17.4.0",
+    "knip": "^6.3.0",
     "prettier": "3.8.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
