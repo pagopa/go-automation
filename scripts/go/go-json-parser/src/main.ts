@@ -1,11 +1,13 @@
-import * as fs from 'fs/promises';
-import * as path from 'path';
 import { Core } from '@go-automation/go-common';
 import type { GoJsonParserConfig } from './types/GoJsonParserConfig.js';
+import { exportValues } from './libs/createExporter.js';
 
 export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<GoJsonParserConfig>();
   const logger = script.logger;
+
+  // outputFormat is already validated by the config parameter validator
+  const outputFormat = config.outputFormat as Core.GOExportFormat;
 
   const inputPath = script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT);
   const extractor = new Core.GOJSONFieldExtractor({ parseEmbeddedJson: true });
@@ -31,14 +33,15 @@ export async function main(script: Core.GOScript): Promise<void> {
     }
   }
 
-  const result = Array.from(values).sort().join('\n');
-  const outputPathInfo = script.paths.resolvePathWithInfo(
-    config.outputFile ?? `extracted_${Date.now()}.txt`,
+  const sortedValues = Array.from(values).sort();
+
+  const extension = Core.GO_EXPORT_FORMAT_EXTENSIONS[outputFormat];
+  const outputPath = script.paths.resolvePath(
+    config.outputFile ?? `extracted_${Date.now()}.${extension}`,
     Core.GOPathType.OUTPUT,
   );
 
-  await fs.mkdir(path.dirname(outputPathInfo.path), { recursive: true });
-  await fs.writeFile(outputPathInfo.path, result);
+  await exportValues(sortedValues, outputPath, outputFormat, config.field);
 
-  logger.info(`Estrazione completata! ${values.size} valori unici salvati in: ${outputPathInfo.path}`);
+  logger.info(`Estrazione completata! ${values.size} valori unici salvati in: ${outputPath}`);
 }
