@@ -1,0 +1,20 @@
+name: Copilot Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main, develop]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  copilot-review:
+    name: Copilot Code Review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copilot Review
+        uses: github/copilot-code-review-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
