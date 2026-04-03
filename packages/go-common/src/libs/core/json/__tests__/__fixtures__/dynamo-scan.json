@@ -1,0 +1,22 @@
+{
+  "Items": [
+    {
+      "pk": {
+        "S": "item1"
+      },
+      "data": {
+        "S": "value1"
+      }
+    },
+    {
+      "pk": {
+        "S": "item2"
+      },
+      "data": {
+        "S": "value2"
+      }
+    }
+  ],
+  "Count": 2,
+  "ScannedCount": 2
+}

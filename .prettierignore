@@ -15,6 +15,9 @@ logs/
 .idea/
 .vscode/
 
+# Test fixtures (may contain intentionally non-standard JSON, e.g. JSONL)
+**/__fixtures__/
+
 # Coverage
 coverage/
 

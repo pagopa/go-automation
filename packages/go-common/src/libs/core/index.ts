@@ -21,6 +21,9 @@ export * from './config/index.js';
 // Export file operations
 export * from './files/index.js';
 
+// Export JSON utilities
+export * from './json/index.js';
+
 // Export utilities
 export * from './network/index.js';
 export * from './utils/index.js';

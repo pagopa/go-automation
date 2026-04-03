@@ -2,6 +2,8 @@
  * JSON List Importer Options
  */
 
+import type { GOJSONFormatDetectorOptions } from '../../json/GOJSONFormatDetectorOptions.js';
+
 /**
  * Options for JSON list importer
  *
@@ -25,20 +27,58 @@ export interface GOJSONListImporterOptions<TInput = unknown, TOutput = TInput> {
   jsonPath?: string;
 
   /**
-   * Enable NDJSON/JSONL mode (newline-delimited JSON)
+   * JSON format mode:
+   * - `false`: Standard JSON (default)
+   * - `true`: NDJSON/JSONL (one JSON object per line)
+   * - `'auto'`: Auto-detect format using GOJSONFormatDetector
    *
-   * When true, the source is treated as one JSON object per line instead of
-   * a single JSON array. Each non-empty line is parsed independently.
+   * When true or auto-detected as JSONL, the source is treated as one JSON object
+   * per line. Each non-empty line is parsed independently.
    * The `jsonPath` option is ignored in JSONL mode.
    *
    * @default false
    *
    * @example
    * ```typescript
-   * // Import a .jsonl file
+   * // Explicit JSONL mode
    * const importer = new GOJSONListImporter({ jsonl: true });
-   * const result = await importer.import('data.jsonl');
+   *
+   * // Auto-detect format
+   * const importer = new GOJSONListImporter({ jsonl: 'auto' });
    * ```
    */
-  jsonl?: boolean;
+  jsonl?: boolean | 'auto';
+
+  /**
+   * Options for format auto-detection. Only used when `jsonl` is set to `'auto'`.
+   *
+   * @example
+   * ```typescript
+   * const importer = new GOJSONListImporter({
+   *   jsonl: 'auto',
+   *   formatDetection: { depth: 'deep', sampleLines: 20 },
+   * });
+   * ```
+   */
+  formatDetection?: GOJSONFormatDetectorOptions;
+
+  /**
+   * Wrap a single JSON object as a one-element array instead of throwing an error.
+   * When the parsed JSON content is a plain object (not an array), it is automatically
+   * wrapped in `[data]` so that it can be processed as a list with one item.
+   *
+   * Set to `false` to restore the strict behavior that requires an array.
+   *
+   * @default true
+   *
+   * @example
+   * ```typescript
+   * // Single object {"id": 1} is treated as [{"id": 1}]
+   * const importer = new GOJSONListImporter({ wrapSingleObject: true });
+   *
+   * // Strict mode: single object throws an error
+   * const importer = new GOJSONListImporter({ wrapSingleObject: false });
+   * ```
+   */
+  wrapSingleObject?: boolean;
 }
