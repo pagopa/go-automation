@@ -1,20 +1,14 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Core } from '@go-automation/go-common';
-import type { GoJsonParserConfig } from './config.js';
+import type { GoJsonParserConfig } from './types/GoJsonParserConfig.js';
 
 export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<GoJsonParserConfig>();
   const logger = script.logger;
 
-  const inputPath = resolvePath(config.inputFile, script.paths.getBaseDir());
-
-  await fs.access(inputPath).catch(() => {
-    throw new Error(`File non trovato: ${inputPath}`);
-  });
-
+  const inputPath = script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT);
   const extractor = new Core.GOJSONFieldExtractor({ parseEmbeddedJson: true });
-
   const importer = new Core.GOJSONListImporter<string | undefined>({
     jsonl: 'auto',
     skipInvalidItems: true,
@@ -38,16 +32,13 @@ export async function main(script: Core.GOScript): Promise<void> {
   }
 
   const result = Array.from(values).sort().join('\n');
-  const outputPath = config.outputFile
-    ? resolvePath(config.outputFile, script.paths.getBaseDir())
-    : path.join(script.paths.getOutputsBaseDir(), `extracted_${Date.now()}.txt`);
+  const outputPathInfo = script.paths.resolvePathWithInfo(
+    config.outputFile ?? `extracted_${Date.now()}.txt`,
+    Core.GOPathType.OUTPUT,
+  );
 
-  await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  await fs.writeFile(outputPath, result);
+  await fs.mkdir(path.dirname(outputPathInfo.path), { recursive: true });
+  await fs.writeFile(outputPathInfo.path, result);
 
-  logger.info(`Estrazione completata! ${values.size} valori unici salvati in: ${outputPath}`);
-}
-
-function resolvePath(filePath: string, baseDir: string): string {
-  return path.isAbsolute(filePath) ? filePath : path.resolve(baseDir, filePath);
+  logger.info(`Estrazione completata! ${values.size} valori unici salvati in: ${outputPathInfo.path}`);
 }

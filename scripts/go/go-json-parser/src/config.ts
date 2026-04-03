@@ -30,9 +30,3 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     aliases: ['o'],
   },
 ] as const;
-
-export interface GoJsonParserConfig {
-  readonly inputFile: string;
-  readonly field: string;
-  readonly outputFile: string | undefined;
-}

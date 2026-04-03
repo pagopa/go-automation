@@ -346,8 +346,12 @@ export class GOJSONListImporter<TItem = unknown>
       }
     }
 
-    // Ensure data is an array
+    // Ensure data is an array (or wrap single object if enabled)
     if (!Array.isArray(data)) {
+      const wrapSingleObject = this.options.wrapSingleObject ?? true;
+      if (wrapSingleObject && typeof data === 'object' && data !== null) {
+        return [data];
+      }
       throw new Error('JSON content must be an array or contain an array at the specified path');
     }
 

@@ -61,4 +61,24 @@ export interface GOJSONListImporterOptions<TInput = unknown, TOutput = TInput> {
    * ```
    */
   formatDetection?: GOJSONFormatDetectorOptions;
+
+  /**
+   * Wrap a single JSON object as a one-element array instead of throwing an error.
+   * When the parsed JSON content is a plain object (not an array), it is automatically
+   * wrapped in `[data]` so that it can be processed as a list with one item.
+   *
+   * Set to `false` to restore the strict behavior that requires an array.
+   *
+   * @default true
+   *
+   * @example
+   * ```typescript
+   * // Single object {"id": 1} is treated as [{"id": 1}]
+   * const importer = new GOJSONListImporter({ wrapSingleObject: true });
+   *
+   * // Strict mode: single object throws an error
+   * const importer = new GOJSONListImporter({ wrapSingleObject: false });
+   * ```
+   */
+  wrapSingleObject?: boolean;
 }
