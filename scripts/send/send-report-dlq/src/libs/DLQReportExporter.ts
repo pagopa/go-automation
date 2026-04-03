@@ -27,7 +27,7 @@ function columnMapper(name: string): string {
     messageCount: 'Messages',
     ageOfOldestMessageDays: 'Age (days)',
   };
-  return map[name] ?? name;
+  return Object.prototype.hasOwnProperty.call(map, name) ? map[name]! : name;
 }
 
 /**
