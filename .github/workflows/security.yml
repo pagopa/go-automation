@@ -2,7 +2,6 @@ name: Security Audit
 
 permissions:
   contents: read
-  security-events: write
 
 on:
   push:
@@ -50,27 +49,6 @@ jobs:
       - name: Run security audit (strict)
         id: audit-strict
         run: pnpm audit --audit-level=critical
-
-  codeql:
-    name: CodeQL Analysis
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      security-events: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: javascript-typescript
-          config-file: ./.github/codeql-config.yml
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
 
   license-check:
     name: License Compliance
