@@ -215,7 +215,7 @@ export default tseslint.config(
       'security/detect-object-injection': 'warn',
       'security/detect-new-buffer': 'warn',
       'security/detect-pseudoRandomBytes': 'warn',
-      'security/detect-possible-timing-attacks': 'errwarnor',
+      'security/detect-possible-timing-attacks': 'warn',
       'security/detect-bidi-characters': 'warn',
       'security/detect-buffer-noassert': 'warn',
       'security/detect-disable-mustache-escape': 'warn',
