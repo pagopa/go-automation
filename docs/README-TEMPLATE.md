@@ -17,20 +17,20 @@ Breve descrizione dello script (1-2 frasi che spiegano cosa fa).
 
 ## Indice
 
-- [Funzionalita](#funzionalita)
+- [Funzionalità](#funzionalità)
 - [Prerequisiti](#prerequisiti)
 - [Configurazione](#configurazione)
 - [Utilizzo](#utilizzo)
 - [Output](#output)
 - [Troubleshooting](#troubleshooting)
 
-## Funzionalita
+## Funzionalità
 
-Elenco delle funzionalita principali:
+Elenco delle funzionalità principali:
 
-- Funzionalita 1
-- Funzionalita 2
-- Funzionalita 3
+- Funzionalità 1
+- Funzionalità 2
+- Funzionalità 3
 
 ## Prerequisiti
 
@@ -89,7 +89,7 @@ Percorso: `configs/config.json` o `configs/config.yaml`
 
 ## Utilizzo
 
-### Modalita Development (via pnpm/tsx)
+### Modalità Development (via pnpm/tsx)
 
 ```bash
 # Dalla root del monorepo
@@ -102,7 +102,7 @@ pnpm --filter=[nome-script] dev
 pnpm [nome-shortcut] -- --param valore
 ```
 
-### Modalita Production (build + node)
+### Modalità Production (build + node)
 
 ```bash
 # Build
@@ -115,14 +115,14 @@ pnpm --filter=[nome-script] start
 node dist/index.js --param valore
 ```
 
-### Modalita Standalone
+### Modalità Standalone
 
 ```bash
 # Quando deployato separatamente
 node dist/index.js --param valore
 ```
 
-### Modalita Docker (se applicabile)
+### Modalità Docker (se applicabile)
 
 ```bash
 # Build immagine
@@ -144,7 +144,7 @@ pnpm [comando] -- --param1 valore1 --param2 valore2
 # Esempio 2: Con date
 pnpm [comando] -- --from "2024-01-01T00:00:00Z" --to "2024-01-31T23:59:59Z"
 
-# Esempio 3: Modalita verbose
+# Esempio 3: Modalità verbose
 pnpm [comando] -- --verbose
 ```
 

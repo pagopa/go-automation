@@ -8,18 +8,18 @@ Script di automazione avanzato per l'estrazione e il filtraggio di dati da file 
 
 - [GO Parse JSON](#go-parse-json)
   - [Indice](#indice)
-  - [Funzionalita](#funzionalita)
+  - [Funzionalità](#funzionalità)
   - [Prerequisiti](#prerequisiti)
   - [Configurazione](#configurazione)
     - [Parametri CLI](#parametri-cli)
   - [Utilizzo](#utilizzo)
-    - [Modalita Development (via pnpm/tsx)](#modalita-development-via-pnpmtsx)
-    - [Modalita Production (build + node)](#modalita-production-build--node)
+    - [Modalità Development (via pnpm/tsx)](#modalità-development-via-pnpmtsx)
+    - [Modalità Production (build + node)](#modalità-production-build--node)
     - [Esempi Pratici](#esempi-pratici)
   - [Formati di Output](#formati-di-output)
   - [Logica di Estrazione](#logica-di-estrazione)
 
-## Funzionalita
+## Funzionalità
 
 - **Supporto Multi-sorgente**: gestisce file locali (JSON/NDJSON), oggetti S3 (`s3://bucket/key`) e Log Groups di CloudWatch (`cwl:/log-group-name`).
 - **Estrazione Multi-campo**: permette di estrarre piu campi contemporaneamente separandoli con la virgola (es. `id,status,user.email`).
@@ -51,7 +51,7 @@ Script di automazione avanzato per l'estrazione e il filtraggio di dati da file 
 | `--json-path`     | `-jp` | string  | No           | -       | Path JSON per individuare l'array di dati in strutture nidificate.                  |
 | `--start-time`    | `-st` | string  | No           | -       | Data inizio per CloudWatch Logs (ISO 8601).                                         |
 | `--end-time`      | `-et` | string  | No           | -       | Data fine per CloudWatch Logs (ISO 8601).                                           |
-| `--tail`          | `-t`  | boolean | No           | `false` | (Sperimentale) Abilita modalita tail per CloudWatch Logs.                           |
+| `--tail`          | `-t`  | boolean | No           | `false` | (Sperimentale) Abilita modalità tail per CloudWatch Logs.                           |
 
 I percorsi relativi vengono risolti automaticamente dal framework GOScript:
 
@@ -60,7 +60,7 @@ I percorsi relativi vengono risolti automaticamente dal framework GOScript:
 
 ## Utilizzo
 
-### Modalita Development (via pnpm/tsx)
+### Modalità Development (via pnpm/tsx)
 
 ```bash
 # Estrazione multi-campo da locale a CSV
@@ -73,7 +73,7 @@ pnpm go:parse:json:dev -i s3://my-bucket/logs/app.json -f "requestId,error" --fi
 pnpm go:parse:json:dev -i cwl:/aws/lambda/my-func -f "message" --start-time "2024-04-01T10:00:00Z"
 ```
 
-### Modalita Production (build + node)
+### Modalità Production (build + node)
 
 ```bash
 pnpm go:parse:json:prod -i input.json -f iun -ff json

@@ -26,7 +26,7 @@ Il sistema di type-checking e integrato da strumenti di **analisi statica (ESLin
 
 La libreria `@go-automation/go-common` implementa il livello di astrazione condiviso dell'SDK. Questo componente centralizza le funzionalità trasversali, fornendo un'interfaccia unificata per:
 
-| Funzionalita     | Descrizione                                                |
+| Funzionalità     | Descrizione                                                |
 | ---------------- | ---------------------------------------------------------- |
 | Inizializzazione | Bootstrap e configurazione degli script                    |
 | Validazione      | Parsing e verifica di parametri CLI e variabili d'ambiente |
