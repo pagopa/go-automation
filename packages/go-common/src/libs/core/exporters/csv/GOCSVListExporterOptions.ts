@@ -17,28 +17,28 @@ export type ColumnConflictStrategy =
  */
 export interface GOCSVListExporterOptions<TItem = Record<string, unknown>> {
   /** Output file path */
-  outputPath: string;
+  readonly outputPath: string;
 
   /** CSV delimiter (default: ',') */
-  delimiter?: string;
+  readonly delimiter?: string;
 
   /** Include header row with column names (default: true) */
-  includeHeader?: boolean;
+  readonly includeHeader?: boolean;
 
   /** Custom column names (if not provided, uses object keys) */
-  columns?: string[];
+  readonly columns?: string[];
 
   /** Custom column mapping function */
-  columnMapper?: (columnName: string) => string;
+  readonly columnMapper?: (columnName: string) => string;
 
   /** Row transformation function (applied before CSV conversion) */
-  rowTransformer?: (item: TItem) => TItem;
+  readonly rowTransformer?: (item: TItem) => TItem;
 
   /** Skip invalid items and continue export (default: false) */
-  skipInvalidItems?: boolean;
+  readonly skipInvalidItems?: boolean;
 
   /** Encoding for output file (default: 'utf8') */
-  encoding?: BufferEncoding;
+  readonly encoding?: BufferEncoding;
 
   /**
    * Merge original row data from `_originalRow` property into the output.
@@ -58,7 +58,7 @@ export interface GOCSVListExporterOptions<TItem = Record<string, unknown>> {
    * // Input: { iun: 'ABC123', _originalRow: { id: '1', name: 'John', note: 'test' } }
    * // Output columns: id, name, note, iun
    */
-  mergeOriginalColumns?: boolean;
+  readonly mergeOriginalColumns?: boolean;
 
   /**
    * Strategy for handling column name conflicts when merging original data.
@@ -71,7 +71,7 @@ export interface GOCSVListExporterOptions<TItem = Record<string, unknown>> {
    *
    * @default 'keep-generated'
    */
-  columnConflictStrategy?: ColumnConflictStrategy;
+  readonly columnConflictStrategy?: ColumnConflictStrategy;
 
   /**
    * Columns to exclude from the original data when merging.
@@ -84,7 +84,7 @@ export interface GOCSVListExporterOptions<TItem = Record<string, unknown>> {
    * // Exclude internal columns from output
    * excludeOriginalColumns: ['_internal_id', 'temp_field']
    */
-  excludeOriginalColumns?: string[];
+  readonly excludeOriginalColumns?: string[];
 
   /**
    * Explicit column order for the output CSV.
@@ -97,5 +97,5 @@ export interface GOCSVListExporterOptions<TItem = Record<string, unknown>> {
    * // Force specific column order
    * columnOrder: ['iun', 'status', 'subject', 'recipientTaxId']
    */
-  columnOrder?: string[];
+  readonly columnOrder?: string[];
 }

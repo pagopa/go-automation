@@ -1,9 +1,10 @@
-import * as fs from 'fs/promises';
 import * as path from 'path';
 
-/** Type guard for config file structure */
+import { Core } from '@go-automation/go-common';
+
+/** Config file structure for ignore patterns */
 interface IgnorePatternsConfig {
-  ignorePatterns?: unknown;
+  readonly ignorePatterns?: ReadonlyArray<string>;
 }
 
 // ============================================================================
@@ -25,39 +26,20 @@ const DEFAULT_IGNORE_PATTERNS: ReadonlyArray<string> = [
 ] as const;
 
 /**
- * Validate and extract ignore patterns from parsed JSON
- */
-export function validateIgnorePatterns(config: unknown): string[] {
-  if (typeof config !== 'object' || config === null) {
-    return [];
-  }
-  const typedConfig = config as IgnorePatternsConfig;
-  if (!Array.isArray(typedConfig.ignorePatterns)) {
-    return [];
-  }
-
-  // prettier-ignore
-  return typedConfig.ignorePatterns.filter(
-    (item): item is string => typeof item === 'string'
-);
-}
-
-/**
- * Load ignore patterns from config file
+ * Load ignore patterns from config file using GOJSONFileImporter
  * Falls back to default patterns if file doesn't exist or is invalid
+ *
+ * @returns Ignore patterns from config file or defaults
  */
 export async function loadIgnorePatterns(): Promise<ReadonlyArray<string>> {
   const configPath = path.join(import.meta.dirname, '../configs/ignore-patterns.json');
 
-  try {
-    const configData = await fs.readFile(configPath, 'utf-8');
-    const config: unknown = JSON.parse(configData);
-    const patterns = validateIgnorePatterns(config);
-    if (patterns.length > 0) {
-      return patterns;
-    }
-  } catch {
-    // Fall through to default patterns if file doesn't exist or is invalid
+  const importer = new Core.GOJSONFileImporter<IgnorePatternsConfig>({ inputPath: configPath, optional: true });
+  const config = await importer.import();
+
+  const patterns = config?.ignorePatterns;
+  if (patterns && patterns.length > 0) {
+    return patterns;
   }
 
   return DEFAULT_IGNORE_PATTERNS;

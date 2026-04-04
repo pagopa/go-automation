@@ -8,23 +8,23 @@
  */
 export interface GOHTMLListExporterOptions<TItem = Record<string, unknown>> {
   /** Output file path */
-  outputPath: string;
+  readonly outputPath: string;
 
   /** HTML template string with placeholders {{items}} and optional {{count}} */
-  template?: string;
+  readonly template?: string;
 
   /** Row template for each item with placeholders {{key}} for each property */
-  rowTemplate?: string;
+  readonly rowTemplate?: string;
 
   /** Row transformation function (applied before HTML generation) */
-  rowTransformer?: (item: TItem) => TItem;
+  readonly rowTransformer?: (item: TItem) => TItem;
 
   /** Skip invalid items and continue export (default: false) */
-  skipInvalidItems?: boolean;
+  readonly skipInvalidItems?: boolean;
 
   /** Encoding for output file (default: 'utf8') */
-  encoding?: BufferEncoding;
+  readonly encoding?: BufferEncoding;
 
   /** Allow raw HTML in specific columns (default: false for all columns) */
-  allowRawHtml?: boolean | string[];
+  readonly allowRawHtml?: boolean | string[];
 }

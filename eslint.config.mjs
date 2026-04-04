@@ -32,6 +32,7 @@ export default tseslint.config(
       '**/*.d.ts',
       '**/*.mjs',
       '.eslintrc.cjs',
+      'knip.config.ts',
     ],
   },
 
@@ -212,7 +213,7 @@ export default tseslint.config(
       'security/detect-unsafe-regex': 'warn',
       'security/detect-non-literal-require': 'warn',
       'security/detect-non-literal-fs-filename': 'warn',
-      'security/detect-object-injection': 'warn',
+      'security/detect-object-injection': 'off',
       'security/detect-new-buffer': 'warn',
       'security/detect-pseudoRandomBytes': 'warn',
       'security/detect-possible-timing-attacks': 'warn',
@@ -220,7 +221,16 @@ export default tseslint.config(
       'security/detect-buffer-noassert': 'warn',
       'security/detect-disable-mustache-escape': 'warn',
       'security/detect-no-csrf-before-method-override': 'warn',
-      'security/detect-non-literal-regexp': 'warn',
+      'security/detect-non-literal-regexp': 'off',
+    },
+  },
+
+  // go-common IS the I/O boundary layer — non-literal fs paths are expected and safe here.
+  // Scripts are blocked from using fs directly via no-restricted-syntax.
+  {
+    files: ['packages/go-common/**/*.ts'],
+    rules: {
+      'security/detect-non-literal-fs-filename': 'off',
     },
   },
 

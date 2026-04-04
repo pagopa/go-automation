@@ -270,17 +270,15 @@ export async function main(script: Core.GOScript): Promise<void> {
 
     const exportColumns = baseExportColumns;
 
-    const exporterBaseOptions: Core.GOCSVListExporterOptions = {
+    exporter = new Core.GOCSVListExporter({
       outputPath: exportPathInfo.path,
       includeHeader: true,
       delimiter: ',',
+      columns: exportColumns,
       mergeOriginalColumns: config.preserveAllColumns,
       columnConflictStrategy: 'keep-generated',
       skipInvalidItems: true,
-    };
-
-    exporterBaseOptions.columns = exportColumns;
-    exporter = new Core.GOCSVListExporter(exporterBaseOptions);
+    });
 
     if (config.preserveAllColumns) {
       script.logger.info('CSV passthrough enabled: all original columns will be preserved');

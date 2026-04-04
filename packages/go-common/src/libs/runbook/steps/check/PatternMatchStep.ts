@@ -3,6 +3,7 @@ import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import { resolveRef } from './resolveRef.js';
+import { compileRegex } from '../../core/compileRegex.js';
 import { valueToString } from '../../../core/index.js';
 
 /**
@@ -65,7 +66,7 @@ class PatternMatchStep implements Step<boolean> {
     }
 
     const valueStr = valueToString(value);
-    const compiled = new RegExp(this.regex);
+    const compiled = compileRegex(this.regex);
     const passed = compiled.test(valueStr);
 
     if (passed) {

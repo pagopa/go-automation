@@ -1,6 +1,7 @@
 import { valueToString } from '../../core/index.js';
 import type { Condition } from '../types/Condition.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
+import { compileRegex } from './compileRegex.js';
 
 // Condition operators for compare conditions
 type ConditionOperator = '==' | '!=' | '>' | '<' | '>=' | '<=';
@@ -119,26 +120,9 @@ export class ConditionEvaluator {
     if (actual === undefined || actual === null) {
       return false;
     }
-    const compiled = this.compileRegex(regex);
+    const compiled = compileRegex(regex);
     const actualStr = valueToString(actual);
     return compiled.test(actualStr);
-  }
-
-  /**
-   * Safely compiles a regex pattern, throwing a descriptive error for invalid patterns.
-   *
-   * @param pattern - The regex pattern string to compile
-   * @returns The compiled RegExp
-   * @throws Error if the pattern is invalid
-   */
-  private compileRegex(pattern: string): RegExp {
-    try {
-      // eslint-disable-next-line security/detect-non-literal-regexp -- Pattern comes from runbook config (trusted), validated here
-      return new RegExp(pattern);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      throw new Error(`Invalid regex pattern "${pattern}": ${message}`, { cause: err });
-    }
   }
 
   /**

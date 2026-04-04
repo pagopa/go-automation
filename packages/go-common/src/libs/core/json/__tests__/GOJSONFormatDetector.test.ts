@@ -292,6 +292,15 @@ describe('GOJSONFormatDetector depth: deep', () => {
     assert.ok(result.details.includes('Confirmed JSONL'));
   });
 
+  it('returns deep method when middle/end samples are empty (JSONL + blank padding)', async () => {
+    // jsonl-blank-padded.json: 8 valid JSONL lines (~1.8KB) + ~3KB of blank lines
+    // Standard: 8 valid JSONL, confidence < 0.95 → deep proceeds
+    // Deep: 40%/80% offsets land in blank area → totalSampled=0 → returns standardResult with method='deep'
+    const result = await detector.detect(fixture('jsonl-blank-padded.json'));
+    assert.strictEqual(result.format, 'jsonl');
+    assert.strictEqual(result.method, 'deep');
+  });
+
   it('skips deep when standard already has confidence >= 0.95', async () => {
     const defaultDetector = new GOJSONFormatDetector({ depth: 'deep' });
     const result = await defaultDetector.detect(fixture('jsonl-200-padded.json'));

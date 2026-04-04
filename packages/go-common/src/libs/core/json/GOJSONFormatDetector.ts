@@ -182,7 +182,7 @@ export class GOJSONFormatDetector {
       return { format: 'unknown', confidence: 0, method: 'standard', details: 'Empty file' };
     }
 
-    const firstLine = lines[0];
+    const [firstLine] = lines;
     if (firstLine === undefined) {
       return { format: 'unknown', confidence: 0, method: 'standard', details: 'Empty file' };
     }
@@ -272,9 +272,7 @@ export class GOJSONFormatDetector {
     let validJsonObjects = 0;
     const linesToTest = Math.min(nonEmptyLines.length, this.sampleLines);
 
-    for (let i = 0; i < linesToTest; i++) {
-      const line = nonEmptyLines[i];
-      if (line === undefined) continue;
+    for (const line of nonEmptyLines.slice(0, linesToTest)) {
       if (this.isCompleteJsonObject(line)) {
         validJsonObjects++;
       }
@@ -302,16 +300,12 @@ export class GOJSONFormatDetector {
     }
 
     // Most lines are NOT valid JSON individually → pretty-printed JSON
-    if (validJsonObjects < linesToTest) {
-      return {
-        format: 'json',
-        confidence: 0.85,
-        method: 'standard',
-        details: `Only ${validJsonObjects}/${linesToTest} lines parse as JSON (likely pretty-printed JSON)`,
-      };
-    }
-
-    return { format: 'unknown', confidence: 0, method: 'standard', details: 'Unable to determine format' };
+    return {
+      format: 'json',
+      confidence: 0.85,
+      method: 'standard',
+      details: `Only ${validJsonObjects}/${linesToTest} lines parse as JSON (likely pretty-printed JSON)`,
+    };
   }
 
   /**

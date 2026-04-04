@@ -5,8 +5,6 @@
  * selects the appropriate runbook, and executes it via the RunbookEngine.
  */
 
-import * as fs from 'fs/promises';
-
 import { CloudWatchLogsClient } from '@aws-sdk/client-cloudwatch-logs';
 import { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
 import { AthenaClient } from '@aws-sdk/client-athena';
@@ -177,7 +175,8 @@ async function saveExecutionTrace(
   const traceInfoPath = script.paths.resolvePathWithInfo(fileName, Core.GOPathType.OUTPUT);
   const tracePath = traceInfoPath.path;
 
-  await fs.writeFile(tracePath, JSON.stringify(result.trace, null, 2), 'utf-8');
+  const exporter = new Core.GOJSONFileExporter({ outputPath: tracePath });
+  await exporter.export(result.trace);
 
   script.logger.info(`Execution trace saved: ${tracePath}`);
 }

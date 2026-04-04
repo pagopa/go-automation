@@ -2,7 +2,8 @@
  * Notification Importers
  */
 
-// Generic List Importers
+// Generic Importers
+export * from './GOFileImporter.js';
 export * from './GOListImporter.js';
 export * from './GOListImporterEvents.js';
 export * from './GOListImporterResult.js';
@@ -14,6 +15,8 @@ export * from './csv/GOCSVFormatAdapter.js';
 export * from './csv/GOCSVAdapterFactory.js';
 
 // JSON Importers
+export * from './json/GOJSONFileImporter.js';
+export * from './json/GOJSONFileImporterOptions.js';
 export * from './json/GOJSONListImporter.js';
 export * from './json/GOJSONListImporterOptions.js';
 
