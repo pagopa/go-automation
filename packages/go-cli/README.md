@@ -1,0 +1,117 @@
+# GO Automation CLI (go-cli)
+
+> Versione: 1.0.0 | Autore: Team GO - Gestione Operativa
+
+Il Control Plane centralizzato per la scoperta e l'esecuzione degli script di automazione nel monorepo. Sostituisce i comandi `pnpm --filter` con un'interfaccia intuitiva e interattiva.
+
+## Indice
+
+- [Funzionalità](#funzionalità)
+- [Prerequisiti](#prerequisiti)
+- [Utilizzo Globale](#utilizzo-globale)
+- [Utilizzo](#utilizzo)
+- [Esempi Pratici](#esempi-pratici)
+- [Troubleshooting](#troubleshooting)
+
+## Funzionalità
+
+- **Discovery Automatica**: Scansiona la directory `scripts/` e registra automaticamente ogni script che segue il pattern dei 3 file.
+- **Interfaccia Interattiva**: Menu di ricerca ricercabile (autocomplete) se invocato senza argomenti.
+- **Modalità di Esecuzione**:
+  - `source` (Default): Esegue direttamente i file TypeScript tramite `tsx`.
+  - `dist`: Esegue i file compilati JavaScript dalla cartella `dist/`.
+- **Ispezione Script**: Comando `info` per visualizzare metadati e parametri senza eseguire lo script.
+- **Help Dinamico**: Genera automaticamente la documentazione dei parametri CLI per ogni script.
+
+## Prerequisiti
+
+### Software Richiesto
+
+| Software   | Versione Minima | Note                 |
+| ---------- | --------------- | -------------------- |
+| Node.js    | >= 22.14.0      | Versione monorepo    |
+| pnpm       | >= 10.28.0      | Package manager      |
+| TypeScript | >= 5.0.0        | Incluso nel progetto |
+
+## Utilizzo Globale
+
+Per invocare `go-cli` da qualsiasi posizione nel file system senza dipendere da `pnpm`, è consigliato creare un alias nella propria shell (`.bashrc`, `.zshrc`, etc.).
+
+### Configurazione Alias
+
+Aggiungi la seguente riga al tuo file di configurazione della shell, sostituendo `/PERCORSO/AL/MONOREPO` con il path assoluto della root del progetto:
+
+```bash
+# Alias per esecuzione da sorgente (consigliato per uso quotidiano)
+alias go-auto='node --import tsx/esm /PERCORSO/AL/MONOREPO/packages/go-cli/src/index.ts'
+
+# Opzionale: Alias per esecuzione da build
+alias go-auto-dist='node /PERCORSO/AL/MONOREPO/packages/go-cli/dist/index.js'
+```
+
+Dopo aver ricaricato la shell (`source ~/.zshrc`), potrai usare `go-auto` ovunque.
+
+## Utilizzo
+
+### Modalità Interattiva
+
+Lancia il menu di selezione:
+
+```bash
+pnpm go
+# oppure, se hai configurato l'alias:
+go-auto
+```
+
+### Esecuzione Diretta
+
+```bash
+# Esecuzione da sorgente (default)
+go-auto [nome-script] [opzioni-script]
+
+# Esecuzione da build
+go-auto --dist [nome-script] [opzioni-script]
+```
+
+### Ispezione Script
+
+```bash
+go-auto info [nome-script]
+```
+
+## Esempi Pratici
+
+### Esempio 1: Analisi Allarmi
+
+```bash
+go-auto go-report-alarms --sd 2024-01-01T00:00:00Z --ed 2024-01-31T23:59:59Z
+```
+
+### Esempio 2: Visualizzazione Help di uno Script
+
+```bash
+go-auto send-check-ecs --help
+```
+
+### Esempio 3: Modalità Dist per validazione build
+
+```bash
+go-auto --dist go-report-alarms --sd 2024-01-01T00:00:00Z --ed 2024-01-31T23:59:59Z
+```
+
+## Troubleshooting
+
+### Errore: "Script not found"
+
+**Causa**: Lo script non è stato correttamente scoperto o non segue il pattern dei 3 file (manca `src/config.ts`).
+**Soluzione**: Verifica che lo script esporti `scriptMetadata` e `scriptParameters` in `src/config.ts`.
+
+### Errore: "Dist entry point not found"
+
+**Causa**: Stai cercando di eseguire in modalità `--dist` ma lo script non è stato compilato.
+**Soluzione**: Esegui `pnpm build` o `pnpm --filter [nome-script] build`.
+
+---
+
+**Ultima modifica**: 2026-04-06
+**Maintainer**: Team GO - Gestione Operativa
