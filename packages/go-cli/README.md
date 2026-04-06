@@ -35,21 +35,31 @@ Il Control Plane centralizzato per la scoperta e l'esecuzione degli script di au
 
 ## Utilizzo Globale
 
-Per invocare `go-cli` da qualsiasi posizione nel file system senza dipendere da `pnpm`, è consigliato creare un alias nella propria shell (`.bashrc`, `.zshrc`, etc.).
+Per rendere il comando `go-cli` disponibile ovunque nel sistema, è consigliato utilizzare il meccanismo nativo di `pnpm link`.
 
-### Configurazione Alias
+### Installazione Globale (Link)
 
-Aggiungi la seguente riga al tuo file di configurazione della shell, sostituendo `/PERCORSO/AL/MONOREPO` con il path assoluto della root del progetto:
+1.  Assicurati di aver compilato il progetto almeno una volta:
+    ```bash
+    pnpm build
+    ```
+2.  Entra nella cartella del pacchetto:
+    ```bash
+    cd packages/go-cli
+    ```
+3.  Crea il link globale:
+    ```bash
+    pnpm link --global
+    ```
 
+Ora puoi invocare `go-cli` da qualsiasi cartella del tuo sistema. Qualsiasi modifica al codice nel monorepo sarà immediatamente riflessa nel comando globale (grazie al symlink).
+
+### Disinstallazione
+
+Per rimuovere il comando globale:
 ```bash
-# Alias per esecuzione da sorgente (consigliato per uso quotidiano)
-alias go-cli='node --import tsx/esm /PERCORSO/AL/MONOREPO/packages/go-cli/src/index.ts'
-
-# Opzionale: Alias per esecuzione da build
-alias go-cli-dist='node /PERCORSO/AL/MONOREPO/packages/go-cli/dist/index.js'
+pnpm uninstall --global @go-automation/go-cli
 ```
-
-Dopo aver ricaricato la shell (`source ~/.zshrc`), potrai usare `go-cli` ovunque.
 
 ## Utilizzo
 
