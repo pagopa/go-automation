@@ -25,7 +25,7 @@ export async function runScript(script: DiscoveredScript, mode: ExecutionMode, a
       cwd: script.paths.root,
       env: {
         ...process.env,
-        GO_AUTO_CLI: 'true',
+        GO_CLI: 'true',
         GO_EXEC_MODE: mode,
       },
     });

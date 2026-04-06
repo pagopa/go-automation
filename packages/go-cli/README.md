@@ -43,13 +43,13 @@ Aggiungi la seguente riga al tuo file di configurazione della shell, sostituendo
 
 ```bash
 # Alias per esecuzione da sorgente (consigliato per uso quotidiano)
-alias go-auto='node --import tsx/esm /PERCORSO/AL/MONOREPO/packages/go-cli/src/index.ts'
+alias go-cli='node --import tsx/esm /PERCORSO/AL/MONOREPO/packages/go-cli/src/index.ts'
 
 # Opzionale: Alias per esecuzione da build
-alias go-auto-dist='node /PERCORSO/AL/MONOREPO/packages/go-cli/dist/index.js'
+alias go-cli-dist='node /PERCORSO/AL/MONOREPO/packages/go-cli/dist/index.js'
 ```
 
-Dopo aver ricaricato la shell (`source ~/.zshrc`), potrai usare `go-auto` ovunque.
+Dopo aver ricaricato la shell (`source ~/.zshrc`), potrai usare `go-cli` ovunque.
 
 ## Utilizzo
 
@@ -60,23 +60,23 @@ Lancia il menu di selezione:
 ```bash
 pnpm go
 # oppure, se hai configurato l'alias:
-go-auto
+go-cli
 ```
 
 ### Esecuzione Diretta
 
 ```bash
 # Esecuzione da sorgente (default)
-go-auto [nome-script] [opzioni-script]
+go-cli [nome-script] [opzioni-script]
 
 # Esecuzione da build
-go-auto --dist [nome-script] [opzioni-script]
+go-cli --dist [nome-script] [opzioni-script]
 ```
 
 ### Ispezione Script
 
 ```bash
-go-auto info [nome-script]
+go-cli info [nome-script]
 ```
 
 ## Esempi Pratici
@@ -84,19 +84,19 @@ go-auto info [nome-script]
 ### Esempio 1: Analisi Allarmi
 
 ```bash
-go-auto go-report-alarms --sd 2024-01-01T00:00:00Z --ed 2024-01-31T23:59:59Z
+go-cli go-report-alarms --sd 2024-01-01T00:00:00Z --ed 2024-01-31T23:59:59Z
 ```
 
 ### Esempio 2: Visualizzazione Help di uno Script
 
 ```bash
-go-auto send-check-ecs --help
+go-cli send-check-ecs --help
 ```
 
 ### Esempio 3: Modalità Dist per validazione build
 
 ```bash
-go-auto --dist go-report-alarms --sd 2024-01-01T00:00:00Z --ed 2024-01-31T23:59:59Z
+go-cli --dist go-report-alarms --sd 2024-01-01T00:00:00Z --ed 2024-01-31T23:59:59Z
 ```
 
 ## Troubleshooting
