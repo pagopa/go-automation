@@ -39,15 +39,20 @@ Per rendere il comando `go-cli` disponibile ovunque nel sistema, è consigliato 
 
 ### Installazione Globale (Link)
 
-1.  Assicurati di aver compilato il progetto almeno una volta:
+1. Assicurati di aver compilato il progetto almeno una volta:
+
     ```bash
     pnpm build
     ```
-2.  Entra nella cartella del pacchetto:
+
+2. Entra nella cartella del pacchetto:
+
     ```bash
     cd packages/go-cli
     ```
-3.  Crea il link globale:
+
+3. Crea il link globale:
+
     ```bash
     pnpm link --global
     ```
@@ -57,6 +62,7 @@ Ora puoi invocare `go-cli` da qualsiasi cartella del tuo sistema. Qualsiasi modi
 ### Disinstallazione
 
 Per rimuovere il comando globale:
+
 ```bash
 pnpm uninstall --global @go-automation/go-cli
 ```
