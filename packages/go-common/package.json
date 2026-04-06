@@ -52,7 +52,7 @@
   "dependencies": {
     "@aws-sdk/client-cloudwatch": "^3.1023.0",
     "@aws-sdk/client-dynamodb": "^3.1023.0",
-    "@aws-sdk/client-ecs": "^3.1023.0",
+    "@aws-sdk/client-ecs": "^3.1024.0",
     "@aws-sdk/client-sqs": "^3.1023.0",
     "@aws-sdk/client-sts": "^3.1023.0",
     "@aws-sdk/credential-provider-ini": "^3.972.28",
