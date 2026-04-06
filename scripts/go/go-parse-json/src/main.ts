@@ -1,4 +1,3 @@
-import * as fs from 'fs';
 import * as path from 'path';
 import type { Readable } from 'stream';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
@@ -44,12 +43,13 @@ export async function main(script: Core.GOScript): Promise<void> {
       throw new Error(`S3 object ${config.inputFile} has no body`);
     }
 
-    // Using fs.promises.writeFile with a Buffer from the stream to avoid stream piping lint issues
     const chunks: Uint8Array[] = [];
     for await (const chunk of stream) {
       chunks.push(chunk as Uint8Array);
     }
-    await fs.promises.writeFile(finalInputPath, Buffer.concat(chunks));
+    const content = Buffer.concat(chunks).toString('utf-8');
+    const exporter = new Core.GOFileListExporter({ outputPath: finalInputPath });
+    await exporter.export([content]);
   } else if (config.inputFile.startsWith('cwl:')) {
     const logGroup = config.inputFile.replace('cwl:', '');
     finalInputPath = path.join(script.paths.getExecutionOutputDir(), `cwl_input_${Date.now()}.jsonl`);
@@ -66,11 +66,12 @@ export async function main(script: Core.GOScript): Promise<void> {
       }),
     );
 
-    const logLines = (events.events ?? [])
+    const logMessages = (events.events ?? [])
       .map((e: FilteredLogEvent) => e.message)
-      .filter((m: string | undefined): m is string => m !== undefined)
-      .join('\n');
-    await fs.promises.writeFile(finalInputPath, logLines);
+      .filter((m: string | undefined): m is string => m !== undefined);
+
+    const exporter = new Core.GOFileListExporter({ outputPath: finalInputPath });
+    await exporter.export(logMessages);
   } else {
     finalInputPath = script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT);
   }

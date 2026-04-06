@@ -37,7 +37,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     aliases: ['ff'],
     defaultValue: 'txt',
     validator: (value) =>
-      Core.isGOExportFormat(String(value)) ||
+      Core.isGOExportFormat(String(value)) ??
       `Invalid format "${String(value)}". Valid: ${Core.GO_EXPORT_FORMATS.join(', ')}`,
   },
   {
