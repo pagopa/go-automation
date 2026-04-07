@@ -193,8 +193,7 @@ export class GOSlackMessageReader extends GOEventEmitterBase<GOMessageReaderEven
       while (!done) {
         const pageStartTime = Date.now();
 
-        const effectivePageSize =
-          totalLimit !== undefined ? Math.min(pageSize, totalLimit - totalMessages) : pageSize;
+        const effectivePageSize = totalLimit !== undefined ? Math.min(pageSize, totalLimit - totalMessages) : pageSize;
 
         if (effectivePageSize <= 0) {
           break;
@@ -230,9 +229,9 @@ export class GOSlackMessageReader extends GOEventEmitterBase<GOMessageReaderEven
           ...(nextCursor ? { cursor: nextCursor } : {}),
         });
 
-        for (let i = 0; i < filteredMessages.length; i++) {
+        for (const [i, msg] of filteredMessages.entries()) {
           this.emit('reader:message:received', {
-            message: filteredMessages[i]!, // Safe: iterating within bounds
+            message: msg,
             index: totalMessages - filteredMessages.length + i,
           });
         }
@@ -269,10 +268,7 @@ export class GOSlackMessageReader extends GOEventEmitterBase<GOMessageReaderEven
    * Maps Slack API messages to GOReceivedMessage format
    * Complexity: O(N) where N is the number of messages
    */
-  private mapSlackMessages(
-    slackMessages: SlackMessage[] | undefined,
-    target: GOMessageTarget,
-  ): GOReceivedMessage[] {
+  private mapSlackMessages(slackMessages: SlackMessage[] | undefined, target: GOMessageTarget): GOReceivedMessage[] {
     if (!slackMessages) {
       return [];
     }
@@ -286,9 +282,7 @@ export class GOSlackMessageReader extends GOEventEmitterBase<GOMessageReaderEven
       const author = this.mapSlackAuthor(msg);
       const attachments = this.mapSlackFiles(msg.files);
 
-      const messageTarget: GOMessageTarget = msg.thread_ts
-        ? { ...target, threadId: msg.thread_ts }
-        : target;
+      const messageTarget: GOMessageTarget = msg.thread_ts ? { ...target, threadId: msg.thread_ts } : target;
 
       results.push({
         id: msg.ts,

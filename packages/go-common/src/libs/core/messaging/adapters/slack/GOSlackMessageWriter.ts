@@ -139,11 +139,13 @@ export class GOSlackMessageWriter extends GOEventEmitterBase<GOMessageWriterEven
     channel: string,
     startTime: number,
   ): Promise<GOMessageReceipt> {
-    const attachments = message.attachments!; // Safe: caller checks length > 0
+    const attachments = message.attachments;
+    if (!attachments) {
+      return { success: true };
+    }
     let lastResult: unknown;
 
-    for (let i = 0; i < attachments.length; i++) {
-      const attachment = attachments[i]!; // Safe: iterating within bounds
+    for (const [i, attachment] of attachments.entries()) {
       const fileStartTime = Date.now();
 
       await this.validateFileExists(attachment.filePath);
