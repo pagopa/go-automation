@@ -10,6 +10,7 @@ import { Command } from 'commander';
 import { Core } from '@go-automation/go-common';
 import { discoverScripts, type DiscoveredScript } from './discovery.js';
 import { runScript, type ExecutionMode } from './runner.js';
+import { validateAndInformParameters } from './params.js';
 
 // Setup Logger and Prompt using go-common
 // We need to provide at least a console handler for the logger to work
@@ -37,7 +38,15 @@ async function main(): Promise<void> {
       .action(async (_options: Record<string, unknown>, cmd: Command) => {
         const programOpts = program.opts();
         const mode: ExecutionMode = programOpts['dist'] ? 'dist' : 'source';
-        const exitCode = await runScript(script, mode, cmd.args);
+
+        // Validate and inform about parameters before execution
+        const { valid, finalArgs } = await validateAndInformParameters(script, cmd.args, prompt, logger, false);
+
+        if (!valid) {
+          process.exit(1);
+        }
+
+        const exitCode = await runScript(script, mode, finalArgs);
         process.exit(exitCode);
       });
 
@@ -130,10 +139,26 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
 
     if (!modeChoice) process.exit(0);
 
-    const argsInput = await prompt.text('Enter optional arguments (e.g. --param value):');
-    const args = argsInput ? argsInput.split(' ') : [];
+    const mandatoryFlags = selectedScript.parameters
+      .filter((p) => p.required)
+      .map((p) => Core.GOConfigKeyTransformer.toCLIFlag(p.name))
+      .join(', ');
 
-    const exitCode = await runScript(selectedScript, modeChoice as ExecutionMode, args);
+    const promptMsg = mandatoryFlags
+      ? `Enter arguments (Mandatory: ${mandatoryFlags}):`
+      : 'Enter additional arguments (optional, e.g. --param value):';
+
+    const argsInput = await prompt.text(promptMsg);
+    const initialArgs = argsInput && argsInput.trim() !== '' ? argsInput.trim().split(/\s+/) : [];
+
+    // Validate and inform about parameters before execution (Interactive)
+    const { valid, finalArgs } = await validateAndInformParameters(selectedScript, initialArgs, prompt, logger, true);
+
+    if (!valid) {
+      process.exit(1);
+    }
+
+    const exitCode = await runScript(selectedScript, modeChoice as ExecutionMode, finalArgs);
     process.exit(exitCode);
   }
 }

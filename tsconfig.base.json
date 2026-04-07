@@ -12,7 +12,6 @@
     "sourceMap": true,
     "removeComments": false,
     "importHelpers": false,
-    "downlevelIteration": true,
     "newLine": "lf",
     // Type Checking - Ultra Strict Mode
     "strict": true,

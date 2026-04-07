@@ -197,7 +197,7 @@ export default tseslint.config(
 
   // CLI entry points and local test harnesses - allow console
   {
-    files: ['**/src/index.ts', '**/src/main.ts', '**/cli.ts', '**/src/test-local.ts'],
+    files: ['**/src/index.ts', '**/src/main.ts', '**/cli.ts', '**/src/params.ts', '**/src/test-local.ts'],
     rules: {
       'no-console': 'off',
     },
