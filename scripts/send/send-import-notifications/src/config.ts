@@ -123,4 +123,3 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     required: false,
   },
 ] as const;
-

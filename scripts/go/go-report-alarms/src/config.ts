@@ -68,4 +68,3 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     aliases: ['aps'],
   },
 ] as const;
-

@@ -43,4 +43,3 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     aliases: ['df', 'output'],
   },
 ] as const;
-
