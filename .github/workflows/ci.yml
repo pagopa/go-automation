@@ -39,6 +39,12 @@ jobs:
     with:
       command: knip
 
+  scaffold:
+    name: Scaffold Validation
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      command: validate:scaffold
+
   build:
     name: Build
     uses: ./.github/workflows/ci-job.yml
@@ -65,13 +71,13 @@ jobs:
   # Summary job for branch protection
   ci-success:
     name: CI Success
-    needs: [typecheck, lint, format, knip, build, test, coverage]
+    needs: [typecheck, lint, format, knip, scaffold, build, test, coverage]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
-          results=("${{ needs.typecheck.result }}" "${{ needs.lint.result }}" "${{ needs.format.result }}" "${{ needs.knip.result }}" "${{ needs.build.result }}" "${{ needs.test.result }}" "${{ needs.coverage.result }}")
+          results=("${{ needs.typecheck.result }}" "${{ needs.lint.result }}" "${{ needs.format.result }}" "${{ needs.knip.result }}" "${{ needs.scaffold.result }}" "${{ needs.build.result }}" "${{ needs.test.result }}" "${{ needs.coverage.result }}")
           for result in "${results[@]}"; do
             if [[ "$result" != "success" ]]; then
               echo "One or more checks failed"
