@@ -26,4 +26,3 @@ export const DEFAULT_TIME_WINDOW_MINUTES = 5;
  * Set to 400 to capture both 4xx and 5xx errors from the known cases table.
  */
 export const DEFAULT_MIN_STATUS_CODE = 400;
-

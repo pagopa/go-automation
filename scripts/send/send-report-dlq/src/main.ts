@@ -3,7 +3,7 @@
  *
  * Queries Dead Letter Queues across one or more AWS profiles and generates
  * a report showing message counts and age (from CloudWatch) for each DLQ
- * that contains messages. Optionally exports results to JSON, CSV, or HTML.
+ * that contains messages. Exports results to JSON, JSONL, CSV, HTML, or TXT.
  */
 
 import { AWS, Core } from '@go-automation/go-common';
@@ -27,11 +27,7 @@ import type { SendReportDlqConfig } from './types/index.js';
 export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<SendReportDlqConfig>();
 
-  // Validate format early
   const outputFormat = config.outputFormat;
-  if (!Core.isGOExportFormat(outputFormat)) {
-    throw new Error(`Invalid output format "${outputFormat}". Valid values: ${Core.GO_EXPORT_FORMATS.join(', ')}`);
-  }
 
   // Resolve output path — default to script name + today's ISO date
   const today = new Date().toISOString().slice(0, 10);
