@@ -17,8 +17,8 @@ import {
   ReceiveMessageCommand,
   type QueueAttributeName,
 } from '@aws-sdk/client-sqs';
+import type { Message } from '@aws-sdk/client-sqs';
 import { Core } from '@go-automation/go-common';
-import * as fs from 'node:fs';
 
 import { SendDumpSqsDedupMode, type SendDumpSqsConfig } from './config.js';
 
@@ -108,6 +108,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   let totalDuplicates = 0;
   let consecutiveEmptyReceives = 0;
   const seenKeys = new Set<string>();
+  const dumpedMessages: Message[] = [];
 
   script.prompt.startSpinner('Dumping messages...');
 
@@ -171,8 +172,7 @@ export async function main(script: Core.GOScript): Promise<void> {
       if (isDuplicate) {
         totalDuplicates++;
       } else {
-        // Append to NDJSON file
-        fs.appendFileSync(outputPathInfo.path, `${JSON.stringify(message)}\n`, 'utf-8');
+        dumpedMessages.push(message);
         totalDumped++;
         newMessagesInBatch++;
       }
@@ -192,6 +192,15 @@ export async function main(script: Core.GOScript): Promise<void> {
     }
 
     script.prompt.updateSpinner(`Dumped: ${totalDumped} | Received: ${totalReceived} | Duplicates: ${totalDuplicates}`);
+  }
+
+  // Write all collected messages to NDJSON file
+  if (dumpedMessages.length > 0) {
+    const exporter = new Core.GOJSONListExporter<Message>({
+      outputPath: outputPathInfo.path,
+      jsonl: true,
+    });
+    await exporter.export(dumpedMessages);
   }
 
   const stopReason =

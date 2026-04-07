@@ -328,4 +328,3 @@ async function writeResultsToFile(
       throw new Error(`Unsupported output format: ${format as string}`);
   }
 }
-
