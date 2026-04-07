@@ -7,7 +7,7 @@
  * Also prints a clean JSON mapping of results to the console.
  */
 
-import * as fs from 'fs';
+import { access } from 'fs/promises';
 import * as path from 'path';
 import { QueryCommand, DescribeTableCommand } from '@aws-sdk/client-dynamodb';
 import type { QueryCommandInput, AttributeValue, TableDescription } from '@aws-sdk/client-dynamodb';
@@ -46,18 +46,17 @@ export async function main(script: Core.GOScript): Promise<void> {
     if (path.isAbsolute(config.inputFile)) {
       finalInputPath = config.inputFile;
     } else {
-      const initCwd = process.env['INIT_CWD'];
       const pathsToTry = [
-        ...(initCwd ? [path.resolve(initCwd, config.inputFile)] : []),
         path.resolve(process.cwd(), config.inputFile),
         path.resolve(script.paths.getBaseDir(), config.inputFile),
         script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT),
       ];
 
-      finalInputPath = pathsToTry.find((p) => fs.existsSync(p)) ?? (pathsToTry[pathsToTry.length - 1] as string);
+      const fallbackPath = script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT);
+      finalInputPath = (await findFirstExistingPath(pathsToTry)) ?? fallbackPath;
     }
 
-    if (!fs.existsSync(finalInputPath)) {
+    if (!(await fileExists(finalInputPath))) {
       throw new Error(`Input file not found: ${config.inputFile} (tried: ${finalInputPath})`);
     }
 
@@ -212,7 +211,8 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.section('Saving Results');
   const defaultOutputPath = script.paths.resolvePath('results.json', Core.GOPathType.OUTPUT);
   script.prompt.startSpinner('Saving default JSON results mapping...');
-  await fs.promises.writeFile(defaultOutputPath, formatConsoleJson(resultMap), 'utf8');
+  const defaultExporter = new Core.GOJSONFileExporter({ outputPath: defaultOutputPath, pretty: true, indent: 2 });
+  await defaultExporter.export(resultMap);
   script.prompt.spinnerStop(`Default results mapping saved to: ${defaultOutputPath}`);
 
   // Step 5: Write to custom output file if requested
@@ -340,10 +340,40 @@ async function writeResultsToFile(
     }
     case 'text': {
       const text = formatForText(resultMap);
-      await fs.promises.writeFile(path, text, 'utf8');
+      const textLines = text.split('\n').filter((line) => line.length > 0);
+      const textExporter = new Core.GOFileListExporter({ outputPath: path });
+      await textExporter.export(textLines);
       break;
     }
     default:
       throw new Error(`Unsupported output format: ${format as string}`);
   }
+}
+
+/**
+ * Checks whether a file exists at the given path
+ * @param filePath - Absolute path to check
+ * @returns true if file exists
+ */
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Finds the first existing path among a list of candidates
+ * @param paths - Array of absolute paths to try
+ * @returns The first existing path, or undefined if none exist
+ */
+async function findFirstExistingPath(paths: ReadonlyArray<string>): Promise<string | undefined> {
+  for (const candidate of paths) {
+    if (await fileExists(candidate)) {
+      return candidate;
+    }
+  }
+  return undefined;
 }

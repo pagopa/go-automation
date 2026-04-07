@@ -45,7 +45,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   if (outputPathInfo.isAbsolute) {
     script.logger.info(`Output file (absolute): ${outputPathInfo.path}`);
   } else {
-    script.logger.info(`Output directory: ${outputPathInfo.resolvedDir ?? 'output'}`);
+    script.logger.info(`Output directory: ${outputPathInfo.resolvedDir}`);
     script.logger.info(`Output file: ${outputPathInfo.path}`);
   }
   script.logger.info(`Output format: ${outputFormat}`);
