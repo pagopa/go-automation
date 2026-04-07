@@ -6,6 +6,7 @@
  */
 
 import { Core } from '@go-automation/go-common';
+
 import { loadIgnorePatterns } from './libs/PatternsUtils.js';
 
 /**
@@ -82,7 +83,7 @@ export interface GoReportAlarmsConfig {
   /** Optional alarm name filter */
   readonly alarmName: string | undefined;
 
-  /** Patterns of alarms to ignore */
+  /** Patterns of alarms to ignore (loaded from config file via GOPaths if not provided) */
   readonly ignorePatterns: ReadonlyArray<string>;
 
   /** Enable verbose output */

@@ -7,8 +7,6 @@
  * Also prints a clean JSON mapping of results to the console.
  */
 
-import { access } from 'fs/promises';
-import * as path from 'path';
 import { QueryCommand, DescribeTableCommand } from '@aws-sdk/client-dynamodb';
 import type { QueryCommandInput, AttributeValue, TableDescription } from '@aws-sdk/client-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
@@ -39,29 +37,10 @@ export async function main(script: Core.GOScript): Promise<void> {
     pks = config.inputPks.map((pk) => pk.trim()).filter((pk) => pk !== '');
     script.logger.info(`Found ${pks.length} PKs from command line`);
   } else if (config.inputFile) {
-    // Path resolution: try absolute, then relative to INIT_CWD (where pnpm was run),
-    // then relative to CWD (script dir), then project root, then fallback to script inputs dir
-    let finalInputPath: string;
+    const inputPathInfo = script.paths.resolvePathWithInfo(config.inputFile, Core.GOPathType.INPUT);
 
-    if (path.isAbsolute(config.inputFile)) {
-      finalInputPath = config.inputFile;
-    } else {
-      const pathsToTry = [
-        path.resolve(process.cwd(), config.inputFile),
-        path.resolve(script.paths.getBaseDir(), config.inputFile),
-        script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT),
-      ];
-
-      const fallbackPath = script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT);
-      finalInputPath = (await findFirstExistingPath(pathsToTry)) ?? fallbackPath;
-    }
-
-    if (!(await fileExists(finalInputPath))) {
-      throw new Error(`Input file not found: ${config.inputFile} (tried: ${finalInputPath})`);
-    }
-
-    script.prompt.startSpinner(`Reading PKs from ${finalInputPath}...`);
-    const imported = await importPks(finalInputPath, {
+    script.prompt.startSpinner(`Reading PKs from ${inputPathInfo.path}...`);
+    const imported = await importPks(inputPathInfo.path, {
       format: config.inputFormat,
       csvColumn: config.csvColumn,
       csvDelimiter: config.csvDelimiter,
@@ -350,30 +329,3 @@ async function writeResultsToFile(
   }
 }
 
-/**
- * Checks whether a file exists at the given path
- * @param filePath - Absolute path to check
- * @returns true if file exists
- */
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Finds the first existing path among a list of candidates
- * @param paths - Array of absolute paths to try
- * @returns The first existing path, or undefined if none exist
- */
-async function findFirstExistingPath(paths: ReadonlyArray<string>): Promise<string | undefined> {
-  for (const candidate of paths) {
-    if (await fileExists(candidate)) {
-      return candidate;
-    }
-  }
-  return undefined;
-}

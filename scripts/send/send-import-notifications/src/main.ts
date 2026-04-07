@@ -295,14 +295,15 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   // Execute workflow
   script.logger.section('Starting Import Workflow');
-  script.logger.info(`Input file: ${config.csvFile}`);
+  const csvInputPath = script.paths.resolvePath(config.csvFile, Core.GOPathType.INPUT);
+  script.logger.info(`Input file: ${csvInputPath}`);
   script.logger.info(`Send mode: ${config.sendNotifications ? 'LIVE' : 'DRY-RUN'}`);
   script.logger.info(`Concurrency: ${config.concurrency}`);
   script.logger.info(`Poll for IUN: ${config.pollForIun}`);
   script.logger.newline();
 
   try {
-    const result = await worker.process(config.csvFile, {
+    const result = await worker.process(csvInputPath, {
       concurrency: config.concurrency,
       skipFailedNotifications: false,
       sendNotifications: config.sendNotifications,
