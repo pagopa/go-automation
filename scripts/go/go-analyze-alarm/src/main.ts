@@ -13,7 +13,7 @@ import { fromIni } from '@aws-sdk/credential-provider-ini';
 
 import { Core, Runbook } from '@go-automation/go-common';
 
-import type { GoAnalyzeAlarmConfig } from './config.js';
+import type { GoAnalyzeAlarmConfig } from './types/GoAnalyzeAlarmConfig.js';
 import { buildAddressBookIoApiGwAlarmRunbook } from './libs/runbooks/address-book-io-api-gw-alarm/index.js';
 import { buildDeliveryB2BApiGwAlarmRunbook } from './libs/runbooks/delivery-b2b-api-gw-alarm/index.js';
 import { DEFAULT_TIME_WINDOW_MINUTES } from './libs/runbooks/address-book-io-api-gw-alarm/constants.js';
