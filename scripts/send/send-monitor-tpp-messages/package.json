@@ -42,7 +42,6 @@
     "@go-automation/go-common": "workspace:*",
     "@slack/web-api": "^7.15.0",
     "croner": "^10.0.1",
-    "csv-stringify": "^6.7.0",
     "luxon": "^3.7.2",
     "yaml": "^2.8.3"
   },

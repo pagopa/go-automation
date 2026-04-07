@@ -6,6 +6,7 @@
 import { GOConfigSchema } from '../config/GOConfigSchema.js';
 import { GOConfigReader } from '../config/GOConfigReader.js';
 import { GOConfigParameter } from '../config/GOConfigParameter.js';
+import type { GOConfigFallbackContext } from '../config/GOConfigParameter.js';
 import { GOConfigParameterType } from '../config/GOConfigParameterType.js';
 import { GOConfigTypeConverter } from '../config/GOConfigTypeConverter.js';
 
@@ -25,10 +26,12 @@ export interface ConfigLoadResult {
 export class GOScriptConfigLoader {
   private readonly configSchema: GOConfigSchema;
   private readonly configReader: GOConfigReader;
+  private readonly fallbackContext: GOConfigFallbackContext;
 
-  constructor(configSchema: GOConfigSchema, configReader: GOConfigReader) {
+  constructor(configSchema: GOConfigSchema, configReader: GOConfigReader, fallbackContext: GOConfigFallbackContext) {
     this.configSchema = configSchema;
     this.configReader = configReader;
+    this.fallbackContext = fallbackContext;
   }
 
   /**
@@ -85,9 +88,9 @@ export class GOScriptConfigLoader {
         value = param.defaultValue;
       }
 
-      // If still no value, try async fallback
+      // If still no value, try async fallback (with context for paths, etc.)
       if (value === undefined && param.hasAsyncFallback()) {
-        value = await param.asyncFallback?.();
+        value = await param.asyncFallback?.(this.fallbackContext);
       }
 
       if (value !== undefined) {

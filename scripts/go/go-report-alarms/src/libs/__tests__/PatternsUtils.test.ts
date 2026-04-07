@@ -1,7 +1,7 @@
 /**
  * Tests for PatternsUtils
  *
- * Verifies loading ignore patterns from config file via GOJSONFileImporter
+ * Verifies loading ignore patterns from config file via GOConfigFallbackContext
  * with fallback to built-in defaults when config is missing.
  */
 
@@ -17,9 +17,10 @@ const FIXTURES_DIR = path.join(import.meta.dirname, '__fixtures__');
 describe('PatternsUtils', () => {
   describe('loadIgnorePatterns', () => {
     it('returns default patterns when config file does not exist', async () => {
-      // The actual config file (../configs/ignore-patterns.json) doesn't exist
+      // GOPaths resolves to configs/ where ignore-patterns.json doesn't exist
       // so loadIgnorePatterns should return the built-in defaults
-      const patterns = await loadIgnorePatterns();
+      const context: Core.GOConfigFallbackContext = { paths: new Core.GOPaths('go-report-alarms') };
+      const patterns = await loadIgnorePatterns(context);
 
       assert.ok(patterns.length > 0);
       assert.ok(patterns.includes('-CumulativeAlarm'));
@@ -28,7 +29,8 @@ describe('PatternsUtils', () => {
     });
 
     it('returns a readonly array', async () => {
-      const patterns = await loadIgnorePatterns();
+      const context: Core.GOConfigFallbackContext = { paths: new Core.GOPaths('go-report-alarms') };
+      const patterns = await loadIgnorePatterns(context);
 
       assert.ok(Array.isArray(patterns));
       assert.ok(patterns.length >= 10); // Default has 10 patterns

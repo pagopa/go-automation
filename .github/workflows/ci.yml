@@ -52,16 +52,26 @@ jobs:
       pre-command: build
       command: test
 
+  coverage:
+    name: Coverage
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      pre-command: build
+      command: test:coverage
+      coverage-lines-threshold: '90'
+      coverage-branches-threshold: '80'
+      coverage-functions-threshold: '90'
+
   # Summary job for branch protection
   ci-success:
     name: CI Success
-    needs: [typecheck, lint, format, knip, build, test]
+    needs: [typecheck, lint, format, knip, build, test, coverage]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
-          results=("${{ needs.typecheck.result }}" "${{ needs.lint.result }}" "${{ needs.format.result }}" "${{ needs.knip.result }}" "${{ needs.build.result }}" "${{ needs.test.result }}")
+          results=("${{ needs.typecheck.result }}" "${{ needs.lint.result }}" "${{ needs.format.result }}" "${{ needs.knip.result }}" "${{ needs.build.result }}" "${{ needs.test.result }}" "${{ needs.coverage.result }}")
           for result in "${results[@]}"; do
             if [[ "$result" != "success" ]]; then
               echo "One or more checks failed"
