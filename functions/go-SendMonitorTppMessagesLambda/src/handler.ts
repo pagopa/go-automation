@@ -18,11 +18,10 @@
 
 import type { ScheduledEvent } from 'aws-lambda';
 
-import { Core } from '@go-automation/go-common';
+import { S3Client } from '@aws-sdk/client-s3';
+import { Core, AWS } from '@go-automation/go-common';
 import { scriptMetadata, scriptParameters } from 'send-monitor-tpp-messages/config';
 import { main } from 'send-monitor-tpp-messages/main';
-
-import { S3Uploader } from './libs/S3Uploader.js';
 
 /**
  * GOScript instance configured with the same metadata and parameters as the CLI script.
@@ -69,8 +68,8 @@ export const handler = script.createLambdaHandler<ScheduledEvent>(async (_event)
     const prefix = process.env['REPORTS_S3_PREFIX'] ?? 'reports/tpp-monitor';
     const reportsDir = script.paths.resolvePath('reports', Core.GOPathType.OUTPUT) ?? '/tmp/reports';
 
-    const uploader = new S3Uploader(reportsBucket);
-    const uploaded = await uploader.uploadDirectory(reportsDir, prefix);
+    const s3Service = new AWS.AWSS3Service(new S3Client({}));
+    const uploaded = await s3Service.uploadDirectory(reportsDir, reportsBucket, prefix);
 
     for (const key of uploaded) {
       script.logger.info(`Uploaded: s3://${reportsBucket}/${key}`);

@@ -5,12 +5,18 @@
  * Receives typed dependencies (script) for clean separation of concerns.
  */
 
+import * as path from 'path';
+
+import { DateTime } from 'luxon';
+
 import { Core } from '@go-automation/go-common';
 
 import {
   AwsAthenaService,
   AthenaQueryExecutor,
-  CSVManager,
+  convertAthenaResults,
+  analyzeThreshold,
+  generateThresholdReport,
   SlackNotifier,
   formatDateForAthena,
   getDateComponents,
@@ -71,44 +77,63 @@ async function executeAthenaQuery(
 }
 
 /**
- * Saves results to CSV and analyzes them
+ * Generates a timestamped filename for the CSV report
  *
- * @param csvManager - CSV manager instance
- * @param results - Athena query results
+ * @param prefix - Filename prefix
+ * @returns Generated filename with timestamp
+ */
+function generateFileName(prefix: string = 'report'): string {
+  const timestamp = DateTime.now().toFormat('yyyy-MM-dd_HH-mm-ss');
+  return `${prefix}_${timestamp}.csv`;
+}
+
+/**
+ * Saves results to CSV using GOCSVListExporter and analyzes them
+ *
+ * @param data - Converted CSV rows
+ * @param outputFolder - Directory for CSV output (resolved by GOPaths)
  * @param thresholdField - Optional field to analyze
  * @param threshold - Threshold value
- * @returns Analysis results
+ * @returns Analysis results with file path and report
  */
 async function saveAndAnalyzeResults(
-  csvManager: CSVManager,
-  results: AthenaQueryResults,
+  data: CSVRow[],
+  outputFolder: string,
   thresholdField?: string,
   threshold?: number,
 ): Promise<{
   csvFilePath: string | null;
+  fileName: string | null;
   rowCount: number;
   analysis: string;
-  data: CSVRow[];
 }> {
-  const data = csvManager.convertAthenaResults(results);
   const rowCount = data.length;
 
   let csvFilePath: string | null = null;
+  let fileName: string | null = null;
+
   if (rowCount > 0) {
-    csvFilePath = await csvManager.saveToCSV(data);
+    fileName = generateFileName();
+    csvFilePath = path.join(outputFolder, fileName);
+
+    const exporter = new Core.GOCSVListExporter<CSVRow>({
+      outputPath: csvFilePath,
+      includeHeader: true,
+    });
+    await exporter.export(data);
   }
 
   let analysis: string;
   if (rowCount === 0) {
     analysis = 'No data found in the specified time range';
   } else if (thresholdField && threshold !== undefined && threshold > 0) {
-    const flaggedRows = csvManager.analyzeThreshold(data, thresholdField, threshold);
-    analysis = csvManager.generateThresholdReport(flaggedRows, thresholdField, threshold);
+    const flaggedRows = analyzeThreshold(data, thresholdField, threshold);
+    analysis = generateThresholdReport(flaggedRows, thresholdField, threshold);
   } else {
     analysis = `Found ${rowCount} rows`;
   }
 
-  return { csvFilePath, rowCount, analysis, data };
+  return { csvFilePath, fileName, rowCount, analysis };
 }
 
 /**
@@ -121,7 +146,7 @@ async function saveAndAnalyzeResults(
  * @param csvFilePath - Path to CSV file (or null)
  * @param rowCount - Number of rows
  * @param analysis - Analysis string
- * @param csvManager - CSV manager for filename
+ * @param fileName - CSV filename (or null)
  * @returns True if sent, false otherwise
  */
 async function sendSlackReport(
@@ -132,7 +157,7 @@ async function sendSlackReport(
   csvFilePath: string | null,
   rowCount: number,
   analysis: string,
-  csvManager: CSVManager,
+  fileName: string | null,
 ): Promise<boolean> {
   if (!slackNotifier) {
     return false;
@@ -142,7 +167,7 @@ async function sendSlackReport(
     startDate: startDate.toISOString(),
     endDate: endDate.toISOString(),
     rowCount,
-    fileName: csvManager.getCurrentFileName() ?? 'n/a',
+    fileName: fileName ?? 'n/a',
     analysis,
     timestamp: new Date().toISOString(),
   };
@@ -188,9 +213,8 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   const athenaExecutor = new AthenaQueryExecutor(athenaService, (msg) => script.logger.info(msg));
 
-  // Initialize CSV Manager — resolve relative paths via GOPaths so Lambda uses /tmp
+  // Resolve output path via GOPaths (ensures directory exists, uses /tmp on Lambda)
   const reportsPath = script.paths.resolvePath(config.reportsFolder, Core.GOPathType.OUTPUT) ?? config.reportsFolder;
-  const csvManager = new CSVManager(reportsPath);
 
   // Initialize Slack (optional)
   let slackNotifier: SlackNotifier | null = null;
@@ -226,11 +250,14 @@ export async function main(script: Core.GOScript): Promise<void> {
     const results = await executeAthenaQuery(athenaExecutor, queryTemplate, athenaConfig, queryParams);
     script.prompt.spinnerStop('Query completed');
 
+    // Convert Athena results to CSV rows
+    const data = convertAthenaResults(results);
+
     // Save and analyze results
     script.logger.section('Processing Results');
-    const { csvFilePath, rowCount, analysis } = await saveAndAnalyzeResults(
-      csvManager,
-      results,
+    const { csvFilePath, fileName, rowCount, analysis } = await saveAndAnalyzeResults(
+      data,
+      reportsPath,
       config.analysisThresholdField,
       config.analysisThreshold,
     );
@@ -251,7 +278,7 @@ export async function main(script: Core.GOScript): Promise<void> {
       csvFilePath,
       rowCount,
       analysis,
-      csvManager,
+      fileName,
     );
 
     // Summary

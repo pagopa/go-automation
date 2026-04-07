@@ -4,9 +4,6 @@
  * Handles exporting DLQ statistics to JSON (grouped by profile), CSV, or HTML.
  */
 
-import * as fs from 'fs/promises';
-import * as path from 'path';
-
 import { AWS, Core } from '@go-automation/go-common';
 
 import type { DLQReportRow } from '../types/index.js';
@@ -132,8 +129,8 @@ async function exportJsonGrouped(
   };
 
   const startTime = Date.now();
-  await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  await fs.writeFile(outputPath, JSON.stringify(output, null, 2), 'utf-8');
+  const exporter = new Core.GOJSONFileExporter({ outputPath, pretty: true, indent: 2 });
+  await exporter.export(output);
   const duration = Date.now() - startTime;
 
   script.logger.success(`Exported ${totalRows} rows to: ${outputPath} (${duration}ms)`);
