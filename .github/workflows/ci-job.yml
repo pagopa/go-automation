@@ -12,6 +12,21 @@ on:
         required: false
         type: string
         default: ''
+      coverage-lines-threshold:
+        description: 'Optional line coverage threshold passed to test:coverage scripts'
+        required: false
+        type: string
+        default: ''
+      coverage-branches-threshold:
+        description: 'Optional branch coverage threshold passed to test:coverage scripts'
+        required: false
+        type: string
+        default: ''
+      coverage-functions-threshold:
+        description: 'Optional function coverage threshold passed to test:coverage scripts'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -44,4 +59,8 @@ jobs:
         run: pnpm ${{ inputs.pre-command }}
 
       - name: Run
+        env:
+          GO_COVERAGE_LINES_THRESHOLD: ${{ inputs.coverage-lines-threshold }}
+          GO_COVERAGE_BRANCHES_THRESHOLD: ${{ inputs.coverage-branches-threshold }}
+          GO_COVERAGE_FUNCTIONS_THRESHOLD: ${{ inputs.coverage-functions-threshold }}
         run: pnpm ${{ inputs.command }}

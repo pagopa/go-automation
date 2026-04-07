@@ -79,23 +79,23 @@ async function executeAthenaQuery(
  * @param threshold - Threshold value
  * @returns Analysis results
  */
-function saveAndAnalyzeResults(
+async function saveAndAnalyzeResults(
   csvManager: CSVManager,
   results: AthenaQueryResults,
   thresholdField?: string,
   threshold?: number,
-): {
+): Promise<{
   csvFilePath: string | null;
   rowCount: number;
   analysis: string;
   data: CSVRow[];
-} {
+}> {
   const data = csvManager.convertAthenaResults(results);
   const rowCount = data.length;
 
   let csvFilePath: string | null = null;
   if (rowCount > 0) {
-    csvFilePath = csvManager.saveToCSV(data);
+    csvFilePath = await csvManager.saveToCSV(data);
   }
 
   let analysis: string;
@@ -228,7 +228,7 @@ export async function main(script: Core.GOScript): Promise<void> {
 
     // Save and analyze results
     script.logger.section('Processing Results');
-    const { csvFilePath, rowCount, analysis } = saveAndAnalyzeResults(
+    const { csvFilePath, rowCount, analysis } = await saveAndAnalyzeResults(
       csvManager,
       results,
       config.analysisThresholdField,

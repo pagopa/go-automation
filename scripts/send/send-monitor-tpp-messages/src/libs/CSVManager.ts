@@ -3,11 +3,12 @@
  * Handles CSV file generation and analysis from Athena query results
  */
 
-import * as fsSync from 'fs';
+import { mkdir } from 'fs/promises';
 import * as path from 'path';
 
-import { stringify } from 'csv-stringify/sync';
 import { DateTime } from 'luxon';
+
+import { Core } from '@go-automation/go-common';
 
 import type { AthenaQueryResults } from '../types/AthenaQueryResults.js';
 import type { CSVRow } from '../types/CSVRow.js';
@@ -26,17 +27,6 @@ export class CSVManager {
    */
   constructor(outputFolder: string = 'reports') {
     this.outputFolder = outputFolder;
-    this.ensureFolderExists();
-  }
-
-  /**
-   * Ensures the output folder exists, creating it if necessary
-   */
-  private ensureFolderExists(): void {
-    const folderPath = path.resolve(this.outputFolder);
-    if (!fsSync.existsSync(folderPath)) {
-      fsSync.mkdirSync(folderPath, { recursive: true });
-    }
   }
 
   /**
@@ -95,13 +85,13 @@ export class CSVManager {
   }
 
   /**
-   * Saves data to a CSV file
+   * Saves data to a CSV file using GOCSVListExporter
    * @param data - CSV rows or Athena query results to save
    * @param filename - Optional custom filename
    * @returns Path to the saved file, or null if no data to save
    * @throws Error if file save operation fails
    */
-  public saveToCSV(data: CSVRow[] | AthenaQueryResults, filename?: string): string | null {
+  public async saveToCSV(data: CSVRow[] | AthenaQueryResults, filename?: string): Promise<string | null> {
     // Convert Athena results if needed
     let processedData: CSVRow[];
     if ('ResultSet' in data) {
@@ -119,15 +109,15 @@ export class CSVManager {
     const fileName = filename ?? this.generateFileName();
     this.currentFilePath = path.join(this.outputFolder, fileName);
 
-    // Convert data to CSV using csv-stringify
-    const csvContent = stringify(processedData, {
-      header: true,
-      quoted: true,
-      quoted_empty: true,
-    });
+    // Ensure output directory exists
+    await mkdir(path.dirname(this.currentFilePath), { recursive: true });
 
-    // Save file synchronously (could be made async if needed)
-    fsSync.writeFileSync(this.currentFilePath, csvContent, 'utf8');
+    // Export using GOCSVListExporter
+    const exporter = new Core.GOCSVListExporter<CSVRow>({
+      outputPath: this.currentFilePath,
+      includeHeader: true,
+    });
+    await exporter.export(processedData);
 
     return this.currentFilePath;
   }

@@ -189,10 +189,9 @@ export async function main(script: Core.GOScript): Promise<void> {
   // Fetch alarm history
   const items = await fetchAlarms(script, config);
 
-  // Filter alarms
+  // Filter alarms (ignorePatterns resolved by asyncFallback via GOPaths if not provided)
   const alarmAnalyzer = new AlarmAnalyzer();
-  const patterns = config.ignorePatterns;
-  const { notIgnored, ignored } = alarmAnalyzer.filterAlarms(items, patterns);
+  const { notIgnored, ignored } = alarmAnalyzer.filterAlarms(items, config.ignorePatterns);
 
   // Display Ignored Alarms Report
   displayIgnoredAlarmsReport(script, alarmAnalyzer, ignored);

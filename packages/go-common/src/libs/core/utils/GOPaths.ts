@@ -45,32 +45,29 @@ export const GOPathType = {
 export type GOPathTypeValue = (typeof GOPathType)[keyof typeof GOPathType];
 
 /**
- * Result when path was already absolute
+ * Result of file path resolution.
+ *
+ * Contains the resolved absolute path, whether the original input was absolute,
+ * and the directory where the file was resolved to.
+ *
+ * - For absolute inputs: resolvedDir is the parent directory of the path
+ * - For relative inputs: resolvedDir is the standard directory for the path type
+ *   (e.g. data/{script}/inputs/ for INPUT, data/{script}/outputs/{timestamp}/ for OUTPUT)
  */
-interface GOAbsolutePathResult {
+export interface GOPathResolutionResult {
+  /** Resolved absolute path */
   readonly path: string;
-  readonly isAbsolute: true;
-}
 
-/**
- * Result when relative path was resolved
- */
-interface GOResolvedPathResult {
-  readonly path: string;
-  readonly isAbsolute: false;
+  /** Whether the original input path was already absolute */
+  readonly isAbsolute: boolean;
+
   /**
-   * Directory where the file was resolved to
-   * - For 'input': data/{script}/inputs/
-   * - For 'output': data/{script}/outputs/{script}_{timestamp}/
+   * Directory where the file was resolved to.
+   * - Absolute paths: parent directory (path.dirname)
+   * - Relative paths: standard directory for the given path type
    */
   readonly resolvedDir: string;
 }
-
-/**
- * Discriminated union for path resolution results.
- * TypeScript automatically narrows the type based on isAbsolute check.
- */
-export type GOPathResolutionResult = GOAbsolutePathResult | GOResolvedPathResult;
 
 /**
  * Result of config file path resolution with priority-based lookup
@@ -504,7 +501,7 @@ export class GOPaths {
    * Returns structured information including:
    * - Resolved absolute path
    * - Whether original path was absolute
-   * - Directory where file was resolved (for relative paths - guaranteed via discriminated union)
+   * - Directory where file was resolved (always available)
    *
    * @param filePath - File path (absolute, relative, or null/undefined)
    * @param pathType - Type of path resolution (GOPathType.INPUT, GOPathType.OUTPUT, or GOPathType.CONFIG)
@@ -514,13 +511,9 @@ export class GOPaths {
    * ```typescript
    * const result = script.paths.resolvePathWithInfo(config.exportFile, Core.GOPathType.OUTPUT);
    * if (result) {
-   *   if (result.isAbsolute) {
-   *     script.logger.info(`Using absolute path: ${result.path}`);
-   *   } else {
-   *     // TypeScript knows resolvedDir is guaranteed to exist here
-   *     script.logger.info(`Output directory: ${result.resolvedDir}`);
-   *     script.logger.info(`Output file: ${result.path}`);
-   *   }
+   *   script.logger.info(`Resolved directory: ${result.resolvedDir}`);
+   *   script.logger.info(`File path: ${result.path}`);
+   *   script.logger.info(`Was absolute: ${result.isAbsolute}`);
    * }
    * ```
    */
@@ -541,6 +534,7 @@ export class GOPaths {
       return {
         path: filePath,
         isAbsolute: true,
+        resolvedDir: path.dirname(filePath),
       };
     }
 
