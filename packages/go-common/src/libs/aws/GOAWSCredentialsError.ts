@@ -9,7 +9,7 @@
 export enum GOAWSCredentialsErrorType {
   /** SSO session has expired and needs refresh */
   SSO_SESSION_EXPIRED = 'SSO_SESSION_EXPIRED',
-  /** SSO session token is invalid */
+  /** SSO session token is invalid (corrupted, revoked, or malformed) */
   SSO_SESSION_INVALID = 'SSO_SESSION_INVALID',
   /** Credentials provider failed for unknown reason */
   CREDENTIALS_PROVIDER_FAILED = 'CREDENTIALS_PROVIDER_FAILED',

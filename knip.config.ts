@@ -4,16 +4,19 @@ const config: KnipConfig = {
   workspaces: {
     // Shared library
     'packages/go-common': {
-      entry: ['src/index.ts'],
       project: ['src/**/*.ts'],
-      ignore: ['src/**/__fixtures__/**'],
     },
     // GO scripts
     'scripts/go/*': {
       project: ['src/**/*.ts'],
     },
-    // SEND scripts
+    // SEND scripts (default entry: src/index.ts, discovered automatically)
     'scripts/send/*': {
+      project: ['src/**/*.ts'],
+    },
+    // SEND script with cron entry point
+    'scripts/send/send-monitor-tpp-messages': {
+      entry: ['src/cron.ts'],
       project: ['src/**/*.ts'],
     },
     // INTEROP scripts
@@ -22,14 +25,25 @@ const config: KnipConfig = {
     },
     // Lambda functions
     'functions/*': {
-      entry: ['src/handler.ts', 'src/index.ts'],
       project: ['src/**/*.ts'],
     },
   },
-  ignore: ['**/artifacts/**'],
+  ignore: [
+    '**/artifacts/**',
+    // Barrel index.ts files: re-export hubs for module organization.
+    // knip flags them as unused because their parent barrel re-exports transitively.
+    '**/index.ts',
+  ],
   ignoreDependencies: [
-    // tsx is used as loader in dev scripts (pnpm dev)
-    'tsx',
+    // yaml is consumed transitively by go-common GOYAMLParser at runtime
+    'yaml',
+    // ESLint plugins used in flat config (eslint.config.mjs)
+    '@typescript-eslint/eslint-plugin',
+    '@typescript-eslint/parser',
+  ],
+  ignoreBinaries: [
+    // Used in CI security workflow
+    'license-checker',
   ],
 };
 

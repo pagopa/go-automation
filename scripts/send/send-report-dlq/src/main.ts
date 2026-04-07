@@ -11,7 +11,6 @@ import { AWS, Core } from '@go-automation/go-common';
 import { displayProfileResults, displaySummary } from './libs/DLQReportDisplay.js';
 import { exportReport } from './libs/DLQReportExporter.js';
 import type { SendReportDlqConfig } from './types/index.js';
-import { DLQ_REPORT_FORMATS, isDLQReportFormat } from './types/index.js';
 
 // ============================================================================
 // Main
@@ -30,13 +29,14 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   // Validate format early
   const outputFormat = config.outputFormat;
-  if (!isDLQReportFormat(outputFormat)) {
-    throw new Error(`Invalid output format "${outputFormat}". Valid values: ${DLQ_REPORT_FORMATS.join(', ')}`);
+  if (!Core.isGOExportFormat(outputFormat)) {
+    throw new Error(`Invalid output format "${outputFormat}". Valid values: ${Core.GO_EXPORT_FORMATS.join(', ')}`);
   }
 
   // Resolve output path — default to script name + today's ISO date
   const today = new Date().toISOString().slice(0, 10);
-  const outputFile = config.outputFile ?? `send-report-dlq_${today}.${outputFormat}`;
+  const extension = Core.GO_EXPORT_FORMAT_EXTENSIONS[outputFormat];
+  const outputFile = config.outputFile ?? `send-report-dlq_${today}.${extension}`;
   const outputPathInfo = script.paths.resolvePathWithInfo(outputFile, Core.GOPathType.OUTPUT);
 
   script.logger.section('DLQ Report');
