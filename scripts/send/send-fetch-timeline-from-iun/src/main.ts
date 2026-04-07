@@ -8,7 +8,7 @@
 
 import { Core, SEND } from '@go-automation/go-common';
 
-import type { SendFetchTimelineFromIunConfig } from './config.js';
+import type { SendFetchTimelineFromIunConfig } from './types/SendFetchTimelineFromIunConfig.js';
 import { readIunFile, writeResultsFile } from './libs/FileService.js';
 import { parseIunLines } from './libs/IunParser.js';
 
