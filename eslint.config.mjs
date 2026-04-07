@@ -240,7 +240,7 @@ export default tseslint.config(
   // See CONVENTIONS.md for the full mapping of go-common capabilities.
   {
     files: ['scripts/**/*.ts'],
-    ignores: ['**/*.test.ts', '**/*.spec.ts'],
+    ignores: ['**/*.test.ts', '**/*.spec.ts', '**/cron.ts'],
     rules: {
       // ---- Restricted third-party packages ----
       'no-restricted-imports': [
