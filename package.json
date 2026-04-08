@@ -6,6 +6,7 @@
   "description": "GO Automation Scripts and Tools Monorepo",
   "scripts": {
     "build": "pnpm build:common && pnpm build:scripts",
+    "build:all": "pnpm build:common && pnpm build:scripts && pnpm build:functions",
     "build:common": "pnpm --filter=@go-automation/go-common build",
     "build:functions": "pnpm -r --filter='./functions/**' build",
     "build:scripts": "pnpm -r --filter='./scripts/**' build",

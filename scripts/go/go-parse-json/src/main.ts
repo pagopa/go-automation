@@ -1,19 +1,7 @@
 import { Core } from '@go-automation/go-common';
 import type { GoParseJsonConfig } from './types/GoParseJsonConfig.js';
 import { exportValues } from './libs/createExporter.js';
-
-/**
- * Helper to check if an object matches a simple key=value filter
- */
-function matchesFilter(item: unknown, filter: string | undefined): boolean {
-  if (!filter) return true;
-  const [key, expectedValue] = filter.split('=');
-  if (!key || expectedValue === undefined) return true;
-
-  const extractor = new Core.GOJSONFieldExtractor({ parseEmbeddedJson: true });
-  const actualValue = extractor.extract(item, key.trim());
-  return String(actualValue) === expectedValue.trim();
-}
+import { matchesFilter } from './libs/matchesFilter.js';
 
 export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<GoParseJsonConfig>();
