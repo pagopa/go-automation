@@ -39,7 +39,7 @@ export interface JsonlRecord {
  * @param name - Raw folder name candidate
  * @returns Safe folder name
  */
-export function sanitizeFolderName(name: string): string {
+function sanitizeFolderName(name: string): string {
   return name.replace(/[/\\:*?"<>|]/g, '_');
 }
 
