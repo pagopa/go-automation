@@ -23,6 +23,7 @@ function isTerminalStatus(status: string | undefined): boolean {
 
 /**
  * Options for a CloudWatch Logs Insights query.
+ * @public
  */
 export interface CloudWatchLogsQueryOptions {
   /** Abort signal to cancel the query */

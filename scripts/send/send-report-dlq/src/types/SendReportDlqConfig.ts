@@ -1,3 +1,5 @@
+import type { Core } from '@go-automation/go-common';
+
 /**
  * Script configuration interface
  * Represents all validated configuration parameters
@@ -9,6 +11,6 @@ export interface SendReportDlqConfig {
   /** Optional output file path (absolute or relative to output directory) */
   readonly outputFile: string;
 
-  /** Output format: 'json' | 'csv' | 'html' (default: 'json') */
-  readonly outputFormat: string;
+  /** Output format */
+  readonly outputFormat: Core.GOExportFormat;
 }

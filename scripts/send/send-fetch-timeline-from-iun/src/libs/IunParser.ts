@@ -21,7 +21,7 @@ import type { SEND } from '@go-automation/go-common';
  * // { iun: 'ABCD-1234-5678', dateFilter: '2024-01-15' }
  * ```
  */
-export function parseIunLine(line: string): SEND.SENDParsedIun {
+function parseIunLine(line: string): SEND.SENDParsedIun {
   const trimmed = line.trim();
 
   // Handle IUN embedded in filename format: IUN_xxx.RECINDEX_yyy

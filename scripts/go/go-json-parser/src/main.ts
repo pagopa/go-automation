@@ -7,8 +7,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   const logger = script.logger;
 
   // outputFormat is already validated by the config parameter validator
-  const outputFormat = config.outputFormat as Core.GOExportFormat;
-
+  const outputFormat = config.outputFormat;
   const inputPath = script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT);
   const extractor = new Core.GOJSONFieldExtractor({ parseEmbeddedJson: true });
   const importer = new Core.GOJSONListImporter<string | undefined>({

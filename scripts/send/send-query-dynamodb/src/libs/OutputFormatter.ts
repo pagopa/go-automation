@@ -10,12 +10,7 @@ import { Core } from '@go-automation/go-common';
 /**
  * Result mapping: PK -> array of items
  */
-export type ResultMap = Record<string, unknown[]>;
-
-/**
- * Supported output formats
- */
-export type OutputFormat = 'dynamo-json' | 'json' | 'ndjson' | 'csv' | 'text';
+type ResultMap = Record<string, unknown[]>;
 
 /**
  * Formats results into a pretty-formatted JSON string for console output.

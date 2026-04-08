@@ -7,7 +7,7 @@
 
 import { Core, SEND } from '@go-automation/go-common';
 
-import type { ImportNotificationsConfig } from './config.js';
+import type { ImportNotificationsConfig } from './types/ImportNotificationsConfig.js';
 
 // ============================================================================
 // Event Listeners

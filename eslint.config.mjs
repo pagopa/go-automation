@@ -234,6 +234,15 @@ export default tseslint.config(
     },
   },
 
+  // Bins tooling - infrastructure tools that operate on the filesystem by design
+  {
+    files: ['bins/**/*.ts'],
+    rules: {
+      'security/detect-non-literal-fs-filename': 'off',
+      'no-console': 'off',
+    },
+  },
+
   // ===== Scripts: enforce go-common usage =====
   // Prevents scripts from reimplementing features already provided by @go-automation/go-common.
   // Bypass with: // eslint-disable-next-line <rule> -- <justification>

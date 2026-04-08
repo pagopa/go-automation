@@ -20,7 +20,7 @@ import {
 import type { Message } from '@aws-sdk/client-sqs';
 import { Core } from '@go-automation/go-common';
 
-import { SendDumpSqsDedupMode, type SendDumpSqsConfig } from './config.js';
+import { SendDumpSqsDedupMode, type SendDumpSqsConfig } from './types/index.js';
 
 /** Max messages per receive (SQS limit) */
 const MAX_BATCH_SIZE = 10;

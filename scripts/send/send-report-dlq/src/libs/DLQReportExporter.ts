@@ -1,13 +1,12 @@
 /**
  * DLQ Report Exporter
  *
- * Handles exporting DLQ statistics to JSON (grouped by profile), CSV, or HTML.
+ * Handles exporting DLQ statistics to JSON, JSONL, CSV, HTML, or TXT.
  */
 
 import { AWS, Core } from '@go-automation/go-common';
 
 import type { DLQReportRow } from '../types/index.js';
-import { DLQ_REPORT_FORMATS, isDLQReportFormat } from '../types/index.js';
 
 // ============================================================================
 // Internals
@@ -28,22 +27,19 @@ function columnMapper(name: string): string {
 }
 
 /**
- * Creates a GOListExporter for the requested format.
- * Uses `Record<string, unknown>` as the generic parameter because CSV and HTML
- * exporters require an index signature that plain interfaces do not provide.
+ * Creates a GOListExporter for structured record formats.
  *
  * @param outputPath - Resolved absolute output file path
- * @param format - Validated output format
+ * @param format - Export format (json and txt are handled before this)
  * @returns A configured exporter instance
  */
-function createExporter(outputPath: string, format: string): Core.GOListExporter<Record<string, unknown>> {
-  if (!isDLQReportFormat(format)) {
-    throw new Error(`Invalid output format "${format}". Valid values: ${DLQ_REPORT_FORMATS.join(', ')}`);
-  }
-
+function createStructuredExporter(
+  outputPath: string,
+  format: Exclude<Core.GOExportFormat, 'json' | 'txt'>,
+): Core.GOListExporter<Record<string, unknown>> {
   switch (format) {
-    case 'json':
-      return new Core.GOJSONListExporter<Record<string, unknown>>({ outputPath, pretty: true });
+    case 'jsonl':
+      return new Core.GOJSONListExporter<Record<string, unknown>>({ outputPath, jsonl: true });
 
     case 'csv':
       return new Core.GOCSVListExporter<Record<string, unknown>>({
@@ -62,6 +58,16 @@ function createExporter(outputPath: string, format: string): Core.GOListExporter
       throw new Error(`Unhandled format: ${String(exhaustiveCheck)}`);
     }
   }
+}
+
+/**
+ * Formats a DLQReportRow as a single text line.
+ *
+ * @param row - Report row to format
+ * @returns Formatted text line
+ */
+function formatRowAsText(row: DLQReportRow): string {
+  return `${row.profile} | ${row.queueName} | ${row.messageCount} msgs | age: ${row.ageOfOldestMessageDays} days`;
 }
 
 /**
@@ -142,27 +148,36 @@ async function exportJsonGrouped(
 
 /**
  * Exports DLQ results to a file.
- * JSON format produces a grouped-by-profile structure; CSV/HTML produce flat rows.
+ * JSON format produces a grouped-by-profile structure; other formats produce flat rows.
  *
  * @param script - The GOScript instance for logging
  * @param results - Map of profile → DLQ stats
  * @param outputPath - Resolved absolute output file path
- * @param format - Validated output format string
+ * @param format - Validated output format
  */
 export async function exportReport(
   script: Core.GOScript,
   results: ReadonlyMap<string, ReadonlyArray<AWS.DLQStats>>,
   outputPath: string,
-  format: string,
+  format: Core.GOExportFormat,
 ): Promise<void> {
   if (format === 'json') {
     await exportJsonGrouped(script, results, outputPath);
     return;
   }
 
-  // CSV / HTML: flat rows
   const rows = buildReportRows(results);
-  const exporter = createExporter(outputPath, format);
+
+  if (format === 'txt') {
+    const textExporter = new Core.GOFileListExporter({ outputPath });
+    textExporter.on('export:completed', (event) => {
+      script.logger.success(`Exported ${event.totalItems} rows to: ${event.destination} (${event.duration}ms)`);
+    });
+    await textExporter.export(rows.map(formatRowAsText));
+    return;
+  }
+
+  const exporter = createStructuredExporter(outputPath, format);
 
   exporter.on('export:completed', (event) => {
     script.logger.success(`Exported ${event.totalItems} rows to: ${event.destination} (${event.duration}ms)`);

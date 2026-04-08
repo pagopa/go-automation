@@ -24,7 +24,7 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-sqs": "^3.1025.0",
+    "@aws-sdk/client-sqs": "^3.1026.0",
     "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {
