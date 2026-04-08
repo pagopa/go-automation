@@ -64,34 +64,66 @@ I percorsi relativi vengono risolti automaticamente dal framework GOScript:
 
 ```bash
 # Estrazione multi-campo da locale a CSV
-pnpm go:parse:json:dev -i input.ndjson -f "id,status,user.email" --output-format csv
+pnpm go:parse:json:dev --input-file input.ndjson --field "id,status,user.email" --output-format csv
 
 # Estrazione da S3 con filtro
-pnpm go:parse:json:dev -i s3://my-bucket/logs/app.json -f "requestId,error" --filter "level=ERROR"
+pnpm go:parse:json:dev --input-file s3://my-bucket/logs/app.json --field "requestId,error" --filter "level=ERROR"
 
 # Estrazione da CloudWatch Logs con range temporale
-pnpm go:parse:json:dev -i cwl:/aws/lambda/my-func -f "message" --start-time "2024-04-01T10:00:00Z"
+pnpm go:parse:json:dev --input-file cwl:/aws/lambda/my-func --field "message" --start-time "2024-04-01T10:00:00Z"
 ```
 
 ### Modalità Production (build + node)
 
 ```bash
-pnpm go:parse:json:prod -i input.json -f iun -ff json
+pnpm go:parse:json:prod --input-file input.json --field iun --output-format json
 ```
 
 ### Esempi Pratici
 
-**Estrarre ID e Email filtrando per utenti attivi:**
+#### Estrazioni Semplici
 
-```bash
-pnpm go:parse:json:dev -i users.json -f "id,email" --filter "active=true" --output-format csv
-```
+- **Estrarre IUN da file locale:**
 
-**Analizzare log annidati in una risposta API:**
+  ```bash
+  pnpm go:parse:json:dev --input-file input.json --field iun
+  ```
 
-```bash
-pnpm go:parse:json:dev -i response.json -f "code,msg" --json-path "data.items"
-```
+- **Estrarre campi nidificati:**
+
+  ```bash
+  pnpm go:parse:json:dev --input-file input.json --field "user.profile.email" --output-format json
+  ```
+
+#### Combinazione di Filtri e Multi-Campo
+
+- **Estrarre ID ed Email per utenti attivi:**
+
+  ```bash
+  pnpm go:parse:json:dev --input-file users.json --field "id,email" --filter "active=true" --output-format csv
+  ```
+
+- **Analizzare errori in dump S3:**
+
+  ```bash
+  pnpm go:parse:json:dev --input-file s3://logs-bucket/dump.json --field "timestamp,source.ip,msg" --filter "level=ERROR" --output-format jsonl
+  ```
+
+#### Utilizzo con Strutture Complesse
+
+- **Estrarre dati da API annidata:**
+
+  ```bash
+  pnpm go:parse:json:dev --input-file response.json --field "code,msg" --json-path "data.items"
+  ```
+
+- **CloudWatch Logs con filtro temporale e campo specifico:**
+
+  ```bash
+  pnpm go:parse:json:dev --input-file cwl:/aws/ecs/service-prod --field "message" \
+    --start-time "2026-04-01T00:00:00Z" --end-time "2026-04-01T01:00:00Z" \
+    --filter "level=ERROR"
+  ```
 
 ## Formati di Output
 
