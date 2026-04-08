@@ -495,19 +495,19 @@ export default tseslint.config(
     plugins: { 'go-automation': goAutomationPlugin },
     rules: {
       // Only main() allowed — move helpers to libs/
-      'go-automation/no-extra-functions-in-main': 'warn',
+      'go-automation/no-extra-functions-in-main': 'error',
       // File too long → likely has helper functions that belong in libs/
       'max-lines': [
-        'warn',
+        'error',
         { max: 200, skipBlankLines: true, skipComments: true },
       ],
       // Single function too large → split logic into libs/
       'max-lines-per-function': [
-        'warn',
+        'error',
         { max: 80, skipBlankLines: true, skipComments: true },
       ],
       // High cyclomatic complexity → too many branches, extract into libs/
-      complexity: ['warn', { max: 15 }],
+      complexity: ['error', { max: 15 }],
     },
   },
 
