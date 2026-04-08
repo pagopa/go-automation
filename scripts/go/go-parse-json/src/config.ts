@@ -17,7 +17,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'field',
-    type: Core.GOConfigParameterType.STRING,
+    type: Core.GOConfigParameterType.STRING_ARRAY,
     description: 'Campi da estrarre, separati da virgola (supporta dot-notation o ricerca per chiave)',
     required: true,
     aliases: ['f'],
@@ -42,7 +42,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'filter',
-    type: Core.GOConfigParameterType.STRING,
+    type: Core.GOConfigParameterType.STRING_ARRAY,
     description: 'Filtro predicato semplice (es. status=FAILED)',
     required: false,
     aliases: ['L'],

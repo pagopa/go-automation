@@ -26,7 +26,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   const logger = script.logger;
 
   const outputFormat = config.outputFormat as Core.GOExportFormat;
-  const fieldNames = config.field.split(',').map((f) => f.trim());
+  const fieldNames = [...config.field];
 
   let finalInputPath: string;
 
@@ -83,7 +83,8 @@ export async function main(script: Core.GOScript): Promise<void> {
     jsonPath: config.jsonPath ?? undefined,
     rowTransformer: (item: unknown) => {
       // Extension 2: Filtering
-      if (!matchesFilter(item, config.filter)) {
+      const filterStr = config.filter?.join(',');
+      if (!matchesFilter(item, filterStr)) {
         return undefined;
       }
 
