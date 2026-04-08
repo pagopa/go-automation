@@ -10,6 +10,63 @@ import globals from 'globals';
 import eslintPluginSecurity from 'eslint-plugin-security';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 
+/**
+ * Custom plugin: enforces that main.ts only contains the main() function.
+ * All helper functions, display logic, and utilities should live in libs/.
+ */
+const goAutomationPlugin = {
+  meta: { name: 'go-automation' },
+  rules: {
+    'no-extra-functions-in-main': {
+      meta: {
+        type: 'suggestion',
+        docs: {
+          description:
+            'Disallow function declarations other than main() in main.ts. ' +
+            'Helper functions should be moved to dedicated files under libs/.',
+        },
+        messages: {
+          moveToLibs:
+            'Move "{{ name }}" to a dedicated file under libs/. ' +
+            'main.ts should only contain the main() function.',
+        },
+        schema: [],
+      },
+      create(context) {
+        return {
+          // function foo() / export function foo() / export async function foo()
+          FunctionDeclaration(node) {
+            if (node.id != null && node.id.name !== 'main') {
+              context.report({
+                node: node.id,
+                messageId: 'moveToLibs',
+                data: { name: node.id.name },
+              });
+            }
+          },
+          // const foo = () => {} / export const foo = async () => {}
+          VariableDeclarator(node) {
+            if (
+              node.init != null &&
+              (node.init.type === 'ArrowFunctionExpression' ||
+                node.init.type === 'FunctionExpression') &&
+              (node.parent.parent.type === 'Program' ||
+                node.parent.parent.type === 'ExportNamedDeclaration') &&
+              node.id.type === 'Identifier'
+            ) {
+              context.report({
+                node: node.id,
+                messageId: 'moveToLibs',
+                data: { name: node.id.name },
+              });
+            }
+          },
+        };
+      },
+    },
+  },
+};
+
 export default tseslint.config(
   // Base ESLint recommended
   eslint.configs.recommended,
@@ -427,6 +484,30 @@ export default tseslint.config(
             'Extend GOEventEmitterBase from @go-automation/go-common instead of using EventEmitter directly. See CONVENTIONS.md.',
         },
       ],
+    },
+  },
+
+  // ===== main.ts structure — encourage single-responsibility =====
+  // These are advisory warnings (won't block CI).
+  // main.ts should only contain the main() function; everything else belongs in libs/.
+  {
+    files: ['scripts/**/src/main.ts'],
+    plugins: { 'go-automation': goAutomationPlugin },
+    rules: {
+      // Only main() allowed — move helpers to libs/
+      'go-automation/no-extra-functions-in-main': 'warn',
+      // File too long → likely has helper functions that belong in libs/
+      'max-lines': [
+        'warn',
+        { max: 200, skipBlankLines: true, skipComments: true },
+      ],
+      // Single function too large → split logic into libs/
+      'max-lines-per-function': [
+        'warn',
+        { max: 80, skipBlankLines: true, skipComments: true },
+      ],
+      // High cyclomatic complexity → too many branches, extract into libs/
+      complexity: ['warn', { max: 15 }],
     },
   },
 
