@@ -357,7 +357,7 @@ sed -e "s|{{SCRIPT_NAME}}|$FULL_SCRIPT_NAME|g" \
     "$TEMPLATES_DIR/index.ts.template" > "$SCRIPT_PATH/src/index.ts"
 print_success "Created: src/index.ts"
 
-# Process config.ts from template using temp files for multiline content
+# Process config.ts and config type from templates using temp files for multiline content
 TEMP_PARAMS=$(mktemp)
 TEMP_CONFIG=$(mktemp)
 trap "rm -f $TEMP_PARAMS $TEMP_CONFIG" EXIT
@@ -397,14 +397,21 @@ fi
 
 sed -e "s|{{SCRIPT_TITLE}}|$SCRIPT_TITLE|g" \
     -e "s|{{SCRIPT_DESCRIPTION}}|$SCRIPT_DESCRIPTION|g" \
-    -e "s|{{SCRIPT_CONFIG_NAME}}|$SCRIPT_CONFIG_NAME|g" \
     "$TEMPLATES_DIR/config.ts.template" | \
-    awk -v pfile="$TEMP_PARAMS" -v cfile="$TEMP_CONFIG" '
+    awk -v pfile="$TEMP_PARAMS" '
         /{{PARAMETERS_CONTENT}}/ { while ((getline line < pfile) > 0) print line; close(pfile); next }
-        /{{CONFIG_INTERFACE_CONTENT}}/ { while ((getline line < cfile) > 0) print line; close(cfile); next }
         { print }
     ' > "$SCRIPT_PATH/src/config.ts"
 print_success "Created: src/config.ts"
+
+# Process config type interface into types/ directory
+sed -e "s|{{SCRIPT_CONFIG_NAME}}|$SCRIPT_CONFIG_NAME|g" \
+    "$TEMPLATES_DIR/config-type.ts.template" | \
+    awk -v cfile="$TEMP_CONFIG" '
+        /{{CONFIG_INTERFACE_CONTENT}}/ { while ((getline line < cfile) > 0) print line; close(cfile); next }
+        { print }
+    ' > "$SCRIPT_PATH/src/types/$SCRIPT_CONFIG_NAME.ts"
+print_success "Created: src/types/$SCRIPT_CONFIG_NAME.ts"
 
 # Process main.ts (business logic)
 sed -e "s|{{SCRIPT_NAME}}|$FULL_SCRIPT_NAME|g" \
@@ -414,17 +421,12 @@ sed -e "s|{{SCRIPT_NAME}}|$FULL_SCRIPT_NAME|g" \
     "$TEMPLATES_DIR/main.ts.template" > "$SCRIPT_PATH/src/main.ts"
 print_success "Created: src/main.ts"
 
-# Create types barrel file
-cat > "$SCRIPT_PATH/src/types/index.ts" << 'EOF'
+# Create types barrel file with config type export
+cat > "$SCRIPT_PATH/src/types/index.ts" << EOF
 /**
  * Types barrel file
- * Re-export all types from this directory
- *
- * Usage: Create type files in PascalCase (e.g., User.ts, Config.ts)
- * then export them here:
- *   export type { User } from './User.js';
- *   export type { Config } from './Config.js';
  */
+export type { $SCRIPT_CONFIG_NAME } from './$SCRIPT_CONFIG_NAME.js';
 EOF
 print_success "Created: src/types/index.ts"
 
@@ -486,10 +488,11 @@ echo -e "${CYAN}${BOLD}============================================${NC}"
 echo ""
 echo -e "  ${BOLD}Location:${NC}    scripts/$PRODUCT/$FULL_SCRIPT_NAME"
 echo -e "  ${BOLD}Structure:${NC}"
-echo -e "    ${CYAN}src/index.ts${NC}  - Entry point (wiring)"
-echo -e "    ${CYAN}src/config.ts${NC} - Metadata, parameters, ${SCRIPT_CONFIG_NAME}"
-echo -e "    ${CYAN}src/main.ts${NC}   - Business logic"
-echo -e "    ${CYAN}README.md${NC}     - Documentation"
+echo -e "    ${CYAN}src/index.ts${NC}                        - Entry point (wiring)"
+echo -e "    ${CYAN}src/config.ts${NC}                       - Metadata and parameters"
+echo -e "    ${CYAN}src/main.ts${NC}                         - Business logic"
+echo -e "    ${CYAN}src/types/${SCRIPT_CONFIG_NAME}.ts${NC}  - Config interface"
+echo -e "    ${CYAN}README.md${NC}                           - Documentation"
 echo ""
 echo -e "  ${BOLD}Commands:${NC}"
 echo -e "    ${YELLOW}pnpm --filter=$FULL_SCRIPT_NAME build${NC} # Build the script"
@@ -497,11 +500,11 @@ echo -e "    ${YELLOW}pnpm --filter=$FULL_SCRIPT_NAME dev${NC}   # Run in develo
 echo -e "    ${YELLOW}pnpm --filter=$FULL_SCRIPT_NAME start${NC} # Build and run"
 echo ""
 echo -e "  ${BOLD}Next Steps:${NC}"
-echo -e "    1. Edit ${CYAN}src/config.ts${NC} to add parameters and config interface"
-echo -e "    2. Edit ${CYAN}src/main.ts${NC} to add your business logic"
-echo -e "    3. Create service classes in ${CYAN}src/libs/${NC}"
-echo -e "    4. Define types in ${CYAN}src/types/${NC}"
-echo -e "    5. Update ${CYAN}README.md${NC} with specific documentation"
+echo -e "    1. Edit ${CYAN}src/config.ts${NC} to add parameters"
+echo -e "    2. Edit ${CYAN}src/types/${SCRIPT_CONFIG_NAME}.ts${NC} to match parameters"
+echo -e "    3. Edit ${CYAN}src/main.ts${NC} to add your business logic"
+echo -e "    4. Create service classes in ${CYAN}src/libs/${NC}"
+echo -e "    5. Define types in ${CYAN}src/types/${NC}"
 echo ""
 
 # Step 9: Ask about adding shortcuts to root package.json

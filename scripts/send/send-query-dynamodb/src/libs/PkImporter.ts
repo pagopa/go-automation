@@ -12,7 +12,7 @@ import type { InputFormat } from '../types/index.js';
 /**
  * Options for importing partition keys
  */
-export interface PkImportOptions {
+interface PkImportOptions {
   /** Input file format */
   readonly format: InputFormat;
   /** CSV column name to extract PKs from (default: first column) */

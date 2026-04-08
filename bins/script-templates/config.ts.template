@@ -1,8 +1,7 @@
 /**
  * {{SCRIPT_TITLE}} - Configuration Module
  *
- * Contains script metadata, parameters definition, configuration interface,
- * and configuration builder function.
+ * Contains script metadata and parameters definition.
  */
 
 import { Core } from '@go-automation/go-common';
@@ -23,11 +22,3 @@ export const scriptMetadata: Core.GOScriptMetadata = {
 export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
 {{PARAMETERS_CONTENT}}
 ] as const;
-
-/**
- * Script configuration interface
- * Represents all validated configuration parameters
- */
-export interface {{SCRIPT_CONFIG_NAME}} {
-{{CONFIG_INTERFACE_CONTENT}}
-}

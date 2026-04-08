@@ -41,11 +41,10 @@ const DEFAULT_OPTIONS: InternalOptions = {
 };
 
 /**
- * Error patterns for SSO session expiration detection
+ * Error patterns for SSO session issues
  * Compiled once for performance (O(1) initialization, O(N) pattern matching)
  */
-const SSO_ERROR_PATTERNS: ReadonlyArray<RegExp> = [
-  /The SSO session associated with this profile is invalid/i,
+const SSO_SESSION_EXPIRED_PATTERNS: ReadonlyArray<RegExp> = [
   /The SSO session associated with this profile has expired/i,
   /Token has expired and refresh failed/i,
   /Error loading SSO Token/i,
@@ -53,6 +52,10 @@ const SSO_ERROR_PATTERNS: ReadonlyArray<RegExp> = [
   /Unable to load SSO token/i,
   /ExpiredToken/i,
   /ExpiredTokenException/i,
+];
+
+const SSO_SESSION_INVALID_PATTERNS: ReadonlyArray<RegExp> = [
+  /The SSO session associated with this profile is invalid/i,
 ];
 
 const PROFILE_NOT_FOUND_PATTERNS: ReadonlyArray<RegExp> = [
@@ -109,11 +112,23 @@ export class GOAWSCredentialsManager {
   public analyzeError(error: unknown): GOAWSCredentialsErrorAnalysis {
     const message = this.extractErrorMessage(error);
 
-    // Check for SSO session errors (recoverable)
-    for (const pattern of SSO_ERROR_PATTERNS) {
+    // Check for SSO session expired (recoverable)
+    for (const pattern of SSO_SESSION_EXPIRED_PATTERNS) {
       if (pattern.test(message)) {
         return {
           type: GOAWSCredentialsErrorType.SSO_SESSION_EXPIRED,
+          isRecoverable: true,
+          originalMessage: message,
+          profileName: this.extractProfileFromError(message),
+        };
+      }
+    }
+
+    // Check for SSO session invalid (recoverable — re-login fixes it)
+    for (const pattern of SSO_SESSION_INVALID_PATTERNS) {
+      if (pattern.test(message)) {
+        return {
+          type: GOAWSCredentialsErrorType.SSO_SESSION_INVALID,
           isRecoverable: true,
           originalMessage: message,
           profileName: this.extractProfileFromError(message),
@@ -160,6 +175,7 @@ export class GOAWSCredentialsManager {
     const analysis = this.analyzeError(error);
     return (
       analysis.type === GOAWSCredentialsErrorType.SSO_SESSION_EXPIRED ||
+      analysis.type === GOAWSCredentialsErrorType.SSO_SESSION_INVALID ||
       (analysis.type === GOAWSCredentialsErrorType.CREDENTIALS_PROVIDER_FAILED && analysis.isRecoverable)
     );
   }

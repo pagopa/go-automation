@@ -18,9 +18,6 @@ export const DATA_VAULT_LOG_GROUP = '/aws/ecs/pn-data-vault';
 /** ECS log group for pn-ss (safe storage) */
 export const SS_LOG_GROUP = '/aws/ecs/pn-ss';
 
-/** Default time window in minutes (±N from alarm time) */
-export const DEFAULT_TIME_WINDOW_MINUTES = 5;
-
 /**
  * Default minimum HTTP status code for filtering API GW errors.
  * Set to 400 to capture both 4xx (e.g. 403 from pn-ss) and 5xx errors.

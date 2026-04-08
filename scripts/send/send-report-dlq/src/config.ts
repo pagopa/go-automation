@@ -40,7 +40,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'output.format',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Output format: json | csv | html (default: json)',
+    description: 'Output format: json | jsonl | csv | html | txt (default: json)',
     required: false,
     aliases: ['ff'],
     defaultValue: 'json',

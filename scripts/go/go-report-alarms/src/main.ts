@@ -8,7 +8,7 @@
 import { Core } from '@go-automation/go-common';
 
 import type { AlarmHistoryItem } from '@aws-sdk/client-cloudwatch';
-import type { GoReportAlarmsConfig } from './config.js';
+import type { GoReportAlarmsConfig } from './types/GoReportAlarmsConfig.js';
 import type { AlarmReportSummary, AlarmTimelineEntry } from './types/alarms.types.js';
 import type { MultiProfileQueryResult } from './types/MultiProfileQueryResult.js';
 
