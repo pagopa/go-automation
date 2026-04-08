@@ -7,10 +7,7 @@
 
 import { Core } from '@go-automation/go-common';
 
-/**
- * Result mapping: PK -> array of items
- */
-type ResultMap = Record<string, unknown[]>;
+import type { ResultMap } from '../types/ResultMap.js';
 
 /**
  * Formats results into a pretty-formatted JSON string for console output.
