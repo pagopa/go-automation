@@ -154,7 +154,7 @@ infra/
 | File                   | Descrizione                                                                                                                                                                                                       |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Dockerfile.runtime`   | Dockerfile base per tutti gli script. Usa Alpine Linux, installa Node.js, AWS CLI, e configura un utente non-root (`gouser`). Viene usato da `bins/build-image.sh` per costruire le immagini Docker degli script. |
-| `docker-entrypoint.sh` | Script di entrypoint che gestisce le modalita di esecuzione: `once` (esecuzione singola) e `cron` (scheduling con croner). Riceve la modalita dalla variabile `RUN_MODE`.                                         |
+| `docker-entrypoint.sh` | Script di entrypoint che gestisce le modalità di esecuzione: `once` (esecuzione singola) e `cron` (scheduling con croner). Riceve la modalità dalla variabile `RUN_MODE`.                                         |
 
 **Uso tipico:**
 
@@ -233,7 +233,7 @@ bins/
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
 | `create-script.sh` | Wizard interattivo per creare un nuovo script. Genera la struttura completa con template, package.json, tsconfig.json e README. |
 | `build-image.sh`   | Costruisce l'immagine Docker di uno script. Usa `infra/docker/Dockerfile.runtime` come base.                                    |
-| `docker-run.sh`    | Helper per eseguire container Docker degli script. Supporta modalita interattiva e scheduled.                                   |
+| `docker-run.sh`    | Helper per eseguire container Docker degli script. Supporta modalità interattiva e scheduled.                                   |
 | `deploy.sh`        | Genera il package standalone in `artifacts/`. Usa `pnpm deploy` per includere solo dipendenze production.                       |
 
 **Uso comune:**
@@ -1047,18 +1047,18 @@ Il sistema cerca i file di configurazione in questo ordine:
 
 ## Deployment Modes
 
-Gli script supportano due modalita di deployment: **monorepo** (default) e **standalone**.
+Gli script supportano due modalità di deployment: **monorepo** (default) e **standalone**.
 
 ### GODeploymentMode
 
-| Modalita     | Descrizione                   | Uso                      |
+| Modalità     | Descrizione                   | Uso                      |
 | ------------ | ----------------------------- | ------------------------ |
 | `MONOREPO`   | Esecuzione dentro il monorepo | Sviluppo, CI/CD monorepo |
 | `STANDALONE` | Deployment isolato            | Docker, Lambda, EC2      |
 
 ### Rilevamento Automatico
 
-Il sistema rileva automaticamente la modalita cercando marker del monorepo:
+Il sistema rileva automaticamente la modalità cercando marker del monorepo:
 
 ```
 1. GO_DEPLOYMENT_MODE env → usa valore esplicito se presente
@@ -1076,7 +1076,7 @@ Il sistema rileva automaticamente la modalita cercando marker del monorepo:
 
 | Variabile            | Descrizione                 | Esempio                   |
 | -------------------- | --------------------------- | ------------------------- |
-| `GO_DEPLOYMENT_MODE` | Forza modalita deployment   | `monorepo` o `standalone` |
+| `GO_DEPLOYMENT_MODE` | Forza modalità deployment   | `monorepo` o `standalone` |
 | `GO_BASE_DIR`        | Base directory (standalone) | `/app`                    |
 | `GO_DATA_DIR`        | Override data directory     | `/app/data`               |
 | `GO_CONFIG_DIR`      | Override config directory   | `/app/configs`            |

@@ -445,7 +445,7 @@ class RunbookMaxIterationsError extends Error {
  * Orchestrazione: esegue step in sequenza, gestisce il flusso,
  * e alla fine verifica i casi noti.
  *
- * Funzionalita principali:
+ * Funzionalità principali:
  * - Protezione anti-loop con maxIterations
  * - Supporto continueOnFailure per step resilienti
  * - Esecuzione di sub-pipeline annidate
@@ -1888,7 +1888,7 @@ interface ExecutionEnvironment {
   readonly awsProfiles: ReadonlyArray<string>;
   /** Regione AWS */
   readonly region: string;
-  /** Modalita di invocazione del runbook */
+  /** Modalità di invocazione del runbook */
   readonly invokedBy: 'manual' | 'alarm' | 'schedule';
 }
 ```

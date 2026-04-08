@@ -1378,11 +1378,11 @@ export function filterAlarms(alarms: readonly Alarm[], patterns: readonly string
 
 ## Standalone Deployment
 
-Gli script possono essere eseguiti in modalita "standalone" al di fuori del monorepo, utile per deployment in Docker, Lambda, EC2, o altri ambienti isolati.
+Gli script possono essere eseguiti in modalità "standalone" al di fuori del monorepo, utile per deployment in Docker, Lambda, EC2, o altri ambienti isolati.
 
-### Modalita di Deployment
+### Modalità di Deployment
 
-| Modalita     | Descrizione             | Rilevamento                             |
+| Modalità     | Descrizione             | Rilevamento                             |
 | ------------ | ----------------------- | --------------------------------------- |
 | `MONOREPO`   | Esecuzione nel monorepo | Automatico se trova pnpm-workspace.yaml |
 | `STANDALONE` | Deployment isolato      | Default se non trova marker monorepo    |
@@ -1474,7 +1474,7 @@ import { Core } from '@go-automation/go-common';
 script.run(async () => {
   const paths = script.paths;
 
-  // Verifica modalita
+  // Verifica modalità
   console.log('Deployment mode:', paths.getDeploymentMode());
   console.log('Is standalone:', paths.isStandalone());
   console.log('Is monorepo:', paths.isMonorepo());
@@ -1527,7 +1527,7 @@ export const handler = async (event: unknown) => {
 - **Nessuna modifica richiesta** per script esistenti nel monorepo
 - Le nuove variabili d'ambiente sono **opzionali**
 - Il rilevamento automatico funziona nella maggior parte dei casi
-- Usa `GO_DEPLOYMENT_MODE` solo quando necessario forzare una modalita
+- Usa `GO_DEPLOYMENT_MODE` solo quando necessario forzare una modalità
 
 ---
 

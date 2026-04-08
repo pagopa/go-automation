@@ -1,9 +1,9 @@
 import { Core } from '@go-automation/go-common';
 
 export const scriptMetadata: Core.GOScriptMetadata = {
-  name: 'GO JSON Parser',
-  version: '1.0.0',
-  description: 'Estrattore di campi da file JSON/NDJSON con ricerca ricorsiva',
+  name: 'GO Parse JSON',
+  version: '1.1.0',
+  description: 'Estrattore di campi da file JSON/NDJSON con ricerca ricorsiva e filtri',
   authors: ['Team GO - Gestione Operativa'],
 };
 
@@ -11,14 +11,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'input.file',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Percorso del file JSON o NDJSON in ingresso',
+    description: 'Percorso del file (JSON/NDJSON) in ingresso',
     required: true,
     aliases: ['i'],
   },
   {
     name: 'field',
-    type: Core.GOConfigParameterType.STRING,
-    description: 'Campo da estrarre (supporta dot-notation o ricerca per chiave)',
+    type: Core.GOConfigParameterType.STRING_ARRAY,
+    description: 'Campi da estrarre, separati da virgola (supporta dot-notation o ricerca per chiave)',
     required: true,
     aliases: ['f'],
   },
@@ -37,7 +37,21 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     aliases: ['ff'],
     defaultValue: 'txt',
     validator: (value) =>
-      Core.isGOExportFormat(String(value)) ||
+      Core.isGOExportFormat(String(value)) ??
       `Invalid format "${String(value)}". Valid: ${Core.GO_EXPORT_FORMATS.join(', ')}`,
+  },
+  {
+    name: 'filter',
+    type: Core.GOConfigParameterType.STRING_ARRAY,
+    description: 'Filtro predicato semplice (es. status=FAILED)',
+    required: false,
+    aliases: ['L'],
+  },
+  {
+    name: 'json.path',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'Path JSON per estrarre un array da una struttura nidificata',
+    required: false,
+    aliases: ['jp'],
   },
 ] as const;

@@ -6,7 +6,7 @@ Script di monitoraggio messaggi TPP (Third Party Provider) tramite query Athena 
 
 ## Indice
 
-- [Funzionalita](#funzionalita)
+- [Funzionalità](#funzionalità)
 - [Prerequisiti](#prerequisiti)
 - [Configurazione](#configurazione)
 - [Utilizzo](#utilizzo)
@@ -14,7 +14,7 @@ Script di monitoraggio messaggi TPP (Third Party Provider) tramite query Athena 
 - [Scheduling](#scheduling)
 - [Troubleshooting](#troubleshooting)
 
-## Funzionalita
+## Funzionalità
 
 - **Query Athena ottimizzate**: Esegue query su tabelle partizionate per ora con filtri su partizioni (alta performance)
 - **Report CSV automatici**: Genera file CSV con timestamp e conteggio notifiche TPP per fascia oraria
@@ -229,7 +229,7 @@ La query SQL supporta i seguenti placeholder:
 
 ## Utilizzo
 
-### Modalita Development (via pnpm/tsx)
+### Modalità Development (via pnpm/tsx)
 
 ```bash
 # Dalla root del monorepo
@@ -245,7 +245,7 @@ pnpm --filter=send-monitor-tpp-messages dev -- \
   --athena.output.location "s3://my-bucket/results/"
 ```
 
-### Modalita Production (build + node)
+### Modalità Production (build + node)
 
 ```bash
 # Build
@@ -260,7 +260,7 @@ pnpm --filter=send-monitor-tpp-messages start -- \
   --athena.output.location "s3://my-bucket/results/"
 ```
 
-### Modalita Standalone
+### Modalità Standalone
 
 ```bash
 # Dalla directory dello script

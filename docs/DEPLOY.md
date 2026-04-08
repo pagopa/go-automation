@@ -26,7 +26,7 @@ Questo script utilizza `pnpm deploy` per generare un pacchetto pronto per la pro
 ./bins/deploy.sh
 ```
 
-Ti verra mostrato un menu per selezionare lo script e la modalita (Production/Dev).
+Ti verra mostrato un menu per selezionare lo script e la modalità (Production/Dev).
 
 **Utilizzo CLI (CI/CD):**
 
@@ -110,7 +110,7 @@ Ogni script che supporta l'esecuzione in Docker ha una propria directory `docker
 scripts/send/send-monitor-tpp-messages/
 ├── src/
 │   ├── index.ts        # Entry point principale
-│   └── cron.ts         # Scheduler per modalita cron
+│   └── cron.ts         # Scheduler per modalità cron
 ├── docker/
 │   ├── docker-compose.yml   # Configurazione servizi
 │   └── .env.example         # Template variabili d'ambiente
@@ -163,9 +163,9 @@ cp .env.example .env
 
 ---
 
-## 4. Modalita di Esecuzione (RUN_MODE)
+## 4. Modalità di Esecuzione (RUN_MODE)
 
-Il container supporta tre modalita di esecuzione, controllate dalla variabile d'ambiente `RUN_MODE`:
+Il container supporta tre modalità di esecuzione, controllate dalla variabile d'ambiente `RUN_MODE`:
 
 ### once (default)
 
@@ -244,7 +244,7 @@ Per semplificare la gestione dei container, usa lo script helper `bins/docker-ru
 
 | Comando | Descrizione                                    |
 | ------- | ---------------------------------------------- |
-| `run`   | Esegui script una volta (modalita interattiva) |
+| `run`   | Esegui script una volta (modalità interattiva) |
 | `up`    | Avvia container in background                  |
 | `down`  | Ferma e rimuovi container                      |
 | `logs`  | Visualizza log del container                   |
@@ -256,7 +256,7 @@ Per semplificare la gestione dei container, usa lo script helper `bins/docker-ru
 
 | Opzione        | Descrizione                              |
 | -------------- | ---------------------------------------- |
-| `--scheduled`  | Usa il profilo scheduled (modalita cron) |
+| `--scheduled`  | Usa il profilo scheduled (modalità cron) |
 | `--follow, -f` | Segui i log in tempo reale               |
 
 ### Esempi
@@ -445,7 +445,7 @@ cp scripts/send/send-monitor-tpp-messages/docker/.env.example \
 
 ### 4. Aggiungi cron.ts (se necessario)
 
-Se lo script deve supportare la modalita cron:
+Se lo script deve supportare la modalità cron:
 
 ```bash
 cp scripts/send/send-monitor-tpp-messages/src/cron.ts \
@@ -472,7 +472,7 @@ Includi `cron.ts` nella compilazione se presente.
 # Test esecuzione singola
 ./bins/docker-run.sh <script-name> run
 
-# Test modalita cron
+# Test modalità cron
 ./bins/docker-run.sh <script-name> up --scheduled
 ./bins/docker-run.sh <script-name> logs -f --scheduled
 ```
@@ -506,7 +506,7 @@ Al momento, il flusso suggerito e:
 
 ### Lo scheduler cron non si avvia
 
-**Sintomo**: Container termina immediatamente in modalita cron
+**Sintomo**: Container termina immediatamente in modalità cron
 
 **Soluzione**:
 
