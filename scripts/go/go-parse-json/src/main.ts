@@ -1,9 +1,3 @@
-import * as path from 'path';
-import type { Readable } from 'stream';
-import { GetObjectCommand } from '@aws-sdk/client-s3';
-import type { GetObjectCommandOutput } from '@aws-sdk/client-s3';
-import { FilterLogEventsCommand } from '@aws-sdk/client-cloudwatch-logs';
-import type { FilterLogEventsCommandOutput, FilteredLogEvent } from '@aws-sdk/client-cloudwatch-logs';
 import { Core } from '@go-automation/go-common';
 import type { GoParseJsonConfig } from './types/GoParseJsonConfig.js';
 import { exportValues } from './libs/createExporter.js';
@@ -28,53 +22,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   const outputFormat = config.outputFormat as Core.GOExportFormat;
   const fieldNames = [...config.field];
 
-  let finalInputPath: string;
-
-  // Extension 3: Handle AWS Sources (S3 and CloudWatch Logs)
-  if (config.inputFile.startsWith('s3://')) {
-    const { bucket, key } = parseS3Uri(config.inputFile);
-    finalInputPath = path.join(script.paths.getExecutionOutputDir(), `s3_input_${Date.now()}.json`);
-    logger.info(`Downloading S3 object: ${config.inputFile} ...`);
-    const response: GetObjectCommandOutput = await script.aws.s3.send(
-      new GetObjectCommand({ Bucket: bucket, Key: key }),
-    );
-    const stream = response.Body as Readable;
-    if (!stream) {
-      throw new Error(`S3 object ${config.inputFile} has no body`);
-    }
-
-    const chunks: Uint8Array[] = [];
-    for await (const chunk of stream) {
-      chunks.push(chunk as Uint8Array);
-    }
-    const content = Buffer.concat(chunks).toString('utf-8');
-    const exporter = new Core.GOFileListExporter({ outputPath: finalInputPath });
-    await exporter.export([content]);
-  } else if (config.inputFile.startsWith('cwl:')) {
-    const logGroup = config.inputFile.replace('cwl:', '');
-    finalInputPath = path.join(script.paths.getExecutionOutputDir(), `cwl_input_${Date.now()}.jsonl`);
-    logger.info(`Fetching CloudWatch Logs from group: ${logGroup} ...`);
-    const startTime = config.startTime ? new Date(config.startTime).getTime() : undefined;
-    const endTime = config.endTime ? new Date(config.endTime).getTime() : undefined;
-
-    const events: FilterLogEventsCommandOutput = await script.aws.cloudWatchLogs.send(
-      new FilterLogEventsCommand({
-        logGroupName: logGroup,
-        startTime,
-        endTime,
-        limit: 1000, // Batch limit for example
-      }),
-    );
-
-    const logMessages = (events.events ?? [])
-      .map((e: FilteredLogEvent) => e.message)
-      .filter((m: string | undefined): m is string => m !== undefined);
-
-    const exporter = new Core.GOFileListExporter({ outputPath: finalInputPath });
-    await exporter.export(logMessages);
-  } else {
-    finalInputPath = script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT);
-  }
+  const finalInputPath = script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT);
 
   const extractor = new Core.GOJSONFieldExtractor({ parseEmbeddedJson: true });
   const importer = new Core.GOJSONListImporter<Record<string, unknown> | undefined>({
@@ -131,12 +79,4 @@ export async function main(script: Core.GOScript): Promise<void> {
   await exportValues(dataList, outputPath, outputFormat, fieldNames);
 
   logger.info(`Estrazione completata! ${dataList.length} righe uniche salvate in: ${outputPath}`);
-}
-
-function parseS3Uri(uri: string): { bucket: string; key: string } {
-  const parts = uri.replace('s3://', '').split('/');
-  return {
-    bucket: parts[0] ?? '',
-    key: parts.slice(1).join('/'),
-  };
 }
