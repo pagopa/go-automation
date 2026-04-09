@@ -5,6 +5,7 @@
     "rootDir": "./src",
     "declaration": false,
     "declarationMap": false,
+    "isolatedDeclarations": false,
     "sourceMap": false,
     "types": ["node"]
   },
