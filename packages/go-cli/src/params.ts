@@ -12,6 +12,12 @@ export async function validateAndInformParameters(
   logger: Core.GOLogger,
   isInteractive: boolean,
 ): Promise<{ valid: boolean; finalArgs: string[] }> {
+  if (!script.parameters) {
+    logger.error(`Parameters for script ${script.id} are not loaded.`);
+    return { valid: false, finalArgs: args };
+  }
+
+  const parameters = script.parameters;
   const parsed = Core.GOCLIArgumentParser.parse(args);
   const finalArgs = [...args];
 
@@ -20,8 +26,8 @@ export async function validateAndInformParameters(
     console.log(`${script.metadata.description}\n`);
   }
 
-  const mandatoryParams = script.parameters.filter((p) => p.required);
-  const optionalParams = script.parameters.filter((p) => !p.required);
+  const mandatoryParams = parameters.filter((p) => p.required);
+  const optionalParams = parameters.filter((p) => !p.required);
 
   const missingMandatory: Core.GOConfigParameterOptions[] = [];
 

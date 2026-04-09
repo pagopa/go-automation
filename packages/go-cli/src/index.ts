@@ -8,7 +8,7 @@
 
 import { Command } from 'commander';
 import { Core } from '@go-automation/go-common';
-import { discoverScripts, type DiscoveredScript } from './discovery.js';
+import { discoverScripts, loadScriptParameters, type DiscoveredScript } from './discovery.js';
 import { runScript, type ExecutionMode } from './runner.js';
 import { validateAndInformParameters } from './params.js';
 
@@ -39,6 +39,9 @@ async function main(): Promise<void> {
         const programOpts = program.opts();
         const mode: ExecutionMode = programOpts['dist'] ? 'dist' : 'source';
 
+        // Lazy load parameters
+        await loadScriptParameters(script);
+
         // Validate and inform about parameters before execution
         const { valid, finalArgs } = await validateAndInformParameters(script, cmd.args, prompt, logger, false);
 
@@ -53,15 +56,17 @@ async function main(): Promise<void> {
     // Add help for script parameters if metadata is available
     scriptCmd.on('--help', () => {
       console.log('\nScript Parameters:');
-      if (script.parameters && script.parameters.length > 0) {
+
+      // If they are not loaded, we inform the user to use the info command
+      if (!script.parameters) {
+        console.log(`  Parameters not loaded. Use "go-cli info ${script.id}" for full details.`);
+      } else {
         script.parameters.forEach((param) => {
           const name = `--${param.name.replace(/\./g, '-')}`;
           const aliases = param.aliases?.map((a) => `-${a}`).join(', ') ?? '';
           const required = param.required ? '(required)' : '';
           console.log(`  ${name.padEnd(20)} ${aliases.padEnd(10)} ${required.padEnd(12)} ${param.description}`);
         });
-      } else {
-        console.log('  No specific parameters defined.');
       }
     });
   }
@@ -70,12 +75,15 @@ async function main(): Promise<void> {
   program
     .command('info <script-name>')
     .description('Show detailed information about a script')
-    .action((scriptName: string) => {
+    .action(async (scriptName: string) => {
       const script = scripts.find((s) => s.id === scriptName);
       if (!script) {
         logger.error(`Script '${scriptName}' not found.`);
         process.exit(1);
       }
+
+      // Lazy load parameters
+      const parameters = await loadScriptParameters(script);
 
       console.log(`\nScript: ${script.metadata.name}`);
       console.log(`Version: ${script.metadata.version ?? 'N/A'}`);
@@ -85,7 +93,7 @@ async function main(): Promise<void> {
       console.log(`\nPath: ${script.paths.root}`);
 
       console.log('\nAvailable Parameters:');
-      script.parameters.forEach((param) => {
+      parameters.forEach((param) => {
         const name = `--${param.name.replace(/\./g, '-')}`;
         const aliases = param.aliases?.map((a) => `-${a}`).join(', ') ?? '';
         const defaultValue = param.defaultValue !== undefined ? `(Default: ${String(param.defaultValue)})` : '';
@@ -139,7 +147,10 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
 
     if (!modeChoice) process.exit(0);
 
-    const mandatoryFlags = selectedScript.parameters
+    // Lazy load parameters
+    const parameters = await loadScriptParameters(selectedScript);
+
+    const mandatoryFlags = parameters
       .filter((p) => p.required)
       .map((p) => Core.GOConfigKeyTransformer.toCLIFlag(p.name))
       .join(', ');

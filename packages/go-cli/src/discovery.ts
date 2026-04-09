@@ -13,7 +13,7 @@ export interface DiscoveredScript {
   readonly id: string; // Directory name (e.g., go-report-alarms)
   readonly category: string; // Parent directory name (e.g., go, send)
   readonly metadata: Core.GOScriptMetadata;
-  readonly parameters: ReadonlyArray<Core.GOConfigParameterOptions>;
+  readonly parameters?: ReadonlyArray<Core.GOConfigParameterOptions>;
   readonly mtime: number; // Last modification time of the config file
   readonly paths: {
     readonly root: string;
@@ -73,10 +73,15 @@ export async function discoverScripts(): Promise<DiscoveredScript[]> {
       // 3. Check cache
       const cached = cache[configFile];
 
-      // NOTE: parameters are NOT cached because they can contain functions (validators, fallbacks)
-      // Step 2 (Lazy Loading) will optimize this by deferring the import.
+      if (cached?.mtime === mtime) {
+        // Use cached data - NO IMPORT NEEDED for discovery!
+        discovered.push({
+          ...cached,
+        });
+        continue;
+      }
 
-      // Dynamic import using tsx/esm loader
+      // 4. Cache miss: Dynamic import using tsx/esm loader
       const module = (await import(pathToFileURL(configFile).href)) as ScriptConfigModule;
 
       if (module.scriptMetadata && module.scriptParameters) {
@@ -101,23 +106,21 @@ export async function discoverScripts(): Promise<DiscoveredScript[]> {
         discovered.push(scriptData);
 
         // Update cache entry (storing serializable parts)
-        if (cached?.mtime !== mtime) {
-          cache[configFile] = {
-            id,
-            category,
-            metadata: module.scriptMetadata,
-            mtime,
-            paths: scriptData.paths,
-          };
-          cacheUpdated = true;
-        }
+        cache[configFile] = {
+          id,
+          category,
+          metadata: module.scriptMetadata,
+          mtime,
+          paths: scriptData.paths,
+        };
+        cacheUpdated = true;
       }
     } catch (_error) {
       // Skip invalid scripts
     }
   }
 
-  // 4. Cleanup and Save cache if updated
+  // 5. Cleanup and Save cache if updated
   if (cacheUpdated) {
     try {
       // Remove entries for files that no longer exist
@@ -135,4 +138,27 @@ export async function discoverScripts(): Promise<DiscoveredScript[]> {
   }
 
   return discovered.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
+ * Loads script parameters on demand
+ */
+export async function loadScriptParameters(
+  script: DiscoveredScript,
+): Promise<ReadonlyArray<Core.GOConfigParameterOptions>> {
+  if (script.parameters) {
+    return script.parameters;
+  }
+
+  try {
+    const module = (await import(pathToFileURL(script.paths.config).href)) as ScriptConfigModule;
+    // Mutating the script object to cache the loaded parameters (internal optimization)
+    Object.assign(script, { parameters: module.scriptParameters });
+    return module.scriptParameters;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to load parameters for script ${script.id}: ${message}`, {
+      cause: error,
+    });
+  }
 }
