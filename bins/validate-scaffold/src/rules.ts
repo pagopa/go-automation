@@ -16,6 +16,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
+import { extractConfigParameters } from './helpers/configAstParser.js';
 import type { ScaffoldRule } from './types/index.js';
 
 /** Packages that are inherited from the root workspace and must not be in script devDependencies */
@@ -45,6 +46,11 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
     name: 'src/main.ts exists',
     check: 'file-exists',
     glob: 'src/main.ts',
+  },
+  {
+    name: 'README.md exists',
+    check: 'file-exists',
+    glob: 'README.md',
   },
 
   // ── Types folder structure ──────────────────────────────────────────
@@ -269,6 +275,166 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
         };
       }
       return { rule: 'No inherited devDependencies from root workspace', passed: true };
+    },
+  },
+
+  // ── README content quality ────────────────────────────────────────
+
+  {
+    name: 'README documents all config parameters',
+    severity: 'warning',
+    check: 'custom',
+    validate: async (scriptPath) => {
+      const ruleName = 'README documents all config parameters';
+      const readmePath = path.join(scriptPath, 'README.md');
+
+      let readme: string;
+      try {
+        readme = await fs.readFile(readmePath, 'utf-8');
+      } catch {
+        return { rule: ruleName, passed: true }; // README missing is caught by another rule
+      }
+
+      const parameters = await extractConfigParameters(scriptPath);
+      if (parameters.length === 0) {
+        return { rule: ruleName, passed: true };
+      }
+
+      const readmeLower = readme.toLowerCase();
+      const missing: string[] = [];
+
+      for (const param of parameters) {
+        const flagLower = param.cliFlag.toLowerCase();
+        const nameLower = param.name.toLowerCase();
+        // Check if the CLI flag or the raw parameter name appears in the README
+        if (!readmeLower.includes(flagLower) && !readmeLower.includes(nameLower)) {
+          missing.push(param.cliFlag);
+        }
+      }
+
+      if (missing.length > 0) {
+        return {
+          rule: ruleName,
+          passed: false,
+          file: 'README.md',
+          message: `Parameters not documented: ${missing.join(', ')}`,
+        };
+      }
+
+      return { rule: ruleName, passed: true };
+    },
+  },
+  {
+    name: 'README documents AWS services used',
+    severity: 'warning',
+    check: 'custom',
+    validate: async (scriptPath) => {
+      const ruleName = 'README documents AWS services used';
+      const readmePath = path.join(scriptPath, 'README.md');
+      const pkgPath = path.join(scriptPath, 'package.json');
+
+      let readme: string;
+      try {
+        readme = await fs.readFile(readmePath, 'utf-8');
+      } catch {
+        return { rule: ruleName, passed: true };
+      }
+
+      let pkgContent: string;
+      try {
+        pkgContent = await fs.readFile(pkgPath, 'utf-8');
+      } catch {
+        return { rule: ruleName, passed: true };
+      }
+
+      const pkg = JSON.parse(pkgContent) as Record<string, unknown>;
+      const deps = pkg['dependencies'];
+      if (typeof deps !== 'object' || deps === null) {
+        return { rule: ruleName, passed: true };
+      }
+
+      // Map @aws-sdk/client-* packages to service names
+      const awsServiceMap: ReadonlyArray<readonly [string, string]> = [
+        ['@aws-sdk/client-cloudwatch', 'CloudWatch'],
+        ['@aws-sdk/client-s3', 'S3'],
+        ['@aws-sdk/client-athena', 'Athena'],
+        ['@aws-sdk/client-lambda', 'Lambda'],
+        ['@aws-sdk/client-dynamodb', 'DynamoDB'],
+        ['@aws-sdk/client-sqs', 'SQS'],
+        ['@aws-sdk/client-sns', 'SNS'],
+        ['@aws-sdk/client-ses', 'SES'],
+        ['@aws-sdk/client-sts', 'STS'],
+        ['@aws-sdk/client-iam', 'IAM'],
+        ['@aws-sdk/client-secrets-manager', 'Secrets Manager'],
+        ['@aws-sdk/client-ssm', 'SSM'],
+        ['@aws-sdk/client-bedrock-runtime', 'Bedrock'],
+        ['@aws-sdk/client-cloudformation', 'CloudFormation'],
+        ['@aws-sdk/client-ec2', 'EC2'],
+        ['@aws-sdk/client-ecs', 'ECS'],
+        ['@aws-sdk/client-eventbridge', 'EventBridge'],
+        ['@aws-sdk/client-kinesis', 'Kinesis'],
+        ['@aws-sdk/client-cloudwatch-logs', 'CloudWatch Logs'],
+      ];
+
+      const depKeys = new Set(Object.keys(deps as Record<string, unknown>));
+      const readmeLower = readme.toLowerCase();
+      const missing: string[] = [];
+
+      for (const [pkg, service] of awsServiceMap) {
+        if (depKeys.has(pkg) && !readmeLower.includes(service.toLowerCase())) {
+          missing.push(service);
+        }
+      }
+
+      if (missing.length > 0) {
+        return {
+          rule: ruleName,
+          passed: false,
+          file: 'README.md',
+          message: `AWS services not documented: ${missing.join(', ')}`,
+        };
+      }
+
+      return { rule: ruleName, passed: true };
+    },
+  },
+  {
+    name: 'README has required sections',
+    severity: 'warning',
+    check: 'custom',
+    validate: async (scriptPath) => {
+      const ruleName = 'README has required sections';
+      const readmePath = path.join(scriptPath, 'README.md');
+
+      let readme: string;
+      try {
+        readme = await fs.readFile(readmePath, 'utf-8');
+      } catch {
+        return { rule: ruleName, passed: true };
+      }
+
+      const requiredSections = ['Configurazione', 'Prerequisiti', 'Utilizzo'];
+      const readmeLower = readme.toLowerCase();
+      const missing: string[] = [];
+
+      for (const section of requiredSections) {
+        // Match ## heading (any level h2+)
+        const headingPattern = new RegExp(`^#{2,}\\s+${section.toLowerCase()}`, 'm');
+        if (!headingPattern.test(readmeLower)) {
+          missing.push(section);
+        }
+      }
+
+      if (missing.length > 0) {
+        return {
+          rule: ruleName,
+          passed: false,
+          file: 'README.md',
+          message: `Missing required sections: ${missing.join(', ')}`,
+        };
+      }
+
+      return { rule: ruleName, passed: true };
     },
   },
 ];

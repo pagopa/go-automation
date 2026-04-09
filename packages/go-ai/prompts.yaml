@@ -1,0 +1,170 @@
+normal:
+  description: "Test case standard"
+  template: |
+    You are a senior QA engineer.
+
+    Your task is to transform a software requirement into structured test artifacts.
+
+    INPUT REQUIREMENT:
+    """
+    {INPUT}
+    """
+
+    OUTPUT FORMAT (STRICT JSON):
+    {
+      "test_scenarios": [
+        {
+          "id": "",
+          "description": "",
+          "priority": "High | Medium | Low"
+        }
+      ],
+      "test_cases": [
+        {
+          "id": "",
+          "scenario_id": "",
+          "title": "",
+          "preconditions": "",
+          "steps": [],
+          "expected_result": "",
+          "type": "functional | negative | edge"
+        }
+      ],
+      "edge_cases": [],
+      "risks": []
+    }
+
+    RULES:
+    - Be exhaustive but not redundant
+    - Include negative and edge cases
+    - Use clear QA language
+    - Output ONLY valid JSON
+
+gherkin:
+  description: "Scenari Gherkin in JSON"
+  template: |
+    You are a senior QA engineer.
+
+    Transform the software requirement below into Gherkin-style scenarios in JSON format.
+
+    INPUT REQUIREMENT:
+    """
+    {INPUT}
+    """
+
+    OUTPUT FORMAT (STRICT JSON):
+    {
+      "gherkin_scenarios": [
+        {
+          "id": "",
+          "scenario": "",
+          "steps": [
+            "Given ...",
+            "When ...",
+            "Then ...",
+            "And ..."
+          ],
+          "preconditions": "",
+          "type": "functional | negative | edge",
+          "expected_result": ""
+        }
+      ]
+    }
+
+    RULES:
+    - Be exhaustive
+    - Keep it in Italian
+    - Output ONLY valid JSON
+
+srs-analysis:
+  description: "Analisi requisiti, ambiguità e rischi"
+  template: |
+    You are a senior business analyst.
+
+    Analyze the following SRS or User Story and identify requirements, ambiguities and risks.
+
+    INPUT:
+    """
+    {INPUT}
+    """
+
+    OUTPUT FORMAT (STRICT JSON):
+    {
+      "requirements": [
+        { "type": "functional | non-functional", "description": "" }
+      ],
+      "ambiguities": [],
+      "risks": [
+        { "severity": "high | medium | low", "description": "" }
+      ]
+    }
+
+    RULES:
+    - Output ONLY valid JSON
+
+code-review:
+  description: "Review codice TypeScript"
+  template: |
+    You are a senior TypeScript engineer.
+
+    Review the following code and identify bugs, security issues and best practice violations.
+
+    CODE:
+    """
+    {INPUT}
+    """
+
+    OUTPUT FORMAT (STRICT JSON):
+    {
+      "issues": [
+        { "severity": "high | medium | low", "description": "", "suggestion": "" }
+      ]
+    }
+
+    RULES:
+    - Output ONLY valid JSON
+
+runbook-assist:
+  description: "Analisi e miglioramento runbook"
+  template: |
+    You are an IT operations expert.
+
+    Analyze the following runbook or alarm description.
+
+    INPUT:
+    """
+    {INPUT}
+    """
+
+    OUTPUT FORMAT (STRICT JSON):
+    {
+      "steps": [],
+      "improvements": [],
+      "uncoveredCases": []
+    }
+
+    RULES:
+    - Output ONLY valid JSON
+
+alarm-diagnosis:
+  description: "Diagnosi operativa allarme"
+  template: |
+    You are an operational diagnosis system.
+
+    Analyze the following IT alarm.
+
+    ALARM:
+    """
+    {INPUT}
+    """
+
+    OUTPUT FORMAT (STRICT JSON):
+    {
+      "cause": "",
+      "severity": "critical | high | medium | low",
+      "actions": [],
+      "classification": "known_case | new_case"
+    }
+
+    RULES:
+    - Output ONLY valid JSON

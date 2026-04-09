@@ -1,0 +1,20 @@
+{
+  "name": "go-bot-qe-slack-handler",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "build:typecheck": "tsc --noEmit",
+    "package": "pnpm build && cd ../../artifacts/go-BotQESlackHandler && zip -r ../../functions/go-BotQESlackHandler/function.zip .",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@aws-sdk/client-lambda": "^3.1028.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.161",
+    "@types/node": "^24.12.2",
+    "esbuild": "^0.28.0"
+  }
+}

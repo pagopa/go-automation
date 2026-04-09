@@ -23,3 +23,7 @@ export * from './json/GOJSONListImporterOptions.js';
 // File Importers
 export * from './file/GOFileListImporter.js';
 export * from './file/GOFileListImporterOptions.js';
+
+// Text Importers
+export * from './text/GOTextFileImporter.js';
+export * from './text/GOTextFileImporterOptions.js';

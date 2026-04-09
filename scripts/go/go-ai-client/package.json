@@ -1,32 +1,28 @@
 {
-  "name": "send-query-dynamodb",
+  "name": "go-ai-client",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Script per recupero dati da una tabella DynamoDB",
+  "description": "Local CLI client for GO-AI — invokes the deployed Lambda or calls Bedrock directly.",
   "main": "dist/index.js",
-  "files": [
-    "dist",
-    "package.json"
-  ],
   "scripts": {
     "build": "tsc",
     "start": "pnpm build && node dist/index.js",
     "dev": "tsx src/index.ts",
     "watch": "tsc --watch",
-    "clean": "rm -rf dist *.tsbuildinfo",
-    "lint": "eslint .",
-    "format:check": "prettier --check ."
+    "clean": "rm -rf dist *.tsbuildinfo"
   },
   "keywords": [
-    "send",
-    "go-automation"
+    "go",
+    "go-automation",
+    "ai"
   ],
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.1028.0",
-    "@aws-sdk/util-dynamodb": "^3.996.2",
+    "@aws-sdk/client-lambda": "^3.1028.0",
+    "@aws-sdk/credential-provider-ini": "^3.972.29",
+    "@go-automation/go-ai": "workspace:*",
     "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {

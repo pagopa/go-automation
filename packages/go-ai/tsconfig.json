@@ -4,10 +4,9 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "composite": true,
-    "isolatedDeclarations": false,
     "types": ["node"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../../scripts/send/send-monitor-tpp-messages" }, { "path": "../../packages/go-common" }]
+  "references": [{ "path": "../go-common" }]
 }
