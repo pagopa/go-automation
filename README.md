@@ -71,7 +71,7 @@ pnpm --filter=go-report-alarms dev -- --help
 | [Architettura](docs/ARCHITECTURE.md)           | Struttura del monorepo, workspace pnpm, build system           |
 | [go-common](docs/GOCOMMON.md)                  | Documentazione della libreria `@go-automation/go-common`       |
 | [Coding Guidelines](docs/GUIDE_LINES.md)       | Standard di codifica, naming conventions, best practices       |
-| [Creare Nuovi Script](docs/NEW_SCRIPT.md)      | Guida passo-passo per creare nuovi script                      |
+| [Scripts - Guida Completa](docs/SCRIPTS.md)    | Architettura, convenzioni, quality gates, Lambda, toolchain    |
 | [**Deploy**](docs/DEPLOY.md)                   | **Guida alla pacchettizzazione e rilascio degli script**       |
 | [**Troubleshooting**](docs/TROUBLESHOOTING.md) | **Soluzioni ai problemi comuni e FAQ**                         |
 | [Runbook Engine](docs/RUNBOOKENGINE.md)        | Reference del motore di esecuzione runbook (go-common)         |
