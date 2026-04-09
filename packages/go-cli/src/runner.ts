@@ -26,24 +26,39 @@ export async function runScript(script: DiscoveredScript, options: RunOptions): 
     spawnArgs.push(entryPoint, ...args);
   }
 
-  return new Promise((resolve) => {
-    const child = spawn('node', spawnArgs, {
-      stdio: 'inherit',
-      cwd: script.paths.root,
-      env: {
-        ...process.env,
-        GO_CLI: 'true',
-        GO_EXEC_MODE: mode,
-        GO_DRY_RUN: isDryRun ? 'true' : 'false',
-      },
-    });
+  const child = spawn('node', spawnArgs, {
+    stdio: 'inherit',
+    cwd: script.paths.root,
+    env: {
+      ...process.env,
+      GO_CLI: 'true',
+      GO_EXEC_MODE: mode,
+      GO_DRY_RUN: isDryRun ? 'true' : 'false',
+    },
+  });
 
+  // Signal handlers for propagation
+  const handleSignal = (signal: NodeJS.Signals): void => {
+    // Forward signal to child
+    child.kill(signal);
+  };
+
+  process.on('SIGINT', handleSignal);
+  process.on('SIGTERM', handleSignal);
+
+  return new Promise((resolve) => {
     child.on('close', (code) => {
+      // Cleanup signal handlers
+      process.off('SIGINT', handleSignal);
+      process.off('SIGTERM', handleSignal);
       resolve(code ?? 0);
     });
 
     child.on('error', (err) => {
       console.error(`Failed to start script: ${err.message}`);
+      // Cleanup signal handlers
+      process.off('SIGINT', handleSignal);
+      process.off('SIGTERM', handleSignal);
       resolve(1);
     });
   });
