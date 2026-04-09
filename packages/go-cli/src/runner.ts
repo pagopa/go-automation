@@ -3,7 +3,7 @@ import type { DiscoveredScript } from './discovery.js';
 
 export type ExecutionMode = 'source' | 'dist';
 
-export interface RunOptions {
+interface RunOptions {
   mode: ExecutionMode;
   args: string[];
   isDryRun?: boolean;

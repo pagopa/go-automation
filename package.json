@@ -33,6 +33,8 @@
     "test:coverage": "pnpm test:common:coverage && pnpm test:scripts:coverage",
     "test:scripts": "pnpm -r --filter='./scripts/**' test",
     "test:scripts:coverage": "pnpm -r --filter='./scripts/**' test:coverage",
+    "test:packages": "pnpm -r --filter='./packages/**' test",
+    "test:packages:coverage": "pnpm -r --filter='./packages/**' test:coverage",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "lint:packages": "eslint packages",

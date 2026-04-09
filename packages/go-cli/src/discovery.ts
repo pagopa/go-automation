@@ -23,7 +23,7 @@ export interface DiscoveredScript {
   };
 }
 
-export interface FailedScript {
+interface FailedScript {
   readonly id: string;
   readonly category: string;
   readonly configPath: string;
