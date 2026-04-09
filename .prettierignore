@@ -24,3 +24,4 @@ coverage/
 # OS files
 .DS_Store
 packages/go-cli/.discovery-cache.json
+packages/go-cli/.go-cli-history.json

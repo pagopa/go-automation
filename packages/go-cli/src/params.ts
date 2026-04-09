@@ -195,7 +195,7 @@ async function promptForParam(
         },
       };
       if (initial !== undefined) options.initial = initial;
-      const resp = await prompt.text(`${message} (comma-separated)`, options);
+      const resp = await prompt.text(`${message}`, options);
       return resp ? resp.split(',').map((s) => s.trim()) : undefined;
     }
 

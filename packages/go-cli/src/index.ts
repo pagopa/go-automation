@@ -11,11 +11,13 @@ import { Core } from '@go-automation/go-common';
 import { discoverScripts, loadScriptParameters, type DiscoveredScript } from './discovery.js';
 import { runScript, type ExecutionMode } from './runner.js';
 import { validateAndInformParameters } from './params.js';
+import { HistoryManager } from './history.js';
 
-// Setup Logger and Prompt using go-common
+// Setup Logger, Prompt and History using go-common
 // We need to provide at least a console handler for the logger to work
 const logger = new Core.GOLogger([new Core.GOConsoleLoggerHandler()]);
 const prompt = new Core.GOPrompt(logger);
+const history = new HistoryManager();
 
 async function main(): Promise<void> {
   const scripts = await discoverScripts();
@@ -38,6 +40,9 @@ async function main(): Promise<void> {
       .action(async (_options: Record<string, unknown>, cmd: Command) => {
         const programOpts = program.opts();
         const mode: ExecutionMode = programOpts['dist'] ? 'dist' : 'source';
+
+        // Add to history
+        await history.add(script.id);
 
         // Lazy load parameters
         await loadScriptParameters(script);
@@ -121,11 +126,29 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
   console.log('│  Gestione Operativa Control Plane       │');
   console.log('╰─────────────────────────────────────────╯\n');
 
-  const choices = scripts.map((s) => ({
-    title: `[${s.category}] ${s.id}`,
-    value: s.id,
-    description: s.metadata.description,
-  }));
+  // Load history
+  const recentIds = await history.getHistory();
+
+  // Prepare choices
+  const choices = scripts.map((s) => {
+    const isRecent = recentIds.includes(s.id);
+    const prefix = isRecent ? '⭐ ' : '';
+    return {
+      title: `${prefix}[${s.category}] ${s.id}`,
+      value: s.id,
+      description: s.metadata.description,
+      isRecent,
+      historyIndex: recentIds.indexOf(s.id),
+    };
+  });
+
+  // Sort: Recents first (in history order), then alphabetical
+  choices.sort((a, b) => {
+    if (a.isRecent && b.isRecent) return a.historyIndex - b.historyIndex;
+    if (a.isRecent) return -1;
+    if (b.isRecent) return 1;
+    return a.title.localeCompare(b.title);
+  });
 
   const selectedTitle = await prompt.autocomplete(
     'Select a script to run:',
@@ -137,9 +160,13 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
   }
 
   // Find script by the title match
-  const selectedScript = scripts.find((s) => `[${s.category}] ${s.id}` === selectedTitle);
+  const selectedChoice = choices.find((c) => c.title === selectedTitle);
+  const selectedScript = scripts.find((s) => s.id === selectedChoice?.value);
 
   if (selectedScript) {
+    // Add to history
+    await history.add(selectedScript.id);
+
     const modeChoice = await prompt.select('Select execution mode:', [
       { title: 'Source (tsx) - Best for development', value: 'source' },
       { title: 'Dist (node) - Best for validation', value: 'dist' },

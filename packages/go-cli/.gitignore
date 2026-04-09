@@ -2,3 +2,4 @@ node_modules
 dist
 *.tsbuildinfo
 .discovery-cache.json
+.go-cli-history.json
