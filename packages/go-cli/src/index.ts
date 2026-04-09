@@ -8,7 +8,7 @@
 
 import { Command } from 'commander';
 import { Core } from '@go-automation/go-common';
-import { discoverScripts, loadScriptParameters, type DiscoveredScript } from './discovery.js';
+import { discoverScripts, loadScriptParameters, getDiscoveryErrors, type DiscoveredScript } from './discovery.js';
 import { runScript, type ExecutionMode } from './runner.js';
 import { validateAndInformParameters } from './params.js';
 import { HistoryManager } from './history.js';
@@ -202,7 +202,31 @@ _go_cli "$@"
       process.exit(0);
     });
 
-  // 5. Interactive Fallback
+  // 5. Doctor Command (Diagnostics)
+  program
+    .command('doctor')
+    .description('Check monorepo for scripts that failed discovery')
+    .action(() => {
+      const errors = getDiscoveryErrors();
+      logger.newline();
+      logger.header('GO Automation Doctor');
+
+      if (errors.length === 0) {
+        logger.success('All scripts discovered successfully! Your monorepo is healthy.');
+      } else {
+        logger.error(`Found ${errors.length} script(s) with discovery errors:`);
+        errors.forEach((err) => {
+          console.log(`\nScript: [${err.category}] ${err.id}`);
+          console.log(`Path:   ${err.configPath}`);
+          console.log(`Error:  ${err.error}`);
+        });
+        logger.newline();
+        logger.info('Check the syntax and exports in the config.ts files above.');
+      }
+      process.exit(errors.length > 0 ? 1 : 0);
+    });
+
+  // 6. Interactive Fallback
   if (process.argv.length <= 2) {
     await runInteractive(scripts);
     return;

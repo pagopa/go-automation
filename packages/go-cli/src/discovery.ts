@@ -23,6 +23,13 @@ export interface DiscoveredScript {
   };
 }
 
+export interface FailedScript {
+  readonly id: string;
+  readonly category: string;
+  readonly configPath: string;
+  readonly error: string;
+}
+
 interface ScriptConfigModule {
   scriptMetadata: Core.GOScriptMetadata;
   scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions>;
@@ -40,12 +47,16 @@ interface DiscoveryCache {
   [configPath: string]: DiscoveryCacheEntry;
 }
 
+// Store failed scripts in a module-level variable for the 'doctor' command
+let discoveryErrors: FailedScript[] = [];
+
 /**
  * Discovery Engine - Scans the scripts/ directory for valid GOScripts
  * Uses a local cache to avoid re-importing unchanged config files.
  */
 export async function discoverScripts(): Promise<DiscoveredScript[]> {
   const scriptsDir = path.join(ROOT_DIR, 'scripts');
+  discoveryErrors = [];
 
   // 1. Load cache
   let cache: DiscoveryCache = {};
@@ -66,6 +77,10 @@ export async function discoverScripts(): Promise<DiscoveredScript[]> {
   let cacheUpdated = false;
 
   for (const configFile of configFiles) {
+    const scriptRoot = path.dirname(path.dirname(configFile));
+    const category = path.basename(path.dirname(scriptRoot));
+    const id = path.basename(scriptRoot);
+
     try {
       const stats = await fs.stat(configFile);
       const mtime = stats.mtimeMs;
@@ -74,7 +89,6 @@ export async function discoverScripts(): Promise<DiscoveredScript[]> {
       const cached = cache[configFile];
 
       if (cached?.mtime === mtime) {
-        // Use cached data - NO IMPORT NEEDED for discovery!
         discovered.push({
           ...cached,
         });
@@ -85,10 +99,6 @@ export async function discoverScripts(): Promise<DiscoveredScript[]> {
       const module = (await import(pathToFileURL(configFile).href)) as ScriptConfigModule;
 
       if (module.scriptMetadata && module.scriptParameters) {
-        const scriptRoot = path.dirname(path.dirname(configFile));
-        const category = path.basename(path.dirname(scriptRoot));
-        const id = path.basename(scriptRoot);
-
         const scriptData: DiscoveredScript = {
           id,
           category,
@@ -105,7 +115,7 @@ export async function discoverScripts(): Promise<DiscoveredScript[]> {
 
         discovered.push(scriptData);
 
-        // Update cache entry (storing serializable parts)
+        // Update cache entry
         cache[configFile] = {
           id,
           category,
@@ -115,15 +125,20 @@ export async function discoverScripts(): Promise<DiscoveredScript[]> {
         };
         cacheUpdated = true;
       }
-    } catch (_error) {
-      // Skip invalid scripts
+    } catch (error) {
+      // Capture error and continue
+      discoveryErrors.push({
+        id,
+        category,
+        configPath: configFile,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
   // 5. Cleanup and Save cache if updated
   if (cacheUpdated) {
     try {
-      // Remove entries for files that no longer exist
       const existingConfigs = new Set(configFiles);
       const updatedCache: DiscoveryCache = {};
       for (const [configPath, entry] of Object.entries(cache)) {
@@ -138,6 +153,13 @@ export async function discoverScripts(): Promise<DiscoveredScript[]> {
   }
 
   return discovered.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
+ * Get scripts that failed discovery
+ */
+export function getDiscoveryErrors(): FailedScript[] {
+  return [...discoveryErrors];
 }
 
 /**
