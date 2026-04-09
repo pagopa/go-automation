@@ -13,7 +13,7 @@
     "test:local": "tsx src/test-local.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1026.0",
+    "@aws-sdk/client-s3": "^3.1027.0",
     "@go-automation/go-common": "workspace:*",
     "send-monitor-tpp-messages": "workspace:*"
   },
