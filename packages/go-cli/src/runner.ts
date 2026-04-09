@@ -26,15 +26,13 @@ export async function runScript(script: DiscoveredScript, options: RunOptions): 
     spawnArgs.push(entryPoint, ...args);
   }
 
+  // Environment Sanitization
+  const cleanEnv = getSanitizedEnv(mode, isDryRun ?? false);
+
   const child = spawn('node', spawnArgs, {
     stdio: 'inherit',
     cwd: script.paths.root,
-    env: {
-      ...process.env,
-      GO_CLI: 'true',
-      GO_EXEC_MODE: mode,
-      GO_DRY_RUN: isDryRun ? 'true' : 'false',
-    },
+    env: cleanEnv,
   });
 
   // Signal handlers for propagation
@@ -62,4 +60,47 @@ export async function runScript(script: DiscoveredScript, options: RunOptions): 
       resolve(1);
     });
   });
+}
+
+/**
+ * Creates a "Clean Slate" environment for the child process
+ */
+function getSanitizedEnv(mode: ExecutionMode, isDryRun: boolean): NodeJS.ProcessEnv {
+  const allowList = [
+    'PATH',
+    'HOME',
+    'USER',
+    'LANG',
+    'SHELL',
+    'PWD',
+    'TERM',
+    'TMPDIR',
+    'SSH_AUTH_SOCK',
+    'DISPLAY', // for some GUI prompts if needed
+  ];
+
+  const sanitized: NodeJS.ProcessEnv = {};
+
+  // 1. Copy allow-listed standard vars
+  for (const key of allowList) {
+    if (process.env[key] !== undefined) {
+      sanitized[key] = process.env[key];
+    }
+  }
+
+  // 2. Copy all GO_ prefixed vars (including AWS profiles, etc.)
+  // and AWS standard vars
+  const envKeys = Object.keys(process.env);
+  for (const key of envKeys) {
+    if (key.startsWith('GO_') || key.startsWith('AWS_')) {
+      sanitized[key] = process.env[key];
+    }
+  }
+
+  // 3. Inject CLI-specific state
+  sanitized['GO_CLI'] = 'true';
+  sanitized['GO_EXEC_MODE'] = mode;
+  sanitized['GO_DRY_RUN'] = isDryRun ? 'true' : 'false';
+
+  return sanitized;
 }
