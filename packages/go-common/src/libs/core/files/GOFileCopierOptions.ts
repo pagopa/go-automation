@@ -111,7 +111,12 @@ export interface GOFileCopierOptions {
 /**
  * Default configuration values
  */
-export const GO_FILE_COPIER_DEFAULTS = {
+export const GO_FILE_COPIER_DEFAULTS: {
+  readonly PROMPT_THRESHOLD: number;
+  readonly MAX_FILE_SIZE: number;
+  readonly MANIFEST_FILE_NAME: string;
+  readonly SUBDIR_DEFAULTS: GOFileCopierSubdirDefaults;
+} = {
   /** 10 MB prompt threshold */
   PROMPT_THRESHOLD: 10 * 1024 * 1024,
 
@@ -126,8 +131,8 @@ export const GO_FILE_COPIER_DEFAULTS = {
     input: 'inputs',
     config: 'configs',
     output: null,
-  } as GOFileCopierSubdirDefaults,
-} as const;
+  },
+};
 
 /**
  * Get the default subdirectory for a given path type

@@ -4,6 +4,7 @@
  * Discovers all script directories in the monorepo workspace,
  * validates each against the scaffold rules, and exits with
  * code 1 if any rule fails (suitable for CI pipelines).
+ * Warnings are reported but do not cause a non-zero exit code.
  *
  * Usage:
  *   pnpm validate:scaffold            # normal output (failures only per script)
@@ -22,10 +23,15 @@ const BOLD = '\x1b[1m';
 const DIM = '\x1b[2m';
 const RED = '\x1b[31m';
 const GREEN = '\x1b[32m';
+const YELLOW = '\x1b[33m';
 const RESET = '\x1b[0m';
 
 const PASS = `${GREEN}[PASS]${RESET}`;
 const FAIL = `${RED}[FAIL]${RESET}`;
+const WARN = `${YELLOW}[WARN]${RESET}`;
+
+/** Whether we are running inside GitHub Actions */
+const IS_GITHUB_ACTIONS = process.env['GITHUB_ACTIONS'] === 'true';
 
 // ── Script discovery ──────────────────────────────────────────────────
 
@@ -66,17 +72,21 @@ async function main(): Promise<void> {
   console.log('='.repeat(50));
 
   let totalChecks = 0;
-  let totalFailures = 0;
+  let totalErrors = 0;
+  let totalWarnings = 0;
 
   for (const scriptPath of scripts) {
     const name = path.relative(rootDir, scriptPath);
     const results = await engine.validate(scriptPath);
-    const failures = results.filter((r) => !r.passed);
+    const errors = results.filter((r) => !r.passed && r.severity === 'error');
+    const warnings = results.filter((r) => !r.passed && r.severity === 'warning');
+    const issues = errors.length + warnings.length;
 
     totalChecks += results.length;
-    totalFailures += failures.length;
+    totalErrors += errors.length;
+    totalWarnings += warnings.length;
 
-    if (failures.length === 0) {
+    if (issues === 0) {
       console.log(
         `\n  ${PASS} ${BOLD}${name}${RESET} ${DIM}(${String(results.length)}/${String(results.length)})${RESET}`,
       );
@@ -86,17 +96,26 @@ async function main(): Promise<void> {
         }
       }
     } else {
-      const passed = results.length - failures.length;
-      console.log(`\n  ${FAIL} ${BOLD}${name}${RESET} ${DIM}(${String(passed)}/${String(results.length)})${RESET}`);
+      const passed = results.length - issues;
+      const label = errors.length > 0 ? FAIL : WARN;
+      console.log(`\n  ${label} ${BOLD}${name}${RESET} ${DIM}(${String(passed)}/${String(results.length)})${RESET}`);
       for (const result of results) {
         if (result.passed) {
           if (verbose) {
             console.log(`    ${DIM}${result.rule}${RESET}`);
           }
         } else {
-          console.log(`    ${FAIL} ${result.rule}`);
+          const tag = result.severity === 'warning' ? WARN : FAIL;
+          console.log(`    ${tag} ${result.rule}`);
           if (result.message) {
             console.log(`         ${DIM}${result.message}${RESET}`);
+          }
+          if (IS_GITHUB_ACTIONS) {
+            const level = result.severity === 'warning' ? 'warning' : 'error';
+            const filePart = result.file ? `file=${name}/${result.file},` : '';
+            const linePart = result.line !== undefined ? `line=${String(result.line)},` : '';
+            const body = result.message ?? result.rule;
+            console.log(`::${level} ${filePart}${linePart}title=${result.rule}::${body}`);
           }
         }
       }
@@ -105,14 +124,21 @@ async function main(): Promise<void> {
 
   console.log(`\n${'='.repeat(50)}`);
 
-  const failureText =
-    totalFailures === 0
-      ? `${GREEN}0 failures${RESET}`
-      : `${RED}${String(totalFailures)} failure${totalFailures > 1 ? 's' : ''}${RESET}`;
+  const parts: string[] = [`${BOLD}${String(scripts.length)} scripts${RESET}`, `${String(totalChecks)} checks`];
 
-  console.log(`${BOLD}${String(scripts.length)} scripts${RESET}, ${String(totalChecks)} checks, ${failureText}\n`);
+  if (totalErrors > 0) {
+    parts.push(`${RED}${String(totalErrors)} error${totalErrors > 1 ? 's' : ''}${RESET}`);
+  }
+  if (totalWarnings > 0) {
+    parts.push(`${YELLOW}${String(totalWarnings)} warning${totalWarnings > 1 ? 's' : ''}${RESET}`);
+  }
+  if (totalErrors === 0 && totalWarnings === 0) {
+    parts.push(`${GREEN}all passed${RESET}`);
+  }
 
-  if (totalFailures > 0) {
+  console.log(`${parts.join(', ')}\n`);
+
+  if (totalErrors > 0) {
     process.exit(1);
   }
 }

@@ -11,6 +11,15 @@ import type {
   ScaffoldRule,
 } from './types/index.js';
 
+/** Internal result without severity — assigned by runRule() from the rule definition */
+interface InternalResult {
+  readonly rule: string;
+  readonly passed: boolean;
+  readonly file?: string | undefined;
+  readonly line?: number | undefined;
+  readonly message?: string;
+}
+
 /**
  * Converts a simple glob pattern (with `*` wildcards) into a RegExp.
  * Only supports `*` — no `**`, `?`, or brace expansion.
@@ -42,6 +51,19 @@ function getNestedValue(obj: unknown, keyPath: string): unknown {
 }
 
 /**
+ * Finds the 1-based line number of the last segment of a dot-notation key in raw file content.
+ * For "dependencies.@aws-sdk/client-s3", searches for "@aws-sdk/client-s3".
+ * Returns undefined if not found.
+ */
+function findKeyLine(content: string, keyPath: string): number | undefined {
+  const lastSegment = keyPath.split('.').at(-1);
+  if (lastSegment === undefined) return undefined;
+  const index = content.indexOf(`"${lastSegment}"`);
+  if (index === -1) return undefined;
+  return content.substring(0, index).split('\n').length;
+}
+
+/**
  * Validates script directories against a set of scaffold rules.
  *
  * Supports six check types:
@@ -51,6 +73,9 @@ function getNestedValue(obj: unknown, keyPath: string): unknown {
  * - `json-has-key`: dot-notation key exists in a JSON file
  * - `json-key-equals`: dot-notation key equals a specific value
  * - `custom`: arbitrary async validation function
+ *
+ * Each rule can have a severity of 'error' (default) or 'warning'.
+ * Warnings are reported but do not cause validation failure.
  */
 export class ScaffoldEngine {
   constructor(private readonly rules: ReadonlyArray<ScaffoldRule>) {}
@@ -70,21 +95,52 @@ export class ScaffoldEngine {
   }
 
   private async runRule(rule: ScaffoldRule, scriptPath: string): Promise<RuleResult> {
+    const severity = rule.severity ?? 'error';
+    let internal: InternalResult;
+
     switch (rule.check) {
       case 'file-exists':
-        return this.checkFileExists(rule, scriptPath);
+        internal = await this.checkFileExists(rule, scriptPath);
+        break;
       case 'file-contains':
-        return this.checkFileContains(rule, scriptPath);
+        internal = await this.checkFileContains(rule, scriptPath);
+        break;
       case 'file-not-contains':
-        return this.checkFileNotContains(rule, scriptPath);
+        internal = await this.checkFileNotContains(rule, scriptPath);
+        break;
       case 'json-has-key':
-        return this.checkJsonHasKey(rule, scriptPath);
+        internal = await this.checkJsonHasKey(rule, scriptPath);
+        break;
       case 'json-key-equals':
-        return this.checkJsonKeyEquals(rule, scriptPath);
-      case 'custom': {
-        const result = await rule.validate(scriptPath);
-        return result;
+        internal = await this.checkJsonKeyEquals(rule, scriptPath);
+        break;
+      case 'custom':
+        internal = await rule.validate(scriptPath);
+        break;
+      default: {
+        const exhaustiveCheck: never = rule;
+        throw new Error(`Unknown check type: ${JSON.stringify(exhaustiveCheck)}`);
       }
+    }
+
+    // Derive the file from the rule definition if the check didn't set one
+    const file = internal.file ?? this.getRuleFile(rule);
+
+    return { ...internal, severity, file };
+  }
+
+  /** Extracts the primary file reference from a rule definition */
+  private getRuleFile(rule: ScaffoldRule): string | undefined {
+    switch (rule.check) {
+      case 'file-exists':
+        return rule.glob;
+      case 'file-contains':
+      case 'file-not-contains':
+      case 'json-has-key':
+      case 'json-key-equals':
+        return rule.file;
+      case 'custom':
+        return undefined;
       default: {
         const exhaustiveCheck: never = rule;
         throw new Error(`Unknown check type: ${JSON.stringify(exhaustiveCheck)}`);
@@ -92,7 +148,7 @@ export class ScaffoldEngine {
     }
   }
 
-  private async checkFileExists(rule: FileExistsRule, scriptPath: string): Promise<RuleResult> {
+  private async checkFileExists(rule: FileExistsRule, scriptPath: string): Promise<InternalResult> {
     const target = path.join(scriptPath, rule.glob);
 
     if (!rule.glob.includes('*')) {
@@ -131,7 +187,7 @@ export class ScaffoldEngine {
     }
   }
 
-  private async checkFileContains(rule: FileContainsRule, scriptPath: string): Promise<RuleResult> {
+  private async checkFileContains(rule: FileContainsRule, scriptPath: string): Promise<InternalResult> {
     const filePath = path.join(scriptPath, rule.file);
     try {
       const content = await fs.readFile(filePath, 'utf-8');
@@ -152,7 +208,7 @@ export class ScaffoldEngine {
     }
   }
 
-  private async checkFileNotContains(rule: FileNotContainsRule, scriptPath: string): Promise<RuleResult> {
+  private async checkFileNotContains(rule: FileNotContainsRule, scriptPath: string): Promise<InternalResult> {
     const filePath = path.join(scriptPath, rule.file);
     try {
       const content = await fs.readFile(filePath, 'utf-8');
@@ -160,11 +216,12 @@ export class ScaffoldEngine {
       if (match === null) {
         return { rule: rule.name, passed: true };
       }
-      const line = content.substring(0, match.index).split('\n').length;
+      const matchLine = content.substring(0, match.index).split('\n').length;
       return {
         rule: rule.name,
         passed: false,
-        message: `Match in ${rule.file}:${String(line)}`,
+        line: matchLine,
+        message: `Match in ${rule.file}:${String(matchLine)}`,
       };
     } catch {
       // File doesn't exist → cannot contain the pattern → passes
@@ -172,7 +229,7 @@ export class ScaffoldEngine {
     }
   }
 
-  private async checkJsonHasKey(rule: JsonHasKeyRule, scriptPath: string): Promise<RuleResult> {
+  private async checkJsonHasKey(rule: JsonHasKeyRule, scriptPath: string): Promise<InternalResult> {
     const filePath = path.join(scriptPath, rule.file);
     try {
       const content = await fs.readFile(filePath, 'utf-8');
@@ -184,6 +241,7 @@ export class ScaffoldEngine {
       return {
         rule: rule.name,
         passed: false,
+        line: findKeyLine(content, rule.key),
         message: `Key "${rule.key}" not found in ${rule.file}`,
       };
     } catch {
@@ -195,7 +253,7 @@ export class ScaffoldEngine {
     }
   }
 
-  private async checkJsonKeyEquals(rule: JsonKeyEqualsRule, scriptPath: string): Promise<RuleResult> {
+  private async checkJsonKeyEquals(rule: JsonKeyEqualsRule, scriptPath: string): Promise<InternalResult> {
     const filePath = path.join(scriptPath, rule.file);
     try {
       const content = await fs.readFile(filePath, 'utf-8');
@@ -207,6 +265,7 @@ export class ScaffoldEngine {
       return {
         rule: rule.name,
         passed: false,
+        line: findKeyLine(content, rule.key),
         message: `Expected "${rule.key}" = ${JSON.stringify(rule.value)}, got ${JSON.stringify(value)}`,
       };
     } catch {
