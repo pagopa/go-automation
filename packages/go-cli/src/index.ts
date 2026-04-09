@@ -14,6 +14,7 @@ import { validateAndInformParameters } from './params.js';
 import { HistoryManager } from './history.js';
 import { Scaffolder } from './scaffold.js';
 import { PresetManager } from './presets.js';
+import { PreFlightChecker } from './checker.js';
 
 // Setup dependencies
 const logger = new Core.GOLogger([new Core.GOConsoleLoggerHandler()]);
@@ -21,6 +22,7 @@ const prompt = new Core.GOPrompt(logger);
 const history = new HistoryManager();
 const scaffolder = new Scaffolder(prompt, logger);
 const presets = new PresetManager();
+const checker = new PreFlightChecker(logger);
 
 async function main(): Promise<void> {
   const scripts = await discoverScripts();
@@ -56,6 +58,12 @@ async function main(): Promise<void> {
         const isDryRun = !!programOpts['dryRun'];
         const presetName = programOpts['preset'] as string | undefined;
         const saveName = programOpts['save'] as string | undefined;
+
+        // Pre-flight checks
+        const isReady = await checker.verify(script, mode);
+        if (!isReady) {
+          process.exit(1);
+        }
 
         let currentArgs = cmd.args;
 
@@ -286,12 +294,18 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
     // Add to history
     await history.add(selectedScript.id);
 
-    const modeChoice = await prompt.select('Select execution mode:', [
+    const modeChoice = (await prompt.select('Select execution mode:', [
       { title: 'Source (tsx) - Best for development', value: 'source' },
       { title: 'Dist (node) - Best for validation', value: 'dist' },
-    ]);
+    ])) as ExecutionMode;
 
     if (!modeChoice) process.exit(0);
+
+    // Pre-flight checks
+    const isReady = await checker.verify(selectedScript, modeChoice);
+    if (!isReady) {
+      process.exit(1);
+    }
 
     const isDryRun = await prompt.confirm('Execute in dry-run mode (simulated)?', false);
 
@@ -354,7 +368,7 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
     }
 
     const exitCode = await runScript(selectedScript, {
-      mode: modeChoice as ExecutionMode,
+      mode: modeChoice,
       args: finalArgs,
       isDryRun,
     });
