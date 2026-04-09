@@ -21,6 +21,13 @@ import type { ScaffoldRule } from './types/index.js';
 /** Packages that are inherited from the root workspace and must not be in script devDependencies */
 const INHERITED_DEV_DEPENDENCIES = ['typescript', 'tsx', 'prettier', 'eslint'];
 
+/** Finds the 1-based line number of a key in raw file content */
+function findLine(content: string, key: string): number | undefined {
+  const index = content.indexOf(`"${key}"`);
+  if (index === -1) return undefined;
+  return content.substring(0, index).split('\n').length;
+}
+
 export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
   // ── Source file structure ───────────────────────────────────────────
 
@@ -225,10 +232,12 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
       }
       const awsSdkPackages = Object.keys(deps as Record<string, unknown>).filter((key) => key.startsWith('@aws-sdk/'));
       if (awsSdkPackages.length > 0) {
+        const firstPkg = awsSdkPackages[0];
         return {
           rule: 'No direct @aws-sdk/* dependencies (use go-common)',
           passed: false,
           file: 'package.json',
+          line: firstPkg !== undefined ? findLine(content, firstPkg) : undefined,
           message: `Found @aws-sdk/* in dependencies: ${awsSdkPackages.join(', ')}. Use go-common instead.`,
         };
       }
@@ -250,10 +259,12 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
         INHERITED_DEV_DEPENDENCIES.includes(key),
       );
       if (found.length > 0) {
+        const firstPkg = found[0];
         return {
           rule: 'No inherited devDependencies from root workspace',
           passed: false,
           file: 'package.json',
+          line: firstPkg !== undefined ? findLine(content, firstPkg) : undefined,
           message: `Found packages inherited from root: ${found.join(', ')}. Remove them — they come from the workspace root.`,
         };
       }

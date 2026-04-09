@@ -16,6 +16,7 @@ interface InternalResult {
   readonly rule: string;
   readonly passed: boolean;
   readonly file?: string | undefined;
+  readonly line?: number | undefined;
   readonly message?: string;
 }
 
@@ -47,6 +48,19 @@ function getNestedValue(obj: unknown, keyPath: string): unknown {
     current = (current as Record<string, unknown>)[key];
   }
   return current;
+}
+
+/**
+ * Finds the 1-based line number of the last segment of a dot-notation key in raw file content.
+ * For "dependencies.@aws-sdk/client-s3", searches for "@aws-sdk/client-s3".
+ * Returns undefined if not found.
+ */
+function findKeyLine(content: string, keyPath: string): number | undefined {
+  const lastSegment = keyPath.split('.').at(-1);
+  if (lastSegment === undefined) return undefined;
+  const index = content.indexOf(`"${lastSegment}"`);
+  if (index === -1) return undefined;
+  return content.substring(0, index).split('\n').length;
 }
 
 /**
@@ -202,11 +216,12 @@ export class ScaffoldEngine {
       if (match === null) {
         return { rule: rule.name, passed: true };
       }
-      const line = content.substring(0, match.index).split('\n').length;
+      const matchLine = content.substring(0, match.index).split('\n').length;
       return {
         rule: rule.name,
         passed: false,
-        message: `Match in ${rule.file}:${String(line)}`,
+        line: matchLine,
+        message: `Match in ${rule.file}:${String(matchLine)}`,
       };
     } catch {
       // File doesn't exist → cannot contain the pattern → passes
@@ -226,6 +241,7 @@ export class ScaffoldEngine {
       return {
         rule: rule.name,
         passed: false,
+        line: findKeyLine(content, rule.key),
         message: `Key "${rule.key}" not found in ${rule.file}`,
       };
     } catch {
@@ -249,6 +265,7 @@ export class ScaffoldEngine {
       return {
         rule: rule.name,
         passed: false,
+        line: findKeyLine(content, rule.key),
         message: `Expected "${rule.key}" = ${JSON.stringify(rule.value)}, got ${JSON.stringify(value)}`,
       };
     } catch {

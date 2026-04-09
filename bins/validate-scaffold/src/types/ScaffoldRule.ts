@@ -67,6 +67,7 @@ export interface CustomRuleResult {
   readonly rule: string;
   readonly passed: boolean;
   readonly file?: string | undefined;
+  readonly line?: number | undefined;
   readonly message?: string;
 }
 

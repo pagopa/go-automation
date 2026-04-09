@@ -113,8 +113,9 @@ async function main(): Promise<void> {
           if (IS_GITHUB_ACTIONS) {
             const level = result.severity === 'warning' ? 'warning' : 'error';
             const filePart = result.file ? `file=${name}/${result.file},` : '';
+            const linePart = result.line !== undefined ? `line=${String(result.line)},` : '';
             const body = result.message ?? result.rule;
-            console.log(`::${level} ${filePart}title=${result.rule}::${body}`);
+            console.log(`::${level} ${filePart}${linePart}title=${result.rule}::${body}`);
           }
         }
       }

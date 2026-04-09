@@ -16,6 +16,9 @@ export interface RuleResult {
   /** File path relative to the script root (used for GitHub Actions annotations) */
   readonly file?: string | undefined;
 
+  /** Line number in the file (used for GitHub Actions annotations) */
+  readonly line?: number | undefined;
+
   /** Details about the failure (present only when passed is false) */
   readonly message?: string;
 }
