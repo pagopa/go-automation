@@ -31,7 +31,22 @@ export async function validateAndInformParameters(
 
   const missingMandatory: Core.GOConfigParameterOptions[] = [];
 
-  // Display Mandatory Parameters
+  // 1. Validate already provided arguments
+  for (const param of parameters) {
+    if (isParamProvided(param, parsed)) {
+      const value = getParamValue(param, parsed);
+      if (param.validator) {
+        const validationResult = param.validator(value);
+        if (validationResult !== true) {
+          const flag = Core.GOConfigKeyTransformer.toCLIFlag(param.name);
+          logger.error(`Invalid value for ${flag}: ${String(validationResult)}`);
+          return { valid: false, finalArgs: args };
+        }
+      }
+    }
+  }
+
+  // 2. Display Mandatory Parameters
   if (mandatoryParams.length > 0) {
     console.log('MANDATORY PARAMETERS:');
     for (const param of mandatoryParams) {
@@ -48,7 +63,7 @@ export async function validateAndInformParameters(
     console.log('');
   }
 
-  // Display Optional Parameters
+  // 3. Display Optional Parameters
   if (optionalParams.length > 0) {
     console.log('OPTIONAL PARAMETERS:');
     for (const param of optionalParams) {
@@ -65,7 +80,7 @@ export async function validateAndInformParameters(
     console.log('');
   }
 
-  // Handle Missing Mandatory Parameters
+  // 4. Handle Missing Mandatory Parameters
   if (missingMandatory.length > 0) {
     if (isInteractive) {
       console.log('Some mandatory parameters are missing. Please provide them:\n');
@@ -195,7 +210,7 @@ async function promptForParam(
         },
       };
       if (initial !== undefined) options.initial = initial;
-      const resp = await prompt.text(`${message}`, options);
+      const resp = await prompt.text(`${message} (comma-separated)`, options);
       return resp ? resp.split(',').map((s) => s.trim()) : undefined;
     }
 
