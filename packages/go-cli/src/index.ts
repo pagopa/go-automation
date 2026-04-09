@@ -12,12 +12,14 @@ import { discoverScripts, loadScriptParameters, type DiscoveredScript } from './
 import { runScript, type ExecutionMode } from './runner.js';
 import { validateAndInformParameters } from './params.js';
 import { HistoryManager } from './history.js';
+import { Scaffolder } from './scaffold.js';
 
 // Setup Logger, Prompt and History using go-common
 // We need to provide at least a console handler for the logger to work
 const logger = new Core.GOLogger([new Core.GOConsoleLoggerHandler()]);
 const prompt = new Core.GOPrompt(logger);
 const history = new HistoryManager();
+const scaffolder = new Scaffolder(prompt, logger);
 
 async function main(): Promise<void> {
   const scripts = await discoverScripts();
@@ -148,7 +150,16 @@ _go_cli "$@"
       process.exit(0);
     });
 
-  // 4. Interactive Fallback
+  // 4. New Command (Scaffolding)
+  program
+    .command('new')
+    .description('Create a new GO Automation script from templates')
+    .action(async () => {
+      await scaffolder.run();
+      process.exit(0);
+    });
+
+  // 5. Interactive Fallback
   if (process.argv.length <= 2) {
     await runInteractive(scripts);
     return;
