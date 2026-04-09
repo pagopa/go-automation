@@ -1,0 +1,36 @@
+{
+  "name": "@go-automation/go-ai",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "GO-AI: Bedrock-powered AI module for operational intelligence",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build && cp prompts.yaml dist/",
+    "watch": "tsc --build --watch",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "prepare": "pnpm run build"
+  },
+  "keywords": [
+    "go",
+    "go-automation",
+    "ai",
+    "bedrock"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.600.0",
+    "@aws-sdk/credential-provider-ini": "^3.972.29",
+    "yaml": "^2.8.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.0"
+  }
+}

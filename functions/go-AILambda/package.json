@@ -1,0 +1,23 @@
+{
+  "name": "go-ai-lambda",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "build:typecheck": "tsc --noEmit",
+    "package": "pnpm build && cd ../../artifacts/go-AILambda && zip -r ../../functions/go-AILambda/function.zip .",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.600.0",
+    "@aws-sdk/credential-provider-ini": "^3.972.25",
+    "@go-automation/go-ai": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.161",
+    "@types/node": "^24.12.0",
+    "esbuild": "^0.27.4",
+    "typescript": "^5.9.3"
+  }
+}
