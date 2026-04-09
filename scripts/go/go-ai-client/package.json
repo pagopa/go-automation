@@ -8,17 +8,21 @@
   "scripts": {
     "build": "tsc",
     "start": "pnpm build && node dist/index.js",
-    "dev":   "tsx src/index.ts",
+    "dev": "tsx src/index.ts",
     "clean": "rm -rf dist *.tsbuildinfo"
   },
-  "keywords": ["go", "go-automation", "ai"],
+  "keywords": [
+    "go",
+    "go-automation",
+    "ai"
+  ],
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.600.0",
-    "@aws-sdk/client-lambda":          "^3.600.0",
-    "@go-automation/go-ai":            "workspace:*",
-    "@go-automation/go-common":        "workspace:*"
+    "@aws-sdk/client-lambda": "^3.600.0",
+    "@go-automation/go-ai": "workspace:*",
+    "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.12.0"
