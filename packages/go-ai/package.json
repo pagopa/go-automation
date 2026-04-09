@@ -28,7 +28,7 @@
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1028.0",
     "@aws-sdk/credential-provider-ini": "^3.972.29",
-    "yaml": "^2.8.3"
+    "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.12.2"

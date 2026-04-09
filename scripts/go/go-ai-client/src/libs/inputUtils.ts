@@ -1,12 +1,17 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import { Core } from '@go-automation/go-common';
 
-export function loadInput(inputArg: string): string {
-  const filePath = path.resolve(inputArg);
-  if (fs.existsSync(filePath)) {
-    return fs.readFileSync(filePath, 'utf-8');
-  }
-  return inputArg;
+/**
+ * Loads input from a file path (resolved via GOPaths) or returns the raw string if not a file.
+ *
+ * @param inputArg - A file path or raw text input
+ * @param script - GOScript instance for path resolution
+ * @returns The file content if the path exists, otherwise the raw input string
+ */
+export async function loadInput(inputArg: string, script: Core.GOScript): Promise<string> {
+  const resolvedPath = script.paths.resolvePath(inputArg, Core.GOPathType.INPUT);
+  const importer = new Core.GOTextFileImporter({ inputPath: resolvedPath, optional: true });
+  const content = await importer.import();
+  return content ?? inputArg;
 }
 
 export function stabilize(raw: string): unknown {

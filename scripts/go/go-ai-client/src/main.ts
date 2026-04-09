@@ -41,7 +41,7 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   const req: GOAIRequest = {
     hat: config.hat as GOAIHat,
-    input: loadInput(config.input),
+    input: await loadInput(config.input, script),
   };
 
   script.logger.info(`Hat:     ${req.hat}`);

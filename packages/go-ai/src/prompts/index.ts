@@ -4,10 +4,10 @@
  * YAML lives at packages/go-ai/prompts.yaml — one level above src/.
  */
 
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve, dirname } from 'node:path';
-import * as YAML from 'yaml';
+
+import { Core } from '@go-automation/go-common';
 
 import type { GOAIHat } from '../types/index.js';
 
@@ -23,8 +23,7 @@ function loadPromptsFile(yamlPath?: string): PromptsFile {
   const defaultPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../prompts.yaml');
 
   const resolvedPath = yamlPath ?? process.env['GO_AI_PROMPTS_PATH'] ?? defaultPath;
-  const raw = readFileSync(resolvedPath, 'utf-8');
-  return YAML.parse(raw) as PromptsFile;
+  return Core.GOYAMLParser.parseFile(resolvedPath) as PromptsFile;
 }
 
 // Loaded once at module init
