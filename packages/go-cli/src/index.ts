@@ -33,6 +33,7 @@ async function main(): Promise<void> {
     .version('1.0.0')
     .option('-s, --source', 'Run from TypeScript source (via tsx)', true)
     .option('-d, --dist', 'Run from compiled JavaScript (via node)')
+    .option('--dry-run', 'Execute script in dry-run mode (simulated)', false)
     .option('--list-scripts', 'Internal: List all script IDs for autocompletion', false)
     .option('--save <name>', 'Save current arguments as a named preset')
     .option('--preset <name>', 'Load arguments from a named preset');
@@ -52,6 +53,7 @@ async function main(): Promise<void> {
       .action(async (_options: Record<string, unknown>, cmd: Command) => {
         const programOpts = program.opts();
         const mode: ExecutionMode = programOpts['dist'] ? 'dist' : 'source';
+        const isDryRun = !!programOpts['dryRun'];
         const presetName = programOpts['preset'] as string | undefined;
         const saveName = programOpts['save'] as string | undefined;
 
@@ -87,7 +89,16 @@ async function main(): Promise<void> {
           logger.success(`Arguments saved as preset '${saveName}'.`);
         }
 
-        const exitCode = await runScript(script, mode, finalArgs);
+        if (isDryRun) {
+          logger.newline();
+          logger.header('DRY RUN ACTIVE - NO REAL CHANGES WILL BE MADE');
+        }
+
+        const exitCode = await runScript(script, {
+          mode,
+          args: finalArgs,
+          isDryRun,
+        });
         process.exit(exitCode);
       });
 
@@ -258,6 +269,8 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
 
     if (!modeChoice) process.exit(0);
 
+    const isDryRun = await prompt.confirm('Execute in dry-run mode (simulated)?', false);
+
     // Load available presets
     const scriptPresets = await presets.listPresets(selectedScript.id);
     let initialArgs: string[] = [];
@@ -311,7 +324,16 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
       }
     }
 
-    const exitCode = await runScript(selectedScript, modeChoice as ExecutionMode, finalArgs);
+    if (isDryRun) {
+      logger.newline();
+      logger.header('DRY RUN ACTIVE - NO REAL CHANGES WILL BE MADE');
+    }
+
+    const exitCode = await runScript(selectedScript, {
+      mode: modeChoice as ExecutionMode,
+      args: finalArgs,
+      isDryRun,
+    });
     process.exit(exitCode);
   }
 }

@@ -3,10 +3,17 @@ import type { DiscoveredScript } from './discovery.js';
 
 export type ExecutionMode = 'source' | 'dist';
 
+export interface RunOptions {
+  mode: ExecutionMode;
+  args: string[];
+  isDryRun?: boolean;
+}
+
 /**
  * Runner - Handles spawning the child process for the selected script
  */
-export async function runScript(script: DiscoveredScript, mode: ExecutionMode, args: string[]): Promise<number> {
+export async function runScript(script: DiscoveredScript, options: RunOptions): Promise<number> {
+  const { mode, args, isDryRun } = options;
   const entryPoint = mode === 'source' ? script.paths.entryTs : script.paths.entryJs;
 
   const spawnArgs: string[] = [];
@@ -27,6 +34,7 @@ export async function runScript(script: DiscoveredScript, mode: ExecutionMode, a
         ...process.env,
         GO_CLI: 'true',
         GO_EXEC_MODE: mode,
+        GO_DRY_RUN: isDryRun ? 'true' : 'false',
       },
     });
 
