@@ -13,7 +13,20 @@
  *   - custom             → async function returning { rule, passed, message? }
  */
 
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
 import type { ScaffoldRule } from './types/index.js';
+
+/** Packages that are inherited from the root workspace and must not be in script devDependencies */
+const INHERITED_DEV_DEPENDENCIES = ['typescript', 'tsx', 'prettier', 'eslint'];
+
+/** Finds the 1-based line number of a key in raw file content */
+function findLine(content: string, key: string): number | undefined {
+  const index = content.indexOf(`"${key}"`);
+  if (index === -1) return undefined;
+  return content.substring(0, index).split('\n').length;
+}
 
 export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
   // ── Source file structure ───────────────────────────────────────────
@@ -201,5 +214,61 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
     check: 'file-contains',
     file: 'tsconfig.json',
     pattern: /go-common/,
+  },
+
+  // ── Dependency hygiene ─────────────────────────────────────────────
+
+  {
+    name: 'No direct @aws-sdk/* dependencies (use go-common)',
+    severity: 'warning',
+    check: 'custom',
+    validate: async (scriptPath) => {
+      const pkgPath = path.join(scriptPath, 'package.json');
+      const content = await fs.readFile(pkgPath, 'utf-8');
+      const pkg: Record<string, unknown> = JSON.parse(content) as Record<string, unknown>;
+      const deps = pkg['dependencies'];
+      if (typeof deps !== 'object' || deps === null) {
+        return { rule: 'No direct @aws-sdk/* dependencies (use go-common)', passed: true };
+      }
+      const awsSdkPackages = Object.keys(deps as Record<string, unknown>).filter((key) => key.startsWith('@aws-sdk/'));
+      if (awsSdkPackages.length > 0) {
+        const firstPkg = awsSdkPackages[0];
+        return {
+          rule: 'No direct @aws-sdk/* dependencies (use go-common)',
+          passed: false,
+          file: 'package.json',
+          line: firstPkg !== undefined ? findLine(content, firstPkg) : undefined,
+          message: `Found @aws-sdk/* in dependencies: ${awsSdkPackages.join(', ')}. Use go-common instead.`,
+        };
+      }
+      return { rule: 'No direct @aws-sdk/* dependencies (use go-common)', passed: true };
+    },
+  },
+  {
+    name: 'No inherited devDependencies from root workspace',
+    check: 'custom',
+    validate: async (scriptPath) => {
+      const pkgPath = path.join(scriptPath, 'package.json');
+      const content = await fs.readFile(pkgPath, 'utf-8');
+      const pkg: Record<string, unknown> = JSON.parse(content) as Record<string, unknown>;
+      const devDeps = pkg['devDependencies'];
+      if (typeof devDeps !== 'object' || devDeps === null) {
+        return { rule: 'No inherited devDependencies from root workspace', passed: true };
+      }
+      const found = Object.keys(devDeps as Record<string, unknown>).filter((key) =>
+        INHERITED_DEV_DEPENDENCIES.includes(key),
+      );
+      if (found.length > 0) {
+        const firstPkg = found[0];
+        return {
+          rule: 'No inherited devDependencies from root workspace',
+          passed: false,
+          file: 'package.json',
+          line: firstPkg !== undefined ? findLine(content, firstPkg) : undefined,
+          message: `Found packages inherited from root: ${found.join(', ')}. Remove them — they come from the workspace root.`,
+        };
+      }
+      return { rule: 'No inherited devDependencies from root workspace', passed: true };
+    },
   },
 ];

@@ -1611,7 +1611,7 @@ console.log('Request IDs:', requestIdMap);
 
 - [Architettura Monorepo](ARCHITECTURE.md)
 - [Coding Guidelines](GUIDE_LINES.md)
-- [Creare Nuovi Script](NEW_SCRIPT.md)
+- [Scripts - Guida Completa](SCRIPTS.md)
 - [AWS SDK v3 Documentation](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/)
 
 ---
