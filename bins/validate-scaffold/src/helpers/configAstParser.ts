@@ -11,7 +11,7 @@ import * as path from 'path';
 import * as ts from 'typescript';
 
 /** Represents a single parameter extracted from config.ts */
-export interface ConfigParameter {
+interface ConfigParameter {
   /** Parameter name as declared (e.g. 'start.date', 'aws.profile') */
   readonly name: string;
   /** CLI-style flag (e.g. '--start-date') derived from the name */
