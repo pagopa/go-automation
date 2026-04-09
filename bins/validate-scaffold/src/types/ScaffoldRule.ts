@@ -66,6 +66,7 @@ export interface JsonKeyEqualsRule extends BaseRule {
 export interface CustomRuleResult {
   readonly rule: string;
   readonly passed: boolean;
+  readonly file?: string | undefined;
   readonly message?: string;
 }
 

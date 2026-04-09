@@ -15,6 +15,7 @@ import type {
 interface InternalResult {
   readonly rule: string;
   readonly passed: boolean;
+  readonly file?: string | undefined;
   readonly message?: string;
 }
 
@@ -108,7 +109,29 @@ export class ScaffoldEngine {
       }
     }
 
-    return { ...internal, severity };
+    // Derive the file from the rule definition if the check didn't set one
+    const file = internal.file ?? this.getRuleFile(rule);
+
+    return { ...internal, severity, file };
+  }
+
+  /** Extracts the primary file reference from a rule definition */
+  private getRuleFile(rule: ScaffoldRule): string | undefined {
+    switch (rule.check) {
+      case 'file-exists':
+        return rule.glob;
+      case 'file-contains':
+      case 'file-not-contains':
+      case 'json-has-key':
+      case 'json-key-equals':
+        return rule.file;
+      case 'custom':
+        return undefined;
+      default: {
+        const exhaustiveCheck: never = rule;
+        throw new Error(`Unknown check type: ${JSON.stringify(exhaustiveCheck)}`);
+      }
+    }
   }
 
   private async checkFileExists(rule: FileExistsRule, scriptPath: string): Promise<InternalResult> {

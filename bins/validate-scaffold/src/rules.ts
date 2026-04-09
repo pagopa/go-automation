@@ -228,6 +228,7 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
         return {
           rule: 'No direct @aws-sdk/* dependencies (use go-common)',
           passed: false,
+          file: 'package.json',
           message: `Found @aws-sdk/* in dependencies: ${awsSdkPackages.join(', ')}. Use go-common instead.`,
         };
       }
@@ -252,6 +253,7 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
         return {
           rule: 'No inherited devDependencies from root workspace',
           passed: false,
+          file: 'package.json',
           message: `Found packages inherited from root: ${found.join(', ')}. Remove them — they come from the workspace root.`,
         };
       }

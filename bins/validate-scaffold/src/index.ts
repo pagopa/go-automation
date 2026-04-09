@@ -30,6 +30,9 @@ const PASS = `${GREEN}[PASS]${RESET}`;
 const FAIL = `${RED}[FAIL]${RESET}`;
 const WARN = `${YELLOW}[WARN]${RESET}`;
 
+/** Whether we are running inside GitHub Actions */
+const IS_GITHUB_ACTIONS = process.env['GITHUB_ACTIONS'] === 'true';
+
 // ── Script discovery ──────────────────────────────────────────────────
 
 const SCRIPT_DIRS = ['scripts/go', 'scripts/send', 'scripts/interop'] as const;
@@ -106,6 +109,12 @@ async function main(): Promise<void> {
           console.log(`    ${tag} ${result.rule}`);
           if (result.message) {
             console.log(`         ${DIM}${result.message}${RESET}`);
+          }
+          if (IS_GITHUB_ACTIONS) {
+            const level = result.severity === 'warning' ? 'warning' : 'error';
+            const filePart = result.file ? `file=${name}/${result.file},` : '';
+            const body = result.message ?? result.rule;
+            console.log(`::${level} ${filePart}title=${result.rule}::${body}`);
           }
         }
       }

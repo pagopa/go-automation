@@ -13,6 +13,9 @@ export interface RuleResult {
   /** Severity level: 'error' blocks CI, 'warning' is informational only */
   readonly severity: RuleSeverity;
 
+  /** File path relative to the script root (used for GitHub Actions annotations) */
+  readonly file?: string | undefined;
+
   /** Details about the failure (present only when passed is false) */
   readonly message?: string;
 }
