@@ -229,9 +229,6 @@ importers:
 
   scripts/go/go-ai-client:
     dependencies:
-      '@aws-sdk/client-bedrock-runtime':
-        specifier: ^3.600.0
-        version: 3.1026.0
       '@aws-sdk/client-lambda':
         specifier: ^3.600.0
         version: 3.1018.0
