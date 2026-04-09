@@ -3,6 +3,7 @@
  */
 export type { RuleResult } from './RuleResult.js';
 export type {
+  RuleSeverity,
   ScaffoldRule,
   FileExistsRule,
   FileContainsRule,
@@ -10,4 +11,5 @@ export type {
   JsonHasKeyRule,
   JsonKeyEqualsRule,
   CustomRule,
+  CustomRuleResult,
 } from './ScaffoldRule.js';

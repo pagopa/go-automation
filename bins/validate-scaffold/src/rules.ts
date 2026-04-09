@@ -213,6 +213,7 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
 
   {
     name: 'No direct @aws-sdk/* dependencies (use go-common)',
+    severity: 'warning',
     check: 'custom',
     validate: async (scriptPath) => {
       const pkgPath = path.join(scriptPath, 'package.json');

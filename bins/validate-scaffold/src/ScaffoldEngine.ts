@@ -11,6 +11,13 @@ import type {
   ScaffoldRule,
 } from './types/index.js';
 
+/** Internal result without severity — assigned by runRule() from the rule definition */
+interface InternalResult {
+  readonly rule: string;
+  readonly passed: boolean;
+  readonly message?: string;
+}
+
 /**
  * Converts a simple glob pattern (with `*` wildcards) into a RegExp.
  * Only supports `*` — no `**`, `?`, or brace expansion.
@@ -51,6 +58,9 @@ function getNestedValue(obj: unknown, keyPath: string): unknown {
  * - `json-has-key`: dot-notation key exists in a JSON file
  * - `json-key-equals`: dot-notation key equals a specific value
  * - `custom`: arbitrary async validation function
+ *
+ * Each rule can have a severity of 'error' (default) or 'warning'.
+ * Warnings are reported but do not cause validation failure.
  */
 export class ScaffoldEngine {
   constructor(private readonly rules: ReadonlyArray<ScaffoldRule>) {}
@@ -70,29 +80,38 @@ export class ScaffoldEngine {
   }
 
   private async runRule(rule: ScaffoldRule, scriptPath: string): Promise<RuleResult> {
+    const severity = rule.severity ?? 'error';
+    let internal: InternalResult;
+
     switch (rule.check) {
       case 'file-exists':
-        return this.checkFileExists(rule, scriptPath);
+        internal = await this.checkFileExists(rule, scriptPath);
+        break;
       case 'file-contains':
-        return this.checkFileContains(rule, scriptPath);
+        internal = await this.checkFileContains(rule, scriptPath);
+        break;
       case 'file-not-contains':
-        return this.checkFileNotContains(rule, scriptPath);
+        internal = await this.checkFileNotContains(rule, scriptPath);
+        break;
       case 'json-has-key':
-        return this.checkJsonHasKey(rule, scriptPath);
+        internal = await this.checkJsonHasKey(rule, scriptPath);
+        break;
       case 'json-key-equals':
-        return this.checkJsonKeyEquals(rule, scriptPath);
-      case 'custom': {
-        const result = await rule.validate(scriptPath);
-        return result;
-      }
+        internal = await this.checkJsonKeyEquals(rule, scriptPath);
+        break;
+      case 'custom':
+        internal = await rule.validate(scriptPath);
+        break;
       default: {
         const exhaustiveCheck: never = rule;
         throw new Error(`Unknown check type: ${JSON.stringify(exhaustiveCheck)}`);
       }
     }
+
+    return { ...internal, severity };
   }
 
-  private async checkFileExists(rule: FileExistsRule, scriptPath: string): Promise<RuleResult> {
+  private async checkFileExists(rule: FileExistsRule, scriptPath: string): Promise<InternalResult> {
     const target = path.join(scriptPath, rule.glob);
 
     if (!rule.glob.includes('*')) {
@@ -131,7 +150,7 @@ export class ScaffoldEngine {
     }
   }
 
-  private async checkFileContains(rule: FileContainsRule, scriptPath: string): Promise<RuleResult> {
+  private async checkFileContains(rule: FileContainsRule, scriptPath: string): Promise<InternalResult> {
     const filePath = path.join(scriptPath, rule.file);
     try {
       const content = await fs.readFile(filePath, 'utf-8');
@@ -152,7 +171,7 @@ export class ScaffoldEngine {
     }
   }
 
-  private async checkFileNotContains(rule: FileNotContainsRule, scriptPath: string): Promise<RuleResult> {
+  private async checkFileNotContains(rule: FileNotContainsRule, scriptPath: string): Promise<InternalResult> {
     const filePath = path.join(scriptPath, rule.file);
     try {
       const content = await fs.readFile(filePath, 'utf-8');
@@ -172,7 +191,7 @@ export class ScaffoldEngine {
     }
   }
 
-  private async checkJsonHasKey(rule: JsonHasKeyRule, scriptPath: string): Promise<RuleResult> {
+  private async checkJsonHasKey(rule: JsonHasKeyRule, scriptPath: string): Promise<InternalResult> {
     const filePath = path.join(scriptPath, rule.file);
     try {
       const content = await fs.readFile(filePath, 'utf-8');
@@ -195,7 +214,7 @@ export class ScaffoldEngine {
     }
   }
 
-  private async checkJsonKeyEquals(rule: JsonKeyEqualsRule, scriptPath: string): Promise<RuleResult> {
+  private async checkJsonKeyEquals(rule: JsonKeyEqualsRule, scriptPath: string): Promise<InternalResult> {
     const filePath = path.join(scriptPath, rule.file);
     try {
       const content = await fs.readFile(filePath, 'utf-8');

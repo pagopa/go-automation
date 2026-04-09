@@ -1,4 +1,5 @@
-import type { RuleResult } from './RuleResult.js';
+/** Severity level for scaffold rules */
+export type RuleSeverity = 'error' | 'warning';
 
 /**
  * Base fields shared by all scaffold rules
@@ -6,6 +7,9 @@ import type { RuleResult } from './RuleResult.js';
 interface BaseRule {
   /** Human-readable rule name shown in validation output */
   readonly name: string;
+
+  /** Severity level: 'error' (default) blocks CI, 'warning' is informational only */
+  readonly severity?: RuleSeverity | undefined;
 }
 
 /**
@@ -58,12 +62,19 @@ export interface JsonKeyEqualsRule extends BaseRule {
   readonly value: unknown;
 }
 
+/** Result returned by custom rule validate functions (severity is applied by the engine) */
+export interface CustomRuleResult {
+  readonly rule: string;
+  readonly passed: boolean;
+  readonly message?: string;
+}
+
 /**
  * Runs a custom validation function for checks that don't fit the built-in types.
  */
 export interface CustomRule extends BaseRule {
   readonly check: 'custom';
-  readonly validate: (scriptPath: string) => Promise<RuleResult>;
+  readonly validate: (scriptPath: string) => Promise<CustomRuleResult>;
 }
 
 /**
