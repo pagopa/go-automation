@@ -67,6 +67,26 @@ Per rimuovere il comando globale:
 pnpm uninstall --global @go-automation/go-cli
 ```
 
+## Autocompletamento Shell
+
+`go-cli` supporta l'autocompletamento per i nomi degli script in bash e zsh.
+
+### Bash
+
+Aggiungi questa riga al tuo `.bashrc`:
+
+```bash
+source <(go-cli completion bash)
+```
+
+### Zsh
+
+Aggiungi questa riga al tuo `.zshrc`:
+
+```zsh
+source <(go-cli completion zsh)
+```
+
 ## Utilizzo
 
 ### Modalità Interattiva

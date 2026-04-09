@@ -29,7 +29,14 @@ async function main(): Promise<void> {
     .description('GO Automation Centralized Control Plane')
     .version('1.0.0')
     .option('-s, --source', 'Run from TypeScript source (via tsx)', true)
-    .option('-d, --dist', 'Run from compiled JavaScript (via node)');
+    .option('-d, --dist', 'Run from compiled JavaScript (via node)')
+    .option('--list-scripts', 'Internal: List all script IDs for autocompletion', false);
+
+  // Handle hidden list-scripts flag
+  if (process.argv.includes('--list-scripts')) {
+    console.log(scripts.map((s) => s.id).join(' '));
+    process.exit(0);
+  }
 
   // 1. Dynamic Command Registration
   for (const script of scripts) {
@@ -107,7 +114,41 @@ async function main(): Promise<void> {
       process.exit(0);
     });
 
-  // 3. Interactive Fallback
+  // 3. Completion Command
+  program
+    .command('completion <shell>')
+    .description('Generate shell completion script (bash, zsh)')
+    .action((shell: string) => {
+      if (shell === 'bash') {
+        console.log(`
+_go_cli_completion() {
+    local cur prev opts
+    COMPREPLY=()
+    cur="\${COMP_WORDS[COMP_CWORD]}"
+    opts="$(go-cli --list-scripts)"
+    COMPREPLY=( $(compgen -W "\${opts}" -- \${cur}) )
+    return 0
+}
+complete -F _go_cli_completion go-cli
+        `);
+      } else if (shell === 'zsh') {
+        console.log(`
+#compdef go-cli
+_go_cli() {
+    local -a scripts
+    scripts=(\${(f)"$(go-cli --list-scripts)"})
+    _arguments "1: :($scripts)"
+}
+_go_cli "$@"
+        `);
+      } else {
+        logger.error(`Unsupported shell: ${shell}. Supported: bash, zsh`);
+        process.exit(1);
+      }
+      process.exit(0);
+    });
+
+  // 4. Interactive Fallback
   if (process.argv.length <= 2) {
     await runInteractive(scripts);
     return;
