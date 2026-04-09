@@ -6,7 +6,7 @@ Script di importazione massiva notifiche SEND da file CSV con upload automatico 
 
 ## Indice
 
-- [Funzionalita](#funzionalita)
+- [Funzionalità](#funzionalità)
 - [Prerequisiti](#prerequisiti)
 - [Configurazione](#configurazione)
 - [Utilizzo](#utilizzo)
@@ -14,14 +14,14 @@ Script di importazione massiva notifiche SEND da file CSV con upload automatico 
 - [Docker](#docker)
 - [Troubleshooting](#troubleshooting)
 
-## Funzionalita
+## Funzionalità
 
 - **Import CSV massivo**: Lettura file CSV con notifiche da inviare
 - **Upload documenti automatico**: Caricamento automatico dei documenti allegati su storage PN
 - **Invio notifiche parallelo**: Invio concorrente configurabile per alte performance
 - **Polling IUN**: Attesa automatica per ottenimento codice IUN (Identificativo Univoco Notifica)
 - **Export risultati**: Generazione CSV con IUN e stato di ogni notifica
-- **Modalita dry-run**: Validazione senza invio effettivo
+- **Modalità dry-run**: Validazione senza invio effettivo
 - **Supporto streaming**: Gestione efficiente file CSV di grandi dimensioni
 - **Preservazione colonne**: Possibilita di mantenere tutte le colonne originali nel CSV di output
 - **Supporto Docker**: Containerizzazione completa per deployment
@@ -129,7 +129,7 @@ PN_BASE_PATH=api.test.notifichedigitali.it
 
 ## Utilizzo
 
-### Modalita Development (via pnpm/tsx)
+### Modalità Development (via pnpm/tsx)
 
 ```bash
 # Dalla root del monorepo
@@ -149,7 +149,7 @@ pnpm --filter=send-import-notifications dev -- \
   --send-notifications
 ```
 
-### Modalita Production (build + node)
+### Modalità Production (build + node)
 
 ```bash
 # Build
@@ -186,7 +186,7 @@ pnpm send:import:notifications:prod -- \
 pnpm send:import:notifications:build
 ```
 
-### Modalita Standalone
+### Modalità Standalone
 
 ```bash
 # Dalla directory dello script

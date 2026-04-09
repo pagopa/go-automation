@@ -211,7 +211,7 @@ importers:
         specifier: ^24.12.2
         version: 24.12.2
 
-  scripts/go/go-json-parser:
+  scripts/go/go-parse-json:
     dependencies:
       '@go-automation/go-common':
         specifier: workspace:*

@@ -1,6 +1,6 @@
 # CONVENTIONS.md - go-common Usage Guide for Scripts
 
-> **Ogni script in `scripts/` DEVE utilizzare le funzionalita di `@go-automation/go-common` invece di reimplementarle o installare librerie di terze parti equivalenti.**
+> **Ogni script in `scripts/` DEVE utilizzare le funzionalità di `@go-automation/go-common` invece di reimplementarle o installare librerie di terze parti equivalenti.**
 
 Queste convenzioni sono **enforce** automaticamente da:
 
@@ -42,7 +42,7 @@ Per bypassare una regola in casi eccezionali, usa:
 
 ## Script Framework
 
-| Funzionalita                           | Classe go-common   | Pacchetti vietati |
+| Funzionalità                           | Classe go-common   | Pacchetti vietati |
 | -------------------------------------- | ------------------ | ----------------- |
 | Entry point e lifecycle dello script   | `GOScript`         | -                 |
 | Metadata (nome, versione, descrizione) | `GOScriptMetadata` | -                 |
@@ -66,7 +66,7 @@ Ogni script **deve** usare `GOScript` come entry point. Non creare entry point c
 
 ## Configurazione e CLI
 
-| Funzionalita          | Classe go-common                              | Pacchetti vietati                        |
+| Funzionalità          | Classe go-common                              | Pacchetti vietati                        |
 | --------------------- | --------------------------------------------- | ---------------------------------------- |
 | Parsing argomenti CLI | `GOConfigReader`, `GOConfigParameterProvider` | `yargs`, `commander`, `minimist`, `meow` |
 | Variabili d'ambiente  | `GOConfigEnvProvider`                         | accesso diretto a `process.env`          |
@@ -104,7 +104,7 @@ const config = await script.getConfiguration<MyConfig>();
 
 ## Logging
 
-| Funzionalita        | Classe go-common         | Pacchetti vietati                           |
+| Funzionalità        | Classe go-common         | Pacchetti vietati                           |
 | ------------------- | ------------------------ | ------------------------------------------- |
 | Logging strutturato | `GOLogger`               | `winston`, `pino`, `bunyan`, `log4js`       |
 | Output colorato     | `GOLogger` (integrato)   | `chalk`, `kleur`, `picocolors`, `colorette` |
@@ -132,7 +132,7 @@ script.logger.info(table.render());
 
 ## Importers (lettura dati)
 
-| Funzionalita                 | Classe go-common     | Pattern vietati                                                    |
+| Funzionalità                 | Classe go-common     | Pattern vietati                                                    |
 | ---------------------------- | -------------------- | ------------------------------------------------------------------ |
 | Import JSON / NDJSON         | `GOJSONListImporter` | `readline.createInterface`, parsing JSON manuale con `fs.readFile` |
 | Import CSV                   | `GOCSVListImporter`  | `csv-parse`, `csv-parse/sync`                                      |
@@ -170,7 +170,7 @@ Tutti gli importer supportano **streaming** via `importStream()` (async generato
 
 ## Exporters (scrittura dati)
 
-| Funzionalita                       | Classe go-common     | Pattern vietati                        |
+| Funzionalità                       | Classe go-common     | Pattern vietati                        |
 | ---------------------------------- | -------------------- | -------------------------------------- |
 | Export TXT (una riga per valore)   | `GOFileListExporter` | `fs.writeFile`, `fs.writeFileSync`     |
 | Export JSON (array pretty-printed) | `GOJSONListExporter` | `fs.writeFile`, `fs.writeFileSync`     |
@@ -224,7 +224,7 @@ type MyFormat = Extract<Core.GOExportFormat, 'json' | 'csv' | 'html'>;
 
 ## Path Resolution
 
-| Funzionalita                  | Classe go-common                        | Pattern vietati                                    |
+| Funzionalità                  | Classe go-common                        | Pattern vietati                                    |
 | ----------------------------- | --------------------------------------- | -------------------------------------------------- |
 | Risoluzione path input/output | `GOPaths` (`script.paths`)              | `path.resolve` / `path.isAbsolute` manuali per I/O |
 | Tipo path (input/output)      | `GOPathType.INPUT`, `GOPathType.OUTPUT` | -                                                  |
@@ -249,7 +249,7 @@ I percorsi relativi vengono risolti automaticamente:
 
 ## JSON Utilities
 
-| Funzionalita                    | Classe go-common       | Note                                             |
+| Funzionalità                    | Classe go-common       | Note                                             |
 | ------------------------------- | ---------------------- | ------------------------------------------------ |
 | Rilevamento formato JSON/NDJSON | `GOJSONFormatDetector` | Analisi automatica per estensione e contenuto    |
 | Estrazione campi da JSON        | `GOJSONFieldExtractor` | Dot-notation + ricerca ricorsiva + embedded JSON |
@@ -272,7 +272,7 @@ const value = extractor.extract(jsonObject, 'user.address.city');
 
 ## Prompts e UI
 
-| Funzionalita               | Classe go-common | Pacchetti vietati                 |
+| Funzionalità               | Classe go-common | Pacchetti vietati                 |
 | -------------------------- | ---------------- | --------------------------------- |
 | Spinner (singolo/multiplo) | `GOMultiSpinner` | `ora`, `cli-spinners`             |
 | Barra di caricamento       | `GOLoadingBar`   | -                                 |
@@ -298,7 +298,7 @@ bar.increment(10);
 
 ## HTTP Client
 
-| Funzionalita   | Classe go-common | Pacchetti vietati                      |
+| Funzionalità   | Classe go-common | Pacchetti vietati                      |
 | -------------- | ---------------- | -------------------------------------- |
 | Richieste HTTP | `GOHttpClient`   | `axios`, `got`, `node-fetch`, `undici` |
 
@@ -312,7 +312,7 @@ const data = await client.post('/endpoint', { body: payload });
 
 ## Error Handling
 
-| Funzionalita            | Classe go-common           | Note                               |
+| Funzionalità            | Classe go-common           | Note                               |
 | ----------------------- | -------------------------- | ---------------------------------- |
 | Errori tipizzati        | `GOError`                  | Estendi per errori custom          |
 | Conversione errori      | `toError(unknown)`         | Converte qualsiasi valore in Error |
@@ -341,7 +341,7 @@ if (result.ok) {
 
 ## Events
 
-| Funzionalita            | Classe go-common     | Pattern vietati              |
+| Funzionalità            | Classe go-common     | Pattern vietati              |
 | ----------------------- | -------------------- | ---------------------------- |
 | Event emitter tipizzato | `GOEventEmitterBase` | `new EventEmitter()` diretto |
 
@@ -361,7 +361,7 @@ class MyProcessor extends Core.GOEventEmitterBase<MyEvents> {
 
 ## AWS Services
 
-| Funzionalita    | Classe go-common                              | Note                           |
+| Funzionalità    | Classe go-common                              | Note                           |
 | --------------- | --------------------------------------------- | ------------------------------ |
 | Credenziali AWS | `GOAWSCredentialsManager`                     | Gestione profili e regioni     |
 | Client factory  | `AWSClientProvider`, `AWSMultiClientProvider` | Creazione client tipizzata     |
@@ -379,7 +379,7 @@ const dynamoClient = clientProvider.getClient(DynamoDBClient);
 
 ## Utilities
 
-| Funzionalita                 | Funzione go-common                | Note                                |
+| Funzionalità                 | Funzione go-common                | Note                                |
 | ---------------------------- | --------------------------------- | ----------------------------------- |
 | Conversione valore → stringa | `valueToString`                   | Gestisce tutti i tipi               |
 | Serializzazione JSON sicura  | `safeJsonStringify`               | Gestisce riferimenti circolari      |
@@ -396,7 +396,7 @@ Le seguenti regole sono attive per tutti i file in `scripts/**/*.ts` (esclusi i 
 
 ### `no-restricted-imports`
 
-Blocca l'import di pacchetti di terze parti che duplicano funzionalita di go-common:
+Blocca l'import di pacchetti di terze parti che duplicano funzionalità di go-common:
 
 | Categoria | Pacchetti bloccati                          | Alternativa go-common                    |
 | --------- | ------------------------------------------- | ---------------------------------------- |

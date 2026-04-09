@@ -113,7 +113,7 @@ pnpm go:analyze:alarm:dev -- \
 
 > Lo script usa il **primo profilo** della lista per costruire il `ServiceRegistry`. I profili aggiuntivi sono disponibili per estensioni future del runbook.
 
-### Modalita production (build + node)
+### Modalità production (build + node)
 
 ```bash
 pnpm go:analyze:alarm:build

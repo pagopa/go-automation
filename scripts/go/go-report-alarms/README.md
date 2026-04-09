@@ -6,14 +6,14 @@ Script di analisi degli allarmi CloudWatch AWS per identificare e categorizzare 
 
 ## Indice
 
-- [Funzionalita](#funzionalita)
+- [Funzionalità](#funzionalità)
 - [Prerequisiti](#prerequisiti)
 - [Configurazione](#configurazione)
 - [Utilizzo](#utilizzo)
 - [Output](#output)
 - [Troubleshooting](#troubleshooting)
 
-## Funzionalita
+## Funzionalità
 
 - **Recupero storico allarmi**: Interroga AWS CloudWatch per ottenere lo storico completo delle transizioni di stato
 - **Multi-account parallelo**: Interroga simultaneamente piu account AWS aggregando i risultati
@@ -110,7 +110,7 @@ Pattern per escludere allarmi non rilevanti dall'analisi:
 
 #### Sezione `aws.profiles`
 
-Lista di profili AWS SSO da interrogare in modalita multi-account:
+Lista di profili AWS SSO da interrogare in modalità multi-account:
 
 - Ogni profilo corrisponde a un account AWS diverso
 - Le query vengono eseguite in **parallelo** per performance ottimali
@@ -123,7 +123,7 @@ Lista di profili AWS SSO da interrogare in modalita multi-account:
 
 ## Utilizzo
 
-### Modalita Multi-Account (Consigliata)
+### Modalità Multi-Account (Consigliata)
 
 ```bash
 # Usando i profili da config.json
@@ -138,7 +138,7 @@ pnpm go:analyze:alarms -- \
   --aws-profiles "sso_pn-core-prod,sso_pn-confinfo-prod,sso_pn-helpdesk-prod"
 ```
 
-### Modalita Singolo Account
+### Modalità Singolo Account
 
 ```bash
 # Specifica un singolo profilo
@@ -176,7 +176,7 @@ pnpm go:analyze:alarms -- \
   --ignore-patterns "-test-,-sandbox-,-dev-"
 ```
 
-### Modalita Production
+### Modalità Production
 
 ```bash
 # Build e esecuzione
@@ -193,11 +193,11 @@ I timestamp sono mostrati in due formati:
 1. **ISO 8601**: `2024-12-01T08:15:30.000Z` (UTC)
 2. **Google Sheets**: `01/12/2024 09:15:30` (Europe/Rome, formato dd/MM/yyyy HH:mm:ss)
 
-### Modalita Verbose vs Compatta
+### Modalità Verbose vs Compatta
 
-**Modalita Compatta** (default): Per allarmi con piu di 2 occorrenze, mostra solo primo e ultimo timestamp.
+**Modalità Compatta** (default): Per allarmi con piu di 2 occorrenze, mostra solo primo e ultimo timestamp.
 
-**Modalita Verbose** (`--verbose`): Mostra tutti i timestamp per ogni allarme.
+**Modalità Verbose** (`--verbose`): Mostra tutti i timestamp per ogni allarme.
 
 ## Troubleshooting
 
