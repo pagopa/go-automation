@@ -13,13 +13,14 @@ import { runScript, type ExecutionMode } from './runner.js';
 import { validateAndInformParameters } from './params.js';
 import { HistoryManager } from './history.js';
 import { Scaffolder } from './scaffold.js';
+import { PresetManager } from './presets.js';
 
-// Setup Logger, Prompt and History using go-common
-// We need to provide at least a console handler for the logger to work
+// Setup dependencies
 const logger = new Core.GOLogger([new Core.GOConsoleLoggerHandler()]);
 const prompt = new Core.GOPrompt(logger);
 const history = new HistoryManager();
 const scaffolder = new Scaffolder(prompt, logger);
+const presets = new PresetManager();
 
 async function main(): Promise<void> {
   const scripts = await discoverScripts();
@@ -32,7 +33,9 @@ async function main(): Promise<void> {
     .version('1.0.0')
     .option('-s, --source', 'Run from TypeScript source (via tsx)', true)
     .option('-d, --dist', 'Run from compiled JavaScript (via node)')
-    .option('--list-scripts', 'Internal: List all script IDs for autocompletion', false);
+    .option('--list-scripts', 'Internal: List all script IDs for autocompletion', false)
+    .option('--save <name>', 'Save current arguments as a named preset')
+    .option('--preset <name>', 'Load arguments from a named preset');
 
   // Handle hidden list-scripts flag
   if (process.argv.includes('--list-scripts')) {
@@ -49,6 +52,21 @@ async function main(): Promise<void> {
       .action(async (_options: Record<string, unknown>, cmd: Command) => {
         const programOpts = program.opts();
         const mode: ExecutionMode = programOpts['dist'] ? 'dist' : 'source';
+        const presetName = programOpts['preset'] as string | undefined;
+        const saveName = programOpts['save'] as string | undefined;
+
+        let currentArgs = cmd.args;
+
+        // Load preset if requested
+        if (presetName) {
+          const presetArgs = await presets.getPreset(script.id, presetName);
+          if (presetArgs) {
+            logger.info(`Loading preset '${presetName}': ${presetArgs.join(' ')}`);
+            currentArgs = presetArgs;
+          } else {
+            logger.warning(`Preset '${presetName}' not found for script ${script.id}.`);
+          }
+        }
 
         // Add to history
         await history.add(script.id);
@@ -57,10 +75,16 @@ async function main(): Promise<void> {
         await loadScriptParameters(script);
 
         // Validate and inform about parameters before execution
-        const { valid, finalArgs } = await validateAndInformParameters(script, cmd.args, prompt, logger, false);
+        const { valid, finalArgs } = await validateAndInformParameters(script, currentArgs, prompt, logger, false);
 
         if (!valid) {
           process.exit(1);
+        }
+
+        // Save preset if requested
+        if (saveName) {
+          await presets.savePreset(script.id, saveName, finalArgs);
+          logger.success(`Arguments saved as preset '${saveName}'.`);
         }
 
         const exitCode = await runScript(script, mode, finalArgs);
@@ -113,6 +137,14 @@ async function main(): Promise<void> {
         const defaultValue = param.defaultValue !== undefined ? `(Default: ${String(param.defaultValue)})` : '';
         console.log(`  ${name.padEnd(20)} ${aliases.padEnd(10)} ${param.description} ${defaultValue}`);
       });
+
+      // Show Presets
+      const scriptPresets = await presets.listPresets(script.id);
+      if (scriptPresets.length > 0) {
+        console.log('\nAvailable Presets:');
+        scriptPresets.forEach((p) => console.log(`  - ${p}`));
+      }
+
       process.exit(0);
     });
 
@@ -226,26 +258,57 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
 
     if (!modeChoice) process.exit(0);
 
-    // Lazy load parameters
-    const parameters = await loadScriptParameters(selectedScript);
+    // Load available presets
+    const scriptPresets = await presets.listPresets(selectedScript.id);
+    let initialArgs: string[] = [];
 
-    const mandatoryFlags = parameters
-      .filter((p) => p.required)
-      .map((p) => Core.GOConfigKeyTransformer.toCLIFlag(p.name))
-      .join(', ');
+    if (scriptPresets.length > 0) {
+      const usePreset = await prompt.confirm('Do you want to use a saved preset?', false);
+      if (usePreset) {
+        const selectedPreset = await prompt.select<string>(
+          'Select a preset:',
+          scriptPresets.map((p) => ({ title: p, value: p })),
+        );
+        if (selectedPreset) {
+          initialArgs = (await presets.getPreset(selectedScript.id, selectedPreset)) ?? [];
+        }
+      }
+    }
 
-    const promptMsg = mandatoryFlags
-      ? `Enter arguments (Mandatory: ${mandatoryFlags}):`
-      : 'Enter additional arguments (optional, e.g. --param value):';
+    if (initialArgs.length === 0) {
+      // Lazy load parameters
+      const parameters = await loadScriptParameters(selectedScript);
 
-    const argsInput = await prompt.text(promptMsg);
-    const initialArgs = argsInput && argsInput.trim() !== '' ? argsInput.trim().split(/\s+/) : [];
+      const mandatoryFlags = parameters
+        .filter((p) => p.required)
+        .map((p) => Core.GOConfigKeyTransformer.toCLIFlag(p.name))
+        .join(', ');
+
+      const promptMsg = mandatoryFlags
+        ? `Enter arguments (Mandatory: ${mandatoryFlags}):`
+        : 'Enter additional arguments (optional, e.g. --param value):';
+
+      const argsInput = await prompt.text(promptMsg);
+      initialArgs = argsInput && argsInput.trim() !== '' ? argsInput.trim().split(/\s+/) : [];
+    }
 
     // Validate and inform about parameters before execution (Interactive)
     const { valid, finalArgs } = await validateAndInformParameters(selectedScript, initialArgs, prompt, logger, true);
 
     if (!valid) {
       process.exit(1);
+    }
+
+    // Ask to save as preset if it's a new set of args
+    if (initialArgs.length > 0) {
+      const wantSave = await prompt.confirm('Do you want to save these arguments as a preset?', false);
+      if (wantSave) {
+        const name = await prompt.text('Preset Name:');
+        if (name) {
+          await presets.savePreset(selectedScript.id, name, finalArgs);
+          logger.success(`Preset '${name}' saved.`);
+        }
+      }
     }
 
     const exitCode = await runScript(selectedScript, modeChoice as ExecutionMode, finalArgs);

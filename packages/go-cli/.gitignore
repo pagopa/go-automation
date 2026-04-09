@@ -3,3 +3,4 @@ dist
 *.tsbuildinfo
 .discovery-cache.json
 .go-cli-history.json
+.go-cli-presets.json
