@@ -1,8 +1,5 @@
 import type { GOEventEmitter, GOEventHandler } from './GOEventEmitter.js';
 
-// Re-export GOEventHandler for convenience
-export type { GOEventHandler };
-
 /**
  * Generic Event Emitter
  * Provides type-safe event emission and listener registration

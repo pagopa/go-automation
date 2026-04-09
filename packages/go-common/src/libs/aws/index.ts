@@ -16,6 +16,10 @@ export type { AWSClientProviderConfig } from './AWSClientProvider.js';
 export { AWSMultiClientProvider } from './AWSMultiClientProvider.js';
 export type { AWSMultiClientProviderConfig } from './AWSMultiClientProvider.js';
 
+// S3 service
+export { AWSS3Service } from './AWSS3Service.js';
+export type { AWSS3ObjectEntry, AWSS3BucketEntry } from './AWSS3Service.js';
+
 // SQS service
 export { AWSSQSService } from './AWSSQSService.js';
 export type { DLQStats } from './models/DLQStats.js';

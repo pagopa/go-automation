@@ -8,13 +8,13 @@
  */
 export interface GOJSONListExporterOptions<TItem = Record<string, unknown>> {
   /** Output file path */
-  outputPath: string;
+  readonly outputPath: string;
 
   /** Pretty print with indentation (default: false) */
-  pretty?: boolean;
+  readonly pretty?: boolean;
 
   /** Indentation spaces (default: 2) */
-  indent?: number;
+  readonly indent?: number;
 
   /**
    * Use JSONL format (JSON Lines / newline-delimited JSON)
@@ -22,14 +22,14 @@ export interface GOJSONListExporterOptions<TItem = Record<string, unknown>> {
    * When true, 'pretty' option is ignored
    * (default: false)
    */
-  jsonl?: boolean;
+  readonly jsonl?: boolean;
 
   /** Row transformation function (applied before JSON conversion) */
-  rowTransformer?: (item: TItem) => TItem;
+  readonly rowTransformer?: (item: TItem) => TItem;
 
   /** Skip invalid items and continue export (default: false) */
-  skipInvalidItems?: boolean;
+  readonly skipInvalidItems?: boolean;
 
   /** Encoding for output file (default: 'utf8') */
-  encoding?: BufferEncoding;
+  readonly encoding?: BufferEncoding;
 }

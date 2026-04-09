@@ -6,19 +6,7 @@
 
 import { Core } from '@go-automation/go-common';
 
-/**
- * Supported deduplication modes
- */
-export enum SendDumpSqsDedupMode {
-  /** Filter technical duplicates (same SQS message ID) */
-  MESSAGE_ID = 'message-id',
-
-  /** Filter content duplicates (same MD5 hash of Body + MessageAttributes) */
-  CONTENT_MD5 = 'content-md5',
-
-  /** No deduplication, dump everything as received */
-  NONE = 'none',
-}
+import { SendDumpSqsDedupMode } from './types/SendDumpSqsDedupMode.js';
 
 /**
  * Script metadata
@@ -87,29 +75,3 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     aliases: ['o'],
   },
 ] as const;
-
-/**
- * Script configuration interface
- */
-export interface SendDumpSqsConfig {
-  /** AWS SSO profile name */
-  readonly awsProfile: string;
-
-  /** Target SQS queue name */
-  readonly queueName: string;
-
-  /** Visibility timeout for received messages */
-  readonly visibilityTimeout: number;
-
-  /** Maximum number of messages to dump */
-  readonly limit: number | undefined;
-
-  /** Deduplication mode */
-  readonly dedupMode: SendDumpSqsDedupMode;
-
-  /** Number of consecutive empty polls before stopping */
-  readonly maxEmptyReceives: number;
-
-  /** Custom output file path */
-  readonly outputFile: string | undefined;
-}

@@ -116,8 +116,8 @@ export class GOScript {
     this.configReader = this.initializeConfigReader(options.config);
     this.configSchema = this.initializeConfigSchema(options.config);
 
-    // Initialize config loader
-    this.configLoader = new GOScriptConfigLoader(this.configSchema, this.configReader);
+    // Initialize config loader (with fallback context so asyncFallback functions can access GOPaths)
+    this.configLoader = new GOScriptConfigLoader(this.configSchema, this.configReader, { paths: this.paths });
 
     // Initialize credentials manager if needed
     this.credentialsManager = this.initializeCredentialManager(options.config);

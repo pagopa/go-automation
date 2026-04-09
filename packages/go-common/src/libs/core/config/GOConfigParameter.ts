@@ -8,6 +8,7 @@
 import { GOConfigParameterType, getTypePlaceholder } from './GOConfigParameterType.js';
 import { GOConfigReader } from './GOConfigReader.js';
 import { GOConfigKeyTransformer } from './GOConfigKeyTransformer.js';
+import type { GOPaths } from '../utils/GOPaths.js';
 
 /**
  * Union type for all possible configuration parameter values.
@@ -24,20 +25,33 @@ export type GOConfigParameterValue =
   | ReadonlyArray<Buffer>;
 
 /**
+ * Context passed to async fallback functions during configuration resolution.
+ * Provides access to script-level services that are available before config loading completes.
+ */
+export interface GOConfigFallbackContext {
+  /** GOPaths instance for resolving file paths (config, input, output) */
+  readonly paths: GOPaths;
+}
+
+/**
  * Async fallback function type.
  * Called when parameter value is not found in any provider and no defaultValue is set.
+ * Receives a context object with script-level services (paths, etc.).
  *
  * @template T - The expected return type matching the parameter type
  *
  * @example
  * ```typescript
- * const loadPatterns: GOConfigParameterFallback<string[]> = async () => {
- *   const data = await fs.readFile('patterns.json', 'utf-8');
+ * const loadPatterns: GOConfigParameterFallback<string[]> = async (ctx) => {
+ *   const configPath = ctx.paths.getConfigFilePath('patterns.json');
+ *   const data = await fs.readFile(configPath, 'utf-8');
  *   return JSON.parse(data);
  * };
  * ```
  */
-export type GOConfigParameterFallback<T extends GOConfigParameterValue = GOConfigParameterValue> = () => Promise<T>;
+export type GOConfigParameterFallback<T extends GOConfigParameterValue = GOConfigParameterValue> = (
+  context: GOConfigFallbackContext,
+) => Promise<T>;
 
 /**
  * Configuration parameter definition
@@ -103,7 +117,10 @@ export interface GOConfigParameterOptions {
    * Executed AFTER checking defaultValue.
    * If both defaultValue and asyncFallback are set, defaultValue takes precedence.
    *
-   * Use case: Load default patterns from external file, fetch from API, etc.
+   * The function receives a {@link GOConfigFallbackContext} with access to GOPaths
+   * for resolving config file paths, input/output directories, etc.
+   *
+   * Use case: Load default patterns from config file, fetch from API, etc.
    *
    * @example
    * ```typescript
@@ -111,7 +128,10 @@ export interface GOConfigParameterOptions {
    *   name: 'ignore.patterns',
    *   type: GOConfigParameterType.STRING_ARRAY,
    *   required: false,
-   *   asyncFallback: async () => loadPatternsFromFile('./defaults.json'),
+   *   asyncFallback: async (ctx) => {
+   *     const configPath = ctx.paths.getConfigFilePath('patterns.json');
+   *     return loadPatternsFromFile(configPath);
+   *   },
    * }
    * ```
    */
@@ -202,23 +222,27 @@ export class GOConfigParameter {
    * Resolution order:
    * 1. Value from providers (CLI, config files, env vars)
    * 2. defaultValue (if set)
-   * 3. asyncFallback (if set, awaited)
+   * 3. asyncFallback (if set, awaited with context)
    * 4. undefined
    *
    * @param config - Configuration reader
+   * @param fallbackContext - Context passed to async fallback functions
    * @returns Promise resolving to the parameter value
    *
    * @example
    * ```typescript
-   * const value = await param.getValueAsync(configReader);
+   * const value = await param.getValueAsync(configReader, { paths });
    * ```
    */
-  async getValueAsync(config: GOConfigReader): Promise<GOConfigParameterValue | undefined> {
+  async getValueAsync(
+    config: GOConfigReader,
+    fallbackContext?: GOConfigFallbackContext,
+  ): Promise<GOConfigParameterValue | undefined> {
     let value: GOConfigParameterValue | undefined = this.getValueInternal(config);
 
     // Use async fallback if still no value
-    if (value === undefined && this.asyncFallback) {
-      value = await this.asyncFallback();
+    if (value === undefined && this.asyncFallback && fallbackContext) {
+      value = await this.asyncFallback(fallbackContext);
     }
 
     // Validate if validator is provided

@@ -1,6 +1,7 @@
 import { valueToString } from '../../core/index.js';
 import type { Condition } from '../types/Condition.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
+import { compileRegex } from './compileRegex.js';
 
 // Condition operators for compare conditions
 type ConditionOperator = '==' | '!=' | '>' | '<' | '>=' | '<=';
@@ -119,7 +120,7 @@ export class ConditionEvaluator {
     if (actual === undefined || actual === null) {
       return false;
     }
-    const compiled = new RegExp(regex);
+    const compiled = compileRegex(regex);
     const actualStr = valueToString(actual);
     return compiled.test(actualStr);
   }

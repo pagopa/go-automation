@@ -19,7 +19,7 @@ interface AggregatedAlarmData {
 }
 
 /** Combined analysis result for single-pass processing */
-export interface CombinedAnalysisResult {
+interface CombinedAnalysisResult {
   readonly summary: ReadonlyArray<AlarmReportSummary>;
   readonly timeline: ReadonlyArray<AlarmTimelineEntry>;
 }

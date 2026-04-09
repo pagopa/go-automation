@@ -65,7 +65,7 @@ export function findErrorMessage(results: ReadonlyArray<ResultField[]>): string 
 }
 
 /** Result of a next service invocation search */
-export interface NextServiceInvocation {
+interface NextServiceInvocation {
   readonly service: string;
   readonly traceId: string;
 }

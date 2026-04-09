@@ -3,6 +3,7 @@ import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import { navigateFieldPath } from './fieldPath.js';
+import { compileRegex } from '../../core/compileRegex.js';
 import { valueToString } from '../../../core/index.js';
 
 /**
@@ -91,7 +92,7 @@ class RegexExtractStep implements Step<string | undefined> {
     }
 
     const stringValue = valueToString(fieldValue);
-    const regex = new RegExp(this.pattern);
+    const regex = compileRegex(this.pattern);
     const match = regex.exec(stringValue);
 
     if (match === null) {

@@ -8,10 +8,10 @@
  *  2. Download the object by file key using GetObjectCommand
  */
 
-import fs from 'fs/promises';
 import path from 'path';
 
 import { GetObjectCommand, ListBucketsCommand, S3Client } from '@aws-sdk/client-s3';
+import { Core } from '@go-automation/go-common';
 import type { AttachmentDownloadTask } from '../types/AttachmentDownloadTask.js';
 import type { DownloadResult } from '../types/DownloadResult.js';
 
@@ -111,9 +111,9 @@ export class SafeStorageS3Client {
       const bytes = await response.Body.transformToByteArray();
       const buffer = Buffer.from(bytes);
 
-      await fs.mkdir(task.outputDir, { recursive: true });
       const outputPath = path.join(task.outputDir, task.key);
-      await fs.writeFile(outputPath, buffer);
+      const exporter = new Core.GOBinaryFileExporter({ outputPath });
+      await exporter.export(buffer);
 
       const successResult: DownloadResult = {
         uri: task.uri,

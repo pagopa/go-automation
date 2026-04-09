@@ -6,20 +6,20 @@ read a list of IUNs from a TXT file and downloads the timelines from DynamoDB, w
 
 ## Indice
 
-- [Funzionalita](#funzionalita)
+- [Funzionalità](#funzionalità)
 - [Prerequisiti](#prerequisiti)
 - [Configurazione](#configurazione)
 - [Utilizzo](#utilizzo)
 - [Output](#output)
 - [Troubleshooting](#troubleshooting)
 
-## Funzionalita
+## Funzionalità
 
-Elenco delle funzionalita principali:
+Elenco delle funzionalità principali:
 
-- TODO: Funzionalita 1
-- TODO: Funzionalita 2
-- TODO: Funzionalita 3
+- TODO: Funzionalità 1
+- TODO: Funzionalità 2
+- TODO: Funzionalità 3
 
 ## Prerequisiti
 
@@ -78,7 +78,7 @@ Percorso: `configs/config.json`
 
 ## Utilizzo
 
-### Modalita Development (via pnpm/tsx)
+### Modalità Development (via pnpm/tsx)
 
 ```bash
 # Dalla root del monorepo
@@ -91,7 +91,7 @@ pnpm --filter=send-fetch-timeline-from-iun dev
 pnpm send:fetch:timeline:from:iun:dev -- --param valore
 ```
 
-### Modalita Production (build + node)
+### Modalità Production (build + node)
 
 ```bash
 # Build
@@ -113,7 +113,7 @@ pnpm send:fetch:timeline:from:iun:dev -- --param1 valore1 --param2 valore2
 # Esempio 2: Con date
 pnpm send:fetch:timeline:from:iun:dev -- --from "2024-01-01T00:00:00Z" --to "2024-01-31T23:59:59Z"
 
-# Esempio 3: Modalita verbose
+# Esempio 3: Modalità verbose
 pnpm send:fetch:timeline:from:iun:dev -- --verbose
 ```
 

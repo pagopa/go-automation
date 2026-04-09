@@ -44,23 +44,43 @@ const AVAILABLE_HATS = [
 
 type Hat = (typeof AVAILABLE_HATS)[number];
 
+// ─── Channel whitelist ────────────────────────────────────────────────────────
+// Loaded from env var — no rebuild needed to add/remove channels.
+// Format: comma-separated channel IDs e.g. "C09PQ0MLF1N,C0585442Z39"
+// If empty or not set, all channels are allowed.
+ 
+function getAllowedChannels(): Set<string> {
+  const raw = process.env['ALLOWED_CHANNEL_IDS'] ?? '';
+  return new Set(raw.split(',').map((s) => s.trim()).filter(Boolean));
+}
+
 // ─── Slack request verification ───────────────────────────────────────────────
+// rawBody must be passed explicitly — it is the base64-decoded body,
+// which is what Slack uses to compute the signature.
 
-function verifySlackSignature(event: APIGatewayProxyEvent): boolean {
-  if (!SLACK_SIGNING_SECRET) return true; // skip in dev
+function verifySlackSignature(event: APIGatewayProxyEvent, rawBody: string): boolean {
+  if (!SLACK_SIGNING_SECRET) return true;
 
-  const timestamp = event.headers['X-Slack-Request-Timestamp'] ?? '';
-  const signature = event.headers['X-Slack-Signature'] ?? '';
-  const body = event.body ?? '';
+  const timestamp = event.headers['x-slack-request-timestamp'] ?? '';
+  const signature = event.headers['x-slack-signature'] ?? '';
 
-  // Replay attack protection: reject requests older than 5 minutes
+  if (!timestamp || !signature) return false;
+
   const now = Math.floor(Date.now() / 1000);
   if (Math.abs(now - parseInt(timestamp, 10)) > 300) return false;
 
-  const baseString = `v0:${timestamp}:${body}`;
-  const hmac = crypto.createHmac('sha256', SLACK_SIGNING_SECRET).update(baseString).digest('hex');
+  const baseString = `v0:${timestamp}:${rawBody}`;
+  const hmac = crypto
+    .createHmac('sha256', SLACK_SIGNING_SECRET)
+    .update(baseString)
+    .digest('hex');
 
-  return crypto.timingSafeEqual(Buffer.from(`v0=${hmac}`), Buffer.from(signature));
+  const expected = Buffer.from(`v0=${hmac}`);
+  const received = Buffer.from(signature);
+
+  if (expected.length !== received.length) return false;
+
+  return crypto.timingSafeEqual(expected, received);
 }
 
 // ─── Parse slash command text ─────────────────────────────────────────────────
@@ -106,18 +126,30 @@ function slackError(text: string): APIGatewayProxyResult {
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  // 1. Verify Slack signature
-  if (!verifySlackSignature(event)) {
+  // Decodifica base64 se necessario
+  const rawBody = event.isBase64Encoded
+  ? Buffer.from(event.body ?? '', 'base64').toString('utf-8')
+  : (event.body ?? '');
+
+  // 2. Verifica firma usando rawBody
+  if (!verifySlackSignature(event, rawBody)) {
     return { statusCode: 401, body: 'Unauthorized' };
   }
 
-  // 2. Parse URL-encoded body from Slack
-  const params = new URLSearchParams(event.body ?? '');
+  // 3. Parse URL-encoded body from Slack
+  const params = new URLSearchParams(rawBody);
   const text = params.get('text') ?? '';
   const responseUrl = params.get('response_url') ?? '';
   const userName = params.get('user_name') ?? 'unknown';
+  const channelId   = params.get('channel_id')   ?? '';
 
-  // 3. Validate input
+  // 4. Check channel whitelist
+  const allowedChannels = getAllowedChannels();
+  if (allowedChannels.size > 0 && !allowedChannels.has(channelId)) {
+    return slackError('❌ /goai non è disponibile in questo canale.');
+  }
+
+  // 5. Validate hat and input
   const parsed = parseText(text);
   if (!parsed) {
     const hats = AVAILABLE_HATS.join(' | ');
@@ -126,7 +158,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     );
   }
 
-  // 4. Ack immediately to Slack (must be < 3s)
+  // 6. Ack immediately to Slack (must be < 3s)
   // Fire-and-forget: invoke go-AILambda async, then return ack
   const goAIPayload = {
     hat: parsed.hat,

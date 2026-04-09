@@ -10,7 +10,9 @@
     "start": "pnpm build && node dist/index.js",
     "dev": "tsx src/index.ts",
     "watch": "tsc --watch",
-    "clean": "rm -rf dist *.tsbuildinfo"
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
+    "test:coverage": "mkdir -p coverage && node --import tsx/esm --test --experimental-test-coverage --test-coverage-include='src/**/*.ts' --test-coverage-exclude='src/**/__tests__/**' --test-coverage-lines=${GO_COVERAGE_LINES_THRESHOLD:-90} --test-coverage-branches=${GO_COVERAGE_BRANCHES_THRESHOLD:-80} --test-coverage-functions=${GO_COVERAGE_FUNCTIONS_THRESHOLD:-90} --test-reporter=lcov --test-reporter-destination=coverage/lcov.info --test-reporter=spec --test-reporter-destination=stdout 'src/**/__tests__/**/*.test.ts'"
   },
   "keywords": [
     "cloudwatch",
@@ -28,13 +30,14 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-cloudwatch": "^3.1018.0",
-    "@aws-sdk/credential-provider-ini": "^3.972.25",
+    "@aws-sdk/client-cloudwatch": "^3.1026.0",
+    "@aws-sdk/credential-provider-ini": "^3.972.29",
     "@go-automation/go-common": "workspace:*",
     "luxon": "^3.7.2"
   },
   "devDependencies": {
     "@types/luxon": "^3.7.1",
-    "@types/node": "^24.12.0"
+    "@types/node": "^24.12.2",
+    "aws-sdk-client-mock": "^4.1.0"
   }
 }
