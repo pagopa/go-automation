@@ -153,7 +153,7 @@ function formatValue(value: unknown): string {
 }
 
 /**
- * Prompt for a parameter value based on its type
+ * Prompt for a parameter value based on its type with live validation
  */
 async function promptForParam(
   param: Core.GOConfigParameterOptions,
@@ -169,20 +169,48 @@ async function promptForParam(
     case Core.GOConfigParameterType.INT:
     case Core.GOConfigParameterType.DOUBLE: {
       const initial = typeof param.defaultValue === 'number' ? param.defaultValue : undefined;
-      return await prompt.number(message, initial !== undefined ? { initial } : {});
+      const options: Core.GOPromptNumberOptions = {
+        validate: (val: number) => {
+          if (param.validator) {
+            return param.validator(val);
+          }
+          return true;
+        },
+      };
+      if (initial !== undefined) options.initial = initial;
+      return await prompt.number(message, options);
     }
 
     case Core.GOConfigParameterType.STRING_ARRAY:
     case Core.GOConfigParameterType.INT_ARRAY:
     case Core.GOConfigParameterType.DOUBLE_ARRAY: {
       const initial = Array.isArray(param.defaultValue) ? (param.defaultValue as string[]).join(',') : undefined;
-      const resp = await prompt.text(`${message} (comma-separated)`, initial !== undefined ? { initial } : {});
+      const options: Core.GOPromptTextOptions = {
+        validate: (val: string) => {
+          if (param.validator) {
+            const parts = val.split(',').map((s) => s.trim());
+            return param.validator(parts);
+          }
+          return true;
+        },
+      };
+      if (initial !== undefined) options.initial = initial;
+      const resp = await prompt.text(`${message} (comma-separated)`, options);
       return resp ? resp.split(',').map((s) => s.trim()) : undefined;
     }
 
     default: {
       const initial = typeof param.defaultValue === 'string' ? param.defaultValue : undefined;
-      return await prompt.text(message, initial !== undefined ? { initial } : {});
+      const options: Core.GOPromptTextOptions = {
+        validate: (val: string) => {
+          if (param.validator) {
+            return param.validator(val);
+          }
+          return true;
+        },
+      };
+      if (initial !== undefined) options.initial = initial;
+      return await prompt.text(message, options);
     }
   }
 }
