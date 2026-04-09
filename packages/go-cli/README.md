@@ -15,13 +15,13 @@ Il Control Plane centralizzato per la scoperta e l'esecuzione degli script di au
 
 ## Funzionalità
 
-- **Discovery Automatica**: Scansiona la directory `scripts/` e registra automaticamente ogni script che segue il pattern dei 3 file.
-- **Interfaccia Interattiva**: Menu di ricerca ricercabile (autocomplete) se invocato senza argomenti.
+- **Discovery Automatica**: analizza la cartella `scripts/` e registra ogni script che segue il pattern dei 3 file.
+- **Interfaccia Interattiva**: ricerca interattiva con autocompletamento se invocato senza argomenti.
 - **Modalità di Esecuzione**:
-  - `source` (Default): Esegue direttamente i file TypeScript tramite `tsx`.
-  - `dist`: Esegue i file compilati JavaScript dalla cartella `dist/`.
-- **Ispezione Script**: Comando `info` per visualizzare metadati e parametri senza eseguire lo script.
-- **Help Dinamico**: Genera automaticamente la documentazione dei parametri CLI per ogni script.
+  - `source` (Default): esegue direttamente gli script in TypeScript tramite `tsx`.
+  - `dist`: lancia gli script compilati JavaScript dalla loro cartella `dist/`.
+- **Ispezione Script**: comando `info` per visualizzare metadati e parametri senza eseguire lo script.
+- **Help Dinamico**: genera automaticamente l'aiuto e utilizzo dei parametri CLI per ogni script.
 
 ## Prerequisiti
 
@@ -97,19 +97,19 @@ go-cli info [nome-script]
 
 ## Esempi Pratici
 
-### Esempio 1: Analisi Allarmi
+### Analisi Allarmi
 
 ```bash
 go-cli go-report-alarms --sd 2024-01-01T00:00:00Z --ed 2024-01-31T23:59:59Z
 ```
 
-### Esempio 2: Visualizzazione Help di uno Script
+### Visualizzazione Help di uno Script
 
 ```bash
 go-cli send-check-ecs --help
 ```
 
-### Esempio 3: Modalità Dist per validazione build
+### Modalità Dist per validazione build
 
 ```bash
 go-cli --dist go-report-alarms --sd 2024-01-01T00:00:00Z --ed 2024-01-31T23:59:59Z
@@ -129,5 +129,5 @@ go-cli --dist go-report-alarms --sd 2024-01-01T00:00:00Z --ed 2024-01-31T23:59:5
 
 ---
 
-**Ultima modifica**: 2026-04-06
+**Ultima modifica**: 2026-04-09
 **Maintainer**: Team GO - Gestione Operativa
