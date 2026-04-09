@@ -48,10 +48,15 @@ type Hat = (typeof AVAILABLE_HATS)[number];
 // Loaded from env var — no rebuild needed to add/remove channels.
 // Format: comma-separated channel IDs e.g. "C09PQ0MLF1N,C0585442Z39"
 // If empty or not set, all channels are allowed.
- 
+
 function getAllowedChannels(): Set<string> {
   const raw = process.env['ALLOWED_CHANNEL_IDS'] ?? '';
-  return new Set(raw.split(',').map((s) => s.trim()).filter(Boolean));
+  return new Set(
+    raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
 }
 
 // ─── Slack request verification ───────────────────────────────────────────────
@@ -70,10 +75,7 @@ function verifySlackSignature(event: APIGatewayProxyEvent, rawBody: string): boo
   if (Math.abs(now - parseInt(timestamp, 10)) > 300) return false;
 
   const baseString = `v0:${timestamp}:${rawBody}`;
-  const hmac = crypto
-    .createHmac('sha256', SLACK_SIGNING_SECRET)
-    .update(baseString)
-    .digest('hex');
+  const hmac = crypto.createHmac('sha256', SLACK_SIGNING_SECRET).update(baseString).digest('hex');
 
   const expected = Buffer.from(`v0=${hmac}`);
   const received = Buffer.from(signature);
@@ -128,8 +130,8 @@ function slackError(text: string): APIGatewayProxyResult {
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   // Decodifica base64 se necessario
   const rawBody = event.isBase64Encoded
-  ? Buffer.from(event.body ?? '', 'base64').toString('utf-8')
-  : (event.body ?? '');
+    ? Buffer.from(event.body ?? '', 'base64').toString('utf-8')
+    : (event.body ?? '');
 
   // 2. Verifica firma usando rawBody
   if (!verifySlackSignature(event, rawBody)) {
@@ -141,7 +143,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
   const text = params.get('text') ?? '';
   const responseUrl = params.get('response_url') ?? '';
   const userName = params.get('user_name') ?? 'unknown';
-  const channelId   = params.get('channel_id')   ?? '';
+  const channelId = params.get('channel_id') ?? '';
 
   // 4. Check channel whitelist
   const allowedChannels = getAllowedChannels();

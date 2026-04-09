@@ -19,14 +19,18 @@ import * as path from 'node:path';
 
 import { LambdaClient, InvokeCommand, InvocationType } from '@aws-sdk/client-lambda';
 
+import { Core } from '@go-automation/go-common';
+
 import { GOBedrockClient, GOAIHat, type GOAIRequest, type GOAIResponse } from '@go-automation/go-ai';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const MODE = process.env['GO_AI_MODE'] ?? 'direct'; // 'direct' | 'lambda'
-const LAMBDA_NAME = process.env['GO_AI_LAMBDA_NAME'] ?? 'go-ai-prod';
-const AWS_REGION = process.env['AWS_REGION'] ?? 'eu-south-1';
-const AWS_PROFILE = process.env['AWS_PROFILE'] ?? 'sso_pn-analytics';
+const config = new Core.GOConfigReader([new Core.GOEnvironmentConfigProvider()]);
+
+const MODE = config.string('go.ai.mode') ?? 'direct'; // 'direct' | 'lambda'
+const LAMBDA_NAME = config.string('go.ai.lambdaName') ?? 'go-ai-prod';
+const AWS_REGION = config.string('aws.region') ?? 'eu-south-1';
+const AWS_PROFILE = config.string('aws.profile') ?? 'sso_pn-analytics';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
