@@ -282,10 +282,10 @@ export default tseslint.config(
     },
   },
 
-  // go-common IS the I/O boundary layer — non-literal fs paths are expected and safe here.
+  // go-common and go-cli are I/O boundary layers or infrastructure tools — non-literal fs paths are expected and safe here.
   // Scripts are blocked from using fs directly via no-restricted-syntax.
   {
-    files: ['packages/go-common/**/*.ts'],
+    files: ['packages/go-common/**/*.ts', 'packages/go-cli/**/*.ts'],
     rules: {
       'security/detect-non-literal-fs-filename': 'off',
     },
