@@ -135,6 +135,23 @@ go-cli send-check-ecs --help
 go-cli --dist go-report-alarms --sd 2024-01-01T00:00:00Z --ed 2024-01-31T23:59:59Z
 ```
 
+## Note Tecniche
+
+### Autenticazione AWS
+
+`go-cli` supporta esclusivamente l'autenticazione tramite **AWS SSO Profiles**.
+
+- Non sono supportate (né previste) Access Keys o Secret Keys.
+- Il comando `doctor` e i check pre-flight verificheranno la presenza di un profilo attivo (`AWS_PROFILE`).
+- Se il profilo è scaduto, il CLI avviserà l'utente suggerendo di eseguire `aws sso login`.
+
+### Risoluzione dei Path
+
+Tutti i percorsi dei file (input, output, configurazioni) forniti come argomenti agli script vengono risolti **relativamente alla directory dello script stesso**.
+
+- Questa convenzione è mantenuta sia in modalità `source` che `dist`.
+- Esempio: se esegui `send-query-dynamodb` e fornisci `--input-file data/pks.txt`, lo script cercherà il file in `scripts/send/send-query-dynamodb/data/pks.txt`.
+
 ## Troubleshooting
 
 ### Errore: "Script not found"

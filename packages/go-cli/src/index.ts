@@ -244,7 +244,7 @@ _go_cli "$@"
 }
 
 /**
- * Interactive Mode - Searchable menu for script selection
+ * Interactive Mode - Categorized menu for script selection
  */
 async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
   console.clear();
@@ -253,15 +253,26 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
   console.log('│  Gestione Operativa Control Plane       │');
   console.log('╰─────────────────────────────────────────╯\n');
 
+  // Step 1: Select Category
+  const categories = [...new Set(scripts.map((s) => s.category))].sort();
+  const categoryChoice = await prompt.select<string>('Select product/team category:', [
+    ...categories.map((c) => ({ title: c.toUpperCase(), value: c })),
+  ]);
+
+  if (!categoryChoice) process.exit(0);
+
+  const selectedCategory = categoryChoice;
+  const categoryScripts = scripts.filter((s) => s.category === selectedCategory);
+
   // Load history
   const recentIds = await history.getHistory();
 
-  // Prepare choices
-  const choices = scripts.map((s) => {
+  // Prepare choices for the selected category
+  const choices = categoryScripts.map((s) => {
     const isRecent = recentIds.includes(s.id);
-    const prefix = isRecent ? '⭐ ' : '';
+    const suffix = isRecent ? ' (recent)' : '';
     return {
-      title: `${prefix}[${s.category}] ${s.id}`,
+      title: `${s.id}${suffix}`,
       value: s.id,
       description: s.metadata.description,
       isRecent,
@@ -278,7 +289,7 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
   });
 
   const selectedTitle = await prompt.autocomplete(
-    'Select a script to run:',
+    `Select a ${selectedCategory.toUpperCase()} script to run:`,
     choices.map((c) => c.title),
   );
 

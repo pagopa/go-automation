@@ -33,18 +33,19 @@ export class PreFlightChecker {
       return false;
     }
 
-    // 2. Check for AWS Session (if script appears to use AWS)
-    // We check if the script parameters or metadata suggest AWS usage
+    // 2. Check for AWS SSO Profile (if script appears to use AWS)
     const usesAWS =
       script.metadata.name.toLowerCase().includes('aws') ||
       (script.metadata.description?.toLowerCase().includes('aws') ?? false) ||
       (script.parameters?.some((p) => p.name.includes('aws') || p.name.includes('profile')) ?? false);
 
     if (usesAWS) {
-      const hasSession = this.checkAWSSession();
-      if (!hasSession) {
-        this.logger.warning('AWS session might be expired or not configured.');
-        this.logger.text('The script will attempt to log you in, but you might want to run "aws sso login" first.');
+      const hasProfile = this.checkAWSProfile();
+      if (!hasProfile) {
+        this.logger.warning('AWS_PROFILE not found in environment.');
+        this.logger.text(
+          'The script might fail if it requires an AWS SSO profile and none is provided via --aws-profile flag.',
+        );
       }
     }
 
@@ -52,15 +53,10 @@ export class PreFlightChecker {
   }
 
   /**
-   * Quick check for AWS session validity
+   * Quick check for AWS profile configuration
    */
-  private checkAWSSession(): boolean {
-    // We don't want to block if AWS CLI is not installed, so we just try a quick check
-    try {
-      // Just check if we have some AWS env vars or a default profile
-      return !!(process.env['AWS_PROFILE'] ?? process.env['AWS_ACCESS_KEY_ID']);
-    } catch (_error) {
-      return false;
-    }
+  private checkAWSProfile(): boolean {
+    // We only use SSO profiles, no Access/Secret Keys
+    return !!process.env['AWS_PROFILE'];
   }
 }

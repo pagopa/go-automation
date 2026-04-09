@@ -63,7 +63,7 @@ export async function validateAndInformParameters(
     console.log('');
   }
 
-  // 3. Display Optional Parameters
+  // 3. Display Optional Parameters (Status Only)
   if (optionalParams.length > 0) {
     console.log('OPTIONAL PARAMETERS:');
     for (const param of optionalParams) {
@@ -94,24 +94,72 @@ export async function validateAndInformParameters(
         }
 
         // Add to final args
-        if (param.type === Core.GOConfigParameterType.BOOL) {
-          if (value === true) {
-            finalArgs.push(flag);
-          }
-        } else if (Array.isArray(value)) {
-          finalArgs.push(flag, value.join(','));
-        } else {
-          finalArgs.push(flag, value.toString());
-        }
+        pushArg(finalArgs, flag, value, param.type);
       }
-      return { valid: true, finalArgs };
     } else {
       logger.error('Missing mandatory parameters. Execution aborted.');
       return { valid: false, finalArgs };
     }
   }
 
+  // 5. Explicitly Prompt for Optional Parameters in Interactive Mode
+  if (isInteractive && optionalParams.length > 0) {
+    const unprovidedOptional = optionalParams.filter((p) => !isParamProvided(p, parsed));
+
+    if (unprovidedOptional.length > 0) {
+      const wantOptional = await prompt.confirm(
+        `Do you want to configure any of the ${unprovidedOptional.length} optional parameters?`,
+        false,
+      );
+
+      if (wantOptional) {
+        const selectedNames = await prompt.multiselect<string>(
+          'Select optional parameters to configure:',
+          unprovidedOptional.map((p) => {
+            const option: Core.GOPromptMultiselectOption = {
+              title: `${Core.GOConfigKeyTransformer.toCLIFlag(p.name)} (${p.name})`,
+              value: p.name,
+            };
+            if (p.description) option.description = p.description;
+            return option;
+          }),
+        );
+
+        for (const name of selectedNames) {
+          const param = unprovidedOptional.find((p) => p.name === name);
+          if (param) {
+            const flag = Core.GOConfigKeyTransformer.toCLIFlag(param.name);
+            const value = await promptForParam(param, prompt);
+            if (value !== undefined && value !== '') {
+              pushArg(finalArgs, flag, value, param.type);
+            }
+          }
+        }
+      }
+    }
+  }
+
   return { valid: true, finalArgs };
+}
+
+/**
+ * Helper to push an argument to the final arguments list
+ */
+function pushArg(
+  args: string[],
+  flag: string,
+  value: string | number | boolean | string[],
+  type: Core.GOConfigParameterType,
+): void {
+  if (type === Core.GOConfigParameterType.BOOL) {
+    if (value === true) {
+      args.push(flag);
+    }
+  } else if (Array.isArray(value)) {
+    args.push(flag, value.join(','));
+  } else {
+    args.push(flag, value.toString());
+  }
 }
 
 /**
