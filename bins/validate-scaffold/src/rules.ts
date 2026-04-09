@@ -46,6 +46,11 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
     check: 'file-exists',
     glob: 'src/main.ts',
   },
+  {
+    name: 'README.md exists',
+    check: 'file-exists',
+    glob: 'README.md',
+  },
 
   // ── Types folder structure ──────────────────────────────────────────
 
