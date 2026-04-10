@@ -1,0 +1,13 @@
+import type { Handler } from 'aws-lambda';
+
+type LambdaEvent = Record<string, unknown>;
+type LambdaResponse = Record<string, unknown>;
+
+export const handler: Handler<LambdaEvent, LambdaResponse> = async (event) => {
+  console.log('{{LAMBDA_NAME}} received event:', JSON.stringify(event));
+
+  return {
+    ok: true,
+    lambda: '{{LAMBDA_NAME}}',
+  };
+};

@@ -127,7 +127,7 @@ Utilizza lo strumento di scaffolding integrato:
 ./bins/create-script.sh
 ```
 
-Segui le istruzioni a video per generare la struttura del progetto. Consulta [NEW_SCRIPT.md](./NEW_SCRIPT.md) per i dettagli.
+Segui le istruzioni a video per generare la struttura del progetto. Consulta [SCRIPTS.md](./SCRIPTS.md) per la guida completa.
 
 ## 6. Risorse Utili
 

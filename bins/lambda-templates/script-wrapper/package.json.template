@@ -1,0 +1,26 @@
+{
+  "name": "{{LAMBDA_PACKAGE_NAME}}",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/handler.mjs",
+  "description": "{{LAMBDA_DESCRIPTION}}",
+  "scripts": {
+    "test-build": "{{TEST_BUILD_COMMAND}}",
+    "build": "pnpm --filter={{WRAPPED_SCRIPT_PACKAGE_NAME}} build && node esbuild.config.mjs",
+    "build:typecheck": "pnpm --filter={{WRAPPED_SCRIPT_PACKAGE_NAME}} build && tsc --noEmit",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "package": "pnpm build && cd ../../artifacts/{{ARTIFACT_DIR}} && zip -r ../../functions/{{LAMBDA_NAME}}/function.zip .",
+    "test:local": "pnpm --filter={{WRAPPED_SCRIPT_PACKAGE_NAME}} build && tsx src/test-local.ts"
+  },
+  "dependencies": {
+    "@go-automation/go-common": "workspace:*",
+    "{{WRAPPED_SCRIPT_PACKAGE_NAME}}": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.161",
+    "@types/node": "^24.12.2",
+    "esbuild": "^0.28.0",
+    "tsx": "^4.21.0"
+  }
+}

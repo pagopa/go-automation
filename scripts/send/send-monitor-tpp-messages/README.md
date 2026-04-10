@@ -76,14 +76,17 @@ Script di monitoraggio messaggi TPP (Third Party Provider) tramite query Athena 
 
 #### Athena
 
-| Parametro                  | Alias  | Tipo   | Obbligatorio | Default          | Descrizione           |
-| -------------------------- | ------ | ------ | ------------ | ---------------- | --------------------- |
-| `--athena.database`        | `-ad`  | string | Si           | -                | Database Athena       |
-| `--athena.catalog`         | `-ac`  | string | No           | `AwsDataCatalog` | Data catalog          |
-| `--athena.workgroup`       | `-aw`  | string | No           | `primary`        | Workgroup Athena      |
-| `--athena.output.location` | `-ao`  | string | Si           | -                | S3 path per output    |
-| `--athena.max.retries`     | `-amr` | int    | No           | `60`             | Tentativi max polling |
-| `--athena.retry.delay`     | `-ard` | int    | No           | `5000`           | Delay polling (ms)    |
+| Parametro                  | Alias  | Tipo   | Obbligatorio | Default          | Descrizione                                                         |
+| -------------------------- | ------ | ------ | ------------ | ---------------- | ------------------------------------------------------------------- |
+| `--athena.database`        | `-ad`  | string | Si           | -                | Database Athena                                                     |
+| `--athena.catalog`         | `-ac`  | string | No           | `AwsDataCatalog` | Data catalog                                                        |
+| `--athena.workgroup`       | `-aw`  | string | No           | `primary`        | Workgroup Athena                                                    |
+| `--athena.output.location` | `-ao`  | string | Si           | -                | S3 path per output                                                  |
+| `--athena.max.retries`     | `-amr` | int    | No           | `60`             | Tentativi max polling                                               |
+| `--athena.retry.delay`     | `-ard` | int    | No           | `5000`           | Delay polling (ms)                                                  |
+| `--athena.query`           | `-aq`  | string | Si           | -                | Template SQL con placeholder per il range temporale e le partizioni |
+
+> `athena.query` puo essere passato da CLI, ma nella pratica e quasi sempre piu comodo definirlo in `config.yaml`.
 
 #### Slack (Opzionale)
 
@@ -534,6 +537,6 @@ DEBUG=* pnpm --filter=send-monitor-tpp-messages dev -- \
 
 ---
 
-**Ultima modifica**: 2025-01-23
+**Ultima modifica**: 2026-04-10
 **Maintainer**: Team GO - Gestione Operativa
 **Repository**: [go-automation](https://github.com/pagopa/go-automation)

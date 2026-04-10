@@ -5,7 +5,9 @@
  * selects the appropriate runbook, and executes it via the RunbookEngine.
  */
 
-import { Core, Runbook } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
+import { RunbookEngine, ConditionEvaluator } from '@go-automation/go-runbook';
+import type { Runbook, ExecutionEnvironment } from '@go-automation/go-runbook';
 
 import type { GoAnalyzeAlarmConfig } from './types/GoAnalyzeAlarmConfig.js';
 import { buildAddressBookIoApiGwAlarmRunbook } from './libs/runbooks/address-book-io-api-gw-alarm/index.js';
@@ -16,7 +18,7 @@ import { computeTimeRange } from './libs/computeTimeRange.js';
 import { saveExecutionTrace } from './libs/saveExecutionTrace.js';
 
 /** Runbook registry: maps alarm names to their runbook builders */
-const RUNBOOK_REGISTRY = new Map<string, () => Runbook.Runbook>([
+const RUNBOOK_REGISTRY = new Map<string, () => Runbook>([
   ['pn-address-book-io-IO-ApiGwAlarm', buildAddressBookIoApiGwAlarmRunbook],
   ['pn-delivery-B2B-ApiGwAlarm', buildDeliveryB2BApiGwAlarmRunbook],
 ]);
@@ -73,10 +75,10 @@ export async function main(script: Core.GOScript): Promise<void> {
   // Execute the runbook
   script.logger.section('Executing Runbook');
 
-  const engine = new Runbook.RunbookEngine(script.logger, new Runbook.ConditionEvaluator());
+  const engine = new RunbookEngine(script.logger, new ConditionEvaluator());
 
   // Build execution environment for trace
-  const environment: Runbook.ExecutionEnvironment = {
+  const environment: ExecutionEnvironment = {
     awsProfiles: config.awsProfiles,
     region: 'eu-south-1',
     invokedBy: 'manual',

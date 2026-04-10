@@ -8,7 +8,7 @@ Script che effettua il dump di tutti i messaggi presenti in una coda **SQS** in 
 
 - [Come funziona](#come-funziona)
 - [Prerequisiti](#prerequisiti)
-- [Parametri](#parametri)
+- [Configurazione](#configurazione)
 - [Deduplicazione](#deduplicazione)
 - [Utilizzo](#utilizzo)
 - [Limitazioni Importanti](#limitazioni-importanti)
@@ -44,18 +44,27 @@ aws sso login --profile <nome-profilo>
 
 ---
 
-## Parametri
+## Configurazione
 
-| Parametro              | Alias   | Tipo     | Obbligatorio | Default      | Descrizione                                                                |
-| ---------------------- | ------- | -------- | ------------ | ------------ | -------------------------------------------------------------------------- |
-| `--aws-profile`        | `--ap`  | `string` | Sì           | —            | Nome del profilo AWS SSO                                                   |
-| `--aws-region`         | `-r`    | `string` | No           | `eu-south-1` | Regione AWS                                                                |
-| `--queue-name`         | `--qn`  | `string` | Sì           | —            | Nome della coda SQS                                                        |
-| `--visibility-timeout` | `--vt`  | `number` | No           | `30`         | Timeout di visibilità per i messaggi ricevuti                              |
-| `--limit`              | `-l`    | `number` | No           | —            | Numero massimo di messaggi da scaricare                                    |
-| `--dedup-mode`         | `--dm`  | `enum`   | No           | `message-id` | Modalità di deduplicazione (`message-id`, `content-md5`, `none`)           |
-| `--max-empty-receives` | `--mer` | `number` | No           | `3`          | Poll vuoti consecutivi prima di fermarsi                                   |
-| `--output-file`        | `-o`    | `string` | No           | —            | Percorso personalizzato del file di output (relativo a `data/` o assoluto) |
+Lo script non include un file di configurazione dedicato: i valori vengono passati da CLI e le eventuali path relative vengono risolte tramite `GOPaths`.
+
+### Parametri CLI
+
+| Parametro              | Alias   | Tipo     | Obbligatorio | Default      | Descrizione                                                                                               |
+| ---------------------- | ------- | -------- | ------------ | ------------ | --------------------------------------------------------------------------------------------------------- |
+| `--aws-profile`        | `--ap`  | `string` | Sì           | —            | Nome del profilo AWS SSO                                                                                  |
+| `--queue-name`         | `--qn`  | `string` | Sì           | —            | Nome della coda SQS                                                                                       |
+| `--visibility-timeout` | `--vt`  | `number` | No           | `60`         | Timeout di visibilità per i messaggi ricevuti                                                             |
+| `--limit`              | `-l`    | `number` | No           | —            | Numero massimo di messaggi da scaricare                                                                   |
+| `--dedup-mode`         | `--dm`  | `enum`   | No           | `message-id` | Modalità di deduplicazione (`message-id`, `content-md5`, `none`)                                          |
+| `--max-empty-receives` | `--mer` | `number` | No           | `3`          | Poll vuoti consecutivi prima di fermarsi                                                                  |
+| `--output-file`        | `-o`    | `string` | No           | —            | Percorso personalizzato del file di output (assoluto o relativo alla directory di output dell'esecuzione) |
+
+### Note di risoluzione path
+
+- Se `--output-file` e assoluto, viene usato cosi com'e
+- Se `--output-file` e relativo, viene salvato nella directory `data/send-dump-sqs/outputs/send-dump-sqs_<timestamp>/`
+- Se `--output-file` non e specificato, il nome viene generato automaticamente come `dump_<queue>_<timestamp>.ndjson`
 
 ---
 
@@ -92,5 +101,5 @@ pnpm --filter=send-dump-sqs start --qn la-mia-coda -l 1000 --aws-profile mio-pro
 
 ---
 
-**Ultima modifica**: 2026-03-27
+**Ultima modifica**: 2026-04-10
 **Maintainer**: Team GO - Gestione Operativa

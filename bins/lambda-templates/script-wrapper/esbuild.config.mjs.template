@@ -1,0 +1,35 @@
+/**
+ * esbuild configuration for {{LAMBDA_NAME}}
+ *
+ * Bundles the Lambda handler and the wrapped script into a single ESM file.
+ */
+
+import * as esbuild from 'esbuild';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
+const MONOREPO_ROOT = path.resolve('..', '..');
+const ARTIFACT_DIR = path.join(MONOREPO_ROOT, 'artifacts', '{{ARTIFACT_DIR}}');
+{{WRAPPED_SCRIPT_CONFIG_DECLARATION_BLOCK}}
+
+await fs.rm(ARTIFACT_DIR, { recursive: true, force: true });
+await fs.mkdir(ARTIFACT_DIR, { recursive: true });
+
+await esbuild.build({
+  entryPoints: ['src/handler.ts'],
+  bundle: true,
+  platform: 'node',
+  target: 'node20',
+  outfile: path.join(ARTIFACT_DIR, 'handler.mjs'),
+  format: 'esm',
+  sourcemap: true,
+  minify: false,
+  external: ['@aws-sdk/*'],
+  banner: {
+    js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
+  },
+});
+
+{{WRAPPED_SCRIPT_CONFIG_COPY_STATEMENT}}
+
+console.log(`✅ {{LAMBDA_NAME}} built → ${ARTIFACT_DIR}`);

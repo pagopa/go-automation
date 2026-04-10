@@ -2,8 +2,11 @@ import type { KnipConfig } from 'knip';
 
 const config: KnipConfig = {
   workspaces: {
-    // Shared library
+    // Shared libraries
     'packages/go-common': {
+      project: ['src/**/*.ts'],
+    },
+    'packages/go-runbook': {
       project: ['src/**/*.ts'],
     },
     // GO scripts
@@ -25,6 +28,7 @@ const config: KnipConfig = {
     },
     // Lambda functions
     'functions/*': {
+      entry: ['src/handler.ts'],
       project: ['src/**/*.ts'],
     },
   },
@@ -40,6 +44,9 @@ const config: KnipConfig = {
     // ESLint plugins used in flat config (eslint.config.mjs)
     '@typescript-eslint/eslint-plugin',
     '@typescript-eslint/parser',
+    // Bundled into go-AILambda via esbuild — used transitively by @go-automation/go-ai
+    '@aws-sdk/client-bedrock-runtime',
+    '@aws-sdk/credential-provider-ini',
   ],
   ignoreBinaries: [
     // Used in CI security workflow

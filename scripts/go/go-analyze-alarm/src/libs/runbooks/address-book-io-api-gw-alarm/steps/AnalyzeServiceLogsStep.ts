@@ -12,7 +12,7 @@
  */
 
 import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
-import type { Runbook } from '@go-automation/go-common';
+import type { Step, StepKind, RunbookContext, StepResult } from '@go-automation/go-runbook';
 
 import { findErrorMessage, findNextServiceInvocation } from './cwLogsHelpers.js';
 
@@ -40,10 +40,10 @@ interface ServiceLogsAnalysis {
   readonly nextTraceId: string | undefined;
 }
 
-class AnalyzeServiceLogsStepImpl implements Runbook.Step<ServiceLogsAnalysis> {
+class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
   readonly id: string;
   readonly label: string;
-  readonly kind: Runbook.StepKind = 'transform';
+  readonly kind: StepKind = 'transform';
 
   private readonly fromStep: string;
   private readonly varPrefix: string;
@@ -58,7 +58,7 @@ class AnalyzeServiceLogsStepImpl implements Runbook.Step<ServiceLogsAnalysis> {
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
-  async execute(context: Runbook.RunbookContext): Promise<Runbook.StepResult<ServiceLogsAnalysis>> {
+  async execute(context: RunbookContext): Promise<StepResult<ServiceLogsAnalysis>> {
     const rawOutput = context.stepResults.get(this.fromStep);
     if (rawOutput === undefined) {
       return { success: false, error: `Step output not found: "${this.fromStep}"` };
@@ -113,6 +113,6 @@ class AnalyzeServiceLogsStepImpl implements Runbook.Step<ServiceLogsAnalysis> {
  * @param config - Step configuration
  * @returns A step that extracts error info and next service invocations
  */
-export function analyzeServiceLogs(config: AnalyzeServiceLogsConfig): Runbook.Step<ServiceLogsAnalysis> {
+export function analyzeServiceLogs(config: AnalyzeServiceLogsConfig): Step<ServiceLogsAnalysis> {
   return new AnalyzeServiceLogsStepImpl(config);
 }
