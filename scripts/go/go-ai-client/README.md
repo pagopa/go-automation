@@ -93,14 +93,14 @@ aws sts get-caller-identity --profile sso_pn-analytics
 
 ### Parametri CLI
 
-| Parametro             | Alias | Tipo   | Obbligatorio | Default            | Descrizione                                        |
-| --------------------- | ----- | ------ | ------------ | ------------------ | -------------------------------------------------- |
-| `--hat`               | `-h`  | string | Si           | -                  | Hat GO-AI da usare                                 |
-| `--input`             | `-i`  | string | Si           | -                  | Testo inline oppure path a file                    |
-| `--go-ai-mode`        | `-m`  | string | No           | `direct`           | Modalita di invocazione: `direct` o `lambda`       |
-| `--go-ai-lambda-name` | -     | string | No           | `go-ai-prod`       | Nome della Lambda da invocare in modalita `lambda` |
-| `--aws-region`        | -     | string | No           | `eu-south-1`       | Regione AWS                                        |
-| `--aws-profile`       | -     | string | No           | `sso_pn-analytics` | Profilo AWS SSO locale                             |
+| Parametro             | Alias | Tipo   | Obbligatorio | Default            | Descrizione                                                                            |
+| --------------------- | ----- | ------ | ------------ | ------------------ | -------------------------------------------------------------------------------------- |
+| `--hat`               | `-h`  | string | Si           | -                  | Hat GO-AI da usare                                                                     |
+| `--input`             | `-i`  | string | Si           | -                  | Testo inline oppure path a file                                                        |
+| `--go-ai-mode`        | `-m`  | string | No           | `direct`           | Modalita di invocazione: `direct` o `lambda`                                           |
+| `--go-ai-lambda-name` | -     | string | No           | `go-ai-prod`       | Nome della Lambda da invocare in modalita `lambda` (chiave config: `go.ai.lambdaName`) |
+| `--aws-region`        | -     | string | No           | `eu-south-1`       | Regione AWS                                                                            |
+| `--aws-profile`       | -     | string | No           | `sso_pn-analytics` | Profilo AWS SSO locale                                                                 |
 
 > Nota: l'alias `-h` e definito nel codice, ma collide con l'help automatico di GOScript. In pratica e meglio usare sempre `--hat`.
 
