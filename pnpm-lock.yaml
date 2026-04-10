@@ -130,8 +130,8 @@ importers:
         version: link:../go-common
     devDependencies:
       '@types/node':
-        specifier: ^24.12.2
-        version: 24.12.2
+        specifier: ^25.5.2
+        version: 25.5.2
 
   packages/go-common:
     dependencies:
@@ -239,6 +239,19 @@ importers:
       '@aws-sdk/util-dynamodb':
         specifier: ^3.996.2
         version: 3.996.2(@aws-sdk/client-dynamodb@3.1028.0)
+      '@types/node':
+        specifier: ^25.5.2
+        version: 25.5.2
+
+  packages/go-send:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../go-common
+    devDependencies:
+      '@aws-sdk/client-dynamodb':
+        specifier: ^3.1028.0
+        version: 3.1028.0
       '@types/node':
         specifier: ^25.5.2
         version: 25.5.2
@@ -375,6 +388,9 @@ importers:
       '@go-automation/go-common':
         specifier: workspace:*
         version: link:../../../packages/go-common
+      '@go-automation/go-send':
+        specifier: workspace:*
+        version: link:../../../packages/go-send
     devDependencies:
       '@types/node':
         specifier: ^24.12.2
@@ -385,6 +401,9 @@ importers:
       '@go-automation/go-common':
         specifier: workspace:*
         version: link:../../../packages/go-common
+      '@go-automation/go-send':
+        specifier: workspace:*
+        version: link:../../../packages/go-send
     devDependencies:
       '@types/node':
         specifier: ^24.12.2

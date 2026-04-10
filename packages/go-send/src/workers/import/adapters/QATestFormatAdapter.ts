@@ -13,8 +13,8 @@
  * - Normalizes data (e.g., "ITALIA" → empty string for domestic addresses)
  */
 
-import type { GOCSVFormatAdapter } from '../../../../core/importers/csv/GOCSVFormatAdapter.js';
-import type { GOCSVListImporterOptions } from '../../../../core/importers/csv/GOCSVListImporterOptions.js';
+import type { GOCSVFormatAdapter } from '@go-automation/go-common/core';
+import type { GOCSVListImporterOptions } from '@go-automation/go-common/core';
 import { validateSENDCSVRow } from '../SENDCSVRowValidator.js';
 import type { SENDNotificationRow } from '../SENDNotificationRow.js';
 

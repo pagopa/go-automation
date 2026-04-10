@@ -1,8 +1,8 @@
 {
-  "name": "@go-automation/go-runbook",
+  "name": "@go-automation/go-send",
   "version": "1.0.0",
   "type": "module",
-  "description": "Declarative runbook engine for operational automation with AWS service integration",
+  "description": "SEND (Sistema di Notificazione Digitale) SDK - TypeScript SDK for creating and managing digital and analog notifications",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -18,10 +18,10 @@
     "prepare": "pnpm run build"
   },
   "keywords": [
-    "go-automation",
-    "runbook",
-    "operational",
-    "automation"
+    "send",
+    "notifications",
+    "pagopa",
+    "go-automation"
   ],
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
@@ -29,18 +29,10 @@
     "@go-automation/go-common": "workspace:*"
   },
   "peerDependencies": {
-    "@aws-sdk/client-athena": "^3.1028.0",
-    "@aws-sdk/client-cloudwatch": "^3.1028.0",
-    "@aws-sdk/client-cloudwatch-logs": "^3.1028.0",
-    "@aws-sdk/client-dynamodb": "^3.1028.0",
-    "@aws-sdk/util-dynamodb": "^3.996.2"
+    "@aws-sdk/client-dynamodb": "^3.1028.0"
   },
   "devDependencies": {
-    "@aws-sdk/client-athena": "^3.1028.0",
-    "@aws-sdk/client-cloudwatch": "^3.1028.0",
-    "@aws-sdk/client-cloudwatch-logs": "^3.1028.0",
     "@aws-sdk/client-dynamodb": "^3.1028.0",
-    "@aws-sdk/util-dynamodb": "^3.996.2",
     "@types/node": "^24.12.2"
   }
 }

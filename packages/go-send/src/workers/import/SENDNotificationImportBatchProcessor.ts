@@ -2,8 +2,8 @@
  * Batch Processor - Handles concurrent batch processing
  */
 
-import { GOEventEmitterBase } from '../../../core/events/GOEventEmitterBase.js';
-import { getErrorMessage } from '../../../core/errors/GOErrorUtils.js';
+import { GOEventEmitterBase } from '@go-automation/go-common/core';
+import { getErrorMessage } from '@go-automation/go-common/core';
 
 import { SENDNotificationImportRowProcessor } from './SENDNotificationImportRowProcessor.js';
 import type { SENDNotificationImportWorkerError } from './SENDNotificationImportWorkerError.js';

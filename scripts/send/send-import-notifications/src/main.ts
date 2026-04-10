@@ -5,7 +5,9 @@
  * Receives typed dependencies (script) for clean separation of concerns.
  */
 
-import { Core, SEND } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
+import { SENDNotifications, SENDNotificationImportWorker, QATestFormatAdapter } from '@go-automation/go-send';
+import type { SENDNotificationRow } from '@go-automation/go-send';
 
 import { setupEventListeners } from './libs/setupEventListeners.js';
 import { displayResults } from './libs/displayResults.js';
@@ -61,7 +63,7 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   // Initialize SDK
   script.logger.section('Initializing SEND SDK');
-  const sdk = new SEND.SENDNotifications({
+  const sdk = new SENDNotifications({
     basePath: config.basePath,
     apiKey: config.pnApiKey,
     timeout: 300000,
@@ -76,8 +78,8 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   // Create importer
   script.logger.section('Setting up CSV Importer');
-  const importerAdapter = new SEND.QATestFormatAdapter();
-  const importer = new Core.GOCSVListImporter<SEND.SENDNotificationRow>({
+  const importerAdapter = new QATestFormatAdapter();
+  const importer = new Core.GOCSVListImporter<SENDNotificationRow>({
     ...importerAdapter.getOptions(),
     preserveOriginalData: config.preserveAllColumns,
   });
@@ -102,7 +104,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   }
 
   // Create worker and register events
-  const worker = new SEND.SENDNotificationImportWorker(importer, sdk);
+  const worker = new SENDNotificationImportWorker(importer, sdk);
   setupEventListeners(worker, importer, exporter, script.prompt);
   script.logger.success('Components initialized');
 
