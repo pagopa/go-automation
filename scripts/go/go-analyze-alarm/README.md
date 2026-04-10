@@ -9,7 +9,7 @@ Dato un allarme CloudWatch e il momento in cui e scattato, esegue automaticament
 - [Come funziona](#come-funziona)
 - [Runbook disponibili](#runbook-disponibili)
 - [Prerequisiti](#prerequisiti)
-- [Parametri CLI](#parametri-cli)
+- [Configurazione](#configurazione)
 - [Utilizzo](#utilizzo)
 - [Output](#output)
 - [Troubleshooting](#troubleshooting)
@@ -18,7 +18,7 @@ Dato un allarme CloudWatch e il momento in cui e scattato, esegue automaticament
 
 1. **Lookup runbook**: lo script cerca il runbook registrato per il nome dell'allarme fornito
 2. **Calcolo time window**: costruisce un intervallo `[alarmDatetime - 5min, alarmDatetime + 5min]`
-3. **Esecuzione step-by-step**: ogni step del runbook interroga CloudWatch Logs (o altri servizi) con query Insights; le variabili estratte passano agli step successivi
+3. **Esecuzione step-by-step**: ogni step del runbook interroga CloudWatch Logs, DynamoDB, Athena o altri servizi in base alle esigenze del runbook; le variabili estratte passano agli step successivi
 4. **Match casi noti**: al termine degli step, il RunbookEngine confronta i dati raccolti con i pattern dei casi noti e restituisce il primo match (o un fallback)
 5. **Salvataggio trace**: l'intera traccia di esecuzione (step, variabili, risultato) viene salvata in `data/trace-{alarmName}.json`
 
@@ -63,14 +63,18 @@ Analizza gli errori HTTP sull'API Gateway del microservizio `pn-user-attributes`
 | pnpm     | >= 10.0.0       | Package manager |
 | AWS CLI  | >= 2.0          | Per SSO         |
 
-**Permessi AWS richiesti**: `logs:StartQuery`, `logs:GetQueryResults`, `cloudwatch:DescribeAlarms`
+**Permessi AWS richiesti**: `logs:StartQuery`, `logs:GetQueryResults`, `cloudwatch:DescribeAlarms`, `athena:StartQueryExecution`, `athena:GetQueryExecution`, `athena:GetQueryResults`
 
 ```bash
 # Login SSO prima dell'esecuzione
 aws sso login --profile sso_pn-core-prod
 ```
 
-## Parametri CLI
+## Configurazione
+
+Lo script non include un file di configurazione dedicato: la configurazione operativa avviene tramite parametri CLI.
+
+### Parametri CLI
 
 | Parametro          | Alias  | Tipo     | Obbligatorio | Descrizione                         |
 | ------------------ | ------ | -------- | ------------ | ----------------------------------- |
@@ -226,5 +230,5 @@ pnpm --filter=go-analyze-alarm exec tsc --noEmit
 
 ---
 
-**Ultima modifica**: 2026-02-23
+**Ultima modifica**: 2026-04-10
 **Maintainer**: Team GO - Gestione Operativa
