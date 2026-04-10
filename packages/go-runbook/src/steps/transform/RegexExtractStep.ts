@@ -2,11 +2,9 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
-import { navigateFieldPath } from './fieldPath.js';
+import { navigateFieldPath } from '@go-automation/go-common/core';
 import { compileRegex } from '../../core/compileRegex.js';
-import { Core } from '@go-automation/go-common';
-
-const { valueToString } = Core;
+import { valueToString } from '@go-automation/go-common/core';
 
 /**
  * Configuration for the RegexExtractStep.

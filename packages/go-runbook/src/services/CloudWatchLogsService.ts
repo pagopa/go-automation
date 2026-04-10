@@ -5,10 +5,8 @@ import {
   CloudWatchLogsServiceException,
 } from '@aws-sdk/client-cloudwatch-logs';
 import type { TimeRange } from '../types/TimeRange.js';
-import { Core } from '@go-automation/go-common';
-
-const { pollUntilComplete, exponentialBackoff } = Core;
-type PollOptions = Core.PollOptions;
+import { pollUntilComplete, exponentialBackoff } from '@go-automation/go-common/core';
+import type { PollOptions } from '@go-automation/go-common/core';
 
 /** All terminal statuses for CloudWatch Logs Insights queries */
 const TERMINAL_STATUSES: ReadonlySet<string> = new Set(['Complete', 'Failed', 'Cancelled', 'Timeout']);
