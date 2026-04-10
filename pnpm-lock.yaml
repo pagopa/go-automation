@@ -130,8 +130,8 @@ importers:
         version: link:../go-common
     devDependencies:
       '@types/node':
-        specifier: ^25.5.2
-        version: 25.5.2
+        specifier: ^24.12.2
+        version: 24.12.2
 
   packages/go-common:
     dependencies:
@@ -212,8 +212,8 @@ importers:
         specifier: ^3.7.1
         version: 3.7.1
       '@types/node':
-        specifier: ^25.5.2
-        version: 25.5.2
+        specifier: ^24.12.2
+        version: 24.12.2
       '@types/prompts':
         specifier: ^2.4.9
         version: 2.4.9
@@ -240,8 +240,8 @@ importers:
         specifier: ^3.996.2
         version: 3.996.2(@aws-sdk/client-dynamodb@3.1028.0)
       '@types/node':
-        specifier: ^25.5.2
-        version: 25.5.2
+        specifier: ^24.12.2
+        version: 24.12.2
 
   packages/go-send:
     dependencies:
@@ -253,8 +253,8 @@ importers:
         specifier: ^3.1028.0
         version: 3.1028.0
       '@types/node':
-        specifier: ^25.5.2
-        version: 25.5.2
+        specifier: ^24.12.2
+        version: 24.12.2
 
   scripts/go/go-ai-client:
     dependencies:
@@ -1634,9 +1634,6 @@ packages:
   '@types/node@24.12.2':
     resolution: {integrity: sha512-A1sre26ke7HDIuY/M23nd9gfB+nrmhtYyMINbjI1zHJxYteKR6qSMX56FsmjMcDb3SMcjJg5BiRRgOCC/yBD0g==}
 
-  '@types/node@25.5.2':
-    resolution: {integrity: sha512-tO4ZIRKNC+MDWV4qKVZe3Ql/woTnmHDr5JD8UI5hn2pwBrHEwOEMZK7WlNb5RKB6EoJ02gwmQS9OrjuFnZYdpg==}
-
   '@types/prompts@2.4.9':
     resolution: {integrity: sha512-qTxFi6Buiu8+50/+3DGIWLHM6QuWsEKugJnnP6iv2Mc4ncxE4A/OJkjuVOA+5X0X1S/nq5VJRa8Lu+nwcvbrKA==}
 
@@ -2361,9 +2358,6 @@ packages:
 
   undici-types@7.16.0:
     resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
-
-  undici-types@7.18.2:
-    resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
   undici@8.0.2:
     resolution: {integrity: sha512-B9MeU5wuFhkFAuNeA19K2GDFcQXZxq33fL0nRy2Aq30wdufZbyyvxW3/ChaeipXVfy/wUweZyzovQGk39+9k2w==}
@@ -4024,7 +4018,7 @@ snapshots:
 
   '@slack/logger@4.0.1':
     dependencies:
-      '@types/node': 25.5.2
+      '@types/node': 24.12.2
 
   '@slack/types@2.20.1': {}
 
@@ -4032,7 +4026,7 @@ snapshots:
     dependencies:
       '@slack/logger': 4.0.1
       '@slack/types': 2.20.1
-      '@types/node': 25.5.2
+      '@types/node': 24.12.2
       '@types/retry': 0.12.0
       axios: 1.15.0
       eventemitter3: 5.0.4
@@ -4410,13 +4404,9 @@ snapshots:
     dependencies:
       undici-types: 7.16.0
 
-  '@types/node@25.5.2':
-    dependencies:
-      undici-types: 7.18.2
-
   '@types/prompts@2.4.9':
     dependencies:
-      '@types/node': 25.5.2
+      '@types/node': 24.12.2
       kleur: 3.0.3
 
   '@types/retry@0.12.0': {}
@@ -5226,8 +5216,6 @@ snapshots:
   unbash@2.2.0: {}
 
   undici-types@7.16.0: {}
-
-  undici-types@7.18.2: {}
 
   undici@8.0.2: {}
 
