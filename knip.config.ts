@@ -2,8 +2,11 @@ import type { KnipConfig } from 'knip';
 
 const config: KnipConfig = {
   workspaces: {
-    // Shared library
+    // Shared libraries
     'packages/go-common': {
+      project: ['src/**/*.ts'],
+    },
+    'packages/go-runbook': {
       project: ['src/**/*.ts'],
     },
     // GO scripts

@@ -208,9 +208,6 @@ importers:
         specifier: ^2.8.3
         version: 2.8.3
     devDependencies:
-      '@aws-sdk/client-athena':
-        specifier: ^3.1028.0
-        version: 3.1028.0
       '@types/luxon':
         specifier: ^3.7.1
         version: 3.7.1
@@ -220,6 +217,31 @@ importers:
       '@types/prompts':
         specifier: ^2.4.9
         version: 2.4.9
+
+  packages/go-runbook:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../go-common
+    devDependencies:
+      '@aws-sdk/client-athena':
+        specifier: ^3.1028.0
+        version: 3.1028.0
+      '@aws-sdk/client-cloudwatch':
+        specifier: ^3.1028.0
+        version: 3.1028.0
+      '@aws-sdk/client-cloudwatch-logs':
+        specifier: ^3.1028.0
+        version: 3.1028.0
+      '@aws-sdk/client-dynamodb':
+        specifier: ^3.1028.0
+        version: 3.1028.0
+      '@aws-sdk/util-dynamodb':
+        specifier: ^3.996.2
+        version: 3.996.2(@aws-sdk/client-dynamodb@3.1028.0)
+      '@types/node':
+        specifier: ^25.5.2
+        version: 25.5.2
 
   scripts/go/go-ai-client:
     dependencies:
@@ -260,6 +282,9 @@ importers:
       '@go-automation/go-common':
         specifier: workspace:*
         version: link:../../../packages/go-common
+      '@go-automation/go-runbook':
+        specifier: workspace:*
+        version: link:../../../packages/go-runbook
     devDependencies:
       '@types/node':
         specifier: ^24.12.2

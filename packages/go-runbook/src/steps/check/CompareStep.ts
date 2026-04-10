@@ -3,7 +3,9 @@ import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import { resolveRef } from './resolveRef.js';
-import { valueToString } from '../../../core/index.js';
+import { Core } from '@go-automation/go-common';
+
+const { valueToString } = Core;
 
 /**
  * Supported comparison operators for the compare step.

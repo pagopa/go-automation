@@ -8,7 +8,7 @@ import { AthenaClient } from '@aws-sdk/client-athena';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { fromIni } from '@aws-sdk/credential-provider-ini';
 
-import { Runbook } from '@go-automation/go-common';
+import * as Runbook from '@go-automation/go-runbook';
 
 /**
  * Creates a ServiceRegistry from an AWS SSO profile.

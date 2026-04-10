@@ -1,4 +1,6 @@
-import type { GOLogger } from '../../core/logging/GOLogger.js';
+import type { Core } from '@go-automation/go-common';
+
+type GOLogger = Core.GOLogger;
 import type { CaseAction } from './CaseAction.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
 

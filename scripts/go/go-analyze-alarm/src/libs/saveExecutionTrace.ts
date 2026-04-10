@@ -2,7 +2,8 @@
  * Utility for persisting runbook execution traces to disk.
  */
 
-import { Core, Runbook } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
+import * as Runbook from '@go-automation/go-runbook';
 
 /**
  * Saves the RunbookExecutionTrace as a JSON file in the script's data directory.

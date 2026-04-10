@@ -7,7 +7,7 @@
  *
  * @example
  * ```typescript
- * import { Runbook } from '@go-automation/go-common';
+ * import * as Runbook from '@go-automation/go-runbook';
  *
  * const runbook = Runbook.RunbookBuilder.create('alarm-api-gw-5xx')
  *   .metadata({ name: 'API GW 5xx', ... })

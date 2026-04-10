@@ -14,7 +14,7 @@
  */
 
 import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
-import type { Runbook } from '@go-automation/go-common';
+import type * as Runbook from '@go-automation/go-runbook';
 
 import { extractCwField, extractXRayTraceId } from './cwLogsHelpers.js';
 

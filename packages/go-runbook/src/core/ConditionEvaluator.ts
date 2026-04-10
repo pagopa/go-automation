@@ -1,4 +1,6 @@
-import { valueToString } from '../../core/index.js';
+import { Core } from '@go-automation/go-common';
+
+const { valueToString } = Core;
 import type { Condition } from '../types/Condition.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
 import { compileRegex } from './compileRegex.js';

@@ -1,6 +1,8 @@
 import type { AthenaClient, Row } from '@aws-sdk/client-athena';
 import { StartQueryExecutionCommand, GetQueryExecutionCommand, GetQueryResultsCommand } from '@aws-sdk/client-athena';
-import { pollUntilComplete, fixedBackoff } from '../../core/utils/pollUntilComplete.js';
+import { Core } from '@go-automation/go-common';
+
+const { pollUntilComplete, fixedBackoff } = Core;
 
 /** Default polling interval for Athena query results */
 const ATHENA_POLL_INTERVAL_MS = 2000;

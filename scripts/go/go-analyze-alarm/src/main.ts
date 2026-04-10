@@ -5,7 +5,8 @@
  * selects the appropriate runbook, and executes it via the RunbookEngine.
  */
 
-import { Core, Runbook } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
+import * as Runbook from '@go-automation/go-runbook';
 
 import type { GoAnalyzeAlarmConfig } from './types/GoAnalyzeAlarmConfig.js';
 import { buildAddressBookIoApiGwAlarmRunbook } from './libs/runbooks/address-book-io-api-gw-alarm/index.js';

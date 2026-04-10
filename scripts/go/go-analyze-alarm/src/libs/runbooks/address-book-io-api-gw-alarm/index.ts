@@ -17,7 +17,7 @@
  *
  */
 
-import { Runbook } from '@go-automation/go-common';
+import * as Runbook from '@go-automation/go-runbook';
 
 import {
   API_GW_LOG_GROUP,
