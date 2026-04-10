@@ -17,7 +17,8 @@
  *
  */
 
-import * as Runbook from '@go-automation/go-runbook';
+import { RunbookBuilder, queryCloudWatchLogs } from '@go-automation/go-runbook';
+import type { Runbook } from '@go-automation/go-runbook';
 
 import {
   API_GW_LOG_GROUP,
@@ -35,9 +36,9 @@ import { analyzeServiceLogs } from './steps/AnalyzeServiceLogsStep.js';
  *
  * @returns A validated Runbook ready for execution
  */
-export function buildAddressBookIoApiGwAlarmRunbook(): Runbook.Runbook {
+export function buildAddressBookIoApiGwAlarmRunbook(): Runbook {
   return (
-    Runbook.RunbookBuilder.create('pn-address-book-io-IO-ApiGwAlarm')
+    RunbookBuilder.create('pn-address-book-io-IO-ApiGwAlarm')
       .metadata({
         name: 'ANALISI ALLARME pn-address-book-io-IO-ApiGwAlarm',
         description: 'Analizza gli allarmi API Gateway del microservizio pn-user-attributes',
@@ -49,7 +50,7 @@ export function buildAddressBookIoApiGwAlarmRunbook(): Runbook.Runbook {
 
       // ── Step 1: Query API Gateway AccessLog ──────────────────────────────
       .step(
-        Runbook.queryCloudWatchLogs({
+        queryCloudWatchLogs({
           id: 'query-api-gw-logs',
           label: 'Query API Gateway AccessLog per errori HTTP',
           logGroups: [API_GW_LOG_GROUP],
@@ -78,7 +79,7 @@ export function buildAddressBookIoApiGwAlarmRunbook(): Runbook.Runbook {
       // ── Step 3: Query pn-ioAuthorizerLambda logs (Livello 0) ─────────────
       // Checks for lambda timeout evidence when authorizerLatency > 5000ms
       .step(
-        Runbook.queryCloudWatchLogs({
+        queryCloudWatchLogs({
           id: 'query-io-authorizer-lambda',
           label: 'Query log pn-ioAuthorizerLambda (Livello 0)',
           logGroups: [IO_AUTHORIZER_LAMBDA_LOG_GROUP],
@@ -107,7 +108,7 @@ export function buildAddressBookIoApiGwAlarmRunbook(): Runbook.Runbook {
 
       // ── Step 5: Query pn-user-attributes logs ────────────────────────────
       .step(
-        Runbook.queryCloudWatchLogs({
+        queryCloudWatchLogs({
           id: 'query-user-attributes',
           label: 'Query log pn-user-attributes con xRayTraceId',
           logGroups: [USER_ATTRIBUTES_LOG_GROUP],
@@ -135,7 +136,7 @@ export function buildAddressBookIoApiGwAlarmRunbook(): Runbook.Runbook {
       // ── Step 7: Query pn-data-vault logs ─────────────────────────────────
       // Uses continueOnFailure because the trace might not reach this service.
       .step(
-        Runbook.queryCloudWatchLogs({
+        queryCloudWatchLogs({
           id: 'query-data-vault',
           label: 'Query log pn-data-vault',
           logGroups: [DATA_VAULT_LOG_GROUP],
@@ -164,7 +165,7 @@ export function buildAddressBookIoApiGwAlarmRunbook(): Runbook.Runbook {
 
       // ── Step 9: Query pn-external-registries logs ────────────────────────
       .step(
-        Runbook.queryCloudWatchLogs({
+        queryCloudWatchLogs({
           id: 'query-external-registries',
           label: 'Query log pn-external-registries',
           logGroups: [EXTERNAL_REGISTRIES_LOG_GROUP],

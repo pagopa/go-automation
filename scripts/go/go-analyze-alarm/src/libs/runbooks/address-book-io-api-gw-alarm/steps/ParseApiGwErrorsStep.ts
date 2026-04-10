@@ -14,7 +14,7 @@
  */
 
 import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
-import type * as Runbook from '@go-automation/go-runbook';
+import type { Step, StepKind, RunbookContext, StepResult } from '@go-automation/go-runbook';
 
 import { extractCwField, extractXRayTraceId } from './cwLogsHelpers.js';
 
@@ -39,10 +39,10 @@ interface ApiGwErrorInfo {
   readonly statusCode: string;
 }
 
-class ParseApiGwErrorsStepImpl implements Runbook.Step<ApiGwErrorInfo> {
+class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
   readonly id: string;
   readonly label: string;
-  readonly kind: Runbook.StepKind = 'transform';
+  readonly kind: StepKind = 'transform';
 
   private readonly fromStep: string;
   private readonly minStatusCode: number;
@@ -55,7 +55,7 @@ class ParseApiGwErrorsStepImpl implements Runbook.Step<ApiGwErrorInfo> {
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
-  async execute(context: Runbook.RunbookContext): Promise<Runbook.StepResult<ApiGwErrorInfo>> {
+  async execute(context: RunbookContext): Promise<StepResult<ApiGwErrorInfo>> {
     const rawOutput = context.stepResults.get(this.fromStep);
     if (rawOutput === undefined) {
       return { success: false, error: `Step output not found: "${this.fromStep}"` };
@@ -116,6 +116,6 @@ class ParseApiGwErrorsStepImpl implements Runbook.Step<ApiGwErrorInfo> {
  * @param config - Step configuration
  * @returns A step that extracts error info from API GW logs
  */
-export function parseApiGwErrors(config: ParseApiGwErrorsConfig): Runbook.Step<ApiGwErrorInfo> {
+export function parseApiGwErrors(config: ParseApiGwErrorsConfig): Step<ApiGwErrorInfo> {
   return new ParseApiGwErrorsStepImpl(config);
 }
