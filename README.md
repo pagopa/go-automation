@@ -102,6 +102,12 @@ pnpm --filter=<script-name> start -- [options]
 ./bins/create-script.sh
 ```
 
+### Creazione Nuova Lambda
+
+```bash
+./bins/create-lambda.sh
+```
+
 ## Team e Contatti
 
 **Team**: GO - Gestione Operativa (PagoPa)
@@ -110,4 +116,4 @@ pnpm --filter=<script-name> start -- [options]
 
 ---
 
-**Ultima modifica**: 2026-01-23
+**Ultima modifica**: 2026-04-10

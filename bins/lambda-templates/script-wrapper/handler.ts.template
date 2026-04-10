@@ -1,0 +1,16 @@
+import type { ScheduledEvent } from 'aws-lambda';
+
+import { Core } from '@go-automation/go-common';
+import { scriptMetadata, scriptParameters } from '{{WRAPPED_SCRIPT_PACKAGE_NAME}}/config';
+import { main } from '{{WRAPPED_SCRIPT_PACKAGE_NAME}}/main';
+
+const script = new Core.GOScript({
+  metadata: scriptMetadata,
+  config: {
+    parameters: scriptParameters,
+  },
+});
+
+export const handler = script.createLambdaHandler<ScheduledEvent>(async (_event) => {
+  await main(script);
+});

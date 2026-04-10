@@ -64,6 +64,57 @@ const goAutomationPlugin = {
         };
       },
     },
+    'lambda-requires-handler-export': {
+      meta: {
+        type: 'problem',
+        docs: {
+          description: 'Require Lambda modules to export a symbol named handler.',
+        },
+        messages: {
+          missingHandler: 'Lambda modules must export a symbol named "handler".',
+        },
+        schema: [],
+      },
+      create(context) {
+        let hasHandlerExport = false;
+
+        function markIfHandler(node) {
+          if (node.type === 'Identifier' && node.name === 'handler') {
+            hasHandlerExport = true;
+          }
+        }
+
+        return {
+          ExportNamedDeclaration(node) {
+            if (node.declaration?.type === 'VariableDeclaration') {
+              for (const declaration of node.declaration.declarations) {
+                if (declaration.id.type === 'Identifier' && declaration.id.name === 'handler') {
+                  hasHandlerExport = true;
+                }
+              }
+            }
+
+            if (node.declaration?.type === 'FunctionDeclaration' && node.declaration.id != null) {
+              markIfHandler(node.declaration.id);
+            }
+
+            for (const specifier of node.specifiers) {
+              if (specifier.exported.type === 'Identifier') {
+                markIfHandler(specifier.exported);
+              }
+            }
+          },
+          'Program:exit'(node) {
+            if (!hasHandlerExport) {
+              context.report({
+                node,
+                messageId: 'missingHandler',
+              });
+            }
+          },
+        };
+      },
+    },
   },
 };
 
@@ -508,6 +559,77 @@ export default tseslint.config(
       ],
       // High cyclomatic complexity → too many branches, extract into libs/
       complexity: ['error', { max: 15 }],
+    },
+  },
+
+  // ===== Lambda functions =====
+  {
+    files: ['functions/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'readline',
+              message: 'Lambda code must not depend on interactive terminal input.',
+            },
+            {
+              name: 'node:readline',
+              message: 'Lambda code must not depend on interactive terminal input.',
+            },
+            {
+              name: 'readline/promises',
+              message: 'Lambda code must not depend on interactive terminal input.',
+            },
+            {
+              name: 'node:readline/promises',
+              message: 'Lambda code must not depend on interactive terminal input.',
+            },
+            {
+              name: 'inquirer',
+              message: 'Lambda code must not depend on interactive terminal input.',
+            },
+            {
+              name: 'prompts',
+              message: 'Lambda code must not depend on interactive terminal input.',
+            },
+            {
+              name: 'enquirer',
+              message: 'Lambda code must not depend on interactive terminal input.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['**/src/*', '**/src/**'],
+              message:
+                'Import other workspaces through their package exports, not through src/* paths.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'process',
+          property: 'stdin',
+          message: 'Lambda code must not read from stdin.',
+        },
+      ],
+    },
+  },
+  {
+    files: ['functions/**/src/handler.ts'],
+    plugins: { 'go-automation': goAutomationPlugin },
+    rules: {
+      'go-automation/lambda-requires-handler-export': 'error',
+      'no-console': 'off',
+    },
+  },
+  {
+    files: ['functions/**/src/test-local.ts'],
+    rules: {
+      'no-console': 'off',
     },
   },
 

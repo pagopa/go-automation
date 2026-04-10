@@ -6,11 +6,11 @@
   "main": "dist/handler.mjs",
   "scripts": {
     "test-build": "pnpm build && cd ../../artifacts/go-SendMonitorTppMessagesLambda && zip -r ../../functions/go-SendMonitorTppMessagesLambda/function.zip .",
-    "build": "node esbuild.config.mjs",
-    "build:typecheck": "tsc --noEmit",
+    "build": "pnpm --filter=send-monitor-tpp-messages build && node esbuild.config.mjs",
+    "build:typecheck": "pnpm --filter=send-monitor-tpp-messages build && tsc --noEmit",
     "clean": "rm -rf dist *.tsbuildinfo",
     "package": "pnpm build && cd ../../artifacts/go-SendMonitorTppMessagesLambda && zip -r ../../functions/go-SendMonitorTppMessagesLambda/function.zip .",
-    "test:local": "tsx src/test-local.ts"
+    "test:local": "pnpm --filter=send-monitor-tpp-messages build && tsx src/test-local.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1028.0",
