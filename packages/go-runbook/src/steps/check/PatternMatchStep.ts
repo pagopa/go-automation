@@ -4,7 +4,7 @@ import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import { resolveRef } from './resolveRef.js';
 import { compileRegex } from '../../core/compileRegex.js';
-import { valueToString } from '../../../core/index.js';
+import { valueToString } from '@go-automation/go-common/core';
 
 /**
  * Configuration for a pattern match step.

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test-build": "echo 'Skipping CodeBuild packaging for this function'",
     "build": "node esbuild.config.mjs",
     "build:typecheck": "tsc --noEmit",
     "package": "pnpm build && cd ../../artifacts/go-AILambda && zip -r ../../functions/go-AILambda/function.zip .",

@@ -7,16 +7,16 @@
  *
  * @example
  * ```typescript
- * import { Runbook } from '@go-automation/go-common';
+ * import { RunbookBuilder, RunbookEngine, ConditionEvaluator, queryCloudWatchLogs, logAction } from '@go-automation/go-runbook';
  *
- * const runbook = Runbook.RunbookBuilder.create('alarm-api-gw-5xx')
+ * const runbook = RunbookBuilder.create('alarm-api-gw-5xx')
  *   .metadata({ name: 'API GW 5xx', ... })
- *   .step(Runbook.queryCloudWatchLogs({ ... }))
+ *   .step(queryCloudWatchLogs({ ... }))
  *   .knownCase({ ... })
- *   .fallback(Runbook.logAction({ ... }))
+ *   .fallback(logAction({ ... }))
  *   .build();
  *
- * const engine = new Runbook.RunbookEngine(logger, new Runbook.ConditionEvaluator());
+ * const engine = new RunbookEngine(logger, new ConditionEvaluator());
  * const result = await engine.execute(runbook, params, services);
  * ```
  */

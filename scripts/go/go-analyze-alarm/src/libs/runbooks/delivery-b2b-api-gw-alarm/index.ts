@@ -16,7 +16,8 @@
  * Downstream: Selfcare, pn-external-registry
  */
 
-import { Runbook } from '@go-automation/go-common';
+import { RunbookBuilder, queryCloudWatchLogs } from '@go-automation/go-runbook';
+import type { Runbook } from '@go-automation/go-runbook';
 
 import {
   API_GW_LOG_GROUP,
@@ -34,9 +35,9 @@ import { analyzeServiceLogs } from '../address-book-io-api-gw-alarm/steps/Analyz
  *
  * @returns A validated Runbook ready for execution
  */
-export function buildDeliveryB2BApiGwAlarmRunbook(): Runbook.Runbook {
+export function buildDeliveryB2BApiGwAlarmRunbook(): Runbook {
   return (
-    Runbook.RunbookBuilder.create('pn-delivery-B2B-ApiGwAlarm')
+    RunbookBuilder.create('pn-delivery-B2B-ApiGwAlarm')
       .metadata({
         name: 'ANALISI ALLARME pn-delivery-B2B-ApiGwAlarm',
         description: 'Analizza gli allarmi API Gateway del microservizio pn-delivery (canale B2B)',
@@ -48,7 +49,7 @@ export function buildDeliveryB2BApiGwAlarmRunbook(): Runbook.Runbook {
 
       // ── Step 1: Query API Gateway AccessLog (Livello 0) ──────────────────
       .step(
-        Runbook.queryCloudWatchLogs({
+        queryCloudWatchLogs({
           id: 'query-api-gw-logs',
           label: 'Query API Gateway AccessLog per errori HTTP',
           logGroups: [API_GW_LOG_GROUP],
@@ -76,7 +77,7 @@ export function buildDeliveryB2BApiGwAlarmRunbook(): Runbook.Runbook {
 
       // ── Step 3: Query pn-delivery logs (Livello 1) ───────────────────────
       .step(
-        Runbook.queryCloudWatchLogs({
+        queryCloudWatchLogs({
           id: 'query-delivery',
           label: 'Query log pn-delivery con xRayTraceId',
           logGroups: [DELIVERY_LOG_GROUP],
@@ -106,7 +107,7 @@ export function buildDeliveryB2BApiGwAlarmRunbook(): Runbook.Runbook {
       // ── Step 5: Query pn-external-registries logs (Livello 2.1) ──────────
       // Uses continueOnFailure because the trace might not reach this service.
       .step(
-        Runbook.queryCloudWatchLogs({
+        queryCloudWatchLogs({
           id: 'query-external-registries',
           label: 'Query log pn-external-registries (Livello 2.1)',
           logGroups: [EXTERNAL_REGISTRIES_LOG_GROUP],
@@ -134,7 +135,7 @@ export function buildDeliveryB2BApiGwAlarmRunbook(): Runbook.Runbook {
 
       // ── Step 7: Query pn-data-vault logs (Livello 2.2) ───────────────────
       .step(
-        Runbook.queryCloudWatchLogs({
+        queryCloudWatchLogs({
           id: 'query-data-vault',
           label: 'Query log pn-data-vault (Livello 2.2)',
           logGroups: [DATA_VAULT_LOG_GROUP],
@@ -162,7 +163,7 @@ export function buildDeliveryB2BApiGwAlarmRunbook(): Runbook.Runbook {
 
       // ── Step 9: Query pn-ss logs (Livello 3) ─────────────────────────────
       .step(
-        Runbook.queryCloudWatchLogs({
+        queryCloudWatchLogs({
           id: 'query-pn-ss',
           label: 'Query log pn-ss (Livello 3)',
           logGroups: [SS_LOG_GROUP],

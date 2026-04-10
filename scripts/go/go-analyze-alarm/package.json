@@ -28,7 +28,8 @@
     "@aws-sdk/client-cloudwatch-logs": "^3.1028.0",
     "@aws-sdk/client-dynamodb": "^3.1028.0",
     "@aws-sdk/credential-provider-ini": "^3.972.29",
-    "@go-automation/go-common": "workspace:*"
+    "@go-automation/go-common": "workspace:*",
+    "@go-automation/go-runbook": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.12.2"

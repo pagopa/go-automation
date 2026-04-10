@@ -2,7 +2,8 @@
  * Utility for persisting runbook execution traces to disk.
  */
 
-import { Core, Runbook } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
+import type { RunbookExecutionResult } from '@go-automation/go-runbook';
 
 /**
  * Saves the RunbookExecutionTrace as a JSON file in the script's data directory.
@@ -14,7 +15,7 @@ import { Core, Runbook } from '@go-automation/go-common';
  */
 export async function saveExecutionTrace(
   script: Core.GOScript,
-  result: Runbook.RunbookExecutionResult,
+  result: RunbookExecutionResult,
   alarmName: string,
 ): Promise<void> {
   const fileName = `trace-${alarmName}.json`;

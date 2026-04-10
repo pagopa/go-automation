@@ -1,0 +1,46 @@
+{
+  "name": "@go-automation/go-runbook",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Declarative runbook engine for operational automation with AWS service integration",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "watch": "tsc --build --watch",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "prepare": "pnpm run build"
+  },
+  "keywords": [
+    "go-automation",
+    "runbook",
+    "operational",
+    "automation"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "dependencies": {
+    "@go-automation/go-common": "workspace:*"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-athena": "^3.1028.0",
+    "@aws-sdk/client-cloudwatch": "^3.1028.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.1028.0",
+    "@aws-sdk/client-dynamodb": "^3.1028.0",
+    "@aws-sdk/util-dynamodb": "^3.996.2"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-athena": "^3.1028.0",
+    "@aws-sdk/client-cloudwatch": "^3.1028.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.1028.0",
+    "@aws-sdk/client-dynamodb": "^3.1028.0",
+    "@aws-sdk/util-dynamodb": "^3.996.2",
+    "@types/node": "^25.5.2"
+  }
+}
