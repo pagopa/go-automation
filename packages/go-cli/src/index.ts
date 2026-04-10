@@ -251,12 +251,22 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
   console.log('╭─────────────────────────────────────────╮');
   console.log('│  GO Automation CLI                      │');
   console.log('│  Gestione Operativa Control Plane       │');
-  console.log('╰─────────────────────────────────────────╯\n');
+  console.log('╰─────────────────────────────────────────╯\\n');
 
   // Step 1: Select Category
   const categories = [...new Set(scripts.map((s) => s.category))].sort();
+
+  const productMap: Record<string, string> = {
+    go: '[GO] Team Gestione Operativa',
+    send: '[SEND] SErvizio Notifiche Digitali',
+    interop: '[INTEROP] PDND Interoperabilità',
+  };
+
   const categoryChoice = await prompt.select<string>('Select product/team category:', [
-    ...categories.map((c) => ({ title: c.toUpperCase(), value: c })),
+    ...categories.map((c) => ({
+      title: productMap[c] ?? c.toUpperCase(),
+      value: c,
+    })),
   ]);
 
   if (!categoryChoice) process.exit(0);
@@ -289,7 +299,7 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
   });
 
   const selectedTitle = await prompt.autocomplete(
-    `Select a ${selectedCategory.toUpperCase()} script to run:`,
+    `Select a ${productMap[selectedCategory] ?? selectedCategory.toUpperCase()} script to run:`,
     choices.map((c) => c.title),
   );
 
