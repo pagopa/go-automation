@@ -3,6 +3,9 @@ import type { KnipConfig } from 'knip';
 const config: KnipConfig = {
   workspaces: {
     // Shared libraries
+    'packages/go-ai': {
+      project: ['src/**/*.ts'],
+    },
     'packages/go-common': {
       project: ['src/**/*.ts'],
     },

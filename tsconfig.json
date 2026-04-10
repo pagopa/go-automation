@@ -6,8 +6,11 @@
   },
   "files": [],
   "references": [
-    { "path": "./packages/go-common" },
+    { "path": "./functions/go-AILambda" },
+    { "path": "./functions/go-BotQESlackHandler" },
+    { "path": "./functions/go-SendMonitorTppMessagesLambda" },
     { "path": "./packages/go-ai" },
+    { "path": "./packages/go-common" },
     { "path": "./packages/go-runbook" },
     { "path": "./packages/go-send" },
     { "path": "./scripts/go/go-ai-client" },
@@ -21,9 +24,6 @@
     { "path": "./scripts/send/send-import-notifications" },
     { "path": "./scripts/send/send-monitor-tpp-messages" },
     { "path": "./scripts/send/send-query-dynamodb" },
-    { "path": "./scripts/send/send-report-dlq" },
-    { "path": "./functions/go-AILambda" },
-    { "path": "./functions/go-BotQESlackHandler" },
-    { "path": "./functions/go-SendMonitorTppMessagesLambda" }
+    { "path": "./scripts/send/send-report-dlq" }
   ]
 }
