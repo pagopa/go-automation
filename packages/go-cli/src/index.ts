@@ -25,6 +25,22 @@ const presets = new PresetManager();
 const checker = new PreFlightChecker(logger);
 
 async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  if (args.includes('--refresh')) {
+    try {
+      const fs = await import('node:fs/promises');
+      const path = await import('node:path');
+      const { fileURLToPath } = await import('node:url');
+      const dirName = path.dirname(fileURLToPath(import.meta.url));
+      const CACHE_FILE = path.join(dirName, '../.discovery-cache.json');
+      await fs.unlink(CACHE_FILE);
+      console.log('Discovery cache refreshed.');
+    } catch (e) {
+      console.log('No cache to refresh.');
+    }
+    process.exit(0);
+  }
+
   const scripts = await discoverScripts();
 
   const program = new Command();
@@ -38,11 +54,13 @@ async function main(): Promise<void> {
     .option('--dry-run', 'Execute script in dry-run mode (simulated)', false)
     .option('--list-scripts', 'Internal: List all script IDs for autocompletion', false)
     .option('--save <name>', 'Save current arguments as a named preset')
-    .option('--preset <name>', 'Load arguments from a named preset');
+    .option('--preset <name>', 'Load arguments from a named preset')
+    .option('--refresh', 'Force refresh the script discovery cache', false);
 
   // Handle hidden list-scripts flag
   if (process.argv.includes('--list-scripts')) {
-    console.log(scripts.map((s) => s.id).join(' '));
+    console.log('Available scripts:');
+    scripts.forEach((s) => console.log(`  - ${s.id} (${s.category})`));
     process.exit(0);
   }
 
