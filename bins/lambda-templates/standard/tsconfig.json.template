@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "types": ["node", "aws-lambda"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]{{TSCONFIG_REFERENCES_BLOCK}}
+}
