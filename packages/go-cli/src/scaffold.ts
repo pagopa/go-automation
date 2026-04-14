@@ -56,7 +56,10 @@ export class Scaffolder {
 
     const categoryStr = category;
     const description = await this.prompt.text('Description:');
+    if (description === undefined) return;
+
     const author = await this.prompt.text('Author:', { initial: 'Team GO - Gestione Operativa' });
+    if (author === undefined) return;
 
     const productMap: Record<string, string> = { go: 'GO', send: 'SEND', interop: 'INTEROP' };
     const product = productMap[categoryStr] ?? 'GO';

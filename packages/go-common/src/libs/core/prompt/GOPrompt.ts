@@ -409,8 +409,16 @@ export class GOPrompt {
   /**
    * Ask for yes/no confirmation
    */
-  public async confirm(message: string, initialOrOptions?: boolean | GOPromptConfirmOptions): Promise<boolean | undefined> {
-    const options = typeof initialOrOptions === 'object' ? initialOrOptions : { initial: initialOrOptions };
+  public async confirm(
+    message: string,
+    initialOrOptions?: boolean | GOPromptConfirmOptions,
+  ): Promise<boolean | undefined> {
+    const options: GOPromptConfirmOptions =
+      typeof initialOrOptions === 'object'
+        ? initialOrOptions
+        : initialOrOptions !== undefined
+          ? { initial: initialOrOptions }
+          : {};
 
     let cancelled = false;
     const response = await prompts(
@@ -524,7 +532,12 @@ export class GOPrompt {
     choices: string[],
     initialOrOptions?: string | GOPromptAutocompleteOptions,
   ): Promise<string | undefined> {
-    const options = typeof initialOrOptions === 'object' ? initialOrOptions : { initial: initialOrOptions };
+    const options: GOPromptAutocompleteOptions =
+      typeof initialOrOptions === 'object'
+        ? initialOrOptions
+        : initialOrOptions !== undefined
+          ? { initial: initialOrOptions }
+          : {};
 
     const response: { value?: string } = await prompts({
       type: 'autocomplete',

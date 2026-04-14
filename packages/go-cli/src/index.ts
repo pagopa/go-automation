@@ -32,10 +32,10 @@ async function main(): Promise<void> {
       const path = await import('node:path');
       const { fileURLToPath } = await import('node:url');
       const dirName = path.dirname(fileURLToPath(import.meta.url));
-      const CACHE_FILE = path.join(dirName, '../.discovery-cache.json');
-      await fs.unlink(CACHE_FILE);
+      const cacheFile = path.join(dirName, '../.discovery-cache.json');
+      await fs.unlink(cacheFile);
       console.log('Discovery cache refreshed.');
-    } catch (e) {
+    } catch (_e) {
       console.log('No cache to refresh.');
     }
     process.exit(0);
@@ -261,6 +261,32 @@ _go_cli "$@"
   program.parse(process.argv);
 }
 
+type Step =
+  | 'CATEGORY'
+  | 'SCRIPT'
+  | 'MODE'
+  | 'DRY_RUN'
+  | 'PRESET_CHOICE'
+  | 'PRESET_SELECT'
+  | 'ARGS'
+  | 'VALIDATE'
+  | 'SAVE_PRESET_CHOICE'
+  | 'SAVE_PRESET_NAME'
+  | 'EXECUTION';
+
+interface NavigationState {
+  category?: string;
+  script?: DiscoveredScript;
+  mode?: ExecutionMode;
+  isDryRun?: boolean;
+  usePreset?: boolean;
+  selectedPreset?: string;
+  args?: string[];
+  finalArgs?: string[];
+  wantSavePreset?: boolean;
+  presetName?: string;
+}
+
 /**
  * Interactive Mode - Categorized menu for script selection
  */
@@ -271,8 +297,8 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
   console.log('│  Gestione Operativa Control Plane       │');
   console.log('╰─────────────────────────────────────────╯\\n');
 
-  // Step 1: Select Category
-  const categories = [...new Set(scripts.map((s) => s.category))].sort();
+  logger.info('Navigation: [Arrow Keys] to move, [Enter] to select, [Esc] to go back');
+  logger.newline();
 
   const productMap: Record<string, string> = {
     go: '[GO] Team Gestione Operativa',
@@ -280,139 +306,302 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
     interop: '[INTEROP] PDND Interoperabilità',
   };
 
-  const categoryChoice = await prompt.select<string>('Select product/team category:', [
-    ...categories.map((c) => ({
-      title: productMap[c] ?? c.toUpperCase(),
-      value: c,
-    })),
-  ]);
+  const categories = [...new Set(scripts.map((s) => s.category))].sort();
 
-  if (!categoryChoice) process.exit(0);
+  const state: NavigationState = {};
+  const historyStack: Step[] = ['CATEGORY'];
 
-  const selectedCategory = categoryChoice;
-  const categoryScripts = scripts.filter((s) => s.category === selectedCategory);
+  while (historyStack.length > 0) {
+    const currentStep = historyStack[historyStack.length - 1];
 
-  // Load history
-  const recentIds = await history.getHistory();
+    switch (currentStep) {
+      case 'CATEGORY': {
+        const categoryChoice = await prompt.select<string>('Select product/team category:', [
+          ...categories.map((c) => ({
+            title: productMap[c] ?? c.toUpperCase(),
+            value: c,
+          })),
+        ]);
 
-  // Prepare choices for the selected category
-  const choices = categoryScripts.map((s) => {
-    const isRecent = recentIds.includes(s.id);
-    const suffix = isRecent ? ' (recent)' : '';
-    return {
-      title: `${s.id}${suffix}`,
-      value: s.id,
-      description: s.metadata.description,
-      isRecent,
-      historyIndex: recentIds.indexOf(s.id),
-    };
-  });
+        if (categoryChoice === undefined) {
+          historyStack.pop();
+          continue;
+        }
 
-  // Sort: Recents first (in history order), then alphabetical
-  choices.sort((a, b) => {
-    if (a.isRecent && b.isRecent) return a.historyIndex - b.historyIndex;
-    if (a.isRecent) return -1;
-    if (b.isRecent) return 1;
-    return a.title.localeCompare(b.title);
-  });
+        state.category = categoryChoice;
+        historyStack.push('SCRIPT');
+        break;
+      }
 
-  const selectedTitle = await prompt.autocomplete(
-    `Select a ${productMap[selectedCategory] ?? selectedCategory.toUpperCase()} script to run:`,
-    choices.map((c) => c.title),
-  );
+      case 'SCRIPT': {
+        const selectedCategory = state.category;
+        if (!selectedCategory) {
+          historyStack.pop();
+          continue;
+        }
+        const categoryScripts = scripts.filter((s) => s.category === selectedCategory);
+        const recentIds = await history.getHistory();
 
-  if (!selectedTitle) {
-    process.exit(0);
-  }
+        const choices = categoryScripts.map((s) => {
+          const isRecent = recentIds.includes(s.id);
+          const suffix = isRecent ? ' (recent)' : '';
+          return {
+            title: `${s.id}${suffix}`,
+            value: s.id,
+            description: s.metadata.description,
+            isRecent,
+            historyIndex: recentIds.indexOf(s.id),
+          };
+        });
 
-  // Find script by the title match
-  const selectedChoice = choices.find((c) => c.title === selectedTitle);
-  const selectedScript = scripts.find((s) => s.id === selectedChoice?.value);
+        choices.sort((a, b) => {
+          if (a.isRecent && b.isRecent) return a.historyIndex - b.historyIndex;
+          if (a.isRecent) return -1;
+          if (b.isRecent) return 1;
+          return a.title.localeCompare(b.title);
+        });
 
-  if (selectedScript) {
-    // Add to history
-    await history.add(selectedScript.id);
+        const selectedTitle = await prompt.autocomplete(
+          `Select a ${productMap[selectedCategory] ?? selectedCategory.toUpperCase()} script to run:`,
+          choices.map((c) => c.title),
+        );
 
-    const modeChoice = (await prompt.select('Select execution mode:', [
-      { title: 'Source (tsx) - Best for development', value: 'source' },
-      { title: 'Dist (node) - Best for validation', value: 'dist' },
-    ])) as ExecutionMode;
+        if (selectedTitle === undefined) {
+          historyStack.pop();
+          continue;
+        }
 
-    if (!modeChoice) process.exit(0);
+        const selectedChoice = choices.find((c) => c.title === selectedTitle);
+        const selectedScript = scripts.find((s) => s.id === selectedChoice?.value);
 
-    // Pre-flight checks
-    const isReady = await checker.verify(selectedScript, modeChoice);
-    if (!isReady) {
-      process.exit(1);
-    }
+        if (!selectedScript) {
+          // Should not happen with autocomplete
+          continue;
+        }
 
-    const isDryRun = await prompt.confirm('Execute in dry-run mode (simulated)?', false);
+        state.script = selectedScript;
+        historyStack.push('MODE');
+        break;
+      }
 
-    // Load available presets
-    const scriptPresets = await presets.listPresets(selectedScript.id);
-    let initialArgs: string[] = [];
+      case 'MODE': {
+        const modeChoice = await prompt.select<ExecutionMode>('Select execution mode:', [
+          { title: 'Source (tsx) - Best for development', value: 'source' },
+          { title: 'Dist (node) - Best for validation', value: 'dist' },
+        ]);
 
-    if (scriptPresets.length > 0) {
-      const usePreset = await prompt.confirm('Do you want to use a saved preset?', false);
-      if (usePreset) {
+        if (modeChoice === undefined) {
+          historyStack.pop();
+          continue;
+        }
+
+        state.mode = modeChoice;
+
+        if (!state.script) {
+          historyStack.pop();
+          continue;
+        }
+
+        // Pre-flight checks
+        const isReady = await checker.verify(state.script, state.mode);
+        if (!isReady) {
+          // If not ready, we don't go back, we just stay here or let the user fix it
+          continue;
+        }
+
+        historyStack.push('DRY_RUN');
+        break;
+      }
+
+      case 'DRY_RUN': {
+        const isDryRun = await prompt.confirm('Execute in dry-run mode (simulated)?', false);
+
+        if (isDryRun === undefined) {
+          historyStack.pop();
+          continue;
+        }
+
+        state.isDryRun = isDryRun;
+        historyStack.push('PRESET_CHOICE');
+        break;
+      }
+
+      case 'PRESET_CHOICE': {
+        if (!state.script) {
+          historyStack.pop();
+          continue;
+        }
+        const scriptPresets = await presets.listPresets(state.script.id);
+        if (scriptPresets.length > 0) {
+          const usePreset = await prompt.confirm('Do you want to use a saved preset?', false);
+          if (usePreset === undefined) {
+            historyStack.pop();
+            continue;
+          }
+
+          state.usePreset = usePreset;
+          if (usePreset) {
+            historyStack.push('PRESET_SELECT');
+          } else {
+            historyStack.push('ARGS');
+          }
+        } else {
+          state.usePreset = false;
+          historyStack.push('ARGS');
+        }
+        break;
+      }
+
+      case 'PRESET_SELECT': {
+        if (!state.script) {
+          historyStack.pop();
+          continue;
+        }
+        const scriptPresets = await presets.listPresets(state.script.id);
         const selectedPreset = await prompt.select<string>(
           'Select a preset:',
           scriptPresets.map((p) => ({ title: p, value: p })),
         );
-        if (selectedPreset) {
-          initialArgs = (await presets.getPreset(selectedScript.id, selectedPreset)) ?? [];
+
+        if (selectedPreset === undefined) {
+          historyStack.pop();
+          continue;
         }
+
+        state.selectedPreset = selectedPreset;
+        state.args = (await presets.getPreset(state.script.id, selectedPreset)) ?? [];
+        historyStack.push('VALIDATE');
+        break;
       }
-    }
 
-    if (initialArgs.length === 0) {
-      // Lazy load parameters
-      const parameters = await loadScriptParameters(selectedScript);
+      case 'ARGS': {
+        if (!state.script) {
+          historyStack.pop();
+          continue;
+        }
+        // Lazy load parameters if not already loaded
+        const parameters = await loadScriptParameters(state.script);
 
-      const mandatoryFlags = parameters
-        .filter((p) => p.required)
-        .map((p) => Core.GOConfigKeyTransformer.toCLIFlag(p.name))
-        .join(', ');
+        const mandatoryFlags = parameters
+          .filter((p) => p.required)
+          .map((p) => Core.GOConfigKeyTransformer.toCLIFlag(p.name))
+          .join(', ');
 
-      const promptMsg = mandatoryFlags
-        ? `Enter arguments (Mandatory: ${mandatoryFlags}):`
-        : 'Enter additional arguments (optional, e.g. --param value):';
+        const promptMsg = mandatoryFlags
+          ? `Enter arguments (Mandatory: ${mandatoryFlags}):`
+          : 'Enter additional arguments (optional, e.g. --param value):';
 
-      const argsInput = await prompt.text(promptMsg);
-      initialArgs = argsInput && argsInput.trim() !== '' ? argsInput.trim().split(/\s+/) : [];
-    }
+        const argsInput = await prompt.text(promptMsg);
 
-    // Validate and inform about parameters before execution (Interactive)
-    const { valid, finalArgs } = await validateAndInformParameters(selectedScript, initialArgs, prompt, logger, true);
+        if (argsInput === undefined) {
+          historyStack.pop();
+          continue;
+        }
 
-    if (!valid) {
-      process.exit(1);
-    }
+        state.args = argsInput.trim() !== '' ? argsInput.trim().split(/\s+/) : [];
+        historyStack.push('VALIDATE');
+        break;
+      }
 
-    // Ask to save as preset if it's a new set of args
-    if (initialArgs.length > 0) {
-      const wantSave = await prompt.confirm('Do you want to save these arguments as a preset?', false);
-      if (wantSave) {
+      case 'VALIDATE': {
+        if (!state.script || !state.args) {
+          historyStack.pop();
+          continue;
+        }
+        const { valid, back, finalArgs } = await validateAndInformParameters(
+          state.script,
+          state.args,
+          prompt,
+          logger,
+          true,
+        );
+
+        if (back) {
+          historyStack.pop();
+          continue;
+        }
+
+        if (!valid) {
+          historyStack.pop(); // Go back to ARGS/PRESET_SELECT
+          continue;
+        }
+
+        state.finalArgs = finalArgs;
+
+        // If we used a preset, we don't need to ask to save it again unless it changed
+        if (!state.usePreset && state.args.length > 0) {
+          historyStack.push('SAVE_PRESET_CHOICE');
+        } else {
+          historyStack.push('EXECUTION');
+        }
+        break;
+      }
+
+      case 'SAVE_PRESET_CHOICE': {
+        const wantSave = await prompt.confirm('Do you want to save these arguments as a preset?', false);
+
+        if (wantSave === undefined) {
+          historyStack.pop();
+          continue;
+        }
+
+        if (wantSave) {
+          historyStack.push('SAVE_PRESET_NAME');
+        } else {
+          historyStack.push('EXECUTION');
+        }
+        break;
+      }
+
+      case 'SAVE_PRESET_NAME': {
+        if (!state.script || !state.finalArgs) {
+          historyStack.pop();
+          continue;
+        }
         const name = await prompt.text('Preset Name:');
+
+        if (name === undefined) {
+          historyStack.pop();
+          continue;
+        }
+
         if (name) {
-          await presets.savePreset(selectedScript.id, name, finalArgs);
+          await presets.savePreset(state.script.id, name, state.finalArgs);
           logger.success(`Preset '${name}' saved.`);
         }
+        historyStack.push('EXECUTION');
+        break;
       }
-    }
 
-    if (isDryRun) {
-      logger.newline();
-      logger.header('DRY RUN ACTIVE - NO REAL CHANGES WILL BE MADE');
-    }
+      case 'EXECUTION': {
+        if (!state.script || !state.mode || !state.finalArgs || state.isDryRun === undefined) {
+          historyStack.pop();
+          continue;
+        }
+        // Add to history just before execution
+        await history.add(state.script.id);
 
-    const exitCode = await runScript(selectedScript, {
-      mode: modeChoice,
-      args: finalArgs,
-      isDryRun,
-    });
-    process.exit(exitCode);
+        if (state.isDryRun) {
+          logger.newline();
+          logger.header('DRY RUN ACTIVE - NO REAL CHANGES WILL BE MADE');
+        }
+
+        const exitCode = await runScript(state.script, {
+          mode: state.mode,
+          args: state.finalArgs,
+          isDryRun: state.isDryRun,
+        });
+        process.exit(exitCode);
+      }
+
+      default:
+        historyStack.pop();
+        break;
+    }
   }
+
+  // If loop finishes (stack empty), just exit
+  process.exit(0);
 }
 
 main().catch((err: Error) => {

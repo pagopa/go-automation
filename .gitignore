@@ -60,4 +60,5 @@ tmp/
 # Gemini
 .gemini/
 .serena/
+docs/superpowers/
 GEMINI.md

@@ -365,7 +365,7 @@ export class GOScript {
    * @param defaultValue - Default value if user doesn't respond
    */
   private createPromptCallback(defaultValue: boolean): (message: string) => Promise<boolean> {
-    return async (message) => this.prompt.confirm(message, defaultValue);
+    return async (message) => (await this.prompt.confirm(message, defaultValue)) ?? defaultValue;
   }
 
   /**
