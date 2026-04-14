@@ -11,7 +11,7 @@ export async function validateAndInformParameters(
   prompt: Core.GOPrompt,
   logger: Core.GOLogger,
   isInteractive: boolean,
-): Promise<{ valid: boolean; finalArgs: string[] }> {
+): Promise<{ valid: boolean; back?: boolean; finalArgs: string[] }> {
   if (!script.parameters) {
     logger.error(`Parameters for script ${script.id} are not loaded.`);
     return { valid: false, finalArgs: args };
@@ -88,7 +88,11 @@ export async function validateAndInformParameters(
         const flag = Core.GOConfigKeyTransformer.toCLIFlag(param.name);
         const value = await promptForParam(param, prompt);
 
-        if (value === undefined || value === '') {
+        if (value === undefined) {
+          return { valid: false, back: true, finalArgs };
+        }
+
+        if (value === '') {
           logger.error(`Mandatory parameter ${flag} is still missing. Execution aborted.`);
           return { valid: false, finalArgs };
         }
@@ -112,6 +116,10 @@ export async function validateAndInformParameters(
         false,
       );
 
+      if (wantOptional === undefined) {
+        return { valid: false, back: true, finalArgs };
+      }
+
       if (wantOptional) {
         const selectedNames = await prompt.multiselect<string>(
           'Select optional parameters to configure:',
@@ -125,12 +133,21 @@ export async function validateAndInformParameters(
           }),
         );
 
+        if (selectedNames === undefined) {
+          return { valid: false, back: true, finalArgs };
+        }
+
         for (const name of selectedNames) {
           const param = unprovidedOptional.find((p) => p.name === name);
           if (param) {
             const flag = Core.GOConfigKeyTransformer.toCLIFlag(param.name);
             const value = await promptForParam(param, prompt);
-            if (value !== undefined && value !== '') {
+
+            if (value === undefined) {
+              return { valid: false, back: true, finalArgs };
+            }
+
+            if (value !== '') {
               pushArg(finalArgs, flag, value, param.type);
             }
           }
@@ -259,7 +276,8 @@ async function promptForParam(
       };
       if (initial !== undefined) options.initial = initial;
       const resp = await prompt.text(`${message} (comma-separated)`, options);
-      return resp ? resp.split(',').map((s) => s.trim()) : undefined;
+      if (resp === undefined) return undefined;
+      return resp.trim() === '' ? '' : resp.split(',').map((s) => s.trim());
     }
 
     default: {
