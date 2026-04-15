@@ -8,6 +8,7 @@
  */
 
 import * as fs from 'fs/promises';
+import type { Dirent } from 'fs';
 import * as path from 'path';
 
 import type { ScaffoldRule } from './types/index.js';
@@ -177,20 +178,21 @@ export const monorepoRules: ReadonlyArray<ScaffoldRule> = [
       }
 
       const packagesDir = path.join(rootDir, 'packages');
-      let entries: ReadonlyArray<fs.Dirent>;
+      let entries: Dirent[];
       try {
         entries = await fs.readdir(packagesDir, { withFileTypes: true });
       } catch {
         return { rule: ruleName, passed: true };
       }
 
-      const packageNames = entries.filter((e) => e.isDirectory()).map((e) => e.name);
       const missing: string[] = [];
 
-      for (const pkg of packageNames) {
-        const knipKey = `packages/${pkg}`;
-        if (!content.includes(`'${knipKey}'`)) {
-          missing.push(knipKey);
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const knipKey = `packages/${entry.name}`;
+          if (!content.includes(`'${knipKey}'`)) {
+            missing.push(knipKey);
+          }
         }
       }
 
