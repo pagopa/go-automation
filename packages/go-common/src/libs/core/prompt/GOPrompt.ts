@@ -330,16 +330,25 @@ export class GOPrompt {
    * Ask for text input
    */
   public async text(message: string, options?: GOPromptTextOptions): Promise<string | undefined> {
-    const response = await prompts({
-      type: 'text',
-      name: 'value',
-      message: message,
-      initial: options?.initial,
-      validate: options?.validate,
-      hint: options?.hint,
-    });
+    let cancelled = false;
+    const response = await prompts(
+      {
+        type: 'text',
+        name: 'value',
+        message: message,
+        initial: options?.initial,
+        validate: options?.validate,
+        hint: options?.hint,
+      },
+      {
+        onCancel: () => {
+          cancelled = true;
+          return false;
+        },
+      },
+    );
 
-    if (response.value === undefined) {
+    if (cancelled || response.value === undefined) {
       return undefined;
     }
 
@@ -356,16 +365,25 @@ export class GOPrompt {
    * Ask for password input (hidden)
    */
   public async password(message: string, options?: GOPromptTextOptions): Promise<string | undefined> {
-    const response = await prompts({
-      type: 'password',
-      name: 'value',
-      message: message,
-      initial: options?.initial,
-      validate: options?.validate,
-      hint: options?.hint,
-    });
+    let cancelled = false;
+    const response = await prompts(
+      {
+        type: 'password',
+        name: 'value',
+        message: message,
+        initial: options?.initial,
+        validate: options?.validate,
+        hint: options?.hint,
+      },
+      {
+        onCancel: () => {
+          cancelled = true;
+          return false;
+        },
+      },
+    );
 
-    if (response.value === undefined) {
+    if (cancelled || response.value === undefined) {
       return undefined;
     }
 
@@ -382,18 +400,27 @@ export class GOPrompt {
    * Ask for number input
    */
   public async number(message: string, options?: GOPromptNumberOptions): Promise<number | undefined> {
-    const response = await prompts({
-      type: 'number',
-      name: 'value',
-      message: message,
-      initial: options?.initial,
-      min: options?.min,
-      max: options?.max,
-      validate: options?.validate,
-      hint: options?.hint,
-    });
+    let cancelled = false;
+    const response = await prompts(
+      {
+        type: 'number',
+        name: 'value',
+        message: message,
+        initial: options?.initial,
+        min: options?.min,
+        max: options?.max,
+        validate: options?.validate,
+        hint: options?.hint,
+      },
+      {
+        onCancel: () => {
+          cancelled = true;
+          return false;
+        },
+      },
+    );
 
-    if (response.value === undefined) {
+    if (cancelled || response.value === undefined) {
       return undefined;
     }
 
@@ -460,20 +487,29 @@ export class GOPrompt {
     choices: GOPromptSelectOption[],
     options?: GOPromptSelectOptions,
   ): Promise<T | undefined> {
-    const response = await prompts({
-      type: 'select',
-      name: 'value',
-      message: message,
-      hint: options?.hint ?? GOPrompt.defaultHint,
-      choices: choices.map((choice) => ({
-        title: choice.title,
-        value: choice.value,
-        description: choice.description,
-        hint: choice.hint,
-      })),
-    });
+    let cancelled = false;
+    const response = await prompts(
+      {
+        type: 'select',
+        name: 'value',
+        message: message,
+        hint: options?.hint ?? GOPrompt.defaultHint,
+        choices: choices.map((choice) => ({
+          title: choice.title,
+          value: choice.value,
+          description: choice.description,
+          hint: choice.hint,
+        })),
+      },
+      {
+        onCancel: () => {
+          cancelled = true;
+          return false;
+        },
+      },
+    );
 
-    if (response.value === undefined) {
+    if (cancelled || response.value === undefined) {
       return undefined;
     }
 
@@ -495,21 +531,30 @@ export class GOPrompt {
     choices: GOPromptMultiselectOption[],
     options?: GOPromptMultiselectOptions,
   ): Promise<T[] | undefined> {
-    const response: { value?: T[] } = await prompts({
-      type: 'multiselect',
-      name: 'value',
-      message: message,
-      hint: options?.hint,
-      choices: choices.map((choice) => ({
-        title: choice.title,
-        value: choice.value,
-        selected: choice.selected ?? false,
-        description: choice.description,
-        hint: choice.hint,
-      })),
-    });
+    let cancelled = false;
+    const response: { value?: T[] } = await prompts(
+      {
+        type: 'multiselect',
+        name: 'value',
+        message: message,
+        hint: options?.hint,
+        choices: choices.map((choice) => ({
+          title: choice.title,
+          value: choice.value,
+          selected: choice.selected ?? false,
+          description: choice.description,
+          hint: choice.hint,
+        })),
+      },
+      {
+        onCancel: () => {
+          cancelled = true;
+          return false;
+        },
+      },
+    );
 
-    if (response.value === undefined) {
+    if (cancelled || response.value === undefined) {
       return undefined;
     }
 
@@ -539,16 +584,25 @@ export class GOPrompt {
           ? { initial: initialOrOptions }
           : {};
 
-    const response: { value?: string } = await prompts({
-      type: 'autocomplete',
-      name: 'value',
-      message: message,
-      initial: options.initial,
-      hint: options.hint ?? GOPrompt.defaultHint,
-      choices: choices.map((choice) => ({ title: choice, value: choice })),
-    });
+    let cancelled = false;
+    const response: { value?: string } = await prompts(
+      {
+        type: 'autocomplete',
+        name: 'value',
+        message: message,
+        initial: options.initial,
+        hint: options.hint ?? GOPrompt.defaultHint,
+        choices: choices.map((choice) => ({ title: choice, value: choice })),
+      },
+      {
+        onCancel: () => {
+          cancelled = true;
+          return false;
+        },
+      },
+    );
 
-    if (response.value === undefined) {
+    if (cancelled || response.value === undefined) {
       return undefined;
     }
 
