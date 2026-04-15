@@ -269,7 +269,6 @@ type Step =
   | 'PRESET_CHOICE'
   | 'PRESET_SELECT'
   | 'ARGS'
-  | 'VALIDATE'
   | 'SAVE_PRESET_CHOICE'
   | 'SAVE_PRESET_NAME'
   | 'EXECUTION';
@@ -295,9 +294,8 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
   console.log('╭─────────────────────────────────────────╮');
   console.log('│  GO Automation CLI                      │');
   console.log('│  Gestione Operativa Control Plane       │');
-  console.log('╰─────────────────────────────────────────╯\\n');
+  console.log('╰─────────────────────────────────────────╯');
 
-  logger.info('Navigation: [Arrow Keys] to move, [Enter] to select, [Esc] to go back');
   logger.newline();
 
   const productMap: Record<string, string> = {
@@ -414,6 +412,10 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
       }
 
       case 'DRY_RUN': {
+        if (!state.script) {
+          historyStack.pop();
+          continue;
+        }
         const isDryRun = await prompt.confirm('Execute in dry-run mode (simulated)?', false);
 
         if (isDryRun === undefined) {
@@ -422,7 +424,14 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
         }
 
         state.isDryRun = isDryRun;
-        historyStack.push('PRESET_CHOICE');
+
+        const scriptPresets = await presets.listPresets(state.script.id);
+        if (scriptPresets.length > 0) {
+          historyStack.push('PRESET_CHOICE');
+        } else {
+          state.usePreset = false;
+          historyStack.push('ARGS');
+        }
         break;
       }
 
@@ -431,22 +440,16 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
           historyStack.pop();
           continue;
         }
-        const scriptPresets = await presets.listPresets(state.script.id);
-        if (scriptPresets.length > 0) {
-          const usePreset = await prompt.confirm('Do you want to use a saved preset?', false);
-          if (usePreset === undefined) {
-            historyStack.pop();
-            continue;
-          }
+        const usePreset = await prompt.confirm('Do you want to use a saved preset?', false);
+        if (usePreset === undefined) {
+          historyStack.pop();
+          continue;
+        }
 
-          state.usePreset = usePreset;
-          if (usePreset) {
-            historyStack.push('PRESET_SELECT');
-          } else {
-            historyStack.push('ARGS');
-          }
+        state.usePreset = usePreset;
+        if (usePreset) {
+          historyStack.push('PRESET_SELECT');
         } else {
-          state.usePreset = false;
           historyStack.push('ARGS');
         }
         break;
@@ -470,7 +473,21 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
 
         state.selectedPreset = selectedPreset;
         state.args = (await presets.getPreset(state.script.id, selectedPreset)) ?? [];
-        historyStack.push('VALIDATE');
+
+        const { valid, back, finalArgs } = await validateAndInformParameters(
+          state.script,
+          state.args,
+          prompt,
+          logger,
+          true,
+        );
+
+        if (back || !valid) {
+          continue;
+        }
+
+        state.finalArgs = finalArgs;
+        historyStack.push('EXECUTION');
         break;
       }
 
@@ -499,15 +516,7 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
         }
 
         state.args = argsInput.trim() !== '' ? argsInput.trim().split(/\s+/) : [];
-        historyStack.push('VALIDATE');
-        break;
-      }
 
-      case 'VALIDATE': {
-        if (!state.script || !state.args) {
-          historyStack.pop();
-          continue;
-        }
         const { valid, back, finalArgs } = await validateAndInformParameters(
           state.script,
           state.args,
@@ -516,20 +525,13 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
           true,
         );
 
-        if (back) {
-          historyStack.pop();
-          continue;
-        }
-
-        if (!valid) {
-          historyStack.pop(); // Go back to ARGS/PRESET_SELECT
+        if (back || !valid) {
           continue;
         }
 
         state.finalArgs = finalArgs;
 
-        // If we used a preset, we don't need to ask to save it again unless it changed
-        if (!state.usePreset && state.args.length > 0) {
+        if (state.args.length > 0) {
           historyStack.push('SAVE_PRESET_CHOICE');
         } else {
           historyStack.push('EXECUTION');
