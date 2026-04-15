@@ -29,10 +29,10 @@
     "@go-automation/go-common": "workspace:*"
   },
   "peerDependencies": {
-    "@aws-sdk/client-dynamodb": "^3.1028.0"
+    "@aws-sdk/client-dynamodb": "^3.1030.0"
   },
   "devDependencies": {
-    "@aws-sdk/client-dynamodb": "^3.1028.0",
+    "@aws-sdk/client-dynamodb": "^3.1030.0",
     "@types/node": "^24.12.2"
   }
 }
