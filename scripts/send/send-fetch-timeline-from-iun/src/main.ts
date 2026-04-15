@@ -6,7 +6,8 @@
  * and writes results to a JSON file.
  */
 
-import { Core, SEND } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
+import { SENDTimelineService } from '@go-automation/go-send';
 
 import type { SendFetchTimelineFromIunConfig } from './types/SendFetchTimelineFromIunConfig.js';
 import { readIunFile, writeResultsFile } from './libs/FileService.js';
@@ -29,7 +30,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<SendFetchTimelineFromIunConfig>();
 
   // Initialize Timeline service using script.aws provider
-  const timelineService = new SEND.SENDTimelineService(script.aws.dynamoDB);
+  const timelineService = new SENDTimelineService(script.aws.dynamoDB);
 
   // Step 1: Read IUNs from input file
   script.logger.section('Reading Input File');

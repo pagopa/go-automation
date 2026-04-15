@@ -2,7 +2,7 @@
  * Main SDK class for convenient access to all services
  */
 
-import { GOHttpClient } from '../core/network/GOHttpClient.js';
+import { GOHttpClient } from '@go-automation/go-common/core';
 
 import { SENDF24MetadataBuilder } from './builders/SENDF24MetadataBuilder.js';
 import { SENDNotificationBuilder } from './builders/SENDNotificationBuilder.js';

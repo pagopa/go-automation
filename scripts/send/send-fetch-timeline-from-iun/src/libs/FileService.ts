@@ -3,7 +3,7 @@
  */
 
 import { Core } from '@go-automation/go-common';
-import type { SEND } from '@go-automation/go-common';
+import type { SENDTimelineResult } from '@go-automation/go-send';
 
 /**
  * Reads IUN lines from a text file using GOFileListImporter
@@ -41,11 +41,8 @@ export async function readIunFile(filePath: string): Promise<ReadonlyArray<strin
  * await writeResultsFile('/path/to/output.json', results);
  * ```
  */
-export async function writeResultsFile(
-  filePath: string,
-  results: ReadonlyArray<SEND.SENDTimelineResult>,
-): Promise<void> {
-  const exporter = new Core.GOJSONListExporter<SEND.SENDTimelineResult>({
+export async function writeResultsFile(filePath: string, results: ReadonlyArray<SENDTimelineResult>): Promise<void> {
+  const exporter = new Core.GOJSONListExporter<SENDTimelineResult>({
     outputPath: filePath,
     pretty: true,
     indent: 4,

@@ -2,7 +2,7 @@
  * IUN Parser - Parses IUNs from various input formats
  */
 
-import type { SEND } from '@go-automation/go-common';
+import type { SENDParsedIun } from '@go-automation/go-send';
 
 /**
  * Parses a raw line into a SENDParsedIun object
@@ -21,7 +21,7 @@ import type { SEND } from '@go-automation/go-common';
  * // { iun: 'ABCD-1234-5678', dateFilter: '2024-01-15' }
  * ```
  */
-function parseIunLine(line: string): SEND.SENDParsedIun {
+function parseIunLine(line: string): SENDParsedIun {
   const trimmed = line.trim();
 
   // Handle IUN embedded in filename format: IUN_xxx.RECINDEX_yyy
@@ -67,9 +67,9 @@ function parseIunLine(line: string): SEND.SENDParsedIun {
  * // Returns 2 unique SENDParsedIun objects
  * ```
  */
-export function parseIunLines(lines: ReadonlyArray<string>): ReadonlyArray<SEND.SENDParsedIun> {
+export function parseIunLines(lines: ReadonlyArray<string>): ReadonlyArray<SENDParsedIun> {
   const seen = new Set<string>();
-  const result: SEND.SENDParsedIun[] = [];
+  const result: SENDParsedIun[] = [];
 
   for (const line of lines) {
     const trimmed = line.trim();

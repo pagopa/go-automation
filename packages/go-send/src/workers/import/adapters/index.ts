@@ -6,8 +6,8 @@
  */
 
 // Re-export generic CSV adapter interfaces
-export type { GOCSVFormatAdapter } from '../../../../core/importers/csv/GOCSVFormatAdapter.js';
-export { GOCSVAdapterFactory } from '../../../../core/importers/csv/GOCSVAdapterFactory.js';
+export type { GOCSVFormatAdapter } from '@go-automation/go-common/core';
+export { GOCSVAdapterFactory } from '@go-automation/go-common/core';
 
 // Concrete SEND adapters
 export { StandardFormatAdapter } from './StandardFormatAdapter.js';

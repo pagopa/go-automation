@@ -37,10 +37,10 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-athena": "^3.1028.0",
+    "@aws-sdk/client-athena": "^3.1030.0",
     "@aws-sdk/credential-provider-ini": "^3.972.29",
     "@go-automation/go-common": "workspace:*",
-    "@slack/web-api": "^7.15.0",
+    "@slack/web-api": "^7.15.1",
     "croner": "^10.0.1",
     "luxon": "^3.7.2",
     "yaml": "^2.8.3"

@@ -26,7 +26,8 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@go-automation/go-common": "workspace:*"
+    "@go-automation/go-common": "workspace:*",
+    "@go-automation/go-send": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.12.2"

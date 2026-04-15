@@ -16,6 +16,7 @@ import * as path from 'path';
 
 import { ScaffoldEngine } from './ScaffoldEngine.js';
 import { functionRules } from './functionRules.js';
+import { monorepoRules } from './monorepoRules.js';
 import { scaffoldRules } from './rules.js';
 
 // ── ANSI helpers ──────────────────────────────────────────────────────
@@ -87,7 +88,7 @@ async function validateGroup(
   let totalWarnings = 0;
 
   for (const targetPath of group.paths) {
-    const name = path.relative(rootDir, targetPath);
+    const name = path.relative(rootDir, targetPath) || '.';
     const results = await group.engine.validate(targetPath);
     const errors = results.filter((r) => !r.passed && r.severity === 'error');
     const warnings = results.filter((r) => !r.passed && r.severity === 'warning');
@@ -143,6 +144,12 @@ async function main(): Promise<void> {
 
   const groups: ReadonlyArray<ValidationTargetGroup> = [
     {
+      label: 'Monorepo',
+      countLabel: 'monorepo',
+      paths: [rootDir],
+      engine: new ScaffoldEngine(monorepoRules),
+    },
+    {
       label: 'Scripts',
       countLabel: 'scripts',
       paths: scripts,
@@ -175,7 +182,9 @@ async function main(): Promise<void> {
   const parts: string[] = [];
 
   for (const group of groups) {
-    parts.push(`${BOLD}${String(group.paths.length)} ${group.countLabel}${RESET}`);
+    if (group.paths.length > 1) {
+      parts.push(`${BOLD}${String(group.paths.length)} ${group.countLabel}${RESET}`);
+    }
   }
 
   parts.push(`${String(totalChecks)} checks`);

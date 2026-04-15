@@ -10,12 +10,9 @@
 
 import * as fs from 'fs';
 
-import { GOEventEmitterBase } from '../../../core/events/GOEventEmitterBase.js';
-import type { GOListImporter } from '../../../core/importers/GOListImporter.js';
-import type {
-  GOListImportErrorEvent,
-  GOListImportProgressEvent,
-} from '../../../core/importers/GOListImporterEvents.js';
+import { GOEventEmitterBase } from '@go-automation/go-common/core';
+import type { GOListImporter } from '@go-automation/go-common/core';
+import type { GOListImportErrorEvent, GOListImportProgressEvent } from '@go-automation/go-common/core';
 import { SENDNotifications } from '../../SENDNotifications.js';
 
 import { SENDNotificationImportBatchProcessor } from './SENDNotificationImportBatchProcessor.js';
@@ -29,7 +26,7 @@ import type { SENDNotificationImportWorkerEventMap } from './SENDNotificationImp
 import type { SENDNotificationImportWorkerOptions } from './SENDNotificationImportWorkerOptions.js';
 import type { SENDNotificationImportWorkerResult } from './SENDNotificationImportWorkerResult.js';
 import type { SENDNotificationRow } from './SENDNotificationRow.js';
-import { getErrorMessage } from '../../../core/index.js';
+import { getErrorMessage } from '@go-automation/go-common/core';
 
 type ImportSource = string | Buffer;
 
