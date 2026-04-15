@@ -64,10 +64,6 @@ Parameters:
     Type: String
     Description: 'The Slack channel where notifications will be sent'
     
-  ReportS3Bucket:
-    Type: String
-    Description: 'The S3 bucket where generated reports will be stored'
-    
   Timezone:
     Type: String
     Description: 'The timezone to use for date formatting in notifications and reports'
@@ -84,6 +80,10 @@ Parameters:
   LogsBucketName:
     Type: String
     Description: 'The name of the S3 bucket where Lambda logs will be stored'
+
+  GoReportBucketName:
+    Type: String
+    Description: 'The name of the S3 bucket where reports will be stored'
 
 Resources:
 
@@ -108,7 +108,7 @@ Resources:
           ATHENA_MAX_RETRIES: !Ref AthenaMaxRetries
           ATHENA_RETRY_DELAY: !Ref AthenaRetryDelay
           SLACK_CHANNEL: !Ref SlackChannel
-          REPORTS_S3_BUCKET: !Ref ReportS3Bucket
+          REPORTS_S3_BUCKET: !Ref GoReportBucketName
           TZ: !Ref Timezone
           SLACK_TOKEN: !Sub "{{resolve:secretsmanager:${SlackTokenSecretName}}}"
           VERSION: !Ref Version
@@ -173,7 +173,7 @@ Resources:
                 Action:
                   - s3:PutObject
                 Resource:
-                  - !Sub "arn:aws:s3:::${ReportS3Bucket}/*"
+                  - !Sub "arn:aws:s3:::${GoReportBucketName}/*"
         - PolicyName: LogsBucketAccess
           PolicyDocument:
             Version: "2012-10-17"
