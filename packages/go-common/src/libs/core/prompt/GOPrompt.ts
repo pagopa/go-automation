@@ -107,7 +107,7 @@ export class GOPrompt {
   private readonly logResponses: boolean;
 
   /** Default hint for interactive selection prompts */
-  private static readonly DEFAULT_HINT = '(Use arrow-keys, Enter to submit, Esc to go back)';
+  private static readonly defaultHint = '(Use arrow-keys, Enter to submit, Esc to go back)';
 
   constructor(logger: GOLogger, logResponses: boolean = false) {
     this.logger = logger;
@@ -464,7 +464,7 @@ export class GOPrompt {
       type: 'select',
       name: 'value',
       message: message,
-      hint: options?.hint ?? GOPrompt.DEFAULT_HINT,
+      hint: options?.hint ?? GOPrompt.defaultHint,
       choices: choices.map((choice) => ({
         title: choice.title,
         value: choice.value,
@@ -513,7 +513,7 @@ export class GOPrompt {
       return undefined;
     }
 
-    const values = response.value as T[];
+    const values = response.value;
 
     if (this.logger && this.logResponses) {
       const selected = choices.filter((c) => values.includes(c.value as T));
@@ -544,7 +544,7 @@ export class GOPrompt {
       name: 'value',
       message: message,
       initial: options.initial,
-      hint: options.hint ?? GOPrompt.DEFAULT_HINT,
+      hint: options.hint ?? GOPrompt.defaultHint,
       choices: choices.map((choice) => ({ title: choice, value: choice })),
     });
 
@@ -552,7 +552,7 @@ export class GOPrompt {
       return undefined;
     }
 
-    const value = response.value as string;
+    const value = response.value;
 
     if (this.logger && this.logResponses) {
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${value}`);

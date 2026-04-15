@@ -574,9 +574,9 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
       }
 
       case 'EXECUTION': {
-        if (!state.script || !state.mode || !state.finalArgs || state.isDryRun === undefined) {
+        if (!state.script || !state.mode || !state.finalArgs) {
           historyStack.pop();
-          continue;
+          break;
         }
         // Add to history just before execution
         await history.add(state.script.id);
@@ -589,9 +589,9 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
         const exitCode = await runScript(state.script, {
           mode: state.mode,
           args: state.finalArgs,
-          isDryRun: state.isDryRun,
+          isDryRun: state.isDryRun ?? false,
         });
-        process.exit(exitCode);
+        return process.exit(exitCode);
       }
 
       default:
