@@ -1,0 +1,7 @@
+/**
+ * Script configuration interface
+ * Represents all validated configuration parameters
+ */
+export interface {{SCRIPT_CONFIG_NAME}} {
+{{CONFIG_INTERFACE_CONTENT}}
+}

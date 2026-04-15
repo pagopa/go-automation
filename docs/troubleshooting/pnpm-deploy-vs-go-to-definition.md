@@ -29,7 +29,7 @@ A partire da **pnpm v10**, il comando `pnpm deploy` richiede l'opzione `inject-w
 
 ### Requisito 2: VSCode "Go to Definition" funzionante
 
-La funzionalita "Go to Definition" (F12 o Cmd+Click) di VSCode deve navigare direttamente ai **file sorgente** in `packages/go-common/src/`, non ai file compilati o alle copie in `node_modules`.
+La funzionalità "Go to Definition" (F12 o Cmd+Click) di VSCode deve navigare direttamente ai **file sorgente** in `packages/go-common/src/`, non ai file compilati o alle copie in `node_modules`.
 
 ### Il Conflitto
 
@@ -256,7 +256,7 @@ const configPath = path.join(import.meta.dirname, 'config.json');
 ## Riferimenti
 
 - **pnpm deploy documentation**: https://pnpm.io/cli/deploy
-- **Discussione sulla nuova modalita deploy**: https://github.com/orgs/pnpm/discussions/9015
+- **Discussione sulla nuova modalità deploy**: https://github.com/orgs/pnpm/discussions/9015
 - **Issue su inject-workspace-packages**: https://github.com/pnpm/pnpm/issues/8975
 - **import.meta.dirname in Node.js**: https://nodejs.org/api/esm.html#importmetadirname
 

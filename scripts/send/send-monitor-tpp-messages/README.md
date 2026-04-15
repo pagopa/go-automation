@@ -6,7 +6,7 @@ Script di monitoraggio messaggi TPP (Third Party Provider) tramite query Athena 
 
 ## Indice
 
-- [Funzionalita](#funzionalita)
+- [Funzionalità](#funzionalità)
 - [Prerequisiti](#prerequisiti)
 - [Configurazione](#configurazione)
 - [Utilizzo](#utilizzo)
@@ -14,7 +14,7 @@ Script di monitoraggio messaggi TPP (Third Party Provider) tramite query Athena 
 - [Scheduling](#scheduling)
 - [Troubleshooting](#troubleshooting)
 
-## Funzionalita
+## Funzionalità
 
 - **Query Athena ottimizzate**: Esegue query su tabelle partizionate per ora con filtri su partizioni (alta performance)
 - **Report CSV automatici**: Genera file CSV con timestamp e conteggio notifiche TPP per fascia oraria
@@ -76,14 +76,17 @@ Script di monitoraggio messaggi TPP (Third Party Provider) tramite query Athena 
 
 #### Athena
 
-| Parametro                  | Alias  | Tipo   | Obbligatorio | Default          | Descrizione           |
-| -------------------------- | ------ | ------ | ------------ | ---------------- | --------------------- |
-| `--athena.database`        | `-ad`  | string | Si           | -                | Database Athena       |
-| `--athena.catalog`         | `-ac`  | string | No           | `AwsDataCatalog` | Data catalog          |
-| `--athena.workgroup`       | `-aw`  | string | No           | `primary`        | Workgroup Athena      |
-| `--athena.output.location` | `-ao`  | string | Si           | -                | S3 path per output    |
-| `--athena.max.retries`     | `-amr` | int    | No           | `60`             | Tentativi max polling |
-| `--athena.retry.delay`     | `-ard` | int    | No           | `5000`           | Delay polling (ms)    |
+| Parametro                  | Alias  | Tipo   | Obbligatorio | Default          | Descrizione                                                         |
+| -------------------------- | ------ | ------ | ------------ | ---------------- | ------------------------------------------------------------------- |
+| `--athena.database`        | `-ad`  | string | Si           | -                | Database Athena                                                     |
+| `--athena.catalog`         | `-ac`  | string | No           | `AwsDataCatalog` | Data catalog                                                        |
+| `--athena.workgroup`       | `-aw`  | string | No           | `primary`        | Workgroup Athena                                                    |
+| `--athena.output.location` | `-ao`  | string | Si           | -                | S3 path per output                                                  |
+| `--athena.max.retries`     | `-amr` | int    | No           | `60`             | Tentativi max polling                                               |
+| `--athena.retry.delay`     | `-ard` | int    | No           | `5000`           | Delay polling (ms)                                                  |
+| `--athena.query`           | `-aq`  | string | Si           | -                | Template SQL con placeholder per il range temporale e le partizioni |
+
+> `athena.query` puo essere passato da CLI, ma nella pratica e quasi sempre piu comodo definirlo in `config.yaml`.
 
 #### Slack (Opzionale)
 
@@ -229,7 +232,7 @@ La query SQL supporta i seguenti placeholder:
 
 ## Utilizzo
 
-### Modalita Development (via pnpm/tsx)
+### Modalità Development (via pnpm/tsx)
 
 ```bash
 # Dalla root del monorepo
@@ -245,7 +248,7 @@ pnpm --filter=send-monitor-tpp-messages dev -- \
   --athena.output.location "s3://my-bucket/results/"
 ```
 
-### Modalita Production (build + node)
+### Modalità Production (build + node)
 
 ```bash
 # Build
@@ -260,7 +263,7 @@ pnpm --filter=send-monitor-tpp-messages start -- \
   --athena.output.location "s3://my-bucket/results/"
 ```
 
-### Modalita Standalone
+### Modalità Standalone
 
 ```bash
 # Dalla directory dello script
@@ -534,6 +537,6 @@ DEBUG=* pnpm --filter=send-monitor-tpp-messages dev -- \
 
 ---
 
-**Ultima modifica**: 2025-01-23
+**Ultima modifica**: 2026-04-10
 **Maintainer**: Team GO - Gestione Operativa
 **Repository**: [go-automation](https://github.com/pagopa/go-automation)

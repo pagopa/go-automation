@@ -1,0 +1,35 @@
+{
+  "name": "send-query-dynamodb",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Script per recupero dati da una tabella DynamoDB",
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "pnpm build && node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "lint": "eslint .",
+    "format:check": "prettier --check ."
+  },
+  "keywords": [
+    "send",
+    "go-automation"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1028.0",
+    "@aws-sdk/util-dynamodb": "^3.996.2",
+    "@go-automation/go-common": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.2"
+  }
+}

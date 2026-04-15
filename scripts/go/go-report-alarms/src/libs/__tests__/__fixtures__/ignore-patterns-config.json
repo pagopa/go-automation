@@ -1,0 +1,7 @@
+{
+  "ignorePatterns": [
+    "-CumulativeAlarm",
+    "-DLQ-HasMessage",
+    "custom-ignore-pattern"
+  ]
+}

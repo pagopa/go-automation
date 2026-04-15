@@ -4,14 +4,14 @@
 
 export interface GOFileListExporterOptions {
   /** Output file path */
-  outputPath: string;
+  readonly outputPath: string;
 
   /** File encoding (default: utf8) */
-  encoding?: BufferEncoding;
+  readonly encoding?: BufferEncoding;
 
   /** Skip invalid items instead of throwing errors */
-  skipInvalidItems?: boolean;
+  readonly skipInvalidItems?: boolean;
 
   /** Line separator (default: \n) */
-  lineSeparator?: string;
+  readonly lineSeparator?: string;
 }

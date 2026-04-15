@@ -8,7 +8,7 @@
 
 import { Core, SEND } from '@go-automation/go-common';
 
-import type { SendFetchTimelineFromIunConfig } from './config.js';
+import type { SendFetchTimelineFromIunConfig } from './types/SendFetchTimelineFromIunConfig.js';
 import { readIunFile, writeResultsFile } from './libs/FileService.js';
 import { parseIunLines } from './libs/IunParser.js';
 
@@ -64,11 +64,12 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   // Step 3: Write results to output file
   script.logger.section('Writing Results');
-  script.prompt.startSpinner(`Writing results to ${config.destinationFile}...`);
+  const outputPathInfo = script.paths.resolvePathWithInfo(config.destinationFile, Core.GOPathType.OUTPUT);
+  script.prompt.startSpinner(`Writing results to ${outputPathInfo.path}...`);
 
-  await writeResultsFile(config.destinationFile, results);
+  await writeResultsFile(outputPathInfo.path, results);
 
-  script.prompt.spinnerStop(`Results written to ${config.destinationFile}`);
+  script.prompt.spinnerStop(`Results written to ${outputPathInfo.path}`);
 
   // Display summary
   script.logger.section('Summary');

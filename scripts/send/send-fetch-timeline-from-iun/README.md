@@ -1,8 +1,8 @@
 # Send Fetch Timeline From Iun
 
-> Versione: 1.0.0 | Autore: Team SEND
+> Versione: 1.0.0 | Autore: Team GO - Gestione Operativa
 
-read a list of IUNs from a TXT file and downloads the timelines from DynamoDB, writing to JSON.file
+Script che legge una lista di IUN da file TXT, interroga DynamoDB sulla tabella `pn-Timelines` e salva in JSON la timeline completa di ogni notifica trovata.
 
 ## Indice
 
@@ -15,182 +15,220 @@ read a list of IUNs from a TXT file and downloads the timelines from DynamoDB, w
 
 ## Funzionalita
 
-Elenco delle funzionalita principali:
-
-- TODO: Funzionalita 1
-- TODO: Funzionalita 2
-- TODO: Funzionalita 3
+- **Import da file testo**: legge gli IUN da un file TXT, mantenendo righe vuote e spazi per poi normalizzarli in fase di parse.
+- **Deduplicazione input**: scarta automaticamente duplicati esatti presenti nel file sorgente.
+- **Supporto a piu formati input**: accetta IUN semplici, IUN con date filter e IUN estratti da nomi file.
+- **Query concorrenti verso DynamoDB**: interroga `pn-Timelines` in chunk da 10 richieste concorrenti.
+- **Output JSON strutturato**: salva un array di risultati con `iun`, `paId`, `notificationSentAt` e `timeline`.
+- **Summary finale**: mostra a console quanti IUN sono stati processati, quante timeline contengono dati e quante risultano vuote.
 
 ## Prerequisiti
 
 ### Software Richiesto
 
-| Software   | Versione Minima | Note                 |
-| ---------- | --------------- | -------------------- |
-| Node.js    | >= 18.0.0       | LTS consigliata      |
-| pnpm       | >= 8.0.0        | Package manager      |
-| TypeScript | >= 5.0.0        | Incluso nel progetto |
+| Software | Versione Minima | Note                                    |
+| -------- | --------------- | --------------------------------------- |
+| Node.js  | >= 22.14.0      | Compatibile con gli engine del monorepo |
+| pnpm     | >= 10.28.0      | Package manager del workspace           |
+| AWS CLI  | >= 2.0          | Necessario per login SSO                |
 
-### Account e Permessi
+### Accessi AWS
 
-- [ ] Accesso AWS con profilo SSO configurato
-- [ ] Permessi IAM necessari (elencare)
-- [ ] (Opzionale) Token Slack per notifiche
+- Profilo AWS SSO con accesso in lettura a DynamoDB
+- Permesso minimo richiesto: `dynamodb:Query` sulla tabella `pn-Timelines`
 
-### Credenziali AWS
-
-Configurare le credenziali AWS utilizzando AWS SSO:
+### Login AWS SSO
 
 ```bash
-aws sso login --profile <nome-profilo>
+aws sso login --profile sso_pn-core-prod
+aws sts get-caller-identity --profile sso_pn-core-prod
 ```
 
 ## Configurazione
 
 ### Parametri CLI
 
-| Parametro                  | Alias | Tipo | Obbligatorio | Default | Descrizione |
-| -------------------------- | ----- | ---- | ------------ | ------- | ----------- |
-| TODO: Aggiungere parametri |       |      |              |         |             |
+| Parametro            | Alias              | Tipo   | Obbligatorio | Default | Descrizione                               |
+| -------------------- | ------------------ | ------ | ------------ | ------- | ----------------------------------------- |
+| `--aws-profile`      | `--ap`             | string | Si           | -       | Profilo AWS SSO con accesso a DynamoDB    |
+| `--source-file`      | `--sf`, `--input`  | string | Si           | -       | File TXT sorgente contenente gli IUN      |
+| `--destination-file` | `--df`, `--output` | string | Si           | -       | File JSON di destinazione per i risultati |
 
-### Variabili d'Ambiente
+### Variabili d'ambiente supportate
 
-| Variabile                  | Descrizione | Esempio |
-| -------------------------- | ----------- | ------- |
-| TODO: Aggiungere variabili |             |         |
+| Variabile          | Equivalente CLI      | Descrizione         |
+| ------------------ | -------------------- | ------------------- |
+| `AWS_PROFILE`      | `--aws-profile`      | Profilo AWS SSO     |
+| `SOURCE_FILE`      | `--source-file`      | File di input       |
+| `DESTINATION_FILE` | `--destination-file` | File JSON di output |
 
-### File di Configurazione
+### Formato del file sorgente
 
-Percorso: `configs/config.json`
+Ogni riga del file puo essere in uno di questi formati:
 
-```json
-{
-  "TODO": "Aggiungere configurazione"
-}
+```text
+IUN-SEMPLICE
+IUN-SEMPLICE|2024-01-15
+IUN_ABCD-1234-5678.RECINDEX_0.xml
 ```
 
-### Priorita di Configurazione
+Comportamento del parser:
 
-1. Parametri CLI (priorita massima)
-2. Variabili d'ambiente
-3. File di configurazione
-4. Valori di default
+- `IUN-SEMPLICE`: recupera tutta la timeline dell'IUN
+- `IUN|YYYY-MM-DD`: recupera la timeline filtrando gli eventi con timestamp uguale o successivo alla data indicata
+- `IUN_...RECINDEX...`: estrae automaticamente l'IUN dal nome file
+
+### Risoluzione dei path
+
+- `--source-file` assoluto: usato cosi com'e
+- `--source-file` relativo: risolto in `data/send-fetch-timeline-from-iun/inputs/`
+- `--destination-file` assoluto: usato cosi com'e
+- `--destination-file` relativo: risolto in `data/send-fetch-timeline-from-iun/outputs/send-fetch-timeline-from-iun_<timestamp>/`
+
+### File di configurazione opzionali
+
+Il package non include un file di configurazione dedicato, ma GOScript supporta comunque i path standard:
+
+- `data/send-fetch-timeline-from-iun/configs/config.json`
+- `data/send-fetch-timeline-from-iun/configs/config.yaml`
+- `data/send-fetch-timeline-from-iun/configs/.env`
+- `scripts/send/send-fetch-timeline-from-iun/configs/config.json`
+- `scripts/send/send-fetch-timeline-from-iun/configs/config.yaml`
+- `scripts/send/send-fetch-timeline-from-iun/configs/.env`
 
 ## Utilizzo
 
-### Modalita Development (via pnpm/tsx)
+### Modalita Development
 
 ```bash
-# Dalla root del monorepo
-pnpm send:fetch:timeline:from:iun:dev
-
-# Oppure con filter
-pnpm --filter=send-fetch-timeline-from-iun dev
-
-# Con parametri
-pnpm send:fetch:timeline:from:iun:dev -- --param valore
+pnpm send:fetch:timeline:from:iun:dev -- \
+  --aws-profile sso_pn-core-prod \
+  --source-file /tmp/iuns.txt \
+  --destination-file /tmp/timelines.json
 ```
 
-### Modalita Production (build + node)
+### Modalita Production
 
 ```bash
-# Build
-pnpm --filter=send-fetch-timeline-from-iun build
-
-# Esecuzione
-pnpm --filter=send-fetch-timeline-from-iun start
-
-# Oppure direttamente
-node dist/index.js --param valore
+pnpm send:fetch:timeline:from:iun:build
+pnpm send:fetch:timeline:from:iun:prod -- \
+  --aws-profile sso_pn-core-prod \
+  --source-file /tmp/iuns.txt \
+  --destination-file /tmp/timelines.json
 ```
 
-### Esempi Pratici
+### Con file relativi gestiti da GOPaths
+
+Supponendo:
+
+- input in `data/send-fetch-timeline-from-iun/inputs/iuns.txt`
+- output desiderato con nome `timelines.json`
 
 ```bash
-# Esempio 1: Caso d'uso comune
-pnpm send:fetch:timeline:from:iun:dev -- --param1 valore1 --param2 valore2
+pnpm send:fetch:timeline:from:iun:dev -- \
+  --aws-profile sso_pn-core-prod \
+  --source-file iuns.txt \
+  --destination-file timelines.json
+```
 
-# Esempio 2: Con date
-pnpm send:fetch:timeline:from:iun:dev -- --from "2024-01-01T00:00:00Z" --to "2024-01-31T23:59:59Z"
+### Esempio file sorgente
 
-# Esempio 3: Modalita verbose
-pnpm send:fetch:timeline:from:iun:dev -- --verbose
+```text
+IUN-AAAA-BBBB-CCCC
+IUN-DDDD-EEEE-FFFF|2024-01-15
+IUN_GGGG-HHHH-IIII.RECINDEX_0.xml
 ```
 
 ## Output
 
-### Formato Report
+### Console
 
-Descrivere il formato dell'output generato:
+Lo script mostra le tre fasi principali:
 
-- **File CSV**: `reports/report_YYYY-MM-DD_HH-MM-SS.csv`
-- **Notifiche Slack**: Formato del messaggio
-- **Log**: `logs/send-fetch-timeline-from-iun_YYYY-MM-DD.log`
+```text
+Reading Input File
+Found 125 unique IUNs
 
-### Esempio Output Console
+Fetching Timelines from DynamoDB
+Processed 100/125 IUNs...
+Retrieved 125 timelines
 
+Writing Results
+Results written to /tmp/timelines.json
+
+Summary
+Total IUNs processed: 125
+Timelines with data: 118
+Empty timelines: 7
 ```
-+-------------------------------------------+
-|  Send Fetch Timeline From Iun v1.0.0                  |
-|  Team SEND                            |
-+-------------------------------------------+
 
-> Sezione 1
-  Messaggio informativo...
+### File JSON
 
-> Sezione 2
-  [OK] Operazione completata
+Il file di output contiene un array di `SENDTimelineResult`:
 
-> Risultati
-  Totale: 100
-  Elaborati: 95
-  Errori: 5
+```json
+[
+  {
+    "iun": "ABCD-1234-5678",
+    "paId": "pa-12345",
+    "notificationSentAt": "2024-01-15T09:00:00.000Z",
+    "timeline": [
+      {
+        "timelineElementId": "REQUEST_ACCEPTED",
+        "category": "REQUEST_ACCEPTED",
+        "timestamp": "2024-01-15T09:00:01.000Z"
+      }
+    ]
+  }
+]
+```
+
+### Log file
+
+In esecuzione locale GOScript salva anche il log in:
+
+```text
+data/send-fetch-timeline-from-iun/outputs/send-fetch-timeline-from-iun_YYYY-MM-DDTHH-mm-ss/execution.log
 ```
 
 ## Troubleshooting
 
-### Problemi Comuni
+### `No IUNs found in input file`
 
-#### Errore: "AWS credentials not found"
+**Causa**: il file sorgente e vuoto oppure contiene solo righe bianche.
 
-**Causa**: Profilo AWS non configurato o sessione SSO scaduta.
+**Soluzione**: verificare il contenuto del file di input.
+
+### `ENOENT` / file di input non trovato
+
+**Causa**: `--source-file` punta a un file inesistente.
 
 **Soluzione**:
 
+- usare un path assoluto corretto
+- oppure spostare il file sotto `data/send-fetch-timeline-from-iun/inputs/`
+
+### `ExpiredToken` / credenziali AWS scadute
+
 ```bash
-# Effettuare login SSO
-aws sso login --profile <nome-profilo>
+aws sso login --profile sso_pn-core-prod
+aws sts get-caller-identity --profile sso_pn-core-prod
 ```
 
-#### Errore: "Module not found"
-
-**Causa**: Dipendenze non installate o build non eseguito.
-
-**Soluzione**:
+### `Cannot find module '@go-automation/go-common'`
 
 ```bash
-pnpm install
 pnpm build:common
-pnpm --filter=send-fetch-timeline-from-iun build
+pnpm send:fetch:timeline:from:iun:build
 ```
 
-#### Errore: "Invalid date format"
-
-**Causa**: Formato data non valido.
-
-**Soluzione**: Usare formato ISO 8601: `YYYY-MM-DDTHH:MM:SSZ`
-
-### Debug Mode
+### Verifica typecheck
 
 ```bash
-# Eseguire con debug output
-DEBUG=* pnpm send:fetch:timeline:from:iun:dev
-
-# Type check senza build
 pnpm --filter=send-fetch-timeline-from-iun exec tsc --noEmit
 ```
 
 ---
 
-**Ultima modifica**: 2026-01-26
-**Maintainer**: Team SEND
+**Ultima modifica**: 2026-04-10
+**Maintainer**: Team GO - Gestione Operativa

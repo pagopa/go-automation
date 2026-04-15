@@ -94,6 +94,10 @@ export class GOYAMLParser {
    */
   private static deepMerge(target: Record<string, YAMLValue>, source: Record<string, YAMLValue>): void {
     for (const key of Object.keys(source)) {
+      if (key === '__proto__' || key === 'constructor') {
+        continue;
+      }
+
       const sourceValue = source[key];
       const targetValue = target[key];
 

@@ -730,11 +730,11 @@ await htmlExporter.export(data);
 
 ## Core - File Operations
 
-Utilities per la gestione dei file e path resolution con supporto per modalita monorepo e standalone.
+Utilities per la gestione dei file e path resolution con supporto per modalità monorepo e standalone.
 
 ### GOPaths
 
-`GOPaths` gestisce la risoluzione dei percorsi adattandosi automaticamente alla modalita di deployment.
+`GOPaths` gestisce la risoluzione dei percorsi adattandosi automaticamente alla modalità di deployment.
 
 #### Costruttore
 
@@ -815,7 +815,7 @@ if (paths.isMonorepo()) {
 console.log(paths.getSummary());
 ```
 
-**Nota**: `getProjectRoot()` lancia un errore se chiamato in modalita standalone. Usa `getDataDir()` o `getBaseDir()` invece.
+**Nota**: `getProjectRoot()` lancia un errore se chiamato in modalità standalone. Usa `getDataDir()` o `getBaseDir()` invece.
 
 #### Metodi Directory
 
@@ -891,7 +891,7 @@ script.logger.info(`Copiati ${report.summary.copiedFiles} file`);
 
 ## Core - Environment Detection
 
-Rilevamento automatico dell'ambiente di esecuzione e della modalita di deployment.
+Rilevamento automatico dell'ambiente di esecuzione e della modalità di deployment.
 
 ### Tipi di Ambiente
 
@@ -905,11 +905,11 @@ Rilevamento automatico dell'ambiente di esecuzione e della modalita di deploymen
 | `AWS_CODEBUILD`     | AWS CodeBuild                             |
 | `UNKNOWN`           | Ambiente non riconosciuto                 |
 
-### Modalita di Deployment (GODeploymentMode)
+### Modalità di Deployment (GODeploymentMode)
 
 Il sistema rileva automaticamente se lo script e in esecuzione dentro il monorepo o come deployment standalone.
 
-| Modalita     | Descrizione                                                       |
+| Modalità     | Descrizione                                                       |
 | ------------ | ----------------------------------------------------------------- |
 | `MONOREPO`   | Esecuzione all'interno della struttura monorepo (pnpm workspace)  |
 | `STANDALONE` | Esecuzione come deployment standalone (Docker, Lambda, EC2, etc.) |
@@ -1041,27 +1041,27 @@ interface GOEnvironmentDetectionDetails {
 
 ## Core - Deployment Mode
 
-Supporto per esecuzione in modalita monorepo e standalone.
+Supporto per esecuzione in modalità monorepo e standalone.
 
 ### Overview
 
-La libreria go-common supporta due modalita di deployment:
+La libreria go-common supporta due modalità di deployment:
 
-| Modalita       | Descrizione                                     | Uso Tipico                              |
+| Modalità       | Descrizione                                     | Uso Tipico                              |
 | -------------- | ----------------------------------------------- | --------------------------------------- |
 | **MONOREPO**   | Esecuzione all'interno della struttura monorepo | Sviluppo locale, CI/CD del monorepo     |
 | **STANDALONE** | Esecuzione come deployment indipendente         | Docker, Lambda, EC2, deployment isolati |
 
 ### Rilevamento Automatico
 
-Il sistema rileva automaticamente la modalita cercando marker del monorepo:
+Il sistema rileva automaticamente la modalità cercando marker del monorepo:
 
 1. **pnpm-workspace.yaml** - File di configurazione pnpm workspaces
 2. **package.json con workspaces** - Campo workspaces nel package.json root
 
-Se nessun marker viene trovato, assume modalita `STANDALONE`.
+Se nessun marker viene trovato, assume modalità `STANDALONE`.
 
-### Forzare la Modalita
+### Forzare la Modalità
 
 Usa la variabile d'ambiente `GO_DEPLOYMENT_MODE`:
 
@@ -1162,7 +1162,7 @@ go-automation/                    # monorepoRoot
 
 ### Backward Compatibility
 
-La nuova funzionalita e **completamente retrocompatibile**:
+La nuova funzionalità e **completamente retrocompatibile**:
 
 - Script esistenti funzionano senza modifiche
 - Il comportamento di default nel monorepo non cambia
@@ -1611,7 +1611,7 @@ console.log('Request IDs:', requestIdMap);
 
 - [Architettura Monorepo](ARCHITECTURE.md)
 - [Coding Guidelines](GUIDE_LINES.md)
-- [Creare Nuovi Script](NEW_SCRIPT.md)
+- [Scripts - Guida Completa](SCRIPTS.md)
 - [AWS SDK v3 Documentation](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/)
 
 ---

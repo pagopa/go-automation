@@ -1,13 +1,12 @@
 /**
- * File Service - Handles file I/O operations
+ * File Service - Handles file I/O operations using go-common importers/exporters
  */
 
-import * as fs from 'fs/promises';
-
+import { Core } from '@go-automation/go-common';
 import type { SEND } from '@go-automation/go-common';
 
 /**
- * Reads IUN lines from a text file
+ * Reads IUN lines from a text file using GOFileListImporter
  *
  * Each line should contain either:
  * - A simple IUN
@@ -25,12 +24,13 @@ import type { SEND } from '@go-automation/go-common';
  * ```
  */
 export async function readIunFile(filePath: string): Promise<ReadonlyArray<string>> {
-  const content = await fs.readFile(filePath, 'utf-8');
-  return content.split('\n');
+  const importer = new Core.GOFileListImporter({ trim: false, skipEmptyLines: false });
+  const result = await importer.import(filePath);
+  return result.items;
 }
 
 /**
- * Writes timeline results to a JSON file
+ * Writes timeline results to a JSON file using GOJSONListExporter
  *
  * @param filePath - Absolute path to the output file
  * @param results - Array of timeline results to write
@@ -45,6 +45,10 @@ export async function writeResultsFile(
   filePath: string,
   results: ReadonlyArray<SEND.SENDTimelineResult>,
 ): Promise<void> {
-  const content = JSON.stringify(results, null, 4);
-  await fs.writeFile(filePath, content, 'utf-8');
+  const exporter = new Core.GOJSONListExporter<SEND.SENDTimelineResult>({
+    outputPath: filePath,
+    pretty: true,
+    indent: 4,
+  });
+  await exporter.export([...results]);
 }

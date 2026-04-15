@@ -1,0 +1,20 @@
+{
+  "name": "{{LAMBDA_PACKAGE_NAME}}",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "{{LAMBDA_DESCRIPTION}}",
+  "main": "dist/handler.mjs",
+  "scripts": {
+    "test-build": "{{TEST_BUILD_COMMAND}}",
+    "build": "node esbuild.config.mjs",
+    "build:typecheck": "tsc --noEmit",
+    "package": "pnpm build && cd ../../artifacts/{{ARTIFACT_DIR}} && zip -r ../../functions/{{LAMBDA_NAME}}/function.zip .",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.161",
+    "@types/node": "^24.12.2",
+    "esbuild": "^0.28.0"
+  }
+}

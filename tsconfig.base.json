@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     // Language and Environment
-    "target": "ES2024",
-    "lib": ["ES2024"],
+    "target": "ES2025",
+    "lib": ["ES2025"],
     // Module System - Native ESM for Node.js
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
@@ -12,7 +12,6 @@
     "sourceMap": true,
     "removeComments": false,
     "importHelpers": false,
-    "downlevelIteration": true,
     "newLine": "lf",
     // Type Checking - Ultra Strict Mode
     "strict": true,
@@ -22,8 +21,9 @@
     "strictBindCallApply": true,
     "strictPropertyInitialization": true,
     "noImplicitThis": true,
-    "alwaysStrict": true,
     "useUnknownInCatchVariables": true,
+    // strictBuiltinIteratorReturn: gli iteratori built-in (Map, Set, Array) restituiscono TReturn=undefined invece di any
+    "strictBuiltinIteratorReturn": true,
     // Unused Code Detection
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -42,14 +42,18 @@
     // TODO: Abilitare dopo aver fixato go-common (richiede refactoring di ~200 assegnazioni)
     "exactOptionalPropertyTypes": true,
     // Modules
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
     "preserveSymlinks": false,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     // verbatimModuleSyntax: forza "import type" e estensioni .js esplicite
     // TODO: Abilitare dopo migrazione completa a ESM (richiede ~500 import updates)
     "verbatimModuleSyntax": true,
+    // Side-Effect Imports Safety
+    // noUncheckedSideEffectImports: verifica che i side-effect import (import './setup') puntino a file reali
+    "noUncheckedSideEffectImports": true,
+    // Isolated Declarations
+    // isolatedDeclarations: forza type annotations esplicite su tutti gli export per emissione .d.ts senza inferenza
+    "isolatedDeclarations": true,
     // Emit Constraints
     "isolatedModules": true,
     "skipLibCheck": true,

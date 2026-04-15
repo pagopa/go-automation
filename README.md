@@ -26,7 +26,7 @@ Il sistema di type-checking e integrato da strumenti di **analisi statica (ESLin
 
 La libreria `@go-automation/go-common` implementa il livello di astrazione condiviso dell'SDK. Questo componente centralizza le funzionalità trasversali, fornendo un'interfaccia unificata per:
 
-| Funzionalita     | Descrizione                                                |
+| Funzionalità     | Descrizione                                                |
 | ---------------- | ---------------------------------------------------------- |
 | Inizializzazione | Bootstrap e configurazione degli script                    |
 | Validazione      | Parsing e verifica di parametri CLI e variabili d'ambiente |
@@ -71,7 +71,7 @@ pnpm --filter=go-report-alarms dev -- --help
 | [Architettura](docs/ARCHITECTURE.md)           | Struttura del monorepo, workspace pnpm, build system           |
 | [go-common](docs/GOCOMMON.md)                  | Documentazione della libreria `@go-automation/go-common`       |
 | [Coding Guidelines](docs/GUIDE_LINES.md)       | Standard di codifica, naming conventions, best practices       |
-| [Creare Nuovi Script](docs/NEW_SCRIPT.md)      | Guida passo-passo per creare nuovi script                      |
+| [Scripts - Guida Completa](docs/SCRIPTS.md)    | Architettura, convenzioni, quality gates, Lambda, toolchain    |
 | [**Deploy**](docs/DEPLOY.md)                   | **Guida alla pacchettizzazione e rilascio degli script**       |
 | [**Troubleshooting**](docs/TROUBLESHOOTING.md) | **Soluzioni ai problemi comuni e FAQ**                         |
 | [Runbook Engine](docs/RUNBOOKENGINE.md)        | Reference del motore di esecuzione runbook (go-common)         |
@@ -102,6 +102,12 @@ pnpm --filter=<script-name> start -- [options]
 ./bins/create-script.sh
 ```
 
+### Creazione Nuova Lambda
+
+```bash
+./bins/create-lambda.sh
+```
+
 ## Team e Contatti
 
 **Team**: GO - Gestione Operativa (PagoPa)
@@ -110,4 +116,4 @@ pnpm --filter=<script-name> start -- [options]
 
 ---
 
-**Ultima modifica**: 2026-01-23
+**Ultima modifica**: 2026-04-10

@@ -1,0 +1,41 @@
+{
+  "description": "Realistic AlarmHistoryItem array for unit tests. HistoryData contains triple-nested JSON: ActionHistoryData → HistoryDataPublishedMessage → PublishedMessageDefault",
+  "items": [
+    {
+      "AlarmName": "pn-core-HighCPU-Alarm",
+      "Timestamp": "2025-01-15T10:30:00.000Z",
+      "HistoryItemType": "Action",
+      "HistoryData": "{\"actionState\":\"Succeeded\",\"stateUpdateTimestamp\":1705314600000,\"notificationResource\":\"arn:aws:sns:eu-south-1:123456789:pn-core-alarms\",\"publishedMessage\":\"{\\\"default\\\":\\\"{\\\\\\\"NewStateValue\\\\\\\":\\\\\\\"ALARM\\\\\\\",\\\\\\\"OldStateValue\\\\\\\":\\\\\\\"OK\\\\\\\",\\\\\\\"AlarmName\\\\\\\":\\\\\\\"pn-core-HighCPU-Alarm\\\\\\\",\\\\\\\"AlarmDescription\\\\\\\":\\\\\\\"CPU above 80%\\\\\\\",\\\\\\\"NewStateReason\\\\\\\":\\\\\\\"Threshold crossed\\\\\\\",\\\\\\\"StateChangeTime\\\\\\\":\\\\\\\"2025-01-15T10:30:00.000Z\\\\\\\",\\\\\\\"Region\\\\\\\":\\\\\\\"EU (Milan)\\\\\\\",\\\\\\\"AlarmArn\\\\\\\":\\\\\\\"arn:aws:cloudwatch:eu-south-1:123456789:alarm:pn-core-HighCPU-Alarm\\\\\\\",\\\\\\\"AWSAccountId\\\\\\\":\\\\\\\"123456789\\\\\\\",\\\\\\\"AlarmConfigurationUpdatedTimestamp\\\\\\\":\\\\\\\"2024-12-01T00:00:00.000Z\\\\\\\",\\\\\\\"OKActions\\\\\\\":[],\\\\\\\"AlarmActions\\\\\\\":[\\\\\\\"arn:aws:sns:eu-south-1:123456789:pn-core-alarms\\\\\\\"]}\\\"}\",\"error\":null}"
+    },
+    {
+      "AlarmName": "pn-core-HighCPU-Alarm",
+      "Timestamp": "2025-01-16T14:00:00.000Z",
+      "HistoryItemType": "Action",
+      "HistoryData": "{\"actionState\":\"Succeeded\",\"stateUpdateTimestamp\":1705413600000,\"notificationResource\":\"arn:aws:sns:eu-south-1:123456789:pn-core-alarms\",\"publishedMessage\":\"{\\\"default\\\":\\\"{\\\\\\\"NewStateValue\\\\\\\":\\\\\\\"ALARM\\\\\\\",\\\\\\\"OldStateValue\\\\\\\":\\\\\\\"OK\\\\\\\",\\\\\\\"AlarmName\\\\\\\":\\\\\\\"pn-core-HighCPU-Alarm\\\\\\\",\\\\\\\"AlarmDescription\\\\\\\":\\\\\\\"CPU above 80%\\\\\\\",\\\\\\\"NewStateReason\\\\\\\":\\\\\\\"Threshold crossed\\\\\\\",\\\\\\\"StateChangeTime\\\\\\\":\\\\\\\"2025-01-16T14:00:00.000Z\\\\\\\",\\\\\\\"Region\\\\\\\":\\\\\\\"EU (Milan)\\\\\\\",\\\\\\\"AlarmArn\\\\\\\":\\\\\\\"arn:aws:cloudwatch:eu-south-1:123456789:alarm:pn-core-HighCPU-Alarm\\\\\\\",\\\\\\\"AWSAccountId\\\\\\\":\\\\\\\"123456789\\\\\\\",\\\\\\\"AlarmConfigurationUpdatedTimestamp\\\\\\\":\\\\\\\"2024-12-01T00:00:00.000Z\\\\\\\",\\\\\\\"OKActions\\\\\\\":[],\\\\\\\"AlarmActions\\\\\\\":[\\\\\\\"arn:aws:sns:eu-south-1:123456789:pn-core-alarms\\\\\\\"]}\\\"}\",\"error\":null}"
+    },
+    {
+      "AlarmName": "pn-delivery-ErrorAlarm",
+      "Timestamp": "2025-01-15T12:00:00.000Z",
+      "HistoryItemType": "Action",
+      "HistoryData": "{\"actionState\":\"Succeeded\",\"stateUpdateTimestamp\":1705320000000,\"notificationResource\":\"arn:aws:sns:eu-south-1:123456789:pn-core-alarms\",\"publishedMessage\":\"{\\\"default\\\":\\\"{\\\\\\\"NewStateValue\\\\\\\":\\\\\\\"ALARM\\\\\\\",\\\\\\\"OldStateValue\\\\\\\":\\\\\\\"OK\\\\\\\",\\\\\\\"AlarmName\\\\\\\":\\\\\\\"pn-delivery-ErrorAlarm\\\\\\\",\\\\\\\"AlarmDescription\\\\\\\":\\\\\\\"Error rate above threshold\\\\\\\",\\\\\\\"NewStateReason\\\\\\\":\\\\\\\"Error threshold crossed\\\\\\\",\\\\\\\"StateChangeTime\\\\\\\":\\\\\\\"2025-01-15T12:00:00.000Z\\\\\\\",\\\\\\\"Region\\\\\\\":\\\\\\\"EU (Milan)\\\\\\\",\\\\\\\"AlarmArn\\\\\\\":\\\\\\\"arn:aws:cloudwatch:eu-south-1:123456789:alarm:pn-delivery-ErrorAlarm\\\\\\\",\\\\\\\"AWSAccountId\\\\\\\":\\\\\\\"123456789\\\\\\\",\\\\\\\"AlarmConfigurationUpdatedTimestamp\\\\\\\":\\\\\\\"2024-12-01T00:00:00.000Z\\\\\\\",\\\\\\\"OKActions\\\\\\\":[],\\\\\\\"AlarmActions\\\\\\\":[\\\\\\\"arn:aws:sns:eu-south-1:123456789:pn-core-alarms\\\\\\\"]}\\\"}\",\"error\":null}"
+    },
+    {
+      "AlarmName": "pn-core-CumulativeAlarm-test",
+      "Timestamp": "2025-01-15T09:00:00.000Z",
+      "HistoryItemType": "Action",
+      "HistoryData": "{\"actionState\":\"Succeeded\",\"stateUpdateTimestamp\":1705309200000,\"notificationResource\":\"arn:aws:sns:eu-south-1:123456789:pn-core-alarms\",\"publishedMessage\":\"{\\\"default\\\":\\\"{\\\\\\\"NewStateValue\\\\\\\":\\\\\\\"ALARM\\\\\\\",\\\\\\\"OldStateValue\\\\\\\":\\\\\\\"OK\\\\\\\",\\\\\\\"AlarmName\\\\\\\":\\\\\\\"pn-core-CumulativeAlarm-test\\\\\\\",\\\\\\\"AlarmDescription\\\\\\\":\\\\\\\"Cumulative test alarm\\\\\\\",\\\\\\\"NewStateReason\\\\\\\":\\\\\\\"Threshold crossed\\\\\\\",\\\\\\\"StateChangeTime\\\\\\\":\\\\\\\"2025-01-15T09:00:00.000Z\\\\\\\",\\\\\\\"Region\\\\\\\":\\\\\\\"EU (Milan)\\\\\\\",\\\\\\\"AlarmArn\\\\\\\":\\\\\\\"arn:aws:cloudwatch:eu-south-1:123456789:alarm:pn-core-CumulativeAlarm-test\\\\\\\",\\\\\\\"AWSAccountId\\\\\\\":\\\\\\\"123456789\\\\\\\",\\\\\\\"AlarmConfigurationUpdatedTimestamp\\\\\\\":\\\\\\\"2024-12-01T00:00:00.000Z\\\\\\\",\\\\\\\"OKActions\\\\\\\":[],\\\\\\\"AlarmActions\\\\\\\":[\\\\\\\"arn:aws:sns:eu-south-1:123456789:pn-core-alarms\\\\\\\"]}\\\"}\",\"error\":null}"
+    },
+    {
+      "AlarmName": "pn-core-HighCPU-Alarm",
+      "Timestamp": "2025-01-17T08:00:00.000Z",
+      "HistoryItemType": "Action",
+      "HistoryData": "{\"actionState\":\"Succeeded\",\"stateUpdateTimestamp\":1705478400000,\"notificationResource\":\"arn:aws:sns:eu-south-1:123456789:pn-core-alarms\",\"publishedMessage\":\"{\\\"default\\\":\\\"{\\\\\\\"NewStateValue\\\\\\\":\\\\\\\"OK\\\\\\\",\\\\\\\"OldStateValue\\\\\\\":\\\\\\\"ALARM\\\\\\\",\\\\\\\"AlarmName\\\\\\\":\\\\\\\"pn-core-HighCPU-Alarm\\\\\\\",\\\\\\\"AlarmDescription\\\\\\\":\\\\\\\"CPU above 80%\\\\\\\",\\\\\\\"NewStateReason\\\\\\\":\\\\\\\"Threshold OK\\\\\\\",\\\\\\\"StateChangeTime\\\\\\\":\\\\\\\"2025-01-17T08:00:00.000Z\\\\\\\",\\\\\\\"Region\\\\\\\":\\\\\\\"EU (Milan)\\\\\\\",\\\\\\\"AlarmArn\\\\\\\":\\\\\\\"arn:aws:cloudwatch:eu-south-1:123456789:alarm:pn-core-HighCPU-Alarm\\\\\\\",\\\\\\\"AWSAccountId\\\\\\\":\\\\\\\"123456789\\\\\\\",\\\\\\\"AlarmConfigurationUpdatedTimestamp\\\\\\\":\\\\\\\"2024-12-01T00:00:00.000Z\\\\\\\",\\\\\\\"OKActions\\\\\\\":[],\\\\\\\"AlarmActions\\\\\\\":[\\\\\\\"arn:aws:sns:eu-south-1:123456789:pn-core-alarms\\\\\\\"]}\\\"}\",\"error\":null}"
+    },
+    {
+      "AlarmName": "pn-core-DLQ-HasMessage-test",
+      "Timestamp": "2025-01-15T11:00:00.000Z",
+      "HistoryItemType": "Action",
+      "HistoryData": "{\"actionState\":\"Succeeded\",\"stateUpdateTimestamp\":1705316400000,\"notificationResource\":\"arn:aws:sns:eu-south-1:123456789:pn-core-alarms\",\"publishedMessage\":\"{\\\"default\\\":\\\"{\\\\\\\"NewStateValue\\\\\\\":\\\\\\\"ALARM\\\\\\\",\\\\\\\"OldStateValue\\\\\\\":\\\\\\\"OK\\\\\\\",\\\\\\\"AlarmName\\\\\\\":\\\\\\\"pn-core-DLQ-HasMessage-test\\\\\\\",\\\\\\\"AlarmDescription\\\\\\\":\\\\\\\"DLQ has messages\\\\\\\",\\\\\\\"NewStateReason\\\\\\\":\\\\\\\"Messages in DLQ\\\\\\\",\\\\\\\"StateChangeTime\\\\\\\":\\\\\\\"2025-01-15T11:00:00.000Z\\\\\\\",\\\\\\\"Region\\\\\\\":\\\\\\\"EU (Milan)\\\\\\\",\\\\\\\"AlarmArn\\\\\\\":\\\\\\\"arn:aws:cloudwatch:eu-south-1:123456789:alarm:pn-core-DLQ-HasMessage-test\\\\\\\",\\\\\\\"AWSAccountId\\\\\\\":\\\\\\\"123456789\\\\\\\",\\\\\\\"AlarmConfigurationUpdatedTimestamp\\\\\\\":\\\\\\\"2024-12-01T00:00:00.000Z\\\\\\\",\\\\\\\"OKActions\\\\\\\":[],\\\\\\\"AlarmActions\\\\\\\":[\\\\\\\"arn:aws:sns:eu-south-1:123456789:pn-core-alarms\\\\\\\"]}\\\"}\",\"error\":null}"
+    }
+  ]
+}

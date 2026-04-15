@@ -1,0 +1,10 @@
+{
+  "AlarmHistoryItems": [
+    {
+      "AlarmName": "pn-core-HighCPU-Alarm",
+      "Timestamp": "2025-01-16T14:00:00.000Z",
+      "HistoryItemType": "Action",
+      "HistoryData": "{\"actionState\":\"Succeeded\",\"stateUpdateTimestamp\":1705413600000,\"notificationResource\":\"arn:aws:sns:eu-south-1:123456789:pn-core-alarms\",\"publishedMessage\":\"{\\\"default\\\":\\\"{\\\\\\\"NewStateValue\\\\\\\":\\\\\\\"ALARM\\\\\\\"}\\\"}\",\"error\":null}"
+    }
+  ]
+}

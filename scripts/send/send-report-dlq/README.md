@@ -8,7 +8,7 @@ Script che interroga le **Dead Letter Queue (DLQ)** di uno o più account AWS SE
 
 - [Come funziona](#come-funziona)
 - [Prerequisiti](#prerequisiti)
-- [Parametri](#parametri)
+- [Configurazione](#configurazione)
 - [Utilizzo](#utilizzo)
 - [Output](#output)
 - [Troubleshooting](#troubleshooting)
@@ -52,13 +52,17 @@ aws sso login --profile sso_pn-confinfo-dev
 
 ---
 
-## Parametri
+## Configurazione
 
-| Parametro         | Alias   | Tipo              | Obbligatorio | Default                                | Descrizione                                                                |
-| ----------------- | ------- | ----------------- | ------------ | -------------------------------------- | -------------------------------------------------------------------------- |
-| `--aws-profiles`  | `--aps` | `string[]`        | Sì           | —                                      | Uno o più profili AWS SSO, separati da virgola                             |
-| `--output-file`   | `-of`   | `string`          | No           | `send-report-dlq_YYYY-MM-DD.<formato>` | Percorso del file di output (assoluto, o nome relativo alla dir `output/`) |
-| `--output-format` | `-ff`   | `json\|csv\|html` | No           | `json`                                 | Formato del file di output                                                 |
+La configurazione operativa avviene principalmente via CLI. I percorsi relativi vengono risolti nella directory di output dell'esecuzione corrente.
+
+### Parametri CLI
+
+| Parametro         | Alias   | Tipo                          | Obbligatorio | Default                                | Descrizione                                                                |
+| ----------------- | ------- | ----------------------------- | ------------ | -------------------------------------- | -------------------------------------------------------------------------- |
+| `--aws-profiles`  | `--aps` | `string[]`                    | Sì           | —                                      | Uno o più profili AWS SSO, separati da virgola                             |
+| `--output-file`   | `-of`   | `string`                      | No           | `send-report-dlq_YYYY-MM-DD.<formato>` | Percorso del file di output (assoluto, o nome relativo alla dir `output/`) |
+| `--output-format` | `-ff`   | `json\|jsonl\|csv\|html\|txt` | No           | `json`                                 | Formato del file di output                                                 |
 
 ### Note sui parametri
 
@@ -72,20 +76,20 @@ aws sso login --profile sso_pn-confinfo-dev
 --aws-profiles sso_pn-core-dev,sso_pn-confinfo-dev,sso_pn-core-uat
 ```
 
-**`--output-file`**: se omesso, il file viene creato automaticamente nella directory `output/` con nome `send-report-dlq_<data-odierna>.<formato>` (es. `send-report-dlq_2026-02-27.json`). Se il percorso è relativo viene risolto dentro `output/`; se è assoluto viene usato così com'è. La directory padre viene creata automaticamente se non esiste.
+**`--output-file`**: se omesso, il file viene creato automaticamente con nome `send-report-dlq_<data-odierna>.<formato>`. Se il percorso e relativo viene risolto nella directory `data/send-report-dlq/outputs/send-report-dlq_<timestamp>/`; se e assoluto viene usato cosi com'e. La directory padre viene creata automaticamente se non esiste.
 
 ```bash
-# Default → output/send-report-dlq_2026-02-27.json
+# Default → data/send-report-dlq/outputs/send-report-dlq_<timestamp>/send-report-dlq_2026-02-27.json
 (nessun parametro)
 
-# Relativo → output/report.json
+# Relativo → data/send-report-dlq/outputs/send-report-dlq_<timestamp>/report.json
 --output-file report.json
 
 # Assoluto
 --output-file /tmp/dlq-report.json
 ```
 
-**`--output-format`**: determina sia la struttura del file sia l'estensione del nome di default. Valori accettati: `json`, `csv`, `html`. Se si specifica `--output-format csv` senza `--output-file`, il file di default sarà `send-report-dlq_2026-02-27.csv`.
+**`--output-format`**: determina sia la struttura del file sia l'estensione del nome di default. Valori accettati: `json`, `jsonl`, `csv`, `html`, `txt`. Se si specifica `--output-format csv` senza `--output-file`, il file di default sara `send-report-dlq_2026-02-27.csv`.
 
 ---
 
@@ -305,5 +309,5 @@ pnpm --filter=send-report-dlq exec tsc --noEmit
 
 ---
 
-**Ultima modifica**: 2026-02-27
+**Ultima modifica**: 2026-04-10
 **Maintainer**: Team GO - Gestione Operativa

@@ -6,6 +6,7 @@
   "description": "GO Automation Scripts and Tools Monorepo",
   "scripts": {
     "build": "pnpm build:common && pnpm build:scripts",
+    "build:all": "pnpm build:common && pnpm build:scripts && pnpm build:functions",
     "build:common": "pnpm --filter=@go-automation/go-common build",
     "build:functions": "pnpm -r --filter='./functions/**' build",
     "build:scripts": "pnpm -r --filter='./scripts/**' build",
@@ -16,21 +17,33 @@
     "go:analyze:alarm:build": "pnpm --filter=go-analyze-alarm build",
     "go:analyze:alarm:dev": "pnpm --filter=go-analyze-alarm dev",
     "go:analyze:alarm:prod": "pnpm --filter=go-analyze-alarm start",
+    "go:parse:json:build": "pnpm --filter=go-parse-json build",
+    "go:parse:json:dev": "pnpm --filter=go-parse-json dev",
+    "go:parse:json:prod": "pnpm --filter=go-parse-json start",
     "go:report:alarms:build": "pnpm --filter=go-report-alarms build",
     "go:report:alarms:dev": "pnpm --filter=go-report-alarms dev",
     "go:report:alarms:prod": "pnpm --filter=go-report-alarms start",
     "lambda:monitor:tpp:build": "pnpm --filter=go-send-monitor-tpp-messages-lambda build",
     "lambda:monitor:tpp:test:local": "pnpm --filter=go-send-monitor-tpp-messages-lambda test:local",
+    "test": "pnpm test:common && pnpm test:scripts",
+    "test:common": "pnpm --filter=@go-automation/go-common test",
+    "test:common:coverage": "pnpm --filter=@go-automation/go-common test:coverage",
+    "test:coverage": "pnpm test:common:coverage && pnpm test:scripts:coverage",
+    "test:scripts": "pnpm -r --filter='./scripts/**' test",
+    "test:scripts:coverage": "pnpm -r --filter='./scripts/**' test:coverage",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "lint:packages": "eslint packages",
     "lint:scripts": "eslint scripts",
+    "send:check:ecs:build": "pnpm --filter=send-check-ecs build",
+    "send:check:ecs:dev": "pnpm --filter=send-check-ecs dev",
+    "send:check:ecs:prod": "pnpm --filter=send-check-ecs start",
     "send:download:safestorage:attachments:build": "pnpm --filter=send-download-safestorage-attachments build",
     "send:download:safestorage:attachments:dev": "pnpm --filter=send-download-safestorage-attachments dev",
     "send:download:safestorage:attachments:prod": "pnpm --filter=send-download-safestorage-attachments start",
-    "send:fetch:dynamodb:data:build": "pnpm --filter=send-fetch-dynamodb-data build",
-    "send:fetch:dynamodb:data:dev": "pnpm --filter=send-fetch-dynamodb-data dev",
-    "send:fetch:dynamodb:data:prod": "pnpm --filter=send-fetch-dynamodb-data start",
+    "send:query:dynamodb:build": "pnpm --filter=send-query-dynamodb build",
+    "send:query:dynamodb:dev": "pnpm --filter=send-query-dynamodb dev",
+    "send:query:dynamodb:prod": "pnpm --filter=send-query-dynamodb start",
     "send:fetch:timeline:from:iun:build": "pnpm --filter=send-fetch-timeline-from-iun build",
     "send:fetch:timeline:from:iun:dev": "pnpm --filter=send-fetch-timeline-from-iun dev",
     "send:fetch:timeline:from:iun:prod": "pnpm --filter=send-fetch-timeline-from-iun start",
@@ -43,7 +56,12 @@
     "send:report:dlq:build": "pnpm --filter=send-report-dlq build",
     "send:report:dlq:dev": "pnpm --filter=send-report-dlq dev",
     "send:report:dlq:prod": "pnpm --filter=send-report-dlq start",
-    "type-check": "tsc --noEmit"
+    "send:dump:sqs:build": "pnpm --filter=send-dump-sqs build",
+    "send:dump:sqs:dev": "pnpm --filter=send-dump-sqs dev",
+    "send:dump:sqs:prod": "pnpm --filter=send-dump-sqs start",
+    "type-check": "tsc --noEmit",
+    "validate:scaffold": "tsx bins/validate-scaffold/src/index.ts",
+    "knip": "knip"
   },
   "keywords": [
     "aws",
@@ -60,15 +78,23 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@typescript-eslint/eslint-plugin": "^8.57.0",
-    "@typescript-eslint/parser": "^8.57.0",
-    "eslint": "^10.0.3",
+    "@types/node": "^24.12.2",
+    "@typescript-eslint/eslint-plugin": "^8.58.1",
+    "@typescript-eslint/parser": "^8.58.1",
+    "eslint": "^10.2.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
+    "eslint-plugin-security": "^4.0.0",
     "globals": "^17.4.0",
+    "knip": "^6.3.1",
     "prettier": "3.8.1",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.57.0"
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.58.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "axios": ">=1.15.0"
+    }
   }
 }

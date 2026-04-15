@@ -1,0 +1,17 @@
+{
+  "AlarmHistoryItems": [
+    {
+      "AlarmName": "pn-core-HighCPU-Alarm",
+      "Timestamp": "2025-01-15T10:30:00.000Z",
+      "HistoryItemType": "Action",
+      "HistoryData": "{\"actionState\":\"Succeeded\",\"stateUpdateTimestamp\":1705314600000,\"notificationResource\":\"arn:aws:sns:eu-south-1:123456789:pn-core-alarms\",\"publishedMessage\":\"{\\\"default\\\":\\\"{\\\\\\\"NewStateValue\\\\\\\":\\\\\\\"ALARM\\\\\\\"}\\\"}\",\"error\":null}"
+    },
+    {
+      "AlarmName": "pn-delivery-ErrorAlarm",
+      "Timestamp": "2025-01-15T12:00:00.000Z",
+      "HistoryItemType": "Action",
+      "HistoryData": "{\"actionState\":\"Succeeded\",\"stateUpdateTimestamp\":1705320000000,\"notificationResource\":\"arn:aws:sns:eu-south-1:123456789:pn-core-alarms\",\"publishedMessage\":\"{\\\"default\\\":\\\"{\\\\\\\"NewStateValue\\\\\\\":\\\\\\\"ALARM\\\\\\\"}\\\"}\",\"error\":null}"
+    }
+  ],
+  "NextToken": "eyJOZXh0VG9rZW4iOiAiYWJjMTIzIn0="
+}

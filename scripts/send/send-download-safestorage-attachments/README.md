@@ -83,7 +83,7 @@ outputs/send-download-safestorage-attachments_2026-02-20T11-30-00/
 
 ### `jsonl` — File JSONL strutturato
 
-Un file JSONL (una riga = un record JSON) tipicamente prodotto da `send-fetch-dynamodb-data`.
+Un file JSONL (una riga = un record JSON) tipicamente prodotto da `send-query-dynamodb`.
 
 Lo script estrae gli attachment da `items[].eventsList[].paperProgrStatus.attachments[]`. Il campo `keyValue` di ogni record viene usato come **nome della sotto-cartella** in cui vengono salvati i file di quel record. Gli attachment con array vuoto vengono ignorati.
 
@@ -216,7 +216,7 @@ pnpm send:download:safestorage:attachments:prod \
 
 ### Download da export DynamoDB in PROD
 
-L'input è tipicamente l'output del script `send-fetch-dynamodb-data`.
+L'input è tipicamente l'output dello script `send-query-dynamodb`.
 
 ```bash
 aws sso login --profile sso_pn-confinfo-prod

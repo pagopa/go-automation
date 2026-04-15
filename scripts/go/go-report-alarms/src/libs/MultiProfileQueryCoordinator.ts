@@ -15,7 +15,7 @@ import type { AWS } from '@go-automation/go-common';
 /**
  * Options for multi-profile query execution
  */
-export interface MultiProfileQueryOptions {
+interface MultiProfileQueryOptions {
   /** List of AWS SSO profile names to query */
   readonly profiles: ReadonlyArray<string>;
 

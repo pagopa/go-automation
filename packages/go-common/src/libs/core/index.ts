@@ -21,6 +21,9 @@ export * from './config/index.js';
 // Export file operations
 export * from './files/index.js';
 
+// Export JSON utilities
+export * from './json/index.js';
+
 // Export utilities
 export * from './network/index.js';
 export * from './utils/index.js';
@@ -36,6 +39,9 @@ export * from './environment/index.js';
 
 // Export script framework
 export * from './script/index.js';
+
+// Export messaging
+export * from './messaging/index.js';
 
 // Export AWS utilities (DynamoDB query service)
 export { DynamoDBQueryService } from '../aws/DynamoDBQueryService.js';

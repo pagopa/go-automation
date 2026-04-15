@@ -1,0 +1,67 @@
+name: CI Job
+
+on:
+  workflow_call:
+    inputs:
+      command:
+        description: 'pnpm command to run'
+        required: true
+        type: string
+      pre-command:
+        description: 'Optional pnpm command to run before the main command (e.g. build)'
+        required: false
+        type: string
+        default: ''
+      coverage-lines-threshold:
+        description: 'Optional line coverage threshold passed to test:coverage scripts'
+        required: false
+        type: string
+        default: ''
+      coverage-branches-threshold:
+        description: 'Optional branch coverage threshold passed to test:coverage scripts'
+        required: false
+        type: string
+        default: ''
+      coverage-functions-threshold:
+        description: 'Optional function coverage threshold passed to test:coverage scripts'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  run:
+    name: ${{ inputs.command }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Pre-command
+        if: inputs.pre-command != ''
+        run: pnpm ${{ inputs.pre-command }}
+
+      - name: Run
+        env:
+          GO_COVERAGE_LINES_THRESHOLD: ${{ inputs.coverage-lines-threshold }}
+          GO_COVERAGE_BRANCHES_THRESHOLD: ${{ inputs.coverage-branches-threshold }}
+          GO_COVERAGE_FUNCTIONS_THRESHOLD: ${{ inputs.coverage-functions-threshold }}
+        run: pnpm ${{ inputs.command }}

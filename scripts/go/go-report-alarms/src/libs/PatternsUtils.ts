@@ -1,9 +1,8 @@
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import { Core } from '@go-automation/go-common';
 
-/** Type guard for config file structure */
+/** Config file structure for ignore patterns */
 interface IgnorePatternsConfig {
-  ignorePatterns?: unknown;
+  readonly ignorePatterns?: ReadonlyArray<string>;
 }
 
 // ============================================================================
@@ -25,39 +24,25 @@ const DEFAULT_IGNORE_PATTERNS: ReadonlyArray<string> = [
 ] as const;
 
 /**
- * Validate and extract ignore patterns from parsed JSON
+ * Load ignore patterns from config file using GOJSONFileImporter.
+ * Resolves the config file path via GOPaths (centralized > local > fallback).
+ * Falls back to default patterns if file doesn't exist or is invalid.
+ *
+ * Designed to be used as asyncFallback in GOConfigParameterOptions,
+ * receiving the GOConfigFallbackContext automatically during config resolution.
+ *
+ * @param context - Fallback context with GOPaths for resolving config file location
+ * @returns Ignore patterns from config file or defaults
  */
-export function validateIgnorePatterns(config: unknown): string[] {
-  if (typeof config !== 'object' || config === null) {
-    return [];
-  }
-  const typedConfig = config as IgnorePatternsConfig;
-  if (!Array.isArray(typedConfig.ignorePatterns)) {
-    return [];
-  }
+export async function loadIgnorePatterns(context: Core.GOConfigFallbackContext): Promise<ReadonlyArray<string>> {
+  const configPath = context.paths.getConfigFilePath('ignore-patterns.json');
 
-  // prettier-ignore
-  return typedConfig.ignorePatterns.filter(
-    (item): item is string => typeof item === 'string'
-);
-}
+  const importer = new Core.GOJSONFileImporter<IgnorePatternsConfig>({ inputPath: configPath, optional: true });
+  const config = await importer.import();
 
-/**
- * Load ignore patterns from config file
- * Falls back to default patterns if file doesn't exist or is invalid
- */
-export async function loadIgnorePatterns(): Promise<ReadonlyArray<string>> {
-  const configPath = path.join(import.meta.dirname, '../configs/ignore-patterns.json');
-
-  try {
-    const configData = await fs.readFile(configPath, 'utf-8');
-    const config: unknown = JSON.parse(configData);
-    const patterns = validateIgnorePatterns(config);
-    if (patterns.length > 0) {
-      return patterns;
-    }
-  } catch {
-    // Fall through to default patterns if file doesn't exist or is invalid
+  const patterns = config?.ignorePatterns;
+  if (patterns && patterns.length > 0) {
+    return patterns;
   }
 
   return DEFAULT_IGNORE_PATTERNS;

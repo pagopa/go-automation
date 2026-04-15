@@ -84,6 +84,7 @@ Parameters:
   GoReportBucketName:
     Type: String
     Description: 'The name of the S3 bucket where reports will be stored'
+
 Resources:
 
   GoSendMonitorTppMessagesLambda:

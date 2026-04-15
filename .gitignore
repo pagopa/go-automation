@@ -47,8 +47,15 @@ Thumbs.db
 !.env.docker.example
 !**/docker/.env.example
 
+# Test coverage
+coverage/
+
 # Temporary files
 *.tmp
 .cache/
 temp/
 tmp/
+
+# Gemini
+.gemini/
+GEMINI.md

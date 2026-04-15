@@ -7,7 +7,7 @@
 
 import { Core } from '@go-automation/go-common';
 
-import type { {{SCRIPT_CONFIG_NAME}} } from './config.js';
+import type { {{SCRIPT_CONFIG_NAME}} } from './types/index.js';
 
 /**
  * Main script execution function
