@@ -3,6 +3,7 @@
  * Integrates spinner, loading bar, and user input prompts
  */
 
+import readline from 'node:readline';
 import prompts from 'prompts';
 
 import { GOLogEventCategory } from '../logging/GOLogEventCategory.js';
@@ -11,6 +12,28 @@ import { valueToString } from '../utils/GOValueToString.js';
 
 import { GOLoadingBar } from './GOLoadingBar.js';
 import { GOMultiSpinner } from './GOMultiSpinner.js';
+
+/**
+ * Flag to track if the process was interrupted via Ctrl+C.
+ * Since prompts puts stdin in raw mode, we use this to distinguish
+ * between Ctrl+C (exit) and Esc (cancel/go back).
+ */
+let isCtrlC = false;
+
+// Initialize keypress events on stdin to reliably detect Ctrl+C in raw mode
+if (process.stdin.isTTY) {
+  readline.emitKeypressEvents(process.stdin);
+  process.stdin.on('keypress', (_str, key: unknown) => {
+    const k = key as { ctrl?: boolean; name?: string } | undefined;
+    if (k?.ctrl && k.name === 'c') {
+      isCtrlC = true;
+    }
+  });
+}
+
+process.on('SIGINT', () => {
+  isCtrlC = true;
+});
 
 export interface GOPromptTextOptions {
   /** Default value */
@@ -331,6 +354,7 @@ export class GOPrompt {
    */
   public async text(message: string, options?: GOPromptTextOptions): Promise<string | undefined> {
     let cancelled = false;
+    isCtrlC = false;
     const response = await prompts(
       {
         type: 'text',
@@ -342,6 +366,9 @@ export class GOPrompt {
       },
       {
         onCancel: () => {
+          if (isCtrlC) {
+            process.exit(130);
+          }
           cancelled = true;
           return false;
         },
@@ -366,6 +393,7 @@ export class GOPrompt {
    */
   public async password(message: string, options?: GOPromptTextOptions): Promise<string | undefined> {
     let cancelled = false;
+    isCtrlC = false;
     const response = await prompts(
       {
         type: 'password',
@@ -377,6 +405,9 @@ export class GOPrompt {
       },
       {
         onCancel: () => {
+          if (isCtrlC) {
+            process.exit(130);
+          }
           cancelled = true;
           return false;
         },
@@ -401,6 +432,7 @@ export class GOPrompt {
    */
   public async number(message: string, options?: GOPromptNumberOptions): Promise<number | undefined> {
     let cancelled = false;
+    isCtrlC = false;
     const response = await prompts(
       {
         type: 'number',
@@ -414,6 +446,9 @@ export class GOPrompt {
       },
       {
         onCancel: () => {
+          if (isCtrlC) {
+            process.exit(130);
+          }
           cancelled = true;
           return false;
         },
@@ -448,6 +483,7 @@ export class GOPrompt {
           : {};
 
     let cancelled = false;
+    isCtrlC = false;
     const response = await prompts(
       {
         type: 'toggle',
@@ -460,6 +496,9 @@ export class GOPrompt {
       },
       {
         onCancel: () => {
+          if (isCtrlC) {
+            process.exit(130);
+          }
           cancelled = true;
           return false;
         },
@@ -488,6 +527,7 @@ export class GOPrompt {
     options?: GOPromptSelectOptions,
   ): Promise<T | undefined> {
     let cancelled = false;
+    isCtrlC = false;
     const response = await prompts(
       {
         type: 'select',
@@ -503,6 +543,9 @@ export class GOPrompt {
       },
       {
         onCancel: () => {
+          if (isCtrlC) {
+            process.exit(130);
+          }
           cancelled = true;
           return false;
         },
@@ -532,6 +575,7 @@ export class GOPrompt {
     options?: GOPromptMultiselectOptions,
   ): Promise<T[] | undefined> {
     let cancelled = false;
+    isCtrlC = false;
     const response: { value?: T[] } = await prompts(
       {
         type: 'multiselect',
@@ -548,6 +592,9 @@ export class GOPrompt {
       },
       {
         onCancel: () => {
+          if (isCtrlC) {
+            process.exit(130);
+          }
           cancelled = true;
           return false;
         },
@@ -585,6 +632,7 @@ export class GOPrompt {
           : {};
 
     let cancelled = false;
+    isCtrlC = false;
     const response: { value?: string } = await prompts(
       {
         type: 'autocomplete',
@@ -596,6 +644,9 @@ export class GOPrompt {
       },
       {
         onCancel: () => {
+          if (isCtrlC) {
+            process.exit(130);
+          }
           cancelled = true;
           return false;
         },
