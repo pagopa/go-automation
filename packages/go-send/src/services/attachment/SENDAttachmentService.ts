@@ -4,8 +4,8 @@
 
 import { createHash } from 'crypto';
 import { readFile } from 'fs/promises';
-import { GOHttpClient } from '../../../core/network/GOHttpClient.js';
-import type { GOAbortableRequest } from '../../../core/network/GOAbortableRequest.js';
+import { GOHttpClient } from '@go-automation/go-common/core';
+import type { GOAbortableRequest } from '@go-automation/go-common/core';
 import type { SENDPreloadResponse } from './models/SENDPreloadResponse.js';
 import type { SENDPreloadRequest } from './models/SENDPreloadRequest.js';
 import type { SENDAttachmentResult } from './models/SENDAttachmentResult.js';

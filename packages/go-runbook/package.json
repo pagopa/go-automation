@@ -29,18 +29,18 @@
     "@go-automation/go-common": "workspace:*"
   },
   "peerDependencies": {
-    "@aws-sdk/client-athena": "^3.1028.0",
-    "@aws-sdk/client-cloudwatch": "^3.1028.0",
-    "@aws-sdk/client-cloudwatch-logs": "^3.1028.0",
-    "@aws-sdk/client-dynamodb": "^3.1028.0",
+    "@aws-sdk/client-athena": "^3.1030.0",
+    "@aws-sdk/client-cloudwatch": "^3.1030.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.1030.0",
+    "@aws-sdk/client-dynamodb": "^3.1030.0",
     "@aws-sdk/util-dynamodb": "^3.996.2"
   },
   "devDependencies": {
-    "@aws-sdk/client-athena": "^3.1028.0",
-    "@aws-sdk/client-cloudwatch": "^3.1028.0",
-    "@aws-sdk/client-cloudwatch-logs": "^3.1028.0",
-    "@aws-sdk/client-dynamodb": "^3.1028.0",
+    "@aws-sdk/client-athena": "^3.1030.0",
+    "@aws-sdk/client-cloudwatch": "^3.1030.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.1030.0",
+    "@aws-sdk/client-dynamodb": "^3.1030.0",
     "@aws-sdk/util-dynamodb": "^3.996.2",
-    "@types/node": "^25.5.2"
+    "@types/node": "^24.12.2"
   }
 }

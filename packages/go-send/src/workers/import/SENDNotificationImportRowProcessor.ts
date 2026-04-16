@@ -14,7 +14,7 @@ import { SENDPhysicalCommunicationType } from '../../services/notification/model
 import { SENDNotificationFeePolicy } from '../../services/notification/models/SENDNotificationFeePolicy.js';
 import { SENDPagoPaIntMode } from '../../services/notification/models/SENDPagoPaIntMode.js';
 import type { SENDNotificationImportWorkerOptions } from './SENDNotificationImportWorkerOptions.js';
-import { GOEventEmitterBase } from '../../../core/events/GOEventEmitterBase.js';
+import { GOEventEmitterBase } from '@go-automation/go-common/core';
 import type { SENDNotificationImportWorkerEventMap } from './SENDNotificationImportWorkerEvents.js';
 
 export interface ProcessRowResult {

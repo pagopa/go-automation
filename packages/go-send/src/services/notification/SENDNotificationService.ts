@@ -2,8 +2,8 @@
  * Notification Service for sending and managing notifications
  */
 
-import type { GOAbortableRequest } from '../../../core/network/GOAbortableRequest.js';
-import { GOHttpClient } from '../../../core/network/GOHttpClient.js';
+import type { GOAbortableRequest } from '@go-automation/go-common/core';
+import { GOHttpClient } from '@go-automation/go-common/core';
 
 import type { SENDNotificationCreationResponse } from './models/SENDNotificationCreationResponse.js';
 import type { SENDNotificationRequest } from './models/SENDNotificationRequest.js';

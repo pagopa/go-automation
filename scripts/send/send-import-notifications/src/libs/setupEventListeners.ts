@@ -2,7 +2,8 @@
  * Registers event listeners for monitoring import workflow progress.
  */
 
-import { Core, SEND } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
+import type { SENDNotificationImportWorker, SENDNotificationRow } from '@go-automation/go-send';
 
 /**
  * Sets up event listeners for monitoring workflow progress.
@@ -13,8 +14,8 @@ import { Core, SEND } from '@go-automation/go-common';
  * @param prompt - The GOPrompt instance for spinner management
  */
 export function setupEventListeners(
-  worker: SEND.SENDNotificationImportWorker,
-  importer: Core.GOCSVListImporter<SEND.SENDNotificationRow>,
+  worker: SENDNotificationImportWorker,
+  importer: Core.GOCSVListImporter<SENDNotificationRow>,
   exporter: Core.GOCSVListExporter<Record<string, unknown>> | undefined,
   prompt: Core.GOPrompt,
 ): void {

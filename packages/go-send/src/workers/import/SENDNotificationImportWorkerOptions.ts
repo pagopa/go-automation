@@ -2,8 +2,8 @@
  * Worker options
  */
 
-import type { ColumnConflictStrategy } from '../../../core/exporters/csv/GOCSVListExporterOptions.js';
-import type { GOListExporter } from '../../../core/exporters/GOListExporter.js';
+import type { ColumnConflictStrategy } from '@go-automation/go-common/core';
+import type { GOListExporter } from '@go-automation/go-common/core';
 
 export interface SENDNotificationImportWorkerOptions {
   /** Number of concurrent notification blocks to process in parallel (default: 1) */

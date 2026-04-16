@@ -8,8 +8,8 @@
  * - No transformations needed
  */
 
-import type { GOCSVListImporterOptions } from '../../../../core/importers/csv/GOCSVListImporterOptions.js';
-import type { GOCSVFormatAdapter } from '../../../../core/importers/csv/GOCSVFormatAdapter.js';
+import type { GOCSVListImporterOptions } from '@go-automation/go-common/core';
+import type { GOCSVFormatAdapter } from '@go-automation/go-common/core';
 import { validateSENDCSVRow } from '../SENDCSVRowValidator.js';
 
 export class StandardFormatAdapter implements GOCSVFormatAdapter {
