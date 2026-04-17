@@ -83,8 +83,9 @@ async function main(): Promise<void> {
     const scriptCmd = program
       .command(script.id)
       .description(script.metadata.description ?? `Run ${script.id} script`)
+      .argument('[args...]', 'script arguments')
       .allowUnknownOption() // Allow script-specific parameters
-      .action(async (_options: Record<string, unknown>, cmd: Command) => {
+      .action(async (_options: Record<string, unknown>, _args: string[], cmd: Command) => {
         const programOpts = program.opts();
         const mode: ExecutionMode = programOpts['dist'] ? 'dist' : 'source';
         const isDryRun = !!programOpts['dryRun'];
@@ -97,7 +98,7 @@ async function main(): Promise<void> {
           process.exit(1);
         }
 
-        let currentArgs = cmd.args;
+        let currentArgs = _args.length > 0 ? _args : cmd.args;
 
         // Load preset if requested
         if (presetName) {
