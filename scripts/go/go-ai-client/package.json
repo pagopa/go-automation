@@ -20,8 +20,8 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-lambda": "^3.1030.0",
-    "@aws-sdk/credential-provider-ini": "^3.972.29",
+    "@aws-sdk/client-lambda": "^3.1031.0",
+    "@aws-sdk/credential-provider-ini": "^3.972.30",
     "@go-automation/go-ai": "workspace:*",
     "@go-automation/go-common": "workspace:*"
   },
