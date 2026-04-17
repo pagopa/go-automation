@@ -4,7 +4,49 @@ packages:
   - scripts/send/*
   - scripts/interop/*
   - functions/*
-  
+
+catalogMode: strict
+
+catalog:
+  "@aws-sdk/client-athena": "^3.1031.0"
+  "@aws-sdk/client-bedrock-runtime": "^3.1031.0"
+  "@aws-sdk/client-cloudformation": "^3.1031.0"
+  "@aws-sdk/client-cloudwatch": "^3.1031.0"
+  "@aws-sdk/client-cloudwatch-logs": "^3.1031.0"
+  "@aws-sdk/client-dynamodb": "^3.1031.0"
+  "@aws-sdk/client-ec2": "^3.1031.0"
+  "@aws-sdk/client-ecs": "^3.1031.0"
+  "@aws-sdk/client-eventbridge": "^3.1031.0"
+  "@aws-sdk/client-kinesis": "^3.1031.0"
+  "@aws-sdk/client-kms": "^3.1031.0"
+  "@aws-sdk/client-lambda": "^3.1031.0"
+  "@aws-sdk/client-s3": "^3.1031.0"
+  "@aws-sdk/client-sqs": "^3.1031.0"
+  "@aws-sdk/client-ssm": "^3.1031.0"
+  "@aws-sdk/client-sts": "^3.1031.0"
+  "@aws-sdk/credential-provider-ini": "^3.972.30"
+  "@aws-sdk/util-dynamodb": "^3.996.2"
+  "@eslint/js": "^10.0.1"
+  "@slack/web-api": "^7.15.1"
+  "@types/aws-lambda": "^8.10.161"
+  "@types/luxon": "^3.7.1"
+  "@types/node": "^24.12.2"
+  "@typescript-eslint/eslint-plugin": "^8.58.2"
+  "@typescript-eslint/parser": "^8.58.2"
+  "esbuild": "^0.28.0"
+  "eslint": "^10.2.0"
+  "eslint-config-prettier": "^10.1.8"
+  "eslint-plugin-prettier": "^5.5.5"
+  "eslint-plugin-security": "^4.0.0"
+  "globals": "^17.5.0"
+  "knip": "^6.4.1"
+  "luxon": "^3.7.2"
+  "prettier": "3.8.3"
+  "tsx": "^4.21.0"
+  "typescript": "^6.0.3"
+  "typescript-eslint": "^8.58.2"
+  "yaml": "^2.8.3"
+
 allowBuilds:
   esbuild: true
   unrs-resolver: true

@@ -30,6 +30,6 @@
     "@go-automation/go-send": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^24.12.2"
+    "@types/node": "catalog:"
   }
 }

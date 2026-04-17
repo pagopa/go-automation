@@ -24,11 +24,11 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-ecs": "^3.1031.0",
-    "@aws-sdk/credential-provider-ini": "^3.972.30",
+    "@aws-sdk/client-ecs": "catalog:",
+    "@aws-sdk/credential-provider-ini": "catalog:",
     "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^24.12.2"
+    "@types/node": "catalog:"
   }
 }

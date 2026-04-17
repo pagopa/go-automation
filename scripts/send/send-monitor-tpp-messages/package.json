@@ -37,16 +37,16 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-athena": "^3.1031.0",
-    "@aws-sdk/credential-provider-ini": "^3.972.30",
+    "@aws-sdk/client-athena": "catalog:",
+    "@aws-sdk/credential-provider-ini": "catalog:",
     "@go-automation/go-common": "workspace:*",
-    "@slack/web-api": "^7.15.1",
+    "@slack/web-api": "catalog:",
     "croner": "^10.0.1",
-    "luxon": "^3.7.2",
-    "yaml": "^2.8.3"
+    "luxon": "catalog:",
+    "yaml": "catalog:"
   },
   "devDependencies": {
-    "@types/luxon": "^3.7.1",
-    "@types/node": "^24.12.2"
+    "@types/luxon": "catalog:",
+    "@types/node": "catalog:"
   }
 }
