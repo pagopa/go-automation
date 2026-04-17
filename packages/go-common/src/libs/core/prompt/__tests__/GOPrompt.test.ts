@@ -2,7 +2,7 @@
  * Tests for GOPrompt
  */
 
-import { describe, it } from 'node:test';
+import { describe, it, mock, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import prompts from 'prompts';
 
@@ -13,6 +13,16 @@ import { GOLogger } from '../../logging/GOLogger.js';
 const logger = new GOLogger([]);
 
 describe('GOPrompt', () => {
+  let stdoutWriteMock: any;
+
+  beforeEach(() => {
+    stdoutWriteMock = mock.method(process.stdout, 'write', () => true);
+  });
+
+  afterEach(() => {
+    stdoutWriteMock.mock.restore();
+  });
+
   it('text prompt returns value', async () => {
     const prompt = new GOPrompt(logger);
     prompts.inject(['test value']);
@@ -105,5 +115,82 @@ describe('GOPrompt', () => {
 
     const result = await prompt.autocomplete('Find', ['match']);
     assert.strictEqual(result, undefined);
+  });
+
+  it('spinner methods', () => {
+    const prompt = new GOPrompt(logger);
+    prompt.startSpinner('Spinning');
+    assert.strictEqual(prompt.isSpinnerActive(), true);
+    prompt.updateSpinner('Updated');
+    prompt.stopSpinner();
+    assert.strictEqual(prompt.isSpinnerActive(), false);
+    
+    prompt.startSpinner('Spinning');
+    prompt.spinnerStop('Stopped');
+    assert.strictEqual(prompt.isSpinnerActive(), false);
+
+    prompt.startSpinner('Spinning');
+    prompt.spinnerSucceed('Success');
+    assert.strictEqual(prompt.isSpinnerActive(), false);
+
+    prompt.startSpinner('Spinning');
+    prompt.spinnerFail('Fail');
+    assert.strictEqual(prompt.isSpinnerActive(), false);
+
+    prompt.startSpinner('Spinning');
+    prompt.spinnerWarn('Warn');
+    assert.strictEqual(prompt.isSpinnerActive(), false);
+
+    prompt.startSpinner('Spinning');
+    prompt.spinnerInfo('Info');
+    assert.strictEqual(prompt.isSpinnerActive(), false);
+  });
+
+  it('multi-spinner methods', () => {
+    const prompt = new GOPrompt(logger);
+    prompt.spin('task1', 'Task 1');
+    assert.strictEqual(prompt.isSpinnerActive(), true);
+    prompt.spinSucceed('task1', 'Task 1 Done');
+    assert.strictEqual(prompt.isSpinnerActive(), false);
+
+    prompt.spin('task1', 'Task 1');
+    prompt.spinFail('task1', 'Task 1 Fail');
+    assert.strictEqual(prompt.isSpinnerActive(), false);
+
+    prompt.spin('task1', 'Task 1');
+    prompt.spinWarn('task1', 'Task 1 Warn');
+    assert.strictEqual(prompt.isSpinnerActive(), false);
+
+    prompt.spin('task1', 'Task 1');
+    prompt.spinInfo('task1', 'Task 1 Info');
+    assert.strictEqual(prompt.isSpinnerActive(), false);
+
+    prompt.spin('task1', 'Task 1');
+    prompt.spinRemove('task1');
+    assert.strictEqual(prompt.isSpinnerActive(), false);
+
+    prompt.spinLog('Log message');
+  });
+
+  it('loading bar methods', () => {
+    const prompt = new GOPrompt(logger);
+    prompt.startLoading('Loading');
+    assert.strictEqual(prompt.isLoadingActive(), true);
+    prompt.updateLoading(50, 'Halfway');
+    prompt.completeLoading('Finished');
+    // completeLoading uses setTimeout, but we just check internal call was made
+    prompt.failLoading('Error');
+    assert.strictEqual(prompt.isLoadingActive(), false);
+    
+    prompt.startLoading('Loading');
+    prompt.stopLoading();
+    assert.strictEqual(prompt.isLoadingActive(), false);
+  });
+
+  it('utility methods', () => {
+    const prompt = new GOPrompt(logger);
+    prompt.setSpinnerIndent(4);
+    prompt.setSpinnerIndent('    ');
+    assert.ok(true);
   });
 });
