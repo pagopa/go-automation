@@ -1,9 +1,15 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": [
+    "github>pagopa/eng-renovate",
+    ":combinePatchMinorReleases",
+    ":ignoreUnstable",
+    ":rebaseStalePrs",
+    ":dependencyDashboard"
+  ],
   "enabledManagers": ["npm"],
-  "labels": ["dependencies", "automated"],
-  "dependencyDashboard": true,
+  "prConcurrentLimit": 2,
+  "labels": ["dependencies"],
   "rangeStrategy": "replace",
   "lockFileMaintenance": {
     "enabled": true
