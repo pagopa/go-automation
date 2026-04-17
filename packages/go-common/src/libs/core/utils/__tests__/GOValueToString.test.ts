@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { valueToString, safeJsonStringify } from '../GOValueToString.js';
@@ -22,7 +23,10 @@ describe('GOValueToString', () => {
   it('handles symbols and functions', () => {
     assert.strictEqual(valueToString(Symbol('desc')), 'desc');
     assert.strictEqual(valueToString(Symbol()), '');
-    assert.strictEqual(valueToString(() => {}), '');
+    assert.strictEqual(
+      valueToString(() => {}),
+      '',
+    );
   });
 
   it('handles Dates', () => {
@@ -53,9 +57,12 @@ describe('GOValueToString', () => {
   });
 
   it('handles Maps and Sets', () => {
-    const map = new Map([['a', 1], ['b', 2]]);
+    const map = new Map([
+      ['a', 1],
+      ['b', 2],
+    ]);
     assert.strictEqual(valueToString(map), '{"a":1,"b":2}');
-    
+
     const set = new Set([1, 2, 3]);
     assert.strictEqual(valueToString(set), '[1,2,3]');
   });

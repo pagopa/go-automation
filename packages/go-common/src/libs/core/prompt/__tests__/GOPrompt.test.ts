@@ -2,6 +2,7 @@
  * Tests for GOPrompt
  */
 
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
 import { describe, it, mock, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import prompts from 'prompts';
@@ -124,7 +125,7 @@ describe('GOPrompt', () => {
     prompt.updateSpinner('Updated');
     prompt.stopSpinner();
     assert.strictEqual(prompt.isSpinnerActive(), false);
-    
+
     prompt.startSpinner('Spinning');
     prompt.spinnerStop('Stopped');
     assert.strictEqual(prompt.isSpinnerActive(), false);
@@ -181,7 +182,7 @@ describe('GOPrompt', () => {
     // completeLoading uses setTimeout, but we just check internal call was made
     prompt.failLoading('Error');
     assert.strictEqual(prompt.isLoadingActive(), false);
-    
+
     prompt.startLoading('Loading');
     prompt.stopLoading();
     assert.strictEqual(prompt.isLoadingActive(), false);

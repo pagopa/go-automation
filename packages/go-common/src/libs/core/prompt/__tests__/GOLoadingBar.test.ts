@@ -1,16 +1,17 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { describe, it, mock, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 import { GOLoadingBar } from '../GOLoadingBar.js';
 
 describe('GOLoadingBar', () => {
-  let stdoutWriteMock: any;
+  let stdoutWriteMock: { mock: { callCount(): number }; restore(): void };
 
   beforeEach(() => {
-    stdoutWriteMock = mock.method(process.stdout, 'write', () => true);
+    stdoutWriteMock = mock.method(process.stdout, 'write', () => true) as any;
   });
 
   afterEach(() => {
-    stdoutWriteMock.mock.restore();
+    stdoutWriteMock.restore();
   });
 
   it('starts the loading bar', () => {
@@ -45,12 +46,12 @@ describe('GOLoadingBar', () => {
     assert.strictEqual(bar.isActive(), false);
   });
 
-  it('completes the loading bar', (context, done) => {
+  it('completes the loading bar', (_context, done) => {
     const bar = new GOLoadingBar({ width: 10 });
     bar.start('Loading');
     bar.complete('Done');
     assert.strictEqual(bar.getPercentage(), 100);
-    
+
     // Complete uses setTimeout, so we wait a bit
     setTimeout(() => {
       assert.strictEqual(bar.isActive(), false);
