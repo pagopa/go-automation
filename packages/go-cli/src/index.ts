@@ -6,6 +6,8 @@
  * Unified interface for discovering, inspecting, and running scripts.
  */
 
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { Command } from 'commander';
 import { Core } from '@go-automation/go-common';
 import { discoverScripts, loadScriptParameters, getDiscoveryErrors, type DiscoveredScript } from './discovery.js';
@@ -52,17 +54,9 @@ async function main(): Promise<void> {
     .option('-s, --source', 'Run from TypeScript source (via tsx)', true)
     .option('-d, --dist', 'Run from compiled JavaScript (via node)')
     .option('--dry-run', 'Execute script in dry-run mode (simulated)', false)
-    .option('--list-scripts', 'Internal: List all script IDs for autocompletion', false)
     .option('--save <name>', 'Save current arguments as a named preset')
     .option('--preset <name>', 'Load arguments from a named preset')
     .option('--refresh', 'Force refresh the script discovery cache', false);
-
-  // Handle hidden list-scripts flag
-  if (process.argv.includes('--list-scripts')) {
-    console.log('Available scripts:');
-    scripts.forEach((s) => console.log(`  - ${s.id} (${s.category})`));
-    process.exit(0);
-  }
 
   // 1. Dynamic Command Registration
   for (const script of scripts) {
@@ -182,40 +176,6 @@ async function main(): Promise<void> {
         scriptPresets.forEach((p) => console.log(`  - ${p}`));
       }
 
-      process.exit(0);
-    });
-
-  // 3. Completion Command
-  program
-    .command('completion <shell>')
-    .description('Generate shell completion script (bash, zsh)')
-    .action((shell: string) => {
-      if (shell === 'bash') {
-        console.log(`
-_go_cli_completion() {
-    local cur prev opts
-    COMPREPLY=()
-    cur="\${COMP_WORDS[COMP_CWORD]}"
-    opts="$(go-cli --list-scripts)"
-    COMPREPLY=( $(compgen -W "\${opts}" -- \${cur}) )
-    return 0
-}
-complete -F _go_cli_completion go-cli
-        `);
-      } else if (shell === 'zsh') {
-        console.log(`
-#compdef go-cli
-_go_cli() {
-    local -a scripts
-    scripts=(\${(f)"$(go-cli --list-scripts)"})
-    _arguments "1: :($scripts)"
-}
-_go_cli "$@"
-        `);
-      } else {
-        logger.error(`Unsupported shell: ${shell}. Supported: bash, zsh`);
-        process.exit(1);
-      }
       process.exit(0);
     });
 
@@ -359,18 +319,21 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
           return a.title.localeCompare(b.title);
         });
 
-        const selectedTitle = await prompt.autocomplete(
+        const selectedScriptId = await prompt.select<string>(
           `Select a ${productMap[selectedCategory] ?? selectedCategory.toUpperCase()} script to run:`,
-          choices.map((c) => c.title),
+          choices.map((c) => ({
+            title: c.title,
+            value: c.value,
+            description: c.description,
+          })),
         );
 
-        if (selectedTitle === undefined) {
+        if (selectedScriptId === undefined) {
           historyStack.pop();
           continue;
         }
 
-        const selectedChoice = choices.find((c) => c.title === selectedTitle);
-        const selectedScript = scripts.find((s) => s.id === selectedChoice?.value);
+        const selectedScript = scripts.find((s) => s.id === selectedScriptId);
 
         if (!selectedScript) {
           // Should not happen with autocomplete

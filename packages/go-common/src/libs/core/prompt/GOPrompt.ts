@@ -4,7 +4,7 @@
  */
 
 import readline from 'node:readline';
-import prompts from 'prompts';
+import prompts, { type PromptObject } from 'prompts';
 
 import { GOLogEventCategory } from '../logging/GOLogEventCategory.js';
 import { GOLogger } from '../logging/GOLogger.js';
@@ -15,22 +15,10 @@ import { GOMultiSpinner } from './GOMultiSpinner.js';
 
 /**
  * Flag to track if the process was interrupted via Ctrl+C.
- * Since prompts puts stdin in raw mode, we use this to distinguish
- * between Ctrl+C (exit) and Esc (cancel/go back).
  */
 let isCtrlC = false;
 
-// Initialize keypress events on stdin to reliably detect Ctrl+C in raw mode
-if (process.stdin.isTTY) {
-  readline.emitKeypressEvents(process.stdin);
-  process.stdin.on('keypress', (_str, key: unknown) => {
-    const k = key as { ctrl?: boolean; name?: string } | undefined;
-    if (k?.ctrl && k.name === 'c') {
-      isCtrlC = true;
-    }
-  });
-}
-
+// Handle SIGINT (Ctrl+C)
 process.on('SIGINT', () => {
   isCtrlC = true;
 });
@@ -137,6 +125,56 @@ export class GOPrompt {
     this.spinner = new GOMultiSpinner();
     this.loadingBar = new GOLoadingBar();
     this.logResponses = logResponses;
+
+    // Ensure keypress events are emitted on stdin
+    if (process.stdin.isTTY) {
+      readline.emitKeypressEvents(process.stdin);
+    }
+  }
+
+  /**
+   * Internal wrapper to distinguish Ctrl+C from Esc and ensure Esc always returns undefined
+   */
+  private async runPrompt<T>(promptObj: PromptObject | PromptObject[]): Promise<T | undefined> {
+    let cancelled = false;
+    let isEsc = false;
+    isCtrlC = false;
+
+    // Local keypress listener for high-priority detection of Ctrl+C and Esc
+    const onKeypress = (_str: string, key: { ctrl?: boolean; name?: string } | undefined): void => {
+      if (key) {
+        if (key.ctrl && key.name === 'c') {
+          isCtrlC = true;
+        }
+        if (key.name === 'escape') {
+          isEsc = true;
+        }
+      }
+    };
+
+    process.stdin.on('keypress', onKeypress);
+
+    try {
+      const response = await prompts(promptObj, {
+        onCancel: () => {
+          if (isCtrlC) {
+            process.exit(130);
+          }
+          cancelled = true;
+          return false;
+        },
+      });
+
+      // If Esc was pressed, we ALWAYS want to return undefined,
+      // even if prompts somehow didn't call onCancel or returned a value.
+      if (cancelled || isEsc || response['value'] === undefined) {
+        return undefined;
+      }
+
+      return response['value'] as T;
+    } finally {
+      process.stdin.removeListener('keypress', onKeypress);
+    }
   }
 
   // ============================================================================
@@ -353,35 +391,16 @@ export class GOPrompt {
    * Ask for text input
    */
   public async text(message: string, options?: GOPromptTextOptions): Promise<string | undefined> {
-    let cancelled = false;
-    isCtrlC = false;
-    const response = await prompts(
-      {
-        type: 'text',
-        name: 'value',
-        message: message,
-        initial: options?.initial,
-        validate: options?.validate,
-        hint: options?.hint,
-      },
-      {
-        onCancel: () => {
-          if (isCtrlC) {
-            process.exit(130);
-          }
-          cancelled = true;
-          return false;
-        },
-      },
-    );
+    const value = await this.runPrompt<string>({
+      type: 'text',
+      name: 'value',
+      message: message,
+      initial: options?.initial,
+      validate: options?.validate,
+      hint: options?.hint,
+    });
 
-    if (cancelled || response.value === undefined) {
-      return undefined;
-    }
-
-    const value = response.value as string;
-
-    if (this.logger && this.logResponses) {
+    if (value !== undefined && this.logger && this.logResponses) {
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${value}`);
     }
 
@@ -392,35 +411,16 @@ export class GOPrompt {
    * Ask for password input (hidden)
    */
   public async password(message: string, options?: GOPromptTextOptions): Promise<string | undefined> {
-    let cancelled = false;
-    isCtrlC = false;
-    const response = await prompts(
-      {
-        type: 'password',
-        name: 'value',
-        message: message,
-        initial: options?.initial,
-        validate: options?.validate,
-        hint: options?.hint,
-      },
-      {
-        onCancel: () => {
-          if (isCtrlC) {
-            process.exit(130);
-          }
-          cancelled = true;
-          return false;
-        },
-      },
-    );
+    const value = await this.runPrompt<string>({
+      type: 'password',
+      name: 'value',
+      message: message,
+      initial: options?.initial,
+      validate: options?.validate,
+      hint: options?.hint,
+    });
 
-    if (cancelled || response.value === undefined) {
-      return undefined;
-    }
-
-    const value = response.value as string;
-
-    if (this.logger && this.logResponses) {
+    if (value !== undefined && this.logger && this.logResponses) {
       this.logger.log(GOLogEventCategory.INFO, `${message} → [hidden]`);
     }
 
@@ -431,37 +431,18 @@ export class GOPrompt {
    * Ask for number input
    */
   public async number(message: string, options?: GOPromptNumberOptions): Promise<number | undefined> {
-    let cancelled = false;
-    isCtrlC = false;
-    const response = await prompts(
-      {
-        type: 'number',
-        name: 'value',
-        message: message,
-        initial: options?.initial,
-        min: options?.min,
-        max: options?.max,
-        validate: options?.validate,
-        hint: options?.hint,
-      },
-      {
-        onCancel: () => {
-          if (isCtrlC) {
-            process.exit(130);
-          }
-          cancelled = true;
-          return false;
-        },
-      },
-    );
+    const value = await this.runPrompt<number>({
+      type: 'number',
+      name: 'value',
+      message: message,
+      initial: options?.initial,
+      min: options?.min,
+      max: options?.max,
+      validate: options?.validate,
+      hint: options?.hint,
+    });
 
-    if (cancelled || response.value === undefined) {
-      return undefined;
-    }
-
-    const value = response.value as number;
-
-    if (this.logger && this.logResponses) {
+    if (value !== undefined && this.logger && this.logResponses) {
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${value}`);
     }
 
@@ -482,36 +463,17 @@ export class GOPrompt {
           ? { initial: initialOrOptions }
           : {};
 
-    let cancelled = false;
-    isCtrlC = false;
-    const response = await prompts(
-      {
-        type: 'toggle',
-        name: 'value',
-        message: message,
-        initial: options.initial,
-        hint: options.hint,
-        active: 'yes',
-        inactive: 'no',
-      },
-      {
-        onCancel: () => {
-          if (isCtrlC) {
-            process.exit(130);
-          }
-          cancelled = true;
-          return false;
-        },
-      },
-    );
+    const value = await this.runPrompt<boolean>({
+      type: 'toggle',
+      name: 'value',
+      message: message,
+      initial: options.initial,
+      hint: options.hint,
+      active: 'yes',
+      inactive: 'no',
+    });
 
-    if (cancelled || response.value === undefined) {
-      return undefined;
-    }
-
-    const value = response.value as boolean;
-
-    if (this.logger && this.logResponses) {
+    if (value !== undefined && this.logger && this.logResponses) {
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${value ? 'Yes' : 'No'}`);
     }
 
@@ -526,39 +488,20 @@ export class GOPrompt {
     choices: GOPromptSelectOption[],
     options?: GOPromptSelectOptions,
   ): Promise<T | undefined> {
-    let cancelled = false;
-    isCtrlC = false;
-    const response = await prompts(
-      {
-        type: 'select',
-        name: 'value',
-        message: message,
-        hint: options?.hint ?? GOPrompt.defaultHint,
-        choices: choices.map((choice) => ({
-          title: choice.title,
-          value: choice.value,
-          description: choice.description,
-          hint: choice.hint,
-        })),
-      },
-      {
-        onCancel: () => {
-          if (isCtrlC) {
-            process.exit(130);
-          }
-          cancelled = true;
-          return false;
-        },
-      },
-    );
+    const value = await this.runPrompt<T>({
+      type: 'select',
+      name: 'value',
+      message: message,
+      hint: options?.hint ?? GOPrompt.defaultHint,
+      choices: choices.map((choice) => ({
+        title: choice.title,
+        value: choice.value,
+        description: choice.description,
+        hint: choice.hint,
+      })),
+    });
 
-    if (cancelled || response.value === undefined) {
-      return undefined;
-    }
-
-    const value = response.value as T;
-
-    if (this.logger && this.logResponses) {
+    if (value !== undefined && this.logger && this.logResponses) {
       const selected = choices.find((c) => c.value === value);
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${selected?.title ?? valueToString(value)}`);
     }
@@ -574,46 +517,27 @@ export class GOPrompt {
     choices: GOPromptMultiselectOption[],
     options?: GOPromptMultiselectOptions,
   ): Promise<T[] | undefined> {
-    let cancelled = false;
-    isCtrlC = false;
-    const response: { value?: T[] } = await prompts(
-      {
-        type: 'multiselect',
-        name: 'value',
-        message: message,
-        hint: options?.hint,
-        choices: choices.map((choice) => ({
-          title: choice.title,
-          value: choice.value,
-          selected: choice.selected ?? false,
-          description: choice.description,
-          hint: choice.hint,
-        })),
-      },
-      {
-        onCancel: () => {
-          if (isCtrlC) {
-            process.exit(130);
-          }
-          cancelled = true;
-          return false;
-        },
-      },
-    );
+    const value = await this.runPrompt<T[]>({
+      type: 'multiselect',
+      name: 'value',
+      message: message,
+      hint: options?.hint,
+      choices: choices.map((choice) => ({
+        title: choice.title,
+        value: choice.value,
+        selected: choice.selected ?? false,
+        description: choice.description,
+        hint: choice.hint,
+      })),
+    });
 
-    if (cancelled || response.value === undefined) {
-      return undefined;
-    }
-
-    const values = response.value;
-
-    if (this.logger && this.logResponses) {
-      const selected = choices.filter((c) => values.includes(c.value as T));
+    if (value !== undefined && this.logger && this.logResponses) {
+      const selected = choices.filter((c) => value.includes(c.value as T));
       const titles = selected.map((s) => s.title).join(', ');
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${titles || 'None'}`);
     }
 
-    return values;
+    return value;
   }
 
   /**
@@ -631,35 +555,16 @@ export class GOPrompt {
           ? { initial: initialOrOptions }
           : {};
 
-    let cancelled = false;
-    isCtrlC = false;
-    const response: { value?: string } = await prompts(
-      {
-        type: 'autocomplete',
-        name: 'value',
-        message: message,
-        initial: options.initial,
-        hint: options.hint ?? GOPrompt.defaultHint,
-        choices: choices.map((choice) => ({ title: choice, value: choice })),
-      },
-      {
-        onCancel: () => {
-          if (isCtrlC) {
-            process.exit(130);
-          }
-          cancelled = true;
-          return false;
-        },
-      },
-    );
+    const value = await this.runPrompt<string>({
+      type: 'autocomplete',
+      name: 'value',
+      message: message,
+      initial: options.initial,
+      hint: options.hint ?? GOPrompt.defaultHint,
+      choices: choices.map((choice) => ({ title: choice, value: choice })),
+    });
 
-    if (cancelled || response.value === undefined) {
-      return undefined;
-    }
-
-    const value = response.value;
-
-    if (this.logger && this.logResponses) {
+    if (value !== undefined && this.logger && this.logResponses) {
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${value}`);
     }
 

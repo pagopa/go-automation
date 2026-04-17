@@ -16,12 +16,12 @@ Il Control Plane centralizzato per la scoperta e l'esecuzione degli script di au
 ## Funzionalità
 
 - **Discovery Automatica**: analizza la cartella `scripts/` e registra ogni script che segue il pattern dei 3 file.
-- **Interfaccia Interattiva**: ricerca interattiva con autocompletamento se invocato senza argomenti.
+- **Interfaccia Interattiva**: se invocato senza argomenti, presenta un menu interattivo per scegliere lo script
 - **Modalità di Esecuzione**:
   - `source` (Default): esegue direttamente gli script in TypeScript tramite `tsx`.
   - `dist`: lancia gli script compilati JavaScript dalla loro cartella `dist/`.
 - **Ispezione Script**: comando `info` per visualizzare metadati e parametri senza eseguire lo script.
-- **Help Dinamico**: genera automaticamente l'aiuto e utilizzo dei parametri CLI per ogni script.
+- **Aiuto Dinamico**: genera automaticamente l'aiuto e utilizzo dei parametri CLI per ogni script.
 
 ## Prerequisiti
 
@@ -65,26 +65,6 @@ Per rimuovere il comando globale:
 
 ```bash
 pnpm uninstall --global @go-automation/go-cli
-```
-
-## Autocompletamento Shell
-
-`go-cli` supporta l'autocompletamento per i nomi degli script in bash e zsh.
-
-### Bash
-
-Aggiungi questa riga al tuo `.bashrc`:
-
-```bash
-source <(go-cli completion bash)
-```
-
-### Zsh
-
-Aggiungi questa riga al tuo `.zshrc`:
-
-```zsh
-source <(go-cli completion zsh)
 ```
 
 ## Utilizzo
@@ -166,5 +146,5 @@ Tutti i percorsi dei file (input, output, configurazioni) forniti come argomenti
 
 ---
 
-**Ultima modifica**: 2026-04-09
+**Ultima modifica**: 2026-04-17
 **Maintainer**: Team GO - Gestione Operativa
