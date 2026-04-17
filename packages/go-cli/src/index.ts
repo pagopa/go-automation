@@ -26,6 +26,26 @@ const scaffolder = new Scaffolder(prompt, logger);
 const presets = new PresetManager();
 const checker = new PreFlightChecker(logger);
 
+/**
+ * Shared utility to display script parameters in a consistent way
+ */
+function displayScriptParameters(parameters: ReadonlyArray<Core.GOConfigParameterOptions>): void {
+  if (parameters.length === 0) {
+    console.log('  No parameters defined.');
+    return;
+  }
+
+  parameters.forEach((param) => {
+    const name = `--${param.name.replace(/\./g, '-')}`;
+    const aliases = param.aliases?.map((a) => `-${a}`).join(', ') ?? '';
+    const required = param.required ? '(required)' : '';
+    const defaultValue = param.defaultValue !== undefined ? `(Default: ${String(param.defaultValue)})` : '';
+    console.log(
+      `  ${name.padEnd(20)} ${aliases.padEnd(10)} ${required.padEnd(12)} ${param.description} ${defaultValue}`,
+    );
+  });
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (args.includes('--refresh')) {
@@ -130,12 +150,7 @@ async function main(): Promise<void> {
       if (!script.parameters) {
         console.log(`  Parameters not loaded. Use "go-cli info ${script.id}" for full details.`);
       } else {
-        script.parameters.forEach((param) => {
-          const name = `--${param.name.replace(/\./g, '-')}`;
-          const aliases = param.aliases?.map((a) => `-${a}`).join(', ') ?? '';
-          const required = param.required ? '(required)' : '';
-          console.log(`  ${name.padEnd(20)} ${aliases.padEnd(10)} ${required.padEnd(12)} ${param.description}`);
-        });
+        displayScriptParameters(script.parameters);
       }
     });
   }
@@ -153,21 +168,19 @@ async function main(): Promise<void> {
 
       // Lazy load parameters
       const parameters = await loadScriptParameters(script);
+      const recentIds = await history.getHistory();
+      const isRecent = recentIds.includes(script.id);
 
-      console.log(`\nScript: ${script.metadata.name}`);
-      console.log(`Version: ${script.metadata.version ?? 'N/A'}`);
-      console.log(`Author: ${script.metadata.authors.join(', ')}`);
-      console.log(`Category: ${script.category}`);
+      console.log(`\nScript:      ${script.metadata.name}`);
+      console.log(`Version:     ${script.metadata.version ?? 'N/A'}`);
+      console.log(`Author:      ${script.metadata.authors.join(', ')}`);
+      console.log(`Category:    ${script.category}`);
       console.log(`Description: ${script.metadata.description ?? 'N/A'}`);
-      console.log(`\nPath: ${script.paths.root}`);
+      console.log(`Recent:      ${isRecent ? 'Yes (recently executed)' : 'No'}`);
+      console.log(`Path:        ${script.paths.root}`);
 
       console.log('\nAvailable Parameters:');
-      parameters.forEach((param) => {
-        const name = `--${param.name.replace(/\./g, '-')}`;
-        const aliases = param.aliases?.map((a) => `-${a}`).join(', ') ?? '';
-        const defaultValue = param.defaultValue !== undefined ? `(Default: ${String(param.defaultValue)})` : '';
-        console.log(`  ${name.padEnd(20)} ${aliases.padEnd(10)} ${param.description} ${defaultValue}`);
-      });
+      displayScriptParameters(parameters);
 
       // Show Presets
       const scriptPresets = await presets.listPresets(script.id);
@@ -175,6 +188,11 @@ async function main(): Promise<void> {
         console.log('\nAvailable Presets:');
         scriptPresets.forEach((p) => console.log(`  - ${p}`));
       }
+
+      // Show Usage Tips
+      console.log('\nUsage Examples:');
+      console.log(`  go-cli ${script.id} [args]`);
+      console.log(`  go-cli --dist ${script.id} [args]`);
 
       process.exit(0);
     });
@@ -191,25 +209,61 @@ async function main(): Promise<void> {
   // 5. Doctor Command (Diagnostics)
   program
     .command('doctor')
-    .description('Check monorepo for scripts that failed discovery')
-    .action(() => {
-      const errors = getDiscoveryErrors();
+    .description('Check monorepo health and environment configuration')
+    .action(async () => {
       logger.newline();
       logger.header('GO Automation Doctor');
 
-      if (errors.length === 0) {
-        logger.success('All scripts discovered successfully! Your monorepo is healthy.');
+      // 1. Monorepo Build Health
+      const commonDist = path.resolve(import.meta.dirname, '../../go-common/dist/index.js');
+      const isCommonBuilt = await fs
+        .access(commonDist)
+        .then(() => true)
+        .catch(() => false);
+
+      if (isCommonBuilt) {
+        logger.success('[BUILD] Core library (go-common) is built.');
       } else {
-        logger.error(`Found ${errors.length} script(s) with discovery errors:`);
-        errors.forEach((err) => {
-          console.log(`\nScript: [${err.category}] ${err.id}`);
-          console.log(`Path:   ${err.configPath}`);
-          console.log(`Error:  ${err.error}`);
-        });
-        logger.newline();
-        logger.info('Check the syntax and exports in the config.ts files above.');
+        logger.error('[BUILD] Core library (go-common) is NOT built.');
+        logger.info('        Run "pnpm build:common" to fix this.');
       }
-      process.exit(errors.length > 0 ? 1 : 0);
+
+      // 2. AWS Environment Health
+      const hasProfile = !!process.env['AWS_PROFILE'];
+      if (hasProfile) {
+        logger.success(`[AWS]   Active profile detected: ${process.env['AWS_PROFILE']}`);
+      } else {
+        logger.warning('[AWS]   No active AWS_PROFILE detected.');
+        logger.info('        AWS scripts will prompt for a profile or require manual setting.');
+      }
+
+      // 3. Discovery Health
+      const errors = getDiscoveryErrors();
+      if (errors.length === 0) {
+        logger.success('[DISC]  All scripts discovered successfully.');
+      } else {
+        logger.error(`[DISC]  Found ${errors.length} script(s) with discovery errors:`);
+        errors.forEach((err) => {
+          console.log(`        - [${err.category}] ${err.id}: ${err.error}`);
+        });
+        logger.info('        Check syntax and exports in the config.ts files.');
+      }
+
+      // 4. Installation Health
+      const isLinked = process.argv[1]?.includes('.pnpm') ?? process.argv[1]?.includes('bin/go-cli');
+      if (isLinked) {
+        logger.success('[INST]  CLI is properly linked/installed.');
+      } else {
+        logger.info('[INST]  Running in development/local mode.');
+      }
+
+      const totalErrors = errors.length + (isCommonBuilt ? 0 : 1);
+      if (totalErrors === 0) {
+        logger.newline();
+        logger.success('Everything looks good! Your environment is ready.');
+      }
+
+      process.exit(totalErrors > 0 ? 1 : 0);
     });
 
   // 6. Interactive Fallback
@@ -336,7 +390,6 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
         const selectedScript = scripts.find((s) => s.id === selectedScriptId);
 
         if (!selectedScript) {
-          // Should not happen with autocomplete
           continue;
         }
 
