@@ -8,13 +8,17 @@
     ":dependencyDashboard"
   ],
   "enabledManagers": ["npm"],
-  "prConcurrentLimit": 2,
   "labels": ["dependencies"],
+  "prConcurrentLimit": 4,
   "rangeStrategy": "replace",
   "lockFileMaintenance": {
     "enabled": true
   },
   "packageRules": [
+    {
+      "matchDepTypes": ["/^pnpm\\.catalog\\./"],
+      "enabled": true
+    },
     {
       "matchManagers": ["npm"],
       "matchPackageNames": ["/^@aws-sdk\\//"],
