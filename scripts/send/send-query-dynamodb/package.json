@@ -25,11 +25,11 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.1031.0",
-    "@aws-sdk/util-dynamodb": "^3.996.2",
+    "@aws-sdk/client-dynamodb": "catalog:",
+    "@aws-sdk/util-dynamodb": "catalog:",
     "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^24.12.2"
+    "@types/node": "catalog:"
   }
 }
