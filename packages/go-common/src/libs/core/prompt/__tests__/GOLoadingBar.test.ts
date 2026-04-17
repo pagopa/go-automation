@@ -1,17 +1,20 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
 import { describe, it, mock, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 import { GOLoadingBar } from '../GOLoadingBar.js';
+import { promisify } from 'node:util';
+
+const sleep = promisify(setTimeout);
 
 describe('GOLoadingBar', () => {
-  let stdoutWriteMock: { mock: { callCount(): number }; restore(): void };
+  let stdoutWriteMock: any;
 
   beforeEach(() => {
-    stdoutWriteMock = mock.method(process.stdout, 'write', () => true) as any;
+    stdoutWriteMock = mock.method(process.stdout, 'write', () => true);
   });
 
   afterEach(() => {
-    stdoutWriteMock.restore();
+    stdoutWriteMock.mock.restore();
   });
 
   it('starts the loading bar', () => {
@@ -46,17 +49,15 @@ describe('GOLoadingBar', () => {
     assert.strictEqual(bar.isActive(), false);
   });
 
-  it('completes the loading bar', (_context, done) => {
+  it('completes the loading bar', async () => {
     const bar = new GOLoadingBar({ width: 10 });
     bar.start('Loading');
     bar.complete('Done');
     assert.strictEqual(bar.getPercentage(), 100);
 
     // Complete uses setTimeout, so we wait a bit
-    setTimeout(() => {
-      assert.strictEqual(bar.isActive(), false);
-      done();
-    }, 150);
+    await sleep(150);
+    assert.strictEqual(bar.isActive(), false);
   });
 
   it('fails the loading bar', () => {
