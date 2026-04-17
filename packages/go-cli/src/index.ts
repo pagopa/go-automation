@@ -490,6 +490,9 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
         state.selectedPreset = selectedPreset;
         state.args = (await presets.getPreset(state.script.id, selectedPreset)) ?? [];
 
+        // Ensure parameters are loaded
+        await loadScriptParameters(state.script);
+
         const { valid, back, finalArgs } = await validateAndInformParameters(
           state.script,
           state.args,
