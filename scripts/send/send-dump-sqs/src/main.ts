@@ -50,7 +50,13 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.newline();
 
   // Initialize queue
-  const { queueUrl } = await initializeQueue(script.aws.sqs, config.queueName, script.prompt, script.logger);
+  const { queueUrl } = await initializeQueue(
+    script.aws.sqs,
+    script.aws.cloudWatch,
+    config.queueName,
+    script.prompt,
+    script.logger,
+  );
 
   // Dump messages
   const result = await dumpMessages(

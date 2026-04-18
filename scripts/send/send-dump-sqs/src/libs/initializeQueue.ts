@@ -2,7 +2,6 @@
  * Resolves the SQS queue URL and fetches queue attributes.
  */
 
-import { GetQueueAttributesCommand, GetQueueUrlCommand, type QueueAttributeName } from '@aws-sdk/client-sqs';
 import { Core } from '@go-automation/go-common';
 
 /**
@@ -18,6 +17,7 @@ interface QueueInitResult {
  * Resolves the queue URL, fetches attributes, and warns about capacity limits.
  *
  * @param sqsClient - AWS SQS client from GOScript
+ * @param cloudWatchClient - AWS CloudWatch client from GOScript
  * @param queueName - SQS queue name
  * @param prompt - GOPrompt for spinner feedback
  * @param logger - GOLogger for capacity warnings
@@ -25,6 +25,7 @@ interface QueueInitResult {
  */
 export async function initializeQueue(
   sqsClient: Core.GOScript['aws']['sqs'],
+  cloudWatchClient: Core.GOScript['aws']['cloudWatch'],
   queueName: string,
   prompt: Core.GOPrompt,
   logger: Core.GOLogger,
@@ -32,41 +33,30 @@ export async function initializeQueue(
   prompt.spin('init', `Initializing dump for queue "${queueName}"...`);
 
   try {
-    const getUrlResponse = await sqsClient.send(new GetQueueUrlCommand({ QueueName: queueName }));
-    if (getUrlResponse.QueueUrl === undefined) {
-      throw new Error(`Queue URL not found for "${queueName}"`);
-    }
-    const queueUrl = getUrlResponse.QueueUrl;
+    const sqsService = new Core.AWSSQSService(sqsClient, cloudWatchClient);
+    const metadata = await sqsService.resolveQueueMetadata(queueName);
 
-    const isFifoByName = queueName.endsWith('.fifo');
-    const attributeNames: QueueAttributeName[] = ['ApproximateNumberOfMessages'];
-    if (isFifoByName) {
-      attributeNames.push('FifoQueue');
-    }
+    const inFlightLimit = metadata.isFifo ? 20000 : 120000;
 
-    const getAttrResponse = await sqsClient.send(
-      new GetQueueAttributesCommand({
-        QueueUrl: queueUrl,
-        AttributeNames: attributeNames,
-      }),
+    prompt.spinSucceed(
+      'init',
+      `Queue initialized. Approx. messages: ${metadata.approxMessages}${metadata.isFifo ? ' (FIFO)' : ''}`,
     );
 
-    const isFifo = isFifoByName || getAttrResponse.Attributes?.FifoQueue === 'true';
-    const approxMessages = parseInt(getAttrResponse.Attributes?.ApproximateNumberOfMessages ?? '0', 10);
-    const inFlightLimit = isFifo ? 20000 : 120000;
-
-    prompt.spinSucceed('init', `Queue initialized. Approx. messages: ${approxMessages}${isFifo ? ' (FIFO)' : ''}`);
-
-    if (approxMessages > inFlightLimit) {
+    if (metadata.approxMessages > inFlightLimit) {
       logger.warning(
-        `Queue size (${approxMessages}) exceeds SQS in-flight message limit (${inFlightLimit}). ` +
+        `Queue size (${metadata.approxMessages}) exceeds SQS in-flight message limit (${inFlightLimit}). ` +
           'Dumping without deleting will stop once the limit is reached.',
       );
     }
 
-    return { queueUrl, approxMessages, isFifo };
+    return {
+      queueUrl: metadata.queueUrl,
+      approxMessages: metadata.approxMessages,
+      isFifo: metadata.isFifo,
+    };
   } catch (error) {
-    prompt.spinFail('init', `Failed to initialize queue: ${error instanceof Error ? error.message : String(error)}`);
+    prompt.spinFail('init', `Failed to initialize queue: ${Core.getErrorMessage(error)}`);
     throw error;
   }
 }

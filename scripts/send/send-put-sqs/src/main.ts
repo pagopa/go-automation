@@ -5,27 +5,15 @@
  * Supports text, JSON, and CSV input formats.
  */
 
-import * as crypto from 'node:crypto';
 import { Core } from '@go-automation/go-common';
-import {
-  SendMessageBatchCommand,
-  type SendMessageBatchRequestEntry,
-} from '@aws-sdk/client-sqs';
 
 import type { SendPutSqsConfig } from './types/SendPutSqsConfig.js';
-
-/**
- * Statistics for the bulk operation
- */
-interface BulkStats {
-  processed: number;
-  success: number;
-  failed: number;
-  retries: number;
-}
+import { initializeImporter, processBatch, updateProgress, type BulkStats } from './libs/SqsService.js';
 
 /**
  * Main script execution function
+ *
+ * @param script - The GOScript instance
  */
 export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<SendPutSqsConfig>();
@@ -43,28 +31,27 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.section('Processing Messages');
   script.prompt.startSpinner('Reading and sending messages...');
 
-  let batch: string[] = [];
-  const batchSize = Math.min(config.batchSize, 10);
+  let currentBatch: string[] = [];
+  const batchSize = Math.min(config.batchSize, Core.SQS_MAX_BATCH_SIZE);
 
   try {
     for await (const message of importer.importStream(inputPath)) {
-      if (typeof message !== 'string' && message !== null && message !== undefined) {
-        // For JSON/CSV, if not string, convert to JSON string
-        batch.push(typeof message === 'object' ? JSON.stringify(message) : String(message));
-      } else if (typeof message === 'string') {
-        batch.push(message);
+      if (typeof message === 'string') {
+        currentBatch.push(message);
+      } else if (message !== null && message !== undefined) {
+        currentBatch.push(JSON.stringify(message));
       }
 
-      if (batch.length >= batchSize) {
-        await processBatch(script, config, batch, stats);
-        batch = [];
+      if (currentBatch.length >= batchSize) {
+        await processBatch(script, config, currentBatch, stats);
+        currentBatch = [];
         updateProgress(script, stats);
       }
     }
 
     // Process final remaining batch
-    if (batch.length > 0) {
-      await processBatch(script, config, batch, stats);
+    if (currentBatch.length > 0) {
+      await processBatch(script, config, currentBatch, stats);
       updateProgress(script, stats);
     }
 
@@ -88,129 +75,4 @@ export async function main(script: Core.GOScript): Promise<void> {
   if (stats.failed > 0) {
     throw new Error(`Completed with ${stats.failed} permanent failures.`);
   }
-}
-
-/**
- * Initializes the appropriate importer based on configuration or file extension
- */
-function initializeImporter(_script: Core.GOScript, config: SendPutSqsConfig): Core.GOListImporter<any> {
-  const extension = config.inputFile.split('.').pop()?.toLowerCase();
-  const format = config.fileFormat === 'auto' ? extension : config.fileFormat;
-
-  switch (format) {
-    case 'json':
-      return new Core.GOJSONListImporter({
-        jsonl: 'auto',
-      });
-    case 'csv':
-      return new Core.GOCSVListImporter({
-        hasHeaders: true,
-        rowTransformer: (row: Record<string, string | undefined>) => row[config.csvColumn],
-      });
-    case 'text':
-    case 'txt':
-    default:
-      return new Core.GOFileListImporter();
-  }
-}
-
-/**
- * Processes a single batch of messages with retries
- */
-async function processBatch(
-  script: Core.GOScript,
-  config: SendPutSqsConfig,
-  messages: string[],
-  stats: BulkStats,
-): Promise<void> {
-  const batchId = Math.random().toString(36).substring(2, 7);
-  let entries: SendMessageBatchRequestEntry[] = messages.map((body, index) => ({
-    Id: `${batchId}-${index}`,
-    MessageBody: body,
-    DelaySeconds: config.delaySeconds > 0 ? config.delaySeconds : undefined,
-    ...(config.queueUrl.endsWith('.fifo')
-      ? {
-          MessageGroupId: config.fifoGroupId ?? 'default-group',
-          MessageDeduplicationId:
-            config.fifoDeduplicationStrategy === 'hash'
-              ? crypto.createHash('sha256').update(body).digest('hex')
-              : undefined,
-        }
-      : {}),
-  }));
-
-  let attempt = 0;
-  const maxRetries = config.batchMaxRetries;
-
-  while (entries.length > 0) {
-    stats.processed += attempt === 0 ? entries.length : 0;
-
-    try {
-      const command = new SendMessageBatchCommand({
-        QueueUrl: config.queueUrl,
-        Entries: entries,
-      });
-
-      const response = await script.aws.sqs.send(command);
-
-      const successfulCount = response.Successful?.length ?? 0;
-      stats.success += successfulCount;
-
-      if (!response.Failed || response.Failed.length === 0) {
-        break; // All successful
-      }
-
-      // Handle partial failures
-      const failedIds = new Set(
-        (response.Failed ?? [])
-          .map((f) => f.Id)
-          .filter((id): id is string => id !== undefined)
-      );
-      const failedEntries = entries.filter((e) => e.Id !== undefined && failedIds.has(e.Id));
-
-      if (attempt < maxRetries) {
-        attempt++;
-        stats.retries += failedEntries.length;
-        const delay = Math.pow(2, attempt) * 500;
-        
-        script.logger.warning(
-          `Batch ${batchId}: ${failedEntries.length} messages failed. ` +
-          `Retrying in ${delay}ms (Attempt ${attempt}/${maxRetries})...`
-        );
-        
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        entries = failedEntries;
-      } else {
-        // Max retries exhausted
-        script.logger.error(`Batch ${batchId}: ${failedEntries.length} messages permanently failed after ${maxRetries} retries.`);
-        for (const failure of response.Failed) {
-          script.logger.error(`  - ID ${failure.Id}: [${failure.Code}] ${failure.Message}`);
-        }
-        stats.failed += failedEntries.length;
-        break;
-      }
-    } catch (error) {
-      // Entire batch call failed (e.g., network error, DNS, etc.)
-      if (attempt < maxRetries) {
-        attempt++;
-        stats.retries += entries.length;
-        const delay = Math.pow(2, attempt) * 500;
-        script.logger.warning(`Batch ${batchId}: API call failed. Retrying in ${delay}ms...`);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      } else {
-        script.logger.error(`Batch ${batchId}: API call permanently failed: ${Core.getErrorMessage(error)}`);
-        stats.failed += entries.length;
-        break;
-      }
-    }
-  }
-}
-
-/**
- * Updates the spinner with current progress
- */
-function updateProgress(script: Core.GOScript, stats: BulkStats): void {
-  script.prompt.updateSpinner(
-    `Sent: ${stats.success} | Failed: ${stats.failed} | Retries: ${stats.retries}`
-  );
 }

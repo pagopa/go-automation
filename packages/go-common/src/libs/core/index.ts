@@ -43,8 +43,11 @@ export * from './script/index.js';
 // Export messaging
 export * from './messaging/index.js';
 
-// Export AWS utilities (DynamoDB query service)
+// Export AWS utilities (DynamoDB and SQS query services)
 export { DynamoDBQueryService } from '../aws/DynamoDBQueryService.js';
 export type { DynamoDBQueryProgressCallback } from '../aws/DynamoDBQueryService.js';
+export { AWSSQSService } from '../aws/AWSSQSService.js';
+export type { SQSQueueMetadata } from '../aws/models/SQSQueueMetadata.js';
+export type { DLQStats } from '../aws/models/DLQStats.js';
 export type { DynamoDBQueryOptions } from '../aws/models/DynamoDBQueryOptions.js';
 export type { DynamoDBQueryResult } from '../aws/models/DynamoDBQueryResult.js';

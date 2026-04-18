@@ -1,16 +1,28 @@
 /**
- * AWS SQS Service for DLQ inspection
+ * AWS SQS Service
  *
- * Provides methods to list Dead Letter Queues and retrieve their statistics,
- * combining SQS attributes with CloudWatch metrics for a complete picture.
+ * Provides methods for SQS operations including DLQ inspection,
+ * queue metadata resolution, and resilient batch sending.
  */
 
-import { GetQueueAttributesCommand, ListQueuesCommand } from '@aws-sdk/client-sqs';
-import type { SQSClient } from '@aws-sdk/client-sqs';
+import * as crypto from 'node:crypto';
+import {
+  GetQueueAttributesCommand,
+  GetQueueUrlCommand,
+  ListQueuesCommand,
+  SendMessageBatchCommand,
+} from '@aws-sdk/client-sqs';
+import type {
+  SQSClient,
+  SendMessageBatchRequestEntry,
+  SendMessageBatchCommandOutput,
+  QueueAttributeName,
+} from '@aws-sdk/client-sqs';
 import { GetMetricStatisticsCommand } from '@aws-sdk/client-cloudwatch';
 import type { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
 
 import type { DLQStats } from './models/DLQStats.js';
+import type { SQSQueueMetadata } from './models/SQSQueueMetadata.js';
 
 /** Time window for CloudWatch metrics (5 minutes) */
 const CLOUDWATCH_WINDOW_MS = 5 * 60 * 1000;
@@ -24,26 +36,118 @@ const SECONDS_PER_DAY = 24 * 60 * 60;
 /** Max results per ListQueues page */
 const LIST_QUEUES_PAGE_SIZE = 1000;
 
+/** Default batch retry delay (ms) */
+const DEFAULT_RETRY_DELAY_MS = 500;
+
 /**
- * Service for inspecting SQS Dead Letter Queues.
+ * Service for interacting with Amazon SQS.
  *
- * Combines SQS queue attributes with CloudWatch metrics to provide
- * a complete view of DLQ health per AWS account/profile.
- *
- * @example
- * ```typescript
- * const service = new AWSSQSService(clientProvider.sqs, clientProvider.cloudWatch);
- * const stats = await service.listDLQsWithStats();
- * for (const dlq of stats) {
- *   console.log(`${dlq.queueName}: ${dlq.messageCount} messages (${dlq.ageOfOldestMessageDays ?? 'N/A'} days old)`);
- * }
- * ```
+ * Provides high-level methods for common operational tasks like DLQ health
+ * checks and robust bulk message sending.
  */
 export class AWSSQSService {
   constructor(
     private readonly sqsClient: SQSClient,
     private readonly cloudWatchClient: CloudWatchClient,
   ) {}
+
+  /**
+   * Resolves queue metadata including URL, FIFO status, and message count.
+   *
+   * Accepts either a full queue URL or just the queue name.
+   *
+   * @param queueNameOrUrl - Queue name or URL
+   * @returns Queue metadata
+   */
+  async resolveQueueMetadata(queueNameOrUrl: string): Promise<SQSQueueMetadata> {
+    const queueUrl = queueNameOrUrl.startsWith('https://')
+      ? queueNameOrUrl
+      : (await this.sqsClient.send(new GetQueueUrlCommand({ QueueName: queueNameOrUrl }))).QueueUrl;
+
+    if (!queueUrl) {
+      throw new Error(`Could not resolve SQS queue URL for: ${queueNameOrUrl}`);
+    }
+
+    const attributeNames: QueueAttributeName[] = ['ApproximateNumberOfMessages', 'FifoQueue'];
+    const response = await this.sqsClient.send(
+      new GetQueueAttributesCommand({
+        QueueUrl: queueUrl,
+        AttributeNames: attributeNames,
+      }),
+    );
+
+    return {
+      queueUrl,
+      isFifo: response.Attributes?.FifoQueue === 'true',
+      approxMessages: parseInt(response.Attributes?.ApproximateNumberOfMessages ?? '0', 10),
+    };
+  }
+
+  /**
+   * Sends a batch of messages with surgical retries for partial failures.
+   *
+   * Only messages that failed in the previous attempt (reported in the `Failed` array)
+   * are retried, preventing duplicates in standard queues.
+   *
+   * @param queueUrl - Target queue URL
+   * @param entries - Batch of message entries
+   * @param options - Retry configuration
+   * @returns Final command output after all retries
+   */
+  async sendMessageBatchWithRetries(
+    queueUrl: string,
+    entries: SendMessageBatchRequestEntry[],
+    options: { maxRetries: number; onRetry?: (failedCount: number, attempt: number) => void } = { maxRetries: 3 },
+  ): Promise<SendMessageBatchCommandOutput> {
+    let currentEntries = [...entries];
+    let attempt = 0;
+    let finalResponse: SendMessageBatchCommandOutput | undefined;
+
+    while (currentEntries.length > 0) {
+      const response = await this.sqsClient.send(
+        new SendMessageBatchCommand({
+          QueueUrl: queueUrl,
+          Entries: currentEntries,
+        }),
+      );
+
+      finalResponse = response;
+
+      if (!response.Failed || response.Failed.length === 0) {
+        break;
+      }
+
+      if (attempt < options.maxRetries) {
+        attempt++;
+        const failedIds = new Set(response.Failed.map((f) => f.Id).filter((id): id is string => !!id));
+        currentEntries = currentEntries.filter((e) => e.Id !== undefined && failedIds.has(e.Id));
+
+        options.onRetry?.(currentEntries.length, attempt);
+
+        const delay = Math.pow(2, attempt) * DEFAULT_RETRY_DELAY_MS;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      } else {
+        break;
+      }
+    }
+
+    if (!finalResponse) {
+      throw new Error('No response received from SQS batch send');
+    }
+
+    return finalResponse;
+  }
+
+  /**
+   * Computes a SHA-256 fingerprint of a message body.
+   * Useful for MessageDeduplicationId in FIFO queues.
+   *
+   * @param body - Message body
+   * @returns Hex digest of the body hash
+   */
+  computeMessageFingerprint(body: string): string {
+    return crypto.createHash('sha256').update(body).digest('hex');
+  }
 
   /**
    * Lists all DLQs in the account that contain messages, with statistics.
