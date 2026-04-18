@@ -1,5 +1,6 @@
 export interface SendPutSqsConfig {
-  readonly queueUrl: string;
+  readonly queueUrl?: string;
+  readonly queueName?: string;
   readonly inputFile: string;
   readonly fileFormat: 'text' | 'json' | 'csv' | 'auto';
   readonly csvColumn: string;

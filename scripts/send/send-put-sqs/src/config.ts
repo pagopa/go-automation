@@ -30,9 +30,16 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'queue.url',
     type: Core.GOConfigParameterType.STRING,
-    description: 'The full SQS Queue URL',
-    required: true,
-    aliases: ['q', 'url'],
+    description: 'Target SQS queue URL',
+    required: false,
+    aliases: ['qu', 'url'],
+  },
+  {
+    name: 'queue.name',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'Target SQS queue name',
+    required: false,
+    aliases: ['qn'],
   },
   {
     name: 'input.file',

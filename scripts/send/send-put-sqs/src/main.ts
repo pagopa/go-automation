@@ -21,7 +21,15 @@ export async function main(script: Core.GOScript): Promise<void> {
   const startTime = Date.now();
 
   script.logger.section('Initialization');
-  script.logger.info(`Target Queue: ${config.queueUrl}`);
+  const queueNameOrUrl = config.queueUrl ?? config.queueName;
+  if (!queueNameOrUrl) {
+    throw new Error('Either queue.url or queue.name must be provided');
+  }
+
+  const sqsService = new Core.AWSSQSService(script.aws.sqs, script.aws.cloudWatch);
+  const metadata = await sqsService.resolveQueueMetadata(queueNameOrUrl);
+
+  script.logger.info(`Target Queue: ${metadata.queueUrl}`);
   script.logger.info(`Input File: ${config.inputFile}`);
 
   // Step 1: Initialize the appropriate importer
@@ -43,7 +51,7 @@ export async function main(script: Core.GOScript): Promise<void> {
       }
 
       if (currentBatch.length >= batchSize) {
-        await processBatch(script, config, currentBatch, stats);
+        await processBatch(script, config, metadata.queueUrl, currentBatch, stats);
         currentBatch = [];
         updateProgress(script, stats);
       }
@@ -51,7 +59,7 @@ export async function main(script: Core.GOScript): Promise<void> {
 
     // Process final remaining batch
     if (currentBatch.length > 0) {
-      await processBatch(script, config, currentBatch, stats);
+      await processBatch(script, config, metadata.queueUrl, currentBatch, stats);
       updateProgress(script, stats);
     }
 

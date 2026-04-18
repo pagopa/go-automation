@@ -47,6 +47,7 @@ export function initializeImporter(_script: Core.GOScript, config: SendPutSqsCon
 export async function processBatch(
   script: Core.GOScript,
   config: SendPutSqsConfig,
+  queueUrl: string,
   messages: string[],
   stats: BulkStats,
 ): Promise<void> {
@@ -57,7 +58,7 @@ export async function processBatch(
     Id: `${batchId}-${index}`,
     MessageBody: body,
     DelaySeconds: config.delaySeconds > 0 ? config.delaySeconds : undefined,
-    ...(config.queueUrl.endsWith('.fifo')
+    ...(queueUrl.endsWith('.fifo')
       ? {
           MessageGroupId: config.fifoGroupId ?? 'default-group',
           MessageDeduplicationId:
@@ -68,7 +69,7 @@ export async function processBatch(
 
   stats.processed += entries.length;
 
-  const response = await sqsService.sendMessageBatchWithRetries(config.queueUrl, entries, {
+  const response = await sqsService.sendMessageBatchWithRetries(queueUrl, entries, {
     maxRetries: config.batchMaxRetries,
     onRetry: (failedCount, attempt) => {
       stats.retries += failedCount;

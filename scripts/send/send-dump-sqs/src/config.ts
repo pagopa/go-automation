@@ -33,8 +33,15 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     name: 'queue.name',
     type: Core.GOConfigParameterType.STRING,
     description: 'Target SQS queue name',
-    required: true,
+    required: false,
     aliases: ['qn'],
+  },
+  {
+    name: 'queue.url',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'Target SQS queue URL',
+    required: false,
+    aliases: ['qu', 'url'],
   },
   {
     name: 'visibility.timeout',

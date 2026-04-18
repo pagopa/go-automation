@@ -8,7 +8,10 @@ export interface SendDumpSqsConfig {
   readonly awsProfile: string;
 
   /** Target SQS queue name */
-  readonly queueName: string;
+  readonly queueName?: string;
+
+  /** Target SQS queue URL */
+  readonly queueUrl?: string;
 
   /** Visibility timeout for received messages */
   readonly visibilityTimeout: number;
