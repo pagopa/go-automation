@@ -6,8 +6,6 @@
 
 import { Core } from '@go-automation/go-common';
 
-import { SendDumpSqsDedupMode } from './types/SendDumpSqsDedupMode.js';
-
 /**
  * Script metadata
  */
@@ -64,7 +62,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     description: 'Deduplication mode (message-id, content-md5, none) (default: message-id)',
     required: false,
     aliases: ['dm'],
-    defaultValue: SendDumpSqsDedupMode.MESSAGE_ID,
+    defaultValue: 'message-id',
   },
   {
     name: 'max.empty.receives',
