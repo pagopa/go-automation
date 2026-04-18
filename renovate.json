@@ -1,0 +1,49 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>pagopa/eng-renovate",
+    ":combinePatchMinorReleases",
+    ":ignoreUnstable",
+    ":rebaseStalePrs",
+    ":dependencyDashboard"
+  ],
+  "enabledManagers": ["npm"],
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 4,
+  "rangeStrategy": "replace",
+  "lockFileMaintenance": {
+    "enabled": true
+  },
+  "packageRules": [
+    {
+      "matchDepTypes": ["/^pnpm\\.catalog\\./"],
+      "enabled": true
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["/^@aws-sdk\\//"],
+      "groupName": "aws-sdk",
+      "commitMessageTopic": "aws-sdk"
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchPackageNames": [
+        "typescript",
+        "typescript-eslint",
+        "@typescript-eslint/eslint-plugin",
+        "@typescript-eslint/parser",
+        "eslint",
+        "@eslint/js",
+        "eslint-config-prettier",
+        "eslint-plugin-prettier",
+        "eslint-plugin-security",
+        "globals",
+        "knip",
+        "prettier",
+        "tsx"
+      ],
+      "groupName": "typescript-eslint-tooling",
+      "commitMessageTopic": "typescript-eslint-tooling"
+    }
+  ]
+}
