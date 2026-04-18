@@ -1,5 +1,0 @@
-{
-  "send-report-dlq": {
-    "daily-report-send": ["--aws-profiles", "send-core-prod,send-confinfo-prod"]
-  }
-}
