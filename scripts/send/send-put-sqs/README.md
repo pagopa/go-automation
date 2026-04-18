@@ -85,6 +85,13 @@ In caso di errori:
   - Messaggi falliti permanentemente (dopo tutti i tentativi).
   - Numero totale di tentativi di retry effettuati.
 
+## Validazione Input
+
+Lo script esegue controlli automatici sui messaggi prima dell'invio:
+- **Limite Dimensione**: Ogni messaggio viene validato per assicurarsi che non superi il limite di 256KB di SQS.
+- **Messaggi Vuoti**: I messaggi con corpo vuoto vengono rigettati.
+- **Formato**: I dati in formato JSON/CSV vengono convertiti correttamente e validati prima dell'invio. Se un messaggio fallisce la validazione, il batch corrente viene interrotto per prevenire inserimenti corrotti.
+
 ---
 
 ## Utilizzo
