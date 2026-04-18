@@ -98,6 +98,9 @@ pnpm --filter=send-put-sqs start --qu https://sqs... -f data.csv --cc body --ds 
 
 # Invio a coda FIFO con generazione hash per deduplicazione
 pnpm --filter=send-put-sqs start --qn coda.fifo -f msg.json --fds hash --fgid my-group --ap mio-profilo
+
+# Re-invio di messaggi scaricati tramite send-dump-sqs (formato NDJSON)
+pnpm --filter=send-put-sqs start --qn la-mia-coda -f dump_coda_2026-04-17.ndjson --ap mio-profilo
 ```
 
 ---

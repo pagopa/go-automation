@@ -49,4 +49,4 @@ export {
   DEFAULT_BACKOFF_CAP_MS,
 } from './pollUntilComplete.js';
 export type { PollOptions, PollAttemptInfo, BackoffFn } from './pollUntilComplete.js';
-export { SQSUtils, SQS_MAX_BATCH_SIZE } from './SQSUtils.js';
+export { SQSUtils, SQS_MAX_BATCH_SIZE, SQS_MAX_PAYLOAD_BYTES } from './SQSUtils.js';

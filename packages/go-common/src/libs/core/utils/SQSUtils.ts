@@ -5,6 +5,9 @@
 /** Max batch size for SQS operations */
 export const SQS_MAX_BATCH_SIZE = 10;
 
+/** Max payload size for SQS (256KB) */
+export const SQS_MAX_PAYLOAD_BYTES: number = 256 * 1024;
+
 /**
  * SQS Utilities class
  */
@@ -26,5 +29,21 @@ export class SQSUtils {
     }
 
     return chunks;
+  }
+
+  /**
+   * Validates that a message body is within SQS size limits.
+   *
+   * @param body - Message body string
+   * @throws Error if the body exceeds SQS limits
+   */
+  static validateMessageSize(body: string): void {
+    const size = Buffer.byteLength(body, 'utf8');
+    if (size > SQS_MAX_PAYLOAD_BYTES) {
+      throw new Error(`Message size (${size} bytes) exceeds SQS limit of ${SQS_MAX_PAYLOAD_BYTES} bytes`);
+    }
+    if (size === 0) {
+      throw new Error('Message body cannot be empty');
+    }
   }
 }

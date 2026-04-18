@@ -28,6 +28,7 @@ export function initializeImporter(_script: Core.GOScript, config: SendPutSqsCon
     case 'json':
       return new Core.GOJSONListImporter({
         jsonl: 'auto',
+        wrapSingleObject: true,
       });
     case 'csv':
       return new Core.GOCSVListImporter({
@@ -54,18 +55,23 @@ export async function processBatch(
   const batchId = Math.random().toString(36).substring(2, 7);
   const sqsService = new Core.AWSSQSService(script.aws.sqs, script.aws.cloudWatch);
 
-  const entries: SendMessageBatchRequestEntry[] = messages.map((body, index) => ({
-    Id: `${batchId}-${index}`,
-    MessageBody: body,
-    DelaySeconds: config.delaySeconds > 0 ? config.delaySeconds : undefined,
-    ...(queueUrl.endsWith('.fifo')
-      ? {
-          MessageGroupId: config.fifoGroupId ?? 'default-group',
-          MessageDeduplicationId:
-            config.fifoDeduplicationStrategy === 'hash' ? sqsService.computeMessageFingerprint(body) : undefined,
-        }
-      : {}),
-  }));
+  const entries: SendMessageBatchRequestEntry[] = messages.map((body, index) => {
+    // Validate message size and content
+    Core.SQSUtils.validateMessageSize(body);
+
+    return {
+      Id: `${batchId}-${index}`,
+      MessageBody: body,
+      DelaySeconds: config.delaySeconds > 0 ? config.delaySeconds : undefined,
+      ...(queueUrl.endsWith('.fifo')
+        ? {
+            MessageGroupId: config.fifoGroupId ?? 'default-group',
+            MessageDeduplicationId:
+              config.fifoDeduplicationStrategy === 'hash' ? sqsService.computeMessageFingerprint(body) : undefined,
+          }
+        : {}),
+    };
+  });
 
   stats.processed += entries.length;
 

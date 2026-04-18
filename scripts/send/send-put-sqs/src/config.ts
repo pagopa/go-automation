@@ -10,9 +10,9 @@ import { Core } from '@go-automation/go-common';
  * Script metadata
  */
 export const scriptMetadata: Core.GOScriptMetadata = {
-  name: 'Send Put SQS',
+  name: 'SEND Put SQS',
   version: '1.0.0',
-  description: 'Bulk sends messages to an SQS queue from a file source with surgical retries.',
+  description: 'Puts SQS messages - Insert messages to an SQS queue from a NDJSON file source.',
   authors: ['Team GO - Gestione Operativa'],
 };
 
