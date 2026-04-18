@@ -10,10 +10,14 @@ artifacts/*
 !artifacts/.gitkeep
 data/*
 !data/.gitkeep
+packages/go-cli/.go-cli-history.json
+packages/go-cli/.go-cli-presets.json
+packages/go-cli/.discovery-cache.json
 
 # Reports generati
 reports/
 *.csv
+
 # Eccezione: mantieni l'esempio
 !example_output.csv
 
