@@ -10,6 +10,7 @@ import {
   GetQueueAttributesCommand,
   GetQueueUrlCommand,
   ListQueuesCommand,
+  ReceiveMessageCommand,
   SendMessageBatchCommand,
 } from '@aws-sdk/client-sqs';
 import type {
@@ -17,12 +18,15 @@ import type {
   SendMessageBatchRequestEntry,
   SendMessageBatchCommandOutput,
   QueueAttributeName,
+  Message,
 } from '@aws-sdk/client-sqs';
 import { GetMetricStatisticsCommand } from '@aws-sdk/client-cloudwatch';
 import type { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
 
 import type { DLQStats } from './models/DLQStats.js';
 import type { SQSQueueMetadata } from './models/SQSQueueMetadata.js';
+import { SQSReceiveDeduplicationMode } from './models/SQSReceiveDeduplicationMode.js';
+import type { SQSReceiveResult } from './models/SQSReceiveResult.js';
 
 /** Time window for CloudWatch metrics (5 minutes) */
 const CLOUDWATCH_WINDOW_MS = 5 * 60 * 1000;
@@ -38,6 +42,12 @@ const LIST_QUEUES_PAGE_SIZE = 1000;
 
 /** Default batch retry delay (ms) */
 const DEFAULT_RETRY_DELAY_MS = 500;
+
+/** SQS Max batch size for receive */
+const SQS_MAX_RECEIVE_BATCH_SIZE = 10;
+
+/** Long polling wait time in seconds */
+const LONG_POLLING_WAIT_TIME = 20;
 
 /**
  * Service for interacting with Amazon SQS.
@@ -139,6 +149,99 @@ export class AWSSQSService {
   }
 
   /**
+   * Receives messages from a queue in bulk using long polling and deduplication.
+   *
+   * @param options - Receive configuration
+   * @param callbacks - Optional progress callbacks
+   * @returns Reception results including unique messages
+   */
+  async receiveMessages(
+    options: {
+      queueUrl: string;
+      visibilityTimeout: number;
+      maxEmptyReceives: number;
+      dedupMode: SQSReceiveDeduplicationMode;
+      limit?: number | undefined;
+    },
+    callbacks?: {
+      onProgress?: (unique: number, total: number, duplicates: number) => void;
+      onEmptyReceive?: (consecutive: number, max: number) => void;
+    },
+  ): Promise<SQSReceiveResult> {
+    let totalReceived = 0;
+    let totalUnique = 0;
+    let totalDuplicates = 0;
+    let consecutiveEmptyReceives = 0;
+    const seenKeys = new Set<string>();
+    const uniqueMessages: Message[] = [];
+
+    while (consecutiveEmptyReceives < options.maxEmptyReceives) {
+      if (options.limit !== undefined && totalUnique >= options.limit) {
+        break;
+      }
+
+      const nextBatchSize =
+        options.limit !== undefined
+          ? Math.min(SQS_MAX_RECEIVE_BATCH_SIZE, options.limit - totalUnique)
+          : SQS_MAX_RECEIVE_BATCH_SIZE;
+
+      const receiveResponse = await this.sqsClient.send(
+        new ReceiveMessageCommand({
+          QueueUrl: options.queueUrl,
+          MaxNumberOfMessages: nextBatchSize,
+          VisibilityTimeout: options.visibilityTimeout,
+          WaitTimeSeconds: LONG_POLLING_WAIT_TIME,
+          AttributeNames: ['All'],
+          MessageAttributeNames: ['All'],
+        }),
+      );
+
+      const messages = receiveResponse.Messages ?? [];
+
+      if (messages.length === 0) {
+        consecutiveEmptyReceives++;
+        callbacks?.onEmptyReceive?.(consecutiveEmptyReceives, options.maxEmptyReceives);
+        continue;
+      }
+
+      let newMessagesInBatch = 0;
+      for (const message of messages) {
+        const dedupKey = this.getReceiveDedupKey(message, options.dedupMode);
+        const isDuplicate = dedupKey !== undefined && seenKeys.has(dedupKey);
+
+        if (dedupKey !== undefined && !isDuplicate) {
+          seenKeys.add(dedupKey);
+        }
+
+        if (isDuplicate) {
+          totalDuplicates++;
+        } else {
+          uniqueMessages.push(message);
+          totalUnique++;
+          newMessagesInBatch++;
+        }
+      }
+
+      totalReceived += messages.length;
+
+      if (newMessagesInBatch > 0) {
+        consecutiveEmptyReceives = 0;
+      } else {
+        consecutiveEmptyReceives++;
+      }
+
+      callbacks?.onProgress?.(totalUnique, totalReceived, totalDuplicates);
+    }
+
+    const stopReason =
+      options.limit !== undefined && totalUnique >= options.limit
+        ? 'reached limit'
+        : `queue empty after ${options.maxEmptyReceives} polls`;
+
+    return { messages: uniqueMessages, totalReceived, totalUnique, totalDuplicates, stopReason };
+  }
+
+  /**
    * Computes a SHA-256 fingerprint of a message body.
    * Useful for MessageDeduplicationId in FIFO queues.
    *
@@ -147,6 +250,22 @@ export class AWSSQSService {
    */
   computeMessageFingerprint(body: string): string {
     return crypto.createHash('sha256').update(body).digest('hex');
+  }
+
+  /**
+   * Extracts the deduplication key from a received message.
+   */
+  private getReceiveDedupKey(message: Message, dedupMode: SQSReceiveDeduplicationMode): string | undefined {
+    switch (dedupMode) {
+      case SQSReceiveDeduplicationMode.MESSAGE_ID:
+        return message.MessageId;
+      case SQSReceiveDeduplicationMode.CONTENT_MD5:
+        return `${message.MD5OfBody ?? ''}:${message.MD5OfMessageAttributes ?? ''}`;
+      case SQSReceiveDeduplicationMode.NONE:
+        return undefined;
+      default:
+        return undefined;
+    }
   }
 
   /**

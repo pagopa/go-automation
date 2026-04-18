@@ -11,11 +11,9 @@
  * - Progress estimation and capacity warnings.
  */
 
-import type { Message } from '@aws-sdk/client-sqs';
 import { Core } from '@go-automation/go-common';
 
 import { initializeQueue } from './libs/initializeQueue.js';
-import { dumpMessages } from './libs/dumpMessages.js';
 import type { SendDumpSqsConfig } from './types/index.js';
 
 /** Long polling wait time */
@@ -64,22 +62,32 @@ export async function main(script: Core.GOScript): Promise<void> {
     script.logger,
   );
 
+  // Initialize service
+  const sqsService = new Core.AWSSQSService(script.aws.sqs, script.aws.cloudWatch);
+
   // Dump messages
-  const result = await dumpMessages(
-    script.aws.sqs,
+  script.prompt.startSpinner('Dumping messages...');
+  const result = await sqsService.receiveMessages(
     {
       queueUrl,
       dedupMode: config.dedupMode,
       visibilityTimeout: config.visibilityTimeout,
       maxEmptyReceives: config.maxEmptyReceives,
-      limit: config.limit,
+      limit: config.limit ?? undefined,
     },
-    script.prompt,
+    {
+      onProgress: (unique, total, duplicates) => {
+        script.prompt.updateSpinner(`Dumped: ${unique} | Received: ${total} | Duplicates: ${duplicates}`);
+      },
+      onEmptyReceive: (consecutive, max) => {
+        script.prompt.updateSpinner(`Empty receive (${consecutive}/${max})... Still searching...`);
+      },
+    },
   );
 
   // Write all collected messages to NDJSON file
   if (result.messages.length > 0) {
-    const exporter = new Core.GOJSONListExporter<Message>({
+    const exporter = new Core.GOJSONListExporter<Core.Message>({
       outputPath: outputPathInfo.path,
       jsonl: true,
     });
@@ -88,7 +96,7 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   script.prompt.spinnerStop(
     `Dump completed (${result.stopReason}).\n` +
-      `  - Total unique messages: ${result.totalDumped}\n` +
+      `  - Total unique messages: ${result.totalUnique}\n` +
       `  - Total messages received: ${result.totalReceived}\n` +
       `  - Duplicates filtered: ${result.totalDuplicates}\n` +
       `  - File: ${outputPathInfo.path}`,

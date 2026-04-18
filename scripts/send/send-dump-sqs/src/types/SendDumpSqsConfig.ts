@@ -1,4 +1,4 @@
-import { SendDumpSqsDedupMode } from './SendDumpSqsDedupMode.js';
+import { Core } from '@go-automation/go-common';
 
 /**
  * Script configuration interface
@@ -19,12 +19,12 @@ export interface SendDumpSqsConfig {
   /** Maximum number of messages to dump */
   readonly limit: number | undefined;
 
-  /** Deduplication mode */
-  readonly dedupMode: SendDumpSqsDedupMode;
+  /** Deduplication strategy */
+  readonly dedupMode: Core.SQSReceiveDeduplicationMode;
 
   /** Number of consecutive empty polls before stopping */
   readonly maxEmptyReceives: number;
 
-  /** Custom output file path */
+  /** Output file path */
   readonly outputFile: string | undefined;
 }

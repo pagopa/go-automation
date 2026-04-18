@@ -3,7 +3,6 @@
  */
 
 import { Core } from '@go-automation/go-common';
-import type { SendMessageBatchRequestEntry } from '@aws-sdk/client-sqs';
 
 import type { SendPutSqsConfig } from '../types/SendPutSqsConfig.js';
 
@@ -55,7 +54,7 @@ export async function processBatch(
   const batchId = Math.random().toString(36).substring(2, 7);
   const sqsService = new Core.AWSSQSService(script.aws.sqs, script.aws.cloudWatch);
 
-  const entries: SendMessageBatchRequestEntry[] = messages.map((body, index) => {
+  const entries: Core.SendMessageBatchRequestEntry[] = messages.map((body, index) => {
     // Validate message size and content
     Core.SQSUtils.validateMessageSize(body);
 
@@ -77,7 +76,7 @@ export async function processBatch(
 
   const response = await sqsService.sendMessageBatchWithRetries(queueUrl, entries, {
     maxRetries: config.batchMaxRetries,
-    onRetry: (failedCount, attempt) => {
+    onRetry: (failedCount: number, attempt: number) => {
       stats.retries += failedCount;
       script.logger.warning(
         `Batch ${batchId}: ${failedCount} messages failed. Retrying (Attempt ${attempt}/${config.batchMaxRetries})...`,
