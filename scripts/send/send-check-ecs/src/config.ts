@@ -4,7 +4,7 @@ import { Core } from '@go-automation/go-common';
  * Script metadata
  */
 export const scriptMetadata: Core.GOScriptMetadata = {
-  name: 'Send Check ECS',
+  name: 'SEND Check ECS',
   version: '1.0.0',
   description: 'Checks ECS health - Monitor status of clusters, services, and tasks for operational awareness.',
   authors: ['Team GO - Gestione Operativa'],
