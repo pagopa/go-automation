@@ -1,150 +1,106 @@
 # GO Automation CLI (go-cli)
 
-> Versione: 1.0.0 | Autore: Team GO - Gestione Operativa
+> Il Control Plane unificato per l'ecosistema GO Automation di PagoPA.
+> Smetti di destreggiarti tra i comandi pnpm --filter. Inizia ad automatizzare.
 
-Il Control Plane centralizzato per la scoperta e l'esecuzione degli script di automazione nel monorepo. Sostituisce i comandi `pnpm --filter` con un'interfaccia intuitiva e interattiva.
-
-## Indice
-
-- [Funzionalità](#funzionalità)
-- [Prerequisiti](#prerequisiti)
-- [Utilizzo Globale](#utilizzo-globale)
-- [Utilizzo](#utilizzo)
-- [Esempi Pratici](#esempi-pratici)
-- [Troubleshooting](#troubleshooting)
-
-## Funzionalità
-
-- **Discovery Automatica**: analizza la cartella `scripts/` e registra ogni script che segue il pattern dei 3 file.
-- **Interfaccia Interattiva**: se invocato senza argomenti, presenta un menu interattivo per scegliere lo script
-- **Modalità di Esecuzione**:
-  - `source` (Default): esegue direttamente gli script in TypeScript tramite `tsx`.
-  - `dist`: lancia gli script compilati JavaScript dalla loro cartella `dist/`.
-- **Ispezione Script**: comando `info` per visualizzare metadati e parametri senza eseguire lo script.
-- **Aiuto Dinamico**: genera automaticamente l'aiuto e utilizzo dei parametri CLI per ogni script.
-
-## Prerequisiti
-
-### Software Richiesto
-
-| Software   | Versione Minima | Note                 |
-| ---------- | --------------- | -------------------- |
-| Node.js    | >= 22.14.0      | Versione monorepo    |
-| pnpm       | >= 10.28.0      | Package manager      |
-| TypeScript | >= 5.0.0        | Incluso nel progetto |
-
-## Utilizzo Globale
-
-Per rendere il comando `go-cli` disponibile ovunque nel sistema, è consigliato utilizzare il meccanismo nativo di `pnpm link`.
-
-### Installazione Globale (Link)
-
-1. Assicurati di aver compilato il progetto almeno una volta:
-
-   ```bash
-   pnpm build
-   ```
-
-2. Entra nella cartella del pacchetto:
-
-   ```bash
-   cd packages/go-cli
-   ```
-
-3. Crea il link globale:
-
-   ```bash
-   pnpm link --global
-   ```
-
-Ora puoi invocare `go-cli` da qualsiasi cartella del tuo sistema. Qualsiasi modifica al codice nel monorepo sarà immediatamente riflessa nel comando globale (grazie al symlink).
-
-### Disinstallazione
-
-Per rimuovere il comando globale:
-
-```bash
-pnpm uninstall --global @go-automation/go-cli
-```
-
-## Utilizzo
-
-### Modalità Interattiva
-
-Lancia il menu di selezione:
-
-```bash
-pnpm go
-# oppure, se hai configurato l'alias:
-go-cli
-```
-
-### Esecuzione Diretta
-
-```bash
-# Esecuzione da sorgente (default)
-go-cli [nome-script] [opzioni-script]
-
-# Esecuzione da build
-go-cli --dist [nome-script] [opzioni-script]
-```
-
-### Ispezione Script
-
-```bash
-go-cli info [nome-script]
-```
-
-## Esempi Pratici
-
-### Analisi Allarmi
-
-```bash
-go-cli go-report-alarms --sd 2024-01-01T00:00:00Z --ed 2024-01-31T23:59:59Z
-```
-
-### Visualizzazione Help di uno Script
-
-```bash
-go-cli send-check-ecs --help
-```
-
-### Modalità Dist per validazione build
-
-```bash
-go-cli --dist go-report-alarms --sd 2024-01-01T00:00:00Z --ed 2024-01-31T23:59:59Z
-```
-
-## Note Tecniche
-
-### Autenticazione AWS
-
-`go-cli` supporta esclusivamente l'autenticazione tramite **AWS SSO Profiles**.
-
-- Non sono supportate (né previste) Access Keys o Secret Keys.
-- Il comando `doctor` e i check pre-flight verificheranno la presenza di un profilo attivo (`AWS_PROFILE`).
-- Se il profilo è scaduto, il CLI avviserà l'utente suggerendo di eseguire `aws sso login`.
-
-### Risoluzione dei Path
-
-Tutti i percorsi dei file (input, output, configurazioni) forniti come argomenti agli script vengono risolti **relativamente alla directory dello script stesso**.
-
-- Questa convenzione è mantenuta sia in modalità `source` che `dist`.
-- Esempio: se esegui `send-query-dynamodb` e fornisci `--input-file data/pks.txt`, lo script cercherà il file in `scripts/send/send-query-dynamodb/data/pks.txt`.
-
-## Troubleshooting
-
-### Errore: "Script not found"
-
-**Causa**: Lo script non è stato correttamente scoperto o non segue il pattern dei 3 file (manca `src/config.ts`).
-**Soluzione**: Verifica che lo script esporti `scriptMetadata` e `scriptParameters` in `src/config.ts`.
-
-### Errore: "Dist entry point not found"
-
-**Causa**: Stai cercando di eseguire in modalità `--dist` ma lo script non è stato compilato.
-**Soluzione**: Esegui `pnpm build` o `pnpm --filter [nome-script] build`.
+`go-cli` è l'intelligenza centrale del monorepo GO Automation. Fornisce un'interfaccia di alto livello e interattiva per scoprire, ispezionare ed eseguire script di automazione in tutti i domini (go/, send/, interop/) con attrito zero.
 
 ---
 
-**Ultima modifica**: 2026-04-17
+## Vantaggi di `go-cli`
+
+In un monorepo in rapida crescita, trovare lo strumento giusto non dovrebbe essere la parte più difficile del lavoro. `go-cli` risolve questo problema fornendo:
+
+- **Quick Find (Novità)**: Ricerca fuzzy pesata ultra-veloce alimentata da Fuse.js. Trova qualsiasi script tramite il suo ID, nome, descrizione o parole chiave in millisecondi.
+- **Autodiscovery**: Nessun file di configurazione da mantenere. Basta aggiungere uno script seguendo il pattern dei 3 file, e `go-cli` lo troverà automaticamente.
+- **Esecuzione Guidata**: Non sei sicuro dei parametri necessari per uno script? Eseguilo in modalità interattiva e lascia che la CLI ti guidi attraverso le opzioni richieste.
+- **AWS SSO Integrato**: Validazione automatica della sessione. Riconosce se il profilo AWS è scaduto e suggerisce esattamente come risolvere prima ancora di lanciare lo script.
+- **Domain-Aware**: Gestisce senza problemi l'esecuzione degli script da sorgente (TypeScript) o distribuzione (JavaScript), garantendo la risoluzione coerente dei path e la configurazione dell'ambiente.
+
+---
+
+## Iniziare
+
+### Prerequisiti
+
+| Strumento | Versione |
+| :--- | :--- |
+| **Node.js** | >= 22.14.0 (Standard monorepo) |
+| **pnpm** | >= 10.28.0 |
+| **AWS CLI** | Configurato con SSO |
+
+### Installazione
+
+Per rendere `go-cli` disponibile globalmente nel sistema:
+
+1. **Compila il monorepo**: `pnpm build`
+2. **Crea il link globale**: `cd packages/go-cli && pnpm link --global`
+
+Ora puoi digitare `go-cli` da qualsiasi cartella nel terminale.
+
+---
+
+## Utilizzo
+
+### 1. Quick Find Interattivo (Consigliato)
+
+Esegui `go-cli` senza argomenti per entrare nell'hub interattivo.
+
+```bash
+go-cli
+```
+
+*Usa la ricerca fuzzy per saltare immediatamente a qualsiasi script nel repository.*
+
+### 2. Esecuzione Diretta
+
+Se conosci già i parametri, puoi saltare il menu:
+
+```bash
+# Esegui uno script da sorgente (Default)
+go-cli send-query-dynamodb --table my-table
+
+# Esegui uno script compilato (per test simili alla produzione)
+go-cli --dist go-report-alarms --sd 2025-01-01
+```
+
+### 3. Ispezione Script
+
+Vuoi vedere cosa fa uno script senza eseguirlo?
+
+```bash
+go-cli info send-import-notifications
+```
+
+---
+
+## Per i Collaboratori: Aggiungere un nuovo Script
+
+Aggiungere un nuovo strumento all'ecosistema è immediato:
+
+1. **Scaffolding**: Usa `bins/create-script.sh` per generare la struttura a 3 file.
+2. **Metadata**: Definisci l'identità dello script in `src/config.ts`:
+
+    ```typescript
+    export const scriptMetadata: GOScriptMetadata = {
+      id: 'mio-nuovo-tool',
+      name: 'Il mio nuovo strumento potente',
+      description: 'Esegue operazioni incredibili automaticamente.',
+      keywords: ['athena', 's3', 'cleanup'] // Ricercabile tramite Quick Find!
+    };
+    ```
+
+3. **Fine**: `go-cli` lo rileverà alla prossima esecuzione. Nessuna registrazione manuale richiesta.
+
+---
+
+## Eccellenza Tecnica
+
+- **TypeScript Rigoroso**: Politica zero any. Sicurezza dei tipi dalla CLI fino alla logica core.
+- **Risoluzione Smart dei Path**: Gli script vedono sempre i percorsi relativi alla loro posizione, eliminando i bug legati al contesto di esecuzione.
+- **Osservabilità**: Integrato con il sistema di logging di go-common. Ogni esecuzione è strutturata, tracciabile e reportabile.
+
+---
+
+**Ultimo aggiornamento**: 2026-04-19
 **Maintainer**: Team GO - Gestione Operativa
