@@ -23,9 +23,7 @@ export interface GOScriptMetadata {
   /** Script description */
   description: string;
 
-  /** Script authors */
-  authors: ReadonlyArray<string>;
-}
+  /** Script authors */\n  authors: ReadonlyArray<string>;\n\n  /**\n   * Script keywords for discovery/search\n   */\n  readonly keywords?: ReadonlyArray<string>;\n}
 
 /**
  * Script logging options
