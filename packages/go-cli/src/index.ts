@@ -342,7 +342,7 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
     switch (currentStep) {
       case 'CATEGORY': {
         const categoryChoice = await prompt.select<string>('Select product/team category:', [
-          { title: '🔍 [SEARCH] Quick Find...', value: '__search__' },
+          { title: '[SEARCH] Quick Find...', value: '__search__' },
           ...categories.map((c) => ({
             title: productMap[c] ?? c.toUpperCase(),
             value: c,
@@ -365,21 +365,28 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
       }
 
       case 'SEARCH': {
-        const selectedScriptId = await prompt.autocomplete<string>('Search for a script (fuzzy search):', [], {
-          // eslint-disable-next-line @typescript-eslint/require-await
-          suggest: async (input) =>
-            !input
-              ? scripts.map((s) => ({
-                  title: `[${s.category.toUpperCase()}] ${s.id}`,
-                  value: s.id,
-                  description: s.metadata.description,
-                }))
-              : fuse.search(input).map((r) => ({
-                  title: `[${r.item.category.toUpperCase()}] ${r.item.id}`,
-                  value: r.item.id,
-                  description: r.item.metadata.description,
-                })),
-        });
+        const initialChoices = scripts.map((s) => ({
+          title: `[${s.category.toUpperCase()}] ${s.id}`,
+          value: s.id,
+          description: s.metadata.description,
+        }));
+
+        const selectedScriptId = await prompt.autocomplete<string>(
+          'Search for a script (fuzzy search):',
+          initialChoices,
+          {
+            limit: 15,
+            // eslint-disable-next-line @typescript-eslint/require-await
+            suggest: async (input) =>
+              !input
+                ? initialChoices
+                : fuse.search(input).map((r) => ({
+                    title: `[${r.item.category.toUpperCase()}] ${r.item.id}`,
+                    value: r.item.id,
+                    description: r.item.metadata.description,
+                  })),
+          },
+        );
 
         if (selectedScriptId === undefined) {
           historyStack.pop();

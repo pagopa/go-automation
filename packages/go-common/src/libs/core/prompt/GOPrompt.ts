@@ -107,6 +107,9 @@ export interface GOPromptAutocompleteOptions {
   /** Hint for the prompt */
   hint?: string;
 
+  /** Maximum number of results to show (default: 10) */
+  limit?: number;
+
   /** Suggestion function for custom filtering */
   suggest?: (input: string, choices: GOPromptSelectOption[]) => Promise<GOPromptSelectOption[]>;
 }
@@ -567,6 +570,7 @@ export class GOPrompt {
       name: 'value',
       message: message,
       initial: options.initial,
+      limit: options.limit ?? 10,
       hint: options.hint ?? GOPrompt.defaultHint,
       choices: formattedChoices.map((choice) => ({
         title: choice.title,
