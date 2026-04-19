@@ -99,10 +99,28 @@ export async function discoverScripts(): Promise<DiscoveredScript[]> {
       const module = (await import(pathToFileURL(configFile).href)) as ScriptConfigModule;
 
       if (module.scriptMetadata && module.scriptParameters) {
+        // Extract keywords from package.json if it exists
+        let keywords: string[] = [];
+        try {
+          const packageJsonPath = path.join(scriptRoot, 'package.json');
+          const packageJsonData = await fs.readFile(packageJsonPath, 'utf-8');
+          const packageJson = JSON.parse(packageJsonData);
+          if (Array.isArray(packageJson.keywords)) {
+            keywords = packageJson.keywords;
+          }
+        } catch (_error) {
+          // package.json missing or invalid keywords, ignore
+        }
+
+        const metadata = {
+          ...module.scriptMetadata,
+          keywords: [...(module.scriptMetadata.keywords || []), ...keywords],
+        };
+
         const scriptData: DiscoveredScript = {
           id,
           category,
-          metadata: module.scriptMetadata,
+          metadata,
           parameters: module.scriptParameters,
           mtime,
           paths: {
@@ -119,7 +137,7 @@ export async function discoverScripts(): Promise<DiscoveredScript[]> {
         cache[configFile] = {
           id,
           category,
-          metadata: module.scriptMetadata,
+          metadata,
           mtime,
           paths: scriptData.paths,
         };
