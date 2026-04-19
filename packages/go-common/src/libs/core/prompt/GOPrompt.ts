@@ -64,7 +64,7 @@ export interface GOPromptSelectOption {
   title: string;
 
   /** Option value */
-  value: unknown;
+  value?: unknown;
 
   /** Option description (optional) */
   description?: string;
@@ -575,9 +575,13 @@ export class GOPrompt {
         hint: choice.hint,
       })),
       suggest: options.suggest
-        ? async (input: string, choices: GOPromptSelectOption[]) => {
+        ? async (input: string, choices: unknown[]) => {
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            return options.suggest!(input, choices);
+            return options.suggest!(
+              input,
+              choices as GOPromptSelectOption[],
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ) as unknown as Promise<any[]>;
           }
         : undefined,
     });
