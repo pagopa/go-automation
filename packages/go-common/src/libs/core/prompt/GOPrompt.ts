@@ -106,6 +106,9 @@ export interface GOPromptAutocompleteOptions {
 
   /** Hint for the prompt */
   hint?: string;
+
+  /** Suggestion function for custom filtering */
+  suggest?: (input: string, choices: GOPromptSelectOption[]) => Promise<GOPromptSelectOption[]>;
 }
 
 /**
@@ -543,11 +546,11 @@ export class GOPrompt {
   /**
    * Ask for autocomplete text input
    */
-  public async autocomplete(
+  public async autocomplete<T = string>(
     message: string,
-    choices: string[],
+    choices: GOPromptSelectOption[] | string[],
     initialOrOptions?: string | GOPromptAutocompleteOptions,
-  ): Promise<string | undefined> {
+  ): Promise<T | undefined> {
     const options: GOPromptAutocompleteOptions =
       typeof initialOrOptions === 'object'
         ? initialOrOptions
@@ -555,17 +558,32 @@ export class GOPrompt {
           ? { initial: initialOrOptions }
           : {};
 
-    const value = await this.runPrompt<string>({
+    const formattedChoices: GOPromptSelectOption[] = choices.map((choice) =>
+      typeof choice === 'string' ? { title: choice, value: choice as unknown as T } : choice,
+    );
+
+    const value = await this.runPrompt<T>({
       type: 'autocomplete',
       name: 'value',
       message: message,
       initial: options.initial,
       hint: options.hint ?? GOPrompt.defaultHint,
-      choices: choices.map((choice) => ({ title: choice, value: choice })),
+      choices: formattedChoices.map((choice) => ({
+        title: choice.title,
+        value: choice.value,
+        description: choice.description,
+        hint: choice.hint,
+      })),
+      suggest: options.suggest
+        ? async (input: string, choices: GOPromptSelectOption[]) => {
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            return options.suggest!(input, choices);
+          }
+        : undefined,
     });
 
     if (value !== undefined && this.logger && this.logResponses) {
-      this.logger.log(GOLogEventCategory.INFO, `${message} → ${value}`);
+      this.logger.log(GOLogEventCategory.INFO, `${message} → ${valueToString(value)}`);
     }
 
     return value;

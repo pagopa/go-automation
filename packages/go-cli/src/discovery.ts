@@ -104,7 +104,7 @@ export async function discoverScripts(): Promise<DiscoveredScript[]> {
         try {
           const packageJsonPath = path.join(scriptRoot, 'package.json');
           const packageJsonData = await fs.readFile(packageJsonPath, 'utf-8');
-          const packageJson = JSON.parse(packageJsonData);
+          const packageJson = JSON.parse(packageJsonData) as { keywords?: string[] };
           if (Array.isArray(packageJson.keywords)) {
             keywords = packageJson.keywords;
           }
@@ -112,9 +112,9 @@ export async function discoverScripts(): Promise<DiscoveredScript[]> {
           // package.json missing or invalid keywords, ignore
         }
 
-        const metadata = {
+        const metadata: Core.GOScriptMetadata = {
           ...module.scriptMetadata,
-          keywords: [...(module.scriptMetadata.keywords || []), ...keywords],
+          keywords: [...(module.scriptMetadata.keywords ?? []), ...keywords],
         };
 
         const scriptData: DiscoveredScript = {

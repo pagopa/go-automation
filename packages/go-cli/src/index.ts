@@ -8,6 +8,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import Fuse from 'fuse.js';
 import { Command } from 'commander';
 import { Core } from '@go-automation/go-common';
 import { discoverScripts, loadScriptParameters, getDiscoveryErrors, type DiscoveredScript } from './discovery.js';
@@ -278,6 +279,7 @@ async function main(): Promise<void> {
 
 type Step =
   | 'CATEGORY'
+  | 'SEARCH'
   | 'SCRIPT'
   | 'MODE'
   | 'DRY_RUN'
@@ -321,6 +323,16 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
 
   const categories = [...new Set(scripts.map((s) => s.category))].sort();
 
+  const fuse = new Fuse(scripts, {
+    keys: [
+      { name: 'id', weight: 2 },
+      { name: 'metadata.name', weight: 2 },
+      { name: 'metadata.description', weight: 1 },
+      { name: 'metadata.keywords', weight: 1 },
+    ],
+    threshold: 0.4,
+  });
+
   const state: NavigationState = {};
   const historyStack: Step[] = ['CATEGORY'];
 
@@ -330,6 +342,7 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
     switch (currentStep) {
       case 'CATEGORY': {
         const categoryChoice = await prompt.select<string>('Select product/team category:', [
+          { title: '🔍 [SEARCH] Quick Find...', value: '__search__' },
           ...categories.map((c) => ({
             title: productMap[c] ?? c.toUpperCase(),
             value: c,
@@ -341,8 +354,47 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
           continue;
         }
 
+        if (categoryChoice === '__search__') {
+          historyStack.push('SEARCH');
+          continue;
+        }
+
         state.category = categoryChoice;
         historyStack.push('SCRIPT');
+        break;
+      }
+
+      case 'SEARCH': {
+        const selectedScriptId = await prompt.autocomplete<string>('Search for a script (fuzzy search):', [], {
+          // eslint-disable-next-line @typescript-eslint/require-await
+          suggest: async (input) =>
+            !input
+              ? scripts.map((s) => ({
+                  title: `[${s.category.toUpperCase()}] ${s.id}`,
+                  value: s.id,
+                  description: s.metadata.description,
+                }))
+              : fuse.search(input).map((r) => ({
+                  title: `[${r.item.category.toUpperCase()}] ${r.item.id}`,
+                  value: r.item.id,
+                  description: r.item.metadata.description,
+                })),
+        });
+
+        if (selectedScriptId === undefined) {
+          historyStack.pop();
+          continue;
+        }
+
+        const selectedScript = scripts.find((s) => s.id === selectedScriptId);
+
+        if (!selectedScript) {
+          continue;
+        }
+
+        state.script = selectedScript;
+        state.category = selectedScript.category;
+        historyStack.push('MODE');
         break;
       }
 
