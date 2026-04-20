@@ -18,7 +18,8 @@
   },
   "keywords": [
     "send",
-    "go-automation"
+    "sqs",
+    "dlq"
   ],
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",

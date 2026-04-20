@@ -20,7 +20,7 @@
   },
   "keywords": [
     "send",
-    "go-automation"
+    "dynamodb"
   ],
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
