@@ -202,3 +202,15 @@ export async function loadScriptParameters(
     });
   }
 }
+
+/**
+ * Get the discovery cache metadata (last modified time)
+ */
+export async function getDiscoveryCacheMetadata(): Promise<{ lastUpdate: Date | undefined }> {
+  try {
+    const stats = await fs.stat(CACHE_FILE);
+    return { lastUpdate: stats.mtime };
+  } catch (_error) {
+    return { lastUpdate: undefined };
+  }
+}

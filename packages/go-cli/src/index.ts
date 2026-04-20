@@ -11,7 +11,13 @@ import path from 'node:path';
 import Fuse from 'fuse.js';
 import { Command } from 'commander';
 import { Core } from '@go-automation/go-common';
-import { discoverScripts, loadScriptParameters, getDiscoveryErrors, type DiscoveredScript } from './discovery.js';
+import {
+  discoverScripts,
+  loadScriptParameters,
+  getDiscoveryErrors,
+  getDiscoveryCacheMetadata,
+  type DiscoveredScript,
+} from './discovery.js';
 import { runScript, type ExecutionMode } from './runner.js';
 import { validateAndInformParameters } from './params.js';
 import { HistoryManager } from './history.js';
@@ -30,21 +36,44 @@ const checker = new PreFlightChecker(logger);
 /**
  * Shared utility to display script parameters in a consistent way
  */
-function displayScriptParameters(parameters: ReadonlyArray<Core.GOConfigParameterOptions>): void {
+function displayScriptParameters(
+  parameters: ReadonlyArray<Core.GOConfigParameterOptions>,
+  detailed: boolean = false,
+): void {
   if (parameters.length === 0) {
     console.log('  No parameters defined.');
     return;
   }
 
-  parameters.forEach((param) => {
-    const name = `--${param.name.replace(/\./g, '-')}`;
-    const aliases = param.aliases?.map((a) => `-${a}`).join(', ') ?? '';
-    const required = param.required ? '(required)' : '';
-    const defaultValue = param.defaultValue !== undefined ? `(Default: ${String(param.defaultValue)})` : '';
-    console.log(
-      `  ${name.padEnd(20)} ${aliases.padEnd(10)} ${required.padEnd(12)} ${param.description} ${defaultValue}`,
-    );
-  });
+  if (detailed) {
+    // Technical table for 'inspect'
+    const header = `  ${'FLAG'.padEnd(25)} ${'TYPE'.padEnd(15)} ${'REQ'.padEnd(8)} ${'DEFAULT'.padEnd(15)} ${'DESCRIPTION'}`;
+    console.log(header);
+    console.log(`  ${'-'.repeat(header.length)}`);
+
+    parameters.forEach((param) => {
+      const name = `--${param.name.replace(/\./g, '-')}`;
+      const type = param.type.toUpperCase();
+      const required = param.required ? 'Yes' : 'No';
+      const defaultValue = param.defaultValue !== undefined ? String(param.defaultValue) : '-';
+
+      console.log(
+        `  ${name.padEnd(25)} ${type.padEnd(15)} ${required.padEnd(8)} ${defaultValue.padEnd(15)} ${param.description}`,
+      );
+    });
+  } else {
+    // Operational usage for 'help'
+    const header = `  ${'FLAG'.padEnd(25)} ${'ALIAS'.padEnd(12)} ${'DESCRIPTION'}`;
+    console.log(header);
+    console.log(`  ${'-'.repeat(header.length)}`);
+
+    parameters.forEach((param) => {
+      const name = `--${param.name.replace(/\./g, '-')}`;
+      const aliases = param.aliases?.map((a) => `-${a}`).join(', ') ?? '-';
+      const defaultValue = param.defaultValue !== undefined ? ` (Default: ${String(param.defaultValue)})` : '';
+      console.log(`  ${name.padEnd(25)} ${aliases.padEnd(12)} ${param.description}${defaultValue}`);
+    });
+  }
 }
 
 async function main(): Promise<void> {
@@ -146,55 +175,81 @@ async function main(): Promise<void> {
 
     // Add help for script parameters if metadata is available
     scriptCmd.on('--help', () => {
-      console.log('\nScript Parameters:');
+      console.log('\nScript Help:');
 
-      // If they are not loaded, we inform the user to use the info command
       if (!script.parameters) {
-        console.log(`  Parameters not loaded. Use "go-cli info ${script.id}" for full details.`);
+        console.log(`  Help not loaded. Use "go-cli inspect ${script.id}" for full technical details.`);
       } else {
-        displayScriptParameters(script.parameters);
+        displayScriptParameters(script.parameters, false);
       }
     });
   }
 
-  // 2. Info Command
+  // 2. Help Command (Operational)
   program
-    .command('info <script-name>')
-    .description('Show detailed information about a script')
-    .action(async (scriptName: string) => {
-      const script = scripts.find((s) => s.id === scriptName);
+    .command('help <script-id>')
+    .description('Show operational help for a specific script')
+    .action(async (scriptId: string) => {
+      const script = scripts.find((s) => s.id === scriptId);
       if (!script) {
-        logger.error(`Script '${scriptName}' not found.`);
+        logger.error(`Script '${scriptId}' not found.`);
         process.exit(1);
       }
 
-      // Lazy load parameters
+      await loadScriptParameters(script);
+
+      console.log(`\nUsage: go-cli ${script.id} [options]`);
+      console.log(`\nDescription:\n  ${script.metadata.description ?? 'No description available.'}`);
+      console.log('\nAvailable Parameters:');
+      displayScriptParameters(script.parameters ?? [], false);
+
+      process.exit(0);
+    });
+
+  // 3. Inspect Command (Technical)
+  program
+    .command('inspect <script-id>')
+    .description('Show technical deep-dive information about a script')
+    .action(async (scriptId: string) => {
+      const script = scripts.find((s) => s.id === scriptId);
+      if (!script) {
+        logger.error(`Script '${scriptId}' not found.`);
+        process.exit(1);
+      }
+
       const parameters = await loadScriptParameters(script);
+      const cacheMeta = await getDiscoveryCacheMetadata();
       const recentIds = await history.getHistory();
       const isRecent = recentIds.includes(script.id);
 
-      console.log(`\nScript:      ${script.metadata.name}`);
+      console.log('\n--- SCRIPT METADATA ---');
+      console.log(`ID:          ${script.id}`);
+      console.log(`Name:        ${script.metadata.name}`);
       console.log(`Version:     ${script.metadata.version ?? 'N/A'}`);
-      console.log(`Author:      ${script.metadata.authors.join(', ')}`);
+      console.log(`Author(s):   ${script.metadata.authors.join(', ')}`);
       console.log(`Category:    ${script.category}`);
+      console.log(`Keywords:    ${script.metadata.keywords?.join(', ') ?? 'None'}`);
       console.log(`Description: ${script.metadata.description ?? 'N/A'}`);
-      console.log(`Recent:      ${isRecent ? 'Yes (recently executed)' : 'No'}`);
-      console.log(`Path:        ${script.paths.root}`);
+      console.log(`Recent:      ${isRecent ? 'Yes' : 'No'}`);
 
-      console.log('\nAvailable Parameters:');
-      displayScriptParameters(parameters);
+      console.log('\n--- RESOURCE PATHS ---');
+      console.log(`Root:        ${script.paths.root}`);
+      console.log(`Config:      ${script.paths.config}`);
+      console.log(`Main (TS):   ${script.paths.entryTs}`);
+      console.log(`Main (JS):   ${script.paths.entryJs}`);
+
+      console.log('\n--- DISCOVERY CACHE ---');
+      console.log(`Last Sync:   ${cacheMeta.lastUpdate?.toLocaleString() ?? 'Never'}`);
+
+      console.log('\n--- TECHNICAL PARAMETERS ---');
+      displayScriptParameters(parameters, true);
 
       // Show Presets
       const scriptPresets = await presets.listPresets(script.id);
       if (scriptPresets.length > 0) {
-        console.log('\nAvailable Presets:');
+        console.log('\n--- SAVED PRESETS ---');
         scriptPresets.forEach((p) => console.log(`  - ${p}`));
       }
-
-      // Show Usage Tips
-      console.log('\nUsage Examples:');
-      console.log(`  go-cli ${script.id} [args]`);
-      console.log(`  go-cli --dist ${script.id} [args]`);
 
       process.exit(0);
     });
