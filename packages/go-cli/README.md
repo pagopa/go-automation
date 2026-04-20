@@ -38,7 +38,7 @@ Per evitare problemi di performance dovuti alla scansione ricorsiva dell'intero 
 
 ### Gestione dei Preset
 
-I Preset permettono di catturare la complessità dei parametri CLI e trasformarla in configurazioni riutilizzabili.
+I preset permettono di catturare esecuzioni di script complesse con i relativi parametri e salvarle in file di configurazione per riutilizzarle in futuro.
 
 #### Funzionamento Tecnico
 
@@ -46,20 +46,13 @@ I Preset permettono di catturare la complessità dei parametri CLI e trasformarl
 - **Storage**: i preset sono memorizzati in `packages/go-cli/.go-cli-presets.json` e sono legati all'ID univoco dello script.
 - **Utilizzo**: possono essere richiamati tramite il menu interattivo o direttamente da riga di comando con il flag `--preset [nome]`. Se un preset viene invocato via CLI, i suoi argomenti vengono "iniettati" prima di quelli forniti manualmente, permettendo l'override parziale.
 
-### Diagnostica e Pre-flight Check
+### Diagnostica e Controlli Preliminari
 
 Prima di eseguire qualsiasi logica di business, `go-cli` agisce come uno strato di protezione per l'utente:
 
 - **Verifica Integrità**: controlla che gli entry point (sorgenti o build) siano accessibili. Per esempio, se si invoca uno script con l'opzione `--dist` senza aver compilato, `go-cli` blocca l'esecuzione con un suggerimento chiaro sul comando di build da lanciare.
-- **Check AWS SSO**: Se lo script è identificato come utilizzatore di risorse AWS (tramite metadati o parametri), `go-cli` verifica la presenza di un profilo attivo in `AWS_PROFILE`.
-- **Gestione Sessione**: In caso di credenziali AWS scadute, `go-cli` non si limita a fallire, ma intercetta l'errore e guida l'utente verso `aws sso login`.
-
-### Help Dinamico e Parametri
-
-`go-cli` genera un'interfaccia di aiuto (`--help`) specifica per ogni script leggendo le definizioni dei parametri in `src/config.ts`:
-
-- Validazione Tipi: Rileva se un parametro deve essere numerico, booleano o stringa prima di passare l'esecuzione allo script.
-- Default e Descrizioni: Mostra chiaramente i valori predefiniti e le istruzioni d'uso fornite dallo sviluppatore dello script.
+- **Check AWS SSO**: se lo script utilizza risorse AWS, `go-cli` verifica la presenza di un profilo SSO attivo in `$AWS_PROFILE`.
+- **Gestione Sessione**: in caso di credenziali AWS scadute `go-cli` intercetta l'errore e guida l'utente verso `aws sso login`.
 
 ---
 
@@ -86,7 +79,7 @@ Ora è possibile digitare `go-cli` da qualsiasi cartella nel terminale.
 
 ## Utilizzo
 
-### 1. Quick Find Interattivo
+### 1. Menu Interattivo
 
 Eseguire `go-cli` da terminale, senza argomenti, permette di accedere all'interfaccia interattiva.
 
@@ -142,5 +135,5 @@ Aggiungere un nuovo strumento all'ecosistema è immediato:
 
 ---
 
-**Ultimo aggiornamento**: 2026-04-19
+**Ultimo aggiornamento**: 2026-04-20
 **Maintainer**: Team GO - Gestione Operativa
