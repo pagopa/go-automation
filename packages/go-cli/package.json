@@ -29,12 +29,12 @@
   },
   "dependencies": {
     "@go-automation/go-common": "workspace:*",
-    "commander": "^13.1.0",
+    "commander": "catalog:",
     "fuse.js": "catalog:",
-    "glob": "^13.0.0",
-    "tsx": "^4.19.3"
+    "glob": "catalog:",
+    "tsx": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "^22.13.1"
+    "@types/node": "catalog:"
   }
 }
