@@ -10,6 +10,7 @@
     { "path": "./functions/go-BotQESlackHandler" },
     { "path": "./functions/go-SendMonitorTppMessagesLambda" },
     { "path": "./packages/go-ai" },
+    { "path": "./packages/go-cli" },
     { "path": "./packages/go-common" },
     { "path": "./packages/go-runbook" },
     { "path": "./packages/go-send" },

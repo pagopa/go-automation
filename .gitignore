@@ -29,6 +29,7 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+*.code-workspace
 *.swp
 *.swo
 *~
@@ -58,4 +59,6 @@ tmp/
 
 # Gemini
 .gemini/
+.serena/
+docs/superpowers/
 GEMINI.md

@@ -3,7 +3,8 @@
  * Integrates spinner, loading bar, and user input prompts
  */
 
-import prompts from 'prompts';
+import readline from 'node:readline';
+import prompts, { type PromptObject } from 'prompts';
 
 import { GOLogEventCategory } from '../logging/GOLogEventCategory.js';
 import { GOLogger } from '../logging/GOLogger.js';
@@ -12,12 +13,33 @@ import { valueToString } from '../utils/GOValueToString.js';
 import { GOLoadingBar } from './GOLoadingBar.js';
 import { GOMultiSpinner } from './GOMultiSpinner.js';
 
+/**
+ * Flag to track if the process was interrupted via Ctrl+C.
+ */
+let isCtrlC = false;
+
+// Handle SIGINT (Ctrl+C)
+process.on('SIGINT', () => {
+  isCtrlC = true;
+});
+
 export interface GOPromptTextOptions {
   /** Default value */
   initial?: string;
 
   /** Validation function */
   validate?: (value: string) => boolean | string;
+
+  /** Hint for the prompt */
+  hint?: string;
+}
+
+export interface GOPromptConfirmOptions {
+  /** Default value */
+  initial?: boolean;
+
+  /** Hint for the prompt */
+  hint?: string;
 }
 
 export interface GOPromptNumberOptions {
@@ -32,6 +54,9 @@ export interface GOPromptNumberOptions {
 
   /** Validation function */
   validate?: (value: number) => boolean | string;
+
+  /** Hint for the prompt */
+  hint?: string;
 }
 
 export interface GOPromptSelectOption {
@@ -39,10 +64,18 @@ export interface GOPromptSelectOption {
   title: string;
 
   /** Option value */
-  value: unknown;
+  value?: unknown;
 
   /** Option description (optional) */
   description?: string;
+
+  /** Option hint (optional) */
+  hint?: string;
+}
+
+export interface GOPromptSelectOptions {
+  /** Hint for the prompt */
+  hint?: string;
 }
 
 export interface GOPromptMultiselectOption {
@@ -57,6 +90,28 @@ export interface GOPromptMultiselectOption {
 
   /** Option description (optional) */
   description?: string;
+
+  /** Option hint (optional) */
+  hint?: string;
+}
+
+export interface GOPromptMultiselectOptions {
+  /** Hint for the prompt */
+  hint?: string;
+}
+
+export interface GOPromptAutocompleteOptions {
+  /** Default value */
+  initial?: string;
+
+  /** Hint for the prompt */
+  hint?: string;
+
+  /** Maximum number of results to show (default: 10) */
+  limit?: number;
+
+  /** Suggestion function for custom filtering */
+  suggest?: (input: string, choices: GOPromptSelectOption[]) => Promise<GOPromptSelectOption[]>;
 }
 
 /**
@@ -68,11 +123,64 @@ export class GOPrompt {
   private readonly logger: GOLogger;
   private readonly logResponses: boolean;
 
+  /** Default hint for interactive selection prompts */
+  private static readonly defaultHint = '(Use arrow-keys, Enter to submit, Esc to go back)';
+
   constructor(logger: GOLogger, logResponses: boolean = false) {
     this.logger = logger;
     this.spinner = new GOMultiSpinner();
     this.loadingBar = new GOLoadingBar();
     this.logResponses = logResponses;
+
+    // Ensure keypress events are emitted on stdin
+    if (process.stdin.isTTY) {
+      readline.emitKeypressEvents(process.stdin);
+    }
+  }
+
+  /**
+   * Internal wrapper to distinguish Ctrl+C from Esc and ensure Esc always returns undefined
+   */
+  private async runPrompt<T>(promptObj: PromptObject | PromptObject[]): Promise<T | undefined> {
+    let cancelled = false;
+    let isEsc = false;
+    isCtrlC = false;
+
+    // Local keypress listener for high-priority detection of Ctrl+C and Esc
+    const onKeypress = (_str: string, key: { ctrl?: boolean; name?: string } | undefined): void => {
+      if (key) {
+        if (key.ctrl && key.name === 'c') {
+          isCtrlC = true;
+        }
+        if (key.name === 'escape') {
+          isEsc = true;
+        }
+      }
+    };
+
+    process.stdin.on('keypress', onKeypress);
+
+    try {
+      const response = await prompts(promptObj, {
+        onCancel: () => {
+          if (isCtrlC) {
+            process.exit(130);
+          }
+          cancelled = true;
+          return false;
+        },
+      });
+
+      // If Esc was pressed, we ALWAYS want to return undefined,
+      // even if prompts somehow didn't call onCancel or returned a value.
+      if (cancelled || isEsc || response['value'] === undefined) {
+        return undefined;
+      }
+
+      return response['value'] as T;
+    } finally {
+      process.stdin.removeListener('keypress', onKeypress);
+    }
   }
 
   // ============================================================================
@@ -288,18 +396,17 @@ export class GOPrompt {
   /**
    * Ask for text input
    */
-  public async text(message: string, options?: GOPromptTextOptions): Promise<string> {
-    const response = await prompts({
+  public async text(message: string, options?: GOPromptTextOptions): Promise<string | undefined> {
+    const value = await this.runPrompt<string>({
       type: 'text',
       name: 'value',
       message: message,
       initial: options?.initial,
       validate: options?.validate,
+      hint: options?.hint,
     });
 
-    const value = (response.value as string) ?? '';
-
-    if (this.logger && this.logResponses) {
+    if (value !== undefined && this.logger && this.logResponses) {
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${value}`);
     }
 
@@ -309,18 +416,17 @@ export class GOPrompt {
   /**
    * Ask for password input (hidden)
    */
-  public async password(message: string, options?: GOPromptTextOptions): Promise<string> {
-    const response = await prompts({
+  public async password(message: string, options?: GOPromptTextOptions): Promise<string | undefined> {
+    const value = await this.runPrompt<string>({
       type: 'password',
       name: 'value',
       message: message,
       initial: options?.initial,
       validate: options?.validate,
+      hint: options?.hint,
     });
 
-    const value = (response.value as string) ?? '';
-
-    if (this.logger && this.logResponses) {
+    if (value !== undefined && this.logger && this.logResponses) {
       this.logger.log(GOLogEventCategory.INFO, `${message} → [hidden]`);
     }
 
@@ -330,8 +436,8 @@ export class GOPrompt {
   /**
    * Ask for number input
    */
-  public async number(message: string, options?: GOPromptNumberOptions): Promise<number> {
-    const response = await prompts({
+  public async number(message: string, options?: GOPromptNumberOptions): Promise<number | undefined> {
+    const value = await this.runPrompt<number>({
       type: 'number',
       name: 'value',
       message: message,
@@ -339,11 +445,10 @@ export class GOPrompt {
       min: options?.min,
       max: options?.max,
       validate: options?.validate,
+      hint: options?.hint,
     });
 
-    const value = (response.value as number) ?? 0;
-
-    if (this.logger && this.logResponses) {
+    if (value !== undefined && this.logger && this.logResponses) {
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${value}`);
     }
 
@@ -353,19 +458,28 @@ export class GOPrompt {
   /**
    * Ask for yes/no confirmation
    */
-  public async confirm(message: string, initial: boolean = false): Promise<boolean> {
-    const response = await prompts({
+  public async confirm(
+    message: string,
+    initialOrOptions?: boolean | GOPromptConfirmOptions,
+  ): Promise<boolean | undefined> {
+    const options: GOPromptConfirmOptions =
+      typeof initialOrOptions === 'object'
+        ? initialOrOptions
+        : initialOrOptions !== undefined
+          ? { initial: initialOrOptions }
+          : {};
+
+    const value = await this.runPrompt<boolean>({
       type: 'toggle',
       name: 'value',
       message: message,
-      initial: initial,
+      initial: options.initial,
+      hint: options.hint,
       active: 'yes',
       inactive: 'no',
     });
 
-    const value = (response.value as boolean) ?? false;
-
-    if (this.logger && this.logResponses) {
+    if (value !== undefined && this.logger && this.logResponses) {
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${value ? 'Yes' : 'No'}`);
     }
 
@@ -375,21 +489,25 @@ export class GOPrompt {
   /**
    * Ask to select one option from a list
    */
-  public async select<T = unknown>(message: string, choices: GOPromptSelectOption[]): Promise<T | undefined> {
-    const response = await prompts({
+  public async select<T = unknown>(
+    message: string,
+    choices: GOPromptSelectOption[],
+    options?: GOPromptSelectOptions,
+  ): Promise<T | undefined> {
+    const value = await this.runPrompt<T>({
       type: 'select',
       name: 'value',
       message: message,
+      hint: options?.hint ?? GOPrompt.defaultHint,
       choices: choices.map((choice) => ({
         title: choice.title,
         value: choice.value,
         description: choice.description,
+        hint: choice.hint,
       })),
     });
 
-    const value = response.value as T;
-
-    if (this.logger && this.logResponses) {
+    if (value !== undefined && this.logger && this.logResponses) {
       const selected = choices.find((c) => c.value === value);
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${selected?.title ?? valueToString(value)}`);
     }
@@ -400,46 +518,80 @@ export class GOPrompt {
   /**
    * Ask to select multiple options from a list
    */
-  public async multiselect<T = unknown>(message: string, choices: GOPromptMultiselectOption[]): Promise<T[]> {
-    const response: { value?: T[] } = await prompts({
+  public async multiselect<T = unknown>(
+    message: string,
+    choices: GOPromptMultiselectOption[],
+    options?: GOPromptMultiselectOptions,
+  ): Promise<T[] | undefined> {
+    const value = await this.runPrompt<T[]>({
       type: 'multiselect',
       name: 'value',
       message: message,
+      hint: options?.hint,
       choices: choices.map((choice) => ({
         title: choice.title,
         value: choice.value,
         selected: choice.selected ?? false,
         description: choice.description,
+        hint: choice.hint,
       })),
     });
 
-    const values: T[] = response.value ?? [];
-
-    if (this.logger && this.logResponses) {
-      const selected = choices.filter((c) => values.includes(c.value as T));
+    if (value !== undefined && this.logger && this.logResponses) {
+      const selected = choices.filter((c) => value.includes(c.value as T));
       const titles = selected.map((s) => s.title).join(', ');
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${titles || 'None'}`);
     }
 
-    return values;
+    return value;
   }
 
   /**
    * Ask for autocomplete text input
    */
-  public async autocomplete(message: string, choices: string[], initial?: string): Promise<string> {
-    const response: { value?: string } = await prompts({
+  public async autocomplete<T = string>(
+    message: string,
+    choices: GOPromptSelectOption[] | string[],
+    initialOrOptions?: string | GOPromptAutocompleteOptions,
+  ): Promise<T | undefined> {
+    const options: GOPromptAutocompleteOptions =
+      typeof initialOrOptions === 'object'
+        ? initialOrOptions
+        : initialOrOptions !== undefined
+          ? { initial: initialOrOptions }
+          : {};
+
+    const formattedChoices: GOPromptSelectOption[] = choices.map((choice) =>
+      typeof choice === 'string' ? { title: choice, value: choice as unknown as T } : choice,
+    );
+
+    const value = await this.runPrompt<T>({
       type: 'autocomplete',
       name: 'value',
       message: message,
-      initial: initial,
-      choices: choices.map((choice) => ({ title: choice, value: choice })),
+      initial: options.initial,
+      limit: options.limit ?? 10,
+      hint: options.hint ?? GOPrompt.defaultHint,
+      choices: formattedChoices.map((choice) => ({
+        title: choice.title,
+        value: choice.value,
+        description: choice.description,
+        hint: choice.hint,
+      })),
+      suggest: options.suggest
+        ? async (input: string, choices: unknown[]) => {
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            return options.suggest!(
+              input,
+              choices as GOPromptSelectOption[],
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ) as unknown as Promise<any[]>;
+          }
+        : undefined,
     });
 
-    const value: string = response.value ?? '';
-
-    if (this.logger && this.logResponses) {
-      this.logger.log(GOLogEventCategory.INFO, `${message} → ${value}`);
+    if (value !== undefined && this.logger && this.logResponses) {
+      this.logger.log(GOLogEventCategory.INFO, `${message} → ${valueToString(value)}`);
     }
 
     return value;
