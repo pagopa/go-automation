@@ -11,7 +11,7 @@ import { Core } from '@go-automation/go-common';
 export const scriptMetadata: Core.GOScriptMetadata = {
   name: 'SEND Query DynamoDB',
   version: '1.0.0',
-  description: 'Queries a DynamoDB table by partition key for a list of PKs read from a text file',
+  description: 'Queries DynamoDB records - Execute partition key lookups and export results in various data formats.',
   authors: ['Team GO - Gestione Operativa'],
 };
 

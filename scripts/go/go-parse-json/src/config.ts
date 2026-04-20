@@ -3,7 +3,7 @@ import { Core } from '@go-automation/go-common';
 export const scriptMetadata: Core.GOScriptMetadata = {
   name: 'GO Parse JSON',
   version: '1.1.0',
-  description: 'Estrattore di campi da file JSON/NDJSON con ricerca ricorsiva e filtri',
+  description: 'Filters JSON content - Extract and filter specific data from large JSON files using field paths.',
   authors: ['Team GO - Gestione Operativa'],
 };
 

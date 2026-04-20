@@ -15,16 +15,19 @@ import type { GOLoggerHandler } from '../logging/GOLoggerHandler.js';
  */
 export interface GOScriptMetadata {
   /** Script name */
-  name: string;
+  readonly name: string;
 
   /** Script version */
-  version: string;
+  readonly version: string;
 
   /** Script description */
-  description: string;
+  readonly description: string;
 
   /** Script authors */
-  authors: ReadonlyArray<string>;
+  readonly authors: ReadonlyArray<string>;
+
+  /** Script keywords for discovery/search */
+  readonly keywords?: ReadonlyArray<string>;
 }
 
 /**

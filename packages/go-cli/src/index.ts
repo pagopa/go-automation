@@ -1,0 +1,746 @@
+#!/usr/bin/env node
+
+/**
+ * GO Automation CLI - Main Entry Point
+ *
+ * Unified interface for discovering, inspecting, and running scripts.
+ */
+
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import Fuse from 'fuse.js';
+import { Command } from 'commander';
+import { Core } from '@go-automation/go-common';
+import {
+  discoverScripts,
+  loadScriptParameters,
+  getDiscoveryErrors,
+  getDiscoveryCacheMetadata,
+  type DiscoveredScript,
+} from './discovery.js';
+import { runScript, type ExecutionMode } from './runner.js';
+import { validateAndInformParameters } from './params.js';
+import { HistoryManager } from './history.js';
+import { Scaffolder } from './scaffold.js';
+import { PresetManager } from './presets.js';
+import { PreFlightChecker } from './checker.js';
+
+// Setup dependencies
+const logger = new Core.GOLogger([new Core.GOConsoleLoggerHandler()]);
+const prompt = new Core.GOPrompt(logger);
+const history = new HistoryManager();
+const scaffolder = new Scaffolder(prompt, logger);
+const presets = new PresetManager();
+const checker = new PreFlightChecker(logger);
+
+/**
+ * Shared utility to display script parameters in a consistent way
+ */
+function displayScriptParameters(
+  parameters: ReadonlyArray<Core.GOConfigParameterOptions>,
+  detailed: boolean = false,
+): void {
+  if (parameters.length === 0) {
+    console.log('  No parameters defined.');
+    return;
+  }
+
+  if (detailed) {
+    // Technical table for 'inspect'
+    const header = `  ${'FLAG'.padEnd(25)} ${'TYPE'.padEnd(15)} ${'REQ'.padEnd(8)} ${'DEFAULT'.padEnd(15)} ${'DESCRIPTION'}`;
+    console.log(header);
+    console.log(`  ${'-'.repeat(header.length)}`);
+
+    parameters.forEach((param) => {
+      const name = `--${param.name.replace(/\./g, '-')}`;
+      const type = param.type.toUpperCase();
+      const required = param.required ? 'Yes' : 'No';
+      const defaultValue = param.defaultValue !== undefined ? String(param.defaultValue) : '-';
+
+      console.log(
+        `  ${name.padEnd(25)} ${type.padEnd(15)} ${required.padEnd(8)} ${defaultValue.padEnd(15)} ${param.description}`,
+      );
+    });
+  } else {
+    // Operational usage for 'help'
+    const header = `  ${'FLAG'.padEnd(25)} ${'ALIAS'.padEnd(12)} ${'DESCRIPTION'}`;
+    console.log(header);
+    console.log(`  ${'-'.repeat(header.length)}`);
+
+    parameters.forEach((param) => {
+      const name = `--${param.name.replace(/\./g, '-')}`;
+      const aliases = param.aliases?.map((a) => `-${a}`).join(', ') ?? '-';
+      const defaultValue = param.defaultValue !== undefined ? ` (Default: ${String(param.defaultValue)})` : '';
+      console.log(`  ${name.padEnd(25)} ${aliases.padEnd(12)} ${param.description}${defaultValue}`);
+    });
+  }
+}
+
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  if (args.includes('--refresh')) {
+    try {
+      const fs = await import('node:fs/promises');
+      const path = await import('node:path');
+      const { fileURLToPath } = await import('node:url');
+      const dirName = path.dirname(fileURLToPath(import.meta.url));
+      const cacheFile = path.join(dirName, '../.discovery-cache.json');
+      await fs.unlink(cacheFile);
+      console.log('Discovery cache refreshed.');
+    } catch (_e) {
+      console.log('No cache to refresh.');
+    }
+    process.exit(0);
+  }
+
+  const scripts = await discoverScripts();
+
+  const program = new Command();
+
+  program
+    .name('go-cli')
+    .description('GO Automation Centralized Control Plane')
+    .version('1.0.0')
+    .option('-s, --source', 'Run from TypeScript source (via tsx)', true)
+    .option('-d, --dist', 'Run from compiled JavaScript (via node)')
+    .option('--dry-run', 'Execute script in dry-run mode (simulated)', false)
+    .option('--save <name>', 'Save current arguments as a named preset')
+    .option('--preset <name>', 'Load arguments from a named preset')
+    .option('--refresh', 'Force refresh the script discovery cache', false);
+
+  // 1. Dynamic Command Registration
+  for (const script of scripts) {
+    const scriptCmd = program
+      .command(script.id)
+      .description(script.metadata.description ?? `Run ${script.id} script`)
+      .argument('[args...]', 'script arguments')
+      .allowUnknownOption() // Allow script-specific parameters
+      .action(async (_options: Record<string, unknown>, _args: string[], cmd: Command) => {
+        const programOpts = program.opts();
+        const mode: ExecutionMode = programOpts['dist'] ? 'dist' : 'source';
+        const isDryRun = !!programOpts['dryRun'];
+        const presetName = programOpts['preset'] as string | undefined;
+        const saveName = programOpts['save'] as string | undefined;
+
+        // Pre-flight checks
+        const isReady = await checker.verify(script, mode);
+        if (!isReady) {
+          process.exit(1);
+        }
+
+        let currentArgs = _args.length > 0 ? _args : cmd.args;
+
+        // Load preset if requested
+        if (presetName) {
+          const presetArgs = await presets.getPreset(script.id, presetName);
+          if (presetArgs) {
+            logger.info(`Loading preset '${presetName}': ${presetArgs.join(' ')}`);
+            currentArgs = presetArgs;
+          } else {
+            logger.warning(`Preset '${presetName}' not found for script ${script.id}.`);
+          }
+        }
+
+        // Add to history
+        await history.add(script.id);
+
+        // Lazy load parameters
+        await loadScriptParameters(script);
+
+        // Validate and inform about parameters before execution
+        const { valid, finalArgs } = await validateAndInformParameters(script, currentArgs, prompt, logger, false);
+
+        if (!valid) {
+          process.exit(1);
+        }
+
+        // Save preset if requested
+        if (saveName) {
+          await presets.savePreset(script.id, saveName, finalArgs);
+          logger.success(`Arguments saved as preset '${saveName}'.`);
+        }
+
+        if (isDryRun) {
+          logger.newline();
+          logger.header('DRY RUN ACTIVE - NO REAL CHANGES WILL BE MADE');
+        }
+
+        const exitCode = await runScript(script, {
+          mode,
+          args: finalArgs,
+          isDryRun,
+        });
+        process.exit(exitCode);
+      });
+
+    // Add help for script parameters if metadata is available
+    scriptCmd.on('--help', () => {
+      console.log('\nScript Help:');
+
+      if (!script.parameters) {
+        console.log(`  Help not loaded. Use "go-cli inspect ${script.id}" for full technical details.`);
+      } else {
+        displayScriptParameters(script.parameters, false);
+      }
+    });
+  }
+
+  // 2. Help Command (Operational)
+  program
+    .command('help <script-id>')
+    .description('Show operational help for a specific script')
+    .action(async (scriptId: string) => {
+      const script = scripts.find((s) => s.id === scriptId);
+      if (!script) {
+        logger.error(`Script '${scriptId}' not found.`);
+        process.exit(1);
+      }
+
+      await loadScriptParameters(script);
+
+      console.log(`\nUsage: go-cli ${script.id} [options]`);
+      console.log(`\nDescription:\n  ${script.metadata.description ?? 'No description available.'}`);
+      console.log('\nAvailable Parameters:');
+      displayScriptParameters(script.parameters ?? [], false);
+
+      process.exit(0);
+    });
+
+  // 3. Inspect Command (Technical)
+  program
+    .command('inspect <script-id>')
+    .description('Show technical deep-dive information about a script')
+    .action(async (scriptId: string) => {
+      const script = scripts.find((s) => s.id === scriptId);
+      if (!script) {
+        logger.error(`Script '${scriptId}' not found.`);
+        process.exit(1);
+      }
+
+      const parameters = await loadScriptParameters(script);
+      const cacheMeta = await getDiscoveryCacheMetadata();
+      const recentIds = await history.getHistory();
+      const isRecent = recentIds.includes(script.id);
+
+      console.log('\n--- SCRIPT METADATA ---');
+      console.log(`ID:          ${script.id}`);
+      console.log(`Name:        ${script.metadata.name}`);
+      console.log(`Version:     ${script.metadata.version ?? 'N/A'}`);
+      console.log(`Author(s):   ${script.metadata.authors.join(', ')}`);
+      console.log(`Category:    ${script.category}`);
+      console.log(`Keywords:    ${script.metadata.keywords?.join(', ') ?? 'None'}`);
+      console.log(`Description: ${script.metadata.description ?? 'N/A'}`);
+      console.log(`Recent:      ${isRecent ? 'Yes' : 'No'}`);
+
+      console.log('\n--- RESOURCE PATHS ---');
+      console.log(`Root:        ${script.paths.root}`);
+      console.log(`Config:      ${script.paths.config}`);
+      console.log(`Main (TS):   ${script.paths.entryTs}`);
+      console.log(`Main (JS):   ${script.paths.entryJs}`);
+
+      console.log('\n--- DISCOVERY CACHE ---');
+      console.log(`Last Sync:   ${cacheMeta.lastUpdate?.toLocaleString() ?? 'Never'}`);
+
+      console.log('\n--- TECHNICAL PARAMETERS ---');
+      displayScriptParameters(parameters, true);
+
+      // Show Presets
+      const scriptPresets = await presets.listPresets(script.id);
+      if (scriptPresets.length > 0) {
+        console.log('\n--- SAVED PRESETS ---');
+        scriptPresets.forEach((p) => console.log(`  - ${p}`));
+      }
+
+      process.exit(0);
+    });
+
+  // 4. New Command (Scaffolding)
+  program
+    .command('new')
+    .description('Create a new GO Automation script from templates')
+    .action(async () => {
+      await scaffolder.run();
+      process.exit(0);
+    });
+
+  // 5. Doctor Command (Diagnostics)
+  program
+    .command('doctor')
+    .description('Check monorepo health and environment configuration')
+    .action(async () => {
+      logger.newline();
+      logger.header('GO Automation Doctor');
+
+      // 1. Monorepo Build Health
+      const commonDist = path.resolve(import.meta.dirname, '../../go-common/dist/index.js');
+      const isCommonBuilt = await fs
+        .access(commonDist)
+        .then(() => true)
+        .catch(() => false);
+
+      if (isCommonBuilt) {
+        logger.success('[BUILD] Core library (go-common) is built.');
+      } else {
+        logger.error('[BUILD] Core library (go-common) is NOT built.');
+        logger.info('        Run "pnpm build:common" to fix this.');
+      }
+
+      // 2. AWS Environment Health
+      const hasProfile = !!process.env['AWS_PROFILE'];
+      if (hasProfile) {
+        logger.success(`[AWS]   Active profile detected: ${process.env['AWS_PROFILE']}`);
+      } else {
+        logger.warning('[AWS]   No active AWS_PROFILE detected.');
+        logger.info('        AWS scripts will prompt for a profile or require manual setting.');
+      }
+
+      // 3. Discovery Health
+      const errors = getDiscoveryErrors();
+      if (errors.length === 0) {
+        logger.success('[DISC]  All scripts discovered successfully.');
+      } else {
+        logger.error(`[DISC]  Found ${errors.length} script(s) with discovery errors:`);
+        errors.forEach((err) => {
+          console.log(`        - [${err.category}] ${err.id}: ${err.error}`);
+        });
+        logger.info('        Check syntax and exports in the config.ts files.');
+      }
+
+      // 4. Installation Health
+      const isLinked = process.argv[1]?.includes('.pnpm') ?? process.argv[1]?.includes('bin/go-cli');
+      if (isLinked) {
+        logger.success('[INST]  CLI is properly linked/installed.');
+      } else {
+        logger.info('[INST]  Running in development/local mode.');
+      }
+
+      const totalErrors = errors.length + (isCommonBuilt ? 0 : 1);
+      if (totalErrors === 0) {
+        logger.newline();
+        logger.success('Everything looks good! Your environment is ready.');
+      }
+
+      process.exit(totalErrors > 0 ? 1 : 0);
+    });
+
+  // 6. Interactive Fallback
+  if (process.argv.length <= 2) {
+    await runInteractive(scripts);
+    return;
+  }
+
+  program.parse(process.argv);
+}
+
+type Step =
+  | 'CATEGORY'
+  | 'SEARCH'
+  | 'SCRIPT'
+  | 'MODE'
+  | 'DRY_RUN'
+  | 'PRESET_CHOICE'
+  | 'PRESET_SELECT'
+  | 'ARGS'
+  | 'SAVE_PRESET_CHOICE'
+  | 'SAVE_PRESET_NAME'
+  | 'EXECUTION';
+
+interface NavigationState {
+  category?: string;
+  script?: DiscoveredScript;
+  mode?: ExecutionMode;
+  isDryRun?: boolean;
+  usePreset?: boolean;
+  selectedPreset?: string;
+  args?: string[];
+  finalArgs?: string[];
+  wantSavePreset?: boolean;
+  presetName?: string;
+}
+
+/**
+ * Interactive Mode - Categorized menu for script selection
+ */
+async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
+  console.clear();
+  console.log('╭─────────────────────────────────────────╮');
+  console.log('│  GO Automation CLI                      │');
+  console.log('│  Gestione Operativa Control Plane       │');
+  console.log('╰─────────────────────────────────────────╯');
+
+  logger.newline();
+
+  const productMap: Record<string, string> = {
+    go: '[GO] Team Gestione Operativa',
+    send: '[SEND] SErvizio Notifiche Digitali',
+    interop: '[INTEROP] PDND Interoperabilità',
+  };
+
+  const categories = [...new Set(scripts.map((s) => s.category))].sort();
+
+  const fuse = new Fuse(scripts, {
+    keys: [
+      { name: 'id', weight: 2 },
+      { name: 'metadata.name', weight: 2 },
+      { name: 'metadata.description', weight: 1 },
+      { name: 'metadata.keywords', weight: 1 },
+    ],
+    threshold: 0.4,
+  });
+
+  const state: NavigationState = {};
+  const historyStack: Step[] = ['CATEGORY'];
+
+  while (historyStack.length > 0) {
+    const currentStep = historyStack[historyStack.length - 1];
+
+    switch (currentStep) {
+      case 'CATEGORY': {
+        const categoryChoice = await prompt.select<string>('Select product/team category:', [
+          { title: '[SEARCH] Quick Find...', value: '__search__' },
+          ...categories.map((c) => ({
+            title: productMap[c] ?? c.toUpperCase(),
+            value: c,
+          })),
+        ]);
+
+        if (categoryChoice === undefined) {
+          historyStack.pop();
+          continue;
+        }
+
+        if (categoryChoice === '__search__') {
+          historyStack.push('SEARCH');
+          continue;
+        }
+
+        state.category = categoryChoice;
+        historyStack.push('SCRIPT');
+        break;
+      }
+
+      case 'SEARCH': {
+        const initialChoices = scripts.map((s) => ({
+          title: `[${s.category.toUpperCase()}] ${s.id}`,
+          value: s.id,
+          description: s.metadata.description,
+        }));
+
+        const selectedScriptId = await prompt.autocomplete<string>(
+          'Search for a script (fuzzy search):',
+          initialChoices,
+          {
+            limit: 15,
+            // eslint-disable-next-line @typescript-eslint/require-await
+            suggest: async (input) =>
+              !input
+                ? initialChoices
+                : fuse.search(input).map((r) => ({
+                    title: `[${r.item.category.toUpperCase()}] ${r.item.id}`,
+                    value: r.item.id,
+                    description: r.item.metadata.description,
+                  })),
+          },
+        );
+
+        if (selectedScriptId === undefined) {
+          historyStack.pop();
+          continue;
+        }
+
+        const selectedScript = scripts.find((s) => s.id === selectedScriptId);
+
+        if (!selectedScript) {
+          continue;
+        }
+
+        state.script = selectedScript;
+        state.category = selectedScript.category;
+        historyStack.push('MODE');
+        break;
+      }
+
+      case 'SCRIPT': {
+        const selectedCategory = state.category;
+        if (!selectedCategory) {
+          historyStack.pop();
+          continue;
+        }
+        const categoryScripts = scripts.filter((s) => s.category === selectedCategory);
+        const recentIds = await history.getHistory();
+
+        const choices = categoryScripts.map((s) => {
+          const isRecent = recentIds.includes(s.id);
+          const suffix = isRecent ? ' (recent)' : '';
+          return {
+            title: `${s.id}${suffix}`,
+            value: s.id,
+            description: s.metadata.description,
+            isRecent,
+            historyIndex: recentIds.indexOf(s.id),
+          };
+        });
+
+        choices.sort((a, b) => {
+          if (a.isRecent && b.isRecent) return a.historyIndex - b.historyIndex;
+          if (a.isRecent) return -1;
+          if (b.isRecent) return 1;
+          return a.title.localeCompare(b.title);
+        });
+
+        const selectedScriptId = await prompt.select<string>(
+          `Select a ${productMap[selectedCategory] ?? selectedCategory.toUpperCase()} script to run:`,
+          choices.map((c) => ({
+            title: c.title,
+            value: c.value,
+            description: c.description,
+          })),
+        );
+
+        if (selectedScriptId === undefined) {
+          historyStack.pop();
+          continue;
+        }
+
+        const selectedScript = scripts.find((s) => s.id === selectedScriptId);
+
+        if (!selectedScript) {
+          continue;
+        }
+
+        state.script = selectedScript;
+        historyStack.push('MODE');
+        break;
+      }
+
+      case 'MODE': {
+        const modeChoice = await prompt.select<ExecutionMode>('Select execution mode:', [
+          { title: 'Source (tsx) - Best for development', value: 'source' },
+          { title: 'Dist (node) - Best for validation', value: 'dist' },
+        ]);
+
+        if (modeChoice === undefined) {
+          historyStack.pop();
+          continue;
+        }
+
+        state.mode = modeChoice;
+
+        if (!state.script) {
+          historyStack.pop();
+          continue;
+        }
+
+        // Pre-flight checks
+        const isReady = await checker.verify(state.script, state.mode);
+        if (!isReady) {
+          // If not ready, we don't go back, we just stay here or let the user fix it
+          continue;
+        }
+
+        historyStack.push('DRY_RUN');
+        break;
+      }
+
+      case 'DRY_RUN': {
+        if (!state.script) {
+          historyStack.pop();
+          continue;
+        }
+        const isDryRun = await prompt.confirm('Execute in dry-run mode (simulated)?', false);
+
+        if (isDryRun === undefined) {
+          historyStack.pop();
+          continue;
+        }
+
+        state.isDryRun = isDryRun;
+
+        const scriptPresets = await presets.listPresets(state.script.id);
+        if (scriptPresets.length > 0) {
+          historyStack.push('PRESET_CHOICE');
+        } else {
+          state.usePreset = false;
+          historyStack.push('ARGS');
+        }
+        break;
+      }
+
+      case 'PRESET_CHOICE': {
+        if (!state.script) {
+          historyStack.pop();
+          continue;
+        }
+        const usePreset = await prompt.confirm('Do you want to use a saved preset?', false);
+        if (usePreset === undefined) {
+          historyStack.pop();
+          continue;
+        }
+
+        state.usePreset = usePreset;
+        if (usePreset) {
+          historyStack.push('PRESET_SELECT');
+        } else {
+          historyStack.push('ARGS');
+        }
+        break;
+      }
+
+      case 'PRESET_SELECT': {
+        if (!state.script) {
+          historyStack.pop();
+          continue;
+        }
+        const scriptPresets = await presets.listPresets(state.script.id);
+        const selectedPreset = await prompt.select<string>(
+          'Select a preset:',
+          scriptPresets.map((p) => ({ title: p, value: p })),
+        );
+
+        if (selectedPreset === undefined) {
+          historyStack.pop();
+          continue;
+        }
+
+        state.selectedPreset = selectedPreset;
+        state.args = (await presets.getPreset(state.script.id, selectedPreset)) ?? [];
+
+        // Ensure parameters are loaded
+        await loadScriptParameters(state.script);
+
+        const { valid, back, finalArgs } = await validateAndInformParameters(
+          state.script,
+          state.args,
+          prompt,
+          logger,
+          true,
+        );
+
+        if (back || !valid) {
+          continue;
+        }
+
+        state.finalArgs = finalArgs;
+        historyStack.push('EXECUTION');
+        break;
+      }
+
+      case 'ARGS': {
+        if (!state.script) {
+          historyStack.pop();
+          continue;
+        }
+        // Lazy load parameters if not already loaded
+        const parameters = await loadScriptParameters(state.script);
+
+        const mandatoryFlags = parameters
+          .filter((p) => p.required)
+          .map((p) => Core.GOConfigKeyTransformer.toCLIFlag(p.name))
+          .join(', ');
+
+        const promptMsg = mandatoryFlags
+          ? `Enter arguments (Mandatory: ${mandatoryFlags}):`
+          : 'Enter additional arguments (optional, e.g. --param value):';
+
+        const argsInput = await prompt.text(promptMsg);
+
+        if (argsInput === undefined) {
+          historyStack.pop();
+          continue;
+        }
+
+        state.args = argsInput.trim() !== '' ? argsInput.trim().split(/\s+/) : [];
+
+        const { valid, back, finalArgs } = await validateAndInformParameters(
+          state.script,
+          state.args,
+          prompt,
+          logger,
+          true,
+        );
+
+        if (back || !valid) {
+          continue;
+        }
+
+        state.finalArgs = finalArgs;
+
+        if (state.args.length > 0) {
+          historyStack.push('SAVE_PRESET_CHOICE');
+        } else {
+          historyStack.push('EXECUTION');
+        }
+        break;
+      }
+
+      case 'SAVE_PRESET_CHOICE': {
+        const wantSave = await prompt.confirm('Do you want to save these arguments as a preset?', false);
+
+        if (wantSave === undefined) {
+          historyStack.pop();
+          continue;
+        }
+
+        if (wantSave) {
+          historyStack.push('SAVE_PRESET_NAME');
+        } else {
+          historyStack.push('EXECUTION');
+        }
+        break;
+      }
+
+      case 'SAVE_PRESET_NAME': {
+        if (!state.script || !state.finalArgs) {
+          historyStack.pop();
+          continue;
+        }
+        const name = await prompt.text('Preset Name:');
+
+        if (name === undefined) {
+          historyStack.pop();
+          continue;
+        }
+
+        if (name) {
+          await presets.savePreset(state.script.id, name, state.finalArgs);
+          logger.success(`Preset '${name}' saved.`);
+        }
+        historyStack.push('EXECUTION');
+        break;
+      }
+
+      case 'EXECUTION': {
+        if (!state.script || !state.mode || !state.finalArgs) {
+          historyStack.pop();
+          break;
+        }
+        // Add to history just before execution
+        await history.add(state.script.id);
+
+        if (state.isDryRun) {
+          logger.newline();
+          logger.header('DRY RUN ACTIVE - NO REAL CHANGES WILL BE MADE');
+        }
+
+        const exitCode = await runScript(state.script, {
+          mode: state.mode,
+          args: state.finalArgs,
+          isDryRun: state.isDryRun ?? false,
+        });
+        return process.exit(exitCode);
+      }
+
+      default:
+        historyStack.pop();
+        break;
+    }
+  }
+
+  // If loop finishes (stack empty), just exit
+  process.exit(0);
+}
+
+main().catch((err: Error) => {
+  logger.error(`CLI Error: ${err.message}`);
+  process.exit(1);
+});
