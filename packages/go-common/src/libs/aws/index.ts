@@ -58,3 +58,5 @@ export { isProfileValidationSuccess, isProfileValidationFailure } from './AWSPro
 
 // Re-export essential AWS SDK types
 export type { Message, SendMessageBatchRequestEntry, SendMessageBatchCommandOutput } from '@aws-sdk/client-sqs';
+export type { SQSClient } from '@aws-sdk/client-sqs';
+export type { CloudWatchClient } from '@aws-sdk/client-cloudwatch';

@@ -12,6 +12,8 @@ import { isProfileQuerySuccess, isProfileQueryFailure } from '../types/ProfileQu
 import { CloudWatchService } from './CloudWatchService.js';
 import type { AWS } from '@go-automation/go-common';
 
+type MultiProfileQueryProgressHandler = (profile: string, status: 'start' | 'success' | 'failure') => void;
+
 /**
  * Options for multi-profile query execution
  */
@@ -29,7 +31,7 @@ interface MultiProfileQueryOptions {
   readonly alarmName?: string | undefined;
 
   /** Callback for progress reporting */
-  readonly onProgress?: (profile: string, status: 'start' | 'success' | 'failure') => void;
+  readonly onProgress?: MultiProfileQueryProgressHandler;
 }
 
 /**
@@ -109,7 +111,7 @@ export class MultiProfileQueryCoordinator {
     startDate: string,
     endDate: string,
     alarmName: string | undefined,
-    onProgress?: (profile: string, status: 'start' | 'success' | 'failure') => void,
+    onProgress?: MultiProfileQueryProgressHandler,
   ): Promise<ReadonlyArray<ProfileQueryResult>> {
     const queryPromises = Array.from(serviceMap.entries()).map(async ([profile, service]) =>
       this.querySingleProfile(profile, service, startDate, endDate, alarmName, onProgress),
@@ -147,7 +149,7 @@ export class MultiProfileQueryCoordinator {
     startDate: string,
     endDate: string,
     alarmName: string | undefined,
-    onProgress?: (profile: string, status: 'start' | 'success' | 'failure') => void,
+    onProgress?: MultiProfileQueryProgressHandler,
   ): Promise<ProfileQueryResult> {
     onProgress?.(profile, 'start');
 
