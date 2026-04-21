@@ -42,7 +42,7 @@ La funzionalità "Go to Definition" (F12 o Cmd+Click) di VSCode deve navigare di
 
 ## Causa Tecnica
 
-### Perche inject-workspace-packages rompe "Go to Definition"
+### Perché inject-workspace-packages rompe "Go to Definition"
 
 Quando `inject-workspace-packages=true` e attivo:
 
@@ -51,7 +51,7 @@ Quando `inject-workspace-packages=true` e attivo:
 3. I file `.d.ts` e le `declarationMap` puntano alla copia, non ai sorgenti originali
 4. "Go to Definition" porta a `node_modules/.pnpm/@go-automation+go-common@.../...` invece di `packages/go-common/src/`
 
-### Perche senza inject il deploy fallisce
+### Perché senza inject il deploy fallisce
 
 Senza `inject-workspace-packages=true`:
 
@@ -120,7 +120,7 @@ link-workspace-packages=deep
 }
 ```
 
-**Risultato**: `declarationMap` era gia abilitato. Il problema e che le mappe puntano alla copia in `node_modules`, non ai sorgenti.
+**Risultato**: `declarationMap` era già abilitato. Il problema è che le mappe puntano alla copia in `node_modules`, non ai sorgenti.
 
 ---
 
@@ -156,7 +156,7 @@ Con questa configurazione, eseguendo `pnpm deploy` vedrai un warning:
 Shared workspace lockfile detected but configuration forces legacy deploy implementation
 ```
 
-**Questo warning e normale e puo essere ignorato**. Il deploy funzionera correttamente.
+**Questo warning e normale e può essere ignorato**. Il deploy funzionerà correttamente.
 
 ---
 
@@ -192,17 +192,17 @@ const __dirname = dirname(__filename);
 
 ### Soluzione Moderna (Node.js 20.11+)
 
-A partire da Node.js 20.11, sono disponibili nuove proprieta su `import.meta`:
+A partire da Node.js 20.11, sono disponibili nuove proprietà su `import.meta`:
 
 ```typescript
-// Nuovo modo - piu semplice e pulito
+// Nuovo modo - più semplice e pulito
 const currentDir = import.meta.dirname; // equivalente a __dirname
 const currentFile = import.meta.filename; // equivalente a __filename
 ```
 
 **Vantaggi**:
 
-- Sintassi piu concisa
+- Sintassi più concisa
 - Non richiede import aggiuntivi
 - Comportamento coerente con CommonJS
 

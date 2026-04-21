@@ -88,14 +88,14 @@ select_option() {
             read -rsn2 key < /dev/tty
             case $key in
                 '[A') # Up arrow
-                    ((selected--))
+                    selected=$((selected - 1))
                     if [[ $selected -lt 0 ]]; then
                         selected=$((num_options - 1))
                     fi
                     draw_menu
                     ;;
                 '[B') # Down arrow
-                    ((selected++))
+                    selected=$((selected + 1))
                     if [[ $selected -ge $num_options ]]; then
                         selected=0
                     fi

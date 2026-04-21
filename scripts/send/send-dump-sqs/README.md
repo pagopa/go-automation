@@ -6,12 +6,18 @@ Script che effettua il dump di tutti i messaggi presenti in una coda **SQS** in 
 
 ## Indice
 
-- [Come funziona](#come-funziona)
-- [Prerequisiti](#prerequisiti)
-- [Configurazione](#configurazione)
-- [Deduplicazione](#deduplicazione)
-- [Utilizzo](#utilizzo)
-- [Limitazioni Importanti](#limitazioni-importanti)
+- [SEND Dump SQS](#send-dump-sqs)
+  - [Indice](#indice)
+  - [Come funziona](#come-funziona)
+  - [Prerequisiti](#prerequisiti)
+    - [Software](#software)
+    - [Credenziali AWS](#credenziali-aws)
+  - [Configurazione](#configurazione)
+    - [Parametri CLI](#parametri-cli)
+    - [Note di risoluzione path](#note-di-risoluzione-path)
+  - [Deduplicazione](#deduplicazione)
+  - [Limitazioni Importanti](#limitazioni-importanti)
+  - [Utilizzo](#utilizzo)
 
 ---
 

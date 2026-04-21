@@ -16,7 +16,7 @@ Script di analisi degli allarmi CloudWatch AWS per identificare e categorizzare 
 ## Funzionalità
 
 - **Recupero storico allarmi**: Interroga AWS CloudWatch per ottenere lo storico completo delle transizioni di stato
-- **Multi-account parallelo**: Interroga simultaneamente piu account AWS aggregando i risultati
+- **Multi-account parallelo**: Interroga simultaneamente più account AWS aggregando i risultati
 - **Filtraggio intelligente**: Esclude automaticamente allarmi non rilevanti tramite pattern configurabili
 - **Analisi aggregata**: Raggruppa gli allarmi per nome e conta le occorrenze
 - **Timeline dettagliata**: Mostra il timestamp di ogni transizione per analisi temporale
@@ -162,7 +162,7 @@ pnpm go:analyze:alarms -- \
   -ed "2024-12-15T23:59:59Z" \
   --verbose
 
-# Analisi di un allarme specifico su piu account
+# Analisi di un allarme specifico su più account
 pnpm go:analyze:alarms -- \
   -sd "2024-12-01T00:00:00Z" \
   -ed "2024-12-15T23:59:59Z" \
@@ -195,7 +195,7 @@ I timestamp sono mostrati in due formati:
 
 ### Modalità Verbose vs Compatta
 
-**Modalità Compatta** (default): Per allarmi con piu di 2 occorrenze, mostra solo primo e ultimo timestamp.
+**Modalità Compatta** (default): Per allarmi con più di 2 occorrenze, mostra solo primo e ultimo timestamp.
 
 **Modalità Verbose** (`--verbose`): Mostra tutti i timestamp per ogni allarme.
 
@@ -203,7 +203,7 @@ I timestamp sono mostrati in due formati:
 
 ### Errore: "ExpiredToken" / Profilo fallito
 
-**Causa**: Sessione AWS SSO scaduta per uno o piu profili.
+**Causa**: Sessione AWS SSO scaduta per uno o più profili.
 
 **Comportamento**: Lo script continua con i profili funzionanti e mostra un warning.
 
