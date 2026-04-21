@@ -387,6 +387,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.12.2
+      tsx:
+        specifier: 'catalog:'
+        version: 4.21.0
 
   packages/go-send:
     dependencies:
