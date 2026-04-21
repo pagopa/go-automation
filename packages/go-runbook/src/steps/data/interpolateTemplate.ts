@@ -1,17 +1,87 @@
 import type { RunbookContext } from '../../types/RunbookContext.js';
 
 /**
- * Builds a fresh RegExp for template placeholder matching.
- * Each call returns a new instance to avoid shared `/g` flag state across calls.
- */
-function templatePattern(): RegExp {
-  return /\{\{(params|vars)\.([^}]+)\}\}/g;
-}
-
-/**
  * Escapes a string value for safe inclusion in a SQL string literal.
  */
 type EscapeTransformer = (value: string) => string;
+
+type TemplatePlaceholderSource = 'params' | 'vars';
+
+interface TemplatePlaceholder {
+  readonly raw: string;
+  readonly source: TemplatePlaceholderSource;
+  readonly key: string;
+}
+
+const TEMPLATE_START = '{{';
+const TEMPLATE_END = '}}';
+const PARAMS_PREFIX = 'params.';
+const VARS_PREFIX = 'vars.';
+
+function parseTemplatePlaceholder(body: string): Omit<TemplatePlaceholder, 'raw'> | undefined {
+  if (body.startsWith(PARAMS_PREFIX)) {
+    const key = body.slice(PARAMS_PREFIX.length);
+    if (key !== '') {
+      return { source: 'params', key };
+    }
+  }
+
+  if (body.startsWith(VARS_PREFIX)) {
+    const key = body.slice(VARS_PREFIX.length);
+    if (key !== '') {
+      return { source: 'vars', key };
+    }
+  }
+
+  return undefined;
+}
+
+function getPlaceholderValue(
+  context: RunbookContext,
+  source: TemplatePlaceholderSource,
+  key: string,
+): string | undefined {
+  const store = source === 'params' ? context.params : context.vars;
+  return store.get(key);
+}
+
+function replaceTemplatePlaceholders(template: string, replace: (placeholder: TemplatePlaceholder) => string): string {
+  let result = '';
+  let cursor = 0;
+
+  while (cursor < template.length) {
+    const start = template.indexOf(TEMPLATE_START, cursor);
+    if (start === -1) {
+      result += template.slice(cursor);
+      break;
+    }
+
+    result += template.slice(cursor, start);
+
+    const end = template.indexOf(TEMPLATE_END, start + TEMPLATE_START.length);
+    if (end === -1) {
+      result += template.slice(start);
+      break;
+    }
+
+    const body = template.slice(start + TEMPLATE_START.length, end);
+    const parsed = parseTemplatePlaceholder(body);
+
+    if (parsed === undefined) {
+      // Preserve malformed placeholders by treating the current opening braces
+      // as literal text and continue scanning from the next character.
+      result += TEMPLATE_START;
+      cursor = start + TEMPLATE_START.length;
+      continue;
+    }
+
+    const raw = template.slice(start, end + TEMPLATE_END.length);
+    result += replace({ raw, ...parsed });
+    cursor = end + TEMPLATE_END.length;
+  }
+
+  return result;
+}
 
 /**
  * Interpolates template placeholders in a string using values from the runbook context.
@@ -42,10 +112,9 @@ type EscapeTransformer = (value: string) => string;
  * ```
  */
 export function interpolateTemplate(template: string, context: RunbookContext, escape?: EscapeTransformer): string {
-  return template.replace(templatePattern(), (match, source: string, key: string) => {
-    const store = source === 'params' ? context.params : context.vars;
-    const value = store.get(key);
-    if (value === undefined) return match;
+  return replaceTemplatePlaceholders(template, ({ raw, source, key }) => {
+    const value = getPlaceholderValue(context, source, key);
+    if (value === undefined) return raw;
     return escape !== undefined ? escape(value) : value;
   });
 }
@@ -101,10 +170,9 @@ interface ExtractedTemplate {
  */
 export function extractTemplateParameters(template: string, context: RunbookContext): ExtractedTemplate {
   const parameters: string[] = [];
-  const query = template.replace(templatePattern(), (match, source: string, key: string) => {
-    const store = source === 'params' ? context.params : context.vars;
-    const value = store.get(key);
-    if (value === undefined) return match;
+  const query = replaceTemplatePlaceholders(template, ({ raw, source, key }) => {
+    const value = getPlaceholderValue(context, source, key);
+    if (value === undefined) return raw;
     parameters.push(value);
     return '?';
   });
