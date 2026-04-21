@@ -571,7 +571,7 @@ export class GOPrompt {
           : {};
 
     const formattedChoices: GOPromptSelectOption[] = choices.map((choice) =>
-      typeof choice === 'string' ? { title: choice, value: choice as unknown as T } : choice,
+      typeof choice === 'string' ? { title: choice, value: choice } : choice,
     );
 
     const value = await this.runPrompt<T>({
@@ -589,12 +589,7 @@ export class GOPrompt {
       })),
       suggest: options.suggest
         ? async (input: string, choices: unknown[]) => {
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            return options.suggest!(
-              input,
-              choices as GOPromptSelectOption[],
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ) as unknown as Promise<any[]>;
+            return options.suggest(input, choices);
           }
         : undefined,
     });

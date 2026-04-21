@@ -93,7 +93,7 @@ async function importFromJsonl(filePath: string): Promise<ReadonlyArray<string>>
   });
 
   const result = await importer.import(filePath);
-  return deduplicateAndFilter(result.items as ReadonlyArray<string>);
+  return deduplicateAndFilter(result.items);
 }
 
 /**
@@ -111,7 +111,7 @@ async function importFromCsv(
     skipInvalidItems: true,
     ...(delimiter !== undefined ? { delimiter } : {}),
     rowTransformer: (record) => {
-      const csvRecord = record as unknown as Record<string, string>;
+      const csvRecord = record;
       if (columnName !== undefined) {
         const value = csvRecord[columnName];
         if (value === undefined) {

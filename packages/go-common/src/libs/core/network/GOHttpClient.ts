@@ -191,7 +191,7 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
 
     if (Buffer.isBuffer(body)) {
       // Buffer is a Uint8Array subclass, which is valid BodyInit
-      return body as Uint8Array;
+      return body;
     }
 
     if (typeof body === 'string') {

@@ -35,7 +35,7 @@ async function loadAlarmHistoryFixture(name: string): Promise<DescribeAlarmHisto
   if (data.AlarmHistoryItems) {
     for (const item of data.AlarmHistoryItems) {
       if (item.Timestamp && typeof item.Timestamp === 'string') {
-        item.Timestamp = new Date(item.Timestamp as unknown as string);
+        item.Timestamp = new Date(item.Timestamp);
       }
     }
   }

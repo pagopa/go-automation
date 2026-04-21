@@ -198,7 +198,7 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
    */
   private getErrorDetails(error: unknown): unknown {
     if (typeof error === 'object' && error !== null && 'response' in error) {
-      return (error as { response: unknown }).response;
+      return error.response;
     }
     return error;
   }

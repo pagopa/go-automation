@@ -97,7 +97,7 @@ export class CloudWatchLogsService {
         if (response.status !== 'Complete') {
           throw new Error(`CloudWatch Logs query ${response.status}: ${queryId}`);
         }
-        return (response.results ?? []) as ReadonlyArray<ReadonlyArray<ResultField>>;
+        return response.results ?? [];
       }
 
       return undefined;
