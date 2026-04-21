@@ -233,11 +233,16 @@ export default tseslint.config(
             "Avoid literal lookup types like Foo['bar']. Prefer a named alias or a dedicated exported type. Generic indexed access types such as T[K] or T[keyof T] are allowed.",
         },
         {
-          selector: 'TSPropertySignature TSFunctionType',
+          // Interface/type-literal properties are represented as TSPropertySignature.
+          // We match TSFunctionType anywhere inside the type annotation subtree so that
+          // parenthesized and union-wrapped inline function types are also rejected.
+          selector: 'TSPropertySignature > TSTypeAnnotation TSFunctionType',
           message: 'Use a named type alias for function-typed properties instead of an inline function type.',
         },
         {
-          selector: 'PropertyDefinition TSFunctionType',
+          // Class fields are represented as PropertyDefinition, not TSPropertySignature.
+          // This closes the gap that previously allowed inline callback types inside classes.
+          selector: 'PropertyDefinition > TSTypeAnnotation TSFunctionType',
           message: 'Use a named type alias for function-typed properties instead of an inline function type.',
         },
         {

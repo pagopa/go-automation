@@ -142,6 +142,33 @@ Per i type alias funzione e per le property callback usiamo una convenzione stre
 
 Queste regole sono enforce da ESLint tramite `no-restricted-syntax`.
 
+Esempi:
+
+```typescript
+// Bad: inline function type in interface property
+interface ExampleOptions {
+  readonly onLog?: (message: string) => void;
+}
+
+// Bad: inline function type in class field
+class ExampleService {
+  private readonly onLog?: (message: string) => void;
+}
+
+// Good: named alias reused by property/class field
+type LogHandler = (message: string) => void;
+
+interface ExampleOptions {
+  readonly onLog?: LogHandler;
+}
+
+class ExampleService {
+  private readonly onLog?: LogHandler;
+}
+```
+
+Nota tecnica: in AST TypeScript ESLint, le property di `interface`/type literal sono nodi `TSPropertySignature`, mentre i campi di classe sono `PropertyDefinition`. Per questo servono entrambi i selector nella regola ESLint.
+
 ---
 
 ## Importers (lettura dati)
