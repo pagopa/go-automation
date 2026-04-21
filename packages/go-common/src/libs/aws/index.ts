@@ -22,6 +22,7 @@ export type { AWSS3ObjectEntry, AWSS3BucketEntry } from './AWSS3Service.js';
 
 // SQS service
 export { AWSSQSService } from './AWSSQSService.js';
+export { SQSVisibilityHeartbeat } from './SQSVisibilityHeartbeat.js';
 export type { DLQStats } from './models/DLQStats.js';
 
 // DynamoDB query service

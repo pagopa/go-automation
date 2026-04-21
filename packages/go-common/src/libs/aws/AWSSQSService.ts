@@ -7,6 +7,8 @@
 
 import * as crypto from 'node:crypto';
 import {
+  ChangeMessageVisibilityBatchCommand,
+  DeleteMessageBatchCommand,
   GetQueueAttributesCommand,
   GetQueueUrlCommand,
   ListQueuesCommand,
@@ -19,6 +21,8 @@ import type {
   SendMessageBatchCommandOutput,
   QueueAttributeName,
   Message,
+  DeleteMessageBatchCommandOutput,
+  ChangeMessageVisibilityBatchCommandOutput,
 } from '@aws-sdk/client-sqs';
 import { GetMetricStatisticsCommand } from '@aws-sdk/client-cloudwatch';
 import type { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
@@ -27,6 +31,11 @@ import type { DLQStats } from './models/DLQStats.js';
 import type { SQSQueueMetadata } from './models/SQSQueueMetadata.js';
 import { SQSReceiveDeduplicationMode } from './models/SQSReceiveDeduplicationMode.js';
 import type { SQSReceiveResult } from './models/SQSReceiveResult.js';
+import { SQSProcessAction } from './models/SQSProcessAction.js';
+import type { SQSProcessOptions } from './models/SQSProcessOptions.js';
+import type { SQSProcessResult } from './models/SQSProcessResult.js';
+
+import { SQSVisibilityHeartbeat } from './SQSVisibilityHeartbeat.js';
 
 /** Time window for CloudWatch metrics (5 minutes) */
 const CLOUDWATCH_WINDOW_MS = 5 * 60 * 1000;
@@ -154,6 +163,56 @@ export class AWSSQSService {
   }
 
   /**
+   * Deletes a batch of messages from a queue.
+   *
+   * @param queueUrl - Target queue URL
+   * @param receiptHandles - List of receipt handles to delete
+   * @returns Command output
+   */
+  async deleteMessageBatch(queueUrl: string, receiptHandles: string[]): Promise<DeleteMessageBatchCommandOutput> {
+    if (receiptHandles.length === 0) {
+      throw new Error('No receipt handles provided for deletion');
+    }
+
+    return await this.sqsClient.send(
+      new DeleteMessageBatchCommand({
+        QueueUrl: queueUrl,
+        Entries: receiptHandles.map((handle, index) => ({
+          Id: `msg-${index}`,
+          ReceiptHandle: handle,
+        })),
+      }),
+    );
+  }
+
+  /**
+   * Changes the visibility timeout of a batch of messages.
+   *
+   * @param queueUrl - Target queue URL
+   * @param entries - List of receipt handles and their new visibility timeout
+   * @returns Command output
+   */
+  async changeMessageVisibilityBatch(
+    queueUrl: string,
+    entries: { receiptHandle: string; visibilityTimeout: number }[],
+  ): Promise<ChangeMessageVisibilityBatchCommandOutput> {
+    if (entries.length === 0) {
+      throw new Error('No entries provided for visibility change');
+    }
+
+    return await this.sqsClient.send(
+      new ChangeMessageVisibilityBatchCommand({
+        QueueUrl: queueUrl,
+        Entries: entries.map((e, index) => ({
+          Id: `msg-${index}`,
+          ReceiptHandle: e.receiptHandle,
+          VisibilityTimeout: e.visibilityTimeout,
+        })),
+      }),
+    );
+  }
+
+  /**
    * Receives messages from a queue in bulk using long polling and deduplication.
    *
    * @param options - Receive configuration
@@ -244,6 +303,130 @@ export class AWSSQSService {
         : `queue empty after ${options.maxEmptyReceives} polls`;
 
     return { messages: uniqueMessages, totalReceived, totalUnique, totalDuplicates, stopReason };
+  }
+
+  /**
+   * Consumes and processes messages from a queue in a resilient loop.
+   *
+   * Automatically handles:
+   * - Long polling (WaitTimeSeconds = 20)
+   * - Batch deletion (DELETE action)
+   * - Batch visibility reset (RELEASE action)
+   * - Progress tracking
+   *
+   * @param options - Loop configuration
+   * @param processor - Callback for each message returning the action to take
+   * @param callbacks - Optional progress callbacks
+   * @returns Processing statistics
+   */
+  async processMessages(
+    options: SQSProcessOptions,
+    processor: (message: Message) => SQSProcessAction | Promise<SQSProcessAction>,
+    callbacks?: {
+      onProgress?: (received: number, deleted: number, released: number, skipped: number) => void;
+      onEmptyReceive?: (consecutive: number, max: number) => void;
+    },
+  ): Promise<SQSProcessResult> {
+    let totalReceived = 0;
+    let totalDeleted = 0;
+    let totalReleased = 0;
+    let totalSkipped = 0;
+    let consecutiveEmptyReceives = 0;
+
+    const waitTime = options.waitTimeSeconds ?? LONG_POLLING_WAIT_TIME;
+
+    while (consecutiveEmptyReceives < options.maxEmptyReceives) {
+      if (options.limit !== undefined && totalReceived >= options.limit) {
+        break;
+      }
+
+      const nextBatchSize =
+        options.limit !== undefined
+          ? Math.min(SQS_MAX_RECEIVE_BATCH_SIZE, options.limit - totalReceived)
+          : SQS_MAX_RECEIVE_BATCH_SIZE;
+
+      const receiveResponse = await this.sqsClient.send(
+        new ReceiveMessageCommand({
+          QueueUrl: options.queueUrl,
+          MaxNumberOfMessages: nextBatchSize,
+          VisibilityTimeout: options.visibilityTimeout,
+          WaitTimeSeconds: waitTime,
+          AttributeNames: ['All'],
+          MessageAttributeNames: ['All'],
+        }),
+      );
+
+      const messages = receiveResponse.Messages ?? [];
+
+      if (messages.length === 0) {
+        consecutiveEmptyReceives++;
+        callbacks?.onEmptyReceive?.(consecutiveEmptyReceives, options.maxEmptyReceives);
+        continue;
+      }
+
+      consecutiveEmptyReceives = 0;
+      totalReceived += messages.length;
+
+      const toDelete: string[] = [];
+      const toRelease: string[] = [];
+
+      for (const message of messages) {
+        const action = await processor(message);
+
+        switch (action) {
+          case SQSProcessAction.DELETE:
+            if (message.ReceiptHandle) toDelete.push(message.ReceiptHandle);
+            totalDeleted++;
+            break;
+          case SQSProcessAction.RELEASE:
+            if (message.ReceiptHandle) toRelease.push(message.ReceiptHandle);
+            totalReleased++;
+            break;
+          case SQSProcessAction.SKIP:
+            totalSkipped++;
+            break;
+          default:
+            totalSkipped++;
+            break;
+        }
+      }
+
+      // Execute batch actions
+      if (toDelete.length > 0) {
+        await this.deleteMessageBatch(options.queueUrl, toDelete);
+      }
+      if (toRelease.length > 0) {
+        await this.changeMessageVisibilityBatch(
+          options.queueUrl,
+          toRelease.map((h) => ({ receiptHandle: h, visibilityTimeout: 0 })),
+        );
+      }
+
+      callbacks?.onProgress?.(totalReceived, totalDeleted, totalReleased, totalSkipped);
+    }
+
+    const stopReason =
+      options.limit !== undefined && totalReceived >= options.limit
+        ? 'reached limit'
+        : `queue empty after ${options.maxEmptyReceives} polls`;
+
+    return { totalReceived, totalDeleted, totalReleased, totalSkipped, stopReason };
+  }
+
+  /**
+   * Creates a visibility heartbeat manager for a specific queue.
+   *
+   * @param queueUrl - Queue URL
+   * @param visibilityTimeout - Visibility timeout to set on heartbeat (seconds)
+   * @param heartbeatIntervalSeconds - How often to heartbeat (seconds)
+   * @returns Heartbeat manager instance
+   */
+  createVisibilityHeartbeat(
+    queueUrl: string,
+    visibilityTimeout: number,
+    heartbeatIntervalSeconds: number,
+  ): SQSVisibilityHeartbeat {
+    return new SQSVisibilityHeartbeat(this.sqsClient, queueUrl, visibilityTimeout, heartbeatIntervalSeconds);
   }
 
   /**

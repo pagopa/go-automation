@@ -17,11 +17,11 @@ Script progettato per l'invio massivo (bulk) di messaggi a una coda **Amazon SQS
 
 ## Come funziona
 
-1. **Inizializzazione** — Risolve l'URL della coda (accetta nome o URL) e rileva automaticamente se si tratta di una coda **FIFO**.
-2. **Lettura Messaggi** — Legge i messaggi dal file di input specificato utilizzando streaming a basso consumo di memoria.
-3. **Batch Sending** — Raggruppa i messaggi in batch di massimo 10 elementi (limite AWS SQS) per ottimizzare i costi e le performance.
-4. **Retry Chirurgico** — In caso di fallimento parziale di un batch, lo script re-invia **solo i singoli messaggi falliti**, evitando duplicati non necessari (best practice AWS).
-5. **Supporto FIFO** — Gestisce automaticamente `MessageGroupId` e può generare `MessageDeduplicationId` tramite hash SHA-256 del contenuto.
+1. **Inizializzazione**: risolve l'URL della coda (accetta nome o URL) e rileva automaticamente se si tratta di una coda **FIFO**.
+2. **Lettura Messaggi**: legge i messaggi dal file di input specificato utilizzando streaming a basso consumo di memoria.
+3. **Batching**: raggruppa i messaggi in batch di massimo 10 elementi (limite AWS SQS) per ottimizzare i costi e le performance.
+4. **Retry**: in caso di fallimento parziale di un batch, lo script re-invia **solo i singoli messaggi falliti**, evitando duplicati non necessari (best practice AWS).
+5. **Supporto FIFO**: gestisce automaticamente `MessageGroupId` e può generare `MessageDeduplicationId` tramite hash SHA-256 del contenuto.
 
 ---
 
