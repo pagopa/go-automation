@@ -2,7 +2,7 @@
  * SQS Service Helpers for send-put-sqs
  */
 
-import { Core } from '@go-automation/go-common';
+import { Core, AWS } from '@go-automation/go-common';
 
 import type { SendPutSqsConfig } from '../types/SendPutSqsConfig.js';
 
@@ -52,11 +52,11 @@ export async function processBatch(
   stats: BulkStats,
 ): Promise<void> {
   const batchId = Math.random().toString(36).substring(2, 7);
-  const sqsService = new Core.AWSSQSService(script.aws.sqs, script.aws.cloudWatch);
+  const sqsService = new AWS.AWSSQSService(script.aws.sqs, script.aws.cloudWatch);
 
-  const entries: Core.SendMessageBatchRequestEntry[] = messages.map((body, index) => {
+  const entries: AWS.SendMessageBatchRequestEntry[] = messages.map((body, index) => {
     // Validate message size and content
-    Core.SQSUtils.validateMessageSize(body);
+    AWS.SQSUtils.validateMessageSize(body);
 
     return {
       Id: `${batchId}-${index}`,

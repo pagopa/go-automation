@@ -2,7 +2,7 @@
  * Resolves the SQS queue URL and fetches queue attributes.
  */
 
-import { Core } from '@go-automation/go-common';
+import { Core, AWS } from '@go-automation/go-common';
 
 /**
  * Result of queue initialization.
@@ -33,7 +33,7 @@ export async function initializeQueue(
   prompt.spin('init', `Initializing dump for queue "${queueName}"...`);
 
   try {
-    const sqsService = new Core.AWSSQSService(sqsClient, cloudWatchClient);
+    const sqsService = new AWS.AWSSQSService(sqsClient, cloudWatchClient);
     const metadata = await sqsService.resolveQueueMetadata(queueName);
 
     const inFlightLimit = metadata.isFifo ? 20000 : 120000;

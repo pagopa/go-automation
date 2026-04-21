@@ -11,7 +11,7 @@
  * - Progress estimation and capacity warnings.
  */
 
-import { Core } from '@go-automation/go-common';
+import { Core, AWS } from '@go-automation/go-common';
 
 import { initializeQueue } from './libs/initializeQueue.js';
 import type { SendDumpSqsConfig } from './types/index.js';
@@ -63,7 +63,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   );
 
   // Initialize service
-  const sqsService = new Core.AWSSQSService(script.aws.sqs, script.aws.cloudWatch);
+  const sqsService = new AWS.AWSSQSService(script.aws.sqs, script.aws.cloudWatch);
 
   // Dump messages
   script.prompt.startSpinner('Dumping messages...');
@@ -87,7 +87,7 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   // Write all collected messages to NDJSON file
   if (result.messages.length > 0) {
-    const exporter = new Core.GOJSONListExporter<Core.Message>({
+    const exporter = new Core.GOJSONListExporter<AWS.Message>({
       outputPath: outputPathInfo.path,
       jsonl: true,
     });

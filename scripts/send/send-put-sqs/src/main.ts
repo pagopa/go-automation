@@ -5,7 +5,7 @@
  * Supports text, JSON, and CSV input formats.
  */
 
-import { Core } from '@go-automation/go-common';
+import { Core, AWS } from '@go-automation/go-common';
 
 import type { SendPutSqsConfig } from './types/SendPutSqsConfig.js';
 import { initializeImporter, processBatch, updateProgress, type BulkStats } from './libs/SqsService.js';
@@ -21,12 +21,13 @@ export async function main(script: Core.GOScript): Promise<void> {
   const startTime = Date.now();
 
   script.logger.section('Initialization');
+  // Resolve queue identifier
   const queueNameOrUrl = config.queueUrl ?? config.queueName;
   if (!queueNameOrUrl) {
     throw new Error('Either --queue-name or --queue-url must be provided');
   }
 
-  const sqsService = new Core.AWSSQSService(script.aws.sqs, script.aws.cloudWatch);
+  const sqsService = new AWS.AWSSQSService(script.aws.sqs, script.aws.cloudWatch);
   const metadata = await sqsService.resolveQueueMetadata(queueNameOrUrl);
 
   script.logger.info(`Target Queue: ${metadata.queueUrl}`);
@@ -40,7 +41,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.prompt.startSpinner('Reading and sending messages...');
 
   let currentBatch: string[] = [];
-  const batchSize = Math.min(config.batchSize, Core.SQS_MAX_BATCH_SIZE);
+  const batchSize = Math.min(config.batchSize, AWS.SQS_MAX_BATCH_SIZE);
 
   try {
     for await (const message of importer.importStream(inputPath)) {
