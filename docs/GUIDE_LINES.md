@@ -29,13 +29,13 @@
 
 - Scegli sempre algoritmi O(N) invece di O(N^2)
 - Usa `Map`/`Set` per lookups invece di `Array.find()`/`Array.includes()`
-- Compila RegExp una volta, riutilizza piu volte
+- Compila RegExp una volta, riutilizza più volte
 - Preferisci iterazioni single-pass su multiple passes
 - Usa `readonly` per evitare copie difensive
 
 ### Immutabilita
 
-- Usa `readonly` per proprieta che non cambiano
+- Usa `readonly` per proprietà che non cambiano
 - Crea nuovi oggetti invece di mutare quelli esistenti
 - Usa `readonly` nei parametri delle funzioni
 - Preferisci `const` a `let`
@@ -150,7 +150,7 @@ type ID = string | number;
 ### Null e Undefined
 
 ```typescript
-// CORRETTO: Proprieta opzionali
+// CORRETTO: Proprietà opzionali
 interface Config {
   readonly apiUrl: string;
   readonly timeout?: number; // Opzionale
@@ -307,7 +307,7 @@ class Analyzer {
 ### Readonly Properties
 
 ```typescript
-// CORRETTO: readonly per proprieta immutabili
+// CORRETTO: readonly per proprietà immutabili
 class Config {
   readonly apiUrl: string;
   readonly timeout: number;
@@ -522,7 +522,7 @@ function processAlarms(alarms: Alarm[]): Alarm[] {
 ````typescript
 /**
  * Filtra gli allarmi in base ai pattern di ignore
- * Complexity: O(N) dove N e il numero di allarmi
+ * Complexity: O(N) dove N è il numero di allarmi
  *
  * @param alarms - Array di allarmi da filtrare
  * @param patterns - Pattern di ignore da applicare
@@ -581,7 +581,7 @@ const value = dangerousOperation();  // Risolvi il type issue!
 function process(data: any) { ... }  // Usa unknown!
 
 // NEVER: Non-null assertion senza commento
-const value = maybeUndefined!;  // Spiega perche e safe!
+const value = maybeUndefined!;  // Spiega perché e safe!
 
 // CORRETTO: Con commento
 const value = maybeUndefined!;  // Safe: validato nel check precedente

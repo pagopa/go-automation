@@ -43,21 +43,3 @@ export * from './script/index.js';
 
 // Export messaging
 export * from './messaging/index.js';
-
-// Export AWS utilities (DynamoDB and SQS query services)
-export { DynamoDBQueryService } from '../aws/DynamoDBQueryService.js';
-export type { DynamoDBQueryProgressCallback } from '../aws/DynamoDBQueryService.js';
-export { AWSSQSService } from '../aws/AWSSQSService.js';
-export { SQSVisibilityHeartbeat } from '../aws/SQSVisibilityHeartbeat.js';
-export { SQSProcessAction } from '../aws/models/SQSProcessAction.js';
-export type { SQSProcessOptions } from '../aws/models/SQSProcessOptions.js';
-export type { SQSProcessResult } from '../aws/models/SQSProcessResult.js';
-export type { SQSQueueMetadata } from '../aws/models/SQSQueueMetadata.js';
-export { SQSReceiveDeduplicationMode } from '../aws/models/SQSReceiveDeduplicationMode.js';
-export type { SQSReceiveResult } from '../aws/models/SQSReceiveResult.js';
-export type { DLQStats } from '../aws/models/DLQStats.js';
-export type { DynamoDBQueryOptions } from '../aws/models/DynamoDBQueryOptions.js';
-export type { DynamoDBQueryResult } from '../aws/models/DynamoDBQueryResult.js';
-
-// Re-export essential AWS SDK types
-export type { Message, SendMessageBatchRequestEntry, SendMessageBatchCommandOutput } from '@aws-sdk/client-sqs';

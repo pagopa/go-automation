@@ -7,7 +7,7 @@
 
 ## 1. Panoramica
 
-Il Runbook Engine e un sistema per definire, comporre ed eseguire runbook operativi. Un runbook e una procedura strutturata che:
+Il Runbook Engine è un sistema per definire, comporre ed eseguire runbook operativi. Un runbook è una procedura strutturata che:
 
 1. Raccoglie dati da diverse sorgenti (CloudWatch, Athena, DynamoDB, HTTP)
 2. Esegue una sequenza di step autonomi, ognuno con input/output tipizzati
@@ -24,9 +24,9 @@ Il motore supporta un **sistema di segnali** nel `StepResult` che permette agli 
 - **Se un caso noto corrisponde**: la pipeline si interrompe (terminazione anticipata) e si procede all'azione
 - **Se nessun caso corrisponde**: l'esecuzione continua normalmente allo step successivo (lo step era ottimista)
 
-Questo approccio e elegante perche:
+Questo approccio è elegante perché:
 
-- Lo **step** decide quando ritiene di aver trovato qualcosa (separazione delle responsabilita: lo step conosce il suo dominio)
+- Lo **step** decide quando ritiene di aver trovato qualcosa (separazione delle responsabilità: lo step conosce il suo dominio)
 - Il **motore** decide se si tratta effettivamente di un caso noto (lo step non ha bisogno di conoscere i casi noti)
 - Se il motore non trova un match, l'esecuzione prosegue naturalmente
 - Nessuna duplicazione di condizioni
@@ -46,12 +46,12 @@ Questo approccio e elegante perche:
 
 ### 2.1 Step
 
-Uno **Step** e l'unita atomica di esecuzione. Riceve un contesto immutabile e produce un risultato.
+Uno **Step** è l'unità atomica di esecuzione. Riceve un contesto immutabile e produce un risultato.
 
 ```typescript
 /**
  * Interfaccia base per tutti gli step del runbook.
- * Ogni step e un componente autonomo: riceve un contesto, produce un risultato.
+ * Ogni step è un componente autonomo: riceve un contesto, produce un risultato.
  *
  * @typeParam TOutput - Il tipo dell'output prodotto dallo step
  */
@@ -102,7 +102,7 @@ Il risultato di ogni step contiene l'output e le istruzioni per il flusso di ese
  * Incapsula l'output, lo stato di successo e le direttive di controllo del flusso.
  */
 interface StepResult<TOutput = unknown> {
-  /** Se lo step e stato eseguito con successo */
+  /** Se lo step è stato eseguito con successo */
   readonly success: boolean;
   /** Output prodotto dallo step (undefined se success=false) */
   readonly output?: TOutput;
@@ -132,7 +132,7 @@ interface ErrorRecoveryInfo {
   readonly originalError: string;
   /** Timestamp del fallimento */
   readonly failedAt: Date;
-  /** Indica che lo step e stato saltato e l'esecuzione e continuata */
+  /** Indica che lo step è stato saltato e l'esecuzione e continuata */
   readonly skipped: true;
 }
 ```
@@ -156,7 +156,7 @@ type FlowDirective = 'continue' | 'stop' | 'resolve' | { readonly goTo: string }
 
 ### 2.5 RunbookContext
 
-Il contesto e lo stato immutabile condiviso tra tutti gli step. Viene aggiornato (tramite copia) dopo ogni step.
+Il contesto è lo stato immutabile condiviso tra tutti gli step. Viene aggiornato (tramite copia) dopo ogni step.
 
 ```typescript
 /**
@@ -190,7 +190,7 @@ interface RunbookContext {
 
 ### 2.6 KnownCase
 
-Un caso noto e un pattern riconoscibile nel risultato finale, con un'azione associata.
+Un caso noto è un pattern riconoscibile nel risultato finale, con un'azione associata.
 
 ```typescript
 /**
@@ -206,7 +206,7 @@ interface KnownCase {
   readonly condition: Condition;
   /** Azione da eseguire quando il caso viene riconosciuto */
   readonly action: CaseAction;
-  /** Priorita: se piu casi matchano, vince quello con priorita piu alta */
+  /** Priorita: se più casi matchano, vince quello con priorita più alta */
   readonly priority: number;
 }
 ```
@@ -257,7 +257,7 @@ type RunbookType = 'alarm-resolution' | 'data-verification' | 'data-update' | 'h
 
 ## 3. Catalogo Step
 
-Gli step sono organizzati per categoria. Ogni categoria ha una responsabilita specifica.
+Gli step sono organizzati per categoria. Ogni categoria ha una responsabilità specifica.
 
 ### 3.1 Data Steps (Recupero dati)
 
@@ -265,7 +265,7 @@ Gli step sono organizzati per categoria. Ogni categoria ha una responsabilita sp
 StepKind: 'data'
 ```
 
-Questi step raccolgono dati grezzi. Tipicamente restituiscono `'continue'` perche non analizzano i dati.
+Questi step raccolgono dati grezzi. Tipicamente restituiscono `'continue'` perché non analizzano i dati.
 
 | Step                      | Input (da context)                | Output                                 | Descrizione                   |
 | ------------------------- | --------------------------------- | -------------------------------------- | ----------------------------- |
@@ -467,7 +467,7 @@ class RunbookEngine {
    *    - Se uno step restituisce 'resolve', valuta i casi noti:
    *      - Se un caso corrisponde -> termina la pipeline (early resolution)
    *      - Se nessun caso corrisponde -> prosegue allo step successivo
-   * 3. Al termine, se non c'e stata early resolution, valuta i casi noti in ordine di priorita
+   * 3. Al termine, se non c'è stata early resolution, valuta i casi noti in ordine di priorità
    * 4. Esegue l'azione del primo caso che corrisponde
    * 5. Se nessun caso corrisponde, esegue la fallbackAction
    *
@@ -498,7 +498,7 @@ class RunbookEngine {
       runbook.metadata.id,
     );
 
-    // Fase 2: match dei casi noti solo se non c'e stata early resolution
+    // Fase 2: match dei casi noti solo se non c'è stata early resolution
     const matchedCase =
       earlyResolution !== undefined
         ? earlyResolution.matchedCase
@@ -742,7 +742,7 @@ private matchKnownCases(
 
 ### 5.4 Flusso di Esecuzione del Motore
 
-Il flusso di esecuzione del motore e il seguente:
+Il flusso di esecuzione del motore è il seguente:
 
 ```
 Fase 1: Esecuzione Step
@@ -764,11 +764,11 @@ Fase 1: Esecuzione Step
     altrimenti se next === { goTo: ... }:
       salta allo step indicato
 
-Fase 2: Match Casi Noti (solo se non c'e stata early resolution)
+Fase 2: Match Casi Noti (solo se non c'è stata early resolution)
   se la pipeline e terminata normalmente (nessuna early resolution):
     valuta tutti i casi noti
   altrimenti:
-    salta (gia matchato nella Fase 1)
+    salta (già matchato nella Fase 1)
 
 Fase 3: Esecuzione Azione
   esegui l'azione del caso matchato o la fallback action
@@ -813,7 +813,7 @@ interface EscalateAction {
   readonly message: string;
 }
 
-/** Composizione di piu azioni */
+/** Composizione di più azioni */
 interface CompositeAction {
   readonly type: 'composite';
   readonly actions: readonly CaseAction[];
@@ -1176,7 +1176,7 @@ class RunbookBuilder {
    *
    * @param stepIds - Set di tutti gli step ID validi
    * @param goToRefs - Riferimenti goTo raccolti
-   * @returns Array di cicli trovati (ogni ciclo e un array di step ID)
+   * @returns Array di cicli trovati (ogni ciclo è un array di step ID)
    */
   private detectGoToCycles(stepIds: ReadonlySet<string>, goToRefs: readonly GoToReference[]): readonly string[][] {
     // Costruisci grafo di adiacenza
@@ -1258,7 +1258,7 @@ interface GoToReference {
 }
 
 /**
- * Type guard per verificare se uno step e un IfStep con goTo.
+ * Type guard per verificare se uno step è un IfStep con goTo.
  */
 function isIfStep(step: Step): step is Step & {
   readonly thenGoTo?: string;
@@ -1268,7 +1268,7 @@ function isIfStep(step: Step): step is Step & {
 }
 
 /**
- * Type guard per verificare se uno step e un SwitchStep con goTo.
+ * Type guard per verificare se uno step è un SwitchStep con goTo.
  */
 function isSwitchStep(step: Step): step is Step & {
   readonly goToCases: ReadonlyMap<string, string>;
@@ -1318,7 +1318,7 @@ Un allarme CloudWatch `pn-address-book-io-IO-ApiGwAlarm` scatta. Il runbook deve
 1. Cercare nei log di CloudWatch l'errore che ha causato l'allarme
 2. Estrarre il codice di errore e il traceId
 3. **Segnalare `'resolve'` dopo l'estrazione** per tentare una risoluzione anticipata
-4. Se non risolta, e l'errore e un timeout (`504`), verificare la latenza del downstream tramite **sub-pipeline annidata**
+4. Se non risolta, e l'errore è un timeout (`504`), verificare la latenza del downstream tramite **sub-pipeline annidata**
 5. Determinare il caso noto e agire di conseguenza
 
 ### Definizione del Runbook
@@ -1384,7 +1384,7 @@ const apiGateway5xxRunbook = RunbookBuilder.create('alarm-api-gw-5xx')
     }),
   )
 
-  // -- STEP 3: Estrai il codice di stato piu frequente --
+  // -- STEP 3: Estrai il codice di stato più frequente --
   // continueOnFailure: se l'estrazione fallisce, prosegui comunque
   .step(
     extractField({
@@ -1431,7 +1431,7 @@ const apiGateway5xxRunbook = RunbookBuilder.create('alarm-api-gw-5xx')
 
   // -- STEP 6: Se 504 (timeout), usa sub-pipeline per indagare latenza --
   // Questo step viene eseguito SOLO se la early resolution al passo 5 non ha trovato
-  // un caso noto (es. l'errore e un timeout che richiede ulteriore indagine).
+  // un caso noto (es. l'errore è un timeout che richiede ulteriore indagine).
   .ifBranch({
     id: 'check-timeout',
     label: 'Verifica se errore e timeout (504)',
@@ -1458,7 +1458,7 @@ const apiGateway5xxRunbook = RunbookBuilder.create('alarm-api-gw-5xx')
       }),
       extractField({
         id: 'extract-slow-service',
-        label: 'Identifica servizio piu lento',
+        label: 'Identifica servizio più lento',
         fromStep: 'query-downstream-latency',
         fieldPath: '[0].downstreamService',
         saveAs: 'slowService',
@@ -1544,7 +1544,7 @@ const apiGateway5xxRunbook = RunbookBuilder.create('alarm-api-gw-5xx')
   })
 
   // Caso 2: Rate limiting (429 trasformato in 5xx)
-  // Questo caso puo essere matchato alla early resolution dopo lo step 5,
+  // Questo caso può essere matchato alla early resolution dopo lo step 5,
   // evitando di eseguire la costosa query downstream allo step 6.
   .knownCase({
     id: 'rate-limiting',
@@ -1567,7 +1567,7 @@ const apiGateway5xxRunbook = RunbookBuilder.create('alarm-api-gw-5xx')
   })
 
   // Caso 3: Internal Server Error generico
-  // Anche questo caso puo essere matchato alla early resolution dopo lo step 5.
+  // Anche questo caso può essere matchato alla early resolution dopo lo step 5.
   .knownCase({
     id: 'internal-error',
     description: 'Errore interno del servizio',
@@ -1758,7 +1758,7 @@ await script.run(async (ctx) => {
 |                         |         |                                    |
 |  3. MATCH KNOWN CASES   v         |                                    |
 |  +------------------------------------------------------------------+ |
-|  |  (solo se NON c'e stata early resolution)                         | |
+|  |  (solo se NON c'è stata early resolution)                         | |
 |  |                                                                   | |
 |  |  Final Context                                                    | |
 |  |  +--------------+                                                 | |
@@ -1802,7 +1802,7 @@ Il trace e progettato per quattro scenari di utilizzo:
 | **Persistenza**           | Salvataggio su DynamoDB/S3 per storicizzazione e audit trail                                        |
 | **Analisi LLM**           | Input strutturato per un modello di linguaggio che analizza l'esecuzione e suggerisce miglioramenti |
 | **Debugging**             | Ricostruzione esatta del flusso di esecuzione per identificare problemi                             |
-| **Dashboard / Reporting** | Estrazione di metriche aggregate (durata, step falliti, casi noti piu frequenti)                    |
+| **Dashboard / Reporting** | Estrazione di metriche aggregate (durata, step falliti, casi noti più frequenti)                    |
 
 Il campo `schemaVersion` garantisce compatibilita in avanti: i consumatori possono gestire versioni diverse del formato senza rotture.
 
@@ -1810,7 +1810,7 @@ Il campo `schemaVersion` garantisce compatibilita in avanti: i consumatori posso
 
 ### 11.2 Interfacce TypeScript
 
-Tutte le interfacce seguono le convenzioni del progetto: `readonly` su ogni proprieta, named exports, un file per interfaccia (vedi Sezione 12).
+Tutte le interfacce seguono le convenzioni del progetto: `readonly` su ogni proprietà, named exports, un file per interfaccia (vedi Sezione 12).
 
 #### RunbookExecutionTrace
 
@@ -1909,7 +1909,7 @@ interface StepTrace {
   readonly label: string;
   /** Categoria dello step (data, transform, control, check, mutation) */
   readonly kind: StepKind;
-  /** Come lo step e stato raggiunto nel flusso di esecuzione */
+  /** Come lo step è stato raggiunto nel flusso di esecuzione */
   readonly reachedVia: 'sequential' | 'goTo' | 'subPipeline';
   /** ID dello step padre (solo se reachedVia === 'subPipeline') */
   readonly parentStepId?: string;
@@ -1921,7 +1921,7 @@ interface StepTrace {
   readonly durationMs: number;
   /** Stato dello step */
   readonly status: 'success' | 'failed' | 'skipped';
-  /** Se lo step e stato recuperato tramite continueOnFailure (vedi Sezione 16.2) */
+  /** Se lo step è stato recuperato tramite continueOnFailure (vedi Sezione 16.2) */
   readonly recovered: boolean;
   /** Input fornito allo step */
   readonly input: unknown;
@@ -2013,7 +2013,7 @@ interface CaseEvaluationTrace {
  * Documenta il tipo di azione, il risultato e la durata.
  */
 interface ActionTrace {
-  /** Se un'azione e stata effettivamente eseguita */
+  /** Se un'azione è stata effettivamente eseguita */
   readonly executed: boolean;
   /** Tipo dell'azione eseguita */
   readonly actionType: 'log' | 'notify' | 'update' | 'escalate' | 'composite' | 'fallback';
@@ -2088,7 +2088,7 @@ interface RunbookExecutionResult {
   readonly recoveredErrors: ReadonlyArray<ErrorRecoveryInfo>;
   /** Trace strutturato dell'intera esecuzione */
   readonly trace: RunbookExecutionTrace;
-  /** Se il runbook e stato risolto anticipatamente tramite il segnale 'resolve' */
+  /** Se il runbook è stato risolto anticipatamente tramite il segnale 'resolve' */
   readonly earlyResolution?: boolean;
   /** ID dello step che ha innescato la early resolution */
   readonly resolvedAtStep?: string;
@@ -2336,7 +2336,7 @@ Questo esempio mostra il trace prodotto dall'esecuzione del runbook **API Gatewa
 
 | Principio                     | Applicazione                                                                                                                                                                                                                                |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **S** - Single Responsibility | Ogni `Step` ha una sola responsabilita. `ConditionEvaluator` valuta solo condizioni. `RunbookEngine` solo orchestra. `RunbookBuilder` solo costruisce e valida. Lo step decide quando segnalare `'resolve'`, il motore decide se accettare. |
+| **S** - Single Responsibility | Ogni `Step` ha una sola responsabilità. `ConditionEvaluator` valuta solo condizioni. `RunbookEngine` solo orchestra. `RunbookBuilder` solo costruisce e valida. Lo step decide quando segnalare `'resolve'`, il motore decide se accettare. |
 | **O** - Open/Closed           | Nuovi step si aggiungono implementando `Step<TOutput>`, senza modificare il motore. Nuove condizioni si aggiungono estendendo il tipo `Condition`. La direttiva `'resolve'` non richiede modifiche al builder o agli step esistenti.        |
 | **L** - Liskov Substitution   | Tutti gli step sono intercambiabili tramite l'interfaccia `Step`. Qualsiasi `Condition` e valutabile dal `ConditionEvaluator`.                                                                                                              |
 | **I** - Interface Segregation | `Step` ha un'interfaccia minimale (`id`, `label`, `kind`, `execute`). `StepDescriptor` aggiunge solo le opzioni runtime necessarie. I servizi sono separati per tipo.                                                                       |
@@ -2444,7 +2444,7 @@ packages/
 
 ## 14. Secondo Esempio: Data Verification Runbook
 
-Per dimostrare la flessibilita, ecco un runbook di tipo diverso: verifica consistenza dati su DynamoDB.
+Per dimostrare la flessibilità, ecco un runbook di tipo diverso: verifica consistenza dati su DynamoDB.
 Questo esempio usa `continueOnFailure`, `ifBranch` con sub-pipeline e `maxIterations`.
 
 ```typescript
@@ -2526,7 +2526,7 @@ const verifyUserDataRunbook = RunbookBuilder.create('verify-user-data-consistenc
   )
 
   // -- STEP 4: Query tabella indirizzi --
-  // continueOnFailure: non bloccante, la verifica puo proseguire
+  // continueOnFailure: non bloccante, la verifica può proseguire
   .step(
     queryDynamoDB({
       id: 'query-addresses-table',
@@ -2782,7 +2782,7 @@ Questa sezione documenta nel dettaglio validazione nel builder, continueOnFailur
 
 ### 17.1 Validazione nel Builder
 
-La validazione viene eseguita automaticamente da `build()` e puo essere invocata manualmente con `validate()`.
+La validazione viene eseguita automaticamente da `build()` e può essere invocata manualmente con `validate()`.
 
 #### RunbookValidationError
 
@@ -2829,11 +2829,11 @@ I controlli eseguiti sono:
 1. **MISSING_METADATA**: metadati non impostati
 2. **MISSING_FALLBACK**: azione di fallback non impostata
 3. **EMPTY_STEPS**: nessuno step definito
-4. **DUPLICATE_STEP_ID**: due o piu step con lo stesso ID
+4. **DUPLICATE_STEP_ID**: due o più step con lo stesso ID
 5. **INVALID_GOTO_REF**: un `goTo` punta a uno step ID inesistente
 6. **LOOP_DETECTED**: il grafo dei `goTo` contiene cicli
-7. **DUPLICATE_CASE_ID**: due o piu KnownCase con lo stesso ID
-8. **DUPLICATE_CASE_PRIORITY**: due o piu KnownCase con la stessa priorita
+7. **DUPLICATE_CASE_ID**: due o più KnownCase con lo stesso ID
+8. **DUPLICATE_CASE_PRIORITY**: due o più KnownCase con la stessa priorità
 
 Il rilevamento cicli usa **DFS con colorazione** (White/Gray/Black) sul grafo di adiacenza costruito dagli archi sequenziali (`step[i] -> step[i+1]`) e dai `goTo` espliciti. Quando un nodo GRAY viene incontrato durante il DFS, il ciclo viene estratto dallo stack del path corrente.
 
@@ -2868,7 +2868,7 @@ interface ErrorRecoveryInfo {
   readonly originalError: string;
   /** Timestamp del fallimento */
   readonly failedAt: Date;
-  /** Indica che lo step e stato saltato e l'esecuzione e continuata */
+  /** Indica che lo step è stato saltato e l'esecuzione e continuata */
   readonly skipped: true;
 }
 ```
@@ -2967,7 +2967,7 @@ Step 2: Check risultati (1ms)          -- necessario
 Step 3: Extract status code (1ms)      -- necessario
 Step 4: Extract traceId (1ms)          -- necessario
 Step 5: Extract errorCode (1ms)        -- trova RATE_LIMIT, causa nota!
-Step 6: Query downstream (1800ms)      -- INUTILE, la causa e gia chiara
+Step 6: Query downstream (1800ms)      -- INUTILE, la causa è già chiara
 Step 7: Extract slow service (1ms)     -- INUTILE
 Step 8: Set diagnosis (1ms)            -- INUTILE
 --- Fine pipeline, ora valuta i casi noti ---
@@ -3055,7 +3055,7 @@ La direttiva `'resolve'` e completamente retrocompatibile con gli step esistenti
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | **Step esistenti**    | Funzionano senza modifiche. Il default di `next` rimane `'continue'`.                                                              |
 | **FlowDirective**     | Il tipo e esteso con `'resolve'`, non modificato. `'continue'`, `'stop'` e `{ goTo }` funzionano come prima.                       |
-| **KnownCases**        | La valutazione finale avviene come prima se non c'e stata early resolution.                                                        |
+| **KnownCases**        | La valutazione finale avviene come prima se non c'è stata early resolution.                                                        |
 | **Runbook interface** | Nessuna modifica.                                                                                                                  |
 | **RunbookBuilder**    | Nessuna modifica. Il segnale `'resolve'` viene dallo step, non dalla configurazione.                                               |
 | **StepDescriptor**    | Nessuna modifica.                                                                                                                  |

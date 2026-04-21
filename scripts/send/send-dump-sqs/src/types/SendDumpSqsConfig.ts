@@ -1,4 +1,4 @@
-import { Core } from '@go-automation/go-common';
+import { AWS } from '@go-automation/go-common';
 
 /**
  * Script configuration interface
@@ -20,7 +20,7 @@ export interface SendDumpSqsConfig {
   readonly limit: number | undefined;
 
   /** Deduplication strategy */
-  readonly dedupMode: Core.SQSReceiveDeduplicationMode;
+  readonly dedupMode: AWS.SQSReceiveDeduplicationMode;
 
   /** Number of consecutive empty polls before stopping */
   readonly maxEmptyReceives: number;
