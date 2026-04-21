@@ -4,7 +4,7 @@
  */
 
 import readline from 'node:readline';
-import prompts, { type PromptObject } from 'prompts';
+import prompts, { type Choice, type PromptObject } from 'prompts';
 
 import { GOLogEventCategory } from '../logging/GOLogEventCategory.js';
 import { GOLogger } from '../logging/GOLogger.js';
@@ -121,6 +121,19 @@ export interface GOPromptAutocompleteOptions {
 
   /** Suggestion function for custom filtering */
   suggest?: GOPromptAutocompleteSuggestHandler;
+}
+
+function toGOPromptSelectOptions(choices: ReadonlyArray<Choice>): GOPromptSelectOption[] {
+  return choices.map((choice) => {
+    const promptValue = choice.value as unknown;
+
+    return {
+      title: choice.title,
+      ...(promptValue !== undefined ? { value: promptValue } : {}),
+      ...(choice.description !== undefined ? { description: choice.description } : {}),
+      ...('hint' in choice && typeof choice.hint === 'string' ? { hint: choice.hint } : {}),
+    };
+  });
 }
 
 /**
@@ -573,6 +586,7 @@ export class GOPrompt {
     const formattedChoices: GOPromptSelectOption[] = choices.map((choice) =>
       typeof choice === 'string' ? { title: choice, value: choice } : choice,
     );
+    const suggest = options.suggest;
 
     const value = await this.runPrompt<T>({
       type: 'autocomplete',
@@ -587,9 +601,9 @@ export class GOPrompt {
         description: choice.description,
         hint: choice.hint,
       })),
-      suggest: options.suggest
-        ? async (input: string, choices: unknown[]) => {
-            return options.suggest(input, choices);
+      suggest: suggest
+        ? async (input: string, choices: Choice[]) => {
+            return suggest(input, toGOPromptSelectOptions(choices));
           }
         : undefined,
     });
