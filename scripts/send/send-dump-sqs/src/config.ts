@@ -6,8 +6,6 @@
 
 import { Core } from '@go-automation/go-common';
 
-import { SendDumpSqsDedupMode } from './types/SendDumpSqsDedupMode.js';
-
 /**
  * Script metadata
  */
@@ -33,8 +31,15 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     name: 'queue.name',
     type: Core.GOConfigParameterType.STRING,
     description: 'Target SQS queue name',
-    required: true,
+    required: false,
     aliases: ['qn'],
+  },
+  {
+    name: 'queue.url',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'Target SQS queue URL',
+    required: false,
+    aliases: ['qu', 'url'],
   },
   {
     name: 'visibility.timeout',
@@ -57,7 +62,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     description: 'Deduplication mode (message-id, content-md5, none) (default: message-id)',
     required: false,
     aliases: ['dm'],
-    defaultValue: SendDumpSqsDedupMode.MESSAGE_ID,
+    defaultValue: 'message-id',
   },
   {
     name: 'max.empty.receives',

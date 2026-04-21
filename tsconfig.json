@@ -24,6 +24,7 @@
     { "path": "./scripts/send/send-fetch-timeline-from-iun" },
     { "path": "./scripts/send/send-import-notifications" },
     { "path": "./scripts/send/send-monitor-tpp-messages" },
+    { "path": "./scripts/send/send-put-sqs" },
     { "path": "./scripts/send/send-query-dynamodb" },
     { "path": "./scripts/send/send-report-dlq" }
   ]

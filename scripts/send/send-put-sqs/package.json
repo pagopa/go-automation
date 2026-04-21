@@ -1,9 +1,9 @@
 {
-  "name": "send-report-dlq",
+  "name": "send-put-sqs",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "dsa",
+  "description": "Put messages into an SQS queue.",
   "main": "dist/index.js",
   "files": [
     "dist",
@@ -18,8 +18,7 @@
   },
   "keywords": [
     "send",
-    "sqs",
-    "dlq"
+    "sqs"
   ],
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
@@ -27,6 +26,6 @@
     "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "catalog:"
+    "@types/node": "^24.12.2"
   }
 }

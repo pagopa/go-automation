@@ -1,6 +1,4 @@
-/**
- * Types barrel file
- * Re-export all types from this directory
- */
-export { SendDumpSqsDedupMode } from './SendDumpSqsDedupMode.js';
+import { AWS } from '@go-automation/go-common';
+
 export type { SendDumpSqsConfig } from './SendDumpSqsConfig.js';
+export import SendDumpSqsDedupMode = AWS.SQSReceiveDeduplicationMode;

@@ -517,9 +517,6 @@ importers:
 
   scripts/send/send-dump-sqs:
     dependencies:
-      '@aws-sdk/client-sqs':
-        specifier: 'catalog:'
-        version: 3.1032.0
       '@go-automation/go-common':
         specifier: workspace:*
         version: link:../../../packages/go-common
@@ -583,6 +580,16 @@ importers:
         version: 3.7.1
       '@types/node':
         specifier: 'catalog:'
+        version: 24.12.2
+
+  scripts/send/send-put-sqs:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+    devDependencies:
+      '@types/node':
+        specifier: ^24.12.2
         version: 24.12.2
 
   scripts/send/send-query-dynamodb:
