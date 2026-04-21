@@ -23,7 +23,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.section('Initialization');
   const queueNameOrUrl = config.queueUrl ?? config.queueName;
   if (!queueNameOrUrl) {
-    throw new Error('Either queue.url or queue.name must be provided');
+    throw new Error('Either --queue-name or --queue-url must be provided');
   }
 
   const sqsService = new Core.AWSSQSService(script.aws.sqs, script.aws.cloudWatch);

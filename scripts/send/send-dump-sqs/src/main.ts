@@ -50,7 +50,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   // Resolve queue identifier
   const queueNameOrUrl = config.queueUrl ?? config.queueName;
   if (!queueNameOrUrl) {
-    throw new Error('Either queue.name or queue.url must be provided');
+    throw new Error('Either --queue-name or --queue-url must be provided');
   }
 
   // Initialize queue
