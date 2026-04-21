@@ -1,7 +1,9 @@
 import type { RunbookContext } from '../../types/RunbookContext.js';
 
 /**
- * Escapes a string value for safe inclusion in a SQL string literal.
+ * Transforms a resolved placeholder value before interpolation.
+ * Consumers can use it for context-specific escaping or encoding,
+ * for example SQL escaping or URL encoding.
  */
 type EscapeTransformer = (value: string) => string;
 
