@@ -10,7 +10,7 @@
  * - Long polling and batch operations for efficiency.
  */
 
-import { Core } from '@go-automation/go-common';
+import { Core, AWS } from '@go-automation/go-common';
 import type { SendDeleteSqsConfig } from './types/SendDeleteSqsConfig.js';
 
 /**
@@ -34,7 +34,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     throw new Error('Either --queue-name or --queue-url must be provided');
   }
 
-  const sqsService = new Core.AWSSQSService(script.aws.sqs, script.aws.cloudWatch);
+  const sqsService = new AWS.AWSSQSService(script.aws.sqs, script.aws.cloudWatch);
   const metadata = await sqsService.resolveQueueMetadata(queueNameOrUrl);
   const queueUrl = metadata.queueUrl;
 
@@ -45,12 +45,12 @@ export async function main(script: Core.GOScript): Promise<void> {
   if (configValues.inputFile) {
     script.logger.info(`Loading target messages from: ${configValues.inputFile}`);
     const inputPath = script.paths.resolvePath(configValues.inputFile, Core.GOPathType.INPUT);
-    const importer = new Core.GOJSONListImporter<Core.Message>({
+    const importer = new Core.GOJSONListImporter<AWS.Message>({
       jsonl: true,
     });
     const result = await importer.import(inputPath);
     targetIds = new Set(
-      result.items.map((m: Core.Message) => m.MessageId).filter((id: string | undefined): id is string => !!id),
+      result.items.map((m: AWS.Message) => m.MessageId).filter((id: string | undefined): id is string => !!id),
     );
     script.logger.info(`Loaded ${targetIds.size} unique MessageIds to delete.`);
   }
@@ -84,15 +84,15 @@ export async function main(script: Core.GOScript): Promise<void> {
     (message) => {
       // Determine action
       if (configValues.purgeAll) {
-        return Core.SQSProcessAction.DELETE;
+        return AWS.SQSProcessAction.DELETE;
       }
 
       if (message.MessageId && targetIds?.has(message.MessageId)) {
-        return Core.SQSProcessAction.DELETE;
+        return AWS.SQSProcessAction.DELETE;
       }
 
       // If not matching, release immediately to keep queue clean for others
-      return Core.SQSProcessAction.RELEASE;
+      return AWS.SQSProcessAction.RELEASE;
     },
     {
       onProgress: (received, deleted, released, skipped) => {
