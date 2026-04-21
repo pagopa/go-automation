@@ -517,9 +517,6 @@ importers:
 
   scripts/send/send-dump-sqs:
     dependencies:
-      '@aws-sdk/client-sqs':
-        specifier: 'catalog:'
-        version: 3.1032.0
       '@go-automation/go-common':
         specifier: workspace:*
         version: link:../../../packages/go-common

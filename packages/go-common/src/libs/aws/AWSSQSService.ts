@@ -78,7 +78,12 @@ export class AWSSQSService {
       throw new Error(`Could not resolve SQS queue URL for: ${queueNameOrUrl}`);
     }
 
-    const attributeNames: QueueAttributeName[] = ['ApproximateNumberOfMessages', 'FifoQueue'];
+    // FifoQueue attribute is only valid for FIFO queues (.fifo suffix is mandatory)
+    const isLikelyFifo = queueUrl.endsWith('.fifo');
+    const attributeNames: QueueAttributeName[] = isLikelyFifo
+      ? ['ApproximateNumberOfMessages', 'FifoQueue']
+      : ['ApproximateNumberOfMessages'];
+
     const response = await this.sqsClient.send(
       new GetQueueAttributesCommand({
         QueueUrl: queueUrl,
