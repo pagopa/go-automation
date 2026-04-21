@@ -11,7 +11,7 @@ function templatePattern(): RegExp {
 /**
  * Escapes a string value for safe inclusion in a SQL string literal.
  */
-type EscapeFunction = (value: string) => string;
+type EscapeFn = (value: string) => string;
 
 /**
  * Interpolates template placeholders in a string using values from the runbook context.
@@ -41,7 +41,7 @@ type EscapeFunction = (value: string) => string;
  * );
  * ```
  */
-export function interpolateTemplate(template: string, context: RunbookContext, escape?: EscapeFunction): string {
+export function interpolateTemplate(template: string, context: RunbookContext, escape?: EscapeFn): string {
   return template.replace(templatePattern(), (match, source: string, key: string) => {
     const store = source === 'params' ? context.params : context.vars;
     const value = store.get(key);

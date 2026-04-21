@@ -27,8 +27,7 @@ const goAutomationPlugin = {
         },
         messages: {
           moveToLibs:
-            'Move "{{ name }}" to a dedicated file under libs/. ' +
-            'main.ts should only contain the main() function.',
+            'Move "{{ name }}" to a dedicated file under libs/. ' + 'main.ts should only contain the main() function.',
         },
         schema: [],
       },
@@ -48,10 +47,8 @@ const goAutomationPlugin = {
           VariableDeclarator(node) {
             if (
               node.init != null &&
-              (node.init.type === 'ArrowFunctionExpression' ||
-                node.init.type === 'FunctionExpression') &&
-              (node.parent.parent.type === 'Program' ||
-                node.parent.parent.type === 'ExportNamedDeclaration') &&
+              (node.init.type === 'ArrowFunctionExpression' || node.init.type === 'FunctionExpression') &&
+              (node.parent.parent.type === 'Program' || node.parent.parent.type === 'ExportNamedDeclaration') &&
               node.id.type === 'Identifier'
             ) {
               context.report({
@@ -230,6 +227,25 @@ export default tseslint.config(
       '@typescript-eslint/prefer-for-of': 'error',
       'no-restricted-syntax': [
         'error',
+        {
+          selector: "TSIndexedAccessType[indexType.type='TSLiteralType']",
+          message:
+            "Avoid literal lookup types like Foo['bar']. Prefer a named alias or a dedicated exported type. Generic indexed access types such as T[K] or T[keyof T] are allowed.",
+        },
+        {
+          selector: 'TSPropertySignature TSFunctionType',
+          message: 'Use a named type alias for function-typed properties instead of an inline function type.',
+        },
+        {
+          selector: 'PropertyDefinition TSFunctionType',
+          message: 'Use a named type alias for function-typed properties instead of an inline function type.',
+        },
+        {
+          selector:
+            "TSTypeAliasDeclaration[typeAnnotation.type='TSFunctionType']:not([id.name=/.*(?:Handler|Validator|Transformer|Mapper|Predicate|Formatter|Stringifier|Hook|Fn)$/])",
+          message:
+            'Function type aliases must end with a semantic suffix like Handler, Validator, Transformer, Mapper, Predicate, Formatter, Stringifier, Hook, or Fn.',
+        },
         {
           selector: 'ForInStatement',
           message: 'Use for...of, Object.keys(), or Object.entries() instead of for...in',
@@ -548,15 +564,9 @@ export default tseslint.config(
       // Only main() allowed — move helpers to libs/
       'go-automation/no-extra-functions-in-main': 'error',
       // File too long → likely has helper functions that belong in libs/
-      'max-lines': [
-        'error',
-        { max: 200, skipBlankLines: true, skipComments: true },
-      ],
+      'max-lines': ['error', { max: 200, skipBlankLines: true, skipComments: true }],
       // Single function too large → split logic into libs/
-      'max-lines-per-function': [
-        'error',
-        { max: 80, skipBlankLines: true, skipComments: true },
-      ],
+      'max-lines-per-function': ['error', { max: 80, skipBlankLines: true, skipComments: true }],
       // High cyclomatic complexity → too many branches, extract into libs/
       complexity: ['error', { max: 15 }],
     },
@@ -602,8 +612,7 @@ export default tseslint.config(
           patterns: [
             {
               group: ['**/src/*', '**/src/**'],
-              message:
-                'Import other workspaces through their package exports, not through src/* paths.',
+              message: 'Import other workspaces through their package exports, not through src/* paths.',
             },
           ],
         },

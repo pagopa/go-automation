@@ -23,12 +23,26 @@ process.on('SIGINT', () => {
   isCtrlC = true;
 });
 
+export type GOPromptTextValidator = (value: string) => boolean | string;
+
+export type GOPromptNumberValidator = (value: number) => boolean | string;
+
+export type GOPromptAutocompleteSuggestFn = (
+  input: string,
+  choices: GOPromptSelectOption[],
+) => Promise<GOPromptSelectOption[]>;
+
+/**
+ * @deprecated Use GOPromptAutocompleteSuggestFn.
+ */
+export type GOPromptAutocompleteSuggest = GOPromptAutocompleteSuggestFn;
+
 export interface GOPromptTextOptions {
   /** Default value */
   initial?: string;
 
   /** Validation function */
-  validate?: (value: string) => boolean | string;
+  validate?: GOPromptTextValidator;
 
   /** Hint for the prompt */
   hint?: string;
@@ -53,7 +67,7 @@ export interface GOPromptNumberOptions {
   max?: number;
 
   /** Validation function */
-  validate?: (value: number) => boolean | string;
+  validate?: GOPromptNumberValidator;
 
   /** Hint for the prompt */
   hint?: string;
@@ -111,7 +125,7 @@ export interface GOPromptAutocompleteOptions {
   limit?: number;
 
   /** Suggestion function for custom filtering */
-  suggest?: (input: string, choices: GOPromptSelectOption[]) => Promise<GOPromptSelectOption[]>;
+  suggest?: GOPromptAutocompleteSuggestFn;
 }
 
 /**

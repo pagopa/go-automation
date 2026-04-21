@@ -30,6 +30,7 @@ export type { DLQStats } from './models/DLQStats.js';
 
 // DynamoDB query service
 export { DynamoDBQueryService } from './DynamoDBQueryService.js';
+export type { DynamoDBQueryProgressHandler } from './DynamoDBQueryService.js';
 export type { DynamoDBQueryProgressCallback } from './DynamoDBQueryService.js';
 export type { DynamoDBQueryOptions } from './models/DynamoDBQueryOptions.js';
 export type { DynamoDBQueryResult } from './models/DynamoDBQueryResult.js';
@@ -38,9 +39,13 @@ export type { DynamoDBQueryResult } from './models/DynamoDBQueryResult.js';
 export { GOAWSCredentialsManager } from './GOAWSCredentialsManager.js';
 export { GOAWSCredentialsErrorType } from './GOAWSCredentialsError.js';
 export type { GOAWSCredentialsErrorAnalysis } from './GOAWSCredentialsError.js';
-export type { GOAWSCredentialsManagerOptions } from './GOAWSCredentialsManagerOptions.js';
+export type {
+  GOAWSCredentialsManagerOptions,
+  GOAWSCredentialsLogHandler,
+  GOAWSCredentialsPromptHandler,
+} from './GOAWSCredentialsManagerOptions.js';
 export type { GOAWSLoginResult } from './GOAWSLoginResult.js';
-export type { GOAWSRetryContext, GOAWSRetryOptions } from './GOAWSRetryContext.js';
+export type { GOAWSRetryContext, GOAWSRetryOptions, GOAWSRetryHandler } from './GOAWSRetryContext.js';
 
 // Multi-profile validation results
 export type { AWSMultiProfileValidationResult } from './AWSMultiProfileValidationResult.js';

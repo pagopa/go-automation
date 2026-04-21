@@ -15,12 +15,14 @@ export interface DiscoveredScript {
   readonly metadata: Core.GOScriptMetadata;
   readonly parameters?: ReadonlyArray<Core.GOConfigParameterOptions>;
   readonly mtime: number; // Last modification time of the config file
-  readonly paths: {
-    readonly root: string;
-    readonly config: string;
-    readonly entryTs: string;
-    readonly entryJs: string;
-  };
+  readonly paths: DiscoveredScriptPaths;
+}
+
+export interface DiscoveredScriptPaths {
+  readonly root: string;
+  readonly config: string;
+  readonly entryTs: string;
+  readonly entryJs: string;
 }
 
 interface FailedScript {
@@ -40,7 +42,7 @@ interface DiscoveryCacheEntry {
   category: string;
   metadata: Core.GOScriptMetadata;
   mtime: number;
-  paths: DiscoveredScript['paths'];
+  paths: DiscoveredScriptPaths;
 }
 
 interface DiscoveryCache {

@@ -7,11 +7,13 @@
 /**
  * Specifies how to identify secret configuration values
  */
+export type GOSecretPredicate = (key: string, value: string | string[]) => boolean;
+
 export type GOSecretsSpecifier =
   | { type: 'none' }
   | { type: 'all' }
   | { type: 'specific'; keys: string[] }
-  | { type: 'dynamic'; predicate: (key: string, value: string | string[]) => boolean };
+  | { type: 'dynamic'; predicate: GOSecretPredicate };
 
 /**
  * Factory functions for creating secret specifiers
@@ -43,7 +45,7 @@ export class GOSecretsSpecifierFactory {
    * Dynamic predicate to determine if a key is secret
    * @param predicate - Function that returns true if key/value is secret
    */
-  static dynamic(predicate: (key: string, value: string | string[]) => boolean): GOSecretsSpecifier {
+  static dynamic(predicate: GOSecretPredicate): GOSecretsSpecifier {
     return { type: 'dynamic', predicate };
   }
 }

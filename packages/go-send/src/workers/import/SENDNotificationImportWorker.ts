@@ -13,6 +13,7 @@ import * as fs from 'fs';
 import { GOEventEmitterBase } from '@go-automation/go-common/core';
 import type { GOListImporter } from '@go-automation/go-common/core';
 import type { GOListImportErrorEvent, GOListImportProgressEvent } from '@go-automation/go-common/core';
+import type { GOListExporterStreamWriter } from '@go-automation/go-common/core';
 import { SENDNotifications } from '../../SENDNotifications.js';
 
 import { SENDNotificationImportBatchProcessor } from './SENDNotificationImportBatchProcessor.js';
@@ -29,6 +30,7 @@ import type { SENDNotificationRow } from './SENDNotificationRow.js';
 import { getErrorMessage } from '@go-automation/go-common/core';
 
 type ImportSource = string | Buffer;
+type NotificationExportWriter = GOListExporterStreamWriter<unknown>;
 
 export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotificationImportWorkerEventMap> {
   private readonly rowProcessor: SENDNotificationImportRowProcessor;
@@ -216,7 +218,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
     try {
       // Initialize streaming exporter if provided
       // This allows incremental export as notifications are processed
-      let exportWriter: Awaited<ReturnType<NonNullable<typeof options.exporter>['exportStream']>> | undefined;
+      let exportWriter: NotificationExportWriter | undefined;
       if (options.exporter) {
         exportWriter = await options.exporter.exportStream();
       }
@@ -385,7 +387,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
    */
   private async exportStreaming(
     result: SENDNotificationImportWorkerResult,
-    exportWriter: Awaited<ReturnType<NonNullable<SENDNotificationImportWorkerOptions['exporter']>['exportStream']>>,
+    exportWriter: NotificationExportWriter,
     options: SENDNotificationImportWorkerOptions,
   ): Promise<void> {
     const exportRowOptions = this.buildExportRowOptions(options);

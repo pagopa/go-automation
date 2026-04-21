@@ -244,8 +244,8 @@ export class GOCSVListImporter<TItem = CSVRecord>
 
       // Type assertion needed: csv-parse overloads are incompatible with exactOptionalPropertyTypes
       // This is safe because we always set columns: true or provide column names
-      type ParseCallback = (error: Error | undefined, records: CSVRecord[] | undefined) => void;
-      (parse as (input: Buffer, options: CSVParseOptions, callback: ParseCallback) => void)(
+      type CSVParseHandler = (error: Error | undefined, records: CSVRecord[] | undefined) => void;
+      (parse as (input: Buffer, options: CSVParseOptions, callback: CSVParseHandler) => void)(
         buffer,
         this.getParserOptions(),
         callback,

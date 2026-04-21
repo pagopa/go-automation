@@ -25,6 +25,7 @@ import { access } from 'node:fs/promises';
 import { basename } from 'node:path';
 
 import type { FilesUploadV2Arguments } from '@slack/web-api';
+import type { WebClient } from '@slack/web-api';
 
 import { GOEventEmitterBase } from '../../../events/GOEventEmitterBase.js';
 import type { GOMessageWriter } from '../../GOMessageWriter.js';
@@ -37,7 +38,7 @@ import type { GOSlackMessageWriterOptions } from './GOSlackMessageWriterOptions.
 export class GOSlackMessageWriter extends GOEventEmitterBase<GOMessageWriterEventMap> implements GOMessageWriter {
   readonly providerName = 'slack';
 
-  private readonly client: GOSlackMessageWriterOptions['client'];
+  private readonly client: WebClient;
   private readonly defaultChannel: string;
 
   /**
