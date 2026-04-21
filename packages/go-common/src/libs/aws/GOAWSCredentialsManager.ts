@@ -93,8 +93,8 @@ const PROFILE_NOT_FOUND_PATTERNS: ReadonlyArray<RegExp> = [
  */
 export class GOAWSCredentialsManager {
   private readonly options: InternalOptions;
-  private readonly onLog?: GOAWSCredentialsLogHandler;
-  private readonly onPrompt?: GOAWSCredentialsPromptHandler;
+  private readonly onLog: GOAWSCredentialsLogHandler | undefined;
+  private readonly onPrompt: GOAWSCredentialsPromptHandler | undefined;
 
   constructor(options: GOAWSCredentialsManagerOptions = {}) {
     this.options = {
