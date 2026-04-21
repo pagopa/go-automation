@@ -49,14 +49,14 @@ const SQS_MAX_RECEIVE_BATCH_SIZE = 10;
 /** Long polling wait time in seconds */
 const LONG_POLLING_WAIT_TIME = 20;
 
-export type SQSBatchRetryHandler = (failedCount: number, attempt: number) => void;
+type SQSBatchRetryHandler = (failedCount: number, attempt: number) => void;
 
-export interface SQSBatchSendRetryOptions {
+interface SQSBatchSendRetryOptions {
   readonly maxRetries: number;
   readonly onRetry?: SQSBatchRetryHandler;
 }
 
-export interface SQSReceiveOptions {
+interface SQSReceiveOptions {
   readonly queueUrl: string;
   readonly visibilityTimeout: number;
   readonly maxEmptyReceives: number;
@@ -64,11 +64,11 @@ export interface SQSReceiveOptions {
   readonly limit?: number | undefined;
 }
 
-export type SQSReceiveProgressHandler = (unique: number, total: number, duplicates: number) => void;
+type SQSReceiveProgressHandler = (unique: number, total: number, duplicates: number) => void;
 
-export type SQSReceiveEmptyReceiveHandler = (consecutive: number, max: number) => void;
+type SQSReceiveEmptyReceiveHandler = (consecutive: number, max: number) => void;
 
-export interface SQSReceiveCallbacks {
+interface SQSReceiveCallbacks {
   readonly onProgress?: SQSReceiveProgressHandler;
   readonly onEmptyReceive?: SQSReceiveEmptyReceiveHandler;
 }
