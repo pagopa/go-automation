@@ -66,6 +66,7 @@
     "send:dump:sqs:prod": "pnpm --filter=send-dump-sqs start",
     "type-check": "tsc --noEmit",
     "validate:scaffold": "tsx bins/validate-scaffold/src/index.ts",
+    "validate:all": "pnpm validate:scaffold && pnpm lint && pnpm knip",
     "knip": "knip"
   },
   "keywords": [
