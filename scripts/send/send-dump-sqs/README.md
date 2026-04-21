@@ -6,12 +6,18 @@ Script che effettua il dump di tutti i messaggi presenti in una coda **SQS** in 
 
 ## Indice
 
-- [Come funziona](#come-funziona)
-- [Prerequisiti](#prerequisiti)
-- [Configurazione](#configurazione)
-- [Deduplicazione](#deduplicazione)
-- [Utilizzo](#utilizzo)
-- [Limitazioni Importanti](#limitazioni-importanti)
+- [SEND Dump SQS](#send-dump-sqs)
+  - [Indice](#indice)
+  - [Come funziona](#come-funziona)
+  - [Prerequisiti](#prerequisiti)
+    - [Software](#software)
+    - [Credenziali AWS](#credenziali-aws)
+  - [Configurazione](#configurazione)
+    - [Parametri CLI](#parametri-cli)
+    - [Note di risoluzione path](#note-di-risoluzione-path)
+  - [Deduplicazione](#deduplicazione)
+  - [Limitazioni Importanti](#limitazioni-importanti)
+  - [Utilizzo](#utilizzo)
 
 ---
 
@@ -62,7 +68,7 @@ Lo script non include un file di configurazione dedicato: i valori vengono passa
 
 ### Note di risoluzione path
 
-- Se `--output-file` e assoluto, viene usato cosi com'e
+- Se `--output-file` e assoluto, viene usato così com'è
 - Se `--output-file` e relativo, viene salvato nella directory `data/send-dump-sqs/outputs/send-dump-sqs_<timestamp>/`
 - Se `--output-file` non e specificato, il nome viene generato automaticamente come `dump_<queue>_<timestamp>.ndjson`
 

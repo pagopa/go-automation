@@ -53,7 +53,7 @@ La guida segue un filo narrativo: si parte dalla comprensione della struttura, s
 
 ### La Struttura a 3 File
 
-Ogni script nel monorepo segue un pattern chiamato **struttura a 3 file**. L'idea è semplice: separare le responsabilità in modo che ogni file abbia un ruolo chiaro e unico.
+Ogni script nel monorepo segue un pattern chiamato **struttura a 3 file**. L'idea è semplice: separare le responsabilità in modo che ogni file abbia un ruolo chiaro è unico.
 
 ```
 my-script/

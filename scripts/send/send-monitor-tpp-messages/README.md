@@ -86,7 +86,7 @@ Script di monitoraggio messaggi TPP (Third Party Provider) tramite query Athena 
 | `--athena.retry.delay`     | `-ard` | int    | No           | `5000`           | Delay polling (ms)                                                  |
 | `--athena.query`           | `-aq`  | string | Si           | -                | Template SQL con placeholder per il range temporale e le partizioni |
 
-> `athena.query` puo essere passato da CLI, ma nella pratica e quasi sempre piu comodo definirlo in `config.yaml`.
+> `athena.query` può essere passato da CLI, ma nella pratica e quasi sempre più comodo definirlo in `config.yaml`.
 
 #### Slack (Opzionale)
 

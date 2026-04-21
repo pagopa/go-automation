@@ -219,7 +219,7 @@ pnpm send:import:notifications:dev -- \
   --send-notifications \
   --concurrency 5
 
-# Invio senza polling IUN (piu veloce)
+# Invio senza polling IUN (più veloce)
 pnpm send:import:notifications:dev -- \
   --csv-file "./notifications.csv" \
   --export-file "./results.csv" \
@@ -298,7 +298,7 @@ ID_Scenario,Scenario,Prodotto,Destinatario,Denomination,Indirizzo PEC,physicalCo
 
 ### Formato CSV Output
 
-Il CSV di output include le colonne originali (se `--preserve-all-columns` e attivo, default `true`) piu le seguenti colonne generate:
+Il CSV di output include le colonne originali (se `--preserve-all-columns` e attivo, default `true`) più le seguenti colonne generate:
 
 | Colonna           | Descrizione                     |
 | ----------------- | ------------------------------- |
@@ -495,7 +495,7 @@ Limiti configurati in `docker-compose.yaml`:
 
 1. Aumentare memoria: `NODE_OPTIONS="--max-old-space-size=8192"`
 2. Abbassare `--streaming-threshold-mb` per forzare streaming
-3. Dividere il file in batch piu piccoli
+3. Dividere il file in batch più piccoli
 
 ### Debug con Proxy
 

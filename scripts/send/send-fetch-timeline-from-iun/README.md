@@ -6,18 +6,18 @@ Script che legge una lista di IUN da file TXT, interroga DynamoDB sulla tabella 
 
 ## Indice
 
-- [Funzionalita](#funzionalita)
+- [Funzionalità](#funzionalità)
 - [Prerequisiti](#prerequisiti)
 - [Configurazione](#configurazione)
 - [Utilizzo](#utilizzo)
 - [Output](#output)
 - [Troubleshooting](#troubleshooting)
 
-## Funzionalita
+## Funzionalità
 
 - **Import da file testo**: legge gli IUN da un file TXT, mantenendo righe vuote e spazi per poi normalizzarli in fase di parse.
 - **Deduplicazione input**: scarta automaticamente duplicati esatti presenti nel file sorgente.
-- **Supporto a piu formati input**: accetta IUN semplici, IUN con date filter e IUN estratti da nomi file.
+- **Supporto a più formati input**: accetta IUN semplici, IUN con date filter e IUN estratti da nomi file.
 - **Query concorrenti verso DynamoDB**: interroga `pn-Timelines` in chunk da 10 richieste concorrenti.
 - **Output JSON strutturato**: salva un array di risultati con `iun`, `paId`, `notificationSentAt` e `timeline`.
 - **Summary finale**: mostra a console quanti IUN sono stati processati, quante timeline contengono dati e quante risultano vuote.
@@ -64,7 +64,7 @@ aws sts get-caller-identity --profile sso_pn-core-prod
 
 ### Formato del file sorgente
 
-Ogni riga del file puo essere in uno di questi formati:
+Ogni riga del file può essere in uno di questi formati:
 
 ```text
 IUN-SEMPLICE
@@ -80,9 +80,9 @@ Comportamento del parser:
 
 ### Risoluzione dei path
 
-- `--source-file` assoluto: usato cosi com'e
+- `--source-file` assoluto: usato così com'è
 - `--source-file` relativo: risolto in `data/send-fetch-timeline-from-iun/inputs/`
-- `--destination-file` assoluto: usato cosi com'e
+- `--destination-file` assoluto: usato così com'è
 - `--destination-file` relativo: risolto in `data/send-fetch-timeline-from-iun/outputs/send-fetch-timeline-from-iun_<timestamp>/`
 
 ### File di configurazione opzionali
@@ -98,7 +98,7 @@ Il package non include un file di configurazione dedicato, ma GOScript supporta 
 
 ## Utilizzo
 
-### Modalita Development
+### Modalità Development
 
 ```bash
 pnpm send:fetch:timeline:from:iun:dev -- \
@@ -107,7 +107,7 @@ pnpm send:fetch:timeline:from:iun:dev -- \
   --destination-file /tmp/timelines.json
 ```
 
-### Modalita Production
+### Modalità Production
 
 ```bash
 pnpm send:fetch:timeline:from:iun:build
