@@ -26,7 +26,7 @@ Questo script utilizza `pnpm deploy` per generare un pacchetto pronto per la pro
 ./bins/deploy.sh
 ```
 
-Ti verra mostrato un menu per selezionare lo script e la modalità (Production/Dev).
+Ti verrà mostrato un menu per selezionare lo script e la modalità (Production/Dev).
 
 **Utilizzo CLI (CI/CD):**
 
@@ -56,7 +56,7 @@ artifacts/go-report-alarms/
 └── ...
 ```
 
-Questo artefatto e **completamente autonomo**: puo essere copiato su un server, in un container o zippato per AWS Lambda e funzionera con un semplice `node dist/main.js`.
+Questo artefatto e **completamente autonomo**: può essere copiato su un server, in un container o zippato per AWS Lambda e funzionerà con un semplice `node dist/main.js`.
 
 ---
 
@@ -80,7 +80,7 @@ Questo script orchestra l'intero processo:
 
 ### Vantaggi
 
-- **Veloce**: Non ricompila il codice dentro Docker. Usa i file gia compilati localmente da `pnpm`.
+- **Veloce**: Non ricompila il codice dentro Docker. Usa i file già compilati localmente da `pnpm`.
 - **Leggero**: L'immagine finale contiene solo `dist/`, `node_modules/` (prod only) e `configs/`.
 - **Sicuro**: Il codice sorgente TypeScript non viene incluso nell'immagine.
 - **Non-root**: Il container gira come utente `gouser` per maggiore sicurezza.

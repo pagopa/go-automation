@@ -104,7 +104,7 @@ pnpm go:analyze:alarm:dev -- \
   -aps "sso_pn-core-prod"
 ```
 
-### Analisi su piu profili AWS
+### Analisi su più profili AWS
 
 Utile se i microservizi della catena appartengono ad account diversi:
 

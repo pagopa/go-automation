@@ -76,7 +76,7 @@ La configurazione operativa avviene principalmente via CLI. I percorsi relativi 
 --aws-profiles sso_pn-core-dev,sso_pn-confinfo-dev,sso_pn-core-uat
 ```
 
-**`--output-file`**: se omesso, il file viene creato automaticamente con nome `send-report-dlq_<data-odierna>.<formato>`. Se il percorso e relativo viene risolto nella directory `data/send-report-dlq/outputs/send-report-dlq_<timestamp>/`; se e assoluto viene usato cosi com'e. La directory padre viene creata automaticamente se non esiste.
+**`--output-file`**: se omesso, il file viene creato automaticamente con nome `send-report-dlq_<data-odierna>.<formato>`. Se il percorso e relativo viene risolto nella directory `data/send-report-dlq/outputs/send-report-dlq_<timestamp>/`; se e assoluto viene usato così com'è. La directory padre viene creata automaticamente se non esiste.
 
 ```bash
 # Default → data/send-report-dlq/outputs/send-report-dlq_<timestamp>/send-report-dlq_2026-02-27.json
@@ -89,7 +89,7 @@ La configurazione operativa avviene principalmente via CLI. I percorsi relativi 
 --output-file /tmp/dlq-report.json
 ```
 
-**`--output-format`**: determina sia la struttura del file sia l'estensione del nome di default. Valori accettati: `json`, `jsonl`, `csv`, `html`, `txt`. Se si specifica `--output-format csv` senza `--output-file`, il file di default sara `send-report-dlq_2026-02-27.csv`.
+**`--output-format`**: determina sia la struttura del file sia l'estensione del nome di default. Valori accettati: `json`, `jsonl`, `csv`, `html`, `txt`. Se si specifica `--output-format csv` senza `--output-file`, il file di default sarà `send-report-dlq_2026-02-27.csv`.
 
 ---
 

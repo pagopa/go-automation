@@ -2,11 +2,11 @@
 
 > Versione: 1.0.0 | Autore: Team GO - Gestione Operativa
 
-`go-ai-client` e una CLI locale per usare GO-AI da terminale. Puo chiamare Amazon Bedrock direttamente oppure inoltrare la richiesta alla Lambda deployata `go-ai-prod`; in entrambi i casi accetta un "hat" tematico, riceve input testuale o da file e stampa sempre l'output finale in JSON formattato.
+`go-ai-client` e una CLI locale per usare GO-AI da terminale. Può chiamare Amazon Bedrock direttamente oppure inoltrare la richiesta alla Lambda deployata `go-ai-prod`; in entrambi i casi accetta un "hat" tematico, riceve input testuale o da file e stampa sempre l'output finale in JSON formattato.
 
 ## Indice
 
-- [Funzionalita](#funzionalita)
+- [Funzionalità](#funzionalità)
 - [Come funziona](#come-funziona)
 - [Hat disponibili](#hat-disponibili)
 - [Prerequisiti](#prerequisiti)
@@ -15,13 +15,13 @@
 - [Output](#output)
 - [Troubleshooting](#troubleshooting)
 
-## Funzionalita
+## Funzionalità
 
-- **Doppia modalita di invocazione**: `direct` per chiamare Bedrock direttamente dal client locale, `lambda` per passare dalla Lambda GO-AI gia deployata.
+- **Doppia modalità di invocazione**: `direct` per chiamare Bedrock direttamente dal client locale, `lambda` per passare dalla Lambda GO-AI già deployata.
 - **Input flessibile**: accetta una stringa inline oppure il contenuto di un file di testo.
 - **Prompt specializzati ("hat")**: ogni hat usa un template dedicato per casi d'uso QA, analisi requisiti, runbook e diagnosi allarmi.
 - **Output stabile**: se il modello restituisce JSON puro o racchiuso in fence Markdown, il client lo normalizza e lo ristampa in formato pretty-print.
-- **Metriche immediate**: stampa hat, modalita, profilo AWS usato e conteggio token input/output.
+- **Metriche immediate**: stampa hat, modalità, profilo AWS usato e conteggio token input/output.
 - **Integrazione nativa con GOScript**: supporta CLI, `.env`, file di configurazione opzionali e logging su file come gli altri script del monorepo.
 
 ## Come funziona
@@ -29,7 +29,7 @@
 1. **Caricamento configurazione**: legge parametri da CLI, eventuali file di config, variabili d'ambiente e default.
 2. **Selezione hat**: se `--hat` non e valorizzato, stampa la lista degli hat disponibili e una usage minima.
 3. **Validazione input**: verifica che l'hat esista e che `--input` sia stato passato.
-4. **Risoluzione sorgente input**: prova a trattare `--input` come file; se il file non esiste, usa la stringa cosi com'e.
+4. **Risoluzione sorgente input**: prova a trattare `--input` come file; se il file non esiste, usa la stringa così com'è.
 5. **Invocazione AI**:
    - `direct`: usa `@go-automation/go-ai` e `GOBedrockClient`
    - `lambda`: invoca in modo sincrono la funzione Lambda configurata
@@ -53,7 +53,7 @@ Gli hat sono definiti nel package condiviso [`packages/go-ai/prompts.yaml`](/Use
 
 - Tutti i template chiedono al modello di restituire **solo JSON**.
 - Il client non espone via CLI `maxTokens` e `temperature`: oggi usa i default del wrapper GO-AI (`maxTokens=2000`, `temperature=0.3`, `topP=0.9`).
-- L'output finale puo comunque diventare `{ "text": "..." }` se il modello restituisce testo non parseabile come JSON.
+- L'output finale può comunque diventare `{ "text": "..." }` se il modello restituisce testo non parseabile come JSON.
 
 ## Prerequisiti
 
@@ -67,7 +67,7 @@ Gli hat sono definiti nel package condiviso [`packages/go-ai/prompts.yaml`](/Use
 
 ### Accessi AWS richiesti
 
-#### Modalita `direct`
+#### Modalità `direct`
 
 - Profilo AWS SSO valido nella regione Bedrock scelta
 - Permessi per invocare il modello Bedrock configurato
@@ -76,7 +76,7 @@ Gli hat sono definiti nel package condiviso [`packages/go-ai/prompts.yaml`](/Use
   - `AWS_PROFILE=sso_pn-analytics`
   - `BEDROCK_MODEL_ARN=arn:aws:bedrock:eu-south-1:170533023216:inference-profile/eu.amazon.nova-pro-v1:0`
 
-#### Modalita `lambda`
+#### Modalità `lambda`
 
 - Profilo AWS SSO valido nella regione Lambda scelta
 - Permesso `lambda:InvokeFunction` sulla funzione configurata
@@ -97,8 +97,8 @@ aws sts get-caller-identity --profile sso_pn-analytics
 | --------------------- | ----- | ------ | ------------ | ------------------ | -------------------------------------------------------------------------------------- |
 | `--hat`               | `-h`  | string | Si           | -                  | Hat GO-AI da usare                                                                     |
 | `--input`             | `-i`  | string | Si           | -                  | Testo inline oppure path a file                                                        |
-| `--go-ai-mode`        | `-m`  | string | No           | `direct`           | Modalita di invocazione: `direct` o `lambda`                                           |
-| `--go-ai-lambda-name` | -     | string | No           | `go-ai-prod`       | Nome della Lambda da invocare in modalita `lambda` (chiave config: `go.ai.lambdaName`) |
+| `--go-ai-mode`        | `-m`  | string | No           | `direct`           | Modalità di invocazione: `direct` o `lambda`                                           |
+| `--go-ai-lambda-name` | -     | string | No           | `go-ai-prod`       | Nome della Lambda da invocare in modalità `lambda` (chiave config: `go.ai.lambdaName`) |
 | `--aws-region`        | -     | string | No           | `eu-south-1`       | Regione AWS                                                                            |
 | `--aws-profile`       | -     | string | No           | `sso_pn-analytics` | Profilo AWS SSO locale                                                                 |
 
@@ -116,13 +116,13 @@ Le chiavi con `dot.notation` vengono convertite automaticamente in variabili amb
 | `GO_AI_LAMBDA_NAME` | `--go-ai-lambda-name` | Nome della Lambda target                                               |
 | `AWS_REGION`        | `--aws-region`        | Regione AWS                                                            |
 | `AWS_PROFILE`       | `--aws-profile`       | Profilo AWS SSO                                                        |
-| `BEDROCK_MODEL_ARN` | -                     | Override del modello/profilo di inferenza Bedrock in modalita `direct` |
+| `BEDROCK_MODEL_ARN` | -                     | Override del modello/profilo di inferenza Bedrock in modalità `direct` |
 
 ### Risoluzione dell'input da file
 
 `--input` viene interpretato cosi:
 
-- **Path assoluto**: usato cosi com'e
+- **Path assoluto**: usato così com'è
 - **Path relativo**: risolto sotto `data/go-ai-client/inputs/`
 - **Stringa non trovata come file**: trattata come input raw
 
@@ -135,7 +135,7 @@ Esempi:
 # File assoluto
 --input "/Users/massimo/Desktop/requirement.txt"
 
-# File relativo: verra cercato in data/go-ai-client/inputs/
+# File relativo: à cercato in data/go-ai-client/inputs/
 --input "requirement.txt"
 ```
 
@@ -184,7 +184,7 @@ pnpm --filter=go-ai-client dev
 pnpm --filter=go-ai-client dev -- --help
 ```
 
-### Modalita `direct` con input inline
+### Modalità `direct` con input inline
 
 ```bash
 pnpm --filter=go-ai-client dev -- \
@@ -194,7 +194,7 @@ pnpm --filter=go-ai-client dev -- \
   --aws-region eu-south-1
 ```
 
-### Modalita `direct` con input da file assoluto
+### Modalità `direct` con input da file assoluto
 
 ```bash
 pnpm --filter=go-ai-client dev -- \
@@ -203,7 +203,7 @@ pnpm --filter=go-ai-client dev -- \
   --aws-profile sso_pn-analytics
 ```
 
-### Modalita `direct` con input da file relativo
+### Modalità `direct` con input da file relativo
 
 Supponendo che il file esista in `data/go-ai-client/inputs/alarm.txt`:
 
@@ -213,7 +213,7 @@ pnpm --filter=go-ai-client dev -- \
   --input alarm.txt
 ```
 
-### Modalita `lambda`
+### Modalità `lambda`
 
 ```bash
 pnpm --filter=go-ai-client dev -- \
@@ -224,7 +224,7 @@ pnpm --filter=go-ai-client dev -- \
   --aws-profile sso_pn-analytics
 ```
 
-### Modalita `lambda` via variabili ambiente
+### Modalità `lambda` via variabili ambiente
 
 ```bash
 GO_AI_MODE=lambda \
@@ -235,7 +235,7 @@ pnpm --filter=go-ai-client dev -- \
   --input "/Users/massimo/Desktop/example.ts"
 ```
 
-### Modalita production
+### Modalità production
 
 Lo script `start` esegue prima la build TypeScript e poi lancia `dist/index.js`.
 
@@ -347,7 +347,7 @@ aws sso login --profile sso_pn-analytics
 aws sts get-caller-identity --profile sso_pn-analytics
 ```
 
-### `AccessDeniedException` in modalita `direct`
+### `AccessDeniedException` in modalità `direct`
 
 **Possibili cause**:
 
@@ -372,7 +372,7 @@ pnpm --filter=go-ai-client dev -- \
   --aws-region eu-south-1
 ```
 
-### Errore Lambda in modalita `lambda`
+### Errore Lambda in modalità `lambda`
 
 Sintomi tipici:
 

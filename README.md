@@ -8,7 +8,7 @@
 
 ## Panoramica Tecnica e Architettura
 
-GO Automation costituisce il nucleo operativo del GO SDK ed è implementato come monorepo TypeScript. Il sistema adotta un approccio ingegneristico alle attivita di Quality Assurance e Gestione Operativa, trattando gli script e le automazioni come componenti software a tutti gli effetti: soggetti a processi formali di analisi, progettazione, sviluppo e manutenzione.
+GO Automation costituisce il nucleo operativo del GO SDK ed è implementato come monorepo TypeScript. Il sistema adotta un approccio ingegneristico alle attività di Quality Assurance e Gestione Operativa, trattando gli script e le automazioni come componenti software a tutti gli effetti: soggetti a processi formali di analisi, progettazione, sviluppo e manutenzione.
 
 L'architettura del sistema si fonda su tre principi cardine che ne garantiscono affidabilità, manutenibilità e scalabilità nel tempo.
 
