@@ -27,15 +27,10 @@ export type GOPromptTextValidator = (value: string) => boolean | string;
 
 export type GOPromptNumberValidator = (value: number) => boolean | string;
 
-export type GOPromptAutocompleteSuggestFn = (
+export type GOPromptAutocompleteSuggestHandler = (
   input: string,
   choices: GOPromptSelectOption[],
 ) => Promise<GOPromptSelectOption[]>;
-
-/**
- * @deprecated Use GOPromptAutocompleteSuggestFn.
- */
-export type GOPromptAutocompleteSuggest = GOPromptAutocompleteSuggestFn;
 
 export interface GOPromptTextOptions {
   /** Default value */
@@ -125,7 +120,7 @@ export interface GOPromptAutocompleteOptions {
   limit?: number;
 
   /** Suggestion function for custom filtering */
-  suggest?: GOPromptAutocompleteSuggestFn;
+  suggest?: GOPromptAutocompleteSuggestHandler;
 }
 
 /**

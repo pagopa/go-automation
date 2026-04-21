@@ -33,10 +33,10 @@ export interface PollIunOptions {
   /** Delay between attempts in milliseconds (default: 30000) */
   delayMs?: number;
   /** Callback called on each attempt */
-  onAttempt?: PollIunAttemptHandler;
+  onAttempt?: PollIUNAttemptHandler;
 }
 
-export type PollIunAttemptHandler = (attempt: number, status: SENDNotificationStatusResponse) => void;
+export type PollIUNAttemptHandler = (attempt: number, status: SENDNotificationStatusResponse) => void;
 
 /**
  * Service for managing notifications

@@ -29,9 +29,9 @@ export interface PollAttemptInfo {
   readonly elapsedMs: number;
 }
 
-export type SleepFn = (ms: number) => Promise<void>;
+type SleepFn = (ms: number) => Promise<void>;
 
-export type PollAttemptHandler = (info: PollAttemptInfo) => void;
+type PollAttemptHandler = (info: PollAttemptInfo) => void;
 
 /**
  * Polling configuration.

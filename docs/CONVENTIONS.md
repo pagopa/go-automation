@@ -140,6 +140,14 @@ Per i type alias funzione e per le property callback usiamo una convenzione stre
 - `Fn` si usa solo come fallback quando il ruolo non è più specificabile in modo chiaro.
 - Evitare nomi generici come `Callback` o `Function`.
 
+Linee guida sui suffissi:
+
+- Usa `Handler` per callback invocate in risposta a un evento o a una fase del flusso, ad esempio `onRetry`, `onPollAttempt`, `onLog`.
+- Usa `Hook` per estensioni del lifecycle o punti di integrazione dichiarativi.
+- Usa `Validator`, `Transformer`, `Mapper`, `Predicate`, `Formatter`, `Stringifier` quando il ruolo è chiaramente quello.
+- Usa `Fn` per funzioni piccole e iniettabili che rappresentano una primitive o una strategia generica, dove un suffisso più specifico aggiungerebbe poco o sarebbe fuorviante.
+- Esempi validi di `Fn`: `SleepFn`, `BackoffFn`, `EscapeFn`.
+
 Queste regole sono enforce da ESLint tramite `no-restricted-syntax`.
 
 Esempi:
