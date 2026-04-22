@@ -694,10 +694,12 @@ export class GOScript {
    * script.getConfiguration<T>() as usual and receives values sourced from the event
    * payload, environment variables, and bundled config files — in that priority order.
    *
-   * @param mainFunction - Async function that receives the typed Lambda event and context, and returns a result.
-   *   The `context` parameter is the standard AWS Lambda `Context` object (or a custom type via `TContext`)
-   *   and may be ignored by the callback when not needed.
-   * @returns Lambda handler: `(event: TEvent, context: TContext) => Promise<TResult>`
+   * @param mainFunction - Async function that receives the typed Lambda event and an optional context,
+   *   and returns a result. The Lambda runtime always passes a context, but local invocations and tests
+   *   may omit it — callbacks that use context should narrow it first (`if (context)` / `context?.x`).
+   * @returns Lambda handler: `(event: TEvent, context?: TContext) => Promise<TResult>`. Context is
+   *   optional in the returned signature so tests and wrappers can invoke `handler(event)` directly;
+   *   when the Lambda runtime calls it, context is always provided and passed through unchanged.
    *
    * @example Handler that ignores the context
    * ```typescript
@@ -719,10 +721,17 @@ export class GOScript {
    * ```typescript
    * export const handler = script.createLambdaHandler<ScheduledEvent, void, Context>(
    *   async (event, context) => {
-   *     context.callbackWaitsForEmptyEventLoop = false;
+   *     if (context) {
+   *       context.callbackWaitsForEmptyEventLoop = false;
+   *     }
    *     await main(script, event);
    *   },
    * );
+   * ```
+   *
+   * @example Local invocation / unit test (context omitted)
+   * ```typescript
+   * await handler({ from: '2024-01-01', to: '2024-01-02' } as MyEvent);
    * ```
    *
    * @example Event payload mapping
@@ -737,9 +746,9 @@ export class GOScript {
    * ```
    */
   public createLambdaHandler<TEvent = unknown, TResult = unknown, TContext = unknown>(
-    mainFunction: (event: TEvent, context: TContext) => Promise<TResult>,
-  ): (event: TEvent, context: TContext) => Promise<TResult> {
-    return async (event: TEvent, context: TContext): Promise<TResult> => {
+    mainFunction: (event: TEvent, context: TContext | undefined) => Promise<TResult>,
+  ): (event: TEvent, context?: TContext) => Promise<TResult> {
+    return async (event: TEvent, context?: TContext): Promise<TResult> => {
       // Reset per-invocation state to support Lambda container reuse.
       // AWS client providers are intentionally NOT reset (connection-pool reuse).
       this.initialized = false;
