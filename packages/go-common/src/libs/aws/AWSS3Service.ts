@@ -155,22 +155,18 @@ export class AWSS3Service {
    * @returns Array of S3 keys for uploaded files
    */
   async uploadDirectory(dirPath: string, bucket: string, prefix: string): Promise<string[]> {
-    let entries: string[];
+    // withFileTypes avoids a per-entry fs.stat — on large directories that would
+    // either exhaust file descriptors (EMFILE) or need its own bounded parallelism.
+    let fileEntries: { readonly filePath: string; readonly entry: string }[];
     try {
-      entries = await fs.readdir(dirPath);
+      const dirents = await fs.readdir(dirPath, { withFileTypes: true });
+      fileEntries = dirents
+        .filter((d) => d.isFile())
+        .map((d) => ({ filePath: path.join(dirPath, d.name), entry: d.name }));
     } catch {
       return [];
     }
 
-    const statResults = await Promise.all(
-      entries.map(async (entry) => {
-        const filePath = path.join(dirPath, entry);
-        const stat = await fs.stat(filePath);
-        return { entry, filePath, isFile: stat.isFile() };
-      }),
-    );
-
-    const fileEntries = statResults.filter((e) => e.isFile);
     const uploaded: string[] = [];
 
     for (let i = 0; i < fileEntries.length; i += UPLOAD_DIRECTORY_CONCURRENCY) {
