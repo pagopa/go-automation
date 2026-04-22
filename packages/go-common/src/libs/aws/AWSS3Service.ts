@@ -48,6 +48,13 @@ const MIME_TYPES: Readonly<Record<string, string>> = {
 const DEFAULT_MIME_TYPE = 'application/octet-stream';
 
 /**
+ * Max parallel uploads in uploadDirectory. Bounded to avoid exhausting sockets
+ * or triggering S3 throttling on large directories; 5 is a safe default for
+ * Lambda's shared network stack.
+ */
+const UPLOAD_DIRECTORY_CONCURRENCY = 5;
+
+/**
  * Represents an S3 object entry from a listing operation
  */
 export interface AWSS3ObjectEntry {
@@ -155,11 +162,6 @@ export class AWSS3Service {
       return [];
     }
 
-    // Stat all entries in parallel, filter to files only, then upload concurrently.
-    // Concurrency is bounded to avoid exhausting sockets / triggering throttling on
-    // large directories; 5 is a safe default for Lambda's shared network stack.
-    const CONCURRENCY = 5;
-
     const statResults = await Promise.all(
       entries.map(async (entry) => {
         const filePath = path.join(dirPath, entry);
@@ -171,8 +173,8 @@ export class AWSS3Service {
     const fileEntries = statResults.filter((e) => e.isFile);
     const uploaded: string[] = [];
 
-    for (let i = 0; i < fileEntries.length; i += CONCURRENCY) {
-      const batch = fileEntries.slice(i, i + CONCURRENCY);
+    for (let i = 0; i < fileEntries.length; i += UPLOAD_DIRECTORY_CONCURRENCY) {
+      const batch = fileEntries.slice(i, i + UPLOAD_DIRECTORY_CONCURRENCY);
       const keys = await Promise.all(
         batch.map(async ({ filePath, entry }) => {
           const key = `${prefix}/${entry}`;

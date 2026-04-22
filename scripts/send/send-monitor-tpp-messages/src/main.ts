@@ -10,15 +10,12 @@ import { Core } from '@go-automation/go-common';
 import {
   AwsAthenaService,
   AthenaQueryExecutor,
-  convertAthenaResults,
   SlackNotifier,
   parseDateTime,
   hoursAgo,
+  runMonitoringCycle,
 } from './libs/index.js';
-import { buildQueryParams } from './libs/buildQueryParams.js';
-import { saveAndAnalyzeResults } from './libs/saveAndAnalyzeResults.js';
-import { sendSlackReport, notifySlackError } from './libs/sendSlackReport.js';
-import type { AthenaQueryConfig } from './types/AthenaQueryConfig.js';
+import { notifySlackError } from './libs/sendSlackReport.js';
 import type { TPPMonitorConfig } from './types/TPPMonitorConfig.js';
 
 /**
@@ -64,67 +61,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   }
 
   try {
-    // Build query config and parameters
-    const queryParams = buildQueryParams(startDate, endDate);
-    const athenaConfig: AthenaQueryConfig = {
-      database: config.athenaDatabase,
-      catalog: config.athenaCatalog,
-      workGroup: config.athenaWorkgroup,
-      outputLocation: config.athenaOutputLocation,
-      maxRetries: config.athenaMaxRetries,
-      retryDelay: config.athenaRetryDelay,
-    };
-
-    // Execute query
-    script.logger.section('Executing Athena Query');
-    script.prompt.startSpinner('Running query...');
-    const queryStart = Date.now();
-    const results = await athenaExecutor.executeQuery(config.athenaQuery, athenaConfig, queryParams);
-    script.prompt.spinnerStop('Query completed');
-    script.logger.info(`[breadcrumb] athena.totalDurationMs=${Date.now() - queryStart}`);
-
-    // Save and analyze results
-    script.logger.section('Processing Results');
-    script.logger.info(`[breadcrumb] reportsPath=${reportsPath}`);
-    script.logger.info(`[breadcrumb] before convertAthenaResults, rawRows=${results.ResultSet.Rows.length}`);
-    const data = convertAthenaResults(results);
-    script.logger.info(`[breadcrumb] after convertAthenaResults, dataRows=${data.length}`);
-
-    script.logger.info('[breadcrumb] before saveAndAnalyzeResults');
-    const { csvFilePath, fileName, rowCount, analysis } = await saveAndAnalyzeResults(
-      data,
-      reportsPath,
-      config.analysisThresholdField,
-      config.analysisThreshold,
-    );
-    script.logger.info(`[breadcrumb] after saveAndAnalyzeResults csvFilePath=${csvFilePath ?? 'null'}`);
-
-    script.logger.info(`Total rows: ${rowCount}`);
-    script.logger.info(`Analysis: ${analysis}`);
-    if (csvFilePath) {
-      script.logger.info(`CSV saved to: ${csvFilePath}`);
-    }
-
-    // Send Slack report
-    script.logger.info('[breadcrumb] before sendSlackReport');
-    const messageTemplate = config.slackMessageTemplate ?? 'Report generated';
-    const slackSent = await sendSlackReport(
-      slackNotifier,
-      messageTemplate,
-      startDate,
-      endDate,
-      csvFilePath,
-      rowCount,
-      analysis,
-      fileName,
-    );
-    script.logger.info(`[breadcrumb] after sendSlackReport sent=${slackSent}`);
-
-    // Summary
-    script.logger.section('Execution Summary');
-    script.logger.info(`CSV report: ${csvFilePath ?? 'N/A (no data)'}`);
-    script.logger.info(`Total rows: ${rowCount}`);
-    script.logger.info(`Slack notification: ${slackSent ? 'SENT' : 'SKIPPED (not configured)'}`);
+    await runMonitoringCycle(script, config, athenaExecutor, slackNotifier, reportsPath, startDate, endDate);
   } catch (error) {
     await notifySlackError(slackNotifier, error, script);
     throw error;
