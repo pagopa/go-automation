@@ -108,5 +108,5 @@ pnpm --filter=send-dump-sqs start --qn la-mia-coda -l 1000 --aws-profile mio-pro
 
 ---
 
-**Ultima modifica**: 2026-04-17
+**Ultima modifica**: 2026-04-22
 **Maintainer**: Team GO - Gestione Operativa

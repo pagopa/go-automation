@@ -69,7 +69,7 @@ Lo script accetta parametri tramite CLI. Le path relative vengono risolte tramit
 
 - **ReceiptHandle vs MessageId**: lo script utilizza il `MessageId` per identificare i messaggi nel file di input (identificativo stabile), ma utilizza sempre il `ReceiptHandle` più recente ottenuto dalla ricezione corrente per l'eliminazione effettiva.
 - **Idempotenza**: il design gestisce nativamente la ricezione duplicata. Se un messaggio viene ricevuto due volte, l'eliminazione tramite il secondo handle fallirà silenziosamente (già rimosso), garantendo la coerenza.
-- **Immediate Release**: i messaggi che non devono essere eliminati vengono rilasciati immediatamente (timeout = 0), riducendo al minimo l'impatto sulla latenza della coda e su altri consumer.
+- **Rilascio Immediato**: i messaggi che non devono essere eliminati vengono rilasciati immediatamente (timeout = 0), riducendo al minimo l'impatto sulla latenza della coda e su altri consumer.
 - **Long Polling**: riduce le chiamate API a vuoto e i costi operativi, garantendo al contempo di interrogare tutti i server SQS.
 
 ---

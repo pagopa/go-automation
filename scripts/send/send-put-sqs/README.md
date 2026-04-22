@@ -2,7 +2,7 @@
 
 > Versione: 1.1.0 | Autore: Team GO
 
-Script progettato per l'invio massivo (bulk) di messaggi a una coda **Amazon SQS**. Supporta code standard e FIFO, implementando logiche avanzate di batching e retry chirurgico per garantire affidabilità e performance.
+Script progettato per l'invio massivo (bulk) di messaggi a una coda **Amazon SQS**. Supporta code standard e FIFO, implementando logiche di batching e retry per garantirne affidabilità e prestazioni.
 
 ## Indice
 
@@ -113,5 +113,5 @@ pnpm --filter=send-put-sqs start --qn la-mia-coda -f dump_coda_2026-04-17.ndjson
 
 ---
 
-**Ultima modifica**: 2026-04-17
+**Ultima modifica**: 2026-04-22
 **Maintainer**: Team GO - Gestione Operativa
