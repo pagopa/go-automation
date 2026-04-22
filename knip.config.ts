@@ -35,14 +35,21 @@ const config: KnipConfig = {
     'scripts/interop/*': {
       project: ['src/**/*.ts'],
     },
+    // Lambda functions with standalone handler entrypoints
+    'functions/go-AILambda': {
+      entry: ['src/handler.ts'],
+      project: ['src/**/*.ts'],
+    },
+    'functions/go-BotQESlackHandler': {
+      entry: ['src/handler.ts'],
+      project: ['src/**/*.ts'],
+    },
     // Lambda functions
     'functions/*': {
-      entry: ['src/handler.ts'],
       project: ['src/**/*.ts'],
     },
   },
   ignore: [
-    '**/artifacts/**',
     // Barrel index.ts files: re-export hubs for module organization.
     // knip flags them as unused because their parent barrel re-exports transitively.
     '**/index.ts',

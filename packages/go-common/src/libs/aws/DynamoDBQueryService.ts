@@ -17,12 +17,17 @@ import type { DynamoDBQueryResult } from './models/DynamoDBQueryResult.js';
 const CHUNK_SIZE = 10;
 
 /**
- * Progress callback for batch operations
+ * Progress handler for batch operations
  *
  * @param current - Number of items processed so far
  * @param total - Total number of items to process
  */
-export type DynamoDBQueryProgressCallback = (current: number, total: number) => void;
+export type DynamoDBQueryProgressHandler = (current: number, total: number) => void;
+
+/**
+ * @deprecated Use DynamoDBQueryProgressHandler.
+ */
+export type DynamoDBQueryProgressCallback = DynamoDBQueryProgressHandler;
 
 /**
  * Generic service for querying DynamoDB tables by partition key.
@@ -32,7 +37,7 @@ export type DynamoDBQueryProgressCallback = (current: number, total: number) => 
  * - Optional prefix/suffix for key values
  * - Automatic unmarshalling of DynamoDB items
  * - Automatic pagination handling
- * - Concurrent batch queries with progress callback
+ * - Concurrent batch queries with progress updates
  *
  * @example
  * ```typescript
@@ -137,7 +142,7 @@ export class DynamoDBQueryService {
    * @typeParam T - The expected type of items (defaults to generic record)
    * @param keyValues - Array of partition key values to query
    * @param options - Query options including table name, key name, and optional prefix/suffix
-   * @param onProgress - Optional callback for progress updates
+   * @param onProgress - Optional handler for progress updates
    * @returns Array of query results
    *
    * @example
@@ -152,7 +157,7 @@ export class DynamoDBQueryService {
   async queryMultipleByPartitionKey<T = Record<string, unknown>>(
     keyValues: ReadonlyArray<string>,
     options: DynamoDBQueryOptions,
-    onProgress?: DynamoDBQueryProgressCallback,
+    onProgress?: DynamoDBQueryProgressHandler,
   ): Promise<ReadonlyArray<DynamoDBQueryResult<T>>> {
     const total = keyValues.length;
     const results: DynamoDBQueryResult<T>[] = [];

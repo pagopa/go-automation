@@ -2,7 +2,7 @@ import type { StepKind } from '../types/StepKind.js';
 import type { StepTrace } from './StepTrace.js';
 import type { CaseEvaluationTrace } from './CaseEvaluationTrace.js';
 import type { EarlyResolutionTrace } from './EarlyResolutionTrace.js';
-import type { ActionTrace } from './ActionTrace.js';
+import type { ActionTrace, ActionType } from './ActionTrace.js';
 import type { ExecutionSummary } from './ExecutionSummary.js';
 import type { ExecutionEnvironment } from './ExecutionInfo.js';
 import type { RunbookExecutionTrace } from './RunbookExecutionTrace.js';
@@ -197,7 +197,7 @@ export class TraceBuilder {
    */
   traceAction(
     action: CaseAction,
-    actionType: ActionTrace['actionType'],
+    actionType: ActionType,
     status: 'success' | 'failed',
     durationMs: number,
     resolvedMessage?: string,

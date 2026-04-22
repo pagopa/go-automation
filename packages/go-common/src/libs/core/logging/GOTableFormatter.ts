@@ -7,6 +7,8 @@ import Table from 'cli-table3';
 
 import { valueToString } from '../utils/GOValueToString.js';
 
+export type GOTableValueFormatter = (value: unknown) => string;
+
 /**
  * Table column configuration
  */
@@ -24,7 +26,7 @@ export interface GOTableColumn {
   align?: 'left' | 'right' | 'center';
 
   /** Custom formatter function */
-  formatter?: (value: unknown) => string;
+  formatter?: GOTableValueFormatter;
 }
 
 /**

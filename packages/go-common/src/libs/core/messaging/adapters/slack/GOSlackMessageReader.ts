@@ -38,6 +38,7 @@ import type { GOMessagePage } from '../../models/GOMessagePage.js';
 import type { GOMessageQuery } from '../../models/GOMessageQuery.js';
 import type { GOMessageTarget } from '../../models/GOMessageTarget.js';
 import type { GOReceivedMessage } from '../../models/GOReceivedMessage.js';
+import type { WebClient } from '@slack/web-api';
 
 import type { GOSlackMessageReaderOptions } from './GOSlackMessageReaderOptions.js';
 
@@ -69,7 +70,7 @@ interface SlackFile {
 export class GOSlackMessageReader extends GOEventEmitterBase<GOMessageReaderEventMap> implements GOMessageReader {
   readonly providerName = 'slack';
 
-  private readonly client: GOSlackMessageReaderOptions['client'];
+  private readonly client: WebClient;
 
   /**
    * Creates a new GOSlackMessageReader instance

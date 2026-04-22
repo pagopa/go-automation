@@ -27,6 +27,12 @@
 
 import { isError, hasMessage } from '../utils/GOTypeGuards.js';
 
+type ErrorStringifier = () => string;
+
+interface ErrorWithToString {
+  toString: ErrorStringifier;
+}
+
 /**
  * Extracts the error message from an unknown error type.
  * Handles Error instances, strings, and other values safely.
@@ -71,7 +77,7 @@ export function getErrorMessage(error: unknown): string {
 
   // For objects with a custom toString method
   if (typeof error === 'object' && error !== null && 'toString' in error) {
-    const toStringResult = (error as { toString: () => string }).toString();
+    const toStringResult = (error as ErrorWithToString).toString();
     // Check if it's not the default [object Object]
     if (!toStringResult.startsWith('[object ')) {
       return toStringResult;

@@ -58,6 +58,30 @@ const SQS_MAX_RECEIVE_BATCH_SIZE = 10;
 /** Long polling wait time in seconds */
 const LONG_POLLING_WAIT_TIME = 20;
 
+type SQSBatchRetryHandler = (failedCount: number, attempt: number) => void;
+
+interface SQSBatchSendRetryOptions {
+  readonly maxRetries: number;
+  readonly onRetry?: SQSBatchRetryHandler;
+}
+
+interface SQSReceiveOptions {
+  readonly queueUrl: string;
+  readonly visibilityTimeout: number;
+  readonly maxEmptyReceives: number;
+  readonly dedupMode: SQSReceiveDeduplicationMode;
+  readonly limit?: number | undefined;
+}
+
+type SQSReceiveProgressHandler = (unique: number, total: number, duplicates: number) => void;
+
+type SQSReceiveEmptyReceiveHandler = (consecutive: number, max: number) => void;
+
+interface SQSReceiveCallbacks {
+  readonly onProgress?: SQSReceiveProgressHandler;
+  readonly onEmptyReceive?: SQSReceiveEmptyReceiveHandler;
+}
+
 /**
  * Service for interacting with Amazon SQS.
  *
@@ -121,7 +145,7 @@ export class AWSSQSService {
   async sendMessageBatchWithRetries(
     queueUrl: string,
     entries: SendMessageBatchRequestEntry[],
-    options: { maxRetries: number; onRetry?: (failedCount: number, attempt: number) => void } = { maxRetries: 3 },
+    options: SQSBatchSendRetryOptions = { maxRetries: 3 },
   ): Promise<SendMessageBatchCommandOutput> {
     let currentEntries = [...entries];
     let attempt = 0;
@@ -219,19 +243,7 @@ export class AWSSQSService {
    * @param callbacks - Optional progress callbacks
    * @returns Reception results including unique messages
    */
-  async receiveMessages(
-    options: {
-      queueUrl: string;
-      visibilityTimeout: number;
-      maxEmptyReceives: number;
-      dedupMode: SQSReceiveDeduplicationMode;
-      limit?: number | undefined;
-    },
-    callbacks?: {
-      onProgress?: (unique: number, total: number, duplicates: number) => void;
-      onEmptyReceive?: (consecutive: number, max: number) => void;
-    },
-  ): Promise<SQSReceiveResult> {
+  async receiveMessages(options: SQSReceiveOptions, callbacks?: SQSReceiveCallbacks): Promise<SQSReceiveResult> {
     let totalReceived = 0;
     let totalUnique = 0;
     let totalDuplicates = 0;

@@ -9,6 +9,10 @@
  * @template TInput - The input type (defaults to string, one line)
  * @template TOutput - The output type after transformation (defaults to TInput)
  */
+export type GOFileRowValidator<TInput> = (item: TInput) => void;
+
+export type GOFileRowTransformer<TInput, TOutput> = (item: TInput) => TOutput;
+
 export interface GOFileListImporterOptions<TInput = string, TOutput = TInput> {
   /** File encoding (default: 'utf8') */
   encoding?: BufferEncoding;
@@ -57,11 +61,11 @@ export interface GOFileListImporterOptions<TInput = string, TOutput = TInput> {
    * Row validation function (applied before transformation, throws error if invalid)
    * Receives the raw line string (after trim/filter pipeline)
    */
-  rowValidator?: (item: TInput) => void;
+  rowValidator?: GOFileRowValidator<TInput>;
 
   /**
    * Row transformation function (applied after validation)
    * Converts the raw line string into the desired output type
    */
-  rowTransformer?: (item: TInput) => TOutput;
+  rowTransformer?: GOFileRowTransformer<TInput, TOutput>;
 }

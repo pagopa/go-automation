@@ -42,16 +42,24 @@ export interface GOConfigFallbackContext {
  *
  * @example
  * ```typescript
- * const loadPatterns: GOConfigParameterFallback<string[]> = async (ctx) => {
+ * const loadPatterns: GOConfigParameterFallbackFn<string[]> = async (ctx) => {
  *   const configPath = ctx.paths.getConfigFilePath('patterns.json');
  *   const data = await fs.readFile(configPath, 'utf-8');
  *   return JSON.parse(data);
  * };
  * ```
  */
-export type GOConfigParameterFallback<T extends GOConfigParameterValue = GOConfigParameterValue> = (
+export type GOConfigParameterFallbackFn<T extends GOConfigParameterValue = GOConfigParameterValue> = (
   context: GOConfigFallbackContext,
 ) => Promise<T>;
+
+/**
+ * @deprecated Use GOConfigParameterFallbackFn.
+ */
+export type GOConfigParameterFallback<T extends GOConfigParameterValue = GOConfigParameterValue> =
+  GOConfigParameterFallbackFn<T>;
+
+export type GOConfigParameterValidator = (value: GOConfigParameterValue) => boolean | string;
 
 /**
  * Configuration parameter definition
@@ -94,7 +102,7 @@ export interface GOConfigParameterOptions {
   placeholder?: string;
 
   /** Validation function */
-  validator?: (value: GOConfigParameterValue) => boolean | string;
+  validator?: GOConfigParameterValidator;
 
   /** Aliases for CLI flags */
   aliases?: string[] | undefined;
@@ -135,7 +143,7 @@ export interface GOConfigParameterOptions {
    * }
    * ```
    */
-  asyncFallback?: GOConfigParameterFallback | undefined;
+  asyncFallback?: GOConfigParameterFallbackFn | undefined;
 }
 
 /**
@@ -154,12 +162,12 @@ export class GOConfigParameter {
   readonly envVar: string;
   readonly cliFlag: string;
   readonly placeholder: string;
-  readonly validator?: ((value: GOConfigParameterValue) => boolean | string) | undefined;
+  readonly validator?: GOConfigParameterValidator | undefined;
   readonly aliases: string[];
   readonly deprecated: boolean;
   readonly deprecationMessage?: string | undefined;
   readonly sensitive: boolean;
-  readonly asyncFallback?: GOConfigParameterFallback | undefined;
+  readonly asyncFallback?: GOConfigParameterFallbackFn | undefined;
 
   constructor(options: GOConfigParameterOptions) {
     this.name = options.name;

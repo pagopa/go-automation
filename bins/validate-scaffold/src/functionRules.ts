@@ -75,10 +75,7 @@ function getScripts(pkg: Record<string, unknown>): Record<string, string> {
     return {};
   }
 
-  return Object.fromEntries(Object.entries(scripts).filter(([, value]) => typeof value === 'string')) as Record<
-    string,
-    string
-  >;
+  return Object.fromEntries(Object.entries(scripts).filter(([, value]) => typeof value === 'string'));
 }
 
 function getDependencies(pkg: Record<string, unknown>): Record<string, string> {
@@ -87,10 +84,7 @@ function getDependencies(pkg: Record<string, unknown>): Record<string, string> {
     return {};
   }
 
-  return Object.fromEntries(Object.entries(dependencies).filter(([, value]) => typeof value === 'string')) as Record<
-    string,
-    string
-  >;
+  return Object.fromEntries(Object.entries(dependencies).filter(([, value]) => typeof value === 'string'));
 }
 
 export const functionRules: ReadonlyArray<ScaffoldRule> = [

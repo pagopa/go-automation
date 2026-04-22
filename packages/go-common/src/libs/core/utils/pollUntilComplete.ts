@@ -29,6 +29,10 @@ export interface PollAttemptInfo {
   readonly elapsedMs: number;
 }
 
+type SleepFn = (ms: number) => Promise<void>;
+
+type PollAttemptHandler = (info: PollAttemptInfo) => void;
+
 /**
  * Polling configuration.
  */
@@ -40,9 +44,9 @@ export interface PollOptions {
   /** Abort signal for cancellation */
   readonly signal?: AbortSignal;
   /** Sleep implementation — injectable for testing */
-  readonly sleepFn?: (ms: number) => Promise<void>;
+  readonly sleepFn?: SleepFn;
   /** Called after each non-terminal attempt */
-  readonly onAttempt?: (info: PollAttemptInfo) => void;
+  readonly onAttempt?: PollAttemptHandler;
 }
 
 /**

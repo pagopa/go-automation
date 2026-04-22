@@ -5,6 +5,10 @@
 
 import type { GOPathTypeValue } from '../utils/GOPaths.js';
 
+export type GOFileCopierLogHandler = (message: string, level: 'info' | 'warn' | 'error') => void;
+
+export type GOFileCopierPromptHandler = (message: string, filePath: string, sizeHuman: string) => Promise<boolean>;
+
 /**
  * Options for registering or copying a single file
  */
@@ -99,13 +103,13 @@ export interface GOFileCopierOptions {
    * Callback for custom logging during copy operations.
    * If not provided, operations are silent.
    */
-  readonly onLog?: ((message: string, level: 'info' | 'warn' | 'error') => void) | undefined;
+  readonly onLog?: GOFileCopierLogHandler | undefined;
 
   /**
    * Callback for prompting user (used in interactive mode).
    * Should return true to proceed with copy, false to skip.
    */
-  readonly onPrompt?: ((message: string, filePath: string, sizeHuman: string) => Promise<boolean>) | undefined;
+  readonly onPrompt?: GOFileCopierPromptHandler | undefined;
 }
 
 /**

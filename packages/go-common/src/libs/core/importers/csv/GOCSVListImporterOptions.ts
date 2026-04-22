@@ -7,6 +7,10 @@
  */
 export type CSVRecord = Record<string, string>;
 
+export type GOCSVRowValidator = (item: CSVRecord) => void;
+
+export type GOCSVImporterRowTransformer<TItem> = (item: CSVRecord) => TItem;
+
 /**
  * Options for CSV list importer
  *
@@ -68,10 +72,10 @@ export interface GOCSVListImporterOptions<TItem = CSVRecord> {
   defaultValues?: Record<string, string> | undefined;
 
   /** Row validation function (applied after columnMapping and defaultValues, before transformation) */
-  rowValidator?: (item: CSVRecord) => void;
+  rowValidator?: GOCSVRowValidator;
 
   /** Row transformation function (applied after validation) */
-  rowTransformer?: ((item: CSVRecord) => TItem) | undefined;
+  rowTransformer?: GOCSVImporterRowTransformer<TItem> | undefined;
 
   /**
    * Preserve original CSV row data in a special `_originalRow` property

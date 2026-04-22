@@ -6,7 +6,10 @@ import { GOEventEmitterBase } from '@go-automation/go-common/core';
 import { getErrorMessage } from '@go-automation/go-common/core';
 
 import { SENDNotificationImportRowProcessor } from './SENDNotificationImportRowProcessor.js';
-import type { SENDNotificationImportWorkerError } from './SENDNotificationImportWorkerError.js';
+import type {
+  SENDNotificationImportWorkerError,
+  SENDNotificationImportWorkerErrorType,
+} from './SENDNotificationImportWorkerError.js';
 import type { SENDNotificationImportWorkerEventMap } from './SENDNotificationImportWorkerEvents.js';
 import type { SENDNotificationImportWorkerOptions } from './SENDNotificationImportWorkerOptions.js';
 import type { SENDNotificationImportWorkerResult } from './SENDNotificationImportWorkerResult.js';
@@ -195,7 +198,7 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
    */
   private getErrorDetails(error: unknown): unknown {
     if (typeof error === 'object' && error !== null && 'response' in error) {
-      return (error as { response: unknown }).response;
+      return error.response;
     }
     return error;
   }
@@ -203,7 +206,7 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
   /**
    * Determine error type based on error content
    */
-  private getErrorType(error: unknown): SENDNotificationImportWorkerError['type'] {
+  private getErrorType(error: unknown): SENDNotificationImportWorkerErrorType {
     const message = getErrorMessage(error);
     if (message.includes('upload') || message.includes('document')) return 'upload';
     if (message.includes('build') || message.includes('validation')) return 'build';
