@@ -694,16 +694,18 @@ export class GOScript {
    * script.getConfiguration<T>() as usual and receives values sourced from the event
    * payload, environment variables, and bundled config files — in that priority order.
    *
-   * @param mainFunction - Async function that receives the typed Lambda event and returns a result
-   * @returns Lambda handler: (event: TEvent) => Promise<TResult>
+   * @param mainFunction - Async function that receives the typed Lambda event and context, and returns a result.
+   *   The `context` parameter is the standard AWS Lambda `Context` object (or a custom type via `TContext`)
+   *   and may be ignored by the callback when not needed.
+   * @returns Lambda handler: `(event: TEvent, context: TContext) => Promise<TResult>`
    *
-   * @example
+   * @example Handler that ignores the context
    * ```typescript
    * // index.ts — dual-mode entry point
    * const script = new Core.GOScript({ metadata, config: { parameters } });
    *
    * // Lambda export (handler name must match the function configuration)
-   * export const handler = script.createLambdaHandler(async (event) => {
+   * export const handler = script.createLambdaHandler<MyEvent, MyResult, Context>(async (event) => {
    *   return await main(script, event);
    * });
    *
@@ -711,6 +713,16 @@ export class GOScript {
    * script.run(async () => {
    *   await main(script, null);
    * }).catch(() => process.exit(1));
+   * ```
+   *
+   * @example Handler that uses the context (e.g. to opt out of waiting for the event loop)
+   * ```typescript
+   * export const handler = script.createLambdaHandler<ScheduledEvent, void, Context>(
+   *   async (event, context) => {
+   *     context.callbackWaitsForEmptyEventLoop = false;
+   *     await main(script, event);
+   *   },
+   * );
    * ```
    *
    * @example Event payload mapping

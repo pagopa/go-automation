@@ -21,7 +21,7 @@ on:
         description: 'Arguments passed to pnpm install'
         required: false
         type: string
-        default: '--frozen-lockfile --ignore-scripts'
+        default: '--frozen-lockfile'
       pre-command:
         description: 'Optional pnpm command to run before the main command (e.g. build)'
         required: false

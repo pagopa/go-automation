@@ -35,24 +35,28 @@ jobs:
     uses: ./.github/workflows/ci-job.yml
     with:
       command: format:check
+      install-args: --frozen-lockfile --ignore-scripts
 
   knip:
     name: Unused Code
     uses: ./.github/workflows/ci-job.yml
     with:
       command: knip
+      install-args: --frozen-lockfile --ignore-scripts
 
   scaffold:
     name: Scaffold Validation
     uses: ./.github/workflows/ci-job.yml
     with:
       command: validate:scaffold
+      install-args: --frozen-lockfile --ignore-scripts
 
   build:
     name: Build
     uses: ./.github/workflows/ci-job.yml
     with:
       command: build
+      install-args: --frozen-lockfile --ignore-scripts
       timeout-minutes: 25
       upload-artifact-name: workspace-build
       upload-artifact-path: |
@@ -67,6 +71,7 @@ jobs:
     uses: ./.github/workflows/ci-job.yml
     with:
       command: test
+      install-args: --frozen-lockfile --ignore-scripts
       timeout-minutes: 25
       download-artifact-name: workspace-build
 
@@ -76,6 +81,7 @@ jobs:
     uses: ./.github/workflows/ci-job.yml
     with:
       command: test:coverage
+      install-args: --frozen-lockfile --ignore-scripts
       timeout-minutes: 25
       download-artifact-name: workspace-build
       upload-artifact-name: coverage-reports
@@ -93,6 +99,7 @@ jobs:
       runner: macos-latest
       timeout-minutes: 25
       command: build:common
+      install-args: --frozen-lockfile --ignore-scripts
 
   # Summary job for branch protection
   ci-success:

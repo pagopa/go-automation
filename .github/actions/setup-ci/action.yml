@@ -13,7 +13,7 @@ inputs:
   install-args:
     description: Arguments passed to pnpm install
     required: false
-    default: '--frozen-lockfile --ignore-scripts'
+    default: '--frozen-lockfile'
 
 runs:
   using: composite
