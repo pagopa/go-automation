@@ -110,10 +110,15 @@ const script = new Core.GOScript({
 });
 
 /**
- * S3 client instantiated once at cold start and reused across warm invocations
- * to amortise connection-pool setup. Only created if REPORTS_S3_BUCKET is set
- * at cold start — if the bucket is set later via env change, the client stays stale
- * (Lambda env vars don't change mid-container anyway).
+ * Lazily-initialised S3 service, cached at module scope so its connection pool
+ * is reused across warm invocations.
+ *
+ * - Created on the first invocation that actually needs it (i.e. the first
+ *   invocation where REPORTS_S3_BUCKET is truthy), not at cold start.
+ * - Never rebuilt for the lifetime of the container. Lambda env vars are fixed
+ *   per-container, and S3Client is not bound to a bucket (the bucket is passed
+ *   per request), so there is no staleness concern if REPORTS_S3_BUCKET changes
+ *   between deployments.
  */
 let s3Service: AWS.AWSS3Service | undefined;
 const getS3Service = (): AWS.AWSS3Service => {
