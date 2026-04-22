@@ -11,6 +11,31 @@ import { GOExecutionEnvironmentType } from '../GOExecutionEnvironmentType.js';
 
 type ProcessEnvSnapshot = Record<string, string | undefined>;
 
+const DETECTION_ENV_VARS = [
+  'TERM',
+  'CI',
+  'GITHUB_ACTIONS',
+  'GITLAB_CI',
+  'JENKINS_URL',
+  'CIRCLECI',
+  'TRAVIS',
+  'TF_BUILD',
+  'BITBUCKET_BUILD_NUMBER',
+  'BUILDKITE',
+  'DRONE',
+  'TEAMCITY_VERSION',
+  'AWS_ACCESS_KEY_ID',
+  'AWS_SECRET_ACCESS_KEY',
+  'AWS_WEB_IDENTITY_TOKEN_FILE',
+  'AWS_LAMBDA_FUNCTION_NAME',
+  'AWS_DEFAULT_REGION',
+  'AWS_REGION',
+  'ECS_CONTAINER_METADATA_URI',
+  'ECS_CONTAINER_METADATA_URI_V4',
+  'CODEBUILD_BUILD_ID',
+  'GO_DEPLOYMENT_MODE',
+] as const;
+
 function restoreEnv(snapshot: ProcessEnvSnapshot): void {
   for (const key of Object.keys(process.env)) {
     delete process.env[key];
@@ -20,6 +45,12 @@ function restoreEnv(snapshot: ProcessEnvSnapshot): void {
     if (value !== undefined) {
       process.env[key] = value;
     }
+  }
+}
+
+function clearDetectionEnv(): void {
+  for (const key of DETECTION_ENV_VARS) {
+    delete process.env[key];
   }
 }
 
@@ -56,6 +87,7 @@ describe('GOExecutionEnvironment', () => {
     stdoutTTYDescriptor = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY');
     stdinTTYDescriptor = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY');
     GOExecutionEnvironment.clearCache();
+    clearDetectionEnv();
   });
 
   afterEach(async () => {

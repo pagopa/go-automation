@@ -136,11 +136,15 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
 
       await writer.close();
     } catch (error) {
-      // Ensure stream is closed on error
+      // Ensure stream is closed on error. Cleanup failures can legitimately
+      // re-surface the same captured stream error (for example when close()
+      // is called again after a rejected closePromise), so they must not emit
+      // a second export:error for the same export attempt.
       try {
         await writer.close();
-      } catch (closeError) {
-        this.emit('export:error', { error: toError(closeError) });
+      } catch {
+        // Ignore cleanup errors here: the export attempt already failed, and
+        // the single export:error emission below represents that failure.
       }
 
       const finalError = toError(error);
