@@ -75,6 +75,11 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
   private streamError: Error | undefined;
   private streamErrorForwarder: StreamErrorForwarderFn | undefined;
 
+  // Cached close result. Makes closeStream() idempotent so export()'s belt-and-
+  // suspenders second close (in its catch path) doesn't re-route streamError,
+  // re-attach 'finish', or re-emit events. Reset on each initializeStream().
+  private closePromise: Promise<void> | undefined;
+
   // Cache for performance optimization
   private cachedColumns?: string[] | undefined;
   private cachedMappedColumns?: string[] | undefined;
@@ -173,6 +178,7 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
   private initializeStream(): GOListExporterStreamWriter<TItem> {
     this.streamError = undefined;
     this.streamErrorForwarder = undefined;
+    this.closePromise = undefined;
 
     // Create write stream
     this.writeStream = fs.createWriteStream(this.options.outputPath, {
@@ -219,7 +225,16 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
    * export:error exactly once (via the export() catch block).
    */
   private async closeStream(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    // Idempotent: export()'s catch path calls writer.close() a second time as
+    // cleanup when append() throws. Repeat calls share the first call's result
+    // (so we don't re-route streamError, re-attach 'finish', or re-emit events)
+    // and swallow any rejection — the first caller already surfaced it, so
+    // re-raising would cause export:error to be emitted twice for the same fault.
+    if (this.closePromise) {
+      return this.closePromise.catch(() => undefined);
+    }
+
+    this.closePromise = new Promise<void>((resolve, reject) => {
       if (!this.stringifier || !this.writeStream) {
         resolve();
         return;
@@ -264,6 +279,8 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
       // that captureStreamError forwards to streamErrorForwarder).
       this.stringifier.end();
     });
+
+    return this.closePromise;
   }
 
   /**
