@@ -226,13 +226,13 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
    * higher-level export:error emission is handled by the surrounding export flow.
    */
   private async closeStream(): Promise<void> {
-    // Idempotent: export()'s catch path calls writer.close() a second time as
-    // cleanup when append() throws. Repeat calls share the first call's result
-    // (so we don't re-route streamError, re-attach 'finish', or re-emit events)
-    // and swallow any rejection — the first caller already surfaced it, so
-    // re-raising would cause export:error to be emitted twice for the same fault.
+    // Idempotent: export()'s catch path may call writer.close() a second time as
+    // cleanup when append() throws. Repeat calls must share the first call's
+    // exact Promise result so later callers observe the same fulfillment or
+    // rejection without re-routing streamError, re-attaching 'finish', or
+    // re-emitting events.
     if (this.closePromise) {
-      return this.closePromise.catch(() => undefined);
+      return this.closePromise;
     }
 
     this.closePromise = new Promise<void>((resolve, reject) => {
