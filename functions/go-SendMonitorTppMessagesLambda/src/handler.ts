@@ -46,12 +46,19 @@ const stringifyNonError = (err: unknown): string => {
 const serializeError = (err: unknown): Record<string, unknown> =>
   err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : { value: stringifyNonError(err) };
 
+// Tracks the in-flight invocation's awsRequestId so process-level handlers can
+// attribute fatal logs to the right request. AWS_LAMBDA_REQUEST_ID is not a
+// standard env var — the id only lives on the Context object. Set at handler
+// entry, cleared in finally so warm-container background faults (which are not
+// tied to any invocation) log null instead of a stale id.
+let currentRequestId: string | null = null;
+
 process.on('unhandledRejection', (reason) => {
   console.error(
     JSON.stringify({
       level: 'fatal',
       type: 'unhandledRejection',
-      requestId: process.env['AWS_LAMBDA_REQUEST_ID'] ?? null,
+      requestId: currentRequestId,
       reason: serializeError(reason),
     }),
   );
@@ -62,7 +69,7 @@ process.on('uncaughtException', (error, origin) => {
     JSON.stringify({
       level: 'fatal',
       type: 'uncaughtException',
-      requestId: process.env['AWS_LAMBDA_REQUEST_ID'] ?? null,
+      requestId: currentRequestId,
       origin,
       error: serializeError(error),
     }),
@@ -89,7 +96,7 @@ process.on('beforeExit', (code) => {
       level: 'warn',
       type: 'beforeExit',
       code,
-      requestId: process.env['AWS_LAMBDA_REQUEST_ID'] ?? null,
+      requestId: currentRequestId,
     }),
   );
 });
@@ -161,7 +168,7 @@ const logResourceSnapshot = (phase: string, options?: { readonly force?: boolean
       level: 'info',
       type: 'resourceSnapshot',
       phase,
-      requestId: process.env['AWS_LAMBDA_REQUEST_ID'] ?? null,
+      requestId: currentRequestId,
       rssMB: Math.round(mem.rss / 1024 / 1024),
       heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
       heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
@@ -204,6 +211,8 @@ export const handler = script.createLambdaHandler<ScheduledEvent, void, Context>
     context.callbackWaitsForEmptyEventLoop = false;
   }
 
+  currentRequestId = context?.awsRequestId ?? null;
+
   logResourceSnapshot('start');
 
   try {
@@ -233,5 +242,9 @@ export const handler = script.createLambdaHandler<ScheduledEvent, void, Context>
   } catch (error) {
     logResourceSnapshot('error', { force: true });
     throw error;
+  } finally {
+    // Clear so any background fault that fires between invocations logs null
+    // instead of misattributing to the previous request.
+    currentRequestId = null;
   }
 });
