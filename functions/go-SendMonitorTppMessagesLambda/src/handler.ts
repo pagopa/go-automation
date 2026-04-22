@@ -53,6 +53,12 @@ const serializeError = (err: unknown): Record<string, unknown> =>
 // tied to any invocation) log null instead of a stale id.
 let currentRequestId: string | null = null;
 
+// After logging, exit with non-zero. Registering these listeners suppresses
+// Node's default crash, so without an explicit exit the Lambda invocation
+// would hang until the configured timeout and mask the real fault behind a
+// timeout error. process.exit(1) causes the runtime to report the invocation
+// as failed and recycles the container, which is what we want for a truly
+// unrecoverable state.
 process.on('unhandledRejection', (reason) => {
   console.error(
     JSON.stringify({
@@ -62,6 +68,7 @@ process.on('unhandledRejection', (reason) => {
       reason: serializeError(reason),
     }),
   );
+  process.exit(1);
 });
 
 process.on('uncaughtException', (error, origin) => {
@@ -74,6 +81,7 @@ process.on('uncaughtException', (error, origin) => {
       error: serializeError(error),
     }),
   );
+  process.exit(1);
 });
 
 process.on('warning', (warning) => {
