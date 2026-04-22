@@ -2,6 +2,8 @@
  * Worker error information
  */
 
+export type SENDNotificationImportWorkerErrorType = 'import' | 'upload' | 'build' | 'send' | 'export';
+
 export interface SENDNotificationImportWorkerError {
   /** Row number */
   rowIndex: number;
@@ -10,7 +12,7 @@ export interface SENDNotificationImportWorkerError {
   /** Error message */
   message: string;
   /** Error type */
-  type: 'import' | 'upload' | 'build' | 'send' | 'export';
+  type: SENDNotificationImportWorkerErrorType;
   /** Additional error details */
   details?: unknown;
 }

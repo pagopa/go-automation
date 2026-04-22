@@ -22,6 +22,7 @@ Per bypassare una regola in casi eccezionali, usa:
   - [Script Framework](#script-framework)
   - [Configurazione e CLI](#configurazione-e-cli)
   - [Logging](#logging)
+  - [Type Alias Naming](#type-alias-naming)
   - [Importers (lettura dati)](#importers-lettura-dati)
   - [Exporters (scrittura dati)](#exporters-scrittura-dati)
     - [Formati di export (GOExportFormat)](#formati-di-export-goexportformat)
@@ -127,6 +128,54 @@ script.logger.info(table.render());
 ```
 
 **Vietato**: `console.log`/`console.info` (usa `script.logger`), import di librerie di logging/colori esterne.
+
+---
+
+## Type Alias Naming
+
+Per i type alias funzione e per le property callback usiamo una convenzione stretta:
+
+- Le property di interface/class non devono usare function type inline come `foo: (value: string) => boolean`; va sempre estratto un alias nominato.
+- I function type alias devono chiudersi con un suffisso semantico: `Handler`, `Validator`, `Transformer`, `Mapper`, `Predicate`, `Formatter`, `Stringifier`, `Hook`.
+- `Fn` si usa solo come fallback quando il ruolo non è più specificabile in modo chiaro.
+- Evitare nomi generici come `Callback` o `Function`.
+
+Linee guida sui suffissi:
+
+- Usa `Handler` per callback invocate in risposta a un evento o a una fase del flusso, ad esempio `onRetry`, `onPollAttempt`, `onLog`.
+- Usa `Hook` per estensioni del lifecycle o punti di integrazione dichiarativi.
+- Usa `Validator`, `Transformer`, `Mapper`, `Predicate`, `Formatter`, `Stringifier` quando il ruolo è chiaramente quello.
+- Usa `Fn` per funzioni piccole e iniettabili che rappresentano una primitive o una strategia generica, dove un suffisso più specifico aggiungerebbe poco o sarebbe fuorviante.
+- Esempi validi di `Fn`: `SleepFn`, `BackoffFn`, `EscapeFn`.
+
+Queste regole sono enforce da ESLint tramite `no-restricted-syntax`.
+
+Esempi:
+
+```typescript
+// Bad: inline function type in interface property
+interface ExampleOptions {
+  readonly onLog?: (message: string) => void;
+}
+
+// Bad: inline function type in class field
+class ExampleService {
+  private readonly onLog?: (message: string) => void;
+}
+
+// Good: named alias reused by property/class field
+type LogHandler = (message: string) => void;
+
+interface ExampleOptions {
+  readonly onLog?: LogHandler;
+}
+
+class ExampleService {
+  private readonly onLog?: LogHandler;
+}
+```
+
+Nota tecnica: in AST TypeScript ESLint, le property di `interface`/type literal sono nodi `TSPropertySignature`, mentre i campi di classe sono `PropertyDefinition`. Per questo servono entrambi i selector nella regola ESLint.
 
 ---
 

@@ -40,6 +40,13 @@ import type {
   GOScriptFileCopierOptions,
 } from './GOScriptOptions.js';
 
+type GOScriptSignalHandler = () => void;
+
+interface GOScriptSignalHandlerRef {
+  readonly signal: NodeJS.Signals;
+  readonly handler: GOScriptSignalHandler;
+}
+
 /**
  * Base script class with integrated logging, config, and prompts
  */
@@ -83,7 +90,7 @@ export class GOScript {
   private isShuttingDown: boolean = false;
 
   // Signal handler references kept for removal in cleanup() (prevents memory leaks)
-  private readonly signalHandlerRefs: { signal: NodeJS.Signals; handler: () => void }[] = [];
+  private readonly signalHandlerRefs: GOScriptSignalHandlerRef[] = [];
 
   // Tracks errors already logged by a specific throw site (e.g. loadConfig validation).
   // executeLifecycle() skips handleError() for these and only calls hooks.onError,

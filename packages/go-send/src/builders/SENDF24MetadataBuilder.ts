@@ -41,7 +41,7 @@ export class SENDF24MetadataBuilder {
       throw new Error('F24 metadata attachment is required. Use setMetadataAttachment()');
     }
 
-    return this.f24 as SENDF24Metadata;
+    return this.f24;
   }
 
   /**

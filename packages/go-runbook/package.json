@@ -15,6 +15,7 @@
     "build": "tsc --build",
     "watch": "tsc --build --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
     "prepare": "pnpm run build"
   },
   "keywords": [
@@ -41,6 +42,7 @@
     "@aws-sdk/client-cloudwatch-logs": "catalog:",
     "@aws-sdk/client-dynamodb": "catalog:",
     "@aws-sdk/util-dynamodb": "catalog:",
-    "@types/node": "catalog:"
+    "@types/node": "catalog:",
+    "tsx": "catalog:"
   }
 }

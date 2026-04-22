@@ -15,20 +15,22 @@ import type { AwsAthenaService } from './AwsAthenaService.js';
 /** Terminal states for Athena query execution */
 const ATHENA_TERMINAL_STATES: ReadonlySet<string> = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED']);
 
+type AthenaQueryExecutorLogHandler = (message: string) => void;
+
 /**
  * Executes Athena queries with template parameter substitution
  * and handles result pagination
  */
 export class AthenaQueryExecutor {
   private readonly athenaService: AwsAthenaService;
-  private readonly onLog: ((message: string) => void) | undefined;
+  private readonly onLog: AthenaQueryExecutorLogHandler | undefined;
 
   /**
    * Creates a new Athena Query Executor
    * @param athenaService - AWS Athena service instance
    * @param onLog - Optional callback for logging messages
    */
-  constructor(athenaService: AwsAthenaService, onLog?: (message: string) => void) {
+  constructor(athenaService: AwsAthenaService, onLog?: AthenaQueryExecutorLogHandler) {
     if (!athenaService) {
       throw new Error('Athena Service is required');
     }

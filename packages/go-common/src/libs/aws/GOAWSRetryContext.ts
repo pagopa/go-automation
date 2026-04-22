@@ -15,6 +15,8 @@ export interface GOAWSRetryContext {
 /**
  * Options for the withCredentialRetry wrapper
  */
+export type GOAWSRetryHandler = (context: GOAWSRetryContext) => void;
+
 export interface GOAWSRetryOptions {
   /**
    * AWS profile name to use for SSO login
@@ -29,10 +31,10 @@ export interface GOAWSRetryOptions {
   /**
    * Called before each retry attempt
    */
-  readonly onRetry?: ((context: GOAWSRetryContext) => void) | undefined;
+  readonly onRetry?: GOAWSRetryHandler | undefined;
 
   /**
    * Called when operation succeeds
    */
-  readonly onSuccess?: ((context: GOAWSRetryContext) => void) | undefined;
+  readonly onSuccess?: GOAWSRetryHandler | undefined;
 }

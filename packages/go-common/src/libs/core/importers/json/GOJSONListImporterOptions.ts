@@ -4,6 +4,10 @@
 
 import type { GOJSONFormatDetectorOptions } from '../../json/GOJSONFormatDetectorOptions.js';
 
+export type GOJSONRowValidator<TInput> = (item: TInput) => void;
+
+export type GOJSONImporterRowTransformer<TInput, TOutput> = (item: TInput) => TOutput;
+
 /**
  * Options for JSON list importer
  *
@@ -18,10 +22,10 @@ export interface GOJSONListImporterOptions<TInput = unknown, TOutput = TInput> {
   encoding?: BufferEncoding;
 
   /** Row validation function (applied before transformation, throws error if invalid) */
-  rowValidator?: (item: TInput) => void;
+  rowValidator?: GOJSONRowValidator<TInput>;
 
   /** Row transformation function (applied after validation) */
-  rowTransformer?: (item: TInput) => TOutput;
+  rowTransformer?: GOJSONImporterRowTransformer<TInput, TOutput>;
 
   /** JSON path to extract array from nested structure (e.g., 'data.items') */
   jsonPath?: string;

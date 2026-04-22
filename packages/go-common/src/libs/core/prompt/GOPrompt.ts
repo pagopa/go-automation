@@ -4,7 +4,7 @@
  */
 
 import readline from 'node:readline';
-import prompts, { type PromptObject } from 'prompts';
+import prompts, { type Choice, type PromptObject } from 'prompts';
 
 import { GOLogEventCategory } from '../logging/GOLogEventCategory.js';
 import { GOLogger } from '../logging/GOLogger.js';
@@ -23,12 +23,21 @@ process.on('SIGINT', () => {
   isCtrlC = true;
 });
 
+export type GOPromptTextValidator = (value: string) => boolean | string;
+
+export type GOPromptNumberValidator = (value: number) => boolean | string;
+
+export type GOPromptAutocompleteSuggestHandler = (
+  input: string,
+  choices: GOPromptSelectOption[],
+) => Promise<GOPromptSelectOption[]>;
+
 export interface GOPromptTextOptions {
   /** Default value */
   initial?: string;
 
   /** Validation function */
-  validate?: (value: string) => boolean | string;
+  validate?: GOPromptTextValidator;
 
   /** Hint for the prompt */
   hint?: string;
@@ -53,7 +62,7 @@ export interface GOPromptNumberOptions {
   max?: number;
 
   /** Validation function */
-  validate?: (value: number) => boolean | string;
+  validate?: GOPromptNumberValidator;
 
   /** Hint for the prompt */
   hint?: string;
@@ -111,7 +120,20 @@ export interface GOPromptAutocompleteOptions {
   limit?: number;
 
   /** Suggestion function for custom filtering */
-  suggest?: (input: string, choices: GOPromptSelectOption[]) => Promise<GOPromptSelectOption[]>;
+  suggest?: GOPromptAutocompleteSuggestHandler;
+}
+
+function toGOPromptSelectOptions(choices: ReadonlyArray<Choice>): GOPromptSelectOption[] {
+  return choices.map((choice) => {
+    const promptValue = choice.value as unknown;
+
+    return {
+      title: choice.title,
+      ...(promptValue !== undefined ? { value: promptValue } : {}),
+      ...(choice.description !== undefined ? { description: choice.description } : {}),
+      ...('hint' in choice && typeof choice.hint === 'string' ? { hint: choice.hint } : {}),
+    };
+  });
 }
 
 /**
@@ -562,8 +584,9 @@ export class GOPrompt {
           : {};
 
     const formattedChoices: GOPromptSelectOption[] = choices.map((choice) =>
-      typeof choice === 'string' ? { title: choice, value: choice as unknown as T } : choice,
+      typeof choice === 'string' ? { title: choice, value: choice } : choice,
     );
+    const suggest = options.suggest;
 
     const value = await this.runPrompt<T>({
       type: 'autocomplete',
@@ -578,14 +601,9 @@ export class GOPrompt {
         description: choice.description,
         hint: choice.hint,
       })),
-      suggest: options.suggest
-        ? async (input: string, choices: unknown[]) => {
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            return options.suggest!(
-              input,
-              choices as GOPromptSelectOption[],
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ) as unknown as Promise<any[]>;
+      suggest: suggest
+        ? async (input: string, choices: Choice[]) => {
+            return suggest(input, toGOPromptSelectOptions(choices));
           }
         : undefined,
     });

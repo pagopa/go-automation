@@ -27,8 +27,7 @@ const goAutomationPlugin = {
         },
         messages: {
           moveToLibs:
-            'Move "{{ name }}" to a dedicated file under libs/. ' +
-            'main.ts should only contain the main() function.',
+            'Move "{{ name }}" to a dedicated file under libs/. ' + 'main.ts should only contain the main() function.',
         },
         schema: [],
       },
@@ -48,10 +47,8 @@ const goAutomationPlugin = {
           VariableDeclarator(node) {
             if (
               node.init != null &&
-              (node.init.type === 'ArrowFunctionExpression' ||
-                node.init.type === 'FunctionExpression') &&
-              (node.parent.parent.type === 'Program' ||
-                node.parent.parent.type === 'ExportNamedDeclaration') &&
+              (node.init.type === 'ArrowFunctionExpression' || node.init.type === 'FunctionExpression') &&
+              (node.parent.parent.type === 'Program' || node.parent.parent.type === 'ExportNamedDeclaration') &&
               node.id.type === 'Identifier'
             ) {
               context.report({
@@ -117,6 +114,72 @@ const goAutomationPlugin = {
     },
   },
 };
+
+const sharedRestrictedSyntaxRules = [
+  {
+    selector: "TSIndexedAccessType[indexType.type='TSLiteralType']",
+    message:
+      "Avoid literal lookup types like Foo['bar']. Prefer a named alias or a dedicated exported type. Generic indexed access types such as T[K] or T[keyof T] are allowed.",
+  },
+  {
+    // Interface/type-literal properties are represented as TSPropertySignature.
+    // We match TSFunctionType anywhere inside the type annotation subtree so that
+    // parenthesized and union-wrapped inline function types are also rejected.
+    selector: 'TSPropertySignature > TSTypeAnnotation TSFunctionType',
+    message: 'Use a named type alias for function-typed properties instead of an inline function type.',
+  },
+  {
+    // Class fields are represented as PropertyDefinition, not TSPropertySignature.
+    // This closes the gap that previously allowed inline callback types inside classes.
+    selector: 'PropertyDefinition > TSTypeAnnotation TSFunctionType',
+    message: 'Use a named type alias for function-typed properties instead of an inline function type.',
+  },
+  {
+    selector:
+      "TSTypeAliasDeclaration[typeAnnotation.type='TSFunctionType']:not([id.name=/.*(?:Handler|Validator|Transformer|Mapper|Predicate|Formatter|Stringifier|Hook|Fn)$/])",
+    message:
+      'Function type aliases must end with a semantic suffix like Handler, Validator, Transformer, Mapper, Predicate, Formatter, Stringifier, Hook, or Fn.',
+  },
+  {
+    selector: 'ForInStatement',
+    message: 'Use for...of, Object.keys(), or Object.entries() instead of for...in',
+  },
+];
+
+const scriptRestrictedSyntaxRules = [
+  // File writing → use go-common exporters
+  {
+    selector: "CallExpression[callee.object.name='fs'][callee.property.name='writeFile']",
+    message:
+      'Use go-common exporters (GOFileListExporter, GOJSONListExporter, GOCSVListExporter, GOHTMLListExporter) instead of fs.writeFile. See CONVENTIONS.md.',
+  },
+  {
+    selector: "CallExpression[callee.object.name='fs'][callee.property.name='writeFileSync']",
+    message: 'Use go-common exporters instead of fs.writeFileSync. See CONVENTIONS.md.',
+  },
+  {
+    selector: "CallExpression[callee.object.name='fs'][callee.property.name='createWriteStream']",
+    message: 'Use go-common exporters instead of fs.createWriteStream. See CONVENTIONS.md.',
+  },
+  // File reading for import → use go-common importers
+  {
+    selector: "CallExpression[callee.object.name='readline'][callee.property.name='createInterface']",
+    message:
+      'Use go-common importers (GOJSONListImporter, GOCSVListImporter, GOFileListImporter) instead of readline. See CONVENTIONS.md.',
+  },
+  // Direct process.env → use GOScript config
+  {
+    selector: "MemberExpression[object.name='process'][property.name='env']",
+    message:
+      'Use GOScript configuration (GOConfigReader / GOConfigParameterProvider) instead of process.env. See CONVENTIONS.md.',
+  },
+  // Direct EventEmitter → use GOEventEmitterBase
+  {
+    selector: "NewExpression[callee.name='EventEmitter']",
+    message:
+      'Extend GOEventEmitterBase from @go-automation/go-common instead of using EventEmitter directly. See CONVENTIONS.md.',
+  },
+];
 
 export default tseslint.config(
   // Base ESLint recommended
@@ -228,13 +291,7 @@ export default tseslint.config(
 
       // ===== Iteration Rules =====
       '@typescript-eslint/prefer-for-of': 'error',
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: 'ForInStatement',
-          message: 'Use for...of, Object.keys(), or Object.entries() instead of for...in',
-        },
-      ],
+      'no-restricted-syntax': ['error', ...sharedRestrictedSyntaxRules],
 
       // ===== Import/Export Rules =====
       // No unused imports/vars
@@ -494,47 +551,9 @@ export default tseslint.config(
       ],
 
       // ---- Restricted code patterns ----
-      // Overrides global no-restricted-syntax for scripts — includes ForInStatement from global config.
-      'no-restricted-syntax': [
-        'error',
-        // Global (inherited: must repeat because flat config replaces per-rule)
-        {
-          selector: 'ForInStatement',
-          message: 'Use for...of, Object.keys(), or Object.entries() instead of for...in',
-        },
-        // File writing → use go-common exporters
-        {
-          selector: "CallExpression[callee.object.name='fs'][callee.property.name='writeFile']",
-          message:
-            'Use go-common exporters (GOFileListExporter, GOJSONListExporter, GOCSVListExporter, GOHTMLListExporter) instead of fs.writeFile. See CONVENTIONS.md.',
-        },
-        {
-          selector: "CallExpression[callee.object.name='fs'][callee.property.name='writeFileSync']",
-          message: 'Use go-common exporters instead of fs.writeFileSync. See CONVENTIONS.md.',
-        },
-        {
-          selector: "CallExpression[callee.object.name='fs'][callee.property.name='createWriteStream']",
-          message: 'Use go-common exporters instead of fs.createWriteStream. See CONVENTIONS.md.',
-        },
-        // File reading for import → use go-common importers
-        {
-          selector: "CallExpression[callee.object.name='readline'][callee.property.name='createInterface']",
-          message:
-            'Use go-common importers (GOJSONListImporter, GOCSVListImporter, GOFileListImporter) instead of readline. See CONVENTIONS.md.',
-        },
-        // Direct process.env → use GOScript config
-        {
-          selector: "MemberExpression[object.name='process'][property.name='env']",
-          message:
-            'Use GOScript configuration (GOConfigReader / GOConfigParameterProvider) instead of process.env. See CONVENTIONS.md.',
-        },
-        // Direct EventEmitter → use GOEventEmitterBase
-        {
-          selector: "NewExpression[callee.name='EventEmitter']",
-          message:
-            'Extend GOEventEmitterBase from @go-automation/go-common instead of using EventEmitter directly. See CONVENTIONS.md.',
-        },
-      ],
+      // Flat config replaces per-rule arrays, so scripts must explicitly include both
+      // the shared type-system restrictions and the script-specific go-common rules.
+      'no-restricted-syntax': ['error', ...sharedRestrictedSyntaxRules, ...scriptRestrictedSyntaxRules],
     },
   },
 
@@ -548,15 +567,9 @@ export default tseslint.config(
       // Only main() allowed — move helpers to libs/
       'go-automation/no-extra-functions-in-main': 'error',
       // File too long → likely has helper functions that belong in libs/
-      'max-lines': [
-        'error',
-        { max: 200, skipBlankLines: true, skipComments: true },
-      ],
+      'max-lines': ['error', { max: 200, skipBlankLines: true, skipComments: true }],
       // Single function too large → split logic into libs/
-      'max-lines-per-function': [
-        'error',
-        { max: 80, skipBlankLines: true, skipComments: true },
-      ],
+      'max-lines-per-function': ['error', { max: 80, skipBlankLines: true, skipComments: true }],
       // High cyclomatic complexity → too many branches, extract into libs/
       complexity: ['error', { max: 15 }],
     },
@@ -602,8 +615,7 @@ export default tseslint.config(
           patterns: [
             {
               group: ['**/src/*', '**/src/**'],
-              message:
-                'Import other workspaces through their package exports, not through src/* paths.',
+              message: 'Import other workspaces through their package exports, not through src/* paths.',
             },
           ],
         },

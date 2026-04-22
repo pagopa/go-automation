@@ -3,6 +3,7 @@
  */
 
 import { Core, AWS } from '@go-automation/go-common';
+import type { CloudWatchClient, SQSClient } from '@go-automation/go-common/aws';
 
 /**
  * Result of queue initialization.
@@ -24,8 +25,8 @@ interface QueueInitResult {
  * @returns Queue URL, approximate message count, and FIFO flag
  */
 export async function initializeQueue(
-  sqsClient: Core.GOScript['aws']['sqs'],
-  cloudWatchClient: Core.GOScript['aws']['cloudWatch'],
+  sqsClient: SQSClient,
+  cloudWatchClient: CloudWatchClient,
   queueName: string,
   prompt: Core.GOPrompt,
   logger: Core.GOLogger,

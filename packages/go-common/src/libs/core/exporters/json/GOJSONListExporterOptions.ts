@@ -6,6 +6,8 @@
  * Options for JSON list exporter
  * @template TItem - The type of items to export
  */
+export type GOJSONRowTransformer<TItem> = (item: TItem) => TItem;
+
 export interface GOJSONListExporterOptions<TItem = Record<string, unknown>> {
   /** Output file path */
   readonly outputPath: string;
@@ -25,7 +27,7 @@ export interface GOJSONListExporterOptions<TItem = Record<string, unknown>> {
   readonly jsonl?: boolean;
 
   /** Row transformation function (applied before JSON conversion) */
-  readonly rowTransformer?: (item: TItem) => TItem;
+  readonly rowTransformer?: GOJSONRowTransformer<TItem>;
 
   /** Skip invalid items and continue export (default: false) */
   readonly skipInvalidItems?: boolean;

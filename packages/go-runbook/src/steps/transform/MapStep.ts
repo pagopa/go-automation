@@ -6,6 +6,8 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
 /**
  * Configuration for the MapStep.
  */
+type MapArrayMappingFn = (element: unknown, index: number) => unknown;
+
 interface MapArrayConfig {
   /** Unique identifier of the step within the runbook */
   readonly id: string;
@@ -14,7 +16,7 @@ interface MapArrayConfig {
   /** Step ID whose output to read from context.stepResults (must be an array) */
   readonly fromStep: string;
   /** Mapping function applied to each element of the source array */
-  readonly mappingFn: (element: unknown, index: number) => unknown;
+  readonly mappingFn: MapArrayMappingFn;
 }
 
 /**
@@ -37,7 +39,7 @@ class MapStep implements Step<unknown[]> {
   readonly kind: StepKind = 'transform';
 
   private readonly fromStep: string;
-  private readonly mappingFn: (element: unknown, index: number) => unknown;
+  private readonly mappingFn: MapArrayMappingFn;
 
   constructor(config: MapArrayConfig) {
     this.id = config.id;

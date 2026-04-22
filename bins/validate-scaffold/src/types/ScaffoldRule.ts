@@ -71,12 +71,14 @@ export interface CustomRuleResult {
   readonly message?: string;
 }
 
+export type ScaffoldRuleValidator = (scriptPath: string) => Promise<CustomRuleResult>;
+
 /**
  * Runs a custom validation function for checks that don't fit the built-in types.
  */
 export interface CustomRule extends BaseRule {
   readonly check: 'custom';
-  readonly validate: (scriptPath: string) => Promise<CustomRuleResult>;
+  readonly validate: ScaffoldRuleValidator;
 }
 
 /**
