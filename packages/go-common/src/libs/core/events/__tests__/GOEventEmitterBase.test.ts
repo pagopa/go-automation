@@ -3,17 +3,21 @@ import assert from 'node:assert/strict';
 
 import { GOEventEmitterBase } from '../GOEventEmitterBase.js';
 
+interface TestEventPayload {
+  readonly value: number;
+}
+
 interface TestEventMap {
-  sync: { readonly value: number };
-  async: { readonly value: number };
+  sync: TestEventPayload;
+  async: TestEventPayload;
 }
 
 class TestEmitter extends GOEventEmitterBase<TestEventMap> {
-  public emitSync(payload: TestEventMap['sync']): void {
+  public emitSync(payload: TestEventPayload): void {
     this.emit('sync', payload);
   }
 
-  public async emitAsyncEvent(payload: TestEventMap['async']): Promise<void> {
+  public async emitAsyncEvent(payload: TestEventPayload): Promise<void> {
     await this.emitAsync('async', payload);
   }
 }
@@ -48,7 +52,9 @@ describe('GOEventEmitterBase', () => {
     assert.strictEqual(emitter.listenerCount('sync'), 0);
 
     emitter.on('sync', handler);
-    emitter.on('async', async () => undefined);
+    emitter.on('async', async (): Promise<void> => {
+      await Promise.resolve();
+    });
     emitter.removeAllListeners();
     assert.strictEqual(emitter.listenerCount('sync'), 0);
     assert.strictEqual(emitter.listenerCount('async'), 0);
@@ -77,7 +83,8 @@ describe('GOEventEmitterBase', () => {
   it('catches rejected promises returned by sync emit handlers', async () => {
     const emitter = new TestEmitter();
 
-    emitter.on('sync', async () => {
+    emitter.on('sync', async (): Promise<void> => {
+      await Promise.resolve();
       throw new Error('async listener failed');
     });
 
@@ -91,13 +98,16 @@ describe('GOEventEmitterBase', () => {
     const emitter = new TestEmitter();
     const seen: number[] = [];
 
-    emitter.on('async', async ({ value }) => {
+    emitter.on('async', async ({ value }): Promise<void> => {
+      await Promise.resolve();
       seen.push(value);
     });
-    emitter.on('async', async () => {
+    emitter.on('async', async (): Promise<void> => {
+      await Promise.resolve();
       throw new Error('boom');
     });
-    emitter.on('async', async ({ value }) => {
+    emitter.on('async', async ({ value }): Promise<void> => {
+      await Promise.resolve();
       seen.push(value * 10);
     });
 

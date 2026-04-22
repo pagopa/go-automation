@@ -79,7 +79,10 @@ describe('GOTypeGuards', () => {
     assert.strictEqual(isBoolean(false), true);
     assert.strictEqual(isBoolean('false'), false);
 
-    assert.strictEqual(isFunction(() => undefined), true);
+    assert.strictEqual(
+      isFunction(() => undefined),
+      true,
+    );
     assert.strictEqual(isFunction({}), false);
 
     assert.strictEqual(isSymbol(Symbol('s')), true);
