@@ -35,8 +35,6 @@ import { SQSProcessAction } from './models/SQSProcessAction.js';
 import type { SQSProcessOptions } from './models/SQSProcessOptions.js';
 import type { SQSProcessResult } from './models/SQSProcessResult.js';
 
-import { SQSVisibilityHeartbeat } from './SQSVisibilityHeartbeat.js';
-
 /** Time window for CloudWatch metrics (5 minutes) */
 const CLOUDWATCH_WINDOW_MS = 5 * 60 * 1000;
 
@@ -427,22 +425,6 @@ export class AWSSQSService {
         : `queue empty after ${options.maxEmptyReceives} polls`;
 
     return { totalReceived, totalDeleted, totalReleased, totalSkipped, stopReason };
-  }
-
-  /**
-   * Creates a visibility heartbeat manager for a specific queue.
-   *
-   * @param queueUrl - Queue URL
-   * @param visibilityTimeout - Visibility timeout to set on heartbeat (seconds)
-   * @param heartbeatIntervalSeconds - How often to heartbeat (seconds)
-   * @returns Heartbeat manager instance
-   */
-  createVisibilityHeartbeat(
-    queueUrl: string,
-    visibilityTimeout: number,
-    heartbeatIntervalSeconds: number,
-  ): SQSVisibilityHeartbeat {
-    return new SQSVisibilityHeartbeat(this.sqsClient, queueUrl, visibilityTimeout, heartbeatIntervalSeconds);
   }
 
   /**
