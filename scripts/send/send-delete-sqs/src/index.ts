@@ -4,13 +4,15 @@
 
 import { Core } from '@go-automation/go-common';
 
-import { config, metadata } from './config.js';
+import { scriptMetadata, scriptParameters } from './config.js';
 import { main } from './main.js';
 
 // Wiring GOScript with options
 const script = new Core.GOScript({
-  metadata,
-  config,
+  metadata: scriptMetadata,
+  config: {
+    parameters: scriptParameters,
+  },
 });
 
 // Initializing the script

@@ -12,7 +12,7 @@ import { Core } from '@go-automation/go-common';
 export const scriptMetadata: Core.GOScriptMetadata = {
   name: 'SEND Dump SQS',
   version: '1.1.0',
-  description: 'Dumps SQS messages - Extract queue content in NDJSON format for audit and debugging purposes.',
+  description: 'Dumps SQS messages - Extracts messages from an SQS queue in NDJSON format.',
   authors: ['Team GO - Gestione Operativa'],
 };
 
