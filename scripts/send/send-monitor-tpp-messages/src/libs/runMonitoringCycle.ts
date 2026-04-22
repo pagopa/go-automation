@@ -14,6 +14,7 @@ import { buildQueryParams } from './buildQueryParams.js';
 import { saveAndAnalyzeResults } from './saveAndAnalyzeResults.js';
 import { sendSlackReport } from './sendSlackReport.js';
 import type { AthenaQueryConfig } from '../types/AthenaQueryConfig.js';
+import type { AthenaQueryResults } from '../types/AthenaQueryResults.js';
 import type { TPPMonitorConfig } from '../types/TPPMonitorConfig.js';
 
 /**
@@ -49,7 +50,16 @@ export async function runMonitoringCycle(
   script.logger.section('Executing Athena Query');
   script.prompt.startSpinner('Running query...');
   const queryStart = Date.now();
-  const results = await athenaExecutor.executeQuery(config.athenaQuery, athenaConfig, queryParams);
+  // Wrap the await so the spinner is always stopped — otherwise a thrown
+  // executeQuery leaves the render loop running and the cursor hidden in
+  // interactive runs, and sets the stage for dangling timers in automation.
+  let results: AthenaQueryResults;
+  try {
+    results = await athenaExecutor.executeQuery(config.athenaQuery, athenaConfig, queryParams);
+  } catch (error) {
+    script.prompt.spinnerFail('Query failed');
+    throw error;
+  }
   script.prompt.spinnerStop('Query completed');
   script.logger.info(`[breadcrumb] athena.totalDurationMs=${Date.now() - queryStart}`);
 
