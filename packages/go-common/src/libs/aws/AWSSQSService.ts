@@ -82,6 +82,13 @@ interface SQSReceiveCallbacks {
   readonly onEmptyReceive?: SQSReceiveEmptyReceiveHandler;
 }
 
+type SQSProcessProgressHandler = (received: number, deleted: number, released: number, skipped: number) => void;
+
+interface SQSProcessCallbacks {
+  readonly onProgress?: SQSProcessProgressHandler;
+  readonly onEmptyReceive?: SQSReceiveEmptyReceiveHandler;
+}
+
 /**
  * Service for interacting with Amazon SQS.
  *
@@ -334,10 +341,7 @@ export class AWSSQSService {
   async processMessages(
     options: SQSProcessOptions,
     processor: (message: Message) => SQSProcessAction | Promise<SQSProcessAction>,
-    callbacks?: {
-      onProgress?: (received: number, deleted: number, released: number, skipped: number) => void;
-      onEmptyReceive?: (consecutive: number, max: number) => void;
-    },
+    callbacks?: SQSProcessCallbacks,
   ): Promise<SQSProcessResult> {
     let totalReceived = 0;
     let totalDeleted = 0;
