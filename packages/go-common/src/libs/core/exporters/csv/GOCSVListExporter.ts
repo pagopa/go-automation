@@ -221,8 +221,9 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
    * Error routing is shared with initializeStream(): the permanent captureStreamError
    * listener stores the first error in `streamError`, and this method either fails
    * fast on a pre-captured error or installs a forwarder for one that fires after
-   * `.end()`. We don't attach new 'error' listeners here, so every fault reaches
-   * export:error exactly once (via the export() catch block).
+   * `.end()`. This method does not attach additional stream 'error' listeners;
+   * it relies on the existing shared stream error capture/forwarding path, while
+   * higher-level export:error emission is handled by the surrounding export flow.
    */
   private async closeStream(): Promise<void> {
     // Idempotent: export()'s catch path calls writer.close() a second time as
