@@ -7,3 +7,4 @@ export { AthenaQueryExecutor } from './AthenaQueryExecutor.js';
 export { convertAthenaResults, analyzeThreshold, generateThresholdReport } from './AthenaUtils.js';
 export { SlackNotifier } from './SlackNotifier.js';
 export { formatDateForAthena, getDateComponents, parseDateTime, hoursAgo } from './DateUtils.js';
+export { runMonitoringCycle } from './runMonitoringCycle.js';

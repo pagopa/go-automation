@@ -3,12 +3,42 @@ name: CI Job
 on:
   workflow_call:
     inputs:
+      runner:
+        description: 'GitHub-hosted runner label'
+        required: false
+        type: string
+        default: 'ubuntu-latest'
+      timeout-minutes:
+        description: 'Job timeout in minutes'
+        required: false
+        type: number
+        default: 20
       command:
         description: 'pnpm command to run'
         required: true
         type: string
+      install-args:
+        description: 'Arguments passed to pnpm install'
+        required: false
+        type: string
+        default: '--frozen-lockfile'
       pre-command:
         description: 'Optional pnpm command to run before the main command (e.g. build)'
+        required: false
+        type: string
+        default: ''
+      download-artifact-name:
+        description: 'Optional artifact name to download into the workspace before running commands'
+        required: false
+        type: string
+        default: ''
+      upload-artifact-name:
+        description: 'Optional artifact name to upload after the command completes'
+        required: false
+        type: string
+        default: ''
+      upload-artifact-path:
+        description: 'Optional file or directory paths to upload as a workflow artifact'
         required: false
         type: string
         default: ''
@@ -35,25 +65,24 @@ permissions:
 jobs:
   run:
     name: ${{ inputs.command }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - name: Setup CI environment
+        uses: ./.github/actions/setup-ci
         with:
-          version: 10
+          install-args: ${{ inputs.install-args }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+      - name: Download artifact
+        if: inputs.download-artifact-name != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          node-version: '24'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          name: ${{ inputs.download-artifact-name }}
+          path: .
 
       - name: Pre-command
         if: inputs.pre-command != ''
@@ -65,3 +94,12 @@ jobs:
           GO_COVERAGE_BRANCHES_THRESHOLD: ${{ inputs.coverage-branches-threshold }}
           GO_COVERAGE_FUNCTIONS_THRESHOLD: ${{ inputs.coverage-functions-threshold }}
         run: pnpm ${{ inputs.command }}
+
+      - name: Upload artifact
+        if: inputs.upload-artifact-name != '' && inputs.upload-artifact-path != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ inputs.upload-artifact-name }}
+          path: ${{ inputs.upload-artifact-path }}
+          if-no-files-found: error
+          retention-days: 14

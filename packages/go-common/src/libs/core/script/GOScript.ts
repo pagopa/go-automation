@@ -694,16 +694,20 @@ export class GOScript {
    * script.getConfiguration<T>() as usual and receives values sourced from the event
    * payload, environment variables, and bundled config files — in that priority order.
    *
-   * @param mainFunction - Async function that receives the typed Lambda event and returns a result
-   * @returns Lambda handler: (event: TEvent) => Promise<TResult>
+   * @param mainFunction - Async function that receives the typed Lambda event and an optional context,
+   *   and returns a result. The Lambda runtime always passes a context, but local invocations and tests
+   *   may omit it — callbacks that use context should narrow it first (`if (context)` / `context?.x`).
+   * @returns Lambda handler: `(event: TEvent, context?: TContext) => Promise<TResult>`. Context is
+   *   optional in the returned signature so tests and wrappers can invoke `handler(event)` directly;
+   *   when the Lambda runtime calls it, context is always provided and passed through unchanged.
    *
-   * @example
+   * @example Handler that ignores the context
    * ```typescript
    * // index.ts — dual-mode entry point
    * const script = new Core.GOScript({ metadata, config: { parameters } });
    *
    * // Lambda export (handler name must match the function configuration)
-   * export const handler = script.createLambdaHandler(async (event) => {
+   * export const handler = script.createLambdaHandler<MyEvent, MyResult, Context>(async (event) => {
    *   return await main(script, event);
    * });
    *
@@ -711,6 +715,23 @@ export class GOScript {
    * script.run(async () => {
    *   await main(script, null);
    * }).catch(() => process.exit(1));
+   * ```
+   *
+   * @example Handler that uses the context (e.g. to opt out of waiting for the event loop)
+   * ```typescript
+   * export const handler = script.createLambdaHandler<ScheduledEvent, void, Context>(
+   *   async (event, context) => {
+   *     if (context) {
+   *       context.callbackWaitsForEmptyEventLoop = false;
+   *     }
+   *     await main(script, event);
+   *   },
+   * );
+   * ```
+   *
+   * @example Local invocation / unit test (context omitted)
+   * ```typescript
+   * await handler({ from: '2024-01-01', to: '2024-01-02' } as MyEvent);
    * ```
    *
    * @example Event payload mapping
@@ -724,10 +745,10 @@ export class GOScript {
    * limit       = "100"
    * ```
    */
-  public createLambdaHandler<TEvent = unknown, TResult = unknown>(
-    mainFunction: (event: TEvent) => Promise<TResult>,
-  ): (event: TEvent) => Promise<TResult> {
-    return async (event: TEvent): Promise<TResult> => {
+  public createLambdaHandler<TEvent = unknown, TResult = unknown, TContext = unknown>(
+    mainFunction: (event: TEvent, context: TContext | undefined) => Promise<TResult>,
+  ): (event: TEvent, context?: TContext) => Promise<TResult> {
+    return async (event: TEvent, context?: TContext): Promise<TResult> => {
       // Reset per-invocation state to support Lambda container reuse.
       // AWS client providers are intentionally NOT reset (connection-pool reuse).
       this.initialized = false;
@@ -752,7 +773,7 @@ export class GOScript {
       // Delegate to shared lifecycle executor.
       // Re-throws on error so the Lambda runtime can mark the invocation as failed
       // and trigger retries / DLQ routing as configured.
-      return this.executeLifecycle(async () => mainFunction(event), 'Lambda handler completed successfully');
+      return this.executeLifecycle(async () => mainFunction(event, context), 'Lambda handler completed successfully');
     };
   }
 

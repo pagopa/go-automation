@@ -2,12 +2,10 @@
  * Saves query results to CSV and performs threshold analysis.
  */
 
+import * as fs from 'fs/promises';
 import * as path from 'path';
-
 import { DateTime } from 'luxon';
-
 import { Core } from '@go-automation/go-common';
-
 import { analyzeThreshold, generateThresholdReport } from './AthenaUtils.js';
 import type { CSVRow } from '../types/CSVRow.js';
 
@@ -55,6 +53,11 @@ export async function saveAndAnalyzeResults(
   if (rowCount > 0) {
     fileName = generateFileName();
     csvFilePath = path.join(outputFolder, fileName);
+
+    // Ensure the output folder exists before opening the write stream.
+    // Without this, fs.createWriteStream emits ENOENT asynchronously and — in Lambda —
+    // crashes the process with Runtime.ExitError before any error listener is attached.
+    await fs.mkdir(outputFolder, { recursive: true });
 
     const exporter = new Core.GOCSVListExporter<CSVRow>({
       outputPath: csvFilePath,

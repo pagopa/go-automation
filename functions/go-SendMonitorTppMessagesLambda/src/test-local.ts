@@ -16,7 +16,7 @@
  *   # (edit the testEvent below)
  */
 
-import type { ScheduledEvent } from 'aws-lambda';
+import type { Context, ScheduledEvent } from 'aws-lambda';
 
 import { handler } from './handler.js';
 
@@ -40,12 +40,32 @@ const testEvent: ScheduledEvent = {
   detail: {},
 };
 
+/**
+ * Minimal Lambda Context mock. Only the fields actually touched by the handler
+ * (callbackWaitsForEmptyEventLoop, getRemainingTimeInMillis) are meaningful; the
+ * rest satisfy the type but hold placeholder values.
+ */
+const createMockContext = (): Context => ({
+  callbackWaitsForEmptyEventLoop: true,
+  functionName: 'local-test',
+  functionVersion: '$LATEST',
+  invokedFunctionArn: 'arn:aws:lambda:eu-south-1:000000000000:function:local-test',
+  memoryLimitInMB: '512',
+  awsRequestId: 'local-test-request',
+  logGroupName: '/aws/lambda/local-test',
+  logStreamName: 'local-test-stream',
+  getRemainingTimeInMillis: () => 5 * 60 * 1000,
+  done: () => undefined,
+  fail: () => undefined,
+  succeed: () => undefined,
+});
+
 async function run(): Promise<void> {
   console.log('--- Lambda local test ---');
   console.log(`Event: ${JSON.stringify(testEvent, null, 2)}\n`);
 
   try {
-    const result = await handler(testEvent);
+    const result = await handler(testEvent, createMockContext());
     console.log('\n--- Handler returned ---');
     console.log(result);
   } catch (error) {
