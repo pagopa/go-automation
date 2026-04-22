@@ -138,7 +138,22 @@ interface ProcessHandles {
   readonly _getActiveRequests?: GetActiveRequestsFn;
 }
 
-const logResourceSnapshot = (phase: string): void => {
+/**
+ * Opt-in diagnostic snapshots on the happy path. Each call writes one JSON line
+ * to CloudWatch, so on a 3-phase invocation (start / after-main / end) this is
+ * three log entries per run — material cost at scale. Enable per-environment by
+ * setting DEBUG_RESOURCE_SNAPSHOTS=1 (or true). Error-path snapshots ignore
+ * this gate and always emit (see `force` below).
+ */
+const isResourceSnapshotEnabled = (): boolean => {
+  const value = process.env['DEBUG_RESOURCE_SNAPSHOTS'];
+  return value === '1' || value === 'true';
+};
+
+const logResourceSnapshot = (phase: string, options?: { readonly force?: boolean }): void => {
+  if (!options?.force && !isResourceSnapshotEnabled()) {
+    return;
+  }
   const mem = process.memoryUsage();
   const handles = process as unknown as ProcessHandles;
   console.log(
@@ -216,7 +231,7 @@ export const handler = script.createLambdaHandler<ScheduledEvent, void, Context>
 
     logResourceSnapshot('end');
   } catch (error) {
-    logResourceSnapshot('error');
+    logResourceSnapshot('error', { force: true });
     throw error;
   }
 });
