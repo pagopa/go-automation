@@ -19,6 +19,8 @@ export interface AWSMultiClientProviderConfig {
   readonly region?: string;
 }
 
+type AWSMultiClientOperationHandler<T> = (profile: string, clientProvider: AWSClientProvider) => Promise<T>;
+
 /**
  * Provides access to AWS SDK clients across multiple profiles.
  *
@@ -99,9 +101,7 @@ export class AWSMultiClientProvider {
    * }
    * ```
    */
-  async mapParallel<T>(
-    operation: (profile: string, clientProvider: AWSClientProvider) => Promise<T>,
-  ): Promise<Map<string, T>> {
+  async mapParallel<T>(operation: AWSMultiClientOperationHandler<T>): Promise<Map<string, T>> {
     const results = new Map<string, T>();
 
     const promises = this.profiles.map(async (profile) => {
@@ -135,7 +135,7 @@ export class AWSMultiClientProvider {
    * console.log(`Succeeded: ${results.size}, Failed: ${errors.size}`);
    * ```
    */
-  async mapParallelSettled<T>(operation: (profile: string, clientProvider: AWSClientProvider) => Promise<T>): Promise<{
+  async mapParallelSettled<T>(operation: AWSMultiClientOperationHandler<T>): Promise<{
     readonly results: Map<string, T>;
     readonly errors: Map<string, Error>;
   }> {
