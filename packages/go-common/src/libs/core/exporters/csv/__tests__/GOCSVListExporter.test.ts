@@ -94,8 +94,10 @@ describe('GOCSVListExporter — stream error handling', () => {
   it('emits export:error exactly once on fd-open failure even when closeStream is called again from the catch path', async () => {
     // export() itself calls writer.close() a second time inside its catch block
     // as a belt-and-suspenders cleanup. The first close rejects with the
-    // captured streamError; the cached closePromise must make the second close
-    // resolve silently so the same fault isn't emitted twice.
+    // captured streamError, and the cached closePromise may reject again on the
+    // repeated cleanup close. What must remain idempotent is higher-level
+    // export:error emission: the same underlying stream fault should be reported
+    // exactly once per export attempt.
     const missingParent = path.join(tmpDir, 'missing', 'out.csv');
     const exporter = new GOCSVListExporter<{ a: number }>({ outputPath: missingParent });
 
