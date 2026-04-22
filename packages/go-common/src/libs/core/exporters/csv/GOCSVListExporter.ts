@@ -225,12 +225,6 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
         return;
       }
 
-      // Error already fired before we got here (e.g. ENOENT on fd open).
-      if (this.streamError) {
-        reject(this.streamError);
-        return;
-      }
-
       let settled = false;
 
       const finishHandler = (): void => {
@@ -253,6 +247,16 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
         this.streamErrorForwarder = undefined;
         reject(error);
       };
+
+      // Drain any error captured before the forwarder was wired (e.g. ENOENT
+      // on fd open, or an error that fired between closeStream() entry and the
+      // forwarder assignment). captureStreamError stored the first error into
+      // streamError; route it through the same path as late errors so there's
+      // a single error path and 'finish' can never leave the Promise pending.
+      if (this.streamError) {
+        this.streamErrorForwarder(this.streamError);
+        return;
+      }
 
       this.writeStream.on('finish', finishHandler);
 
