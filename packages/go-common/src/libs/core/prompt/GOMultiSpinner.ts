@@ -81,6 +81,8 @@ export class GOMultiSpinner {
   private readonly errorColor: string;
   private readonly warningColor: string;
   private readonly infoColor: string;
+  // ANSI reset sequence, emptied in non-interactive mode so colored tokens stay clean.
+  private readonly colorReset: string;
 
   // Single-spinner mode state (backward compatibility)
   private singleSpinnerMode: boolean = false;
@@ -91,11 +93,15 @@ export class GOMultiSpinner {
     this.frames = opts.frames;
     this.animationInterval = opts.interval;
     this.setIndent(opts.indent);
-    this.spinnerColor = opts.spinnerColor;
-    this.successColor = opts.successColor;
-    this.errorColor = opts.errorColor;
-    this.warningColor = opts.warningColor;
-    this.infoColor = opts.infoColor;
+    // In non-interactive mode (Lambda/CI/non-TTY) strip every ANSI token —
+    // colors AND the reset — so CloudWatch/CI logs stay free of escape codes.
+    const stripColors = this.nonInteractive;
+    this.spinnerColor = stripColors ? '' : opts.spinnerColor;
+    this.successColor = stripColors ? '' : opts.successColor;
+    this.errorColor = stripColors ? '' : opts.errorColor;
+    this.warningColor = stripColors ? '' : opts.warningColor;
+    this.infoColor = stripColors ? '' : opts.infoColor;
+    this.colorReset = stripColors ? '' : '\x1b[0m';
 
     this.render = this.render.bind(this);
   }
@@ -341,19 +347,19 @@ export class GOMultiSpinner {
     let symbol: string;
     switch (status) {
       case 'success':
-        symbol = `${this.successColor}✔︎\x1b[0m`;
+        symbol = `${this.successColor}✔︎${this.colorReset}`;
         break;
       case 'fail':
-        symbol = `${this.errorColor}✖︎\x1b[0m`;
+        symbol = `${this.errorColor}✖︎${this.colorReset}`;
         break;
       case 'warn':
-        symbol = `${this.warningColor}⚠\x1b[0m`;
+        symbol = `${this.warningColor}⚠${this.colorReset}`;
         break;
       case 'info':
-        symbol = `${this.infoColor}ℹ\x1b[0m`;
+        symbol = `${this.infoColor}ℹ${this.colorReset}`;
         break;
       default:
-        symbol = `${this.infoColor}\x1b[0m`;
+        symbol = `${this.infoColor}${this.colorReset}`;
         break;
     }
 
