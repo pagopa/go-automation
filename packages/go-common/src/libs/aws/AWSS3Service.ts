@@ -155,18 +155,32 @@ export class AWSS3Service {
       return [];
     }
 
+    // Stat all entries in parallel, filter to files only, then upload concurrently.
+    // Concurrency is bounded to avoid exhausting sockets / triggering throttling on
+    // large directories; 5 is a safe default for Lambda's shared network stack.
+    const CONCURRENCY = 5;
+
+    const statResults = await Promise.all(
+      entries.map(async (entry) => {
+        const filePath = path.join(dirPath, entry);
+        const stat = await fs.stat(filePath);
+        return { entry, filePath, isFile: stat.isFile() };
+      }),
+    );
+
+    const fileEntries = statResults.filter((e) => e.isFile);
     const uploaded: string[] = [];
 
-    for (const entry of entries) {
-      const filePath = path.join(dirPath, entry);
-      const stat = await fs.stat(filePath);
-      if (!stat.isFile()) {
-        continue;
-      }
-
-      const key = `${prefix}/${entry}`;
-      await this.uploadFile(filePath, bucket, key);
-      uploaded.push(key);
+    for (let i = 0; i < fileEntries.length; i += CONCURRENCY) {
+      const batch = fileEntries.slice(i, i + CONCURRENCY);
+      const keys = await Promise.all(
+        batch.map(async ({ filePath, entry }) => {
+          const key = `${prefix}/${entry}`;
+          await this.uploadFile(filePath, bucket, key);
+          return key;
+        }),
+      );
+      uploaded.push(...keys);
     }
 
     return uploaded;

@@ -23,6 +23,8 @@
 
 import * as readline from 'readline';
 
+import { GOExecutionEnvironment } from '../environment/GOExecutionEnvironment.js';
+
 interface SpinnerTask {
   id: string;
   text: string;
@@ -68,6 +70,10 @@ export class GOMultiSpinner {
   private lastLineCount: number = 0;
   private indent: string = '';
   private readonly animationInterval: number;
+  // In Lambda/CI/non-TTY, live spinners are useless (non-TTY) or actively harmful
+  // (Lambda: setInterval keeps the event loop alive, ANSI escapes pollute CloudWatch).
+  // Skip the animation loop in those environments and emit plain lines instead.
+  private readonly nonInteractive: boolean = !GOExecutionEnvironment.isInteractive();
 
   // Colors
   private readonly spinnerColor: string;
@@ -109,9 +115,15 @@ export class GOMultiSpinner {
    * @param text Display text for this task
    */
   public spin(id: string, text: string): void {
+    const isNew = !this.tasks.has(id);
     this.tasks.set(id, { id, text, status: 'spinning' });
     if (!this.isRunning) {
       this.startAnimation();
+    }
+    // In non-interactive mode the live animation is suppressed, so we emit a plain
+    // start line the first time a task appears. This keeps CloudWatch logs informative.
+    if (this.nonInteractive && isNew) {
+      process.stdout.write(`${this.indent}${text}\n`);
     }
   }
 
@@ -361,6 +373,12 @@ export class GOMultiSpinner {
   private startAnimation(): void {
     if (this.isRunning) return;
     this.isRunning = true;
+    // In non-interactive environments (Lambda, CI, piped output) skip the
+    // ANSI cursor toggle and the setInterval-based render loop entirely.
+    // setInterval would keep the Lambda event loop alive and delay handler return.
+    if (this.nonInteractive) {
+      return;
+    }
     process.stdout.write('\x1B[?25l'); // Hide cursor
     this.interval = setInterval(() => this.render(), this.animationInterval);
     this.render();
@@ -368,8 +386,13 @@ export class GOMultiSpinner {
 
   private stopAnimation(): void {
     if (!this.isRunning) return;
-    this.clear();
     this.isRunning = false;
+    if (this.nonInteractive) {
+      // No interval to clear, no cursor to restore.
+      this.lastLineCount = 0;
+      return;
+    }
+    this.clear();
     if (this.interval) {
       clearInterval(this.interval);
       this.interval = undefined;
@@ -379,6 +402,9 @@ export class GOMultiSpinner {
   }
 
   private clear(): void {
+    // readline.moveCursor / clearScreenDown require a TTY; they are no-ops on a
+    // non-TTY stream in Node but we avoid the call anyway to keep CloudWatch clean.
+    if (this.nonInteractive) return;
     if (this.lastLineCount > 0) {
       readline.moveCursor(process.stdout, 0, -this.lastLineCount);
       readline.clearScreenDown(process.stdout);
@@ -386,6 +412,9 @@ export class GOMultiSpinner {
   }
 
   private render(): void {
+    // No live frames in non-interactive environments.
+    if (this.nonInteractive) return;
+
     this.clear();
 
     const frame = this.frames[this.currentFrame];

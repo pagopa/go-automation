@@ -16,12 +16,87 @@
  * - AWS credentials come from the execution role (no SSO profile needed)
  */
 
-import type { ScheduledEvent } from 'aws-lambda';
+import type { Context, ScheduledEvent } from 'aws-lambda';
 
 import { S3Client } from '@aws-sdk/client-s3';
 import { Core, AWS } from '@go-automation/go-common';
 import { scriptMetadata, scriptParameters } from 'send-monitor-tpp-messages/config';
 import { main } from 'send-monitor-tpp-messages/main';
+
+// ============================================================================
+// Global process-level error handlers
+// ----------------------------------------------------------------------------
+// Registered once at module load (cold start). Ensure unhandled rejections and
+// uncaught exceptions are logged with a stack trace BEFORE the runtime marks the
+// invocation as Runtime.ExitError with "exited without providing a reason".
+// ============================================================================
+
+const stringifyNonError = (err: unknown): string => {
+  if (typeof err === 'string') return err;
+  if (typeof err === 'number' || typeof err === 'boolean' || err === null || err === undefined) {
+    return `${err}`;
+  }
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return Object.prototype.toString.call(err);
+  }
+};
+
+const serializeError = (err: unknown): Record<string, unknown> =>
+  err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : { value: stringifyNonError(err) };
+
+process.on('unhandledRejection', (reason) => {
+  console.error(
+    JSON.stringify({
+      level: 'fatal',
+      type: 'unhandledRejection',
+      requestId: process.env['AWS_LAMBDA_REQUEST_ID'] ?? null,
+      reason: serializeError(reason),
+    }),
+  );
+});
+
+process.on('uncaughtException', (error, origin) => {
+  console.error(
+    JSON.stringify({
+      level: 'fatal',
+      type: 'uncaughtException',
+      requestId: process.env['AWS_LAMBDA_REQUEST_ID'] ?? null,
+      origin,
+      error: serializeError(error),
+    }),
+  );
+});
+
+process.on('warning', (warning) => {
+  console.warn(
+    JSON.stringify({
+      level: 'warn',
+      type: 'processWarning',
+      name: warning.name,
+      message: warning.message,
+      stack: warning.stack,
+    }),
+  );
+});
+
+process.on('beforeExit', (code) => {
+  // Fires when the event loop is about to drain. If this logs mid-invocation,
+  // something is leaking handles or keeping the loop alive unexpectedly.
+  console.warn(
+    JSON.stringify({
+      level: 'warn',
+      type: 'beforeExit',
+      code,
+      requestId: process.env['AWS_LAMBDA_REQUEST_ID'] ?? null,
+    }),
+  );
+});
+
+// ============================================================================
+// Module-scope singletons (reused across warm invocations)
+// ============================================================================
 
 /**
  * GOScript instance configured with the same metadata and parameters as the CLI script.
@@ -33,6 +108,53 @@ const script = new Core.GOScript({
     parameters: scriptParameters,
   },
 });
+
+/**
+ * S3 client instantiated once at cold start and reused across warm invocations
+ * to amortise connection-pool setup. Only created if REPORTS_S3_BUCKET is set
+ * at cold start — if the bucket is set later via env change, the client stays stale
+ * (Lambda env vars don't change mid-container anyway).
+ */
+let s3Service: AWS.AWSS3Service | undefined;
+const getS3Service = (): AWS.AWSS3Service => {
+  s3Service ??= new AWS.AWSS3Service(new S3Client({}));
+  return s3Service;
+};
+
+// ============================================================================
+// Diagnostics helpers
+// ============================================================================
+
+type GetActiveHandlesFn = () => unknown[];
+type GetActiveRequestsFn = () => unknown[];
+
+interface ProcessHandles {
+  readonly _getActiveHandles?: GetActiveHandlesFn;
+  readonly _getActiveRequests?: GetActiveRequestsFn;
+}
+
+const logResourceSnapshot = (phase: string): void => {
+  const mem = process.memoryUsage();
+  const handles = process as unknown as ProcessHandles;
+  console.log(
+    JSON.stringify({
+      level: 'info',
+      type: 'resourceSnapshot',
+      phase,
+      requestId: process.env['AWS_LAMBDA_REQUEST_ID'] ?? null,
+      rssMB: Math.round(mem.rss / 1024 / 1024),
+      heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
+      heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
+      externalMB: Math.round(mem.external / 1024 / 1024),
+      activeHandles: handles._getActiveHandles?.().length ?? -1,
+      activeRequests: handles._getActiveRequests?.().length ?? -1,
+    }),
+  );
+};
+
+// ============================================================================
+// Handler
+// ============================================================================
 
 /**
  * Lambda handler exported for AWS Lambda runtime.
@@ -54,25 +176,42 @@ const script = new Core.GOScript({
  * { "from": "2024-01-01", "to": "2024-01-31", "athenaDatabase": "my_db" }
  * ```
  */
-export const handler = script.createLambdaHandler<ScheduledEvent>(async (_event) => {
-  // Execute the main business logic (same as CLI script).
-  // Config resolution is handled by GOScript lifecycle:
-  // - env vars → GOEnvironmentConfigProvider (SLACK_TOKEN → slack.token, etc.)
-  // - event payload → GOLambdaEventConfigProvider (camelCase → dot.notation)
-  // - defaults from scriptParameters
-  await main(script);
+export const handler = script.createLambdaHandler<ScheduledEvent, void, Context>(async (_event, context) => {
+  // Detach early from the event loop: the Lambda runtime freezes the container at
+  // handler return, so pending keep-alive sockets / timers from previous invocations
+  // must not block the response. Our cleanup preserves AWS clients by design.
+  if (context) {
+    context.callbackWaitsForEmptyEventLoop = false;
+  }
 
-  // Post-execution: upload CSV reports to S3 if configured
-  const reportsBucket = process.env['REPORTS_S3_BUCKET'];
-  if (reportsBucket) {
-    const prefix = process.env['REPORTS_S3_PREFIX'] ?? 'reports/tpp-monitor';
-    const reportsDir = script.paths.resolvePath('reports', Core.GOPathType.OUTPUT) ?? '/tmp/reports';
+  logResourceSnapshot('start');
 
-    const s3Service = new AWS.AWSS3Service(new S3Client({}));
-    const uploaded = await s3Service.uploadDirectory(reportsDir, reportsBucket, prefix);
+  try {
+    // Execute the main business logic (same as CLI script).
+    // Config resolution is handled by GOScript lifecycle:
+    // - env vars → GOEnvironmentConfigProvider (SLACK_TOKEN → slack.token, etc.)
+    // - event payload → GOLambdaEventConfigProvider (camelCase → dot.notation)
+    // - defaults from scriptParameters
+    await main(script);
 
-    for (const key of uploaded) {
-      script.logger.info(`Uploaded: s3://${reportsBucket}/${key}`);
+    logResourceSnapshot('after-main');
+
+    // Post-execution: upload CSV reports to S3 if configured
+    const reportsBucket = process.env['REPORTS_S3_BUCKET'];
+    if (reportsBucket) {
+      const prefix = process.env['REPORTS_S3_PREFIX'] ?? 'reports/tpp-monitor';
+      const reportsDir = script.paths.resolvePath('reports', Core.GOPathType.OUTPUT) ?? '/tmp/reports';
+
+      const uploaded = await getS3Service().uploadDirectory(reportsDir, reportsBucket, prefix);
+
+      for (const key of uploaded) {
+        script.logger.info(`Uploaded: s3://${reportsBucket}/${key}`);
+      }
     }
+
+    logResourceSnapshot('end');
+  } catch (error) {
+    logResourceSnapshot('error');
+    throw error;
   }
 });

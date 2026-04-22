@@ -724,10 +724,10 @@ export class GOScript {
    * limit       = "100"
    * ```
    */
-  public createLambdaHandler<TEvent = unknown, TResult = unknown>(
-    mainFunction: (event: TEvent) => Promise<TResult>,
-  ): (event: TEvent) => Promise<TResult> {
-    return async (event: TEvent): Promise<TResult> => {
+  public createLambdaHandler<TEvent = unknown, TResult = unknown, TContext = unknown>(
+    mainFunction: (event: TEvent, context: TContext) => Promise<TResult>,
+  ): (event: TEvent, context: TContext) => Promise<TResult> {
+    return async (event: TEvent, context: TContext): Promise<TResult> => {
       // Reset per-invocation state to support Lambda container reuse.
       // AWS client providers are intentionally NOT reset (connection-pool reuse).
       this.initialized = false;
@@ -752,7 +752,7 @@ export class GOScript {
       // Delegate to shared lifecycle executor.
       // Re-throws on error so the Lambda runtime can mark the invocation as failed
       // and trigger retries / DLQ routing as configured.
-      return this.executeLifecycle(async () => mainFunction(event), 'Lambda handler completed successfully');
+      return this.executeLifecycle(async () => mainFunction(event, context), 'Lambda handler completed successfully');
     };
   }
 

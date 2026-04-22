@@ -163,8 +163,19 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
       encoding: this.options.encoding,
     });
 
+    // Prevent uncaughtException if fd open fails before closeStream() attaches its listener.
+    // Without this, ENOENT/EACCES emitted asynchronously would crash the process.
+    this.writeStream.on('error', (error) => {
+      this.emit('export:error', { error: toError(error) });
+    });
+
     // Create CSV stringifier
     this.stringifier = stringify({ delimiter: this.options.delimiter, header: false });
+
+    // Also guard the stringifier side (errors from pipe() are not always forwarded).
+    this.stringifier.on('error', (error) => {
+      this.emit('export:error', { error: toError(error) });
+    });
 
     // Pipe stringifier to file
     this.stringifier.pipe(this.writeStream);

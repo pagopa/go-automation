@@ -78,18 +78,26 @@ export async function main(script: Core.GOScript): Promise<void> {
     // Execute query
     script.logger.section('Executing Athena Query');
     script.prompt.startSpinner('Running query...');
+    const queryStart = Date.now();
     const results = await athenaExecutor.executeQuery(config.athenaQuery, athenaConfig, queryParams);
     script.prompt.spinnerStop('Query completed');
+    script.logger.info(`[breadcrumb] athena.totalDurationMs=${Date.now() - queryStart}`);
 
     // Save and analyze results
     script.logger.section('Processing Results');
+    script.logger.info(`[breadcrumb] reportsPath=${reportsPath}`);
+    script.logger.info(`[breadcrumb] before convertAthenaResults, rawRows=${results.ResultSet.Rows.length}`);
     const data = convertAthenaResults(results);
+    script.logger.info(`[breadcrumb] after convertAthenaResults, dataRows=${data.length}`);
+
+    script.logger.info('[breadcrumb] before saveAndAnalyzeResults');
     const { csvFilePath, fileName, rowCount, analysis } = await saveAndAnalyzeResults(
       data,
       reportsPath,
       config.analysisThresholdField,
       config.analysisThreshold,
     );
+    script.logger.info(`[breadcrumb] after saveAndAnalyzeResults csvFilePath=${csvFilePath ?? 'null'}`);
 
     script.logger.info(`Total rows: ${rowCount}`);
     script.logger.info(`Analysis: ${analysis}`);
@@ -98,6 +106,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     }
 
     // Send Slack report
+    script.logger.info('[breadcrumb] before sendSlackReport');
     const messageTemplate = config.slackMessageTemplate ?? 'Report generated';
     const slackSent = await sendSlackReport(
       slackNotifier,
@@ -109,6 +118,7 @@ export async function main(script: Core.GOScript): Promise<void> {
       analysis,
       fileName,
     );
+    script.logger.info(`[breadcrumb] after sendSlackReport sent=${slackSent}`);
 
     // Summary
     script.logger.section('Execution Summary');
@@ -119,6 +129,11 @@ export async function main(script: Core.GOScript): Promise<void> {
     await notifySlackError(slackNotifier, error, script);
     throw error;
   } finally {
-    athenaService.destroy();
+    // In AWS-managed environments (Lambda/ECS) keep the client alive so its
+    // connection pool is reused across warm invocations. In local/CI we close
+    // it so the process can exit cleanly.
+    if (!script.environment.isAWSManaged) {
+      athenaService.destroy();
+    }
   }
 }
