@@ -66,10 +66,14 @@ export async function main(script: Core.GOScript): Promise<void> {
     await notifySlackError(slackNotifier, error, script);
     throw error;
   } finally {
-    // In AWS-managed environments (Lambda/ECS) keep the client alive so its
-    // connection pool is reused across warm invocations. In local/CI we close
-    // it so the process can exit cleanly.
-    if (!script.environment.isAWSManaged) {
+    // Keep the Athena client alive only where a container actually gets reused
+    // across invocations (Lambda warm starts, long-running ECS/Fargate tasks) so
+    // its connection pool amortises. In one-shot environments — local, CI,
+    // CodeBuild, EC2 — destroy it so open sockets don't delay process exit.
+    const envType = script.environment.type;
+    const reusesContainer =
+      envType === Core.GOExecutionEnvironmentType.AWS_LAMBDA || envType === Core.GOExecutionEnvironmentType.AWS_ECS;
+    if (!reusesContainer) {
       athenaService.destroy();
     }
   }
