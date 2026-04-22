@@ -34,6 +34,7 @@ import type { SQSReceiveResult } from './models/SQSReceiveResult.js';
 import { SQSProcessAction } from './models/SQSProcessAction.js';
 import type { SQSProcessOptions } from './models/SQSProcessOptions.js';
 import type { SQSProcessResult } from './models/SQSProcessResult.js';
+import { SQS_MAX_BATCH_SIZE } from './SQSUtils.js';
 
 /** Time window for CloudWatch metrics (5 minutes) */
 const CLOUDWATCH_WINDOW_MS = 5 * 60 * 1000;
@@ -49,9 +50,6 @@ const LIST_QUEUES_PAGE_SIZE = 1000;
 
 /** Default batch retry delay (ms) */
 const DEFAULT_RETRY_DELAY_MS = 500;
-
-/** SQS Max batch size for receive */
-const SQS_MAX_RECEIVE_BATCH_SIZE = 10;
 
 /** Long polling wait time in seconds */
 const LONG_POLLING_WAIT_TIME = 20;
@@ -69,6 +67,7 @@ interface SQSReceiveOptions {
   readonly maxEmptyReceives: number;
   readonly dedupMode: SQSReceiveDeduplicationMode;
   readonly limit?: number | undefined;
+  readonly batchSize?: number | undefined;
 }
 
 type SQSReceiveProgressHandler = (unique: number, total: number, duplicates: number) => void;
@@ -262,9 +261,7 @@ export class AWSSQSService {
       }
 
       const nextBatchSize =
-        options.limit !== undefined
-          ? Math.min(SQS_MAX_RECEIVE_BATCH_SIZE, options.limit - totalUnique)
-          : SQS_MAX_RECEIVE_BATCH_SIZE;
+        options.limit !== undefined ? Math.min(SQS_MAX_BATCH_SIZE, options.limit - totalUnique) : SQS_MAX_BATCH_SIZE;
 
       const receiveResponse = await this.sqsClient.send(
         new ReceiveMessageCommand({
@@ -355,9 +352,7 @@ export class AWSSQSService {
       }
 
       const nextBatchSize =
-        options.limit !== undefined
-          ? Math.min(SQS_MAX_RECEIVE_BATCH_SIZE, options.limit - totalReceived)
-          : SQS_MAX_RECEIVE_BATCH_SIZE;
+        options.limit !== undefined ? Math.min(SQS_MAX_BATCH_SIZE, options.limit - totalReceived) : SQS_MAX_BATCH_SIZE;
 
       const receiveResponse = await this.sqsClient.send(
         new ReceiveMessageCommand({

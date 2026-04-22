@@ -80,6 +80,7 @@ export async function main(script: Core.GOScript): Promise<void> {
       visibilityTimeout: configValues.visibilityTimeout,
       maxEmptyReceives: configValues.maxEmptyReceives,
       limit: targetIds?.size,
+      batchSize: configValues.batchSize,
     },
     (message) => {
       // Determine action

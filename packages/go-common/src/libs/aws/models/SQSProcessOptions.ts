@@ -18,6 +18,9 @@ export interface SQSProcessOptions {
   /** (Optional) Max number of messages to process */
   limit?: number | undefined;
 
+  /** (Optional) Number of messages to receive/process per batch (max 10, default 10) */
+  batchSize?: number | undefined;
+
   /** (Optional) Use long polling wait time (default 20s) */
   waitTimeSeconds?: number | undefined;
 }
