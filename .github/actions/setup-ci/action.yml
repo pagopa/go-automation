@@ -1,0 +1,35 @@
+name: Setup CI
+description: Set up pnpm, Node.js cache, and install workspace dependencies
+
+inputs:
+  node-version:
+    description: Node.js version to install
+    required: false
+    default: '24'
+  pnpm-version:
+    description: pnpm version to install
+    required: false
+    default: '10'
+  install-args:
+    description: Arguments passed to pnpm install
+    required: false
+    default: '--frozen-lockfile'
+
+runs:
+  using: composite
+  steps:
+    - name: Setup pnpm
+      uses: pnpm/action-setup@71c92474e7e4f5bca283fb17ef80fba9cdb2b4b1 # v6.0.2
+      with:
+        version: ${{ inputs.pnpm-version }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: 'pnpm'
+        cache-dependency-path: pnpm-lock.yaml
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install ${{ inputs.install-args }}

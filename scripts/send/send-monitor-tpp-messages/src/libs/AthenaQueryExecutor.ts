@@ -86,6 +86,7 @@ export class AthenaQueryExecutor {
     });
 
     const athenaClient = this.athenaService.getAthenaClient();
+    const submitStart = Date.now();
     const startResult = await athenaClient.send(command);
     const queryExecutionId = startResult.QueryExecutionId;
 
@@ -93,14 +94,19 @@ export class AthenaQueryExecutor {
       throw new Error('Failed to start query execution: no execution ID returned');
     }
 
-    this.log(`Query started with ID: ${queryExecutionId}`);
+    this.log(`Query started with ID: ${queryExecutionId} (submitMs=${Date.now() - submitStart})`);
+    const pollStart = Date.now();
     const execution = await this.waitForQueryCompletion(queryExecutionId, maxRetries, retryDelay);
+    this.log(`Query polling finished (pollMs=${Date.now() - pollStart})`);
 
     // Check final state
     const state = execution.QueryExecution.Status.State;
     if (state === 'SUCCEEDED') {
       this.log('Query executed successfully');
-      return this.fetchAllResults(queryExecutionId);
+      const fetchStart = Date.now();
+      const results = await this.fetchAllResults(queryExecutionId);
+      this.log(`Query results fetched (fetchMs=${Date.now() - fetchStart})`);
+      return results;
     }
 
     if (state === 'FAILED') {

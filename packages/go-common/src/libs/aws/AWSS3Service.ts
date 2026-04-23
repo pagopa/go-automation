@@ -48,6 +48,13 @@ const MIME_TYPES: Readonly<Record<string, string>> = {
 const DEFAULT_MIME_TYPE = 'application/octet-stream';
 
 /**
+ * Max parallel uploads in uploadDirectory. Bounded to avoid exhausting sockets
+ * or triggering S3 throttling on large directories; 5 is a safe default for
+ * Lambda's shared network stack.
+ */
+const UPLOAD_DIRECTORY_CONCURRENCY = 5;
+
+/**
  * Represents an S3 object entry from a listing operation
  */
 export interface AWSS3ObjectEntry {
@@ -148,25 +155,30 @@ export class AWSS3Service {
    * @returns Array of S3 keys for uploaded files
    */
   async uploadDirectory(dirPath: string, bucket: string, prefix: string): Promise<string[]> {
-    let entries: string[];
+    // withFileTypes avoids a per-entry fs.stat — on large directories that would
+    // either exhaust file descriptors (EMFILE) or need its own bounded parallelism.
+    let fileEntries: { readonly filePath: string; readonly entry: string }[];
     try {
-      entries = await fs.readdir(dirPath);
+      const dirents = await fs.readdir(dirPath, { withFileTypes: true });
+      fileEntries = dirents
+        .filter((d) => d.isFile())
+        .map((d) => ({ filePath: path.join(dirPath, d.name), entry: d.name }));
     } catch {
       return [];
     }
 
     const uploaded: string[] = [];
 
-    for (const entry of entries) {
-      const filePath = path.join(dirPath, entry);
-      const stat = await fs.stat(filePath);
-      if (!stat.isFile()) {
-        continue;
-      }
-
-      const key = `${prefix}/${entry}`;
-      await this.uploadFile(filePath, bucket, key);
-      uploaded.push(key);
+    for (let i = 0; i < fileEntries.length; i += UPLOAD_DIRECTORY_CONCURRENCY) {
+      const batch = fileEntries.slice(i, i + UPLOAD_DIRECTORY_CONCURRENCY);
+      const keys = await Promise.all(
+        batch.map(async ({ filePath, entry }) => {
+          const key = `${prefix}/${entry}`;
+          await this.uploadFile(filePath, bucket, key);
+          return key;
+        }),
+      );
+      uploaded.push(...keys);
     }
 
     return uploaded;

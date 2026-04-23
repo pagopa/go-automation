@@ -64,10 +64,6 @@ const config: KnipConfig = {
     '@aws-sdk/client-bedrock-runtime',
     '@aws-sdk/credential-provider-ini',
   ],
-  ignoreBinaries: [
-    // Used in CI security workflow
-    'license-checker',
-  ],
 };
 
 export default config;

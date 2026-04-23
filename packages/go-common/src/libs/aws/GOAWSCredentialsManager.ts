@@ -34,6 +34,8 @@ interface InternalOptions {
   readonly loginTimeout: number;
 }
 
+type GOAWSRetryOperationHandler<T> = () => Promise<T>;
+
 /**
  * Default options for the credentials manager
  */
@@ -265,7 +267,10 @@ export class GOAWSCredentialsManager {
    * @returns The result of the operation
    * @throws The original error if not recoverable or retry fails
    */
-  public async withCredentialRetry<T>(operation: () => Promise<T>, options: GOAWSRetryOptions): Promise<T> {
+  public async withCredentialRetry<T>(
+    operation: GOAWSRetryOperationHandler<T>,
+    options: GOAWSRetryOptions,
+  ): Promise<T> {
     const maxRetries = options.maxRetries ?? this.options.maxRetries;
     const maxAttempts = maxRetries + 1;
     let lastError: unknown;

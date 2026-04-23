@@ -7,6 +7,8 @@
 
 import { getErrorMessage } from '../errors/GOErrorUtils.js';
 
+type GOConfigValueTransformer<T> = (value: string | string[]) => T;
+
 /**
  * Converts raw configuration values to specific types
  */
@@ -190,7 +192,7 @@ export class GOConfigTypeConverter {
    * @returns Converted value or default
    */
   static tryConvert<T>(
-    converter: (value: string | string[]) => T,
+    converter: GOConfigValueTransformer<T>,
     value: string | string[] | undefined,
     defaultValue: T,
   ): T {
