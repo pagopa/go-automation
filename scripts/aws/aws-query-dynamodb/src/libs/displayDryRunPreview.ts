@@ -4,7 +4,7 @@
 
 import { Core } from '@go-automation/go-common';
 
-import type { SendQueryDynamodbConfig } from '../types/index.js';
+import type { AwsQueryDynamodbConfig } from '../types/index.js';
 
 /**
  * Displays a dry-run preview of the queries that would be executed.
@@ -15,7 +15,7 @@ import type { SendQueryDynamodbConfig } from '../types/index.js';
  */
 export function displayDryRunPreview(
   script: Core.GOScript,
-  config: SendQueryDynamodbConfig,
+  config: AwsQueryDynamodbConfig,
   pks: ReadonlyArray<string>,
 ): void {
   script.logger.section('Dry Run Preview');

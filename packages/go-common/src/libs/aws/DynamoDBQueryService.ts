@@ -5,8 +5,14 @@
  * Supports prefix/suffix on keys, automatic unmarshalling, and pagination.
  */
 
-import type { DynamoDBClient, QueryCommandInput, QueryCommandOutput } from '@aws-sdk/client-dynamodb';
-import { QueryCommand } from '@aws-sdk/client-dynamodb';
+import type {
+  DynamoDBClient,
+  QueryCommandInput,
+  QueryCommandOutput,
+  TableStatus,
+  TableDescription,
+} from '@aws-sdk/client-dynamodb';
+import { QueryCommand, DescribeTableCommand } from '@aws-sdk/client-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 import type { AttributeValue } from '@aws-sdk/client-dynamodb';
 
@@ -65,6 +71,30 @@ export class DynamoDBQueryService {
   constructor(private readonly client: DynamoDBClient) {}
 
   /**
+   * Retrieves the current status of a DynamoDB table
+   *
+   * @param tableName - Name of the table to check
+   * @returns The table status (e.g., 'ACTIVE') or undefined if not found
+   */
+  async getTableStatus(tableName: string): Promise<TableStatus | undefined> {
+    const command = new DescribeTableCommand({ TableName: tableName });
+    const response = await this.client.send(command);
+    return response.Table?.TableStatus;
+  }
+
+  /**
+   * Retrieves the full description of a DynamoDB table
+   *
+   * @param tableName - Name of the table to describe
+   * @returns The table description or undefined if not found
+   */
+  async describeTable(tableName: string): Promise<TableDescription | undefined> {
+    const command = new DescribeTableCommand({ TableName: tableName });
+    const response = await this.client.send(command);
+    return response.Table;
+  }
+
+  /**
    * Queries a DynamoDB table by partition key
    *
    * Handles pagination automatically and unmarshalls all items.
@@ -100,16 +130,33 @@ export class DynamoDBQueryService {
 
     // Paginate through all results
     do {
+      const expressionNames: Record<string, string> = { '#pk': options.keyName };
+      const expressionValues: Record<string, AttributeValue> = { ':pkVal': { S: fullKey } };
+
+      let keyCondition = '#pk = :pkVal';
+
+      if (options.sortKeyName && options.sortKeyValue) {
+        expressionNames['#sk'] = options.sortKeyName;
+        expressionValues[':skVal'] = { S: options.sortKeyValue };
+        keyCondition += ' AND #sk = :skVal';
+      }
+
+      if (options.projection) {
+        for (const [idx, attr] of options.projection.entries()) {
+          expressionNames[`#attr${idx}`] = attr;
+        }
+      }
+
       const input: QueryCommandInput = {
         TableName: options.tableName,
-        KeyConditionExpression: '#pk = :val',
-        ExpressionAttributeNames: {
-          '#pk': options.keyName,
-        },
-        ExpressionAttributeValues: {
-          ':val': { S: fullKey },
-        },
+        IndexName: options.indexName,
+        KeyConditionExpression: keyCondition,
+        ExpressionAttributeNames: expressionNames,
+        ExpressionAttributeValues: expressionValues,
         ExclusiveStartKey: exclusiveStartKey,
+        ...(options.projection && {
+          ProjectionExpression: options.projection.map((_, idx) => `#attr${idx}`).join(', '),
+        }),
       };
 
       const command = new QueryCommand(input);
@@ -118,7 +165,7 @@ export class DynamoDBQueryService {
       // Unmarshall and collect items
       if (response.Items) {
         for (const item of response.Items) {
-          items.push(unmarshall(item) as T);
+          items.push((options.isRaw ? item : unmarshall(item)) as T);
         }
       }
 

@@ -5,7 +5,7 @@
 import { Core } from '@go-automation/go-common';
 
 import { importPks } from './PkImporter.js';
-import type { SendQueryDynamodbConfig } from '../types/index.js';
+import type { AwsQueryDynamodbConfig } from '../types/index.js';
 
 /**
  * Loads partition keys from the configured source (CLI args or file).
@@ -16,7 +16,7 @@ import type { SendQueryDynamodbConfig } from '../types/index.js';
  * @returns Deduplicated array of partition key strings
  * @throws If neither inputPks nor inputFile is configured
  */
-export async function loadPartitionKeys(config: SendQueryDynamodbConfig, script: Core.GOScript): Promise<string[]> {
+export async function loadPartitionKeys(config: AwsQueryDynamodbConfig, script: Core.GOScript): Promise<string[]> {
   let pks: string[];
 
   if (config.inputPks) {

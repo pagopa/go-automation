@@ -12,7 +12,7 @@ export type OutputFormat = 'dynamo-json' | 'json' | 'ndjson' | 'csv' | 'text';
  * Script configuration interface
  * Represents all validated configuration parameters
  */
-export interface SendQueryDynamodbConfig {
+export interface AwsQueryDynamodbConfig {
   /** AWS profile name for SSO authentication */
   readonly awsProfile: string;
 

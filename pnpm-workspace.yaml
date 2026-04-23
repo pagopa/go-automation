@@ -2,6 +2,7 @@ packages:
   - packages/*
   - scripts/go/*
   - scripts/send/*
+  - scripts/aws/*
   - scripts/interop/*
   - functions/*
 

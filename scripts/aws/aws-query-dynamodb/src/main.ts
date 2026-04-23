@@ -1,5 +1,5 @@
 /**
- * SEND Query DynamoDB - Main Logic Module
+ * AWS Query DynamoDB - Main Logic Module
  *
  * Reads a list of partition keys from a file (TXT, JSONL, or CSV) or CLI,
  * queries a DynamoDB table for each key (with optional prefix/suffix),
@@ -7,8 +7,7 @@
  * Also prints a clean JSON mapping of results to the console.
  */
 
-import { DescribeTableCommand } from '@aws-sdk/client-dynamodb';
-import { Core } from '@go-automation/go-common';
+import { Core, AWS } from '@go-automation/go-common';
 
 import { loadPartitionKeys } from './libs/loadPartitionKeys.js';
 import { getSchemaInfo, validateSchemaConfig } from './libs/getSchemaInfo.js';
@@ -17,7 +16,7 @@ import { writeResultsToFile } from './libs/writeResultsToFile.js';
 import { withRetry } from './libs/withRetry.js';
 import { formatConsoleJson } from './libs/OutputFormatter.js';
 import { displayDryRunPreview } from './libs/displayDryRunPreview.js';
-import type { SendQueryDynamodbConfig } from './types/index.js';
+import type { AwsQueryDynamodbConfig } from './types/index.js';
 
 /**
  * Main script execution function.
@@ -25,7 +24,7 @@ import type { SendQueryDynamodbConfig } from './types/index.js';
  * @param script - The GOScript instance for logging, config, and AWS access
  */
 export async function main(script: Core.GOScript): Promise<void> {
-  const config = await script.getConfiguration<SendQueryDynamodbConfig>();
+  const config = await script.getConfiguration<AwsQueryDynamodbConfig>();
 
   // Step 1: Import PKs
   script.logger.section('Importing Partition Keys');
@@ -39,9 +38,9 @@ export async function main(script: Core.GOScript): Promise<void> {
   // Step 2: Schema check and validation
   script.logger.section('Checking Table Schema');
   script.prompt.startSpinner(`Describing table ${config.tableName}...`);
+  const queryService = new AWS.DynamoDBQueryService(script.aws.dynamoDB);
   const tableDesc = await withRetry(async () => {
-    const res = await script.aws.dynamoDB.send(new DescribeTableCommand({ TableName: config.tableName }));
-    return res.Table;
+    return await queryService.describeTable(config.tableName);
   });
   script.prompt.spinnerStop(`Table ${config.tableName} is ${tableDesc?.TableStatus}`);
 
@@ -87,7 +86,7 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   // Step 7: Summary
   script.logger.section('Summary');
-  const withData = Object.values(resultMap).filter((items) => items.length > 0).length;
+  const withData = Object.values(resultMap).filter((items: unknown[]) => items.length > 0).length;
   script.logger.info(`Total PKs queried: ${pks.length}`);
   script.logger.info(`PKs with results: ${withData}`);
   script.logger.info(`Total items retrieved: ${totalItems}`);

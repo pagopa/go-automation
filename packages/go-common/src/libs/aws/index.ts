@@ -63,3 +63,13 @@ export { isProfileValidationSuccess, isProfileValidationFailure } from './AWSPro
 export type { Message, SendMessageBatchRequestEntry, SendMessageBatchCommandOutput } from '@aws-sdk/client-sqs';
 export type { SQSClient } from '@aws-sdk/client-sqs';
 export type { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
+
+// DynamoDB types
+export type {
+  TableDescription,
+  TableStatus,
+  AttributeValue,
+  QueryCommandInput,
+  QueryCommandOutput,
+} from '@aws-sdk/client-dynamodb';
+export type { DynamoDBClient } from '@aws-sdk/client-dynamodb';

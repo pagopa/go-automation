@@ -1,4 +1,4 @@
-# SEND Query DynamoDB
+# AWS Query DynamoDB
 
 > Versione: 1.0.0 | Autore: Team GO - Gestione Operativa
 
@@ -71,13 +71,13 @@ Lo script esegue le seguenti operazioni:
 
 ```bash
 # Query da CLI per singola PK recuperando tutto l'item
-pnpm send:query:dynamodb:dev --aws-profile sso_pn-core-prod --table-name pn-Notifications --table-key pk --input-pks "NOTIF##123"
+pnpm aws:query:dynamodb:dev --aws-profile sso_pn-core-prod --table-name pn-Notifications --table-key pk --input-pks "NOTIF##123"
 
 # Query su un indice (GSI) con Sort Key
-pnpm send:query:dynamodb:dev --aws-profile sso_pn-core-prod --table-name pn-Timelines --index-name byIun --table-key iun --table-sort-key category --table-sort-value "NOTIFICATION_VIEWED" --input-pks "IUN1,IUN2"
+pnpm aws:query:dynamodb:dev --aws-profile sso_pn-core-prod --table-name pn-Timelines --index-name byIun --table-key iun --table-sort-key category --table-sort-value "NOTIFICATION_VIEWED" --input-pks "IUN1,IUN2"
 
 # Query da file CSV (percorso non predefinito) recuperando solo alcuni attributi
-pnpm send:query:dynamodb:dev --aws-profile sso_pn-core-prod --table-name pn-Data --table-key id --input-file /tmp/input_data.csv --input-format csv --output-attributes "id,status" --output-file results.json
+pnpm aws:query:dynamodb:dev --aws-profile sso_pn-core-prod --table-name pn-Data --table-key id --input-file /tmp/input_data.csv --input-format csv --output-attributes "id,status" --output-file results.json
 ```
 
 ## Output
@@ -87,7 +87,7 @@ pnpm send:query:dynamodb:dev --aws-profile sso_pn-core-prod --table-name pn-Data
 Al termine dell'esecuzione, lo script:
 
 1. Stampa sempre un oggetto JSON **pretty-formatted** in console che rappresenta il mapping tra le PK fornite in input e gli item trovati.
-2. Salva automaticamente lo stesso mapping in un file `results.json` all'interno della cartella di output dell'esecuzione (es. `data/send-query-dynamodb/outputs/send-query-dynamodb_timestamp/results.json`).
+2. Salva automaticamente lo stesso mapping in un file `results.json` all'interno della cartella di output dell'esecuzione (es. `data/aws-query-dynamodb/outputs/aws-query-dynamodb_timestamp/results.json`).
 
 ```json
 {
@@ -122,5 +122,5 @@ I formati supportati per il file di output (`--output-file`) sono:
 
 ---
 
-**Ultima modifica**: 2026-04-01
+**Ultima modifica**: 2026-04-23
 **Maintainer**: Team GO - Gestione Operativa

@@ -404,6 +404,16 @@ importers:
         specifier: 'catalog:'
         version: 24.12.2
 
+  scripts/aws/aws-query-dynamodb:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.2
+
   scripts/go/go-ai-client:
     dependencies:
       '@aws-sdk/client-lambda':
@@ -603,22 +613,6 @@ importers:
     devDependencies:
       '@types/node':
         specifier: ^24.12.2
-        version: 24.12.2
-
-  scripts/send/send-query-dynamodb:
-    dependencies:
-      '@aws-sdk/client-dynamodb':
-        specifier: 'catalog:'
-        version: 3.1034.0
-      '@aws-sdk/util-dynamodb':
-        specifier: 'catalog:'
-        version: 3.996.2(@aws-sdk/client-dynamodb@3.1034.0)
-      '@go-automation/go-common':
-        specifier: workspace:*
-        version: link:../../../packages/go-common
-    devDependencies:
-      '@types/node':
-        specifier: 'catalog:'
         version: 24.12.2
 
   scripts/send/send-report-dlq:

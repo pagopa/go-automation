@@ -9,7 +9,7 @@ import { Core } from '@go-automation/go-common';
  * Script metadata
  */
 export const scriptMetadata: Core.GOScriptMetadata = {
-  name: 'SEND Query DynamoDB',
+  name: 'AWS Query DynamoDB',
   version: '1.0.0',
   description: 'Queries DynamoDB records - Execute partition key lookups and export results in various data formats.',
   authors: ['Team GO - Gestione Operativa'],

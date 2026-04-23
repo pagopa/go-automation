@@ -374,6 +374,7 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
     go: '[GO] Team Gestione Operativa',
     send: '[SEND] SErvizio Notifiche Digitali',
     interop: '[INTEROP] PDND Interoperabilità',
+    aws: '[AWS] Amazon Web Services',
   };
 
   const categories = [...new Set(scripts.map((s) => s.category))].sort();

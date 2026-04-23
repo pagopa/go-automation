@@ -25,8 +25,23 @@ export interface DynamoDBQueryOptions {
   readonly keyName: string;
 
   /** Optional prefix to prepend to key values */
-  readonly prefix?: string;
+  readonly prefix?: string | undefined;
 
   /** Optional suffix to append to key values */
-  readonly suffix?: string;
+  readonly suffix?: string | undefined;
+
+  /** Optional name of the GSI/LSI to query */
+  readonly indexName?: string | undefined;
+
+  /** Optional sort key attribute name */
+  readonly sortKeyName?: string | undefined;
+
+  /** Optional sort key value (required if sortKeyName is provided) */
+  readonly sortKeyValue?: string | undefined;
+
+  /** Optional list of attributes to return */
+  readonly projection?: string[] | undefined;
+
+  /** If true, returns raw DynamoDB AttributeValues instead of unmarshalled items */
+  readonly isRaw?: boolean | undefined;
 }
