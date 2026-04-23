@@ -12,6 +12,8 @@ const RETRYABLE_NAMES = new Set([
 
 const RETRYABLE_CODES = new Set(['ECONNRESET', 'ETIMEDOUT']);
 
+type RetryOperationHandler<T> = () => Promise<T>;
+
 /**
  * Executes an async operation with exponential backoff on retryable errors.
  *
@@ -20,7 +22,7 @@ const RETRYABLE_CODES = new Set(['ECONNRESET', 'ETIMEDOUT']);
  * @returns The operation result
  * @throws The last error if all attempts fail or a non-retryable error occurs
  */
-export async function withRetry<T>(operation: () => Promise<T>, maxAttempts = 5): Promise<T> {
+export async function withRetry<T>(operation: RetryOperationHandler<T>, maxAttempts = 5): Promise<T> {
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {

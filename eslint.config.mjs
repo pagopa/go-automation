@@ -135,6 +135,27 @@ const sharedRestrictedSyntaxRules = [
     message: 'Use a named type alias for function-typed properties instead of an inline function type.',
   },
   {
+    // Function, method, arrow-function, and TS function-type parameters can also
+    // hide inline callback types such as `processor: (message: Message) => Result`.
+    selector:
+      ':matches(FunctionDeclaration, FunctionExpression, ArrowFunctionExpression, TSFunctionType) > Identifier.params > TSTypeAnnotation TSFunctionType',
+    message: 'Use a named type alias for function-typed parameters instead of an inline function type.',
+  },
+  {
+    // Defaulted parameters are represented as AssignmentPattern nodes whose
+    // actual type annotation lives on the left-side identifier.
+    selector:
+      ':matches(FunctionDeclaration, FunctionExpression, ArrowFunctionExpression, TSFunctionType) > AssignmentPattern.params > Identifier.left > TSTypeAnnotation TSFunctionType',
+    message: 'Use a named type alias for function-typed parameters instead of an inline function type.',
+  },
+  {
+    // This also covers TS function-type aliases that return another function,
+    // for example `type F = () => (value: string) => number`.
+    selector:
+      ':matches(FunctionDeclaration, FunctionExpression, ArrowFunctionExpression, TSFunctionType) > TSTypeAnnotation.returnType TSFunctionType',
+    message: 'Use a named type alias for function return types instead of an inline function type.',
+  },
+  {
     selector:
       "TSTypeAliasDeclaration[typeAnnotation.type='TSFunctionType']:not([id.name=/.*(?:Handler|Validator|Transformer|Mapper|Predicate|Formatter|Stringifier|Hook|Fn)$/])",
     message:

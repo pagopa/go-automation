@@ -72,6 +72,12 @@ export interface GOResultErr<E> {
  */
 export type GOResult<T, E = Error> = GOResultOk<T> | GOResultErr<E>;
 
+type GOResultFallbackHandler<T, E> = (error: E) => T;
+type GOResultValueMapper<T, U> = (value: T) => U;
+type GOResultErrorMapper<E, F> = (error: E) => F;
+type GOResultChainHandler<T, U, E> = (value: T) => GOResult<U, E>;
+type GOResultValueFactoryFn<T> = () => T;
+
 /**
  * Creates a successful Result containing the given value.
  *
@@ -219,7 +225,7 @@ export function unwrapOr<T, E>(result: GOResult<T, E>, defaultValue: T): T {
  * });
  * ```
  */
-export function unwrapOrElse<T, E>(result: GOResult<T, E>, fn: (error: E) => T): T {
+export function unwrapOrElse<T, E>(result: GOResult<T, E>, fn: GOResultFallbackHandler<T, E>): T {
   if (isOk(result)) {
     return result.value;
   }
@@ -245,7 +251,7 @@ export function unwrapOrElse<T, E>(result: GOResult<T, E>, fn: (error: E) => T):
  * const mapped = map(errResult, (n) => n * 2); // err('Failed')
  * ```
  */
-export function map<T, U, E>(result: GOResult<T, E>, fn: (value: T) => U): GOResult<U, E> {
+export function map<T, U, E>(result: GOResult<T, E>, fn: GOResultValueMapper<T, U>): GOResult<U, E> {
   if (isOk(result)) {
     return ok(fn(result.value));
   }
@@ -269,7 +275,7 @@ export function map<T, U, E>(result: GOResult<T, E>, fn: (value: T) => U): GORes
  * // mapped.error instanceof Error
  * ```
  */
-export function mapErr<T, E, F>(result: GOResult<T, E>, fn: (error: E) => F): GOResult<T, F> {
+export function mapErr<T, E, F>(result: GOResult<T, E>, fn: GOResultErrorMapper<E, F>): GOResult<T, F> {
   if (isErr(result)) {
     return err(fn(result.error));
   }
@@ -305,7 +311,7 @@ export function mapErr<T, E, F>(result: GOResult<T, E>, fn: (error: E) => F): GO
  * // err('Must be positive')
  * ```
  */
-export function andThen<T, U, E>(result: GOResult<T, E>, fn: (value: T) => GOResult<U, E>): GOResult<U, E> {
+export function andThen<T, U, E>(result: GOResult<T, E>, fn: GOResultChainHandler<T, U, E>): GOResult<U, E> {
   if (isOk(result)) {
     return fn(result.value);
   }
@@ -357,7 +363,7 @@ export async function fromPromise<T>(promise: Promise<T>): Promise<GOResult<T, E
  * }
  * ```
  */
-export function tryCatch<T>(fn: () => T): GOResult<T, Error> {
+export function tryCatch<T>(fn: GOResultValueFactoryFn<T>): GOResult<T, Error> {
   try {
     return ok(fn());
   } catch (error) {

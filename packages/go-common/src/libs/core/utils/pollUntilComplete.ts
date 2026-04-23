@@ -32,6 +32,7 @@ export interface PollAttemptInfo {
 type SleepFn = (ms: number) => Promise<void>;
 
 type PollAttemptHandler = (info: PollAttemptInfo) => void;
+type PollCheckHandler<T> = (attempt: number) => Promise<T | undefined>;
 
 /**
  * Polling configuration.
@@ -97,10 +98,7 @@ export function fixedBackoff(intervalMs: number): BackoffFn {
  * });
  * ```
  */
-export async function pollUntilComplete<T>(
-  options: PollOptions,
-  check: (attempt: number) => Promise<T | undefined>,
-): Promise<T> {
+export async function pollUntilComplete<T>(options: PollOptions, check: PollCheckHandler<T>): Promise<T> {
   const maxAttempts = options.maxAttempts ?? DEFAULT_MAX_POLL_ATTEMPTS;
   const backoff = options.backoff ?? exponentialBackoff();
   const signal = options.signal;

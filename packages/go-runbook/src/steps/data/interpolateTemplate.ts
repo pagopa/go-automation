@@ -6,6 +6,7 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
  * for example SQL escaping or URL encoding.
  */
 type EscapeTransformer = (value: string) => string;
+type TemplatePlaceholderTransformer = (placeholder: TemplatePlaceholder) => string;
 
 type TemplatePlaceholderSource = 'params' | 'vars';
 
@@ -47,7 +48,7 @@ function getPlaceholderValue(
   return store.get(key);
 }
 
-function replaceTemplatePlaceholders(template: string, replace: (placeholder: TemplatePlaceholder) => string): string {
+function replaceTemplatePlaceholders(template: string, replace: TemplatePlaceholderTransformer): string {
   let result = '';
   let cursor = 0;
 
