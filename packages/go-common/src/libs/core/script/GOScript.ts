@@ -4,6 +4,7 @@
  */
 
 import { AWSClientProvider, AWSMultiClientProvider, GOAWSCredentialsManager } from '../../aws/index.js';
+import type { GOAWSCredentialsLogHandler, GOAWSCredentialsPromptHandler } from '../../aws/index.js';
 import type { GOConfigProvider } from '../config/GOConfigProvider.js';
 import { GOSecretRedactor, GOSecretsSpecifierFactory } from '../config/GOSecretsSpecifier.js';
 import { GOConfigReader } from '../config/GOConfigReader.js';
@@ -41,6 +42,13 @@ import type {
 } from './GOScriptOptions.js';
 
 type GOScriptSignalHandler = () => void;
+type GOScriptMainHandler<TResult> = () => Promise<TResult>;
+type GOScriptRunHandler = () => void | Promise<void>;
+type GOScriptLambdaMainHandler<TEvent, TResult, TContext> = (
+  event: TEvent,
+  context: TContext | undefined,
+) => Promise<TResult>;
+type GOScriptLambdaHandler<TEvent, TResult, TContext> = (event: TEvent, context?: TContext) => Promise<TResult>;
 
 interface GOScriptSignalHandlerRef {
   readonly signal: NodeJS.Signals;
@@ -350,7 +358,7 @@ export class GOScript {
    * Create a logging callback that bridges to the script's logger.
    * Used by components that need callback-based logging (credentials manager, file copier).
    */
-  private createLogCallback(): (message: string, level: 'info' | 'warn' | 'error') => void {
+  private createLogCallback(): GOAWSCredentialsLogHandler {
     return (message, level) => {
       switch (level) {
         case 'warn':
@@ -371,7 +379,7 @@ export class GOScript {
    * Create a prompt callback that bridges to the script's prompt system.
    * @param defaultValue - Default value if user doesn't respond
    */
-  private createPromptCallback(defaultValue: boolean): (message: string) => Promise<boolean> {
+  private createPromptCallback(defaultValue: boolean): GOAWSCredentialsPromptHandler {
     return async (message) => (await this.prompt.confirm(message, defaultValue)) ?? defaultValue;
   }
 
@@ -586,7 +594,7 @@ export class GOScript {
    * @param mainFn - The async function containing the script's business logic
    * @param successMessage - Message logged on successful completion
    */
-  private async executeLifecycle<T>(mainFn: () => Promise<T>, successMessage: string): Promise<T> {
+  private async executeLifecycle<T>(mainFn: GOScriptMainHandler<T>, successMessage: string): Promise<T> {
     try {
       if (!this.initialized) {
         await this.initialize();
@@ -671,7 +679,7 @@ export class GOScript {
    * });
    * ```
    */
-  public async run(mainFunction: () => void | Promise<void>): Promise<void> {
+  public async run(mainFunction: GOScriptRunHandler): Promise<void> {
     // Setup graceful shutdown handlers (once, local/CI only — skipped in Lambda)
     this.setupSignalHandlers();
     await this.executeLifecycle(async () => Promise.resolve(mainFunction()), 'Script completed successfully');
@@ -746,8 +754,8 @@ export class GOScript {
    * ```
    */
   public createLambdaHandler<TEvent = unknown, TResult = unknown, TContext = unknown>(
-    mainFunction: (event: TEvent, context: TContext | undefined) => Promise<TResult>,
-  ): (event: TEvent, context?: TContext) => Promise<TResult> {
+    mainFunction: GOScriptLambdaMainHandler<TEvent, TResult, TContext>,
+  ): GOScriptLambdaHandler<TEvent, TResult, TContext> {
     return async (event: TEvent, context?: TContext): Promise<TResult> => {
       // Reset per-invocation state to support Lambda container reuse.
       // AWS client providers are intentionally NOT reset (connection-pool reuse).

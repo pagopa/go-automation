@@ -28,6 +28,8 @@ interface DynamoDBTimelineItem {
   readonly notificationSentAt?: { readonly S?: string };
 }
 
+type SENDTimelineProgressHandler = (current: number, total: number) => void;
+
 /**
  * Service for interacting with AWS DynamoDB to retrieve SEND notification timelines.
  *
@@ -91,7 +93,7 @@ export class SENDTimelineService {
    */
   async queryTimelines(
     parsedIuns: ReadonlyArray<SENDParsedIun>,
-    onProgress?: (current: number, total: number) => void,
+    onProgress?: SENDTimelineProgressHandler,
   ): Promise<ReadonlyArray<SENDTimelineResult>> {
     const total = parsedIuns.length;
     const results: SENDTimelineResult[] = [];

@@ -1,5 +1,7 @@
 import type { StepResult } from '../../types/StepResult.js';
 
+type StepExecutionHandler<T> = () => Promise<StepResult<T>>;
+
 /**
  * Wraps an async step execution with consistent error handling.
  * Catches errors and returns a failed `StepResult` with a formatted error message.
@@ -18,7 +20,7 @@ import type { StepResult } from '../../types/StepResult.js';
  * }
  * ```
  */
-export async function executeStep<T>(label: string, fn: () => Promise<StepResult<T>>): Promise<StepResult<T>> {
+export async function executeStep<T>(label: string, fn: StepExecutionHandler<T>): Promise<StepResult<T>> {
   try {
     return await fn();
   } catch (error: unknown) {
