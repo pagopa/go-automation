@@ -81,6 +81,8 @@ interface SQSReceiveCallbacks {
 
 type SQSProcessProgressHandler = (received: number, deleted: number, released: number, skipped: number) => void;
 
+type SQSMessageHandler = (message: Message) => SQSProcessAction | Promise<SQSProcessAction>;
+
 interface SQSProcessCallbacks {
   readonly onProgress?: SQSProcessProgressHandler;
   readonly onEmptyReceive?: SQSReceiveEmptyReceiveHandler;
@@ -335,7 +337,7 @@ export class AWSSQSService {
    */
   async processMessages(
     options: SQSProcessOptions,
-    processor: (message: Message) => SQSProcessAction | Promise<SQSProcessAction>,
+    processor: SQSMessageHandler,
     callbacks?: SQSProcessCallbacks,
   ): Promise<SQSProcessResult> {
     let totalReceived = 0;
