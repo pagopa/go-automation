@@ -12,7 +12,7 @@ import { Core } from '@go-automation/go-common';
 export const scriptMetadata: Core.GOScriptMetadata = {
   name: 'SEND Put SQS',
   version: '1.0.0',
-  description: 'Puts SQS messages - Insert messages to an SQS queue from a NDJSON file source.',
+  description: 'Puts SQS messages - Inserts messages into an SQS queue from a NDJSON file source.',
   authors: ['Team GO - Gestione Operativa'],
 };
 

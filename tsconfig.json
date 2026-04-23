@@ -19,6 +19,7 @@
     { "path": "./scripts/go/go-parse-json" },
     { "path": "./scripts/go/go-report-alarms" },
     { "path": "./scripts/send/send-check-ecs" },
+    { "path": "./scripts/send/send-delete-sqs" },
     { "path": "./scripts/send/send-download-safestorage-attachments" },
     { "path": "./scripts/send/send-dump-sqs" },
     { "path": "./scripts/send/send-fetch-timeline-from-iun" },

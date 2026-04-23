@@ -23,6 +23,9 @@ export type { AWSS3ObjectEntry, AWSS3BucketEntry } from './AWSS3Service.js';
 // SQS service
 export { AWSSQSService } from './AWSSQSService.js';
 export { SQSUtils, SQS_MAX_BATCH_SIZE, SQS_MAX_PAYLOAD_BYTES } from './SQSUtils.js';
+export { SQSProcessAction } from './models/SQSProcessAction.js';
+export type { SQSProcessOptions } from './models/SQSProcessOptions.js';
+export type { SQSProcessResult } from './models/SQSProcessResult.js';
 export type { SQSQueueMetadata } from './models/SQSQueueMetadata.js';
 export { SQSReceiveDeduplicationMode } from './models/SQSReceiveDeduplicationMode.js';
 export type { SQSReceiveResult } from './models/SQSReceiveResult.js';

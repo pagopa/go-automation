@@ -17,6 +17,7 @@ export * from './exporters/index.js';
 
 // Export configuration system
 export * from './config/index.js';
+export { GOConfigParameterType } from './config/GOConfigParameterType.js';
 
 // Export file operations
 export * from './files/index.js';
