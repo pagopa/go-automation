@@ -1,16 +1,16 @@
-export interface ScriptCategoryDefinition {
+interface ScriptCategoryDefinition {
   readonly value: string;
   readonly menuLabel: string;
   readonly scaffoldTitle: string;
   readonly productCode: string;
 }
 
-export interface ScriptCategoryChoice {
+interface ScriptCategoryChoice {
   readonly title: string;
   readonly value: string;
 }
 
-export const SCRIPT_CATEGORY_DEFINITIONS: ReadonlyArray<ScriptCategoryDefinition> = [
+const SCRIPT_CATEGORY_DEFINITIONS: ReadonlyArray<ScriptCategoryDefinition> = [
   {
     value: 'go',
     menuLabel: '[GO] Team Gestione Operativa',

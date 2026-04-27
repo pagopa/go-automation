@@ -8,7 +8,7 @@ import type { AwsQueryDynamodbConfig, QueryFailure, ResultMap } from '../types/i
 /**
  * Result of {@link queryAllKeys}.
  */
-export interface QueryAllKeysResult {
+interface QueryAllKeysResult {
   /** PK -> items map. Every input PK is present (empty array on missing data or failure). */
   readonly resultMap: ResultMap;
   /** Sum of items across successful queries. */
