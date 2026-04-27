@@ -5,6 +5,13 @@
  */
 
 /**
+ * Supported DynamoDB scalar key types for partition/sort keys.
+ * - 'S': String (default)
+ * - 'N': Number (passed as decimal string)
+ */
+export type DynamoDBKeyType = 'S' | 'N';
+
+/**
  * Options for DynamoDB partition key queries
  *
  * @example
@@ -24,9 +31,38 @@ export interface DynamoDBQueryOptions {
   /** Partition key attribute name */
   readonly keyName: string;
 
-  /** Optional prefix to prepend to key values */
-  readonly prefix?: string;
+  /** Partition key DynamoDB type (defaults to 'S'). Use 'N' for numeric keys. */
+  readonly keyType?: DynamoDBKeyType | undefined;
 
-  /** Optional suffix to append to key values */
-  readonly suffix?: string;
+  /** Optional prefix to prepend to key values (only valid when keyType is 'S') */
+  readonly prefix?: string | undefined;
+
+  /** Optional suffix to append to key values (only valid when keyType is 'S') */
+  readonly suffix?: string | undefined;
+
+  /** Optional name of the GSI/LSI to query */
+  readonly indexName?: string | undefined;
+
+  /** Optional sort key attribute name */
+  readonly sortKeyName?: string | undefined;
+
+  /** Optional sort key value (required if sortKeyName is provided) */
+  readonly sortKeyValue?: string | undefined;
+
+  /** Sort key DynamoDB type (defaults to 'S'). Use 'N' for numeric sort keys. */
+  readonly sortKeyType?: DynamoDBKeyType | undefined;
+
+  /** Optional list of attributes to return */
+  readonly projection?: string[] | undefined;
+
+  /** If true, returns raw DynamoDB AttributeValues instead of unmarshalled items */
+  readonly isRaw?: boolean | undefined;
+
+  /**
+   * Batch-only knob (used by `queryMultipleByPartitionKey`, ignored by the single-key API).
+   * If true, the worker pool aborts on the first per-key failure and rejects with the
+   * original error wrapped with the failing key's context. Defaults to false: per-key
+   * errors are captured into each result's `error` field and the batch runs to completion.
+   */
+  readonly failFast?: boolean | undefined;
 }

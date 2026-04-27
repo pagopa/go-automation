@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Core } from '@go-automation/go-common';
+import { getCategoryProductCode, getScaffoldCategoryChoices, getScriptShortcutBase } from './categories.js';
 
 const fileName = fileURLToPath(import.meta.url);
 const dirName = path.dirname(fileName);
@@ -10,10 +11,10 @@ const TEMPLATES_DIR = path.join(ROOT_DIR, 'bins/script-templates');
 
 interface ScaffoldOptions {
   name: string; // e.g. go-my-new-script
-  category: string; // e.g. go, send, interop
+  category: string; // e.g. go, send, interop, aws
   description: string;
   author: string;
-  product: string; // e.g. GO, SEND
+  product: string; // e.g. GO, SEND, INTEROP, AWS
 }
 
 interface PackageJson {
@@ -47,11 +48,7 @@ export class Scaffolder {
     });
     if (!name) return;
 
-    const category = await this.prompt.select<string>('Category:', [
-      { title: 'GO (Internal)', value: 'go' },
-      { title: 'SEND (Product)', value: 'send' },
-      { title: 'Interop (Interoperability)', value: 'interop' },
-    ]);
+    const category = await this.prompt.select<string>('Category:', getScaffoldCategoryChoices());
     if (!category) return;
 
     const categoryStr = category;
@@ -61,8 +58,7 @@ export class Scaffolder {
     const author = await this.prompt.text('Author:', { initial: 'Team GO - Gestione Operativa' });
     if (author === undefined) return;
 
-    const productMap: Record<string, string> = { go: 'GO', send: 'SEND', interop: 'INTEROP' };
-    const product = productMap[categoryStr] ?? 'GO';
+    const product = getCategoryProductCode(categoryStr);
 
     const options: ScaffoldOptions = {
       name,
@@ -154,9 +150,7 @@ export class Scaffolder {
     const rootPkgPath = path.join(ROOT_DIR, 'package.json');
     const rootPkg = JSON.parse(await fs.readFile(rootPkgPath, 'utf-8')) as PackageJson;
 
-    const baseName = options.name.replace(/^go-|^send-/, '').replace(/-/g, ':');
-    const prefix = options.category === 'go' ? 'go' : options.category;
-    const shortcutBase = `${prefix}:${baseName}`;
+    const shortcutBase = getScriptShortcutBase(options.name, options.category);
 
     rootPkg.scripts[`${shortcutBase}:build`] = `pnpm --filter=${options.name} build`;
     rootPkg.scripts[`${shortcutBase}:dev`] = `pnpm --filter=${options.name} dev`;

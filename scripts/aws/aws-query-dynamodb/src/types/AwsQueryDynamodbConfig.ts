@@ -9,10 +9,21 @@ export type InputFormat = 'txt' | 'jsonl' | 'csv';
 export type OutputFormat = 'dynamo-json' | 'json' | 'ndjson' | 'csv' | 'text';
 
 /**
+ * Failure handling policy for multi-key DynamoDB queries.
+ */
+export const FAILURE_MODES = ['abort', 'report', 'ignore'] as const;
+
+export type FailureMode = (typeof FAILURE_MODES)[number];
+
+export function isFailureMode(value: string): value is FailureMode {
+  return (FAILURE_MODES as ReadonlyArray<string>).includes(value);
+}
+
+/**
  * Script configuration interface
  * Represents all validated configuration parameters
  */
-export interface SendQueryDynamodbConfig {
+export interface AwsQueryDynamodbConfig {
   /** AWS profile name for SSO authentication */
   readonly awsProfile: string;
 
@@ -63,4 +74,7 @@ export interface SendQueryDynamodbConfig {
 
   /** Preview mode: reads input and shows PKs without querying DynamoDB */
   readonly dryRun: boolean;
+
+  /** Failure handling policy for per-key query errors */
+  readonly failureMode: FailureMode;
 }

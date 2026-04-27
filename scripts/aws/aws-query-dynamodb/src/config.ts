@@ -5,11 +5,12 @@
  */
 
 import { Core } from '@go-automation/go-common';
+import { FAILURE_MODES, isFailureMode } from './types/index.js';
 /**
  * Script metadata
  */
 export const scriptMetadata: Core.GOScriptMetadata = {
-  name: 'SEND Query DynamoDB',
+  name: 'AWS Query DynamoDB',
   version: '1.0.0',
   description: 'Queries DynamoDB records - Execute partition key lookups and export results in various data formats.',
   authors: ['Team GO - Gestione Operativa'],
@@ -139,5 +140,16 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     required: false,
     defaultValue: false,
     aliases: ['dry'],
+  },
+  {
+    name: 'failure.mode',
+    type: Core.GOConfigParameterType.STRING,
+    description:
+      'Failure handling policy: abort stops at the first failed query; report completes all queries and exits non-zero on failures; ignore completes all queries and exits zero even on failures',
+    required: false,
+    defaultValue: 'report',
+    aliases: ['fm'],
+    validator: (value) =>
+      isFailureMode(String(value)) ?? `Invalid failure mode "${String(value)}". Valid: ${FAILURE_MODES.join(', ')}`,
   },
 ] as const;

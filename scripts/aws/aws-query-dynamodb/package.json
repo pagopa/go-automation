@@ -1,5 +1,5 @@
 {
-  "name": "send-query-dynamodb",
+  "name": "aws-query-dynamodb",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -19,14 +19,12 @@
     "format:check": "prettier --check ."
   },
   "keywords": [
-    "send",
+    "aws",
     "dynamodb"
   ],
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "catalog:",
-    "@aws-sdk/util-dynamodb": "catalog:",
     "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {

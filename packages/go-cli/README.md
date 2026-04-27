@@ -2,7 +2,7 @@
 
 > Control Plane centralizzato per l'ecosistema di script GO Automation di PagoPA.
 
-`go-cli` fornisce un'interfaccia di alto livello e interattiva per scoprire, ispezionare ed eseguire script di automazione in tutti i domini (**go/**, **send/**, **interop/**).
+`go-cli` fornisce un'interfaccia di alto livello e interattiva per scoprire, ispezionare ed eseguire script di automazione in tutti i domini (**go/**, **send/**, **interop/**, **aws/**).
 
 ---
 

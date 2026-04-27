@@ -24,6 +24,7 @@ import { HistoryManager } from './history.js';
 import { Scaffolder } from './scaffold.js';
 import { PresetManager } from './presets.js';
 import { PreFlightChecker } from './checker.js';
+import { getCategoryMenuLabel } from './categories.js';
 
 // Setup dependencies
 const logger = new Core.GOLogger([new Core.GOConsoleLoggerHandler()]);
@@ -370,12 +371,6 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
 
   logger.newline();
 
-  const productMap: Record<string, string> = {
-    go: '[GO] Team Gestione Operativa',
-    send: '[SEND] SErvizio Notifiche Digitali',
-    interop: '[INTEROP] PDND Interoperabilità',
-  };
-
   const categories = [...new Set(scripts.map((s) => s.category))].sort();
 
   const fuse = new Fuse(scripts, {
@@ -399,7 +394,7 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
         const categoryChoice = await prompt.select<string>('Select product/team category:', [
           { title: '[SEARCH] Quick Find...', value: '__search__' },
           ...categories.map((c) => ({
-            title: productMap[c] ?? c.toUpperCase(),
+            title: getCategoryMenuLabel(c),
             value: c,
           })),
         ]);
@@ -489,7 +484,7 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
         });
 
         const selectedScriptId = await prompt.select<string>(
-          `Select a ${productMap[selectedCategory] ?? selectedCategory.toUpperCase()} script to run:`,
+          `Select a ${getCategoryMenuLabel(selectedCategory)} script to run:`,
           choices.map((c) => ({
             title: c.title,
             value: c.value,
