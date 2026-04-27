@@ -10,7 +10,7 @@ export interface ScriptCategoryChoice {
   readonly value: string;
 }
 
-export const SCRIPT_CATEGORY_DEFINITIONS: readonly ScriptCategoryDefinition[] = [
+export const SCRIPT_CATEGORY_DEFINITIONS: ReadonlyArray<ScriptCategoryDefinition> = [
   {
     value: 'go',
     menuLabel: '[GO] Team Gestione Operativa',
