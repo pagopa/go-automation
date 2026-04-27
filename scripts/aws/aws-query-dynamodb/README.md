@@ -25,6 +25,7 @@ Lo script esegue le seguenti operazioni:
 - **Meccanismo di Retry**: Gestione robusta dei limiti di throughput (ProvisionedThroughputExceeded) e problemi di connessione con backoff esponenziale.
 - **Streaming**: Esportazione efficiente su file anche per dataset di grandi dimensioni.
 - **Mapping Risultati**: Ogni PK di input è mappata ai relativi item trovati nel report finale.
+- **Gestione Errori Configurabile**: Policy esplicita per decidere se interrompere al primo errore, completare la batch riportando i fallimenti, o ignorare i fallimenti a livello di exit code.
 
 ## Prerequisiti
 
@@ -64,6 +65,27 @@ Lo script esegue le seguenti operazioni:
 | `--key-prefix`        | `-prefix`               | string | No      | -       | Prefisso da aggiungere a ogni PK.                                |
 | `--key-suffix`        | `-suffix`               | string | No      | -       | Suffisso da aggiungere a ogni PK.                                |
 | `--dry-run`           | `-dry`                  | bool   | No      | false   | Mostra le PK che verrebbero interrogate senza eseguire query.    |
+| `--failure-mode`      | `-fm`                   | string | No      | report  | Policy errori: `abort`, `report`, `ignore`.                      |
+
+### Parametro `--failure-mode`
+
+`--failure-mode` controlla come lo script gestisce errori su singole query DynamoDB quando vengono processate più PK.
+
+Valori ammessi:
+
+| Valore             | Comportamento query                                   | Exit code                                  | Output fallimenti                                              |
+| ------------------ | ----------------------------------------------------- | ------------------------------------------ | -------------------------------------------------------------- |
+| `abort`            | Interrompe la batch al primo errore per-key.          | Non-zero, perché l'errore viene propagato. | Non garantisce `failures.json`, perché l'esecuzione abortisce. |
+| `report` (default) | Completa tutte le query e cattura gli errori per-key. | Non-zero se almeno una PK fallisce.        | Scrive `failures.json` quando ci sono fallimenti.              |
+| `ignore`           | Completa tutte le query e cattura gli errori per-key. | Zero anche se una o più PK falliscono.     | Scrive `failures.json` quando ci sono fallimenti.              |
+
+Dettagli operativi:
+
+- In modalità `report` e `ignore`, il file `results.json` contiene sempre tutte le PK di input. Le PK senza risultati e le PK fallite sono entrambe mappate a `[]`; per distinguere i fallimenti reali consultare `failures.json`.
+- In modalità `report`, lo script è adatto a pipeline/CI: raccoglie il maggior numero possibile di risultati ma fallisce il job se ci sono errori.
+- In modalità `ignore`, lo script è adatto a estrazioni best-effort: i fallimenti vengono loggati e salvati, ma non bloccano l'exit code.
+- In modalità `abort`, lo script è adatto quando un singolo errore rende inutile o rischioso proseguire.
+- I valori diversi da `abort`, `report`, `ignore` vengono rifiutati in validazione.
 
 ## Utilizzo
 
@@ -78,6 +100,15 @@ pnpm aws:query:dynamodb:dev --aws-profile sso_pn-core-prod --table-name pn-Timel
 
 # Query da file CSV (percorso non predefinito) recuperando solo alcuni attributi
 pnpm aws:query:dynamodb:dev --aws-profile sso_pn-core-prod --table-name pn-Data --table-key id --input-file /tmp/input_data.csv --input-format csv --output-attributes "id,status" --output-file results.json
+
+# Completa tutte le query ma fallisce con exit non-zero se almeno una PK fallisce (default)
+pnpm aws:query:dynamodb:dev --aws-profile sso_pn-core-prod --table-name pn-Notifications --table-key pk --input-file pks.txt --failure-mode report
+
+# Estrazione best-effort: salva failures.json ma termina con exit code 0 anche in presenza di fallimenti
+pnpm aws:query:dynamodb:dev --aws-profile sso_pn-core-prod --table-name pn-Notifications --table-key pk --input-file pks.txt --failure-mode ignore
+
+# Interrompe l'esecuzione al primo errore di query
+pnpm aws:query:dynamodb:dev --aws-profile sso_pn-core-prod --table-name pn-Notifications --table-key pk --input-file pks.txt --failure-mode abort
 ```
 
 ## Output
@@ -88,6 +119,7 @@ Al termine dell'esecuzione, lo script:
 
 1. Stampa sempre un oggetto JSON **pretty-formatted** in console che rappresenta il mapping tra le PK fornite in input e gli item trovati.
 2. Salva automaticamente lo stesso mapping in un file `results.json` all'interno della cartella di output dell'esecuzione (es. `data/aws-query-dynamodb/outputs/aws-query-dynamodb_timestamp/results.json`).
+3. Salva `failures.json` quando una o più query falliscono e `--failure-mode` è `report` o `ignore`.
 
 ```json
 {

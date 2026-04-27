@@ -57,4 +57,12 @@ export interface DynamoDBQueryOptions {
 
   /** If true, returns raw DynamoDB AttributeValues instead of unmarshalled items */
   readonly isRaw?: boolean | undefined;
+
+  /**
+   * Batch-only knob (used by `queryMultipleByPartitionKey`, ignored by the single-key API).
+   * If true, the worker pool aborts on the first per-key failure and rejects with the
+   * original error wrapped with the failing key's context. Defaults to false: per-key
+   * errors are captured into each result's `error` field and the batch runs to completion.
+   */
+  readonly failFast?: boolean | undefined;
 }

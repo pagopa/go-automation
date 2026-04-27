@@ -231,6 +231,9 @@ export class DynamoDBQueryService {
    * whole batch — the caller is responsible for inspecting `result.error` to surface
    * failures. Misconfiguration (caught by {@link validateOptions}) still throws upfront.
    *
+   * Pass `options.failFast = true` to abort the batch on the first per-key error
+   * (the rejection wraps the original error with the failing key's context).
+   *
    * Complexity: O(N) where N is the number of key values.
    *
    * @typeParam T - The expected type of items (defaults to generic record)
@@ -275,12 +278,17 @@ export class DynamoDBQueryService {
     // Fail-fast on misconfiguration so we don't produce N identical config-error results.
     this.validateOptions(options);
 
+    const failFast = options.failFast === true;
     const resultsByIdx = new Map<number, DynamoDBQueryResult<T>>();
     let nextIndex = 0;
     let processed = 0;
+    let aborted = false;
 
     const worker = async (): Promise<void> => {
       while (true) {
+        if (aborted) {
+          return;
+        }
         const idx = nextIndex++;
         if (idx >= total) {
           return;
@@ -295,6 +303,10 @@ export class DynamoDBQueryService {
           result = await this.queryByPartitionKey<T>(keyValue, options);
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err));
+          if (failFast) {
+            aborted = true;
+            throw new Error(`Query failed for "${keyValue}": ${error.message}`, { cause: err });
+          }
           result = {
             keyValue,
             fullKey: this.buildFullKey(keyValue, options),

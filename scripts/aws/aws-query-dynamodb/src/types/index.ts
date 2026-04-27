@@ -1,5 +1,7 @@
 /**
  * Types barrel file
  */
-export type { AwsQueryDynamodbConfig, InputFormat, OutputFormat } from './AwsQueryDynamodbConfig.js';
+export { FAILURE_MODES, isFailureMode } from './AwsQueryDynamodbConfig.js';
+export type { AwsQueryDynamodbConfig, FailureMode, InputFormat, OutputFormat } from './AwsQueryDynamodbConfig.js';
 export type { ResultMap } from './ResultMap.js';
+export type { QueryFailure } from './QueryFailure.js';
