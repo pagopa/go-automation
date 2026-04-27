@@ -26,7 +26,11 @@ export interface DynamoDBQueryResult<T = Record<string, unknown>> {
   /** The full key with prefix/suffix applied */
   readonly fullKey: string;
 
-  /** Query results (unmarshalled from DynamoDB format) */
+  /**
+   * Query results.
+   * By default items are unmarshalled objects; when `isRaw: true` is used,
+   * items are raw DynamoDB AttributeValue maps.
+   */
   readonly items: ReadonlyArray<T>;
 
   /** Number of items returned */
