@@ -5,6 +5,13 @@
  */
 
 /**
+ * Supported DynamoDB scalar key types for partition/sort keys.
+ * - 'S': String (default)
+ * - 'N': Number (passed as decimal string)
+ */
+export type DynamoDBKeyType = 'S' | 'N';
+
+/**
  * Options for DynamoDB partition key queries
  *
  * @example
@@ -24,10 +31,13 @@ export interface DynamoDBQueryOptions {
   /** Partition key attribute name */
   readonly keyName: string;
 
-  /** Optional prefix to prepend to key values */
+  /** Partition key DynamoDB type (defaults to 'S'). Use 'N' for numeric keys. */
+  readonly keyType?: DynamoDBKeyType | undefined;
+
+  /** Optional prefix to prepend to key values (only valid when keyType is 'S') */
   readonly prefix?: string | undefined;
 
-  /** Optional suffix to append to key values */
+  /** Optional suffix to append to key values (only valid when keyType is 'S') */
   readonly suffix?: string | undefined;
 
   /** Optional name of the GSI/LSI to query */
@@ -38,6 +48,9 @@ export interface DynamoDBQueryOptions {
 
   /** Optional sort key value (required if sortKeyName is provided) */
   readonly sortKeyValue?: string | undefined;
+
+  /** Sort key DynamoDB type (defaults to 'S'). Use 'N' for numeric sort keys. */
+  readonly sortKeyType?: DynamoDBKeyType | undefined;
 
   /** Optional list of attributes to return */
   readonly projection?: string[] | undefined;

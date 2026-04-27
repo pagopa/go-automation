@@ -31,4 +31,11 @@ export interface DynamoDBQueryResult<T = Record<string, unknown>> {
 
   /** Number of items returned */
   readonly count: number;
+
+  /**
+   * Present when the query failed (only populated by `queryMultipleByPartitionKey`,
+   * which captures per-key errors instead of aborting the whole batch).
+   * When set, `items` is empty and `count` is 0.
+   */
+  readonly error?: Error;
 }

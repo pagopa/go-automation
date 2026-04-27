@@ -52,12 +52,23 @@ export async function queryAllKeys(
   );
 
   let totalItems = 0;
+  let failures = 0;
   for (const res of results) {
+    if (res.error) {
+      failures++;
+      script.logger.error(`Query failed for "${res.keyValue}": ${res.error.message}`);
+      continue;
+    }
     resultMap[res.keyValue] = res.items as unknown[];
     totalItems += res.count;
   }
 
-  script.prompt.spinnerStop(`Querying completed. Found ${totalItems} items across ${pks.length} PKs.`);
+  const successful = pks.length - failures;
+  const completionMessage =
+    failures > 0
+      ? `Querying completed with ${failures} failures. Found ${totalItems} items across ${successful} PKs.`
+      : `Querying completed. Found ${totalItems} items across ${pks.length} PKs.`;
+  script.prompt.spinnerStop(completionMessage);
 
   return { resultMap, totalItems };
 }

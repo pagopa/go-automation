@@ -34,8 +34,7 @@ export type { DLQStats } from './models/DLQStats.js';
 // DynamoDB query service
 export { DynamoDBQueryService } from './DynamoDBQueryService.js';
 export type { DynamoDBQueryProgressHandler } from './DynamoDBQueryService.js';
-export type { DynamoDBQueryProgressCallback } from './DynamoDBQueryService.js';
-export type { DynamoDBQueryOptions } from './models/DynamoDBQueryOptions.js';
+export type { DynamoDBQueryOptions, DynamoDBKeyType } from './models/DynamoDBQueryOptions.js';
 export type { DynamoDBQueryResult } from './models/DynamoDBQueryResult.js';
 
 // Credentials management
