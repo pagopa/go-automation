@@ -1,5 +1,5 @@
 /**
- * SEND Dump SQS - Main Logic Module
+ * AWS Dump SQS - Main Logic Module
  *
  * Read-only dumps all messages from a specified SQS queue in NDJSON format.
  * Messages are received but NOT deleted from the queue.
@@ -14,7 +14,7 @@
 import { Core, AWS } from '@go-automation/go-common';
 
 import { initializeQueue } from './libs/initializeQueue.js';
-import type { SendDumpSqsConfig } from './types/index.js';
+import type { AwsDumpSqsConfig } from './types/index.js';
 
 /** Long polling wait time */
 const WAIT_TIME_SECONDS = 20;
@@ -25,9 +25,9 @@ const WAIT_TIME_SECONDS = 20;
  * @param script - The GOScript instance for logging and prompts
  */
 export async function main(script: Core.GOScript): Promise<void> {
-  const config = await script.getConfiguration<SendDumpSqsConfig>();
+  const config = await script.getConfiguration<AwsDumpSqsConfig>();
 
-  script.logger.section('SEND Dump SQS');
+  script.logger.section('AWS Dump SQS');
 
   // Warning if visibility timeout is too short compared to polling strategy
   const pollingWindow = WAIT_TIME_SECONDS * config.maxEmptyReceives;

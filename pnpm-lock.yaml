@@ -420,6 +420,16 @@ importers:
         specifier: 'catalog:'
         version: 24.12.2
 
+  scripts/aws/aws-dump-sqs:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.2
+
   scripts/aws/aws-put-sqs:
     dependencies:
       '@go-automation/go-common':
@@ -546,16 +556,6 @@ importers:
       '@aws-sdk/credential-provider-ini':
         specifier: 'catalog:'
         version: 3.972.33
-      '@go-automation/go-common':
-        specifier: workspace:*
-        version: link:../../../packages/go-common
-    devDependencies:
-      '@types/node':
-        specifier: 'catalog:'
-        version: 24.12.2
-
-  scripts/send/send-dump-sqs:
-    dependencies:
       '@go-automation/go-common':
         specifier: workspace:*
         version: link:../../../packages/go-common

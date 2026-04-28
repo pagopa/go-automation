@@ -1,4 +1,4 @@
-# SEND Dump SQS
+# AWS Dump SQS
 
 > Versione: 1.1.0 | Autore: Team GO
 
@@ -6,7 +6,7 @@ Script che effettua il dump di tutti i messaggi presenti in una coda **SQS** in 
 
 ## Indice
 
-- [SEND Dump SQS](#send-dump-sqs)
+- [AWS Dump SQS](#aws-dump-sqs)
   - [Indice](#indice)
   - [Come funziona](#come-funziona)
   - [Prerequisiti](#prerequisiti)
@@ -70,7 +70,7 @@ Lo script non include un file di configurazione dedicato: i valori vengono passa
 ### Note di risoluzione path
 
 - Se `--output-file` è assoluto, viene usato così com'è
-- Se `--output-file` è relativo, viene salvato nella directory `data/send-dump-sqs/outputs/send-dump-sqs_<timestamp>/`
+- Se `--output-file` è relativo, viene salvato nella directory `data/aws-dump-sqs/outputs/aws-dump-sqs_<timestamp>/`
 - Se `--output-file` non è specificato, il nome viene generato automaticamente come `dump_<queue>_<timestamp>.ndjson`
 
 ---
@@ -97,13 +97,13 @@ Dato che i messaggi non vengono eliminati, lo script potrebbe ricevere lo stesso
 
 ```bash
 # Dump standard con deduplicazione per MessageId
-pnpm --filter=send-dump-sqs start --qn la-mia-coda --aws-profile mio-profilo
+pnpm --filter=aws-dump-sqs start --qn la-mia-coda --aws-profile mio-profilo
 
 # Dump con filtro sul contenuto (MD5)
-pnpm --filter=send-dump-sqs start --qn la-mia-coda --dm content-md5 --aws-profile mio-profilo
+pnpm --filter=aws-dump-sqs start --qn la-mia-coda --dm content-md5 --aws-profile mio-profilo
 
 # Dump veloce con limite di messaggi
-pnpm --filter=send-dump-sqs start --qn la-mia-coda -l 1000 --aws-profile mio-profilo
+pnpm --filter=aws-dump-sqs start --qn la-mia-coda -l 1000 --aws-profile mio-profilo
 ```
 
 ---
