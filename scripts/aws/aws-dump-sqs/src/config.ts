@@ -1,5 +1,5 @@
 /**
- * SEND Dump SQS - Configuration Module
+ * AWS Dump SQS - Configuration Module
  *
  * Contains script metadata, parameters definition, and configuration interface.
  */
@@ -10,9 +10,9 @@ import { Core } from '@go-automation/go-common';
  * Script metadata
  */
 export const scriptMetadata: Core.GOScriptMetadata = {
-  name: 'SEND Dump SQS',
+  name: 'AWS Dump SQS',
   version: '1.1.0',
-  description: 'Dumps SQS messages - Extracts messages from an SQS queue in NDJSON format.',
+  description: 'Dumps SQS messages - Extracts messages from a SQS queue in NDJSON format.',
   authors: ['Team GO - Gestione Operativa'],
 };
 
