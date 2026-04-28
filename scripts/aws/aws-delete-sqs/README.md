@@ -1,8 +1,8 @@
-# SEND Delete SQS
+# AWS Delete SQS
 
 > Versione: 1.0.0 | Autore: Team GO
 
-Script progettato per l'eliminazione sicura e resiliente di messaggi da una coda **Amazon SQS**. Supporta sia l'eliminazione mirata tramite un file di input (prodotto da `send-dump-sqs`) sia il purge completo della coda, seguendo rigorosamente le best practice AWS per il ciclo di vita dei messaggi.
+Script progettato per l'eliminazione sicura e resiliente di messaggi da una coda **Amazon SQS**. Supporta sia l'eliminazione mirata tramite un file di input (prodotto da `aws-dump-sqs`) sia il purge completo della coda, seguendo rigorosamente le best practice AWS per il ciclo di vita dei messaggi.
 
 ## Indice
 
@@ -78,13 +78,13 @@ Lo script accetta parametri tramite CLI. Le path relative vengono risolte tramit
 
 ```bash
 # Eliminazione mirata basata su un dump precedente
-pnpm --filter=send-delete-sqs start --qn la-mia-coda -f dump_coda_2025-05-22.ndjson --ap mio-profilo
+pnpm --filter=aws-delete-sqs start --qn la-mia-coda -f dump_coda_2025-05-22.ndjson --ap mio-profilo
 
 # Purge completo della coda (richiede conferma interattiva)
-pnpm --filter=send-delete-sqs start --qn la-mia-coda --purge-all --ap mio-profilo
+pnpm --filter=aws-delete-sqs start --qn la-mia-coda --purge-all --ap mio-profilo
 
 # Esecuzione con timeout di visibilità personalizzato
-pnpm --filter=send-delete-sqs start --qn la-mia-coda --purge-all --vt 60 --ap mio-profilo
+pnpm --filter=aws-delete-sqs start --qn la-mia-coda --purge-all --vt 60 --ap mio-profilo
 ```
 
 ---
