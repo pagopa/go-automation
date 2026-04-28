@@ -1,5 +1,5 @@
 /**
- * Send Delete SQS - Configuration Module
+ * AWS Delete SQS - Configuration Module
  *
  * Defines metadata and CLI parameters for the SQS deletion script.
  */
@@ -10,11 +10,11 @@ import { Core } from '@go-automation/go-common';
  * Script metadata.
  */
 export const scriptMetadata: Core.GOScriptMetadata = {
-  name: 'SEND Delete SQS',
+  name: 'AWS Delete SQS',
   version: '1.0.0',
-  description: 'Deletes SQS messages - Removes messages selectively via input file or purges the entire queue.',
+  description: 'Deletes SQS messages - Deletes messages from a SQS queue selectively or entirely.',
   authors: ['Team GO - Gestione Operativa'],
-  keywords: ['send', 'sqs', 'delete'],
+  keywords: ['aws', 'sqs', 'delete'],
 };
 
 /**

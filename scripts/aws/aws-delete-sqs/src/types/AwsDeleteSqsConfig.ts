@@ -1,7 +1,7 @@
 /**
- * Configuration for the SEND Delete SQS script.
+ * Configuration for the AWS Delete SQS script.
  */
-export interface SendDeleteSqsConfig {
+export interface AwsDeleteSqsConfig {
   /** AWS Profile for SSO login */
   awsProfile: string;
 
