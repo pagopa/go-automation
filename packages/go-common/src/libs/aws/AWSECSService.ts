@@ -1,35 +1,28 @@
 import {
-  ECSClient,
-  ListClustersCommand,
   DescribeClustersCommand,
-  ListServicesCommand,
   DescribeServicesCommand,
-  ListTasksCommand,
   DescribeTasksCommand,
+  ListClustersCommand,
+  ListServicesCommand,
+  ListTasksCommand,
 } from '@aws-sdk/client-ecs';
-import type { Service, Task } from '@aws-sdk/client-ecs';
+import type { ECSClient, Service, Task } from '@aws-sdk/client-ecs';
 
-import type { ClusterHealthReport, ServiceHealth, TaskHealth } from '../types/index.js';
+import type { ECSClusterHealthReport, ECSServiceHealth, ECSTaskHealth } from './models/ECSClusterHealth.js';
 
 /**
- * Servizio per l'interazione con AWS ECS
- * Implementa la logica di discovery e analisi della salute dei cluster
+ * Service for interacting with Amazon ECS.
+ *
+ * Provides methods for cluster discovery and health analysis.
  */
-export class ECSService {
+export class AWSECSService {
   constructor(private readonly client: ECSClient) {}
 
   /**
-   * Recupera la lista degli ARN dei cluster ECS, opzionalmente filtrati per nome
-   * Complexity: O(1) chiamate API (paginazione non gestita per semplicita, assume < 100 cluster)
+   * Lists ECS cluster ARNs, optionally filtered by name.
    *
-   * @param filter - Array di stringhe per filtrare i nomi dei cluster
-   * @returns Lista di ARN dei cluster
-   *
-   * @example
-   * ```typescript
-   * const service = new ECSService(client);
-   * const clusters = await service.listClusters(['prod', 'uat']);
-   * ```
+   * @param filter - Array of strings to filter cluster names
+   * @returns List of cluster ARNs
    */
   async listClusters(filter?: ReadonlyArray<string>): Promise<ReadonlyArray<string>> {
     const command = new ListClustersCommand({});
@@ -43,19 +36,12 @@ export class ECSService {
   }
 
   /**
-   * Esegue un'analisi completa della salute di un cluster (servizi e task)
-   * Complexity: O(S/10 + T/100) chiamate API dove S e il numero di servizi e T il numero di task
+   * Performs a comprehensive health analysis of an ECS cluster.
    *
-   * @param clusterArn - ARN del cluster da analizzare
-   * @returns Report dettagliato sulla salute del cluster
-   *
-   * @example
-   * ```typescript
-   * const report = await service.checkCluster('arn:aws:ecs:eu-south-1:123:cluster/my-cluster');
-   * if (!report.isHealthy) console.log('Cluster has issues');
-   * ```
+   * @param clusterArn - ARN of the cluster to analyze
+   * @returns Detailed cluster health report
    */
-  async checkCluster(clusterArn: string): Promise<ClusterHealthReport> {
+  async checkCluster(clusterArn: string): Promise<ECSClusterHealthReport> {
     // Describe Cluster
     const descCluster = await this.client.send(new DescribeClustersCommand({ clusters: [clusterArn] }));
     const cluster = descCluster.clusters?.[0];
@@ -69,7 +55,7 @@ export class ECSService {
 
     if (listServices.serviceArns && listServices.serviceArns.length > 0) {
       const serviceArns = listServices.serviceArns;
-      // Batch by 10
+      // Batch by 10 (AWS API limit)
       for (let i = 0; i < serviceArns.length; i += 10) {
         const batch = serviceArns.slice(i, i + 10);
         const descServices = await this.client.send(
@@ -87,7 +73,7 @@ export class ECSService {
 
     if (listTasks.taskArns && listTasks.taskArns.length > 0) {
       const taskArns = listTasks.taskArns;
-      // Batch by 100
+      // Batch by 100 (AWS API limit)
       for (let i = 0; i < taskArns.length; i += 100) {
         const batch = taskArns.slice(i, i + 100);
         const descTasks = await this.client.send(new DescribeTasksCommand({ cluster: clusterArn, tasks: batch }));
@@ -97,14 +83,13 @@ export class ECSService {
       }
     }
 
-    // Analyze
-    const serviceHealths: ServiceHealth[] = services.map((s) => {
+    // Analyze Services
+    const serviceHealths: ECSServiceHealth[] = services.map((s) => {
       const runningCount = s.runningCount ?? 0;
       const desiredCount = s.desiredCount ?? 0;
       const status = s.status ?? 'UNKNOWN';
       const serviceName = s.serviceName ?? 'unknown';
 
-      // Basic health check: running matches desired and status is ACTIVE
       const isHealthy = runningCount === desiredCount && status === 'ACTIVE';
 
       return {
@@ -116,11 +101,11 @@ export class ECSService {
       };
     });
 
-    const taskHealths: TaskHealth[] = tasks.map((t) => {
+    // Analyze Tasks
+    const taskHealths: ECSTaskHealth[] = tasks.map((t) => {
       const lastStatus = t.lastStatus ?? 'UNKNOWN';
       const healthStatus = t.healthStatus ?? 'UNKNOWN';
 
-      // Basic health check: running and healthy (if health check exists)
       const isRunning = lastStatus === 'RUNNING';
       const isHealthCheckPassing = healthStatus === 'HEALTHY' || healthStatus === 'UNKNOWN';
       const isHealthy = isRunning && isHealthCheckPassing;
@@ -134,7 +119,6 @@ export class ECSService {
       };
     });
 
-    // Cluster is healthy if active and all services/tasks are healthy
     const isClusterHealthy =
       cluster.status === 'ACTIVE' && serviceHealths.every((s) => s.isHealthy) && taskHealths.every((t) => t.isHealthy);
 

@@ -37,6 +37,10 @@ export type { DynamoDBQueryProgressHandler } from './DynamoDBQueryService.js';
 export type { DynamoDBQueryOptions, DynamoDBKeyType } from './models/DynamoDBQueryOptions.js';
 export type { DynamoDBQueryResult } from './models/DynamoDBQueryResult.js';
 
+// ECS service
+export { AWSECSService } from './AWSECSService.js';
+export type { ECSClusterHealthReport, ECSServiceHealth, ECSTaskHealth } from './models/ECSClusterHealth.js';
+
 // Credentials management
 export { GOAWSCredentialsManager } from './GOAWSCredentialsManager.js';
 export { GOAWSCredentialsErrorType } from './GOAWSCredentialsError.js';
@@ -62,6 +66,7 @@ export { isProfileValidationSuccess, isProfileValidationFailure } from './AWSPro
 export type { Message, SendMessageBatchRequestEntry, SendMessageBatchCommandOutput } from '@aws-sdk/client-sqs';
 export type { SQSClient } from '@aws-sdk/client-sqs';
 export type { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
+export type { ECSClient } from '@aws-sdk/client-ecs';
 
 // DynamoDB types
 export type {

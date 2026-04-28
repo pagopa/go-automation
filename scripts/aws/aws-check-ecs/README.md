@@ -1,4 +1,4 @@
-# Send Check ECS
+# AWS Check ECS
 
 > Versione: 1.0.0 | Autore: Team GO - Gestione Operativa
 
@@ -52,13 +52,13 @@ Lo script esegue le seguenti operazioni:
 ### Modalità Development (via pnpm/tsx)
 
 ```bash
-pnpm send:check:ecs:dev --aws-profiles <profile1>,<profile2>
+pnpm aws:check:ecs:dev --aws-profiles <profile1>,<profile2>
 ```
 
 ### Modalità Production (build + node)
 
 ```bash
-pnpm send:check:ecs:prod --aws-profiles <profile1>
+pnpm aws:check:ecs:prod --aws-profiles <profile1>
 ```
 
 ## Output
@@ -67,7 +67,7 @@ pnpm send:check:ecs:prod --aws-profiles <profile1>
 
 ```console
 ╭─────────────────────────────────────────╮
-│  Send Check ECS v1.0.0                  │
+│  AWS Check ECS v1.0.0                   │                  │
 │  Team GO - Gestione Operativa           │
 ╰─────────────────────────────────────────╯
 
