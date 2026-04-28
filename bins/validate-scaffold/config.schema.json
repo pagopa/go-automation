@@ -21,7 +21,11 @@
       "type": "string",
       "minLength": 1,
       "not": {
-        "anyOf": [{ "pattern": "^/" }, { "pattern": "^[A-Za-z]:" }, { "pattern": "(^|/)\\.\\.(/|$)" }]
+        "anyOf": [
+          { "pattern": "^(\\/|\\\\)" },
+          { "pattern": "^[A-Za-z]:" },
+          { "pattern": "(^|[\\\\/])\\.\\.([\\\\/]|$)" }
+        ]
       }
     },
     "group": {
