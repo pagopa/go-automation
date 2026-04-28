@@ -36,11 +36,16 @@ function normalizeRelativePath(value: string, context: string): string {
 }
 
 function readRequiredString(value: unknown, context: string): string {
-  if (typeof value !== 'string' || value.trim() === '') {
+  if (typeof value !== 'string') {
     throw new Error(`${context}: expected non-empty string`);
   }
 
-  return value;
+  const trimmed = value.trim();
+  if (trimmed === '') {
+    throw new Error(`${context}: expected non-empty string`);
+  }
+
+  return trimmed;
 }
 
 interface ReadStringArrayOptions {
