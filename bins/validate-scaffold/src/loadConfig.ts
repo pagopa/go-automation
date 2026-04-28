@@ -11,11 +11,12 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 function normalizeRelativePath(value: string, context: string): string {
-  const normalized = value.replace(/\\/g, '/').replace(/\/+$/, '').replace(/^\.\//, '') || '.';
-
-  if (path.isAbsolute(normalized) || /^[A-Za-z]:/.test(normalized)) {
+  const slashNormalized = value.replace(/\\/g, '/');
+  if (path.isAbsolute(slashNormalized) || /^[A-Za-z]:/.test(slashNormalized)) {
     throw new Error(`${context}: absolute paths are not allowed: ${value}`);
   }
+
+  const normalized = slashNormalized.replace(/\/+$/, '').replace(/^\.\//, '') || '.';
 
   if (normalized.split('/').includes('..')) {
     throw new Error(`${context}: parent traversal is not allowed: ${value}`);
