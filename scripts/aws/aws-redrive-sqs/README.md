@@ -54,15 +54,15 @@ Lo script accetta parametri tramite interfaccia CLI.
 
 ### Parametri CLI
 
-| Parametro              | Alias           | Tipo     | Obbligatorio | Default | Descrizione                                                   |
-| ---------------------- | --------------- | -------- | ------------ | ------- | ------------------------------------------------------------- |
-| `--aws-profile`        | `--ap`          | `string` | Sì           | —       | Nome del profilo AWS SSO                                      |
-| `--source-queue`       | `--sq`, `--src` | `string` | Sì           | —       | Nome o URL completo della coda SQS di origine                 |
-| `--target-queue`       | `--tq`, `--dst` | `string` | Sì           | —       | Nome o URL completo della coda SQS di destinazione            |
-| `--visibility-timeout` | `--vt`          | `number` | No           | `60`    | Timeout di visibilità per i messaggi ricevuti                 |
-| `--limit`              | `-l`            | `number` | No           | —       | Numero massimo di messaggi da spostare                        |
-| `--batch-size`         | `--bs`          | `number` | No           | `10`    | Dimensione del batch per le operazioni SQS (1-10)             |
-| `--dry-run`            | `--dr`          | `boolean`| No           | `false` | Simula lo spostamento senza inviare o eliminare i messaggi    |
+| Parametro              | Alias           | Tipo      | Obbligatorio | Default | Descrizione                                                |
+| ---------------------- | --------------- | --------- | ------------ | ------- | ---------------------------------------------------------- |
+| `--aws-profile`        | `--ap`          | `string`  | Sì           | —       | Nome del profilo AWS SSO                                   |
+| `--source-queue`       | `--sq`, `--src` | `string`  | Sì           | —       | Nome o URL completo della coda SQS di origine              |
+| `--target-queue`       | `--tq`, `--dst` | `string`  | Sì           | —       | Nome o URL completo della coda SQS di destinazione         |
+| `--visibility-timeout` | `--vt`          | `number`  | No           | `60`    | Timeout di visibilità per i messaggi ricevuti              |
+| `--limit`              | `-l`            | `number`  | No           | —       | Numero massimo di messaggi da spostare                     |
+| `--batch-size`         | `--bs`          | `number`  | No           | `10`    | Dimensione del batch per le operazioni SQS (1-10)          |
+| `--dry-run`            | `--dr`          | `boolean` | No           | `false` | Simula lo spostamento senza inviare o eliminare i messaggi |
 
 ---
 
