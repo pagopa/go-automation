@@ -18,6 +18,10 @@ const config: KnipConfig = {
     'packages/go-send': {
       project: ['src/**/*.ts'],
     },
+    // AWS scripts
+    'scripts/aws/*': {
+      project: ['src/**/*.ts'],
+    },
     // GO scripts
     'scripts/go/*': {
       project: ['src/**/*.ts'],
