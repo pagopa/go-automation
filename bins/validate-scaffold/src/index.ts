@@ -52,7 +52,9 @@ function createMonorepoContext(config: ValidateScaffoldConfig): MonorepoRulesCon
   const workspaceGroups = config.groups.filter((group) => group.ruleSet !== 'monorepo' && group.include !== undefined);
 
   return {
-    workspaceParents: [PACKAGE_WORKSPACE_PARENT, ...new Set(workspaceGroups.flatMap((group) => group.include ?? []))],
+    workspaceParents: [
+      ...new Set([PACKAGE_WORKSPACE_PARENT, ...workspaceGroups.flatMap((group) => group.include ?? [])]),
+    ],
     excludeRelativePaths: [...new Set(workspaceGroups.flatMap((group) => group.exclude ?? []))],
   };
 }
