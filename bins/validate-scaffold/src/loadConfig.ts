@@ -5,6 +5,7 @@ import type { ValidateScaffoldConfig, ValidationGroupConfig } from './types/Vali
 import { RULE_SET_NAMES, isRuleSetName } from './types/ValidateScaffoldConfig.js';
 
 const CONFIG_FILE = 'validate-scaffold.config.json';
+const ROOT_KEYS = new Set(['$schema', 'groups']);
 const GROUP_KEYS = new Set(['name', 'ruleSet', 'paths', 'include', 'exclude']);
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -119,6 +120,7 @@ export async function loadValidateScaffoldConfig(rootDir: string): Promise<Valid
   if (!isObject(parsed)) {
     throw new Error(`${CONFIG_FILE}: expected root object`);
   }
+  assertAllowedKeys(parsed, ROOT_KEYS, CONFIG_FILE);
 
   const groups = parsed['groups'];
   if (!Array.isArray(groups) || groups.length === 0) {
