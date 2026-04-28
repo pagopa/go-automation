@@ -1,8 +1,7 @@
-import { Core } from '@go-automation/go-common';
+import { Core, AWS } from '@go-automation/go-common';
 
 import { displayClusterReport } from './libs/ECSReportDisplay.js';
-import { ECSService } from './libs/ECSService.js';
-import type { SendCheckEcsConfig } from './types/index.js';
+import type { AWSCheckEcsConfig } from './types/index.js';
 
 /**
  * Main script execution function.
@@ -12,7 +11,7 @@ import type { SendCheckEcsConfig } from './types/index.js';
  * @param script - The GOScript instance
  */
 export async function main(script: Core.GOScript): Promise<void> {
-  const config = await script.getConfiguration<SendCheckEcsConfig>();
+  const config = await script.getConfiguration<AWSCheckEcsConfig>();
 
   script.logger.section('ECS Check');
   if (config.ecsClusters && config.ecsClusters.length > 0) {
@@ -25,7 +24,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.prompt.spin('fetch', 'Fetching ECS data from all profiles...');
 
   const { results, errors } = await script.awsMulti.mapParallelSettled(async (_, clientProvider) => {
-    const ecsService = new ECSService(clientProvider.ecs);
+    const ecsService = new AWS.AWSECSService(clientProvider.ecs);
 
     const clusterArns = await ecsService.listClusters(config.ecsClusters);
     const reports = await Promise.all(clusterArns.map(async (arn) => ecsService.checkCluster(arn)));
