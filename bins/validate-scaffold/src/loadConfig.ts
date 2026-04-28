@@ -33,11 +33,24 @@ function readRequiredString(value: unknown, context: string): string {
   return value;
 }
 
-function readStringArray(value: unknown, context: string): ReadonlyArray<string> | undefined {
+interface ReadStringArrayOptions {
+  readonly allowEmpty: boolean;
+}
+
+function readStringArray(
+  value: unknown,
+  context: string,
+  options: ReadStringArrayOptions,
+): ReadonlyArray<string> | undefined {
   if (value === undefined) return undefined;
 
-  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string' || item.trim() === '')) {
-    throw new Error(`${context}: expected non-empty string[]`);
+  const expected = options.allowEmpty ? 'string[]' : 'non-empty string[]';
+  if (
+    !Array.isArray(value) ||
+    (!options.allowEmpty && value.length === 0) ||
+    value.some((item) => typeof item !== 'string' || item.trim() === '')
+  ) {
+    throw new Error(`${context}: expected ${expected}`);
   }
 
   const items = value as string[];
@@ -58,9 +71,9 @@ function parseGroup(value: unknown, index: number): ValidationGroupConfig {
     throw new Error(`${context}.ruleSet: expected one of ${RULE_SET_NAMES.join(', ')}`);
   }
 
-  const paths = readStringArray(value['paths'], `${context}.paths`);
-  const include = readStringArray(value['include'], `${context}.include`);
-  const exclude = readStringArray(value['exclude'], `${context}.exclude`) ?? [];
+  const paths = readStringArray(value['paths'], `${context}.paths`, { allowEmpty: false });
+  const include = readStringArray(value['include'], `${context}.include`, { allowEmpty: false });
+  const exclude = readStringArray(value['exclude'], `${context}.exclude`, { allowEmpty: true }) ?? [];
 
   if ((paths === undefined) === (include === undefined)) {
     throw new Error(`${context}: specify exactly one of "paths" or "include"`);
