@@ -410,6 +410,16 @@ importers:
         specifier: 'catalog:'
         version: 24.12.2
 
+  scripts/aws/aws-check-ecs:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.2
+
   scripts/aws/aws-query-dynamodb:
     dependencies:
       '@go-automation/go-common':
@@ -501,22 +511,6 @@ importers:
       aws-sdk-client-mock:
         specifier: ^4.1.0
         version: 4.1.0
-
-  scripts/send/send-check-ecs:
-    dependencies:
-      '@aws-sdk/client-ecs':
-        specifier: 'catalog:'
-        version: 3.1034.0
-      '@aws-sdk/credential-provider-ini':
-        specifier: 'catalog:'
-        version: 3.972.33
-      '@go-automation/go-common':
-        specifier: workspace:*
-        version: link:../../../packages/go-common
-    devDependencies:
-      '@types/node':
-        specifier: 'catalog:'
-        version: 24.12.2
 
   scripts/send/send-delete-sqs:
     dependencies:
