@@ -44,7 +44,6 @@ const PACKAGE_WORKSPACE_PARENT = 'packages';
 
 interface ValidationTargetGroup {
   readonly label: string;
-  readonly countLabel: string;
   readonly paths: ReadonlyArray<string>;
   readonly engine: ScaffoldEngine;
 }
@@ -149,7 +148,6 @@ async function main(): Promise<void> {
   for (const group of config.groups) {
     groups.push({
       label: group.name,
-      countLabel: group.countLabel,
       paths: await resolveGroupPaths(rootDir, group),
       engine: new ScaffoldEngine(ruleSets[group.ruleSet]),
     });
@@ -175,7 +173,7 @@ async function main(): Promise<void> {
 
   for (const group of groups) {
     if (group.paths.length > 1) {
-      parts.push(`${BOLD}${String(group.paths.length)} ${group.countLabel}${RESET}`);
+      parts.push(`${BOLD}${String(group.paths.length)} ${group.label.toLowerCase()}${RESET}`);
     }
   }
 

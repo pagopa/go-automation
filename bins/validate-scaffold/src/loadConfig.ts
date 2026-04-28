@@ -51,7 +51,6 @@ function parseGroup(value: unknown, index: number): ValidationGroupConfig {
   }
 
   const name = readRequiredString(value['name'], `${context}.name`);
-  const countLabel = readRequiredString(value['countLabel'], `${context}.countLabel`);
   const ruleSetValue = readRequiredString(value['ruleSet'], `${context}.ruleSet`);
 
   if (!isRuleSetName(ruleSetValue)) {
@@ -68,7 +67,6 @@ function parseGroup(value: unknown, index: number): ValidationGroupConfig {
 
   return {
     name,
-    countLabel,
     ruleSet: ruleSetValue,
     ...(paths !== undefined && { paths }),
     ...(include !== undefined && { include }),

@@ -4,7 +4,6 @@ export type RuleSetName = (typeof RULE_SET_NAMES)[number];
 
 export interface ValidationGroupConfig {
   readonly name: string;
-  readonly countLabel: string;
   readonly ruleSet: RuleSetName;
   readonly paths?: ReadonlyArray<string>;
   readonly include?: ReadonlyArray<string>;

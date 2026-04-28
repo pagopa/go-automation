@@ -27,10 +27,9 @@
     "group": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "countLabel", "ruleSet"],
+      "required": ["name", "ruleSet"],
       "properties": {
         "name": { "type": "string", "minLength": 1 },
-        "countLabel": { "type": "string", "minLength": 1 },
         "ruleSet": { "$ref": "#/$defs/ruleSet" },
         "paths": {
           "type": "array",
