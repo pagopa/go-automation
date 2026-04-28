@@ -1,5 +1,5 @@
 {
-  "name": "send-delete-sqs",
+  "name": "aws-delete-sqs",
   "version": "1.0.0",
   "private": true,
   "type": "module",

@@ -1,5 +1,5 @@
 /**
- * Send Delete SQS - Entry Point
+ * AWS Delete SQS - Entry Point
  */
 
 import { Core } from '@go-automation/go-common';
