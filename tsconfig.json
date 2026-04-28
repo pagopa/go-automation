@@ -14,6 +14,7 @@
     { "path": "./packages/go-common" },
     { "path": "./packages/go-runbook" },
     { "path": "./packages/go-send" },
+    { "path": "./scripts/aws/aws-put-sqs" },
     { "path": "./scripts/aws/aws-query-dynamodb" },
     { "path": "./scripts/go/go-ai-client" },
     { "path": "./scripts/go/go-analyze-alarm" },
@@ -26,7 +27,6 @@
     { "path": "./scripts/send/send-fetch-timeline-from-iun" },
     { "path": "./scripts/send/send-import-notifications" },
     { "path": "./scripts/send/send-monitor-tpp-messages" },
-    { "path": "./scripts/send/send-put-sqs" },
     { "path": "./scripts/send/send-report-dlq" }
   ]
 }

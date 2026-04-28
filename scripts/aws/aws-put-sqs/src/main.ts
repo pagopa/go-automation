@@ -1,5 +1,5 @@
 /**
- * Send Put SQS - Main Logic Module
+ * AWS Put SQS - Main Logic Module
  *
  * Implements bulk message sending to SQS with surgical retries for partial batch failures.
  * Supports text, JSON, and CSV input formats.
@@ -7,7 +7,7 @@
 
 import { Core, AWS } from '@go-automation/go-common';
 
-import type { SendPutSqsConfig } from './types/SendPutSqsConfig.js';
+import type { AwsPutSqsConfig } from './types/AwsPutSqsConfig.js';
 import { initializeImporter, processBatch, updateProgress, type BulkStats } from './libs/SqsService.js';
 
 /**
@@ -16,7 +16,8 @@ import { initializeImporter, processBatch, updateProgress, type BulkStats } from
  * @param script - The GOScript instance
  */
 export async function main(script: Core.GOScript): Promise<void> {
-  const config = await script.getConfiguration<SendPutSqsConfig>();
+  const config = await script.getConfiguration<AwsPutSqsConfig>();
+  script.logger.section('AWS Put SQS');
   const stats: BulkStats = { processed: 0, success: 0, failed: 0, retries: 0 };
   const startTime = Date.now();
 
