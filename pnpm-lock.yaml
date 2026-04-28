@@ -410,6 +410,16 @@ importers:
         specifier: 'catalog:'
         version: 24.12.2
 
+  scripts/aws/aws-delete-sqs:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.2
+
   scripts/aws/aws-dump-sqs:
     dependencies:
       '@go-automation/go-common':
@@ -418,6 +428,16 @@ importers:
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
+        version: 24.12.2
+
+  scripts/aws/aws-put-sqs:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+    devDependencies:
+      '@types/node':
+        specifier: ^24.12.2
         version: 24.12.2
 
   scripts/aws/aws-query-dynamodb:
@@ -528,16 +548,6 @@ importers:
         specifier: 'catalog:'
         version: 24.12.2
 
-  scripts/send/send-delete-sqs:
-    dependencies:
-      '@go-automation/go-common':
-        specifier: workspace:*
-        version: link:../../../packages/go-common
-    devDependencies:
-      '@types/node':
-        specifier: 'catalog:'
-        version: 24.12.2
-
   scripts/send/send-download-safestorage-attachments:
     dependencies:
       '@aws-sdk/client-s3':
@@ -609,16 +619,6 @@ importers:
         version: 3.7.1
       '@types/node':
         specifier: 'catalog:'
-        version: 24.12.2
-
-  scripts/send/send-put-sqs:
-    dependencies:
-      '@go-automation/go-common':
-        specifier: workspace:*
-        version: link:../../../packages/go-common
-    devDependencies:
-      '@types/node':
-        specifier: ^24.12.2
         version: 24.12.2
 
   scripts/send/send-report-dlq:
@@ -2195,9 +2195,6 @@ packages:
   get-proto@1.0.1:
     resolution: {integrity: sha512-sTSfBjoXBp89JvIKIefqw7U2CCebsc74kiY6awiGogKtoSGbgjYE/G/+l9sF3MWFPNc9IcoOC4ODfKHfxFmp0g==}
     engines: {node: '>= 0.4'}
-
-  get-tsconfig@4.13.7:
-    resolution: {integrity: sha512-7tN6rFgBlMgpBML5j8typ92BKFi2sFQvIdpAqLA2beia5avZDrMs0FLZiM5etShWq5irVyGcGMEA1jcDaK7A/Q==}
 
   get-tsconfig@4.14.0:
     resolution: {integrity: sha512-yTb+8DXzDREzgvYmh6s9vHsSVCHeC0G3PI5bEXNBHtmshPnO+S5O7qgLEOn0I5QvMy6kpZN8K1NKGyilLb93wA==}
@@ -5180,10 +5177,6 @@ snapshots:
       dunder-proto: 1.0.1
       es-object-atoms: 1.1.1
 
-  get-tsconfig@4.13.7:
-    dependencies:
-      resolve-pkg-maps: 1.0.0
-
   get-tsconfig@4.14.0:
     dependencies:
       resolve-pkg-maps: 1.0.0
@@ -5638,7 +5631,7 @@ snapshots:
   tsx@4.21.0:
     dependencies:
       esbuild: 0.27.7
-      get-tsconfig: 4.13.7
+      get-tsconfig: 4.14.0
     optionalDependencies:
       fsevents: 2.3.3
 

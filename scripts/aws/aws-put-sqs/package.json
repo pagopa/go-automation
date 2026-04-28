@@ -1,9 +1,9 @@
 {
-  "name": "send-delete-sqs",
+  "name": "aws-put-sqs",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Delete messages from an SQS queue.",
+  "description": "Put messages into an SQS queue.",
   "main": "dist/index.js",
   "files": [
     "dist",
@@ -17,7 +17,7 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "keywords": [
-    "send",
+    "aws",
     "sqs"
   ],
   "author": "Team GO - Gestione Operativa",
@@ -26,6 +26,6 @@
     "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "catalog:"
+    "@types/node": "^24.12.2"
   }
 }
