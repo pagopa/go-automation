@@ -1,10 +1,10 @@
 /**
- * SQS Service Helpers for send-put-sqs
+ * SQS Service Helpers for aws-put-sqs
  */
 
 import { Core, AWS } from '@go-automation/go-common';
 
-import type { SendPutSqsConfig } from '../types/SendPutSqsConfig.js';
+import type { AwsPutSqsConfig } from '../types/AwsPutSqsConfig.js';
 
 /**
  * Statistics for the bulk operation
@@ -19,7 +19,7 @@ export interface BulkStats {
 /**
  * Initializes the appropriate importer based on configuration or file extension
  */
-export function initializeImporter(_script: Core.GOScript, config: SendPutSqsConfig): Core.GOListImporter<unknown> {
+export function initializeImporter(_script: Core.GOScript, config: AwsPutSqsConfig): Core.GOListImporter<unknown> {
   const extension = config.inputFile.split('.').pop()?.toLowerCase();
   const format = config.fileFormat === 'auto' ? extension : config.fileFormat;
 
@@ -46,7 +46,7 @@ export function initializeImporter(_script: Core.GOScript, config: SendPutSqsCon
  */
 export async function processBatch(
   script: Core.GOScript,
-  config: SendPutSqsConfig,
+  config: AwsPutSqsConfig,
   queueUrl: string,
   messages: string[],
   stats: BulkStats,

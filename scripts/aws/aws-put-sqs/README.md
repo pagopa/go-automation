@@ -1,4 +1,4 @@
-# SEND Put SQS
+# AWS Put SQS
 
 > Versione: 1.1.0 | Autore: Team GO
 
@@ -97,19 +97,20 @@ Lo script esegue controlli automatici sui messaggi prima dell'invio:
 
 ## Utilizzo
 
-```bash
+````bash
 # Invio semplice da file di testo (usando nome coda)
-pnpm --filter=send-put-sqs start --qn la-mia-coda -f messaggi.txt --ap mio-profilo
+pnpm --filter=aws-put-sqs start --qn la-mia-coda -f messaggi.txt --ap mio-profilo
 
 # Invio da CSV specificando la colonna e ritardo di visibilità (usando URL)
-pnpm --filter=send-put-sqs start --qu https://sqs... -f data.csv --cc body --ds 60 --ap mio-profilo
+pnpm --filter=aws-put-sqs start --qu https://sqs... -f data.csv --cc body --ds 60 --ap mio-profilo
 
 # Invio a coda FIFO con generazione hash per deduplicazione
-pnpm --filter=send-put-sqs start --qn coda.fifo -f msg.json --fds hash --fgid my-group --ap mio-profilo
+pnpm --filter=aws-put-sqs start --qn coda.fifo -f msg.json --fds hash --fgid my-group --ap mio-profilo
 
-# Re-invio di messaggi scaricati tramite send-dump-sqs (formato NDJSON)
-pnpm --filter=send-put-sqs start --qn la-mia-coda -f dump_coda_2026-04-17.ndjson --ap mio-profilo
-```
+# Re-invio di messaggi scaricati tramite aws-dump-sqs (formato NDJSON)
+pnpm --filter=aws-put-sqs start --qn la-mia-coda -f dump_coda_2026-04-17.ndjson --ap mio-profilo
+``` start --qn la-mia-coda -f dump_coda_2026-04-17.ndjson --ap mio-profilo
+````
 
 ---
 

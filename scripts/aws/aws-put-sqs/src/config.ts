@@ -1,5 +1,5 @@
 /**
- * Send Put SQS - Configuration Module
+ * AWS Put SQS - Configuration Module
  *
  * Contains script metadata and parameter definitions for sending messages to SQS.
  */
@@ -10,9 +10,9 @@ import { Core } from '@go-automation/go-common';
  * Script metadata
  */
 export const scriptMetadata: Core.GOScriptMetadata = {
-  name: 'SEND Put SQS',
+  name: 'AWS Put SQS',
   version: '1.0.0',
-  description: 'Puts SQS messages - Inserts messages into an SQS queue from a NDJSON file source.',
+  description: 'Puts SQS messages - Inserts messages into a SQS queue from a NDJSON file source.',
   authors: ['Team GO - Gestione Operativa'],
 };
 

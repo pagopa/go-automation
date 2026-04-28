@@ -5,6 +5,9 @@
   "type": "module",
   "description": "GO Automation Scripts and Tools Monorepo",
   "scripts": {
+    "aws:put:sqs:build": "pnpm --filter=aws-put-sqs build",
+    "aws:put:sqs:dev": "pnpm --filter=aws-put-sqs dev",
+    "aws:put:sqs:prod": "pnpm --filter=aws-put-sqs start",
     "aws:delete:sqs:build": "pnpm --filter=aws-delete-sqs build",
     "aws:delete:sqs:dev": "pnpm --filter=aws-delete-sqs dev",
     "aws:delete:sqs:prod": "pnpm --filter=aws-delete-sqs start",
