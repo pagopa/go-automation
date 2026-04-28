@@ -1,5 +1,5 @@
 /**
- * Send Put SQS - Entry Point
+ * AWS Put SQS - Entry Point
  *
  * Bulk sends messages to an SQS queue from a file source.
  */

@@ -1,4 +1,4 @@
-export interface SendPutSqsConfig {
+export interface AwsPutSqsConfig {
   readonly queueUrl?: string;
   readonly queueName?: string;
   readonly inputFile: string;
