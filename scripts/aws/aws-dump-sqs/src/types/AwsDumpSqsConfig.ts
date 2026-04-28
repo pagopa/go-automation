@@ -3,7 +3,7 @@ import { AWS } from '@go-automation/go-common';
 /**
  * Script configuration interface
  */
-export interface SendDumpSqsConfig {
+export interface AwsDumpSqsConfig {
   /** AWS SSO profile name */
   readonly awsProfile: string;
 

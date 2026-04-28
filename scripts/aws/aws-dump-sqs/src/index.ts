@@ -1,5 +1,5 @@
 /**
- * SEND Dump SQS - Entry Point
+ * AWS Dump SQS - Entry Point
  *
  * Minimal entry point that wires together:
  * - GOScript instantiation with metadata and parameters

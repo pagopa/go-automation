@@ -1,5 +1,5 @@
 {
-  "name": "send-dump-sqs",
+  "name": "aws-dump-sqs",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "keywords": [
-    "send",
+    "aws",
     "sqs"
   ],
   "author": "Team GO - Gestione Operativa",
