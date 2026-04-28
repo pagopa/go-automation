@@ -19,6 +19,7 @@
     { "path": "./scripts/aws/aws-dump-sqs" },
     { "path": "./scripts/aws/aws-put-sqs" },
     { "path": "./scripts/aws/aws-query-dynamodb" },
+    { "path": "./scripts/aws/aws-redrive-sqs" },
     { "path": "./scripts/go/go-ai-client" },
     { "path": "./scripts/go/go-analyze-alarm" },
     { "path": "./scripts/go/go-parse-json" },

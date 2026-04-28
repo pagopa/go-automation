@@ -9,5 +9,7 @@ export type { SQSReceiveResult } from './SQSReceiveResult.js';
 export { SQSProcessAction } from './SQSProcessAction.js';
 export type { SQSProcessOptions } from './SQSProcessOptions.js';
 export type { SQSProcessResult } from './SQSProcessResult.js';
+export type { SQSMoveOptions } from './SQSMoveOptions.js';
+export type { SQSMoveResult } from './SQSMoveResult.js';
 export type { DynamoDBQueryOptions, DynamoDBKeyType } from './DynamoDBQueryOptions.js';
 export type { DynamoDBQueryResult } from './DynamoDBQueryResult.js';

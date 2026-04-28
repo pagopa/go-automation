@@ -34,6 +34,8 @@ import type { SQSReceiveResult } from './models/SQSReceiveResult.js';
 import { SQSProcessAction } from './models/SQSProcessAction.js';
 import type { SQSProcessOptions } from './models/SQSProcessOptions.js';
 import type { SQSProcessResult } from './models/SQSProcessResult.js';
+import type { SQSMoveOptions } from './models/SQSMoveOptions.js';
+import type { SQSMoveResult } from './models/SQSMoveResult.js';
 import { SQS_MAX_BATCH_SIZE } from './SQSUtils.js';
 
 /** Time window for CloudWatch metrics (5 minutes) */
@@ -85,6 +87,13 @@ type SQSMessageHandler = (message: Message) => SQSProcessAction | Promise<SQSPro
 
 interface SQSProcessCallbacks {
   readonly onProgress?: SQSProcessProgressHandler;
+  readonly onEmptyReceive?: SQSReceiveEmptyReceiveHandler;
+}
+
+type SQSMoveProgressHandler = (moved: number, failed: number) => void;
+
+interface SQSMoveCallbacks {
+  readonly onProgress?: SQSMoveProgressHandler;
   readonly onEmptyReceive?: SQSReceiveEmptyReceiveHandler;
 }
 
@@ -422,6 +431,110 @@ export class AWSSQSService {
         : `queue empty after ${options.maxEmptyReceives} polls`;
 
     return { totalReceived, totalDeleted, totalReleased, totalSkipped, stopReason };
+  }
+
+  /**
+   * Moves messages from one queue to another.
+   *
+   * @param options - Move configuration
+   * @param callbacks - Optional progress callbacks
+   * @returns Move statistics
+   */
+  async moveMessages(options: SQSMoveOptions, callbacks?: SQSMoveCallbacks): Promise<SQSMoveResult> {
+    let totalMoved = 0;
+    let totalFailed = 0;
+    let consecutiveEmptyReceives = 0;
+    const maxEmptyReceives = 3; // Standard for redrive
+
+    while (consecutiveEmptyReceives < maxEmptyReceives) {
+      if (options.limit !== undefined && totalMoved >= options.limit) {
+        break;
+      }
+
+      const nextBatchSize = Math.min(
+        options.batchSize,
+        options.limit !== undefined ? options.limit - totalMoved : SQS_MAX_BATCH_SIZE,
+      );
+
+      if (nextBatchSize <= 0) break;
+
+      const receiveResponse = await this.sqsClient.send(
+        new ReceiveMessageCommand({
+          QueueUrl: options.sourceQueueUrl,
+          MaxNumberOfMessages: nextBatchSize,
+          VisibilityTimeout: options.visibilityTimeout,
+          WaitTimeSeconds: LONG_POLLING_WAIT_TIME,
+          AttributeNames: ['All'],
+          MessageAttributeNames: ['All'],
+        }),
+      );
+
+      const messages = receiveResponse.Messages ?? [];
+
+      if (messages.length === 0) {
+        consecutiveEmptyReceives++;
+        callbacks?.onEmptyReceive?.(consecutiveEmptyReceives, maxEmptyReceives);
+        continue;
+      }
+
+      consecutiveEmptyReceives = 0;
+
+      if (options.dryRun) {
+        totalMoved += messages.length;
+        callbacks?.onProgress?.(totalMoved, totalFailed);
+        continue;
+      }
+
+      // Map messages to batch entries
+      const entries: SendMessageBatchRequestEntry[] = messages.map((msg, index) => {
+        const entry: SendMessageBatchRequestEntry = {
+          Id: `msg-${index}`,
+          MessageBody: msg.Body ?? '',
+          MessageAttributes: msg.MessageAttributes,
+        };
+
+        if (options.isFifo) {
+          entry.MessageGroupId = msg.Attributes?.MessageGroupId ?? 'default-group';
+          entry.MessageDeduplicationId =
+            msg.Attributes?.MessageDeduplicationId ?? this.computeMessageFingerprint(msg.Body ?? '');
+        }
+
+        return entry;
+      });
+
+      try {
+        const sendResponse = await this.sendMessageBatchWithRetries(options.targetQueueUrl, entries);
+
+        const successfulIds = new Set(sendResponse.Successful?.map((s) => s.Id));
+        const messagesToDelete = messages.filter((_, index) => successfulIds.has(`msg-${index}`));
+
+        if (messagesToDelete.length > 0) {
+          const deleteResponse = await this.deleteMessageBatch(
+            options.sourceQueueUrl,
+            messagesToDelete.map((m) => m.ReceiptHandle).filter((h): h is string => !!h),
+          );
+
+          const failedDeleteIds = new Set(deleteResponse.Failed?.map((f) => f.Id));
+          const deletedCount = messagesToDelete.length - failedDeleteIds.size;
+
+          totalMoved += deletedCount;
+          totalFailed += (sendResponse.Failed?.length ?? 0) + failedDeleteIds.size;
+        } else {
+          totalFailed += sendResponse.Failed?.length ?? 0;
+        }
+      } catch (_error) {
+        totalFailed += messages.length;
+      }
+
+      callbacks?.onProgress?.(totalMoved, totalFailed);
+    }
+
+    const stopReason =
+      options.limit !== undefined && totalMoved >= options.limit
+        ? 'reached limit'
+        : `queue empty after ${consecutiveEmptyReceives} polls`;
+
+    return { totalMoved, totalFailed, stopReason };
   }
 
   /**

@@ -1,0 +1,19 @@
+{
+  "name": "@go-automation/aws-redrive-sqs",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0"
+  },
+  "dependencies": {
+    "@go-automation/go-common": "workspace:*",
+    "@aws-sdk/client-sqs": "^3.750.0"
+  }
+}
