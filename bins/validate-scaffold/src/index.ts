@@ -11,13 +11,16 @@
  *   pnpm validate:scaffold --verbose   # show all checks including passed ones
  */
 
-import * as fs from 'fs/promises';
 import * as path from 'path';
 
 import { ScaffoldEngine } from './ScaffoldEngine.js';
 import { functionRules } from './functionRules.js';
-import { monorepoRules } from './monorepoRules.js';
+import { loadValidateScaffoldConfig } from './loadConfig.js';
+import { createMonorepoRules, type MonorepoRulesContext } from './monorepoRules.js';
 import { scaffoldRules } from './rules.js';
+import { discoverWorkspacePackages, resolveFixedPaths } from './workspaceDiscovery.js';
+import type { RuleSetName, ValidateScaffoldConfig, ValidationGroupConfig } from './types/ValidateScaffoldConfig.js';
+import type { ScaffoldRule } from './types/index.js';
 
 // ── ANSI helpers ──────────────────────────────────────────────────────
 
@@ -37,8 +40,7 @@ const IS_GITHUB_ACTIONS = process.env['GITHUB_ACTIONS'] === 'true';
 
 // ── Workspace discovery ───────────────────────────────────────────────
 
-const SCRIPT_DIRS = ['scripts/go', 'scripts/send', 'scripts/interop'] as const;
-const FUNCTION_DIRS = ['functions'] as const;
+const PACKAGE_WORKSPACE_PARENT = 'packages';
 
 interface ValidationTargetGroup {
   readonly label: string;
@@ -47,30 +49,31 @@ interface ValidationTargetGroup {
   readonly engine: ScaffoldEngine;
 }
 
-/**
- * Finds all package directories one level under the provided parent folders.
- */
-async function discoverWorkspacePackages(
-  rootDir: string,
-  parentDirs: ReadonlyArray<string>,
-): Promise<ReadonlyArray<string>> {
-  const packages: string[] = [];
+function createMonorepoContext(config: ValidateScaffoldConfig): MonorepoRulesContext {
+  const workspaceGroups = config.groups.filter((group) => group.ruleSet !== 'monorepo' && group.include !== undefined);
 
-  for (const dir of parentDirs) {
-    const fullDir = path.join(rootDir, dir);
-    try {
-      const entries = await fs.readdir(fullDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isDirectory()) {
-          packages.push(path.join(fullDir, entry.name));
-        }
-      }
-    } catch {
-      // Directory doesn't exist yet
-    }
+  return {
+    workspaceParents: [PACKAGE_WORKSPACE_PARENT, ...new Set(workspaceGroups.flatMap((group) => group.include ?? []))],
+    excludeRelativePaths: [...new Set(workspaceGroups.flatMap((group) => group.exclude ?? []))],
+  };
+}
+
+function createRuleSetRegistry(config: ValidateScaffoldConfig): Record<RuleSetName, ReadonlyArray<ScaffoldRule>> {
+  return {
+    monorepo: createMonorepoRules(createMonorepoContext(config)),
+    scripts: scaffoldRules,
+    functions: functionRules,
+  };
+}
+
+async function resolveGroupPaths(rootDir: string, group: ValidationGroupConfig): Promise<ReadonlyArray<string>> {
+  const exclude = group.exclude ?? [];
+
+  if (group.paths !== undefined) {
+    return resolveFixedPaths(rootDir, group.paths, exclude);
   }
 
-  return packages.sort();
+  return discoverWorkspacePackages(rootDir, group.include ?? [], exclude);
 }
 
 async function validateGroup(
@@ -139,29 +142,18 @@ async function validateGroup(
 
 async function main(): Promise<void> {
   const rootDir = process.cwd();
-  const scripts = await discoverWorkspacePackages(rootDir, SCRIPT_DIRS);
-  const functions = await discoverWorkspacePackages(rootDir, FUNCTION_DIRS);
+  const config = await loadValidateScaffoldConfig(rootDir);
+  const ruleSets = createRuleSetRegistry(config);
+  const groups: ValidationTargetGroup[] = [];
 
-  const groups: ReadonlyArray<ValidationTargetGroup> = [
-    {
-      label: 'Monorepo',
-      countLabel: 'monorepo',
-      paths: [rootDir],
-      engine: new ScaffoldEngine(monorepoRules),
-    },
-    {
-      label: 'Scripts',
-      countLabel: 'scripts',
-      paths: scripts,
-      engine: new ScaffoldEngine(scaffoldRules),
-    },
-    {
-      label: 'Functions',
-      countLabel: 'functions',
-      paths: functions,
-      engine: new ScaffoldEngine(functionRules),
-    },
-  ];
+  for (const group of config.groups) {
+    groups.push({
+      label: group.name,
+      countLabel: group.countLabel,
+      paths: await resolveGroupPaths(rootDir, group),
+      engine: new ScaffoldEngine(ruleSets[group.ruleSet]),
+    });
+  }
 
   console.log(`\n${BOLD}Scaffold Validation${RESET}`);
   console.log('='.repeat(50));

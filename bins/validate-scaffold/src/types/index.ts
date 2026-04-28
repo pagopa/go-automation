@@ -13,3 +13,4 @@ export type {
   CustomRule,
   CustomRuleResult,
 } from './ScaffoldRule.js';
+export type { RuleSetName, ValidateScaffoldConfig, ValidationGroupConfig } from './ValidateScaffoldConfig.js';

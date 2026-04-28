@@ -1,0 +1,24 @@
+{
+  "$schema": "./bins/validate-scaffold/config.schema.json",
+  "groups": [
+    {
+      "name": "Monorepo",
+      "countLabel": "monorepo",
+      "ruleSet": "monorepo",
+      "paths": ["."]
+    },
+    {
+      "name": "Scripts",
+      "countLabel": "scripts",
+      "ruleSet": "scripts",
+      "include": ["scripts/go", "scripts/send", "scripts/interop", "scripts/aws"],
+      "exclude": ["scripts/aws/cfn"]
+    },
+    {
+      "name": "Functions",
+      "countLabel": "functions",
+      "ruleSet": "functions",
+      "include": ["functions"]
+    }
+  ]
+}
