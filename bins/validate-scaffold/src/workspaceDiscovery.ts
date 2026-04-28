@@ -9,6 +9,10 @@ function isExcluded(relativePath: string, exclude: ReadonlyArray<string>): boole
   return exclude.some((excluded) => relativePath === excluded || relativePath.startsWith(`${excluded}/`));
 }
 
+function isMissingDirectoryError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT';
+}
+
 export async function discoverWorkspacePackages(
   rootDir: string,
   include: ReadonlyArray<string>,
@@ -32,7 +36,11 @@ export async function discoverWorkspacePackages(
           packages.push(fullPath);
         }
       }
-    } catch {
+    } catch (error: unknown) {
+      if (!isMissingDirectoryError(error)) {
+        throw error;
+      }
+
       // Directory doesn't exist yet.
     }
   }
