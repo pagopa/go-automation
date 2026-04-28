@@ -55,7 +55,7 @@ function createMonorepoContext(config: ValidateScaffoldConfig): MonorepoRulesCon
     workspaceParents: [
       ...new Set([PACKAGE_WORKSPACE_PARENT, ...workspaceGroups.flatMap((group) => group.include ?? [])]),
     ],
-    excludeRelativePaths: [...new Set(workspaceGroups.flatMap((group) => group.exclude ?? []))],
+    excludeRelativePaths: [...new Set(workspaceGroups.flatMap((group) => group.exclude))],
   };
 }
 
@@ -68,13 +68,11 @@ function createRuleSetRegistry(config: ValidateScaffoldConfig): Record<RuleSetNa
 }
 
 async function resolveGroupPaths(rootDir: string, group: ValidationGroupConfig): Promise<ReadonlyArray<string>> {
-  const exclude = group.exclude ?? [];
-
-  if (group.paths !== undefined) {
-    return resolveFixedPaths(rootDir, group.paths, exclude);
+  if ('paths' in group) {
+    return resolveFixedPaths(rootDir, group.paths, group.exclude);
   }
 
-  return discoverWorkspacePackages(rootDir, group.include ?? [], exclude);
+  return discoverWorkspacePackages(rootDir, group.include, group.exclude);
 }
 
 async function validateGroup(

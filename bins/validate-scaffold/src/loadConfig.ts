@@ -90,13 +90,25 @@ function parseGroup(value: unknown, index: number): ValidationGroupConfig {
     throw new Error(`${context}: specify exactly one of "paths" or "include"`);
   }
 
-  return {
-    name,
-    ruleSet: ruleSetValue,
-    ...(paths !== undefined && { paths }),
-    ...(include !== undefined && { include }),
-    exclude,
-  };
+  if (paths !== undefined) {
+    return {
+      name,
+      ruleSet: ruleSetValue,
+      paths,
+      exclude,
+    };
+  }
+
+  if (include !== undefined) {
+    return {
+      name,
+      ruleSet: ruleSetValue,
+      include,
+      exclude,
+    };
+  }
+
+  throw new Error(`${context}: specify exactly one of "paths" or "include"`);
 }
 
 export async function loadValidateScaffoldConfig(rootDir: string): Promise<ValidateScaffoldConfig> {
