@@ -4,9 +4,9 @@ import { Core } from '@go-automation/go-common';
  * Script metadata
  */
 export const scriptMetadata: Core.GOScriptMetadata = {
-  name: 'SEND Check ECS',
+  name: 'AWS Check ECS',
   version: '1.0.0',
-  description: 'Checks ECS health - Monitor status of clusters, services, and tasks for operational awareness.',
+  description: 'Checks ECS status - Verifies health of ECS clusters, services, and tasks.',
   authors: ['Team GO - Gestione Operativa'],
 };
 
@@ -22,10 +22,18 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     aliases: ['aps'],
   },
   {
+    name: 'aws.region',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'AWS region',
+    required: false,
+    defaultValue: 'eu-south-1',
+    aliases: ['ar'],
+  },
+  {
     name: 'ecs.clusters',
     type: Core.GOConfigParameterType.STRING_ARRAY,
-    description: 'Specific clusters to check. If empty, checks all.',
+    description: 'Comma-separated list of ECS cluster names or partial names to filter',
     required: false,
     aliases: ['c'],
   },
-] as const;
+];

@@ -1,13 +1,17 @@
-export interface ClusterHealthReport {
+/**
+ * ECS Cluster Health Analysis Models
+ */
+
+export interface ECSClusterHealthReport {
   readonly clusterArn: string;
   readonly clusterName: string;
   readonly status: string;
-  readonly services: ReadonlyArray<ServiceHealth>;
-  readonly tasks: ReadonlyArray<TaskHealth>;
+  readonly services: ReadonlyArray<ECSServiceHealth>;
+  readonly tasks: ReadonlyArray<ECSTaskHealth>;
   readonly isHealthy: boolean;
 }
 
-export interface ServiceHealth {
+export interface ECSServiceHealth {
   readonly serviceName: string;
   readonly status: string;
   readonly runningCount: number;
@@ -15,7 +19,7 @@ export interface ServiceHealth {
   readonly isHealthy: boolean;
 }
 
-export interface TaskHealth {
+export interface ECSTaskHealth {
   readonly taskArn: string;
   readonly lastStatus: string;
   readonly healthStatus: string;
