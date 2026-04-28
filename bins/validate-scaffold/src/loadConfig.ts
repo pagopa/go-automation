@@ -63,7 +63,7 @@ function readStringArray(
   }
 
   const items = value as string[];
-  return items.map((item, index) => normalizeRelativePath(item, `${context}[${String(index)}]`));
+  return items.map((item, index) => normalizeRelativePath(item.trim(), `${context}[${String(index)}]`));
 }
 
 function parseGroup(value: unknown, index: number): ValidationGroupConfig {
