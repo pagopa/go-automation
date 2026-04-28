@@ -5,9 +5,18 @@ import type { ValidateScaffoldConfig, ValidationGroupConfig } from './types/Vali
 import { RULE_SET_NAMES, isRuleSetName } from './types/ValidateScaffoldConfig.js';
 
 const CONFIG_FILE = 'validate-scaffold.config.json';
+const GROUP_KEYS = new Set(['name', 'ruleSet', 'paths', 'include', 'exclude']);
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function assertAllowedKeys(value: Record<string, unknown>, allowedKeys: ReadonlySet<string>, context: string): void {
+  for (const key of Object.keys(value)) {
+    if (!allowedKeys.has(key)) {
+      throw new Error(`${context}: unexpected key "${key}"`);
+    }
+  }
 }
 
 function normalizeRelativePath(value: string, context: string): string {
@@ -63,6 +72,7 @@ function parseGroup(value: unknown, index: number): ValidationGroupConfig {
   if (!isObject(value)) {
     throw new Error(`${context}: expected object`);
   }
+  assertAllowedKeys(value, GROUP_KEYS, context);
 
   const name = readRequiredString(value['name'], `${context}.name`);
   const ruleSetValue = readRequiredString(value['ruleSet'], `${context}.ruleSet`);
