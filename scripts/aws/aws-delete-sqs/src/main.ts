@@ -1,5 +1,5 @@
 /**
- * Send Delete SQS - Main Logic Module
+ * AWS Delete SQS - Main Logic Module
  *
  * Implements resilient message deletion from SQS.
  *
@@ -11,7 +11,7 @@
  */
 
 import { Core, AWS } from '@go-automation/go-common';
-import type { SendDeleteSqsConfig } from './types/SendDeleteSqsConfig.js';
+import type { AwsDeleteSqsConfig } from './types/AwsDeleteSqsConfig.js';
 
 /**
  * Main script execution function.
@@ -19,9 +19,9 @@ import type { SendDeleteSqsConfig } from './types/SendDeleteSqsConfig.js';
  * @param script - The GOScript instance
  */
 export async function main(script: Core.GOScript): Promise<void> {
-  const configValues = await script.getConfiguration<SendDeleteSqsConfig>();
+  const configValues = await script.getConfiguration<AwsDeleteSqsConfig>();
 
-  script.logger.section('SEND Delete SQS');
+  script.logger.section('AWS Delete SQS');
 
   // 1. Validation
   if (!configValues.purgeAll && !configValues.inputFile) {
