@@ -7,8 +7,7 @@
  * Warnings are reported but do not cause a non-zero exit code.
  *
  * Usage:
- *   pnpm validate:scaffold            # normal output (failures only per script)
- *   pnpm validate:scaffold --verbose   # show all checks including passed ones
+ *   pnpm validate:scaffold
  */
 
 import * as path from 'path';
