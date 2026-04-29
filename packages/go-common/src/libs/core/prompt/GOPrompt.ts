@@ -46,17 +46,11 @@ export interface GOPromptTextOptions {
 
   /** Validation function */
   validate?: GOPromptTextValidator;
-
-  /** Hint for the prompt */
-  hint?: string;
 }
 
 export interface GOPromptConfirmOptions {
   /** Default value */
   initial?: boolean;
-
-  /** Hint for the prompt */
-  hint?: string;
 }
 
 export interface GOPromptNumberOptions {
@@ -71,9 +65,6 @@ export interface GOPromptNumberOptions {
 
   /** Validation function */
   validate?: GOPromptNumberValidator;
-
-  /** Hint for the prompt */
-  hint?: string;
 }
 
 export interface GOPromptSelectOption {
@@ -85,14 +76,6 @@ export interface GOPromptSelectOption {
 
   /** Option description (optional) */
   description?: string;
-
-  /** Option hint (optional) */
-  hint?: string;
-}
-
-export interface GOPromptSelectOptions {
-  /** Hint for the prompt */
-  hint?: string;
 }
 
 export interface GOPromptMultiselectOption {
@@ -107,22 +90,11 @@ export interface GOPromptMultiselectOption {
 
   /** Option description (optional) */
   description?: string;
-
-  /** Option hint (optional) */
-  hint?: string;
-}
-
-export interface GOPromptMultiselectOptions {
-  /** Hint for the prompt */
-  hint?: string;
 }
 
 export interface GOPromptAutocompleteOptions {
   /** Default value */
   initial?: string;
-
-  /** Hint for the prompt */
-  hint?: string;
 
   /** Maximum number of results to show (default: 10) */
   limit?: number;
@@ -582,11 +554,7 @@ export class GOPrompt {
   /**
    * Ask to select one option from a list
    */
-  public async select<T = unknown>(
-    message: string,
-    choices: GOPromptSelectOption[],
-    _options?: GOPromptSelectOptions,
-  ): Promise<T | undefined> {
+  public async select<T = unknown>(message: string, choices: GOPromptSelectOption[]): Promise<T | undefined> {
     const value = await this.runPrompt(async () =>
       this.promptAdapter.select<T>({
         message: message,
@@ -612,7 +580,6 @@ export class GOPrompt {
   public async multiselect<T = unknown>(
     message: string,
     choices: GOPromptMultiselectOption[],
-    _options?: GOPromptMultiselectOptions,
   ): Promise<T[] | undefined> {
     const value = await this.runPrompt(async () =>
       this.promptAdapter.checkbox<T>({
