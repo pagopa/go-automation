@@ -479,7 +479,6 @@ export class AWSSQSService {
     let totalSendFailed = 0;
     let totalDeleteFailed = 0;
     let totalValidationFailed = 0;
-    let consecutiveEmptyReceives = 0;
     let stopReason = '';
     let stopRequested = false;
     const errors: SQSMoveError[] = [];
@@ -505,6 +504,8 @@ export class AWSSQSService {
     // before the limit check triggers `stopRequested`. Acceptable for an automation
     // tool; document on the option if the trade-off matters for a caller.
     const worker = async (): Promise<void> => {
+      let consecutiveEmptyReceives = 0;
+
       while (!stopRequested && consecutiveEmptyReceives < maxEmptyReceives) {
         if (options.limit !== undefined && totalMoved >= options.limit) {
           if (stopReason === '') stopReason = 'reached limit';
@@ -751,7 +752,7 @@ export class AWSSQSService {
     await Promise.all(workers);
 
     if (stopReason === '') {
-      stopReason = `queue empty after ${consecutiveEmptyReceives} polls`;
+      stopReason = `queue empty after ${maxEmptyReceives} consecutive empty polls per worker`;
     }
 
     const totalFailed = totalSendFailed + totalDeleteFailed + totalValidationFailed;
