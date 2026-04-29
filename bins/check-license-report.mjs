@@ -35,9 +35,86 @@ function asEntries(value) {
   throw new Error('license-report JSON output has an unsupported shape');
 }
 
-function normalizeLicenses(value) {
-  if (typeof value === 'string') return value.split(/\s+(?:OR|AND)\s+|\s*;\s*|\s*,\s*/u).filter(Boolean);
-  if (Array.isArray(value)) return value.flatMap((item) => normalizeLicenses(item));
+function tokenizeSpdxExpression(value) {
+  return value.match(/\(|\)|\bAND\b|\bOR\b|\bWITH\b|[A-Za-z0-9.+-]+/gu) ?? [];
+}
+
+function createSpdxParser(tokens) {
+  let index = 0;
+
+  function parsePrimary() {
+    const token = tokens[index];
+    if (token === undefined) return undefined;
+
+    if (token === '(') {
+      index += 1;
+      const value = parseOr();
+      if (tokens[index] !== ')') return undefined;
+      index += 1;
+      return value;
+    }
+
+    if (token === ')' || token === 'AND' || token === 'OR' || token === 'WITH') return undefined;
+
+    index += 1;
+    if (tokens[index] === 'WITH') {
+      index += 2;
+      return false;
+    }
+
+    return ALLOWED_LICENSES.has(token);
+  }
+
+  function parseAnd() {
+    let value = parsePrimary();
+    if (value === undefined) return undefined;
+
+    while (tokens[index] === 'AND') {
+      index += 1;
+      const right = parsePrimary();
+      if (right === undefined) return undefined;
+      value = value && right;
+    }
+
+    return value;
+  }
+
+  function parseOr() {
+    let value = parseAnd();
+    if (value === undefined) return undefined;
+
+    while (tokens[index] === 'OR') {
+      index += 1;
+      const right = parseAnd();
+      if (right === undefined) return undefined;
+      value = value || right;
+    }
+
+    return value;
+  }
+
+  return {
+    parse: () => {
+      const value = parseOr();
+      return value !== undefined && index === tokens.length ? value : false;
+    },
+  };
+}
+
+function isAllowedLicenseExpression(expression) {
+  const tokens = tokenizeSpdxExpression(expression);
+  if (tokens.length === 0) return false;
+
+  return createSpdxParser(tokens).parse();
+}
+
+function licenseExpressions(value) {
+  if (typeof value === 'string')
+    return value
+      .split(/\s*;\s*|\s*,\s*/u)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  if (Array.isArray(value)) return value.flatMap((item) => licenseExpressions(item));
   return [];
 }
 
@@ -51,9 +128,11 @@ const entries = asEntries(parsed);
 const violations = entries
   .map((entry) => ({
     name: packageName(entry),
-    licenses: normalizeLicenses(entry.licenseType ?? entry.license ?? entry.licenses),
+    licenses: licenseExpressions(entry.licenseType ?? entry.license ?? entry.licenses),
   }))
-  .filter((entry) => entry.licenses.length === 0 || entry.licenses.every((license) => !ALLOWED_LICENSES.has(license)));
+  .filter(
+    (entry) => entry.licenses.length === 0 || !entry.licenses.every((license) => isAllowedLicenseExpression(license)),
+  );
 
 if (violations.length > 0) {
   console.error('Disallowed dependency licenses found:');
@@ -65,7 +144,7 @@ if (violations.length > 0) {
 
 const summary = new Map();
 for (const entry of entries) {
-  for (const license of normalizeLicenses(entry.licenseType ?? entry.license ?? entry.licenses)) {
+  for (const license of licenseExpressions(entry.licenseType ?? entry.license ?? entry.licenses)) {
     summary.set(license, (summary.get(license) ?? 0) + 1);
   }
 }
