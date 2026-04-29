@@ -61,8 +61,14 @@ export type SQSMessageHandler = (message: Message) => SQSProcessAction | Promise
  * @param moved - Messages successfully sent to target AND deleted from source
  * @param sendFailed - Messages that failed to be sent (still on source — safe)
  * @param deleteFailed - Messages sent to target but not deleted from source (DUPLICATE risk)
+ * @param validationFailed - Messages rejected before send (still on source)
  */
-export type SQSMoveProgressHandler = (moved: number, sendFailed: number, deleteFailed: number) => void;
+export type SQSMoveProgressHandler = (
+  moved: number,
+  sendFailed: number,
+  deleteFailed: number,
+  validationFailed: number,
+) => void;
 
 /**
  * Per-message error callback for `AWSSQSService.moveMessages`. Invoked

@@ -492,7 +492,7 @@ export class AWSSQSService {
     };
 
     const reportProgress = (): void => {
-      callbacks?.onProgress?.(totalMoved, totalSendFailed + totalValidationFailed, totalDeleteFailed);
+      callbacks?.onProgress?.(totalMoved, totalSendFailed, totalDeleteFailed, totalValidationFailed);
     };
 
     // Worker pipeline: receive → (validate, send, delete). With concurrency=1 this

@@ -74,11 +74,12 @@ export async function main(script: Core.GOScript): Promise<void> {
       ...(config.limit !== undefined ? { limit: config.limit } : {}),
     },
     {
-      onProgress: (moved: number, sendFailed: number, deleteFailed: number) => {
+      onProgress: (moved: number, sendFailed: number, deleteFailed: number, validationFailed: number) => {
         const action = config.dryRun ? 'Dry run: would move' : 'Moved';
         const sendSuffix = sendFailed > 0 ? ` | Send failed: ${sendFailed}` : '';
         const deleteSuffix = deleteFailed > 0 ? ` | Delete failed (DUPLICATES): ${deleteFailed}` : '';
-        script.prompt.updateSpinner(`${action}: ${moved}${sendSuffix}${deleteSuffix}`);
+        const validationSuffix = validationFailed > 0 ? ` | Validation rejected: ${validationFailed}` : '';
+        script.prompt.updateSpinner(`${action}: ${moved}${sendSuffix}${deleteSuffix}${validationSuffix}`);
       },
       onEmptyReceive: (consecutive: number, max: number) => {
         script.prompt.updateSpinner(`Polling empty queue (${String(consecutive)}/${String(max)})...`);
