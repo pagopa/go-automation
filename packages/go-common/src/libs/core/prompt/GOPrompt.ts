@@ -93,9 +93,6 @@ export interface GOPromptMultiselectOption {
 }
 
 export interface GOPromptAutocompleteOptions {
-  /** Default value */
-  initial?: string;
-
   /** Maximum number of results to show (default: 10) */
   limit?: number;
 
@@ -608,15 +605,8 @@ export class GOPrompt {
   public async autocomplete<T = string>(
     message: string,
     choices: GOPromptSelectOption[] | string[],
-    initialOrOptions?: string | GOPromptAutocompleteOptions,
+    options: GOPromptAutocompleteOptions = {},
   ): Promise<T | undefined> {
-    const options: GOPromptAutocompleteOptions =
-      typeof initialOrOptions === 'object'
-        ? initialOrOptions
-        : initialOrOptions !== undefined
-          ? { initial: initialOrOptions }
-          : {};
-
     const formattedChoices: GOPromptSelectOption[] = choices.map((choice) =>
       typeof choice === 'string' ? { title: choice, value: choice } : choice,
     );
