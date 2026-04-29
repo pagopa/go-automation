@@ -66,17 +66,17 @@
     "@aws-sdk/credential-provider-ini": "catalog:",
     "@aws-sdk/util-dynamodb": "catalog:",
     "@slack/web-api": "catalog:",
-    "cli-table3": "^0.6.5",
-    "csv-parse": "^6.2.1",
-    "csv-stringify": "^6.7.0",
+    "cli-table3": "catalog:",
+    "csv-parse": "catalog:",
+    "csv-stringify": "catalog:",
     "luxon": "catalog:",
-    "prompts": "^2.4.2",
-    "undici": "^8.1.0",
+    "prompts": "catalog:",
+    "undici": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {
     "@types/luxon": "catalog:",
     "@types/node": "catalog:",
-    "@types/prompts": "^2.4.9"
+    "@types/prompts": "catalog:"
   }
 }

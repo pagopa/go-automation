@@ -101,7 +101,7 @@ async function validateGroup(
 
     if (issues === 0) {
       console.log(
-        `\n  ${PASS} ${BOLD}${name}${RESET} ${DIM}(${String(results.length)}/${String(results.length)})${RESET}`,
+        `  ${PASS} ${BOLD}${name}${RESET} ${DIM}(${String(results.length)}/${String(results.length)})${RESET}`,
       );
     } else {
       const passed = results.length - issues;
@@ -117,7 +117,9 @@ async function validateGroup(
       const tag = result.severity === 'warning' ? WARN : FAIL;
       console.log(`    ${tag} ${result.rule}`);
       if (result.message) {
-        console.log(`         ${DIM}${result.message}${RESET}`);
+        for (const line of result.message.split('\n')) {
+          console.log(`         ${DIM}${line}${RESET}`);
+        }
       }
       if (IS_GITHUB_ACTIONS) {
         const level = result.severity === 'warning' ? 'warning' : 'error';

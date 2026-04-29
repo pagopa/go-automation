@@ -13,7 +13,7 @@ export type OutputFormat = 'dynamo-json' | 'json' | 'ndjson' | 'csv' | 'text';
  */
 export const FAILURE_MODES = ['abort', 'report', 'ignore'] as const;
 
-export type FailureMode = (typeof FAILURE_MODES)[number];
+type FailureMode = (typeof FAILURE_MODES)[number];
 
 export function isFailureMode(value: string): value is FailureMode {
   return (FAILURE_MODES as ReadonlyArray<string>).includes(value);

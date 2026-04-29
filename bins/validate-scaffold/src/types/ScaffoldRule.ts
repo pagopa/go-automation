@@ -63,7 +63,7 @@ export interface JsonKeyEqualsRule extends BaseRule {
 }
 
 /** Result returned by custom rule validate functions (severity is applied by the engine) */
-export interface CustomRuleResult {
+interface CustomRuleResult {
   readonly rule: string;
   readonly passed: boolean;
   readonly file?: string | undefined;
@@ -71,12 +71,12 @@ export interface CustomRuleResult {
   readonly message?: string;
 }
 
-export type ScaffoldRuleValidator = (scriptPath: string) => Promise<CustomRuleResult>;
+type ScaffoldRuleValidator = (scriptPath: string) => Promise<CustomRuleResult>;
 
 /**
  * Runs a custom validation function for checks that don't fit the built-in types.
  */
-export interface CustomRule extends BaseRule {
+interface CustomRule extends BaseRule {
   readonly check: 'custom';
   readonly validate: ScaffoldRuleValidator;
 }
