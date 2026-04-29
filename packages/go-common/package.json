@@ -67,10 +67,10 @@
     "@aws-sdk/util-dynamodb": "catalog:",
     "@inquirer/prompts": "catalog:",
     "@slack/web-api": "catalog:",
-    "cli-table3": "catalog:",
     "csv-parse": "catalog:",
     "csv-stringify": "catalog:",
     "luxon": "catalog:",
+    "string-width": "catalog:",
     "undici": "catalog:",
     "yaml": "catalog:"
   },
