@@ -182,12 +182,12 @@ export interface GOPromptAdapter {
 }
 
 const inquirerPromptAdapter: GOPromptAdapter = {
-  text: async (options) => inquirerInput(options),
-  password: async (options) => inquirerPassword(options),
-  number: async (options) => inquirerNumber(options),
-  confirm: async (options) => inquirerConfirm(options),
-  select: async (options) => inquirerSelect(options),
-  checkbox: async (options) => inquirerCheckbox(options),
+  text: inquirerInput,
+  password: inquirerPassword,
+  number: inquirerNumber,
+  confirm: inquirerConfirm,
+  select: inquirerSelect,
+  checkbox: inquirerCheckbox,
   search: async (options) =>
     inquirerSearch({
       message: options.message,
