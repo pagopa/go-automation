@@ -71,7 +71,7 @@ Lo script accetta parametri tramite interfaccia CLI.
 ## Limitazioni Importanti
 
 - **Mismatch di Tipo**: Non è possibile spostare messaggi tra una coda Standard e una FIFO (o viceversa).
-- **FIFO Queues**: Per le code FIFO, se il corpo di un messaggio nell'origine non ha un hash MD5 coincidente con il `MessageDeduplicationId` originale (e questo non è presente negli attributi), lo script ricalcola l'hash per garantire la consegna.
+- **FIFO Queues**: Per le code FIFO, se il `MessageDeduplicationId` originale non è presente negli attributi del messaggio, lo script calcola una fingerprint SHA-256 esadecimale del contenuto del messaggio da usare per la deduplicazione, così da garantire la consegna coerentemente con l'implementazione.
 - **Permessi IAM**: L'utente deve avere i permessi `sqs:ReceiveMessage`, `sqs:DeleteMessage` sulla coda di origine e `sqs:SendMessage` sulla coda di destinazione.
 
 ---
