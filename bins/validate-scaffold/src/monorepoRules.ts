@@ -14,9 +14,19 @@ import * as path from 'path';
 import { discoverWorkspacePackages, toWorkspaceRelativePath } from './workspaceDiscovery.js';
 import type { ScaffoldRule } from './types/index.js';
 
+const DEPENDENCY_SECTIONS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'] as const;
+
 export interface MonorepoRulesContext {
   readonly workspaceParents: ReadonlyArray<string>;
   readonly excludeRelativePaths: ReadonlyArray<string>;
+}
+
+interface PackageJson {
+  readonly name?: string;
+  readonly dependencies?: Record<string, string>;
+  readonly devDependencies?: Record<string, string>;
+  readonly peerDependencies?: Record<string, string>;
+  readonly optionalDependencies?: Record<string, string>;
 }
 
 /**
@@ -42,6 +52,22 @@ async function readTsconfigReferences(rootDir: string): Promise<ReadonlyArray<st
   }
 
   return references.map((ref) => ref.path.replace(/^\.\//, ''));
+}
+
+function isAllowedDependencySpec(spec: string): boolean {
+  return spec.startsWith('catalog:') || spec.startsWith('workspace:');
+}
+
+async function readPackageJson(packageJsonPath: string): Promise<PackageJson> {
+  return JSON.parse(await fs.readFile(packageJsonPath, 'utf-8')) as PackageJson;
+}
+
+async function findWorkspacePackageJsonFiles(
+  rootDir: string,
+  context: MonorepoRulesContext,
+): Promise<ReadonlyArray<string>> {
+  const workspaceDirs = await discoverWorkspaceDirs(rootDir, context);
+  return ['package.json', ...workspaceDirs.map((dir) => `${dir}/package.json`)];
 }
 
 export function createMonorepoRules(context: MonorepoRulesContext): ReadonlyArray<ScaffoldRule> {
@@ -77,6 +103,49 @@ export function createMonorepoRules(context: MonorepoRulesContext): ReadonlyArra
             passed: false,
             file: 'tsconfig.json',
             message: `Missing references: ${missing.join(', ')}`,
+          };
+        }
+
+        return { rule: ruleName, passed: true };
+      },
+    },
+
+    {
+      name: 'package.json dependencies use pnpm catalog',
+      check: 'custom',
+      validate: async (rootDir) => {
+        const ruleName = 'package.json dependencies use pnpm catalog';
+        const packageJsonFiles = await findWorkspacePackageJsonFiles(rootDir, context);
+        const violations: string[] = [];
+
+        for (const relativePackageJson of packageJsonFiles) {
+          const packageJsonPath = path.join(rootDir, relativePackageJson);
+
+          let packageJson: PackageJson;
+          try {
+            packageJson = await readPackageJson(packageJsonPath);
+          } catch {
+            continue;
+          }
+
+          for (const section of DEPENDENCY_SECTIONS) {
+            const dependencies = packageJson[section];
+            if (dependencies === undefined) continue;
+
+            for (const [dependencyName, spec] of Object.entries(dependencies)) {
+              if (!isAllowedDependencySpec(spec)) {
+                violations.push(`${relativePackageJson} ${section}.${dependencyName} = ${spec}`);
+              }
+            }
+          }
+        }
+
+        if (violations.length > 0) {
+          return {
+            rule: ruleName,
+            passed: false,
+            file: 'package.json',
+            message: `Use catalog: for external dependencies and workspace: for internal dependencies. Found: ${violations.join(', ')}`,
           };
         }
 

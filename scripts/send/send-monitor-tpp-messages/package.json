@@ -41,7 +41,7 @@
     "@aws-sdk/credential-provider-ini": "catalog:",
     "@go-automation/go-common": "workspace:*",
     "@slack/web-api": "catalog:",
-    "croner": "^10.0.1",
+    "croner": "catalog:",
     "luxon": "catalog:",
     "yaml": "catalog:"
   },

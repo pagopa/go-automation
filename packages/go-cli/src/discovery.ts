@@ -18,7 +18,7 @@ export interface DiscoveredScript {
   readonly paths: DiscoveredScriptPaths;
 }
 
-export interface DiscoveredScriptPaths {
+interface DiscoveredScriptPaths {
   readonly root: string;
   readonly config: string;
   readonly entryTs: string;

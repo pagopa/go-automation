@@ -101,7 +101,7 @@ async function validateGroup(
 
     if (issues === 0) {
       console.log(
-        `\n  ${PASS} ${BOLD}${name}${RESET} ${DIM}(${String(results.length)}/${String(results.length)})${RESET}`,
+        `  ${PASS} ${BOLD}${name}${RESET} ${DIM}(${String(results.length)}/${String(results.length)})${RESET}`,
       );
     } else {
       const passed = results.length - issues;
