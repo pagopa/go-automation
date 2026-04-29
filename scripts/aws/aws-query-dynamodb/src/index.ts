@@ -5,7 +5,6 @@
  */
 
 import { Core } from '@go-automation/go-common';
-
 import { scriptMetadata, scriptParameters } from './config.js';
 import { main } from './main.js';
 

@@ -1,12 +1,5 @@
 /**
- * DLQ Statistics
- *
- * Statistics for a Dead Letter Queue, including message count
- * and CloudWatch age metric.
- */
-
-/**
- * Statistics for a single Dead Letter Queue
+ * Statistics for a single Dead Letter Queue.
  *
  * @example
  * ```typescript

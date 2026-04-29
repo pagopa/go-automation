@@ -22,4 +22,10 @@ export interface AwsRedriveSqsConfig {
 
   /** Batch size for SQS operations (1-10) */
   readonly batchSize: number;
+
+  /** Max consecutive empty receives before the loop terminates (default 3) */
+  readonly maxEmptyReceives: number;
+
+  /** Worker pool concurrency for parallel batch processing (default 1) */
+  readonly concurrency: number;
 }

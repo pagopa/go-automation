@@ -1,5 +1,5 @@
 /**
- * Supported deduplication modes for SQS message reception
+ * Supported deduplication modes for SQS message reception.
  */
 export enum SQSReceiveDeduplicationMode {
   /** Filter technical duplicates (same SQS message ID) */

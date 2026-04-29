@@ -20,7 +20,7 @@
     "aws:query:dynamodb:build": "pnpm --filter=aws-query-dynamodb build",
     "aws:query:dynamodb:dev": "pnpm --filter=aws-query-dynamodb dev",
     "aws:query:dynamodb:prod": "pnpm --filter=aws-query-dynamodb start",
-    "aws:redrive:sqs:build": "pnpm --filter=aws-put-redrive build",
+    "aws:redrive:sqs:build": "pnpm --filter=aws-redrive-sqs build",
     "aws:redrive:sqs:dev": "pnpm --filter=aws-redrive-sqs dev",
     "aws:redrive:sqs:prod": "pnpm --filter=aws-redrive-sqs start",
     "build": "pnpm build:packages && pnpm build:scripts",

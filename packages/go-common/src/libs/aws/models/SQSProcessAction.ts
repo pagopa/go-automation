@@ -1,11 +1,5 @@
 /**
- * SQS Process Action
- *
- * Defines the action to be taken for a message after processing.
- */
-
-/**
- * Action to take after a message is processed.
+ * Action to take after a message is processed by the message handler.
  */
 export enum SQSProcessAction {
   /** Delete the message from the queue (success) */

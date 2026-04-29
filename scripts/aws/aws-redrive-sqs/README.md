@@ -54,15 +54,17 @@ Lo script accetta parametri tramite interfaccia CLI.
 
 ### Parametri CLI
 
-| Parametro              | Alias           | Tipo      | Obbligatorio | Default | Descrizione                                                |
-| ---------------------- | --------------- | --------- | ------------ | ------- | ---------------------------------------------------------- |
-| `--aws-profile`        | `--ap`          | `string`  | Sì           | —       | Nome del profilo AWS SSO                                   |
-| `--source-queue`       | `--sq`, `--src` | `string`  | Sì           | —       | Nome o URL completo della coda SQS di origine              |
-| `--target-queue`       | `--tq`, `--dst` | `string`  | Sì           | —       | Nome o URL completo della coda SQS di destinazione         |
-| `--visibility-timeout` | `--vt`          | `number`  | No           | `60`    | Timeout di visibilità per i messaggi ricevuti              |
-| `--limit`              | `-l`            | `number`  | No           | —       | Numero massimo di messaggi da spostare                     |
-| `--batch-size`         | `--bs`          | `number`  | No           | `10`    | Dimensione del batch per le operazioni SQS (1-10)          |
-| `--dry-run`            | `--dr`          | `boolean` | No           | `false` | Simula lo spostamento senza inviare o eliminare i messaggi |
+| Parametro              | Alias           | Tipo      | Obbligatorio | Default | Descrizione                                                                               |
+| ---------------------- | --------------- | --------- | ------------ | ------- | ----------------------------------------------------------------------------------------- |
+| `--aws-profile`        | `--ap`          | `string`  | Sì           | —       | Nome del profilo AWS SSO                                                                  |
+| `--source-queue`       | `--sq`, `--src` | `string`  | Sì           | —       | Nome o URL completo della coda SQS di origine                                             |
+| `--target-queue`       | `--tq`, `--dst` | `string`  | Sì           | —       | Nome o URL completo della coda SQS di destinazione                                        |
+| `--visibility-timeout` | `--vt`          | `number`  | No           | `60`    | Timeout di visibilità per i messaggi ricevuti (0-43200 secondi)                           |
+| `--limit`              | `--lm`          | `number`  | No           | —       | Numero massimo di messaggi da spostare (intero positivo)                                  |
+| `--batch-size`         | `--bs`          | `number`  | No           | `10`    | Dimensione del batch per le operazioni SQS (1-10)                                         |
+| `--max-empty-receives` | `--mer`         | `number`  | No           | `3`     | Numero di poll vuoti consecutivi prima di terminare (con long-poll a 20s, ~ valore × 20s) |
+| `--concurrency`        | `--cc`          | `number`  | No           | `1`     | Worker pool paralleli (1 = sequenziale; con >1 il `--limit` diventa approssimato)         |
+| `--dry-run`            | `--dr`          | `boolean` | No           | `false` | Simula lo spostamento senza inviare o eliminare i messaggi (`VisibilityTimeout: 0`)       |
 
 ---
 
@@ -84,7 +86,10 @@ pnpm --filter=aws-redrive-sqs start --src coda-origine --dst coda-destinazione -
 pnpm --filter=aws-redrive-sqs start --src coda-origine --dst coda-destinazione --dr --aws-profile mio-profilo
 
 # Spostamento limitato a 100 messaggi
-pnpm --filter=aws-redrive-sqs start --src coda-origine --dst coda-destinazione -l 100 --aws-profile mio-profilo
+pnpm --filter=aws-redrive-sqs start --src coda-origine --dst coda-destinazione --lm 100 --aws-profile mio-profilo
+
+# Redrive ad alta concorrenza (4 worker paralleli) per DLQ con molti messaggi
+pnpm --filter=aws-redrive-sqs start --src coda-origine --dst coda-destinazione --cc 4 --aws-profile mio-profilo
 ```
 
 ---

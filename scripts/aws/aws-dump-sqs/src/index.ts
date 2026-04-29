@@ -8,7 +8,6 @@
  */
 
 import { Core } from '@go-automation/go-common';
-
 import { scriptMetadata, scriptParameters } from './config.js';
 import { main } from './main.js';
 
@@ -29,7 +28,6 @@ script
   .run(async () => {
     await main(script);
   })
-  .catch((error) => {
-    console.error(error);
+  .catch(() => {
     process.exit(1);
   });
