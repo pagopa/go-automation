@@ -105,9 +105,7 @@ export class AWSSQSService {
    */
   async resolveQueueMetadata(queueNameOrUrl: string): Promise<SQSQueueMetadata> {
     if (queueNameOrUrl.startsWith('https://') && !SQS_URL_REGEX.test(queueNameOrUrl)) {
-      throw new Error(
-        'Invalid SQS URL. Expected format: https://sqs.<region>.amazonaws.com/<accountId>/<queueName>',
-      );
+      throw new Error('Invalid SQS URL. Expected format: https://sqs.<region>.amazonaws.com/<accountId>/<queueName>');
     }
 
     const queueUrl = queueNameOrUrl.startsWith('https://')
