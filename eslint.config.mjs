@@ -465,6 +465,10 @@ export default tseslint.config(
               message: 'Use GOPrompt from @go-automation/go-common. See CONVENTIONS.md.',
             },
             {
+              name: '@inquirer/prompts',
+              message: 'Use GOPrompt from @go-automation/go-common. See CONVENTIONS.md.',
+            },
+            {
               name: 'enquirer',
               message: 'Use GOPrompt from @go-automation/go-common. See CONVENTIONS.md.',
             },
@@ -626,6 +630,10 @@ export default tseslint.config(
             },
             {
               name: 'prompts',
+              message: 'Lambda code must not depend on interactive terminal input.',
+            },
+            {
+              name: '@inquirer/prompts',
               message: 'Lambda code must not depend on interactive terminal input.',
             },
             {

@@ -65,18 +65,17 @@
     "@aws-sdk/client-sts": "catalog:",
     "@aws-sdk/credential-provider-ini": "catalog:",
     "@aws-sdk/util-dynamodb": "catalog:",
+    "@inquirer/prompts": "catalog:",
     "@slack/web-api": "catalog:",
     "cli-table3": "catalog:",
     "csv-parse": "catalog:",
     "csv-stringify": "catalog:",
     "luxon": "catalog:",
-    "prompts": "catalog:",
     "undici": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {
     "@types/luxon": "catalog:",
-    "@types/node": "catalog:",
-    "@types/prompts": "catalog:"
+    "@types/node": "catalog:"
   }
 }

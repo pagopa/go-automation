@@ -4,7 +4,15 @@
  */
 
 import readline from 'node:readline';
-import prompts, { type Choice, type PromptObject } from 'prompts';
+import {
+  checkbox as inquirerCheckbox,
+  confirm as inquirerConfirm,
+  input as inquirerInput,
+  number as inquirerNumber,
+  password as inquirerPassword,
+  search as inquirerSearch,
+  select as inquirerSelect,
+} from '@inquirer/prompts';
 
 import { GOLogEventCategory } from '../logging/GOLogEventCategory.js';
 import { GOLogger } from '../logging/GOLogger.js';
@@ -123,17 +131,85 @@ export interface GOPromptAutocompleteOptions {
   suggest?: GOPromptAutocompleteSuggestHandler;
 }
 
-function toGOPromptSelectOptions(choices: ReadonlyArray<Choice>): GOPromptSelectOption[] {
+export interface GOPromptChoice<T = unknown> {
+  readonly name: string;
+  readonly value: T;
+  readonly description?: string;
+  readonly checked?: boolean;
+}
+
+export interface GOPromptInputOptions {
+  readonly message: string;
+  readonly default?: string;
+  readonly validate?: GOPromptTextValidator;
+}
+
+export interface GOPromptNumberInputOptions {
+  readonly message: string;
+  readonly default?: number;
+  readonly validate?: GOPromptNumberInputValidator;
+}
+
+export interface GOPromptConfirmInputOptions {
+  readonly message: string;
+  readonly default?: boolean;
+}
+
+export interface GOPromptSelectInputOptions<T> {
+  readonly message: string;
+  readonly choices: ReadonlyArray<GOPromptChoice<T>>;
+  readonly pageSize?: number;
+  readonly source?: GOPromptSelectSourceFn<T>;
+}
+
+export type GOPromptNumberInputValidator = (value: number | undefined) => boolean | string;
+export type GOPromptSelectSourceFn<T> = (term: string | undefined) => Promise<ReadonlyArray<GOPromptChoice<T>>>;
+export type GOPromptRunnerFn<T> = () => Promise<T | undefined>;
+export type GOPromptTextHandler = (options: GOPromptInputOptions) => Promise<string | undefined>;
+export type GOPromptNumberHandler = (options: GOPromptNumberInputOptions) => Promise<number | undefined>;
+export type GOPromptConfirmHandler = (options: GOPromptConfirmInputOptions) => Promise<boolean | undefined>;
+export type GOPromptSelectHandler = <T>(options: GOPromptSelectInputOptions<T>) => Promise<T | undefined>;
+export type GOPromptCheckboxHandler = <T>(options: GOPromptSelectInputOptions<T>) => Promise<T[] | undefined>;
+
+export interface GOPromptAdapter {
+  readonly text: GOPromptTextHandler;
+  readonly password: GOPromptTextHandler;
+  readonly number: GOPromptNumberHandler;
+  readonly confirm: GOPromptConfirmHandler;
+  readonly select: GOPromptSelectHandler;
+  readonly checkbox: GOPromptCheckboxHandler;
+  readonly search: GOPromptSelectHandler;
+}
+
+const inquirerPromptAdapter: GOPromptAdapter = {
+  text: async (options) => inquirerInput(options),
+  password: async (options) => inquirerPassword(options),
+  number: async (options) => inquirerNumber(options),
+  confirm: async (options) => inquirerConfirm(options),
+  select: async (options) => inquirerSelect(options),
+  checkbox: async (options) => inquirerCheckbox(options),
+  search: async (options) =>
+    inquirerSearch({
+      message: options.message,
+      ...(options.pageSize !== undefined ? { pageSize: options.pageSize } : {}),
+      source: async (term) => options.source?.(term) ?? options.choices,
+    }),
+};
+
+function toGOPromptSelectOptions(choices: ReadonlyArray<GOPromptChoice>): GOPromptSelectOption[] {
   return choices.map((choice) => {
-    const promptValue = choice.value as unknown;
+    const promptValue = choice.value;
 
     return {
-      title: choice.title,
+      title: choice.name,
       ...(promptValue !== undefined ? { value: promptValue } : {}),
       ...(choice.description !== undefined ? { description: choice.description } : {}),
-      ...('hint' in choice && typeof choice.hint === 'string' ? { hint: choice.hint } : {}),
     };
   });
+}
+
+function isExitPromptError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'ExitPromptError';
 }
 
 /**
@@ -144,15 +220,14 @@ export class GOPrompt {
   private readonly loadingBar: GOLoadingBar;
   private readonly logger: GOLogger;
   private readonly logResponses: boolean;
+  private readonly promptAdapter: GOPromptAdapter;
 
-  /** Default hint for interactive selection prompts */
-  private static readonly defaultHint = '(Use arrow-keys, Enter to submit, Esc to go back)';
-
-  constructor(logger: GOLogger, logResponses: boolean = false) {
+  constructor(logger: GOLogger, logResponses: boolean = false, promptAdapter: GOPromptAdapter = inquirerPromptAdapter) {
     this.logger = logger;
     this.spinner = new GOMultiSpinner();
     this.loadingBar = new GOLoadingBar();
     this.logResponses = logResponses;
+    this.promptAdapter = promptAdapter;
 
     // Ensure keypress events are emitted on stdin
     if (process.stdin.isTTY) {
@@ -163,8 +238,7 @@ export class GOPrompt {
   /**
    * Internal wrapper to distinguish Ctrl+C from Esc and ensure Esc always returns undefined
    */
-  private async runPrompt<T>(promptObj: PromptObject | PromptObject[]): Promise<T | undefined> {
-    let cancelled = false;
+  private async runPrompt<T>(prompt: GOPromptRunnerFn<T>): Promise<T | undefined> {
     let isEsc = false;
     isCtrlC = false;
 
@@ -183,23 +257,23 @@ export class GOPrompt {
     process.stdin.on('keypress', onKeypress);
 
     try {
-      const response = await prompts(promptObj, {
-        onCancel: () => {
-          if (isCtrlC) {
-            process.exit(130);
-          }
-          cancelled = true;
-          return false;
-        },
-      });
+      const value = await prompt();
 
       // If Esc was pressed, we ALWAYS want to return undefined,
-      // even if prompts somehow didn't call onCancel or returned a value.
-      if (cancelled || isEsc || response['value'] === undefined) {
+      // even if the prompt somehow returned a value.
+      if (isEsc || value === undefined) {
         return undefined;
       }
 
-      return response['value'] as T;
+      return value;
+    } catch (error) {
+      if (isCtrlC) {
+        process.exit(130);
+      }
+      if (isEsc || isExitPromptError(error)) {
+        return undefined;
+      }
+      throw error;
     } finally {
       process.stdin.removeListener('keypress', onKeypress);
     }
@@ -419,14 +493,13 @@ export class GOPrompt {
    * Ask for text input
    */
   public async text(message: string, options?: GOPromptTextOptions): Promise<string | undefined> {
-    const value = await this.runPrompt<string>({
-      type: 'text',
-      name: 'value',
-      message: message,
-      initial: options?.initial,
-      validate: options?.validate,
-      hint: options?.hint,
-    });
+    const value = await this.runPrompt(async () =>
+      this.promptAdapter.text({
+        message: message,
+        ...(options?.initial !== undefined ? { default: options.initial } : {}),
+        ...(options?.validate !== undefined ? { validate: options.validate } : {}),
+      }),
+    );
 
     if (value !== undefined && this.logger && this.logResponses) {
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${value}`);
@@ -439,14 +512,13 @@ export class GOPrompt {
    * Ask for password input (hidden)
    */
   public async password(message: string, options?: GOPromptTextOptions): Promise<string | undefined> {
-    const value = await this.runPrompt<string>({
-      type: 'password',
-      name: 'value',
-      message: message,
-      initial: options?.initial,
-      validate: options?.validate,
-      hint: options?.hint,
-    });
+    const value = await this.runPrompt(async () =>
+      this.promptAdapter.password({
+        message: message,
+        ...(options?.initial !== undefined ? { default: options.initial } : {}),
+        ...(options?.validate !== undefined ? { validate: options.validate } : {}),
+      }),
+    );
 
     if (value !== undefined && this.logger && this.logResponses) {
       this.logger.log(GOLogEventCategory.INFO, `${message} → [hidden]`);
@@ -459,16 +531,18 @@ export class GOPrompt {
    * Ask for number input
    */
   public async number(message: string, options?: GOPromptNumberOptions): Promise<number | undefined> {
-    const value = await this.runPrompt<number>({
-      type: 'number',
-      name: 'value',
-      message: message,
-      initial: options?.initial,
-      min: options?.min,
-      max: options?.max,
-      validate: options?.validate,
-      hint: options?.hint,
-    });
+    const value = await this.runPrompt(async () =>
+      this.promptAdapter.number({
+        message: message,
+        ...(options?.initial !== undefined ? { default: options.initial } : {}),
+        validate: (value) => {
+          if (value === undefined) return 'Value is required';
+          if (options?.min !== undefined && value < options.min) return `Value must be >= ${String(options.min)}`;
+          if (options?.max !== undefined && value > options.max) return `Value must be <= ${String(options.max)}`;
+          return options?.validate?.(value) ?? true;
+        },
+      }),
+    );
 
     if (value !== undefined && this.logger && this.logResponses) {
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${value}`);
@@ -491,15 +565,12 @@ export class GOPrompt {
           ? { initial: initialOrOptions }
           : {};
 
-    const value = await this.runPrompt<boolean>({
-      type: 'toggle',
-      name: 'value',
-      message: message,
-      initial: options.initial,
-      hint: options.hint,
-      active: 'yes',
-      inactive: 'no',
-    });
+    const value = await this.runPrompt(async () =>
+      this.promptAdapter.confirm({
+        message: message,
+        ...(options.initial !== undefined ? { default: options.initial } : {}),
+      }),
+    );
 
     if (value !== undefined && this.logger && this.logResponses) {
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${value ? 'Yes' : 'No'}`);
@@ -514,20 +585,18 @@ export class GOPrompt {
   public async select<T = unknown>(
     message: string,
     choices: GOPromptSelectOption[],
-    options?: GOPromptSelectOptions,
+    _options?: GOPromptSelectOptions,
   ): Promise<T | undefined> {
-    const value = await this.runPrompt<T>({
-      type: 'select',
-      name: 'value',
-      message: message,
-      hint: options?.hint ?? GOPrompt.defaultHint,
-      choices: choices.map((choice) => ({
-        title: choice.title,
-        value: choice.value,
-        description: choice.description,
-        hint: choice.hint,
-      })),
-    });
+    const value = await this.runPrompt(async () =>
+      this.promptAdapter.select<T>({
+        message: message,
+        choices: choices.map((choice) => ({
+          name: choice.title,
+          value: choice.value as T,
+          ...(choice.description !== undefined ? { description: choice.description } : {}),
+        })),
+      }),
+    );
 
     if (value !== undefined && this.logger && this.logResponses) {
       const selected = choices.find((c) => c.value === value);
@@ -543,21 +612,19 @@ export class GOPrompt {
   public async multiselect<T = unknown>(
     message: string,
     choices: GOPromptMultiselectOption[],
-    options?: GOPromptMultiselectOptions,
+    _options?: GOPromptMultiselectOptions,
   ): Promise<T[] | undefined> {
-    const value = await this.runPrompt<T[]>({
-      type: 'multiselect',
-      name: 'value',
-      message: message,
-      hint: options?.hint,
-      choices: choices.map((choice) => ({
-        title: choice.title,
-        value: choice.value,
-        selected: choice.selected ?? false,
-        description: choice.description,
-        hint: choice.hint,
-      })),
-    });
+    const value = await this.runPrompt(async () =>
+      this.promptAdapter.checkbox<T>({
+        message: message,
+        choices: choices.map((choice) => ({
+          name: choice.title,
+          value: choice.value as T,
+          checked: choice.selected ?? false,
+          ...(choice.description !== undefined ? { description: choice.description } : {}),
+        })),
+      }),
+    );
 
     if (value !== undefined && this.logger && this.logResponses) {
       const selected = choices.filter((c) => value.includes(c.value as T));
@@ -587,26 +654,34 @@ export class GOPrompt {
       typeof choice === 'string' ? { title: choice, value: choice } : choice,
     );
     const suggest = options.suggest;
-
-    const value = await this.runPrompt<T>({
-      type: 'autocomplete',
-      name: 'value',
+    const searchOptions: GOPromptSelectInputOptions<T> = {
       message: message,
-      initial: options.initial,
-      limit: options.limit ?? 10,
-      hint: options.hint ?? GOPrompt.defaultHint,
       choices: formattedChoices.map((choice) => ({
-        title: choice.title,
-        value: choice.value,
-        description: choice.description,
-        hint: choice.hint,
+        name: choice.title,
+        value: choice.value as T,
+        ...(choice.description !== undefined ? { description: choice.description } : {}),
       })),
-      suggest: suggest
-        ? async (input: string, choices: Choice[]) => {
-            return suggest(input, toGOPromptSelectOptions(choices));
+      pageSize: options.limit ?? 10,
+      ...(suggest !== undefined
+        ? {
+            source: async (term) => {
+              const sourceChoices = formattedChoices.map((choice) => ({
+                name: choice.title,
+                value: choice.value,
+                ...(choice.description !== undefined ? { description: choice.description } : {}),
+              }));
+              const suggested = await suggest(term ?? '', toGOPromptSelectOptions(sourceChoices));
+              return suggested.map((choice) => ({
+                name: choice.title,
+                value: choice.value as T,
+                ...(choice.description !== undefined ? { description: choice.description } : {}),
+              }));
+            },
           }
-        : undefined,
-    });
+        : {}),
+    };
+
+    const value = await this.runPrompt(async () => this.promptAdapter.search<T>(searchOptions));
 
     if (value !== undefined && this.logger && this.logResponses) {
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${valueToString(value)}`);
