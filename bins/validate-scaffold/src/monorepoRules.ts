@@ -29,6 +29,24 @@ interface PackageJson {
   readonly optionalDependencies?: Record<string, string>;
 }
 
+interface PackageJsonReadResult {
+  readonly content: string;
+  readonly packageJson: PackageJson;
+}
+
+interface DependencyCatalogViolation {
+  readonly packageJsonFile: string;
+  readonly section: (typeof DEPENDENCY_SECTIONS)[number];
+  readonly dependencyName: string;
+  readonly spec: string;
+  readonly line?: number;
+}
+
+interface PackageJsonReadViolation {
+  readonly packageJsonFile: string;
+  readonly reason: string;
+}
+
 /**
  * Discovers all workspace directories by scanning one level under configured parents.
  * Returns relative paths like "packages/go-common", "scripts/go/go-report-alarms".
@@ -58,8 +76,12 @@ function isAllowedDependencySpec(spec: string): boolean {
   return spec.startsWith('catalog:') || spec.startsWith('workspace:');
 }
 
-async function readPackageJson(packageJsonPath: string): Promise<PackageJson> {
-  return JSON.parse(await fs.readFile(packageJsonPath, 'utf-8')) as PackageJson;
+async function readPackageJson(packageJsonPath: string): Promise<PackageJsonReadResult> {
+  const content = await fs.readFile(packageJsonPath, 'utf-8');
+  return {
+    content,
+    packageJson: JSON.parse(content) as PackageJson,
+  };
 }
 
 async function findWorkspacePackageJsonFiles(
@@ -68,6 +90,44 @@ async function findWorkspacePackageJsonFiles(
 ): Promise<ReadonlyArray<string>> {
   const workspaceDirs = await discoverWorkspaceDirs(rootDir, context);
   return ['package.json', ...workspaceDirs.map((dir) => `${dir}/package.json`)];
+}
+
+function findDependencyLine(
+  content: string,
+  section: (typeof DEPENDENCY_SECTIONS)[number],
+  dependencyName: string,
+): number | undefined {
+  const lines = content.split('\n');
+  const sectionPattern = new RegExp(`^\\s*"${section}"\\s*:\\s*\\{`);
+  const dependencyPattern = new RegExp(`^\\s*"${dependencyName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"\\s*:`);
+  let inSection = false;
+
+  for (const [index, line] of lines.entries()) {
+    if (!inSection && sectionPattern.test(line)) {
+      inSection = true;
+      continue;
+    }
+
+    if (!inSection) continue;
+
+    if (/^\s*}/.test(line)) {
+      return undefined;
+    }
+
+    if (dependencyPattern.test(line)) {
+      return index + 1;
+    }
+  }
+
+  return undefined;
+}
+
+function formatDependencyCatalogViolation(violation: DependencyCatalogViolation): string {
+  return `${violation.packageJsonFile} ${violation.section}.${violation.dependencyName} = ${violation.spec}`;
+}
+
+function formatPackageJsonReadViolation(violation: PackageJsonReadViolation): string {
+  return `${violation.packageJsonFile}: ${violation.reason}`;
 }
 
 export function createMonorepoRules(context: MonorepoRulesContext): ReadonlyArray<ScaffoldRule> {
@@ -111,19 +171,57 @@ export function createMonorepoRules(context: MonorepoRulesContext): ReadonlyArra
     },
 
     {
+      name: 'package.json files are readable and valid',
+      check: 'custom',
+      validate: async (rootDir) => {
+        const ruleName = 'package.json files are readable and valid';
+        const packageJsonFiles = await findWorkspacePackageJsonFiles(rootDir, context);
+        const violations: PackageJsonReadViolation[] = [];
+
+        for (const relativePackageJson of packageJsonFiles) {
+          try {
+            await readPackageJson(path.join(rootDir, relativePackageJson));
+          } catch (error: unknown) {
+            violations.push({
+              packageJsonFile: relativePackageJson,
+              reason: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+
+        if (violations.length > 0) {
+          return {
+            rule: ruleName,
+            passed: false,
+            file: violations[0]?.packageJsonFile,
+            message: [
+              'Some package.json files could not be read or parsed.',
+              ...violations.map((violation) => `- ${formatPackageJsonReadViolation(violation)}`),
+            ].join('\n'),
+          };
+        }
+
+        return { rule: ruleName, passed: true };
+      },
+    },
+
+    {
       name: 'package.json dependencies use pnpm catalog',
       check: 'custom',
       validate: async (rootDir) => {
         const ruleName = 'package.json dependencies use pnpm catalog';
         const packageJsonFiles = await findWorkspacePackageJsonFiles(rootDir, context);
-        const violations: string[] = [];
+        const violations: DependencyCatalogViolation[] = [];
 
         for (const relativePackageJson of packageJsonFiles) {
           const packageJsonPath = path.join(rootDir, relativePackageJson);
 
           let packageJson: PackageJson;
+          let content: string;
           try {
-            packageJson = await readPackageJson(packageJsonPath);
+            const result = await readPackageJson(packageJsonPath);
+            packageJson = result.packageJson;
+            content = result.content;
           } catch {
             continue;
           }
@@ -134,7 +232,14 @@ export function createMonorepoRules(context: MonorepoRulesContext): ReadonlyArra
 
             for (const [dependencyName, spec] of Object.entries(dependencies)) {
               if (!isAllowedDependencySpec(spec)) {
-                violations.push(`${relativePackageJson} ${section}.${dependencyName} = ${spec}`);
+                const line = findDependencyLine(content, section, dependencyName);
+                violations.push({
+                  packageJsonFile: relativePackageJson,
+                  section,
+                  dependencyName,
+                  spec,
+                  ...(line !== undefined && { line }),
+                });
               }
             }
           }
@@ -144,8 +249,12 @@ export function createMonorepoRules(context: MonorepoRulesContext): ReadonlyArra
           return {
             rule: ruleName,
             passed: false,
-            file: 'package.json',
-            message: `Use catalog: for external dependencies and workspace: for internal dependencies. Found: ${violations.join(', ')}`,
+            file: violations[0]?.packageJsonFile,
+            line: violations[0]?.line,
+            message: [
+              'Use catalog: for external dependencies and workspace: for internal dependencies.',
+              ...violations.map((violation) => `- ${formatDependencyCatalogViolation(violation)}`),
+            ].join('\n'),
           };
         }
 

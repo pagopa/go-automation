@@ -117,7 +117,9 @@ async function validateGroup(
       const tag = result.severity === 'warning' ? WARN : FAIL;
       console.log(`    ${tag} ${result.rule}`);
       if (result.message) {
-        console.log(`         ${DIM}${result.message}${RESET}`);
+        for (const line of result.message.split('\n')) {
+          console.log(`         ${DIM}${line}${RESET}`);
+        }
       }
       if (IS_GITHUB_ACTIONS) {
         const level = result.severity === 'warning' ? 'warning' : 'error';
