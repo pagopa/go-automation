@@ -46,4 +46,22 @@ export class SQSUtils {
       throw new Error('Message body cannot be empty');
     }
   }
+
+  /**
+   * Returns a log-safe representation of an SQS queue URL by masking the
+   * AWS account ID. Use this in log statements to avoid leaking account IDs
+   * into shared output (CI logs, tickets, screenshots).
+   *
+   * @example
+   * ```typescript
+   * SQSUtils.redactQueueUrl('https://sqs.eu-south-1.amazonaws.com/123456789012/my-queue')
+   * // → 'https://sqs.eu-south-1.amazonaws.com/<redacted>/my-queue'
+   * ```
+   *
+   * @param queueUrl - SQS queue URL (must match the canonical SQS format)
+   * @returns The URL with the account ID replaced by `<redacted>`, or the original string if it doesn't match
+   */
+  static redactQueueUrl(queueUrl: string): string {
+    return queueUrl.replace(/(https:\/\/sqs\.[a-z0-9-]+\.amazonaws\.com\/)\d+(\/[\w-]+(?:\.fifo)?)$/, '$1<redacted>$2');
+  }
 }

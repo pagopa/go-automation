@@ -1,8 +1,4 @@
 /**
- * SQS Process Result
- */
-
-/**
  * Result of the message consumption and processing loop.
  */
 export interface SQSProcessResult {

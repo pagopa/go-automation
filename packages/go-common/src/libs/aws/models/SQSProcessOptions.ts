@@ -1,8 +1,4 @@
 /**
- * SQS Process Options
- */
-
-/**
  * Configuration options for the message consumption loop.
  */
 export interface SQSProcessOptions {
