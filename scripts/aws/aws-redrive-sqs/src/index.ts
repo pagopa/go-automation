@@ -1,9 +1,17 @@
+/**
+ * AWS Redrive SQS - Entry Point
+ *
+ * Minimal entry point for wiring and lifecycle management:
+ * - GOScript instantiation with metadata and parameters
+ * - Main business logic execution
+ */
+
 import { Core } from '@go-automation/go-common';
 import { scriptMetadata, scriptParameters } from './config.js';
 import { main } from './main.js';
 
 /**
- * Create the GOScript instance with metadata and parameters from config
+ * Create the GOScript instance with metadata and parameters from config.
  */
 const script = new Core.GOScript({
   metadata: scriptMetadata,
@@ -13,7 +21,7 @@ const script = new Core.GOScript({
 });
 
 /**
- * Run the script with lifecycle management
+ * Run the script with lifecycle management.
  */
 script
   .run(async () => {
