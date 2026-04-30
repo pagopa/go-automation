@@ -79,6 +79,35 @@ describe('findTestForClass', () => {
     });
   });
 
+  it('ignores class names found only as property names, object keys, declarations, or type members', () => {
+    withFixture('non-value-identifiers', () => {
+      writeFile(
+        'packages/go-runbooks/src/__tests__/Other.test.ts',
+        [
+          "import { describe, it } from 'node:test';",
+          '',
+          'interface WithProperty {',
+          '  Foo: string;',
+          '  read(Foo: string): string;',
+          '}',
+          '',
+          'type WithTypeProperty = { Foo: string };',
+          'class Foo {}',
+          'const obj = { Foo: 1 };',
+          '',
+          "describe('Other', () => {",
+          "  it('does not reference the class under test', () => assert.equal(obj.Foo, 1));",
+          '});',
+          '',
+        ].join('\n'),
+      );
+
+      const result = findTestForClass('packages/go-runbooks/src/Foo.ts', 'Foo');
+
+      assert.equal(result.found, false);
+    });
+  });
+
   it('does not use fallback discovery when the package src root cannot be derived', () => {
     withFixture('outside-package-src', () => {
       writeFile(

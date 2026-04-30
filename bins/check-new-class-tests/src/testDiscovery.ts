@@ -72,7 +72,7 @@ function collectSourceFileIdentifiers(sourcePath: string, sourceText: string, id
   const sourceFile = ts.createSourceFile(sourcePath, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 
   function visit(node: ts.Node): void {
-    if (ts.isIdentifier(node)) {
+    if (ts.isIdentifier(node) && isRelevantTestIdentifier(node)) {
       identifiers.add(node.text);
     }
 
@@ -80,4 +80,56 @@ function collectSourceFileIdentifiers(sourcePath: string, sourceText: string, id
   }
 
   visit(sourceFile);
+}
+
+function isRelevantTestIdentifier(node: ts.Identifier): boolean {
+  if (isImportBindingIdentifier(node)) return true;
+  if (isIgnoredIdentifierPosition(node)) return false;
+
+  return true;
+}
+
+function isImportBindingIdentifier(node: ts.Identifier): boolean {
+  const parent = node.parent;
+
+  if (ts.isImportClause(parent)) return parent.name === node;
+  if (ts.isImportSpecifier(parent)) return parent.name === node || parent.propertyName === node;
+
+  return false;
+}
+
+function isIgnoredIdentifierPosition(node: ts.Identifier): boolean {
+  const parent = node.parent;
+
+  if (ts.isPropertyAccessExpression(parent) && parent.name === node) return true;
+  if (ts.isPropertyAssignment(parent) && parent.name === node) return true;
+  if (ts.isPropertySignature(parent) && parent.name === node) return true;
+  if (ts.isMethodSignature(parent) && parent.name === node) return true;
+  if (ts.isTypeReferenceNode(parent) && parent.typeName === node) return true;
+  if (ts.isExpressionWithTypeArguments(parent) && parent.expression === node) return true;
+  if (ts.isTypeQueryNode(parent) && parent.exprName === node) return true;
+  if (ts.isQualifiedName(parent)) return true;
+
+  return isDeclarationName(node);
+}
+
+function isDeclarationName(node: ts.Identifier): boolean {
+  const parent = node.parent;
+
+  if (ts.isClassDeclaration(parent) && parent.name === node) return true;
+  if (ts.isFunctionDeclaration(parent) && parent.name === node) return true;
+  if (ts.isInterfaceDeclaration(parent) && parent.name === node) return true;
+  if (ts.isTypeAliasDeclaration(parent) && parent.name === node) return true;
+  if (ts.isEnumDeclaration(parent) && parent.name === node) return true;
+  if (ts.isModuleDeclaration(parent) && parent.name === node) return true;
+  if (ts.isVariableDeclaration(parent) && parent.name === node) return true;
+  if (ts.isParameter(parent) && parent.name === node) return true;
+  if (ts.isBindingElement(parent) && parent.name === node) return true;
+  if (ts.isPropertyDeclaration(parent) && parent.name === node) return true;
+  if (ts.isMethodDeclaration(parent) && parent.name === node) return true;
+  if (ts.isGetAccessorDeclaration(parent) && parent.name === node) return true;
+  if (ts.isSetAccessorDeclaration(parent) && parent.name === node) return true;
+  if (ts.isEnumMember(parent) && parent.name === node) return true;
+
+  return false;
 }
