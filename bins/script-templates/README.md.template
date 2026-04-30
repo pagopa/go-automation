@@ -1,194 +1,62 @@
 # {{SCRIPT_TITLE}}
 
-> Versione: 1.0.0 | Autore: {{TEAM_NAME}}
+> Versione: 1.0.0 | Maintainer: {{TEAM_NAME}} | Ultima modifica: {{CURRENT_DATE}}
 
 {{SCRIPT_DESCRIPTION}}
 
 ## Indice
 
-- [Funzionalità](#funzionalità)
+- [Obiettivo](#obiettivo)
 - [Prerequisiti](#prerequisiti)
 - [Configurazione](#configurazione)
 - [Utilizzo](#utilizzo)
 - [Output](#output)
+- [Gestione Errori e Sicurezza](#gestione-errori-e-sicurezza)
 - [Troubleshooting](#troubleshooting)
 
-## Funzionalità
+---
 
-Elenco delle funzionalità principali:
-
-- TODO: Funzionalità 1
-- TODO: Funzionalità 2
-- TODO: Funzionalità 3
+## Obiettivo
+Una descrizione sintetica del caso d'uso principale.
 
 ## Prerequisiti
-
-### Software Richiesto
-
-| Software | Versione Minima | Note |
-|----------|-----------------|------|
-| Node.js  | >= 18.0.0       | LTS consigliata |
-| pnpm     | >= 8.0.0        | Package manager |
-| TypeScript | >= 5.0.0      | Incluso nel progetto |
-
-### Account e Permessi
-
-- [ ] Accesso AWS con profilo SSO configurato
-- [ ] Permessi IAM necessari (elencare)
-- [ ] (Opzionale) Token Slack per notifiche
-
-### Credenziali AWS
-
-Configurare le credenziali AWS utilizzando AWS SSO:
-
-```bash
-aws sso login --profile <nome-profilo>
-```
+- **Software**: Node.js (>= 22.14.0), pnpm (>= 10.0.0).
+- **Accesso**: Profilo AWS SSO attivo (`aws sso login --profile <nome>`).
+- **Permessi**: Elencare le azioni IAM necessarie.
 
 ## Configurazione
 
 ### Parametri CLI
 
-| Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
-|-----------|-------|------|--------------|---------|-------------|
-| TODO: Aggiungere parametri | | | | | |
-
-### Variabili d'Ambiente
-
-| Variabile | Descrizione | Esempio |
-|-----------|-------------|---------|
-| TODO: Aggiungere variabili | | |
-
-### File di Configurazione
-
-Percorso: `configs/config.json`
-
-```json
-{
-  "TODO": "Aggiungere configurazione"
-}
-```
-
-### Priorita di Configurazione
-
-1. Parametri CLI (priorita massima)
-2. Variabili d'ambiente
-3. File di configurazione
-4. Valori di default
+| Parametro | Alias | Obbligatorio | Default | Descrizione |
+|-----------|-------|--------------|---------|-------------|
+| `--aws-profile` | `-ap` | Sì | - | Profilo AWS SSO per le operazioni. |
+| TODO | ... | ... | ... | ... |
 
 ## Utilizzo
 
-### Modalità Development (via pnpm/tsx)
+*Esempi di comandi standardizzati per scenari comuni.*
 
+**Scenario A: Debugging di una singola entità**
 ```bash
-# Dalla root del monorepo
-pnpm {{SHORTCUT_NAME}}:dev
-
-# Oppure con filter
-pnpm --filter={{SCRIPT_NAME}} dev
-
-# Con parametri
-pnpm {{SHORTCUT_NAME}}:dev -- --param valore
+pnpm {{SCRIPT_NAME}}:dev --aws-profile <profilo> --id <ID>
 ```
 
-### Modalità Production (build + node)
-
+**Scenario B: Elaborazione massiva da file di output precedente**
 ```bash
-# Build
-pnpm --filter={{SCRIPT_NAME}} build
-
-# Esecuzione
-pnpm --filter={{SCRIPT_NAME}} start
-
-# Oppure direttamente
-node dist/index.js --param valore
-```
-
-### Esempi Pratici
-
-```bash
-# Esempio 1: Caso d'uso comune
-pnpm {{SHORTCUT_NAME}}:dev -- --param1 valore1 --param2 valore2
-
-# Esempio 2: Con date
-pnpm {{SHORTCUT_NAME}}:dev -- --from "2024-01-01T00:00:00Z" --to "2024-01-31T23:59:59Z"
-
-# Esempio 3: Modalità verbose
-pnpm {{SHORTCUT_NAME}}:dev -- --verbose
+pnpm {{SCRIPT_NAME}}:dev --aws-profile <profilo> --input-file data/inputs/dump.json
 ```
 
 ## Output
+- **Artifacts**: Percorso dei file salvati (`data/outputs/...`) e relativi formati (es. `.json`, `.csv`).
+- **Console output**: Struttura di esempio del feedback standard su console.
 
-### Formato Report
-
-Descrivere il formato dell'output generato:
-
-- **File CSV**: `reports/report_YYYY-MM-DD_HH-MM-SS.csv`
-- **Notifiche Slack**: Formato del messaggio
-- **Log**: `logs/{{SCRIPT_NAME}}_YYYY-MM-DD.log`
-
-### Esempio Output Console
-
-```
-+-------------------------------------------+
-|  {{SCRIPT_TITLE}} v1.0.0                  |
-|  {{TEAM_NAME}}                            |
-+-------------------------------------------+
-
-> Sezione 1
-  Messaggio informativo...
-
-> Sezione 2
-  [OK] Operazione completata
-
-> Risultati
-  Totale: 100
-  Elaborati: 95
-  Errori: 5
-```
+## Gestione Errori e Sicurezza
+*Informazioni per PR reviewers e operatori.*
+- **Azioni Distruttive**: Dettagli su eventuali conferme richieste (es. prompt y/n).
+- **Resilienza ai fallimenti**: Spiegazione di come lo script gestisce fallimenti parziali (es. generazione di `failures.json`).
+- **Idempotenza**: Conferma del comportamento in caso di interruzione e riavvio.
 
 ## Troubleshooting
-
-### Problemi Comuni
-
-#### Errore: "AWS credentials not found"
-
-**Causa**: Profilo AWS non configurato o sessione SSO scaduta.
-
-**Soluzione**:
-```bash
-# Effettuare login SSO
-aws sso login --profile <nome-profilo>
-```
-
-#### Errore: "Module not found"
-
-**Causa**: Dipendenze non installate o build non eseguito.
-
-**Soluzione**:
-```bash
-pnpm install
-pnpm build:common
-pnpm --filter={{SCRIPT_NAME}} build
-```
-
-#### Errore: "Invalid date format"
-
-**Causa**: Formato data non valido.
-
-**Soluzione**: Usare formato ISO 8601: `YYYY-MM-DDTHH:MM:SSZ`
-
-### Debug Mode
-
-```bash
-# Eseguire con debug output
-DEBUG=* pnpm {{SHORTCUT_NAME}}:dev
-
-# Type check senza build
-pnpm --filter={{SCRIPT_NAME}} exec tsc --noEmit
-```
-
----
-
-**Ultima modifica**: {{CURRENT_DATE}}
-**Maintainer**: {{TEAM_NAME}}
+- **Errore X**: Causa comune e procedura di risoluzione.
+- **Supporto**: Come contattare il Team GO per dubbi o segnalazioni di bug.

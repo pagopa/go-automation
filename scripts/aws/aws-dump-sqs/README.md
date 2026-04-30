@@ -1,112 +1,78 @@
 # AWS Dump SQS
 
-> Versione: 1.1.0 | Autore: Team GO
+> Versione: 1.1.0 | Maintainer: Team GO - Gestione Operativa | Ultima modifica: 2026-04-22
 
-Script che effettua il dump di tutti i messaggi presenti in una coda **SQS** in formato **NDJSON**. Lo script opera in modalità **read-only**: i messaggi vengono ricevuti ma **NON** vengono eliminati dalla coda.
+Script che effettua il dump di tutti i messaggi presenti in una coda **SQS** in formato **NDJSON**. Lo script opera in modalità **read-only**: i messaggi vengono ricevuti ma **NON** eliminati dalla coda.
 
 ## Indice
 
-- [AWS Dump SQS](#aws-dump-sqs)
-  - [Indice](#indice)
-  - [Come funziona](#come-funziona)
-  - [Prerequisiti](#prerequisiti)
-    - [Software](#software)
-    - [Credenziali AWS](#credenziali-aws)
-  - [Configurazione](#configurazione)
-    - [Parametri CLI](#parametri-cli)
-    - [Note di risoluzione path](#note-di-risoluzione-path)
-  - [Deduplicazione](#deduplicazione)
-  - [Limitazioni Importanti](#limitazioni-importanti)
-  - [Utilizzo](#utilizzo)
+- [Obiettivo](#obiettivo)
+- [Prerequisiti](#prerequisiti)
+- [Configurazione](#configurazione)
+- [Utilizzo](#utilizzo)
+- [Output](#output)
+- [Funzionamento e Sicurezza](#funzionamento-e-sicurezza)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
-## Come funziona
+## Obiettivo
 
-1. **Inizializzazione**: recupera l'URL e gli attributi della coda (dimensione, tipo FIFO) utilizzando il profilo e la regione specificati e avvisa se la dimensione supera i limiti di messaggi "in-flight" di SQS.
-2. **Long Polling**: utilizza il long polling (20 secondi) per ridurre le risposte vuote e interrogare tutti i server SQS distribuite.
-3. **Ricezione e Deduplicazione**: riceve messaggi in batch e applica la logica di deduplicazione scelta (default: `message-id`).
-4. **Export NDJSON**: ogni messaggio unico viene salvato in una riga del file di output.
-5. **Terminazione Robusta**: lo script termina solo dopo un numero configurabile di risposte vuote consecutive (default: 3), per garantire di aver scansionato l'intera coda.
-
----
+Dump massivo di messaggi SQS in formato NDJSON per analisi offline, garantendo la persistenza dei messaggi nella coda sorgente.
 
 ## Prerequisiti
 
-### Software
-
-| Software | Versione minima | Note            |
-| -------- | --------------- | --------------- |
-| Node.js  | >= 22.0.0       | LTS consigliata |
-| pnpm     | >= 10.0.0       | Package manager |
-
-### Credenziali AWS
-
-La sessione SSO deve essere attiva per il profilo AWS utilizzato.
-
-```bash
-aws sso login --profile <nome-profilo>
-```
-
----
+- **Software**: Node.js (>= 22.0.0), pnpm (>= 10.0.0).
+- **Accesso**: Profilo AWS SSO attivo (`aws sso login --profile <nome>`).
+- **Permessi**: `sqs:ReceiveMessage`, `sqs:GetQueueAttributes`.
 
 ## Configurazione
 
-Lo script non include un file di configurazione dedicato: i valori vengono passati da CLI e le eventuali path relative vengono risolte tramite `GOPaths`.
-
 ### Parametri CLI
 
-| Parametro              | Alias           | Tipo     | Obbligatorio | Default      | Descrizione                                                                                               |
-| ---------------------- | --------------- | -------- | ------------ | ------------ | --------------------------------------------------------------------------------------------------------- |
-| `--aws-profile`        | `--ap`          | `string` | Sì           | —            | Nome del profilo AWS SSO                                                                                  |
-| `--queue-name`         | `--qn`          | `string` | No           | —            | Nome della coda SQS (Obbligatorio se non si fornisce `--queue-url`)                                       |
-| `--queue-url`          | `--qu`, `--url` | `string` | No           | —            | URL completo della coda SQS (Obbligatorio se non si fornisce `--queue-name`)                              |
-| `--visibility-timeout` | `--vt`          | `number` | No           | `60`         | Timeout di visibilità per i messaggi ricevuti                                                             |
-| `--limit`              | `-l`            | `number` | No           | —            | Numero massimo di messaggi da scaricare                                                                   |
-| `--dedup-mode`         | `--dm`          | `enum`   | No           | `message-id` | Modalità di deduplicazione (`message-id`, `content-md5`, `none`)                                          |
-| `--max-empty-receives` | `--mer`         | `number` | No           | `3`          | Poll vuoti consecutivi prima di fermarsi                                                                  |
-| `--output-file`        | `-o`            | `string` | No           | —            | Percorso personalizzato del file di output (assoluto o relativo alla directory di output dell'esecuzione) |
-
-### Note di risoluzione path
-
-- Se `--output-file` è assoluto, viene usato così com'è
-- Se `--output-file` è relativo, viene salvato nella directory `data/aws-dump-sqs/outputs/aws-dump-sqs_<timestamp>/`
-- Se `--output-file` non è specificato, il nome viene generato automaticamente come `dump_<queue>_<timestamp>.ndjson`
-
----
-
-## Deduplicazione
-
-Dato che i messaggi non vengono eliminati, lo script potrebbe ricevere lo stesso messaggio più volte se il `visibility-timeout` scade prima della fine del dump.
-
-- **`message-id`** (Default): filtra i duplicati tecnici. Se lo stesso identico messaggio SQS viene ricevuto due volte, viene salvato solo una volta.
-- **`content-md5`**: filtra i duplicati di contenuto. Se ci sono messaggi diversi con lo stesso corpo e attributi, viene salvato solo il primo incontrato.
-- **`none`**: nessun filtro. Ogni messaggio ricevuto viene scritto nel file.
-
----
-
-## Limitazioni Importanti
-
-- **In-Flight Messages**: SQS ha un limite di messaggi "in-flight" (ricevuti ma non eliminati): **120.000** per code standard, **20.000** per code FIFO. Se il dump supera questi limiti, SQS smetterà di restituire messaggi finché i timeout di visibilità non scadono.
-- **Deduplicazione in Memoria**: la deduplicazione avviene in memoria RAM. Per dump di milioni di messaggi, monitorare l'utilizzo della memoria.
-- **Standard vs FIFO**: nelle code standard l'ordinamento non è garantito e la deduplicazione `content-md5` potrebbe non essere deterministica se i messaggi variano leggermente.
-
----
+| Parametro        | Alias | Obbligatorio | Default      | Descrizione                                                      |
+|------------------|-------|--------------|--------------|------------------------------------------------------------------|
+| `--aws-profile`  | `-ap` | Sì           | -            | Nome del profilo AWS SSO.                                        |
+| `--queue-name`   | `-qn` | No           | -            | Nome della coda SQS (se non si fornisce `--queue-url`).          |
+| `--dedup-mode`   | `-dm` | No           | `message-id` | Modalità di deduplicazione: `message-id`, `content-md5`, `none`. |
+| `--limit`        | `-l`  | No           | -            | Numero massimo di messaggi da scaricare.                         |
 
 ## Utilizzo
 
+*Esempi di comandi standardizzati per scenari comuni.*
+
+- **Scenario A: Dump standard**
+
 ```bash
-# Dump standard con deduplicazione per MessageId
-pnpm --filter=aws-dump-sqs start --qn la-mia-coda --aws-profile mio-profilo
-
-# Dump con filtro sul contenuto (MD5)
-pnpm --filter=aws-dump-sqs start --qn la-mia-coda --dm content-md5 --aws-profile mio-profilo
-
-# Dump veloce con limite di messaggi
-pnpm --filter=aws-dump-sqs start --qn la-mia-coda -l 1000 --aws-profile mio-profilo
+pnpm --filter=aws-dump-sqs start --qn <coda> --ap <profilo>
 ```
 
----
+- **Scenario B: Dump con deduplicazione contenuto**
 
-**Ultima modifica**: 2026-04-22
-**Maintainer**: Team GO - Gestione Operativa
+```bash
+pnpm --filter=aws-dump-sqs start --qn <coda> --dm content-md5 --ap <profilo>
+```
+
+## Output
+
+- **Artifacts**: File `.ndjson` salvati in `data/aws-dump-sqs/outputs/aws-dump-sqs_<timestamp>/`.
+- **Console output**: Report in tempo reale del numero di messaggi scaricati e deduplicati.
+
+## Funzionamento e Sicurezza
+
+*Informazioni per PR reviewers e operatori.*
+
+- **Logica Operativa**:
+  1. Recupera attributi coda (dimensione, tipo) e avvisa su superamento limiti "in-flight".
+  2. Utilizza long polling (20s) per interrogare tutti i server SQS.
+  3. Applica deduplicazione in memoria e scrive ogni messaggio unico nel file di output.
+  4. Termina automaticamente dopo un numero configurabile di poll vuoti (default: 3).
+- **Azioni Distruttive**: Nessuna. Lo script è strettamente read-only.
+- **Resilienza ai fallimenti**: Gestisce correttamente la terminazione per garantire la scrittura dell'intero buffer.
+- **Idempotenza**: Non applicabile (read-only).
+- **Limitazioni**: Attenzione ai limiti SQS "in-flight" (120k standard, 20k FIFO) e all'utilizzo RAM per dump massivi con deduplicazione abilitata.
+
+## Troubleshooting
+
+- **Errore: "In-flight limit exceeded"**: Il dump sta superando la capacità SQS; attendere la scadenza del visibility timeout dei messaggi.
+- **Supporto**: Contattare il Team GO - Gestione Operativa.

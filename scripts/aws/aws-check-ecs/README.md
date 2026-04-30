@@ -1,110 +1,81 @@
 # AWS Check ECS
 
-> Versione: 1.0.0 | Autore: Team GO - Gestione Operativa
+> Versione: 1.0.0 | Maintainer: Team GO - Gestione Operativa | Ultima modifica: 2026-03-24
 
 Script di automazione per il monitoraggio dello stato di cluster, servizi e task ECS su AWS.
 
 ## Indice
 
-- [Funzionalità](#funzionalità)
+- [Obiettivo](#obiettivo)
 - [Prerequisiti](#prerequisiti)
 - [Configurazione](#configurazione)
 - [Utilizzo](#utilizzo)
 - [Output](#output)
+- [Gestione Errori e Sicurezza](#gestione-errori-e-sicurezza)
 - [Troubleshooting](#troubleshooting)
 
-## Funzionalità
+---
 
-Lo script esegue le seguenti operazioni:
+## Obiettivo
 
-- Discovery dei cluster ECS (tutti o filtrati per nome).
-- Analisi dello stato dei servizi (Running vs Desired count).
-- Verifica dello stato di salute dei task (Last Status e Health Status).
-- Report consolidato per account/profilo AWS.
+Script di automazione per il monitoraggio dello stato di cluster, servizi e task ECS su AWS.
 
 ## Prerequisiti
 
-### Software Richiesto
-
-| Software   | Versione Minima | Note                 |
-| ---------- | --------------- | -------------------- |
-| Node.js    | >= 22.14.0      | LTS consigliata      |
-| pnpm       | >= 10.0.0       | Package manager      |
-| TypeScript | >= 5.0.0        | Incluso nel progetto |
-
-### Account e Permessi
-
-- [ ] Accesso AWS con profilo SSO configurato.
-- [ ] Permessi IAM per `ecs:ListClusters`, `ecs:DescribeClusters`, `ecs:ListServices`, `ecs:DescribeServices`, `ecs:ListTasks`, `ecs:DescribeTasks`.
+- **Software**: Node.js (>= 22.14.0), pnpm (>= 10.0.0).
+- **Accesso**: Profilo AWS SSO attivo (`aws sso login --profile <nome>`).
+- **Permessi**: `ecs:ListClusters`, `ecs:DescribeClusters`, `ecs:ListServices`, `ecs:DescribeServices`, `ecs:ListTasks`, `ecs:DescribeTasks`.
 
 ## Configurazione
 
 ### Parametri CLI
 
-| Parametro        | Alias  | Tipo   | Obbligatorio | Default    | Descrizione                                      |
-| ---------------- | ------ | ------ | ------------ | ---------- | ------------------------------------------------ |
-| `--aws-profiles` | `-aps` | array  | Si           | -          | Nomi dei profili AWS SSO (separati da virgola).  |
-| `--aws-region`   | `-r`   | string | No           | eu-south-1 | Regione AWS per le operazioni.                   |
-| `--ecs-clusters` | `-c`   | array  | No           | -          | Nomi o parti di nomi dei cluster da controllare. |
+| Parametro        | Alias  | Obbligatorio | Default    | Descrizione                                      |
+|------------------|--------|--------------|------------|--------------------------------------------------|
+| `--aws-profiles` | `-aps` | Sì           | -          | Nomi dei profili AWS SSO (separati da virgola).  |
+| `--aws-region`   | `-r`   | No           | eu-south-1 | Regione AWS per le operazioni.                   |
+| `--ecs-clusters` | `-c`   | No           | -          | Nomi o parti di nomi dei cluster da controllare. |
 
 ## Utilizzo
 
-### Modalità Development (via pnpm/tsx)
+*Esempi di comandi standardizzati per scenari comuni.*
+
+- **Scenario A: Controllo di tutti i cluster su profili multipli**
 
 ```bash
 pnpm aws:check:ecs:dev --aws-profiles <profile1>,<profile2>
 ```
 
-### Modalità Production (build + node)
+- **Scenario B: Controllo di cluster specifici su profilo singolo**
 
 ```bash
-pnpm aws:check:ecs:prod --aws-profiles <profile1>
+pnpm aws:check:ecs:prod --aws-profiles <profile1> --ecs-clusters <cluster-name>
 ```
 
 ## Output
 
-### Esempio Output Console
+- **Artifacts**: Nessun file di output.
+- **Console output**:
 
-```console
+```text
 ╭─────────────────────────────────────────╮
-│  AWS Check ECS v1.0.0                   │                  │
-│  Team GO - Gestione Operativa           │
+│  AWS Check ECS v1.0.0                   │
 ╰─────────────────────────────────────────╯
 
-► ECS Check
-  Profiles: sso_pn-core-prod
-  Region: eu-south-1
-  Target Clusters: ALL
-
 ► Profile: sso_pn-core-prod
-
   Cluster: pn-core-prod (HEALTHY)
-  Status: ACTIVE
-  ARN: arn:aws:ecs:eu-south-1:123456789:cluster/pn-core-prod
-
-  ► Services
-    ✅ pn-core-auth: ACTIVE (Running: 2 / Desired: 2)
-    ✅ pn-core-api: ACTIVE (Running: 4 / Desired: 4)
-
-  ► Tasks
-    All 6 tasks are healthy.
+  ...
 ```
+
+## Gestione Errori e Sicurezza
+
+*Informazioni per PR reviewers e operatori.*
+
+- **Azioni Distruttive**: Nessuna azione distruttiva.
+- **Resilienza ai fallimenti**: Lo script gestisce errori di connessione e limita le chiamate API per evitare throttling.
+- **Idempotenza**: Lo script è di sola lettura (read-only).
 
 ## Troubleshooting
 
-### Problemi Comuni
-
-#### Errore: "AWS credentials not found"
-
-**Causa**: Profilo AWS non configurato o sessione SSO scaduta.
-
-**Soluzione**:
-
-```bash
-aws sso login --profile [nome-profilo]
-```
-
----
-
-**Ultima modifica**: 2026-03-24
-**Maintainer**: Team GO - Gestione Operativa
+- **Errore: "AWS credentials not found"**: Profilo AWS non configurato o sessione SSO scaduta. Eseguire `aws sso login --profile <nome-profilo>`.
+- **Supporto**: Contattare il Team GO - Gestione Operativa.
