@@ -58,6 +58,7 @@ export function findNamedReExportsInAddedLines(
       !ts.isExportDeclaration(statement) ||
       statement.exportClause === undefined ||
       statement.moduleSpecifier === undefined ||
+      statement.isTypeOnly ||
       !ts.isStringLiteral(statement.moduleSpecifier) ||
       !ts.isNamedExports(statement.exportClause)
     ) {
@@ -65,6 +66,8 @@ export function findNamedReExportsInAddedLines(
     }
 
     for (const element of statement.exportClause.elements) {
+      if (element.isTypeOnly) continue;
+
       const { line } = sourceFile.getLineAndCharacterOfPosition(element.getStart(sourceFile));
       const oneBasedLine = line + 1;
       if (!addedLines.has(oneBasedLine)) continue;
@@ -126,7 +129,8 @@ function collectExportedNames(sourceFile: ts.SourceFile): ReadonlySet<string> {
     if (
       ts.isExportDeclaration(statement) &&
       statement.exportClause !== undefined &&
-      statement.moduleSpecifier === undefined
+      statement.moduleSpecifier === undefined &&
+      !statement.isTypeOnly
     ) {
       collectNamedExportNames(statement.exportClause, exportedNames);
       continue;
@@ -150,7 +154,8 @@ function collectExportedNamesOnAddedLines(
     if (
       ts.isExportDeclaration(statement) &&
       statement.exportClause !== undefined &&
-      statement.moduleSpecifier === undefined
+      statement.moduleSpecifier === undefined &&
+      !statement.isTypeOnly
     ) {
       collectNamedExportNamesOnAddedLines(sourceFile, statement.exportClause, addedLines, exportedNames);
       continue;
@@ -182,6 +187,8 @@ function collectNamedExportNames(exportClause: ts.NamedExportBindings, exportedN
   if (!ts.isNamedExports(exportClause)) return;
 
   for (const element of exportClause.elements) {
+    if (element.isTypeOnly) continue;
+
     exportedNames.add(element.propertyName?.text ?? element.name.text);
   }
 }
@@ -195,6 +202,8 @@ function collectNamedExportNamesOnAddedLines(
   if (!ts.isNamedExports(exportClause)) return;
 
   for (const element of exportClause.elements) {
+    if (element.isTypeOnly) continue;
+
     const { line } = sourceFile.getLineAndCharacterOfPosition(element.getStart(sourceFile));
     const oneBasedLine = line + 1;
     if (!addedLines.has(oneBasedLine)) continue;

@@ -48,6 +48,22 @@ describe('findExportedClassesInAddedLines', () => {
     assert.deepStrictEqual(classes, [{ name: 'Foo', line: 2 }]);
   });
 
+  it('ignores type-only export declarations when finding newly public classes', () => {
+    const source = ['class Foo {}', 'export type { Foo };'].join('\n');
+
+    const classes = findExportedClassesInAddedLines('Foo.ts', source, new Set([2]));
+
+    assert.deepStrictEqual(classes, []);
+  });
+
+  it('ignores type-only export specifiers when finding newly public classes', () => {
+    const source = ['class Foo {}', 'export { type Foo };'].join('\n');
+
+    const classes = findExportedClassesInAddedLines('Foo.ts', source, new Set([2]));
+
+    assert.deepStrictEqual(classes, []);
+  });
+
   it('ignores exported classes whose class declaration line was not added', () => {
     const source = ['export class Foo {}', 'export class Bar {}'].join('\n');
 
@@ -101,6 +117,22 @@ describe('findNamedReExportsInAddedLines', () => {
         line: 1,
       },
     ]);
+  });
+
+  it('ignores type-only re-export declarations', () => {
+    const source = ["export type { Foo } from './Foo.js';"].join('\n');
+
+    const reExports = findNamedReExportsInAddedLines('index.ts', source, new Set([1]));
+
+    assert.deepStrictEqual(reExports, []);
+  });
+
+  it('ignores type-only re-export specifiers', () => {
+    const source = ["export { type Foo } from './Foo.js';"].join('\n');
+
+    const reExports = findNamedReExportsInAddedLines('index.ts', source, new Set([1]));
+
+    assert.deepStrictEqual(reExports, []);
   });
 });
 
