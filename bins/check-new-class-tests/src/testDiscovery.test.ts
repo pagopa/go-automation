@@ -16,9 +16,7 @@ describe('findTestForClass', () => {
       const result = findTestForClass('packages/direct-class/src/Foo.ts', 'Foo');
 
       assert.equal(result.found, true);
-      assert.deepEqual(result.expectedPaths, [
-        'packages/direct-class/src/__tests__/Foo.test.ts',
-      ]);
+      assert.deepEqual(result.expectedPaths, ['packages/direct-class/src/__tests__/Foo.test.ts']);
     });
   });
 
@@ -85,11 +83,7 @@ describe('findTestForClass', () => {
     withFixture('outside-package-src', () => {
       writeFile(
         'src/__tests__/SomeOtherName.test.ts',
-        [
-          "import { Foo } from '../Foo.js';",
-          'assert.ok(Foo);',
-          '',
-        ].join('\n'),
+        ["import { Foo } from '../Foo.js';", 'assert.ok(Foo);', ''].join('\n'),
       );
 
       const result = findTestForClass('src/Foo.ts', 'Foo');
