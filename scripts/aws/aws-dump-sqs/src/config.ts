@@ -1,13 +1,13 @@
 /**
  * AWS Dump SQS - Configuration Module
  *
- * Contains script metadata, parameters definition, and configuration interface.
+ * Defines metadata and CLI parameters for the SQS dump script.
  */
 
 import { Core } from '@go-automation/go-common';
 
 /**
- * Script metadata
+ * Script metadata.
  */
 export const scriptMetadata: Core.GOScriptMetadata = {
   name: 'AWS Dump SQS',
@@ -17,7 +17,7 @@ export const scriptMetadata: Core.GOScriptMetadata = {
 };
 
 /**
- * Script parameter definitions
+ * Script parameter definitions.
  */
 export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
@@ -31,52 +31,45 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     name: 'queue.name',
     type: Core.GOConfigParameterType.STRING,
     description: 'Target SQS queue name',
-    required: false,
     aliases: ['qn'],
   },
   {
     name: 'queue.url',
     type: Core.GOConfigParameterType.STRING,
     description: 'Target SQS queue URL',
-    required: false,
     aliases: ['qu', 'url'],
   },
   {
     name: 'visibility.timeout',
     type: Core.GOConfigParameterType.INT,
-    description: 'Visibility timeout for received messages in seconds (default: 60)',
-    required: false,
-    aliases: ['vt'],
+    description: 'Visibility timeout for received messages in seconds',
     defaultValue: 60,
+    aliases: ['vt'],
   },
   {
     name: 'limit',
     type: Core.GOConfigParameterType.INT,
     description: 'Maximum number of messages to dump',
-    required: false,
     aliases: ['l'],
   },
   {
     name: 'dedup.mode',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Deduplication mode (message-id, content-md5, none) (default: message-id)',
-    required: false,
-    aliases: ['dm'],
+    description: 'Deduplication mode (message-id, content-md5, none)',
     defaultValue: 'message-id',
+    aliases: ['dm'],
   },
   {
     name: 'max.empty.receives',
     type: Core.GOConfigParameterType.INT,
-    description: 'Number of consecutive empty polls before stopping (default: 3)',
-    required: false,
-    aliases: ['mer'],
+    description: 'Number of consecutive empty polls before stopping',
     defaultValue: 3,
+    aliases: ['mer'],
   },
   {
     name: 'output.file',
     type: Core.GOConfigParameterType.STRING,
     description: 'Custom output file path (relative to project root or absolute)',
-    required: false,
     aliases: ['o'],
   },
 ] as const;

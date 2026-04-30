@@ -1,23 +1,23 @@
 /**
  * {{SCRIPT_TITLE}} - Configuration Module
  *
- * Contains script metadata and parameters definition.
+ * Defines metadata and CLI parameters for the script.
  */
 
 import { Core } from '@go-automation/go-common';
 
 /**
- * Script metadata
+ * Script metadata.
  */
 export const scriptMetadata: Core.GOScriptMetadata = {
   name: '{{SCRIPT_TITLE}}',
   version: '1.0.0',
-  description: '{{SCRIPT_DESCRIPTION}}',
+  description: '[Action Verb] [Target Entity] - [Functional Goal/Benefit]',
   authors: ['Team GO - Gestione Operativa'],
 };
 
 /**
- * Script parameter definitions
+ * Script parameter definitions.
  */
 export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
 {{PARAMETERS_CONTENT}}

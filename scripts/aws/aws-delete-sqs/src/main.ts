@@ -49,9 +49,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   }
 
   // 4. Mandatory Confirmation
-  const actionDescription = config.purgeAll
-    ? 'PURGE ALL messages'
-    : `DELETE ${targetIds?.size ?? 0} specific messages`;
+  const actionDescription = config.purgeAll ? 'PURGE ALL messages' : `DELETE ${targetIds?.size ?? 0} specific messages`;
 
   const confirmed = await script.prompt.confirm(
     `Are you sure you want to ${actionDescription} from queue "${metadata.queueUrl}"?`,
