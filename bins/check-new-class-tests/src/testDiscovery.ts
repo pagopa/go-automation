@@ -1,12 +1,13 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import ts from 'typescript';
 
 interface TestDiscoveryResult {
   readonly found: boolean;
   readonly expectedPaths: ReadonlyArray<string>;
 }
 
-const testFileIndexByPackageRoot = new Map<string, ReadonlyArray<string>>();
+const testIdentifierIndexByPackageRoot = new Map<string, ReadonlySet<string>>();
 
 export function findTestForClass(sourcePath: string, className: string): TestDiscoveryResult {
   const sourceDir = path.dirname(sourcePath);
@@ -23,10 +24,7 @@ export function findTestForClass(sourcePath: string, className: string): TestDis
   }
 
   const packageSourceRoot = packageSrcRoot(sourcePath);
-  if (
-    packageSourceRoot !== undefined &&
-    packageTestContents(packageSourceRoot).some((content) => content.includes(className))
-  ) {
+  if (packageSourceRoot !== undefined && packageTestIdentifiers(packageSourceRoot).has(className)) {
     return { found: true, expectedPaths };
   }
 
@@ -38,30 +36,48 @@ function packageSrcRoot(sourcePath: string): string | undefined {
   return match?.[1];
 }
 
-function packageTestContents(packageSourceRoot: string): ReadonlyArray<string> {
-  const cached = testFileIndexByPackageRoot.get(packageSourceRoot);
+function packageTestIdentifiers(packageSourceRoot: string): ReadonlySet<string> {
+  const cached = testIdentifierIndexByPackageRoot.get(packageSourceRoot);
   if (cached !== undefined) return cached;
 
-  const contents = readTestContents(packageSourceRoot);
-  testFileIndexByPackageRoot.set(packageSourceRoot, contents);
+  const identifiers = readTestIdentifiers(packageSourceRoot);
+  testIdentifierIndexByPackageRoot.set(packageSourceRoot, identifiers);
 
-  return contents;
+  return identifiers;
 }
 
-function readTestContents(dir: string): ReadonlyArray<string> {
-  if (!fs.existsSync(dir)) return [];
+function readTestIdentifiers(dir: string): ReadonlySet<string> {
+  const identifiers = new Set<string>();
+  collectTestIdentifiers(dir, identifiers);
 
-  const contents: string[] = [];
+  return identifiers;
+}
+
+function collectTestIdentifiers(dir: string, identifiers: Set<string>): void {
+  if (!fs.existsSync(dir)) return;
+
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const entryPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      contents.push(...readTestContents(entryPath));
+      collectTestIdentifiers(entryPath, identifiers);
       continue;
     }
 
     if (!entry.name.endsWith('.test.ts')) continue;
-    contents.push(fs.readFileSync(entryPath, 'utf8'));
+    collectSourceFileIdentifiers(entryPath, fs.readFileSync(entryPath, 'utf8'), identifiers);
+  }
+}
+
+function collectSourceFileIdentifiers(sourcePath: string, sourceText: string, identifiers: Set<string>): void {
+  const sourceFile = ts.createSourceFile(sourcePath, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+
+  function visit(node: ts.Node): void {
+    if (ts.isIdentifier(node)) {
+      identifiers.add(node.text);
+    }
+
+    ts.forEachChild(node, visit);
   }
 
-  return contents;
+  visit(sourceFile);
 }
