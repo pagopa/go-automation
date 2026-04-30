@@ -15,7 +15,7 @@ interface ScaffoldOptions {
   readonly description: string;
   readonly author: string;
   readonly domain: string;
-  readonly service: string;
+  readonly services: ReadonlyArray<string>;
 }
 
 interface PackageJson {
@@ -73,10 +73,14 @@ export class Scaffolder {
       initialService = nameParts[1] ?? '';
     }
 
-    const service = await this.prompt.text('Service keyword (e.g. sqs, dynamodb, json):', {
+    const serviceStr = await this.prompt.text('Service keywords (comma-separated, e.g. sqs, dynamodb, json):', {
       initial: initialService,
     });
-    if (!service) return;
+    if (!serviceStr) return;
+    const services = serviceStr
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
 
     const author = await this.prompt.text('Author:', { initial: 'Team GO - Gestione Operativa' });
     if (author === undefined) return;
@@ -87,7 +91,7 @@ export class Scaffolder {
       description,
       author,
       domain: categoryStr,
-      service,
+      services,
     };
 
     await this.scaffold(options);
@@ -115,10 +119,11 @@ export class Scaffolder {
     await fs.mkdir(path.join(targetDir, 'src/types'), { recursive: true });
 
     // 2. Prepare replacements
-    const title = options.name
-      .split('-')
-      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-      .join(' ');
+    const nameParts = options.name.split('-');
+    const title = [
+      (nameParts[0] ?? '').toUpperCase(),
+      ...nameParts.slice(1).map((s) => s.charAt(0).toUpperCase() + s.slice(1)),
+    ].join(' ');
 
     const configName = `${options.name
       .split('-')
@@ -145,7 +150,8 @@ export class Scaffolder {
       '{{SCRIPT_DESCRIPTION}}': options.description,
       '{{SCRIPT_AUTHOR}}': options.author,
       '{{DOMAIN}}': options.domain,
-      '{{SERVICE}}': options.service,
+      '{{SERVICES_COMMA}}': options.services.length > 0 ? ',' : '',
+      '{{SERVICES}}': options.services.map((s) => `    "${s}"`).join(',\n'),
       '{{SCRIPT_CONFIG_NAME}}': configName,
       '{{SCRIPT_CONFIG_INTERFACE}}': configName,
       '{{SCRIPT_CONFIG_FILE}}': configName,

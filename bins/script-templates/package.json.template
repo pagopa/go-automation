@@ -21,8 +21,8 @@
     "watch": "tsc --watch"
   },
   "keywords": [
-    "{{DOMAIN}}",
-    "{{SERVICE}}"
+    "{{DOMAIN}}"{{SERVICES_COMMA}}
+{{SERVICES}}
   ],
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",

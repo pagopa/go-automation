@@ -12,7 +12,7 @@ import { Core } from '@go-automation/go-common';
 export const scriptMetadata: Core.GOScriptMetadata = {
   name: '{{SCRIPT_TITLE}}',
   version: '1.0.0',
-  description: '[Action Verb] [Target Entity] - [Functional Goal/Benefit]',
+  description: '{{SCRIPT_DESCRIPTION}}',
   authors: ['Team GO - Gestione Operativa'],
 };
 
