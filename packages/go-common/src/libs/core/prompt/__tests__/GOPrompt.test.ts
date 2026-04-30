@@ -2,19 +2,32 @@
  * Tests for GOPrompt
  */
 
-/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
 import { describe, it, mock, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import prompts from 'prompts';
 
-import { GOPrompt } from '../GOPrompt.js';
+import { GOPrompt, type GOPromptAdapter } from '../GOPrompt.js';
 import { GOLogger } from '../../logging/GOLogger.js';
 
 // Mock logger
 const logger = new GOLogger([]);
 
+function createPrompt(values: unknown[]): GOPrompt {
+  const next = <T>(): T | undefined => values.shift() as T | undefined;
+  const adapter: GOPromptAdapter = {
+    text: async () => next(),
+    password: async () => next(),
+    number: async () => next(),
+    confirm: async () => next(),
+    select: async () => next(),
+    checkbox: async () => next(),
+    search: async () => next(),
+  };
+
+  return new GOPrompt(logger, false, adapter);
+}
+
 describe('GOPrompt', () => {
-  let stdoutWriteMock: any;
+  let stdoutWriteMock: ReturnType<typeof mock.method>;
 
   beforeEach(() => {
     stdoutWriteMock = mock.method(process.stdout, 'write', () => true);
@@ -25,48 +38,42 @@ describe('GOPrompt', () => {
   });
 
   it('text prompt returns value', async () => {
-    const prompt = new GOPrompt(logger);
-    prompts.inject(['test value']);
+    const prompt = createPrompt(['test value']);
 
     const result = await prompt.text('Enter text');
     assert.strictEqual(result, 'test value');
   });
 
   it('text prompt returns undefined when cancelled', async () => {
-    const prompt = new GOPrompt(logger);
-    prompts.inject([undefined]);
+    const prompt = createPrompt([undefined]);
 
     const result = await prompt.text('Enter text');
     assert.strictEqual(result, undefined);
   });
 
   it('password prompt returns undefined when cancelled', async () => {
-    const prompt = new GOPrompt(logger);
-    prompts.inject([undefined]);
+    const prompt = createPrompt([undefined]);
 
     const result = await prompt.password('Enter password');
     assert.strictEqual(result, undefined);
   });
 
   it('number prompt returns undefined when cancelled', async () => {
-    const prompt = new GOPrompt(logger);
-    prompts.inject([undefined]);
+    const prompt = createPrompt([undefined]);
 
     const result = await prompt.number('Enter number');
     assert.strictEqual(result, undefined);
   });
 
   it('confirm prompt returns undefined when cancelled', async () => {
-    const prompt = new GOPrompt(logger);
-    prompts.inject([undefined]);
+    const prompt = createPrompt([undefined]);
 
     const result = await prompt.confirm('Confirm?');
     assert.strictEqual(result, undefined);
   });
 
   it('select prompt returns value', async () => {
-    const prompt = new GOPrompt(logger);
-    prompts.inject(['choice1']);
+    const prompt = createPrompt(['choice1']);
 
     const result = await prompt.select('Select one', [
       { title: 'Choice 1', value: 'choice1' },
@@ -76,16 +83,14 @@ describe('GOPrompt', () => {
   });
 
   it('select prompt returns undefined when cancelled', async () => {
-    const prompt = new GOPrompt(logger);
-    prompts.inject([undefined]);
+    const prompt = createPrompt([undefined]);
 
     const result = await prompt.select('Select one', [{ title: 'Choice 1', value: 'choice1' }]);
     assert.strictEqual(result, undefined);
   });
 
   it('multiselect prompt returns value', async () => {
-    const prompt = new GOPrompt(logger);
-    prompts.inject([['c1', 'c2']]);
+    const prompt = createPrompt([['c1', 'c2']]);
 
     const result = await prompt.multiselect('Select many', [
       { title: 'C1', value: 'c1' },
@@ -95,24 +100,21 @@ describe('GOPrompt', () => {
   });
 
   it('multiselect prompt returns undefined when cancelled', async () => {
-    const prompt = new GOPrompt(logger);
-    prompts.inject([undefined]);
+    const prompt = createPrompt([undefined]);
 
     const result = await prompt.multiselect('Select many', [{ title: 'C1', value: 'c1' }]);
     assert.strictEqual(result, undefined);
   });
 
   it('autocomplete prompt returns value', async () => {
-    const prompt = new GOPrompt(logger);
-    prompts.inject(['match']);
+    const prompt = createPrompt(['match']);
 
     const result = await prompt.autocomplete('Find', ['match', 'other']);
     assert.strictEqual(result, 'match');
   });
 
   it('autocomplete prompt returns undefined when cancelled', async () => {
-    const prompt = new GOPrompt(logger);
-    prompts.inject([undefined]);
+    const prompt = createPrompt([undefined]);
 
     const result = await prompt.autocomplete('Find', ['match']);
     assert.strictEqual(result, undefined);
