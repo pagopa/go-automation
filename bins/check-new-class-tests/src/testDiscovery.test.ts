@@ -9,6 +9,33 @@ import { findTestForClass } from './testDiscovery.js';
 type FixtureFn = () => void;
 
 describe('findTestForClass', () => {
+  it('finds a direct __tests__ file matching the class name', () => {
+    withFixture('direct-class-name', () => {
+      writeFile('packages/direct-class/src/__tests__/Foo.test.ts', '');
+
+      const result = findTestForClass('packages/direct-class/src/Foo.ts', 'Foo');
+
+      assert.equal(result.found, true);
+      assert.deepEqual(result.expectedPaths, [
+        'packages/direct-class/src/__tests__/Foo.test.ts',
+      ]);
+    });
+  });
+
+  it('finds a direct __tests__ file matching the source file base name', () => {
+    withFixture('direct-base-name', () => {
+      writeFile('packages/direct-base/src/services/__tests__/FooService.test.ts', '');
+
+      const result = findTestForClass('packages/direct-base/src/services/FooService.ts', 'RenamedFoo');
+
+      assert.equal(result.found, true);
+      assert.deepEqual(result.expectedPaths, [
+        'packages/direct-base/src/services/__tests__/RenamedFoo.test.ts',
+        'packages/direct-base/src/services/__tests__/FooService.test.ts',
+      ]);
+    });
+  });
+
   it('finds a class referenced as a real identifier in an existing package test', () => {
     withFixture('identifier-reference', () => {
       writeFile(
@@ -51,6 +78,24 @@ describe('findTestForClass', () => {
       const result = findTestForClass('packages/go-send/src/Bar.ts', 'Bar');
 
       assert.equal(result.found, false);
+    });
+  });
+
+  it('does not use fallback discovery when the package src root cannot be derived', () => {
+    withFixture('outside-package-src', () => {
+      writeFile(
+        'src/__tests__/SomeOtherName.test.ts',
+        [
+          "import { Foo } from '../Foo.js';",
+          'assert.ok(Foo);',
+          '',
+        ].join('\n'),
+      );
+
+      const result = findTestForClass('src/Foo.ts', 'Foo');
+
+      assert.equal(result.found, false);
+      assert.deepEqual(result.expectedPaths, ['src/__tests__/Foo.test.ts']);
     });
   });
 });

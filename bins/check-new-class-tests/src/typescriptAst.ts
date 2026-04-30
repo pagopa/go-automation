@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from 'typescript';
 
 interface ExportedClassDeclaration {
   readonly name: string;
