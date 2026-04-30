@@ -1,1 +1,1 @@
-export type { AWSCheckEcsConfig } from './AWSCheckEcsConfig.js';
+export type { AwsCheckEcsConfig } from './AwsCheckEcsConfig.js';

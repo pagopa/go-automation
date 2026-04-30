@@ -7,7 +7,7 @@
 import { Core, AWS } from '@go-automation/go-common';
 
 import { displayClusterReport } from './libs/ECSReportDisplay.js';
-import type { AWSCheckEcsConfig } from './types/index.js';
+import type { AwsCheckEcsConfig } from './types/index.js';
 
 /**
  * Main script execution function.
@@ -15,7 +15,7 @@ import type { AWSCheckEcsConfig } from './types/index.js';
  * @param script - The GOScript instance
  */
 export async function main(script: Core.GOScript): Promise<void> {
-  const config = await script.getConfiguration<AWSCheckEcsConfig>();
+  const config = await script.getConfiguration<AwsCheckEcsConfig>();
   script.logger.section('ECS Check');
 
   if (config.ecsClusters && config.ecsClusters.length > 0) {

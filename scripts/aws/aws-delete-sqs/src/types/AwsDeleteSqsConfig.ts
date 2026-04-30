@@ -1,28 +1,29 @@
 /**
- * Configuration for the AWS Delete SQS script.
+ * Script configuration interface
+ * Represents all validated configuration parameters
  */
 export interface AwsDeleteSqsConfig {
-  /** AWS Profile for SSO login */
-  awsProfile: string;
+  /** AWS profile name for SSO authentication */
+  readonly awsProfile: string;
 
   /** SQS Queue Name */
-  queueName?: string;
+  readonly queueName?: string;
 
   /** SQS Queue URL (overrides queueName) */
-  queueUrl?: string;
+  readonly queueUrl?: string;
 
   /** Input NDJSON file with messages to delete */
-  inputFile?: string;
+  readonly inputFile?: string;
 
   /** Whether to delete all messages in the queue */
-  purgeAll: boolean;
+  readonly purgeAll: boolean;
 
   /** Initial visibility timeout for received messages (seconds) */
-  visibilityTimeout: number;
+  readonly visibilityTimeout: number;
 
   /** Number of messages to process in parallel (max 10) */
-  batchSize: number;
+  readonly batchSize: number;
 
   /** Max consecutive empty receives before stopping */
-  maxEmptyReceives: number;
+  readonly maxEmptyReceives: number;
 }

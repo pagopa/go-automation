@@ -2,9 +2,10 @@ import { AWS } from '@go-automation/go-common';
 
 /**
  * Script configuration interface
+ * Represents all validated configuration parameters
  */
 export interface AwsDumpSqsConfig {
-  /** AWS SSO profile name */
+  /** AWS profile name for SSO authentication */
   readonly awsProfile: string;
 
   /** Target SQS queue name */
@@ -17,7 +18,7 @@ export interface AwsDumpSqsConfig {
   readonly visibilityTimeout: number;
 
   /** Maximum number of messages to dump */
-  readonly limit: number | undefined;
+  readonly limit?: number;
 
   /** Deduplication strategy */
   readonly dedupMode: AWS.SQSReceiveDeduplicationMode;
@@ -26,5 +27,5 @@ export interface AwsDumpSqsConfig {
   readonly maxEmptyReceives: number;
 
   /** Output file path */
-  readonly outputFile: string | undefined;
+  readonly outputFile?: string;
 }

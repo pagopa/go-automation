@@ -1,8 +1,9 @@
 /**
- * Configuration for the AWS Redrive SQS script.
+ * Script configuration interface
+ * Represents all validated configuration parameters
  */
 export interface AwsRedriveSqsConfig {
-  /** AWS SSO profile name */
+  /** AWS profile name for SSO authentication */
   readonly awsProfile: string;
 
   /** Source SQS queue name or URL */
