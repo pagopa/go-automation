@@ -12,12 +12,28 @@ describe('findExportedClassesInAddedLines', () => {
     assert.deepStrictEqual(classes, [{ name: 'Foo', line: 2 }]);
   });
 
-  it('finds classes exported by named export declarations', () => {
+  it('finds new classes exported by named export declarations', () => {
     const source = ['class Foo {}', 'export { Foo };'].join('\n');
 
     const classes = findExportedClassesInAddedLines('Foo.ts', source, new Set([1, 2]));
 
     assert.deepStrictEqual(classes, [{ name: 'Foo', line: 1 }]);
+  });
+
+  it('finds existing classes made public by an added named export declaration', () => {
+    const source = ['class Foo {}', 'export { Foo };'].join('\n');
+
+    const classes = findExportedClassesInAddedLines('Foo.ts', source, new Set([2]));
+
+    assert.deepStrictEqual(classes, [{ name: 'Foo', line: 2 }]);
+  });
+
+  it('finds existing classes made public by an added default export assignment', () => {
+    const source = ['class Foo {}', 'export default Foo;'].join('\n');
+
+    const classes = findExportedClassesInAddedLines('Foo.ts', source, new Set([2]));
+
+    assert.deepStrictEqual(classes, [{ name: 'Foo', line: 2 }]);
   });
 
   it('ignores exported classes whose class declaration line was not added', () => {

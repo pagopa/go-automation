@@ -12,6 +12,7 @@ export function findExportedClassesInAddedLines(
 ): ReadonlyArray<ExportedClassDeclaration> {
   const sourceFile = ts.createSourceFile(sourcePath, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const exportedNames = collectExportedNames(sourceFile);
+  const addedExportedNames = collectExportedNamesOnAddedLines(sourceFile, addedLines);
   const classes: ExportedClassDeclaration[] = [];
 
   function visit(node: ts.Node): void {
@@ -20,6 +21,12 @@ export function findExportedClassesInAddedLines(
       const oneBasedLine = line + 1;
       if (addedLines.has(oneBasedLine)) {
         classes.push({ name: node.name.text, line: oneBasedLine });
+        return;
+      }
+
+      const exportLine = addedExportedNames.get(node.name.text);
+      if (exportLine !== undefined) {
+        classes.push({ name: node.name.text, line: exportLine });
       }
     }
 
@@ -36,7 +43,7 @@ function collectExportedNames(sourceFile: ts.SourceFile): ReadonlySet<string> {
 
   for (const statement of sourceFile.statements) {
     if (ts.isExportDeclaration(statement) && statement.exportClause !== undefined) {
-      collectNamedExportDeclaration(statement.exportClause, exportedNames);
+      collectNamedExportNames(statement.exportClause, exportedNames);
       continue;
     }
 
@@ -48,11 +55,48 @@ function collectExportedNames(sourceFile: ts.SourceFile): ReadonlySet<string> {
   return exportedNames;
 }
 
-function collectNamedExportDeclaration(exportClause: ts.NamedExportBindings, exportedNames: Set<string>): void {
+function collectExportedNamesOnAddedLines(
+  sourceFile: ts.SourceFile,
+  addedLines: ReadonlySet<number>,
+): ReadonlyMap<string, number> {
+  const exportedNames = new Map<string, number>();
+
+  for (const statement of sourceFile.statements) {
+    const { line } = sourceFile.getLineAndCharacterOfPosition(statement.getStart(sourceFile));
+    const oneBasedLine = line + 1;
+    if (!addedLines.has(oneBasedLine)) continue;
+
+    if (ts.isExportDeclaration(statement) && statement.exportClause !== undefined) {
+      collectNamedExportNamesWithLine(statement.exportClause, exportedNames, oneBasedLine);
+      continue;
+    }
+
+    if (ts.isExportAssignment(statement) && ts.isIdentifier(statement.expression)) {
+      exportedNames.set(statement.expression.text, oneBasedLine);
+    }
+  }
+
+  return exportedNames;
+}
+
+function collectNamedExportNames(exportClause: ts.NamedExportBindings, exportedNames: Set<string>): void {
   if (!ts.isNamedExports(exportClause)) return;
 
   for (const element of exportClause.elements) {
     exportedNames.add(element.propertyName?.text ?? element.name.text);
+  }
+}
+
+function collectNamedExportNamesWithLine(
+  exportClause: ts.NamedExportBindings,
+  exportedNames: Map<string, number>,
+  line: number,
+): void {
+  if (!ts.isNamedExports(exportClause)) return;
+
+  for (const element of exportClause.elements) {
+    const exportedName = element.propertyName?.text ?? element.name.text;
+    exportedNames.set(exportedName, line);
   }
 }
 
