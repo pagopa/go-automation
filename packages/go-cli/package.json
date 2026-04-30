@@ -9,12 +9,15 @@
     "go-cli": "dist/index.js"
   },
   "scripts": {
-    "build": "tsc --build",
-    "watch": "tsc --build --watch",
-    "clean": "rm -rf dist *.tsbuildinfo",
-    "test": "echo 'No tests yet'",
-    "dev": "node --import tsx/esm src/index.ts",
-    "start": "node dist/index.js"
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo node_modules",
+    "dev": "tsx src/index.ts",
+    "format:check": "prettier --check .",
+    "format:write": "prettier --write .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "start": "pnpm build && node dist/index.js",
+    "watch": "tsc --watch"
   },
   "keywords": [
     "cli",

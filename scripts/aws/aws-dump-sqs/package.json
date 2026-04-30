@@ -3,18 +3,22 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Read-only dump of all messages from an SQS queue in NDJSON format.",
+  "description": "Dumps SQS messages - Exports SQS messages to local NDJSON format for analysis.",
   "main": "dist/index.js",
   "files": [
     "dist",
     "package.json"
   ],
   "scripts": {
-    "build": "tsc",
-    "start": "pnpm build && node dist/index.js",
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo node_modules",
     "dev": "tsx src/index.ts",
-    "watch": "tsc --watch",
-    "clean": "rm -rf dist *.tsbuildinfo"
+    "format:check": "prettier --check .",
+    "format:write": "prettier --write .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "start": "pnpm build && node dist/index.js",
+    "watch": "tsc --watch"
   },
   "keywords": [
     "aws",

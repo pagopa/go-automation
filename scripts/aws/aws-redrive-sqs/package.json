@@ -4,17 +4,32 @@
   "private": true,
   "type": "module",
   "main": "dist/index.js",
+  "files": [
+    "dist",
+    "package.json"
+  ],
   "scripts": {
-    "build": "tsc",
-    "start": "pnpm build && node dist/index.js",
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo node_modules",
     "dev": "tsx src/index.ts",
-    "watch": "tsc --watch",
-    "clean": "rm -rf dist *.tsbuildinfo"
+    "format:check": "prettier --check .",
+    "format:write": "prettier --write .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "start": "pnpm build && node dist/index.js",
+    "watch": "tsc --watch"
+  },
+  "keywords": [
+    "aws",
+    "sqs"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "dependencies": {
+    "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:"
   },
-  "dependencies": {
-    "@go-automation/go-common": "workspace:*"
-  }
+  "description": "Redrives SQS messages - Moves messages from a Dead Letter Queue to the main queue."
 }

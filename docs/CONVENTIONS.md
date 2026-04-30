@@ -63,6 +63,15 @@ const script = new Core.GOScript({
 
 Ogni script **deve** usare `GOScript` come entry point. Non creare entry point custom con `process.argv` parsing manuale.
 
+### Metadata del Package (`package.json`)
+
+Per garantire la coerenza nell'output di discovery di `go-cli`, i campi `description` e `keywords` nel file `package.json` di ogni script devono seguire questo standard:
+
+- **`description`**: Deve seguire rigorosamente il formato: `"[Action Verb] [Target Entity] - [Functional Goal/Benefit]"`.
+  - _Esempio_: `"Dumps SQS messages - Exports messages to local NDJSON format."`
+- **`keywords`**: Deve includere il dominio primario (es. `aws`, `go`, `send`) e il servizio specifico (es. `sqs`, `dynamodb`, `json`).
+  - _Esempio_: `["aws", "sqs"]`
+
 ---
 
 ## Configurazione e CLI

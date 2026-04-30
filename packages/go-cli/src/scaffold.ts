@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Core } from '@go-automation/go-common';
-import { getCategoryProductCode, getScaffoldCategoryChoices, getScriptShortcutBase } from './categories.js';
+import { getScaffoldCategoryChoices, getScriptShortcutBase } from './categories.js';
 
 const fileName = fileURLToPath(import.meta.url);
 const dirName = path.dirname(fileName);
@@ -10,11 +10,12 @@ const ROOT_DIR = path.resolve(dirName, '../../..');
 const TEMPLATES_DIR = path.join(ROOT_DIR, 'bins/script-templates');
 
 interface ScaffoldOptions {
-  name: string; // e.g. go-my-new-script
-  category: string; // e.g. go, send, interop, aws
-  description: string;
-  author: string;
-  product: string; // e.g. GO, SEND, INTEROP, AWS
+  readonly name: string; // e.g. go-my-new-script
+  readonly category: string; // e.g. go, send, interop, aws
+  readonly description: string;
+  readonly author: string;
+  readonly domain: string;
+  readonly service: string;
 }
 
 interface PackageJson {
@@ -52,20 +53,41 @@ export class Scaffolder {
     if (!category) return;
 
     const categoryStr = category;
-    const description = await this.prompt.text('Description:');
-    if (description === undefined) return;
+
+    this.logger.info('Description Components (Standard: [Action Verb] [Target Entity] - [Functional Goal/Benefit])');
+    const verb = await this.prompt.text('Action Verb (e.g. Dumps):');
+    if (!verb) return;
+    const entity = await this.prompt.text('Target Entity (e.g. SQS messages):');
+    if (!entity) return;
+    const goal = await this.prompt.text('Functional Goal/Benefit (e.g. Exports to NDJSON):');
+    if (!goal) return;
+
+    const description = `${verb} ${entity} - ${goal}`;
+
+    // Infer service from name if possible
+    let initialService = '';
+    const nameParts = name.split('-');
+    if (nameParts.length > 2 && nameParts[0] === categoryStr) {
+      initialService = nameParts[2] ?? '';
+    } else if (nameParts.length > 1) {
+      initialService = nameParts[1] ?? '';
+    }
+
+    const service = await this.prompt.text('Service keyword (e.g. sqs, dynamodb, json):', {
+      initial: initialService,
+    });
+    if (!service) return;
 
     const author = await this.prompt.text('Author:', { initial: 'Team GO - Gestione Operativa' });
     if (author === undefined) return;
-
-    const product = getCategoryProductCode(categoryStr);
 
     const options: ScaffoldOptions = {
       name,
       category: categoryStr,
       description,
       author,
-      product,
+      domain: categoryStr,
+      service,
     };
 
     await this.scaffold(options);
@@ -114,13 +136,21 @@ export class Scaffolder {
       .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
       .join('')}Config`;
 
+    const shortcutBase = getScriptShortcutBase(options.name, options.category);
+
     const replacements: Record<string, string> = {
       '{{SCRIPT_NAME}}': options.name,
       '{{SCRIPT_TITLE}}': title,
       '{{SCRIPT_DESCRIPTION}}': options.description,
       '{{SCRIPT_AUTHOR}}': options.author,
-      '{{PRODUCT}}': options.product,
+      '{{DOMAIN}}': options.domain,
+      '{{SERVICE}}': options.service,
       '{{SCRIPT_CONFIG_NAME}}': configName,
+      '{{TEAM_NAME}}': options.author,
+      '{{SHORTCUT_NAME}}': shortcutBase,
+      '{{CURRENT_DATE}}': new Date().toISOString().split('T')[0] ?? '',
+      '{{PARAMETERS_CONTENT}}': '[]',
+      '{{CONFIG_INTERFACE_CONTENT}}': '',
     };
 
     // 3. Process files

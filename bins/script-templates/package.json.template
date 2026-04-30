@@ -10,15 +10,19 @@
     "package.json"
   ],
   "scripts": {
-    "build": "tsc",
-    "start": "pnpm build && node dist/index.js",
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo node_modules",
     "dev": "tsx src/index.ts",
-    "watch": "tsc --watch",
-    "clean": "rm -rf dist *.tsbuildinfo"
+    "format:check": "prettier --check .",
+    "format:write": "prettier --write .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "start": "pnpm build && node dist/index.js",
+    "watch": "tsc --watch"
   },
   "keywords": [
-    "{{PRODUCT}}",
-    "go-automation"
+    "{{DOMAIN}}",
+    "{{SERVICE}}"
   ],
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
@@ -26,6 +30,6 @@
     "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^24.10.9"
+    "@types/node": "catalog:"
   }
 }

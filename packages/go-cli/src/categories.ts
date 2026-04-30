@@ -45,10 +45,6 @@ export function getCategoryMenuLabel(category: string): string {
   return findCategoryDefinition(category)?.menuLabel ?? category.toUpperCase();
 }
 
-export function getCategoryProductCode(category: string): string {
-  return findCategoryDefinition(category)?.productCode ?? category.toUpperCase();
-}
-
 export function getScaffoldCategoryChoices(): ScriptCategoryChoice[] {
   return SCRIPT_CATEGORY_DEFINITIONS.map((definition) => ({
     title: definition.scaffoldTitle,
