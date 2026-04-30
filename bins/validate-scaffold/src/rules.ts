@@ -376,7 +376,7 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
         ['@aws-sdk/client-cloudwatch-logs', 'CloudWatch Logs'],
       ];
 
-      const depKeys = new Set(Object.keys(deps as Record<string, unknown>));
+      const depKeys = new Set(Object.keys(deps));
       const readmeLower = readme.toLowerCase();
       const missing: string[] = [];
 

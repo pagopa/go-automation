@@ -29,6 +29,11 @@ export interface PollAttemptInfo {
   readonly elapsedMs: number;
 }
 
+type SleepFn = (ms: number) => Promise<void>;
+
+type PollAttemptHandler = (info: PollAttemptInfo) => void;
+type PollCheckHandler<T> = (attempt: number) => Promise<T | undefined>;
+
 /**
  * Polling configuration.
  */
@@ -40,9 +45,9 @@ export interface PollOptions {
   /** Abort signal for cancellation */
   readonly signal?: AbortSignal;
   /** Sleep implementation — injectable for testing */
-  readonly sleepFn?: (ms: number) => Promise<void>;
+  readonly sleepFn?: SleepFn;
   /** Called after each non-terminal attempt */
-  readonly onAttempt?: (info: PollAttemptInfo) => void;
+  readonly onAttempt?: PollAttemptHandler;
 }
 
 /**
@@ -93,10 +98,7 @@ export function fixedBackoff(intervalMs: number): BackoffFn {
  * });
  * ```
  */
-export async function pollUntilComplete<T>(
-  options: PollOptions,
-  check: (attempt: number) => Promise<T | undefined>,
-): Promise<T> {
+export async function pollUntilComplete<T>(options: PollOptions, check: PollCheckHandler<T>): Promise<T> {
   const maxAttempts = options.maxAttempts ?? DEFAULT_MAX_POLL_ATTEMPTS;
   const backoff = options.backoff ?? exponentialBackoff();
   const signal = options.signal;

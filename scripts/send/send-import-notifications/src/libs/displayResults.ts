@@ -2,7 +2,8 @@
  * Display helpers for import workflow results.
  */
 
-import { Core, SEND } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
+import type { SENDNotificationImportWorkerResult, SENDNotificationImportWorkerError } from '@go-automation/go-send';
 
 /**
  * Displays workflow results summary.
@@ -13,7 +14,7 @@ import { Core, SEND } from '@go-automation/go-common';
  */
 export function displayResults(
   script: Core.GOScript,
-  result: SEND.SENDNotificationImportWorkerResult,
+  result: SENDNotificationImportWorkerResult,
   exportFilePath?: string,
 ): void {
   script.logger.newline();
@@ -46,7 +47,7 @@ export function displayResults(
   if (result.errors && result.errors.length > 0) {
     script.logger.newline();
     script.logger.warning(`Errors encountered: ${result.errors.length}`);
-    const errorsToShow: ReadonlyArray<SEND.SENDNotificationImportWorkerError> = result.errors.slice(0, 5);
+    const errorsToShow: ReadonlyArray<SENDNotificationImportWorkerError> = result.errors.slice(0, 5);
     let errorIndex = 0;
     for (const error of errorsToShow) {
       errorIndex += 1;

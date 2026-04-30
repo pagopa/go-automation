@@ -11,7 +11,6 @@ import { toError } from '../../errors/GOErrorUtils.js';
 import type { GOListExporter } from '../GOListExporter.js';
 import type { GOListExporterEventMap } from '../GOListExporterEvents.js';
 import type { GOListExporterStreamWriter } from '../GOListExporterStreamWriter.js';
-
 import type { GOFileListExporterOptions } from './GOFileListExporterOptions.js';
 
 /**

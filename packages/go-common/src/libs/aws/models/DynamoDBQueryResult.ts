@@ -26,9 +26,20 @@ export interface DynamoDBQueryResult<T = Record<string, unknown>> {
   /** The full key with prefix/suffix applied */
   readonly fullKey: string;
 
-  /** Query results (unmarshalled from DynamoDB format) */
+  /**
+   * Query results.
+   * By default items are unmarshalled objects; when `isRaw: true` is used,
+   * items are raw DynamoDB AttributeValue maps.
+   */
   readonly items: ReadonlyArray<T>;
 
   /** Number of items returned */
   readonly count: number;
+
+  /**
+   * Present when the query failed (only populated by `queryMultipleByPartitionKey`,
+   * which captures per-key errors instead of aborting the whole batch).
+   * When set, `items` is empty and `count` is 0.
+   */
+  readonly error?: Error;
 }

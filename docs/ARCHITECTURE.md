@@ -385,7 +385,7 @@ data/
 - **Gitignored**: La cartella e in `.gitignore` per non committare dati
 - **Priorita config**: `data/{script}/configs/` ha priorita su `scripts/{team}/{script}/configs/`
 - **Persistenza**: I file persistono tra esecuzioni dello script
-- **Condivisione**: Piu script possono accedere agli stessi dati
+- **Condivisione**: Più script possono accedere agli stessi dati
 
 ---
 
@@ -393,7 +393,7 @@ data/
 
 ### Cos'e pnpm
 
-**pnpm** (Performant NPM) e un package manager per Node.js alternativo a npm e yarn. E stato progettato per essere piu veloce, piu efficiente nello spazio disco e piu rigoroso nella gestione delle dipendenze.
+**pnpm** (Performant NPM) è un package manager per Node.js alternativo a npm e yarn. È stato progettato per essere più veloce, più efficiente nello spazio disco è più rigoroso nella gestione delle dipendenze.
 
 ### Come Funziona pnpm
 
@@ -401,7 +401,7 @@ A differenza di npm e yarn, pnpm utilizza un approccio innovativo per la gestion
 
 #### Content-Addressable Storage (Global Store)
 
-pnpm mantiene un **global store** unico sul disco (tipicamente in `~/.pnpm-store/`) dove ogni versione di ogni pacchetto viene salvata una sola volta. Quando lo stesso pacchetto e richiesto in piu progetti, pnpm non lo duplica.
+pnpm mantiene un **global store** unico sul disco (tipicamente in `~/.pnpm-store/`) dove ogni versione di ogni pacchetto viene salvata una sola volta. Quando lo stesso pacchetto e richiesto in più progetti, pnpm non lo duplica.
 
 ```
 ~/.pnpm-store/
@@ -442,10 +442,10 @@ project/
 | Caratteristica             | npm/yarn                                     | pnpm                          |
 | -------------------------- | -------------------------------------------- | ----------------------------- |
 | **Spazio disco**           | Copia completa per progetto                  | Hard links al global store    |
-| **Velocita install**       | Lento (download + copia)                     | Veloce (link se gia presente) |
+| **Velocità install**       | Lento (download + copia)                     | Veloce (link se già presente) |
 | **Strict mode**            | Permette accesso a dipendenze non dichiarate | Blocca phantom dependencies   |
 | **Struttura node_modules** | Flat (hoisting)                              | Nested + symlinks             |
-| **Determinismo**           | Puo variare                                  | Garantito dal lockfile        |
+| **Determinismo**           | Può variare                                  | Garantito dal lockfile        |
 
 ### Confronto Comandi npm vs pnpm
 
@@ -478,12 +478,12 @@ pnpm audit
 pnpm list --depth=2
 ```
 
-### Perche Usiamo pnpm in questo Monorepo
+### Perché Usiamo pnpm in questo Monorepo
 
 1. **Efficienza disco**: Con molti script che condividono `go-common` e dipendenze AWS SDK, il risparmio e significativo
 2. **Workspace nativi**: Supporto eccellente per monorepo con `workspace:*` protocol
 3. **Strict mode**: Previene l'accesso accidentale a dipendenze non dichiarate
-4. **Velocita**: Install incrementali molto piu veloci dopo la prima esecuzione
+4. **Velocità**: Install incrementali molto più veloci dopo la prima esecuzione
 5. **Determinismo**: Il lockfile `pnpm-lock.yaml` garantisce build riproducibili
 
 ---

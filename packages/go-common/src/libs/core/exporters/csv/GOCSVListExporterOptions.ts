@@ -11,6 +11,10 @@ export type ColumnConflictStrategy =
   | 'prefix-generated' // Prefix generated columns that conflict (e.g., '_gen_iun')
   | 'prefix-original'; // Prefix original columns that conflict (e.g., '_orig_iun')
 
+export type GOCSVColumnMapper = (columnName: string) => string;
+
+export type GOCSVRowTransformer<TItem> = (item: TItem) => TItem;
+
 /**
  * Options for CSV list exporter
  * @template TItem - The type of items to export
@@ -29,10 +33,10 @@ export interface GOCSVListExporterOptions<TItem = Record<string, unknown>> {
   readonly columns?: string[];
 
   /** Custom column mapping function */
-  readonly columnMapper?: (columnName: string) => string;
+  readonly columnMapper?: GOCSVColumnMapper;
 
   /** Row transformation function (applied before CSV conversion) */
-  readonly rowTransformer?: (item: TItem) => TItem;
+  readonly rowTransformer?: GOCSVRowTransformer<TItem>;
 
   /** Skip invalid items and continue export (default: false) */
   readonly skipInvalidItems?: boolean;

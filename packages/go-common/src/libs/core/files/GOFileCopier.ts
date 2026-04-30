@@ -36,7 +36,13 @@ import path from 'path';
 import { getErrorMessage } from '../errors/GOErrorUtils.js';
 import type { GOFileCopyResult, GOFileCopySkipReason } from './GOFileCopyResult.js';
 import type { GOFileCopyReport, GOFileCopyReportSummary } from './GOFileCopyReport.js';
-import type { GOFileCopierOptions, GOFileCopyFileOptions, GOFileCopierSubdirDefaults } from './GOFileCopierOptions.js';
+import type {
+  GOFileCopierOptions,
+  GOFileCopyFileOptions,
+  GOFileCopierSubdirDefaults,
+  GOFileCopierLogHandler,
+  GOFileCopierPromptHandler,
+} from './GOFileCopierOptions.js';
 import { GO_FILE_COPIER_DEFAULTS } from './GOFileCopierOptions.js';
 
 /**
@@ -82,8 +88,8 @@ interface GOFileCopierResolvedOptions {
   readonly manifestFileName: string;
   readonly overwrite: boolean;
   readonly preserveTimestamps: boolean;
-  readonly onLog?: ((message: string, level: 'info' | 'warn' | 'error') => void) | undefined;
-  readonly onPrompt?: ((message: string, filePath: string, sizeHuman: string) => Promise<boolean>) | undefined;
+  readonly onLog?: GOFileCopierLogHandler | undefined;
+  readonly onPrompt?: GOFileCopierPromptHandler | undefined;
   readonly subdirDefaults?: Partial<GOFileCopierSubdirDefaults> | undefined;
 }
 

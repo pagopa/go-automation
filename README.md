@@ -8,7 +8,7 @@
 
 ## Panoramica Tecnica e Architettura
 
-GO Automation costituisce il nucleo operativo del GO SDK ed è implementato come monorepo TypeScript. Il sistema adotta un approccio ingegneristico alle attivita di Quality Assurance e Gestione Operativa, trattando gli script e le automazioni come componenti software a tutti gli effetti: soggetti a processi formali di analisi, progettazione, sviluppo e manutenzione.
+GO Automation costituisce il nucleo operativo del GO SDK ed è implementato come monorepo TypeScript. Il sistema adotta un approccio ingegneristico alle attività di Quality Assurance e Gestione Operativa, trattando gli script e le automazioni come componenti software a tutti gli effetti: soggetti a processi formali di analisi, progettazione, sviluppo e manutenzione.
 
 L'architettura del sistema si fonda su tre principi cardine che ne garantiscono affidabilità, manutenibilità e scalabilità nel tempo.
 
@@ -62,6 +62,14 @@ pnpm build:common
 # Esegui uno script
 pnpm --filter=go-report-alarms dev -- --help
 ```
+
+## Gestione Dipendenze
+
+Le dipendenze condivise del monorepo sono centralizzate nel catalogo di `pnpm-workspace.yaml`. I `package.json` dei package workspace usano `catalog:` per evitare versioni duplicate e drift tra script, funzioni e librerie.
+
+- `catalogMode: strict` impedisce di aggiungere versioni fuori catalogo con `pnpm add`.
+- `Renovate` gestisce gli aggiornamenti `npm/pnpm` del monorepo, inclusi i cataloghi pnpm.
+- `Dependabot` resta attivo solo per le `github-actions`, così non genera PR duplicate sulle dipendenze Node.
 
 ## Documentazione
 

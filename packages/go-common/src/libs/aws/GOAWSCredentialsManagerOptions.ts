@@ -1,6 +1,10 @@
 /**
  * Configuration options for GOAWSCredentialsManager
  */
+export type GOAWSCredentialsLogHandler = (message: string, level: 'info' | 'warn' | 'error') => void;
+
+export type GOAWSCredentialsPromptHandler = (message: string) => Promise<boolean>;
+
 export interface GOAWSCredentialsManagerOptions {
   /**
    * Enable automatic SSO login on credential expiration
@@ -28,13 +32,13 @@ export interface GOAWSCredentialsManagerOptions {
   readonly loginTimeout?: number | undefined;
 
   /**
-   * Callback for logging messages
+   * Handler for logging messages
    */
-  readonly onLog?: ((message: string, level: 'info' | 'warn' | 'error') => void) | undefined;
+  readonly onLog?: GOAWSCredentialsLogHandler | undefined;
 
   /**
-   * Callback for user prompts
+   * Handler for user prompts
    * Return true to proceed with login, false to skip
    */
-  readonly onPrompt?: ((message: string) => Promise<boolean>) | undefined;
+  readonly onPrompt?: GOAWSCredentialsPromptHandler | undefined;
 }

@@ -17,6 +17,7 @@ export * from './exporters/index.js';
 
 // Export configuration system
 export * from './config/index.js';
+export { GOConfigParameterType } from './config/GOConfigParameterType.js';
 
 // Export file operations
 export * from './files/index.js';
@@ -42,9 +43,3 @@ export * from './script/index.js';
 
 // Export messaging
 export * from './messaging/index.js';
-
-// Export AWS utilities (DynamoDB query service)
-export { DynamoDBQueryService } from '../aws/DynamoDBQueryService.js';
-export type { DynamoDBQueryProgressCallback } from '../aws/DynamoDBQueryService.js';
-export type { DynamoDBQueryOptions } from '../aws/models/DynamoDBQueryOptions.js';
-export type { DynamoDBQueryResult } from '../aws/models/DynamoDBQueryResult.js';

@@ -23,6 +23,8 @@
 
 import * as readline from 'readline';
 
+import { GOExecutionEnvironment } from '../environment/GOExecutionEnvironment.js';
+
 interface SpinnerTask {
   id: string;
   text: string;
@@ -68,6 +70,10 @@ export class GOMultiSpinner {
   private lastLineCount: number = 0;
   private indent: string = '';
   private readonly animationInterval: number;
+  // In Lambda/CI/non-TTY, live spinners are useless (non-TTY) or actively harmful
+  // (Lambda: setInterval keeps the event loop alive, ANSI escapes pollute CloudWatch).
+  // Skip the animation loop in those environments and emit plain lines instead.
+  private readonly nonInteractive: boolean = !GOExecutionEnvironment.isInteractive();
 
   // Colors
   private readonly spinnerColor: string;
@@ -75,6 +81,8 @@ export class GOMultiSpinner {
   private readonly errorColor: string;
   private readonly warningColor: string;
   private readonly infoColor: string;
+  // ANSI reset sequence, emptied in non-interactive mode so colored tokens stay clean.
+  private readonly colorReset: string;
 
   // Single-spinner mode state (backward compatibility)
   private singleSpinnerMode: boolean = false;
@@ -85,11 +93,15 @@ export class GOMultiSpinner {
     this.frames = opts.frames;
     this.animationInterval = opts.interval;
     this.setIndent(opts.indent);
-    this.spinnerColor = opts.spinnerColor;
-    this.successColor = opts.successColor;
-    this.errorColor = opts.errorColor;
-    this.warningColor = opts.warningColor;
-    this.infoColor = opts.infoColor;
+    // In non-interactive mode (Lambda/CI/non-TTY) strip every ANSI token —
+    // colors AND the reset — so CloudWatch/CI logs stay free of escape codes.
+    const stripColors = this.nonInteractive;
+    this.spinnerColor = stripColors ? '' : opts.spinnerColor;
+    this.successColor = stripColors ? '' : opts.successColor;
+    this.errorColor = stripColors ? '' : opts.errorColor;
+    this.warningColor = stripColors ? '' : opts.warningColor;
+    this.infoColor = stripColors ? '' : opts.infoColor;
+    this.colorReset = stripColors ? '' : '\x1b[0m';
 
     this.render = this.render.bind(this);
   }
@@ -109,9 +121,15 @@ export class GOMultiSpinner {
    * @param text Display text for this task
    */
   public spin(id: string, text: string): void {
+    const isNew = !this.tasks.has(id);
     this.tasks.set(id, { id, text, status: 'spinning' });
     if (!this.isRunning) {
       this.startAnimation();
+    }
+    // In non-interactive mode the live animation is suppressed, so we emit a plain
+    // start line the first time a task appears. This keeps CloudWatch logs informative.
+    if (this.nonInteractive && isNew) {
+      process.stdout.write(`${this.indent}${text}\n`);
     }
   }
 
@@ -329,19 +347,19 @@ export class GOMultiSpinner {
     let symbol: string;
     switch (status) {
       case 'success':
-        symbol = `${this.successColor}✔︎\x1b[0m`;
+        symbol = `${this.successColor}✔︎${this.colorReset}`;
         break;
       case 'fail':
-        symbol = `${this.errorColor}✖︎\x1b[0m`;
+        symbol = `${this.errorColor}✖︎${this.colorReset}`;
         break;
       case 'warn':
-        symbol = `${this.warningColor}⚠\x1b[0m`;
+        symbol = `${this.warningColor}⚠${this.colorReset}`;
         break;
       case 'info':
-        symbol = `${this.infoColor}ℹ\x1b[0m`;
+        symbol = `${this.infoColor}ℹ${this.colorReset}`;
         break;
       default:
-        symbol = `${this.infoColor}\x1b[0m`;
+        symbol = `${this.infoColor}${this.colorReset}`;
         break;
     }
 
@@ -361,6 +379,12 @@ export class GOMultiSpinner {
   private startAnimation(): void {
     if (this.isRunning) return;
     this.isRunning = true;
+    // In non-interactive environments (Lambda, CI, piped output) skip the
+    // ANSI cursor toggle and the setInterval-based render loop entirely.
+    // setInterval would keep the Lambda event loop alive and delay handler return.
+    if (this.nonInteractive) {
+      return;
+    }
     process.stdout.write('\x1B[?25l'); // Hide cursor
     this.interval = setInterval(() => this.render(), this.animationInterval);
     this.render();
@@ -368,8 +392,13 @@ export class GOMultiSpinner {
 
   private stopAnimation(): void {
     if (!this.isRunning) return;
-    this.clear();
     this.isRunning = false;
+    if (this.nonInteractive) {
+      // No interval to clear, no cursor to restore.
+      this.lastLineCount = 0;
+      return;
+    }
+    this.clear();
     if (this.interval) {
       clearInterval(this.interval);
       this.interval = undefined;
@@ -379,6 +408,9 @@ export class GOMultiSpinner {
   }
 
   private clear(): void {
+    // readline.moveCursor / clearScreenDown require a TTY; they are no-ops on a
+    // non-TTY stream in Node but we avoid the call anyway to keep CloudWatch clean.
+    if (this.nonInteractive) return;
     if (this.lastLineCount > 0) {
       readline.moveCursor(process.stdout, 0, -this.lastLineCount);
       readline.clearScreenDown(process.stdout);
@@ -386,6 +418,9 @@ export class GOMultiSpinner {
   }
 
   private render(): void {
+    // No live frames in non-interactive environments.
+    if (this.nonInteractive) return;
+
     this.clear();
 
     const frame = this.frames[this.currentFrame];

@@ -15,20 +15,22 @@ import type { AwsAthenaService } from './AwsAthenaService.js';
 /** Terminal states for Athena query execution */
 const ATHENA_TERMINAL_STATES: ReadonlySet<string> = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED']);
 
+type AthenaQueryExecutorLogHandler = (message: string) => void;
+
 /**
  * Executes Athena queries with template parameter substitution
  * and handles result pagination
  */
 export class AthenaQueryExecutor {
   private readonly athenaService: AwsAthenaService;
-  private readonly onLog: ((message: string) => void) | undefined;
+  private readonly onLog: AthenaQueryExecutorLogHandler | undefined;
 
   /**
    * Creates a new Athena Query Executor
    * @param athenaService - AWS Athena service instance
    * @param onLog - Optional callback for logging messages
    */
-  constructor(athenaService: AwsAthenaService, onLog?: (message: string) => void) {
+  constructor(athenaService: AwsAthenaService, onLog?: AthenaQueryExecutorLogHandler) {
     if (!athenaService) {
       throw new Error('Athena Service is required');
     }
@@ -84,6 +86,7 @@ export class AthenaQueryExecutor {
     });
 
     const athenaClient = this.athenaService.getAthenaClient();
+    const submitStart = Date.now();
     const startResult = await athenaClient.send(command);
     const queryExecutionId = startResult.QueryExecutionId;
 
@@ -91,14 +94,19 @@ export class AthenaQueryExecutor {
       throw new Error('Failed to start query execution: no execution ID returned');
     }
 
-    this.log(`Query started with ID: ${queryExecutionId}`);
+    this.log(`Query started with ID: ${queryExecutionId} (submitMs=${Date.now() - submitStart})`);
+    const pollStart = Date.now();
     const execution = await this.waitForQueryCompletion(queryExecutionId, maxRetries, retryDelay);
+    this.log(`Query polling finished (pollMs=${Date.now() - pollStart})`);
 
     // Check final state
     const state = execution.QueryExecution.Status.State;
     if (state === 'SUCCEEDED') {
       this.log('Query executed successfully');
-      return this.fetchAllResults(queryExecutionId);
+      const fetchStart = Date.now();
+      const results = await this.fetchAllResults(queryExecutionId);
+      this.log(`Query results fetched (fetchMs=${Date.now() - fetchStart})`);
+      return results;
     }
 
     if (state === 'FAILED') {

@@ -7,13 +7,21 @@ on:
   push:
     branches: [main]
     paths:
+      - 'package.json'
       - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - '**/package.json'
+      - '.github/actions/**'
+      - '.github/workflows/**'
   pull_request:
     branches: [main, develop]
     paths:
+      - 'package.json'
       - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - '**/package.json'
+      - '.github/actions/**'
+      - '.github/workflows/**'
   schedule:
     # Run every Monday at 9:00 UTC
     - cron: '0 9 * * 1'
@@ -23,24 +31,16 @@ jobs:
   audit:
     name: Dependency Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4
+      - name: Setup CI environment
+        uses: ./.github/actions/setup-ci
         with:
-          version: 10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version: '24'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          install-args: --frozen-lockfile --ignore-scripts
 
       - name: Run security audit
         run: pnpm audit --audit-level=high
@@ -53,26 +53,16 @@ jobs:
   license-check:
     name: License Compliance
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4
+      - name: Setup CI environment
+        uses: ./.github/actions/setup-ci
         with:
-          version: 10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version: '24'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          install-args: --frozen-lockfile --ignore-scripts
 
       - name: Check licenses
-        run: |
-          pnpm exec license-checker --summary --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;CC0-1.0;Unlicense" || true
-        continue-on-error: true
+        run: pnpm license:check

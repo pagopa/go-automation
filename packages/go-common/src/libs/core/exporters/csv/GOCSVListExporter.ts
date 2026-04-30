@@ -26,6 +26,12 @@ export type RowTransformer<TItem> = (item: TItem) => TItem;
 export type ColumnMapper = (columnName: string) => string;
 
 /**
+ * Forwarder used by closeStream() to receive errors captured by the permanent
+ * listener installed in initializeStream().
+ */
+type StreamErrorForwarderFn = (error: Error) => void;
+
+/**
  * Internal resolved options interface with all defaults applied
  */
 export interface ResolvedCSVExporterOptions<TItem> {
@@ -61,6 +67,18 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
   private failedCount: number = 0;
   private startTime: number = 0;
   private totalItems?: number | undefined;
+
+  // First error observed on writeStream/stringifier, captured by the permanent
+  // listeners attached in initializeStream(). closeStream() fails fast on this
+  // when the error pre-dates the close attempt; later errors are forwarded via
+  // streamErrorForwarder so export:error is never emitted twice for the same fault.
+  private streamError: Error | undefined;
+  private streamErrorForwarder: StreamErrorForwarderFn | undefined;
+
+  // Cached close result. Makes closeStream() idempotent so export()'s belt-and-
+  // suspenders second close (in its catch path) doesn't re-route streamError,
+  // re-attach 'finish', or re-emit events. Reset on each initializeStream().
+  private closePromise: Promise<void> | undefined;
 
   // Cache for performance optimization
   private cachedColumns?: string[] | undefined;
@@ -118,11 +136,15 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
 
       await writer.close();
     } catch (error) {
-      // Ensure stream is closed on error
+      // Ensure stream is closed on error. Cleanup failures can legitimately
+      // re-surface the same captured stream error (for example when close()
+      // is called again after a rejected closePromise), so they must not emit
+      // a second export:error for the same export attempt.
       try {
         await writer.close();
-      } catch (closeError) {
-        this.emit('export:error', { error: toError(closeError) });
+      } catch {
+        // Ignore cleanup errors here: the export attempt already failed, and
+        // the single export:error emission below represents that failure.
       }
 
       const finalError = toError(error);
@@ -158,6 +180,10 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
    * Initialize streaming
    */
   private initializeStream(): GOListExporterStreamWriter<TItem> {
+    this.streamError = undefined;
+    this.streamErrorForwarder = undefined;
+    this.closePromise = undefined;
+
     // Create write stream
     this.writeStream = fs.createWriteStream(this.options.outputPath, {
       encoding: this.options.encoding,
@@ -165,6 +191,19 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
 
     // Create CSV stringifier
     this.stringifier = stringify({ delimiter: this.options.delimiter, header: false });
+
+    // Single error path for both streams. We capture (don't emit) here so that
+    // there's always a listener — this prevents uncaughtException if fd open
+    // fails asynchronously before closeStream() runs. closeStream() either reads
+    // the captured error or installs a forwarder for late errors; export:error
+    // is emitted exactly once by the export() catch block.
+    const captureStreamError = (error: unknown): void => {
+      const finalError = toError(error);
+      this.streamError ??= finalError;
+      this.streamErrorForwarder?.(finalError);
+    };
+    this.writeStream.on('error', captureStreamError);
+    this.stringifier.on('error', captureStreamError);
 
     // Pipe stringifier to file
     this.stringifier.pipe(this.writeStream);
@@ -181,51 +220,72 @@ export class GOCSVListExporter<TItem extends Record<string, unknown>>
   }
 
   /**
-   * Close streaming export
+   * Close streaming export.
+   *
+   * Error routing is shared with initializeStream(): the permanent captureStreamError
+   * listener stores the first error in `streamError`, and this method either fails
+   * fast on a pre-captured error or installs a forwarder for one that fires after
+   * `.end()`. This method does not attach additional stream 'error' listeners;
+   * it relies on the existing shared stream error capture/forwarding path, while
+   * higher-level export:error emission is handled by the surrounding export flow.
    */
   private async closeStream(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    // Idempotent: export()'s catch path may call writer.close() a second time as
+    // cleanup when append() throws. Repeat calls must share the first call's
+    // exact Promise result so later callers observe the same fulfillment or
+    // rejection without re-routing streamError, re-attaching 'finish', or
+    // re-emitting events.
+    if (this.closePromise) {
+      return this.closePromise;
+    }
+
+    this.closePromise = new Promise<void>((resolve, reject) => {
       if (!this.stringifier || !this.writeStream) {
         resolve();
         return;
       }
 
-      let errorOccurred = false;
-
-      const errorHandler = (error: Error): void => {
-        if (!errorOccurred) {
-          errorOccurred = true;
-          cleanup();
-          reject(error);
-        }
-      };
+      let settled = false;
 
       const finishHandler = (): void => {
-        if (!errorOccurred) {
-          cleanup();
-          this.emit('export:completed', {
-            totalItems: this.exportedCount,
-            failedItems: this.failedCount,
-            destination: this.options.outputPath,
-            duration: Date.now() - this.startTime,
-          });
-          resolve();
-        }
+        if (settled) return;
+        settled = true;
+        this.streamErrorForwarder = undefined;
+        this.emit('export:completed', {
+          totalItems: this.exportedCount,
+          failedItems: this.failedCount,
+          destination: this.options.outputPath,
+          duration: Date.now() - this.startTime,
+        });
+        resolve();
       };
 
-      const cleanup = (): void => {
-        this.stringifier?.removeListener('error', errorHandler);
-        this.writeStream?.removeListener('error', errorHandler);
+      this.streamErrorForwarder = (error: Error): void => {
+        if (settled) return;
+        settled = true;
         this.writeStream?.removeListener('finish', finishHandler);
+        this.streamErrorForwarder = undefined;
+        reject(error);
       };
 
-      this.stringifier.on('error', errorHandler);
-      this.writeStream.on('error', errorHandler);
+      // Drain any error captured before the forwarder was wired (e.g. ENOENT
+      // on fd open, or an error that fired between closeStream() entry and the
+      // forwarder assignment). captureStreamError stored the first error into
+      // streamError; route it through the same path as late errors so there's
+      // a single error path and 'finish' can never leave the Promise pending.
+      if (this.streamError) {
+        this.streamErrorForwarder(this.streamError);
+        return;
+      }
+
       this.writeStream.on('finish', finishHandler);
 
-      // End the stringifier (will trigger writeStream finish event)
+      // End the stringifier (will trigger writeStream finish event, or an error
+      // that captureStreamError forwards to streamErrorForwarder).
       this.stringifier.end();
     });
+
+    return this.closePromise;
   }
 
   /**

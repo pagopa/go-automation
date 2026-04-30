@@ -211,7 +211,7 @@ export class GOLogger {
       ...options,
       columns,
       data,
-    } as GOTableOptions);
+    });
   }
 
   /**
@@ -240,7 +240,7 @@ export class GOLogger {
         { header: 'Value', key: 'value', width: 50 },
       ],
       data: tableData,
-    } as GOTableOptions);
+    });
   }
 
   /**

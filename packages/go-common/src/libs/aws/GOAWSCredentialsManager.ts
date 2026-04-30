@@ -10,7 +10,11 @@ import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 
 import type { GOAWSCredentialsErrorAnalysis } from './GOAWSCredentialsError.js';
 import { GOAWSCredentialsErrorType } from './GOAWSCredentialsError.js';
-import type { GOAWSCredentialsManagerOptions } from './GOAWSCredentialsManagerOptions.js';
+import type {
+  GOAWSCredentialsManagerOptions,
+  GOAWSCredentialsLogHandler,
+  GOAWSCredentialsPromptHandler,
+} from './GOAWSCredentialsManagerOptions.js';
 import type { GOAWSLoginResult } from './GOAWSLoginResult.js';
 import type { GOAWSRetryContext, GOAWSRetryOptions } from './GOAWSRetryContext.js';
 import type { AWSMultiProfileValidationResult } from './AWSMultiProfileValidationResult.js';
@@ -29,6 +33,8 @@ interface InternalOptions {
   readonly maxRetries: number;
   readonly loginTimeout: number;
 }
+
+type GOAWSRetryOperationHandler<T> = () => Promise<T>;
 
 /**
  * Default options for the credentials manager
@@ -89,8 +95,8 @@ const PROFILE_NOT_FOUND_PATTERNS: ReadonlyArray<RegExp> = [
  */
 export class GOAWSCredentialsManager {
   private readonly options: InternalOptions;
-  private readonly onLog?: GOAWSCredentialsManagerOptions['onLog'];
-  private readonly onPrompt?: GOAWSCredentialsManagerOptions['onPrompt'];
+  private readonly onLog: GOAWSCredentialsLogHandler | undefined;
+  private readonly onPrompt: GOAWSCredentialsPromptHandler | undefined;
 
   constructor(options: GOAWSCredentialsManagerOptions = {}) {
     this.options = {
@@ -261,7 +267,10 @@ export class GOAWSCredentialsManager {
    * @returns The result of the operation
    * @throws The original error if not recoverable or retry fails
    */
-  public async withCredentialRetry<T>(operation: () => Promise<T>, options: GOAWSRetryOptions): Promise<T> {
+  public async withCredentialRetry<T>(
+    operation: GOAWSRetryOperationHandler<T>,
+    options: GOAWSRetryOptions,
+  ): Promise<T> {
     const maxRetries = options.maxRetries ?? this.options.maxRetries;
     const maxAttempts = maxRetries + 1;
     let lastError: unknown;
@@ -665,7 +674,7 @@ export class GOAWSCredentialsManager {
       return error;
     }
     if (typeof error === 'object' && error !== null && 'message' in error) {
-      return String((error as { message: unknown }).message);
+      return String(error.message);
     }
     return String(error);
   }

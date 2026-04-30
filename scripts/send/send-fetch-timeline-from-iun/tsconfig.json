@@ -11,6 +11,9 @@
   "references": [
     {
       "path": "../../../packages/go-common"
+    },
+    {
+      "path": "../../../packages/go-send"
     }
   ]
 }

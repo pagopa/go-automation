@@ -1,14 +1,38 @@
 /**
- * GOTableFormatter - Table formatting utilities for GOLogger
- * Uses cli-table3 for professional table rendering
+ * GOTableFormatter - Table formatting utilities for GOLogger.
+ *
+ * Internal deterministic table renderer. Composes the small helpers in
+ * `tableRenderer/` to produce a Unicode-aware tabular output that supports
+ * full / border-less / compact styles, multi-line cells (cells containing
+ * `\n` expand the row's visual height), per-column alignment, truncation
+ * with ellipsis, and ANSI-aware column width math.
  */
-
-import Table from 'cli-table3';
 
 import { valueToString } from '../utils/GOValueToString.js';
 
+import type { BorderStyle } from './tableRenderer/BorderStyle.js';
+import type { ChalkLikeColor } from './tableRenderer/colorize.js';
+import { colorize } from './tableRenderer/colorize.js';
+import { displayWidth } from './tableRenderer/displayWidth.js';
+import { renderRow } from './tableRenderer/renderRow.js';
+import { renderSeparator } from './tableRenderer/renderSeparator.js';
+import type { ResolvedColumn } from './tableRenderer/ResolvedColumn.js';
+import type { TableChars } from './tableRenderer/TableChars.js';
+import { TABLE_CHARS_BY_STYLE } from './tableRenderer/TableChars.js';
+
+type GOTableValueFormatter = (value: unknown) => string;
+
+/** Default cap on auto-computed column width */
+const DEFAULT_MAX_COLUMN_WIDTH = 50;
+
+/** Total inner padding added by `renderRow` (1 space left + 1 space right) */
+const INNER_PADDING = 2;
+
+/** Minimum total column width: " x " (3) — content of 1 cell + padding */
+const MIN_COLUMN_WIDTH = INNER_PADDING + 1;
+
 /**
- * Table column configuration
+ * Table column configuration.
  */
 export interface GOTableColumn {
   /** Column header text */
@@ -24,11 +48,11 @@ export interface GOTableColumn {
   align?: 'left' | 'right' | 'center';
 
   /** Custom formatter function */
-  formatter?: (value: unknown) => string;
+  formatter?: GOTableValueFormatter;
 }
 
 /**
- * Table configuration options
+ * Table configuration options.
  */
 export interface GOTableOptions {
   /** Column definitions */
@@ -51,171 +75,122 @@ export interface GOTableOptions {
 
   /** Style for the table */
   style?: {
-    /** Enable colors in headers (default: false) */
+    /** Enable colors in headers (default: true) */
     colors?: boolean;
     /** Header color (default: 'cyan') */
-    headerColor?: 'black' | 'red' | 'green' | 'yellow' | 'blue' | 'magenta' | 'cyan' | 'white' | 'gray';
+    headerColor?: ChalkLikeColor;
   };
 }
 
 /**
- * Table formatter utility using cli-table3
+ * Table formatter utility.
+ *
+ * Public API is unchanged from the previous cli-table3-backed implementation.
+ * Internally composes pure helpers so each concern (padding, truncation,
+ * separators, multi-line splitting, ANSI colors) is testable in isolation.
  */
 export class GOTableFormatter {
-  private readonly options: Required<GOTableOptions>;
-  private readonly columns: GOTableColumn[];
+  private readonly resolvedColumns: ReadonlyArray<ResolvedColumn>;
+  private readonly chars: TableChars;
+  private readonly headerColor: ChalkLikeColor | undefined;
+  private readonly headerSeparator: boolean;
+  private readonly data: ReadonlyArray<Record<string, unknown>>;
 
   constructor(options: GOTableOptions) {
-    // Set defaults
-    this.options = {
-      ...options,
-      border: options.border !== false,
-      headerSeparator: options.headerSeparator !== false,
-      compact: options.compact ?? false,
-      maxColumnWidth: options.maxColumnWidth ?? 50,
-      style: {
-        colors: options.style?.colors ?? true,
-        headerColor: options.style?.headerColor ?? 'cyan',
-      },
-    };
+    const borderStyle: BorderStyle = this.resolveBorderStyle(options);
 
-    this.columns = options.columns;
+    this.chars = TABLE_CHARS_BY_STYLE[borderStyle];
+    this.headerColor = (options.style?.colors ?? true) ? (options.style?.headerColor ?? 'cyan') : undefined;
+    this.headerSeparator = options.headerSeparator !== false;
+    this.data = options.data;
+    this.resolvedColumns = this.resolveColumns(options);
   }
 
   /**
-   * Format the complete table as string using cli-table3
+   * Renders the complete table as a single string.
+   *
+   * Layout:
+   * 1. Top separator (if active for the border style)
+   * 2. Header row (with optional ANSI color)
+   * 3. Mid separator (if `headerSeparator` is true and chars are non-empty)
+   * 4. One block per data row (each may span multiple visual lines)
+   * 5. Bottom separator (if active for the border style)
+   *
+   * Returns an empty string when `columns` is empty.
    */
   format(): string {
-    // Calculate column widths
-    const colWidths = this.calculateColumnWidths();
+    if (this.resolvedColumns.length === 0) return '';
 
-    // Create table with cli-table3
-    const table = new Table({
-      head: this.columns.map((col) => col.header),
-      colWidths: colWidths,
-      colAligns: this.columns.map((col) => col.align ?? 'left'),
-      style: {
-        head: this.options.style.colors ? [this.options.style.headerColor ?? 'cyan'] : [],
-        border: [],
-      },
-      chars: this.getTableChars(),
-    });
+    const lines: string[] = [];
 
-    // Add data rows
-    for (const row of this.options.data) {
-      const rowData = this.columns.map((col) => {
-        const value = row[col.key];
-        return this.formatValue(value, col);
-      });
-      table.push(rowData);
+    const top = renderSeparator(this.resolvedColumns, this.chars, 'top');
+    if (top !== '') lines.push(top);
+
+    const headerCells = this.resolvedColumns.map((c) => colorize(c.header, this.headerColor));
+    lines.push(renderRow(headerCells, this.resolvedColumns, this.chars.vertical));
+
+    const midSeparator = renderSeparator(this.resolvedColumns, this.chars, 'mid');
+
+    if (this.headerSeparator && midSeparator !== '') {
+      lines.push(midSeparator);
     }
 
-    return table.toString();
+    for (const [idx, row] of this.data.entries()) {
+      // Insert a row separator between consecutive data rows (mirrors the legacy
+      // cli-table3 default). Compact style produces an empty separator and is
+      // therefore skipped; the bottom border closes the table after the last row.
+      if (idx > 0 && midSeparator !== '') {
+        lines.push(midSeparator);
+      }
+      const cells = this.resolvedColumns.map((c) => c.formatter(row[c.key]));
+      lines.push(renderRow(cells, this.resolvedColumns, this.chars.vertical));
+    }
+
+    const bottom = renderSeparator(this.resolvedColumns, this.chars, 'bottom');
+    if (bottom !== '') lines.push(bottom);
+
+    return lines.join('\n');
   }
 
   /**
-   * Calculate optimal column widths
+   * Maps the legacy `compact` / `border` boolean pair to the internal
+   * `BorderStyle` discriminated union. `compact` wins over `border: false`.
    */
-  private calculateColumnWidths(): number[] {
-    return this.columns.map((col) => {
-      // Use explicit width if provided
-      if (col.width) {
-        return col.width;
+  private resolveBorderStyle(options: GOTableOptions): BorderStyle {
+    if (options.compact === true) return 'compact';
+    if (options.border === false) return 'border-less';
+    return 'full';
+  }
+
+  /**
+   * Resolves columns: applies defaults, computes width considering
+   * multi-line cells (max line width across all data rows and the
+   * header), clamps to `maxColumnWidth` from below by `MIN_COLUMN_WIDTH`.
+   */
+  private resolveColumns(options: GOTableOptions): ReadonlyArray<ResolvedColumn> {
+    const maxWidth = options.maxColumnWidth ?? DEFAULT_MAX_COLUMN_WIDTH;
+
+    return options.columns.map((col) => {
+      const formatter: (value: unknown) => string = col.formatter ?? ((value) => valueToString(value));
+
+      let maxCellW = displayWidth(col.header);
+      for (const row of options.data) {
+        const formatted = formatter(row[col.key]);
+        for (const line of formatted.split('\n')) {
+          const lineW = displayWidth(line);
+          if (lineW > maxCellW) maxCellW = lineW;
+        }
       }
 
-      // Calculate based on header and data
-      const headerLen = col.header.length;
-      const maxDataLen = Math.max(
-        0,
-        ...this.options.data.map((row) => {
-          const value = this.formatValue(row[col.key], col);
-          return value.length;
-        }),
-      );
+      const targetW = col.width ?? Math.min(maxCellW + INNER_PADDING, maxWidth);
 
-      // Use max of header and data, but cap at maxColumnWidth
-      // Add padding of 2 for better readability
-      const width = Math.min(Math.max(headerLen, maxDataLen) + 2, this.options.maxColumnWidth);
-
-      return width;
+      return {
+        header: col.header,
+        key: col.key,
+        width: Math.max(MIN_COLUMN_WIDTH, targetW),
+        align: col.align ?? 'left',
+        formatter,
+      };
     });
-  }
-
-  /**
-   * Format a value using column formatter or default
-   */
-  private formatValue(value: unknown, col: GOTableColumn): string {
-    // Use custom formatter if provided
-    if (col.formatter) {
-      return col.formatter(value);
-    }
-
-    return valueToString(value);
-  }
-
-  /**
-   * Get table characters based on options
-   */
-  private getTableChars(): Record<string, string> {
-    if (this.options.compact) {
-      // Compact mode: minimal borders
-      return {
-        top: '',
-        'top-mid': '',
-        'top-left': '',
-        'top-right': '',
-        bottom: '',
-        'bottom-mid': '',
-        'bottom-left': '',
-        'bottom-right': '',
-        left: '',
-        'left-mid': '',
-        mid: '',
-        'mid-mid': '',
-        right: '',
-        'right-mid': '',
-        middle: ' ',
-      };
-    }
-
-    if (!this.options.border) {
-      // No border mode: only show content and separators
-      return {
-        top: '',
-        'top-mid': '',
-        'top-left': '',
-        'top-right': '',
-        bottom: '',
-        'bottom-mid': '',
-        'bottom-left': '',
-        'bottom-right': '',
-        left: '',
-        'left-mid': '',
-        mid: '─',
-        'mid-mid': '┼',
-        right: '',
-        'right-mid': '',
-        middle: '│',
-      };
-    }
-
-    // Default: full borders
-    return {
-      top: '─',
-      'top-mid': '┬',
-      'top-left': '┌',
-      'top-right': '┐',
-      bottom: '─',
-      'bottom-mid': '┴',
-      'bottom-left': '└',
-      'bottom-right': '┘',
-      left: '│',
-      'left-mid': '├',
-      mid: '─',
-      'mid-mid': '┼',
-      right: '│',
-      'right-mid': '┤',
-      middle: '│',
-    };
   }
 }

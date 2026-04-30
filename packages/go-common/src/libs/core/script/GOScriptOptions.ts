@@ -15,16 +15,19 @@ import type { GOLoggerHandler } from '../logging/GOLoggerHandler.js';
  */
 export interface GOScriptMetadata {
   /** Script name */
-  name: string;
+  readonly name: string;
 
   /** Script version */
-  version: string;
+  readonly version: string;
 
   /** Script description */
-  description: string;
+  readonly description: string;
 
   /** Script authors */
-  authors: ReadonlyArray<string>;
+  readonly authors: ReadonlyArray<string>;
+
+  /** Script keywords for discovery/search */
+  readonly keywords?: ReadonlyArray<string>;
 }
 
 /**
@@ -127,33 +130,41 @@ export interface GOScriptConfigOptions {
   secrets?: GOSecretsSpecifier;
 }
 
+export type GOScriptLifecycleHookResult = void | Promise<void>;
+
+export type GOScriptLifecycleHook = () => GOScriptLifecycleHookResult;
+
+export type GOScriptConfigLoadHook = (config: Record<string, unknown>) => GOScriptLifecycleHookResult;
+
+export type GOScriptErrorHook = (error: Error) => GOScriptLifecycleHookResult;
+
 /**
  * Script lifecycle hooks
  */
 export interface GOScriptLifecycleHooks {
   /** Called before script initialization */
-  onBeforeInit?: () => void | Promise<void>;
+  onBeforeInit?: GOScriptLifecycleHook;
 
   /** Called after script initialization */
-  onAfterInit?: () => void | Promise<void>;
+  onAfterInit?: GOScriptLifecycleHook;
 
   /** Called before config is loaded */
-  onBeforeConfigLoad?: () => void | Promise<void>;
+  onBeforeConfigLoad?: GOScriptLifecycleHook;
 
   /** Called after config is loaded */
-  onAfterConfigLoad?: (config: Record<string, unknown>) => void | Promise<void>;
+  onAfterConfigLoad?: GOScriptConfigLoadHook;
 
   /** Called before main script execution */
-  onBeforeRun?: () => void | Promise<void>;
+  onBeforeRun?: GOScriptLifecycleHook;
 
   /** Called after main script execution */
-  onAfterRun?: () => void | Promise<void>;
+  onAfterRun?: GOScriptLifecycleHook;
 
   /** Called on script error */
-  onError?: (error: Error) => void | Promise<void>;
+  onError?: GOScriptErrorHook;
 
   /** Called on script cleanup/exit */
-  onCleanup?: () => void | Promise<void>;
+  onCleanup?: GOScriptLifecycleHook;
 }
 
 /**

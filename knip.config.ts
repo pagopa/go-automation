@@ -3,10 +3,23 @@ import type { KnipConfig } from 'knip';
 const config: KnipConfig = {
   workspaces: {
     // Shared libraries
+    'packages/go-ai': {
+      project: ['src/**/*.ts'],
+    },
     'packages/go-common': {
       project: ['src/**/*.ts'],
     },
+    'packages/go-cli': {
+      project: ['src/**/*.ts'],
+    },
     'packages/go-runbook': {
+      project: ['src/**/*.ts'],
+    },
+    'packages/go-send': {
+      project: ['src/**/*.ts'],
+    },
+    // AWS scripts
+    'scripts/aws/*': {
       project: ['src/**/*.ts'],
     },
     // GO scripts
@@ -26,14 +39,21 @@ const config: KnipConfig = {
     'scripts/interop/*': {
       project: ['src/**/*.ts'],
     },
+    // Lambda functions with standalone handler entrypoints
+    'functions/go-AILambda': {
+      entry: ['src/handler.ts'],
+      project: ['src/**/*.ts'],
+    },
+    'functions/go-BotQESlackHandler': {
+      entry: ['src/handler.ts'],
+      project: ['src/**/*.ts'],
+    },
     // Lambda functions
     'functions/*': {
-      entry: ['src/handler.ts'],
       project: ['src/**/*.ts'],
     },
   },
   ignore: [
-    '**/artifacts/**',
     // Barrel index.ts files: re-export hubs for module organization.
     // knip flags them as unused because their parent barrel re-exports transitively.
     '**/index.ts',
@@ -47,10 +67,6 @@ const config: KnipConfig = {
     // Bundled into go-AILambda via esbuild — used transitively by @go-automation/go-ai
     '@aws-sdk/client-bedrock-runtime',
     '@aws-sdk/credential-provider-ini',
-  ],
-  ignoreBinaries: [
-    // Used in CI security workflow
-    'license-checker',
   ],
 };
 

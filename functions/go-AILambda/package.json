@@ -11,13 +11,13 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
-    "@aws-sdk/client-bedrock-runtime": "^3.1028.0",
-    "@aws-sdk/credential-provider-ini": "^3.972.29",
+    "@aws-sdk/client-bedrock-runtime": "catalog:",
+    "@aws-sdk/credential-provider-ini": "catalog:",
     "@go-automation/go-ai": "workspace:*"
   },
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.161",
-    "@types/node": "^24.12.2",
-    "esbuild": "^0.28.0"
+    "@types/aws-lambda": "catalog:",
+    "@types/node": "catalog:",
+    "esbuild": "catalog:"
   }
 }

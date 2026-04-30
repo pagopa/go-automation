@@ -11,11 +11,11 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
-    "@aws-sdk/client-lambda": "^3.1028.0"
+    "@aws-sdk/client-lambda": "catalog:"
   },
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.161",
-    "@types/node": "^24.12.2",
-    "esbuild": "^0.28.0"
+    "@types/aws-lambda": "catalog:",
+    "@types/node": "catalog:",
+    "esbuild": "catalog:"
   }
 }

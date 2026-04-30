@@ -13,10 +13,16 @@
     "watch": "tsc --watch",
     "clean": "rm -rf dist *.tsbuildinfo"
   },
+  "keywords": [
+    "go",
+    "json"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
   "dependencies": {
     "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^24.12.2"
+    "@types/node": "catalog:"
   }
 }

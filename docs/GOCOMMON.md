@@ -24,7 +24,7 @@
 
 ## Overview
 
-`@go-automation/go-common` e la libreria condivisa che fornisce:
+`@go-automation/go-common` è la libreria condivisa che fornisce:
 
 - **GOScript** - Framework per creare script CLI
 - **Logging** - Sistema di logging strutturato (console e file)
@@ -109,7 +109,7 @@ import { GOAWSCredentialsManager } from '@go-automation/go-common';
 
 ## Core - GOScript
 
-`GOScript` e il framework base per creare script CLI. Integra logging, configurazione e prompts in un unico sistema.
+`GOScript` è il framework base per creare script CLI. Integra logging, configurazione e prompts in un unico sistema.
 
 ### Creazione Base
 
@@ -197,7 +197,7 @@ script
 
 ### Async Fallback per Parametri
 
-La proprieta `asyncFallback` permette di fornire un valore di default tramite una funzione asincrona quando il parametro non e presente in CLI, file di configurazione o variabili d'ambiente.
+La proprietà `asyncFallback` permette di fornire un valore di default tramite una funzione asincrona quando il parametro non e presente in CLI, file di configurazione o variabili d'ambiente.
 
 #### Tipo
 
@@ -262,13 +262,13 @@ script.run(async () => {
 | Caso d'Uso          | Descrizione                                          |
 | ------------------- | ---------------------------------------------------- |
 | Caricamento da file | Pattern, whitelist, configurazioni esterne           |
-| Chiamate API        | Recupero configurazione da servizi remoti            |
+| Chiamate API        | Recupera configurazione da servizi remoti            |
 | Database            | Lettura configurazione da database                   |
-| Secret Manager      | Recupero secrets da AWS Secrets Manager, Vault, etc. |
+| Secret Manager      | Recupera secrets da AWS Secrets Manager, Vault, etc. |
 
 #### Differenza tra `defaultValue` e `asyncFallback`
 
-| Proprieta       | Tipo               | Quando Usare                                       |
+| Proprietà       | Tipo               | Quando Usare                                       |
 | --------------- | ------------------ | -------------------------------------------------- |
 | `defaultValue`  | Valore statico     | Valori semplici e costanti                         |
 | `asyncFallback` | `() => Promise<T>` | Valori che richiedono I/O, API calls, computazione |
@@ -949,7 +949,7 @@ if (Core.GOExecutionEnvironment.isStandalone()) {
 }
 
 // Altri metodi utili
-Core.GOExecutionEnvironment.isInteractive(); // true se puo interagire con utente
+Core.GOExecutionEnvironment.isInteractive(); // true se può interagire con utente
 Core.GOExecutionEnvironment.isAWSManaged(); // true se in ambiente AWS gestito
 Core.GOExecutionEnvironment.isCI(); // true se in pipeline CI/CD
 
@@ -1252,7 +1252,7 @@ for (const item of result.items) {
 
 ### DynamoDBQueryOptions
 
-| Proprieta   | Tipo      | Descrizione                             |
+| Proprietà   | Tipo      | Descrizione                             |
 | ----------- | --------- | --------------------------------------- |
 | `tableName` | `string`  | Nome della tabella DynamoDB             |
 | `keyName`   | `string`  | Nome dell'attributo partition key       |
@@ -1261,7 +1261,7 @@ for (const item of result.items) {
 
 ### DynamoDBQueryResult<T>
 
-| Proprieta  | Tipo               | Descrizione                                   |
+| Proprietà  | Tipo               | Descrizione                                   |
 | ---------- | ------------------ | --------------------------------------------- |
 | `keyValue` | `string`           | Valore chiave originale (senza prefix/suffix) |
 | `fullKey`  | `string`           | Chiave completa con prefix/suffix             |
@@ -1565,7 +1565,7 @@ interface SENDTimelineResult {
 | ------------------------- | ----------------------------- |
 | `REQUEST_ACCEPTED`        | Notifica accettata            |
 | `AAR_GENERATION`          | Generazione AAR               |
-| `GET_ADDRESS`             | Recupero indirizzo            |
+| `GET_ADDRESS`             | Recupera indirizzo            |
 | `PREPARE_ANALOG_DOMICILE` | Preparazione invio analogico  |
 | `SEND_ANALOG_DOMICILE`    | Invio analogico               |
 | `ANALOG_SUCCESS_WORKFLOW` | Workflow analogico completato |
