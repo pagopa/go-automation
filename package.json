@@ -29,6 +29,8 @@
     "build:functions": "pnpm -r --filter='./functions/**' build",
     "build:packages": "pnpm -r --filter='./packages/**' build",
     "build:scripts": "pnpm -r --filter='./scripts/**' build",
+    "check:new-class-tests": "node --import tsx/esm bins/check-new-class-tests/src/index.ts",
+    "check:new-class-tests:test": "node --import tsx/esm --test 'bins/check-new-class-tests/src/**/*.test.ts'",
     "clean": "pnpm -r run clean",
     "clean:all": "pnpm clean && pnpm -r exec rm -rf node_modules && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,js,json,md}\"",
