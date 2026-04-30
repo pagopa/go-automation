@@ -2,8 +2,10 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  findExportedClassDeclarations,
   findExportedClassesInAddedLines,
   findExportedClassName,
+  findModuleReExportsInAddedLines,
   findNamedReExportsInAddedLines,
 } from './typescriptAst.js';
 
@@ -133,6 +135,70 @@ describe('findNamedReExportsInAddedLines', () => {
     const reExports = findNamedReExportsInAddedLines('index.ts', source, new Set([1]));
 
     assert.deepStrictEqual(reExports, []);
+  });
+});
+
+describe('findModuleReExportsInAddedLines', () => {
+  it('finds added export-star declarations', () => {
+    const source = ["export * from './Foo.js';"].join('\n');
+
+    const reExports = findModuleReExportsInAddedLines('index.ts', source, new Set([1]));
+
+    assert.deepStrictEqual(reExports, [
+      {
+        moduleSpecifier: './Foo.js',
+        line: 1,
+      },
+    ]);
+  });
+
+  it('finds added namespace re-export declarations', () => {
+    const source = ["export * as FooModule from './Foo.js';"].join('\n');
+
+    const reExports = findModuleReExportsInAddedLines('index.ts', source, new Set([1]));
+
+    assert.deepStrictEqual(reExports, [
+      {
+        moduleSpecifier: './Foo.js',
+        line: 1,
+      },
+    ]);
+  });
+
+  it('ignores named re-exports because they are handled separately', () => {
+    const source = ["export { Foo } from './Foo.js';"].join('\n');
+
+    const reExports = findModuleReExportsInAddedLines('index.ts', source, new Set([1]));
+
+    assert.deepStrictEqual(reExports, []);
+  });
+
+  it('ignores type-only module re-exports', () => {
+    const source = ["export type * from './Foo.js';"].join('\n');
+
+    const reExports = findModuleReExportsInAddedLines('index.ts', source, new Set([1]));
+
+    assert.deepStrictEqual(reExports, []);
+  });
+});
+
+describe('findExportedClassDeclarations', () => {
+  it('finds all runtime exported class declarations in a module', () => {
+    const source = [
+      'export class Foo {}',
+      'class Bar {}',
+      'export { Bar };',
+      'class Internal {}',
+      'export default class DefaultFoo {}',
+    ].join('\n');
+
+    const classes = findExportedClassDeclarations('Foo.ts', source);
+
+    assert.deepStrictEqual(classes, [
+      { name: 'Foo', line: 1 },
+      { name: 'Bar', line: 2 },
+      { name: 'DefaultFoo', line: 5 },
+    ]);
   });
 });
 
