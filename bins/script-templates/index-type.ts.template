@@ -1,0 +1,9 @@
+/**
+ * Configuration and Types
+ * Re-exports the script's configuration interface and associated types.
+ */
+
+export type { {{SCRIPT_CONFIG_INTERFACE}} } from './{{SCRIPT_CONFIG_FILE}}.js';
+
+// Export additional enums or helper types here if needed
+// export { ... } from './{{SCRIPT_CONFIG_FILE}}.js';

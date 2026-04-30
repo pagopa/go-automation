@@ -1,1 +1,6 @@
-export * from './AwsPutSqsConfig.js';
+/**
+ * Configuration and Types
+ * Re-exports the script's configuration interface and associated types.
+ */
+
+export type { AwsPutSqsConfig } from './AwsPutSqsConfig.js';

@@ -1,1 +1,6 @@
-export * from './AwsDeleteSqsConfig.js';
+/**
+ * Configuration and Types
+ * Re-exports the script's configuration interface and associated types.
+ */
+
+export type { AwsDeleteSqsConfig } from './AwsDeleteSqsConfig.js';

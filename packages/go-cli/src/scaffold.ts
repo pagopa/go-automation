@@ -114,17 +114,6 @@ export class Scaffolder {
     await fs.mkdir(targetDir, { recursive: true });
     await fs.mkdir(path.join(targetDir, 'src/types'), { recursive: true });
 
-    // 1. Map templates to target files
-    const fileMap: Record<string, string> = {
-      'package.json.template': 'package.json',
-      'tsconfig.json.template': 'tsconfig.json',
-      'README.md.template': 'README.md',
-      'index.ts.template': 'src/index.ts',
-      'config.ts.template': 'src/config.ts',
-      'main.ts.template': 'src/main.ts',
-      'config-type.ts.template': 'src/types/index.ts',
-    };
-
     // 2. Prepare replacements
     const title = options.name
       .split('-')
@@ -136,6 +125,18 @@ export class Scaffolder {
       .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
       .join('')}Config`;
 
+    // 1. Map templates to target files
+    const fileMap: Record<string, string> = {
+      'package.json.template': 'package.json',
+      'tsconfig.json.template': 'tsconfig.json',
+      'README.md.template': 'README.md',
+      'index.ts.template': 'src/index.ts',
+      'config.ts.template': 'src/config.ts',
+      'main.ts.template': 'src/main.ts',
+      'config-type.ts.template': `src/types/${configName}.ts`,
+      'index-type.ts.template': 'src/types/index.ts',
+    };
+
     const shortcutBase = getScriptShortcutBase(options.name, options.category);
 
     const replacements: Record<string, string> = {
@@ -146,6 +147,8 @@ export class Scaffolder {
       '{{DOMAIN}}': options.domain,
       '{{SERVICE}}': options.service,
       '{{SCRIPT_CONFIG_NAME}}': configName,
+      '{{SCRIPT_CONFIG_INTERFACE}}': configName,
+      '{{SCRIPT_CONFIG_FILE}}': configName,
       '{{TEAM_NAME}}': options.author,
       '{{SHORTCUT_NAME}}': shortcutBase,
       '{{CURRENT_DATE}}': new Date().toISOString().split('T')[0] ?? '',
