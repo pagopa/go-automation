@@ -54,7 +54,7 @@ catalog:
   'license-report': '^6.8.2'
   'luxon': '^3.7.2'
   'prettier': '3.8.3'
-  'string-width': '^7.2.0'
+  'string-width': '^8.2.1'
   'tsx': '^4.21.0'
   'typescript': '^6.0.3'
   'typescript-eslint': '^8.59.1'

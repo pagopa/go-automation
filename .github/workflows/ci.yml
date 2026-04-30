@@ -51,6 +51,40 @@ jobs:
       command: validate:scaffold
       install-args: --frozen-lockfile --ignore-scripts
 
+  new-class-tests:
+    name: New Class Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup CI environment
+        uses: ./.github/actions/setup-ci
+        with:
+          install-args: --frozen-lockfile --ignore-scripts
+
+      - name: Test new class test checker
+        run: pnpm check:new-class-tests:test
+
+      - name: Check new class tests
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+        run: |
+          if [[ "${{ github.event_name }}" == "merge_group" ]]; then
+            base_ref="${{ github.event.merge_group.base_ref }}"
+            base_ref="${base_ref#refs/heads/}"
+          else
+            base_ref="${{ github.base_ref }}"
+          fi
+
+          pnpm check:new-class-tests --base "origin/${base_ref}"
+
+      - name: Skip outside pull requests
+        if: github.event_name != 'pull_request' && github.event_name != 'merge_group'
+        run: echo "New class test enforcement only runs on pull_request and merge_group events."
+
   build:
     name: Build
     uses: ./.github/workflows/ci-job.yml
@@ -104,14 +138,14 @@ jobs:
   # Summary job for branch protection
   ci-success:
     name: CI Success
-    needs: [typecheck, lint, format, knip, scaffold, build, test, coverage, macos-smoke]
+    needs: [typecheck, lint, format, knip, scaffold, new-class-tests, build, test, coverage, macos-smoke]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
-          results=("${{ needs.typecheck.result }}" "${{ needs.lint.result }}" "${{ needs.format.result }}" "${{ needs.knip.result }}" "${{ needs.scaffold.result }}" "${{ needs.build.result }}" "${{ needs.test.result }}" "${{ needs.coverage.result }}" "${{ needs.macos-smoke.result }}")
+          results=("${{ needs.typecheck.result }}" "${{ needs.lint.result }}" "${{ needs.format.result }}" "${{ needs.knip.result }}" "${{ needs.scaffold.result }}" "${{ needs.new-class-tests.result }}" "${{ needs.build.result }}" "${{ needs.test.result }}" "${{ needs.coverage.result }}" "${{ needs.macos-smoke.result }}")
           for result in "${results[@]}"; do
             if [[ "$result" != "success" ]]; then
               echo "One or more checks failed"
