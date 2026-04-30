@@ -17,9 +17,11 @@
 ---
 
 ## Obiettivo
+
 Una descrizione sintetica del caso d'uso principale.
 
 ## Prerequisiti
+
 - **Software**: Node.js (>= 22.14.0), pnpm (>= 10.0.0).
 - **Accesso**: Profilo AWS SSO attivo (`aws sso login --profile <nome>`).
 - **Permessi**: Elencare le azioni IAM necessarie.
@@ -28,35 +30,41 @@ Una descrizione sintetica del caso d'uso principale.
 
 ### Parametri CLI
 
-| Parametro | Alias | Obbligatorio | Default | Descrizione |
-|-----------|-------|--------------|---------|-------------|
-| `--aws-profile` | `-ap` | Sì | - | Profilo AWS SSO per le operazioni. |
-| TODO | ... | ... | ... | ... |
+| Parametro       | Alias | Obbligatorio | Default | Descrizione                             |
+|-----------------|-------|--------------|---------|-----------------------------------------|
+| `--aws-profile` | `-ap` | Sì           | -       | Profilo AWS SSO per le operazioni.      |
+| TODO            | ...   | ...          | ...     | ...                                     |
 
 ## Utilizzo
 
 *Esempi di comandi standardizzati per scenari comuni.*
 
-**Scenario A: Debugging di una singola entità**
+- **Scenario A: Debugging di una singola entità**
+
 ```bash
 pnpm {{SCRIPT_NAME}}:dev --aws-profile <profilo> --id <ID>
 ```
 
-**Scenario B: Elaborazione massiva da file di output precedente**
+- **Scenario B: Elaborazione massiva da file di output precedente**
+
 ```bash
 pnpm {{SCRIPT_NAME}}:dev --aws-profile <profilo> --input-file data/inputs/dump.json
 ```
 
 ## Output
+
 - **Artifacts**: Percorso dei file salvati (`data/outputs/...`) e relativi formati (es. `.json`, `.csv`).
 - **Console output**: Struttura di esempio del feedback standard su console.
 
 ## Gestione Errori e Sicurezza
+
 *Informazioni per PR reviewers e operatori.*
+
 - **Azioni Distruttive**: Dettagli su eventuali conferme richieste (es. prompt y/n).
 - **Resilienza ai fallimenti**: Spiegazione di come lo script gestisce fallimenti parziali (es. generazione di `failures.json`).
 - **Idempotenza**: Conferma del comportamento in caso di interruzione e riavvio.
 
 ## Troubleshooting
+
 - **Errore X**: Causa comune e procedura di risoluzione.
 - **Supporto**: Come contattare il Team GO per dubbi o segnalazioni di bug.
