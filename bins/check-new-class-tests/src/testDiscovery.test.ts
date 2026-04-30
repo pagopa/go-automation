@@ -121,6 +121,31 @@ describe('findTestForClass', () => {
       assert.deepEqual(result.expectedPaths, ['src/__tests__/Foo.test.ts']);
     });
   });
+
+  it('does not reuse cached identifiers across different current working directories', () => {
+    const previousCwd = process.cwd();
+    const firstRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'check-new-class-tests-cache-a-'));
+    const secondRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'check-new-class-tests-cache-b-'));
+
+    try {
+      process.chdir(firstRoot);
+      writeFile(
+        'packages/same-name/src/__tests__/Existing.test.ts',
+        ["import { Foo } from '../Foo.js';", 'assert.ok(Foo);', ''].join('\n'),
+      );
+
+      assert.equal(findTestForClass('packages/same-name/src/Foo.ts', 'Foo').found, true);
+
+      process.chdir(secondRoot);
+      writeFile('packages/same-name/src/__tests__/Existing.test.ts', 'assert.ok(true);\n');
+
+      assert.equal(findTestForClass('packages/same-name/src/Foo.ts', 'Foo').found, false);
+    } finally {
+      process.chdir(previousCwd);
+      fs.rmSync(firstRoot, { recursive: true, force: true });
+      fs.rmSync(secondRoot, { recursive: true, force: true });
+    }
+  });
 });
 
 function withFixture(name: string, run: FixtureFn): void {

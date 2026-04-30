@@ -37,13 +37,19 @@ function packageSrcRoot(sourcePath: string): string | undefined {
 }
 
 function packageTestIdentifiers(packageSourceRoot: string): ReadonlySet<string> {
-  const cached = testIdentifierIndexByPackageRoot.get(packageSourceRoot);
+  const packageSourceRootCacheKey = packageRootCacheKey(packageSourceRoot);
+  const cached = testIdentifierIndexByPackageRoot.get(packageSourceRootCacheKey);
   if (cached !== undefined) return cached;
 
   const identifiers = readTestIdentifiers(packageSourceRoot);
-  testIdentifierIndexByPackageRoot.set(packageSourceRoot, identifiers);
+  testIdentifierIndexByPackageRoot.set(packageSourceRootCacheKey, identifiers);
 
   return identifiers;
+}
+
+function packageRootCacheKey(packageSourceRoot: string): string {
+  const absolutePath = path.resolve(packageSourceRoot);
+  return fs.existsSync(absolutePath) ? fs.realpathSync.native(absolutePath) : absolutePath;
 }
 
 function readTestIdentifiers(dir: string): ReadonlySet<string> {
