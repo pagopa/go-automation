@@ -6,6 +6,8 @@ interface TestDiscoveryResult {
   readonly expectedPaths: ReadonlyArray<string>;
 }
 
+const testFileIndexByPackageRoot = new Map<string, ReadonlyArray<string>>();
+
 export function findTestForClass(sourcePath: string, className: string): TestDiscoveryResult {
   const sourceDir = path.dirname(sourcePath);
   const baseName = path.basename(sourcePath, '.ts');
@@ -21,7 +23,10 @@ export function findTestForClass(sourcePath: string, className: string): TestDis
   }
 
   const packageSourceRoot = packageSrcRoot(sourcePath);
-  if (packageSourceRoot !== undefined && classNameExistsInAnyTest(packageSourceRoot, className)) {
+  if (
+    packageSourceRoot !== undefined &&
+    packageTestContents(packageSourceRoot).some((content) => content.includes(className))
+  ) {
     return { found: true, expectedPaths };
   }
 
@@ -33,19 +38,30 @@ function packageSrcRoot(sourcePath: string): string | undefined {
   return match?.[1];
 }
 
-function classNameExistsInAnyTest(dir: string, className: string): boolean {
-  if (!fs.existsSync(dir)) return false;
+function packageTestContents(packageSourceRoot: string): ReadonlyArray<string> {
+  const cached = testFileIndexByPackageRoot.get(packageSourceRoot);
+  if (cached !== undefined) return cached;
 
+  const contents = readTestContents(packageSourceRoot);
+  testFileIndexByPackageRoot.set(packageSourceRoot, contents);
+
+  return contents;
+}
+
+function readTestContents(dir: string): ReadonlyArray<string> {
+  if (!fs.existsSync(dir)) return [];
+
+  const contents: string[] = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const entryPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (classNameExistsInAnyTest(entryPath, className)) return true;
+      contents.push(...readTestContents(entryPath));
       continue;
     }
 
     if (!entry.name.endsWith('.test.ts')) continue;
-    if (fs.readFileSync(entryPath, 'utf8').includes(className)) return true;
+    contents.push(fs.readFileSync(entryPath, 'utf8'));
   }
 
-  return false;
+  return contents;
 }
