@@ -31,14 +31,14 @@ Script di automazione per il monitoraggio dello stato di cluster, servizi e task
 ### Parametri CLI
 
 | Parametro        | Alias  | Obbligatorio | Default    | Descrizione                                      |
-|------------------|--------|--------------|------------|--------------------------------------------------|
+| ---------------- | ------ | ------------ | ---------- | ------------------------------------------------ |
 | `--aws-profiles` | `-aps` | Sì           | -          | Nomi dei profili AWS SSO (separati da virgola).  |
 | `--aws-region`   | `-r`   | No           | eu-south-1 | Regione AWS per le operazioni.                   |
 | `--ecs-clusters` | `-c`   | No           | -          | Nomi o parti di nomi dei cluster da controllare. |
 
 ## Utilizzo
 
-*Esempi di comandi standardizzati per scenari comuni.*
+_Esempi di comandi standardizzati per scenari comuni._
 
 - **Scenario A: Controllo di tutti i cluster su profili multipli**
 
@@ -69,7 +69,7 @@ pnpm aws:check:ecs:prod --aws-profiles <profile1> --ecs-clusters <cluster-name>
 
 ## Gestione Errori e Sicurezza
 
-*Informazioni per PR reviewers e operatori.*
+_Informazioni per PR reviewers e operatori._
 
 - **Azioni Distruttive**: Nessuna azione distruttiva.
 - **Resilienza ai fallimenti**: Lo script gestisce errori di connessione e limita le chiamate API per evitare throttling.

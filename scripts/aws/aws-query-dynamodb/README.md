@@ -30,17 +30,17 @@ Recupero dati da tabelle DynamoDB tramite Partition Key, con supporto per proiez
 
 ### Parametri CLI
 
-| Parametro         | Alias   | Obbligatorio | Default  | Descrizione                                             |
-|-------------------|---------|--------------|----------|---------------------------------------------------------|
-| `--aws-profile`   | `-ap`   | Sì           | -        | Nome del profilo AWS SSO.                               |
-| `--table-name`    | `-table`| Sì           | -        | Nome della tabella DynamoDB da interrogare.             |
-| `--table-key`     | `-key`  | Sì           | -        | Nome dell'attributo Partition Key.                      |
-| `--input-file`    | `-input`| No           | -        | Percorso file input (TXT, JSONL, CSV).                  |
-| `--failure-mode`  | `-fm`   | No           | `report` | Policy errori: `abort`, `report`, `ignore`.             |
+| Parametro        | Alias    | Obbligatorio | Default  | Descrizione                                 |
+| ---------------- | -------- | ------------ | -------- | ------------------------------------------- |
+| `--aws-profile`  | `-ap`    | Sì           | -        | Nome del profilo AWS SSO.                   |
+| `--table-name`   | `-table` | Sì           | -        | Nome della tabella DynamoDB da interrogare. |
+| `--table-key`    | `-key`   | Sì           | -        | Nome dell'attributo Partition Key.          |
+| `--input-file`   | `-input` | No           | -        | Percorso file input (TXT, JSONL, CSV).      |
+| `--failure-mode` | `-fm`    | No           | `report` | Policy errori: `abort`, `report`, `ignore`. |
 
 ## Utilizzo
 
-*Esempi di comandi standardizzati per scenari comuni.*
+_Esempi di comandi standardizzati per scenari comuni._
 
 - **Scenario A: Query per singola PK**
 
@@ -61,7 +61,7 @@ pnpm aws:query:dynamodb:dev --aws-profile <profilo> --table-name <tabella> --tab
 
 ## Gestione Errori e Sicurezza
 
-*Informazioni per PR reviewers e operatori.*
+_Informazioni per PR reviewers e operatori._
 
 - **Azioni Distruttive**: Nessuna (read-only).
 - **Failure Mode**:

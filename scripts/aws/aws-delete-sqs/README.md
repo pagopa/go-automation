@@ -30,16 +30,16 @@ Eliminazione sicura e resiliente di messaggi da una coda Amazon SQS, supportando
 
 ### Parametri CLI
 
-|    Parametro    |   Alias   | Obbligatorio | Default | Descrizione                                                  |
-|-----------------|-----------|--------------|---------|--------------------------------------------------------------|
-| `--aws-profile` | `-ap`     | Sì           | -       | Nome del profilo AWS SSO.                                    |
-| `--queue-name`  | `-qn`     | No           | -       | Nome della coda SQS (se non si fornisce `--queue-url`).      |
-| `--input-file`  | `-f`      | No           | -       | Percorso file NDJSON con messaggi da eliminare.              |
-| `--purge-all`   | `--purge` | No           | `false` | Se `true`, elimina TUTTI i messaggi.                         |
+| Parametro       | Alias     | Obbligatorio | Default | Descrizione                                             |
+| --------------- | --------- | ------------ | ------- | ------------------------------------------------------- |
+| `--aws-profile` | `-ap`     | Sì           | -       | Nome del profilo AWS SSO.                               |
+| `--queue-name`  | `-qn`     | No           | -       | Nome della coda SQS (se non si fornisce `--queue-url`). |
+| `--input-file`  | `-f`      | No           | -       | Percorso file NDJSON con messaggi da eliminare.         |
+| `--purge-all`   | `--purge` | No           | `false` | Se `true`, elimina TUTTI i messaggi.                    |
 
 ## Utilizzo
 
-*Esempi di comandi standardizzati per scenari comuni.*
+_Esempi di comandi standardizzati per scenari comuni._
 
 - **Scenario A: Eliminazione mirata basata su dump**
 
@@ -60,7 +60,7 @@ pnpm --filter=aws-delete-sqs start --qn <coda> --purge-all --ap <profilo>
 
 ## Funzionamento e Sicurezza
 
-*Informazioni dettagliate sul comportamento dello script e le misure di sicurezza adottate.*
+_Informazioni dettagliate sul comportamento dello script e le misure di sicurezza adottate._
 
 - **Logica Operativa**:
   1. Risolve l'URL della coda e valida i parametri. Richiede conferma interattiva per ogni operazione di eliminazione.

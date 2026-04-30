@@ -30,16 +30,16 @@ Invio massivo di messaggi a code SQS standard o FIFO, con gestione ottimizzata d
 
 ### Parametri CLI
 
-| Parametro         | Alias | Obbligatorio | Default | Descrizione                                        |
-|-------------------|-------|--------------|---------|----------------------------------------------------|
-| `--aws-profile`   | `-ap` | Sì           | -       | Nome del profilo AWS SSO.                          |
-| `--input-file`    | `-f`  | Sì           | -       | Percorso file sorgente (txt, json, csv).           |
-| `--queue-name`    | `-qn` | No           | -       | Nome coda SQS (se non si fornisce `--queue-url`).  |
-| `--delay-seconds` | `-ds` | No           | `0`     | Ritardo in secondi (0-900).                        |
+| Parametro         | Alias | Obbligatorio | Default | Descrizione                                       |
+| ----------------- | ----- | ------------ | ------- | ------------------------------------------------- |
+| `--aws-profile`   | `-ap` | Sì           | -       | Nome del profilo AWS SSO.                         |
+| `--input-file`    | `-f`  | Sì           | -       | Percorso file sorgente (txt, json, csv).          |
+| `--queue-name`    | `-qn` | No           | -       | Nome coda SQS (se non si fornisce `--queue-url`). |
+| `--delay-seconds` | `-ds` | No           | `0`     | Ritardo in secondi (0-900).                       |
 
 ## Utilizzo
 
-*Esempi di comandi standardizzati per scenari comuni.*
+_Esempi di comandi standardizzati per scenari comuni._
 
 - **Scenario A: Invio messaggi da file testo**
 
@@ -60,7 +60,7 @@ pnpm --filter=aws-put-sqs start --qn <coda.fifo> -f msg.json --fds hash --fgid <
 
 ## Funzionamento e Sicurezza
 
-*Informazioni per PR reviewers e operatori.*
+_Informazioni per PR reviewers e operatori._
 
 - **Logica Operativa**:
   1. Identifica automaticamente se la coda è FIFO.

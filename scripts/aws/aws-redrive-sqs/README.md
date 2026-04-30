@@ -30,16 +30,16 @@ Spostamento affidabile di messaggi tra code SQS (Standard o FIFO), preservando g
 
 ### Parametri CLI
 
-| Parametro         | Alias  | Obbligatorio | Default | Descrizione                                               |
-|-------------------|--------|--------------|---------|-----------------------------------------------------------|
-| `--aws-profile`   | `-ap`  | Sì           | -       | Nome del profilo AWS SSO.                                 |
-| `--source-queue`  | `-src` | Sì           | -       | Nome o URL della coda origine.                            |
-| `--target-queue`  | `-dst` | Sì           | -       | Nome o URL della coda destinazione.                       |
-| `--dry-run`       | `-dr`  | No           | `false` | Simula l'operazione senza inviare/eliminare messaggi.     |
+| Parametro        | Alias  | Obbligatorio | Default | Descrizione                                           |
+| ---------------- | ------ | ------------ | ------- | ----------------------------------------------------- |
+| `--aws-profile`  | `-ap`  | Sì           | -       | Nome del profilo AWS SSO.                             |
+| `--source-queue` | `-src` | Sì           | -       | Nome o URL della coda origine.                        |
+| `--target-queue` | `-dst` | Sì           | -       | Nome o URL della coda destinazione.                   |
+| `--dry-run`      | `-dr`  | No           | `false` | Simula l'operazione senza inviare/eliminare messaggi. |
 
 ## Utilizzo
 
-*Esempi di comandi standardizzati per scenari comuni.*
+_Esempi di comandi standardizzati per scenari comuni._
 
 - **Scenario A: Spostamento completo**
 
@@ -60,7 +60,7 @@ pnpm --filter=aws-redrive-sqs start --src <coda-origine> --dst <coda-destinazion
 
 ## Gestione Errori e Sicurezza
 
-*Informazioni per PR reviewers e operatori.*
+_Informazioni per PR reviewers e operatori._
 
 - **Azioni Distruttive**: Sì, elimina i messaggi dalla coda di origine DOPO aver confermato l'invio alla destinazione.
 - **Resilienza ai fallimenti**: In caso di errore durante l'invio, il messaggio non viene eliminato dall'origine, rendendo l'operazione sicura.

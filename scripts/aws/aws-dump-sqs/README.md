@@ -30,16 +30,16 @@ Dump massivo di messaggi SQS in formato NDJSON per analisi offline, garantendo l
 
 ### Parametri CLI
 
-| Parametro        | Alias | Obbligatorio | Default      | Descrizione                                                      |
-|------------------|-------|--------------|--------------|------------------------------------------------------------------|
-| `--aws-profile`  | `-ap` | Sì           | -            | Nome del profilo AWS SSO.                                        |
-| `--queue-name`   | `-qn` | No           | -            | Nome della coda SQS (se non si fornisce `--queue-url`).          |
-| `--dedup-mode`   | `-dm` | No           | `message-id` | Modalità di deduplicazione: `message-id`, `content-md5`, `none`. |
-| `--limit`        | `-l`  | No           | -            | Numero massimo di messaggi da scaricare.                         |
+| Parametro       | Alias | Obbligatorio | Default      | Descrizione                                                      |
+| --------------- | ----- | ------------ | ------------ | ---------------------------------------------------------------- |
+| `--aws-profile` | `-ap` | Sì           | -            | Nome del profilo AWS SSO.                                        |
+| `--queue-name`  | `-qn` | No           | -            | Nome della coda SQS (se non si fornisce `--queue-url`).          |
+| `--dedup-mode`  | `-dm` | No           | `message-id` | Modalità di deduplicazione: `message-id`, `content-md5`, `none`. |
+| `--limit`       | `-l`  | No           | -            | Numero massimo di messaggi da scaricare.                         |
 
 ## Utilizzo
 
-*Esempi di comandi standardizzati per scenari comuni.*
+_Esempi di comandi standardizzati per scenari comuni._
 
 - **Scenario A: Dump standard**
 
@@ -60,7 +60,7 @@ pnpm --filter=aws-dump-sqs start --qn <coda> --dm content-md5 --ap <profilo>
 
 ## Funzionamento e Sicurezza
 
-*Informazioni per PR reviewers e operatori.*
+_Informazioni per PR reviewers e operatori._
 
 - **Logica Operativa**:
   1. Recupera attributi coda (dimensione, tipo) e avvisa su superamento limiti "in-flight".
