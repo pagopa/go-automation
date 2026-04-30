@@ -49,6 +49,8 @@ export function parseGitDiff(diff: string): ReadonlyArray<ChangedFile> {
 
     if (currentPath === undefined || newLineNumber === undefined) continue;
 
+    if (line.startsWith('\\')) continue;
+
     if (line.startsWith('+')) {
       files.get(currentPath)?.add(newLineNumber);
       newLineNumber += 1;

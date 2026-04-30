@@ -38,4 +38,23 @@ describe('parseGitDiff', () => {
     assert.ok(file);
     assert.deepStrictEqual([...file.addedLines], [4]);
   });
+
+  it('ignores git hunk metadata lines when tracking new line numbers', () => {
+    const diff = [
+      'diff --git a/packages/go-common/src/Foo.ts b/packages/go-common/src/Foo.ts',
+      '--- a/packages/go-common/src/Foo.ts',
+      '+++ b/packages/go-common/src/Foo.ts',
+      '@@ -1,2 +1,3 @@',
+      ' unchanged',
+      '+export class Foo {}',
+      '\\ No newline at end of file',
+      '+export class Bar {}',
+      '',
+    ].join('\n');
+
+    const [file] = parseGitDiff(diff);
+
+    assert.ok(file);
+    assert.deepStrictEqual([...file.addedLines], [2, 3]);
+  });
 });
