@@ -2,12 +2,6 @@
  * AWS Delete SQS - Main Logic Module
  *
  * Implements resilient message deletion from SQS.
- *
- * Features:
- * - Targeted deletion using NDJSON input file (matches by MessageId).
- * - Full queue purge with mandatory interactive confirmation.
- * - Dynamic visibility release (visibility = 0) for non-matched messages.
- * - Long polling and batch operations for efficiency.
  */
 
 import { Core, AWS } from '@go-automation/go-common';
@@ -19,17 +13,16 @@ import type { AwsDeleteSqsConfig } from './types/AwsDeleteSqsConfig.js';
  * @param script - The GOScript instance
  */
 export async function main(script: Core.GOScript): Promise<void> {
-  const configValues = await script.getConfiguration<AwsDeleteSqsConfig>();
-
+  const config = await script.getConfiguration<AwsDeleteSqsConfig>();
   script.logger.section('AWS Delete SQS');
 
   // 1. Validation
-  if (!configValues.purgeAll && !configValues.inputFile) {
+  if (!config.purgeAll && !config.inputFile) {
     throw new Error('Either --purge-all or --input-file must be provided');
   }
 
   // 2. Resolve queue URL
-  const queueNameOrUrl = configValues.queueUrl ?? configValues.queueName;
+  const queueNameOrUrl = config.queueUrl ?? config.queueName;
   if (!queueNameOrUrl) {
     throw new Error('Either --queue-name or --queue-url must be provided');
   }
@@ -42,9 +35,9 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   // 3. Load target MessageIds if in targeted mode
   let targetIds: Set<string> | undefined;
-  if (configValues.inputFile) {
-    script.logger.info(`Loading target messages from: ${configValues.inputFile}`);
-    const inputPath = script.paths.resolvePath(configValues.inputFile, Core.GOPathType.INPUT);
+  if (config.inputFile) {
+    script.logger.info(`Loading target messages from: ${config.inputFile}`);
+    const inputPath = script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT);
     const importer = new Core.GOJSONListImporter<AWS.Message>({
       jsonl: true,
     });
@@ -56,7 +49,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   }
 
   // 4. Mandatory Confirmation
-  const actionDescription = configValues.purgeAll
+  const actionDescription = config.purgeAll
     ? 'PURGE ALL messages'
     : `DELETE ${targetIds?.size ?? 0} specific messages`;
 
@@ -77,14 +70,14 @@ export async function main(script: Core.GOScript): Promise<void> {
   const result = await sqsService.processMessages(
     {
       queueUrl,
-      visibilityTimeout: configValues.visibilityTimeout,
-      maxEmptyReceives: configValues.maxEmptyReceives,
+      visibilityTimeout: config.visibilityTimeout,
+      maxEmptyReceives: config.maxEmptyReceives,
       limit: targetIds?.size,
-      batchSize: configValues.batchSize,
+      batchSize: config.batchSize,
     },
     (message) => {
       // Determine action
-      if (configValues.purgeAll) {
+      if (config.purgeAll) {
         return AWS.SQSProcessAction.DELETE;
       }
 
@@ -116,7 +109,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.info(`Total Released: ${result.totalReleased}`);
   script.logger.info(`Total Skipped:  ${result.totalSkipped}`);
 
-  if (!configValues.purgeAll && targetIds && result.totalDeleted < targetIds.size) {
+  if (!config.purgeAll && targetIds && result.totalDeleted < targetIds.size) {
     script.logger.warning(
       `Warning: Only ${result.totalDeleted} out of ${targetIds.size} requested messages were found and deleted.`,
     );

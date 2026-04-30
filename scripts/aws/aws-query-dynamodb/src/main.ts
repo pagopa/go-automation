@@ -2,9 +2,7 @@
  * AWS Query DynamoDB - Main Logic Module
  *
  * Reads a list of partition keys from a file (TXT, JSONL, or CSV) or CLI,
- * queries a DynamoDB table for each key (with optional prefix/suffix),
- * and writes all results to a file (JSON, NDJSON, CSV, or Text).
- * Also prints a clean JSON mapping of results to the console.
+ * queries a DynamoDB table for each key, and writes results.
  */
 
 import { Core, AWS } from '@go-automation/go-common';
@@ -21,10 +19,11 @@ import type { AwsQueryDynamodbConfig } from './types/index.js';
 /**
  * Main script execution function.
  *
- * @param script - The GOScript instance for logging, config, and AWS access
+ * @param script - The GOScript instance
  */
 export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<AwsQueryDynamodbConfig>();
+  script.logger.section('AWS Query DynamoDB');
 
   // Step 1: Import PKs
   script.logger.section('Importing Partition Keys');

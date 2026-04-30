@@ -1,11 +1,23 @@
+/**
+ * GO Parse JSON - Main Logic Module
+ *
+ * Extracts specific fields from a large JSON/NDJSON file,
+ * performs deduplication, and exports the resulting data.
+ */
+
 import { Core } from '@go-automation/go-common';
 import type { GoParseJsonConfig } from './types/GoParseJsonConfig.js';
 import { exportValues } from './libs/createExporter.js';
 import { matchesFilter } from './libs/matchesFilter.js';
 
+/**
+ * Main script execution function.
+ *
+ * @param script - The GOScript instance
+ */
 export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<GoParseJsonConfig>();
-  const logger = script.logger;
+  script.logger.section('GO Parse JSON');
 
   const outputFormat = config.outputFormat as Core.GOExportFormat;
   const fieldNames = [...config.field];
@@ -41,7 +53,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   } as Core.GOJSONListImporterOptions<unknown, Record<string, unknown> | undefined>);
 
   importer.on('import:error', (event) => {
-    logger.warning(`Errore durante l'importazione: ${event.message}`);
+    script.logger.warning(`Errore durante l'importazione: ${event.message}`);
   });
 
   const dataList: Record<string, unknown>[] = [];
@@ -66,5 +78,5 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   await exportValues(dataList, outputPath, outputFormat, fieldNames);
 
-  logger.info(`Estrazione completata! ${dataList.length} righe uniche salvate in: ${outputPath}`);
+  script.logger.info(`Estrazione completata! ${dataList.length} righe uniche salvate in: ${outputPath}`);
 }

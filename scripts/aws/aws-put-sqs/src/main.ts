@@ -11,7 +11,7 @@ import type { AwsPutSqsConfig } from './types/AwsPutSqsConfig.js';
 import { initializeImporter, processBatch, updateProgress, type BulkStats } from './libs/SqsService.js';
 
 /**
- * Main script execution function
+ * Main script execution function.
  *
  * @param script - The GOScript instance
  */

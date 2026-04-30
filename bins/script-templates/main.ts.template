@@ -1,31 +1,20 @@
 /**
  * {{SCRIPT_TITLE}} - Main Logic Module
  *
- * Contains the core business logic for the script.
- * Receives typed dependencies (script + config) for clean separation of concerns.
+ * {{SCRIPT_DESCRIPTION}}
  */
 
 import { Core } from '@go-automation/go-common';
-
 import type { {{SCRIPT_CONFIG_NAME}} } from './types/index.js';
 
 /**
- * Main script execution function
+ * Main script execution function.
  *
- * This function contains the core business logic, decoupled from
- * script initialization and configuration parsing.
- *
- * @param script - The GOScript instance for logging and prompts
+ * @param script - The GOScript instance
  */
 export async function main(script: Core.GOScript): Promise<void> {
-  script.logger.section('Starting {{SCRIPT_TITLE}}');
-
-  // Example: Log configuration
   const config = await script.getConfiguration<{{SCRIPT_CONFIG_NAME}}>();
-  script.logger.text(`Config: ${JSON.stringify(config, null, 2)}`);
+  script.logger.section('{{SCRIPT_TITLE}}');
 
-  // Your business logic here
-  script.logger.info('Hello from {{SCRIPT_NAME}}!');
-
-  // doSomethingBusinessLogic(config);
+  // TODO: Implement logic...
 }

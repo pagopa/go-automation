@@ -9,18 +9,9 @@ import { Core, AWS } from '@go-automation/go-common';
 import type { AwsRedriveSqsConfig } from './types/index.js';
 
 /**
- * Main script execution flow:
+ * Main script execution function.
  *
- * 1. CLI parameter ranges are validated by per-parameter `validator` functions
- *    declared in `config.ts`; out-of-range values throw before `main()` runs.
- * 2. Resolve metadata for source and target queues; refuse if they coincide
- *    or if their FIFO/Standard types disagree.
- * 3. Move messages reporting per-message errors via `onError` callback.
- * 4. Print a breakdown distinguishing moved / send-failed (safe) /
- *    delete-failed (duplicates at risk) / validation rejected.
- * 5. Throw on any failure → `index.ts` catches it and exits non-zero.
- *
- * @param script - The GOScript instance providing config, AWS clients, and prompts
+ * @param script - The GOScript instance
  */
 export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<AwsRedriveSqsConfig>();

@@ -1,3 +1,9 @@
+/**
+ * ECS Check - Main Logic Module
+ *
+ * Checks ECS clusters, services, and tasks across multiple AWS profiles in parallel.
+ */
+
 import { Core, AWS } from '@go-automation/go-common';
 
 import { displayClusterReport } from './libs/ECSReportDisplay.js';
@@ -6,14 +12,12 @@ import type { AWSCheckEcsConfig } from './types/index.js';
 /**
  * Main script execution function.
  *
- * Checks ECS clusters, services, and tasks across multiple AWS profiles in parallel.
- *
  * @param script - The GOScript instance
  */
 export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<AWSCheckEcsConfig>();
-
   script.logger.section('ECS Check');
+
   if (config.ecsClusters && config.ecsClusters.length > 0) {
     script.logger.info(`Target Clusters: ${config.ecsClusters.join(', ')}`);
   } else {

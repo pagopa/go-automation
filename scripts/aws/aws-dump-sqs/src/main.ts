@@ -3,12 +3,6 @@
  *
  * Read-only dumps all messages from a specified SQS queue in NDJSON format.
  * Messages are received but NOT deleted from the queue.
- *
- * Features:
- * - Long polling (20s) for efficient message retrieval.
- * - Deduplication modes (message-id, content-md5, none).
- * - Multi-pass empty check to ensure queue is truly empty.
- * - Progress estimation and capacity warnings.
  */
 
 import { Core, AWS } from '@go-automation/go-common';
@@ -22,11 +16,10 @@ const WAIT_TIME_SECONDS = 20;
 /**
  * Main script execution function.
  *
- * @param script - The GOScript instance for logging and prompts
+ * @param script - The GOScript instance
  */
 export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<AwsDumpSqsConfig>();
-
   script.logger.section('AWS Dump SQS');
 
   // Warning if visibility timeout is too short compared to polling strategy
