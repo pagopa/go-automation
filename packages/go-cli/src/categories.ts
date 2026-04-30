@@ -26,7 +26,7 @@ const SCRIPT_CATEGORY_DEFINITIONS: ReadonlyArray<ScriptCategoryDefinition> = [
   {
     value: 'interop',
     menuLabel: '[INTEROP] PDND Interoperabilità',
-    scaffoldTitle: 'Interop (Interoperability)',
+    scaffoldTitle: 'INTEROP (PDND Interoperabilità)',
     productCode: 'INTEROP',
   },
   {
