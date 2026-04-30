@@ -1,7 +1,12 @@
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { readChangedFiles } from './gitDiff.js';
 import { findTestForClass } from './testDiscovery.js';
-import { findExportedClassesInAddedLines } from './typescriptAst.js';
+import {
+  findExportedClassesInAddedLines,
+  findExportedClassName,
+  findNamedReExportsInAddedLines,
+} from './typescriptAst.js';
 
 interface Violation {
   readonly file: string;
@@ -36,6 +41,7 @@ function formatViolation(violation: Violation): string {
 function main(): void {
   const baseRef = readBaseRef(process.argv.slice(2));
   const violations: Violation[] = [];
+  const reportedMissingTests = new Set<string>();
 
   for (const changedFile of readChangedFiles(baseRef)) {
     if (!fs.existsSync(changedFile.path)) continue;
@@ -44,15 +50,37 @@ function main(): void {
     const classes = findExportedClassesInAddedLines(changedFile.path, sourceText, changedFile.addedLines);
 
     for (const classDeclaration of classes) {
-      const test = findTestForClass(changedFile.path, classDeclaration.name);
-      if (!test.found) {
-        violations.push({
-          file: changedFile.path,
-          line: classDeclaration.line,
-          className: classDeclaration.name,
-          expectedPaths: test.expectedPaths,
-        });
-      }
+      pushViolationIfMissingTest({
+        violations,
+        reportedMissingTests,
+        sourcePath: changedFile.path,
+        reportPath: changedFile.path,
+        line: classDeclaration.line,
+        className: classDeclaration.name,
+      });
+    }
+
+    for (const reExport of findNamedReExportsInAddedLines(changedFile.path, sourceText, changedFile.addedLines)) {
+      const sourcePath = resolveLocalTypeScriptModule(changedFile.path, reExport.moduleSpecifier);
+      if (sourcePath === undefined) continue;
+
+      const reExportSourceText = fs.readFileSync(sourcePath, 'utf8');
+      const className = findExportedClassName(
+        sourcePath,
+        reExportSourceText,
+        reExport.sourceName,
+        reExport.exportedName,
+      );
+      if (className === undefined) continue;
+
+      pushViolationIfMissingTest({
+        violations,
+        reportedMissingTests,
+        sourcePath,
+        reportPath: changedFile.path,
+        line: reExport.line,
+        className,
+      });
     }
   }
 
@@ -65,6 +93,42 @@ function main(): void {
   console.error(violations.map(formatViolation).join('\n\n'));
   console.error('\nAdd a focused unit test near the class or reference the class from an existing package test.');
   process.exit(1);
+}
+
+interface MissingTestCandidate {
+  readonly violations: Violation[];
+  readonly reportedMissingTests: Set<string>;
+  readonly sourcePath: string;
+  readonly reportPath: string;
+  readonly line: number;
+  readonly className: string;
+}
+
+function pushViolationIfMissingTest(candidate: MissingTestCandidate): void {
+  const testSubjectKey = `${candidate.sourcePath}:${candidate.className}`;
+  if (candidate.reportedMissingTests.has(testSubjectKey)) return;
+
+  const test = findTestForClass(candidate.sourcePath, candidate.className);
+  if (test.found) return;
+
+  candidate.reportedMissingTests.add(testSubjectKey);
+  candidate.violations.push({
+    file: candidate.reportPath,
+    line: candidate.line,
+    className: candidate.className,
+    expectedPaths: test.expectedPaths,
+  });
+}
+
+function resolveLocalTypeScriptModule(fromPath: string, moduleSpecifier: string): string | undefined {
+  if (!moduleSpecifier.startsWith('.')) return undefined;
+
+  const modulePath = path.join(path.dirname(fromPath), moduleSpecifier);
+  const extension = path.extname(modulePath);
+  const basePath = extension === '' ? modulePath : modulePath.slice(0, -extension.length);
+  const candidates = [`${basePath}.ts`, path.join(basePath, 'index.ts')];
+
+  return candidates.find((candidate) => fs.existsSync(candidate));
 }
 
 try {

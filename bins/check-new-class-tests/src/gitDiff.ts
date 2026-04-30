@@ -106,7 +106,6 @@ function isProductionPackageSourceFile(path: string): boolean {
   if (path.endsWith('.d.ts')) return false;
   if (path.endsWith('.test.ts') || path.endsWith('.spec.ts')) return false;
   if (path.includes('/__tests__/')) return false;
-  if (path.endsWith('/index.ts')) return false;
   if (path.includes('/models/') || path.includes('/types/')) return false;
 
   return true;
