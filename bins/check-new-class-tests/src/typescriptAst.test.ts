@@ -28,6 +28,14 @@ describe('findExportedClassesInAddedLines', () => {
     assert.deepStrictEqual(classes, [{ name: 'Foo', line: 2 }]);
   });
 
+  it('finds existing classes made public by an added specifier in a multiline export declaration', () => {
+    const source = ['class Foo {}', 'class Bar {}', 'export {', '  Bar,', '  Foo,', '};'].join('\n');
+
+    const classes = findExportedClassesInAddedLines('Foo.ts', source, new Set([5]));
+
+    assert.deepStrictEqual(classes, [{ name: 'Foo', line: 5 }]);
+  });
+
   it('finds existing classes made public by an added default export assignment', () => {
     const source = ['class Foo {}', 'export default Foo;'].join('\n');
 

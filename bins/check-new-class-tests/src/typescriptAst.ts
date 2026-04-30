@@ -62,14 +62,14 @@ function collectExportedNamesOnAddedLines(
   const exportedNames = new Map<string, number>();
 
   for (const statement of sourceFile.statements) {
+    if (ts.isExportDeclaration(statement) && statement.exportClause !== undefined) {
+      collectNamedExportNamesOnAddedLines(sourceFile, statement.exportClause, addedLines, exportedNames);
+      continue;
+    }
+
     const { line } = sourceFile.getLineAndCharacterOfPosition(statement.getStart(sourceFile));
     const oneBasedLine = line + 1;
     if (!addedLines.has(oneBasedLine)) continue;
-
-    if (ts.isExportDeclaration(statement) && statement.exportClause !== undefined) {
-      collectNamedExportNamesWithLine(statement.exportClause, exportedNames, oneBasedLine);
-      continue;
-    }
 
     if (ts.isExportAssignment(statement) && ts.isIdentifier(statement.expression)) {
       exportedNames.set(statement.expression.text, oneBasedLine);
@@ -87,16 +87,21 @@ function collectNamedExportNames(exportClause: ts.NamedExportBindings, exportedN
   }
 }
 
-function collectNamedExportNamesWithLine(
+function collectNamedExportNamesOnAddedLines(
+  sourceFile: ts.SourceFile,
   exportClause: ts.NamedExportBindings,
+  addedLines: ReadonlySet<number>,
   exportedNames: Map<string, number>,
-  line: number,
 ): void {
   if (!ts.isNamedExports(exportClause)) return;
 
   for (const element of exportClause.elements) {
+    const { line } = sourceFile.getLineAndCharacterOfPosition(element.getStart(sourceFile));
+    const oneBasedLine = line + 1;
+    if (!addedLines.has(oneBasedLine)) continue;
+
     const exportedName = element.propertyName?.text ?? element.name.text;
-    exportedNames.set(exportedName, line);
+    exportedNames.set(exportedName, oneBasedLine);
   }
 }
 
