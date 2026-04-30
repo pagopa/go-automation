@@ -62,10 +62,12 @@ jobs:
           fetch-depth: 0
 
       - name: Setup CI environment
-        if: github.event_name == 'pull_request'
         uses: ./.github/actions/setup-ci
         with:
           install-args: --frozen-lockfile --ignore-scripts
+
+      - name: Test new class test checker
+        run: pnpm check:new-class-tests:test
 
       - name: Check new class tests
         if: github.event_name == 'pull_request'
