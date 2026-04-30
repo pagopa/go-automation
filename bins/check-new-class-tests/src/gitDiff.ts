@@ -6,6 +6,8 @@ interface ChangedFile {
 }
 
 export function readChangedFiles(baseRef: string): ReadonlyArray<ChangedFile> {
+  validateBaseRef(baseRef);
+
   const diff = execFileSync(
     'git',
     [
@@ -24,6 +26,20 @@ export function readChangedFiles(baseRef: string): ReadonlyArray<ChangedFile> {
   );
 
   return parseGitDiff(diff).filter((file) => isProductionPackageSourceFile(file.path));
+}
+
+function validateBaseRef(baseRef: string): void {
+  if (baseRef.trim() === '') {
+    throw new Error('Base git ref must be non-empty');
+  }
+
+  if (baseRef.startsWith('-')) {
+    throw new Error(`Base git ref must not start with "-": ${baseRef}`);
+  }
+
+  if (/\s/u.test(baseRef)) {
+    throw new Error(`Base git ref must not contain whitespace: ${baseRef}`);
+  }
 }
 
 export function parseGitDiff(diff: string): ReadonlyArray<ChangedFile> {

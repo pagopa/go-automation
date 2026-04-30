@@ -1,7 +1,15 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { parseGitDiff } from './gitDiff.js';
+import { parseGitDiff, readChangedFiles } from './gitDiff.js';
+
+describe('readChangedFiles', () => {
+  it('rejects ambiguous base refs before invoking git diff', () => {
+    assert.throws(() => readChangedFiles('-w'), /must not start with/u);
+    assert.throws(() => readChangedFiles('origin/main -- packages'), /must not contain whitespace/u);
+    assert.throws(() => readChangedFiles('   '), /must be non-empty/u);
+  });
+});
 
 describe('parseGitDiff', () => {
   it('extracts added line numbers for package source files', () => {
