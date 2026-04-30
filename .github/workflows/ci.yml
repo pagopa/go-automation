@@ -70,12 +70,20 @@ jobs:
         run: pnpm check:new-class-tests:test
 
       - name: Check new class tests
-        if: github.event_name == 'pull_request'
-        run: pnpm check:new-class-tests --base origin/${{ github.base_ref }}
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+        run: |
+          if [[ "${{ github.event_name }}" == "merge_group" ]]; then
+            base_ref="${{ github.event.merge_group.base_ref }}"
+            base_ref="${base_ref#refs/heads/}"
+          else
+            base_ref="${{ github.base_ref }}"
+          fi
+
+          pnpm check:new-class-tests --base "origin/${base_ref}"
 
       - name: Skip outside pull requests
-        if: github.event_name != 'pull_request'
-        run: echo "New class test enforcement only runs on pull_request events."
+        if: github.event_name != 'pull_request' && github.event_name != 'merge_group'
+        run: echo "New class test enforcement only runs on pull_request and merge_group events."
 
   build:
     name: Build
