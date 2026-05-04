@@ -1,18 +1,10 @@
 /**
- * Resolves the SQS queue URL and fetches queue attributes.
+ * AWS Dump SQS - Initialize Queue Library
  */
 
 import { Core, AWS } from '@go-automation/go-common';
 import type { CloudWatchClient, SQSClient } from '@go-automation/go-common/aws';
-
-/**
- * Result of queue initialization.
- */
-interface QueueInitResult {
-  readonly queueUrl: string;
-  readonly approxMessages: number;
-  readonly isFifo: boolean;
-}
+import type { QueueInitResult } from '../types/index.js';
 
 /**
  * Resolves the queue URL, fetches attributes, and warns about capacity limits.

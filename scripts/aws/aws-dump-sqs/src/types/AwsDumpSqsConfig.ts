@@ -1,3 +1,7 @@
+/**
+ * Configuration types for the AWS Dump SQS script.
+ */
+
 import { AWS } from '@go-automation/go-common';
 
 /**

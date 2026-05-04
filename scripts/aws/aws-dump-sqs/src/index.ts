@@ -1,10 +1,5 @@
 /**
  * AWS Dump SQS - Entry Point
- *
- * Minimal entry point that wires together:
- * - GOScript instantiation with metadata and parameters
- * - Configuration loading and validation
- * - Main business logic execution
  */
 
 import { Core } from '@go-automation/go-common';
@@ -24,7 +19,7 @@ const script = new Core.GOScript({
 /**
  * Run the script with lifecycle management
  */
-script
+await script
   .run(async () => {
     await main(script);
   })

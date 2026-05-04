@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Read-only dump of all messages from an SQS queue in NDJSON format.",
+  "description": "Dumps all messages from a SQS queue in NDJSON format.",
   "main": "dist/index.js",
   "files": [
     "dist",

@@ -1,4 +1,5 @@
-import { AWS } from '@go-automation/go-common';
-
+/**
+ * AWS Dump SQS - Types Module
+ */
 export type { AwsDumpSqsConfig } from './AwsDumpSqsConfig.js';
-export import AwsDumpSqsDedupMode = AWS.SQSReceiveDeduplicationMode;
+export type { QueueInitResult } from './AwsDumpSqsQueueInitResult.js';
