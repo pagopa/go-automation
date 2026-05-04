@@ -4,7 +4,11 @@ import { readChangedFiles } from './gitDiff.js';
 import { findTestForClass } from './testDiscovery.js';
 import {
   findExportedClassesInAddedLines,
+  findExportedClassDeclarations,
   findExportedClassName,
+  findModuleReExports,
+  findModuleReExportsInAddedLines,
+  findNamedReExports,
   findNamedReExportsInAddedLines,
 } from './typescriptAst.js';
 
@@ -13,6 +17,11 @@ interface Violation {
   readonly line: number;
   readonly className: string;
   readonly expectedPaths: ReadonlyArray<string>;
+}
+
+interface ExportedClassCandidate {
+  readonly sourcePath: string;
+  readonly className: string;
 }
 
 function readBaseRef(argv: ReadonlyArray<string>): string {
@@ -82,6 +91,26 @@ function main(): void {
         className,
       });
     }
+
+    for (const moduleReExport of findModuleReExportsInAddedLines(
+      changedFile.path,
+      sourceText,
+      changedFile.addedLines,
+    )) {
+      const sourcePath = resolveLocalTypeScriptModule(changedFile.path, moduleReExport.moduleSpecifier);
+      if (sourcePath === undefined) continue;
+
+      for (const classDeclaration of collectExportedClassesFromModule(sourcePath, new Set<string>())) {
+        pushViolationIfMissingTest({
+          violations,
+          reportedMissingTests,
+          sourcePath: classDeclaration.sourcePath,
+          reportPath: changedFile.path,
+          line: moduleReExport.line,
+          className: classDeclaration.className,
+        });
+      }
+    }
   }
 
   if (violations.length === 0) {
@@ -93,6 +122,51 @@ function main(): void {
   console.error(violations.map(formatViolation).join('\n\n'));
   console.error('\nAdd a focused unit test near the class or reference the class from an existing package test.');
   process.exit(1);
+}
+
+function collectExportedClassesFromModule(
+  sourcePath: string,
+  visitedSourcePaths: Set<string>,
+): ReadonlyArray<ExportedClassCandidate> {
+  const normalizedSourcePath = path.resolve(sourcePath);
+  if (visitedSourcePaths.has(normalizedSourcePath)) return [];
+  visitedSourcePaths.add(normalizedSourcePath);
+
+  const sourceText = fs.readFileSync(sourcePath, 'utf8');
+  const classes: ExportedClassCandidate[] = findExportedClassDeclarations(sourcePath, sourceText).map(
+    (classDeclaration) => ({
+      sourcePath,
+      className: classDeclaration.name,
+    }),
+  );
+
+  for (const reExport of findNamedReExports(sourcePath, sourceText)) {
+    const reExportSourcePath = resolveLocalTypeScriptModule(sourcePath, reExport.moduleSpecifier);
+    if (reExportSourcePath === undefined) continue;
+
+    const reExportSourceText = fs.readFileSync(reExportSourcePath, 'utf8');
+    const className = findExportedClassName(
+      reExportSourcePath,
+      reExportSourceText,
+      reExport.sourceName,
+      reExport.exportedName,
+    );
+    if (className === undefined) continue;
+
+    classes.push({
+      sourcePath: reExportSourcePath,
+      className,
+    });
+  }
+
+  for (const moduleReExport of findModuleReExports(sourcePath, sourceText)) {
+    const moduleSourcePath = resolveLocalTypeScriptModule(sourcePath, moduleReExport.moduleSpecifier);
+    if (moduleSourcePath === undefined) continue;
+
+    classes.push(...collectExportedClassesFromModule(moduleSourcePath, visitedSourcePaths));
+  }
+
+  return classes;
 }
 
 interface MissingTestCandidate {

@@ -2,7 +2,7 @@
   "Parameters": {
     "AthenaDatabase": "cdc_analytics_database",
     "AthenaCatalog": "AwsDataCatalog",
-    "AthenaWorkgroup": "primary",
+    "AthenaWorkgroup": "cdc_analytics_workgroup",
     "AthenaOutputBucket": "pn-cdc-analytics-athena-results-eu-south-1-830192246553-001",
     "AthenaMaxRetries": "60",
     "AthenaRetryDelay": "5000",

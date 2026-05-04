@@ -12,6 +12,11 @@ interface NamedReExportDeclaration {
   readonly line: number;
 }
 
+interface ModuleReExportDeclaration {
+  readonly moduleSpecifier: string;
+  readonly line: number;
+}
+
 export function findExportedClassesInAddedLines(
   sourcePath: string,
   sourceText: string,
@@ -45,11 +50,48 @@ export function findExportedClassesInAddedLines(
   return classes;
 }
 
+export function findExportedClassDeclarations(
+  sourcePath: string,
+  sourceText: string,
+): ReadonlyArray<ExportedClassDeclaration> {
+  const sourceFile = ts.createSourceFile(sourcePath, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const exportedNames = collectExportedNames(sourceFile);
+  const defaultExportName = collectDefaultExportName(sourceFile);
+  const classes: ExportedClassDeclaration[] = [];
+
+  function visit(node: ts.Node): void {
+    if (ts.isClassDeclaration(node)) {
+      const declaredName = node.name?.text;
+      const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+      const oneBasedLine = line + 1;
+
+      if (hasModifier(node, ts.SyntaxKind.DefaultKeyword) || declaredName === defaultExportName) {
+        classes.push({ name: declaredName ?? 'default', line: oneBasedLine });
+        return;
+      }
+
+      if (declaredName !== undefined && isExportedClass(node, exportedNames)) {
+        classes.push({ name: declaredName, line: oneBasedLine });
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+
+  return classes;
+}
+
 export function findNamedReExportsInAddedLines(
   sourcePath: string,
   sourceText: string,
   addedLines: ReadonlySet<number>,
 ): ReadonlyArray<NamedReExportDeclaration> {
+  return findNamedReExports(sourcePath, sourceText).filter((reExport) => addedLines.has(reExport.line));
+}
+
+export function findNamedReExports(sourcePath: string, sourceText: string): ReadonlyArray<NamedReExportDeclaration> {
   const sourceFile = ts.createSourceFile(sourcePath, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const reExports: NamedReExportDeclaration[] = [];
 
@@ -69,16 +111,38 @@ export function findNamedReExportsInAddedLines(
       if (element.isTypeOnly) continue;
 
       const { line } = sourceFile.getLineAndCharacterOfPosition(element.getStart(sourceFile));
-      const oneBasedLine = line + 1;
-      if (!addedLines.has(oneBasedLine)) continue;
-
       reExports.push({
         exportedName: element.name.text,
         sourceName: element.propertyName?.text ?? element.name.text,
         moduleSpecifier: statement.moduleSpecifier.text,
-        line: oneBasedLine,
+        line: line + 1,
       });
     }
+  }
+
+  return reExports;
+}
+
+export function findModuleReExportsInAddedLines(
+  sourcePath: string,
+  sourceText: string,
+  addedLines: ReadonlySet<number>,
+): ReadonlyArray<ModuleReExportDeclaration> {
+  return findModuleReExports(sourcePath, sourceText).filter((reExport) => addedLines.has(reExport.line));
+}
+
+export function findModuleReExports(sourcePath: string, sourceText: string): ReadonlyArray<ModuleReExportDeclaration> {
+  const sourceFile = ts.createSourceFile(sourcePath, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const reExports: ModuleReExportDeclaration[] = [];
+
+  for (const statement of sourceFile.statements) {
+    if (!isModuleReExportDeclaration(statement)) continue;
+
+    const { line } = sourceFile.getLineAndCharacterOfPosition(statement.getStart(sourceFile));
+    reExports.push({
+      moduleSpecifier: statement.moduleSpecifier.text,
+      line: line + 1,
+    });
   }
 
   return reExports;
@@ -120,6 +184,18 @@ export function findExportedClassName(
   visit(sourceFile);
 
   return className;
+}
+
+function isModuleReExportDeclaration(
+  statement: ts.Statement,
+): statement is ts.ExportDeclaration & { readonly moduleSpecifier: ts.StringLiteral } {
+  return (
+    ts.isExportDeclaration(statement) &&
+    statement.moduleSpecifier !== undefined &&
+    ts.isStringLiteral(statement.moduleSpecifier) &&
+    !statement.isTypeOnly &&
+    (statement.exportClause === undefined || ts.isNamespaceExport(statement.exportClause))
+  );
 }
 
 function collectExportedNames(sourceFile: ts.SourceFile): ReadonlySet<string> {
