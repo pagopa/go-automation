@@ -1,4 +1,14 @@
+/**
+ * AWS Check ECS - Log Tasks Library
+ */
+
 import { Core, AWS } from '@go-automation/go-common';
+
+/**
+ * Log tasks
+ * @param script - Script instance
+ * @param tasks - Array of ECS task health objects
+ */
 
 export function logTasks(script: Core.GOScript, tasks: ReadonlyArray<AWS.ECSTaskHealth>): void {
   script.logger.step('Tasks');
