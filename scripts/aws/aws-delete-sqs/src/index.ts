@@ -19,7 +19,7 @@ const script = new Core.GOScript({
 /**
  * Run the script with lifecycle management
  */
-script
+await script
   .run(async () => {
     await main(script);
   })
