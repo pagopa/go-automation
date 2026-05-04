@@ -6,14 +6,14 @@ import { Core, AWS } from '@go-automation/go-common';
 import type { AwsDeleteSqsConfig } from '../types/index.js';
 
 /**
- * Log summary of the operation
+ * Prints summary of the operation
  * @param result - Result of the operation
  * @param targetIds - Set of message IDs to delete
  * @param config - Configuration for the script
  * @param script - Script instance
  */
 
-export function logSummary(
+export function printSummary(
   result: AWS.SQSProcessResult,
   targetIds: Set<string> | undefined,
   config: AwsDeleteSqsConfig,

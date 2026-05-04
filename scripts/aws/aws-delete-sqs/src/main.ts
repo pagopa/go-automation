@@ -7,7 +7,7 @@ import type { AwsDeleteSqsConfig } from './types/index.js';
 import {
   confirmAction,
   loadTargetIds,
-  logSummary,
+  printSummary,
   runDeletion,
   validateConfig,
   resolveQueueIdentifier,
@@ -39,5 +39,5 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.section('Executing Deletions');
   const result = await runDeletion(sqsService, config, metadata.queueUrl, targetIds, script);
 
-  logSummary(result, targetIds, config, script);
+  printSummary(result, targetIds, config, script);
 }
