@@ -42,4 +42,4 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     required: false,
     aliases: ['c'],
   },
-];
+] as const;
