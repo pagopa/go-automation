@@ -1,5 +1,7 @@
 /**
- * AWS Dump SQS - Libraries Module
+ * AWS Dump SQS - Library Imports
+ *
+ * Re-exports all library modules for easier importing.
  */
 
 export { resolveOutputPath } from './AwsDumpSqsResolveOutputPath.js';
