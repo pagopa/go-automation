@@ -1,49 +1,22 @@
 /**
- * SQS Service Helpers for aws-put-sqs
+ * AWS Put SQS - Process Batch
+ *
+ * Processes a single batch of messages with retries.
  */
 
 import { Core, AWS } from '@go-automation/go-common';
-
 import type { AwsPutSqsConfig } from '../types/AwsPutSqsConfig.js';
-
-/**
- * Statistics for the bulk operation
- */
-export interface BulkStats {
-  processed: number;
-  success: number;
-  failed: number;
-  retries: number;
-}
-
-/**
- * Initializes the appropriate importer based on configuration or file extension
- */
-export function initializeImporter(_script: Core.GOScript, config: AwsPutSqsConfig): Core.GOListImporter<unknown> {
-  const extension = config.inputFile.split('.').pop()?.toLowerCase();
-  const format = config.fileFormat === 'auto' ? extension : config.fileFormat;
-
-  switch (format) {
-    case 'json':
-      return new Core.GOJSONListImporter({
-        jsonl: 'auto',
-        wrapSingleObject: true,
-      });
-    case 'csv':
-      return new Core.GOCSVListImporter({
-        hasHeaders: true,
-        rowTransformer: (row: Record<string, string | undefined>) => row[config.csvColumn],
-      });
-    case 'text':
-    case 'txt':
-    default:
-      return new Core.GOFileListImporter();
-  }
-}
+import type { BulkStats } from './AwsPutSqsBulkStats.js';
 
 /**
  * Processes a single batch of messages with retries
+ * @param script - Script instance
+ * @param config - Configuration for the script
+ * @param queueUrl - URL of the SQS queue
+ * @param messages - Array of messages to send
+ * @param stats - Statistics object to update
  */
+
 export async function processBatch(
   script: Core.GOScript,
   config: AwsPutSqsConfig,
@@ -95,11 +68,4 @@ export async function processBatch(
     }
     stats.failed += response.Failed.length;
   }
-}
-
-/**
- * Updates the spinner with current progress
- */
-export function updateProgress(script: Core.GOScript, stats: BulkStats): void {
-  script.prompt.updateSpinner(`Sent: ${stats.success} | Failed: ${stats.failed} | Retries: ${stats.retries}`);
 }

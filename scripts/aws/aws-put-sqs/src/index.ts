@@ -1,7 +1,5 @@
 /**
  * AWS Put SQS - Entry Point
- *
- * Bulk sends messages to an SQS queue from a file source.
  */
 
 import { Core } from '@go-automation/go-common';
@@ -21,7 +19,7 @@ const script = new Core.GOScript({
 /**
  * Run the script with lifecycle management
  */
-script
+await script
   .run(async () => {
     await main(script);
   })

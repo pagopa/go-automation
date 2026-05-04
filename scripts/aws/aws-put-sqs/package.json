@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Put messages into an SQS queue.",
+  "description": "Puts messages into a SQS queue.",
   "main": "dist/index.js",
   "files": [
     "dist",
