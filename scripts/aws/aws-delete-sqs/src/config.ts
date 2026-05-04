@@ -82,4 +82,4 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     description: 'Number of empty receives before considering the queue empty',
     defaultValue: 3,
   },
-];
+] as const;
