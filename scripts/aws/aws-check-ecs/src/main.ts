@@ -1,14 +1,13 @@
-import { Core, AWS } from '@go-automation/go-common';
+/**
+ * AWS Check ECS - Main Logic Module
+ */
 
+import { Core, AWS } from '@go-automation/go-common';
 import { awsCheckEcsShowReport } from './libs/index.js';
 import type { AwsCheckEcsConfig } from './types/index.js';
 
 /**
  * Main script execution function.
- *
- * Checks ECS clusters, services, and tasks across multiple AWS profiles in parallel.
- *
- * @param script - The GOScript instance
  */
 export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<AwsCheckEcsConfig>();

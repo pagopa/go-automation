@@ -1,6 +1,14 @@
+/**
+ * AWS Check ECS - Entry Point
+ */
+
 import { Core } from '@go-automation/go-common';
 import { main } from './main.js';
 import { scriptMetadata, scriptParameters } from './config.js';
+
+/**
+ * Create the GOScript instance with metadata and parameters from config
+ */
 
 const script = new Core.GOScript({
   metadata: scriptMetadata,
@@ -9,6 +17,9 @@ const script = new Core.GOScript({
   },
 });
 
+/**
+ * Run the script with lifecycle management
+ */
 await script.run(async () => {
   await main(script);
 });

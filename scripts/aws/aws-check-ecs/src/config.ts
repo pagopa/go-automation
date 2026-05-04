@@ -1,3 +1,9 @@
+/**
+ * AWS Check ECS - Configuration Module
+ *
+ * Defines metadata and CLI parameters for the script.
+ */
+
 import { Core } from '@go-automation/go-common';
 
 /**
