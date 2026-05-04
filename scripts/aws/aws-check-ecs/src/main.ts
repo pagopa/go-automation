@@ -10,8 +10,10 @@ import type { AwsCheckEcsConfig } from './types/index.js';
  * Main script execution function.
  */
 export async function main(script: Core.GOScript): Promise<void> {
+  /** Get config */
   const config = await script.getConfiguration<AwsCheckEcsConfig>();
 
+  /** Print header info */
   script.logger.section('ECS Check');
   if (config.ecsClusters && config.ecsClusters.length > 0) {
     script.logger.info(`Target Clusters: ${config.ecsClusters.join(', ')}`);
@@ -20,6 +22,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   }
   script.logger.newline();
 
+  /** Fetch data from all profiles */
   script.prompt.spin('fetch', 'Fetching ECS data from all profiles...');
 
   const { results, errors } = await script.awsMulti.mapParallelSettled(async (_, clientProvider) => {
@@ -31,10 +34,11 @@ export async function main(script: Core.GOScript): Promise<void> {
     return reports;
   });
 
+  /** Print results */
   script.prompt.spinSucceed('fetch', `Data fetched from ${results.size} profile${results.size > 1 ? 's' : ''}`);
   script.logger.newline();
 
-  // Display per-profile results
+  /** Display per-profile results */
   for (const [profile, reports] of results) {
     script.logger.section(`Profile: ${profile}`);
     if (reports.length === 0) {
@@ -47,16 +51,18 @@ export async function main(script: Core.GOScript): Promise<void> {
     }
   }
 
-  // Report failed profiles
+  /** Report failed profiles */
   for (const [profile, error] of errors) {
     script.logger.section(`Profile: ${profile}`);
     script.logger.error(`Failed: ${error.message}`);
     script.logger.newline();
   }
 
+  /** Check if all profiles failed */
   if (results.size === 0 && errors.size > 0) {
     throw new Error('All profiles failed. Check AWS credentials and profile names.');
   }
 
+  /** Print success message */
   script.logger.success('All checks completed.');
 }
