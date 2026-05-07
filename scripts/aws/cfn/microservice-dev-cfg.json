@@ -8,6 +8,8 @@
     "AthenaRetryDelay": "5000",
     "SlackChannel": "C09RSL0QUTV",
     "Timezone": "Europe/Rome",
-    "SlackTokenSecretName": "go/send-monitor-tpp-messages/slack-token"
+    "SlackTokenSecretName": "go/send-monitor-tpp-messages/slack-token",
+    "GoSendMonitorTppMessagesLambdaTimeout": "300",
+    "GoSendMonitorTppMessagesLambdaMemorySize": "512"
   }
 }
