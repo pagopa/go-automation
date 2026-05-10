@@ -67,15 +67,24 @@
     "@aws-sdk/util-dynamodb": "catalog:",
     "@inquirer/prompts": "catalog:",
     "@slack/web-api": "catalog:",
+    "adm-zip": "catalog:",
+    "better-sqlite3": "catalog:",
     "csv-parse": "catalog:",
     "csv-stringify": "catalog:",
+    "exceljs": "catalog:",
     "luxon": "catalog:",
+    "mailparser": "catalog:",
+    "mammoth": "catalog:",
     "string-width": "catalog:",
     "undici": "catalog:",
+    "unpdf": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {
+    "@types/adm-zip": "catalog:",
+    "@types/better-sqlite3": "catalog:",
     "@types/luxon": "catalog:",
+    "@types/mailparser": "catalog:",
     "@types/node": "catalog:"
   }
 }

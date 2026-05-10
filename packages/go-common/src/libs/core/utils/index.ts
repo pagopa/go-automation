@@ -49,3 +49,4 @@ export {
   DEFAULT_BACKOFF_CAP_MS,
 } from './pollUntilComplete.js';
 export type { PollOptions, PollAttemptInfo, BackoffFn } from './pollUntilComplete.js';
+export { GOConcurrencyPool } from './GOConcurrencyPool.js';
