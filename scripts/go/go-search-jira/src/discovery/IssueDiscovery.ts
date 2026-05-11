@@ -25,7 +25,7 @@ export class IssueDiscovery {
       return this.discoverByKeys(options.issueKeys);
     }
     if (options.jql.trim().length === 0) {
-      throw new Error('IssueDiscovery: either --jql or --issue-keys must be provided');
+      throw new Error('IssueDiscovery: either --jql or --jira-issue-keys must be provided');
     }
     return this.client.searchIssues(options.jql);
   }
