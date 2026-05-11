@@ -9,6 +9,8 @@
  */
 import * as fs from 'node:fs/promises';
 
+import { load } from 'cheerio';
+
 import { GOTextExtractionError } from '../GOTextExtractionError.js';
 import type { GOTextExtractionOptions } from '../GOTextExtractionOptions.js';
 import type { GOTextExtractionResult } from '../GOTextExtractionResult.js';
@@ -80,43 +82,27 @@ export class GOEmailTextExtractor implements GOTextExtractor {
 }
 
 /**
- * Minimal HTML → plain-text conversion: drops all tags, collapses whitespace
- * and decodes the most common entities. Good enough for indexing — not for
- * faithful rendering.
+ * Minimal HTML → plain-text conversion: drops script/style content, turns
+ * `<br>` into a newline, expands `</p>` into a double newline and returns the
+ * decoded text content. Good enough for indexing — not for faithful rendering.
  *
- * The `<script>` / `<style>` block removal is applied iteratively until the
- * input is stable, otherwise a crafted payload like `<scr<script>…</script>ipt>…</script>`
- * would slip through a single pass (CodeQL: incomplete-multi-character-sanitization).
+ * Uses `cheerio` (a real HTML parser) rather than hand-rolled regexes; this
+ * avoids the well-known pitfalls of regex-based HTML sanitization that CodeQL
+ * flags (incomplete multi-character sanitization, double escaping, missing
+ * matches for `</script >` with whitespace, etc.). Entity decoding (`&amp;`,
+ * `&lt;`, `&nbsp;`, …) is done by the parser itself.
  */
 function stripHtml(html: string): string {
-  let withoutBlocks = removeUntilStable(html, /<script\b[^>]*>[\s\S]*?<\/script>/gi);
-  withoutBlocks = removeUntilStable(withoutBlocks, /<style\b[^>]*>[\s\S]*?<\/style>/gi);
-  return withoutBlocks
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&')
+  const $ = load(html);
+  $('script, style').remove();
+  $('br').replaceWith('\n');
+  $('p').each((_index, element) => {
+    $(element).append('\n\n');
+  });
+  return $.root()
+    .text()
+    .replace(/\u00a0/g, ' ') // non-breaking space → regular space
     .replace(/[ \t]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
-}
-
-/**
- * Repeatedly applies `pattern.replace(…, '')` until the input stops changing.
- * Required for patterns that can leave residue capable of re-forming a match
- * on a single pass (e.g. nested or interleaved `<script>` tags).
- */
-function removeUntilStable(input: string, pattern: RegExp): string {
-  let previous: string;
-  let current = input;
-  do {
-    previous = current;
-    current = current.replace(pattern, '');
-  } while (current !== previous);
-  return current;
 }

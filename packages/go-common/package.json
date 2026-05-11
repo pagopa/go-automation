@@ -69,6 +69,7 @@
     "@slack/web-api": "catalog:",
     "adm-zip": "catalog:",
     "better-sqlite3": "catalog:",
+    "cheerio": "catalog:",
     "csv-parse": "catalog:",
     "csv-stringify": "catalog:",
     "exceljs": "catalog:",
