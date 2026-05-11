@@ -106,7 +106,7 @@ export class GOZipTextExtractor implements GOTextExtractor {
     }
 
     const lines: string[] = [];
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'go-zip-'));
+    let tempDir: string | undefined;
     try {
       for (const entry of zip.getEntries()) {
         if (entry.isDirectory) continue;
@@ -124,6 +124,7 @@ export class GOZipTextExtractor implements GOTextExtractor {
         if (this.registry === undefined) continue;
         if (!this.registry.canHandle(undefined, entryName)) continue;
 
+        tempDir ??= await fs.mkdtemp(path.join(os.tmpdir(), 'go-zip-'));
         const tempPath = path.join(tempDir, `${randomUUID()}-${path.basename(entryName)}`);
         try {
           const data = entry.getData();
@@ -138,10 +139,12 @@ export class GOZipTextExtractor implements GOTextExtractor {
         }
       }
     } finally {
-      try {
-        await fs.rm(tempDir, { recursive: true, force: true });
-      } catch {
-        /* best-effort */
+      if (tempDir !== undefined) {
+        try {
+          await fs.rm(tempDir, { recursive: true, force: true });
+        } catch {
+          /* best-effort */
+        }
       }
     }
 
