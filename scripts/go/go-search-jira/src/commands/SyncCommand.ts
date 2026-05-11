@@ -12,6 +12,7 @@ import { AttachmentIndexer } from '../sync/AttachmentIndexer.js';
 import { AttachmentSyncOrchestrator, type SyncProgressSnapshot } from '../sync/AttachmentSyncOrchestrator.js';
 import { AttachmentRepository } from '../storage/AttachmentRepository.js';
 import { closeIndex, openIndex } from '../storage/IndexLifecycle.js';
+import type { AttachmentSyncReport } from '../types/AttachmentSyncReport.js';
 import type { GoSearchJiraConfig } from '../types/GoSearchJiraConfig.js';
 
 import { buildExtractorRegistry } from './buildExtractorRegistry.js';
@@ -83,9 +84,7 @@ export class SyncCommand {
           force: config.syncForce,
         });
         spinnerActive = false;
-        script.prompt.spinnerSucceed(
-          `Sync complete: ${report.indexed} indexed, ${report.skipped} skipped, ${report.failed} failed`,
-        );
+        script.prompt.spinnerSucceed(formatCompletionMessage(report, config.syncDryRun));
       } catch (error) {
         spinnerActive = false;
         script.prompt.spinnerFail('Sync failed');
@@ -94,6 +93,9 @@ export class SyncCommand {
 
       script.logger.section('Sync report');
       script.logger.info(`Issues processed: ${report.issuesProcessed}`);
+      if (config.syncDryRun) {
+        script.logger.info(`Planned downloads: ${report.plannedDownloads}`);
+      }
       script.logger.info(`Indexed:          ${report.indexed}`);
       script.logger.info(`Skipped:          ${report.skipped}`);
       script.logger.info(`Failed:           ${report.failed}`);
@@ -126,15 +128,18 @@ export class SyncCommand {
 
 function formatProgress(snapshot: SyncProgressSnapshot): string {
   const inFlight = snapshot.inFlightDownloads > 0 ? ` · ${snapshot.inFlightDownloads} downloading` : '';
-  return (
-    `Issue ${snapshot.currentIssueKey} ` +
-    `(processed: ${snapshot.issuesProcessed}, ` +
-    `indexed: ${snapshot.indexed}, ` +
-    `skipped: ${snapshot.skipped}, ` +
-    `failed: ${snapshot.failed}, ` +
-    `${formatBytes(snapshot.bytesDownloaded)}` +
-    `${inFlight})`
-  );
+  const planned = snapshot.plannedDownloads > 0 ? `planned: ${snapshot.plannedDownloads}, ` : '';
+  return `Issue ${snapshot.currentIssueKey} (processed: ${snapshot.issuesProcessed}, ${planned}indexed: ${snapshot.indexed}, skipped: ${snapshot.skipped}, failed: ${snapshot.failed}, ${formatBytes(snapshot.bytesDownloaded)}${inFlight})`;
+}
+
+function formatCompletionMessage(
+  report: Pick<AttachmentSyncReport, 'indexed' | 'plannedDownloads' | 'skipped' | 'failed'>,
+  dryRun: boolean,
+): string {
+  if (dryRun) {
+    return `Dry-run complete: ${report.plannedDownloads} planned downloads, ${report.skipped} skipped, ${report.failed} failed`;
+  }
+  return `Sync complete: ${report.indexed} indexed, ${report.skipped} skipped, ${report.failed} failed`;
 }
 
 function formatBytes(bytes: number): string {

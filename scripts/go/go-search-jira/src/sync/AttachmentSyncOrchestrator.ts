@@ -44,6 +44,7 @@ export interface SyncProgressSnapshot {
   readonly currentIssueKey: string;
   readonly issuesProcessed: number;
   readonly indexed: number;
+  readonly plannedDownloads: number;
   readonly skipped: number;
   readonly failed: number;
   readonly bytesDownloaded: number;
@@ -73,6 +74,7 @@ export interface AttachmentSyncOrchestratorDeps {
 interface MutableReport {
   issuesProcessed: number;
   indexed: number;
+  plannedDownloads: number;
   skipped: number;
   failed: number;
   deleted: number;
@@ -95,6 +97,7 @@ export class AttachmentSyncOrchestrator {
     const report: MutableReport = {
       issuesProcessed: 0,
       indexed: 0,
+      plannedDownloads: 0,
       skipped: 0,
       failed: 0,
       deleted: 0,
@@ -129,6 +132,7 @@ export class AttachmentSyncOrchestrator {
     return {
       issuesProcessed: report.issuesProcessed,
       indexed: report.indexed,
+      plannedDownloads: report.plannedDownloads,
       skipped: report.skipped,
       failed: report.failed,
       deleted: report.deleted,
@@ -173,6 +177,7 @@ export class AttachmentSyncOrchestrator {
       currentIssueKey,
       issuesProcessed: report.issuesProcessed,
       indexed: report.indexed,
+      plannedDownloads: report.plannedDownloads,
       skipped: report.skipped,
       failed: report.failed,
       bytesDownloaded: report.bytesDownloaded,
@@ -221,7 +226,7 @@ export class AttachmentSyncOrchestrator {
     if (options.dryRun) {
       this.deps.logger.info(`[dry-run] would download ${issue.key} :: ${attachment.filename}`);
       // No DB write: dry-run is purely informational. Count via report only.
-      report.skipped += 1;
+      report.plannedDownloads += 1;
       return;
     }
 

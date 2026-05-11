@@ -4,6 +4,7 @@
 export interface AttachmentSyncReport {
   readonly issuesProcessed: number;
   readonly indexed: number;
+  readonly plannedDownloads: number;
   readonly skipped: number;
   readonly failed: number;
   readonly deleted: number;

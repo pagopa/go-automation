@@ -213,7 +213,7 @@ pnpm --filter=go-search-jira dev -- \
 
 ### Dry-run
 
-Il dry-run valida discovery e pianificazione, ma non scarica e non aggiorna l'indice.
+Il dry-run valida discovery e pianificazione, ma non scarica e non aggiorna l'indice. Nel report finale i download che verrebbero eseguiti sono conteggiati come `Planned downloads`, separati dagli attachment realmente esclusi dal piano (`Skipped`).
 
 ```bash
 pnpm --filter=go-search-jira dev -- \

@@ -177,6 +177,57 @@ describe('AttachmentSyncOrchestrator — handleSkipDecision', () => {
   });
 });
 
+describe('AttachmentSyncOrchestrator — dry-run reporting', () => {
+  it('counts planned downloads separately from skipped attachments', async () => {
+    const index = new Core.GOFtsIndex({
+      databasePath: ':memory:',
+      ftsTableName: 'attachments_fts',
+      metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
+    });
+    await index.open();
+
+    try {
+      new IndexSchemaManager(index).ensureSchema();
+      const repository = new AttachmentRepository(index);
+      const downloadable = makeAttachment({ id: 'dry-download', filename: 'notes.txt', mimeType: 'text/plain' });
+      const unsupported = makeAttachment({ id: 'dry-skip', filename: 'image.png', mimeType: 'image/png' });
+      const issue = makeIssue([downloadable, unsupported]);
+
+      const registry = new Core.GOTextExtractorRegistry();
+      registry.register(new Core.GOPlainTextExtractor());
+
+      const orchestrator = new AttachmentSyncOrchestrator({
+        logger: NOOP_LOGGER,
+        index,
+        repository,
+        registry,
+        client: {} as unknown as JiraClient,
+        discovery: new FakeDiscovery([issue]),
+        indexer: {} as unknown as AttachmentIndexer,
+        cachePaths: new AttachmentCachePaths('/tmp/unused'),
+      });
+
+      const report = await orchestrator.run({
+        jql: 'unused',
+        issueKeys: [],
+        maxParallelDownloads: 1,
+        maxAttachmentSizeBytes: 100_000_000,
+        dryRun: true,
+        force: false,
+      });
+
+      assert.strictEqual(report.plannedDownloads, 1);
+      assert.strictEqual(report.skipped, 1);
+      assert.strictEqual(report.indexed, 0);
+      assert.strictEqual(report.failed, 0);
+      assert.strictEqual(repository.getAttachment(downloadable.id), undefined);
+      assert.strictEqual(repository.getAttachment(unsupported.id), undefined);
+    } finally {
+      await index.close();
+    }
+  });
+});
+
 describe('AttachmentSyncOrchestrator — hard task failures', () => {
   it('rethrows unexpected download/index task failures instead of swallowing them', async () => {
     const index = new Core.GOFtsIndex({
