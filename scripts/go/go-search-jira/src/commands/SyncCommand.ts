@@ -100,9 +100,11 @@ export class SyncCommand {
       script.logger.info(`Failed:           ${report.failed}`);
       script.logger.info(`Bytes downloaded: ${report.bytesDownloaded}`);
       script.logger.info(`Duration:         ${report.durationMs}ms`);
+
       if (config.syncDryRun) {
-        script.logger.info('Dry-run mode: no downloads or index writes were performed.');
+        script.logger.info('Dry-run mode: no downloads, no writes to the FTS index or the bookkeeping tables.');
       }
+
       if (report.errors.length > 0) {
         script.logger.warning(`Errors (${report.errors.length}):`);
         for (const error of report.errors.slice(0, 10)) {

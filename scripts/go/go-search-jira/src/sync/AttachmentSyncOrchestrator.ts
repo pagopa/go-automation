@@ -115,13 +115,18 @@ export class AttachmentSyncOrchestrator {
 
     for await (const issue of this.deps.discovery.discover({ jql: options.jql, issueKeys: options.issueKeys })) {
       report.issuesProcessed += 1;
-      this.deps.repository.upsertIssue(issue, new Date().toISOString());
+      // Dry-run is side-effect free: count what would happen but do NOT touch
+      // the issues / attachments / FTS tables. The bookkeeping write happens
+      // only on real runs.
+      if (!options.dryRun) {
+        this.deps.repository.upsertIssue(issue, new Date().toISOString());
+      }
       this.reportProgress(issue.key, report, pool);
 
       const decisions = planner.planForIssue(issue, plannerOptions);
       for (const decision of decisions) {
         if (decision.action === 'skip') {
-          this.handleSkipDecision(issue, decision, report);
+          this.handleSkipDecision(issue, decision, report, options.dryRun);
           this.reportProgress(issue.key, report, pool);
           continue;
         }
@@ -170,8 +175,10 @@ export class AttachmentSyncOrchestrator {
     issue: JiraIssue,
     decision: Extract<AttachmentPlanItem, { action: 'skip' }>,
     report: MutableReport,
+    dryRun: boolean,
   ): void {
     report.skipped += 1;
+    if (dryRun) return;
     // Always upsert with the real issue metadata so summary / projectKey are
     // never lost — `upsertAttachmentMetadata` does INSERT ... ON CONFLICT and
     // refreshes those fields on every sync run.
@@ -196,7 +203,7 @@ export class AttachmentSyncOrchestrator {
 
     if (options.dryRun) {
       this.deps.logger.info(`[dry-run] would download ${issue.key} :: ${attachment.filename}`);
-      this.deps.repository.upsertAttachmentMetadata(issue, attachment, AttachmentSyncStatus.SKIPPED, 'dry_run', nowIso);
+      // No DB write: dry-run is purely informational. Count via report only.
       report.skipped += 1;
       return;
     }
