@@ -83,6 +83,33 @@ export function isNodeError(error: unknown): error is NodeJS.ErrnoException {
 }
 
 /**
+ * Type guard for Node.js errors with a specific `errno`-style `code`.
+ *
+ * @param error - Value to check
+ * @param code  - Expected errno code (e.g. `'ENOENT'`, `'EACCES'`, `'EEXIST'`)
+ * @returns true when `error` is a `NodeJS.ErrnoException` whose `.code` matches
+ *
+ * @example
+ * ```typescript
+ * try { await fs.unlink(path); }
+ * catch (e) {
+ *   if (!isNodeErrnoCode(e, 'ENOENT')) throw e;
+ * }
+ * ```
+ */
+export function isNodeErrnoCode(error: unknown, code: string): error is NodeJS.ErrnoException {
+  return isNodeError(error) && error.code === code;
+}
+
+/**
+ * Convenience guard for the most common "file did not exist" case.
+ * Equivalent to `isNodeErrnoCode(error, 'ENOENT')`.
+ */
+export function isEnoentError(error: unknown): error is NodeJS.ErrnoException {
+  return isNodeErrnoCode(error, 'ENOENT');
+}
+
+/**
  * Checks if a value is a plain object (not null, not array, not Date, etc.).
  *
  * @param value - Value to check

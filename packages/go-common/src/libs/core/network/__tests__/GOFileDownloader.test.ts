@@ -145,4 +145,22 @@ describe('GOFileDownloader', () => {
       handle.server.close();
     }
   });
+
+  it('overwrites a pre-existing destination (force-redownload)', async () => {
+    const handle = await startServer((_req, res) => {
+      res.statusCode = 200;
+      res.end('NEW CONTENT');
+    });
+    try {
+      const dest = await makeTempFile();
+      // Seed the destination with old content (simulates a previous sync).
+      await fs.writeFile(dest, 'OLD CONTENT');
+      const downloader = new GOFileDownloader({ maxRetries: 0 });
+      await downloader.downloadToFile(`${handle.url}/x`, dest);
+      const written = await fs.readFile(dest, 'utf8');
+      assert.strictEqual(written, 'NEW CONTENT');
+    } finally {
+      handle.server.close();
+    }
+  });
 });

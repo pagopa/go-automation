@@ -39,6 +39,8 @@ import { pipeline } from 'node:stream/promises';
 import { ProxyAgent } from 'undici';
 import type { Dispatcher } from 'undici';
 
+import { isEnoentError } from '../utils/GOTypeGuards.js';
+
 import type { GOFileDownloaderConfig } from './GOFileDownloaderConfig.js';
 import { GOFileDownloaderError } from './GOFileDownloaderError.js';
 import type { GOFileDownloadResult } from './GOFileDownloadResult.js';
@@ -100,7 +102,7 @@ export class GOFileDownloader {
       attempt += 1;
       try {
         const result = await this.singleAttempt(url, requestHeaders, partialPath, options.signal);
-        await fs.rename(partialPath, destPath);
+        await this.renameOverwriting(partialPath, destPath);
         return {
           finalUrl: result.finalUrl,
           statusCode: result.statusCode,
@@ -219,6 +221,33 @@ export class GOFileDownloader {
     } catch {
       /* file may not exist */
     }
+  }
+
+  /**
+   * Renames `partialPath` over `destPath`, deleting any pre-existing
+   * `destPath` first so the operation is reliable across platforms.
+   *
+   * `fs.rename` on POSIX silently overwrites the destination, but on Windows
+   * it relies on `MoveFileEx(MOVEFILE_REPLACE_EXISTING)` which can fail when
+   * the destination is open by another process or sits across filesystems.
+   * Doing an explicit `unlink` first removes those edge cases and makes the
+   * force-redownload path predictable.
+   */
+  private async renameOverwriting(partialPath: string, destPath: string): Promise<void> {
+    try {
+      await fs.unlink(destPath);
+    } catch (error) {
+      // ENOENT is the happy path (destination didn't exist). Any other error
+      // is most likely a permission issue; let the subsequent rename surface
+      // a clear error from the same syscall family.
+      if (!isEnoentError(error)) {
+        // Re-throw only if it's a permission/IO error that would also break
+        // rename — keep the original error type so the catch block in
+        // `downloadToFile` can classify it as retriable or not.
+        throw error;
+      }
+    }
+    await fs.rename(partialPath, destPath);
   }
 
   private isRetriable(error: unknown): boolean {

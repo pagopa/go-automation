@@ -19,6 +19,8 @@ export {
   isPrimitive,
   isError,
   isNodeError,
+  isNodeErrnoCode,
+  isEnoentError,
   isPlainObject,
   isObject,
   isArray,
