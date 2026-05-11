@@ -26,16 +26,19 @@ export class JiraAuthBuilder {
         'Jira token is not set. Provide it via --jira-token, the JIRA_TOKEN env var, or the config file.',
       );
     }
+
     if (input.authMode === JiraAuthMode.BASIC) {
       if (input.email.length === 0) {
-        throw new Error('Jira basic auth requires --jira.email');
+        throw new Error('Jira basic auth requires --jira-email');
       }
       const credentials = Buffer.from(`${input.email}:${input.token}`).toString('base64');
       return `Basic ${credentials}`;
     }
+
     if (input.authMode === JiraAuthMode.BEARER) {
       return `Bearer ${input.token}`;
     }
+
     throw new Error(`Unknown Jira auth mode: ${String(input.authMode)}`);
   }
 }
