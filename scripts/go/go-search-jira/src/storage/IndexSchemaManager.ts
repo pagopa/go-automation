@@ -4,7 +4,7 @@
  *   - `issues`      : per-issue snapshot (for status reporting, not search)
  *   - `sync_state`  : key/value bookkeeping (last sync timestamp, etc.)
  *
- * `GOFtsIndex` provides the FTS5 virtual table (`documents_fts`) and the
+ * `GOFtsIndex` provides the configured FTS5 virtual table (`attachments_fts`) and the
  * metadata side-table; this class layers our domain tables alongside.
  *
  * Schema version is tracked via `GOFtsIndex.setSchemaVersion()` and migrated
