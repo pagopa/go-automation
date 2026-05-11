@@ -43,3 +43,9 @@ export * from './script/index.js';
 
 // Export messaging
 export * from './messaging/index.js';
+
+// Export storage (FTS5 index)
+export * from './storage/index.js';
+
+// Export text extraction
+export * from './text/index.js';

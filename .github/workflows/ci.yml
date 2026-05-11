@@ -105,7 +105,7 @@ jobs:
     uses: ./.github/workflows/ci-job.yml
     with:
       command: test
-      install-args: --frozen-lockfile --ignore-scripts
+      install-args: --frozen-lockfile
       timeout-minutes: 25
       download-artifact-name: workspace-build
 
@@ -115,7 +115,7 @@ jobs:
     uses: ./.github/workflows/ci-job.yml
     with:
       command: test:coverage
-      install-args: --frozen-lockfile --ignore-scripts
+      install-args: --frozen-lockfile
       timeout-minutes: 25
       download-artifact-name: workspace-build
       upload-artifact-name: coverage-reports

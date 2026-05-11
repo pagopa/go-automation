@@ -9,6 +9,7 @@
 
 import * as fs from 'fs/promises';
 
+import { isEnoentError } from '../../utils/GOTypeGuards.js';
 import type { GOFileImporter } from '../GOFileImporter.js';
 import type { GOTextFileImporterOptions } from './GOTextFileImporterOptions.js';
 
@@ -44,17 +45,10 @@ export class GOTextFileImporter implements GOFileImporter<string | undefined> {
     try {
       return await fs.readFile(inputPath, encoding);
     } catch (error: unknown) {
-      if (this.options.optional && isFileNotFoundError(error)) {
+      if (this.options.optional && isEnoentError(error)) {
         return undefined;
       }
       throw error;
     }
   }
-}
-
-/**
- * Type guard for ENOENT file-not-found errors
- */
-function isFileNotFoundError(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT';
 }

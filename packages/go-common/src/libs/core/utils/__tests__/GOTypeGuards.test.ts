@@ -9,10 +9,12 @@ import {
   isBoolean,
   isBuffer,
   isDate,
+  isEnoentError,
   isError,
   isFunction,
   isMap,
   isNodeError,
+  isNodeErrnoCode,
   isNonEmptyArray,
   isNonEmptyString,
   isNullish,
@@ -103,6 +105,19 @@ describe('GOTypeGuards', () => {
 
     assert.strictEqual(isNodeError(nodeError), true);
     assert.strictEqual(isNodeError(error), false);
+
+    // isNodeErrnoCode / isEnoentError
+    const eacces = Object.assign(new Error('perm'), { code: 'EACCES' });
+    assert.strictEqual(isNodeErrnoCode(nodeError, 'ENOENT'), true);
+    assert.strictEqual(isNodeErrnoCode(eacces, 'EACCES'), true);
+    assert.strictEqual(isNodeErrnoCode(nodeError, 'EACCES'), false);
+    assert.strictEqual(isNodeErrnoCode(error, 'ENOENT'), false);
+    assert.strictEqual(isNodeErrnoCode('not even an error', 'ENOENT'), false);
+    assert.strictEqual(isNodeErrnoCode(null, 'ENOENT'), false);
+
+    assert.strictEqual(isEnoentError(nodeError), true);
+    assert.strictEqual(isEnoentError(eacces), false);
+    assert.strictEqual(isEnoentError(error), false);
 
     assert.strictEqual(isDate(new Date()), true);
     assert.strictEqual(isDate('2025-01-01'), false);
