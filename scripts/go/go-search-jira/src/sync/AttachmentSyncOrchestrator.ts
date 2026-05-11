@@ -99,7 +99,10 @@ export class AttachmentSyncOrchestrator {
 
     const canExtract = (mimeType: string, filename: string): boolean =>
       this.deps.registry.canHandle(mimeType, filename);
-    const hasInIndex = (attachmentId: string): boolean => this.deps.repository.hasAttachment(attachmentId);
+    // Predicate name matches the planner contract: "already in the index".
+    // Skipped/failed rows from previous runs must be retried, so we check the
+    // explicit `indexed` status, not mere row presence.
+    const hasInIndex = (attachmentId: string): boolean => this.deps.repository.isAttachmentIndexed(attachmentId);
 
     const plannerOptions = {
       force: options.force,

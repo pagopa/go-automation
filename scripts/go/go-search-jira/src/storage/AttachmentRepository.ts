@@ -128,7 +128,7 @@ interface UpsertIssueBind {
 }
 
 export class AttachmentRepository {
-  private readonly hasAttachmentStmt: Core.GOSqliteStatement<[string], IdRow>;
+  private readonly isIndexedStmt: Core.GOSqliteStatement<[string], IdRow>;
   private readonly getAttachmentStmt: Core.GOSqliteStatement<[string], RawAttachmentRow>;
   private readonly upsertAttachmentStmt: Core.GOSqliteStatement<[UpsertAttachmentBind]>;
   private readonly upsertIssueStmt: Core.GOSqliteStatement<[UpsertIssueBind]>;
@@ -143,8 +143,8 @@ export class AttachmentRepository {
   constructor(index: Core.GOFtsIndex) {
     const db = index.getDatabase();
 
-    this.hasAttachmentStmt = db.prepare<[string], IdRow>(
-      'SELECT attachment_id FROM attachments WHERE attachment_id = ?',
+    this.isIndexedStmt = db.prepare<[string], IdRow>(
+      "SELECT attachment_id FROM attachments WHERE attachment_id = ? AND status = 'indexed'",
     );
     this.getAttachmentStmt = db.prepare<[string], RawAttachmentRow>(
       'SELECT * FROM attachments WHERE attachment_id = ?',
@@ -220,8 +220,15 @@ export class AttachmentRepository {
     );
   }
 
-  public hasAttachment(attachmentId: string): boolean {
-    return this.hasAttachmentStmt.get(attachmentId) !== undefined;
+  /**
+   * Returns true only when the attachment has been successfully indexed
+   * (i.e. its row exists AND `status = 'indexed'`). Skipped / failed /
+   * deleted rows return false so the planner can retry them on subsequent
+   * sync runs without needing `--sync-force` — e.g. when a previously
+   * unsupported MIME becomes supported, or after a transient extract error.
+   */
+  public isAttachmentIndexed(attachmentId: string): boolean {
+    return this.isIndexedStmt.get(attachmentId) !== undefined;
   }
 
   public getAttachment(attachmentId: string): AttachmentRow | undefined {
