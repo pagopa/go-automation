@@ -4,7 +4,6 @@
  */
 import { Core } from '@go-automation/go-common';
 
-import type { JiraClient } from '../jira/JiraClient.js';
 import type { AttachmentRepository } from '../storage/AttachmentRepository.js';
 import type { SearchResultItem } from '../types/SearchResultItem.js';
 
@@ -15,10 +14,14 @@ export interface SearchServiceQuery {
   readonly project: string;
 }
 
+export interface IssueUrlBuilder {
+  buildIssueUrl(issueKey: string): string;
+}
+
 export interface SearchServiceDeps {
   readonly index: Core.GOFtsIndex;
   readonly repository: AttachmentRepository;
-  readonly client: JiraClient;
+  readonly issueUrlBuilder: IssueUrlBuilder;
 }
 
 export class SearchService {
@@ -51,7 +54,7 @@ export class SearchService {
         mimeType: row.mimeType,
         score: hit.score,
         snippet: hit.snippet,
-        issueUrl: this.deps.client.buildIssueUrl(row.issueKey),
+        issueUrl: this.deps.issueUrlBuilder.buildIssueUrl(row.issueKey),
         attachmentUrl: row.contentUrl,
       });
     }

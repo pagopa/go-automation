@@ -39,7 +39,8 @@ function columnMapper(name: string): string {
 }
 
 function formatRowAsText(row: SearchResultItem): string {
-  return `[${row.issueKey}] ${row.filename} — ${row.snippet.replace(/\s+/g, ' ').trim()}  (${row.issueUrl})`;
+  const issueUrl = row.issueUrl.length > 0 ? `  (${row.issueUrl})` : '';
+  return `[${row.issueKey}] ${row.filename} — ${row.snippet.replace(/\s+/g, ' ').trim()}${issueUrl}`;
 }
 
 /**

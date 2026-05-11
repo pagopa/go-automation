@@ -11,7 +11,7 @@ import * as fs from 'node:fs/promises';
 import { Core } from '@go-automation/go-common';
 
 import { JiraClient } from '../jira/JiraClient.js';
-import { SearchService } from '../search/SearchService.js';
+import { SearchService, type IssueUrlBuilder } from '../search/SearchService.js';
 import { exportSearchResults } from '../search/SearchResultExporter.js';
 import { AttachmentRepository } from '../storage/AttachmentRepository.js';
 import { closeIndex, openIndex } from '../storage/IndexLifecycle.js';
@@ -65,17 +65,21 @@ export class SearchCommand {
     });
     try {
       const repository = new AttachmentRepository(index);
-      // The Jira client only needs baseUrl + a placeholder authorization header
-      // for URL building (no network call is made). We pass a dummy header.
-      const client = new JiraClient({
-        baseUrl: config.jiraUrl.length > 0 ? config.jiraUrl : 'https://placeholder.invalid',
-        authorizationHeader: 'Basic <unused>',
-      });
+      // JiraClient is used only to format issue links here; it performs no
+      // network call. Without a configured Jira URL, emit empty issueUrl values
+      // instead of placeholder links.
+      const issueUrlBuilder: IssueUrlBuilder =
+        config.jiraUrl.length > 0
+          ? new JiraClient({
+              baseUrl: config.jiraUrl,
+              authorizationHeader: 'Basic <unused>',
+            })
+          : { buildIssueUrl: () => '' };
 
       const service = new SearchService({
         index,
         repository,
-        client,
+        issueUrlBuilder,
       });
 
       const results = service.search({
