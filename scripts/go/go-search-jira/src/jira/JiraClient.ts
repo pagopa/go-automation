@@ -156,7 +156,7 @@ export class JiraClient {
     if (raw === null || typeof raw !== 'object' || !Array.isArray(raw.issues)) {
       throw new Error(
         `Unexpected response shape from ${this.baseUrl}${path}: missing "issues" array. ` +
-          'Verify that jira.base.url points to the root of the Atlassian Cloud instance ' +
+          'Verify that jira.url points to the root of the Atlassian Cloud instance ' +
           '(e.g. https://example.atlassian.net) and that the API token is valid.',
       );
     }
