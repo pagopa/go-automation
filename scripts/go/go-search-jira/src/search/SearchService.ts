@@ -19,7 +19,6 @@ export interface SearchServiceDeps {
   readonly index: Core.GOFtsIndex;
   readonly repository: AttachmentRepository;
   readonly client: JiraClient;
-  readonly baseUrl: string;
 }
 
 export class SearchService {

@@ -76,7 +76,6 @@ export class SearchCommand {
         index,
         repository,
         client,
-        baseUrl: config.jiraUrl,
       });
 
       const results = service.search({
