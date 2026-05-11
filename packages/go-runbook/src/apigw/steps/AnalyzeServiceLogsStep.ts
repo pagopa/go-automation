@@ -1,43 +1,28 @@
-/**
- * Custom step that analyzes CloudWatch Logs results from a microservice.
- *
- * Takes the output of a CloudWatch Logs query, extracts error messages,
- * and optionally finds the next service invocation in the trace chain.
- * Saves findings as context variables for downstream steps and known case matching.
- *
- * Saves vars:
- * - `{varPrefix}ErrorMsg`: longest error message found
- * - `{varPrefix}NextService`: next service name (if found)
- * - `{varPrefix}NextTraceId`: next trace ID (if found)
- */
-
 import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
-import type { Step, StepKind, RunbookContext, StepResult } from '@go-automation/go-runbook';
+import type { Step } from '../../types/Step.js';
+import type { StepKind } from '../../types/StepKind.js';
+import type { RunbookContext } from '../../types/RunbookContext.js';
+import type { StepResult } from '../../types/StepResult.js';
 
-import { findErrorMessage, findNextServiceInvocation } from './cwLogsHelpers.js';
+import { findErrorMessage } from '../helpers/findErrorMessage.js';
+import { findNextServiceInvocation } from '../helpers/findNextServiceInvocation.js';
+import { extractFallbackUuid } from '../helpers/extractFallbackUuid.js';
+import type { ServiceLogsAnalysis } from './ServiceLogsAnalysis.js';
 
 /**
- * Configuration for AnalyzeServiceLogsStep.
+ * Configuration for {@link analyzeServiceLogs}.
  */
-interface AnalyzeServiceLogsConfig {
+export interface AnalyzeServiceLogsConfig {
+  /** Unique step identifier */
   readonly id: string;
+  /** Human-readable label for logs and UI */
   readonly label: string;
-  /** Step ID of the CW Logs query whose output to analyze */
+  /** Step id of the CW Logs query whose output to analyse */
   readonly fromStep: string;
-  /** Prefix for the saved variable names (e.g. 'userAttributes' → 'userAttributesErrorMsg') */
+  /** Prefix used for the vars written to the runbook context */
   readonly varPrefix: string;
-  /** Whether to detect next service invocations in the logs */
+  /** Whether to scan for next-service invocations in the log messages */
   readonly detectNextService?: boolean;
-}
-
-/**
- * Analysis result.
- */
-interface ServiceLogsAnalysis {
-  readonly errorMessage: string;
-  readonly logCount: number;
-  readonly nextService: string | undefined;
-  readonly nextTraceId: string | undefined;
 }
 
 class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
@@ -83,6 +68,15 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
       [`${this.varPrefix}LogCount`]: String(results.length),
     };
 
+    // Propagate any fallback UUID emerging from this service's logs to
+    // the global `fallbackUuid` var so subsequent service queries can
+    // OR-include it (see QueryServiceLogsStep). The var is left untouched
+    // when no UUID is detected so an upstream value stays sticky.
+    const fallbackUuid = extractFallbackUuid(results);
+    if (fallbackUuid !== undefined) {
+      vars['fallbackUuid'] = fallbackUuid;
+    }
+
     let nextService: string | undefined;
     let nextTraceId: string | undefined;
 
@@ -100,18 +94,31 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
       success: true,
       output: { errorMessage, logCount: results.length, nextService, nextTraceId },
       vars,
-      // Signal 'resolve' when an error is found so the engine
-      // can evaluate known cases immediately and stop early if a match is found.
       ...(errorMessage !== '' ? { next: 'resolve' as const } : {}),
     };
   }
 }
 
 /**
- * Factory: Creates a step that analyzes microservice CloudWatch Logs results.
+ * Factory: creates a step that analyses microservice CloudWatch Logs query
+ * results.
+ *
+ * The step extracts the most representative error message from the rows
+ * (see {@link findErrorMessage}) and, optionally, scans for a next-service
+ * invocation pattern (see {@link findNextServiceInvocation}). All findings
+ * are written to the runbook context as vars under the configured prefix.
+ *
+ * When an error message is found the step signals `next: 'resolve'` so
+ * the engine can attempt early known-case resolution.
+ *
+ * Vars written:
+ * - `<varPrefix>ErrorMsg`: longest error message (or empty)
+ * - `<varPrefix>LogCount`: number of result rows
+ * - `<varPrefix>NextService`: next service name (only when `detectNextService=true`)
+ * - `<varPrefix>NextTraceId`: next service trace id (only when `detectNextService=true`)
  *
  * @param config - Step configuration
- * @returns A step that extracts error info and next service invocations
+ * @returns Step that produces a {@link ServiceLogsAnalysis}
  */
 export function analyzeServiceLogs(config: AnalyzeServiceLogsConfig): Step<ServiceLogsAnalysis> {
   return new AnalyzeServiceLogsStepImpl(config);

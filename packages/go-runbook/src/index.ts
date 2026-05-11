@@ -110,3 +110,6 @@ export * from './steps/index.js';
 
 // Builder
 export { RunbookBuilder } from './builders/RunbookBuilder.js';
+
+// API Gateway runbook toolkit
+export * as apigw from './apigw/index.js';
