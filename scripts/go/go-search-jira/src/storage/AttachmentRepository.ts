@@ -130,8 +130,8 @@ interface UpsertIssueBind {
 export class AttachmentRepository {
   private readonly isIndexedStmt: Core.GOSqliteStatement<[string], IdRow>;
   private readonly getAttachmentStmt: Core.GOSqliteStatement<[string], RawAttachmentRow>;
-  private readonly upsertAttachmentStmt: Core.GOSqliteStatement<[UpsertAttachmentBind]>;
-  private readonly upsertIssueStmt: Core.GOSqliteStatement<[UpsertIssueBind]>;
+  private readonly upsertAttachmentStmt: Core.GOSqliteStatement<UpsertAttachmentBind>;
+  private readonly upsertIssueStmt: Core.GOSqliteStatement<UpsertIssueBind>;
   private readonly countIssuesStmt: Core.GOSqliteStatement<[], CountRow>;
   private readonly statusBreakdownStmt: Core.GOSqliteStatement<[], StatusCountRow>;
   private readonly mimeTypeBreakdownStmt: Core.GOSqliteStatement<[], MimeCountRow>;
