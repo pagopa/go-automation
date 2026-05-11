@@ -5,8 +5,10 @@
  * Steps:
  *   1. Run the registered text extractor for the MIME (or fallback on extension).
  *   2. UPSERT the FTS document with metadata (issue_key, project_key, …).
- *   3. Update the bookkeeping row in `attachments` with status `indexed`,
- *      `content_hash` and `indexed_at`.
+ *   3. Write the bookkeeping row in `attachments` in a single shot — final
+ *      `indexed` (with `content_hash` + `indexed_at`) or `failed` (with
+ *      `extract_error` reason). No intermediate placeholder row is written;
+ *      the caller (orchestrator) doesn't pre-insert.
  *   4. If `keepRaw` is false, delete the cached binary file.
  */
 import * as fs from 'node:fs/promises';
@@ -61,18 +63,23 @@ export class AttachmentIndexer {
           mime_type: input.attachment.mimeType,
         },
       });
-      this.deps.repository.updateAttachmentStatus(input.attachment.id, {
-        status: AttachmentSyncStatus.INDEXED,
-        statusReason: null,
-        contentHash: input.contentHash,
-        indexedAt: nowIso,
-      });
+      this.deps.repository.upsertAttachmentMetadata(
+        input.issue,
+        input.attachment,
+        AttachmentSyncStatus.INDEXED,
+        null,
+        nowIso,
+        { contentHash: input.contentHash, indexedAt: nowIso },
+      );
     } else {
-      this.deps.repository.updateAttachmentStatus(input.attachment.id, {
-        status: AttachmentSyncStatus.FAILED,
-        statusReason: `extract_error: ${failureMessage.slice(0, 240)}`,
-        contentHash: input.contentHash,
-      });
+      this.deps.repository.upsertAttachmentMetadata(
+        input.issue,
+        input.attachment,
+        AttachmentSyncStatus.FAILED,
+        `extract_error: ${failureMessage.slice(0, 240)}`,
+        nowIso,
+        { contentHash: input.contentHash, indexedAt: null },
+      );
     }
 
     if (!this.deps.keepRaw) {

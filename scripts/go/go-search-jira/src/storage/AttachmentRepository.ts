@@ -31,13 +31,6 @@ export interface AttachmentRow {
   readonly lastSyncedAt: string;
 }
 
-export interface AttachmentStatusUpdate {
-  readonly status: AttachmentSyncStatusValue;
-  readonly statusReason: string | null;
-  readonly contentHash?: string | null;
-  readonly indexedAt?: string | null;
-}
-
 export interface AttachmentStatusBreakdown {
   readonly indexed: number;
   readonly skipped: number;
@@ -107,18 +100,24 @@ interface UpsertAttachmentBind {
   readonly created_at: string;
   readonly author: string | null;
   readonly content_url: string;
+  readonly content_hash: string | null;
   readonly status: AttachmentSyncStatusValue;
   readonly status_reason: string | null;
+  readonly indexed_at: string | null;
   readonly last_synced_at: string;
 }
 
-interface UpdateAttachmentStatusBind {
-  readonly attachment_id: string;
-  readonly status: AttachmentSyncStatusValue;
-  readonly status_reason: string | null;
-  readonly content_hash: string | null;
-  readonly indexed_at: string | null;
+/**
+ * Optional outcome fields persisted alongside the bookkeeping row. Defaults to
+ * "no hash / not indexed yet" — appropriate for skip/dry-run/download-fail
+ * paths that never produced a content hash.
+ */
+export interface AttachmentOutcome {
+  readonly contentHash: string | null;
+  readonly indexedAt: string | null;
 }
+
+const NO_OUTCOME: AttachmentOutcome = { contentHash: null, indexedAt: null };
 
 interface UpsertIssueBind {
   readonly issue_key: string;
@@ -132,7 +131,6 @@ export class AttachmentRepository {
   private readonly hasAttachmentStmt: Core.GOSqliteStatement<[string], IdRow>;
   private readonly getAttachmentStmt: Core.GOSqliteStatement<[string], RawAttachmentRow>;
   private readonly upsertAttachmentStmt: Core.GOSqliteStatement<[UpsertAttachmentBind]>;
-  private readonly updateAttachmentStatusStmt: Core.GOSqliteStatement<[UpdateAttachmentStatusBind]>;
   private readonly upsertIssueStmt: Core.GOSqliteStatement<[UpsertIssueBind]>;
   private readonly countIssuesStmt: Core.GOSqliteStatement<[], CountRow>;
   private readonly statusBreakdownStmt: Core.GOSqliteStatement<[], StatusCountRow>;
@@ -162,8 +160,8 @@ export class AttachmentRepository {
        VALUES(
          @attachment_id, @issue_key, @issue_summary, @project_key,
          @filename, @mime_type, @size_bytes, @created_at, @author,
-         @content_url, NULL, @status, @status_reason,
-         NULL, @last_synced_at
+         @content_url, @content_hash, @status, @status_reason,
+         @indexed_at, @last_synced_at
        )
        ON CONFLICT(attachment_id) DO UPDATE SET
          issue_key       = excluded.issue_key,
@@ -175,18 +173,11 @@ export class AttachmentRepository {
          created_at      = excluded.created_at,
          author          = excluded.author,
          content_url     = excluded.content_url,
+         content_hash    = COALESCE(excluded.content_hash, attachments.content_hash),
          status          = excluded.status,
          status_reason   = excluded.status_reason,
+         indexed_at      = COALESCE(excluded.indexed_at, attachments.indexed_at),
          last_synced_at  = excluded.last_synced_at`,
-    );
-
-    this.updateAttachmentStatusStmt = db.prepare<UpdateAttachmentStatusBind>(
-      `UPDATE attachments
-       SET status         = @status,
-           status_reason  = @status_reason,
-           content_hash   = COALESCE(@content_hash, content_hash),
-           indexed_at     = COALESCE(@indexed_at, indexed_at)
-       WHERE attachment_id = @attachment_id`,
     );
 
     this.upsertIssueStmt = db.prepare<UpsertIssueBind>(
@@ -238,12 +229,21 @@ export class AttachmentRepository {
     return row !== undefined ? toAttachmentRow(row) : undefined;
   }
 
+  /**
+   * Writes the bookkeeping row for an attachment in a single shot — no
+   * intermediate placeholder row. The `outcome` parameter carries the
+   * `contentHash` / `indexedAt` produced by the indexer when applicable;
+   * skip / dry-run / download-fail paths pass the default `NO_OUTCOME`
+   * (both null) and the existing values, if any, are preserved by the
+   * `COALESCE(excluded.x, attachments.x)` clause on conflict.
+   */
   public upsertAttachmentMetadata(
     issue: JiraIssue,
     attachment: JiraAttachment,
     status: AttachmentSyncStatusValue,
     statusReason: string | null,
     nowIso: string,
+    outcome: AttachmentOutcome = NO_OUTCOME,
   ): void {
     this.upsertAttachmentStmt.run({
       attachment_id: attachment.id,
@@ -256,19 +256,11 @@ export class AttachmentRepository {
       created_at: attachment.created,
       author: attachment.author ?? null,
       content_url: attachment.contentUrl,
+      content_hash: outcome.contentHash,
       status,
       status_reason: statusReason,
+      indexed_at: outcome.indexedAt,
       last_synced_at: nowIso,
-    });
-  }
-
-  public updateAttachmentStatus(attachmentId: string, update: AttachmentStatusUpdate): void {
-    this.updateAttachmentStatusStmt.run({
-      attachment_id: attachmentId,
-      status: update.status,
-      status_reason: update.statusReason,
-      content_hash: update.contentHash ?? null,
-      indexed_at: update.indexedAt ?? null,
     });
   }
 

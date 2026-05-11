@@ -189,54 +189,52 @@ export class AttachmentSyncOrchestrator {
   ): Promise<void> {
     const attachment = decision.attachment;
     const localPath = this.deps.cachePaths.attachmentPath(issue.key, attachment);
-
-    // Always materialise/refresh the bookkeeping row before any attempt.
-    this.deps.repository.upsertAttachmentMetadata(
-      issue,
-      attachment,
-      AttachmentSyncStatus.SKIPPED, // placeholder; will be flipped below
-      'pending',
-      new Date().toISOString(),
-    );
+    const nowIso = new Date().toISOString();
 
     if (options.dryRun) {
       this.deps.logger.info(`[dry-run] would download ${issue.key} :: ${attachment.filename}`);
-      this.deps.repository.updateAttachmentStatus(attachment.id, {
-        status: AttachmentSyncStatus.SKIPPED,
-        statusReason: 'dry_run',
-      });
+      this.deps.repository.upsertAttachmentMetadata(issue, attachment, AttachmentSyncStatus.SKIPPED, 'dry_run', nowIso);
       report.skipped += 1;
       return;
     }
 
+    let downloaded: { readonly sha256: string; readonly bytesWritten: number };
     try {
-      const downloaded = await this.deps.client.downloadAttachment(attachment, localPath);
+      downloaded = await this.deps.client.downloadAttachment(attachment, localPath);
       report.bytesDownloaded += downloaded.bytesWritten;
-      await this.deps.indexer.indexAttachment({
-        issue,
-        attachment,
-        localPath,
-        contentHash: downloaded.sha256,
-      });
-      const refreshed = this.deps.repository.getAttachment(attachment.id);
-      if (refreshed?.status === AttachmentSyncStatus.INDEXED) {
-        report.indexed += 1;
-      } else {
-        report.failed += 1;
-        report.errors.push({
-          attachmentId: attachment.id,
-          issueKey: issue.key,
-          message: refreshed?.statusReason ?? 'unknown failure',
-        });
-      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'download failed';
-      this.deps.repository.updateAttachmentStatus(attachment.id, {
-        status: AttachmentSyncStatus.FAILED,
-        statusReason: `download_error: ${message.slice(0, 240)}`,
-      });
+      this.deps.repository.upsertAttachmentMetadata(
+        issue,
+        attachment,
+        AttachmentSyncStatus.FAILED,
+        `download_error: ${message.slice(0, 240)}`,
+        nowIso,
+      );
       report.failed += 1;
       report.errors.push({ attachmentId: attachment.id, issueKey: issue.key, message });
+      return;
+    }
+
+    // Indexer writes the final row state itself (INDEXED on success, FAILED
+    // on extract error). No placeholder row exists before this point.
+    await this.deps.indexer.indexAttachment({
+      issue,
+      attachment,
+      localPath,
+      contentHash: downloaded.sha256,
+    });
+
+    const refreshed = this.deps.repository.getAttachment(attachment.id);
+    if (refreshed?.status === AttachmentSyncStatus.INDEXED) {
+      report.indexed += 1;
+    } else {
+      report.failed += 1;
+      report.errors.push({
+        attachmentId: attachment.id,
+        issueKey: issue.key,
+        message: refreshed?.statusReason ?? 'unknown failure',
+      });
     }
   }
 }
