@@ -1,7 +1,7 @@
 /**
  * Resolves a list of Jira issues to sync, using either a JQL query or an
  * explicit list of issue keys. The two modes are mutually exclusive at the
- * API level but the caller may pass both: `--issue-keys` always wins.
+ * API level but the caller may pass both: `--jira-issue-keys` always wins.
  */
 import type { JiraClient } from '../jira/JiraClient.js';
 import type { JiraIssue } from '../types/JiraIssue.js';
@@ -25,7 +25,7 @@ export class IssueDiscovery {
       return this.discoverByKeys(options.issueKeys);
     }
     if (options.jql.trim().length === 0) {
-      throw new Error('IssueDiscovery: either --jql or --jira-issue-keys must be provided');
+      throw new Error('IssueDiscovery: either --jira-jql or --jira-issue-keys must be provided');
     }
     return this.client.searchIssues(options.jql);
   }
