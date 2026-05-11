@@ -2,6 +2,10 @@
  * Persistence helper for the `attachments` and `issues` tables. Wraps the
  * raw better-sqlite3 statements behind a small typed API used by the sync
  * orchestrator and the status command.
+ *
+ * All prepared statements are built once in the constructor and reused on
+ * every call — `db.prepare(...)` is non-trivial in better-sqlite3 (SQL
+ * planning, parameter analysis) and these methods are on the sync hot path.
  */
 import type { Core } from '@go-automation/go-common';
 
@@ -82,26 +86,155 @@ interface ReasonCountRow {
   readonly count: number;
 }
 
+interface ReasonMimeCountRow {
+  readonly reason: string;
+  readonly mimeType: string;
+  readonly count: number;
+}
+
 interface ValueRow {
   readonly value: string;
 }
 
+interface UpsertAttachmentBind {
+  readonly attachment_id: string;
+  readonly issue_key: string;
+  readonly issue_summary: string;
+  readonly project_key: string;
+  readonly filename: string;
+  readonly mime_type: string;
+  readonly size_bytes: number;
+  readonly created_at: string;
+  readonly author: string | null;
+  readonly content_url: string;
+  readonly status: AttachmentSyncStatusValue;
+  readonly status_reason: string | null;
+  readonly last_synced_at: string;
+}
+
+interface UpdateAttachmentStatusBind {
+  readonly attachment_id: string;
+  readonly status: AttachmentSyncStatusValue;
+  readonly status_reason: string | null;
+  readonly content_hash: string | null;
+  readonly indexed_at: string | null;
+}
+
+interface UpsertIssueBind {
+  readonly issue_key: string;
+  readonly project_key: string;
+  readonly summary: string;
+  readonly updated_at: string;
+  readonly last_synced_at: string;
+}
+
 export class AttachmentRepository {
-  private readonly db: Core.GOSqliteDatabase;
+  private readonly hasAttachmentStmt: Core.GOSqliteStatement<[string], IdRow>;
+  private readonly getAttachmentStmt: Core.GOSqliteStatement<[string], RawAttachmentRow>;
+  private readonly upsertAttachmentStmt: Core.GOSqliteStatement<[UpsertAttachmentBind]>;
+  private readonly updateAttachmentStatusStmt: Core.GOSqliteStatement<[UpdateAttachmentStatusBind]>;
+  private readonly upsertIssueStmt: Core.GOSqliteStatement<[UpsertIssueBind]>;
+  private readonly countIssuesStmt: Core.GOSqliteStatement<[], CountRow>;
+  private readonly statusBreakdownStmt: Core.GOSqliteStatement<[], StatusCountRow>;
+  private readonly mimeTypeBreakdownStmt: Core.GOSqliteStatement<[], MimeCountRow>;
+  private readonly skipReasonBreakdownStmt: Core.GOSqliteStatement<[], ReasonCountRow>;
+  private readonly skipMimeBreakdownStmt: Core.GOSqliteStatement<[], ReasonMimeCountRow>;
+  private readonly getLastSyncStmt: Core.GOSqliteStatement<[], ValueRow>;
+  private readonly setLastSyncStmt: Core.GOSqliteStatement<[string]>;
 
   constructor(index: Core.GOFtsIndex) {
-    this.db = index.getDatabase();
+    const db = index.getDatabase();
+
+    this.hasAttachmentStmt = db.prepare<[string], IdRow>(
+      'SELECT attachment_id FROM attachments WHERE attachment_id = ?',
+    );
+    this.getAttachmentStmt = db.prepare<[string], RawAttachmentRow>(
+      'SELECT * FROM attachments WHERE attachment_id = ?',
+    );
+
+    this.upsertAttachmentStmt = db.prepare<UpsertAttachmentBind>(
+      `INSERT INTO attachments(
+         attachment_id, issue_key, issue_summary, project_key,
+         filename, mime_type, size_bytes, created_at, author,
+         content_url, content_hash, status, status_reason,
+         indexed_at, last_synced_at
+       )
+       VALUES(
+         @attachment_id, @issue_key, @issue_summary, @project_key,
+         @filename, @mime_type, @size_bytes, @created_at, @author,
+         @content_url, NULL, @status, @status_reason,
+         NULL, @last_synced_at
+       )
+       ON CONFLICT(attachment_id) DO UPDATE SET
+         issue_key       = excluded.issue_key,
+         issue_summary   = excluded.issue_summary,
+         project_key     = excluded.project_key,
+         filename        = excluded.filename,
+         mime_type       = excluded.mime_type,
+         size_bytes      = excluded.size_bytes,
+         created_at      = excluded.created_at,
+         author          = excluded.author,
+         content_url     = excluded.content_url,
+         status          = excluded.status,
+         status_reason   = excluded.status_reason,
+         last_synced_at  = excluded.last_synced_at`,
+    );
+
+    this.updateAttachmentStatusStmt = db.prepare<UpdateAttachmentStatusBind>(
+      `UPDATE attachments
+       SET status         = @status,
+           status_reason  = @status_reason,
+           content_hash   = COALESCE(@content_hash, content_hash),
+           indexed_at     = COALESCE(@indexed_at, indexed_at)
+       WHERE attachment_id = @attachment_id`,
+    );
+
+    this.upsertIssueStmt = db.prepare<UpsertIssueBind>(
+      `INSERT INTO issues(issue_key, project_key, summary, updated_at, last_synced_at)
+       VALUES(@issue_key, @project_key, @summary, @updated_at, @last_synced_at)
+       ON CONFLICT(issue_key) DO UPDATE SET
+         project_key    = excluded.project_key,
+         summary        = excluded.summary,
+         updated_at     = excluded.updated_at,
+         last_synced_at = excluded.last_synced_at`,
+    );
+
+    this.countIssuesStmt = db.prepare<[], CountRow>('SELECT COUNT(*) AS c FROM issues');
+    this.statusBreakdownStmt = db.prepare<[], StatusCountRow>(
+      'SELECT status, COUNT(*) AS c FROM attachments GROUP BY status',
+    );
+    this.mimeTypeBreakdownStmt = db.prepare<[], MimeCountRow>(
+      `SELECT mime_type AS mimeType, COUNT(*) AS count
+         FROM attachments WHERE status = 'indexed'
+         GROUP BY mime_type ORDER BY count DESC`,
+    );
+    this.skipReasonBreakdownStmt = db.prepare<[], ReasonCountRow>(
+      `SELECT COALESCE(status_reason, 'unknown') AS reason, COUNT(*) AS count
+         FROM attachments WHERE status = 'skipped'
+         GROUP BY reason ORDER BY count DESC`,
+    );
+    this.skipMimeBreakdownStmt = db.prepare<[], ReasonMimeCountRow>(
+      `SELECT COALESCE(status_reason, 'unknown') AS reason,
+              mime_type AS mimeType,
+              COUNT(*) AS count
+         FROM attachments WHERE status = 'skipped'
+         GROUP BY reason, mime_type
+         ORDER BY count DESC`,
+    );
+
+    this.getLastSyncStmt = db.prepare<[], ValueRow>("SELECT value FROM sync_state WHERE key = 'last_sync_at'");
+    this.setLastSyncStmt = db.prepare<[string]>(
+      `INSERT INTO sync_state(key, value) VALUES('last_sync_at', ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    );
   }
 
   public hasAttachment(attachmentId: string): boolean {
-    const stmt = this.db.prepare<[string], IdRow>('SELECT attachment_id FROM attachments WHERE attachment_id = ?');
-    const row = stmt.get(attachmentId);
-    return row !== undefined;
+    return this.hasAttachmentStmt.get(attachmentId) !== undefined;
   }
 
   public getAttachment(attachmentId: string): AttachmentRow | undefined {
-    const stmt = this.db.prepare<[string], RawAttachmentRow>('SELECT * FROM attachments WHERE attachment_id = ?');
-    const row = stmt.get(attachmentId);
+    const row = this.getAttachmentStmt.get(attachmentId);
     return row !== undefined ? toAttachmentRow(row) : undefined;
   }
 
@@ -112,99 +245,49 @@ export class AttachmentRepository {
     statusReason: string | null,
     nowIso: string,
   ): void {
-    this.db
-      .prepare(
-        `INSERT INTO attachments(
-           attachment_id, issue_key, issue_summary, project_key,
-           filename, mime_type, size_bytes, created_at, author,
-           content_url, content_hash, status, status_reason,
-           indexed_at, last_synced_at
-         )
-         VALUES(
-           @attachment_id, @issue_key, @issue_summary, @project_key,
-           @filename, @mime_type, @size_bytes, @created_at, @author,
-           @content_url, NULL, @status, @status_reason,
-           NULL, @last_synced_at
-         )
-         ON CONFLICT(attachment_id) DO UPDATE SET
-           issue_key       = excluded.issue_key,
-           issue_summary   = excluded.issue_summary,
-           project_key     = excluded.project_key,
-           filename        = excluded.filename,
-           mime_type       = excluded.mime_type,
-           size_bytes      = excluded.size_bytes,
-           created_at      = excluded.created_at,
-           author          = excluded.author,
-           content_url     = excluded.content_url,
-           status          = excluded.status,
-           status_reason   = excluded.status_reason,
-           last_synced_at  = excluded.last_synced_at`,
-      )
-      .run({
-        attachment_id: attachment.id,
-        issue_key: issue.key,
-        issue_summary: issue.summary,
-        project_key: issue.projectKey,
-        filename: attachment.filename,
-        mime_type: attachment.mimeType,
-        size_bytes: attachment.size,
-        created_at: attachment.created,
-        author: attachment.author ?? null,
-        content_url: attachment.contentUrl,
-        status,
-        status_reason: statusReason,
-        last_synced_at: nowIso,
-      });
+    this.upsertAttachmentStmt.run({
+      attachment_id: attachment.id,
+      issue_key: issue.key,
+      issue_summary: issue.summary,
+      project_key: issue.projectKey,
+      filename: attachment.filename,
+      mime_type: attachment.mimeType,
+      size_bytes: attachment.size,
+      created_at: attachment.created,
+      author: attachment.author ?? null,
+      content_url: attachment.contentUrl,
+      status,
+      status_reason: statusReason,
+      last_synced_at: nowIso,
+    });
   }
 
   public updateAttachmentStatus(attachmentId: string, update: AttachmentStatusUpdate): void {
-    this.db
-      .prepare(
-        `UPDATE attachments
-         SET status         = @status,
-             status_reason  = @status_reason,
-             content_hash   = COALESCE(@content_hash, content_hash),
-             indexed_at     = COALESCE(@indexed_at, indexed_at)
-         WHERE attachment_id = @attachment_id`,
-      )
-      .run({
-        attachment_id: attachmentId,
-        status: update.status,
-        status_reason: update.statusReason,
-        content_hash: update.contentHash ?? null,
-        indexed_at: update.indexedAt ?? null,
-      });
+    this.updateAttachmentStatusStmt.run({
+      attachment_id: attachmentId,
+      status: update.status,
+      status_reason: update.statusReason,
+      content_hash: update.contentHash ?? null,
+      indexed_at: update.indexedAt ?? null,
+    });
   }
 
   public upsertIssue(issue: JiraIssue, nowIso: string): void {
-    this.db
-      .prepare(
-        `INSERT INTO issues(issue_key, project_key, summary, updated_at, last_synced_at)
-         VALUES(@issue_key, @project_key, @summary, @updated_at, @last_synced_at)
-         ON CONFLICT(issue_key) DO UPDATE SET
-           project_key    = excluded.project_key,
-           summary        = excluded.summary,
-           updated_at     = excluded.updated_at,
-           last_synced_at = excluded.last_synced_at`,
-      )
-      .run({
-        issue_key: issue.key,
-        project_key: issue.projectKey,
-        summary: issue.summary,
-        updated_at: issue.updated,
-        last_synced_at: nowIso,
-      });
+    this.upsertIssueStmt.run({
+      issue_key: issue.key,
+      project_key: issue.projectKey,
+      summary: issue.summary,
+      updated_at: issue.updated,
+      last_synced_at: nowIso,
+    });
   }
 
   public countIssues(): number {
-    const stmt = this.db.prepare<[], CountRow>('SELECT COUNT(*) AS c FROM issues');
-    const row = stmt.get();
-    return row?.c ?? 0;
+    return this.countIssuesStmt.get()?.c ?? 0;
   }
 
   public statusBreakdown(): AttachmentStatusBreakdown {
-    const stmt = this.db.prepare<[], StatusCountRow>('SELECT status, COUNT(*) AS c FROM attachments GROUP BY status');
-    const rows = stmt.all();
+    const rows = this.statusBreakdownStmt.all();
     const breakdown: { indexed: number; skipped: number; failed: number; deleted: number } = {
       indexed: 0,
       skipped: 0,
@@ -221,21 +304,11 @@ export class AttachmentRepository {
   }
 
   public mimeTypeBreakdown(): ReadonlyArray<{ readonly mimeType: string; readonly count: number }> {
-    const stmt = this.db.prepare<[], MimeCountRow>(
-      `SELECT mime_type AS mimeType, COUNT(*) AS count
-         FROM attachments WHERE status = 'indexed'
-         GROUP BY mime_type ORDER BY count DESC`,
-    );
-    return stmt.all();
+    return this.mimeTypeBreakdownStmt.all();
   }
 
   public skipReasonBreakdown(): ReadonlyArray<{ readonly reason: string; readonly count: number }> {
-    const stmt = this.db.prepare<[], ReasonCountRow>(
-      `SELECT COALESCE(status_reason, 'unknown') AS reason, COUNT(*) AS count
-         FROM attachments WHERE status = 'skipped'
-         GROUP BY reason ORDER BY count DESC`,
-    );
-    return stmt.all();
+    return this.skipReasonBreakdownStmt.all();
   }
 
   /**
@@ -247,30 +320,15 @@ export class AttachmentRepository {
     readonly mimeType: string;
     readonly count: number;
   }> {
-    const stmt = this.db.prepare<[], { readonly reason: string; readonly mimeType: string; readonly count: number }>(
-      `SELECT COALESCE(status_reason, 'unknown') AS reason,
-              mime_type AS mimeType,
-              COUNT(*) AS count
-         FROM attachments WHERE status = 'skipped'
-         GROUP BY reason, mime_type
-         ORDER BY count DESC`,
-    );
-    return stmt.all();
+    return this.skipMimeBreakdownStmt.all();
   }
 
   public getLastSync(): string | undefined {
-    const stmt = this.db.prepare<[], ValueRow>("SELECT value FROM sync_state WHERE key = 'last_sync_at'");
-    const row = stmt.get();
-    return row?.value;
+    return this.getLastSyncStmt.get()?.value;
   }
 
   public setLastSync(nowIso: string): void {
-    this.db
-      .prepare(
-        `INSERT INTO sync_state(key, value) VALUES('last_sync_at', ?)
-         ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-      )
-      .run(nowIso);
+    this.setLastSyncStmt.run(nowIso);
   }
 }
 
