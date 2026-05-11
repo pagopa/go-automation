@@ -106,6 +106,7 @@ jobs:
     with:
       command: test
       install-args: --frozen-lockfile --ignore-scripts
+      pre-command: rebuild better-sqlite3
       timeout-minutes: 25
       download-artifact-name: workspace-build
 
@@ -116,6 +117,7 @@ jobs:
     with:
       command: test:coverage
       install-args: --frozen-lockfile --ignore-scripts
+      pre-command: rebuild better-sqlite3
       timeout-minutes: 25
       download-artifact-name: workspace-build
       upload-artifact-name: coverage-reports
