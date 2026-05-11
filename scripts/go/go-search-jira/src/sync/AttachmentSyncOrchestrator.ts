@@ -21,7 +21,7 @@ import type { AttachmentRepository } from '../storage/AttachmentRepository.js';
 import { AttachmentCachePaths } from './AttachmentCachePaths.js';
 import { AttachmentPlanner } from './AttachmentPlanner.js';
 import type { AttachmentIndexer } from './AttachmentIndexer.js';
-import { AttachmentSyncStatus } from '../types/AttachmentSyncStatus.js';
+import { AttachmentSkipReason, AttachmentSyncStatus } from '../types/AttachmentSyncStatus.js';
 import type { AttachmentSyncReport } from '../types/AttachmentSyncReport.js';
 import type { AttachmentPlanItem } from '../types/AttachmentPlanItem.js';
 import type { JiraIssue } from '../types/JiraIssue.js';
@@ -179,9 +179,15 @@ export class AttachmentSyncOrchestrator {
   ): void {
     report.skipped += 1;
     if (dryRun) return;
-    // Always upsert with the real issue metadata so summary / projectKey are
-    // never lost — `upsertAttachmentMetadata` does INSERT ... ON CONFLICT and
-    // refreshes those fields on every sync run.
+    // `already_indexed` means the row already has `status='indexed'` and a
+    // valid FTS5 document. Writing `status=skipped` here would flip a
+    // successfully-indexed row to skipped, and `SearchService` (which filters
+    // on `status='indexed'`) would silently hide it from results even though
+    // the FTS document still exists. Leave the row untouched.
+    if (decision.reason === AttachmentSkipReason.ALREADY_INDEXED) return;
+    // For genuine skip reasons (unsupported_mime / too_large / forbidden) the
+    // attachment has never been indexed, so persisting `status='skipped'`
+    // with the real issue metadata is correct.
     this.deps.repository.upsertAttachmentMetadata(
       issue,
       decision.attachment,
