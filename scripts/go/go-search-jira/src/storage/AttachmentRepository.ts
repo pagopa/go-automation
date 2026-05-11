@@ -9,7 +9,7 @@
  */
 import type { Core } from '@go-automation/go-common';
 
-import type { AttachmentSyncStatusValue } from '../types/AttachmentSyncStatus.js';
+import { AttachmentSyncStatus, type AttachmentSyncStatusValue } from '../types/AttachmentSyncStatus.js';
 import type { JiraAttachment } from '../types/JiraAttachment.js';
 import type { JiraIssue } from '../types/JiraIssue.js';
 
@@ -173,10 +173,10 @@ export class AttachmentRepository {
          created_at      = excluded.created_at,
          author          = excluded.author,
          content_url     = excluded.content_url,
-         content_hash    = COALESCE(excluded.content_hash, attachments.content_hash),
+         content_hash    = excluded.content_hash,
          status          = excluded.status,
          status_reason   = excluded.status_reason,
-         indexed_at      = COALESCE(excluded.indexed_at, attachments.indexed_at),
+         indexed_at      = excluded.indexed_at,
          last_synced_at  = excluded.last_synced_at`,
     );
 
@@ -239,10 +239,9 @@ export class AttachmentRepository {
   /**
    * Writes the bookkeeping row for an attachment in a single shot — no
    * intermediate placeholder row. The `outcome` parameter carries the
-   * `contentHash` / `indexedAt` produced by the indexer when applicable;
-   * skip / dry-run / download-fail paths pass the default `NO_OUTCOME`
-   * (both null) and the existing values, if any, are preserved by the
-   * `COALESCE(excluded.x, attachments.x)` clause on conflict.
+   * `contentHash` / `indexedAt` produced by the indexer when applicable.
+   * Only `indexed` rows retain those fields; failed / skipped / deleted rows
+   * clear them so status output cannot report stale index metadata.
    */
   public upsertAttachmentMetadata(
     issue: JiraIssue,
@@ -252,6 +251,7 @@ export class AttachmentRepository {
     nowIso: string,
     outcome: AttachmentOutcome = NO_OUTCOME,
   ): void {
+    const storedOutcome = status === AttachmentSyncStatus.INDEXED ? outcome : NO_OUTCOME;
     this.upsertAttachmentStmt.run({
       attachment_id: attachment.id,
       issue_key: issue.key,
@@ -263,10 +263,10 @@ export class AttachmentRepository {
       created_at: attachment.created,
       author: attachment.author ?? null,
       content_url: attachment.contentUrl,
-      content_hash: outcome.contentHash,
+      content_hash: storedOutcome.contentHash,
       status,
       status_reason: statusReason,
-      indexed_at: outcome.indexedAt,
+      indexed_at: storedOutcome.indexedAt,
       last_synced_at: nowIso,
     });
   }
