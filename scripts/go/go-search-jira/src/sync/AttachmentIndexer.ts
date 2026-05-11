@@ -7,8 +7,9 @@
  *   2. UPSERT the FTS document with metadata (issue_key, project_key, …).
  *   3. Write the bookkeeping row in `attachments` in a single shot — final
  *      `indexed` (with `content_hash` + `indexed_at`) or `failed` (with
- *      `extract_error` reason). No intermediate placeholder row is written;
- *      the caller (orchestrator) doesn't pre-insert.
+ *      `extract_error` reason). Existing indexed rows can be preserved on
+ *      extraction failure during force refreshes so search never loses the
+ *      previous good document because of a transient failure.
  *   4. If `keepRaw` is false, delete the cached binary file.
  */
 import * as fs from 'node:fs/promises';
@@ -24,6 +25,13 @@ export interface AttachmentIndexerInput {
   readonly attachment: JiraAttachment;
   readonly localPath: string;
   readonly contentHash: string;
+  readonly preserveExistingIndexOnFailure?: boolean;
+}
+
+export interface AttachmentIndexerResult {
+  readonly status: typeof AttachmentSyncStatus.INDEXED | typeof AttachmentSyncStatus.FAILED;
+  readonly statusReason: string | null;
+  readonly preservedExistingIndex: boolean;
 }
 
 export interface AttachmentIndexerDeps {
@@ -37,7 +45,7 @@ export interface AttachmentIndexerDeps {
 export class AttachmentIndexer {
   constructor(private readonly deps: AttachmentIndexerDeps) {}
 
-  public async indexAttachment(input: AttachmentIndexerInput): Promise<void> {
+  public async indexAttachment(input: AttachmentIndexerInput): Promise<AttachmentIndexerResult> {
     const nowIso = new Date().toISOString();
     let text = '';
     let extractionFailed = false;
@@ -52,6 +60,7 @@ export class AttachmentIndexer {
       failureMessage = error instanceof Error ? error.message : 'extraction failed';
     }
 
+    let result: AttachmentIndexerResult;
     if (!extractionFailed) {
       this.deps.index.upsert({
         id: input.attachment.id,
@@ -71,20 +80,30 @@ export class AttachmentIndexer {
         nowIso,
         { contentHash: input.contentHash, indexedAt: nowIso },
       );
+      result = { status: AttachmentSyncStatus.INDEXED, statusReason: null, preservedExistingIndex: false };
     } else {
-      this.deps.repository.upsertAttachmentMetadata(
-        input.issue,
-        input.attachment,
-        AttachmentSyncStatus.FAILED,
-        `extract_error: ${failureMessage.slice(0, 240)}`,
-        nowIso,
-        { contentHash: input.contentHash, indexedAt: null },
-      );
+      const statusReason = `extract_error: ${failureMessage.slice(0, 240)}`;
+      const preservedExistingIndex =
+        input.preserveExistingIndexOnFailure === true &&
+        this.deps.repository.isAttachmentIndexed(input.attachment.id);
+
+      if (!preservedExistingIndex) {
+        this.deps.repository.upsertAttachmentMetadata(
+          input.issue,
+          input.attachment,
+          AttachmentSyncStatus.FAILED,
+          statusReason,
+          nowIso,
+          { contentHash: input.contentHash, indexedAt: null },
+        );
+      }
+      result = { status: AttachmentSyncStatus.FAILED, statusReason, preservedExistingIndex };
     }
 
     if (!this.deps.keepRaw) {
       await this.bestEffortUnlink(input.localPath);
     }
+    return result;
   }
 
   private async bestEffortUnlink(filePath: string): Promise<void> {

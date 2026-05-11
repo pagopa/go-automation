@@ -220,3 +220,150 @@ describe('AttachmentSyncOrchestrator — hard task failures', () => {
     }
   });
 });
+
+describe('AttachmentSyncOrchestrator — force refresh failures', () => {
+  it('keeps a previous indexed document searchable when a forced download fails', async () => {
+    const index = new Core.GOFtsIndex({
+      databasePath: ':memory:',
+      ftsTableName: 'attachments_fts',
+      metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
+    });
+    await index.open();
+
+    try {
+      new IndexSchemaManager(index).ensureSchema();
+      const repository = new AttachmentRepository(index);
+      const attachment = makeAttachment({ id: '77', filename: 'notes.txt', mimeType: 'text/plain' });
+      const issue = makeIssue([attachment]);
+
+      repository.upsertAttachmentMetadata(
+        issue,
+        attachment,
+        AttachmentSyncStatus.INDEXED,
+        null,
+        '2026-01-01T00:00:00.000Z',
+        { contentHash: 'sha256-old', indexedAt: '2026-01-01T00:00:00.000Z' },
+      );
+      index.upsert({
+        id: attachment.id,
+        content: 'previous searchable content',
+        metadata: {
+          issue_key: issue.key,
+          project_key: issue.projectKey,
+          filename: attachment.filename,
+          mime_type: attachment.mimeType,
+        },
+      });
+
+      const registry = new Core.GOTextExtractorRegistry();
+      registry.register(new Core.GOPlainTextExtractor());
+      const orchestrator = new AttachmentSyncOrchestrator({
+        logger: NOOP_LOGGER,
+        index,
+        repository,
+        registry,
+        client: {
+          downloadAttachment: async () => {
+            throw new Error('network timeout');
+          },
+        } as unknown as JiraClient,
+        discovery: new FakeDiscovery([issue]),
+        indexer: {} as unknown as AttachmentIndexer,
+        cachePaths: new AttachmentCachePaths('/tmp/unused'),
+      });
+
+      const report = await orchestrator.run({
+        jql: 'unused',
+        issueKeys: [],
+        maxParallelDownloads: 1,
+        maxAttachmentSizeBytes: 100_000_000,
+        dryRun: false,
+        force: true,
+      });
+
+      const row = repository.getAttachment(attachment.id);
+      assert.strictEqual(report.failed, 1);
+      assert.strictEqual(report.indexed, 0);
+      assert.strictEqual(row?.status, AttachmentSyncStatus.INDEXED);
+      assert.strictEqual(row?.contentHash, 'sha256-old');
+      assert.strictEqual(row?.indexedAt, '2026-01-01T00:00:00.000Z');
+      assert.strictEqual(index.search({ query: 'previous' }).length, 1);
+    } finally {
+      await index.close();
+    }
+  });
+
+  it('keeps a previous indexed document searchable when forced extraction fails', async () => {
+    const index = new Core.GOFtsIndex({
+      databasePath: ':memory:',
+      ftsTableName: 'attachments_fts',
+      metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
+    });
+    await index.open();
+
+    try {
+      new IndexSchemaManager(index).ensureSchema();
+      const repository = new AttachmentRepository(index);
+      const attachment = makeAttachment({ id: '78', filename: 'notes.txt', mimeType: 'text/plain' });
+      const issue = makeIssue([attachment]);
+
+      repository.upsertAttachmentMetadata(
+        issue,
+        attachment,
+        AttachmentSyncStatus.INDEXED,
+        null,
+        '2026-01-01T00:00:00.000Z',
+        { contentHash: 'sha256-old', indexedAt: '2026-01-01T00:00:00.000Z' },
+      );
+      index.upsert({
+        id: attachment.id,
+        content: 'previous extraction content',
+        metadata: {
+          issue_key: issue.key,
+          project_key: issue.projectKey,
+          filename: attachment.filename,
+          mime_type: attachment.mimeType,
+        },
+      });
+
+      const registry = new Core.GOTextExtractorRegistry();
+      registry.register(new Core.GOPlainTextExtractor());
+      const orchestrator = new AttachmentSyncOrchestrator({
+        logger: NOOP_LOGGER,
+        index,
+        repository,
+        registry,
+        client: {
+          downloadAttachment: async () => ({ sha256: 'sha256-new', bytesWritten: 12, attempts: 1 }),
+        } as unknown as JiraClient,
+        discovery: new FakeDiscovery([issue]),
+        indexer: new AttachmentIndexer({
+          registry,
+          index,
+          repository,
+          keepRaw: false,
+        }),
+        cachePaths: new AttachmentCachePaths('/tmp/unused'),
+      });
+
+      const report = await orchestrator.run({
+        jql: 'unused',
+        issueKeys: [],
+        maxParallelDownloads: 1,
+        maxAttachmentSizeBytes: 100_000_000,
+        dryRun: false,
+        force: true,
+      });
+
+      const row = repository.getAttachment(attachment.id);
+      assert.strictEqual(report.failed, 1);
+      assert.strictEqual(report.indexed, 0);
+      assert.strictEqual(row?.status, AttachmentSyncStatus.INDEXED);
+      assert.strictEqual(row?.contentHash, 'sha256-old');
+      assert.strictEqual(row?.indexedAt, '2026-01-01T00:00:00.000Z');
+      assert.strictEqual(index.search({ query: 'previous' }).length, 1);
+    } finally {
+      await index.close();
+    }
+  });
+});

@@ -219,6 +219,8 @@ export class AttachmentSyncOrchestrator {
     const attachment = decision.attachment;
     const localPath = this.deps.cachePaths.attachmentPath(issue.key, attachment);
     const nowIso = new Date().toISOString();
+    const preserveExistingIndexOnFailure =
+      decision.action === 'force-download' && this.deps.repository.isAttachmentIndexed(attachment.id);
 
     if (options.dryRun) {
       this.deps.logger.info(`[dry-run] would download ${issue.key} :: ${attachment.filename}`);
@@ -233,13 +235,15 @@ export class AttachmentSyncOrchestrator {
       report.bytesDownloaded += downloaded.bytesWritten;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'download failed';
-      this.deps.repository.upsertAttachmentMetadata(
-        issue,
-        attachment,
-        AttachmentSyncStatus.FAILED,
-        `download_error: ${message.slice(0, 240)}`,
-        nowIso,
-      );
+      if (!preserveExistingIndexOnFailure) {
+        this.deps.repository.upsertAttachmentMetadata(
+          issue,
+          attachment,
+          AttachmentSyncStatus.FAILED,
+          `download_error: ${message.slice(0, 240)}`,
+          nowIso,
+        );
+      }
       report.failed += 1;
       report.errors.push({ attachmentId: attachment.id, issueKey: issue.key, message });
       return;
@@ -247,22 +251,22 @@ export class AttachmentSyncOrchestrator {
 
     // Indexer writes the final row state itself (INDEXED on success, FAILED
     // on extract error). No placeholder row exists before this point.
-    await this.deps.indexer.indexAttachment({
+    const indexResult = await this.deps.indexer.indexAttachment({
       issue,
       attachment,
       localPath,
       contentHash: downloaded.sha256,
+      preserveExistingIndexOnFailure,
     });
 
-    const refreshed = this.deps.repository.getAttachment(attachment.id);
-    if (refreshed?.status === AttachmentSyncStatus.INDEXED) {
+    if (indexResult.status === AttachmentSyncStatus.INDEXED) {
       report.indexed += 1;
     } else {
       report.failed += 1;
       report.errors.push({
         attachmentId: attachment.id,
         issueKey: issue.key,
-        message: refreshed?.statusReason ?? 'unknown failure',
+        message: indexResult.statusReason ?? 'unknown failure',
       });
     }
   }
