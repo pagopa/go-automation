@@ -31,7 +31,20 @@ export type GOConcurrencyPoolTaskFn<T> = () => Promise<T>;
 export class GOConcurrencyPool {
   private readonly limit: number;
   private active: number = 0;
-  private readonly queue: GOConcurrencyPoolReleaseFn[] = [];
+
+  /**
+   * FIFO queue of acquire waiters — callbacks that increment `active` and
+   * resolve the parked `run()` promise.
+   */
+  private readonly acquireQueue: GOConcurrencyPoolReleaseFn[] = [];
+
+  /**
+   * Snapshot waiters from `drain()`. Kept separate from `acquireQueue` so a
+   * `release()` cannot accidentally wake a drain waiter while there are still
+   * acquire waiters parked behind it (which would deadlock — see the test
+   * `drain does not steal slots from acquire waiters`).
+   */
+  private readonly drainWaiters: GOConcurrencyPoolReleaseFn[] = [];
 
   constructor(limit: number) {
     if (!Number.isInteger(limit) || limit < 1) {
@@ -56,14 +69,22 @@ export class GOConcurrencyPool {
   }
 
   /**
-   * Resolves once the pool has no in-flight or queued tasks.
+   * Resolves once the pool has no in-flight tasks and no queued tasks
+   * waiting to acquire a slot. The snapshot is taken at call time: tasks
+   * submitted *after* `drain()` is awaited still get processed, but the
+   * promise returned by *this* drain() call resolves once the queue that
+   * existed at that point has fully drained.
+   *
+   * Idempotent and safe to call concurrently from multiple callers; each
+   * call gets its own waiter.
    */
   public async drain(): Promise<void> {
-    while (this.active > 0 || this.queue.length > 0) {
-      await new Promise<void>((resolve) => {
-        this.queue.push(resolve);
-      });
+    if (this.active === 0 && this.acquireQueue.length === 0) {
+      return Promise.resolve();
     }
+    return new Promise<void>((resolve) => {
+      this.drainWaiters.push(resolve);
+    });
   }
 
   /**
@@ -77,7 +98,7 @@ export class GOConcurrencyPool {
    * Returns the current number of queued tasks (for diagnostics).
    */
   public get queuedCount(): number {
-    return this.queue.length;
+    return this.acquireQueue.length;
   }
 
   private async acquire(): Promise<void> {
@@ -86,7 +107,7 @@ export class GOConcurrencyPool {
       return Promise.resolve();
     }
     return new Promise<void>((resolve) => {
-      this.queue.push(() => {
+      this.acquireQueue.push(() => {
         this.active++;
         resolve();
       });
@@ -95,9 +116,20 @@ export class GOConcurrencyPool {
 
   private release(): void {
     this.active--;
-    const next = this.queue.shift();
-    if (next !== undefined) {
-      next();
+    const nextAcquire = this.acquireQueue.shift();
+    if (nextAcquire !== undefined) {
+      nextAcquire();
+      return;
+    }
+    // No more queued tasks. If we just brought the pool to idle, wake every
+    // pending drain waiter snapshot. Splice avoids re-entrancy: a drain
+    // waiter that immediately re-enqueues work via `run()` after resolving
+    // does not interfere with the iteration.
+    if (this.active === 0 && this.drainWaiters.length > 0) {
+      const waiters = this.drainWaiters.splice(0);
+      for (const resolveWaiter of waiters) {
+        resolveWaiter();
+      }
     }
   }
 }
