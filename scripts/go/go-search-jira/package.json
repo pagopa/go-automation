@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Script per cercare il contenuto testuale all'interno degli attachament JIRA",
+  "description": "Script per cercare il contenuto testuale all'interno degli attachment JIRA",
   "main": "dist/index.js",
   "files": [
     "dist",

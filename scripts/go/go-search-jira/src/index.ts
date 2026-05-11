@@ -1,7 +1,7 @@
 /**
  * Go Search Jira - Entry Point
  *
- * Script per cercare il contenuto testuale all'interno degli attachament JIRA
+ * Script per cercare il contenuto testuale all'interno degli attachment JIRA
  */
 
 import { Core } from '@go-automation/go-common';
