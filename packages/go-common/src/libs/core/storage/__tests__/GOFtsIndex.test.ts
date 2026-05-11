@@ -337,6 +337,23 @@ describe('GOFtsIndex', () => {
     );
   });
 
+  it('short-circuits empty / whitespace-only queries to an empty result list', async () => {
+    const index = new GOFtsIndex({ databasePath: ':memory:' });
+    await index.open();
+    index.upsert({ id: '1', content: 'alpha beta gamma' });
+    index.upsert({ id: '2', content: 'delta epsilon' });
+
+    // Full-text mode: would otherwise crash with `fts5: syntax error near ""`.
+    assert.deepStrictEqual(index.search({ query: '' }), []);
+    assert.deepStrictEqual(index.search({ query: '   \t\n' }), []);
+
+    // Literal mode: would otherwise match every row via `instr(content, '') > 0`.
+    assert.deepStrictEqual(index.search({ query: '', mode: GOFtsIndexSearchMode.LITERAL }), []);
+    assert.deepStrictEqual(index.search({ query: '  ', mode: GOFtsIndexSearchMode.LITERAL }), []);
+
+    await index.close();
+  });
+
   it('full-text MATCH only searches `content`, not metadata columns', async () => {
     // Regression guard: when metadata columns were INDEXED, a `MATCH 'tpp'`
     // would also hit rows whose `filename = 'tpp-config'` even with empty

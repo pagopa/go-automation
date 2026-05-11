@@ -285,6 +285,15 @@ export class GOFtsIndex {
     const limit = options.limit ?? DEFAULT_SEARCH_LIMIT;
     const filter = options.filter ?? {};
 
+    // Short-circuit empty / whitespace-only queries: in full-text mode
+    // `MATCH ''` raises `SQLITE_ERROR: fts5: syntax error`, and in literal
+    // mode `instr(content, '')` returns > 0 for every row, accidentally
+    // matching the whole index. Returning an empty list is the principle of
+    // least surprise for callers that proxy user input.
+    if (options.query.trim().length === 0) {
+      return [];
+    }
+
     const filterSpec = this.buildFilterSpec(filter);
 
     if (mode === GOFtsIndexSearchMode.FULL_TEXT) {
