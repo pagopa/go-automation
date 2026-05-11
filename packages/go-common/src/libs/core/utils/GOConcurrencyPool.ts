@@ -1,21 +1,21 @@
 /**
  * Concurrency-limited task runner.
  *
- * Schedules async tasks so that no more than `limit` are in-flight at the same time.
- * Useful for rate-limiting outbound HTTP requests, parallel file processing, or
- * any I/O-bound workload where unbounded concurrency would saturate the system or
- * trip remote rate limits.
+ * Schedules async tasks so that no more than `limit` are in-flight at the same
+ * time. Useful for rate-limiting outbound HTTP requests, parallel file
+ * processing, or any I/O-bound workload where unbounded concurrency would
+ * saturate the system or trip remote rate limits.
  *
  * The pool preserves submission order for queued tasks (FIFO) and resolves each
- * `run()` call with the value (or rejection) of its task.
+ * `run()` call with the value (or rejection) of its task. For large producers,
+ * prefer `runEach()`: it applies producer backpressure so memory stays
+ * proportional to the concurrency limit instead of the total item count.
  *
  * @example
  * ```typescript
- * const pool = new GOConcurrencyPool(5);
- * const results = await Promise.all(
- *   urls.map((url) => pool.run(() => fetch(url))),
- * );
- * await pool.drain();
+ * await new GOConcurrencyPool(5).runEach(urls, async (url) => {
+ *   await fetch(url);
+ * });
  * ```
  */
 /**
@@ -27,6 +27,16 @@ export type GOConcurrencyPoolReleaseFn = () => void;
  * Async task factory accepted by `GOConcurrencyPool.run`.
  */
 export type GOConcurrencyPoolTaskFn<T> = () => Promise<T>;
+
+/**
+ * Iterable accepted by `GOConcurrencyPool.runEach`.
+ */
+export type GOConcurrencyPoolIterable<T> = Iterable<T> | AsyncIterable<T>;
+
+/**
+ * Worker accepted by `GOConcurrencyPool.runEach`.
+ */
+export type GOConcurrencyPoolEachTaskFn<T> = (item: T, index: number) => Promise<void>;
 
 export class GOConcurrencyPool {
   private readonly limit: number;
@@ -61,6 +71,57 @@ export class GOConcurrencyPool {
    */
   public async run<T>(task: GOConcurrencyPoolTaskFn<T>): Promise<T> {
     await this.acquire();
+    return await this.runAcquired(task);
+  }
+
+  /**
+   * Processes an iterable / async iterable with bounded producer backpressure.
+   *
+   * Unlike `items.map((item) => pool.run(...))`, this method does not create
+   * one promise per input item. It consumes the next item only when a worker
+   * slot is available, so queued work and memory usage stay bounded by `limit`.
+   *
+   * If a worker rejects, no more items are consumed. Already-running workers
+   * are allowed to settle, then the original error (or an `AggregateError`) is
+   * thrown.
+   */
+  public async runEach<T>(items: GOConcurrencyPoolIterable<T>, task: GOConcurrencyPoolEachTaskFn<T>): Promise<void> {
+    const iterator = toAsyncIterator(items);
+    const activeTasks = new Set<Promise<void>>();
+    const failures: unknown[] = [];
+    let index = 0;
+
+    try {
+      while (failures.length === 0) {
+        await this.waitForTrackedTaskSlot(activeTasks);
+        if (failures.length > 0) break;
+
+        const nextItem = await iterator.next();
+        if (nextItem.done === true) break;
+
+        const itemIndex = index;
+        index += 1;
+        const activeTask = this.startTrackedTask(async () => task(nextItem.value, itemIndex)).catch(
+          (error: unknown) => {
+            failures.push(error);
+          },
+        );
+        activeTasks.add(activeTask);
+        void activeTask.finally(() => {
+          activeTasks.delete(activeTask);
+        });
+      }
+    } finally {
+      if (failures.length > 0 && iterator.return !== undefined) {
+        await iterator.return();
+      }
+    }
+
+    await Promise.all(activeTasks);
+    throwIfTaskFailures(failures);
+  }
+
+  private async runAcquired<T>(task: GOConcurrencyPoolTaskFn<T>): Promise<T> {
     try {
       return await task();
     } finally {
@@ -101,6 +162,16 @@ export class GOConcurrencyPool {
     return this.acquireQueue.length;
   }
 
+  private async waitForTrackedTaskSlot(activeTasks: ReadonlySet<Promise<void>>): Promise<void> {
+    if (activeTasks.size < this.limit) return;
+    await Promise.race(activeTasks);
+  }
+
+  private async startTrackedTask(task: GOConcurrencyPoolTaskFn<void>): Promise<void> {
+    await this.acquire();
+    return await this.runAcquired(task);
+  }
+
   private async acquire(): Promise<void> {
     if (this.active < this.limit) {
       this.active++;
@@ -132,4 +203,31 @@ export class GOConcurrencyPool {
       }
     }
   }
+}
+
+function toAsyncIterator<T>(items: GOConcurrencyPoolIterable<T>): AsyncIterator<T> {
+  if (Symbol.asyncIterator in items) {
+    return items[Symbol.asyncIterator]();
+  }
+
+  const iterator = items[Symbol.iterator]();
+  return {
+    async next(): Promise<IteratorResult<T>> {
+      return iterator.next();
+    },
+    async return(): Promise<IteratorResult<T>> {
+      if (iterator.return !== undefined) {
+        return iterator.return();
+      }
+      return { done: true, value: undefined };
+    },
+  };
+}
+
+function throwIfTaskFailures(failures: ReadonlyArray<unknown>): void {
+  if (failures.length === 0) return;
+  if (failures.length === 1) {
+    throw failures[0];
+  }
+  throw new AggregateError(failures, `${failures.length} concurrency pool task(s) failed`);
 }

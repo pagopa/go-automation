@@ -19,7 +19,7 @@ import type { JiraClient } from '../jira/JiraClient.js';
 import type { IssueDiscovery } from '../discovery/IssueDiscovery.js';
 import type { AttachmentRepository } from '../storage/AttachmentRepository.js';
 import { AttachmentCachePaths } from './AttachmentCachePaths.js';
-import { AttachmentPlanner } from './AttachmentPlanner.js';
+import { AttachmentPlanner, type AttachmentPlannerOptions } from './AttachmentPlanner.js';
 import type { AttachmentIndexer } from './AttachmentIndexer.js';
 import { AttachmentSkipReason, AttachmentSyncStatus } from '../types/AttachmentSyncStatus.js';
 import type { AttachmentSyncReport } from '../types/AttachmentSyncReport.js';
@@ -79,6 +79,11 @@ interface MutableReport {
   errors: { attachmentId: string; issueKey: string; message: string }[];
 }
 
+interface DownloadWorkItem {
+  readonly issue: JiraIssue;
+  readonly decision: Extract<AttachmentPlanItem, { action: 'download' | 'force-download' }>;
+}
+
 export class AttachmentSyncOrchestrator {
   constructor(private readonly deps: AttachmentSyncOrchestratorDeps) {}
 
@@ -110,37 +115,10 @@ export class AttachmentSyncOrchestrator {
       hasInIndex,
     };
 
-    const inFlight: Promise<void>[] = [];
-
-    for await (const issue of this.deps.discovery.discover({ jql: options.jql, issueKeys: options.issueKeys })) {
-      report.issuesProcessed += 1;
-      // Dry-run is side-effect free: count what would happen but do NOT touch
-      // the issues / attachments / FTS tables. The bookkeeping write happens
-      // only on real runs.
-      if (!options.dryRun) {
-        this.deps.repository.upsertIssue(issue, new Date().toISOString());
-      }
-      this.reportProgress(issue.key, report, pool);
-
-      const decisions = planner.planForIssue(issue, plannerOptions);
-      for (const decision of decisions) {
-        if (decision.action === 'skip') {
-          this.handleSkipDecision(issue, decision, report, options.dryRun);
-          this.reportProgress(issue.key, report, pool);
-          continue;
-        }
-        const task = pool.run(async () => {
-          await this.processDownload(issue, decision, options, report);
-          this.reportProgress(issue.key, report, pool);
-        });
-        inFlight.push(task);
-      }
-    }
-
-    const taskResults = await Promise.allSettled(inFlight);
-    await pool.drain();
-
-    this.throwIfHardTaskFailures(taskResults);
+    await pool.runEach(this.planDownloadWork(options, planner, plannerOptions, report, pool), async (item) => {
+      await this.processDownload(item.issue, item.decision, options, report);
+      this.reportProgress(item.issue.key, report, pool.activeCount);
+    });
 
     if (!options.dryRun) {
       this.deps.repository.setLastSync(new Date().toISOString());
@@ -159,19 +137,36 @@ export class AttachmentSyncOrchestrator {
     };
   }
 
-  private throwIfHardTaskFailures(results: ReadonlyArray<PromiseSettledResult<void>>): void {
-    const failures = results
-      .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-      .map((result) => result.reason);
+  private async *planDownloadWork(
+    options: AttachmentSyncOrchestratorOptions,
+    planner: AttachmentPlanner,
+    plannerOptions: AttachmentPlannerOptions,
+    report: MutableReport,
+    pool: Core.GOConcurrencyPool,
+  ): AsyncIterableIterator<DownloadWorkItem> {
+    for await (const issue of this.deps.discovery.discover({ jql: options.jql, issueKeys: options.issueKeys })) {
+      report.issuesProcessed += 1;
+      // Dry-run is side-effect free: count what would happen but do NOT touch
+      // the issues / attachments / FTS tables. The bookkeeping write happens
+      // only on real runs.
+      if (!options.dryRun) {
+        this.deps.repository.upsertIssue(issue, new Date().toISOString());
+      }
+      this.reportProgress(issue.key, report, pool.activeCount);
 
-    if (failures.length === 0) return;
-    if (failures.length === 1) {
-      throw failures[0];
+      const decisions = planner.planForIssue(issue, plannerOptions);
+      for (const decision of decisions) {
+        if (decision.action === 'skip') {
+          this.handleSkipDecision(issue, decision, report, options.dryRun);
+          this.reportProgress(issue.key, report, pool.activeCount);
+          continue;
+        }
+        yield { issue, decision };
+      }
     }
-    throw new AggregateError(failures, `${failures.length} attachment sync task(s) failed unexpectedly`);
   }
 
-  private reportProgress(currentIssueKey: string, report: MutableReport, pool: Core.GOConcurrencyPool): void {
+  private reportProgress(currentIssueKey: string, report: MutableReport, inFlightDownloads: number): void {
     if (this.deps.onProgress === undefined) return;
     this.deps.onProgress({
       currentIssueKey,
@@ -180,7 +175,7 @@ export class AttachmentSyncOrchestrator {
       skipped: report.skipped,
       failed: report.failed,
       bytesDownloaded: report.bytesDownloaded,
-      inFlightDownloads: pool.activeCount,
+      inFlightDownloads,
     });
   }
 

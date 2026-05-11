@@ -79,6 +79,14 @@ const NOOP_LOGGER = {
   table: () => undefined,
 } as unknown as Core.GOLogger;
 
+async function waitUntil(predicate: () => boolean, description: string): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+  assert.fail(`Timed out waiting for ${description}`);
+}
+
 describe('AttachmentSyncOrchestrator — handleSkipDecision', () => {
   it('preserves indexed status when re-syncing an already-indexed attachment', async () => {
     // Setup: open an in-memory index + schema + repository.
@@ -362,6 +370,93 @@ describe('AttachmentSyncOrchestrator — force refresh failures', () => {
       assert.strictEqual(row?.contentHash, 'sha256-old');
       assert.strictEqual(row?.indexedAt, '2026-01-01T00:00:00.000Z');
       assert.strictEqual(index.search({ query: 'previous' }).length, 1);
+    } finally {
+      await index.close();
+    }
+  });
+});
+
+describe('AttachmentSyncOrchestrator — download scheduling', () => {
+  it('does not queue every attachment before a download slot is available', async () => {
+    const index = new Core.GOFtsIndex({
+      databasePath: ':memory:',
+      ftsTableName: 'attachments_fts',
+      metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
+    });
+    await index.open();
+
+    try {
+      new IndexSchemaManager(index).ensureSchema();
+      const repository = new AttachmentRepository(index);
+      const attachments = [
+        makeAttachment({ id: 'a1', filename: 'a1.txt', mimeType: 'text/plain' }),
+        makeAttachment({ id: 'a2', filename: 'a2.txt', mimeType: 'text/plain' }),
+        makeAttachment({ id: 'a3', filename: 'a3.txt', mimeType: 'text/plain' }),
+      ];
+      const issue = makeIssue(attachments);
+      const started: string[] = [];
+      const releases = new Map<string, () => void>();
+      let activeDownloads = 0;
+      let maxActiveDownloads = 0;
+
+      const registry = new Core.GOTextExtractorRegistry();
+      registry.register(new Core.GOPlainTextExtractor());
+      const orchestrator = new AttachmentSyncOrchestrator({
+        logger: NOOP_LOGGER,
+        index,
+        repository,
+        registry,
+        client: {
+          downloadAttachment: async (attachment: JiraAttachment) => {
+            started.push(attachment.id);
+            activeDownloads += 1;
+            maxActiveDownloads = Math.max(maxActiveDownloads, activeDownloads);
+            return await new Promise<{
+              readonly sha256: string;
+              readonly bytesWritten: number;
+              readonly attempts: number;
+            }>((resolve) => {
+              releases.set(attachment.id, () => {
+                releases.delete(attachment.id);
+                activeDownloads -= 1;
+                resolve({ sha256: `sha256-${attachment.id}`, bytesWritten: 1, attempts: 1 });
+              });
+            });
+          },
+        } as unknown as JiraClient,
+        discovery: new FakeDiscovery([issue]),
+        indexer: {
+          indexAttachment: async () => ({
+            status: AttachmentSyncStatus.INDEXED,
+            statusReason: null,
+            preservedExistingIndex: false,
+          }),
+        } as unknown as AttachmentIndexer,
+        cachePaths: new AttachmentCachePaths('/tmp/unused'),
+      });
+
+      const runPromise = orchestrator.run({
+        jql: 'unused',
+        issueKeys: [],
+        maxParallelDownloads: 2,
+        maxAttachmentSizeBytes: 100_000_000,
+        dryRun: false,
+        force: false,
+      });
+
+      await waitUntil(() => started.length === 2, 'first two downloads to start');
+      assert.deepStrictEqual(started, ['a1', 'a2']);
+      assert.strictEqual(maxActiveDownloads, 2);
+
+      releases.get('a1')?.();
+      await waitUntil(() => started.length === 3, 'third download to start after a slot is released');
+      assert.deepStrictEqual(started, ['a1', 'a2', 'a3']);
+      assert.strictEqual(maxActiveDownloads, 2);
+
+      releases.get('a2')?.();
+      releases.get('a3')?.();
+      const report = await runPromise;
+      assert.strictEqual(report.indexed, 3);
     } finally {
       await index.close();
     }

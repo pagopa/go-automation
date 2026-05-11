@@ -3,6 +3,14 @@ import assert from 'node:assert/strict';
 
 import { GOConcurrencyPool } from '../GOConcurrencyPool.js';
 
+async function waitUntil(predicate: () => boolean, description: string): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+  assert.fail(`Timed out waiting for ${description}`);
+}
+
 describe('GOConcurrencyPool', () => {
   it('rejects invalid limits', () => {
     assert.throws(() => new GOConcurrencyPool(0), /positive integer/);
@@ -97,6 +105,61 @@ describe('GOConcurrencyPool', () => {
 
     const drains = [pool.drain(), pool.drain(), pool.drain()];
     await Promise.all(drains);
+    assert.strictEqual(pool.activeCount, 0);
+    assert.strictEqual(pool.queuedCount, 0);
+  });
+
+  it('runEach applies producer backpressure before consuming the next item', async () => {
+    const pool = new GOConcurrencyPool(2);
+    const yielded: number[] = [];
+    const started: number[] = [];
+    const releases = new Map<number, () => void>();
+
+    async function* items(): AsyncIterableIterator<number> {
+      for (const item of [1, 2, 3]) {
+        yielded.push(item);
+        yield item;
+      }
+    }
+
+    const runPromise = pool.runEach(items(), async (item) => {
+      started.push(item);
+      await new Promise<void>((resolve) => {
+        releases.set(item, resolve);
+      });
+    });
+
+    await waitUntil(() => started.length === 2, 'first two workers to start');
+    assert.deepStrictEqual(yielded, [1, 2]);
+    assert.deepStrictEqual(started, [1, 2]);
+
+    releases.get(1)?.();
+    await waitUntil(() => started.length === 3, 'third worker to start');
+    assert.deepStrictEqual(yielded, [1, 2, 3]);
+    assert.deepStrictEqual(started, [1, 2, 3]);
+
+    releases.get(2)?.();
+    releases.get(3)?.();
+    await runPromise;
+    assert.strictEqual(pool.activeCount, 0);
+    assert.strictEqual(pool.queuedCount, 0);
+  });
+
+  it('runEach stops consuming new items after a worker error and rethrows it', async () => {
+    const pool = new GOConcurrencyPool(2);
+    const started: number[] = [];
+    const boom = new Error('boom');
+
+    await assert.rejects(
+      pool.runEach([1, 2, 3], async (item) => {
+        started.push(item);
+        if (item === 1) throw boom;
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }),
+      (error: unknown): boolean => error === boom,
+    );
+
+    assert.deepStrictEqual(started, [1, 2]);
     assert.strictEqual(pool.activeCount, 0);
     assert.strictEqual(pool.queuedCount, 0);
   });
