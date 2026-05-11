@@ -4,6 +4,8 @@
 
 Indicizza e cerca testo dentro gli attachment delle card Jira Cloud, senza plugin Jira e senza estensioni marketplace. Lo script scarica gli attachment visibili all'utente, estrae il testo con gli extractor di `@go-automation/go-common` e lo indicizza in un database SQLite FTS5 locale.
 
+Il client integrato usa Jira Cloud REST API v3 (`/rest/api/3/...`). Jira Data Center / Server non e supportato da questo client: richiederebbe endpoint e paginazione dedicati.
+
 ## Privacy
 
 La cache locale e l'indice possono contenere dati sensibili estratti dagli attachment Jira, come IUN, codici fiscali, riferimenti operativi o dati personali. Trattali come dati confidenziali.
@@ -76,6 +78,8 @@ export JIRA_TOKEN='...'
 
 Lo script risolve automaticamente il parametro `jira.token` anche dalla variabile ambiente `JIRA_TOKEN`. In alternativa puoi passarlo con `--jira-token`, ma per uso quotidiano e preferibile l'env var.
 
+`--jira-auth-mode bearer` cambia solo lo schema dell'header `Authorization` e resta pensato per endpoint compatibili con Jira Cloud REST API v3. Non abilita il supporto Jira Data Center / Server.
+
 ## Configurazione
 
 ### Parametri CLI
@@ -86,7 +90,7 @@ Lo script risolve automaticamente il parametro `jira.token` anche dalla variabil
 | `--jira-url`                    |             | string   | per `sync`                      | vuoto            | Base URL Jira, es. `https://example.atlassian.net` |
 | `--jira-email`                  |             | string   | per basic auth                  | vuoto            | Email associata al token Jira Cloud                |
 | `--jira-token`                  |             | string   | per `sync`                      | `JIRA_TOKEN` env | Token Jira. Parametro sensibile                    |
-| `--jira-auth-mode`              |             | string   | no                              | `basic`          | `basic` o `bearer`                                 |
+| `--jira-auth-mode`              |             | string   | no                              | `basic`          | `basic` o `bearer` per Jira Cloud REST API v3      |
 | `--jira-jql`                    |             | string   | per `sync` se non usi issue key | vuoto            | JQL per scoprire le issue                          |
 | `--jira-issue-keys`             |             | string[] | per `sync` se non usi JQL       | vuoto            | Lista issue key, separata da virgole o spazi       |
 | `--sync-max-parallel-downloads` |             | int      | no                              | `5`              | Download concorrenti                               |
@@ -109,12 +113,12 @@ Lo script risolve automaticamente il parametro `jira.token` anche dalla variabil
 
 Il framework converte i nomi dot notation in env var uppercase con underscore.
 
-| Variabile        | Parametro        | Descrizione                 |
-| ---------------- | ---------------- | --------------------------- |
-| `JIRA_TOKEN`     | `jira.token`     | Token Jira. Uso consigliato |
-| `JIRA_URL`       | `jira.url`       | Base URL Jira               |
-| `JIRA_EMAIL`     | `jira.email`     | Email Jira Cloud            |
-| `JIRA_AUTH_MODE` | `jira.auth.mode` | `basic` o `bearer`          |
+| Variabile        | Parametro        | Descrizione                                   |
+| ---------------- | ---------------- | --------------------------------------------- |
+| `JIRA_TOKEN`     | `jira.token`     | Token Jira. Uso consigliato                   |
+| `JIRA_URL`       | `jira.url`       | Base URL Jira                                 |
+| `JIRA_EMAIL`     | `jira.email`     | Email Jira Cloud                              |
+| `JIRA_AUTH_MODE` | `jira.auth.mode` | `basic` o `bearer` per Jira Cloud REST API v3 |
 
 ### File di configurazione
 
@@ -395,7 +399,7 @@ pnpm --filter=go-search-jira dev -- \
 
 **Causa**: stai usando `--jira-auth-mode basic`, ma manca l'email. Il messaggio mostra il nome interno `jira-email`; da CLI il parametro corretto e `--jira-email`.
 
-**Soluzione**: aggiungi `--jira-email user@example.com` oppure usa `--jira-auth-mode bearer` se la tua istanza supporta bearer token.
+**Soluzione**: aggiungi `--jira-email user@example.com` oppure usa `--jira-auth-mode bearer` solo se il tuo endpoint Jira Cloud REST API v3 accetta bearer token.
 
 ### Errore: "Provide --jira-jql or --jira-issue-keys"
 

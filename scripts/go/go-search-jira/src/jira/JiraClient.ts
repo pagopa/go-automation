@@ -1,5 +1,5 @@
 /**
- * Thin wrapper around the Jira Cloud REST API consumed by go-search-jira.
+ * Thin wrapper around the Jira Cloud REST API v3 consumed by go-search-jira.
  *
  * Composes:
  *  - `Core.GOHttpClient` for JSON endpoints (issue search, single issue lookup).
@@ -7,7 +7,8 @@
  *
  * Authorization is injected via `defaultHeaders` once and never logged or
  * surfaced in errors. Pagination on `/rest/api/3/search/jql` is exposed as an
- * async iterable.
+ * async iterable. Jira Data Center / Server is not implemented here because it
+ * uses different API paths and `startAt`/`maxResults` pagination.
  */
 import { Core } from '@go-automation/go-common';
 

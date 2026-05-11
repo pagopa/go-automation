@@ -62,7 +62,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'jira.auth.mode',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Authentication mode: basic (Cloud, default) or bearer (Data Center)',
+    description: 'Authentication mode for Jira Cloud REST API v3: basic (email + API token, default) or bearer',
     defaultValue: 'basic',
     required: false,
   },
