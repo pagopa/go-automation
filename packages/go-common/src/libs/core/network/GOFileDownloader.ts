@@ -34,6 +34,8 @@ import { createHash } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { Readable, Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { ProxyAgent } from 'undici';
 import type { Dispatcher } from 'undici';
 
@@ -178,33 +180,23 @@ export class GOFileDownloader {
       }
 
       const hash = createHash('sha256');
-      const writeStream = createWriteStream(partialPath, { flags: 'w' });
       let bytesWritten = 0;
 
-      const reader: ReadableStreamDefaultReader<Uint8Array> = response.body.getReader();
-      try {
-        while (true) {
-          const chunk = await reader.read();
-          if (chunk.done) break;
-          const bytes: Uint8Array | undefined = chunk.value;
-          if (bytes !== undefined) {
-            hash.update(bytes);
-            bytesWritten += bytes.byteLength;
-            if (!writeStream.write(bytes)) {
-              await new Promise<void>((resolve) => writeStream.once('drain', resolve));
-            }
-          }
-        }
-      } finally {
-        reader.releaseLock();
-      }
-
-      await new Promise<void>((resolve, reject) => {
-        writeStream.end((err?: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
+      // `stream.pipeline` propagates errors from any leg (network/timeout/
+      // disk-full) and guarantees that the writable target and every
+      // intermediate transform are destroyed on failure — no dangling fds and
+      // no unhandled 'error' events on the underlying writeStream.
+      const source = Readable.fromWeb(response.body);
+      const tap = new Transform({
+        transform(chunk: Buffer | Uint8Array, _encoding, callback): void {
+          const buffer = chunk instanceof Buffer ? chunk : Buffer.from(chunk);
+          hash.update(buffer);
+          bytesWritten += buffer.byteLength;
+          callback(null, buffer);
+        },
       });
+      const writeStream = createWriteStream(partialPath, { flags: 'w' });
+      await pipeline(source, tap, writeStream, { signal: controller.signal });
 
       return {
         finalUrl: response.url,
