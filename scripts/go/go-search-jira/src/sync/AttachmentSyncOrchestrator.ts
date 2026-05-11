@@ -137,8 +137,10 @@ export class AttachmentSyncOrchestrator {
       }
     }
 
-    await Promise.allSettled(inFlight);
+    const taskResults = await Promise.allSettled(inFlight);
     await pool.drain();
+
+    this.throwIfHardTaskFailures(taskResults);
 
     if (!options.dryRun) {
       this.deps.repository.setLastSync(new Date().toISOString());
@@ -155,6 +157,18 @@ export class AttachmentSyncOrchestrator {
       durationMs: Date.now() - startedAt,
       errors: report.errors.map((entry) => ({ ...entry })),
     };
+  }
+
+  private throwIfHardTaskFailures(results: ReadonlyArray<PromiseSettledResult<void>>): void {
+    const failures = results
+      .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+      .map((result) => result.reason);
+
+    if (failures.length === 0) return;
+    if (failures.length === 1) {
+      throw failures[0];
+    }
+    throw new AggregateError(failures, `${failures.length} attachment sync task(s) failed unexpectedly`);
   }
 
   private reportProgress(currentIssueKey: string, report: MutableReport, pool: Core.GOConcurrencyPool): void {

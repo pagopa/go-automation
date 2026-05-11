@@ -166,3 +166,57 @@ describe('AttachmentSyncOrchestrator — handleSkipDecision', () => {
     await index.close();
   });
 });
+
+describe('AttachmentSyncOrchestrator — hard task failures', () => {
+  it('rethrows unexpected download/index task failures instead of swallowing them', async () => {
+    const index = new Core.GOFtsIndex({
+      databasePath: ':memory:',
+      ftsTableName: 'attachments_fts',
+      metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],
+    });
+    await index.open();
+
+    try {
+      new IndexSchemaManager(index).ensureSchema();
+      const repository = new AttachmentRepository(index);
+      const attachment = makeAttachment({ id: '99', filename: 'notes.txt', mimeType: 'text/plain' });
+      const issue = makeIssue([attachment]);
+
+      const registry = new Core.GOTextExtractorRegistry();
+      registry.register(new Core.GOPlainTextExtractor());
+
+      const hardError = new Error('sqlite write failed');
+      const orchestrator = new AttachmentSyncOrchestrator({
+        logger: NOOP_LOGGER,
+        index,
+        repository,
+        registry,
+        client: {
+          downloadAttachment: async () => ({ sha256: 'sha256-hard-failure', bytesWritten: 12, attempts: 1 }),
+        } as unknown as JiraClient,
+        discovery: new FakeDiscovery([issue]),
+        indexer: {
+          indexAttachment: async () => {
+            throw hardError;
+          },
+        } as unknown as AttachmentIndexer,
+        cachePaths: new AttachmentCachePaths('/tmp/unused'),
+      });
+
+      await assert.rejects(
+        () =>
+          orchestrator.run({
+            jql: 'unused',
+            issueKeys: [],
+            maxParallelDownloads: 1,
+            maxAttachmentSizeBytes: 100_000_000,
+            dryRun: false,
+            force: false,
+          }),
+        (error: unknown): boolean => error === hardError,
+      );
+    } finally {
+      await index.close();
+    }
+  });
+});
