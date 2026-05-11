@@ -31,7 +31,7 @@ describe('JiraAuthBuilder', () => {
   it('throws on missing email in basic mode', () => {
     assert.throws(
       () => JiraAuthBuilder.build({ authMode: JiraAuthMode.BASIC, email: '', token: 'secret' }),
-      /requires --jira.email/,
+      /requires --jira-email/,
     );
   });
 });
