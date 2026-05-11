@@ -31,7 +31,10 @@ function makeIssue(attachment: JiraAttachment): JiraIssue {
   };
 }
 
-async function openRepository(): Promise<{ readonly index: Core.GOFtsIndex; readonly repository: AttachmentRepository }> {
+async function openRepository(): Promise<{
+  readonly index: Core.GOFtsIndex;
+  readonly repository: AttachmentRepository;
+}> {
   const index = new Core.GOFtsIndex({
     databasePath: ':memory:',
     ftsTableName: 'attachments_fts',

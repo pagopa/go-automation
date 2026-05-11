@@ -84,8 +84,7 @@ export class AttachmentIndexer {
     } else {
       const statusReason = `extract_error: ${failureMessage.slice(0, 240)}`;
       const preservedExistingIndex =
-        input.preserveExistingIndexOnFailure === true &&
-        this.deps.repository.isAttachmentIndexed(input.attachment.id);
+        input.preserveExistingIndexOnFailure === true && this.deps.repository.isAttachmentIndexed(input.attachment.id);
 
       if (!preservedExistingIndex) {
         this.deps.repository.upsertAttachmentMetadata(
