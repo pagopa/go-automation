@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 
 import { GOConcurrencyPool } from '../GOConcurrencyPool.js';
 
-async function waitUntil(predicate: () => boolean, description: string): Promise<void> {
+type PredicateFn = () => boolean;
+
+async function waitUntil(predicate: PredicateFn, description: string): Promise<void> {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (predicate()) return;
     await new Promise((resolve) => setTimeout(resolve, 1));
@@ -115,7 +117,7 @@ describe('GOConcurrencyPool', () => {
     const started: number[] = [];
     const releases = new Map<number, () => void>();
 
-    async function* items(): AsyncIterableIterator<number> {
+    function* items(): IterableIterator<number> {
       for (const item of [1, 2, 3]) {
         yielded.push(item);
         yield item;

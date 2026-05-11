@@ -79,7 +79,9 @@ const NOOP_LOGGER = {
   table: () => undefined,
 } as unknown as Core.GOLogger;
 
-async function waitUntil(predicate: () => boolean, description: string): Promise<void> {
+type PredicateFn = () => boolean;
+
+async function waitUntil(predicate: PredicateFn, description: string): Promise<void> {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (predicate()) return;
     await new Promise((resolve) => setTimeout(resolve, 1));
@@ -200,11 +202,13 @@ describe('AttachmentSyncOrchestrator — hard task failures', () => {
         repository,
         registry,
         client: {
-          downloadAttachment: async () => ({ sha256: 'sha256-hard-failure', bytesWritten: 12, attempts: 1 }),
+          downloadAttachment: async () =>
+            await Promise.resolve({ sha256: 'sha256-hard-failure', bytesWritten: 12, attempts: 1 }),
         } as unknown as JiraClient,
         discovery: new FakeDiscovery([issue]),
         indexer: {
           indexAttachment: async () => {
+            await Promise.resolve();
             throw hardError;
           },
         } as unknown as AttachmentIndexer,
@@ -212,8 +216,8 @@ describe('AttachmentSyncOrchestrator — hard task failures', () => {
       });
 
       await assert.rejects(
-        () =>
-          orchestrator.run({
+        async () =>
+          await orchestrator.run({
             jql: 'unused',
             issueKeys: [],
             maxParallelDownloads: 1,
@@ -272,6 +276,7 @@ describe('AttachmentSyncOrchestrator — force refresh failures', () => {
         registry,
         client: {
           downloadAttachment: async () => {
+            await Promise.resolve();
             throw new Error('network timeout');
           },
         } as unknown as JiraClient,
@@ -342,7 +347,8 @@ describe('AttachmentSyncOrchestrator — force refresh failures', () => {
         repository,
         registry,
         client: {
-          downloadAttachment: async () => ({ sha256: 'sha256-new', bytesWritten: 12, attempts: 1 }),
+          downloadAttachment: async () =>
+            await Promise.resolve({ sha256: 'sha256-new', bytesWritten: 12, attempts: 1 }),
         } as unknown as JiraClient,
         discovery: new FakeDiscovery([issue]),
         indexer: new AttachmentIndexer({
@@ -426,11 +432,12 @@ describe('AttachmentSyncOrchestrator — download scheduling', () => {
         } as unknown as JiraClient,
         discovery: new FakeDiscovery([issue]),
         indexer: {
-          indexAttachment: async () => ({
-            status: AttachmentSyncStatus.INDEXED,
-            statusReason: null,
-            preservedExistingIndex: false,
-          }),
+          indexAttachment: async () =>
+            await Promise.resolve({
+              status: AttachmentSyncStatus.INDEXED,
+              statusReason: null,
+              preservedExistingIndex: false,
+            }),
         } as unknown as AttachmentIndexer,
         cachePaths: new AttachmentCachePaths('/tmp/unused'),
       });

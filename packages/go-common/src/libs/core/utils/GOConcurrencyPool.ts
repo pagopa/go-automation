@@ -213,13 +213,13 @@ function toAsyncIterator<T>(items: GOConcurrencyPoolIterable<T>): AsyncIterator<
   const iterator = items[Symbol.iterator]();
   return {
     async next(): Promise<IteratorResult<T>> {
-      return iterator.next();
+      return await Promise.resolve(iterator.next());
     },
     async return(): Promise<IteratorResult<T>> {
       if (iterator.return !== undefined) {
-        return iterator.return();
+        return await Promise.resolve(iterator.return());
       }
-      return { done: true, value: undefined };
+      return await Promise.resolve({ done: true, value: undefined });
     },
   };
 }
