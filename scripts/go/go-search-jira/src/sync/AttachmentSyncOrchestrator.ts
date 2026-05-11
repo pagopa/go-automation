@@ -31,7 +31,6 @@ export interface AttachmentSyncOrchestratorOptions {
   readonly issueKeys: ReadonlyArray<string>;
   readonly maxParallelDownloads: number;
   readonly maxAttachmentSizeBytes: number;
-  readonly keepRaw: boolean;
   readonly dryRun: boolean;
   readonly force: boolean;
 }

@@ -141,7 +141,6 @@ describe('AttachmentSyncOrchestrator — handleSkipDecision', () => {
       issueKeys: [],
       maxParallelDownloads: 1,
       maxAttachmentSizeBytes: 100_000_000,
-      keepRaw: false,
       dryRun: false,
       force: false,
     });

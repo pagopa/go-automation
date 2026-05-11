@@ -79,7 +79,6 @@ export class SyncCommand {
           issueKeys: config.jiraIssueKeys,
           maxParallelDownloads: config.syncMaxParallelDownloads,
           maxAttachmentSizeBytes,
-          keepRaw: config.syncKeepRaw,
           dryRun: config.syncDryRun,
           force: config.syncForce,
         });
