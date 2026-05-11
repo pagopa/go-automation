@@ -391,9 +391,9 @@ pnpm --filter=go-search-jira dev -- \
   --jira-token '...'
 ```
 
-### Errore: "Jira basic auth requires jira.email"
+### Errore: "Jira basic auth requires --jira-email"
 
-**Causa**: stai usando `--jira-auth-mode basic`, ma manca l'email. Il messaggio mostra il nome interno `jira.email`; da CLI il parametro corretto e `--jira-email`.
+**Causa**: stai usando `--jira-auth-mode basic`, ma manca l'email. Il messaggio mostra il nome interno `jira-email`; da CLI il parametro corretto e `--jira-email`.
 
 **Soluzione**: aggiungi `--jira-email user@example.com` oppure usa `--jira-auth-mode bearer` se la tua istanza supporta bearer token.
 
