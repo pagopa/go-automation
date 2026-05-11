@@ -249,8 +249,9 @@ export class AttachmentSyncOrchestrator {
       return;
     }
 
-    // Indexer writes the final row state itself (INDEXED on success, FAILED
-    // on extract error). No placeholder row exists before this point.
+    // Indexer writes the final row state itself. On force refresh failures it
+    // can preserve an existing indexed row so transient errors do not hide a
+    // still-searchable previous document. No placeholder row exists here.
     const indexResult = await this.deps.indexer.indexAttachment({
       issue,
       attachment,
