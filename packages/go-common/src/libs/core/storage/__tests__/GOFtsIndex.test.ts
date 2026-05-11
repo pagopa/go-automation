@@ -336,4 +336,25 @@ describe('GOFtsIndex', () => {
       /control characters/,
     );
   });
+
+  it('full-text MATCH only searches `content`, not metadata columns', async () => {
+    // Regression guard: when metadata columns were INDEXED, a `MATCH 'tpp'`
+    // would also hit rows whose `filename = 'tpp-config'` even with empty
+    // content, producing a misleading snippet. Marking metadata as UNINDEXED
+    // restricts the match to `content` only.
+    const index = new GOFtsIndex({ databasePath: ':memory:', metadataColumns: ['filename'] });
+    await index.open();
+
+    // Row whose CONTENT does not mention the token, but whose FILENAME does.
+    index.upsert({ id: 'a', content: 'unrelated body about animals', metadata: { filename: 'tpp-config.pdf' } });
+    // Row whose CONTENT mentions the token explicitly.
+    index.upsert({ id: 'b', content: 'this body talks about tpp', metadata: { filename: 'notes.txt' } });
+
+    const hits = index.search({ query: 'tpp' });
+    const ids = hits.map((hit) => hit.id);
+    assert.deepStrictEqual(ids, ['b'], 'only the content-matching row should be returned');
+    assert.match(hits[0]!.snippet, /«tpp»/);
+
+    await index.close();
+  });
 });

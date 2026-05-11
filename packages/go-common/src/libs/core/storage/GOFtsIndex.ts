@@ -358,7 +358,18 @@ export class GOFtsIndex {
 
   private ensureSchema(): void {
     if (this.database === undefined) return;
-    const metadataColumnDefs = this.metadataColumns.length > 0 ? `, ${this.metadataColumns.join(', ')}` : '';
+    // Metadata columns live inside the FTS5 table but are marked UNINDEXED.
+    // Rationale: a bare `<table> MATCH @query` matches across every indexed
+    // column, so if metadata were indexed a search for "foo" could hit a row
+    // whose `filename = "foo.pdf"` (or any other metadata field) even when
+    // `content` does not contain the token — and the snippet (taken from
+    // column 1 = `content`) would then not contain the match, producing
+    // confusing UI results. Keeping metadata UNINDEXED restricts the MATCH
+    // to `content` while still letting us project the columns in SELECT.
+    const metadataColumnDefs =
+      this.metadataColumns.length > 0
+        ? `, ${this.metadataColumns.map((column) => `${column} UNINDEXED`).join(', ')}`
+        : '';
 
     this.database.exec(`
       CREATE VIRTUAL TABLE IF NOT EXISTS ${this.ftsTableName}
