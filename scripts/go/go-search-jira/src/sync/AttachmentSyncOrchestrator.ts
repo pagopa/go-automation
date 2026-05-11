@@ -10,6 +10,7 @@
  *
  * Resilience:
  *  - Per-attachment errors are captured in the report; the run continues.
+ *  - Per-attachment 401/403 download denials are tracked as skipped/forbidden.
  *  - Hard errors (auth, schema, IO) bubble up and abort the run.
  *  - On clean exit, performs a WAL checkpoint.
  */
@@ -230,6 +231,19 @@ export class AttachmentSyncOrchestrator {
       report.bytesDownloaded += downloaded.bytesWritten;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'download failed';
+      if (isForbiddenDownloadError(error)) {
+        if (!preserveExistingIndexOnFailure) {
+          this.deps.repository.upsertAttachmentMetadata(
+            issue,
+            attachment,
+            AttachmentSyncStatus.SKIPPED,
+            AttachmentSkipReason.FORBIDDEN,
+            nowIso,
+          );
+        }
+        report.skipped += 1;
+        return;
+      }
       if (!preserveExistingIndexOnFailure) {
         this.deps.repository.upsertAttachmentMetadata(
           issue,
@@ -266,4 +280,10 @@ export class AttachmentSyncOrchestrator {
       });
     }
   }
+}
+
+function isForbiddenDownloadError(error: unknown): boolean {
+  if (error === null || typeof error !== 'object') return false;
+  const statusCode = (error as { readonly statusCode?: unknown }).statusCode;
+  return statusCode === 401 || statusCode === 403;
 }
