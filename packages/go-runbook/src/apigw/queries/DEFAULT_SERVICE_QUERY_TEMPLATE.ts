@@ -18,5 +18,4 @@
  * via the API parameters of `StartQueryCommand`.
  */
 export const DEFAULT_SERVICE_QUERY_TEMPLATE = `{{FILTER_CLAUSE}}
-| parse @log /(?<ms>[^\\/]+$)/
-| display @timestamp, level, ms, message`;
+| display @timestamp, level, ms, @message`;

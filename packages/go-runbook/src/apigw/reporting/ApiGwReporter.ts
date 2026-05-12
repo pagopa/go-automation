@@ -34,9 +34,28 @@ export interface ApiGwFinalSummaryInput {
  */
 export function renderApiGwFinalSummary(input: ApiGwFinalSummaryInput): void {
   const servicesVisited = parseVisitedChain(input.vars.get('apiGwServicesVisited'));
-  const errorMessage = (input.vars.get('lastErrorMsg') ?? '').trim();
+  const lastErrorMsg = (input.vars.get('lastErrorMsg') ?? '').trim();
   const terminationReason = (input.vars.get('terminationReason') ?? '').trim() as TerminationReason | '';
   const downstreamTarget = (input.vars.get('downstreamTarget') ?? '').trim();
+
+  // Fall back to the API Gateway evidence when no microservice produced
+  // a representative error message: a 0-log entry service still leaves
+  // useful information on the API GW row (`Endpoint request timed out`,
+  // path, method) that we want to surface.
+  const apiGwErrorMessage = sanitizeApiGwField(input.vars.get('apiGwErrorMessage'));
+  const apiGwPath = sanitizeApiGwField(input.vars.get('apiGwPath'));
+  const apiGwHttpMethod = sanitizeApiGwField(input.vars.get('apiGwHttpMethod'));
+
+  let errorMessage = lastErrorMsg;
+  if (errorMessage === '' && apiGwErrorMessage !== '') {
+    const endpoint =
+      apiGwHttpMethod !== '' && apiGwPath !== ''
+        ? ` [${apiGwHttpMethod} ${apiGwPath}]`
+        : apiGwPath !== ''
+          ? ` [path: ${apiGwPath}]`
+          : '';
+    errorMessage = `${apiGwErrorMessage}${endpoint}`;
+  }
 
   // The engine's matchedCase wins over the local decide-step verdict:
   // a known case may have matched on absence (e.g. `LogCount == '0'`)
@@ -51,6 +70,15 @@ export function renderApiGwFinalSummary(input: ApiGwFinalSummaryInput): void {
     ...(errorMessage !== '' ? { errorMessage } : {}),
     servicesVisited,
   });
+}
+
+/**
+ * Trims and discards the literal `-` placeholder that API Gateway uses
+ * for "field not present".
+ */
+function sanitizeApiGwField(raw: string | undefined): string {
+  const trimmed = (raw ?? '').trim();
+  return trimmed === '-' ? '' : trimmed;
 }
 
 function parseVisitedChain(raw: string | undefined): ReadonlyArray<ApiGwReporterServiceSummary> {
@@ -110,12 +138,36 @@ export class ApiGwReporter {
   }
 
   /**
-   * Outcome of the API Gateway query: number of errors and trace id.
+   * Outcome of the API Gateway query: number of errors, trace id and
+   * the diagnostic fields extracted from the first error row
+   * (`errorMessage`, `path`, `httpMethod`). These fields often contain
+   * the only evidence available when the downstream microservice
+   * returns 0 logs (e.g. `Endpoint request timed out`).
    */
-  apiGwResult(errorCount: number, statusCode: string, xRayTraceId: string | undefined): void {
-    this.logger.text(`  ├─ Errori HTTP individuati: ${errorCount} (status ${statusCode || 'n/a'})`);
-    if (xRayTraceId !== undefined && xRayTraceId !== '') {
-      this.logger.text(`  └─ XRay Trace Id: ${xRayTraceId}`);
+  apiGwResult(args: {
+    readonly errorCount: number;
+    readonly statusCode: string;
+    readonly xRayTraceId: string | undefined;
+    readonly errorMessage?: string;
+    readonly path?: string;
+    readonly httpMethod?: string;
+  }): void {
+    this.logger.text(`  ├─ Errori HTTP individuati: ${args.errorCount} (status ${args.statusCode || 'n/a'})`);
+
+    const method =
+      args.httpMethod !== undefined && args.httpMethod !== '' && args.httpMethod !== '-' ? args.httpMethod : '';
+    const path = args.path !== undefined && args.path !== '' && args.path !== '-' ? args.path : '';
+    if (method !== '' || path !== '') {
+      const label = method !== '' && path !== '' ? `${method} ${path}` : method !== '' ? method : path;
+      this.logger.text(`  ├─ Endpoint: ${label}`);
+    }
+
+    if (args.errorMessage !== undefined && args.errorMessage !== '' && args.errorMessage !== '-') {
+      this.logger.text(`  ├─ Error message API GW: ${args.errorMessage}`);
+    }
+
+    if (args.xRayTraceId !== undefined && args.xRayTraceId !== '') {
+      this.logger.text(`  └─ XRay Trace Id: ${args.xRayTraceId}`);
     } else {
       this.logger.text(`  └─ XRay Trace Id: non disponibile`);
     }
@@ -127,11 +179,15 @@ export class ApiGwReporter {
    * @param visitNumber - 1-based progressive index of the visit
    * @param serviceName - canonical service name
    * @param entry - true when this is the entry-point service
+   * @param logGroups - CloudWatch log groups scanned for this visit
    */
-  sectionService(visitNumber: number, serviceName: string, entry: boolean): void {
+  sectionService(visitNumber: number, serviceName: string, entry: boolean, logGroups: ReadonlyArray<string>): void {
     this.logger.newline();
     const tag = entry ? ' (entry)' : '';
     this.logger.text(`═══ Servizio ${visitNumber}: ${serviceName}${tag} ═══`);
+    if (logGroups.length > 0) {
+      this.logger.text(`  ├─ Log group: ${logGroups.join(', ')}`);
+    }
   }
 
   /**

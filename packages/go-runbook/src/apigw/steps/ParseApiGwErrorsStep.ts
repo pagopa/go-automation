@@ -77,7 +77,11 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
 
     if (errorRows.length === 0) {
       if (context.logger !== undefined) {
-        new ApiGwReporter(context.logger).apiGwResult(0, '', undefined);
+        new ApiGwReporter(context.logger).apiGwResult({
+          errorCount: 0,
+          statusCode: '',
+          xRayTraceId: undefined,
+        });
       }
       return {
         success: true,
@@ -94,10 +98,6 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
     const firstRow = errorRows[0];
     const xRayTraceId = extractXRayTraceId(firstRow);
     const statusCode = extractCwField(firstRow, 'status') ?? '';
-
-    if (context.logger !== undefined) {
-      new ApiGwReporter(context.logger).apiGwResult(errorRows.length, statusCode, xRayTraceId);
-    }
 
     const vars: Record<string, string> = {
       apiGwErrorCount: String(errorRows.length),
@@ -119,6 +119,17 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
       if (raw !== '-' && raw !== '') {
         (additional as Record<string, string>)[infoKey] = raw;
       }
+    }
+
+    if (context.logger !== undefined) {
+      new ApiGwReporter(context.logger).apiGwResult({
+        errorCount: errorRows.length,
+        statusCode,
+        xRayTraceId,
+        ...(additional.errorMessage !== undefined ? { errorMessage: additional.errorMessage } : {}),
+        ...(additional.path !== undefined ? { path: additional.path } : {}),
+        ...(additional.httpMethod !== undefined ? { httpMethod: additional.httpMethod } : {}),
+      });
     }
 
     return {

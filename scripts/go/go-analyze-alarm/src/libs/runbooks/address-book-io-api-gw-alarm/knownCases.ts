@@ -99,6 +99,37 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     },
   },
 
+  // ── API GW Endpoint request timed out (500) senza log applicativi ──────
+  // L'API GW chiude la richiesta in timeout verso l'integrazione (il
+  // backend non risponde entro il limite, tipicamente 29s) e produce un
+  // `Endpoint request timed out` con status=500 nel proprio AccessLog.
+  // pn-user-attributes non logga nulla perché la chiamata viene tagliata
+  // a monte. Distinto dal `gateway-timeout-504` perché qui lo status è
+  // 500 e la causa è il timeout di integrazione lato API Gateway.
+  {
+    id: 'apigw-endpoint-timeout-no-logs',
+    description: 'API GW endpoint timeout senza log applicativi su pn-user-attributes',
+    priority: 103,
+    condition: {
+      type: 'and',
+      conditions: [
+        { type: 'compare', ref: 'vars.apiGwStatusCode', operator: '==', value: '500' },
+        { type: 'compare', ref: 'vars.userAttributesLogCount', operator: '==', value: '0' },
+        { type: 'pattern', ref: 'vars.apiGwErrorMessage', regex: 'Endpoint request timed out' },
+      ],
+    },
+    action: {
+      type: 'log',
+      level: 'info',
+      message:
+        '[CASO NOTO] API GW endpoint timeout senza log applicativi su pn-user-attributes\n' +
+        "Risoluzione: Nessuna azione possibile, classificare come transitorio. Se ricorrente, verificare la latenza dell'integrazione lato API Gateway.\n" +
+        'Endpoint: {{vars.apiGwHttpMethod}} {{vars.apiGwPath}}\n' +
+        'Status Code: {{vars.apiGwStatusCode}}\n' +
+        'Error: {{vars.apiGwErrorMessage}}',
+    },
+  },
+
   // ── PDV 404: Record mancante su Personal Data Vault ────────────────────
   {
     id: 'pdv-404',
@@ -133,7 +164,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   // ── AppIO 404: Activation not found ────────────────────────────────────
   {
     id: 'appio-activation-not-found',
-    description: 'Allarme scattato per un 404 ricevuto da AppIO - Activation not found',
+    description: 'Allarme scattato per un 404 ricevuto da AppIO - Activation not found for the user',
     priority: 90,
     condition: {
       type: 'or',
@@ -148,6 +179,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
           ref: 'vars.externalRegistriesErrorMsg',
           regex: 'Service IO returned errors=404 Not Found from POST.*activations.*Activation not found for the user',
         },
+        {
+          type: 'pattern',
+          ref: 'vars.externalRegistriesErrorMsg',
+          regex: '404 Not Found from POST https://api\\.io\\.pagopa\\.it/api/v1/activations',
+        },
       ],
     },
     action: {
@@ -156,7 +192,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       message:
         '[CASO NOTO] 404 da AppIO - Activation not found for the user\n' +
         'Risoluzione: Chiusura - caso noto\n' +
-        'Errore: {{vars.externalRegistriesErrorMsg}}',
+        'Downstream: AppIO\n',
     },
   },
 
@@ -275,26 +311,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   // Distinto dal caso #11 (`ext-registry-private-readtimeout`) perché la
   // causa qui non è un timeout di rete ma un errore applicativo lato
   // pn-external-registries (e va indagato sui suoi log).
-  {
-    id: 'ext-registry-private-500-generic',
-    description: 'Errore 500 generico da pn-external-registries via ext-registry-private',
-    priority: 55,
-    condition: {
-      type: 'pattern',
-      ref: 'vars.userAttributesErrorMsg',
-      regex: 'error upserting service activation message=500 Internal Server Error.*ext-registry-private',
-    },
-    action: {
-      type: 'log',
-      level: 'info',
-      message:
-        '[CASO NOTO] Errore 500 generico da pn-external-registries via ext-registry-private\n' +
-        'Risoluzione: Consultare i log di pn-external-registries usando il FALLBACK-UUID per il dettaglio applicativo.\n' +
-        'FALLBACK-UUID: {{vars.fallbackUuid}}\n' +
-        'xRayTraceId: {{vars.xRayTraceId}}\n' +
-        'Errore: {{vars.userAttributesErrorMsg}}',
-    },
-  },
 
   // ── #11 NUOVO: ReadTimeout su ext-registry-private ─────────────────────
   // Il campo `error_message` del JSON canonico recita

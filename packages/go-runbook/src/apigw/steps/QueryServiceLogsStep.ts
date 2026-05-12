@@ -109,7 +109,7 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
       const visitNumber = Number.isFinite(prevVisits) ? prevVisits + 1 : 1;
 
       const reporter = context.logger !== undefined ? new ApiGwReporter(context.logger) : undefined;
-      reporter?.sectionService(visitNumber, this.serviceName, this.entryService);
+      reporter?.sectionService(visitNumber, this.serviceName, this.entryService, this.logGroups);
 
       const identifiers: string[] = [];
       if (traceId !== '') identifiers.push(`xRayTraceId=${traceId}`);
