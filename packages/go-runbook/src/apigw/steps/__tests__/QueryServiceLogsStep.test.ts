@@ -61,6 +61,8 @@ describe('queryServiceLogs', () => {
     const step = queryServiceLogs({
       id: 'q',
       label: 'Q',
+      serviceName: 'pn-foo',
+      entryService: true,
       logGroups: ['/aws/ecs/foo'],
       timeRangeFromParams: { start: 'startTime', end: 'endTime' },
     });
@@ -77,6 +79,8 @@ describe('queryServiceLogs', () => {
     const step = queryServiceLogs({
       id: 'q',
       label: 'Q',
+      serviceName: 'pn-foo',
+      entryService: true,
       logGroups: ['/aws/ecs/foo'],
       timeRangeFromParams: { start: 'startTime', end: 'endTime' },
     });
@@ -96,6 +100,8 @@ describe('queryServiceLogs', () => {
     const step = queryServiceLogs({
       id: 'q',
       label: 'Q',
+      serviceName: 'pn-foo',
+      entryService: true,
       logGroups: ['/aws/ecs/foo'],
       timeRangeFromParams: { start: 'startTime', end: 'endTime' },
     });
@@ -117,6 +123,8 @@ describe('queryServiceLogs', () => {
     const step = queryServiceLogs({
       id: 'q',
       label: 'Q',
+      serviceName: 'pn-foo',
+      entryService: true,
       logGroups: ['/aws/ecs/foo'],
       timeRangeFromParams: { start: 'startTime', end: 'endTime' },
     });
@@ -133,6 +141,8 @@ describe('queryServiceLogs', () => {
     const step = queryServiceLogs({
       id: 'q',
       label: 'Q',
+      serviceName: 'pn-foo',
+      entryService: true,
       logGroups: ['/aws/ecs/foo'],
       timeRangeFromParams: { start: 'startTime', end: 'endTime' },
     });
@@ -155,6 +165,8 @@ describe('queryServiceLogs', () => {
     const step = queryServiceLogs({
       id: 'q',
       label: 'Q',
+      serviceName: 'pn-foo',
+      entryService: true,
       logGroups: ['/aws/ecs/foo'],
       xRayTraceIdVar: 'customTrace',
       fallbackUuidVar: 'customFallback',
@@ -183,6 +195,8 @@ describe('queryServiceLogs', () => {
     const step = queryServiceLogs({
       id: 'q',
       label: 'Q',
+      serviceName: 'pn-foo',
+      entryService: true,
       logGroups: ['/aws/ecs/foo'],
       timeRangeFromParams: { start: 'startTime', end: 'endTime' },
     });

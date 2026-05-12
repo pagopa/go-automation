@@ -6,6 +6,7 @@ import type { StepResult } from '../../types/StepResult.js';
 
 import { extractCwField } from '../helpers/extractCwField.js';
 import { extractXRayTraceId } from '../helpers/extractXRayTraceId.js';
+import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
 import type { ApiGwErrorInfo } from './ApiGwErrorInfo.js';
 
 /**
@@ -75,6 +76,9 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
     }
 
     if (errorRows.length === 0) {
+      if (context.logger !== undefined) {
+        new ApiGwReporter(context.logger).apiGwResult(0, '', undefined);
+      }
       return {
         success: true,
         output: { errorCount: 0, xRayTraceId: undefined, statusCode: '' },
@@ -90,6 +94,10 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
     const firstRow = errorRows[0];
     const xRayTraceId = extractXRayTraceId(firstRow);
     const statusCode = extractCwField(firstRow, 'status') ?? '';
+
+    if (context.logger !== undefined) {
+      new ApiGwReporter(context.logger).apiGwResult(errorRows.length, statusCode, xRayTraceId);
+    }
 
     const vars: Record<string, string> = {
       apiGwErrorCount: String(errorRows.length),

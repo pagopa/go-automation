@@ -39,10 +39,8 @@ function baseConfig(overrides: Partial<ApiGwAlarmConfig> = {}): ApiGwAlarmConfig
       tags: [],
     },
     apiGwLogGroup: '/aws/apigw/main',
-    services: [
-      { name: 'pn-a', logGroup: '/aws/ecs/pn-a', varPrefix: 'a' },
-      { name: 'pn-b', logGroup: '/aws/ecs/pn-b', varPrefix: 'b' },
-    ],
+    entryService: { name: 'pn-a', logGroup: '/aws/ecs/pn-a', varPrefix: 'a' },
+    services: [{ name: 'pn-b', logGroup: '/aws/ecs/pn-b', varPrefix: 'b' }],
     knownUrls: [],
     knownCases,
     ...overrides,
@@ -50,62 +48,67 @@ function baseConfig(overrides: Partial<ApiGwAlarmConfig> = {}): ApiGwAlarmConfig
 }
 
 describe('createApiGwAlarmRunbook', () => {
-  it('builds a runbook with the canonical step ordering', () => {
+  it('builds the canonical step ordering (prepare → api gw → parse → entry → reachable)', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig());
     const stepIds = runbook.steps.map((d) => d.step.id);
 
     assert.deepStrictEqual(stepIds, [
+      'prepare-api-gw-section',
       'query-api-gw-logs',
       'parse-api-gw-errors',
       'query-pn-a',
       'analyze-pn-a',
+      'decide-pn-a',
       'query-pn-b',
       'analyze-pn-b',
+      'decide-pn-b',
     ]);
   });
 
-  it('applies the continueOnFailure default (false on first service, true on the rest)', () => {
+  it('marks every apigw step as silent so engine logging does not double-render', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig());
-    const byId = new Map(runbook.steps.map((d) => [d.step.id, d]));
-
-    assert.strictEqual(byId.get('query-pn-a')?.continueOnFailure, undefined);
-    assert.strictEqual(byId.get('analyze-pn-a')?.continueOnFailure, undefined);
-    assert.strictEqual(byId.get('query-pn-b')?.continueOnFailure, true);
-    assert.strictEqual(byId.get('analyze-pn-b')?.continueOnFailure, true);
+    const apigwIds = new Set([
+      'prepare-api-gw-section',
+      'query-api-gw-logs',
+      'parse-api-gw-errors',
+      'query-pn-a',
+      'analyze-pn-a',
+      'decide-pn-a',
+      'query-pn-b',
+      'analyze-pn-b',
+      'decide-pn-b',
+    ]);
+    for (const descriptor of runbook.steps) {
+      if (apigwIds.has(descriptor.step.id)) {
+        assert.strictEqual(descriptor.silent, true, `step ${descriptor.step.id} should be silent`);
+      }
+    }
   });
 
-  it('honours an explicit continueOnFailure on the first service', () => {
-    const runbook = createApiGwAlarmRunbook(
-      baseConfig({
-        services: [
-          { name: 'pn-a', logGroup: '/aws/ecs/pn-a', varPrefix: 'a', continueOnFailure: true },
-          { name: 'pn-b', logGroup: '/aws/ecs/pn-b', varPrefix: 'b', continueOnFailure: false },
-        ],
-      }),
+  it('generates a decide step for every service, with goTo targets resolvable in the step graph', () => {
+    const runbook = createApiGwAlarmRunbook(baseConfig());
+    const stepIds = new Set(runbook.steps.map((d) => d.step.id));
+
+    assert.ok(stepIds.has('decide-pn-a'));
+    assert.ok(stepIds.has('decide-pn-b'));
+    // The goTo targets emitted at runtime point to `query-<svc>` ids.
+    assert.ok(stepIds.has('query-pn-a'));
+    assert.ok(stepIds.has('query-pn-b'));
+  });
+
+  it('throws on duplicate service names', () => {
+    assert.throws(
+      () =>
+        createApiGwAlarmRunbook(
+          baseConfig({
+            services: [{ name: 'pn-a', logGroup: '/aws/ecs/dup', varPrefix: 'dup' }],
+          }),
+        ),
+      /Duplicate service name/,
     );
-    const byId = new Map(runbook.steps.map((d) => [d.step.id, d]));
-
-    assert.strictEqual(byId.get('query-pn-a')?.continueOnFailure, true);
-    assert.strictEqual(byId.get('query-pn-b')?.continueOnFailure, undefined);
   });
 
-  it('emits a resolve-url step only for services with detectNextService=true', () => {
-    const runbook = createApiGwAlarmRunbook(
-      baseConfig({
-        services: [
-          { name: 'pn-a', logGroup: '/aws/ecs/pn-a', varPrefix: 'a', detectNextService: true },
-          { name: 'pn-b', logGroup: '/aws/ecs/pn-b', varPrefix: 'b' },
-        ],
-        knownUrls: [{ kind: 'external', url: 'https://x/', downstream: 'X' }],
-      }),
-    );
-    const stepIds = runbook.steps.map((d) => d.step.id);
-
-    assert.ok(stepIds.includes('resolve-url-pn-a'));
-    assert.ok(!stepIds.includes('resolve-url-pn-b'));
-  });
-
-  it('inserts preSteps between parse and per-service pipeline', () => {
+  it('inserts preSteps between parse-api-gw-errors and the entry-service triplet', () => {
     const preStep = {
       step: {
         id: 'pre-1',
@@ -119,7 +122,13 @@ describe('createApiGwAlarmRunbook', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig({ preSteps: [preStep] }));
     const stepIds = runbook.steps.map((d) => d.step.id);
 
-    assert.deepStrictEqual(stepIds.slice(0, 4), ['query-api-gw-logs', 'parse-api-gw-errors', 'pre-1', 'query-pn-a']);
+    assert.deepStrictEqual(stepIds.slice(0, 5), [
+      'prepare-api-gw-section',
+      'query-api-gw-logs',
+      'parse-api-gw-errors',
+      'pre-1',
+      'query-pn-a',
+    ]);
 
     const preDescriptor = runbook.steps.find((d) => d.step.id === 'pre-1');
     assert.strictEqual(preDescriptor?.continueOnFailure, true);
@@ -152,12 +161,13 @@ describe('createApiGwAlarmRunbook', () => {
     assert.match(query, /filter status >= 400 or authorizeStatus >= 400 or integrationServiceStatus >= 400/);
   });
 
-  it('uses a default fallback action including UrlNeedsRoutingFix', () => {
+  it('uses a default fallback action that exposes terminationReason + per-service vars', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig());
     assert.strictEqual(runbook.fallbackAction.type, 'log');
     if (runbook.fallbackAction.type === 'log') {
-      assert.match(runbook.fallbackAction.message, /needsRoutingFix=\{\{vars\.aUrlNeedsRoutingFix\}\}/);
-      assert.match(runbook.fallbackAction.message, /needsRoutingFix=\{\{vars\.bUrlNeedsRoutingFix\}\}/);
+      assert.match(runbook.fallbackAction.message, /terminationReason/);
+      assert.match(runbook.fallbackAction.message, /pn-a: msg=\{\{vars\.aErrorMsg\}\}/);
+      assert.match(runbook.fallbackAction.message, /pn-b: msg=\{\{vars\.bErrorMsg\}\}/);
     }
   });
 
@@ -187,7 +197,11 @@ describe('createApiGwAlarmRunbook', () => {
     assert.strictEqual(runbook.maxIterations, 42);
   });
 
-  it('validates the underlying RunbookBuilder (no empty steps allowed)', () => {
-    assert.doesNotThrow(() => createApiGwAlarmRunbook(baseConfig()));
+  it('accepts an entry-only configuration (no additional services)', () => {
+    const runbook = createApiGwAlarmRunbook(baseConfig({ services: [] }));
+    const stepIds = runbook.steps.map((d) => d.step.id);
+    assert.ok(stepIds.includes('query-pn-a'));
+    assert.ok(stepIds.includes('decide-pn-a'));
+    assert.ok(!stepIds.includes('query-pn-b'));
   });
 });

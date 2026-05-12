@@ -22,34 +22,34 @@ export const API_GW_LOG_GROUP =
 export const DEFAULT_MIN_STATUS_CODE = 400;
 
 /**
- * Microservices analysed by the runbook, in canonical order. The trace
- * propagates from `pn-delivery` through up to three downstream services
- * (`pn-external-registries`, `pn-data-vault`, `pn-ss`).
+ * Entry service: every trace originating from the B2B API Gateway lands
+ * on `pn-delivery` first.
  */
-export const SERVICES: ReadonlyArray<apigw.ApiGwService> = [
-  {
-    name: 'pn-delivery',
-    logGroup: '/aws/ecs/pn-delivery',
-    varPrefix: 'delivery',
-    detectNextService: true,
-  },
+export const ENTRY_SERVICE: apigw.ApiGwService = {
+  name: 'pn-delivery',
+  logGroup: '/aws/ecs/pn-delivery',
+  varPrefix: 'delivery',
+};
+
+/**
+ * Additional microservices reachable from {@link ENTRY_SERVICE} through
+ * known URLs. Order is irrelevant.
+ */
+export const REACHABLE_SERVICES: ReadonlyArray<apigw.ApiGwService> = [
   {
     name: 'pn-external-registries',
     logGroup: '/aws/ecs/pn-external-registries',
     varPrefix: 'externalRegistries',
-    continueOnFailure: true,
   },
   {
     name: 'pn-data-vault',
     logGroup: '/aws/ecs/pn-data-vault',
     varPrefix: 'dataVault',
-    continueOnFailure: true,
   },
   {
     name: 'pn-ss',
     logGroup: '/aws/ecs/pn-ss',
     varPrefix: 'ss',
-    continueOnFailure: true,
   },
 ];
 

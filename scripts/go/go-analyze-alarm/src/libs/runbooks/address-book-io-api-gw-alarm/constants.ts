@@ -18,32 +18,29 @@ export const IO_AUTHORIZER_LAMBDA_LOG_GROUP = '/aws/lambda/pn-ioAuthorizerLambda
 export const DEFAULT_TIME_WINDOW_MINUTES = 5;
 
 /**
- * Microservices analysed by the runbook, in the canonical order:
- * `pn-user-attributes → pn-data-vault → pn-external-registries`.
- *
- * `continueOnFailure` defaults to `false` on the first service (the entry
- * point of the trace) and `true` on the rest (the trace might not reach
- * them — see V02 plan §5.3).
+ * Entry service: the trace always lands on pn-user-attributes first.
  */
-export const SERVICES: ReadonlyArray<apigw.ApiGwService> = [
-  {
-    name: 'pn-user-attributes',
-    logGroup: '/aws/ecs/pn-user-attributes',
-    varPrefix: 'userAttributes',
-    detectNextService: true,
-  },
+export const ENTRY_SERVICE: apigw.ApiGwService = {
+  name: 'pn-user-attributes',
+  logGroup: '/aws/ecs/pn-user-attributes',
+  varPrefix: 'userAttributes',
+};
+
+/**
+ * Additional microservices reachable from {@link ENTRY_SERVICE} through
+ * known URLs. Order is irrelevant: each service is entered only when a
+ * matching {@link apigw.KnownUrl} is observed in the upstream logs.
+ */
+export const REACHABLE_SERVICES: ReadonlyArray<apigw.ApiGwService> = [
   {
     name: 'pn-data-vault',
     logGroup: '/aws/ecs/pn-data-vault',
     varPrefix: 'dataVault',
-    detectNextService: true,
-    continueOnFailure: true,
   },
   {
     name: 'pn-external-registries',
     logGroup: '/aws/ecs/pn-external-registries',
     varPrefix: 'externalRegistries',
-    continueOnFailure: true,
   },
 ];
 
@@ -51,23 +48,21 @@ export const SERVICES: ReadonlyArray<apigw.ApiGwService> = [
  * Known URLs derived from the JSON canonical runbook
  * (`go-runbooks/.../pn-address-book-io-IO-ApiGwAlarm.json`).
  *
- * The internal entry must reference a service present in {@link SERVICES}
- * so that `<prefix>UrlNeedsRoutingFix` stays `false` when a real trace
- * lands on it.
+ * A `target` matching a service in {@link REACHABLE_SERVICES} (or the
+ * {@link ENTRY_SERVICE}) loops the analysis into that service; any other
+ * target is treated as an external downstream and terminates the chain.
  */
 export const KNOWN_URLS: ReadonlyArray<apigw.KnownUrl> = [
   {
-    kind: 'external',
     url: 'https://api.io.pagopa.it/api/v1/activations/',
     matchType: 'prefix',
-    downstream: 'AppIO',
+    target: 'AppIO',
     description: 'Endpoint AppIO osservato nei log di pn-external-registries.',
   },
   {
-    kind: 'internal',
     url: 'http://internal-EcsA-20230522152202180500000011-96161141.eu-south-1.elb.amazonaws.com:8080/ext-registry-private/io/v1/activations',
     matchType: 'prefix',
-    service: 'pn-external-registries',
+    target: 'pn-external-registries',
     description: 'Load balancer interno verso ext-registry-private/io/v1/activations.',
   },
 ];

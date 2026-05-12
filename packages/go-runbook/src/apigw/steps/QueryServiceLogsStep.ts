@@ -9,8 +9,16 @@ import { resolveTimeRange } from '../../steps/data/resolveTimeRange.js';
 import { escapeSqlString } from '../../steps/data/interpolateTemplate.js';
 import { executeStep } from '../../steps/data/executeStep.js';
 import { DEFAULT_SERVICE_QUERY_TEMPLATE } from '../queries/DEFAULT_SERVICE_QUERY_TEMPLATE.js';
+import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
 
 const FILTER_CLAUSE_PLACEHOLDER = '{{FILTER_CLAUSE}}';
+
+/**
+ * Counter var name used to track CloudWatch query attempts across the
+ * whole runbook execution. Written/read by {@link queryServiceLogs};
+ * displayed by the reporter so users see "Query CloudWatch N" hops.
+ */
+const QUERY_COUNTER_VAR = 'apiGwQueryCount';
 
 /**
  * Configuration for {@link queryServiceLogs}.
@@ -20,6 +28,10 @@ export interface QueryServiceLogsConfig {
   readonly id: string;
   /** Human-readable label */
   readonly label: string;
+  /** Canonical name of the service being queried (used by the reporter) */
+  readonly serviceName: string;
+  /** Whether this service is the entry point of the analysis */
+  readonly entryService: boolean;
   /** Log groups to scan */
   readonly logGroups: ReadonlyArray<string>;
   /**
@@ -46,6 +58,8 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
   readonly label: string;
   readonly kind: StepKind = 'data';
 
+  private readonly serviceName: string;
+  private readonly entryService: boolean;
   private readonly logGroups: ReadonlyArray<string>;
   private readonly xRayTraceIdVar: string;
   private readonly fallbackUuidVar: string;
@@ -55,6 +69,8 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
   constructor(config: QueryServiceLogsConfig) {
     this.id = config.id;
     this.label = config.label;
+    this.serviceName = config.serviceName;
+    this.entryService = config.entryService;
     this.logGroups = config.logGroups;
     this.xRayTraceIdVar = config.xRayTraceIdVar ?? 'xRayTraceId';
     this.fallbackUuidVar = config.fallbackUuidVar ?? 'fallbackUuid';
@@ -81,11 +97,39 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
       const traceId = (context.vars.get(this.xRayTraceIdVar) ?? '').trim();
       const fallback = (context.vars.get(this.fallbackUuidVar) ?? '').trim();
 
+      // Bump the global query counter so the reporter can show a stable
+      // "Query CloudWatch N" index that increases monotonically across
+      // every service visit (including re-queries with fallback UUID).
+      const prevCount = Number(context.vars.get(QUERY_COUNTER_VAR) ?? '0');
+      const queryNumber = Number.isFinite(prevCount) ? prevCount + 1 : 1;
+
+      // Service visit counter (independent from query counter: increments
+      // once per distinct visit, not per re-query).
+      const prevVisits = Number(context.vars.get('apiGwVisitCount') ?? '0');
+      const visitNumber = Number.isFinite(prevVisits) ? prevVisits + 1 : 1;
+
+      const reporter = context.logger !== undefined ? new ApiGwReporter(context.logger) : undefined;
+      reporter?.sectionService(visitNumber, this.serviceName, this.entryService);
+
+      const identifiers: string[] = [];
+      if (traceId !== '') identifiers.push(`xRayTraceId=${traceId}`);
+      if (fallback !== '') identifiers.push(`fallbackUuid=${fallback}`);
+      reporter?.query(queryNumber, identifiers);
+
       if (traceId === '' && fallback === '') {
         // Without any identifier the canonical `like` filter would
         // degenerate to a match-all. Skip the AWS call and return an
         // empty result set so downstream analysis can proceed safely.
-        return { success: true, output: [] };
+        reporter?.queryResult(0);
+        return {
+          success: true,
+          output: [],
+          vars: {
+            [QUERY_COUNTER_VAR]: String(queryNumber),
+            apiGwVisitCount: String(visitNumber),
+            apiGwServicesVisited: appendChain(context.vars.get('apiGwServicesVisited'), this.serviceName, 0),
+          },
+        };
       }
 
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
@@ -95,7 +139,17 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
         ...(context.signal !== undefined ? { signal: context.signal } : {}),
       });
 
-      return { success: true, output: results };
+      reporter?.queryResult(results.length);
+
+      return {
+        success: true,
+        output: results,
+        vars: {
+          [QUERY_COUNTER_VAR]: String(queryNumber),
+          apiGwVisitCount: String(visitNumber),
+          apiGwServicesVisited: appendChain(context.vars.get('apiGwServicesVisited'), this.serviceName, results.length),
+        },
+      };
     });
   }
 
@@ -123,6 +177,21 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
 }
 
 /**
+ * Appends a `name|count` entry to the comma-separated chain stored in
+ * the `apiGwServicesVisited` var. The reporter parses this var on
+ * termination to render the closing summary.
+ *
+ * @param previous - Current value of the var (may be undefined/empty)
+ * @param serviceName - Service just visited
+ * @param logCount - Number of log rows returned by the visit
+ * @returns Updated chain string
+ */
+function appendChain(previous: string | undefined, serviceName: string, logCount: number): string {
+  const head = previous === undefined || previous === '' ? '' : `${previous},`;
+  return `${head}${serviceName}|${logCount}`;
+}
+
+/**
  * Factory: creates a step that queries a microservice log group filtering
  * by X-Ray trace id and/or fallback UUID, assembled dynamically from the
  * runbook context.
@@ -133,7 +202,9 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
  * - identifiers found in `context.vars` are quoted and escaped (single
  *   quote doubling) before being placed in the `like '...'` predicates;
  * - the produced query carries no time-range filter — the window is
- *   passed via `StartQueryCommand.startTime` / `endTime`.
+ *   passed via `StartQueryCommand.startTime` / `endTime`;
+ * - each execution bumps the global `apiGwQueryCount` and `apiGwVisitCount`
+ *   counters so the reporter can render a stable progressive index.
  *
  * @param config - Step configuration
  * @returns Step that returns the raw rows of the CloudWatch Logs query

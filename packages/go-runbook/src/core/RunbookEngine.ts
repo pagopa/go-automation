@@ -84,7 +84,7 @@ export class RunbookEngine {
     environment?: ExecutionEnvironment,
     signal?: AbortSignal,
   ): Promise<RunbookExecutionResult> {
-    const context: RunbookContext = createInitialContext(params, services, signal);
+    const context: RunbookContext = createInitialContext(params, services, signal, this.logger);
     const maxIterations = runbook.maxIterations ?? DEFAULT_MAX_ITERATIONS;
     const env = environment ?? DEFAULT_ENVIRONMENT;
 
@@ -227,7 +227,9 @@ export class RunbookEngine {
         throw new RunbookMaxIterationsError(runbookId, maxIterations, step.id, visitedSequence);
       }
 
-      this.logger.text(`[${step.id}] ${step.label}`);
+      if (descriptor.silent !== true) {
+        this.logger.text(`[${step.id}] ${step.label}`);
+      }
 
       const stepStartTime = Date.now();
       const stepStartedAt = new Date(stepStartTime).toISOString();
@@ -316,15 +318,19 @@ export class RunbookEngine {
         break;
       } else if (directive === 'resolve') {
         // Early resolution: evaluate known cases against current context
-        this.logger.text(`[${step.id}] 'resolve' signal received. Evaluating known cases...`);
+        if (descriptor.silent !== true) {
+          this.logger.text(`[${step.id}] 'resolve' signal received. Evaluating known cases...`);
+        }
 
         const earlyResult = this.evaluateKnownCasesForEarlyResolution(knownCases, context);
         traceBuilder = traceBuilder.traceEarlyResolution(earlyResult.trace);
 
         if (earlyResult.matchedCase !== undefined) {
-          this.logger.info(
-            `[${step.id}] Early resolution succeeded: case "${earlyResult.matchedCase.id}" (${earlyResult.matchedCase.description})`,
-          );
+          if (descriptor.silent !== true) {
+            this.logger.info(
+              `[${step.id}] Early resolution succeeded: case "${earlyResult.matchedCase.id}" (${earlyResult.matchedCase.description})`,
+            );
+          }
           return {
             context,
             traceBuilder,
@@ -332,7 +338,9 @@ export class RunbookEngine {
           };
         }
 
-        this.logger.text(`[${step.id}] 'resolve' signal received but no known case matched. Continuing.`);
+        if (descriptor.silent !== true) {
+          this.logger.text(`[${step.id}] 'resolve' signal received but no known case matched. Continuing.`);
+        }
         reachedVia = 'sequential';
         currentIndex++;
       } else if (directive === 'continue') {

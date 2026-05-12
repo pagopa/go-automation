@@ -11,7 +11,12 @@ import type { ApiGwQueryTemplates } from './ApiGwQueryTemplates.js';
  *
  * The factory assembles a fully-validated {@link Runbook} from these
  * inputs so the runbook authors only need to provide the data that is
- * actually specific to their alarm (services, known URLs, known cases).
+ * actually specific to their alarm (entry service, services, known URLs,
+ * known cases).
+ *
+ * The pipeline is **dynamic**: only the entry service runs by default;
+ * every other service is reached only when a {@link KnownUrl} observed
+ * during analysis points to it.
  */
 export interface ApiGwAlarmConfig {
   /** Unique runbook identifier */
@@ -25,9 +30,19 @@ export interface ApiGwAlarmConfig {
    * mirroring the canonical query from `go-runbooks`.
    */
   readonly minStatusCode?: number;
-  /** Ordered list of microservices to analyse */
-  readonly services: ReadonlyArray<ApiGwService>;
-  /** Known URLs used to enrich the trace and back known-case conditions */
+  /**
+   * Entry service: the first microservice analysed for any trace that
+   * survived the API Gateway parsing step. Required.
+   */
+  readonly entryService: ApiGwService;
+  /**
+   * Additional microservices reachable from {@link entryService} through
+   * known URLs. Order does not matter — these services are visited only
+   * when a {@link KnownUrl} resolved during analysis names them as the
+   * target.
+   */
+  readonly services?: ReadonlyArray<ApiGwService>;
+  /** Known URLs used to enrich the trace and drive the analysis loop. */
   readonly knownUrls: ReadonlyArray<KnownUrl>;
   /**
    * Custom steps inserted between the API Gateway parsing step and the
@@ -39,7 +54,7 @@ export interface ApiGwAlarmConfig {
   /**
    * Action executed when no known case matches. When omitted the
    * factory generates a default action that summarises the collected
-   * vars (including `<prefix>UrlNeedsRoutingFix`).
+   * vars (including `terminationReason`).
    */
   readonly fallbackAction?: CaseAction;
   /** Optional template overrides */

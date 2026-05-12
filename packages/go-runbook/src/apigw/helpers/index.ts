@@ -7,5 +7,5 @@ export { extractCwField } from './extractCwField.js';
 export { extractFallbackUuid, extractFallbackUuidFromMessage } from './extractFallbackUuid.js';
 export { extractXRayTraceId } from './extractXRayTraceId.js';
 export { findErrorMessage } from './findErrorMessage.js';
-export { findNextServiceInvocation } from './findNextServiceInvocation.js';
-export type { NextServiceInvocation } from './NextServiceInvocation.js';
+export { findKnownUrlInLogs } from './findKnownUrlInLogs.js';
+export type { KnownUrlInLogs } from './findKnownUrlInLogs.js';

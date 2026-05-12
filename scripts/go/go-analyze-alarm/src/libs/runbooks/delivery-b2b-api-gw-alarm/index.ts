@@ -11,7 +11,13 @@
 import { apigw } from '@go-automation/go-runbook';
 import type { Runbook } from '@go-automation/go-runbook';
 
-import { API_GW_LOG_GROUP, DEFAULT_MIN_STATUS_CODE, KNOWN_URLS, SERVICES } from './constants.js';
+import {
+  API_GW_LOG_GROUP,
+  DEFAULT_MIN_STATUS_CODE,
+  ENTRY_SERVICE,
+  KNOWN_URLS,
+  REACHABLE_SERVICES,
+} from './constants.js';
 import { KNOWN_CASES } from './knownCases.js';
 
 /**
@@ -32,7 +38,8 @@ export function buildDeliveryB2BApiGwAlarmRunbook(): Runbook {
     },
     apiGwLogGroup: API_GW_LOG_GROUP,
     minStatusCode: DEFAULT_MIN_STATUS_CODE,
-    services: SERVICES,
+    entryService: ENTRY_SERVICE,
+    services: REACHABLE_SERVICES,
     knownUrls: KNOWN_URLS,
     knownCases: KNOWN_CASES,
   });

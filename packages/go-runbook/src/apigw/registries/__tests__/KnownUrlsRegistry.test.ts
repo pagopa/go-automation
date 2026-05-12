@@ -9,26 +9,24 @@ describe('KnownUrlsRegistry', () => {
     it('matches by prefix (default)', () => {
       const registry = new KnownUrlsRegistry([
         {
-          kind: 'external',
           url: 'https://api.io.pagopa.it/api/v1/activations/',
-          downstream: 'AppIO',
+          target: 'AppIO',
         },
       ]);
 
       const result = registry.match('https://api.io.pagopa.it/api/v1/activations/user-123');
 
       assert.notStrictEqual(result, undefined);
-      assert.strictEqual(result?.known.kind, 'external');
+      assert.strictEqual(result?.known.target, 'AppIO');
       assert.strictEqual(result?.url, 'https://api.io.pagopa.it/api/v1/activations/user-123');
     });
 
     it('matches by exact', () => {
       const registry = new KnownUrlsRegistry([
         {
-          kind: 'internal',
           url: 'http://service/path',
           matchType: 'exact',
-          service: 'pn-service',
+          target: 'pn-service',
         },
       ]);
 
@@ -39,10 +37,9 @@ describe('KnownUrlsRegistry', () => {
     it('matches by regex', () => {
       const registry = new KnownUrlsRegistry([
         {
-          kind: 'internal',
           url: '^http://internal-Ecs[A-Z]+-\\d+',
           matchType: 'regex',
-          service: 'pn-external-registries',
+          target: 'pn-external-registries',
         },
       ]);
 
@@ -51,82 +48,51 @@ describe('KnownUrlsRegistry', () => {
     });
 
     it('returns undefined when nothing matches', () => {
-      const registry = new KnownUrlsRegistry([{ kind: 'external', url: 'https://x.com/', downstream: 'X' }]);
+      const registry = new KnownUrlsRegistry([{ url: 'https://x.com/', target: 'X' }]);
       assert.strictEqual(registry.match('https://y.com/'), undefined);
     });
 
     it('respects declaration order on overlapping prefixes', () => {
       const registry = new KnownUrlsRegistry([
-        { kind: 'external', url: 'https://api.io.pagopa.it/api/', downstream: 'AppIO-broad' },
-        { kind: 'external', url: 'https://api.io.pagopa.it/api/v1/', downstream: 'AppIO-v1' },
+        { url: 'https://api.io.pagopa.it/api/', target: 'AppIO-broad' },
+        { url: 'https://api.io.pagopa.it/api/v1/', target: 'AppIO-v1' },
       ]);
 
       const result = registry.match('https://api.io.pagopa.it/api/v1/activations');
-      assert.strictEqual(result?.known.kind, 'external');
-      assert.strictEqual(result?.known.kind === 'external' ? result.known.downstream : '', 'AppIO-broad');
+      assert.strictEqual(result?.known.target, 'AppIO-broad');
     });
   });
 
   describe('validation', () => {
-    it('rejects internal entry without service', () => {
+    it('rejects entry without target', () => {
       const bad: KnownUrl = {
-        kind: 'internal',
         url: 'http://x/',
       } as unknown as KnownUrl;
-      assert.throws(() => new KnownUrlsRegistry([bad]), /missing 'service'/);
-    });
-
-    it('rejects external entry without downstream', () => {
-      const bad: KnownUrl = {
-        kind: 'external',
-        url: 'http://x/',
-      } as unknown as KnownUrl;
-      assert.throws(() => new KnownUrlsRegistry([bad]), /missing 'downstream'/);
+      assert.throws(() => new KnownUrlsRegistry([bad]), /missing 'target'/);
     });
 
     it('rejects empty url', () => {
       const bad: KnownUrl = {
-        kind: 'external',
         url: '   ',
-        downstream: 'X',
+        target: 'X',
       };
       assert.throws(() => new KnownUrlsRegistry([bad]), /non-empty string/);
     });
 
-    it('rejects empty service on internal', () => {
+    it('rejects empty target', () => {
       const bad: KnownUrl = {
-        kind: 'internal',
         url: 'http://x/',
-        service: '   ',
+        target: '   ',
       };
-      assert.throws(() => new KnownUrlsRegistry([bad]), /missing 'service'/);
-    });
-  });
-
-  describe('getInternalServices', () => {
-    it('returns the set of internal service names', () => {
-      const registry = new KnownUrlsRegistry([
-        { kind: 'internal', url: 'http://a/', service: 'pn-a' },
-        { kind: 'internal', url: 'http://b/', service: 'pn-b' },
-        { kind: 'external', url: 'https://x/', downstream: 'X' },
-      ]);
-      const services = registry.getInternalServices();
-      assert.strictEqual(services.size, 2);
-      assert.ok(services.has('pn-a'));
-      assert.ok(services.has('pn-b'));
-    });
-
-    it('returns empty set when no internal entries', () => {
-      const registry = new KnownUrlsRegistry([{ kind: 'external', url: 'https://x/', downstream: 'X' }]);
-      assert.strictEqual(registry.getInternalServices().size, 0);
+      assert.throws(() => new KnownUrlsRegistry([bad]), /missing 'target'/);
     });
   });
 
   describe('list', () => {
     it('returns entries in declaration order', () => {
       const entries: ReadonlyArray<KnownUrl> = [
-        { kind: 'external', url: 'https://a/', downstream: 'A' },
-        { kind: 'external', url: 'https://b/', downstream: 'B' },
+        { url: 'https://a/', target: 'A' },
+        { url: 'https://b/', target: 'B' },
       ];
       const registry = new KnownUrlsRegistry(entries);
       const list = registry.list();

@@ -7,9 +7,10 @@ import type { ApiGwAlarmConfig } from '../types/ApiGwAlarmConfig.js';
 import type { ApiGwService } from '../types/ApiGwService.js';
 
 import { parseApiGwErrors } from '../steps/ParseApiGwErrorsStep.js';
+import { prepareApiGwSection } from '../steps/PrepareApiGwSectionStep.js';
 import { queryServiceLogs } from '../steps/QueryServiceLogsStep.js';
 import { analyzeServiceLogs } from '../steps/AnalyzeServiceLogsStep.js';
-import { resolveKnownUrl } from '../steps/ResolveKnownUrlStep.js';
+import { decideNext } from '../steps/DecideNextStep.js';
 import { KnownUrlsRegistry } from '../registries/KnownUrlsRegistry.js';
 import { DEFAULT_API_GW_QUERY } from '../queries/DEFAULT_API_GW_QUERY.js';
 import { DEFAULT_SERVICE_QUERY_TEMPLATE } from '../queries/DEFAULT_SERVICE_QUERY_TEMPLATE.js';
@@ -20,18 +21,27 @@ const DEFAULT_MIN_STATUS_CODE = 500;
 /**
  * Assembles a complete API Gateway alarm runbook from declarative inputs.
  *
- * Pipeline produced (in order):
+ * Pipeline produced:
  *
- * 1. `query-api-gw-logs`: queries the API Gateway AccessLog using the
+ * 1. `prepare-api-gw-section`: emits the "Preparazione" reporter banner.
+ * 2. `query-api-gw-logs`: queries the API Gateway AccessLog using the
  *    canonical template (parameterised by `minStatusCode`).
- * 2. `parse-api-gw-errors`: extracts `xRayTraceId`, `apiGwStatusCode` and
+ * 3. `parse-api-gw-errors`: extracts `xRayTraceId`, `apiGwStatusCode` and
  *    `apiGwErrorCount`; short-circuits the runbook when no errors.
- * 3. Any custom `preSteps` (e.g. Lambda authorizer probe).
- * 4. For every service in `services`, in order:
- *    - `query-<service>`: dynamic-clause query on the service log group
- *    - `analyze-<service>`: extracts the longest error message
- *    - `resolve-url-<service>`: classifies the next URL (only when
- *      `detectNextService` is `true`)
+ * 4. Any custom `preSteps` (e.g. Lambda authorizer probe).
+ * 5. For the entry service **and** every additional service, a triplet:
+ *    - `query-<service>`: CloudWatch query filtered by xRayTraceId / fallbackUuid
+ *    - `analyze-<service>`: extracts error msg, scans for known URLs,
+ *      detects new FALLBACK-UUID; signals `next: 'resolve'` when an
+ *      error message is available so the engine attempts early
+ *      known-case resolution
+ *    - `decide-<service>`: decides the next flow directive (jump to
+ *      another service, retry with FALLBACK-UUID, or terminate)
+ *
+ * The pipeline is dynamic: only the entry-service triplet is reached
+ * sequentially; every other triplet is entered via `goTo` emitted by a
+ * decision step. The engine's anti-loop protection complements the
+ * application-level loop guard built into `decideNext`.
  *
  * After the pipeline, `knownCases` are evaluated (in priority order) and
  * a fallback action runs when no case matches.
@@ -47,11 +57,30 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   const serviceTemplate = config.queryTemplates?.serviceQueryTemplate ?? DEFAULT_SERVICE_QUERY_TEMPLATE;
 
   const registry = new KnownUrlsRegistry(config.knownUrls);
-  const servicesInRunbook = new Set(config.services.map((s) => s.name));
+
+  const allServices: ReadonlyArray<ApiGwService> = [config.entryService, ...(config.services ?? [])];
+  const seenNames = new Set<string>();
+  for (const s of allServices) {
+    if (seenNames.has(s.name)) {
+      throw new Error(`Duplicate service name in API Gateway runbook config: '${s.name}'`);
+    }
+    seenNames.add(s.name);
+  }
+  const servicesInRunbook = new Set(allServices.map((s) => s.name));
 
   const builder = RunbookBuilder.create(config.id).metadata(config.metadata);
 
-  // 1. Query API GW AccessLog.
+  // 1. Reporter banner.
+  builder.step(
+    prepareApiGwSection({
+      id: 'prepare-api-gw-section',
+      label: 'Preparazione API Gateway',
+      apiGwLogGroup: config.apiGwLogGroup,
+    }),
+    { silent: true },
+  );
+
+  // 2. Query API GW AccessLog.
   builder.step(
     queryCloudWatchLogs({
       id: 'query-api-gw-logs',
@@ -60,9 +89,10 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
       query: apiGwQuery,
       timeRangeFromParams: { start: 'startTime', end: 'endTime' },
     }),
+    { silent: true },
   );
 
-  // 2. Parse API GW result.
+  // 3. Parse API GW result.
   builder.step(
     parseApiGwErrors({
       id: 'parse-api-gw-errors',
@@ -70,30 +100,32 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
       fromStep: 'query-api-gw-logs',
       minStatusCode: minStatus,
     }),
+    { silent: true },
   );
 
-  // 3. Custom pre-steps.
+  // 4. Custom pre-steps (forwarded with both continueOnFailure AND
+  //    silent so authors can keep their probes out of the structured
+  //    output stream when needed).
   for (const descriptor of config.preSteps ?? []) {
-    const opts = descriptor.continueOnFailure === true ? { continueOnFailure: true } : undefined;
+    const opts: { continueOnFailure?: boolean; silent?: boolean } = {};
+    if (descriptor.continueOnFailure === true) opts.continueOnFailure = true;
+    if (descriptor.silent === true) opts.silent = true;
     builder.step(descriptor.step, opts);
   }
 
-  // 4. Per-service pipeline.
-  let isFirst = true;
-  for (const service of config.services) {
-    const continueOnFailure = service.continueOnFailure ?? !isFirst;
-    const opts = continueOnFailure ? { continueOnFailure: true } : undefined;
-    const detectNextService = service.detectNextService ?? false;
-
+  // 5. Per-service triplets (entry first, then reachable services).
+  for (const service of allServices) {
     builder.step(
       queryServiceLogs({
         id: `query-${service.name}`,
         label: `Query log ${service.name}`,
+        serviceName: service.name,
+        entryService: service.name === config.entryService.name,
         logGroups: [service.logGroup],
         queryTemplate: service.queryOverride ?? serviceTemplate,
         timeRangeFromParams: { start: 'startTime', end: 'endTime' },
       }),
-      opts,
+      { silent: true },
     );
 
     builder.step(
@@ -102,34 +134,32 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
         label: `Analisi log ${service.name}`,
         fromStep: `query-${service.name}`,
         varPrefix: service.varPrefix,
-        detectNextService,
+        registry,
+        serviceName: service.name,
+        servicesInRunbook,
       }),
-      opts,
+      { silent: true },
     );
 
-    if (detectNextService) {
-      builder.step(
-        resolveKnownUrl({
-          id: `resolve-url-${service.name}`,
-          label: `Risoluzione URL noti per ${service.name}`,
-          varPrefix: service.varPrefix,
-          registry,
-          servicesInRunbook,
-        }),
-        opts,
-      );
-    }
-
-    isFirst = false;
+    builder.step(
+      decideNext({
+        id: `decide-${service.name}`,
+        label: `Decisione flusso per ${service.name}`,
+        serviceName: service.name,
+        varPrefix: service.varPrefix,
+        servicesInRunbook,
+      }),
+      { silent: true },
+    );
   }
 
-  // 5. Known cases.
+  // 6. Known cases.
   for (const knownCase of config.knownCases) {
     builder.knownCase(knownCase);
   }
 
-  // 6. Fallback.
-  builder.fallback(config.fallbackAction ?? defaultUnknownCaseFallback(config.services));
+  // 7. Fallback.
+  builder.fallback(config.fallbackAction ?? defaultUnknownCaseFallback(allServices));
 
   if (config.maxIterations !== undefined) {
     builder.maxIterations(config.maxIterations);
@@ -147,10 +177,11 @@ function defaultUnknownCaseFallback(services: ReadonlyArray<ApiGwService>): Case
   const lines: string[] = [
     "[CASO NON RICONOSCIUTO] Impossibile identificare univocamente la causa dell'errore.",
     'API GW: errori={{vars.apiGwErrorCount}} status={{vars.apiGwStatusCode}} xRayTraceId={{vars.xRayTraceId}} fallbackUuid={{vars.fallbackUuid}}',
+    'Esito: {{vars.terminationReason}} downstream={{vars.downstreamTarget}}',
   ];
   for (const s of services) {
     lines.push(
-      `${s.name}: msg={{vars.${s.varPrefix}ErrorMsg}} url={{vars.${s.varPrefix}NextUrl}} kind={{vars.${s.varPrefix}UrlKind}} needsRoutingFix={{vars.${s.varPrefix}UrlNeedsRoutingFix}}`,
+      `${s.name}: msg={{vars.${s.varPrefix}ErrorMsg}} url={{vars.${s.varPrefix}NextUrl}} target={{vars.${s.varPrefix}NextUrlTarget}}`,
     );
   }
   const action: LogAction = { type: 'log', level: 'warn', message: lines.join('\n') };

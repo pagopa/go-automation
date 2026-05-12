@@ -6,7 +6,7 @@
  */
 
 import { Core } from '@go-automation/go-common';
-import { RunbookEngine, ConditionEvaluator } from '@go-automation/go-runbook';
+import { RunbookEngine, ConditionEvaluator, apigw } from '@go-automation/go-runbook';
 import type { Runbook, ExecutionEnvironment } from '@go-automation/go-runbook';
 
 import type { GoAnalyzeAlarmConfig } from './types/GoAnalyzeAlarmConfig.js';
@@ -90,6 +90,14 @@ export async function main(script: Core.GOScript): Promise<void> {
   };
 
   const result = await engine.execute(runbook, params, services, environment);
+
+  // Closing API Gateway banner (consistent with the engine's final
+  // case-match outcome — decide-<service> only stores the raw data).
+  apigw.renderApiGwFinalSummary({
+    logger: script.logger,
+    ...(result.matchedCase !== undefined ? { matchedCaseId: result.matchedCase.id } : {}),
+    vars: result.finalContext.vars,
+  });
 
   // Display results
   script.logger.section('Runbook Result');
