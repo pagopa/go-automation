@@ -31,7 +31,8 @@ export interface ApiGwFinalSummaryInput {
  *
  * Reads `terminationReason`, `downstreamTarget`, `lastErrorMsg` and
  * `apiGwServicesVisited` from the final context vars and combines them
- * with the engine's `matchedCaseIds` (ordered list, possibly empty) to
+ * with the engine's matched-case outputs (`matchedCaseIds`, derived
+ * from the ordered `matchedCases` result and possibly empty) to
  * produce a banner that is always consistent with the runbook's real
  * outcome. When `matchedCaseIds` has more than one entry the banner
  * lists every matched case and tags `matchedCaseIds[0]` as primary
