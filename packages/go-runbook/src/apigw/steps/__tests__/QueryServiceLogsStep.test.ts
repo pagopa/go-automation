@@ -205,4 +205,89 @@ describe('queryServiceLogs', () => {
 
     assert.deepStrictEqual(result.output, rows);
   });
+
+  it('increments apiGwVisitCount only when entering a NEW service', async () => {
+    const { service } = createFakeCwLogs([[{ field: '@message', value: 'r' }]]);
+    const step = queryServiceLogs({
+      id: 'q',
+      label: 'Q',
+      serviceName: 'pn-foo',
+      entryService: true,
+      logGroups: ['/aws/ecs/foo'],
+      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+    });
+
+    // First visit on pn-foo (no previous service tracked).
+    const r1 = await step.execute(createContext({ vars: { xRayTraceId: '1-abc' }, cloudWatchLogs: service }));
+    assert.strictEqual(r1.vars?.['apiGwVisitCount'], '1');
+    assert.strictEqual(r1.vars?.['apiGwLastService'], 'pn-foo');
+    assert.strictEqual(r1.vars?.['apiGwQueryCount'], '1');
+    assert.strictEqual(r1.vars?.['apiGwServicesVisited'], 'pn-foo|1');
+
+    // Re-query on the SAME service (fallback-uuid retry / trace_id swap).
+    const r2 = await step.execute(
+      createContext({
+        vars: {
+          xRayTraceId: '1-abc',
+          apiGwVisitCount: '1',
+          apiGwLastService: 'pn-foo',
+          apiGwQueryCount: '1',
+          apiGwServicesVisited: 'pn-foo|1',
+        },
+        cloudWatchLogs: service,
+      }),
+    );
+    // Visit counter unchanged, query counter bumped, chain entry rewritten.
+    assert.strictEqual(r2.vars?.['apiGwVisitCount'], '1');
+    assert.strictEqual(r2.vars?.['apiGwQueryCount'], '2');
+    assert.strictEqual(r2.vars?.['apiGwServicesVisited'], 'pn-foo|1');
+  });
+
+  it('increments apiGwVisitCount and appends to the chain when switching to a different service', async () => {
+    const { service } = createFakeCwLogs([[{ field: '@message', value: 'r1' }], [{ field: '@message', value: 'r2' }]]);
+    const step = queryServiceLogs({
+      id: 'q',
+      label: 'Q',
+      serviceName: 'pn-bar',
+      entryService: false,
+      logGroups: ['/aws/ecs/bar'],
+      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+    });
+
+    const result = await step.execute(
+      createContext({
+        vars: {
+          xRayTraceId: '1-abc',
+          apiGwVisitCount: '1',
+          apiGwLastService: 'pn-foo',
+          apiGwQueryCount: '1',
+          apiGwServicesVisited: 'pn-foo|42',
+        },
+        cloudWatchLogs: service,
+      }),
+    );
+
+    assert.strictEqual(result.vars?.['apiGwVisitCount'], '2');
+    assert.strictEqual(result.vars?.['apiGwLastService'], 'pn-bar');
+    assert.strictEqual(result.vars?.['apiGwQueryCount'], '2');
+    assert.strictEqual(result.vars?.['apiGwServicesVisited'], 'pn-foo|42,pn-bar|2');
+  });
+
+  it('throws at construction when the queryTemplate lacks the {{FILTER_CLAUSE}} placeholder', () => {
+    assert.throws(
+      () =>
+        queryServiceLogs({
+          id: 'q',
+          label: 'Q',
+          serviceName: 'pn-foo',
+          entryService: true,
+          logGroups: ['/aws/ecs/foo'],
+          // Missing `{{FILTER_CLAUSE}}` — without the placeholder the
+          // step would silently scan the whole log group.
+          queryTemplate: 'fields @timestamp, @message | sort @timestamp asc',
+          timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+        }),
+      /\{\{FILTER_CLAUSE\}\} placeholder/,
+    );
+  });
 });

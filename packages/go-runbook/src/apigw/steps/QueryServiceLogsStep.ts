@@ -21,6 +21,21 @@ const FILTER_CLAUSE_PLACEHOLDER = '{{FILTER_CLAUSE}}';
 const QUERY_COUNTER_VAR = 'apiGwQueryCount';
 
 /**
+ * Counter var name used to track **distinct** service visits. A
+ * re-query on the same service (fallback-UUID retry, trace_id swap)
+ * does **not** increment this counter — only an actual transition to a
+ * different service does. Used by the reporter to number the
+ * `═══ Servizio N ═══` banners.
+ */
+const VISIT_COUNTER_VAR = 'apiGwVisitCount';
+
+/**
+ * Name of the last service entered, persisted to detect whether the
+ * current execution is a new visit or a re-query of the same service.
+ */
+const LAST_SERVICE_VAR = 'apiGwLastService';
+
+/**
  * Configuration for {@link queryServiceLogs}.
  */
 export interface QueryServiceLogsConfig {
@@ -76,6 +91,17 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
     this.fallbackUuidVar = config.fallbackUuidVar ?? 'fallbackUuid';
     this.timeRangeFromParams = config.timeRangeFromParams;
     this.queryTemplate = config.queryTemplate ?? DEFAULT_SERVICE_QUERY_TEMPLATE;
+
+    // Fail fast when the template is missing the placeholder: a silent
+    // no-op `.split().join()` would otherwise produce a query without
+    // any `filter` clause, scanning the entire log group on each visit.
+    if (!this.queryTemplate.includes(FILTER_CLAUSE_PLACEHOLDER)) {
+      throw new Error(
+        `QueryServiceLogsStep "${this.id}": queryTemplate must contain the ` +
+          `${FILTER_CLAUSE_PLACEHOLDER} placeholder; without it the filter ` +
+          `clause cannot be injected and the query would scan the whole log group.`,
+      );
+    }
   }
 
   getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
@@ -97,19 +123,25 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
       const traceId = (context.vars.get(this.xRayTraceIdVar) ?? '').trim();
       const fallback = (context.vars.get(this.fallbackUuidVar) ?? '').trim();
 
-      // Bump the global query counter so the reporter can show a stable
-      // "Query CloudWatch N" index that increases monotonically across
-      // every service visit (including re-queries with fallback UUID).
+      // Always bump the query counter: it tracks every CloudWatch
+      // attempt, including re-queries on the same service (fallback-UUID
+      // retry, trace_id swap).
       const prevCount = Number(context.vars.get(QUERY_COUNTER_VAR) ?? '0');
       const queryNumber = Number.isFinite(prevCount) ? prevCount + 1 : 1;
 
-      // Service visit counter (independent from query counter: increments
-      // once per distinct visit, not per re-query).
-      const prevVisits = Number(context.vars.get('apiGwVisitCount') ?? '0');
-      const visitNumber = Number.isFinite(prevVisits) ? prevVisits + 1 : 1;
+      // Service-visit counter increments only when we enter a NEW
+      // service — a re-query on the same service is just another
+      // attempt within the current visit (no new banner).
+      const lastService = context.vars.get(LAST_SERVICE_VAR) ?? '';
+      const isNewVisit = lastService !== this.serviceName;
+      const prevVisits = Number(context.vars.get(VISIT_COUNTER_VAR) ?? '0');
+      const safeVisits = Number.isFinite(prevVisits) ? prevVisits : 0;
+      const visitNumber = isNewVisit ? safeVisits + 1 : safeVisits;
 
       const reporter = context.logger !== undefined ? new ApiGwReporter(context.logger) : undefined;
-      reporter?.sectionService(visitNumber, this.serviceName, this.entryService, this.logGroups);
+      if (isNewVisit) {
+        reporter?.sectionService(visitNumber, this.serviceName, this.entryService, this.logGroups);
+      }
 
       const identifiers: string[] = [];
       if (traceId !== '') identifiers.push(`xRayTraceId=${traceId}`);
@@ -126,8 +158,14 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
           output: [],
           vars: {
             [QUERY_COUNTER_VAR]: String(queryNumber),
-            apiGwVisitCount: String(visitNumber),
-            apiGwServicesVisited: appendChain(context.vars.get('apiGwServicesVisited'), this.serviceName, 0),
+            [VISIT_COUNTER_VAR]: String(visitNumber),
+            [LAST_SERVICE_VAR]: this.serviceName,
+            apiGwServicesVisited: updateChain(
+              context.vars.get('apiGwServicesVisited'),
+              this.serviceName,
+              0,
+              isNewVisit,
+            ),
           },
         };
       }
@@ -146,8 +184,14 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
         output: results,
         vars: {
           [QUERY_COUNTER_VAR]: String(queryNumber),
-          apiGwVisitCount: String(visitNumber),
-          apiGwServicesVisited: appendChain(context.vars.get('apiGwServicesVisited'), this.serviceName, results.length),
+          [VISIT_COUNTER_VAR]: String(visitNumber),
+          [LAST_SERVICE_VAR]: this.serviceName,
+          apiGwServicesVisited: updateChain(
+            context.vars.get('apiGwServicesVisited'),
+            this.serviceName,
+            results.length,
+            isNewVisit,
+          ),
         },
       };
     });
@@ -177,18 +221,34 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
 }
 
 /**
- * Appends a `name|count` entry to the comma-separated chain stored in
- * the `apiGwServicesVisited` var. The reporter parses this var on
+ * Maintains the comma-separated `name|count` chain stored in the
+ * `apiGwServicesVisited` var. The reporter parses this var on
  * termination to render the closing summary.
  *
+ * - On a **new visit** (`isNewVisit = true`) a new `name|count` entry
+ *   is appended.
+ * - On a **re-query** of the same service (`isNewVisit = false`) the
+ *   last entry's count is overwritten with the latest value so the
+ *   summary always reflects the most recent row count for each
+ *   distinct visit.
+ *
  * @param previous - Current value of the var (may be undefined/empty)
- * @param serviceName - Service just visited
- * @param logCount - Number of log rows returned by the visit
+ * @param serviceName - Service just queried
+ * @param logCount - Number of log rows returned by the latest query
+ * @param isNewVisit - Whether this is a new service visit or a re-query
  * @returns Updated chain string
  */
-function appendChain(previous: string | undefined, serviceName: string, logCount: number): string {
-  const head = previous === undefined || previous === '' ? '' : `${previous},`;
-  return `${head}${serviceName}|${logCount}`;
+function updateChain(previous: string | undefined, serviceName: string, logCount: number, isNewVisit: boolean): string {
+  if (previous === undefined || previous === '') {
+    return `${serviceName}|${logCount}`;
+  }
+  if (isNewVisit) {
+    return `${previous},${serviceName}|${logCount}`;
+  }
+  // Re-query on the same service: overwrite the last entry's count.
+  const entries = previous.split(',');
+  entries[entries.length - 1] = `${serviceName}|${logCount}`;
+  return entries.join(',');
 }
 
 /**

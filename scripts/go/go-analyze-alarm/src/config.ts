@@ -39,7 +39,12 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     aliases: ['ad'],
   },
   {
-    name: 'alarm.datetime-end',
+    // Dot-separated segments (not kebab) so `parameterNameToPropertyName`
+    // resolves the param to `alarmDatetimeEnd` — the splitter in
+    // `GOScript` only camel-cases on `.` separators (a `-` would leave a
+    // dash in the property name and `config.alarmDatetimeEnd` would stay
+    // `undefined`). The CLI flag stays `--alarm-datetime-end`.
+    name: 'alarm.datetime.end',
     type: Core.GOConfigParameterType.STRING,
     description:
       'Optional timestamp of the last occurrence for multi-occurrence alarms ' +

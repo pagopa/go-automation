@@ -63,4 +63,20 @@ describe('computeTimeRange', () => {
       );
     });
   });
+
+  describe('timeWindowMinutes validation', () => {
+    const ref = { kind: 'single' as const, at: '2026-05-11T14:00:00.000Z' };
+
+    it('rejects a negative window', () => {
+      assert.throws(() => computeTimeRange(ref, -1), /Invalid timeWindowMinutes/);
+    });
+
+    it('rejects NaN', () => {
+      assert.throws(() => computeTimeRange(ref, Number.NaN), /Invalid timeWindowMinutes/);
+    });
+
+    it('rejects Infinity', () => {
+      assert.throws(() => computeTimeRange(ref, Number.POSITIVE_INFINITY), /Invalid timeWindowMinutes/);
+    });
+  });
 });

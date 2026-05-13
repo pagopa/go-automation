@@ -67,10 +67,15 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
 
     const results = rawOutput as ReadonlyArray<ResultField[]>;
 
+    // The canonical API GW query filters on `status OR authorizeStatus
+    // OR integrationServiceStatus`; keep any row whose status fields
+    // surface an error on **at least one** of those three, otherwise we
+    // would silently drop rows whose only signal is on
+    // `authorizeStatus` or `integrationServiceStatus` (e.g. an
+    // authorizer 500 with `status=-`).
     const errorRows: ResultField[][] = [];
     for (const row of results) {
-      const status = extractCwField(row, 'status');
-      if (status !== undefined && Number(status) >= this.minStatusCode) {
+      if (this.rowMeetsThreshold(row)) {
         errorRows.push([...row]);
       }
     }
@@ -143,7 +148,31 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
       vars,
     };
   }
+
+  /**
+   * Returns `true` when at least one of the three status fields scanned
+   * by the canonical API GW query (`status`, `authorizeStatus`,
+   * `integrationServiceStatus`) parses to a number ≥ {@link minStatusCode}.
+   *
+   * API Gateway emits the literal `-` for fields that are not applicable
+   * to a request; `Number('-')` is `NaN`, so those values are skipped
+   * naturally without an explicit guard.
+   */
+  private rowMeetsThreshold(row: ReadonlyArray<ResultField>): boolean {
+    for (const field of STATUS_FIELDS) {
+      const raw = extractCwField(row, field);
+      if (raw === undefined) continue;
+      const num = Number(raw);
+      if (!Number.isNaN(num) && num >= this.minStatusCode) {
+        return true;
+      }
+    }
+    return false;
+  }
 }
+
+/** Status fields that the canonical API GW query OR-filters on. */
+const STATUS_FIELDS = ['status', 'authorizeStatus', 'integrationServiceStatus'] as const;
 
 /**
  * Factory: creates a step that parses API Gateway AccessLog query results.

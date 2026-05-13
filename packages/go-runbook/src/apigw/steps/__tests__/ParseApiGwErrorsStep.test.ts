@@ -106,6 +106,38 @@ describe('parseApiGwErrors', () => {
     assert.strictEqual(result.vars?.['apiGwStatusCode'], '503');
   });
 
+  it('keeps rows whose only error signal is on authorizeStatus or integrationServiceStatus', async () => {
+    const step = parseApiGwErrors({ id: 'parse', label: 'Parse', fromStep: 'query-api-gw-logs' });
+    // status='-', authorizeStatus='500' → should still count as an error row
+    const ctx = createContext([
+      buildRow({
+        status: '-',
+        authorizeStatus: '500',
+        integrationServiceStatus: '-',
+        xrayTraceId: 'Root=1-aaa',
+      }),
+      buildRow({
+        status: '-',
+        authorizeStatus: '-',
+        integrationServiceStatus: '503',
+        xrayTraceId: 'Root=1-bbb',
+      }),
+    ]);
+    const result = await step.execute(ctx);
+    assert.strictEqual(result.success, true);
+    assert.notStrictEqual(result.next, 'stop');
+    assert.strictEqual(result.vars?.['apiGwErrorCount'], '2');
+  });
+
+  it('still drops rows whose three status fields are all below the threshold', async () => {
+    const step = parseApiGwErrors({ id: 'parse', label: 'Parse', fromStep: 'query-api-gw-logs' });
+    const ctx = createContext([buildRow({ status: '404', authorizeStatus: '200', integrationServiceStatus: '-' })]);
+    const result = await step.execute(ctx);
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.next, 'stop');
+    assert.strictEqual(result.vars?.['apiGwErrorCount'], '0');
+  });
+
   it('returns failure when the upstream step output is missing', async () => {
     const step = parseApiGwErrors({
       id: 'parse',
