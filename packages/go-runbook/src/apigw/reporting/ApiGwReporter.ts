@@ -13,11 +13,12 @@ export interface ApiGwFinalSummaryInput {
   /** Logger used to emit the structured banner. */
   readonly logger: GOLogger;
   /**
-   * The known case the engine ultimately matched (either via early
-   * resolution or via the post-loop case match). Pass `undefined` when
-   * no case matched.
+   * IDs of the known cases the engine ultimately matched (either via
+   * early resolution or via the post-loop case match), sorted by
+   * priority descending (`matchedCaseIds[0]` is the primary). Empty
+   * array when no case matched.
    */
-  readonly matchedCaseId?: string;
+  readonly matchedCaseIds: ReadonlyArray<string>;
   /** Read-only snapshot of `finalContext.vars`. */
   readonly vars: ReadonlyMap<string, string>;
 }
@@ -57,15 +58,15 @@ export function renderApiGwFinalSummary(input: ApiGwFinalSummaryInput): void {
     errorMessage = `${apiGwErrorMessage}${endpoint}`;
   }
 
-  // The engine's matchedCase wins over the local decide-step verdict:
+  // The engine's matched cases win over the local decide-step verdict:
   // a known case may have matched on absence (e.g. `LogCount == '0'`)
   // even when decide had no positive signal to report.
   const reason: TerminationReason =
-    input.matchedCaseId !== undefined ? 'known-case' : terminationReason !== '' ? terminationReason : 'no-match';
+    input.matchedCaseIds.length > 0 ? 'known-case' : terminationReason !== '' ? terminationReason : 'no-match';
 
   new ApiGwReporter(input.logger).stopSummary({
     reason,
-    ...(input.matchedCaseId !== undefined ? { matchedCaseId: input.matchedCaseId } : {}),
+    matchedCaseIds: input.matchedCaseIds,
     ...(downstreamTarget !== '' ? { downstreamTarget } : {}),
     ...(errorMessage !== '' ? { errorMessage } : {}),
     servicesVisited,
@@ -107,7 +108,12 @@ export interface ApiGwReporterServiceSummary {
  */
 export interface ApiGwReporterTermination {
   readonly reason: TerminationReason;
-  readonly matchedCaseId?: string;
+  /**
+   * IDs of every known case the engine matched, sorted by priority
+   * descending (`matchedCaseIds[0]` is the primary). Empty when the
+   * termination is not a `known-case`.
+   */
+  readonly matchedCaseIds: ReadonlyArray<string>;
   readonly downstreamTarget?: string;
   readonly errorMessage?: string;
   readonly servicesVisited: ReadonlyArray<ApiGwReporterServiceSummary>;
@@ -249,6 +255,20 @@ export class ApiGwReporter {
     this.logger.text(`  └─ Riprova ${serviceName} con FALLBACK-UUID`);
   }
 
+  /**
+   * Reports the discovery of an alternative `trace_id` in the rows of a
+   * fallback-uuid query: the analysis loop swaps `xRayTraceId` with the
+   * newly observed value and re-queries the same service.
+   *
+   * @param serviceName - Service that will be re-queried with the swap
+   * @param newTraceId  - Canonical X-Ray trace id used from now on
+   */
+  decisionTraceIdSwap(serviceName: string, newTraceId: string): void {
+    this.logger.text(`  ├─ trace_id rilevato nei log → swap di xRayTraceId`);
+    this.logger.text(`  │    └─ Nuovo trace: ${newTraceId}`);
+    this.logger.text(`  └─ Riprova ${serviceName} con il nuovo trace_id`);
+  }
+
   decisionNoMatch(): void {
     this.logger.text(`  └─ Nessun KnownUrl in questo servizio, nessun FALLBACK-UUID nuovo`);
   }
@@ -267,7 +287,20 @@ export class ApiGwReporter {
     this.logger.text(`  ├─ Servizi analizzati: ${t.servicesVisited.length}${chain ? ` — ${chain}` : ''}`);
     switch (t.reason) {
       case 'known-case':
-        this.logger.text(`  └─ Esito: caso noto${t.matchedCaseId !== undefined ? ` (${t.matchedCaseId})` : ''}`);
+        if (t.matchedCaseIds.length === 0) {
+          this.logger.text(`  └─ Esito: caso noto`);
+        } else if (t.matchedCaseIds.length === 1) {
+          this.logger.text(`  └─ Esito: caso noto (${t.matchedCaseIds[0]})`);
+        } else {
+          this.logger.text(`  ├─ Casi noti rilevati: ${t.matchedCaseIds.length}`);
+          t.matchedCaseIds.forEach((id, idx) => {
+            const isLast = idx === t.matchedCaseIds.length - 1;
+            const branch = isLast ? '└─' : '├─';
+            const tag = idx === 0 ? ' ← primario' : '';
+            this.logger.text(`  │    ${branch} ${id}${tag}`);
+          });
+          this.logger.text(`  └─ (le action sono state eseguite tutte in ordine di priority desc)`);
+        }
         break;
       case 'external-downstream':
         this.logger.text(`  ├─ Esito: URL downstream (${t.downstreamTarget ?? 'n/a'})`);

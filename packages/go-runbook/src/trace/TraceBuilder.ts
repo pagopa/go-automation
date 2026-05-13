@@ -41,7 +41,7 @@ export class TraceBuilder {
 
   private readonly stepTraces: ReadonlyArray<StepTrace>;
   private readonly caseEvaluations: ReadonlyArray<CaseEvaluationTrace>;
-  private readonly actionResult: ActionTrace | null;
+  private readonly actionTraces: ReadonlyArray<ActionTrace>;
   private readonly startedAt: string;
   private readonly startedAtMs: number;
 
@@ -52,7 +52,7 @@ export class TraceBuilder {
   ) {
     this.stepTraces = [];
     this.caseEvaluations = [];
-    this.actionResult = null;
+    this.actionTraces = [];
     const now = new Date();
     this.startedAt = now.toISOString();
     this.startedAtMs = now.getTime();
@@ -64,13 +64,13 @@ export class TraceBuilder {
   private copyWith(overrides: {
     readonly stepTraces?: ReadonlyArray<StepTrace>;
     readonly caseEvaluations?: ReadonlyArray<CaseEvaluationTrace>;
-    readonly actionResult?: ActionTrace | null;
+    readonly actionTraces?: ReadonlyArray<ActionTrace>;
   }): TraceBuilder {
     const copy = new TraceBuilder(this.executionId, this.runbook, this.params);
     return Object.assign(copy, {
       stepTraces: overrides.stepTraces ?? this.stepTraces,
       caseEvaluations: overrides.caseEvaluations ?? this.caseEvaluations,
-      actionResult: overrides.actionResult ?? this.actionResult,
+      actionTraces: overrides.actionTraces ?? this.actionTraces,
       startedAt: this.startedAt,
       startedAtMs: this.startedAtMs,
     });
@@ -214,7 +214,7 @@ export class TraceBuilder {
     };
 
     return this.copyWith({
-      actionResult: actionTrace,
+      actionTraces: [...this.actionTraces, actionTrace],
     });
   }
 
@@ -238,8 +238,8 @@ export class TraceBuilder {
     const completedAt = completedAtDate.toISOString();
     const durationMs = completedAtDate.getTime() - this.startedAtMs;
 
+    const matchedCaseIds = this.caseEvaluations.filter((e) => e.matched).map((e) => e.caseId);
     const matchedEval = this.caseEvaluations.find((e) => e.matched) ?? null;
-    const matchedCaseId = matchedEval?.caseId ?? null;
 
     const variables: Record<string, string> = Object.fromEntries(finalContext.vars);
     const input: Record<string, string> = Object.fromEntries(this.params);
@@ -267,8 +267,9 @@ export class TraceBuilder {
     }
 
     const stepsSkipped = totalSteps - stepsExecuted;
-    const outcomeCase = matchedCaseId ?? 'no-match';
-    const outcomeAction = this.actionResult?.actionType ?? 'none';
+    const outcomeCase = matchedCaseIds.length === 0 ? 'no-match' : matchedCaseIds.join(',');
+    const primaryActionTrace = this.actionTraces[0];
+    const outcomeAction = primaryActionTrace?.actionType ?? 'none';
 
     const summary: ExecutionSummary = {
       description: this.buildSummaryDescription(status, matchedEval, earlyResolvedStep?.stepId),
@@ -302,9 +303,9 @@ export class TraceBuilder {
       caseMatching: {
         casesEvaluated: this.caseEvaluations.length,
         evaluations: this.caseEvaluations,
-        matchedCaseId,
+        matchedCaseIds,
       },
-      actionExecuted: this.actionResult ?? TraceBuilder.defaultActionTrace,
+      actionsExecuted: this.actionTraces.length > 0 ? this.actionTraces : [TraceBuilder.defaultActionTrace],
       summary,
     };
   }

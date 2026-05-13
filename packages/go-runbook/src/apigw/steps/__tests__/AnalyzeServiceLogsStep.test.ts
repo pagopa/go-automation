@@ -162,6 +162,124 @@ describe('analyzeServiceLogs', () => {
     assert.strictEqual(result.next, 'resolve');
   });
 
+  it('swaps xRayTraceId when fallback-uuid was set and a fresh trace_id appears in the logs', async () => {
+    const step = analyzeServiceLogs({
+      id: 'analyze',
+      label: 'Analyze',
+      fromStep: 'query',
+      varPrefix: 'svc',
+      registry: new KnownUrlsRegistry([]),
+      serviceName: 'pn-user-attributes',
+      servicesInRunbook: new Set(['pn-user-attributes']),
+    });
+
+    const traceIdRow: ResultField[] = [
+      { field: '@message', value: 'application log line' },
+      { field: 'level', value: 'ERROR' },
+      { field: 'trace_id', value: '3d472be72977635208a92722b97b5e24' },
+    ];
+
+    const result = await step.execute(
+      createContext({
+        stepOutput: [traceIdRow],
+        vars: { xRayTraceId: '1-69b158e8-28c211881e5339480367ede0', fallbackUuid: 'fb-uuid-1' },
+      }),
+    );
+
+    assert.deepStrictEqual(result.next, { goTo: 'query-pn-user-attributes' });
+    assert.strictEqual(result.vars?.['xRayTraceId'], '1-3d472be7-2977635208a92722b97b5e24');
+    assert.strictEqual(result.vars?.['svcSwappedTraceId'], '1-3d472be7-2977635208a92722b97b5e24');
+    assert.strictEqual(result.vars?.['apiGwTraceIdSwapCount'], '1');
+    assert.strictEqual(result.vars?.['apiGwOriginalTraceId'], '1-69b158e8-28c211881e5339480367ede0');
+  });
+
+  it('does NOT swap when no fallback-uuid is in context yet', async () => {
+    const step = analyzeServiceLogs({
+      id: 'analyze',
+      label: 'Analyze',
+      fromStep: 'query',
+      varPrefix: 'svc',
+      registry: new KnownUrlsRegistry([]),
+      serviceName: 'pn-user-attributes',
+      servicesInRunbook: new Set(['pn-user-attributes']),
+    });
+
+    const traceIdRow: ResultField[] = [
+      { field: '@message', value: 'application log line' },
+      { field: 'level', value: 'ERROR' },
+      { field: 'trace_id', value: '3d472be72977635208a92722b97b5e24' },
+    ];
+
+    const result = await step.execute(
+      createContext({
+        stepOutput: [traceIdRow],
+        vars: { xRayTraceId: '1-69b158e8-28c211881e5339480367ede0' },
+      }),
+    );
+
+    assert.strictEqual(result.next, 'resolve');
+    assert.strictEqual(result.vars?.['xRayTraceId'], undefined);
+  });
+
+  it('does NOT swap when the trace_id matches the current xRayTraceId (raw or canonical)', async () => {
+    const step = analyzeServiceLogs({
+      id: 'analyze',
+      label: 'Analyze',
+      fromStep: 'query',
+      varPrefix: 'svc',
+      registry: new KnownUrlsRegistry([]),
+      serviceName: 'pn-user-attributes',
+      servicesInRunbook: new Set(['pn-user-attributes']),
+    });
+
+    const traceIdRow: ResultField[] = [
+      { field: '@message', value: 'application log line' },
+      { field: 'level', value: 'ERROR' },
+      { field: 'trace_id', value: '69b158e828c211881e5339480367ede0' },
+    ];
+
+    const result = await step.execute(
+      createContext({
+        stepOutput: [traceIdRow],
+        vars: { xRayTraceId: '1-69b158e8-28c211881e5339480367ede0', fallbackUuid: 'fb-1' },
+      }),
+    );
+
+    assert.strictEqual(result.next, 'resolve');
+    assert.strictEqual(result.vars?.['xRayTraceId'], undefined);
+  });
+
+  it('stops swapping after MAX_TRACE_ID_SWAPS (5) hops', async () => {
+    const step = analyzeServiceLogs({
+      id: 'analyze',
+      label: 'Analyze',
+      fromStep: 'query',
+      varPrefix: 'svc',
+      registry: new KnownUrlsRegistry([]),
+      serviceName: 'pn-user-attributes',
+      servicesInRunbook: new Set(['pn-user-attributes']),
+    });
+
+    const traceIdRow: ResultField[] = [
+      { field: '@message', value: 'application log line' },
+      { field: 'level', value: 'ERROR' },
+      { field: 'trace_id', value: '3d472be72977635208a92722b97b5e24' },
+    ];
+
+    const result = await step.execute(
+      createContext({
+        stepOutput: [traceIdRow],
+        vars: {
+          xRayTraceId: '1-69b158e8-28c211881e5339480367ede0',
+          fallbackUuid: 'fb-1',
+          apiGwTraceIdSwapCount: '5',
+        },
+      }),
+    );
+
+    assert.strictEqual(result.next, 'resolve');
+  });
+
   it('returns empty vars when the upstream query produced no rows', async () => {
     const step = analyzeServiceLogs({
       id: 'analyze',

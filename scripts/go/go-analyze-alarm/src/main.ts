@@ -95,7 +95,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   // case-match outcome — decide-<service> only stores the raw data).
   apigw.renderApiGwFinalSummary({
     logger: script.logger,
-    ...(result.matchedCase !== undefined ? { matchedCaseId: result.matchedCase.id } : {}),
+    matchedCaseIds: result.matchedCases.map((c) => c.id),
     vars: result.finalContext.vars,
   });
 
@@ -105,10 +105,15 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.info(`Steps executed: ${result.stepsExecuted}`);
   script.logger.info(`Duration: ${result.durationMs}ms`);
 
-  if (result.matchedCase !== undefined) {
-    script.logger.info(`Matched case: ${result.matchedCase.description}`);
-  } else {
+  if (result.matchedCases.length === 0) {
     script.logger.warning('No known case matched');
+  } else if (result.matchedCases.length === 1) {
+    script.logger.info(`Matched case: ${result.matchedCases[0]!.description}`);
+  } else {
+    script.logger.info(`Matched cases (${result.matchedCases.length}):`);
+    for (const c of result.matchedCases) {
+      script.logger.info(`  - ${c.id} (priority ${c.priority}): ${c.description}`);
+    }
   }
 
   if (result.recoveredErrors.length > 0) {

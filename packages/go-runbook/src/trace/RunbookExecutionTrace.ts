@@ -29,8 +29,13 @@ export interface RunbookExecutionTrace {
   readonly variables: Readonly<Record<string, string>>;
   /** Detail of known case matching */
   readonly caseMatching: CaseMatchingTrace;
-  /** Detail of the executed action */
-  readonly actionExecuted: ActionTrace;
+  /**
+   * Detail of every executed action, in the order they ran.
+   * For multi-match scenarios this contains one entry per matched
+   * case (sorted by priority desc) plus the fallback when no case
+   * matched.
+   */
+  readonly actionsExecuted: ReadonlyArray<ActionTrace>;
   /** Synthetic execution summary */
   readonly summary: ExecutionSummary;
 }

@@ -11,8 +11,12 @@ export interface RunbookExecutionResult {
   readonly runbookId: string;
   /** Execution status */
   readonly status: 'completed' | 'failed' | 'stopped';
-  /** The known case that matched (if any) */
-  readonly matchedCase?: KnownCase;
+  /**
+   * Known cases that matched the final (or early-resolved) context,
+   * sorted by `priority` descending (`matchedCases[0]` is the primary).
+   * Empty array when no case matched and the fallback ran instead.
+   */
+  readonly matchedCases: ReadonlyArray<KnownCase>;
   /** Execution duration in milliseconds */
   readonly durationMs: number;
   /** Number of steps executed */

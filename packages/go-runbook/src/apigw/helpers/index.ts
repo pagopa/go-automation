@@ -9,3 +9,4 @@ export { extractXRayTraceId } from './extractXRayTraceId.js';
 export { findErrorMessage } from './findErrorMessage.js';
 export { findKnownUrlInLogs } from './findKnownUrlInLogs.js';
 export type { KnownUrlInLogs } from './findKnownUrlInLogs.js';
+export { findFreshTraceId, transformRawTraceId } from './findFreshTraceId.js';

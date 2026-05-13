@@ -8,6 +8,7 @@ import type { FlowDirective } from '../../types/FlowDirective.js';
 import { findErrorMessage } from '../helpers/findErrorMessage.js';
 import { findKnownUrlInLogs } from '../helpers/findKnownUrlInLogs.js';
 import { extractFallbackUuid } from '../helpers/extractFallbackUuid.js';
+import { findFreshTraceId } from '../helpers/findFreshTraceId.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
 import type { KnownUrlsRegistry } from '../registries/KnownUrlsRegistry.js';
 import type { ServiceLogsAnalysis } from './ServiceLogsAnalysis.js';
@@ -20,6 +21,20 @@ import type { ServiceLogsAnalysis } from './ServiceLogsAnalysis.js';
  * any final terminal state).
  */
 const VISITED_KEYS_VAR = 'apiGwVisitedKeys';
+
+/**
+ * Var name that tracks the number of consecutive `trace_id` swaps
+ * performed by the analysis loop. Hard-capped to {@link MAX_TRACE_ID_SWAPS}
+ * to prevent a pathological chain of swaps.
+ */
+const TRACE_ID_SWAP_COUNT_VAR = 'apiGwTraceIdSwapCount';
+
+/**
+ * Maximum number of consecutive `trace_id` swaps allowed by the
+ * analysis loop. Picked high enough to cover realistic scenarios (most
+ * traces chain at most 1-2 times) while still guaranteeing termination.
+ */
+const MAX_TRACE_ID_SWAPS = 5;
 
 /**
  * Configuration for {@link analyzeServiceLogs}.
@@ -201,6 +216,60 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
       // Fall through to the standard 'resolve' branch so known cases
       // get a chance; `decideNext` will then stop with `loop-detected`
       // if no case matches.
+    }
+
+    // trace_id swap decision: only when this step is wired into the
+    // main dynamic loop AND the previous query already used a
+    // FALLBACK-UUID (i.e. `fallbackUuid` was already set when the query
+    // ran). The application logs may carry an alternative `trace_id`
+    // that should become the canonical X-Ray trace id for a follow-up
+    // query on the same service.
+    if (this.serviceName !== undefined && fallbackUuidExisting !== '') {
+      const rawSwapCount = Number(context.vars.get(TRACE_ID_SWAP_COUNT_VAR) ?? '0');
+      const swapCount = Number.isFinite(rawSwapCount) ? rawSwapCount : 0;
+      if (swapCount < MAX_TRACE_ID_SWAPS) {
+        const known = new Set<string>();
+        if (xRayTraceId !== '') known.add(xRayTraceId);
+        if (fallbackUuidExisting !== '') known.add(fallbackUuidExisting);
+        const newTraceId = findFreshTraceId(results, known);
+        if (newTraceId !== undefined) {
+          const visited = parseVisitedKeys(context.vars.get(VISITED_KEYS_VAR));
+          const currentKey = buildKey(this.serviceName, xRayTraceId, fallbackUuidExisting);
+          const destKey = buildKey(this.serviceName, newTraceId, fallbackUuidExisting);
+
+          if (!visited.has(destKey)) {
+            const nextVisited = new Set(visited);
+            nextVisited.add(currentKey);
+
+            reporter?.decisionTraceIdSwap(this.serviceName, newTraceId);
+
+            return {
+              success: true,
+              output: {
+                errorMessage,
+                logCount: results.length,
+                knownUrl: knownUrl?.observedUrl,
+                knownUrlTarget: knownUrl?.known.target,
+                fallbackUuidExtracted: fallbackIsFresh ? extractedFallback : undefined,
+              },
+              vars: {
+                ...vars,
+                xRayTraceId: newTraceId,
+                [`${this.varPrefix}SwappedTraceId`]: newTraceId,
+                [TRACE_ID_SWAP_COUNT_VAR]: String(swapCount + 1),
+                [VISITED_KEYS_VAR]: serializeVisitedKeys(nextVisited),
+                ...(context.vars.get('apiGwOriginalTraceId') === undefined
+                  ? { apiGwOriginalTraceId: xRayTraceId }
+                  : {}),
+              },
+              next: { goTo: `${this.queryStepPrefix}${this.serviceName}` } satisfies FlowDirective,
+            };
+          }
+          // Else: the swap destination is already visited. Fall through
+          // to the standard 'resolve' branch; `decideNext` will close
+          // the analysis as `no-match` (or `loop-detected` if applicable).
+        }
+      }
     }
 
     return {

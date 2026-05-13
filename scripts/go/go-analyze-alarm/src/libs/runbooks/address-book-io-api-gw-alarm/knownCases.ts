@@ -161,6 +161,30 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     },
   },
 
+  {
+    id: 'appio-downstream-500',
+    description: 'Allarme scattato per un 500 ricevuto da AppIO - Internal Server Error from PUT',
+    priority: 89,
+    condition: {
+      type: 'or',
+      conditions: [
+        {
+          type: 'pattern',
+          ref: 'vars.externalRegistriesErrorMsg',
+          regex: '\\[DOWNSTREAM\\] Service IO returned errors=500 Internal Server Error from PUT',
+        },
+      ],
+    },
+    action: {
+      type: 'log',
+      level: 'info',
+      message:
+        '[CASO NOTO] 500 da AppIO - Internal Server Error from PUT\n' +
+        'Risoluzione: Chiusura - caso noto\n' +
+        'Downstream: AppIO\n',
+    },
+  },
+
   // ── AppIO 404: Activation not found ────────────────────────────────────
   {
     id: 'appio-activation-not-found',
