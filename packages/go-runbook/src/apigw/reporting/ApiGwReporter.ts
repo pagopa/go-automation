@@ -4,10 +4,13 @@ import type { TerminationReason } from '../types/TerminationReason.js';
 /**
  * Input expected by {@link renderApiGwFinalSummary}.
  *
- * The consumer script collects these fields from the result returned by
- * `RunbookEngine.execute` (matched case, final context vars) so the
- * closing banner reflects the **actual** outcome of the runbook — not
- * just the local view of the last `decide-<service>` step.
+ * The consumer script collects these fields from the result returned
+ * by `RunbookEngine.execute` (the ordered `matchedCases` list and the
+ * final context vars) so the closing banner reflects the **actual**
+ * outcome of the runbook — not just the local view of the last
+ * `decide-<service>` step. `matchedCases` can contain zero, one or
+ * many entries (the engine evaluates all known cases and runs every
+ * matching action in priority desc order).
  */
 export interface ApiGwFinalSummaryInput {
   /** Logger used to emit the structured banner. */
@@ -28,8 +31,12 @@ export interface ApiGwFinalSummaryInput {
  *
  * Reads `terminationReason`, `downstreamTarget`, `lastErrorMsg` and
  * `apiGwServicesVisited` from the final context vars and combines them
- * with the engine's `matchedCase` to produce a banner that is always
- * consistent with the runbook's real outcome.
+ * with the engine's `matchedCaseIds` (ordered list, possibly empty) to
+ * produce a banner that is always consistent with the runbook's real
+ * outcome. When `matchedCaseIds` has more than one entry the banner
+ * lists every matched case and tags `matchedCaseIds[0]` as primary
+ * (the action of every matched case has already been executed in
+ * priority desc order by the engine).
  *
  * @param input - Fields collected from the engine result
  */
