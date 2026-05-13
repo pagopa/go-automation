@@ -173,9 +173,23 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
       const query = this.buildQuery(traceId, fallback);
 
-      const results = await context.services.cloudWatchLogs.query(this.logGroups, query, timeRange, {
-        ...(context.signal !== undefined ? { signal: context.signal } : {}),
-      });
+      let results: ReadonlyArray<ReadonlyArray<ResultField>>;
+      try {
+        results = await context.services.cloudWatchLogs.query(this.logGroups, query, timeRange, {
+          ...(context.signal !== undefined ? { signal: context.signal } : {}),
+        });
+      } catch (error: unknown) {
+        // Surface the AWS failure in the structured log so it does not
+        // get buried in the engine's per-step error noise (e.g. a
+        // ResourceNotFoundException on a misconfigured log group is
+        // otherwise invisible until the trace is inspected). Re-throw
+        // so `executeStep` converts it to `{ success: false, error }`
+        // and the engine fan-out (continueOnFailure / decide / final
+        // case match) keeps working as before.
+        const message = error instanceof Error ? error.message : String(error);
+        reporter?.queryFailed(this.logGroups, message);
+        throw error;
+      }
 
       reporter?.queryResult(results.length);
 

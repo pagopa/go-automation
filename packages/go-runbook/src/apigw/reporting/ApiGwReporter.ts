@@ -220,6 +220,25 @@ export class ApiGwReporter {
   }
 
   /**
+   * Reports that the latest CloudWatch query attempt **failed** — the
+   * AWS call threw (typically a `ResourceNotFoundException` on a
+   * misconfigured log group, or a transient throttling / IAM error).
+   *
+   * Renders a dedicated `⚠ Query fallita` banner so the failure is
+   * immediately visible in the structured output instead of being
+   * buried in the trace JSON. The engine continues with its normal
+   * failure handling (decide step closes the visit, fallback action
+   * runs at the end).
+   */
+  queryFailed(logGroups: ReadonlyArray<string>, errorMessage: string): void {
+    this.logger.text(`  │    └─ ⚠ Query fallita`);
+    if (logGroups.length > 0) {
+      this.logger.text(`  │       ├─ Log group${logGroups.length === 1 ? '' : 's'}: ${logGroups.join(', ')}`);
+    }
+    this.logger.text(`  │       └─ Causa: ${errorMessage}`);
+  }
+
+  /**
    * Reports analysis findings on the rows just returned.
    */
   analysisFindings(args: {

@@ -99,6 +99,28 @@ describe('ApiGwReporter', () => {
     });
   });
 
+  describe('queryFailed', () => {
+    it('renders a "Query fallita" banner with the log group and the cause', () => {
+      const { logger, lines } = captureLogger();
+      new ApiGwReporter(logger).queryFailed(
+        ['/aws/ecs/pn-data-vault-sep'],
+        "Log group '/aws/ecs/pn-data-vault-sep' does not exist for account ID '510769970275'",
+      );
+      const joined = lines.join('\n');
+      assert.match(joined, /⚠ Query fallita/);
+      assert.match(joined, /Log group: \/aws\/ecs\/pn-data-vault-sep/);
+      assert.match(joined, /Causa: Log group '\/aws\/ecs\/pn-data-vault-sep' does not exist/);
+    });
+
+    it('uses the plural form when multiple log groups are passed', () => {
+      const { logger, lines } = captureLogger();
+      new ApiGwReporter(logger).queryFailed(['/a', '/b'], 'AccessDenied');
+      const joined = lines.join('\n');
+      assert.match(joined, /Log groups: \/a, \/b/);
+      assert.match(joined, /Causa: AccessDenied/);
+    });
+  });
+
   describe('analysisFindings', () => {
     it('reports an error message, known URL and fresh fallback UUID when all surfaced', () => {
       const { logger, lines } = captureLogger();

@@ -17,11 +17,13 @@ import { createServiceRegistry } from './libs/createServiceRegistry.js';
 import { computeTimeRange } from './libs/computeTimeRange.js';
 import { createTimeRangeReference } from './libs/createTimeRangeReference.js';
 import { saveExecutionTrace } from './libs/saveExecutionTrace.js';
+import { buildDeliveryIoExpApiGwAlarmRunbook } from './libs/runbooks/pn-delivery-IO_EXP-ApiGwAlarm/runbook.js';
 
 /** Runbook registry: maps alarm names to their runbook builders */
 const RUNBOOK_REGISTRY = new Map<string, () => Runbook>([
   ['pn-address-book-io-IO-ApiGwAlarm', buildAddressBookIoApiGwAlarmRunbook],
   ['pn-delivery-B2B-ApiGwAlarm', buildDeliveryB2BApiGwAlarmRunbook],
+  ['pn-delivery-IO_EXP-ApiGwAlarm', buildDeliveryIoExpApiGwAlarmRunbook],
 ]);
 
 /**

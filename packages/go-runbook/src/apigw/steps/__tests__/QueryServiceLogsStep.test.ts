@@ -39,8 +39,9 @@ function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<ResultField>> = [
 function createContext(args: {
   readonly vars?: Record<string, string>;
   readonly cloudWatchLogs: CloudWatchLogsService;
+  readonly capturedLines?: string[];
 }): RunbookContext {
-  return {
+  const ctx: RunbookContext = {
     executionId: 'test',
     startedAt: new Date('2026-01-01T00:00:00.000Z'),
     stepResults: new Map(),
@@ -53,6 +54,15 @@ function createContext(args: {
     services: { cloudWatchLogs: args.cloudWatchLogs } as unknown as ServiceRegistry,
     recoveredErrors: [],
   };
+  if (args.capturedLines !== undefined) {
+    const captured = args.capturedLines;
+    const logger = {
+      text: (msg: string) => captured.push(msg),
+      newline: () => captured.push(''),
+    };
+    return { ...ctx, logger } as unknown as RunbookContext;
+  }
+  return ctx;
 }
 
 describe('queryServiceLogs', () => {
@@ -271,6 +281,47 @@ describe('queryServiceLogs', () => {
     assert.strictEqual(result.vars?.['apiGwLastService'], 'pn-bar');
     assert.strictEqual(result.vars?.['apiGwQueryCount'], '2');
     assert.strictEqual(result.vars?.['apiGwServicesVisited'], 'pn-foo|42,pn-bar|2');
+  });
+
+  it('emits the "Query fallita" reporter banner when the AWS call throws', async () => {
+    // Simulate a CloudWatch ResourceNotFoundException (e.g. a runbook
+    // pointing at a misconfigured log group).
+    const throwingService = {
+      query: async (): Promise<never> => {
+        await Promise.resolve();
+        throw new Error(
+          "[ResourceNotFoundException] Log group '/aws/ecs/pn-data-vault-sep' does not exist for account ID '510769970275'",
+        );
+      },
+    } as unknown as CloudWatchLogsService;
+
+    const step = queryServiceLogs({
+      id: 'q',
+      label: 'Q',
+      serviceName: 'pn-data-vault',
+      entryService: false,
+      logGroups: ['/aws/ecs/pn-data-vault-sep'],
+      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+    });
+
+    const captured: string[] = [];
+    const result = await step.execute(
+      createContext({
+        vars: { xRayTraceId: '1-abc' },
+        cloudWatchLogs: throwingService,
+        capturedLines: captured,
+      }),
+    );
+
+    // The step returns a failed StepResult (executeStep converts the
+    // thrown error), and the reporter banner is rendered before the
+    // re-throw so the failure is visible in the structured output.
+    assert.strictEqual(result.success, false);
+    assert.match(result.error ?? '', /CloudWatch service logs query failed/);
+    const joined = captured.join('\n');
+    assert.match(joined, /⚠ Query fallita/);
+    assert.match(joined, /Log group: \/aws\/ecs\/pn-data-vault-sep/);
+    assert.match(joined, /Causa: \[ResourceNotFoundException\] Log group '\/aws\/ecs\/pn-data-vault-sep' does not exist/);
   });
 
   it('throws at construction when the queryTemplate lacks the {{FILTER_CLAUSE}} placeholder', () => {
