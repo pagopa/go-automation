@@ -146,22 +146,20 @@ export class RunbookEngine {
       traceBuilder = caseResult.traceBuilder;
     }
 
-    // Execute action(s): one per matched case in priority desc order
-    // (matchedCases is already sorted that way). Fallback runs only when
-    // nothing matched.
+    // Execute only the primary matched action. `matchedCases` still keeps
+    // every overlap for trace/reporting, but actions may notify/escalate/update
+    // and must not fan out implicitly. Fallback runs only when nothing matched.
     if (status !== 'aborted') {
-      const actionsToRun = matchedCases.length > 0 ? matchedCases.map((c) => c.action) : [runbook.fallbackAction];
-      for (const action of actionsToRun) {
-        const actionResult = await this.actionExecutor.execute(action, finalContext);
-        traceBuilder = traceBuilder.traceAction(
-          actionResult.action,
-          actionResult.actionType,
-          actionResult.status,
-          actionResult.durationMs,
-          actionResult.resolvedMessage,
-          actionResult.error,
-        );
-      }
+      const primaryAction = matchedCases[0]?.action ?? runbook.fallbackAction;
+      const actionResult = await this.actionExecutor.execute(primaryAction, finalContext);
+      traceBuilder = traceBuilder.traceAction(
+        actionResult.action,
+        actionResult.actionType,
+        actionResult.status,
+        actionResult.durationMs,
+        actionResult.resolvedMessage,
+        actionResult.error,
+      );
     }
 
     // Build trace

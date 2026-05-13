@@ -8,6 +8,7 @@ import { ConditionEvaluator } from '../ConditionEvaluator.js';
 import type { CaseAction } from '../../actions/CaseAction.js';
 import type { ServiceRegistry } from '../../services/ServiceRegistry.js';
 import type { FlowDirective } from '../../types/FlowDirective.js';
+import type { KnownCase } from '../../types/KnownCase.js';
 import type { Runbook } from '../../types/Runbook.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { Step } from '../../types/Step.js';
@@ -45,7 +46,7 @@ function emptyServices(): ServiceRegistry {
   return {} as unknown as ServiceRegistry;
 }
 
-function createRunbook(steps: ReadonlyArray<StepDescriptor>): Runbook {
+function createRunbook(steps: ReadonlyArray<StepDescriptor>, knownCases: ReadonlyArray<KnownCase> = []): Runbook {
   const fallbackAction: CaseAction = { type: 'log', level: 'warn', message: 'fallback' };
   return {
     metadata: {
@@ -58,7 +59,7 @@ function createRunbook(steps: ReadonlyArray<StepDescriptor>): Runbook {
       tags: [],
     },
     steps,
-    knownCases: [],
+    knownCases,
     fallbackAction,
   };
 }
@@ -108,5 +109,45 @@ describe('RunbookEngine status handling', () => {
     const actionTrace = result.trace.actionsExecuted[0];
     assert.ok(actionTrace);
     assert.strictEqual(actionTrace.executed, false);
+  });
+
+  it('executes only the primary action when multiple known cases match', async () => {
+    const cases: ReadonlyArray<KnownCase> = [
+      {
+        id: 'secondary',
+        description: 'Secondary case',
+        priority: 10,
+        condition: { type: 'compare', ref: 'params.mode', operator: '==', value: 'match' },
+        action: { type: 'log', level: 'warn', message: 'secondary action' },
+      },
+      {
+        id: 'primary',
+        description: 'Primary case',
+        priority: 20,
+        condition: { type: 'compare', ref: 'params.mode', operator: '==', value: 'match' },
+        action: { type: 'log', level: 'warn', message: 'primary action' },
+      },
+    ];
+
+    const result = await createEngine().execute(
+      createRunbook([], cases),
+      new Map([['mode', 'match']]),
+      emptyServices(),
+    );
+
+    assert.deepStrictEqual(
+      result.matchedCases.map((c) => c.id),
+      ['primary', 'secondary'],
+    );
+    assert.deepStrictEqual(result.trace.caseMatching.matchedCaseIds, ['primary', 'secondary']);
+    assert.strictEqual(result.trace.actionsExecuted.length, 1);
+
+    const actionTrace = result.trace.actionsExecuted[0];
+    assert.ok(actionTrace);
+    assert.strictEqual(actionTrace.executed, true);
+    assert.strictEqual(actionTrace.actionDetail.type, 'log');
+    if (actionTrace.actionDetail.type === 'log') {
+      assert.strictEqual(actionTrace.actionDetail.message, 'primary action');
+    }
   });
 });
