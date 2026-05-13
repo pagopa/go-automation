@@ -142,6 +142,17 @@ export class TraceBuilder {
    * Attaches an early resolution result to the last step trace.
    * Called by RunbookEngine when a step signals `'resolve'`.
    *
+   * When the early resolution **actually matched** at least one case,
+   * the evaluations from that resolution are also promoted into the
+   * top-level `caseEvaluations` so {@link build} can derive
+   * `caseMatching.matchedCaseIds` and `summary.outcomeCase` correctly
+   * — otherwise the trace would report `no-match` even though the
+   * engine executed the matched case's action. Failed early
+   * resolutions (no match found at that point) stay confined to the
+   * step's `earlyResolution` detail; the eventual fallback to
+   * {@link traceCaseEvaluation} at the end of the pipeline keeps
+   * `caseEvaluations` populated for the no-match path.
+   *
    * @param earlyResolution - The early resolution trace to attach
    * @returns New builder instance with the early resolution recorded
    */
@@ -152,6 +163,14 @@ export class TraceBuilder {
 
     const lastIndex = this.stepTraces.length - 1;
     const updatedTraces = this.stepTraces.map((step, idx) => (idx === lastIndex ? { ...step, earlyResolution } : step));
+
+    if (earlyResolution.resolved && earlyResolution.evaluations.length > 0) {
+      return this.copyWith({
+        stepTraces: updatedTraces,
+        caseEvaluations: earlyResolution.evaluations,
+      });
+    }
+
     return this.copyWith({ stepTraces: updatedTraces });
   }
 
