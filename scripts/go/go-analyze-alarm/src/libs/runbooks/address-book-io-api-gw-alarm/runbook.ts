@@ -18,7 +18,8 @@
 import { apigw } from '@go-automation/go-runbook';
 import type { Runbook } from '@go-automation/go-runbook';
 
-import { API_GW_LOG_GROUP, ENTRY_SERVICE, KNOWN_URLS, REACHABLE_SERVICES } from './constants.js';
+import { API_GW_LOG_GROUP, ENTRY_SERVICE, REACHABLE_SERVICES } from './knownServices.js';
+import { KNOWN_URLS } from './knownUrls.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { IO_AUTHORIZER_PRE_STEPS } from './preSteps.js';
 

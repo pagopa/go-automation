@@ -10,9 +10,9 @@ import { RunbookEngine, ConditionEvaluator, apigw } from '@go-automation/go-runb
 import type { Runbook, ExecutionEnvironment } from '@go-automation/go-runbook';
 
 import type { GoAnalyzeAlarmConfig } from './types/GoAnalyzeAlarmConfig.js';
-import { buildAddressBookIoApiGwAlarmRunbook } from './libs/runbooks/address-book-io-api-gw-alarm/index.js';
+import { buildAddressBookIoApiGwAlarmRunbook } from './libs/runbooks/address-book-io-api-gw-alarm/runbook.js';
 import { buildDeliveryB2BApiGwAlarmRunbook } from './libs/runbooks/delivery-b2b-api-gw-alarm/index.js';
-import { DEFAULT_TIME_WINDOW_MINUTES } from './libs/runbooks/address-book-io-api-gw-alarm/constants.js';
+import { DEFAULT_TIME_WINDOW_MINUTES } from './libs/runbooks/constants.js';
 import { createServiceRegistry } from './libs/createServiceRegistry.js';
 import { computeTimeRange } from './libs/computeTimeRange.js';
 import type { TimeRangeReference } from './libs/TimeRangeReference.js';

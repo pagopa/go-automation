@@ -13,10 +13,9 @@
  * section narrative and its findings would dangle visually).
  */
 
-import { queryCloudWatchLogs, apigw } from '@go-automation/go-runbook';
 import type { StepDescriptor } from '@go-automation/go-runbook';
-
-import { IO_AUTHORIZER_LAMBDA_LOG_GROUP } from './constants.js';
+import { queryCloudWatchLogs, apigw } from '@go-automation/go-runbook';
+import { IO_AUTHORIZER_LAMBDA_LOG_GROUP } from './knownServices.js';
 
 /**
  * The Lambda authorizer probe has no URL-related concerns: we instantiate
