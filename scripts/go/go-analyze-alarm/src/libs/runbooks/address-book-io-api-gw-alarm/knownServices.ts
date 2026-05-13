@@ -14,9 +14,6 @@ export const API_GW_LOG_GROUP =
 /** Lambda log group for pn-ioAuthorizerLambda (Livello 0 probe) */
 export const IO_AUTHORIZER_LAMBDA_LOG_GROUP = '/aws/lambda/pn-ioAuthorizerLambda';
 
-/** Default time window in minutes (±N from alarm time) */
-export const DEFAULT_TIME_WINDOW_MINUTES = 5;
-
 /**
  * Entry service: the trace always lands on pn-user-attributes first.
  */
