@@ -9,6 +9,11 @@ type ConditionOperator = '==' | '!=' | '>' | '<' | '>=' | '<=';
 // Condition types supported by the evaluator
 type ConditionType = string | number | boolean;
 
+interface PredicateEvaluation {
+  readonly matched: boolean;
+  readonly detail: unknown;
+}
+
 /**
  * Compact description of a match against an array element, surfaced via
  * `collectResolvedValues` so the trace can show which element satisfied
@@ -86,9 +91,27 @@ export class ConditionEvaluator {
    * @returns Record mapping reference strings to their resolved values
    */
   collectResolvedValues(condition: Condition, context: RunbookContext): Readonly<Record<string, unknown>> {
+    return this.evaluateWithResolvedValues(condition, context).resolvedValues;
+  }
+
+  /**
+   * Evaluates a condition and collects the resolved trace values in the
+   * same traversal. This is the preferred path for known-case matching:
+   * large array refs (for example CloudWatch query rows) are scanned at
+   * most once per leaf condition instead of once for the boolean result
+   * and again for trace detail generation.
+   *
+   * @param condition - The condition to evaluate
+   * @param context - The current runbook context
+   * @returns Matched flag plus resolved values for case-evaluation trace
+   */
+  evaluateWithResolvedValues(
+    condition: Condition,
+    context: RunbookContext,
+  ): { readonly matched: boolean; readonly resolvedValues: Readonly<Record<string, unknown>> } {
     const values: Record<string, unknown> = {};
-    this.collectRefs(condition, context, values);
-    return values;
+    const matched = this.evaluateAndCollect(condition, context, values);
+    return { matched, resolvedValues: values };
   }
 
   /**
@@ -222,9 +245,9 @@ export class ConditionEvaluator {
    *   - array ref:  intersection between `ref` and `value` is non-empty
    * - **regex variant**:
    *   - scalar ref: `regex.test(ref)`
-   *   - array ref:  scans every element (no short-circuit); returns
-   *     `true` when at least one matches (the trace receives the full
-   *     list of matched elements via {@link collectRefs}).
+   *   - array ref:  returns `true` when at least one element matches.
+   *     Use {@link evaluateWithResolvedValues} when the caller also
+   *     needs the trace payload with every matching element.
    */
   private evaluateContains(condition: ContainsCondition, context: RunbookContext): boolean {
     const actual = this.resolveRef(condition.ref, context);
@@ -233,19 +256,13 @@ export class ConditionEvaluator {
     if (condition.regex !== undefined) {
       const compiled = compileRegex(condition.regex);
       if (Array.isArray(actual)) {
-        let matched = false;
         for (const el of actual) {
           if (el === undefined || el === null) continue;
           if (compiled.test(valueToString(el))) {
-            matched = true;
-            // No break: contains-regex is the "find all" variant.
-            // Boolean result is settled, but we still scan so the trace
-            // (via collectRefs) sees the full list — that work happens
-            // there, not here. We could break early for performance, but
-            // the per-element cost is negligible on typical sizes.
+            return true;
           }
         }
-        return matched;
+        return false;
       }
       return compiled.test(valueToString(actual));
     }
@@ -264,51 +281,52 @@ export class ConditionEvaluator {
     return candidates.has(valueToString(actual));
   }
 
-  /**
-   * Recursively collects all reference values from a condition tree.
-   *
-   * For array refs, stores a compact match-detail object rather than
-   * the raw array. The detail shape depends on the condition:
-   * - `compare`, `pattern`, `contains` (value variant): single match
-   *   (`MatchDetailSingle`) — first satisfying element
-   * - `contains` (regex variant): multi-match (`MatchDetailMulti`)
-   *   with every matching element and their count
-   */
-  private collectRefs(condition: Condition, context: RunbookContext, values: Record<string, unknown>): void {
+  private evaluateAndCollect(condition: Condition, context: RunbookContext, values: Record<string, unknown>): boolean {
     switch (condition.type) {
       case 'compare': {
         const actual = this.resolveRef(condition.ref, context);
-        values[condition.ref] = this.detailForCompare(actual, condition.operator, condition.value);
-        break;
+        const result = this.evaluateCompareWithDetail(actual, condition.operator, condition.value);
+        values[condition.ref] = result.detail;
+        return result.matched;
       }
       case 'pattern': {
         const actual = this.resolveRef(condition.ref, context);
-        values[condition.ref] = this.detailForPattern(actual, condition.regex);
-        break;
+        const result = this.evaluatePatternWithDetail(actual, condition.regex);
+        values[condition.ref] = result.detail;
+        return result.matched;
       }
       case 'exists': {
         const actual = this.resolveRef(condition.ref, context);
-        values[condition.ref] = this.detailForExists(actual);
-        break;
+        const result = this.evaluateExistsWithDetail(actual);
+        values[condition.ref] = result.detail;
+        return result.matched;
       }
       case 'contains': {
         const actual = this.resolveRef(condition.ref, context);
-        values[condition.ref] = this.detailForContains(actual, condition);
-        break;
+        const result = this.evaluateContainsWithDetail(actual, condition);
+        values[condition.ref] = result.detail;
+        return result.matched;
       }
-      case 'and':
+      case 'and': {
+        let matched = true;
         for (const c of condition.conditions) {
-          this.collectRefs(c, context, values);
+          if (!this.evaluateAndCollect(c, context, values)) {
+            matched = false;
+          }
         }
-        break;
-      case 'or':
+        return matched;
+      }
+      case 'or': {
+        let matched = false;
         for (const c of condition.conditions) {
-          this.collectRefs(c, context, values);
+          if (this.evaluateAndCollect(c, context, values)) {
+            matched = true;
+          }
         }
-        break;
+        return matched;
+      }
       case 'not':
-        this.collectRefs(condition.condition, context, values);
-        break;
+        return !this.evaluateAndCollect(condition.condition, context, values);
       default: {
         const _exhaustive: never = condition;
         throw new Error(`Unknown condition type: ${(_exhaustive as Condition).type}`);
@@ -316,17 +334,18 @@ export class ConditionEvaluator {
     }
   }
 
-  /**
-   * Compact trace detail for an `exists` condition. For scalar refs
-   * returns the resolved value as-is. For array refs returns a small
-   * `{ matched, totalElements }` envelope so a presence check on a
-   * step output (e.g. a CloudWatch query result with thousands of
-   * rows) does not bloat the execution trace.
-   */
-  private detailForExists(actual: unknown): unknown {
-    if (!Array.isArray(actual)) return actual;
+  private evaluateExistsWithDetail(actual: unknown): PredicateEvaluation {
+    if (!Array.isArray(actual)) {
+      return {
+        matched: actual !== undefined && actual !== null && valueToString(actual) !== '',
+        detail: actual,
+      };
+    }
     const arr = actual as ReadonlyArray<unknown>;
-    return { matched: arr.length > 0, totalElements: arr.length };
+    return {
+      matched: arr.length > 0,
+      detail: { matched: arr.length > 0, totalElements: arr.length },
+    };
   }
 
   /**
@@ -334,8 +353,17 @@ export class ConditionEvaluator {
    * returns the resolved value as-is. For array refs returns the first
    * element that satisfies the comparison (or `{ matched: false }`).
    */
-  private detailForCompare(actual: unknown, operator: ConditionOperator, expected: ConditionType): unknown {
-    if (!Array.isArray(actual)) return actual;
+  private evaluateCompareWithDetail(
+    actual: unknown,
+    operator: ConditionOperator,
+    expected: ConditionType,
+  ): PredicateEvaluation {
+    if (actual === undefined || actual === null) {
+      return { matched: false, detail: actual };
+    }
+    if (!Array.isArray(actual)) {
+      return { matched: this.compareScalar(actual, operator, expected), detail: actual };
+    }
     const arr = actual as ReadonlyArray<unknown>;
     for (let i = 0; i < arr.length; i++) {
       const el = arr[i];
@@ -347,10 +375,10 @@ export class ConditionEvaluator {
           matchedElement: el,
           totalElements: arr.length,
         };
-        return detail;
+        return { matched: true, detail };
       }
     }
-    return { matched: false, matchedCount: 0, totalElements: arr.length };
+    return { matched: false, detail: { matched: false, matchedCount: 0, totalElements: arr.length } };
   }
 
   /**
@@ -358,10 +386,15 @@ export class ConditionEvaluator {
    * the first matching element (consistent with the OR + short-circuit
    * semantic of {@link evaluatePattern}).
    */
-  private detailForPattern(actual: unknown, regex: string): unknown {
-    if (!Array.isArray(actual)) return actual;
-    const arr = actual as ReadonlyArray<unknown>;
+  private evaluatePatternWithDetail(actual: unknown, regex: string): PredicateEvaluation {
+    if (actual === undefined || actual === null) {
+      return { matched: false, detail: actual };
+    }
     const compiled = compileRegex(regex);
+    if (!Array.isArray(actual)) {
+      return { matched: compiled.test(valueToString(actual)), detail: actual };
+    }
+    const arr = actual as ReadonlyArray<unknown>;
     for (let i = 0; i < arr.length; i++) {
       const el = arr[i];
       if (el === undefined || el === null) continue;
@@ -372,10 +405,10 @@ export class ConditionEvaluator {
           matchedElement: el,
           totalElements: arr.length,
         };
-        return detail;
+        return { matched: true, detail };
       }
     }
-    return { matched: false, matchedCount: 0, totalElements: arr.length };
+    return { matched: false, detail: { matched: false, matchedCount: 0, totalElements: arr.length } };
   }
 
   /**
@@ -385,12 +418,16 @@ export class ConditionEvaluator {
    *   {@link MAX_TRACE_MATCHES} sample hits (the rest are dropped from
    *   the trace and a `truncated` flag is raised).
    */
-  private detailForContains(actual: unknown, condition: ContainsCondition): unknown {
-    if (!Array.isArray(actual)) return actual;
-    const arr = actual as ReadonlyArray<unknown>;
-
+  private evaluateContainsWithDetail(actual: unknown, condition: ContainsCondition): PredicateEvaluation {
+    if (actual === undefined || actual === null) {
+      return { matched: false, detail: actual };
+    }
     if (condition.regex !== undefined) {
       const compiled = compileRegex(condition.regex);
+      if (!Array.isArray(actual)) {
+        return { matched: compiled.test(valueToString(actual)), detail: actual };
+      }
+      const arr = actual as ReadonlyArray<unknown>;
       let matchedCount = 0;
       const samples: { index: number; element: unknown }[] = [];
       for (let i = 0; i < arr.length; i++) {
@@ -410,13 +447,23 @@ export class ConditionEvaluator {
         totalElements: arr.length,
         truncated: matchedCount > samples.length,
       };
-      return detail;
+      return { matched: detail.matched, detail };
     }
 
     if (condition.value === undefined) {
-      return { matched: false, matchedCount: 0, totalElements: arr.length };
+      if (Array.isArray(actual)) {
+        return {
+          matched: false,
+          detail: { matched: false, matchedCount: 0, totalElements: actual.length },
+        };
+      }
+      return { matched: false, detail: actual };
     }
     const candidates = new Set(condition.value.map((v) => valueToString(v)));
+    if (!Array.isArray(actual)) {
+      return { matched: candidates.has(valueToString(actual)), detail: actual };
+    }
+    const arr = actual as ReadonlyArray<unknown>;
     for (let i = 0; i < arr.length; i++) {
       const el = arr[i];
       if (el === undefined || el === null) continue;
@@ -427,10 +474,10 @@ export class ConditionEvaluator {
           matchedElement: el,
           totalElements: arr.length,
         };
-        return detail;
+        return { matched: true, detail };
       }
     }
-    return { matched: false, matchedCount: 0, totalElements: arr.length };
+    return { matched: false, detail: { matched: false, matchedCount: 0, totalElements: arr.length } };
   }
 
   /**

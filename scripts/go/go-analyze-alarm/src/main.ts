@@ -15,7 +15,7 @@ import { buildDeliveryB2BApiGwAlarmRunbook } from './libs/runbooks/delivery-b2b-
 import { DEFAULT_TIME_WINDOW_MINUTES } from './libs/runbooks/constants.js';
 import { createServiceRegistry } from './libs/createServiceRegistry.js';
 import { computeTimeRange } from './libs/computeTimeRange.js';
-import type { TimeRangeReference } from './libs/TimeRangeReference.js';
+import { createTimeRangeReference } from './libs/createTimeRangeReference.js';
 import { saveExecutionTrace } from './libs/saveExecutionTrace.js';
 
 /** Runbook registry: maps alarm names to their runbook builders */
@@ -50,10 +50,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.info(`Runbook: ${runbook.metadata.name} v${runbook.metadata.version}`);
 
   // Compute time range (single timestamp or first/last occurrence range)
-  const reference: TimeRangeReference =
-    config.alarmDatetimeEnd !== undefined
-      ? { kind: 'multi', first: config.alarmDatetime, last: config.alarmDatetimeEnd }
-      : { kind: 'single', at: config.alarmDatetime };
+  const reference = createTimeRangeReference(config.alarmDatetime, config.alarmDatetimeEnd);
   const { startTime, endTime } = computeTimeRange(reference, DEFAULT_TIME_WINDOW_MINUTES);
   script.logger.info(`Time range: ${startTime} → ${endTime}`);
 

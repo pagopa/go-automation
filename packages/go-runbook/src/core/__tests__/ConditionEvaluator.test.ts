@@ -213,6 +213,33 @@ describe('ConditionEvaluator (array-aware)', () => {
       );
     });
 
+    it('returns the boolean result and trace detail from one evaluation pass', () => {
+      const c = ctx({ stepResults: [['q', rows]] });
+      const result = evaluator.evaluateWithResolvedValues(
+        {
+          type: 'contains',
+          ref: 'steps.q',
+          regex: 'DOWNSTREAM',
+        },
+        c,
+      );
+      const detail = result.resolvedValues['steps.q'] as {
+        matched: boolean;
+        matchedCount: number;
+        matchedElements: ReadonlyArray<{ index: number; element: Row }>;
+        totalElements: number;
+        truncated: boolean;
+      };
+
+      assert.strictEqual(result.matched, true);
+      assert.strictEqual(detail.matched, true);
+      assert.strictEqual(detail.matchedCount, 2);
+      assert.deepStrictEqual(
+        detail.matchedElements.map((m) => m.index),
+        [1, 3],
+      );
+    });
+
     it('caps matchedElements at 10 samples and flags truncated=true on overflow', () => {
       // 50 rows, every one matches → matchedCount=50, samples=10, truncated=true.
       const many: Row[] = Array.from({ length: 50 }, (_, i) => ({ message: `[DOWNSTREAM] row ${i}` }));

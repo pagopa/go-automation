@@ -74,8 +74,8 @@ export interface ExistsCondition {
  *   When `ref` resolves to an array, the condition is satisfied iff the
  *   intersection between `ref` and `value` is non-empty.
  * - **regex variant** (`regex: string`): when `ref` is an array,
- *   scans **every** row and records **all** matching rows in the trace
- *   (no short-circuit). Returns `true` when at least one row matches.
+ *   records every matching row in the trace when resolved values are
+ *   requested. Returns `true` when at least one row matches.
  *
  * Differs from {@link PatternCondition} (regex variant) by:
  * - no short-circuit on first match;
