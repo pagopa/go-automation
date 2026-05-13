@@ -204,4 +204,33 @@ describe('createApiGwAlarmRunbook', () => {
     assert.ok(stepIds.includes('decide-pn-a'));
     assert.ok(!stepIds.includes('query-pn-b'));
   });
+
+  it('throws when a custom apiGwQuery override lacks the {{minStatusCode}} placeholder', () => {
+    assert.throws(
+      () =>
+        createApiGwAlarmRunbook(
+          baseConfig({
+            queryTemplates: {
+              // Custom override without the placeholder — the
+              // .split().join() would silently be a no-op and the
+              // resolved query would never get minStatusCode injected.
+              apiGwQuery: 'filter status >= 500 | sort @timestamp asc',
+            },
+          }),
+        ),
+      /\{\{minStatusCode\}\} placeholder/,
+    );
+  });
+
+  it('accepts a custom apiGwQuery override that contains the {{minStatusCode}} placeholder', () => {
+    assert.doesNotThrow(() =>
+      createApiGwAlarmRunbook(
+        baseConfig({
+          queryTemplates: {
+            apiGwQuery: 'filter status >= {{minStatusCode}} | sort @timestamp asc',
+          },
+        }),
+      ),
+    );
+  });
 });

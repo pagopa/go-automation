@@ -51,9 +51,21 @@ const DEFAULT_MIN_STATUS_CODE = 500;
  */
 export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   const minStatus = config.minStatusCode ?? DEFAULT_MIN_STATUS_CODE;
-  const apiGwQuery = (config.queryTemplates?.apiGwQuery ?? DEFAULT_API_GW_QUERY)
-    .split(MIN_STATUS_CODE_PLACEHOLDER)
-    .join(String(minStatus));
+
+  // Fail fast on a custom apiGwQuery override that lacks the
+  // `{{minStatusCode}}` placeholder: without it the `.split().join()`
+  // is a no-op and the resulting CW Logs Insights query would carry
+  // the literal token forward, almost certainly failing at runtime.
+  const apiGwQueryTemplate = config.queryTemplates?.apiGwQuery ?? DEFAULT_API_GW_QUERY;
+  if (!apiGwQueryTemplate.includes(MIN_STATUS_CODE_PLACEHOLDER)) {
+    throw new Error(
+      `createApiGwAlarmRunbook "${config.id}": queryTemplates.apiGwQuery must contain the ` +
+        `${MIN_STATUS_CODE_PLACEHOLDER} placeholder; without it minStatusCode cannot be ` +
+        `injected and the query would carry the literal token (or be unfilterable).`,
+    );
+  }
+  const apiGwQuery = apiGwQueryTemplate.split(MIN_STATUS_CODE_PLACEHOLDER).join(String(minStatus));
+
   const serviceTemplate = config.queryTemplates?.serviceQueryTemplate ?? DEFAULT_SERVICE_QUERY_TEMPLATE;
 
   const registry = new KnownUrlsRegistry(config.knownUrls);
