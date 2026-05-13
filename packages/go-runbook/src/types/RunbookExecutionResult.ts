@@ -1,6 +1,7 @@
 import type { KnownCase } from './KnownCase.js';
 import type { RunbookContext } from './RunbookContext.js';
 import type { ErrorRecoveryInfo } from './ErrorRecoveryInfo.js';
+import type { RunbookExecutionStatus } from './RunbookExecutionStatus.js';
 import type { RunbookExecutionTrace } from '../trace/RunbookExecutionTrace.js';
 
 /**
@@ -10,7 +11,7 @@ export interface RunbookExecutionResult {
   /** ID of the executed runbook */
   readonly runbookId: string;
   /** Execution status */
-  readonly status: 'completed' | 'failed' | 'stopped';
+  readonly status: RunbookExecutionStatus;
   /**
    * Known cases that matched the final (or early-resolved) context,
    * sorted by `priority` descending (`matchedCases[0]` is the primary).

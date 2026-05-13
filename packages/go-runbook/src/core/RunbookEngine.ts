@@ -7,6 +7,7 @@ import type { StepResult } from '../types/StepResult.js';
 import type { KnownCase } from '../types/KnownCase.js';
 import type { ErrorRecoveryInfo } from '../types/ErrorRecoveryInfo.js';
 import type { FlowDirective, FlowDirectiveString } from '../types/FlowDirective.js';
+import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js';
 import type { ServiceRegistry } from '../services/ServiceRegistry.js';
 import type { ExecutionEnvironment } from '../trace/ExecutionInfo.js';
 import type { EarlyResolutionTrace } from '../trace/EarlyResolutionTrace.js';
@@ -92,7 +93,7 @@ export class RunbookEngine {
 
     let traceBuilder = new TraceBuilder(context.executionId, runbook, params);
     let finalContext: RunbookContext;
-    let status: 'completed' | 'failed' | 'aborted' = 'completed';
+    let status: RunbookExecutionStatus = 'completed';
     let failureReason: string | undefined;
 
     let earlyResolutionStepId: string | undefined;
@@ -109,23 +110,35 @@ export class RunbookEngine {
       );
       finalContext = stepsResult.context;
       traceBuilder = stepsResult.traceBuilder;
+      if (stepsResult.aborted) {
+        status = 'aborted';
+        failureReason = 'Execution aborted by signal';
+      }
       earlyResolutionStepId = stepsResult.earlyResolution?.resolvedAtStepId;
       earlyMatchedCases = stepsResult.earlyResolution?.matchedCases ?? [];
     } catch (error: unknown) {
       if (error instanceof RunbookMaxIterationsError) {
         throw error;
       }
-      status = 'failed';
-      failureReason = error instanceof Error ? error.message : String(error);
+      if (context.signal?.aborted === true) {
+        status = 'aborted';
+        failureReason = 'Execution aborted by signal';
+        this.logger.warning('Runbook execution aborted by signal');
+      } else {
+        status = 'failed';
+        failureReason = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Runbook execution failed: ${failureReason}`);
+      }
       finalContext = context;
-      this.logger.error(`Runbook execution failed: ${failureReason}`);
     }
 
     // Collect every matched known case. Early resolution wins when it
     // already produced matches (we don't re-evaluate at the end since
     // the pipeline was short-circuited at that point).
     let matchedCases: ReadonlyArray<KnownCase>;
-    if (earlyMatchedCases.length > 0) {
+    if (status === 'aborted') {
+      matchedCases = [];
+    } else if (earlyMatchedCases.length > 0) {
       matchedCases = earlyMatchedCases;
     } else {
       const caseResult = this.matchKnownCases(runbook.knownCases, finalContext, traceBuilder);
@@ -136,17 +149,19 @@ export class RunbookEngine {
     // Execute action(s): one per matched case in priority desc order
     // (matchedCases is already sorted that way). Fallback runs only when
     // nothing matched.
-    const actionsToRun = matchedCases.length > 0 ? matchedCases.map((c) => c.action) : [runbook.fallbackAction];
-    for (const action of actionsToRun) {
-      const actionResult = await this.actionExecutor.execute(action, finalContext);
-      traceBuilder = traceBuilder.traceAction(
-        actionResult.action,
-        actionResult.actionType,
-        actionResult.status,
-        actionResult.durationMs,
-        actionResult.resolvedMessage,
-        actionResult.error,
-      );
+    if (status !== 'aborted') {
+      const actionsToRun = matchedCases.length > 0 ? matchedCases.map((c) => c.action) : [runbook.fallbackAction];
+      for (const action of actionsToRun) {
+        const actionResult = await this.actionExecutor.execute(action, finalContext);
+        traceBuilder = traceBuilder.traceAction(
+          actionResult.action,
+          actionResult.actionType,
+          actionResult.status,
+          actionResult.durationMs,
+          actionResult.resolvedMessage,
+          actionResult.error,
+        );
+      }
     }
 
     // Build trace
@@ -155,7 +170,7 @@ export class RunbookEngine {
     const earlyTag = earlyResolutionStepId !== undefined ? `, early resolution at: ${earlyResolutionStepId}` : '';
     const caseTag = matchedCases.length === 0 ? 'none' : matchedCases.map((c) => c.id).join(', ');
     this.logger.info(
-      `Runbook completed: ${runbook.metadata.id} in ${trace.execution.durationMs}ms ` +
+      `Runbook ${status}: ${runbook.metadata.id} in ${trace.execution.durationMs}ms ` +
         `(${finalContext.stepResults.size} steps, cases: ${caseTag}${earlyTag})`,
     );
 
@@ -188,6 +203,7 @@ export class RunbookEngine {
     context: RunbookContext;
     traceBuilder: TraceBuilder;
     earlyResolution?: { matchedCases: ReadonlyArray<KnownCase>; resolvedAtStepId: string };
+    aborted: boolean;
   }> {
     let context = initialContext;
     let traceBuilder = initialTraceBuilder;
@@ -205,6 +221,7 @@ export class RunbookEngine {
     let iterations = 0;
     let reachedVia: 'sequential' | 'goTo' | 'subPipeline' = 'sequential';
     const visitedSequence: string[] = [];
+    let aborted = false;
 
     while (currentIndex < stepDescriptors.length) {
       // Anti-loop protection
@@ -217,6 +234,7 @@ export class RunbookEngine {
       // Abort check before each step
       if (context.signal?.aborted === true) {
         this.logger.warning('Runbook execution aborted by signal');
+        aborted = true;
         break;
       }
 
@@ -340,6 +358,7 @@ export class RunbookEngine {
             context,
             traceBuilder,
             earlyResolution: { matchedCases: earlyResult.matchedCases, resolvedAtStepId: step.id },
+            aborted: false,
           };
         }
 
@@ -362,7 +381,7 @@ export class RunbookEngine {
       }
     }
 
-    return { context, traceBuilder };
+    return { context, traceBuilder, aborted };
   }
 
   /**

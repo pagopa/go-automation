@@ -31,6 +31,7 @@ export type { RunbookType } from './types/RunbookType.js';
 export type { RunbookMetadata } from './types/RunbookMetadata.js';
 export type { RunbookContext } from './types/RunbookContext.js';
 export type { RunbookExecutionResult } from './types/RunbookExecutionResult.js';
+export type { RunbookExecutionStatus } from './types/RunbookExecutionStatus.js';
 export type { Runbook } from './types/Runbook.js';
 export type { KnownCase } from './types/KnownCase.js';
 export type {

@@ -11,6 +11,7 @@ import type { Runbook } from '../types/Runbook.js';
 import type { KnownCase } from '../types/KnownCase.js';
 import type { CaseAction } from '../actions/CaseAction.js';
 import type { FlowDirectiveString } from '../types/FlowDirective.js';
+import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js';
 
 /**
  * Immutable builder for constructing a RunbookExecutionTrace.
@@ -249,7 +250,7 @@ export class TraceBuilder {
    */
   build(
     finalContext: RunbookContext,
-    status: 'completed' | 'failed' | 'aborted',
+    status: RunbookExecutionStatus,
     environment: ExecutionEnvironment,
     failureReason?: string,
   ): RunbookExecutionTrace {
@@ -338,7 +339,7 @@ export class TraceBuilder {
    * @returns Description string
    */
   private buildSummaryDescription(
-    status: 'completed' | 'failed' | 'aborted',
+    status: RunbookExecutionStatus,
     matchedEval: CaseEvaluationTrace | null,
     resolvedAtStepId?: string,
   ): string {
