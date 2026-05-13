@@ -121,16 +121,7 @@ describe('ConditionEvaluator (array-aware)', () => {
       // Simulate a CloudWatch query output with several rows — dumping
       // the full array in the trace would bloat the execution JSON.
       const c = ctx({
-        stepResults: [
-          [
-            'q',
-            [
-              { '@message': 'row 1' },
-              { '@message': 'row 2' },
-              { '@message': 'row 3' },
-            ],
-          ],
-        ],
+        stepResults: [['q', [{ '@message': 'row 1' }, { '@message': 'row 2' }, { '@message': 'row 3' }]]],
       });
       const resolved = evaluator.collectResolvedValues({ type: 'exists', ref: 'steps.q' }, c);
       assert.deepStrictEqual(resolved['steps.q'], { matched: true, totalElements: 3 });
