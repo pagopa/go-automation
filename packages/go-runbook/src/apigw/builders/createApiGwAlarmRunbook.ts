@@ -32,9 +32,10 @@ const DEFAULT_MIN_STATUS_CODE = 500;
  * 5. For the entry service **and** every additional service, a triplet:
  *    - `query-<service>`: CloudWatch query filtered by xRayTraceId / fallbackUuid
  *    - `analyze-<service>`: extracts error msg, scans for known URLs,
- *      detects new FALLBACK-UUID; signals `next: 'resolve'` when an
- *      error message is available so the engine attempts early
- *      known-case resolution
+ *      detects new FALLBACK-UUID, and may either signal
+ *      `next: 'resolve'` to let the engine attempt known-case
+ *      resolution (including when no error message is found) or emit
+ *      `goTo` for drill-down / trace-id swap flows
  *    - `decide-<service>`: decides the next flow directive (jump to
  *      another service, retry with FALLBACK-UUID, or terminate)
  *
