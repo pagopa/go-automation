@@ -136,8 +136,7 @@ export class RunbookEngine {
     // Execute action(s): one per matched case in priority desc order
     // (matchedCases is already sorted that way). Fallback runs only when
     // nothing matched.
-    const actionsToRun =
-      matchedCases.length > 0 ? matchedCases.map((c) => c.action) : [runbook.fallbackAction];
+    const actionsToRun = matchedCases.length > 0 ? matchedCases.map((c) => c.action) : [runbook.fallbackAction];
     for (const action of actionsToRun) {
       const actionResult = await this.actionExecutor.execute(action, finalContext);
       traceBuilder = traceBuilder.traceAction(
@@ -530,10 +529,11 @@ export class RunbookEngine {
       }
     }
 
-    if (matchedCases.length > 0) {
+    const [primary, ...rest] = matchedCases;
+    if (primary !== undefined) {
       const description =
-        matchedCases.length === 1
-          ? `Known case identified: ${matchedCases[0]!.description}`
+        rest.length === 0
+          ? `Known case identified: ${primary.description}`
           : `Known cases identified (${matchedCases.length}): ${matchedCases.map((c) => c.description).join(' | ')}`;
       this.logger.success(description);
     } else {

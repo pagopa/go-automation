@@ -189,6 +189,7 @@ describe('analyzeServiceLogs', () => {
     assert.deepStrictEqual(result.next, { goTo: 'query-pn-user-attributes' });
     assert.strictEqual(result.vars?.['xRayTraceId'], '1-3d472be7-2977635208a92722b97b5e24');
     assert.strictEqual(result.vars?.['svcSwappedTraceId'], '1-3d472be7-2977635208a92722b97b5e24');
+    assert.strictEqual(result.vars?.['svcSwappedTraceIdRaw'], '3d472be72977635208a92722b97b5e24');
     assert.strictEqual(result.vars?.['apiGwTraceIdSwapCount'], '1');
     assert.strictEqual(result.vars?.['apiGwOriginalTraceId'], '1-69b158e8-28c211881e5339480367ede0');
   });

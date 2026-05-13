@@ -305,20 +305,21 @@ export class ConditionEvaluator {
    */
   private detailForCompare(actual: unknown, operator: ConditionOperator, expected: ConditionType): unknown {
     if (!Array.isArray(actual)) return actual;
-    for (let i = 0; i < actual.length; i++) {
-      const el = actual[i];
+    const arr = actual as ReadonlyArray<unknown>;
+    for (let i = 0; i < arr.length; i++) {
+      const el = arr[i];
       if (el === undefined || el === null) continue;
       if (this.compareScalar(el, operator, expected)) {
         const detail: MatchDetailSingle = {
           matched: true,
           matchedIndex: i,
           matchedElement: el,
-          totalElements: actual.length,
+          totalElements: arr.length,
         };
         return detail;
       }
     }
-    return { matched: false, matchedCount: 0, totalElements: actual.length };
+    return { matched: false, matchedCount: 0, totalElements: arr.length };
   }
 
   /**
@@ -328,21 +329,22 @@ export class ConditionEvaluator {
    */
   private detailForPattern(actual: unknown, regex: string): unknown {
     if (!Array.isArray(actual)) return actual;
+    const arr = actual as ReadonlyArray<unknown>;
     const compiled = compileRegex(regex);
-    for (let i = 0; i < actual.length; i++) {
-      const el = actual[i];
+    for (let i = 0; i < arr.length; i++) {
+      const el = arr[i];
       if (el === undefined || el === null) continue;
       if (compiled.test(valueToString(el))) {
         const detail: MatchDetailSingle = {
           matched: true,
           matchedIndex: i,
           matchedElement: el,
-          totalElements: actual.length,
+          totalElements: arr.length,
         };
         return detail;
       }
     }
-    return { matched: false, matchedCount: 0, totalElements: actual.length };
+    return { matched: false, matchedCount: 0, totalElements: arr.length };
   }
 
   /**
@@ -352,12 +354,13 @@ export class ConditionEvaluator {
    */
   private detailForContains(actual: unknown, condition: ContainsCondition): unknown {
     if (!Array.isArray(actual)) return actual;
+    const arr = actual as ReadonlyArray<unknown>;
 
     if (condition.regex !== undefined) {
       const compiled = compileRegex(condition.regex);
       const hits: { index: number; element: unknown }[] = [];
-      for (let i = 0; i < actual.length; i++) {
-        const el = actual[i];
+      for (let i = 0; i < arr.length; i++) {
+        const el = arr[i];
         if (el === undefined || el === null) continue;
         if (compiled.test(valueToString(el))) {
           hits.push({ index: i, element: el });
@@ -367,29 +370,29 @@ export class ConditionEvaluator {
         matched: hits.length > 0,
         matchedCount: hits.length,
         matchedElements: hits,
-        totalElements: actual.length,
+        totalElements: arr.length,
       };
       return detail;
     }
 
     if (condition.value === undefined) {
-      return { matched: false, matchedCount: 0, totalElements: actual.length };
+      return { matched: false, matchedCount: 0, totalElements: arr.length };
     }
     const candidates = new Set(condition.value.map((v) => valueToString(v)));
-    for (let i = 0; i < actual.length; i++) {
-      const el = actual[i];
+    for (let i = 0; i < arr.length; i++) {
+      const el = arr[i];
       if (el === undefined || el === null) continue;
       if (candidates.has(valueToString(el))) {
         const detail: MatchDetailSingle = {
           matched: true,
           matchedIndex: i,
           matchedElement: el,
-          totalElements: actual.length,
+          totalElements: arr.length,
         };
         return detail;
       }
     }
-    return { matched: false, matchedCount: 0, totalElements: actual.length };
+    return { matched: false, matchedCount: 0, totalElements: arr.length };
   }
 
   /**

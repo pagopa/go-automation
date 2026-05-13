@@ -105,10 +105,11 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.info(`Steps executed: ${result.stepsExecuted}`);
   script.logger.info(`Duration: ${result.durationMs}ms`);
 
-  if (result.matchedCases.length === 0) {
+  const [primary, ...rest] = result.matchedCases;
+  if (primary === undefined) {
     script.logger.warning('No known case matched');
-  } else if (result.matchedCases.length === 1) {
-    script.logger.info(`Matched case: ${result.matchedCases[0]!.description}`);
+  } else if (rest.length === 0) {
+    script.logger.info(`Matched case: ${primary.description}`);
   } else {
     script.logger.info(`Matched cases (${result.matchedCases.length}):`);
     for (const c of result.matchedCases) {

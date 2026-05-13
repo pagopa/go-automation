@@ -231,17 +231,17 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
         const known = new Set<string>();
         if (xRayTraceId !== '') known.add(xRayTraceId);
         if (fallbackUuidExisting !== '') known.add(fallbackUuidExisting);
-        const newTraceId = findFreshTraceId(results, known);
-        if (newTraceId !== undefined) {
+        const freshTrace = findFreshTraceId(results, known);
+        if (freshTrace !== undefined) {
           const visited = parseVisitedKeys(context.vars.get(VISITED_KEYS_VAR));
           const currentKey = buildKey(this.serviceName, xRayTraceId, fallbackUuidExisting);
-          const destKey = buildKey(this.serviceName, newTraceId, fallbackUuidExisting);
+          const destKey = buildKey(this.serviceName, freshTrace.canonical, fallbackUuidExisting);
 
           if (!visited.has(destKey)) {
             const nextVisited = new Set(visited);
             nextVisited.add(currentKey);
 
-            reporter?.decisionTraceIdSwap(this.serviceName, newTraceId);
+            reporter?.decisionTraceIdSwap(this.serviceName, freshTrace.raw, freshTrace.canonical);
 
             return {
               success: true,
@@ -254,8 +254,9 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
               },
               vars: {
                 ...vars,
-                xRayTraceId: newTraceId,
-                [`${this.varPrefix}SwappedTraceId`]: newTraceId,
+                xRayTraceId: freshTrace.canonical,
+                [`${this.varPrefix}SwappedTraceId`]: freshTrace.canonical,
+                [`${this.varPrefix}SwappedTraceIdRaw`]: freshTrace.raw,
                 [TRACE_ID_SWAP_COUNT_VAR]: String(swapCount + 1),
                 [VISITED_KEYS_VAR]: serializeVisitedKeys(nextVisited),
                 ...(context.vars.get('apiGwOriginalTraceId') === undefined

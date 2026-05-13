@@ -260,12 +260,19 @@ export class ApiGwReporter {
    * fallback-uuid query: the analysis loop swaps `xRayTraceId` with the
    * newly observed value and re-queries the same service.
    *
-   * @param serviceName - Service that will be re-queried with the swap
-   * @param newTraceId  - Canonical X-Ray trace id used from now on
+   * @param serviceName  - Service that will be re-queried with the swap
+   * @param rawTraceId   - Raw 32-hex token as observed in the log row
+   * @param newTraceId   - Canonical X-Ray form used from now on
    */
-  decisionTraceIdSwap(serviceName: string, newTraceId: string): void {
+  decisionTraceIdSwap(serviceName: string, rawTraceId: string, newTraceId: string): void {
     this.logger.text(`  ├─ trace_id rilevato nei log → swap di xRayTraceId`);
-    this.logger.text(`  │    └─ Nuovo trace: ${newTraceId}`);
+    if (rawTraceId === newTraceId) {
+      // Already in canonical form — no transformation was applied.
+      this.logger.text(`  │    └─ Nuovo trace (già canonical): ${newTraceId}`);
+    } else {
+      this.logger.text(`  │    ├─ Originale: ${rawTraceId}`);
+      this.logger.text(`  │    └─ Nuovo trace: ${newTraceId}`);
+    }
     this.logger.text(`  └─ Riprova ${serviceName} con il nuovo trace_id`);
   }
 
