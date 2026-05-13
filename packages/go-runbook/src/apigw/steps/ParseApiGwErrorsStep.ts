@@ -102,7 +102,12 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
 
     const firstRow = errorRows[0];
     const xRayTraceId = extractXRayTraceId(firstRow);
-    const statusCode = extractCwField(firstRow, 'status') ?? '';
+    // The canonical API GW query OR-filters on three status fields, so
+    // `status` alone can be the literal `-` even when the row is an
+    // error (authorizer / integration failure). Pick the first numeric
+    // value among the three in canonical priority order so
+    // `apiGwStatusCode` is always the most meaningful primary code.
+    const statusCode = this.pickPrimaryStatusCode(firstRow);
 
     const vars: Record<string, string> = {
       apiGwErrorCount: String(errorRows.length),
@@ -168,6 +173,29 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
       }
     }
     return false;
+  }
+
+  /**
+   * Returns the first numeric value among the three canonical API GW
+   * status fields, in priority order: `status` > `authorizeStatus` >
+   * `integrationServiceStatus`. Used to populate `apiGwStatusCode` so
+   * known-case conditions and the reporter receive a meaningful code
+   * even when the row's error signal is on `authorizeStatus` /
+   * `integrationServiceStatus` (with `status='-'`).
+   *
+   * Returns an empty string when none of the three is a parseable
+   * number (extremely unlikely on rows that passed
+   * {@link rowMeetsThreshold}, but a safe fallback).
+   */
+  private pickPrimaryStatusCode(row: ReadonlyArray<ResultField>): string {
+    for (const field of STATUS_FIELDS) {
+      const raw = extractCwField(row, field);
+      if (raw === undefined) continue;
+      if (!Number.isNaN(Number(raw))) {
+        return raw;
+      }
+    }
+    return '';
   }
 }
 

@@ -317,11 +317,6 @@ export class ConditionEvaluator {
   }
 
   /**
-   * Compact trace detail for a `compare` condition. For scalar refs
-   * returns the resolved value as-is. For array refs returns the first
-   * element that satisfies the comparison (or `{ matched: false }`).
-   */
-  /**
    * Compact trace detail for an `exists` condition. For scalar refs
    * returns the resolved value as-is. For array refs returns a small
    * `{ matched, totalElements }` envelope so a presence check on a
@@ -334,6 +329,11 @@ export class ConditionEvaluator {
     return { matched: arr.length > 0, totalElements: arr.length };
   }
 
+  /**
+   * Compact trace detail for a `compare` condition. For scalar refs
+   * returns the resolved value as-is. For array refs returns the first
+   * element that satisfies the comparison (or `{ matched: false }`).
+   */
   private detailForCompare(actual: unknown, operator: ConditionOperator, expected: ConditionType): unknown {
     if (!Array.isArray(actual)) return actual;
     const arr = actual as ReadonlyArray<unknown>;
