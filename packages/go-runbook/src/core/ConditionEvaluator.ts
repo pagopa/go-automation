@@ -23,14 +23,30 @@ interface MatchDetailSingle {
 
 /**
  * Multi-match variant produced by {@link ContainsCondition} with a
- * `regex` field: records every row that matched.
+ * `regex` field.
+ *
+ * `matchedCount` always reflects the **real** number of matches across
+ * the array; `matchedElements` carries up to {@link MAX_TRACE_MATCHES}
+ * sample hits so a regex that matches hundreds of rows does not bloat
+ * the execution trace. `truncated` is `true` whenever
+ * `matchedCount > matchedElements.length`.
  */
 interface MatchDetailMulti {
   readonly matched: boolean;
   readonly matchedCount: number;
   readonly matchedElements: ReadonlyArray<{ readonly index: number; readonly element: unknown }>;
   readonly totalElements: number;
+  readonly truncated: boolean;
 }
+
+/**
+ * Maximum number of `matchedElements` entries persisted in the trace
+ * for a {@link ContainsCondition} regex variant. Picked generously
+ * enough to surface a few representative hits while keeping the
+ * `caseEvaluations[].resolvedValues` payload small even when a regex
+ * matches every row of a multi-thousand-row CloudWatch result.
+ */
+const MAX_TRACE_MATCHES = 10;
 
 /**
  * Evaluates conditions against the runbook context.
@@ -365,7 +381,9 @@ export class ConditionEvaluator {
   /**
    * Compact trace detail for a `contains` condition.
    * - value variant on array: first element belonging to `value`.
-   * - regex variant on array: **every** matching element (multi-match).
+   * - regex variant on array: count of matching elements + up to
+   *   {@link MAX_TRACE_MATCHES} sample hits (the rest are dropped from
+   *   the trace and a `truncated` flag is raised).
    */
   private detailForContains(actual: unknown, condition: ContainsCondition): unknown {
     if (!Array.isArray(actual)) return actual;
@@ -373,19 +391,24 @@ export class ConditionEvaluator {
 
     if (condition.regex !== undefined) {
       const compiled = compileRegex(condition.regex);
-      const hits: { index: number; element: unknown }[] = [];
+      let matchedCount = 0;
+      const samples: { index: number; element: unknown }[] = [];
       for (let i = 0; i < arr.length; i++) {
         const el = arr[i];
         if (el === undefined || el === null) continue;
         if (compiled.test(valueToString(el))) {
-          hits.push({ index: i, element: el });
+          matchedCount += 1;
+          if (samples.length < MAX_TRACE_MATCHES) {
+            samples.push({ index: i, element: el });
+          }
         }
       }
       const detail: MatchDetailMulti = {
-        matched: hits.length > 0,
-        matchedCount: hits.length,
-        matchedElements: hits,
+        matched: matchedCount > 0,
+        matchedCount,
+        matchedElements: samples,
         totalElements: arr.length,
+        truncated: matchedCount > samples.length,
       };
       return detail;
     }

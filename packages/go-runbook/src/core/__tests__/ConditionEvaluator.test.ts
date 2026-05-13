@@ -193,7 +193,7 @@ describe('ConditionEvaluator (array-aware)', () => {
       assert.strictEqual(evaluator.evaluate({ type: 'contains', ref: 'steps.q', regex: 'DOWNSTREAM' }, c), false);
     });
 
-    it('records ALL matching rows in the trace (no short-circuit)', () => {
+    it('records every matching row in the trace when under the sample cap', () => {
       const c = ctx({ stepResults: [['q', rows]] });
       const resolved = evaluator.collectResolvedValues({ type: 'contains', ref: 'steps.q', regex: 'DOWNSTREAM' }, c);
       const detail = resolved['steps.q'] as {
@@ -201,13 +201,38 @@ describe('ConditionEvaluator (array-aware)', () => {
         matchedCount: number;
         matchedElements: ReadonlyArray<{ index: number; element: Row }>;
         totalElements: number;
+        truncated: boolean;
       };
       assert.strictEqual(detail.matched, true);
       assert.strictEqual(detail.matchedCount, 2);
       assert.strictEqual(detail.totalElements, 5);
+      assert.strictEqual(detail.truncated, false);
       assert.deepStrictEqual(
         detail.matchedElements.map((m) => m.index),
         [1, 3],
+      );
+    });
+
+    it('caps matchedElements at 10 samples and flags truncated=true on overflow', () => {
+      // 50 rows, every one matches → matchedCount=50, samples=10, truncated=true.
+      const many: Row[] = Array.from({ length: 50 }, (_, i) => ({ message: `[DOWNSTREAM] row ${i}` }));
+      const c = ctx({ stepResults: [['q', many]] });
+      const resolved = evaluator.collectResolvedValues({ type: 'contains', ref: 'steps.q', regex: 'DOWNSTREAM' }, c);
+      const detail = resolved['steps.q'] as {
+        matched: boolean;
+        matchedCount: number;
+        matchedElements: ReadonlyArray<{ index: number; element: Row }>;
+        totalElements: number;
+        truncated: boolean;
+      };
+      assert.strictEqual(detail.matched, true);
+      assert.strictEqual(detail.matchedCount, 50);
+      assert.strictEqual(detail.totalElements, 50);
+      assert.strictEqual(detail.matchedElements.length, 10);
+      assert.strictEqual(detail.truncated, true);
+      assert.deepStrictEqual(
+        detail.matchedElements.map((m) => m.index),
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
       );
     });
 
