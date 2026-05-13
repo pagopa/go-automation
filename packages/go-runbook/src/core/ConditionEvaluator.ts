@@ -1,5 +1,5 @@
 import { valueToString } from '@go-automation/go-common/core';
-import type { Condition } from '../types/Condition.js';
+import type { Condition, ContainsCondition } from '../types/Condition.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
 import { compileRegex } from './compileRegex.js';
 
@@ -10,6 +10,29 @@ type ConditionOperator = '==' | '!=' | '>' | '<' | '>=' | '<=';
 type ConditionType = string | number | boolean;
 
 /**
+ * Compact description of a match against an array element, surfaced via
+ * `collectResolvedValues` so the trace can show which element satisfied
+ * the predicate (without dumping the entire raw collection).
+ */
+interface MatchDetailSingle {
+  readonly matched: true;
+  readonly matchedIndex: number;
+  readonly matchedElement: unknown;
+  readonly totalElements: number;
+}
+
+/**
+ * Multi-match variant produced by {@link ContainsCondition} with a
+ * `regex` field: records every row that matched.
+ */
+interface MatchDetailMulti {
+  readonly matched: boolean;
+  readonly matchedCount: number;
+  readonly matchedElements: ReadonlyArray<{ readonly index: number; readonly element: unknown }>;
+  readonly totalElements: number;
+}
+
+/**
  * Evaluates conditions against the runbook context.
  * Supports reference resolution for vars, step outputs, and params.
  *
@@ -17,6 +40,11 @@ type ConditionType = string | number | boolean;
  * - `'vars.{name}'`           -> variable from context
  * - `'steps.{stepId}.output'` -> output of a previous step
  * - `'params.{name}'`         -> runbook input parameter
+ *
+ * **Array semantics**: when a `ref` resolves to an array, every
+ * predicate operator (`compare`, `pattern`, `contains` with value or
+ * regex) applies element-wise with OR (any-match). The matched element
+ * is recorded in `collectResolvedValues` so the trace can surface it.
  *
  * @example
  * ```typescript
@@ -31,6 +59,11 @@ export class ConditionEvaluator {
   /**
    * Collects all resolved reference values from a condition.
    * Used to populate resolvedValues in CaseEvaluationTrace.
+   *
+   * When the predicate is array-aware and the ref resolves to an array,
+   * the returned record contains a compact match-detail object instead
+   * of the raw array (which would be huge for a typical CloudWatch
+   * query result).
    *
    * @param condition - The condition to inspect
    * @param context - The current runbook context
@@ -57,6 +90,8 @@ export class ConditionEvaluator {
         return this.evaluatePattern(condition.ref, condition.regex, context);
       case 'exists':
         return this.evaluateExists(condition.ref, context);
+      case 'contains':
+        return this.evaluateContains(condition, context);
       case 'and':
         return condition.conditions.every((c) => this.evaluate(c, context));
       case 'or':
@@ -71,7 +106,8 @@ export class ConditionEvaluator {
   }
 
   /**
-   * Evaluates a compare condition.
+   * Evaluates a compare condition. When the ref resolves to an array,
+   * applies the operator element-wise with OR (any-match).
    */
   private evaluateCompare(
     ref: string,
@@ -84,10 +120,25 @@ export class ConditionEvaluator {
       return false;
     }
 
+    if (Array.isArray(actual)) {
+      for (const el of actual) {
+        if (el === undefined || el === null) continue;
+        if (this.compareScalar(el, operator, expected)) return true;
+      }
+      return false;
+    }
+
+    return this.compareScalar(actual, operator, expected);
+  }
+
+  /**
+   * Performs the scalar comparison used by both the scalar and the
+   * array-element branches of {@link evaluateCompare}.
+   */
+  private compareScalar(actual: unknown, operator: ConditionOperator, expected: ConditionType): boolean {
     const actualStr = valueToString(actual);
     const expectedStr = valueToString(expected);
 
-    // For numeric comparison when both values are numeric
     const actualNum = Number(actualStr);
     const expectedNum = Number(expectedStr);
     const bothNumeric = !Number.isNaN(actualNum) && !Number.isNaN(expectedNum);
@@ -113,7 +164,9 @@ export class ConditionEvaluator {
   }
 
   /**
-   * Evaluates a pattern condition using regex.
+   * Evaluates a pattern condition. When the ref resolves to an array,
+   * the regex is tested element-wise with OR + short-circuit: the
+   * condition is satisfied at the first matching element.
    */
   private evaluatePattern(ref: string, regex: string, context: RunbookContext): boolean {
     const actual = this.resolveRef(ref, context);
@@ -121,34 +174,110 @@ export class ConditionEvaluator {
       return false;
     }
     const compiled = compileRegex(regex);
-    const actualStr = valueToString(actual);
-    return compiled.test(actualStr);
+
+    if (Array.isArray(actual)) {
+      for (const el of actual) {
+        if (el === undefined || el === null) continue;
+        if (compiled.test(valueToString(el))) return true;
+      }
+      return false;
+    }
+
+    return compiled.test(valueToString(actual));
   }
 
   /**
    * Evaluates an exists condition.
-   * Returns true if the value is not undefined, not null, and not an empty string.
+   * - scalars: `actual` is not undefined/null and its string form is not empty
+   * - arrays:  `actual.length > 0`
    */
   private evaluateExists(ref: string, context: RunbookContext): boolean {
     const actual = this.resolveRef(ref, context);
-    const actualStr = valueToString(actual);
-    return actual !== undefined && actual !== null && actualStr !== '';
+    if (actual === undefined || actual === null) return false;
+    if (Array.isArray(actual)) return actual.length > 0;
+    return valueToString(actual) !== '';
+  }
+
+  /**
+   * Evaluates a contains condition.
+   *
+   * - **value variant** (SQL `IN`):
+   *   - scalar ref: `ref ∈ value`
+   *   - array ref:  intersection between `ref` and `value` is non-empty
+   * - **regex variant**:
+   *   - scalar ref: `regex.test(ref)`
+   *   - array ref:  scans every element (no short-circuit); returns
+   *     `true` when at least one matches (the trace receives the full
+   *     list of matched elements via {@link collectRefs}).
+   */
+  private evaluateContains(condition: ContainsCondition, context: RunbookContext): boolean {
+    const actual = this.resolveRef(condition.ref, context);
+    if (actual === undefined || actual === null) return false;
+
+    if (condition.regex !== undefined) {
+      const compiled = compileRegex(condition.regex);
+      if (Array.isArray(actual)) {
+        let matched = false;
+        for (const el of actual) {
+          if (el === undefined || el === null) continue;
+          if (compiled.test(valueToString(el))) {
+            matched = true;
+            // No break: contains-regex is the "find all" variant.
+            // Boolean result is settled, but we still scan so the trace
+            // (via collectRefs) sees the full list — that work happens
+            // there, not here. We could break early for performance, but
+            // the per-element cost is negligible on typical sizes.
+          }
+        }
+        return matched;
+      }
+      return compiled.test(valueToString(actual));
+    }
+
+    if (condition.value === undefined) {
+      return false;
+    }
+    const candidates = new Set(condition.value.map((v) => valueToString(v)));
+    if (Array.isArray(actual)) {
+      for (const el of actual) {
+        if (el === undefined || el === null) continue;
+        if (candidates.has(valueToString(el))) return true;
+      }
+      return false;
+    }
+    return candidates.has(valueToString(actual));
   }
 
   /**
    * Recursively collects all reference values from a condition tree.
+   *
+   * For array refs, stores a compact match-detail object rather than
+   * the raw array. The detail shape depends on the condition:
+   * - `compare`, `pattern`, `contains` (value variant): single match
+   *   (`MatchDetailSingle`) — first satisfying element
+   * - `contains` (regex variant): multi-match (`MatchDetailMulti`)
+   *   with every matching element and their count
    */
   private collectRefs(condition: Condition, context: RunbookContext, values: Record<string, unknown>): void {
     switch (condition.type) {
-      case 'compare':
-        values[condition.ref] = this.resolveRef(condition.ref, context);
+      case 'compare': {
+        const actual = this.resolveRef(condition.ref, context);
+        values[condition.ref] = this.detailForCompare(actual, condition.operator, condition.value);
         break;
-      case 'pattern':
-        values[condition.ref] = this.resolveRef(condition.ref, context);
+      }
+      case 'pattern': {
+        const actual = this.resolveRef(condition.ref, context);
+        values[condition.ref] = this.detailForPattern(actual, condition.regex);
         break;
+      }
       case 'exists':
         values[condition.ref] = this.resolveRef(condition.ref, context);
         break;
+      case 'contains': {
+        const actual = this.resolveRef(condition.ref, context);
+        values[condition.ref] = this.detailForContains(actual, condition);
+        break;
+      }
       case 'and':
         for (const c of condition.conditions) {
           this.collectRefs(c, context, values);
@@ -167,6 +296,100 @@ export class ConditionEvaluator {
         throw new Error(`Unknown condition type: ${(_exhaustive as Condition).type}`);
       }
     }
+  }
+
+  /**
+   * Compact trace detail for a `compare` condition. For scalar refs
+   * returns the resolved value as-is. For array refs returns the first
+   * element that satisfies the comparison (or `{ matched: false }`).
+   */
+  private detailForCompare(actual: unknown, operator: ConditionOperator, expected: ConditionType): unknown {
+    if (!Array.isArray(actual)) return actual;
+    for (let i = 0; i < actual.length; i++) {
+      const el = actual[i];
+      if (el === undefined || el === null) continue;
+      if (this.compareScalar(el, operator, expected)) {
+        const detail: MatchDetailSingle = {
+          matched: true,
+          matchedIndex: i,
+          matchedElement: el,
+          totalElements: actual.length,
+        };
+        return detail;
+      }
+    }
+    return { matched: false, matchedCount: 0, totalElements: actual.length };
+  }
+
+  /**
+   * Compact trace detail for a `pattern` condition. For arrays records
+   * the first matching element (consistent with the OR + short-circuit
+   * semantic of {@link evaluatePattern}).
+   */
+  private detailForPattern(actual: unknown, regex: string): unknown {
+    if (!Array.isArray(actual)) return actual;
+    const compiled = compileRegex(regex);
+    for (let i = 0; i < actual.length; i++) {
+      const el = actual[i];
+      if (el === undefined || el === null) continue;
+      if (compiled.test(valueToString(el))) {
+        const detail: MatchDetailSingle = {
+          matched: true,
+          matchedIndex: i,
+          matchedElement: el,
+          totalElements: actual.length,
+        };
+        return detail;
+      }
+    }
+    return { matched: false, matchedCount: 0, totalElements: actual.length };
+  }
+
+  /**
+   * Compact trace detail for a `contains` condition.
+   * - value variant on array: first element belonging to `value`.
+   * - regex variant on array: **every** matching element (multi-match).
+   */
+  private detailForContains(actual: unknown, condition: ContainsCondition): unknown {
+    if (!Array.isArray(actual)) return actual;
+
+    if (condition.regex !== undefined) {
+      const compiled = compileRegex(condition.regex);
+      const hits: { index: number; element: unknown }[] = [];
+      for (let i = 0; i < actual.length; i++) {
+        const el = actual[i];
+        if (el === undefined || el === null) continue;
+        if (compiled.test(valueToString(el))) {
+          hits.push({ index: i, element: el });
+        }
+      }
+      const detail: MatchDetailMulti = {
+        matched: hits.length > 0,
+        matchedCount: hits.length,
+        matchedElements: hits,
+        totalElements: actual.length,
+      };
+      return detail;
+    }
+
+    if (condition.value === undefined) {
+      return { matched: false, matchedCount: 0, totalElements: actual.length };
+    }
+    const candidates = new Set(condition.value.map((v) => valueToString(v)));
+    for (let i = 0; i < actual.length; i++) {
+      const el = actual[i];
+      if (el === undefined || el === null) continue;
+      if (candidates.has(valueToString(el))) {
+        const detail: MatchDetailSingle = {
+          matched: true,
+          matchedIndex: i,
+          matchedElement: el,
+          totalElements: actual.length,
+        };
+        return detail;
+      }
+    }
+    return { matched: false, matchedCount: 0, totalElements: actual.length };
   }
 
   /**

@@ -163,23 +163,22 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
 
   {
     id: 'appio-downstream-500',
-    description: 'Allarme scattato per un 500 ricevuto da AppIO - Internal Server Error from PUT',
+    description: 'Allarme scattato per un 500 ricevuto da AppIO - Internal Server Error',
     priority: 89,
+    // Scansiona TUTTI i row dei log di pn-external-registries (non solo
+    // il messaggio rappresentativo in `externalRegistriesErrorMsg`).
+    // Il caso matcha sia POST sia PUT e l'enumerazione completa delle
+    // righe matchate finisce nel trace via `contains.regex`.
     condition: {
-      type: 'or',
-      conditions: [
-        {
-          type: 'pattern',
-          ref: 'vars.externalRegistriesErrorMsg',
-          regex: '\\[DOWNSTREAM\\] Service IO returned errors=500 Internal Server Error from PUT',
-        },
-      ],
+      type: 'contains',
+      ref: 'steps.query-pn-external-registries',
+      regex: '\\[DOWNSTREAM\\] Service IO returned errors=500 Internal Server Error from (POST|PUT)',
     },
     action: {
       type: 'log',
       level: 'info',
       message:
-        '[CASO NOTO] 500 da AppIO - Internal Server Error from PUT\n' +
+        '[CASO NOTO] 500 da AppIO - Internal Server Error\n' +
         'Risoluzione: Chiusura - caso noto\n' +
         'Downstream: AppIO\n',
     },
