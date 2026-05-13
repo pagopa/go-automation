@@ -270,9 +270,11 @@ export class ConditionEvaluator {
         values[condition.ref] = this.detailForPattern(actual, condition.regex);
         break;
       }
-      case 'exists':
-        values[condition.ref] = this.resolveRef(condition.ref, context);
+      case 'exists': {
+        const actual = this.resolveRef(condition.ref, context);
+        values[condition.ref] = this.detailForExists(actual);
         break;
+      }
       case 'contains': {
         const actual = this.resolveRef(condition.ref, context);
         values[condition.ref] = this.detailForContains(actual, condition);
@@ -303,6 +305,19 @@ export class ConditionEvaluator {
    * returns the resolved value as-is. For array refs returns the first
    * element that satisfies the comparison (or `{ matched: false }`).
    */
+  /**
+   * Compact trace detail for an `exists` condition. For scalar refs
+   * returns the resolved value as-is. For array refs returns a small
+   * `{ matched, totalElements }` envelope so a presence check on a
+   * step output (e.g. a CloudWatch query result with thousands of
+   * rows) does not bloat the execution trace.
+   */
+  private detailForExists(actual: unknown): unknown {
+    if (!Array.isArray(actual)) return actual;
+    const arr = actual as ReadonlyArray<unknown>;
+    return { matched: arr.length > 0, totalElements: arr.length };
+  }
+
   private detailForCompare(actual: unknown, operator: ConditionOperator, expected: ConditionType): unknown {
     if (!Array.isArray(actual)) return actual;
     const arr = actual as ReadonlyArray<unknown>;

@@ -116,6 +116,37 @@ describe('ConditionEvaluator (array-aware)', () => {
       const c = ctx({ stepResults: [['arr', []]] });
       assert.strictEqual(evaluator.evaluate({ type: 'exists', ref: 'steps.arr' }, c), false);
     });
+
+    it('records a compact `{matched,totalElements}` summary for array refs (not the raw array)', () => {
+      // Simulate a CloudWatch query output with several rows — dumping
+      // the full array in the trace would bloat the execution JSON.
+      const c = ctx({
+        stepResults: [
+          [
+            'q',
+            [
+              { '@message': 'row 1' },
+              { '@message': 'row 2' },
+              { '@message': 'row 3' },
+            ],
+          ],
+        ],
+      });
+      const resolved = evaluator.collectResolvedValues({ type: 'exists', ref: 'steps.q' }, c);
+      assert.deepStrictEqual(resolved['steps.q'], { matched: true, totalElements: 3 });
+    });
+
+    it('records `{matched:false,totalElements:0}` for empty array refs', () => {
+      const c = ctx({ stepResults: [['q', []]] });
+      const resolved = evaluator.collectResolvedValues({ type: 'exists', ref: 'steps.q' }, c);
+      assert.deepStrictEqual(resolved['steps.q'], { matched: false, totalElements: 0 });
+    });
+
+    it('keeps scalar resolvedValues unchanged for backwards compat', () => {
+      const c = ctx({ vars: { foo: 'abc' } });
+      const resolved = evaluator.collectResolvedValues({ type: 'exists', ref: 'vars.foo' }, c);
+      assert.strictEqual(resolved['vars.foo'], 'abc');
+    });
   });
 
   describe('contains — value variant (SQL IN)', () => {
