@@ -321,7 +321,10 @@ describe('queryServiceLogs', () => {
     const joined = captured.join('\n');
     assert.match(joined, /⚠ Query fallita/);
     assert.match(joined, /Log group: \/aws\/ecs\/pn-data-vault-sep/);
-    assert.match(joined, /Causa: \[ResourceNotFoundException\] Log group '\/aws\/ecs\/pn-data-vault-sep' does not exist/);
+    assert.match(
+      joined,
+      /Causa: \[ResourceNotFoundException\] Log group '\/aws\/ecs\/pn-data-vault-sep' does not exist/,
+    );
   });
 
   it('throws at construction when the queryTemplate lacks the {{FILTER_CLAUSE}} placeholder', () => {
