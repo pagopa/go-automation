@@ -31,7 +31,6 @@
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-cloudwatch": "catalog:",
-    "@aws-sdk/credential-provider-ini": "catalog:",
     "@go-automation/go-common": "workspace:*",
     "luxon": "catalog:"
   },

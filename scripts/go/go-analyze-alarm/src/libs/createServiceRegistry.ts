@@ -1,42 +1,32 @@
 /**
- * Factory for creating the AWS ServiceRegistry from an SSO profile.
+ * Factory for creating the AWS ServiceRegistry from the script AWS provider.
  */
 
-import { CloudWatchLogsClient } from '@aws-sdk/client-cloudwatch-logs';
-import { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
-import { AthenaClient } from '@aws-sdk/client-athena';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { fromIni } from '@aws-sdk/credential-provider-ini';
-
 import {
-  CloudWatchLogsService,
   CloudWatchMetricsService,
   AthenaService,
   RunbookDynamoDBService,
   RunbookHttpService,
 } from '@go-automation/go-runbook';
+import { Core } from '@go-automation/go-common';
 import type { ServiceRegistry } from '@go-automation/go-runbook';
 
 /**
- * Creates a ServiceRegistry from an AWS SSO profile.
+ * Creates a ServiceRegistry from the unified script AWS provider.
  *
- * @param profile - AWS SSO profile name
+ * CloudWatch Logs uses the multi-profile service because runbooks may need to
+ * resolve log groups across the configured account list. Other services keep
+ * the first-profile behavior used by the previous implementation.
+ *
+ * @param script - GOScript instance with initialized AWS providers
  * @returns ServiceRegistry with all services initialized
  */
-export function createServiceRegistry(profile: string): ServiceRegistry {
-  const credentials = fromIni({ profile });
-  const region = 'eu-south-1';
-
-  const cloudWatchLogsClient = new CloudWatchLogsClient({ region, credentials });
-  const cloudWatchClient = new CloudWatchClient({ region, credentials });
-  const athenaClient = new AthenaClient({ region, credentials });
-  const dynamoDBClient = new DynamoDBClient({ region, credentials });
-
+export function createServiceRegistry(script: Core.GOScript): ServiceRegistry {
   return {
-    cloudWatchLogs: new CloudWatchLogsService(cloudWatchLogsClient),
-    cloudWatchMetrics: new CloudWatchMetricsService(cloudWatchClient),
-    athena: new AthenaService(athenaClient, 's3://placeholder-athena-results/'),
-    dynamodb: new RunbookDynamoDBService(dynamoDBClient),
+    cloudWatchLogs: script.aws.services.cloudWatchLogs,
+    cloudWatchMetrics: new CloudWatchMetricsService(script.aws.clients.cloudWatch),
+    athena: new AthenaService(script.aws.clients.athena, 's3://placeholder-athena-results/'),
+    dynamodb: new RunbookDynamoDBService(script.aws.clients.dynamoDB),
     http: new RunbookHttpService(),
   };
 }

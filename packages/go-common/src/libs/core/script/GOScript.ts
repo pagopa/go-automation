@@ -3,7 +3,7 @@
  * Integrates logging, configuration, and prompts into a unified script framework
  */
 
-import { AWSClientProvider, AWSMultiClientProvider, GOAWSCredentialsManager } from '../../aws/index.js';
+import { AWSProvider, GOAWSCredentialsManager } from '../../aws/index.js';
 import type { GOAWSCredentialsLogHandler, GOAWSCredentialsPromptHandler } from '../../aws/index.js';
 import type { GOConfigProvider } from '../config/GOConfigProvider.js';
 import { GOSecretRedactor, GOSecretsSpecifierFactory } from '../config/GOSecretsSpecifier.js';
@@ -82,8 +82,7 @@ export class GOScript {
   private fileCopier?: GOFileCopier | undefined;
   private readonly fileCopierOptions?: GOScriptFileCopierOptions | undefined;
   private readonly secretRedactor: GOSecretRedactor;
-  private awsClientProvider?: AWSClientProvider | undefined;
-  private awsMultiClientProvider?: AWSMultiClientProvider | undefined;
+  private awsProvider?: AWSProvider | undefined;
 
   // Cached AWS parameter presence flags (computed once in constructor — avoids repeated array scans)
   private readonly hasAwsProfileParam: boolean;
@@ -105,9 +104,8 @@ export class GOScript {
   // preventing the same message from being printed twice.
   private readonly preloggedErrors = new WeakSet<Error>();
 
-  // Last AWS profile keys used by cached clients — used to detect changes in Lambda between invocations
-  private lastAwsProfile: string | undefined;
-  private lastAwsProfilesKey: string | undefined; // join(',') of profiles array
+  // Last AWS profile key used by cached clients — used to detect changes in Lambda between invocations
+  private lastAwsProfilesKey: string | undefined; // join(',') of effective profiles array
 
   constructor(options: GOScriptOptions) {
     this.options = options;
@@ -580,6 +578,42 @@ export class GOScript {
     return Array.isArray(value) ? (value as string[]) : undefined;
   }
 
+  /**
+   * Effective AWS profile list used by the unified AWS provider.
+   *
+   * `aws.profiles` wins when present; otherwise `aws.profile` is promoted
+   * to a single-element multi-profile provider. This keeps script code on
+   * one API (`script.aws`) while preserving both CLI parameter styles.
+   */
+  private resolveAwsProfileNames(): ReadonlyArray<string> {
+    const profiles = this.getConfigStringArray('aws.profiles')
+      ?.map((profile) => profile.trim())
+      .filter((profile) => profile.length > 0);
+
+    if (profiles !== undefined && profiles.length > 0) {
+      return profiles;
+    }
+
+    const profile = this.getConfigString('aws.profile')?.trim();
+    if (profile !== undefined && profile.length > 0) {
+      return [profile];
+    }
+
+    throw new Error('AWS profile is required but not provided (--aws-profile | --aws-profiles)');
+  }
+
+  private getAwsProfilesKey(): string | undefined {
+    if (!this.hasAwsProfileParam && !this.hasAwsProfilesParam) {
+      return undefined;
+    }
+
+    try {
+      return this.resolveAwsProfileNames().join(',');
+    } catch {
+      return undefined;
+    }
+  }
+
   // ============================================================================
   // Shared lifecycle executor
   // ============================================================================
@@ -640,20 +674,13 @@ export class GOScript {
    * built for the previous profile must be closed and recreated so they use the correct credentials.
    */
   private refreshAwsClientsIfProfileChanged(): void {
-    const newProfile = this.getConfigString('aws.profile');
-    const newProfilesKey = this.getConfigStringArray('aws.profiles')?.join(',');
+    const newProfilesKey = this.getAwsProfilesKey();
 
-    if (newProfile !== this.lastAwsProfile && this.awsClientProvider !== undefined) {
-      this.awsClientProvider.close();
-      this.awsClientProvider = undefined;
+    if (newProfilesKey !== this.lastAwsProfilesKey && this.awsProvider !== undefined) {
+      this.awsProvider.close();
+      this.awsProvider = undefined;
     }
 
-    if (newProfilesKey !== this.lastAwsProfilesKey && this.awsMultiClientProvider !== undefined) {
-      this.awsMultiClientProvider.close();
-      this.awsMultiClientProvider = undefined;
-    }
-
-    this.lastAwsProfile = newProfile;
     this.lastAwsProfilesKey = newProfilesKey;
   }
 
@@ -923,13 +950,9 @@ export class GOScript {
 
       // Close AWS client providers only in local/CI (not in Lambda — container reuse)
       if (!this.environment.isAWSManaged) {
-        if (this.awsClientProvider !== undefined) {
-          this.awsClientProvider.close();
-          this.awsClientProvider = undefined;
-        }
-        if (this.awsMultiClientProvider !== undefined) {
-          this.awsMultiClientProvider.close();
-          this.awsMultiClientProvider = undefined;
+        if (this.awsProvider !== undefined) {
+          this.awsProvider.close();
+          this.awsProvider = undefined;
         }
       }
 
@@ -1172,80 +1195,32 @@ export class GOScript {
   }
 
   // ============================================================================
-  // AWS Client Provider
+  // AWS Provider
   // ============================================================================
 
   /**
-   * Returns the AWSClientProvider for accessing AWS SDK clients.
+   * Unified AWS facade.
    *
-   * The provider is created lazily on first access using the 'aws.profile'
-   * configuration parameter. Subsequent accesses return the same instance.
+   * - `script.aws.clients`: raw AWS SDK clients. Convenience getters use
+   *   the first configured profile; multi-profile helpers remain available.
+   * - `script.aws.services`: higher-level AWS services.
    *
-   * @throws Error if 'aws.profile' parameter is not configured
-   *
-   * @example
-   * ```typescript
-   * // Access DynamoDB client
-   * const dynamoDB = script.aws.dynamoDB;
-   *
-   * // Use the client
-   * const result = await dynamoDB.send(new QueryCommand(params));
-   * ```
-   */
-  get aws(): AWSClientProvider {
-    if (this.awsClientProvider === undefined) {
-      const awsProfile = this.getConfigString('aws.profile');
-
-      if (!awsProfile) {
-        throw new Error(
-          'Cannot access AWS client provider: "aws.profile" parameter is not configured. ' +
-            'Add aws.profile to your script parameters.',
-        );
-      }
-
-      this.awsClientProvider = new AWSClientProvider({
-        profile: awsProfile,
-      });
-    }
-    return this.awsClientProvider;
-  }
-
-  /**
-   * Returns the AWSMultiClientProvider for accessing AWS SDK clients across multiple profiles.
-   *
-   * The provider is created lazily on first access using the 'aws.profiles'
-   * configuration parameter. Subsequent accesses return the same instance.
-   *
-   * @throws Error if 'aws.profiles' parameter is not configured or empty
+   * Supports both `aws.profile` and `aws.profiles`. A single profile is
+   * promoted to an `AWSMultiClientProvider` with one entry.
    *
    * @example
    * ```typescript
-   * // Get client provider for a specific profile
-   * const devClient = script.awsMulti.getClientProvider('sso_pn-core-dev');
-   * const dynamoDB = devClient.dynamoDB;
-   *
-   * // Execute operation across all profiles
-   * const results = await script.awsMulti.mapParallelSettled(async (profile, client) => {
-   *   return client.dynamoDB.send(new ScanCommand({ TableName: 'my-table' }));
+   * const dynamoDB = script.aws.clients.dynamoDB;
+   * const results = await script.aws.clients.mapParallelSettled(async (profile, clients) => {
+   *   return clients.dynamoDB.send(new QueryCommand(params));
    * });
    * ```
    */
-  get awsMulti(): AWSMultiClientProvider {
-    if (this.awsMultiClientProvider === undefined) {
-      const awsProfiles = this.getConfigStringArray('aws.profiles');
-
-      if (!awsProfiles || awsProfiles.length === 0) {
-        throw new Error(
-          'Cannot access AWS multi-client provider: "aws.profiles" parameter is not configured or empty. ' +
-            'Add aws.profiles to your script parameters.',
-        );
-      }
-
-      this.awsMultiClientProvider = new AWSMultiClientProvider({
-        profiles: awsProfiles,
-      });
-    }
-    return this.awsMultiClientProvider;
+  get aws(): AWSProvider {
+    this.awsProvider ??= new AWSProvider({
+      profiles: this.resolveAwsProfileNames(),
+    });
+    return this.awsProvider;
   }
 
   // ============================================================================

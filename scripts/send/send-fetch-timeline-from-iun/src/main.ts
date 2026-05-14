@@ -30,7 +30,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<SendFetchTimelineFromIunConfig>();
 
   // Initialize Timeline service using script.aws provider
-  const timelineService = new SENDTimelineService(script.aws.dynamoDB);
+  const timelineService = new SENDTimelineService(script.aws.clients.dynamoDB);
 
   // Step 1: Read IUNs from input file
   script.logger.section('Reading Input File');

@@ -40,7 +40,7 @@ type SENDTimelineProgressHandler = (current: number, total: number) => void;
  * ```typescript
  * import { SEND } from '@go-automation/go-common';
  *
- * const timelineService = new SEND.SENDTimelineService(script.aws.dynamoDB);
+ * const timelineService = new SEND.SENDTimelineService(script.aws.clients.dynamoDB);
  * const results = await timelineService.queryTimelines(parsedIuns);
  * ```
  */

@@ -48,7 +48,7 @@ export async function queryAllKeys(
     resultMap[pk] = [];
   }
 
-  const queryService = new AWS.DynamoDBQueryService(script.aws.dynamoDB);
+  const queryService = new AWS.DynamoDBQueryService(script.aws.clients.dynamoDB);
 
   script.prompt.startSpinner(`Querying ${pks.length} PKs...`);
 

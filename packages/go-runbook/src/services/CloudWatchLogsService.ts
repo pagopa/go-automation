@@ -4,16 +4,12 @@ import {
   GetQueryResultsCommand,
   CloudWatchLogsServiceException,
 } from '@aws-sdk/client-cloudwatch-logs';
+import type { AWSCloudWatchLogsQueryOptions } from '@go-automation/go-common/aws';
 import type { TimeRange } from '../types/TimeRange.js';
 import { pollUntilComplete, exponentialBackoff } from '@go-automation/go-common/core';
-import type { BackoffFn, PollAttemptInfo } from '@go-automation/go-common/core';
 
 /** All terminal statuses for CloudWatch Logs Insights queries */
 const TERMINAL_STATUSES: ReadonlySet<string> = new Set(['Complete', 'Failed', 'Cancelled', 'Timeout']);
-
-type CloudWatchLogsSleepFn = (ms: number) => Promise<void>;
-
-type CloudWatchLogsPollAttemptHandler = (info: PollAttemptInfo) => void;
 
 /**
  * Checks whether a CloudWatch Logs query status is terminal.
@@ -23,23 +19,6 @@ type CloudWatchLogsPollAttemptHandler = (info: PollAttemptInfo) => void;
  */
 function isTerminalStatus(status: string | undefined): boolean {
   return status !== undefined && TERMINAL_STATUSES.has(status);
-}
-
-/**
- * Options for a CloudWatch Logs Insights query.
- * @public
- */
-export interface CloudWatchLogsQueryOptions {
-  /** Abort signal to cancel the query */
-  readonly signal?: AbortSignal;
-  /** Override max poll attempts */
-  readonly maxPollAttempts?: number;
-  /** Override poll backoff strategy */
-  readonly pollBackoff?: BackoffFn;
-  /** Sleep implementation — injectable for testing */
-  readonly sleepFn?: CloudWatchLogsSleepFn;
-  /** Called after each non-terminal polling attempt */
-  readonly onPollAttempt?: CloudWatchLogsPollAttemptHandler;
 }
 
 /**
@@ -71,7 +50,7 @@ export class CloudWatchLogsService {
     logGroups: ReadonlyArray<string>,
     query: string,
     timeRange: TimeRange,
-    options?: CloudWatchLogsQueryOptions,
+    options?: AWSCloudWatchLogsQueryOptions,
   ): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
     this.validateInput(logGroups, query, timeRange);
 

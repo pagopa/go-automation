@@ -337,6 +337,9 @@ importers:
 
   packages/go-common:
     dependencies:
+      '@aws-sdk/client-athena':
+        specifier: 'catalog:'
+        version: 3.1045.0
       '@aws-sdk/client-cloudformation':
         specifier: 'catalog:'
         version: 3.1045.0
@@ -581,9 +584,6 @@ importers:
       '@aws-sdk/client-dynamodb':
         specifier: 'catalog:'
         version: 3.1045.0
-      '@aws-sdk/credential-provider-ini':
-        specifier: 'catalog:'
-        version: 3.972.38
       '@go-automation/go-common':
         specifier: workspace:*
         version: link:../../../packages/go-common
@@ -610,9 +610,6 @@ importers:
       '@aws-sdk/client-cloudwatch':
         specifier: 'catalog:'
         version: 3.1045.0
-      '@aws-sdk/credential-provider-ini':
-        specifier: 'catalog:'
-        version: 3.972.38
       '@go-automation/go-common':
         specifier: workspace:*
         version: link:../../../packages/go-common

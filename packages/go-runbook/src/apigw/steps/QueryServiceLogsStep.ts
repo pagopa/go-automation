@@ -177,6 +177,7 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
       try {
         results = await context.services.cloudWatchLogs.query(this.logGroups, query, timeRange, {
           ...(context.signal !== undefined ? { signal: context.signal } : {}),
+          logGroupResolutionMode: 'search-configured-profiles',
         });
       } catch (error: unknown) {
         // Surface the AWS failure in the structured log so it does not

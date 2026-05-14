@@ -39,9 +39,9 @@ type AWSMultiClientOperationHandler<T> = (profile: string, clientProvider: AWSCl
  * const devDynamoDB = devClient.dynamoDB;
  *
  * // Iterate over all profiles
- * for (const [profile, clientProvider] of provider.entries()) {
+ * for (const profile of provider.profileNames) {
  *   console.log(`Processing profile: ${profile}`);
- *   const client = clientProvider.dynamoDB;
+ *   const client = provider.getClientProvider(profile).dynamoDB;
  *   // ... use client
  * }
  *
@@ -62,6 +62,41 @@ export class AWSMultiClientProvider {
     this.profiles = [...new Set(config.profiles)]; // Deduplicate
     this.region = config.region ?? AWS_REGION;
     this.providers = new Map();
+  }
+
+  /**
+   * Returns the configured AWS profile names in resolution order.
+   */
+  get profileNames(): ReadonlyArray<string> {
+    return this.profiles;
+  }
+
+  /**
+   * Number of configured AWS profiles.
+   */
+  get size(): number {
+    return this.profiles.length;
+  }
+
+  /**
+   * Whether more than one AWS profile is configured.
+   */
+  get hasMultipleProfiles(): boolean {
+    return this.profiles.length > 1;
+  }
+
+  /**
+   * Returns the client provider for the first configured profile.
+   *
+   * This is the convenience path for scripts that only need one account
+   * even though the underlying provider is multi-profile capable.
+   */
+  get first(): AWSClientProvider {
+    const firstProfile = this.profiles[0];
+    if (firstProfile === undefined) {
+      throw new Error('At least one AWS profile must be provided');
+    }
+    return this.getClientProvider(firstProfile);
   }
 
   /**

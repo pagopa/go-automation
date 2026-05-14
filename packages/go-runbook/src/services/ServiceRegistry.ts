@@ -1,6 +1,6 @@
 import type { RunbookDynamoDBService } from './RunbookDynamoDBService.js';
 import type { RunbookHttpService } from './RunbookHttpService.js';
-import type { CloudWatchLogsService } from './CloudWatchLogsService.js';
+import type { CloudWatchLogsQueryService } from './CloudWatchLogsQueryService.js';
 import type { CloudWatchMetricsService } from './CloudWatchMetricsService.js';
 import type { AthenaService } from './AthenaService.js';
 
@@ -9,7 +9,7 @@ import type { AthenaService } from './AthenaService.js';
  * Follows the dependency injection pattern for testability.
  */
 export interface ServiceRegistry {
-  readonly cloudWatchLogs: CloudWatchLogsService;
+  readonly cloudWatchLogs: CloudWatchLogsQueryService;
   readonly cloudWatchMetrics: CloudWatchMetricsService;
   readonly athena: AthenaService;
   readonly dynamodb: RunbookDynamoDBService;

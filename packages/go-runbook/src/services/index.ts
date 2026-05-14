@@ -2,6 +2,7 @@
  * Runbook services module.
  */
 export type { ServiceRegistry } from './ServiceRegistry.js';
+export type { CloudWatchLogsQueryService } from './CloudWatchLogsQueryService.js';
 export { CloudWatchLogsService } from './CloudWatchLogsService.js';
 export { CloudWatchMetricsService } from './CloudWatchMetricsService.js';
 export type { MetricDatapoint, MetricDimension } from './CloudWatchMetricsService.js';

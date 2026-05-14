@@ -64,17 +64,15 @@ export async function main(script: Core.GOScript): Promise<void> {
     ['endTime', endTime],
   ]);
 
-  // Use the first AWS profile for the service registry
-  const firstProfile = config.awsProfiles[0];
-  if (firstProfile === undefined) {
+  if (config.awsProfiles.length === 0) {
     script.logger.error('No AWS profiles provided');
     return;
   }
 
-  script.logger.info(`Using AWS profile: ${firstProfile}`);
+  script.logger.info(`Using AWS profiles: ${script.aws.clients.profileNames.join(', ')}`);
 
   // Create service registry
-  const services = createServiceRegistry(firstProfile);
+  const services = createServiceRegistry(script);
 
   // Execute the runbook
   script.logger.section('Executing Runbook');
