@@ -14,6 +14,8 @@ import { decideNext } from '../steps/DecideNextStep.js';
 import { KnownUrlsRegistry } from '../registries/KnownUrlsRegistry.js';
 import { DEFAULT_API_GW_QUERY } from '../queries/DEFAULT_API_GW_QUERY.js';
 import { DEFAULT_SERVICE_QUERY_TEMPLATE } from '../queries/DEFAULT_SERVICE_QUERY_TEMPLATE.js';
+import { queryApiGwExecutionLogs } from '../steps/QueryApiGwExecutionLogsStep.js';
+import { stopApiGwExecutionLogAnalysis } from '../steps/StopApiGwExecutionLogAnalysisStep.js';
 
 const MIN_STATUS_CODE_PLACEHOLDER = '{{minStatusCode}}';
 const DEFAULT_MIN_STATUS_CODE = 500;
@@ -26,10 +28,15 @@ const DEFAULT_MIN_STATUS_CODE = 500;
  * 1. `prepare-api-gw-section`: emits the "Preparazione" reporter banner.
  * 2. `query-api-gw-logs`: queries the API Gateway AccessLog using the
  *    canonical template (parameterised by `minStatusCode`).
- * 3. `parse-api-gw-errors`: extracts `xRayTraceId`, `apiGwStatusCode` and
+ * 3. `query-api-gw-execution-logs`: when the AccessLog has a non-empty
+ *    `errorMessage`, query the configured execution log by requestId and
+ *    attempt early known-case resolution before X-Ray extraction.
+ * 4. `stop-api-gw-execution-log-unresolved`: if the execution-log branch
+ *    ran and no known case matched, stop as non-determinable.
+ * 5. `parse-api-gw-errors`: extracts `xRayTraceId`, `apiGwStatusCode` and
  *    `apiGwErrorCount`; short-circuits the runbook when no errors.
- * 4. Any custom `preSteps` (e.g. Lambda authorizer probe).
- * 5. For the entry service **and** every additional service, a triplet:
+ * 6. Any custom `preSteps` (e.g. Lambda authorizer probe).
+ * 7. For the entry service **and** every additional service, a triplet:
  *    - `query-<service>`: CloudWatch query filtered by fallbackUuid when
  *      present, otherwise by xRayTraceId
  *    - `analyze-<service>`: extracts error msg, scans for known URLs,
@@ -106,7 +113,33 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     { silent: true },
   );
 
-  // 3. Parse API GW result.
+  // 3. Optional requestId-based execution-log branch. It is active only
+  //    when API Gateway AccessLog already carries a meaningful
+  //    `errorMessage`; otherwise it is a no-op and the normal X-Ray flow
+  //    continues.
+  builder.step(
+    queryApiGwExecutionLogs({
+      id: 'query-api-gw-execution-logs',
+      label: 'Query API Gateway ExecutionLog per requestId',
+      fromStep: 'query-api-gw-logs',
+      minStatusCode: minStatus,
+      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+      ...(config.entryService.executionLogGroup !== undefined
+        ? { executionLogGroup: config.entryService.executionLogGroup }
+        : {}),
+    }),
+    { silent: true },
+  );
+
+  builder.step(
+    stopApiGwExecutionLogAnalysis({
+      id: 'stop-api-gw-execution-log-unresolved',
+      label: 'Stop se execution log API Gateway non determinante',
+    }),
+    { silent: true },
+  );
+
+  // 5. Parse API GW result.
   builder.step(
     parseApiGwErrors({
       id: 'parse-api-gw-errors',
@@ -117,7 +150,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     { silent: true },
   );
 
-  // 4. Custom pre-steps (forwarded with both continueOnFailure AND
+  // 6. Custom pre-steps (forwarded with both continueOnFailure AND
   //    silent so authors can keep their probes out of the structured
   //    output stream when needed).
   for (const descriptor of config.preSteps ?? []) {
@@ -127,7 +160,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     builder.step(descriptor.step, opts);
   }
 
-  // 5. Per-service triplets (entry first, then reachable services).
+  // 7. Per-service triplets (entry first, then reachable services).
   for (const service of allServices) {
     builder.step(
       queryServiceLogs({
@@ -167,12 +200,12 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     );
   }
 
-  // 6. Known cases.
+  // 8. Known cases.
   for (const knownCase of config.knownCases) {
     builder.knownCase(knownCase);
   }
 
-  // 7. Fallback.
+  // 9. Fallback.
   builder.fallback(config.fallbackAction ?? defaultUnknownCaseFallback(allServices));
 
   if (config.maxIterations !== undefined) {

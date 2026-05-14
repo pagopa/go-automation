@@ -202,6 +202,23 @@ describe('ApiGwReporter', () => {
     });
   });
 
+  describe('apiGwExecutionLog', () => {
+    it('renders execution-log requestIds and result count', () => {
+      const { logger, lines } = captureLogger();
+      const reporter = new ApiGwReporter(logger);
+      reporter.apiGwExecutionLogQuery('API-Gateway-Execution-Logs_test/prod', [
+        { path: '/resource-a', requestId: 'req-a' },
+        { path: '/resource-b', requestId: 'req-b' },
+      ]);
+      reporter.apiGwExecutionLogResult(12);
+      const joined = lines.join('\n');
+      assert.match(joined, /query execution log/);
+      assert.match(joined, /API-Gateway-Execution-Logs_test\/prod/);
+      assert.match(joined, /\/resource-a: req-a/);
+      assert.match(joined, /Execution log trovati: 12/);
+    });
+  });
+
   describe('stopSummary', () => {
     it('renders the chain of visited services', () => {
       const { logger, lines } = captureLogger();
@@ -257,6 +274,19 @@ describe('ApiGwReporter', () => {
       const joined = lines.join('\n');
       assert.match(joined, /Esito: URL downstream \(AppIO\)/);
       assert.match(joined, /Errore: Service IO returned errors=500/);
+    });
+
+    it('renders api-gw execution-log unresolved outcome', () => {
+      const { logger, lines } = captureLogger();
+      new ApiGwReporter(logger).stopSummary({
+        reason: 'api-gw-execution-log-unresolved',
+        matchedCaseIds: [],
+        errorMessage: "API Gateway execution log analizzati, ma non e' stato possibile determinare il problema.",
+        servicesVisited: [],
+      });
+      const joined = lines.join('\n');
+      assert.match(joined, /caso non riconosciuto negli execution log API Gateway/);
+      assert.match(joined, /non e' stato possibile determinare il problema/);
     });
 
     it('renders loop-detected terminal banner', () => {

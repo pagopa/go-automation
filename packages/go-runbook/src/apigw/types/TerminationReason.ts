@@ -8,9 +8,17 @@
  *   engine records this via early resolution; included for completeness)
  * - `external-downstream`: a known URL pointed to a downstream out of the
  *   runbook scope; the analysis cannot follow further
+ * - `api-gw-execution-log-unresolved`: API Gateway AccessLog carried an
+ *   `errorMessage`, execution logs were checked by requestId, but no
+ *   known case matched
  * - `no-match`: no known case and no known URL that can drive another
  *   service hop
  * - `loop-detected`: the next jump would re-enter a (service, identifiers)
  *   pair already visited; the loop guard short-circuited
  */
-export type TerminationReason = 'known-case' | 'external-downstream' | 'no-match' | 'loop-detected';
+export type TerminationReason =
+  | 'known-case'
+  | 'external-downstream'
+  | 'api-gw-execution-log-unresolved'
+  | 'no-match'
+  | 'loop-detected';

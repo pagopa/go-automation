@@ -21,7 +21,7 @@ export const ENTRY_SERVICE: apigw.ApiGwService = {
   name: 'pn-delivery',
   varPrefix: 'delivery',
   logGroup: '/aws/ecs/pn-delivery',
-  //executionLogGroup: 'API-Gateway-Execution-Logs_64pohg7bg0/unique',
+  executionLogGroup: 'API-Gateway-Execution-Logs_64pohg7bg0/unique',
 };
 
 /**

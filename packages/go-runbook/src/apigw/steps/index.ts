@@ -9,6 +9,12 @@ export { parseApiGwErrors } from './ParseApiGwErrorsStep.js';
 export type { ParseApiGwErrorsConfig } from './ParseApiGwErrorsStep.js';
 export type { ApiGwErrorInfo } from './ApiGwErrorInfo.js';
 
+export { queryApiGwExecutionLogs } from './QueryApiGwExecutionLogsStep.js';
+export type { QueryApiGwExecutionLogsConfig } from './QueryApiGwExecutionLogsStep.js';
+
+export { stopApiGwExecutionLogAnalysis } from './StopApiGwExecutionLogAnalysisStep.js';
+export type { StopApiGwExecutionLogAnalysisConfig } from './StopApiGwExecutionLogAnalysisStep.js';
+
 export { analyzeServiceLogs } from './AnalyzeServiceLogsStep.js';
 export type { AnalyzeServiceLogsConfig } from './AnalyzeServiceLogsStep.js';
 export type { ServiceLogsAnalysis } from './ServiceLogsAnalysis.js';
