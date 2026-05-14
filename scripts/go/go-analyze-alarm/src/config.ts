@@ -32,9 +32,26 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'alarm.datetime',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Timestamp when the alarm triggered (ISO 8601 format, e.g. 2025-10-01T18:55:00Z)',
+    description:
+      'Timestamp when the alarm triggered, or first occurrence for multi-occurrence ' +
+      'alarms (ISO 8601 format, e.g. 2025-10-01T18:55:00Z)',
     required: true,
     aliases: ['ad'],
+  },
+  {
+    // Dot-separated segments (not kebab) so `parameterNameToPropertyName`
+    // resolves the param to `alarmDatetimeEnd` — the splitter in
+    // `GOScript` only camel-cases on `.` separators (a `-` would leave a
+    // dash in the property name and `config.alarmDatetimeEnd` would stay
+    // `undefined`). The CLI flag stays `--alarm-datetime-end`.
+    name: 'alarm.datetime.end',
+    type: Core.GOConfigParameterType.STRING,
+    description:
+      'Optional timestamp of the last occurrence for multi-occurrence alarms ' +
+      '(ISO 8601). When provided, the analysis window spans first→last padded ' +
+      'on both sides by the default time window.',
+    required: false,
+    aliases: ['ade'],
   },
   {
     name: 'aws.profiles',

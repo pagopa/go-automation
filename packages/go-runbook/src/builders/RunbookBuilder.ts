@@ -95,13 +95,13 @@ export class RunbookBuilder {
    * @param options - Execution options (e.g. continueOnFailure)
    * @returns This builder for chaining
    */
-  step(step: Step, options?: { readonly continueOnFailure?: boolean }): RunbookBuilder {
-    const descriptor: StepDescriptor = { step };
-    if (options?.continueOnFailure === true) {
-      this.stepDescriptors.push({ step, continueOnFailure: true });
-    } else {
-      this.stepDescriptors.push(descriptor);
-    }
+  step(step: Step, options?: { readonly continueOnFailure?: boolean; readonly silent?: boolean }): RunbookBuilder {
+    const descriptor: StepDescriptor = {
+      step,
+      ...(options?.continueOnFailure === true ? { continueOnFailure: true } : {}),
+      ...(options?.silent === true ? { silent: true } : {}),
+    };
+    this.stepDescriptors.push(descriptor);
     return this;
   }
 

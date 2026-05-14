@@ -1,0 +1,232 @@
+import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type { Step } from '../../types/Step.js';
+import type { StepKind } from '../../types/StepKind.js';
+import type { RunbookContext } from '../../types/RunbookContext.js';
+import type { StepResult } from '../../types/StepResult.js';
+
+import { extractCwField } from '../helpers/extractCwField.js';
+import { extractXRayTraceId } from '../helpers/extractXRayTraceId.js';
+import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
+import type { ApiGwErrorInfo } from './ApiGwErrorInfo.js';
+
+/**
+ * Configuration for {@link parseApiGwErrors}.
+ */
+export interface ParseApiGwErrorsConfig {
+  /** Unique step identifier */
+  readonly id: string;
+  /** Human-readable label for logs and UI */
+  readonly label: string;
+  /** Step id of the CW Logs query whose output to parse */
+  readonly fromStep: string;
+  /** Minimum HTTP status code to include (default: 500) */
+  readonly minStatusCode?: number;
+}
+
+/**
+ * Mapping between the CloudWatch field name produced by the canonical
+ * API GW Insights query and the var name written to the runbook context.
+ *
+ * Order: every entry triggers an `extractCwField` lookup on the first
+ * error row and, when the field is present (and not the literal `-`
+ * placeholder used by API GW for missing values), writes the associated
+ * context var.
+ */
+const FIELD_TO_VAR: ReadonlyArray<readonly [field: string, varName: keyof ApiGwErrorInfo, contextVar: string]> = [
+  ['errorMessage', 'errorMessage', 'apiGwErrorMessage'],
+  ['httpMethod', 'httpMethod', 'apiGwHttpMethod'],
+  ['path', 'path', 'apiGwPath'],
+  ['authorizeStatus', 'authorizeStatus', 'apiGwAuthorizeStatus'],
+  ['integrationServiceStatus', 'integrationServiceStatus', 'apiGwIntegrationServiceStatus'],
+  ['requestId', 'requestId', 'apiGwRequestId'],
+  ['authorizerRequestId', 'authorizerRequestId', 'apiGwAuthorizerRequestId'],
+  ['integrationRequestId', 'integrationRequestId', 'apiGwIntegrationRequestId'],
+];
+
+class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
+  readonly id: string;
+  readonly label: string;
+  readonly kind: StepKind = 'transform';
+
+  private readonly fromStep: string;
+  private readonly minStatusCode: number;
+
+  constructor(config: ParseApiGwErrorsConfig) {
+    this.id = config.id;
+    this.label = config.label;
+    this.fromStep = config.fromStep;
+    this.minStatusCode = config.minStatusCode ?? 500;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async execute(context: RunbookContext): Promise<StepResult<ApiGwErrorInfo>> {
+    const rawOutput = context.stepResults.get(this.fromStep);
+    if (rawOutput === undefined) {
+      return { success: false, error: `Step output not found: "${this.fromStep}"` };
+    }
+
+    const results = rawOutput as ReadonlyArray<ResultField[]>;
+
+    // The canonical API GW query filters on `status OR authorizeStatus
+    // OR integrationServiceStatus`; keep any row whose status fields
+    // surface an error on **at least one** of those three, otherwise we
+    // would silently drop rows whose only signal is on
+    // `authorizeStatus` or `integrationServiceStatus` (e.g. an
+    // authorizer 500 with `status=-`).
+    const errorRows: ResultField[][] = [];
+    for (const row of results) {
+      if (this.rowMeetsThreshold(row)) {
+        errorRows.push([...row]);
+      }
+    }
+
+    if (errorRows.length === 0) {
+      if (context.logger !== undefined) {
+        new ApiGwReporter(context.logger).apiGwResult({
+          errorCount: 0,
+          statusCode: '',
+          xRayTraceId: undefined,
+        });
+      }
+      return {
+        success: true,
+        output: { errorCount: 0, xRayTraceId: undefined, statusCode: '' },
+        vars: { apiGwErrorCount: '0' },
+        next: 'stop',
+      };
+    }
+
+    if (errorRows[0] === undefined) {
+      return { success: false, error: 'Unexpected empty row in results' };
+    }
+
+    const firstRow = errorRows[0];
+    const xRayTraceId = extractXRayTraceId(firstRow);
+    // The canonical API GW query OR-filters on three status fields, so
+    // `status` alone can be the literal `-` even when the row is an
+    // error (authorizer / integration failure). Pick the first numeric
+    // value among the three in canonical priority order so
+    // `apiGwStatusCode` is always the most meaningful primary code.
+    const statusCode = this.pickPrimaryStatusCode(firstRow);
+
+    const vars: Record<string, string> = {
+      apiGwErrorCount: String(errorRows.length),
+      apiGwStatusCode: statusCode,
+    };
+
+    if (xRayTraceId !== undefined) {
+      vars['xRayTraceId'] = xRayTraceId;
+    }
+
+    const additional: Partial<ApiGwErrorInfo> = {};
+    for (const [field, infoKey, contextVar] of FIELD_TO_VAR) {
+      const raw = extractCwField(firstRow, field);
+      if (raw === undefined) continue;
+      // API Gateway uses the literal `-` to mark "not present" for these
+      // fields. Persist it as a var (so case conditions can compare on
+      // `-`) but skip propagating it as a meaningful info value.
+      vars[contextVar] = raw;
+      if (raw !== '-' && raw !== '') {
+        (additional as Record<string, string>)[infoKey] = raw;
+      }
+    }
+
+    if (context.logger !== undefined) {
+      new ApiGwReporter(context.logger).apiGwResult({
+        errorCount: errorRows.length,
+        statusCode,
+        xRayTraceId,
+        ...(additional.errorMessage !== undefined ? { errorMessage: additional.errorMessage } : {}),
+        ...(additional.path !== undefined ? { path: additional.path } : {}),
+        ...(additional.httpMethod !== undefined ? { httpMethod: additional.httpMethod } : {}),
+      });
+    }
+
+    return {
+      success: true,
+      output: {
+        errorCount: errorRows.length,
+        xRayTraceId,
+        statusCode,
+        ...additional,
+      },
+      vars,
+    };
+  }
+
+  /**
+   * Returns `true` when at least one of the three status fields scanned
+   * by the canonical API GW query (`status`, `authorizeStatus`,
+   * `integrationServiceStatus`) parses to a number ≥ {@link minStatusCode}.
+   *
+   * API Gateway emits the literal `-` for fields that are not applicable
+   * to a request; `Number('-')` is `NaN`, so those values are skipped
+   * naturally without an explicit guard.
+   */
+  private rowMeetsThreshold(row: ReadonlyArray<ResultField>): boolean {
+    for (const field of STATUS_FIELDS) {
+      const raw = extractCwField(row, field);
+      if (raw === undefined) continue;
+      const num = Number(raw);
+      if (!Number.isNaN(num) && num >= this.minStatusCode) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Returns the first numeric value among the three canonical API GW
+   * status fields, in priority order: `status` > `authorizeStatus` >
+   * `integrationServiceStatus`. Used to populate `apiGwStatusCode` so
+   * known-case conditions and the reporter receive a meaningful code
+   * even when the row's error signal is on `authorizeStatus` /
+   * `integrationServiceStatus` (with `status='-'`).
+   *
+   * Returns an empty string when none of the three is a parseable
+   * number (extremely unlikely on rows that passed
+   * {@link rowMeetsThreshold}, but a safe fallback).
+   */
+  private pickPrimaryStatusCode(row: ReadonlyArray<ResultField>): string {
+    for (const field of STATUS_FIELDS) {
+      const raw = extractCwField(row, field);
+      if (raw === undefined) continue;
+      if (!Number.isNaN(Number(raw))) {
+        return raw;
+      }
+    }
+    return '';
+  }
+}
+
+/** Status fields that the canonical API GW query OR-filters on. */
+const STATUS_FIELDS = ['status', 'authorizeStatus', 'integrationServiceStatus'] as const;
+
+/**
+ * Factory: creates a step that parses API Gateway AccessLog query results.
+ *
+ * The step scans the rows produced by an upstream CloudWatch Logs Insights
+ * query, filters them by minimum HTTP status code, then extracts the
+ * X-Ray trace id, status code and the additional diagnostic fields
+ * emitted by the canonical AccessLog query (`errorMessage`, `httpMethod`,
+ * `path`, `authorizeStatus`, `integrationServiceStatus`, `requestId`,
+ * `authorizerRequestId`, `integrationRequestId`). When no errors are
+ * present the step short-circuits the runbook with `next: 'stop'`.
+ *
+ * Vars written:
+ * - `apiGwErrorCount`: total number of error rows (always)
+ * - `apiGwStatusCode`: status code of the first error row (when errors found)
+ * - `xRayTraceId`: trace id of the first error row (when extractable)
+ * - `apiGwErrorMessage`, `apiGwHttpMethod`, `apiGwPath`,
+ *   `apiGwAuthorizeStatus`, `apiGwIntegrationServiceStatus`,
+ *   `apiGwRequestId`, `apiGwAuthorizerRequestId`,
+ *   `apiGwIntegrationRequestId` when the corresponding field is present
+ *   in the first error row (the literal `-` produced by API Gateway is
+ *   preserved as-is so case conditions can compare against it).
+ *
+ * @param config - Step configuration
+ * @returns Step that extracts API Gateway error metadata
+ */
+export function parseApiGwErrors(config: ParseApiGwErrorsConfig): Step<ApiGwErrorInfo> {
+  return new ParseApiGwErrorsStepImpl(config);
+}

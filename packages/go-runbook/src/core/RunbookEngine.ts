@@ -7,6 +7,7 @@ import type { StepResult } from '../types/StepResult.js';
 import type { KnownCase } from '../types/KnownCase.js';
 import type { ErrorRecoveryInfo } from '../types/ErrorRecoveryInfo.js';
 import type { FlowDirective, FlowDirectiveString } from '../types/FlowDirective.js';
+import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js';
 import type { ServiceRegistry } from '../services/ServiceRegistry.js';
 import type { ExecutionEnvironment } from '../trace/ExecutionInfo.js';
 import type { EarlyResolutionTrace } from '../trace/EarlyResolutionTrace.js';
@@ -84,7 +85,7 @@ export class RunbookEngine {
     environment?: ExecutionEnvironment,
     signal?: AbortSignal,
   ): Promise<RunbookExecutionResult> {
-    const context: RunbookContext = createInitialContext(params, services, signal);
+    const context: RunbookContext = createInitialContext(params, services, signal, this.logger);
     const maxIterations = runbook.maxIterations ?? DEFAULT_MAX_ITERATIONS;
     const env = environment ?? DEFAULT_ENVIRONMENT;
 
@@ -92,11 +93,11 @@ export class RunbookEngine {
 
     let traceBuilder = new TraceBuilder(context.executionId, runbook, params);
     let finalContext: RunbookContext;
-    let status: 'completed' | 'failed' | 'aborted' = 'completed';
+    let status: RunbookExecutionStatus = 'completed';
     let failureReason: string | undefined;
 
     let earlyResolutionStepId: string | undefined;
-    let earlyMatchedCase: KnownCase | undefined;
+    let earlyMatchedCases: ReadonlyArray<KnownCase> = [];
 
     try {
       const stepsResult = await this.executeSteps(
@@ -109,54 +110,72 @@ export class RunbookEngine {
       );
       finalContext = stepsResult.context;
       traceBuilder = stepsResult.traceBuilder;
+      if (stepsResult.aborted) {
+        status = 'aborted';
+        failureReason = 'Execution aborted by signal';
+      }
       earlyResolutionStepId = stepsResult.earlyResolution?.resolvedAtStepId;
-      earlyMatchedCase = stepsResult.earlyResolution?.matchedCase;
+      earlyMatchedCases = stepsResult.earlyResolution?.matchedCases ?? [];
     } catch (error: unknown) {
       if (error instanceof RunbookMaxIterationsError) {
         throw error;
       }
-      status = 'failed';
-      failureReason = error instanceof Error ? error.message : String(error);
+      if (context.signal?.aborted === true) {
+        status = 'aborted';
+        failureReason = 'Execution aborted by signal';
+        this.logger.warning('Runbook execution aborted by signal');
+      } else {
+        status = 'failed';
+        failureReason = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Runbook execution failed: ${failureReason}`);
+      }
       finalContext = context;
-      this.logger.error(`Runbook execution failed: ${failureReason}`);
     }
 
-    // Match known cases
-    let matchedCase: KnownCase | undefined;
-    if (earlyMatchedCase !== undefined) {
-      // Early resolution succeeded — case was already matched during step execution
-      matchedCase = earlyMatchedCase;
+    // Collect every matched known case. Early resolution wins when it
+    // already produced matches (we don't re-evaluate at the end since
+    // the pipeline was short-circuited at that point).
+    let matchedCases: ReadonlyArray<KnownCase>;
+    if (status === 'aborted') {
+      matchedCases = [];
+    } else if (earlyMatchedCases.length > 0) {
+      matchedCases = earlyMatchedCases;
     } else {
       const caseResult = this.matchKnownCases(runbook.knownCases, finalContext, traceBuilder);
-      matchedCase = caseResult.matchedCase;
+      matchedCases = caseResult.matchedCases;
       traceBuilder = caseResult.traceBuilder;
     }
 
-    // Execute action
-    const action = matchedCase?.action ?? runbook.fallbackAction;
-    const actionResult = await this.actionExecutor.execute(action, finalContext);
-    traceBuilder = traceBuilder.traceAction(
-      actionResult.action,
-      actionResult.actionType,
-      actionResult.status,
-      actionResult.durationMs,
-      actionResult.resolvedMessage,
-      actionResult.error,
-    );
+    // Execute only the primary matched action. `matchedCases` still keeps
+    // every overlap for trace/reporting, but actions may notify/escalate/update
+    // and must not fan out implicitly. Fallback runs only when nothing matched.
+    if (status !== 'aborted') {
+      const primaryAction = matchedCases[0]?.action ?? runbook.fallbackAction;
+      const actionResult = await this.actionExecutor.execute(primaryAction, finalContext);
+      traceBuilder = traceBuilder.traceAction(
+        actionResult.action,
+        actionResult.actionType,
+        actionResult.status,
+        actionResult.durationMs,
+        actionResult.resolvedMessage,
+        actionResult.error,
+      );
+    }
 
     // Build trace
     const trace = traceBuilder.build(finalContext, status, env, failureReason);
 
     const earlyTag = earlyResolutionStepId !== undefined ? `, early resolution at: ${earlyResolutionStepId}` : '';
+    const caseTag = matchedCases.length === 0 ? 'none' : matchedCases.map((c) => c.id).join(', ');
     this.logger.info(
-      `Runbook completed: ${runbook.metadata.id} in ${trace.execution.durationMs}ms ` +
-        `(${finalContext.stepResults.size} steps, case: ${matchedCase?.id ?? 'none'}${earlyTag})`,
+      `Runbook ${status}: ${runbook.metadata.id} in ${trace.execution.durationMs}ms ` +
+        `(${finalContext.stepResults.size} steps, cases: ${caseTag}${earlyTag})`,
     );
 
     return {
       runbookId: runbook.metadata.id,
       status,
-      ...(matchedCase !== undefined ? { matchedCase } : {}),
+      matchedCases,
       durationMs: trace.execution.durationMs,
       stepsExecuted: finalContext.stepResults.size,
       finalContext,
@@ -181,7 +200,8 @@ export class RunbookEngine {
   ): Promise<{
     context: RunbookContext;
     traceBuilder: TraceBuilder;
-    earlyResolution?: { matchedCase: KnownCase; resolvedAtStepId: string };
+    earlyResolution?: { matchedCases: ReadonlyArray<KnownCase>; resolvedAtStepId: string };
+    aborted: boolean;
   }> {
     let context = initialContext;
     let traceBuilder = initialTraceBuilder;
@@ -199,6 +219,7 @@ export class RunbookEngine {
     let iterations = 0;
     let reachedVia: 'sequential' | 'goTo' | 'subPipeline' = 'sequential';
     const visitedSequence: string[] = [];
+    let aborted = false;
 
     while (currentIndex < stepDescriptors.length) {
       // Anti-loop protection
@@ -211,6 +232,7 @@ export class RunbookEngine {
       // Abort check before each step
       if (context.signal?.aborted === true) {
         this.logger.warning('Runbook execution aborted by signal');
+        aborted = true;
         break;
       }
 
@@ -227,7 +249,9 @@ export class RunbookEngine {
         throw new RunbookMaxIterationsError(runbookId, maxIterations, step.id, visitedSequence);
       }
 
-      this.logger.text(`[${step.id}] ${step.label}`);
+      if (descriptor.silent !== true) {
+        this.logger.text(`[${step.id}] ${step.label}`);
+      }
 
       const stepStartTime = Date.now();
       const stepStartedAt = new Date(stepStartTime).toISOString();
@@ -316,23 +340,29 @@ export class RunbookEngine {
         break;
       } else if (directive === 'resolve') {
         // Early resolution: evaluate known cases against current context
-        this.logger.text(`[${step.id}] 'resolve' signal received. Evaluating known cases...`);
+        if (descriptor.silent !== true) {
+          this.logger.text(`[${step.id}] 'resolve' signal received. Evaluating known cases...`);
+        }
 
         const earlyResult = this.evaluateKnownCasesForEarlyResolution(knownCases, context);
         traceBuilder = traceBuilder.traceEarlyResolution(earlyResult.trace);
 
-        if (earlyResult.matchedCase !== undefined) {
-          this.logger.info(
-            `[${step.id}] Early resolution succeeded: case "${earlyResult.matchedCase.id}" (${earlyResult.matchedCase.description})`,
-          );
+        if (earlyResult.matchedCases.length > 0) {
+          if (descriptor.silent !== true) {
+            const caseList = earlyResult.matchedCases.map((c) => `"${c.id}" (${c.description})`).join(', ');
+            this.logger.info(`[${step.id}] Early resolution succeeded: cases matched: ${caseList}`);
+          }
           return {
             context,
             traceBuilder,
-            earlyResolution: { matchedCase: earlyResult.matchedCase, resolvedAtStepId: step.id },
+            earlyResolution: { matchedCases: earlyResult.matchedCases, resolvedAtStepId: step.id },
+            aborted: false,
           };
         }
 
-        this.logger.text(`[${step.id}] 'resolve' signal received but no known case matched. Continuing.`);
+        if (descriptor.silent !== true) {
+          this.logger.text(`[${step.id}] 'resolve' signal received but no known case matched. Continuing.`);
+        }
         reachedVia = 'sequential';
         currentIndex++;
       } else if (directive === 'continue') {
@@ -349,7 +379,7 @@ export class RunbookEngine {
       }
     }
 
-    return { context, traceBuilder };
+    return { context, traceBuilder, aborted };
   }
 
   /**
@@ -429,26 +459,27 @@ export class RunbookEngine {
 
   /**
    * Core logic for evaluating known cases against a context.
-   * Cases are sorted by priority (descending). The first match wins.
+   * Cases are evaluated in priority-descending order; **every** match is
+   * collected (no short-circuit) so the caller can react to overlapping
+   * cases.
    *
    * @param knownCases - Known cases to evaluate
    * @param context - Current runbook context
-   * @param evaluateAll - If true, continues evaluating all cases after the first match (for full trace).
-   *                      If false, short-circuits on the first match.
-   * @returns Matched case and all evaluation traces
+   * @returns All matched cases (priority desc) and the full evaluation trace
    */
   private evaluateKnownCasesCore(
     knownCases: ReadonlyArray<KnownCase>,
     context: RunbookContext,
-    evaluateAll: boolean,
-  ): { matchedCase: KnownCase | undefined; evaluations: CaseEvaluationTrace[] } {
+  ): { matchedCases: ReadonlyArray<KnownCase>; evaluations: CaseEvaluationTrace[] } {
     const sorted = [...knownCases].sort((a, b) => b.priority - a.priority);
     const evaluations: CaseEvaluationTrace[] = [];
-    let matchedCase: KnownCase | undefined;
+    const matchedCases: KnownCase[] = [];
 
     for (const knownCase of sorted) {
-      const matched = this.conditionEvaluator.evaluate(knownCase.condition, context);
-      const resolvedValues = this.conditionEvaluator.collectResolvedValues(knownCase.condition, context);
+      const { matched, resolvedValues } = this.conditionEvaluator.evaluateWithResolvedValues(
+        knownCase.condition,
+        context,
+      );
 
       evaluations.push({
         caseId: knownCase.id,
@@ -459,51 +490,49 @@ export class RunbookEngine {
         resolvedValues,
       });
 
-      if (matched && matchedCase === undefined) {
-        matchedCase = knownCase;
-        if (!evaluateAll) {
-          break;
-        }
+      if (matched) {
+        matchedCases.push(knownCase);
       }
     }
 
-    return { matchedCase, evaluations };
+    return { matchedCases, evaluations };
   }
 
   /**
    * Evaluates known cases during step execution for early resolution.
-   * Evaluates all cases (even after a match) to produce a complete trace.
+   * Returns every case that matched (sorted by priority desc) plus the
+   * complete evaluation trace.
    *
    * @param knownCases - Known cases to evaluate
    * @param context - Current context at the time of the resolve signal
-   * @returns Matched case (if any) and the early resolution trace
+   * @returns Matched cases (possibly empty) and the early resolution trace
    */
   private evaluateKnownCasesForEarlyResolution(
     knownCases: ReadonlyArray<KnownCase>,
     context: RunbookContext,
-  ): { matchedCase: KnownCase | undefined; trace: EarlyResolutionTrace } {
-    const { matchedCase, evaluations } = this.evaluateKnownCasesCore(knownCases, context, true);
+  ): { matchedCases: ReadonlyArray<KnownCase>; trace: EarlyResolutionTrace } {
+    const { matchedCases, evaluations } = this.evaluateKnownCasesCore(knownCases, context);
 
     return {
-      matchedCase,
+      matchedCases,
       trace: {
-        resolved: matchedCase !== undefined,
-        ...(matchedCase !== undefined ? { matchedCaseId: matchedCase.id } : {}),
+        resolved: matchedCases.length > 0,
+        matchedCaseIds: matchedCases.map((c) => c.id),
         evaluations,
       },
     };
   }
 
   /**
-   * Evaluates known cases against the final context.
-   * Short-circuits on the first match. Traces each evaluation via TraceBuilder.
+   * Evaluates known cases against the final context. Collects every
+   * matching case and traces every evaluation via TraceBuilder.
    */
   private matchKnownCases(
     knownCases: ReadonlyArray<KnownCase>,
     context: RunbookContext,
     initialTraceBuilder: TraceBuilder,
-  ): { matchedCase: KnownCase | undefined; traceBuilder: TraceBuilder } {
-    const { matchedCase, evaluations } = this.evaluateKnownCasesCore(knownCases, context, false);
+  ): { matchedCases: ReadonlyArray<KnownCase>; traceBuilder: TraceBuilder } {
+    const { matchedCases, evaluations } = this.evaluateKnownCasesCore(knownCases, context);
 
     // Build a lookup for the original KnownCase objects (needed by traceCaseEvaluation)
     const caseById = new Map<string, KnownCase>();
@@ -519,12 +548,17 @@ export class RunbookEngine {
       }
     }
 
-    if (matchedCase !== undefined) {
-      this.logger.success(`Known case identified: ${matchedCase.description}`);
+    const [primary, ...rest] = matchedCases;
+    if (primary !== undefined) {
+      const description =
+        rest.length === 0
+          ? `Known case identified: ${primary.description}`
+          : `Known cases identified (${matchedCases.length}): ${matchedCases.map((c) => c.description).join(' | ')}`;
+      this.logger.success(description);
     } else {
       this.logger.warning('No known case matches the result.');
     }
 
-    return { matchedCase, traceBuilder };
+    return { matchedCases, traceBuilder };
   }
 }

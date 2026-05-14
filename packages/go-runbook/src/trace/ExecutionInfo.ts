@@ -1,4 +1,5 @@
 import type { RunbookType } from '../types/RunbookType.js';
+import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js';
 
 /**
  * General information about a runbook execution.
@@ -22,7 +23,7 @@ export interface ExecutionInfo {
   /** Total duration in milliseconds */
   readonly durationMs: number;
   /** Final execution status */
-  readonly status: 'completed' | 'failed' | 'aborted';
+  readonly status: RunbookExecutionStatus;
   /** Failure reason (only if status !== 'completed') */
   readonly failureReason?: string;
   /** Execution environment information */

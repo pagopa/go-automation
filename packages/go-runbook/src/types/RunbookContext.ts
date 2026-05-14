@@ -1,3 +1,4 @@
+import type { GOLogger } from '@go-automation/go-common/core';
 import type { LogEntry } from './LogEntry.js';
 import type { ErrorRecoveryInfo } from './ErrorRecoveryInfo.js';
 import type { ServiceRegistry } from '../services/ServiceRegistry.js';
@@ -25,4 +26,10 @@ export interface RunbookContext {
   readonly recoveredErrors: ReadonlyArray<ErrorRecoveryInfo>;
   /** Abort signal for cancelling the execution. Propagated to all service calls. */
   readonly signal?: AbortSignal;
+  /**
+   * Optional logger surfaced to steps that want to emit user-facing
+   * progress (e.g. the API Gateway reporter). Steps that do not need it
+   * can ignore the field; the engine itself uses its own logger instance.
+   */
+  readonly logger?: GOLogger;
 }

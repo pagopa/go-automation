@@ -9,6 +9,9 @@ export interface CaseMatchingTrace {
   readonly casesEvaluated: number;
   /** Detail of each case evaluation */
   readonly evaluations: ReadonlyArray<CaseEvaluationTrace>;
-  /** ID of the matched case (null if no match) */
-  readonly matchedCaseId: string | null;
+  /**
+   * IDs of every known case that matched the final context, sorted by
+   * priority descending. Empty array when no case matched.
+   */
+  readonly matchedCaseIds: ReadonlyArray<string>;
 }

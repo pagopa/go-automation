@@ -1,27 +1,62 @@
 /**
  * Constants for the pn-delivery-B2B-ApiGwAlarm runbook.
+ *
+ * Declarative data only — the pipeline that consumes these constants is
+ * built by {@link apigw.createApiGwAlarmRunbook}.
  */
+
+import type { apigw } from '@go-automation/go-runbook';
 
 /** API Gateway AccessLog log group for pn-delivery B2B public API */
 export const API_GW_LOG_GROUP =
   'pn-delivery-microsvc-prod-DeliveryMicroservicePublicAPI-1LXSVUHQG11JS-PublicApiLogGroup-Q9vhNTsSTzh7';
 
-/** ECS log group for pn-delivery */
-export const DELIVERY_LOG_GROUP = '/aws/ecs/pn-delivery';
-
-/** ECS log group for pn-external-registries */
-export const EXTERNAL_REGISTRIES_LOG_GROUP = '/aws/ecs/pn-external-registries';
-
-/** ECS log group for pn-data-vault */
-export const DATA_VAULT_LOG_GROUP = '/aws/ecs/pn-data-vault';
-
-/** ECS log group for pn-ss (safe storage) */
-export const SS_LOG_GROUP = '/aws/ecs/pn-ss';
-
 /**
- * Default minimum HTTP status code for filtering API GW errors.
- * Set to 400 to capture both 4xx (e.g. 403 from pn-ss) and 5xx errors.
- * Source: Runbook PDF – the default query uses >= 500, but >= 400 is suggested
- * if the output is empty or to include 4xx error patterns.
+ * Minimum status code considered an error.
+ *
+ * Set to `400` (instead of the canonical `500`) so 4xx errors observed
+ * on `pn-ss` (e.g. 403 FORBIDDEN) are also captured. The query template
+ * canonically filters `>= 500`, but the runbook PDF explicitly suggests
+ * relaxing the threshold for this alarm to surface 4xx evidence.
  */
 export const DEFAULT_MIN_STATUS_CODE = 400;
+
+/**
+ * Entry service: every trace originating from the B2B API Gateway lands
+ * on `pn-delivery` first.
+ */
+export const ENTRY_SERVICE: apigw.ApiGwService = {
+  name: 'pn-delivery',
+  logGroup: '/aws/ecs/pn-delivery',
+  varPrefix: 'delivery',
+};
+
+/**
+ * Additional microservices reachable from {@link ENTRY_SERVICE} through
+ * known URLs. Order is irrelevant.
+ */
+export const REACHABLE_SERVICES: ReadonlyArray<apigw.ApiGwService> = [
+  {
+    name: 'pn-external-registries',
+    logGroup: '/aws/ecs/pn-external-registries',
+    varPrefix: 'externalRegistries',
+  },
+  {
+    name: 'pn-data-vault',
+    logGroup: '/aws/ecs/pn-data-vault',
+    varPrefix: 'dataVault',
+  },
+  {
+    name: 'pn-ss',
+    logGroup: '/aws/ecs/pn-ss',
+    varPrefix: 'ss',
+  },
+];
+
+/**
+ * Known URLs are not yet formalised for this alarm in `go-runbooks`.
+ * Once the JSON canonical companion is published the registry will be
+ * populated; for now we declare an empty registry so the structure of
+ * the runbook stays uniform with `address-book-io-api-gw-alarm`.
+ */
+export const KNOWN_URLS: ReadonlyArray<apigw.KnownUrl> = [];
