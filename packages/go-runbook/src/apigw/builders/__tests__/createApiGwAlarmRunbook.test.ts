@@ -1,12 +1,17 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { GOLogger } from '@go-automation/go-common/core';
+import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
+
 import { createApiGwAlarmRunbook } from '../createApiGwAlarmRunbook.js';
 import type { ApiGwAlarmConfig } from '../../types/ApiGwAlarmConfig.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { StepDescriptor } from '../../../types/StepDescriptor.js';
 import type { KnownCase } from '../../../types/KnownCase.js';
+import { RunbookEngine } from '../../../core/RunbookEngine.js';
+import { ConditionEvaluator } from '../../../core/ConditionEvaluator.js';
 
 function fakeContext(params: ReadonlyArray<readonly [string, string]>): RunbookContext {
   return {
@@ -24,6 +29,10 @@ function fakeContext(params: ReadonlyArray<readonly [string, string]>): RunbookC
 function getTraceQuery(traceInfo: Readonly<Record<string, unknown>> | undefined): string {
   const value = traceInfo?.['query'];
   return typeof value === 'string' ? value : '';
+}
+
+function cwRow(fields: Record<string, string>): ResultField[] {
+  return Object.entries(fields).map(([field, value]) => ({ field, value }));
 }
 
 function baseConfig(overrides: Partial<ApiGwAlarmConfig> = {}): ApiGwAlarmConfig {
@@ -195,6 +204,80 @@ describe('createApiGwAlarmRunbook', () => {
     assert.strictEqual(runbook.knownCases.length, 1);
     assert.strictEqual(runbook.knownCases[0]?.id, 'demo');
     assert.strictEqual(runbook.maxIterations, 42);
+  });
+
+  it('stops on every matching known case before following a KnownUrl target', async () => {
+    const knownCases: ReadonlyArray<KnownCase> = [
+      {
+        id: 'primary',
+        description: 'Primary matching case',
+        priority: 20,
+        condition: { type: 'compare', ref: 'vars.aNextUrlTarget', operator: '==', value: 'pn-b' },
+        action: { type: 'log', level: 'info', message: 'primary' },
+      },
+      {
+        id: 'secondary',
+        description: 'Secondary matching case',
+        priority: 10,
+        condition: { type: 'compare', ref: 'vars.aNextUrlTarget', operator: '==', value: 'pn-b' },
+        action: { type: 'log', level: 'info', message: 'secondary' },
+      },
+    ];
+    const calls: string[] = [];
+    const services = {
+      cloudWatchLogs: {
+        query: async (
+          logGroups: ReadonlyArray<string>,
+          _query: string,
+        ): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+          await Promise.resolve();
+          const logGroup = logGroups[0] ?? '';
+          calls.push(logGroup);
+          if (logGroup === '/aws/apigw/main') {
+            return [
+              cwRow({
+                status: '500',
+                authorizeStatus: '-',
+                integrationServiceStatus: '-',
+                xrayTraceId: 'Root=1-abc',
+              }),
+            ];
+          }
+          if (logGroup === '/aws/ecs/pn-a') {
+            return [
+              cwRow({
+                level: 'ERROR',
+                '@message': 'boom calling http://internal/pn-b/resource',
+              }),
+            ];
+          }
+          return [cwRow({ level: 'ERROR', '@message': 'pn-b should not be queried' })];
+        },
+      },
+    } as unknown as ServiceRegistry;
+
+    const runbook = createApiGwAlarmRunbook(
+      baseConfig({
+        knownCases,
+        knownUrls: [{ url: 'http://internal/pn-b/', target: 'pn-b' }],
+      }),
+    );
+
+    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+      runbook,
+      new Map([
+        ['startTime', '2026-01-01T00:00:00.000Z'],
+        ['endTime', '2026-01-01T00:10:00.000Z'],
+      ]),
+      services,
+    );
+
+    assert.deepStrictEqual(
+      result.matchedCases.map((c) => c.id),
+      ['primary', 'secondary'],
+    );
+    assert.strictEqual(result.resolvedAtStep, 'analyze-pn-a');
+    assert.deepStrictEqual(calls, ['/aws/apigw/main', '/aws/ecs/pn-a']);
   });
 
   it('accepts an entry-only configuration (no additional services)', () => {

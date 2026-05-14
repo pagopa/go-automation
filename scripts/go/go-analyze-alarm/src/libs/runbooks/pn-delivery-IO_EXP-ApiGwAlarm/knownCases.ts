@@ -16,21 +16,21 @@ import type { KnownCase } from '@go-automation/go-runbook';
 // 	 m
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   {
-    id: 'pn-exception-500',
+    id: 'downstream-pdv-500-internal-server-error',
     description: 'Allarme',
     priority: 100,
     condition: {
       type: 'contains',
-      ref: 'vars.dataVaultErrorMsg',
-      regex: 'pn-exception 500 catched problem=class Problem',
+      ref: 'steps.query-pn-data-vault',
+      regex: '\\[DOWNSTREAM\\] Service PersonalDataVault_UserRegistry returned errors=500 Internal Server Error',
     },
     action: {
       type: 'log',
       level: 'info',
       message:
-        '[CASO NOTO] 500 da AppIO - Internal Server Error\n' +
+        '[CASO NOTO] [DOWNSTREAM] Service PersonalDataVault_UserRegistry returned errors=500 Internal Server Error\n' +
         'Risoluzione: Chiusura - caso noto\n' +
-        'Downstream: AppIO\n',
+        'Downstream: PersonalDataVault\n',
     },
   },
 ];

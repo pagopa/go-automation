@@ -18,4 +18,5 @@
  * via the API parameters of `StartQueryCommand`.
  */
 export const DEFAULT_SERVICE_QUERY_TEMPLATE = `{{FILTER_CLAUSE}}
+| filter level == 'ERROR'
 | display @timestamp, level, ms, @message, trace_id`;

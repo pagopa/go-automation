@@ -19,8 +19,9 @@ export const IO_AUTHORIZER_LAMBDA_LOG_GROUP = '/aws/lambda/pn-ioAuthorizerLambda
  */
 export const ENTRY_SERVICE: apigw.ApiGwService = {
   name: 'pn-delivery',
-  logGroup: '/aws/ecs/pn-delivery',
   varPrefix: 'delivery',
+  logGroup: '/aws/ecs/pn-delivery',
+  //executionLogGroup: 'API-Gateway-Execution-Logs_64pohg7bg0/unique',
 };
 
 /**

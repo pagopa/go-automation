@@ -43,6 +43,56 @@ describe('decideNext', () => {
     assert.strictEqual(result.output?.decision.kind, 'goto-service');
   });
 
+  it('keeps fallbackUuid when moving to the target service', async () => {
+    const step = decideNext({
+      id: 'decide',
+      label: 'Decide',
+      serviceName: 'pn-user-attributes',
+      varPrefix: 'userAttributes',
+      servicesInRunbook: services,
+    });
+
+    const result = await step.execute(
+      createContext({
+        userAttributesNextUrlTarget: 'pn-external-registries',
+        userAttributesNextUrl: 'http://internal/...',
+        userAttributesFallbackUuidFresh: 'true',
+        xRayTraceId: '1-abc',
+        fallbackUuid: 'fb-1',
+      }),
+    );
+
+    assert.deepStrictEqual(result.next, { goTo: 'query-pn-external-registries' });
+    assert.strictEqual(result.vars?.['terminationReason'], '');
+  });
+
+  it('retries the same service with only the fresh trace_id after a fallback query', async () => {
+    const step = decideNext({
+      id: 'decide',
+      label: 'Decide',
+      serviceName: 'pn-data-vault',
+      varPrefix: 'dataVault',
+      servicesInRunbook: services,
+    });
+
+    const result = await step.execute(
+      createContext({
+        dataVaultFreshTraceId: '1-3d472be7-2977635208a92722b97b5e24',
+        dataVaultFreshTraceIdRaw: '3d472be72977635208a92722b97b5e24',
+        xRayTraceId: '1-abc',
+        fallbackUuid: 'fb-1',
+      }),
+    );
+
+    assert.deepStrictEqual(result.next, { goTo: 'query-pn-data-vault' });
+    assert.strictEqual(result.output?.decision.kind, 'trace-id-swap');
+    assert.strictEqual(result.vars?.['xRayTraceId'], '1-3d472be7-2977635208a92722b97b5e24');
+    assert.strictEqual(result.vars?.['fallbackUuid'], '');
+    assert.strictEqual(result.vars?.['dataVaultSwappedTraceIdRaw'], '3d472be72977635208a92722b97b5e24');
+    assert.strictEqual(result.vars?.['apiGwTraceIdSwapCount'], '1');
+    assert.strictEqual(result.vars?.['apiGwOriginalTraceId'], '1-abc');
+  });
+
   it('stops with external-downstream when the target is outside the runbook', async () => {
     const step = decideNext({
       id: 'decide',
@@ -91,7 +141,7 @@ describe('decideNext', () => {
     assert.strictEqual(result.vars?.['lastErrorMsg'], 'self target detected');
   });
 
-  it('retries the same service on a fresh fallback UUID', async () => {
+  it('does not retry the same service for fallback UUID alone', async () => {
     const step = decideNext({
       id: 'decide',
       label: 'Decide',
@@ -109,8 +159,8 @@ describe('decideNext', () => {
       }),
     );
 
-    assert.deepStrictEqual(result.next, { goTo: 'query-pn-data-vault' });
-    assert.strictEqual(result.vars?.['dataVaultFallbackUuidFresh'], 'false');
+    assert.strictEqual(result.next, 'stop');
+    assert.strictEqual(result.vars?.['terminationReason'], 'no-match');
   });
 
   it('stops with no-match when there is nothing left to follow', async () => {
@@ -146,6 +196,28 @@ describe('decideNext', () => {
         userAttributesNextUrl: 'http://internal',
         xRayTraceId: '1-abc',
         apiGwVisitedKeys: visited,
+      }),
+    );
+
+    assert.strictEqual(result.next, 'stop');
+    assert.strictEqual(result.vars?.['terminationReason'], 'loop-detected');
+  });
+
+  it('stops when trace_id swap would exceed the safety limit', async () => {
+    const step = decideNext({
+      id: 'decide',
+      label: 'Decide',
+      serviceName: 'pn-data-vault',
+      varPrefix: 'dataVault',
+      servicesInRunbook: services,
+    });
+
+    const result = await step.execute(
+      createContext({
+        dataVaultFreshTraceId: '1-3d472be7-2977635208a92722b97b5e24',
+        xRayTraceId: '1-abc',
+        fallbackUuid: 'fb-1',
+        apiGwTraceIdSwapCount: '5',
       }),
     );
 

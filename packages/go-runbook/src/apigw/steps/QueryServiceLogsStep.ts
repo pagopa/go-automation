@@ -143,12 +143,14 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
         reporter?.sectionService(visitNumber, this.serviceName, this.entryService, this.logGroups);
       }
 
-      const identifiers: string[] = [];
-      if (traceId !== '') identifiers.push(`xRayTraceId=${traceId}`);
-      if (fallback !== '') identifiers.push(`fallbackUuid=${fallback}`);
+      const activeIdentifier = this.resolveActiveIdentifier(traceId, fallback);
+      const identifiers =
+        activeIdentifier === undefined
+          ? []
+          : [`${activeIdentifier.kind === 'fallback' ? 'fallbackUuid' : 'xRayTraceId'}=${activeIdentifier.value}`];
       reporter?.query(queryNumber, identifiers);
 
-      if (traceId === '' && fallback === '') {
+      if (activeIdentifier === undefined) {
         // Without any identifier the canonical `like` filter would
         // degenerate to a match-all. Skip the AWS call and return an
         // empty result set so downstream analysis can proceed safely.
@@ -160,6 +162,8 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
             [QUERY_COUNTER_VAR]: String(queryNumber),
             [VISIT_COUNTER_VAR]: String(visitNumber),
             [LAST_SERVICE_VAR]: this.serviceName,
+            apiGwCurrentQueryIdentifierMode: 'none',
+            apiGwCurrentQueryIdentifierValue: '',
             apiGwServicesVisited: updateChain(
               context.vars.get('apiGwServicesVisited'),
               this.serviceName,
@@ -201,6 +205,8 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
           [QUERY_COUNTER_VAR]: String(queryNumber),
           [VISIT_COUNTER_VAR]: String(visitNumber),
           [LAST_SERVICE_VAR]: this.serviceName,
+          apiGwCurrentQueryIdentifierMode: activeIdentifier.kind,
+          apiGwCurrentQueryIdentifierValue: activeIdentifier.value,
           apiGwServicesVisited: updateChain(
             context.vars.get('apiGwServicesVisited'),
             this.serviceName,
@@ -216,22 +222,31 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
    * Assembles the `filter` clause and injects it into the query template.
    *
    * Each identifier becomes a `@message like '...'` predicate, escaped via
-   * {@link escapeSqlString}; the predicates are joined with `or`.
+   * {@link escapeSqlString}. Fallback UUID has precedence over X-Ray trace:
+   * once present it is the only identifier used for the service query.
    */
   private buildQuery(traceId: string, fallback: string): string {
-    const clauses: string[] = [];
-    const trimmedTrace = traceId.trim();
-    const trimmedFallback = fallback.trim();
-
-    if (trimmedTrace !== '') {
-      clauses.push(`@message like '${escapeSqlString(trimmedTrace)}'`);
-    }
-    if (trimmedFallback !== '') {
-      clauses.push(`@message like '${escapeSqlString(trimmedFallback)}'`);
-    }
-
-    const filterClause = clauses.length === 0 ? '' : `filter ${clauses.join(' or ')}`;
+    const activeIdentifier = this.resolveActiveIdentifier(traceId, fallback);
+    const filterClause =
+      activeIdentifier === undefined ? '' : `filter @message like '${escapeSqlString(activeIdentifier.value)}'`;
     return this.queryTemplate.split(FILTER_CLAUSE_PLACEHOLDER).join(filterClause);
+  }
+
+  private resolveActiveIdentifier(
+    traceId: string,
+    fallback: string,
+  ): { readonly kind: 'trace' | 'fallback'; readonly value: string } | undefined {
+    const trimmedFallback = fallback.trim();
+    if (trimmedFallback !== '') {
+      return { kind: 'fallback', value: trimmedFallback };
+    }
+
+    const trimmedTrace = traceId.trim();
+    if (trimmedTrace !== '') {
+      return { kind: 'trace', value: trimmedTrace };
+    }
+
+    return undefined;
   }
 }
 
@@ -268,12 +283,14 @@ function updateChain(previous: string | undefined, serviceName: string, logCount
 
 /**
  * Factory: creates a step that queries a microservice log group filtering
- * by X-Ray trace id and/or fallback UUID, assembled dynamically from the
+ * by X-Ray trace id or fallback UUID, assembled dynamically from the
  * runbook context.
  *
  * Behavioural contract:
  * - if both identifiers are missing/empty the step returns an empty
  *   result set without contacting CloudWatch Logs;
+ * - if `fallbackUuid` is present, it is the only filter used; otherwise
+ *   the query uses `xRayTraceId`;
  * - identifiers found in `context.vars` are quoted and escaped (single
  *   quote doubling) before being placed in the `like '...'` predicates;
  * - the produced query carries no time-range filter — the window is

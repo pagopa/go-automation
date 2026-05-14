@@ -15,6 +15,15 @@ import type { TerminationReason } from '../types/TerminationReason.js';
 const VISITED_KEYS_VAR = 'apiGwVisitedKeys';
 
 /**
+ * Var name that tracks the number of consecutive `trace_id` swaps
+ * performed by the analysis loop. Hard-capped to prevent pathological
+ * fallback traces from bouncing forever.
+ */
+const TRACE_ID_SWAP_COUNT_VAR = 'apiGwTraceIdSwapCount';
+
+const MAX_TRACE_ID_SWAPS = 5;
+
+/**
  * Configuration for {@link decideNext}.
  */
 export interface DecideNextConfig {
@@ -43,7 +52,7 @@ export interface DecideNextConfig {
 export interface DecideNextOutput {
   readonly decision:
     | { readonly kind: 'goto-service'; readonly target: string }
-    | { readonly kind: 'fallback-retry' }
+    | { readonly kind: 'trace-id-swap'; readonly target: string }
     | { readonly kind: 'stop'; readonly reason: TerminationReason; readonly downstreamTarget?: string };
 }
 
@@ -69,7 +78,8 @@ class DecideNextStepImpl implements Step<DecideNextOutput> {
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<DecideNextOutput>> {
     const nextUrlTarget = (context.vars.get(`${this.varPrefix}NextUrlTarget`) ?? '').trim();
-    const fallbackFresh = (context.vars.get(`${this.varPrefix}FallbackUuidFresh`) ?? 'false') === 'true';
+    const freshTraceId = (context.vars.get(`${this.varPrefix}FreshTraceId`) ?? '').trim();
+    const freshTraceIdRaw = (context.vars.get(`${this.varPrefix}FreshTraceIdRaw`) ?? '').trim();
 
     const xRayTraceId = (context.vars.get('xRayTraceId') ?? '').trim();
     const fallbackUuid = (context.vars.get('fallbackUuid') ?? '').trim();
@@ -81,6 +91,42 @@ class DecideNextStepImpl implements Step<DecideNextOutput> {
     const nextVisited = new Set(visited);
     nextVisited.add(currentKey);
 
+    // 1) A fallback-UUID query found a concrete trace_id in the service
+    // logs. Re-run the same service immediately with ONLY that trace id:
+    // fallbackUuid is cleared so QueryServiceLogsStep does not keep using it.
+    if (freshTraceId !== '') {
+      const rawSwapCount = Number(context.vars.get(TRACE_ID_SWAP_COUNT_VAR) ?? '0');
+      const swapCount = Number.isFinite(rawSwapCount) ? rawSwapCount : 0;
+      if (swapCount >= MAX_TRACE_ID_SWAPS) {
+        reporter?.decisionLoopDetected(this.serviceName);
+        return this.stopResult('loop-detected', nextVisited, reporter, context);
+      }
+
+      const destKey = buildKey(this.serviceName, freshTraceId, '');
+      if (visited.has(destKey)) {
+        reporter?.decisionLoopDetected(this.serviceName);
+        return this.stopResult('loop-detected', nextVisited, reporter, context);
+      }
+
+      reporter?.decisionTraceIdSwap(this.serviceName, freshTraceIdRaw || freshTraceId, freshTraceId);
+      return {
+        success: true,
+        output: { decision: { kind: 'trace-id-swap', target: this.serviceName } },
+        vars: {
+          [VISITED_KEYS_VAR]: serializeVisitedKeys(nextVisited),
+          xRayTraceId: freshTraceId,
+          fallbackUuid: '',
+          [`${this.varPrefix}FallbackUuidFresh`]: 'false',
+          [`${this.varPrefix}SwappedTraceId`]: freshTraceId,
+          [`${this.varPrefix}SwappedTraceIdRaw`]: freshTraceIdRaw || freshTraceId,
+          [TRACE_ID_SWAP_COUNT_VAR]: String(swapCount + 1),
+          ...(context.vars.get('apiGwOriginalTraceId') === undefined ? { apiGwOriginalTraceId: xRayTraceId } : {}),
+          terminationReason: '',
+        },
+        next: { goTo: `${this.queryStepPrefix}${this.serviceName}` } satisfies FlowDirective,
+      };
+    }
+
     // A KnownUrl pointing back to the current service is not useful
     // drill-down evidence: following it would re-run the same query
     // with the same identifiers forever.
@@ -89,7 +135,7 @@ class DecideNextStepImpl implements Step<DecideNextOutput> {
       return this.stopResult('loop-detected', nextVisited, reporter, context);
     }
 
-    // 1) Known URL pointing to a microservice in scope → loop into it.
+    // 2) Known URL pointing to a microservice in scope → loop into it.
     if (nextUrlTarget !== '' && this.servicesInRunbook.has(nextUrlTarget)) {
       const destKey = buildKey(nextUrlTarget, xRayTraceId, fallbackUuid);
       if (visited.has(destKey)) {
@@ -108,31 +154,10 @@ class DecideNextStepImpl implements Step<DecideNextOutput> {
       };
     }
 
-    // 2) Known URL pointing outside the runbook scope → terminate.
+    // 3) Known URL pointing outside the runbook scope → terminate.
     if (nextUrlTarget !== '') {
       reporter?.decisionExternalDownstream(nextUrlTarget);
       return this.stopResult('external-downstream', nextVisited, reporter, context, nextUrlTarget);
-    }
-
-    // 3) Fallback UUID just discovered → re-query the current service
-    //    with the broader identifier set.
-    if (fallbackFresh) {
-      const destKey = buildKey(this.serviceName, xRayTraceId, fallbackUuid);
-      if (visited.has(destKey)) {
-        reporter?.decisionLoopDetected(this.serviceName);
-        return this.stopResult('loop-detected', nextVisited, reporter, context);
-      }
-      reporter?.decisionFallbackRetry(this.serviceName);
-      return {
-        success: true,
-        output: { decision: { kind: 'fallback-retry' } },
-        vars: {
-          [VISITED_KEYS_VAR]: serializeVisitedKeys(nextVisited),
-          [`${this.varPrefix}FallbackUuidFresh`]: 'false',
-          terminationReason: '',
-        },
-        next: { goTo: `${this.queryStepPrefix}${this.serviceName}` } satisfies FlowDirective,
-      };
     }
 
     // 4) Nothing left to do → terminate with the most representative
@@ -193,14 +218,17 @@ function serializeVisitedKeys(set: ReadonlySet<string>): string {
  *
  * The step is meant to run **after** the corresponding `analyze-<service>`
  * step; it inspects:
+ * - `<varPrefix>FreshTraceId` / `<varPrefix>FreshTraceIdRaw` to re-query
+ *   the same service with a concrete trace id after fallback-UUID lookup,
  * - `<varPrefix>NextUrl` / `<varPrefix>NextUrlTarget` to detect a known URL,
- * - `<varPrefix>FallbackUuidFresh` to detect a new FALLBACK-UUID,
+ * - `fallbackUuid` to carry fallback-driven correlation to the next service,
  *
  * and emits one of three flow directives:
  *
+ * - `{ goTo: query-<currentService> }` when a fallback query surfaced a
+ *   fresh `trace_id`; `fallbackUuid` is cleared so the next query uses
+ *   only the canonical trace id;
  * - `{ goTo: query-<target> }` when the URL points to a service in scope;
- * - `{ goTo: query-<currentService> }` when a fresh FALLBACK-UUID was
- *   extracted (re-query the same service with the broader filter);
  * - `'stop'` otherwise (external downstream, loop detected, or no signal).
  *
  * The step keeps a running set of `(service|xRayTraceId|fallbackUuid)`

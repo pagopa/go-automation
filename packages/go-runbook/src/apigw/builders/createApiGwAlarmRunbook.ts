@@ -30,14 +30,15 @@ const DEFAULT_MIN_STATUS_CODE = 500;
  *    `apiGwErrorCount`; short-circuits the runbook when no errors.
  * 4. Any custom `preSteps` (e.g. Lambda authorizer probe).
  * 5. For the entry service **and** every additional service, a triplet:
- *    - `query-<service>`: CloudWatch query filtered by xRayTraceId / fallbackUuid
+ *    - `query-<service>`: CloudWatch query filtered by fallbackUuid when
+ *      present, otherwise by xRayTraceId
  *    - `analyze-<service>`: extracts error msg, scans for known URLs,
- *      detects new FALLBACK-UUID, and may either signal
- *      `next: 'resolve'` to let the engine attempt known-case
- *      resolution (including when no error message is found) or emit
- *      `goTo` for drill-down / trace-id swap flows
+ *      promotes a new FALLBACK-UUID only when a known downstream URL is
+ *      present, detects trace_id, then always signals `next: 'resolve'`
+ *      so known cases are evaluated before traversal
  *    - `decide-<service>`: decides the next flow directive (jump to
- *      another service, retry with FALLBACK-UUID, or terminate)
+ *      another service, retry the same service with a fresh trace_id,
+ *      or terminate)
  *
  * The pipeline is dynamic: only the entry-service triplet is reached
  * sequentially; every other triplet is entered via `goTo` emitted by a

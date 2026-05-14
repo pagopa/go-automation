@@ -22,9 +22,9 @@ const FALLBACK_UUID_PATTERN =
  * helper scans the `message` (or `@message`) field of each row and
  * returns the first UUID that matches the canonical pattern.
  *
- * This identifier complements the X-Ray trace id when querying logs in
- * downstream microservices — `QueryServiceLogsStep` joins the two with
- * `OR` clauses so a single query covers both identifiers.
+ * Callers decide whether the fallback is meaningful in their own
+ * context. API Gateway service analysis, for example, only promotes it
+ * when the same result set also contains a known downstream URL.
  *
  * Complexity: O(N) on the number of rows; the regex is pre-compiled.
  *
