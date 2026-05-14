@@ -81,6 +81,14 @@ class DecideNextStepImpl implements Step<DecideNextOutput> {
     const nextVisited = new Set(visited);
     nextVisited.add(currentKey);
 
+    // A KnownUrl pointing back to the current service is not useful
+    // drill-down evidence: following it would re-run the same query
+    // with the same identifiers forever.
+    if (nextUrlTarget === this.serviceName) {
+      reporter?.decisionLoopDetected(nextUrlTarget);
+      return this.stopResult('loop-detected', nextVisited, reporter, context);
+    }
+
     // 1) Known URL pointing to a microservice in scope → loop into it.
     if (nextUrlTarget !== '' && this.servicesInRunbook.has(nextUrlTarget)) {
       const destKey = buildKey(nextUrlTarget, xRayTraceId, fallbackUuid);

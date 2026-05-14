@@ -180,7 +180,8 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
       this.serviceName !== undefined &&
       this.servicesInRunbook !== undefined &&
       knownUrl !== undefined &&
-      this.servicesInRunbook.has(knownUrl.known.target)
+      this.servicesInRunbook.has(knownUrl.known.target) &&
+      knownUrl.known.target !== this.serviceName
     ) {
       const fallbackForKey =
         fallbackIsFresh && extractedFallback !== undefined ? extractedFallback : fallbackUuidExisting;

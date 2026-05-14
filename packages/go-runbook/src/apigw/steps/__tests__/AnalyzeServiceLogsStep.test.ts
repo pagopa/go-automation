@@ -162,6 +162,32 @@ describe('analyzeServiceLogs', () => {
     assert.strictEqual(result.next, 'resolve');
   });
 
+  it('does not drill down when a KnownUrl points to the current service', async () => {
+    const selfRegistry = new KnownUrlsRegistry([
+      { url: 'https://api.pdv.pagopa.it/user-registry/', target: 'pn-data-vault' },
+    ]);
+    const step = analyzeServiceLogs({
+      id: 'analyze',
+      label: 'Analyze',
+      fromStep: 'query',
+      varPrefix: 'dataVault',
+      registry: selfRegistry,
+      serviceName: 'pn-data-vault',
+      servicesInRunbook: new Set(['pn-data-vault']),
+    });
+
+    const result = await step.execute(
+      createContext({
+        stepOutput: [row('failed call https://api.pdv.pagopa.it/user-registry/v1/users/abc')],
+        vars: { xRayTraceId: '1-abc', fallbackUuid: 'fb-1' },
+      }),
+    );
+
+    assert.strictEqual(result.next, 'resolve');
+    assert.strictEqual(result.vars?.['dataVaultNextUrlTarget'], 'pn-data-vault');
+    assert.strictEqual(result.vars?.['apiGwVisitedKeys'], undefined);
+  });
+
   it('swaps xRayTraceId when fallback-uuid was set and a fresh trace_id appears in the logs', async () => {
     const step = analyzeServiceLogs({
       id: 'analyze',

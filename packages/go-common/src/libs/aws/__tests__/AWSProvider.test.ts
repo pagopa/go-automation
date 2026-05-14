@@ -3,10 +3,10 @@ import { describe, it } from 'node:test';
 
 import type { GetQueryResultsCommand, ResultField, StartQueryCommand } from '@aws-sdk/client-cloudwatch-logs';
 
-import type { AWSClientProvider } from '../AWSClientProvider.js';
+import { AWSClientProvider } from '../AWSClientProvider.js';
 import { AWSClientsProvider } from '../AWSClientsProvider.js';
 import { AWSCloudWatchLogsService } from '../AWSCloudWatchLogsService.js';
-import type { AWSMultiClientProvider } from '../AWSMultiClientProvider.js';
+import { AWSMultiClientProvider } from '../AWSMultiClientProvider.js';
 import { AWSProvider } from '../AWSProvider.js';
 import { AWSServiceProvider } from '../AWSServiceProvider.js';
 
@@ -137,6 +137,96 @@ function asMultiProvider(provider: FakeAWSMultiClientProvider): AWSMultiClientPr
 }
 
 describe('AWS unified provider facade', () => {
+  it('caches concrete AWS clients and recreates them after close', () => {
+    const provider = new AWSClientProvider({ profile: 'dev', region: 'eu-west-1' });
+
+    const s3 = provider.s3;
+    const dynamoDB = provider.dynamoDB;
+    const cloudWatch = provider.cloudWatch;
+    const cloudWatchLogs = provider.cloudWatchLogs;
+    const athena = provider.athena;
+    const sqs = provider.sqs;
+    const ecs = provider.ecs;
+
+    assert.strictEqual(provider.getProfile(), 'dev');
+    assert.strictEqual(provider.getRegion(), 'eu-west-1');
+    assert.strictEqual(provider.s3, s3);
+    assert.strictEqual(provider.dynamoDB, dynamoDB);
+    assert.strictEqual(provider.cloudWatch, cloudWatch);
+    assert.strictEqual(provider.cloudWatchLogs, cloudWatchLogs);
+    assert.strictEqual(provider.athena, athena);
+    assert.strictEqual(provider.sqs, sqs);
+    assert.strictEqual(provider.ecs, ecs);
+
+    provider.close();
+
+    assert.notStrictEqual(provider.s3, s3);
+    assert.notStrictEqual(provider.dynamoDB, dynamoDB);
+    assert.notStrictEqual(provider.cloudWatch, cloudWatch);
+    assert.notStrictEqual(provider.cloudWatchLogs, cloudWatchLogs);
+    assert.notStrictEqual(provider.athena, athena);
+    assert.notStrictEqual(provider.sqs, sqs);
+    assert.notStrictEqual(provider.ecs, ecs);
+
+    provider.close();
+  });
+
+  it('deduplicates profiles and exposes cached concrete providers', () => {
+    const multi = new AWSMultiClientProvider({ profiles: ['dev', 'prod', 'dev'], region: 'eu-west-1' });
+
+    assert.deepStrictEqual(multi.profileNames, ['dev', 'prod']);
+    assert.strictEqual(multi.size, 2);
+    assert.strictEqual(multi.hasMultipleProfiles, true);
+    assert.strictEqual(multi.first.getProfile(), 'dev');
+    assert.strictEqual(multi.getClientProvider('prod'), multi.getClientProvider('prod'));
+    assert.throws(() => multi.getClientProvider('test'), /Profile 'test' is not in the configured profiles/);
+
+    const beforeClose = multi.getClientProvider('prod');
+    multi.close();
+
+    assert.notStrictEqual(multi.getClientProvider('prod'), beforeClose);
+    multi.close();
+  });
+
+  it('rejects empty multi-profile configuration', () => {
+    assert.throws(() => new AWSMultiClientProvider({ profiles: [] }), /At least one AWS profile must be provided/);
+  });
+
+  it('maps operations across concrete multi-profile providers', async () => {
+    const multi = new AWSMultiClientProvider({ profiles: ['dev', 'prod'] });
+
+    const results = await multi.mapParallel(async (profile, clientProvider) => {
+      await Promise.resolve();
+      return `${profile}:${clientProvider.getProfile()}`;
+    });
+
+    assert.deepStrictEqual(
+      [...results.entries()],
+      [
+        ['dev', 'dev:dev'],
+        ['prod', 'prod:prod'],
+      ],
+    );
+  });
+
+  it('collects concrete multi-profile operation errors without throwing', async () => {
+    const multi = new AWSMultiClientProvider({ profiles: ['dev', 'prod'] });
+
+    const settled = await multi.mapParallelSettled(async (profile, clientProvider) => {
+      await Promise.resolve();
+      if (profile === 'prod') {
+        throw new Error('prod failed');
+      }
+      return clientProvider.getProfile();
+    });
+
+    assert.deepStrictEqual([...settled.results.entries()], [['dev', 'dev']]);
+    assert.deepStrictEqual(
+      [...settled.errors.entries()].map(([profile, error]) => [profile, error.message]),
+      [['prod', 'prod failed']],
+    );
+  });
+
   it('exposes first-profile client convenience getters and multi-profile helpers', async () => {
     const multi = new FakeAWSMultiClientProvider(['dev', 'prod']);
     const clients = new AWSClientsProvider(asMultiProvider(multi));

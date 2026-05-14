@@ -66,6 +66,31 @@ describe('decideNext', () => {
     assert.strictEqual(result.vars?.['downstreamTarget'], 'AppIO');
   });
 
+  it('stops with loop-detected when the target is the current service', async () => {
+    const step = decideNext({
+      id: 'decide',
+      label: 'Decide',
+      serviceName: 'pn-data-vault',
+      varPrefix: 'dataVault',
+      servicesInRunbook: services,
+    });
+
+    const result = await step.execute(
+      createContext({
+        dataVaultNextUrlTarget: 'pn-data-vault',
+        dataVaultNextUrl: 'https://api.pdv.pagopa.it/user-registry/v1/users/abc',
+        dataVaultErrorMsg: 'self target detected',
+        xRayTraceId: '1-abc',
+        fallbackUuid: 'fb-1',
+      }),
+    );
+
+    assert.strictEqual(result.next, 'stop');
+    assert.strictEqual(result.output?.decision.kind, 'stop');
+    assert.strictEqual(result.vars?.['terminationReason'], 'loop-detected');
+    assert.strictEqual(result.vars?.['lastErrorMsg'], 'self target detected');
+  });
+
   it('retries the same service on a fresh fallback UUID', async () => {
     const step = decideNext({
       id: 'decide',
