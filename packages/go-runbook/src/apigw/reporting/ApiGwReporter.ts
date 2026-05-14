@@ -333,9 +333,7 @@ export class ApiGwReporter {
             const tag = idx === 0 ? ' ← primario' : '';
             this.logger.text(`  │    ${branch} ${id}${tag}`);
           });
-          this.logger.text(
-            `  └─ (eseguita solo l'action del caso primario; gli altri sono informativi nel trace)`,
-          );
+          this.logger.text(`  └─ (eseguita solo l'action del caso primario; gli altri sono informativi nel trace)`);
         }
         break;
       case 'external-downstream':
