@@ -98,6 +98,7 @@ export { logAction, notifyAction, escalateAction, compositeAction } from './acti
 
 // Services
 export type { ServiceRegistry } from './services/ServiceRegistry.js';
+export type { CloudWatchLogsQueryService } from './services/CloudWatchLogsQueryService.js';
 export { CloudWatchLogsService } from './services/CloudWatchLogsService.js';
 export { CloudWatchMetricsService } from './services/CloudWatchMetricsService.js';
 export type { MetricDatapoint, MetricDimension } from './services/CloudWatchMetricsService.js';

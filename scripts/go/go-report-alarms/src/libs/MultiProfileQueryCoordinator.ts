@@ -14,6 +14,10 @@ import type { AWS } from '@go-automation/go-common';
 
 type MultiProfileQueryProgressHandler = (profile: string, status: 'start' | 'success' | 'failure') => void;
 
+interface AWSClientProviderLookup {
+  getClientProvider(profile: string): AWS.AWSClientProvider;
+}
+
 /**
  * Options for multi-profile query execution
  */
@@ -53,7 +57,7 @@ interface MultiProfileQueryOptions {
  * ```
  */
 export class MultiProfileQueryCoordinator {
-  constructor(private readonly provider: AWS.AWSMultiClientProvider) {}
+  constructor(private readonly provider: AWSClientProviderLookup) {}
 
   /**
    * Query alarm history across all specified AWS profiles in p arallel.

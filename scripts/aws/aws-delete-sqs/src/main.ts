@@ -34,7 +34,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     throw new Error('Either --queue-name or --queue-url must be provided');
   }
 
-  const sqsService = new AWS.AWSSQSService(script.aws.sqs, script.aws.cloudWatch);
+  const sqsService = new AWS.AWSSQSService(script.aws.clients.sqs, script.aws.clients.cloudWatch);
   const metadata = await sqsService.resolveQueueMetadata(queueNameOrUrl);
   const queueUrl = metadata.queueUrl;
 

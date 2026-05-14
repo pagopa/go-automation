@@ -39,6 +39,7 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "peerDependencies": {
+    "@aws-sdk/client-athena": "catalog:",
     "@aws-sdk/client-cloudformation": "catalog:",
     "@aws-sdk/client-cloudwatch": "catalog:",
     "@aws-sdk/client-cloudwatch-logs": "catalog:",
@@ -57,7 +58,9 @@
     "@slack/web-api": "catalog:"
   },
   "dependencies": {
+    "@aws-sdk/client-athena": "catalog:",
     "@aws-sdk/client-cloudwatch": "catalog:",
+    "@aws-sdk/client-cloudwatch-logs": "catalog:",
     "@aws-sdk/client-dynamodb": "catalog:",
     "@aws-sdk/client-ecs": "catalog:",
     "@aws-sdk/client-s3": "catalog:",

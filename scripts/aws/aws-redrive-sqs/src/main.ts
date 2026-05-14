@@ -26,7 +26,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<AwsRedriveSqsConfig>();
   script.logger.section('AWS Redrive SQS');
 
-  const sqsService = new AWS.AWSSQSService(script.aws.sqs, script.aws.cloudWatch);
+  const sqsService = new AWS.AWSSQSService(script.aws.clients.sqs, script.aws.clients.cloudWatch);
 
   // Resolve metadata for both queues
   const [sourceMeta, targetMeta] = await Promise.all([

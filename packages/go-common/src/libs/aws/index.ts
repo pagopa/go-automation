@@ -16,6 +16,19 @@ export type { AWSClientProviderConfig } from './AWSClientProvider.js';
 export { AWSMultiClientProvider } from './AWSMultiClientProvider.js';
 export type { AWSMultiClientProviderConfig } from './AWSMultiClientProvider.js';
 
+// Unified AWS facade and service providers
+export { AWSProvider } from './AWSProvider.js';
+export { AWSClientsProvider } from './AWSClientsProvider.js';
+export { AWSServiceProvider } from './AWSServiceProvider.js';
+export { AWSCloudWatchLogsService } from './AWSCloudWatchLogsService.js';
+export type {
+  AWSCloudWatchLogsLogGroupResolutionMode,
+  AWSCloudWatchLogsPollAttemptHandler,
+  AWSCloudWatchLogsQueryOptions,
+  AWSCloudWatchLogsSleepFn,
+  AWSCloudWatchLogsTimeRange,
+} from './AWSCloudWatchLogsService.js';
+
 // S3 service
 export { AWSS3Service } from './AWSS3Service.js';
 export type { AWSS3ObjectEntry, AWSS3BucketEntry } from './AWSS3Service.js';
@@ -84,6 +97,8 @@ export { isProfileValidationSuccess, isProfileValidationFailure } from './AWSPro
 export type { Message, SendMessageBatchRequestEntry, SendMessageBatchCommandOutput } from '@aws-sdk/client-sqs';
 export type { SQSClient } from '@aws-sdk/client-sqs';
 export type { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
+export type { CloudWatchLogsClient, ResultField } from '@aws-sdk/client-cloudwatch-logs';
+export type { AthenaClient } from '@aws-sdk/client-athena';
 export type { ECSClient } from '@aws-sdk/client-ecs';
 
 // DynamoDB types

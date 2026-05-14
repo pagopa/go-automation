@@ -38,7 +38,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   // Step 2: Schema check and validation
   script.logger.section('Checking Table Schema');
   script.prompt.startSpinner(`Describing table ${config.tableName}...`);
-  const queryService = new AWS.DynamoDBQueryService(script.aws.dynamoDB);
+  const queryService = new AWS.DynamoDBQueryService(script.aws.clients.dynamoDB);
   const tableDesc = await withRetry(async () => {
     return await queryService.describeTable(config.tableName);
   });

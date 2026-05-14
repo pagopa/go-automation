@@ -48,7 +48,7 @@ export type DynamoDBQueryProgressHandler = (current: number, total: number) => v
  * ```typescript
  * import { Core } from '@go-automation/go-common';
  *
- * const queryService = new Core.DynamoDBQueryService(script.aws.dynamoDB);
+ * const queryService = new Core.DynamoDBQueryService(script.aws.clients.dynamoDB);
  *
  * // Simple query
  * const result = await queryService.queryByPartitionKey('IUN-123', {

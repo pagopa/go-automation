@@ -23,7 +23,7 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   script.prompt.spin('fetch', 'Fetching ECS data from all profiles...');
 
-  const { results, errors } = await script.awsMulti.mapParallelSettled(async (_, clientProvider) => {
+  const { results, errors } = await script.aws.clients.mapParallelSettled(async (_, clientProvider) => {
     const ecsService = new AWS.AWSECSService(clientProvider.ecs);
 
     const clusterArns = await ecsService.listClusters(config.ecsClusters);

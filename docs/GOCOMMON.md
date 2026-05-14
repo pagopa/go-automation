@@ -47,13 +47,13 @@ const logger = new Core.GOLogger([...]);
 const importer = new Core.GOCSVListImporter({ ... });
 
 // DynamoDB Query Service (generico)
-const queryService = new Core.DynamoDBQueryService(script.aws.dynamoDB);
+const queryService = new Core.DynamoDBQueryService(script.aws.clients.dynamoDB);
 
 // SEND SDK
 const sdk = new SEND.SENDNotifications({ ... });
 
 // SEND Timeline Service (DynamoDB)
-const timelineService = new SEND.SENDTimelineService(script.aws.dynamoDB);
+const timelineService = new SEND.SENDTimelineService(script.aws.clients.dynamoDB);
 
 // AWS Credentials
 const credManager = new GOAWSCredentialsManager({ ... });
@@ -1180,7 +1180,7 @@ Servizio generico per query su tabelle DynamoDB con supporto per prefix/suffix, 
 import { Core } from '@go-automation/go-common';
 
 // Usa il client DynamoDB da GOScript
-const queryService = new Core.DynamoDBQueryService(script.aws.dynamoDB);
+const queryService = new Core.DynamoDBQueryService(script.aws.clients.dynamoDB);
 ```
 
 ### Query Singola
@@ -1467,7 +1467,7 @@ Servizio per query delle timeline notifiche SEND dalla tabella DynamoDB `pn-Time
 import { SEND } from '@go-automation/go-common';
 
 // Usa il client DynamoDB da GOScript
-const timelineService = new SEND.SENDTimelineService(script.aws.dynamoDB);
+const timelineService = new SEND.SENDTimelineService(script.aws.clients.dynamoDB);
 ```
 
 ### Query Timeline Singola
@@ -1577,7 +1577,7 @@ interface SENDTimelineResult {
 ```typescript
 import { SEND } from '@go-automation/go-common';
 
-const timelineService = new SEND.SENDTimelineService(script.aws.dynamoDB);
+const timelineService = new SEND.SENDTimelineService(script.aws.clients.dynamoDB);
 
 // Query timeline
 const results = await timelineService.queryTimelines(iuns);
@@ -1603,7 +1603,7 @@ console.log('Request IDs:', requestIdMap);
 - **Date filter**: Filtra elementi per data
 - **Ordinamento**: Timeline ordinata per timestamp
 - **Progress callback**: Notifica avanzamento per operazioni lunghe
-- **Integrazione GOScript**: Usa `script.aws.dynamoDB` per il client
+- **Integrazione GOScript**: Usa `script.aws.clients.dynamoDB` per il client
 
 ---
 

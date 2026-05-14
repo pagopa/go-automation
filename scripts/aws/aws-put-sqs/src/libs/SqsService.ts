@@ -52,7 +52,7 @@ export async function processBatch(
   stats: BulkStats,
 ): Promise<void> {
   const batchId = Math.random().toString(36).substring(2, 7);
-  const sqsService = new AWS.AWSSQSService(script.aws.sqs, script.aws.cloudWatch);
+  const sqsService = new AWS.AWSSQSService(script.aws.clients.sqs, script.aws.clients.cloudWatch);
 
   const entries: AWS.SendMessageBatchRequestEntry[] = messages.map((body, index) => {
     // Validate message size and content

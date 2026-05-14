@@ -84,7 +84,7 @@ export interface AWSS3BucketEntry {
  *
  * @example
  * ```typescript
- * const s3 = new AWSS3Service(script.aws.s3);
+ * const s3 = new AWSS3Service(script.aws.clients.s3);
  * await s3.uploadFile('/tmp/data.csv', 'my-bucket', 'exports/data.csv');
  * ```
  */

@@ -22,7 +22,7 @@ export async function fetchAlarms(
   script: Core.GOScript,
   config: GoReportAlarmsConfig,
 ): Promise<ReadonlyArray<AlarmHistoryItem>> {
-  const coordinator = new MultiProfileQueryCoordinator(script.awsMulti);
+  const coordinator = new MultiProfileQueryCoordinator(script.aws.clients);
   const profiles = config.awsProfiles ?? [];
 
   script.logger.section('Fetching Alarm History (Multi-Profile)');

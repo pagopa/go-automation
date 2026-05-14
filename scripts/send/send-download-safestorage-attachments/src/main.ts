@@ -49,7 +49,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.info(`Output dir  : ${outputDir}`);
 
   const reportFilePath = script.paths.getExecutionOutputFilePath('download-report.jsonl');
-  const s3Client = new SafeStorageS3Client(script.aws.s3);
+  const s3Client = new SafeStorageS3Client(script.aws.clients.s3);
   const exporter = new Core.GOJSONListExporter<DownloadResult>({ outputPath: reportFilePath, jsonl: true });
   script.prompt.startSpinner('Loading input file...');
 

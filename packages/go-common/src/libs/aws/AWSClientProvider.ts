@@ -9,6 +9,7 @@ import { S3Client } from '@aws-sdk/client-s3';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
 import { CloudWatchLogsClient } from '@aws-sdk/client-cloudwatch-logs';
+import { AthenaClient } from '@aws-sdk/client-athena';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { ECSClient } from '@aws-sdk/client-ecs';
 import { fromIni } from '@aws-sdk/credential-provider-ini';
@@ -45,6 +46,7 @@ export class AWSClientProvider {
   private cachedDynamoDBClient: DynamoDBClient | null = null;
   private cachedCloudWatchClient: CloudWatchClient | null = null;
   private cachedCloudWatchLogsClient: CloudWatchLogsClient | null = null;
+  private cachedAthenaClient: AthenaClient | null = null;
   private cachedSQSClient: SQSClient | null = null;
   private cachedS3Client: S3Client | null = null;
   private cachedECSClient: ECSClient | null = null;
@@ -91,6 +93,14 @@ export class AWSClientProvider {
   }
 
   /**
+   * Returns the cached AthenaClient instance.
+   */
+  get athena(): AthenaClient {
+    this.cachedAthenaClient ??= new AthenaClient(this.clientConfig);
+    return this.cachedAthenaClient;
+  }
+
+  /**
    * Returns the cached SQSClient instance.
    */
   get sqs(): SQSClient {
@@ -127,6 +137,7 @@ export class AWSClientProvider {
     this.cachedDynamoDBClient?.destroy();
     this.cachedCloudWatchClient?.destroy();
     this.cachedCloudWatchLogsClient?.destroy();
+    this.cachedAthenaClient?.destroy();
     this.cachedSQSClient?.destroy();
     this.cachedECSClient?.destroy();
     this.cachedS3Client?.destroy();
@@ -134,6 +145,7 @@ export class AWSClientProvider {
     this.cachedDynamoDBClient = null;
     this.cachedCloudWatchClient = null;
     this.cachedCloudWatchLogsClient = null;
+    this.cachedAthenaClient = null;
     this.cachedSQSClient = null;
     this.cachedECSClient = null;
     this.cachedS3Client = null;
