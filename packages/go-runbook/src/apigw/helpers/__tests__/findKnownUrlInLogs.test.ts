@@ -4,6 +4,9 @@ import assert from 'node:assert/strict';
 import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
 import { findKnownUrlInLogs } from '../findKnownUrlInLogs.js';
 import { KnownUrlsRegistry } from '../../registries/KnownUrlsRegistry.js';
+import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
+
+const SCHEMA = SEND_API_GW_PROFILE.serviceLog.schema;
 
 function row(message: string): ResultField[] {
   return [{ field: '@message', value: message }];
@@ -23,7 +26,7 @@ describe('findKnownUrlInLogs', () => {
       row('nothing to see here'),
       row('Invoking https://api.io.pagopa.it/api/v1/activations/abc with body=...'),
     ];
-    const match = findKnownUrlInLogs(rows, registry);
+    const match = findKnownUrlInLogs(rows, registry, SCHEMA);
     assert.ok(match !== undefined);
     assert.strictEqual(match.known.target, 'AppIO');
     assert.strictEqual(match.observedUrl, 'https://api.io.pagopa.it/api/v1/activations/abc');
@@ -33,6 +36,7 @@ describe('findKnownUrlInLogs', () => {
     const match = findKnownUrlInLogs(
       [row('called http://internal-EcsA-123:8080/ext-registry-private/io/v1/activations.')],
       registry,
+      SCHEMA,
     );
     assert.ok(match !== undefined);
     assert.strictEqual(match.known.target, 'pn-external-registries');
@@ -40,7 +44,7 @@ describe('findKnownUrlInLogs', () => {
   });
 
   it('returns undefined when no URL matches', () => {
-    const match = findKnownUrlInLogs([row('http://unknown.example/path')], registry);
+    const match = findKnownUrlInLogs([row('http://unknown.example/path')], registry, SCHEMA);
     assert.strictEqual(match, undefined);
   });
 
@@ -48,6 +52,7 @@ describe('findKnownUrlInLogs', () => {
     const match = findKnownUrlInLogs(
       [[{ field: 'other', value: 'no message here' }], row('https://api.io.pagopa.it/api/v1/activations/x')],
       registry,
+      SCHEMA,
     );
     assert.ok(match !== undefined);
   });
@@ -57,7 +62,7 @@ describe('findKnownUrlInLogs', () => {
       { url: 'https://api.io.pagopa.it/api/', target: 'AppIO-broad' },
       { url: 'https://api.io.pagopa.it/api/v1/', target: 'AppIO-v1' },
     ]);
-    const match = findKnownUrlInLogs([row('https://api.io.pagopa.it/api/v1/activations/x')], broad);
+    const match = findKnownUrlInLogs([row('https://api.io.pagopa.it/api/v1/activations/x')], broad, SCHEMA);
     assert.strictEqual(match?.known.target, 'AppIO-broad');
   });
 });

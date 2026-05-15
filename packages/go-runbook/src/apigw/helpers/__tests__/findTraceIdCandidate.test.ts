@@ -2,7 +2,16 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
-import { findFreshTraceId, transformRawTraceId } from '../findFreshTraceId.js';
+import { findTraceIdCandidate, transformRawTraceId, type TraceIdCandidateMatch } from '../findTraceIdCandidate.js';
+import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
+
+const SCHEMA = SEND_API_GW_PROFILE.serviceLog.schema;
+
+// Back-compat alias for the renamed helper. Tests reference the original
+// name to minimise diff; the helper itself is rinominato.
+function findFreshTraceId(rows: ReadonlyArray<ResultField[]>): TraceIdCandidateMatch | undefined {
+  return findTraceIdCandidate(rows, SCHEMA);
+}
 
 function row(fields: Record<string, string>): ResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));

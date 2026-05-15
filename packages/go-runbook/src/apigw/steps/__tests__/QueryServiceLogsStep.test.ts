@@ -340,7 +340,7 @@ describe('queryServiceLogs', () => {
           logGroups: ['/aws/ecs/foo'],
           // Missing `{{FILTER_CLAUSE}}` — without the placeholder the
           // step would silently scan the whole log group.
-          queryTemplate: 'fields @timestamp, @message | sort @timestamp asc',
+          queryTemplateOverride: 'fields @timestamp, @message | sort @timestamp asc',
           timeRangeFromParams: { start: 'startTime', end: 'endTime' },
         }),
       /\{\{FILTER_CLAUSE\}\} placeholder/,

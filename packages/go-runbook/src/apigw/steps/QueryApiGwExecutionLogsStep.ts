@@ -6,26 +6,16 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { TimeRangeFromParams } from '../../steps/data/CloudWatchLogsQueryStep.js';
 import { resolveTimeRange } from '../../steps/data/resolveTimeRange.js';
-import { escapeSqlString } from '../../steps/data/interpolateTemplate.js';
 import { executeStep } from '../../steps/data/executeStep.js';
 
 import { extractCwField } from '../helpers/extractCwField.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
-
-const STATUS_FIELDS = ['status', 'authorizeStatus', 'integrationServiceStatus'] as const;
+import type { ExecutionLogSpec } from '../profiles/specs/ExecutionLogSpec.js';
+import type { AccessLogSchema } from '../profiles/schemas/AccessLogSchema.js';
+import { SEND_API_GW_PROFILE } from '../profiles/SEND_API_GW_PROFILE.js';
+import { renderQueryTemplate } from '../profiles/render/renderQueryTemplate.js';
 
 const QUERY_MODE_VAR = 'apiGwExecutionLogMode';
-
-const FIELD_TO_VAR: ReadonlyArray<readonly [field: string, contextVar: string]> = [
-  ['errorMessage', 'apiGwErrorMessage'],
-  ['httpMethod', 'apiGwHttpMethod'],
-  ['path', 'apiGwPath'],
-  ['authorizeStatus', 'apiGwAuthorizeStatus'],
-  ['integrationServiceStatus', 'apiGwIntegrationServiceStatus'],
-  ['requestId', 'apiGwRequestId'],
-  ['authorizerRequestId', 'apiGwAuthorizerRequestId'],
-  ['integrationRequestId', 'apiGwIntegrationRequestId'],
-];
 
 interface RequestIdByPath {
   readonly path: string;
@@ -48,6 +38,25 @@ export interface QueryApiGwExecutionLogsConfig {
   readonly minStatusCode?: number;
   /** Mapping for the time-range parameters in the runbook context. */
   readonly timeRangeFromParams: TimeRangeFromParams;
+  /**
+   * Specification dell'execution log. Quando omessa, viene usata la spec
+   * SEND di default per back-compat.
+   */
+  readonly spec?: ExecutionLogSpec;
+  /**
+   * Schema dell'AccessLog (per leggere i campi `requestId`, `path`,
+   * `errorMessage`, `statusFields`, sentinels).
+   */
+  readonly accessLogSchema?: AccessLogSchema;
+  /**
+   * Identificatore del profilo per i metadati di trace. Default `'send'`.
+   */
+  readonly queryProfileId?: string;
+  /**
+   * Override del limite `maxRequestIds` dello spec a livello di runbook.
+   * Quando assente, viene usato `spec.maxRequestIds`.
+   */
+  readonly maxRequestIdsOverride?: number;
 }
 
 class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
@@ -59,6 +68,10 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
   private readonly executionLogGroup: string | undefined;
   private readonly minStatusCode: number;
   private readonly timeRangeFromParams: TimeRangeFromParams;
+  private readonly spec: ExecutionLogSpec;
+  private readonly accessLogSchema: AccessLogSchema;
+  private readonly queryProfileId: string;
+  private readonly maxRequestIdsOverride: number | undefined;
 
   constructor(config: QueryApiGwExecutionLogsConfig) {
     this.id = config.id;
@@ -67,6 +80,13 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
     this.executionLogGroup = config.executionLogGroup;
     this.minStatusCode = config.minStatusCode ?? 500;
     this.timeRangeFromParams = config.timeRangeFromParams;
+    if (config.spec === undefined && SEND_API_GW_PROFILE.executionLog === undefined) {
+      throw new Error('SEND_API_GW_PROFILE.executionLog is undefined — impossible default');
+    }
+    this.spec = config.spec ?? (SEND_API_GW_PROFILE.executionLog as ExecutionLogSpec);
+    this.accessLogSchema = config.accessLogSchema ?? SEND_API_GW_PROFILE.accessLog.schema;
+    this.queryProfileId = config.queryProfileId ?? SEND_API_GW_PROFILE.id;
+    this.maxRequestIdsOverride = config.maxRequestIdsOverride;
   }
 
   getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
@@ -74,6 +94,9 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
     const endStr = context.params.get(this.timeRangeFromParams.end);
 
     return {
+      queryProfileId: this.queryProfileId,
+      queryKind: 'execution-log',
+      identifierMode: 'request-id',
       logGroups: this.executionLogGroup !== undefined ? [this.executionLogGroup] : [],
       timeRange: { start: startStr ?? null, end: endStr ?? null },
       modeVar: QUERY_MODE_VAR,
@@ -117,20 +140,21 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
       const firstRow = rowsWithErrorMessage[0];
       const accessLogVars =
         firstRow !== undefined
-          ? buildApiGwVars(firstRow, rowsWithErrorMessage.length)
+          ? buildApiGwVars(firstRow, rowsWithErrorMessage.length, this.accessLogSchema)
           : { apiGwErrorCount: String(rowsWithErrorMessage.length) };
       if (firstRow !== undefined) {
         reporter?.apiGwResult({
           errorCount: rowsWithErrorMessage.length,
-          statusCode: pickPrimaryStatusCode(firstRow),
-          xRayTraceId: undefined,
-          ...optionalApiGwField(firstRow, 'errorMessage', 'errorMessage'),
-          ...optionalApiGwField(firstRow, 'path', 'path'),
-          ...optionalApiGwField(firstRow, 'httpMethod', 'httpMethod'),
+          statusCode: pickPrimaryStatusCode(firstRow, this.accessLogSchema),
+          traceId: undefined,
+          traceIdLabel: this.accessLogSchema.traceIdLabel,
+          ...optionalApiGwField(firstRow, this.accessLogSchema.errorMessageField, 'errorMessage'),
+          ...optionalApiGwField(firstRow, this.accessLogSchema.pathField, 'path'),
+          ...optionalApiGwField(firstRow, this.accessLogSchema.httpMethodField, 'httpMethod'),
         });
       }
 
-      const requestIds = collectRequestIdsByPath(rowsWithErrorMessage);
+      const requestIds = collectRequestIdsByPath(rowsWithErrorMessage, this.accessLogSchema);
       if (requestIds.length === 0) {
         return {
           success: true,
@@ -150,28 +174,45 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
         };
       }
 
+      // V04 (D5): limite difensivo sulla OR clause. Le query CW Logs
+      // Insights hanno limiti pratici sulla lunghezza; fail-fast invece
+      // di mandare una query che AWS rifiuterebbe.
+      const limit = this.maxRequestIdsOverride ?? this.spec.maxRequestIds;
+      if (requestIds.length > limit) {
+        return {
+          success: false,
+          error:
+            `Execution log query would combine ${requestIds.length} requestId predicates, ` +
+            `over the limit of ${limit}. ` +
+            'Either reduce the time window, raise `ApiGwAlarmConfig.executionLogMaxRequestIds` ' +
+            'consciously, or split the runbook by sub-path.',
+        };
+      }
+
       reporter?.apiGwExecutionLogQuery(this.executionLogGroup, requestIds);
 
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
-      const output: ResultField[][] = [];
-      for (const request of requestIds) {
-        const rows = await context.services.cloudWatchLogs.query(
-          [this.executionLogGroup],
-          buildQuery(request.requestId),
-          timeRange,
-          {
-            ...(context.signal !== undefined ? { signal: context.signal } : {}),
-            logGroupResolutionMode: 'search-configured-profiles',
-          },
-        );
+      const query = this.buildExecutionLogQuery(requestIds);
 
-        for (const row of rows) {
-          output.push([
-            ...row,
-            { field: 'requestId', value: request.requestId },
-            { field: 'path', value: request.path },
-          ]);
-        }
+      // V04 (C3/D7): UNA sola chiamata AWS per N requestId, OR-combinati.
+      const rows = await context.services.cloudWatchLogs.query([this.executionLogGroup], query, timeRange, {
+        ...(context.signal !== undefined ? { signal: context.signal } : {}),
+        logGroupResolutionMode: 'search-configured-profiles',
+      });
+
+      // Riassociazione requestId/path per ogni riga restituita. SEND
+      // usa predicate `@message like '<id>'` quindi `includes` su
+      // `@message` è corretto. Per profili con predicate strutturati la
+      // riassociazione andrà spostata nel profilo (roadmap §12.3).
+      const output: ResultField[][] = [];
+      for (const row of rows) {
+        const message = extractCwField(row, '@message') ?? '';
+        const matched = requestIds.find((req) => message.includes(req.requestId));
+        output.push([
+          ...row,
+          { field: 'requestId', value: matched?.requestId ?? '' },
+          { field: 'path', value: matched?.path ?? '' },
+        ]);
       }
 
       reporter?.apiGwExecutionLogResult(output.length);
@@ -196,18 +237,42 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
   }
 
   private rowHasApiGwErrorMessage(row: ReadonlyArray<ResultField>): boolean {
-    if (!rowMeetsThreshold(row, this.minStatusCode)) return false;
-    return sanitizeApiGwField(extractCwField(row, 'errorMessage')) !== '';
+    if (!rowMeetsThreshold(row, this.minStatusCode, this.accessLogSchema)) return false;
+    return sanitizeApiGwField(extractCwField(row, this.accessLogSchema.errorMessageField), this.accessLogSchema) !== '';
+  }
+
+  /**
+   * Costruisce la query OR-combinata su tutti i requestId estratti dal
+   * AccessLog. Una sola chiamata AWS al posto di N (pattern pre-V04).
+   */
+  private buildExecutionLogQuery(requestIds: ReadonlyArray<RequestIdByPath>): string {
+    const predicates = requestIds.map((req) =>
+      renderQueryTemplate(this.spec.requestIdPredicateTemplate, {
+        values: { '{{VALUE}}': req.requestId },
+        escape: 'sql',
+        queryId: `${this.queryProfileId}.executionLog.requestIdPredicate`,
+      }),
+    );
+    const filterClause = `filter ${predicates.map((p) => `(${p})`).join(' or ')}`;
+
+    return renderQueryTemplate(this.spec.queryTemplate, {
+      values: { '{{REQUEST_ID_FILTER_CLAUSE}}': filterClause },
+      escape: 'none',
+      queryId: `${this.queryProfileId}.executionLog`,
+    });
   }
 }
 
-function collectRequestIdsByPath(rows: ReadonlyArray<ResultField[]>): ReadonlyArray<RequestIdByPath> {
+function collectRequestIdsByPath(
+  rows: ReadonlyArray<ResultField[]>,
+  schema: AccessLogSchema,
+): ReadonlyArray<RequestIdByPath> {
   const byPath = new Map<string, RequestIdByPath>();
   for (const row of rows) {
-    const requestId = sanitizeApiGwField(extractCwField(row, 'requestId'));
+    const requestId = sanitizeApiGwField(extractCwField(row, schema.requestIdField), schema);
     if (requestId === '') continue;
 
-    const rawPath = sanitizeApiGwField(extractCwField(row, 'path'));
+    const rawPath = sanitizeApiGwField(extractCwField(row, schema.pathField), schema);
     const path = rawPath === '' ? requestId : rawPath;
     if (!byPath.has(path)) {
       byPath.set(path, { path, requestId });
@@ -216,10 +281,11 @@ function collectRequestIdsByPath(rows: ReadonlyArray<ResultField[]>): ReadonlyAr
   return [...byPath.values()];
 }
 
-function rowMeetsThreshold(row: ReadonlyArray<ResultField>, minStatusCode: number): boolean {
-  for (const field of STATUS_FIELDS) {
+function rowMeetsThreshold(row: ReadonlyArray<ResultField>, minStatusCode: number, schema: AccessLogSchema): boolean {
+  for (const field of schema.statusFields) {
     const raw = extractCwField(row, field);
     if (raw === undefined) continue;
+    if (schema.notApplicableSentinels.includes(raw)) continue;
     const num = Number(raw);
     if (!Number.isNaN(num) && num >= minStatusCode) {
       return true;
@@ -228,10 +294,11 @@ function rowMeetsThreshold(row: ReadonlyArray<ResultField>, minStatusCode: numbe
   return false;
 }
 
-function pickPrimaryStatusCode(row: ReadonlyArray<ResultField>): string {
-  for (const field of STATUS_FIELDS) {
+function pickPrimaryStatusCode(row: ReadonlyArray<ResultField>, schema: AccessLogSchema): string {
+  for (const field of schema.statusFields) {
     const raw = extractCwField(row, field);
     if (raw === undefined) continue;
+    if (schema.notApplicableSentinels.includes(raw)) continue;
     if (!Number.isNaN(Number(raw))) {
       return raw;
     }
@@ -239,12 +306,16 @@ function pickPrimaryStatusCode(row: ReadonlyArray<ResultField>): string {
   return '';
 }
 
-function buildApiGwVars(row: ReadonlyArray<ResultField>, errorCount: number): Record<string, string> {
+function buildApiGwVars(
+  row: ReadonlyArray<ResultField>,
+  errorCount: number,
+  schema: AccessLogSchema,
+): Record<string, string> {
   const vars: Record<string, string> = {
     apiGwErrorCount: String(errorCount),
-    apiGwStatusCode: pickPrimaryStatusCode(row),
+    apiGwStatusCode: pickPrimaryStatusCode(row, schema),
   };
-  for (const [field, contextVar] of FIELD_TO_VAR) {
+  for (const [field, contextVar] of schema.fieldToVar) {
     const raw = extractCwField(row, field);
     if (raw !== undefined) {
       vars[contextVar] = raw;
@@ -258,21 +329,17 @@ function optionalApiGwField<K extends 'errorMessage' | 'path' | 'httpMethod'>(
   field: string,
   outputKey: K,
 ): Partial<Record<K, string>> {
-  const value = sanitizeApiGwField(extractCwField(row, field));
+  // Per la sentinel usiamo solo il check di stringa vuota + '-' che è il
+  // pattern legacy. Il sanitize completo via schema avviene a monte.
+  const raw = (extractCwField(row, field) ?? '').trim();
+  const value = raw === '-' ? '' : raw;
   return value === '' ? {} : ({ [outputKey]: value } as Partial<Record<K, string>>);
 }
 
-function sanitizeApiGwField(raw: string | undefined): string {
+function sanitizeApiGwField(raw: string | undefined, schema: AccessLogSchema): string {
   const trimmed = (raw ?? '').trim();
-  return trimmed === '-' ? '' : trimmed;
-}
-
-function buildQuery(requestId: string): string {
-  return [
-    `filter @message like '${escapeSqlString(requestId)}'`,
-    '| sort @timestamp asc',
-    '| display @timestamp, @message',
-  ].join('\n');
+  if (schema.notApplicableSentinels.includes(trimmed)) return '';
+  return trimmed;
 }
 
 function buildUnresolvedMessage(requestCount: number): string {
@@ -285,13 +352,10 @@ function buildUnresolvedMessage(requestCount: number): string {
 /**
  * Factory: creates the requestId-based API Gateway execution-log query step.
  *
- * The step runs immediately after the API Gateway AccessLog query. When
- * no AccessLog row carries a meaningful `errorMessage`, it is a no-op
- * and the runbook continues with the normal X-Ray flow. When at least
- * one `errorMessage` is present and an execution log group is
- * configured, it queries one requestId per distinct path, then signals
- * `next: 'resolve'` so known cases can match before the following guard
- * step stops the runbook as non-determinable.
+ * V04: la query è UNA sola chiamata AWS con filter clause OR-combinata su
+ * tutti i requestId (al posto di N chiamate sequenziali pre-V04). Un
+ * limite difensivo (`spec.maxRequestIds`, default 50) protegge da query
+ * troppo lunghe per CloudWatch Logs Insights.
  */
 export function queryApiGwExecutionLogs(
   config: QueryApiGwExecutionLogsConfig,

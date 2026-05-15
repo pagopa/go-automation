@@ -5,60 +5,92 @@ import type { CaseAction } from '../../actions/CaseAction.js';
 import type { ApiGwService } from './ApiGwService.js';
 import type { KnownUrl } from './KnownUrl.js';
 import type { ApiGwQueryTemplates } from './ApiGwQueryTemplates.js';
+import type { ApiGwQueryProfile } from '../profiles/ApiGwQueryProfile.js';
 
 /**
  * Declarative configuration consumed by {@link createApiGwAlarmRunbook}.
  *
- * The factory assembles a fully-validated {@link Runbook} from these
- * inputs so the runbook authors only need to provide the data that is
- * actually specific to their alarm (entry service, services, known URLs,
+ * La factory assembla un {@link Runbook} interamente validato a partire
+ * da questi input, così che gli autori di runbook debbano fornire solo i
+ * dati specifici del proprio allarme (entry service, services, known URLs,
  * known cases).
  *
- * The pipeline is **dynamic**: only the entry service runs by default;
- * every other service is reached only when a {@link KnownUrl} observed
- * during analysis points to it.
+ * La pipeline è **dinamica**: solo l'entry service è eseguito di default;
+ * gli altri servizi sono raggiunti solo quando un {@link KnownUrl}
+ * osservato durante l'analisi punta a loro.
  */
 export interface ApiGwAlarmConfig {
-  /** Unique runbook identifier */
+  /** Identificatore univoco del runbook */
   readonly id: string;
-  /** Runbook metadata (the `id` is taken from {@link ApiGwAlarmConfig.id}) */
+  /** Metadati (l'`id` è preso da {@link ApiGwAlarmConfig.id}) */
   readonly metadata: Omit<RunbookMetadata, 'id'>;
-  /** Log group of the API Gateway whose AccessLog triggered the alarm */
+  /** Log group dell'API Gateway su cui è scattato l'allarme */
   readonly apiGwLogGroup: string;
   /**
-   * Minimum HTTP status code that counts as an error. Default `500`,
-   * mirroring the canonical query from `go-runbooks`.
+   * Codice di stato HTTP minimo considerato errore. Default `500`,
+   * coerente con la query canonica di `go-runbooks`.
    */
   readonly minStatusCode?: number;
   /**
-   * Entry service: the first microservice analysed for any trace that
-   * survived the API Gateway parsing step. Required.
+   * Entry service: il primo microservizio analizzato per qualunque trace
+   * sopravvissuto al parsing del API Gateway. Obbligatorio.
    */
   readonly entryService: ApiGwService;
   /**
-   * Additional microservices reachable from {@link entryService} through
-   * known URLs. Order does not matter — these services are visited only
-   * when a {@link KnownUrl} resolved during analysis names them as the
-   * target.
+   * Microservizi aggiuntivi raggiungibili da {@link entryService}
+   * attraverso URL noti. L'ordine non conta: ciascun servizio viene
+   * visitato solo quando un {@link KnownUrl} risolto in analisi lo cita
+   * come target.
    */
   readonly services?: ReadonlyArray<ApiGwService>;
-  /** Known URLs used to enrich the trace and drive the analysis loop. */
+  /** Known URL usati per arricchire il trace e guidare il loop di analisi. */
   readonly knownUrls: ReadonlyArray<KnownUrl>;
   /**
-   * Custom steps inserted between the API Gateway parsing step and the
-   * per-service pipeline (typical use case: a Lambda authorizer probe).
+   * Step custom inseriti fra il parsing API Gateway e la pipeline
+   * per-servizio (caso d'uso tipico: sonda Lambda authorizer).
    */
   readonly preSteps?: ReadonlyArray<StepDescriptor>;
-  /** Known cases scored against the resulting context */
+  /** Casi noti valutati contro il contesto risultante */
   readonly knownCases: ReadonlyArray<KnownCase>;
   /**
-   * Action executed when no known case matches. When omitted the
-   * factory generates a default action that summarises the collected
-   * vars (including `terminationReason`).
+   * Action eseguita quando nessun caso noto matcha. Quando omessa, la
+   * factory genera una default action che riassume le var raccolte
+   * (incluso `terminationReason`).
    */
   readonly fallbackAction?: CaseAction;
-  /** Optional template overrides */
+  /**
+   * Profilo di query da usare per assemblare la pipeline.
+   *
+   * V04: opzionale in v1.x. Quando omesso (e nessun `queryTemplates`
+   * legacy è presente), la factory usa `SEND_API_GW_PROFILE` come default
+   * implicito. In v2.0 diventerà obbligatorio.
+   *
+   * Per dichiarare esplicitamente il profilo SEND:
+   * ```typescript
+   * queryProfile: SEND_API_GW_PROFILE
+   * ```
+   *
+   * Per INTEROP (in arrivo): `queryProfile: INTEROP_API_GW_PROFILE`.
+   *
+   * Non può essere combinato con `queryTemplates`: se entrambi sono
+   * presenti, `createApiGwAlarmRunbook` throwa.
+   */
+  readonly queryProfile?: ApiGwQueryProfile;
+  /**
+   * Override del limite `maxRequestIds` dell'execution log per questo
+   * runbook. Quando assente, viene usato `spec.maxRequestIds` (per SEND:
+   * 50). Ignorato se la capability executionLog non è attiva.
+   */
+  readonly executionLogMaxRequestIds?: number;
+  /**
+   * @deprecated Override testuali delle query. Compatibilità v1.x;
+   * rimosso in v2.0. Migrare a `queryProfile` con un profilo personalizzato
+   * (es. `{ ...SEND_API_GW_PROFILE, accessLog: { ...SEND_API_GW_PROFILE.accessLog, query: customQuery } }`).
+   *
+   * Non può essere combinato con `queryProfile`: se entrambi sono
+   * presenti, `createApiGwAlarmRunbook` throwa.
+   */
   readonly queryTemplates?: ApiGwQueryTemplates;
-  /** Optional anti-loop iteration limit forwarded to the engine */
+  /** Limite iterazioni anti-loop opzionale forwarded all'engine */
   readonly maxIterations?: number;
 }

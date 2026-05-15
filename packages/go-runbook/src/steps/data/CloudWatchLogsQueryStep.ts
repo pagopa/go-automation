@@ -1,4 +1,5 @@
 import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type { AWSCloudWatchLogsLogGroupResolutionMode } from '@go-automation/go-common/aws';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
@@ -31,6 +32,23 @@ export interface CloudWatchLogsQueryConfig {
   readonly query: string;
   /** Parameter names to resolve start/end dates from context.params */
   readonly timeRangeFromParams: TimeRangeFromParams;
+  /**
+   * Metadati arbitrari aggiunti al payload di `getTraceInfo`. Lo spread
+   * avviene PRIMA dei campi canonici (`query`, `logGroups`, `timeRange`)
+   * così le chiavi riservate non possono essere sovrascritte
+   * accidentalmente.
+   *
+   * Usato dai builder del modulo `apigw` per propagare i metadata
+   * cross-prodotto (`queryProfileId`, `queryKind`, `identifierMode`) anche
+   * agli step costruiti via questa factory generica.
+   */
+  readonly traceMetadata?: Readonly<Record<string, unknown>>;
+  /**
+   * Strategia di risoluzione del log group passata al servizio
+   * CloudWatch Logs. Quando assente, il servizio applica il proprio
+   * default (`'default-profile-only'`).
+   */
+  readonly logGroupResolutionMode?: AWSCloudWatchLogsLogGroupResolutionMode;
 }
 
 /**
@@ -56,6 +74,8 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
   private readonly logGroups: ReadonlyArray<string>;
   private readonly query: string;
   private readonly timeRangeFromParams: TimeRangeFromParams;
+  private readonly traceMetadata: Readonly<Record<string, unknown>> | undefined;
+  private readonly logGroupResolutionMode: AWSCloudWatchLogsLogGroupResolutionMode | undefined;
 
   constructor(config: CloudWatchLogsQueryConfig) {
     this.id = config.id;
@@ -63,6 +83,8 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
     this.logGroups = config.logGroups;
     this.query = config.query;
     this.timeRangeFromParams = config.timeRangeFromParams;
+    this.traceMetadata = config.traceMetadata;
+    this.logGroupResolutionMode = config.logGroupResolutionMode;
   }
 
   /**
@@ -76,7 +98,11 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
     const startStr = context.params.get(this.timeRangeFromParams.start);
     const endStr = context.params.get(this.timeRangeFromParams.end);
 
+    // `traceMetadata` viene spread PRIMA dei campi canonici (`query`,
+    // `logGroups`, `timeRange`) così le chiavi riservate non possono
+    // essere sovrascritte accidentalmente da un metadata mal-formato.
     return {
+      ...(this.traceMetadata ?? {}),
       query: interpolatedQuery,
       logGroups: [...this.logGroups],
       timeRange: { start: startStr ?? null, end: endStr ?? null },
@@ -96,6 +122,7 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
 
       const results = await context.services.cloudWatchLogs.query(this.logGroups, interpolatedQuery, timeRange, {
         ...(context.signal !== undefined ? { signal: context.signal } : {}),
+        ...(this.logGroupResolutionMode !== undefined ? { logGroupResolutionMode: this.logGroupResolutionMode } : {}),
       });
 
       return { success: true, output: results };

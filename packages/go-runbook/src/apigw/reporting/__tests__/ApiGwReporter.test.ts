@@ -34,7 +34,8 @@ describe('ApiGwReporter', () => {
       new ApiGwReporter(logger).apiGwResult({
         errorCount: 3,
         statusCode: '500',
-        xRayTraceId: '1-abc-def',
+        traceId: '1-abc-def',
+        traceIdLabel: 'X-Ray Trace ID',
         errorMessage: 'Endpoint request timed out',
         path: '/v1/foo',
         httpMethod: 'POST',
@@ -43,7 +44,7 @@ describe('ApiGwReporter', () => {
       assert.match(joined, /Errori HTTP individuati: 3 \(status 500\)/);
       assert.match(joined, /Endpoint: POST \/v1\/foo/);
       assert.match(joined, /Error message API GW: Endpoint request timed out/);
-      assert.match(joined, /XRay Trace Id: 1-abc-def/);
+      assert.match(joined, /X-Ray Trace ID: 1-abc-def/);
     });
 
     it('skips endpoint/error-message rows when only the API GW `-` placeholder is present', () => {
@@ -51,7 +52,8 @@ describe('ApiGwReporter', () => {
       new ApiGwReporter(logger).apiGwResult({
         errorCount: 1,
         statusCode: '504',
-        xRayTraceId: undefined,
+        traceId: undefined,
+        traceIdLabel: 'X-Ray Trace ID',
         errorMessage: '-',
         path: '-',
         httpMethod: '-',
@@ -59,7 +61,7 @@ describe('ApiGwReporter', () => {
       const joined = lines.join('\n');
       assert.doesNotMatch(joined, /Endpoint:/);
       assert.doesNotMatch(joined, /Error message API GW:/);
-      assert.match(joined, /XRay Trace Id: non disponibile/);
+      assert.match(joined, /X-Ray Trace ID: non disponibile/);
     });
   });
 

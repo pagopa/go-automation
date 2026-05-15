@@ -5,9 +5,11 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { StepResult } from '../../types/StepResult.js';
 
 import { extractCwField } from '../helpers/extractCwField.js';
-import { extractXRayTraceId } from '../helpers/extractXRayTraceId.js';
+import { extractTraceId } from '../helpers/extractTraceId.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
 import type { ApiGwErrorInfo } from './ApiGwErrorInfo.js';
+import type { AccessLogSchema } from '../profiles/schemas/AccessLogSchema.js';
+import { SEND_API_GW_PROFILE } from '../profiles/SEND_API_GW_PROFILE.js';
 
 /**
  * Configuration for {@link parseApiGwErrors}.
@@ -21,27 +23,17 @@ export interface ParseApiGwErrorsConfig {
   readonly fromStep: string;
   /** Minimum HTTP status code to include (default: 500) */
   readonly minStatusCode?: number;
+  /**
+   * Schema dei campi prodotti dalla query AccessLog. Quando omesso, viene
+   * usato lo schema SEND di default per back-compat con il path legacy
+   * `queryTemplates`. Profili non-SEND devono passarlo esplicitamente.
+   */
+  readonly schema?: AccessLogSchema;
+  /**
+   * Identificatore del profilo (per i metadati del trace). Default `'send'`.
+   */
+  readonly queryProfileId?: string;
 }
-
-/**
- * Mapping between the CloudWatch field name produced by the canonical
- * API GW Insights query and the var name written to the runbook context.
- *
- * Order: every entry triggers an `extractCwField` lookup on the first
- * error row and, when the field is present (and not the literal `-`
- * placeholder used by API GW for missing values), writes the associated
- * context var.
- */
-const FIELD_TO_VAR: ReadonlyArray<readonly [field: string, varName: keyof ApiGwErrorInfo, contextVar: string]> = [
-  ['errorMessage', 'errorMessage', 'apiGwErrorMessage'],
-  ['httpMethod', 'httpMethod', 'apiGwHttpMethod'],
-  ['path', 'path', 'apiGwPath'],
-  ['authorizeStatus', 'authorizeStatus', 'apiGwAuthorizeStatus'],
-  ['integrationServiceStatus', 'integrationServiceStatus', 'apiGwIntegrationServiceStatus'],
-  ['requestId', 'requestId', 'apiGwRequestId'],
-  ['authorizerRequestId', 'authorizerRequestId', 'apiGwAuthorizerRequestId'],
-  ['integrationRequestId', 'integrationRequestId', 'apiGwIntegrationRequestId'],
-];
 
 class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
   readonly id: string;
@@ -50,12 +42,23 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
 
   private readonly fromStep: string;
   private readonly minStatusCode: number;
+  private readonly schema: AccessLogSchema;
+  private readonly queryProfileId: string;
 
   constructor(config: ParseApiGwErrorsConfig) {
     this.id = config.id;
     this.label = config.label;
     this.fromStep = config.fromStep;
     this.minStatusCode = config.minStatusCode ?? 500;
+    this.schema = config.schema ?? SEND_API_GW_PROFILE.accessLog.schema;
+    this.queryProfileId = config.queryProfileId ?? SEND_API_GW_PROFILE.id;
+  }
+
+  getTraceInfo(): Readonly<Record<string, unknown>> {
+    return {
+      queryProfileId: this.queryProfileId,
+      queryKind: 'access-log-parse',
+    };
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -85,7 +88,8 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
         new ApiGwReporter(context.logger).apiGwResult({
           errorCount: 0,
           statusCode: '',
-          xRayTraceId: undefined,
+          traceId: undefined,
+          traceIdLabel: this.schema.traceIdLabel,
         });
       }
       return {
@@ -101,12 +105,12 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
     }
 
     const firstRow = errorRows[0];
-    const xRayTraceId = extractXRayTraceId(firstRow);
-    // The canonical API GW query OR-filters on three status fields, so
-    // `status` alone can be the literal `-` even when the row is an
-    // error (authorizer / integration failure). Pick the first numeric
-    // value among the three in canonical priority order so
-    // `apiGwStatusCode` is always the most meaningful primary code.
+    const traceId = extractTraceId(firstRow, this.schema);
+    // La canonica query AccessLog OR-filtra su 3 status field, quindi
+    // `status` da solo può essere il letterale `-` anche quando la riga è
+    // un errore (authorizer / integration failure). Prendi il primo
+    // valore numerico nell'ordine canonico così `apiGwStatusCode` è
+    // sempre il più significativo.
     const statusCode = this.pickPrimaryStatusCode(firstRow);
 
     const vars: Record<string, string> = {
@@ -114,20 +118,24 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
       apiGwStatusCode: statusCode,
     };
 
-    if (xRayTraceId !== undefined) {
-      vars['xRayTraceId'] = xRayTraceId;
+    if (traceId !== undefined) {
+      vars[this.schema.traceIdContextVar] = traceId;
     }
 
     const additional: Partial<ApiGwErrorInfo> = {};
-    for (const [field, infoKey, contextVar] of FIELD_TO_VAR) {
+    for (const [field, contextVar] of this.schema.fieldToVar) {
       const raw = extractCwField(firstRow, field);
       if (raw === undefined) continue;
       // API Gateway uses the literal `-` to mark "not present" for these
       // fields. Persist it as a var (so case conditions can compare on
       // `-`) but skip propagating it as a meaningful info value.
       vars[contextVar] = raw;
-      if (raw !== '-' && raw !== '') {
-        (additional as Record<string, string>)[infoKey] = raw;
+      if (!this.isNotApplicable(raw) && raw !== '') {
+        // Map the well-known semantic fields onto the typed output.
+        const semanticKey = this.semanticKeyForField(field);
+        if (semanticKey !== undefined) {
+          (additional as Record<string, string>)[semanticKey] = raw;
+        }
       }
     }
 
@@ -135,7 +143,8 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
       new ApiGwReporter(context.logger).apiGwResult({
         errorCount: errorRows.length,
         statusCode,
-        xRayTraceId,
+        traceId,
+        traceIdLabel: this.schema.traceIdLabel,
         ...(additional.errorMessage !== undefined ? { errorMessage: additional.errorMessage } : {}),
         ...(additional.path !== undefined ? { path: additional.path } : {}),
         ...(additional.httpMethod !== undefined ? { httpMethod: additional.httpMethod } : {}),
@@ -146,7 +155,7 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
       success: true,
       output: {
         errorCount: errorRows.length,
-        xRayTraceId,
+        xRayTraceId: traceId,
         statusCode,
         ...additional,
       },
@@ -154,19 +163,20 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
     };
   }
 
+  private isNotApplicable(value: string): boolean {
+    return this.schema.notApplicableSentinels.includes(value);
+  }
+
   /**
-   * Returns `true` when at least one of the three status fields scanned
-   * by the canonical API GW query (`status`, `authorizeStatus`,
-   * `integrationServiceStatus`) parses to a number ≥ {@link minStatusCode}.
-   *
-   * API Gateway emits the literal `-` for fields that are not applicable
-   * to a request; `Number('-')` is `NaN`, so those values are skipped
-   * naturally without an explicit guard.
+   * Returns `true` when at least one of the configured status fields
+   * parses to a number ≥ {@link minStatusCode}. Values listed in
+   * {@link AccessLogSchema.notApplicableSentinels} are skipped.
    */
   private rowMeetsThreshold(row: ReadonlyArray<ResultField>): boolean {
-    for (const field of STATUS_FIELDS) {
+    for (const field of this.schema.statusFields) {
       const raw = extractCwField(row, field);
       if (raw === undefined) continue;
+      if (this.isNotApplicable(raw)) continue;
       const num = Number(raw);
       if (!Number.isNaN(num) && num >= this.minStatusCode) {
         return true;
@@ -176,53 +186,61 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
   }
 
   /**
-   * Returns the first numeric value among the three canonical API GW
-   * status fields, in priority order: `status` > `authorizeStatus` >
-   * `integrationServiceStatus`. Used to populate `apiGwStatusCode` so
-   * known-case conditions and the reporter receive a meaningful code
-   * even when the row's error signal is on `authorizeStatus` /
-   * `integrationServiceStatus` (with `status='-'`).
-   *
-   * Returns an empty string when none of the three is a parseable
-   * number (extremely unlikely on rows that passed
-   * {@link rowMeetsThreshold}, but a safe fallback).
+   * Returns the first numeric value among the configured status fields,
+   * in declaration order. Used to populate `apiGwStatusCode` so known-case
+   * conditions and the reporter receive a meaningful code even when the
+   * row's error signal is on a secondary field.
    */
   private pickPrimaryStatusCode(row: ReadonlyArray<ResultField>): string {
-    for (const field of STATUS_FIELDS) {
+    for (const field of this.schema.statusFields) {
       const raw = extractCwField(row, field);
       if (raw === undefined) continue;
+      if (this.isNotApplicable(raw)) continue;
       if (!Number.isNaN(Number(raw))) {
         return raw;
       }
     }
     return '';
   }
-}
 
-/** Status fields that the canonical API GW query OR-filters on. */
-const STATUS_FIELDS = ['status', 'authorizeStatus', 'integrationServiceStatus'] as const;
+  /**
+   * Mappa il nome di campo CloudWatch sul corrispondente campo semantico
+   * di {@link ApiGwErrorInfo}. Solo i campi semantici "noti" del tipo
+   * vengono propagati nell'output tipizzato; gli altri vivono solo in
+   * `vars`.
+   */
+  private semanticKeyForField(field: string): keyof ApiGwErrorInfo | undefined {
+    if (field === this.schema.errorMessageField) return 'errorMessage';
+    if (field === this.schema.pathField) return 'path';
+    if (field === this.schema.httpMethodField) return 'httpMethod';
+    if (field === this.schema.requestIdField) return 'requestId';
+    // Campi non-semantici noti del tipo ApiGwErrorInfo, mappati per nome.
+    if (field === 'authorizeStatus') return 'authorizeStatus';
+    if (field === 'integrationServiceStatus') return 'integrationServiceStatus';
+    if (field === 'authorizerRequestId') return 'authorizerRequestId';
+    if (field === 'integrationRequestId') return 'integrationRequestId';
+    return undefined;
+  }
+}
 
 /**
  * Factory: creates a step that parses API Gateway AccessLog query results.
  *
  * The step scans the rows produced by an upstream CloudWatch Logs Insights
  * query, filters them by minimum HTTP status code, then extracts the
- * X-Ray trace id, status code and the additional diagnostic fields
- * emitted by the canonical AccessLog query (`errorMessage`, `httpMethod`,
- * `path`, `authorizeStatus`, `integrationServiceStatus`, `requestId`,
- * `authorizerRequestId`, `integrationRequestId`). When no errors are
- * present the step short-circuits the runbook with `next: 'stop'`.
+ * trace id, status code and the additional diagnostic fields declared by
+ * `schema.fieldToVar`. When no errors are present the step short-circuits
+ * the runbook with `next: 'stop'`.
+ *
+ * V04: lo schema dei campi è letto dal profilo (default SEND per
+ * back-compat). I nomi degli helper sono generici: `extractTraceId` legge
+ * `schema.traceIdField` e scrive `vars[schema.traceIdContextVar]`.
  *
  * Vars written:
  * - `apiGwErrorCount`: total number of error rows (always)
  * - `apiGwStatusCode`: status code of the first error row (when errors found)
- * - `xRayTraceId`: trace id of the first error row (when extractable)
- * - `apiGwErrorMessage`, `apiGwHttpMethod`, `apiGwPath`,
- *   `apiGwAuthorizeStatus`, `apiGwIntegrationServiceStatus`,
- *   `apiGwRequestId`, `apiGwAuthorizerRequestId`,
- *   `apiGwIntegrationRequestId` when the corresponding field is present
- *   in the first error row (the literal `-` produced by API Gateway is
- *   preserved as-is so case conditions can compare against it).
+ * - `<schema.traceIdContextVar>`: trace id of the first error row (when extractable)
+ * - tutti i campi `schema.fieldToVar` quando presenti nel primo row
  *
  * @param config - Step configuration
  * @returns Step that extracts API Gateway error metadata

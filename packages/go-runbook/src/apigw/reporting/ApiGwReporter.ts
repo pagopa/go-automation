@@ -161,7 +161,18 @@ export class ApiGwReporter {
   apiGwResult(args: {
     readonly errorCount: number;
     readonly statusCode: string;
-    readonly xRayTraceId: string | undefined;
+    /**
+     * Valore del trace id del prodotto. SEND: X-Ray trace id; INTEROP:
+     * correlation id. Il significato esatto è veicolato da
+     * {@link traceIdLabel}.
+     */
+    readonly traceId: string | undefined;
+    /**
+     * Label human-friendly da mostrare in console (es. `'X-Ray Trace ID'`
+     * per SEND, `'Correlation ID (cid)'` per INTEROP). Quando omessa, la
+     * label di default è `'Trace ID'`.
+     */
+    readonly traceIdLabel?: string;
     readonly errorMessage?: string;
     readonly path?: string;
     readonly httpMethod?: string;
@@ -180,10 +191,11 @@ export class ApiGwReporter {
       this.logger.text(`  ├─ Error message API GW: ${args.errorMessage}`);
     }
 
-    if (args.xRayTraceId !== undefined && args.xRayTraceId !== '') {
-      this.logger.text(`  └─ XRay Trace Id: ${args.xRayTraceId}`);
+    const traceLabel = args.traceIdLabel ?? 'Trace ID';
+    if (args.traceId !== undefined && args.traceId !== '') {
+      this.logger.text(`  └─ ${traceLabel}: ${args.traceId}`);
     } else {
-      this.logger.text(`  └─ XRay Trace Id: non disponibile`);
+      this.logger.text(`  └─ ${traceLabel}: non disponibile`);
     }
   }
 

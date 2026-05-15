@@ -48,7 +48,15 @@ function baseConfig(overrides: Partial<ApiGwAlarmConfig> = {}): ApiGwAlarmConfig
       tags: [],
     },
     apiGwLogGroup: '/aws/apigw/main',
-    entryService: { name: 'pn-a', logGroup: '/aws/ecs/pn-a', varPrefix: 'a' },
+    // V04: default entry service has executionLogGroup so the execution
+    // log branch is wired by default. Tests for the no-exec-log case can
+    // override entryService explicitly.
+    entryService: {
+      name: 'pn-a',
+      logGroup: '/aws/ecs/pn-a',
+      executionLogGroup: 'API-Gateway-Execution-Logs_default/prod',
+      varPrefix: 'a',
+    },
     services: [{ name: 'pn-b', logGroup: '/aws/ecs/pn-b', varPrefix: 'b' }],
     knownUrls: [],
     knownCases,
@@ -375,13 +383,16 @@ describe('createApiGwAlarmRunbook', () => {
       ['execution-known-failure'],
     );
     assert.strictEqual(result.resolvedAtStep, 'query-api-gw-execution-logs');
+    // V04: UNA sola chiamata AWS per N requestId (OR-clause).
     assert.deepStrictEqual(
       calls.map((call) => call.logGroup),
-      ['/aws/apigw/main', 'API-Gateway-Execution-Logs_test/prod', 'API-Gateway-Execution-Logs_test/prod'],
+      ['/aws/apigw/main', 'API-Gateway-Execution-Logs_test/prod'],
     );
+    // La singola query contiene il primo requestId per path (deduplicato):
+    // req-a-1 per /resource-a, req-b-1 per /resource-b. req-a-2 viene escluso.
     assert.match(calls[1]?.query ?? '', /req-a-1/);
     assert.doesNotMatch(calls[1]?.query ?? '', /req-a-2/);
-    assert.match(calls[2]?.query ?? '', /req-b-1/);
+    assert.match(calls[1]?.query ?? '', /req-b-1/);
   });
 
   it('stops before the X-Ray flow when execution logs have no matching known case', async () => {
@@ -448,14 +459,14 @@ describe('createApiGwAlarmRunbook', () => {
         createApiGwAlarmRunbook(
           baseConfig({
             queryTemplates: {
-              // Custom override without the placeholder — the
-              // .split().join() would silently be a no-op and the
-              // resolved query would never get minStatusCode injected.
+              // Custom override without the placeholder — V04 renderQueryTemplate
+              // fails fast with a missing-placeholder diagnostic instead of
+              // silently dropping minStatusCode.
               apiGwQuery: 'filter status >= 500 | sort @timestamp asc',
             },
           }),
         ),
-      /\{\{minStatusCode\}\} placeholder/,
+      /missing required placeholder "\{\{minStatusCode\}\}"/,
     );
   });
 

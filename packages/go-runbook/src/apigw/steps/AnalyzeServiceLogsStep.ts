@@ -7,10 +7,12 @@ import type { StepResult } from '../../types/StepResult.js';
 import { findErrorMessage } from '../helpers/findErrorMessage.js';
 import { findKnownUrlInLogs } from '../helpers/findKnownUrlInLogs.js';
 import { extractFallbackUuid } from '../helpers/extractFallbackUuid.js';
-import { findFreshTraceId } from '../helpers/findFreshTraceId.js';
+import { findTraceIdCandidate } from '../helpers/findTraceIdCandidate.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
 import type { KnownUrlsRegistry } from '../registries/KnownUrlsRegistry.js';
 import type { ServiceLogsAnalysis } from './ServiceLogsAnalysis.js';
+import type { ServiceLogSchema } from '../profiles/schemas/ServiceLogSchema.js';
+import { SEND_API_GW_PROFILE } from '../profiles/SEND_API_GW_PROFILE.js';
 
 /**
  * Configuration for {@link analyzeServiceLogs}.
@@ -52,6 +54,11 @@ export interface AnalyzeServiceLogsConfig {
    * their structured output would dangle.
    */
   readonly quiet?: boolean;
+  /**
+   * Schema dei log applicativi (propagato agli helper). Quando omesso,
+   * usa lo schema SEND di default per back-compat.
+   */
+  readonly schema?: ServiceLogSchema;
 }
 
 class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
@@ -64,6 +71,7 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
   private readonly registry: KnownUrlsRegistry;
   private readonly serviceName: string | undefined;
   private readonly quiet: boolean;
+  private readonly schema: ServiceLogSchema;
 
   constructor(config: AnalyzeServiceLogsConfig) {
     this.id = config.id;
@@ -73,6 +81,7 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
     this.registry = config.registry;
     this.serviceName = config.serviceName;
     this.quiet = config.quiet ?? false;
+    this.schema = config.schema ?? SEND_API_GW_PROFILE.serviceLog.schema;
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -113,13 +122,15 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
       };
     }
 
-    const errorMessage = findErrorMessage(results);
-    const knownUrl = findKnownUrlInLogs(results, this.registry);
+    const errorMessage = findErrorMessage(results, this.schema);
+    const knownUrl = findKnownUrlInLogs(results, this.registry, this.schema);
 
-    const extractedFallback = knownUrl !== undefined ? extractFallbackUuid(results) : undefined;
+    const extractedFallback = knownUrl !== undefined ? extractFallbackUuid(results, this.schema) : undefined;
     const fallbackIsFresh = extractedFallback !== undefined && extractedFallback !== fallbackUuidExisting;
     const freshTrace =
-      this.serviceName !== undefined && fallbackUuidExisting !== '' ? findFreshTraceId(results) : undefined;
+      this.serviceName !== undefined && fallbackUuidExisting !== ''
+        ? findTraceIdCandidate(results, this.schema)
+        : undefined;
 
     const vars: Record<string, string> = {
       [`${this.varPrefix}ErrorMsg`]: errorMessage,

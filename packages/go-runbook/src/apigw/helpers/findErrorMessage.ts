@@ -1,4 +1,5 @@
 import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type { ServiceLogSchema } from '../profiles/schemas/ServiceLogSchema.js';
 import { extractCwField } from './extractCwField.js';
 
 /**
@@ -23,11 +24,24 @@ const ERROR_KEYWORDS: ReadonlyArray<string> = [
 ];
 
 /**
+ * Restituisce il valore del primo campo "message" disponibile fra i
+ * candidati dichiarati dallo schema. SEND legge `message` poi `@message`;
+ * un profilo INTEROP potrebbe limitarsi a `['@message']`.
+ */
+function readMessage(row: ReadonlyArray<ResultField>, schema: ServiceLogSchema): string {
+  for (const candidate of schema.messageFieldCandidates) {
+    const value = extractCwField(row, candidate);
+    if (value !== undefined) return value;
+  }
+  return '';
+}
+
+/**
  * Scans a result set for the most representative "error-like" message.
  *
  * The selector runs two passes:
  *
- * 1. Among rows whose `level` field contains `error` or `warn`, pick the
+ * 1. Among rows whose level field contains `error` or `warn`, pick the
  *    longest message. The level field is the strongest signal — a row
  *    explicitly logged as ERROR or WARN by the application is more
  *    trustworthy than a keyword heuristic.
@@ -37,17 +51,18 @@ const ERROR_KEYWORDS: ReadonlyArray<string> = [
  *    or with ERROR/WARN are eligible). This avoids false positives such
  *    as DEBUG entries containing words like `failedAttempts=0`.
  *
- * Complexity: O(N) on the number of rows.
+ * Complessità: O(N) sul numero di righe.
  *
  * @param results - CloudWatch Logs Insights result rows
- * @returns The longest error-like message, or empty string if none found
+ * @param schema - schema dei log applicativi (per i nomi dei campi)
+ * @returns Il messaggio di errore più lungo trovato, oppure stringa vuota.
  */
-export function findErrorMessage(results: ReadonlyArray<ResultField[]>): string {
+export function findErrorMessage(results: ReadonlyArray<ResultField[]>, schema: ServiceLogSchema): string {
   let bestByLevel = '';
   for (const row of results) {
-    const message = extractCwField(row, 'message') ?? extractCwField(row, '@message') ?? '';
+    const message = readMessage(row, schema);
     if (message === '') continue;
-    const level = (extractCwField(row, 'level') ?? '').toLowerCase();
+    const level = (extractCwField(row, schema.levelField) ?? '').toLowerCase();
     if ((level.includes('error') || level.includes('warn')) && message.length > bestByLevel.length) {
       bestByLevel = message;
     }
@@ -58,9 +73,9 @@ export function findErrorMessage(results: ReadonlyArray<ResultField[]>): string 
 
   let bestByKeyword = '';
   for (const row of results) {
-    const message = extractCwField(row, 'message') ?? extractCwField(row, '@message') ?? '';
+    const message = readMessage(row, schema);
     if (message === '') continue;
-    const level = (extractCwField(row, 'level') ?? '').toLowerCase();
+    const level = (extractCwField(row, schema.levelField) ?? '').toLowerCase();
     if (level !== '' && !level.includes('error') && !level.includes('warn')) {
       continue;
     }

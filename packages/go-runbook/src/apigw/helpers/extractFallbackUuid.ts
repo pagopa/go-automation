@@ -1,4 +1,5 @@
 import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type { ServiceLogSchema } from '../profiles/schemas/ServiceLogSchema.js';
 import { extractCwField } from './extractCwField.js';
 
 /**
@@ -13,27 +14,39 @@ import { extractCwField } from './extractCwField.js';
 const FALLBACK_UUID_PATTERN =
   /FALLBACK-UUID:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/;
 
+function readMessage(row: ReadonlyArray<ResultField>, schema: ServiceLogSchema): string {
+  for (const candidate of schema.messageFieldCandidates) {
+    const value = extractCwField(row, candidate);
+    if (value !== undefined) return value;
+  }
+  return '';
+}
+
 /**
  * Extracts the fallback UUID from a CloudWatch Logs Insights result set
  * (first match wins).
  *
  * Microservices embed the fallback UUID inside the JSON body of their
  * error responses, typically as `"traceId":"FALLBACK-UUID:<uuid>"`. The
- * helper scans the `message` (or `@message`) field of each row and
- * returns the first UUID that matches the canonical pattern.
+ * helper scans the message field (per `schema.messageFieldCandidates`) of
+ * each row and returns the first UUID that matches the canonical pattern.
  *
  * Callers decide whether the fallback is meaningful in their own
  * context. API Gateway service analysis, for example, only promotes it
  * when the same result set also contains a known downstream URL.
  *
- * Complexity: O(N) on the number of rows; the regex is pre-compiled.
+ * Complessità: O(N) sul numero di righe; il regex è pre-compilato.
  *
  * @param results - CloudWatch Logs Insights result rows
- * @returns The first fallback UUID found, or `undefined`
+ * @param schema - schema dei log applicativi (per il campo message)
+ * @returns Il primo fallback UUID trovato, oppure `undefined`
  */
-export function extractFallbackUuid(results: ReadonlyArray<ResultField[]>): string | undefined {
+export function extractFallbackUuid(
+  results: ReadonlyArray<ResultField[]>,
+  schema: ServiceLogSchema,
+): string | undefined {
   for (const row of results) {
-    const message = extractCwField(row, 'message') ?? extractCwField(row, '@message') ?? '';
+    const message = readMessage(row, schema);
     if (message === '') continue;
     const match = FALLBACK_UUID_PATTERN.exec(message);
     if (match?.[1] !== undefined) {
@@ -47,7 +60,8 @@ export function extractFallbackUuid(results: ReadonlyArray<ResultField[]>): stri
  * Extracts the fallback UUID from an arbitrary log message string.
  *
  * Convenience overload used by callers that have already projected the
- * row down to a single message body.
+ * row down to a single message body. Non dipende dallo schema perché
+ * lavora già su una stringa "raw".
  *
  * @param message - Raw log message
  * @returns The fallback UUID if present in the message, otherwise `undefined`
