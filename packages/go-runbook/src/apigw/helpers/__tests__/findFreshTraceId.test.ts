@@ -33,25 +33,31 @@ describe('transformRawTraceId', () => {
 });
 
 describe('findFreshTraceId', () => {
-  it('returns the raw token together with its canonical form when fresh', () => {
+  it('returns the raw token together with its canonical form', () => {
     const rows = [row({ trace_id: '3d472be72977635208a92722b97b5e24', '@message': 'foo' })];
-    const result = findFreshTraceId(rows, new Set());
+    const result = findFreshTraceId(rows);
     assert.deepStrictEqual(result, {
       raw: '3d472be72977635208a92722b97b5e24',
       canonical: '1-3d472be7-2977635208a92722b97b5e24',
     });
   });
 
-  it('skips rows whose raw value is already in the known set', () => {
+  it('returns a trace_id even when callers already know its raw value', () => {
     const rows = [row({ trace_id: '3d472be72977635208a92722b97b5e24' })];
-    const result = findFreshTraceId(rows, new Set(['3d472be72977635208a92722b97b5e24']));
-    assert.strictEqual(result, undefined);
+    const result = findFreshTraceId(rows);
+    assert.deepStrictEqual(result, {
+      raw: '3d472be72977635208a92722b97b5e24',
+      canonical: '1-3d472be7-2977635208a92722b97b5e24',
+    });
   });
 
-  it('skips rows whose transformed value matches the current xRayTraceId', () => {
+  it('returns a trace_id even when its transformed value matches the current xRayTraceId', () => {
     const rows = [row({ trace_id: '3d472be72977635208a92722b97b5e24' })];
-    const result = findFreshTraceId(rows, new Set(['1-3d472be7-2977635208a92722b97b5e24']));
-    assert.strictEqual(result, undefined);
+    const result = findFreshTraceId(rows);
+    assert.deepStrictEqual(result, {
+      raw: '3d472be72977635208a92722b97b5e24',
+      canonical: '1-3d472be7-2977635208a92722b97b5e24',
+    });
   });
 
   it('ignores malformed trace_id fields and keeps scanning', () => {
@@ -60,7 +66,7 @@ describe('findFreshTraceId', () => {
       row({ trace_id: 'not-hex' }),
       row({ trace_id: 'abcd1234abcd1234abcd1234abcd1234' }),
     ];
-    const result = findFreshTraceId(rows, new Set());
+    const result = findFreshTraceId(rows);
     assert.deepStrictEqual(result, {
       raw: 'abcd1234abcd1234abcd1234abcd1234',
       canonical: '1-abcd1234-abcd1234abcd1234abcd1234',
@@ -69,7 +75,7 @@ describe('findFreshTraceId', () => {
 
   it('honours the `@trace_id` alias too', () => {
     const rows = [row({ '@trace_id': 'aabbccddeeff00112233445566778899' })];
-    const result = findFreshTraceId(rows, new Set());
+    const result = findFreshTraceId(rows);
     assert.deepStrictEqual(result, {
       raw: 'aabbccddeeff00112233445566778899',
       canonical: '1-aabbccdd-eeff00112233445566778899',
@@ -78,12 +84,12 @@ describe('findFreshTraceId', () => {
 
   it('returns undefined when no row carries a trace_id field', () => {
     const rows = [row({ '@message': 'hello' })];
-    assert.strictEqual(findFreshTraceId(rows, new Set()), undefined);
+    assert.strictEqual(findFreshTraceId(rows), undefined);
   });
 
   it('accepts a trace_id already in canonical form and reports raw === canonical', () => {
     const rows = [row({ trace_id: '1-3d472be7-2977635208a92722b97b5e24' })];
-    const result = findFreshTraceId(rows, new Set());
+    const result = findFreshTraceId(rows);
     assert.deepStrictEqual(result, {
       raw: '1-3d472be7-2977635208a92722b97b5e24',
       canonical: '1-3d472be7-2977635208a92722b97b5e24',

@@ -28,7 +28,7 @@ export interface AnalyzeServiceLogsConfig {
   readonly registry: KnownUrlsRegistry;
   /**
    * Canonical name of the service being analysed. Required only for
-   * main-loop analysis that needs to detect a fresh `trace_id` after a
+   * main-loop analysis that needs to detect a `trace_id` after a
    * fallback-UUID query. Pre-step / probe usages can omit it.
    */
   readonly serviceName?: string;
@@ -85,7 +85,6 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
     const results = rawOutput as ReadonlyArray<ResultField[]>;
     const reporter = !this.quiet && context.logger !== undefined ? new ApiGwReporter(context.logger) : undefined;
 
-    const xRayTraceId = (context.vars.get('xRayTraceId') ?? '').trim();
     const fallbackUuidExisting = (context.vars.get('fallbackUuid') ?? '').trim();
 
     if (results.length === 0) {
@@ -120,9 +119,7 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
     const extractedFallback = knownUrl !== undefined ? extractFallbackUuid(results) : undefined;
     const fallbackIsFresh = extractedFallback !== undefined && extractedFallback !== fallbackUuidExisting;
     const freshTrace =
-      this.serviceName !== undefined && fallbackUuidExisting !== ''
-        ? findFreshTraceId(results, new Set([xRayTraceId, fallbackUuidExisting].filter((value) => value !== '')))
-        : undefined;
+      this.serviceName !== undefined && fallbackUuidExisting !== '' ? findFreshTraceId(results) : undefined;
 
     const vars: Record<string, string> = {
       [`${this.varPrefix}ErrorMsg`]: errorMessage,
@@ -177,7 +174,7 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
  *   {@link KnownUrlsRegistry} (see {@link findKnownUrlInLogs});
  * - extracts a new `FALLBACK-UUID` token only when the same result set
  *   also points to a known downstream URL;
- * - records a fresh `trace_id` when the query was driven by an existing
+ * - records a `trace_id` when the query was driven by an existing
  *   fallback UUID.
  *
  * The step always signals `next: 'resolve'` so the engine evaluates

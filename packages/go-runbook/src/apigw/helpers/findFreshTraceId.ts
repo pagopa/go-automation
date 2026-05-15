@@ -43,32 +43,22 @@ export interface FreshTraceIdMatch {
 }
 
 /**
- * Scans CloudWatch Logs result rows for the first `trace_id` field whose
- * value, once transformed via {@link transformRawTraceId}, is **not**
- * already in {@link knownIdentifiers}.
+ * Scans CloudWatch Logs result rows for the first valid `trace_id` field.
  *
  * Used by `analyzeServiceLogs` to detect when the application logs
- * carry an alternative X-Ray trace id (typically observed after a query
- * filtered by `FALLBACK-UUID`) that can be re-used as the next
- * `xRayTraceId`. Returns both the raw token (so callers can show what
- * was observed) and the canonical form (so callers can install it as
- * the new `xRayTraceId`).
+ * carry an X-Ray trace id after a query filtered by `FALLBACK-UUID`.
+ * The value is returned even when it resolves to the current trace id:
+ * loop prevention is handled later by the decision step.
  *
  * @param results - CloudWatch Logs Insights result rows
- * @param knownIdentifiers - Identifiers already seen (raw or canonical)
- * @returns `{ raw, canonical }` of the first fresh trace id, or `undefined`
+ * @returns `{ raw, canonical }` of the first valid trace id, or `undefined`
  */
-export function findFreshTraceId(
-  results: ReadonlyArray<ResultField[]>,
-  knownIdentifiers: ReadonlySet<string>,
-): FreshTraceIdMatch | undefined {
+export function findFreshTraceId(results: ReadonlyArray<ResultField[]>): FreshTraceIdMatch | undefined {
   for (const row of results) {
     const raw = (extractCwField(row, 'trace_id') ?? extractCwField(row, '@trace_id') ?? '').trim();
     if (raw === '' || raw === '-') continue;
-    if (knownIdentifiers.has(raw)) continue;
     const canonical = transformRawTraceId(raw);
     if (canonical === undefined) continue;
-    if (knownIdentifiers.has(canonical)) continue;
     return { raw, canonical };
   }
   return undefined;

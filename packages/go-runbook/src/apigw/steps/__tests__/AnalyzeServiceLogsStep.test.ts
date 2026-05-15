@@ -220,7 +220,7 @@ describe('analyzeServiceLogs', () => {
     assert.strictEqual(result.vars?.['apiGwVisitedKeys'], undefined);
   });
 
-  it('records a fresh trace_id when fallback-uuid was used', async () => {
+  it('records a trace_id when fallback-uuid was used', async () => {
     const step = analyzeServiceLogs({
       id: 'analyze',
       label: 'Analyze',
@@ -279,7 +279,7 @@ describe('analyzeServiceLogs', () => {
     assert.strictEqual(result.vars?.['svcFreshTraceId'], '');
   });
 
-  it('does NOT swap when the trace_id matches the current xRayTraceId (raw or canonical)', async () => {
+  it('records the trace_id even when it matches the current xRayTraceId', async () => {
     const step = analyzeServiceLogs({
       id: 'analyze',
       label: 'Analyze',
@@ -305,7 +305,8 @@ describe('analyzeServiceLogs', () => {
 
     assert.strictEqual(result.next, 'resolve');
     assert.strictEqual(result.vars?.['xRayTraceId'], undefined);
-    assert.strictEqual(result.vars?.['svcFreshTraceId'], '');
+    assert.strictEqual(result.vars?.['svcFreshTraceId'], '1-69b158e8-28c211881e5339480367ede0');
+    assert.strictEqual(result.vars?.['svcFreshTraceIdRaw'], '69b158e828c211881e5339480367ede0');
   });
 
   it('does not apply trace swap limits during analysis', async () => {

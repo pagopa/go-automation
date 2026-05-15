@@ -66,7 +66,7 @@ describe('decideNext', () => {
     assert.strictEqual(result.vars?.['terminationReason'], '');
   });
 
-  it('retries the same service with only the fresh trace_id after a fallback query', async () => {
+  it('retries the same service with only the detected trace_id after a fallback query', async () => {
     const step = decideNext({
       id: 'decide',
       label: 'Decide',

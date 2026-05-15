@@ -11,7 +11,7 @@ import type { Runbook, ExecutionEnvironment } from '@go-automation/go-runbook';
 
 import type { GoAnalyzeAlarmConfig } from './types/GoAnalyzeAlarmConfig.js';
 import { buildAddressBookIoApiGwAlarmRunbook } from './libs/runbooks/address-book-io-api-gw-alarm/runbook.js';
-import { buildDeliveryB2BApiGwAlarmRunbook } from './libs/runbooks/delivery-b2b-api-gw-alarm/index.js';
+import { buildDeliveryB2BApiGwAlarmRunbook } from './libs/runbooks/delivery-b2b-api-gw-alarm/runbook.js';
 import { DEFAULT_TIME_WINDOW_MINUTES } from './libs/runbooks/constants.js';
 import { createServiceRegistry } from './libs/createServiceRegistry.js';
 import { computeTimeRange } from './libs/computeTimeRange.js';
@@ -22,8 +22,8 @@ import { buildDeliveryIoExpApiGwAlarmRunbook } from './libs/runbooks/pn-delivery
 /** Runbook registry: maps alarm names to their runbook builders */
 const RUNBOOK_REGISTRY = new Map<string, () => Runbook>([
   ['pn-address-book-io-IO-ApiGwAlarm', buildAddressBookIoApiGwAlarmRunbook],
-  ['pn-delivery-B2B-ApiGwAlarm', buildDeliveryB2BApiGwAlarmRunbook],
-  ['pn-delivery-IO_EXP-ApiGwAlarm', buildDeliveryIoExpApiGwAlarmRunbook],
+  ['pn-delivery-b2b-api-gw-alarm', buildDeliveryB2BApiGwAlarmRunbook],
+  ['pn-delivery-io-exp-api-gw-alarm', buildDeliveryIoExpApiGwAlarmRunbook],
 ]);
 
 /**

@@ -44,7 +44,7 @@ const DEFAULT_MIN_STATUS_CODE = 500;
  *      present, detects trace_id, then always signals `next: 'resolve'`
  *      so known cases are evaluated before traversal
  *    - `decide-<service>`: decides the next flow directive (jump to
- *      another service, retry the same service with a fresh trace_id,
+ *      another service, retry the same service with a detected trace_id,
  *      or terminate)
  *
  * The pipeline is dynamic: only the entry-service triplet is reached

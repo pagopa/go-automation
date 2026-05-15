@@ -226,7 +226,7 @@ function serializeVisitedKeys(set: ReadonlySet<string>): string {
  * and emits one of three flow directives:
  *
  * - `{ goTo: query-<currentService> }` when a fallback query surfaced a
- *   fresh `trace_id`; `fallbackUuid` is cleared so the next query uses
+ *   valid `trace_id`; `fallbackUuid` is cleared so the next query uses
  *   only the canonical trace id;
  * - `{ goTo: query-<target> }` when the URL points to a service in scope;
  * - `'stop'` otherwise (external downstream, loop detected, or no signal).
