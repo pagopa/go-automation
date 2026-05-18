@@ -11,9 +11,6 @@ import type { apigw } from '@go-automation/go-runbook';
 export const API_GW_LOG_GROUP =
   'pn-delivery-microsvc-prod-DeliveryMicroservicePublicIoAPI-VKXCJ0RGO2A9-PublicApiLogGroup-7pB9Jdze4wiI';
 
-/** Lambda log group for pn-ioAuthorizerLambda (Livello 0 probe) */
-export const IO_AUTHORIZER_LAMBDA_LOG_GROUP = '/aws/lambda/pn-ioAuthorizerLambda';
-
 /**
  * Entry service: the trace always lands on pn-delivery first.
  */

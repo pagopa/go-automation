@@ -1,5 +1,4 @@
 import type { ApiGwAlarmConfig } from '../types/ApiGwAlarmConfig.js';
-import type { ApiGwQueryTemplates } from '../types/ApiGwQueryTemplates.js';
 import type { ApiGwQueryProfile } from './ApiGwQueryProfile.js';
 import { SEND_API_GW_PROFILE } from './SEND_API_GW_PROFILE.js';
 
@@ -33,61 +32,9 @@ import { SEND_API_GW_PROFILE } from './SEND_API_GW_PROFILE.js';
  * @returns il profilo risolto, pronto per essere consumato dagli step
  */
 export function resolveApiGwQueryProfile(config: ApiGwAlarmConfig): ApiGwQueryProfile {
-  if (config.queryProfile !== undefined && config.queryTemplates !== undefined) {
-    throw new Error(
-      `createApiGwAlarmRunbook "${config.id}": both \`queryProfile\` and \`queryTemplates\` are set. ` +
-        '`queryTemplates` is the legacy v1.x API and cannot be combined with `queryProfile`. ' +
-        'Either remove `queryTemplates` (recommended) or remove `queryProfile` to use the legacy path.',
-    );
-  }
-
   if (config.queryProfile !== undefined) {
     return config.queryProfile;
   }
 
-  if (config.queryTemplates !== undefined) {
-    emitQueryTemplatesDeprecationWarning();
-    return mergeLegacyTemplates(SEND_API_GW_PROFILE, config.queryTemplates);
-  }
-
   return SEND_API_GW_PROFILE;
-}
-
-function mergeLegacyTemplates(base: ApiGwQueryProfile, legacy: ApiGwQueryTemplates): ApiGwQueryProfile {
-  return {
-    ...base,
-    accessLog: {
-      ...base.accessLog,
-      query: legacy.apiGwQuery ?? base.accessLog.query,
-    },
-    serviceLog: {
-      ...base.serviceLog,
-      queryTemplate: legacy.serviceQueryTemplate ?? base.serviceLog.queryTemplate,
-    },
-  };
-}
-
-let deprecationEmitted = false;
-
-function emitQueryTemplatesDeprecationWarning(): void {
-  if (deprecationEmitted) return;
-  deprecationEmitted = true;
-  console.warn(
-    '[@go-automation/go-runbook] `ApiGwAlarmConfig.queryTemplates` is deprecated and ' +
-      'will be removed in v2.0. Migrate to `queryProfile: SEND_API_GW_PROFILE` (or a custom profile). ' +
-      'See docs/evolutions/EVO-RTAQY-OPUS-04.md for the migration guide.',
-  );
-}
-
-/**
- * Test-only: resetta il flag "warning già emesso" per consentire test
- * isolati senza dipendenze dall'ordine della suite.
- *
- * Marcato con `__` per disincentivare l'uso fuori dai test. NON usare in
- * codice di produzione.
- *
- * @internal
- */
-export function resetQueryTemplatesDeprecationWarningForTests(): void {
-  deprecationEmitted = false;
 }

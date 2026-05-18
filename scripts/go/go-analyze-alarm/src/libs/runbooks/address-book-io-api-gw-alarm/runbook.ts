@@ -11,8 +11,8 @@
  * default (entry service); the other services are entered when a
  * {@link apigw.KnownUrl} resolved during analysis points to them.
  *
- * Custom Livello 0 lambda probe on `pn-ioAuthorizerLambda` runs before
- * the per-service pipeline (see {@link IO_AUTHORIZER_PRE_STEPS}).
+ * The SEND query profile wires the optional Livello 0
+ * `pn-ioAuthorizerLambda` probe before the per-service pipeline.
  */
 
 import { apigw } from '@go-automation/go-runbook';
@@ -21,7 +21,6 @@ import type { Runbook } from '@go-automation/go-runbook';
 import { API_GW_LOG_GROUP, ENTRY_SERVICE, REACHABLE_SERVICES } from './knownServices.js';
 import { KNOWN_URLS } from './knownUrls.js';
 import { KNOWN_CASES } from './knownCases.js';
-import { IO_AUTHORIZER_PRE_STEPS } from './preSteps.js';
 
 /**
  * Builds the pn-address-book-io-IO-ApiGwAlarm runbook definition.
@@ -43,7 +42,6 @@ export function buildAddressBookIoApiGwAlarmRunbook(): Runbook {
     entryService: ENTRY_SERVICE,
     services: REACHABLE_SERVICES,
     knownUrls: KNOWN_URLS,
-    preSteps: IO_AUTHORIZER_PRE_STEPS,
     knownCases: KNOWN_CASES,
   });
 }

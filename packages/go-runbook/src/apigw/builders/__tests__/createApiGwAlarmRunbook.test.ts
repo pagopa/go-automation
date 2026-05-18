@@ -75,6 +75,8 @@ describe('createApiGwAlarmRunbook', () => {
       'query-api-gw-execution-logs',
       'stop-api-gw-execution-log-unresolved',
       'parse-api-gw-errors',
+      'query-io-authorizer-lambda',
+      'analyze-io-authorizer-lambda',
       'query-pn-a',
       'analyze-pn-a',
       'decide-pn-a',
@@ -82,6 +84,15 @@ describe('createApiGwAlarmRunbook', () => {
       'analyze-pn-b',
       'decide-pn-b',
     ]);
+  });
+
+  it('can disable profile-level preSteps for profiles/runbooks that do not need them', () => {
+    const runbook = createApiGwAlarmRunbook(baseConfig({ includeProfilePreSteps: false }));
+    const stepIds = runbook.steps.map((d) => d.step.id);
+
+    assert.ok(!stepIds.includes('query-io-authorizer-lambda'));
+    assert.ok(!stepIds.includes('analyze-io-authorizer-lambda'));
+    assert.ok(stepIds.includes('query-pn-a'));
   });
 
   it('marks every apigw step as silent so engine logging does not double-render', () => {
@@ -92,6 +103,8 @@ describe('createApiGwAlarmRunbook', () => {
       'query-api-gw-execution-logs',
       'stop-api-gw-execution-log-unresolved',
       'parse-api-gw-errors',
+      'query-io-authorizer-lambda',
+      'analyze-io-authorizer-lambda',
       'query-pn-a',
       'analyze-pn-a',
       'decide-pn-a',
@@ -129,7 +142,7 @@ describe('createApiGwAlarmRunbook', () => {
     );
   });
 
-  it('inserts preSteps between parse-api-gw-errors and the entry-service triplet', () => {
+  it('inserts profile and custom preSteps between parse-api-gw-errors and the entry-service triplet', () => {
     const preStep = {
       step: {
         id: 'pre-1',
@@ -143,12 +156,14 @@ describe('createApiGwAlarmRunbook', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig({ preSteps: [preStep] }));
     const stepIds = runbook.steps.map((d) => d.step.id);
 
-    assert.deepStrictEqual(stepIds.slice(0, 7), [
+    assert.deepStrictEqual(stepIds.slice(0, 9), [
       'prepare-api-gw-section',
       'query-api-gw-logs',
       'query-api-gw-execution-logs',
       'stop-api-gw-execution-log-unresolved',
       'parse-api-gw-errors',
+      'query-io-authorizer-lambda',
+      'analyze-io-authorizer-lambda',
       'pre-1',
       'query-pn-a',
     ]);
@@ -291,7 +306,7 @@ describe('createApiGwAlarmRunbook', () => {
       ['primary', 'secondary'],
     );
     assert.strictEqual(result.resolvedAtStep, 'analyze-pn-a');
-    assert.deepStrictEqual(calls, ['/aws/apigw/main', '/aws/ecs/pn-a']);
+    assert.deepStrictEqual(calls, ['/aws/apigw/main', '/aws/lambda/pn-ioAuthorizerLambda', '/aws/ecs/pn-a']);
   });
 
   it('queries API Gateway execution logs by one requestId per path before extracting xRayTraceId', async () => {
@@ -451,34 +466,5 @@ describe('createApiGwAlarmRunbook', () => {
     assert.ok(stepIds.includes('query-pn-a'));
     assert.ok(stepIds.includes('decide-pn-a'));
     assert.ok(!stepIds.includes('query-pn-b'));
-  });
-
-  it('throws when a custom apiGwQuery override lacks the {{minStatusCode}} placeholder', () => {
-    assert.throws(
-      () =>
-        createApiGwAlarmRunbook(
-          baseConfig({
-            queryTemplates: {
-              // Custom override without the placeholder — V04 renderQueryTemplate
-              // fails fast with a missing-placeholder diagnostic instead of
-              // silently dropping minStatusCode.
-              apiGwQuery: 'filter status >= 500 | sort @timestamp asc',
-            },
-          }),
-        ),
-      /missing required placeholder "\{\{minStatusCode\}\}"/,
-    );
-  });
-
-  it('accepts a custom apiGwQuery override that contains the {{minStatusCode}} placeholder', () => {
-    assert.doesNotThrow(() =>
-      createApiGwAlarmRunbook(
-        baseConfig({
-          queryTemplates: {
-            apiGwQuery: 'filter status >= {{minStatusCode}} | sort @timestamp asc',
-          },
-        }),
-      ),
-    );
   });
 });

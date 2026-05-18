@@ -37,6 +37,9 @@ const SEND_EXECUTION_LOG_QUERY_TEMPLATE = `{{REQUEST_ID_FILTER_CLAUSE}}
 | sort @timestamp asc
 | display @timestamp, @message`;
 
+/** Lambda log group for the SEND IO authorizer Livello 0 probe. */
+const SEND_IO_AUTHORIZER_LAMBDA_LOG_GROUP = '/aws/lambda/pn-ioAuthorizerLambda';
+
 /**
  * Profilo canonico per i runbook di prodotto SEND.
  *
@@ -87,6 +90,12 @@ export const SEND_API_GW_PROFILE: ApiGwQueryProfile = {
       traceIdField: 'trace_id',
     },
   },
+  preSteps: [
+    {
+      kind: 'lambda-duration-probe',
+      logGroup: SEND_IO_AUTHORIZER_LAMBDA_LOG_GROUP,
+    },
+  ],
   executionLog: {
     queryTemplate: SEND_EXECUTION_LOG_QUERY_TEMPLATE,
     requestIdPredicateTemplate: `@message like '{{VALUE}}'`,

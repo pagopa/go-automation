@@ -1,6 +1,7 @@
 import type { AccessLogSpec } from './specs/AccessLogSpec.js';
 import type { ServiceLogSpec } from './specs/ServiceLogSpec.js';
 import type { ExecutionLogSpec } from './specs/ExecutionLogSpec.js';
+import type { ProfilePreStepSpec } from './specs/ProfilePreStepSpec.js';
 
 /**
  * Profilo di query per i runbook di tipo API Gateway.
@@ -21,6 +22,14 @@ export interface ApiGwQueryProfile {
 
   /** Capability ServiceLog. Obbligatoria. */
   readonly serviceLog: ServiceLogSpec;
+
+  /**
+   * Optional pre-steps associated with the product profile.
+   *
+   * SEND uses this for the pn-ioAuthorizerLambda duration probe; profiles
+   * without that diagnostic layer, such as INTEROP, leave it undefined.
+   */
+  readonly preSteps?: ReadonlyArray<ProfilePreStepSpec>;
 
   /**
    * Capability ExecutionLog. Opzionale (presente per SEND, assente per

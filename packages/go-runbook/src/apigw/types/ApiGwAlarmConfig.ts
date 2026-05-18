@@ -4,7 +4,6 @@ import type { KnownCase } from '../../types/KnownCase.js';
 import type { CaseAction } from '../../actions/CaseAction.js';
 import type { ApiGwService } from './ApiGwService.js';
 import type { KnownUrl } from './KnownUrl.js';
-import type { ApiGwQueryTemplates } from './ApiGwQueryTemplates.js';
 import type { ApiGwQueryProfile } from '../profiles/ApiGwQueryProfile.js';
 
 /**
@@ -46,8 +45,15 @@ export interface ApiGwAlarmConfig {
   /** Known URL usati per arricchire il trace e guidare il loop di analisi. */
   readonly knownUrls: ReadonlyArray<KnownUrl>;
   /**
+   * Includes pre-steps declared by the resolved query profile.
+   *
+   * Defaults to `true`. Set to `false` for a runbook that uses a profile
+   * but intentionally wants to skip its optional product diagnostics.
+   */
+  readonly includeProfilePreSteps?: boolean;
+  /**
    * Step custom inseriti fra il parsing API Gateway e la pipeline
-   * per-servizio (caso d'uso tipico: sonda Lambda authorizer).
+   * per-servizio, dopo gli eventuali pre-step dichiarati dal profilo.
    */
   readonly preSteps?: ReadonlyArray<StepDescriptor>;
   /** Casi noti valutati contro il contesto risultante */
@@ -82,15 +88,6 @@ export interface ApiGwAlarmConfig {
    * 50). Ignorato se la capability executionLog non è attiva.
    */
   readonly executionLogMaxRequestIds?: number;
-  /**
-   * @deprecated Override testuali delle query. Compatibilità v1.x;
-   * rimosso in v2.0. Migrare a `queryProfile` con un profilo personalizzato
-   * (es. `{ ...SEND_API_GW_PROFILE, accessLog: { ...SEND_API_GW_PROFILE.accessLog, query: customQuery } }`).
-   *
-   * Non può essere combinato con `queryProfile`: se entrambi sono
-   * presenti, `createApiGwAlarmRunbook` throwa.
-   */
-  readonly queryTemplates?: ApiGwQueryTemplates;
   /** Limite iterazioni anti-loop opzionale forwarded all'engine */
   readonly maxIterations?: number;
 }

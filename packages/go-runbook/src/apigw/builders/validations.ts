@@ -96,7 +96,14 @@ export function computeWiredStepIds(config: ApiGwAlarmConfig, profile: ApiGwQuer
  */
 export function validateNoStepIdCollisions(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
   const reserved = computeWiredStepIds({ ...config, preSteps: [] }, profile);
+  const seenPreStepIds = new Set<string>();
   for (const descriptor of config.preSteps ?? []) {
+    if (seenPreStepIds.has(descriptor.step.id)) {
+      throw new Error(
+        `createApiGwAlarmRunbook "${config.id}": preStep id "${descriptor.step.id}" is declared more than once.`,
+      );
+    }
+    seenPreStepIds.add(descriptor.step.id);
     if (reserved.has(descriptor.step.id)) {
       throw new Error(
         `createApiGwAlarmRunbook "${config.id}": preStep id "${descriptor.step.id}" ` +

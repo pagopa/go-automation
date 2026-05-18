@@ -23,7 +23,7 @@ import { buildDeliveryIoExpApiGwAlarmRunbook } from './libs/runbooks/pn-delivery
 const RUNBOOK_REGISTRY = new Map<string, () => Runbook>([
   ['pn-address-book-io-IO-ApiGwAlarm', buildAddressBookIoApiGwAlarmRunbook],
   ['pn-delivery-b2b-api-gw-alarm', buildDeliveryB2BApiGwAlarmRunbook],
-  ['pn-delivery-io-exp-api-gw-alarm', buildDeliveryIoExpApiGwAlarmRunbook],
+  ['pn-delivery-IO_EXP-ApiGwAlarm', buildDeliveryIoExpApiGwAlarmRunbook],
 ]);
 
 /**

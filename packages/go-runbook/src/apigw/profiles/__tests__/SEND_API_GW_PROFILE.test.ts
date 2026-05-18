@@ -65,6 +65,17 @@ describe('SEND_API_GW_PROFILE', () => {
     });
   });
 
+  describe('preSteps', () => {
+    it('declares the optional IO authorizer Lambda duration probe', () => {
+      assert.deepStrictEqual(SEND_API_GW_PROFILE.preSteps, [
+        {
+          kind: 'lambda-duration-probe',
+          logGroup: '/aws/lambda/pn-ioAuthorizerLambda',
+        },
+      ]);
+    });
+  });
+
   describe('executionLog', () => {
     it('is present (SEND has execution log capability)', () => {
       assert.notStrictEqual(SEND_API_GW_PROFILE.executionLog, undefined);

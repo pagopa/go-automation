@@ -16,6 +16,7 @@ import { queryApiGwExecutionLogs } from '../steps/QueryApiGwExecutionLogsStep.js
 import { stopApiGwExecutionLogAnalysis } from '../steps/StopApiGwExecutionLogAnalysisStep.js';
 import { resolveApiGwQueryProfile } from '../profiles/resolveApiGwQueryProfile.js';
 import { renderQueryTemplate } from '../profiles/render/renderQueryTemplate.js';
+import { resolveApiGwPreSteps } from '../preSteps/resolveApiGwPreSteps.js';
 import { isExecutionLogEnabled, getEffectiveExecutionLogGroup } from './executionLogEnablement.js';
 import {
   validatePlaceholders,
@@ -54,12 +55,14 @@ const DEFAULT_MIN_STATUS_CODE = 500;
 export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   // —— Risoluzione profilo (D1, D2) ——
   const profile = resolveApiGwQueryProfile(config);
+  const preSteps = resolveApiGwPreSteps(config, profile);
+  const effectiveConfig: ApiGwAlarmConfig = { ...config, preSteps };
 
   // —— Validazioni build-time (fail-fast) ——
   validatePlaceholders(profile);
   validateCapabilityParity(config, profile);
-  validateNoStepIdCollisions(config, profile);
-  validateKnownCaseStepRefs(config, profile);
+  validateNoStepIdCollisions(effectiveConfig, profile);
+  validateKnownCaseStepRefs(effectiveConfig, profile);
 
   const minStatus = config.minStatusCode ?? DEFAULT_MIN_STATUS_CODE;
   const apiGwQuery = renderQueryTemplate(profile.accessLog.query, {
@@ -154,8 +157,8 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     { silent: true },
   );
 
-  // 5. Custom pre-steps.
-  for (const descriptor of config.preSteps ?? []) {
+  // 5. Profile and custom pre-steps.
+  for (const descriptor of preSteps) {
     const opts: { continueOnFailure?: boolean; silent?: boolean } = {};
     if (descriptor.continueOnFailure === true) opts.continueOnFailure = true;
     if (descriptor.silent === true) opts.silent = true;

@@ -11,9 +11,6 @@ import type { apigw } from '@go-automation/go-runbook';
 export const API_GW_LOG_GROUP =
   'pn-user-attributes-microsvc-prod-AddressBookMicroservicePublicIoAPI-1C6CG6ZRGH1WD-PublicApiLogGroup-bYfVwP3QLlF0';
 
-/** Lambda log group for pn-ioAuthorizerLambda (Livello 0 probe) */
-export const IO_AUTHORIZER_LAMBDA_LOG_GROUP = '/aws/lambda/pn-ioAuthorizerLambda';
-
 /**
  * Entry service: the trace always lands on pn-user-attributes first.
  */
