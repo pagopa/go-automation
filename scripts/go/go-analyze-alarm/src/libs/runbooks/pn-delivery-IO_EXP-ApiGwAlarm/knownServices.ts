@@ -1,8 +1,5 @@
 /**
  * Constants for the pn-delivery-IO_EXP-ApiGwAlarm runbook.
- *
- * Declarative data only — the pipeline that consumes these constants is
- * built by {@link apigw.createApiGwAlarmRunbook}.
  */
 
 import type { apigw } from '@go-automation/go-runbook';

@@ -66,20 +66,6 @@ export interface ApiGwAlarmConfig {
   readonly fallbackAction?: CaseAction;
   /**
    * Profilo di query da usare per assemblare la pipeline.
-   *
-   * V04: opzionale in v1.x. Quando omesso (e nessun `queryTemplates`
-   * legacy è presente), la factory usa `SEND_API_GW_PROFILE` come default
-   * implicito. In v2.0 diventerà obbligatorio.
-   *
-   * Per dichiarare esplicitamente il profilo SEND:
-   * ```typescript
-   * queryProfile: SEND_API_GW_PROFILE
-   * ```
-   *
-   * Per INTEROP (in arrivo): `queryProfile: INTEROP_API_GW_PROFILE`.
-   *
-   * Non può essere combinato con `queryTemplates`: se entrambi sono
-   * presenti, `createApiGwAlarmRunbook` throwa.
    */
   readonly queryProfile?: ApiGwQueryProfile;
   /**
