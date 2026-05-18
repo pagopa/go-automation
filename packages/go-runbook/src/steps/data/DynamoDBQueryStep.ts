@@ -1,4 +1,4 @@
-import type { AttributeValue } from '@aws-sdk/client-dynamodb';
+import type { AttributeValue } from '@go-automation/go-common/aws';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';

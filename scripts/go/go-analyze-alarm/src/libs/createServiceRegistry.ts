@@ -2,14 +2,11 @@
  * Factory for creating the AWS ServiceRegistry from the script AWS provider.
  */
 
-import {
-  CloudWatchMetricsService,
-  AthenaService,
-  RunbookDynamoDBService,
-  RunbookHttpService,
-} from '@go-automation/go-runbook';
+import { RunbookHttpService } from '@go-automation/go-runbook';
 import { Core } from '@go-automation/go-common';
 import type { ServiceRegistry } from '@go-automation/go-runbook';
+
+const ATHENA_OUTPUT_LOCATION = 's3://placeholder-athena-results/';
 
 /**
  * Creates a ServiceRegistry from the unified script AWS provider.
@@ -24,9 +21,9 @@ import type { ServiceRegistry } from '@go-automation/go-runbook';
 export function createServiceRegistry(script: Core.GOScript): ServiceRegistry {
   return {
     cloudWatchLogs: script.aws.services.cloudWatchLogs,
-    cloudWatchMetrics: new CloudWatchMetricsService(script.aws.clients.cloudWatch),
-    athena: new AthenaService(script.aws.clients.athena, 's3://placeholder-athena-results/'),
-    dynamodb: new RunbookDynamoDBService(script.aws.clients.dynamoDB),
+    cloudWatchMetrics: script.aws.services.cloudWatchMetrics,
+    athena: script.aws.services.getAthena(ATHENA_OUTPUT_LOCATION),
+    dynamodb: script.aws.services.dynamoDB,
     http: new RunbookHttpService(),
   };
 }

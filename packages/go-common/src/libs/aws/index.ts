@@ -20,6 +20,7 @@ export type { AWSMultiClientProviderConfig } from './AWSMultiClientProvider.js';
 export { AWSProvider } from './AWSProvider.js';
 export { AWSClientsProvider } from './AWSClientsProvider.js';
 export { AWSServiceProvider } from './AWSServiceProvider.js';
+export { AWSAthenaService } from './AWSAthenaService.js';
 export { AWSCloudWatchLogsService } from './AWSCloudWatchLogsService.js';
 export type {
   AWSCloudWatchLogsLogGroupResolutionMode,
@@ -28,6 +29,8 @@ export type {
   AWSCloudWatchLogsSleepFn,
   AWSCloudWatchLogsTimeRange,
 } from './AWSCloudWatchLogsService.js';
+export { AWSCloudWatchMetricsService } from './AWSCloudWatchMetricsService.js';
+export { AWSDynamoDBService } from './AWSDynamoDBService.js';
 
 // S3 service
 export { AWSS3Service } from './AWSS3Service.js';
@@ -71,6 +74,8 @@ export type { DynamoDBQueryResult } from './models/DynamoDBQueryResult.js';
 // ECS service
 export { AWSECSService } from './AWSECSService.js';
 export type { ECSClusterHealthReport, ECSServiceHealth, ECSTaskHealth } from './models/ECSClusterHealth.js';
+export type { MetricDatapoint } from './models/MetricDatapoint.js';
+export type { MetricDimension } from './models/MetricDimension.js';
 
 // Credentials management
 export { GOAWSCredentialsManager } from './GOAWSCredentialsManager.js';

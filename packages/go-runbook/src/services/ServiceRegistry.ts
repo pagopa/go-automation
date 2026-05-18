@@ -1,8 +1,8 @@
-import type { RunbookDynamoDBService } from './RunbookDynamoDBService.js';
+import type { AthenaQueryService } from './AthenaQueryService.js';
 import type { RunbookHttpService } from './RunbookHttpService.js';
 import type { CloudWatchLogsQueryService } from './CloudWatchLogsQueryService.js';
-import type { CloudWatchMetricsService } from './CloudWatchMetricsService.js';
-import type { AthenaService } from './AthenaService.js';
+import type { CloudWatchMetricsQueryService } from './CloudWatchMetricsQueryService.js';
+import type { DynamoDBOperationsService } from './DynamoDBOperationsService.js';
 
 /**
  * Registry of services available to runbook steps.
@@ -10,8 +10,8 @@ import type { AthenaService } from './AthenaService.js';
  */
 export interface ServiceRegistry {
   readonly cloudWatchLogs: CloudWatchLogsQueryService;
-  readonly cloudWatchMetrics: CloudWatchMetricsService;
-  readonly athena: AthenaService;
-  readonly dynamodb: RunbookDynamoDBService;
+  readonly cloudWatchMetrics: CloudWatchMetricsQueryService;
+  readonly athena: AthenaQueryService;
+  readonly dynamodb: DynamoDBOperationsService;
   readonly http: RunbookHttpService;
 }

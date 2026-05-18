@@ -3,12 +3,18 @@ import { describe, it } from 'node:test';
 
 import type { GetQueryResultsCommand, ResultField, StartQueryCommand } from '@aws-sdk/client-cloudwatch-logs';
 
+import { AWSAthenaService } from '../AWSAthenaService.js';
 import { AWSClientProvider } from '../AWSClientProvider.js';
 import { AWSClientsProvider } from '../AWSClientsProvider.js';
 import { AWSCloudWatchLogsService } from '../AWSCloudWatchLogsService.js';
+import { AWSCloudWatchMetricsService } from '../AWSCloudWatchMetricsService.js';
+import { AWSDynamoDBService } from '../AWSDynamoDBService.js';
+import { AWSECSService } from '../AWSECSService.js';
 import { AWSMultiClientProvider } from '../AWSMultiClientProvider.js';
 import { AWSProvider } from '../AWSProvider.js';
 import { AWSServiceProvider } from '../AWSServiceProvider.js';
+import { AWSS3Service } from '../AWSS3Service.js';
+import { AWSSQSService } from '../AWSSQSService.js';
 
 type CloudWatchLogsCommand = StartQueryCommand | GetQueryResultsCommand;
 type CloudWatchLogsSendResponse =
@@ -273,10 +279,27 @@ describe('AWS unified provider facade', () => {
     const services = new AWSServiceProvider(asMultiProvider(new FakeAWSMultiClientProvider(['dev'])));
 
     assert.strictEqual(services.cloudWatchLogs, services.cloudWatchLogs);
+    assert.strictEqual(services.cloudWatchMetrics, services.cloudWatchMetrics);
+    assert.strictEqual(services.dynamoDB, services.dynamoDB);
+    assert.strictEqual(services.s3, services.s3);
+    assert.strictEqual(services.sqs, services.sqs);
+    assert.strictEqual(services.ecs, services.ecs);
+    assert.strictEqual(services.getAthena('s3://results-a/'), services.getAthena('s3://results-a/'));
+    assert.notStrictEqual(services.getAthena('s3://results-a/'), services.getAthena('s3://results-b/'));
+
+    assert.ok(services.cloudWatchLogs instanceof AWSCloudWatchLogsService);
+    assert.ok(services.cloudWatchMetrics instanceof AWSCloudWatchMetricsService);
+    assert.ok(services.dynamoDB instanceof AWSDynamoDBService);
+    assert.ok(services.s3 instanceof AWSS3Service);
+    assert.ok(services.sqs instanceof AWSSQSService);
+    assert.ok(services.ecs instanceof AWSECSService);
+    assert.ok(services.getAthena('s3://results-a/') instanceof AWSAthenaService);
 
     const beforeClose = services.cloudWatchLogs;
+    const beforeAthena = services.getAthena('s3://results-a/');
     services.close();
 
     assert.notStrictEqual(services.cloudWatchLogs, beforeClose);
+    assert.notStrictEqual(services.getAthena('s3://results-a/'), beforeAthena);
   });
 });

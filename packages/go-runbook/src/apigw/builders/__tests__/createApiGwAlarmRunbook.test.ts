@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { GOLogger } from '@go-automation/go-common/core';
-import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type { ResultField } from '@go-automation/go-common/aws';
 
 import { createApiGwAlarmRunbook } from '../createApiGwAlarmRunbook.js';
 import type { ApiGwAlarmConfig } from '../../types/ApiGwAlarmConfig.js';

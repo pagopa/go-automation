@@ -1,10 +1,10 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type { ResultField } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
-import type { CloudWatchLogsService } from '../../../services/CloudWatchLogsService.js';
+import type { CloudWatchLogsQueryService } from '../../../services/CloudWatchLogsQueryService.js';
 import type { TimeRange } from '../../../types/TimeRange.js';
 
 import { queryServiceLogs } from '../QueryServiceLogsStep.js';
@@ -16,7 +16,7 @@ interface CapturedCall {
 }
 
 function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<ResultField>> = []): {
-  service: CloudWatchLogsService;
+  service: CloudWatchLogsQueryService;
   calls: CapturedCall[];
 } {
   const calls: CapturedCall[] = [];
@@ -32,13 +32,13 @@ function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<ResultField>> = [
         return results;
       },
     ),
-  } as unknown as CloudWatchLogsService;
+  } as unknown as CloudWatchLogsQueryService;
   return { service, calls };
 }
 
 function createContext(args: {
   readonly vars?: Record<string, string>;
-  readonly cloudWatchLogs: CloudWatchLogsService;
+  readonly cloudWatchLogs: CloudWatchLogsQueryService;
   readonly capturedLines?: string[];
 }): RunbookContext {
   const ctx: RunbookContext = {
@@ -295,7 +295,7 @@ describe('queryServiceLogs', () => {
           "[ResourceNotFoundException] Log group '/aws/ecs/pn-data-vault-sep' does not exist for account ID '510769970275'",
         );
       },
-    } as unknown as CloudWatchLogsService;
+    } as unknown as CloudWatchLogsQueryService;
 
     const step = queryServiceLogs({
       id: 'q',

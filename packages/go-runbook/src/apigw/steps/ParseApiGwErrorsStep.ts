@@ -1,4 +1,4 @@
-import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type { ResultField } from '@go-automation/go-common/aws';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';

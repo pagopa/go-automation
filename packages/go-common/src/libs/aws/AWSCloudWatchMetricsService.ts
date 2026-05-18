@@ -1,58 +1,43 @@
-import type { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
 import { GetMetricDataCommand } from '@aws-sdk/client-cloudwatch';
-import type { TimeRange } from '../types/TimeRange.js';
+import type { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
 
-/**
- * A single metric datapoint.
- */
-export interface MetricDatapoint {
-  readonly timestamp: Date;
-  readonly value: number;
-}
-
-/**
- * Dimension for metric queries.
- */
-export interface MetricDimension {
-  readonly name: string;
-  readonly value: string;
-}
+import type { MetricDatapoint } from './models/MetricDatapoint.js';
+import type { MetricDimension } from './models/MetricDimension.js';
 
 /**
  * Service for querying CloudWatch Metrics.
  *
  * @example
  * ```typescript
- * const service = new CloudWatchMetricsService(client);
+ * const service = new AWSCloudWatchMetricsService(script.aws.clients.cloudWatch);
  * const datapoints = await service.getMetricData(
  *   'AWS/ApiGateway',
  *   '5XXError',
  *   [{ name: 'ApiName', value: 'my-api' }],
- *   { start: new Date('2024-01-01'), end: new Date('2024-01-02') },
- *   300,
+ *   { start: new Date('2026-01-01'), end: new Date('2026-01-02') },
  * );
  * ```
  */
-export class CloudWatchMetricsService {
+export class AWSCloudWatchMetricsService {
   constructor(private readonly client: CloudWatchClient) {}
 
   /**
    * Retrieves metric datapoints from CloudWatch.
    *
-   * @param namespace - CloudWatch namespace (e.g. 'AWS/ApiGateway')
-   * @param metricName - Metric name (e.g. '5XXError')
+   * @param namespace - CloudWatch namespace, e.g. `AWS/ApiGateway`
+   * @param metricName - Metric name, e.g. `5XXError`
    * @param dimensions - Metric dimensions
    * @param timeRange - Time range for the query
-   * @param periodSeconds - Aggregation period in seconds (default 300)
-   * @param stat - Statistic to retrieve (default 'Sum')
+   * @param periodSeconds - Aggregation period in seconds
+   * @param stat - Statistic to retrieve
    * @param signal - Optional abort signal to cancel the request
-   * @returns Array of metric datapoints
+   * @returns Metric datapoints
    */
   async getMetricData(
     namespace: string,
     metricName: string,
     dimensions: ReadonlyArray<MetricDimension>,
-    timeRange: TimeRange,
+    timeRange: { readonly start: Date; readonly end: Date },
     periodSeconds: number = 300,
     stat: string = 'Sum',
     signal?: AbortSignal,
@@ -68,9 +53,9 @@ export class CloudWatchMetricsService {
               Metric: {
                 Namespace: namespace,
                 MetricName: metricName,
-                Dimensions: dimensions.map((d) => ({
-                  Name: d.name,
-                  Value: d.value,
+                Dimensions: dimensions.map((dimension) => ({
+                  Name: dimension.name,
+                  Value: dimension.value,
                 })),
               },
               Period: periodSeconds,

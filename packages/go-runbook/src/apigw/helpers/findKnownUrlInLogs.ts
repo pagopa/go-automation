@@ -1,4 +1,4 @@
-import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type { ResultField } from '@go-automation/go-common/aws';
 import type { ServiceLogSchema } from '../profiles/schemas/ServiceLogSchema.js';
 import { extractCwField } from './extractCwField.js';
 import type { KnownUrlsRegistry } from '../registries/KnownUrlsRegistry.js';

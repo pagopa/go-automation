@@ -1,14 +1,15 @@
 import type { AthenaClient, Row } from '@aws-sdk/client-athena';
-import { StartQueryExecutionCommand, GetQueryExecutionCommand, GetQueryResultsCommand } from '@aws-sdk/client-athena';
-import { pollUntilComplete, fixedBackoff } from '@go-automation/go-common/core';
+import { GetQueryExecutionCommand, GetQueryResultsCommand, StartQueryExecutionCommand } from '@aws-sdk/client-athena';
 
-/** Default polling interval for Athena query results */
+import { fixedBackoff, pollUntilComplete } from '../core/utils/index.js';
+
+/** Default polling interval for Athena query results. */
 const ATHENA_POLL_INTERVAL_MS = 2000;
 
-/** Default maximum polling attempts for Athena queries */
+/** Default maximum polling attempts for Athena queries. */
 const ATHENA_MAX_POLL_ATTEMPTS = 120;
 
-/** Terminal states for Athena query execution */
+/** Terminal states for Athena query execution. */
 const ATHENA_TERMINAL_STATES: ReadonlySet<string> = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED']);
 
 /**
@@ -16,11 +17,11 @@ const ATHENA_TERMINAL_STATES: ReadonlySet<string> = new Set(['SUCCEEDED', 'FAILE
  *
  * @example
  * ```typescript
- * const service = new AthenaService(client, 's3://my-bucket/athena-results/');
- * const results = await service.query('my-database', 'SELECT * FROM table LIMIT 10');
+ * const service = new AWSAthenaService(script.aws.clients.athena, 's3://my-bucket/athena-results/');
+ * const results = await service.query('my_database', 'SELECT * FROM table LIMIT 10');
  * ```
  */
-export class AthenaService {
+export class AWSAthenaService {
   constructor(
     private readonly client: AthenaClient,
     private readonly outputLocation: string,
@@ -31,13 +32,12 @@ export class AthenaService {
    *
    * When `parameters` are provided, they are passed as `ExecutionParameters`
    * to Athena, replacing `?` positional placeholders in the query string.
-   * This prevents SQL injection by separating query structure from user data.
    *
    * @param database - Athena database name
-   * @param query - SQL query string (may contain `?` positional placeholders)
+   * @param query - SQL query string, optionally with positional `?` placeholders
    * @param parameters - Optional values for positional `?` placeholders
    * @param signal - Optional abort signal to cancel the query
-   * @returns Array of result rows as key-value records
+   * @returns Parsed result rows as key-value records
    */
   async query(
     database: string,
@@ -60,7 +60,6 @@ export class AthenaService {
       throw new Error('Athena query did not return a QueryExecutionId');
     }
 
-    // Poll for completion
     const pollOptions = {
       maxAttempts: ATHENA_MAX_POLL_ATTEMPTS,
       backoff: fixedBackoff(ATHENA_POLL_INTERVAL_MS),
@@ -69,7 +68,6 @@ export class AthenaService {
 
     await pollUntilComplete(pollOptions, async () => {
       const statusResponse = await this.client.send(new GetQueryExecutionCommand({ QueryExecutionId: executionId }));
-
       const state = statusResponse.QueryExecution?.Status?.State;
 
       if (state !== undefined && ATHENA_TERMINAL_STATES.has(state)) {
@@ -83,7 +81,6 @@ export class AthenaService {
       return undefined;
     });
 
-    // Fetch results with pagination
     const allRows: Row[] = [];
     let nextToken: string | undefined;
 
@@ -95,10 +92,7 @@ export class AthenaService {
         }),
       );
 
-      const rows = resultsResponse.ResultSet?.Rows ?? [];
-
-      allRows.push(...rows);
-
+      allRows.push(...(resultsResponse.ResultSet?.Rows ?? []));
       nextToken = resultsResponse.NextToken;
     } while (nextToken !== undefined);
 
@@ -108,9 +102,6 @@ export class AthenaService {
   /**
    * Parses Athena result rows into key-value records.
    * The first row is treated as the header row.
-   *
-   * @param rows - Raw Athena result rows
-   * @returns Parsed records with header values as keys
    */
   private parseResultRows(rows: ReadonlyArray<Row>): ReadonlyArray<Record<string, string>> {
     if (rows.length === 0) {
@@ -126,6 +117,7 @@ export class AthenaService {
       if (row?.Data === undefined) {
         continue;
       }
+
       const record: Record<string, string> = {};
       for (let j = 0; j < headers.length; j++) {
         const header = headers[j];

@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type { ResultField } from '@go-automation/go-common/aws';
 import { extractFallbackUuid, extractFallbackUuidFromMessage } from '../extractFallbackUuid.js';
 import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
 

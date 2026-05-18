@@ -1,22 +1,18 @@
 import type { DynamoDBClient, QueryCommandInput, QueryCommandOutput } from '@aws-sdk/client-dynamodb';
-import { QueryCommand, GetItemCommand, UpdateItemCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
-import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
+import { GetItemCommand, PutItemCommand, QueryCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
 import type { AttributeValue } from '@aws-sdk/client-dynamodb';
+import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 
 /** Default maximum number of items returned by a query to prevent unbounded memory growth. */
 const DEFAULT_MAX_ITEMS = 10_000;
 
 /**
- * DynamoDB service wrapper for runbook steps.
- * Provides query, get, update, and put operations.
+ * DynamoDB service wrapper for generic query, get, update and put operations.
  *
- * @example
- * ```typescript
- * const service = new RunbookDynamoDBService(client);
- * const items = await service.query('my-table', 'pk = :val', { ':val': { S: 'KEY' } });
- * ```
+ * This complements {@link DynamoDBQueryService}, which focuses on partition-key
+ * batch queries with prefix/suffix support.
  */
-export class RunbookDynamoDBService {
+export class AWSDynamoDBService {
   constructor(private readonly client: DynamoDBClient) {}
 
   /**
@@ -27,9 +23,9 @@ export class RunbookDynamoDBService {
    * @param keyConditionExpression - Key condition expression
    * @param expressionAttributeValues - Expression attribute values
    * @param expressionAttributeNames - Optional expression attribute names
-   * @param maxItems - Maximum items to return (default 10,000)
+   * @param maxItems - Maximum items to return
    * @param signal - Optional abort signal to cancel the query
-   * @returns Array of unmarshalled items
+   * @returns Unmarshalled items
    */
   async query(
     tableName: string,
@@ -103,7 +99,7 @@ export class RunbookDynamoDBService {
    * @param tableName - Table name
    * @param key - Item key as a plain object
    * @param updateExpression - Update expression
-   * @param expressionAttributeValues - Expression attribute values (plain objects, auto-marshalled)
+   * @param expressionAttributeValues - Expression attribute values as plain objects
    * @param expressionAttributeNames - Optional expression attribute names
    * @param signal - Optional abort signal to cancel the request
    */
@@ -131,7 +127,7 @@ export class RunbookDynamoDBService {
    * Puts an item into DynamoDB.
    *
    * @param tableName - Table name
-   * @param item - Item to put (plain object, auto-marshalled)
+   * @param item - Item to put as a plain object
    * @param signal - Optional abort signal to cancel the request
    */
   async putItem(tableName: string, item: Record<string, unknown>, signal?: AbortSignal): Promise<void> {

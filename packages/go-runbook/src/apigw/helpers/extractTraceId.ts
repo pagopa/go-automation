@@ -1,4 +1,4 @@
-import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type { ResultField } from '@go-automation/go-common/aws';
 import type { AccessLogSchema } from '../profiles/schemas/AccessLogSchema.js';
 import { extractCwField } from './extractCwField.js';
 

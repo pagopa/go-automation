@@ -456,21 +456,6 @@ importers:
         specifier: workspace:*
         version: link:../go-common
     devDependencies:
-      '@aws-sdk/client-athena':
-        specifier: 'catalog:'
-        version: 3.1045.0
-      '@aws-sdk/client-cloudwatch':
-        specifier: 'catalog:'
-        version: 3.1045.0
-      '@aws-sdk/client-cloudwatch-logs':
-        specifier: 'catalog:'
-        version: 3.1045.0
-      '@aws-sdk/client-dynamodb':
-        specifier: 'catalog:'
-        version: 3.1045.0
-      '@aws-sdk/util-dynamodb':
-        specifier: 'catalog:'
-        version: 3.996.2(@aws-sdk/client-dynamodb@3.1045.0)
       '@types/node':
         specifier: 'catalog:'
         version: 24.12.3
@@ -572,18 +557,6 @@ importers:
 
   scripts/go/go-analyze-alarm:
     dependencies:
-      '@aws-sdk/client-athena':
-        specifier: 'catalog:'
-        version: 3.1045.0
-      '@aws-sdk/client-cloudwatch':
-        specifier: 'catalog:'
-        version: 3.1045.0
-      '@aws-sdk/client-cloudwatch-logs':
-        specifier: 'catalog:'
-        version: 3.1045.0
-      '@aws-sdk/client-dynamodb':
-        specifier: 'catalog:'
-        version: 3.1045.0
       '@go-automation/go-common':
         specifier: workspace:*
         version: link:../../../packages/go-common
