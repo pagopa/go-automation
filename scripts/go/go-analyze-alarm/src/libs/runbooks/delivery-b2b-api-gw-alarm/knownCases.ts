@@ -1,15 +1,14 @@
 /**
- * Known cases for the pn-address-book-io-IO-ApiGwAlarm runbook.
+ * Known cases for the pn-delivery-b2b-api-gw-alarm runbook.
  *
- * Each entry mirrors a case documented in the canonical JSON runbook
- * (`go-runbooks/artifacts/send/alarms/apigw/pn-address-book-io-IO-ApiGwAlarm.json`).
+ * Each entry documents an alarm outcome recognized by this runbook.
  *
  * Matching strategy (see V02 plan §1.4 and §2.2):
  * - all cases discriminate on the microservice error message
  *   (`vars.<service>ErrorMsg`);
  * - the only case allowed to look at `vars.apiGwStatusCode` is
  *   `gateway-timeout-504`, because no microservice log is available to
- *   regex against (504 with `userAttributesLogCount == '0'`).
+ *   regex against.
  */
 
 import type { KnownCase } from '@go-automation/go-runbook';

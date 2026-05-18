@@ -1,5 +1,5 @@
 /**
- * Constants for the pn-address-book-io-IO-ApiGwAlarm runbook.
+ * Constants for the pn-delivery-b2b-api-gw-alarm runbook.
  *
  * Declarative data only — the pipeline that consumes these constants is
  * built by {@link apigw.createApiGwAlarmRunbook}.
@@ -7,7 +7,7 @@
 
 import type { apigw } from '@go-automation/go-runbook';
 
-/** API Gateway AccessLog log group for pn-delivery-IO_EXP public API */
+/** API Gateway AccessLog log group for the pn-delivery B2B public API */
 export const API_GW_LOG_GROUP =
   'pn-delivery-microsvc-prod-DeliveryMicroservicePublicAPI-1LXSVUHQG11JS-PublicApiLogGroup-Q9vhNTsSTzh7';
 
