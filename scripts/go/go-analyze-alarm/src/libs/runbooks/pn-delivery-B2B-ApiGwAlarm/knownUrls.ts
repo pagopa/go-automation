@@ -1,9 +1,5 @@
 /**
  * Known URLs for the pn-delivery-B2B-ApiGwAlarm runbook.
- *
- * A `target` matching a service in {@link REACHABLE_SERVICES} (or the
- * {@link ENTRY_SERVICE}) loops the analysis into that service; any other
- * target is treated as an external downstream and terminates the chain.
  */
 import type { apigw } from '@go-automation/go-runbook';
 
