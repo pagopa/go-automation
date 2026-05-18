@@ -7,6 +7,8 @@
 
 import type { apigw } from '@go-automation/go-runbook';
 
+import { DELIVERY_API_GW_EXECUTION_LOG_GROUP } from '../constants.js';
+
 /** API Gateway AccessLog log group for pn-delivery-IO_EXP public API */
 export const API_GW_LOG_GROUP =
   'pn-delivery-microsvc-prod-DeliveryMicroservicePublicIoAPI-VKXCJ0RGO2A9-PublicApiLogGroup-7pB9Jdze4wiI';
@@ -18,7 +20,7 @@ export const ENTRY_SERVICE: apigw.ApiGwService = {
   name: 'pn-delivery',
   varPrefix: 'delivery',
   logGroup: '/aws/ecs/pn-delivery',
-  executionLogGroup: 'API-Gateway-Execution-Logs_64pohg7bg0/unique',
+  executionLogGroup: DELIVERY_API_GW_EXECUTION_LOG_GROUP,
 };
 
 /**

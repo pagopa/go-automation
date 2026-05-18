@@ -1,5 +1,5 @@
 /**
- * Known cases for the pn-delivery-b2b-api-gw-alarm runbook.
+ * Known cases for the pn-delivery-B2B-ApiGwAlarm runbook.
  *
  * Each entry documents an alarm outcome recognized by this runbook.
  *

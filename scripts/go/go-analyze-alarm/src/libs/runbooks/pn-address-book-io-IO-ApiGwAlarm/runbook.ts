@@ -1,18 +1,5 @@
 /**
  * Runbook: pn-address-book-io-IO-ApiGwAlarm
- *
- * Analyses API Gateway alarms for the pn-user-attributes microservice
- * by orchestrating the canonical API GW pipeline (see
- * {@link apigw.createApiGwAlarmRunbook}) over the chain:
- *
- *   pn-user-attributes → pn-data-vault → pn-external-registries
- *
- * The chain is **dynamic**: only `pn-user-attributes` is reached by
- * default (entry service); the other services are entered when a
- * {@link apigw.KnownUrl} resolved during analysis points to them.
- *
- * The SEND query profile wires the optional Livello 0
- * `pn-ioAuthorizerLambda` probe before the per-service pipeline.
  */
 
 import { apigw } from '@go-automation/go-runbook';

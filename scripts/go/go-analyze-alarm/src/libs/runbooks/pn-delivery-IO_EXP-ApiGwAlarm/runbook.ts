@@ -1,18 +1,5 @@
 /**
  * Runbook: pn-delivery-IO_EXP-ApiGwAlarm
- *
- * Analyses API Gateway alarms for the pn-delivery IO_EXP public API
- * by orchestrating the canonical API GW pipeline (see
- * {@link apigw.createApiGwAlarmRunbook}) over the chain:
- *
- *   pn-delivery → pn-data-vault
- *
- * The chain is **dynamic**: only `pn-delivery` is reached by
- * default (entry service); the other services are entered when a
- * {@link apigw.KnownUrl} resolved during analysis points to them.
- *
- * The SEND query profile may add profile-level pre-steps before the
- * per-service pipeline.
  */
 
 import { apigw } from '@go-automation/go-runbook';

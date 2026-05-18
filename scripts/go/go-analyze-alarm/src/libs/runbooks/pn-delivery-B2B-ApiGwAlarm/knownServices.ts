@@ -1,11 +1,13 @@
 /**
- * Constants for the pn-delivery-b2b-api-gw-alarm runbook.
+ * Constants for the pn-delivery-B2B-ApiGwAlarm runbook.
  *
  * Declarative data only — the pipeline that consumes these constants is
  * built by {@link apigw.createApiGwAlarmRunbook}.
  */
 
 import type { apigw } from '@go-automation/go-runbook';
+
+import { DELIVERY_API_GW_EXECUTION_LOG_GROUP } from '../constants.js';
 
 /** API Gateway AccessLog log group for the pn-delivery B2B public API */
 export const API_GW_LOG_GROUP =
@@ -18,7 +20,7 @@ export const ENTRY_SERVICE: apigw.ApiGwService = {
   name: 'pn-delivery',
   varPrefix: 'delivery',
   logGroup: '/aws/ecs/pn-delivery',
-  executionLogGroup: 'API-Gateway-Execution-Logs_64pohg7bg0/unique',
+  executionLogGroup: DELIVERY_API_GW_EXECUTION_LOG_GROUP,
 };
 
 /**
