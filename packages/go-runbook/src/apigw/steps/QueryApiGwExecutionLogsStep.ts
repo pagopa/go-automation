@@ -161,16 +161,13 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
           output: [],
           vars: {
             ...accessLogVars,
-            [QUERY_MODE_VAR]: 'queried',
+            [QUERY_MODE_VAR]: 'no-request-id',
             apiGwExecutionLogGroup: this.executionLogGroup,
-            apiGwExecutionLogRequestCount: String(requestIds.length),
-            apiGwExecutionLogRequestIds: requestIds.map((request) => request.requestId).join(','),
-            apiGwExecutionLogPaths: requestIds.map((request) => request.path).join(','),
+            apiGwExecutionLogRequestCount: '0',
+            apiGwExecutionLogRequestIds: '',
+            apiGwExecutionLogPaths: '',
             apiGwExecutionLogCount: '0',
-            terminationReason: 'api-gw-execution-log-unresolved',
-            lastErrorMsg: buildUnresolvedMessage(requestIds.length),
           },
-          next: 'resolve' as const,
         };
       }
 

@@ -460,6 +460,67 @@ describe('createApiGwAlarmRunbook', () => {
     assert.deepStrictEqual(calls, ['/aws/apigw/main', 'API-Gateway-Execution-Logs_test/prod']);
   });
 
+  it('continues with trace-id service traversal when execution-log requestId extraction fails', async () => {
+    const calls: string[] = [];
+    const services = {
+      cloudWatchLogs: {
+        query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+          await Promise.resolve();
+          const logGroup = logGroups[0] ?? '';
+          calls.push(logGroup);
+          if (logGroup === '/aws/apigw/main') {
+            return [
+              cwRow({
+                status: '500',
+                authorizeStatus: '-',
+                integrationServiceStatus: '-',
+                errorMessage: 'Endpoint request timed out',
+                xrayTraceId: 'Root=1-abcdef01-234567890abcdef012345678',
+                requestId: '-',
+                path: '/resource-a',
+              }),
+            ];
+          }
+          if (logGroup === '/aws/ecs/pn-a') {
+            return [
+              cwRow({
+                '@timestamp': '2026-01-01T00:00:01.000Z',
+                level: 'ERROR',
+                '@message': '1-abcdef01-234567890abcdef012345678 application error',
+              }),
+            ];
+          }
+          return [];
+        },
+      },
+    } as unknown as ServiceRegistry;
+
+    const runbook = createApiGwAlarmRunbook(
+      baseConfig({
+        includeProfilePreSteps: false,
+        entryService: {
+          name: 'pn-a',
+          logGroup: '/aws/ecs/pn-a',
+          executionLogGroup: 'API-Gateway-Execution-Logs_test/prod',
+          varPrefix: 'a',
+        },
+      }),
+    );
+
+    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+      runbook,
+      new Map([
+        ['startTime', '2026-01-01T00:00:00.000Z'],
+        ['endTime', '2026-01-01T00:10:00.000Z'],
+      ]),
+      services,
+    );
+
+    assert.strictEqual(result.finalContext.vars.get('apiGwExecutionLogMode'), 'no-request-id');
+    assert.strictEqual(result.finalContext.vars.get('terminationReason'), 'no-match');
+    assert.deepStrictEqual(calls, ['/aws/apigw/main', '/aws/ecs/pn-a']);
+  });
+
   it('accepts an entry-only configuration (no additional services)', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig({ services: [] }));
     const stepIds = runbook.steps.map((d) => d.step.id);
