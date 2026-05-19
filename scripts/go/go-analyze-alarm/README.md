@@ -63,7 +63,7 @@ Analizza gli errori HTTP sull'API Gateway del microservizio `pn-user-attributes`
 | pnpm     | >= 10.0.0       | Package manager |
 | AWS CLI  | >= 2.0          | Per SSO         |
 
-**Permessi AWS richiesti**: `logs:StartQuery`, `logs:GetQueryResults`, `cloudwatch:DescribeAlarms`, `athena:StartQueryExecution`, `athena:GetQueryExecution`, `athena:GetQueryResults`
+**Permessi AWS richiesti**: `logs:StartQuery`, `logs:GetQueryResults`, `cloudwatch:DescribeAlarms`. I runbook che usano Athena richiedono anche `athena:StartQueryExecution`, `athena:GetQueryExecution`, `athena:GetQueryResults` e accesso in scrittura al bucket S3 configurato dal runbook.
 
 ```bash
 # Login SSO prima dell'esecuzione

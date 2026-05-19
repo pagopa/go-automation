@@ -20,7 +20,7 @@ export class AWSServiceProvider {
   private cachedS3Service: AWSS3Service | undefined;
   private cachedSQSService: AWSSQSService | undefined;
   private cachedECSService: AWSECSService | undefined;
-  private readonly cachedAthenaServices = new Map<string, AWSAthenaService>();
+  private cachedAthenaService: AWSAthenaService | undefined;
 
   constructor(private readonly clientProvider: AWSMultiClientProvider) {}
 
@@ -54,19 +54,13 @@ export class AWSServiceProvider {
     return this.cachedECSService;
   }
 
-  getAthena(outputLocation: string): AWSAthenaService {
-    const cached = this.cachedAthenaServices.get(outputLocation);
-    if (cached !== undefined) {
-      return cached;
-    }
-
-    const service = new AWSAthenaService(this.clientProvider.first.athena, outputLocation);
-    this.cachedAthenaServices.set(outputLocation, service);
-    return service;
+  get athena(): AWSAthenaService {
+    this.cachedAthenaService ??= new AWSAthenaService(this.clientProvider.first.athena);
+    return this.cachedAthenaService;
   }
 
-  athena(outputLocation: string): AWSAthenaService {
-    return this.getAthena(outputLocation);
+  getAthena(): AWSAthenaService {
+    return this.athena;
   }
 
   close(): void {
@@ -76,6 +70,6 @@ export class AWSServiceProvider {
     this.cachedS3Service = undefined;
     this.cachedSQSService = undefined;
     this.cachedECSService = undefined;
-    this.cachedAthenaServices.clear();
+    this.cachedAthenaService = undefined;
   }
 }

@@ -17,6 +17,20 @@ export interface AthenaQueryConfig {
   readonly database: string;
   /** SQL query string (supports {{params.xxx}} and {{vars.xxx}} templates) */
   readonly query: string;
+  /**
+   * Optional S3 output location for Athena results.
+   *
+   * If omitted, Athena can still run when the selected workgroup enforces
+   * its own result configuration.
+   */
+  readonly outputLocation?: string;
+  /**
+   * Optional runbook param key that carries the S3 output location.
+   *
+   * Useful when the same runbook must be executed with an environment
+   * specific Athena result bucket.
+   */
+  readonly outputLocationParam?: string;
 }
 
 /**
@@ -45,12 +59,16 @@ export class AthenaQueryStep implements Step<ReadonlyArray<Record<string, string
 
   private readonly database: string;
   private readonly query: string;
+  private readonly outputLocation: string | undefined;
+  private readonly outputLocationParam: string | undefined;
 
   constructor(config: AthenaQueryConfig) {
     this.id = config.id;
     this.label = config.label;
     this.database = config.database;
     this.query = config.query;
+    this.outputLocation = config.outputLocation;
+    this.outputLocationParam = config.outputLocationParam;
   }
 
   /**
@@ -64,6 +82,8 @@ export class AthenaQueryStep implements Step<ReadonlyArray<Record<string, string
     return {
       query: interpolateTemplate(this.query, context),
       database: this.database,
+      outputLocation: this.resolveOutputLocation(context, false) ?? null,
+      outputLocationParam: this.outputLocationParam ?? null,
     };
   }
 
@@ -78,9 +98,36 @@ export class AthenaQueryStep implements Step<ReadonlyArray<Record<string, string
   async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<Record<string, string>>>> {
     return executeStep('Athena query', async () => {
       const { query, parameters } = extractTemplateParameters(this.query, context);
-      const results = await context.services.athena.query(this.database, query, parameters, context.signal);
+      const outputLocation = this.resolveOutputLocation(context, true);
+      const results = await context.services.athena.query(this.database, query, {
+        parameters,
+        ...(outputLocation !== undefined ? { outputLocation } : {}),
+        ...(context.signal !== undefined ? { signal: context.signal } : {}),
+      });
       return { success: true, output: results };
     });
+  }
+
+  private resolveOutputLocation(context: RunbookContext, throwOnMissingParam: boolean): string | undefined {
+    const inline = this.outputLocation?.trim();
+    if (inline !== undefined && inline !== '') {
+      return inline;
+    }
+
+    if (this.outputLocationParam === undefined) {
+      return undefined;
+    }
+
+    const fromParams = context.params.get(this.outputLocationParam)?.trim();
+    if (fromParams !== undefined && fromParams !== '') {
+      return fromParams;
+    }
+
+    if (throwOnMissingParam) {
+      throw new Error(`Athena output location param "${this.outputLocationParam}" is missing or empty`);
+    }
+
+    return undefined;
   }
 }
 

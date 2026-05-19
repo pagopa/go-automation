@@ -6,8 +6,6 @@ import { RunbookHttpService } from '@go-automation/go-runbook';
 import { Core } from '@go-automation/go-common';
 import type { ServiceRegistry } from '@go-automation/go-runbook';
 
-const ATHENA_OUTPUT_LOCATION = 's3://placeholder-athena-results/';
-
 /**
  * Creates a ServiceRegistry from the unified script AWS provider.
  *
@@ -22,7 +20,7 @@ export function createServiceRegistry(script: Core.GOScript): ServiceRegistry {
   return {
     cloudWatchLogs: script.aws.services.cloudWatchLogs,
     cloudWatchMetrics: script.aws.services.cloudWatchMetrics,
-    athena: script.aws.services.getAthena(ATHENA_OUTPUT_LOCATION),
+    athena: script.aws.services.athena,
     dynamodb: script.aws.services.dynamoDB,
     http: new RunbookHttpService(),
   };

@@ -62,14 +62,70 @@ describe('AWSAthenaService', () => {
       },
     };
 
-    const service = new AWSAthenaService(asAthenaClient(fakeClient), 's3://athena-results/');
+    const service = new AWSAthenaService(asAthenaClient(fakeClient));
 
-    const rows = await service.query('db', 'select * from table where id = ?', ['1']);
+    const rows = await service.query('db', 'select * from table where id = ?', {
+      parameters: ['1'],
+      outputLocation: 's3://athena-results/',
+    });
 
     assert.deepStrictEqual(rows, [
       { id: '1', status: 'OK' },
       { id: '2', status: 'KO' },
     ]);
+    const startCommand = fakeClient.commands.find(
+      (command): command is StartQueryExecutionCommand => command instanceof StartQueryExecutionCommand,
+    );
+    assert.strictEqual(startCommand?.input.ResultConfiguration?.OutputLocation, 's3://athena-results/');
+    assert.deepStrictEqual(startCommand?.input.ExecutionParameters, ['1']);
     assert.strictEqual(fakeClient.commands.filter((command) => command instanceof GetQueryResultsCommand).length, 2);
+  });
+
+  it('omits ResultConfiguration when outputLocation is not provided', async () => {
+    const fakeClient: FakeAthenaClient = {
+      commands: [],
+      async send(command) {
+        this.commands.push(command);
+        await Promise.resolve();
+
+        if (command instanceof StartQueryExecutionCommand) {
+          return { QueryExecutionId: 'exec-1' };
+        }
+        if (command instanceof GetQueryExecutionCommand) {
+          return { QueryExecution: { Status: { State: 'SUCCEEDED' } } };
+        }
+        return {
+          ResultSet: {
+            Rows: [{ Data: [{ VarCharValue: 'id' }] }],
+          },
+        };
+      },
+    };
+
+    const service = new AWSAthenaService(asAthenaClient(fakeClient));
+
+    await service.query('db', 'select 1');
+
+    const startCommand = fakeClient.commands.find(
+      (command): command is StartQueryExecutionCommand => command instanceof StartQueryExecutionCommand,
+    );
+    assert.strictEqual(startCommand?.input.ResultConfiguration, undefined);
+  });
+
+  it('rejects invalid outputLocation values', async () => {
+    const fakeClient: FakeAthenaClient = {
+      commands: [],
+      async send(command) {
+        this.commands.push(command);
+        return { QueryExecutionId: 'exec-1' };
+      },
+    };
+    const service = new AWSAthenaService(asAthenaClient(fakeClient));
+
+    await assert.rejects(
+      service.query('db', 'select 1', { outputLocation: 'https://example.com/results/' }),
+      /Invalid Athena output location/,
+    );
+    assert.strictEqual(fakeClient.commands.length, 0);
   });
 });

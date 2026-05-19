@@ -17,15 +17,28 @@ const ATHENA_TERMINAL_STATES: ReadonlySet<string> = new Set(['SUCCEEDED', 'FAILE
  *
  * @example
  * ```typescript
- * const service = new AWSAthenaService(script.aws.clients.athena, 's3://my-bucket/athena-results/');
- * const results = await service.query('my_database', 'SELECT * FROM table LIMIT 10');
+ * const service = new AWSAthenaService(script.aws.clients.athena);
+ * const results = await service.query('my_database', 'SELECT * FROM table LIMIT 10', {
+ *   outputLocation: 's3://my-bucket/athena-results/',
+ * });
  * ```
  */
+export interface AWSAthenaQueryOptions {
+  /** Optional values for positional `?` placeholders. */
+  readonly parameters?: ReadonlyArray<string>;
+  /**
+   * Optional S3 location for Athena query results.
+   *
+   * Can be omitted when the Athena workgroup enforces its own result
+   * configuration.
+   */
+  readonly outputLocation?: string;
+  /** Optional abort signal to cancel the query. */
+  readonly signal?: AbortSignal;
+}
+
 export class AWSAthenaService {
-  constructor(
-    private readonly client: AthenaClient,
-    private readonly outputLocation: string,
-  ) {}
+  constructor(private readonly client: AthenaClient) {}
 
   /**
    * Executes an Athena query and waits for results.
@@ -35,24 +48,25 @@ export class AWSAthenaService {
    *
    * @param database - Athena database name
    * @param query - SQL query string, optionally with positional `?` placeholders
-   * @param parameters - Optional values for positional `?` placeholders
-   * @param signal - Optional abort signal to cancel the query
+   * @param options - Optional query parameters, result location, and abort signal
    * @returns Parsed result rows as key-value records
    */
   async query(
     database: string,
     query: string,
-    parameters?: ReadonlyArray<string>,
-    signal?: AbortSignal,
+    options: AWSAthenaQueryOptions = {},
   ): Promise<ReadonlyArray<Record<string, string>>> {
+    const outputLocation = normalizeOutputLocation(options.outputLocation);
     const startResponse = await this.client.send(
       new StartQueryExecutionCommand({
         QueryString: query,
         QueryExecutionContext: { Database: database },
-        ResultConfiguration: { OutputLocation: this.outputLocation },
-        ...(parameters !== undefined && parameters.length > 0 ? { ExecutionParameters: [...parameters] } : {}),
+        ...(outputLocation !== undefined ? { ResultConfiguration: { OutputLocation: outputLocation } } : {}),
+        ...(options.parameters !== undefined && options.parameters.length > 0
+          ? { ExecutionParameters: [...options.parameters] }
+          : {}),
       }),
-      ...(signal !== undefined ? [{ abortSignal: signal }] : []),
+      ...(options.signal !== undefined ? [{ abortSignal: options.signal }] : []),
     );
 
     const executionId = startResponse.QueryExecutionId;
@@ -63,7 +77,7 @@ export class AWSAthenaService {
     const pollOptions = {
       maxAttempts: ATHENA_MAX_POLL_ATTEMPTS,
       backoff: fixedBackoff(ATHENA_POLL_INTERVAL_MS),
-      ...(signal !== undefined ? { signal } : {}),
+      ...(options.signal !== undefined ? { signal: options.signal } : {}),
     };
 
     await pollUntilComplete(pollOptions, async () => {
@@ -131,4 +145,36 @@ export class AWSAthenaService {
 
     return results;
   }
+}
+
+function normalizeOutputLocation(outputLocation: string | undefined): string | undefined {
+  const trimmed = outputLocation?.trim();
+  if (trimmed === undefined || trimmed === '') {
+    return undefined;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    throw invalidOutputLocationError();
+  }
+
+  if (
+    parsed.protocol !== 's3:' ||
+    parsed.hostname === '' ||
+    parsed.username !== '' ||
+    parsed.password !== '' ||
+    parsed.search !== '' ||
+    parsed.hash !== '' ||
+    /\s/.test(trimmed)
+  ) {
+    throw invalidOutputLocationError();
+  }
+
+  return trimmed;
+}
+
+function invalidOutputLocationError(): Error {
+  return new Error('Invalid Athena output location. Expected an S3 URI like s3://bucket/prefix/.');
 }

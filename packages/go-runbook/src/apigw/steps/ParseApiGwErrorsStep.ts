@@ -25,8 +25,8 @@ export interface ParseApiGwErrorsConfig {
   readonly minStatusCode?: number;
   /**
    * Schema dei campi prodotti dalla query AccessLog. Quando omesso, viene
-   * usato lo schema SEND di default per back-compat con il path legacy
-   * `queryTemplates`. Profili non-SEND devono passarlo esplicitamente.
+   * usato lo schema del profilo SEND di default per compatibilita con i
+   * runbook esistenti. Profili non-SEND devono passarlo esplicitamente.
    */
   readonly schema?: AccessLogSchema;
   /**

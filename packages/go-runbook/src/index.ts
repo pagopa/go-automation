@@ -98,7 +98,7 @@ export { logAction, notifyAction, escalateAction, compositeAction } from './acti
 
 // Services
 export type { ServiceRegistry } from './services/ServiceRegistry.js';
-export type { AthenaQueryService } from './services/AthenaQueryService.js';
+export type { AthenaQueryOptions, AthenaQueryService } from './services/AthenaQueryService.js';
 export type { CloudWatchLogsQueryService } from './services/CloudWatchLogsQueryService.js';
 export type { CloudWatchMetricsQueryService } from './services/CloudWatchMetricsQueryService.js';
 export type { DynamoDBOperationsService } from './services/DynamoDBOperationsService.js';

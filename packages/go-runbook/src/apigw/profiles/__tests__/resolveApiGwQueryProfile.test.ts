@@ -32,7 +32,7 @@ describe('resolveApiGwQueryProfile', () => {
     assert.strictEqual(resolved.id, 'custom');
   });
 
-  it('returns SEND_API_GW_PROFILE as default when neither queryProfile nor queryTemplates are set', () => {
+  it('returns SEND_API_GW_PROFILE as default when queryProfile is not set', () => {
     const resolved = resolveApiGwQueryProfile(baseConfig());
     assert.strictEqual(resolved.id, 'send');
     assert.strictEqual(resolved.accessLog.query, SEND_API_GW_PROFILE.accessLog.query);

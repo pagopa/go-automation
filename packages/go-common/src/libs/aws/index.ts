@@ -21,6 +21,7 @@ export { AWSProvider } from './AWSProvider.js';
 export { AWSClientsProvider } from './AWSClientsProvider.js';
 export { AWSServiceProvider } from './AWSServiceProvider.js';
 export { AWSAthenaService } from './AWSAthenaService.js';
+export type { AWSAthenaQueryOptions } from './AWSAthenaService.js';
 export { AWSCloudWatchLogsService } from './AWSCloudWatchLogsService.js';
 export type {
   AWSCloudWatchLogsLogGroupResolutionMode,

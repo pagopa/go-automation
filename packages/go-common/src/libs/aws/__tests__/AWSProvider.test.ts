@@ -275,7 +275,7 @@ describe('AWS unified provider facade', () => {
     assert.notStrictEqual(provider.services, services);
   });
 
-  it('caches the CloudWatch Logs service instance inside AWSServiceProvider', () => {
+  it('caches AWS service instances inside AWSServiceProvider', () => {
     const services = new AWSServiceProvider(asMultiProvider(new FakeAWSMultiClientProvider(['dev'])));
 
     assert.strictEqual(services.cloudWatchLogs, services.cloudWatchLogs);
@@ -284,8 +284,8 @@ describe('AWS unified provider facade', () => {
     assert.strictEqual(services.s3, services.s3);
     assert.strictEqual(services.sqs, services.sqs);
     assert.strictEqual(services.ecs, services.ecs);
-    assert.strictEqual(services.getAthena('s3://results-a/'), services.getAthena('s3://results-a/'));
-    assert.notStrictEqual(services.getAthena('s3://results-a/'), services.getAthena('s3://results-b/'));
+    assert.strictEqual(services.athena, services.athena);
+    assert.strictEqual(services.getAthena(), services.athena);
 
     assert.ok(services.cloudWatchLogs instanceof AWSCloudWatchLogsService);
     assert.ok(services.cloudWatchMetrics instanceof AWSCloudWatchMetricsService);
@@ -293,13 +293,13 @@ describe('AWS unified provider facade', () => {
     assert.ok(services.s3 instanceof AWSS3Service);
     assert.ok(services.sqs instanceof AWSSQSService);
     assert.ok(services.ecs instanceof AWSECSService);
-    assert.ok(services.getAthena('s3://results-a/') instanceof AWSAthenaService);
+    assert.ok(services.athena instanceof AWSAthenaService);
 
     const beforeClose = services.cloudWatchLogs;
-    const beforeAthena = services.getAthena('s3://results-a/');
+    const beforeAthena = services.athena;
     services.close();
 
     assert.notStrictEqual(services.cloudWatchLogs, beforeClose);
-    assert.notStrictEqual(services.getAthena('s3://results-a/'), beforeAthena);
+    assert.notStrictEqual(services.athena, beforeAthena);
   });
 });
