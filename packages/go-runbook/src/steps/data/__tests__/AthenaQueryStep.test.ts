@@ -18,12 +18,17 @@ function makeContext(params: ReadonlyArray<readonly [string, string]> = []): {
   const calls: AthenaCall[] = [];
   const services = {
     athena: {
-      async query(database: string, query: string, options?: AthenaQueryOptions) {
+      async query(
+        database: string,
+        query: string,
+        options?: AthenaQueryOptions,
+      ): Promise<ReadonlyArray<Record<string, string>>> {
         calls.push({
           database,
           query,
           ...(options !== undefined ? { options } : {}),
         });
+        await Promise.resolve();
         return [{ ok: 'true' }];
       },
     },

@@ -76,12 +76,12 @@ Lo script non include un file di configurazione dedicato: la configurazione oper
 
 ### Parametri CLI
 
-| Parametro              | Alias   | Tipo     | Obbligatorio | Descrizione                                                                                          |
-| ---------------------- | ------- | -------- | ------------ | ---------------------------------------------------------------------------------------------------- |
-| `--alarm-name`         | `-an`   | string   | Si           | Nome esatto dell'allarme CloudWatch                                                                  |
-| `--alarm-datetime`     | `-ad`   | string   | Si           | Timestamp allarme, o prima occorrenza per allarmi multi-occorrenza (ISO 8601)                        |
-| `--alarm-datetime-end` | `-ade`  | string   | No           | Timestamp dell'ultima occorrenza per allarmi multi-occorrenza (ISO 8601). Estende la finestra finale |
-| `--aws-profiles`       | `-aps`  | string[] | Si           | Profili AWS SSO (virgola-separati)                                                                   |
+| Parametro              | Alias  | Tipo     | Obbligatorio | Descrizione                                                                                          |
+| ---------------------- | ------ | -------- | ------------ | ---------------------------------------------------------------------------------------------------- |
+| `--alarm-name`         | `-an`  | string   | Si           | Nome esatto dell'allarme CloudWatch                                                                  |
+| `--alarm-datetime`     | `-ad`  | string   | Si           | Timestamp allarme, o prima occorrenza per allarmi multi-occorrenza (ISO 8601)                        |
+| `--alarm-datetime-end` | `-ade` | string   | No           | Timestamp dell'ultima occorrenza per allarmi multi-occorrenza (ISO 8601). Estende la finestra finale |
+| `--aws-profiles`       | `-aps` | string[] | Si           | Profili AWS SSO (virgola-separati)                                                                   |
 
 I timestamp devono essere in formato **ISO 8601**: `YYYY-MM-DDTHH:MM:SSZ`
 

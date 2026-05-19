@@ -117,6 +117,7 @@ describe('AWSAthenaService', () => {
       commands: [],
       async send(command) {
         this.commands.push(command);
+        await Promise.resolve();
         return { QueryExecutionId: 'exec-1' };
       },
     };

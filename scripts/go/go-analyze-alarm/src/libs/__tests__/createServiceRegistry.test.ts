@@ -1,6 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
+import type { Core } from '@go-automation/go-common';
+
 import { createServiceRegistry } from '../createServiceRegistry.js';
 
 describe('createServiceRegistry', () => {
@@ -19,7 +21,7 @@ describe('createServiceRegistry', () => {
           dynamoDB,
         },
       },
-    } as unknown as Parameters<typeof createServiceRegistry>[0];
+    } as unknown as Core.GOScript;
 
     const registry = createServiceRegistry(script);
 
