@@ -17,7 +17,7 @@ Dato un allarme CloudWatch e il momento in cui e scattato, esegue automaticament
 ## Come funziona
 
 1. **Lookup runbook**: lo script cerca il runbook registrato per il nome dell'allarme fornito
-2. **Calcolo time window**: costruisce un intervallo `[alarmDatetime - 5min, alarmDatetime + 5min]`
+2. **Calcolo time window**: costruisce un intervallo `[alarmDatetime - 5min, alarmDatetime + 5min]`. Se viene fornito anche `--alarm-datetime-end`, l'intervallo diventa `[alarmDatetime - 5min, alarmDatetimeEnd + 5min]` per coprire allarmi multi-occorrenza
 3. **Esecuzione step-by-step**: ogni step del runbook interroga CloudWatch Logs, DynamoDB, Athena o altri servizi in base alle esigenze del runbook; le variabili estratte passano agli step successivi
 4. **Match casi noti**: al termine degli step, il RunbookEngine confronta i dati raccolti con i pattern dei casi noti e restituisce il primo match (o un fallback)
 5. **Salvataggio trace**: l'intera traccia di esecuzione (step, variabili, risultato) viene salvata in `data/trace-{alarmName}.json`
@@ -63,7 +63,7 @@ Analizza gli errori HTTP sull'API Gateway del microservizio `pn-user-attributes`
 | pnpm     | >= 10.0.0       | Package manager |
 | AWS CLI  | >= 2.0          | Per SSO         |
 
-**Permessi AWS richiesti**: `logs:StartQuery`, `logs:GetQueryResults`, `cloudwatch:DescribeAlarms`, `athena:StartQueryExecution`, `athena:GetQueryExecution`, `athena:GetQueryResults`
+**Permessi AWS richiesti**: `logs:StartQuery`, `logs:GetQueryResults`, `cloudwatch:DescribeAlarms`. I runbook che usano Athena richiedono anche `athena:StartQueryExecution`, `athena:GetQueryExecution`, `athena:GetQueryResults` e accesso in scrittura al bucket S3 configurato dal runbook.
 
 ```bash
 # Login SSO prima dell'esecuzione
@@ -76,13 +76,19 @@ Lo script non include un file di configurazione dedicato: la configurazione oper
 
 ### Parametri CLI
 
-| Parametro          | Alias  | Tipo     | Obbligatorio | Descrizione                         |
-| ------------------ | ------ | -------- | ------------ | ----------------------------------- |
-| `--alarm-name`     | `-an`  | string   | Si           | Nome esatto dell'allarme CloudWatch |
-| `--alarm-datetime` | `-ad`  | string   | Si           | Timestamp allarme (ISO 8601)        |
-| `--aws-profiles`   | `-aps` | string[] | Si           | Profili AWS SSO (virgola-separati)  |
+| Parametro              | Alias  | Tipo     | Obbligatorio | Descrizione                                                                                          |
+| ---------------------- | ------ | -------- | ------------ | ---------------------------------------------------------------------------------------------------- |
+| `--alarm-name`         | `-an`  | string   | Si           | Nome esatto dell'allarme CloudWatch                                                                  |
+| `--alarm-datetime`     | `-ad`  | string   | Si           | Timestamp allarme, o prima occorrenza per allarmi multi-occorrenza (ISO 8601)                        |
+| `--alarm-datetime-end` | `-ade` | string   | No           | Timestamp dell'ultima occorrenza per allarmi multi-occorrenza (ISO 8601). Estende la finestra finale |
+| `--aws-profiles`       | `-aps` | string[] | Si           | Profili AWS SSO (virgola-separati)                                                                   |
 
-Il timestamp deve essere in formato **ISO 8601**: `YYYY-MM-DDTHH:MM:SSZ`
+I timestamp devono essere in formato **ISO 8601**: `YYYY-MM-DDTHH:MM:SSZ`
+
+Quando `--alarm-datetime-end` è fornito, la time window di analisi diventa
+`[alarm-datetime - 5min, alarm-datetime-end + 5min]` invece del classico
+`±5min` intorno a `--alarm-datetime`. Utile per allarmi che persistono per
+diversi minuti e producono errori distribuiti nell'intero intervallo.
 
 ## Utilizzo
 
@@ -103,6 +109,20 @@ pnpm go:analyze:alarm:dev -- \
   -ad "2025-02-20T14:30:00Z" \
   -aps "sso_pn-core-prod"
 ```
+
+### Allarme multi-occorrenza (range esteso)
+
+Se l'allarme è scattato più volte in un intervallo di alcuni minuti, passa anche `--alarm-datetime-end` per analizzare l'intero range:
+
+```bash
+pnpm go:analyze:alarm:dev -- \
+  -an "pn-address-book-io-IO-ApiGwAlarm" \
+  -ad "2025-02-20T14:30:00Z" \
+  -ade "2025-02-20T14:45:00Z" \
+  -aps "sso_pn-core-prod"
+```
+
+La time window risultante è `[14:25:00Z, 14:50:00Z]`.
 
 ### Analisi su più profili AWS
 

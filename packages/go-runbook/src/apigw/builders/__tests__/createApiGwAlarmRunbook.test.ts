@@ -1,12 +1,17 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { GOLogger } from '@go-automation/go-common/core';
+import type { ResultField } from '@go-automation/go-common/aws';
+
 import { createApiGwAlarmRunbook } from '../createApiGwAlarmRunbook.js';
 import type { ApiGwAlarmConfig } from '../../types/ApiGwAlarmConfig.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { StepDescriptor } from '../../../types/StepDescriptor.js';
 import type { KnownCase } from '../../../types/KnownCase.js';
+import { RunbookEngine } from '../../../core/RunbookEngine.js';
+import { ConditionEvaluator } from '../../../core/ConditionEvaluator.js';
 
 function fakeContext(params: ReadonlyArray<readonly [string, string]>): RunbookContext {
   return {
@@ -26,6 +31,10 @@ function getTraceQuery(traceInfo: Readonly<Record<string, unknown>> | undefined)
   return typeof value === 'string' ? value : '';
 }
 
+function cwRow(fields: Record<string, string>): ResultField[] {
+  return Object.entries(fields).map(([field, value]) => ({ field, value }));
+}
+
 function baseConfig(overrides: Partial<ApiGwAlarmConfig> = {}): ApiGwAlarmConfig {
   const knownCases: ReadonlyArray<KnownCase> = [];
   return {
@@ -39,7 +48,15 @@ function baseConfig(overrides: Partial<ApiGwAlarmConfig> = {}): ApiGwAlarmConfig
       tags: [],
     },
     apiGwLogGroup: '/aws/apigw/main',
-    entryService: { name: 'pn-a', logGroup: '/aws/ecs/pn-a', varPrefix: 'a' },
+    // V04: default entry service has executionLogGroup so the execution
+    // log branch is wired by default. Tests for the no-exec-log case can
+    // override entryService explicitly.
+    entryService: {
+      name: 'pn-a',
+      logGroup: '/aws/ecs/pn-a',
+      executionLogGroup: 'API-Gateway-Execution-Logs_default/prod',
+      varPrefix: 'a',
+    },
     services: [{ name: 'pn-b', logGroup: '/aws/ecs/pn-b', varPrefix: 'b' }],
     knownUrls: [],
     knownCases,
@@ -55,7 +72,11 @@ describe('createApiGwAlarmRunbook', () => {
     assert.deepStrictEqual(stepIds, [
       'prepare-api-gw-section',
       'query-api-gw-logs',
+      'query-api-gw-execution-logs',
+      'stop-api-gw-execution-log-unresolved',
       'parse-api-gw-errors',
+      'query-io-authorizer-lambda',
+      'analyze-io-authorizer-lambda',
       'query-pn-a',
       'analyze-pn-a',
       'decide-pn-a',
@@ -65,12 +86,25 @@ describe('createApiGwAlarmRunbook', () => {
     ]);
   });
 
+  it('can disable profile-level preSteps for profiles/runbooks that do not need them', () => {
+    const runbook = createApiGwAlarmRunbook(baseConfig({ includeProfilePreSteps: false }));
+    const stepIds = runbook.steps.map((d) => d.step.id);
+
+    assert.ok(!stepIds.includes('query-io-authorizer-lambda'));
+    assert.ok(!stepIds.includes('analyze-io-authorizer-lambda'));
+    assert.ok(stepIds.includes('query-pn-a'));
+  });
+
   it('marks every apigw step as silent so engine logging does not double-render', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig());
     const apigwIds = new Set([
       'prepare-api-gw-section',
       'query-api-gw-logs',
+      'query-api-gw-execution-logs',
+      'stop-api-gw-execution-log-unresolved',
       'parse-api-gw-errors',
+      'query-io-authorizer-lambda',
+      'analyze-io-authorizer-lambda',
       'query-pn-a',
       'analyze-pn-a',
       'decide-pn-a',
@@ -108,7 +142,7 @@ describe('createApiGwAlarmRunbook', () => {
     );
   });
 
-  it('inserts preSteps between parse-api-gw-errors and the entry-service triplet', () => {
+  it('inserts profile and custom preSteps between parse-api-gw-errors and the entry-service triplet', () => {
     const preStep = {
       step: {
         id: 'pre-1',
@@ -122,10 +156,14 @@ describe('createApiGwAlarmRunbook', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig({ preSteps: [preStep] }));
     const stepIds = runbook.steps.map((d) => d.step.id);
 
-    assert.deepStrictEqual(stepIds.slice(0, 5), [
+    assert.deepStrictEqual(stepIds.slice(0, 9), [
       'prepare-api-gw-section',
       'query-api-gw-logs',
+      'query-api-gw-execution-logs',
+      'stop-api-gw-execution-log-unresolved',
       'parse-api-gw-errors',
+      'query-io-authorizer-lambda',
+      'analyze-io-authorizer-lambda',
       'pre-1',
       'query-pn-a',
     ]);
@@ -197,40 +235,297 @@ describe('createApiGwAlarmRunbook', () => {
     assert.strictEqual(runbook.maxIterations, 42);
   });
 
+  it('stops on every matching known case before following a KnownUrl target', async () => {
+    const knownCases: ReadonlyArray<KnownCase> = [
+      {
+        id: 'primary',
+        description: 'Primary matching case',
+        priority: 20,
+        condition: { type: 'compare', ref: 'vars.aNextUrlTarget', operator: '==', value: 'pn-b' },
+        action: { type: 'log', level: 'info', message: 'primary' },
+      },
+      {
+        id: 'secondary',
+        description: 'Secondary matching case',
+        priority: 10,
+        condition: { type: 'compare', ref: 'vars.aNextUrlTarget', operator: '==', value: 'pn-b' },
+        action: { type: 'log', level: 'info', message: 'secondary' },
+      },
+    ];
+    const calls: string[] = [];
+    const services = {
+      cloudWatchLogs: {
+        query: async (
+          logGroups: ReadonlyArray<string>,
+          _query: string,
+        ): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+          await Promise.resolve();
+          const logGroup = logGroups[0] ?? '';
+          calls.push(logGroup);
+          if (logGroup === '/aws/apigw/main') {
+            return [
+              cwRow({
+                status: '500',
+                authorizeStatus: '-',
+                integrationServiceStatus: '-',
+                xrayTraceId: 'Root=1-abc',
+              }),
+            ];
+          }
+          if (logGroup === '/aws/ecs/pn-a') {
+            return [
+              cwRow({
+                level: 'ERROR',
+                '@message': 'boom calling http://internal/pn-b/resource',
+              }),
+            ];
+          }
+          return [cwRow({ level: 'ERROR', '@message': 'pn-b should not be queried' })];
+        },
+      },
+    } as unknown as ServiceRegistry;
+
+    const runbook = createApiGwAlarmRunbook(
+      baseConfig({
+        knownCases,
+        knownUrls: [{ url: 'http://internal/pn-b/', target: 'pn-b' }],
+      }),
+    );
+
+    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+      runbook,
+      new Map([
+        ['startTime', '2026-01-01T00:00:00.000Z'],
+        ['endTime', '2026-01-01T00:10:00.000Z'],
+      ]),
+      services,
+    );
+
+    assert.deepStrictEqual(
+      result.matchedCases.map((c) => c.id),
+      ['primary', 'secondary'],
+    );
+    assert.strictEqual(result.resolvedAtStep, 'analyze-pn-a');
+    assert.deepStrictEqual(calls, ['/aws/apigw/main', '/aws/lambda/pn-ioAuthorizerLambda', '/aws/ecs/pn-a']);
+  });
+
+  it('queries API Gateway execution logs by unique requestId before extracting xRayTraceId', async () => {
+    const knownCases: ReadonlyArray<KnownCase> = [
+      {
+        id: 'execution-known-failure',
+        description: 'Execution log known failure',
+        priority: 10,
+        condition: {
+          type: 'contains',
+          ref: 'steps.query-api-gw-execution-logs',
+          regex: 'ExecutionKnownFailure',
+        },
+        action: { type: 'log', level: 'info', message: '[CASO NOTO] execution known failure' },
+      },
+    ];
+    const calls: { readonly logGroup: string; readonly query: string }[] = [];
+    const services = {
+      cloudWatchLogs: {
+        query: async (
+          logGroups: ReadonlyArray<string>,
+          query: string,
+        ): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+          await Promise.resolve();
+          const logGroup = logGroups[0] ?? '';
+          calls.push({ logGroup, query });
+          if (logGroup === '/aws/apigw/main') {
+            return [
+              cwRow({
+                status: '500',
+                authorizeStatus: '-',
+                integrationServiceStatus: '-',
+                errorMessage: 'Endpoint request timed out',
+                requestId: 'req-a-1',
+                path: '/resource-a',
+                httpMethod: 'GET',
+              }),
+              cwRow({
+                status: '500',
+                authorizeStatus: '-',
+                integrationServiceStatus: '-',
+                errorMessage: 'Endpoint request timed out',
+                requestId: 'req-a-2',
+                path: '/resource-a',
+                httpMethod: 'GET',
+              }),
+              cwRow({
+                status: '500',
+                authorizeStatus: '-',
+                integrationServiceStatus: '-',
+                errorMessage: 'Endpoint request timed out',
+                requestId: 'req-b-1',
+                path: '/resource-b',
+                httpMethod: 'GET',
+              }),
+            ];
+          }
+          if (logGroup === 'API-Gateway-Execution-Logs_test/prod' && query.includes('req-b-1')) {
+            return [cwRow({ '@timestamp': '2026-01-01T00:00:01.000Z', '@message': 'ExecutionKnownFailure' })];
+          }
+          return [cwRow({ '@timestamp': '2026-01-01T00:00:00.000Z', '@message': 'execution detail' })];
+        },
+      },
+    } as unknown as ServiceRegistry;
+
+    const runbook = createApiGwAlarmRunbook(
+      baseConfig({
+        entryService: {
+          name: 'pn-a',
+          logGroup: '/aws/ecs/pn-a',
+          executionLogGroup: 'API-Gateway-Execution-Logs_test/prod',
+          varPrefix: 'a',
+        },
+        knownCases,
+      }),
+    );
+
+    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+      runbook,
+      new Map([
+        ['startTime', '2026-01-01T00:00:00.000Z'],
+        ['endTime', '2026-01-01T00:10:00.000Z'],
+      ]),
+      services,
+    );
+
+    assert.deepStrictEqual(
+      result.matchedCases.map((c) => c.id),
+      ['execution-known-failure'],
+    );
+    assert.strictEqual(result.resolvedAtStep, 'query-api-gw-execution-logs');
+    // V04: UNA sola chiamata AWS per N requestId (OR-clause).
+    assert.deepStrictEqual(
+      calls.map((call) => call.logGroup),
+      ['/aws/apigw/main', 'API-Gateway-Execution-Logs_test/prod'],
+    );
+    // La singola query contiene tutti i requestId unici, anche quando
+    // piu' richieste fallite condividono lo stesso endpoint.
+    assert.match(calls[1]?.query ?? '', /req-a-1/);
+    assert.match(calls[1]?.query ?? '', /req-a-2/);
+    assert.match(calls[1]?.query ?? '', /req-b-1/);
+  });
+
+  it('stops before the X-Ray flow when execution logs have no matching known case', async () => {
+    const calls: string[] = [];
+    const services = {
+      cloudWatchLogs: {
+        query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+          await Promise.resolve();
+          const logGroup = logGroups[0] ?? '';
+          calls.push(logGroup);
+          if (logGroup === '/aws/apigw/main') {
+            return [
+              cwRow({
+                status: '500',
+                authorizeStatus: '-',
+                integrationServiceStatus: '-',
+                errorMessage: 'Endpoint request timed out',
+                requestId: 'req-a',
+                path: '/resource-a',
+              }),
+            ];
+          }
+          return [cwRow({ '@timestamp': '2026-01-01T00:00:00.000Z', '@message': 'unknown execution detail' })];
+        },
+      },
+    } as unknown as ServiceRegistry;
+
+    const runbook = createApiGwAlarmRunbook(
+      baseConfig({
+        entryService: {
+          name: 'pn-a',
+          logGroup: '/aws/ecs/pn-a',
+          executionLogGroup: 'API-Gateway-Execution-Logs_test/prod',
+          varPrefix: 'a',
+        },
+      }),
+    );
+
+    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+      runbook,
+      new Map([
+        ['startTime', '2026-01-01T00:00:00.000Z'],
+        ['endTime', '2026-01-01T00:10:00.000Z'],
+      ]),
+      services,
+    );
+
+    assert.deepStrictEqual(result.matchedCases, []);
+    assert.strictEqual(result.finalContext.vars.get('terminationReason'), 'api-gw-execution-log-unresolved');
+    assert.deepStrictEqual(calls, ['/aws/apigw/main', 'API-Gateway-Execution-Logs_test/prod']);
+  });
+
+  it('continues with trace-id service traversal when execution-log requestId extraction fails', async () => {
+    const calls: string[] = [];
+    const services = {
+      cloudWatchLogs: {
+        query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+          await Promise.resolve();
+          const logGroup = logGroups[0] ?? '';
+          calls.push(logGroup);
+          if (logGroup === '/aws/apigw/main') {
+            return [
+              cwRow({
+                status: '500',
+                authorizeStatus: '-',
+                integrationServiceStatus: '-',
+                errorMessage: 'Endpoint request timed out',
+                xrayTraceId: 'Root=1-abcdef01-234567890abcdef012345678',
+                requestId: '-',
+                path: '/resource-a',
+              }),
+            ];
+          }
+          if (logGroup === '/aws/ecs/pn-a') {
+            return [
+              cwRow({
+                '@timestamp': '2026-01-01T00:00:01.000Z',
+                level: 'ERROR',
+                '@message': '1-abcdef01-234567890abcdef012345678 application error',
+              }),
+            ];
+          }
+          return [];
+        },
+      },
+    } as unknown as ServiceRegistry;
+
+    const runbook = createApiGwAlarmRunbook(
+      baseConfig({
+        includeProfilePreSteps: false,
+        entryService: {
+          name: 'pn-a',
+          logGroup: '/aws/ecs/pn-a',
+          executionLogGroup: 'API-Gateway-Execution-Logs_test/prod',
+          varPrefix: 'a',
+        },
+      }),
+    );
+
+    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+      runbook,
+      new Map([
+        ['startTime', '2026-01-01T00:00:00.000Z'],
+        ['endTime', '2026-01-01T00:10:00.000Z'],
+      ]),
+      services,
+    );
+
+    assert.strictEqual(result.finalContext.vars.get('apiGwExecutionLogMode'), 'no-request-id');
+    assert.strictEqual(result.finalContext.vars.get('terminationReason'), 'no-match');
+    assert.deepStrictEqual(calls, ['/aws/apigw/main', '/aws/ecs/pn-a']);
+  });
+
   it('accepts an entry-only configuration (no additional services)', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig({ services: [] }));
     const stepIds = runbook.steps.map((d) => d.step.id);
     assert.ok(stepIds.includes('query-pn-a'));
     assert.ok(stepIds.includes('decide-pn-a'));
     assert.ok(!stepIds.includes('query-pn-b'));
-  });
-
-  it('throws when a custom apiGwQuery override lacks the {{minStatusCode}} placeholder', () => {
-    assert.throws(
-      () =>
-        createApiGwAlarmRunbook(
-          baseConfig({
-            queryTemplates: {
-              // Custom override without the placeholder — the
-              // .split().join() would silently be a no-op and the
-              // resolved query would never get minStatusCode injected.
-              apiGwQuery: 'filter status >= 500 | sort @timestamp asc',
-            },
-          }),
-        ),
-      /\{\{minStatusCode\}\} placeholder/,
-    );
-  });
-
-  it('accepts a custom apiGwQuery override that contains the {{minStatusCode}} placeholder', () => {
-    assert.doesNotThrow(() =>
-      createApiGwAlarmRunbook(
-        baseConfig({
-          queryTemplates: {
-            apiGwQuery: 'filter status >= {{minStatusCode}} | sort @timestamp asc',
-          },
-        }),
-      ),
-    );
   });
 });

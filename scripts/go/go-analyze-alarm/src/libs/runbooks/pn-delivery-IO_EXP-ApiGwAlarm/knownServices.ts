@@ -1,26 +1,23 @@
 /**
- * Constants for the pn-address-book-io-IO-ApiGwAlarm runbook.
- *
- * Declarative data only — the pipeline that consumes these constants is
- * built by {@link apigw.createApiGwAlarmRunbook}.
+ * Constants for the pn-delivery-IO_EXP-ApiGwAlarm runbook.
  */
 
 import type { apigw } from '@go-automation/go-runbook';
 
+import { DELIVERY_API_GW_EXECUTION_LOG_GROUP } from '../constants.js';
+
 /** API Gateway AccessLog log group for pn-delivery-IO_EXP public API */
 export const API_GW_LOG_GROUP =
   'pn-delivery-microsvc-prod-DeliveryMicroservicePublicIoAPI-VKXCJ0RGO2A9-PublicApiLogGroup-7pB9Jdze4wiI';
-
-/** Lambda log group for pn-ioAuthorizerLambda (Livello 0 probe) */
-export const IO_AUTHORIZER_LAMBDA_LOG_GROUP = '/aws/lambda/pn-ioAuthorizerLambda';
 
 /**
  * Entry service: the trace always lands on pn-delivery first.
  */
 export const ENTRY_SERVICE: apigw.ApiGwService = {
   name: 'pn-delivery',
-  logGroup: '/aws/ecs/pn-delivery',
   varPrefix: 'delivery',
+  logGroup: '/aws/ecs/pn-delivery',
+  executionLogGroup: DELIVERY_API_GW_EXECUTION_LOG_GROUP,
 };
 
 /**

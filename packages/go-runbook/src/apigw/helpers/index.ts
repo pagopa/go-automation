@@ -5,9 +5,9 @@
 
 export { extractCwField } from './extractCwField.js';
 export { extractFallbackUuid, extractFallbackUuidFromMessage } from './extractFallbackUuid.js';
-export { extractXRayTraceId } from './extractXRayTraceId.js';
+export { extractTraceId, extractXRayTraceId } from './extractTraceId.js';
 export { findErrorMessage } from './findErrorMessage.js';
 export { findKnownUrlInLogs } from './findKnownUrlInLogs.js';
 export type { KnownUrlInLogs } from './findKnownUrlInLogs.js';
-export { findFreshTraceId, transformRawTraceId } from './findFreshTraceId.js';
-export type { FreshTraceIdMatch } from './findFreshTraceId.js';
+export { findTraceIdCandidate, findFreshTraceId, transformRawTraceId } from './findTraceIdCandidate.js';
+export type { TraceIdCandidateMatch, FreshTraceIdMatch } from './findTraceIdCandidate.js';

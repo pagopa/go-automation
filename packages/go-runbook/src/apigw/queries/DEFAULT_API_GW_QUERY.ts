@@ -10,7 +10,7 @@
  *
  * The query carries no time-range filter: CloudWatch Logs Insights
  * receives the time window as separate `startTime`/`endTime` parameters
- * via {@link CloudWatchLogsService.query}.
+ * via the configured CloudWatch Logs query service.
  *
  * Three status fields are checked together: `status` covers routing
  * errors, `authorizeStatus` covers authorizer failures, and

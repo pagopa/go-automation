@@ -24,10 +24,6 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-athena": "catalog:",
-    "@aws-sdk/client-cloudwatch": "catalog:",
-    "@aws-sdk/client-cloudwatch-logs": "catalog:",
-    "@aws-sdk/client-dynamodb": "catalog:",
     "@go-automation/go-common": "workspace:*",
     "@go-automation/go-runbook": "workspace:*"
   },

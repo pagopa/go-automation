@@ -15,6 +15,15 @@ export interface ApiGwService {
   /** CloudWatch Logs group hosting the microservice application logs. */
   readonly logGroup: string;
   /**
+   * Optional API Gateway execution log group associated with the entry
+   * path for this service.
+   *
+   * Used before the X-Ray flow when API Gateway AccessLog already
+   * contains a non-empty `errorMessage`: in that case requestId-based
+   * execution-log analysis takes precedence over microservice tracing.
+   */
+  readonly executionLogGroup?: string;
+  /**
    * Prefix used for the context vars produced by the analysis step.
    *
    * Example: `userAttributes` yields `userAttributesErrorMsg`,

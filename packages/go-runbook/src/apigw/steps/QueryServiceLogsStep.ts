@@ -1,4 +1,4 @@
-import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type { ResultField } from '@go-automation/go-common/aws';
 
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
@@ -6,10 +6,11 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { TimeRangeFromParams } from '../../steps/data/CloudWatchLogsQueryStep.js';
 import { resolveTimeRange } from '../../steps/data/resolveTimeRange.js';
-import { escapeSqlString } from '../../steps/data/interpolateTemplate.js';
 import { executeStep } from '../../steps/data/executeStep.js';
-import { DEFAULT_SERVICE_QUERY_TEMPLATE } from '../queries/DEFAULT_SERVICE_QUERY_TEMPLATE.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
+import type { ServiceLogSpec } from '../profiles/specs/ServiceLogSpec.js';
+import { SEND_API_GW_PROFILE } from '../profiles/SEND_API_GW_PROFILE.js';
+import { renderQueryTemplate } from '../profiles/render/renderQueryTemplate.js';
 
 const FILTER_CLAUSE_PLACEHOLDER = '{{FILTER_CLAUSE}}';
 
@@ -50,22 +51,46 @@ export interface QueryServiceLogsConfig {
   /** Log groups to scan */
   readonly logGroups: ReadonlyArray<string>;
   /**
-   * Name of the var holding the X-Ray trace id. Default: `xRayTraceId`.
+   * Nome della var di contesto da cui leggere il trace id. Default
+   * letto da `accessLogSchemaTraceIdContextVar`, altrimenti `'xRayTraceId'`.
    */
   readonly xRayTraceIdVar?: string;
   /**
    * Name of the var holding the fallback UUID. Default: `fallbackUuid`.
    */
   readonly fallbackUuidVar?: string;
-  /**
-   * Mapping for the time-range parameters in the runbook context.
-   */
+  /** Mapping for the time-range parameters in the runbook context. */
   readonly timeRangeFromParams: TimeRangeFromParams;
   /**
-   * Query template. Must contain the `{{FILTER_CLAUSE}}` placeholder.
-   * Default: {@link DEFAULT_SERVICE_QUERY_TEMPLATE}.
+   * Specification dei log applicativi del prodotto (query template +
+   * predicate per trace/fallback + schema). Quando omessa, viene usata la
+   * spec SEND di default per back-compat.
    */
-  readonly queryTemplate?: string;
+  readonly spec?: ServiceLogSpec;
+  /**
+   * Identificatore del profilo per i metadati di trace. Default `'send'`.
+   */
+  readonly queryProfileId?: string;
+  /**
+   * Override puntuale del template di query a livello di singolo
+   * servizio. Deve contenere `{{FILTER_CLAUSE}}`. Sostituisce SOLO
+   * `spec.queryTemplate`: i predicate template restano quelli del profilo.
+   */
+  readonly queryTemplateOverride?: string;
+  /**
+   * Nome della var di contesto in cui scrivere il trace id quando viene
+   * letto dal config. Letto dall'accessLog schema del profilo nella
+   * factory `createApiGwAlarmRunbook`. Default `'xRayTraceId'` per
+   * back-compat SEND.
+   */
+  readonly accessLogSchemaTraceIdContextVar?: string;
+}
+
+type IdentifierKind = 'trace' | 'fallback';
+
+interface ActiveIdentifier {
+  readonly kind: IdentifierKind;
+  readonly value: string;
 }
 
 class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
@@ -79,6 +104,8 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
   private readonly xRayTraceIdVar: string;
   private readonly fallbackUuidVar: string;
   private readonly timeRangeFromParams: TimeRangeFromParams;
+  private readonly spec: ServiceLogSpec;
+  private readonly queryProfileId: string;
   private readonly queryTemplate: string;
 
   constructor(config: QueryServiceLogsConfig) {
@@ -87,14 +114,16 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
     this.serviceName = config.serviceName;
     this.entryService = config.entryService;
     this.logGroups = config.logGroups;
-    this.xRayTraceIdVar = config.xRayTraceIdVar ?? 'xRayTraceId';
+    this.spec = config.spec ?? SEND_API_GW_PROFILE.serviceLog;
+    this.queryProfileId = config.queryProfileId ?? SEND_API_GW_PROFILE.id;
+    this.xRayTraceIdVar = config.xRayTraceIdVar ?? config.accessLogSchemaTraceIdContextVar ?? 'xRayTraceId';
     this.fallbackUuidVar = config.fallbackUuidVar ?? 'fallbackUuid';
     this.timeRangeFromParams = config.timeRangeFromParams;
-    this.queryTemplate = config.queryTemplate ?? DEFAULT_SERVICE_QUERY_TEMPLATE;
+    this.queryTemplate = config.queryTemplateOverride ?? this.spec.queryTemplate;
 
-    // Fail fast when the template is missing the placeholder: a silent
-    // no-op `.split().join()` would otherwise produce a query without
-    // any `filter` clause, scanning the entire log group on each visit.
+    // Fail fast quando il template è privo del placeholder: un silent
+    // no-op `.split().join()` produrrebbe una query senza filter clause,
+    // scansionando l'intero log group ad ogni visita.
     if (!this.queryTemplate.includes(FILTER_CLAUSE_PLACEHOLDER)) {
       throw new Error(
         `QueryServiceLogsStep "${this.id}": queryTemplate must contain the ` +
@@ -109,8 +138,12 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
     const fallback = context.vars.get(this.fallbackUuidVar) ?? '';
     const startStr = context.params.get(this.timeRangeFromParams.start);
     const endStr = context.params.get(this.timeRangeFromParams.end);
+    const activeIdentifier = this.resolveActiveIdentifier(traceId, fallback);
 
     return {
+      queryProfileId: this.queryProfileId,
+      queryKind: 'service-log',
+      identifierMode: activeIdentifier?.kind ?? 'none',
       query: this.buildQuery(traceId, fallback),
       logGroups: [...this.logGroups],
       identifiers: { xRayTraceId: traceId, fallbackUuid: fallback },
@@ -123,15 +156,10 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
       const traceId = (context.vars.get(this.xRayTraceIdVar) ?? '').trim();
       const fallback = (context.vars.get(this.fallbackUuidVar) ?? '').trim();
 
-      // Always bump the query counter: it tracks every CloudWatch
-      // attempt, including re-queries on the same service (fallback-UUID
-      // retry, trace_id swap).
+      // Always bump the query counter.
       const prevCount = Number(context.vars.get(QUERY_COUNTER_VAR) ?? '0');
       const queryNumber = Number.isFinite(prevCount) ? prevCount + 1 : 1;
 
-      // Service-visit counter increments only when we enter a NEW
-      // service — a re-query on the same service is just another
-      // attempt within the current visit (no new banner).
       const lastService = context.vars.get(LAST_SERVICE_VAR) ?? '';
       const isNewVisit = lastService !== this.serviceName;
       const prevVisits = Number(context.vars.get(VISIT_COUNTER_VAR) ?? '0');
@@ -143,15 +171,17 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
         reporter?.sectionService(visitNumber, this.serviceName, this.entryService, this.logGroups);
       }
 
-      const identifiers: string[] = [];
-      if (traceId !== '') identifiers.push(`xRayTraceId=${traceId}`);
-      if (fallback !== '') identifiers.push(`fallbackUuid=${fallback}`);
+      const activeIdentifier = this.resolveActiveIdentifier(traceId, fallback);
+      const identifiers =
+        activeIdentifier === undefined
+          ? []
+          : [`${activeIdentifier.kind === 'fallback' ? 'fallbackUuid' : 'xRayTraceId'}=${activeIdentifier.value}`];
       reporter?.query(queryNumber, identifiers);
 
-      if (traceId === '' && fallback === '') {
-        // Without any identifier the canonical `like` filter would
-        // degenerate to a match-all. Skip the AWS call and return an
-        // empty result set so downstream analysis can proceed safely.
+      if (activeIdentifier === undefined) {
+        // Senza identificatori la filter clause sarebbe vuota: skip la
+        // chiamata AWS e restituisce risultato vuoto così l'analisi
+        // downstream prosegue in sicurezza.
         reporter?.queryResult(0);
         return {
           success: true,
@@ -160,6 +190,8 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
             [QUERY_COUNTER_VAR]: String(queryNumber),
             [VISIT_COUNTER_VAR]: String(visitNumber),
             [LAST_SERVICE_VAR]: this.serviceName,
+            apiGwCurrentQueryIdentifierMode: 'none',
+            apiGwCurrentQueryIdentifierValue: '',
             apiGwServicesVisited: updateChain(
               context.vars.get('apiGwServicesVisited'),
               this.serviceName,
@@ -180,13 +212,6 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
           logGroupResolutionMode: 'search-configured-profiles',
         });
       } catch (error: unknown) {
-        // Surface the AWS failure in the structured log so it does not
-        // get buried in the engine's per-step error noise (e.g. a
-        // ResourceNotFoundException on a misconfigured log group is
-        // otherwise invisible until the trace is inspected). Re-throw
-        // so `executeStep` converts it to `{ success: false, error }`
-        // and the engine fan-out (continueOnFailure / decide / final
-        // case match) keeps working as before.
         const message = error instanceof Error ? error.message : String(error);
         reporter?.queryFailed(this.logGroups, message);
         throw error;
@@ -201,6 +226,8 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
           [QUERY_COUNTER_VAR]: String(queryNumber),
           [VISIT_COUNTER_VAR]: String(visitNumber),
           [LAST_SERVICE_VAR]: this.serviceName,
+          apiGwCurrentQueryIdentifierMode: activeIdentifier.kind,
+          apiGwCurrentQueryIdentifierValue: activeIdentifier.value,
           apiGwServicesVisited: updateChain(
             context.vars.get('apiGwServicesVisited'),
             this.serviceName,
@@ -213,25 +240,45 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
   }
 
   /**
-   * Assembles the `filter` clause and injects it into the query template.
+   * Assembla la `filter` clause e la inietta nel template della query.
    *
-   * Each identifier becomes a `@message like '...'` predicate, escaped via
-   * {@link escapeSqlString}; the predicates are joined with `or`.
+   * V04: i predicate sono ora letti dalla spec del profilo
+   * (`tracePredicateTemplate` / `fallbackPredicateTemplate`), che permette
+   * a INTEROP di filtrare su campi strutturati invece di `@message like`.
    */
   private buildQuery(traceId: string, fallback: string): string {
-    const clauses: string[] = [];
-    const trimmedTrace = traceId.trim();
+    const activeIdentifier = this.resolveActiveIdentifier(traceId, fallback);
+    let filterClause = '';
+    if (activeIdentifier !== undefined) {
+      const predicateTemplate =
+        activeIdentifier.kind === 'fallback' ? this.spec.fallbackPredicateTemplate : this.spec.tracePredicateTemplate;
+      const predicate = renderQueryTemplate(predicateTemplate, {
+        values: { '{{VALUE}}': activeIdentifier.value },
+        escape: 'sql',
+        queryId: `${this.queryProfileId}.serviceLog.${activeIdentifier.kind}Predicate`,
+      });
+      filterClause = `filter ${predicate}`;
+    }
+
+    return renderQueryTemplate(this.queryTemplate, {
+      values: { '{{FILTER_CLAUSE}}': filterClause },
+      escape: 'none',
+      queryId: `${this.queryProfileId}.serviceLog`,
+    });
+  }
+
+  private resolveActiveIdentifier(traceId: string, fallback: string): ActiveIdentifier | undefined {
     const trimmedFallback = fallback.trim();
-
-    if (trimmedTrace !== '') {
-      clauses.push(`@message like '${escapeSqlString(trimmedTrace)}'`);
-    }
     if (trimmedFallback !== '') {
-      clauses.push(`@message like '${escapeSqlString(trimmedFallback)}'`);
+      return { kind: 'fallback', value: trimmedFallback };
     }
 
-    const filterClause = clauses.length === 0 ? '' : `filter ${clauses.join(' or ')}`;
-    return this.queryTemplate.split(FILTER_CLAUSE_PLACEHOLDER).join(filterClause);
+    const trimmedTrace = traceId.trim();
+    if (trimmedTrace !== '') {
+      return { kind: 'trace', value: trimmedTrace };
+    }
+
+    return undefined;
   }
 }
 
@@ -239,19 +286,6 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
  * Maintains the comma-separated `name|count` chain stored in the
  * `apiGwServicesVisited` var. The reporter parses this var on
  * termination to render the closing summary.
- *
- * - On a **new visit** (`isNewVisit = true`) a new `name|count` entry
- *   is appended.
- * - On a **re-query** of the same service (`isNewVisit = false`) the
- *   last entry's count is overwritten with the latest value so the
- *   summary always reflects the most recent row count for each
- *   distinct visit.
- *
- * @param previous - Current value of the var (may be undefined/empty)
- * @param serviceName - Service just queried
- * @param logCount - Number of log rows returned by the latest query
- * @param isNewVisit - Whether this is a new service visit or a re-query
- * @returns Updated chain string
  */
 function updateChain(previous: string | undefined, serviceName: string, logCount: number, isNewVisit: boolean): string {
   if (previous === undefined || previous === '') {
@@ -260,7 +294,6 @@ function updateChain(previous: string | undefined, serviceName: string, logCount
   if (isNewVisit) {
     return `${previous},${serviceName}|${logCount}`;
   }
-  // Re-query on the same service: overwrite the last entry's count.
   const entries = previous.split(',');
   entries[entries.length - 1] = `${serviceName}|${logCount}`;
   return entries.join(',');
@@ -268,18 +301,13 @@ function updateChain(previous: string | undefined, serviceName: string, logCount
 
 /**
  * Factory: creates a step that queries a microservice log group filtering
- * by X-Ray trace id and/or fallback UUID, assembled dynamically from the
- * runbook context.
+ * by trace id or fallback UUID, assembled dynamically from the runbook
+ * context using the predicate template of the provided profile.
  *
- * Behavioural contract:
- * - if both identifiers are missing/empty the step returns an empty
- *   result set without contacting CloudWatch Logs;
- * - identifiers found in `context.vars` are quoted and escaped (single
- *   quote doubling) before being placed in the `like '...'` predicates;
- * - the produced query carries no time-range filter — the window is
- *   passed via `StartQueryCommand.startTime` / `endTime`;
- * - each execution bumps the global `apiGwQueryCount` and `apiGwVisitCount`
- *   counters so the reporter can render a stable progressive index.
+ * V04: i predicate sono parametrizzati dal profilo
+ * (`spec.tracePredicateTemplate` / `spec.fallbackPredicateTemplate`),
+ * permettendo a prodotti diversi di filtrare su campi strutturati
+ * (es. INTEROP `trace_id = '<value>'`) invece di `@message like '<value>'`.
  *
  * @param config - Step configuration
  * @returns Step that returns the raw rows of the CloudWatch Logs query

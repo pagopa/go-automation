@@ -9,8 +9,8 @@ import type { TerminationReason } from '../types/TerminationReason.js';
  * final context vars) so the closing banner reflects the **actual**
  * outcome of the runbook — not just the local view of the last
  * `decide-<service>` step. `matchedCases` can contain zero, one or
- * many entries (the engine evaluates all known cases and runs every
- * matching action in priority desc order).
+ * many entries (the engine evaluates all known cases but executes only
+ * the primary action).
  */
 export interface ApiGwFinalSummaryInput {
   /** Logger used to emit the structured banner. */
@@ -37,7 +37,7 @@ export interface ApiGwFinalSummaryInput {
  * outcome. When `matchedCaseIds` has more than one entry the banner
  * lists every matched case and tags `matchedCaseIds[0]` as primary
  * (the action of every matched case has already been executed in
- * priority desc order by the engine).
+ * priority desc order; only the primary action is executed by the engine).
  *
  * @param input - Fields collected from the engine result
  */
@@ -161,7 +161,18 @@ export class ApiGwReporter {
   apiGwResult(args: {
     readonly errorCount: number;
     readonly statusCode: string;
-    readonly xRayTraceId: string | undefined;
+    /**
+     * Valore del trace id del prodotto. SEND: X-Ray trace id; INTEROP:
+     * correlation id. Il significato esatto è veicolato da
+     * {@link traceIdLabel}.
+     */
+    readonly traceId: string | undefined;
+    /**
+     * Label human-friendly da mostrare in console (es. `'X-Ray Trace ID'`
+     * per SEND, `'Correlation ID (cid)'` per INTEROP). Quando omessa, la
+     * label di default è `'Trace ID'`.
+     */
+    readonly traceIdLabel?: string;
     readonly errorMessage?: string;
     readonly path?: string;
     readonly httpMethod?: string;
@@ -180,10 +191,11 @@ export class ApiGwReporter {
       this.logger.text(`  ├─ Error message API GW: ${args.errorMessage}`);
     }
 
-    if (args.xRayTraceId !== undefined && args.xRayTraceId !== '') {
-      this.logger.text(`  └─ XRay Trace Id: ${args.xRayTraceId}`);
+    const traceLabel = args.traceIdLabel ?? 'Trace ID';
+    if (args.traceId !== undefined && args.traceId !== '') {
+      this.logger.text(`  └─ ${traceLabel}: ${args.traceId}`);
     } else {
-      this.logger.text(`  └─ XRay Trace Id: non disponibile`);
+      this.logger.text(`  └─ ${traceLabel}: non disponibile`);
     }
   }
 
@@ -217,6 +229,24 @@ export class ApiGwReporter {
    */
   queryResult(logCount: number): void {
     this.logger.text(`  │    └─ ${logCount} log trovati`);
+  }
+
+  apiGwExecutionLogQuery(
+    logGroup: string,
+    requestIds: ReadonlyArray<{ readonly path: string; readonly requestId: string }>,
+  ): void {
+    this.logger.text(`  ├─ errorMessage API Gateway valorizzato: query execution log`);
+    this.logger.text(`  │    ├─ Log group: ${logGroup}`);
+    this.logger.text(`  │    ├─ RequestId da analizzare: ${requestIds.length}`);
+    requestIds.forEach((request, idx) => {
+      const isLast = idx === requestIds.length - 1;
+      const branch = isLast ? '└─' : '├─';
+      this.logger.text(`  │    │   ${branch} ${request.path}: ${request.requestId}`);
+    });
+  }
+
+  apiGwExecutionLogResult(logCount: number): void {
+    this.logger.text(`  │    └─ Execution log trovati: ${logCount}`);
   }
 
   /**
@@ -342,6 +372,14 @@ export class ApiGwReporter {
           this.logger.text(`  └─ Errore: ${t.errorMessage}`);
         } else {
           this.logger.text(`  └─ Nessun error message disponibile`);
+        }
+        break;
+      case 'api-gw-execution-log-unresolved':
+        this.logger.text(`  ├─ Esito: caso non riconosciuto negli execution log API Gateway`);
+        if (t.errorMessage !== undefined && t.errorMessage !== '') {
+          this.logger.text(`  └─ Dettaglio: ${t.errorMessage}`);
+        } else {
+          this.logger.text(`  └─ Non e' stato possibile determinare il problema`);
         }
         break;
       case 'no-match':

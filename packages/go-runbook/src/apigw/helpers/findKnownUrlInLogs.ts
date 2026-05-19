@@ -1,4 +1,5 @@
-import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type { ResultField } from '@go-automation/go-common/aws';
+import type { ServiceLogSchema } from '../profiles/schemas/ServiceLogSchema.js';
 import { extractCwField } from './extractCwField.js';
 import type { KnownUrlsRegistry } from '../registries/KnownUrlsRegistry.js';
 import type { KnownUrl } from '../types/KnownUrl.js';
@@ -27,6 +28,14 @@ export interface KnownUrlInLogs {
   readonly known: KnownUrl;
 }
 
+function readMessage(row: ReadonlyArray<ResultField>, schema: ServiceLogSchema): string {
+  for (const candidate of schema.messageFieldCandidates) {
+    const value = extractCwField(row, candidate);
+    if (value !== undefined) return value;
+  }
+  return '';
+}
+
 /**
  * Scans CloudWatch Logs result rows for the first URL that matches an
  * entry in the supplied {@link KnownUrlsRegistry}.
@@ -35,20 +44,22 @@ export interface KnownUrlInLogs {
  * `http(s)://` token, trims trailing punctuation and probes the registry.
  * The first match wins.
  *
- * Complexity: O(N · M) where N is the number of rows and M the number of
- * URLs per message. The registry lookup itself is O(K) on the number of
- * entries (typically < 50).
+ * Complessità: O(N · M) dove N è il numero di righe e M il numero di URL
+ * per messaggio. Il registry lookup è O(K) sul numero di entry
+ * (tipicamente < 50).
  *
  * @param results - CloudWatch Logs Insights result rows
  * @param registry - Registry of known URLs
+ * @param schema - schema dei log applicativi (per il campo message)
  * @returns The first known URL found, or `undefined`
  */
 export function findKnownUrlInLogs(
   results: ReadonlyArray<ResultField[]>,
   registry: KnownUrlsRegistry,
+  schema: ServiceLogSchema,
 ): KnownUrlInLogs | undefined {
   for (const row of results) {
-    const message = extractCwField(row, 'message') ?? extractCwField(row, '@message') ?? '';
+    const message = readMessage(row, schema);
     if (message === '') {
       continue;
     }

@@ -34,7 +34,8 @@ describe('ApiGwReporter', () => {
       new ApiGwReporter(logger).apiGwResult({
         errorCount: 3,
         statusCode: '500',
-        xRayTraceId: '1-abc-def',
+        traceId: '1-abc-def',
+        traceIdLabel: 'X-Ray Trace ID',
         errorMessage: 'Endpoint request timed out',
         path: '/v1/foo',
         httpMethod: 'POST',
@@ -43,7 +44,7 @@ describe('ApiGwReporter', () => {
       assert.match(joined, /Errori HTTP individuati: 3 \(status 500\)/);
       assert.match(joined, /Endpoint: POST \/v1\/foo/);
       assert.match(joined, /Error message API GW: Endpoint request timed out/);
-      assert.match(joined, /XRay Trace Id: 1-abc-def/);
+      assert.match(joined, /X-Ray Trace ID: 1-abc-def/);
     });
 
     it('skips endpoint/error-message rows when only the API GW `-` placeholder is present', () => {
@@ -51,7 +52,8 @@ describe('ApiGwReporter', () => {
       new ApiGwReporter(logger).apiGwResult({
         errorCount: 1,
         statusCode: '504',
-        xRayTraceId: undefined,
+        traceId: undefined,
+        traceIdLabel: 'X-Ray Trace ID',
         errorMessage: '-',
         path: '-',
         httpMethod: '-',
@@ -59,7 +61,7 @@ describe('ApiGwReporter', () => {
       const joined = lines.join('\n');
       assert.doesNotMatch(joined, /Endpoint:/);
       assert.doesNotMatch(joined, /Error message API GW:/);
-      assert.match(joined, /XRay Trace Id: non disponibile/);
+      assert.match(joined, /X-Ray Trace ID: non disponibile/);
     });
   });
 
@@ -202,6 +204,23 @@ describe('ApiGwReporter', () => {
     });
   });
 
+  describe('apiGwExecutionLog', () => {
+    it('renders execution-log requestIds and result count', () => {
+      const { logger, lines } = captureLogger();
+      const reporter = new ApiGwReporter(logger);
+      reporter.apiGwExecutionLogQuery('API-Gateway-Execution-Logs_test/prod', [
+        { path: '/resource-a', requestId: 'req-a' },
+        { path: '/resource-b', requestId: 'req-b' },
+      ]);
+      reporter.apiGwExecutionLogResult(12);
+      const joined = lines.join('\n');
+      assert.match(joined, /query execution log/);
+      assert.match(joined, /API-Gateway-Execution-Logs_test\/prod/);
+      assert.match(joined, /\/resource-a: req-a/);
+      assert.match(joined, /Execution log trovati: 12/);
+    });
+  });
+
   describe('stopSummary', () => {
     it('renders the chain of visited services', () => {
       const { logger, lines } = captureLogger();
@@ -257,6 +276,19 @@ describe('ApiGwReporter', () => {
       const joined = lines.join('\n');
       assert.match(joined, /Esito: URL downstream \(AppIO\)/);
       assert.match(joined, /Errore: Service IO returned errors=500/);
+    });
+
+    it('renders api-gw execution-log unresolved outcome', () => {
+      const { logger, lines } = captureLogger();
+      new ApiGwReporter(logger).stopSummary({
+        reason: 'api-gw-execution-log-unresolved',
+        matchedCaseIds: [],
+        errorMessage: "API Gateway execution log analizzati, ma non e' stato possibile determinare il problema.",
+        servicesVisited: [],
+      });
+      const joined = lines.join('\n');
+      assert.match(joined, /caso non riconosciuto negli execution log API Gateway/);
+      assert.match(joined, /non e' stato possibile determinare il problema/);
     });
 
     it('renders loop-detected terminal banner', () => {

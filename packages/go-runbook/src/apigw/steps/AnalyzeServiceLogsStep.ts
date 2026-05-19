@@ -1,40 +1,18 @@
-import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type { ResultField } from '@go-automation/go-common/aws';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { StepResult } from '../../types/StepResult.js';
-import type { FlowDirective } from '../../types/FlowDirective.js';
 
 import { findErrorMessage } from '../helpers/findErrorMessage.js';
 import { findKnownUrlInLogs } from '../helpers/findKnownUrlInLogs.js';
 import { extractFallbackUuid } from '../helpers/extractFallbackUuid.js';
-import { findFreshTraceId } from '../helpers/findFreshTraceId.js';
+import { findTraceIdCandidate } from '../helpers/findTraceIdCandidate.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
 import type { KnownUrlsRegistry } from '../registries/KnownUrlsRegistry.js';
 import type { ServiceLogsAnalysis } from './ServiceLogsAnalysis.js';
-
-/**
- * Var name that holds the comma-separated list of `(service|identifiers)`
- * tuples already visited by the analysis loop. Shared between
- * {@link analyzeServiceLogs} (which writes the current visit + reads it
- * to detect loops before drilling down) and `decideNext` (which records
- * any final terminal state).
- */
-const VISITED_KEYS_VAR = 'apiGwVisitedKeys';
-
-/**
- * Var name that tracks the number of consecutive `trace_id` swaps
- * performed by the analysis loop. Hard-capped to {@link MAX_TRACE_ID_SWAPS}
- * to prevent a pathological chain of swaps.
- */
-const TRACE_ID_SWAP_COUNT_VAR = 'apiGwTraceIdSwapCount';
-
-/**
- * Maximum number of consecutive `trace_id` swaps allowed by the
- * analysis loop. Picked high enough to cover realistic scenarios (most
- * traces chain at most 1-2 times) while still guaranteeing termination.
- */
-const MAX_TRACE_ID_SWAPS = 5;
+import type { ServiceLogSchema } from '../profiles/schemas/ServiceLogSchema.js';
+import { SEND_API_GW_PROFILE } from '../profiles/SEND_API_GW_PROFILE.js';
 
 /**
  * Configuration for {@link analyzeServiceLogs}.
@@ -51,26 +29,20 @@ export interface AnalyzeServiceLogsConfig {
   /** Registry of known URLs against which log messages are scanned */
   readonly registry: KnownUrlsRegistry;
   /**
-   * Canonical name of the service being analysed. Required when the
-   * step is part of the dynamic API Gateway loop so the routing logic
-   * (drill-down via KnownUrl) can record the current visit in the
-   * `apiGwVisitedKeys` var. Pre-step / probe usages can omit it.
+   * Canonical name of the service being analysed. Required only for
+   * main-loop analysis that needs to detect a `trace_id` after a
+   * fallback-UUID query. Pre-step / probe usages can omit it.
    */
   readonly serviceName?: string;
   /**
-   * Set of microservice names declared by the runbook. When provided
-   * **and** {@link serviceName} is also set, the step performs the
-   * drill-down decision: if a {@link KnownUrl} whose `target` is in
-   * this set is detected and the destination has not been visited yet,
-   * the step emits a `goTo query-<target>` flow directive and skips the
-   * `'resolve'` signal so the engine does **not** evaluate known cases
-   * at this point — drilling down wins over matching a "pointer"-style
-   * known case at the upstream layer.
+   * Deprecated compatibility option. Routing is handled by
+   * `decideNext` after known-case early resolution, so this analysis
+   * step only records the target vars.
    */
   readonly servicesInRunbook?: ReadonlySet<string>;
   /**
-   * Step id prefix used to compose the `goTo` target for a drill-down.
-   * Default: `'query-'` (so `goTo` lands on `query-<service>`).
+   * Deprecated compatibility option. Dynamic `goTo` targets are built
+   * by `decideNext`.
    */
   readonly queryStepPrefix?: string;
   /**
@@ -82,6 +54,11 @@ export interface AnalyzeServiceLogsConfig {
    * their structured output would dangle.
    */
   readonly quiet?: boolean;
+  /**
+   * Schema dei log applicativi (propagato agli helper). Quando omesso,
+   * usa lo schema SEND di default per back-compat.
+   */
+  readonly schema?: ServiceLogSchema;
 }
 
 class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
@@ -93,9 +70,8 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
   private readonly varPrefix: string;
   private readonly registry: KnownUrlsRegistry;
   private readonly serviceName: string | undefined;
-  private readonly servicesInRunbook: ReadonlySet<string> | undefined;
-  private readonly queryStepPrefix: string;
   private readonly quiet: boolean;
+  private readonly schema: ServiceLogSchema;
 
   constructor(config: AnalyzeServiceLogsConfig) {
     this.id = config.id;
@@ -104,9 +80,8 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
     this.varPrefix = config.varPrefix;
     this.registry = config.registry;
     this.serviceName = config.serviceName;
-    this.servicesInRunbook = config.servicesInRunbook;
-    this.queryStepPrefix = config.queryStepPrefix ?? 'query-';
     this.quiet = config.quiet ?? false;
+    this.schema = config.schema ?? SEND_API_GW_PROFILE.serviceLog.schema;
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -119,8 +94,6 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
     const results = rawOutput as ReadonlyArray<ResultField[]>;
     const reporter = !this.quiet && context.logger !== undefined ? new ApiGwReporter(context.logger) : undefined;
 
-    // Common identifiers (only used by the routing branch).
-    const xRayTraceId = (context.vars.get('xRayTraceId') ?? '').trim();
     const fallbackUuidExisting = (context.vars.get('fallbackUuid') ?? '').trim();
 
     if (results.length === 0) {
@@ -133,6 +106,8 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
           knownUrl: undefined,
           knownUrlTarget: undefined,
           fallbackUuidExtracted: undefined,
+          freshTraceId: undefined,
+          freshTraceIdRaw: undefined,
         },
         vars: {
           [`${this.varPrefix}ErrorMsg`]: '',
@@ -147,11 +122,15 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
       };
     }
 
-    const errorMessage = findErrorMessage(results);
-    const knownUrl = findKnownUrlInLogs(results, this.registry);
+    const errorMessage = findErrorMessage(results, this.schema);
+    const knownUrl = findKnownUrlInLogs(results, this.registry, this.schema);
 
-    const extractedFallback = extractFallbackUuid(results);
+    const extractedFallback = knownUrl !== undefined ? extractFallbackUuid(results, this.schema) : undefined;
     const fallbackIsFresh = extractedFallback !== undefined && extractedFallback !== fallbackUuidExisting;
+    const freshTrace =
+      this.serviceName !== undefined && fallbackUuidExisting !== ''
+        ? findTraceIdCandidate(results, this.schema)
+        : undefined;
 
     const vars: Record<string, string> = {
       [`${this.varPrefix}ErrorMsg`]: errorMessage,
@@ -159,6 +138,8 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
       [`${this.varPrefix}NextUrl`]: knownUrl?.observedUrl ?? '',
       [`${this.varPrefix}NextUrlTarget`]: knownUrl?.known.target ?? '',
       [`${this.varPrefix}FallbackUuidFresh`]: fallbackIsFresh ? 'true' : 'false',
+      [`${this.varPrefix}FreshTraceId`]: freshTrace?.canonical ?? '',
+      [`${this.varPrefix}FreshTraceIdRaw`]: freshTrace?.raw ?? '',
     };
 
     if (fallbackIsFresh && extractedFallback !== undefined) {
@@ -173,107 +154,6 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
       ...(fallbackIsFresh && extractedFallback !== undefined ? { fallbackUuid: extractedFallback } : {}),
     });
 
-    // Drill-down decision: only when this step is wired into the main
-    // dynamic loop (serviceName + servicesInRunbook supplied) AND a
-    // KnownUrl in scope was found AND we would not be looping.
-    if (
-      this.serviceName !== undefined &&
-      this.servicesInRunbook !== undefined &&
-      knownUrl !== undefined &&
-      this.servicesInRunbook.has(knownUrl.known.target) &&
-      knownUrl.known.target !== this.serviceName
-    ) {
-      const fallbackForKey =
-        fallbackIsFresh && extractedFallback !== undefined ? extractedFallback : fallbackUuidExisting;
-      const visited = parseVisitedKeys(context.vars.get(VISITED_KEYS_VAR));
-      const currentKey = buildKey(this.serviceName, xRayTraceId, fallbackForKey);
-      const destKey = buildKey(knownUrl.known.target, xRayTraceId, fallbackForKey);
-      const nextVisited = new Set(visited);
-      nextVisited.add(currentKey);
-
-      if (!visited.has(destKey)) {
-        reporter?.decisionGoToService(knownUrl.known.target);
-        return {
-          success: true,
-          output: {
-            errorMessage,
-            logCount: results.length,
-            knownUrl: knownUrl.observedUrl,
-            knownUrlTarget: knownUrl.known.target,
-            fallbackUuidExtracted: fallbackIsFresh ? extractedFallback : undefined,
-          },
-          vars: {
-            ...vars,
-            [VISITED_KEYS_VAR]: serializeVisitedKeys(nextVisited),
-          },
-          // Drill down — bypass known-case eval at this service so a
-          // pointer-style case (e.g. "vai a guardare ext-registry-...")
-          // does not prevent the more specific evidence from the
-          // downstream service.
-          next: { goTo: `${this.queryStepPrefix}${knownUrl.known.target}` } satisfies FlowDirective,
-        };
-      }
-      // Loop guard: dest already visited with the same identifiers.
-      // Fall through to the standard 'resolve' branch so known cases
-      // get a chance; `decideNext` will then stop with `loop-detected`
-      // if no case matches.
-    }
-
-    // trace_id swap decision: only when this step is wired into the
-    // main dynamic loop AND the previous query already used a
-    // FALLBACK-UUID (i.e. `fallbackUuid` was already set when the query
-    // ran). The application logs may carry an alternative `trace_id`
-    // that should become the canonical X-Ray trace id for a follow-up
-    // query on the same service.
-    if (this.serviceName !== undefined && fallbackUuidExisting !== '') {
-      const rawSwapCount = Number(context.vars.get(TRACE_ID_SWAP_COUNT_VAR) ?? '0');
-      const swapCount = Number.isFinite(rawSwapCount) ? rawSwapCount : 0;
-      if (swapCount < MAX_TRACE_ID_SWAPS) {
-        const known = new Set<string>();
-        if (xRayTraceId !== '') known.add(xRayTraceId);
-        if (fallbackUuidExisting !== '') known.add(fallbackUuidExisting);
-        const freshTrace = findFreshTraceId(results, known);
-        if (freshTrace !== undefined) {
-          const visited = parseVisitedKeys(context.vars.get(VISITED_KEYS_VAR));
-          const currentKey = buildKey(this.serviceName, xRayTraceId, fallbackUuidExisting);
-          const destKey = buildKey(this.serviceName, freshTrace.canonical, fallbackUuidExisting);
-
-          if (!visited.has(destKey)) {
-            const nextVisited = new Set(visited);
-            nextVisited.add(currentKey);
-
-            reporter?.decisionTraceIdSwap(this.serviceName, freshTrace.raw, freshTrace.canonical);
-
-            return {
-              success: true,
-              output: {
-                errorMessage,
-                logCount: results.length,
-                knownUrl: knownUrl?.observedUrl,
-                knownUrlTarget: knownUrl?.known.target,
-                fallbackUuidExtracted: fallbackIsFresh ? extractedFallback : undefined,
-              },
-              vars: {
-                ...vars,
-                xRayTraceId: freshTrace.canonical,
-                [`${this.varPrefix}SwappedTraceId`]: freshTrace.canonical,
-                [`${this.varPrefix}SwappedTraceIdRaw`]: freshTrace.raw,
-                [TRACE_ID_SWAP_COUNT_VAR]: String(swapCount + 1),
-                [VISITED_KEYS_VAR]: serializeVisitedKeys(nextVisited),
-                ...(context.vars.get('apiGwOriginalTraceId') === undefined
-                  ? { apiGwOriginalTraceId: xRayTraceId }
-                  : {}),
-              },
-              next: { goTo: `${this.queryStepPrefix}${this.serviceName}` } satisfies FlowDirective,
-            };
-          }
-          // Else: the swap destination is already visited. Fall through
-          // to the standard 'resolve' branch; `decideNext` will close
-          // the analysis as `no-match` (or `loop-detected` if applicable).
-        }
-      }
-    }
-
     return {
       success: true,
       output: {
@@ -282,6 +162,8 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
         knownUrl: knownUrl?.observedUrl,
         knownUrlTarget: knownUrl?.known.target,
         fallbackUuidExtracted: fallbackIsFresh ? extractedFallback : undefined,
+        freshTraceId: freshTrace?.canonical,
+        freshTraceIdRaw: freshTrace?.raw,
       },
       vars,
       // Default branch: signal known-case resolution. Even cases that
@@ -290,19 +172,6 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
       next: 'resolve' as const,
     };
   }
-}
-
-function buildKey(service: string, xRayTraceId: string, fallbackUuid: string): string {
-  return `${service}|${xRayTraceId}|${fallbackUuid}`;
-}
-
-function parseVisitedKeys(raw: string | undefined): ReadonlySet<string> {
-  if (raw === undefined || raw.trim() === '') return new Set();
-  return new Set(raw.split('\n').filter((s) => s !== ''));
-}
-
-function serializeVisitedKeys(set: ReadonlySet<string>): string {
-  return [...set].join('\n');
 }
 
 /**
@@ -314,32 +183,27 @@ function serializeVisitedKeys(set: ReadonlySet<string>): string {
  *   (see {@link findErrorMessage});
  * - scans the rows for the first URL matching the
  *   {@link KnownUrlsRegistry} (see {@link findKnownUrlInLogs});
- * - extracts any new `FALLBACK-UUID` token (compared with the value
- *   already present in `fallbackUuid`);
- * - **drills down via the KnownUrl when in scope**: if {@link serviceName}
- *   and {@link servicesInRunbook} are supplied and the observed URL's
- *   target is one of the runbook services (and the destination has not
- *   been visited yet with the same identifiers), the step emits a
- *   `goTo query-<target>` flow directive instead of `'resolve'`. This
- *   ensures pointer-style known cases at the upstream layer cannot
- *   pre-empt the more specific evidence available downstream.
+ * - extracts a new `FALLBACK-UUID` token only when the same result set
+ *   also points to a known downstream URL;
+ * - records a `trace_id` when the query was driven by an existing
+ *   fallback UUID.
  *
- * When no drill-down applies the step signals `next: 'resolve'` so the
- * engine evaluates known cases (including cases that match on absence
- * such as `<prefix>LogCount == '0'`). If no case matches the engine
- * proceeds to `decide-<service>` for the remaining branches (external
- * downstream, fallback retry, terminal no-match, loop-detected).
+ * The step always signals `next: 'resolve'` so the engine evaluates
+ * known cases before any dynamic traversal decision. If no case
+ * matches, the following `decide-<service>` step consumes the recorded
+ * URL / fallback / trace vars and decides whether to re-query, jump to
+ * another service, or stop.
  *
  * Vars written:
  * - `<varPrefix>ErrorMsg`: longest error message (empty when none)
  * - `<varPrefix>LogCount`: number of result rows
  * - `<varPrefix>NextUrl`: observed URL matched by the registry (empty when none)
  * - `<varPrefix>NextUrlTarget`: target name of the matched URL (empty when none)
- * - `<varPrefix>FallbackUuidFresh`: `"true"` iff a new fallback UUID was
- *   extracted during this analysis call
+ * - `<varPrefix>FallbackUuidFresh`: `"true"` iff a known downstream URL
+ *   and a new fallback UUID were detected during this analysis call
+ * - `<varPrefix>FreshTraceId`: canonical trace id found after a fallback query
+ * - `<varPrefix>FreshTraceIdRaw`: raw trace id value observed in logs
  * - `fallbackUuid`: updated only when a new value is extracted (sticky otherwise)
- * - `apiGwVisitedKeys`: updated with the current `(service|trace|fallback)`
- *   key on the drill-down branch (so `decide-<service>` can detect loops)
  *
  * @param config - Step configuration
  * @returns Step that produces a {@link ServiceLogsAnalysis}

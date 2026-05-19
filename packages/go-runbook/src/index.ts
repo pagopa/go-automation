@@ -98,12 +98,10 @@ export { logAction, notifyAction, escalateAction, compositeAction } from './acti
 
 // Services
 export type { ServiceRegistry } from './services/ServiceRegistry.js';
+export type { AthenaQueryOptions, AthenaQueryService } from './services/AthenaQueryService.js';
 export type { CloudWatchLogsQueryService } from './services/CloudWatchLogsQueryService.js';
-export { CloudWatchLogsService } from './services/CloudWatchLogsService.js';
-export { CloudWatchMetricsService } from './services/CloudWatchMetricsService.js';
-export type { MetricDatapoint, MetricDimension } from './services/CloudWatchMetricsService.js';
-export { AthenaService } from './services/AthenaService.js';
-export { RunbookDynamoDBService } from './services/RunbookDynamoDBService.js';
+export type { CloudWatchMetricsQueryService } from './services/CloudWatchMetricsQueryService.js';
+export type { DynamoDBOperationsService } from './services/DynamoDBOperationsService.js';
 export { RunbookHttpService } from './services/RunbookHttpService.js';
 export type { RunbookHttpResponse } from './services/RunbookHttpService.js';
 

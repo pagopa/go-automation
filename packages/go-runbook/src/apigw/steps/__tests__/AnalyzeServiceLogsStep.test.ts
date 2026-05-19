@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type { ResultField } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 
@@ -53,7 +53,7 @@ describe('analyzeServiceLogs', () => {
     assert.strictEqual(result.vars?.['svcNextUrlTarget'], 'AppIO');
   });
 
-  it('marks FallbackUuidFresh=true the first time a UUID appears', async () => {
+  it('marks FallbackUuidFresh=true when a known URL and a new UUID appear', async () => {
     const step = analyzeServiceLogs({
       id: 'analyze',
       label: 'Analyze',
@@ -64,12 +64,37 @@ describe('analyzeServiceLogs', () => {
 
     const result = await step.execute(
       createContext({
-        stepOutput: [row('FALLBACK-UUID:11111111-2222-3333-4444-555555555555 something happened')],
+        stepOutput: [
+          row(
+            'error calling https://api.io.pagopa.it/api/v1/activations/foo ' +
+              'FALLBACK-UUID:11111111-2222-3333-4444-555555555555',
+          ),
+        ],
       }),
     );
 
     assert.strictEqual(result.vars?.['svcFallbackUuidFresh'], 'true');
     assert.strictEqual(result.vars?.['fallbackUuid'], '11111111-2222-3333-4444-555555555555');
+  });
+
+  it('does not extract a fallback UUID when no known destination URL is found', async () => {
+    const step = analyzeServiceLogs({
+      id: 'analyze',
+      label: 'Analyze',
+      fromStep: 'query',
+      varPrefix: 'svc',
+      registry,
+    });
+
+    const result = await step.execute(
+      createContext({
+        stepOutput: [row('FALLBACK-UUID:11111111-2222-3333-4444-555555555555 without downstream URL')],
+      }),
+    );
+
+    assert.strictEqual(result.vars?.['svcFallbackUuidFresh'], 'false');
+    assert.strictEqual(result.vars?.['fallbackUuid'], undefined);
+    assert.strictEqual(result.output?.fallbackUuidExtracted, undefined);
   });
 
   it('marks FallbackUuidFresh=false when the UUID matches the existing one', async () => {
@@ -83,7 +108,12 @@ describe('analyzeServiceLogs', () => {
 
     const result = await step.execute(
       createContext({
-        stepOutput: [row('FALLBACK-UUID:11111111-2222-3333-4444-555555555555 same as before')],
+        stepOutput: [
+          row(
+            'retrying https://api.io.pagopa.it/api/v1/activations/foo ' +
+              'FALLBACK-UUID:11111111-2222-3333-4444-555555555555',
+          ),
+        ],
         vars: { fallbackUuid: '11111111-2222-3333-4444-555555555555' },
       }),
     );
@@ -113,7 +143,7 @@ describe('analyzeServiceLogs', () => {
     assert.strictEqual(emptyRows.next, 'resolve');
   });
 
-  it('emits goTo (drill-down) when an internal KnownUrl is detected, bypassing case eval', async () => {
+  it('records an internal KnownUrl but still resolves first so known cases can run', async () => {
     const internalRegistry = new KnownUrlsRegistry([
       { url: 'http://internal-EcsA-123:8080/ext-registry-private/', target: 'pn-external-registries' },
     ]);
@@ -134,11 +164,12 @@ describe('analyzeServiceLogs', () => {
       }),
     );
 
-    assert.deepStrictEqual(result.next, { goTo: 'query-pn-external-registries' });
-    assert.match(result.vars?.['apiGwVisitedKeys'] ?? '', /pn-user-attributes\|1-abc\|/);
+    assert.strictEqual(result.next, 'resolve');
+    assert.strictEqual(result.vars?.['svcNextUrlTarget'], 'pn-external-registries');
+    assert.strictEqual(result.vars?.['apiGwVisitedKeys'], undefined);
   });
 
-  it('falls back to resolve when the drill-down target was already visited (loop)', async () => {
+  it('does not perform loop decisions during analysis', async () => {
     const internalRegistry = new KnownUrlsRegistry([
       { url: 'http://internal-EcsA-123:8080/ext-registry-private/', target: 'pn-external-registries' },
     ]);
@@ -160,6 +191,7 @@ describe('analyzeServiceLogs', () => {
     );
 
     assert.strictEqual(result.next, 'resolve');
+    assert.strictEqual(result.vars?.['svcNextUrlTarget'], 'pn-external-registries');
   });
 
   it('does not drill down when a KnownUrl points to the current service', async () => {
@@ -188,7 +220,7 @@ describe('analyzeServiceLogs', () => {
     assert.strictEqual(result.vars?.['apiGwVisitedKeys'], undefined);
   });
 
-  it('swaps xRayTraceId when fallback-uuid was set and a fresh trace_id appears in the logs', async () => {
+  it('records a trace_id when fallback-uuid was used', async () => {
     const step = analyzeServiceLogs({
       id: 'analyze',
       label: 'Analyze',
@@ -212,12 +244,10 @@ describe('analyzeServiceLogs', () => {
       }),
     );
 
-    assert.deepStrictEqual(result.next, { goTo: 'query-pn-user-attributes' });
-    assert.strictEqual(result.vars?.['xRayTraceId'], '1-3d472be7-2977635208a92722b97b5e24');
-    assert.strictEqual(result.vars?.['svcSwappedTraceId'], '1-3d472be7-2977635208a92722b97b5e24');
-    assert.strictEqual(result.vars?.['svcSwappedTraceIdRaw'], '3d472be72977635208a92722b97b5e24');
-    assert.strictEqual(result.vars?.['apiGwTraceIdSwapCount'], '1');
-    assert.strictEqual(result.vars?.['apiGwOriginalTraceId'], '1-69b158e8-28c211881e5339480367ede0');
+    assert.strictEqual(result.next, 'resolve');
+    assert.strictEqual(result.vars?.['svcFreshTraceId'], '1-3d472be7-2977635208a92722b97b5e24');
+    assert.strictEqual(result.vars?.['svcFreshTraceIdRaw'], '3d472be72977635208a92722b97b5e24');
+    assert.strictEqual(result.vars?.['xRayTraceId'], undefined);
   });
 
   it('does NOT swap when no fallback-uuid is in context yet', async () => {
@@ -246,9 +276,10 @@ describe('analyzeServiceLogs', () => {
 
     assert.strictEqual(result.next, 'resolve');
     assert.strictEqual(result.vars?.['xRayTraceId'], undefined);
+    assert.strictEqual(result.vars?.['svcFreshTraceId'], '');
   });
 
-  it('does NOT swap when the trace_id matches the current xRayTraceId (raw or canonical)', async () => {
+  it('records the trace_id even when it matches the current xRayTraceId', async () => {
     const step = analyzeServiceLogs({
       id: 'analyze',
       label: 'Analyze',
@@ -274,9 +305,11 @@ describe('analyzeServiceLogs', () => {
 
     assert.strictEqual(result.next, 'resolve');
     assert.strictEqual(result.vars?.['xRayTraceId'], undefined);
+    assert.strictEqual(result.vars?.['svcFreshTraceId'], '1-69b158e8-28c211881e5339480367ede0');
+    assert.strictEqual(result.vars?.['svcFreshTraceIdRaw'], '69b158e828c211881e5339480367ede0');
   });
 
-  it('stops swapping after MAX_TRACE_ID_SWAPS (5) hops', async () => {
+  it('does not apply trace swap limits during analysis', async () => {
     const step = analyzeServiceLogs({
       id: 'analyze',
       label: 'Analyze',
@@ -305,6 +338,7 @@ describe('analyzeServiceLogs', () => {
     );
 
     assert.strictEqual(result.next, 'resolve');
+    assert.strictEqual(result.vars?.['svcFreshTraceId'], '1-3d472be7-2977635208a92722b97b5e24');
   });
 
   it('returns empty vars when the upstream query produced no rows', async () => {

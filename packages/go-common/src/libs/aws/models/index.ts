@@ -33,3 +33,5 @@ export type {
 
 export type { DynamoDBQueryOptions, DynamoDBKeyType } from './DynamoDBQueryOptions.js';
 export type { DynamoDBQueryResult } from './DynamoDBQueryResult.js';
+export type { MetricDatapoint } from './MetricDatapoint.js';
+export type { MetricDimension } from './MetricDimension.js';

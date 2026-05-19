@@ -1,4 +1,4 @@
-import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type { ResultField } from '@go-automation/go-common/aws';
 
 /**
  * Extracts a field value from a CloudWatch Logs result row.

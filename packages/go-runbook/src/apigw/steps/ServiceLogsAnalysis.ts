@@ -11,6 +11,10 @@ export interface ServiceLogsAnalysis {
   readonly knownUrl: string | undefined;
   /** Target name (service or downstream) attached to the matched URL. */
   readonly knownUrlTarget: string | undefined;
-  /** Fallback UUID extracted from the logs during this analysis call. */
+  /** Fallback UUID extracted when a known downstream URL was also found. */
   readonly fallbackUuidExtracted: string | undefined;
+  /** Fresh trace id found in logs after a fallback-UUID query, if any. */
+  readonly freshTraceId: string | undefined;
+  /** Raw trace id value before canonical X-Ray formatting, if any. */
+  readonly freshTraceIdRaw: string | undefined;
 }

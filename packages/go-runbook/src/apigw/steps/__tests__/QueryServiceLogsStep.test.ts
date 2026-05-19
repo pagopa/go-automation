@@ -1,10 +1,10 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type { ResultField } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
-import type { CloudWatchLogsService } from '../../../services/CloudWatchLogsService.js';
+import type { CloudWatchLogsQueryService } from '../../../services/CloudWatchLogsQueryService.js';
 import type { TimeRange } from '../../../types/TimeRange.js';
 
 import { queryServiceLogs } from '../QueryServiceLogsStep.js';
@@ -16,7 +16,7 @@ interface CapturedCall {
 }
 
 function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<ResultField>> = []): {
-  service: CloudWatchLogsService;
+  service: CloudWatchLogsQueryService;
   calls: CapturedCall[];
 } {
   const calls: CapturedCall[] = [];
@@ -32,13 +32,13 @@ function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<ResultField>> = [
         return results;
       },
     ),
-  } as unknown as CloudWatchLogsService;
+  } as unknown as CloudWatchLogsQueryService;
   return { service, calls };
 }
 
 function createContext(args: {
   readonly vars?: Record<string, string>;
-  readonly cloudWatchLogs: CloudWatchLogsService;
+  readonly cloudWatchLogs: CloudWatchLogsQueryService;
   readonly capturedLines?: string[];
 }): RunbookContext {
   const ctx: RunbookContext = {
@@ -105,7 +105,7 @@ describe('queryServiceLogs', () => {
     assert.doesNotMatch(call.query, /\bor\b/);
   });
 
-  it('OR-joins both clauses when xRayTraceId and fallbackUuid are present', async () => {
+  it('uses only fallbackUuid when both xRayTraceId and fallbackUuid are present', async () => {
     const { service, calls } = createFakeCwLogs();
     const step = queryServiceLogs({
       id: 'q',
@@ -125,7 +125,9 @@ describe('queryServiceLogs', () => {
 
     const call = calls[0];
     assert.ok(call !== undefined);
-    assert.match(call.query, /filter @message like '1-abc' or @message like 'uuid-1'/);
+    assert.match(call.query, /filter @message like 'uuid-1'/);
+    assert.doesNotMatch(call.query, /1-abc/);
+    assert.doesNotMatch(call.query, /\bor\b/);
   });
 
   it('escapes single quotes in identifiers (SQL escaping)', async () => {
@@ -192,8 +194,8 @@ describe('queryServiceLogs', () => {
 
     const call = calls[0];
     assert.ok(call !== undefined);
-    assert.match(call.query, /'trace-1'/);
     assert.match(call.query, /'fb-1'/);
+    assert.doesNotMatch(call.query, /'trace-1'/);
   });
 
   it('returns the rows produced by the CloudWatch Logs service', async () => {
@@ -293,7 +295,7 @@ describe('queryServiceLogs', () => {
           "[ResourceNotFoundException] Log group '/aws/ecs/pn-data-vault-sep' does not exist for account ID '510769970275'",
         );
       },
-    } as unknown as CloudWatchLogsService;
+    } as unknown as CloudWatchLogsQueryService;
 
     const step = queryServiceLogs({
       id: 'q',
@@ -338,7 +340,7 @@ describe('queryServiceLogs', () => {
           logGroups: ['/aws/ecs/foo'],
           // Missing `{{FILTER_CLAUSE}}` — without the placeholder the
           // step would silently scan the whole log group.
-          queryTemplate: 'fields @timestamp, @message | sort @timestamp asc',
+          queryTemplateOverride: 'fields @timestamp, @message | sort @timestamp asc',
           timeRangeFromParams: { start: 'startTime', end: 'endTime' },
         }),
       /\{\{FILTER_CLAUSE\}\} placeholder/,

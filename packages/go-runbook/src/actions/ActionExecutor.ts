@@ -21,6 +21,17 @@ export interface ActionExecutionResult {
   readonly error?: string;
 }
 
+interface KnownCaseLogMessage {
+  readonly rows: ReadonlyArray<KnownCaseLogRow>;
+}
+
+interface KnownCaseLogRow {
+  readonly field: string;
+  readonly value: string;
+}
+
+const KNOWN_CASE_PREFIX = '[CASO NOTO]';
+
 /**
  * Executes case actions by type.
  * Handles template interpolation for message fields.
@@ -120,6 +131,12 @@ export class ActionExecutor {
    * Executes a log action by writing to the logger.
    */
   private executeLogAction(level: 'info' | 'warn' | 'error', message: string): void {
+    const knownCaseLog = parseKnownCaseLogMessage(message);
+    if (knownCaseLog !== undefined) {
+      this.renderKnownCaseLog(knownCaseLog);
+      return;
+    }
+
     switch (level) {
       case 'info':
         this.logger.info(message);
@@ -135,6 +152,24 @@ export class ActionExecutor {
         throw new Error(`Unknown log level: ${String(_exhaustive)}`);
       }
     }
+  }
+
+  /**
+   * Renders a known-case action as an explicit success block instead of
+   * a plain multi-line info message.
+   */
+  private renderKnownCaseLog(message: KnownCaseLogMessage): void {
+    this.logger.newline();
+    this.logger.success('Caso noto rilevato');
+    this.logger.table({
+      columns: [
+        { header: 'Campo', key: 'field', width: 18 },
+        { header: 'Valore', key: 'value' },
+      ],
+      data: message.rows.map((row) => ({ field: row.field, value: row.value })),
+      maxColumnWidth: 120,
+      style: { colors: false },
+    });
   }
 
   /**
@@ -174,4 +209,38 @@ export class ActionExecutor {
       return _match;
     });
   }
+}
+
+function parseKnownCaseLogMessage(message: string): KnownCaseLogMessage | undefined {
+  const lines = message
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line !== '');
+
+  const [firstLine, ...details] = lines;
+  if (firstLine?.startsWith(KNOWN_CASE_PREFIX) !== true) {
+    return undefined;
+  }
+
+  const title = firstLine.slice(KNOWN_CASE_PREFIX.length).trim() || 'Caso noto';
+  const rows: KnownCaseLogRow[] = [{ field: 'Caso', value: title }];
+
+  let detailCount = 0;
+  for (const detail of details) {
+    const separatorIndex = detail.indexOf(':');
+    if (separatorIndex > 0) {
+      const field = detail.slice(0, separatorIndex).trim();
+      const value = detail.slice(separatorIndex + 1).trim();
+      rows.push({ field, value });
+      continue;
+    }
+
+    detailCount += 1;
+    rows.push({
+      field: detailCount === 1 ? 'Dettaglio' : `Dettaglio ${detailCount}`,
+      value: detail,
+    });
+  }
+
+  return { rows };
 }

@@ -2,7 +2,7 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
-import type { MetricDatapoint, MetricDimension } from '../../services/CloudWatchMetricsService.js';
+import type { MetricDatapoint, MetricDimension } from '@go-automation/go-common/aws';
 import type { TimeRangeFromParams } from './CloudWatchLogsQueryStep.js';
 import { interpolateTemplate } from './interpolateTemplate.js';
 import { resolveTimeRange } from './resolveTimeRange.js';
