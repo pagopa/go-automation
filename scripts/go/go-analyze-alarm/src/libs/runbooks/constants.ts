@@ -2,10 +2,10 @@
 export const DEFAULT_TIME_WINDOW_MINUTES = 5;
 
 /** API Gateway REST API id shared by the delivery public API alarms. */
-export const DELIVERY_API_GW_REST_API_ID = '64pohg7bg0';
+const DELIVERY_API_GW_REST_API_ID = '64pohg7bg0';
 
 /** API Gateway stage name used by the delivery public API execution logs. */
-export const DELIVERY_API_GW_STAGE_NAME = 'unique';
+const DELIVERY_API_GW_STAGE_NAME = 'unique';
 
 /**
  * API Gateway execution log group shared by the delivery public API alarms.
