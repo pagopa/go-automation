@@ -11,9 +11,9 @@ export const KNOWN_URLS: ReadonlyArray<apigw.KnownUrl> = [
     description: 'Endpoint AppIO osservato nei log di pn-external-registries.',
   },
   {
-    url: 'http://internal-EcsA-20230522152202180500000011-96161141.eu-south-1.elb.amazonaws.com:8080/ext-registry-private/io/v1/activations',
-    matchType: 'prefix',
+    url: '^https?://[^/:]+(?::\\d+)?/ext-registry-private/io/v1/activations(?:/|$)',
+    matchType: 'regex',
     target: 'pn-external-registries',
-    description: 'Load balancer interno verso ext-registry-private/io/v1/activations.',
+    description: 'Endpoint interno verso ext-registry-private/io/v1/activations.',
   },
 ];
