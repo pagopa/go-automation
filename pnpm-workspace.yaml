@@ -11,6 +11,8 @@ allowBuilds:
   esbuild: true
   unrs-resolver: true
 
+minimumReleaseAge: 0
+
 catalog:
   '@aws-sdk/client-athena': '^3.1049.0'
   '@aws-sdk/client-bedrock-runtime': '^3.1049.0'
