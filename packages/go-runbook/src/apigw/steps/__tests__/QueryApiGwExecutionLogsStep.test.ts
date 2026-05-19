@@ -102,6 +102,33 @@ describe('queryApiGwExecutionLogs', () => {
     assert.strictEqual(calls.length, 0);
   });
 
+  it('skips execution-log analysis as not-configured when executionLogGroup is missing', async () => {
+    const { service, calls } = createFakeCwLogs();
+    const step = queryApiGwExecutionLogs({
+      id: 'query-execution-logs',
+      label: 'Query execution logs',
+      fromStep: 'query-api-gw-logs',
+      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+    });
+
+    const result = await step.execute(
+      createContext({
+        cloudWatchLogs: service,
+        stepOutput: [
+          buildRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
+        ],
+      }),
+    );
+
+    assert.strictEqual(result.success, true);
+    assert.deepStrictEqual(result.output, []);
+    assert.strictEqual(result.vars?.['apiGwExecutionLogMode'], 'not-configured');
+    assert.strictEqual(result.vars?.['apiGwExecutionLogRequestCount'], '0');
+    assert.strictEqual(result.vars?.['apiGwExecutionLogCount'], '0');
+    assert.strictEqual(result.next, undefined);
+    assert.strictEqual(calls.length, 0);
+  });
+
   it('extracts requestIds, renders one OR-combined query and enriches execution-log rows', async () => {
     const { service, calls } = createFakeCwLogs([
       [buildField('@message', 'Execution failed for req-1')],
@@ -143,6 +170,41 @@ describe('queryApiGwExecutionLogs', () => {
     assert.deepStrictEqual(output[0]?.slice(-2), [buildField('requestId', 'req-1'), buildField('path', '/foo')]);
     assert.deepStrictEqual(output[1]?.slice(-2), [buildField('requestId', 'req-2'), buildField('path', '/bar')]);
     assert.deepStrictEqual(output[2]?.slice(-2), [buildField('requestId', ''), buildField('path', '')]);
+  });
+
+  it('keeps distinct requestIds that share the same path', async () => {
+    const { service, calls } = createFakeCwLogs([
+      [buildField('@message', 'Execution failed for req-1')],
+      [buildField('@message', 'Execution failed for req-2')],
+    ]);
+    const step = createStep();
+
+    const result = await step.execute(
+      createContext({
+        cloudWatchLogs: service,
+        stepOutput: [
+          buildRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/same' }),
+          buildRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/same' }),
+          buildRow({ status: '502', errorMessage: 'Duplicate retry', requestId: 'req-1', path: '/same' }),
+        ],
+      }),
+    );
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(calls.length, 1);
+    const call = calls[0];
+    assert.ok(call !== undefined);
+    assert.match(call.query, /filter \(@message like 'req-1'\) or \(@message like 'req-2'\)/);
+    assert.strictEqual(call.query.match(/req-1/g)?.length, 1);
+    assert.strictEqual(call.query.match(/req-2/g)?.length, 1);
+    assert.strictEqual(result.vars?.['apiGwExecutionLogRequestCount'], '2');
+    assert.strictEqual(result.vars?.['apiGwExecutionLogRequestIds'], 'req-1,req-2');
+    assert.strictEqual(result.vars?.['apiGwExecutionLogPaths'], '/same,/same');
+
+    const output = result.output;
+    assert.ok(output !== undefined);
+    assert.deepStrictEqual(output[0]?.slice(-2), [buildField('requestId', 'req-1'), buildField('path', '/same')]);
+    assert.deepStrictEqual(output[1]?.slice(-2), [buildField('requestId', 'req-2'), buildField('path', '/same')]);
   });
 
   it('fails fast when the extracted requestIds exceed the configured limit', async () => {

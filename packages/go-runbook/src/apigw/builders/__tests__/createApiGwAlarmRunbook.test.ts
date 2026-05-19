@@ -309,7 +309,7 @@ describe('createApiGwAlarmRunbook', () => {
     assert.deepStrictEqual(calls, ['/aws/apigw/main', '/aws/lambda/pn-ioAuthorizerLambda', '/aws/ecs/pn-a']);
   });
 
-  it('queries API Gateway execution logs by one requestId per path before extracting xRayTraceId', async () => {
+  it('queries API Gateway execution logs by unique requestId before extracting xRayTraceId', async () => {
     const knownCases: ReadonlyArray<KnownCase> = [
       {
         id: 'execution-known-failure',
@@ -403,10 +403,10 @@ describe('createApiGwAlarmRunbook', () => {
       calls.map((call) => call.logGroup),
       ['/aws/apigw/main', 'API-Gateway-Execution-Logs_test/prod'],
     );
-    // La singola query contiene il primo requestId per path (deduplicato):
-    // req-a-1 per /resource-a, req-b-1 per /resource-b. req-a-2 viene escluso.
+    // La singola query contiene tutti i requestId unici, anche quando
+    // piu' richieste fallite condividono lo stesso endpoint.
     assert.match(calls[1]?.query ?? '', /req-a-1/);
-    assert.doesNotMatch(calls[1]?.query ?? '', /req-a-2/);
+    assert.match(calls[1]?.query ?? '', /req-a-2/);
     assert.match(calls[1]?.query ?? '', /req-b-1/);
   });
 

@@ -17,7 +17,7 @@ import { renderQueryTemplate } from '../profiles/render/renderQueryTemplate.js';
 
 const QUERY_MODE_VAR = 'apiGwExecutionLogMode';
 
-interface RequestIdByPath {
+interface RequestIdWithPath {
   readonly path: string;
   readonly requestId: string;
 }
@@ -154,7 +154,7 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
         });
       }
 
-      const requestIds = collectRequestIdsByPath(rowsWithErrorMessage, this.accessLogSchema);
+      const requestIds = collectRequestIds(rowsWithErrorMessage, this.accessLogSchema);
       if (requestIds.length === 0) {
         return {
           success: true,
@@ -242,7 +242,7 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
    * Costruisce la query OR-combinata su tutti i requestId estratti dal
    * AccessLog. Una sola chiamata AWS al posto di N (pattern pre-V04).
    */
-  private buildExecutionLogQuery(requestIds: ReadonlyArray<RequestIdByPath>): string {
+  private buildExecutionLogQuery(requestIds: ReadonlyArray<RequestIdWithPath>): string {
     const predicates = requestIds.map((req) =>
       renderQueryTemplate(this.spec.requestIdPredicateTemplate, {
         values: { '{{VALUE}}': req.requestId },
@@ -260,22 +260,22 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
   }
 }
 
-function collectRequestIdsByPath(
+function collectRequestIds(
   rows: ReadonlyArray<ResultField[]>,
   schema: AccessLogSchema,
-): ReadonlyArray<RequestIdByPath> {
-  const byPath = new Map<string, RequestIdByPath>();
+): ReadonlyArray<RequestIdWithPath> {
+  const byRequestId = new Map<string, RequestIdWithPath>();
   for (const row of rows) {
     const requestId = sanitizeApiGwField(extractCwField(row, schema.requestIdField), schema);
     if (requestId === '') continue;
 
     const rawPath = sanitizeApiGwField(extractCwField(row, schema.pathField), schema);
     const path = rawPath === '' ? requestId : rawPath;
-    if (!byPath.has(path)) {
-      byPath.set(path, { path, requestId });
+    if (!byRequestId.has(requestId)) {
+      byRequestId.set(requestId, { path, requestId });
     }
   }
-  return [...byPath.values()];
+  return [...byRequestId.values()];
 }
 
 function rowMeetsThreshold(row: ReadonlyArray<ResultField>, minStatusCode: number, schema: AccessLogSchema): boolean {
