@@ -74,7 +74,10 @@ describe('evaluateApiGwAuthorizerFailure', () => {
     assert.strictEqual(result.vars?.['apiGwAuthorizerLatencyMs'], '5000');
     assert.strictEqual(result.vars?.['apiGwAuthorizerTimeoutMs'], '5000');
     assert.strictEqual(result.vars?.['apiGwAuthorizerRequestId'], 'auth-req-1');
-    assert.strictEqual(result.vars?.['terminationReason'], 'api-gw-authorizer-timeout');
+    // terminationReason is owned by DecideNextStep and must stay within the
+    // TerminationReason union. This step exposes the authorizer-specific
+    // signal via apiGwAuthorizerOutcome / apiGwAuthorizerFailureType.
+    assert.strictEqual(result.vars?.['terminationReason'], undefined);
   });
 
   it('resolves a generic authorizer error when latency is below timeout', async () => {
@@ -96,7 +99,7 @@ describe('evaluateApiGwAuthorizerFailure', () => {
     assert.strictEqual(result.output?.failureType, 'status-error');
     assert.strictEqual(result.vars?.['apiGwAuthorizerOutcome'], 'error');
     assert.strictEqual(result.vars?.['apiGwAuthorizerFailureType'], 'status-error');
-    assert.strictEqual(result.vars?.['terminationReason'], 'api-gw-authorizer-error');
+    assert.strictEqual(result.vars?.['terminationReason'], undefined);
     assert.strictEqual(result.vars?.['apiGwAuthorizerRequestId'], 'auth-req-2');
   });
 

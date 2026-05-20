@@ -185,7 +185,6 @@ class EvaluateApiGwAuthorizerFailureStepImpl implements Step<ApiGwAuthorizerFail
       apiGwAuthorizerRequestId: info.requestId ?? '',
       apiGwAuthorizerPath: info.path ?? '',
       apiGwAuthorizerHttpMethod: info.httpMethod ?? '',
-      terminationReason: info.outcome === 'timeout' ? 'api-gw-authorizer-timeout' : 'api-gw-authorizer-error',
       lastErrorMsg: buildAuthorizerMessage(info),
     };
 
