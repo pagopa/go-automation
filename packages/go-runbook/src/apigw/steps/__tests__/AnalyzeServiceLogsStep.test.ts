@@ -154,7 +154,6 @@ describe('analyzeServiceLogs', () => {
       varPrefix: 'svc',
       registry: internalRegistry,
       serviceName: 'pn-user-attributes',
-      servicesInRunbook: new Set(['pn-user-attributes', 'pn-external-registries']),
     });
 
     const result = await step.execute(
@@ -180,7 +179,6 @@ describe('analyzeServiceLogs', () => {
       varPrefix: 'svc',
       registry: internalRegistry,
       serviceName: 'pn-user-attributes',
-      servicesInRunbook: new Set(['pn-user-attributes', 'pn-external-registries']),
     });
 
     const result = await step.execute(
@@ -205,7 +203,6 @@ describe('analyzeServiceLogs', () => {
       varPrefix: 'dataVault',
       registry: selfRegistry,
       serviceName: 'pn-data-vault',
-      servicesInRunbook: new Set(['pn-data-vault']),
     });
 
     const result = await step.execute(
@@ -228,7 +225,6 @@ describe('analyzeServiceLogs', () => {
       varPrefix: 'svc',
       registry: new KnownUrlsRegistry([]),
       serviceName: 'pn-user-attributes',
-      servicesInRunbook: new Set(['pn-user-attributes']),
     });
 
     const traceIdRow: ResultField[] = [
@@ -258,7 +254,6 @@ describe('analyzeServiceLogs', () => {
       varPrefix: 'svc',
       registry: new KnownUrlsRegistry([]),
       serviceName: 'pn-user-attributes',
-      servicesInRunbook: new Set(['pn-user-attributes']),
     });
 
     const traceIdRow: ResultField[] = [
@@ -287,7 +282,6 @@ describe('analyzeServiceLogs', () => {
       varPrefix: 'svc',
       registry: new KnownUrlsRegistry([]),
       serviceName: 'pn-user-attributes',
-      servicesInRunbook: new Set(['pn-user-attributes']),
     });
 
     const traceIdRow: ResultField[] = [
@@ -317,7 +311,6 @@ describe('analyzeServiceLogs', () => {
       varPrefix: 'svc',
       registry: new KnownUrlsRegistry([]),
       serviceName: 'pn-user-attributes',
-      servicesInRunbook: new Set(['pn-user-attributes']),
     });
 
     const traceIdRow: ResultField[] = [

@@ -4,6 +4,7 @@ import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import { navigateFieldPath } from '@go-automation/go-common/core';
 import { valueToString } from '@go-automation/go-common/core';
+import { readStepOutput } from '../data/readStepOutput.js';
 
 /**
  * Configuration for the ExtractFieldStep.
@@ -61,14 +62,9 @@ class ExtractFieldStep implements Step<string> {
    */
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<string>> {
-    const sourceOutput = context.stepResults.get(this.fromStep);
-
-    if (sourceOutput === undefined) {
-      return {
-        success: false,
-        error: `Step output not found for stepId: "${this.fromStep}"`,
-      };
-    }
+    const upstream = readStepOutput<unknown>(context, this.fromStep);
+    if (!upstream.ok) return upstream.failure;
+    const sourceOutput = upstream.value;
 
     const value = navigateFieldPath(sourceOutput, this.fieldPath);
 

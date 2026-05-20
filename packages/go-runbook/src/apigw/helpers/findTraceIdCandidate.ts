@@ -70,24 +70,3 @@ export function findTraceIdCandidate(
   }
   return undefined;
 }
-
-/**
- * @deprecated Usare {@link findTraceIdCandidate}. Rimosso in v2.0.
- *
- * Alias di back-compat con firma aggiornata: ora richiede uno
- * {@link ServiceLogSchema}. Le call site che usavano la vecchia firma
- * (`(results) => …`) devono migrare passando
- * `SEND_API_GW_PROFILE.serviceLog.schema` (o lo schema del profilo).
- */
-export function findFreshTraceId(
-  results: ReadonlyArray<ResultField[]>,
-  schema: ServiceLogSchema,
-): TraceIdCandidateMatch | undefined {
-  return findTraceIdCandidate(results, schema);
-}
-
-/**
- * @deprecated Tipo alias di {@link TraceIdCandidateMatch}, mantenuto per
- * back-compat in v1.x.
- */
-export type FreshTraceIdMatch = TraceIdCandidateMatch;

@@ -1,6 +1,6 @@
 import type { ResultField } from '@go-automation/go-common/aws';
 import type { ServiceLogSchema } from '../profiles/schemas/ServiceLogSchema.js';
-import { extractCwField } from './extractCwField.js';
+import { readMessageField } from './readMessageField.js';
 import type { KnownUrlsRegistry } from '../registries/KnownUrlsRegistry.js';
 import type { KnownUrl } from '../types/KnownUrl.js';
 
@@ -28,14 +28,6 @@ export interface KnownUrlInLogs {
   readonly known: KnownUrl;
 }
 
-function readMessage(row: ReadonlyArray<ResultField>, schema: ServiceLogSchema): string {
-  for (const candidate of schema.messageFieldCandidates) {
-    const value = extractCwField(row, candidate);
-    if (value !== undefined) return value;
-  }
-  return '';
-}
-
 /**
  * Scans CloudWatch Logs result rows for the first URL that matches an
  * entry in the supplied {@link KnownUrlsRegistry}.
@@ -59,7 +51,7 @@ export function findKnownUrlInLogs(
   schema: ServiceLogSchema,
 ): KnownUrlInLogs | undefined {
   for (const row of results) {
-    const message = readMessage(row, schema);
+    const message = readMessageField(row, schema);
     if (message === '') {
       continue;
     }

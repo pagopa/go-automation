@@ -1,6 +1,7 @@
 import type { ResultField } from '@go-automation/go-common/aws';
 import type { ServiceLogSchema } from '../profiles/schemas/ServiceLogSchema.js';
 import { extractCwField } from './extractCwField.js';
+import { readMessageField } from './readMessageField.js';
 
 /**
  * Keyword tokens that flag a message as "error-like" in the second pass
@@ -22,19 +23,6 @@ const ERROR_KEYWORDS: ReadonlyArray<string> = [
   'Status: timeout',
   'Status: error',
 ];
-
-/**
- * Restituisce il valore del primo campo "message" disponibile fra i
- * candidati dichiarati dallo schema. SEND legge `message` poi `@message`;
- * un profilo INTEROP potrebbe limitarsi a `['@message']`.
- */
-function readMessage(row: ReadonlyArray<ResultField>, schema: ServiceLogSchema): string {
-  for (const candidate of schema.messageFieldCandidates) {
-    const value = extractCwField(row, candidate);
-    if (value !== undefined) return value;
-  }
-  return '';
-}
 
 /**
  * Scans a result set for the most representative "error-like" message.
@@ -60,7 +48,7 @@ function readMessage(row: ReadonlyArray<ResultField>, schema: ServiceLogSchema):
 export function findErrorMessage(results: ReadonlyArray<ResultField[]>, schema: ServiceLogSchema): string {
   let bestByLevel = '';
   for (const row of results) {
-    const message = readMessage(row, schema);
+    const message = readMessageField(row, schema);
     if (message === '') continue;
     const level = (extractCwField(row, schema.levelField) ?? '').toLowerCase();
     if ((level.includes('error') || level.includes('warn')) && message.length > bestByLevel.length) {
@@ -73,7 +61,7 @@ export function findErrorMessage(results: ReadonlyArray<ResultField[]>, schema: 
 
   let bestByKeyword = '';
   for (const row of results) {
-    const message = readMessage(row, schema);
+    const message = readMessageField(row, schema);
     if (message === '') continue;
     const level = (extractCwField(row, schema.levelField) ?? '').toLowerCase();
     if (level !== '' && !level.includes('error') && !level.includes('warn')) {

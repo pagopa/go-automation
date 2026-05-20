@@ -213,7 +213,6 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
         varPrefix: service.varPrefix,
         registry,
         serviceName: service.name,
-        servicesInRunbook,
         schema: profile.serviceLog.schema,
       }),
       { silent: true },
@@ -226,6 +225,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
         serviceName: service.name,
         varPrefix: service.varPrefix,
         servicesInRunbook,
+        traceIdContextVar: profile.accessLog.schema.traceIdContextVar,
       }),
       { silent: true },
     );

@@ -30,22 +30,22 @@ export function extractTraceId(row: ReadonlyArray<ResultField>, schema: AccessLo
     return raw;
   }
 
-  // Compilazione on-demand. L'estrazione avviene una sola volta per riga
-  // d'errore (poche unità) per esecuzione del runbook, quindi non vale la
-  // pena cachare il RegExp compilato per schema.
-  const pattern = new RegExp(schema.traceIdExtractPattern);
+  const pattern = getCompiledPattern(schema.traceIdExtractPattern);
   const match = pattern.exec(raw);
   return match?.[1] ?? raw;
 }
 
 /**
- * @deprecated Usare {@link extractTraceId}. Rimosso in v2.0.
- *
- * Alias di back-compat che richiede comunque uno {@link AccessLogSchema}
- * per restare uniforme con il nuovo contratto. Le call site che usavano
- * la vecchia firma (`(row) => string | undefined`) devono migrare passando
- * `SEND_API_GW_PROFILE.accessLog.schema` (o lo schema del profilo in uso).
+ * Cache pattern→RegExp per evitare la ricompilazione ad ogni riga.
+ * In esecuzioni con migliaia di righe (query AccessLog su finestre lunghe)
+ * eliminare la ricompilazione riduce il costo aggregato in modo apprezzabile.
  */
-export function extractXRayTraceId(row: ReadonlyArray<ResultField>, schema: AccessLogSchema): string | undefined {
-  return extractTraceId(row, schema);
+const COMPILED_PATTERNS = new Map<string, RegExp>();
+
+function getCompiledPattern(pattern: string): RegExp {
+  const cached = COMPILED_PATTERNS.get(pattern);
+  if (cached !== undefined) return cached;
+  const compiled = new RegExp(pattern);
+  COMPILED_PATTERNS.set(pattern, compiled);
+  return compiled;
 }

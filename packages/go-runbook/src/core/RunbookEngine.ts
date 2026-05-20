@@ -398,23 +398,20 @@ export class RunbookEngine {
 
   /**
    * Captures the relevant input context for a step.
-   * Returns a snapshot of current vars and params for trace purposes.
+   *
+   * Snapshots only `vars` (which mutate step-by-step). `params` are immutable
+   * across the execution and are already serialised once at the top level of
+   * the trace (`trace.input`), so duplicating them per step would be O(N·P)
+   * waste with no diagnostic value.
    *
    * @param context - Current runbook context
-   * @returns Input snapshot
+   * @returns Input snapshot scoped to mutable state
    */
   private captureStepInput(context: RunbookContext): Readonly<Record<string, unknown>> {
-    const input: Record<string, unknown> = {};
-
-    if (context.vars.size > 0) {
-      input['vars'] = Object.fromEntries(context.vars);
+    if (context.vars.size === 0) {
+      return {};
     }
-
-    if (context.params.size > 0) {
-      input['params'] = Object.fromEntries(context.params);
-    }
-
-    return input;
+    return { vars: Object.fromEntries(context.vars) };
   }
 
   /**
@@ -484,12 +481,16 @@ export class RunbookEngine {
   private evaluateKnownCasesCore(
     knownCases: ReadonlyArray<KnownCase>,
     context: RunbookContext,
-  ): { matchedCases: ReadonlyArray<KnownCase>; evaluations: CaseEvaluationTrace[] } {
-    const sorted = [...knownCases].sort((a, b) => b.priority - a.priority);
+  ): {
+    matchedCases: ReadonlyArray<KnownCase>;
+    sortedCases: ReadonlyArray<KnownCase>;
+    evaluations: CaseEvaluationTrace[];
+  } {
+    const sortedCases = [...knownCases].sort((a, b) => b.priority - a.priority);
     const evaluations: CaseEvaluationTrace[] = [];
     const matchedCases: KnownCase[] = [];
 
-    for (const knownCase of sorted) {
+    for (const knownCase of sortedCases) {
       const { matched, resolvedValues } = this.conditionEvaluator.evaluateWithResolvedValues(
         knownCase.condition,
         context,
@@ -509,7 +510,7 @@ export class RunbookEngine {
       }
     }
 
-    return { matchedCases, evaluations };
+    return { matchedCases, sortedCases, evaluations };
   }
 
   /**
@@ -526,6 +527,8 @@ export class RunbookEngine {
     context: RunbookContext,
   ): { matchedCases: ReadonlyArray<KnownCase>; trace: EarlyResolutionTrace } {
     const { matchedCases, evaluations } = this.evaluateKnownCasesCore(knownCases, context);
+    // `sortedCases` is not needed here: the early-resolution trace only
+    // carries the evaluations and the matched case ids.
 
     return {
       matchedCases,
@@ -546,19 +549,16 @@ export class RunbookEngine {
     context: RunbookContext,
     initialTraceBuilder: TraceBuilder,
   ): { matchedCases: ReadonlyArray<KnownCase>; traceBuilder: TraceBuilder } {
-    const { matchedCases, evaluations } = this.evaluateKnownCasesCore(knownCases, context);
+    const { matchedCases, sortedCases, evaluations } = this.evaluateKnownCasesCore(knownCases, context);
 
-    // Build a lookup for the original KnownCase objects (needed by traceCaseEvaluation)
-    const caseById = new Map<string, KnownCase>();
-    for (const kc of knownCases) {
-      caseById.set(kc.id, kc);
-    }
-
+    // `sortedCases[i]` corresponds to `evaluations[i]` by construction, so we
+    // can pair them up directly without a separate id→case lookup map.
     let traceBuilder = initialTraceBuilder;
-    for (const evaluation of evaluations) {
-      const originalCase = caseById.get(evaluation.caseId);
-      if (originalCase !== undefined) {
-        traceBuilder = traceBuilder.traceCaseEvaluation(originalCase, evaluation.matched, evaluation.resolvedValues);
+    for (let i = 0; i < evaluations.length; i++) {
+      const knownCase = sortedCases[i];
+      const evaluation = evaluations[i];
+      if (knownCase !== undefined && evaluation !== undefined) {
+        traceBuilder = traceBuilder.traceCaseEvaluation(knownCase, evaluation.matched, evaluation.resolvedValues);
       }
     }
 

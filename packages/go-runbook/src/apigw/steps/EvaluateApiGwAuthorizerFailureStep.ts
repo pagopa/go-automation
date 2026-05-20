@@ -4,6 +4,7 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { StepResult } from '../../types/StepResult.js';
+import { readStepOutput } from '../../steps/data/readStepOutput.js';
 
 import { extractCwField } from '../helpers/extractCwField.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
@@ -11,6 +12,7 @@ import type { AccessLogSchema } from '../profiles/schemas/AccessLogSchema.js';
 import { SEND_API_GW_PROFILE } from '../profiles/SEND_API_GW_PROFILE.js';
 import type { ApiGwAuthorizerFailureCheckConfig } from '../types/ApiGwAlarmConfig.js';
 import type { ApiGwAuthorizerLambdaConfig } from '../authorizers/ApiGwAuthorizerLambdaRegistry.js';
+import { omitUndefined } from '../../core/omitUndefined.js';
 
 const DEFAULT_STATUS_THRESHOLD = 500;
 
@@ -75,10 +77,8 @@ class EvaluateApiGwAuthorizerFailureStepImpl implements Step<ApiGwAuthorizerFail
   }
 
   private evaluate(context: RunbookContext): StepResult<ApiGwAuthorizerFailureInfo | undefined> {
-    const rawOutput = context.stepResults.get(this.fromStep);
-    if (rawOutput === undefined) {
-      return { success: false, error: `Step output not found: "${this.fromStep}"` };
-    }
+    const upstream = readStepOutput<ReadonlyArray<ResultField[]>>(context, this.fromStep);
+    if (!upstream.ok) return upstream.failure;
     if (this.schema.authorizer === undefined) {
       return {
         success: false,
@@ -88,7 +88,7 @@ class EvaluateApiGwAuthorizerFailureStepImpl implements Step<ApiGwAuthorizerFail
       };
     }
 
-    const rows = rawOutput as ReadonlyArray<ResultField[]>;
+    const rows = upstream.value;
     const reporter = context.logger !== undefined ? new ApiGwReporter(context.logger) : undefined;
     const firstEvidence = this.extractEvidence(rows[0]);
     let firstError: ApiGwAuthorizerFailureInfo | undefined;
@@ -111,12 +111,14 @@ class EvaluateApiGwAuthorizerFailureStepImpl implements Step<ApiGwAuthorizerFail
     reporter?.apiGwAuthorizerEvaluation({
       lambdaName: firstEvidence?.authorizer.lambdaName ?? this.check.defaultAuthorizer?.lambdaName ?? 'n/a',
       outcome: 'none',
-      ...(firstEvidence?.authorizerStatus !== undefined ? { authorizerStatus: firstEvidence.authorizerStatus } : {}),
-      ...(firstEvidence?.latencyMs !== undefined ? { authorizerLatencyMs: firstEvidence.latencyMs } : {}),
-      ...(firstEvidence?.requestId !== undefined ? { authorizerRequestId: firstEvidence.requestId } : {}),
-      ...(firstEvidence?.authorizer.timeoutMs !== undefined ? { timeoutMs: firstEvidence.authorizer.timeoutMs } : {}),
-      ...(firstEvidence?.path !== undefined ? { path: firstEvidence.path } : {}),
-      ...(firstEvidence?.httpMethod !== undefined ? { httpMethod: firstEvidence.httpMethod } : {}),
+      ...omitUndefined({
+        authorizerStatus: firstEvidence?.authorizerStatus,
+        authorizerLatencyMs: firstEvidence?.latencyMs,
+        authorizerRequestId: firstEvidence?.requestId,
+        timeoutMs: firstEvidence?.authorizer.timeoutMs,
+        path: firstEvidence?.path,
+        httpMethod: firstEvidence?.httpMethod,
+      }),
     });
 
     return { success: true };
@@ -140,10 +142,12 @@ class EvaluateApiGwAuthorizerFailureStepImpl implements Step<ApiGwAuthorizerFail
         lambdaName: evidence.authorizer.lambdaName,
         authorizerStatus: evidence.authorizerStatus as string,
         timeoutMs: evidence.authorizer.timeoutMs,
-        ...(evidence.latencyMs !== undefined ? { latencyMs: evidence.latencyMs } : {}),
-        ...(evidence.requestId !== undefined ? { requestId: evidence.requestId } : {}),
-        ...(evidence.path !== undefined ? { path: evidence.path } : {}),
-        ...(evidence.httpMethod !== undefined ? { httpMethod: evidence.httpMethod } : {}),
+        ...omitUndefined({
+          latencyMs: evidence.latencyMs,
+          requestId: evidence.requestId,
+          path: evidence.path,
+          httpMethod: evidence.httpMethod,
+        }),
       };
     }
 
@@ -164,11 +168,7 @@ class EvaluateApiGwAuthorizerFailureStepImpl implements Step<ApiGwAuthorizerFail
 
     return {
       authorizer,
-      ...(authorizerStatus !== undefined ? { authorizerStatus } : {}),
-      ...(latencyMs !== undefined ? { latencyMs } : {}),
-      ...(requestId !== undefined ? { requestId } : {}),
-      ...(path !== undefined ? { path } : {}),
-      ...(httpMethod !== undefined ? { httpMethod } : {}),
+      ...omitUndefined({ authorizerStatus, latencyMs, requestId, path, httpMethod }),
     };
   }
 
@@ -271,11 +271,13 @@ function toReporterInput(info: ApiGwAuthorizerFailureInfo): ApiGwAuthorizerRepor
     outcome: info.outcome,
     failureType: info.failureType,
     authorizerStatus: info.authorizerStatus,
-    ...(info.latencyMs !== undefined ? { authorizerLatencyMs: info.latencyMs } : {}),
-    ...(info.requestId !== undefined ? { authorizerRequestId: info.requestId } : {}),
     timeoutMs: info.timeoutMs,
-    ...(info.path !== undefined ? { path: info.path } : {}),
-    ...(info.httpMethod !== undefined ? { httpMethod: info.httpMethod } : {}),
+    ...omitUndefined({
+      authorizerLatencyMs: info.latencyMs,
+      authorizerRequestId: info.requestId,
+      path: info.path,
+      httpMethod: info.httpMethod,
+    }),
   };
 }
 

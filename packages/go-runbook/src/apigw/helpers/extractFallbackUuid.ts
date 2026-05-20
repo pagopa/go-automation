@@ -1,6 +1,6 @@
 import type { ResultField } from '@go-automation/go-common/aws';
 import type { ServiceLogSchema } from '../profiles/schemas/ServiceLogSchema.js';
-import { extractCwField } from './extractCwField.js';
+import { readMessageField } from './readMessageField.js';
 
 /**
  * Compiled pattern that matches the `FALLBACK-UUID:<uuid>` token emitted
@@ -13,14 +13,6 @@ import { extractCwField } from './extractCwField.js';
  */
 const FALLBACK_UUID_PATTERN =
   /FALLBACK-UUID:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/;
-
-function readMessage(row: ReadonlyArray<ResultField>, schema: ServiceLogSchema): string {
-  for (const candidate of schema.messageFieldCandidates) {
-    const value = extractCwField(row, candidate);
-    if (value !== undefined) return value;
-  }
-  return '';
-}
 
 /**
  * Extracts the fallback UUID from a CloudWatch Logs Insights result set
@@ -46,7 +38,7 @@ export function extractFallbackUuid(
   schema: ServiceLogSchema,
 ): string | undefined {
   for (const row of results) {
-    const message = readMessage(row, schema);
+    const message = readMessageField(row, schema);
     if (message === '') continue;
     const match = FALLBACK_UUID_PATTERN.exec(message);
     if (match?.[1] !== undefined) {
@@ -54,20 +46,4 @@ export function extractFallbackUuid(
     }
   }
   return undefined;
-}
-
-/**
- * Extracts the fallback UUID from an arbitrary log message string.
- *
- * Convenience overload used by callers that have already projected the
- * row down to a single message body. Non dipende dallo schema perché
- * lavora già su una stringa "raw".
- *
- * @param message - Raw log message
- * @returns The fallback UUID if present in the message, otherwise `undefined`
- */
-export function extractFallbackUuidFromMessage(message: string): string | undefined {
-  if (message === '') return undefined;
-  const match = FALLBACK_UUID_PATTERN.exec(message);
-  return match?.[1] ?? undefined;
 }

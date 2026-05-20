@@ -1,6 +1,7 @@
 import { valueToString } from '@go-automation/go-common/core';
 import type { Condition, ContainsCondition } from '../types/Condition.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
+import { resolveRef } from '../steps/check/resolveRef.js';
 import { compileRegex } from './compileRegex.js';
 
 // Condition operators for compare conditions
@@ -154,7 +155,7 @@ export class ConditionEvaluator {
     expected: ConditionType,
     context: RunbookContext,
   ): boolean {
-    const actual = this.resolveRef(ref, context);
+    const actual = resolveRef(ref, context);
     if (actual === undefined || actual === null) {
       return false;
     }
@@ -208,7 +209,7 @@ export class ConditionEvaluator {
    * condition is satisfied at the first matching element.
    */
   private evaluatePattern(ref: string, regex: string, context: RunbookContext): boolean {
-    const actual = this.resolveRef(ref, context);
+    const actual = resolveRef(ref, context);
     if (actual === undefined || actual === null) {
       return false;
     }
@@ -231,7 +232,7 @@ export class ConditionEvaluator {
    * - arrays:  `actual.length > 0`
    */
   private evaluateExists(ref: string, context: RunbookContext): boolean {
-    const actual = this.resolveRef(ref, context);
+    const actual = resolveRef(ref, context);
     if (actual === undefined || actual === null) return false;
     if (Array.isArray(actual)) return actual.length > 0;
     return valueToString(actual) !== '';
@@ -250,7 +251,7 @@ export class ConditionEvaluator {
    *     needs the trace payload with every matching element.
    */
   private evaluateContains(condition: ContainsCondition, context: RunbookContext): boolean {
-    const actual = this.resolveRef(condition.ref, context);
+    const actual = resolveRef(condition.ref, context);
     if (actual === undefined || actual === null) return false;
 
     if (condition.regex !== undefined) {
@@ -284,25 +285,25 @@ export class ConditionEvaluator {
   private evaluateAndCollect(condition: Condition, context: RunbookContext, values: Record<string, unknown>): boolean {
     switch (condition.type) {
       case 'compare': {
-        const actual = this.resolveRef(condition.ref, context);
+        const actual = resolveRef(condition.ref, context);
         const result = this.evaluateCompareWithDetail(actual, condition.operator, condition.value);
         values[condition.ref] = result.detail;
         return result.matched;
       }
       case 'pattern': {
-        const actual = this.resolveRef(condition.ref, context);
+        const actual = resolveRef(condition.ref, context);
         const result = this.evaluatePatternWithDetail(actual, condition.regex);
         values[condition.ref] = result.detail;
         return result.matched;
       }
       case 'exists': {
-        const actual = this.resolveRef(condition.ref, context);
+        const actual = resolveRef(condition.ref, context);
         const result = this.evaluateExistsWithDetail(actual);
         values[condition.ref] = result.detail;
         return result.matched;
       }
       case 'contains': {
-        const actual = this.resolveRef(condition.ref, context);
+        const actual = resolveRef(condition.ref, context);
         const result = this.evaluateContainsWithDetail(actual, condition);
         values[condition.ref] = result.detail;
         return result.matched;
@@ -478,103 +479,5 @@ export class ConditionEvaluator {
       }
     }
     return { matched: false, detail: { matched: false, matchedCount: 0, totalElements: arr.length } };
-  }
-
-  /**
-   * Resolves a reference string against the runbook context.
-   *
-   * Supported formats:
-   * - `vars.{name}` - context variable
-   * - `steps.{stepId}.output` - step output (supports nested paths)
-   * - `params.{name}` - input parameter
-   *
-   * @param ref - Reference string
-   * @param context - Runbook context
-   * @returns The resolved value, or undefined if not found
-   */
-  private resolveRef(ref: string, context: RunbookContext): unknown {
-    const parts = ref.split('.');
-    const source = parts[0];
-
-    if (source === 'vars') {
-      const varName = parts.slice(1).join('.');
-      return context.vars.get(varName);
-    }
-
-    if (source === 'params') {
-      const paramName = parts.slice(1).join('.');
-      return context.params.get(paramName);
-    }
-
-    if (source === 'steps') {
-      const stepId = parts[1];
-      if (stepId === undefined) {
-        return undefined;
-      }
-      const stepOutput = context.stepResults.get(stepId);
-      if (stepOutput === undefined) {
-        return undefined;
-      }
-
-      // Navigate deeper: steps.stepId.output, steps.stepId.output[0].field, etc.
-      const remainingPath = parts.slice(2).join('.');
-      if (remainingPath === '' || remainingPath === 'output') {
-        return stepOutput;
-      }
-
-      // Remove 'output.' prefix if present
-      const fieldPath = remainingPath.startsWith('output.') ? remainingPath.slice('output.'.length) : remainingPath;
-
-      return this.navigatePath(stepOutput, fieldPath);
-    }
-
-    return undefined;
-  }
-
-  /**
-   * Navigates a nested object/array by a dot-separated path.
-   * Supports array indexing with bracket notation: `[0].field`.
-   *
-   * @param obj - Object to navigate
-   * @param path - Dot-separated path with optional array indices
-   * @returns The value at the path, or undefined
-   */
-  private navigatePath(obj: unknown, path: string): unknown {
-    if (path === '') {
-      return obj;
-    }
-
-    // Parse path segments, handling [N] array indices
-    const segments = path.match(/[^.[\]]+|\[\d+\]/g);
-    if (segments === null) {
-      return undefined;
-    }
-
-    let current: unknown = obj;
-    for (const segment of segments) {
-      if (current === undefined || current === null) {
-        return undefined;
-      }
-
-      // Array index: [N]
-      const indexMatch = /^\[(\d+)\]$/.exec(segment);
-      if (indexMatch !== null) {
-        const index = Number(indexMatch[1]);
-        if (Array.isArray(current)) {
-          current = current[index];
-        } else {
-          return undefined;
-        }
-      } else {
-        // Object property
-        if (typeof current === 'object') {
-          current = (current as Record<string, unknown>)[segment];
-        } else {
-          return undefined;
-        }
-      }
-    }
-
-    return current;
   }
 }

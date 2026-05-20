@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { ResultField } from '@go-automation/go-common/aws';
-import { extractFallbackUuid, extractFallbackUuidFromMessage } from '../extractFallbackUuid.js';
+import { extractFallbackUuid } from '../extractFallbackUuid.js';
 import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
 
 const SCHEMA = SEND_API_GW_PROFILE.serviceLog.schema;
@@ -50,20 +50,5 @@ describe('extractFallbackUuid', () => {
       [{ field: '@message', value: 'FALLBACK-UUID:33333333-3333-3333-3333-333333333333' }],
     ];
     assert.strictEqual(extractFallbackUuid(rows, SCHEMA), '33333333-3333-3333-3333-333333333333');
-  });
-});
-
-describe('extractFallbackUuidFromMessage', () => {
-  it('extracts the UUID from a single message string', () => {
-    const msg = '"traceId":"FALLBACK-UUID:44444444-4444-4444-4444-444444444444"';
-    assert.strictEqual(extractFallbackUuidFromMessage(msg), '44444444-4444-4444-4444-444444444444');
-  });
-
-  it('returns undefined on empty string', () => {
-    assert.strictEqual(extractFallbackUuidFromMessage(''), undefined);
-  });
-
-  it('returns undefined when the message does not contain the token', () => {
-    assert.strictEqual(extractFallbackUuidFromMessage('no token here'), undefined);
   });
 });

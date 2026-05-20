@@ -3,6 +3,7 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { StepResult } from '../../types/StepResult.js';
+import { readStepOutput } from '../../steps/data/readStepOutput.js';
 
 import { findErrorMessage } from '../helpers/findErrorMessage.js';
 import { findKnownUrlInLogs } from '../helpers/findKnownUrlInLogs.js';
@@ -34,17 +35,6 @@ export interface AnalyzeServiceLogsConfig {
    * fallback-UUID query. Pre-step / probe usages can omit it.
    */
   readonly serviceName?: string;
-  /**
-   * Deprecated compatibility option. Routing is handled by
-   * `decideNext` after known-case early resolution, so this analysis
-   * step only records the target vars.
-   */
-  readonly servicesInRunbook?: ReadonlySet<string>;
-  /**
-   * Deprecated compatibility option. Dynamic `goTo` targets are built
-   * by `decideNext`.
-   */
-  readonly queryStepPrefix?: string;
   /**
    * When `true`, the step skips every {@link ApiGwReporter} call.
    *
@@ -86,12 +76,9 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<ServiceLogsAnalysis>> {
-    const rawOutput = context.stepResults.get(this.fromStep);
-    if (rawOutput === undefined) {
-      return { success: false, error: `Step output not found: "${this.fromStep}"` };
-    }
-
-    const results = rawOutput as ReadonlyArray<ResultField[]>;
+    const upstream = readStepOutput<ReadonlyArray<ResultField[]>>(context, this.fromStep);
+    if (!upstream.ok) return upstream.failure;
+    const results = upstream.value;
     const reporter = !this.quiet && context.logger !== undefined ? new ApiGwReporter(context.logger) : undefined;
 
     const fallbackUuidExisting = (context.vars.get('fallbackUuid') ?? '').trim();
