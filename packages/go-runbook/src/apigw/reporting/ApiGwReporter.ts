@@ -286,6 +286,11 @@ export class ApiGwReporter {
     this.logger.text(`  │    └─ Execution log trovati: ${logCount}`);
   }
 
+  sectionApiGwExecutionLog(): void {
+    this.logger.newline();
+    this.logger.text('═══ Verifica execution log API Gateway ═══');
+  }
+
   /**
    * Reports that the latest CloudWatch query attempt **failed** — the
    * AWS call threw (typically a `ResourceNotFoundException` on a

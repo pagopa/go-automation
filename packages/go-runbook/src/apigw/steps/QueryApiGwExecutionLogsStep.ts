@@ -143,6 +143,7 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
           ? buildApiGwVars(firstRow, rowsWithErrorMessage.length, this.accessLogSchema)
           : { apiGwErrorCount: String(rowsWithErrorMessage.length) };
       if (firstRow !== undefined) {
+        reporter?.sectionApiGwExecutionLog();
         reporter?.apiGwResult({
           errorCount: rowsWithErrorMessage.length,
           statusCode: pickPrimaryStatusCode(firstRow, this.accessLogSchema),

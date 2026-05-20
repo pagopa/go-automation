@@ -2,6 +2,7 @@ import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { AWSCloudWatchLogsQueryOptions, ResultField } from '@go-automation/go-common/aws';
+import type { GOLogger } from '@go-automation/go-common/core';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
 import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
@@ -47,6 +48,7 @@ function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<ResultField>> = [
 function createContext(args: {
   readonly stepOutput: ReadonlyArray<ReadonlyArray<ResultField>>;
   readonly cloudWatchLogs: CloudWatchLogsQueryService;
+  readonly logger?: GOLogger;
 }): RunbookContext {
   return {
     executionId: 'test',
@@ -60,11 +62,21 @@ function createContext(args: {
     logs: [],
     services: { cloudWatchLogs: args.cloudWatchLogs } as unknown as ServiceRegistry,
     recoveredErrors: [],
+    ...(args.logger !== undefined ? { logger: args.logger } : {}),
   };
 }
 
 function buildRow(fields: Record<string, string>): ResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
+}
+
+function captureLogger(): { logger: GOLogger; lines: string[] } {
+  const lines: string[] = [];
+  const logger = {
+    text: (message: string) => lines.push(message),
+    newline: () => lines.push(''),
+  } as unknown as GOLogger;
+  return { logger, lines };
 }
 
 function createStep(
@@ -130,6 +142,7 @@ describe('queryApiGwExecutionLogs', () => {
   });
 
   it('extracts requestIds, renders one OR-combined query and enriches execution-log rows', async () => {
+    const { logger, lines } = captureLogger();
     const { service, calls } = createFakeCwLogs([
       [buildField('@message', 'Execution failed for req-1')],
       [buildField('@message', 'Execution failed for req-2')],
@@ -140,6 +153,7 @@ describe('queryApiGwExecutionLogs', () => {
     const result = await step.execute(
       createContext({
         cloudWatchLogs: service,
+        logger,
         stepOutput: [
           buildRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
           buildRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/bar' }),
@@ -164,6 +178,10 @@ describe('queryApiGwExecutionLogs', () => {
     assert.strictEqual(result.vars?.['apiGwExecutionLogPaths'], '/foo,/bar');
     assert.strictEqual(result.vars?.['apiGwExecutionLogCount'], '3');
     assert.strictEqual(result.next, 'resolve');
+    const joined = lines.join('\n');
+    assert.match(joined, /Verifica execution log API Gateway/);
+    assert.match(joined, /Errori HTTP individuati: 2 \(status 500\)/);
+    assert.match(joined, /query execution log/);
 
     const output = result.output;
     assert.ok(output !== undefined);

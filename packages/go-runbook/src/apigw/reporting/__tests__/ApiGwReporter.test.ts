@@ -247,12 +247,14 @@ describe('ApiGwReporter', () => {
     it('renders execution-log requestIds and result count', () => {
       const { logger, lines } = captureLogger();
       const reporter = new ApiGwReporter(logger);
+      reporter.sectionApiGwExecutionLog();
       reporter.apiGwExecutionLogQuery('API-Gateway-Execution-Logs_test/prod', [
         { path: '/resource-a', requestId: 'req-a' },
         { path: '/resource-b', requestId: 'req-b' },
       ]);
       reporter.apiGwExecutionLogResult(12);
       const joined = lines.join('\n');
+      assert.match(joined, /Verifica execution log API Gateway/);
       assert.match(joined, /query execution log/);
       assert.match(joined, /API-Gateway-Execution-Logs_test\/prod/);
       assert.match(joined, /\/resource-a: req-a/);
