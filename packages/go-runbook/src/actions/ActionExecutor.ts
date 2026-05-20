@@ -32,6 +32,8 @@ interface KnownCaseLogRow {
 }
 
 const KNOWN_CASE_PREFIX = '[CASO NOTO]';
+const UNKNOWN_CASE_PREFIX = '[CASO NON RICONOSCIUTO]';
+const UNAVAILABLE_VALUE = 'non disponibile';
 
 /**
  * Executes case actions by type.
@@ -84,7 +86,7 @@ export class ActionExecutor {
   private getResolvedMessage(action: CaseAction, context: RunbookContext): string | undefined {
     switch (action.type) {
       case 'log':
-        return this.interpolate(action.message, context);
+        return this.interpolate(action.message, context, missingValueFor(action.message));
       case 'notify':
         return this.interpolate(action.template, context);
       case 'escalate':
@@ -105,7 +107,7 @@ export class ActionExecutor {
   private async executeAction(action: CaseAction, context: RunbookContext): Promise<void> {
     switch (action.type) {
       case 'log':
-        this.executeLogAction(action.level, this.interpolate(action.message, context));
+        this.executeLogAction(action.level, this.interpolate(action.message, context, missingValueFor(action.message)));
         break;
       case 'notify':
         await this.executeNotifyAction(action.channel, this.interpolate(action.template, context));
@@ -138,6 +140,12 @@ export class ActionExecutor {
       return;
     }
 
+    const unknownCaseLog = parseUnknownCaseLogMessage(message);
+    if (unknownCaseLog !== undefined) {
+      this.renderUnknownCaseLog(unknownCaseLog);
+      return;
+    }
+
     switch (level) {
       case 'info':
         this.logger.info(message);
@@ -164,7 +172,26 @@ export class ActionExecutor {
     this.logger.success('Caso noto rilevato');
     this.logger.table({
       columns: [
-        { header: 'Campo', key: 'field', width: 18 },
+        { header: 'Campo', key: 'field', width: 24 },
+        { header: 'Valore', key: 'value' },
+      ],
+      data: message.rows.map((row) => ({ field: row.field, value: row.value })),
+      maxColumnWidth: 120,
+      style: { colors: false },
+    });
+  }
+
+  /**
+   * Renders the API Gateway fallback as a separated warning block with
+   * structured rows. Missing optional context is filtered out by the parser
+   * before reaching this method.
+   */
+  private renderUnknownCaseLog(message: KnownCaseLogMessage): void {
+    this.logger.newline();
+    this.logger.warning('Caso non riconosciuto');
+    this.logger.table({
+      columns: [
+        { header: 'Campo', key: 'field', width: 24 },
         { header: 'Valore', key: 'value' },
       ],
       data: message.rows.map((row) => ({ field: row.field, value: row.value })),
@@ -199,8 +226,9 @@ export class ActionExecutor {
    * @param context - Runbook context for resolving references
    * @returns Interpolated string
    */
-  private interpolate(template: string, context: RunbookContext): string {
-    return interpolateMessage(template, { vars: context.vars, params: context.params });
+  private interpolate(template: string, context: RunbookContext, missingValue?: string): string {
+    const options = missingValue === undefined ? {} : { missingValue };
+    return interpolateMessage(template, { vars: context.vars, params: context.params }, options);
   }
 }
 
@@ -236,4 +264,79 @@ function parseKnownCaseLogMessage(message: string): KnownCaseLogMessage | undefi
   }
 
   return { rows };
+}
+
+function parseUnknownCaseLogMessage(message: string): KnownCaseLogMessage | undefined {
+  const lines = message
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line !== '');
+
+  const [firstLine, ...details] = lines;
+  if (firstLine?.startsWith(UNKNOWN_CASE_PREFIX) !== true) {
+    return undefined;
+  }
+
+  const title = firstLine.slice(UNKNOWN_CASE_PREFIX.length).trim() || 'Impossibile identificare la causa';
+  const rows: KnownCaseLogRow[] = [{ field: 'Esito', value: title }];
+
+  let detailCount = 0;
+  for (const detail of details) {
+    const separatorIndex = detail.indexOf(':');
+    const row =
+      separatorIndex > 0
+        ? {
+            field: detail.slice(0, separatorIndex).trim(),
+            value: normalizeUnknownCaseValue(detail.slice(separatorIndex + 1).trim()),
+          }
+        : {
+            field: detailCount === 0 ? 'Dettaglio' : `Dettaglio ${detailCount + 1}`,
+            value: normalizeUnknownCaseValue(detail),
+          };
+    detailCount += 1;
+
+    if (isUsefulUnknownCaseRow(row)) {
+      rows.push(row);
+    }
+  }
+
+  return { rows };
+}
+
+function normalizeUnknownCaseValue(value: string): string {
+  const withoutRawPlaceholders = value.replace(/\{\{(?:vars|params)\.[^}]+\}\}/g, UNAVAILABLE_VALUE).trim();
+  if (withoutRawPlaceholders === '') return UNAVAILABLE_VALUE;
+
+  if (!withoutRawPlaceholders.includes('=')) {
+    return withoutRawPlaceholders;
+  }
+
+  const parts = withoutRawPlaceholders
+    .split(';')
+    .map((part) => part.trim())
+    .filter((part) => part !== '')
+    .filter((part) => {
+      const eqIndex = part.indexOf('=');
+      if (eqIndex < 0) return true;
+      const partValue = part.slice(eqIndex + 1).trim();
+      return isAvailableValue(partValue);
+    });
+
+  return parts.length === 0 ? UNAVAILABLE_VALUE : parts.join('; ');
+}
+
+function isUsefulUnknownCaseRow(row: KnownCaseLogRow): boolean {
+  if (row.field === 'Esito' || row.field === 'Dettaglio' || row.field === 'Errori API Gateway') {
+    return true;
+  }
+  return isAvailableValue(row.value);
+}
+
+function isAvailableValue(value: string): boolean {
+  const normalized = value.trim().toLocaleLowerCase('it-IT');
+  return normalized !== '' && normalized !== UNAVAILABLE_VALUE && normalized !== 'n/a';
+}
+
+function missingValueFor(template: string): string | undefined {
+  return template.trimStart().startsWith(UNKNOWN_CASE_PREFIX) ? UNAVAILABLE_VALUE : undefined;
 }

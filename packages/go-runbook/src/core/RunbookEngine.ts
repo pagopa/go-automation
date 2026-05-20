@@ -569,8 +569,6 @@ export class RunbookEngine {
           ? `Known case identified: ${primary.description}`
           : `Known cases identified (${matchedCases.length}): ${matchedCases.map((c) => c.description).join(' | ')}`;
       this.logger.success(description);
-    } else {
-      this.logger.warning('No known case matches the result.');
     }
 
     return { matchedCases, traceBuilder };

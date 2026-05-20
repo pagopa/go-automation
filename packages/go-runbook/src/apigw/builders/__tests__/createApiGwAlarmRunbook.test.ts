@@ -219,13 +219,15 @@ describe('createApiGwAlarmRunbook', () => {
     assert.ok(runbook.knownCases.some((knownCase) => knownCase.id === 'api-gw-authorizer-error'));
   });
 
-  it('uses a default fallback action that exposes terminationReason + per-service vars', () => {
+  it('uses a default fallback action that exposes structured unknown-case context', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig());
     assert.strictEqual(runbook.fallbackAction.type, 'log');
     if (runbook.fallbackAction.type === 'log') {
-      assert.match(runbook.fallbackAction.message, /terminationReason/);
-      assert.match(runbook.fallbackAction.message, /pn-a: msg=\{\{vars\.aErrorMsg\}\}/);
-      assert.match(runbook.fallbackAction.message, /pn-b: msg=\{\{vars\.bErrorMsg\}\}/);
+      assert.match(runbook.fallbackAction.message, /^\[CASO NON RICONOSCIUTO\]/);
+      assert.match(runbook.fallbackAction.message, /Errori API Gateway: \{\{vars\.apiGwErrorCount\}\}/);
+      assert.match(runbook.fallbackAction.message, /X-Ray Trace ID: \{\{vars\.xRayTraceId\}\}/);
+      assert.match(runbook.fallbackAction.message, /pn-a: msg=\{\{vars\.aErrorMsg\}\}; url=/);
+      assert.match(runbook.fallbackAction.message, /pn-b: msg=\{\{vars\.bErrorMsg\}\}; url=/);
     }
   });
 

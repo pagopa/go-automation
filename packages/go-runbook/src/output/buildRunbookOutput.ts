@@ -8,6 +8,9 @@ import type { RunbookOutputContext } from './RunbookOutputContext.js';
 import { emptyRunbookOutputContext } from './RunbookOutputContext.js';
 import { interpolateMessage } from './interpolateMessage.js';
 
+const UNKNOWN_CASE_PREFIX = '[CASO NON RICONOSCIUTO]';
+const UNAVAILABLE_VALUE = 'non disponibile';
+
 export interface BuildRunbookOutputOptions {
   readonly traceFile?: string;
   readonly contextBuilder?: RunbookOutputContextBuilderFn;
@@ -177,10 +180,14 @@ function resolvedActionMessage(
 function resolveActionMessage(action: CaseAction, result: RunbookExecutionResult): string | undefined {
   switch (action.type) {
     case 'log':
-      return interpolateMessage(action.message, {
-        vars: result.finalContext.vars,
-        params: result.finalContext.params,
-      });
+      return interpolateMessage(
+        action.message,
+        {
+          vars: result.finalContext.vars,
+          params: result.finalContext.params,
+        },
+        interpolationOptionsFor(action.message),
+      );
     case 'notify':
       return interpolateMessage(action.template, {
         vars: result.finalContext.vars,
@@ -199,4 +206,8 @@ function resolveActionMessage(action: CaseAction, result: RunbookExecutionResult
       throw new Error(`Unknown action type: ${(_exhaustive as CaseAction).type}`);
     }
   }
+}
+
+function interpolationOptionsFor(template: string): { readonly missingValue?: string } {
+  return template.trimStart().startsWith(UNKNOWN_CASE_PREFIX) ? { missingValue: UNAVAILABLE_VALUE } : {};
 }

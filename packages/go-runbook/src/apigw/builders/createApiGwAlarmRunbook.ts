@@ -240,7 +240,14 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   }
 
   // 9. Fallback.
-  builder.fallback(config.fallbackAction ?? defaultUnknownCaseFallback(allServices));
+  builder.fallback(
+    config.fallbackAction ??
+      defaultUnknownCaseFallback(
+        allServices,
+        profile.accessLog.schema.traceIdContextVar,
+        profile.accessLog.schema.traceIdLabel,
+      ),
+  );
   builder.runbookContext({
     kind: 'apigw',
     services: allServices,
@@ -298,15 +305,24 @@ function builtinApiGwAuthorizerKnownCases(config: ApiGwAlarmConfig): ReadonlyArr
  * custom one. Produces a single `warn` log entry summarising the
  * collected vars, with one line per analysed service.
  */
-function defaultUnknownCaseFallback(services: ReadonlyArray<ApiGwService>): CaseAction {
+function defaultUnknownCaseFallback(
+  services: ReadonlyArray<ApiGwService>,
+  traceIdContextVar: string,
+  traceIdLabel: string,
+): CaseAction {
   const lines: string[] = [
     "[CASO NON RICONOSCIUTO] Impossibile identificare univocamente la causa dell'errore.",
-    'API GW: errori={{vars.apiGwErrorCount}} status={{vars.apiGwStatusCode}} xRayTraceId={{vars.xRayTraceId}} fallbackUuid={{vars.fallbackUuid}}',
-    'Esito: {{vars.terminationReason}} downstream={{vars.downstreamTarget}}',
+    'Dettaglio: nessun caso noto ha soddisfatto le condizioni del runbook.',
+    'Errori API Gateway: {{vars.apiGwErrorCount}}',
+    'Status API Gateway: {{vars.apiGwStatusCode}}',
+    `${traceIdLabel}: {{vars.${traceIdContextVar}}}`,
+    'Fallback UUID: {{vars.fallbackUuid}}',
+    'Esito tecnico: {{vars.terminationReason}}',
+    'Downstream: {{vars.downstreamTarget}}',
   ];
   for (const s of services) {
     lines.push(
-      `${s.name}: msg={{vars.${s.varPrefix}ErrorMsg}} url={{vars.${s.varPrefix}NextUrl}} target={{vars.${s.varPrefix}NextUrlTarget}}`,
+      `${s.name}: msg={{vars.${s.varPrefix}ErrorMsg}}; url={{vars.${s.varPrefix}NextUrl}}; target={{vars.${s.varPrefix}NextUrlTarget}}`,
     );
   }
   const action: LogAction = { type: 'log', level: 'warn', message: lines.join('\n') };
