@@ -83,6 +83,23 @@ export type { ExecutionSummary } from './trace/ExecutionSummary.js';
 export type { EarlyResolutionTrace } from './trace/EarlyResolutionTrace.js';
 export { TraceBuilder } from './trace/TraceBuilder.js';
 
+// Output
+export type { RunbookOutput } from './output/RunbookOutput.js';
+export type {
+  RunbookOutcome,
+  KnownCaseMatchedOutcome,
+  UnknownCaseOutcome,
+  ProcedureSuccessOutcome,
+  ProcedureFailureOutcome,
+  FailedOutcome,
+  AbortedOutcome,
+} from './output/RunbookOutcome.js';
+export type { RunbookOutputContext, RunbookResultField, RunbookEvidence } from './output/RunbookOutputContext.js';
+export { emptyRunbookOutputContext } from './output/RunbookOutputContext.js';
+export { buildRunbookOutput } from './output/buildRunbookOutput.js';
+export type { BuildRunbookOutputOptions, RunbookOutputContextBuilderFn } from './output/buildRunbookOutput.js';
+export { interpolateMessage } from './output/interpolateMessage.js';
+
 // Actions
 export type {
   CaseAction,

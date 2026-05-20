@@ -6,6 +6,7 @@ import type { KnownCase } from '../../types/KnownCase.js';
 
 import type { ApiGwAlarmConfig } from '../types/ApiGwAlarmConfig.js';
 import type { ApiGwService } from '../types/ApiGwService.js';
+import type { ApiGwRunbookContext } from '../output/ApiGwRunbookContext.js';
 
 import { parseApiGwErrors } from '../steps/ParseApiGwErrorsStep.js';
 import { prepareApiGwSection } from '../steps/PrepareApiGwSectionStep.js';
@@ -237,6 +238,12 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
 
   // 9. Fallback.
   builder.fallback(config.fallbackAction ?? defaultUnknownCaseFallback(allServices));
+  builder.runbookContext({
+    kind: 'apigw',
+    services: allServices,
+    apiGwLogGroup: config.apiGwLogGroup,
+    queryProfileId: profile.id,
+  } satisfies ApiGwRunbookContext);
 
   if (config.maxIterations !== undefined) {
     builder.maxIterations(config.maxIterations);

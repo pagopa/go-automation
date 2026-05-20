@@ -1,6 +1,7 @@
 import type { GOLogger } from '@go-automation/go-common/core';
 import type { CaseAction } from './CaseAction.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
+import { interpolateMessage } from '../output/interpolateMessage.js';
 
 /**
  * Result of executing an action.
@@ -199,15 +200,7 @@ export class ActionExecutor {
    * @returns Interpolated string
    */
   private interpolate(template: string, context: RunbookContext): string {
-    return template.replace(/\{\{(vars|params)\.([^}]+)\}\}/g, (_match, source: string, key: string) => {
-      if (source === 'vars') {
-        return context.vars.get(key) ?? `{{vars.${key}}}`;
-      }
-      if (source === 'params') {
-        return context.params.get(key) ?? `{{params.${key}}}`;
-      }
-      return _match;
-    });
+    return interpolateMessage(template, { vars: context.vars, params: context.params });
   }
 }
 

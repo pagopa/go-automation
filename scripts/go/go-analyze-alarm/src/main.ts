@@ -19,6 +19,7 @@ import { createServiceRegistry } from './libs/createServiceRegistry.js';
 import { computeTimeRange } from './libs/computeTimeRange.js';
 import { createTimeRangeReference } from './libs/createTimeRangeReference.js';
 import { saveExecutionTrace } from './libs/saveExecutionTrace.js';
+import { saveExecutionOutput } from './libs/saveExecutionOutput.js';
 
 /** Runbook registry: maps alarm names to their runbook builders */
 const RUNBOOK_REGISTRY = new Map<string, () => Runbook>([
@@ -123,5 +124,6 @@ export async function main(script: Core.GOScript): Promise<void> {
   }
 
   // Save execution trace to data directory
-  await saveExecutionTrace(script, result, config.alarmName);
+  const traceFile = await saveExecutionTrace(script, result, config.alarmName);
+  await saveExecutionOutput(script, runbook, result, traceFile);
 }

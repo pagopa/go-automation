@@ -6,6 +6,7 @@ import type { ResultField } from '@go-automation/go-common/aws';
 
 import { createApiGwAlarmRunbook } from '../createApiGwAlarmRunbook.js';
 import type { ApiGwAlarmConfig } from '../../types/ApiGwAlarmConfig.js';
+import { isApiGwRunbookContext } from '../../output/ApiGwRunbookContext.js';
 import { API_GW_AUTHORIZER_LAMBDAS } from '../../authorizers/ApiGwAuthorizerLambdaRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
@@ -83,6 +84,18 @@ describe('createApiGwAlarmRunbook', () => {
       'analyze-pn-b',
       'decide-pn-b',
     ]);
+  });
+
+  it('exposes API Gateway runbookContext for output builders', () => {
+    const runbook = createApiGwAlarmRunbook(baseConfig());
+
+    assert.ok(isApiGwRunbookContext(runbook.runbookContext));
+    assert.strictEqual(runbook.runbookContext.apiGwLogGroup, '/aws/apigw/main');
+    assert.strictEqual(runbook.runbookContext.queryProfileId, 'send');
+    assert.deepStrictEqual(
+      runbook.runbookContext.services.map((service) => service.name),
+      ['pn-a', 'pn-b'],
+    );
   });
 
   it('marks every apigw step as silent so engine logging does not double-render', () => {
