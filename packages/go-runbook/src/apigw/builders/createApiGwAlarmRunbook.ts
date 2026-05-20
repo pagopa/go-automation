@@ -176,7 +176,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     { silent: true },
   );
 
-  // 6. Profile and custom pre-steps.
+  // 6. Custom pre-steps.
   for (const descriptor of preSteps) {
     const opts: { continueOnFailure?: boolean; silent?: boolean } = {};
     if (descriptor.continueOnFailure === true) opts.continueOnFailure = true;
