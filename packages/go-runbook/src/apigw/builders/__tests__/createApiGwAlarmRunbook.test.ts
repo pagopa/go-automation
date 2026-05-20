@@ -67,16 +67,16 @@ function baseConfig(overrides: Partial<ApiGwAlarmConfig> = {}): ApiGwAlarmConfig
 }
 
 describe('createApiGwAlarmRunbook', () => {
-  it('builds the canonical step ordering with execution logs before trace-id parsing', () => {
+  it('builds the canonical step ordering with AccessLog parsing under the preparation section', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig());
     const stepIds = runbook.steps.map((d) => d.step.id);
 
     assert.deepStrictEqual(stepIds, [
       'prepare-api-gw-section',
       'query-api-gw-logs',
+      'parse-api-gw-errors',
       'query-api-gw-execution-logs',
       'stop-api-gw-execution-log-unresolved',
-      'parse-api-gw-errors',
       'query-pn-a',
       'analyze-pn-a',
       'decide-pn-a',
@@ -160,9 +160,9 @@ describe('createApiGwAlarmRunbook', () => {
     assert.deepStrictEqual(stepIds.slice(0, 7), [
       'prepare-api-gw-section',
       'query-api-gw-logs',
+      'parse-api-gw-errors',
       'query-api-gw-execution-logs',
       'stop-api-gw-execution-log-unresolved',
-      'parse-api-gw-errors',
       'pre-1',
       'query-pn-a',
     ]);
@@ -198,7 +198,7 @@ describe('createApiGwAlarmRunbook', () => {
     assert.match(query, /filter status >= 400 or authorizerStatus >= 400 or integrationServiceStatus >= 400/);
   });
 
-  it('wires the authorizer gate immediately after the access-log query when configured', () => {
+  it('wires the authorizer gate after access-log parsing and before execution logs when configured', () => {
     const runbook = createApiGwAlarmRunbook(
       baseConfig({
         authorizerFailureCheck: {
@@ -211,9 +211,9 @@ describe('createApiGwAlarmRunbook', () => {
     assert.deepStrictEqual(stepIds.slice(0, 5), [
       'prepare-api-gw-section',
       'query-api-gw-logs',
+      'parse-api-gw-errors',
       'evaluate-api-gw-authorizer-failure',
       'query-api-gw-execution-logs',
-      'stop-api-gw-execution-log-unresolved',
     ]);
     assert.ok(runbook.knownCases.some((knownCase) => knownCase.id === 'api-gw-authorizer-timeout'));
     assert.ok(runbook.knownCases.some((knownCase) => knownCase.id === 'api-gw-authorizer-error'));
@@ -432,7 +432,7 @@ describe('createApiGwAlarmRunbook', () => {
     assert.deepStrictEqual(calls, ['/aws/apigw/main', '/aws/ecs/pn-a']);
   });
 
-  it('queries API Gateway execution logs by unique requestId before extracting xRayTraceId', async () => {
+  it('queries API Gateway execution logs by unique requestId before service traversal', async () => {
     const knownCases: ReadonlyArray<KnownCase> = [
       {
         id: 'execution-known-failure',

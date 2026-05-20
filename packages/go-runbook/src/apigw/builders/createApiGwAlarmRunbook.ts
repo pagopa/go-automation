@@ -37,15 +37,16 @@ const DEFAULT_MIN_STATUS_CODE = 500;
  * 1. `prepare-api-gw-section`: banner del reporter.
  * 2. `query-api-gw-logs`: query AccessLog con `{{minStatusCode}}` risolto
  *    a build time. Trace metadata: `queryProfileId`, `queryKind: 'access-log'`.
- * 3. **Gate opzionale authorizer**: `evaluate-api-gw-authorizer-failure`
+ * 3. `parse-api-gw-errors`: estrae trace id, statusCode e i campi
+ *    diagnostici dichiarati dallo schema del profilo. Il relativo output
+ *    console resta sotto la sezione "Preparazione".
+ * 4. **Gate opzionale authorizer**: `evaluate-api-gw-authorizer-failure`
  *    cablato solo quando `authorizerFailureCheck` e' configurato. Se
  *    trova un errore authorizer, risolve il runbook prima del trace-id flow.
- * 4. **Branch opzionale**: `query-api-gw-execution-logs` +
+ * 5. **Branch opzionale**: `query-api-gw-execution-logs` +
  *    `stop-api-gw-execution-log-unresolved` cablati solo quando
  *    `isExecutionLogEnabled(config, profile)`. Pattern SEND con
  *    OR-clause su requestId in UNA sola chiamata AWS.
- * 5. `parse-api-gw-errors`: estrae trace id, statusCode e i campi
- *    diagnostici dichiarati dallo schema del profilo.
  * 6. PreSteps custom.
  * 7. Triplet per ogni servizio: `query-<name>` (con predicate del profilo),
  *    `analyze-<name>` (legge dallo schema), `decide-<name>`.
@@ -119,7 +120,22 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     { silent: true },
   );
 
-  // 3. Authorizer gate (condizionale, prima di ogni trace-id flow).
+  // 3. Parse AccessLog → trace id, status, vars. Must stay under the
+  // preparation section in the console output, before authorizer/execution
+  // log sections open their own banners.
+  builder.step(
+    parseApiGwErrors({
+      id: 'parse-api-gw-errors',
+      label: `Estrazione ${profile.accessLog.schema.traceIdLabel} e metadati API Gateway`,
+      fromStep: 'query-api-gw-logs',
+      minStatusCode: minStatus,
+      schema: profile.accessLog.schema,
+      queryProfileId: profile.id,
+    }),
+    { silent: true },
+  );
+
+  // 4. Authorizer gate (condizionale, prima di ogni trace-id flow).
   if (config.authorizerFailureCheck !== undefined) {
     builder.step(
       evaluateApiGwAuthorizerFailure({
@@ -134,7 +150,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     );
   }
 
-  // 4. ExecutionLog branch (condizionale).
+  // 5. ExecutionLog branch (condizionale).
   if (executionLogEnabled && profile.executionLog !== undefined && effectiveExecutionLogGroup !== undefined) {
     builder.step(
       queryApiGwExecutionLogs({
@@ -162,19 +178,6 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
       { silent: true },
     );
   }
-
-  // 5. Parse AccessLog → trace id, status, vars.
-  builder.step(
-    parseApiGwErrors({
-      id: 'parse-api-gw-errors',
-      label: `Estrazione ${profile.accessLog.schema.traceIdLabel} e metadati API Gateway`,
-      fromStep: 'query-api-gw-logs',
-      minStatusCode: minStatus,
-      schema: profile.accessLog.schema,
-      queryProfileId: profile.id,
-    }),
-    { silent: true },
-  );
 
   // 6. Custom pre-steps.
   for (const descriptor of preSteps) {

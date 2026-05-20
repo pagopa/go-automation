@@ -180,7 +180,6 @@ describe('queryApiGwExecutionLogs', () => {
     assert.strictEqual(result.next, 'resolve');
     const joined = lines.join('\n');
     assert.match(joined, /Verifica execution log API Gateway/);
-    assert.match(joined, /Errori HTTP individuati: 2 \(status 500\)/);
     assert.match(joined, /query execution log/);
 
     const output = result.output;

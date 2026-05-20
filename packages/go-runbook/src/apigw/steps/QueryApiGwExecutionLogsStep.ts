@@ -142,18 +142,6 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
         firstRow !== undefined
           ? buildApiGwVars(firstRow, rowsWithErrorMessage.length, this.accessLogSchema)
           : { apiGwErrorCount: String(rowsWithErrorMessage.length) };
-      if (firstRow !== undefined) {
-        reporter?.sectionApiGwExecutionLog();
-        reporter?.apiGwResult({
-          errorCount: rowsWithErrorMessage.length,
-          statusCode: pickPrimaryStatusCode(firstRow, this.accessLogSchema),
-          traceId: undefined,
-          traceIdLabel: this.accessLogSchema.traceIdLabel,
-          ...optionalApiGwField(firstRow, this.accessLogSchema.errorMessageField, 'errorMessage'),
-          ...optionalApiGwField(firstRow, this.accessLogSchema.pathField, 'path'),
-          ...optionalApiGwField(firstRow, this.accessLogSchema.httpMethodField, 'httpMethod'),
-        });
-      }
 
       const requestIds = collectRequestIds(rowsWithErrorMessage, this.accessLogSchema);
       if (requestIds.length === 0) {
@@ -187,6 +175,7 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
         };
       }
 
+      reporter?.sectionApiGwExecutionLog();
       reporter?.apiGwExecutionLogQuery(this.executionLogGroup, requestIds);
 
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
@@ -320,18 +309,6 @@ function buildApiGwVars(
     }
   }
   return vars;
-}
-
-function optionalApiGwField<K extends 'errorMessage' | 'path' | 'httpMethod'>(
-  row: ReadonlyArray<ResultField>,
-  field: string,
-  outputKey: K,
-): Partial<Record<K, string>> {
-  // Per la sentinel usiamo solo il check di stringa vuota + '-' che è il
-  // pattern legacy. Il sanitize completo via schema avviene a monte.
-  const raw = (extractCwField(row, field) ?? '').trim();
-  const value = raw === '-' ? '' : raw;
-  return value === '' ? {} : ({ [outputKey]: value } as Partial<Record<K, string>>);
 }
 
 function sanitizeApiGwField(raw: string | undefined, schema: AccessLogSchema): string {
