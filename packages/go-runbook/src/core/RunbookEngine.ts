@@ -113,6 +113,10 @@ export class RunbookEngine {
       if (stepsResult.aborted) {
         status = 'aborted';
         failureReason = 'Execution aborted by signal';
+      } else if (stepsResult.failureReason !== undefined) {
+        status = 'failed';
+        failureReason = stepsResult.failureReason;
+        this.logger.error(`Runbook execution failed: ${failureReason}`);
       }
       earlyResolutionStepId = stepsResult.earlyResolution?.resolvedAtStepId;
       earlyMatchedCases = stepsResult.earlyResolution?.matchedCases ?? [];
@@ -136,7 +140,7 @@ export class RunbookEngine {
     // already produced matches (we don't re-evaluate at the end since
     // the pipeline was short-circuited at that point).
     let matchedCases: ReadonlyArray<KnownCase>;
-    if (status === 'aborted') {
+    if (status !== 'completed') {
       matchedCases = [];
     } else if (earlyMatchedCases.length > 0) {
       matchedCases = earlyMatchedCases;
@@ -149,7 +153,7 @@ export class RunbookEngine {
     // Execute only the primary matched action. `matchedCases` still keeps
     // every overlap for trace/reporting, but actions may notify/escalate/update
     // and must not fan out implicitly. Fallback runs only when nothing matched.
-    if (status !== 'aborted') {
+    if (status === 'completed') {
       const primaryAction = matchedCases[0]?.action ?? runbook.fallbackAction;
       const actionResult = await this.actionExecutor.execute(primaryAction, finalContext);
       traceBuilder = traceBuilder.traceAction(
@@ -177,7 +181,7 @@ export class RunbookEngine {
       status,
       matchedCases,
       durationMs: trace.execution.durationMs,
-      stepsExecuted: finalContext.stepResults.size,
+      stepsExecuted: trace.summary.stepsExecuted,
       finalContext,
       recoveredErrors: finalContext.recoveredErrors,
       trace,
@@ -202,6 +206,7 @@ export class RunbookEngine {
     traceBuilder: TraceBuilder;
     earlyResolution?: { matchedCases: ReadonlyArray<KnownCase>; resolvedAtStepId: string };
     aborted: boolean;
+    failureReason?: string;
   }> {
     let context = initialContext;
     let traceBuilder = initialTraceBuilder;
@@ -333,6 +338,15 @@ export class RunbookEngine {
         reachedVia = 'sequential';
         currentIndex++;
         continue;
+      }
+
+      if (result.success === false) {
+        return {
+          context,
+          traceBuilder,
+          aborted: false,
+          failureReason: result.error ?? `Step "${step.id}" failed without an error message.`,
+        };
       }
 
       // Determine next step

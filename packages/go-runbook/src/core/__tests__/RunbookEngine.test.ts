@@ -38,6 +38,25 @@ class RecordingStep implements Step<void> {
   }
 }
 
+class ReturnedFailureStep implements Step<void> {
+  readonly label: string;
+  readonly kind: StepKind = 'data';
+
+  constructor(
+    readonly id: string,
+    private readonly executions: string[],
+    private readonly error: string,
+  ) {
+    this.label = `Step ${id}`;
+  }
+
+  async execute(_context: RunbookContext): Promise<StepResult<void>> {
+    await Promise.resolve();
+    this.executions.push(this.id);
+    return { success: false, error: this.error };
+  }
+}
+
 function createEngine(): RunbookEngine {
   return new RunbookEngine(new GOLogger(), new ConditionEvaluator());
 }
@@ -65,6 +84,46 @@ function createRunbook(steps: ReadonlyArray<StepDescriptor>, knownCases: Readonl
 }
 
 describe('RunbookEngine status handling', () => {
+  it('stops with failed status when a step returns success=false without continueOnFailure', async () => {
+    const executions: string[] = [];
+    const matchingCase: KnownCase = {
+      id: 'would-match',
+      description: 'Would match only if the runbook completed',
+      priority: 10,
+      condition: { type: 'compare', ref: 'params.mode', operator: '==', value: 'match' },
+      action: { type: 'log', level: 'info', message: 'matched' },
+    };
+
+    const result = await createEngine().execute(
+      createRunbook(
+        [
+          { step: new ReturnedFailureStep('failing-step', executions, 'planned failure') },
+          { step: new RecordingStep('after-failure', executions) },
+        ],
+        [matchingCase],
+      ),
+      new Map([['mode', 'match']]),
+      emptyServices(),
+    );
+
+    assert.strictEqual(result.status, 'failed');
+    assert.strictEqual(result.trace.execution.status, 'failed');
+    assert.strictEqual(result.trace.execution.failureReason, 'planned failure');
+    assert.deepStrictEqual(executions, ['failing-step']);
+    assert.deepStrictEqual(result.matchedCases, []);
+    assert.strictEqual(result.stepsExecuted, 1);
+
+    const failedTrace = result.trace.pipeline[0];
+    assert.ok(failedTrace);
+    assert.strictEqual(failedTrace.stepId, 'failing-step');
+    assert.strictEqual(failedTrace.status, 'failed');
+    assert.strictEqual(failedTrace.error, 'planned failure');
+
+    const actionTrace = result.trace.actionsExecuted[0];
+    assert.ok(actionTrace);
+    assert.strictEqual(actionTrace.executed, false);
+  });
+
   it("treats next: 'stop' as a normal completed execution", async () => {
     const executions: string[] = [];
     const result = await createEngine().execute(
