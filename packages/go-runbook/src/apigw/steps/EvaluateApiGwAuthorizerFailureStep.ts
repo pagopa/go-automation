@@ -21,8 +21,7 @@ export interface ApiGwAuthorizerFailureInfo {
   readonly outcome: ApiGwAuthorizerFailureOutcome;
   readonly failureType: ApiGwAuthorizerFailureType;
   readonly lambdaName: string;
-  readonly statusCode: string;
-  readonly authorizerStatus?: string;
+  readonly authorizerStatus: string;
   readonly timeoutMs: number;
   readonly latencyMs?: number;
   readonly requestId?: string;
@@ -139,8 +138,7 @@ class EvaluateApiGwAuthorizerFailureStepImpl implements Step<ApiGwAuthorizerFail
         outcome: timeoutExceeded ? 'timeout' : 'error',
         failureType: timeoutExceeded ? 'timeout' : 'status-error',
         lambdaName: evidence.authorizer.lambdaName,
-        statusCode: evidence.authorizerStatus ?? '',
-        ...(evidence.authorizerStatus !== undefined ? { authorizerStatus: evidence.authorizerStatus } : {}),
+        authorizerStatus: evidence.authorizerStatus as string,
         timeoutMs: evidence.authorizer.timeoutMs,
         ...(evidence.latencyMs !== undefined ? { latencyMs: evidence.latencyMs } : {}),
         ...(evidence.requestId !== undefined ? { requestId: evidence.requestId } : {}),
@@ -179,7 +177,7 @@ class EvaluateApiGwAuthorizerFailureStepImpl implements Step<ApiGwAuthorizerFail
       apiGwAuthorizerOutcome: info.outcome,
       apiGwAuthorizerFailureType: info.failureType,
       apiGwAuthorizerLambdaName: info.lambdaName,
-      apiGwAuthorizerStatus: info.authorizerStatus ?? '',
+      apiGwAuthorizerStatus: info.authorizerStatus,
       apiGwAuthorizerTimeoutMs: String(info.timeoutMs),
       apiGwAuthorizerLatencyMs: info.latencyMs !== undefined ? String(info.latencyMs) : '',
       apiGwAuthorizerRequestId: info.requestId ?? '',
@@ -238,7 +236,7 @@ function buildAuthorizerMessage(info: ApiGwAuthorizerFailureInfo): string {
   const latency = info.latencyMs !== undefined ? ` authorizerLatency=${info.latencyMs}ms` : '';
   const timeout = ` timeout=${info.timeoutMs}ms`;
   const requestId = info.requestId !== undefined ? ` authorizerRequestId=${info.requestId}` : '';
-  return `${base}. status=${info.statusCode}${latency}${timeout}${requestId}`;
+  return `${base}. authorizerStatus=${info.authorizerStatus}${latency}${timeout}${requestId}`;
 }
 
 function baseMessage(info: ApiGwAuthorizerFailureInfo): string {
@@ -272,7 +270,7 @@ function toReporterInput(info: ApiGwAuthorizerFailureInfo): ApiGwAuthorizerRepor
     lambdaName: info.lambdaName,
     outcome: info.outcome,
     failureType: info.failureType,
-    ...(info.authorizerStatus !== undefined ? { authorizerStatus: info.authorizerStatus } : {}),
+    authorizerStatus: info.authorizerStatus,
     ...(info.latencyMs !== undefined ? { authorizerLatencyMs: info.latencyMs } : {}),
     ...(info.requestId !== undefined ? { authorizerRequestId: info.requestId } : {}),
     timeoutMs: info.timeoutMs,
