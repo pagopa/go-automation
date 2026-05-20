@@ -70,12 +70,12 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
 
     const results = rawOutput as ReadonlyArray<ResultField[]>;
 
-    // The canonical API GW query filters on `status OR authorizeStatus
+    // The canonical API GW query filters on `status OR authorizerStatus
     // OR integrationServiceStatus`; keep any row whose status fields
-    // surface an error on **at least one** of those three, otherwise we
+    // surface an error on **at least one** of those, otherwise we
     // would silently drop rows whose only signal is on
-    // `authorizeStatus` or `integrationServiceStatus` (e.g. an
-    // authorizer 500 with `status=-`).
+    // `authorizerStatus` or `integrationServiceStatus`
+    // (e.g. an authorizer 500 with `status=-`).
     const errorRows: ResultField[][] = [];
     for (const row of results) {
       if (this.rowMeetsThreshold(row)) {
@@ -215,9 +215,10 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
     if (field === this.schema.httpMethodField) return 'httpMethod';
     if (field === this.schema.requestIdField) return 'requestId';
     // Campi non-semantici noti del tipo ApiGwErrorInfo, mappati per nome.
-    if (field === 'authorizeStatus') return 'authorizeStatus';
-    if (field === 'integrationServiceStatus') return 'integrationServiceStatus';
+    if (field === 'authorizerStatus') return 'authorizerStatus';
+    if (field === 'authorizerLatency') return 'authorizerLatency';
     if (field === 'authorizerRequestId') return 'authorizerRequestId';
+    if (field === 'integrationServiceStatus') return 'integrationServiceStatus';
     if (field === 'integrationRequestId') return 'integrationRequestId';
     return undefined;
   }

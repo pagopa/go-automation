@@ -53,7 +53,8 @@ describe('parseApiGwErrors', () => {
         errorMessage: 'Internal server error',
         httpMethod: 'PUT',
         path: '/v1/foo',
-        authorizeStatus: '-',
+        authorizerStatus: '-',
+        authorizerLatency: '5011',
         integrationServiceStatus: '-',
       }),
     ]);
@@ -66,8 +67,8 @@ describe('parseApiGwErrors', () => {
     assert.strictEqual(result.vars?.['apiGwHttpMethod'], 'PUT');
     assert.strictEqual(result.vars?.['apiGwPath'], '/v1/foo');
     assert.strictEqual(result.vars?.['apiGwAuthorizerRequestId'], 'auth-789');
+    assert.strictEqual(result.vars?.['apiGwAuthorizerLatency'], '5011');
     assert.strictEqual(result.vars?.['apiGwIntegrationRequestId'], '-');
-    assert.strictEqual(result.vars?.['apiGwAuthorizeStatus'], '-');
     assert.strictEqual(result.vars?.['apiGwIntegrationServiceStatus'], '-');
     assert.strictEqual(result.vars?.['apiGwRequestId'], 'req-123');
   });
@@ -106,19 +107,19 @@ describe('parseApiGwErrors', () => {
     assert.strictEqual(result.vars?.['apiGwStatusCode'], '503');
   });
 
-  it('keeps rows whose only error signal is on authorizeStatus or integrationServiceStatus', async () => {
+  it('keeps rows whose only error signal is on authorizerStatus or integrationServiceStatus', async () => {
     const step = parseApiGwErrors({ id: 'parse', label: 'Parse', fromStep: 'query-api-gw-logs' });
-    // status='-', authorizeStatus='500' → should still count as an error row
+    // status='-', authorizerStatus='500' -> should still count as an error row
     const ctx = createContext([
       buildRow({
         status: '-',
-        authorizeStatus: '500',
+        authorizerStatus: '500',
         integrationServiceStatus: '-',
         xrayTraceId: 'Root=1-aaa',
       }),
       buildRow({
         status: '-',
-        authorizeStatus: '-',
+        authorizerStatus: '-',
         integrationServiceStatus: '503',
         xrayTraceId: 'Root=1-bbb',
       }),
@@ -127,16 +128,16 @@ describe('parseApiGwErrors', () => {
     assert.strictEqual(result.success, true);
     assert.notStrictEqual(result.next, 'stop');
     assert.strictEqual(result.vars?.['apiGwErrorCount'], '2');
-    // `apiGwStatusCode` falls back to authorizeStatus when status='-'.
+    // `apiGwStatusCode` falls back to authorizerStatus when status='-'.
     assert.strictEqual(result.vars?.['apiGwStatusCode'], '500');
   });
 
-  it('apiGwStatusCode falls back to integrationServiceStatus when status and authorizeStatus are both "-"', async () => {
+  it('apiGwStatusCode falls back to integrationServiceStatus when status and authorizerStatus are both "-"', async () => {
     const step = parseApiGwErrors({ id: 'parse', label: 'Parse', fromStep: 'query-api-gw-logs' });
     const ctx = createContext([
       buildRow({
         status: '-',
-        authorizeStatus: '-',
+        authorizerStatus: '-',
         integrationServiceStatus: '502',
         xrayTraceId: 'Root=1-zzz',
       }),
@@ -150,7 +151,7 @@ describe('parseApiGwErrors', () => {
     const ctx = createContext([
       buildRow({
         status: '500',
-        authorizeStatus: '401',
+        authorizerStatus: '401',
         integrationServiceStatus: '503',
       }),
     ]);
@@ -160,7 +161,7 @@ describe('parseApiGwErrors', () => {
 
   it('still drops rows whose three status fields are all below the threshold', async () => {
     const step = parseApiGwErrors({ id: 'parse', label: 'Parse', fromStep: 'query-api-gw-logs' });
-    const ctx = createContext([buildRow({ status: '404', authorizeStatus: '200', integrationServiceStatus: '-' })]);
+    const ctx = createContext([buildRow({ status: '404', authorizerStatus: '200', integrationServiceStatus: '-' })]);
     const result = await step.execute(ctx);
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.next, 'stop');

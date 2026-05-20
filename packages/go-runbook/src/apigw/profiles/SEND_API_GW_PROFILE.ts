@@ -4,14 +4,13 @@ import type { ApiGwQueryProfile } from './ApiGwQueryProfile.js';
  * Query AccessLog SEND. Riproduce esattamente il template canonico
  * precedentemente in `apigw/queries/DEFAULT_API_GW_QUERY.ts`.
  *
- * Tre campi di stato (status, authorizeStatus, integrationServiceStatus)
- * sono scansionati in OR perché un'autorizzazione fallita o un'integrazione
- * downstream rotta possono lasciare `status='-'` ma comunque costituire un
- * errore.
+ * I campi di stato principali e authorizer sono scansionati in OR perché
+ * un'autorizzazione fallita o un'integrazione downstream rotta possono
+ * lasciare `status='-'` ma comunque costituire un errore.
  */
-const SEND_ACCESS_LOG_QUERY = `filter status >= {{minStatusCode}} or authorizeStatus >= {{minStatusCode}} or integrationServiceStatus >= {{minStatusCode}}
+const SEND_ACCESS_LOG_QUERY = `filter status >= {{minStatusCode}} or authorizerStatus >= {{minStatusCode}} or integrationServiceStatus >= {{minStatusCode}}
 | sort @timestamp asc
-| display @timestamp, xrayTraceId, requestId, authorizerRequestId, integrationRequestId, errorMessage, httpMethod, path, authorizeStatus, integrationServiceStatus, status`;
+| display @timestamp, xrayTraceId, requestId, authorizerRequestId, integrationRequestId, errorMessage, httpMethod, path, authorizerStatus, authorizerLatency, integrationServiceStatus, status`;
 
 /**
  * Template della query sui log applicativi SEND. Riproduce esattamente
@@ -37,17 +36,15 @@ const SEND_EXECUTION_LOG_QUERY_TEMPLATE = `{{REQUEST_ID_FILTER_CLAUSE}}
 | sort @timestamp asc
 | display @timestamp, @message`;
 
-/** Lambda log group for the SEND IO authorizer Livello 0 probe. */
-const SEND_IO_AUTHORIZER_LAMBDA_LOG_GROUP = '/aws/lambda/pn-ioAuthorizerLambda';
-
 /**
  * Profilo canonico per i runbook di prodotto SEND.
  *
- * Riproduce esattamente il comportamento del codice pre-refactor:
- * - AccessLog: query SEND con 3 status field e display SEND-specifico
+ * - AccessLog: query SEND con status field e display SEND-specifico
  * - ServiceLog: query con `level == 'ERROR'` sui log applicativi pn-*
  * - ExecutionLog: query OR-combinata per requestId sull'execution log
  *   API GW REST, limite 50 requestId per query
+ * - Authorizer gate: capability dichiarata nello schema; e' cablata solo
+ *   dai runbook che valorizzano `authorizerFailureCheck`
  *
  * Il trace id SEND è X-Ray, leggibile dal campo `xrayTraceId` in formato
  * `Root=<value>`. La var di contesto resta `xRayTraceId` per back-compat
@@ -58,7 +55,7 @@ export const SEND_API_GW_PROFILE: ApiGwQueryProfile = {
   accessLog: {
     query: SEND_ACCESS_LOG_QUERY,
     schema: {
-      statusFields: ['status', 'authorizeStatus', 'integrationServiceStatus'],
+      statusFields: ['status', 'authorizerStatus', 'integrationServiceStatus'],
       traceIdField: 'xrayTraceId',
       traceIdLabel: 'X-Ray Trace ID',
       traceIdContextVar: 'xRayTraceId',
@@ -71,13 +68,19 @@ export const SEND_API_GW_PROFILE: ApiGwQueryProfile = {
         ['errorMessage', 'apiGwErrorMessage'],
         ['httpMethod', 'apiGwHttpMethod'],
         ['path', 'apiGwPath'],
-        ['authorizeStatus', 'apiGwAuthorizeStatus'],
+        ['authorizerStatus', 'apiGwAuthorizerStatus'],
+        ['authorizerLatency', 'apiGwAuthorizerLatency'],
+        ['authorizerRequestId', 'apiGwAuthorizerRequestId'],
         ['integrationServiceStatus', 'apiGwIntegrationServiceStatus'],
         ['requestId', 'apiGwRequestId'],
-        ['authorizerRequestId', 'apiGwAuthorizerRequestId'],
         ['integrationRequestId', 'apiGwIntegrationRequestId'],
       ],
       notApplicableSentinels: ['-'],
+      authorizer: {
+        statusFields: ['authorizerStatus'],
+        latencyFields: ['authorizerLatency'],
+        requestIdFields: ['authorizerRequestId'],
+      },
     },
   },
   serviceLog: {
@@ -90,12 +93,6 @@ export const SEND_API_GW_PROFILE: ApiGwQueryProfile = {
       traceIdField: 'trace_id',
     },
   },
-  preSteps: [
-    {
-      kind: 'lambda-duration-probe',
-      logGroup: SEND_IO_AUTHORIZER_LAMBDA_LOG_GROUP,
-    },
-  ],
   executionLog: {
     queryTemplate: SEND_EXECUTION_LOG_QUERY_TEMPLATE,
     requestIdPredicateTemplate: `@message like '{{VALUE}}'`,

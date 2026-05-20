@@ -162,8 +162,8 @@ Time range: 2025-02-20T14:25:00.000Z → 2025-02-20T14:35:00.000Z
 
 === Executing Runbook ===
 [OK] query-api-gw-logs         — 3 results
+[OK] evaluate-api-gw-authorizer-failure — no authorizer failure
 [OK] parse-api-gw-errors       — errors: 3, statusCode: 500, traceId: 1-abc123
-[OK] query-io-authorizer-lambda — 0 results
 ...
 
 === Runbook Result ===

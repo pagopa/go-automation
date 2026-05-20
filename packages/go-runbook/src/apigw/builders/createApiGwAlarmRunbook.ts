@@ -2,6 +2,7 @@ import { RunbookBuilder } from '../../builders/RunbookBuilder.js';
 import { queryCloudWatchLogs } from '../../steps/data/CloudWatchLogsQueryStep.js';
 import type { Runbook } from '../../types/Runbook.js';
 import type { CaseAction, LogAction } from '../../actions/CaseAction.js';
+import type { KnownCase } from '../../types/KnownCase.js';
 
 import type { ApiGwAlarmConfig } from '../types/ApiGwAlarmConfig.js';
 import type { ApiGwService } from '../types/ApiGwService.js';
@@ -14,9 +15,9 @@ import { decideNext } from '../steps/DecideNextStep.js';
 import { KnownUrlsRegistry } from '../registries/KnownUrlsRegistry.js';
 import { queryApiGwExecutionLogs } from '../steps/QueryApiGwExecutionLogsStep.js';
 import { stopApiGwExecutionLogAnalysis } from '../steps/StopApiGwExecutionLogAnalysisStep.js';
+import { evaluateApiGwAuthorizerFailure } from '../steps/EvaluateApiGwAuthorizerFailureStep.js';
 import { resolveApiGwQueryProfile } from '../profiles/resolveApiGwQueryProfile.js';
 import { renderQueryTemplate } from '../profiles/render/renderQueryTemplate.js';
-import { resolveApiGwPreSteps } from '../preSteps/resolveApiGwPreSteps.js';
 import { isExecutionLogEnabled, getEffectiveExecutionLogGroup } from './executionLogEnablement.js';
 import {
   validatePlaceholders,
@@ -35,14 +36,17 @@ const DEFAULT_MIN_STATUS_CODE = 500;
  * 1. `prepare-api-gw-section`: banner del reporter.
  * 2. `query-api-gw-logs`: query AccessLog con `{{minStatusCode}}` risolto
  *    a build time. Trace metadata: `queryProfileId`, `queryKind: 'access-log'`.
- * 3. **Branch opzionale**: `query-api-gw-execution-logs` +
+ * 3. **Gate opzionale authorizer**: `evaluate-api-gw-authorizer-failure`
+ *    cablato solo quando `authorizerFailureCheck` e' configurato. Se
+ *    trova un errore authorizer, risolve il runbook prima del trace-id flow.
+ * 4. **Branch opzionale**: `query-api-gw-execution-logs` +
  *    `stop-api-gw-execution-log-unresolved` cablati solo quando
  *    `isExecutionLogEnabled(config, profile)`. Pattern SEND con
  *    OR-clause su requestId in UNA sola chiamata AWS.
- * 4. `parse-api-gw-errors`: estrae trace id, statusCode e i campi
+ * 5. `parse-api-gw-errors`: estrae trace id, statusCode e i campi
  *    diagnostici dichiarati dallo schema del profilo.
- * 5. PreSteps custom.
- * 6. Triplet per ogni servizio: `query-<name>` (con predicate del profilo),
+ * 6. PreSteps custom.
+ * 7. Triplet per ogni servizio: `query-<name>` (con predicate del profilo),
  *    `analyze-<name>` (legge dallo schema), `decide-<name>`.
  *
  * V04: il profilo è risolto via {@link resolveApiGwQueryProfile} con
@@ -55,14 +59,13 @@ const DEFAULT_MIN_STATUS_CODE = 500;
 export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   // —— Risoluzione profilo (D1, D2) ——
   const profile = resolveApiGwQueryProfile(config);
-  const preSteps = resolveApiGwPreSteps(config, profile);
-  const effectiveConfig: ApiGwAlarmConfig = { ...config, preSteps };
+  const preSteps = config.preSteps ?? [];
 
   // —— Validazioni build-time (fail-fast) ——
   validatePlaceholders(profile);
   validateCapabilityParity(config, profile);
-  validateNoStepIdCollisions(effectiveConfig, profile);
-  validateKnownCaseStepRefs(effectiveConfig, profile);
+  validateNoStepIdCollisions(config, profile);
+  validateKnownCaseStepRefs(config, profile);
 
   const minStatus = config.minStatusCode ?? DEFAULT_MIN_STATUS_CODE;
   const apiGwQuery = renderQueryTemplate(profile.accessLog.query, {
@@ -115,7 +118,22 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     { silent: true },
   );
 
-  // 3. ExecutionLog branch (condizionale).
+  // 3. Authorizer gate (condizionale, prima di ogni trace-id flow).
+  if (config.authorizerFailureCheck !== undefined) {
+    builder.step(
+      evaluateApiGwAuthorizerFailure({
+        id: 'evaluate-api-gw-authorizer-failure',
+        label: 'Valutazione Lambda authorizer API Gateway',
+        fromStep: 'query-api-gw-logs',
+        schema: profile.accessLog.schema,
+        check: config.authorizerFailureCheck,
+        queryProfileId: profile.id,
+      }),
+      { silent: true },
+    );
+  }
+
+  // 4. ExecutionLog branch (condizionale).
   if (executionLogEnabled && profile.executionLog !== undefined && effectiveExecutionLogGroup !== undefined) {
     builder.step(
       queryApiGwExecutionLogs({
@@ -144,7 +162,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     );
   }
 
-  // 4. Parse AccessLog → trace id, status, vars.
+  // 5. Parse AccessLog → trace id, status, vars.
   builder.step(
     parseApiGwErrors({
       id: 'parse-api-gw-errors',
@@ -157,7 +175,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     { silent: true },
   );
 
-  // 5. Profile and custom pre-steps.
+  // 6. Profile and custom pre-steps.
   for (const descriptor of preSteps) {
     const opts: { continueOnFailure?: boolean; silent?: boolean } = {};
     if (descriptor.continueOnFailure === true) opts.continueOnFailure = true;
@@ -165,7 +183,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     builder.step(descriptor.step, opts);
   }
 
-  // 6. Per-service triplets.
+  // 7. Per-service triplets.
   for (const service of allServices) {
     builder.step(
       queryServiceLogs({
@@ -209,12 +227,15 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     );
   }
 
-  // 7. Known cases.
+  // 8. Known cases.
+  for (const knownCase of builtinApiGwAuthorizerKnownCases(config)) {
+    builder.knownCase(knownCase);
+  }
   for (const knownCase of config.knownCases) {
     builder.knownCase(knownCase);
   }
 
-  // 8. Fallback.
+  // 9. Fallback.
   builder.fallback(config.fallbackAction ?? defaultUnknownCaseFallback(allServices));
 
   if (config.maxIterations !== undefined) {
@@ -222,6 +243,44 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   }
 
   return builder.build();
+}
+
+function builtinApiGwAuthorizerKnownCases(config: ApiGwAlarmConfig): ReadonlyArray<KnownCase> {
+  if (config.authorizerFailureCheck === undefined) return [];
+  return [
+    {
+      id: 'api-gw-authorizer-timeout',
+      description: 'Timeout Lambda authorizer API Gateway',
+      priority: 10_000,
+      condition: { type: 'compare', ref: 'vars.apiGwAuthorizerOutcome', operator: '==', value: 'timeout' },
+      action: {
+        type: 'log',
+        level: 'info',
+        message:
+          '[CASO NOTO] Timeout Lambda authorizer API Gateway\n' +
+          'Lambda: {{vars.apiGwAuthorizerLambdaName}}\n' +
+          'Dettaglio: {{vars.lastErrorMsg}}\n' +
+          'authorizerRequestId: {{vars.apiGwAuthorizerRequestId}}\n' +
+          'Endpoint: {{vars.apiGwAuthorizerHttpMethod}} {{vars.apiGwAuthorizerPath}}',
+      },
+    },
+    {
+      id: 'api-gw-authorizer-error',
+      description: 'Errore Lambda authorizer API Gateway',
+      priority: 9_999,
+      condition: { type: 'compare', ref: 'vars.apiGwAuthorizerOutcome', operator: '==', value: 'error' },
+      action: {
+        type: 'log',
+        level: 'info',
+        message:
+          '[CASO NOTO] Errore Lambda authorizer API Gateway\n' +
+          'Lambda: {{vars.apiGwAuthorizerLambdaName}}\n' +
+          'Dettaglio: {{vars.lastErrorMsg}}\n' +
+          'authorizerRequestId: {{vars.apiGwAuthorizerRequestId}}\n' +
+          'Endpoint: {{vars.apiGwAuthorizerHttpMethod}} {{vars.apiGwAuthorizerPath}}',
+      },
+    },
+  ];
 }
 
 /**

@@ -58,6 +58,25 @@ export function validateCapabilityParity(config: ApiGwAlarmConfig, profile: ApiG
         'Either remove executionLogGroup from the entry service or switch to a profile that supports it.',
     );
   }
+
+  if (config.authorizerFailureCheck !== undefined && profile.accessLog.schema.authorizer === undefined) {
+    throw new Error(
+      `createApiGwAlarmRunbook "${config.id}": authorizerFailureCheck is set but ` +
+        `the profile "${profile.id}" has no accessLog.authorizer capability. ` +
+        'Either remove authorizerFailureCheck or switch to a profile that declares authorizer fields.',
+    );
+  }
+
+  if (config.authorizerFailureCheck !== undefined) {
+    const hasDefault = config.authorizerFailureCheck.defaultAuthorizer !== undefined;
+    const hasRules = (config.authorizerFailureCheck.rules?.length ?? 0) > 0;
+    if (!hasDefault && !hasRules) {
+      throw new Error(
+        `createApiGwAlarmRunbook "${config.id}": authorizerFailureCheck requires ` +
+          'a defaultAuthorizer or at least one selection rule.',
+      );
+    }
+  }
 }
 
 /**
@@ -68,6 +87,10 @@ export function computeWiredStepIds(config: ApiGwAlarmConfig, profile: ApiGwQuer
   const ids = new Set<string>();
   ids.add('prepare-api-gw-section');
   ids.add('query-api-gw-logs');
+
+  if (config.authorizerFailureCheck !== undefined) {
+    ids.add('evaluate-api-gw-authorizer-failure');
+  }
 
   if (isExecutionLogEnabled(config, profile)) {
     ids.add('query-api-gw-execution-logs');

@@ -15,6 +15,13 @@ export type { QueryApiGwExecutionLogsConfig } from './QueryApiGwExecutionLogsSte
 export { stopApiGwExecutionLogAnalysis } from './StopApiGwExecutionLogAnalysisStep.js';
 export type { StopApiGwExecutionLogAnalysisConfig } from './StopApiGwExecutionLogAnalysisStep.js';
 
+export { evaluateApiGwAuthorizerFailure } from './EvaluateApiGwAuthorizerFailureStep.js';
+export type {
+  ApiGwAuthorizerFailureInfo,
+  ApiGwAuthorizerFailureOutcome,
+  EvaluateApiGwAuthorizerFailureConfig,
+} from './EvaluateApiGwAuthorizerFailureStep.js';
+
 export { analyzeServiceLogs } from './AnalyzeServiceLogsStep.js';
 export type { AnalyzeServiceLogsConfig } from './AnalyzeServiceLogsStep.js';
 export type { ServiceLogsAnalysis } from './ServiceLogsAnalysis.js';

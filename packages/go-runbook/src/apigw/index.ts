@@ -18,8 +18,8 @@
  */
 
 export * from './builders/index.js';
+export * from './authorizers/index.js';
 export * from './helpers/index.js';
-export * from './preSteps/index.js';
 export * from './profiles/index.js';
 export * from './queries/index.js';
 export * from './registries/index.js';

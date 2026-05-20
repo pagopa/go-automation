@@ -12,10 +12,10 @@
  * receives the time window as separate `startTime`/`endTime` parameters
  * via the configured CloudWatch Logs query service.
  *
- * Three status fields are checked together: `status` covers routing
- * errors, `authorizeStatus` covers authorizer failures, and
+ * Status and authorizer fields are checked together: `status` covers
+ * routing errors, `authorizerStatus` covers authorizer failures, and
  * `integrationServiceStatus` covers downstream integration failures.
  */
-export const DEFAULT_API_GW_QUERY = `filter status >= {{minStatusCode}} or authorizeStatus >= {{minStatusCode}} or integrationServiceStatus >= {{minStatusCode}}
+export const DEFAULT_API_GW_QUERY = `filter status >= {{minStatusCode}} or authorizerStatus >= {{minStatusCode}} or integrationServiceStatus >= {{minStatusCode}}
 | sort @timestamp asc
-| display @timestamp, xrayTraceId, requestId, authorizerRequestId, integrationRequestId, errorMessage, httpMethod, path, authorizeStatus, integrationServiceStatus, status`;
+| display @timestamp, xrayTraceId, requestId, authorizerRequestId, integrationRequestId, errorMessage, httpMethod, path, authorizerStatus, authorizerLatency, integrationServiceStatus, status`;
