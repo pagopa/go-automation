@@ -12,7 +12,12 @@ export function interpolateMessage(
   },
   options: { readonly missingValue?: string } = {},
 ): string {
-  return template.replace(/\{\{(vars|params)\.([^}]+)\}\}/g, (match: string, source: string, key: string) => {
+  // The name class excludes both `}` (closing delimiter) and `{` (opening
+  // delimiter of a nested placeholder). Excluding `{` is what guarantees
+  // unambiguous match starts and prevents the polynomial ReDoS that arises
+  // when an input like `{{vars.{{vars.{{vars....` lets the engine restart
+  // the match at every inner `{{` (js/polynomial-redos).
+  return template.replace(/\{\{(vars|params)\.([^}{]+)\}\}/g, (match: string, source: string, key: string) => {
     if (source === 'vars') {
       return values.vars.get(key) ?? options.missingValue ?? `{{vars.${key}}}`;
     }

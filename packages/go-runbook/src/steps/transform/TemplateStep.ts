@@ -20,8 +20,14 @@ interface TemplateConfig {
 /**
  * Regex pattern matching {{vars.xxx}} and {{params.xxx}} placeholders.
  * Compiled once and reused across all executions.
+ *
+ * The name class excludes both `}` (closing delimiter) and `{` (opening
+ * delimiter of a nested placeholder). Excluding `{` is what guarantees
+ * unambiguous match starts and prevents the polynomial ReDoS that arises
+ * when an input like `{{vars.{{vars.{{vars....` lets the engine restart
+ * the match at every inner `{{` (js/polynomial-redos).
  */
-const PLACEHOLDER_REGEX = /\{\{(vars|params)\.([^}]+)\}\}/g;
+const PLACEHOLDER_REGEX = /\{\{(vars|params)\.([^}{]+)\}\}/g;
 
 /**
  * Step that interpolates a template string using context vars and params.
