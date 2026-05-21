@@ -1,8 +1,10 @@
+import { valueToString } from '@go-automation/go-common/core';
 import type { FlowDirective } from '../../types/FlowDirective.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
+import { resolveRef } from '../check/resolveRef.js';
 
 /**
  * Configuration for the switch control flow step.
@@ -64,35 +66,11 @@ export class SwitchStep implements Step<void> {
    */
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<void>> {
-    const resolved = this.resolveRef(this.ref, context);
-    const resolvedStr = resolved !== undefined ? String(resolved) : undefined;
+    const resolved = resolveRef(this.ref, context);
+    const resolvedStr = resolved !== undefined ? valueToString(resolved) : undefined;
 
     const next = this.resolveDirective(resolvedStr);
     return { success: true, next };
-  }
-
-  /**
-   * Resolves a reference string from the runbook context.
-   * Supports 'vars.{name}' and 'params.{name}' formats.
-   */
-  private resolveRef(ref: string, context: RunbookContext): string | undefined {
-    const dotIndex = ref.indexOf('.');
-    if (dotIndex === -1) {
-      return undefined;
-    }
-
-    const source = ref.slice(0, dotIndex);
-    const key = ref.slice(dotIndex + 1);
-
-    if (source === 'vars') {
-      return context.vars.get(key);
-    }
-
-    if (source === 'params') {
-      return context.params.get(key);
-    }
-
-    return undefined;
   }
 
   /**

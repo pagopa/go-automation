@@ -98,11 +98,12 @@ export type { RunbookOutputContext, RunbookResultField, RunbookEvidence } from '
 export { emptyRunbookOutputContext } from './output/RunbookOutputContext.js';
 export { buildRunbookOutput } from './output/buildRunbookOutput.js';
 export type { BuildRunbookOutputOptions, RunbookOutputContextBuilderFn } from './output/buildRunbookOutput.js';
-export { interpolateMessage } from './output/interpolateMessage.js';
+export { interpolatePlaceholders } from './core/templatePlaceholders.js';
 
 // Actions
 export type {
   CaseAction,
+  CaseActionType,
   LogAction,
   NotifyAction,
   UpdateAction,

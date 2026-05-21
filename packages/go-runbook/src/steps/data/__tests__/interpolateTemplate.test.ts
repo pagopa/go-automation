@@ -5,10 +5,7 @@ import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { extractTemplateParameters, interpolateTemplate } from '../interpolateTemplate.js';
 
-function createContext(
-  params: Record<string, string> = {},
-  vars: Record<string, string> = {},
-): RunbookContext {
+function createContext(params: Record<string, string> = {}, vars: Record<string, string> = {}): RunbookContext {
   return {
     executionId: 'test-execution',
     startedAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -23,10 +20,7 @@ function createContext(
 
 describe('interpolateTemplate', () => {
   it('interpolates params and vars placeholders', () => {
-    const context = createContext(
-      { name: 'Alice', id: 'ABC-123' },
-      { status: 'DELIVERED' },
-    );
+    const context = createContext({ name: 'Alice', id: 'ABC-123' }, { status: 'DELIVERED' });
 
     const result = interpolateTemplate(
       'Hello {{params.name}}, notification {{params.id}} is {{vars.status}}.',
@@ -39,10 +33,7 @@ describe('interpolateTemplate', () => {
   it('leaves unresolved placeholders unchanged', () => {
     const context = createContext({ name: 'Alice' });
 
-    const result = interpolateTemplate(
-      'Hello {{params.name}} {{params.missing}} {{vars.unknown}}',
-      context,
-    );
+    const result = interpolateTemplate('Hello {{params.name}} {{params.missing}} {{vars.unknown}}', context);
 
     assert.strictEqual(result, 'Hello Alice {{params.missing}} {{vars.unknown}}');
   });
@@ -56,10 +47,7 @@ describe('interpolateTemplate', () => {
       (value) => value.replace(/'/g, "''"),
     );
 
-    assert.strictEqual(
-      result,
-      "SELECT * FROM t WHERE name = 'O''Brien' AND raw = '{{params.missing}}'",
-    );
+    assert.strictEqual(result, "SELECT * FROM t WHERE name = 'O''Brien' AND raw = '{{params.missing}}'");
   });
 
   it('preserves malformed placeholders while still resolving later valid ones', () => {
@@ -74,10 +62,7 @@ describe('interpolateTemplate', () => {
 
 describe('extractTemplateParameters', () => {
   it('extracts ordered parameters and rewrites placeholders to positional markers', () => {
-    const context = createContext(
-      { iun: 'IUN-001' },
-      { status: 'DELIVERED', channel: 'PEC' },
-    );
+    const context = createContext({ iun: 'IUN-001' }, { status: 'DELIVERED', channel: 'PEC' });
 
     const result = extractTemplateParameters(
       'SELECT * FROM notifications WHERE iun = {{params.iun}} AND status = {{vars.status}} AND channel = {{vars.channel}}',
@@ -93,10 +78,7 @@ describe('extractTemplateParameters', () => {
   it('keeps unresolved and malformed placeholders in the query output', () => {
     const context = createContext({ id: '123' });
 
-    const result = extractTemplateParameters(
-      'SELECT {{params.id}}, {{params.missing}}, {{oops|{{params.id}}',
-      context,
-    );
+    const result = extractTemplateParameters('SELECT {{params.id}}, {{params.missing}}, {{oops|{{params.id}}', context);
 
     assert.deepStrictEqual(result, {
       query: 'SELECT ?, {{params.missing}}, {{oops|?',

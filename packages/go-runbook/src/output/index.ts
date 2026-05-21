@@ -12,4 +12,3 @@ export type { RunbookOutputContext, RunbookResultField, RunbookEvidence } from '
 export { emptyRunbookOutputContext } from './RunbookOutputContext.js';
 export { buildRunbookOutput } from './buildRunbookOutput.js';
 export type { BuildRunbookOutputOptions, RunbookOutputContextBuilderFn } from './buildRunbookOutput.js';
-export { interpolateMessage } from './interpolateMessage.js';

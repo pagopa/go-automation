@@ -1,11 +1,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 
-import { interpolateMessage } from '../interpolateMessage.js';
+import { interpolatePlaceholders } from '../templatePlaceholders.js';
 
-describe('interpolateMessage', () => {
+describe('interpolatePlaceholders', () => {
   it('interpolates a single vars placeholder', () => {
-    const out = interpolateMessage('status={{vars.code}}', {
+    const out = interpolatePlaceholders('status={{vars.code}}', {
       vars: new Map([['code', '500']]),
       params: new Map(),
     });
@@ -13,7 +13,7 @@ describe('interpolateMessage', () => {
   });
 
   it('interpolates a single params placeholder', () => {
-    const out = interpolateMessage('alarm={{params.alarmName}}', {
+    const out = interpolatePlaceholders('alarm={{params.alarmName}}', {
       vars: new Map(),
       params: new Map([['alarmName', 'my-alarm']]),
     });
@@ -21,7 +21,7 @@ describe('interpolateMessage', () => {
   });
 
   it('interpolates multiple placeholders in a single string', () => {
-    const out = interpolateMessage('{{params.alarmName}} status={{vars.code}}', {
+    const out = interpolatePlaceholders('{{params.alarmName}} status={{vars.code}}', {
       vars: new Map([['code', '500']]),
       params: new Map([['alarmName', 'foo']]),
     });
@@ -29,7 +29,7 @@ describe('interpolateMessage', () => {
   });
 
   it('keeps unresolved placeholders literal by default', () => {
-    const out = interpolateMessage('{{vars.missing}}', {
+    const out = interpolatePlaceholders('{{vars.missing}}', {
       vars: new Map(),
       params: new Map(),
     });
@@ -37,7 +37,7 @@ describe('interpolateMessage', () => {
   });
 
   it('replaces unresolved placeholders with missingValue when provided', () => {
-    const out = interpolateMessage(
+    const out = interpolatePlaceholders(
       '{{vars.a}} / {{params.b}}',
       { vars: new Map(), params: new Map() },
       { missingValue: 'n/a' },
@@ -45,8 +45,17 @@ describe('interpolateMessage', () => {
     assert.strictEqual(out, 'n/a / n/a');
   });
 
+  it('applies the escape transformer to resolved values', () => {
+    const out = interpolatePlaceholders(
+      'name={{vars.name}}',
+      { vars: new Map([['name', "O'Brien"]]), params: new Map() },
+      { escape: (value) => value.replace(/'/g, "''") },
+    );
+    assert.strictEqual(out, "name=O''Brien");
+  });
+
   it('leaves text without placeholders untouched', () => {
-    const out = interpolateMessage('plain text without placeholders', {
+    const out = interpolatePlaceholders('plain text without placeholders', {
       vars: new Map(),
       params: new Map(),
     });
@@ -56,26 +65,22 @@ describe('interpolateMessage', () => {
   it('ignores placeholders with unknown source prefix', () => {
     // `{{vars.x}}` / `{{params.x}}` are the only supported forms; an
     // unrelated `{{env.HOME}}` must not be touched.
-    const out = interpolateMessage('{{env.HOME}}', {
+    const out = interpolatePlaceholders('{{env.HOME}}', {
       vars: new Map(),
       params: new Map(),
     });
     assert.strictEqual(out, '{{env.HOME}}');
   });
 
-  it('terminates quickly on adversarial input that previously triggered polynomial backtracking', () => {
-    // Many `{{vars.` prefixes with NO closing `}}`. With the old
-    // `[^}]+` pattern, each starting position triggered O(N) backtracks
-    // → overall O(N²) wall-clock. With `[^}{]+` the engine fails fast
-    // at every starting position because the inner `{` is rejected.
+  it('terminates quickly on adversarial input (many unclosed placeholders)', () => {
+    // Many `{{vars.` prefixes with NO closing `}}`. The index-based scanner
+    // advances linearly past each malformed opener, so the cost stays O(N)
+    // — this guards against a regression to a backtracking implementation.
     const stress = '{{vars.'.repeat(50_000);
     const start = Date.now();
-    const out = interpolateMessage(stress, { vars: new Map(), params: new Map() });
+    const out = interpolatePlaceholders(stress, { vars: new Map(), params: new Map() });
     const elapsed = Date.now() - start;
     assert.strictEqual(out, stress);
-    // Conservative cap: with the fix this completes in single-digit ms.
-    // Set the threshold high enough to not flake on slow CI while still
-    // catching a regression to the polynomial behaviour.
-    assert.ok(elapsed < 1_000, `interpolateMessage took ${elapsed}ms on adversarial input`);
+    assert.ok(elapsed < 1_000, `interpolatePlaceholders took ${elapsed}ms on adversarial input`);
   });
 });

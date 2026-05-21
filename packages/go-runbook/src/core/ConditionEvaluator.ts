@@ -3,9 +3,8 @@ import type { Condition, ContainsCondition } from '../types/Condition.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
 import { resolveRef } from '../steps/check/resolveRef.js';
 import { compileRegex } from './compileRegex.js';
-
-// Condition operators for compare conditions
-type ConditionOperator = '==' | '!=' | '>' | '<' | '>=' | '<=';
+import { compareValues } from './compareValues.js';
+import type { CompareOperator } from './CompareOperator.js';
 
 // Condition types supported by the evaluator
 type ConditionType = string | number | boolean;
@@ -123,163 +122,7 @@ export class ConditionEvaluator {
    * @returns Whether the condition is satisfied
    */
   evaluate(condition: Condition, context: RunbookContext): boolean {
-    switch (condition.type) {
-      case 'compare':
-        return this.evaluateCompare(condition.ref, condition.operator, condition.value, context);
-      case 'pattern':
-        return this.evaluatePattern(condition.ref, condition.regex, context);
-      case 'exists':
-        return this.evaluateExists(condition.ref, context);
-      case 'contains':
-        return this.evaluateContains(condition, context);
-      case 'and':
-        return condition.conditions.every((c) => this.evaluate(c, context));
-      case 'or':
-        return condition.conditions.some((c) => this.evaluate(c, context));
-      case 'not':
-        return !this.evaluate(condition.condition, context);
-      default: {
-        const _exhaustive: never = condition;
-        throw new Error(`Unknown condition type: ${(_exhaustive as Condition).type}`);
-      }
-    }
-  }
-
-  /**
-   * Evaluates a compare condition. When the ref resolves to an array,
-   * applies the operator element-wise with OR (any-match).
-   */
-  private evaluateCompare(
-    ref: string,
-    operator: ConditionOperator,
-    expected: ConditionType,
-    context: RunbookContext,
-  ): boolean {
-    const actual = resolveRef(ref, context);
-    if (actual === undefined || actual === null) {
-      return false;
-    }
-
-    if (Array.isArray(actual)) {
-      for (const el of actual) {
-        if (el === undefined || el === null) continue;
-        if (this.compareScalar(el, operator, expected)) return true;
-      }
-      return false;
-    }
-
-    return this.compareScalar(actual, operator, expected);
-  }
-
-  /**
-   * Performs the scalar comparison used by both the scalar and the
-   * array-element branches of {@link evaluateCompare}.
-   */
-  private compareScalar(actual: unknown, operator: ConditionOperator, expected: ConditionType): boolean {
-    const actualStr = valueToString(actual);
-    const expectedStr = valueToString(expected);
-
-    const actualNum = Number(actualStr);
-    const expectedNum = Number(expectedStr);
-    const bothNumeric = !Number.isNaN(actualNum) && !Number.isNaN(expectedNum);
-
-    switch (operator) {
-      case '==':
-        return actualStr === expectedStr;
-      case '!=':
-        return actualStr !== expectedStr;
-      case '>':
-        return bothNumeric ? actualNum > expectedNum : actualStr > expectedStr;
-      case '<':
-        return bothNumeric ? actualNum < expectedNum : actualStr < expectedStr;
-      case '>=':
-        return bothNumeric ? actualNum >= expectedNum : actualStr >= expectedStr;
-      case '<=':
-        return bothNumeric ? actualNum <= expectedNum : actualStr <= expectedStr;
-      default: {
-        const _exhaustive: never = operator;
-        throw new Error(`Unknown operator: ${String(_exhaustive)}`);
-      }
-    }
-  }
-
-  /**
-   * Evaluates a pattern condition. When the ref resolves to an array,
-   * the regex is tested element-wise with OR + short-circuit: the
-   * condition is satisfied at the first matching element.
-   */
-  private evaluatePattern(ref: string, regex: string, context: RunbookContext): boolean {
-    const actual = resolveRef(ref, context);
-    if (actual === undefined || actual === null) {
-      return false;
-    }
-    const compiled = compileRegex(regex);
-
-    if (Array.isArray(actual)) {
-      for (const el of actual) {
-        if (el === undefined || el === null) continue;
-        if (compiled.test(valueToString(el))) return true;
-      }
-      return false;
-    }
-
-    return compiled.test(valueToString(actual));
-  }
-
-  /**
-   * Evaluates an exists condition.
-   * - scalars: `actual` is not undefined/null and its string form is not empty
-   * - arrays:  `actual.length > 0`
-   */
-  private evaluateExists(ref: string, context: RunbookContext): boolean {
-    const actual = resolveRef(ref, context);
-    if (actual === undefined || actual === null) return false;
-    if (Array.isArray(actual)) return actual.length > 0;
-    return valueToString(actual) !== '';
-  }
-
-  /**
-   * Evaluates a contains condition.
-   *
-   * - **value variant** (SQL `IN`):
-   *   - scalar ref: `ref ∈ value`
-   *   - array ref:  intersection between `ref` and `value` is non-empty
-   * - **regex variant**:
-   *   - scalar ref: `regex.test(ref)`
-   *   - array ref:  returns `true` when at least one element matches.
-   *     Use {@link evaluateWithResolvedValues} when the caller also
-   *     needs the trace payload with every matching element.
-   */
-  private evaluateContains(condition: ContainsCondition, context: RunbookContext): boolean {
-    const actual = resolveRef(condition.ref, context);
-    if (actual === undefined || actual === null) return false;
-
-    if (condition.regex !== undefined) {
-      const compiled = compileRegex(condition.regex);
-      if (Array.isArray(actual)) {
-        for (const el of actual) {
-          if (el === undefined || el === null) continue;
-          if (compiled.test(valueToString(el))) {
-            return true;
-          }
-        }
-        return false;
-      }
-      return compiled.test(valueToString(actual));
-    }
-
-    if (condition.value === undefined) {
-      return false;
-    }
-    const candidates = new Set(condition.value.map((v) => valueToString(v)));
-    if (Array.isArray(actual)) {
-      for (const el of actual) {
-        if (el === undefined || el === null) continue;
-        if (candidates.has(valueToString(el))) return true;
-      }
-      return false;
-    }
-    return candidates.has(valueToString(actual));
+    return this.evaluateWithResolvedValues(condition, context).matched;
   }
 
   private evaluateAndCollect(condition: Condition, context: RunbookContext, values: Record<string, unknown>): boolean {
@@ -356,20 +199,20 @@ export class ConditionEvaluator {
    */
   private evaluateCompareWithDetail(
     actual: unknown,
-    operator: ConditionOperator,
+    operator: CompareOperator,
     expected: ConditionType,
   ): PredicateEvaluation {
     if (actual === undefined || actual === null) {
       return { matched: false, detail: actual };
     }
     if (!Array.isArray(actual)) {
-      return { matched: this.compareScalar(actual, operator, expected), detail: actual };
+      return { matched: compareValues(actual, operator, expected), detail: actual };
     }
     const arr = actual as ReadonlyArray<unknown>;
     for (let i = 0; i < arr.length; i++) {
       const el = arr[i];
       if (el === undefined || el === null) continue;
-      if (this.compareScalar(el, operator, expected)) {
+      if (compareValues(el, operator, expected)) {
         const detail: MatchDetailSingle = {
           matched: true,
           matchedIndex: i,
@@ -481,3 +324,12 @@ export class ConditionEvaluator {
     return { matched: false, detail: { matched: false, matchedCount: 0, totalElements: arr.length } };
   }
 }
+
+/**
+ * Shared {@link ConditionEvaluator} instance.
+ *
+ * `ConditionEvaluator` is stateless — every method is pure — so a single
+ * frozen instance can be reused everywhere instead of allocating one per
+ * step or per `execute()` call.
+ */
+export const sharedConditionEvaluator: ConditionEvaluator = new ConditionEvaluator();

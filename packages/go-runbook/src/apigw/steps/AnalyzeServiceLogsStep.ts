@@ -5,10 +5,7 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { StepResult } from '../../types/StepResult.js';
 import { readStepOutput } from '../../steps/data/readStepOutput.js';
 
-import { findErrorMessage } from '../helpers/findErrorMessage.js';
-import { findKnownUrlInLogs } from '../helpers/findKnownUrlInLogs.js';
-import { extractFallbackUuid } from '../helpers/extractFallbackUuid.js';
-import { findTraceIdCandidate } from '../helpers/findTraceIdCandidate.js';
+import { scanServiceLogs } from '../helpers/scanServiceLogs.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
 import type { KnownUrlsRegistry } from '../registries/KnownUrlsRegistry.js';
 import type { ServiceLogsAnalysis } from './ServiceLogsAnalysis.js';
@@ -36,15 +33,6 @@ export interface AnalyzeServiceLogsConfig {
    */
   readonly serviceName?: string;
   /**
-   * When `true`, the step skips every {@link ApiGwReporter} call.
-   *
-   * Useful for **pre-steps** (e.g. the Lambda authorizer probe in the
-   * address-book runbook) that reuse `analyzeServiceLogs` only to set a
-   * var for a known case — they live outside the per-service section so
-   * their structured output would dangle.
-   */
-  readonly quiet?: boolean;
-  /**
    * Schema dei log applicativi (propagato agli helper). Quando omesso,
    * usa lo schema SEND di default per back-compat.
    */
@@ -60,7 +48,6 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
   private readonly varPrefix: string;
   private readonly registry: KnownUrlsRegistry;
   private readonly serviceName: string | undefined;
-  private readonly quiet: boolean;
   private readonly schema: ServiceLogSchema;
 
   constructor(config: AnalyzeServiceLogsConfig) {
@@ -70,7 +57,6 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
     this.varPrefix = config.varPrefix;
     this.registry = config.registry;
     this.serviceName = config.serviceName;
-    this.quiet = config.quiet ?? false;
     this.schema = config.schema ?? SEND_API_GW_PROFILE.serviceLog.schema;
   }
 
@@ -79,7 +65,7 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
     const upstream = readStepOutput<ReadonlyArray<ResultField[]>>(context, this.fromStep);
     if (!upstream.ok) return upstream.failure;
     const results = upstream.value;
-    const reporter = !this.quiet && context.logger !== undefined ? new ApiGwReporter(context.logger) : undefined;
+    const reporter = context.logger !== undefined ? new ApiGwReporter(context.logger) : undefined;
 
     const fallbackUuidExisting = (context.vars.get('fallbackUuid') ?? '').trim();
 
@@ -109,15 +95,20 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
       };
     }
 
-    const errorMessage = findErrorMessage(results, this.schema);
-    const knownUrl = findKnownUrlInLogs(results, this.registry, this.schema);
+    // Single fused pass over the result rows: error message, known URL,
+    // fallback UUID and trace id are all derived in one traversal.
+    const scan = scanServiceLogs(results, this.schema, this.registry);
+    const errorMessage = scan.errorMessage;
+    const knownUrl = scan.knownUrl;
 
-    const extractedFallback = knownUrl !== undefined ? extractFallbackUuid(results, this.schema) : undefined;
+    // A fallback UUID is only meaningful when the same result set also
+    // points to a known downstream URL.
+    const extractedFallback = knownUrl !== undefined ? scan.fallbackUuid : undefined;
     const fallbackIsFresh = extractedFallback !== undefined && extractedFallback !== fallbackUuidExisting;
+    // A trace id is only consumed when the query was driven by an
+    // existing fallback UUID for a named service.
     const freshTrace =
-      this.serviceName !== undefined && fallbackUuidExisting !== ''
-        ? findTraceIdCandidate(results, this.schema)
-        : undefined;
+      this.serviceName !== undefined && fallbackUuidExisting !== '' ? scan.traceIdCandidate : undefined;
 
     const vars: Record<string, string> = {
       [`${this.varPrefix}ErrorMsg`]: errorMessage,

@@ -6,7 +6,7 @@ import type { RunbookOutput } from './RunbookOutput.js';
 import type { RunbookOutcome } from './RunbookOutcome.js';
 import type { RunbookOutputContext } from './RunbookOutputContext.js';
 import { emptyRunbookOutputContext } from './RunbookOutputContext.js';
-import { interpolateMessage } from './interpolateMessage.js';
+import { interpolatePlaceholders } from '../core/templatePlaceholders.js';
 
 const UNKNOWN_CASE_PREFIX = '[CASO NON RICONOSCIUTO]';
 const UNAVAILABLE_VALUE = 'non disponibile';
@@ -180,7 +180,7 @@ function resolvedActionMessage(
 function resolveActionMessage(action: CaseAction, result: RunbookExecutionResult): string | undefined {
   switch (action.type) {
     case 'log':
-      return interpolateMessage(
+      return interpolatePlaceholders(
         action.message,
         {
           vars: result.finalContext.vars,
@@ -189,12 +189,12 @@ function resolveActionMessage(action: CaseAction, result: RunbookExecutionResult
         interpolationOptionsFor(action.message),
       );
     case 'notify':
-      return interpolateMessage(action.template, {
+      return interpolatePlaceholders(action.template, {
         vars: result.finalContext.vars,
         params: result.finalContext.params,
       });
     case 'escalate':
-      return interpolateMessage(action.message, {
+      return interpolatePlaceholders(action.message, {
         vars: result.finalContext.vars,
         params: result.finalContext.params,
       });

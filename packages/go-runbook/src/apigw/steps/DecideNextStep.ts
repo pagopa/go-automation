@@ -42,11 +42,6 @@ export interface DecideNextConfig {
    */
   readonly servicesInRunbook: ReadonlySet<string>;
   /**
-   * Step id prefix used to compose the `goTo` target for a service jump.
-   * Default: `'query-'` (so `goTo` lands on `query-<service>`).
-   */
-  readonly queryStepPrefix?: string;
-  /**
    * Name of the context var holding the trace id of the current analysis.
    * Default `'xRayTraceId'` (SEND). Profili non-SEND (es. INTEROP che usa
    * `cid` → `traceId`) devono passare il nome corretto qui, altrimenti la
@@ -72,7 +67,6 @@ class DecideNextStepImpl implements Step<DecideNextOutput> {
   private readonly serviceName: string;
   private readonly varPrefix: string;
   private readonly servicesInRunbook: ReadonlySet<string>;
-  private readonly queryStepPrefix: string;
   private readonly traceIdContextVar: string;
 
   constructor(config: DecideNextConfig) {
@@ -81,7 +75,6 @@ class DecideNextStepImpl implements Step<DecideNextOutput> {
     this.serviceName = config.serviceName;
     this.varPrefix = config.varPrefix;
     this.servicesInRunbook = config.servicesInRunbook;
-    this.queryStepPrefix = config.queryStepPrefix ?? 'query-';
     this.traceIdContextVar = config.traceIdContextVar ?? 'xRayTraceId';
   }
 
@@ -133,7 +126,7 @@ class DecideNextStepImpl implements Step<DecideNextOutput> {
           ...(context.vars.get('apiGwOriginalTraceId') === undefined ? { apiGwOriginalTraceId: traceId } : {}),
           terminationReason: '',
         },
-        next: { goTo: `${this.queryStepPrefix}${this.serviceName}` } satisfies FlowDirective,
+        next: { goTo: `query-${this.serviceName}` } satisfies FlowDirective,
       };
     }
 
@@ -160,7 +153,7 @@ class DecideNextStepImpl implements Step<DecideNextOutput> {
           [VISITED_KEYS_VAR]: serializeVisitedKeys(nextVisited),
           terminationReason: '',
         },
-        next: { goTo: `${this.queryStepPrefix}${nextUrlTarget}` } satisfies FlowDirective,
+        next: { goTo: `query-${nextUrlTarget}` } satisfies FlowDirective,
       };
     }
 

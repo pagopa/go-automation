@@ -89,9 +89,10 @@ export class DynamoDBQueryStep implements Step<ReadonlyArray<Record<string, unkn
     return executeStep('DynamoDB query', async () => {
       const resolvedTableName = interpolateTemplate(this.tableName, context);
       const resolvedValues = resolveAttributeValues(this.expressionAttributeValues, context);
-      const resolvedNames = this.expressionAttributeNames !== undefined
-        ? resolveAttributeNames(this.expressionAttributeNames, context)
-        : undefined;
+      const resolvedNames =
+        this.expressionAttributeNames !== undefined
+          ? resolveAttributeNames(this.expressionAttributeNames, context)
+          : undefined;
 
       const results = await context.services.dynamodb.query(
         resolvedTableName,

@@ -4,11 +4,8 @@ import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import { resolveRef } from './resolveRef.js';
 import { valueToString } from '@go-automation/go-common/core';
-
-/**
- * Supported comparison operators for the compare step.
- */
-type CompareOperator = '==' | '!=' | '>' | '<' | '>=' | '<=';
+import { compareValues } from '../../core/compareValues.js';
+import type { CompareOperator } from '../../core/CompareOperator.js';
 
 /**
  * Configuration for a compare step.
@@ -72,56 +69,17 @@ class CompareStep implements Step<boolean> {
       };
     }
 
-    const leftStr = valueToString(leftValue);
-    const rightStr = valueToString(this.rightValue);
-
-    const leftNum = Number(leftStr);
-    const rightNum = Number(rightStr);
-    const bothNumeric = !Number.isNaN(leftNum) && !Number.isNaN(rightNum);
-
-    const passed = evaluateOperator(this.operator, leftStr, rightStr, leftNum, rightNum, bothNumeric);
-
-    if (passed) {
+    if (compareValues(leftValue, this.operator, this.rightValue)) {
       return { success: true, output: true };
     }
 
     return {
       success: false,
       output: false,
-      error: `Compare failed for step "${this.id}": "${leftStr}" ${this.operator} "${rightStr}" is false`,
+      error:
+        `Compare failed for step "${this.id}": ` +
+        `"${valueToString(leftValue)}" ${this.operator} "${valueToString(this.rightValue)}" is false`,
     };
-  }
-}
-
-/**
- * Evaluates a comparison operator between two values.
- * Uses numeric comparison when both values are valid numbers, string comparison otherwise.
- */
-function evaluateOperator(
-  operator: CompareOperator,
-  leftStr: string,
-  rightStr: string,
-  leftNum: number,
-  rightNum: number,
-  bothNumeric: boolean,
-): boolean {
-  switch (operator) {
-    case '==':
-      return leftStr === rightStr;
-    case '!=':
-      return leftStr !== rightStr;
-    case '>':
-      return bothNumeric ? leftNum > rightNum : leftStr > rightStr;
-    case '<':
-      return bothNumeric ? leftNum < rightNum : leftStr < rightStr;
-    case '>=':
-      return bothNumeric ? leftNum >= rightNum : leftStr >= rightStr;
-    case '<=':
-      return bothNumeric ? leftNum <= rightNum : leftStr <= rightStr;
-    default: {
-      const _exhaustive: never = operator;
-      throw new Error(`Unknown operator: ${String(_exhaustive)}`);
-    }
   }
 }
 

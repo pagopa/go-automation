@@ -1,33 +1,20 @@
 import { RunbookBuilder } from '../../builders/RunbookBuilder.js';
 import { queryCloudWatchLogs } from '../../steps/data/CloudWatchLogsQueryStep.js';
 import type { Runbook } from '../../types/Runbook.js';
-import type { CaseAction, LogAction } from '../../actions/CaseAction.js';
-import type { KnownCase } from '../../types/KnownCase.js';
 
 import type { ApiGwAlarmConfig } from '../types/ApiGwAlarmConfig.js';
-import type { ApiGwService } from '../types/ApiGwService.js';
-import type { ApiGwRunbookContext } from '../output/ApiGwRunbookContext.js';
 
 import { parseApiGwErrors } from '../steps/ParseApiGwErrorsStep.js';
 import { prepareApiGwSection } from '../steps/PrepareApiGwSectionStep.js';
 import { queryServiceLogs } from '../steps/QueryServiceLogsStep.js';
 import { analyzeServiceLogs } from '../steps/AnalyzeServiceLogsStep.js';
 import { decideNext } from '../steps/DecideNextStep.js';
-import { KnownUrlsRegistry } from '../registries/KnownUrlsRegistry.js';
 import { queryApiGwExecutionLogs } from '../steps/QueryApiGwExecutionLogsStep.js';
 import { stopApiGwExecutionLogAnalysis } from '../steps/StopApiGwExecutionLogAnalysisStep.js';
 import { evaluateApiGwAuthorizerFailure } from '../steps/EvaluateApiGwAuthorizerFailureStep.js';
-import { resolveApiGwQueryProfile } from '../profiles/resolveApiGwQueryProfile.js';
-import { renderQueryTemplate } from '../profiles/render/renderQueryTemplate.js';
-import { isExecutionLogEnabled, getEffectiveExecutionLogGroup } from './executionLogEnablement.js';
-import {
-  validatePlaceholders,
-  validateCapabilityParity,
-  validateNoStepIdCollisions,
-  validateKnownCaseStepRefs,
-} from './validations.js';
-
-const DEFAULT_MIN_STATUS_CODE = 500;
+import { builtinApiGwAuthorizerKnownCases } from '../knownCases/authorizerKnownCases.js';
+import { defaultUnknownCaseFallback } from './defaultUnknownCaseFallback.js';
+import { resolveApiGwAlarmBuildContext } from './resolveApiGwAlarmBuildContext.js';
 
 /**
  * Assembla un runbook API Gateway completo a partire da input dichiarativi.
@@ -59,36 +46,8 @@ const DEFAULT_MIN_STATUS_CODE = 500;
  * @returns Un {@link Runbook} validato pronto per l'engine
  */
 export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
-  // —— Risoluzione profilo (D1, D2) ——
-  const profile = resolveApiGwQueryProfile(config);
-  const preSteps = config.preSteps ?? [];
-
-  // —— Validazioni build-time (fail-fast) ——
-  validatePlaceholders(profile);
-  validateCapabilityParity(config, profile);
-  validateNoStepIdCollisions(config, profile);
-  validateKnownCaseStepRefs(config, profile);
-
-  const minStatus = config.minStatusCode ?? DEFAULT_MIN_STATUS_CODE;
-  const apiGwQuery = renderQueryTemplate(profile.accessLog.query, {
-    values: { '{{minStatusCode}}': String(minStatus) },
-    queryId: `${profile.id}.accessLog`,
-  });
-
-  const registry = new KnownUrlsRegistry(config.knownUrls);
-
-  const allServices: ReadonlyArray<ApiGwService> = [config.entryService, ...(config.services ?? [])];
-  const seenNames = new Set<string>();
-  for (const s of allServices) {
-    if (seenNames.has(s.name)) {
-      throw new Error(`Duplicate service name in API Gateway runbook config: '${s.name}'`);
-    }
-    seenNames.add(s.name);
-  }
-  const servicesInRunbook = new Set(allServices.map((s) => s.name));
-
-  const executionLogEnabled = isExecutionLogEnabled(config, profile);
-  const effectiveExecutionLogGroup = getEffectiveExecutionLogGroup(config);
+  const ctx = resolveApiGwAlarmBuildContext(config);
+  const { profile, minStatus, apiGwQuery, registry, allServices, servicesInRunbook } = ctx;
 
   const builder = RunbookBuilder.create(config.id).metadata(config.metadata);
 
@@ -151,7 +110,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   }
 
   // 5. ExecutionLog branch (condizionale).
-  if (executionLogEnabled && profile.executionLog !== undefined && effectiveExecutionLogGroup !== undefined) {
+  if (ctx.executionLogEnabled && profile.executionLog !== undefined && ctx.effectiveExecutionLogGroup !== undefined) {
     builder.step(
       queryApiGwExecutionLogs({
         id: 'query-api-gw-execution-logs',
@@ -162,7 +121,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
         spec: profile.executionLog,
         accessLogSchema: profile.accessLog.schema,
         queryProfileId: profile.id,
-        executionLogGroup: effectiveExecutionLogGroup,
+        executionLogGroup: ctx.effectiveExecutionLogGroup,
         ...(config.executionLogMaxRequestIds !== undefined
           ? { maxRequestIdsOverride: config.executionLogMaxRequestIds }
           : {}),
@@ -180,7 +139,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   }
 
   // 6. Custom pre-steps.
-  for (const descriptor of preSteps) {
+  for (const descriptor of ctx.preSteps) {
     const opts: { continueOnFailure?: boolean; silent?: boolean } = {};
     if (descriptor.continueOnFailure === true) opts.continueOnFailure = true;
     if (descriptor.silent === true) opts.silent = true;
@@ -249,82 +208,12 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
       ),
   );
   builder.runbookContext({
-    kind: 'apigw',
-    services: allServices,
-    apiGwLogGroup: config.apiGwLogGroup,
-    queryProfileId: profile.id,
-  } satisfies ApiGwRunbookContext);
+    ...ctx.runbookContext,
+  });
 
   if (config.maxIterations !== undefined) {
     builder.maxIterations(config.maxIterations);
   }
 
   return builder.build();
-}
-
-function builtinApiGwAuthorizerKnownCases(config: ApiGwAlarmConfig): ReadonlyArray<KnownCase> {
-  if (config.authorizerFailureCheck === undefined) return [];
-  return [
-    {
-      id: 'api-gw-authorizer-timeout',
-      description: 'Timeout Lambda authorizer API Gateway',
-      priority: 10_000,
-      condition: { type: 'compare', ref: 'vars.apiGwAuthorizerOutcome', operator: '==', value: 'timeout' },
-      action: {
-        type: 'log',
-        level: 'info',
-        message:
-          '[CASO NOTO] Timeout Lambda authorizer API Gateway\n' +
-          'Lambda: {{vars.apiGwAuthorizerLambdaName}}\n' +
-          'Dettaglio: {{vars.lastErrorMsg}}\n' +
-          'authorizerRequestId: {{vars.apiGwAuthorizerRequestId}}\n' +
-          'Endpoint: {{vars.apiGwAuthorizerHttpMethod}} {{vars.apiGwAuthorizerPath}}',
-      },
-    },
-    {
-      id: 'api-gw-authorizer-error',
-      description: 'Errore Lambda authorizer API Gateway',
-      priority: 9_999,
-      condition: { type: 'compare', ref: 'vars.apiGwAuthorizerOutcome', operator: '==', value: 'error' },
-      action: {
-        type: 'log',
-        level: 'info',
-        message:
-          '[CASO NOTO] Errore Lambda authorizer API Gateway\n' +
-          'Lambda: {{vars.apiGwAuthorizerLambdaName}}\n' +
-          'Dettaglio: {{vars.lastErrorMsg}}\n' +
-          'authorizerRequestId: {{vars.apiGwAuthorizerRequestId}}\n' +
-          'Endpoint: {{vars.apiGwAuthorizerHttpMethod}} {{vars.apiGwAuthorizerPath}}',
-      },
-    },
-  ];
-}
-
-/**
- * Default fallback action used when the runbook author does not supply a
- * custom one. Produces a single `warn` log entry summarising the
- * collected vars, with one line per analysed service.
- */
-function defaultUnknownCaseFallback(
-  services: ReadonlyArray<ApiGwService>,
-  traceIdContextVar: string,
-  traceIdLabel: string,
-): CaseAction {
-  const lines: string[] = [
-    "[CASO NON RICONOSCIUTO] Impossibile identificare univocamente la causa dell'errore.",
-    'Dettaglio: nessun caso noto ha soddisfatto le condizioni del runbook.',
-    'Errori API Gateway: {{vars.apiGwErrorCount}}',
-    'Status API Gateway: {{vars.apiGwStatusCode}}',
-    `${traceIdLabel}: {{vars.${traceIdContextVar}}}`,
-    'Fallback UUID: {{vars.fallbackUuid}}',
-    'Esito tecnico: {{vars.terminationReason}}',
-    'Downstream: {{vars.downstreamTarget}}',
-  ];
-  for (const s of services) {
-    lines.push(
-      `${s.name}: msg={{vars.${s.varPrefix}ErrorMsg}}; url={{vars.${s.varPrefix}NextUrl}}; target={{vars.${s.varPrefix}NextUrlTarget}}`,
-    );
-  }
-  const action: LogAction = { type: 'log', level: 'warn', message: lines.join('\n') };
-  return action;
 }

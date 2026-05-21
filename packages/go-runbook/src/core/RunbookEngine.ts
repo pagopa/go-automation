@@ -13,6 +13,8 @@ import type { ExecutionEnvironment } from '../trace/ExecutionInfo.js';
 import type { EarlyResolutionTrace } from '../trace/EarlyResolutionTrace.js';
 import type { CaseEvaluationTrace } from '../trace/CaseEvaluationTrace.js';
 import { ConditionEvaluator } from './ConditionEvaluator.js';
+import { buildStepIndex } from './buildStepIndex.js';
+import { detectRuntimeCycle } from './detectRuntimeCycle.js';
 import { ActionExecutor } from '../actions/ActionExecutor.js';
 import { TraceBuilder } from '../trace/TraceBuilder.js';
 import { RunbookMaxIterationsError } from '../errors/RunbookMaxIterationsError.js';
@@ -31,6 +33,15 @@ const DEFAULT_ENVIRONMENT: ExecutionEnvironment = {
   region: 'eu-south-1',
   invokedBy: 'manual',
 };
+
+type ReachedVia = 'sequential' | 'goTo' | 'subPipeline';
+type StepTraceStatus = 'success' | 'failed' | 'skipped';
+
+interface StepExecutionOutcome {
+  readonly context: RunbookContext;
+  readonly traceBuilder: TraceBuilder;
+  readonly result: StepResult<unknown>;
+}
 
 /**
  * Main runbook execution engine.
@@ -211,18 +222,11 @@ export class RunbookEngine {
     let context = initialContext;
     let traceBuilder = initialTraceBuilder;
 
-    // Index steps by id for goTo support
-    const stepIndex = new Map<string, number>();
-    for (let i = 0; i < stepDescriptors.length; i++) {
-      const descriptor = stepDescriptors[i];
-      if (descriptor !== undefined) {
-        stepIndex.set(descriptor.step.id, i);
-      }
-    }
+    const stepIndex = buildStepIndex(stepDescriptors);
 
     let currentIndex = 0;
     let iterations = 0;
-    let reachedVia: 'sequential' | 'goTo' | 'subPipeline' = 'sequential';
+    let reachedVia: ReachedVia = 'sequential';
     const visitedSequence: string[] = [];
     let aborted = false;
 
@@ -250,88 +254,16 @@ export class RunbookEngine {
       visitedSequence.push(step.id);
 
       // Runtime cycle detection
-      if (this.detectRuntimeCycle(visitedSequence)) {
+      if (detectRuntimeCycle(visitedSequence)) {
         throw new RunbookMaxIterationsError(runbookId, maxIterations, step.id, visitedSequence);
       }
 
-      if (descriptor.silent !== true) {
-        this.logger.text(`[${step.id}] ${step.label}`);
-      }
+      const execution = await this.executeStepDescriptor(descriptor, context, reachedVia, traceBuilder);
+      context = execution.context;
+      traceBuilder = execution.traceBuilder;
+      const result = execution.result;
 
-      const stepStartTime = Date.now();
-      const stepStartedAt = new Date(stepStartTime).toISOString();
-      let result: StepResult<unknown>;
-      let stepStatus: 'success' | 'failed' | 'skipped' = 'success';
-      let recovered = false;
-
-      // Capture input: context snapshot + step-specific trace info
-      const baseInput = this.captureStepInput(context);
-      const traceInfo = step.getTraceInfo?.(context);
-      const stepInput = traceInfo !== undefined ? { ...baseInput, resolvedConfig: traceInfo } : baseInput;
-
-      try {
-        result = await step.execute(context);
-      } catch (error: unknown) {
-        // continueOnFailure support
-        if (continueOnFailure === true) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          this.logger.warning(`[${step.id}] Step failed but continueOnFailure=true: ${errorMessage}`);
-
-          const recoveryInfo: ErrorRecoveryInfo = {
-            stepId: step.id,
-            originalError: errorMessage,
-            failedAt: new Date(),
-            skipped: true,
-          };
-
-          result = {
-            success: false,
-            error: errorMessage,
-            errorRecovery: recoveryInfo,
-          };
-
-          context = addRecoveredError(context, recoveryInfo);
-          stepStatus = 'failed';
-          recovered = true;
-        } else {
-          throw error;
-        }
-      }
-
-      const stepCompletedAt = new Date().toISOString();
-      const stepDurationMs = Date.now() - stepStartTime;
-
-      // Update status for non-recovered failures (step returned success=false without throwing)
-      if (!result.success && !recovered) {
-        stepStatus = 'failed';
-      }
-
-      // Determine flow directive
       const directive = result.next ?? 'continue';
-      const flowDirectiveStr = this.flowDirectiveToString(directive);
-
-      const varsWritten: Readonly<Record<string, string>> = result.vars ?? {};
-
-      // Add step trace with full data
-      traceBuilder = traceBuilder.traceStep(
-        step.id,
-        step.label,
-        step.kind,
-        reachedVia,
-        stepStartedAt,
-        stepCompletedAt,
-        stepDurationMs,
-        stepStatus,
-        recovered,
-        stepInput,
-        result.output ?? null,
-        varsWritten,
-        flowDirectiveStr,
-        result.error,
-      );
-
-      // Update context (immutable)
-      context = updateContextWithStepResult(context, step.id, result);
 
       // If step failed with continueOnFailure, proceed to next
       if (result.success === false && continueOnFailure === true) {
@@ -396,6 +328,90 @@ export class RunbookEngine {
     return { context, traceBuilder, aborted };
   }
 
+  private async executeStepDescriptor(
+    descriptor: StepDescriptor,
+    context: RunbookContext,
+    reachedVia: ReachedVia,
+    traceBuilder: TraceBuilder,
+  ): Promise<StepExecutionOutcome> {
+    const { step, continueOnFailure } = descriptor;
+
+    if (descriptor.silent !== true) {
+      this.logger.text(`[${step.id}] ${step.label}`);
+    }
+
+    const stepStartTime = Date.now();
+    const stepStartedAt = new Date(stepStartTime).toISOString();
+    let result: StepResult<unknown>;
+    let stepStatus: StepTraceStatus = 'success';
+    let recovered = false;
+    let updatedContext = context;
+
+    const baseInput = this.captureStepInput(context);
+    const traceInfo = step.getTraceInfo?.(context);
+    const stepInput = traceInfo !== undefined ? { ...baseInput, resolvedConfig: traceInfo } : baseInput;
+
+    try {
+      result = await step.execute(context);
+    } catch (error: unknown) {
+      if (continueOnFailure !== true) {
+        throw error;
+      }
+
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.warning(`[${step.id}] Step failed but continueOnFailure=true: ${errorMessage}`);
+
+      const recoveryInfo: ErrorRecoveryInfo = {
+        stepId: step.id,
+        originalError: errorMessage,
+        failedAt: new Date(),
+        skipped: true,
+      };
+
+      result = {
+        success: false,
+        error: errorMessage,
+        errorRecovery: recoveryInfo,
+      };
+
+      updatedContext = addRecoveredError(context, recoveryInfo);
+      stepStatus = 'failed';
+      recovered = true;
+    }
+
+    const stepCompletedAt = new Date().toISOString();
+    const stepDurationMs = Date.now() - stepStartTime;
+
+    if (!result.success && !recovered) {
+      stepStatus = 'failed';
+    }
+
+    const directive = result.next ?? 'continue';
+    const varsWritten: Readonly<Record<string, string>> = result.vars ?? {};
+    const nextTraceBuilder = traceBuilder.traceStep(
+      step.id,
+      step.label,
+      step.kind,
+      reachedVia,
+      stepStartedAt,
+      stepCompletedAt,
+      stepDurationMs,
+      stepStatus,
+      recovered,
+      stepInput,
+      result.output ?? null,
+      varsWritten,
+      this.flowDirectiveToString(directive),
+      result.error,
+    );
+
+    return {
+      context: updateContextWithStepResult(updatedContext, step.id, result),
+      traceBuilder: nextTraceBuilder,
+      result,
+    };
+  }
+
   /**
    * Captures the relevant input context for a step.
    *
@@ -425,47 +441,6 @@ export class RunbookEngine {
       return directive;
     }
     return directive.goTo;
-  }
-
-  /**
-   * Detects runtime cycles by analyzing the visited step sequence.
-   * Looks for repeated patterns in the tail of the sequence.
-   * Requires 3 repetitions of a pattern to confirm a cycle.
-   *
-   * @param visitedSequence - Sequence of visited step IDs
-   * @returns true if a cycle is detected
-   */
-  private detectRuntimeCycle(visitedSequence: ReadonlyArray<string>): boolean {
-    const minCycleLength = 2;
-    const maxCycleLength = 20;
-    const len = visitedSequence.length;
-
-    for (let cycleLen = minCycleLength; cycleLen <= maxCycleLength; cycleLen++) {
-      // Need at least 3 repetitions to confirm
-      const requiredLength = cycleLen * 3;
-      if (len < requiredLength) {
-        continue;
-      }
-
-      const offset = len - requiredLength;
-      let isCycle = true;
-
-      for (let i = 0; i < cycleLen; i++) {
-        const first = visitedSequence[offset + i];
-        const second = visitedSequence[offset + i + cycleLen];
-        const third = visitedSequence[offset + i + cycleLen * 2];
-        if (first !== second || second !== third) {
-          isCycle = false;
-          break;
-        }
-      }
-
-      if (isCycle) {
-        return true;
-      }
-    }
-
-    return false;
   }
 
   /**

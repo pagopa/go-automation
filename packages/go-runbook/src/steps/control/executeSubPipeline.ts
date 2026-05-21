@@ -38,13 +38,16 @@ export async function executeSubPipeline(
   const childVars = new Map<string, string>(parentContext.vars);
   const accumulatedVars: Record<string, string> = {};
 
-  for (const step of steps) {
-    const childContext: RunbookContext = {
-      ...parentContext,
-      stepResults: childStepResults,
-      vars: childVars,
-    };
+  // The child context wraps the two child Maps, which are mutated in place
+  // across sub-steps — so a single context object stays valid for the whole
+  // loop instead of being re-allocated on every iteration.
+  const childContext: RunbookContext = {
+    ...parentContext,
+    stepResults: childStepResults,
+    vars: childVars,
+  };
 
+  for (const step of steps) {
     const result = await step.execute(childContext);
 
     if (!result.success) {

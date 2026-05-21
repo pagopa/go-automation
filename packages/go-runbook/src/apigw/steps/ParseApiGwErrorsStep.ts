@@ -75,10 +75,12 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
     // would silently drop rows whose only signal is on
     // `authorizerStatus` or `integrationServiceStatus`
     // (e.g. an authorizer 500 with `status=-`).
+    // Rows are only ever read downstream (extractTraceId, pickPrimaryStatusCode,
+    // extractCwField) — no defensive clone needed.
     const errorRows: ResultField[][] = [];
     for (const row of results) {
       if (rowMeetsThreshold(row, this.minStatusCode, this.schema)) {
-        errorRows.push([...row]);
+        errorRows.push(row);
       }
     }
 
