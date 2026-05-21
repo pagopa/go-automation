@@ -2,7 +2,8 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
-import { interpolateTemplate, extractTemplateParameters } from './interpolateTemplate.js';
+import { interpolatePlaceholders } from '../../core/templatePlaceholders.js';
+import { extractTemplateParameters } from './interpolateTemplate.js';
 import { executeStep } from './executeStep.js';
 
 /**
@@ -80,7 +81,7 @@ export class AthenaQueryStep implements Step<ReadonlyArray<Record<string, string
    */
   getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
     return {
-      query: interpolateTemplate(this.query, context),
+      query: interpolatePlaceholders(this.query, context),
       database: this.database,
       outputLocation: this.resolveOutputLocation(context, false) ?? null,
       outputLocationParam: this.outputLocationParam ?? null,

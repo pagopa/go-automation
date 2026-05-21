@@ -4,7 +4,7 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
-import { ConditionEvaluator } from '../../core/ConditionEvaluator.js';
+import { sharedConditionEvaluator } from '../../core/ConditionEvaluator.js';
 
 /**
  * Configuration for the conditional control flow step.
@@ -51,7 +51,6 @@ export class IfStep implements Step<void> {
   readonly elseGoTo: string | undefined;
 
   private readonly condition: Condition;
-  private readonly evaluator: ConditionEvaluator;
 
   constructor(config: IfStepConfig) {
     this.id = config.id;
@@ -59,7 +58,6 @@ export class IfStep implements Step<void> {
     this.condition = config.condition;
     this.thenGoTo = config.thenGoTo;
     this.elseGoTo = config.elseGoTo;
-    this.evaluator = new ConditionEvaluator();
   }
 
   /**
@@ -70,7 +68,7 @@ export class IfStep implements Step<void> {
    */
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<void>> {
-    const result = this.evaluator.evaluate(this.condition, context);
+    const result = sharedConditionEvaluator.evaluate(this.condition, context);
     const next = this.resolveDirective(result);
     return { success: true, next };
   }

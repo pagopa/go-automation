@@ -2,7 +2,7 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
-import { interpolateTemplate } from '../data/interpolateTemplate.js';
+import { interpolatePlaceholders } from '../../core/templatePlaceholders.js';
 
 /**
  * Log level for the log step output.
@@ -61,7 +61,7 @@ export class LogStep implements Step<void> {
    */
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<void>> {
-    const interpolated = interpolateTemplate(this.message, context);
+    const interpolated = interpolatePlaceholders(this.message, context);
     return {
       success: true,
       vars: { [`${this.id}.message`]: interpolated, [`${this.id}.level`]: this.level },

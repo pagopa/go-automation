@@ -47,7 +47,7 @@ function isSwitchStepWithGoTo(step: Step): step is Step & {
  *     team: 'GO',
  *     tags: ['api-gateway', '5xx'],
  *   })
- *   .step(queryCloudWatchLogs({ ... }))
+ *   .step(new CloudWatchLogsQueryStep({ ... }))
  *   .step(extractField({ ... }), { continueOnFailure: true })
  *   .knownCase({ ... })
  *   .fallback(logAction({ ... }))
@@ -61,6 +61,7 @@ export class RunbookBuilder {
   private readonly cases: KnownCase[] = [];
   private fallbackAction?: CaseAction;
   private iterationsLimit?: number;
+  private structuredContext?: unknown;
 
   private constructor(id: string) {
     this.id = id;
@@ -161,6 +162,17 @@ export class RunbookBuilder {
    */
   maxIterations(max: number): RunbookBuilder {
     this.iterationsLimit = max;
+    return this;
+  }
+
+  /**
+   * Attaches structured, family-specific context to the runbook.
+   *
+   * @param value - Context consumed by downstream builders
+   * @returns This builder for chaining
+   */
+  runbookContext(value: unknown): RunbookBuilder {
+    this.structuredContext = value;
     return this;
   }
 
@@ -290,6 +302,7 @@ export class RunbookBuilder {
       steps: [...this.stepDescriptors],
       knownCases: [...this.cases],
       fallbackAction: this.fallbackAction, // Safe: validated in validate()
+      ...(this.structuredContext !== undefined ? { runbookContext: this.structuredContext } : {}),
     };
 
     if (this.iterationsLimit !== undefined) {

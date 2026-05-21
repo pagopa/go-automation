@@ -13,10 +13,10 @@ describe('SEND_API_GW_PROFILE', () => {
       assert.match(SEND_API_GW_PROFILE.accessLog.query, /\{\{minStatusCode\}\}/);
     });
 
-    it('scans status, authorizeStatus, integrationServiceStatus in this order', () => {
+    it('scans status, authorizerStatus and integrationServiceStatus in this order', () => {
       assert.deepStrictEqual(SEND_API_GW_PROFILE.accessLog.schema.statusFields, [
         'status',
-        'authorizeStatus',
+        'authorizerStatus',
         'integrationServiceStatus',
       ]);
     });
@@ -37,16 +37,25 @@ describe('SEND_API_GW_PROFILE', () => {
       assert.deepStrictEqual(SEND_API_GW_PROFILE.accessLog.schema.notApplicableSentinels, ['-']);
     });
 
-    it('maps the 8 known CW fields to context vars (preserves pre-refactor FIELD_TO_VAR)', () => {
+    it('maps known CW fields to context vars', () => {
       const mapping = new Map(SEND_API_GW_PROFILE.accessLog.schema.fieldToVar);
       assert.strictEqual(mapping.get('errorMessage'), 'apiGwErrorMessage');
       assert.strictEqual(mapping.get('httpMethod'), 'apiGwHttpMethod');
       assert.strictEqual(mapping.get('path'), 'apiGwPath');
-      assert.strictEqual(mapping.get('authorizeStatus'), 'apiGwAuthorizeStatus');
+      assert.strictEqual(mapping.get('authorizerStatus'), 'apiGwAuthorizerStatus');
+      assert.strictEqual(mapping.get('authorizerLatency'), 'apiGwAuthorizerLatency');
+      assert.strictEqual(mapping.get('authorizerRequestId'), 'apiGwAuthorizerRequestId');
       assert.strictEqual(mapping.get('integrationServiceStatus'), 'apiGwIntegrationServiceStatus');
       assert.strictEqual(mapping.get('requestId'), 'apiGwRequestId');
-      assert.strictEqual(mapping.get('authorizerRequestId'), 'apiGwAuthorizerRequestId');
       assert.strictEqual(mapping.get('integrationRequestId'), 'apiGwIntegrationRequestId');
+    });
+
+    it('declares authorizer fields used by the authorizer failure gate', () => {
+      assert.deepStrictEqual(SEND_API_GW_PROFILE.accessLog.schema.authorizer, {
+        statusFields: ['authorizerStatus'],
+        latencyFields: ['authorizerLatency'],
+        requestIdFields: ['authorizerRequestId'],
+      });
     });
   });
 
@@ -62,17 +71,6 @@ describe('SEND_API_GW_PROFILE', () => {
 
     it('declares messageFieldCandidates with message before @message', () => {
       assert.deepStrictEqual(SEND_API_GW_PROFILE.serviceLog.schema.messageFieldCandidates, ['message', '@message']);
-    });
-  });
-
-  describe('preSteps', () => {
-    it('declares the optional IO authorizer Lambda duration probe', () => {
-      assert.deepStrictEqual(SEND_API_GW_PROFILE.preSteps, [
-        {
-          kind: 'lambda-duration-probe',
-          logGroup: '/aws/lambda/pn-ioAuthorizerLambda',
-        },
-      ]);
     });
   });
 

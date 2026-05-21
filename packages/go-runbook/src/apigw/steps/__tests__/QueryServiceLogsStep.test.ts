@@ -172,7 +172,7 @@ describe('queryServiceLogs', () => {
     assert.doesNotMatch(call.query, /1-abc/);
   });
 
-  it('honours custom var names', async () => {
+  it('reads the trace id from the profile-provided context var name', async () => {
     const { service, calls } = createFakeCwLogs();
     const step = queryServiceLogs({
       id: 'q',
@@ -180,20 +180,20 @@ describe('queryServiceLogs', () => {
       serviceName: 'pn-foo',
       entryService: true,
       logGroups: ['/aws/ecs/foo'],
-      xRayTraceIdVar: 'customTrace',
-      fallbackUuidVar: 'customFallback',
+      accessLogSchemaTraceIdContextVar: 'customTrace',
       timeRangeFromParams: { start: 'startTime', end: 'endTime' },
     });
 
     await step.execute(
       createContext({
-        vars: { customTrace: 'trace-1', customFallback: 'fb-1' },
+        vars: { customTrace: 'trace-1', fallbackUuid: 'fb-1' },
         cloudWatchLogs: service,
       }),
     );
 
     const call = calls[0];
     assert.ok(call !== undefined);
+    // fallbackUuid wins over trace id when both are present.
     assert.match(call.query, /'fb-1'/);
     assert.doesNotMatch(call.query, /'trace-1'/);
   });

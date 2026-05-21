@@ -17,13 +17,14 @@ export async function saveExecutionTrace(
   script: Core.GOScript,
   result: RunbookExecutionResult,
   alarmName: string,
-): Promise<void> {
+): Promise<string> {
   const fileName = `trace-${alarmName}.json`;
   const traceInfoPath = script.paths.resolvePathWithInfo(fileName, Core.GOPathType.OUTPUT);
   const tracePath = traceInfoPath.path;
 
-  const exporter = new Core.GOJSONFileExporter({ outputPath: tracePath });
+  const exporter = new Core.GOJSONFileExporter({ outputPath: tracePath, pretty: true, indent: 2 });
   await exporter.export(result.trace);
 
   script.logger.info(`Execution trace saved: ${tracePath}`);
+  return tracePath;
 }

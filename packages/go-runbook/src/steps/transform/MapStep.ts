@@ -2,6 +2,7 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
+import { readStepOutput } from '../data/readStepOutput.js';
 
 /**
  * Configuration for the MapStep.
@@ -56,14 +57,9 @@ class MapStep implements Step<unknown[]> {
    */
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<unknown[]>> {
-    const sourceOutput = context.stepResults.get(this.fromStep);
-
-    if (sourceOutput === undefined) {
-      return {
-        success: false,
-        error: `Step output not found for stepId: "${this.fromStep}"`,
-      };
-    }
+    const upstream = readStepOutput<unknown>(context, this.fromStep);
+    if (!upstream.ok) return upstream.failure;
+    const sourceOutput = upstream.value;
 
     if (!Array.isArray(sourceOutput)) {
       return {

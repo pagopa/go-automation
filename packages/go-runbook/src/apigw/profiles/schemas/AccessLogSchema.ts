@@ -22,7 +22,7 @@ export interface AccessLogSchema {
    * L'ordine determina la priorità in `pickPrimaryStatusCode`: il primo
    * campo numerico parsabile vince.
    *
-   * SEND: `['status', 'authorizeStatus', 'integrationServiceStatus']`.
+   * SEND: `['status', 'authorizerStatus', 'integrationServiceStatus']`.
    */
   readonly statusFields: ReadonlyArray<string>;
 
@@ -76,7 +76,8 @@ export interface AccessLogSchema {
    * Mapping fra campo CloudWatch e nome della var di contesto.
    *
    * Tipicamente include i campi semantici PIÙ alcuni accessori
-   * (`authorizeStatus`, `integrationServiceStatus`, `authorizerRequestId`,
+   * (`authorizerStatus`, `authorizerLatency`,
+   * `integrationServiceStatus`, `authorizerRequestId`,
    * `integrationRequestId` per SEND).
    */
   readonly fieldToVar: ReadonlyArray<readonly [field: string, contextVar: string]>;
@@ -89,4 +90,28 @@ export interface AccessLogSchema {
    * SEND: `['-']`. Altri prodotti possono usare `['', 'N/A']`.
    */
   readonly notApplicableSentinels: ReadonlyArray<string>;
+
+  /**
+   * Campi opzionali usati dal gate authorizer Lambda. I profili che non
+   * espongono questi valori possono lasciarlo undefined; un runbook che
+   * abilita `authorizerFailureCheck` richiede invece questa capability.
+   */
+  readonly authorizer?: {
+    /**
+     * Campi CloudWatch che espongono lo status dell'authorizer Lambda.
+     * L'ordine determina la priorita' in lettura: il primo valore
+     * valorizzato e parsabile viene usato.
+     */
+    readonly statusFields: ReadonlyArray<string>;
+
+    /**
+     * Campi CloudWatch che espongono la latency dell'authorizer Lambda in ms.
+     */
+    readonly latencyFields: ReadonlyArray<string>;
+
+    /**
+     * Campi CloudWatch che espongono il request id dell'authorizer Lambda.
+     */
+    readonly requestIdFields: ReadonlyArray<string>;
+  };
 }

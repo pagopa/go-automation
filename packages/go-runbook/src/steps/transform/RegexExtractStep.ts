@@ -5,6 +5,7 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
 import { navigateFieldPath } from '@go-automation/go-common/core';
 import { compileRegex } from '../../core/compileRegex.js';
 import { valueToString } from '@go-automation/go-common/core';
+import { readStepOutput } from '../data/readStepOutput.js';
 
 /**
  * Configuration for the RegexExtractStep.
@@ -73,14 +74,9 @@ class RegexExtractStep implements Step<string | undefined> {
    */
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<string | undefined>> {
-    const sourceOutput = context.stepResults.get(this.fromStep);
-
-    if (sourceOutput === undefined) {
-      return {
-        success: false,
-        error: `Step output not found for stepId: "${this.fromStep}"`,
-      };
-    }
+    const upstream = readStepOutput<unknown>(context, this.fromStep);
+    if (!upstream.ok) return upstream.failure;
+    const sourceOutput = upstream.value;
 
     const fieldValue = navigateFieldPath(sourceOutput, this.fieldPath);
 

@@ -4,11 +4,13 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { StepResult } from '../../types/StepResult.js';
+import { readStepOutput } from '../../steps/data/readStepOutput.js';
 import type { TimeRangeFromParams } from '../../steps/data/CloudWatchLogsQueryStep.js';
 import { resolveTimeRange } from '../../steps/data/resolveTimeRange.js';
 import { executeStep } from '../../steps/data/executeStep.js';
 
 import { extractCwField } from '../helpers/extractCwField.js';
+import { buildApiGwVars, rowMeetsThreshold, sanitizeApiGwField } from '../helpers/accessLogRow.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
 import type { ExecutionLogSpec } from '../profiles/specs/ExecutionLogSpec.js';
 import type { AccessLogSchema } from '../profiles/schemas/AccessLogSchema.js';
@@ -105,12 +107,9 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
 
   async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<ResultField>>>> {
     return executeStep('API Gateway execution logs query', async () => {
-      const rawOutput = context.stepResults.get(this.fromStep);
-      if (rawOutput === undefined) {
-        return { success: false, error: `Step output not found: "${this.fromStep}"` };
-      }
-
-      const accessLogRows = rawOutput as ReadonlyArray<ResultField[]>;
+      const upstream = readStepOutput<ReadonlyArray<ResultField[]>>(context, this.fromStep);
+      if (!upstream.ok) return upstream.failure;
+      const accessLogRows = upstream.value;
       const rowsWithErrorMessage = accessLogRows.filter((row) => this.rowHasApiGwErrorMessage(row));
       if (rowsWithErrorMessage.length === 0) {
         return {
@@ -142,17 +141,6 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
         firstRow !== undefined
           ? buildApiGwVars(firstRow, rowsWithErrorMessage.length, this.accessLogSchema)
           : { apiGwErrorCount: String(rowsWithErrorMessage.length) };
-      if (firstRow !== undefined) {
-        reporter?.apiGwResult({
-          errorCount: rowsWithErrorMessage.length,
-          statusCode: pickPrimaryStatusCode(firstRow, this.accessLogSchema),
-          traceId: undefined,
-          traceIdLabel: this.accessLogSchema.traceIdLabel,
-          ...optionalApiGwField(firstRow, this.accessLogSchema.errorMessageField, 'errorMessage'),
-          ...optionalApiGwField(firstRow, this.accessLogSchema.pathField, 'path'),
-          ...optionalApiGwField(firstRow, this.accessLogSchema.httpMethodField, 'httpMethod'),
-        });
-      }
 
       const requestIds = collectRequestIds(rowsWithErrorMessage, this.accessLogSchema);
       if (requestIds.length === 0) {
@@ -186,6 +174,7 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
         };
       }
 
+      reporter?.sectionApiGwExecutionLog();
       reporter?.apiGwExecutionLogQuery(this.executionLogGroup, requestIds);
 
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
@@ -276,67 +265,6 @@ function collectRequestIds(
     }
   }
   return [...byRequestId.values()];
-}
-
-function rowMeetsThreshold(row: ReadonlyArray<ResultField>, minStatusCode: number, schema: AccessLogSchema): boolean {
-  for (const field of schema.statusFields) {
-    const raw = extractCwField(row, field);
-    if (raw === undefined) continue;
-    if (schema.notApplicableSentinels.includes(raw)) continue;
-    const num = Number(raw);
-    if (!Number.isNaN(num) && num >= minStatusCode) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function pickPrimaryStatusCode(row: ReadonlyArray<ResultField>, schema: AccessLogSchema): string {
-  for (const field of schema.statusFields) {
-    const raw = extractCwField(row, field);
-    if (raw === undefined) continue;
-    if (schema.notApplicableSentinels.includes(raw)) continue;
-    if (!Number.isNaN(Number(raw))) {
-      return raw;
-    }
-  }
-  return '';
-}
-
-function buildApiGwVars(
-  row: ReadonlyArray<ResultField>,
-  errorCount: number,
-  schema: AccessLogSchema,
-): Record<string, string> {
-  const vars: Record<string, string> = {
-    apiGwErrorCount: String(errorCount),
-    apiGwStatusCode: pickPrimaryStatusCode(row, schema),
-  };
-  for (const [field, contextVar] of schema.fieldToVar) {
-    const raw = extractCwField(row, field);
-    if (raw !== undefined) {
-      vars[contextVar] = raw;
-    }
-  }
-  return vars;
-}
-
-function optionalApiGwField<K extends 'errorMessage' | 'path' | 'httpMethod'>(
-  row: ReadonlyArray<ResultField>,
-  field: string,
-  outputKey: K,
-): Partial<Record<K, string>> {
-  // Per la sentinel usiamo solo il check di stringa vuota + '-' che è il
-  // pattern legacy. Il sanitize completo via schema avviene a monte.
-  const raw = (extractCwField(row, field) ?? '').trim();
-  const value = raw === '-' ? '' : raw;
-  return value === '' ? {} : ({ [outputKey]: value } as Partial<Record<K, string>>);
-}
-
-function sanitizeApiGwField(raw: string | undefined, schema: AccessLogSchema): string {
-  const trimmed = (raw ?? '').trim();
-  if (schema.notApplicableSentinels.includes(trimmed)) return '';
-  return trimmed;
 }
 
 function buildUnresolvedMessage(requestCount: number): string {

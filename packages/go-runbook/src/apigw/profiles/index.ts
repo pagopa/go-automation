@@ -11,7 +11,6 @@ export type { ServiceLogSchema } from './schemas/ServiceLogSchema.js';
 export type { AccessLogSpec } from './specs/AccessLogSpec.js';
 export type { ServiceLogSpec } from './specs/ServiceLogSpec.js';
 export type { ExecutionLogSpec } from './specs/ExecutionLogSpec.js';
-export type { LambdaDurationProbeProfilePreStepSpec, ProfilePreStepSpec } from './specs/ProfilePreStepSpec.js';
 export type { ApiGwQueryProfile } from './ApiGwQueryProfile.js';
 export { renderQueryTemplate } from './render/renderQueryTemplate.js';
 export type { RenderQueryTemplateOptions } from './render/renderQueryTemplate.js';

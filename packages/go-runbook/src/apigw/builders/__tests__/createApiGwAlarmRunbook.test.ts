@@ -6,6 +6,8 @@ import type { ResultField } from '@go-automation/go-common/aws';
 
 import { createApiGwAlarmRunbook } from '../createApiGwAlarmRunbook.js';
 import type { ApiGwAlarmConfig } from '../../types/ApiGwAlarmConfig.js';
+import { isApiGwRunbookContext } from '../../output/ApiGwRunbookContext.js';
+import { API_GW_AUTHORIZER_LAMBDAS } from '../../authorizers/ApiGwAuthorizerLambdaRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { StepDescriptor } from '../../../types/StepDescriptor.js';
@@ -65,18 +67,16 @@ function baseConfig(overrides: Partial<ApiGwAlarmConfig> = {}): ApiGwAlarmConfig
 }
 
 describe('createApiGwAlarmRunbook', () => {
-  it('builds the canonical step ordering (prepare → api gw → parse → entry → reachable)', () => {
+  it('builds the canonical step ordering with AccessLog parsing under the preparation section', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig());
     const stepIds = runbook.steps.map((d) => d.step.id);
 
     assert.deepStrictEqual(stepIds, [
       'prepare-api-gw-section',
       'query-api-gw-logs',
+      'parse-api-gw-errors',
       'query-api-gw-execution-logs',
       'stop-api-gw-execution-log-unresolved',
-      'parse-api-gw-errors',
-      'query-io-authorizer-lambda',
-      'analyze-io-authorizer-lambda',
       'query-pn-a',
       'analyze-pn-a',
       'decide-pn-a',
@@ -86,13 +86,16 @@ describe('createApiGwAlarmRunbook', () => {
     ]);
   });
 
-  it('can disable profile-level preSteps for profiles/runbooks that do not need them', () => {
-    const runbook = createApiGwAlarmRunbook(baseConfig({ includeProfilePreSteps: false }));
-    const stepIds = runbook.steps.map((d) => d.step.id);
+  it('exposes API Gateway runbookContext for output builders', () => {
+    const runbook = createApiGwAlarmRunbook(baseConfig());
 
-    assert.ok(!stepIds.includes('query-io-authorizer-lambda'));
-    assert.ok(!stepIds.includes('analyze-io-authorizer-lambda'));
-    assert.ok(stepIds.includes('query-pn-a'));
+    assert.ok(isApiGwRunbookContext(runbook.runbookContext));
+    assert.strictEqual(runbook.runbookContext.apiGwLogGroup, '/aws/apigw/main');
+    assert.strictEqual(runbook.runbookContext.queryProfileId, 'send');
+    assert.deepStrictEqual(
+      runbook.runbookContext.services.map((service) => service.name),
+      ['pn-a', 'pn-b'],
+    );
   });
 
   it('marks every apigw step as silent so engine logging does not double-render', () => {
@@ -103,8 +106,6 @@ describe('createApiGwAlarmRunbook', () => {
       'query-api-gw-execution-logs',
       'stop-api-gw-execution-log-unresolved',
       'parse-api-gw-errors',
-      'query-io-authorizer-lambda',
-      'analyze-io-authorizer-lambda',
       'query-pn-a',
       'analyze-pn-a',
       'decide-pn-a',
@@ -142,7 +143,7 @@ describe('createApiGwAlarmRunbook', () => {
     );
   });
 
-  it('inserts profile and custom preSteps between parse-api-gw-errors and the entry-service triplet', () => {
+  it('inserts custom preSteps between parse-api-gw-errors and the entry-service triplet', () => {
     const preStep = {
       step: {
         id: 'pre-1',
@@ -156,14 +157,12 @@ describe('createApiGwAlarmRunbook', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig({ preSteps: [preStep] }));
     const stepIds = runbook.steps.map((d) => d.step.id);
 
-    assert.deepStrictEqual(stepIds.slice(0, 9), [
+    assert.deepStrictEqual(stepIds.slice(0, 7), [
       'prepare-api-gw-section',
       'query-api-gw-logs',
+      'parse-api-gw-errors',
       'query-api-gw-execution-logs',
       'stop-api-gw-execution-log-unresolved',
-      'parse-api-gw-errors',
-      'query-io-authorizer-lambda',
-      'analyze-io-authorizer-lambda',
       'pre-1',
       'query-pn-a',
     ]);
@@ -182,7 +181,7 @@ describe('createApiGwAlarmRunbook', () => {
       ]),
     );
     const query = getTraceQuery(traceInfo);
-    assert.match(query, /filter status >= 500 or authorizeStatus >= 500 or integrationServiceStatus >= 500/);
+    assert.match(query, /filter status >= 500 or authorizerStatus >= 500 or integrationServiceStatus >= 500/);
     assert.doesNotMatch(query, /\{\{minStatusCode\}\}/);
   });
 
@@ -196,16 +195,39 @@ describe('createApiGwAlarmRunbook', () => {
       ]),
     );
     const query = getTraceQuery(traceInfo);
-    assert.match(query, /filter status >= 400 or authorizeStatus >= 400 or integrationServiceStatus >= 400/);
+    assert.match(query, /filter status >= 400 or authorizerStatus >= 400 or integrationServiceStatus >= 400/);
   });
 
-  it('uses a default fallback action that exposes terminationReason + per-service vars', () => {
+  it('wires the authorizer gate after access-log parsing and before execution logs when configured', () => {
+    const runbook = createApiGwAlarmRunbook(
+      baseConfig({
+        authorizerFailureCheck: {
+          defaultAuthorizer: API_GW_AUTHORIZER_LAMBDAS['pn-ioAuthorizerLambda'],
+        },
+      }),
+    );
+    const stepIds = runbook.steps.map((d) => d.step.id);
+
+    assert.deepStrictEqual(stepIds.slice(0, 5), [
+      'prepare-api-gw-section',
+      'query-api-gw-logs',
+      'parse-api-gw-errors',
+      'evaluate-api-gw-authorizer-failure',
+      'query-api-gw-execution-logs',
+    ]);
+    assert.ok(runbook.knownCases.some((knownCase) => knownCase.id === 'api-gw-authorizer-timeout'));
+    assert.ok(runbook.knownCases.some((knownCase) => knownCase.id === 'api-gw-authorizer-error'));
+  });
+
+  it('uses a default fallback action that exposes structured unknown-case context', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig());
     assert.strictEqual(runbook.fallbackAction.type, 'log');
     if (runbook.fallbackAction.type === 'log') {
-      assert.match(runbook.fallbackAction.message, /terminationReason/);
-      assert.match(runbook.fallbackAction.message, /pn-a: msg=\{\{vars\.aErrorMsg\}\}/);
-      assert.match(runbook.fallbackAction.message, /pn-b: msg=\{\{vars\.bErrorMsg\}\}/);
+      assert.match(runbook.fallbackAction.message, /^\[CASO NON RICONOSCIUTO\]/);
+      assert.match(runbook.fallbackAction.message, /Errori API Gateway: \{\{vars\.apiGwErrorCount\}\}/);
+      assert.match(runbook.fallbackAction.message, /X-Ray Trace ID: \{\{vars\.xRayTraceId\}\}/);
+      assert.match(runbook.fallbackAction.message, /pn-a: msg=\{\{vars\.aErrorMsg\}\}; url=/);
+      assert.match(runbook.fallbackAction.message, /pn-b: msg=\{\{vars\.bErrorMsg\}\}; url=/);
     }
   });
 
@@ -266,7 +288,7 @@ describe('createApiGwAlarmRunbook', () => {
             return [
               cwRow({
                 status: '500',
-                authorizeStatus: '-',
+                authorizerStatus: '-',
                 integrationServiceStatus: '-',
                 xrayTraceId: 'Root=1-abc',
               }),
@@ -306,10 +328,113 @@ describe('createApiGwAlarmRunbook', () => {
       ['primary', 'secondary'],
     );
     assert.strictEqual(result.resolvedAtStep, 'analyze-pn-a');
-    assert.deepStrictEqual(calls, ['/aws/apigw/main', '/aws/lambda/pn-ioAuthorizerLambda', '/aws/ecs/pn-a']);
+    assert.deepStrictEqual(calls, ['/aws/apigw/main', '/aws/ecs/pn-a']);
   });
 
-  it('queries API Gateway execution logs by unique requestId before extracting xRayTraceId', async () => {
+  it('stops before execution logs and service traversal when the authorizer gate resolves a timeout', async () => {
+    const calls: string[] = [];
+    const services = {
+      cloudWatchLogs: {
+        query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+          await Promise.resolve();
+          const logGroup = logGroups[0] ?? '';
+          calls.push(logGroup);
+          if (logGroup === '/aws/apigw/main') {
+            return [
+              cwRow({
+                status: '-',
+                authorizerStatus: '500',
+                authorizerLatency: '5000',
+                authorizerRequestId: 'auth-req-1',
+                integrationServiceStatus: '-',
+                path: '/resource-a',
+                httpMethod: 'GET',
+              }),
+            ];
+          }
+          return [];
+        },
+      },
+    } as unknown as ServiceRegistry;
+
+    const runbook = createApiGwAlarmRunbook(
+      baseConfig({
+        authorizerFailureCheck: {
+          defaultAuthorizer: API_GW_AUTHORIZER_LAMBDAS['pn-ioAuthorizerLambda'],
+        },
+      }),
+    );
+
+    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+      runbook,
+      new Map([
+        ['startTime', '2026-01-01T00:00:00.000Z'],
+        ['endTime', '2026-01-01T00:10:00.000Z'],
+      ]),
+      services,
+    );
+
+    assert.deepStrictEqual(
+      result.matchedCases.map((c) => c.id),
+      ['api-gw-authorizer-timeout'],
+    );
+    assert.strictEqual(result.resolvedAtStep, 'evaluate-api-gw-authorizer-failure');
+    assert.strictEqual(result.finalContext.vars.get('apiGwAuthorizerRequestId'), 'auth-req-1');
+    assert.deepStrictEqual(calls, ['/aws/apigw/main']);
+  });
+
+  it('continues with service traversal when authorizerStatus is missing', async () => {
+    const calls: string[] = [];
+    const services = {
+      cloudWatchLogs: {
+        query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+          await Promise.resolve();
+          const logGroup = logGroups[0] ?? '';
+          calls.push(logGroup);
+          if (logGroup === '/aws/apigw/main') {
+            return [
+              cwRow({
+                status: '500',
+                authorizerRequestId: 'auth-req-2',
+                integrationRequestId: '-',
+                integrationServiceStatus: '-',
+                requestId: 'api-gw-req-1',
+                xrayTraceId: 'Root=1-abcdef01-234567890abcdef012345678',
+                path: '/resource-a',
+                httpMethod: 'PUT',
+              }),
+            ];
+          }
+          return [cwRow({ level: 'ERROR', '@message': 'application error' })];
+        },
+      },
+    } as unknown as ServiceRegistry;
+
+    const runbook = createApiGwAlarmRunbook(
+      baseConfig({
+        authorizerFailureCheck: {
+          defaultAuthorizer: API_GW_AUTHORIZER_LAMBDAS['pn-ioAuthorizerLambda'],
+        },
+      }),
+    );
+
+    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+      runbook,
+      new Map([
+        ['startTime', '2026-01-01T00:00:00.000Z'],
+        ['endTime', '2026-01-01T00:10:00.000Z'],
+      ]),
+      services,
+    );
+
+    assert.deepStrictEqual(result.matchedCases, []);
+    assert.notStrictEqual(result.resolvedAtStep, 'evaluate-api-gw-authorizer-failure');
+    assert.strictEqual(result.finalContext.vars.get('apiGwAuthorizerRequestId'), 'auth-req-2');
+    assert.strictEqual(result.finalContext.vars.get('terminationReason'), 'no-match');
+    assert.deepStrictEqual(calls, ['/aws/apigw/main', '/aws/ecs/pn-a']);
+  });
+
+  it('queries API Gateway execution logs by unique requestId before service traversal', async () => {
     const knownCases: ReadonlyArray<KnownCase> = [
       {
         id: 'execution-known-failure',
@@ -337,7 +462,7 @@ describe('createApiGwAlarmRunbook', () => {
             return [
               cwRow({
                 status: '500',
-                authorizeStatus: '-',
+                authorizerStatus: '-',
                 integrationServiceStatus: '-',
                 errorMessage: 'Endpoint request timed out',
                 requestId: 'req-a-1',
@@ -346,7 +471,7 @@ describe('createApiGwAlarmRunbook', () => {
               }),
               cwRow({
                 status: '500',
-                authorizeStatus: '-',
+                authorizerStatus: '-',
                 integrationServiceStatus: '-',
                 errorMessage: 'Endpoint request timed out',
                 requestId: 'req-a-2',
@@ -355,7 +480,7 @@ describe('createApiGwAlarmRunbook', () => {
               }),
               cwRow({
                 status: '500',
-                authorizeStatus: '-',
+                authorizerStatus: '-',
                 integrationServiceStatus: '-',
                 errorMessage: 'Endpoint request timed out',
                 requestId: 'req-b-1',
@@ -422,7 +547,7 @@ describe('createApiGwAlarmRunbook', () => {
             return [
               cwRow({
                 status: '500',
-                authorizeStatus: '-',
+                authorizerStatus: '-',
                 integrationServiceStatus: '-',
                 errorMessage: 'Endpoint request timed out',
                 requestId: 'req-a',
@@ -472,7 +597,7 @@ describe('createApiGwAlarmRunbook', () => {
             return [
               cwRow({
                 status: '500',
-                authorizeStatus: '-',
+                authorizerStatus: '-',
                 integrationServiceStatus: '-',
                 errorMessage: 'Endpoint request timed out',
                 xrayTraceId: 'Root=1-abcdef01-234567890abcdef012345678',
@@ -497,7 +622,6 @@ describe('createApiGwAlarmRunbook', () => {
 
     const runbook = createApiGwAlarmRunbook(
       baseConfig({
-        includeProfilePreSteps: false,
         entryService: {
           name: 'pn-a',
           logGroup: '/aws/ecs/pn-a',

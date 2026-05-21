@@ -5,7 +5,7 @@ import type { ResultField } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 
-import { analyzeServiceLogs } from '../AnalyzeServiceLogsStep.js';
+import { AnalyzeServiceLogsStep } from '../AnalyzeServiceLogsStep.js';
 import { KnownUrlsRegistry } from '../../registries/KnownUrlsRegistry.js';
 
 function row(message: string, level: string = 'ERROR'): ResultField[] {
@@ -30,11 +30,11 @@ function createContext(args: {
   };
 }
 
-describe('analyzeServiceLogs', () => {
+describe('AnalyzeServiceLogsStep', () => {
   const registry = new KnownUrlsRegistry([{ url: 'https://api.io.pagopa.it/api/v1/activations/', target: 'AppIO' }]);
 
   it('writes NextUrl + NextUrlTarget when a known URL is found in the logs', async () => {
-    const step = analyzeServiceLogs({
+    const step = new AnalyzeServiceLogsStep({
       id: 'analyze',
       label: 'Analyze',
       fromStep: 'query',
@@ -54,7 +54,7 @@ describe('analyzeServiceLogs', () => {
   });
 
   it('marks FallbackUuidFresh=true when a known URL and a new UUID appear', async () => {
-    const step = analyzeServiceLogs({
+    const step = new AnalyzeServiceLogsStep({
       id: 'analyze',
       label: 'Analyze',
       fromStep: 'query',
@@ -78,7 +78,7 @@ describe('analyzeServiceLogs', () => {
   });
 
   it('does not extract a fallback UUID when no known destination URL is found', async () => {
-    const step = analyzeServiceLogs({
+    const step = new AnalyzeServiceLogsStep({
       id: 'analyze',
       label: 'Analyze',
       fromStep: 'query',
@@ -98,7 +98,7 @@ describe('analyzeServiceLogs', () => {
   });
 
   it('marks FallbackUuidFresh=false when the UUID matches the existing one', async () => {
-    const step = analyzeServiceLogs({
+    const step = new AnalyzeServiceLogsStep({
       id: 'analyze',
       label: 'Analyze',
       fromStep: 'query',
@@ -123,7 +123,7 @@ describe('analyzeServiceLogs', () => {
   });
 
   it('always signals next=resolve so absence-matching known cases get a chance to fire', async () => {
-    const step = analyzeServiceLogs({
+    const step = new AnalyzeServiceLogsStep({
       id: 'analyze',
       label: 'Analyze',
       fromStep: 'query',
@@ -147,14 +147,13 @@ describe('analyzeServiceLogs', () => {
     const internalRegistry = new KnownUrlsRegistry([
       { url: 'http://internal-EcsA-123:8080/ext-registry-private/', target: 'pn-external-registries' },
     ]);
-    const step = analyzeServiceLogs({
+    const step = new AnalyzeServiceLogsStep({
       id: 'analyze',
       label: 'Analyze',
       fromStep: 'query',
       varPrefix: 'svc',
       registry: internalRegistry,
       serviceName: 'pn-user-attributes',
-      servicesInRunbook: new Set(['pn-user-attributes', 'pn-external-registries']),
     });
 
     const result = await step.execute(
@@ -173,14 +172,13 @@ describe('analyzeServiceLogs', () => {
     const internalRegistry = new KnownUrlsRegistry([
       { url: 'http://internal-EcsA-123:8080/ext-registry-private/', target: 'pn-external-registries' },
     ]);
-    const step = analyzeServiceLogs({
+    const step = new AnalyzeServiceLogsStep({
       id: 'analyze',
       label: 'Analyze',
       fromStep: 'query',
       varPrefix: 'svc',
       registry: internalRegistry,
       serviceName: 'pn-user-attributes',
-      servicesInRunbook: new Set(['pn-user-attributes', 'pn-external-registries']),
     });
 
     const result = await step.execute(
@@ -198,14 +196,13 @@ describe('analyzeServiceLogs', () => {
     const selfRegistry = new KnownUrlsRegistry([
       { url: 'https://api.pdv.pagopa.it/user-registry/', target: 'pn-data-vault' },
     ]);
-    const step = analyzeServiceLogs({
+    const step = new AnalyzeServiceLogsStep({
       id: 'analyze',
       label: 'Analyze',
       fromStep: 'query',
       varPrefix: 'dataVault',
       registry: selfRegistry,
       serviceName: 'pn-data-vault',
-      servicesInRunbook: new Set(['pn-data-vault']),
     });
 
     const result = await step.execute(
@@ -221,14 +218,13 @@ describe('analyzeServiceLogs', () => {
   });
 
   it('records a trace_id when fallback-uuid was used', async () => {
-    const step = analyzeServiceLogs({
+    const step = new AnalyzeServiceLogsStep({
       id: 'analyze',
       label: 'Analyze',
       fromStep: 'query',
       varPrefix: 'svc',
       registry: new KnownUrlsRegistry([]),
       serviceName: 'pn-user-attributes',
-      servicesInRunbook: new Set(['pn-user-attributes']),
     });
 
     const traceIdRow: ResultField[] = [
@@ -251,14 +247,13 @@ describe('analyzeServiceLogs', () => {
   });
 
   it('does NOT swap when no fallback-uuid is in context yet', async () => {
-    const step = analyzeServiceLogs({
+    const step = new AnalyzeServiceLogsStep({
       id: 'analyze',
       label: 'Analyze',
       fromStep: 'query',
       varPrefix: 'svc',
       registry: new KnownUrlsRegistry([]),
       serviceName: 'pn-user-attributes',
-      servicesInRunbook: new Set(['pn-user-attributes']),
     });
 
     const traceIdRow: ResultField[] = [
@@ -280,14 +275,13 @@ describe('analyzeServiceLogs', () => {
   });
 
   it('records the trace_id even when it matches the current xRayTraceId', async () => {
-    const step = analyzeServiceLogs({
+    const step = new AnalyzeServiceLogsStep({
       id: 'analyze',
       label: 'Analyze',
       fromStep: 'query',
       varPrefix: 'svc',
       registry: new KnownUrlsRegistry([]),
       serviceName: 'pn-user-attributes',
-      servicesInRunbook: new Set(['pn-user-attributes']),
     });
 
     const traceIdRow: ResultField[] = [
@@ -310,14 +304,13 @@ describe('analyzeServiceLogs', () => {
   });
 
   it('does not apply trace swap limits during analysis', async () => {
-    const step = analyzeServiceLogs({
+    const step = new AnalyzeServiceLogsStep({
       id: 'analyze',
       label: 'Analyze',
       fromStep: 'query',
       varPrefix: 'svc',
       registry: new KnownUrlsRegistry([]),
       serviceName: 'pn-user-attributes',
-      servicesInRunbook: new Set(['pn-user-attributes']),
     });
 
     const traceIdRow: ResultField[] = [
@@ -342,7 +335,7 @@ describe('analyzeServiceLogs', () => {
   });
 
   it('returns empty vars when the upstream query produced no rows', async () => {
-    const step = analyzeServiceLogs({
+    const step = new AnalyzeServiceLogsStep({
       id: 'analyze',
       label: 'Analyze',
       fromStep: 'query',

@@ -42,10 +42,13 @@ export interface DecideNextConfig {
    */
   readonly servicesInRunbook: ReadonlySet<string>;
   /**
-   * Step id prefix used to compose the `goTo` target for a service jump.
-   * Default: `'query-'` (so `goTo` lands on `query-<service>`).
+   * Name of the context var holding the trace id of the current analysis.
+   * Default `'xRayTraceId'` (SEND). Profili non-SEND (es. INTEROP che usa
+   * `cid` → `traceId`) devono passare il nome corretto qui, altrimenti la
+   * loop guard non vede mai il valore reale e i `(service, identifiers)`
+   * visit key collassano.
    */
-  readonly queryStepPrefix?: string;
+  readonly traceIdContextVar?: string;
 }
 
 /** Output payload produced by {@link decideNext}. */
@@ -64,7 +67,7 @@ class DecideNextStepImpl implements Step<DecideNextOutput> {
   private readonly serviceName: string;
   private readonly varPrefix: string;
   private readonly servicesInRunbook: ReadonlySet<string>;
-  private readonly queryStepPrefix: string;
+  private readonly traceIdContextVar: string;
 
   constructor(config: DecideNextConfig) {
     this.id = config.id;
@@ -72,7 +75,7 @@ class DecideNextStepImpl implements Step<DecideNextOutput> {
     this.serviceName = config.serviceName;
     this.varPrefix = config.varPrefix;
     this.servicesInRunbook = config.servicesInRunbook;
-    this.queryStepPrefix = config.queryStepPrefix ?? 'query-';
+    this.traceIdContextVar = config.traceIdContextVar ?? 'xRayTraceId';
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -81,13 +84,13 @@ class DecideNextStepImpl implements Step<DecideNextOutput> {
     const freshTraceId = (context.vars.get(`${this.varPrefix}FreshTraceId`) ?? '').trim();
     const freshTraceIdRaw = (context.vars.get(`${this.varPrefix}FreshTraceIdRaw`) ?? '').trim();
 
-    const xRayTraceId = (context.vars.get('xRayTraceId') ?? '').trim();
+    const traceId = (context.vars.get(this.traceIdContextVar) ?? '').trim();
     const fallbackUuid = (context.vars.get('fallbackUuid') ?? '').trim();
 
     const visited = parseVisitedKeys(context.vars.get(VISITED_KEYS_VAR));
     const reporter = context.logger !== undefined ? new ApiGwReporter(context.logger) : undefined;
 
-    const currentKey = buildKey(this.serviceName, xRayTraceId, fallbackUuid);
+    const currentKey = buildKey(this.serviceName, traceId, fallbackUuid);
     const nextVisited = new Set(visited);
     nextVisited.add(currentKey);
 
@@ -114,16 +117,16 @@ class DecideNextStepImpl implements Step<DecideNextOutput> {
         output: { decision: { kind: 'trace-id-swap', target: this.serviceName } },
         vars: {
           [VISITED_KEYS_VAR]: serializeVisitedKeys(nextVisited),
-          xRayTraceId: freshTraceId,
+          [this.traceIdContextVar]: freshTraceId,
           fallbackUuid: '',
           [`${this.varPrefix}FallbackUuidFresh`]: 'false',
           [`${this.varPrefix}SwappedTraceId`]: freshTraceId,
           [`${this.varPrefix}SwappedTraceIdRaw`]: freshTraceIdRaw || freshTraceId,
           [TRACE_ID_SWAP_COUNT_VAR]: String(swapCount + 1),
-          ...(context.vars.get('apiGwOriginalTraceId') === undefined ? { apiGwOriginalTraceId: xRayTraceId } : {}),
+          ...(context.vars.get('apiGwOriginalTraceId') === undefined ? { apiGwOriginalTraceId: traceId } : {}),
           terminationReason: '',
         },
-        next: { goTo: `${this.queryStepPrefix}${this.serviceName}` } satisfies FlowDirective,
+        next: { goTo: `query-${this.serviceName}` } satisfies FlowDirective,
       };
     }
 
@@ -137,7 +140,7 @@ class DecideNextStepImpl implements Step<DecideNextOutput> {
 
     // 2) Known URL pointing to a microservice in scope → loop into it.
     if (nextUrlTarget !== '' && this.servicesInRunbook.has(nextUrlTarget)) {
-      const destKey = buildKey(nextUrlTarget, xRayTraceId, fallbackUuid);
+      const destKey = buildKey(nextUrlTarget, traceId, fallbackUuid);
       if (visited.has(destKey)) {
         reporter?.decisionLoopDetected(nextUrlTarget);
         return this.stopResult('loop-detected', nextVisited, reporter, context);
@@ -150,7 +153,7 @@ class DecideNextStepImpl implements Step<DecideNextOutput> {
           [VISITED_KEYS_VAR]: serializeVisitedKeys(nextVisited),
           terminationReason: '',
         },
-        next: { goTo: `${this.queryStepPrefix}${nextUrlTarget}` } satisfies FlowDirective,
+        next: { goTo: `query-${nextUrlTarget}` } satisfies FlowDirective,
       };
     }
 

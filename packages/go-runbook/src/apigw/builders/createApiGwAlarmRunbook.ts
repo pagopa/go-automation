@@ -1,89 +1,30 @@
 import { RunbookBuilder } from '../../builders/RunbookBuilder.js';
-import { queryCloudWatchLogs } from '../../steps/data/CloudWatchLogsQueryStep.js';
+import { CloudWatchLogsQueryStep } from '../../steps/data/CloudWatchLogsQueryStep.js';
 import type { Runbook } from '../../types/Runbook.js';
-import type { CaseAction, LogAction } from '../../actions/CaseAction.js';
 
 import type { ApiGwAlarmConfig } from '../types/ApiGwAlarmConfig.js';
-import type { ApiGwService } from '../types/ApiGwService.js';
 
 import { parseApiGwErrors } from '../steps/ParseApiGwErrorsStep.js';
 import { prepareApiGwSection } from '../steps/PrepareApiGwSectionStep.js';
 import { queryServiceLogs } from '../steps/QueryServiceLogsStep.js';
-import { analyzeServiceLogs } from '../steps/AnalyzeServiceLogsStep.js';
+import { AnalyzeServiceLogsStep } from '../steps/AnalyzeServiceLogsStep.js';
 import { decideNext } from '../steps/DecideNextStep.js';
-import { KnownUrlsRegistry } from '../registries/KnownUrlsRegistry.js';
 import { queryApiGwExecutionLogs } from '../steps/QueryApiGwExecutionLogsStep.js';
 import { stopApiGwExecutionLogAnalysis } from '../steps/StopApiGwExecutionLogAnalysisStep.js';
-import { resolveApiGwQueryProfile } from '../profiles/resolveApiGwQueryProfile.js';
-import { renderQueryTemplate } from '../profiles/render/renderQueryTemplate.js';
-import { resolveApiGwPreSteps } from '../preSteps/resolveApiGwPreSteps.js';
-import { isExecutionLogEnabled, getEffectiveExecutionLogGroup } from './executionLogEnablement.js';
-import {
-  validatePlaceholders,
-  validateCapabilityParity,
-  validateNoStepIdCollisions,
-  validateKnownCaseStepRefs,
-} from './validations.js';
-
-const DEFAULT_MIN_STATUS_CODE = 500;
+import { evaluateApiGwAuthorizerFailure } from '../steps/EvaluateApiGwAuthorizerFailureStep.js';
+import { builtinApiGwAuthorizerKnownCases } from '../knownCases/authorizerKnownCases.js';
+import { defaultUnknownCaseFallback } from './defaultUnknownCaseFallback.js';
+import { resolveApiGwAlarmBuildContext } from './resolveApiGwAlarmBuildContext.js';
 
 /**
  * Assembla un runbook API Gateway completo a partire da input dichiarativi.
- *
- * Pipeline prodotta (V04):
- *
- * 1. `prepare-api-gw-section`: banner del reporter.
- * 2. `query-api-gw-logs`: query AccessLog con `{{minStatusCode}}` risolto
- *    a build time. Trace metadata: `queryProfileId`, `queryKind: 'access-log'`.
- * 3. **Branch opzionale**: `query-api-gw-execution-logs` +
- *    `stop-api-gw-execution-log-unresolved` cablati solo quando
- *    `isExecutionLogEnabled(config, profile)`. Pattern SEND con
- *    OR-clause su requestId in UNA sola chiamata AWS.
- * 4. `parse-api-gw-errors`: estrae trace id, statusCode e i campi
- *    diagnostici dichiarati dallo schema del profilo.
- * 5. PreSteps custom.
- * 6. Triplet per ogni servizio: `query-<name>` (con predicate del profilo),
- *    `analyze-<name>` (legge dallo schema), `decide-<name>`.
- *
- * V04: il profilo è risolto via {@link resolveApiGwQueryProfile} con
- * default SEND implicito (compatibilità v1.x). Tutte le validazioni
- * lavorano sul profilo risolto.
  *
  * @param config - Configurazione del runbook
  * @returns Un {@link Runbook} validato pronto per l'engine
  */
 export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
-  // —— Risoluzione profilo (D1, D2) ——
-  const profile = resolveApiGwQueryProfile(config);
-  const preSteps = resolveApiGwPreSteps(config, profile);
-  const effectiveConfig: ApiGwAlarmConfig = { ...config, preSteps };
-
-  // —— Validazioni build-time (fail-fast) ——
-  validatePlaceholders(profile);
-  validateCapabilityParity(config, profile);
-  validateNoStepIdCollisions(effectiveConfig, profile);
-  validateKnownCaseStepRefs(effectiveConfig, profile);
-
-  const minStatus = config.minStatusCode ?? DEFAULT_MIN_STATUS_CODE;
-  const apiGwQuery = renderQueryTemplate(profile.accessLog.query, {
-    values: { '{{minStatusCode}}': String(minStatus) },
-    queryId: `${profile.id}.accessLog`,
-  });
-
-  const registry = new KnownUrlsRegistry(config.knownUrls);
-
-  const allServices: ReadonlyArray<ApiGwService> = [config.entryService, ...(config.services ?? [])];
-  const seenNames = new Set<string>();
-  for (const s of allServices) {
-    if (seenNames.has(s.name)) {
-      throw new Error(`Duplicate service name in API Gateway runbook config: '${s.name}'`);
-    }
-    seenNames.add(s.name);
-  }
-  const servicesInRunbook = new Set(allServices.map((s) => s.name));
-
-  const executionLogEnabled = isExecutionLogEnabled(config, profile);
-  const effectiveExecutionLogGroup = getEffectiveExecutionLogGroup(config);
+  const ctx = resolveApiGwAlarmBuildContext(config);
+  const { profile, minStatus, apiGwQuery, registry, allServices, servicesInRunbook } = ctx;
 
   const builder = RunbookBuilder.create(config.id).metadata(config.metadata);
 
@@ -99,7 +40,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
 
   // 2. AccessLog query (con traceMetadata cross-prodotto).
   builder.step(
-    queryCloudWatchLogs({
+    new CloudWatchLogsQueryStep({
       id: 'query-api-gw-logs',
       label: 'Query API Gateway AccessLog per errori HTTP',
       logGroups: [config.apiGwLogGroup],
@@ -115,8 +56,38 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     { silent: true },
   );
 
-  // 3. ExecutionLog branch (condizionale).
-  if (executionLogEnabled && profile.executionLog !== undefined && effectiveExecutionLogGroup !== undefined) {
+  // 3. Parse AccessLog → trace id, status, vars. Must stay under the
+  // preparation section in the console output, before authorizer/execution
+  // log sections open their own banners.
+  builder.step(
+    parseApiGwErrors({
+      id: 'parse-api-gw-errors',
+      label: `Estrazione ${profile.accessLog.schema.traceIdLabel} e metadati API Gateway`,
+      fromStep: 'query-api-gw-logs',
+      minStatusCode: minStatus,
+      schema: profile.accessLog.schema,
+      queryProfileId: profile.id,
+    }),
+    { silent: true },
+  );
+
+  // 4. Authorizer gate (condizionale, prima di ogni trace-id flow).
+  if (config.authorizerFailureCheck !== undefined) {
+    builder.step(
+      evaluateApiGwAuthorizerFailure({
+        id: 'evaluate-api-gw-authorizer-failure',
+        label: 'Valutazione Lambda authorizer API Gateway',
+        fromStep: 'query-api-gw-logs',
+        schema: profile.accessLog.schema,
+        check: config.authorizerFailureCheck,
+        queryProfileId: profile.id,
+      }),
+      { silent: true },
+    );
+  }
+
+  // 5. ExecutionLog branch (condizionale).
+  if (ctx.executionLogEnabled && profile.executionLog !== undefined && ctx.effectiveExecutionLogGroup !== undefined) {
     builder.step(
       queryApiGwExecutionLogs({
         id: 'query-api-gw-execution-logs',
@@ -127,7 +98,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
         spec: profile.executionLog,
         accessLogSchema: profile.accessLog.schema,
         queryProfileId: profile.id,
-        executionLogGroup: effectiveExecutionLogGroup,
+        executionLogGroup: ctx.effectiveExecutionLogGroup,
         ...(config.executionLogMaxRequestIds !== undefined
           ? { maxRequestIdsOverride: config.executionLogMaxRequestIds }
           : {}),
@@ -144,28 +115,15 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     );
   }
 
-  // 4. Parse AccessLog → trace id, status, vars.
-  builder.step(
-    parseApiGwErrors({
-      id: 'parse-api-gw-errors',
-      label: `Estrazione ${profile.accessLog.schema.traceIdLabel} e metadati API Gateway`,
-      fromStep: 'query-api-gw-logs',
-      minStatusCode: minStatus,
-      schema: profile.accessLog.schema,
-      queryProfileId: profile.id,
-    }),
-    { silent: true },
-  );
-
-  // 5. Profile and custom pre-steps.
-  for (const descriptor of preSteps) {
+  // 6. Custom pre-steps.
+  for (const descriptor of ctx.preSteps) {
     const opts: { continueOnFailure?: boolean; silent?: boolean } = {};
     if (descriptor.continueOnFailure === true) opts.continueOnFailure = true;
     if (descriptor.silent === true) opts.silent = true;
     builder.step(descriptor.step, opts);
   }
 
-  // 6. Per-service triplets.
+  // 7. Per-service triplets.
   for (const service of allServices) {
     builder.step(
       queryServiceLogs({
@@ -184,14 +142,13 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     );
 
     builder.step(
-      analyzeServiceLogs({
+      new AnalyzeServiceLogsStep({
         id: `analyze-${service.name}`,
         label: `Analisi log ${service.name}`,
         fromStep: `query-${service.name}`,
         varPrefix: service.varPrefix,
         registry,
         serviceName: service.name,
-        servicesInRunbook,
         schema: profile.serviceLog.schema,
       }),
       { silent: true },
@@ -204,42 +161,36 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
         serviceName: service.name,
         varPrefix: service.varPrefix,
         servicesInRunbook,
+        traceIdContextVar: profile.accessLog.schema.traceIdContextVar,
       }),
       { silent: true },
     );
   }
 
-  // 7. Known cases.
+  // 8. Known cases.
+  for (const knownCase of builtinApiGwAuthorizerKnownCases(config)) {
+    builder.knownCase(knownCase);
+  }
   for (const knownCase of config.knownCases) {
     builder.knownCase(knownCase);
   }
 
-  // 8. Fallback.
-  builder.fallback(config.fallbackAction ?? defaultUnknownCaseFallback(allServices));
+  // 9. Fallback.
+  builder.fallback(
+    config.fallbackAction ??
+      defaultUnknownCaseFallback(
+        allServices,
+        profile.accessLog.schema.traceIdContextVar,
+        profile.accessLog.schema.traceIdLabel,
+      ),
+  );
+  builder.runbookContext({
+    ...ctx.runbookContext,
+  });
 
   if (config.maxIterations !== undefined) {
     builder.maxIterations(config.maxIterations);
   }
 
   return builder.build();
-}
-
-/**
- * Default fallback action used when the runbook author does not supply a
- * custom one. Produces a single `warn` log entry summarising the
- * collected vars, with one line per analysed service.
- */
-function defaultUnknownCaseFallback(services: ReadonlyArray<ApiGwService>): CaseAction {
-  const lines: string[] = [
-    "[CASO NON RICONOSCIUTO] Impossibile identificare univocamente la causa dell'errore.",
-    'API GW: errori={{vars.apiGwErrorCount}} status={{vars.apiGwStatusCode}} xRayTraceId={{vars.xRayTraceId}} fallbackUuid={{vars.fallbackUuid}}',
-    'Esito: {{vars.terminationReason}} downstream={{vars.downstreamTarget}}',
-  ];
-  for (const s of services) {
-    lines.push(
-      `${s.name}: msg={{vars.${s.varPrefix}ErrorMsg}} url={{vars.${s.varPrefix}NextUrl}} target={{vars.${s.varPrefix}NextUrlTarget}}`,
-    );
-  }
-  const action: LogAction = { type: 'log', level: 'warn', message: lines.join('\n') };
-  return action;
 }

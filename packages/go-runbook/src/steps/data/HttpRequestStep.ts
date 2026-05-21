@@ -3,7 +3,7 @@ import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { RunbookHttpResponse } from '../../services/RunbookHttpService.js';
-import { interpolateTemplate } from './interpolateTemplate.js';
+import { interpolatePlaceholders } from '../../core/templatePlaceholders.js';
 import { executeStep } from './executeStep.js';
 
 /**
@@ -67,7 +67,7 @@ export class HttpRequestStep implements Step<RunbookHttpResponse> {
   getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
     const info: Record<string, unknown> = {
       method: this.method,
-      url: interpolateTemplate(this.url, context),
+      url: interpolatePlaceholders(this.url, context),
     };
     if (this.headers !== undefined) {
       info['headers'] = maskSensitiveHeaders(resolveHeaders(this.headers, context));
@@ -88,7 +88,7 @@ export class HttpRequestStep implements Step<RunbookHttpResponse> {
    */
   async execute(context: RunbookContext): Promise<StepResult<RunbookHttpResponse>> {
     return executeStep('HTTP request', async () => {
-      const resolvedUrl = interpolateTemplate(this.url, context, encodeURIComponent);
+      const resolvedUrl = interpolatePlaceholders(this.url, context, encodeURIComponent);
       const resolvedHeaders = this.headers !== undefined ? resolveHeaders(this.headers, context) : undefined;
       const resolvedBody = this.body !== undefined ? resolveBody(this.body, context) : undefined;
 
@@ -133,7 +133,7 @@ const HEADER_CONTROL_CHARS = /[\r\n\0]/;
 function resolveHeaders(headers: Readonly<Record<string, string>>, context: RunbookContext): Record<string, string> {
   const resolved: Record<string, string> = {};
   for (const [key, value] of Object.entries(headers)) {
-    const interpolated = interpolateTemplate(value, context);
+    const interpolated = interpolatePlaceholders(value, context);
     if (HEADER_CONTROL_CHARS.test(interpolated)) {
       throw new Error(`Invalid header value for '${key}': contains control characters`);
     }
@@ -160,7 +160,7 @@ function maskSensitiveHeaders(headers: Readonly<Record<string, string>>): Record
  */
 function resolveBody(body: unknown, context: RunbookContext): unknown {
   if (typeof body === 'string') {
-    return interpolateTemplate(body, context);
+    return interpolatePlaceholders(body, context);
   }
   return body;
 }

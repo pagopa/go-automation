@@ -29,6 +29,9 @@ export function buildDeliveryB2BApiGwAlarmRunbook(): Runbook {
     entryService: ENTRY_SERVICE,
     services: REACHABLE_SERVICES,
     knownUrls: KNOWN_URLS,
+    authorizerFailureCheck: {
+      defaultAuthorizer: apigw.API_GW_AUTHORIZER_LAMBDAS['pn-b2bAuthorizerLambda'],
+    },
     knownCases: KNOWN_CASES,
   });
 }

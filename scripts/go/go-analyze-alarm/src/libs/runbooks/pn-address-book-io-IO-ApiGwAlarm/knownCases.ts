@@ -5,67 +5,6 @@
 import type { KnownCase } from '@go-automation/go-runbook';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
-  // ── Livello 0: pn-ioAuthorizerLambda — invocation failure ─────────────
-  // L'API GW Access log mostra status=500, l'authorizer è stato invocato
-  // (`authorizerRequestId != '-'`) ma l'invocazione lambda è fallita
-  // prima di completare; di conseguenza il backend non è mai stato
-  // raggiunto (`integrationRequestId == '-'`) e i log applicativi di
-  // pn-user-attributes sono vuoti.
-  // Tipici dettagli (visibili solo nell'API Gateway Execution log):
-  // `Lambda invocation failed with status: 503` oppure una timeout
-  // dell'authorizer rilevata dall'API GW. Distinto dal caso
-  // `io-authorizer-lambda-timeout` (priority 110) che si attiva solo
-  // quando trovi un REPORT con `Status: timeout` sui log della lambda
-  // stessa.
-  //
-  // NOTA: non vincoliamo `apiGwErrorMessage` perché può presentarsi sia
-  // come `Internal server error` sia come `-` a seconda del momento in
-  // cui API GW chiude la response.
-  {
-    id: 'io-authorizer-lambda-invocation-failure',
-    description: 'Fallimento invocazione lambda pn-ioAuthorizerLambda',
-    priority: 108,
-    condition: {
-      type: 'and',
-      conditions: [
-        { type: 'compare', ref: 'vars.apiGwStatusCode', operator: '==', value: '500' },
-        { type: 'compare', ref: 'vars.apiGwAuthorizerRequestId', operator: '!=', value: '-' },
-        { type: 'compare', ref: 'vars.apiGwIntegrationRequestId', operator: '==', value: '-' },
-        { type: 'compare', ref: 'vars.userAttributesLogCount', operator: '==', value: '0' },
-      ],
-    },
-    action: {
-      type: 'log',
-      level: 'info',
-      message:
-        '[CASO NOTO] Fallimento invocazione lambda pn-ioAuthorizerLambda (Lambda 503)\n' +
-        'Risoluzione: Nessuna azione se saltuario. Per il dettaglio (es. `Lambda invocation failed with status: 503`) ' +
-        "consultare l'API Gateway Execution log.\n" +
-        'apiGw requestId: {{vars.apiGwRequestId}}\n' +
-        'authorizer requestId: {{vars.apiGwAuthorizerRequestId}}',
-    },
-  },
-
-  // ── Livello 0: pn-ioAuthorizerLambda timeout (5000ms) ──────────────────
-  {
-    id: 'io-authorizer-lambda-timeout',
-    description: 'Superamento 5 secondi lambda pn-ioAuthorizerLambda',
-    priority: 110,
-    condition: {
-      type: 'pattern',
-      ref: 'vars.ioAuthorizerLambdaErrorMsg',
-      regex: 'Duration: 5000\\.00 ms.*Status: timeout',
-    },
-    action: {
-      type: 'log',
-      level: 'info',
-      message:
-        '[CASO NOTO] Superamento 5 secondi lambda pn-ioAuthorizerLambda\n' +
-        'Risoluzione: Nessuna azione se saltuario, verificare se ricorrente\n' +
-        'Errore: {{vars.ioAuthorizerLambdaErrorMsg}}',
-    },
-  },
-
   // ── Gateway Timeout 504 senza log applicativi su pn-user-attributes ────
   // V02 §5.4: irrigidito ad AND status==504 + userAttributesLogCount==0.
   {
@@ -329,7 +268,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   // Il campo `error_message` del JSON canonico recita
   //   "error upserting service activation message=...ReadTimeoutException",
   // ma in produzione il messaggio del log che vince per lunghezza in
-  // `findErrorMessage` è in realtà
+  // `scanServiceLogs().errorMessage` è in realtà
   //   "[AUD_AB_DA_IO_INSUP] FAILURE - failed saving exception=...ReadTimeoutException".
   // Le due varianti sono lo stesso scenario (timeout di rete chiamando
   // ext-registry-private); copriamo entrambe le firme per robustezza.

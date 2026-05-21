@@ -79,4 +79,61 @@ describe('ActionExecutor', () => {
     assert.strictEqual(handler.events[0]?.category, GOLogEventCategory.INFO);
     assert.strictEqual(handler.events[0]?.message, 'plain message');
   });
+
+  it('renders unknown-case fallback actions as a separated warning table without raw placeholders', async () => {
+    const handler = new RecordingHandler();
+    const executor = new ActionExecutor(new GOLogger([handler]));
+    const context: RunbookContext = {
+      ...createContext(),
+      vars: new Map([['apiGwErrorCount', '0']]),
+    };
+
+    const result = await executor.execute(
+      {
+        type: 'log',
+        level: 'warn',
+        message:
+          "[CASO NON RICONOSCIUTO] Impossibile identificare univocamente la causa dell'errore.\n" +
+          'Dettaglio: nessun caso noto ha soddisfatto le condizioni del runbook.\n' +
+          'Errori API Gateway: {{vars.apiGwErrorCount}}\n' +
+          'Status API Gateway: {{vars.apiGwStatusCode}}\n' +
+          'pn-a: msg={{vars.aErrorMsg}}; url={{vars.aNextUrl}}; target={{vars.aNextUrlTarget}}',
+      },
+      context,
+    );
+
+    assert.strictEqual(handler.events[0]?.category, GOLogEventCategory.TEXT);
+    assert.strictEqual(handler.events[0]?.message, '');
+    assert.strictEqual(handler.events[1]?.category, GOLogEventCategory.WARNING);
+    assert.strictEqual(handler.events[1]?.message, 'Caso non riconosciuto');
+
+    const joined = handler.events.map((event) => event.message).join('\n');
+    assert.match(joined, /Errori API Gateway/);
+    assert.match(joined, /\b0\b/);
+    assert.doesNotMatch(joined, /\{\{vars\./);
+    assert.doesNotMatch(joined, /pn-a/);
+    assert.doesNotMatch(result.resolvedMessage ?? '', /\{\{vars\./);
+  });
+
+  it('normalizes unknown-case fallback actions without scanning through nested malformed placeholders', async () => {
+    const handler = new RecordingHandler();
+    const executor = new ActionExecutor(new GOLogger([handler]));
+    const malformedPlaceholders = Array.from({ length: 200 }, (_, index) => `{{vars.missing${index}`).join('');
+
+    await executor.execute(
+      {
+        type: 'log',
+        level: 'warn',
+        message:
+          '[CASO NON RICONOSCIUTO] Mancata diagnosi\n' +
+          `Dettaglio: ${malformedPlaceholders}\n` +
+          'Campo valido: valore',
+      },
+      createContext(),
+    );
+
+    const joined = handler.events.map((event) => event.message).join('\n');
+    assert.match(joined, /Caso non riconosciuto/);
+    assert.match(joined, /Campo valido/);
+  });
 });

@@ -101,6 +101,45 @@ describe('ApiGwReporter', () => {
     });
   });
 
+  describe('apiGwAuthorizerEvaluation', () => {
+    it('renders authorizer fields and a no-failure outcome', () => {
+      const { logger, lines } = captureLogger();
+      new ApiGwReporter(logger).apiGwAuthorizerEvaluation({
+        lambdaName: 'pn-ioAuthorizerLambda',
+        authorizerStatus: '200',
+        authorizerLatencyMs: 12,
+        authorizerRequestId: 'auth-1',
+        timeoutMs: 5000,
+        path: '/foo',
+        httpMethod: 'PUT',
+        outcome: 'none',
+      });
+      const joined = lines.join('\n');
+      assert.match(joined, /Verifica Lambda authorizer API Gateway/);
+      assert.match(joined, /authorizerStatus: 200/);
+      assert.match(joined, /authorizerLatency: 12 ms/);
+      assert.match(joined, /authorizerRequestId: auth-1/);
+      assert.match(joined, /Esito: nessun errore authorizer/);
+    });
+
+    it('renders a generic authorizer error with unavailable latency explicit', () => {
+      const { logger, lines } = captureLogger();
+      new ApiGwReporter(logger).apiGwAuthorizerEvaluation({
+        lambdaName: 'pn-ioAuthorizerLambda',
+        authorizerStatus: '503',
+        authorizerRequestId: 'auth-2',
+        timeoutMs: 5000,
+        outcome: 'error',
+        failureType: 'status-error',
+      });
+      const joined = lines.join('\n');
+      assert.match(joined, /authorizerStatus: 503/);
+      assert.match(joined, /authorizerLatency: non disponibile/);
+      assert.match(joined, /authorizerRequestId: auth-2/);
+      assert.match(joined, /Esito: errore authorizer/);
+    });
+  });
+
   describe('queryFailed', () => {
     it('renders a "Query fallita" banner with the log group and the cause', () => {
       const { logger, lines } = captureLogger();
@@ -208,12 +247,14 @@ describe('ApiGwReporter', () => {
     it('renders execution-log requestIds and result count', () => {
       const { logger, lines } = captureLogger();
       const reporter = new ApiGwReporter(logger);
+      reporter.sectionApiGwExecutionLog();
       reporter.apiGwExecutionLogQuery('API-Gateway-Execution-Logs_test/prod', [
         { path: '/resource-a', requestId: 'req-a' },
         { path: '/resource-b', requestId: 'req-b' },
       ]);
       reporter.apiGwExecutionLogResult(12);
       const joined = lines.join('\n');
+      assert.match(joined, /Verifica execution log API Gateway/);
       assert.match(joined, /query execution log/);
       assert.match(joined, /API-Gateway-Execution-Logs_test\/prod/);
       assert.match(joined, /\/resource-a: req-a/);

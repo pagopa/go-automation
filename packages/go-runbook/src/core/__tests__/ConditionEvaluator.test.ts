@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { ServiceRegistry } from '../../services/ServiceRegistry.js';
+import type { Condition } from '../../types/Condition.js';
 import { ConditionEvaluator } from '../ConditionEvaluator.js';
 
 interface Row {
@@ -27,6 +28,10 @@ function ctx(args: {
 
 describe('ConditionEvaluator (array-aware)', () => {
   const evaluator = new ConditionEvaluator();
+
+  function resolvedValues(condition: Condition, context: RunbookContext): Readonly<Record<string, unknown>> {
+    return evaluator.evaluate(condition, context, { withResolvedValues: true }).resolvedValues;
+  }
 
   describe('compare', () => {
     it('keeps scalar behaviour unchanged (==)', () => {
@@ -54,12 +59,9 @@ describe('ConditionEvaluator (array-aware)', () => {
       );
     });
 
-    it('records the matched element in collectResolvedValues for array refs', () => {
+    it('records the matched element in detailed evaluation for array refs', () => {
       const c = ctx({ stepResults: [['arr', ['a', 'b', 'c']]] });
-      const resolved = evaluator.collectResolvedValues(
-        { type: 'compare', ref: 'steps.arr', operator: '==', value: 'b' },
-        c,
-      );
+      const resolved = resolvedValues({ type: 'compare', ref: 'steps.arr', operator: '==', value: 'b' }, c);
       assert.deepStrictEqual(resolved['steps.arr'], {
         matched: true,
         matchedIndex: 1,
@@ -84,7 +86,7 @@ describe('ConditionEvaluator (array-aware)', () => {
     it('records only the first matching row in the trace (short-circuit semantic)', () => {
       const rows: Row[] = [{ message: 'a' }, { message: '[DOWNSTREAM] one' }, { message: '[DOWNSTREAM] two' }];
       const c = ctx({ stepResults: [['q', rows]] });
-      const resolved = evaluator.collectResolvedValues({ type: 'pattern', ref: 'steps.q', regex: 'DOWNSTREAM' }, c);
+      const resolved = resolvedValues({ type: 'pattern', ref: 'steps.q', regex: 'DOWNSTREAM' }, c);
       const detail = resolved['steps.q'] as { matched: boolean; matchedIndex: number; matchedElement: Row };
       assert.strictEqual(detail.matched, true);
       assert.strictEqual(detail.matchedIndex, 1);
@@ -123,19 +125,19 @@ describe('ConditionEvaluator (array-aware)', () => {
       const c = ctx({
         stepResults: [['q', [{ '@message': 'row 1' }, { '@message': 'row 2' }, { '@message': 'row 3' }]]],
       });
-      const resolved = evaluator.collectResolvedValues({ type: 'exists', ref: 'steps.q' }, c);
+      const resolved = resolvedValues({ type: 'exists', ref: 'steps.q' }, c);
       assert.deepStrictEqual(resolved['steps.q'], { matched: true, totalElements: 3 });
     });
 
     it('records `{matched:false,totalElements:0}` for empty array refs', () => {
       const c = ctx({ stepResults: [['q', []]] });
-      const resolved = evaluator.collectResolvedValues({ type: 'exists', ref: 'steps.q' }, c);
+      const resolved = resolvedValues({ type: 'exists', ref: 'steps.q' }, c);
       assert.deepStrictEqual(resolved['steps.q'], { matched: false, totalElements: 0 });
     });
 
     it('keeps scalar resolvedValues unchanged for backwards compat', () => {
       const c = ctx({ vars: { foo: 'abc' } });
-      const resolved = evaluator.collectResolvedValues({ type: 'exists', ref: 'vars.foo' }, c);
+      const resolved = resolvedValues({ type: 'exists', ref: 'vars.foo' }, c);
       assert.strictEqual(resolved['vars.foo'], 'abc');
     });
   });
@@ -164,7 +166,7 @@ describe('ConditionEvaluator (array-aware)', () => {
 
     it('records first matching element for array+value', () => {
       const c = ctx({ stepResults: [['arr', ['a', 'b', 'c']]] });
-      const resolved = evaluator.collectResolvedValues({ type: 'contains', ref: 'steps.arr', value: ['x', 'b'] }, c);
+      const resolved = resolvedValues({ type: 'contains', ref: 'steps.arr', value: ['x', 'b'] }, c);
       assert.deepStrictEqual(resolved['steps.arr'], {
         matched: true,
         matchedIndex: 1,
@@ -195,7 +197,7 @@ describe('ConditionEvaluator (array-aware)', () => {
 
     it('records every matching row in the trace when under the sample cap', () => {
       const c = ctx({ stepResults: [['q', rows]] });
-      const resolved = evaluator.collectResolvedValues({ type: 'contains', ref: 'steps.q', regex: 'DOWNSTREAM' }, c);
+      const resolved = resolvedValues({ type: 'contains', ref: 'steps.q', regex: 'DOWNSTREAM' }, c);
       const detail = resolved['steps.q'] as {
         matched: boolean;
         matchedCount: number;
@@ -215,13 +217,14 @@ describe('ConditionEvaluator (array-aware)', () => {
 
     it('returns the boolean result and trace detail from one evaluation pass', () => {
       const c = ctx({ stepResults: [['q', rows]] });
-      const result = evaluator.evaluateWithResolvedValues(
+      const result = evaluator.evaluate(
         {
           type: 'contains',
           ref: 'steps.q',
           regex: 'DOWNSTREAM',
         },
         c,
+        { withResolvedValues: true },
       );
       const detail = result.resolvedValues['steps.q'] as {
         matched: boolean;
@@ -244,7 +247,7 @@ describe('ConditionEvaluator (array-aware)', () => {
       // 50 rows, every one matches → matchedCount=50, samples=10, truncated=true.
       const many: Row[] = Array.from({ length: 50 }, (_, i) => ({ message: `[DOWNSTREAM] row ${i}` }));
       const c = ctx({ stepResults: [['q', many]] });
-      const resolved = evaluator.collectResolvedValues({ type: 'contains', ref: 'steps.q', regex: 'DOWNSTREAM' }, c);
+      const resolved = resolvedValues({ type: 'contains', ref: 'steps.q', regex: 'DOWNSTREAM' }, c);
       const detail = resolved['steps.q'] as {
         matched: boolean;
         matchedCount: number;

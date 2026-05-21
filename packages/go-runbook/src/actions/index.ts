@@ -3,6 +3,7 @@
  */
 export type {
   CaseAction,
+  CaseActionType,
   LogAction,
   NotifyAction,
   UpdateAction,

@@ -7,11 +7,11 @@
  *
  * @example
  * ```typescript
- * import { RunbookBuilder, RunbookEngine, ConditionEvaluator, queryCloudWatchLogs, logAction } from '@go-automation/go-runbook';
+ * import { RunbookBuilder, RunbookEngine, ConditionEvaluator, CloudWatchLogsQueryStep, logAction } from '@go-automation/go-runbook';
  *
  * const runbook = RunbookBuilder.create('alarm-api-gw-5xx')
  *   .metadata({ name: 'API GW 5xx', ... })
- *   .step(queryCloudWatchLogs({ ... }))
+ *   .step(new CloudWatchLogsQueryStep({ ... }))
  *   .knownCase({ ... })
  *   .fallback(logAction({ ... }))
  *   .build();
@@ -83,9 +83,27 @@ export type { ExecutionSummary } from './trace/ExecutionSummary.js';
 export type { EarlyResolutionTrace } from './trace/EarlyResolutionTrace.js';
 export { TraceBuilder } from './trace/TraceBuilder.js';
 
+// Output
+export type { RunbookOutput } from './output/RunbookOutput.js';
+export type {
+  RunbookOutcome,
+  KnownCaseMatchedOutcome,
+  UnknownCaseOutcome,
+  ProcedureSuccessOutcome,
+  ProcedureFailureOutcome,
+  FailedOutcome,
+  AbortedOutcome,
+} from './output/RunbookOutcome.js';
+export type { RunbookOutputContext, RunbookResultField, RunbookEvidence } from './output/RunbookOutputContext.js';
+export { emptyRunbookOutputContext } from './output/RunbookOutputContext.js';
+export { buildRunbookOutput } from './output/buildRunbookOutput.js';
+export type { BuildRunbookOutputOptions, RunbookOutputContextBuilderFn } from './output/buildRunbookOutput.js';
+export { interpolatePlaceholders } from './core/templatePlaceholders.js';
+
 // Actions
 export type {
   CaseAction,
+  CaseActionType,
   LogAction,
   NotifyAction,
   UpdateAction,

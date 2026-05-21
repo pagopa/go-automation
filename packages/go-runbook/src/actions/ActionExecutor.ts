@@ -1,6 +1,7 @@
 import type { GOLogger } from '@go-automation/go-common/core';
-import type { CaseAction } from './CaseAction.js';
+import type { CaseAction, CaseActionType, LogAction } from './CaseAction.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
+import { interpolatePlaceholders } from '../core/templatePlaceholders.js';
 
 /**
  * Result of executing an action.
@@ -10,7 +11,7 @@ export interface ActionExecutionResult {
   /** The action that was executed */
   readonly action: CaseAction;
   /** Action type string */
-  readonly actionType: 'log' | 'notify' | 'update' | 'escalate' | 'composite' | 'fallback';
+  readonly actionType: CaseActionType;
   /** Execution status */
   readonly status: 'success' | 'failed';
   /** Duration in milliseconds */
@@ -31,6 +32,8 @@ interface KnownCaseLogRow {
 }
 
 const KNOWN_CASE_PREFIX = '[CASO NOTO]';
+const UNKNOWN_CASE_PREFIX = '[CASO NON RICONOSCIUTO]';
+const UNAVAILABLE_VALUE = 'non disponibile';
 
 /**
  * Executes case actions by type.
@@ -82,12 +85,14 @@ export class ActionExecutor {
    */
   private getResolvedMessage(action: CaseAction, context: RunbookContext): string | undefined {
     switch (action.type) {
-      case 'log':
-        return this.interpolate(action.message, context);
+      case 'log': {
+        const missingValue = missingValueFor(action.message);
+        return interpolatePlaceholders(action.message, context, missingValue === undefined ? {} : { missingValue });
+      }
       case 'notify':
-        return this.interpolate(action.template, context);
+        return interpolatePlaceholders(action.template, context);
       case 'escalate':
-        return this.interpolate(action.message, context);
+        return interpolatePlaceholders(action.message, context);
       case 'update':
       case 'composite':
         return undefined;
@@ -103,17 +108,22 @@ export class ActionExecutor {
    */
   private async executeAction(action: CaseAction, context: RunbookContext): Promise<void> {
     switch (action.type) {
-      case 'log':
-        this.executeLogAction(action.level, this.interpolate(action.message, context));
+      case 'log': {
+        const missingValue = missingValueFor(action.message);
+        this.executeLogAction(
+          action,
+          interpolatePlaceholders(action.message, context, missingValue === undefined ? {} : { missingValue }),
+        );
         break;
+      }
       case 'notify':
-        await this.executeNotifyAction(action.channel, this.interpolate(action.template, context));
+        await this.executeNotifyAction(action.channel, interpolatePlaceholders(action.template, context));
         break;
       case 'update':
         await action.step.execute(context);
         break;
       case 'escalate':
-        this.executeEscalateAction(action.team, action.severity, this.interpolate(action.message, context));
+        this.executeEscalateAction(action.team, action.severity, interpolatePlaceholders(action.message, context));
         break;
       case 'composite':
         for (const subAction of action.actions) {
@@ -130,14 +140,36 @@ export class ActionExecutor {
   /**
    * Executes a log action by writing to the logger.
    */
-  private executeLogAction(level: 'info' | 'warn' | 'error', message: string): void {
-    const knownCaseLog = parseKnownCaseLogMessage(message);
-    if (knownCaseLog !== undefined) {
-      this.renderKnownCaseLog(knownCaseLog);
+  private executeLogAction(action: LogAction, message: string): void {
+    if (action.renderAs === 'known-case') {
+      this.renderStructuredLog(
+        parseStructuredLog(message, KNOWN_CASE_SPEC) ?? parseStructuredLog(message, GENERIC_CASO_SPEC),
+        KNOWN_CASE_BANNER,
+      );
       return;
     }
 
-    switch (level) {
+    if (action.renderAs === 'unknown-case') {
+      this.renderStructuredLog(
+        parseStructuredLog(message, UNKNOWN_CASE_SPEC) ?? parseStructuredLog(message, GENERIC_ESITO_SPEC),
+        UNKNOWN_CASE_BANNER,
+      );
+      return;
+    }
+
+    const knownCaseLog = parseStructuredLog(message, KNOWN_CASE_SPEC);
+    if (knownCaseLog !== undefined) {
+      this.renderStructuredLog(knownCaseLog, KNOWN_CASE_BANNER);
+      return;
+    }
+
+    const unknownCaseLog = parseStructuredLog(message, UNKNOWN_CASE_SPEC);
+    if (unknownCaseLog !== undefined) {
+      this.renderStructuredLog(unknownCaseLog, UNKNOWN_CASE_BANNER);
+      return;
+    }
+
+    switch (action.level) {
       case 'info':
         this.logger.info(message);
         break;
@@ -148,22 +180,27 @@ export class ActionExecutor {
         this.logger.error(message);
         break;
       default: {
-        const _exhaustive: never = level;
+        const _exhaustive: never = action.level;
         throw new Error(`Unknown log level: ${String(_exhaustive)}`);
       }
     }
   }
 
   /**
-   * Renders a known-case action as an explicit success block instead of
-   * a plain multi-line info message.
+   * Renders a parsed structured-log message as a separated banner + table
+   * block. The banner distinguishes known-case (success) from
+   * unknown-case (warning) outcomes.
    */
-  private renderKnownCaseLog(message: KnownCaseLogMessage): void {
+  private renderStructuredLog(message: KnownCaseLogMessage, banner: StructuredLogBanner): void {
     this.logger.newline();
-    this.logger.success('Caso noto rilevato');
+    if (banner.kind === 'success') {
+      this.logger.success(banner.text);
+    } else {
+      this.logger.warning(banner.text);
+    }
     this.logger.table({
       columns: [
-        { header: 'Campo', key: 'field', width: 18 },
+        { header: 'Campo', key: 'field', width: 24 },
         { header: 'Valore', key: 'value' },
       ],
       data: message.rows.map((row) => ({ field: row.field, value: row.value })),
@@ -190,57 +227,156 @@ export class ActionExecutor {
     this.logger.warning(`[ESCALATE -> ${team} (${severity})] ${message}`);
     // Future: integrate with PagerDuty, Jira, etc.
   }
-
-  /**
-   * Interpolates {{vars.xxx}} and {{params.xxx}} placeholders in a template string.
-   *
-   * @param template - Template string with {{...}} placeholders
-   * @param context - Runbook context for resolving references
-   * @returns Interpolated string
-   */
-  private interpolate(template: string, context: RunbookContext): string {
-    return template.replace(/\{\{(vars|params)\.([^}]+)\}\}/g, (_match, source: string, key: string) => {
-      if (source === 'vars') {
-        return context.vars.get(key) ?? `{{vars.${key}}}`;
-      }
-      if (source === 'params') {
-        return context.params.get(key) ?? `{{params.${key}}}`;
-      }
-      return _match;
-    });
-  }
 }
 
-function parseKnownCaseLogMessage(message: string): KnownCaseLogMessage | undefined {
+/**
+ * Banner rendered above a structured-log table.
+ */
+interface StructuredLogBanner {
+  readonly kind: 'success' | 'warning';
+  readonly text: string;
+}
+
+/** Transform applied to every detail value before it enters a row. */
+type StructuredLogValueTransformer = (value: string) => string;
+
+/** Predicate deciding whether a parsed detail row is kept. */
+type StructuredLogRowPredicate = (row: KnownCaseLogRow) => boolean;
+
+/**
+ * Declarative spec describing how to parse one family of structured log
+ * messages (known-case, unknown-case, or a generic prefix-less block).
+ */
+interface StructuredLogSpec {
+  /** When set, the message must start with this prefix or the parse fails. */
+  readonly prefix?: string;
+  /** Field label for the title (first) row. */
+  readonly firstField: string;
+  /** Title used when the first line is empty / prefix-only. */
+  readonly fallbackTitle: string;
+  /** Optional transform applied to every detail value. */
+  readonly normalizeValue?: StructuredLogValueTransformer;
+  /** Optional predicate; detail rows for which it returns false are dropped. */
+  readonly keepRow?: StructuredLogRowPredicate;
+}
+
+const KNOWN_CASE_BANNER: StructuredLogBanner = { kind: 'success', text: 'Caso noto rilevato' };
+const UNKNOWN_CASE_BANNER: StructuredLogBanner = { kind: 'warning', text: 'Caso non riconosciuto' };
+
+const KNOWN_CASE_SPEC = {
+  prefix: KNOWN_CASE_PREFIX,
+  firstField: 'Caso',
+  fallbackTitle: 'Caso noto',
+} satisfies StructuredLogSpec;
+
+const UNKNOWN_CASE_SPEC = {
+  prefix: UNKNOWN_CASE_PREFIX,
+  firstField: 'Esito',
+  fallbackTitle: 'Impossibile identificare la causa',
+  normalizeValue: normalizeUnknownCaseValue,
+  keepRow: isUsefulUnknownCaseRow,
+} satisfies StructuredLogSpec;
+
+const GENERIC_CASO_SPEC = { firstField: 'Caso', fallbackTitle: UNAVAILABLE_VALUE } satisfies StructuredLogSpec;
+const GENERIC_ESITO_SPEC = { firstField: 'Esito', fallbackTitle: UNAVAILABLE_VALUE } satisfies StructuredLogSpec;
+
+/**
+ * Parses a multi-line structured log message into `{ field, value }` rows.
+ *
+ * The first line becomes the title row; subsequent lines are split on the
+ * first `:` into `field: value`, or numbered `Dettaglio[ N]` when they
+ * carry no separator. When `spec.prefix` is set the message must start
+ * with it (otherwise `undefined` is returned so callers can fall back to a
+ * prefix-less generic spec); a prefix-less spec always produces a result.
+ */
+function parseStructuredLog(
+  message: string,
+  spec: StructuredLogSpec & { readonly prefix: string },
+): KnownCaseLogMessage | undefined;
+function parseStructuredLog(
+  message: string,
+  spec: StructuredLogSpec & { readonly prefix?: undefined },
+): KnownCaseLogMessage;
+function parseStructuredLog(message: string, spec: StructuredLogSpec): KnownCaseLogMessage | undefined {
   const lines = message
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line !== '');
 
   const [firstLine, ...details] = lines;
-  if (firstLine?.startsWith(KNOWN_CASE_PREFIX) !== true) {
-    return undefined;
+
+  let title: string;
+  if (spec.prefix !== undefined) {
+    if (firstLine?.startsWith(spec.prefix) !== true) {
+      return undefined;
+    }
+    title = firstLine.slice(spec.prefix.length).trim() || spec.fallbackTitle;
+  } else {
+    title = firstLine ?? spec.fallbackTitle;
   }
 
-  const title = firstLine.slice(KNOWN_CASE_PREFIX.length).trim() || 'Caso noto';
-  const rows: KnownCaseLogRow[] = [{ field: 'Caso', value: title }];
+  const normalize = spec.normalizeValue ?? ((value: string): string => value);
+  const rows: KnownCaseLogRow[] = [{ field: spec.firstField, value: title }];
 
   let detailCount = 0;
   for (const detail of details) {
     const separatorIndex = detail.indexOf(':');
+    let row: KnownCaseLogRow;
     if (separatorIndex > 0) {
-      const field = detail.slice(0, separatorIndex).trim();
-      const value = detail.slice(separatorIndex + 1).trim();
-      rows.push({ field, value });
-      continue;
+      row = {
+        field: detail.slice(0, separatorIndex).trim(),
+        value: normalize(detail.slice(separatorIndex + 1).trim()),
+      };
+    } else {
+      detailCount += 1;
+      row = {
+        field: detailCount === 1 ? 'Dettaglio' : `Dettaglio ${detailCount}`,
+        value: normalize(detail),
+      };
     }
 
-    detailCount += 1;
-    rows.push({
-      field: detailCount === 1 ? 'Dettaglio' : `Dettaglio ${detailCount}`,
-      value: detail,
-    });
+    if (spec.keepRow === undefined || spec.keepRow(row)) {
+      rows.push(row);
+    }
   }
 
   return { rows };
+}
+
+function normalizeUnknownCaseValue(value: string): string {
+  const withoutRawPlaceholders = value.replace(/\{\{(?:vars|params)\.[^}{]+\}\}/g, UNAVAILABLE_VALUE).trim();
+  if (withoutRawPlaceholders === '') return UNAVAILABLE_VALUE;
+
+  if (!withoutRawPlaceholders.includes('=')) {
+    return withoutRawPlaceholders;
+  }
+
+  const parts = withoutRawPlaceholders
+    .split(';')
+    .map((part) => part.trim())
+    .filter((part) => part !== '')
+    .filter((part) => {
+      const eqIndex = part.indexOf('=');
+      if (eqIndex < 0) return true;
+      const partValue = part.slice(eqIndex + 1).trim();
+      return isAvailableValue(partValue);
+    });
+
+  return parts.length === 0 ? UNAVAILABLE_VALUE : parts.join('; ');
+}
+
+function isUsefulUnknownCaseRow(row: KnownCaseLogRow): boolean {
+  if (row.field === 'Esito' || row.field === 'Dettaglio' || row.field === 'Errori API Gateway') {
+    return true;
+  }
+  return isAvailableValue(row.value);
+}
+
+function isAvailableValue(value: string): boolean {
+  const normalized = value.trim().toLocaleLowerCase('it-IT');
+  return normalized !== '' && normalized !== UNAVAILABLE_VALUE && normalized !== 'n/a';
+}
+
+function missingValueFor(template: string): string | undefined {
+  return template.trimStart().startsWith(UNKNOWN_CASE_PREFIX) ? UNAVAILABLE_VALUE : undefined;
 }

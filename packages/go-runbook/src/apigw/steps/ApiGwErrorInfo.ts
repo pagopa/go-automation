@@ -21,14 +21,16 @@ export interface ApiGwErrorInfo {
   readonly httpMethod?: string;
   /** `path` field of the first error row, if present */
   readonly path?: string;
-  /** `authorizeStatus` field of the first error row, if present */
-  readonly authorizeStatus?: string;
+  /** `authorizerStatus` field of the first error row, if present */
+  readonly authorizerStatus?: string;
+  /** `authorizerLatency` field of the first error row, if present */
+  readonly authorizerLatency?: string;
+  /** `authorizerRequestId` field of the first error row, if present */
+  readonly authorizerRequestId?: string;
   /** `integrationServiceStatus` field of the first error row, if present */
   readonly integrationServiceStatus?: string;
   /** `requestId` field of the first error row, if present */
   readonly requestId?: string;
-  /** `authorizerRequestId` field of the first error row, if present */
-  readonly authorizerRequestId?: string;
   /** `integrationRequestId` field of the first error row, if present */
   readonly integrationRequestId?: string;
 }

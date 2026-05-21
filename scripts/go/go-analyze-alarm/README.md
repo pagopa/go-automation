@@ -20,7 +20,7 @@ Dato un allarme CloudWatch e il momento in cui e scattato, esegue automaticament
 2. **Calcolo time window**: costruisce un intervallo `[alarmDatetime - 5min, alarmDatetime + 5min]`. Se viene fornito anche `--alarm-datetime-end`, l'intervallo diventa `[alarmDatetime - 5min, alarmDatetimeEnd + 5min]` per coprire allarmi multi-occorrenza
 3. **Esecuzione step-by-step**: ogni step del runbook interroga CloudWatch Logs, DynamoDB, Athena o altri servizi in base alle esigenze del runbook; le variabili estratte passano agli step successivi
 4. **Match casi noti**: al termine degli step, il RunbookEngine confronta i dati raccolti con i pattern dei casi noti e restituisce il primo match (o un fallback)
-5. **Salvataggio trace**: l'intera traccia di esecuzione (step, variabili, risultato) viene salvata in `data/trace-{alarmName}.json`
+5. **Salvataggio output**: salva sia il trace completo (`trace-{alarmName}.json`) sia il risultato sintetico (`result-{runbookId}.json`)
 
 ## Runbook disponibili
 
@@ -162,8 +162,8 @@ Time range: 2025-02-20T14:25:00.000Z → 2025-02-20T14:35:00.000Z
 
 === Executing Runbook ===
 [OK] query-api-gw-logs         — 3 results
+[OK] evaluate-api-gw-authorizer-failure — no authorizer failure
 [OK] parse-api-gw-errors       — errors: 3, statusCode: 500, traceId: 1-abc123
-[OK] query-io-authorizer-lambda — 0 results
 ...
 
 === Runbook Result ===
@@ -187,15 +187,30 @@ User Attributes: <messaggio di errore grezzo>
 ...
 ```
 
-### File trace
+### File output
 
-Ogni esecuzione produce un file JSON in `data/`:
+Ogni esecuzione produce due file JSON nella directory output dell'esecuzione:
 
+| File                      | Contenuto                                                                | Uso                                  |
+| ------------------------- | ------------------------------------------------------------------------ | ------------------------------------ |
+| `trace-{alarmName}.json`  | Traccia completa: pipeline, step, variabili, case matching, action trace | Audit, debug e post-mortem           |
+| `result-{runbookId}.json` | Esito sintetico versionato con contesto operativo ed evidenze limitate   | Dashboard, notifiche, lettura rapida |
+
+Esempio:
+
+```text
+trace-pn-address-book-io-IO-ApiGwAlarm.json
+result-pn-address-book-io-IO-ApiGwAlarm.json
 ```
-data/trace-pn-address-book-io-IO-ApiGwAlarm.json
-```
 
-Il file contiene la traccia completa: step eseguiti, variabili estratte, caso matched, durata. Utile per post-mortem o debugging del runbook.
+Il result distingue esplicitamente:
+
+- `known-case-matched`: individuato un caso noto;
+- `unknown-case`: esecuzione completata, ma nessun caso noto ha matchato;
+- `failed` / `aborted`: errore tecnico o interruzione;
+- `procedure-success` / `procedure-failure`: esiti per runbook procedurali.
+
+Per i runbook API Gateway il result include anche un contesto sintetico: endpoint, status API Gateway, trace id, blocco Lambda authorizer, blocco execution log e ultimi log rilevanti per servizio. I log nel result sono campionati; il dettaglio completo resta nel trace.
 
 ## Troubleshooting
 
@@ -250,5 +265,5 @@ pnpm --filter=go-analyze-alarm exec tsc --noEmit
 
 ---
 
-**Ultima modifica**: 2026-04-10
+**Ultima modifica**: 2026-05-20
 **Maintainer**: Team GO - Gestione Operativa

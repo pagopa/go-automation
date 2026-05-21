@@ -3,7 +3,7 @@ import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { Condition } from '../../types/Condition.js';
-import { ConditionEvaluator } from '../../core/ConditionEvaluator.js';
+import { sharedConditionEvaluator } from '../../core/ConditionEvaluator.js';
 
 /**
  * Configuration for an assert step.
@@ -48,8 +48,7 @@ class AssertStep implements Step<boolean> {
    */
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<boolean>> {
-    const evaluator = new ConditionEvaluator();
-    const passed = evaluator.evaluate(this.condition, context);
+    const passed = sharedConditionEvaluator.evaluate(this.condition, context);
 
     if (passed) {
       return { success: true, output: true };

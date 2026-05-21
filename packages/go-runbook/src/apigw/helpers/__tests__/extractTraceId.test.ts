@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { ResultField } from '@go-automation/go-common/aws';
-import { extractTraceId, extractXRayTraceId } from '../extractTraceId.js';
+import { extractTraceId } from '../extractTraceId.js';
 import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
 import type { AccessLogSchema } from '../../profiles/schemas/AccessLogSchema.js';
 
@@ -41,11 +41,14 @@ describe('extractTraceId', () => {
   it('returns undefined when the field is absent in the row', () => {
     assert.strictEqual(extractTraceId([], SEND_SCHEMA), undefined);
   });
-});
 
-describe('extractXRayTraceId (deprecated alias)', () => {
-  it('forwards to extractTraceId', () => {
+  it('caches the compiled RegExp across invocations with the same pattern', () => {
+    // Smoke check that repeated calls with the same schema don't recompile:
+    // we can't observe the RegExp identity from the outside, so just exercise
+    // the helper many times and verify behaviour stays consistent.
     const r = row({ xrayTraceId: 'Root=1-abc-def' });
-    assert.strictEqual(extractXRayTraceId(r, SEND_SCHEMA), '1-abc-def');
+    for (let i = 0; i < 100; i++) {
+      assert.strictEqual(extractTraceId(r, SEND_SCHEMA), '1-abc-def');
+    }
   });
 });

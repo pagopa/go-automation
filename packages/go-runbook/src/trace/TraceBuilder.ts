@@ -14,17 +14,21 @@ import type { FlowDirectiveString } from '../types/FlowDirective.js';
 import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js';
 
 /**
- * Immutable builder for constructing a RunbookExecutionTrace.
- * Collects data during runbook execution and assembles the final trace.
+ * Builder for the {@link RunbookExecutionTrace}.
  *
- * Pattern: every `trace*` method returns a new builder instance
- * without mutating the internal state (functional approach).
+ * The trace API is exposed as a fluent, immutable chain
+ * (`builder = builder.traceStep(...)`) to keep call sites readable and
+ * allow future replacement with a true persistent builder. Internally the
+ * collections are mutated in place — the engine drives the builder
+ * sequentially in a single goroutine-equivalent context, so allocating a
+ * fresh builder + spread-cloned array on every step would be wasteful
+ * (the trace can contain hundreds of step entries). Each `trace*` method
+ * returns `this`, so the caller's reassignment stays valid.
  *
  * @example
  * ```typescript
  * const builder = new TraceBuilder('exec-123', runbook, params)
  *   .traceStep('query-logs', 'Search errors', 'data', 'sequential', t0, t1, 1833, 'success', false, input, output, {}, 'continue')
- *   .traceStep('extract-field', 'Extract field', 'transform', 'sequential', t1, t2, 1, 'success', false, input, '504', { statusCode: '504' }, 'continue')
  *   .traceCaseEvaluation(knownCase, true, { 'vars.statusCode': '504' })
  *   .traceAction(action, 'notify', 'success', 120);
  *
@@ -40,9 +44,9 @@ export class TraceBuilder {
     durationMs: 0,
   };
 
-  private readonly stepTraces: ReadonlyArray<StepTrace>;
-  private readonly caseEvaluations: ReadonlyArray<CaseEvaluationTrace>;
-  private readonly actionTraces: ReadonlyArray<ActionTrace>;
+  private readonly stepTraces: StepTrace[] = [];
+  private readonly caseEvaluations: CaseEvaluationTrace[] = [];
+  private readonly actionTraces: ActionTrace[] = [];
   private readonly startedAt: string;
   private readonly startedAtMs: number;
 
@@ -51,52 +55,15 @@ export class TraceBuilder {
     private readonly runbook: Runbook,
     private readonly params: ReadonlyMap<string, string>,
   ) {
-    this.stepTraces = [];
-    this.caseEvaluations = [];
-    this.actionTraces = [];
     const now = new Date();
     this.startedAt = now.toISOString();
     this.startedAtMs = now.getTime();
   }
 
   /**
-   * Creates a new instance with updated state (immutability).
-   */
-  private copyWith(overrides: {
-    readonly stepTraces?: ReadonlyArray<StepTrace>;
-    readonly caseEvaluations?: ReadonlyArray<CaseEvaluationTrace>;
-    readonly actionTraces?: ReadonlyArray<ActionTrace>;
-  }): TraceBuilder {
-    const copy = new TraceBuilder(this.executionId, this.runbook, this.params);
-    return Object.assign(copy, {
-      stepTraces: overrides.stepTraces ?? this.stepTraces,
-      caseEvaluations: overrides.caseEvaluations ?? this.caseEvaluations,
-      actionTraces: overrides.actionTraces ?? this.actionTraces,
-      startedAt: this.startedAt,
-      startedAtMs: this.startedAtMs,
-    });
-  }
-
-  /**
    * Records the trace of an executed step.
-   * Called by RunbookEngine after each step.execute().
    *
-   * @param stepId - Step ID
-   * @param label - Human-readable label
-   * @param kind - Step category
-   * @param reachedVia - How the step was reached
-   * @param startedAt - Start timestamp (ISO 8601)
-   * @param completedAt - Completion timestamp (ISO 8601)
-   * @param durationMs - Duration in milliseconds
-   * @param status - Step status
-   * @param recovered - Whether the step was recovered
-   * @param input - Input provided to the step
-   * @param output - Output produced by the step
-   * @param varsWritten - Variables written to the context
-   * @param flowDirective - Flow directive produced
-   * @param error - Optional error message
-   * @param parentStepId - Parent step ID for sub-pipeline
-   * @returns New builder instance with the step added
+   * @returns this
    */
   traceStep(
     stepId: string,
@@ -134,86 +101,67 @@ export class TraceBuilder {
       ...(parentStepId !== undefined ? { parentStepId } : {}),
     };
 
-    return this.copyWith({
-      stepTraces: [...this.stepTraces, stepTrace],
-    });
+    this.stepTraces.push(stepTrace);
+    return this;
   }
 
   /**
-   * Attaches an early resolution result to the last step trace.
-   * Called by RunbookEngine when a step signals `'resolve'`.
+   * Attaches an early resolution result to the most recent step trace.
    *
    * When the early resolution **actually matched** at least one case,
    * the evaluations from that resolution are also promoted into the
-   * top-level `caseEvaluations` so {@link build} can derive
-   * `caseMatching.matchedCaseIds` and `summary.outcomeCase` correctly
-   * — otherwise the trace would report `no-match` even though the
-   * engine executed the matched case's action. Failed early
-   * resolutions (no match found at that point) stay confined to the
-   * step's `earlyResolution` detail; the eventual fallback to
-   * {@link traceCaseEvaluation} at the end of the pipeline keeps
-   * `caseEvaluations` populated for the no-match path.
+   * top-level `caseEvaluations` so {@link build} derives `matchedCaseIds`
+   * and `summary.outcomeCase` correctly. Failed early resolutions
+   * (no match found at that point) stay confined to the step's
+   * `earlyResolution` detail.
    *
-   * @param earlyResolution - The early resolution trace to attach
-   * @returns New builder instance with the early resolution recorded
+   * @returns this
    */
   traceEarlyResolution(earlyResolution: EarlyResolutionTrace): TraceBuilder {
-    if (this.stepTraces.length === 0) {
-      return this;
-    }
-
     const lastIndex = this.stepTraces.length - 1;
-    const updatedTraces = this.stepTraces.map((step, idx) => (idx === lastIndex ? { ...step, earlyResolution } : step));
+    if (lastIndex < 0) return this;
+
+    const lastStep = this.stepTraces[lastIndex];
+    if (lastStep === undefined) return this;
+
+    this.stepTraces[lastIndex] = { ...lastStep, earlyResolution };
 
     if (earlyResolution.resolved && earlyResolution.evaluations.length > 0) {
-      return this.copyWith({
-        stepTraces: updatedTraces,
-        caseEvaluations: earlyResolution.evaluations,
-      });
+      // The early resolution carries the full evaluation list (in priority
+      // order) for the cases that matched at that point. Replace the
+      // current builder snapshot so `build()` reports the resolution.
+      this.caseEvaluations.length = 0;
+      this.caseEvaluations.push(...earlyResolution.evaluations);
     }
 
-    return this.copyWith({ stepTraces: updatedTraces });
+    return this;
   }
 
   /**
    * Records the evaluation of a known case.
-   * Called by RunbookEngine during matchKnownCases().
    *
-   * @param knownCase - The known case evaluated
-   * @param matched - Whether the condition matched
-   * @param resolvedValues - Actual values of the variables in the condition
-   * @returns New builder instance with the evaluation added
+   * @returns this
    */
   traceCaseEvaluation(
     knownCase: KnownCase,
     matched: boolean,
     resolvedValues: Readonly<Record<string, unknown>>,
   ): TraceBuilder {
-    const evaluation: CaseEvaluationTrace = {
+    this.caseEvaluations.push({
       caseId: knownCase.id,
       description: knownCase.description,
       priority: knownCase.priority,
       condition: knownCase.condition,
       matched,
       resolvedValues,
-    };
-
-    return this.copyWith({
-      caseEvaluations: [...this.caseEvaluations, evaluation],
     });
+    return this;
   }
 
   /**
-   * Records the result of the executed action.
-   * Called by RunbookEngine after executeAction().
+   * Records the result of an executed action.
    *
-   * @param action - The action executed
-   * @param actionType - Action type
-   * @param status - Execution status
-   * @param durationMs - Duration in milliseconds
-   * @param resolvedMessage - Message with resolved variables
-   * @param error - Optional error message
-   * @returns New builder instance with the action recorded
+   * @returns this
    */
   traceAction(
     action: CaseAction,
@@ -223,7 +171,7 @@ export class TraceBuilder {
     resolvedMessage?: string,
     error?: string,
   ): TraceBuilder {
-    const actionTrace: ActionTrace = {
+    this.actionTraces.push({
       executed: true,
       actionType,
       actionDetail: action,
@@ -231,22 +179,12 @@ export class TraceBuilder {
       durationMs,
       ...(resolvedMessage !== undefined ? { resolvedMessage } : {}),
       ...(error !== undefined ? { error } : {}),
-    };
-
-    return this.copyWith({
-      actionTraces: [...this.actionTraces, actionTrace],
     });
+    return this;
   }
 
   /**
    * Assembles the final execution trace.
-   * Called by RunbookEngine at the end of execute().
-   *
-   * @param finalContext - Final context after all steps
-   * @param status - Final execution status
-   * @param environment - Execution environment information
-   * @param failureReason - Optional failure reason
-   * @returns The complete structured trace
    */
   build(
     finalContext: RunbookContext,
@@ -332,11 +270,6 @@ export class TraceBuilder {
 
   /**
    * Builds a human-readable description for the execution summary.
-   *
-   * @param status - Execution status
-   * @param matchedEval - Matched case evaluation (null if none)
-   * @param resolvedAtStepId - Step ID where early resolution occurred
-   * @returns Description string
    */
   private buildSummaryDescription(
     status: RunbookExecutionStatus,

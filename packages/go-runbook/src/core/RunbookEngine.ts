@@ -13,6 +13,8 @@ import type { ExecutionEnvironment } from '../trace/ExecutionInfo.js';
 import type { EarlyResolutionTrace } from '../trace/EarlyResolutionTrace.js';
 import type { CaseEvaluationTrace } from '../trace/CaseEvaluationTrace.js';
 import { ConditionEvaluator } from './ConditionEvaluator.js';
+import { buildStepIndex } from './buildStepIndex.js';
+import { detectRuntimeCycle } from './detectRuntimeCycle.js';
 import { ActionExecutor } from '../actions/ActionExecutor.js';
 import { TraceBuilder } from '../trace/TraceBuilder.js';
 import { RunbookMaxIterationsError } from '../errors/RunbookMaxIterationsError.js';
@@ -31,6 +33,15 @@ const DEFAULT_ENVIRONMENT: ExecutionEnvironment = {
   region: 'eu-south-1',
   invokedBy: 'manual',
 };
+
+type ReachedVia = 'sequential' | 'goTo' | 'subPipeline';
+type StepTraceStatus = 'success' | 'failed' | 'skipped';
+
+interface StepExecutionOutcome {
+  readonly context: RunbookContext;
+  readonly traceBuilder: TraceBuilder;
+  readonly result: StepResult<unknown>;
+}
 
 /**
  * Main runbook execution engine.
@@ -113,6 +124,10 @@ export class RunbookEngine {
       if (stepsResult.aborted) {
         status = 'aborted';
         failureReason = 'Execution aborted by signal';
+      } else if (stepsResult.failureReason !== undefined) {
+        status = 'failed';
+        failureReason = stepsResult.failureReason;
+        this.logger.error(`Runbook execution failed: ${failureReason}`);
       }
       earlyResolutionStepId = stepsResult.earlyResolution?.resolvedAtStepId;
       earlyMatchedCases = stepsResult.earlyResolution?.matchedCases ?? [];
@@ -136,7 +151,7 @@ export class RunbookEngine {
     // already produced matches (we don't re-evaluate at the end since
     // the pipeline was short-circuited at that point).
     let matchedCases: ReadonlyArray<KnownCase>;
-    if (status === 'aborted') {
+    if (status !== 'completed') {
       matchedCases = [];
     } else if (earlyMatchedCases.length > 0) {
       matchedCases = earlyMatchedCases;
@@ -149,7 +164,7 @@ export class RunbookEngine {
     // Execute only the primary matched action. `matchedCases` still keeps
     // every overlap for trace/reporting, but actions may notify/escalate/update
     // and must not fan out implicitly. Fallback runs only when nothing matched.
-    if (status !== 'aborted') {
+    if (status === 'completed') {
       const primaryAction = matchedCases[0]?.action ?? runbook.fallbackAction;
       const actionResult = await this.actionExecutor.execute(primaryAction, finalContext);
       traceBuilder = traceBuilder.traceAction(
@@ -177,7 +192,7 @@ export class RunbookEngine {
       status,
       matchedCases,
       durationMs: trace.execution.durationMs,
-      stepsExecuted: finalContext.stepResults.size,
+      stepsExecuted: trace.summary.stepsExecuted,
       finalContext,
       recoveredErrors: finalContext.recoveredErrors,
       trace,
@@ -202,22 +217,16 @@ export class RunbookEngine {
     traceBuilder: TraceBuilder;
     earlyResolution?: { matchedCases: ReadonlyArray<KnownCase>; resolvedAtStepId: string };
     aborted: boolean;
+    failureReason?: string;
   }> {
     let context = initialContext;
     let traceBuilder = initialTraceBuilder;
 
-    // Index steps by id for goTo support
-    const stepIndex = new Map<string, number>();
-    for (let i = 0; i < stepDescriptors.length; i++) {
-      const descriptor = stepDescriptors[i];
-      if (descriptor !== undefined) {
-        stepIndex.set(descriptor.step.id, i);
-      }
-    }
+    const stepIndex = buildStepIndex(stepDescriptors);
 
     let currentIndex = 0;
     let iterations = 0;
-    let reachedVia: 'sequential' | 'goTo' | 'subPipeline' = 'sequential';
+    let reachedVia: ReachedVia = 'sequential';
     const visitedSequence: string[] = [];
     let aborted = false;
 
@@ -245,94 +254,31 @@ export class RunbookEngine {
       visitedSequence.push(step.id);
 
       // Runtime cycle detection
-      if (this.detectRuntimeCycle(visitedSequence)) {
+      if (detectRuntimeCycle(visitedSequence)) {
         throw new RunbookMaxIterationsError(runbookId, maxIterations, step.id, visitedSequence);
       }
 
-      if (descriptor.silent !== true) {
-        this.logger.text(`[${step.id}] ${step.label}`);
-      }
+      const execution = await this.executeStepDescriptor(descriptor, context, reachedVia, traceBuilder);
+      context = execution.context;
+      traceBuilder = execution.traceBuilder;
+      const result = execution.result;
 
-      const stepStartTime = Date.now();
-      const stepStartedAt = new Date(stepStartTime).toISOString();
-      let result: StepResult<unknown>;
-      let stepStatus: 'success' | 'failed' | 'skipped' = 'success';
-      let recovered = false;
-
-      // Capture input: context snapshot + step-specific trace info
-      const baseInput = this.captureStepInput(context);
-      const traceInfo = step.getTraceInfo?.(context);
-      const stepInput = traceInfo !== undefined ? { ...baseInput, resolvedConfig: traceInfo } : baseInput;
-
-      try {
-        result = await step.execute(context);
-      } catch (error: unknown) {
-        // continueOnFailure support
-        if (continueOnFailure === true) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          this.logger.warning(`[${step.id}] Step failed but continueOnFailure=true: ${errorMessage}`);
-
-          const recoveryInfo: ErrorRecoveryInfo = {
-            stepId: step.id,
-            originalError: errorMessage,
-            failedAt: new Date(),
-            skipped: true,
-          };
-
-          result = {
-            success: false,
-            error: errorMessage,
-            errorRecovery: recoveryInfo,
-          };
-
-          context = addRecoveredError(context, recoveryInfo);
-          stepStatus = 'failed';
-          recovered = true;
-        } else {
-          throw error;
-        }
-      }
-
-      const stepCompletedAt = new Date().toISOString();
-      const stepDurationMs = Date.now() - stepStartTime;
-
-      // Update status for non-recovered failures (step returned success=false without throwing)
-      if (!result.success && !recovered) {
-        stepStatus = 'failed';
-      }
-
-      // Determine flow directive
       const directive = result.next ?? 'continue';
-      const flowDirectiveStr = this.flowDirectiveToString(directive);
-
-      const varsWritten: Readonly<Record<string, string>> = result.vars ?? {};
-
-      // Add step trace with full data
-      traceBuilder = traceBuilder.traceStep(
-        step.id,
-        step.label,
-        step.kind,
-        reachedVia,
-        stepStartedAt,
-        stepCompletedAt,
-        stepDurationMs,
-        stepStatus,
-        recovered,
-        stepInput,
-        result.output ?? null,
-        varsWritten,
-        flowDirectiveStr,
-        result.error,
-      );
-
-      // Update context (immutable)
-      context = updateContextWithStepResult(context, step.id, result);
 
       // If step failed with continueOnFailure, proceed to next
       if (result.success === false && continueOnFailure === true) {
         reachedVia = 'sequential';
         currentIndex++;
         continue;
+      }
+
+      if (result.success === false) {
+        return {
+          context,
+          traceBuilder,
+          aborted: false,
+          failureReason: result.error ?? `Step "${step.id}" failed without an error message.`,
+        };
       }
 
       // Determine next step
@@ -382,25 +328,106 @@ export class RunbookEngine {
     return { context, traceBuilder, aborted };
   }
 
+  private async executeStepDescriptor(
+    descriptor: StepDescriptor,
+    context: RunbookContext,
+    reachedVia: ReachedVia,
+    traceBuilder: TraceBuilder,
+  ): Promise<StepExecutionOutcome> {
+    const { step, continueOnFailure } = descriptor;
+
+    if (descriptor.silent !== true) {
+      this.logger.text(`[${step.id}] ${step.label}`);
+    }
+
+    const stepStartTime = Date.now();
+    const stepStartedAt = new Date(stepStartTime).toISOString();
+    let result: StepResult<unknown>;
+    let stepStatus: StepTraceStatus = 'success';
+    let recovered = false;
+    let updatedContext = context;
+
+    const baseInput = this.captureStepInput(context);
+    const traceInfo = step.getTraceInfo?.(context);
+    const stepInput = traceInfo !== undefined ? { ...baseInput, resolvedConfig: traceInfo } : baseInput;
+
+    try {
+      result = await step.execute(context);
+    } catch (error: unknown) {
+      if (continueOnFailure !== true) {
+        throw error;
+      }
+
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.warning(`[${step.id}] Step failed but continueOnFailure=true: ${errorMessage}`);
+
+      const recoveryInfo: ErrorRecoveryInfo = {
+        stepId: step.id,
+        originalError: errorMessage,
+        failedAt: new Date(),
+        skipped: true,
+      };
+
+      result = {
+        success: false,
+        error: errorMessage,
+        errorRecovery: recoveryInfo,
+      };
+
+      updatedContext = addRecoveredError(context, recoveryInfo);
+      stepStatus = 'failed';
+      recovered = true;
+    }
+
+    const stepCompletedAt = new Date().toISOString();
+    const stepDurationMs = Date.now() - stepStartTime;
+
+    if (!result.success && !recovered) {
+      stepStatus = 'failed';
+    }
+
+    const directive = result.next ?? 'continue';
+    const varsWritten: Readonly<Record<string, string>> = result.vars ?? {};
+    const nextTraceBuilder = traceBuilder.traceStep(
+      step.id,
+      step.label,
+      step.kind,
+      reachedVia,
+      stepStartedAt,
+      stepCompletedAt,
+      stepDurationMs,
+      stepStatus,
+      recovered,
+      stepInput,
+      result.output ?? null,
+      varsWritten,
+      this.flowDirectiveToString(directive),
+      result.error,
+    );
+
+    return {
+      context: updateContextWithStepResult(updatedContext, step.id, result),
+      traceBuilder: nextTraceBuilder,
+      result,
+    };
+  }
+
   /**
    * Captures the relevant input context for a step.
-   * Returns a snapshot of current vars and params for trace purposes.
+   *
+   * Snapshots only `vars` (which mutate step-by-step). `params` are immutable
+   * across the execution and are already serialised once at the top level of
+   * the trace (`trace.input`), so duplicating them per step would be O(N·P)
+   * waste with no diagnostic value.
    *
    * @param context - Current runbook context
-   * @returns Input snapshot
+   * @returns Input snapshot scoped to mutable state
    */
   private captureStepInput(context: RunbookContext): Readonly<Record<string, unknown>> {
-    const input: Record<string, unknown> = {};
-
-    if (context.vars.size > 0) {
-      input['vars'] = Object.fromEntries(context.vars);
+    if (context.vars.size === 0) {
+      return {};
     }
-
-    if (context.params.size > 0) {
-      input['params'] = Object.fromEntries(context.params);
-    }
-
-    return input;
+    return { vars: Object.fromEntries(context.vars) };
   }
 
   /**
@@ -417,47 +444,6 @@ export class RunbookEngine {
   }
 
   /**
-   * Detects runtime cycles by analyzing the visited step sequence.
-   * Looks for repeated patterns in the tail of the sequence.
-   * Requires 3 repetitions of a pattern to confirm a cycle.
-   *
-   * @param visitedSequence - Sequence of visited step IDs
-   * @returns true if a cycle is detected
-   */
-  private detectRuntimeCycle(visitedSequence: ReadonlyArray<string>): boolean {
-    const minCycleLength = 2;
-    const maxCycleLength = 20;
-    const len = visitedSequence.length;
-
-    for (let cycleLen = minCycleLength; cycleLen <= maxCycleLength; cycleLen++) {
-      // Need at least 3 repetitions to confirm
-      const requiredLength = cycleLen * 3;
-      if (len < requiredLength) {
-        continue;
-      }
-
-      const offset = len - requiredLength;
-      let isCycle = true;
-
-      for (let i = 0; i < cycleLen; i++) {
-        const first = visitedSequence[offset + i];
-        const second = visitedSequence[offset + i + cycleLen];
-        const third = visitedSequence[offset + i + cycleLen * 2];
-        if (first !== second || second !== third) {
-          isCycle = false;
-          break;
-        }
-      }
-
-      if (isCycle) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  /**
    * Core logic for evaluating known cases against a context.
    * Cases are evaluated in priority-descending order; **every** match is
    * collected (no short-circuit) so the caller can react to overlapping
@@ -470,16 +456,19 @@ export class RunbookEngine {
   private evaluateKnownCasesCore(
     knownCases: ReadonlyArray<KnownCase>,
     context: RunbookContext,
-  ): { matchedCases: ReadonlyArray<KnownCase>; evaluations: CaseEvaluationTrace[] } {
-    const sorted = [...knownCases].sort((a, b) => b.priority - a.priority);
+  ): {
+    matchedCases: ReadonlyArray<KnownCase>;
+    sortedCases: ReadonlyArray<KnownCase>;
+    evaluations: CaseEvaluationTrace[];
+  } {
+    const sortedCases = [...knownCases].sort((a, b) => b.priority - a.priority);
     const evaluations: CaseEvaluationTrace[] = [];
     const matchedCases: KnownCase[] = [];
 
-    for (const knownCase of sorted) {
-      const { matched, resolvedValues } = this.conditionEvaluator.evaluateWithResolvedValues(
-        knownCase.condition,
-        context,
-      );
+    for (const knownCase of sortedCases) {
+      const { matched, resolvedValues } = this.conditionEvaluator.evaluate(knownCase.condition, context, {
+        withResolvedValues: true,
+      });
 
       evaluations.push({
         caseId: knownCase.id,
@@ -495,7 +484,7 @@ export class RunbookEngine {
       }
     }
 
-    return { matchedCases, evaluations };
+    return { matchedCases, sortedCases, evaluations };
   }
 
   /**
@@ -512,6 +501,8 @@ export class RunbookEngine {
     context: RunbookContext,
   ): { matchedCases: ReadonlyArray<KnownCase>; trace: EarlyResolutionTrace } {
     const { matchedCases, evaluations } = this.evaluateKnownCasesCore(knownCases, context);
+    // `sortedCases` is not needed here: the early-resolution trace only
+    // carries the evaluations and the matched case ids.
 
     return {
       matchedCases,
@@ -532,19 +523,16 @@ export class RunbookEngine {
     context: RunbookContext,
     initialTraceBuilder: TraceBuilder,
   ): { matchedCases: ReadonlyArray<KnownCase>; traceBuilder: TraceBuilder } {
-    const { matchedCases, evaluations } = this.evaluateKnownCasesCore(knownCases, context);
+    const { matchedCases, sortedCases, evaluations } = this.evaluateKnownCasesCore(knownCases, context);
 
-    // Build a lookup for the original KnownCase objects (needed by traceCaseEvaluation)
-    const caseById = new Map<string, KnownCase>();
-    for (const kc of knownCases) {
-      caseById.set(kc.id, kc);
-    }
-
+    // `sortedCases[i]` corresponds to `evaluations[i]` by construction, so we
+    // can pair them up directly without a separate id→case lookup map.
     let traceBuilder = initialTraceBuilder;
-    for (const evaluation of evaluations) {
-      const originalCase = caseById.get(evaluation.caseId);
-      if (originalCase !== undefined) {
-        traceBuilder = traceBuilder.traceCaseEvaluation(originalCase, evaluation.matched, evaluation.resolvedValues);
+    for (let i = 0; i < evaluations.length; i++) {
+      const knownCase = sortedCases[i];
+      const evaluation = evaluations[i];
+      if (knownCase !== undefined && evaluation !== undefined) {
+        traceBuilder = traceBuilder.traceCaseEvaluation(knownCase, evaluation.matched, evaluation.resolvedValues);
       }
     }
 
@@ -555,8 +543,6 @@ export class RunbookEngine {
           ? `Known case identified: ${primary.description}`
           : `Known cases identified (${matchedCases.length}): ${matchedCases.map((c) => c.description).join(' | ')}`;
       this.logger.success(description);
-    } else {
-      this.logger.warning('No known case matches the result.');
     }
 
     return { matchedCases, traceBuilder };

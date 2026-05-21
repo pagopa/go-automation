@@ -18,4 +18,10 @@ export interface Runbook {
   readonly fallbackAction: CaseAction;
   /** Maximum number of iterations for anti-loop protection */
   readonly maxIterations?: number;
+  /**
+   * Structured context exposed by runbook builders for downstream
+   * consumers such as output builders. The shape is family-specific and
+   * must be read through public type guards.
+   */
+  readonly runbookContext?: unknown;
 }

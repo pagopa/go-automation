@@ -3,9 +3,11 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { StepResult } from '../../types/StepResult.js';
+import { readStepOutput } from '../../steps/data/readStepOutput.js';
 
 import { extractCwField } from '../helpers/extractCwField.js';
 import { extractTraceId } from '../helpers/extractTraceId.js';
+import { pickPrimaryStatusCode, rowMeetsThreshold } from '../helpers/accessLogRow.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
 import type { ApiGwErrorInfo } from './ApiGwErrorInfo.js';
 import type { AccessLogSchema } from '../profiles/schemas/AccessLogSchema.js';
@@ -63,23 +65,22 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<ApiGwErrorInfo>> {
-    const rawOutput = context.stepResults.get(this.fromStep);
-    if (rawOutput === undefined) {
-      return { success: false, error: `Step output not found: "${this.fromStep}"` };
-    }
+    const upstream = readStepOutput<ReadonlyArray<ResultField[]>>(context, this.fromStep);
+    if (!upstream.ok) return upstream.failure;
+    const results = upstream.value;
 
-    const results = rawOutput as ReadonlyArray<ResultField[]>;
-
-    // The canonical API GW query filters on `status OR authorizeStatus
+    // The canonical API GW query filters on `status OR authorizerStatus
     // OR integrationServiceStatus`; keep any row whose status fields
-    // surface an error on **at least one** of those three, otherwise we
+    // surface an error on **at least one** of those, otherwise we
     // would silently drop rows whose only signal is on
-    // `authorizeStatus` or `integrationServiceStatus` (e.g. an
-    // authorizer 500 with `status=-`).
+    // `authorizerStatus` or `integrationServiceStatus`
+    // (e.g. an authorizer 500 with `status=-`).
+    // Rows are only ever read downstream (extractTraceId, pickPrimaryStatusCode,
+    // extractCwField) — no defensive clone needed.
     const errorRows: ResultField[][] = [];
     for (const row of results) {
-      if (this.rowMeetsThreshold(row)) {
-        errorRows.push([...row]);
+      if (rowMeetsThreshold(row, this.minStatusCode, this.schema)) {
+        errorRows.push(row);
       }
     }
 
@@ -111,7 +112,7 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
     // un errore (authorizer / integration failure). Prendi il primo
     // valore numerico nell'ordine canonico così `apiGwStatusCode` è
     // sempre il più significativo.
-    const statusCode = this.pickPrimaryStatusCode(firstRow);
+    const statusCode = pickPrimaryStatusCode(firstRow, this.schema);
 
     const vars: Record<string, string> = {
       apiGwErrorCount: String(errorRows.length),
@@ -168,42 +169,6 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
   }
 
   /**
-   * Returns `true` when at least one of the configured status fields
-   * parses to a number ≥ {@link minStatusCode}. Values listed in
-   * {@link AccessLogSchema.notApplicableSentinels} are skipped.
-   */
-  private rowMeetsThreshold(row: ReadonlyArray<ResultField>): boolean {
-    for (const field of this.schema.statusFields) {
-      const raw = extractCwField(row, field);
-      if (raw === undefined) continue;
-      if (this.isNotApplicable(raw)) continue;
-      const num = Number(raw);
-      if (!Number.isNaN(num) && num >= this.minStatusCode) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /**
-   * Returns the first numeric value among the configured status fields,
-   * in declaration order. Used to populate `apiGwStatusCode` so known-case
-   * conditions and the reporter receive a meaningful code even when the
-   * row's error signal is on a secondary field.
-   */
-  private pickPrimaryStatusCode(row: ReadonlyArray<ResultField>): string {
-    for (const field of this.schema.statusFields) {
-      const raw = extractCwField(row, field);
-      if (raw === undefined) continue;
-      if (this.isNotApplicable(raw)) continue;
-      if (!Number.isNaN(Number(raw))) {
-        return raw;
-      }
-    }
-    return '';
-  }
-
-  /**
    * Mappa il nome di campo CloudWatch sul corrispondente campo semantico
    * di {@link ApiGwErrorInfo}. Solo i campi semantici "noti" del tipo
    * vengono propagati nell'output tipizzato; gli altri vivono solo in
@@ -215,9 +180,10 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
     if (field === this.schema.httpMethodField) return 'httpMethod';
     if (field === this.schema.requestIdField) return 'requestId';
     // Campi non-semantici noti del tipo ApiGwErrorInfo, mappati per nome.
-    if (field === 'authorizeStatus') return 'authorizeStatus';
-    if (field === 'integrationServiceStatus') return 'integrationServiceStatus';
+    if (field === 'authorizerStatus') return 'authorizerStatus';
+    if (field === 'authorizerLatency') return 'authorizerLatency';
     if (field === 'authorizerRequestId') return 'authorizerRequestId';
+    if (field === 'integrationServiceStatus') return 'integrationServiceStatus';
     if (field === 'integrationRequestId') return 'integrationRequestId';
     return undefined;
   }

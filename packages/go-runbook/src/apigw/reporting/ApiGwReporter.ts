@@ -199,6 +199,43 @@ export class ApiGwReporter {
     }
   }
 
+  apiGwAuthorizerEvaluation(args: {
+    readonly lambdaName: string;
+    readonly authorizerStatus?: string;
+    readonly authorizerLatencyMs?: number;
+    readonly authorizerRequestId?: string;
+    readonly timeoutMs?: number;
+    readonly path?: string;
+    readonly httpMethod?: string;
+    readonly outcome: 'none' | 'timeout' | 'error';
+    readonly failureType?: string;
+  }): void {
+    this.logger.newline();
+    this.logger.text('═══ Verifica Lambda authorizer API Gateway ═══');
+    this.logger.text(`  ├─ Lambda: ${args.lambdaName}`);
+    this.logger.text(`  ├─ authorizerStatus: ${formatOptional(args.authorizerStatus)}`);
+    this.logger.text(`  ├─ authorizerLatency: ${formatLatency(args.authorizerLatencyMs)}`);
+    this.logger.text(`  ├─ authorizerRequestId: ${formatOptional(args.authorizerRequestId)}`);
+    if (args.timeoutMs !== undefined) {
+      this.logger.text(`  ├─ timeout configurato: ${args.timeoutMs} ms`);
+    }
+
+    const method = args.httpMethod !== undefined && args.httpMethod !== '' ? args.httpMethod : '';
+    const path = args.path !== undefined && args.path !== '' ? args.path : '';
+    if (method !== '' || path !== '') {
+      const label = method !== '' && path !== '' ? `${method} ${path}` : method !== '' ? method : path;
+      this.logger.text(`  ├─ Endpoint: ${label}`);
+    }
+
+    const outcome =
+      args.outcome === 'none'
+        ? 'nessun errore authorizer'
+        : args.outcome === 'timeout'
+          ? 'timeout authorizer'
+          : 'errore authorizer';
+    this.logger.text(`  └─ Esito: ${outcome}`);
+  }
+
   /**
    * Section header for a single service visit.
    *
@@ -247,6 +284,11 @@ export class ApiGwReporter {
 
   apiGwExecutionLogResult(logCount: number): void {
     this.logger.text(`  │    └─ Execution log trovati: ${logCount}`);
+  }
+
+  sectionApiGwExecutionLog(): void {
+    this.logger.newline();
+    this.logger.text('═══ Verifica execution log API Gateway ═══');
   }
 
   /**
@@ -399,4 +441,13 @@ export class ApiGwReporter {
       }
     }
   }
+}
+
+function formatOptional(value: string | undefined): string {
+  if (value === undefined || value.trim() === '' || value.trim() === '-') return 'non disponibile';
+  return value;
+}
+
+function formatLatency(value: number | undefined): string {
+  return value === undefined ? 'non disponibile' : `${value} ms`;
 }

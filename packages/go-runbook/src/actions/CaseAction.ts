@@ -4,6 +4,7 @@ import type { Step } from '../types/Step.js';
  * Action to execute when a known case is recognized.
  */
 export type CaseAction = LogAction | NotifyAction | UpdateAction | EscalateAction | CompositeAction;
+export type CaseActionType = 'log' | 'notify' | 'update' | 'escalate' | 'composite';
 
 /**
  * Log the result (for informational cases).
@@ -13,6 +14,12 @@ export interface LogAction {
   readonly level: 'info' | 'warn' | 'error';
   /** Message template supporting {{vars.xxx}} interpolation */
   readonly message: string;
+  /**
+   * Optional structured console rendering hint. When omitted, log actions
+   * keep the historical plain-message behavior, with legacy prefix parsing
+   * still supported by the executor for backward compatibility.
+   */
+  readonly renderAs?: 'plain' | 'known-case' | 'unknown-case';
 }
 
 /**

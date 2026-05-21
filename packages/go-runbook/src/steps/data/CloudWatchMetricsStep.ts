@@ -4,7 +4,7 @@ import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { MetricDatapoint, MetricDimension } from '@go-automation/go-common/aws';
 import type { TimeRangeFromParams } from './CloudWatchLogsQueryStep.js';
-import { interpolateTemplate } from './interpolateTemplate.js';
+import { interpolatePlaceholders } from '../../core/templatePlaceholders.js';
 import { resolveTimeRange } from './resolveTimeRange.js';
 import { executeStep } from './executeStep.js';
 
@@ -124,7 +124,7 @@ function resolveDimensions(
 ): ReadonlyArray<MetricDimension> {
   return dimensions.map((dim) => ({
     name: dim.name,
-    value: interpolateTemplate(dim.value, context),
+    value: interpolatePlaceholders(dim.value, context),
   }));
 }
 

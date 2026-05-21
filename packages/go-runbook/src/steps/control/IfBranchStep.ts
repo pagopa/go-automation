@@ -3,7 +3,7 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
-import { ConditionEvaluator } from '../../core/ConditionEvaluator.js';
+import { sharedConditionEvaluator } from '../../core/ConditionEvaluator.js';
 import { executeSubPipeline } from './executeSubPipeline.js';
 
 /**
@@ -31,13 +31,11 @@ export class IfBranchStep implements Step<void> {
   readonly kind: StepKind = 'control';
 
   private readonly config: IfBranchConfig;
-  private readonly evaluator: ConditionEvaluator;
 
   constructor(config: IfBranchConfig) {
     this.id = config.id;
     this.label = config.label;
     this.config = config;
-    this.evaluator = new ConditionEvaluator();
   }
 
   /**
@@ -48,7 +46,7 @@ export class IfBranchStep implements Step<void> {
    * @returns Step result with merged variables from the executed sub-pipeline
    */
   async execute(context: RunbookContext): Promise<StepResult<void>> {
-    const conditionResult = this.evaluator.evaluate(this.config.condition, context);
+    const conditionResult = sharedConditionEvaluator.evaluate(this.config.condition, context);
 
     const steps: ReadonlyArray<Step> = conditionResult ? this.config.thenSteps : (this.config.elseSteps ?? []);
 
