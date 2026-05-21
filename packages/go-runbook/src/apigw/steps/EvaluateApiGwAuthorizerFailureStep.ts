@@ -121,7 +121,7 @@ class EvaluateApiGwAuthorizerFailureStepImpl implements Step<ApiGwAuthorizerFail
       }),
     });
 
-    return { success: true };
+    return this.toNoErrorResult(firstEvidence);
   }
 
   private evaluateRow(row: ReadonlyArray<ResultField>): ApiGwAuthorizerFailureInfo | undefined {
@@ -191,6 +191,27 @@ class EvaluateApiGwAuthorizerFailureStepImpl implements Step<ApiGwAuthorizerFail
       output: info,
       vars,
       next: 'resolve',
+    };
+  }
+
+  private toNoErrorResult(
+    evidence: AuthorizerEvidence | undefined,
+  ): StepResult<ApiGwAuthorizerFailureInfo | undefined> {
+    const authorizer = evidence?.authorizer ?? this.check.defaultAuthorizer;
+    return {
+      success: true,
+      output: undefined,
+      vars: {
+        apiGwAuthorizerOutcome: 'no-error',
+        apiGwAuthorizerFailureType: '',
+        apiGwAuthorizerLambdaName: authorizer?.lambdaName ?? '',
+        apiGwAuthorizerStatus: evidence?.authorizerStatus ?? '',
+        apiGwAuthorizerTimeoutMs: authorizer?.timeoutMs !== undefined ? String(authorizer.timeoutMs) : '',
+        apiGwAuthorizerLatencyMs: evidence?.latencyMs !== undefined ? String(evidence.latencyMs) : '',
+        apiGwAuthorizerRequestId: evidence?.requestId ?? '',
+        apiGwAuthorizerPath: evidence?.path ?? '',
+        apiGwAuthorizerHttpMethod: evidence?.httpMethod ?? '',
+      },
     };
   }
 

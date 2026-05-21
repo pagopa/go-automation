@@ -47,7 +47,11 @@ describe('evaluateApiGwAuthorizerFailure', () => {
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.next, undefined);
     assert.strictEqual(result.output, undefined);
-    assert.strictEqual(result.vars, undefined);
+    assert.strictEqual(result.vars?.['apiGwAuthorizerOutcome'], 'no-error');
+    assert.strictEqual(result.vars?.['apiGwAuthorizerLambdaName'], 'pn-ioAuthorizerLambda');
+    assert.strictEqual(result.vars?.['apiGwAuthorizerStatus'], '200');
+    assert.strictEqual(result.vars?.['apiGwAuthorizerLatencyMs'], '10');
+    assert.strictEqual(result.vars?.['apiGwAuthorizerTimeoutMs'], '5000');
   });
 
   it('resolves a timeout when authorizerStatus is >= 500 and latency reaches the lambda timeout', async () => {
@@ -121,7 +125,12 @@ describe('evaluateApiGwAuthorizerFailure', () => {
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.next, undefined);
     assert.strictEqual(result.output, undefined);
-    assert.strictEqual(result.vars, undefined);
+    assert.strictEqual(result.vars?.['apiGwAuthorizerOutcome'], 'no-error');
+    assert.strictEqual(result.vars?.['apiGwAuthorizerLambdaName'], 'pn-ioAuthorizerLambda');
+    assert.strictEqual(result.vars?.['apiGwAuthorizerStatus'], '');
+    assert.strictEqual(result.vars?.['apiGwAuthorizerRequestId'], 'auth-req-4');
+    assert.strictEqual(result.vars?.['apiGwAuthorizerPath'], '/foo');
+    assert.strictEqual(result.vars?.['apiGwAuthorizerHttpMethod'], 'PUT');
   });
 
   it('resolves a generic authorizer error when latency is missing', async () => {

@@ -168,4 +168,25 @@ describe('buildApiGwOutputContext', () => {
     assert.strictEqual(details.services[0]?.recentLogs[0]?.message, 'fallback message field');
     assert.strictEqual(details.services[0]?.recentLogs[1]?.message, 'new service');
   });
+
+  it('includes a successful authorizer gate outcome when exposed by vars', () => {
+    const result = createResult();
+    const noErrorResult: RunbookExecutionResult = {
+      ...result,
+      finalContext: {
+        ...result.finalContext,
+        vars: new Map([
+          ...result.finalContext.vars,
+          ['apiGwAuthorizerOutcome', 'no-error'],
+          ['apiGwAuthorizerStatus', '200'],
+        ]),
+      },
+    };
+
+    const context = buildApiGwOutputContext(createRunbook(), noErrorResult);
+
+    const details = context?.details as unknown as ApiGwOutputContext;
+    assert.strictEqual(details.authorizer?.outcome, 'no-error');
+    assert.strictEqual(details.authorizer?.status, '200');
+  });
 });
