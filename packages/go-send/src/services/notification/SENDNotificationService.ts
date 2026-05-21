@@ -50,12 +50,38 @@ export interface SENDNotificationPollingTerminalError extends Error {
 }
 
 export function isSENDNotificationPollingTerminalError(error: unknown): error is SENDNotificationPollingTerminalError {
+  if (typeof error !== 'object' || error === null) return false;
+
+  const candidate = error as {
+    readonly name?: unknown;
+    readonly notificationRequestId?: unknown;
+    readonly terminalStatus?: unknown;
+    readonly statusResponse?: unknown;
+  };
+
   return (
-    typeof error === 'object' &&
-    error !== null &&
-    (error as { readonly name?: unknown }).name === 'SENDNotificationPollingTerminalError' &&
-    typeof (error as { readonly notificationRequestId?: unknown }).notificationRequestId === 'string' &&
-    typeof (error as { readonly terminalStatus?: unknown }).terminalStatus === 'string'
+    candidate.name === 'SENDNotificationPollingTerminalError' &&
+    typeof candidate.notificationRequestId === 'string' &&
+    typeof candidate.terminalStatus === 'string' &&
+    isSENDNotificationStatusResponse(candidate.statusResponse)
+  );
+}
+
+function isSENDNotificationStatusResponse(value: unknown): value is SENDNotificationStatusResponse {
+  if (typeof value !== 'object' || value === null) return false;
+
+  const candidate = value as {
+    readonly notificationRequestId?: unknown;
+    readonly notificationRequestStatus?: unknown;
+    readonly iun?: unknown;
+    readonly errors?: unknown;
+  };
+
+  return (
+    typeof candidate.notificationRequestId === 'string' &&
+    typeof candidate.notificationRequestStatus === 'string' &&
+    (candidate.iun === undefined || typeof candidate.iun === 'string') &&
+    (candidate.errors === undefined || Array.isArray(candidate.errors))
   );
 }
 

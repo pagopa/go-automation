@@ -107,6 +107,26 @@ describe('SENDNotificationImportRowProcessor', () => {
 });
 
 describe('SENDNotificationService.pollForIun', () => {
+  it('does not narrow malformed terminal polling errors', () => {
+    assert.strictEqual(
+      isSENDNotificationPollingTerminalError({
+        name: 'SENDNotificationPollingTerminalError',
+        notificationRequestId: 'request-1',
+        terminalStatus: SENDNotificationStatus.REFUSED,
+      }),
+      false,
+    );
+    assert.strictEqual(
+      isSENDNotificationPollingTerminalError({
+        name: 'SENDNotificationPollingTerminalError',
+        notificationRequestId: 'request-1',
+        terminalStatus: SENDNotificationStatus.REFUSED,
+        statusResponse: {},
+      }),
+      false,
+    );
+  });
+
   it('stops immediately when PN returns REFUSED without IUN', async () => {
     const service = new SENDNotificationService({ basePath: 'https://example.invalid', apiKey: 'api-key' });
     const get = mock.fn(async (): Promise<SENDNotificationStatusResponse> => {
