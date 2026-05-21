@@ -344,7 +344,7 @@ function parseStructuredLog(message: string, spec: StructuredLogSpec): KnownCase
 }
 
 function normalizeUnknownCaseValue(value: string): string {
-  const withoutRawPlaceholders = value.replace(/\{\{(?:vars|params)\.[^}]+\}\}/g, UNAVAILABLE_VALUE).trim();
+  const withoutRawPlaceholders = value.replace(/\{\{(?:vars|params)\.[^}{]+\}\}/g, UNAVAILABLE_VALUE).trim();
   if (withoutRawPlaceholders === '') return UNAVAILABLE_VALUE;
 
   if (!withoutRawPlaceholders.includes('=')) {

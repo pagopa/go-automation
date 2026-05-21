@@ -19,29 +19,6 @@ import { resolveApiGwAlarmBuildContext } from './resolveApiGwAlarmBuildContext.j
 /**
  * Assembla un runbook API Gateway completo a partire da input dichiarativi.
  *
- * Pipeline prodotta (V04):
- *
- * 1. `prepare-api-gw-section`: banner del reporter.
- * 2. `query-api-gw-logs`: query AccessLog con `{{minStatusCode}}` risolto
- *    a build time. Trace metadata: `queryProfileId`, `queryKind: 'access-log'`.
- * 3. `parse-api-gw-errors`: estrae trace id, statusCode e i campi
- *    diagnostici dichiarati dallo schema del profilo. Il relativo output
- *    console resta sotto la sezione "Preparazione".
- * 4. **Gate opzionale authorizer**: `evaluate-api-gw-authorizer-failure`
- *    cablato solo quando `authorizerFailureCheck` e' configurato. Se
- *    trova un errore authorizer, risolve il runbook prima del trace-id flow.
- * 5. **Branch opzionale**: `query-api-gw-execution-logs` +
- *    `stop-api-gw-execution-log-unresolved` cablati solo quando
- *    `isExecutionLogEnabled(config, profile)`. Pattern SEND con
- *    OR-clause su requestId in UNA sola chiamata AWS.
- * 6. PreSteps custom.
- * 7. Triplet per ogni servizio: `query-<name>` (con predicate del profilo),
- *    `analyze-<name>` (legge dallo schema), `decide-<name>`.
- *
- * V04: il profilo è risolto via {@link resolveApiGwQueryProfile} con
- * default SEND implicito (compatibilità v1.x). Tutte le validazioni
- * lavorano sul profilo risolto.
- *
  * @param config - Configurazione del runbook
  * @returns Un {@link Runbook} validato pronto per l'engine
  */

@@ -114,4 +114,26 @@ describe('ActionExecutor', () => {
     assert.doesNotMatch(joined, /pn-a/);
     assert.doesNotMatch(result.resolvedMessage ?? '', /\{\{vars\./);
   });
+
+  it('normalizes unknown-case fallback actions without scanning through nested malformed placeholders', async () => {
+    const handler = new RecordingHandler();
+    const executor = new ActionExecutor(new GOLogger([handler]));
+    const malformedPlaceholders = Array.from({ length: 200 }, (_, index) => `{{vars.missing${index}`).join('');
+
+    await executor.execute(
+      {
+        type: 'log',
+        level: 'warn',
+        message:
+          '[CASO NON RICONOSCIUTO] Mancata diagnosi\n' +
+          `Dettaglio: ${malformedPlaceholders}\n` +
+          'Campo valido: valore',
+      },
+      createContext(),
+    );
+
+    const joined = handler.events.map((event) => event.message).join('\n');
+    assert.match(joined, /Caso non riconosciuto/);
+    assert.match(joined, /Campo valido/);
+  });
 });
