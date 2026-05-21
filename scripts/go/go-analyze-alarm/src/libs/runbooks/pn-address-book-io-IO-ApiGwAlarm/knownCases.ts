@@ -268,7 +268,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   // Il campo `error_message` del JSON canonico recita
   //   "error upserting service activation message=...ReadTimeoutException",
   // ma in produzione il messaggio del log che vince per lunghezza in
-  // `findErrorMessage` è in realtà
+  // `scanServiceLogs().errorMessage` è in realtà
   //   "[AUD_AB_DA_IO_INSUP] FAILURE - failed saving exception=...ReadTimeoutException".
   // Le due varianti sono lo stesso scenario (timeout di rete chiamando
   // ext-registry-private); copriamo entrambe le firme per robustezza.

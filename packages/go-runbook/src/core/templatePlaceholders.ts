@@ -102,8 +102,20 @@ function replaceTemplatePlaceholders(template: string, replace: TemplatePlacehol
 export function interpolatePlaceholders(
   template: string,
   values: TemplatePlaceholderValues,
-  options: InterpolatePlaceholdersOptions = {},
+  escape?: EscapeTransformer,
+): string;
+export function interpolatePlaceholders(
+  template: string,
+  values: TemplatePlaceholderValues,
+  options?: InterpolatePlaceholdersOptions,
+): string;
+export function interpolatePlaceholders(
+  template: string,
+  values: TemplatePlaceholderValues,
+  optionsOrEscape: InterpolatePlaceholdersOptions | EscapeTransformer = {},
 ): string {
+  const options = typeof optionsOrEscape === 'function' ? { escape: optionsOrEscape } : optionsOrEscape;
+
   return replaceTemplatePlaceholders(template, ({ raw, source, key }) => {
     const value = getPlaceholderValue(values, source, key);
     if (value === undefined) {

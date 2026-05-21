@@ -399,13 +399,12 @@ interface NotCondition {
  * - 'params.{name}'        -> parametro di input del runbook
  */
 class ConditionEvaluator {
-  /**
-   * Raccoglie tutti i valori risolti dai riferimenti di una condizione.
-   * Usato per popolare resolvedValues nel CaseEvaluationTrace.
-   */
-  collectResolvedValues(condition: Condition, context: RunbookContext): Readonly<Record<string, unknown>>;
-
   evaluate(condition: Condition, context: RunbookContext): boolean;
+  evaluate(
+    condition: Condition,
+    context: RunbookContext,
+    options: { readonly withResolvedValues: true },
+  ): { readonly matched: boolean; readonly resolvedValues: Readonly<Record<string, unknown>> };
 }
 ```
 
@@ -906,13 +905,13 @@ type ValidationErrorCode =
  *     team: 'GO',
  *     tags: ['api-gateway', '5xx', 'alarm'],
  *   })
- *   .step(queryCloudWatchLogs({ ... }))
+ *   .step(new CloudWatchLogsQueryStep({ ... }))
  *   .step(extractField({ ... }), { continueOnFailure: true })
  *   .ifBranch({
  *     id: 'check-timeout',
  *     label: 'Verifica timeout',
  *     condition: { type: 'compare', ref: 'vars.statusCode', operator: '==', value: '504' },
- *     thenSteps: [queryCloudWatchLogs({ ... }), extractField({ ... })],
+ *     thenSteps: [new CloudWatchLogsQueryStep({ ... }), extractField({ ... })],
  *     elseSteps: [setVar({ ... })],
  *   })
  *   .knownCase({ ... })
@@ -1277,13 +1276,14 @@ function isSwitchStep(step: Step): step is Step & {
 }
 ````
 
-### Step Factory Functions
+### Step Construction
 
-Ogni tipo di step ha una factory function per facilitare la creazione.
+Gli step principali sono classi istanziabili direttamente; alcune API storiche
+mantengono ancora factory function dedicate.
 
 ```typescript
 // Data steps
-function queryCloudWatchLogs(config: CloudWatchLogsQueryConfig): CloudWatchLogsQueryStep;
+new CloudWatchLogsQueryStep(config: CloudWatchLogsQueryConfig);
 function queryDynamoDB(config: DynamoDBQueryConfig): DynamoDBQueryStep;
 function httpRequest(config: HttpRequestConfig): HttpRequestStep;
 
@@ -1293,7 +1293,7 @@ function regexExtract(config: RegexExtractConfig): RegexExtractStep;
 
 // Check steps
 function assert(config: AssertConfig): AssertStep;
-function compare(config: CompareConfig): CompareStep;
+new CompareStep(config: CompareStepConfig);
 
 // Control flow steps
 function ifCondition(config: IfStepConfig): IfStep;
@@ -1326,7 +1326,8 @@ Un allarme CloudWatch `pn-address-book-io-IO-ApiGwAlarm` scatta. Il runbook deve
 ```typescript
 import {
   RunbookBuilder,
-  queryCloudWatchLogs,
+  CloudWatchLogsQueryStep,
+  CompareStep,
   extractField,
   regexExtract,
   ifCondition,
@@ -1356,7 +1357,7 @@ const apiGateway5xxRunbook = RunbookBuilder.create('alarm-api-gw-5xx')
 
   // -- STEP 1: Query CloudWatch Logs per trovare gli errori 5xx --
   .step(
-    queryCloudWatchLogs({
+    new CloudWatchLogsQueryStep({
       id: 'query-5xx-errors',
       label: 'Cerca errori 5xx nei log di API Gateway',
       logGroups: ['/aws/apigateway/pn-address-book-io'],
@@ -1442,7 +1443,7 @@ const apiGateway5xxRunbook = RunbookBuilder.create('alarm-api-gw-5xx')
       value: '504',
     },
     thenSteps: [
-      queryCloudWatchLogs({
+      new CloudWatchLogsQueryStep({
         id: 'query-downstream-latency',
         label: 'Analizza latenza downstream',
         logGroups: ['/aws/apigateway/pn-address-book-io'],
@@ -2557,7 +2558,7 @@ const verifyUserDataRunbook = RunbookBuilder.create('verify-user-data-consistenc
       ],
     ]),
     defaultSteps: [
-      compare({
+      new CompareStep({
         id: 'check-email-consistency',
         label: 'Verifica consistenza email',
         left: 'vars.userEmail',

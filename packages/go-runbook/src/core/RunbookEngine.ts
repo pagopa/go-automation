@@ -466,10 +466,9 @@ export class RunbookEngine {
     const matchedCases: KnownCase[] = [];
 
     for (const knownCase of sortedCases) {
-      const { matched, resolvedValues } = this.conditionEvaluator.evaluateWithResolvedValues(
-        knownCase.condition,
-        context,
-      );
+      const { matched, resolvedValues } = this.conditionEvaluator.evaluate(knownCase.condition, context, {
+        withResolvedValues: true,
+      });
 
       evaluations.push({
         caseId: knownCase.id,

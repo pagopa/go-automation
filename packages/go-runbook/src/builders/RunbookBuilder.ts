@@ -47,7 +47,7 @@ function isSwitchStepWithGoTo(step: Step): step is Step & {
  *     team: 'GO',
  *     tags: ['api-gateway', '5xx'],
  *   })
- *   .step(queryCloudWatchLogs({ ... }))
+ *   .step(new CloudWatchLogsQueryStep({ ... }))
  *   .step(extractField({ ... }), { continueOnFailure: true })
  *   .knownCase({ ... })
  *   .fallback(logAction({ ... }))

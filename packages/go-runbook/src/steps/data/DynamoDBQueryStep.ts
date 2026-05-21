@@ -3,7 +3,7 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
-import { interpolateTemplate } from './interpolateTemplate.js';
+import { interpolatePlaceholders } from '../../core/templatePlaceholders.js';
 import { executeStep } from './executeStep.js';
 
 /**
@@ -70,7 +70,7 @@ export class DynamoDBQueryStep implements Step<ReadonlyArray<Record<string, unkn
    */
   getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
     return {
-      tableName: interpolateTemplate(this.tableName, context),
+      tableName: interpolatePlaceholders(this.tableName, context),
       keyConditionExpression: this.keyConditionExpression,
       expressionAttributeValues: resolveAttributeValues(this.expressionAttributeValues, context),
       ...(this.expressionAttributeNames !== undefined
@@ -87,7 +87,7 @@ export class DynamoDBQueryStep implements Step<ReadonlyArray<Record<string, unkn
    */
   async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<Record<string, unknown>>>> {
     return executeStep('DynamoDB query', async () => {
-      const resolvedTableName = interpolateTemplate(this.tableName, context);
+      const resolvedTableName = interpolatePlaceholders(this.tableName, context);
       const resolvedValues = resolveAttributeValues(this.expressionAttributeValues, context);
       const resolvedNames =
         this.expressionAttributeNames !== undefined
@@ -119,7 +119,7 @@ function resolveAttributeValues(
   const resolved: Record<string, AttributeValue> = {};
   for (const [key, attr] of Object.entries(values)) {
     if ('S' in attr && typeof attr.S === 'string') {
-      resolved[key] = { ...attr, S: interpolateTemplate(attr.S, context) };
+      resolved[key] = { ...attr, S: interpolatePlaceholders(attr.S, context) };
     } else {
       resolved[key] = attr;
     }
@@ -137,7 +137,7 @@ function resolveAttributeNames(
 ): Record<string, string> {
   const resolved: Record<string, string> = {};
   for (const [key, value] of Object.entries(names)) {
-    resolved[key] = interpolateTemplate(value, context);
+    resolved[key] = interpolatePlaceholders(value, context);
   }
   return resolved;
 }

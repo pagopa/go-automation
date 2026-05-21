@@ -2,7 +2,7 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
-import { interpolateTemplate } from './interpolateTemplate.js';
+import { interpolatePlaceholders } from '../../core/templatePlaceholders.js';
 import { executeStep } from './executeStep.js';
 
 /**
@@ -56,7 +56,7 @@ export class DynamoDBGetStep implements Step<Record<string, unknown> | undefined
    */
   getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
     return {
-      tableName: interpolateTemplate(this.tableName, context),
+      tableName: interpolatePlaceholders(this.tableName, context),
       key: resolveKey(this.key, context),
     };
   }
@@ -69,7 +69,7 @@ export class DynamoDBGetStep implements Step<Record<string, unknown> | undefined
    */
   async execute(context: RunbookContext): Promise<StepResult<Record<string, unknown> | undefined>> {
     return executeStep('DynamoDB GetItem', async () => {
-      const resolvedTableName = interpolateTemplate(this.tableName, context);
+      const resolvedTableName = interpolatePlaceholders(this.tableName, context);
       const resolvedKey = resolveKey(this.key, context);
 
       const result = await context.services.dynamodb.getItem(resolvedTableName, resolvedKey, context.signal);
@@ -87,7 +87,7 @@ function resolveKey(key: Readonly<Record<string, unknown>>, context: RunbookCont
   const resolved: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(key)) {
     if (typeof v === 'string') {
-      resolved[k] = interpolateTemplate(v, context);
+      resolved[k] = interpolatePlaceholders(v, context);
     } else {
       resolved[k] = v;
     }

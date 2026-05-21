@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { ResultField } from '@go-automation/go-common/aws';
-import { findKnownUrlInLogs } from '../findKnownUrlInLogs.js';
+import { scanServiceLogs } from '../scanServiceLogs.js';
 import { KnownUrlsRegistry } from '../../registries/KnownUrlsRegistry.js';
 import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
 
@@ -12,7 +12,7 @@ function row(message: string): ResultField[] {
   return [{ field: '@message', value: message }];
 }
 
-describe('findKnownUrlInLogs', () => {
+describe('scanServiceLogs knownUrl projection', () => {
   const registry = new KnownUrlsRegistry([
     { url: 'https://api.io.pagopa.it/api/v1/activations/', target: 'AppIO' },
     {
@@ -26,34 +26,34 @@ describe('findKnownUrlInLogs', () => {
       row('nothing to see here'),
       row('Invoking https://api.io.pagopa.it/api/v1/activations/abc with body=...'),
     ];
-    const match = findKnownUrlInLogs(rows, registry, SCHEMA);
+    const match = scanServiceLogs(rows, SCHEMA, registry).knownUrl;
     assert.ok(match !== undefined);
     assert.strictEqual(match.known.target, 'AppIO');
     assert.strictEqual(match.observedUrl, 'https://api.io.pagopa.it/api/v1/activations/abc');
   });
 
   it('trims trailing punctuation before probing the registry', () => {
-    const match = findKnownUrlInLogs(
+    const match = scanServiceLogs(
       [row('called http://internal-EcsA-123:8080/ext-registry-private/io/v1/activations.')],
-      registry,
       SCHEMA,
-    );
+      registry,
+    ).knownUrl;
     assert.ok(match !== undefined);
     assert.strictEqual(match.known.target, 'pn-external-registries');
     assert.ok(!match.observedUrl.endsWith('.'));
   });
 
   it('returns undefined when no URL matches', () => {
-    const match = findKnownUrlInLogs([row('http://unknown.example/path')], registry, SCHEMA);
+    const match = scanServiceLogs([row('http://unknown.example/path')], SCHEMA, registry).knownUrl;
     assert.strictEqual(match, undefined);
   });
 
   it('skips rows with no message field', () => {
-    const match = findKnownUrlInLogs(
+    const match = scanServiceLogs(
       [[{ field: 'other', value: 'no message here' }], row('https://api.io.pagopa.it/api/v1/activations/x')],
-      registry,
       SCHEMA,
-    );
+      registry,
+    ).knownUrl;
     assert.ok(match !== undefined);
   });
 
@@ -62,7 +62,7 @@ describe('findKnownUrlInLogs', () => {
       { url: 'https://api.io.pagopa.it/api/', target: 'AppIO-broad' },
       { url: 'https://api.io.pagopa.it/api/v1/', target: 'AppIO-v1' },
     ]);
-    const match = findKnownUrlInLogs([row('https://api.io.pagopa.it/api/v1/activations/x')], broad, SCHEMA);
+    const match = scanServiceLogs([row('https://api.io.pagopa.it/api/v1/activations/x')], SCHEMA, broad).knownUrl;
     assert.strictEqual(match?.known.target, 'AppIO-broad');
   });
 });

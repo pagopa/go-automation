@@ -14,9 +14,18 @@ interface PredicateEvaluation {
   readonly detail: unknown;
 }
 
+export interface ConditionEvaluationDetails {
+  readonly matched: boolean;
+  readonly resolvedValues: Readonly<Record<string, unknown>>;
+}
+
+interface ConditionEvaluationOptions {
+  readonly withResolvedValues: true;
+}
+
 /**
  * Compact description of a match against an array element, surfaced via
- * `collectResolvedValues` so the trace can show which element satisfied
+ * detailed condition evaluation so the trace can show which element satisfied
  * the predicate (without dumping the entire raw collection).
  */
 interface MatchDetailSingle {
@@ -64,8 +73,9 @@ const MAX_TRACE_MATCHES = 10;
  *
  * **Array semantics**: when a `ref` resolves to an array, every
  * predicate operator (`compare`, `pattern`, `contains` with value or
- * regex) applies element-wise with OR (any-match). The matched element
- * is recorded in `collectResolvedValues` so the trace can surface it.
+ * regex) applies element-wise with OR (any-match). When detailed
+ * evaluation is requested, the matched element is recorded so the trace
+ * can surface it.
  *
  * @example
  * ```typescript
@@ -78,51 +88,42 @@ const MAX_TRACE_MATCHES = 10;
  */
 export class ConditionEvaluator {
   /**
-   * Collects all resolved reference values from a condition.
-   * Used to populate resolvedValues in CaseEvaluationTrace.
-   *
-   * When the predicate is array-aware and the ref resolves to an array,
-   * the returned record contains a compact match-detail object instead
-   * of the raw array (which would be huge for a typical CloudWatch
-   * query result).
-   *
-   * @param condition - The condition to inspect
-   * @param context - The current runbook context
-   * @returns Record mapping reference strings to their resolved values
-   */
-  collectResolvedValues(condition: Condition, context: RunbookContext): Readonly<Record<string, unknown>> {
-    return this.evaluateWithResolvedValues(condition, context).resolvedValues;
-  }
-
-  /**
-   * Evaluates a condition and collects the resolved trace values in the
-   * same traversal. This is the preferred path for known-case matching:
-   * large array refs (for example CloudWatch query rows) are scanned at
-   * most once per leaf condition instead of once for the boolean result
-   * and again for trace detail generation.
-   *
-   * @param condition - The condition to evaluate
-   * @param context - The current runbook context
-   * @returns Matched flag plus resolved values for case-evaluation trace
-   */
-  evaluateWithResolvedValues(
-    condition: Condition,
-    context: RunbookContext,
-  ): { readonly matched: boolean; readonly resolvedValues: Readonly<Record<string, unknown>> } {
-    const values: Record<string, unknown> = {};
-    const matched = this.evaluateAndCollect(condition, context, values);
-    return { matched, resolvedValues: values };
-  }
-
-  /**
    * Evaluates a condition against the runbook context.
    *
    * @param condition - The condition to evaluate
    * @param context - The current runbook context
    * @returns Whether the condition is satisfied
    */
-  evaluate(condition: Condition, context: RunbookContext): boolean {
-    return this.evaluateWithResolvedValues(condition, context).matched;
+  evaluate(condition: Condition, context: RunbookContext): boolean;
+
+  /**
+   * Evaluates a condition and returns the resolved trace values in the
+   * same traversal. This is used by known-case tracing: large array refs
+   * are scanned once and represented with compact match-detail objects
+   * instead of raw arrays.
+   *
+   * @param condition - The condition to evaluate
+   * @param context - The current runbook context
+   * @param options - Enables resolved-values collection for trace output
+   * @returns Matched flag plus resolved values for case-evaluation trace
+   */
+  evaluate(
+    condition: Condition,
+    context: RunbookContext,
+    options: ConditionEvaluationOptions,
+  ): ConditionEvaluationDetails;
+
+  evaluate(
+    condition: Condition,
+    context: RunbookContext,
+    options?: ConditionEvaluationOptions,
+  ): boolean | ConditionEvaluationDetails {
+    const values: Record<string, unknown> = {};
+    const matched = this.evaluateAndCollect(condition, context, values);
+    if (options?.withResolvedValues === true) {
+      return { matched, resolvedValues: values };
+    }
+    return matched;
   }
 
   private evaluateAndCollect(condition: Condition, context: RunbookContext, values: Record<string, unknown>): boolean {

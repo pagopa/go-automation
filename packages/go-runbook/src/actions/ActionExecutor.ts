@@ -85,12 +85,14 @@ export class ActionExecutor {
    */
   private getResolvedMessage(action: CaseAction, context: RunbookContext): string | undefined {
     switch (action.type) {
-      case 'log':
-        return this.interpolate(action.message, context, missingValueFor(action.message));
+      case 'log': {
+        const missingValue = missingValueFor(action.message);
+        return interpolatePlaceholders(action.message, context, missingValue === undefined ? {} : { missingValue });
+      }
       case 'notify':
-        return this.interpolate(action.template, context);
+        return interpolatePlaceholders(action.template, context);
       case 'escalate':
-        return this.interpolate(action.message, context);
+        return interpolatePlaceholders(action.message, context);
       case 'update':
       case 'composite':
         return undefined;
@@ -106,17 +108,22 @@ export class ActionExecutor {
    */
   private async executeAction(action: CaseAction, context: RunbookContext): Promise<void> {
     switch (action.type) {
-      case 'log':
-        this.executeLogAction(action, this.interpolate(action.message, context, missingValueFor(action.message)));
+      case 'log': {
+        const missingValue = missingValueFor(action.message);
+        this.executeLogAction(
+          action,
+          interpolatePlaceholders(action.message, context, missingValue === undefined ? {} : { missingValue }),
+        );
         break;
+      }
       case 'notify':
-        await this.executeNotifyAction(action.channel, this.interpolate(action.template, context));
+        await this.executeNotifyAction(action.channel, interpolatePlaceholders(action.template, context));
         break;
       case 'update':
         await action.step.execute(context);
         break;
       case 'escalate':
-        this.executeEscalateAction(action.team, action.severity, this.interpolate(action.message, context));
+        this.executeEscalateAction(action.team, action.severity, interpolatePlaceholders(action.message, context));
         break;
       case 'composite':
         for (const subAction of action.actions) {
@@ -219,18 +226,6 @@ export class ActionExecutor {
   private executeEscalateAction(team: string, severity: 'low' | 'medium' | 'high' | 'critical', message: string): void {
     this.logger.warning(`[ESCALATE -> ${team} (${severity})] ${message}`);
     // Future: integrate with PagerDuty, Jira, etc.
-  }
-
-  /**
-   * Interpolates {{vars.xxx}} and {{params.xxx}} placeholders in a template string.
-   *
-   * @param template - Template string with {{...}} placeholders
-   * @param context - Runbook context for resolving references
-   * @returns Interpolated string
-   */
-  private interpolate(template: string, context: RunbookContext, missingValue?: string): string {
-    const options = missingValue === undefined ? {} : { missingValue };
-    return interpolatePlaceholders(template, { vars: context.vars, params: context.params }, options);
   }
 }
 

@@ -2,7 +2,7 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
-import { interpolateTemplate } from '../data/interpolateTemplate.js';
+import { interpolatePlaceholders } from '../../core/templatePlaceholders.js';
 
 /**
  * Configuration for the set-variable control step.
@@ -83,7 +83,7 @@ export class SetVarStep implements Step<void> {
     }
 
     if (this.expression !== undefined) {
-      return interpolateTemplate(this.expression, context);
+      return interpolatePlaceholders(this.expression, context);
     }
 
     return '';

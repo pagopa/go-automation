@@ -4,7 +4,7 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
-import { interpolateTemplate } from './interpolateTemplate.js';
+import { interpolatePlaceholders } from '../../core/templatePlaceholders.js';
 import { resolveTimeRange } from './resolveTimeRange.js';
 import { executeStep } from './executeStep.js';
 
@@ -57,7 +57,7 @@ export interface CloudWatchLogsQueryConfig {
  *
  * @example
  * ```typescript
- * const step = queryCloudWatchLogs({
+ * const step = new CloudWatchLogsQueryStep({
  *   id: 'fetch-errors',
  *   label: 'Fetch error logs',
  *   logGroups: ['/aws/lambda/my-function'],
@@ -94,7 +94,7 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
    * @returns Trace info with resolved query, log groups, and time range
    */
   getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
-    const interpolatedQuery = interpolateTemplate(this.query, context);
+    const interpolatedQuery = interpolatePlaceholders(this.query, context);
     const startStr = context.params.get(this.timeRangeFromParams.start);
     const endStr = context.params.get(this.timeRangeFromParams.end);
 
@@ -118,7 +118,7 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
   async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<ResultField>>>> {
     return executeStep('CloudWatch Logs query', async () => {
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
-      const interpolatedQuery = interpolateTemplate(this.query, context);
+      const interpolatedQuery = interpolatePlaceholders(this.query, context);
 
       const results = await context.services.cloudWatchLogs.query(this.logGroups, interpolatedQuery, timeRange, {
         ...(context.signal !== undefined ? { signal: context.signal } : {}),
@@ -128,14 +128,4 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
       return { success: true, output: results };
     });
   }
-}
-
-/**
- * Factory function for creating a CloudWatch Logs Insights query step.
- *
- * @param config - Step configuration
- * @returns A new CloudWatchLogsQueryStep instance
- */
-export function queryCloudWatchLogs(config: CloudWatchLogsQueryConfig): CloudWatchLogsQueryStep {
-  return new CloudWatchLogsQueryStep(config);
 }

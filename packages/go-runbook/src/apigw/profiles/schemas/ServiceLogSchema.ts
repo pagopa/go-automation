@@ -1,9 +1,8 @@
 /**
  * Schema dei campi dei log applicativi di un microservizio.
  *
- * Usato dagli helper di analisi (`findErrorMessage`, `extractFallbackUuid`,
- * `findKnownUrlInLogs`, `findTraceIdCandidate`) per leggere i log nel
- * formato specifico del prodotto.
+ * Usato da `scanServiceLogs` per leggere i log nel formato specifico
+ * del prodotto.
  */
 export interface ServiceLogSchema {
   /**

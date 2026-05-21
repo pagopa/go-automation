@@ -1,5 +1,5 @@
 import { RunbookBuilder } from '../../builders/RunbookBuilder.js';
-import { queryCloudWatchLogs } from '../../steps/data/CloudWatchLogsQueryStep.js';
+import { CloudWatchLogsQueryStep } from '../../steps/data/CloudWatchLogsQueryStep.js';
 import type { Runbook } from '../../types/Runbook.js';
 
 import type { ApiGwAlarmConfig } from '../types/ApiGwAlarmConfig.js';
@@ -7,7 +7,7 @@ import type { ApiGwAlarmConfig } from '../types/ApiGwAlarmConfig.js';
 import { parseApiGwErrors } from '../steps/ParseApiGwErrorsStep.js';
 import { prepareApiGwSection } from '../steps/PrepareApiGwSectionStep.js';
 import { queryServiceLogs } from '../steps/QueryServiceLogsStep.js';
-import { analyzeServiceLogs } from '../steps/AnalyzeServiceLogsStep.js';
+import { AnalyzeServiceLogsStep } from '../steps/AnalyzeServiceLogsStep.js';
 import { decideNext } from '../steps/DecideNextStep.js';
 import { queryApiGwExecutionLogs } from '../steps/QueryApiGwExecutionLogsStep.js';
 import { stopApiGwExecutionLogAnalysis } from '../steps/StopApiGwExecutionLogAnalysisStep.js';
@@ -63,7 +63,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
 
   // 2. AccessLog query (con traceMetadata cross-prodotto).
   builder.step(
-    queryCloudWatchLogs({
+    new CloudWatchLogsQueryStep({
       id: 'query-api-gw-logs',
       label: 'Query API Gateway AccessLog per errori HTTP',
       logGroups: [config.apiGwLogGroup],
@@ -165,7 +165,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     );
 
     builder.step(
-      analyzeServiceLogs({
+      new AnalyzeServiceLogsStep({
         id: `analyze-${service.name}`,
         label: `Analisi log ${service.name}`,
         fromStep: `query-${service.name}`,

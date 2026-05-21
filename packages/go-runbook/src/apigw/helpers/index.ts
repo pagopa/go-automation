@@ -4,10 +4,7 @@
  */
 
 export { extractCwField } from './extractCwField.js';
-export { extractFallbackUuid } from './extractFallbackUuid.js';
 export { extractTraceId } from './extractTraceId.js';
-export { findErrorMessage } from './findErrorMessage.js';
-export { findKnownUrlInLogs } from './findKnownUrlInLogs.js';
-export type { KnownUrlInLogs } from './findKnownUrlInLogs.js';
-export { findTraceIdCandidate, transformRawTraceId } from './findTraceIdCandidate.js';
-export type { TraceIdCandidateMatch } from './findTraceIdCandidate.js';
+export { scanServiceLogs } from './scanServiceLogs.js';
+export type { KnownUrlInLogs, ServiceLogsScan, TraceIdCandidateMatch } from './scanServiceLogs.js';
+export { transformRawTraceId } from './transformRawTraceId.js';

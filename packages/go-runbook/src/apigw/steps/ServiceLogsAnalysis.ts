@@ -1,6 +1,6 @@
 /**
  * Outcome of a microservice log analysis performed by
- * {@link analyzeServiceLogs}.
+ * {@link AnalyzeServiceLogsStep}.
  */
 export interface ServiceLogsAnalysis {
   /** Longest "error-like" message found across the result rows. */

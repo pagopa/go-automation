@@ -10,7 +10,7 @@ import type { CompareOperator } from '../../core/CompareOperator.js';
 /**
  * Configuration for a compare step.
  */
-interface CompareStepConfig {
+export interface CompareStepConfig {
   readonly id: string;
   readonly label: string;
   /** Reference to a value in context (e.g. 'vars.x', 'params.x', 'steps.x.output') */
@@ -25,7 +25,7 @@ interface CompareStepConfig {
  *
  * @example
  * ```typescript
- * const step = compare({
+ * const step = new CompareStep({
  *   id: 'check-count',
  *   label: 'Verify item count exceeds threshold',
  *   leftRef: 'steps.fetch.output.count',
@@ -34,7 +34,7 @@ interface CompareStepConfig {
  * });
  * ```
  */
-class CompareStep implements Step<boolean> {
+export class CompareStep implements Step<boolean> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'check';
@@ -81,14 +81,4 @@ class CompareStep implements Step<boolean> {
         `"${valueToString(leftValue)}" ${this.operator} "${valueToString(this.rightValue)}" is false`,
     };
   }
-}
-
-/**
- * Factory function that creates a CompareStep.
- *
- * @param config - Configuration containing id, label, leftRef, operator, and rightValue
- * @returns A Step that compares a context value against a fixed value
- */
-export function compare(config: CompareStepConfig): Step<boolean> {
-  return new CompareStep(config);
 }

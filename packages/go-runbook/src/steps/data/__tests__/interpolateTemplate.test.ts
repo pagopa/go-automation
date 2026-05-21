@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 
 import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import { extractTemplateParameters, interpolateTemplate } from '../interpolateTemplate.js';
+import { interpolatePlaceholders } from '../../../core/templatePlaceholders.js';
+import { extractTemplateParameters } from '../interpolateTemplate.js';
 
 function createContext(params: Record<string, string> = {}, vars: Record<string, string> = {}): RunbookContext {
   return {
@@ -18,11 +19,11 @@ function createContext(params: Record<string, string> = {}, vars: Record<string,
   };
 }
 
-describe('interpolateTemplate', () => {
+describe('interpolatePlaceholders with RunbookContext', () => {
   it('interpolates params and vars placeholders', () => {
     const context = createContext({ name: 'Alice', id: 'ABC-123' }, { status: 'DELIVERED' });
 
-    const result = interpolateTemplate(
+    const result = interpolatePlaceholders(
       'Hello {{params.name}}, notification {{params.id}} is {{vars.status}}.',
       context,
     );
@@ -33,7 +34,7 @@ describe('interpolateTemplate', () => {
   it('leaves unresolved placeholders unchanged', () => {
     const context = createContext({ name: 'Alice' });
 
-    const result = interpolateTemplate('Hello {{params.name}} {{params.missing}} {{vars.unknown}}', context);
+    const result = interpolatePlaceholders('Hello {{params.name}} {{params.missing}} {{vars.unknown}}', context);
 
     assert.strictEqual(result, 'Hello Alice {{params.missing}} {{vars.unknown}}');
   });
@@ -41,7 +42,7 @@ describe('interpolateTemplate', () => {
   it('applies the escape transformer to resolved placeholders only', () => {
     const context = createContext({ name: "O'Brien" });
 
-    const result = interpolateTemplate(
+    const result = interpolatePlaceholders(
       "SELECT * FROM t WHERE name = '{{params.name}}' AND raw = '{{params.missing}}'",
       context,
       (value) => value.replace(/'/g, "''"),
@@ -54,7 +55,7 @@ describe('interpolateTemplate', () => {
     const context = createContext({}, { status: 'READY' });
 
     const template = '{{vars.|still malformed}} then {{vars.status}}';
-    const result = interpolateTemplate(template, context);
+    const result = interpolatePlaceholders(template, context);
 
     assert.strictEqual(result, '{{vars.|still malformed}} then READY');
   });

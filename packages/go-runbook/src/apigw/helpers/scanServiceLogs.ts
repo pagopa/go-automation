@@ -2,8 +2,7 @@ import type { ResultField } from '@go-automation/go-common/aws';
 
 import type { ServiceLogSchema } from '../profiles/schemas/ServiceLogSchema.js';
 import type { KnownUrlsRegistry } from '../registries/KnownUrlsRegistry.js';
-import type { KnownUrlInLogs } from './findKnownUrlInLogs.js';
-import type { TraceIdCandidateMatch } from './findTraceIdCandidate.js';
+import type { KnownUrl } from '../types/KnownUrl.js';
 import { transformRawTraceId } from './transformRawTraceId.js';
 
 /**
@@ -32,6 +31,26 @@ const URL_PATTERN = /https?:\/\/[^\s'"<>`]+/g;
 
 /** Trailing punctuation trimmed from an observed URL before registry match. */
 const TRAILING_TRIM = /[).,;:\]]+$/;
+
+/**
+ * Known URL match observed inside service logs.
+ */
+export interface KnownUrlInLogs {
+  /** URL exactly as observed in the log message (already trimmed). */
+  readonly observedUrl: string;
+  /** Registry entry that matched the observed URL. */
+  readonly known: KnownUrl;
+}
+
+/**
+ * Trace id candidate observed inside service logs.
+ */
+export interface TraceIdCandidateMatch {
+  /** Raw token as it appeared in the log row (32 hex chars or canonical). */
+  readonly raw: string;
+  /** Canonical X-Ray form (`1-XXXXXXXX-...`). */
+  readonly canonical: string;
+}
 
 /**
  * Aggregated outcome of a single pass over a service's CloudWatch Logs

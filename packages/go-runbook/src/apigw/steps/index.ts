@@ -22,7 +22,7 @@ export type {
   EvaluateApiGwAuthorizerFailureConfig,
 } from './EvaluateApiGwAuthorizerFailureStep.js';
 
-export { analyzeServiceLogs } from './AnalyzeServiceLogsStep.js';
+export { AnalyzeServiceLogsStep } from './AnalyzeServiceLogsStep.js';
 export type { AnalyzeServiceLogsConfig } from './AnalyzeServiceLogsStep.js';
 export type { ServiceLogsAnalysis } from './ServiceLogsAnalysis.js';
 

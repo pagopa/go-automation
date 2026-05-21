@@ -7,11 +7,11 @@
  *
  * @example
  * ```typescript
- * import { RunbookBuilder, RunbookEngine, ConditionEvaluator, queryCloudWatchLogs, logAction } from '@go-automation/go-runbook';
+ * import { RunbookBuilder, RunbookEngine, ConditionEvaluator, CloudWatchLogsQueryStep, logAction } from '@go-automation/go-runbook';
  *
  * const runbook = RunbookBuilder.create('alarm-api-gw-5xx')
  *   .metadata({ name: 'API GW 5xx', ... })
- *   .step(queryCloudWatchLogs({ ... }))
+ *   .step(new CloudWatchLogsQueryStep({ ... }))
  *   .knownCase({ ... })
  *   .fallback(logAction({ ... }))
  *   .build();

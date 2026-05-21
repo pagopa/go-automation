@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { queryCloudWatchLogs } from '../CloudWatchLogsQueryStep.js';
+import { CloudWatchLogsQueryStep } from '../CloudWatchLogsQueryStep.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 
@@ -20,7 +20,7 @@ function makeContext(params: ReadonlyArray<readonly [string, string]> = []): Run
 
 describe('CloudWatchLogsQueryStep.getTraceInfo', () => {
   it('returns query, logGroups, and timeRange', () => {
-    const step = queryCloudWatchLogs({
+    const step = new CloudWatchLogsQueryStep({
       id: 's',
       label: 'l',
       logGroups: ['lg-1'],
@@ -42,7 +42,7 @@ describe('CloudWatchLogsQueryStep.getTraceInfo', () => {
   });
 
   it('propagates traceMetadata into the trace info output', () => {
-    const step = queryCloudWatchLogs({
+    const step = new CloudWatchLogsQueryStep({
       id: 's',
       label: 'l',
       logGroups: ['lg'],
@@ -56,7 +56,7 @@ describe('CloudWatchLogsQueryStep.getTraceInfo', () => {
   });
 
   it('does NOT allow traceMetadata to override reserved keys (query, logGroups, timeRange)', () => {
-    const step = queryCloudWatchLogs({
+    const step = new CloudWatchLogsQueryStep({
       id: 's',
       label: 'l',
       logGroups: ['real-lg'],
@@ -78,7 +78,7 @@ describe('CloudWatchLogsQueryStep.getTraceInfo', () => {
   });
 
   it('produces a trace info without metadata keys when traceMetadata is undefined', () => {
-    const step = queryCloudWatchLogs({
+    const step = new CloudWatchLogsQueryStep({
       id: 's',
       label: 'l',
       logGroups: ['lg'],

@@ -13,7 +13,7 @@ import type { ServiceLogSchema } from '../profiles/schemas/ServiceLogSchema.js';
 import { SEND_API_GW_PROFILE } from '../profiles/SEND_API_GW_PROFILE.js';
 
 /**
- * Configuration for {@link analyzeServiceLogs}.
+ * Configuration for {@link AnalyzeServiceLogsStep}.
  */
 export interface AnalyzeServiceLogsConfig {
   /** Unique step identifier */
@@ -39,7 +39,35 @@ export interface AnalyzeServiceLogsConfig {
   readonly schema?: ServiceLogSchema;
 }
 
-class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
+/**
+ * Step that analyses microservice CloudWatch Logs query results.
+ *
+ * It:
+ * - derives the most representative error message from the rows;
+ * - scans the rows for the first URL matching the {@link KnownUrlsRegistry};
+ * - extracts a new `FALLBACK-UUID` token only when the same result set
+ *   also points to a known downstream URL;
+ * - records a `trace_id` when the query was driven by an existing
+ *   fallback UUID.
+ *
+ * The step always signals `next: 'resolve'` so the engine evaluates
+ * known cases before any dynamic traversal decision. If no case
+ * matches, the following `decide-<service>` step consumes the recorded
+ * URL / fallback / trace vars and decides whether to re-query, jump to
+ * another service, or stop.
+ *
+ * Vars written:
+ * - `<varPrefix>ErrorMsg`: longest error message (empty when none)
+ * - `<varPrefix>LogCount`: number of result rows
+ * - `<varPrefix>NextUrl`: observed URL matched by the registry (empty when none)
+ * - `<varPrefix>NextUrlTarget`: target name of the matched URL (empty when none)
+ * - `<varPrefix>FallbackUuidFresh`: `"true"` iff a known downstream URL
+ *   and a new fallback UUID were detected during this analysis call
+ * - `<varPrefix>FreshTraceId`: canonical trace id found after a fallback query
+ * - `<varPrefix>FreshTraceIdRaw`: raw trace id value observed in logs
+ * - `fallbackUuid`: updated only when a new value is extracted (sticky otherwise)
+ */
+export class AnalyzeServiceLogsStep implements Step<ServiceLogsAnalysis> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'transform';
@@ -150,42 +178,4 @@ class AnalyzeServiceLogsStepImpl implements Step<ServiceLogsAnalysis> {
       next: 'resolve' as const,
     };
   }
-}
-
-/**
- * Factory: creates a step that analyses microservice CloudWatch Logs query
- * results.
- *
- * The step:
- * - extracts the most representative error message from the rows
- *   (see {@link findErrorMessage});
- * - scans the rows for the first URL matching the
- *   {@link KnownUrlsRegistry} (see {@link findKnownUrlInLogs});
- * - extracts a new `FALLBACK-UUID` token only when the same result set
- *   also points to a known downstream URL;
- * - records a `trace_id` when the query was driven by an existing
- *   fallback UUID.
- *
- * The step always signals `next: 'resolve'` so the engine evaluates
- * known cases before any dynamic traversal decision. If no case
- * matches, the following `decide-<service>` step consumes the recorded
- * URL / fallback / trace vars and decides whether to re-query, jump to
- * another service, or stop.
- *
- * Vars written:
- * - `<varPrefix>ErrorMsg`: longest error message (empty when none)
- * - `<varPrefix>LogCount`: number of result rows
- * - `<varPrefix>NextUrl`: observed URL matched by the registry (empty when none)
- * - `<varPrefix>NextUrlTarget`: target name of the matched URL (empty when none)
- * - `<varPrefix>FallbackUuidFresh`: `"true"` iff a known downstream URL
- *   and a new fallback UUID were detected during this analysis call
- * - `<varPrefix>FreshTraceId`: canonical trace id found after a fallback query
- * - `<varPrefix>FreshTraceIdRaw`: raw trace id value observed in logs
- * - `fallbackUuid`: updated only when a new value is extracted (sticky otherwise)
- *
- * @param config - Step configuration
- * @returns Step that produces a {@link ServiceLogsAnalysis}
- */
-export function analyzeServiceLogs(config: AnalyzeServiceLogsConfig): Step<ServiceLogsAnalysis> {
-  return new AnalyzeServiceLogsStepImpl(config);
 }

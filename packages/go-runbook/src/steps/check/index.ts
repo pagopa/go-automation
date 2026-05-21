@@ -4,7 +4,8 @@
  */
 
 export { assert } from './AssertStep.js';
-export { compare } from './CompareStep.js';
+export { CompareStep } from './CompareStep.js';
+export type { CompareStepConfig } from './CompareStep.js';
 export { patternMatch } from './PatternMatchStep.js';
 export { exists } from './ExistsStep.js';
 export { resolveRef } from './resolveRef.js';

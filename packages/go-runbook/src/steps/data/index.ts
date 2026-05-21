@@ -2,7 +2,7 @@
  * Data steps for fetching information from AWS services and HTTP endpoints.
  */
 
-export { CloudWatchLogsQueryStep, queryCloudWatchLogs } from './CloudWatchLogsQueryStep.js';
+export { CloudWatchLogsQueryStep } from './CloudWatchLogsQueryStep.js';
 export type { CloudWatchLogsQueryConfig, TimeRangeFromParams } from './CloudWatchLogsQueryStep.js';
 
 export { CloudWatchMetricsStep, getCloudWatchMetrics } from './CloudWatchMetricsStep.js';
@@ -20,6 +20,6 @@ export type { DynamoDBGetConfig } from './DynamoDBGetStep.js';
 export { HttpRequestStep, httpRequest } from './HttpRequestStep.js';
 export type { HttpRequestConfig } from './HttpRequestStep.js';
 
-export { interpolateTemplate, escapeSqlString, extractTemplateParameters } from './interpolateTemplate.js';
+export { escapeSqlString, extractTemplateParameters } from './interpolateTemplate.js';
 export { resolveTimeRange } from './resolveTimeRange.js';
 export { executeStep } from './executeStep.js';
