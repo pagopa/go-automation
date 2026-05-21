@@ -13,6 +13,7 @@
   },
   "scripts": {
     "build": "tsc --build",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
     "watch": "tsc --build --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
     "prepare": "pnpm run build"

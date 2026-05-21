@@ -20,6 +20,7 @@ import { SENDNotificationImportBatchProcessor } from './SENDNotificationImportBa
 import {
   SENDNotificationImportRowProcessor,
   toExportRow,
+  type SENDNotificationDiscardedInfo,
   type ToExportRowOptions,
 } from './SENDNotificationImportRowProcessor.js';
 import type { SENDNotificationImportWorkerError } from './SENDNotificationImportWorkerError.js';
@@ -48,6 +49,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
     this.rowProcessor.on('worker:document:uploaded', (event) => this.emit('worker:document:uploaded', event));
     this.rowProcessor.on('worker:notification:sent', (event) => this.emit('worker:notification:sent', event));
     this.rowProcessor.on('worker:iun:obtained', (event) => this.emit('worker:iun:obtained', event));
+    this.rowProcessor.on('worker:notification:discarded', (event) => this.emit('worker:notification:discarded', event));
     this.rowProcessor.on('worker:iun:polling:attempt', (event) => this.emit('worker:iun:polling:attempt', event));
     this.rowProcessor.on('worker:iun:polling:failed', (event) => this.emit('worker:iun:polling:failed', event));
 
@@ -85,6 +87,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
         documentsUploaded: 0,
         notificationsSent: 0,
         iunsObtained: 0,
+        discardedRows: 0,
         failedRows: 0,
         currentBatch: 0,
         percentage: 0,
@@ -101,6 +104,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
           documentsUploaded: 0,
           notificationsSent: 0,
           iunsObtained: 0,
+          discardedRows: 0,
           failedRows: importProgress.invalidItems,
           currentBatch: 0,
           percentage: importProgress.percentage ?? 0,
@@ -139,6 +143,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
         options,
         0, // baseProcessedRows = 0 (no rows processed yet)
         importResult.stats.invalidItems,
+        0,
         errors,
         importResult.items.length, // totalRows = all imported items
       );
@@ -170,6 +175,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
       row: SENDNotificationRow;
       notificationRequestId: string;
       iun?: string | undefined;
+      discarded?: SENDNotificationDiscardedInfo | undefined;
     }[] = [];
     const errors: SENDNotificationImportWorkerError[] = [];
     const stats = {
@@ -177,6 +183,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
       documentsUploaded: 0,
       notificationsSent: 0,
       iunsObtained: 0,
+      discardedRows: 0,
       failedRows: 0,
     };
     let totalRowsFromImport = 0; // Track total rows from import phase
@@ -194,6 +201,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
           documentsUploaded: stats.documentsUploaded,
           notificationsSent: stats.notificationsSent,
           iunsObtained: stats.iunsObtained,
+          discardedRows: stats.discardedRows,
           failedRows: importProgress.invalidItems + stats.failedRows,
           currentBatch: 0,
           percentage: importProgress.percentage ?? 0,
@@ -238,6 +246,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
               options,
               stats.processedRows,
               stats.failedRows,
+              stats.discardedRows,
               errors,
               totalRowsFromImport,
             );
@@ -246,6 +255,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
             stats.documentsUploaded += result.stats.documentsUploaded;
             stats.notificationsSent += result.stats.notificationsSent;
             stats.iunsObtained += result.stats.iunsObtained;
+            stats.discardedRows += result.stats.discardedRows;
             stats.failedRows += result.stats.failedRows;
 
             // Export each notification in streaming mode if exporter is available
@@ -266,6 +276,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
             options,
             stats.processedRows,
             stats.failedRows,
+            stats.discardedRows,
             errors,
             totalRowsFromImport,
           );
@@ -274,6 +285,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
           stats.documentsUploaded += result.stats.documentsUploaded;
           stats.notificationsSent += result.stats.notificationsSent;
           stats.iunsObtained += result.stats.iunsObtained;
+          stats.discardedRows += result.stats.discardedRows;
           stats.failedRows += result.stats.failedRows;
 
           if (exportWriter) {
@@ -369,6 +381,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
             notificationResult: {
               notificationRequestId: sent.notificationRequestId,
               iun: sent.iun,
+              discarded: sent.discarded,
             },
           },
           exportRowOptions,
@@ -397,7 +410,11 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
         {
           row: sent.row,
           docUploaded: false,
-          notificationResult: { notificationRequestId: sent.notificationRequestId, iun: sent.iun },
+          notificationResult: {
+            notificationRequestId: sent.notificationRequestId,
+            iun: sent.iun,
+            discarded: sent.discarded,
+          },
         },
         exportRowOptions,
       );

@@ -8,7 +8,9 @@ import { GOHttpClient } from '@go-automation/go-common/core';
 import type { SENDNotificationCreationResponse } from './models/SENDNotificationCreationResponse.js';
 import type { SENDNotificationRequest } from './models/SENDNotificationRequest.js';
 import type { SENDNotificationServiceConfig } from './models/SENDNotificationServiceConfig.js';
+import type { SENDNotificationStatusError } from './models/SENDNotificationStatusResponse.js';
 import type { SENDNotificationStatusResponse } from './models/SENDNotificationStatusResponse.js';
+import { SENDNotificationStatus } from './models/SENDNotificationStatus.js';
 
 /**
  * Group information from PA registry
@@ -34,9 +36,28 @@ export interface PollIunOptions {
   delayMs?: number;
   /** Callback called on each attempt */
   onAttempt?: PollIUNAttemptHandler;
+  /** Notification statuses that terminate polling without an IUN */
+  terminalFailureStatuses?: ReadonlyArray<string>;
 }
 
 export type PollIUNAttemptHandler = (attempt: number, status: SENDNotificationStatusResponse) => void;
+
+export interface SENDNotificationPollingTerminalError extends Error {
+  readonly name: 'SENDNotificationPollingTerminalError';
+  readonly notificationRequestId: string;
+  readonly terminalStatus: string;
+  readonly statusResponse: SENDNotificationStatusResponse;
+}
+
+export function isSENDNotificationPollingTerminalError(error: unknown): error is SENDNotificationPollingTerminalError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { readonly name?: unknown }).name === 'SENDNotificationPollingTerminalError' &&
+    typeof (error as { readonly notificationRequestId?: unknown }).notificationRequestId === 'string' &&
+    typeof (error as { readonly terminalStatus?: unknown }).terminalStatus === 'string'
+  );
+}
 
 /**
  * Service for managing notifications
@@ -96,6 +117,7 @@ export class SENDNotificationService {
     const maxAttempts = options?.maxAttempts ?? 8;
     const delayMs = options?.delayMs ?? 30000;
     const onAttempt = options?.onAttempt;
+    const terminalFailureStatuses = new Set(options?.terminalFailureStatuses ?? [SENDNotificationStatus.REFUSED]);
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const status = await this.getNotificationStatus(notificationRequestId);
@@ -106,6 +128,10 @@ export class SENDNotificationService {
 
       if (status.iun) {
         return status.iun;
+      }
+
+      if (terminalFailureStatuses.has(status.notificationRequestStatus)) {
+        throw createPollingTerminalError(notificationRequestId, status);
       }
 
       if (attempt < maxAttempts) {
@@ -187,4 +213,28 @@ export class SENDNotificationService {
   private async sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
+}
+
+function createPollingTerminalError(
+  notificationRequestId: string,
+  statusResponse: SENDNotificationStatusResponse,
+): SENDNotificationPollingTerminalError {
+  const status = statusResponse.notificationRequestStatus;
+  const errorDetails = formatStatusErrors(statusResponse.errors);
+  const details = errorDetails ? ` Errors: ${errorDetails}` : '';
+  const error = new Error(
+    `Notification ${notificationRequestId} reached terminal status ${status} before IUN was available.${details}`,
+  ) as SENDNotificationPollingTerminalError;
+  Object.defineProperties(error, {
+    name: { value: 'SENDNotificationPollingTerminalError' },
+    notificationRequestId: { value: notificationRequestId },
+    terminalStatus: { value: status },
+    statusResponse: { value: statusResponse },
+  });
+  return error;
+}
+
+function formatStatusErrors(errors: ReadonlyArray<SENDNotificationStatusError> | undefined): string {
+  if (!errors || errors.length === 0) return '';
+  return errors.map((error) => (typeof error === 'string' ? error : JSON.stringify(error))).join('; ');
 }

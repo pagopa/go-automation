@@ -13,14 +13,30 @@ import { SENDDigitalDomicileType } from '../../services/notification/models/SEND
 import { SENDPhysicalCommunicationType } from '../../services/notification/models/SENDPhysicalCommunicationType.js';
 import { SENDNotificationFeePolicy } from '../../services/notification/models/SENDNotificationFeePolicy.js';
 import { SENDPagoPaIntMode } from '../../services/notification/models/SENDPagoPaIntMode.js';
+import { SENDNotificationStatus } from '../../services/notification/models/SENDNotificationStatus.js';
+import { isSENDNotificationPollingTerminalError } from '../../services/notification/SENDNotificationService.js';
 import type { SENDNotificationImportWorkerOptions } from './SENDNotificationImportWorkerOptions.js';
 import { GOEventEmitterBase } from '@go-automation/go-common/core';
 import type { SENDNotificationImportWorkerEventMap } from './SENDNotificationImportWorkerEvents.js';
 
+const REFUSED_NOTIFICATION_STATUS = String(SENDNotificationStatus.REFUSED);
+
+export interface SENDNotificationDiscardedInfo {
+  readonly status: string;
+  readonly reason: string;
+  readonly errors?: ReadonlyArray<string | Record<string, unknown>>;
+}
+
+export interface ProcessRowNotificationResult {
+  readonly notificationRequestId: string;
+  iun?: string | undefined;
+  discarded?: SENDNotificationDiscardedInfo | undefined;
+}
+
 export interface ProcessRowResult {
   row: SENDNotificationRow;
   docUploaded: boolean;
-  notificationResult: { notificationRequestId: string; iun?: string | undefined } | null;
+  notificationResult: ProcessRowNotificationResult | null;
 }
 
 /**
@@ -117,10 +133,16 @@ export function toExportRow(
 
   // Add status fields if requested
   if (includeStatus) {
-    exportRow['_status'] = result.notificationResult?.iun ? 'SUCCESS' : 'FAILED';
+    exportRow['_status'] =
+      result.notificationResult?.discarded !== undefined
+        ? 'DISCARDED'
+        : result.notificationResult?.iun
+          ? 'SUCCESS'
+          : 'FAILED';
     exportRow['_processedAt'] = new Date().toISOString();
-    if (errorMessage) {
-      exportRow['_errorMessage'] = errorMessage;
+    const resolvedErrorMessage = errorMessage ?? result.notificationResult?.discarded?.reason;
+    if (resolvedErrorMessage) {
+      exportRow['_errorMessage'] = resolvedErrorMessage;
     }
   }
 
@@ -145,7 +167,7 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
 
     // Step 2: Build notification request object with all row data (sender, recipient, payment, document)
     const notification = this.buildNotification(row, documentRef);
-    let notificationResult: { notificationRequestId: string; iun?: string | undefined } | null = null;
+    let notificationResult: ProcessRowNotificationResult | null = null;
 
     // Step 3: Send notification to PN API if enabled
     if (options?.sendNotifications) {
@@ -180,6 +202,22 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
             iun,
           });
         } catch (error) {
+          if (isSENDNotificationPollingTerminalError(error) && error.terminalStatus === REFUSED_NOTIFICATION_STATUS) {
+            notificationResult.discarded = {
+              status: error.terminalStatus,
+              reason: error.message,
+              ...(error.statusResponse.errors !== undefined ? { errors: error.statusResponse.errors } : {}),
+            };
+            this.emit('worker:notification:discarded', {
+              row,
+              notificationRequestId: response.notificationRequestId,
+              status: error.terminalStatus,
+              reason: error.message,
+              errors: error.statusResponse.errors,
+            });
+            return { row, docUploaded, notificationResult };
+          }
+
           const errorMessage = (error as Error).message;
           this.emit('worker:iun:polling:failed', {
             row,
