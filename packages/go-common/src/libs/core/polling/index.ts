@@ -20,3 +20,9 @@ export type { GOSleeper } from './GOSleeper.js';
 // Errors
 export { GOPollingError } from './GOPollingError.js';
 export type { GOPollingErrorKind } from './GOPollingErrorKind.js';
+
+// Retry classification
+export type { GORetryDecision } from './GORetryDecision.js';
+export type { GORetryAdvice } from './GORetryAdvice.js';
+export type { GORetryClassifier } from './GORetryClassifier.js';
+export * from './classifiers/index.js';
