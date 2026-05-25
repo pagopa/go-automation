@@ -26,7 +26,7 @@ export function setupEventListeners(
       const msg = `[IMPORT] ${progress.percentage}% - Rows: ${progress.processedRows}, Valid: ${progress.processedRows - progress.failedRows}, Invalid: ${progress.failedRows}`;
       prompt.spin('importing', `\x1b[36m>\x1b[0m ${msg}`);
     } else {
-      const msg = `[PROCESS] ${progress.percentage}% - Processed: ${progress.processedRows}/${progress.totalRows}, Uploaded: ${progress.documentsUploaded}, Sent: ${progress.notificationsSent}, IUNs: ${progress.iunsObtained}, Failed: ${progress.failedRows}`;
+      const msg = `[PROCESS] ${progress.percentage}% - Processed: ${progress.processedRows}/${progress.totalRows}, Uploaded: ${progress.documentsUploaded}, Sent: ${progress.notificationsSent}, IUNs: ${progress.iunsObtained}, Discarded: ${progress.discardedRows}, Failed: ${progress.failedRows}`;
       prompt.spinLog(`\x1b[36m>\x1b[0m ${msg}`);
     }
   });
@@ -51,6 +51,22 @@ export function setupEventListeners(
     }
   });
 
+  worker.on('worker:notification:discarded', (event) => {
+    if ('subject' in event.row) {
+      const spinnerId = event.notificationRequestId;
+      let message = `Notification discarded: ${event.row.subject} - Status: ${event.status} - Reason: ${event.reason}`;
+
+      if (event.errors && event.errors.length > 0) {
+        const errorDetails = event.errors
+          .map((err: string | Record<string, unknown>) => (typeof err === 'string' ? err : JSON.stringify(err)))
+          .join('\n    ');
+        message += ` Errors: ${errorDetails}`;
+      }
+
+      prompt.spinWarn(spinnerId, message);
+    }
+  });
+
   worker.on('worker:iun:polling:attempt', (event) => {
     if ('subject' in event.row) {
       const spinnerId = event.notificationRequestId;
@@ -62,7 +78,11 @@ export function setupEventListeners(
           .map((err: string | Record<string, unknown>) => (typeof err === 'string' ? err : JSON.stringify(err)))
           .join('\n    ');
         message += ` Errors: ${errorDetails}`;
-        prompt.spinFail(spinnerId, message);
+        if (event.status === 'REFUSED') {
+          prompt.spinWarn(spinnerId, message);
+        } else {
+          prompt.spinFail(spinnerId, message);
+        }
       } else {
         prompt.spin(spinnerId, message);
       }

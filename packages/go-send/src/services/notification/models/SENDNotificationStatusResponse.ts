@@ -1,6 +1,8 @@
 /**
  * Notification status response
  */
+export type SENDNotificationStatusError = string | Record<string, unknown>;
+
 export interface SENDNotificationStatusResponse {
   /** Notification request ID */
   notificationRequestId: string;
@@ -9,5 +11,5 @@ export interface SENDNotificationStatusResponse {
   /** IUN (Identificativo Univoco Notifica) */
   iun?: string | undefined;
   /** List of errors (if any) - can be strings or error objects */
-  errors?: (string | Record<string, unknown>)[] | undefined;
+  errors?: SENDNotificationStatusError[] | undefined;
 }

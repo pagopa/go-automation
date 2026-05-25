@@ -45,6 +45,22 @@ export interface SENDNotificationImportWorkerIunObtainedEvent {
 }
 
 /**
+ * Event emitted when a sent notification reaches a terminal non-IUN status and is discarded
+ */
+export interface SENDNotificationImportWorkerNotificationDiscardedEvent {
+  /** The row being processed */
+  row: SENDNotificationRow;
+  /** Notification request ID */
+  notificationRequestId: string;
+  /** Terminal notification status */
+  status: string;
+  /** Human-readable reason */
+  reason: string;
+  /** List of errors returned by PN, if any */
+  errors?: (string | Record<string, unknown>)[] | undefined;
+}
+
+/**
  * Event emitted during IUN polling attempt
  */
 export interface SENDNotificationImportWorkerIunPollingAttemptEvent {
@@ -102,6 +118,9 @@ export interface SENDNotificationImportWorkerEventMap {
 
   /** Emitted when an IUN is obtained */
   'worker:iun:obtained': SENDNotificationImportWorkerIunObtainedEvent;
+
+  /** Emitted when a notification is discarded after a terminal non-IUN status */
+  'worker:notification:discarded': SENDNotificationImportWorkerNotificationDiscardedEvent;
 
   /** Emitted during IUN polling attempt */
   'worker:iun:polling:attempt': SENDNotificationImportWorkerIunPollingAttemptEvent;

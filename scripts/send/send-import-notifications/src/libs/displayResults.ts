@@ -26,6 +26,7 @@ export function displayResults(
     { label: 'Documents uploaded', value: result.stats.documentsUploaded },
     { label: 'Notifications sent', value: result.stats.notificationsSent },
     { label: 'IUNs obtained', value: result.stats.iunsObtained },
+    { label: 'Discarded', value: result.stats.discardedRows },
     { label: 'Failed', value: result.stats.failedRows },
     { label: 'Processing time', value: `${(result.stats.processingTime / 1000).toFixed(2)}s` },
   ];
@@ -55,6 +56,25 @@ export function displayResults(
     }
     if (result.errors.length > 5) {
       script.logger.info(`  ... and ${result.errors.length - 5} more errors`);
+    }
+  }
+
+  const discardedNotifications = result.sentNotifications.filter(
+    (notification) => notification.discarded !== undefined,
+  );
+  if (discardedNotifications.length > 0) {
+    script.logger.newline();
+    script.logger.warning(`Discarded notifications: ${discardedNotifications.length}`);
+    const notificationsToShow = discardedNotifications.slice(0, 5);
+    let notificationIndex = 0;
+    for (const notification of notificationsToShow) {
+      notificationIndex += 1;
+      script.logger.warning(
+        `  ${notificationIndex}. ${notification.row.subject} [${notification.discarded?.status}] ${notification.notificationRequestId}`,
+      );
+    }
+    if (discardedNotifications.length > 5) {
+      script.logger.info(`  ... and ${discardedNotifications.length - 5} more discarded notifications`);
     }
   }
 

@@ -5,7 +5,11 @@
 import { GOEventEmitterBase } from '@go-automation/go-common/core';
 import { getErrorMessage } from '@go-automation/go-common/core';
 
-import { SENDNotificationImportRowProcessor } from './SENDNotificationImportRowProcessor.js';
+import {
+  SENDNotificationImportRowProcessor,
+  type SENDNotificationDiscardedInfo,
+  type ProcessRowNotificationResult,
+} from './SENDNotificationImportRowProcessor.js';
 import type {
   SENDNotificationImportWorkerError,
   SENDNotificationImportWorkerErrorType,
@@ -23,6 +27,10 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
     // When IUN is obtained, Worker can export immediately instead of waiting for batch completion
     this.rowProcessor.on('worker:iun:obtained', (event) => {
       this.emit('worker:iun:obtained', event);
+    });
+
+    this.rowProcessor.on('worker:notification:discarded', (event) => {
+      this.emit('worker:notification:discarded', event);
     });
 
     this.rowProcessor.on('worker:notification:sent', (event) => {
@@ -47,6 +55,7 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
     options: SENDNotificationImportWorkerOptions | undefined,
     baseProcessedRows: number,
     baseFailedRows: number,
+    baseDiscardedRows: number,
     errors: SENDNotificationImportWorkerError[],
     totalRowsFromImport: number,
   ): Promise<SENDNotificationImportWorkerResult> {
@@ -57,12 +66,14 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
       row: SENDNotificationRow;
       notificationRequestId: string;
       iun?: string | undefined;
+      discarded?: SENDNotificationDiscardedInfo | undefined;
     }[] = [];
     const stats = {
       processedRows: 0,
       documentsUploaded: 0,
       notificationsSent: 0,
       iunsObtained: 0,
+      discardedRows: 0,
       failedRows: 0,
     };
 
@@ -103,6 +114,7 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
           documentsUploaded: stats.documentsUploaded,
           notificationsSent: stats.notificationsSent,
           iunsObtained: stats.iunsObtained,
+          discardedRows: baseDiscardedRows + stats.discardedRows,
           failedRows: baseFailedRows + stats.failedRows,
           currentBatch: 0,
           percentage,
@@ -125,18 +137,20 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
     result: {
       row: SENDNotificationRow;
       docUploaded: boolean;
-      notificationResult: { notificationRequestId: string; iun?: string | undefined } | null;
+      notificationResult: ProcessRowNotificationResult | null;
     },
     sentNotifications: {
       row: SENDNotificationRow;
       notificationRequestId: string;
       iun?: string | undefined;
+      discarded?: SENDNotificationDiscardedInfo | undefined;
     }[],
     stats: {
       processedRows: number;
       documentsUploaded: number;
       notificationsSent: number;
       iunsObtained: number;
+      discardedRows: number;
       failedRows: number;
     },
   ): void {
@@ -146,9 +160,11 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
         row: result.row,
         notificationRequestId: result.notificationResult.notificationRequestId,
         iun: result.notificationResult.iun,
+        discarded: result.notificationResult.discarded,
       });
       stats.notificationsSent++;
       if (result.notificationResult.iun) stats.iunsObtained++;
+      if (result.notificationResult.discarded) stats.discardedRows++;
     }
     stats.processedRows++;
   }
@@ -163,6 +179,7 @@ export class SENDNotificationImportBatchProcessor extends GOEventEmitterBase<SEN
       documentsUploaded: number;
       notificationsSent: number;
       iunsObtained: number;
+      discardedRows: number;
       failedRows: number;
     },
   ): void {

@@ -15,6 +15,8 @@ export interface SENDNotificationImportWorkerProgress {
   notificationsSent: number;
   /** IUNs obtained */
   iunsObtained: number;
+  /** Rows discarded because PN reached a terminal non-IUN status */
+  discardedRows: number;
   /** Failed rows */
   failedRows: number;
   /** Current batch number */
