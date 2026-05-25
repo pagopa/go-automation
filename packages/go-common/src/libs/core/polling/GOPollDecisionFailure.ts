@@ -2,7 +2,7 @@
  * Terminal-negative outcome: the polled state has reached an unrecoverable
  * end (e.g. Athena query FAILED, IUN polling REFUSED).
  *
- * The `error` is **propagated trasparently** by the poller — it keeps its
+ * The `error` is **propagated transparently** by the poller — it keeps its
  * original type so callers can `instanceof` against domain-specific error
  * classes. The poller does NOT wrap it in `GOPollingError`; only
  * infrastructure faults (timeout / abort / budget) become `GOPollingError`.
