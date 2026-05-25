@@ -43,3 +43,6 @@ export type { GOPollDecision } from './GOPollDecision.js';
 export type { GOPollDecisionContinue } from './GOPollDecisionContinue.js';
 export type { GOPollDecisionSuccess } from './GOPollDecisionSuccess.js';
 export type { GOPollDecisionFailure } from './GOPollDecisionFailure.js';
+
+// Pre-baked option presets
+export { GOPollingPolicies } from './GOPollingPolicies.js';
