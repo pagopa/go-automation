@@ -54,7 +54,7 @@ export function setupEventListeners(
   worker.on('worker:notification:discarded', (event) => {
     if ('subject' in event.row) {
       const spinnerId = event.notificationRequestId;
-      let message = `Notification discarded: ${event.row.subject} - Status: ${event.status}`;
+      let message = `Notification discarded: ${event.row.subject} - Status: ${event.status} - Reason: ${event.reason}`;
 
       if (event.errors && event.errors.length > 0) {
         const errorDetails = event.errors
