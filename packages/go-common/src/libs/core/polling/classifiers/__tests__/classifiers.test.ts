@@ -25,6 +25,13 @@ describe('awsThrottlingClassifier', () => {
     assert.strictEqual(awsThrottlingClassifier.classify(makeNamedError('LimitExceededException')), 'retriable');
   });
 
+  it('classifies transient AWS server errors (5xx) as retriable', () => {
+    assert.strictEqual(awsThrottlingClassifier.classify(makeNamedError('InternalServerError')), 'retriable');
+    assert.strictEqual(awsThrottlingClassifier.classify(makeNamedError('ServiceUnavailable')), 'retriable');
+    assert.strictEqual(awsThrottlingClassifier.classify(makeNamedError('InternalFailure')), 'retriable');
+    assert.strictEqual(awsThrottlingClassifier.classify(makeNamedError('ServiceFailure')), 'retriable');
+  });
+
   it('returns unknown for non-throttling errors (not fatal — to allow composition)', () => {
     assert.strictEqual(awsThrottlingClassifier.classify(makeNamedError('ValidationException')), 'unknown');
     assert.strictEqual(awsThrottlingClassifier.classify(new Error('plain')), 'unknown');

@@ -2,12 +2,19 @@ import type { GORetryClassifier } from '../GORetryClassifier.js';
 import type { GORetryDecision } from '../GORetryDecision.js';
 
 /**
- * AWS SDK error names known to indicate throttling / rate-limiting.
+ * AWS SDK error names treated as retriable by this classifier.
  *
- * Drawn from `@aws-sdk/util-retry` standard retryable error set, restricted
- * to the throttling family (omits transient server errors handled elsewhere).
+ * Covers two families both considered transient by `@aws-sdk/util-retry`'s
+ * standard retry strategy:
+ * - **Throttling / rate-limiting**: provisioned throughput, request limits, ...
+ * - **Transient server errors**: 5xx server-side faults (`InternalServerError`,
+ *   `ServiceUnavailable`) that AWS expects clients to retry.
+ *
+ * Both are bundled here because they share the same retry policy (backoff
+ * with jitter) and a single classifier keeps the call sites simple.
  */
 const AWS_THROTTLING_ERROR_NAMES: ReadonlySet<string> = new Set([
+  // Throttling / rate-limiting
   'ProvisionedThroughputExceededException',
   'ThrottlingException',
   'Throttling',
@@ -22,6 +29,11 @@ const AWS_THROTTLING_ERROR_NAMES: ReadonlySet<string> = new Set([
   'EC2ThrottledException',
   'PriorRequestNotComplete',
   'TransactionInProgressException',
+  // Transient server errors (5xx)
+  'InternalServerError',
+  'ServiceUnavailable',
+  'InternalFailure',
+  'ServiceFailure',
 ]);
 
 /**
