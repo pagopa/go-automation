@@ -1,16 +1,13 @@
 import type { AthenaClient, Row } from '@aws-sdk/client-athena';
 import { GetQueryExecutionCommand, GetQueryResultsCommand, StartQueryExecutionCommand } from '@aws-sdk/client-athena';
 
-import { fixedBackoff, pollUntilComplete } from '../core/utils/index.js';
+import { GOBackoff, GOPoller } from '../core/polling/index.js';
 
 /** Default polling interval for Athena query results. */
 const ATHENA_POLL_INTERVAL_MS = 2000;
 
 /** Default maximum polling attempts for Athena queries. */
 const ATHENA_MAX_POLL_ATTEMPTS = 120;
-
-/** Terminal states for Athena query execution. */
-const ATHENA_TERMINAL_STATES: ReadonlySet<string> = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED']);
 
 /**
  * Service for executing Athena queries.
@@ -74,25 +71,25 @@ export class AWSAthenaService {
       throw new Error('Athena query did not return a QueryExecutionId');
     }
 
-    const pollOptions = {
+    const poller = new GOPoller({
       maxAttempts: ATHENA_MAX_POLL_ATTEMPTS,
-      backoff: fixedBackoff(ATHENA_POLL_INTERVAL_MS),
+      backoff: GOBackoff.constant(ATHENA_POLL_INTERVAL_MS),
       ...(options.signal !== undefined ? { signal: options.signal } : {}),
-    };
+    });
 
-    await pollUntilComplete(pollOptions, async () => {
+    await poller.poll<true>(async () => {
       const statusResponse = await this.client.send(new GetQueryExecutionCommand({ QueryExecutionId: executionId }));
       const state = statusResponse.QueryExecution?.Status?.State;
 
-      if (state !== undefined && ATHENA_TERMINAL_STATES.has(state)) {
-        if (state !== 'SUCCEEDED') {
-          const reason = statusResponse.QueryExecution?.Status?.StateChangeReason ?? 'Unknown';
-          throw new Error(`Athena query ${state}: ${reason}`);
-        }
-        return true;
+      if (state === 'SUCCEEDED') {
+        return { type: 'success', value: true };
       }
-
-      return undefined;
+      if (state === 'FAILED' || state === 'CANCELLED') {
+        const reason = statusResponse.QueryExecution?.Status?.StateChangeReason ?? 'Unknown';
+        return { type: 'failure', error: new Error(`Athena query ${state}: ${reason}`), reason };
+      }
+      // QUEUED | RUNNING | undefined → non-terminal, keep polling.
+      return { type: 'continue', ...(state !== undefined ? { reason: state } : {}) };
     });
 
     const allRows: Row[] = [];

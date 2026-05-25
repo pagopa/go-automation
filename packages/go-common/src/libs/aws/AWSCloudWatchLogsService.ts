@@ -5,13 +5,12 @@ import {
   StartQueryCommand,
 } from '@aws-sdk/client-cloudwatch-logs';
 
-import { exponentialBackoff, pollUntilComplete } from '../core/utils/index.js';
-import type { BackoffFn, PollAttemptInfo } from '../core/utils/index.js';
+import { GOPoller, GOPollingPolicies } from '../core/polling/index.js';
 
 import type { AWSMultiClientProvider } from './AWSMultiClientProvider.js';
 
-/** All terminal statuses for CloudWatch Logs Insights queries. */
-const TERMINAL_STATUSES: ReadonlySet<string> = new Set(['Complete', 'Failed', 'Cancelled', 'Timeout']);
+/** Non-success terminal statuses for CloudWatch Logs Insights queries (Complete handled separately). */
+const FAILURE_STATUSES: ReadonlySet<string> = new Set(['Failed', 'Cancelled', 'Timeout']);
 
 const RECOVERABLE_PROFILE_ERROR_NAMES: ReadonlySet<string> = new Set([
   'AccessDeniedException',
@@ -28,21 +27,11 @@ export interface AWSCloudWatchLogsTimeRange {
   readonly end: Date;
 }
 
-export type AWSCloudWatchLogsSleepFn = (ms: number) => Promise<void>;
-
-export type AWSCloudWatchLogsPollAttemptHandler = (info: PollAttemptInfo) => void;
-
 export interface AWSCloudWatchLogsQueryOptions {
   /** Abort signal to cancel the query. */
   readonly signal?: AbortSignal;
-  /** Override max poll attempts. */
+  /** Override max poll attempts (default from `GOPollingPolicies.cloudWatchLogsQuery()`). */
   readonly maxPollAttempts?: number;
-  /** Override poll backoff strategy. */
-  readonly pollBackoff?: BackoffFn;
-  /** Sleep implementation, injectable for tests. */
-  readonly sleepFn?: AWSCloudWatchLogsSleepFn;
-  /** Called after each non-terminal polling attempt. */
-  readonly onPollAttempt?: AWSCloudWatchLogsPollAttemptHandler;
   /**
    * Log group resolution strategy.
    *
@@ -140,15 +129,13 @@ export class AWSCloudWatchLogsService {
     const client = this.clientProvider.getClientProvider(profile).cloudWatchLogs;
     const queryId = await this.startQuery(client, profile, logGroups, query, timeRange, options.signal);
 
-    const pollOptions = {
+    const poller = new GOPoller({
+      ...GOPollingPolicies.cloudWatchLogsQuery(),
       ...(options.maxPollAttempts !== undefined ? { maxAttempts: options.maxPollAttempts } : {}),
-      backoff: options.pollBackoff ?? exponentialBackoff(),
       ...(options.signal !== undefined ? { signal: options.signal } : {}),
-      ...(options.sleepFn !== undefined ? { sleepFn: options.sleepFn } : {}),
-      ...(options.onPollAttempt !== undefined ? { onAttempt: options.onPollAttempt } : {}),
-    };
+    });
 
-    return pollUntilComplete(pollOptions, async () => {
+    return poller.poll<ReadonlyArray<ReadonlyArray<ResultField>>>(async () => {
       let response;
       try {
         response = await client.send(new GetQueryResultsCommand({ queryId }));
@@ -156,14 +143,19 @@ export class AWSCloudWatchLogsService {
         throw this.wrapAwsError('GetQueryResults', profile, queryId, error);
       }
 
-      if (isTerminalStatus(response.status)) {
-        if (response.status !== 'Complete') {
-          throw new Error(`CloudWatch Logs query ${response.status}: ${queryId} (profile: ${profile})`);
-        }
-        return response.results ?? [];
+      const status = response.status;
+      if (status === 'Complete') {
+        return { type: 'success', value: response.results ?? [] };
       }
-
-      return undefined;
+      if (status !== undefined && FAILURE_STATUSES.has(status)) {
+        return {
+          type: 'failure',
+          error: new Error(`CloudWatch Logs query ${status}: ${queryId} (profile: ${profile})`),
+          reason: status,
+        };
+      }
+      // Scheduled | Running | Unknown → continue.
+      return { type: 'continue', ...(status !== undefined ? { reason: status } : {}) };
     });
   }
 
@@ -231,10 +223,6 @@ export class AWSCloudWatchLogsService {
       { cause: error },
     );
   }
-}
-
-function isTerminalStatus(status: string | undefined): boolean {
-  return status !== undefined && TERMINAL_STATUSES.has(status);
 }
 
 function isRecoverableProfileSearchError(error: unknown): boolean {

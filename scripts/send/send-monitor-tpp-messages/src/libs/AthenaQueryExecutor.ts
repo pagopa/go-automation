@@ -154,21 +154,22 @@ export class AthenaQueryExecutor {
     maxRetries: number,
     retryDelay: number,
   ): Promise<AthenaQueryExecution> {
-    return Core.pollUntilComplete(
-      { maxAttempts: maxRetries, backoff: Core.fixedBackoff(retryDelay) },
-      async (attempt) => {
-        const execution = (await this.athenaService.getQueryExecution(queryExecutionId)) as AthenaQueryExecution;
-        const state = execution.QueryExecution.Status.State;
+    const poller = new Core.GOPoller({
+      maxAttempts: maxRetries,
+      backoff: Core.GOBackoff.constant(retryDelay),
+    });
 
-        this.log(`Query status: ${state} (check ${attempt + 1}/${maxRetries})`);
+    return poller.poll<AthenaQueryExecution>(async (attempt) => {
+      const execution = (await this.athenaService.getQueryExecution(queryExecutionId)) as AthenaQueryExecution;
+      const state = execution.QueryExecution.Status.State;
 
-        if (ATHENA_TERMINAL_STATES.has(state)) {
-          return execution;
-        }
+      this.log(`Query status: ${state} (check ${String(attempt + 1)}/${String(maxRetries)})`);
 
-        return undefined;
-      },
-    );
+      if (ATHENA_TERMINAL_STATES.has(state)) {
+        return { type: 'success', value: execution };
+      }
+      return { type: 'continue', reason: state };
+    });
   }
 
   /**
