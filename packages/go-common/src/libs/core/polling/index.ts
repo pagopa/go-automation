@@ -33,3 +33,13 @@ export type { GORetryOperationFn } from './GORetryRunner.js';
 export type { GORetryRunnerOptions, GORetryAttemptHandler } from './GORetryRunnerOptions.js';
 export type { GORetryAttemptInfo } from './GORetryAttemptInfo.js';
 export type { GORetryResult } from './GORetryResult.js';
+
+// Status poller
+export { GOPoller } from './GOPoller.js';
+export type { GOPollCheckFn } from './GOPoller.js';
+export type { GOPollerOptions, GOPollAttemptHandler } from './GOPollerOptions.js';
+export type { GOPollAttemptInfo } from './GOPollAttemptInfo.js';
+export type { GOPollDecision } from './GOPollDecision.js';
+export type { GOPollDecisionContinue } from './GOPollDecisionContinue.js';
+export type { GOPollDecisionSuccess } from './GOPollDecisionSuccess.js';
+export type { GOPollDecisionFailure } from './GOPollDecisionFailure.js';
