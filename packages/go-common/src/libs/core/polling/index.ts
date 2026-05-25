@@ -26,3 +26,10 @@ export type { GORetryDecision } from './GORetryDecision.js';
 export type { GORetryAdvice } from './GORetryAdvice.js';
 export type { GORetryClassifier } from './GORetryClassifier.js';
 export * from './classifiers/index.js';
+
+// Retry runner
+export { GORetryRunner } from './GORetryRunner.js';
+export type { GORetryOperationFn } from './GORetryRunner.js';
+export type { GORetryRunnerOptions, GORetryAttemptHandler } from './GORetryRunnerOptions.js';
+export type { GORetryAttemptInfo } from './GORetryAttemptInfo.js';
+export type { GORetryResult } from './GORetryResult.js';
