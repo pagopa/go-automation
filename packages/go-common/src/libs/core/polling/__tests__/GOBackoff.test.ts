@@ -146,8 +146,8 @@ describe('GOBackoff', () => {
       assert.strictEqual(runB1, 100);
     });
 
-    it('handles edge case where capMs < baseMs by collapsing to baseMs (no negative jitter)', () => {
-      // Defensive: if a caller misconfigures cap<base, span clamps to 0 → returns baseMs.
+    it('handles edge case where capMs < baseMs by clamping to capMs (no negative jitter)', () => {
+      // Defensive: if cap<base, span clamps to 0 → baseMs + 0, then min(capMs, ...) returns capMs.
       Math.random = (): number => 0.5;
       const backoff = GOBackoff.decorrelatedJittered(500, 100);
       const value = backoff({ attempt: 0 });
