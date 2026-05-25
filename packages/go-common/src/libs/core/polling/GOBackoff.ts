@@ -17,7 +17,7 @@ const DEFAULT_BACKOFF_CAP_MS = 3000;
  * @example
  * ```typescript
  * const backoff = GOBackoff.exponentialJittered(100, 5000);
- * const delay = backoff({ attempt: 0 }); // random in [0, 100]
+ * const delay = backoff({ attempt: 0 }); // random in [0, 100)
  * ```
  */
 export const GOBackoff = {
