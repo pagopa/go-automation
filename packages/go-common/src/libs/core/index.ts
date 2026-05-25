@@ -29,6 +29,9 @@ export * from './json/index.js';
 export * from './network/index.js';
 export * from './utils/index.js';
 
+// Export polling & retry primitives
+export * from './polling/index.js';
+
 // Export logging system
 export * from './logging/index.js';
 
