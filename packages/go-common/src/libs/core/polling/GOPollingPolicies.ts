@@ -6,8 +6,16 @@ import { awsThrottlingClassifier } from './classifiers/awsThrottlingClassifier.j
 import { combineClassifiers } from './classifiers/combineClassifiers.js';
 import { httpRetryAfterClassifier } from './classifiers/httpRetryAfterClassifier.js';
 
-/** HTTP statuses considered retriable by the `httpDownload` preset. */
-const HTTP_DOWNLOAD_RETRIABLE_STATUSES: ReadonlySet<number> = new Set([429, 500, 502, 503, 504]);
+/**
+ * HTTP statuses considered retriable by the `httpDownload` preset.
+ *
+ * Includes the standard transient response codes:
+ * - 408 Request Timeout (client/intermediary timeout)
+ * - 425 Too Early (TLS 1.3 early-data replay protection)
+ * - 429 Too Many Requests (rate limit; honours `Retry-After`)
+ * - 5xx server-side transient faults
+ */
+const HTTP_DOWNLOAD_RETRIABLE_STATUSES: ReadonlySet<number> = new Set([408, 425, 429, 500, 502, 503, 504]);
 
 /**
  * Pre-baked options bundles for the most common polling / retry use cases
