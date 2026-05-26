@@ -5,8 +5,8 @@ import type { GOSleeper } from './GOSleeper.js';
  * Default {@link GOSleeper} backed by `setTimeout` with full abort support.
  *
  * Differences vs a naive `new Promise(r => setTimeout(r, ms))`:
- * - rejects synchronously if the signal is already aborted at entry;
- * - rejects immediately if the signal aborts during the wait (no need to
+ * - rejects immediately if the signal is already aborted at entry;
+ * - rejects as soon as the signal aborts during the wait (no need to
  *   wait out the remaining delay before observing cancellation);
  * - clears the timer on abort, removing the abort listener on resolve.
  */
