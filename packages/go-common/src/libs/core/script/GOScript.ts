@@ -1077,8 +1077,10 @@ export class GOScript {
 
     // Handle multi-profile if aws.profiles is configured
     if (this.hasAwsProfilesParam) {
-      const profiles = this.getConfigStringArray('aws.profiles');
-      if (profiles && profiles.length > 0) {
+      const profiles = this.getConfigStringArray('aws.profiles')
+        ?.map((profile) => profile.trim())
+        .filter((profile) => profile.length > 0);
+      if (profiles !== undefined && profiles.length > 0) {
         await this.handleMultiProfileAWSCredentials(profiles);
         return;
       }
