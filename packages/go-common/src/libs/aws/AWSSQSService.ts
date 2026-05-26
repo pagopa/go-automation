@@ -29,6 +29,8 @@ import type {
 import { GetMetricStatisticsCommand } from '@aws-sdk/client-cloudwatch';
 import type { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
 
+import { GOBackoff, GODefaultSleeper } from '../core/polling/index.js';
+
 import type { DLQStats } from './models/DLQStats.js';
 import type { SQSBatchSendRetryOptions } from './models/SQSBatchSendRetryOptions.js';
 import type { SQSMessageHandler } from './models/SQSHandlers.js';
@@ -59,8 +61,11 @@ const SECONDS_PER_DAY = 24 * 60 * 60;
 /** Max results per ListQueues page */
 const LIST_QUEUES_PAGE_SIZE = 1000;
 
-/** Default batch retry delay (ms) */
-const DEFAULT_RETRY_DELAY_MS = 500;
+/** Base delay (ms) for SQS batch retry exponential backoff. */
+const SQS_BATCH_RETRY_BASE_MS = 200;
+
+/** Cap (ms) for SQS batch retry exponential backoff. */
+const SQS_BATCH_RETRY_CAP_MS = 2000;
 
 /** Long polling wait time in seconds */
 const LONG_POLLING_WAIT_TIME = 20;
@@ -159,8 +164,17 @@ export class AWSSQSService {
     entries: ReadonlyArray<SendMessageBatchRequestEntry>,
     options: SQSBatchSendRetryOptions = { maxRetries: 3 },
   ): Promise<SendMessageBatchCommandOutput> {
+    // This is a "soft retry": SQS returns HTTP 200 with `Failed[]` inside,
+    // it never throws. So `GORetryRunner` (which retries on thrown errors)
+    // is not the right primitive — instead we keep the filter-failed-entries
+    // loop and use `GOBackoff` + `GODefaultSleeper` for delay+sleep so the
+    // backoff strategy stays in sync with the rest of the polling module.
+    const backoff = GOBackoff.exponentialJittered(SQS_BATCH_RETRY_BASE_MS, SQS_BATCH_RETRY_CAP_MS);
+    const sleeper = new GODefaultSleeper();
+
     let currentEntries: ReadonlyArray<SendMessageBatchRequestEntry> = entries;
     let attempt = 0;
+    let previousDelayMs: number | undefined;
     let lastResponse: SendMessageBatchCommandOutput | undefined;
     const successfulById = new Map<string, SendMessageBatchResultEntry>();
 
@@ -184,19 +198,22 @@ export class AWSSQSService {
         break;
       }
 
-      if (attempt < options.maxRetries) {
-        attempt++;
-        const failedIds = new Set(response.Failed.map((f) => f.Id).filter((id): id is string => !!id));
-        currentEntries = currentEntries.filter((e) => e.Id !== undefined && failedIds.has(e.Id));
-
-        options.onRetry?.(currentEntries.length, attempt);
-
-        // Exponential backoff with jitter to avoid thundering herd on throttling
-        const delay = (2 ** attempt + Math.random()) * DEFAULT_RETRY_DELAY_MS;
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      } else {
+      if (attempt >= options.maxRetries) {
         break;
       }
+
+      const failedIds = new Set(response.Failed.map((f) => f.Id).filter((id): id is string => !!id));
+      currentEntries = currentEntries.filter((e) => e.Id !== undefined && failedIds.has(e.Id));
+
+      options.onRetry?.(currentEntries.length, attempt + 1);
+
+      const delayMs = backoff({
+        attempt,
+        ...(previousDelayMs !== undefined ? { previousDelayMs } : {}),
+      });
+      await sleeper.sleep(delayMs);
+      previousDelayMs = delayMs;
+      attempt++;
     }
 
     if (!lastResponse) {
