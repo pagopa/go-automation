@@ -14,6 +14,16 @@
 export interface GOPollDecisionFailure<E extends Error = Error> {
   readonly type: 'failure';
   readonly error: E;
-  /** Optional human-readable reason (logged before throwing). */
+  /**
+   * Optional human-readable label (e.g. the upstream status string) intended
+   * as metadata for the **check author**: a useful place to attach context
+   * before returning the failure so the surrounding code (logs, breadcrumbs,
+   * error wrapping at the call site) can pick it up.
+   *
+   * `GOPoller` does NOT log or emit this field — on `failure` it throws
+   * `decision.error` transparently. If you need failure-time logging, do it
+   * in the check itself before returning, or wrap `poller.poll()` in a
+   * try/catch at the call site.
+   */
   readonly reason?: string;
 }
