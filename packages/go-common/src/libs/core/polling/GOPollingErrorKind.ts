@@ -12,5 +12,5 @@ export type GOPollingErrorKind =
   | 'aborted'
   /** Total elapsed time exceeded `maxElapsedMs` budget. */
   | 'budget-exceeded'
-  /** Retry attempts exhausted without success (alias of 'timeout' for retry context). */
+  /** Defensive: retry runner configured with maxAttempts=0 (no attempt was performed). */
   | 'exhausted';
