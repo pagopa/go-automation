@@ -190,10 +190,48 @@ describe('AWSAthenaService', () => {
     assert.strictEqual(startCommand?.input.WorkGroup, 'wg');
   });
 
+  it('skips unnamed Athena columns instead of writing empty record keys', async () => {
+    const fakeClient: FakeAthenaClient = {
+      commands: [],
+      async send(command) {
+        this.commands.push(command);
+        await Promise.resolve();
+
+        if (command instanceof StartQueryExecutionCommand) {
+          return { QueryExecutionId: 'exec-unnamed' };
+        }
+        if (command instanceof GetQueryExecutionCommand) {
+          return { QueryExecution: { Status: { State: 'SUCCEEDED' } } };
+        }
+        return {
+          ResultSet: {
+            ResultSetMetadata: {
+              ColumnInfo: [{ Name: 'id', Type: 'varchar' }, { Type: 'varchar' }, { Name: 'status', Type: 'varchar' }],
+            },
+            Rows: [
+              { Data: [{ VarCharValue: 'id' }, { VarCharValue: '' }, { VarCharValue: 'status' }] },
+              { Data: [{ VarCharValue: '1' }, { VarCharValue: 'discarded' }, { VarCharValue: 'OK' }] },
+            ],
+          },
+        };
+      },
+    };
+
+    const service = new AWSAthenaService(asAthenaClient(fakeClient));
+    const result = await service.executeQuery('db', 'select 1');
+
+    assert.deepStrictEqual(result.columns, [
+      { name: 'id', type: 'varchar' },
+      { name: 'status', type: 'varchar' },
+    ]);
+    assert.deepStrictEqual(result.rows, [{ id: '1', status: 'OK' }]);
+    assert.strictEqual(Object.hasOwn(result.rows[0] ?? {}, ''), false);
+  });
+
   it('uses configured polling interval and sleeper', async () => {
     const sleeper: GOSleeper & { readonly calls: number[] } = {
       calls: [],
-      async sleep(ms: number): Promise<void> {
+      sleep(ms: number): Promise<void> {
         this.calls.push(ms);
         return Promise.resolve();
       },

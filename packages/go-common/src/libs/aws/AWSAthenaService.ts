@@ -238,10 +238,12 @@ export class AWSAthenaService {
       const record: Record<string, string> = {};
       for (let j = 0; j < headers.length; j++) {
         const header = headers[j];
-        const value = row.Data[j]?.VarCharValue ?? '';
-        if (header !== undefined) {
-          record[header] = value;
+        if (header === undefined || header.length === 0) {
+          continue;
         }
+
+        const value = row.Data[j]?.VarCharValue ?? '';
+        record[header] = value;
       }
       results.push(record);
     }
