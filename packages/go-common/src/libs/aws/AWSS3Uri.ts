@@ -9,6 +9,7 @@ export interface AWSS3UriParts {
 export class AWSS3Uri {
   static parse(value: string): AWSS3UriParts {
     const trimmed = value.trim();
+    const rawAuthority = extractRawAuthority(trimmed);
     let parsed: URL;
 
     try {
@@ -24,7 +25,10 @@ export class AWSS3Uri {
       parsed.password !== '' ||
       parsed.search !== '' ||
       parsed.hash !== '' ||
+      parsed.port !== '' ||
       /\s/.test(trimmed) ||
+      rawAuthority !== parsed.hostname ||
+      rawAuthority.includes(':') ||
       !S3_BUCKET_PATTERN.test(parsed.hostname)
     ) {
       throw invalidS3UriError();
@@ -52,6 +56,17 @@ export class AWSS3Uri {
     const cleanFileName = trimLeadingSlashes(fileName);
     return cleanPrefix.length > 0 ? `${cleanPrefix}/${cleanFileName}` : cleanFileName;
   }
+}
+
+function extractRawAuthority(value: string): string {
+  const prefix = 's3://';
+  if (!value.startsWith(prefix)) {
+    throw invalidS3UriError();
+  }
+
+  const authorityStart = prefix.length;
+  const pathStart = value.indexOf('/', authorityStart);
+  return pathStart === -1 ? value.slice(authorityStart) : value.slice(authorityStart, pathStart);
 }
 
 function trimSlashes(value: string): string {

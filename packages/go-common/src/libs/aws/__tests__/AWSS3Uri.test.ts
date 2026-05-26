@@ -18,5 +18,7 @@ describe('AWSS3Uri', () => {
     assert.throws(() => AWSS3Uri.parse('https://example.com/file.csv'), /Invalid S3 URI/);
     assert.throws(() => AWSS3Uri.parse('s3://bad bucket/file.csv'), /Invalid S3 URI/);
     assert.throws(() => AWSS3Uri.parse('s3://bucket/file.csv?x=1'), /Invalid S3 URI/);
+    assert.throws(() => AWSS3Uri.parse('s3://My-Bucket/file.csv'), /Invalid S3 URI/);
+    assert.throws(() => AWSS3Uri.parse('s3://bucket:443/file.csv'), /Invalid S3 URI/);
   });
 });
