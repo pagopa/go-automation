@@ -1,5 +1,5 @@
 export function parseKeyValueList(entries: ReadonlyArray<string>): Record<string, string> {
-  const values: Record<string, string> = {};
+  const values = createDictionary();
 
   for (const entry of entries) {
     const trimmed = entry.trim();
@@ -8,7 +8,9 @@ export function parseKeyValueList(entries: ReadonlyArray<string>): Record<string
     }
 
     if (trimmed.startsWith('{')) {
-      Object.assign(values, parseJsonObjectEntry(trimmed));
+      for (const [key, value] of Object.entries(parseJsonObjectEntry(trimmed))) {
+        values[key] = value;
+      }
       continue;
     }
 
@@ -22,6 +24,7 @@ export function parseKeyValueList(entries: ReadonlyArray<string>): Record<string
     if (key.length === 0) {
       throw new Error(`Invalid key/value entry '${entry}'. Key cannot be empty.`);
     }
+    validateSafeKey(key);
 
     values[key] = value;
   }
@@ -35,11 +38,22 @@ function parseJsonObjectEntry(entry: string): Record<string, string> {
     throw new Error(`Invalid JSON key/value entry '${entry}'. Expected an object.`);
   }
 
-  const values: Record<string, string> = {};
+  const values = createDictionary();
   for (const [key, value] of Object.entries(parsed)) {
+    validateSafeKey(key);
     values[key] = typeof value === 'string' ? value : JSON.stringify(value);
   }
   return values;
+}
+
+function createDictionary(): Record<string, string> {
+  return Object.create(null) as Record<string, string>;
+}
+
+function validateSafeKey(key: string): void {
+  if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+    throw new Error(`Unsafe key/value entry key '${key}'`);
+  }
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
