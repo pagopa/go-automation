@@ -24,6 +24,7 @@ export async function loadQueryTemplate(config: SendMonitorAthenaQueryConfig, pa
   }
 
   const filePath = paths.resolvePath(queryFile, Core.GOPathType.CONFIG);
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- query files are resolved by GOPaths from config directories or absolute operator input.
   return readFile(filePath, 'utf8');
 }
 

@@ -17,8 +17,7 @@ export interface AWSAthenaCompiledQuery {
   readonly usedPlaceholders: ReadonlyArray<string>;
 }
 
-const PLACEHOLDER_PATTERN = /\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g;
-const RAW_VALUE_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/;
+const PLACEHOLDER_PATTERN = /\{\{[ \t\r\n]{0,32}([A-Za-z0-9_.-]+)[ \t\r\n]{0,32}\}\}/g;
 const LEGACY_INLINE_VALUE_PATTERN = /^[0-9:\-\s]+$/;
 
 export class AWSAthenaQueryTemplateCompiler {
@@ -135,12 +134,39 @@ export class AWSAthenaQueryTemplateCompiler {
       throw new Error(`Missing raw Athena query placeholder value: {{${key}}}`);
     }
 
-    if (!RAW_VALUE_PATTERN.test(value)) {
+    if (!isSafeDottedIdentifier(value)) {
       throw new Error(`Unsafe raw Athena query placeholder value for {{${key}}}`);
     }
 
     return value;
   }
+}
+
+function isSafeDottedIdentifier(value: string): boolean {
+  const parts = value.split('.');
+  return parts.length > 0 && parts.every(isSafeIdentifierPart);
+}
+
+function isSafeIdentifierPart(value: string): boolean {
+  if (value.length === 0 || !isIdentifierStart(value.charCodeAt(0))) {
+    return false;
+  }
+
+  for (let index = 1; index < value.length; index++) {
+    if (!isIdentifierPart(value.charCodeAt(index))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function isIdentifierStart(code: number): boolean {
+  return code === 95 || (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+}
+
+function isIdentifierPart(code: number): boolean {
+  return isIdentifierStart(code) || (code >= 48 && code <= 57);
 }
 
 function addUnique(values: string[], value: string): void {

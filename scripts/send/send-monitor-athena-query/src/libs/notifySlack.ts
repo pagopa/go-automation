@@ -1,7 +1,7 @@
 import { Core } from '@go-automation/go-common';
 
 import { buildSlackReportData } from './buildSlackReportData.js';
-import type { ReportArtifact, SendMonitorAthenaQueryConfig, TimeRange } from '../types/index.js';
+import type { ReportArtifact, ReportFormat, SendMonitorAthenaQueryConfig, TimeRange } from '../types/index.js';
 import type { AWS } from '@go-automation/go-common';
 
 export async function notifySlackIfConfigured(
@@ -92,7 +92,7 @@ function buildAttachments(
   ];
 }
 
-function mimeTypeForFormat(format: ReportArtifact['format']): string {
+function mimeTypeForFormat(format: ReportFormat): string {
   switch (format) {
     case 'csv':
       return 'text/csv';
@@ -100,5 +100,7 @@ function mimeTypeForFormat(format: ReportArtifact['format']): string {
       return 'application/json';
     case 'jsonl':
       return 'application/x-ndjson';
+    default:
+      throw new Error(`Unsupported report format: ${Core.valueToString(format)}`);
   }
 }

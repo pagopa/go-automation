@@ -1,3 +1,5 @@
+import { valueToString } from '../utils/GOValueToString.js';
+
 export type GOThresholdOperator = '>' | '>=' | '<' | '<=' | '==' | '!=';
 export type GOThresholdAggregation = 'any-row' | 'count' | 'sum' | 'avg' | 'min' | 'max';
 export type GOThresholdSeverity = 'info' | 'warning' | 'critical';
@@ -107,6 +109,8 @@ export class GOThresholdEvaluator {
         return Math.min(...values);
       case 'max':
         return Math.max(...values);
+      default:
+        throw new Error(`Unsupported threshold aggregation: ${valueToString(aggregation)}`);
     }
   }
 }
@@ -149,5 +153,7 @@ function compare(observed: number, operator: GOThresholdOperator, expected: numb
       return observed === expected;
     case '!=':
       return observed !== expected;
+    default:
+      throw new Error(`Unsupported threshold operator: ${valueToString(operator)}`);
   }
 }

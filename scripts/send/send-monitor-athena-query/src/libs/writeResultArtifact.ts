@@ -10,11 +10,12 @@ export async function writeResultArtifact(
   config: SendMonitorAthenaQueryConfig,
   paths: Core.GOPaths,
 ): Promise<ReportArtifact> {
-  const format = config.outputFormat as ReportFormat;
+  const format: ReportFormat = config.outputFormat;
   const extension = format === 'jsonl' ? 'jsonl' : format;
   const fileName = paths.getOutputFileName(sanitizeFilePrefix(config.outputFilePrefix), extension);
   const filePath = resolveOutputPath(config.outputFolder, fileName, paths);
 
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- output path is generated through GOPaths or explicit operator-provided absolute path.
   await mkdir(path.dirname(filePath), { recursive: true });
 
   if (format === 'csv') {

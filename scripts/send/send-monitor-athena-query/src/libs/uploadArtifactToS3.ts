@@ -1,6 +1,6 @@
-import { AWS } from '@go-automation/go-common';
+import { AWS, Core } from '@go-automation/go-common';
 
-import type { ReportArtifact } from '../types/index.js';
+import type { ReportArtifact, ReportFormat } from '../types/index.js';
 
 export async function uploadArtifactToS3(
   artifact: ReportArtifact,
@@ -22,7 +22,7 @@ export async function uploadArtifactToS3(
   };
 }
 
-function contentTypeForFormat(format: ReportArtifact['format']): string {
+function contentTypeForFormat(format: ReportFormat): string {
   switch (format) {
     case 'csv':
       return 'text/csv';
@@ -30,5 +30,7 @@ function contentTypeForFormat(format: ReportArtifact['format']): string {
       return 'application/json';
     case 'jsonl':
       return 'application/x-ndjson';
+    default:
+      throw new Error(`Unsupported report format: ${Core.valueToString(format)}`);
   }
 }

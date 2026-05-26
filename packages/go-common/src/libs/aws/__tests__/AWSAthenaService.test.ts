@@ -195,6 +195,7 @@ describe('AWSAthenaService', () => {
       calls: [],
       async sleep(ms: number): Promise<void> {
         this.calls.push(ms);
+        return Promise.resolve();
       },
     };
     let statusChecks = 0;
