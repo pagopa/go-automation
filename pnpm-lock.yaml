@@ -282,16 +282,16 @@ importers:
         version: link:../../scripts/send/send-monitor-athena-query
     devDependencies:
       '@types/aws-lambda':
-        specifier: ^8.10.161
+        specifier: 'catalog:'
         version: 8.10.161
       '@types/node':
-        specifier: ^24.12.2
+        specifier: 'catalog:'
         version: 24.12.4
       esbuild:
-        specifier: ^0.28.0
+        specifier: 'catalog:'
         version: 0.28.0
       tsx:
-        specifier: ^4.21.0
+        specifier: 'catalog:'
         version: 4.22.3
 
   functions/go-SendMonitorTppMessagesLambda:

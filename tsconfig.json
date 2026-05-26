@@ -9,6 +9,7 @@
     { "path": "./functions/go-AILambda" },
     { "path": "./functions/go-BotQESlackHandler" },
     { "path": "./functions/go-SendMonitorTppMessagesLambda" },
+    { "path": "./functions/go-SendMonitorAthenaQueryLambda" },
     { "path": "./packages/go-ai" },
     { "path": "./packages/go-cli" },
     { "path": "./packages/go-common" },
