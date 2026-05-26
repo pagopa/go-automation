@@ -154,7 +154,16 @@ export class GOFileDownloader {
         }
       });
 
-      await this.renameOverwriting(partialPath, destPath);
+      // Rename is a separate failure surface (permissions, file lock on Windows,
+      // cross-filesystem moves). On failure we still need to clean up the
+      // .partial — legacy behaviour preserved — before propagating.
+      try {
+        await this.renameOverwriting(partialPath, destPath);
+      } catch (renameError) {
+        await this.cleanupPartial(partialPath);
+        throw renameError;
+      }
+
       return {
         finalUrl: result.finalUrl,
         statusCode: result.statusCode,
