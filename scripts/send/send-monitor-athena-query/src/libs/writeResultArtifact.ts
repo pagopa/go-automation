@@ -48,9 +48,50 @@ function resolveOutputPath(outputFolder: string, fileName: string, paths: Core.G
 }
 
 function sanitizeFilePrefix(prefix: string): string {
-  const sanitized = prefix
-    .trim()
-    .replace(/[^A-Za-z0-9._-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+  const sanitized = trimHyphens(replaceUnsafeFilePrefixChars(prefix.trim()));
   return sanitized.length > 0 ? sanitized : 'athena-report';
+}
+
+function replaceUnsafeFilePrefixChars(value: string): string {
+  let result = '';
+  let previousWasReplacement = false;
+
+  for (let index = 0; index < value.length; index++) {
+    const code = value.charCodeAt(index);
+    if (isSafeFilePrefixChar(code)) {
+      result += value[index] ?? '';
+      previousWasReplacement = false;
+    } else if (!previousWasReplacement) {
+      result += '-';
+      previousWasReplacement = true;
+    }
+  }
+
+  return result;
+}
+
+function trimHyphens(value: string): string {
+  let start = 0;
+  let end = value.length;
+
+  while (start < end && value.charCodeAt(start) === 45) {
+    start++;
+  }
+
+  while (end > start && value.charCodeAt(end - 1) === 45) {
+    end--;
+  }
+
+  return value.slice(start, end);
+}
+
+function isSafeFilePrefixChar(code: number): boolean {
+  return (
+    (code >= 48 && code <= 57) ||
+    (code >= 65 && code <= 90) ||
+    (code >= 97 && code <= 122) ||
+    code === 45 ||
+    code === 46 ||
+    code === 95
+  );
 }
