@@ -20,7 +20,9 @@ describe('validateConfig', () => {
   });
 
   it('accepts complete legacy threshold config', () => {
-    assert.doesNotThrow(() => validateConfig(createConfig({ analysisThresholdField: 'total', analysisThreshold: 100 })));
+    assert.doesNotThrow(() =>
+      validateConfig(createConfig({ analysisThresholdField: 'total', analysisThreshold: 100 })),
+    );
   });
 });
 
