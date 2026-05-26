@@ -2,6 +2,8 @@
  * Script configuration interface
  * Represents all validated configuration parameters
  */
+import type { ReportFormat } from './ReportFormat.js';
+
 export interface SendMonitorAthenaQueryConfig {
   readonly from?: string;
   readonly to?: string;
@@ -21,7 +23,7 @@ export interface SendMonitorAthenaQueryConfig {
   readonly templateRaw: ReadonlyArray<string>;
   readonly templateLegacyAliases: boolean;
   readonly outputFolder: string;
-  readonly outputFormat: 'csv' | 'json' | 'jsonl';
+  readonly outputFormat: ReportFormat;
   readonly outputFilePrefix: string;
   readonly outputAttachWhenEmpty: boolean;
   readonly artifactS3Location?: string;
