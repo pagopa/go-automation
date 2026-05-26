@@ -86,8 +86,14 @@ export const GOBackoff = {
     ({ previousDelayMs }) => {
       const last = previousDelayMs ?? baseMs;
       // Window is [baseMs, min(cap, last * 3)] inclusive of baseMs, exclusive of upper bound.
-      // Guard: when last <= baseMs (rare; only with custom cap below base) collapse to baseMs
-      // to avoid Math.random() * negative producing a negative delay.
+      // Edge cases handled by the two clamps:
+      // - `span = max(0, upper - baseMs)` prevents `Math.random() * negative` when
+      //   `upper < baseMs` (e.g. misconfigured `capMs < baseMs`): span collapses
+      //   to 0, so the additive jitter is 0 and the value before the final clamp
+      //   is exactly `baseMs`.
+      // - The trailing `Math.min(capMs, ...)` enforces the cap on top of that:
+      //   when `capMs < baseMs`, the result is `capMs` (NOT `baseMs`); when the
+      //   cap is loose, the additive jitter passes through unchanged.
       const upper = Math.min(capMs, last * 3);
       const span = Math.max(0, upper - baseMs);
       return Math.min(capMs, baseMs + Math.floor(Math.random() * span));
