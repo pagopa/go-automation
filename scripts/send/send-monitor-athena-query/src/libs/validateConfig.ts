@@ -16,6 +16,12 @@ export function validateConfig(config: SendMonitorAthenaQueryConfig): void {
     throw new Error('slack.token and slack.channel must be provided together');
   }
 
+  const hasLegacyThresholdField = hasText(config.analysisThresholdField);
+  const hasLegacyThresholdValue = config.analysisThreshold !== undefined;
+  if (hasLegacyThresholdField !== hasLegacyThresholdValue) {
+    throw new Error('analysis.threshold.field and analysis.threshold must be provided together');
+  }
+
   AWS.AWSS3Uri.parse(config.athenaOutputLocation);
   if (hasText(config.artifactS3Location)) {
     AWS.AWSS3Uri.parse(config.artifactS3Location);

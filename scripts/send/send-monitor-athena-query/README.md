@@ -2,7 +2,7 @@
 
 Esegue una query Athena parametrica, salva il risultato in CSV/JSON/JSONL e invia un report Slack opzionale con allegato e analisi soglie.
 
-## Funzionalita
+## Funzionalità
 
 - Query Athena inline o da file.
 - Placeholder sicuri:
@@ -44,14 +44,14 @@ athena:
     GROUP BY status
 ```
 
-`aws.profile` e' opzionale in ambienti AWS-managed o se la default credential chain SDK e' gia' configurata.
+`aws.profile` è opzionale in ambienti AWS-managed o se la default credential chain SDK è già configurata.
 
 ## Parametri Principali
 
 | Parametro                                             | Default                 | Note                                                           |
 | ----------------------------------------------------- | ----------------------- | -------------------------------------------------------------- |
 | `--from` / `--to`                                     | `to=now`, `from=to-24h` | Range temporale.                                               |
-| `--time-lookback-hours`                               | `24`                    | Usato se `from` e' assente.                                    |
+| `--time-lookback-hours`                               | `24`                    | Usato se `from` è assente.                                     |
 | `--time-zone`                                         | `Europe/Rome`           | Parsing date e token template.                                 |
 | `--aws-profile`                                       | -                       | Profilo SSO locale, opzionale con default chain.               |
 | `--aws-region`                                        | `eu-south-1`            | Regione AWS.                                                   |
@@ -76,7 +76,7 @@ athena:
 | `--slack-send-on-empty`                               | `true`                  | Invia messaggio anche con zero righe.                          |
 | `--slack-send-on-error`                               | `true`                  | Invia errore Slack su failure.                                 |
 | `--analysis-rules`                                    | `[]`                    | JSON oppure DSL `name=x;field=y;operator=>;value=10`.          |
-| `--analysis-threshold-field` / `--analysis-threshold` | -                       | Compatibilita legacy soglia singola.                           |
+| `--analysis-threshold-field` / `--analysis-threshold` | -                       | Compatibilità legacy soglia singola.                           |
 
 ## Utilizzo
 
