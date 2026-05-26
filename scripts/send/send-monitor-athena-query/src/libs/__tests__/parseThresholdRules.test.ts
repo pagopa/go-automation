@@ -57,9 +57,7 @@ describe('parseThresholdRules', () => {
   });
 });
 
-function createConfig(
-  overrides: Partial<SendMonitorAthenaQueryConfig> = {},
-): SendMonitorAthenaQueryConfig {
+function createConfig(overrides: Partial<SendMonitorAthenaQueryConfig> = {}): SendMonitorAthenaQueryConfig {
   return {
     timeLookbackHours: 24,
     timeZone: 'Europe/Rome',

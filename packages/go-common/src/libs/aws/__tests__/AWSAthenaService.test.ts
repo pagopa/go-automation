@@ -231,7 +231,7 @@ describe('AWSAthenaService', () => {
   it('uses configured polling interval and sleeper', async () => {
     const sleeper: GOSleeper & { readonly calls: number[] } = {
       calls: [],
-      sleep(ms: number): Promise<void> {
+      async sleep(ms: number): Promise<void> {
         this.calls.push(ms);
         return Promise.resolve();
       },
