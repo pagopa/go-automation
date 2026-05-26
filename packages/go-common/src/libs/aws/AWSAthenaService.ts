@@ -85,7 +85,11 @@ export class AWSAthenaService {
     return (await this.executeQuery(database, query, options)).rows;
   }
 
-  async executeQuery(database: string, query: string, options: AWSAthenaQueryOptions = {}): Promise<AWSAthenaQueryResult> {
+  async executeQuery(
+    database: string,
+    query: string,
+    options: AWSAthenaQueryOptions = {},
+  ): Promise<AWSAthenaQueryResult> {
     const outputLocation = normalizeOutputLocation(options.outputLocation);
     const catalog = normalizeOptionalString(options.catalog);
     const workGroup = normalizeOptionalString(options.workGroup);
@@ -216,7 +220,9 @@ export class AWSAthenaService {
 
     const headerRow = rows[0];
     const headers =
-      columnInfo.length > 0 ? columnInfo.map((column) => column.Name ?? '') : (headerRow?.Data?.map((d) => d.VarCharValue ?? '') ?? []);
+      columnInfo.length > 0
+        ? columnInfo.map((column) => column.Name ?? '')
+        : (headerRow?.Data?.map((d) => d.VarCharValue ?? '') ?? []);
     const columns =
       columnInfo.length > 0
         ? columnInfoToColumns(columnInfo)

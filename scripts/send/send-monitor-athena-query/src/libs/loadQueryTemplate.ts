@@ -8,7 +8,10 @@ export async function loadQueryTemplate(config: SendMonitorAthenaQueryConfig, pa
   const inlineQuery = normalizeOptionalText(config.athenaQuery);
   const queryFile = normalizeOptionalText(config.athenaQueryFile);
 
-  if ((inlineQuery === undefined && queryFile === undefined) || (inlineQuery !== undefined && queryFile !== undefined)) {
+  if (
+    (inlineQuery === undefined && queryFile === undefined) ||
+    (inlineQuery !== undefined && queryFile !== undefined)
+  ) {
     throw new Error('Provide exactly one of athena.query or athena.query.file');
   }
 

@@ -48,35 +48,35 @@ athena:
 
 ## Parametri Principali
 
-| Parametro | Default | Note |
-| --- | --- | --- |
-| `--from` / `--to` | `to=now`, `from=to-24h` | Range temporale. |
-| `--time-lookback-hours` | `24` | Usato se `from` e' assente. |
-| `--time-zone` | `Europe/Rome` | Parsing date e token template. |
-| `--aws-profile` | - | Profilo SSO locale, opzionale con default chain. |
-| `--aws-region` | `eu-south-1` | Regione AWS. |
-| `--athena-database` | - | Database Athena, obbligatorio. |
-| `--athena-catalog` | `AwsDataCatalog` | Catalog Athena. |
-| `--athena-workgroup` | `primary` | Workgroup Athena. |
-| `--athena-output-location` | - | S3 output location Athena, obbligatorio. |
-| `--athena-query` | - | Query inline. Mutualmente esclusiva con `--athena-query-file`. |
-| `--athena-query-file` | - | File SQL in `configs/` o path assoluto. |
-| `--athena-max-poll-attempts` | `60` | Override polling Athena. |
-| `--athena-poll-interval-ms` | `5000` | Delay costante fra poll. |
-| `--template-params` | `[]` | `key=value`, usato da `{{param.key}}`. |
-| `--template-raw` | `[]` | `key=value`, usato da `{{raw.key}}`. |
-| `--template-legacy-aliases` | `true` | Abilita alias legacy TPP. |
-| `--output-folder` | `reports` | Cartella output locale. |
-| `--output-format` | `csv` | `csv`, `json`, `jsonl`. |
-| `--output-file-prefix` | `athena-report` | Prefisso file generato. |
-| `--output-attach-when-empty` | `false` | Allega file Slack anche con zero righe. |
-| `--artifact-s3-location` | - | Upload opzionale artefatto finale. |
-| `--slack-token` / `--slack-channel` | - | Devono essere presenti insieme. |
-| `--slack-message-template` | default report | Template Slack. |
-| `--slack-send-on-empty` | `true` | Invia messaggio anche con zero righe. |
-| `--slack-send-on-error` | `true` | Invia errore Slack su failure. |
-| `--analysis-rules` | `[]` | JSON oppure DSL `name=x;field=y;operator=>;value=10`. |
-| `--analysis-threshold-field` / `--analysis-threshold` | - | Compatibilita legacy soglia singola. |
+| Parametro                                             | Default                 | Note                                                           |
+| ----------------------------------------------------- | ----------------------- | -------------------------------------------------------------- |
+| `--from` / `--to`                                     | `to=now`, `from=to-24h` | Range temporale.                                               |
+| `--time-lookback-hours`                               | `24`                    | Usato se `from` e' assente.                                    |
+| `--time-zone`                                         | `Europe/Rome`           | Parsing date e token template.                                 |
+| `--aws-profile`                                       | -                       | Profilo SSO locale, opzionale con default chain.               |
+| `--aws-region`                                        | `eu-south-1`            | Regione AWS.                                                   |
+| `--athena-database`                                   | -                       | Database Athena, obbligatorio.                                 |
+| `--athena-catalog`                                    | `AwsDataCatalog`        | Catalog Athena.                                                |
+| `--athena-workgroup`                                  | `primary`               | Workgroup Athena.                                              |
+| `--athena-output-location`                            | -                       | S3 output location Athena, obbligatorio.                       |
+| `--athena-query`                                      | -                       | Query inline. Mutualmente esclusiva con `--athena-query-file`. |
+| `--athena-query-file`                                 | -                       | File SQL in `configs/` o path assoluto.                        |
+| `--athena-max-poll-attempts`                          | `60`                    | Override polling Athena.                                       |
+| `--athena-poll-interval-ms`                           | `5000`                  | Delay costante fra poll.                                       |
+| `--template-params`                                   | `[]`                    | `key=value`, usato da `{{param.key}}`.                         |
+| `--template-raw`                                      | `[]`                    | `key=value`, usato da `{{raw.key}}`.                           |
+| `--template-legacy-aliases`                           | `true`                  | Abilita alias legacy TPP.                                      |
+| `--output-folder`                                     | `reports`               | Cartella output locale.                                        |
+| `--output-format`                                     | `csv`                   | `csv`, `json`, `jsonl`.                                        |
+| `--output-file-prefix`                                | `athena-report`         | Prefisso file generato.                                        |
+| `--output-attach-when-empty`                          | `false`                 | Allega file Slack anche con zero righe.                        |
+| `--artifact-s3-location`                              | -                       | Upload opzionale artefatto finale.                             |
+| `--slack-token` / `--slack-channel`                   | -                       | Devono essere presenti insieme.                                |
+| `--slack-message-template`                            | default report          | Template Slack.                                                |
+| `--slack-send-on-empty`                               | `true`                  | Invia messaggio anche con zero righe.                          |
+| `--slack-send-on-error`                               | `true`                  | Invia errore Slack su failure.                                 |
+| `--analysis-rules`                                    | `[]`                    | JSON oppure DSL `name=x;field=y;operator=>;value=10`.          |
+| `--analysis-threshold-field` / `--analysis-threshold` | -                       | Compatibilita legacy soglia singola.                           |
 
 ## Utilizzo
 

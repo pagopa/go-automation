@@ -12,7 +12,8 @@ import { Core } from '@go-automation/go-common';
 export const scriptMetadata: Core.GOScriptMetadata = {
   name: 'Send Monitor Athena Query',
   version: '1.0.0',
-  description: 'Esegue una query Athena generica, esporta i risultati in CSV o JSON e pubblica un report su Slack con allegato e valutazione opzionale di soglie',
+  description:
+    'Esegue una query Athena generica, esporta i risultati in CSV o JSON e pubblica un report su Slack con allegato e valutazione opzionale di soglie',
   authors: ['Team GO - Gestione Operativa'],
 };
 
@@ -54,7 +55,8 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'aws.profile',
     type: Core.GOConfigParameterType.STRING,
-    description: 'AWS SSO profile name. Optional in AWS-managed environments or when default credentials are available.',
+    description:
+      'AWS SSO profile name. Optional in AWS-managed environments or when default credentials are available.',
     required: false,
     aliases: ['ap'],
   },
@@ -262,9 +264,7 @@ function positiveInteger(value: Core.GOConfigParameterValue): boolean | string {
 }
 
 function nonNegativeInteger(value: Core.GOConfigParameterValue): boolean | string {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0
-    ? true
-    : 'Expected a non-negative integer';
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? true : 'Expected a non-negative integer';
 }
 
 function outputFormat(value: Core.GOConfigParameterValue): boolean | string {

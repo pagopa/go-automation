@@ -19,12 +19,7 @@ describe('AWSAthenaQueryTemplateCompiler', () => {
 
     assert.strictEqual(compiled.query, 'select * from analytics.events where id = ? and ts >= ? and yyyy = ?');
     assert.deepStrictEqual(compiled.parameters, ['42', '2026-05-01 00:00:00', '2026']);
-    assert.deepStrictEqual(compiled.usedPlaceholders, [
-      'raw.table',
-      'param.id',
-      'range.start.dateTime',
-      'now.year',
-    ]);
+    assert.deepStrictEqual(compiled.usedPlaceholders, ['raw.table', 'param.id', 'range.start.dateTime', 'now.year']);
   });
 
   it('keeps legacy adjacent date aliases inline for TPP-compatible partitions', () => {

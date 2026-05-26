@@ -52,7 +52,10 @@ export async function notifySlackErrorIfConfigured(
 
   try {
     const messenger = Core.createSlackMessenger(slackConfig);
-    await messenger.sendError('Athena monitor execution failed', error instanceof Error ? error : new Error(String(error)));
+    await messenger.sendError(
+      'Athena monitor execution failed',
+      error instanceof Error ? error : new Error(String(error)),
+    );
   } catch (slackError) {
     script.logger.error(
       `Failed to send Slack error notification: ${slackError instanceof Error ? slackError.message : String(slackError)}`,
