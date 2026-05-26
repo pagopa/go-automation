@@ -25,9 +25,7 @@ export type { AWSAthenaQueryOptions } from './AWSAthenaService.js';
 export { AWSCloudWatchLogsService } from './AWSCloudWatchLogsService.js';
 export type {
   AWSCloudWatchLogsLogGroupResolutionMode,
-  AWSCloudWatchLogsPollAttemptHandler,
   AWSCloudWatchLogsQueryOptions,
-  AWSCloudWatchLogsSleepFn,
   AWSCloudWatchLogsTimeRange,
 } from './AWSCloudWatchLogsService.js';
 export { AWSCloudWatchMetricsService } from './AWSCloudWatchMetricsService.js';

@@ -39,6 +39,15 @@ import { pipeline } from 'node:stream/promises';
 import { ProxyAgent } from 'undici';
 import type { Dispatcher } from 'undici';
 
+import {
+  GOBackoff,
+  GOPollingError,
+  GORetryRunner,
+  awsNetworkClassifier,
+  combineClassifiers,
+  httpRetryAfterClassifier,
+} from '../polling/index.js';
+import type { GORetryClassifier } from '../polling/index.js';
 import { isEnoentError } from '../utils/GOTypeGuards.js';
 
 import type { GOFileDownloaderConfig } from './GOFileDownloaderConfig.js';
@@ -51,6 +60,17 @@ const DEFAULT_BACKOFF_BASE_MS = 1_000;
 const DEFAULT_BACKOFF_JITTER_MS = 200;
 const DEFAULT_REDACT_HEADERS: ReadonlyArray<string> = ['authorization', 'cookie'];
 const RETRYABLE_STATUS_CODES: ReadonlySet<number> = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+/**
+ * AbortError here is semantically a request timeout (we wire the timeout via
+ * `controller.abort()` in `singleAttempt`), so we treat it as retriable.
+ * This is opposite to {@link awsNetworkClassifier} which treats AbortError as
+ * user cancellation — that built-in is intended for AWS SDK calls where the
+ * caller's signal is the only abort source.
+ */
+const abortAsTimeoutClassifier: GORetryClassifier = {
+  classify: (error) => (error instanceof Error && error.name === 'AbortError' ? 'retriable' : 'unknown'),
+};
 
 export class GOFileDownloader {
   private readonly defaultHeaders: Record<string, string>;
@@ -97,31 +117,70 @@ export class GOFileDownloader {
     await fs.mkdir(path.dirname(destPath), { recursive: true });
     const partialPath = `${destPath}.partial`;
 
-    let attempt = 0;
-    while (true) {
-      attempt += 1;
-      try {
-        const result = await this.singleAttempt(url, requestHeaders, partialPath, options.signal);
-        await this.renameOverwriting(partialPath, destPath);
-        return {
-          finalUrl: result.finalUrl,
-          statusCode: result.statusCode,
-          bytesWritten: result.bytesWritten,
-          sha256: result.sha256,
-          durationMs: Date.now() - startedAt,
-          attempts: attempt,
-          contentType: result.contentType,
-        };
-      } catch (error) {
-        await this.cleanupPartial(partialPath);
+    // Backoff parameters mirror the legacy behaviour:
+    //   exponential = baseMs * 2^attempt, with `jitterMs` random additive on top.
+    // Wrap into a pure GOBackoffFn so the runner can drive sleep + previousDelayMs.
+    const cap = Math.max(this.backoffBaseMs, this.backoffBaseMs * 2 ** this.maxRetries);
+    const expBackoff = GOBackoff.exponential(this.backoffBaseMs, cap);
+    const jitterMs = this.backoffJitterMs;
+    const backoff: typeof expBackoff = (ctx) => expBackoff(ctx) + Math.floor(Math.random() * jitterMs);
 
-        if (!this.isRetriable(error) || attempt > this.maxRetries) {
-          throw this.toDownloaderError(error, url, attempt);
+    const runner = new GORetryRunner({
+      // Legacy semantics: 1 initial attempt + N retries → N+1 total.
+      maxAttempts: this.maxRetries + 1,
+      backoff,
+      classifier: combineClassifiers(
+        // Order matters: most specific first. `httpRetryAfter` consumes
+        // `RetriableHttpError.retryAfterMs` as a one-shot delay override.
+        httpRetryAfterClassifier(RETRYABLE_STATUS_CODES),
+        abortAsTimeoutClassifier,
+        awsNetworkClassifier,
+      ),
+      unknownDecision: 'fatal',
+      ...(options.signal !== undefined ? { signal: options.signal } : {}),
+    });
+
+    let attempts = 0;
+    try {
+      const result = await runner.run(async (attempt) => {
+        attempts = attempt + 1;
+        try {
+          return await this.singleAttempt(url, requestHeaders, partialPath, options.signal);
+        } catch (error) {
+          // Business invariant: every failed attempt must leave no .partial behind.
+          // Cleanup stays here (not in the runner) because it is downloader-specific.
+          await this.cleanupPartial(partialPath);
+          throw error;
         }
+      });
 
-        const delayMs = this.computeBackoff(error, attempt);
-        await this.sleep(delayMs);
+      // Rename is a separate failure surface (permissions, file lock on Windows,
+      // cross-filesystem moves). On failure we still need to clean up the
+      // .partial — legacy behaviour preserved — before propagating.
+      try {
+        await this.renameOverwriting(partialPath, destPath);
+      } catch (renameError) {
+        await this.cleanupPartial(partialPath);
+        throw renameError;
       }
+
+      return {
+        finalUrl: result.finalUrl,
+        statusCode: result.statusCode,
+        bytesWritten: result.bytesWritten,
+        sha256: result.sha256,
+        durationMs: Date.now() - startedAt,
+        attempts,
+        contentType: result.contentType,
+      };
+    } catch (error) {
+      // Caller-facing translation: domain errors → GOFileDownloaderError with
+      // redacted message. GOPollingError(kind: aborted) is propagated as-is so
+      // callers can branch on it; everything else is wrapped.
+      if (error instanceof GOPollingError && error.kind === 'aborted') {
+        throw error;
+      }
+      throw this.toDownloaderError(error, url, attempts);
     }
   }
 
@@ -250,31 +309,6 @@ export class GOFileDownloader {
     await fs.rename(partialPath, destPath);
   }
 
-  private isRetriable(error: unknown): boolean {
-    if (error instanceof RetriableHttpError) {
-      return RETRYABLE_STATUS_CODES.has(error.statusCode);
-    }
-    if (error instanceof Error) {
-      // AbortError → request timed out, retriable
-      if (error.name === 'AbortError') return true;
-      // Network errors typically expose a `code` property via cause
-      const cause = (error as { cause?: unknown }).cause;
-      if (cause instanceof Error && /ECONN|ETIMEDOUT|ENOTFOUND|UND_ERR/.test(cause.message)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private computeBackoff(error: unknown, attempt: number): number {
-    if (error instanceof RetriableHttpError && error.retryAfterMs !== undefined) {
-      return error.retryAfterMs;
-    }
-    const exponential = this.backoffBaseMs * 2 ** (attempt - 1);
-    const jitter = Math.floor(Math.random() * this.backoffJitterMs);
-    return exponential + jitter;
-  }
-
   private parseRetryAfter(headerValue: string | null): number | undefined {
     if (headerValue === null) return undefined;
     const seconds = Number.parseInt(headerValue, 10);
@@ -312,10 +346,6 @@ export class GOFileDownloader {
       redacted = redacted.replace(re, '$1<redacted>');
     }
     return redacted;
-  }
-
-  private async sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 

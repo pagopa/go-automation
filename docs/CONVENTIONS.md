@@ -433,7 +433,7 @@ const dynamoClient = clientProvider.getClient(DynamoDBClient);
 | Conversione valore → stringa | `valueToString`                   | Gestisce tutti i tipi               |
 | Serializzazione JSON sicura  | `safeJsonStringify`               | Gestisce riferimenti circolari      |
 | Type guards                  | `isNonNullable`, `isString`, etc. | -                                   |
-| Polling asincrono            | `pollUntilComplete`               | Con backoff configurabile           |
+| Polling stato + retry        | `GOPoller` / `GORetryRunner`      | Preset in `GOPollingPolicies`       |
 | Troncamento smart            | `smartTruncate`                   | Tronca stringhe lunghe con ellipsis |
 | File copy                    | `GOFileCopier`                    | Copia con progress e validazione    |
 

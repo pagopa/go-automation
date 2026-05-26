@@ -13,10 +13,11 @@ import { loadPartitionKeys } from './libs/loadPartitionKeys.js';
 import { getSchemaInfo, validateSchemaConfig } from './libs/getSchemaInfo.js';
 import { queryAllKeys } from './libs/queryAllKeys.js';
 import { writeResultsToFile } from './libs/writeResultsToFile.js';
-import { withRetry } from './libs/withRetry.js';
 import { formatConsoleJson } from './libs/OutputFormatter.js';
 import { displayDryRunPreview } from './libs/displayDryRunPreview.js';
 import type { AwsQueryDynamodbConfig } from './types/index.js';
+
+const describeTableRetry = new Core.GORetryRunner(Core.GOPollingPolicies.awsThrottling());
 
 /**
  * Main script execution function.
@@ -39,9 +40,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.section('Checking Table Schema');
   script.prompt.startSpinner(`Describing table ${config.tableName}...`);
   const queryService = new AWS.DynamoDBQueryService(script.aws.clients.dynamoDB);
-  const tableDesc = await withRetry(async () => {
-    return await queryService.describeTable(config.tableName);
-  });
+  const tableDesc = await describeTableRetry.run(async () => queryService.describeTable(config.tableName));
   script.prompt.spinnerStop(`Table ${config.tableName} is ${tableDesc?.TableStatus}`);
 
   if (!tableDesc) {

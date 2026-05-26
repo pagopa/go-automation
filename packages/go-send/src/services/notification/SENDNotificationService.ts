@@ -3,7 +3,7 @@
  */
 
 import type { GOAbortableRequest } from '@go-automation/go-common/core';
-import { GOHttpClient } from '@go-automation/go-common/core';
+import { GOBackoff, GOHttpClient, GOPoller, GOPollingError } from '@go-automation/go-common/core';
 
 import type { SENDNotificationCreationResponse } from './models/SENDNotificationCreationResponse.js';
 import type { SENDNotificationRequest } from './models/SENDNotificationRequest.js';
@@ -145,27 +145,46 @@ export class SENDNotificationService {
     const onAttempt = options?.onAttempt;
     const terminalFailureStatuses = new Set(options?.terminalFailureStatuses ?? [SENDNotificationStatus.REFUSED]);
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const status = await this.getNotificationStatus(notificationRequestId);
+    const poller = new GOPoller({
+      maxAttempts,
+      backoff: GOBackoff.constant(delayMs),
+    });
 
-      if (onAttempt) {
-        onAttempt(attempt, status);
-      }
+    try {
+      return await poller.poll<string, SENDNotificationPollingTerminalError>(async (attempt) => {
+        const status = await this.getNotificationStatus(notificationRequestId);
 
-      if (status.iun) {
-        return status.iun;
-      }
+        // Preserve legacy callback semantics: invoked for EVERY status check
+        // (including the one that triggers success or terminal failure), with
+        // attempt indices starting at 1 (the poller passes 0-based indices).
+        if (onAttempt) {
+          onAttempt(attempt + 1, status);
+        }
 
-      if (terminalFailureStatuses.has(status.notificationRequestStatus)) {
-        throw createPollingTerminalError(notificationRequestId, status);
+        if (status.iun) {
+          return { type: 'success', value: status.iun };
+        }
+        if (terminalFailureStatuses.has(status.notificationRequestStatus)) {
+          return {
+            type: 'failure',
+            error: createPollingTerminalError(notificationRequestId, status),
+            reason: status.notificationRequestStatus,
+          };
+        }
+        return { type: 'continue', reason: status.notificationRequestStatus };
+      });
+    } catch (error) {
+      // Translate GOPoller's infrastructure timeout into the legacy message so
+      // callers that match on its text continue to work. Domain errors
+      // (SENDNotificationPollingTerminalError) propagate as-is from the poller.
+      if (error instanceof GOPollingError && error.kind === 'timeout') {
+        throw new Error(
+          `IUN not available after ${String(maxAttempts)} attempts for notification ${notificationRequestId}`,
+          { cause: error },
+        );
       }
-
-      if (attempt < maxAttempts) {
-        await this.sleep(delayMs);
-      }
+      throw error;
     }
-
-    throw new Error(`IUN not available after ${maxAttempts} attempts for notification ${notificationRequestId}`);
   }
 
   /**
@@ -231,13 +250,6 @@ export class SENDNotificationService {
   getNotificationStatusAbortable(notificationRequestId: string): GOAbortableRequest<SENDNotificationStatusResponse> {
     const path = `/delivery/requests?notificationRequestId=${notificationRequestId}`;
     return this.httpClient.getAbortable<SENDNotificationStatusResponse>(path);
-  }
-
-  /**
-   * Sleep utility for polling
-   */
-  private async sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 
