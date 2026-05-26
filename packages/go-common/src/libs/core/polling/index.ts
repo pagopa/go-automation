@@ -4,8 +4,6 @@
  * Provides {@link GOPoller} (status polling) and {@link GORetryRunner}
  * (retry on transient failure) over shared primitives: {@link GOBackoff},
  * {@link GOSleeper}, retry classifiers.
- *
- * See `docs/evolutions/EVO-POLL-OPUS-01.md` for the full design rationale.
  */
 
 // Backoff strategies
