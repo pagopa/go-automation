@@ -16,10 +16,10 @@ export class AWSProvider {
   private cachedServiceProvider: AWSServiceProvider | undefined;
 
   constructor(config: AWSMultiClientProviderConfig) {
-    this.multiClientProviderConfig =
-      config.region === undefined
-        ? { profiles: [...config.profiles] }
-        : { profiles: [...config.profiles], region: config.region };
+    this.multiClientProviderConfig = {
+      ...(config.profiles !== undefined ? { profiles: [...config.profiles] } : {}),
+      ...(config.region !== undefined ? { region: config.region } : {}),
+    };
   }
 
   get clients(): AWSClientsProvider {

@@ -20,8 +20,8 @@ import { AWS_REGION } from './AWSRegion.js';
  * Configuration options for AWSClientProvider
  */
 export interface AWSClientProviderConfig {
-  /** AWS SSO profile name */
-  readonly profile: string;
+  /** AWS SSO profile name. When omitted, the SDK default credential chain is used. */
+  readonly profile?: string;
 
   /** AWS region (defaults to eu-south-1) */
   readonly region?: string;
@@ -35,11 +35,11 @@ export interface AWSClientProviderConfig {
  * repeated credential resolution.
  */
 export class AWSClientProvider {
-  private readonly profile: string;
+  private readonly profile: string | undefined;
   private readonly region: string;
   private readonly clientConfig: {
     region: string;
-    credentials: ReturnType<typeof fromIni>;
+    credentials?: ReturnType<typeof fromIni>;
   };
 
   // Cached client instances (lazy initialization)
@@ -52,12 +52,16 @@ export class AWSClientProvider {
   private cachedECSClient: ECSClient | null = null;
 
   constructor(config: AWSClientProviderConfig) {
-    this.profile = config.profile;
+    const profile = config.profile?.trim();
+    this.profile = profile && profile.length > 0 ? profile : undefined;
     this.region = config.region ?? AWS_REGION;
-    this.clientConfig = {
-      region: this.region,
-      credentials: fromIni({ profile: this.profile }),
-    };
+    this.clientConfig =
+      this.profile === undefined
+        ? { region: this.region }
+        : {
+            region: this.region,
+            credentials: fromIni({ profile: this.profile }),
+          };
   }
 
   /**
@@ -120,7 +124,7 @@ export class AWSClientProvider {
    * Returns the configured AWS profile name
    */
   getProfile(): string {
-    return this.profile;
+    return this.profile ?? 'default';
   }
 
   /**

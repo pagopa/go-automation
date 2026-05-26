@@ -104,8 +104,8 @@ export class GOScript {
   // preventing the same message from being printed twice.
   private readonly preloggedErrors = new WeakSet<Error>();
 
-  // Last AWS profile key used by cached clients — used to detect changes in Lambda between invocations
-  private lastAwsProfilesKey: string | undefined; // join(',') of effective profiles array
+  // Last AWS profile/region key used by cached clients — used to detect changes in Lambda between invocations
+  private lastAwsProfilesKey: string | undefined;
 
   constructor(options: GOScriptOptions) {
     this.options = options;
@@ -599,7 +599,12 @@ export class GOScript {
       return [profile];
     }
 
-    throw new Error('AWS profile is required but not provided (--aws-profile | --aws-profiles)');
+    return [];
+  }
+
+  private resolveAwsRegion(): string | undefined {
+    const region = this.getConfigString('aws.region')?.trim();
+    return region && region.length > 0 ? region : undefined;
   }
 
   private getAwsProfilesKey(): string | undefined {
@@ -607,11 +612,10 @@ export class GOScript {
       return undefined;
     }
 
-    try {
-      return this.resolveAwsProfileNames().join(',');
-    } catch {
-      return undefined;
-    }
+    const profiles = this.resolveAwsProfileNames();
+    const profileKey = profiles.length > 0 ? profiles.join(',') : 'default';
+    const regionKey = this.resolveAwsRegion() ?? '';
+    return `${regionKey}|${profileKey}`;
   }
 
   // ============================================================================
@@ -1082,6 +1086,10 @@ export class GOScript {
 
     // Fall back to single profile handling
     const profile = this.getConfigString('aws.profile');
+    if (profile === undefined || profile.trim().length === 0) {
+      this.logger.info('No AWS profile configured, using SDK default credential chain');
+      return;
+    }
 
     if (this.environment.isInteractive) {
       await this.handleInteractiveAWSCredentials(profile);
@@ -1217,9 +1225,13 @@ export class GOScript {
    * ```
    */
   get aws(): AWSProvider {
-    this.awsProvider ??= new AWSProvider({
-      profiles: this.resolveAwsProfileNames(),
-    });
+    if (this.awsProvider === undefined) {
+      const region = this.resolveAwsRegion();
+      this.awsProvider = new AWSProvider({
+        profiles: this.resolveAwsProfileNames(),
+        ...(region !== undefined ? { region } : {}),
+      });
+    }
     return this.awsProvider;
   }
 

@@ -194,8 +194,13 @@ describe('AWS unified provider facade', () => {
     multi.close();
   });
 
-  it('rejects empty multi-profile configuration', () => {
-    assert.throws(() => new AWSMultiClientProvider({ profiles: [] }), /At least one AWS profile must be provided/);
+  it('uses the SDK default credential chain when no profile is configured', () => {
+    const multi = new AWSMultiClientProvider({ profiles: [], region: 'eu-west-1' });
+
+    assert.deepStrictEqual(multi.profileNames, ['default']);
+    assert.strictEqual(multi.size, 1);
+    assert.strictEqual(multi.hasMultipleProfiles, false);
+    assert.strictEqual(multi.first.getProfile(), 'default');
   });
 
   it('maps operations across concrete multi-profile providers', async () => {

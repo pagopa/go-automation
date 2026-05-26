@@ -652,6 +652,16 @@ importers:
         specifier: 'catalog:'
         version: 24.12.4
 
+  scripts/send/send-monitor-athena-query:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.4
+
   scripts/send/send-monitor-tpp-messages:
     dependencies:
       '@aws-sdk/client-athena':

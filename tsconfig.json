@@ -28,6 +28,7 @@
     { "path": "./scripts/send/send-download-safestorage-attachments" },
     { "path": "./scripts/send/send-fetch-timeline-from-iun" },
     { "path": "./scripts/send/send-import-notifications" },
+    { "path": "./scripts/send/send-monitor-athena-query" },
     { "path": "./scripts/send/send-monitor-tpp-messages" },
     { "path": "./scripts/send/send-report-dlq" }
   ]

@@ -1,13 +1,9 @@
-import type { AthenaClient, Row } from '@aws-sdk/client-athena';
+import type { AthenaClient, ColumnInfo, QueryExecution, Row } from '@aws-sdk/client-athena';
 import { GetQueryExecutionCommand, GetQueryResultsCommand, StartQueryExecutionCommand } from '@aws-sdk/client-athena';
 
-import { GOBackoff, GOPoller } from '../core/polling/index.js';
-
-/** Default polling interval for Athena query results. */
-const ATHENA_POLL_INTERVAL_MS = 2000;
-
-/** Default maximum polling attempts for Athena queries. */
-const ATHENA_MAX_POLL_ATTEMPTS = 120;
+import { AWSS3Uri } from './AWSS3Uri.js';
+import { GOBackoff, GOPoller, GOPollingPolicies } from '../core/polling/index.js';
+import type { GOPollAttemptHandler, GOSleeper } from '../core/polling/index.js';
 
 /**
  * Service for executing Athena queries.
@@ -21,6 +17,10 @@ const ATHENA_MAX_POLL_ATTEMPTS = 120;
  * ```
  */
 export interface AWSAthenaQueryOptions {
+  /** Optional Athena data catalog. */
+  readonly catalog?: string;
+  /** Optional Athena workgroup. */
+  readonly workGroup?: string;
   /** Optional values for positional `?` placeholders. */
   readonly parameters?: ReadonlyArray<string>;
   /**
@@ -30,8 +30,37 @@ export interface AWSAthenaQueryOptions {
    * configuration.
    */
   readonly outputLocation?: string;
+  /** Optional max poll attempts override. */
+  readonly maxPollAttempts?: number;
+  /** Optional constant poll interval override in milliseconds. */
+  readonly pollIntervalMs?: number;
+  /** Optional poll progress hook. */
+  readonly onPollAttempt?: AWSAthenaPollAttemptHandler;
+  /** Optional sleeper override, useful for tests. */
+  readonly sleeper?: GOSleeper;
   /** Optional abort signal to cancel the query. */
   readonly signal?: AbortSignal;
+}
+
+export type AWSAthenaPollAttemptHandler = GOPollAttemptHandler;
+
+export interface AWSAthenaQueryColumn {
+  readonly name: string;
+  readonly type?: string;
+}
+
+export interface AWSAthenaQueryResult {
+  readonly executionId: string;
+  readonly database: string;
+  readonly catalog?: string;
+  readonly workGroup?: string;
+  readonly outputLocation?: string;
+  readonly columns: ReadonlyArray<AWSAthenaQueryColumn>;
+  readonly rows: ReadonlyArray<Record<string, string>>;
+  readonly rowCount: number;
+  readonly submittedAt: string;
+  readonly completedAt: string;
+  readonly durationMs: number;
 }
 
 export class AWSAthenaService {
@@ -53,11 +82,22 @@ export class AWSAthenaService {
     query: string,
     options: AWSAthenaQueryOptions = {},
   ): Promise<ReadonlyArray<Record<string, string>>> {
+    return (await this.executeQuery(database, query, options)).rows;
+  }
+
+  async executeQuery(database: string, query: string, options: AWSAthenaQueryOptions = {}): Promise<AWSAthenaQueryResult> {
     const outputLocation = normalizeOutputLocation(options.outputLocation);
+    const catalog = normalizeOptionalString(options.catalog);
+    const workGroup = normalizeOptionalString(options.workGroup);
+    const startedAt = Date.now();
     const startResponse = await this.client.send(
       new StartQueryExecutionCommand({
         QueryString: query,
-        QueryExecutionContext: { Database: database },
+        QueryExecutionContext: {
+          Database: database,
+          ...(catalog !== undefined ? { Catalog: catalog } : {}),
+        },
+        ...(workGroup !== undefined ? { WorkGroup: workGroup } : {}),
         ...(outputLocation !== undefined ? { ResultConfiguration: { OutputLocation: outputLocation } } : {}),
         ...(options.parameters !== undefined && options.parameters.length > 0
           ? { ExecutionParameters: [...options.parameters] }
@@ -72,17 +112,27 @@ export class AWSAthenaService {
     }
 
     const poller = new GOPoller({
-      maxAttempts: ATHENA_MAX_POLL_ATTEMPTS,
-      backoff: GOBackoff.constant(ATHENA_POLL_INTERVAL_MS),
+      ...GOPollingPolicies.athenaQuery(),
+      ...(options.maxPollAttempts !== undefined ? { maxAttempts: options.maxPollAttempts } : {}),
+      ...(options.pollIntervalMs !== undefined ? { backoff: GOBackoff.constant(options.pollIntervalMs) } : {}),
+      ...(options.sleeper !== undefined ? { sleeper: options.sleeper } : {}),
+      ...(options.onPollAttempt !== undefined ? { onAttempt: options.onPollAttempt } : {}),
       ...(options.signal !== undefined ? { signal: options.signal } : {}),
     });
 
-    await poller.poll<true>(async () => {
-      const statusResponse = await this.client.send(new GetQueryExecutionCommand({ QueryExecutionId: executionId }));
+    const execution = await poller.poll<QueryExecution>(async () => {
+      const statusResponse = await this.client.send(
+        new GetQueryExecutionCommand({ QueryExecutionId: executionId }),
+        ...(options.signal !== undefined ? [{ abortSignal: options.signal }] : []),
+      );
       const state = statusResponse.QueryExecution?.Status?.State;
 
       if (state === 'SUCCEEDED') {
-        return { type: 'success', value: true };
+        const queryExecution = statusResponse.QueryExecution;
+        if (queryExecution === undefined) {
+          return { type: 'failure', error: new Error('Athena query succeeded but no execution metadata was returned') };
+        }
+        return { type: 'success', value: queryExecution };
       }
       if (state === 'FAILED' || state === 'CANCELLED') {
         const reason = statusResponse.QueryExecution?.Status?.StateChangeReason ?? 'Unknown';
@@ -92,7 +142,36 @@ export class AWSAthenaService {
       return { type: 'continue', ...(state !== undefined ? { reason: state } : {}) };
     });
 
+    const resultSet = await this.fetchAllResults(executionId, options.signal);
+    const completedAt = Date.now();
+    const submittedAt = execution.Status?.SubmissionDateTime ?? new Date(startedAt);
+    const completedDate = execution.Status?.CompletionDateTime ?? new Date(completedAt);
+    const parsedRows = this.parseResultRows(resultSet.rows, resultSet.columnInfo);
+
+    return {
+      executionId,
+      database,
+      ...(catalog !== undefined ? { catalog } : {}),
+      ...(workGroup !== undefined ? { workGroup } : {}),
+      ...(outputLocation !== undefined ? { outputLocation } : {}),
+      columns: parsedRows.columns,
+      rows: parsedRows.rows,
+      rowCount: parsedRows.rows.length,
+      submittedAt: submittedAt.toISOString(),
+      completedAt: completedDate.toISOString(),
+      durationMs: Math.max(0, completedDate.getTime() - submittedAt.getTime()),
+    };
+  }
+
+  private async fetchAllResults(
+    executionId: string,
+    signal: AbortSignal | undefined,
+  ): Promise<{
+    readonly rows: ReadonlyArray<Row>;
+    readonly columnInfo: ReadonlyArray<ColumnInfo>;
+  }> {
     const allRows: Row[] = [];
+    let columnInfo: ReadonlyArray<ColumnInfo> = [];
     let nextToken: string | undefined;
 
     do {
@@ -101,26 +180,47 @@ export class AWSAthenaService {
           QueryExecutionId: executionId,
           ...(nextToken !== undefined ? { NextToken: nextToken } : {}),
         }),
+        ...(signal !== undefined ? [{ abortSignal: signal }] : []),
       );
 
+      if (columnInfo.length === 0) {
+        columnInfo = resultsResponse.ResultSet?.ResultSetMetadata?.ColumnInfo ?? [];
+      }
       allRows.push(...(resultsResponse.ResultSet?.Rows ?? []));
       nextToken = resultsResponse.NextToken;
     } while (nextToken !== undefined);
 
-    return this.parseResultRows(allRows);
+    return {
+      rows: allRows,
+      columnInfo,
+    };
   }
 
   /**
    * Parses Athena result rows into key-value records.
    * The first row is treated as the header row.
    */
-  private parseResultRows(rows: ReadonlyArray<Row>): ReadonlyArray<Record<string, string>> {
+  private parseResultRows(
+    rows: ReadonlyArray<Row>,
+    columnInfo: ReadonlyArray<ColumnInfo>,
+  ): {
+    readonly columns: ReadonlyArray<AWSAthenaQueryColumn>;
+    readonly rows: ReadonlyArray<Record<string, string>>;
+  } {
     if (rows.length === 0) {
-      return [];
+      return {
+        columns: columnInfoToColumns(columnInfo),
+        rows: [],
+      };
     }
 
     const headerRow = rows[0];
-    const headers = headerRow?.Data?.map((d) => d.VarCharValue ?? '') ?? [];
+    const headers =
+      columnInfo.length > 0 ? columnInfo.map((column) => column.Name ?? '') : (headerRow?.Data?.map((d) => d.VarCharValue ?? '') ?? []);
+    const columns =
+      columnInfo.length > 0
+        ? columnInfoToColumns(columnInfo)
+        : headers.filter((header) => header.length > 0).map((name) => ({ name }));
 
     const results: Record<string, string>[] = [];
     for (let i = 1; i < rows.length; i++) {
@@ -140,7 +240,10 @@ export class AWSAthenaService {
       results.push(record);
     }
 
-    return results;
+    return {
+      columns,
+      rows: results,
+    };
   }
 }
 
@@ -150,26 +253,27 @@ function normalizeOutputLocation(outputLocation: string | undefined): string | u
     return undefined;
   }
 
-  let parsed: URL;
   try {
-    parsed = new URL(trimmed);
+    AWSS3Uri.parse(trimmed);
   } catch {
     throw invalidOutputLocationError();
   }
 
-  if (
-    parsed.protocol !== 's3:' ||
-    parsed.hostname === '' ||
-    parsed.username !== '' ||
-    parsed.password !== '' ||
-    parsed.search !== '' ||
-    parsed.hash !== '' ||
-    /\s/.test(trimmed)
-  ) {
-    throw invalidOutputLocationError();
-  }
-
   return trimmed;
+}
+
+function normalizeOptionalString(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
+function columnInfoToColumns(columnInfo: ReadonlyArray<ColumnInfo>): ReadonlyArray<AWSAthenaQueryColumn> {
+  return columnInfo
+    .filter((column) => column.Name !== undefined && column.Name.length > 0)
+    .map((column) => ({
+      name: column.Name ?? '',
+      ...(column.Type !== undefined ? { type: column.Type } : {}),
+    }));
 }
 
 function invalidOutputLocationError(): Error {
