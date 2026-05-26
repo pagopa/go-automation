@@ -33,7 +33,13 @@ export function parseKeyValueList(entries: ReadonlyArray<string>): Record<string
 }
 
 function parseJsonObjectEntry(entry: string): Record<string, string> {
-  const parsed = JSON.parse(entry) as unknown;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(entry) as unknown;
+  } catch (error) {
+    throw new Error(`Invalid JSON key/value entry '${entry}'. Expected an object.`, { cause: error });
+  }
+
   if (!isPlainRecord(parsed)) {
     throw new Error(`Invalid JSON key/value entry '${entry}'. Expected an object.`);
   }

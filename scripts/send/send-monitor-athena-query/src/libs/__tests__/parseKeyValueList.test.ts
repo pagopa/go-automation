@@ -22,4 +22,11 @@ describe('parseKeyValueList', () => {
     assert.throws(() => parseKeyValueList(['constructor=x']), /Unsafe key\/value entry key/);
     assert.throws(() => parseKeyValueList(['prototype=x']), /Unsafe key\/value entry key/);
   });
+
+  it('wraps malformed JSON entries with key/value context', () => {
+    assert.throws(
+      () => parseKeyValueList(['{"tableName":"analytics.events"']),
+      /Invalid JSON key\/value entry/,
+    );
+  });
 });
