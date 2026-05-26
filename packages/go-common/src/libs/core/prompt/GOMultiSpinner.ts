@@ -31,7 +31,7 @@ interface SpinnerTask {
   status: 'spinning';
 }
 
-export type GOMultiSpinnerRenderMode = 'auto' | 'live' | 'plain';
+type GOMultiSpinnerRenderMode = 'auto' | 'live' | 'plain';
 
 export interface GOMultiSpinnerOptions {
   /** Spinner animation frames */
