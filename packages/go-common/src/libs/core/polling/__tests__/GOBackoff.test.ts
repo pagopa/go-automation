@@ -1,4 +1,4 @@
-import { describe, it, afterEach } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { GOBackoff } from '../GOBackoff.js';
@@ -61,21 +61,19 @@ describe('GOBackoff', () => {
   });
 
   describe('exponentialJittered', () => {
-    // Math.random stubbing to make tests deterministic.
-    const originalRandom = Math.random;
-    afterEach(() => {
-      Math.random = originalRandom;
-    });
+    // Use t.mock.method on each test for automatic per-test restore.
+    // This avoids the pitfalls of global stubbing via assignment (cross-test
+    // leakage if a test throws before manual restore; ordering coupling).
 
-    it('returns value in [0, exponential(attempt)] (Math.random=0)', () => {
-      Math.random = (): number => 0;
+    it('returns value in [0, exponential(attempt)] (Math.random=0)', (t) => {
+      t.mock.method(Math, 'random', () => 0);
       const backoff = GOBackoff.exponentialJittered(100, 800);
       assert.strictEqual(backoff({ attempt: 0 }), 0);
       assert.strictEqual(backoff({ attempt: 3 }), 0);
     });
 
-    it('returns value in [0, exponential(attempt)] (Math.random≈1)', () => {
-      Math.random = (): number => 0.9999;
+    it('returns value in [0, exponential(attempt)] (Math.random≈1)', (t) => {
+      t.mock.method(Math, 'random', () => 0.9999);
       const backoff = GOBackoff.exponentialJittered(100, 800);
       // floor(0.9999 * 100) = 99
       assert.strictEqual(backoff({ attempt: 0 }), 99);
@@ -83,56 +81,51 @@ describe('GOBackoff', () => {
       assert.strictEqual(backoff({ attempt: 3 }), 799);
     });
 
-    it('respects the cap when exponential exceeds it', () => {
-      Math.random = (): number => 1 - Number.EPSILON;
+    it('respects the cap when exponential exceeds it', (t) => {
+      t.mock.method(Math, 'random', () => 1 - Number.EPSILON);
       const backoff = GOBackoff.exponentialJittered(100, 500);
       const value = backoff({ attempt: 10 }); // 100 * 1024 = 102400, capped at 500
-      assert.ok(value <= 500, `expected <= 500, got ${value}`);
+      assert.ok(value <= 500, `expected <= 500, got ${String(value)}`);
     });
   });
 
   describe('decorrelatedJittered', () => {
-    const originalRandom = Math.random;
-    afterEach(() => {
-      Math.random = originalRandom;
-    });
-
-    it('uses baseMs as seed on the first attempt (no previousDelayMs)', () => {
+    it('uses baseMs as seed on the first attempt (no previousDelayMs)', (t) => {
       // With previousDelayMs=undefined → last=baseMs → window=[base, min(cap, base*3)]
       // Math.random=0 → result = baseMs + 0 = baseMs
-      Math.random = (): number => 0;
+      t.mock.method(Math, 'random', () => 0);
       const backoff = GOBackoff.decorrelatedJittered(100, 3000);
       assert.strictEqual(backoff({ attempt: 0 }), 100);
     });
 
-    it('produces a value in [baseMs, min(cap, previousDelayMs * 3)] window', () => {
+    it('produces a value in [baseMs, min(cap, previousDelayMs * 3)] window', (t) => {
       // base=100, cap=3000, previousDelayMs=500 → upper=min(3000, 1500)=1500, span=1400
       // Math.random=0 → 100; Math.random≈1 → 100 + floor(0.9999*1400) = 100 + 1399 = 1499
-      Math.random = (): number => 0;
+      const randomMock = t.mock.method(Math, 'random', () => 0);
       const backoffMin = GOBackoff.decorrelatedJittered(100, 3000);
       assert.strictEqual(backoffMin({ attempt: 1, previousDelayMs: 500 }), 100);
 
-      Math.random = (): number => 0.9999;
+      randomMock.mock.mockImplementation(() => 0.9999);
       const backoffMax = GOBackoff.decorrelatedJittered(100, 3000);
       assert.strictEqual(backoffMax({ attempt: 1, previousDelayMs: 500 }), 1499);
     });
 
-    it('caps the result at capMs', () => {
+    it('caps the result at capMs', (t) => {
       // base=100, cap=200, previousDelayMs=10000 → upper=min(200, 30000)=200, span=100
       // any Math.random → 100 + floor(r*100) ∈ [100, 200), capped at 200
-      Math.random = (): number => 0.9999;
+      t.mock.method(Math, 'random', () => 0.9999);
       const backoff = GOBackoff.decorrelatedJittered(100, 200);
       const value = backoff({ attempt: 5, previousDelayMs: 10000 });
-      assert.ok(value <= 200, `expected <= 200, got ${value}`);
+      assert.ok(value <= 200, `expected <= 200, got ${String(value)}`);
     });
 
-    it('factory purity: two parallel runs with shared instance and same context produce independent values', () => {
+    it('factory purity: two parallel runs with shared instance and same context produce independent values', (t) => {
       // The instance must not retain mutable state. If it did, two concurrent
       // runs sharing the same backoff would interleave their "last" and drift.
+      t.mock.method(Math, 'random', () => 0);
       const backoff = GOBackoff.decorrelatedJittered(100, 3000);
       // Two distinct runs, both with the same previousDelayMs, must use the
       // value passed in the context — NOT a value carried over from a prior call.
-      Math.random = (): number => 0;
       const runA0 = backoff({ attempt: 0 }); // 100 (uses baseMs)
       const runB0 = backoff({ attempt: 0 }); // 100 (uses baseMs again)
       assert.strictEqual(runA0, 100);
@@ -146,9 +139,9 @@ describe('GOBackoff', () => {
       assert.strictEqual(runB1, 100);
     });
 
-    it('handles edge case where capMs < baseMs by clamping to capMs (no negative jitter)', () => {
+    it('handles edge case where capMs < baseMs by clamping to capMs (no negative jitter)', (t) => {
       // Defensive: if cap<base, span clamps to 0 → baseMs + 0, then min(capMs, ...) returns capMs.
-      Math.random = (): number => 0.5;
+      t.mock.method(Math, 'random', () => 0.5);
       const backoff = GOBackoff.decorrelatedJittered(500, 100);
       const value = backoff({ attempt: 0 });
       assert.strictEqual(value, 100, 'cap wins; never negative');

@@ -312,58 +312,53 @@ describe('GORetryRunner', () => {
     assert.deepStrictEqual(seenPreviousDelays, [undefined]);
   });
 
-  it('per-run isolation: two concurrent run() calls on the SAME instance share no previousDelayMs', async () => {
+  it('per-run isolation: two concurrent run() calls on the SAME instance share no previousDelayMs', async (t) => {
     // Critical property: if previousDelayMs were stored on `this` (or in the
     // backoff closure), interleaved run() calls would see each other's "last"
     // delay. With per-run state living in the run() local scope, each run's
     // first backoff invocation MUST see previousDelayMs=undefined regardless
     // of what other concurrent runs have done.
-    const originalRandom = Math.random;
-    Math.random = (): number => 0; // deterministic: delays collapse to base
+    t.mock.method(Math, 'random', () => 0); // deterministic: delays collapse to base
 
-    try {
-      // Trace every backoff invocation with the previousDelayMs it received.
-      const observedPrev: (number | undefined)[] = [];
-      const backoff = ({ previousDelayMs }: { attempt: number; previousDelayMs?: number }): number => {
-        observedPrev.push(previousDelayMs);
-        return 50;
-      };
+    // Trace every backoff invocation with the previousDelayMs it received.
+    const observedPrev: (number | undefined)[] = [];
+    const backoff = ({ previousDelayMs }: { attempt: number; previousDelayMs?: number }): number => {
+      observedPrev.push(previousDelayMs);
+      return 50;
+    };
 
-      // Sleeper that yields to the microtask queue so the two runs interleave.
-      const interleavingSleeper: GOSleeper = {
-        async sleep(): Promise<void> {
-          await new Promise<void>((resolve) => setImmediate(resolve));
-        },
-      };
+    // Sleeper that yields to the microtask queue so the two runs interleave.
+    const interleavingSleeper: GOSleeper = {
+      async sleep(): Promise<void> {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+      },
+    };
 
-      // ONE shared runner instance. Both runs use it via the same `.run()` call.
-      const runner = new GORetryRunner({
-        maxAttempts: 3,
-        backoff,
-        classifier: constantClassifier('retriable'),
-        sleeper: interleavingSleeper,
-      });
+    // ONE shared runner instance. Both runs use it via the same `.run()` call.
+    const runner = new GORetryRunner({
+      maxAttempts: 3,
+      backoff,
+      classifier: constantClassifier('retriable'),
+      sleeper: interleavingSleeper,
+    });
 
-      const promiseA = runner.run(async () => Promise.reject(new Error('A')));
-      const promiseB = runner.run(async () => Promise.reject(new Error('B')));
+    const promiseA = runner.run(async () => Promise.reject(new Error('A')));
+    const promiseB = runner.run(async () => Promise.reject(new Error('B')));
 
-      await Promise.allSettled([promiseA, promiseB]);
+    await Promise.allSettled([promiseA, promiseB]);
 
-      // Each run does 3 attempts → 2 backoff invocations per run, total 4.
-      assert.strictEqual(observedPrev.length, 4, 'expected 4 backoff calls');
+    // Each run does 3 attempts → 2 backoff invocations per run, total 4.
+    assert.strictEqual(observedPrev.length, 4, 'expected 4 backoff calls');
 
-      // Without per-run state, one of the two runs would see [50, 50] on its
-      // backoff calls because the other run wrote previousDelayMs=50 first.
-      // With per-run state, both runs see [undefined, 50] independently, so
-      // the GLOBAL trace has exactly 2 undefined and 2 fifties — regardless
-      // of interleaving order.
-      const undefinedCount = observedPrev.filter((v) => v === undefined).length;
-      const fiftyCount = observedPrev.filter((v) => v === 50).length;
-      assert.strictEqual(undefinedCount, 2, 'each run starts with previousDelayMs=undefined');
-      assert.strictEqual(fiftyCount, 2, 'each run carries previousDelayMs=50 into its 2nd backoff call');
-    } finally {
-      Math.random = originalRandom;
-    }
+    // Without per-run state, one of the two runs would see [50, 50] on its
+    // backoff calls because the other run wrote previousDelayMs=50 first.
+    // With per-run state, both runs see [undefined, 50] independently, so
+    // the GLOBAL trace has exactly 2 undefined and 2 fifties — regardless
+    // of interleaving order.
+    const undefinedCount = observedPrev.filter((v) => v === undefined).length;
+    const fiftyCount = observedPrev.filter((v) => v === 50).length;
+    assert.strictEqual(undefinedCount, 2, 'each run starts with previousDelayMs=undefined');
+    assert.strictEqual(fiftyCount, 2, 'each run carries previousDelayMs=50 into its 2nd backoff call');
   });
 
   it('passes the attempt index to the operation', async () => {

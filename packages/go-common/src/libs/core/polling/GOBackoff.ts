@@ -58,7 +58,11 @@ export const GOBackoff = {
   /**
    * Exponential backoff with full jitter.
    *
-   * Returns a random integer in `[0, min(baseMs * 2^attempt, capMs)]`.
+   * Returns a random integer in `[0, min(baseMs * 2^attempt, capMs))` —
+   * the upper bound is **exclusive** because the implementation is
+   * `Math.floor(Math.random() * bound)` and `Math.random()` returns `[0, 1)`.
+   * Practical effect: the maximum observable value is `min(...) - 1`.
+   *
    * AWS-recommended for combating thundering herd effects.
    *
    * @param baseMs - Base delay in milliseconds (default 500).

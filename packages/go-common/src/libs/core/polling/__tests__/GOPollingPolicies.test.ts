@@ -60,10 +60,7 @@ describe('GOPollingPolicies', () => {
   });
 
   describe('retry presets snapshots', () => {
-    // Math.random stubbing to make jittered backoff deterministic.
-    const originalRandom = Math.random;
-
-    it('awsThrottling: 5 attempts, exponentialJittered 100→5000ms, classifier + unknownDecision=fatal', () => {
+    it('awsThrottling: 5 attempts, exponentialJittered 100→5000ms, classifier + unknownDecision=fatal', (t) => {
       const policy = GOPollingPolicies.awsThrottling();
       assert.strictEqual(policy.maxAttempts, 5);
       assert.strictEqual(policy.unknownDecision, 'fatal');
@@ -71,12 +68,8 @@ describe('GOPollingPolicies', () => {
       assert.ok(typeof policy.classifier?.classify === 'function');
 
       // Backoff jittered: with Math.random=0, returns 0.
-      Math.random = (): number => 0;
-      try {
-        assert.strictEqual(policy.backoff?.({ attempt: 0 }), 0);
-      } finally {
-        Math.random = originalRandom;
-      }
+      t.mock.method(Math, 'random', () => 0);
+      assert.strictEqual(policy.backoff?.({ attempt: 0 }), 0);
 
       // Classifier recognises a known AWS throttling error.
       const throttlingError = new Error('throttled');
