@@ -32,7 +32,7 @@ export class AWSS3Uri {
 
     return {
       bucket: parsed.hostname,
-      key: parsed.pathname.replace(/^\/+/, ''),
+      key: trimLeadingSlashes(parsed.pathname),
       uri: trimmed,
     };
   }
@@ -43,15 +43,40 @@ export class AWSS3Uri {
       throw invalidS3UriError();
     }
 
-    const cleanKey = key?.replace(/^\/+/, '') ?? '';
+    const cleanKey = key === undefined ? '' : trimLeadingSlashes(key);
     return cleanKey.length > 0 ? `s3://${cleanBucket}/${cleanKey}` : `s3://${cleanBucket}`;
   }
 
   static joinKey(prefix: string | undefined, fileName: string): string {
-    const cleanPrefix = prefix?.replace(/^\/+|\/+$/g, '') ?? '';
-    const cleanFileName = fileName.replace(/^\/+/, '');
+    const cleanPrefix = prefix === undefined ? '' : trimSlashes(prefix);
+    const cleanFileName = trimLeadingSlashes(fileName);
     return cleanPrefix.length > 0 ? `${cleanPrefix}/${cleanFileName}` : cleanFileName;
   }
+}
+
+function trimSlashes(value: string): string {
+  let start = 0;
+  let end = value.length;
+
+  while (start < end && value.charCodeAt(start) === 47) {
+    start++;
+  }
+
+  while (end > start && value.charCodeAt(end - 1) === 47) {
+    end--;
+  }
+
+  return value.slice(start, end);
+}
+
+function trimLeadingSlashes(value: string): string {
+  let start = 0;
+
+  while (start < value.length && value.charCodeAt(start) === 47) {
+    start++;
+  }
+
+  return value.slice(start);
 }
 
 function invalidS3UriError(): Error {
