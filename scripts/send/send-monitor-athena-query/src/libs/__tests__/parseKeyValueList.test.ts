@@ -24,9 +24,6 @@ describe('parseKeyValueList', () => {
   });
 
   it('wraps malformed JSON entries with key/value context', () => {
-    assert.throws(
-      () => parseKeyValueList(['{"tableName":"analytics.events"']),
-      /Invalid JSON key\/value entry/,
-    );
+    assert.throws(() => parseKeyValueList(['{"tableName":"analytics.events"']), /Invalid JSON key\/value entry/);
   });
 });

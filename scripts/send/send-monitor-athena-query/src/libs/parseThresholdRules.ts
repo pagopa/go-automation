@@ -62,7 +62,9 @@ function parseJsonRule(entry: string, index: number): Record<string, unknown> {
   }
 
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error(`Invalid JSON analysis rule at analysis.rules[${String(index)}]: expected an object. Entry: ${entry}`);
+    throw new Error(
+      `Invalid JSON analysis rule at analysis.rules[${String(index)}]: expected an object. Entry: ${entry}`,
+    );
   }
   return parsed as Record<string, unknown>;
 }
