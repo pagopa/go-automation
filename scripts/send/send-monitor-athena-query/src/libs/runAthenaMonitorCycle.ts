@@ -36,6 +36,7 @@ export async function runAthenaMonitorCycle(
   script.logger.info(`Compiled placeholders: ${compiledQuery.usedPlaceholders.join(', ') || 'none'}`);
   script.logger.info(`Execution parameters: ${String(compiledQuery.parameters.length)}`);
 
+  script.prompt.setSpinnerIndent('    ');
   script.prompt.startSpinner('Running Athena query...');
   let athenaResult: AWS.AWSAthenaQueryResult;
   try {
@@ -47,16 +48,18 @@ export async function runAthenaMonitorCycle(
       maxPollAttempts: config.athenaMaxPollAttempts,
       pollIntervalMs: config.athenaPollIntervalMs,
       onPollAttempt: (info) => {
-        script.logger.info(
-          `Athena status: ${info.reason ?? 'UNKNOWN'} (attempt ${String(info.attempt + 1)}/${String(config.athenaMaxPollAttempts)}, nextDelayMs=${String(info.nextDelayMs)})`,
+        script.prompt.updateSpinner(
+          `Running Athena query... ${info.reason ?? 'UNKNOWN'} (${String(info.attempt + 1)}/${String(config.athenaMaxPollAttempts)}, next poll in ${formatDelay(info.nextDelayMs)})`,
         );
       },
     });
+    script.prompt.spinnerStop('Athena query completed');
   } catch (error) {
     script.prompt.spinnerFail('Athena query failed');
     throw error;
+  } finally {
+    script.prompt.setSpinnerIndent('');
   }
-  script.prompt.spinnerStop('Athena query completed');
 
   script.logger.info(`Execution ID: ${athenaResult.executionId}`);
   script.logger.info(`Rows: ${String(athenaResult.rowCount)}`);
@@ -87,4 +90,12 @@ export async function runAthenaMonitorCycle(
     evaluation,
     slackSent,
   };
+}
+
+function formatDelay(delayMs: number): string {
+  if (delayMs < 1000) {
+    return `${String(delayMs)}ms`;
+  }
+
+  return `${(delayMs / 1000).toFixed(1)}s`;
 }

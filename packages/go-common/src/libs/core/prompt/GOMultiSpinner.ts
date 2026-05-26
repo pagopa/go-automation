@@ -31,11 +31,15 @@ interface SpinnerTask {
   status: 'spinning';
 }
 
+export type GOMultiSpinnerRenderMode = 'auto' | 'live' | 'plain';
+
 export interface GOMultiSpinnerOptions {
   /** Spinner animation frames */
   frames?: string[];
   /** Animation interval in milliseconds */
   interval?: number;
+  /** Rendering mode. Auto uses live redraw only for capable interactive terminals. */
+  renderMode?: GOMultiSpinnerRenderMode;
   /** Default indentation */
   indent?: string | number;
   /** Color for spinner icon (ANSI color code) */
@@ -53,6 +57,7 @@ export interface GOMultiSpinnerOptions {
 const DEFAULT_OPTIONS: Required<GOMultiSpinnerOptions> = {
   frames: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'],
   interval: 80,
+  renderMode: 'auto',
   indent: '',
   spinnerColor: '\x1b[36m', // Cyan
   successColor: '\x1b[32m', // Green
@@ -73,7 +78,7 @@ export class GOMultiSpinner {
   // In Lambda/CI/non-TTY, live spinners are useless (non-TTY) or actively harmful
   // (Lambda: setInterval keeps the event loop alive, ANSI escapes pollute CloudWatch).
   // Skip the animation loop in those environments and emit plain lines instead.
-  private readonly nonInteractive: boolean = !GOExecutionEnvironment.isInteractive();
+  private readonly liveRendering: boolean;
 
   // Colors
   private readonly spinnerColor: string;
@@ -92,10 +97,11 @@ export class GOMultiSpinner {
     const opts = { ...DEFAULT_OPTIONS, ...options };
     this.frames = opts.frames;
     this.animationInterval = opts.interval;
+    this.liveRendering = shouldUseLiveRendering(opts.renderMode);
     this.setIndent(opts.indent);
     // In non-interactive mode (Lambda/CI/non-TTY) strip every ANSI token —
     // colors AND the reset — so CloudWatch/CI logs stay free of escape codes.
-    const stripColors = this.nonInteractive;
+    const stripColors = !this.liveRendering;
     this.spinnerColor = stripColors ? '' : opts.spinnerColor;
     this.successColor = stripColors ? '' : opts.successColor;
     this.errorColor = stripColors ? '' : opts.errorColor;
@@ -125,10 +131,12 @@ export class GOMultiSpinner {
     this.tasks.set(id, { id, text, status: 'spinning' });
     if (!this.isRunning) {
       this.startAnimation();
+    } else if (this.liveRendering) {
+      this.render();
     }
     // In non-interactive mode the live animation is suppressed, so we emit a plain
     // start line the first time a task appears. This keeps CloudWatch logs informative.
-    if (this.nonInteractive && isNew) {
+    if (!this.liveRendering && isNew) {
       process.stdout.write(`${this.indent}${text}\n`);
     }
   }
@@ -382,7 +390,7 @@ export class GOMultiSpinner {
     // In non-interactive environments (Lambda, CI, piped output) skip the
     // ANSI cursor toggle and the setInterval-based render loop entirely.
     // setInterval would keep the Lambda event loop alive and delay handler return.
-    if (this.nonInteractive) {
+    if (!this.liveRendering) {
       return;
     }
     process.stdout.write('\x1B[?25l'); // Hide cursor
@@ -393,7 +401,7 @@ export class GOMultiSpinner {
   private stopAnimation(): void {
     if (!this.isRunning) return;
     this.isRunning = false;
-    if (this.nonInteractive) {
+    if (!this.liveRendering) {
       // No interval to clear, no cursor to restore.
       this.lastLineCount = 0;
       return;
@@ -410,16 +418,20 @@ export class GOMultiSpinner {
   private clear(): void {
     // readline.moveCursor / clearScreenDown require a TTY; they are no-ops on a
     // non-TTY stream in Node but we avoid the call anyway to keep CloudWatch clean.
-    if (this.nonInteractive) return;
+    if (!this.liveRendering) return;
     if (this.lastLineCount > 0) {
-      readline.moveCursor(process.stdout, 0, -this.lastLineCount);
+      readline.cursorTo(process.stdout, 0);
+      if (this.lastLineCount > 1) {
+        readline.moveCursor(process.stdout, 0, -(this.lastLineCount - 1));
+      }
       readline.clearScreenDown(process.stdout);
+      this.lastLineCount = 0;
     }
   }
 
   private render(): void {
     // No live frames in non-interactive environments.
-    if (this.nonInteractive) return;
+    if (!this.liveRendering) return;
 
     this.clear();
 
@@ -435,7 +447,7 @@ export class GOMultiSpinner {
       if (text.length > maxWidth) {
         text = `${text.substring(0, maxWidth - 3)}...`;
       }
-      output += `${this.indent}${this.spinnerColor}${frame}\x1b[0m ${text}\n`;
+      output += `${count > 0 ? '\n' : ''}${this.indent}${this.spinnerColor}${frame}${this.colorReset} ${text}`;
       count++;
     }
 
@@ -445,4 +457,41 @@ export class GOMultiSpinner {
 
     this.lastLineCount = count;
   }
+}
+
+function shouldUseLiveRendering(renderMode: GOMultiSpinnerRenderMode): boolean {
+  if (renderMode === 'plain') {
+    return false;
+  }
+  if (renderMode === 'live') {
+    return true;
+  }
+  if (isTruthyEnv(process.env['GO_DISABLE_SPINNER'])) {
+    return false;
+  }
+
+  const term = process.env['TERM'];
+  const stdout = process.stdout as NodeJS.WriteStream & {
+    readonly cursorTo?: unknown;
+    readonly clearLine?: unknown;
+  };
+
+  return (
+    GOExecutionEnvironment.isInteractive() &&
+    process.stdout.isTTY === true &&
+    term !== undefined &&
+    term !== '' &&
+    term !== 'dumb' &&
+    typeof stdout.cursorTo === 'function' &&
+    typeof stdout.clearLine === 'function'
+  );
+}
+
+function isTruthyEnv(value: string | undefined): boolean {
+  if (value === undefined) {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized !== '' && normalized !== '0' && normalized !== 'false' && normalized !== 'no';
 }

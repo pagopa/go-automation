@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
 import { describe, it, mock, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 import { GOMultiSpinner } from '../GOMultiSpinner.js';
 
 describe('GOMultiSpinner', () => {
-  let stdoutWriteMock: any;
+  let stdoutWriteMock: ReturnType<typeof mock.method>;
 
   beforeEach(() => {
     stdoutWriteMock = mock.method(process.stdout, 'write', () => true);
@@ -42,6 +41,38 @@ describe('GOMultiSpinner', () => {
     spinner.updateMessage('Update message');
     spinner.stop('Stop message');
     assert.strictEqual(spinner.isActive(), false);
+  });
+
+  it('does not append newlines to live spinner frames', () => {
+    const spinner = new GOMultiSpinner({ renderMode: 'live', frames: ['-'], interval: 60000 });
+
+    try {
+      spinner.start('Loading');
+      spinner.updateMessage('Still loading');
+
+      const writes = getStdoutWrites(stdoutWriteMock);
+      assert.ok(writes.some((write: string) => write.includes('Loading') && !write.endsWith('\n')));
+      assert.ok(writes.some((write: string) => write.includes('Still loading') && !write.endsWith('\n')));
+      assert.strictEqual(
+        writes.some((write: string) => write.includes('Loading\n') || write.includes('Still loading\n')),
+        false,
+      );
+    } finally {
+      spinner.stopAll();
+    }
+  });
+
+  it('emits plain lines when live rendering is disabled', () => {
+    const spinner = new GOMultiSpinner({ renderMode: 'plain' });
+
+    spinner.start('Loading');
+    spinner.updateMessage('Still loading');
+    spinner.stop('Done');
+
+    const writes = getStdoutWrites(stdoutWriteMock);
+    assert.ok(writes.includes('Loading\n'));
+    assert.ok(writes.includes('Done\n'));
+    assert.strictEqual(writes.includes('Still loading\n'), false);
   });
 
   it('success single spinner', () => {
@@ -96,3 +127,7 @@ describe('GOMultiSpinner', () => {
     assert.ok(true);
   });
 });
+
+function getStdoutWrites(stdoutWriteMock: ReturnType<typeof mock.method>): string[] {
+  return stdoutWriteMock.mock.calls.map((call) => String(call.arguments[0]));
+}
