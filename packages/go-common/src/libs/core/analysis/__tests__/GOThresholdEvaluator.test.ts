@@ -34,4 +34,41 @@ describe('GOThresholdEvaluator', () => {
     assert.strictEqual(evaluation.summary, 'No threshold rules configured');
     assert.deepStrictEqual(evaluation.results, []);
   });
+
+  it('evaluates any-row equality operators against each row', () => {
+    const evaluator = new GOThresholdEvaluator();
+    const evaluation = evaluator.evaluate(
+      [
+        { count: '4' },
+        { count: '5' },
+      ],
+      [
+        { name: 'equal-four', field: 'count', operator: '==', value: 4, aggregation: 'any-row' },
+        { name: 'not-five', field: 'count', operator: '!=', value: 5, aggregation: 'any-row' },
+      ],
+    );
+
+    assert.deepStrictEqual(
+      evaluation.results.map((result) => [result.rule.name, result.breached, result.observedValue]),
+      [
+        ['equal-four', true, 4],
+        ['not-five', true, 4],
+      ],
+    );
+  });
+
+  it('does not breach any-row != when all rows match the expected value', () => {
+    const evaluation = new GOThresholdEvaluator().evaluate(
+      [
+        { count: '5' },
+        { count: '5' },
+      ],
+      [{ name: 'not-five', field: 'count', operator: '!=', value: 5, aggregation: 'any-row' }],
+    );
+
+    assert.deepStrictEqual(
+      evaluation.results.map((result) => [result.rule.name, result.breached, result.observedValue]),
+      [['not-five', false, 5]],
+    );
+  });
 });

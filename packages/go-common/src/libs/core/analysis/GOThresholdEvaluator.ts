@@ -100,7 +100,7 @@ export class GOThresholdEvaluator {
 
     switch (aggregation) {
       case 'any-row':
-        return selectAnyRowObservedValue(values, rule.operator);
+        return selectAnyRowObservedValue(values, rule.operator, rule.value);
       case 'sum':
         return values.reduce((sum, value) => sum + value, 0);
       case 'avg':
@@ -132,11 +132,23 @@ function toNumber(value: unknown): number | undefined {
   return undefined;
 }
 
-function selectAnyRowObservedValue(values: ReadonlyArray<number>, operator: GOThresholdOperator): number {
+function selectAnyRowObservedValue(
+  values: ReadonlyArray<number>,
+  operator: GOThresholdOperator,
+  expected: number,
+): number {
+  const matchingValue = values.find((value) => compare(value, operator, expected));
+  if (matchingValue !== undefined) {
+    return matchingValue;
+  }
+
   if (operator === '<' || operator === '<=') {
     return Math.min(...values);
   }
-  return Math.max(...values);
+  if (operator === '>' || operator === '>=') {
+    return Math.max(...values);
+  }
+  return values[0] ?? 0;
 }
 
 function compare(observed: number, operator: GOThresholdOperator, expected: number): boolean {
