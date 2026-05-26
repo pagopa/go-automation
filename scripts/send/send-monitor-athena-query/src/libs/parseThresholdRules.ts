@@ -30,7 +30,7 @@ export function parseThresholdRules(config: SendMonitorAthenaQueryConfig): Reado
 }
 
 function parseThresholdRule(entry: string, index: number): Core.GOThresholdRule {
-  const rawRule = entry.startsWith('{') ? parseJsonRule(entry) : parseDslRule(entry);
+  const rawRule = entry.startsWith('{') ? parseJsonRule(entry, index) : parseDslRule(entry);
   const value = toNumber(rawRule['value'], `analysis.rules[${String(index)}].value`);
   const field = toOptionalString(rawRule['field']);
   const message = toOptionalString(rawRule['message']);
@@ -53,10 +53,16 @@ function parseThresholdRule(entry: string, index: number): Core.GOThresholdRule 
   };
 }
 
-function parseJsonRule(entry: string): Record<string, unknown> {
-  const parsed = JSON.parse(entry) as unknown;
+function parseJsonRule(entry: string, index: number): Record<string, unknown> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(entry) as unknown;
+  } catch (error) {
+    throw new Error(`Invalid JSON analysis rule at analysis.rules[${String(index)}]: ${entry}`, { cause: error });
+  }
+
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error(`Invalid analysis rule '${entry}'. Expected a JSON object.`);
+    throw new Error(`Invalid JSON analysis rule at analysis.rules[${String(index)}]: expected an object. Entry: ${entry}`);
   }
   return parsed as Record<string, unknown>;
 }

@@ -55,6 +55,18 @@ describe('parseThresholdRules', () => {
       },
     ]);
   });
+
+  it('wraps malformed JSON rules with analysis.rules index context', () => {
+    assert.throws(
+      () =>
+        parseThresholdRules(
+          createConfig({
+            analysisRules: ['{"name":"broken"'],
+          }),
+        ),
+      /Invalid JSON analysis rule at analysis\.rules\[0\]/,
+    );
+  });
 });
 
 function createConfig(overrides: Partial<SendMonitorAthenaQueryConfig> = {}): SendMonitorAthenaQueryConfig {
