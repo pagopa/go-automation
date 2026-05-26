@@ -34,13 +34,20 @@ function parseThresholdRule(entry: string, index: number): Core.GOThresholdRule 
   const value = toNumber(rawRule['value'], `analysis.rules[${String(index)}].value`);
   const field = toOptionalString(rawRule['field']);
   const message = toOptionalString(rawRule['message']);
+  const aggregation = toAggregation(rawRule['aggregation'] ?? 'any-row');
+
+  if (aggregation !== 'count' && field === undefined) {
+    throw new Error(
+      `Invalid analysis rule at analysis.rules[${String(index)}]: field is required when aggregation is '${aggregation}'`,
+    );
+  }
 
   return {
     name: toOptionalString(rawRule['name']) ?? `rule-${String(index + 1)}`,
     ...(field !== undefined ? { field } : {}),
     operator: toOperator(rawRule['operator'] ?? '>'),
     value,
-    aggregation: toAggregation(rawRule['aggregation'] ?? 'any-row'),
+    aggregation,
     severity: toSeverity(rawRule['severity'] ?? 'warning'),
     ...(message !== undefined ? { message } : {}),
   };
