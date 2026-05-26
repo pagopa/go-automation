@@ -207,10 +207,16 @@ export class AWSSQSService {
 
       options.onRetry?.(currentEntries.length, attempt + 1);
 
-      const delayMs = backoff({
+      // `exponentialJittered` is full-jitter by design (AWS pattern): it can
+      // return 0 ms, which for SQS partial-failure retries would mean firing
+      // the next batch almost immediately and worsening any active throttling.
+      // Floor the delay at `base` so the first retry always waits at least
+      // SQS_BATCH_RETRY_BASE_MS before re-sending the failed subset.
+      const rawDelayMs = backoff({
         attempt,
         ...(previousDelayMs !== undefined ? { previousDelayMs } : {}),
       });
+      const delayMs = Math.max(SQS_BATCH_RETRY_BASE_MS, rawDelayMs);
       await sleeper.sleep(delayMs);
       previousDelayMs = delayMs;
       attempt++;
