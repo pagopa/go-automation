@@ -151,6 +151,46 @@ describe('GOPresetConfigProvider', () => {
     assert.throws(() => provider.prepare(), /script\.preset\.name cannot be empty/);
   });
 
+  it('rejects empty preset selector arrays', () => {
+    const presetNameProvider = createPresetProvider({
+      selectorValues: {
+        [PRESET_NAME_PARAMETER]: [],
+      },
+    });
+    const presetFileProvider = createPresetProvider({
+      selectorValues: {
+        [PRESET_NAME_PARAMETER]: 'prod',
+        [PRESET_FILE_PARAMETER]: [],
+      },
+    });
+
+    assert.throws(() => presetNameProvider.prepare(), /script\.preset\.name cannot be empty/);
+    assert.throws(() => presetFileProvider.prepare(), /script\.preset\.file cannot be empty/);
+  });
+
+  it('rejects repeated preset selector values', () => {
+    const presetNameProvider = createPresetProvider({
+      selectorValues: {
+        [PRESET_NAME_PARAMETER]: ['dev', 'prod'],
+      },
+    });
+    const presetFileProvider = createPresetProvider({
+      selectorValues: {
+        [PRESET_NAME_PARAMETER]: 'prod',
+        [PRESET_FILE_PARAMETER]: ['presets.dev.yaml', 'presets.prod.yaml'],
+      },
+    });
+
+    assert.throws(
+      () => presetNameProvider.prepare(),
+      /script\.preset\.name cannot be specified multiple times/,
+    );
+    assert.throws(
+      () => presetFileProvider.prepare(),
+      /script\.preset\.file cannot be specified multiple times/,
+    );
+  });
+
   it('warns when preset file is configured without preset name', () => {
     const warnings: string[] = [];
     const provider = createPresetProvider({

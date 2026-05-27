@@ -147,7 +147,24 @@ export class GOPresetConfigProvider extends GOConfigProviderBase {
     const parameter = this.schema.getParameter(parameterName);
     const keysToTry = parameter === undefined ? [parameterName] : [parameter.name, ...parameter.aliases];
     const rawValue = this.readRawSelectorValue(keysToTry);
-    return rawValue === undefined ? undefined : GOConfigTypeConverter.toString(rawValue);
+
+    if (rawValue === undefined) {
+      return undefined;
+    }
+
+    if (Array.isArray(rawValue)) {
+      if (rawValue.length === 0) {
+        throw new Error(`${parameterName} cannot be empty`);
+      }
+
+      if (rawValue.length > 1) {
+        throw new Error(`${parameterName} cannot be specified multiple times`);
+      }
+
+      return rawValue[0] ?? '';
+    }
+
+    return GOConfigTypeConverter.toString(rawValue);
   }
 
   private readRawSelectorValue(keysToTry: ReadonlyArray<string>): string | string[] | undefined {
