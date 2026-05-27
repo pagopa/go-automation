@@ -108,7 +108,7 @@ export class GOYAMLParser {
       const sourceValue = source[key];
       const targetValue = target[key];
 
-      if (isYAMLObject(sourceValue) && isYAMLObject(targetValue)) {
+      if (Object.prototype.hasOwnProperty.call(target, key) && isYAMLObject(sourceValue) && isYAMLObject(targetValue)) {
         // Recursively merge nested objects
         this.deepMerge(targetValue, sourceValue);
       } else {

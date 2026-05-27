@@ -57,7 +57,14 @@ describe('GOYAMLParser', () => {
     );
     const overrideFile = writeTempYamlFile(
       'override.yaml',
-      ['safe:', '  value: override', '  __proto__: blocked', 'prototype: blocked'].join('\n'),
+      [
+        'safe:',
+        '  value: override',
+        '  __proto__: blocked',
+        'prototype: blocked',
+        'toString:',
+        '  value: own-value',
+      ].join('\n'),
     );
 
     const merged = GOYAMLParser.parseFiles([baseFile, overrideFile]);
@@ -68,8 +75,12 @@ describe('GOYAMLParser', () => {
         nested: 'keep',
         items: [{ name: 'ok' }],
       },
+      toString: {
+        value: 'own-value',
+      },
     });
     assert.strictEqual(Object.prototype.hasOwnProperty.call(merged, 'constructor'), false);
     assert.strictEqual(Object.prototype.hasOwnProperty.call(merged, 'prototype'), false);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(merged, 'toString'), true);
   });
 });
