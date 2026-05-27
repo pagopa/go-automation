@@ -9,6 +9,7 @@ import { damerauLevenshteinDistance } from '../config/validation/GOStringDistanc
 import { getErrorMessage } from '../errors/GOErrorUtils.js';
 import { isDangerousKey } from '../security/DangerousKeys.js';
 import { GOPathType, type GOPaths } from '../utils/GOPaths.js';
+import { GOPresetUnknownKeysError } from './GOPresetUnknownKeysError.js';
 
 export interface GOScriptPresetDefinition {
   readonly name: string;
@@ -93,7 +94,12 @@ export class GOScriptPresetLoader {
     const unknownKeys = this.findUnknownKeys(values, knownKeys);
 
     if (unknownKeys.length > 0 && !allowUnknownKeys) {
-      throw new Error(this.formatUnknownKeysError(presetName, unknownKeys, knownKeys));
+      throw new GOPresetUnknownKeysError({
+        presetName,
+        unknownKeys,
+        knownKeys: Array.from(knownKeys),
+        suggestions: this.findUnknownKeySuggestions(unknownKeys, knownKeys),
+      });
     }
 
     return {
@@ -370,27 +376,21 @@ export class GOScriptPresetLoader {
     return keys;
   }
 
-  private formatUnknownKeysError(
-    presetName: string,
+  private findUnknownKeySuggestions(
     unknownKeys: ReadonlyArray<string>,
     knownKeys: ReadonlySet<string>,
-  ): string {
+  ): Readonly<Record<string, string>> {
+    const suggestions = Object.create(null) as Record<string, string>;
     const knownKeyList = Array.from(knownKeys);
 
-    if (unknownKeys.length === 1) {
-      const key = unknownKeys[0] ?? '';
-      const suggestion = this.findClosestKnownKey(key, knownKeyList);
-      return suggestion === undefined
-        ? `Preset "${presetName}" contains unknown key "${key}"`
-        : `Preset "${presetName}" contains unknown key "${key}". Did you mean "${suggestion}"?`;
-    }
-
-    const lines = [`Preset "${presetName}" contains ${String(unknownKeys.length)} unknown key(s):`];
     for (const key of unknownKeys) {
       const suggestion = this.findClosestKnownKey(key, knownKeyList);
-      lines.push(suggestion === undefined ? `  - ${key}` : `  - ${key} (did you mean "${suggestion}"?)`);
+      if (suggestion !== undefined) {
+        suggestions[key] = suggestion;
+      }
     }
-    return lines.join('\n');
+
+    return suggestions;
   }
 
   private findClosestKnownKey(unknownKey: string, knownKeys: ReadonlyArray<string>): string | undefined {
@@ -398,6 +398,10 @@ export class GOScriptPresetLoader {
     let bestDistance = Number.POSITIVE_INFINITY;
 
     for (const knownKey of knownKeys) {
+      if (Math.abs(unknownKey.length - knownKey.length) > MAX_SUGGESTION_DISTANCE) {
+        continue;
+      }
+
       const distance = damerauLevenshteinDistance(unknownKey, knownKey);
       if (distance <= MAX_SUGGESTION_DISTANCE && distance < bestDistance) {
         bestKey = knownKey;

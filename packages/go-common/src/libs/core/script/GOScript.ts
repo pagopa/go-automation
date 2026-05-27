@@ -37,7 +37,7 @@ import { GOScriptPresetLoader } from './GOScriptPresetLoader.js';
 import {
   GOSCRIPT_PRESET_FILE_PARAMETER,
   GOSCRIPT_PRESET_NAME_PARAMETER,
-  getGOScriptSystemParameters,
+  GOSCRIPT_SYSTEM_PARAMETERS,
 } from './GOScriptSystemParameters.js';
 import type {
   GOScriptOptions,
@@ -380,7 +380,7 @@ export class GOScript {
       schema.addParameters(configOptions.parameters);
     }
 
-    schema.addReservedParameters(getGOScriptSystemParameters());
+    schema.addReservedParameters(GOSCRIPT_SYSTEM_PARAMETERS);
 
     return schema;
   }

@@ -7,6 +7,7 @@ import { afterEach, describe, it } from 'node:test';
 import type { GOConfigSchema } from '../../config/GOConfigSchema.js';
 import { GOPathEnvironmentVariables } from '../../utils/GOPathEnvironmentVariables.js';
 import { GOPaths } from '../../utils/GOPaths.js';
+import { GOPresetUnknownKeysError } from '../GOPresetUnknownKeysError.js';
 import { GOScriptPresetLoader } from '../GOScriptPresetLoader.js';
 
 const managedEnvVars = [GOPathEnvironmentVariables.CONFIG_DIR] as const;
@@ -263,6 +264,42 @@ describe('GOScriptPresetLoader', () => {
           schema: createSchema(),
         }),
       /Preset "tppmessages" contains unknown key "athena\.databse". Did you mean "athena\.database"\?/,
+    );
+  });
+
+  it('throws a structured error for unknown keys when allowUnknownKeys is false', () => {
+    const { configDir, paths } = createPresetTestContext();
+    fs.writeFileSync(
+      path.join(configDir, 'presets.yaml'),
+      [
+        'allowUnknownKeys: false',
+        'presets:',
+        '  - name: tppmessages',
+        '    values:',
+        '      athena.databse: typo',
+      ].join('\n'),
+    );
+
+    assert.throws(
+      () =>
+        new GOScriptPresetLoader().loadSelectedPreset({
+          presetName: 'tppmessages',
+          paths,
+          schema: createSchema(),
+        }),
+      (error: unknown) => {
+        assert.ok(error instanceof GOPresetUnknownKeysError);
+        assert.strictEqual(error.presetName, 'tppmessages');
+        assert.deepStrictEqual(error.unknownKeys, ['athena.databse']);
+        assert.deepStrictEqual([...error.knownKeys].sort(), [
+          'analysis.rules',
+          'athena.database',
+          'athena.workgroup',
+          'output.format',
+        ]);
+        assert.deepStrictEqual({ ...error.suggestions }, { 'athena.databse': 'athena.database' });
+        return true;
+      },
     );
   });
 

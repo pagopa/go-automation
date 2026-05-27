@@ -13,8 +13,10 @@ export type {
   GOScriptPresetLoaderOptions,
   GOScriptPresetResolution,
 } from './GOScriptPresetLoader.js';
+export { GOPresetUnknownKeysError } from './GOPresetUnknownKeysError.js';
+export type { GOPresetUnknownKeysErrorOptions } from './GOPresetUnknownKeysError.js';
 export {
   GOSCRIPT_PRESET_FILE_PARAMETER,
   GOSCRIPT_PRESET_NAME_PARAMETER,
-  getGOScriptSystemParameters,
+  GOSCRIPT_SYSTEM_PARAMETERS,
 } from './GOScriptSystemParameters.js';
