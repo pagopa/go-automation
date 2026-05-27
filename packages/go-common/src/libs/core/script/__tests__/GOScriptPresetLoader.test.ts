@@ -124,6 +124,24 @@ describe('GOScriptPresetLoader', () => {
     assert.strictEqual(preset.values.get('athena.database'), 'pn_analytics');
   });
 
+  it('rejects duplicate normalized preset names in top-level map files', () => {
+    const { configDir, paths } = createPresetTestContext();
+    fs.writeFileSync(
+      path.join(configDir, 'presets.yaml'),
+      ['" tppmessages ":', '  athena.database: first', 'tppmessages:', '  athena.database: second'].join('\n'),
+    );
+
+    assert.throws(
+      () =>
+        new GOScriptPresetLoader().loadSelectedPreset({
+          presetName: 'tppmessages',
+          paths,
+          schema: createSchema(),
+        }),
+      /Duplicate preset name "tppmessages" in presets\.yaml/,
+    );
+  });
+
   it('loads JSON presets with an UTF-8 BOM', () => {
     const { configDir, paths } = createPresetTestContext();
     fs.writeFileSync(
@@ -137,6 +155,32 @@ describe('GOScriptPresetLoader', () => {
       schema: createSchema(),
     });
 
+    assert.strictEqual(preset.values.get('athena.database'), 'pn_analytics');
+  });
+
+  it('uses an injected filesystem when reading presets', () => {
+    const { configDir, root, paths } = createPresetTestContext();
+    const presetFile = path.join(configDir, 'virtual.yaml');
+    const readPaths: string[] = [];
+    const loader = new GOScriptPresetLoader({
+      fileSystem: {
+        existsSync: (filePath) => filePath.startsWith(root),
+        realpathSync: (filePath) => filePath,
+        readFileSync: (filePath) => {
+          readPaths.push(filePath);
+          return ['tppmessages:', '  athena.database: pn_analytics'].join('\n');
+        },
+      },
+    });
+
+    const preset = loader.loadSelectedPreset({
+      presetName: 'tppmessages',
+      presetFile,
+      paths,
+      schema: createSchema(),
+    });
+
+    assert.deepStrictEqual(readPaths, [presetFile]);
     assert.strictEqual(preset.values.get('athena.database'), 'pn_analytics');
   });
 

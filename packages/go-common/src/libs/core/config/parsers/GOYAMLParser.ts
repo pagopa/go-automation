@@ -9,6 +9,12 @@ import * as fs from 'fs';
 import * as YAML from 'yaml';
 import { getErrorMessage } from '../../errors/GOErrorUtils.js';
 
+const SAFE_YAML_PARSE_OPTIONS: YAML.ParseOptions & YAML.DocumentOptions & YAML.SchemaOptions = {
+  logLevel: 'error',
+  schema: 'core',
+  uniqueKeys: true,
+};
+
 /**
  * Represents a YAML value which can be a primitive, array, or nested object.
  * Used for type-safe handling of parsed YAML content.
@@ -61,7 +67,7 @@ export class GOYAMLParser {
    */
   static parseContent(content: string): YAMLValue {
     try {
-      return YAML.parse(content) as YAMLValue;
+      return YAML.parse(content, SAFE_YAML_PARSE_OPTIONS) as YAMLValue;
     } catch (error: unknown) {
       throw new Error(`Failed to parse YAML content: ${getErrorMessage(error)}`, { cause: error });
     }

@@ -3,6 +3,20 @@ import { describe, it } from 'node:test';
 
 import { GOConfigObjectFlattener } from '../GOConfigObjectFlattener.js';
 
+function createNestedObject(depth: number): Record<string, unknown> {
+  const root: Record<string, unknown> = {};
+  let cursor = root;
+
+  for (let index = 0; index < depth; index++) {
+    const next: Record<string, unknown> = {};
+    cursor[`level${String(index)}`] = next;
+    cursor = next;
+  }
+
+  cursor['value'] = 'ok';
+  return root;
+}
+
 describe('GOConfigObjectFlattener', () => {
   it('flattens nested objects and converts primitive values to strings', () => {
     const flattened = GOConfigObjectFlattener.flatten({
@@ -43,6 +57,13 @@ describe('GOConfigObjectFlattener', () => {
           entries: [{ prototype: 'bad' }],
         }),
       /Unsafe configuration key "entries\[0\]\.prototype" is not allowed/,
+    );
+  });
+
+  it('rejects objects deeper than the configured max depth', () => {
+    assert.throws(
+      () => GOConfigObjectFlattener.flatten(createNestedObject(3), { maxDepth: 2 }),
+      /Configuration object exceeds maximum depth of 2/,
     );
   });
 });

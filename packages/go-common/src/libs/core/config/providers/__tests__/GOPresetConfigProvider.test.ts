@@ -97,6 +97,26 @@ describe('GOPresetConfigProvider', () => {
     assert.strictEqual(provider.getName(), 'Preset(prod)');
   });
 
+  it('rejects an empty preset name supplied by a selector provider', () => {
+    const provider = new GOPresetConfigProvider({
+      selectorProviders: [
+        new GOInMemoryConfigProvider({
+          values: {
+            [PRESET_NAME_PARAMETER]: '',
+          },
+        }),
+      ],
+      presetNameParameter: PRESET_NAME_PARAMETER,
+      presetFileParameter: PRESET_FILE_PARAMETER,
+      schema: createSchema(),
+      loadPreset: () => {
+        throw new Error('loadPreset should not be called');
+      },
+    });
+
+    assert.throws(() => provider.prepare(), /script\.preset\.name cannot be empty/);
+  });
+
   it('warns when preset file is configured without preset name', () => {
     const warnings: string[] = [];
     const provider = createPresetProvider({

@@ -34,7 +34,7 @@ export interface GOPresetConfigProviderOptions {
 }
 
 export class GOPresetConfigProvider extends GOConfigProviderBase {
-  protected values: Map<string, string | string[]> = new Map();
+  protected readonly values: Map<string, string | string[]> = new Map();
   private readonly secretRedactor: GOSecretRedactor;
   private readonly selectorProviders: ReadonlyArray<GOConfigProvider>;
   private readonly presetNameParameter: string;
@@ -95,7 +95,7 @@ export class GOPresetConfigProvider extends GOConfigProviderBase {
   }
 
   private reload(): void {
-    this.values = new Map();
+    this.values.clear();
     this.presetName = undefined;
     this.loaded = false;
 
@@ -125,7 +125,10 @@ export class GOPresetConfigProvider extends GOConfigProviderBase {
       ...(presetFile !== undefined ? { presetFile } : {}),
     });
 
-    this.values = new Map(preset.values);
+    this.values.clear();
+    for (const [key, value] of preset.values) {
+      this.values.set(key, value);
+    }
     this.presetName = preset.name;
     this.loaded = true;
 

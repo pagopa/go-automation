@@ -7,6 +7,7 @@ import type { GOConfigSchema } from '../config/GOConfigSchema.js';
 import { GOYAMLParser } from '../config/parsers/GOYAMLParser.js';
 import { damerauLevenshteinDistance } from '../config/validation/GOStringDistance.js';
 import { getErrorMessage } from '../errors/GOErrorUtils.js';
+import { isDangerousKey } from '../security/DangerousKeys.js';
 import { GOPathType, type GOPaths } from '../utils/GOPaths.js';
 
 export interface GOScriptPresetDefinition {
@@ -38,6 +39,20 @@ export interface GOScriptPresetLoaderOptions {
   readonly schema: GOConfigSchema;
 }
 
+type GOScriptPresetExistsSyncFn = (filePath: string) => boolean;
+type GOScriptPresetRealpathSyncFn = (filePath: string) => string;
+type GOScriptPresetReadFileSyncFn = (filePath: string, encoding: BufferEncoding) => string;
+
+export interface GOScriptPresetLoaderFileSystem {
+  readonly existsSync: GOScriptPresetExistsSyncFn;
+  readonly realpathSync: GOScriptPresetRealpathSyncFn;
+  readonly readFileSync: GOScriptPresetReadFileSyncFn;
+}
+
+export interface GOScriptPresetLoaderDependencies {
+  readonly fileSystem?: GOScriptPresetLoaderFileSystem;
+}
+
 interface ResolvedPresetFile {
   readonly path: string;
   readonly displayPath: string;
@@ -45,11 +60,23 @@ interface ResolvedPresetFile {
 
 const DEFAULT_PRESET_FILE_NAMES = ['presets.yaml', 'presets.yml', 'presets.json'] as const;
 const SUPPORTED_PRESET_EXTENSIONS = new Set(['.yaml', '.yml', '.json']);
-const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 const DEFAULT_ALLOW_UNKNOWN_KEYS = true;
 const MAX_SUGGESTION_DISTANCE = 3;
+const MAX_PRESET_STRUCTURE_DEPTH = 64;
+
+const NODE_PRESET_FILE_SYSTEM: GOScriptPresetLoaderFileSystem = {
+  existsSync: (filePath) => fs.existsSync(filePath),
+  realpathSync: (filePath) => fs.realpathSync(filePath),
+  readFileSync: (filePath, encoding) => fs.readFileSync(filePath, encoding),
+};
 
 export class GOScriptPresetLoader {
+  private readonly fileSystem: GOScriptPresetLoaderFileSystem;
+
+  constructor(dependencies: GOScriptPresetLoaderDependencies = {}) {
+    this.fileSystem = dependencies.fileSystem ?? NODE_PRESET_FILE_SYSTEM;
+  }
+
   loadSelectedPreset(options: GOScriptPresetLoaderOptions): GOScriptPresetResolution {
     const presetName = this.normalizePresetName(options.presetName);
     const resolvedFile = this.resolvePresetFile({
@@ -62,10 +89,11 @@ export class GOScriptPresetLoader {
     const preset = this.selectPreset(presetFile.presets, presetName, resolvedFile.displayPath);
     const allowUnknownKeys = preset.allowUnknownKeys ?? presetFile.allowUnknownKeys ?? DEFAULT_ALLOW_UNKNOWN_KEYS;
     const values = GOConfigObjectFlattener.flatten(preset.values);
-    const unknownKeys = this.findUnknownKeys(values, options.schema);
+    const knownKeys = this.buildKnownConfigKeys(options.schema);
+    const unknownKeys = this.findUnknownKeys(values, knownKeys);
 
     if (unknownKeys.length > 0 && !allowUnknownKeys) {
-      throw new Error(this.formatUnknownKeysError(presetName, unknownKeys, options.schema));
+      throw new Error(this.formatUnknownKeysError(presetName, unknownKeys, knownKeys));
     }
 
     return {
@@ -107,7 +135,7 @@ export class GOScriptPresetLoader {
       this.validatePresetFileExtension(presetFile);
       const resolvedPath = this.resolveCustomPresetFile(presetFile, options.paths);
 
-      if (!fs.existsSync(resolvedPath)) {
+      if (!this.fileSystem.existsSync(resolvedPath)) {
         throw new Error(`Preset "${options.presetName}" requested but preset file "${presetFile}" was not found.`);
       }
 
@@ -145,7 +173,7 @@ export class GOScriptPresetLoader {
   }
 
   private validatePresetFilePath(filePath: string, displayPath: string, paths: GOPaths): string {
-    const realFilePath = fs.realpathSync(filePath);
+    const realFilePath = this.fileSystem.realpathSync(filePath);
     const allowedRoots = this.getAllowedPresetRoots(paths);
     const isAllowed = allowedRoots.some((root) => this.isPathInsideRoot(realFilePath, root));
 
@@ -163,7 +191,7 @@ export class GOScriptPresetLoader {
   }
 
   private realpathOrResolve(rootPath: string): string {
-    return fs.existsSync(rootPath) ? fs.realpathSync(rootPath) : path.resolve(rootPath);
+    return this.fileSystem.existsSync(rootPath) ? this.fileSystem.realpathSync(rootPath) : path.resolve(rootPath);
   }
 
   private isPathInsideRoot(filePath: string, rootPath: string): boolean {
@@ -189,13 +217,14 @@ export class GOScriptPresetLoader {
     const extension = path.extname(filePath).toLowerCase();
 
     try {
+      const content = this.fileSystem.readFileSync(filePath, 'utf8');
+
       if (extension === '.json') {
-        const content = fs.readFileSync(filePath, 'utf8');
         const normalizedContent = content.charCodeAt(0) === 0xfeff ? content.slice(1) : content;
         return JSON.parse(normalizedContent) as unknown;
       }
 
-      return GOYAMLParser.parseFile(filePath);
+      return GOYAMLParser.parseContent(content);
     } catch (error: unknown) {
       throw new Error(`Failed to load presets file ${filePath}: ${getErrorMessage(error)}`, { cause: error });
     }
@@ -276,6 +305,7 @@ export class GOScriptPresetLoader {
     sourcePath: string,
   ): ReadonlyArray<GOScriptPresetDefinition> {
     const presets: GOScriptPresetDefinition[] = [];
+    const names = new Set<string>();
 
     for (const [name, values] of Object.entries(data)) {
       this.assertSafeKey(name, sourcePath);
@@ -284,6 +314,11 @@ export class GOScriptPresetLoader {
       if (normalizedName.length === 0) {
         throw new Error(`Invalid preset name in ${sourcePath}. Preset name cannot be empty.`);
       }
+
+      if (names.has(normalizedName)) {
+        throw new Error(`Duplicate preset name "${normalizedName}" in ${sourcePath}`);
+      }
+      names.add(normalizedName);
 
       if (!this.isRecord(values)) {
         throw new Error(`Preset "${normalizedName}" in ${sourcePath} must be an object`);
@@ -317,9 +352,8 @@ export class GOScriptPresetLoader {
 
   private findUnknownKeys(
     values: ReadonlyMap<string, GOFlattenedConfigValue>,
-    schema: GOConfigSchema,
+    knownKeys: ReadonlySet<string>,
   ): ReadonlyArray<string> {
-    const knownKeys = this.buildKnownConfigKeys(schema);
     return Array.from(values.keys()).filter((key) => !knownKeys.has(key));
   }
 
@@ -339,13 +373,13 @@ export class GOScriptPresetLoader {
   private formatUnknownKeysError(
     presetName: string,
     unknownKeys: ReadonlyArray<string>,
-    schema: GOConfigSchema,
+    knownKeys: ReadonlySet<string>,
   ): string {
-    const knownKeys = Array.from(this.buildKnownConfigKeys(schema));
+    const knownKeyList = Array.from(knownKeys);
 
     if (unknownKeys.length === 1) {
       const key = unknownKeys[0] ?? '';
-      const suggestion = this.findClosestKnownKey(key, knownKeys);
+      const suggestion = this.findClosestKnownKey(key, knownKeyList);
       return suggestion === undefined
         ? `Preset "${presetName}" contains unknown key "${key}"`
         : `Preset "${presetName}" contains unknown key "${key}". Did you mean "${suggestion}"?`;
@@ -353,7 +387,7 @@ export class GOScriptPresetLoader {
 
     const lines = [`Preset "${presetName}" contains ${String(unknownKeys.length)} unknown key(s):`];
     for (const key of unknownKeys) {
-      const suggestion = this.findClosestKnownKey(key, knownKeys);
+      const suggestion = this.findClosestKnownKey(key, knownKeyList);
       lines.push(suggestion === undefined ? `  - ${key}` : `  - ${key} (did you mean "${suggestion}"?)`);
     }
     return lines.join('\n');
@@ -409,28 +443,41 @@ export class GOScriptPresetLoader {
     return value;
   }
 
-  private assertNoDangerousKeys(data: Record<string, unknown>, location: string): void {
+  private assertNoDangerousKeys(data: Record<string, unknown>, location: string, depth = 0): void {
+    this.assertWithinDepth(location, depth);
+
     for (const [key, value] of Object.entries(data)) {
       this.assertSafeKey(key, location);
+      this.assertNoDangerousKeysInValue(value, `${location}.${key}`, depth + 1);
+    }
+  }
 
-      if (Array.isArray(value)) {
-        value.forEach((item, index) => {
-          if (this.isRecord(item)) {
-            this.assertNoDangerousKeys(item, `${location}.${key}[${String(index)}]`);
-          }
-        });
-        continue;
-      }
+  private assertNoDangerousKeysInValue(value: unknown, location: string, depth: number): void {
+    this.assertWithinDepth(location, depth);
 
-      if (this.isRecord(value)) {
-        this.assertNoDangerousKeys(value, `${location}.${key}`);
-      }
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => {
+        this.assertNoDangerousKeysInValue(item, `${location}[${String(index)}]`, depth + 1);
+      });
+      return;
+    }
+
+    if (this.isRecord(value)) {
+      this.assertNoDangerousKeys(value, location, depth);
     }
   }
 
   private assertSafeKey(key: string, location: string): void {
-    if (DANGEROUS_KEYS.has(key)) {
+    if (isDangerousKey(key)) {
       throw new Error(`Unsafe preset key "${location}.${key}" is not allowed`);
+    }
+  }
+
+  private assertWithinDepth(location: string, depth: number): void {
+    if (depth > MAX_PRESET_STRUCTURE_DEPTH) {
+      throw new Error(
+        `Preset structure exceeds maximum depth of ${String(MAX_PRESET_STRUCTURE_DEPTH)} at "${location}"`,
+      );
     }
   }
 
