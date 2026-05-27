@@ -29,7 +29,7 @@ export interface GOInMemoryConfigProviderOptions {
  * In-memory configuration provider
  */
 export class GOInMemoryConfigProvider extends GOConfigProviderBase {
-  protected values: Map<string, string | string[]>;
+  protected readonly values: Map<string, string | string[]>;
   private readonly secretRedactor: GOSecretRedactor;
   private readonly providerName: string;
 

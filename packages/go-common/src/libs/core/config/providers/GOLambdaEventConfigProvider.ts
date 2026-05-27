@@ -41,7 +41,7 @@ const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
  * expected by the GOScript configuration system.
  */
 export class GOLambdaEventConfigProvider extends GOConfigProviderBase {
-  protected values: Map<string, string | string[]>;
+  protected readonly values: Map<string, string | string[]>;
   private readonly secretRedactor: GOSecretRedactor;
 
   constructor(event: Record<string, unknown>) {

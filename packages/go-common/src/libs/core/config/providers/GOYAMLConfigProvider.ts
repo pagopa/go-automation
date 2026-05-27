@@ -41,7 +41,7 @@ export interface GOYAMLConfigProviderOptions {
  * YAML configuration provider
  */
 export class GOYAMLConfigProvider extends GOConfigProviderBase {
-  protected values: Map<string, string | string[]>;
+  protected readonly values: Map<string, string | string[]>;
   private readonly secretRedactor: GOSecretRedactor;
   private readonly filePath?: string | undefined;
   private readonly isOptional: boolean;

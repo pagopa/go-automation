@@ -63,7 +63,7 @@ export interface GOConfigProvider {
  * Abstract base class for configuration providers
  */
 export abstract class GOConfigProviderBase implements GOConfigProvider {
-  protected abstract values: Map<string, string | string[]>;
+  protected abstract readonly values: Map<string, string | string[]>;
 
   abstract getName(): string;
   abstract isSecret(key: string): boolean;
