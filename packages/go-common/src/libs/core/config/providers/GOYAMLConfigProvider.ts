@@ -6,13 +6,13 @@
  */
 
 import * as fs from 'fs';
+import { GOConfigObjectFlattener } from '../GOConfigObjectFlattener.js';
 import { GOConfigProviderBase } from '../GOConfigProvider.js';
 import { GOSecretRedactor, GOSecretsSpecifierFactory } from '../GOSecretsSpecifier.js';
 import type { GOSecretsSpecifier } from '../GOSecretsSpecifier.js';
 import { GOYAMLParser, isYAMLObject } from '../parsers/GOYAMLParser.js';
 import type { YAMLValue } from '../parsers/GOYAMLParser.js';
 import { getErrorMessage } from '../../errors/GOErrorUtils.js';
-import { valueToString } from '../../utils/GOValueToString.js';
 
 /**
  * Options for YAML config provider
@@ -105,51 +105,10 @@ export class GOYAMLConfigProvider extends GOConfigProviderBase {
    * Load configuration from YAML object
    */
   private loadFromData(data: Record<string, YAMLValue> | Record<string, unknown>): void {
-    const flattened = this.flattenObject(data);
+    const flattened = GOConfigObjectFlattener.flatten(data);
     for (const [key, value] of flattened) {
       this.values.set(key, value);
     }
-  }
-
-  /**
-   * Flatten nested object into dot-notation keys
-   *
-   * @example
-   * { http: { client: { timeout: 60 } } } -> { "http.client.timeout": "60" }
-   */
-  private flattenObject(
-    obj: Record<string, YAMLValue> | Record<string, unknown>,
-    prefix = '',
-  ): Map<string, string | string[]> {
-    const result = new Map<string, string | string[]>();
-
-    for (const [key, value] of Object.entries(obj)) {
-      const fullKey = prefix ? `${prefix}.${key}` : key;
-
-      if (value === null || value === undefined) {
-        // Skip null/undefined values
-        continue;
-      }
-
-      if (Array.isArray(value)) {
-        // Handle arrays - convert all elements to strings
-        result.set(
-          fullKey,
-          value.map((v) => valueToString(v)),
-        );
-      } else if (typeof value === 'object' && !Buffer.isBuffer(value) && !(value instanceof Date)) {
-        // Recursively flatten nested objects (but not Dates)
-        const nested = this.flattenObject(value as Record<string, unknown>, fullKey);
-        for (const [nestedKey, nestedValue] of nested) {
-          result.set(nestedKey, nestedValue);
-        }
-      } else {
-        // Primitive values (including Date)
-        result.set(fullKey, valueToString(value));
-      }
-    }
-
-    return result;
   }
 
   /**

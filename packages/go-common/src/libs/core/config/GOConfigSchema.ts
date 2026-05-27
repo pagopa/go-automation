@@ -59,6 +59,22 @@ export class GOConfigSchema {
   }
 
   /**
+   * Add framework-level reserved parameters.
+   *
+   * Reserved parameters participate in help generation and unknown-parameter
+   * detection, but callers such as GOScript.getConfiguration<T>() can filter
+   * them out of application configuration DTOs.
+   */
+  addReservedParameters(parameterOptions: ReadonlyArray<GOConfigParameterOptions>): void {
+    for (const options of parameterOptions) {
+      if (this.parameters.has(options.name)) {
+        throw new Error(`Reserved parameter "${options.name}" conflicts with an existing script parameter`);
+      }
+      this.addParameter({ ...options, reserved: true });
+    }
+  }
+
+  /**
    * Get a parameter by name
    */
   getParameter(name: string): GOConfigParameter | undefined {
@@ -239,6 +255,7 @@ export class GOConfigSchema {
         aliases: p.aliases,
         deprecated: p.deprecated,
         sensitive: p.sensitive,
+        reserved: p.reserved,
       })),
     };
   }

@@ -38,6 +38,8 @@ export class GOScriptConfigLoader {
    * Load configuration values from all providers
    */
   async load(): Promise<ConfigLoadResult> {
+    await this.configReader.prepareProviders();
+
     // Load configuration values using type handlers (now async for fallback support)
     const configValues = await this.loadConfigValues();
 
