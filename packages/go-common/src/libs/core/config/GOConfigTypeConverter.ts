@@ -6,6 +6,7 @@
  */
 
 import { getErrorMessage } from '../errors/GOErrorUtils.js';
+import { valueToString } from '../utils/GOValueToString.js';
 
 type GOConfigValueTransformer<T> = (value: string | string[]) => T;
 
@@ -16,10 +17,21 @@ export class GOConfigTypeConverter {
   /**
    * Convert to string
    * @param value - Raw value from provider
-   * @returns String value (first element if array)
+   * @returns String value
+   * @throws Error if multiple values are supplied for a scalar string
    */
   static toString(value: string | string[]): string {
-    return Array.isArray(value) ? (value[0] ?? '') : value;
+    if (!Array.isArray(value)) {
+      return value;
+    }
+
+    if (value.length <= 1) {
+      return value[0] ?? '';
+    }
+
+    throw new Error(
+      `Cannot convert multiple values to string: ${valueToString(value)}. Use a string array parameter instead.`,
+    );
   }
 
   /**
