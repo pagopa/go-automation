@@ -6,7 +6,6 @@
  */
 
 import { getErrorMessage } from '../errors/GOErrorUtils.js';
-import { valueToString } from '../utils/GOValueToString.js';
 
 type GOConfigValueTransformer<T> = (value: string | string[]) => T;
 
@@ -30,7 +29,7 @@ export class GOConfigTypeConverter {
     }
 
     throw new Error(
-      `Cannot convert multiple values to string: ${valueToString(value)}. Use a string array parameter instead.`,
+      `Cannot convert ${value.length.toString()} values to string. Use a string array parameter instead.`,
     );
   }
 

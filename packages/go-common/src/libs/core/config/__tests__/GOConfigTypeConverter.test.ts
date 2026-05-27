@@ -14,10 +14,21 @@ describe('GOConfigTypeConverter', () => {
     assert.strictEqual(GOConfigTypeConverter.toBool('yes'), true);
     assert.strictEqual(GOConfigTypeConverter.toBool('off'), false);
 
-    assert.throws(() => GOConfigTypeConverter.toString(['first', 'second']), /multiple values/);
+    assert.throws(() => GOConfigTypeConverter.toString(['first', 'second']), /Cannot convert 2 values to string/);
     assert.throws(() => GOConfigTypeConverter.toInt('not-a-number'), /Cannot convert/);
     assert.throws(() => GOConfigTypeConverter.toDouble('not-a-number'), /Cannot convert/);
     assert.throws(() => GOConfigTypeConverter.toBool('maybe'), /Cannot convert/);
+  });
+
+  it('does not include raw multiple string values in conversion errors', () => {
+    assert.throws(
+      () => GOConfigTypeConverter.toString(['secret-token-1', 'secret-token-2']),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message.includes('Cannot convert 2 values to string') &&
+        !error.message.includes('secret-token-1') &&
+        !error.message.includes('secret-token-2'),
+    );
   });
 
   it('converts array configuration values', () => {
