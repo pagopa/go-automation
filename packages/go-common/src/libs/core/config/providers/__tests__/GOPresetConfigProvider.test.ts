@@ -181,14 +181,8 @@ describe('GOPresetConfigProvider', () => {
       },
     });
 
-    assert.throws(
-      () => presetNameProvider.prepare(),
-      /script\.preset\.name cannot be specified multiple times/,
-    );
-    assert.throws(
-      () => presetFileProvider.prepare(),
-      /script\.preset\.file cannot be specified multiple times/,
-    );
+    assert.throws(() => presetNameProvider.prepare(), /script\.preset\.name cannot be specified multiple times/);
+    assert.throws(() => presetFileProvider.prepare(), /script\.preset\.file cannot be specified multiple times/);
   });
 
   it('warns when preset file is configured without preset name', () => {
