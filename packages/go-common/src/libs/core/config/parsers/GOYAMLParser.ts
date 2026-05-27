@@ -8,6 +8,7 @@
 import * as fs from 'fs';
 import * as YAML from 'yaml';
 import { getErrorMessage } from '../../errors/GOErrorUtils.js';
+import { isDangerousKey } from '../../security/DangerousKeys.js';
 
 const SAFE_YAML_PARSE_OPTIONS: YAML.ParseOptions & YAML.DocumentOptions & YAML.SchemaOptions = {
   logLevel: 'error',
@@ -100,7 +101,7 @@ export class GOYAMLParser {
    */
   private static deepMerge(target: Record<string, YAMLValue>, source: Record<string, YAMLValue>): void {
     for (const key of Object.keys(source)) {
-      if (key === '__proto__' || key === 'constructor') {
+      if (isDangerousKey(key)) {
         continue;
       }
 
@@ -112,9 +113,28 @@ export class GOYAMLParser {
         this.deepMerge(targetValue, sourceValue);
       } else {
         // Overwrite with source value
-        target[key] = sourceValue;
+        target[key] = this.sanitizeMergedValue(sourceValue);
       }
     }
+  }
+
+  private static sanitizeMergedValue(value: YAMLValue): YAMLValue {
+    if (Array.isArray(value)) {
+      return value.map((item) => this.sanitizeMergedValue(item));
+    }
+
+    if (!isYAMLObject(value)) {
+      return value;
+    }
+
+    const sanitized: Record<string, YAMLValue> = {};
+    for (const key of Object.keys(value)) {
+      if (isDangerousKey(key)) {
+        continue;
+      }
+      sanitized[key] = this.sanitizeMergedValue(value[key]);
+    }
+    return sanitized;
   }
 
   /**
