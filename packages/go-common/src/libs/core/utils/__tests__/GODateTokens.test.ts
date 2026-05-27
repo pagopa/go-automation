@@ -22,4 +22,12 @@ describe('GODateTokens', () => {
     assert.strictEqual(tokens.startPartitionHour, '2026050103');
     assert.strictEqual(tokens.endPartitionHour, '2026050204');
   });
+
+  it('rejects invalid timezones before fallback parsing', () => {
+    assert.throws(() => GODateTokens.parse('2026-05-01T03:04:05Z', 'Not/AZone'), /Invalid timezone: Not\/AZone/);
+    assert.throws(
+      () => GODateTokens.formatAthenaDateTime(new Date('2026-05-01T03:04:05Z'), 'Not/AZone'),
+      /Invalid timezone: Not\/AZone/,
+    );
+  });
 });

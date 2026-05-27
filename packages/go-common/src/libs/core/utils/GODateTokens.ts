@@ -22,6 +22,8 @@ export class GODateTokens {
       throw new Error('Date value cannot be empty');
     }
 
+    GODateTokens.validateTimeZone(timeZone);
+
     if (/^\d{13}$/.test(trimmed)) {
       return new Date(Number(trimmed));
     }
@@ -92,10 +94,18 @@ export class GODateTokens {
   }
 
   private static toDateTime(date: Date, timeZone: string): DateTime {
+    GODateTokens.validateTimeZone(timeZone);
+
     const value = DateTime.fromJSDate(date).setZone(timeZone);
     if (!value.isValid) {
       throw new Error(`Invalid date/timezone combination: ${date.toISOString()} (${timeZone})`);
     }
     return value;
+  }
+
+  private static validateTimeZone(timeZone: string): void {
+    if (!DateTime.local().setZone(timeZone).isValid) {
+      throw new Error(`Invalid timezone: ${timeZone}`);
+    }
   }
 }
