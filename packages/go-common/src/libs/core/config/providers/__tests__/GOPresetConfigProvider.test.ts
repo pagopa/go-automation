@@ -97,6 +97,40 @@ describe('GOPresetConfigProvider', () => {
     assert.strictEqual(provider.getName(), 'Preset(prod)');
   });
 
+  it('trims preset selector values before loading the preset', () => {
+    const selections: { readonly presetName: string; readonly presetFile?: string }[] = [];
+    const provider = new GOPresetConfigProvider({
+      selectorProviders: [
+        new GOInMemoryConfigProvider({
+          values: {
+            [PRESET_NAME_PARAMETER]: '  prod  ',
+            [PRESET_FILE_PARAMETER]: '  presets.prod.yaml  ',
+          },
+        }),
+      ],
+      presetNameParameter: PRESET_NAME_PARAMETER,
+      presetFileParameter: PRESET_FILE_PARAMETER,
+      schema: createSchema(),
+      loadPreset: (selection) => {
+        selections.push(selection);
+        return {
+          name: selection.presetName,
+          sourcePath: '/tmp/presets.yaml',
+          sourceDisplayPath: selection.presetFile ?? 'presets.yaml',
+          values: new Map([['athena.database', selection.presetName]]),
+          unknownKeys: [],
+          allowUnknownKeys: true,
+        };
+      },
+    });
+
+    provider.prepare();
+
+    assert.deepStrictEqual(selections, [{ presetName: 'prod', presetFile: 'presets.prod.yaml' }]);
+    assert.strictEqual(provider.getName(), 'Preset(prod)');
+    assert.strictEqual(provider.getValue('athena.database'), 'prod');
+  });
+
   it('rejects an empty preset name supplied by a selector provider', () => {
     const provider = new GOPresetConfigProvider({
       selectorProviders: [

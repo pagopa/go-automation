@@ -99,14 +99,14 @@ export class GOPresetConfigProvider extends GOConfigProviderBase {
     this.presetName = undefined;
     this.loaded = false;
 
-    const presetName = this.readSelectorParameterAsString(this.presetNameParameter);
-    const presetFile = this.readSelectorParameterAsString(this.presetFileParameter);
+    const presetName = this.readSelectorParameterAsString(this.presetNameParameter)?.trim();
+    const presetFile = this.readSelectorParameterAsString(this.presetFileParameter)?.trim();
 
-    if (presetName?.trim().length === 0) {
+    if (presetName?.length === 0) {
       throw new Error(`${this.presetNameParameter} cannot be empty`);
     }
 
-    if (presetFile?.trim().length === 0) {
+    if (presetFile?.length === 0) {
       throw new Error(`${this.presetFileParameter} cannot be empty`);
     }
 
