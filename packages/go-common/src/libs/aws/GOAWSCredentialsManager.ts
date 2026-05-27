@@ -35,6 +35,7 @@ interface InternalOptions {
 }
 
 type GOAWSRetryOperationHandler<T> = () => Promise<T>;
+type GOAWSProfileClosingDelimiterResolverFn = (opening: string) => string | undefined;
 
 /**
  * Default options for the credentials manager
@@ -64,10 +65,10 @@ const SSO_SESSION_INVALID_PATTERNS: ReadonlyArray<RegExp> = [
   /The SSO session associated with this profile is invalid/i,
 ];
 
-const PROFILE_NOT_FOUND_PATTERNS: ReadonlyArray<RegExp> = [
-  /Profile .+ could not be found/i,
-  /The config profile \(.+\) could not be found/i,
-];
+const PROFILE_MARKER = 'profile ';
+const PROFILE_NOT_FOUND_SUFFIX = ' could not be found';
+const CONFIG_PROFILE_NOT_FOUND_MARKER = 'the config profile (';
+const CONFIG_PROFILE_NOT_FOUND_SUFFIX = ') could not be found';
 
 /**
  * Manager for AWS SSO credentials with automatic login on expiration
@@ -143,15 +144,13 @@ export class GOAWSCredentialsManager {
     }
 
     // Check for profile not found (not recoverable via login)
-    for (const pattern of PROFILE_NOT_FOUND_PATTERNS) {
-      if (pattern.test(message)) {
-        return {
-          type: GOAWSCredentialsErrorType.PROFILE_NOT_FOUND,
-          isRecoverable: false,
-          originalMessage: message,
-          profileName: this.extractProfileFromError(message),
-        };
-      }
+    if (this.isProfileNotFoundMessage(message)) {
+      return {
+        type: GOAWSCredentialsErrorType.PROFILE_NOT_FOUND,
+        isRecoverable: false,
+        originalMessage: message,
+        profileName: this.extractProfileFromError(message),
+      };
     }
 
     // Check for CredentialsProviderError (may be recoverable)
@@ -689,18 +688,119 @@ export class GOAWSCredentialsManager {
     return error.name === 'CredentialsProviderError' || error.constructor.name === 'CredentialsProviderError';
   }
 
+  private isProfileNotFoundMessage(message: string): boolean {
+    const lowerMessage = message.toLowerCase();
+    return this.hasProfileNotFoundMessage(lowerMessage) || this.hasConfigProfileNotFoundMessage(lowerMessage);
+  }
+
+  private hasProfileNotFoundMessage(lowerMessage: string): boolean {
+    let searchStart = 0;
+
+    while (searchStart < lowerMessage.length) {
+      const markerIndex = lowerMessage.indexOf(PROFILE_MARKER, searchStart);
+      if (markerIndex === -1) {
+        return false;
+      }
+
+      const profileStart = markerIndex + PROFILE_MARKER.length;
+      const suffixIndex = lowerMessage.indexOf(PROFILE_NOT_FOUND_SUFFIX, profileStart);
+      if (suffixIndex === -1) {
+        return false;
+      }
+      if (suffixIndex > profileStart) {
+        return true;
+      }
+
+      searchStart = profileStart + 1;
+    }
+
+    return false;
+  }
+
+  private hasConfigProfileNotFoundMessage(lowerMessage: string): boolean {
+    let searchStart = 0;
+
+    while (searchStart < lowerMessage.length) {
+      const markerIndex = lowerMessage.indexOf(CONFIG_PROFILE_NOT_FOUND_MARKER, searchStart);
+      if (markerIndex === -1) {
+        return false;
+      }
+
+      const profileStart = markerIndex + CONFIG_PROFILE_NOT_FOUND_MARKER.length;
+      const suffixIndex = lowerMessage.indexOf(CONFIG_PROFILE_NOT_FOUND_SUFFIX, profileStart);
+      if (suffixIndex === -1) {
+        return false;
+      }
+      if (suffixIndex > profileStart) {
+        return true;
+      }
+
+      searchStart = profileStart + 1;
+    }
+
+    return false;
+  }
+
   /**
    * Extract profile name from error message
    */
   private extractProfileFromError(message: string): string | undefined {
-    // Pattern: "profile 'name'" or "profile (name)"
-    const patterns = [/profile ['"]([^'"]+)['"]/i, /profile \(([^)]+)\)/i];
+    return this.extractQuotedProfileFromError(message) ?? this.extractParenthesizedProfileFromError(message);
+  }
 
-    for (const pattern of patterns) {
-      const match = pattern.exec(message);
-      if (match?.[1]) {
-        return match[1];
+  private extractQuotedProfileFromError(message: string): string | undefined {
+    return this.extractDelimitedProfileFromError(message, (opening) => {
+      switch (opening) {
+        case "'":
+        case '"':
+          return opening;
+        default:
+          return undefined;
       }
+    });
+  }
+
+  private extractParenthesizedProfileFromError(message: string): string | undefined {
+    return this.extractDelimitedProfileFromError(message, (opening) => (opening === '(' ? ')' : undefined));
+  }
+
+  private extractDelimitedProfileFromError(
+    message: string,
+    getClosingDelimiter: GOAWSProfileClosingDelimiterResolverFn,
+  ): string | undefined {
+    const lowerMessage = message.toLowerCase();
+    let searchStart = 0;
+
+    while (searchStart < message.length) {
+      const markerIndex = lowerMessage.indexOf(PROFILE_MARKER, searchStart);
+      if (markerIndex === -1) {
+        return undefined;
+      }
+
+      const openingIndex = markerIndex + PROFILE_MARKER.length;
+      const opening = message[openingIndex];
+      if (opening === undefined) {
+        return undefined;
+      }
+
+      const closing = getClosingDelimiter(opening);
+      if (closing === undefined) {
+        searchStart = openingIndex + 1;
+        continue;
+      }
+
+      const valueStart = openingIndex + 1;
+      const valueEnd = message.indexOf(closing, valueStart);
+      if (valueEnd === -1) {
+        return undefined;
+      }
+
+      const value = message.slice(valueStart, valueEnd);
+      if (value.length > 0) {
+        return value;
+      }
+
+      searchStart = valueEnd + 1;
     }
 
     return undefined;
