@@ -32,6 +32,9 @@ export * from './utils/index.js';
 // Export polling & retry primitives
 export * from './polling/index.js';
 
+// Export analysis utilities
+export * from './analysis/index.js';
+
 // Export logging system
 export * from './logging/index.js';
 

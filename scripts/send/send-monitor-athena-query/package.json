@@ -1,0 +1,37 @@
+{
+  "name": "send-monitor-athena-query",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Esegue una query Athena generica, esporta i risultati in CSV o JSON e pubblica un report su Slack con allegato e valutazione opzionale di soglie",
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "pnpm build && node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'"
+  },
+  "keywords": [
+    "send",
+    "go-automation"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "dependencies": {
+    "@go-automation/go-common": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./config": "./dist/config.js",
+    "./main": "./dist/main.js"
+  }
+}

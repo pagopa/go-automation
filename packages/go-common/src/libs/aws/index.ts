@@ -21,7 +21,16 @@ export { AWSProvider } from './AWSProvider.js';
 export { AWSClientsProvider } from './AWSClientsProvider.js';
 export { AWSServiceProvider } from './AWSServiceProvider.js';
 export { AWSAthenaService } from './AWSAthenaService.js';
-export type { AWSAthenaQueryOptions } from './AWSAthenaService.js';
+export type {
+  AWSAthenaPollAttemptHandler,
+  AWSAthenaQueryColumn,
+  AWSAthenaQueryOptions,
+  AWSAthenaQueryResult,
+} from './AWSAthenaService.js';
+export { AWSAthenaQueryTemplateCompiler } from './AWSAthenaQueryTemplateCompiler.js';
+export type { AWSAthenaCompiledQuery, AWSAthenaQueryTemplateCompileOptions } from './AWSAthenaQueryTemplateCompiler.js';
+export { AWSS3Uri } from './AWSS3Uri.js';
+export type { AWSS3UriParts } from './AWSS3Uri.js';
 export { AWSCloudWatchLogsService } from './AWSCloudWatchLogsService.js';
 export type {
   AWSCloudWatchLogsLogGroupResolutionMode,

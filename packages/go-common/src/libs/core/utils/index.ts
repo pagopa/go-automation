@@ -43,3 +43,5 @@ export {
   hasMessage,
 } from './GOTypeGuards.js';
 export { GOConcurrencyPool } from './GOConcurrencyPool.js';
+export { GODateTokens } from './GODateTokens.js';
+export type { GODateTokenRange } from './GODateTokens.js';

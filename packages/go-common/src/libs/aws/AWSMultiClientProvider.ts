@@ -12,14 +12,17 @@ import { AWS_REGION } from './AWSRegion.js';
  * Configuration options for AWSMultiClientProvider
  */
 export interface AWSMultiClientProviderConfig {
-  /** List of AWS SSO profile names */
-  readonly profiles: ReadonlyArray<string>;
+  /** List of AWS SSO profile names. Empty/omitted means SDK default credential chain. */
+  readonly profiles?: ReadonlyArray<string>;
 
   /** AWS region (defaults to eu-south-1) */
   readonly region?: string;
 }
 
 type AWSMultiClientOperationHandler<T> = (profile: string, clientProvider: AWSClientProvider) => Promise<T>;
+
+const DEFAULT_CREDENTIAL_CHAIN_PROFILE = '__go_default_credential_chain__';
+const DEFAULT_CREDENTIAL_CHAIN_PROFILE_NAME = 'default';
 
 /**
  * Provides access to AWS SDK clients across multiple profiles.
@@ -55,11 +58,14 @@ export class AWSMultiClientProvider {
   private readonly providers: Map<string, AWSClientProvider>;
 
   constructor(config: AWSMultiClientProviderConfig) {
-    if (config.profiles.length === 0) {
-      throw new Error('At least one AWS profile must be provided');
-    }
+    const configuredProfiles = (config.profiles ?? [])
+      .map((profile) => profile.trim())
+      .filter((profile) => profile.length > 0);
 
-    this.profiles = [...new Set(config.profiles)]; // Deduplicate
+    this.profiles =
+      configuredProfiles.length > 0
+        ? [...new Set(configuredProfiles)] // Deduplicate
+        : [DEFAULT_CREDENTIAL_CHAIN_PROFILE];
     this.region = config.region ?? AWS_REGION;
     this.providers = new Map();
   }
@@ -68,7 +74,7 @@ export class AWSMultiClientProvider {
    * Returns the configured AWS profile names in resolution order.
    */
   get profileNames(): ReadonlyArray<string> {
-    return this.profiles;
+    return this.profiles.map((profile) => this.toDisplayProfile(profile));
   }
 
   /**
@@ -108,12 +114,18 @@ export class AWSMultiClientProvider {
    * @throws Error if the profile is not in the configured list
    */
   getClientProvider(profile: string): AWSClientProvider {
-    if (!this.profiles.includes(profile)) {
-      throw new Error(`Profile '${profile}' is not in the configured profiles: ${this.profiles.join(', ')}`);
+    const internalProfile = this.toInternalProfile(profile);
+    if (internalProfile === undefined) {
+      throw new Error(`Profile '${profile}' is not in the configured profiles: ${this.profileNames.join(', ')}`);
     }
 
-    const provider = this.providers.get(profile) ?? new AWSClientProvider({ profile, region: this.region });
-    this.providers.set(profile, provider);
+    const provider =
+      this.providers.get(internalProfile) ??
+      new AWSClientProvider({
+        ...(internalProfile !== DEFAULT_CREDENTIAL_CHAIN_PROFILE ? { profile: internalProfile } : {}),
+        region: this.region,
+      });
+    this.providers.set(internalProfile, provider);
 
     return provider;
   }
@@ -141,8 +153,9 @@ export class AWSMultiClientProvider {
 
     const promises = this.profiles.map(async (profile) => {
       const clientProvider = this.getClientProvider(profile);
-      const result = await operation(profile, clientProvider);
-      return { profile, result };
+      const displayProfile = this.toDisplayProfile(profile);
+      const result = await operation(displayProfile, clientProvider);
+      return { profile: displayProfile, result };
     });
 
     const settledResults = await Promise.all(promises);
@@ -178,13 +191,14 @@ export class AWSMultiClientProvider {
     const errors = new Map<string, Error>();
 
     const promises = this.profiles.map(async (profile) => {
+      const displayProfile = this.toDisplayProfile(profile);
       try {
         const clientProvider = this.getClientProvider(profile);
-        const result = await operation(profile, clientProvider);
-        return { profile, result, error: undefined };
+        const result = await operation(displayProfile, clientProvider);
+        return { profile: displayProfile, result, error: undefined };
       } catch (error) {
         return {
-          profile,
+          profile: displayProfile,
           result: undefined,
           error: error instanceof Error ? error : new Error(String(error)),
         };
@@ -213,5 +227,25 @@ export class AWSMultiClientProvider {
       provider.close();
     }
     this.providers.clear();
+  }
+
+  private toDisplayProfile(profile: string): string {
+    return profile === DEFAULT_CREDENTIAL_CHAIN_PROFILE ? DEFAULT_CREDENTIAL_CHAIN_PROFILE_NAME : profile;
+  }
+
+  private toInternalProfile(profile: string): string | undefined {
+    if (this.profiles.includes(profile)) {
+      return profile;
+    }
+
+    if (
+      profile === DEFAULT_CREDENTIAL_CHAIN_PROFILE_NAME &&
+      this.profiles.length === 1 &&
+      this.profiles[0] === DEFAULT_CREDENTIAL_CHAIN_PROFILE
+    ) {
+      return DEFAULT_CREDENTIAL_CHAIN_PROFILE;
+    }
+
+    return undefined;
   }
 }

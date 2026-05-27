@@ -20,6 +20,8 @@ export type { GOMessageReader } from './GOMessageReader.js';
 // High-level messenger
 export { GOMessenger } from './GOMessenger.js';
 export type { GOMessengerOptions } from './GOMessengerOptions.js';
+export { createSlackMessenger } from './factories/createSlackMessenger.js';
+export type { GOSlackMessengerOptions } from './factories/createSlackMessenger.js';
 
 // Slack adapters
 export { GOSlackMessageWriter } from './adapters/slack/GOSlackMessageWriter.js';
