@@ -329,6 +329,44 @@ describe('GOScriptPresetLoader', () => {
     );
   });
 
+  it('includes the presets file path in per-preset metadata validation errors', () => {
+    const { configDir, paths } = createPresetTestContext();
+    const loader = new GOScriptPresetLoader();
+
+    fs.writeFileSync(
+      path.join(configDir, 'presets.yaml'),
+      [
+        'presets:',
+        '  - name: tppmessages',
+        '    allowUnknownKeys: maybe',
+        '    values:',
+        '      athena.database: pn_analytics',
+      ].join('\n'),
+    );
+
+    assert.throws(
+      () => loader.loadSelectedPreset({ presetName: 'tppmessages', paths, schema: createSchema() }),
+      /Invalid presets\.yaml\.presets\[0\]\.allowUnknownKeys\. Expected a boolean\./,
+    );
+
+    fs.writeFileSync(
+      path.join(configDir, 'presets.yaml'),
+      [
+        'presets:',
+        '  - name: tppmessages',
+        '    description:',
+        '      text: invalid',
+        '    values:',
+        '      athena.database: pn_analytics',
+      ].join('\n'),
+    );
+
+    assert.throws(
+      () => loader.loadSelectedPreset({ presetName: 'tppmessages', paths, schema: createSchema() }),
+      /Invalid presets\.yaml\.presets\[0\]\.description\. Expected a string\./,
+    );
+  });
+
   it('throws for empty, multiple, non-object and malformed presets', () => {
     const { configDir, paths } = createPresetTestContext();
     const loader = new GOScriptPresetLoader();

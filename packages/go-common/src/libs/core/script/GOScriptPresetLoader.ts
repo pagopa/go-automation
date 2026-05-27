@@ -275,11 +275,12 @@ export class GOScriptPresetLoader {
 
     rawPresets.forEach((entry, index) => {
       const label = `presets[${String(index)}]`;
+      const sourceLabel = `${sourcePath}.${label}`;
       if (!this.isRecord(entry)) {
         throw new Error(`Invalid preset definition ${label} in ${sourcePath}. Expected an object.`);
       }
 
-      this.assertNoDangerousKeys(entry, `${sourcePath}.${label}`);
+      this.assertNoDangerousKeys(entry, sourceLabel);
 
       const name = this.readRequiredString(entry['name'], `${label}.name`, sourcePath);
       if (names.has(name)) {
@@ -292,8 +293,8 @@ export class GOScriptPresetLoader {
         throw new Error(`Preset "${name}" in ${sourcePath} must contain an object values field`);
       }
 
-      const allowUnknownKeys = this.readOptionalBoolean(entry['allowUnknownKeys'], `${label}.allowUnknownKeys`);
-      const description = this.readOptionalString(entry['description'], `${label}.description`);
+      const allowUnknownKeys = this.readOptionalBoolean(entry['allowUnknownKeys'], `${sourceLabel}.allowUnknownKeys`);
+      const description = this.readOptionalString(entry['description'], `${sourceLabel}.description`);
 
       presets.push({
         name,
