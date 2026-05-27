@@ -90,7 +90,23 @@ function parseDslRule(entry: string): Record<string, unknown> {
 }
 
 function toNumber(value: unknown, label: string): number {
-  const parsed = typeof value === 'number' ? value : Number(String(value));
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      throw new Error(`Invalid numeric value for ${label}`);
+    }
+    return value;
+  }
+
+  if (typeof value !== 'string') {
+    throw new Error(`Invalid numeric value for ${label}`);
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw new Error(`Invalid numeric value for ${label}`);
+  }
+
+  const parsed = Number(trimmed);
   if (!Number.isFinite(parsed)) {
     throw new Error(`Invalid numeric value for ${label}`);
   }

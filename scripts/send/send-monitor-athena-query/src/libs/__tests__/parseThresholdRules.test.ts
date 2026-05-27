@@ -67,6 +67,40 @@ describe('parseThresholdRules', () => {
       /Invalid JSON analysis rule at analysis\.rules\[0\]/,
     );
   });
+
+  it('rejects empty numeric values from DSL rules', () => {
+    assert.throws(
+      () =>
+        parseThresholdRules(
+          createConfig({
+            analysisRules: ['name=empty-value;field=total;operator=>;value='],
+          }),
+        ),
+      /Invalid numeric value for analysis\.rules\[0\]\.value/,
+    );
+  });
+
+  it('rejects non-string and non-number numeric values from JSON rules', () => {
+    assert.throws(
+      () =>
+        parseThresholdRules(
+          createConfig({
+            analysisRules: ['{"name":"null-value","field":"total","operator":">","value":null}'],
+          }),
+        ),
+      /Invalid numeric value for analysis\.rules\[0\]\.value/,
+    );
+
+    assert.throws(
+      () =>
+        parseThresholdRules(
+          createConfig({
+            analysisRules: ['{"name":"boolean-value","field":"total","operator":">","value":true}'],
+          }),
+        ),
+      /Invalid numeric value for analysis\.rules\[0\]\.value/,
+    );
+  });
 });
 
 function createConfig(overrides: Partial<SendMonitorAthenaQueryConfig> = {}): SendMonitorAthenaQueryConfig {
