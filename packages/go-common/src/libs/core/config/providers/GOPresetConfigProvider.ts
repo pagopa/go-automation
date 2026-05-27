@@ -106,18 +106,18 @@ export class GOPresetConfigProvider extends GOConfigProviderBase {
       throw new Error(`${this.presetNameParameter} cannot be empty`);
     }
 
-    if (presetFile?.length === 0) {
-      throw new Error(`${this.presetFileParameter} cannot be empty`);
-    }
-
     if (presetName === undefined) {
-      if (presetFile !== undefined) {
+      if (presetFile !== undefined && presetFile.length > 0) {
         this.onWarning?.(
           `${this.presetFileParameter} is configured but ${this.presetNameParameter} is missing; preset file will be ignored.`,
         );
       }
       this.loaded = true;
       return;
+    }
+
+    if (presetFile?.length === 0) {
+      throw new Error(`${this.presetFileParameter} cannot be empty`);
     }
 
     const preset = this.loadPreset({

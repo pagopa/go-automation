@@ -202,6 +202,21 @@ describe('GOPresetConfigProvider', () => {
     ]);
   });
 
+  it('ignores an empty preset file when no preset name is configured', () => {
+    const warnings: string[] = [];
+    const provider = createPresetProvider({
+      selectorValues: {
+        [PRESET_FILE_PARAMETER]: '   ',
+      },
+      warnings,
+    });
+
+    provider.prepare();
+
+    assert.strictEqual(provider.hasKey('athena.database'), false);
+    assert.deepStrictEqual(warnings, []);
+  });
+
   it('refreshes preset values on prepare', () => {
     const selectorProvider = new GOInMemoryConfigProvider({
       values: {
