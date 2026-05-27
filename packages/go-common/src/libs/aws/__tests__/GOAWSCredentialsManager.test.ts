@@ -46,6 +46,16 @@ describe('GOAWSCredentialsManager', () => {
     assert.strictEqual(analysis.profileName, 'quoted');
   });
 
+  it('continues scanning after a malformed delimited profile candidate', () => {
+    const manager = new GOAWSCredentialsManager();
+    const analysis = manager.analyzeError(
+      'The SSO session associated with this profile has expired for profile \'unterminated and profile "prod"',
+    );
+
+    assert.strictEqual(analysis.type, GOAWSCredentialsErrorType.SSO_SESSION_EXPIRED);
+    assert.strictEqual(analysis.profileName, 'prod');
+  });
+
   it('handles malformed parenthesized profile messages without regex backtracking', () => {
     const manager = new GOAWSCredentialsManager();
     const analysis = manager.analyzeError(

@@ -770,6 +770,7 @@ export class GOAWSCredentialsManager {
   ): string | undefined {
     const lowerMessage = message.toLowerCase();
     let searchStart = 0;
+    const missingClosingDelimiters = new Set<string>();
 
     while (searchStart < message.length) {
       const markerIndex = lowerMessage.indexOf(PROFILE_MARKER, searchStart);
@@ -789,10 +790,17 @@ export class GOAWSCredentialsManager {
         continue;
       }
 
+      if (missingClosingDelimiters.has(closing)) {
+        searchStart = openingIndex + 1;
+        continue;
+      }
+
       const valueStart = openingIndex + 1;
       const valueEnd = message.indexOf(closing, valueStart);
       if (valueEnd === -1) {
-        return undefined;
+        missingClosingDelimiters.add(closing);
+        searchStart = openingIndex + 1;
+        continue;
       }
 
       const value = message.slice(valueStart, valueEnd);
