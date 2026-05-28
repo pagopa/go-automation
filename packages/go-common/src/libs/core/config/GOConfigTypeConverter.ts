@@ -16,10 +16,21 @@ export class GOConfigTypeConverter {
   /**
    * Convert to string
    * @param value - Raw value from provider
-   * @returns String value (first element if array)
+   * @returns String value
+   * @throws Error if multiple values are supplied for a scalar string
    */
   static toString(value: string | string[]): string {
-    return Array.isArray(value) ? (value[0] ?? '') : value;
+    if (!Array.isArray(value)) {
+      return value;
+    }
+
+    if (value.length <= 1) {
+      return value[0] ?? '';
+    }
+
+    throw new Error(
+      `Cannot convert ${value.length.toString()} values to string. Use a string array parameter instead.`,
+    );
   }
 
   /**

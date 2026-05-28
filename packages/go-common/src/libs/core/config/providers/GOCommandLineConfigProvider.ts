@@ -38,7 +38,7 @@ export interface GOCommandLineConfigProviderOptions {
  * Command line configuration provider
  */
 export class GOCommandLineConfigProvider extends GOConfigProviderBase {
-  protected values: Map<string, string | string[]>;
+  protected readonly values: Map<string, string | string[]>;
   private readonly secretRedactor: GOSecretRedactor;
   private readonly rawArgs: string[];
 

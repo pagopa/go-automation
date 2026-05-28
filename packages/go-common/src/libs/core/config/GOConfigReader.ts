@@ -58,6 +58,19 @@ export class GOConfigReader {
   }
 
   /**
+   * Prepare providers for a new configuration load.
+   * The provider chain remains immutable; only provider-owned dynamic state is
+   * refreshed. Access tracking is per load, so it is cleared here.
+   */
+  async prepareProviders(): Promise<void> {
+    this.accessLog.clear();
+
+    for (const provider of this.providers) {
+      await provider.prepare?.();
+    }
+  }
+
+  /**
    * Get string value
    * @param forKey - Configuration key
    * @param defaultValue - Default value if key not found

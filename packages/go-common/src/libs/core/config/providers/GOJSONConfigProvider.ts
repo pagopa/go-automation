@@ -8,9 +8,9 @@
 import * as fs from 'fs';
 
 import { GOConfigProviderBase } from '../GOConfigProvider.js';
+import { GOConfigObjectFlattener } from '../GOConfigObjectFlattener.js';
 import { GOSecretRedactor, GOSecretsSpecifierFactory } from '../GOSecretsSpecifier.js';
 import type { GOSecretsSpecifier } from '../GOSecretsSpecifier.js';
-import { valueToString } from '../../utils/GOValueToString.js';
 import { getErrorMessage } from '../../errors/GOErrorUtils.js';
 
 /**
@@ -40,7 +40,7 @@ export interface GOJSONConfigProviderOptions {
  * JSON configuration provider
  */
 export class GOJSONConfigProvider extends GOConfigProviderBase {
-  protected values: Map<string, string | string[]>;
+  protected readonly values: Map<string, string | string[]>;
   private readonly secretRedactor: GOSecretRedactor;
   private readonly filePath?: string | undefined;
   private readonly isOptional: boolean;
@@ -103,48 +103,10 @@ export class GOJSONConfigProvider extends GOConfigProviderBase {
    * Load configuration from JSON object
    */
   private loadFromData(data: Record<string, unknown>): void {
-    const flattened = this.flattenObject(data);
+    const flattened = GOConfigObjectFlattener.flatten(data);
     for (const [key, value] of flattened) {
       this.values.set(key, value);
     }
-  }
-
-  /**
-   * Flatten nested object into dot-notation keys
-   *
-   * @example
-   * { http: { client: { timeout: 60 } } } -> { "http.client.timeout": "60" }
-   */
-  private flattenObject(obj: Record<string, unknown>, prefix = ''): Map<string, string | string[]> {
-    const result = new Map<string, string | string[]>();
-
-    for (const [key, value] of Object.entries(obj)) {
-      const fullKey = prefix ? `${prefix}.${key}` : key;
-
-      if (value === null || value === undefined) {
-        // Skip null/undefined values
-        continue;
-      }
-
-      if (Array.isArray(value)) {
-        // Handle arrays - convert all elements to strings
-        result.set(
-          fullKey,
-          value.map((v: unknown) => valueToString(v)),
-        );
-      } else if (typeof value === 'object' && !Buffer.isBuffer(value)) {
-        // Recursively flatten nested objects
-        const nested = this.flattenObject(value as Record<string, unknown>, fullKey);
-        for (const [nestedKey, nestedValue] of nested) {
-          result.set(nestedKey, nestedValue);
-        }
-      } else {
-        // Primitive values
-        result.set(fullKey, valueToString(value));
-      }
-    }
-
-    return result;
   }
 
   /**

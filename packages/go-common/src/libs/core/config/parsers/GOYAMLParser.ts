@@ -8,6 +8,13 @@
 import * as fs from 'fs';
 import * as YAML from 'yaml';
 import { getErrorMessage } from '../../errors/GOErrorUtils.js';
+import { isDangerousKey } from '../../security/DangerousKeys.js';
+
+const SAFE_YAML_PARSE_OPTIONS: YAML.ParseOptions & YAML.DocumentOptions & YAML.SchemaOptions = {
+  logLevel: 'error',
+  schema: 'core',
+  uniqueKeys: true,
+};
 
 /**
  * Represents a YAML value which can be a primitive, array, or nested object.
@@ -61,7 +68,7 @@ export class GOYAMLParser {
    */
   static parseContent(content: string): YAMLValue {
     try {
-      return YAML.parse(content) as YAMLValue;
+      return YAML.parse(content, SAFE_YAML_PARSE_OPTIONS) as YAMLValue;
     } catch (error: unknown) {
       throw new Error(`Failed to parse YAML content: ${getErrorMessage(error)}`, { cause: error });
     }
@@ -94,21 +101,40 @@ export class GOYAMLParser {
    */
   private static deepMerge(target: Record<string, YAMLValue>, source: Record<string, YAMLValue>): void {
     for (const key of Object.keys(source)) {
-      if (key === '__proto__' || key === 'constructor') {
+      if (isDangerousKey(key)) {
         continue;
       }
 
       const sourceValue = source[key];
       const targetValue = target[key];
 
-      if (isYAMLObject(sourceValue) && isYAMLObject(targetValue)) {
+      if (Object.prototype.hasOwnProperty.call(target, key) && isYAMLObject(sourceValue) && isYAMLObject(targetValue)) {
         // Recursively merge nested objects
         this.deepMerge(targetValue, sourceValue);
       } else {
         // Overwrite with source value
-        target[key] = sourceValue;
+        target[key] = this.sanitizeMergedValue(sourceValue);
       }
     }
+  }
+
+  private static sanitizeMergedValue(value: YAMLValue): YAMLValue {
+    if (Array.isArray(value)) {
+      return value.map((item) => this.sanitizeMergedValue(item));
+    }
+
+    if (!isYAMLObject(value)) {
+      return value;
+    }
+
+    const sanitized: Record<string, YAMLValue> = {};
+    for (const key of Object.keys(value)) {
+      if (isDangerousKey(key)) {
+        continue;
+      }
+      sanitized[key] = this.sanitizeMergedValue(value[key]);
+    }
+    return sanitized;
   }
 
   /**

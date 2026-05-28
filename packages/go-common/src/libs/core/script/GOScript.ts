@@ -13,6 +13,7 @@ import { GOCommandLineConfigProvider } from '../config/providers/GOCommandLineCo
 import { GOEnvironmentConfigProvider } from '../config/providers/GOEnvironmentConfigProvider.js';
 import { GOJSONConfigProvider } from '../config/providers/GOJSONConfigProvider.js';
 import { GOLambdaEventConfigProvider } from '../config/providers/GOLambdaEventConfigProvider.js';
+import { GOPresetConfigProvider } from '../config/providers/GOPresetConfigProvider.js';
 import { GOYAMLConfigProvider } from '../config/providers/GOYAMLConfigProvider.js';
 import { GOUnknownParameterDetector } from '../config/validation/GOUnknownParameterDetector.js';
 import { GOCredentialSource } from '../environment/GOCredentialSource.js';
@@ -32,6 +33,12 @@ import type { GOPathTypeValue } from '../utils/index.js';
 
 import { GOScriptConfigLoader } from './GOScriptConfigLoader.js';
 import { defaultAwsCredentialsOptions, configTableWidths } from './GOScriptDefaults.js';
+import { GOScriptPresetLoader } from './GOScriptPresetLoader.js';
+import {
+  GOSCRIPT_PRESET_FILE_PARAMETER,
+  GOSCRIPT_PRESET_NAME_PARAMETER,
+  GOSCRIPT_SYSTEM_PARAMETERS,
+} from './GOScriptSystemParameters.js';
 import type {
   GOScriptOptions,
   GOScriptMetadata,
@@ -126,11 +133,12 @@ export class GOScript {
     this.prompt = new GOPrompt(this.logger);
 
     // Initialize config schema and reader
-    this.configReader = this.initializeConfigReader(options.config);
     this.configSchema = this.initializeConfigSchema(options.config);
+    const configProviders = this.initializeConfigProviders(options.config);
+    this.configReader = new GOConfigReader(configProviders);
 
     // Initialize config loader (with fallback context so asyncFallback functions can access GOPaths)
-    this.configLoader = new GOScriptConfigLoader(this.configSchema, this.configReader, { paths: this.paths });
+    this.configLoader = this.createConfigLoader(this.configReader);
 
     // Initialize credentials manager if needed
     this.credentialsManager = this.initializeCredentialManager(options.config);
@@ -234,7 +242,7 @@ export class GOScript {
   /**
    * Initialize configuration reader
    */
-  private initializeConfigReader(configOptions?: GOScriptConfigOptions): GOConfigReader {
+  private initializeConfigProviders(configOptions?: GOScriptConfigOptions): ReadonlyArray<GOConfigProvider> {
     // Get config file paths with resolution info
     const jsonConfigInfo = this.paths.getConfigFilePathWithInfo('config.json');
     const yamlConfigInfo = this.paths.getConfigFilePathWithInfo('config.yaml');
@@ -256,11 +264,10 @@ export class GOScript {
         ? `Environment(data/${this.paths.getScriptName()}/configs/.env)`
         : `Environment(configs/.env)`;
 
-    let configProviders: ReadonlyArray<GOConfigProvider>;
     try {
       if (configOptions?.configProviders) {
         // Custom providers: skip CLI provider tracking (cannot assume structure)
-        configProviders = configOptions.configProviders;
+        return this.appendPresetConfigProvider(configOptions.configProviders);
       } else {
         // Shared file/env providers — identical for both Lambda and local/CI
         const sharedProviders: GOConfigProvider[] = [
@@ -286,12 +293,12 @@ export class GOScript {
           // createLambdaHandler before loadConfig is called).
           const eventProvider = new GOLambdaEventConfigProvider({});
           this.lambdaEventProvider = eventProvider;
-          configProviders = [eventProvider, ...sharedProviders];
+          return this.appendPresetConfigProvider([eventProvider, ...sharedProviders]);
         } else {
           // Local / CI: track CLI provider for unknown parameter detection
           const cliProvider = new GOCommandLineConfigProvider();
           this.cliProvider = cliProvider;
-          configProviders = [cliProvider, ...sharedProviders];
+          return this.appendPresetConfigProvider([cliProvider, ...sharedProviders]);
         }
       }
     } catch (error: unknown) {
@@ -309,9 +316,33 @@ export class GOScript {
       // CLI entry points wrap the script in .catch(() => process.exit(1)).
       throw error instanceof Error ? error : new Error(errorMessage);
     }
+  }
 
-    const configReader = new GOConfigReader(configProviders);
-    return configReader;
+  private appendPresetConfigProvider(
+    selectorProviders: ReadonlyArray<GOConfigProvider>,
+  ): ReadonlyArray<GOConfigProvider> {
+    const presetProvider = new GOPresetConfigProvider({
+      selectorProviders,
+      presetNameParameter: GOSCRIPT_PRESET_NAME_PARAMETER,
+      presetFileParameter: GOSCRIPT_PRESET_FILE_PARAMETER,
+      schema: this.configSchema,
+      loadPreset: (selection) =>
+        new GOScriptPresetLoader().loadSelectedPreset({
+          presetName: selection.presetName,
+          ...(selection.presetFile !== undefined ? { presetFile: selection.presetFile } : {}),
+          paths: this.paths,
+          schema: this.configSchema,
+        }),
+      ...(this.options.config?.secrets !== undefined ? { secretsSpecifier: this.options.config.secrets } : {}),
+      onInfo: (message) => this.logger.info(message),
+      onWarning: (message) => this.logger.warning(message),
+    });
+
+    return [...selectorProviders, presetProvider];
+  }
+
+  private createConfigLoader(configReader: GOConfigReader): GOScriptConfigLoader {
+    return new GOScriptConfigLoader(this.configSchema, configReader, { paths: this.paths });
   }
 
   /**
@@ -348,6 +379,8 @@ export class GOScript {
     if (configOptions?.parameters) {
       schema.addParameters(configOptions.parameters);
     }
+
+    schema.addReservedParameters(GOSCRIPT_SYSTEM_PARAMETERS);
 
     return schema;
   }
@@ -447,6 +480,9 @@ export class GOScript {
       }
     }
 
+    this.validateCliSystemParameterHasValue(GOSCRIPT_PRESET_NAME_PARAMETER);
+    this.validateCliSystemParameterHasValue(GOSCRIPT_PRESET_FILE_PARAMETER);
+
     const loadResult = await this.configLoader.load();
     this.configValues = loadResult.values;
     this.configSources = loadResult.sources;
@@ -514,6 +550,10 @@ export class GOScript {
     const result = {} as TConfiguration;
 
     for (const param of this.configSchema.getAllParameters()) {
+      if (param.reserved) {
+        continue;
+      }
+
       const propertyName = this.parameterNameToPropertyName(param.name);
       const finalPropertyName = (propertyMapping?.[propertyName as keyof TConfiguration] ??
         propertyName) as keyof TConfiguration;
@@ -540,6 +580,57 @@ export class GOScript {
       .split('.')
       .map((part, i) => (i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
       .join('');
+  }
+
+  private validateCliSystemParameterHasValue(parameterName: string): void {
+    if (this.cliProvider === undefined) {
+      return;
+    }
+
+    const parameter = this.configSchema.getParameter(parameterName);
+    if (parameter === undefined) {
+      return;
+    }
+
+    const rawArgs = this.cliProvider.getRawArguments();
+    const flagForms = this.getCliFlagForms(parameter.getAllCliFlags());
+
+    for (let index = 0; index < rawArgs.length; index++) {
+      const arg = rawArgs[index];
+      if (arg === undefined) {
+        continue;
+      }
+
+      for (const flag of flagForms) {
+        if (arg === flag) {
+          const nextArg = rawArgs[index + 1];
+          if (nextArg === undefined || nextArg.startsWith('-')) {
+            throw new Error(`${parameter.name} cannot be empty`);
+          }
+        }
+
+        const inlinePrefix = `${flag}=`;
+        if (arg.startsWith(inlinePrefix) && arg.slice(inlinePrefix.length).trim().length === 0) {
+          throw new Error(`${parameter.name} cannot be empty`);
+        }
+      }
+    }
+  }
+
+  private getCliFlagForms(flags: ReadonlyArray<string>): ReadonlySet<string> {
+    const forms = new Set<string>();
+
+    for (const flag of flags) {
+      if (flag.startsWith('-')) {
+        forms.add(flag);
+        continue;
+      }
+
+      forms.add(`-${flag}`);
+      forms.add(`--${flag}`);
+    }
+
+    return forms;
   }
 
   // ============================================================================

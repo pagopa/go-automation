@@ -10,6 +10,15 @@
  */
 export interface GOConfigProvider {
   /**
+   * Prepare provider values before a configuration load.
+   *
+   * Providers with static values can omit this method. Dynamic providers can
+   * use it to refresh their internal values while keeping the provider chain
+   * itself immutable.
+   */
+  prepare?(): void | Promise<void>;
+
+  /**
    * Get raw value for a configuration key
    * @param key - Configuration key (e.g., "http.timeout")
    * @returns String value, array of strings, or undefined if not found
@@ -54,7 +63,7 @@ export interface GOConfigProvider {
  * Abstract base class for configuration providers
  */
 export abstract class GOConfigProviderBase implements GOConfigProvider {
-  protected abstract values: Map<string, string | string[]>;
+  protected abstract readonly values: Map<string, string | string[]>;
 
   abstract getName(): string;
   abstract isSecret(key: string): boolean;

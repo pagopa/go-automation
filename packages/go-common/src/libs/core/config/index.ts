@@ -10,6 +10,7 @@ export * from './GOConfigProvider.js';
 export * from './GOConfigReader.js';
 export * from './GOConfigKeyTransformer.js';
 export * from './GOConfigTypeConverter.js';
+export * from './GOConfigObjectFlattener.js';
 export * from './GOSecretsSpecifier.js';
 
 // Schema & Parameters
@@ -25,6 +26,7 @@ export * from './providers/GOYAMLConfigProvider.js';
 export * from './providers/GOEnvironmentConfigProvider.js';
 export * from './providers/GOCommandLineConfigProvider.js';
 export * from './providers/GOLambdaEventConfigProvider.js';
+export * from './providers/GOPresetConfigProvider.js';
 
 // Parsers
 export * from './parsers/GOEnvFileParser.js';

@@ -45,7 +45,7 @@ export interface GOEnvironmentConfigProviderOptions {
  * Environment configuration provider
  */
 export class GOEnvironmentConfigProvider extends GOConfigProviderBase {
-  protected values: Map<string, string | string[]>;
+  protected readonly values: Map<string, string | string[]>;
   private readonly secretRedactor: GOSecretRedactor;
   private readonly envFilePath?: string | undefined;
   private readonly arraySeparator: string;

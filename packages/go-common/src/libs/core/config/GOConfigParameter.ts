@@ -121,6 +121,16 @@ export interface GOConfigParameterOptions {
   sensitive?: boolean;
 
   /**
+   * Whether this parameter is reserved for framework-level usage.
+   *
+   * Reserved parameters are accepted by help/unknown-parameter detection and can
+   * be loaded internally, but they must not be exposed in application
+   * configuration DTOs returned by GOScript.getConfiguration<T>().
+   * Default: false
+   */
+  reserved?: boolean;
+
+  /**
    * Async fallback function called when value is not found in providers.
    * Executed AFTER checking defaultValue.
    * If both defaultValue and asyncFallback are set, defaultValue takes precedence.
@@ -167,6 +177,7 @@ export class GOConfigParameter {
   readonly deprecated: boolean;
   readonly deprecationMessage?: string | undefined;
   readonly sensitive: boolean;
+  readonly reserved: boolean;
   readonly asyncFallback?: GOConfigParameterFallbackFn | undefined;
 
   constructor(options: GOConfigParameterOptions) {
@@ -187,6 +198,7 @@ export class GOConfigParameter {
     this.deprecated = options.deprecated ?? false;
     this.deprecationMessage = options.deprecationMessage;
     this.sensitive = options.sensitive ?? false;
+    this.reserved = options.reserved ?? false;
     this.asyncFallback = options.asyncFallback;
   }
 

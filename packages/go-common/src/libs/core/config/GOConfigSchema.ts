@@ -13,6 +13,14 @@ import type { GOConfigHelpGeneratorOptions } from './GOConfigHelpGenerator.js';
 import { getErrorMessage } from '../errors/GOErrorUtils.js';
 import { valueToString } from '../utils/GOValueToString.js';
 
+type GOConfigSchemaIdentifierKind = 'name' | 'alias' | 'cliFlag';
+
+interface GOConfigSchemaIdentifierOwner {
+  readonly parameterName: string;
+  readonly kind: GOConfigSchemaIdentifierKind;
+  readonly reserved: boolean;
+}
+
 /**
  * Configuration schema options
  */
@@ -56,6 +64,145 @@ export class GOConfigSchema {
     for (const options of parameterOptions) {
       this.addParameter(options);
     }
+  }
+
+  /**
+   * Add framework-level reserved parameters.
+   *
+   * Reserved parameters participate in help generation and unknown-parameter
+   * detection, but callers such as GOScript.getConfiguration<T>() can filter
+   * them out of application configuration DTOs.
+   */
+  addReservedParameters(parameterOptions: ReadonlyArray<GOConfigParameterOptions>): void {
+    const reservedParameters = parameterOptions.map((options) => new GOConfigParameter({ ...options, reserved: true }));
+    this.validateReservedParameterConflicts(reservedParameters);
+
+    for (const parameter of reservedParameters) {
+      this.parameters.set(parameter.name, parameter);
+    }
+  }
+
+  private validateReservedParameterConflicts(reservedParameters: ReadonlyArray<GOConfigParameter>): void {
+    const configIdentifiers = new Map<string, GOConfigSchemaIdentifierOwner>();
+    const cliIdentifiers = new Map<string, GOConfigSchemaIdentifierOwner>();
+
+    for (const parameter of this.parameters.values()) {
+      this.registerParameterIdentifiers(configIdentifiers, cliIdentifiers, parameter, false);
+    }
+
+    for (const parameter of reservedParameters) {
+      this.registerParameterIdentifiers(configIdentifiers, cliIdentifiers, parameter, true);
+    }
+  }
+
+  private registerParameterIdentifiers(
+    configIdentifiers: Map<string, GOConfigSchemaIdentifierOwner>,
+    cliIdentifiers: Map<string, GOConfigSchemaIdentifierOwner>,
+    parameter: GOConfigParameter,
+    failOnConflict: boolean,
+  ): void {
+    const reserved = parameter.reserved;
+
+    this.registerIdentifier(
+      configIdentifiers,
+      parameter.name,
+      {
+        parameterName: parameter.name,
+        kind: 'name',
+        reserved,
+      },
+      failOnConflict,
+    );
+
+    for (const alias of parameter.aliases) {
+      this.registerIdentifier(
+        configIdentifiers,
+        alias,
+        {
+          parameterName: parameter.name,
+          kind: 'alias',
+          reserved,
+        },
+        failOnConflict,
+      );
+    }
+
+    this.registerIdentifier(
+      cliIdentifiers,
+      this.normalizeCliIdentifier(parameter.cliFlag),
+      {
+        parameterName: parameter.name,
+        kind: 'cliFlag',
+        reserved,
+      },
+      failOnConflict,
+    );
+
+    for (const alias of parameter.aliases) {
+      this.registerIdentifier(
+        cliIdentifiers,
+        this.normalizeCliIdentifier(alias),
+        {
+          parameterName: parameter.name,
+          kind: 'alias',
+          reserved,
+        },
+        failOnConflict,
+      );
+    }
+  }
+
+  private registerIdentifier(
+    identifiers: Map<string, GOConfigSchemaIdentifierOwner>,
+    identifier: string,
+    owner: GOConfigSchemaIdentifierOwner,
+    failOnConflict: boolean,
+  ): void {
+    const existing = identifiers.get(identifier);
+    if (existing === undefined) {
+      identifiers.set(identifier, owner);
+      return;
+    }
+
+    if (failOnConflict) {
+      throw new Error(this.formatReservedParameterConflictError(identifier, owner, existing));
+    }
+  }
+
+  private formatReservedParameterConflictError(
+    identifier: string,
+    reservedOwner: GOConfigSchemaIdentifierOwner,
+    existingOwner: GOConfigSchemaIdentifierOwner,
+  ): string {
+    if (reservedOwner.kind === 'name' && existingOwner.kind === 'name' && !existingOwner.reserved) {
+      return `Reserved parameter "${reservedOwner.parameterName}" conflicts with an existing script parameter`;
+    }
+
+    const existingType = existingOwner.reserved ? 'reserved parameter' : 'existing script parameter';
+    return `Reserved parameter "${reservedOwner.parameterName}" ${this.formatIdentifierOwner(
+      reservedOwner,
+      identifier,
+    )} conflicts with ${existingType} "${existingOwner.parameterName}" ${this.formatIdentifierOwner(
+      existingOwner,
+      identifier,
+    )}`;
+  }
+
+  private formatIdentifierOwner(owner: GOConfigSchemaIdentifierOwner, identifier: string): string {
+    switch (owner.kind) {
+      case 'name':
+        return `name "${identifier}"`;
+      case 'alias':
+        return `alias "${identifier}"`;
+      case 'cliFlag':
+        return `CLI flag "${identifier}"`;
+      default:
+        return `identifier "${identifier}"`;
+    }
+  }
+
+  private normalizeCliIdentifier(identifier: string): string {
+    return identifier.trim().replace(/^--?/, '');
   }
 
   /**
@@ -239,6 +386,7 @@ export class GOConfigSchema {
         aliases: p.aliases,
         deprecated: p.deprecated,
         sensitive: p.sensitive,
+        reserved: p.reserved,
       })),
     };
   }
