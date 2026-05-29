@@ -11,7 +11,7 @@ import type {
   CloudWatchLogsTelemetry,
   CloudWatchLogsTelemetryQueryExecution,
 } from './RunbookTelemetry.js';
-import type { AWSCloudWatchLogsQueryStatistics } from '@go-automation/go-common/aws';
+import { sumCloudWatchLogsQueryStatistics, type AWSCloudWatchLogsQueryStatistics } from '@go-automation/go-common/aws';
 import { emptyRunbookOutputContext } from './RunbookOutputContext.js';
 import { interpolatePlaceholders } from '../core/templatePlaceholders.js';
 
@@ -103,49 +103,8 @@ function buildCloudWatchLogsTelemetry(steps: ReadonlyArray<StepTrace>): CloudWat
 
   return {
     queryCount: queryExecutions.length,
-    statistics: sumCloudWatchLogsStatistics(statistics),
+    statistics: sumCloudWatchLogsQueryStatistics(statistics),
     queryExecutions,
-  };
-}
-
-function sumCloudWatchLogsStatistics(
-  statistics: ReadonlyArray<AWSCloudWatchLogsQueryStatistics>,
-): AWSCloudWatchLogsQueryStatistics {
-  let bytesScanned = 0;
-  let recordsScanned = 0;
-  let recordsMatched = 0;
-  let logGroupsScanned = 0;
-  let estimatedBytesSkipped = 0;
-  let estimatedRecordsSkipped = 0;
-  let hasLogGroupsScanned = false;
-  let hasEstimatedBytesSkipped = false;
-  let hasEstimatedRecordsSkipped = false;
-
-  for (const item of statistics) {
-    bytesScanned += item.bytesScanned;
-    recordsScanned += item.recordsScanned;
-    recordsMatched += item.recordsMatched;
-    if (item.logGroupsScanned !== undefined) {
-      hasLogGroupsScanned = true;
-      logGroupsScanned += item.logGroupsScanned;
-    }
-    if (item.estimatedBytesSkipped !== undefined) {
-      hasEstimatedBytesSkipped = true;
-      estimatedBytesSkipped += item.estimatedBytesSkipped;
-    }
-    if (item.estimatedRecordsSkipped !== undefined) {
-      hasEstimatedRecordsSkipped = true;
-      estimatedRecordsSkipped += item.estimatedRecordsSkipped;
-    }
-  }
-
-  return {
-    bytesScanned,
-    recordsScanned,
-    recordsMatched,
-    ...(hasLogGroupsScanned ? { logGroupsScanned } : {}),
-    ...(hasEstimatedBytesSkipped ? { estimatedBytesSkipped } : {}),
-    ...(hasEstimatedRecordsSkipped ? { estimatedRecordsSkipped } : {}),
   };
 }
 

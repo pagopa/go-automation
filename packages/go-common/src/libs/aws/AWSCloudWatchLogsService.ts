@@ -111,7 +111,7 @@ export class AWSCloudWatchLogsService {
 
     return {
       rows: sortRowsByTimestamp(results.flatMap((result) => result.rows)),
-      statistics: sumQueryStatistics(results.map((result) => result.statistics)),
+      statistics: sumCloudWatchLogsQueryStatistics(results.map((result) => result.statistics)),
       queryExecutions: results.flatMap((result) => result.queryExecutions),
     };
   }
@@ -323,7 +323,7 @@ function normalizeQueryStatistics(statistics: QueryStatisticsLike | undefined): 
   return result;
 }
 
-function sumQueryStatistics(
+export function sumCloudWatchLogsQueryStatistics(
   statistics: ReadonlyArray<AWSCloudWatchLogsQueryStatistics>,
 ): AWSCloudWatchLogsQueryStatistics {
   let bytesScanned = 0;

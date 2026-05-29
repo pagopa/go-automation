@@ -31,7 +31,7 @@ export { AWSAthenaQueryTemplateCompiler } from './AWSAthenaQueryTemplateCompiler
 export type { AWSAthenaCompiledQuery, AWSAthenaQueryTemplateCompileOptions } from './AWSAthenaQueryTemplateCompiler.js';
 export { AWSS3Uri } from './AWSS3Uri.js';
 export type { AWSS3UriParts } from './AWSS3Uri.js';
-export { AWSCloudWatchLogsService } from './AWSCloudWatchLogsService.js';
+export { AWSCloudWatchLogsService, sumCloudWatchLogsQueryStatistics } from './AWSCloudWatchLogsService.js';
 export type {
   AWSCloudWatchLogsLogGroupResolutionMode,
   AWSCloudWatchLogsQueryOptions,
