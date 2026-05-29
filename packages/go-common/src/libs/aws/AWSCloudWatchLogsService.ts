@@ -42,6 +42,28 @@ export interface AWSCloudWatchLogsQueryOptions {
   readonly logGroupResolutionMode?: AWSCloudWatchLogsLogGroupResolutionMode;
 }
 
+export interface AWSCloudWatchLogsQueryStatistics {
+  readonly bytesScanned: number;
+  readonly recordsScanned: number;
+  readonly recordsMatched: number;
+  readonly logGroupsScanned?: number;
+  readonly estimatedBytesSkipped?: number;
+  readonly estimatedRecordsSkipped?: number;
+}
+
+export interface AWSCloudWatchLogsQueryExecution {
+  readonly queryId: string;
+  readonly profile: string;
+  readonly logGroups: ReadonlyArray<string>;
+  readonly statistics: AWSCloudWatchLogsQueryStatistics;
+}
+
+export interface AWSCloudWatchLogsQueryResult {
+  readonly rows: ReadonlyArray<ReadonlyArray<ResultField>>;
+  readonly statistics: AWSCloudWatchLogsQueryStatistics;
+  readonly queryExecutions: ReadonlyArray<AWSCloudWatchLogsQueryExecution>;
+}
+
 interface ProfileAttemptError {
   readonly profile: string;
   readonly error: Error;
@@ -65,6 +87,16 @@ export class AWSCloudWatchLogsService {
     timeRange: AWSCloudWatchLogsTimeRange,
     options: AWSCloudWatchLogsQueryOptions = {},
   ): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
+    const result = await this.queryWithStatistics(logGroups, query, timeRange, options);
+    return result.rows;
+  }
+
+  async queryWithStatistics(
+    logGroups: ReadonlyArray<string>,
+    query: string,
+    timeRange: AWSCloudWatchLogsTimeRange,
+    options: AWSCloudWatchLogsQueryOptions = {},
+  ): Promise<AWSCloudWatchLogsQueryResult> {
     this.validateInput(logGroups, query, timeRange);
 
     const mode = options.logGroupResolutionMode ?? 'default-profile-only';
@@ -72,12 +104,16 @@ export class AWSCloudWatchLogsService {
       return this.queryWithProfile(this.clientProvider.first.getProfile(), logGroups, query, timeRange, options);
     }
 
-    const results: ReadonlyArray<ReadonlyArray<ResultField>>[] = [];
+    const results: AWSCloudWatchLogsQueryResult[] = [];
     for (const logGroup of logGroups) {
       results.push(await this.queryLogGroupAcrossProfiles(logGroup, query, timeRange, options));
     }
 
-    return sortRowsByTimestamp(results.flat());
+    return {
+      rows: sortRowsByTimestamp(results.flatMap((result) => result.rows)),
+      statistics: sumCloudWatchLogsQueryStatistics(results.map((result) => result.statistics)),
+      queryExecutions: results.flatMap((result) => result.queryExecutions),
+    };
   }
 
   clearLogGroupResolutionCache(): void {
@@ -89,7 +125,7 @@ export class AWSCloudWatchLogsService {
     query: string,
     timeRange: AWSCloudWatchLogsTimeRange,
     options: AWSCloudWatchLogsQueryOptions,
-  ): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
+  ): Promise<AWSCloudWatchLogsQueryResult> {
     const attempts: ProfileAttemptError[] = [];
     const candidateProfiles = this.buildCandidateProfiles(logGroup);
 
@@ -125,7 +161,7 @@ export class AWSCloudWatchLogsService {
     query: string,
     timeRange: AWSCloudWatchLogsTimeRange,
     options: AWSCloudWatchLogsQueryOptions,
-  ): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
+  ): Promise<AWSCloudWatchLogsQueryResult> {
     const client = this.clientProvider.getClientProvider(profile).cloudWatchLogs;
     const queryId = await this.startQuery(client, profile, logGroups, query, timeRange, options.signal);
 
@@ -135,7 +171,7 @@ export class AWSCloudWatchLogsService {
       ...(options.signal !== undefined ? { signal: options.signal } : {}),
     });
 
-    return poller.poll<ReadonlyArray<ReadonlyArray<ResultField>>>(async () => {
+    return poller.poll<AWSCloudWatchLogsQueryResult>(async () => {
       let response;
       try {
         response = await client.send(new GetQueryResultsCommand({ queryId }));
@@ -145,7 +181,22 @@ export class AWSCloudWatchLogsService {
 
       const status = response.status;
       if (status === 'Complete') {
-        return { type: 'success', value: response.results ?? [] };
+        const statistics = normalizeQueryStatistics(response.statistics);
+        return {
+          type: 'success',
+          value: {
+            rows: response.results ?? [],
+            statistics,
+            queryExecutions: [
+              {
+                queryId,
+                profile,
+                logGroups: [...logGroups],
+                statistics,
+              },
+            ],
+          },
+        };
       }
       if (status !== undefined && FAILURE_STATUSES.has(status)) {
         return {
@@ -249,6 +300,81 @@ function buildProfileResolutionError(logGroup: string, attempts: ReadonlyArray<P
   return new Error(
     `CloudWatch Logs log group "${logGroup}" could not be queried with any configured profile:\n${details}`,
   );
+}
+
+interface QueryStatisticsLike {
+  readonly bytesScanned?: number | undefined;
+  readonly recordsScanned?: number | undefined;
+  readonly recordsMatched?: number | undefined;
+  readonly logGroupsScanned?: number | undefined;
+  readonly estimatedBytesSkipped?: number | undefined;
+  readonly estimatedRecordsSkipped?: number | undefined;
+}
+
+function normalizeQueryStatistics(statistics: QueryStatisticsLike | undefined): AWSCloudWatchLogsQueryStatistics {
+  const result: AWSCloudWatchLogsQueryStatistics = {
+    bytesScanned: finiteOrZero(statistics?.bytesScanned),
+    recordsScanned: finiteOrZero(statistics?.recordsScanned),
+    recordsMatched: finiteOrZero(statistics?.recordsMatched),
+    ...optionalFinite('logGroupsScanned', statistics?.logGroupsScanned),
+    ...optionalFinite('estimatedBytesSkipped', statistics?.estimatedBytesSkipped),
+    ...optionalFinite('estimatedRecordsSkipped', statistics?.estimatedRecordsSkipped),
+  };
+  return result;
+}
+
+export function sumCloudWatchLogsQueryStatistics(
+  statistics: ReadonlyArray<AWSCloudWatchLogsQueryStatistics>,
+): AWSCloudWatchLogsQueryStatistics {
+  let bytesScanned = 0;
+  let recordsScanned = 0;
+  let recordsMatched = 0;
+  let logGroupsScanned = 0;
+  let estimatedBytesSkipped = 0;
+  let estimatedRecordsSkipped = 0;
+  let hasLogGroupsScanned = false;
+  let hasEstimatedBytesSkipped = false;
+  let hasEstimatedRecordsSkipped = false;
+
+  for (const item of statistics) {
+    bytesScanned += item.bytesScanned;
+    recordsScanned += item.recordsScanned;
+    recordsMatched += item.recordsMatched;
+    if (item.logGroupsScanned !== undefined) {
+      hasLogGroupsScanned = true;
+      logGroupsScanned += item.logGroupsScanned;
+    }
+    if (item.estimatedBytesSkipped !== undefined) {
+      hasEstimatedBytesSkipped = true;
+      estimatedBytesSkipped += item.estimatedBytesSkipped;
+    }
+    if (item.estimatedRecordsSkipped !== undefined) {
+      hasEstimatedRecordsSkipped = true;
+      estimatedRecordsSkipped += item.estimatedRecordsSkipped;
+    }
+  }
+
+  return {
+    bytesScanned,
+    recordsScanned,
+    recordsMatched,
+    ...(hasLogGroupsScanned ? { logGroupsScanned } : {}),
+    ...(hasEstimatedBytesSkipped ? { estimatedBytesSkipped } : {}),
+    ...(hasEstimatedRecordsSkipped ? { estimatedRecordsSkipped } : {}),
+  };
+}
+
+function finiteOrZero(value: number | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function optionalFinite<TKey extends keyof AWSCloudWatchLogsQueryStatistics>(
+  key: TKey,
+  value: number | undefined,
+): Partial<Pick<AWSCloudWatchLogsQueryStatistics, TKey>> {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? ({ [key]: value } as Pick<AWSCloudWatchLogsQueryStatistics, TKey>)
+    : {};
 }
 
 function sortRowsByTimestamp(

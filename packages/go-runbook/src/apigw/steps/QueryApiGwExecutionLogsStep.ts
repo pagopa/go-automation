@@ -8,6 +8,7 @@ import { readStepOutput } from '../../steps/data/readStepOutput.js';
 import type { TimeRangeFromParams } from '../../steps/data/CloudWatchLogsQueryStep.js';
 import { resolveTimeRange } from '../../steps/data/resolveTimeRange.js';
 import { executeStep } from '../../steps/data/executeStep.js';
+import { executeCloudWatchLogsQuery } from '../../steps/data/executeCloudWatchLogsQuery.js';
 
 import { extractCwField } from '../helpers/extractCwField.js';
 import { buildApiGwVars, rowMeetsThreshold, sanitizeApiGwField } from '../helpers/accessLogRow.js';
@@ -181,10 +182,11 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
       const query = this.buildExecutionLogQuery(requestIds);
 
       // V04 (C3/D7): UNA sola chiamata AWS per N requestId, OR-combinati.
-      const rows = await context.services.cloudWatchLogs.query([this.executionLogGroup], query, timeRange, {
+      const queryResult = await executeCloudWatchLogsQuery(context, [this.executionLogGroup], query, timeRange, {
         ...(context.signal !== undefined ? { signal: context.signal } : {}),
         logGroupResolutionMode: 'search-configured-profiles',
       });
+      const rows = queryResult.rows;
 
       // Riassociazione requestId/path per ogni riga restituita. SEND
       // usa predicate `@message like '<id>'` quindi `includes` su
@@ -206,6 +208,7 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
       return {
         success: true,
         output,
+        ...(queryResult.diagnostics !== undefined ? { diagnostics: queryResult.diagnostics } : {}),
         vars: {
           ...accessLogVars,
           [QUERY_MODE_VAR]: 'queried',

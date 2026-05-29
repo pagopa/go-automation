@@ -1,4 +1,8 @@
-import type { ResultField, AWSCloudWatchLogsQueryOptions } from '@go-automation/go-common/aws';
+import type {
+  AWSCloudWatchLogsQueryOptions,
+  AWSCloudWatchLogsQueryResult,
+  ResultField,
+} from '@go-automation/go-common/aws';
 
 import type { TimeRange } from '../types/TimeRange.js';
 
@@ -13,4 +17,10 @@ export interface CloudWatchLogsQueryService {
     timeRange: TimeRange,
     options?: AWSCloudWatchLogsQueryOptions,
   ): Promise<ReadonlyArray<ReadonlyArray<ResultField>>>;
+  queryWithStatistics?(
+    logGroups: ReadonlyArray<string>,
+    query: string,
+    timeRange: TimeRange,
+    options?: AWSCloudWatchLogsQueryOptions,
+  ): Promise<AWSCloudWatchLogsQueryResult>;
 }

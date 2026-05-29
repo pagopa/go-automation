@@ -1,6 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
+import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
+import type { GOLogger } from '@go-automation/go-common/core';
 import { CloudWatchLogsQueryStep } from '../CloudWatchLogsQueryStep.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
@@ -87,5 +89,59 @@ describe('CloudWatchLogsQueryStep.getTraceInfo', () => {
     });
     const info = step.getTraceInfo(makeContext());
     assert.deepStrictEqual(Object.keys(info).sort(), ['logGroups', 'query', 'timeRange']);
+  });
+});
+
+describe('CloudWatchLogsQueryStep.execute', () => {
+  it('returns rows and stores CloudWatch Logs statistics as diagnostics', async () => {
+    const rows: ReadonlyArray<ReadonlyArray<ResultField>> = [
+      [{ field: '@timestamp', value: '2026-01-01T00:00:01.000Z' }],
+    ];
+    const logLines: string[] = [];
+    const step = new CloudWatchLogsQueryStep({
+      id: 's',
+      label: 'l',
+      logGroups: ['lg-1'],
+      query: 'q',
+      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+    });
+    const context: RunbookContext = {
+      ...makeContext([
+        ['startTime', '2026-01-01T00:00:00.000Z'],
+        ['endTime', '2026-01-01T00:10:00.000Z'],
+      ]),
+      logger: { text: (message: string) => logLines.push(message) } as unknown as GOLogger,
+      services: {
+        cloudWatchLogs: {
+          async queryWithStatistics(): Promise<AWSCloudWatchLogsQueryResult> {
+            await Promise.resolve();
+            return {
+              rows,
+              statistics: { bytesScanned: 1024, recordsScanned: 50, recordsMatched: 3 },
+              queryExecutions: [
+                {
+                  queryId: 'qid-1',
+                  profile: 'profile-1',
+                  logGroups: ['lg-1'],
+                  statistics: { bytesScanned: 1024, recordsScanned: 50, recordsMatched: 3 },
+                },
+              ],
+            };
+          },
+          async query(): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
+            await Promise.resolve();
+            throw new Error('query() should not be used when queryWithStatistics is available');
+          },
+        },
+      } as unknown as ServiceRegistry,
+    };
+
+    const result = await step.execute(context);
+
+    assert.strictEqual(result.success, true);
+    assert.deepStrictEqual(result.output, rows);
+    assert.strictEqual(result.diagnostics?.cloudWatchLogs?.statistics.bytesScanned, 1024);
+    assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions[0]?.queryId, 'qid-1');
+    assert.ok(logLines.some((line) => line.includes('bytesScanned=1024')));
   });
 });

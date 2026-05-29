@@ -5,6 +5,13 @@ import type { RunbookExecutionResult } from '../types/RunbookExecutionResult.js'
 import type { RunbookOutput } from './RunbookOutput.js';
 import type { RunbookOutcome } from './RunbookOutcome.js';
 import type { RunbookOutputContext } from './RunbookOutputContext.js';
+import type { StepTrace } from '../trace/StepTrace.js';
+import type {
+  RunbookTelemetry,
+  CloudWatchLogsTelemetry,
+  CloudWatchLogsTelemetryQueryExecution,
+} from './RunbookTelemetry.js';
+import { sumCloudWatchLogsQueryStatistics, type AWSCloudWatchLogsQueryStatistics } from '@go-automation/go-common/aws';
 import { emptyRunbookOutputContext } from './RunbookOutputContext.js';
 import { interpolatePlaceholders } from '../core/templatePlaceholders.js';
 
@@ -27,6 +34,7 @@ export function buildRunbookOutput(
   options: BuildRunbookOutputOptions = {},
 ): RunbookOutput {
   const trace = result.trace;
+  const telemetry = buildRunbookTelemetry(trace.pipeline);
   return {
     schemaVersion: '1.0.0',
     generatedAt: new Date().toISOString(),
@@ -54,7 +62,49 @@ export function buildRunbookOutput(
     },
     input: trace.input,
     outcome: buildOutcome(runbook, result),
+    ...(telemetry !== undefined ? { telemetry } : {}),
     context: options.contextBuilder?.(runbook, result) ?? emptyRunbookOutputContext(),
+  };
+}
+
+function buildRunbookTelemetry(steps: ReadonlyArray<StepTrace>): RunbookTelemetry | undefined {
+  const cloudWatchLogs = buildCloudWatchLogsTelemetry(steps);
+  if (cloudWatchLogs === undefined) {
+    return undefined;
+  }
+  return { cloudWatchLogs };
+}
+
+function buildCloudWatchLogsTelemetry(steps: ReadonlyArray<StepTrace>): CloudWatchLogsTelemetry | undefined {
+  const queryExecutions: CloudWatchLogsTelemetryQueryExecution[] = [];
+  const statistics: AWSCloudWatchLogsQueryStatistics[] = [];
+
+  for (const step of steps) {
+    const diagnostics = step.diagnostics?.cloudWatchLogs;
+    if (diagnostics === undefined) continue;
+
+    statistics.push(diagnostics.statistics);
+    for (const execution of diagnostics.queryExecutions) {
+      queryExecutions.push({
+        stepId: step.stepId,
+        stepLabel: step.label,
+        executionOrder: step.executionOrder,
+        queryId: execution.queryId,
+        profile: execution.profile,
+        logGroups: execution.logGroups,
+        statistics: execution.statistics,
+      });
+    }
+  }
+
+  if (statistics.length === 0) {
+    return undefined;
+  }
+
+  return {
+    queryCount: queryExecutions.length,
+    statistics: sumCloudWatchLogsQueryStatistics(statistics),
+    queryExecutions,
   };
 }
 

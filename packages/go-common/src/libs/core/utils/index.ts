@@ -14,6 +14,7 @@ export {
   type FormattedConfigDisplay,
 } from './GOConfigDisplayFormatter.js';
 export { valueToString, safeJsonStringify, type GOValueToStringOptions } from './GOValueToString.js';
+export { formatBytes, type GOFormatBytesOptions } from './GOByteFormatter.js';
 export {
   isNullish,
   isPrimitive,

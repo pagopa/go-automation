@@ -34,6 +34,7 @@ import fsSync from 'fs';
 import path from 'path';
 
 import { getErrorMessage } from '../errors/GOErrorUtils.js';
+import { formatBytes } from '../utils/GOByteFormatter.js';
 import type { GOFileCopyResult, GOFileCopySkipReason } from './GOFileCopyResult.js';
 import type { GOFileCopyReport, GOFileCopyReportSummary } from './GOFileCopyReport.js';
 import type {
@@ -44,6 +45,8 @@ import type {
   GOFileCopierPromptHandler,
 } from './GOFileCopierOptions.js';
 import { GO_FILE_COPIER_DEFAULTS } from './GOFileCopierOptions.js';
+
+const FILE_SIZE_FORMAT_OPTIONS = { fractionDigits: 2 } as const;
 
 /**
  * Internal representation of a registered file
@@ -223,12 +226,12 @@ export class GOFileCopier {
     // Get file stats
     const stats = await fs.stat(absolutePath);
     const sizeBytes = stats.size;
-    const sizeHuman = this.formatFileSize(sizeBytes);
+    const sizeHuman = formatBytes(sizeBytes, FILE_SIZE_FORMAT_OPTIONS);
 
     // Check max file size
     if (sizeBytes > this.options.maxFileSize) {
       this.log(
-        `Skipping file (exceeds max size ${this.formatFileSize(this.options.maxFileSize)}): ${absolutePath}`,
+        `Skipping file (exceeds max size ${formatBytes(this.options.maxFileSize, FILE_SIZE_FORMAT_OPTIONS)}): ${absolutePath}`,
         'warn',
       );
       return this.createResult(absolutePath, destinationPath, {
@@ -379,26 +382,6 @@ export class GOFileCopier {
   }
 
   /**
-   * Format file size for human readability.
-   *
-   * @param bytes - File size in bytes
-   * @returns Human-readable size string
-   */
-  private formatFileSize(bytes: number): string {
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    let size = bytes;
-    let unitIndex = 0;
-
-    while (size >= 1024 && unitIndex < units.length - 1) {
-      size /= 1024;
-      unitIndex++;
-    }
-
-    const unit = units[unitIndex];
-    return unit !== undefined ? `${size.toFixed(2)} ${unit}` : `${bytes} B`;
-  }
-
-  /**
    * Create a copy result object.
    */
   private createResult(
@@ -419,7 +402,7 @@ export class GOFileCopier {
       copied: data.copied,
       skipReason: data.skipReason,
       sizeBytes: data.sizeBytes,
-      sizeHuman: this.formatFileSize(data.sizeBytes),
+      sizeHuman: formatBytes(data.sizeBytes, FILE_SIZE_FORMAT_OPTIONS),
       error: data.error,
       timestamp: new Date(),
     };
@@ -451,7 +434,7 @@ export class GOFileCopier {
       skippedFiles,
       failedFiles,
       totalBytesCopied,
-      totalSizeCopiedHuman: this.formatFileSize(totalBytesCopied),
+      totalSizeCopiedHuman: formatBytes(totalBytesCopied, FILE_SIZE_FORMAT_OPTIONS),
     };
   }
 

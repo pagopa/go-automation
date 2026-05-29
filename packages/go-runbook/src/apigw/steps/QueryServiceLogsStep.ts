@@ -7,6 +7,8 @@ import type { StepResult } from '../../types/StepResult.js';
 import type { TimeRangeFromParams } from '../../steps/data/CloudWatchLogsQueryStep.js';
 import { resolveTimeRange } from '../../steps/data/resolveTimeRange.js';
 import { executeStep } from '../../steps/data/executeStep.js';
+import { executeCloudWatchLogsQuery } from '../../steps/data/executeCloudWatchLogsQuery.js';
+import type { StepDiagnostics } from '../../trace/StepDiagnostics.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
 import type { ServiceLogSpec } from '../profiles/specs/ServiceLogSpec.js';
 import { SEND_API_GW_PROFILE } from '../profiles/SEND_API_GW_PROFILE.js';
@@ -153,11 +155,14 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
       const query = this.buildQuery(traceId, fallback);
 
       let results: ReadonlyArray<ReadonlyArray<ResultField>>;
+      let diagnostics: StepDiagnostics | undefined;
       try {
-        results = await context.services.cloudWatchLogs.query(this.logGroups, query, timeRange, {
+        const queryResult = await executeCloudWatchLogsQuery(context, this.logGroups, query, timeRange, {
           ...(context.signal !== undefined ? { signal: context.signal } : {}),
           logGroupResolutionMode: 'search-configured-profiles',
         });
+        results = queryResult.rows;
+        diagnostics = queryResult.diagnostics;
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         reporter?.queryFailed(this.logGroups, message);
@@ -169,6 +174,7 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
       return {
         success: true,
         output: results,
+        ...(diagnostics !== undefined ? { diagnostics } : {}),
         vars: apiGwServiceVisitVars(context.vars, this.serviceName, results.length, visitPlan, {
           mode: activeIdentifier.kind,
           value: activeIdentifier.value,

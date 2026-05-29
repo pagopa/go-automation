@@ -206,4 +206,67 @@ describe('buildRunbookOutput', () => {
       assert.strictEqual(output.outcome.metrics?.['failedItems'], 2);
     }
   });
+
+  it('aggregates CloudWatch Logs query statistics into telemetry', () => {
+    const queryStep: StepTrace = {
+      executionOrder: 1,
+      stepId: 'query-api-gw-logs',
+      label: 'Query API Gateway',
+      kind: 'data',
+      reachedVia: 'sequential',
+      startedAt: '2026-01-01T00:00:00.000Z',
+      completedAt: '2026-01-01T00:00:01.000Z',
+      durationMs: 1000,
+      status: 'success',
+      recovered: false,
+      input: {},
+      output: [],
+      varsWritten: {},
+      diagnostics: {
+        cloudWatchLogs: {
+          rowsReturned: 2,
+          statistics: { bytesScanned: 1000, recordsScanned: 100, recordsMatched: 2 },
+          queryExecutions: [
+            {
+              queryId: 'qid-1',
+              profile: 'profile-1',
+              logGroups: ['/aws/apigw/access'],
+              statistics: { bytesScanned: 1000, recordsScanned: 100, recordsMatched: 2 },
+            },
+          ],
+        },
+      },
+      flowDirective: 'continue',
+    };
+    const serviceStep: StepTrace = {
+      ...queryStep,
+      executionOrder: 2,
+      stepId: 'query-service',
+      label: 'Query service',
+      diagnostics: {
+        cloudWatchLogs: {
+          rowsReturned: 1,
+          statistics: { bytesScanned: 500, recordsScanned: 50, recordsMatched: 1 },
+          queryExecutions: [
+            {
+              queryId: 'qid-2',
+              profile: 'profile-2',
+              logGroups: ['/aws/ecs/service'],
+              statistics: { bytesScanned: 500, recordsScanned: 50, recordsMatched: 1 },
+            },
+          ],
+        },
+      },
+    };
+
+    const output = buildRunbookOutput(createRunbook({}), createResult({ pipeline: [queryStep, serviceStep] }));
+
+    assert.strictEqual(output.telemetry?.cloudWatchLogs?.queryCount, 2);
+    assert.strictEqual(output.telemetry?.cloudWatchLogs?.statistics.bytesScanned, 1500);
+    assert.strictEqual(output.telemetry?.cloudWatchLogs?.statistics.recordsScanned, 150);
+    assert.deepStrictEqual(
+      output.telemetry?.cloudWatchLogs?.queryExecutions.map((execution) => execution.queryId),
+      ['qid-1', 'qid-2'],
+    );
+  });
 });

@@ -37,7 +37,9 @@ export class StatusCommand {
     });
     try {
       const stats = index.stats();
-      script.logger.info(`Index size:        ${formatBytes(stats.databaseSizeBytes)}`);
+      script.logger.info(
+        `Index size:        ${Core.formatBytes(stats.databaseSizeBytes, { autoFractionDigitsBelow: 100 })}`,
+      );
       script.logger.info(`Tokenizer:         ${stats.tokenizer}`);
       script.logger.info(`Indexed documents: ${stats.documentCount}`);
 
@@ -88,16 +90,4 @@ async function fileExists(filePath: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  let value = bytes;
-  let i = 0;
-  while (value >= 1024 && i < units.length - 1) {
-    value /= 1024;
-    i += 1;
-  }
-  return `${value.toFixed(value >= 100 ? 0 : 1)} ${units[i]}`;
 }
