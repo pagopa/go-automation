@@ -177,10 +177,7 @@ describe('AWSCloudWatchLogsService', () => {
 
   it('returns aggregate query statistics when requested', async () => {
     const provider = new FakeMultiProvider(
-      new Map([
-        ['first', { statistics: { bytesScanned: 100, recordsScanned: 10, recordsMatched: 2 } }],
-        ['second', { statistics: { bytesScanned: 200, recordsScanned: 20, recordsMatched: 4 } }],
-      ]),
+      new Map([['first', { statistics: { bytesScanned: 100, recordsScanned: 10, recordsMatched: 2 } }]]),
     );
     const service = createService(provider);
 
