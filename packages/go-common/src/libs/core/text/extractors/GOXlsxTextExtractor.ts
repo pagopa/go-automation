@@ -5,7 +5,8 @@
  * a `--- Sheet: <name> ---` header. Empty rows are dropped to keep the index
  * compact.
  */
-import readXlsxFile from 'read-excel-file/node';
+import readXlsxFile, { readSheetNames } from 'read-excel-file/node';
+import type { CellValue, Row } from 'read-excel-file/node';
 
 import { GOTextExtractionError } from '../GOTextExtractionError.js';
 import type { GOTextExtractionOptions } from '../GOTextExtractionOptions.js';
@@ -23,8 +24,6 @@ const SUPPORTED_MIME_TYPES: ReadonlySet<string> = new Set([
 
 const SUPPORTED_EXTENSIONS: ReadonlySet<string> = new Set(['.xlsx']);
 
-type XlsxCell = string | number | boolean | Date | null;
-
 export class GOXlsxTextExtractor implements GOTextExtractor {
   public readonly supportedMimeTypes: ReadonlySet<string> = SUPPORTED_MIME_TYPES;
   public readonly supportedExtensions: ReadonlySet<string> = SUPPORTED_EXTENSIONS;
@@ -32,12 +31,12 @@ export class GOXlsxTextExtractor implements GOTextExtractor {
   public async extract(filePath: string, options?: GOTextExtractionOptions): Promise<GOTextExtractionResult> {
     const maxBytes = options?.maxBytes ?? DEFAULT_MAX_BYTES;
     try {
-      const sheetInfos = await readXlsxFile(filePath, { getSheets: true });
+      const sheetNames = await readSheetNames(filePath);
 
       const lines: string[] = [];
-      for (const sheetInfo of sheetInfos) {
-        const rows = (await readXlsxFile(filePath, { sheet: sheetInfo.name })) as XlsxCell[][];
-        lines.push(`--- Sheet: ${sheetInfo.name} ---`);
+      for (const sheetName of sheetNames) {
+        const rows: Row[] = await readXlsxFile(filePath, { sheet: sheetName });
+        lines.push(`--- Sheet: ${sheetName} ---`);
         for (const row of rows) {
           const cells = row.map(formatCell);
           if (cells.some((cellText) => cellText.length > 0)) {
@@ -60,10 +59,13 @@ export class GOXlsxTextExtractor implements GOTextExtractor {
   }
 }
 
-function formatCell(value: XlsxCell): string {
+// `CellValue` from read-excel-file is typed as `string | number | boolean | typeof Date` —
+// a library type quirk: at runtime cells are Date instances, but the type says `DateConstructor`.
+// `instanceof Date` is the correct runtime check; the cast inside isolates the workaround.
+function formatCell(value: CellValue | null): string {
   if (value === null || value === undefined) return '';
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (value instanceof Date) return value.toISOString();
+  if (value instanceof Date) return (value as Date).toISOString();
   return '';
 }
