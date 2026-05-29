@@ -23,9 +23,7 @@ export interface GOFormatBytesOptions {
 }
 
 export function formatBytes(bytes: number, options: GOFormatBytesOptions = {}): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
-
-  let value = bytes;
+  let value = Number.isFinite(bytes) && bytes > 0 ? bytes : 0;
   let unitIndex = 0;
 
   while (value >= 1024 && unitIndex < BYTE_UNITS.length - 1) {

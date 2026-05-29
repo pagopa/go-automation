@@ -23,6 +23,7 @@ describe('GOByteFormatter', () => {
   });
 
   it('supports a fixed number of fractional digits', () => {
+    assert.strictEqual(formatBytes(0, { fractionDigits: 2 }), '0.00 B');
     assert.strictEqual(formatBytes(512, { fractionDigits: 2 }), '512.00 B');
     assert.strictEqual(formatBytes(1536, { fractionDigits: 2 }), '1.50 KB');
   });
