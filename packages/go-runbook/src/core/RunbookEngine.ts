@@ -402,6 +402,7 @@ export class RunbookEngine {
       result.output ?? null,
       varsWritten,
       this.flowDirectiveToString(directive),
+      result.diagnostics,
       result.error,
     );
 

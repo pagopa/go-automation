@@ -35,6 +35,9 @@ export { AWSCloudWatchLogsService } from './AWSCloudWatchLogsService.js';
 export type {
   AWSCloudWatchLogsLogGroupResolutionMode,
   AWSCloudWatchLogsQueryOptions,
+  AWSCloudWatchLogsQueryExecution,
+  AWSCloudWatchLogsQueryResult,
+  AWSCloudWatchLogsQueryStatistics,
   AWSCloudWatchLogsTimeRange,
 } from './AWSCloudWatchLogsService.js';
 export { AWSCloudWatchMetricsService } from './AWSCloudWatchMetricsService.js';

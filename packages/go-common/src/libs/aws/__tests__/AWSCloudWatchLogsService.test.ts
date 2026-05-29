@@ -4,13 +4,18 @@ import { describe, it } from 'node:test';
 import { GetQueryResultsCommand, StartQueryCommand, type ResultField } from '@aws-sdk/client-cloudwatch-logs';
 
 import { AWSCloudWatchLogsService } from '../AWSCloudWatchLogsService.js';
+import type { AWSCloudWatchLogsQueryStatistics } from '../AWSCloudWatchLogsService.js';
 import type { AWSClientProvider } from '../AWSClientProvider.js';
 import type { AWSMultiClientProvider } from '../AWSMultiClientProvider.js';
 
 type CloudWatchLogsCommand = StartQueryCommand | GetQueryResultsCommand;
 type CloudWatchLogsSendResponse =
   | { readonly queryId: string }
-  | { readonly status: string; readonly results: ReadonlyArray<ReadonlyArray<ResultField>> };
+  | {
+      readonly status: string;
+      readonly results: ReadonlyArray<ReadonlyArray<ResultField>>;
+      readonly statistics?: Partial<AWSCloudWatchLogsQueryStatistics>;
+    };
 
 interface FakeCloudWatchLogsClient {
   readonly profile: string;
@@ -26,6 +31,7 @@ interface FakeAWSClientProvider {
 interface FakeClientOptions {
   readonly startError?: Error;
   readonly timestamp?: string;
+  readonly statistics?: Partial<AWSCloudWatchLogsQueryStatistics>;
 }
 
 class FakeMultiProvider {
@@ -88,6 +94,7 @@ function createFakeCloudWatchLogsClient(profile: string, options: FakeClientOpti
             { field: 'profile', value: profile },
           ],
         ],
+        ...(options.statistics !== undefined ? { statistics: options.statistics } : {}),
       };
     },
   };
@@ -166,5 +173,31 @@ describe('AWSCloudWatchLogsService', () => {
 
     assert.strictEqual(rows.length, 2);
     assert.ok(rows.every((row) => profileValue(row) === 'first'));
+  });
+
+  it('returns aggregate query statistics when requested', async () => {
+    const provider = new FakeMultiProvider(
+      new Map([
+        ['first', { statistics: { bytesScanned: 100, recordsScanned: 10, recordsMatched: 2 } }],
+        ['second', { statistics: { bytesScanned: 200, recordsScanned: 20, recordsMatched: 4 } }],
+      ]),
+    );
+    const service = createService(provider);
+
+    const result = await service.queryWithStatistics(['/aws/ecs/a', '/aws/ecs/b'], 'fields @timestamp', timeRange, {
+      logGroupResolutionMode: 'search-configured-profiles',
+    });
+
+    assert.strictEqual(result.rows.length, 2);
+    assert.deepStrictEqual(result.statistics, {
+      bytesScanned: 200,
+      recordsScanned: 20,
+      recordsMatched: 4,
+    });
+    assert.strictEqual(result.queryExecutions.length, 2);
+    assert.deepStrictEqual(
+      result.queryExecutions.map((execution) => execution.queryId),
+      ['query-first', 'query-first'],
+    );
   });
 });

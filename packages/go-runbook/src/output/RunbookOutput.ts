@@ -2,6 +2,7 @@ import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js'
 import type { RunbookType } from '../types/RunbookType.js';
 import type { RunbookOutcome } from './RunbookOutcome.js';
 import type { RunbookOutputContext } from './RunbookOutputContext.js';
+import type { RunbookTelemetry } from './RunbookTelemetry.js';
 
 export interface RunbookOutput {
   readonly schemaVersion: '1.0.0';
@@ -30,5 +31,6 @@ export interface RunbookOutput {
   };
   readonly input: Readonly<Record<string, string>>;
   readonly outcome: RunbookOutcome;
+  readonly telemetry?: RunbookTelemetry;
   readonly context: RunbookOutputContext;
 }

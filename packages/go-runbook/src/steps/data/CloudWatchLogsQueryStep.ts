@@ -7,6 +7,7 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
 import { interpolatePlaceholders } from '../../core/templatePlaceholders.js';
 import { resolveTimeRange } from './resolveTimeRange.js';
 import { executeStep } from './executeStep.js';
+import { executeCloudWatchLogsQuery } from './executeCloudWatchLogsQuery.js';
 
 /**
  * Configuration for mapping time range boundaries to context parameter names.
@@ -120,12 +121,16 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
       const interpolatedQuery = interpolatePlaceholders(this.query, context);
 
-      const results = await context.services.cloudWatchLogs.query(this.logGroups, interpolatedQuery, timeRange, {
+      const result = await executeCloudWatchLogsQuery(context, this.logGroups, interpolatedQuery, timeRange, {
         ...(context.signal !== undefined ? { signal: context.signal } : {}),
         ...(this.logGroupResolutionMode !== undefined ? { logGroupResolutionMode: this.logGroupResolutionMode } : {}),
       });
 
-      return { success: true, output: results };
+      return {
+        success: true,
+        output: result.rows,
+        ...(result.diagnostics !== undefined ? { diagnostics: result.diagnostics } : {}),
+      };
     });
   }
 }

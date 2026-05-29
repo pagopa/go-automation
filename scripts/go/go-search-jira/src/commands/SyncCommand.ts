@@ -99,7 +99,7 @@ export class SyncCommand {
       script.logger.info(`Indexed:          ${report.indexed}`);
       script.logger.info(`Skipped:          ${report.skipped}`);
       script.logger.info(`Failed:           ${report.failed}`);
-      script.logger.info(`Bytes downloaded: ${report.bytesDownloaded}`);
+      script.logger.info(`Bytes downloaded: ${Core.formatBytes(report.bytesDownloaded, { scaledFractionDigits: 1 })}`);
       script.logger.info(`Duration:         ${report.durationMs}ms`);
 
       if (config.syncDryRun) {
@@ -129,7 +129,7 @@ export class SyncCommand {
 function formatProgress(snapshot: SyncProgressSnapshot): string {
   const inFlight = snapshot.inFlightDownloads > 0 ? ` · ${snapshot.inFlightDownloads} downloading` : '';
   const planned = snapshot.plannedDownloads > 0 ? `planned: ${snapshot.plannedDownloads}, ` : '';
-  return `Issue ${snapshot.currentIssueKey} (processed: ${snapshot.issuesProcessed}, ${planned}indexed: ${snapshot.indexed}, skipped: ${snapshot.skipped}, failed: ${snapshot.failed}, ${formatBytes(snapshot.bytesDownloaded)}${inFlight})`;
+  return `Issue ${snapshot.currentIssueKey} (processed: ${snapshot.issuesProcessed}, ${planned}indexed: ${snapshot.indexed}, skipped: ${snapshot.skipped}, failed: ${snapshot.failed}, ${Core.formatBytes(snapshot.bytesDownloaded, { scaledFractionDigits: 1 })}${inFlight})`;
 }
 
 function formatCompletionMessage(
@@ -140,16 +140,4 @@ function formatCompletionMessage(
     return `Dry-run complete: ${report.plannedDownloads} planned downloads, ${report.skipped} skipped, ${report.failed} failed`;
   }
   return `Sync complete: ${report.indexed} indexed, ${report.skipped} skipped, ${report.failed} failed`;
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ['KB', 'MB', 'GB'];
-  let value = bytes / 1024;
-  let i = 0;
-  while (value >= 1024 && i < units.length - 1) {
-    value /= 1024;
-    i += 1;
-  }
-  return `${value.toFixed(1)} ${units[i]}`;
 }

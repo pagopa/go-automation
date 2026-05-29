@@ -1,5 +1,6 @@
 import type { FlowDirective } from './FlowDirective.js';
 import type { ErrorRecoveryInfo } from './ErrorRecoveryInfo.js';
+import type { StepDiagnostics } from '../trace/StepDiagnostics.js';
 
 /**
  * Result of a step execution.
@@ -16,6 +17,8 @@ export interface StepResult<TOutput = unknown> {
   readonly error?: string;
   /** Variables to add/update in the context */
   readonly vars?: Readonly<Record<string, string>>;
+  /** Non-functional execution diagnostics captured in trace only. */
+  readonly diagnostics?: StepDiagnostics;
   /** Flow directive: which step to execute next */
   readonly next?: FlowDirective;
   /** Recovery information if the step failed but execution continued thanks to continueOnFailure. */

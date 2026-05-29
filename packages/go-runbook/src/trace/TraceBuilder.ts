@@ -12,6 +12,7 @@ import type { KnownCase } from '../types/KnownCase.js';
 import type { CaseAction } from '../actions/CaseAction.js';
 import type { FlowDirectiveString } from '../types/FlowDirective.js';
 import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js';
+import type { StepDiagnostics } from './StepDiagnostics.js';
 
 /**
  * Builder for the {@link RunbookExecutionTrace}.
@@ -79,6 +80,7 @@ export class TraceBuilder {
     output: unknown,
     varsWritten: Readonly<Record<string, string>>,
     flowDirective: FlowDirectiveString,
+    diagnostics?: StepDiagnostics,
     error?: string,
     parentStepId?: string,
   ): TraceBuilder {
@@ -96,6 +98,7 @@ export class TraceBuilder {
       input,
       output,
       varsWritten,
+      ...(diagnostics !== undefined ? { diagnostics } : {}),
       flowDirective,
       ...(error !== undefined ? { error } : {}),
       ...(parentStepId !== undefined ? { parentStepId } : {}),

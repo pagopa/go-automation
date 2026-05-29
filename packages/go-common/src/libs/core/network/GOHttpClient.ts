@@ -25,6 +25,7 @@ import { ProxyAgent } from 'undici';
 import type { Dispatcher } from 'undici';
 
 import { GOEventEmitterBase } from '../events/GOEventEmitterBase.js';
+import { formatBytes } from '../utils/GOByteFormatter.js';
 
 import type { GOAbortableRequest } from './GOAbortableRequest.js';
 import type { GOHttpClientConfig } from './GOHttpClientConfig.js';
@@ -172,7 +173,7 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
    */
   private formatBodyForLog(body: unknown): string {
     if (Buffer.isBuffer(body)) {
-      return `Buffer(${body.length} bytes)`;
+      return `Buffer(${formatBytes(body.length)})`;
     }
     if (typeof body === 'string') {
       return `String(${body.length} chars)`;

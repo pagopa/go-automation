@@ -2,6 +2,8 @@
  * SQS Utilities
  */
 
+import { formatBytes } from '../core/utils/index.js';
+
 /** Max batch size for SQS operations */
 export const SQS_MAX_BATCH_SIZE = 10;
 
@@ -40,7 +42,9 @@ export class SQSUtils {
   static validateMessageSize(body: string): void {
     const size = Buffer.byteLength(body, 'utf8');
     if (size > SQS_MAX_PAYLOAD_BYTES) {
-      throw new Error(`Message size (${size} bytes) exceeds SQS limit of ${SQS_MAX_PAYLOAD_BYTES} bytes`);
+      throw new Error(
+        `Message size (${formatBytes(size)} / ${size} bytes) exceeds SQS limit of ${formatBytes(SQS_MAX_PAYLOAD_BYTES)} / ${SQS_MAX_PAYLOAD_BYTES} bytes`,
+      );
     }
     if (size === 0) {
       throw new Error('Message body cannot be empty');

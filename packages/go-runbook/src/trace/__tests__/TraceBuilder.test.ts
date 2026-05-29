@@ -62,6 +62,43 @@ function builderWithOneStep(): TraceBuilder {
 }
 
 describe('TraceBuilder', () => {
+  it('stores step diagnostics in the pipeline trace', () => {
+    const trace = new TraceBuilder('exec', RUNBOOK, new Map())
+      .traceStep(
+        'query-logs',
+        'Query logs',
+        'data',
+        'sequential',
+        '2026-05-13T00:00:00.000Z',
+        '2026-05-13T00:00:00.001Z',
+        1,
+        'success',
+        false,
+        {},
+        [],
+        {},
+        'continue',
+        {
+          cloudWatchLogs: {
+            rowsReturned: 2,
+            statistics: { bytesScanned: 2048, recordsScanned: 100, recordsMatched: 2 },
+            queryExecutions: [
+              {
+                queryId: 'qid-1',
+                profile: 'profile-1',
+                logGroups: ['/aws/logs'],
+                statistics: { bytesScanned: 2048, recordsScanned: 100, recordsMatched: 2 },
+              },
+            ],
+          },
+        },
+      )
+      .build(emptyContext(), 'completed', ENV);
+
+    assert.strictEqual(trace.pipeline[0]?.diagnostics?.cloudWatchLogs?.statistics.bytesScanned, 2048);
+    assert.strictEqual(trace.pipeline[0]?.diagnostics?.cloudWatchLogs?.queryExecutions[0]?.queryId, 'qid-1');
+  });
+
   describe('traceEarlyResolution', () => {
     it('promotes evaluations into caseEvaluations when the early resolution matched', () => {
       const evaluations: CaseEvaluationTrace[] = [

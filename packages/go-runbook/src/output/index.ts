@@ -10,5 +10,10 @@ export type {
 } from './RunbookOutcome.js';
 export type { RunbookOutputContext, RunbookResultField, RunbookEvidence } from './RunbookOutputContext.js';
 export { emptyRunbookOutputContext } from './RunbookOutputContext.js';
+export type {
+  RunbookTelemetry,
+  CloudWatchLogsTelemetry,
+  CloudWatchLogsTelemetryQueryExecution,
+} from './RunbookTelemetry.js';
 export { buildRunbookOutput } from './buildRunbookOutput.js';
 export type { BuildRunbookOutputOptions, RunbookOutputContextBuilderFn } from './buildRunbookOutput.js';

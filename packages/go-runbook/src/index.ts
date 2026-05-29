@@ -96,8 +96,14 @@ export type {
 } from './output/RunbookOutcome.js';
 export type { RunbookOutputContext, RunbookResultField, RunbookEvidence } from './output/RunbookOutputContext.js';
 export { emptyRunbookOutputContext } from './output/RunbookOutputContext.js';
+export type {
+  RunbookTelemetry,
+  CloudWatchLogsTelemetry,
+  CloudWatchLogsTelemetryQueryExecution,
+} from './output/RunbookTelemetry.js';
 export { buildRunbookOutput } from './output/buildRunbookOutput.js';
 export type { BuildRunbookOutputOptions, RunbookOutputContextBuilderFn } from './output/buildRunbookOutput.js';
+export type { StepDiagnostics, CloudWatchLogsStepDiagnostics } from './trace/StepDiagnostics.js';
 export { interpolatePlaceholders } from './core/templatePlaceholders.js';
 
 // Actions
