@@ -65,7 +65,7 @@ catalog:
   'mailparser': '^3.9.8'
   'mammoth': '^1.12.0'
   'prettier': '3.8.3'
-  'read-excel-file': '^5.8.6'
+  'read-excel-file': '^9.0.0'
   'string-width': '^8.2.1'
   'tsx': '^4.22.3'
   'typescript': '^6.0.3'
