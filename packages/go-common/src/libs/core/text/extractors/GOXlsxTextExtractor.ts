@@ -5,7 +5,7 @@
  * a `--- Sheet: <name> ---` header. Empty rows are dropped to keep the index
  * compact.
  */
-import readXlsxFile, { readSheetNames } from 'read-excel-file/node';
+import readXlsxFile from 'read-excel-file/node';
 import type { CellValue, Row } from 'read-excel-file/node';
 
 import { GOTextExtractionError } from '../GOTextExtractionError.js';
@@ -31,12 +31,12 @@ export class GOXlsxTextExtractor implements GOTextExtractor {
   public async extract(filePath: string, options?: GOTextExtractionOptions): Promise<GOTextExtractionResult> {
     const maxBytes = options?.maxBytes ?? DEFAULT_MAX_BYTES;
     try {
-      const sheetNames = await readSheetNames(filePath);
+      const sheets = await readXlsxFile(filePath);
 
       const lines: string[] = [];
-      for (const sheetName of sheetNames) {
-        const rows: Row[] = await readXlsxFile(filePath, { sheet: sheetName });
-        lines.push(`--- Sheet: ${sheetName} ---`);
+      for (const sheet of sheets) {
+        const rows: Row[] = sheet.data;
+        lines.push(`--- Sheet: ${sheet.sheet} ---`);
         for (const row of rows) {
           const cells = row.map(formatCell);
           if (cells.some((cellText) => cellText.length > 0)) {
