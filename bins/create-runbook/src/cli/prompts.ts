@@ -8,10 +8,12 @@ import { RUNBOOK_TEMPLATES, findRunbookTemplate } from '../templates/runbookTemp
 import { deriveBuilderName } from '../naming/deriveBuilderName.js';
 import { runbookIdError } from '../validation/runbookIdError.js';
 
+type TextValidator = (value: string) => true | string;
+
 interface TextPromptOptions {
   readonly message: string;
   readonly default?: string;
-  readonly validate?: (value: string) => true | string;
+  readonly validate?: TextValidator;
 }
 
 function parseTags(raw: string): ReadonlyArray<string> {

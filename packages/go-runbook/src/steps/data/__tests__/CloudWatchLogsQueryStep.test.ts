@@ -1,7 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
+import type {
+  AWSCloudWatchLogsQueryOptions,
+  AWSCloudWatchLogsQueryResult,
+  AWSCloudWatchLogsTimeRange,
+  ResultField,
+} from '@go-automation/go-common/aws';
 import type { GOLogger } from '@go-automation/go-common/core';
 import { CloudWatchLogsQueryStep } from '../CloudWatchLogsQueryStep.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
@@ -143,5 +148,50 @@ describe('CloudWatchLogsQueryStep.execute', () => {
     assert.strictEqual(result.diagnostics?.cloudWatchLogs?.statistics.bytesScanned, 1024);
     assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions[0]?.queryId, 'qid-1');
     assert.ok(logLines.some((line) => line.includes('bytesScanned=1024')));
+  });
+
+  it('propagates paginateResults only when configured', async () => {
+    const seenOptions: unknown[] = [];
+    const step = new CloudWatchLogsQueryStep({
+      id: 's',
+      label: 'l',
+      logGroups: ['lg-1'],
+      query: 'q',
+      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+      paginateResults: true,
+    });
+    const context: RunbookContext = {
+      ...makeContext([
+        ['startTime', '2026-01-01T00:00:00.000Z'],
+        ['endTime', '2026-01-01T00:10:00.000Z'],
+      ]),
+      services: {
+        cloudWatchLogs: {
+          async queryWithStatistics(
+            _logGroups: ReadonlyArray<string>,
+            _query: string,
+            _timeRange: AWSCloudWatchLogsTimeRange,
+            options?: AWSCloudWatchLogsQueryOptions,
+          ): Promise<AWSCloudWatchLogsQueryResult> {
+            seenOptions.push(options);
+            await Promise.resolve();
+            return {
+              rows: [],
+              statistics: { bytesScanned: 0, recordsScanned: 0, recordsMatched: 0 },
+              queryExecutions: [],
+            };
+          },
+          async query(): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
+            await Promise.resolve();
+            throw new Error('query() should not be used when queryWithStatistics is available');
+          },
+        },
+      } as unknown as ServiceRegistry,
+    };
+
+    const result = await step.execute(context);
+
+    assert.strictEqual(result.success, true);
+    assert.deepStrictEqual(seenOptions, [{ paginateResults: true }]);
   });
 });

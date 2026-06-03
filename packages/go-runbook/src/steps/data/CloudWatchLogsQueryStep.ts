@@ -50,6 +50,11 @@ export interface CloudWatchLogsQueryConfig {
    * default (`'default-profile-only'`).
    */
   readonly logGroupResolutionMode?: AWSCloudWatchLogsLogGroupResolutionMode;
+  /**
+   * Abilita la paginazione dei risultati CloudWatch Logs Insights per
+   * questo step. Default `false`.
+   */
+  readonly paginateResults?: boolean;
 }
 
 /**
@@ -77,6 +82,7 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
   private readonly timeRangeFromParams: TimeRangeFromParams;
   private readonly traceMetadata: Readonly<Record<string, unknown>> | undefined;
   private readonly logGroupResolutionMode: AWSCloudWatchLogsLogGroupResolutionMode | undefined;
+  private readonly paginateResults: boolean | undefined;
 
   constructor(config: CloudWatchLogsQueryConfig) {
     this.id = config.id;
@@ -86,6 +92,7 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
     this.timeRangeFromParams = config.timeRangeFromParams;
     this.traceMetadata = config.traceMetadata;
     this.logGroupResolutionMode = config.logGroupResolutionMode;
+    this.paginateResults = config.paginateResults;
   }
 
   /**
@@ -124,6 +131,7 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
       const result = await executeCloudWatchLogsQuery(context, this.logGroups, interpolatedQuery, timeRange, {
         ...(context.signal !== undefined ? { signal: context.signal } : {}),
         ...(this.logGroupResolutionMode !== undefined ? { logGroupResolutionMode: this.logGroupResolutionMode } : {}),
+        ...(this.paginateResults !== undefined ? { paginateResults: this.paginateResults } : {}),
       });
 
       return {

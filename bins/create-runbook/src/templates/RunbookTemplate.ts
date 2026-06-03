@@ -3,6 +3,11 @@ import type { TemplateInput } from './TemplateInput.js';
 import type { RunbookAnswers } from './RunbookAnswers.js';
 
 /**
+ * Pure mapping from collected answers to `{{TOKEN}}` → value.
+ */
+type BuildPlaceholdersMapper = (answers: RunbookAnswers) => ReadonlyMap<string, string>;
+
+/**
  * A runbook scaffolding template: the set of files it emits, the inputs it
  * needs, and a pure mapping from answers to template placeholder values.
  *
@@ -24,5 +29,5 @@ export interface RunbookTemplate {
   /** Template-specific inputs collected in addition to the common ones. */
   readonly inputs: ReadonlyArray<TemplateInput>;
   /** Pure mapping from collected answers to `{{TOKEN}}` → value. */
-  readonly buildPlaceholders: (answers: RunbookAnswers) => ReadonlyMap<string, string>;
+  readonly buildPlaceholders: BuildPlaceholdersMapper;
 }

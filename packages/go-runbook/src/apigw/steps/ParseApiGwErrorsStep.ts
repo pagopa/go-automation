@@ -7,7 +7,7 @@ import { readStepOutput } from '../../steps/data/readStepOutput.js';
 
 import { extractCwField } from '../helpers/extractCwField.js';
 import { extractTraceId } from '../helpers/extractTraceId.js';
-import { pickPrimaryStatusCode, rowMeetsThreshold } from '../helpers/accessLogRow.js';
+import { pickHighestStatusCode, pickPrimaryStatusCode, rowMeetsThreshold } from '../helpers/accessLogRow.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
 import type { ApiGwErrorInfo } from './ApiGwErrorInfo.js';
 import type { AccessLogSchema } from '../profiles/schemas/AccessLogSchema.js';
@@ -101,11 +101,12 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
       };
     }
 
-    if (errorRows[0] === undefined) {
+    const sortedErrorRows = this.sortErrorRowsBySeverity(errorRows);
+    if (sortedErrorRows[0] === undefined) {
       return { success: false, error: 'Unexpected empty row in results' };
     }
 
-    const firstRow = errorRows[0];
+    const firstRow = sortedErrorRows[0];
     const traceId = extractTraceId(firstRow, this.schema);
     // La canonica query AccessLog OR-filtra su 3 status field, quindi
     // `status` da solo può essere il letterale `-` anche quando la riga è
@@ -166,6 +167,18 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
 
   private isNotApplicable(value: string): boolean {
     return this.schema.notApplicableSentinels.includes(value);
+  }
+
+  private sortErrorRowsBySeverity(rows: ReadonlyArray<ResultField[]>): ReadonlyArray<ResultField[]> {
+    return rows
+      .map((row, index) => ({ row, index, statusCode: pickHighestStatusCode(row, this.schema) ?? -1 }))
+      .sort((a, b) => {
+        if (a.statusCode !== b.statusCode) {
+          return b.statusCode - a.statusCode;
+        }
+        return a.index - b.index;
+      })
+      .map((entry) => entry.row);
   }
 
   /**

@@ -17,5 +17,6 @@
  * `integrationServiceStatus` covers downstream integration failures.
  */
 export const DEFAULT_API_GW_QUERY = `filter status >= {{minStatusCode}} or authorizerStatus >= {{minStatusCode}} or integrationServiceStatus >= {{minStatusCode}}
-| sort @timestamp asc
+| sort status desc, authorizerStatus desc, integrationServiceStatus desc, @timestamp asc
+| limit 1000
 | display @timestamp, xrayTraceId, requestId, authorizerRequestId, integrationRequestId, errorMessage, httpMethod, path, authorizerStatus, authorizerLatency, integrationServiceStatus, status`;

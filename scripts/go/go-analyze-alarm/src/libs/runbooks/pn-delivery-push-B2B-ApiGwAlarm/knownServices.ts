@@ -25,7 +25,7 @@ export const ENTRY_SERVICE: apigw.ApiGwService = {
 export const REACHABLE_SERVICES: ReadonlyArray<apigw.ApiGwService> = [
   {
     name: 'pn-safestorage',
-    logGroup: '/aws/ecs/pn-ss',
+    logGroup: '/aws/ecs/pn-safe-storage',
     varPrefix: 'safestorage',
   },
   {

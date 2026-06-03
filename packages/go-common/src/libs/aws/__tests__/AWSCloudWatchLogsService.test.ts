@@ -15,6 +15,7 @@ type CloudWatchLogsSendResponse =
       readonly status: string;
       readonly results: ReadonlyArray<ReadonlyArray<ResultField>>;
       readonly statistics?: Partial<AWSCloudWatchLogsQueryStatistics>;
+      readonly nextToken?: string;
     };
 
 interface FakeCloudWatchLogsClient {
@@ -32,6 +33,10 @@ interface FakeClientOptions {
   readonly startError?: Error;
   readonly timestamp?: string;
   readonly statistics?: Partial<AWSCloudWatchLogsQueryStatistics>;
+  readonly resultPages?: ReadonlyArray<{
+    readonly results: ReadonlyArray<ReadonlyArray<ResultField>>;
+    readonly statistics?: Partial<AWSCloudWatchLogsQueryStatistics>;
+  }>;
 }
 
 class FakeMultiProvider {
@@ -84,6 +89,21 @@ function createFakeCloudWatchLogsClient(profile: string, options: FakeClientOpti
           throw options.startError;
         }
         return { queryId: `query-${profile}` };
+      }
+
+      const input = command.input as { readonly nextToken?: string };
+      if (options.resultPages !== undefined) {
+        const pageIndex = input.nextToken === undefined ? 0 : Number(input.nextToken.replace('page-', ''));
+        const page = options.resultPages[pageIndex];
+        if (page === undefined) {
+          throw new Error(`Unexpected nextToken: ${input.nextToken ?? '<first>'}`);
+        }
+        return {
+          status: 'Complete',
+          results: page.results,
+          ...(page.statistics !== undefined ? { statistics: page.statistics } : {}),
+          ...(pageIndex < options.resultPages.length - 1 ? { nextToken: `page-${pageIndex + 1}` } : {}),
+        };
       }
 
       return {
@@ -196,5 +216,78 @@ describe('AWSCloudWatchLogsService', () => {
       result.queryExecutions.map((execution) => execution.queryId),
       ['query-first', 'query-first'],
     );
+  });
+
+  it('does not paginate GetQueryResults by default', async () => {
+    const provider = new FakeMultiProvider(
+      new Map([
+        [
+          'first',
+          {
+            resultPages: [
+              {
+                results: [[{ field: 'message', value: 'first-page' }]],
+                statistics: { bytesScanned: 100, recordsScanned: 10, recordsMatched: 2 },
+              },
+              {
+                results: [[{ field: 'message', value: 'second-page' }]],
+                statistics: { bytesScanned: 100, recordsScanned: 10, recordsMatched: 2 },
+              },
+            ],
+          },
+        ],
+      ]),
+    );
+    const service = createService(provider);
+
+    const result = await service.queryWithStatistics(['/aws/ecs/a'], 'fields @timestamp', timeRange);
+    const getQueryCommands = provider
+      .client('first')
+      .commands.filter((command): command is GetQueryResultsCommand => command instanceof GetQueryResultsCommand);
+
+    assert.strictEqual(result.rows.length, 1);
+    assert.strictEqual(result.rows[0]?.find((field) => field.field === 'message')?.value, 'first-page');
+    assert.strictEqual(getQueryCommands.length, 1);
+    assert.strictEqual(getQueryCommands[0]?.input.maxItems, undefined);
+  });
+
+  it('paginates GetQueryResults when requested', async () => {
+    const provider = new FakeMultiProvider(
+      new Map([
+        [
+          'first',
+          {
+            resultPages: [
+              {
+                results: [[{ field: 'message', value: 'first-page' }]],
+                statistics: { bytesScanned: 100, recordsScanned: 10, recordsMatched: 2 },
+              },
+              {
+                results: [[{ field: 'message', value: 'second-page' }]],
+                statistics: { bytesScanned: 100, recordsScanned: 10, recordsMatched: 2 },
+              },
+            ],
+          },
+        ],
+      ]),
+    );
+    const service = createService(provider);
+
+    const result = await service.queryWithStatistics(['/aws/ecs/a'], 'fields @timestamp', timeRange, {
+      paginateResults: true,
+    });
+    const getQueryCommands = provider
+      .client('first')
+      .commands.filter((command): command is GetQueryResultsCommand => command instanceof GetQueryResultsCommand);
+
+    assert.strictEqual(result.rows.length, 2);
+    assert.deepStrictEqual(
+      result.rows.map((row) => row.find((field) => field.field === 'message')?.value),
+      ['first-page', 'second-page'],
+    );
+    assert.strictEqual(getQueryCommands.length, 2);
+    assert.strictEqual(getQueryCommands[0]?.input.maxItems, 10_000);
+    assert.strictEqual(getQueryCommands[1]?.input.nextToken, 'page-1');
+    assert.strictEqual(getQueryCommands[1]?.input.maxItems, 10_000);
   });
 });
