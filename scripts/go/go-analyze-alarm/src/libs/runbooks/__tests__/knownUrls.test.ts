@@ -7,7 +7,6 @@ import { KNOWN_URLS as ADDRESS_BOOK_IO_KNOWN_URLS } from '../pn-address-book-io-
 import { KNOWN_URLS as DELIVERY_B2B_KNOWN_URLS } from '../pn-delivery-B2B-ApiGwAlarm/knownUrls.js';
 import { KNOWN_URLS as DELIVERY_IO_EXP_KNOWN_URLS } from '../pn-delivery-IO_EXP-ApiGwAlarm/knownUrls.js';
 import { KNOWN_URLS as DELIVERY_PUSH_B2B_KNOWN_URLS } from '../pn-delivery-push-B2B-ApiGwAlarm/knownUrls.js';
-import { KNOWN_URLS as NATIONAL_REGISTRIES_PNPG_KNOWN_URLS } from '../pn-national-registries-PNPG-ApiGwAlarm/knownUrls.js';
 
 const INTERNAL_HOST_LEAK_PATTERN = /alb\.confidential|\.pn\.internal|internal-|elb\.amazonaws\.com/;
 
@@ -30,7 +29,6 @@ describe('runbook known URLs', () => {
     assertNoInternalHostnames(DELIVERY_B2B_KNOWN_URLS);
     assertNoInternalHostnames(DELIVERY_IO_EXP_KNOWN_URLS);
     assertNoInternalHostnames(DELIVERY_PUSH_B2B_KNOWN_URLS);
-    assertNoInternalHostnames(NATIONAL_REGISTRIES_PNPG_KNOWN_URLS);
   });
 
   it('matches delivery internal data-vault URLs by path without hard-coding the host', () => {
@@ -54,19 +52,6 @@ describe('runbook known URLs', () => {
       ADDRESS_BOOK_IO_KNOWN_URLS,
       'http://internal.example.local:8080/ext-registry-private/io/v1/activations/abc',
       'pn-external-registries',
-    );
-  });
-
-  it('matches national-registries external downstream URLs', () => {
-    assertMatchesTarget(
-      NATIONAL_REGISTRIES_PNPG_KNOWN_URLS,
-      'https://gatewaywebservices.agenziaentrate.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService',
-      'AdE',
-    );
-    assertMatchesTarget(
-      NATIONAL_REGISTRIES_PNPG_KNOWN_URLS,
-      'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/listaLegaleRappresentante/ABC?client_id=client',
-      'InfoCamere',
     );
   });
 });

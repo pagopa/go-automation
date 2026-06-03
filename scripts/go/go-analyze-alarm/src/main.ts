@@ -14,7 +14,6 @@ import { buildAddressBookIoApiGwAlarmRunbook } from './libs/runbooks/pn-address-
 import { buildDeliveryB2BApiGwAlarmRunbook } from './libs/runbooks/pn-delivery-B2B-ApiGwAlarm/runbook.js';
 import { buildDeliveryIoExpApiGwAlarmRunbook } from './libs/runbooks/pn-delivery-IO_EXP-ApiGwAlarm/runbook.js';
 import { buildDeliveryPushB2BApiGwAlarmRunbook } from './libs/runbooks/pn-delivery-push-B2B-ApiGwAlarm/runbook.js';
-import { buildNationalRegistriesPNPGApiGwAlarmRunbook } from './libs/runbooks/pn-national-registries-PNPG-ApiGwAlarm/runbook.js';
 import { buildIoAuthorizerLambdaRunbook } from './libs/runbooks/pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildTokenExchangeLambdaRunbook } from './libs/runbooks/pn-tokenExchangeLambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildSlaViolationCheckerLambdaSqsRunbook } from './libs/runbooks/pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm/runbook.js';
@@ -32,7 +31,6 @@ const RUNBOOK_REGISTRY = new Map<string, () => Runbook>([
   ['pn-delivery-B2B-ApiGwAlarm', buildDeliveryB2BApiGwAlarmRunbook],
   ['pn-delivery-IO_EXP-ApiGwAlarm', buildDeliveryIoExpApiGwAlarmRunbook],
   ['pn-delivery-push-B2B-ApiGwAlarm', buildDeliveryPushB2BApiGwAlarmRunbook],
-  ['pn-national-registries-PNPG-ApiGwAlarm', buildNationalRegistriesPNPGApiGwAlarmRunbook],
   ['pn-ioAuthorizerLambda-LogInvocationErrors-Alarm', buildIoAuthorizerLambdaRunbook],
   ['pn-tokenExchangeLambda-LogInvocationErrors-Alarm', buildTokenExchangeLambdaRunbook],
   ['pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm', buildSlaViolationCheckerLambdaSqsRunbook],
