@@ -1,0 +1,34 @@
+/**
+ * Runbook: {{RUNBOOK_ID}}
+ */
+
+import { apigw } from '@go-automation/go-runbook';
+import type { Runbook } from '@go-automation/go-runbook';
+
+import { API_GW_LOG_GROUP, ENTRY_SERVICE, REACHABLE_SERVICES } from './knownServices.js';
+import { KNOWN_URLS } from './knownUrls.js';
+import { KNOWN_CASES } from './knownCases.js';
+
+/**
+ * Builds the {{RUNBOOK_ID}} runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
+export function {{BUILDER_NAME}}(): Runbook {
+  return apigw.createApiGwAlarmRunbook({
+    id: '{{RUNBOOK_ID}}',
+    metadata: {
+      name: '{{METADATA_NAME}}',
+      description: '{{METADATA_DESCRIPTION}}',
+      version: '{{METADATA_VERSION}}',
+      type: 'alarm-resolution',
+      team: '{{METADATA_TEAM}}',
+      tags: {{METADATA_TAGS}},
+    },
+    apiGwLogGroup: API_GW_LOG_GROUP,
+    entryService: ENTRY_SERVICE,
+    services: REACHABLE_SERVICES,
+    knownUrls: KNOWN_URLS,
+{{AUTHORIZER_BLOCK}}    knownCases: KNOWN_CASES,
+  });
+}

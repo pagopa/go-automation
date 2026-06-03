@@ -1,0 +1,21 @@
+/**
+ * Known URLs for the {{RUNBOOK_ID}} runbook.
+ */
+
+import type { apigw } from '@go-automation/go-runbook';
+
+/**
+ * Known URLs used to enrich the trace and drive the analysis loop.
+ *
+ * TODO: populate with the downstream URLs observed in the access logs.
+ * Prefer `matchType: 'regex'` matched by path so that internal hostnames
+ * are never hard-coded (see runbooks/__tests__/knownUrls.test.ts).
+ */
+export const KNOWN_URLS: ReadonlyArray<apigw.KnownUrl> = [
+  // {
+  //   url: '^https?://[^/:]+(?::\\d+)?/some-private-path(?:/|$)',
+  //   matchType: 'regex',
+  //   target: 'pn-some-service',
+  //   description: 'Internal endpoint for ...',
+  // },
+];
