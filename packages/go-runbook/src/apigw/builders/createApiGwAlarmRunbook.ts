@@ -47,6 +47,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
       query: apiGwQuery,
       timeRangeFromParams: { start: 'startTime', end: 'endTime' },
       logGroupResolutionMode: 'search-configured-profiles',
+      ...(config.paginateAccessLogResults !== undefined ? { paginateResults: config.paginateAccessLogResults } : {}),
       traceMetadata: {
         queryProfileId: profile.id,
         queryKind: 'access-log',

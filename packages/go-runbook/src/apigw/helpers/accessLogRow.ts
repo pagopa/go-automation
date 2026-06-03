@@ -54,6 +54,27 @@ export function pickPrimaryStatusCode(row: ReadonlyArray<ResultField>, schema: A
 }
 
 /**
+ * Returns the highest numeric status value found on the schema-declared
+ * status fields. Used only for row prioritisation: the typed output still
+ * uses {@link pickPrimaryStatusCode}, which preserves the schema's
+ * canonical field precedence.
+ */
+export function pickHighestStatusCode(row: ReadonlyArray<ResultField>, schema: AccessLogSchema): number | undefined {
+  let highest: number | undefined;
+  for (const field of schema.statusFields) {
+    const raw = extractCwField(row, field);
+    if (raw === undefined) continue;
+    if (schema.notApplicableSentinels.includes(raw)) continue;
+    const num = Number(raw);
+    if (Number.isNaN(num)) continue;
+    if (highest === undefined || num > highest) {
+      highest = num;
+    }
+  }
+  return highest;
+}
+
+/**
  * Trims an AccessLog field value and returns the empty string when the
  * trimmed value matches one of the schema sentinels (typically `'-'`).
  */

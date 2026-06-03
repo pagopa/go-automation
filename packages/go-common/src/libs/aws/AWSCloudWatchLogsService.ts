@@ -1,4 +1,4 @@
-import type { CloudWatchLogsClient, ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type { CloudWatchLogsClient, GetQueryResultsCommandOutput, ResultField } from '@aws-sdk/client-cloudwatch-logs';
 import {
   CloudWatchLogsServiceException,
   GetQueryResultsCommand,
@@ -11,6 +11,8 @@ import type { AWSMultiClientProvider } from './AWSMultiClientProvider.js';
 
 /** Non-success terminal statuses for CloudWatch Logs Insights queries (Complete handled separately). */
 const FAILURE_STATUSES: ReadonlySet<string> = new Set(['Failed', 'Cancelled', 'Timeout']);
+const DEFAULT_QUERY_RESULTS_PAGE_SIZE = 10_000;
+const DEFAULT_QUERY_RESULTS_MAX_PAGES = 10;
 
 const RECOVERABLE_PROFILE_ERROR_NAMES: ReadonlySet<string> = new Set([
   'AccessDeniedException',
@@ -32,6 +34,16 @@ export interface AWSCloudWatchLogsQueryOptions {
   readonly signal?: AbortSignal;
   /** Override max poll attempts (default from `GOPollingPolicies.cloudWatchLogsQuery()`). */
   readonly maxPollAttempts?: number;
+  /**
+   * When true, fetch every available GetQueryResults page for a completed
+   * CloudWatch Logs Insights query. Disabled by default to preserve the
+   * previous single-page behaviour for existing scripts.
+   */
+  readonly paginateResults?: boolean;
+  /** Page size for paginated GetQueryResults calls. Default and max: 10,000. */
+  readonly queryResultsPageSize?: number;
+  /** Safety cap for paginated GetQueryResults calls. Default: 10 pages (100,000 rows max). */
+  readonly maxResultPages?: number;
   /**
    * Log group resolution strategy.
    *
@@ -174,28 +186,25 @@ export class AWSCloudWatchLogsService {
     return poller.poll<AWSCloudWatchLogsQueryResult>(async () => {
       let response;
       try {
-        response = await client.send(new GetQueryResultsCommand({ queryId }));
+        response = await client.send(
+          new GetQueryResultsCommand({
+            queryId,
+            ...(options.paginateResults === true ? { maxItems: resolveQueryResultsPageSize(options) } : {}),
+          }),
+        );
       } catch (error: unknown) {
         throw this.wrapAwsError('GetQueryResults', profile, queryId, error);
       }
 
       const status = response.status;
       if (status === 'Complete') {
-        const statistics = normalizeQueryStatistics(response.statistics);
+        const queryResult =
+          options.paginateResults === true
+            ? await this.collectCompleteQueryResults(client, profile, queryId, logGroups, response, options)
+            : this.buildSinglePageQueryResult(queryId, profile, logGroups, response);
         return {
           type: 'success',
-          value: {
-            rows: response.results ?? [],
-            statistics,
-            queryExecutions: [
-              {
-                queryId,
-                profile,
-                logGroups: [...logGroups],
-                statistics,
-              },
-            ],
-          },
+          value: queryResult,
         };
       }
       if (status !== undefined && FAILURE_STATUSES.has(status)) {
@@ -208,6 +217,87 @@ export class AWSCloudWatchLogsService {
       // Scheduled | Running | Unknown → continue.
       return { type: 'continue', ...(status !== undefined ? { reason: status } : {}) };
     });
+  }
+
+  private buildSinglePageQueryResult(
+    queryId: string,
+    profile: string,
+    logGroups: ReadonlyArray<string>,
+    response: GetQueryResultsCommandOutput,
+  ): AWSCloudWatchLogsQueryResult {
+    const statistics = normalizeQueryStatistics(response.statistics);
+    return {
+      rows: response.results ?? [],
+      statistics,
+      queryExecutions: [
+        {
+          queryId,
+          profile,
+          logGroups: [...logGroups],
+          statistics,
+        },
+      ],
+    };
+  }
+
+  private async collectCompleteQueryResults(
+    client: CloudWatchLogsClient,
+    profile: string,
+    queryId: string,
+    logGroups: ReadonlyArray<string>,
+    firstPage: GetQueryResultsCommandOutput,
+    options: AWSCloudWatchLogsQueryOptions,
+  ): Promise<AWSCloudWatchLogsQueryResult> {
+    const rows: ResultField[][] = [...(firstPage.results ?? [])];
+    const pageSize = resolveQueryResultsPageSize(options);
+    const maxPages = resolveMaxResultPages(options);
+    let statistics = normalizeQueryStatistics(firstPage.statistics);
+    let nextToken = firstPage.nextToken;
+    let pageCount = 1;
+    const seenTokens = new Set<string>();
+
+    while (nextToken !== undefined) {
+      if (seenTokens.has(nextToken)) {
+        throw new Error(`CloudWatch Logs GetQueryResults returned a repeated nextToken for queryId ${queryId}`);
+      }
+      seenTokens.add(nextToken);
+
+      if (pageCount >= maxPages) {
+        throw new Error(`CloudWatch Logs GetQueryResults exceeded ${maxPages} pages for queryId ${queryId}`);
+      }
+
+      let page;
+      try {
+        page = await client.send(new GetQueryResultsCommand({ queryId, nextToken, maxItems: pageSize }));
+      } catch (error: unknown) {
+        throw this.wrapAwsError('GetQueryResults', profile, queryId, error);
+      }
+
+      if (page.status !== 'Complete') {
+        const status = page.status ?? 'Unknown';
+        throw new Error(
+          `CloudWatch Logs GetQueryResults returned status ${status} while paginating queryId ${queryId}`,
+        );
+      }
+
+      rows.push(...(page.results ?? []));
+      statistics = normalizeQueryStatistics(page.statistics ?? firstPage.statistics);
+      nextToken = page.nextToken;
+      pageCount += 1;
+    }
+
+    return {
+      rows,
+      statistics,
+      queryExecutions: [
+        {
+          queryId,
+          profile,
+          logGroups: [...logGroups],
+          statistics,
+        },
+      ],
+    };
   }
 
   private validateInput(logGroups: ReadonlyArray<string>, query: string, timeRange: AWSCloudWatchLogsTimeRange): void {
@@ -375,6 +465,26 @@ function optionalFinite<TKey extends keyof AWSCloudWatchLogsQueryStatistics>(
   return typeof value === 'number' && Number.isFinite(value)
     ? ({ [key]: value } as Pick<AWSCloudWatchLogsQueryStatistics, TKey>)
     : {};
+}
+
+function resolveQueryResultsPageSize(options: AWSCloudWatchLogsQueryOptions): number {
+  const requested = options.queryResultsPageSize ?? DEFAULT_QUERY_RESULTS_PAGE_SIZE;
+  if (!Number.isInteger(requested) || requested < 1 || requested > DEFAULT_QUERY_RESULTS_PAGE_SIZE) {
+    throw new Error(
+      `CloudWatch Logs queryResultsPageSize must be an integer between 1 and ${DEFAULT_QUERY_RESULTS_PAGE_SIZE}`,
+    );
+  }
+  return requested;
+}
+
+function resolveMaxResultPages(options: AWSCloudWatchLogsQueryOptions): number {
+  const requested = options.maxResultPages ?? DEFAULT_QUERY_RESULTS_MAX_PAGES;
+  if (!Number.isInteger(requested) || requested < 1 || requested > DEFAULT_QUERY_RESULTS_MAX_PAGES) {
+    throw new Error(
+      `CloudWatch Logs maxResultPages must be an integer between 1 and ${DEFAULT_QUERY_RESULTS_MAX_PAGES}`,
+    );
+  }
+  return requested;
 }
 
 function sortRowsByTimestamp(

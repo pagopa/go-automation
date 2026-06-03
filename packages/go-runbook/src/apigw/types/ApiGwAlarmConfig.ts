@@ -61,6 +61,11 @@ export interface ApiGwAlarmConfig {
    */
   readonly minStatusCode?: number;
   /**
+   * Abilita la paginazione opzionale dei risultati della query AccessLog.
+   * Default `false` per preservare il comportamento legacy.
+   */
+  readonly paginateAccessLogResults?: boolean;
+  /**
    * Entry service: il primo microservizio analizzato per qualunque trace
    * sopravvissuto al parsing del API Gateway. Obbligatorio.
    */

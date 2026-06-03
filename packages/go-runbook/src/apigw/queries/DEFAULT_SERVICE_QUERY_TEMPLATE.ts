@@ -19,4 +19,5 @@
  */
 export const DEFAULT_SERVICE_QUERY_TEMPLATE = `{{FILTER_CLAUSE}}
 | filter level == 'ERROR'
+| limit 1000
 | display @timestamp, level, ms, @message, trace_id`;

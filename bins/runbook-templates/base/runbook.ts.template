@@ -1,0 +1,43 @@
+/**
+ * Runbook: {{RUNBOOK_ID}}
+ */
+
+import { RunbookBuilder, log, logAction } from '@go-automation/go-runbook';
+import type { Runbook } from '@go-automation/go-runbook';
+
+/**
+ * Builds the {{RUNBOOK_ID}} runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
+export function {{BUILDER_NAME}}(): Runbook {
+  return (
+    RunbookBuilder.create('{{RUNBOOK_ID}}')
+      .metadata({
+        name: '{{METADATA_NAME}}',
+        description: '{{METADATA_DESCRIPTION}}',
+        version: '{{METADATA_VERSION}}',
+        type: 'alarm-resolution',
+        team: '{{METADATA_TEAM}}',
+        tags: {{METADATA_TAGS}},
+      })
+      // TODO: add data/check/transform steps, e.g. .step(new CloudWatchLogsQueryStep({ ... })).
+      // A runbook needs at least one step and a fallback action to build.
+      .step(
+        log({
+          id: 'start',
+          label: 'Avvio analisi {{RUNBOOK_ID}}',
+          level: 'info',
+          message: 'TODO: implementare gli step di analisi per {{RUNBOOK_ID}}',
+        }),
+      )
+      // TODO: add known cases with .knownCase({ id, description, priority, condition, action }).
+      .fallback(
+        logAction({
+          level: 'warn',
+          message: '[{{RUNBOOK_ID}}] Nessun caso noto: analisi da completare.',
+        }),
+      )
+      .build()
+  );
+}

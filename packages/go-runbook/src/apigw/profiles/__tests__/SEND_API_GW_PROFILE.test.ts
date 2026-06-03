@@ -13,6 +13,14 @@ describe('SEND_API_GW_PROFILE', () => {
       assert.match(SEND_API_GW_PROFILE.accessLog.query, /\{\{minStatusCode\}\}/);
     });
 
+    it('orders higher status classes first and returns a single 1000-row block', () => {
+      assert.match(
+        SEND_API_GW_PROFILE.accessLog.query,
+        /\| sort status desc, authorizerStatus desc, integrationServiceStatus desc, @timestamp asc/,
+      );
+      assert.match(SEND_API_GW_PROFILE.accessLog.query, /\| limit 1000/);
+    });
+
     it('scans status, authorizerStatus and integrationServiceStatus in this order', () => {
       assert.deepStrictEqual(SEND_API_GW_PROFILE.accessLog.schema.statusFields, [
         'status',
@@ -69,6 +77,10 @@ describe('SEND_API_GW_PROFILE', () => {
       assert.strictEqual(SEND_API_GW_PROFILE.serviceLog.fallbackPredicateTemplate, `@message like '{{VALUE}}'`);
     });
 
+    it('returns at most 1000 service log rows', () => {
+      assert.match(SEND_API_GW_PROFILE.serviceLog.queryTemplate, /\| limit 1000/);
+    });
+
     it('declares messageFieldCandidates with message before @message', () => {
       assert.deepStrictEqual(SEND_API_GW_PROFILE.serviceLog.schema.messageFieldCandidates, ['message', '@message']);
     });
@@ -85,6 +97,10 @@ describe('SEND_API_GW_PROFILE', () => {
 
     it('uses @message like for requestId predicate', () => {
       assert.strictEqual(SEND_API_GW_PROFILE.executionLog?.requestIdPredicateTemplate, `@message like '{{VALUE}}'`);
+    });
+
+    it('returns at most 1000 execution log rows', () => {
+      assert.match(SEND_API_GW_PROFILE.executionLog?.queryTemplate ?? '', /\| limit 1000/);
     });
 
     it('limits the OR clause to 50 requestIds', () => {

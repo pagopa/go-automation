@@ -107,6 +107,37 @@ describe('parseApiGwErrors', () => {
     assert.strictEqual(result.vars?.['apiGwStatusCode'], '503');
   });
 
+  it('uses the highest status row as primary diagnostic when 4xx and 5xx rows are mixed', async () => {
+    const step = parseApiGwErrors({
+      id: 'parse',
+      label: 'Parse',
+      fromStep: 'query-api-gw-logs',
+      minStatusCode: 400,
+    });
+    const ctx = createContext([
+      buildRow({
+        status: '403',
+        xrayTraceId: 'Root=1-403',
+        errorMessage: 'Forbidden',
+        path: '/forbidden',
+      }),
+      buildRow({
+        status: '500',
+        xrayTraceId: 'Root=1-500',
+        errorMessage: 'Internal server error',
+        path: '/server-error',
+      }),
+    ]);
+
+    const result = await step.execute(ctx);
+
+    assert.strictEqual(result.vars?.['apiGwErrorCount'], '2');
+    assert.strictEqual(result.vars?.['apiGwStatusCode'], '500');
+    assert.strictEqual(result.vars?.['xRayTraceId'], '1-500');
+    assert.strictEqual(result.vars?.['apiGwErrorMessage'], 'Internal server error');
+    assert.strictEqual(result.vars?.['apiGwPath'], '/server-error');
+  });
+
   it('keeps rows whose only error signal is on authorizerStatus or integrationServiceStatus', async () => {
     const step = parseApiGwErrors({ id: 'parse', label: 'Parse', fromStep: 'query-api-gw-logs' });
     // status='-', authorizerStatus='500' -> should still count as an error row
@@ -128,8 +159,8 @@ describe('parseApiGwErrors', () => {
     assert.strictEqual(result.success, true);
     assert.notStrictEqual(result.next, 'stop');
     assert.strictEqual(result.vars?.['apiGwErrorCount'], '2');
-    // `apiGwStatusCode` falls back to authorizerStatus when status='-'.
-    assert.strictEqual(result.vars?.['apiGwStatusCode'], '500');
+    // With severity ordering, the 503 integration error becomes the primary diagnostic.
+    assert.strictEqual(result.vars?.['apiGwStatusCode'], '503');
   });
 
   it('apiGwStatusCode falls back to integrationServiceStatus when status and authorizerStatus are both "-"', async () => {

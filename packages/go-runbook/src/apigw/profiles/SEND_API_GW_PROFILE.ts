@@ -9,7 +9,8 @@ import type { ApiGwQueryProfile } from './ApiGwQueryProfile.js';
  * lasciare `status='-'` ma comunque costituire un errore.
  */
 const SEND_ACCESS_LOG_QUERY = `filter status >= {{minStatusCode}} or authorizerStatus >= {{minStatusCode}} or integrationServiceStatus >= {{minStatusCode}}
-| sort @timestamp asc
+| sort status desc, authorizerStatus desc, integrationServiceStatus desc, @timestamp asc
+| limit 1000
 | display @timestamp, xrayTraceId, requestId, authorizerRequestId, integrationRequestId, errorMessage, httpMethod, path, authorizerStatus, authorizerLatency, integrationServiceStatus, status`;
 
 /**
@@ -22,6 +23,7 @@ const SEND_ACCESS_LOG_QUERY = `filter status >= {{minStatusCode}} or authorizerS
  */
 const SEND_SERVICE_LOG_QUERY_TEMPLATE = `{{FILTER_CLAUSE}}
 | filter level == 'ERROR'
+| limit 1000
 | display @timestamp, level, ms, @message, trace_id`;
 
 /**
@@ -34,6 +36,7 @@ const SEND_SERVICE_LOG_QUERY_TEMPLATE = `{{FILTER_CLAUSE}}
  */
 const SEND_EXECUTION_LOG_QUERY_TEMPLATE = `{{REQUEST_ID_FILTER_CLAUSE}}
 | sort @timestamp asc
+| limit 1000
 | display @timestamp, @message`;
 
 /**

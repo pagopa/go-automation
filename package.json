@@ -33,6 +33,8 @@
     "check:new-class-tests:test": "node --import tsx/esm --test 'bins/check-new-class-tests/src/**/*.test.ts'",
     "clean": "pnpm -r run clean",
     "clean:all": "pnpm clean && pnpm -r exec rm -rf node_modules && rm -rf node_modules",
+    "create:runbook": "tsx bins/create-runbook/src/index.ts",
+    "create:runbook:test": "node --import tsx/esm --test 'bins/create-runbook/src/**/*.test.ts'",
     "format": "prettier --write \"**/*.{ts,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
     "go": "pnpm --filter=@go-automation/go-cli dev",
@@ -108,6 +110,7 @@
   },
   "devDependencies": {
     "@eslint/js": "catalog:",
+    "@inquirer/prompts": "catalog:",
     "@types/node": "catalog:",
     "@typescript-eslint/eslint-plugin": "catalog:",
     "@typescript-eslint/parser": "catalog:",
