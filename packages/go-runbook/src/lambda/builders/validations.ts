@@ -12,7 +12,7 @@ function fail(config: LambdaAlarmConfig, message: string): never {
 /**
  * Deterministic set of step ids wired into the Lambda pipeline for a config.
  */
-export function computeWiredStepIds(config: LambdaAlarmConfig): ReadonlySet<string> {
+function computeWiredStepIds(config: LambdaAlarmConfig): ReadonlySet<string> {
   const ids = new Set<string>([
     'prepare-lambda-section',
     'query-lambda-errors',
@@ -34,7 +34,7 @@ export function computeWiredStepIds(config: LambdaAlarmConfig): ReadonlySet<stri
  * placeholder: without it the invocation/downstream queries cannot filter
  * by requestId and would scan the whole window.
  */
-export function validateInvocationPlaceholder(config: LambdaAlarmConfig, profile: LambdaQueryProfile): void {
+function validateInvocationPlaceholder(config: LambdaAlarmConfig, profile: LambdaQueryProfile): void {
   if (!profile.invocationQueryTemplate.includes(REQUEST_ID_PLACEHOLDER)) {
     fail(
       config,
@@ -49,7 +49,7 @@ export function validateInvocationPlaceholder(config: LambdaAlarmConfig, profile
  * names, valid regexes, and pattern targets that point to a declared
  * downstream.
  */
-export function validateDownstreams(config: LambdaAlarmConfig): void {
+function validateDownstreams(config: LambdaAlarmConfig): void {
   const downstreamNames = new Set<string>();
   for (const downstream of config.downstreams ?? []) {
     if (downstream.name.trim() === '') {
@@ -79,7 +79,7 @@ export function validateDownstreams(config: LambdaAlarmConfig): void {
  * Fail-fast on step-id collisions: duplicate/reserved preStep ids and
  * downstream query ids that collide with reserved pipeline ids.
  */
-export function validateNoStepIdCollisions(config: LambdaAlarmConfig): void {
+function validateNoStepIdCollisions(config: LambdaAlarmConfig): void {
   const reserved = computeWiredStepIds({ ...config, preSteps: [], downstreams: [] });
   const seenPreStepIds = new Set<string>();
   for (const descriptor of config.preSteps ?? []) {
@@ -140,7 +140,7 @@ function collectStepRefs(condition: Condition, into: Set<string>): void {
  * Fail-fast when a known case condition references a `steps.X` step that is
  * not wired in this runbook (typically a typo or a missing downstream).
  */
-export function validateKnownCaseStepRefs(config: LambdaAlarmConfig): void {
+function validateKnownCaseStepRefs(config: LambdaAlarmConfig): void {
   const wired = computeWiredStepIds(config);
   for (const knownCase of config.knownCases) {
     const refs = new Set<string>();
