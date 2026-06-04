@@ -118,12 +118,7 @@ describe('lambda runbook known cases', () => {
       operator: '==',
       value: 'timeout',
     });
-    assert.ok(
-      matchesSomeCase(
-        API_KEY_AUTHORIZER_CASES,
-        'Error in get key AxiosError: read ECONNRESET',
-      ),
-    );
+    assert.ok(matchesSomeCase(API_KEY_AUTHORIZER_CASES, 'Error in get key AxiosError: read ECONNRESET'));
   });
 
   it('builds the lambda runbooks without validation errors', () => {
