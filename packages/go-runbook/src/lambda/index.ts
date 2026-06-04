@@ -23,6 +23,7 @@ export * from './builders/index.js';
 export * from './steps/index.js';
 export * from './reporting/index.js';
 export * from './output/index.js';
+export { LAMBDA_RUNTIME_KNOWN_CASES } from './knownCases/LAMBDA_RUNTIME_KNOWN_CASES.js';
 
 // Profiles & queries
 export type { LambdaQueryProfile } from './profiles/LambdaQueryProfile.js';

@@ -113,7 +113,7 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
     );
   }
 
-  // 7. Known cases (no built-in: declared by the runbook).
+  // 7. Known cases declared by the runbook.
   for (const knownCase of config.knownCases) {
     builder.knownCase(knownCase);
   }
