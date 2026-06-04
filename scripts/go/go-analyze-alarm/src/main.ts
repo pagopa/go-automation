@@ -19,6 +19,7 @@ import { buildTokenExchangeLambdaRunbook } from './libs/runbooks/pn-tokenExchang
 import { buildSlaViolationCheckerLambdaSqsRunbook } from './libs/runbooks/pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm/runbook.js';
 import { buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook } from './libs/runbooks/pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook } from './libs/runbooks/pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm/runbook.js';
+import { buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook } from './libs/runbooks/pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm/runbook.js';
 
 import { DEFAULT_TIME_WINDOW_MINUTES } from './libs/runbooks/constants.js';
 import { createServiceRegistry } from './libs/createServiceRegistry.js';
@@ -41,6 +42,10 @@ const RUNBOOK_REGISTRY = new Map<string, () => Runbook>([
     buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook,
   ],
   ['pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm', buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook],
+  [
+    'pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm',
+    buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook,
+  ],
 ]);
 
 /**

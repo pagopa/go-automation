@@ -8,11 +8,13 @@ import { KNOWN_CASES as IO_AUTHORIZER_CASES } from '../pn-ioAuthorizerLambda-Log
 import { KNOWN_CASES as SLA_CASES } from '../pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm/knownCases.js';
 import { KNOWN_CASES as JWKS_CACHE_REFRESH_CASES } from '../pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm/knownCases.js';
 import { KNOWN_CASES as API_KEY_AUTHORIZER_CASES } from '../pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm/knownCases.js';
+import { KNOWN_CASES as DELIVERY_INSERT_TRIGGER_EB_CASES } from '../pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm/knownCases.js';
 import { buildTokenExchangeLambdaRunbook } from '../pn-tokenExchangeLambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildIoAuthorizerLambdaRunbook } from '../pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildSlaViolationCheckerLambdaSqsRunbook } from '../pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm/runbook.js';
 import { buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook } from '../pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook } from '../pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm/runbook.js';
+import { buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook } from '../pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm/runbook.js';
 
 /** Collects every regex string referenced by a condition tree. */
 function collectRegexes(condition: Condition): ReadonlyArray<string> {
@@ -121,11 +123,26 @@ describe('lambda runbook known cases', () => {
     assert.ok(matchesSomeCase(API_KEY_AUTHORIZER_CASES, 'Error in get key AxiosError: read ECONNRESET'));
   });
 
+  it('keeps a document-specific timeout case for pn-delivery-insert-trigger-eb-lambda', () => {
+    const timeout = DELIVERY_INSERT_TRIGGER_EB_CASES.find(
+      (knownCase) => knownCase.id === 'delivery-insert-trigger-eb-timeout-single-occurrence',
+    );
+    assert.ok(timeout !== undefined);
+    assert.strictEqual(timeout.priority, 110);
+    assert.deepStrictEqual(timeout.condition, {
+      type: 'compare',
+      ref: 'vars.lambdaErrorCategory',
+      operator: '==',
+      value: 'timeout',
+    });
+  });
+
   it('builds the lambda runbooks without validation errors', () => {
     assert.doesNotThrow(() => buildTokenExchangeLambdaRunbook());
     assert.doesNotThrow(() => buildIoAuthorizerLambdaRunbook());
     assert.doesNotThrow(() => buildSlaViolationCheckerLambdaSqsRunbook());
     assert.doesNotThrow(() => buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook());
     assert.doesNotThrow(() => buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook());
+    assert.doesNotThrow(() => buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook());
   });
 });
