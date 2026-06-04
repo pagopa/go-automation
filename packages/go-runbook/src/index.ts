@@ -137,3 +137,6 @@ export { RunbookBuilder } from './builders/RunbookBuilder.js';
 
 // API Gateway runbook toolkit
 export * as apigw from './apigw/index.js';
+
+// Lambda runbook toolkit
+export * as lambda from './lambda/index.js';

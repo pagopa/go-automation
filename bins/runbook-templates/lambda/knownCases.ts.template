@@ -1,0 +1,22 @@
+/**
+ * Known cases for the {{RUNBOOK_ID}} runbook.
+ */
+
+import { lambda } from '@go-automation/go-runbook';
+import type { KnownCase } from '@go-automation/go-runbook';
+
+export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
+  ...lambda.LAMBDA_RUNTIME_KNOWN_CASES,
+  // add alarm-specific cases here, e.g.:
+  // {
+  //   id: 'example-specific-error',
+  //   description: 'Allarme',
+  //   priority: 50,
+  //   condition: { type: 'contains', ref: 'steps.query-lambda-invocation', regex: 'some error pattern' },
+  //   action: {
+  //     type: 'log',
+  //     level: 'info',
+  //     message: '[CASO NOTO] ...\n' + 'Risoluzione: Chiusura - caso noto\n',
+  //   },
+  // },
+];

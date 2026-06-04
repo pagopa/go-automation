@@ -6,7 +6,7 @@
  */
 
 import { Core } from '@go-automation/go-common';
-import { RunbookEngine, ConditionEvaluator, apigw } from '@go-automation/go-runbook';
+import { RunbookEngine, ConditionEvaluator, apigw, lambda } from '@go-automation/go-runbook';
 import type { Runbook, ExecutionEnvironment } from '@go-automation/go-runbook';
 
 import type { GoAnalyzeAlarmConfig } from './types/GoAnalyzeAlarmConfig.js';
@@ -14,6 +14,12 @@ import { buildAddressBookIoApiGwAlarmRunbook } from './libs/runbooks/pn-address-
 import { buildDeliveryB2BApiGwAlarmRunbook } from './libs/runbooks/pn-delivery-B2B-ApiGwAlarm/runbook.js';
 import { buildDeliveryIoExpApiGwAlarmRunbook } from './libs/runbooks/pn-delivery-IO_EXP-ApiGwAlarm/runbook.js';
 import { buildDeliveryPushB2BApiGwAlarmRunbook } from './libs/runbooks/pn-delivery-push-B2B-ApiGwAlarm/runbook.js';
+import { buildIoAuthorizerLambdaRunbook } from './libs/runbooks/pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
+import { buildTokenExchangeLambdaRunbook } from './libs/runbooks/pn-tokenExchangeLambda-LogInvocationErrors-Alarm/runbook.js';
+import { buildSlaViolationCheckerLambdaSqsRunbook } from './libs/runbooks/pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm/runbook.js';
+import { buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook } from './libs/runbooks/pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm/runbook.js';
+import { buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook } from './libs/runbooks/pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm/runbook.js';
+import { buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook } from './libs/runbooks/pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm/runbook.js';
 
 import { DEFAULT_TIME_WINDOW_MINUTES } from './libs/runbooks/constants.js';
 import { createServiceRegistry } from './libs/createServiceRegistry.js';
@@ -28,6 +34,18 @@ const RUNBOOK_REGISTRY = new Map<string, () => Runbook>([
   ['pn-delivery-B2B-ApiGwAlarm', buildDeliveryB2BApiGwAlarmRunbook],
   ['pn-delivery-IO_EXP-ApiGwAlarm', buildDeliveryIoExpApiGwAlarmRunbook],
   ['pn-delivery-push-B2B-ApiGwAlarm', buildDeliveryPushB2BApiGwAlarmRunbook],
+  ['pn-ioAuthorizerLambda-LogInvocationErrors-Alarm', buildIoAuthorizerLambdaRunbook],
+  ['pn-tokenExchangeLambda-LogInvocationErrors-Alarm', buildTokenExchangeLambdaRunbook],
+  ['pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm', buildSlaViolationCheckerLambdaSqsRunbook],
+  [
+    'pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm',
+    buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook,
+  ],
+  ['pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm', buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook],
+  [
+    'pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm',
+    buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook,
+  ],
 ]);
 
 /**
@@ -92,13 +110,18 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   const result = await engine.execute(runbook, params, services, environment);
 
-  // Closing API Gateway banner (consistent with the engine's final
-  // case-match outcome — decide-<service> only stores the raw data).
-  apigw.renderApiGwFinalSummary({
+  // Closing banner: dispatch by runbook kind (API Gateway vs Lambda),
+  // consistent with the engine's final case-match outcome.
+  const finalSummaryInput = {
     logger: script.logger,
     matchedCaseIds: result.matchedCases.map((c) => c.id),
     vars: result.finalContext.vars,
-  });
+  };
+  if (lambda.isLambdaRunbookContext(runbook.runbookContext)) {
+    lambda.renderLambdaFinalSummary(finalSummaryInput);
+  } else {
+    apigw.renderApiGwFinalSummary(finalSummaryInput);
+  }
 
   // Display results
   script.logger.section('Runbook Result');
