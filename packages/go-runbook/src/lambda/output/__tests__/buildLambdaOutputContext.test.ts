@@ -64,4 +64,26 @@ describe('buildLambdaOutputContext', () => {
     assert.ok(ctx.fields.some((field) => field.name === 'lambda' && field.value === 'pn-fooLambda'));
     assert.ok(ctx.evidence.some((evidence) => evidence.id === 'lambda-recent-errors'));
   });
+
+  it('surfaces configuredTimeoutMs in details.lambda when configured', () => {
+    const runbook = createLambdaAlarmRunbook({
+      id: 'pn-fooLambda-LogInvocationErrors-Alarm',
+      metadata: { name: 'x', description: '', version: '1.0.0', type: 'alarm-resolution', team: 'GO', tags: [] },
+      lambda: {
+        name: 'pn-fooLambda',
+        logGroup: '/aws/lambda/pn-fooLambda',
+        varPrefix: 'foo',
+        configuredTimeoutMs: 15000,
+      },
+      knownCases: [],
+    });
+
+    const ctx = buildLambdaOutputContext(
+      runbook,
+      fakeResult(new Map([['lambdaFunctionName', 'pn-fooLambda']]), new Map(), new Map()),
+    );
+    assert.ok(ctx !== undefined);
+    const details = ctx.details as { readonly lambda: { readonly configuredTimeoutMs?: number } };
+    assert.strictEqual(details.lambda.configuredTimeoutMs, 15000);
+  });
 });

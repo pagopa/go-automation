@@ -25,6 +25,7 @@ describe('createLambdaAlarmRunbook', () => {
       'query-lambda-errors',
       'parse-lambda-errors',
       'query-lambda-invocation',
+      'analyze-lambda-invocation',
     ]);
   });
 
@@ -47,5 +48,61 @@ describe('createLambdaAlarmRunbook', () => {
   it('uses a default log fallback when none is provided', () => {
     const runbook = createLambdaAlarmRunbook(baseConfig());
     assert.strictEqual(runbook.fallbackAction.type, 'log');
+  });
+
+  it('rejects a downstream error pattern with an invalid regex', () => {
+    assert.throws(
+      () =>
+        createLambdaAlarmRunbook(
+          baseConfig({
+            downstreams: [{ name: 'pn-x', varPrefix: 'x' }],
+            downstreamErrorPatterns: [{ pattern: '([', target: 'pn-x' }],
+          }),
+        ),
+      /not a valid regex/,
+    );
+  });
+
+  it('rejects a downstream pattern targeting an undeclared downstream', () => {
+    assert.throws(
+      () =>
+        createLambdaAlarmRunbook(baseConfig({ downstreamErrorPatterns: [{ pattern: 'boom', target: 'pn-missing' }] })),
+      /not a declared downstream/,
+    );
+  });
+
+  it('rejects a duplicate downstream name', () => {
+    assert.throws(
+      () =>
+        createLambdaAlarmRunbook(
+          baseConfig({
+            downstreams: [
+              { name: 'pn-x', varPrefix: 'x' },
+              { name: 'pn-x', varPrefix: 'x2' },
+            ],
+          }),
+        ),
+      /declared more than once/,
+    );
+  });
+
+  it('rejects a known case referencing a non-wired step', () => {
+    assert.throws(
+      () =>
+        createLambdaAlarmRunbook(
+          baseConfig({
+            knownCases: [
+              {
+                id: 'k',
+                description: 'd',
+                priority: 1,
+                condition: { type: 'contains', ref: 'steps.query-nope', regex: 'x' },
+                action: { type: 'log', level: 'info', message: 'm' },
+              },
+            ],
+          }),
+        ),
+      /not wired/,
+    );
   });
 });

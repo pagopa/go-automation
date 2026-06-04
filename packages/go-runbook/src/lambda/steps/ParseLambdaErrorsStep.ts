@@ -8,7 +8,7 @@ import { readStepOutput } from '../../steps/data/readStepOutput.js';
 import type { DownstreamErrorPattern } from '../types/DownstreamErrorPattern.js';
 import { scanLambdaLogs } from '../helpers/scanLambdaLogs.js';
 import type { LambdaErrorScan } from '../helpers/scanLambdaLogs.js';
-import { matchDownstreamErrorPattern } from '../helpers/matchDownstreamErrorPattern.js';
+import { findDownstreamInRows } from '../helpers/matchDownstreamErrorPattern.js';
 import { LambdaReporter } from '../reporting/LambdaReporter.js';
 
 /**
@@ -52,7 +52,9 @@ class ParseLambdaErrorsStepImpl implements Step<LambdaErrorScan> {
       };
     }
 
-    const downstreamTarget = matchDownstreamErrorPattern(scan.message, this.downstreamErrorPatterns);
+    // Match downstream patterns against ALL scan rows, not just the
+    // representative message: the routing signal may be on a later row.
+    const downstreamTarget = findDownstreamInRows(upstream.value, this.downstreamErrorPatterns)?.target;
 
     const vars: Record<string, string> = {
       lambdaErrorCount: String(scan.errorCount),

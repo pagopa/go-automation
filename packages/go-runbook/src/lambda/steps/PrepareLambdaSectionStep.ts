@@ -13,6 +13,7 @@ export interface PrepareLambdaSectionConfig {
   readonly lambdaName: string;
   readonly logGroup: string;
   readonly eventSource?: string;
+  readonly configuredTimeoutMs?: number;
 }
 
 class PrepareLambdaSectionStepImpl implements Step<undefined> {
@@ -23,6 +24,7 @@ class PrepareLambdaSectionStepImpl implements Step<undefined> {
   private readonly lambdaName: string;
   private readonly logGroup: string;
   private readonly eventSource: string;
+  private readonly configuredTimeoutMs: number | undefined;
 
   constructor(config: PrepareLambdaSectionConfig) {
     this.id = config.id;
@@ -30,6 +32,7 @@ class PrepareLambdaSectionStepImpl implements Step<undefined> {
     this.lambdaName = config.lambdaName;
     this.logGroup = config.logGroup;
     this.eventSource = config.eventSource ?? '';
+    this.configuredTimeoutMs = config.configuredTimeoutMs;
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -43,6 +46,9 @@ class PrepareLambdaSectionStepImpl implements Step<undefined> {
         lambdaFunctionName: this.lambdaName,
         lambdaLogGroup: this.logGroup,
         lambdaEventSource: this.eventSource,
+        ...(this.configuredTimeoutMs !== undefined
+          ? { lambdaConfiguredTimeoutMs: String(this.configuredTimeoutMs) }
+          : {}),
       },
     };
   }
@@ -50,8 +56,9 @@ class PrepareLambdaSectionStepImpl implements Step<undefined> {
 
 /**
  * Factory: prints the Lambda preparation banner and seeds the canonical
- * `lambdaFunctionName` / `lambdaLogGroup` / `lambdaEventSource` vars so they
- * are available even when the error scan returns no rows.
+ * `lambdaFunctionName` / `lambdaLogGroup` / `lambdaEventSource` vars (and
+ * `lambdaConfiguredTimeoutMs` when configured) so they are available even
+ * when the error scan returns no rows.
  *
  * @param config - Step configuration
  * @returns Step that emits the section header

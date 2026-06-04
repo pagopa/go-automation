@@ -7,6 +7,7 @@ import type { LambdaAlarmConfig } from '../types/LambdaAlarmConfig.js';
 import { prepareLambdaSection } from '../steps/PrepareLambdaSectionStep.js';
 import { parseLambdaErrors } from '../steps/ParseLambdaErrorsStep.js';
 import { queryLambdaInvocation } from '../steps/QueryLambdaInvocationStep.js';
+import { analyzeLambdaInvocation } from '../steps/AnalyzeLambdaInvocationStep.js';
 import { queryDownstreamLogs } from '../steps/QueryDownstreamLogsStep.js';
 import { resolveLambdaAlarmBuildContext } from './resolveLambdaAlarmBuildContext.js';
 import { defaultLambdaUnknownCaseFallback } from './defaultUnknownCaseFallback.js';
@@ -34,6 +35,9 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
       lambdaName: config.lambda.name,
       logGroup: config.lambda.logGroup,
       ...(config.lambda.eventSource !== undefined ? { eventSource: config.lambda.eventSource } : {}),
+      ...(config.lambda.configuredTimeoutMs !== undefined
+        ? { configuredTimeoutMs: config.lambda.configuredTimeoutMs }
+        : {}),
     }),
     { silent: true },
   );
@@ -71,6 +75,18 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
       lambdaLogGroup: config.lambda.logGroup,
       queryTemplate: ctx.profile.invocationQueryTemplate,
       timeRangeFromParams: TIME_RANGE,
+    }),
+    { silent: true },
+  );
+
+  // 4b. Refine downstream routing from the full invocation flow (the routing
+  // signal may appear only in the reconstructed flow, not in the error scan).
+  builder.step(
+    analyzeLambdaInvocation({
+      id: 'analyze-lambda-invocation',
+      label: 'Analisi flusso invocazione',
+      fromStep: 'query-lambda-invocation',
+      downstreamErrorPatterns: ctx.downstreamErrorPatterns,
     }),
     { silent: true },
   );

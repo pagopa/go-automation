@@ -5,6 +5,7 @@ import type { DownstreamErrorPattern } from '../types/DownstreamErrorPattern.js'
 import type { LambdaQueryProfile } from '../profiles/LambdaQueryProfile.js';
 import type { LambdaRunbookContext } from '../output/LambdaRunbookContext.js';
 import { SEND_LAMBDA_PROFILE } from '../profiles/SEND_LAMBDA_PROFILE.js';
+import { validateLambdaAlarmConfig } from './validations.js';
 
 /** Resolved build context for {@link createLambdaAlarmRunbook}. */
 export interface LambdaAlarmBuildContext {
@@ -25,6 +26,7 @@ export interface LambdaAlarmBuildContext {
  */
 export function resolveLambdaAlarmBuildContext(config: LambdaAlarmConfig): LambdaAlarmBuildContext {
   const profile = config.queryProfile ?? SEND_LAMBDA_PROFILE;
+  validateLambdaAlarmConfig(config, profile);
   const downstreams = config.downstreams ?? [];
   const runbookContext: LambdaRunbookContext = {
     kind: 'lambda',

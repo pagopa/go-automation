@@ -28,6 +28,7 @@ export interface LambdaOutputContext {
     readonly functionName: string;
     readonly logGroup: string;
     readonly eventSource?: string;
+    readonly configuredTimeoutMs?: number;
     readonly errorCount?: number;
     readonly requestId?: string;
     readonly errorCategory?: string;

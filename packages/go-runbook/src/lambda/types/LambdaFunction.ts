@@ -18,10 +18,12 @@ export interface LambdaFunction {
   /**
    * Configured Lambda timeout in milliseconds, optional.
    *
-   * There is no AWS Lambda service in the runbook `ServiceRegistry`, so
-   * the runbook never calls `GetFunctionConfiguration`: timeout/memory are
-   * inferred from the `REPORT` log line. This value, when provided, only
-   * enriches the timeout case (e.g. comparing the observed `Duration`).
+   * There is no AWS Lambda service in the runbook `ServiceRegistry`, so the
+   * runbook never calls `GetFunctionConfiguration`: timeout/memory are
+   * inferred from the `REPORT` log line. When provided, this value is
+   * propagated to the `lambdaConfiguredTimeoutMs` var (so timeout known cases
+   * can reference it) and to `details.lambda.configuredTimeoutMs` in the
+   * result output, to compare against the observed `Duration`.
    */
   readonly configuredTimeoutMs?: number;
 }

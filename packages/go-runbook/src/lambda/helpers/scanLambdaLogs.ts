@@ -26,6 +26,19 @@ function isRuntimeLine(message: string): boolean {
 }
 
 /**
+ * Returns the first non-empty CloudWatch Logs Insights `@requestId` field
+ * across the rows. This field is reliably populated for Lambda log groups and
+ * is preferred over parsing the message text.
+ */
+function firstRequestIdField(rows: ReadonlyArray<ReadonlyArray<ResultField>>): string | undefined {
+  for (const row of rows) {
+    const value = (extractField(row, '@requestId') ?? '').trim();
+    if (value !== '') return value;
+  }
+  return undefined;
+}
+
+/**
  * Scans the rows produced by the Lambda error query and extracts the
  * representative error, the requestId, the parsed REPORT line and the
  * classified category.
@@ -43,7 +56,9 @@ export function scanLambdaLogs(rows: ReadonlyArray<ReadonlyArray<ResultField>>):
   const messages = rows.map((row) => (extractField(row, '@message') ?? '').trim()).filter((message) => message !== '');
 
   let report: LambdaReportInfo | undefined;
-  let requestId: string | undefined;
+  // Prefer the reliable @requestId Logs Insights field; fall back to parsing
+  // the message text (RequestId: forms and the tab-separated application line).
+  let requestId = firstRequestIdField(rows);
   for (const message of messages) {
     report ??= parseLambdaReportLine(message);
     requestId ??= extractLambdaRequestId(message);

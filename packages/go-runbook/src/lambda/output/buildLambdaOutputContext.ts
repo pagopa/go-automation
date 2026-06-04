@@ -58,6 +58,7 @@ export function buildLambdaOutputContext(
       functionName: vars.get('lambdaFunctionName') ?? context.lambda.name,
       logGroup: vars.get('lambdaLogGroup') ?? context.lambda.logGroup,
       ...optionalString('eventSource', vars.get('lambdaEventSource')),
+      ...optionalNumber('configuredTimeoutMs', context.lambda.configuredTimeoutMs),
       ...optionalNumber('errorCount', parseInteger(vars.get('lambdaErrorCount'))),
       ...optionalString('requestId', vars.get('lambdaRequestId')),
       ...optionalString('errorCategory', vars.get('lambdaErrorCategory')),

@@ -17,8 +17,22 @@ describe('classifyLambdaError', () => {
     assert.strictEqual(classifyLambdaError('Runtime exited with error: signal: killed'), 'out-of-memory');
   });
 
-  it('classifies out-of-memory when max memory used reaches memory size', () => {
+  it('uses memory saturation as a last-resort OOM signal when no other signal is present', () => {
     assert.strictEqual(classifyLambdaError('REPORT ...', { memorySizeMb: 128, maxMemoryUsedMb: 128 }), 'out-of-memory');
+  });
+
+  it('does not let memory saturation override an explicit application or downstream error', () => {
+    assert.strictEqual(
+      classifyLambdaError('ERROR business logic failed', { memorySizeMb: 128, maxMemoryUsedMb: 130 }),
+      'application-error',
+    );
+    assert.strictEqual(
+      classifyLambdaError('External service pn-emd-integration returned errors', {
+        memorySizeMb: 128,
+        maxMemoryUsedMb: 128,
+      }),
+      'downstream',
+    );
   });
 
   it('classifies throttle, downstream and application errors', () => {
@@ -28,6 +42,10 @@ describe('classifyLambdaError', () => {
       'downstream',
     );
     assert.strictEqual(classifyLambdaError('ERROR Invalid source details header QRCODE'), 'application-error');
+  });
+
+  it('classifies application-error from a REPORT Status: error line', () => {
+    assert.strictEqual(classifyLambdaError('REPORT RequestId: x Duration: 5.00 ms Status: error'), 'application-error');
   });
 
   it('falls back to unknown', () => {
