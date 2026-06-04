@@ -7,12 +7,7 @@ import { KnownUrlsRegistry } from '../registries/KnownUrlsRegistry.js';
 import type { ApiGwAlarmConfig } from '../types/ApiGwAlarmConfig.js';
 import type { ApiGwService } from '../types/ApiGwService.js';
 import { getEffectiveExecutionLogGroup, isExecutionLogEnabled } from './executionLogEnablement.js';
-import {
-  validateCapabilityParity,
-  validateKnownCaseStepRefs,
-  validateNoStepIdCollisions,
-  validatePlaceholders,
-} from './validations.js';
+import { validateApiGwAlarmConfig } from './validations.js';
 
 const DEFAULT_MIN_STATUS_CODE = 500;
 
@@ -33,10 +28,7 @@ export interface ApiGwAlarmBuildContext {
 export function resolveApiGwAlarmBuildContext(config: ApiGwAlarmConfig): ApiGwAlarmBuildContext {
   const profile = resolveApiGwQueryProfile(config);
 
-  validatePlaceholders(profile);
-  validateCapabilityParity(config, profile);
-  validateNoStepIdCollisions(config, profile);
-  validateKnownCaseStepRefs(config, profile);
+  validateApiGwAlarmConfig(config, profile);
 
   const minStatus = config.minStatusCode ?? DEFAULT_MIN_STATUS_CODE;
   const apiGwQuery = renderQueryTemplate(profile.accessLog.query, {

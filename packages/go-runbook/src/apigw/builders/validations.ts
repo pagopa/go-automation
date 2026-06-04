@@ -11,7 +11,7 @@ import { getEffectiveExecutionLogGroup, isExecutionLogEnabled } from './executio
  * obbligatori. Fail-fast a build time invece che a runtime sulla prima
  * esecuzione del runbook.
  */
-export function validatePlaceholders(profile: ApiGwQueryProfile): void {
+function validatePlaceholders(profile: ApiGwQueryProfile): void {
   renderQueryTemplate(profile.accessLog.query, {
     values: { '{{minStatusCode}}': '500' },
     queryId: `${profile.id}.accessLog`,
@@ -49,7 +49,7 @@ export function validatePlaceholders(profile: ApiGwQueryProfile): void {
  * la semantica con `isExecutionLogEnabled` (stringa vuota/whitespace =
  * assente).
  */
-export function validateCapabilityParity(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
+function validateCapabilityParity(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
   const executionLogGroup = getEffectiveExecutionLogGroup(config);
   if (executionLogGroup !== undefined && profile.executionLog === undefined) {
     throw new Error(
@@ -83,7 +83,7 @@ export function validateCapabilityParity(config: ApiGwAlarmConfig, profile: ApiG
  * Calcola l'insieme degli step ID effettivamente cablati nella pipeline
  * dato il config risolto. È deterministico.
  */
-export function computeWiredStepIds(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): ReadonlySet<string> {
+function computeWiredStepIds(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): ReadonlySet<string> {
   const ids = new Set<string>();
   ids.add('prepare-api-gw-section');
   ids.add('query-api-gw-logs');
@@ -117,7 +117,7 @@ export function computeWiredStepIds(config: ApiGwAlarmConfig, profile: ApiGwQuer
  * V4: collisioni step ID. I preSteps non devono usare ID riservati alla
  * pipeline canonica (es. un preStep che si chiama `parse-api-gw-errors`).
  */
-export function validateNoStepIdCollisions(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
+function validateNoStepIdCollisions(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
   const reserved = computeWiredStepIds({ ...config, preSteps: [] }, profile);
   const seenPreStepIds = new Set<string>();
   for (const descriptor of config.preSteps ?? []) {
@@ -175,7 +175,7 @@ function collectStepRefs(condition: Condition, into: Set<string>): void {
  * effettivamente cablato nella pipeline. Cattura il bug
  * "runbook che cita uno step inesistente nel profilo corrente".
  */
-export function validateKnownCaseStepRefs(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
+function validateKnownCaseStepRefs(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
   const wired = computeWiredStepIds(config, profile);
   for (const knownCase of config.knownCases) {
     const refs = new Set<string>();
@@ -200,4 +200,19 @@ function orphanStepRefError(
       `(profile "${profile.id}" + current config). ` +
       'Either switch profile / config to wire that step, or remove the reference from the known case.',
   );
+}
+
+/**
+ * Runs all build-time validations for an API Gateway alarm config. Throws a
+ * descriptive `Error` on the first problem (fail-fast at build time, not at
+ * runtime). Single public entry point for the builder validations.
+ *
+ * @param config - The API Gateway alarm configuration
+ * @param profile - The resolved query profile
+ */
+export function validateApiGwAlarmConfig(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
+  validatePlaceholders(profile);
+  validateCapabilityParity(config, profile);
+  validateNoStepIdCollisions(config, profile);
+  validateKnownCaseStepRefs(config, profile);
 }
