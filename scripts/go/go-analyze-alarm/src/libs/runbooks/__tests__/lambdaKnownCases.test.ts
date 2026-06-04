@@ -6,9 +6,11 @@ import type { Condition, KnownCase } from '@go-automation/go-runbook';
 import { KNOWN_CASES as TOKEN_EXCHANGE_CASES } from '../pn-tokenExchangeLambda-LogInvocationErrors-Alarm/knownCases.js';
 import { KNOWN_CASES as IO_AUTHORIZER_CASES } from '../pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/knownCases.js';
 import { KNOWN_CASES as SLA_CASES } from '../pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm/knownCases.js';
+import { KNOWN_CASES as JWKS_CACHE_REFRESH_CASES } from '../pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm/knownCases.js';
 import { buildTokenExchangeLambdaRunbook } from '../pn-tokenExchangeLambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildIoAuthorizerLambdaRunbook } from '../pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildSlaViolationCheckerLambdaSqsRunbook } from '../pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm/runbook.js';
+import { buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook } from '../pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm/runbook.js';
 
 /** Collects every regex string referenced by a condition tree. */
 function collectRegexes(condition: Condition): ReadonlyArray<string> {
@@ -69,9 +71,43 @@ describe('lambda runbook known cases', () => {
     });
   });
 
-  it('builds the three lambda runbooks without validation errors', () => {
+  it('matches the pn-jwksCacheRefreshLambda external JWKS endpoint failures', () => {
+    assert.ok(
+      matchesSomeCase(
+        JWKS_CACHE_REFRESH_CASES,
+        'Error during addJwksCacheEntry for issuer caftfdc_pagopa.it Error: Error downloading URL: https://iqpanel.inquery.it/.tfdc-wellknown/jwks.json, status: 503, statusText: Service Unavailable',
+      ),
+    );
+    assert.ok(
+      matchesSomeCase(
+        JWKS_CACHE_REFRESH_CASES,
+        'ERROR Error during addJwksCacheEntry for issuer gestione.sedi.uci.it Error: Error downloading URL: https://gestione.sedi.uci.it/.well-known/jwks.json, status: 502, statusText: Bad Gateway',
+      ),
+    );
+    assert.ok(
+      matchesSomeCase(
+        JWKS_CACHE_REFRESH_CASES,
+        'Error during addJwksCacheEntry for issuer radd.example.it AxiosError: read ECONNRESET',
+      ),
+    );
+    assert.ok(
+      matchesSomeCase(
+        JWKS_CACHE_REFRESH_CASES,
+        'Error downloading URL: https://www.cafconfagricoltura.it/.well-known/jwks.json, status: 500, statusText: URL Rewrite Module Error.',
+      ),
+    );
+    assert.ok(
+      matchesSomeCase(
+        JWKS_CACHE_REFRESH_CASES,
+        'Error downloading URL: https://iqpanel.inquery.it/.well-known/jwks.json, status: 500, statusText: Internal Server Error',
+      ),
+    );
+  });
+
+  it('builds the lambda runbooks without validation errors', () => {
     assert.doesNotThrow(() => buildTokenExchangeLambdaRunbook());
     assert.doesNotThrow(() => buildIoAuthorizerLambdaRunbook());
     assert.doesNotThrow(() => buildSlaViolationCheckerLambdaSqsRunbook());
+    assert.doesNotThrow(() => buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook());
   });
 });
