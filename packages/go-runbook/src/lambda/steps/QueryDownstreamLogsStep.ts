@@ -15,7 +15,7 @@ import { LambdaReporter } from '../reporting/LambdaReporter.js';
 type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
 
 /**
- * Configuration for {@link queryDownstreamLogs}.
+ * Configuration for {@link QueryDownstreamLogsStep}.
  */
 export interface QueryDownstreamLogsConfig {
   readonly id: string;
@@ -26,7 +26,13 @@ export interface QueryDownstreamLogsConfig {
   readonly timeRangeFromParams: TimeRangeFromParams;
 }
 
-class QueryDownstreamLogsStepImpl implements Step<Rows> {
+/**
+ * Queries a downstream microservice log group by the Lambda `requestId` when
+ * the parse step routed to it. No-ops otherwise (wrong target, no log group,
+ * or no requestId). Flat (no recursion), mirroring the dynamic per-service
+ * visit of the API Gateway pipeline.
+ */
+export class QueryDownstreamLogsStep implements Step<Rows> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -83,17 +89,4 @@ class QueryDownstreamLogsStepImpl implements Step<Rows> {
       };
     });
   }
-}
-
-/**
- * Factory: queries a downstream microservice log group by the Lambda
- * `requestId` when the parse step routed to it. No-ops otherwise (wrong
- * target, no log group, or no requestId). Mirrors the dynamic per-service
- * visit of the API Gateway pipeline, but flat (no recursion).
- *
- * @param config - Step configuration
- * @returns Step that queries the downstream logs
- */
-export function queryDownstreamLogs(config: QueryDownstreamLogsConfig): Step<Rows> {
-  return new QueryDownstreamLogsStepImpl(config);
 }

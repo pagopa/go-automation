@@ -26,7 +26,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       renderAs: 'known-case',
       message:
         '[CASO NOTO] Timeout Lambda {{vars.lambdaFunctionName}}\n' +
-        'Duration: {{vars.lambdaDurationMs}} ms - Status: {{vars.lambdaRuntimeStatus}}\n' +
+        'Duration: {{vars.lambdaDurationMs}} ms\n' +
         'requestId: {{vars.lambdaRequestId}}\n' +
         'Risoluzione: PN-19957 - impostare Max Concurrency e verificare il timeout della Lambda (workaround applicato: 10s -> 15s).\n',
     },

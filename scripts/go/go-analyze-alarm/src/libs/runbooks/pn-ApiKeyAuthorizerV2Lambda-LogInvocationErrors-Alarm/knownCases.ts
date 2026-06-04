@@ -1,5 +1,5 @@
 /**
- * Known cases for the {{RUNBOOK_ID}} runbook.
+ * Known cases for the pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm runbook.
  */
 
 import type { KnownCase } from '@go-automation/go-runbook';

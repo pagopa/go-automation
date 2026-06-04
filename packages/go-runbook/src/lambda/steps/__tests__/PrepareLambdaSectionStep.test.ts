@@ -2,15 +2,15 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import { prepareLambdaSection } from '../PrepareLambdaSectionStep.js';
+import { PrepareLambdaSectionStep } from '../PrepareLambdaSectionStep.js';
 
 function emptyContext(): RunbookContext {
   return { vars: new Map(), stepResults: new Map() } as unknown as RunbookContext;
 }
 
-describe('prepareLambdaSection', () => {
+describe('PrepareLambdaSectionStep', () => {
   it('seeds the canonical lambda vars without a configured timeout', async () => {
-    const result = await prepareLambdaSection({
+    const result = await new PrepareLambdaSectionStep({
       id: 'prepare-lambda-section',
       label: 'l',
       lambdaName: 'pn-x',
@@ -23,7 +23,7 @@ describe('prepareLambdaSection', () => {
   });
 
   it('emits lambdaConfiguredTimeoutMs when configured', async () => {
-    const result = await prepareLambdaSection({
+    const result = await new PrepareLambdaSectionStep({
       id: 'prepare-lambda-section',
       label: 'l',
       lambdaName: 'pn-x',

@@ -4,11 +4,11 @@ import type { TimeRangeFromParams } from '../../steps/data/CloudWatchLogsQuerySt
 import type { Runbook } from '../../types/Runbook.js';
 
 import type { LambdaAlarmConfig } from '../types/LambdaAlarmConfig.js';
-import { prepareLambdaSection } from '../steps/PrepareLambdaSectionStep.js';
-import { parseLambdaErrors } from '../steps/ParseLambdaErrorsStep.js';
-import { queryLambdaInvocation } from '../steps/QueryLambdaInvocationStep.js';
-import { analyzeLambdaInvocation } from '../steps/AnalyzeLambdaInvocationStep.js';
-import { queryDownstreamLogs } from '../steps/QueryDownstreamLogsStep.js';
+import { PrepareLambdaSectionStep } from '../steps/PrepareLambdaSectionStep.js';
+import { ParseLambdaErrorsStep } from '../steps/ParseLambdaErrorsStep.js';
+import { QueryLambdaInvocationStep } from '../steps/QueryLambdaInvocationStep.js';
+import { AnalyzeLambdaInvocationStep } from '../steps/AnalyzeLambdaInvocationStep.js';
+import { QueryDownstreamLogsStep } from '../steps/QueryDownstreamLogsStep.js';
 import { resolveLambdaAlarmBuildContext } from './resolveLambdaAlarmBuildContext.js';
 import { defaultLambdaUnknownCaseFallback } from './defaultUnknownCaseFallback.js';
 
@@ -29,7 +29,7 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
 
   // 1. Banner + seed canonical lambda vars.
   builder.step(
-    prepareLambdaSection({
+    new PrepareLambdaSectionStep({
       id: 'prepare-lambda-section',
       label: 'Preparazione Lambda',
       lambdaName: config.lambda.name,
@@ -58,7 +58,7 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
 
   // 3. Parse / classify / route to downstream.
   builder.step(
-    parseLambdaErrors({
+    new ParseLambdaErrorsStep({
       id: 'parse-lambda-errors',
       label: 'Analisi errori Lambda',
       fromStep: 'query-lambda-errors',
@@ -69,7 +69,7 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
 
   // 4. Reconstruct the invocation flow for the requestId.
   builder.step(
-    queryLambdaInvocation({
+    new QueryLambdaInvocationStep({
       id: 'query-lambda-invocation',
       label: 'Ricostruzione flusso per requestId',
       lambdaLogGroup: config.lambda.logGroup,
@@ -82,7 +82,7 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
   // 4b. Refine downstream routing from the full invocation flow (the routing
   // signal may appear only in the reconstructed flow, not in the error scan).
   builder.step(
-    analyzeLambdaInvocation({
+    new AnalyzeLambdaInvocationStep({
       id: 'analyze-lambda-invocation',
       label: 'Analisi flusso invocazione',
       fromStep: 'query-lambda-invocation',
@@ -102,7 +102,7 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
   // 6. Per-downstream query (no-op unless routed there).
   for (const downstream of ctx.downstreams) {
     builder.step(
-      queryDownstreamLogs({
+      new QueryDownstreamLogsStep({
         id: `query-${downstream.name}`,
         label: `Query log ${downstream.name}`,
         downstream,

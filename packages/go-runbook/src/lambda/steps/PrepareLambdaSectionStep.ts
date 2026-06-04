@@ -5,7 +5,7 @@ import type { StepResult } from '../../types/StepResult.js';
 import { LambdaReporter } from '../reporting/LambdaReporter.js';
 
 /**
- * Configuration for {@link prepareLambdaSection}.
+ * Configuration for {@link PrepareLambdaSectionStep}.
  */
 export interface PrepareLambdaSectionConfig {
   readonly id: string;
@@ -13,10 +13,17 @@ export interface PrepareLambdaSectionConfig {
   readonly lambdaName: string;
   readonly logGroup: string;
   readonly eventSource?: string;
+  /** Configured Lambda timeout in ms, surfaced as `lambdaConfiguredTimeoutMs`. */
   readonly configuredTimeoutMs?: number;
 }
 
-class PrepareLambdaSectionStepImpl implements Step<undefined> {
+/**
+ * Prints the Lambda preparation banner and seeds the canonical
+ * `lambdaFunctionName` / `lambdaLogGroup` / `lambdaEventSource` vars (and
+ * `lambdaConfiguredTimeoutMs` when configured) so they are available even when
+ * the error scan returns no rows.
+ */
+export class PrepareLambdaSectionStep implements Step<undefined> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'control';
@@ -52,17 +59,4 @@ class PrepareLambdaSectionStepImpl implements Step<undefined> {
       },
     };
   }
-}
-
-/**
- * Factory: prints the Lambda preparation banner and seeds the canonical
- * `lambdaFunctionName` / `lambdaLogGroup` / `lambdaEventSource` vars (and
- * `lambdaConfiguredTimeoutMs` when configured) so they are available even
- * when the error scan returns no rows.
- *
- * @param config - Step configuration
- * @returns Step that emits the section header
- */
-export function prepareLambdaSection(config: PrepareLambdaSectionConfig): Step<undefined> {
-  return new PrepareLambdaSectionStepImpl(config);
 }

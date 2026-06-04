@@ -12,7 +12,7 @@ import { findDownstreamInRows } from '../helpers/matchDownstreamErrorPattern.js'
 import { LambdaReporter } from '../reporting/LambdaReporter.js';
 
 /**
- * Configuration for {@link parseLambdaErrors}.
+ * Configuration for {@link ParseLambdaErrorsStep}.
  */
 export interface ParseLambdaErrorsConfig {
   readonly id: string;
@@ -23,7 +23,13 @@ export interface ParseLambdaErrorsConfig {
   readonly downstreamErrorPatterns: ReadonlyArray<DownstreamErrorPattern>;
 }
 
-class ParseLambdaErrorsStepImpl implements Step<LambdaErrorScan> {
+/**
+ * Parses the Lambda error-query rows, classifies the error, extracts the
+ * requestId and REPORT fields, and routes to a downstream when an error
+ * pattern matches. Writes the canonical `lambda*` vars and short-circuits
+ * with `next: 'stop'` when no error rows are present.
+ */
+export class ParseLambdaErrorsStep implements Step<LambdaErrorScan> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'transform';
@@ -86,17 +92,4 @@ class ParseLambdaErrorsStepImpl implements Step<LambdaErrorScan> {
 
     return { success: true, output: scan, vars };
   }
-}
-
-/**
- * Factory: parses the Lambda error-query rows, classifies the error,
- * extracts the requestId and REPORT fields, and routes to a downstream
- * when an error pattern matches. Writes the canonical `lambda*` vars and
- * short-circuits with `next: 'stop'` when no error rows are present.
- *
- * @param config - Step configuration
- * @returns Step that extracts Lambda error metadata
- */
-export function parseLambdaErrors(config: ParseLambdaErrorsConfig): Step<LambdaErrorScan> {
-  return new ParseLambdaErrorsStepImpl(config);
 }

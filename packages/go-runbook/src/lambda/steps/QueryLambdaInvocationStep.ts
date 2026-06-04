@@ -13,7 +13,7 @@ import { LambdaReporter } from '../reporting/LambdaReporter.js';
 type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
 
 /**
- * Configuration for {@link queryLambdaInvocation}.
+ * Configuration for {@link QueryLambdaInvocationStep}.
  */
 export interface QueryLambdaInvocationConfig {
   readonly id: string;
@@ -24,7 +24,13 @@ export interface QueryLambdaInvocationConfig {
   readonly timeRangeFromParams: TimeRangeFromParams;
 }
 
-class QueryLambdaInvocationStepImpl implements Step<Rows> {
+/**
+ * Reconstructs the full Lambda invocation flow for the extracted `requestId`
+ * (same log group, sorted ascending). No-ops when no requestId is available.
+ * Its rows are stored as step output so runbook known cases can match on
+ * `steps.<id>`.
+ */
+export class QueryLambdaInvocationStep implements Step<Rows> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -74,17 +80,4 @@ class QueryLambdaInvocationStepImpl implements Step<Rows> {
       };
     });
   }
-}
-
-/**
- * Factory: reconstructs the full Lambda invocation flow for the extracted
- * `requestId` (same log group, sorted ascending). No-ops when no requestId
- * is available. Its rows are stored as step output so runbook known cases
- * can match on `steps.<id>`.
- *
- * @param config - Step configuration
- * @returns Step that queries the invocation flow by requestId
- */
-export function queryLambdaInvocation(config: QueryLambdaInvocationConfig): Step<Rows> {
-  return new QueryLambdaInvocationStepImpl(config);
 }
