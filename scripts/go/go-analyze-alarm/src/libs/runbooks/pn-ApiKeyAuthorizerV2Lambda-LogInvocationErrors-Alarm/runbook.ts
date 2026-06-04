@@ -23,7 +23,7 @@ export function buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook(): 
       version: '1.0.0',
       type: 'alarm-resolution',
       team: 'GO',
-      tags: [],
+      tags: ['lambda', 'pn-ApiKeyAuthorizerV2Lambda', 'pn-stream'],
     },
     lambda: LAMBDA_FUNCTION,
     downstreams: DOWNSTREAMS,

@@ -7,10 +7,12 @@ import { KNOWN_CASES as TOKEN_EXCHANGE_CASES } from '../pn-tokenExchangeLambda-L
 import { KNOWN_CASES as IO_AUTHORIZER_CASES } from '../pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/knownCases.js';
 import { KNOWN_CASES as SLA_CASES } from '../pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm/knownCases.js';
 import { KNOWN_CASES as JWKS_CACHE_REFRESH_CASES } from '../pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm/knownCases.js';
+import { KNOWN_CASES as API_KEY_AUTHORIZER_CASES } from '../pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm/knownCases.js';
 import { buildTokenExchangeLambdaRunbook } from '../pn-tokenExchangeLambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildIoAuthorizerLambdaRunbook } from '../pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildSlaViolationCheckerLambdaSqsRunbook } from '../pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm/runbook.js';
 import { buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook } from '../pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm/runbook.js';
+import { buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook } from '../pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm/runbook.js';
 
 /** Collects every regex string referenced by a condition tree. */
 function collectRegexes(condition: Condition): ReadonlyArray<string> {
@@ -104,10 +106,31 @@ describe('lambda runbook known cases', () => {
     );
   });
 
+  it('matches the pn-ApiKeyAuthorizerV2Lambda document-specific cases', () => {
+    const timeout = API_KEY_AUTHORIZER_CASES.find(
+      (knownCase) => knownCase.id === 'apikey-authorizer-timeout-single-occurrence',
+    );
+    assert.ok(timeout !== undefined);
+    assert.strictEqual(timeout.priority, 110);
+    assert.deepStrictEqual(timeout.condition, {
+      type: 'compare',
+      ref: 'vars.lambdaErrorCategory',
+      operator: '==',
+      value: 'timeout',
+    });
+    assert.ok(
+      matchesSomeCase(
+        API_KEY_AUTHORIZER_CASES,
+        'Error in get key AxiosError: read ECONNRESET',
+      ),
+    );
+  });
+
   it('builds the lambda runbooks without validation errors', () => {
     assert.doesNotThrow(() => buildTokenExchangeLambdaRunbook());
     assert.doesNotThrow(() => buildIoAuthorizerLambdaRunbook());
     assert.doesNotThrow(() => buildSlaViolationCheckerLambdaSqsRunbook());
     assert.doesNotThrow(() => buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook());
+    assert.doesNotThrow(() => buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook());
   });
 });
