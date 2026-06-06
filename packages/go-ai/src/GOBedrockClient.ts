@@ -16,7 +16,7 @@ import type { GOAIRequest, GOAIResponse } from './types/index.js';
 import { GOAIHat } from './types/index.js';
 import { getTemplate } from './prompts/index.js';
 
-const DEFAULT_MODEL_ARN = 'arn:aws:bedrock:eu-south-1:170533023216:inference-profile/eu.amazon.nova-pro-v1:0';
+const DEFAULT_MODEL_ID = 'mistral.ministral-3-14b-instruct';
 
 export interface GOBedrockClientOptions {
   readonly region?: string;
@@ -34,9 +34,9 @@ export class GOBedrockClient {
   private readonly modelArn: string;
 
   constructor(options: GOBedrockClientOptions = {}) {
-    const region = options.region ?? process.env['AWS_REGION'] ?? 'eu-south-1';
+    const region = options.region ?? process.env['BEDROCK_REGION'] ?? process.env['AWS_REGION'] ?? 'eu-south-1';
     const profile = options.profile ?? process.env['AWS_PROFILE'];
-    this.modelArn = options.modelArn ?? process.env['BEDROCK_MODEL_ARN'] ?? DEFAULT_MODEL_ARN;
+    this.modelArn = options.modelArn ?? process.env['BEDROCK_MODEL_ARN'] ?? DEFAULT_MODEL_ID;
 
     this.client = new BedrockRuntimeClient({
       region,
