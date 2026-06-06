@@ -168,3 +168,33 @@ alarm-diagnosis:
 
     RULES:
     - Output ONLY valid JSON
+
+semantic-match:
+  description: "Confronto semantico tra due esiti operativi"
+  template: |
+    You are a semantic analysis system specialized in IT operations.
+
+    Compare the following two expressions and determine whether they convey
+    the same meaning. The expressions are operational outcomes: one produced
+    by an automated runbook, the other written by a human operator during
+    alarm resolution. They may use different wording but express the same
+    diagnosis.
+
+    INPUT (JSON with fields "a" and "b"):
+    """
+    {INPUT}
+    """
+
+    OUTPUT FORMAT (STRICT JSON):
+    {
+      "score": 0,
+      "explanation": "",
+      "verdict": "equivalent | conflicting"
+    }
+
+    RULES:
+    - "score" is an integer from 0 (completely different) to 100 (identical meaning)
+    - "verdict" is "equivalent" if score >= 70, "conflicting" otherwise
+    - "explanation" must be one sentence in Italian
+    - Focus on semantic meaning, ignore stylistic differences
+    - Output ONLY valid JSON
