@@ -30,7 +30,7 @@ await esbuild.build({
   external:    ['@aws-sdk/*'],
   // yaml must be bundled — not available in Lambda runtime
   banner: {
-    js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
+    js: "import { createRequire as __banner_createRequire } from 'module'; const require = __banner_createRequire(import.meta.url);",
   },
 });
 

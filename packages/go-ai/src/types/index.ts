@@ -9,6 +9,7 @@ export enum GOAIHat {
   CodeReview = 'code-review',
   RunbookAssist = 'runbook-assist',
   AlarmDiagnosis = 'alarm-diagnosis',
+  SemanticMatch = 'semantic-match',
 }
 
 export interface GOAIRequest {
