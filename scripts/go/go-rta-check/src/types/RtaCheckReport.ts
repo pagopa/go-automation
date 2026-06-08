@@ -20,7 +20,7 @@ export type V2Status =
 export type AnalysisMatcherKind = 'lexical' | 'ai';
 
 /** Semantic verdict returned by GO-AI. */
-export type AnalysisSemanticVerdict = 'equivalent' | 'conflicting';
+type AnalysisSemanticVerdict = 'equivalent' | 'conflicting';
 
 /** Outcome of running the runbook for one occurrence (V1). */
 export interface RunbookCheck {
