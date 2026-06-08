@@ -1,10 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-  formatAnalysisMatcherLabel,
-  resolveAnalysisMatcher,
-} from '../resolveAnalysisMatcher.js';
+import { formatAnalysisMatcherLabel, resolveAnalysisMatcher } from '../resolveAnalysisMatcher.js';
 
 describe('resolveAnalysisMatcher', () => {
   it('defaults to the AI matcher with semantic threshold 70', () => {

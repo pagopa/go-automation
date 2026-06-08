@@ -18,6 +18,9 @@ interface ReportHtmlRow extends Record<string, unknown> {
   readonly aiFallback: string;
   readonly aiError: string;
   readonly semanticScore: string;
+  readonly aiVerdict: string;
+  readonly aiExplanation: string;
+  readonly aiDetail: string;
   readonly note: string;
 }
 
@@ -63,8 +66,10 @@ export async function writeReport(
   return written;
 }
 
-function toHtmlRow(row: RtaCheckRow): ReportHtmlRow {
+export function toHtmlRow(row: RtaCheckRow): ReportHtmlRow {
   const runbook = row.runbook;
+  const semanticScore = row.comparison.signals.semanticScore;
+  const semanticVerdict = row.comparison.signals.semanticVerdict;
   return {
     firedAt: row.event.firedAt,
     v1: runbook.status,
@@ -75,14 +80,29 @@ function toHtmlRow(row: RtaCheckRow): ReportHtmlRow {
     aiAttempted: row.comparison.aiAttempted === undefined ? '' : row.comparison.aiAttempted === true ? 'true' : 'false',
     aiFallback: row.comparison.aiFallback === true ? 'true' : '',
     aiError: row.comparison.aiError ?? '',
-    semanticScore:
-      row.comparison.signals.semanticScore !== undefined ? row.comparison.signals.semanticScore.toFixed(0) : '',
-    note: (
-      runbook.error ??
-      row.comparison.aiError ??
-      row.comparison.semanticExplanation ??
-      row.comparison.reasons[0] ??
-      ''
-    ).slice(0, 120),
+    semanticScore: semanticScore !== undefined ? semanticScore.toFixed(0) : '',
+    aiVerdict: semanticVerdict ?? '',
+    aiExplanation: row.comparison.semanticExplanation ?? '',
+    aiDetail: formatAiDetail(row),
+    note:
+      runbook.error ?? row.comparison.aiError ?? row.comparison.semanticExplanation ?? row.comparison.reasons[0] ?? '',
   };
+}
+
+function formatAiDetail(row: RtaCheckRow): string {
+  const comparison = row.comparison;
+  const detail = {
+    attempted: comparison.aiAttempted ?? false,
+    matcher: comparison.matcher ?? null,
+    fallback: comparison.aiFallback ?? false,
+    status: comparison.status,
+    confidence: comparison.confidence,
+    semanticScore: comparison.signals.semanticScore ?? null,
+    semanticVerdict: comparison.signals.semanticVerdict ?? null,
+    explanation: comparison.semanticExplanation ?? null,
+    error: comparison.aiError ?? null,
+    reasons: comparison.reasons,
+  };
+
+  return JSON.stringify(detail, null, 2);
 }

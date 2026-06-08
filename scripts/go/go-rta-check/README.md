@@ -58,12 +58,12 @@ pnpm go:rta:check -- \
 
 Parametri principali:
 
-| Flag                          | Default         | Significato                                                                  |
-| ----------------------------- | --------------- | ---------------------------------------------------------------------------- |
-| `--analysis-matcher`          | `ai`            | `ai` oppure `lexical`                                                        |
-| `--go-ai-semantic-threshold`  | `70`            | Soglia 0..100 per considerare equivalente lo score GO-AI                     |
-| `--go-ai-fallback-to-lexical` | `true`          | Se GO-AI fallisce, usa il matcher lessicale invece di marcare `NO_EVIDENCE`  |
-| `--aws-profile`               | `sso_pn-analytics` | Profilo AWS standard usato da GO-AI/Bedrock                               |
+| Flag                          | Default            | Significato                                                                 |
+| ----------------------------- | ------------------ | --------------------------------------------------------------------------- |
+| `--analysis-matcher`          | `ai`               | `ai` oppure `lexical`                                                       |
+| `--go-ai-semantic-threshold`  | `70`               | Soglia 0..100 per considerare equivalente lo score GO-AI                    |
+| `--go-ai-fallback-to-lexical` | `true`             | Se GO-AI fallisce, usa il matcher lessicale invece di marcare `NO_EVIDENCE` |
+| `--aws-profile`               | `sso_pn-analytics` | Profilo AWS standard usato da GO-AI/Bedrock                                 |
 
 ## Esecuzione
 
