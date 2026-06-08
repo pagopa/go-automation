@@ -9,7 +9,7 @@ const HAT_DESCRIPTIONS: Record<GOAIHat, string> = {
   [GOAIHat.CodeReview]: 'bugs, security, best practices (JSON)',
   [GOAIHat.RunbookAssist]: 'runbook steps and improvements (JSON)',
   [GOAIHat.AlarmDiagnosis]: 'cause, severity, actions, classification (JSON)',
-  [GOAIHat.SemanticMatch]: 'semantic comparison between two outcomes (JSON)',
+  [GOAIHat.SemanticMatch]: 'semantic comparison between two operational outcomes (JSON)',
 };
 
 export function printHats(script: Core.GOScript): void {
