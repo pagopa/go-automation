@@ -10,8 +10,16 @@
  */
 export function stripGOAIOutputFence(raw: string): string {
   const trimmed = raw.trim();
-  const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
-  return (fenced?.[1] ?? trimmed).trim();
+  if (!trimmed.startsWith('```') || !trimmed.endsWith('```') || trimmed.length < 6) {
+    return trimmed;
+  }
+
+  let inner = trimmed.slice(3, -3);
+  if (inner.slice(0, 4).toLowerCase() === 'json') {
+    inner = inner.slice(4);
+  }
+
+  return inner.trim();
 }
 
 /**
