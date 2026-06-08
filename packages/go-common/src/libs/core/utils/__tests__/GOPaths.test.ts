@@ -13,6 +13,7 @@ const managedEnvVars = [
   GOPathEnvironmentVariables.INPUT_DIR,
   GOPathEnvironmentVariables.OUTPUT_DIR,
   GOPathEnvironmentVariables.CONFIG_DIR,
+  GOPathEnvironmentVariables.CACHE_DIR,
 ] as const;
 
 const originalEnv = new Map<string, string | undefined>(managedEnvVars.map((name) => [name, process.env[name]]));
@@ -36,18 +37,21 @@ function setPathEnv(root: string): {
   readonly inputDir: string;
   readonly outputDir: string;
   readonly configDir: string;
+  readonly cacheDir: string;
 } {
   const dataDir = path.join(root, 'data');
   const inputDir = path.join(root, 'inputs');
   const outputDir = path.join(root, 'outputs');
   const configDir = path.join(root, 'configs');
+  const cacheDir = path.join(root, 'cache');
 
   process.env[GOPathEnvironmentVariables.DATA_DIR] = dataDir;
   process.env[GOPathEnvironmentVariables.INPUT_DIR] = inputDir;
   process.env[GOPathEnvironmentVariables.OUTPUT_DIR] = outputDir;
   process.env[GOPathEnvironmentVariables.CONFIG_DIR] = configDir;
+  process.env[GOPathEnvironmentVariables.CACHE_DIR] = cacheDir;
 
-  return { dataDir, inputDir, outputDir, configDir };
+  return { dataDir, inputDir, outputDir, configDir, cacheDir };
 }
 
 describe('GOPaths', () => {
@@ -63,8 +67,13 @@ describe('GOPaths', () => {
     assert.strictEqual(paths.getInputsDir(), dirs.inputDir);
     assert.strictEqual(paths.getOutputsBaseDir(), dirs.outputDir);
     assert.strictEqual(paths.getDataConfigDir(), dirs.configDir);
+    assert.strictEqual(paths.getCacheDir(), dirs.cacheDir);
     assert.strictEqual(paths.getConfigsDir(), paths.getLocalConfigsDir());
     assert.strictEqual(paths.getInputFilePath('input.csv'), path.join(dirs.inputDir, 'input.csv'));
+    assert.strictEqual(
+      paths.getCacheFilePath(path.join('runbook', 'alarm', 'event.json')),
+      path.join(dirs.cacheDir, 'runbook', 'alarm', 'event.json'),
+    );
     assert.strictEqual(paths.getExecutionLogFilePath(), paths.getExecutionOutputFilePath('execution.log'));
     assert.match(paths.getExecutionOutputDir(), /sample-script_\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}$/);
     assert.match(paths.getOutputFileName('report', 'json'), /^report_\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.json$/);
@@ -83,6 +92,7 @@ describe('GOPaths', () => {
     assert.strictEqual(fs.existsSync(dirs.inputDir), true);
     assert.strictEqual(fs.existsSync(dirs.outputDir), true);
     assert.strictEqual(fs.existsSync(dirs.configDir), true);
+    assert.strictEqual(fs.existsSync(dirs.cacheDir), true);
   });
 
   it('resolves config files with source information', () => {
@@ -127,6 +137,11 @@ describe('GOPaths', () => {
       path: path.join(paths.getLocalConfigsDir(), 'config.yaml'),
       isAbsolute: false,
       resolvedDir: paths.getLocalConfigsDir(),
+    });
+    assert.deepStrictEqual(paths.resolvePathWithInfo(path.join('runbook', 'event.json'), GOPathType.CACHE), {
+      path: path.join(dirs.cacheDir, 'runbook', 'event.json'),
+      isAbsolute: false,
+      resolvedDir: dirs.cacheDir,
     });
 
     const output = paths.resolvePathWithInfo('report.json', GOPathType.OUTPUT);

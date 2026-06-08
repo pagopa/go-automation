@@ -15,6 +15,7 @@
  *         {script-name}_{timestamp}/
  *           execution.log    - Execution log
  *           *.csv, *.json    - Export files
+ *       cache/               - Cache files (stable across runs)
  *   scripts/
  *     {category}/
  *       {script-name}/
@@ -37,6 +38,7 @@ export const GOPathType = {
   INPUT: 'input',
   OUTPUT: 'output',
   CONFIG: 'config',
+  CACHE: 'cache',
 } as const;
 
 /**
@@ -196,6 +198,23 @@ export class GOPaths {
   }
 
   /**
+   * Get cache directory for this script (stable across runs, like inputs).
+   *
+   * Resolution priority:
+   * 1. GO_CACHE_DIR environment variable (if set)
+   * 2. {dataDir}/cache/
+   */
+  public getCacheDir(): string {
+    // Priority 1: Environment override
+    const envCacheDir = process.env[GOPathEnvironmentVariables.CACHE_DIR];
+    if (envCacheDir) {
+      return envCacheDir;
+    }
+
+    return path.join(this.getDataDir(), 'cache');
+  }
+
+  /**
    * Get centralized config directory for this script
    *
    * Resolution priority:
@@ -270,10 +289,10 @@ export class GOPaths {
 
   /**
    * Ensure all required directories exist
-   * Creates: data/{script-name}/inputs/, data/{script-name}/outputs/, and data/{script-name}/configs/
+   * Creates: data/{script-name}/inputs/, data/{script-name}/outputs/, data/{script-name}/cache/, and data/{script-name}/configs/
    */
   public ensureDirectoriesExist(): void {
-    const dirs = [this.getInputsDir(), this.getOutputsBaseDir(), this.getDataConfigDir()];
+    const dirs = [this.getInputsDir(), this.getOutputsBaseDir(), this.getCacheDir(), this.getDataConfigDir()];
 
     for (const dir of dirs) {
       if (!fs.existsSync(dir)) {
@@ -289,6 +308,15 @@ export class GOPaths {
    */
   public getInputFilePath(fileName: string): string {
     return path.join(this.getInputsDir(), fileName);
+  }
+
+  /**
+   * Get full path for a cache file (stable across runs, like inputs)
+   * @param fileName - Name or relative sub-path of the cache file
+   * @returns go-automation/data/{script-name}/cache/{fileName}
+   */
+  public getCacheFilePath(fileName: string): string {
+    return path.join(this.getCacheDir(), fileName);
   }
 
   /**
@@ -422,6 +450,7 @@ export class GOPaths {
       `Config Dir: ${this.getDataConfigDir()}`,
       `Input Dir: ${this.getInputsDir()}`,
       `Output Dir: ${this.getOutputsBaseDir()}`,
+      `Cache Dir: ${this.getCacheDir()}`,
     ];
 
     if (this.isMonorepo() && this.environmentInfo.monorepoRoot) {
@@ -504,7 +533,7 @@ export class GOPaths {
    * - Directory where file was resolved (always available)
    *
    * @param filePath - File path (absolute, relative, or null/undefined)
-   * @param pathType - Type of path resolution (GOPathType.INPUT, GOPathType.OUTPUT, or GOPathType.CONFIG)
+   * @param pathType - Type of path resolution (GOPathType.INPUT, GOPathType.OUTPUT, GOPathType.CONFIG, or GOPathType.CACHE)
    * @returns Resolution result with metadata, or undefined if input is null/undefined
    *
    * @example
@@ -553,6 +582,14 @@ export class GOPaths {
         path: configInfo.path,
         isAbsolute: false,
         resolvedDir: configInfo.directory,
+      };
+    }
+
+    if (pathType === GOPathType.CACHE) {
+      return {
+        path: this.getCacheFilePath(filePath),
+        isAbsolute: false,
+        resolvedDir: this.getCacheDir(),
       };
     }
 

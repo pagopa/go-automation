@@ -625,6 +625,22 @@ importers:
         specifier: 'catalog:'
         version: 4.1.0
 
+  scripts/go/go-rta-check:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+      '@go-automation/go-runbook':
+        specifier: workspace:*
+        version: link:../../../packages/go-runbook
+      go-analyze-alarm:
+        specifier: workspace:*
+        version: link:../go-analyze-alarm
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.12.4
+
   scripts/go/go-search-jira:
     dependencies:
       '@go-automation/go-common':

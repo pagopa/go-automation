@@ -1,14 +1,10 @@
 {
-  "name": "go-analyze-alarm",
+  "name": "go-rta-check",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Analyzes an alarm, executes its associated runbook, and determines the correct operational outcome and next action based on collected evidence and known cases.",
   "main": "dist/index.js",
-  "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-    "./api": { "types": "./dist/api.d.ts", "default": "./dist/api.js" }
-  },
+  "description": "Confronta l'esecuzione dei runbook di go-analyze-alarm con le analisi Watchtower, su tutte le occorrenze di un allarme.",
   "files": [
     "dist",
     "package.json"
@@ -29,7 +25,8 @@
   "license": "ISC",
   "dependencies": {
     "@go-automation/go-common": "workspace:*",
-    "@go-automation/go-runbook": "workspace:*"
+    "@go-automation/go-runbook": "workspace:*",
+    "go-analyze-alarm": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:"

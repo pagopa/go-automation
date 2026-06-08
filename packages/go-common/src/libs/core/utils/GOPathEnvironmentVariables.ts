@@ -19,6 +19,8 @@ export const GOPathEnvironmentVariables = {
   INPUT_DIR: 'GO_INPUT_DIR',
   /** Output directory override */
   OUTPUT_DIR: 'GO_OUTPUT_DIR',
+  /** Cache directory override */
+  CACHE_DIR: 'GO_CACHE_DIR',
 } as const;
 
 /**

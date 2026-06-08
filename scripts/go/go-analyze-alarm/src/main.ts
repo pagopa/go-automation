@@ -7,46 +7,16 @@
 
 import { Core } from '@go-automation/go-common';
 import { RunbookEngine, ConditionEvaluator, apigw, lambda } from '@go-automation/go-runbook';
-import type { Runbook, ExecutionEnvironment } from '@go-automation/go-runbook';
+import type { ExecutionEnvironment } from '@go-automation/go-runbook';
 
 import type { GoAnalyzeAlarmConfig } from './types/GoAnalyzeAlarmConfig.js';
-import { buildAddressBookIoApiGwAlarmRunbook } from './libs/runbooks/pn-address-book-io-IO-ApiGwAlarm/runbook.js';
-import { buildDeliveryB2BApiGwAlarmRunbook } from './libs/runbooks/pn-delivery-B2B-ApiGwAlarm/runbook.js';
-import { buildDeliveryIoExpApiGwAlarmRunbook } from './libs/runbooks/pn-delivery-IO_EXP-ApiGwAlarm/runbook.js';
-import { buildDeliveryPushB2BApiGwAlarmRunbook } from './libs/runbooks/pn-delivery-push-B2B-ApiGwAlarm/runbook.js';
-import { buildIoAuthorizerLambdaRunbook } from './libs/runbooks/pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
-import { buildTokenExchangeLambdaRunbook } from './libs/runbooks/pn-tokenExchangeLambda-LogInvocationErrors-Alarm/runbook.js';
-import { buildSlaViolationCheckerLambdaSqsRunbook } from './libs/runbooks/pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm/runbook.js';
-import { buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook } from './libs/runbooks/pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm/runbook.js';
-import { buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook } from './libs/runbooks/pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm/runbook.js';
-import { buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook } from './libs/runbooks/pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm/runbook.js';
-
+import { RUNBOOK_REGISTRY } from './libs/runbookRegistry.js';
 import { DEFAULT_TIME_WINDOW_MINUTES } from './libs/runbooks/constants.js';
 import { createServiceRegistry } from './libs/createServiceRegistry.js';
 import { computeTimeRange } from './libs/computeTimeRange.js';
 import { createTimeRangeReference } from './libs/createTimeRangeReference.js';
 import { saveExecutionTrace } from './libs/saveExecutionTrace.js';
 import { saveExecutionOutput } from './libs/saveExecutionOutput.js';
-
-/** Runbook registry: maps alarm names to their runbook builders */
-const RUNBOOK_REGISTRY = new Map<string, () => Runbook>([
-  ['pn-address-book-io-IO-ApiGwAlarm', buildAddressBookIoApiGwAlarmRunbook],
-  ['pn-delivery-B2B-ApiGwAlarm', buildDeliveryB2BApiGwAlarmRunbook],
-  ['pn-delivery-IO_EXP-ApiGwAlarm', buildDeliveryIoExpApiGwAlarmRunbook],
-  ['pn-delivery-push-B2B-ApiGwAlarm', buildDeliveryPushB2BApiGwAlarmRunbook],
-  ['pn-ioAuthorizerLambda-LogInvocationErrors-Alarm', buildIoAuthorizerLambdaRunbook],
-  ['pn-tokenExchangeLambda-LogInvocationErrors-Alarm', buildTokenExchangeLambdaRunbook],
-  ['pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm', buildSlaViolationCheckerLambdaSqsRunbook],
-  [
-    'pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm',
-    buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook,
-  ],
-  ['pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm', buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook],
-  [
-    'pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm',
-    buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook,
-  ],
-]);
 
 /**
  * Main script execution function.

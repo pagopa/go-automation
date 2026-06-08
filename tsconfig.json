@@ -26,6 +26,7 @@
     { "path": "./scripts/go/go-parse-json" },
     { "path": "./scripts/go/go-report-alarms" },
     { "path": "./scripts/go/go-search-jira" },
+    { "path": "./scripts/go/go-rta-check" },
     { "path": "./scripts/send/send-download-safestorage-attachments" },
     { "path": "./scripts/send/send-fetch-timeline-from-iun" },
     { "path": "./scripts/send/send-import-notifications" },
