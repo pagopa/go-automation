@@ -22,11 +22,14 @@ class RecordingInvoker implements GOAIInvoker {
 
 describe('parseGOSemanticMatchResult', () => {
   it('normalizes valid semantic-match JSON output', () => {
-    assert.deepStrictEqual(parseGOSemanticMatchResult('{"score":"42","explanation":"different","verdict":"conflicting"}'), {
-      score: 42,
-      explanation: 'different',
-      verdict: 'conflicting',
-    });
+    assert.deepStrictEqual(
+      parseGOSemanticMatchResult('{"score":"42","explanation":"different","verdict":"conflicting"}'),
+      {
+        score: 42,
+        explanation: 'different',
+        verdict: 'conflicting',
+      },
+    );
   });
 
   it('rejects invalid semantic scores', () => {
