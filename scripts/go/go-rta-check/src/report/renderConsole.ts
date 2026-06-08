@@ -33,7 +33,7 @@ const RESULT_COLUMNS = [
   { header: 'Runbook', width: 32 },
   { header: 'Data allarme', width: 24 },
   { header: 'Esito', width: 26 },
-  { header: 'Verifica', width: 22 },
+  { header: 'Verifica', width: 32 },
 ] as const;
 
 /** Pads or truncates (with an ellipsis) a cell to the given width. */
@@ -53,6 +53,23 @@ export function renderResultsHeader(logger: Core.GOLogger): void {
   logger.text(RESULT_COLUMNS.map((column) => '─'.repeat(column.width)).join('─┼─'));
 }
 
+function matcherLabel(row: RtaCheckRow): string {
+  if (row.comparison.aiFallback === true) return 'lexical fallback';
+  if (row.comparison.matcher === 'ai') return 'ai';
+  if (row.comparison.matcher === 'lexical') return 'lexical';
+  if (row.comparison.aiAttempted === false) return 'n/a';
+  return '';
+}
+
+/** Formats the live-table V2 verification cell, including matcher visibility. */
+export function formatVerificationCell(row: RtaCheckRow): string {
+  const comparison = row.comparison;
+  const base =
+    comparison.confidence > 0 ? `${comparison.status} (${comparison.confidence.toFixed(2)})` : comparison.status;
+  const matcher = matcherLabel(row);
+  return matcher === '' ? base : `${base} · ${matcher}`;
+}
+
 /** Prints one row of the live per-execution table as each occurrence completes. */
 export function renderResultsRow(
   logger: Core.GOLogger,
@@ -64,17 +81,13 @@ export function renderResultsRow(
     row.runbook.status === 'HIT' && row.runbook.primaryCaseId !== undefined
       ? `HIT · ${row.runbook.primaryCaseId}`
       : row.runbook.status;
-  const verifica =
-    row.comparison.confidence > 0
-      ? `${row.comparison.status} (${row.comparison.confidence.toFixed(2)})`
-      : row.comparison.status;
   logger.text(
     [
       cell(productEnvLabel(productName, row.event.environment), RESULT_COLUMNS[0].width),
       cell(alarmName, RESULT_COLUMNS[1].width),
       cell(row.event.firedAt, RESULT_COLUMNS[2].width),
       cell(esito, RESULT_COLUMNS[3].width),
-      cell(verifica, RESULT_COLUMNS[4].width),
+      cell(formatVerificationCell(row), RESULT_COLUMNS[4].width),
     ].join(' │ '),
   );
 }
@@ -104,7 +117,20 @@ export function renderSummary(logger: Core.GOLogger, report: RtaCheckReport): vo
     .join(' · ');
   logger.info(`Coerenza analisi: ${compatibility === '' ? '-' : compatibility}`);
 
+  renderAiErrors(logger, report.rows);
   renderCritical(logger, report.rows);
+}
+
+function renderAiErrors(logger: Core.GOLogger, rows: ReadonlyArray<RtaCheckRow>): void {
+  const rowsWithErrors = rows.filter((row) => row.comparison.aiError !== undefined);
+  if (rowsWithErrors.length === 0) return;
+
+  logger.section('Errori GO-AI');
+  for (const row of rowsWithErrors.slice(0, 20)) {
+    const mode = row.comparison.aiFallback === true ? 'fallback lessicale' : 'senza fallback';
+    logger.text(`  • ${row.event.firedAt} · ${mode}: ${row.comparison.aiError ?? ''}`);
+  }
+  if (rowsWithErrors.length > 20) logger.text(`  … e altri ${rowsWithErrors.length - 20} errori GO-AI (vedi report).`);
 }
 
 function renderCritical(logger: Core.GOLogger, rows: ReadonlyArray<RtaCheckRow>): void {

@@ -37,4 +37,14 @@ export interface GoRtaCheckConfig {
   readonly includeIgnorable?: boolean;
   /** Use non-`COMPLETED` analyses as comparison oracle too (default false). */
   readonly includeIncomplete?: boolean;
+  /** V2 matcher strategy: `ai` (default) or `lexical`. */
+  readonly analysisMatcher?: string;
+  /** GO-AI semantic equivalence threshold, 0..100 (default 70). */
+  readonly goAiSemanticThreshold?: number;
+  /** Fallback to lexical matcher when GO-AI fails (default true). */
+  readonly goAiFallbackToLexical?: boolean;
+  /** Standard AWS region used by the script credential/profile flow. */
+  readonly awsRegion?: string;
+  /** Standard AWS profile for GO-AI Bedrock calls. */
+  readonly awsProfile?: string;
 }

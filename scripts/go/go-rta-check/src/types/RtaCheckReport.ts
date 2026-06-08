@@ -16,6 +16,12 @@ export type V2Status =
   | 'NOT_LINKED'
   | 'NOT_ANALYZED';
 
+/** Engine used for the V2 comparison. */
+export type AnalysisMatcherKind = 'lexical' | 'ai';
+
+/** Semantic verdict returned by GO-AI. */
+export type AnalysisSemanticVerdict = 'equivalent' | 'conflicting';
+
 /** Outcome of running the runbook for one occurrence (V1). */
 export interface RunbookCheck {
   readonly status: V1Status;
@@ -37,6 +43,8 @@ export interface AnalysisMatchSignals {
   readonly traceIdOverlap: ReadonlyArray<string>;
   readonly downstreamOverlap: ReadonlyArray<string>;
   readonly errorKeywordOverlap: ReadonlyArray<string>;
+  readonly semanticScore?: number;
+  readonly semanticVerdict?: AnalysisSemanticVerdict;
 }
 
 /** Outcome of comparing the runbook case with the Watchtower analysis (V2). */
@@ -45,6 +53,16 @@ export interface AnalysisMatch {
   readonly confidence: number;
   readonly reasons: ReadonlyArray<string>;
   readonly signals: AnalysisMatchSignals;
+  /** Final matcher used to compute V2. */
+  readonly matcher?: AnalysisMatcherKind;
+  /** True when the AI matcher was attempted for this comparison. */
+  readonly aiAttempted?: boolean;
+  /** True when the AI matcher failed and the lexical matcher was used instead. */
+  readonly aiFallback?: boolean;
+  /** Error returned by the AI matcher, if any. */
+  readonly aiError?: string;
+  /** GO-AI explanation when `matcher` is `ai`. */
+  readonly semanticExplanation?: string;
   /** Reference text from the analysis (trackingEntry or aggregate), for side-by-side. */
   readonly analysisExcerpt?: string;
 }
@@ -101,6 +119,10 @@ export interface RtaCheckInput {
   readonly dateFrom: string;
   readonly dateTo: string;
   readonly awsProfiles: ReadonlyArray<string>;
+  /** V2 matcher selected for this run. */
+  readonly analysisMatcher?: AnalysisMatcherKind;
+  /** Semantic equivalence threshold when `analysisMatcher` is `ai`. */
+  readonly goAiSemanticThreshold?: number;
 }
 
 /** Full machine-readable report. */

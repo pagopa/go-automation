@@ -5,7 +5,7 @@ Confronta l'esecuzione dei **runbook** di `go-analyze-alarm` con le **analisi Wa
 Per ogni occorrenza esegue **due verifiche**:
 
 - **V1 — copertura runbook** (deterministica): `HIT` / `MISS` / `NO-DATA` / `CONFIG-ERROR` / `EXECUTION-ERROR`.
-- **V2 — coerenza con l'analisi** (assistita, lessicale): `MATCH_EXACT` / `MATCH_STRONG` / `MATCH_WEAK` / `NO_EVIDENCE` / `CONFLICT` / `NOT_LINKED` / `NOT_ANALYZED`, con segnali e motivazioni (incl. overlap `traceId`/`requestId`).
+- **V2 — coerenza con l'analisi** (assistita): `MATCH_EXACT` / `MATCH_STRONG` / `MATCH_WEAK` / `NO_EVIDENCE` / `CONFLICT` / `NOT_LINKED` / `NOT_ANALYZED`, con segnali e motivazioni (incl. overlap `traceId`/`requestId`). Di default usa GO-AI `semantic-match`; `--analysis-matcher lexical` forza il matcher lessicale storico.
 
 ### Significato degli stati
 
@@ -34,6 +34,36 @@ Per ogni occorrenza esegue **due verifiche**:
 | `NOT_ANALYZED` | Analisi `IGNORABLE` o non `COMPLETED` → non usata come oracolo (salvo `--include-ignorable` / `--include-incomplete`). |
 
 Vedi `docs/evolutions/EVO-RTACHECK-OPUS-02.md` per il design completo.
+
+### Matcher AI
+
+Il matcher AI usa `@go-automation/go-ai`, `GOBedrockClient` e il cappello `semantic-match`, descritto in `artifacts/goai.pdf`: invia due testi (`a` = esito/caso rilevato dal runbook, `b` = analisi Watchtower dell'operatore) e riceve `score`, `explanation`, `verdict`.
+
+La chiamata GO-AI avviene solo quando serve davvero: analisi collegata e valida, runbook in `HIT`, nessun `traceId`/`requestId` o case id già deterministico. I segnali deterministici restano guardrail, mentre lo score AI sostituisce il confronto testuale lessicale.
+
+Se la chiamata AI fallisce, lo script usa automaticamente il matcher lessicale, salvo `--go-ai-fallback-to-lexical false`. La colonna live `Verifica` indica il motore effettivo: `ai` quando il modello ha risposto, `lexical fallback` quando GO-AI ha fallito e il confronto lessicale ha sostituito l'AI, `n/a` quando la riga non è confrontabile dall'AI (per esempio `MISS`, `CONFIG-ERROR`, analisi assente/non usabile). Il riepilogo finale mostra una sezione `Errori GO-AI` e il report JSON/HTML include `aiAttempted`, `aiFallback` e `aiError`.
+
+Esempio:
+
+```bash
+pnpm go:rta:check -- \
+  --watchtower-url "$WATCHTOWER_BASE_URL" \
+  --product-id "<uuid>" \
+  --alarm-name "pn-...-Alarm" \
+  --date-from "2026-02-01T00:00:00Z" --date-to "2026-06-04T23:59:59Z" \
+  --aws-profiles "sso_pn-core-prod_readonly" \
+  --analysis-matcher ai \
+  --aws-profile "sso_pn-analytics"
+```
+
+Parametri principali:
+
+| Flag                          | Default         | Significato                                                                  |
+| ----------------------------- | --------------- | ---------------------------------------------------------------------------- |
+| `--analysis-matcher`          | `ai`            | `ai` oppure `lexical`                                                        |
+| `--go-ai-semantic-threshold`  | `70`            | Soglia 0..100 per considerare equivalente lo score GO-AI                     |
+| `--go-ai-fallback-to-lexical` | `true`          | Se GO-AI fallisce, usa il matcher lessicale invece di marcare `NO_EVIDENCE`  |
+| `--aws-profile`               | `sso_pn-analytics` | Profilo AWS standard usato da GO-AI/Bedrock                               |
 
 ## Esecuzione
 

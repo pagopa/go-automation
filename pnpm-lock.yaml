@@ -627,6 +627,9 @@ importers:
 
   scripts/go/go-rta-check:
     dependencies:
+      '@go-automation/go-ai':
+        specifier: workspace:*
+        version: link:../../../packages/go-ai
       '@go-automation/go-common':
         specifier: workspace:*
         version: link:../../../packages/go-common

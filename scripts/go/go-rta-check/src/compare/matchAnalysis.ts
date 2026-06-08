@@ -81,6 +81,8 @@ export function matchAnalysis(
       confidence: 0,
       reasons: ["Nessuna analisi Watchtower collegata all'occorrenza."],
       signals: emptySignals(),
+      matcher: 'lexical',
+      aiAttempted: false,
     };
   }
 
@@ -93,6 +95,8 @@ export function matchAnalysis(
       confidence: 0,
       reasons: [`Analisi non usata come oracolo: ${why}.`],
       signals: emptySignals(),
+      matcher: 'lexical',
+      aiAttempted: false,
     };
   }
 
@@ -102,6 +106,8 @@ export function matchAnalysis(
       confidence: 0,
       reasons: ["Il runbook non ha rilevato un caso noto: nessun caso da confrontare con l'analisi."],
       signals: emptySignals(),
+      matcher: 'lexical',
+      aiAttempted: false,
     };
   }
 
@@ -174,6 +180,8 @@ export function matchAnalysis(
     confidence: Math.min(1, Number(score.toFixed(2))),
     reasons,
     signals,
+    matcher: 'lexical',
+    aiAttempted: false,
     ...(excerpt !== '' ? { analysisExcerpt: excerpt } : {}),
   };
 }

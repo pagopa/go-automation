@@ -5,8 +5,8 @@ import type { ServiceRegistry } from '@go-automation/go-runbook';
 import type { AlarmAnalysisDto, AlarmEventDto } from '../types/WatchtowerDtos.js';
 import type { AnalysisMatch, RtaCheckEvent, RtaCheckRow } from '../types/RtaCheckReport.js';
 import type { WatchtowerClient } from '../watchtower/WatchtowerClient.js';
+import type { AnalysisMatcherFn } from '../compare/AnalysisMatcher.js';
 import { classifyRunbookOutcome } from '../compare/classifyRunbookOutcome.js';
-import { matchAnalysis } from '../compare/matchAnalysis.js';
 import type { MatchAnalysisOptions } from '../compare/matchAnalysis.js';
 import { loadCachedOutput, saveCachedOutput } from '../runner/resumeCache.js';
 import type { RunbookCacheDescriptor } from '../runner/RunbookCacheDescriptor.js';
@@ -27,6 +27,7 @@ export interface CheckContext {
   readonly runbook: RunbookCacheDescriptor | undefined;
   readonly awsProfiles: ReadonlyArray<string>;
   readonly analysisCache: Map<string, AlarmAnalysisDto | undefined>;
+  readonly analysisMatcher: AnalysisMatcherFn;
   readonly matchOptions: MatchAnalysisOptions;
   readonly force: boolean;
 }
@@ -72,7 +73,7 @@ export async function checkOccurrence(context: CheckContext, event: AlarmEventDt
 
   const check = classifyRunbookOutcome(output);
   const analysis = event.analysisId !== null ? await fetchAnalysisCached(context, event.analysisId) : undefined;
-  const comparison = matchAnalysis(output, check, analysis, event.firedAt, context.matchOptions);
+  const comparison = await context.analysisMatcher(output, check, analysis, event.firedAt, context.matchOptions);
   return { event: toEventInfo(event), runbook: check, comparison, fromCache };
 }
 

@@ -24,6 +24,7 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
+    "@go-automation/go-ai": "workspace:*",
     "@go-automation/go-common": "workspace:*",
     "@go-automation/go-runbook": "workspace:*",
     "go-analyze-alarm": "workspace:*"

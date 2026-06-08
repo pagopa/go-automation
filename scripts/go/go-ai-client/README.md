@@ -48,6 +48,7 @@ Gli hat sono definiti nel package condiviso [`packages/go-ai/prompts.yaml`](/Use
 | `code-review`     | Analizza codice TypeScript cercando bug, problemi di sicurezza e best practice | `issues`                                              |
 | `runbook-assist`  | Suggerisce step, miglioramenti e casi scoperti per runbook/allarmi             | `steps`, `improvements`, `uncoveredCases`             |
 | `alarm-diagnosis` | Produce una diagnosi operativa strutturata di un allarme                       | `cause`, `severity`, `actions`, `classification`      |
+| `semantic-match`  | Confronta semanticamente due esiti/analisi operative                           | `score`, `explanation`, `verdict`                     |
 
 ### Note sugli hat
 

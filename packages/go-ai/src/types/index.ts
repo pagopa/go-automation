@@ -26,3 +26,24 @@ export interface GOAIResponse {
   readonly outputTokens: number;
   readonly hat: GOAIHat;
 }
+
+/** Minimal invoker contract for GO-AI clients. */
+export interface GOAIInvoker {
+  invoke(req: GOAIRequest): Promise<GOAIResponse>;
+}
+
+/** Input contract for the `semantic-match` hat. */
+export interface GOSemanticMatchInput {
+  readonly a: string;
+  readonly b: string;
+}
+
+/** Verdict returned by the `semantic-match` hat. */
+export type GOSemanticMatchVerdict = 'equivalent' | 'conflicting';
+
+/** Structured output contract for the `semantic-match` hat. */
+export interface GOSemanticMatchResult {
+  readonly score: number;
+  readonly explanation: string;
+  readonly verdict: GOSemanticMatchVerdict;
+}

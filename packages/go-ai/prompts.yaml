@@ -1,5 +1,5 @@
 normal:
-  description: "Test case standard"
+  description: 'Test case standard'
   template: |
     You are a senior QA engineer.
 
@@ -41,7 +41,7 @@ normal:
     - Output ONLY valid JSON
 
 gherkin:
-  description: "Scenari Gherkin in JSON"
+  description: 'Scenari Gherkin in JSON'
   template: |
     You are a senior QA engineer.
 
@@ -77,7 +77,7 @@ gherkin:
     - Output ONLY valid JSON
 
 srs-analysis:
-  description: "Analisi requisiti, ambiguità e rischi"
+  description: 'Analisi requisiti, ambiguità e rischi'
   template: |
     You are a senior business analyst.
 
@@ -103,7 +103,7 @@ srs-analysis:
     - Output ONLY valid JSON
 
 code-review:
-  description: "Review codice TypeScript"
+  description: 'Review codice TypeScript'
   template: |
     You are a senior TypeScript engineer.
 
@@ -125,7 +125,7 @@ code-review:
     - Output ONLY valid JSON
 
 runbook-assist:
-  description: "Analisi e miglioramento runbook"
+  description: 'Analisi e miglioramento runbook'
   template: |
     You are an IT operations expert.
 
@@ -147,7 +147,7 @@ runbook-assist:
     - Output ONLY valid JSON
 
 alarm-diagnosis:
-  description: "Diagnosi operativa allarme"
+  description: 'Diagnosi operativa allarme'
   template: |
     You are an operational diagnosis system.
 
@@ -170,17 +170,14 @@ alarm-diagnosis:
     - Output ONLY valid JSON
 
 semantic-match:
-  description: "Confronto semantico tra due esiti operativi"
+  description: 'Confronto semantico tra due esiti'
   template: |
-    You are a semantic analysis system specialized in IT operations.
+    You are a semantic comparison system for IT operations analyses.
 
-    Compare the following two expressions and determine whether they convey
-    the same meaning. The expressions are operational outcomes: one produced
-    by an automated runbook, the other written by a human operator during
-    alarm resolution. They may use different wording but express the same
-    diagnosis.
+    Compare the two expressions in the input JSON and decide whether they express
+    the same operational diagnosis, even when they use different words.
 
-    INPUT (JSON with fields "a" and "b"):
+    INPUT JSON:
     """
     {INPUT}
     """
@@ -193,8 +190,11 @@ semantic-match:
     }
 
     RULES:
-    - "score" is an integer from 0 (completely different) to 100 (identical meaning)
-    - "verdict" is "equivalent" if score >= 70, "conflicting" otherwise
-    - "explanation" must be one sentence in Italian
-    - Focus on semantic meaning, ignore stylistic differences
-    - Output ONLY valid JSON
+    - `score` must be an integer from 0 to 100.
+    - Use `equivalent` when score is greater than or equal to 70.
+    - Use `conflicting` when score is lower than 70.
+    - Write `explanation` in Italian, concise and operational.
+    - Focus on the meaning of the diagnosis, root cause, affected dependency and final outcome.
+    - Ignore superficial wording differences, casing, punctuation and phrasing.
+    - Do not invent facts that are not present in either expression.
+    - Output ONLY valid JSON.

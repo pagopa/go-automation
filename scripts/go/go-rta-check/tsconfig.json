@@ -9,6 +9,7 @@
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
   "references": [
+    { "path": "../../../packages/go-ai" },
     { "path": "../../../packages/go-common" },
     { "path": "../../../packages/go-runbook" },
     { "path": "../go-analyze-alarm" }

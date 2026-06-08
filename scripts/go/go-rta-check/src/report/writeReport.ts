@@ -13,6 +13,11 @@ interface ReportHtmlRow extends Record<string, unknown> {
   readonly caso: string;
   readonly v2: string;
   readonly confidence: string;
+  readonly matcher: string;
+  readonly aiAttempted: string;
+  readonly aiFallback: string;
+  readonly aiError: string;
+  readonly semanticScore: string;
   readonly note: string;
 }
 
@@ -66,6 +71,18 @@ function toHtmlRow(row: RtaCheckRow): ReportHtmlRow {
     caso: runbook.primaryCaseId ?? '',
     v2: row.comparison.status,
     confidence: row.comparison.confidence.toFixed(2),
-    note: (runbook.error ?? row.comparison.reasons[0] ?? '').slice(0, 120),
+    matcher: row.comparison.matcher ?? (row.comparison.aiAttempted === false ? 'n/a' : ''),
+    aiAttempted: row.comparison.aiAttempted === undefined ? '' : row.comparison.aiAttempted === true ? 'true' : 'false',
+    aiFallback: row.comparison.aiFallback === true ? 'true' : '',
+    aiError: row.comparison.aiError ?? '',
+    semanticScore:
+      row.comparison.signals.semanticScore !== undefined ? row.comparison.signals.semanticScore.toFixed(0) : '',
+    note: (
+      runbook.error ??
+      row.comparison.aiError ??
+      row.comparison.semanticExplanation ??
+      row.comparison.reasons[0] ??
+      ''
+    ).slice(0, 120),
   };
 }
