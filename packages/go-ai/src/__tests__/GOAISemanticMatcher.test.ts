@@ -35,6 +35,14 @@ describe('parseGOSemanticMatchResult', () => {
   it('rejects invalid semantic scores', () => {
     assert.throws(() => parseGOSemanticMatchResult('{"score":101}'), /Invalid semantic-match score/);
   });
+
+  it('normalizes missing verdicts with the configured threshold', () => {
+    assert.deepStrictEqual(parseGOSemanticMatchResult('{"score":65,"explanation":"above custom threshold"}', 60), {
+      score: 65,
+      explanation: 'above custom threshold',
+      verdict: 'equivalent',
+    });
+  });
 });
 
 describe('GOAISemanticMatcher', () => {
@@ -52,9 +60,22 @@ describe('GOAISemanticMatcher', () => {
     assert.strictEqual(invoker.requests.length, 1);
     assert.deepStrictEqual(invoker.requests[0], {
       hat: GOAIHat.SemanticMatch,
-      input: JSON.stringify({ a: 'runbook timeout', b: 'operator saw timeout' }),
+      input: JSON.stringify({ a: 'runbook timeout', b: 'operator saw timeout', threshold: 70 }),
       maxTokens: 500,
       temperature: 0,
+    });
+  });
+
+  it('passes a configured threshold to the semantic-match hat', async () => {
+    const invoker = new RecordingInvoker();
+    const matcher = new GOAISemanticMatcher({ client: invoker, threshold: 85 });
+
+    await matcher.match({ a: 'runbook timeout', b: 'operator saw timeout' });
+
+    assert.deepStrictEqual(JSON.parse(invoker.requests[0]?.input ?? '{}'), {
+      a: 'runbook timeout',
+      b: 'operator saw timeout',
+      threshold: 85,
     });
   });
 });

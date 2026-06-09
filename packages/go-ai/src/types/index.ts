@@ -36,6 +36,7 @@ export interface GOAIInvoker {
 export interface GOSemanticMatchInput {
   readonly a: string;
   readonly b: string;
+  readonly threshold?: number;
 }
 
 /** Verdict returned by the `semantic-match` hat. */

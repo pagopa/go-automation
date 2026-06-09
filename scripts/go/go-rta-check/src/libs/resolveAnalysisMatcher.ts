@@ -26,7 +26,7 @@ function normalizeThreshold(value: number | undefined): number {
   return threshold;
 }
 
-function createSemanticMatcher(config: GoRtaCheckConfig): GOAISemanticMatcher {
+function createSemanticMatcher(config: GoRtaCheckConfig, semanticThreshold: number): GOAISemanticMatcher {
   const client = new GOBedrockClient({
     ...(config.awsRegion !== undefined ? { region: config.awsRegion } : {}),
     ...(config.awsProfile !== undefined ? { profile: config.awsProfile } : {}),
@@ -35,6 +35,7 @@ function createSemanticMatcher(config: GoRtaCheckConfig): GOAISemanticMatcher {
     client,
     maxTokens: 500,
     temperature: 0,
+    threshold: semanticThreshold,
   });
 }
 
@@ -57,7 +58,7 @@ export function resolveAnalysisMatcher(config: GoRtaCheckConfig): ResolvedAnalys
   }
 
   const semanticThreshold = normalizeThreshold(config.goAiSemanticThreshold);
-  const semanticMatcher = createSemanticMatcher(config);
+  const semanticMatcher = createSemanticMatcher(config, semanticThreshold);
   const fallbackToLexical = config.goAiFallbackToLexical !== false;
 
   return {

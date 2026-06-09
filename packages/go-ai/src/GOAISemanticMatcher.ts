@@ -15,6 +15,7 @@ export interface GOAISemanticMatcherOptions {
   readonly client: GOAIInvoker;
   readonly maxTokens?: number;
   readonly temperature?: number;
+  readonly threshold?: number;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -29,9 +30,17 @@ function normalizeScore(value: unknown): number {
   return numeric;
 }
 
-function normalizeVerdict(value: unknown, score: number): GOSemanticMatchVerdict {
+function normalizeThreshold(value: unknown): number {
+  const numeric = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : 70;
+  if (!Number.isInteger(numeric) || numeric < 0 || numeric > 100) {
+    throw new Error(`Invalid semantic-match threshold: ${String(value)}`);
+  }
+  return numeric;
+}
+
+function normalizeVerdict(value: unknown, score: number, threshold: number): GOSemanticMatchVerdict {
   if (value === 'equivalent' || value === 'conflicting') return value;
-  return score >= 70 ? 'equivalent' : 'conflicting';
+  return score >= threshold ? 'equivalent' : 'conflicting';
 }
 
 /**
@@ -40,15 +49,16 @@ function normalizeVerdict(value: unknown, score: number): GOSemanticMatchVerdict
  * @param raw - Raw GO-AI response output
  * @returns The normalized semantic-match result
  */
-export function parseGOSemanticMatchResult(raw: string): GOSemanticMatchResult {
+export function parseGOSemanticMatchResult(raw: string, threshold = 70): GOSemanticMatchResult {
   const parsed = parseGOAIJsonOutput(raw);
   if (!isRecord(parsed)) {
     throw new Error('Invalid semantic-match response: expected a JSON object');
   }
 
+  const normalizedThreshold = normalizeThreshold(threshold);
   const score = normalizeScore(parsed['score']);
   const explanation = typeof parsed['explanation'] === 'string' ? parsed['explanation'] : '';
-  const verdict = normalizeVerdict(parsed['verdict'], score);
+  const verdict = normalizeVerdict(parsed['verdict'], score, normalizedThreshold);
   return { score, explanation, verdict };
 }
 
@@ -59,11 +69,13 @@ export class GOAISemanticMatcher {
   private readonly client: GOAIInvoker;
   private readonly maxTokens: number | undefined;
   private readonly temperature: number | undefined;
+  private readonly threshold: number;
 
   constructor(options: GOAISemanticMatcherOptions) {
     this.client = options.client;
     this.maxTokens = options.maxTokens;
     this.temperature = options.temperature;
+    this.threshold = normalizeThreshold(options.threshold);
   }
 
   /**
@@ -73,12 +85,13 @@ export class GOAISemanticMatcher {
    * @returns The normalized semantic-match result
    */
   async match(input: GOSemanticMatchInput): Promise<GOSemanticMatchResult> {
+    const threshold = normalizeThreshold(input.threshold ?? this.threshold);
     const response = await this.client.invoke({
       hat: GOAIHat.SemanticMatch,
-      input: JSON.stringify(input),
+      input: JSON.stringify({ ...input, threshold }),
       ...(this.maxTokens !== undefined ? { maxTokens: this.maxTokens } : {}),
       ...(this.temperature !== undefined ? { temperature: this.temperature } : {}),
     });
-    return parseGOSemanticMatchResult(response.output);
+    return parseGOSemanticMatchResult(response.output, threshold);
   }
 }

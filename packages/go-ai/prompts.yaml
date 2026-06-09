@@ -180,7 +180,7 @@ semantic-match:
     alarm resolution. They may use different wording but express the same
     diagnosis.
 
-    INPUT (JSON with fields "a" and "b"):
+    INPUT (JSON with fields "a", "b" and "threshold"):
     """
     {INPUT}
     """
@@ -194,7 +194,8 @@ semantic-match:
 
     RULES:
     - "score" is an integer from 0 (completely different) to 100 (identical meaning)
-    - "verdict" is "equivalent" if score >= 70, "conflicting" otherwise
+    - "threshold" is the configured equivalence threshold from the input JSON
+    - "verdict" is "equivalent" if score >= threshold, "conflicting" otherwise
     - "explanation" must be one sentence in Italian
     - Focus on semantic meaning, ignore stylistic differences
     - Output ONLY valid JSON
