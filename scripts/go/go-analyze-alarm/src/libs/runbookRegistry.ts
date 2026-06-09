@@ -6,10 +6,14 @@
  */
 import type { Runbook } from '@go-automation/go-runbook';
 
+// api gateway
 import { buildAddressBookIoApiGwAlarmRunbook } from './runbooks/pn-address-book-io-IO-ApiGwAlarm/runbook.js';
 import { buildDeliveryB2BApiGwAlarmRunbook } from './runbooks/pn-delivery-B2B-ApiGwAlarm/runbook.js';
 import { buildDeliveryIoExpApiGwAlarmRunbook } from './runbooks/pn-delivery-IO_EXP-ApiGwAlarm/runbook.js';
 import { buildDeliveryPushB2BApiGwAlarmRunbook } from './runbooks/pn-delivery-push-B2B-ApiGwAlarm/runbook.js';
+import { buildNationalRegistriesPNPGApiGwAlarmRunbook } from './runbooks/pn-national-registries-PNPG-ApiGwAlarm/runbook.js';
+
+// lambda
 import { buildIoAuthorizerLambdaRunbook } from './runbooks/pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildTokenExchangeLambdaRunbook } from './runbooks/pn-tokenExchangeLambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildSlaViolationCheckerLambdaSqsRunbook } from './runbooks/pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm/runbook.js';
@@ -23,6 +27,7 @@ export const RUNBOOK_REGISTRY: ReadonlyMap<string, () => Runbook> = new Map<stri
   ['pn-delivery-B2B-ApiGwAlarm', buildDeliveryB2BApiGwAlarmRunbook],
   ['pn-delivery-IO_EXP-ApiGwAlarm', buildDeliveryIoExpApiGwAlarmRunbook],
   ['pn-delivery-push-B2B-ApiGwAlarm', buildDeliveryPushB2BApiGwAlarmRunbook],
+  ['pn-national-registries-PNPG-ApiGwAlarm', buildNationalRegistriesPNPGApiGwAlarmRunbook],
   ['pn-ioAuthorizerLambda-LogInvocationErrors-Alarm', buildIoAuthorizerLambdaRunbook],
   ['pn-tokenExchangeLambda-LogInvocationErrors-Alarm', buildTokenExchangeLambdaRunbook],
   ['pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm', buildSlaViolationCheckerLambdaSqsRunbook],
