@@ -76,6 +76,22 @@ function semanticMatcher(score: number): Pick<GOAISemanticMatcher, 'match'> {
   };
 }
 
+function semanticMatcherResult(
+  score: number,
+  verdict: 'equivalent' | 'conflicting',
+): Pick<GOAISemanticMatcher, 'match'> {
+  return {
+    match: async () => {
+      await Promise.resolve();
+      return {
+        score,
+        explanation: 'Risultato semantico controllato dal test.',
+        verdict,
+      };
+    },
+  };
+}
+
 describe('matchAnalysisAi', () => {
   it('uses GO-AI semantic score for non-exact HIT comparisons', async () => {
     const linked = analysis({ errorDetails: 'La funzione Lambda non ha completato entro il tempo massimo.' });
@@ -94,6 +110,38 @@ describe('matchAnalysisAi', () => {
     assert.strictEqual(result.aiError, undefined);
     assert.strictEqual(result.signals.semanticScore, 88);
     assert.strictEqual(result.signals.semanticVerdict, 'equivalent');
+  });
+
+  it('maps low AI similarity to NO_EVIDENCE when it is not a strong contradiction', async () => {
+    const linked = analysis({ errorDetails: 'Testo operatore scarno e non specifico.' });
+    const result = await matchAnalysisAi(outputWithRequestId('r1'), HIT, linked, NOW, {
+      includeIgnorable: false,
+      includeIncomplete: false,
+      semanticMatcher: semanticMatcherResult(45, 'conflicting'),
+      semanticThreshold: 70,
+      fallbackToLexical: true,
+    });
+
+    assert.strictEqual(result.status, 'NO_EVIDENCE');
+    assert.strictEqual(result.matcher, 'ai');
+    assert.strictEqual(result.aiAttempted, true);
+    assert.strictEqual(result.signals.semanticScore, 45);
+  });
+
+  it('maps very low conflicting AI similarity to CONFLICT', async () => {
+    const linked = analysis({ errorDetails: 'Testo operatore con causa diversa.' });
+    const result = await matchAnalysisAi(outputWithRequestId('r1'), HIT, linked, NOW, {
+      includeIgnorable: false,
+      includeIncomplete: false,
+      semanticMatcher: semanticMatcherResult(20, 'conflicting'),
+      semanticThreshold: 70,
+      fallbackToLexical: true,
+    });
+
+    assert.strictEqual(result.status, 'CONFLICT');
+    assert.strictEqual(result.matcher, 'ai');
+    assert.strictEqual(result.aiAttempted, true);
+    assert.strictEqual(result.signals.semanticScore, 20);
   });
 
   it('keeps MATCH_EXACT and still audits operator text with GO-AI on deterministic trace overlap', async () => {

@@ -25,6 +25,8 @@ const MATCH_SOURCE = {
   lexical: 'lexical',
 } as const satisfies Record<string, AnalysisMatchSource>;
 
+const CONFLICT_SCORE_GAP = 40;
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -49,7 +51,10 @@ function analysisSemanticText(analysis: AlarmAnalysisDto, firedAt: string): stri
 }
 
 function aiStatus(result: GOSemanticMatchResult, threshold: number): V2Status {
-  if (result.score < threshold) return 'CONFLICT';
+  if (result.score < threshold) {
+    const conflictThreshold = Math.max(0, threshold - CONFLICT_SCORE_GAP);
+    return result.verdict === 'conflicting' && result.score <= conflictThreshold ? 'CONFLICT' : 'NO_EVIDENCE';
+  }
   const strongThreshold = Math.min(100, threshold + 15);
   return result.score >= strongThreshold ? 'MATCH_STRONG' : 'MATCH_WEAK';
 }

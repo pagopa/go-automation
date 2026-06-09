@@ -23,15 +23,15 @@ Per ogni occorrenza esegue **due verifiche**:
 
 **V2 — Verifica (coerenza con l'analisi Watchtower, assistita)**
 
-| Verifica       | Significato                                                                                                            |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `MATCH_EXACT`  | `traceId`/`requestId` in comune, oppure id/descrizione del caso citati nell'analisi.                                   |
-| `MATCH_STRONG` | Segnali forti concordi (downstream / keyword / descrizione), score alto.                                               |
-| `MATCH_WEAK`   | Solo segnali deboli concordi.                                                                                          |
-| `NO_EVIDENCE`  | Analisi collegata ma testo insufficiente, **oppure** il runbook non ha rilevato un caso da confrontare.                |
-| `CONFLICT`     | Categoria d'errore del runbook **divergente** da quella dell'analisi.                                                  |
-| `NOT_LINKED`   | Occorrenza **senza analisi** collegata.                                                                                |
-| `NOT_ANALYZED` | Analisi `IGNORABLE` o non `COMPLETED` → non usata come oracolo (salvo `--include-ignorable` / `--include-incomplete`). |
+| Verifica       | Significato                                                                                                             |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `MATCH_EXACT`  | `traceId`/`requestId` in comune, oppure id/descrizione del caso citati nell'analisi.                                    |
+| `MATCH_STRONG` | Segnali forti concordi (downstream / keyword / descrizione), score alto.                                                |
+| `MATCH_WEAK`   | Solo segnali deboli concordi.                                                                                           |
+| `NO_EVIDENCE`  | Analisi collegata ma testo insufficiente/non correlabile, **oppure** il runbook non ha rilevato un caso da confrontare. |
+| `CONFLICT`     | Categoria d'errore divergente, oppure GO-AI segnala una divergenza semantica forte con score molto basso.               |
+| `NOT_LINKED`   | Occorrenza **senza analisi** collegata.                                                                                 |
+| `NOT_ANALYZED` | Analisi `IGNORABLE` o non `COMPLETED` → non usata come oracolo (salvo `--include-ignorable` / `--include-incomplete`).  |
 
 Vedi `docs/evolutions/EVO-RTACHECK-OPUS-02.md` per il design completo.
 
