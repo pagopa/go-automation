@@ -1,0 +1,29 @@
+/**
+ * Known cases for the {{RUNBOOK_ID}} runbook.
+ */
+
+import type { KnownCase } from '@go-automation/go-runbook';
+
+/**
+ * Known cases evaluated against service log analysis.
+ *
+ * TODO: add recurring, already-understood failure modes for this alarm.
+ */
+export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
+  // {
+  //   id: 'example-known-case',
+  //   description: 'Caso noto da log applicativo',
+  //   priority: 100,
+  //   condition: {
+  //     type: 'contains',
+  //     ref: 'steps.query-{{SERVICE_NAME}}',
+  //     regex: 'some error pattern',
+  //   },
+  //   action: {
+  //     type: 'log',
+  //     level: 'info',
+  //     renderAs: 'known-case',
+  //     message: '[CASO NOTO] ...\n' + 'Risoluzione: Chiusura - caso noto\n',
+  //   },
+  // },
+];

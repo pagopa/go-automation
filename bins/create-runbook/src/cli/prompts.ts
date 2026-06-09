@@ -24,6 +24,7 @@ function parseTags(raw: string): ReadonlyArray<string> {
 }
 
 function defaultTags(template: RunbookTemplate): string {
+  if (template.id === 'service') return 'service';
   return template.id === 'api-gateway' ? 'api-gateway' : '';
 }
 

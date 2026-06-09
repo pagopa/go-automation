@@ -1,0 +1,12 @@
+/**
+ * Known services for the {{RUNBOOK_ID}} runbook.
+ */
+
+import type { service } from '@go-automation/go-runbook';
+
+/** Application service whose logs are the primary diagnostic source. */
+export const SERVICE: service.ServiceDescriptor = {
+  name: '{{SERVICE_NAME}}',
+  varPrefix: '{{SERVICE_VAR_PREFIX}}',
+  logGroup: '{{SERVICE_LOG_GROUP}}',
+};

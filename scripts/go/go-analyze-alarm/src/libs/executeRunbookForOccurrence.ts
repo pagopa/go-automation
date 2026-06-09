@@ -7,7 +7,14 @@
  * without spawning a subprocess or parsing files.
  */
 import { Core } from '@go-automation/go-common';
-import { RunbookEngine, ConditionEvaluator, apigw, lambda, buildRunbookOutput } from '@go-automation/go-runbook';
+import {
+  RunbookEngine,
+  ConditionEvaluator,
+  apigw,
+  lambda,
+  service,
+  buildRunbookOutput,
+} from '@go-automation/go-runbook';
 import type { ServiceRegistry, RunbookOutput, ExecutionEnvironment } from '@go-automation/go-runbook';
 
 import { RUNBOOK_REGISTRY } from './runbookRegistry.js';
@@ -76,6 +83,8 @@ export async function executeRunbookForOccurrence(
 
   return buildRunbookOutput(runbook, result, {
     contextBuilder: (rb, executionResult) =>
-      apigw.buildApiGwOutputContext(rb, executionResult) ?? lambda.buildLambdaOutputContext(rb, executionResult),
+      apigw.buildApiGwOutputContext(rb, executionResult) ??
+      lambda.buildLambdaOutputContext(rb, executionResult) ??
+      service.buildServiceOutputContext(rb, executionResult),
   });
 }
