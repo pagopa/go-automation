@@ -1,0 +1,35 @@
+{
+  "name": "go-rta-check",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "description": "Confronta l'esecuzione dei runbook di go-analyze-alarm con le analisi Watchtower, su tutte le occorrenze di un allarme.",
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "pnpm build && node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'"
+  },
+  "keywords": [
+    "go",
+    "go-automation"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "dependencies": {
+    "@go-automation/go-ai": "workspace:*",
+    "@go-automation/go-common": "workspace:*",
+    "@go-automation/go-runbook": "workspace:*",
+    "go-analyze-alarm": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

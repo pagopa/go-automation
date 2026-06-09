@@ -13,15 +13,3 @@ export async function loadInput(inputArg: string, script: Core.GOScript): Promis
   const content = await importer.import();
   return content ?? inputArg;
 }
-
-export function stabilize(raw: string): unknown {
-  const stripped = raw
-    .replace(/^```(?:json)?\n?/m, '')
-    .replace(/\n?```$/m, '')
-    .trim();
-  try {
-    return JSON.parse(stripped) as unknown;
-  } catch {
-    return { text: stripped };
-  }
-}

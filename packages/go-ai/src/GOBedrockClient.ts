@@ -50,7 +50,7 @@ export class GOBedrockClient {
 
   async invoke(req: GOAIRequest): Promise<GOAIResponse> {
     const template = getTemplate(req.hat);
-    const prompt = template.replace('{INPUT}', req.input);
+    const prompt = template.replace('{INPUT}', () => req.input);
 
     const input: ConverseCommandInput = {
       modelId: this.modelArn,
