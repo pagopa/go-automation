@@ -5,13 +5,11 @@
  */
 
 import { Core } from '@go-automation/go-common';
-
-import { GOAIHat, type GOAIRequest } from '@go-automation/go-ai';
-
-import type { GoAIClientConfig } from './types/index.js';
-import { loadInput, stabilize } from './libs/inputUtils.js';
+import { GOAIHat, parseGOAIOutput, type GOAIRequest } from '@go-automation/go-ai';
+import { loadInput } from './libs/inputUtils.js';
 import { printHats } from './libs/printHats.js';
 import { invokeDirect, invokeLambda } from './libs/invokers.js';
+import type { GoAIClientConfig } from './types/index.js';
 
 /**
  * Main script execution function.
@@ -53,6 +51,6 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   script.logger.info(`${response.inputTokens} in / ${response.outputTokens} out tokens`);
 
-  const parsed = stabilize(response.output);
+  const parsed = parseGOAIOutput(response.output);
   console.log(JSON.stringify(parsed, null, 2));
 }
