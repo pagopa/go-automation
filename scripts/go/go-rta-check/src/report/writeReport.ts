@@ -1,7 +1,7 @@
 import { Core } from '@go-automation/go-common';
 import * as nodePath from 'node:path';
 
-import type { RtaCheckReport, RtaCheckRow } from '../types/RtaCheckReport.js';
+import type { AnalysisMatchSource, RtaCheckReport, RtaCheckRow } from '../types/RtaCheckReport.js';
 
 /** Report artifact formats. */
 export type OutputFormat = 'json' | 'html';
@@ -76,7 +76,7 @@ export function toHtmlRow(row: RtaCheckRow): ReportHtmlRow {
     caso: runbook.primaryCaseId ?? '',
     v2: row.comparison.status,
     confidence: row.comparison.confidence.toFixed(2),
-    matcher: row.comparison.matcher ?? (row.comparison.aiAttempted === false ? 'n/a' : ''),
+    matcher: formatMatchSource(row.comparison.matcher, row.comparison.aiAttempted),
     aiAttempted: row.comparison.aiAttempted === undefined ? '' : row.comparison.aiAttempted === true ? 'true' : 'false',
     aiFallback: row.comparison.aiFallback === true ? 'true' : '',
     aiError: row.comparison.aiError ?? '',
@@ -87,6 +87,11 @@ export function toHtmlRow(row: RtaCheckRow): ReportHtmlRow {
     note:
       runbook.error ?? row.comparison.aiError ?? row.comparison.semanticExplanation ?? row.comparison.reasons[0] ?? '',
   };
+}
+
+function formatMatchSource(source: AnalysisMatchSource | undefined, aiAttempted: boolean | undefined): string {
+  if (source !== undefined) return source;
+  return aiAttempted === false ? 'n/a' : '';
 }
 
 function formatAiDetail(row: RtaCheckRow): string {

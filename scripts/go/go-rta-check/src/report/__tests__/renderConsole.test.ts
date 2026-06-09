@@ -42,6 +42,20 @@ describe('formatVerificationCell', () => {
     );
   });
 
+  it('shows when deterministic evidence was also audited by AI', () => {
+    assert.strictEqual(
+      formatVerificationCell(row({ status: 'MATCH_EXACT', matcher: 'deterministic+ai', aiAttempted: true })),
+      'MATCH_EXACT (0.88) · deterministic+ai',
+    );
+  });
+
+  it('shows when deterministic evidence preserved the match without AI result', () => {
+    assert.strictEqual(
+      formatVerificationCell(row({ status: 'MATCH_EXACT', matcher: 'deterministic', aiAttempted: false })),
+      'MATCH_EXACT (0.88) · deterministic',
+    );
+  });
+
   it('shows n/a when AI was not applicable to the row', () => {
     assert.strictEqual(formatVerificationCell(row({ aiAttempted: false })), 'MATCH_STRONG (0.88) · n/a');
   });

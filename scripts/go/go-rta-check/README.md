@@ -41,7 +41,7 @@ Il matcher AI usa `@go-automation/go-ai`, `GOBedrockClient` e il cappello `seman
 
 La chiamata GO-AI avviene solo quando serve davvero: analisi collegata e valida, runbook in `HIT`, nessun `traceId`/`requestId` o case id già deterministico. I segnali deterministici restano guardrail, mentre lo score AI sostituisce il confronto testuale lessicale.
 
-Se la chiamata AI fallisce, lo script usa automaticamente il matcher lessicale, salvo `--go-ai-fallback-to-lexical false`. La colonna live `Verifica` indica il motore effettivo: `ai` quando il modello ha risposto, `lexical fallback` quando GO-AI ha fallito e il confronto lessicale ha sostituito l'AI, `n/a` quando la riga non è confrontabile dall'AI (per esempio `MISS`, `CONFIG-ERROR`, analisi assente/non usabile). Il riepilogo finale mostra una sezione `Errori GO-AI` e il report JSON/HTML include `aiAttempted`, `aiFallback` e `aiError`.
+Se la chiamata AI fallisce, lo script usa automaticamente il matcher lessicale, salvo `--go-ai-fallback-to-lexical false`. La colonna live `Verifica` indica il motore effettivo: `deterministic+ai` quando traceId/requestId o case id rendono il match esatto e GO-AI ha comunque verificato il testo operatore, `deterministic` quando il match esatto resta deterministico ma l'audit AI non ha prodotto risultato, `ai` quando il modello ha deciso il confronto, `lexical fallback` quando GO-AI ha fallito e il confronto lessicale ha sostituito l'AI, `n/a` quando la riga non è confrontabile dall'AI (per esempio `MISS`, `CONFIG-ERROR`, analisi assente/non usabile). Il riepilogo finale mostra una sezione `Errori GO-AI` e il report JSON/HTML include `aiAttempted`, `aiFallback` e `aiError`.
 
 Esempio:
 

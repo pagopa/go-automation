@@ -19,6 +19,9 @@ export type V2Status =
 /** Engine used for the V2 comparison. */
 export type AnalysisMatcherKind = 'lexical' | 'ai';
 
+/** Effective source that produced a single V2 comparison row. */
+export type AnalysisMatchSource = AnalysisMatcherKind | 'deterministic' | 'deterministic+ai';
+
 /** Semantic verdict returned by GO-AI. */
 type AnalysisSemanticVerdict = 'equivalent' | 'conflicting';
 
@@ -53,15 +56,15 @@ export interface AnalysisMatch {
   readonly confidence: number;
   readonly reasons: ReadonlyArray<string>;
   readonly signals: AnalysisMatchSignals;
-  /** Final matcher used to compute V2. */
-  readonly matcher?: AnalysisMatcherKind;
+  /** Effective source used to compute or preserve this V2 result. */
+  readonly matcher?: AnalysisMatchSource;
   /** True when the AI matcher was attempted for this comparison. */
   readonly aiAttempted?: boolean;
   /** True when the AI matcher failed and the lexical matcher was used instead. */
   readonly aiFallback?: boolean;
   /** Error returned by the AI matcher, if any. */
   readonly aiError?: string;
-  /** GO-AI explanation when `matcher` is `ai`. */
+  /** GO-AI explanation when a semantic audit/result is available. */
   readonly semanticExplanation?: string;
   /** Reference text from the analysis (trackingEntry or aggregate), for side-by-side. */
   readonly analysisExcerpt?: string;

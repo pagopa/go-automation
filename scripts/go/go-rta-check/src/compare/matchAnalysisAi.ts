@@ -2,7 +2,13 @@ import type { RunbookOutput } from '@go-automation/go-runbook';
 import type { GOAISemanticMatcher, GOSemanticMatchResult } from '@go-automation/go-ai';
 
 import type { AlarmAnalysisDto } from '../types/WatchtowerDtos.js';
-import type { AnalysisMatch, AnalysisMatchSignals, RunbookCheck, V2Status } from '../types/RtaCheckReport.js';
+import type {
+  AnalysisMatch,
+  AnalysisMatchSignals,
+  AnalysisMatchSource,
+  RunbookCheck,
+  V2Status,
+} from '../types/RtaCheckReport.js';
 import { extractAnalysisEvidence, pickOccurrenceExcerpt } from './extractAnalysisEvidence.js';
 import { matchAnalysis, type MatchAnalysisOptions } from './matchAnalysis.js';
 
@@ -11,6 +17,13 @@ export interface MatchAnalysisAiOptions extends MatchAnalysisOptions {
   readonly semanticThreshold: number;
   readonly fallbackToLexical: boolean;
 }
+
+const MATCH_SOURCE = {
+  ai: 'ai',
+  deterministic: 'deterministic',
+  deterministicAi: 'deterministic+ai',
+  lexical: 'lexical',
+} as const satisfies Record<string, AnalysisMatchSource>;
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -52,6 +65,29 @@ function withAiNotApplicable(match: AnalysisMatch): AnalysisMatch {
   };
 }
 
+function hasDeterministicExactMatch(match: AnalysisMatch): boolean {
+  return match.status === 'MATCH_EXACT' && (match.signals.traceIdOverlap.length > 0 || match.signals.caseIdMentioned);
+}
+
+function withDeterministicExactMatch(match: AnalysisMatch): AnalysisMatch {
+  const signals = [];
+  if (match.signals.traceIdOverlap.length > 0) signals.push('traceId');
+  if (match.signals.caseIdMentioned) signals.push('caseId');
+  return {
+    ...match,
+    matcher: MATCH_SOURCE.deterministic,
+    aiAttempted: false,
+    reasons: [...match.reasons, `GO-AI non invocato: match deterministico ${signals.join('/')} già esatto.`],
+  };
+}
+
+function deterministicAuditReason(result: GOSemanticMatchResult, threshold: number): string {
+  if (result.score < threshold || result.verdict === 'conflicting') {
+    return 'MATCH_EXACT mantenuto per evidenza deterministica; GO-AI segnala una possibile divergenza nel testo operatore.';
+  }
+  return 'MATCH_EXACT mantenuto per evidenza deterministica; GO-AI conferma il testo operatore come audit semantico.';
+}
+
 function withSemanticSignals(match: AnalysisMatch, result: GOSemanticMatchResult): AnalysisMatchSignals {
   return {
     ...match.signals,
@@ -85,13 +121,15 @@ export async function matchAnalysisAi(
   if (check.status !== 'HIT' || check.primaryCaseId === undefined) {
     return withAiNotApplicable(lexical);
   }
+  const deterministicExact = hasDeterministicExactMatch(lexical);
 
   const runbookText = runbookSemanticText(output, check);
   const analysisText = analysisSemanticText(analysis, firedAt);
   if (runbookText === '' || analysisText === '') {
+    const base = deterministicExact ? withDeterministicExactMatch(lexical) : withAiNotApplicable(lexical);
     return {
-      ...withAiNotApplicable(lexical),
-      reasons: [...lexical.reasons, 'GO-AI non invocato: testo insufficiente per il confronto semantico.'],
+      ...base,
+      reasons: [...base.reasons, 'GO-AI non invocato: testo insufficiente per il confronto semantico.'],
     };
   }
 
@@ -101,24 +139,38 @@ export async function matchAnalysisAi(
     const reasons = [
       `GO-AI semantic-match: score ${result.score}/100, verdict ${result.verdict}`,
       ...(result.explanation.trim() !== '' ? [result.explanation.trim()] : []),
+      ...(deterministicExact ? [deterministicAuditReason(result, options.semanticThreshold)] : []),
       ...lexical.reasons,
     ];
     return {
-      status: aiStatus(result, options.semanticThreshold),
-      confidence,
+      status: deterministicExact ? 'MATCH_EXACT' : aiStatus(result, options.semanticThreshold),
+      confidence: deterministicExact ? lexical.confidence : confidence,
       reasons,
       signals: withSemanticSignals(lexical, result),
-      matcher: 'ai',
+      matcher: deterministicExact ? MATCH_SOURCE.deterministicAi : MATCH_SOURCE.ai,
       aiAttempted: true,
       ...(result.explanation.trim() !== '' ? { semanticExplanation: result.explanation.trim() } : {}),
       ...(lexical.analysisExcerpt !== undefined ? { analysisExcerpt: lexical.analysisExcerpt } : {}),
     };
   } catch (error) {
     const message = errorMessage(error);
+    if (deterministicExact) {
+      return {
+        ...lexical,
+        matcher: MATCH_SOURCE.deterministic,
+        aiAttempted: true,
+        aiError: message,
+        reasons: [
+          ...lexical.reasons,
+          `GO-AI semantic-match non disponibile (${message}); MATCH_EXACT mantenuto per evidenza deterministica.`,
+        ],
+      };
+    }
+
     if (options.fallbackToLexical) {
       return {
         ...lexical,
-        matcher: 'lexical',
+        matcher: MATCH_SOURCE.lexical,
         aiAttempted: true,
         aiFallback: true,
         aiError: message,
@@ -131,7 +183,7 @@ export async function matchAnalysisAi(
       confidence: 0,
       reasons: [`GO-AI semantic-match non disponibile: ${message}.`],
       signals: lexical.signals,
-      matcher: 'ai',
+      matcher: MATCH_SOURCE.ai,
       aiAttempted: true,
       aiError: message,
       ...(lexical.analysisExcerpt !== undefined ? { analysisExcerpt: lexical.analysisExcerpt } : {}),

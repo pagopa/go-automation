@@ -1,6 +1,6 @@
 import type { Core } from '@go-automation/go-common';
 
-import type { RtaCheckReport, RtaCheckRow, V1Status } from '../types/RtaCheckReport.js';
+import type { AnalysisMatchSource, RtaCheckReport, RtaCheckRow, V1Status } from '../types/RtaCheckReport.js';
 
 /** Preview shown after fetching occurrences, before running anything. */
 export interface RunPreview {
@@ -53,10 +53,13 @@ export function renderResultsHeader(logger: Core.GOLogger): void {
   logger.text(RESULT_COLUMNS.map((column) => '─'.repeat(column.width)).join('─┼─'));
 }
 
+function formatMatchSource(source: AnalysisMatchSource): string {
+  return source;
+}
+
 function matcherLabel(row: RtaCheckRow): string {
   if (row.comparison.aiFallback === true) return 'lexical fallback';
-  if (row.comparison.matcher === 'ai') return 'ai';
-  if (row.comparison.matcher === 'lexical') return 'lexical';
+  if (row.comparison.matcher !== undefined) return formatMatchSource(row.comparison.matcher);
   if (row.comparison.aiAttempted === false) return 'n/a';
   return '';
 }
