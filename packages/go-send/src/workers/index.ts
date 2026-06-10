@@ -16,3 +16,15 @@ export * from './import/SENDNotificationRow.js';
 
 export * from './import/adapters/QATestFormatAdapter.js';
 export * from './import/adapters/StandardFormatAdapter.js';
+
+// Upload workers (SafeStorage batch upload)
+export * from './upload/SENDAttachmentUploadWorker.js';
+export * from './upload/SENDAttachmentUploadWorkerOptions.js';
+export * from './upload/SENDAttachmentUploadWorkerProgress.js';
+export * from './upload/SENDAttachmentUploadWorkerError.js';
+export * from './upload/SENDAttachmentUploadWorkerResult.js';
+export * from './upload/SENDAttachmentUploadWorkerEvents.js';
+export * from './upload/SENDAttachmentUploadRow.js';
+export * from './upload/SENDAttachmentUploadedFile.js';
+export * from './upload/SENDAttachmentUploadExportRecord.js';
+export * from './upload/SENDAttachmentContentTypes.js';

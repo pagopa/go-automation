@@ -747,6 +747,19 @@ importers:
         specifier: 'catalog:'
         version: 24.13.1
 
+  scripts/send/send-upload-attachments:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+      '@go-automation/go-send':
+        specifier: workspace:*
+        version: link:../../../packages/go-send
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.1
+
 packages:
 
   '@aws-crypto/crc32@5.2.0':
@@ -3849,7 +3862,7 @@ snapshots:
 
   '@slack/logger@4.0.1':
     dependencies:
-      '@types/node': 24.12.4
+      '@types/node': 24.13.1
 
   '@slack/types@2.21.1': {}
 
