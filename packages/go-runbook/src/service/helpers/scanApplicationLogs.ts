@@ -15,7 +15,16 @@ const FALLBACK_UUID_PATTERN =
   /FALLBACK-UUID:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/;
 
 const XRAY_TRACE_ID_PATTERN = /\b1-[0-9a-fA-F]{8}-[0-9a-fA-F]{24}\b/;
-const RAW_TRACE_ID_PATTERN = /\b[0-9a-fA-F]{32}\b/;
+
+/**
+ * A 32-hex trace id embedded in the message text, **only when explicitly
+ * labeled** (e.g. `"trace_id":"<hex>"`, `traceId=<hex>`, `trace-id: <hex>`).
+ *
+ * Requiring the label avoids treating any bare 32-hex token (MD5, dash-less
+ * UUID, request hash) found in a log line as a trace id, which would trigger a
+ * trace query on a non-existent identifier.
+ */
+const LABELED_TRACE_ID_PATTERN = /trace[_-]?id["'\s:=]+([0-9a-fA-F]{32})(?![0-9a-fA-F])/i;
 
 export interface TraceIdCandidateMatch {
   readonly raw: string;
@@ -104,9 +113,9 @@ function matchTraceIdCandidate(
     return { raw: xray, canonical: xray };
   }
 
-  const raw = RAW_TRACE_ID_PATTERN.exec(message)?.[0];
-  const fromMessage = raw === undefined ? undefined : canonicalTraceId(raw);
-  return raw !== undefined && fromMessage !== undefined ? { raw, canonical: fromMessage } : undefined;
+  const labeled = LABELED_TRACE_ID_PATTERN.exec(message)?.[1];
+  const fromMessage = labeled === undefined ? undefined : canonicalTraceId(labeled);
+  return labeled !== undefined && fromMessage !== undefined ? { raw: labeled, canonical: fromMessage } : undefined;
 }
 
 function canonicalTraceId(raw: string): string | undefined {
