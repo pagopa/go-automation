@@ -18,7 +18,7 @@ export interface AnalyzeServiceLogsConfig {
   readonly schema: ServiceLogSchema;
 }
 
-class AnalyzeServiceLogsStep implements Step<ServiceLogAnalysis> {
+export class AnalyzeServiceLogsStep implements Step<ServiceLogAnalysis> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'transform';
@@ -90,8 +90,4 @@ class AnalyzeServiceLogsStep implements Step<ServiceLogAnalysis> {
       next: 'resolve' as const,
     };
   }
-}
-
-export function analyzeServiceLogs(config: AnalyzeServiceLogsConfig): Step<ServiceLogAnalysis> {
-  return new AnalyzeServiceLogsStep(config);
 }

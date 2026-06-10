@@ -10,7 +10,7 @@ export interface PrepareServiceSectionConfig {
   readonly logGroup: string;
 }
 
-class PrepareServiceSectionStep implements Step<void> {
+export class PrepareServiceSectionStep implements Step<void> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'control';
@@ -40,8 +40,4 @@ class PrepareServiceSectionStep implements Step<void> {
       },
     };
   }
-}
-
-export function prepareServiceSection(config: PrepareServiceSectionConfig): Step<void> {
-  return new PrepareServiceSectionStep(config);
 }

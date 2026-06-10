@@ -23,7 +23,7 @@ export interface QueryServiceTraceLogsConfig {
   readonly timeRangeFromParams: TimeRangeFromParams;
 }
 
-class QueryServiceTraceLogsStep implements Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
+export class QueryServiceTraceLogsStep implements Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -104,10 +104,4 @@ class QueryServiceTraceLogsStep implements Step<ReadonlyArray<ReadonlyArray<Resu
   private buildQuery(traceId: string): string {
     return this.queryTemplate.split(TRACE_ID_PLACEHOLDER).join(escapeSqlString(traceId));
   }
-}
-
-export function queryServiceTraceLogs(
-  config: QueryServiceTraceLogsConfig,
-): Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
-  return new QueryServiceTraceLogsStep(config);
 }

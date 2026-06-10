@@ -3,9 +3,9 @@ import { CloudWatchLogsQueryStep } from '../../steps/data/CloudWatchLogsQuerySte
 import type { Runbook } from '../../types/Runbook.js';
 import type { ServiceAlarmConfig } from '../types/ServiceAlarmConfig.js';
 import { SEND_SERVICE_PROFILE } from '../profiles/SEND_SERVICE_PROFILE.js';
-import { prepareServiceSection } from '../steps/prepareServiceSection.js';
-import { analyzeServiceLogs } from '../steps/analyzeServiceLogs.js';
-import { queryServiceTraceLogs } from '../steps/queryServiceTraceLogs.js';
+import { PrepareServiceSectionStep } from '../steps/prepareServiceSection.js';
+import { AnalyzeServiceLogsStep } from '../steps/analyzeServiceLogs.js';
+import { QueryServiceTraceLogsStep } from '../steps/queryServiceTraceLogs.js';
 import { defaultServiceUnknownCaseFallback } from './defaultUnknownCaseFallback.js';
 
 const TIME_RANGE = { start: 'startTime', end: 'endTime' } as const;
@@ -21,7 +21,7 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
   const builder = RunbookBuilder.create(config.id).metadata(config.metadata);
 
   builder.step(
-    prepareServiceSection({
+    new PrepareServiceSectionStep({
       id: 'prepare-service-section',
       label: 'Preparazione servizio',
       serviceName: service.name,
@@ -48,7 +48,7 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
   );
 
   builder.step(
-    analyzeServiceLogs({
+    new AnalyzeServiceLogsStep({
       id: `analyze-${service.name}`,
       label: `Analisi log ${service.name}`,
       fromStep: `query-${service.name}`,
@@ -67,7 +67,7 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
   }
 
   builder.step(
-    queryServiceTraceLogs({
+    new QueryServiceTraceLogsStep({
       id: `query-${service.name}-trace`,
       label: `Query log ${service.name} per trace_id`,
       serviceName: service.name,
