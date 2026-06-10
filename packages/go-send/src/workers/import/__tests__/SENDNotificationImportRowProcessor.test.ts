@@ -110,7 +110,7 @@ describe('SENDNotificationImportRowProcessor', () => {
   it('attaches all uploaded attachments of the pratica with sequential docIdx', async () => {
     const sent: SENDNotificationRequest[] = [];
     const processor = new SENDNotificationImportRowProcessor(createSendingSdk(sent));
-    const attachmentsByPratica = new Map<string, readonly SENDUploadedAttachment[]>([
+    const attachmentsByPratica = new Map<string, ReadonlyArray<SENDUploadedAttachment>>([
       ['PRA-001', [createAttachment('/inputs/01.pdf', 'key-1'), createAttachment('/inputs/02.pdf', 'key-2')]],
     ]);
     // The row also has a documentKey reference: pratica must take precedence

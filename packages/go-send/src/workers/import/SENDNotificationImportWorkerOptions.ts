@@ -88,5 +88,5 @@ export interface SENDNotificationImportWorkerOptions {
    * precedence over documentFilePath and the documentKey/documentVersionToken/
    * documentSha256 reference.
    */
-  attachmentsByPratica?: ReadonlyMap<string, readonly SENDUploadedAttachment[]>;
+  attachmentsByPratica?: ReadonlyMap<string, ReadonlyArray<SENDUploadedAttachment>>;
 }

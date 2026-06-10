@@ -11,11 +11,11 @@ import type { SENDUploadedAttachmentSkipped } from './SENDUploadedAttachmentSkip
  */
 export interface SENDUploadedAttachmentsLoadResult {
   /** Usable attachments grouped by pratica, each group sorted by filePath */
-  readonly attachmentsByPratica: ReadonlyMap<string, readonly SENDUploadedAttachment[]>;
+  readonly attachmentsByPratica: ReadonlyMap<string, ReadonlyArray<SENDUploadedAttachment>>;
 
   /** Total number of usable attachments across all groups */
   readonly totalAttachments: number;
 
   /** Records skipped because failed or malformed */
-  readonly skipped: readonly SENDUploadedAttachmentSkipped[];
+  readonly skipped: ReadonlyArray<SENDUploadedAttachmentSkipped>;
 }

@@ -109,7 +109,7 @@
     "test:scripts": "pnpm -r --filter='./scripts/**' test",
     "test:scripts:coverage": "pnpm -r --filter='./scripts/**' test:coverage",
     "type-check": "tsc --noEmit",
-    "validate:all": "pnpm validate:scaffold && pnpm lint && pnpm knip",
+    "validate:all": "pnpm validate:scaffold && pnpm lint && pnpm knip && pnpm deps:check",
     "validate:scaffold": "tsx bins/validate-scaffold/src/index.ts"
   },
   "keywords": [

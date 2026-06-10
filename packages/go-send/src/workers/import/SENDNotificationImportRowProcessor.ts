@@ -47,7 +47,7 @@ export interface ProcessRowResult {
  */
 interface ResolvedRowDocuments {
   /** Documents to attach to the notification, in order */
-  readonly documents: readonly SENDNotificationDocument[];
+  readonly documents: ReadonlyArray<SENDNotificationDocument>;
   /** Number of documents uploaded from local files during resolution */
   readonly uploadedCount: number;
 }
@@ -337,7 +337,7 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
 
   private buildNotification(
     row: SENDNotificationRow,
-    documents: readonly SENDNotificationDocument[],
+    documents: ReadonlyArray<SENDNotificationDocument>,
   ): SENDNotificationRequest {
     if (!this.isCSVRow(row)) throw new Error('Only CSVRow supported');
 

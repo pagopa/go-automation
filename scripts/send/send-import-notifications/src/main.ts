@@ -82,7 +82,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.success('SDK initialized');
 
   // Load pre-uploaded attachments (send-upload-attachments results), grouped by pratica
-  let attachmentsByPratica: ReadonlyMap<string, readonly SENDUploadedAttachment[]> | undefined;
+  let attachmentsByPratica: ReadonlyMap<string, ReadonlyArray<SENDUploadedAttachment>> | undefined;
   if (config.attachmentsFile) {
     script.logger.section('Loading Uploaded Attachments');
     const attachmentsPath = script.paths.resolvePath(config.attachmentsFile, Core.GOPathType.INPUT);

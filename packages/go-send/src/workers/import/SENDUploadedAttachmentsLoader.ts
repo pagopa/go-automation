@@ -62,7 +62,7 @@ export async function loadUploadedAttachments(filePath: string): Promise<SENDUpl
     throw new Error(`Invalid attachments file (expected a JSON array): ${filePath}`);
   }
 
-  const records: readonly unknown[] = parsed;
+  const records: ReadonlyArray<unknown> = parsed;
   const grouped = new Map<string, SENDUploadedAttachment[]>();
   const skipped: SENDUploadedAttachmentSkipped[] = [];
   let totalAttachments = 0;
