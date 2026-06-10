@@ -2,7 +2,12 @@ import type { ResultField } from '@go-automation/go-common/aws';
 
 import type { Runbook } from '../../types/Runbook.js';
 import type { RunbookExecutionResult } from '../../types/RunbookExecutionResult.js';
-import type { RunbookEvidence, RunbookOutputContext, RunbookResultField } from '../../output/RunbookOutputContext.js';
+import {
+  toRunbookOutputDetails,
+  type RunbookEvidence,
+  type RunbookOutputContext,
+  type RunbookResultField,
+} from '../../output/RunbookOutputContext.js';
 import { extractFirst } from './extractFirst.js';
 import type { ServiceLogLine, ServiceOutputContext } from './ServiceOutputContext.js';
 import { isServiceRunbookContext } from './ServiceRunbookContext.js';
@@ -58,7 +63,7 @@ export function buildServiceOutputContext(
   return {
     fields: buildFields(service.name, service.varPrefix, vars, params),
     evidence: buildEvidence(service.name, recentLogs, traceLogs, errorRows.length, traceRows.length, maxRecentLogs),
-    details: details as unknown as Readonly<Record<string, unknown>>,
+    details: toRunbookOutputDetails(details),
   };
 }
 
