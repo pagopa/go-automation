@@ -55,7 +55,9 @@ export async function loadUploadedAttachments(filePath: string): Promise<SENDUpl
   try {
     parsed = JSON.parse(content);
   } catch (error) {
-    throw new Error(`Invalid attachments file (not valid JSON): ${filePath} - ${(error as Error).message}`);
+    throw new Error(`Invalid attachments file (not valid JSON): ${filePath} - ${(error as Error).message}`, {
+      cause: error,
+    });
   }
 
   if (!Array.isArray(parsed)) {
