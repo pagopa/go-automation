@@ -5,6 +5,7 @@ export * from './GOExportFormat.js';
 export * from './GOFileExporter.js';
 export * from './GOListExporter.js';
 export * from './GOListExporterStreamWriter.js';
+export * from './GOOrderedListExporterStreamWriter.js';
 export * from './GOListExporterEvents.js';
 
 // CSV Exporter

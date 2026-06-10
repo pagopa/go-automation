@@ -137,10 +137,14 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
    * Throws GOHttpClientError for non-2xx responses.
    */
   private async handleResponse<T>(response: Response): Promise<T> {
-    this.logDebug(`Response status: ${response.status}`);
+    this.logDebug(
+      `Response status: ${response.status} (content-type: ${response.headers.get('content-type') ?? 'none'})`,
+    );
 
     const contentType = response.headers.get('content-type');
-    const isJson = contentType?.includes('application/json') === true;
+    // Match any JSON media type: application/json, application/problem+json,
+    // text/json, with or without parameters (e.g. "; charset=utf-8")
+    const isJson = contentType !== null && /[/+]json\b/i.test(contentType);
 
     let responseData: unknown;
     if (isJson) {
@@ -287,17 +291,21 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
             throw error;
           }
 
+          const responseHeaders = this.extractHeaders(response);
+
           this.emit('http:response:received', {
             method,
             url,
             status: response.status,
             statusText: response.statusText,
-            headers: this.extractHeaders(response),
+            headers: responseHeaders,
             data: undefined,
             duration,
           });
 
-          return undefined as T;
+          // PUT consumers (e.g. S3 presigned uploads) need response headers
+          // such as x-amz-version-id; the body is not parsed
+          return responseHeaders as T;
         }
 
         const result = await this.handleResponse<T>(response);
@@ -374,9 +382,10 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
    * @param url - Full URL (not relative path)
    * @param body - Request body (Buffer or string)
    * @param headers - Additional request headers
-   * @returns Promise resolving when complete
+   * @returns Promise resolving to the response headers (lowercase names),
+   *   e.g. x-amz-version-id for S3 presigned uploads
    */
-  async put(url: string, body: Buffer | string, headers?: Record<string, string>): Promise<void> {
+  async put(url: string, body: Buffer | string, headers?: Record<string, string>): Promise<Record<string, string>> {
     return this.putAbortable(url, body, headers).promise;
   }
 
@@ -409,9 +418,13 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
    * @param url - Full URL (not relative path)
    * @param body - Request body (Buffer or string)
    * @param headers - Additional request headers
-   * @returns Abortable request object
+   * @returns Abortable request resolving to the response headers (lowercase names)
    */
-  putAbortable(url: string, body: Buffer | string, headers?: Record<string, string>): GOAbortableRequest<void> {
-    return this.executeRequest<void>('PUT', url, body, headers, true);
+  putAbortable(
+    url: string,
+    body: Buffer | string,
+    headers?: Record<string, string>,
+  ): GOAbortableRequest<Record<string, string>> {
+    return this.executeRequest<Record<string, string>>('PUT', url, body, headers, true);
   }
 }
