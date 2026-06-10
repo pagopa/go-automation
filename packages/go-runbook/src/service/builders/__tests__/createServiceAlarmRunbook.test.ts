@@ -131,4 +131,24 @@ describe('createServiceAlarmRunbook', () => {
     );
     assert.strictEqual(context.evidence.length, 2);
   });
+
+  it('rejects a service.name that is not a slug (would break step ids)', () => {
+    assert.throws(
+      () =>
+        createServiceAlarmRunbook(
+          baseConfig({ service: { name: 'pn service', logGroup: '/aws/ecs/pn-service', varPrefix: 'pnService' } }),
+        ),
+      /service\.name .* must be a slug/,
+    );
+  });
+
+  it('rejects a service.varPrefix that is not a valid identifier', () => {
+    assert.throws(
+      () =>
+        createServiceAlarmRunbook(
+          baseConfig({ service: { name: 'pn-service', logGroup: '/aws/ecs/pn-service', varPrefix: '1bad prefix' } }),
+        ),
+      /service\.varPrefix/,
+    );
+  });
 });

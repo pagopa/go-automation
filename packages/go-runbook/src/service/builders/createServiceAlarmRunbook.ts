@@ -10,6 +10,17 @@ import { defaultServiceUnknownCaseFallback } from './defaultUnknownCaseFallback.
 
 const TIME_RANGE = { start: 'startTime', end: 'endTime' } as const;
 
+/**
+ * Allowed characters for the service slug used to build step ids
+ * (`query-<name>`, …), referenced by known cases. Flat (single quantifier) form;
+ * leading/trailing hyphens are rejected separately to avoid a nested-quantifier
+ * regex (the `security/detect-unsafe-regex` ReDoS heuristic).
+ */
+const SERVICE_NAME_PATTERN = /^[A-Za-z0-9-]+$/;
+
+/** Identifier prefix used to build var names (`<varPrefix>TraceId`, …). */
+const VAR_PREFIX_PATTERN = /^[A-Za-z][A-Za-z0-9]*$/;
+
 export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
   validateConfig(config);
 
@@ -110,5 +121,17 @@ function validateConfig(config: ServiceAlarmConfig): void {
   }
   if (service.varPrefix.trim() === '') {
     throw new Error(`createServiceAlarmRunbook "${config.id}": service.varPrefix must be a non-empty string.`);
+  }
+  if (!SERVICE_NAME_PATTERN.test(service.name) || service.name.startsWith('-') || service.name.endsWith('-')) {
+    throw new Error(
+      `createServiceAlarmRunbook "${config.id}": service.name "${service.name}" must be a slug ` +
+        `(alphanumeric segments separated by "-", e.g. "pn-external-channel"); it is used to build step ids.`,
+    );
+  }
+  if (!VAR_PREFIX_PATTERN.test(service.varPrefix)) {
+    throw new Error(
+      `createServiceAlarmRunbook "${config.id}": service.varPrefix "${service.varPrefix}" must start with a letter ` +
+        `and contain only letters and digits (e.g. "externalChannel"); it is used to build var names.`,
+    );
   }
 }
