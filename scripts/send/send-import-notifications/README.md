@@ -59,10 +59,10 @@ I parametri sono definiti internamente con il punto come separatore (es. `csv.fi
 
 #### Input/Output
 
-| Parametro            | Alias | Tipo   | Obbligatorio | Default | Descrizione                                                                  |
-| -------------------- | ----- | ------ | ------------ | ------- | ---------------------------------------------------------------------------- |
-| `--csv-file`         | `-c`  | string | Si           | -       | Path file CSV input                                                          |
-| `--export-file`      | `-e`  | string | No           | -       | Path file CSV output                                                         |
+| Parametro            | Alias | Tipo   | Obbligatorio | Default | Descrizione                                                                   |
+| -------------------- | ----- | ------ | ------------ | ------- | ----------------------------------------------------------------------------- |
+| `--csv-file`         | `-c`  | string | Si           | -       | Path file CSV input                                                           |
+| `--export-file`      | `-e`  | string | No           | -       | Path file CSV output                                                          |
 | `--attachments-file` | `-a`  | string | No           | -       | Path `files-results.json` di `send-upload-attachments` (allegati per pratica) |
 
 #### Connessione PN
@@ -265,23 +265,23 @@ Il CSV di input deve seguire il formato QA Test con delimitatore virgola (`,`) e
 
 Le colonne attese sono:
 
-| Colonna                     | Obbligatorio | Descrizione                                |
-| --------------------------- | ------------ | ------------------------------------------ |
-| `ID_Scenario`               | No           | Identificativo scenario test               |
-| `Scenario`                  | Si           | Nome scenario (mappato a `subject`)        |
-| `Prodotto`                  | No           | Tipo prodotto (es. "AR")                   |
-| `Destinatario`              | Si           | Codice fiscale destinatario                |
-| `Denomination`              | Si           | Nome/Ragione sociale destinatario          |
-| `Indirizzo PEC`             | No           | PEC per domicilio digitale                 |
-| `physicalCommunicationType` | No           | Tipo comunicazione (AR/890)                |
-| `CAP`                       | Si           | Codice postale                             |
-| `Provincia`                 | Si           | Sigla provincia                            |
-| `Citta`                     | Si           | Nome citta                                 |
-| `Stato`                     | No           | Stato (es. "IT", "ITALIA" normalizzato)    |
-| `Range`                     | No           | Range test                                 |
-| `Indirizzo`                 | Si           | Indirizzo fisico                           |
-| `Sender`                    | Si           | PA mittente (denominazione)                |
-| `Tax ID`                    | Si           | Codice fiscale PA mittente (`senderTaxId`) |
+| Colonna                     | Obbligatorio | Descrizione                                                                                  |
+| --------------------------- | ------------ | -------------------------------------------------------------------------------------------- |
+| `ID_Scenario`               | No           | Identificativo scenario test                                                                 |
+| `Scenario`                  | Si           | Nome scenario (mappato a `subject`)                                                          |
+| `Prodotto`                  | No           | Tipo prodotto (es. "AR")                                                                     |
+| `Destinatario`              | Si           | Codice fiscale destinatario                                                                  |
+| `Denomination`              | Si           | Nome/Ragione sociale destinatario                                                            |
+| `Indirizzo PEC`             | No           | PEC per domicilio digitale                                                                   |
+| `physicalCommunicationType` | No           | Tipo comunicazione (AR/890)                                                                  |
+| `CAP`                       | Si           | Codice postale                                                                               |
+| `Provincia`                 | Si           | Sigla provincia                                                                              |
+| `Citta`                     | Si           | Nome citta                                                                                   |
+| `Stato`                     | No           | Stato (es. "IT", "ITALIA" normalizzato)                                                      |
+| `Range`                     | No           | Range test                                                                                   |
+| `Indirizzo`                 | Si           | Indirizzo fisico                                                                             |
+| `Sender`                    | Si           | PA mittente (denominazione)                                                                  |
+| `Tax ID`                    | Si           | Codice fiscale PA mittente (`senderTaxId`)                                                   |
 | `Pratica`                   | No           | Chiave allegati multipli (vedi sezione [Allegati multipli](#allegati-multipli-per-notifica)) |
 
 L'adapter QA Test applica le seguenti trasformazioni automatiche:
