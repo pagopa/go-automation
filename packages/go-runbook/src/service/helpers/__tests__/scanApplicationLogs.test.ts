@@ -56,15 +56,24 @@ describe('scanApplicationLogs', () => {
     assert.strictEqual(scan.fallbackUuid, uuid);
   });
 
-  it('selects the longest error-level message as the error message', () => {
+  it('selects the most recent error-level message (last in chronological order)', () => {
     const scan = scanApplicationLogs(
       [
-        row({ level: 'ERROR', '@message': 'Exception: short' }),
-        row({ level: 'ERROR', '@message': 'Exception: a considerably longer and more detailed error message' }),
+        row({ level: 'ERROR', '@message': 'Exception: an earlier and very detailed root cause message' }),
+        row({ level: 'ERROR', '@message': 'Exception: latest failure' }),
       ],
       SCHEMA,
     );
 
-    assert.strictEqual(scan.errorMessage, 'Exception: a considerably longer and more detailed error message');
+    assert.strictEqual(scan.errorMessage, 'Exception: latest failure');
+  });
+
+  it('falls back to a keyword-matched message only when the log has no level field', () => {
+    const scan = scanApplicationLogs(
+      [row({ '@message': 'just an informational line' }), row({ '@message': 'NullPointer Error while processing' })],
+      SCHEMA,
+    );
+
+    assert.strictEqual(scan.errorMessage, 'NullPointer Error while processing');
   });
 });

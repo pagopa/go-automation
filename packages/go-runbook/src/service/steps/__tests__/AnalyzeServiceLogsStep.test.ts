@@ -58,10 +58,13 @@ describe('AnalyzeServiceLogsStep', () => {
     assert.strictEqual(result.next, 'resolve');
 
     // Only prefixed vars are emitted: no un-prefixed globals that could collide.
-    assert.deepStrictEqual(
-      Object.keys(result.vars ?? {}).sort(),
-      ['fooErrorMsg', 'fooFallbackUuid', 'fooLogCount', 'fooTraceId', 'fooTraceIdRaw'],
-    );
+    assert.deepStrictEqual(Object.keys(result.vars ?? {}).sort(), [
+      'fooErrorMsg',
+      'fooFallbackUuid',
+      'fooLogCount',
+      'fooTraceId',
+      'fooTraceIdRaw',
+    ]);
   });
 
   it('fails with the canonical "not found" message when the upstream step is missing', async () => {

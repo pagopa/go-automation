@@ -41,8 +41,12 @@ export function scanApplicationLogs(
   results: ReadonlyArray<ReadonlyArray<ResultField>>,
   schema: ServiceLogSchema,
 ): ApplicationLogsScan {
-  let bestByLevel = '';
-  let bestByKeyword = '';
+  // Representative error message, surfaced as "Ultimo errore" (`lastErrorMsg`).
+  // Prefer rows tagged with an error/warn level; fall back to keyword-matched
+  // rows only when the log has no `level` field. Rows are assumed chronological
+  // (query profiles sort `@timestamp asc`), so the *latest* match wins.
+  let latestLeveledError = '';
+  let latestKeywordError = '';
   let fallbackUuid: string | undefined;
   let traceIdCandidate: TraceIdCandidateMatch | undefined;
 
@@ -59,14 +63,10 @@ export function scanApplicationLogs(
     const isErrorLevel = level.includes('error') || level.includes('warn');
 
     if (message !== '') {
-      if (isErrorLevel && message.length > bestByLevel.length) {
-        bestByLevel = message;
-      }
-
-      if ((level === '' || isErrorLevel) && message.length > bestByKeyword.length) {
-        if (ERROR_KEYWORDS.some((keyword) => message.includes(keyword))) {
-          bestByKeyword = message;
-        }
+      if (isErrorLevel) {
+        latestLeveledError = message;
+      } else if (level === '' && ERROR_KEYWORDS.some((keyword) => message.includes(keyword))) {
+        latestKeywordError = message;
       }
 
       if (fallbackUuid === undefined) {
@@ -81,7 +81,7 @@ export function scanApplicationLogs(
   }
 
   return {
-    errorMessage: bestByLevel !== '' ? bestByLevel : bestByKeyword,
+    errorMessage: latestLeveledError !== '' ? latestLeveledError : latestKeywordError,
     fallbackUuid,
     traceIdCandidate,
   };
