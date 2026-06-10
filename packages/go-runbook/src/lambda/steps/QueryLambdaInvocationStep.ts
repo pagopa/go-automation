@@ -3,7 +3,7 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { StepResult } from '../../types/StepResult.js';
-import type { TimeRangeFromParams } from '../../steps/data/CloudWatchLogsQueryStep.js';
+import type { TimeRangeFromParams } from '../../steps/data/TimeRangeFromParams.js';
 import { interpolatePlaceholders } from '../../core/templatePlaceholders.js';
 import { resolveTimeRange } from '../../steps/data/resolveTimeRange.js';
 import { executeStep } from '../../steps/data/executeStep.js';

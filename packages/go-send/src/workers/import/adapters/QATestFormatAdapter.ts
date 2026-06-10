@@ -87,6 +87,7 @@ export class QATestFormatAdapter implements GOCSVFormatAdapter<SENDNotificationR
         Sender: 'senderDenomination',
         'Tax ID': 'senderTaxId',
         physicalCommunicationType: 'physicalCommunicationType',
+        Pratica: 'pratica',
         //'ID_Scenario': 'paProtocolNumber',
       },
 
@@ -96,8 +97,12 @@ export class QATestFormatAdapter implements GOCSVFormatAdapter<SENDNotificationR
         documentKey: 'PN_NOTIFICATION_ATTACHMENTS-2d278594387b4a55a062981236165af8.pdf',
         documentVersionToken: 'v1',
         documentSha256: 'B916a8083NjVXZV0nDm7iSRU0ijXZUGFyGvXvIvneBs=',
-        group: '699f08faf8a140751720e3e0', // vecchio forse è stato cancellato -> '695fcc3d48f30c04cb3fbca4',
+        group: '6a29778620b0d07091c75df4', // vecchio forse è stato cancellato -> '695fcc3d48f30c04cb3fbca4',
         //physicalMunicipalityDetails: 'Roma',
+
+        // GROUP ID
+        // COmune di Sappada : 699f08faf8a140751720e3e0
+        // COmune di Milano : 6a29778620b0d07091c75df4
       },
 
       // Use standard SEND validator
@@ -154,6 +159,11 @@ export class QATestFormatAdapter implements GOCSVFormatAdapter<SENDNotificationR
         if (item['documentVersionToken']) row.documentVersionToken = item['documentVersionToken'];
         if (item['documentSha256']) row.documentSha256 = item['documentSha256'];
         if (item['documentFilePath']) row.documentFilePath = item['documentFilePath'];
+
+        // Multiple attachments grouping key (send-upload-attachments results).
+        // Trimmed because it is matched exactly against the attachments map keys.
+        const pratica = item['pratica']?.trim();
+        if (pratica) row.pratica = pratica;
 
         // Notification optional metadata fields
         if (item['abstract']) row.abstract = item['abstract'];

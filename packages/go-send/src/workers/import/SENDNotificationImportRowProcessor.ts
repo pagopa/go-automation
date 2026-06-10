@@ -2,10 +2,13 @@
  * Row Processor - Handles single row processing
  */
 
+import * as path from 'path';
+
 import { SENDNotifications } from '../../SENDNotifications.js';
 import { SENDNotificationBuilder } from '../../builders/SENDNotificationBuilder.js';
 import type { SENDNotificationRow } from './SENDNotificationRow.js';
-import type { SENDAttachmentResult } from '../../services/attachment/models/SENDAttachmentResult.js';
+import type { SENDUploadedAttachment } from './SENDUploadedAttachment.js';
+import type { SENDNotificationDocument } from '../../services/notification/models/SENDNotificationDocument.js';
 import type { SENDNotificationRequest } from '../../services/notification/models/SENDNotificationRequest.js';
 import type { SENDPhysicalAddress } from '../../services/notification/models/SENDPhysicalAddress.js';
 import { SENDRecipientType } from '../../services/notification/models/SENDRecipientType.js';
@@ -37,6 +40,16 @@ export interface ProcessRowResult {
   row: SENDNotificationRow;
   docUploaded: boolean;
   notificationResult: ProcessRowNotificationResult | null;
+}
+
+/**
+ * Documents resolved for a row, with the count of files uploaded during resolution
+ */
+interface ResolvedRowDocuments {
+  /** Documents to attach to the notification, in order */
+  readonly documents: readonly SENDNotificationDocument[];
+  /** Number of documents uploaded from local files during resolution */
+  readonly uploadedCount: number;
 }
 
 /**
@@ -120,6 +133,7 @@ export function toExportRow(
     documentVersionToken: csvRow.documentVersionToken,
     documentSha256: csvRow.documentSha256,
     documentFilePath: csvRow.documentFilePath,
+    pratica: csvRow.pratica,
 
     // Notification optional metadata
     abstract: csvRow.abstract,
@@ -161,12 +175,12 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
   }
 
   async processRow(row: SENDNotificationRow, options?: SENDNotificationImportWorkerOptions): Promise<ProcessRowResult> {
-    // Step 1: Handle document - upload new file or use existing document reference
-    const documentRef = await this.handleDocument(row);
-    const docUploaded = this.hasDocumentFilePath(row) && !!documentRef;
+    // Step 1: Resolve documents - pre-uploaded attachments (pratica), file upload or existing reference
+    const { documents, uploadedCount } = await this.handleDocuments(row, options);
+    const docUploaded = uploadedCount > 0;
 
-    // Step 2: Build notification request object with all row data (sender, recipient, payment, document)
-    const notification = this.buildNotification(row, documentRef);
+    // Step 2: Build notification request object with all row data (sender, recipient, payment, documents)
+    const notification = this.buildNotification(row, documents);
     let notificationResult: ProcessRowNotificationResult | null = null;
 
     // Step 3: Send notification to PN API if enabled
@@ -233,34 +247,98 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
     return { row, docUploaded, notificationResult };
   }
 
-  private async handleDocument(row: SENDNotificationRow): Promise<SENDAttachmentResult> {
+  private async handleDocuments(
+    row: SENDNotificationRow,
+    options?: SENDNotificationImportWorkerOptions,
+  ): Promise<ResolvedRowDocuments> {
     if (!this.isCSVRow(row)) throw new Error('Only CSVRow supported');
 
+    // Option 1: multiple attachments pre-uploaded via send-upload-attachments, selected by pratica.
+    // Checked first: CSV adapters may inject default documentKey/versionToken/sha256 values,
+    // so the single-document fallbacks below would otherwise always win.
+    if (row.pratica) {
+      if (!options?.attachmentsByPratica) {
+        throw new Error(
+          `Row has pratica "${row.pratica}" but no attachments map was provided: ` +
+            'load the send-upload-attachments results file and pass it via attachmentsByPratica',
+        );
+      }
+      const attachments = options.attachmentsByPratica.get(row.pratica);
+      if (!attachments || attachments.length === 0) {
+        throw new Error(`No uploaded attachments found for pratica "${row.pratica}"`);
+      }
+      return {
+        documents: attachments.map((attachment, index) => this.toNotificationDocument(attachment, index)),
+        uploadedCount: 0,
+      };
+    }
+
+    // Option 2: local file to upload now
     if (row.documentFilePath) {
       const uploadResult = await this.sdk.attachment.uploadPDF(row.documentFilePath);
       this.emit('worker:document:uploaded', { row, uploadResult });
-      return uploadResult;
+      return {
+        documents: [
+          {
+            title: row.documentTitle ?? 'Document',
+            contentType: 'application/pdf',
+            ref: uploadResult.ref,
+            digests: uploadResult.digests,
+          },
+        ],
+        uploadedCount: 1,
+      };
     }
 
+    // Option 3: document already uploaded, referenced by key/versionToken/sha256
     if (row.documentKey && row.documentVersionToken && row.documentSha256) {
       return {
-        ref: {
-          key: row.documentKey,
-          versionToken: row.documentVersionToken,
-        },
-        digests: {
-          sha256: row.documentSha256,
-        },
-        buffer: Buffer.from(''),
+        documents: [
+          {
+            title: row.documentTitle ?? 'Document',
+            contentType: 'application/pdf',
+            ref: {
+              key: row.documentKey,
+              versionToken: row.documentVersionToken,
+            },
+            digests: {
+              sha256: row.documentSha256,
+            },
+          },
+        ],
+        uploadedCount: 0,
       };
     }
 
     throw new Error(
-      'Document required: CSV must include either documentFilePath OR (documentKey + documentVersionToken + documentSha256)',
+      'Document required: CSV must include either pratica (with an attachments file) OR documentFilePath OR ' +
+        '(documentKey + documentVersionToken + documentSha256)',
     );
   }
 
-  private buildNotification(row: SENDNotificationRow, documentRef: SENDAttachmentResult): SENDNotificationRequest {
+  /**
+   * Converts an uploaded attachment record into a notification document.
+   * The title is derived from the original file name (without extension).
+   */
+  private toNotificationDocument(attachment: SENDUploadedAttachment, index: number): SENDNotificationDocument {
+    const baseName = path.basename(attachment.filePath, path.extname(attachment.filePath));
+    return {
+      title: baseName !== '' ? baseName : `Document ${index + 1}`,
+      contentType: attachment.contentType,
+      ref: {
+        key: attachment.fileKey,
+        versionToken: attachment.versionToken,
+      },
+      digests: {
+        sha256: attachment.sha256,
+      },
+    };
+  }
+
+  private buildNotification(
+    row: SENDNotificationRow,
+    documents: readonly SENDNotificationDocument[],
+  ): SENDNotificationRequest {
     if (!this.isCSVRow(row)) throw new Error('Only CSVRow supported');
 
     const builder = new SENDNotificationBuilder();
@@ -340,8 +418,13 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
       });
     }
 
-    // Attach document and build final notification request
-    builder.addDocument(row.documentTitle ?? 'Document', documentRef);
+    // Attach documents and build final notification request.
+    // docIdx is assigned sequentially only for multi-document notifications,
+    // preserving the previous single-document request shape.
+    const assignDocIdx = documents.length > 1;
+    for (const [index, document] of documents.entries()) {
+      builder.addDocumentManual(assignDocIdx ? { ...document, docIdx: String(index) } : document);
+    }
     return builder.build();
   }
 
@@ -368,9 +451,5 @@ export class SENDNotificationImportRowProcessor extends GOEventEmitterBase<SENDN
 
   private isCSVRow(row: SENDNotificationRow): row is SENDNotificationRow {
     return 'subject' in row && 'senderTaxId' in row;
-  }
-
-  private hasDocumentFilePath(row: SENDNotificationRow): boolean {
-    return this.isCSVRow(row) && !!row.documentFilePath;
   }
 }

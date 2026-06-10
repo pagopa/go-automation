@@ -8,7 +8,9 @@ import {
 } from '../../../services/notification/SENDNotificationService.js';
 import type { SENDNotificationStatusResponse } from '../../../services/notification/models/SENDNotificationStatusResponse.js';
 import { SENDNotificationStatus } from '../../../services/notification/models/SENDNotificationStatus.js';
+import type { SENDNotificationRequest } from '../../../services/notification/models/SENDNotificationRequest.js';
 import type { SENDNotificationRow } from '../SENDNotificationRow.js';
+import type { SENDUploadedAttachment } from '../SENDUploadedAttachment.js';
 import { SENDNotificationImportRowProcessor } from '../SENDNotificationImportRowProcessor.js';
 import type { SENDNotificationImportWorkerNotificationDiscardedEvent } from '../SENDNotificationImportWorkerEvents.js';
 
@@ -28,6 +30,29 @@ function createRow(): SENDNotificationRow {
     documentVersionToken: 'version-token',
     documentSha256: 'sha256',
   };
+}
+
+function createAttachment(filePath: string, fileKey: string, pratica = 'PRA-001'): SENDUploadedAttachment {
+  return {
+    pratica,
+    filePath,
+    fileKey,
+    versionToken: 'version-token',
+    sha256: 'sha256-digest',
+    contentType: 'application/pdf',
+  };
+}
+
+/**
+ * Creates an SDK mock that records the notification requests passed to sendNotification
+ */
+function createSendingSdk(sent: SENDNotificationRequest[]): SENDNotifications {
+  const sendNotification = mock.fn(async (notification: SENDNotificationRequest) => {
+    await Promise.resolve();
+    sent.push(notification);
+    return { notificationRequestId: 'request-1' };
+  });
+  return { notifications: { sendNotification } } as unknown as SENDNotifications;
 }
 
 function createTerminalError(statusResponse: SENDNotificationStatusResponse): Error {
@@ -80,6 +105,59 @@ describe('SENDNotificationImportRowProcessor', () => {
     assert.strictEqual(discardedEvents.length, 1);
     assert.strictEqual(discardedEvents[0]?.status, SENDNotificationStatus.REFUSED);
     assert.strictEqual(discardedEvents[0]?.notificationRequestId, 'request-1');
+  });
+
+  it('attaches all uploaded attachments of the pratica with sequential docIdx', async () => {
+    const sent: SENDNotificationRequest[] = [];
+    const processor = new SENDNotificationImportRowProcessor(createSendingSdk(sent));
+    const attachmentsByPratica = new Map<string, readonly SENDUploadedAttachment[]>([
+      ['PRA-001', [createAttachment('/inputs/01.pdf', 'key-1'), createAttachment('/inputs/02.pdf', 'key-2')]],
+    ]);
+    // The row also has a documentKey reference: pratica must take precedence
+    const row: SENDNotificationRow = { ...createRow(), pratica: 'PRA-001' };
+
+    const result = await processor.processRow(row, { sendNotifications: true, attachmentsByPratica });
+
+    const notification = sent[0];
+    assert.strictEqual(notification?.documents.length, 2);
+    assert.strictEqual(notification?.documents[0]?.ref.key, 'key-1');
+    assert.strictEqual(notification?.documents[0]?.ref.versionToken, 'version-token');
+    assert.strictEqual(notification?.documents[0]?.digests.sha256, 'sha256-digest');
+    assert.strictEqual(notification?.documents[0]?.docIdx, '0');
+    assert.strictEqual(notification?.documents[0]?.title, '01');
+    assert.strictEqual(notification?.documents[1]?.ref.key, 'key-2');
+    assert.strictEqual(notification?.documents[1]?.docIdx, '1');
+    assert.strictEqual(result.docUploaded, false);
+    assert.strictEqual(result.notificationResult?.notificationRequestId, 'request-1');
+  });
+
+  it('keeps single-document rows without docIdx', async () => {
+    const sent: SENDNotificationRequest[] = [];
+    const processor = new SENDNotificationImportRowProcessor(createSendingSdk(sent));
+
+    await processor.processRow(createRow(), { sendNotifications: true });
+
+    const notification = sent[0];
+    assert.strictEqual(notification?.documents.length, 1);
+    assert.strictEqual(notification?.documents[0]?.ref.key, 'safe-storage-key');
+    assert.strictEqual(notification?.documents[0]?.docIdx, undefined);
+  });
+
+  it('fails when the pratica has no uploaded attachments', async () => {
+    const processor = new SENDNotificationImportRowProcessor(createSendingSdk([]));
+    const row: SENDNotificationRow = { ...createRow(), pratica: 'PRA-404' };
+
+    await assert.rejects(
+      processor.processRow(row, { attachmentsByPratica: new Map() }),
+      /No uploaded attachments found for pratica "PRA-404"/,
+    );
+  });
+
+  it('fails when the row has a pratica but no attachments map was provided', async () => {
+    const processor = new SENDNotificationImportRowProcessor(createSendingSdk([]));
+    const row: SENDNotificationRow = { ...createRow(), pratica: 'PRA-001' };
+
+    await assert.rejects(processor.processRow(row, {}), /no attachments map was provided/);
   });
 
   it('keeps non-terminal polling errors as failures', async () => {

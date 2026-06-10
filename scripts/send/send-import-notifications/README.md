@@ -18,6 +18,7 @@ Script di importazione massiva notifiche SEND da file CSV con upload automatico 
 
 - **Import CSV massivo**: Lettura file CSV con notifiche da inviare
 - **Upload documenti automatico**: Caricamento automatico dei documenti allegati su storage PN
+- **Allegati multipli per notifica**: Aggancio di più documenti pre-caricati con `send-upload-attachments` tramite chiave `Pratica`
 - **Invio notifiche parallelo**: Invio concorrente configurabile per alte performance
 - **Polling IUN**: Attesa automatica per ottenimento codice IUN (Identificativo Univoco Notifica)
 - **Export risultati**: Generazione CSV con IUN e stato di ogni notifica
@@ -58,10 +59,11 @@ I parametri sono definiti internamente con il punto come separatore (es. `csv.fi
 
 #### Input/Output
 
-| Parametro       | Alias | Tipo   | Obbligatorio | Default | Descrizione          |
-| --------------- | ----- | ------ | ------------ | ------- | -------------------- |
-| `--csv-file`    | `-c`  | string | Si           | -       | Path file CSV input  |
-| `--export-file` | `-e`  | string | No           | -       | Path file CSV output |
+| Parametro            | Alias | Tipo   | Obbligatorio | Default | Descrizione                                                                  |
+| -------------------- | ----- | ------ | ------------ | ------- | ---------------------------------------------------------------------------- |
+| `--csv-file`         | `-c`  | string | Si           | -       | Path file CSV input                                                          |
+| `--export-file`      | `-e`  | string | No           | -       | Path file CSV output                                                         |
+| `--attachments-file` | `-a`  | string | No           | -       | Path `files-results.json` di `send-upload-attachments` (allegati per pratica) |
 
 #### Connessione PN
 
@@ -280,6 +282,7 @@ Le colonne attese sono:
 | `Indirizzo`                 | Si           | Indirizzo fisico                           |
 | `Sender`                    | Si           | PA mittente (denominazione)                |
 | `Tax ID`                    | Si           | Codice fiscale PA mittente (`senderTaxId`) |
+| `Pratica`                   | No           | Chiave allegati multipli (vedi sezione [Allegati multipli](#allegati-multipli-per-notifica)) |
 
 L'adapter QA Test applica le seguenti trasformazioni automatiche:
 
@@ -295,6 +298,32 @@ ID_Scenario,Scenario,Prodotto,Destinatario,Denomination,Indirizzo PEC,physicalCo
 1,Test AR,AR,RSSMRA80A01H501U,Mario Rossi,,AR,00100,RM,Roma,IT,,Via Roma 1,COMUNE DI TEST,01234567890
 2,Test PEC,AR,12345678901,Azienda SRL,pec@azienda.it,890,20100,MI,Milano,IT,,Via Milano 2,COMUNE DI TEST,01234567890
 ```
+
+### Allegati Multipli per Notifica
+
+È possibile allegare più documenti a una singola notifica riusando l'output dello script `send-upload-attachments`:
+
+1. **Upload dei file** con `send-upload-attachments`, assegnando a ogni file la chiave `pratica` della notifica di destinazione (più file possono condividere la stessa pratica). Lo script produce un file `files-results.json` con `fileKey`, `versionToken`, `sha256` e `contentType` di ogni upload.
+2. **Aggiunta della colonna `Pratica`** al CSV di input: ogni riga con un valore in `Pratica` riceve come allegati **tutti** i file caricati con quella pratica.
+3. **Esecuzione dell'import** passando il file dei risultati con `--attachments-file`:
+
+```bash
+pnpm send:import:notifications:dev -- \
+  --csv-file "./notifications.csv" \
+  --attachments-file "./data/send-upload-attachments/outputs/<run>/files-results.json" \
+  --base-path "api.test.notifichedigitali.it" \
+  --pn-api-key "$PN_API_KEY" \
+  --send-notifications
+```
+
+Note sul comportamento:
+
+- La colonna `Pratica` ha **precedenza** su `documentFilePath` e sulla tripletta `documentKey`/`documentVersionToken`/`documentSha256` (inclusi i valori default dell'adapter QA Test)
+- I documenti vengono allegati in ordine alfabetico di `filePath` (il primo documento è l'atto principale); il `docIdx` viene assegnato in sequenza (`0`, `1`, ...)
+- Il titolo di ogni documento è derivato dal nome del file originale (senza estensione)
+- I record del `files-results.json` con `status` diverso da `uploaded` vengono scartati con un warning
+- Se una riga referenzia una pratica senza allegati utilizzabili, la riga fallisce con errore esplicito
+- Le righe **senza** valore in `Pratica` continuano a usare il comportamento a documento singolo
 
 ### Formato CSV Output
 
@@ -527,6 +556,6 @@ pnpm send:import:notifications:dev -- \
 
 ---
 
-**Ultima modifica**: 2026-03-05
+**Ultima modifica**: 2026-06-10
 **Maintainer**: Team GO - Gestione Operativa
 **Repository**: [go-automation](https://github.com/pagopa/go-automation)

@@ -1,6 +1,6 @@
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { TimeRange } from '../../types/TimeRange.js';
-import type { TimeRangeFromParams } from './CloudWatchLogsQueryStep.js';
+import type { TimeRangeFromParams } from './TimeRangeFromParams.js';
 
 /**
  * Resolves a TimeRange from context parameters using the configured parameter names.

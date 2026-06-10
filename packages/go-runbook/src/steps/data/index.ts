@@ -3,7 +3,8 @@
  */
 
 export { CloudWatchLogsQueryStep } from './CloudWatchLogsQueryStep.js';
-export type { CloudWatchLogsQueryConfig, TimeRangeFromParams } from './CloudWatchLogsQueryStep.js';
+export type { CloudWatchLogsQueryConfig } from './CloudWatchLogsQueryStep.js';
+export type { TimeRangeFromParams } from './TimeRangeFromParams.js';
 
 export { CloudWatchMetricsStep, getCloudWatchMetrics } from './CloudWatchMetricsStep.js';
 export type { CloudWatchMetricsConfig } from './CloudWatchMetricsStep.js';

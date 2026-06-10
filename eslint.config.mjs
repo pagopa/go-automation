@@ -221,6 +221,7 @@ export default tseslint.config(
       'artifacts/',
       '**/artifacts/',
       '**/*.js',
+      '**/*.cjs',
       '**/*.d.ts',
       '**/*.mjs',
       '.eslintrc.cjs',

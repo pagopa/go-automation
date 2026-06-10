@@ -64,6 +64,7 @@ export type { SQSProcessCallbacks } from './models/SQSProcessCallbacks.js';
 export type { SQSMoveOptions } from './models/SQSMoveOptions.js';
 export type { SQSMoveResult } from './models/SQSMoveResult.js';
 export type { SQSMoveError } from './models/SQSMoveError.js';
+export type { SQSMoveErrorStage } from './models/SQSMoveErrorStage.js';
 export type { SQSMoveCallbacks } from './models/SQSMoveCallbacks.js';
 export type {
   SQSBatchRetryHandler,
@@ -73,7 +74,6 @@ export type {
   SQSMessageHandler,
   SQSMoveProgressHandler,
   SQSMoveErrorHandler,
-  SQSMoveErrorStage,
 } from './models/SQSHandlers.js';
 
 // DynamoDB query service

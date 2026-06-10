@@ -8,4 +8,8 @@ export * from './SENDNotificationImportRowProcessor.js';
 export * from './SENDNotificationImportBatchProcessor.js';
 export * from './SENDCSVRowValidator.js';
 export * from './SENDNotificationRow.js';
+export * from './SENDUploadedAttachment.js';
+export * from './SENDUploadedAttachmentSkipped.js';
+export * from './SENDUploadedAttachmentsLoadResult.js';
+export * from './SENDUploadedAttachmentsLoader.js';
 export * from './adapters/index.js';

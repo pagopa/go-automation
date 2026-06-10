@@ -4,20 +4,13 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
+import type { TimeRangeFromParams } from './TimeRangeFromParams.js';
 import { interpolatePlaceholders } from '../../core/templatePlaceholders.js';
 import { resolveTimeRange } from './resolveTimeRange.js';
 import { executeStep } from './executeStep.js';
 import { executeCloudWatchLogsQuery } from './executeCloudWatchLogsQuery.js';
 
-/**
- * Configuration for mapping time range boundaries to context parameter names.
- */
-export interface TimeRangeFromParams {
-  /** Parameter name containing the ISO start date */
-  readonly start: string;
-  /** Parameter name containing the ISO end date */
-  readonly end: string;
-}
+export type { TimeRangeFromParams } from './TimeRangeFromParams.js';
 
 /**
  * Configuration for the CloudWatch Logs Insights query step.

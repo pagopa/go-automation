@@ -6,8 +6,13 @@
  */
 
 import { Core } from '@go-automation/go-common';
-import { SENDNotifications, SENDNotificationImportWorker, QATestFormatAdapter } from '@go-automation/go-send';
-import type { SENDNotificationRow } from '@go-automation/go-send';
+import {
+  SENDNotifications,
+  SENDNotificationImportWorker,
+  QATestFormatAdapter,
+  loadUploadedAttachments,
+} from '@go-automation/go-send';
+import type { SENDNotificationRow, SENDUploadedAttachment } from '@go-automation/go-send';
 
 import { setupEventListeners } from './libs/setupEventListeners.js';
 import { displayResults } from './libs/displayResults.js';
@@ -76,6 +81,29 @@ export async function main(script: Core.GOScript): Promise<void> {
   }
   script.logger.success('SDK initialized');
 
+  // Load pre-uploaded attachments (send-upload-attachments results), grouped by pratica
+  let attachmentsByPratica: ReadonlyMap<string, readonly SENDUploadedAttachment[]> | undefined;
+  if (config.attachmentsFile) {
+    script.logger.section('Loading Uploaded Attachments');
+    const attachmentsPath = script.paths.resolvePath(config.attachmentsFile, Core.GOPathType.INPUT);
+    script.logger.info(`Attachments file: ${attachmentsPath}`);
+
+    const loadResult = await loadUploadedAttachments(attachmentsPath);
+    attachmentsByPratica = loadResult.attachmentsByPratica;
+
+    for (const skipped of loadResult.skipped) {
+      script.logger.warning(
+        `Skipped attachment "${skipped.filePath || 'unknown'}" (pratica: ${skipped.pratica || 'n/a'}): ${skipped.reason}`,
+      );
+    }
+    if (loadResult.totalAttachments === 0) {
+      throw new Error(`No usable attachments found in ${attachmentsPath}`);
+    }
+    script.logger.success(
+      `Loaded ${loadResult.totalAttachments} attachments for ${attachmentsByPratica.size} pratiche`,
+    );
+  }
+
   // Create importer
   script.logger.section('Setting up CSV Importer');
   const importerAdapter = new QATestFormatAdapter();
@@ -131,6 +159,7 @@ export async function main(script: Core.GOScript): Promise<void> {
       preserveAllColumns: config.preserveAllColumns,
       exportAllRows: config.exportAllRows,
       includeStatusColumns: config.includeStatusColumns,
+      ...(attachmentsByPratica !== undefined && { attachmentsByPratica }),
     });
 
     displayResults(script, result, exportPathInfo?.path);
