@@ -13,7 +13,6 @@ export interface AnalyzeServiceLogsConfig {
   readonly id: string;
   readonly label: string;
   readonly fromStep: string;
-  readonly serviceName: string;
   readonly varPrefix: string;
   readonly schema: ServiceLogSchema;
 }
@@ -24,7 +23,6 @@ export class AnalyzeServiceLogsStep implements Step<ServiceLogAnalysis> {
   readonly kind: StepKind = 'transform';
 
   private readonly fromStep: string;
-  private readonly serviceName: string;
   private readonly varPrefix: string;
   private readonly schema: ServiceLogSchema;
 
@@ -32,7 +30,6 @@ export class AnalyzeServiceLogsStep implements Step<ServiceLogAnalysis> {
     this.id = config.id;
     this.label = config.label;
     this.fromStep = config.fromStep;
-    this.serviceName = config.serviceName;
     this.varPrefix = config.varPrefix;
     this.schema = config.schema;
   }
@@ -67,15 +64,7 @@ export class AnalyzeServiceLogsStep implements Step<ServiceLogAnalysis> {
       [`${this.varPrefix}TraceId`]: traceId ?? '',
       [`${this.varPrefix}TraceIdRaw`]: traceIdRaw ?? '',
       [`${this.varPrefix}FallbackUuid`]: fallbackUuid ?? '',
-      serviceName: this.serviceName,
-      serviceErrorCount: String(results.length),
-      lastErrorMsg: scan.errorMessage,
-      traceId: traceId ?? '',
     };
-
-    if (fallbackUuid !== undefined) {
-      vars['fallbackUuid'] = fallbackUuid;
-    }
 
     return {
       success: true,

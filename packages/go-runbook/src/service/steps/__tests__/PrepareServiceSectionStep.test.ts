@@ -32,7 +32,7 @@ describe('PrepareServiceSectionStep', () => {
     assert.strictEqual(step.kind, 'control');
   });
 
-  it('emits the service name and log group as vars', async () => {
+  it('completes without polluting the shared var scope', async () => {
     const step = new PrepareServiceSectionStep({
       id: 'prepare-service-section',
       label: 'Preparazione servizio',
@@ -43,7 +43,6 @@ describe('PrepareServiceSectionStep', () => {
     const result = await step.execute(ctx());
 
     assert.strictEqual(result.success, true);
-    assert.strictEqual(result.vars?.['serviceName'], 'pn-foo');
-    assert.strictEqual(result.vars?.['serviceLogGroup'], '/aws/ecs/pn-foo');
+    assert.strictEqual(result.vars, undefined);
   });
 });

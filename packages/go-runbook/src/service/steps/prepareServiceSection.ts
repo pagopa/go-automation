@@ -34,10 +34,6 @@ export class PrepareServiceSectionStep implements Step<void> {
     return {
       success: true,
       output: undefined,
-      vars: {
-        serviceName: this.serviceName,
-        serviceLogGroup: this.logGroup,
-      },
     };
   }
 }

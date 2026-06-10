@@ -98,7 +98,7 @@ export class QueryServiceTraceLogsStep implements Step<ReadonlyArray<ReadonlyArr
   }
 
   private resolveTraceId(context: RunbookContext): string {
-    return (context.vars.get(`${this.varPrefix}TraceId`) ?? context.vars.get('traceId') ?? '').trim();
+    return (context.vars.get(`${this.varPrefix}TraceId`) ?? '').trim();
   }
 
   private buildQuery(traceId: string): string {

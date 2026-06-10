@@ -30,7 +30,6 @@ function step(): AnalyzeServiceLogsStep {
     id: 'analyze-pn-foo',
     label: 'Analisi log pn-foo',
     fromStep: 'query-pn-foo',
-    serviceName: 'pn-foo',
     varPrefix: 'foo',
     schema: SCHEMA,
   });
@@ -57,6 +56,12 @@ describe('AnalyzeServiceLogsStep', () => {
     assert.strictEqual(result.vars?.['fooLogCount'], '1');
     assert.strictEqual(result.vars?.['fooErrorMsg'], 'Exception: boom');
     assert.strictEqual(result.next, 'resolve');
+
+    // Only prefixed vars are emitted: no un-prefixed globals that could collide.
+    assert.deepStrictEqual(
+      Object.keys(result.vars ?? {}).sort(),
+      ['fooErrorMsg', 'fooFallbackUuid', 'fooLogCount', 'fooTraceId', 'fooTraceIdRaw'],
+    );
   });
 
   it('fails with the canonical "not found" message when the upstream step is missing', async () => {

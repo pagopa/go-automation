@@ -52,7 +52,6 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
       id: `analyze-${service.name}`,
       label: `Analisi log ${service.name}`,
       fromStep: `query-${service.name}`,
-      serviceName: service.name,
       varPrefix: service.varPrefix,
       schema: profile.schema,
     }),
