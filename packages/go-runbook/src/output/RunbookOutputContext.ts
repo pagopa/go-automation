@@ -29,3 +29,17 @@ export interface RunbookEvidence {
 export function emptyRunbookOutputContext(): RunbookOutputContext {
   return { fields: [], evidence: [] };
 }
+
+/**
+ * Widens a typed, domain-specific payload into the generic {@link
+ * RunbookOutputContext.details} bag.
+ *
+ * Centralizes the one unavoidable cast: a typed interface has no implicit index
+ * signature, so it is not directly assignable to `Record<string, unknown>`.
+ *
+ * @param value - The domain-specific output context (e.g. service/apigw/lambda)
+ * @returns The same object typed as the generic details record
+ */
+export function toRunbookOutputDetails<T extends object>(value: T): Readonly<Record<string, unknown>> {
+  return value as unknown as Readonly<Record<string, unknown>>;
+}

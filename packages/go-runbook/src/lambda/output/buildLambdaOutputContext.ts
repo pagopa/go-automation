@@ -2,7 +2,12 @@ import type { ResultField } from '@go-automation/go-common/aws';
 
 import type { Runbook } from '../../types/Runbook.js';
 import type { RunbookExecutionResult } from '../../types/RunbookExecutionResult.js';
-import type { RunbookEvidence, RunbookOutputContext, RunbookResultField } from '../../output/RunbookOutputContext.js';
+import {
+  toRunbookOutputDetails,
+  type RunbookEvidence,
+  type RunbookOutputContext,
+  type RunbookResultField,
+} from '../../output/RunbookOutputContext.js';
 import { extractField } from '../helpers/extractField.js';
 import type { LambdaDownstreamOutput, LambdaLogLine, LambdaOutputContext } from './LambdaOutputContext.js';
 import { isLambdaRunbookContext } from './LambdaRunbookContext.js';
@@ -77,7 +82,7 @@ export function buildLambdaOutputContext(
   return {
     fields: buildFields(vars, params),
     evidence: buildEvidence(recentErrors, invocationRows, downstream, maxRecentLogs, errorRows.length),
-    details: lambdaContext as unknown as Readonly<Record<string, unknown>>,
+    details: toRunbookOutputDetails(lambdaContext),
   };
 }
 

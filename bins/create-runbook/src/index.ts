@@ -8,10 +8,11 @@
  *   pnpm create:runbook
  *   pnpm create:runbook --type api-gateway --id pn-foo-BAR-ApiGwAlarm
  *   pnpm create:runbook --type lambda --id pn-fooLambda-LogInvocationErrors-Alarm
+ *   pnpm create:runbook --type service --id workday-pn-foo-alarm
  *   pnpm create:runbook --dry-run
  *
  * Flags:
- *   --type <id>              Template id (api-gateway | lambda | base); prompted if omitted
+ *   --type <id>              Template id (api-gateway | lambda | service | base); prompted if omitted
  *   --id <runbook-id>        Runbook id and directory name
  *   --builder <name>         Builder function name (default: derived from id)
  *   --description <text>     Runbook metadata description
@@ -21,6 +22,7 @@
  *   --api-gw-log-group, --entry-service, --var-prefix, --log-group,
  *   --execution-log-group, --authorizer   (api-gateway template inputs)
  *   --entry-lambda, --var-prefix, --event-source   (lambda template inputs)
+ *   --service-name, --var-prefix, --log-group   (service template inputs)
  *   --no-wire                Do not modify go-analyze-alarm main.ts
  *   --dry-run                Render and print without writing or wiring
  *   --yes                    Skip the confirmation prompt
@@ -90,6 +92,10 @@ function printNextSteps(answers: RunbookAnswers): void {
     console.log(
       `    2. Per i downstream: ${CYAN}knownServices.ts${RESET} (DOWNSTREAMS) + ${CYAN}knownErrors.ts${RESET} (DOWNSTREAM_ERROR_PATTERNS)`,
     );
+    console.log(`    3. Verifica i tipi: ${DIM}pnpm --filter=go-analyze-alarm exec tsc --noEmit${RESET}`);
+  } else if (answers.templateId === 'service') {
+    console.log(`    1. Popola ${CYAN}knownCases.ts${RESET} con i pattern ricorrenti nei log applicativi`);
+    console.log(`    2. Se serve, personalizza query errori / trace in ${CYAN}knownServices.ts${RESET}`);
     console.log(`    3. Verifica i tipi: ${DIM}pnpm --filter=go-analyze-alarm exec tsc --noEmit${RESET}`);
   } else {
     console.log(`    1. Aggiungi step e known case in ${CYAN}runbook.ts${RESET}`);

@@ -1,0 +1,30 @@
+/**
+ * Runbook: {{RUNBOOK_ID}}
+ */
+
+import { service } from '@go-automation/go-runbook';
+import type { Runbook } from '@go-automation/go-runbook';
+
+import { SERVICE } from './knownServices.js';
+import { KNOWN_CASES } from './knownCases.js';
+
+/**
+ * Builds the {{RUNBOOK_ID}} runbook definition.
+ *
+ * @returns A validated {@link Runbook} ready for execution
+ */
+export function {{BUILDER_NAME}}(): Runbook {
+  return service.createServiceAlarmRunbook({
+    id: '{{RUNBOOK_ID}}',
+    metadata: {
+      name: '{{METADATA_NAME}}',
+      description: '{{METADATA_DESCRIPTION}}',
+      version: '{{METADATA_VERSION}}',
+      type: 'alarm-resolution',
+      team: '{{METADATA_TEAM}}',
+      tags: {{METADATA_TAGS}},
+    },
+    service: SERVICE,
+    knownCases: KNOWN_CASES,
+  });
+}

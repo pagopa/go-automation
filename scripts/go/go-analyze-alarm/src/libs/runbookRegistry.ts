@@ -21,6 +21,9 @@ import { buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook } from './
 import { buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook } from './runbooks/pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook } from './runbooks/pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm/runbook.js';
 
+// service logs
+import { buildWorkdayPnExternalChannelAlbAlarmRunbook } from './runbooks/workday-pn-external-channel-alb-alarm/runbook.js';
+
 /** Maps alarm names (= runbook ids) to their runbook builders. */
 export const RUNBOOK_REGISTRY: ReadonlyMap<string, () => Runbook> = new Map<string, () => Runbook>([
   ['pn-address-book-io-IO-ApiGwAlarm', buildAddressBookIoApiGwAlarmRunbook],
@@ -40,4 +43,5 @@ export const RUNBOOK_REGISTRY: ReadonlyMap<string, () => Runbook> = new Map<stri
     'pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm',
     buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook,
   ],
+  ['workday-pn-external-channel-alb-alarm', buildWorkdayPnExternalChannelAlbAlarmRunbook],
 ]);

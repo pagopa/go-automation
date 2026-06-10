@@ -140,3 +140,6 @@ export * as apigw from './apigw/index.js';
 
 // Lambda runbook toolkit
 export * as lambda from './lambda/index.js';
+
+// Service log runbook toolkit
+export * as service from './service/index.js';

@@ -2,7 +2,12 @@ import type { ResultField } from '@go-automation/go-common/aws';
 
 import type { Runbook } from '../../types/Runbook.js';
 import type { RunbookExecutionResult } from '../../types/RunbookExecutionResult.js';
-import type { RunbookEvidence, RunbookOutputContext, RunbookResultField } from '../../output/RunbookOutputContext.js';
+import {
+  toRunbookOutputDetails,
+  type RunbookEvidence,
+  type RunbookOutputContext,
+  type RunbookResultField,
+} from '../../output/RunbookOutputContext.js';
 import { extractCwField } from '../helpers/extractCwField.js';
 import type {
   ApiGwAuthorizerOutcome,
@@ -77,7 +82,7 @@ export function buildApiGwOutputContext(
   return {
     fields: buildFields(vars, params),
     evidence: buildEvidence(apiGwRecentLogs, serviceContexts, maxRecentLogs, accessLogRows.length),
-    details: apiGwContext as unknown as Readonly<Record<string, unknown>>,
+    details: toRunbookOutputDetails(apiGwContext),
   };
 }
 
