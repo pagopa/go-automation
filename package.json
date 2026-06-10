@@ -108,8 +108,9 @@
     "test:runbooks": "pnpm --filter=@go-automation/go-runbook test",
     "test:scripts": "pnpm -r --filter='./scripts/**' test",
     "test:scripts:coverage": "pnpm -r --filter='./scripts/**' test:coverage",
+    "type-coverage": "type-coverage --project tsconfig.type-coverage.json --detail --show-relative-path --at-least ${GO_TYPE_COVERAGE_THRESHOLD:-99}",
     "type-check": "tsc --noEmit",
-    "validate:all": "pnpm validate:scaffold && pnpm lint && pnpm knip && pnpm deps:check",
+    "validate:all": "pnpm validate:scaffold && pnpm lint && pnpm knip && pnpm deps:check && pnpm type-coverage",
     "validate:scaffold": "tsx bins/validate-scaffold/src/index.ts"
   },
   "keywords": [
@@ -141,6 +142,7 @@
     "license-report": "catalog:",
     "prettier": "catalog:",
     "tsx": "catalog:",
+    "type-coverage": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:"
   }

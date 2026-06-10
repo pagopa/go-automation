@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["ES2024"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "allowJs": false,
+    "checkJs": false,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "types": ["node", "aws-lambda"],
+    "paths": {
+      "@go-automation/go-ai": ["packages/go-ai/src/index.ts"],
+      "@go-automation/go-ai/*": ["packages/go-ai/src/*"],
+      "@go-automation/go-cli": ["packages/go-cli/src/index.ts"],
+      "@go-automation/go-cli/*": ["packages/go-cli/src/*"],
+      "@go-automation/go-common": ["packages/go-common/src/index.ts"],
+      "@go-automation/go-common/aws": ["packages/go-common/src/libs/aws/index.ts"],
+      "@go-automation/go-common/core": ["packages/go-common/src/libs/core/index.ts"],
+      "@go-automation/go-common/*": ["packages/go-common/src/*"],
+      "@go-automation/go-runbook": ["packages/go-runbook/src/index.ts"],
+      "@go-automation/go-runbook/*": ["packages/go-runbook/src/*"],
+      "@go-automation/go-send": ["packages/go-send/src/index.ts"],
+      "@go-automation/go-send/*": ["packages/go-send/src/*"],
+      "go-analyze-alarm": ["scripts/go/go-analyze-alarm/src/index.ts"],
+      "go-analyze-alarm/*": ["scripts/go/go-analyze-alarm/src/*"],
+      "send-monitor-athena-query": ["scripts/send/send-monitor-athena-query/src/index.ts"],
+      "send-monitor-athena-query/*": ["scripts/send/send-monitor-athena-query/src/*"],
+      "send-monitor-tpp-messages": ["scripts/send/send-monitor-tpp-messages/src/index.ts"],
+      "send-monitor-tpp-messages/*": ["scripts/send/send-monitor-tpp-messages/src/*"]
+    }
+  },
+  "include": ["packages/*/src/**/*.ts", "scripts/*/*/src/**/*.ts", "functions/*/src/**/*.ts", "bins/*/src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "coverage", "**/*.test.ts", "**/*.spec.ts"]
+}
