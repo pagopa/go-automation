@@ -13,6 +13,10 @@ export * from './import/SENDNotificationImportRowProcessor.js';
 export * from './import/SENDNotificationImportBatchProcessor.js';
 export * from './import/SENDCSVRowValidator.js';
 export * from './import/SENDNotificationRow.js';
+export * from './import/SENDUploadedAttachment.js';
+export * from './import/SENDUploadedAttachmentSkipped.js';
+export * from './import/SENDUploadedAttachmentsLoadResult.js';
+export * from './import/SENDUploadedAttachmentsLoader.js';
 
 export * from './import/adapters/QATestFormatAdapter.js';
 export * from './import/adapters/StandardFormatAdapter.js';

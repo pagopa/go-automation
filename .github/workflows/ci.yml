@@ -44,6 +44,20 @@ jobs:
       command: knip
       install-args: --frozen-lockfile --ignore-scripts
 
+  deps-check:
+    name: Dependency Graph
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      command: deps:check
+      install-args: --frozen-lockfile --ignore-scripts
+
+  type-coverage:
+    name: Type Coverage
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      command: type-coverage
+      install-args: --frozen-lockfile --ignore-scripts
+
   scaffold:
     name: Scaffold Validation
     uses: ./.github/workflows/ci-job.yml
@@ -138,14 +152,14 @@ jobs:
   # Summary job for branch protection
   ci-success:
     name: CI Success
-    needs: [typecheck, lint, format, knip, scaffold, new-class-tests, build, test, coverage, macos-smoke]
+    needs: [typecheck, lint, format, knip, deps-check, type-coverage, scaffold, new-class-tests, build, test, coverage, macos-smoke]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
-          results=("${{ needs.typecheck.result }}" "${{ needs.lint.result }}" "${{ needs.format.result }}" "${{ needs.knip.result }}" "${{ needs.scaffold.result }}" "${{ needs.new-class-tests.result }}" "${{ needs.build.result }}" "${{ needs.test.result }}" "${{ needs.coverage.result }}" "${{ needs.macos-smoke.result }}")
+          results=("${{ needs.typecheck.result }}" "${{ needs.lint.result }}" "${{ needs.format.result }}" "${{ needs.knip.result }}" "${{ needs.deps-check.result }}" "${{ needs.type-coverage.result }}" "${{ needs.scaffold.result }}" "${{ needs.new-class-tests.result }}" "${{ needs.build.result }}" "${{ needs.test.result }}" "${{ needs.coverage.result }}" "${{ needs.macos-smoke.result }}")
           for result in "${results[@]}"; do
             if [[ "$result" != "success" ]]; then
               echo "One or more checks failed"

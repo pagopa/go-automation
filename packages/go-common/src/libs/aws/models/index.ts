@@ -18,6 +18,7 @@ export type { SQSProcessCallbacks } from './SQSProcessCallbacks.js';
 export type { SQSMoveOptions } from './SQSMoveOptions.js';
 export type { SQSMoveResult } from './SQSMoveResult.js';
 export type { SQSMoveError } from './SQSMoveError.js';
+export type { SQSMoveErrorStage } from './SQSMoveErrorStage.js';
 export type { SQSMoveCallbacks } from './SQSMoveCallbacks.js';
 
 export type {
@@ -28,7 +29,6 @@ export type {
   SQSMessageHandler,
   SQSMoveProgressHandler,
   SQSMoveErrorHandler,
-  SQSMoveErrorStage,
 } from './SQSHandlers.js';
 
 export type { DynamoDBQueryOptions, DynamoDBKeyType } from './DynamoDBQueryOptions.js';

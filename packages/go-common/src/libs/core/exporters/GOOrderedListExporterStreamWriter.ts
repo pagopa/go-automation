@@ -2,7 +2,7 @@
  * Ordered stream writer for list exporters
  */
 
-import { valueToString } from '../index.js';
+import { valueToString } from '../utils/GOValueToString.js';
 import type { GOListExporterStreamWriter } from './GOListExporterStreamWriter.js';
 
 /**

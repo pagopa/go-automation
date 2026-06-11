@@ -5,6 +5,8 @@
 import type { ColumnConflictStrategy } from '@go-automation/go-common/core';
 import type { GOListExporter } from '@go-automation/go-common/core';
 
+import type { SENDUploadedAttachment } from './SENDUploadedAttachment.js';
+
 export interface SENDNotificationImportWorkerOptions {
   /** Number of concurrent notification blocks to process in parallel (default: 1) */
   concurrency?: number;
@@ -78,4 +80,13 @@ export interface SENDNotificationImportWorkerOptions {
    * @default false
    */
   exportAllRows?: boolean;
+
+  /**
+   * Attachments pre-uploaded via send-upload-attachments, grouped by pratica
+   * (see loadUploadedAttachments). When a row has a `pratica` value, all the
+   * attachments of that group are attached to the notification; this takes
+   * precedence over documentFilePath and the documentKey/documentVersionToken/
+   * documentSha256 reference.
+   */
+  attachmentsByPratica?: ReadonlyMap<string, ReadonlyArray<SENDUploadedAttachment>>;
 }

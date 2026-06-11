@@ -35,6 +35,13 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     aliases: ['e'],
   },
   {
+    name: 'attachments.file',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'Path del file files-results.json di send-upload-attachments (allegati multipli per pratica)',
+    required: false,
+    aliases: ['a'],
+  },
+  {
     name: 'base.path',
     type: Core.GOConfigParameterType.STRING,
     description: 'Base URL del servizio PN',

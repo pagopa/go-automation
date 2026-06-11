@@ -1,4 +1,4 @@
-import type { SQSMoveErrorStage } from './SQSHandlers.js';
+import type { SQSMoveErrorStage } from './SQSMoveErrorStage.js';
 
 /**
  * Per-message error captured during a redrive operation.

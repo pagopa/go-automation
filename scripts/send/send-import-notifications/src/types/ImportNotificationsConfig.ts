@@ -9,6 +9,9 @@ export interface ImportNotificationsConfig {
   /** Path del file CSV di export (con IUN) */
   readonly exportFile: string;
 
+  /** Path del file files-results.json di send-upload-attachments (allegati multipli per pratica) */
+  readonly attachmentsFile?: string;
+
   /** Base URL del servizio PN */
   readonly basePath: string;
 

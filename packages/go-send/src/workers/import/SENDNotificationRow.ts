@@ -64,6 +64,18 @@ export interface SENDNotificationRow {
   documentFilePath?: string;
 
   /**
+   * Grouping key selecting the attachments of this notification (option 3:
+   * multiple attachments pre-uploaded via send-upload-attachments).
+   *
+   * When set, all the uploaded attachments with this `pratica` value in the
+   * attachments map passed to the worker (see
+   * SENDNotificationImportWorkerOptions.attachmentsByPratica) are attached to
+   * the notification. Takes precedence over documentFilePath and
+   * documentKey/documentVersionToken/documentSha256.
+   */
+  pratica?: string;
+
+  /**
    * Original CSV row data preserved from import.
    * Contains all columns from the original CSV file before transformation.
    * This is populated when GOCSVListImporter is configured with `preserveOriginalData: true`.

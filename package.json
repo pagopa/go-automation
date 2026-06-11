@@ -35,6 +35,16 @@
     "clean:all": "pnpm clean && pnpm -r exec rm -rf node_modules && rm -rf node_modules",
     "create:runbook": "tsx bins/create-runbook/src/index.ts",
     "create:runbook:test": "node --import tsx/esm --test 'bins/create-runbook/src/**/*.test.ts'",
+    "deps:check": "pnpm deps:check:packages && pnpm deps:check:scripts:aws && pnpm deps:check:scripts:go && pnpm deps:check:scripts:send && pnpm deps:check:functions && pnpm deps:check:bins",
+    "deps:check:bins": "depcruise --config .dependency-cruiser.cjs --output-type err bins/*/src",
+    "deps:check:full": "NODE_OPTIONS=--max-old-space-size=8192 depcruise --config .dependency-cruiser.cjs --output-type err packages scripts functions bins",
+    "deps:check:functions": "depcruise --config .dependency-cruiser.cjs --output-type err functions/*/src",
+    "deps:check:packages": "depcruise --config .dependency-cruiser.cjs --output-type err packages/*/src",
+    "deps:check:scripts:aws": "depcruise --config .dependency-cruiser.cjs --output-type err scripts/aws/*/src",
+    "deps:check:scripts:go": "depcruise --config .dependency-cruiser.cjs --output-type err scripts/go/*/src",
+    "deps:check:scripts:send": "depcruise --config .dependency-cruiser.cjs --output-type err scripts/send/*/src",
+    "deps:graph:packages": "depcruise --config .dependency-cruiser.cjs --output-type dot --collapse '^packages/[^/]+' --output-to dependency-cruiser-packages.dot packages/*/src",
+    "deps:report:packages": "depcruise --config .dependency-cruiser.cjs --output-type err-html --output-to dependency-cruiser-packages.html packages/*/src",
     "format": "prettier --write \"**/*.{ts,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
     "go": "pnpm --filter=@go-automation/go-cli dev",
@@ -98,8 +108,9 @@
     "test:runbooks": "pnpm --filter=@go-automation/go-runbook test",
     "test:scripts": "pnpm -r --filter='./scripts/**' test",
     "test:scripts:coverage": "pnpm -r --filter='./scripts/**' test:coverage",
+    "type-coverage": "type-coverage --project tsconfig.type-coverage.json --detail --show-relative-path --at-least ${GO_TYPE_COVERAGE_THRESHOLD:-99}",
     "type-check": "tsc --noEmit",
-    "validate:all": "pnpm validate:scaffold && pnpm lint && pnpm knip",
+    "validate:all": "pnpm validate:scaffold && pnpm lint && pnpm knip && pnpm deps:check && pnpm type-coverage",
     "validate:scaffold": "tsx bins/validate-scaffold/src/index.ts"
   },
   "keywords": [
@@ -121,6 +132,7 @@
     "@types/node": "catalog:",
     "@typescript-eslint/eslint-plugin": "catalog:",
     "@typescript-eslint/parser": "catalog:",
+    "dependency-cruiser": "catalog:",
     "eslint": "catalog:",
     "eslint-config-prettier": "catalog:",
     "eslint-plugin-prettier": "catalog:",
@@ -130,6 +142,7 @@
     "license-report": "catalog:",
     "prettier": "catalog:",
     "tsx": "catalog:",
+    "type-coverage": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:"
   }

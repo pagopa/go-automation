@@ -1,6 +1,6 @@
 import { RunbookBuilder } from '../../builders/RunbookBuilder.js';
 import { CloudWatchLogsQueryStep } from '../../steps/data/CloudWatchLogsQueryStep.js';
-import type { TimeRangeFromParams } from '../../steps/data/CloudWatchLogsQueryStep.js';
+import type { TimeRangeFromParams } from '../../steps/data/TimeRangeFromParams.js';
 import type { Runbook } from '../../types/Runbook.js';
 
 import type { LambdaAlarmConfig } from '../types/LambdaAlarmConfig.js';
