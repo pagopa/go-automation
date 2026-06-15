@@ -31,6 +31,9 @@ await esbuild.build({
   },
 });
 
-await fs.cp(CONFIGS_SOURCE, CONFIGS_DEST, { recursive: true });
+await fs.cp(CONFIGS_SOURCE, CONFIGS_DEST, {
+  recursive: true,
+  filter: (source) => path.basename(source) !== '.DS_Store',
+});
 
 console.log(`✅ go-SendMonitorAthenaQueryLambda built → ${ARTIFACT_DIR}`);
