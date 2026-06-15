@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "presets": [
+    {
+      "name": "multicanalita",
+      "description": "Config equivalente a send-monitor-tpp-messages. Compilare i valori vuoti in base all'ambiente target.",
+      "values": {
+        "from": null,
+        "to": null,
+        "time": {
+          "lookback": {
+            "hours": 24
+          },
+          "zone": "Europe/Rome"
+        },
+        "aws": {
+          "profile": "sso_pn-core-test-FullAdmin",
+          "region": "eu-south-1"
+        },
+        "athena": {
+          "database": "cdc_analytics_database",
+          "catalog": "AwsDataCatalog",
+          "workgroup": "primary",
+          "output": {
+            "location": "s3://pn-log-analytics-athena-results-eu-south-1-151559006927-001"
+          },
+          "max": {
+            "poll": {
+              "attempts": 60
+            }
+          },
+          "poll": {
+            "interval": {
+              "ms": 10000
+            }
+          },
+          "query": "WITH interesting_timelines AS (\n  SELECT\n    timelineElementId,\n    date_trunc( 'hour', at_timezone(from_iso8601_timestamp(timestamp), 'Europe/Rome')) as ora_invio\n  FROM\n    pn_timelines_json_view\n  WHERE\n    timelineElementId LIKE '%TPP%'\n    AND CONCAT(p_year, p_month, p_day, p_hour) >= '{{startYear}}{{startMonth}}{{startDay}}{{startHour}}'\n    AND CONCAT(p_year, p_month, p_day, p_hour) <= '{{endYear}}{{endMonth}}{{endDay}}{{endHour}}'\n)\nSELECT\n  ora_invio,\n  count(*) as notifiche_tpp\nFROM\n  interesting_timelines\nGROUP BY\n  ora_invio\nORDER BY\n  ora_invio\n"
+        },
+        "template": {
+          "params": [],
+          "raw": [],
+          "legacy": {
+            "aliases": true
+          }
+        },
+        "output": {
+          "folder": "reports",
+          "format": "csv",
+          "file": {
+            "prefix": "report"
+          },
+          "attach": {
+            "when": {
+              "empty": false
+            }
+          }
+        },
+        "artifact": {
+          "s3": {
+            "location": "s3://pn-log-analytics-athena-results-eu-south-1-151559006927-001"
+          }
+        },
+        "slack": {
+          "token": null,
+          "channel": "C09S6NBBBQF",
+          "send": {
+            "on": {
+              "empty": true,
+              "error": true
+            }
+          },
+          "message": {
+            "template": "📊 *Report TPP Messages*\n\n*Periodo analizzato:*\n• Da: {{startDate}}\n• A: {{endDate}}\n\n*Risultati:*\n• Righe totali: {{rowCount}}\n• File generato: `{{fileName}}`\n\n*Analisi preliminare:*\n{{analysis}}\n\n_Report generato il {{timestamp}}_\n"
+          }
+        },
+        "analysis": {
+          "rules": [
+            "name=tpp-messages-threshold;field=notifiche_tpp;operator=>;value=100;aggregation=any-row;severity=warning;message=Rilevate fasce orarie con notifiche TPP sopra soglia"
+          ]
+        }
+      }
+    }
+  ]
+}
