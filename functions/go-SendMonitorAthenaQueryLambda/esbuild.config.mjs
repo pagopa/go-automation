@@ -27,7 +27,7 @@ await esbuild.build({
   minify: false,
   external: ['@aws-sdk/*'],
   banner: {
-    js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
+    js: "import { createRequire as __banner_createRequire } from 'module'; const require = __banner_createRequire(import.meta.url);",
   },
 });
 
