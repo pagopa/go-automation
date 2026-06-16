@@ -1320,8 +1320,14 @@ export class GOScript {
   get aws(): AWSProvider {
     if (this.awsProvider === undefined) {
       const region = this.resolveAwsRegion();
+      // In AWS-managed environments (Lambda/ECS/EC2) ignore any configured aws.profile/aws.profiles
+      // and use the SDK default credential chain (the execution role). Named SSO profiles only exist
+      // on developer machines / CI, not in the runtime — building clients with fromIni({ profile })
+      // there fails with CredentialsProviderError. This mirrors handleAWSCredentials(), which already
+      // skips profile resolution in AWS-managed environments.
+      const profiles = this.environment.isAWSManaged ? [] : this.resolveAwsProfileNames();
       this.awsProvider = new AWSProvider({
-        profiles: this.resolveAwsProfileNames(),
+        profiles,
         ...(region !== undefined ? { region } : {}),
       });
     }
