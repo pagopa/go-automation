@@ -5,11 +5,14 @@
     "AthenaWorkgroup": "cdc_analytics_workgroup",
     "AthenaOutputBucket": "pn-cdc-analytics-athena-results-eu-south-1-830192246553-001",
     "AthenaMaxRetries": "60",
-    "AthenaRetryDelay": "5000",
-    "SlackChannel": "C09RSL0QUTV",
+    "AthenaPollIntervalMs": "5000",
     "Timezone": "Europe/Rome",
     "SlackTokenSecretName": "go/send-monitor-tpp-messages/slack-token",
-    "GoSendMonitorTppMessagesLambdaTimeout": "300",
-    "GoSendMonitorTppMessagesLambdaMemorySize": "512"
+    "GoSendMonitorAthenaQueryLambdaTimeout": "300",
+    "GoSendMonitorAthenaQueryLambdaMemorySize": "512",
+    "GoSendMonitorAthenaQueryLambdaScheduleExpression": "cron(0 12 * * ? *)",
+    "GoSendMonitorAthenaQueryLambdaScheduleEnabled": "false",
+    "GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleExpression": "cron(0 12 * * ? *)",
+    "GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled": "false"
   }
 }
