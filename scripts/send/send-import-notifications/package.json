@@ -6,7 +6,7 @@
   "description": "Script di importazione notifiche SEND da CSV con upload documenti e polling IUN",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -b",
     "start": "pnpm build && node dist/index.js",
     "dev": "NODE_EXTRA_CA_CERTS=/Users/massimo/Desktop/Proxyman.pem tsx src/index.ts",
     "watch": "tsc --watch",

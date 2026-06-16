@@ -10,7 +10,7 @@
     "package.json"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -b",
     "start": "pnpm build && node dist/index.js",
     "dev": "tsx src/index.ts",
     "watch": "tsc --watch",

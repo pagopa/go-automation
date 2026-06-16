@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "build": "tsc --build",
+    "build": "tsc -b",
     "watch": "tsc --build --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
     "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",

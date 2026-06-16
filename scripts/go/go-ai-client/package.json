@@ -6,7 +6,7 @@
   "description": "Local CLI client for GO-AI — invokes the deployed Lambda or calls Bedrock directly.",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -b",
     "start": "pnpm build && node dist/index.js",
     "dev": "tsx src/index.ts",
     "watch": "tsc --watch",

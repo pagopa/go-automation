@@ -9,7 +9,7 @@
     "go-cli": "dist/index.js"
   },
   "scripts": {
-    "build": "tsc --build",
+    "build": "tsc -b",
     "watch": "tsc --build --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
     "test": "echo 'No tests yet'",

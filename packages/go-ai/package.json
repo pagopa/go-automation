@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "build": "tsc --build && cp prompts.yaml dist/",
+    "build": "tsc -b && cp prompts.yaml dist/",
     "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
     "watch": "tsc --build --watch",
     "clean": "rm -rf dist *.tsbuildinfo",

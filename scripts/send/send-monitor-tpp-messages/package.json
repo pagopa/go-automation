@@ -17,7 +17,7 @@
     "configs"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -b",
     "start": "pnpm build && node dist/index.js",
     "start:cron": "node dist/cron.js",
     "dev": "tsx src/index.ts",

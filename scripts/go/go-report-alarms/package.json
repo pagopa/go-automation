@@ -6,7 +6,7 @@
   "description": "Script di analisi degli allarmi CloudWatch per il team GO - Gestione Operativa",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -b",
     "start": "pnpm build && node dist/index.js",
     "dev": "tsx src/index.ts",
     "watch": "tsc --watch",
