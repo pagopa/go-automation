@@ -239,7 +239,7 @@ Resources:
   GoSendMonitorAthenaQueryLambdaScheduleInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !Ref GoSendMonitorAthenaQueryLambdaName
+      FunctionName: !Ref GoSendMonitorAthenaQueryLambda
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
       SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${GoSendMonitorAthenaQueryLambdaName}-schedule*"
