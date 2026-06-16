@@ -13,14 +13,15 @@ Parameters:
     Description: 'Number of days to retain logs in CloudWatch.'
 
 Resources:
-  GoSendMonitorTppMessagesLambdaLogGroup:
+  
+  GoSendMonitorAthenaQueryLambdaLogGroup:
     Type: AWS::CloudFormation::Stack
     UpdateReplacePolicy: Retain
     DeletionPolicy: Retain    
     Properties:
       TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/log-group.yaml"
       Parameters:
-        LogGroupName: go-SendMonitorTppMessagesLambda
+        LogGroupName: go-SendMonitorAthenaQueryLambda
         LogGroupPrefix: '/aws/lambda'
         LogGroupRetention: !Ref LogRetention
 
@@ -44,5 +45,5 @@ Resources:
 Outputs:
   GoReportBucketName:
     Value: !Ref GoReportBucket
-  GoSendMonitorTppMessagesLambdaName:
-    Value: go-SendMonitorTppMessagesLambda
+  GoSendMonitorAthenaQueryLambdaName:
+    Value: go-SendMonitorAthenaQueryLambda

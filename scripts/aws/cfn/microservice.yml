@@ -14,18 +14,6 @@ Parameters:
     Type: String
     Description: 'keep track of used projects commitIds'
 
-  GoSendMonitorTppMessagesLambdaName:
-    Type: String
-    Description: 'The name of the lambda function used as wrapper for notification'
-    
-  GoSendMonitorTppMessagesLambdaTimeout:
-    Type: Number
-    Default: 30 
-    
-  GoSendMonitorTppMessagesLambdaMemorySize:
-    Type: Number
-    Default: 128
-
   LambdasBucketName:
     Type: String
     Description: 'The name of the S3 bucket where lambda code is stored'
@@ -55,14 +43,10 @@ Parameters:
     Default: 3
     Description: 'The maximum number of retry attempts for failed Athena queries'
     
-  AthenaRetryDelay:
+  AthenaPollIntervalMs:
     Type: Number
-    Default: 2000
-    Description: 'The delay in milliseconds between Athena query retry attempts'
-    
-  SlackChannel:
-    Type: String
-    Description: 'The Slack channel where notifications will be sent'
+    Default: 1000
+    Description: 'The interval in milliseconds to poll for Athena query results'
     
   Timezone:
     Type: String
@@ -85,20 +69,61 @@ Parameters:
     Type: String
     Description: 'The name of the S3 bucket where reports will be stored'
 
-Resources:
+  GoSendMonitorAthenaQueryLambdaName:
+    Type: String
+    Description: 'The name of the lambda function used as wrapper for Athena reporting'
+    
+  GoSendMonitorAthenaQueryLambdaTimeout:
+    Type: Number
+    Default: 30
+    
+  GoSendMonitorAthenaQueryLambdaMemorySize:
+    Type: Number
+    Default: 128
 
-  GoSendMonitorTppMessagesLambda:
+  GoSendMonitorAthenaQueryLambdaScheduleExpression:
+    Type: String
+    Default: 'cron(0 12 * * ? *)'
+    Description: 'Schedule expression for GoSendMonitorAthenaQueryLambda. Effective only when schedule is enabled'
+
+  GoSendMonitorAthenaQueryLambdaScheduleEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: 'Enable/disable EventBridge schedule for GoSendMonitorAthenaQueryLambda (default disabled = never)'
+
+  GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleExpression:
+    Type: String
+    Default: 'cron(0 12 * * ? *)'
+    Description: 'Schedule expression for GoSendMonitorAthenaQueryLambda with SCRIPT_PRESET_NAME=multicanalita. Effective only when schedule is enabled'
+
+  GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: 'Enable/disable EventBridge schedule for multicanalita preset (default disabled = never)'
+
+Conditions:
+  GoSendMonitorAthenaQueryLambdaScheduleEnabledCondition: !Equals [!Ref GoSendMonitorAthenaQueryLambdaScheduleEnabled, 'true']
+  GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabledCondition: !Equals [!Ref GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled, 'true']
+  
+Resources:
+  GoSendMonitorAthenaQueryLambda:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Ref GoSendMonitorTppMessagesLambdaName
+      FunctionName: !Ref GoSendMonitorAthenaQueryLambdaName
       Runtime: nodejs24.x
       Handler: "handler.handler"
       Code:
         S3Bucket: !Ref LambdasBucketName
-        S3Key: !Sub "${BucketBasePath}/go-SendMonitorTppMessagesLambda.zip"
-      Role: !GetAtt GoSendMonitorTppMessagesLambdaRole.Arn
-      Timeout: !Ref GoSendMonitorTppMessagesLambdaTimeout
-      MemorySize: !Ref GoSendMonitorTppMessagesLambdaMemorySize
+        S3Key: !Sub "${BucketBasePath}/go-SendMonitorAthenaQueryLambda.zip"
+      Role: !GetAtt GoSendMonitorAthenaQueryLambdaRole.Arn
+      Timeout: !Ref GoSendMonitorAthenaQueryLambdaTimeout
+      MemorySize: !Ref GoSendMonitorAthenaQueryLambdaMemorySize
       Environment:
         Variables:
           ATHENA_DATABASE: !Ref AthenaDatabase
@@ -106,8 +131,7 @@ Resources:
           ATHENA_WORKGROUP: !Ref AthenaWorkgroup
           ATHENA_OUTPUT_LOCATION: !Sub "s3://${AthenaOutputBucket}/"
           ATHENA_MAX_RETRIES: !Ref AthenaMaxRetries
-          ATHENA_RETRY_DELAY: !Ref AthenaRetryDelay
-          SLACK_CHANNEL: !Ref SlackChannel
+          ATHENA_POLL_INTERVAL_MS: !Ref AthenaPollIntervalMs
           REPORTS_S3_BUCKET: !Ref GoReportBucketName
           TZ: !Ref Timezone
           SLACK_TOKEN: !Sub "{{resolve:secretsmanager:${SlackTokenSecretName}}}"
@@ -115,10 +139,10 @@ Resources:
       TracingConfig:
         Mode: Active
 
-  GoSendMonitorTppMessagesLambdaRole:
+  GoSendMonitorAthenaQueryLambdaRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: go-SendMonitorTppMessagesLambdaRole
+      RoleName: go-SendMonitorAthenaQueryLambdaRole
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -131,7 +155,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
-        - PolicyName: AthenaGlueAccess
+        - PolicyName: GoSendMonitorAthenaQueryLambdaAthenaGlueAccess
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -156,7 +180,7 @@ Resources:
                   - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog"
                   - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/${AthenaDatabase}"
                   - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/${AthenaDatabase}/*"
-        - PolicyName: S3Access
+        - PolicyName: GoSendMonitorAthenaQueryLambdaS3Access
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -192,10 +216,42 @@ Resources:
                 Resource:
                   - !Ref LogsBucketKmsKeyArn
 
-  GoSendMonitorTppMessagesLambdaAlarms:
+  GoSendMonitorAthenaQueryLambdaAlarms:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/lambda-alarms.yaml"
       Parameters:
-        FunctionName: !Ref GoSendMonitorTppMessagesLambda
+        FunctionName: !Ref GoSendMonitorAthenaQueryLambdaName
         AlarmSNSTopicArn: !Ref AlarmSNSTopicArn
+
+  GoSendMonitorAthenaQueryLambdaSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "${GoSendMonitorAthenaQueryLambdaName}-schedule"
+      Description: "Schedule for GoSendMonitorAthenaQueryLambda"
+      ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaScheduleExpression
+      State: !If [GoSendMonitorAthenaQueryLambdaScheduleEnabledCondition, ENABLED, DISABLED]
+      Targets:
+        - Id: GoSendMonitorAthenaQueryLambdaTarget
+          Arn: !GetAtt GoSendMonitorAthenaQueryLambda.Arn
+          Input: '{"body":{"script.preset.name":"papertracker"}}'
+
+  GoSendMonitorAthenaQueryLambdaScheduleInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref GoSendMonitorAthenaQueryLambdaName
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${GoSendMonitorAthenaQueryLambdaName}-schedule*"
+
+  GoSendMonitorAthenaQueryLambdaMulticanalitaSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "${GoSendMonitorAthenaQueryLambdaName}-schedule-multicanalita"
+      Description: "Schedule for GoSendMonitorAthenaQueryLambda (multicanalita preset)"
+      ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleExpression
+      State: !If [GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabledCondition, ENABLED, DISABLED]
+      Targets:
+        - Id: GoSendMonitorAthenaQueryLambdaTargetMulticanalita
+          Arn: !GetAtt GoSendMonitorAthenaQueryLambda.Arn
+          Input: '{"body":{"script.preset.name":"multicanalita"}}'
