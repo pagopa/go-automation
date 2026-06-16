@@ -31,9 +31,7 @@ await esbuild.build({
   format: 'esm',
   sourcemap: true,
   minify: false,
-  external: [
-    '@aws-sdk/*',
-  ],
+  external: ['@aws-sdk/*'],
   banner: {
     js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
   },
@@ -41,3 +39,5 @@ await esbuild.build({
 
 /** Copy configs directory alongside the bundle */
 await fs.cp(CONFIGS_SOURCE, CONFIGS_DEST, { recursive: true });
+
+console.log(`✅ go-SendMonitorTppMessagesLambda built → ${ARTIFACT_DIR}`);
