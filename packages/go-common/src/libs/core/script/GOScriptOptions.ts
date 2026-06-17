@@ -9,6 +9,7 @@ import type { GOSecretsSpecifier } from '../config/GOSecretsSpecifier.js';
 import type { GOConfigSchemaOptions } from '../config/GOConfigSchema.js';
 import type { GOFileCopierSubdirDefaults } from '../files/GOFileCopierOptions.js';
 import type { GOLoggerHandler } from '../logging/GOLoggerHandler.js';
+import type { GOScriptHookContext } from './GOScriptHookContext.js';
 
 /**
  * Script metadata
@@ -132,11 +133,9 @@ export interface GOScriptConfigOptions {
 
 export type GOScriptLifecycleHookResult = void | Promise<void>;
 
-export type GOScriptLifecycleHook = () => GOScriptLifecycleHookResult;
+export type GOScriptLifecycleHook = (context: GOScriptHookContext) => GOScriptLifecycleHookResult;
 
-export type GOScriptConfigLoadHook = (config: Record<string, unknown>) => GOScriptLifecycleHookResult;
-
-export type GOScriptErrorHook = (error: Error) => GOScriptLifecycleHookResult;
+export type GOScriptErrorHook = (error: Error, context: GOScriptHookContext) => GOScriptLifecycleHookResult;
 
 /**
  * Script lifecycle hooks
@@ -148,11 +147,15 @@ export interface GOScriptLifecycleHooks {
   /** Called after script initialization */
   onAfterInit?: GOScriptLifecycleHook;
 
-  /** Called before config is loaded */
+  /** Called before config is loaded (config store is still empty) */
   onBeforeConfigLoad?: GOScriptLifecycleHook;
 
-  /** Called after config is loaded */
-  onAfterConfigLoad?: GOScriptConfigLoadHook;
+  /**
+   * Called after config is resolved and before required-parameter validation.
+   * Acts as a prepare/remap phase: read resolved values (incl. reserved like
+   * `script.preset.name`) and derive/override via `context.config.set(...)`.
+   */
+  onAfterConfigLoad?: GOScriptLifecycleHook;
 
   /** Called before main script execution */
   onBeforeRun?: GOScriptLifecycleHook;
@@ -237,4 +240,18 @@ export interface GOScriptOptions {
 
   /** Lifecycle hooks */
   hooks?: GOScriptLifecycleHooks | undefined;
+
+  /**
+   * Install process-level fault guards (unhandledRejection, uncaughtException,
+   * warning, and — in AWS-managed runtimes — beforeExit). They log the fault as
+   * a structured JSON line and, for the two fatal events, exit with code 1 so a
+   * truly-unhandled fault is visible and fails fast instead of hanging.
+   *
+   * Enabled by default for the real entry points (`run()` and the handler from
+   * `createLambdaHandler()`). Always suppressed under a test runner so it never
+   * kills the test process. Set to `false` to opt out explicitly.
+   *
+   * @default true
+   */
+  processGuards?: boolean | undefined;
 }

@@ -12,6 +12,7 @@ import { loadUploadedAttachments } from '../SENDUploadedAttachmentsLoader.js';
 async function writeTempFile(content: string): Promise<string> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'send-uploaded-attachments-'));
   const filePath = path.join(dir, 'files-results.json');
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- test fixture path is created under a private mkdtemp directory.
   await fs.writeFile(filePath, content, 'utf-8');
   return filePath;
 }

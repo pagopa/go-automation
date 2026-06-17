@@ -6,6 +6,7 @@
  */
 
 // Core
+export * from './GOConfig.js';
 export * from './GOConfigProvider.js';
 export * from './GOConfigReader.js';
 export * from './GOConfigKeyTransformer.js';

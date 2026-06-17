@@ -24,90 +24,19 @@ import { scriptMetadata, scriptParameters } from 'send-monitor-tpp-messages/conf
 import { main } from 'send-monitor-tpp-messages/main';
 
 // ============================================================================
-// Global process-level error handlers
+// Process-level fault tracking
 // ----------------------------------------------------------------------------
-// Registered once at module load (cold start). Ensure unhandled rejections and
-// uncaught exceptions are logged with a stack trace BEFORE the runtime marks the
-// invocation as Runtime.ExitError with "exited without providing a reason".
+// The last-resort fault guards (unhandledRejection / uncaughtException / warning / beforeExit)
+// are now installed centrally by GOScript.createLambdaHandler() — see GOProcessGuards
+// in @go-automation/go-common. They emit structured JSON logs; only the fatal events
+// (unhandledRejection/uncaughtException) exit with code 1. Only the request-id tracking
+// used by this handler's resource snapshots remains here.
 // ============================================================================
 
-const stringifyNonError = (err: unknown): string => {
-  if (typeof err === 'string') return err;
-  if (typeof err === 'number' || typeof err === 'boolean' || err === null || err === undefined) {
-    return `${err}`;
-  }
-  try {
-    return JSON.stringify(err);
-  } catch {
-    return Object.prototype.toString.call(err);
-  }
-};
-
-const serializeError = (err: unknown): Record<string, unknown> =>
-  err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : { value: stringifyNonError(err) };
-
-// Tracks the in-flight invocation's awsRequestId so process-level handlers can
-// attribute fatal logs to the right request. AWS_LAMBDA_REQUEST_ID is not a
-// standard env var — the id only lives on the Context object. Set at handler
-// entry, cleared in finally so warm-container background faults (which are not
-// tied to any invocation) log null instead of a stale id.
+// Tracks the in-flight invocation's awsRequestId so resource snapshots can be
+// attributed to the right request. Set at handler entry, cleared in finally so
+// warm-container snapshots between invocations log null instead of a stale id.
 let currentRequestId: string | null = null;
-
-// After logging, exit with non-zero. Registering these listeners suppresses
-// Node's default crash, so without an explicit exit the Lambda invocation
-// would hang until the configured timeout and mask the real fault behind a
-// timeout error. process.exit(1) causes the runtime to report the invocation
-// as failed and recycles the container, which is what we want for a truly
-// unrecoverable state.
-process.on('unhandledRejection', (reason) => {
-  console.error(
-    JSON.stringify({
-      level: 'fatal',
-      type: 'unhandledRejection',
-      requestId: currentRequestId,
-      reason: serializeError(reason),
-    }),
-  );
-  process.exit(1);
-});
-
-process.on('uncaughtException', (error, origin) => {
-  console.error(
-    JSON.stringify({
-      level: 'fatal',
-      type: 'uncaughtException',
-      requestId: currentRequestId,
-      origin,
-      error: serializeError(error),
-    }),
-  );
-  process.exit(1);
-});
-
-process.on('warning', (warning) => {
-  console.warn(
-    JSON.stringify({
-      level: 'warn',
-      type: 'processWarning',
-      name: warning.name,
-      message: warning.message,
-      stack: warning.stack,
-    }),
-  );
-});
-
-process.on('beforeExit', (code) => {
-  // Fires when the event loop is about to drain. If this logs mid-invocation,
-  // something is leaking handles or keeping the loop alive unexpectedly.
-  console.warn(
-    JSON.stringify({
-      level: 'warn',
-      type: 'beforeExit',
-      code,
-      requestId: currentRequestId,
-    }),
-  );
-});
 
 // ============================================================================
 // Module-scope singletons (reused across warm invocations)
@@ -212,12 +141,8 @@ const logResourceSnapshot = (phase: string, options?: { readonly force?: boolean
  * ```
  */
 export const handler = script.createLambdaHandler<ScheduledEvent, void, Context>(async (_event, context) => {
-  // Detach early from the event loop: the Lambda runtime freezes the container at
-  // handler return, so pending keep-alive sockets / timers from previous invocations
-  // must not block the response. Our cleanup preserves AWS clients by design.
-  if (context) {
-    context.callbackWaitsForEmptyEventLoop = false;
-  }
+  // Note: callbackWaitsForEmptyEventLoop = false is now set centrally by
+  // GOScript.createLambdaHandler() for every Lambda.
 
   currentRequestId = context?.awsRequestId ?? null;
 
