@@ -102,6 +102,48 @@ describe('GOJsonLoggerHandler', () => {
     assert.ok(!stdout.includes('raw-password'));
   });
 
+  it('serializes bigint and circular structured data without throwing', () => {
+    const handler = new GOJsonLoggerHandler();
+    const data: Record<string, unknown> = { count: 123n };
+    data['self'] = data;
+
+    const { stdout } = capture(() => handler.handle(new GOLogEvent('payload', GOLogEventCategory.INFO, data)));
+
+    const record = JSON.parse(stdout) as Record<string, unknown>;
+    assert.deepStrictEqual(record['data'], {
+      count: '123',
+      self: '[Circular]',
+    });
+  });
+
+  it('falls back to a safe record when payload JSON serialization fails', () => {
+    const handler = new GOJsonLoggerHandler();
+    let captured: Captured | undefined;
+
+    assert.doesNotThrow(() => {
+      captured = capture(() =>
+        handler.handle(
+          new GOLogEvent('payload', GOLogEventCategory.INFO, {
+            broken: {
+              toJSON(): never {
+                throw new Error('password=raw-secret');
+              },
+            },
+          }),
+        ),
+      );
+    });
+    if (captured === undefined) {
+      throw new Error('expected logger output to be captured');
+    }
+
+    const record = JSON.parse(captured.stdout) as Record<string, unknown>;
+    assert.strictEqual(record['message'], 'payload');
+    assert.strictEqual(record['data'], undefined);
+    assert.strictEqual(record['jsonError'], '{"name":"Error","message":"password=<redacted>"}');
+    assert.ok(!captured.stdout.includes('raw-secret'));
+  });
+
   it('drops empty spacer events (no data)', () => {
     const handler = new GOJsonLoggerHandler();
     const { stdout } = capture(() => handler.handle(GOLogEvent.newline()));

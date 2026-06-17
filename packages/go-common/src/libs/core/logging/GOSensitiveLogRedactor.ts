@@ -4,7 +4,7 @@ const REDACTED_JSON_VALUE = '[REDACTED]';
 const JSON_STRING_FIELD_PATTERN = /"([^"\r\n]+)"([ \t]*:[ \t]*)"[^"\r\n]*"/gu;
 const JSON_PRIMITIVE_FIELD_PATTERN = /"([^"\r\n]+)"([ \t]*:[ \t]*)([^\s,}\]]+)/gu;
 const SENSITIVE_ASSIGNMENT_PATTERN =
-  /\b((?:cookie|set-cookie|x-api-key|api[-_.]?key|client[-_.]?secret|access[-_.]?token|refresh[-_.]?token|id[-_.]?token|password|passwd|pwd|secret|token|credentials?))([ \t]*[:=][ \t]*)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;]+)/giu;
+  /\b((?:cookie|set-cookie|x-api-key|api[-_.]?key|client[-_.]?secret|access[-_.]?token|refresh[-_.]?token|id[-_.]?token|password|passwd|pwd|secret|token|credentials?))([ \t]*[:=][ \t]*)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;}\]"']+)/giu;
 
 const AUTHORIZATION_SCHEME_PATTERN = /\b(authorization[ \t]*[:=][ \t]*)(bearer|basic)([ \t]+)[^\s,;]+/giu;
 const AUTHORIZATION_VALUE_PATTERN = /\b(authorization[ \t]*[:=][ \t]*)(?!bearer[ \t]|basic[ \t])[^\s,;]+/giu;

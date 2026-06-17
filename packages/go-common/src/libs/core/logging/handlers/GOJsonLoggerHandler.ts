@@ -18,6 +18,9 @@ import { GOLogEvent } from '../GOLogEvent.js';
 import { GOLogEventCategory } from '../GOLogEventCategory.js';
 import type { GOLoggerHandler } from '../GOLoggerHandler.js';
 import { redactSensitiveLogText, redactSensitiveLogValue } from '../GOSensitiveLogRedactor.js';
+import { safeJsonStringify, valueToString } from '../../utils/GOValueToString.js';
+
+type JsonLogRecord = Record<string, unknown>;
 
 /** Map a log category to a coarse severity level for filtering. */
 function categoryToLevel(category: GOLogEventCategory): string {
@@ -40,6 +43,22 @@ function categoryToLevel(category: GOLogEventCategory): string {
   }
 }
 
+function stringifyLogRecord(record: JsonLogRecord): string {
+  try {
+    return safeJsonStringify(record);
+  } catch (error) {
+    const fallbackRecord: JsonLogRecord = {
+      category: record['category'],
+      jsonError: redactSensitiveLogText(valueToString(error)),
+      level: record['level'],
+      message: record['message'],
+      timestamp: record['timestamp'],
+    };
+
+    return safeJsonStringify(fallbackRecord);
+  }
+}
+
 export class GOJsonLoggerHandler implements GOLoggerHandler {
   public handle(event: GOLogEvent): void {
     const message = redactSensitiveLogText(stripAnsi(event.message));
@@ -49,7 +68,7 @@ export class GOJsonLoggerHandler implements GOLoggerHandler {
       return;
     }
 
-    const record: Record<string, unknown> = {
+    const record: JsonLogRecord = {
       level: categoryToLevel(event.category),
       category: event.category,
       message,
@@ -59,7 +78,7 @@ export class GOJsonLoggerHandler implements GOLoggerHandler {
       record['data'] = redactSensitiveLogValue(event.data);
     }
 
-    const line = JSON.stringify(record);
+    const line = stringifyLogRecord(record);
     if (event.category === GOLogEventCategory.ERROR || event.category === GOLogEventCategory.FATAL) {
       console.error(line);
     } else {
