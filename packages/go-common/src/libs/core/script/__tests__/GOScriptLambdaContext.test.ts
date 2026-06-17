@@ -32,6 +32,6 @@ describe('GOScript.createLambdaHandler event-loop detach', () => {
       await Promise.resolve();
     });
 
-    await assert.doesNotReject(handler(undefined).catch(() => undefined));
+    await assert.doesNotReject(handler(undefined));
   });
 });
