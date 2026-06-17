@@ -9,6 +9,7 @@ import type { GOConfigProvider } from '../config/GOConfigProvider.js';
 import { GOSecretRedactor, GOSecretsSpecifierFactory } from '../config/GOSecretsSpecifier.js';
 import { GOConfigReader } from '../config/GOConfigReader.js';
 import { GOConfigSchema } from '../config/GOConfigSchema.js';
+import { GOConfig } from '../config/GOConfig.js';
 import { GOCommandLineConfigProvider } from '../config/providers/GOCommandLineConfigProvider.js';
 import { GOEnvironmentConfigProvider } from '../config/providers/GOEnvironmentConfigProvider.js';
 import { GOJSONConfigProvider } from '../config/providers/GOJSONConfigProvider.js';
@@ -17,6 +18,7 @@ import { GOPresetConfigProvider } from '../config/providers/GOPresetConfigProvid
 import { GOYAMLConfigProvider } from '../config/providers/GOYAMLConfigProvider.js';
 import { GOUnknownParameterDetector } from '../config/validation/GOUnknownParameterDetector.js';
 import { GOCredentialSource } from '../environment/GOCredentialSource.js';
+import { GOEnv } from '../environment/GOEnv.js';
 import { GOExecutionEnvironment } from '../environment/GOExecutionEnvironment.js';
 import type { GOExecutionEnvironmentInfo } from '../environment/GOExecutionEnvironmentInfo.js';
 import { GOFileCopier } from '../files/GOFileCopier.js';
@@ -40,6 +42,7 @@ import {
   GOSCRIPT_SYSTEM_PARAMETERS,
 } from './GOScriptSystemParameters.js';
 import { installProcessGuards, setProcessGuardRequestId } from './GOProcessGuards.js';
+import type { GOScriptHookContext } from './GOScriptHookContext.js';
 import type {
   GOScriptOptions,
   GOScriptMetadata,
@@ -99,8 +102,8 @@ export class GOScript {
   // State
   private initialized: boolean = false;
   private configLoaded: boolean = false;
-  private configValues: Record<string, unknown> = {};
-  private configSources: Map<string, string> = new Map();
+  private config: GOConfig = new GOConfig();
+  private readonly env: GOEnv = new GOEnv();
   private signalHandlersSetup: boolean = false;
   private isShuttingDown: boolean = false;
 
@@ -424,7 +427,7 @@ export class GOScript {
     }
 
     // Before init hook
-    await this.hooks.onBeforeInit?.();
+    await this.hooks.onBeforeInit?.(this.buildHookContext());
 
     // Ensure data directories exist (inputs, outputs)
     this.paths.ensureDirectoriesExist();
@@ -443,7 +446,7 @@ export class GOScript {
     this.initialized = true;
 
     // After init hook
-    await this.hooks.onAfterInit?.();
+    await this.hooks.onAfterInit?.(this.buildHookContext());
   }
 
   /**
@@ -451,11 +454,11 @@ export class GOScript {
    */
   public async loadConfig(): Promise<Record<string, unknown>> {
     if (this.configLoaded) {
-      return this.configValues;
+      return this.config.toRecord();
     }
 
     // Before config load hook
-    await this.hooks.onBeforeConfigLoad?.();
+    await this.hooks.onBeforeConfigLoad?.(this.buildHookContext());
 
     // Check for --help flag (only in interactive environments — process.argv is meaningless in Lambda)
     if (this.options.config?.autoHelp !== false && !this.environment.isAWSManaged && this.hasHelpFlag()) {
@@ -485,13 +488,26 @@ export class GOScript {
     this.validateCliSystemParameterHasValue(GOSCRIPT_PRESET_FILE_PARAMETER);
 
     const loadResult = await this.configLoader.load();
-    this.configValues = loadResult.values;
-    this.configSources = loadResult.sources;
+    this.config = new GOConfig(loadResult.values, loadResult.sources);
 
-    // Validate required parameters BEFORE showing config summary
-    if (loadResult.missingRequired.length > 0) {
+    // Mark loaded before the prepare hook so a hook calling getConfiguration()
+    // reads the current config instead of re-entering loadConfig().
+    this.configLoaded = true;
+
+    // Prepare/remap hook: may read resolved values (incl. reserved ones like the
+    // active preset) and derive/override them, BEFORE required-parameter validation,
+    // so derived values can satisfy required parameters and appear in the summary.
+    await this.hooks.onAfterConfigLoad?.(this.buildHookContext());
+
+    // Validate required parameters (after prepare). Filter the loader's baseline by
+    // what is still missing, so values set by the prepare hook count as provided.
+    const missingRequired = loadResult.missingRequired.filter((name) => {
+      const value = this.config.get(name);
+      return value === undefined || value === null;
+    });
+    if (missingRequired.length > 0) {
       const params = this.configSchema.getAllParameters();
-      const errorMessage = GOScriptConfigLoader.formatMissingParametersError(loadResult.missingRequired, params);
+      const errorMessage = GOScriptConfigLoader.formatMissingParametersError(missingRequired, params);
       this.logger.error(errorMessage);
       if (!this.environment.isAWSManaged) {
         this.showHelp();
@@ -504,12 +520,7 @@ export class GOScript {
       this.logConfigValues();
     }
 
-    this.configLoaded = true;
-
-    // After config load hook
-    await this.hooks.onAfterConfigLoad?.(this.configValues);
-
-    return this.configValues;
+    return this.config.toRecord();
   }
 
   /**
@@ -559,11 +570,11 @@ export class GOScript {
       const finalPropertyName = (propertyMapping?.[propertyName as keyof TConfiguration] ??
         propertyName) as keyof TConfiguration;
 
-      // Use configValues (populated by loadConfig with proper alias support)
-      const value: unknown = this.configValues[param.name];
+      // Use the resolved config store (populated by loadConfig with proper alias support)
+      const value: unknown = this.config.get(param.name);
 
       if (value !== undefined) {
-        // Safe: the type system cannot verify that configValues[param.name] matches
+        // Safe: the type system cannot verify that the resolved config value matches
         // TConfiguration[key] at runtime — callers must ensure their Config interface
         // matches the declared parameter types and GOConfigTypeConverter output.
         result[finalPropertyName] = value as TConfiguration[keyof TConfiguration];
@@ -635,7 +646,7 @@ export class GOScript {
   }
 
   // ============================================================================
-  // Type-safe config value accessors (avoids unchecked `as` casts on configValues)
+  // Type-safe config value accessors (delegate to the resolved GOConfig store)
   // ============================================================================
 
   /**
@@ -654,20 +665,16 @@ export class GOScript {
 
   /**
    * Return the config value for `key` as a string, or undefined if absent or wrong type.
-   * Prefer this over `this.configValues[key] as string | undefined`.
    */
   private getConfigString(key: string): string | undefined {
-    const value = this.configValues[key];
-    return typeof value === 'string' ? value : undefined;
+    return this.config.getString(key);
   }
 
   /**
    * Return the config value for `key` as a readonly string array, or undefined if absent or wrong type.
-   * Prefer this over `this.configValues[key] as ReadonlyArray<string> | undefined`.
    */
   private getConfigStringArray(key: string): ReadonlyArray<string> | undefined {
-    const value = this.configValues[key];
-    return Array.isArray(value) ? (value as string[]) : undefined;
+    return this.config.getStringArray(key);
   }
 
   /**
@@ -739,19 +746,19 @@ export class GOScript {
         this.refreshAwsClientsIfProfileChanged();
       }
 
-      await this.hooks.onBeforeRun?.();
+      await this.hooks.onBeforeRun?.(this.buildHookContext());
       await this.handleAWSCredentials();
 
       const result = await mainFn();
 
       this.logger.success(successMessage);
-      await this.hooks.onAfterRun?.();
+      await this.hooks.onAfterRun?.(this.buildHookContext());
 
       return result;
     } catch (error) {
       if (error instanceof Error && this.preloggedErrors.has(error)) {
         // Already logged by a specific throw site — only call the hook, skip generic re-logging.
-        await this.hooks.onError?.(toError(error));
+        await this.hooks.onError?.(toError(error), this.buildHookContext());
       } else {
         // Unexpected runtime error — log generically (message + stack).
         await this.handleError(error);
@@ -900,8 +907,7 @@ export class GOScript {
       // AWS client providers are intentionally NOT reset (connection-pool reuse).
       this.initialized = false;
       this.configLoaded = false;
-      this.configValues = {};
-      this.configSources = new Map();
+      this.config = new GOConfig();
 
       // Inject the event payload into the pre-registered event config provider.
       // The provider was created (empty) during construction in initializeConfigReader();
@@ -914,7 +920,7 @@ export class GOScript {
         typeof event === 'object' &&
         !Array.isArray(event)
       ) {
-        this.lambdaEventProvider.updateValues(event as Record<string, unknown>);
+        this.lambdaEventProvider.updateValues(this.resolveLambdaEventPayload(event as Record<string, unknown>));
       }
 
       // Delegate to shared lifecycle executor.
@@ -947,6 +953,39 @@ export class GOScript {
   }
 
   /**
+   * Resolve the object whose keys map to configuration parameters for an invocation.
+   *
+   * Supports an optional `body` envelope (EventBridge constant inputs, API
+   * Gateway / Function URL events, …): when the event carries a usable `body`
+   * — a plain object, or a JSON string that parses to one — its contents are
+   * the config payload and any transport metadata at the top level is ignored.
+   * Otherwise the event itself is used (flat payload).
+   *
+   * @param event - The raw Lambda event object
+   * @returns The object whose (flat) keys feed the event config provider
+   */
+  private resolveLambdaEventPayload(event: Record<string, unknown>): Record<string, unknown> {
+    const body = event['body'];
+
+    if (body !== null && typeof body === 'object' && !Array.isArray(body)) {
+      return body as Record<string, unknown>;
+    }
+
+    if (typeof body === 'string') {
+      try {
+        const parsed: unknown = JSON.parse(body);
+        if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed as Record<string, unknown>;
+        }
+      } catch {
+        // body is not JSON — fall through to the flat event payload
+      }
+    }
+
+    return event;
+  }
+
+  /**
    * Set `callbackWaitsForEmptyEventLoop = false` on the Lambda Context so the
    * runtime returns/freezes as soon as the handler resolves, without waiting for
    * the event loop to drain. Safe for connection-reuse models (the default
@@ -958,6 +997,21 @@ export class GOScript {
     if (context !== null && typeof context === 'object' && 'callbackWaitsForEmptyEventLoop' in context) {
       (context as { callbackWaitsForEmptyEventLoop: boolean }).callbackWaitsForEmptyEventLoop = false;
     }
+  }
+
+  /**
+   * Build the context handed to lifecycle hooks. Reads `this.config` at call time
+   * so the live resolved-configuration store is exposed (a hook can read and
+   * override values through it).
+   */
+  private buildHookContext(): GOScriptHookContext {
+    return {
+      config: this.config,
+      env: this.env,
+      paths: this.paths,
+      environment: this.environment,
+      logger: this.logger,
+    };
   }
 
   /**
@@ -988,11 +1042,11 @@ export class GOScript {
     const sourceContentWidth = sourceWidth - padding;
 
     const tableData = params
-      .filter((param) => this.configValues[param.name] !== undefined)
+      .filter((param) => this.config.get(param.name) !== undefined)
       .map((param) => ({
         parameter: param.name,
         value: this.formatConfigValue(param.name),
-        source: GOScriptConfigLoader.getSourceDisplayName(this.configSources.get(param.name)),
+        source: GOScriptConfigLoader.getSourceDisplayName(this.config.sourceOf(param.name)),
       }));
 
     this.logger.section('Configuration Summary:');
@@ -1061,7 +1115,7 @@ export class GOScript {
    * Format a config value for display, redacting secrets
    */
   private formatConfigValue(paramName: string): string {
-    const value = this.configValues[paramName];
+    const value = this.config.get(paramName);
     const stringValue = valueToString(value);
     if (this.secretRedactor.isSecret(paramName, stringValue)) {
       return this.secretRedactor.redact(stringValue);
@@ -1080,7 +1134,7 @@ export class GOScript {
     this.logger.fatal(`Error: \n${errorStack}`);
 
     // On error hook
-    await this.hooks.onError?.(toError(error));
+    await this.hooks.onError?.(toError(error), this.buildHookContext());
   }
 
   /**
@@ -1094,7 +1148,7 @@ export class GOScript {
   public async cleanup(): Promise<void> {
     try {
       // Cleanup hook
-      await this.hooks.onCleanup?.();
+      await this.hooks.onCleanup?.(this.buildHookContext());
 
       // Close AWS client providers only in local/CI (not in Lambda — container reuse)
       if (!this.environment.isAWSManaged) {

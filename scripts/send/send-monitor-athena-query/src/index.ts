@@ -6,7 +6,7 @@
 
 import { Core } from '@go-automation/go-common';
 
-import { scriptMetadata, scriptParameters } from './config.js';
+import { prepareConfig, scriptMetadata, scriptParameters } from './config.js';
 import { main } from './main.js';
 
 /**
@@ -16,6 +16,9 @@ const script = new Core.GOScript({
   metadata: scriptMetadata,
   config: {
     parameters: scriptParameters,
+  },
+  hooks: {
+    onAfterConfigLoad: prepareConfig,
   },
 });
 

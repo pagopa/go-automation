@@ -5,6 +5,7 @@
  * appropriate AWS credential handling.
  */
 
+export { GOEnv } from './GOEnv.js';
 export { GOExecutionEnvironment } from './GOExecutionEnvironment.js';
 export { GOExecutionEnvironmentType } from './GOExecutionEnvironmentType.js';
 export { GODeploymentMode } from './GODeploymentMode.js';

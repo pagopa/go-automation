@@ -9,6 +9,7 @@ import type { GOSecretsSpecifier } from '../config/GOSecretsSpecifier.js';
 import type { GOConfigSchemaOptions } from '../config/GOConfigSchema.js';
 import type { GOFileCopierSubdirDefaults } from '../files/GOFileCopierOptions.js';
 import type { GOLoggerHandler } from '../logging/GOLoggerHandler.js';
+import type { GOScriptHookContext } from './GOScriptHookContext.js';
 
 /**
  * Script metadata
@@ -132,11 +133,9 @@ export interface GOScriptConfigOptions {
 
 export type GOScriptLifecycleHookResult = void | Promise<void>;
 
-export type GOScriptLifecycleHook = () => GOScriptLifecycleHookResult;
+export type GOScriptLifecycleHook = (context: GOScriptHookContext) => GOScriptLifecycleHookResult;
 
-export type GOScriptConfigLoadHook = (config: Record<string, unknown>) => GOScriptLifecycleHookResult;
-
-export type GOScriptErrorHook = (error: Error) => GOScriptLifecycleHookResult;
+export type GOScriptErrorHook = (error: Error, context: GOScriptHookContext) => GOScriptLifecycleHookResult;
 
 /**
  * Script lifecycle hooks
@@ -148,11 +147,15 @@ export interface GOScriptLifecycleHooks {
   /** Called after script initialization */
   onAfterInit?: GOScriptLifecycleHook;
 
-  /** Called before config is loaded */
+  /** Called before config is loaded (config store is still empty) */
   onBeforeConfigLoad?: GOScriptLifecycleHook;
 
-  /** Called after config is loaded */
-  onAfterConfigLoad?: GOScriptConfigLoadHook;
+  /**
+   * Called after config is resolved and before required-parameter validation.
+   * Acts as a prepare/remap phase: read resolved values (incl. reserved like
+   * `script.preset.name`) and derive/override via `context.config.set(...)`.
+   */
+  onAfterConfigLoad?: GOScriptLifecycleHook;
 
   /** Called before main script execution */
   onBeforeRun?: GOScriptLifecycleHook;

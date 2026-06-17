@@ -4,7 +4,7 @@
  * Contains script metadata and parameters definition.
  */
 
-import { Core } from '@go-automation/go-common';
+import { AWS, Core } from '@go-automation/go-common';
 
 /**
  * Script metadata
@@ -258,6 +258,34 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     aliases: ['at'],
   },
 ] as const;
+
+/**
+ * Prepare/remap hook (wired as `onAfterConfigLoad`, runs in CLI and Lambda).
+ *
+ * The report destination has a single source of truth for the script core:
+ * `artifact.s3.location`. How it is obtained depends on the environment:
+ * in AWS the report bucket is injected per-account as the `REPORTS_S3_BUCKET`
+ * env var and the folder is the active preset; here we compose the two into
+ * `artifact.s3.location`. An explicit operator value (CLI/env/event) wins; a
+ * value coming from the preset is treated as a fallback that this composition
+ * overrides. With no bucket configured (typical local run) nothing is changed.
+ */
+export function prepareConfig(context: Core.GOScriptHookContext): void {
+  const bucket = context.env.get('REPORTS_S3_BUCKET')?.trim();
+  if (bucket === undefined || bucket.length === 0) {
+    return;
+  }
+
+  const source = context.config.sourceOf('artifact.s3.location');
+  const operatorProvided = source !== undefined && !source.startsWith('Preset');
+  if (operatorProvided) {
+    return;
+  }
+
+  const presetName = context.config.getString('script.preset.name')?.trim();
+  const folder = presetName !== undefined && presetName.length > 0 ? presetName : 'reports';
+  context.config.set('artifact.s3.location', AWS.AWSS3Uri.format(bucket, folder));
+}
 
 function positiveInteger(value: Core.GOConfigParameterValue): boolean | string {
   return typeof value === 'number' && Number.isInteger(value) && value > 0 ? true : 'Expected a positive integer';
