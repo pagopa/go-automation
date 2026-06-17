@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { serializeError } from '../GOProcessGuards.js';
+import { installProcessGuards, resetProcessGuardsForTesting, serializeError } from '../GOProcessGuards.js';
 import { GOScript } from '../GOScript.js';
 
 describe('GOProcessGuards.serializeError', () => {
@@ -58,5 +58,51 @@ describe('GOScript process guards test gate', () => {
     script.createLambdaHandler(async () => undefined);
     const after = process.listenerCount('uncaughtException');
     assert.strictEqual(after, before, 'createLambdaHandler must not add a guard listener under test');
+  });
+});
+
+describe('GOProcessGuards.resetProcessGuardsForTesting', () => {
+  it('removes installed listeners so reset and reinstall do not accumulate handlers', () => {
+    interface ListenerCounts {
+      readonly beforeExit: number;
+      readonly uncaughtException: number;
+      readonly unhandledRejection: number;
+      readonly warning: number;
+    }
+
+    const getListenerCounts = (): ListenerCounts => ({
+      beforeExit: process.listenerCount('beforeExit'),
+      uncaughtException: process.listenerCount('uncaughtException'),
+      unhandledRejection: process.listenerCount('unhandledRejection'),
+      warning: process.listenerCount('warning'),
+    });
+
+    resetProcessGuardsForTesting();
+    const baseline = getListenerCounts();
+
+    try {
+      installProcessGuards({ exitOnFatal: false, includeBeforeExit: true });
+      assert.deepStrictEqual(getListenerCounts(), {
+        beforeExit: baseline.beforeExit + 1,
+        uncaughtException: baseline.uncaughtException + 1,
+        unhandledRejection: baseline.unhandledRejection + 1,
+        warning: baseline.warning + 1,
+      });
+
+      resetProcessGuardsForTesting();
+      assert.deepStrictEqual(getListenerCounts(), baseline);
+
+      installProcessGuards({ exitOnFatal: false, includeBeforeExit: true });
+      assert.deepStrictEqual(getListenerCounts(), {
+        beforeExit: baseline.beforeExit + 1,
+        uncaughtException: baseline.uncaughtException + 1,
+        unhandledRejection: baseline.unhandledRejection + 1,
+        warning: baseline.warning + 1,
+      });
+    } finally {
+      resetProcessGuardsForTesting();
+    }
+
+    assert.deepStrictEqual(getListenerCounts(), baseline);
   });
 });

@@ -49,8 +49,16 @@ export interface GOProcessGuardsOptions {
 }
 
 // Process-global state: guards are installed once per process, not per instance.
+interface InstalledProcessGuardListeners {
+  readonly unhandledRejection: (reason: unknown) => void;
+  readonly uncaughtException: (error: Error, origin: NodeJS.UncaughtExceptionOrigin) => void;
+  readonly warning: (warning: Error) => void;
+  readonly beforeExit?: ((code: number) => void) | undefined;
+}
+
 let installed = false;
 let currentRequestId: string | null = null;
+let installedListeners: InstalledProcessGuardListeners | null = null;
 
 /**
  * Set the identifier attributed to subsequent fault logs (e.g. the Lambda
@@ -90,64 +98,73 @@ export function installProcessGuards(options?: GOProcessGuardsOptions): void {
   if (installed) {
     return;
   }
-  installed = true;
 
   const exitOnFatal = options?.exitOnFatal ?? true;
 
-  process.on('unhandledRejection', (reason) => {
-    console.error(
-      JSON.stringify({
-        level: 'fatal',
-        type: 'unhandledRejection',
-        requestId: currentRequestId,
-        reason: serializeError(reason),
-      }),
-    );
-    if (exitOnFatal) {
-      process.exit(1);
-    }
-  });
-
-  process.on('uncaughtException', (error, origin) => {
-    console.error(
-      JSON.stringify({
-        level: 'fatal',
-        type: 'uncaughtException',
-        requestId: currentRequestId,
-        origin,
-        error: serializeError(error),
-      }),
-    );
-    if (exitOnFatal) {
-      process.exit(1);
-    }
-  });
-
-  process.on('warning', (warning) => {
-    console.warn(
-      JSON.stringify({
-        level: 'warn',
-        type: 'processWarning',
-        requestId: currentRequestId,
-        name: warning.name,
-        message: warning.message,
-        stack: warning.stack,
-      }),
-    );
-  });
-
-  if (options?.includeBeforeExit) {
-    process.on('beforeExit', (code) => {
+  const listeners: InstalledProcessGuardListeners = {
+    unhandledRejection: (reason) => {
+      console.error(
+        JSON.stringify({
+          level: 'fatal',
+          type: 'unhandledRejection',
+          requestId: currentRequestId,
+          reason: serializeError(reason),
+        }),
+      );
+      if (exitOnFatal) {
+        process.exit(1);
+      }
+    },
+    uncaughtException: (error, origin) => {
+      console.error(
+        JSON.stringify({
+          level: 'fatal',
+          type: 'uncaughtException',
+          requestId: currentRequestId,
+          origin,
+          error: serializeError(error),
+        }),
+      );
+      if (exitOnFatal) {
+        process.exit(1);
+      }
+    },
+    warning: (warning) => {
       console.warn(
         JSON.stringify({
           level: 'warn',
-          type: 'beforeExit',
-          code,
+          type: 'processWarning',
           requestId: currentRequestId,
+          name: warning.name,
+          message: warning.message,
+          stack: warning.stack,
         }),
       );
-    });
+    },
+    beforeExit: options?.includeBeforeExit
+      ? (code) => {
+          console.warn(
+            JSON.stringify({
+              level: 'warn',
+              type: 'beforeExit',
+              code,
+              requestId: currentRequestId,
+            }),
+          );
+        }
+      : undefined,
+  };
+
+  process.on('unhandledRejection', listeners.unhandledRejection);
+  process.on('uncaughtException', listeners.uncaughtException);
+  process.on('warning', listeners.warning);
+
+  if (listeners.beforeExit) {
+    process.on('beforeExit', listeners.beforeExit);
   }
+
+  installedListeners = listeners;
+  installed = true;
 }
 
 /**
@@ -155,6 +172,16 @@ export function installProcessGuards(options?: GOProcessGuardsOptions): void {
  * test can exercise installation from a clean slate.
  */
 export function resetProcessGuardsForTesting(): void {
+  if (installedListeners) {
+    process.off('unhandledRejection', installedListeners.unhandledRejection);
+    process.off('uncaughtException', installedListeners.uncaughtException);
+    process.off('warning', installedListeners.warning);
+    if (installedListeners.beforeExit) {
+      process.off('beforeExit', installedListeners.beforeExit);
+    }
+  }
+
   installed = false;
   currentRequestId = null;
+  installedListeners = null;
 }
