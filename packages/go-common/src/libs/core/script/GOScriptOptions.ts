@@ -237,4 +237,18 @@ export interface GOScriptOptions {
 
   /** Lifecycle hooks */
   hooks?: GOScriptLifecycleHooks | undefined;
+
+  /**
+   * Install process-level fault guards (unhandledRejection, uncaughtException,
+   * warning, and — in AWS-managed runtimes — beforeExit). They log the fault as
+   * a structured JSON line and, for the two fatal events, exit with code 1 so a
+   * truly-unhandled fault is visible and fails fast instead of hanging.
+   *
+   * Enabled by default for the real entry points (`run()` and the handler from
+   * `createLambdaHandler()`). Always suppressed under a test runner so it never
+   * kills the test process. Set to `false` to opt out explicitly.
+   *
+   * @default true
+   */
+  processGuards?: boolean | undefined;
 }

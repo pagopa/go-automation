@@ -20,3 +20,10 @@ export {
   GOSCRIPT_PRESET_NAME_PARAMETER,
   GOSCRIPT_SYSTEM_PARAMETERS,
 } from './GOScriptSystemParameters.js';
+export {
+  installProcessGuards,
+  serializeError,
+  setProcessGuardRequestId,
+  resetProcessGuardsForTesting,
+} from './GOProcessGuards.js';
+export type { GOProcessGuardsOptions } from './GOProcessGuards.js';

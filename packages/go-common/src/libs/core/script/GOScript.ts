@@ -39,6 +39,7 @@ import {
   GOSCRIPT_PRESET_NAME_PARAMETER,
   GOSCRIPT_SYSTEM_PARAMETERS,
 } from './GOScriptSystemParameters.js';
+import { installProcessGuards, setProcessGuardRequestId } from './GOProcessGuards.js';
 import type {
   GOScriptOptions,
   GOScriptMetadata,
@@ -802,6 +803,8 @@ export class GOScript {
    * ```
    */
   public async run(mainFunction: GOScriptRunHandler): Promise<void> {
+    // Last-resort fault guards (unhandledRejection/uncaughtException/...) for the CLI entry point
+    this.setupProcessGuards();
     // Setup graceful shutdown handlers (once, local/CI only — skipped in Lambda)
     this.setupSignalHandlers();
     await this.executeLifecycle(async () => Promise.resolve(mainFunction()), 'Script completed successfully');
@@ -878,7 +881,21 @@ export class GOScript {
   public createLambdaHandler<TEvent = unknown, TResult = unknown, TContext = unknown>(
     mainFunction: GOScriptLambdaMainHandler<TEvent, TResult, TContext>,
   ): GOScriptLambdaHandler<TEvent, TResult, TContext> {
+    // Install last-resort fault guards once, at handler creation (cold start),
+    // so faults during module init / between invocations are caught too.
+    this.setupProcessGuards();
+
     return async (event: TEvent, context?: TContext): Promise<TResult> => {
+      // Detach early from the event loop: the Lambda runtime freezes the container
+      // on handler return, so pending keep-alive sockets / timers from reused AWS
+      // clients (preserved by design across warm invocations) must not block the
+      // response. Without this the invocation can stall until the event loop drains.
+      this.detachFromEventLoop(context);
+
+      // Attribute fault-guard logs to this invocation; cleared in finally so a
+      // background fault between invocations is not misattributed to it.
+      setProcessGuardRequestId(this.extractAwsRequestId(context));
+
       // Reset per-invocation state to support Lambda container reuse.
       // AWS client providers are intentionally NOT reset (connection-pool reuse).
       this.initialized = false;
@@ -903,8 +920,44 @@ export class GOScript {
       // Delegate to shared lifecycle executor.
       // Re-throws on error so the Lambda runtime can mark the invocation as failed
       // and trigger retries / DLQ routing as configured.
-      return this.executeLifecycle(async () => mainFunction(event, context), 'Lambda handler completed successfully');
+      try {
+        return await this.executeLifecycle(
+          async () => mainFunction(event, context),
+          'Lambda handler completed successfully',
+        );
+      } finally {
+        setProcessGuardRequestId(null);
+      }
     };
+  }
+
+  /**
+   * Best-effort extraction of the AWS request id from a Lambda Context-like
+   * object, used to attribute fault-guard logs. Returns null when absent
+   * (e.g. local invocation / unit test without a context).
+   */
+  private extractAwsRequestId(context: unknown): string | null {
+    if (context !== null && typeof context === 'object' && 'awsRequestId' in context) {
+      const id = (context as { awsRequestId?: unknown }).awsRequestId;
+      if (typeof id === 'string') {
+        return id;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Set `callbackWaitsForEmptyEventLoop = false` on the Lambda Context so the
+   * runtime returns/freezes as soon as the handler resolves, without waiting for
+   * the event loop to drain. Safe for connection-reuse models (the default
+   * here): all work is awaited inside the handler, so nothing relies on
+   * post-return background tasks. No-op when no Context is provided (local
+   * invocation / unit test) or it lacks the property.
+   */
+  private detachFromEventLoop(context: unknown): void {
+    if (context !== null && typeof context === 'object' && 'callbackWaitsForEmptyEventLoop' in context) {
+      (context as { callbackWaitsForEmptyEventLoop: boolean }).callbackWaitsForEmptyEventLoop = false;
+    }
   }
 
   /**
@@ -1084,6 +1137,41 @@ export class GOScript {
    * 2. Calls cleanup() to release resources
    * 3. Exits with code 0 (or 1 if forced by repeated signal)
    */
+  /**
+   * Detect whether the process is running under a test runner.
+   *
+   * Used to suppress process-level fault guards during tests: a guard's
+   * `process.exit(1)` would otherwise kill the whole test runner on the first
+   * unhandled rejection a test deliberately provokes.
+   *
+   * `NODE_TEST_CONTEXT` is set by the Node.js test runner in each test
+   * subprocess; the other signals cover Vitest/Jest and an explicit NODE_ENV.
+   */
+  private isUnderTestRunner(): boolean {
+    const env = process.env;
+    return (
+      env['NODE_TEST_CONTEXT'] !== undefined ||
+      env['NODE_ENV'] === 'test' ||
+      env['VITEST'] !== undefined ||
+      env['JEST_WORKER_ID'] !== undefined
+    );
+  }
+
+  /**
+   * Install process-level fault guards for entry points (CLI run() / Lambda).
+   *
+   * Opt-in by default (disable with `config`-level `processGuards: false`),
+   * always suppressed under a test runner. `beforeExit` is only registered in
+   * AWS-managed runtimes, where it is a meaningful leak diagnostic; in a CLI it
+   * would log on every normal exit.
+   */
+  private setupProcessGuards(): void {
+    if (this.options.processGuards === false || this.isUnderTestRunner()) {
+      return;
+    }
+    installProcessGuards({ exitOnFatal: true, includeBeforeExit: this.environment.isAWSManaged });
+  }
+
   private setupSignalHandlers(): void {
     // Prevent duplicate handler registration
     if (this.signalHandlersSetup) {
