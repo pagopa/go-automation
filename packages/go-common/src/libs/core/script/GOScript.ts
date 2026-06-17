@@ -1214,7 +1214,7 @@ export class GOScript {
   /**
    * Install process-level fault guards for entry points (CLI run() / Lambda).
    *
-   * Opt-in by default (disable with top-level `processGuards: false` in the script options),
+   * Enabled by default (disable with top-level `processGuards: false` in the script options),
    * always suppressed under a test runner. `beforeExit` is only registered in
    * AWS-managed runtimes, where it is a meaningful leak diagnostic; in a CLI it
    * would log on every normal exit.
