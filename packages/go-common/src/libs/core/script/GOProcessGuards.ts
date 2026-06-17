@@ -128,6 +128,7 @@ export function installProcessGuards(options?: GOProcessGuardsOptions): void {
       JSON.stringify({
         level: 'warn',
         type: 'processWarning',
+        requestId: currentRequestId,
         name: warning.name,
         message: warning.message,
         stack: warning.stack,
