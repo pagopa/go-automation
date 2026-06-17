@@ -15,10 +15,14 @@ export class GOLogEvent {
   /** Category/severity of the log message */
   public readonly category: GOLogEventCategory;
 
-  constructor(message: string, category: GOLogEventCategory = GOLogEventCategory.STEP) {
+  /** Optional structured payload, surfaced by structured handlers (e.g. JSON). */
+  public readonly data: Record<string, unknown> | undefined;
+
+  constructor(message: string, category: GOLogEventCategory = GOLogEventCategory.STEP, data?: Record<string, unknown>) {
     this.message = message;
     this.timestamp = new Date();
     this.category = category;
+    this.data = data;
   }
 
   /**
