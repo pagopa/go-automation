@@ -13,6 +13,9 @@ allowBuilds:
 
 minimumReleaseAge: 0
 
+overrides:
+  form-data: 4.0.6
+
 catalog:
   '@aws-sdk/client-athena': '^3.1069.0'
   '@aws-sdk/client-bedrock-runtime': '^3.1069.0'
