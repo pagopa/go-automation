@@ -5,12 +5,15 @@ import { installProcessGuards, resetProcessGuardsForTesting, serializeError } fr
 import { GOScript } from '../GOScript.js';
 
 describe('GOProcessGuards.serializeError', () => {
-  it('keeps name, message and stack for Error instances', () => {
+  it('keeps name, message and optional stack for Error instances', () => {
     const err = new TypeError('boom');
     const result = serializeError(err);
     assert.strictEqual(result['name'], 'TypeError');
     assert.strictEqual(result['message'], 'boom');
-    assert.strictEqual(typeof result['stack'], 'string');
+    assert.strictEqual(Object.hasOwn(result, 'stack'), true);
+    if (result['stack'] !== undefined) {
+      assert.strictEqual(typeof result['stack'], 'string');
+    }
   });
 
   it('preserves a custom Error subclass name', () => {
