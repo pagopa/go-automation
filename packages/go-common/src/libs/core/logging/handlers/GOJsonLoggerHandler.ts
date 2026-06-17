@@ -79,11 +79,10 @@ export class GOJsonLoggerHandler implements GOLoggerHandler {
     }
 
     const line = stringifyLogRecord(record);
-    const safeLine = redactSensitiveLogText(line);
     if (event.category === GOLogEventCategory.ERROR || event.category === GOLogEventCategory.FATAL) {
-      console.error(safeLine);
+      console.error(line);
     } else {
-      process.stdout.write(`${safeLine}\n`);
+      process.stdout.write(`${line}\n`);
     }
   }
 
