@@ -7,6 +7,7 @@ import { DateTime } from 'luxon';
 
 import { GOLogEvent } from '../GOLogEvent.js';
 import { GOLogEventCategory } from '../GOLogEventCategory.js';
+import { redactSensitiveLogText } from '../GOSensitiveLogRedactor.js';
 
 /**
  * Category style configuration for file output
@@ -83,7 +84,7 @@ export class GOFileLoggerStyle {
     const timestamp = maybeDate.toFormat('yyyy-MM-dd HH:mm:ss.SSS');
 
     // Strip ANSI codes from message before writing to file
-    const cleanMessage = this.stripAnsiCodes(event.message);
+    const cleanMessage = redactSensitiveLogText(this.stripAnsiCodes(event.message));
 
     // Replace placeholders
     formatted = formatted

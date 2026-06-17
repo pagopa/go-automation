@@ -79,6 +79,29 @@ describe('GOJsonLoggerHandler', () => {
     assert.deepStrictEqual(record['data'], data);
   });
 
+  it('redacts sensitive message and structured data values', () => {
+    const handler = new GOJsonLoggerHandler();
+    const data = {
+      authorization: 'Bearer nested-secret',
+      nested: { message: 'password=raw-password' },
+      safe: 'visible',
+    };
+    const { stdout } = capture(() =>
+      handler.handle(new GOLogEvent('Authorization: Bearer abc.def.ghi', GOLogEventCategory.INFO, data)),
+    );
+
+    const record = JSON.parse(stdout) as Record<string, unknown>;
+    assert.strictEqual(record['message'], 'Authorization: Bearer <redacted>');
+    assert.deepStrictEqual(record['data'], {
+      authorization: '[REDACTED]',
+      nested: { message: 'password=<redacted>' },
+      safe: 'visible',
+    });
+    assert.ok(!stdout.includes('abc.def.ghi'));
+    assert.ok(!stdout.includes('nested-secret'));
+    assert.ok(!stdout.includes('raw-password'));
+  });
+
   it('drops empty spacer events (no data)', () => {
     const handler = new GOJsonLoggerHandler();
     const { stdout } = capture(() => handler.handle(GOLogEvent.newline()));

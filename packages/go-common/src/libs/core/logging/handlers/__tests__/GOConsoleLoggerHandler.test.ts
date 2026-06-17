@@ -71,6 +71,34 @@ describe('GOConsoleLoggerHandler', () => {
 
     assert.strictEqual(handler.getStyle(), replacementStyle);
   });
+
+  it('redacts sensitive values before writing to the console', () => {
+    const handler = new GOConsoleLoggerHandler(createPlainConsoleStyle());
+    let stdout = '';
+    const errors: string[] = [];
+    const originalWrite = process.stdout.write.bind(process.stdout);
+    const originalError = console.error.bind(console);
+    process.stdout.write = (chunk: string | Uint8Array): boolean => {
+      stdout += String(chunk);
+      return true;
+    };
+    console.error = (...args: unknown[]): void => {
+      errors.push(args.map(String).join(' '));
+    };
+
+    try {
+      handler.handle(GOLogEvent.info('password=secret'));
+      handler.handle(GOLogEvent.error('Authorization: Bearer abc.def.ghi'));
+    } finally {
+      process.stdout.write = originalWrite;
+      console.error = originalError;
+    }
+
+    assert.ok(!stdout.includes('secret'));
+    assert.ok(!errors.join('\n').includes('abc.def.ghi'));
+    assert.match(stdout, /I:password=<redacted>/u);
+    assert.match(errors.join('\n'), /E:Authorization: Bearer <redacted>/u);
+  });
 });
 
 describe('GOConsoleLoggerHandler color policy', () => {

@@ -17,6 +17,7 @@ import { stripAnsi } from '../ansi.js';
 import { GOLogEvent } from '../GOLogEvent.js';
 import { GOLogEventCategory } from '../GOLogEventCategory.js';
 import type { GOLoggerHandler } from '../GOLoggerHandler.js';
+import { redactSensitiveLogText, redactSensitiveLogValue } from '../GOSensitiveLogRedactor.js';
 
 /** Map a log category to a coarse severity level for filtering. */
 function categoryToLevel(category: GOLogEventCategory): string {
@@ -41,7 +42,7 @@ function categoryToLevel(category: GOLogEventCategory): string {
 
 export class GOJsonLoggerHandler implements GOLoggerHandler {
   public handle(event: GOLogEvent): void {
-    const message = stripAnsi(event.message);
+    const message = redactSensitiveLogText(stripAnsi(event.message));
 
     // Drop empty spacer events (newline()/blank) that carry no information.
     if (message.length === 0 && event.data === undefined) {
@@ -55,7 +56,7 @@ export class GOJsonLoggerHandler implements GOLoggerHandler {
       timestamp: event.timestamp.toISOString(),
     };
     if (event.data !== undefined) {
-      record['data'] = event.data;
+      record['data'] = redactSensitiveLogValue(event.data);
     }
 
     const line = JSON.stringify(record);

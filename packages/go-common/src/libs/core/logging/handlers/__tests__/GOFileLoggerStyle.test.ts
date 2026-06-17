@@ -46,6 +46,19 @@ describe('GOFileLoggerStyle', () => {
     );
   });
 
+  it('redacts sensitive values before formatting file output', () => {
+    const style = new GOFileLoggerStyle();
+
+    const formatted = style.format(
+      createEvent('Authorization: Bearer abc.def.ghi password=secret', GOLogEventCategory.INFO),
+    );
+
+    assert.ok(!formatted.includes('abc.def.ghi'));
+    assert.ok(!formatted.includes('secret'));
+    assert.match(formatted, /Authorization: Bearer <redacted>/u);
+    assert.match(formatted, /password=<redacted>/u);
+  });
+
   it('falls back to the step style for unknown categories', () => {
     const style = new GOFileLoggerStyle();
 

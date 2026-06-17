@@ -7,6 +7,7 @@ import { consoleColorsEnabled, stripAnsi } from '../ansi.js';
 import { GOLogEvent } from '../GOLogEvent.js';
 import { GOLogEventCategory } from '../GOLogEventCategory.js';
 import type { GOLoggerHandler } from '../GOLoggerHandler.js';
+import { redactSensitiveLogText } from '../GOSensitiveLogRedactor.js';
 import { GOConsoleLoggerStyle } from './GOConsoleLoggerStyle.js';
 
 /**
@@ -32,6 +33,13 @@ export class GOConsoleLoggerHandler implements GOLoggerHandler {
     return this.colorsEnabled ? formatted : stripAnsi(formatted);
   }
 
+  private redactEvent(event: GOLogEvent): GOLogEvent {
+    const redactedMessage = redactSensitiveLogText(event.message);
+    const redactedEvent = new GOLogEvent(redactedMessage, event.category, event.data);
+    Object.defineProperty(redactedEvent, 'timestamp', { value: event.timestamp });
+    return redactedEvent;
+  }
+
   /**
    * Handle a log event and output to console
    */
@@ -40,8 +48,10 @@ export class GOConsoleLoggerHandler implements GOLoggerHandler {
       return; // Ignore fatal events
     }
 
+    const redactedEvent = this.redactEvent(event);
+
     if (event.category === GOLogEventCategory.ERROR) {
-      console.error(this.render(this.style.format(event, ' '.repeat(this.indentLevel * this.indentSize))));
+      console.error(this.render(this.style.format(redactedEvent, ' '.repeat(this.indentLevel * this.indentSize))));
       return;
     }
 
@@ -52,7 +62,7 @@ export class GOConsoleLoggerHandler implements GOLoggerHandler {
     const indent = ' '.repeat(this.indentLevel * this.indentSize);
 
     // Format and output
-    const formatted = this.render(this.style.format(event, indent));
+    const formatted = this.render(this.style.format(redactedEvent, indent));
     process.stdout.write(`${formatted}\n`);
 
     // Increase indentation after header/section
