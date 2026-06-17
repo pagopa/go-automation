@@ -26,11 +26,11 @@ import { main } from 'send-monitor-tpp-messages/main';
 // ============================================================================
 // Process-level fault tracking
 // ----------------------------------------------------------------------------
-// The last-resort fault guards (unhandledRejection / uncaughtException /
-// warning / beforeExit, with structured logging + process.exit(1)) are now
-// installed centrally by GOScript.createLambdaHandler() — see GOProcessGuards
-// in @go-automation/go-common. Only the request-id tracking used by this
-// handler's resource snapshots remains here.
+// The last-resort fault guards (unhandledRejection / uncaughtException / warning / beforeExit)
+// are now installed centrally by GOScript.createLambdaHandler() — see GOProcessGuards
+// in @go-automation/go-common. They emit structured JSON logs; only the fatal events
+// (unhandledRejection/uncaughtException) exit with code 1. Only the request-id tracking
+// used by this handler's resource snapshots remains here.
 // ============================================================================
 
 // Tracks the in-flight invocation's awsRequestId so resource snapshots can be
