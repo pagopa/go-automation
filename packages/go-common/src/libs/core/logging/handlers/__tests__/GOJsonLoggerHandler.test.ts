@@ -10,15 +10,17 @@ interface Captured {
   readonly stderr: string;
 }
 
-function capture(fn: () => void): Captured {
+type CaptureFn = () => void;
+
+function capture(fn: CaptureFn): Captured {
   let stdout = '';
   let stderr = '';
   const originalWrite = process.stdout.write.bind(process.stdout);
   const originalError = console.error.bind(console);
-  process.stdout.write = ((chunk: string | Uint8Array): boolean => {
+  process.stdout.write = (chunk: string | Uint8Array): boolean => {
     stdout += typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString();
     return true;
-  }) as typeof process.stdout.write;
+  };
   console.error = ((...args: unknown[]): void => {
     stderr += `${args.map(String).join(' ')}\n`;
   }) as typeof console.error;

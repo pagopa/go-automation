@@ -28,10 +28,10 @@ describe('GOScript logging in AWS-managed runtime', () => {
   async function captureLoadConfig(): Promise<string> {
     let stdout = '';
     const originalWrite = process.stdout.write.bind(process.stdout);
-    process.stdout.write = ((chunk: string | Uint8Array): boolean => {
+    process.stdout.write = (chunk: string | Uint8Array): boolean => {
       stdout += typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString();
       return true;
-    }) as typeof process.stdout.write;
+    };
 
     try {
       const script = new GOScript({

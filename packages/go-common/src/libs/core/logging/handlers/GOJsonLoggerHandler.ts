@@ -66,7 +66,6 @@ export class GOJsonLoggerHandler implements GOLoggerHandler {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
   public async reset(): Promise<void> {
     // Stateless: nothing to reset (no indentation tracking).
   }

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 
 import { consoleColorsEnabled, stripAnsi } from '../ansi.js';
 
+type EnvFn = () => void;
+
 describe('stripAnsi', () => {
   it('removes a simple color sequence', () => {
     assert.strictEqual(stripAnsi('\x1b[37mhello\x1b[0m'), 'hello');
@@ -18,7 +20,7 @@ describe('stripAnsi', () => {
 });
 
 describe('consoleColorsEnabled', () => {
-  function withEnv(vars: Record<string, string | undefined>, fn: () => void): void {
+  function withEnv(vars: Record<string, string | undefined>, fn: EnvFn): void {
     const keys = ['NO_COLOR', 'FORCE_COLOR'];
     const previous = new Map(keys.map((k) => [k, process.env[k]]));
     for (const key of keys) {

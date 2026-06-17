@@ -6,6 +6,8 @@ import { GOLogEventCategory } from '../../GOLogEventCategory.js';
 import { GOConsoleLoggerHandler } from '../GOConsoleLoggerHandler.js';
 import { GOConsoleLoggerStyle } from '../GOConsoleLoggerStyle.js';
 
+type CaptureFn = () => void;
+
 function createPlainConsoleStyle(): GOConsoleLoggerStyle {
   const style = new GOConsoleLoggerStyle();
   style.setStyle(GOLogEventCategory.HEADER, { format: 'H:{message}' });
@@ -73,7 +75,7 @@ describe('GOConsoleLoggerHandler', () => {
 
 describe('GOConsoleLoggerHandler color policy', () => {
   // Captures stdout while running `fn` with the given NO_COLOR/FORCE_COLOR env (restored after).
-  function captureStdout(env: Record<string, string | undefined>, fn: () => void): string {
+  function captureStdout(env: Record<string, string | undefined>, fn: CaptureFn): string {
     const keys = ['NO_COLOR', 'FORCE_COLOR'];
     const previousEnv = new Map(keys.map((k) => [k, process.env[k]]));
     for (const key of keys) {
