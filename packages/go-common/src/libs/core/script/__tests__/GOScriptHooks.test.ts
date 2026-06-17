@@ -55,6 +55,32 @@ describe('GOScript onAfterConfigLoad as prepare phase', () => {
     assert.strictEqual(cfg.mustHave, 'filled-by-prepare');
   });
 
+  it('re-validates required parameters against the post-prepare config (a hook clearing a required value is caught)', async () => {
+    const script = new GOScript({
+      metadata: { name: 'prepare clears required', version: '1.0.0', description: 'clears', authors: ['test'] },
+      config: {
+        parameters: [
+          {
+            name: 'must.have',
+            type: GOConfigParameterType.STRING,
+            description: 'required',
+            required: true,
+            defaultValue: 'provided-at-load',
+          },
+        ],
+      },
+      logging: { console: false, file: false },
+      hooks: {
+        onAfterConfigLoad: (ctx) => {
+          // Overwrite a previously-provided required value to undefined.
+          ctx.config.set('must.have', undefined);
+        },
+      },
+    });
+
+    await assert.rejects(script.loadConfig());
+  });
+
   it('exposes config, env, paths, environment and logger on the hook context', async () => {
     let seen:
       | { hasConfig: boolean; hasEnv: boolean; hasPaths: boolean; hasEnvironment: boolean; hasLogger: boolean }

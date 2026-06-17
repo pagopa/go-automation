@@ -499,12 +499,18 @@ export class GOScript {
     // so derived values can satisfy required parameters and appear in the summary.
     await this.hooks.onAfterConfigLoad?.(this.buildHookContext());
 
-    // Validate required parameters (after prepare). Filter the loader's baseline by
-    // what is still missing, so values set by the prepare hook count as provided.
-    const missingRequired = loadResult.missingRequired.filter((name) => {
-      const value = this.config.get(name);
-      return value === undefined || value === null;
-    });
+    // Validate required parameters AFTER the prepare hook, recomputed from the schema
+    // against the post-prepare config (not just the loader's pre-prepare baseline).
+    // This way a value the hook SETS counts as provided, and a required value the hook
+    // CLEARS/overwrites to undefined|null is still reported as missing.
+    const missingRequired = this.configSchema
+      .getAllParameters()
+      .filter((param) => param.required)
+      .map((param) => param.name)
+      .filter((name) => {
+        const value = this.config.get(name);
+        return value === undefined || value === null;
+      });
     if (missingRequired.length > 0) {
       const params = this.configSchema.getAllParameters();
       const errorMessage = GOScriptConfigLoader.formatMissingParametersError(missingRequired, params);
