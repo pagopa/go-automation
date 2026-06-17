@@ -55,7 +55,9 @@ describe('GOScript process guards test gate', () => {
       config: { parameters: [] },
     });
     // Guard installation would happen here if the test gate were broken.
-    script.createLambdaHandler(async () => undefined);
+    script.createLambdaHandler(async () => {
+      await Promise.resolve();
+    });
     const after = process.listenerCount('uncaughtException');
     assert.strictEqual(after, before, 'createLambdaHandler must not add a guard listener under test');
   });

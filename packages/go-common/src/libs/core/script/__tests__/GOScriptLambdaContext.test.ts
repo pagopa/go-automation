@@ -10,7 +10,9 @@ describe('GOScript.createLambdaHandler event-loop detach', () => {
       config: { parameters: [] },
       logging: { console: false, file: false },
     });
-    const handler = script.createLambdaHandler(async () => undefined);
+    const handler = script.createLambdaHandler(async () => {
+      await Promise.resolve();
+    });
     const context = { awsRequestId: 'req-1', callbackWaitsForEmptyEventLoop: true };
 
     // Run the handler; the flag is flipped synchronously before any await, so it
@@ -26,7 +28,9 @@ describe('GOScript.createLambdaHandler event-loop detach', () => {
       config: { parameters: [] },
       logging: { console: false, file: false },
     });
-    const handler = script.createLambdaHandler(async () => undefined);
+    const handler = script.createLambdaHandler(async () => {
+      await Promise.resolve();
+    });
 
     await assert.doesNotReject(handler(undefined).catch(() => undefined));
   });

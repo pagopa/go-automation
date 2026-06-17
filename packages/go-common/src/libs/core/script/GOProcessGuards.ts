@@ -48,12 +48,17 @@ export interface GOProcessGuardsOptions {
   readonly includeBeforeExit?: boolean;
 }
 
+type ProcessUnhandledRejectionHandler = (reason: unknown) => void;
+type ProcessUncaughtExceptionHandler = (error: Error, origin: NodeJS.UncaughtExceptionOrigin) => void;
+type ProcessWarningHandler = (warning: Error) => void;
+type ProcessBeforeExitHandler = (code: number) => void;
+
 // Process-global state: guards are installed once per process, not per instance.
 interface InstalledProcessGuardListeners {
-  readonly unhandledRejection: (reason: unknown) => void;
-  readonly uncaughtException: (error: Error, origin: NodeJS.UncaughtExceptionOrigin) => void;
-  readonly warning: (warning: Error) => void;
-  readonly beforeExit?: ((code: number) => void) | undefined;
+  readonly unhandledRejection: ProcessUnhandledRejectionHandler;
+  readonly uncaughtException: ProcessUncaughtExceptionHandler;
+  readonly warning: ProcessWarningHandler;
+  readonly beforeExit?: ProcessBeforeExitHandler | undefined;
 }
 
 let installed = false;
