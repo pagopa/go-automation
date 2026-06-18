@@ -26,8 +26,11 @@ import { getDefaultSubdirForPathType } from '../files/GOFileCopierOptions.js';
 import type { GOFileCopyFileOptions } from '../files/GOFileCopierOptions.js';
 import type { GOFileCopyReport } from '../files/GOFileCopyReport.js';
 import { GOLogger } from '../logging/GOLogger.js';
+import { GOLogEvent } from '../logging/GOLogEvent.js';
+import { GOLogEventCategory } from '../logging/GOLogEventCategory.js';
 import { GOConsoleLoggerHandler } from '../logging/handlers/GOConsoleLoggerHandler.js';
 import { GOFileLoggerHandler } from '../logging/handlers/GOFileLoggerHandler.js';
+import { GOJsonLoggerHandler } from '../logging/handlers/GOJsonLoggerHandler.js';
 import { GOPrompt } from '../prompt/GOPrompt.js';
 import { getErrorMessage, getErrorStack, toError } from '../errors/GOErrorUtils.js';
 import { GOPaths, formatConfigValueDisplay, formatConfigSourceDisplay, valueToString } from '../utils/index.js';
@@ -210,9 +213,15 @@ export class GOScript {
   private initializeLogger(loggingOptions?: GOScriptLoggingOptions): GOLogger {
     const handlers = [];
 
-    // Console handler (default: enabled in all environments)
+    // Console handler (default: enabled in all environments).
+    // Format: 'pretty' (colored, human-readable) by default locally; 'json' (one
+    // structured event per entry) by default in AWS-managed runtimes, so CloudWatch
+    // logs stay clean and queryable. Override explicitly with logging.format.
     if (loggingOptions?.console !== false) {
-      handlers.push(new GOConsoleLoggerHandler());
+      // Explicit logging.format wins; otherwise default to JSON in AWS-managed
+      // runtimes (clean, queryable CloudWatch) and pretty/colored output locally.
+      const format = loggingOptions?.format ?? (this.environment.isAWSManaged ? 'json' : 'pretty');
+      handlers.push(format === 'json' ? new GOJsonLoggerHandler() : new GOConsoleLoggerHandler());
     }
 
     // File handler:
@@ -1043,17 +1052,31 @@ export class GOScript {
     const params = this.configSchema.getAllParameters();
     if (params.length === 0) return;
 
+    const presentParams = params.filter((param) => this.config.get(param.name) !== undefined);
+
+    // AWS-managed: emit the summary as a single structured event (one CloudWatch
+    // entry) instead of a multi-line ASCII table (~one entry per row).
+    if (this.environment.isAWSManaged) {
+      const configuration: Record<string, { value: string; source: string }> = {};
+      for (const param of presentParams) {
+        configuration[param.name] = {
+          value: this.formatConfigValue(param.name),
+          source: GOScriptConfigLoader.getSourceDisplayName(this.config.sourceOf(param.name)),
+        };
+      }
+      this.logger.log(new GOLogEvent('Configuration summary', GOLogEventCategory.INFO, { configuration }));
+      return;
+    }
+
     const { parameterWidth, valueWidth, sourceWidth, padding } = configTableWidths;
     const valueContentWidth = valueWidth - padding;
     const sourceContentWidth = sourceWidth - padding;
 
-    const tableData = params
-      .filter((param) => this.config.get(param.name) !== undefined)
-      .map((param) => ({
-        parameter: param.name,
-        value: this.formatConfigValue(param.name),
-        source: GOScriptConfigLoader.getSourceDisplayName(this.config.sourceOf(param.name)),
-      }));
+    const tableData = presentParams.map((param) => ({
+      parameter: param.name,
+      value: this.formatConfigValue(param.name),
+      source: GOScriptConfigLoader.getSourceDisplayName(this.config.sourceOf(param.name)),
+    }));
 
     this.logger.section('Configuration Summary:');
     this.logger.table({

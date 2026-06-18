@@ -49,6 +49,14 @@ export interface GOScriptLoggingOptions {
 
   /** Enable automatic logging of config values at startup (default: true) */
   logConfigOnStart?: boolean;
+
+  /**
+   * Console output format. `'pretty'` is the colored, human-readable, multi-line
+   * output; `'json'` emits one structured single-line JSON event per log entry
+   * (clean and queryable on CloudWatch). When omitted, defaults to `'json'` in
+   * AWS-managed runtimes (Lambda/ECS/...) and `'pretty'` otherwise.
+   */
+  format?: 'pretty' | 'json';
 }
 
 /**

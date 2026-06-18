@@ -8,3 +8,4 @@ export type { CategoryStyle } from './GOConsoleLoggerStyle.js';
 export { GOFileLoggerHandler } from './GOFileLoggerHandler.js';
 export { GOFileLoggerStyle } from './GOFileLoggerStyle.js';
 export type { FileCategoryStyle } from './GOFileLoggerStyle.js';
+export { GOJsonLoggerHandler } from './GOJsonLoggerHandler.js';

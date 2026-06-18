@@ -20,6 +20,7 @@ import { buildRtaCheckInput } from './libs/buildRtaCheckInput.js';
 import { runOccurrences } from './libs/runOccurrences.js';
 import { confirmRun, resolvePeriod } from './libs/promptInputs.js';
 import { alarmEventsQuery, applyLimit, resolveFormats } from './libs/runHelpers.js';
+import { valueToString } from '@go-automation/go-common/core';
 
 /**
  * Script entry: resolves inputs, runs the comparison over every occurrence and
@@ -35,7 +36,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   try {
     analysisMatcher = resolveAnalysisMatcher(config);
   } catch (error) {
-    logger.error(error instanceof Error ? error.message : String(error));
+    logger.error(valueToString(error));
     return;
   }
 
