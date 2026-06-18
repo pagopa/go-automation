@@ -79,6 +79,28 @@ describe('GOJsonLoggerHandler', () => {
     assert.deepStrictEqual(record['data'], data);
   });
 
+  it('promotes scalar structured data fields to top-level query fields', () => {
+    const handler = new GOJsonLoggerHandler();
+    const data = {
+      attempt: 2,
+      eventType: 'configuration_parameter',
+      message: 'payload message',
+      nested: { value: 'kept only under data' },
+      ok: true,
+      requestId: 'req-123',
+    };
+    const { stdout } = capture(() => handler.handle(new GOLogEvent('payload', GOLogEventCategory.INFO, data)));
+
+    const record = JSON.parse(stdout) as Record<string, unknown>;
+    assert.strictEqual(record['message'], 'payload');
+    assert.strictEqual(record['eventType'], 'configuration_parameter');
+    assert.strictEqual(record['requestId'], 'req-123');
+    assert.strictEqual(record['attempt'], 2);
+    assert.strictEqual(record['ok'], true);
+    assert.strictEqual(record['nested'], undefined);
+    assert.deepStrictEqual(record['data'], data);
+  });
+
   it('redacts sensitive message and structured data values', () => {
     const handler = new GOJsonLoggerHandler();
     const data = {

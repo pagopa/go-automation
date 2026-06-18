@@ -10,10 +10,24 @@ interface ConfigSummaryEntry {
   readonly source: string;
 }
 
-interface SummaryRecord {
-  readonly message: string;
-  readonly level: string;
-  readonly data?: { readonly configuration?: Record<string, ConfigSummaryEntry> };
+interface LogRecordData {
+  readonly configuration?: Record<string, ConfigSummaryEntry>;
+  readonly configurationCount?: number;
+  readonly eventType?: string;
+  readonly parameter?: string;
+  readonly value?: string;
+  readonly source?: string;
+}
+
+interface JsonLogRecord {
+  readonly message?: string;
+  readonly level?: string;
+  readonly eventType?: string;
+  readonly configurationCount?: number;
+  readonly parameter?: string;
+  readonly value?: string;
+  readonly source?: string;
+  readonly data?: LogRecordData;
 }
 
 describe('GOScript logging in AWS-managed runtime', () => {
@@ -52,13 +66,25 @@ describe('GOScript logging in AWS-managed runtime', () => {
     return stdout;
   }
 
-  function findSummary(stdout: string): SummaryRecord {
-    const summaryLine = stdout
+  function parseRecords(stdout: string): JsonLogRecord[] {
+    return stdout
       .split('\n')
       .filter(Boolean)
-      .find((line) => line.includes('"Configuration summary"'));
-    assert.ok(summaryLine !== undefined, 'configuration summary event present');
-    return JSON.parse(summaryLine) as SummaryRecord;
+      .map((line) => JSON.parse(line) as JsonLogRecord);
+  }
+
+  function findSummary(stdout: string): JsonLogRecord {
+    const summary = parseRecords(stdout).find((record) => record.message === 'Configuration summary');
+    assert.ok(summary !== undefined, 'configuration summary event present');
+    return summary;
+  }
+
+  function findConfigurationParameter(stdout: string, parameter: string): JsonLogRecord {
+    const parameterRecord = parseRecords(stdout).find(
+      (record) => record.eventType === 'configuration_parameter' && record.parameter === parameter,
+    );
+    assert.ok(parameterRecord !== undefined, `configuration parameter event present for ${parameter}`);
+    return parameterRecord;
   }
 
   const probeParam: GOConfigParameterOptions = {
@@ -84,12 +110,25 @@ describe('GOScript logging in AWS-managed runtime', () => {
     const summary = findSummary(await captureLoadConfig([probeParam]));
 
     assert.strictEqual(summary.message, 'Configuration summary');
+    assert.strictEqual(summary.eventType, 'configuration_summary');
+    assert.strictEqual(summary.configurationCount, 1);
     const configuration = summary.data?.configuration;
     assert.ok(configuration !== undefined, 'summary carries structured configuration data');
     const entry = configuration['probe.value'];
     assert.ok(entry !== undefined, 'probe.value present in summary');
     assert.strictEqual(entry.value, 'v');
     assert.strictEqual(typeof entry.source, 'string');
+  });
+
+  it('emits queryable configuration parameter events with top-level fields', async () => {
+    const parameterRecord = findConfigurationParameter(await captureLoadConfig([probeParam]), 'probe.value');
+
+    assert.strictEqual(parameterRecord.message, 'Configuration parameter');
+    assert.strictEqual(parameterRecord.eventType, 'configuration_parameter');
+    assert.strictEqual(parameterRecord.parameter, 'probe.value');
+    assert.strictEqual(parameterRecord.value, 'v');
+    assert.strictEqual(typeof parameterRecord.source, 'string');
+    assert.strictEqual(parameterRecord.data?.parameter, 'probe.value');
   });
 
   it('keeps {value,source} shape for sensitive-named params and redacts their values', async () => {
@@ -116,6 +155,10 @@ describe('GOScript logging in AWS-managed runtime', () => {
     assert.strictEqual(tokenEntry.value, '[REDACTED]');
     assert.strictEqual(typeof tokenEntry.source, 'string');
     assert.ok(tokenEntry.source.length > 0, 'source is preserved');
+
+    const parameterRecord = findConfigurationParameter(stdout, 'slack.token');
+    assert.strictEqual(parameterRecord.value, '[REDACTED]');
+    assert.strictEqual(typeof parameterRecord.source, 'string');
     // The secret value itself must not leak.
     assert.ok(!stdout.includes('xoxb-raw-secret-value'), 'raw secret value must not appear in logs');
   });
@@ -136,6 +179,9 @@ describe('GOScript logging in AWS-managed runtime', () => {
 
     assert.ok(tokenEntry !== undefined, 'api.token present as a structured entry');
     assert.strictEqual(tokenEntry.value, '[REDACTED]');
+
+    const parameterRecord = findConfigurationParameter(stdout, 'api.token');
+    assert.strictEqual(parameterRecord.value, '[REDACTED]');
     assert.ok(!stdout.includes('raw-token-value'), 'raw token value must not appear in logs');
   });
 });

@@ -28,6 +28,7 @@ import type { GOFileCopyReport } from '../files/GOFileCopyReport.js';
 import { GOLogger } from '../logging/GOLogger.js';
 import { GOLogEvent } from '../logging/GOLogEvent.js';
 import { GOLogEventCategory } from '../logging/GOLogEventCategory.js';
+import { redactSensitiveLogValue } from '../logging/GOSensitiveLogRedactor.js';
 import { GOConsoleLoggerHandler } from '../logging/handlers/GOConsoleLoggerHandler.js';
 import { GOFileLoggerHandler } from '../logging/handlers/GOFileLoggerHandler.js';
 import { GOJsonLoggerHandler } from '../logging/handlers/GOJsonLoggerHandler.js';
@@ -67,6 +68,17 @@ type GOScriptLambdaHandler<TEvent, TResult, TContext> = (event: TEvent, context?
 interface GOScriptSignalHandlerRef {
   readonly signal: NodeJS.Signals;
   readonly handler: GOScriptSignalHandler;
+}
+
+interface GOScriptConfigLogEntry extends Record<string, unknown> {
+  readonly parameter: string;
+  readonly value: string;
+  readonly source: string;
+}
+
+interface GOScriptConfigSummaryEntry {
+  readonly value: string;
+  readonly source: string;
 }
 
 /**
@@ -1054,29 +1066,43 @@ export class GOScript {
 
     const presentParams = params.filter((param) => this.config.get(param.name) !== undefined);
 
-    // AWS-managed: emit the summary as a single structured event (one CloudWatch
-    // entry) instead of a multi-line ASCII table (~one entry per row).
+    const configurationEntries = presentParams.map((param) => this.buildConfigLogEntry(param.name));
+
+    // AWS-managed: emit a compact structured summary for humans plus one
+    // normalized event per parameter for CloudWatch Logs Insights queries.
     if (this.environment.isAWSManaged) {
-      const configuration: Record<string, { value: string; source: string }> = {};
-      for (const param of presentParams) {
-        configuration[param.name] = {
-          value: this.formatConfigValue(param.name),
-          source: GOScriptConfigLoader.getSourceDisplayName(this.config.sourceOf(param.name)),
+      const configuration: Record<string, GOScriptConfigSummaryEntry> = {};
+      for (const entry of configurationEntries) {
+        configuration[entry.parameter] = {
+          value: entry.value,
+          source: entry.source,
         };
       }
-      this.logger.log(new GOLogEvent('Configuration summary', GOLogEventCategory.INFO, { configuration }));
+
+      this.logger.log(
+        new GOLogEvent('Configuration summary', GOLogEventCategory.INFO, {
+          eventType: 'configuration_summary',
+          configurationCount: configurationEntries.length,
+          configuration,
+        }),
+      );
+
+      for (const entry of configurationEntries) {
+        this.logger.log(
+          new GOLogEvent('Configuration parameter', GOLogEventCategory.INFO, {
+            eventType: 'configuration_parameter',
+            parameter: entry.parameter,
+            value: entry.value,
+            source: entry.source,
+          }),
+        );
+      }
       return;
     }
 
     const { parameterWidth, valueWidth, sourceWidth, padding } = configTableWidths;
     const valueContentWidth = valueWidth - padding;
     const sourceContentWidth = sourceWidth - padding;
-
-    const tableData = presentParams.map((param) => ({
-      parameter: param.name,
-      value: this.formatConfigValue(param.name),
-      source: GOScriptConfigLoader.getSourceDisplayName(this.config.sourceOf(param.name)),
-    }));
 
     this.logger.section('Configuration Summary:');
     this.logger.table({
@@ -1095,10 +1121,45 @@ export class GOScript {
           formatter: (value) => formatConfigSourceDisplay(valueToString(value), sourceContentWidth),
         },
       ],
-      data: tableData,
+      data: configurationEntries,
       border: true,
       headerSeparator: true,
     });
+  }
+
+  private buildConfigLogEntry(paramName: string): GOScriptConfigLogEntry {
+    const entry: GOScriptConfigLogEntry = {
+      parameter: paramName,
+      value: this.formatConfigValue(paramName),
+      source: GOScriptConfigLoader.getSourceDisplayName(this.config.sourceOf(paramName)),
+    };
+
+    return this.redactConfigLogEntry(entry);
+  }
+
+  private redactConfigLogEntry(entry: GOScriptConfigLogEntry): GOScriptConfigLogEntry {
+    const redacted = redactSensitiveLogValue({
+      [entry.parameter]: {
+        value: entry.value,
+        source: entry.source,
+      },
+    });
+
+    if (redacted === null || typeof redacted !== 'object' || Array.isArray(redacted)) {
+      return entry;
+    }
+
+    const redactedEntry = (redacted as Record<string, unknown>)[entry.parameter];
+    if (redactedEntry === null || typeof redactedEntry !== 'object' || Array.isArray(redactedEntry)) {
+      return entry;
+    }
+
+    const redactedRecord = redactedEntry as Record<string, unknown>;
+    return {
+      parameter: entry.parameter,
+      value: typeof redactedRecord['value'] === 'string' ? redactedRecord['value'] : entry.value,
+      source: typeof redactedRecord['source'] === 'string' ? redactedRecord['source'] : entry.source,
+    };
   }
 
   /**

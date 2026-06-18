@@ -8,9 +8,12 @@
  * and multi-line payloads (e.g. the configuration summary) collapse into a
  * single event via the structured `data` field instead of many.
  *
- * Each record is `{ level, category, message, timestamp, [data] }`. ANSI codes
- * are stripped from the message; empty spacer events (blank newlines) are
- * dropped to avoid noise.
+ * Each record is `{ level, category, message, timestamp, [data] }`. Scalar
+ * fields from `data` are also promoted to top-level fields when they do not
+ * collide with core log fields, making common query keys (eventType, requestId,
+ * parameter, etc.) directly filterable/indexable in CloudWatch Logs Insights.
+ * ANSI codes are stripped from the message; empty spacer events (blank
+ * newlines) are dropped to avoid noise.
  */
 
 import { stripAnsi } from '../ansi.js';
@@ -21,6 +24,9 @@ import { redactSensitiveLogText, redactSensitiveLogValue } from '../GOSensitiveL
 import { safeJsonStringify, valueToString } from '../../utils/GOValueToString.js';
 
 type JsonLogRecord = Record<string, unknown>;
+type QueryableJsonValue = string | number | boolean | null;
+
+const CORE_LOG_FIELDS = new Set(['category', 'data', 'jsonError', 'level', 'message', 'timestamp']);
 
 /** Map a log category to a coarse severity level for filtering. */
 function categoryToLevel(category: GOLogEventCategory): string {
@@ -59,6 +65,27 @@ function stringifyLogRecord(record: JsonLogRecord): string {
   }
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date);
+}
+
+function isQueryableJsonValue(value: unknown): value is QueryableJsonValue {
+  return value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+}
+
+function promoteQueryableDataFields(record: JsonLogRecord, data: unknown): void {
+  if (!isPlainRecord(data)) {
+    return;
+  }
+
+  for (const [key, value] of Object.entries(data)) {
+    if (CORE_LOG_FIELDS.has(key) || !isQueryableJsonValue(value)) {
+      continue;
+    }
+    record[key] = value;
+  }
+}
+
 export class GOJsonLoggerHandler implements GOLoggerHandler {
   public handle(event: GOLogEvent): void {
     const message = redactSensitiveLogText(stripAnsi(event.message));
@@ -75,7 +102,9 @@ export class GOJsonLoggerHandler implements GOLoggerHandler {
       timestamp: event.timestamp.toISOString(),
     };
     if (event.data !== undefined) {
-      record['data'] = redactSensitiveLogValue(event.data);
+      const data = redactSensitiveLogValue(event.data);
+      record['data'] = data;
+      promoteQueryableDataFields(record, data);
     }
 
     const line = stringifyLogRecord(record);
