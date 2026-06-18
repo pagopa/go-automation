@@ -56,6 +56,50 @@ describe('GOSensitiveLogRedactor', () => {
     assert.strictEqual(original.nested.token, 'raw-token');
   });
 
+  it('preserves config summary entry shape for sensitive-looking parameter keys', () => {
+    const redacted = redactSensitiveLogValue({
+      configuration: {
+        'plain.value': { source: 'default', value: 'visible' },
+        'slack.token': { source: 'env:SLACK_TOKEN', value: 'xoxb-raw-secret-value' },
+      },
+      token: 'raw-token',
+    });
+
+    assert.deepStrictEqual(redacted, {
+      configuration: {
+        'plain.value': { source: 'default', value: 'visible' },
+        'slack.token': { source: 'env:SLACK_TOKEN', value: '[REDACTED]' },
+      },
+      token: '[REDACTED]',
+    });
+  });
+
+  it('preserves metadata-wrapper shape while redacting value-like fields', () => {
+    const redacted = redactSensitiveLogValue({
+      apiSecret: {
+        provider: 'aws-secrets-manager',
+        rawValue: 'raw-secret',
+        status: 'active',
+        token: 'raw-token',
+      },
+    });
+
+    assert.deepStrictEqual(redacted, {
+      apiSecret: {
+        provider: 'aws-secrets-manager',
+        rawValue: '[REDACTED]',
+        status: 'active',
+        token: '[REDACTED]',
+      },
+    });
+  });
+
+  it('redacts sensitive structured values completely when they are not metadata wrappers', () => {
+    assert.deepStrictEqual(redactSensitiveLogValue({ token: { nested: 'raw-token' } }), {
+      token: '[REDACTED]',
+    });
+  });
+
   it('handles circular structured payloads', () => {
     const payload: Record<string, unknown> = { token: 'secret' };
     payload['self'] = payload;

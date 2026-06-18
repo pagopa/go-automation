@@ -14,8 +14,53 @@ const JWT_PATTERN = /\beyJ[a-z0-9_-]+\.[a-z0-9_-]+\.[a-z0-9_-]+\b/giu;
 const SLACK_TOKEN_PATTERN = /\bxox[a-z]-[a-z0-9-]+\b/giu;
 const AWS_ACCESS_KEY_ID_PATTERN = /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/gu;
 
+const WRAPPED_SECRET_VALUE_KEYS = new Set([
+  'accesstoken',
+  'apikey',
+  'authorization',
+  'body',
+  'clientsecret',
+  'credential',
+  'credentials',
+  'data',
+  'displayvalue',
+  'idtoken',
+  'password',
+  'passwd',
+  'payload',
+  'pwd',
+  'rawvalue',
+  'refreshtoken',
+  'secret',
+  'token',
+  'value',
+]);
+
+const WRAPPED_SECRET_METADATA_KEYS = new Set([
+  'createdat',
+  'description',
+  'encoding',
+  'format',
+  'key',
+  'label',
+  'name',
+  'origin',
+  'path',
+  'provider',
+  'reason',
+  'source',
+  'status',
+  'timestamp',
+  'type',
+  'updatedat',
+]);
+
+function normalizeKey(key: string): string {
+  return key.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 function isSensitiveKey(key: string): boolean {
-  const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const normalizedKey = normalizeKey(key);
 
   return (
     normalizedKey === 'authorization' ||
@@ -45,6 +90,45 @@ function redactJsonPrimitiveField(match: string, key: string, separator: string)
   }
 
   return `"${key}"${separator}"${REDACTED_JSON_VALUE}"`;
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date);
+}
+
+function isWrappedSecretValueKey(key: string): boolean {
+  return WRAPPED_SECRET_VALUE_KEYS.has(normalizeKey(key));
+}
+
+function isWrappedSecretMetadataKey(key: string): boolean {
+  return WRAPPED_SECRET_METADATA_KEYS.has(normalizeKey(key));
+}
+
+function isMetadataWrappedSecret(value: unknown): value is Record<string, unknown> {
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+
+  const keys = Object.keys(value);
+  return (
+    keys.some((key) => isWrappedSecretValueKey(key) || isSensitiveKey(key)) && keys.some(isWrappedSecretMetadataKey)
+  );
+}
+
+function redactSensitiveStructuredEntry(value: unknown, seen: WeakSet<object>): unknown {
+  if (!isMetadataWrappedSecret(value)) {
+    return REDACTED_JSON_VALUE;
+  }
+
+  const redacted: Record<string, unknown> = {};
+  for (const [key, nestedValue] of Object.entries(value)) {
+    redacted[key] =
+      isWrappedSecretValueKey(key) || isSensitiveKey(key)
+        ? REDACTED_JSON_VALUE
+        : redactSensitiveLogValueInternal(nestedValue, seen);
+  }
+
+  return redacted;
 }
 
 /**
@@ -97,7 +181,9 @@ function redactSensitiveLogValueInternal(value: unknown, seen: WeakSet<object>):
 
   const redacted: Record<string, unknown> = {};
   for (const [key, nestedValue] of Object.entries(value)) {
-    redacted[key] = isSensitiveKey(key) ? REDACTED_JSON_VALUE : redactSensitiveLogValueInternal(nestedValue, seen);
+    redacted[key] = isSensitiveKey(key)
+      ? redactSensitiveStructuredEntry(nestedValue, seen)
+      : redactSensitiveLogValueInternal(nestedValue, seen);
   }
 
   return redacted;
