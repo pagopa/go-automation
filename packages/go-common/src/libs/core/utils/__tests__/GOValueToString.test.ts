@@ -88,4 +88,22 @@ describe('GOValueToString', () => {
     assert.strictEqual(safeJsonStringify({ b: 123n }), '{"b":"123"}');
     assert.strictEqual(safeJsonStringify({ a: 1 }, { handleCircular: false }), '{"a":1}');
   });
+
+  it('safeJsonStringify does not truncate wide-but-shallow objects (depth is per-path, not cumulative)', () => {
+    const configuration: Record<string, { value: string; source: string }> = {};
+    for (let i = 0; i < 30; i++) {
+      configuration[`param.${String(i)}`] = { value: `v${String(i)}`, source: 'env' };
+    }
+
+    const out = safeJsonStringify({ data: { configuration } });
+    assert.ok(!out.includes('[Max Depth]'), `no entry should be truncated: ${out}`);
+
+    const parsed = JSON.parse(out) as { data: { configuration: Record<string, { value: string; source: string }> } };
+    assert.strictEqual(parsed.data.configuration['param.29']?.value, 'v29');
+    assert.strictEqual(parsed.data.configuration['param.29']?.source, 'env');
+  });
+
+  it('safeJsonStringify marks only genuinely-deep nesting as [Max Depth]', () => {
+    assert.strictEqual(safeJsonStringify({ a: { b: { c: 1 } } }, { maxDepth: 1 }), '{"a":{"b":"[Max Depth]"}}');
+  });
 });

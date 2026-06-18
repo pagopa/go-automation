@@ -78,39 +78,56 @@ export function safeJsonStringify(
     return JSON.stringify(value, null, indent);
   }
 
-  const seen = new WeakSet();
-  let currentDepth = 0;
+  return JSON.stringify(sanitizeForJson(value, maxDepth, 0, new WeakSet<object>()), null, indent);
+}
 
-  return JSON.stringify(
-    value,
-    function (_key: string, val: unknown): unknown {
-      // Handle BigInt
-      if (typeof val === 'bigint') {
-        return val.toString();
-      }
+/**
+ * Produce a JSON-safe clone of `value`:
+ * - BigInt → string (JSON.stringify would throw)
+ * - circular references (an object referencing one of its own ancestors) → '[Circular]'
+ * - values nested deeper than `maxDepth` → '[Max Depth]'
+ *
+ * Depth is the true nesting level (root = 0): unlike a single shared counter, a
+ * wide-but-shallow object (e.g. a config map with many sibling entries) is fully
+ * serialized — siblings do not consume each other's depth budget.
+ */
+function sanitizeForJson(value: unknown, maxDepth: number, depth: number, ancestors: WeakSet<object>): unknown {
+  if (typeof value === 'bigint') {
+    return value.toString();
+  }
 
-      // Handle non-objects as-is
-      if (typeof val !== 'object' || val === null) {
-        return val;
-      }
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
 
-      // Check depth
-      if (currentDepth > maxDepth) {
-        return '[Max Depth]';
-      }
+  // Let JSON.stringify handle Date via its toJSON (ISO string); recursing would lose it.
+  if (value instanceof Date) {
+    return value;
+  }
 
-      // Check circular
-      if (seen.has(val)) {
-        return '[Circular]';
-      }
+  if (depth > maxDepth) {
+    return '[Max Depth]';
+  }
 
-      seen.add(val);
-      currentDepth++;
+  // Circular = a reference back to an ancestor on the current path (not a shared sibling).
+  if (ancestors.has(value)) {
+    return '[Circular]';
+  }
+  ancestors.add(value);
 
-      return val;
-    },
-    indent,
-  );
+  let result: unknown;
+  if (Array.isArray(value)) {
+    result = value.map((item) => sanitizeForJson(item, maxDepth, depth + 1, ancestors));
+  } else {
+    const obj: Record<string, unknown> = {};
+    for (const [key, nested] of Object.entries(value)) {
+      obj[key] = sanitizeForJson(nested, maxDepth, depth + 1, ancestors);
+    }
+    result = obj;
+  }
+
+  ancestors.delete(value);
+  return result;
 }
 
 /**
