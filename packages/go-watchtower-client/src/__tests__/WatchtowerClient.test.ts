@@ -6,6 +6,27 @@ import { WatchtowerClient } from '../WatchtowerClient.js';
 afterEach(() => mock.restoreAll());
 
 describe('WatchtowerClient', () => {
+  it('normalizes an API suffix followed by many trailing slashes', async () => {
+    let requestedUrl: string | undefined;
+    mock.method(globalThis, 'fetch', async (input: string | URL | Request): Promise<Response> => {
+      requestedUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      return await Promise.resolve(
+        Response.json({
+          accessToken: 'access-token',
+          refreshToken: 'refresh-token',
+          expiresIn: 300,
+          serviceId: 'runbook-automation-worker',
+          principalType: 'SERVICE',
+        }),
+      );
+    });
+    const client = serviceClient(`https://watchtower.internal/api${'/'.repeat(10_000)}`);
+
+    await client.login();
+
+    assert.strictEqual(requestedUrl, 'https://watchtower.internal/auth/service/login');
+  });
+
   it('retries an idempotent lifecycle callback with the same body and key', async () => {
     const bodies: string[] = [];
     const keys: string[] = [];
@@ -78,9 +99,9 @@ describe('WatchtowerClient', () => {
   });
 });
 
-function serviceClient(): WatchtowerClient {
+function serviceClient(baseUrl = 'https://watchtower.internal'): WatchtowerClient {
   return new WatchtowerClient({
-    baseUrl: 'https://watchtower.internal',
+    baseUrl,
     credentials: { kind: 'SERVICE', serviceId: 'runbook-automation-worker', password: 'secret' },
   });
 }

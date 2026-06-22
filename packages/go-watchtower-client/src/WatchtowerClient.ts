@@ -271,7 +271,10 @@ function lifecycleRetryPolicy(idempotencyKey: string): Core.GOHttpRetryPolicy {
 }
 
 function normalizeBaseUrl(value: string): string {
-  return value.replace(/\/+$/, '').replace(/\/api$/, '');
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+  const withoutTrailingSlashes = value.slice(0, end);
+  return withoutTrailingSlashes.endsWith('/api') ? withoutTrailingSlashes.slice(0, -4) : withoutTrailingSlashes;
 }
 
 function executionPath(executionId: string): string {
