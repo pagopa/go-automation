@@ -17,10 +17,46 @@ describe('AWSActiveOperationRegistry', () => {
     });
 
     const [first, second] = await Promise.all([operation.stop(), operation.stop()]);
+    const third = await operation.stop();
 
     assert.strictEqual(first, undefined);
     assert.strictEqual(second, undefined);
+    assert.strictEqual(third, undefined);
     assert.strictEqual(stops, 1);
+    assert.strictEqual(registry.size, 0);
+  });
+
+  it('releases an unregistered entry without letting an old stop delete its replacement', async () => {
+    const registry = new AWSActiveOperationRegistry(100);
+    let resolveFirstStop: (() => void) | undefined;
+    let firstStops = 0;
+    const first = registry.register({
+      service: 'LOGS',
+      operationId: 'query-1',
+      async stop() {
+        firstStops += 1;
+        await new Promise<void>((resolve) => {
+          resolveFirstStop = resolve;
+        });
+      },
+    });
+    const firstStop = first.stop();
+
+    first.unregister();
+    const replacement = registry.register({
+      service: 'LOGS',
+      operationId: 'query-1',
+      async stop() {
+        await Promise.resolve();
+      },
+    });
+    resolveFirstStop?.();
+    await firstStop;
+
+    assert.strictEqual(registry.size, 1);
+    await first.stop();
+    assert.strictEqual(firstStops, 1);
+    await replacement.stop();
     assert.strictEqual(registry.size, 0);
   });
 

@@ -22,10 +22,14 @@ export interface AWSRegisteredOperation {
   unregister(): void;
 }
 
+interface AWSActiveOperationEntry {
+  readonly operation: AWSRemoteOperation;
+  stopPromise?: Promise<AWSRemoteCleanupWarning | undefined>;
+}
+
 /** Per-execution registry used to stop active AWS queries exactly once. */
 export class AWSActiveOperationRegistry {
-  private readonly operations = new Map<string, AWSRemoteOperation>();
-  private readonly stopPromises = new Map<string, Promise<AWSRemoteCleanupWarning | undefined>>();
+  private readonly operations = new Map<string, AWSActiveOperationEntry>();
 
   constructor(private readonly cleanupTimeoutMs: number = 5_000) {
     if (!Number.isInteger(cleanupTimeoutMs) || cleanupTimeoutMs < 1 || cleanupTimeoutMs > 30_000) {
@@ -38,18 +42,19 @@ export class AWSActiveOperationRegistry {
     if (this.operations.has(key)) {
       throw new Error(`AWS remote operation already registered: ${key}`);
     }
-    this.operations.set(key, operation);
+    const entry: AWSActiveOperationEntry = { operation };
+    this.operations.set(key, entry);
     return {
-      stop: async (): Promise<AWSRemoteCleanupWarning | undefined> => this.stop(key, operation),
+      stop: async (): Promise<AWSRemoteCleanupWarning | undefined> => this.stop(key, entry),
       unregister: (): void => {
-        this.operations.delete(key);
+        if (this.operations.get(key) === entry) this.operations.delete(key);
       },
     };
   }
 
   async stopAll(): Promise<ReadonlyArray<AWSRemoteCleanupWarning>> {
     const warnings = await Promise.all(
-      [...this.operations.entries()].map(async ([key, operation]) => this.stop(key, operation)),
+      [...this.operations.entries()].map(async ([key, entry]) => this.stop(key, entry)),
     );
     return warnings.filter((warning): warning is AWSRemoteCleanupWarning => warning !== undefined);
   }
@@ -58,17 +63,15 @@ export class AWSActiveOperationRegistry {
     return this.operations.size;
   }
 
-  private async stop(key: string, operation: AWSRemoteOperation): Promise<AWSRemoteCleanupWarning | undefined> {
-    const existing = this.stopPromises.get(key);
-    if (existing !== undefined) {
-      return await existing;
+  private async stop(key: string, entry: AWSActiveOperationEntry): Promise<AWSRemoteCleanupWarning | undefined> {
+    if (entry.stopPromise !== undefined) {
+      return await entry.stopPromise;
     }
 
-    const promise = this.stopOperation(operation).finally(() => {
-      this.operations.delete(key);
+    entry.stopPromise = this.stopOperation(entry.operation).finally(() => {
+      if (this.operations.get(key) === entry) this.operations.delete(key);
     });
-    this.stopPromises.set(key, promise);
-    return await promise;
+    return await entry.stopPromise;
   }
 
   private async stopOperation(operation: AWSRemoteOperation): Promise<AWSRemoteCleanupWarning | undefined> {
