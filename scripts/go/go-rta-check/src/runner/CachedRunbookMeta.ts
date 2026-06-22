@@ -14,8 +14,10 @@ export interface CachedRunbookMeta {
   readonly runbookHash: string;
   /** `RunbookOutput` schema version the entry was produced with. */
   readonly outputSchemaVersion: string;
-  /** AWS region used for the execution. */
-  readonly region: string;
+  /** AWS account targeted by the execution. */
+  readonly awsAccountId: string;
+  /** AWS region targeted by the execution. */
+  readonly awsRegion: string;
   /** AWS profiles used for the execution (sorted, order-insensitive). */
   readonly awsProfiles: ReadonlyArray<string>;
   /** Occurrence timestamp (drives the CloudWatch time window). */

@@ -3,36 +3,53 @@ import assert from 'node:assert/strict';
 
 import { RUNBOOK_REGISTRY } from 'go-analyze-alarm/api';
 
+import type { CachedRunbookMeta } from '../CachedRunbookMeta.js';
 import type { RunbookCacheDescriptor } from '../RunbookCacheDescriptor.js';
 import { buildCacheMeta, computeFingerprint, resolveRunbookCacheDescriptor } from '../runbookFingerprint.js';
 
 const descriptor: RunbookCacheDescriptor = { id: 'r', version: '1.0.0', hash: 'h0' };
+const awsAccountId = '170533023216';
+const awsRegion = 'eu-south-1';
+
+function cacheMeta(
+  currentDescriptor: RunbookCacheDescriptor = descriptor,
+  awsProfiles: ReadonlyArray<string> = ['a'],
+  firedAt: string = 'T',
+  accountId: string = awsAccountId,
+  region: string = awsRegion,
+): CachedRunbookMeta {
+  return buildCacheMeta(currentDescriptor, awsProfiles, firedAt, accountId, region);
+}
 
 describe('runbookFingerprint', () => {
   it('buildCacheMeta sorts profiles and carries the descriptor fields', () => {
-    const meta = buildCacheMeta(descriptor, ['b', 'a'], '2026-01-01T00:00:00Z');
+    const meta = cacheMeta(descriptor, ['b', 'a'], '2026-01-01T00:00:00Z');
     assert.deepEqual([...meta.awsProfiles], ['a', 'b']);
     assert.equal(meta.runbookId, 'r');
     assert.equal(meta.runbookVersion, '1.0.0');
     assert.equal(meta.runbookHash, 'h0');
+    assert.equal(meta.awsAccountId, awsAccountId);
+    assert.equal(meta.awsRegion, awsRegion);
     assert.equal(meta.firedAt, '2026-01-01T00:00:00Z');
     assert.equal(typeof meta.windowMinutes, 'number');
   });
 
   it('computeFingerprint is deterministic and profile-order-insensitive', () => {
-    const a = computeFingerprint(buildCacheMeta(descriptor, ['a', 'b'], 'T'));
-    const b = computeFingerprint(buildCacheMeta(descriptor, ['b', 'a'], 'T'));
+    const a = computeFingerprint(cacheMeta(descriptor, ['a', 'b']));
+    const b = computeFingerprint(cacheMeta(descriptor, ['b', 'a']));
     assert.equal(a, b);
     assert.match(a, /^[0-9a-f]{64}$/);
   });
 
   it('computeFingerprint changes when any fingerprint input changes', () => {
-    const base = computeFingerprint(buildCacheMeta(descriptor, ['a'], 'T'));
-    assert.notEqual(base, computeFingerprint(buildCacheMeta({ ...descriptor, hash: 'h1' }, ['a'], 'T')));
-    assert.notEqual(base, computeFingerprint(buildCacheMeta({ ...descriptor, version: '2.0.0' }, ['a'], 'T')));
-    assert.notEqual(base, computeFingerprint(buildCacheMeta({ ...descriptor, id: 'other' }, ['a'], 'T')));
-    assert.notEqual(base, computeFingerprint(buildCacheMeta(descriptor, ['a', 'c'], 'T')));
-    assert.notEqual(base, computeFingerprint(buildCacheMeta(descriptor, ['a'], 'T2')));
+    const base = computeFingerprint(cacheMeta());
+    assert.notEqual(base, computeFingerprint(cacheMeta({ ...descriptor, hash: 'h1' })));
+    assert.notEqual(base, computeFingerprint(cacheMeta({ ...descriptor, version: '2.0.0' })));
+    assert.notEqual(base, computeFingerprint(cacheMeta({ ...descriptor, id: 'other' })));
+    assert.notEqual(base, computeFingerprint(cacheMeta(descriptor, ['a', 'c'])));
+    assert.notEqual(base, computeFingerprint(cacheMeta(descriptor, ['a'], 'T2')));
+    assert.notEqual(base, computeFingerprint(cacheMeta(descriptor, ['a'], 'T', '123456789012')));
+    assert.notEqual(base, computeFingerprint(cacheMeta(descriptor, ['a'], 'T', awsAccountId, 'eu-west-1')));
   });
 
   it('resolveRunbookCacheDescriptor builds a stable hash for a registered alarm', () => {

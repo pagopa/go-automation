@@ -41,7 +41,9 @@ export interface CheckContext {
  */
 export async function checkOccurrence(context: CheckContext, event: AlarmEventDto): Promise<RtaCheckRow> {
   const meta =
-    context.runbook !== undefined ? buildCacheMeta(context.runbook, context.awsProfiles, event.firedAt) : undefined;
+    context.runbook !== undefined
+      ? buildCacheMeta(context.runbook, context.awsProfiles, event.firedAt, event.awsAccountId, event.awsRegion)
+      : undefined;
   const fingerprint = meta !== undefined ? computeFingerprint(meta) : undefined;
 
   let output =
