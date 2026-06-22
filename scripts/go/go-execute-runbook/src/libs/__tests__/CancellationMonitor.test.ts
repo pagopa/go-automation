@@ -7,6 +7,30 @@ import { CancellationMonitor } from '../CancellationMonitor.js';
 import { ExecutionAbortCoordinator } from '../ExecutionAbortCoordinator.js';
 
 describe('CancellationMonitor', () => {
+  it('classifies a fenced progress response as a stale attempt', async () => {
+    const client = {
+      progressExecution: async () => await Promise.resolve({ cancelRequested: false, staleAttempt: true }),
+    } as unknown as Pick<WatchtowerClient, 'progressExecution'>;
+    const coordinator = new ExecutionAbortCoordinator();
+    const monitor = new CancellationMonitor(
+      client,
+      '0192c000-0000-7000-8000-000000000001',
+      '0192c000-0000-7000-8000-0000000000e1',
+      {
+        sqsMessageId: 'message-1',
+        approximateReceiveCount: 1,
+        workerDeadlineAt: new Date(Date.now() + 60_000).toISOString(),
+      },
+      coordinator,
+      { intervalMs: 60_000 },
+    );
+
+    await monitor.start('RUNBOOK');
+
+    assert.strictEqual(coordinator.cause, 'STALE_ATTEMPT');
+    await monitor.stop();
+  });
+
   it('observes a cancellation and keeps concurrent progress single-flight', async () => {
     let calls = 0;
     let resolveProgress: (() => void) | undefined;

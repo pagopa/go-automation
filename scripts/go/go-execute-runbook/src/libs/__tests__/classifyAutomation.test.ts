@@ -21,6 +21,7 @@ describe('automation classifiers', () => {
     assert.strictEqual(classifyAutomationFailure(new Error('abort'), 'SHUTDOWN'), 'RETRY_MESSAGE');
     assert.strictEqual(classifyAutomationFailure(new Error('unknown')), 'RETRY_MESSAGE');
     assert.strictEqual(classifyAutomationFailure(new Error('cancel'), 'USER_CANCELLED'), 'CANCEL_EXECUTION');
+    assert.strictEqual(classifyAutomationFailure(new Error('fenced'), 'STALE_ATTEMPT'), 'COMPLETE_OUTCOME');
     assert.strictEqual(
       classifyAutomationFailure(Object.assign(new Error('bad command'), { workerFailureCode: 'INVALID_COMMAND' })),
       'FAIL_EXECUTION',

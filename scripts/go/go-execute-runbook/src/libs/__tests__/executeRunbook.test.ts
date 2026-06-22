@@ -152,6 +152,36 @@ describe('executeRunbook', () => {
     assert.strictEqual(result.disposition, 'COMPLETE_OUTCOME');
     assert.strictEqual(result.status, 'SUCCEEDED');
   });
+
+  it('ACKs a stale progress attempt without executing a terminal callback', async () => {
+    let completeCalls = 0;
+    const deps = fakeDeps({
+      startExecution: async () => {
+        await Promise.resolve();
+        return {
+          disposition: 'START',
+          attemptId: '0192c000-0000-7000-8000-0000000000e1',
+          workerDeadlineAt: DELIVERY.workerDeadlineAt,
+        };
+      },
+      progressExecution: async () => {
+        await Promise.resolve();
+        return { cancelRequested: false, staleAttempt: true };
+      },
+      completeExecution: async () => {
+        await Promise.resolve();
+        completeCalls += 1;
+        return { status: 'SUCCEEDED', outcome: 'NO_RUNBOOK' };
+      },
+    });
+
+    const result = await executeRunbook(deps, INPUT, DELIVERY);
+
+    assert.strictEqual(result.disposition, 'COMPLETE_OUTCOME');
+    assert.strictEqual(result.suppressedReason, 'STALE_ATTEMPT');
+    assert.strictEqual(result.status, 'RUNNING');
+    assert.strictEqual(completeCalls, 0);
+  });
 });
 
 function fakeDeps(watchtower: Readonly<Record<string, unknown>>): ExecuteRunbookDeps {

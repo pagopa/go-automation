@@ -14,6 +14,7 @@ import type { ExecuteRunbookDeps } from '../types/ExecuteRunbookDeps.js';
 import type { ExecuteRunbookInput } from '../types/ExecuteRunbookInput.js';
 import type { ExecuteRunbookResult } from '../types/ExecuteRunbookResult.js';
 import type { ExecuteRunbookSuppressedReason } from '../types/ExecuteRunbookResult.js';
+import type { ExecutionAbortCause } from '../types/ExecutionAbortCause.js';
 import { buildTrackingEntries } from './buildTrackingEntries.js';
 import { CancellationMonitor } from './CancellationMonitor.js';
 import { classifyAutomationOutcome } from './classifyAutomationOutcome.js';
@@ -56,8 +57,12 @@ export async function executeRunbook(
 
   try {
     await monitor.start('RUNBOOK_EXECUTION');
+    if (coordinator.cause === 'STALE_ATTEMPT') {
+      return await suppressStaleAttempt(executionId, attemptId, monitor, activeOperations);
+    }
     const output = await runOccurrence(deps, input, coordinator, activeOperations);
-    if (coordinator.cause === 'USER_CANCELLED') {
+    const abortCause = readAbortCause(coordinator);
+    if (abortCause === 'USER_CANCELLED') {
       return await acknowledgeCancellation(
         deps,
         executionId,
@@ -68,7 +73,10 @@ export async function executeRunbook(
         activeOperations,
       );
     }
-    if (coordinator.cause !== undefined) throw new Error(coordinator.cause);
+    if (abortCause === 'STALE_ATTEMPT') {
+      return await suppressStaleAttempt(executionId, attemptId, monitor, activeOperations);
+    }
+    if (abortCause !== undefined) throw new Error(abortCause);
 
     const check = output === undefined ? noRunbookCheck() : classifyRunbookOutcome(output);
     const completeRequest = buildCompleteRequest(attemptId, check, output);
@@ -106,6 +114,9 @@ export async function executeRunbook(
     }
     return { disposition: 'COMPLETE_OUTCOME', executionId, attemptId, status: completeResult.status };
   } catch (error: unknown) {
+    if (coordinator.cause === 'STALE_ATTEMPT') {
+      return await suppressStaleAttempt(executionId, attemptId, monitor, activeOperations);
+    }
     if (coordinator.cause === 'USER_CANCELLED') {
       return await acknowledgeCancellation(
         deps,
@@ -122,6 +133,27 @@ export async function executeRunbook(
     clearTimeout(budgetTimer);
     await monitor.stop();
   }
+}
+
+function readAbortCause(coordinator: ExecutionAbortCoordinator): ExecutionAbortCause | undefined {
+  return coordinator.cause;
+}
+
+async function suppressStaleAttempt(
+  executionId: string,
+  attemptId: string,
+  monitor: CancellationMonitor,
+  activeOperations: AWS.AWSActiveOperationRegistry,
+): Promise<ExecuteRunbookResult> {
+  await monitor.stop();
+  await activeOperations.stopAll();
+  return {
+    disposition: 'COMPLETE_OUTCOME',
+    executionId,
+    attemptId,
+    status: 'RUNNING',
+    suppressedReason: 'STALE_ATTEMPT',
+  };
 }
 
 async function runOccurrence(

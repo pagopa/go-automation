@@ -76,7 +76,7 @@ export class CancellationMonitor {
       this.consecutiveFailures = 0;
       this.unavailableSinceMs = undefined;
       if (response.staleAttempt === true) {
-        this.coordinator.abort('CONTROL_PLANE_UNAVAILABLE');
+        this.coordinator.abort('STALE_ATTEMPT');
       } else if (response.cancelRequested) {
         this.observedCancelRequestId = response.cancelRequestId;
         this.coordinator.abort('USER_CANCELLED');
