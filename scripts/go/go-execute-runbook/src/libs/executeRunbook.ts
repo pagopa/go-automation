@@ -18,6 +18,7 @@ import { buildTrackingEntries } from './buildTrackingEntries.js';
 import { CancellationMonitor } from './CancellationMonitor.js';
 import { classifyAutomationOutcome } from './classifyAutomationOutcome.js';
 import { ExecutionAbortCoordinator } from './ExecutionAbortCoordinator.js';
+import { formatCleanupWarnings } from './formatCleanupWarnings.js';
 
 /** Runs one fenced Watchtower execution and returns normally only when SQS may ACK it. */
 export async function executeRunbook(
@@ -209,7 +210,7 @@ async function acknowledgeCancellation(
     sqsMessageId: delivery.sqsMessageId,
     approximateReceiveCount: delivery.approximateReceiveCount,
     lastPhase: 'RUNBOOK_EXECUTION',
-    cleanupWarnings: warnings.map((warning) => `${warning.service}:${warning.code}:${warning.message}`.slice(0, 2_048)),
+    cleanupWarnings: formatCleanupWarnings(warnings),
   };
   const result = await deps.watchtower.acknowledgeCancellation(executionId, request, {
     idempotencyKey: `cancel-ack:${executionId}:${cancelRequestId}:${attemptId}`,
