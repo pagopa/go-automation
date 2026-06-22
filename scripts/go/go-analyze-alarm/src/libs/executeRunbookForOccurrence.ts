@@ -23,7 +23,7 @@ import { createTimeRangeReference } from './createTimeRangeReference.js';
 import { DEFAULT_TIME_WINDOW_MINUTES } from './runbooks/constants.js';
 
 /** Dependencies built once and reused across occurrences. */
-export interface ExecuteRunbookDeps {
+export interface ExecuteRunbookForOccurrenceDeps {
   readonly services: ServiceRegistry;
   readonly logger: Core.GOLogger;
   /** AWS region for the execution environment. Defaults to `eu-south-1`. */
@@ -31,7 +31,7 @@ export interface ExecuteRunbookDeps {
 }
 
 /** Per-occurrence input. */
-export interface ExecuteRunbookInput {
+export interface ExecuteRunbookForOccurrenceInput {
   readonly alarmName: string;
   /** Occurrence timestamp (ISO 8601) used as `alarmDatetime`. */
   readonly firedAt: string;
@@ -50,8 +50,8 @@ export interface ExecuteRunbookInput {
  * @throws Error when no runbook is registered for `input.alarmName`
  */
 export async function executeRunbookForOccurrence(
-  deps: ExecuteRunbookDeps,
-  input: ExecuteRunbookInput,
+  deps: ExecuteRunbookForOccurrenceDeps,
+  input: ExecuteRunbookForOccurrenceInput,
 ): Promise<RunbookOutput> {
   const builder = RUNBOOK_REGISTRY.get(input.alarmName);
   if (builder === undefined) {

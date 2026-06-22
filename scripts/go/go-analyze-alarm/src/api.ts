@@ -6,6 +6,9 @@
  */
 export { RUNBOOK_REGISTRY } from './libs/runbookRegistry.js';
 export { executeRunbookForOccurrence } from './libs/executeRunbookForOccurrence.js';
-export type { ExecuteRunbookDeps, ExecuteRunbookInput } from './libs/executeRunbookForOccurrence.js';
+export type {
+  ExecuteRunbookForOccurrenceDeps,
+  ExecuteRunbookForOccurrenceInput,
+} from './libs/executeRunbookForOccurrence.js';
 export { createServiceRegistry } from './libs/createServiceRegistry.js';
 export { DEFAULT_TIME_WINDOW_MINUTES } from './libs/runbooks/constants.js';
