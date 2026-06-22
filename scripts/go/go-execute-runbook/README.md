@@ -16,5 +16,5 @@ La CLI richiede `--alarm-event-id`, `--execution-id`, `--watchtower-url`, `--wat
 ## Utilizzo
 
 ```bash
-pnpm --filter=go-execute-runbook dev -- --alarm-event-id <uuid> --execution-id <uuid> --watchtower-url https://watchtower.internal --watchtower-service-id runbook-automation-worker
+pnpm --filter=go-execute-runbook dev -- --alarm-event-id <uuid> --execution-id <uuid> --watchtower-url https://watchtower.internal --watchtower-service-id runbook-automation-worker --watchtower-service-secret-arn <arn>
 ```
