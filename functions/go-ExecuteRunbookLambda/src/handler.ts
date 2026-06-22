@@ -17,7 +17,6 @@ import type {
   ExecuteRunbookResult,
 } from 'go-execute-runbook/api';
 import { scriptMetadata, scriptParameters } from 'go-execute-runbook/config';
-import { main } from 'go-execute-runbook/main';
 
 type ExecuteRunbookFn = (
   deps: ExecuteRunbookDeps,
@@ -27,7 +26,6 @@ type ExecuteRunbookFn = (
 type RemainingTimeFn = () => number;
 
 const script = new Core.GOScript({ metadata: scriptMetadata, config: { parameters: scriptParameters } });
-void main;
 
 export const handler = script.createLambdaHandler<SQSEvent, SQSBatchResponse, Context>(async (event, context) => {
   const config = await script.getConfiguration<ExecuteRunbookConfig>();

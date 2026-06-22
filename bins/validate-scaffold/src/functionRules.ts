@@ -26,6 +26,7 @@ interface FunctionContext {
   readonly tsconfigContent: string;
   readonly esbuildContent: string;
   readonly isWrapper: boolean;
+  readonly wrappedApiPackageName: string | undefined;
   readonly wrappedConfigPackageName: string | undefined;
   readonly wrappedMainPackageName: string | undefined;
   readonly wrappedScriptRelativePath: string | undefined;
@@ -46,6 +47,7 @@ async function loadFunctionContext(functionPath: string): Promise<FunctionContex
     ]);
 
     const packageJson = JSON.parse(packageJsonContent) as Record<string, unknown>;
+    const wrappedApiPackageName = handlerContent.match(/from '([^']+)\/api'/)?.[1];
     const wrappedConfigPackageName = handlerContent.match(/from '([^']+)\/config'/)?.[1];
     const wrappedMainPackageName = handlerContent.match(/from '([^']+)\/main'/)?.[1];
     const wrappedScriptRelativePath = tsconfigContent.match(/"\.\.\/\.\.\/scripts\/([^"]+)"/)?.[1];
@@ -60,6 +62,7 @@ async function loadFunctionContext(functionPath: string): Promise<FunctionContex
       tsconfigContent,
       esbuildContent,
       isWrapper,
+      wrappedApiPackageName,
       wrappedConfigPackageName,
       wrappedMainPackageName,
       wrappedScriptRelativePath,
@@ -244,20 +247,26 @@ export const functionRules: ReadonlyArray<ScaffoldRule> = [
   // ── Wrapper-specific rules ──────────────────────────────────────────
 
   {
-    name: 'Wrapper Lambda imports config and main from the same package',
+    name: 'Wrapper Lambda imports config and an entrypoint from the same package',
     check: 'custom',
     validate: async (functionPath) => {
-      const ruleName = 'Wrapper Lambda imports config and main from the same package';
+      const ruleName = 'Wrapper Lambda imports config and an entrypoint from the same package';
       const context = await loadFunctionContext(functionPath);
 
       if (!context?.isWrapper) {
         return { rule: ruleName, passed: true };
       }
 
+      const apiImport = context.wrappedApiPackageName;
       const configImport = context.wrappedConfigPackageName;
       const mainImport = context.wrappedMainPackageName;
+      const entrypointImports = [apiImport, mainImport].filter((value) => value !== undefined);
 
-      if (configImport !== undefined && mainImport !== undefined && configImport === mainImport) {
+      if (
+        configImport !== undefined &&
+        entrypointImports.length > 0 &&
+        entrypointImports.every((value) => value === configImport)
+      ) {
         return { rule: ruleName, passed: true };
       }
 
@@ -265,7 +274,7 @@ export const functionRules: ReadonlyArray<ScaffoldRule> = [
         rule: ruleName,
         passed: false,
         file: 'src/handler.ts',
-        message: 'Wrapper handlers must import both /config and /main from the same workspace package.',
+        message: 'Wrapper handlers must import /config and either /main or /api from the same workspace package.',
       };
     },
   },
