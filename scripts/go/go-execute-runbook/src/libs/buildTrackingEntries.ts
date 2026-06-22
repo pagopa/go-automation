@@ -3,25 +3,33 @@ import type {
   CompleteExecutionTrackingEntry,
   TrackingIdentifierType,
 } from '@go-automation/go-watchtower-client';
-import type { RunbookOutput } from '@go-automation/go-runbook';
+import type { RunbookResultField } from '@go-automation/go-runbook';
 
 type TrackingEntries = CompleteExecutionTracking;
 type TrackingEntry = CompleteExecutionTrackingEntry;
+interface TrackingOutput {
+  readonly generatedAt: string;
+  readonly execution: { readonly executionId: string };
+  readonly context: { readonly fields: ReadonlyArray<RunbookResultField> };
+}
 
-export function buildTrackingEntries(output: RunbookOutput): TrackingEntries {
+const MAX_TRACKING_ENTRIES = 64;
+const MAX_CONTEXT_TRACKING_ENTRIES = MAX_TRACKING_ENTRIES - 1;
+
+export function buildTrackingEntries(output: TrackingOutput): TrackingEntries {
   const entries: TrackingEntry[] = [];
   for (const field of output.context.fields) {
     const identifierType = identifierTypeFor(field.name);
     if (identifierType === undefined || field.value === '') continue;
     entries.push({ identifierType, identifierValue: field.value.slice(0, 512), timestamp: output.generatedAt });
-    if (entries.length === 64) break;
+    if (entries.length === MAX_CONTEXT_TRACKING_ENTRIES) break;
   }
   entries.push({
     identifierType: 'AUTOMATION_EXECUTION_ID',
     identifierValue: output.execution.executionId,
     timestamp: output.generatedAt,
   });
-  return entries.slice(0, 64);
+  return entries;
 }
 
 function identifierTypeFor(name: string): TrackingIdentifierType | undefined {
