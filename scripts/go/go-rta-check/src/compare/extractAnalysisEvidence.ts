@@ -1,4 +1,4 @@
-import type { AlarmAnalysisDto } from '../types/WatchtowerDtos.js';
+import type { AlarmAnalysisDto } from '@go-automation/go-watchtower-client';
 import { normalize } from './text.js';
 
 /** Aggregate textual evidence extracted from a Watchtower analysis. */

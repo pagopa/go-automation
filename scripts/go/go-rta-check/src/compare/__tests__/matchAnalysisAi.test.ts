@@ -5,8 +5,8 @@ import type { RunbookOutput } from '@go-automation/go-runbook';
 import type { GOAISemanticMatcher } from '@go-automation/go-ai';
 
 import { matchAnalysisAi } from '../matchAnalysisAi.js';
-import type { AlarmAnalysisDto } from '../../types/WatchtowerDtos.js';
 import type { RunbookCheck } from '../../types/RtaCheckReport.js';
+import { alarmAnalysisFixture as analysis } from './alarmAnalysisFixture.js';
 
 const NOW = '2026-01-01T00:00:00.000Z';
 const HIT: RunbookCheck = {
@@ -42,24 +42,6 @@ function outputWithRequestId(requestId: string): RunbookOutput {
       message: 'La Lambda ha superato il timeout configurato.',
     },
     context: { fields: [{ name: 'lambdaRequestId', label: 'requestId', value: requestId }], evidence: [] },
-  };
-}
-
-function analysis(partial: Partial<AlarmAnalysisDto>): AlarmAnalysisDto {
-  return {
-    id: 'a',
-    analysisType: 'ANALYZABLE',
-    status: 'COMPLETED',
-    occurrences: 1,
-    firstAlarmAt: NOW,
-    lastAlarmAt: NOW,
-    errorDetails: null,
-    conclusionNotes: null,
-    trackingIds: [],
-    downstreams: [],
-    resources: [],
-    finalActions: [],
-    ...partial,
   };
 }
 

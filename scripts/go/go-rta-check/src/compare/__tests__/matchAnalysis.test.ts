@@ -5,8 +5,8 @@ import type { RunbookOutput } from '@go-automation/go-runbook';
 
 import { matchAnalysis } from '../matchAnalysis.js';
 import type { MatchAnalysisOptions } from '../matchAnalysis.js';
-import type { AlarmAnalysisDto } from '../../types/WatchtowerDtos.js';
 import type { RunbookCheck } from '../../types/RtaCheckReport.js';
+import { alarmAnalysisFixture as analysis } from './alarmAnalysisFixture.js';
 
 const NOW = '2026-01-01T00:00:00.000Z';
 const OPTIONS: MatchAnalysisOptions = { includeIgnorable: false, includeIncomplete: false };
@@ -43,24 +43,6 @@ function outputWithRequestId(requestId: string): RunbookOutput {
       message: 'm',
     },
     context: { fields: [{ name: 'lambdaRequestId', label: 'requestId', value: requestId }], evidence: [] },
-  };
-}
-
-function analysis(partial: Partial<AlarmAnalysisDto>): AlarmAnalysisDto {
-  return {
-    id: 'a',
-    analysisType: 'ANALYZABLE',
-    status: 'COMPLETED',
-    occurrences: 1,
-    firstAlarmAt: NOW,
-    lastAlarmAt: NOW,
-    errorDetails: null,
-    conclusionNotes: null,
-    trackingIds: [],
-    downstreams: [],
-    resources: [],
-    finalActions: [],
-    ...partial,
   };
 }
 

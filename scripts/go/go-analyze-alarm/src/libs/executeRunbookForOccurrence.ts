@@ -14,6 +14,7 @@ import {
   lambda,
   service,
   buildRunbookOutput,
+  assertCloudExecutableRunbook,
 } from '@go-automation/go-runbook';
 import type { ServiceRegistry, RunbookOutput, ExecutionEnvironment } from '@go-automation/go-runbook';
 
@@ -26,8 +27,6 @@ import { DEFAULT_TIME_WINDOW_MINUTES } from './runbooks/constants.js';
 export interface ExecuteRunbookForOccurrenceDeps {
   readonly services: ServiceRegistry;
   readonly logger: Core.GOLogger;
-  /** AWS region for the execution environment. Defaults to `eu-south-1`. */
-  readonly region?: string;
 }
 
 /** Per-occurrence input. */
@@ -37,7 +36,15 @@ export interface ExecuteRunbookForOccurrenceInput {
   readonly firedAt: string;
   /** Optional last-occurrence timestamp (ISO 8601) for multi-occurrence mode. */
   readonly alarmDatetimeEnd?: string;
+  /** Source account queried through OAM. */
+  readonly awsAccountId: string;
+  /** AWS region of the occurrence and OAM sink/link. */
+  readonly region: string;
   readonly awsProfiles: ReadonlyArray<string>;
+  /** Managed cloud execution enforces the read-only v1 policy. */
+  readonly executionMode?: 'local' | 'cloud';
+  /** Cooperative cancellation propagated into the engine and services. */
+  readonly signal?: AbortSignal;
 }
 
 /**
@@ -58,6 +65,9 @@ export async function executeRunbookForOccurrence(
     throw new Error(`No runbook registered for alarm "${input.alarmName}".`);
   }
   const runbook = builder();
+  if (input.executionMode === 'cloud') {
+    assertCloudExecutableRunbook(runbook);
+  }
 
   const reference = createTimeRangeReference(input.firedAt, input.alarmDatetimeEnd);
   const { startTime, endTime } = computeTimeRange(reference, DEFAULT_TIME_WINDOW_MINUTES);
@@ -74,12 +84,13 @@ export async function executeRunbookForOccurrence(
 
   const environment: ExecutionEnvironment = {
     awsProfiles: [...input.awsProfiles],
-    region: deps.region ?? 'eu-south-1',
-    invokedBy: 'manual',
+    awsAccountId: input.awsAccountId,
+    region: input.region,
+    invokedBy: input.executionMode === 'cloud' ? 'alarm' : 'manual',
   };
 
   const engine = new RunbookEngine(deps.logger, new ConditionEvaluator());
-  const result = await engine.execute(runbook, params, deps.services, environment);
+  const result = await engine.execute(runbook, params, deps.services, environment, input.signal);
 
   return buildRunbookOutput(runbook, result, {
     contextBuilder: (rb, executionResult) =>

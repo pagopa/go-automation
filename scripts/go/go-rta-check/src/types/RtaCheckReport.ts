@@ -3,8 +3,10 @@
  * Cohesive module; intentionally not split per type.
  */
 
-/** V1 (runbook coverage) outcome for one occurrence. */
-export type V1Status = 'HIT' | 'MISS' | 'NO-DATA' | 'CONFIG-ERROR' | 'EXECUTION-ERROR';
+import type { ClassifiedRunbookCheck, RunbookCheckStatus } from '@go-automation/go-runbook';
+
+/** V1 (runbook coverage) outcome for one executed occurrence. */
+export type V1Status = Exclude<RunbookCheckStatus, 'NO_RUNBOOK'>;
 
 /** V2 (analysis agreement) outcome for one occurrence. */
 export type V2Status =
@@ -26,18 +28,7 @@ export type AnalysisMatchSource = AnalysisMatcherKind | 'deterministic' | 'deter
 type AnalysisSemanticVerdict = 'equivalent' | 'conflicting';
 
 /** Outcome of running the runbook for one occurrence (V1). */
-export interface RunbookCheck {
-  readonly status: V1Status;
-  readonly outcomeKind?: string;
-  readonly primaryCaseId?: string;
-  readonly primaryCaseDescription?: string;
-  readonly matchedCaseIds: ReadonlyArray<string>;
-  readonly durationMs?: number;
-  readonly cloudWatchRecordsScanned?: number;
-  readonly cloudWatchBytesScanned?: number;
-  /** Original error message when status is CONFIG-ERROR / EXECUTION-ERROR. */
-  readonly error?: string;
-}
+export type RunbookCheck = ClassifiedRunbookCheck;
 
 /** Transparent per-signal breakdown of the V2 comparison. */
 export interface AnalysisMatchSignals {

@@ -1,13 +1,21 @@
-import type { CloudWatchLogsClient, GetQueryResultsCommandOutput, ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import type {
+  CloudWatchLogsClient,
+  GetQueryResultsCommandOutput,
+  ResultField,
+  StartQueryCommandOutput,
+} from '@aws-sdk/client-cloudwatch-logs';
 import {
   CloudWatchLogsServiceException,
   GetQueryResultsCommand,
   StartQueryCommand,
+  StopQueryCommand,
 } from '@aws-sdk/client-cloudwatch-logs';
 
 import { GOPoller, GOPollingPolicies } from '../core/polling/index.js';
 
 import type { AWSMultiClientProvider } from './AWSMultiClientProvider.js';
+import { AWSActiveOperationRegistry } from './AWSActiveOperationRegistry.js';
+import type { AWSRemoteCleanupWarningHandler } from './AWSActiveOperationRegistry.js';
 
 /** Non-success terminal statuses for CloudWatch Logs Insights queries (Complete handled separately). */
 const FAILURE_STATUSES: ReadonlySet<string> = new Set(['Failed', 'Cancelled', 'Timeout']);
@@ -52,6 +60,33 @@ export interface AWSCloudWatchLogsQueryOptions {
    *   the log group can be queried, caching successful resolutions.
    */
   readonly logGroupResolutionMode?: AWSCloudWatchLogsLogGroupResolutionMode;
+  /** Receives bounded cleanup warnings without changing the runbook outcome. */
+  readonly onCleanupWarning?: AWSRemoteCleanupWarningHandler;
+}
+
+/** Source account and region fixed for one OAM-backed execution. */
+export interface AWSCloudWatchLogsTarget {
+  readonly accountId?: string;
+  readonly region: string;
+}
+
+export type AWSCloudWatchLogsConfigurationErrorCode =
+  | 'OAM_ACCESS_DENIED'
+  | 'LOG_GROUP_NOT_FOUND'
+  | 'OAM_REGION_MISMATCH'
+  | 'INVALID_OAM_TARGET';
+
+export interface AWSCloudWatchLogsConfigurationError extends Error {
+  readonly code: AWSCloudWatchLogsConfigurationErrorCode;
+}
+
+export function isAWSCloudWatchLogsConfigurationError(error: unknown): error is AWSCloudWatchLogsConfigurationError {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    CONFIGURATION_ERROR_CODES.has(error.code)
+  );
 }
 
 export interface AWSCloudWatchLogsQueryStatistics {
@@ -91,7 +126,21 @@ interface ProfileAttemptError {
 export class AWSCloudWatchLogsService {
   private readonly logGroupProfileCache = new Map<string, string>();
 
-  constructor(private readonly clientProvider: AWSMultiClientProvider) {}
+  constructor(
+    private readonly clientProvider: AWSMultiClientProvider,
+    private readonly target: AWSCloudWatchLogsTarget | undefined = undefined,
+    private readonly activeOperations: AWSActiveOperationRegistry | undefined = undefined,
+  ) {
+    if (target !== undefined) validateTarget(target);
+  }
+
+  /** Returns an execution-scoped OAM service without mutating the shared provider. */
+  forTarget(
+    target: AWSCloudWatchLogsTarget,
+    activeOperations: AWSActiveOperationRegistry = new AWSActiveOperationRegistry(),
+  ): AWSCloudWatchLogsService {
+    return new AWSCloudWatchLogsService(this.clientProvider, target, activeOperations);
+  }
 
   async query(
     logGroups: ReadonlyArray<string>,
@@ -110,6 +159,10 @@ export class AWSCloudWatchLogsService {
     options: AWSCloudWatchLogsQueryOptions = {},
   ): Promise<AWSCloudWatchLogsQueryResult> {
     this.validateInput(logGroups, query, timeRange);
+
+    if (this.target !== undefined) {
+      return this.queryWithTarget(logGroups, query, timeRange, options);
+    }
 
     const mode = options.logGroupResolutionMode ?? 'default-profile-only';
     if (mode === 'default-profile-only') {
@@ -130,6 +183,34 @@ export class AWSCloudWatchLogsService {
 
   clearLogGroupResolutionCache(): void {
     this.logGroupProfileCache.clear();
+  }
+
+  private async queryWithTarget(
+    logGroups: ReadonlyArray<string>,
+    query: string,
+    timeRange: AWSCloudWatchLogsTimeRange,
+    options: AWSCloudWatchLogsQueryOptions,
+  ): Promise<AWSCloudWatchLogsQueryResult> {
+    const target = this.target;
+    if (target === undefined) {
+      throw new Error('CloudWatch Logs target is not configured');
+    }
+    const providerRegion = this.clientProvider.first.getRegion();
+    if (providerRegion !== target.region) {
+      throw configurationError(
+        'OAM_REGION_MISMATCH',
+        `CloudWatch Logs provider region ${providerRegion} does not match execution target ${target.region}`,
+      );
+    }
+    const identifiers = logGroups.map((logGroup) => toLogGroupIdentifier(logGroup, target));
+    return await this.queryWithProfile(
+      this.clientProvider.first.getProfile(),
+      identifiers,
+      query,
+      timeRange,
+      options,
+      true,
+    );
   }
 
   private async queryLogGroupAcrossProfiles(
@@ -173,9 +254,31 @@ export class AWSCloudWatchLogsService {
     query: string,
     timeRange: AWSCloudWatchLogsTimeRange,
     options: AWSCloudWatchLogsQueryOptions,
+    useIdentifiers: boolean = false,
   ): Promise<AWSCloudWatchLogsQueryResult> {
     const client = this.clientProvider.getClientProvider(profile).cloudWatchLogs;
-    const queryId = await this.startQuery(client, profile, logGroups, query, timeRange, options.signal);
+    let queryId: string;
+    try {
+      queryId = await this.startQuery(client, profile, logGroups, query, timeRange, options.signal, useIdentifiers);
+    } catch (error: unknown) {
+      if (options.signal?.aborted === true) {
+        options.onCleanupWarning?.({
+          service: 'LOGS',
+          operationId: 'unknown',
+          code: 'REMOTE_QUERY_STOP_FAILED',
+          message: 'REMOTE_OPERATION_ID_UNKNOWN: StartQuery may have been accepted before the response was lost',
+        });
+      }
+      throw error;
+    }
+    const registry = this.activeOperations ?? new AWSActiveOperationRegistry();
+    const registered = registry.register({
+      service: 'LOGS',
+      operationId: queryId,
+      stop: async (cleanupSignal): Promise<void> => {
+        await client.send(new StopQueryCommand({ queryId }), { abortSignal: cleanupSignal });
+      },
+    });
 
     const poller = new GOPoller({
       ...GOPollingPolicies.cloudWatchLogsQuery(),
@@ -183,40 +286,51 @@ export class AWSCloudWatchLogsService {
       ...(options.signal !== undefined ? { signal: options.signal } : {}),
     });
 
-    return poller.poll<AWSCloudWatchLogsQueryResult>(async () => {
-      let response;
-      try {
-        response = await client.send(
-          new GetQueryResultsCommand({
-            queryId,
-            ...(options.paginateResults === true ? { maxItems: resolveQueryResultsPageSize(options) } : {}),
-          }),
-        );
-      } catch (error: unknown) {
-        throw this.wrapAwsError('GetQueryResults', profile, queryId, error);
-      }
+    try {
+      return await poller.poll<AWSCloudWatchLogsQueryResult>(async () => {
+        let response: GetQueryResultsCommandOutput;
+        try {
+          response = await client.send(
+            new GetQueryResultsCommand({
+              queryId,
+              ...(options.paginateResults === true ? { maxItems: resolveQueryResultsPageSize(options) } : {}),
+            }),
+            ...(options.signal !== undefined ? [{ abortSignal: options.signal }] : []),
+          );
+        } catch (error: unknown) {
+          throw this.wrapAwsError('GetQueryResults', profile, queryId, error);
+        }
 
-      const status = response.status;
-      if (status === 'Complete') {
-        const queryResult =
-          options.paginateResults === true
-            ? await this.collectCompleteQueryResults(client, profile, queryId, logGroups, response, options)
-            : this.buildSinglePageQueryResult(queryId, profile, logGroups, response);
-        return {
-          type: 'success',
-          value: queryResult,
-        };
+        const status = response.status;
+        if (status === 'Complete') {
+          const queryResult =
+            options.paginateResults === true
+              ? await this.collectCompleteQueryResults(client, profile, queryId, logGroups, response, options)
+              : this.buildSinglePageQueryResult(queryId, profile, logGroups, response);
+          return {
+            type: 'success',
+            value: queryResult,
+          };
+        }
+        if (status !== undefined && FAILURE_STATUSES.has(status)) {
+          return {
+            type: 'failure',
+            error: new Error(`CloudWatch Logs query ${status}: ${queryId} (profile: ${profile})`),
+            reason: status,
+          };
+        }
+        // Scheduled | Running | Unknown → continue.
+        return { type: 'continue', ...(status !== undefined ? { reason: status } : {}) };
+      });
+    } catch (error: unknown) {
+      if (options.signal?.aborted === true) {
+        const warning = await registered.stop();
+        if (warning !== undefined) options.onCleanupWarning?.(warning);
       }
-      if (status !== undefined && FAILURE_STATUSES.has(status)) {
-        return {
-          type: 'failure',
-          error: new Error(`CloudWatch Logs query ${status}: ${queryId} (profile: ${profile})`),
-          reason: status,
-        };
-      }
-      // Scheduled | Running | Unknown → continue.
-      return { type: 'continue', ...(status !== undefined ? { reason: status } : {}) };
-    });
+      throw error;
+    } finally {
+      registered.unregister();
+    }
   }
 
   private buildSinglePageQueryResult(
@@ -266,9 +380,12 @@ export class AWSCloudWatchLogsService {
         throw new Error(`CloudWatch Logs GetQueryResults exceeded ${maxPages} pages for queryId ${queryId}`);
       }
 
-      let page;
+      let page: GetQueryResultsCommandOutput;
       try {
-        page = await client.send(new GetQueryResultsCommand({ queryId, nextToken, maxItems: pageSize }));
+        page = await client.send(
+          new GetQueryResultsCommand({ queryId, nextToken, maxItems: pageSize }),
+          ...(options.signal !== undefined ? [{ abortSignal: options.signal }] : []),
+        );
       } catch (error: unknown) {
         throw this.wrapAwsError('GetQueryResults', profile, queryId, error);
       }
@@ -321,20 +438,22 @@ export class AWSCloudWatchLogsService {
     query: string,
     timeRange: AWSCloudWatchLogsTimeRange,
     signal?: AbortSignal,
+    useIdentifiers: boolean = false,
   ): Promise<string> {
     if (signal?.aborted === true) {
       throw new Error('CloudWatch Logs query aborted before start');
     }
 
-    let startQueryResponse;
+    let startQueryResponse: StartQueryCommandOutput;
     try {
       startQueryResponse = await client.send(
         new StartQueryCommand({
-          logGroupNames: [...logGroups],
+          ...(useIdentifiers ? { logGroupIdentifiers: [...logGroups] } : { logGroupNames: [...logGroups] }),
           queryString: query,
           startTime: Math.floor(timeRange.start.getTime() / 1000),
           endTime: Math.floor(timeRange.end.getTime() / 1000),
         }),
+        ...(signal !== undefined ? [{ abortSignal: signal }] : []),
       );
     } catch (error: unknown) {
       throw this.wrapAwsError('StartQuery', profile, undefined, error);
@@ -353,6 +472,20 @@ export class AWSCloudWatchLogsService {
     const profileSuffix = ` (profile: ${profile})`;
 
     if (error instanceof CloudWatchLogsServiceException) {
+      if (error.name === 'AccessDeniedException') {
+        return configurationError(
+          'OAM_ACCESS_DENIED',
+          `CloudWatch Logs ${operation} access denied${idSuffix}${profileSuffix}`,
+          error,
+        );
+      }
+      if (error.name === 'ResourceNotFoundException') {
+        return configurationError(
+          'LOG_GROUP_NOT_FOUND',
+          `CloudWatch Logs ${operation} log group not found${idSuffix}${profileSuffix}`,
+          error,
+        );
+      }
       return new Error(
         `CloudWatch Logs ${operation} failed: [${error.name}] ${error.message}${idSuffix}${profileSuffix}`,
         { cause: error },
@@ -507,4 +640,47 @@ function getRowTimestamp(row: ReadonlyArray<ResultField>): number | undefined {
   if (raw === undefined) return undefined;
   const timestamp = Date.parse(raw);
   return Number.isNaN(timestamp) ? undefined : timestamp;
+}
+
+const CONFIGURATION_ERROR_CODES: ReadonlySet<string> = new Set([
+  'OAM_ACCESS_DENIED',
+  'LOG_GROUP_NOT_FOUND',
+  'OAM_REGION_MISMATCH',
+  'INVALID_OAM_TARGET',
+]);
+
+function validateTarget(target: AWSCloudWatchLogsTarget): void {
+  if (!/^[a-z]{2}(?:-gov)?-[a-z]+-\d$/.test(target.region)) {
+    throw configurationError('INVALID_OAM_TARGET', `Invalid AWS region: ${target.region}`);
+  }
+  if (target.accountId !== undefined && !/^\d{12}$/.test(target.accountId)) {
+    throw configurationError('INVALID_OAM_TARGET', `Invalid AWS account id: ${target.accountId}`);
+  }
+}
+
+function toLogGroupIdentifier(logGroup: string, target: AWSCloudWatchLogsTarget): string {
+  const trimmed = logGroup.trim();
+  if (trimmed === '') {
+    throw configurationError('INVALID_OAM_TARGET', 'CloudWatch Logs log group cannot be empty');
+  }
+  if (trimmed.startsWith('arn:')) {
+    const arnMatch = /^arn:aws:logs:([^:]+):(\d{12}):log-group:(.+)$/.exec(trimmed);
+    if (arnMatch?.[1] !== target.region || arnMatch[2] !== target.accountId) {
+      throw configurationError('INVALID_OAM_TARGET', `Log group ARN is outside the execution target: ${trimmed}`);
+    }
+    return trimmed;
+  }
+  if (target.accountId === undefined) {
+    return trimmed;
+  }
+  return `arn:aws:logs:${target.region}:${target.accountId}:log-group:${trimmed}`;
+}
+
+function configurationError(
+  code: AWSCloudWatchLogsConfigurationErrorCode,
+  message: string,
+  cause?: unknown,
+): AWSCloudWatchLogsConfigurationError {
+  const error = cause === undefined ? new Error(message) : new Error(message, { cause });
+  return Object.assign(error, { code });
 }

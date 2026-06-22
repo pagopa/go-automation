@@ -1,77 +1,31 @@
-/**
- * HTTP Client for PN API requests (Optimized) - Node.js built-in fetch with Undici
- *
- * This client provides a type-safe HTTP client with optional proxy support
- * for debugging purposes (e.g., Proxyman, Charles Proxy).
- *
- * @example
- * ```typescript
- * // Basic usage without proxy
- * const client = new GOHttpClient({
- *   baseUrl: 'https://api.example.com',
- *   timeout: 30000,
- * });
- *
- * // With proxy for debugging
- * const debugClient = new GOHttpClient({
- *   baseUrl: 'https://api.example.com',
- *   proxyUrl: 'http://127.0.0.1:9090',
- *   debug: true,
- * });
- * ```
- */
-
 import { ProxyAgent } from 'undici';
 import type { Dispatcher } from 'undici';
 
 import { GOEventEmitterBase } from '../events/GOEventEmitterBase.js';
-import { formatBytes } from '../utils/GOByteFormatter.js';
 
 import type { GOAbortableRequest } from './GOAbortableRequest.js';
 import type { GOHttpClientConfig } from './GOHttpClientConfig.js';
 import { GOHttpClientError } from './GOHttpClientError.js';
 import type { GOHttpClientEventMap } from './GOHttpClientEvents.js';
+import type { GOHttpRequestOptions, GOHttpResponse, GOHttpRetryPolicy } from './GOHttpRequestOptions.js';
 
-/** HTTP method type for type-safe method handling */
-type HttpMethod = 'GET' | 'POST' | 'PUT';
-
-/**
- * Type for the request body that can be sent via fetch.
- * Includes standard BodyInit types plus Buffer for Node.js compatibility.
- */
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH';
+type ResponseMode = 'body' | 'headers';
 type RequestBody = string | Uint8Array | ArrayBuffer | Blob | FormData | URLSearchParams;
 
-/**
- * Base HTTP client with event emission and optional proxy support.
- *
- * Features:
- * - Type-safe request/response handling
- * - Event emission for request lifecycle
- * - Configurable timeout with AbortController
- * - Optional proxy support for debugging
- * - Automatic JSON serialization/deserialization
- *
- * @example
- * ```typescript
- * const client = new GOHttpClient({
- *   baseUrl: 'https://api.example.com',
- *   defaultHeaders: { 'Authorization': 'Bearer token' },
- *   timeout: 30000,
- *   proxyUrl: process.env.DEBUG_PROXY_URL, // Optional
- * });
- *
- * // Simple GET request
- * const data = await client.get<UserResponse>('/users/123');
- *
- * // POST with body
- * const created = await client.post<User>('/users', { name: 'John' });
- *
- * // Abortable request
- * const request = client.getAbortable<Data>('/slow-endpoint');
- * setTimeout(() => request.abort(), 5000);
- * const result = await request.promise;
- * ```
- */
+const MUTATION_METHODS: ReadonlySet<HttpMethod> = new Set(['POST', 'PUT', 'PATCH']);
+const EXPECTED_RETRY_STATUSES: readonly [408, 429, 500, 502, 503, 504] = [408, 429, 500, 502, 503, 504];
+const SENSITIVE_HEADER_NAMES: ReadonlySet<string> = new Set([
+  'authorization',
+  'cookie',
+  'set-cookie',
+  'x-api-key',
+  'proxy-authorization',
+  'idempotency-key',
+]);
+const SENSITIVE_FIELD_PATTERN = /(?:password|secret|token|authorization|cookie|api.?key|idempotency.?key)/i;
+
+/** HTTP client with explicit retry semantics and redacted lifecycle events. */
 export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
   private readonly baseUrl: string;
   private readonly defaultHeaders: Record<string, string>;
@@ -83,348 +37,475 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
     super();
     this.baseUrl = config.baseUrl;
     this.defaultHeaders = config.defaultHeaders ?? {};
-    this.timeout = config.timeout ?? 30000;
+    this.timeout = config.timeout ?? 30_000;
     this.debug = config.debug ?? false;
+    this.proxyAgent =
+      config.proxyUrl !== undefined && config.proxyUrl.length > 0 ? new ProxyAgent(config.proxyUrl) : undefined;
+  }
 
-    // Initialize proxy agent only if proxyUrl is provided
-    if (config.proxyUrl !== undefined && config.proxyUrl.length > 0) {
-      this.proxyAgent = new ProxyAgent(config.proxyUrl);
-      if (this.debug) {
-        this.logDebug(`Proxy enabled: ${config.proxyUrl}`);
+  async get<T>(path: string, headers?: Record<string, string>, options?: GOHttpRequestOptions): Promise<T> {
+    return (await this.getWithMetadata<T>(path, headers, options)).data;
+  }
+
+  async getWithMetadata<T>(
+    path: string,
+    headers?: Record<string, string>,
+    options?: GOHttpRequestOptions,
+  ): Promise<GOHttpResponse<T>> {
+    return this.executeRequest<T>('GET', path, undefined, headers, options, false, 'body').promise;
+  }
+
+  async post<T>(
+    path: string,
+    body?: unknown,
+    headers?: Record<string, string>,
+    options?: GOHttpRequestOptions,
+  ): Promise<T> {
+    return (await this.postWithMetadata<T>(path, body, headers, options)).data;
+  }
+
+  async postWithMetadata<T>(
+    path: string,
+    body?: unknown,
+    headers?: Record<string, string>,
+    options?: GOHttpRequestOptions,
+  ): Promise<GOHttpResponse<T>> {
+    return this.executeRequest<T>('POST', path, body, headers, options, false, 'body').promise;
+  }
+
+  async patch<T>(
+    path: string,
+    body?: unknown,
+    headers?: Record<string, string>,
+    options?: GOHttpRequestOptions,
+  ): Promise<T> {
+    return (await this.patchWithMetadata<T>(path, body, headers, options)).data;
+  }
+
+  async patchWithMetadata<T>(
+    path: string,
+    body?: unknown,
+    headers?: Record<string, string>,
+    options?: GOHttpRequestOptions,
+  ): Promise<GOHttpResponse<T>> {
+    return this.executeRequest<T>('PATCH', path, body, headers, options, false, 'body').promise;
+  }
+
+  async put(
+    url: string,
+    body: Buffer | string,
+    headers?: Record<string, string>,
+    options?: GOHttpRequestOptions,
+  ): Promise<Record<string, string>> {
+    return (await this.putWithMetadata(url, body, headers, options)).data;
+  }
+
+  async putWithMetadata(
+    url: string,
+    body: Buffer | string,
+    headers?: Record<string, string>,
+    options?: GOHttpRequestOptions,
+  ): Promise<GOHttpResponse<Record<string, string>>> {
+    return this.executeRequest<Record<string, string>>('PUT', url, body, headers, options, true, 'headers').promise;
+  }
+
+  getAbortable<T>(
+    path: string,
+    headers?: Record<string, string>,
+    options?: GOHttpRequestOptions,
+  ): GOAbortableRequest<T> {
+    return stripMetadata(this.executeRequest<T>('GET', path, undefined, headers, options, false, 'body'));
+  }
+
+  postAbortable<T>(
+    path: string,
+    body?: unknown,
+    headers?: Record<string, string>,
+    options?: GOHttpRequestOptions,
+  ): GOAbortableRequest<T> {
+    return stripMetadata(this.executeRequest<T>('POST', path, body, headers, options, false, 'body'));
+  }
+
+  patchAbortable<T>(
+    path: string,
+    body?: unknown,
+    headers?: Record<string, string>,
+    options?: GOHttpRequestOptions,
+  ): GOAbortableRequest<T> {
+    return stripMetadata(this.executeRequest<T>('PATCH', path, body, headers, options, false, 'body'));
+  }
+
+  putAbortable(
+    url: string,
+    body: Buffer | string,
+    headers?: Record<string, string>,
+    options?: GOHttpRequestOptions,
+  ): GOAbortableRequest<Record<string, string>> {
+    return stripMetadata(
+      this.executeRequest<Record<string, string>>('PUT', url, body, headers, options, true, 'headers'),
+    );
+  }
+
+  private executeRequest<T>(
+    method: HttpMethod,
+    urlOrPath: string,
+    body: unknown,
+    headers: Record<string, string> | undefined,
+    options: GOHttpRequestOptions | undefined,
+    isFullUrl: boolean,
+    responseMode: ResponseMode,
+  ): GOAbortableRequest<GOHttpResponse<T>> {
+    const controller = new AbortController();
+    const url = isFullUrl ? urlOrPath : this.buildUrl(urlOrPath);
+    const retryPolicy = options?.retryPolicy;
+    validateRetryPolicy(method, retryPolicy, body);
+    const mergedHeaders = this.mergeHeaders(headers, retryPolicy);
+    rejectContentLength(mergedHeaders);
+    const preparedBody = prepareRequestBody(body);
+    const maxAttempts = retryPolicy === undefined ? 1 : (options?.attemptBudget ?? retryPolicy.maxAttempts);
+    const startedAt = Date.now();
+    const deadlineAt = Math.min(options?.deadlineAtMs ?? Number.POSITIVE_INFINITY, startedAt + this.timeout);
+
+    const promise = this.runAttempts<T>({
+      method,
+      url,
+      body,
+      preparedBody,
+      headers: mergedHeaders,
+      options,
+      retryPolicy,
+      maxAttempts,
+      deadlineAt,
+      controller,
+      responseMode,
+    });
+
+    return { promise, abort: (): void => controller.abort(), controller };
+  }
+
+  private async runAttempts<T>(request: PreparedRequest): Promise<GOHttpResponse<T>> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= request.maxAttempts; attempt += 1) {
+      const remainingMs = request.deadlineAt - Date.now();
+      if (remainingMs <= 0) {
+        throw withAttempts(lastError ?? new GOHttpClientError('HTTP request deadline exhausted'), attempt - 1);
+      }
+
+      try {
+        const data = await this.runSingleAttempt<T>(request, attempt, remainingMs);
+        return { data, attemptsUsed: attempt };
+      } catch (error: unknown) {
+        lastError = error;
+        if (!shouldRetry(error, request, attempt)) {
+          throw withAttempts(error, attempt);
+        }
+
+        const delayMs = retryDelayMs(error, attempt, request.retryPolicy);
+        const remainingAfterAttempt = request.deadlineAt - Date.now();
+        if (delayMs >= remainingAfterAttempt) {
+          throw withAttempts(error, attempt);
+        }
+        await sleep(delayMs, request.controller.signal, request.options?.signal);
       }
     }
+    throw withAttempts(lastError ?? new GOHttpClientError('HTTP request failed'), request.maxAttempts);
   }
 
-  /**
-   * Logs debug messages when debug mode is enabled.
-   * Uses structured format for consistent output.
-   */
-  private logDebug(message: string, data?: unknown): void {
-    if (!this.debug) {
-      return;
-    }
+  private async runSingleAttempt<T>(request: PreparedRequest, attempt: number, remainingMs: number): Promise<T> {
+    const attemptStartedAt = Date.now();
+    const timeoutController = new AbortController();
+    const timeout = setTimeout(() => timeoutController.abort(), remainingMs);
+    const signal = AbortSignal.any(
+      [request.controller.signal, request.options?.signal, timeoutController.signal].filter(
+        (candidate): candidate is AbortSignal => candidate !== undefined,
+      ),
+    );
 
-    if (data !== undefined) {
-      // Using process.stdout for non-blocking output
-      process.stdout.write(`[HTTP] ${message}: ${JSON.stringify(data, null, 2)}\n`);
-    } else {
-      process.stdout.write(`[HTTP] ${message}\n`);
+    this.emit('http:request:started', {
+      method: request.method,
+      url: request.url,
+      headers: redactHeaders(request.headers),
+      ...(request.body === undefined ? {} : { body: redactValue(request.body) }),
+    });
+    this.logDebug(`${request.method} ${request.url} attempt ${attempt}/${request.maxAttempts}`);
+
+    try {
+      const response = await fetch(request.url, this.fetchOptions(request, signal));
+      const duration = Date.now() - attemptStartedAt;
+      if (request.responseMode === 'headers') {
+        if (!response.ok) {
+          throw await responseError(response, attempt);
+        }
+        const responseHeaders = extractHeaders(response);
+        this.emitResponse(request, response, responseHeaders, duration);
+        return responseHeaders as T;
+      }
+
+      const result = await parseResponse<T>(response, attempt);
+      this.emitResponse(request, response, result, duration);
+      return result;
+    } catch (error: unknown) {
+      const duration = Date.now() - attemptStartedAt;
+      const normalized = normalizeTransportError(error, attempt);
+      this.emit('http:request:error', {
+        method: request.method,
+        url: request.url,
+        error: sanitizedEventError(normalized),
+        status: normalized.statusCode,
+        duration,
+      });
+      throw normalized;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
-  /**
-   * Builds the full URL from a path.
-   * Ensures the base URL has a protocol prefix.
-   */
+  private fetchOptions(request: PreparedRequest, signal: AbortSignal): RequestInit {
+    const base: RequestInit = {
+      method: request.method,
+      headers: request.headers,
+      signal,
+      ...(request.preparedBody !== undefined && MUTATION_METHODS.has(request.method)
+        ? { body: request.preparedBody }
+        : {}),
+    };
+    return this.proxyAgent === undefined ? base : ({ ...base, dispatcher: this.proxyAgent } as unknown as RequestInit);
+  }
+
+  private emitResponse<T>(request: PreparedRequest, response: Response, data: T, duration: number): void {
+    this.emit('http:response:received', {
+      method: request.method,
+      url: request.url,
+      status: response.status,
+      statusText: response.statusText,
+      headers: redactHeaders(extractHeaders(response)),
+      data: redactValue(data),
+      duration,
+    });
+  }
+
   private buildUrl(path: string): string {
     const base = this.baseUrl.startsWith('http') ? this.baseUrl : `https://${this.baseUrl}`;
     return `${base}${path}`;
   }
 
-  /**
-   * Merges default headers with request-specific headers.
-   * Request headers take precedence over defaults.
-   */
-  private mergeHeaders(additionalHeaders?: Record<string, string>): Record<string, string> {
-    return {
-      ...this.defaultHeaders,
-      ...additionalHeaders,
-    };
-  }
-
-  /**
-   * Handles the HTTP response, parsing JSON when appropriate.
-   * Throws GOHttpClientError for non-2xx responses.
-   */
-  private async handleResponse<T>(response: Response): Promise<T> {
-    this.logDebug(
-      `Response status: ${response.status} (content-type: ${response.headers.get('content-type') ?? 'none'})`,
-    );
-
-    const contentType = response.headers.get('content-type');
-    // Match any JSON media type: application/json, application/problem+json,
-    // text/json, with or without parameters (e.g. "; charset=utf-8")
-    const isJson = contentType !== null && /[/+]json\b/i.test(contentType);
-
-    let responseData: unknown;
-    if (isJson) {
-      responseData = await response.json();
-    } else {
-      responseData = await response.text();
+  private mergeHeaders(
+    additionalHeaders: Record<string, string> | undefined,
+    retryPolicy: GOHttpRetryPolicy | undefined,
+  ): Record<string, string> {
+    const headers = { ...this.defaultHeaders, ...additionalHeaders };
+    if (retryPolicy !== undefined) {
+      const existing = headerValue(headers, 'idempotency-key');
+      if (existing !== undefined && existing !== retryPolicy.idempotencyKey) {
+        throw new Error('Idempotency-Key header does not match retryPolicy.idempotencyKey');
+      }
+      headers['Idempotency-Key'] = retryPolicy.idempotencyKey;
     }
-
-    if (!response.ok) {
-      throw new GOHttpClientError(`HTTP ${response.status}: ${response.statusText}`, response.status, responseData);
-    }
-
-    return responseData as T;
-  }
-
-  /**
-   * Extracts headers from Response object into a plain object.
-   */
-  private extractHeaders(response: Response): Record<string, string> {
-    const headers: Record<string, string> = {};
-    response.headers.forEach((value, key) => {
-      headers[key] = value;
-    });
     return headers;
   }
 
-  /**
-   * Formats the request body for logging purposes.
-   * Handles Buffer, string, and object types.
-   */
-  private formatBodyForLog(body: unknown): string {
-    if (Buffer.isBuffer(body)) {
-      return `Buffer(${formatBytes(body.length)})`;
-    }
-    if (typeof body === 'string') {
-      return `String(${body.length} chars)`;
-    }
-    return JSON.stringify(body, null, 2);
+  private logDebug(message: string): void {
+    if (this.debug) process.stdout.write(`[HTTP] ${message}\n`);
   }
+}
 
-  /**
-   * Converts the body to a format suitable for fetch.
-   * Handles Buffer, string, and object serialization.
-   */
-  private prepareRequestBody(body: unknown): RequestBody | undefined {
-    if (body === undefined) {
-      return undefined;
-    }
+interface PreparedRequest {
+  readonly method: HttpMethod;
+  readonly url: string;
+  readonly body: unknown;
+  readonly preparedBody: RequestBody | undefined;
+  readonly headers: Record<string, string>;
+  readonly options: GOHttpRequestOptions | undefined;
+  readonly retryPolicy: GOHttpRetryPolicy | undefined;
+  readonly maxAttempts: number;
+  readonly deadlineAt: number;
+  readonly controller: AbortController;
+  readonly responseMode: ResponseMode;
+}
 
-    if (Buffer.isBuffer(body)) {
-      // Buffer is a Uint8Array subclass, which is valid BodyInit
-      return body;
-    }
+function stripMetadata<T>(request: GOAbortableRequest<GOHttpResponse<T>>): GOAbortableRequest<T> {
+  return {
+    promise: request.promise.then((response) => response.data),
+    abort: request.abort,
+    controller: request.controller,
+  };
+}
 
-    if (typeof body === 'string') {
-      return body;
-    }
-
-    // Serialize objects to JSON
-    return JSON.stringify(body);
+function validateRetryPolicy(method: HttpMethod, policy: GOHttpRetryPolicy | undefined, body: unknown): void {
+  if (policy === undefined) return;
+  if (
+    policy.enabled !== true ||
+    policy.maxAttempts !== 3 ||
+    policy.respectRetryAfter !== true ||
+    policy.maxRetryAfterMs !== 15_000 ||
+    policy.idempotencyKey.trim() === '' ||
+    !sameStatuses(policy.retryableStatuses)
+  ) {
+    throw new Error('Invalid GOHttpRetryPolicy');
   }
-
-  /**
-   * Executes an HTTP request with full lifecycle management.
-   *
-   * @param method - HTTP method (GET, POST, PUT)
-   * @param urlOrPath - URL path (relative) or full URL (for PUT)
-   * @param body - Request body (for POST/PUT)
-   * @param headers - Additional headers
-   * @param isFullUrl - Whether urlOrPath is a complete URL
-   * @returns Abortable request object
-   */
-  private executeRequest<T>(
-    method: HttpMethod,
-    urlOrPath: string,
-    body?: unknown,
-    headers?: Record<string, string>,
-    isFullUrl: boolean = false,
-  ): GOAbortableRequest<T> {
-    const url = isFullUrl ? urlOrPath : this.buildUrl(urlOrPath);
-    const mergedHeaders = this.mergeHeaders(headers);
-    const startTime = Date.now();
-
-    this.emit('http:request:started', { method, url, headers: mergedHeaders, body });
-
-    if (this.debug) {
-      this.logDebug(`${method} ${url}`);
-      if (body !== undefined && (method === 'POST' || method === 'PUT')) {
-        this.logDebug('Body', this.formatBodyForLog(body));
-      }
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-    const promise = (async (): Promise<T> => {
-      try {
-        // Build the request options
-        // Note: The dispatcher property is supported by Node.js built-in fetch (undici)
-        // but not included in the standard RequestInit type, so we need to cast
-        const baseOptions: RequestInit = {
-          method,
-          headers: mergedHeaders,
-          signal: controller.signal,
-        };
-
-        // Add body for POST/PUT requests
-        if (body !== undefined && (method === 'POST' || method === 'PUT')) {
-          const preparedBody = this.prepareRequestBody(body);
-          if (preparedBody !== undefined) {
-            baseOptions.body = preparedBody;
-          }
-        }
-
-        // Add proxy dispatcher if configured
-        // The dispatcher property is a valid undici option that Node.js fetch supports
-        // but it's not part of the standard RequestInit type definition
-        let fetchOptions: RequestInit;
-        if (this.proxyAgent !== undefined) {
-          // Cast through unknown to avoid type conflict between undici's Dispatcher
-          // and the global RequestInit type. Node.js built-in fetch (powered by undici)
-          // fully supports the dispatcher option for proxying requests.
-          fetchOptions = {
-            ...baseOptions,
-            dispatcher: this.proxyAgent,
-          } as unknown as RequestInit;
-        } else {
-          fetchOptions = baseOptions;
-        }
-
-        const response = await fetch(url, fetchOptions);
-        const duration = Date.now() - startTime;
-
-        if (method === 'PUT') {
-          if (!response.ok) {
-            const error = new GOHttpClientError(`HTTP ${response.status}: ${response.statusText}`, response.status);
-            this.emit('http:request:error', {
-              method,
-              url,
-              error,
-              status: response.status,
-              duration,
-            });
-            throw error;
-          }
-
-          const responseHeaders = this.extractHeaders(response);
-
-          this.emit('http:response:received', {
-            method,
-            url,
-            status: response.status,
-            statusText: response.statusText,
-            headers: responseHeaders,
-            data: undefined,
-            duration,
-          });
-
-          // PUT consumers (e.g. S3 presigned uploads) need response headers
-          // such as x-amz-version-id; the body is not parsed
-          return responseHeaders as T;
-        }
-
-        const result = await this.handleResponse<T>(response);
-
-        this.emit('http:response:received', {
-          method,
-          url,
-          status: response.status,
-          statusText: response.statusText,
-          headers: this.extractHeaders(response),
-          data: result,
-          duration,
-        });
-
-        return result;
-      } catch (error) {
-        const duration = Date.now() - startTime;
-
-        if (error instanceof Error && error.name === 'AbortError') {
-          const abortError = new GOHttpClientError('Request aborted');
-          this.emit('http:request:error', { method, url, error: abortError, duration });
-          throw abortError;
-        }
-
-        if (error instanceof Error) {
-          this.emit('http:request:error', {
-            method,
-            url,
-            error,
-            status: error instanceof GOHttpClientError ? error.statusCode : undefined,
-            duration,
-          });
-        }
-
-        throw error;
-      } finally {
-        clearTimeout(timeoutId);
-      }
-    })();
-
-    return {
-      promise,
-      abort: (): void => controller.abort(),
-      controller,
-    };
+  if (MUTATION_METHODS.has(method) && policy.idempotencyKey.trim() === '') {
+    throw new Error(`${method} retry requires a non-empty idempotency key`);
   }
-
-  /**
-   * Performs a GET request.
-   *
-   * @param path - API path (relative to baseUrl)
-   * @param headers - Additional request headers
-   * @returns Promise resolving to the response data
-   */
-  async get<T>(path: string, headers?: Record<string, string>): Promise<T> {
-    return this.getAbortable<T>(path, headers).promise;
+  if (isNonReplayableBody(body)) {
+    throw new Error('Retry requires a replayable, materialized request body');
   }
+}
 
-  /**
-   * Performs a POST request.
-   *
-   * @param path - API path (relative to baseUrl)
-   * @param body - Request body (will be JSON serialized if object)
-   * @param headers - Additional request headers
-   * @returns Promise resolving to the response data
-   */
-  async post<T>(path: string, body?: unknown, headers?: Record<string, string>): Promise<T> {
-    return this.postAbortable<T>(path, body, headers).promise;
-  }
+function sameStatuses(statuses: ReadonlyArray<number>): boolean {
+  return (
+    statuses.length === EXPECTED_RETRY_STATUSES.length &&
+    statuses.every((status, index) => status === EXPECTED_RETRY_STATUSES[index])
+  );
+}
 
-  /**
-   * Performs a PUT request (typically for S3 uploads).
-   *
-   * @param url - Full URL (not relative path)
-   * @param body - Request body (Buffer or string)
-   * @param headers - Additional request headers
-   * @returns Promise resolving to the response headers (lowercase names),
-   *   e.g. x-amz-version-id for S3 presigned uploads
-   */
-  async put(url: string, body: Buffer | string, headers?: Record<string, string>): Promise<Record<string, string>> {
-    return this.putAbortable(url, body, headers).promise;
-  }
+function isNonReplayableBody(body: unknown): boolean {
+  if (body instanceof ReadableStream) return true;
+  return typeof body === 'object' && body !== null && 'pipe' in body && typeof body.pipe === 'function';
+}
 
-  /**
-   * Performs an abortable GET request.
-   *
-   * @param path - API path (relative to baseUrl)
-   * @param headers - Additional request headers
-   * @returns Abortable request object
-   */
-  getAbortable<T>(path: string, headers?: Record<string, string>): GOAbortableRequest<T> {
-    return this.executeRequest<T>('GET', path, undefined, headers);
+function prepareRequestBody(body: unknown): RequestBody | undefined {
+  if (body === undefined) return undefined;
+  if (Buffer.isBuffer(body)) return body;
+  if (
+    typeof body === 'string' ||
+    body instanceof Uint8Array ||
+    body instanceof ArrayBuffer ||
+    body instanceof Blob ||
+    body instanceof FormData ||
+    body instanceof URLSearchParams
+  ) {
+    return body;
   }
+  return JSON.stringify(body);
+}
 
-  /**
-   * Performs an abortable POST request.
-   *
-   * @param path - API path (relative to baseUrl)
-   * @param body - Request body (will be JSON serialized if object)
-   * @param headers - Additional request headers
-   * @returns Abortable request object
-   */
-  postAbortable<T>(path: string, body?: unknown, headers?: Record<string, string>): GOAbortableRequest<T> {
-    return this.executeRequest<T>('POST', path, body, headers);
+function rejectContentLength(headers: Readonly<Record<string, string>>): void {
+  if (headerValue(headers, 'content-length') !== undefined) {
+    throw new Error('GOHttpClient does not accept Content-Length; fetch computes it automatically');
   }
+}
 
-  /**
-   * Performs an abortable PUT request.
-   *
-   * @param url - Full URL (not relative path)
-   * @param body - Request body (Buffer or string)
-   * @param headers - Additional request headers
-   * @returns Abortable request resolving to the response headers (lowercase names)
-   */
-  putAbortable(
-    url: string,
-    body: Buffer | string,
-    headers?: Record<string, string>,
-  ): GOAbortableRequest<Record<string, string>> {
-    return this.executeRequest<Record<string, string>>('PUT', url, body, headers, true);
+function headerValue(headers: Readonly<Record<string, string>>, name: string): string | undefined {
+  const entry = Object.entries(headers).find(([key]) => key.toLowerCase() === name);
+  return entry?.[1];
+}
+
+async function parseResponse<T>(response: Response, attempt: number): Promise<T> {
+  const contentType = response.headers.get('content-type');
+  const isJson = contentType !== null && /[/+]json\b/i.test(contentType);
+  const data: unknown = isJson ? await response.json() : await response.text();
+  if (!response.ok) throw createResponseError(response, data, attempt);
+  return data as T;
+}
+
+async function responseError(response: Response, attempt: number): Promise<GOHttpClientError> {
+  const body = await response.text();
+  return createResponseError(response, body, attempt);
+}
+
+function createResponseError(response: Response, data: unknown, attempt: number): GOHttpClientError {
+  return new GOHttpClientError(
+    `HTTP ${response.status}: ${response.statusText}`,
+    response.status,
+    data,
+    attempt,
+    parseRetryAfter(response.headers.get('retry-after')),
+  );
+}
+
+function parseRetryAfter(value: string | null): number | undefined {
+  if (value === null) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.round(seconds * 1_000);
+  const date = Date.parse(value);
+  return Number.isNaN(date) ? undefined : Math.max(0, date - Date.now());
+}
+
+function shouldRetry(error: unknown, request: PreparedRequest, attempt: number): boolean {
+  if (request.retryPolicy === undefined || attempt >= request.maxAttempts) return false;
+  if (request.controller.signal.aborted || request.options?.signal?.aborted === true) return false;
+  if (error instanceof GOHttpClientError && error.statusCode !== undefined) {
+    return request.retryPolicy.retryableStatuses.includes(error.statusCode as never);
   }
+  return error instanceof GOHttpClientError && error.statusCode === undefined;
+}
+
+function retryDelayMs(error: unknown, attempt: number, policy: GOHttpRetryPolicy | undefined): number {
+  if (policy === undefined) return 0;
+  if (error instanceof GOHttpClientError && error.retryAfterMs !== undefined) {
+    return Math.min(error.retryAfterMs, policy.maxRetryAfterMs);
+  }
+  const exponential = 100 * 2 ** (attempt - 1);
+  return Math.round(exponential * (0.5 + Math.random()));
+}
+
+function normalizeTransportError(error: unknown, attempt: number): GOHttpClientError {
+  if (error instanceof GOHttpClientError) return error;
+  if (error instanceof Error && error.name === 'AbortError') {
+    return new GOHttpClientError('Request aborted', undefined, undefined, attempt);
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return new GOHttpClientError(`HTTP transport error: ${message}`, undefined, undefined, attempt);
+}
+
+function withAttempts(error: unknown, attemptsUsed: number): GOHttpClientError {
+  if (error instanceof GOHttpClientError) {
+    return new GOHttpClientError(error.message, error.statusCode, error.response, attemptsUsed, error.retryAfterMs);
+  }
+  return normalizeTransportError(error, attemptsUsed);
+}
+
+async function sleep(ms: number, internalSignal: AbortSignal, externalSignal: AbortSignal | undefined): Promise<void> {
+  if (ms <= 0) return;
+  const signal = AbortSignal.any(
+    [internalSignal, externalSignal].filter((candidate): candidate is AbortSignal => candidate !== undefined),
+  );
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        reject(new GOHttpClientError('Request aborted'));
+      },
+      { once: true },
+    );
+  });
+}
+
+function extractHeaders(response: Response): Record<string, string> {
+  const headers: Record<string, string> = {};
+  response.headers.forEach((value, key) => {
+    headers[key] = value;
+  });
+  return headers;
+}
+
+function redactHeaders(headers: Readonly<Record<string, string>>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(headers).map(([key, value]) => [
+      key,
+      SENSITIVE_HEADER_NAMES.has(key.toLowerCase()) ? '[REDACTED]' : value,
+    ]),
+  );
+}
+
+function redactValue(value: unknown, seen: WeakSet<object> = new WeakSet<object>()): unknown {
+  if (Array.isArray(value)) return (value as unknown[]).map((item) => redactValue(item, seen));
+  if (typeof value !== 'object' || value === null) return value;
+  if (seen.has(value)) return '[CIRCULAR]';
+  seen.add(value);
+  if (value instanceof Uint8Array || value instanceof ArrayBuffer || value instanceof Blob) return '[BINARY]';
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+      key,
+      SENSITIVE_FIELD_PATTERN.test(key) ? '[REDACTED]' : redactValue(item, seen),
+    ]),
+  );
+}
+
+function sanitizedEventError(error: GOHttpClientError): Error {
+  const sanitized = new Error(error.message);
+  sanitized.name = error.name;
+  return sanitized;
 }

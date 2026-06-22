@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { GOHttpClient } from '../GOHttpClient.js';
 import { GOHttpClientError } from '../GOHttpClientError.js';
+import type { GOHttpRetryPolicy } from '../GOHttpRequestOptions.js';
 
 function stubFetch(response: Response): void {
   mock.method(globalThis, 'fetch', async (): Promise<Response> => {
@@ -13,6 +14,17 @@ function stubFetch(response: Response): void {
 
 function createClient(): GOHttpClient {
   return new GOHttpClient({ baseUrl: 'https://api.example.com', timeout: 5000 });
+}
+
+function retryPolicy(idempotencyKey: string = 'callback-key'): GOHttpRetryPolicy {
+  return {
+    enabled: true,
+    idempotencyKey,
+    maxAttempts: 3,
+    retryableStatuses: [408, 429, 500, 502, 503, 504],
+    respectRetryAfter: true,
+    maxRetryAfterMs: 15_000,
+  };
 }
 
 describe('GOHttpClient', () => {
@@ -70,5 +82,142 @@ describe('GOHttpClient', () => {
     stubFetch(new Response('denied', { status: 403, statusText: 'Forbidden' }));
 
     await assert.rejects(createClient().put('https://s3.example/presigned', Buffer.from('data')), /HTTP 403/);
+  });
+
+  it('does not retry a 503 when retryPolicy is absent', async () => {
+    let calls = 0;
+    mock.method(globalThis, 'fetch', async (): Promise<Response> => {
+      calls += 1;
+      return await Promise.resolve(new Response('unavailable', { status: 503 }));
+    });
+
+    await assert.rejects(createClient().get('/path'), /HTTP 503/);
+    assert.strictEqual(calls, 1);
+  });
+
+  it('retries PATCH with one materialized body and one idempotency key', async () => {
+    const bodies: string[] = [];
+    const keys: string[] = [];
+    let calls = 0;
+    mock.method(globalThis, 'fetch', async (_url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      calls += 1;
+      const body = init?.body;
+      if (typeof body !== 'string') throw new Error('Expected a materialized string request body');
+      bodies.push(body);
+      keys.push(new Headers(init?.headers).get('idempotency-key') ?? '');
+      return await Promise.resolve(
+        calls === 1
+          ? new Response('retry', { status: 503, headers: { 'Retry-After': '0' } })
+          : new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } }),
+      );
+    });
+
+    const result = await createClient().patchWithMetadata<{ ok: boolean }>(
+      '/lifecycle',
+      { attemptId: 'attempt-1' },
+      undefined,
+      { retryPolicy: retryPolicy() },
+    );
+
+    assert.deepStrictEqual(result, { data: { ok: true }, attemptsUsed: 2 });
+    assert.deepStrictEqual(bodies, ['{"attemptId":"attempt-1"}', '{"attemptId":"attempt-1"}']);
+    assert.deepStrictEqual(keys, ['callback-key', 'callback-key']);
+  });
+
+  it('never retries 401 and reports the consumed attempt', async () => {
+    let calls = 0;
+    mock.method(globalThis, 'fetch', async (): Promise<Response> => {
+      calls += 1;
+      return await Promise.resolve(new Response('unauthorized', { status: 401 }));
+    });
+
+    await assert.rejects(
+      createClient().postWithMetadata('/callback', {}, undefined, { retryPolicy: retryPolicy() }),
+      (error: unknown) => {
+        assert.ok(error instanceof GOHttpClientError);
+        assert.strictEqual(error.attemptsUsed, 1);
+        return true;
+      },
+    );
+    assert.strictEqual(calls, 1);
+  });
+
+  it('stops before Retry-After when the remaining deadline is insufficient', async () => {
+    let calls = 0;
+    mock.method(globalThis, 'fetch', async (): Promise<Response> => {
+      calls += 1;
+      return await Promise.resolve(new Response('rate limited', { status: 429, headers: { 'Retry-After': '120' } }));
+    });
+
+    await assert.rejects(
+      createClient().post('/callback', {}, undefined, {
+        retryPolicy: retryPolicy(),
+        deadlineAtMs: Date.now() + 50,
+      }),
+      /HTTP 429/,
+    );
+    assert.strictEqual(calls, 1);
+  });
+
+  it('propagates attemptsUsed after three retryable responses', async () => {
+    let calls = 0;
+    mock.method(globalThis, 'fetch', async (): Promise<Response> => {
+      calls += 1;
+      return await Promise.resolve(new Response('unavailable', { status: 503, headers: { 'Retry-After': '0' } }));
+    });
+
+    await assert.rejects(
+      createClient().postWithMetadata('/callback', {}, undefined, { retryPolicy: retryPolicy() }),
+      (error: unknown) => {
+        assert.ok(error instanceof GOHttpClientError);
+        assert.strictEqual(error.attemptsUsed, 3);
+        return true;
+      },
+    );
+    assert.strictEqual(calls, 3);
+  });
+
+  it('rejects non-replayable bodies and Content-Length before network access', async () => {
+    let calls = 0;
+    mock.method(globalThis, 'fetch', async (): Promise<Response> => {
+      calls += 1;
+      return await Promise.resolve(new Response(null, { status: 200 }));
+    });
+
+    await assert.rejects(
+      createClient().post('/callback', new ReadableStream(), undefined, { retryPolicy: retryPolicy() }),
+      /replayable/,
+    );
+    await assert.rejects(createClient().post('/callback', {}, { 'Content-Length': '2' }), /Content-Length/);
+    assert.strictEqual(calls, 0);
+  });
+
+  it('redacts sensitive request, response and idempotency fields before events', async () => {
+    stubFetch(
+      new Response('{"accessToken":"server-token","ok":true}', {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'set-cookie': 'refresh=secret' },
+      }),
+    );
+    const client = createClient();
+    const events: unknown[] = [];
+    client.on('http:request:started', (event) => {
+      events.push(event);
+    });
+    client.on('http:response:received', (event) => {
+      events.push(event);
+    });
+
+    await client.post(
+      '/callback',
+      { password: 'plain-secret', safe: 'visible' },
+      { Authorization: 'Bearer secret' },
+      { retryPolicy: retryPolicy('secret-key') },
+    );
+
+    const serialized = JSON.stringify(events);
+    assert.doesNotMatch(serialized, /plain-secret|Bearer secret|server-token|refresh=secret|secret-key/);
+    assert.match(serialized, /\[REDACTED\]/);
+    assert.match(serialized, /visible/);
   });
 });

@@ -6,6 +6,7 @@ import type { KnownCase } from '../types/KnownCase.js';
 import type { IfBranchConfig } from '../types/IfBranchConfig.js';
 import type { SwitchBranchConfig } from '../types/SwitchBranchConfig.js';
 import type { CaseAction } from '../actions/CaseAction.js';
+import type { CloudExecutionPolicy } from '../types/CloudExecutionPolicy.js';
 import type { ValidationErrorEntry } from '../validation/ValidationErrorEntry.js';
 import type { GoToReference } from '../validation/GoToGraphAnalyzer.js';
 import { RunbookValidationError } from '../validation/RunbookValidationError.js';
@@ -62,6 +63,7 @@ export class RunbookBuilder {
   private fallbackAction?: CaseAction;
   private iterationsLimit?: number;
   private structuredContext?: unknown;
+  private cloudPolicy?: CloudExecutionPolicy;
 
   private constructor(id: string) {
     this.id = id;
@@ -173,6 +175,12 @@ export class RunbookBuilder {
    */
   runbookContext(value: unknown): RunbookBuilder {
     this.structuredContext = value;
+    return this;
+  }
+
+  /** Declares the constraints required to execute this runbook in cloud workers. */
+  cloudExecutionPolicy(policy: CloudExecutionPolicy): RunbookBuilder {
+    this.cloudPolicy = policy;
     return this;
   }
 
@@ -303,6 +311,7 @@ export class RunbookBuilder {
       knownCases: [...this.cases],
       fallbackAction: this.fallbackAction, // Safe: validated in validate()
       ...(this.structuredContext !== undefined ? { runbookContext: this.structuredContext } : {}),
+      ...(this.cloudPolicy !== undefined ? { cloudExecutionPolicy: this.cloudPolicy } : {}),
     };
 
     if (this.iterationsLimit !== undefined) {

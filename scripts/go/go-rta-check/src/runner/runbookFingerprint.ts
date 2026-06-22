@@ -27,7 +27,7 @@ const CACHE_FINGERPRINT_VERSION = 1;
 const EXPECTED_OUTPUT_SCHEMA_VERSION = '1.0.0';
 
 /** AWS region used for in-process runbook execution (kept in sync with the call site). */
-export const EXECUTION_REGION = 'eu-south-1';
+const EXECUTION_REGION = 'eu-south-1';
 
 /** SHA-256 hex digest of a string. */
 function sha256(input: string): string {

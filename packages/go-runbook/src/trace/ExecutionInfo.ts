@@ -38,6 +38,8 @@ export interface ExecutionEnvironment {
   readonly awsProfiles: ReadonlyArray<string>;
   /** AWS region */
   readonly region: string;
+  /** Source AWS account queried by an execution-scoped OAM worker. */
+  readonly awsAccountId?: string;
   /** Runbook invocation mode */
   readonly invokedBy: 'manual' | 'alarm' | 'schedule';
 }

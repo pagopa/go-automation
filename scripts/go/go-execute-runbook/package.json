@@ -1,0 +1,39 @@
+{
+  "name": "go-execute-runbook",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./api": {
+      "types": "./dist/api.d.ts",
+      "default": "./dist/api.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
+    "./main": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "dev": "tsx src/index.ts",
+    "start": "pnpm build && node dist/index.js",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@go-automation/go-common": "workspace:*",
+    "@go-automation/go-runbook": "workspace:*",
+    "@go-automation/go-watchtower-client": "workspace:*",
+    "go-analyze-alarm": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

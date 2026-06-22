@@ -3,6 +3,7 @@ import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { RunbookHttpResponse } from '../../services/RunbookHttpService.js';
+import { throwIfRunbookAborted } from '../../core/throwIfRunbookAborted.js';
 
 /**
  * Configuration for the HTTP POST step.
@@ -60,10 +61,12 @@ class HttpPostStep implements Step<RunbookHttpResponse> {
    */
   async execute(context: RunbookContext): Promise<StepResult<RunbookHttpResponse>> {
     try {
+      throwIfRunbookAborted(context);
       const response = await context.services.http.request('POST', this.url, this.body, this.headers);
 
       return { success: true, output: response };
     } catch (error: unknown) {
+      if (context.signal?.aborted === true) throw error;
       const message = error instanceof Error ? error.message : String(error);
       return { success: false, error: `HTTP POST request failed: ${message}` };
     }

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pagopa.it/go-automation/runbook-automation/v1/execute-runbook-queue-registry-v1.schema.json",
+  "title": "ExecuteRunbookQueueRegistryV1",
+  "$comment": "revision is lowercase SHA-256 hex of compact UTF-8 JSON for {schemaVersion,publishedAt,queues}, recursively sorting object keys lexicographically, preserving array order, and excluding revision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "revision", "publishedAt", "queues"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "revision": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "publishedAt": { "type": "string", "format": "date-time" },
+    "queues": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z]{2}(-gov)?-[a-z]+-[0-9]$" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["queueUrl", "queueArn", "stackName", "messageRetentionSeconds"],
+        "properties": {
+          "queueUrl": {
+            "type": "string",
+            "pattern": "^https://sqs\\.[a-z0-9-]+\\.amazonaws\\.com/[0-9]{12}/go-execute-runbook-[a-z0-9-]+\\.fifo$"
+          },
+          "queueArn": {
+            "type": "string",
+            "pattern": "^arn:aws:sqs:[a-z0-9-]+:[0-9]{12}:go-execute-runbook-[a-z0-9-]+\\.fifo$"
+          },
+          "stackName": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "messageRetentionSeconds": { "type": "integer", "minimum": 60, "maximum": 1209600 }
+        }
+      }
+    }
+  }
+}

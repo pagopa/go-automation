@@ -1,6 +1,6 @@
 import type { Core } from '@go-automation/go-common';
 
-import type { AlarmEventDto } from '../types/WatchtowerDtos.js';
+import type { AlarmEventDto } from '@go-automation/go-watchtower-client';
 import type { RtaCheckRow } from '../types/RtaCheckReport.js';
 import { productEnvLabel, renderResultsHeader, renderResultsRow } from '../report/renderConsole.js';
 import { checkOccurrence } from './checkOccurrence.js';

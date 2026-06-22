@@ -3,7 +3,7 @@
  */
 export interface GOHttpClientRequestStartedEvent {
   /** HTTP method */
-  method: 'GET' | 'POST' | 'PUT';
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH';
   /** Request URL */
   url: string;
   /** Request headers */
@@ -17,7 +17,7 @@ export interface GOHttpClientRequestStartedEvent {
  */
 export interface GOHttpClientResponseReceivedEvent {
   /** HTTP method */
-  method: 'GET' | 'POST' | 'PUT';
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH';
   /** Request URL */
   url: string;
   /** HTTP status code */
@@ -37,7 +37,7 @@ export interface GOHttpClientResponseReceivedEvent {
  */
 export interface GOHttpClientRequestErrorEvent {
   /** HTTP method */
-  method: 'GET' | 'POST' | 'PUT';
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH';
   /** Request URL */
   url: string;
   /** Error that occurred */

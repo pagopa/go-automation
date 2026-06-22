@@ -1,15 +1,25 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { GetQueryExecutionCommand, GetQueryResultsCommand, StartQueryExecutionCommand } from '@aws-sdk/client-athena';
+import {
+  GetQueryExecutionCommand,
+  GetQueryResultsCommand,
+  StartQueryExecutionCommand,
+  StopQueryExecutionCommand,
+} from '@aws-sdk/client-athena';
 import type { AthenaClient } from '@aws-sdk/client-athena';
 
 import { AWSAthenaService } from '../AWSAthenaService.js';
 import type { GOSleeper } from '../../core/polling/index.js';
 
-type AthenaCommand = StartQueryExecutionCommand | GetQueryExecutionCommand | GetQueryResultsCommand;
+type AthenaCommand =
+  | StartQueryExecutionCommand
+  | GetQueryExecutionCommand
+  | GetQueryResultsCommand
+  | StopQueryExecutionCommand;
 
 type AthenaResponse =
+  | Record<string, never>
   | { readonly QueryExecutionId: string }
   | {
       readonly QueryExecution: {
@@ -45,6 +55,39 @@ function asAthenaClient(client: FakeAthenaClient): AthenaClient {
 }
 
 describe('AWSAthenaService', () => {
+  it('stops a remote Athena query once when execution is aborted', async () => {
+    const controller = new AbortController();
+    const fakeClient: FakeAthenaClient = {
+      commands: [],
+      async send(command) {
+        this.commands.push(command);
+        await Promise.resolve();
+        if (command instanceof StartQueryExecutionCommand) {
+          return { QueryExecutionId: 'exec-abort' };
+        }
+        if (command instanceof StopQueryExecutionCommand) {
+          return {};
+        }
+        if (command instanceof GetQueryExecutionCommand) {
+          controller.abort();
+          return { QueryExecution: { Status: { State: 'RUNNING' } } };
+        }
+        return { ResultSet: { Rows: [] } };
+      },
+    };
+    const service = new AWSAthenaService(asAthenaClient(fakeClient));
+
+    await assert.rejects(
+      service.executeQuery('db', 'select 1', {
+        signal: controller.signal,
+        maxPollAttempts: 2,
+        pollIntervalMs: 1,
+      }),
+    );
+
+    assert.strictEqual(fakeClient.commands.filter((command) => command instanceof StopQueryExecutionCommand).length, 1);
+  });
+
   it('executes a query, polls completion, and parses paginated result rows', async () => {
     const fakeClient: FakeAthenaClient = {
       commands: [],

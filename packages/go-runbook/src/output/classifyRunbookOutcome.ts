@@ -1,11 +1,7 @@
-import type { RunbookOutput, RunbookOutcome } from '@go-automation/go-runbook';
-import type { RunbookCheck } from '../types/RtaCheckReport.js';
+import type { RunbookOutcome } from './RunbookOutcome.js';
+import type { RunbookOutput } from './RunbookOutput.js';
+import type { ClassifiedRunbookCheck, RunbookCheck } from './RunbookCheck.js';
 
-/**
- * Lowercased substrings in an error message that indicate a **configuration**
- * problem (wrong log group / account / profile / permissions) rather than a
- * transient runtime failure. Drives the CONFIG-ERROR vs EXECUTION-ERROR split.
- */
 const CONFIG_ERROR_SIGNATURES: ReadonlyArray<string> = [
   'resourcenotfound',
   'log group',
@@ -38,21 +34,8 @@ function outcomeError(outcome: RunbookOutcome): string {
   }
 }
 
-/**
- * Classifies a runbook execution (V1) from its {@link RunbookOutput} into one of
- * HIT / MISS / NO-DATA / CONFIG-ERROR / EXECUTION-ERROR.
- *
- * - HIT: a known case matched.
- * - MISS: valid query, logs present (recordsMatched > 0), no known case.
- * - NO-DATA: valid query but zero records matched/scanned (retention/empty window).
- * - CONFIG-ERROR: log group/account/profile/permission problem (often a
- *   mis-configured runbook) — surfaced via failure or a recovered error.
- * - EXECUTION-ERROR: non-recoverable runtime failure (crash / failed / aborted).
- *
- * @param output - The structured runbook output
- * @returns The V1 classification with supporting fields
- */
-export function classifyRunbookOutcome(output: RunbookOutput): RunbookCheck {
+/** Classifies a structured runbook output for all automation consumers. */
+export function classifyRunbookOutcome(output: RunbookOutput): ClassifiedRunbookCheck {
   const stats = output.telemetry?.cloudWatchLogs?.statistics;
   const base = {
     durationMs: output.execution.durationMs,
@@ -73,7 +56,6 @@ export function classifyRunbookOutcome(output: RunbookOutput): RunbookCheck {
         matchedCaseIds: outcome.matchedCases.map((knownCase) => knownCase.id),
         ...base,
       };
-
     case 'failed':
     case 'aborted':
     case 'procedure-failure': {
@@ -86,15 +68,11 @@ export function classifyRunbookOutcome(output: RunbookOutput): RunbookCheck {
         ...base,
       };
     }
-
     case 'unknown-case':
     case 'procedure-success': {
-      // A configuration problem can surface as a recovered error even when the
-      // run "completed" without matching a case.
       if (recoveredText !== '' && isConfigError(recoveredText)) {
         return { status: 'CONFIG-ERROR', outcomeKind: outcome.kind, matchedCaseIds: [], error: recoveredText, ...base };
       }
-      // recordsMatched === 0 ⇔ the error scan found nothing ⇒ NO-DATA.
       const noData = stats === undefined || stats.recordsMatched === 0 || stats.recordsScanned === 0;
       return {
         status: noData ? 'NO-DATA' : 'MISS',
@@ -104,10 +82,14 @@ export function classifyRunbookOutcome(output: RunbookOutput): RunbookCheck {
         ...base,
       };
     }
-
     default: {
       const exhaustive: never = outcome;
       throw new Error(`Unhandled runbook outcome kind: ${JSON.stringify(exhaustive)}`);
     }
   }
+}
+
+/** Classification used when no registered runbook exists for an occurrence. */
+export function noRunbookCheck(): RunbookCheck {
+  return { status: 'NO_RUNBOOK', matchedCaseIds: [] };
 }

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "revision": "afc2f8189f3ec17353cc8b9a2651b80ad8f88657ae6c6223167f6cac7b12e014",
+  "publishedAt": "2026-06-22T00:00:00.000Z",
+  "queues": {
+    "eu-west-1": {
+      "queueUrl": "https://sqs.eu-west-1.amazonaws.com/170533023216/go-execute-runbook-production-eu-west-1.fifo",
+      "queueArn": "arn:aws:sqs:eu-west-1:170533023216:go-execute-runbook-production-eu-west-1.fifo",
+      "stackName": "go-execute-runbook-production-eu-west-1",
+      "messageRetentionSeconds": 345600
+    }
+  }
+}

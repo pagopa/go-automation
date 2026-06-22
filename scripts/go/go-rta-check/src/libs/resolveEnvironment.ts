@@ -1,8 +1,7 @@
 import type { Core } from '@go-automation/go-common';
+import type { EnvironmentDto, WatchtowerClient } from '@go-automation/go-watchtower-client';
 
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
-import type { EnvironmentDto } from '../types/WatchtowerDtos.js';
-import type { WatchtowerClient } from '../watchtower/WatchtowerClient.js';
 
 /** Resolved environment filter (no id = all environments). */
 export interface ResolvedEnvironment {

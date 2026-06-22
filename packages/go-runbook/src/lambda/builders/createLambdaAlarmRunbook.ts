@@ -25,7 +25,9 @@ const TIME_RANGE: TimeRangeFromParams = { start: 'startTime', end: 'endTime' };
  */
 export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
   const ctx = resolveLambdaAlarmBuildContext(config);
-  const builder = RunbookBuilder.create(config.id).metadata(config.metadata);
+  const builder = RunbookBuilder.create(config.id)
+    .metadata(config.metadata)
+    .cloudExecutionPolicy({ sideEffects: 'NONE' });
 
   // 1. Banner + seed canonical lambda vars.
   builder.step(

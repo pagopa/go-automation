@@ -3,6 +3,7 @@ import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import { interpolatePlaceholders } from '../../core/templatePlaceholders.js';
+import { throwIfRunbookAborted } from '../../core/throwIfRunbookAborted.js';
 
 /**
  * Configuration for the send notification step.
@@ -60,6 +61,7 @@ class SendNotificationStep implements Step<void> {
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<void>> {
     try {
+      throwIfRunbookAborted(context);
       const interpolatedMessage = interpolatePlaceholders(this.message, context);
 
       // TODO: integrate with Slack/email/PagerDuty based on this.channel
@@ -67,6 +69,7 @@ class SendNotificationStep implements Step<void> {
 
       return { success: true, output: undefined };
     } catch (error: unknown) {
+      if (context.signal?.aborted === true) throw error;
       const message = error instanceof Error ? error.message : String(error);
       return { success: false, error: `Send notification failed: ${message}` };
     }

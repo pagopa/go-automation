@@ -1,0 +1,27 @@
+{
+  "name": "go-execute-runbook-lambda",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/handler.mjs",
+  "description": "SQS adapter for go-execute-runbook",
+  "scripts": {
+    "test-build": "echo 'Skipping CodeBuild packaging for this function'",
+    "build": "pnpm --filter=go-execute-runbook build && node esbuild.config.mjs",
+    "build:typecheck": "pnpm --filter=go-execute-runbook build && tsc --noEmit",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "package": "pnpm build && cd ../../artifacts/go-ExecuteRunbookLambda && zip -r ../../functions/go-ExecuteRunbookLambda/function.zip .",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
+    "test:local": "tsx src/test-local.ts"
+  },
+  "dependencies": {
+    "@go-automation/go-common": "workspace:*",
+    "go-execute-runbook": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "catalog:",
+    "@types/node": "catalog:",
+    "esbuild": "catalog:",
+    "tsx": "catalog:"
+  }
+}

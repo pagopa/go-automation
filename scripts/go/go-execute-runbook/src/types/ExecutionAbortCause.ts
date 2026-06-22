@@ -1,0 +1,1 @@
+export type ExecutionAbortCause = 'USER_CANCELLED' | 'TIME_BUDGET' | 'SHUTDOWN' | 'CONTROL_PLANE_UNAVAILABLE';

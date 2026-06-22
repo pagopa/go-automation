@@ -1,0 +1,20 @@
+{
+  "name": "go-execute-runbook-infra",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
+    "publish:registry": "tsx src/publishQueueRegistryCli.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ssm": "catalog:",
+    "@go-automation/go-execute-runbook-contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "sst": "catalog:"
+  }
+}

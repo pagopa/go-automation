@@ -1,5 +1,5 @@
 export type { GoRtaCheckConfig } from './GoRtaCheckConfig.js';
-export type { Paginated, LoginResponse, ProductDto, AlarmDto, AlarmAnalysisDto } from './WatchtowerDtos.js';
+export type { ProductDto, AlarmDto, AlarmAnalysisDto } from '@go-automation/go-watchtower-client';
 export type {
   RunbookCheck,
   RtaCheckReport,

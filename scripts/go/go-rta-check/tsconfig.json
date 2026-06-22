@@ -12,6 +12,7 @@
     { "path": "../../../packages/go-ai" },
     { "path": "../../../packages/go-common" },
     { "path": "../../../packages/go-runbook" },
+    { "path": "../../../packages/go-watchtower-client" },
     { "path": "../go-analyze-alarm" }
   ]
 }

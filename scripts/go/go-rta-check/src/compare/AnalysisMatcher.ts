@@ -1,6 +1,6 @@
 import type { RunbookOutput } from '@go-automation/go-runbook';
 
-import type { AlarmAnalysisDto } from '../types/WatchtowerDtos.js';
+import type { AlarmAnalysisDto } from '@go-automation/go-watchtower-client';
 import type { AnalysisMatch, RunbookCheck } from '../types/RtaCheckReport.js';
 import type { MatchAnalysisOptions } from './matchAnalysis.js';
 

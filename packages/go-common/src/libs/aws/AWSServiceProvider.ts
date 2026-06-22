@@ -6,6 +6,7 @@ import { AWSDynamoDBService } from './AWSDynamoDBService.js';
 import { AWSECSService } from './AWSECSService.js';
 import { AWSS3Service } from './AWSS3Service.js';
 import { AWSSQSService } from './AWSSQSService.js';
+import { AWSSecretsManagerService } from './AWSSecretsManagerService.js';
 
 /**
  * High-level AWS service provider.
@@ -21,6 +22,7 @@ export class AWSServiceProvider {
   private cachedSQSService: AWSSQSService | undefined;
   private cachedECSService: AWSECSService | undefined;
   private cachedAthenaService: AWSAthenaService | undefined;
+  private cachedSecretsManagerService: AWSSecretsManagerService | undefined;
 
   constructor(private readonly clientProvider: AWSMultiClientProvider) {}
 
@@ -63,6 +65,11 @@ export class AWSServiceProvider {
     return this.athena;
   }
 
+  get secretsManager(): AWSSecretsManagerService {
+    this.cachedSecretsManagerService ??= new AWSSecretsManagerService(this.clientProvider.first.secretsManager);
+    return this.cachedSecretsManagerService;
+  }
+
   close(): void {
     this.cachedCloudWatchLogsService = undefined;
     this.cachedCloudWatchMetricsService = undefined;
@@ -71,5 +78,6 @@ export class AWSServiceProvider {
     this.cachedSQSService = undefined;
     this.cachedECSService = undefined;
     this.cachedAthenaService = undefined;
+    this.cachedSecretsManagerService = undefined;
   }
 }

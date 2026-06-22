@@ -29,7 +29,9 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
   const errorQuery = service.queryOverride ?? profile.errorQuery;
   const traceQuery = service.traceQueryOverride ?? profile.traceQueryTemplate;
 
-  const builder = RunbookBuilder.create(config.id).metadata(config.metadata);
+  const builder = RunbookBuilder.create(config.id)
+    .metadata(config.metadata)
+    .cloudExecutionPolicy({ sideEffects: 'NONE' });
 
   builder.step(
     new PrepareServiceSectionStep({

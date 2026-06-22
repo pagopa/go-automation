@@ -214,6 +214,8 @@ export default tseslint.config(
     ignores: [
       'node_modules/',
       '**/node_modules/',
+      '**/.sst/',
+      'packages/go-watchtower-client/src/generated/',
       'dist/',
       '**/dist/',
       'build/',
@@ -226,6 +228,7 @@ export default tseslint.config(
       '**/*.mjs',
       '.eslintrc.cjs',
       'knip.config.ts',
+      'infra/**/sst.config.ts',
     ],
   },
 
@@ -412,12 +415,26 @@ export default tseslint.config(
     },
   },
 
-  // go-common and go-cli are I/O boundary layers or infrastructure tools — non-literal fs paths are expected and safe here.
+  // I/O boundary layers and infrastructure tools accept validated runtime paths by design.
   // Scripts are blocked from using fs directly via no-restricted-syntax.
   {
-    files: ['packages/go-common/**/*.ts', 'packages/go-cli/**/*.ts'],
+    files: [
+      'packages/go-common/**/*.ts',
+      'packages/go-cli/**/*.ts',
+      'packages/go-execute-runbook-contracts/**/*.ts',
+      'packages/go-watchtower-client/**/*.ts',
+      'infra/**/*.ts',
+    ],
     rules: {
       'security/detect-non-literal-fs-filename': 'off',
+    },
+  },
+
+  // OpenAPI consumer aliases intentionally index generated paths by their wire literals.
+  {
+    files: ['packages/go-watchtower-client/src/WatchtowerTypes.ts'],
+    rules: {
+      'no-restricted-syntax': 'off',
     },
   },
 

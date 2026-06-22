@@ -5,6 +5,9 @@ dist/
 # Dependencies
 node_modules/
 pnpm-lock.yaml
+.sst/
+packages/go-watchtower-client/src/generated/
+contracts/runbook-automation/v1/upstream/go-watchtower/
 
 # Data and logs
 data/

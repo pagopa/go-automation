@@ -2,6 +2,7 @@ import type { GOLogger } from '@go-automation/go-common/core';
 import type { CaseAction, CaseActionType, LogAction } from './CaseAction.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
 import { interpolatePlaceholders } from '../core/templatePlaceholders.js';
+import { throwIfRunbookAborted } from '../core/throwIfRunbookAborted.js';
 
 /**
  * Result of executing an action.
@@ -53,6 +54,7 @@ export class ActionExecutor {
     const startTime = Date.now();
 
     try {
+      throwIfRunbookAborted(context);
       const resolvedMessage = this.getResolvedMessage(action, context);
       await this.executeAction(action, context);
       return {
@@ -63,6 +65,9 @@ export class ActionExecutor {
         ...(resolvedMessage !== undefined ? { resolvedMessage } : {}),
       };
     } catch (error: unknown) {
+      if (context.signal?.aborted === true) {
+        throw error;
+      }
       const errorMessage = error instanceof Error ? error.message : String(error);
       const resolvedMessage = this.getResolvedMessage(action, context);
       return {
@@ -107,6 +112,7 @@ export class ActionExecutor {
    * Dispatches action execution by type.
    */
   private async executeAction(action: CaseAction, context: RunbookContext): Promise<void> {
+    throwIfRunbookAborted(context);
     switch (action.type) {
       case 'log': {
         const missingValue = missingValueFor(action.message);
@@ -127,6 +133,7 @@ export class ActionExecutor {
         break;
       case 'composite':
         for (const subAction of action.actions) {
+          throwIfRunbookAborted(context);
           await this.executeAction(subAction, context);
         }
         break;

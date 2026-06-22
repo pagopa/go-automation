@@ -17,6 +17,7 @@ import { buildStepIndex } from './buildStepIndex.js';
 import { detectRuntimeCycle } from './detectRuntimeCycle.js';
 import { ActionExecutor } from '../actions/ActionExecutor.js';
 import { TraceBuilder } from '../trace/TraceBuilder.js';
+import { throwIfRunbookAborted } from './throwIfRunbookAborted.js';
 import { RunbookMaxIterationsError } from '../errors/RunbookMaxIterationsError.js';
 import {
   createInitialContext,
@@ -150,6 +151,11 @@ export class RunbookEngine {
     // Collect every matched known case. Early resolution wins when it
     // already produced matches (we don't re-evaluate at the end since
     // the pipeline was short-circuited at that point).
+    if (status === 'completed' && finalContext.signal?.aborted === true) {
+      status = 'aborted';
+      failureReason = 'Execution aborted by signal';
+    }
+
     let matchedCases: ReadonlyArray<KnownCase>;
     if (status !== 'completed') {
       matchedCases = [];
@@ -165,6 +171,7 @@ export class RunbookEngine {
     // every overlap for trace/reporting, but actions may notify/escalate/update
     // and must not fan out implicitly. Fallback runs only when nothing matched.
     if (status === 'completed') {
+      throwIfRunbookAborted(finalContext);
       const primaryAction = matchedCases[0]?.action ?? runbook.fallbackAction;
       const actionResult = await this.actionExecutor.execute(primaryAction, finalContext);
       traceBuilder = traceBuilder.traceAction(
@@ -467,6 +474,7 @@ export class RunbookEngine {
     const matchedCases: KnownCase[] = [];
 
     for (const knownCase of sortedCases) {
+      throwIfRunbookAborted(context);
       const { matched, resolvedValues } = this.conditionEvaluator.evaluate(knownCase.condition, context, {
         withResolvedValues: true,
       });
