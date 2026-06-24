@@ -32,12 +32,14 @@ export async function buildExecuteRunbookDeps(
 }
 
 async function loadServicePassword(script: Core.GOScript, config: ExecuteRunbookConfig): Promise<string> {
-  if (config.watchtowerPassword !== undefined && config.watchtowerPassword !== '') return config.watchtowerPassword;
-  if (config.watchtowerServiceSecretArn === undefined || config.watchtowerServiceSecretArn === '') {
+  const password = config.watchtowerPassword?.trim();
+  if (password !== undefined && password !== '') return password;
+  const serviceSecretArn = config.watchtowerServiceSecretArn?.trim();
+  if (serviceSecretArn === undefined || serviceSecretArn === '') {
     throw configurationFailure('Watchtower service password or secret ARN is required');
   }
   try {
-    return await script.aws.services.secretsManager.getSecretString(config.watchtowerServiceSecretArn);
+    return await script.aws.services.secretsManager.getSecretString(serviceSecretArn);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     throw configurationFailure(`Cannot read Watchtower service credential: ${message}`);
