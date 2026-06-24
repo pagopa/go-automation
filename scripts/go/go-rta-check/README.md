@@ -66,15 +66,15 @@ pnpm go:rta:check -- \
 
 Parametri principali:
 
-| Flag                          | Nome config                  | Default            | Significato                                                                 |
-| ----------------------------- | ---------------------------- | ------------------ | --------------------------------------------------------------------------- |
-| `--analysis-matcher`          | `analysis.matcher`           | `ai`               | `ai` oppure `lexical`                                                       |
-| `--concurrency`               | `concurrency`                | `1`                | Numero di occorrenze/runbook processati in parallelo                        |
-| `--output-format`             | `output.format`              | `all`              | Artifact da scrivere: `json`, `md` o `all`                                  |
-| `--go-ai-semantic-threshold`  | `go.ai.semanticThreshold`    | `70`               | Soglia 0..100 per considerare equivalente lo score GO-AI                    |
-| `--go-ai-fallback-to-lexical` | `go.ai.fallbackToLexical`    | `true`             | Se GO-AI fallisce, usa il matcher lessicale invece di marcare `NO_EVIDENCE` |
-| `--aws-region`                | `aws.region`                 | `eu-south-1`       | Regione AWS standard per credenziali/profili                                |
-| `--aws-profile`               | `aws.profile`                | `sso_pn-analytics` | Profilo AWS standard usato da GO-AI/Bedrock                                 |
+| Flag                          | Default            | Significato                                                                 |
+| ----------------------------- | ------------------ | --------------------------------------------------------------------------- |
+| `--analysis-matcher`          | `ai`               | `ai` oppure `lexical`                                                       |
+| `--concurrency`               | `1`                | Numero di occorrenze/runbook processati in parallelo                        |
+| `--output-format`             | `all`              | Artifact da scrivere: `json`, `md` o `all`                                  |
+| `--go-ai-semantic-threshold`  | `70`               | Soglia 0..100 per considerare equivalente lo score GO-AI                    |
+| `--go-ai-fallback-to-lexical` | `true`             | Se GO-AI fallisce, usa il matcher lessicale invece di marcare `NO_EVIDENCE` |
+| `--aws-region`                | `eu-south-1`       | Regione AWS standard per credenziali/profili                                |
+| `--aws-profile`               | `sso_pn-analytics` | Profilo AWS standard usato da GO-AI/Bedrock                                 |
 
 ## Utilizzo
 

@@ -56,6 +56,18 @@ describe('GOCommandLineConfigProvider', () => {
     assert.strictEqual(provider.getValue('name'), 'demo');
   });
 
+  it('resolves full kebab-case flags for camelCase parameter names', () => {
+    const provider = new GOCommandLineConfigProvider({
+      arguments: ['--go-ai-semantic-threshold', '80', '--go-ai-fallback-to-lexical=false'],
+    });
+
+    assert.strictEqual(provider.hasKey('go.ai.semanticThreshold'), true);
+    assert.strictEqual(provider.getValue('go.ai.semanticThreshold'), '80');
+    assert.strictEqual(provider.getValue('go.ai.semantic.threshold'), '80');
+    assert.strictEqual(provider.hasKey('go.ai.fallbackToLexical'), true);
+    assert.strictEqual(provider.getValue('go.ai.fallbackToLexical'), 'false');
+  });
+
   it('redacts configured secrets in display values', () => {
     const provider = new GOCommandLineConfigProvider({
       arguments: ['--api-token', 'super-secret', '--name', 'demo'],

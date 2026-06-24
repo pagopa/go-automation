@@ -22,12 +22,22 @@ interface ConfigParameter {
   readonly required: boolean;
 }
 
-/**
- * Converts a dot-notation parameter name to CLI flag format.
- * Examples: 'start.date' → '--start-date', 'aws.profile' → '--aws-profile'
- */
+/** Converts a parameter name to the same kebab-case CLI flag format used by GOScript. */
 function toCliFlag(name: string): string {
-  return `--${name.replace(/\./g, '-')}`;
+  return `--${name
+    .split('.')
+    .flatMap((part) => splitCamelCase(part))
+    .join('-')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')}`;
+}
+
+function splitCamelCase(value: string): string[] {
+  if (value === '') return [];
+  return value
+    .replace(/([a-z])([A-Z])/g, '$1.$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1.$2')
+    .split('.');
 }
 
 /**
