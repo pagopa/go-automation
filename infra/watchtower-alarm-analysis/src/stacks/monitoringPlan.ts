@@ -39,7 +39,7 @@ export function buildExecuteRunbookMonitoringPlan(
   config: ExecuteRunbookDeploymentConfig,
 ): ExecuteRunbookMonitoringPlan {
   assertExecuteRunbookCapacityConstants();
-  const base = `go-execute-runbook-${config.environment}-${config.region}`;
+  const base = 'go-execute-runbook';
   return {
     names: {
       stackName: base,

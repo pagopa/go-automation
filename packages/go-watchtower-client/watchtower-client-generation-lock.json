@@ -7,11 +7,11 @@
   "artifacts": [
     {
       "path": "../../contracts/runbook-automation/v1/upstream/go-watchtower/watchtower-openapi.json",
-      "sha256": "658a0a174fca362e4d673a88c199bfceb29b20eb2f3809f9c7b0dd19bce60333"
+      "sha256": "11dfaffa462bc379ec4fd9723c943f58a30c743bb5ddc91609b1fa60d5589561"
     },
     {
       "path": "src/generated/openapi.ts",
-      "sha256": "2be4f2e8852ef05672ead52147eecf5cde4b1d86b9eefa9879515f7fc899f24c"
+      "sha256": "bdfa5f417ae4e7c7da78535005f4ca730e94199022a41bf3e95fba6810cfb301"
     },
     {
       "path": "../../contracts/runbook-automation/v1/upstream/go-watchtower/automatic-alarm-analysis-command-v1.schema.json",

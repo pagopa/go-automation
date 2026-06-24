@@ -47,6 +47,8 @@
     "deps:check:scripts:send": "depcruise --config .dependency-cruiser.cjs --output-type err scripts/send/*/src",
     "deps:graph:packages": "depcruise --config .dependency-cruiser.cjs --output-type dot --collapse '^packages/[^/]+' --output-to dependency-cruiser-packages.dot packages/*/src",
     "deps:report:packages": "depcruise --config .dependency-cruiser.cjs --output-type err-html --output-to dependency-cruiser-packages.html packages/*/src",
+    "deploy:execute-runbook": "pnpm --filter=go-execute-runbook-infra deploy",
+    "diff:execute-runbook": "pnpm --filter=go-execute-runbook-infra diff",
     "format": "prettier --write \"**/*.{ts,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
     "go": "pnpm --filter=@go-automation/go-cli dev",

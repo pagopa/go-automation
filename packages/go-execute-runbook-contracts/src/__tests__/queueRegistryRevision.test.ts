@@ -19,9 +19,9 @@ describe('ExecuteRunbookQueueRegistryV1', () => {
       publishedAt: '2026-06-22T00:00:00.000Z',
       queues: {
         'eu-south-1': {
-          queueUrl: 'https://sqs.eu-south-1.amazonaws.com/170533023216/go-execute-runbook-production-eu-south-1.fifo',
-          queueArn: 'arn:aws:sqs:eu-south-1:170533023216:go-execute-runbook-production-eu-south-1.fifo',
-          stackName: 'go-execute-runbook-production-eu-south-1',
+          queueUrl: 'https://sqs.eu-south-1.amazonaws.com/170533023216/go-execute-runbook.fifo',
+          queueArn: 'arn:aws:sqs:eu-south-1:170533023216:go-execute-runbook.fifo',
+          stackName: 'go-execute-runbook',
           messageRetentionSeconds: 345600,
         },
       },
@@ -54,6 +54,26 @@ describe('ExecuteRunbookQueueRegistryV1', () => {
     const registry = await fixture('fixtures/queue-registry.missing-region.json');
     assert.doesNotThrow(() => validateQueueRegistry(registry));
     assert.strictEqual(registry.queues['eu-south-1'], undefined);
+  });
+
+  it('rejects resource names that are not the fixed worker names', () => {
+    assert.throws(
+      () =>
+        buildQueueRegistry({
+          schemaVersion: 1,
+          publishedAt: '2026-06-22T00:00:00.000Z',
+          queues: {
+            'eu-south-1': {
+              queueUrl:
+                'https://sqs.eu-south-1.amazonaws.com/170533023216/go-execute-runbook-production-eu-south-1.fifo',
+              queueArn: 'arn:aws:sqs:eu-south-1:170533023216:go-execute-runbook-production-eu-south-1.fifo',
+              stackName: 'go-execute-runbook-production-eu-south-1',
+              messageRetentionSeconds: 345600,
+            },
+          },
+        }),
+      /Queue URL/,
+    );
   });
 
   it('keeps every manifest artifact hash in sync', async () => {

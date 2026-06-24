@@ -817,6 +817,7 @@ export interface paths {
                                 ignoreReasonCode: string | null;
                                 isOnCall: boolean;
                                 lastAlarmAt: string;
+                                lastAppliedExecutionId?: string | null;
                                 linkedEventsCount: number;
                                 links: {
                                     name?: string;
@@ -831,6 +832,7 @@ export interface paths {
                                     name: string;
                                 };
                                 operatorId: string;
+                                origin?: "MANUAL" | "AUTOMATIC" | "HYBRID";
                                 product: {
                                     id: string;
                                     name: string;
@@ -1432,6 +1434,7 @@ export interface paths {
                     "application/json": {
                         /** Format: uuid */
                         alarmEventId: string;
+                        mode?: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
                     };
                 };
             };
@@ -1549,6 +1552,7 @@ export interface paths {
                             alarmEventId: string;
                             alarmId: string | null;
                             analysisId: string | null;
+                            analysisPayload: unknown;
                             appliedMode: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
                             bytesScanned: string | null;
                             cancellationFinalizedBy: string | null;
@@ -1556,6 +1560,30 @@ export interface paths {
                             cancelReason: string | null;
                             cancelRequestedAt: string | null;
                             completedAt: string | null;
+                            context: {
+                                alarmEventName: string;
+                                alarmName: string | null;
+                                awsAccountId: string;
+                                awsRegion: string;
+                                environmentName: string;
+                                firedAt: string;
+                                linkedAnalysis: {
+                                    analysisDate: string;
+                                    analysisType: string;
+                                    id: string;
+                                    productId: string;
+                                    status: string;
+                                } | null;
+                                productName: string;
+                                triggeredBy: {
+                                    email: string | null;
+                                    label: string | null;
+                                    name: string | null;
+                                    principalType: string | null;
+                                    serviceId: string | null;
+                                    userId: string | null;
+                                };
+                            };
                             createdAt: string;
                             deadlineAt: string;
                             deliveryCycle: number;
@@ -1564,6 +1592,7 @@ export interface paths {
                             errorCode: string | null;
                             errorMessage: string | null;
                             id: string;
+                            inputSnapshot: unknown;
                             outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "NO_RUNBOOK" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
                             parentExecutionId: string | null;
                             productId: string;
@@ -1571,6 +1600,7 @@ export interface paths {
                             queuedAt: string | null;
                             recordsMatched: string | null;
                             recordsScanned: string | null;
+                            resultSummary: unknown;
                             reviewStatus: "NOT_REQUIRED" | "PENDING" | "CONFIRMED" | "REJECTED";
                             runbookKey: string | null;
                             runbookVersion: string | null;
@@ -2501,7 +2531,9 @@ export interface paths {
                             byStatus: {
                                 [key: string]: number;
                             };
+                            defaultMode: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
                             inDlq: number;
+                            modeOverride: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL" | null;
                             pendingReview: number;
                         };
                     };
@@ -4594,6 +4626,7 @@ export interface paths {
                                 ignoreReasonCode: string | null;
                                 isOnCall: boolean;
                                 lastAlarmAt: string;
+                                lastAppliedExecutionId?: string | null;
                                 linkedEventsCount: number;
                                 links: {
                                     name?: string;
@@ -4608,6 +4641,7 @@ export interface paths {
                                     name: string;
                                 };
                                 operatorId: string;
+                                origin?: "MANUAL" | "AUTOMATIC" | "HYBRID";
                                 product: {
                                     id: string;
                                     name: string;
@@ -4805,6 +4839,7 @@ export interface paths {
                             ignoreReasonCode: string | null;
                             isOnCall: boolean;
                             lastAlarmAt: string;
+                            lastAppliedExecutionId?: string | null;
                             linkedEventsCount: number;
                             links: {
                                 name?: string;
@@ -4819,6 +4854,7 @@ export interface paths {
                                 name: string;
                             };
                             operatorId: string;
+                            origin?: "MANUAL" | "AUTOMATIC" | "HYBRID";
                             product: {
                                 id: string;
                                 name: string;
@@ -4987,6 +5023,7 @@ export interface paths {
                             ignoreReasonCode: string | null;
                             isOnCall: boolean;
                             lastAlarmAt: string;
+                            lastAppliedExecutionId?: string | null;
                             linkedEventsCount: number;
                             links: {
                                 name?: string;
@@ -5001,6 +5038,7 @@ export interface paths {
                                 name: string;
                             };
                             operatorId: string;
+                            origin?: "MANUAL" | "AUTOMATIC" | "HYBRID";
                             product: {
                                 id: string;
                                 name: string;
@@ -5188,6 +5226,7 @@ export interface paths {
                             ignoreReasonCode: string | null;
                             isOnCall: boolean;
                             lastAlarmAt: string;
+                            lastAppliedExecutionId?: string | null;
                             linkedEventsCount: number;
                             links: {
                                 name?: string;
@@ -5202,6 +5241,7 @@ export interface paths {
                                 name: string;
                             };
                             operatorId: string;
+                            origin?: "MANUAL" | "AUTOMATIC" | "HYBRID";
                             product: {
                                 id: string;
                                 name: string;

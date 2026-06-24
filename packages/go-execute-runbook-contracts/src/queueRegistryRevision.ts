@@ -46,14 +46,43 @@ function validateRevisionPayload(payload: ExecuteRunbookQueueRegistryRevisionPay
     ) {
       throw new Error(`Invalid messageRetentionSeconds for ${region}`);
     }
-    if (!queue.queueUrl.startsWith(`https://sqs.${region}.amazonaws.com/`) || !queue.queueUrl.endsWith('.fifo')) {
+    if (!isExpectedQueueUrl(queue.queueUrl, region)) {
       throw new Error(`Queue URL does not match region ${region}`);
     }
-    if (!queue.queueArn.startsWith(`arn:aws:sqs:${region}:`) || !queue.queueArn.endsWith('.fifo')) {
+    if (!isExpectedQueueArn(queue.queueArn, region)) {
       throw new Error(`Queue ARN does not match region ${region}`);
     }
-    if (queue.stackName.trim() === '') throw new Error(`Stack name is empty for ${region}`);
+    if (queue.stackName !== 'go-execute-runbook') throw new Error(`Stack name does not match the fixed worker name`);
   }
+}
+
+function isExpectedQueueUrl(value: string, region: string): boolean {
+  try {
+    const url = new URL(value);
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    return (
+      url.protocol === 'https:' &&
+      url.hostname === `sqs.${region}.amazonaws.com` &&
+      pathParts.length === 2 &&
+      /^\d{12}$/.test(pathParts[0] ?? '') &&
+      pathParts[1] === 'go-execute-runbook.fifo'
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isExpectedQueueArn(value: string, region: string): boolean {
+  const parts = value.split(':');
+  return (
+    parts.length === 6 &&
+    parts[0] === 'arn' &&
+    parts[1] === 'aws' &&
+    parts[2] === 'sqs' &&
+    parts[3] === region &&
+    /^\d{12}$/.test(parts[4] ?? '') &&
+    parts[5] === 'go-execute-runbook.fifo'
+  );
 }
 
 function sortJsonValue(value: unknown): unknown {

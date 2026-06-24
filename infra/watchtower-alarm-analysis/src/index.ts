@@ -8,8 +8,3 @@ export { buildExecuteRunbookMonitoringPlan, buildQueueRegistryEntry } from './st
 export type { ExecuteRunbookMonitoringPlan, ExecuteRunbookResourceNames } from './stacks/monitoringPlan.js';
 export { buildWorkerIamPolicy } from './stacks/workerIamPolicy.js';
 export type { WorkerIamPolicyInput, WorkerIamStatement } from './stacks/workerIamPolicy.js';
-export { composeQueueRegistry, publishQueueRegistry } from './registry/publishQueueRegistry.js';
-export type {
-  ExecuteRunbookQueueRegistryFragmentV1,
-  QueueRegistryParameterWriter,
-} from './registry/publishQueueRegistry.js';

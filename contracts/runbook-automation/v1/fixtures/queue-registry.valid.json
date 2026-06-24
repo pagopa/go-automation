@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "revision": "961cbde621a889e4142111408453b04527a41e53c3a5cd8133d77c258287566e",
+  "revision": "b6cf118fb4637bce060c42b1d1c0f4a90b25c52d416296e64ca41d35fac420e3",
   "publishedAt": "2026-06-22T00:00:00.000Z",
   "queues": {
     "eu-south-1": {
-      "queueUrl": "https://sqs.eu-south-1.amazonaws.com/170533023216/go-execute-runbook-production-eu-south-1.fifo",
-      "queueArn": "arn:aws:sqs:eu-south-1:170533023216:go-execute-runbook-production-eu-south-1.fifo",
-      "stackName": "go-execute-runbook-production-eu-south-1",
+      "queueUrl": "https://sqs.eu-south-1.amazonaws.com/170533023216/go-execute-runbook.fifo",
+      "queueArn": "arn:aws:sqs:eu-south-1:170533023216:go-execute-runbook.fifo",
+      "stackName": "go-execute-runbook",
       "messageRetentionSeconds": 345600
     }
   }

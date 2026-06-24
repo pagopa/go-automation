@@ -6,22 +6,22 @@
     {
       "logicalName": "ExecuteRunbookQueueRegistryV1Schema",
       "path": "contracts/runbook-automation/v1/execute-runbook-queue-registry-v1.schema.json",
-      "sha256": "54d29a313fe1751021c2c397bf23b2ebb8d5a3292fdadaccbb606e895bcaa191"
+      "sha256": "b107c3ff8f7550de1ae6d8e49c8a2ebdb9cd6f17889c3d7008395dffc59391cb"
     },
     {
       "logicalName": "QueueRegistryValidFixture",
       "path": "contracts/runbook-automation/v1/fixtures/queue-registry.valid.json",
-      "sha256": "e9379fd1b05789b76d15496f50d57e3fef6621754c2fffe44088acf4483c0622"
+      "sha256": "90c5ae85f17fb56e1b82635674783cc8d0ab9b1386017ec89c57d4fe2a88769e"
     },
     {
       "logicalName": "QueueRegistryInvalidRevisionFixture",
       "path": "contracts/runbook-automation/v1/fixtures/queue-registry.invalid-revision.json",
-      "sha256": "3e760e4910ef342797c7d902930daa3bbcb2deb40b69701e97685844be242ac7"
+      "sha256": "eb7928b704053f824b35d68bb538984ebca4aad5d0f8d7740811e98bd6a71be5"
     },
     {
       "logicalName": "QueueRegistryMissingRegionFixture",
       "path": "contracts/runbook-automation/v1/fixtures/queue-registry.missing-region.json",
-      "sha256": "c61c2d1ec13846dceb6ba5b0db46dee935fbc926564ba47b4eb098b17a5b7725"
+      "sha256": "355541a4cdb6c85036f85fd5aa31c9ea2a4dd3ce2546d3c4fc11f31a3e20cc8d"
     }
   ]
 }

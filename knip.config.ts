@@ -60,7 +60,6 @@ const config: KnipConfig = {
     },
     'infra/*': {
       project: ['src/**/*.ts'],
-      ignoreDependencies: ['sst'],
     },
   },
   ignore: [

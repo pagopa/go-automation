@@ -379,9 +379,6 @@ importers:
 
   infra/watchtower-alarm-analysis:
     dependencies:
-      '@aws-sdk/client-ssm':
-        specifier: 'catalog:'
-        version: 3.1073.0
       '@go-automation/go-execute-runbook-contracts':
         specifier: workspace:*
         version: link:../../packages/go-execute-runbook-contracts

@@ -34,10 +34,12 @@ export default $config({
       EXECUTE_RUNBOOK_REGISTRY_CONTROL_REGION,
       EXECUTE_RUNBOOK_VISIBILITY_TIMEOUT_SECONDS,
       buildExecuteRunbookMonitoringPlan,
+      buildQueueRegistryEntry,
       buildWorkerIamPolicy,
       loadExecuteRunbookDeploymentConfig,
       loadExecuteRunbookSourceLinkDeploymentConfig,
     } = await import('./src/index.js');
+    const { buildQueueRegistry } = await import('@go-automation/go-execute-runbook-contracts');
     if (deployKind === 'source-link') {
       const sourceConfig = loadExecuteRunbookSourceLinkDeploymentConfig(process.env);
       const link = new aws.oam.Link('ExecuteRunbookOamSourceLink', {
@@ -57,6 +59,14 @@ export default $config({
     }
     const config = loadExecuteRunbookDeploymentConfig(process.env);
     const plan = buildExecuteRunbookMonitoringPlan(config);
+    const managedServicePrincipalSecret =
+      config.servicePrincipalSecretArn === undefined
+        ? new aws.secretsmanager.Secret('ExecuteRunbookServicePrincipalSecret', {
+            name: `/go-automation/${config.environment}/execute-runbook/watchtower-service-password`,
+            description: 'GO Execute Runbook Watchtower service principal password. Set SecretString after deploy.',
+          })
+        : undefined;
+    const servicePrincipalSecretArn = config.servicePrincipalSecretArn ?? managedServicePrincipalSecret!.arn;
     const workerIam = buildWorkerIamPolicy({
       region: config.region,
       logGroupArns: config.oamSourceAccountIds.map(
@@ -64,7 +74,51 @@ export default $config({
       ),
       athenaWorkgroupArns: [],
       athenaResultObjectArns: [],
-      servicePrincipalSecretArn: config.servicePrincipalSecretArn,
+      servicePrincipalSecretArn: servicePrincipalSecretArn as string,
+    });
+    const workerSubnet = new aws.ec2.Subnet('ExecuteRunbookWorkerSubnet', {
+      vpcId: config.vpcId,
+      cidrBlock: config.workerSubnetCidrBlock,
+      availabilityZone: config.workerSubnetAvailabilityZone,
+      mapPublicIpOnLaunch: false,
+      tags: {
+        Name: 'go-execute-runbook-worker',
+        ManagedBy: 'go-automation-sst',
+        Service: 'go-execute-runbook',
+      },
+    });
+    const workerRouteTable = new aws.ec2.RouteTable('ExecuteRunbookWorkerRouteTable', {
+      vpcId: config.vpcId,
+      routes: [{ cidrBlock: '0.0.0.0/0', natGatewayId: config.watchtowerNatGatewayId }],
+      tags: {
+        Name: 'go-execute-runbook-worker-rt',
+        ManagedBy: 'go-automation-sst',
+        Service: 'go-execute-runbook',
+      },
+    });
+    new aws.ec2.RouteTableAssociation('ExecuteRunbookWorkerRouteTableAssociation', {
+      subnetId: workerSubnet.id,
+      routeTableId: workerRouteTable.id,
+    });
+    const workerSecurityGroup = new aws.ec2.SecurityGroup('ExecuteRunbookWorkerSecurityGroup', {
+      name: 'go-execute-runbook-worker',
+      description: 'Security group for GO Execute Runbook Lambda',
+      vpcId: config.vpcId,
+      ingress: [],
+      egress: [
+        {
+          description: 'HTTPS egress to Watchtower and AWS APIs through the Watchtower NAT',
+          protocol: 'tcp',
+          fromPort: 443,
+          toPort: 443,
+          cidrBlocks: ['0.0.0.0/0'],
+        },
+      ],
+      tags: {
+        Name: 'go-execute-runbook-worker',
+        ManagedBy: 'go-automation-sst',
+        Service: 'go-execute-runbook',
+      },
     });
     const dlq = new sst.aws.Queue('ExecuteRunbookDlq', {
       fifo: true,
@@ -88,6 +142,23 @@ export default $config({
           sqsManagedSseEnabled: true,
         },
       },
+    });
+
+    const queueRegistryParameterName = `/go-automation/${config.environment}/execute-runbook/queue-registry-v1`;
+    const queueRegistry = $resolve([queue.url, queue.arn]).apply(([queueUrl, queueArn]) =>
+      buildQueueRegistry({
+        schemaVersion: 1,
+        publishedAt: new Date().toISOString(),
+        queues: {
+          [config.region]: buildQueueRegistryEntry(plan, queueUrl, queueArn),
+        },
+      }),
+    );
+    const queueRegistryParameter = new aws.ssm.Parameter('ExecuteRunbookQueueRegistry', {
+      name: queueRegistryParameterName,
+      type: 'String',
+      value: queueRegistry.apply((registry) => JSON.stringify(registry)),
+      region: EXECUTE_RUNBOOK_REGISTRY_CONTROL_REGION,
     });
 
     new aws.sqs.QueuePolicy('ExecuteRunbookQueuePolicy', {
@@ -135,13 +206,13 @@ export default $config({
         timeout: `${plan.lambdaTimeoutSeconds} seconds`,
         concurrency: { reserved: plan.reservedConcurrency },
         vpc: {
-          privateSubnets: [...config.subnetIds],
-          securityGroups: [config.lambdaSecurityGroupId],
+          privateSubnets: [config.watchtowerPrivateSubnetId, workerSubnet.id],
+          securityGroups: [workerSecurityGroup.id],
         },
         environment: {
           WATCHTOWER_URL: config.watchtowerInternalUrl,
           WATCHTOWER_SERVICE_ID: 'runbook-automation-worker',
-          WATCHTOWER_SERVICE_SECRET_ARN: config.servicePrincipalSecretArn,
+          WATCHTOWER_SERVICE_SECRET_ARN: servicePrincipalSecretArn,
         },
         permissions: workerIam.map((statement) => ({
           actions: [...statement.actions],
@@ -166,15 +237,13 @@ export default $config({
       dlqArn: dlq.arn,
       oamSinkArn: sink.arn,
       workerName: plan.names.lambdaName,
+      workerSubnetId: workerSubnet.id,
+      workerSecurityGroupId: workerSecurityGroup.id,
+      watchtowerServicePrincipalSecretArn: servicePrincipalSecretArn,
       queueRegistryControlRegion: EXECUTE_RUNBOOK_REGISTRY_CONTROL_REGION,
-      queueRegistryParameter: `/go-automation/${config.environment}/execute-runbook/queue-registry-v1`,
-      registryFragment: $jsonStringify({
-        awsRegion: config.region,
-        queueUrl: queue.url,
-        queueArn: queue.arn,
-        stackName: plan.names.stackName,
-        messageRetentionSeconds: plan.messageRetentionSeconds,
-      }),
+      queueRegistryParameter: queueRegistryParameter.name,
+      queueRegistryParameterArn: queueRegistryParameter.arn,
+      queueRegistryRevision: queueRegistry.apply((registry) => registry.revision),
     };
   },
 });
