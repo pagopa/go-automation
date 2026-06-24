@@ -94,7 +94,22 @@ function sortJsonValue(value: unknown): unknown {
   }
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => left.localeCompare(right))
+      .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
       .map(([key, nested]) => [key, sortJsonValue(nested)]),
   );
+}
+
+function compareUnicodeCodePoints(left: string, right: string): number {
+  const leftCodePoints = Array.from(left);
+  const rightCodePoints = Array.from(right);
+  const length = Math.min(leftCodePoints.length, rightCodePoints.length);
+  for (let index = 0; index < length; index += 1) {
+    const leftCodePoint = leftCodePoints[index]?.codePointAt(0) ?? 0;
+    const rightCodePoint = rightCodePoints[index]?.codePointAt(0) ?? 0;
+    if (leftCodePoint < rightCodePoint) return -1;
+    if (leftCodePoint > rightCodePoint) return 1;
+  }
+  if (leftCodePoints.length < rightCodePoints.length) return -1;
+  if (leftCodePoints.length > rightCodePoints.length) return 1;
+  return 0;
 }

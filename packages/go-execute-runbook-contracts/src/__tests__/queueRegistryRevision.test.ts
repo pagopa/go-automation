@@ -3,7 +3,11 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 
-import type { ExecuteRunbookQueueRegistryV1 } from '../ExecuteRunbookQueueRegistryV1.js';
+import type {
+  ExecuteRunbookQueueRegistryEntryV1,
+  ExecuteRunbookQueueRegistryRevisionPayloadV1,
+  ExecuteRunbookQueueRegistryV1,
+} from '../ExecuteRunbookQueueRegistryV1.js';
 import {
   buildQueueRegistry,
   canonicalizeQueueRegistryPayload,
@@ -41,6 +45,31 @@ describe('ExecuteRunbookQueueRegistryV1', () => {
       }),
     );
     assert.doesNotThrow(() => validateQueueRegistry(first));
+  });
+
+  it('sorts canonical object keys by Unicode code point, not locale or UTF-16 order', () => {
+    const privateUse = '\uE000';
+    const supplementary = '\u{10000}';
+    const entry: ExecuteRunbookQueueRegistryEntryV1 = {
+      queueUrl: 'https://sqs.eu-south-1.amazonaws.com/170533023216/go-execute-runbook.fifo',
+      queueArn: 'arn:aws:sqs:eu-south-1:170533023216:go-execute-runbook.fifo',
+      stackName: 'go-execute-runbook',
+      messageRetentionSeconds: 345600,
+    };
+    const payload = {
+      schemaVersion: 1,
+      publishedAt: '2026-06-22T00:00:00.000Z',
+      queues: {
+        [supplementary]: entry,
+        [privateUse]: entry,
+      },
+    } as ExecuteRunbookQueueRegistryRevisionPayloadV1;
+
+    const canonical = JSON.parse(canonicalizeQueueRegistryPayload(payload)) as {
+      readonly queues: Record<string, unknown>;
+    };
+
+    assert.deepStrictEqual(Object.keys(canonical.queues), [privateUse, supplementary]);
   });
 
   it('accepts the valid handoff fixture and rejects the invalid revision fixture', async () => {
