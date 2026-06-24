@@ -1,7 +1,11 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { AWSCloudWatchLogsQueryOptions, AWSCloudWatchLogsService, ResultField } from '@go-automation/go-common/aws';
+import type {
+  AWSCloudWatchLogsQueryOptions,
+  AWSCloudWatchLogsService,
+  ResultField,
+} from '@go-automation/go-common/aws';
 import type { GOLogger } from '@go-automation/go-common/core';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';

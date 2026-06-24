@@ -41,11 +41,14 @@ describe('buildExecuteRunbookDeps', () => {
 
   it('rejects whitespace-only Watchtower credentials as a configuration error', async () => {
     await assert.rejects(
-      buildExecuteRunbookDeps(fakeScript(async () => 'secret-from-aws'), {
-        ...BASE_CONFIG,
-        watchtowerPassword: '   ',
-        watchtowerServiceSecretArn: '   ',
-      }),
+      buildExecuteRunbookDeps(
+        fakeScript(async () => 'secret-from-aws'),
+        {
+          ...BASE_CONFIG,
+          watchtowerPassword: '   ',
+          watchtowerServiceSecretArn: '   ',
+        },
+      ),
       (error: unknown) => {
         assert.ok(error instanceof Error);
         assert.match(error.message, /password or secret ARN is required/);

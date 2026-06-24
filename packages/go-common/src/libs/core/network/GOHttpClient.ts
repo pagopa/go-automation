@@ -7,12 +7,7 @@ import type { GOAbortableRequest } from './GOAbortableRequest.js';
 import type { GOHttpClientConfig } from './GOHttpClientConfig.js';
 import { GOHttpClientError } from './GOHttpClientError.js';
 import type { GOHttpClientEventMap } from './GOHttpClientEvents.js';
-import type {
-  GOHttpMethod,
-  GOHttpRequestOptions,
-  GOHttpResponse,
-  GOHttpRetryPolicy,
-} from './GOHttpRequestOptions.js';
+import type { GOHttpMethod, GOHttpRequestOptions, GOHttpResponse, GOHttpRetryPolicy } from './GOHttpRequestOptions.js';
 
 type ResponseMode = 'body' | 'headers';
 type RequestBody = string | Uint8Array | ArrayBuffer | Blob | FormData | URLSearchParams;
