@@ -29,7 +29,12 @@ function toCliFlag(name: string): string {
     .flatMap((part) => splitCamelCase(part))
     .join('-')
     .toLowerCase()
-    .replace(/[^a-z0-9-]/g, '-')}`;
+      .replace(/[^a-z0-9-]/g, '-')}`;
+}
+
+function toAliasFlag(alias: string): string {
+  if (alias.startsWith('-')) return alias;
+  return toCliFlag(alias).replace(/^--/, '-');
 }
 
 function splitCamelCase(value: string): string[] {
@@ -103,7 +108,7 @@ function parseParameterObject(obj: ts.ObjectLiteralExpression): ConfigParameter 
 
   const aliasesNode = getPropertyNode(obj, 'aliases');
   const rawAliases = aliasesNode !== undefined ? getStringArray(aliasesNode) : [];
-  const aliases = rawAliases.map((a) => (a.length === 1 ? `-${a}` : `--${a}`));
+  const aliases = rawAliases.map(toAliasFlag);
 
   return {
     name,

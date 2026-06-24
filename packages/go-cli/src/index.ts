@@ -79,7 +79,7 @@ function displayScriptParameters(
 
 function formatAlias(alias: string): string {
   if (alias.startsWith('-')) return alias;
-  return alias.length === 1 ? `-${alias}` : `--${alias}`;
+  return Core.GOConfigKeyTransformer.toCLIFlag(alias).replace(/^--/, '-');
 }
 
 async function main(): Promise<void> {

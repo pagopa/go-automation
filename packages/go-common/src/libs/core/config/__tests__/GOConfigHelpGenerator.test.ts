@@ -43,7 +43,7 @@ describe('GOConfigHelpGenerator', () => {
     assert.match(output, /Usage:\n {2}go-tool --input-file data\.json/);
     assert.match(output, /Input\n\n {2}--input-file <value>\s+\(required\) Input file/);
     assert.match(output, /env: INPUT_FILE/);
-    assert.match(output, /aliases: i/);
+    assert.match(output, /aliases: -i/);
     assert.match(output, /Output\n\n {2}--output-format <value>\s+Output format \[default: "json"\]/);
   });
 
@@ -139,7 +139,7 @@ describe('GOConfigHelpGenerator', () => {
 
     assert.match(detail, /Parameter: Aws Profile/);
     assert.match(detail, /Key: aws\.profile/);
-    assert.match(detail, /Aliases: p, profile/);
+    assert.match(detail, /Aliases: -p, -profile/);
     assert.match(detail, /Environment: AWS_PROFILE/);
     assert.match(detail, /Required: yes/);
     assert.match(detail, /Default: "sso-dev"/);

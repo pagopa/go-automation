@@ -240,11 +240,11 @@ aws sso login --profile sso_pn-confinfo-prod
 
 ```bash
 # Corretto
---start.date "2024-12-01T00:00:00Z"
+--start-date "2024-12-01T00:00:00Z"
 
 # Errato
---start.date "2024-12-01"
---start.date "01/12/2024"
+--start-date "2024-12-01"
+--start-date "01/12/2024"
 ```
 
 ### Errore: "Cannot find module '@go-automation/go-common'"
@@ -271,7 +271,7 @@ pnpm --filter=go-report-alarms build
 
 - Ampliare il range di date
 - Verificare i pattern di ignore in `configs/config.json`
-- Usare `--alarm.name` per verificare un allarme specifico
+- Usare `--alarm-name` per verificare un allarme specifico
 
 ### Debug Mode
 

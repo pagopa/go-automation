@@ -71,20 +71,20 @@ Script di monitoraggio messaggi TPP (Third Party Provider) tramite query Athena 
 
 | Parametro       | Alias | Tipo   | Obbligatorio | Default      | Descrizione     |
 | --------------- | ----- | ------ | ------------ | ------------ | --------------- |
-| `--aws.profile` | `-ap` | string | Si           | -            | Profilo AWS SSO |
-| `--aws.region`  | `-ar` | string | No           | `eu-south-1` | Regione AWS     |
+| `--aws-profile` | `-ap` | string | Si           | -            | Profilo AWS SSO |
+| `--aws-region`  | `-ar` | string | No           | `eu-south-1` | Regione AWS     |
 
 #### Athena
 
 | Parametro                  | Alias  | Tipo   | Obbligatorio | Default          | Descrizione                                                         |
 | -------------------------- | ------ | ------ | ------------ | ---------------- | ------------------------------------------------------------------- |
-| `--athena.database`        | `-ad`  | string | Si           | -                | Database Athena                                                     |
-| `--athena.catalog`         | `-ac`  | string | No           | `AwsDataCatalog` | Data catalog                                                        |
-| `--athena.workgroup`       | `-aw`  | string | No           | `primary`        | Workgroup Athena                                                    |
-| `--athena.output.location` | `-ao`  | string | Si           | -                | S3 path per output                                                  |
-| `--athena.max.retries`     | `-amr` | int    | No           | `60`             | Tentativi max polling                                               |
-| `--athena.retry.delay`     | `-ard` | int    | No           | `5000`           | Delay polling (ms)                                                  |
-| `--athena.query`           | `-aq`  | string | Si           | -                | Template SQL con placeholder per il range temporale e le partizioni |
+| `--athena-database`        | `-ad`  | string | Si           | -                | Database Athena                                                     |
+| `--athena-catalog`         | `-ac`  | string | No           | `AwsDataCatalog` | Data catalog                                                        |
+| `--athena-workgroup`       | `-aw`  | string | No           | `primary`        | Workgroup Athena                                                    |
+| `--athena-output-location` | `-ao`  | string | Si           | -                | S3 path per output                                                  |
+| `--athena-max-retries`     | `-amr` | int    | No           | `60`             | Tentativi max polling                                               |
+| `--athena-retry-delay`     | `-ard` | int    | No           | `5000`           | Delay polling (ms)                                                  |
+| `--athena-query`           | `-aq`  | string | Si           | -                | Template SQL con placeholder per il range temporale e le partizioni |
 
 > `athena.query` può essere passato da CLI, ma nella pratica e quasi sempre più comodo definirlo in `config.yaml`.
 
@@ -92,22 +92,22 @@ Script di monitoraggio messaggi TPP (Third Party Provider) tramite query Athena 
 
 | Parametro                  | Alias  | Tipo   | Obbligatorio | Default   | Descrizione        |
 | -------------------------- | ------ | ------ | ------------ | --------- | ------------------ |
-| `--slack.token`            | `-st`  | string | No           | -         | Token bot Slack    |
-| `--slack.channel`          | `-sc`  | string | No           | -         | Canale Slack       |
-| `--slack.message.template` | `-smt` | string | No           | Da config | Template messaggio |
+| `--slack-token`            | `-st`  | string | No           | -         | Token bot Slack    |
+| `--slack-channel`          | `-sc`  | string | No           | -         | Canale Slack       |
+| `--slack-message-template` | `-smt` | string | No           | Da config | Template messaggio |
 
 #### Analisi
 
 | Parametro                    | Alias  | Tipo   | Obbligatorio | Default | Descrizione              |
 | ---------------------------- | ------ | ------ | ------------ | ------- | ------------------------ |
-| `--analysis.threshold.field` | `-atf` | string | No           | -       | Campo per analisi soglia |
-| `--analysis.threshold`       | `-at`  | int    | No           | `0`     | Valore soglia            |
+| `--analysis-threshold-field` | `-atf` | string | No           | -       | Campo per analisi soglia |
+| `--analysis-threshold`       | `-at`  | int    | No           | `0`     | Valore soglia            |
 
 #### Output
 
 | Parametro          | Alias | Tipo   | Obbligatorio | Default   | Descrizione         |
 | ------------------ | ----- | ------ | ------------ | --------- | ------------------- |
-| `--reports.folder` | `-rf` | string | No           | `reports` | Cartella output CSV |
+| `--reports-folder` | `-rf` | string | No           | `reports` | Cartella output CSV |
 
 ### Formati Data Supportati
 
@@ -243,9 +243,9 @@ pnpm --filter=send-monitor-tpp-messages dev
 pnpm --filter=send-monitor-tpp-messages dev -- \
   --from "2024-12-01" \
   --to "2024-12-15" \
-  --aws.profile sso_pn-core-prod \
-  --athena.database pn_analytics \
-  --athena.output.location "s3://my-bucket/results/"
+  --aws-profile sso_pn-core-prod \
+  --athena-database pn_analytics \
+  --athena-output-location "s3://my-bucket/results/"
 ```
 
 ### Modalità Production (build + node)
@@ -258,9 +258,9 @@ pnpm --filter=send-monitor-tpp-messages build
 pnpm --filter=send-monitor-tpp-messages start -- \
   --from "2024-12-01" \
   --to "2024-12-15" \
-  --aws.profile sso_pn-core-prod \
-  --athena.database pn_analytics \
-  --athena.output.location "s3://my-bucket/results/"
+  --aws-profile sso_pn-core-prod \
+  --athena-database pn_analytics \
+  --athena-output-location "s3://my-bucket/results/"
 ```
 
 ### Modalità Standalone
@@ -272,9 +272,9 @@ cd scripts/send/send-monitor-tpp-messages
 # Esecuzione diretta
 node dist/index.js \
   --from "2024-12-01" \
-  --aws.profile sso_pn-core-prod \
-  --athena.database pn_analytics \
-  --athena.output.location "s3://my-bucket/results/"
+  --aws-profile sso_pn-core-prod \
+  --athena-database pn_analytics \
+  --athena-output-location "s3://my-bucket/results/"
 ```
 
 ### Esempi Pratici
@@ -282,28 +282,28 @@ node dist/index.js \
 ```bash
 # Ultime 24 ore con notifica Slack
 pnpm --filter=send-monitor-tpp-messages dev -- \
-  --aws.profile sso_pn-core-prod \
-  --athena.database pn_analytics \
-  --athena.output.location "s3://bucket/results/" \
-  --slack.token "xoxb-your-token" \
-  --slack.channel "C1234567890"
+  --aws-profile sso_pn-core-prod \
+  --athena-database pn_analytics \
+  --athena-output-location "s3://bucket/results/" \
+  --slack-token "xoxb-your-token" \
+  --slack-channel "C1234567890"
 
 # Report giornaliero con soglia
 pnpm --filter=send-monitor-tpp-messages dev -- \
   --from "$(date +%Y-%m-%d)" \
-  --aws.profile sso_pn-core-prod \
-  --athena.database pn_analytics \
-  --athena.output.location "s3://bucket/results/" \
-  --analysis.threshold.field "notifiche_tpp" \
-  --analysis.threshold 100
+  --aws-profile sso_pn-core-prod \
+  --athena-database pn_analytics \
+  --athena-output-location "s3://bucket/results/" \
+  --analysis-threshold-field "notifiche_tpp" \
+  --analysis-threshold 100
 
 # Report con range orario specifico
 pnpm --filter=send-monitor-tpp-messages dev -- \
   --from "2024-12-15T08:00:00Z" \
   --to "2024-12-15T18:00:00Z" \
-  --aws.profile sso_pn-core-prod \
-  --athena.database pn_analytics \
-  --athena.output.location "s3://bucket/results/"
+  --aws-profile sso_pn-core-prod \
+  --athena-database pn_analytics \
+  --athena-output-location "s3://bucket/results/"
 
 # Con variabili d'ambiente
 AWS_PROFILE=sso_pn-core-prod \
@@ -361,7 +361,7 @@ Se configurato, il file CSV viene allegato al messaggio.
 
 ### Analisi a Soglia
 
-Con `--analysis.threshold.field` e `--analysis.threshold` configurati:
+Con `--analysis-threshold-field` e `--analysis-threshold` configurati:
 
 ```
 Fasce orarie sopra soglia (100):
@@ -478,7 +478,7 @@ In alternativa allo scheduler integrato:
 
 ```bash
 # Aumentare timeout
---athena.max.retries 120 --athena.retry.delay 10000
+--athena-max-retries 120 --athena-retry-delay 10000
 ```
 
 Tempo max = `maxRetries * retryDelay / 1000` secondi
@@ -532,7 +532,7 @@ script.logger.info(`Params: ${JSON.stringify(queryParams)}`);
 # Mostra configurazione risolta
 DEBUG=* pnpm --filter=send-monitor-tpp-messages dev -- \
   --from "2024-12-01" \
-  --aws.profile test
+  --aws-profile test
 ```
 
 ---

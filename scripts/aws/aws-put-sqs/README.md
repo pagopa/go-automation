@@ -52,17 +52,17 @@ Lo script accetta parametri tramite CLI. Le path relative vengono risolte tramit
 
 | Parametro                       | Alias             | Tipo     | Obbligatorio | Default   | Descrizione                                                                  |
 | ------------------------------- | ----------------- | -------- | ------------ | --------- | ---------------------------------------------------------------------------- |
-| `--aws-profile`                 | `--ap`            | `string` | Sì           | —         | Nome del profilo AWS SSO                                                     |
-| `--queue-url`                   | `--qu`, `--url`   | `string` | No           | —         | URL completo della coda SQS (Obbligatorio se non si fornisce `--queue-name`) |
-| `--queue-name`                  | `--qn`            | `string` | No           | —         | Nome della coda SQS (Obbligatorio se non si fornisce `--queue-url`)          |
-| `--input-file`                  | `-f`, `--input`   | `string` | Sì           | —         | Percorso del file sorgente contenente i messaggi                             |
-| `--file-format`                 | `--ff`            | `enum`   | No           | `auto`    | Formato del file (`text`, `json`, `csv`)                                     |
-| `--csv-column`                  | `--cc`            | `string` | No           | `message` | Nome della colonna CSV contenente il corpo del messaggio                     |
-| `--delay-seconds`               | `--ds`, `--delay` | `number` | No           | `0`       | Ritardo in secondi (0-900). Alias: `--visibility.timeout`                    |
-| `--batch-size`                  | `--bs`            | `number` | No           | `10`      | Numero massimo di messaggi per batch (max 10)                                |
-| `--batch-max-retries`           | `--mr`            | `number` | No           | `3`       | Numero massimo di tentativi per messaggi falliti in un batch                 |
-| `--fifo-group-id`               | `--fgid`          | `string` | No           | —         | Message Group ID per code FIFO                                               |
-| `--fifo-deduplication-strategy` | `--fds`           | `enum`   | No           | `content` | Strategia dedup FIFO (`content` o `hash`)                                    |
+| `--aws-profile`                 | `-ap`            | `string` | Sì           | —         | Nome del profilo AWS SSO                                                     |
+| `--queue-url`                   | `-qu`, `-url`   | `string` | No           | —         | URL completo della coda SQS (Obbligatorio se non si fornisce `--queue-name`) |
+| `--queue-name`                  | `-qn`            | `string` | No           | —         | Nome della coda SQS (Obbligatorio se non si fornisce `--queue-url`)          |
+| `--input-file`                  | `-f`, `-input`   | `string` | Sì           | —         | Percorso del file sorgente contenente i messaggi                             |
+| `--file-format`                 | `-ff`            | `enum`   | No           | `auto`    | Formato del file (`text`, `json`, `csv`)                                     |
+| `--csv-column`                  | `-cc`            | `string` | No           | `message` | Nome della colonna CSV contenente il corpo del messaggio                     |
+| `--delay-seconds`               | `-ds`, `-delay` | `number` | No           | `0`       | Ritardo in secondi (0-900). Alias: `-visibility-timeout`                    |
+| `--batch-size`                  | `-bs`            | `number` | No           | `10`      | Numero massimo di messaggi per batch (max 10)                                |
+| `--batch-max-retries`           | `-mr`            | `number` | No           | `3`       | Numero massimo di tentativi per messaggi falliti in un batch                 |
+| `--fifo-group-id`               | `-fgid`          | `string` | No           | —         | Message Group ID per code FIFO                                               |
+| `--fifo-deduplication-strategy` | `-fds`           | `enum`   | No           | `content` | Strategia dedup FIFO (`content` o `hash`)                                    |
 
 ---
 

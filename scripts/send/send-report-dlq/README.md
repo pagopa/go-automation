@@ -60,7 +60,7 @@ La configurazione operativa avviene principalmente via CLI. I percorsi relativi 
 
 | Parametro         | Alias   | Tipo                          | Obbligatorio | Default                                | Descrizione                                                                |
 | ----------------- | ------- | ----------------------------- | ------------ | -------------------------------------- | -------------------------------------------------------------------------- |
-| `--aws-profiles`  | `--aps` | `string[]`                    | Sì           | —                                      | Uno o più profili AWS SSO, separati da virgola                             |
+| `--aws-profiles`  | `-aps` | `string[]`                    | Sì           | —                                      | Uno o più profili AWS SSO, separati da virgola                             |
 | `--output-file`   | `-of`   | `string`                      | No           | `send-report-dlq_YYYY-MM-DD.<formato>` | Percorso del file di output (assoluto, o nome relativo alla dir `output/`) |
 | `--output-format` | `-ff`   | `json\|jsonl\|csv\|html\|txt` | No           | `json`                                 | Formato del file di output                                                 |
 

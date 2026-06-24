@@ -50,9 +50,9 @@ aws sts get-caller-identity --profile sso_pn-core-prod
 
 | Parametro            | Alias              | Tipo   | Obbligatorio | Default | Descrizione                               |
 | -------------------- | ------------------ | ------ | ------------ | ------- | ----------------------------------------- |
-| `--aws-profile`      | `--ap`             | string | Si           | -       | Profilo AWS SSO con accesso a DynamoDB    |
-| `--source-file`      | `--sf`, `--input`  | string | Si           | -       | File TXT sorgente contenente gli IUN      |
-| `--destination-file` | `--df`, `--output` | string | Si           | -       | File JSON di destinazione per i risultati |
+| `--aws-profile`      | `-ap`             | string | Si           | -       | Profilo AWS SSO con accesso a DynamoDB    |
+| `--source-file`      | `-sf`, `-input`  | string | Si           | -       | File TXT sorgente contenente gli IUN      |
+| `--destination-file` | `-df`, `-output` | string | Si           | -       | File JSON di destinazione per i risultati |
 
 ### Variabili d'ambiente supportate
 

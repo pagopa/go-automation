@@ -92,7 +92,7 @@ I parametri sono definiti internamente con il punto come separatore (es. `csv.fi
 | Parametro                  | Alias                | Tipo    | Obbligatorio | Default | Descrizione                 |
 | -------------------------- | -------------------- | ------- | ------------ | ------- | --------------------------- |
 | `--streaming-threshold-mb` | -                    | int     | No           | `10`    | Soglia MB per streaming     |
-| `--preserve-all-columns`   | `--preserve-columns` | boolean | No           | `true`  | Preserva colonne originali  |
+| `--preserve-all-columns`   | `-preserve-columns` | boolean | No           | `true`  | Preserva colonne originali  |
 | `--export-all-rows`        | -                    | boolean | No           | `false` | Esporta anche righe fallite |
 | `--include-status-columns` | -                    | boolean | No           | `false` | Aggiungi colonne stato      |
 
