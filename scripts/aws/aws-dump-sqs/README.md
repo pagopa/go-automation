@@ -56,16 +56,16 @@ Lo script non include un file di configurazione dedicato: i valori vengono passa
 
 ### Parametri CLI
 
-| Parametro              | Alias           | Tipo     | Obbligatorio | Default      | Descrizione                                                                                               |
-| ---------------------- | --------------- | -------- | ------------ | ------------ | --------------------------------------------------------------------------------------------------------- |
-| `--aws-profile`        | `-ap`          | `string` | Sì           | —            | Nome del profilo AWS SSO                                                                                  |
-| `--queue-name`         | `-qn`          | `string` | No           | —            | Nome della coda SQS (Obbligatorio se non si fornisce `--queue-url`)                                       |
+| Parametro              | Alias         | Tipo     | Obbligatorio | Default      | Descrizione                                                                                               |
+| ---------------------- | ------------- | -------- | ------------ | ------------ | --------------------------------------------------------------------------------------------------------- |
+| `--aws-profile`        | `-ap`         | `string` | Sì           | —            | Nome del profilo AWS SSO                                                                                  |
+| `--queue-name`         | `-qn`         | `string` | No           | —            | Nome della coda SQS (Obbligatorio se non si fornisce `--queue-url`)                                       |
 | `--queue-url`          | `-qu`, `-url` | `string` | No           | —            | URL completo della coda SQS (Obbligatorio se non si fornisce `--queue-name`)                              |
-| `--visibility-timeout` | `-vt`          | `number` | No           | `60`         | Timeout di visibilità per i messaggi ricevuti                                                             |
-| `--limit`              | `-l`            | `number` | No           | —            | Numero massimo di messaggi da scaricare                                                                   |
-| `--dedup-mode`         | `-dm`          | `enum`   | No           | `message-id` | Modalità di deduplicazione (`message-id`, `content-md5`, `none`)                                          |
-| `--max-empty-receives` | `-mer`         | `number` | No           | `3`          | Poll vuoti consecutivi prima di fermarsi                                                                  |
-| `--output-file`        | `-o`            | `string` | No           | —            | Percorso personalizzato del file di output (assoluto o relativo alla directory di output dell'esecuzione) |
+| `--visibility-timeout` | `-vt`         | `number` | No           | `60`         | Timeout di visibilità per i messaggi ricevuti                                                             |
+| `--limit`              | `-l`          | `number` | No           | —            | Numero massimo di messaggi da scaricare                                                                   |
+| `--dedup-mode`         | `-dm`         | `enum`   | No           | `message-id` | Modalità di deduplicazione (`message-id`, `content-md5`, `none`)                                          |
+| `--max-empty-receives` | `-mer`        | `number` | No           | `3`          | Poll vuoti consecutivi prima di fermarsi                                                                  |
+| `--output-file`        | `-o`          | `string` | No           | —            | Percorso personalizzato del file di output (assoluto o relativo alla directory di output dell'esecuzione) |
 
 ### Note di risoluzione path
 

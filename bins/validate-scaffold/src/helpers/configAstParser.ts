@@ -29,7 +29,7 @@ function toCliFlag(name: string): string {
     .flatMap((part) => splitCamelCase(part))
     .join('-')
     .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '-')}`;
+    .replace(/[^a-z0-9-]/g, '-')}`;
 }
 
 function toAliasFlag(alias: string): string {

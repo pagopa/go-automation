@@ -37,18 +37,18 @@ Serve inoltre una **API Key PN** valida per l'ambiente di destinazione (dev/uat/
 
 ### Parametri CLI
 
-| Parametro              | Alias | Tipo   | Obbligatorio | Default                      | Descrizione                                                           |
-| ---------------------- | ----- | ------ | ------------ | ---------------------------- | --------------------------------------------------------------------- |
-| `--input-file`           | `-i` | STRING | Sì           | -                            | Path del file di input (csv, json o jsonl)                            |
-| `--output-file`          | `-o` | STRING | No           | `<input>-results.<formato>`  | Path del file di output                                               |
-| `--output-format`        | -    | STRING | No           | da estensione output o input | Formato di output: `csv`, `json`, `jsonl`                             |
-| `--base-path`            | `-b` | STRING | Sì           | -                            | Base URL del servizio PN (es. `api.dev.notifichedigitali.it`)         |
-| `--pn-api-key`           | `-k` | STRING | Sì           | -                            | API Key per autenticazione PN (sensibile)                             |
-| `--skip-on-error`        | `-s` | BOOL   | No           | `false`                      | `true`: prosegue in caso di errore; `false`: si ferma al primo errore |
-| `--concurrency`          | `-n` | INT    | No           | `3`                          | Numero di file caricati in parallelo                                  |
-| `--default-content-type` | -    | STRING | No           | -                            | Content type quando non specificato e non inferibile dall'estensione  |
-| `--proxy-url`            | -    | STRING | No           | -                            | URL del proxy HTTP per debugging (es. `http://127.0.0.1:9090`)        |
-| `--debug`                | -    | BOOL   | No           | `false`                      | Abilita il logging di debug delle chiamate HTTP                       |
+| Parametro                | Alias | Tipo   | Obbligatorio | Default                      | Descrizione                                                           |
+| ------------------------ | ----- | ------ | ------------ | ---------------------------- | --------------------------------------------------------------------- |
+| `--input-file`           | `-i`  | STRING | Sì           | -                            | Path del file di input (csv, json o jsonl)                            |
+| `--output-file`          | `-o`  | STRING | No           | `<input>-results.<formato>`  | Path del file di output                                               |
+| `--output-format`        | -     | STRING | No           | da estensione output o input | Formato di output: `csv`, `json`, `jsonl`                             |
+| `--base-path`            | `-b`  | STRING | Sì           | -                            | Base URL del servizio PN (es. `api.dev.notifichedigitali.it`)         |
+| `--pn-api-key`           | `-k`  | STRING | Sì           | -                            | API Key per autenticazione PN (sensibile)                             |
+| `--skip-on-error`        | `-s`  | BOOL   | No           | `false`                      | `true`: prosegue in caso di errore; `false`: si ferma al primo errore |
+| `--concurrency`          | `-n`  | INT    | No           | `3`                          | Numero di file caricati in parallelo                                  |
+| `--default-content-type` | -     | STRING | No           | -                            | Content type quando non specificato e non inferibile dall'estensione  |
+| `--proxy-url`            | -     | STRING | No           | -                            | URL del proxy HTTP per debugging (es. `http://127.0.0.1:9090`)        |
+| `--debug`                | -     | BOOL   | No           | `false`                      | Abilita il logging di debug delle chiamate HTTP                       |
 
 ### Priorità di Configurazione
 
