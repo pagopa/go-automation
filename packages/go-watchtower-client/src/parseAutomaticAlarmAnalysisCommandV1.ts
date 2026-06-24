@@ -1,14 +1,16 @@
 import { createRequire } from 'node:module';
 
-import type { Ajv as AjvClass, ErrorObject } from 'ajv';
+import type { Ajv as AjvInstance, ErrorObject, Options as AjvOptions } from 'ajv';
 import type { FormatsPlugin } from 'ajv-formats';
 
 import type { AutomaticAlarmAnalysisCommandV1 } from './generated/AutomaticAlarmAnalysisCommandV1.js';
 import schema from './generated/automatic-alarm-analysis-command-v1.schema.json' with { type: 'json' };
 
+type AjvConstructor = new (options?: AjvOptions) => AjvInstance;
+
 const require = createRequire(import.meta.url);
-const Ajv = (require('ajv') as { readonly default: typeof AjvClass }).default;
-const addFormats = (require('ajv-formats') as { readonly default: FormatsPlugin }).default;
+const Ajv = require('ajv') as AjvConstructor;
+const addFormats = require('ajv-formats') as FormatsPlugin;
 const ajv = new Ajv({ allErrors: true, strict: true });
 addFormats(ajv);
 const validate = ajv.compile<AutomaticAlarmAnalysisCommandV1>(schema);
