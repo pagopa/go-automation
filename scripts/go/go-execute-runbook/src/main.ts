@@ -7,13 +7,15 @@ import { resolveExecuteRunbookInput } from './libs/resolveExecuteRunbookInput.js
 
 export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<ExecuteRunbookConfig>();
-  if (config.alarmEventId === undefined || config.executionId === undefined) {
+  const alarmEventId = config.alarmEventId?.trim();
+  const executionId = config.executionId?.trim();
+  if (!alarmEventId || !executionId) {
     const alarmEventIdFlag = Core.GOConfigKeyTransformer.toCLIFlag('alarm.event.id');
     const executionIdFlag = Core.GOConfigKeyTransformer.toCLIFlag('execution.id');
     throw new Error(`${alarmEventIdFlag} and ${executionIdFlag} are required for CLI execution`);
   }
   const deps = await buildExecuteRunbookDeps(script, config);
-  const cliConfig = { ...config, alarmEventId: config.alarmEventId, executionId: config.executionId };
+  const cliConfig = { ...config, alarmEventId, executionId };
   const input = await resolveExecuteRunbookInput(deps, cliConfig);
   const result = await executeRunbook(deps, input, {
     sqsMessageId: `cli:${cliConfig.alarmEventId}`,
