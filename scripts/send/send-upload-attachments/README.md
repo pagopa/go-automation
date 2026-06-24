@@ -50,6 +50,8 @@ Serve inoltre una **API Key PN** valida per l'ambiente di destinazione (dev/uat/
 | `proxy-url`            | -     | STRING | No           | -                            | URL del proxy HTTP per debugging (es. `http://127.0.0.1:9090`)        |
 | `debug`                | -     | BOOL   | No           | `false`                      | Abilita il logging di debug delle chiamate HTTP                       |
 
+Nei file di configurazione i parametri di output corrispondono a `output.file` e `output.format`.
+
 ### Priorità di Configurazione
 
 1. Parametri CLI (priorità massima)
