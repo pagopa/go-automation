@@ -2,7 +2,7 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
-import type { RunbookHttpResponse } from '../../services/RunbookHttpService.js';
+import type { GOHttpResponse } from '@go-automation/go-common/core';
 import { throwIfRunbookAborted } from '../../core/throwIfRunbookAborted.js';
 
 /**
@@ -36,7 +36,7 @@ export interface HttpPostConfig {
  * });
  * ```
  */
-class HttpPostStep implements Step<RunbookHttpResponse> {
+class HttpPostStep implements Step<GOHttpResponse<unknown>> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'mutation';
@@ -59,10 +59,16 @@ class HttpPostStep implements Step<RunbookHttpResponse> {
    * @param context - The runbook execution context
    * @returns Step result containing the HTTP response
    */
-  async execute(context: RunbookContext): Promise<StepResult<RunbookHttpResponse>> {
+  async execute(context: RunbookContext): Promise<StepResult<GOHttpResponse<unknown>>> {
     try {
       throwIfRunbookAborted(context);
-      const response = await context.services.http.request('POST', this.url, this.body, this.headers);
+      const response = await context.services.http.request(
+        'POST',
+        this.url,
+        this.body,
+        this.headers,
+        context.signal === undefined ? undefined : { signal: context.signal },
+      );
 
       return { success: true, output: response };
     } catch (error: unknown) {
@@ -79,6 +85,6 @@ class HttpPostStep implements Step<RunbookHttpResponse> {
  * @param config - Step configuration
  * @returns A new HttpPostStep instance
  */
-export function httpPost(config: HttpPostConfig): Step<RunbookHttpResponse> {
+export function httpPost(config: HttpPostConfig): Step<GOHttpResponse<unknown>> {
   return new HttpPostStep(config);
 }

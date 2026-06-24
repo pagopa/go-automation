@@ -84,6 +84,51 @@ describe('GOHttpClient', () => {
     await assert.rejects(createClient().put('https://s3.example/presigned', Buffer.from('data')), /HTTP 403/);
   });
 
+  it('executes generic absolute requests without a baseUrl', async () => {
+    mock.method(globalThis, 'fetch', async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      assert.strictEqual(String(url), 'https://external.example/status');
+      assert.strictEqual(init?.method, 'GET');
+      return await Promise.resolve(
+        new Response('{"ok":true}', {
+          status: 202,
+          statusText: 'Accepted',
+          headers: { 'content-type': 'application/json', 'x-request-id': 'req-1' },
+        }),
+      );
+    });
+
+    const result = await new GOHttpClient({}).request<{ ok: boolean }>('GET', 'https://external.example/status');
+
+    assert.deepStrictEqual(result, {
+      data: { ok: true },
+      statusCode: 202,
+      statusText: 'Accepted',
+      headers: { 'content-type': 'application/json', 'x-request-id': 'req-1' },
+      attemptsUsed: 1,
+    });
+  });
+
+  it('materializes JSON bodies with a default content type for generic requests', async () => {
+    mock.method(globalThis, 'fetch', async (_url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      assert.strictEqual(init?.method, 'DELETE');
+      assert.strictEqual(new Headers(init?.headers).get('content-type'), 'application/json');
+      assert.strictEqual(init?.body, '{"id":"alarm-1"}');
+      return await Promise.resolve(
+        new Response('{"deleted":true}', { status: 200, headers: { 'content-type': 'application/json' } }),
+      );
+    });
+
+    const result = await createClient().request<{ deleted: boolean }>('delete', '/alarms/alarm-1', { id: 'alarm-1' });
+
+    assert.deepStrictEqual(result, {
+      data: { deleted: true },
+      statusCode: 200,
+      statusText: '',
+      headers: { 'content-type': 'application/json' },
+      attemptsUsed: 1,
+    });
+  });
+
   it('does not retry a 503 when retryPolicy is absent', async () => {
     let calls = 0;
     mock.method(globalThis, 'fetch', async (): Promise<Response> => {
@@ -119,7 +164,13 @@ describe('GOHttpClient', () => {
       { retryPolicy: retryPolicy() },
     );
 
-    assert.deepStrictEqual(result, { data: { ok: true }, attemptsUsed: 2 });
+    assert.deepStrictEqual(result, {
+      data: { ok: true },
+      statusCode: 200,
+      statusText: '',
+      headers: { 'content-type': 'application/json' },
+      attemptsUsed: 2,
+    });
     assert.deepStrictEqual(bodies, ['{"attemptId":"attempt-1"}', '{"attemptId":"attempt-1"}']);
     assert.deepStrictEqual(keys, ['callback-key', 'callback-key']);
   });

@@ -73,17 +73,20 @@ La CLI locale esegue questo percorso:
 1. Legge la configurazione con `GOScript`.
 2. Richiede `--alarm-event-id` e `--execution-id`; valori vuoti o solo spazi sono trattati come mancanti.
 3. Costruisce il client Watchtower autenticato come service principal `runbook-automation-worker`.
-4. Carica la password del service principal da:
+4. Inizializza i client AWS:
+   - in locale, se passi `--aws-profiles` / `AWS_PROFILES`, usa quei profili e abilita la risoluzione CloudWatch Logs multi-profilo;
+   - in Lambda/ECS/EC2 ignora i profili configurati e usa la default credential chain dell'ambiente AWS-managed.
+5. Carica la password del service principal da:
    - `--watchtower-password` / `WATCHTOWER_PASSWORD`, oppure
    - `--watchtower-service-secret-arn` / `WATCHTOWER_SERVICE_SECRET_ARN` tramite AWS Secrets Manager.
-5. Recupera l'`AlarmEvent` da Watchtower.
-6. Costruisce il comando interno `AutomaticAlarmAnalysisCommandV1` con `trigger.kind = WATCHTOWER_API`.
-7. Chiama `startExecution` su Watchtower con idempotency key locale.
-8. Se Watchtower assegna un attempt, avvia il monitor di cancellazione cooperativa.
-9. Cerca il runbook nel `RUNBOOK_REGISTRY` di `go-analyze-alarm`.
-10. Esegue il runbook sull'occorrenza.
-11. Classifica l'output e chiama `completeExecution`.
-12. Se Watchtower richiede cancellazione, ferma le operazioni AWS attive e chiama `acknowledgeCancellation`.
+6. Recupera l'`AlarmEvent` da Watchtower.
+7. Costruisce il comando interno `AutomaticAlarmAnalysisCommandV1` con `trigger.kind = WATCHTOWER_API`.
+8. Chiama `startExecution` su Watchtower con idempotency key locale.
+9. Se Watchtower assegna un attempt, avvia il monitor di cancellazione cooperativa.
+10. Cerca il runbook nel `RUNBOOK_REGISTRY` di `go-analyze-alarm`.
+11. Esegue il runbook sull'occorrenza.
+12. Classifica l'output e chiama `completeExecution`.
+13. Se Watchtower richiede cancellazione, ferma le operazioni AWS attive e chiama `acknowledgeCancellation`.
 
 La delivery locale usa:
 
@@ -109,31 +112,35 @@ Questo rende la run locale compatibile con il contratto cloud, pur non passando 
 | Credenziali AWS          | Necessarie se usi Secrets Manager o se il runbook interroga CloudWatch Logs/Athena.                      |
 | Permessi osservabilità   | L'account/profilo usato localmente deve vedere i log dell'account target, anche via OAM quando previsto. |
 
-Se usi `--watchtower-service-secret-arn`, fai prima login SSO o esporta credenziali AWS valide:
+Se usi `--aws-profiles` o `--watchtower-service-secret-arn`, fai prima login SSO sui profili necessari:
 
 ```bash
 aws sso login --profile sso_pn-analytics
 ```
 
-Lo script non dichiara un parametro `--aws-profile`: le credenziali AWS vengono risolte dalla **AWS SDK default credential chain**. In locale usa quindi `AWS_PROFILE` e `AWS_REGION`:
+Per esecuzioni locali è consigliato passare i profili in modo esplicito con `--aws-profiles` oppure `AWS_PROFILES`:
 
 ```bash
-export AWS_PROFILE=sso_pn-analytics
+export AWS_PROFILES=sso_pn-analytics
 export AWS_REGION=eu-south-1
 ```
+
+`AWS_PROFILE` resta utilizzabile solo come fallback della **AWS SDK default credential chain** quando non valorizzi `--aws-profiles` / `AWS_PROFILES`, ma in quel caso `GOScript` non valida il login SSO multi-profilo e CloudWatch Logs usa il comportamento cloud-like sul primo provider disponibile.
 
 ## Configurazione
 
 ### Parametri CLI
 
-| Parametro                         | Env var                         | Obbligatorio | Default                     | Descrizione                                                         |
-| --------------------------------- | ------------------------------- | ------------ | --------------------------- | ------------------------------------------------------------------- |
-| `--alarm-event-id`                | `ALARM_EVENT_ID`                | Sì, per CLI  | -                           | UUID dell'occorrenza allarme Watchtower da analizzare.              |
-| `--execution-id`                  | `EXECUTION_ID`                  | Sì, per CLI  | -                           | UUID della execution automatica Watchtower da completare.           |
-| `--watchtower-url`                | `WATCHTOWER_URL`                | Sì           | -                           | Root del backend Watchtower. Un `/api` finale viene normalizzato.   |
-| `--watchtower-service-id`         | `WATCHTOWER_SERVICE_ID`         | Sì           | `runbook-automation-worker` | Identificativo del service principal Watchtower.                    |
-| `--watchtower-password`           | `WATCHTOWER_PASSWORD`           | No\*         | -                           | Password locale del service principal.                              |
-| `--watchtower-service-secret-arn` | `WATCHTOWER_SERVICE_SECRET_ARN` | No\*         | -                           | ARN Secrets Manager che contiene la password del service principal. |
+| Parametro                         | Alias  | Env var                         | Obbligatorio | Default                     | Descrizione                                                                                   |
+| --------------------------------- | ------ | ------------------------------- | ------------ | --------------------------- | --------------------------------------------------------------------------------------------- |
+| `--alarm-event-id`                | -      | `ALARM_EVENT_ID`                | Sì, per CLI  | -                           | UUID dell'occorrenza allarme Watchtower da analizzare.                                        |
+| `--execution-id`                  | -      | `EXECUTION_ID`                  | Sì, per CLI  | -                           | UUID della execution automatica Watchtower da completare.                                     |
+| `--aws-profiles`                  | `-aps` | `AWS_PROFILES`                  | No           | -                           | Profili AWS SSO, separati da virgola, da usare in locale per runbook multi-account.           |
+| `--aws-region`                    | `-ar`  | `AWS_REGION`                    | No           | `eu-south-1`                | Regione AWS per i client locali e per eventuale lettura da Secrets Manager.                   |
+| `--watchtower-url`                | -      | `WATCHTOWER_URL`                | Sì           | -                           | Root del backend Watchtower. Un `/api` finale viene normalizzato.                             |
+| `--watchtower-service-id`         | -      | `WATCHTOWER_SERVICE_ID`         | Sì           | `runbook-automation-worker` | Identificativo del service principal Watchtower.                                              |
+| `--watchtower-password`           | -      | `WATCHTOWER_PASSWORD`           | No\*         | -                           | Password locale del service principal.                                                        |
+| `--watchtower-service-secret-arn` | -      | `WATCHTOWER_SERVICE_SECRET_ARN` | No\*         | -                           | ARN Secrets Manager che contiene la password del service principal; usa il primo profilo AWS. |
 
 `*` Devi fornire almeno uno tra `--watchtower-password` e `--watchtower-service-secret-arn`.
 
@@ -145,6 +152,8 @@ I nomi interni della config sono in dot notation (`alarm.event.id`, `watchtower.
 | ------------------------------- | --------------------------------- |
 | `alarm.event.id`                | `--alarm-event-id`                |
 | `execution.id`                  | `--execution-id`                  |
+| `aws.profiles`                  | `--aws-profiles`                  |
+| `aws.region`                    | `--aws-region`                    |
 | `watchtower.url`                | `--watchtower-url`                |
 | `watchtower.service.id`         | `--watchtower-service-id`         |
 | `watchtower.password`           | `--watchtower-password`           |
@@ -160,15 +169,32 @@ export WATCHTOWER_PASSWORD='<password-service-principal>'
 
 Evita di passare `--watchtower-password` direttamente nel comando quando possibile: resta nella shell history e può comparire nella process list.
 
-Opzione consigliata per avvicinarsi al comportamento cloud:
+Opzione consigliata per avvicinarsi al comportamento cloud usando Secrets Manager:
 
 ```bash
-export AWS_PROFILE=sso_pn-analytics
+export AWS_PROFILES=sso_pn-analytics
 export AWS_REGION=eu-south-1
 export WATCHTOWER_SERVICE_SECRET_ARN='arn:aws:secretsmanager:eu-south-1:<account>:secret:<name>'
 ```
 
 Il secret deve contenere come `SecretString` la password del service principal.
+
+### Profili AWS locali
+
+`--aws-profiles` è lo stesso parametro usato da `go-analyze-alarm` per gestire runbook che devono interrogare log distribuiti su più account. I profili sono separati da virgola:
+
+```bash
+pnpm --filter=go-execute-runbook dev -- \
+  --aws-profiles 'sso_pn-core-dev,sso_pn-confinfo-dev' \
+  --aws-region 'eu-south-1' \
+  ...
+```
+
+Quando `--aws-profiles` è valorizzato e lo script gira localmente, CloudWatch Logs usa la modalità `search-configured-profiles`: per ogni log group prova i profili configurati nell'ordine indicato e memorizza il profilo che ha funzionato. Questo serve per i runbook che attraversano più account o servizi.
+
+Quando `--aws-profiles` non è valorizzato, lo script usa la default credential chain SDK. In questa modalità il comportamento è più vicino al worker cloud: CloudWatch Logs interroga l'account target dell'evento tramite il provider disponibile e OAM, se configurato.
+
+In Lambda i profili configurati vengono ignorati: il worker usa il ruolo di esecuzione e il target account/region dell'`AlarmEvent`.
 
 ## Utilizzo locale
 
@@ -199,6 +225,8 @@ WATCHTOWER_PASSWORD='pippo' \
 pnpm --filter=go-execute-runbook dev -- \
   --alarm-event-id '<alarm-event-uuid-locale>' \
   --execution-id '<execution-uuid-locale>' \
+  --aws-profiles '<profilo-aws-1>,<profilo-aws-2>' \
+  --aws-region 'eu-south-1' \
   --watchtower-url 'http://localhost:3001/' \
   --watchtower-service-id 'runbook-automation-worker'
 ```
@@ -209,6 +237,8 @@ Stesso esempio usando variabili d'ambiente:
 export WATCHTOWER_PASSWORD='pippo'
 export WATCHTOWER_URL='http://localhost:3001/'
 export WATCHTOWER_SERVICE_ID='runbook-automation-worker'
+export AWS_PROFILES='<profilo-aws-1>,<profilo-aws-2>'
+export AWS_REGION='eu-south-1'
 
 pnpm --filter=go-execute-runbook dev -- \
   --alarm-event-id '<alarm-event-uuid-locale>' \
@@ -234,11 +264,11 @@ pnpm --filter=go-execute-runbook dev -- \
 ```bash
 aws sso login --profile sso_pn-analytics
 
-AWS_PROFILE=sso_pn-analytics \
-AWS_REGION=eu-south-1 \
 pnpm --filter=go-execute-runbook dev -- \
   --alarm-event-id '<alarm-event-uuid>' \
   --execution-id '<execution-uuid>' \
+  --aws-profiles 'sso_pn-analytics' \
+  --aws-region 'eu-south-1' \
   --watchtower-url 'https://watchtower.internal' \
   --watchtower-service-id 'runbook-automation-worker' \
   --watchtower-service-secret-arn 'arn:aws:secretsmanager:eu-south-1:<account>:secret:<name>'
@@ -316,6 +346,7 @@ Non hai fornito né `WATCHTOWER_PASSWORD` / `--watchtower-password` né `WATCHTO
 Lo script non riesce a leggere il secret da Secrets Manager. Controlla:
 
 - `AWS_PROFILE`;
+- `AWS_PROFILES`;
 - `AWS_REGION`;
 - `aws sso login`;
 - ARN del secret;
@@ -347,7 +378,8 @@ Il runbook usa i dati dell'`AlarmEvent`: nome allarme, timestamp `firedAt`, acco
 - verifica OAM e permessi cross-account;
 - verifica che l'account target sia quello dell'evento;
 - controlla retention dei log;
-- controlla che `AWS_PROFILE` punti a un account autorizzato;
+- controlla che `--aws-profiles` / `AWS_PROFILES` includa i profili autorizzati;
+- se non usi `--aws-profiles`, controlla che `AWS_PROFILE` punti a un account autorizzato;
 - controlla eventuali permessi Athena/S3 se il runbook usa Athena.
 
 ### Processo locale interrotto dopo `startExecution`

@@ -142,6 +142,11 @@ export class AWSCloudWatchLogsService {
     return new AWSCloudWatchLogsService(this.clientProvider, target, activeOperations);
   }
 
+  /** Returns a service bound to the active-operation registry of one execution. */
+  forExecution(activeOperations: AWSActiveOperationRegistry): AWSCloudWatchLogsService {
+    return new AWSCloudWatchLogsService(this.clientProvider, this.target, activeOperations);
+  }
+
   async query(
     logGroups: ReadonlyArray<string>,
     query: string,

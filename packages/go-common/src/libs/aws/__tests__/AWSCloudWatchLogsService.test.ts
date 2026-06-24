@@ -8,6 +8,7 @@ import {
   type ResultField,
 } from '@aws-sdk/client-cloudwatch-logs';
 
+import { AWSActiveOperationRegistry } from '../AWSActiveOperationRegistry.js';
 import { AWSCloudWatchLogsService } from '../AWSCloudWatchLogsService.js';
 import type { AWSCloudWatchLogsQueryStatistics } from '../AWSCloudWatchLogsService.js';
 import type { AWSClientProvider } from '../AWSClientProvider.js';
@@ -242,6 +243,24 @@ describe('AWSCloudWatchLogsService', () => {
 
     assert.strictEqual(provider.client('first').commands.length, 1);
     assert.strictEqual(provider.client('second').commands.length, 4);
+  });
+
+  it('keeps configured profile search available when scoped to an execution', async () => {
+    const provider = new FakeMultiProvider(
+      new Map([
+        ['first', { startError: new Error('ResourceNotFoundException: log group not found') }],
+        ['second', {}],
+      ]),
+    );
+    const service = createService(provider).forExecution(new AWSActiveOperationRegistry());
+
+    const rows = await service.query(['/aws/ecs/service'], 'fields @timestamp, @message', timeRange, {
+      logGroupResolutionMode: 'search-configured-profiles',
+    });
+
+    assert.strictEqual(profileValue(rows[0] ?? []), 'second');
+    assert.strictEqual(provider.client('first').commands.length, 1);
+    assert.strictEqual(provider.client('second').commands.length, 2);
   });
 
   it('queries each log group when searching configured profiles', async () => {

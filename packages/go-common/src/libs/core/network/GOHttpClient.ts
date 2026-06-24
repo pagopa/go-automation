@@ -7,13 +7,17 @@ import type { GOAbortableRequest } from './GOAbortableRequest.js';
 import type { GOHttpClientConfig } from './GOHttpClientConfig.js';
 import { GOHttpClientError } from './GOHttpClientError.js';
 import type { GOHttpClientEventMap } from './GOHttpClientEvents.js';
-import type { GOHttpRequestOptions, GOHttpResponse, GOHttpRetryPolicy } from './GOHttpRequestOptions.js';
+import type {
+  GOHttpMethod,
+  GOHttpRequestOptions,
+  GOHttpResponse,
+  GOHttpRetryPolicy,
+} from './GOHttpRequestOptions.js';
 
-type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH';
 type ResponseMode = 'body' | 'headers';
 type RequestBody = string | Uint8Array | ArrayBuffer | Blob | FormData | URLSearchParams;
 
-const MUTATION_METHODS: ReadonlySet<HttpMethod> = new Set(['POST', 'PUT', 'PATCH']);
+const MUTATION_METHODS: ReadonlySet<GOHttpMethod> = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const EXPECTED_RETRY_STATUSES: readonly [408, 429, 500, 502, 503, 504] = [408, 429, 500, 502, 503, 504];
 const SENSITIVE_HEADER_NAMES: ReadonlySet<string> = new Set([
   'authorization',
@@ -35,7 +39,7 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
 
   constructor(config: GOHttpClientConfig) {
     super();
-    this.baseUrl = config.baseUrl;
+    this.baseUrl = config.baseUrl ?? '';
     this.defaultHeaders = config.defaultHeaders ?? {};
     this.timeout = config.timeout ?? 30_000;
     this.debug = config.debug ?? false;
@@ -109,6 +113,16 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
     return this.executeRequest<Record<string, string>>('PUT', url, body, headers, options, true, 'headers').promise;
   }
 
+  async request<T>(
+    method: string,
+    url: string,
+    body?: unknown,
+    headers?: Record<string, string>,
+    options?: GOHttpRequestOptions,
+  ): Promise<GOHttpResponse<T>> {
+    return this.executeRequest<T>(normalizeHttpMethod(method), url, body, headers, options, false, 'body').promise;
+  }
+
   getAbortable<T>(
     path: string,
     headers?: Record<string, string>,
@@ -147,7 +161,7 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
   }
 
   private executeRequest<T>(
-    method: HttpMethod,
+    method: GOHttpMethod,
     urlOrPath: string,
     body: unknown,
     headers: Record<string, string> | undefined,
@@ -159,7 +173,7 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
     const url = isFullUrl ? urlOrPath : this.buildUrl(urlOrPath);
     const retryPolicy = options?.retryPolicy;
     validateRetryPolicy(method, retryPolicy, body);
-    const mergedHeaders = this.mergeHeaders(headers, retryPolicy);
+    const mergedHeaders = this.mergeHeaders(headers, retryPolicy, body);
     rejectContentLength(mergedHeaders);
     const preparedBody = prepareRequestBody(body);
     const maxAttempts = retryPolicy === undefined ? 1 : (options?.attemptBudget ?? retryPolicy.maxAttempts);
@@ -192,8 +206,8 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
       }
 
       try {
-        const data = await this.runSingleAttempt<T>(request, attempt, remainingMs);
-        return { data, attemptsUsed: attempt };
+        const result = await this.runSingleAttempt<T>(request, attempt, remainingMs);
+        return { ...result, attemptsUsed: attempt };
       } catch (error: unknown) {
         lastError = error;
         if (!shouldRetry(error, request, attempt)) {
@@ -211,7 +225,11 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
     throw withAttempts(lastError ?? new GOHttpClientError('HTTP request failed'), request.maxAttempts);
   }
 
-  private async runSingleAttempt<T>(request: PreparedRequest, attempt: number, remainingMs: number): Promise<T> {
+  private async runSingleAttempt<T>(
+    request: PreparedRequest,
+    attempt: number,
+    remainingMs: number,
+  ): Promise<Omit<GOHttpResponse<T>, 'attemptsUsed'>> {
     const attemptStartedAt = Date.now();
     const timeoutController = new AbortController();
     const timeout = setTimeout(() => timeoutController.abort(), remainingMs);
@@ -238,12 +256,22 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
         }
         const responseHeaders = extractHeaders(response);
         this.emitResponse(request, response, responseHeaders, duration);
-        return responseHeaders as T;
+        return {
+          data: responseHeaders as T,
+          statusCode: response.status,
+          statusText: response.statusText,
+          headers: responseHeaders,
+        };
       }
 
       const result = await parseResponse<T>(response, attempt);
       this.emitResponse(request, response, result, duration);
-      return result;
+      return {
+        data: result,
+        statusCode: response.status,
+        statusText: response.statusText,
+        headers: extractHeaders(response),
+      };
     } catch (error: unknown) {
       const duration = Date.now() - attemptStartedAt;
       const normalized = normalizeTransportError(error, attempt);
@@ -285,6 +313,10 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
   }
 
   private buildUrl(path: string): string {
+    if (/^https?:\/\//i.test(path)) return path;
+    if (this.baseUrl.trim() === '') {
+      throw new Error('GOHttpClient baseUrl is required for relative request paths');
+    }
     const base = this.baseUrl.startsWith('http') ? this.baseUrl : `https://${this.baseUrl}`;
     return `${base}${path}`;
   }
@@ -292,8 +324,12 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
   private mergeHeaders(
     additionalHeaders: Record<string, string> | undefined,
     retryPolicy: GOHttpRetryPolicy | undefined,
+    body: unknown,
   ): Record<string, string> {
     const headers = { ...this.defaultHeaders, ...additionalHeaders };
+    if (isJsonSerializableBody(body) && headerValue(headers, 'content-type') === undefined) {
+      headers['Content-Type'] = 'application/json';
+    }
     if (retryPolicy !== undefined) {
       const existing = headerValue(headers, 'idempotency-key');
       if (existing !== undefined && existing !== retryPolicy.idempotencyKey) {
@@ -310,7 +346,7 @@ export class GOHttpClient extends GOEventEmitterBase<GOHttpClientEventMap> {
 }
 
 interface PreparedRequest {
-  readonly method: HttpMethod;
+  readonly method: GOHttpMethod;
   readonly url: string;
   readonly body: unknown;
   readonly preparedBody: RequestBody | undefined;
@@ -331,7 +367,7 @@ function stripMetadata<T>(request: GOAbortableRequest<GOHttpResponse<T>>): GOAbo
   };
 }
 
-function validateRetryPolicy(method: HttpMethod, policy: GOHttpRetryPolicy | undefined, body: unknown): void {
+function validateRetryPolicy(method: GOHttpMethod, policy: GOHttpRetryPolicy | undefined, body: unknown): void {
   if (policy === undefined) return;
   if (
     policy.enabled !== true ||
@@ -358,6 +394,20 @@ function sameStatuses(statuses: ReadonlyArray<number>): boolean {
   );
 }
 
+function normalizeHttpMethod(method: string): GOHttpMethod {
+  const normalized = method.trim().toUpperCase();
+  if (
+    normalized === 'GET' ||
+    normalized === 'POST' ||
+    normalized === 'PUT' ||
+    normalized === 'PATCH' ||
+    normalized === 'DELETE'
+  ) {
+    return normalized;
+  }
+  throw new Error(`Unsupported HTTP method: ${method}`);
+}
+
 function isNonReplayableBody(body: unknown): boolean {
   if (body instanceof ReadableStream) return true;
   return typeof body === 'object' && body !== null && 'pipe' in body && typeof body.pipe === 'function';
@@ -377,6 +427,19 @@ function prepareRequestBody(body: unknown): RequestBody | undefined {
     return body;
   }
   return JSON.stringify(body);
+}
+
+function isJsonSerializableBody(body: unknown): boolean {
+  return (
+    body !== undefined &&
+    typeof body !== 'string' &&
+    !Buffer.isBuffer(body) &&
+    !(body instanceof Uint8Array) &&
+    !(body instanceof ArrayBuffer) &&
+    !(body instanceof Blob) &&
+    !(body instanceof FormData) &&
+    !(body instanceof URLSearchParams)
+  );
 }
 
 function rejectContentLength(headers: Readonly<Record<string, string>>): void {

@@ -831,11 +831,11 @@ I servizi sono iniettati nel contesto e disponibili a tutti gli step. Questo per
  * Segue il pattern di dependency injection.
  */
 interface ServiceRegistry {
-  readonly cloudWatchLogs: CloudWatchLogsService;
-  readonly cloudWatchMetrics: CloudWatchMetricsService;
-  readonly athena: AthenaService;
-  readonly dynamodb: RunbookDynamoDBService;
-  readonly http: RunbookHttpService;
+  readonly cloudWatchLogs: AWSCloudWatchLogsService;
+  readonly cloudWatchMetrics: AWSCloudWatchMetricsService;
+  readonly athena: AWSAthenaService;
+  readonly dynamodb: AWSDynamoDBService;
+  readonly http: GOHttpClient;
 }
 ```
 

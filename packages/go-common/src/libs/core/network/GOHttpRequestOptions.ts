@@ -1,3 +1,5 @@
+export type GOHttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
 /** Retry contract for explicitly idempotent HTTP operations. */
 export interface GOHttpRetryPolicy {
   readonly enabled: true;
@@ -21,5 +23,8 @@ export interface GOHttpRequestOptions {
 /** Response data plus the number of HTTP transmissions consumed. */
 export interface GOHttpResponse<T> {
   readonly data: T;
+  readonly statusCode: number;
+  readonly statusText: string;
+  readonly headers: Record<string, string>;
   readonly attemptsUsed: number;
 }

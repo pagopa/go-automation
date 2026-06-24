@@ -11,6 +11,7 @@ export async function buildExecuteRunbookDeps(
 ): Promise<ExecuteRunbookDeps> {
   const password = await loadServicePassword(script, config);
   const reloadPassword = async (): Promise<string> => await loadServicePassword(script, config);
+  const awsProfiles = script.environment.isAWSManaged ? [] : (config.awsProfiles ?? []);
   const watchtower = new WatchtowerClient({
     baseUrl: config.watchtowerUrl,
     credentials: {
@@ -25,8 +26,8 @@ export async function buildExecuteRunbookDeps(
     watchtower,
     logger: script.logger,
     services,
-    cloudWatchLogs: script.aws.services.cloudWatchLogs,
-    athena: script.aws.services.athena,
+    awsProfiles,
+    useConfiguredAwsProfiles: awsProfiles.length > 0,
   };
 }
 

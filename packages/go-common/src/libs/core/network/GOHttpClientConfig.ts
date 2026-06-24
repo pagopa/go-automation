@@ -2,8 +2,8 @@
  * HTTP Client configuration (framework-agnostic)
  */
 export interface GOHttpClientConfig {
-  /** Base URL for API requests */
-  readonly baseUrl: string;
+  /** Base URL for relative API requests. Omit when using only absolute URLs. */
+  readonly baseUrl?: string;
   /** Default headers to include in all requests */
   readonly defaultHeaders?: Record<string, string> | undefined;
   /** Request timeout in milliseconds (default: 30000) */

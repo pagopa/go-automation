@@ -170,7 +170,7 @@ async function runOccurrence(
       firedAt: input.alarmEvent.firedAt,
       awsAccountId: input.alarmEvent.awsAccountId,
       region: input.alarmEvent.awsRegion,
-      awsProfiles: [],
+      awsProfiles: deps.awsProfiles,
       executionMode: 'cloud',
       signal: coordinator.signal,
     },
@@ -182,13 +182,16 @@ function scopedServices(
   input: ExecuteRunbookInput,
   activeOperations: AWS.AWSActiveOperationRegistry,
 ): ServiceRegistry {
+  const cwService = deps.services.cloudWatchLogs;
+  const target = { accountId: input.alarmEvent.awsAccountId, region: input.alarmEvent.awsRegion };
+  const cloudWatchLogs = deps.useConfiguredAwsProfiles
+    ? cwService.forExecution(activeOperations)
+    : cwService.forTarget(target, activeOperations);
+
   return {
     ...deps.services,
-    cloudWatchLogs: deps.cloudWatchLogs.forTarget(
-      { accountId: input.alarmEvent.awsAccountId, region: input.alarmEvent.awsRegion },
-      activeOperations,
-    ),
-    athena: deps.athena.forExecution(activeOperations),
+    cloudWatchLogs,
+    athena: deps.services.athena.forExecution(activeOperations),
   };
 }
 

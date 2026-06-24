@@ -21,6 +21,21 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     required: false,
   },
   {
+    name: 'aws.profiles',
+    type: Core.GOConfigParameterType.STRING_ARRAY,
+    description: 'AWS SSO profile names for local multi-account runbook execution (comma-separated)',
+    required: false,
+    aliases: ['aps'],
+  },
+  {
+    name: 'aws.region',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'AWS region for local AWS clients',
+    required: false,
+    defaultValue: 'eu-south-1',
+    aliases: ['ar'],
+  },
+  {
     name: 'watchtower.url',
     type: Core.GOConfigParameterType.STRING,
     description: 'Watchtower internal TLS endpoint',
