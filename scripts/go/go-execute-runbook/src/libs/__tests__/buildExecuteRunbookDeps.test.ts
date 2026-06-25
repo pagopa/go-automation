@@ -6,6 +6,8 @@ import type { AWS, Core } from '@go-automation/go-common';
 import type { ExecuteRunbookConfig } from '../../types/ExecuteRunbookConfig.js';
 import { buildExecuteRunbookDeps } from '../buildExecuteRunbookDeps.js';
 
+type FakeSecretStringLoaderFn = (arn: string) => string | Promise<string>;
+
 const BASE_CONFIG: ExecuteRunbookConfig = {
   watchtowerUrl: 'http://localhost:3001',
   watchtowerServiceId: 'runbook-worker',
@@ -15,7 +17,7 @@ describe('buildExecuteRunbookDeps', () => {
   it('trims an inline Watchtower service password', async () => {
     let secretReads = 0;
     const deps = await buildExecuteRunbookDeps(
-      fakeScript(async () => {
+      fakeScript(() => {
         secretReads += 1;
         return 'secret-from-aws';
       }),
@@ -29,7 +31,7 @@ describe('buildExecuteRunbookDeps', () => {
   it('trims the Watchtower service secret ARN before reading Secrets Manager', async () => {
     let requestedArn = '';
     await buildExecuteRunbookDeps(
-      fakeScript(async (arn) => {
+      fakeScript((arn) => {
         requestedArn = arn;
         return 'secret-from-aws';
       }),
@@ -42,7 +44,7 @@ describe('buildExecuteRunbookDeps', () => {
   it('rejects whitespace-only Watchtower credentials as a configuration error', async () => {
     await assert.rejects(
       buildExecuteRunbookDeps(
-        fakeScript(async () => 'secret-from-aws'),
+        fakeScript(() => 'secret-from-aws'),
         {
           ...BASE_CONFIG,
           watchtowerPassword: '   ',
@@ -62,7 +64,7 @@ describe('buildExecuteRunbookDeps', () => {
   });
 });
 
-function fakeScript(getSecretString: (arn: string) => Promise<string>): Core.GOScript {
+function fakeScript(readSecretString: FakeSecretStringLoaderFn): Core.GOScript {
   return {
     environment: { isAWSManaged: false },
     logger: {} as Core.GOLogger,
@@ -72,7 +74,12 @@ function fakeScript(getSecretString: (arn: string) => Promise<string>): Core.GOS
         cloudWatchMetrics: {} as AWS.AWSCloudWatchMetricsService,
         athena: {} as AWS.AWSAthenaService,
         dynamoDB: {} as AWS.AWSDynamoDBService,
-        secretsManager: { getSecretString },
+        secretsManager: {
+          async getSecretString(secretId: string): Promise<string> {
+            const value = await Promise.resolve(readSecretString(secretId));
+            return value;
+          },
+        },
       },
     },
   } as unknown as Core.GOScript;
