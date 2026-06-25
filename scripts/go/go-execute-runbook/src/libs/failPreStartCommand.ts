@@ -25,7 +25,7 @@ export async function failPreStartCommand(
     idempotencyKey: `fail:${executionId}:${deliveryKey}:${errorCode}`,
     deadlineAtMs: Date.parse(delivery.workerDeadlineAt),
   });
-  if ('conflict' in result && result.conflict !== 'IDEMPOTENCY_PAYLOAD_MISMATCH') {
+  if ('conflict' in result && result.conflict === 'IDEMPOTENCY_PAYLOAD_MISMATCH') {
     throw new Error(`Pre-start failure callback conflict: ${result.conflict}`);
   }
 }
