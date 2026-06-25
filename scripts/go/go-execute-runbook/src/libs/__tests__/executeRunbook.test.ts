@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import type { AWS, Core } from '@go-automation/go-common';
+import type { ServiceRegistry } from '@go-automation/go-runbook';
 import type { WatchtowerClient } from '@go-automation/go-watchtower-client';
 
 import type { ExecuteRunbookDeps } from '../../types/ExecuteRunbookDeps.js';
@@ -190,7 +191,7 @@ function fakeDeps(watchtower: Readonly<Record<string, unknown>>): ExecuteRunbook
     services: {
       cloudWatchLogs: {} as AWS.AWSCloudWatchLogsService,
       athena: {} as AWS.AWSAthenaService,
-    } as ExecuteRunbookDeps['services'],
+    } as ServiceRegistry,
     awsProfiles: [],
     useConfiguredAwsProfiles: false,
   };

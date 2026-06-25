@@ -86,7 +86,8 @@ describe('GOHttpClient', () => {
 
   it('executes generic absolute requests without a baseUrl', async () => {
     mock.method(globalThis, 'fetch', async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
-      assert.strictEqual(String(url), 'https://external.example/status');
+      const requestUrl = url instanceof Request ? url.url : url instanceof URL ? url.href : url;
+      assert.strictEqual(requestUrl, 'https://external.example/status');
       assert.strictEqual(init?.method, 'GET');
       return await Promise.resolve(
         new Response('{"ok":true}', {
