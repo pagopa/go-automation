@@ -25,6 +25,8 @@ type ExecuteRunbookFn = (
 ) => Promise<ExecuteRunbookResult>;
 type RemainingTimeFn = () => number;
 
+const LAMBDA_SHUTDOWN_SAFETY_MS = 30_000;
+
 const script = new Core.GOScript({ metadata: scriptMetadata, config: { parameters: scriptParameters } });
 
 export const handler = script.createLambdaHandler<SQSEvent, SQSBatchResponse, Context>(async (event, context) => {
@@ -81,7 +83,10 @@ function deliveryFrom(
   if (!Number.isInteger(approximateReceiveCount) || approximateReceiveCount < 1) {
     throw new Error('Invalid SQS ApproximateReceiveCount');
   }
-  const budgetMs = Math.max(1, remainingTimeMs - 30_000);
+  if (remainingTimeMs <= LAMBDA_SHUTDOWN_SAFETY_MS) {
+    throw new Error('Insufficient Lambda time remaining for ExecuteRunbook delivery');
+  }
+  const budgetMs = remainingTimeMs - LAMBDA_SHUTDOWN_SAFETY_MS;
   return {
     sqsMessageId,
     approximateReceiveCount,

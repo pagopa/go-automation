@@ -40,6 +40,43 @@ describe('go-ExecuteRunbookLambda handler', () => {
     assert.deepStrictEqual(result, { batchItemFailures: [] });
   });
 
+  it('retries without invoking the shared execute core when Lambda time is below the safety budget', async () => {
+    const body = JSON.stringify(validCommand());
+    let executeCalls = 0;
+    const execute = async (): Promise<ExecuteRunbookResult> => {
+      await Promise.resolve();
+      executeCalls += 1;
+      return { disposition: 'COMPLETE_OUTCOME', executionId: 'execution', status: 'SUCCEEDED' } as const;
+    };
+
+    const result = await processExecuteRunbookBatch(sqsEvent(body), {} as ExecuteRunbookDeps, () => 30_000, execute);
+
+    assert.deepStrictEqual(result, { batchItemFailures: [{ itemIdentifier: 'message-1' }] });
+    assert.strictEqual(executeCalls, 0);
+  });
+
+  it('passes a worker deadline inside the Lambda safety budget', async () => {
+    const body = JSON.stringify(validCommand());
+    const before = Date.now();
+    let workerDeadlineAt = '';
+    const execute = async (
+      _deps: ExecuteRunbookDeps,
+      _input: unknown,
+      delivery: { readonly workerDeadlineAt: string },
+    ): Promise<ExecuteRunbookResult> => {
+      await Promise.resolve();
+      workerDeadlineAt = delivery.workerDeadlineAt;
+      return { disposition: 'COMPLETE_OUTCOME', executionId: 'execution', status: 'SUCCEEDED' } as const;
+    };
+
+    const result = await processExecuteRunbookBatch(sqsEvent(body), {} as ExecuteRunbookDeps, () => 60_000, execute);
+
+    assert.deepStrictEqual(result, { batchItemFailures: [] });
+    const deadlineMs = Date.parse(workerDeadlineAt);
+    assert.ok(deadlineMs >= before + 29_000);
+    assert.ok(deadlineMs <= Date.now() + 30_000);
+  });
+
   it('ACKs an unsupported command version after a confirmed PRE_START fail callback', async () => {
     const invalidVersion = JSON.stringify({
       schemaVersion: '2.0.0',
@@ -83,5 +120,23 @@ function sqsEvent(body: string): SQSEvent {
         awsRegion: 'eu-south-1',
       },
     ],
+  };
+}
+
+function validCommand(): Readonly<Record<string, unknown>> {
+  return {
+    schemaVersion: '1.0.0',
+    executionId: '0192c000-0000-7000-8000-000000000001',
+    alarmEvent: {
+      id: '0192c000-0000-7000-8000-0000000000aa',
+      productId: '0192c000-0000-7000-8000-0000000000bb',
+      environmentId: '0192c000-0000-7000-8000-0000000000cc',
+      alarmId: '0192c000-0000-7000-8000-0000000000dd',
+      alarmName: 'alarm',
+      firedAt: '2026-06-22T10:00:00.000Z',
+      awsAccountId: '170533023216',
+      awsRegion: 'eu-south-1',
+    },
+    trigger: { kind: 'SLACK_INGESTER' },
   };
 }
