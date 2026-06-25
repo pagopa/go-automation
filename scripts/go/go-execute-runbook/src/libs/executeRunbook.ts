@@ -49,10 +49,12 @@ export async function executeRunbook(
   }
 
   const attemptId = start.attemptId;
+  const activeDelivery: ExecuteRunbookDelivery = { ...delivery, workerDeadlineAt: start.workerDeadlineAt };
+  const activeDeadlineAtMs = Date.parse(activeDelivery.workerDeadlineAt);
   const coordinator = new ExecutionAbortCoordinator();
   const activeOperations = new AWS.AWSActiveOperationRegistry();
-  const monitor = new CancellationMonitor(deps.watchtower, executionId, attemptId, delivery, coordinator);
-  const timeoutMs = Date.parse(delivery.workerDeadlineAt) - Date.now();
+  const monitor = new CancellationMonitor(deps.watchtower, executionId, attemptId, activeDelivery, coordinator);
+  const timeoutMs = activeDeadlineAtMs - Date.now();
   const budgetTimer = setTimeout(() => coordinator.abort('TIME_BUDGET'), Math.max(1, timeoutMs));
 
   try {
@@ -66,7 +68,7 @@ export async function executeRunbook(
       return await acknowledgeCancellation(
         deps,
         executionId,
-        delivery,
+        activeDelivery,
         attemptId,
         coordinator,
         monitor,
@@ -82,7 +84,7 @@ export async function executeRunbook(
     const completeRequest = buildCompleteRequest(attemptId, check, output);
     const completeResult = await deps.watchtower.completeExecution(executionId, completeRequest, {
       idempotencyKey: `complete:${executionId}:${attemptId}`,
-      deadlineAtMs: Date.parse(delivery.workerDeadlineAt),
+      deadlineAtMs: activeDeadlineAtMs,
       signal: coordinator.signal,
     });
     if ('conflict' in completeResult) {
@@ -91,7 +93,7 @@ export async function executeRunbook(
         return await acknowledgeCancellation(
           deps,
           executionId,
-          delivery,
+          activeDelivery,
           attemptId,
           coordinator,
           monitor,
@@ -121,7 +123,7 @@ export async function executeRunbook(
       return await acknowledgeCancellation(
         deps,
         executionId,
-        delivery,
+        activeDelivery,
         attemptId,
         coordinator,
         monitor,

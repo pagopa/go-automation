@@ -31,6 +31,11 @@ const DELIVERY = {
   workerDeadlineAt: new Date(Date.now() + 60_000).toISOString(),
 };
 
+interface LifecycleOptions {
+  readonly idempotencyKey: string;
+  readonly deadlineAtMs: number;
+}
+
 describe('executeRunbook', () => {
   it('ACKs ALREADY_RUNNING without starting the engine or a terminal callback', async () => {
     let completeCalls = 0;
@@ -86,6 +91,41 @@ describe('executeRunbook', () => {
       completeKey,
       'complete:0192c000-0000-7000-8000-000000000001:0192c000-0000-7000-8000-0000000000e1',
     );
+  });
+
+  it('uses the authoritative start response deadline for worker lifecycle callbacks', async () => {
+    const requestedDeadline = new Date(Date.now() + 120_000).toISOString();
+    const authoritativeDeadline = new Date(Date.now() + 60_000).toISOString();
+    const delivery = { ...DELIVERY, workerDeadlineAt: requestedDeadline };
+    let progressDeadlineAtMs = 0;
+    let completeDeadlineAtMs = 0;
+    const deps = fakeDeps({
+      startExecution: async () => {
+        await Promise.resolve();
+        return {
+          disposition: 'START',
+          attemptId: '0192c000-0000-7000-8000-0000000000e1',
+          workerDeadlineAt: authoritativeDeadline,
+        };
+      },
+      progressExecution: async (_id: string, _body: unknown, options: LifecycleOptions) => {
+        await Promise.resolve();
+        progressDeadlineAtMs = options.deadlineAtMs;
+        return { cancelRequested: false };
+      },
+      completeExecution: async (_id: string, _body: unknown, options: LifecycleOptions) => {
+        await Promise.resolve();
+        completeDeadlineAtMs = options.deadlineAtMs;
+        return { status: 'SKIPPED', outcome: 'NO_RUNBOOK' };
+      },
+    });
+
+    const result = await executeRunbook(deps, INPUT, delivery);
+
+    assert.strictEqual(result.status, 'SKIPPED');
+    assert.strictEqual(progressDeadlineAtMs, Date.parse(authoritativeDeadline));
+    assert.strictEqual(completeDeadlineAtMs, Date.parse(authoritativeDeadline));
+    assert.notStrictEqual(completeDeadlineAtMs, Date.parse(requestedDeadline));
   });
 
   it('ACKs cancellation only after the owner callback succeeds', async () => {
