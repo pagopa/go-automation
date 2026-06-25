@@ -12,6 +12,6 @@
     "awsRegion": "eu-south-1"
   },
   "trigger": {
-    "kind": "SLACK_INGESTER"
+    "kind": "SLACK_INGESTOR"
   }
 }

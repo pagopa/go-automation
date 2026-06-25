@@ -10,7 +10,7 @@ export interface ExecuteRunbookDeploymentConfig {
   readonly watchtowerNatGatewayId: string;
   readonly workerSubnetCidrBlock: string;
   readonly workerSubnetAvailabilityZone: string;
-  readonly slackIngesterRoleArn: string;
+  readonly slackIngestorRoleArn: string;
   readonly watchtowerBackendRoleArn: string;
   readonly servicePrincipalSecretArn?: string;
   readonly oamSourceAccountIds: ReadonlyArray<string>;
@@ -23,7 +23,7 @@ interface WatchtowerDeploymentDefaults {
   readonly watchtowerNatGatewayId: string;
   readonly workerSubnetCidrBlock: string;
   readonly workerSubnetAvailabilityZone: string;
-  readonly slackIngesterRoleArn: string;
+  readonly slackIngestorRoleArn: string;
   readonly watchtowerBackendRoleArn: string;
   readonly oamSourceAccountIds: ReadonlyArray<string>;
 }
@@ -35,7 +35,7 @@ const WATCHTOWER_PRODUCTION_EU_SOUTH_1_DEFAULTS: WatchtowerDeploymentDefaults = 
   watchtowerNatGatewayId: 'nat-0b886fee7edcdc400',
   workerSubnetCidrBlock: '172.31.65.0/24',
   workerSubnetAvailabilityZone: 'eu-south-1b',
-  slackIngesterRoleArn: 'arn:aws:iam::170533023216:role/service-role/go-watchtower-slack-ingestor-role-w5can32v',
+  slackIngestorRoleArn: 'arn:aws:iam::170533023216:role/service-role/go-watchtower-slack-ingestor-role-w5can32v',
   watchtowerBackendRoleArn: 'arn:aws:iam::170533023216:role/pn-dept-insights-ssm-role',
   oamSourceAccountIds: ['170533023216'],
 };
@@ -84,7 +84,7 @@ export function loadExecuteRunbookDeploymentConfig(
     watchtowerNatGatewayId: validateId('WATCHTOWER_NAT_GATEWAY_ID', watchtowerNatGatewayId, /^nat-[a-f0-9]+$/),
     workerSubnetCidrBlock: validateCidr('EXECUTE_RUNBOOK_WORKER_SUBNET_CIDR', workerSubnetCidrBlock),
     workerSubnetAvailabilityZone: validateAvailabilityZone(region, workerSubnetAvailabilityZone),
-    slackIngesterRoleArn: requiredArn(env, 'WATCHTOWER_SLACK_INGESTER_ROLE_ARN', defaults?.slackIngesterRoleArn),
+    slackIngestorRoleArn: requiredArn(env, 'WATCHTOWER_SLACK_INGESTOR_ROLE_ARN', defaults?.slackIngestorRoleArn),
     watchtowerBackendRoleArn: requiredArn(env, 'WATCHTOWER_BACKEND_ROLE_ARN', defaults?.watchtowerBackendRoleArn),
     ...(servicePrincipalSecretArn === undefined ? {} : { servicePrincipalSecretArn }),
     oamSourceAccountIds: [...new Set(oamSourceAccountIds)],

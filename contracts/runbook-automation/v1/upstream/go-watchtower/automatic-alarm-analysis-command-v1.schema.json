@@ -69,7 +69,7 @@
         "kind": {
           "anyOf": [
             {
-              "const": "SLACK_INGESTER",
+              "const": "SLACK_INGESTOR",
               "type": "string"
             },
             {

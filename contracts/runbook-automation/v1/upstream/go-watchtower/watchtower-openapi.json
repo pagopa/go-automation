@@ -3130,6 +3130,107 @@
                               }
                             ]
                           },
+                          "automaticExecution": {
+                            "anyOf": [
+                              {
+                                "properties": {
+                                  "appliedMode": {
+                                    "type": "string"
+                                  },
+                                  "completedAt": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "createdAt": {
+                                    "type": "string"
+                                  },
+                                  "durationMs": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "isLastApplied": {
+                                    "type": "boolean"
+                                  },
+                                  "outcome": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "reviewStatus": {
+                                    "type": "string"
+                                  },
+                                  "runbookKey": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "runbookVersion": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "status": {
+                                    "type": "string"
+                                  },
+                                  "totalCount": {
+                                    "type": "integer"
+                                  },
+                                  "triggerKind": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "status",
+                                  "outcome",
+                                  "reviewStatus",
+                                  "triggerKind",
+                                  "appliedMode",
+                                  "runbookKey",
+                                  "runbookVersion",
+                                  "completedAt",
+                                  "durationMs",
+                                  "createdAt",
+                                  "isLastApplied",
+                                  "totalCount"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "avgMttaMs": {
                             "anyOf": [
                               {
@@ -4913,7 +5014,7 @@
               "anyOf": [
                 {
                   "enum": [
-                    "SLACK_INGESTER"
+                    "SLACK_INGESTOR"
                   ],
                   "type": "string"
                 },
@@ -5351,7 +5452,7 @@
                             "anyOf": [
                               {
                                 "enum": [
-                                  "SLACK_INGESTER"
+                                  "SLACK_INGESTOR"
                                 ],
                                 "type": "string"
                               },
@@ -5894,7 +5995,7 @@
                       "anyOf": [
                         {
                           "enum": [
-                            "SLACK_INGESTER"
+                            "SLACK_INGESTOR"
                           ],
                           "type": "string"
                         },
@@ -6696,7 +6797,7 @@
                       "anyOf": [
                         {
                           "enum": [
-                            "SLACK_INGESTER"
+                            "SLACK_INGESTOR"
                           ],
                           "type": "string"
                         },
@@ -9249,7 +9350,7 @@
                       "anyOf": [
                         {
                           "enum": [
-                            "SLACK_INGESTER"
+                            "SLACK_INGESTOR"
                           ],
                           "type": "string"
                         },
@@ -9797,7 +9898,7 @@
                       "anyOf": [
                         {
                           "enum": [
-                            "SLACK_INGESTER"
+                            "SLACK_INGESTOR"
                           ],
                           "type": "string"
                         },
@@ -15681,6 +15782,107 @@
                               }
                             ]
                           },
+                          "automaticExecution": {
+                            "anyOf": [
+                              {
+                                "properties": {
+                                  "appliedMode": {
+                                    "type": "string"
+                                  },
+                                  "completedAt": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "createdAt": {
+                                    "type": "string"
+                                  },
+                                  "durationMs": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "isLastApplied": {
+                                    "type": "boolean"
+                                  },
+                                  "outcome": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "reviewStatus": {
+                                    "type": "string"
+                                  },
+                                  "runbookKey": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "runbookVersion": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "status": {
+                                    "type": "string"
+                                  },
+                                  "totalCount": {
+                                    "type": "integer"
+                                  },
+                                  "triggerKind": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "status",
+                                  "outcome",
+                                  "reviewStatus",
+                                  "triggerKind",
+                                  "appliedMode",
+                                  "runbookKey",
+                                  "runbookVersion",
+                                  "completedAt",
+                                  "durationMs",
+                                  "createdAt",
+                                  "isLastApplied",
+                                  "totalCount"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "avgMttaMs": {
                             "anyOf": [
                               {
@@ -16625,6 +16827,107 @@
                         }
                       ]
                     },
+                    "automaticExecution": {
+                      "anyOf": [
+                        {
+                          "properties": {
+                            "appliedMode": {
+                              "type": "string"
+                            },
+                            "completedAt": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "durationMs": {
+                              "anyOf": [
+                                {
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "isLastApplied": {
+                              "type": "boolean"
+                            },
+                            "outcome": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "reviewStatus": {
+                              "type": "string"
+                            },
+                            "runbookKey": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "runbookVersion": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "status": {
+                              "type": "string"
+                            },
+                            "totalCount": {
+                              "type": "integer"
+                            },
+                            "triggerKind": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "status",
+                            "outcome",
+                            "reviewStatus",
+                            "triggerKind",
+                            "appliedMode",
+                            "runbookKey",
+                            "runbookVersion",
+                            "completedAt",
+                            "durationMs",
+                            "createdAt",
+                            "isLastApplied",
+                            "totalCount"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "avgMttaMs": {
                       "anyOf": [
                         {
@@ -17443,6 +17746,107 @@
                             "IGNORABLE"
                           ],
                           "type": "string"
+                        }
+                      ]
+                    },
+                    "automaticExecution": {
+                      "anyOf": [
+                        {
+                          "properties": {
+                            "appliedMode": {
+                              "type": "string"
+                            },
+                            "completedAt": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "durationMs": {
+                              "anyOf": [
+                                {
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "isLastApplied": {
+                              "type": "boolean"
+                            },
+                            "outcome": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "reviewStatus": {
+                              "type": "string"
+                            },
+                            "runbookKey": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "runbookVersion": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "status": {
+                              "type": "string"
+                            },
+                            "totalCount": {
+                              "type": "integer"
+                            },
+                            "triggerKind": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "status",
+                            "outcome",
+                            "reviewStatus",
+                            "triggerKind",
+                            "appliedMode",
+                            "runbookKey",
+                            "runbookVersion",
+                            "completedAt",
+                            "durationMs",
+                            "createdAt",
+                            "isLastApplied",
+                            "totalCount"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
                         }
                       ]
                     },
@@ -18347,6 +18751,107 @@
                             "IGNORABLE"
                           ],
                           "type": "string"
+                        }
+                      ]
+                    },
+                    "automaticExecution": {
+                      "anyOf": [
+                        {
+                          "properties": {
+                            "appliedMode": {
+                              "type": "string"
+                            },
+                            "completedAt": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "durationMs": {
+                              "anyOf": [
+                                {
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "isLastApplied": {
+                              "type": "boolean"
+                            },
+                            "outcome": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "reviewStatus": {
+                              "type": "string"
+                            },
+                            "runbookKey": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "runbookVersion": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "status": {
+                              "type": "string"
+                            },
+                            "totalCount": {
+                              "type": "integer"
+                            },
+                            "triggerKind": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "status",
+                            "outcome",
+                            "reviewStatus",
+                            "triggerKind",
+                            "appliedMode",
+                            "runbookKey",
+                            "runbookVersion",
+                            "completedAt",
+                            "durationMs",
+                            "createdAt",
+                            "isLastApplied",
+                            "totalCount"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
                         }
                       ]
                     },

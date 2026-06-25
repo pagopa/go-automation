@@ -59,7 +59,7 @@ export function buildExecuteRunbookMonitoringPlan(
     dlqHasConsumer: false,
     runtime: 'nodejs24.x',
     architecture: 'arm64',
-    queueSendPrincipals: [config.slackIngesterRoleArn, config.watchtowerBackendRoleArn],
+    queueSendPrincipals: [config.slackIngestorRoleArn, config.watchtowerBackendRoleArn],
   };
 }
 

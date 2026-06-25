@@ -775,6 +775,21 @@ export interface paths {
                                 alarmId: string;
                                 analysisDate: string;
                                 analysisType: "ANALYZABLE" | "IGNORABLE";
+                                automaticExecution?: {
+                                    appliedMode: string;
+                                    completedAt: string | null;
+                                    createdAt: string;
+                                    durationMs: number | null;
+                                    id: string;
+                                    isLastApplied: boolean;
+                                    outcome: string | null;
+                                    reviewStatus: string;
+                                    runbookKey: string | null;
+                                    runbookVersion: string | null;
+                                    status: string;
+                                    totalCount: number;
+                                    triggerKind: string;
+                                } | null;
                                 avgMttaMs: number | null;
                                 avgMttfMs: number | null;
                                 avgMttrMs: number | null;
@@ -1351,7 +1366,7 @@ export interface paths {
                     productId?: string;
                     reviewStatus?: "NOT_REQUIRED" | "PENDING" | "CONFIRMED" | "REJECTED";
                     status?: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
-                    triggerKind?: "SLACK_INGESTER" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
+                    triggerKind?: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
                 };
                 header?: never;
                 path?: never;
@@ -1398,7 +1413,7 @@ export interface paths {
                                 startedAt: string | null;
                                 status: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                                 totalWorkerAttempts: number;
-                                triggerKind: "SLACK_INGESTER" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
+                                triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
                                 updatedAt: string;
                             }[];
                             page: number;
@@ -1477,7 +1492,7 @@ export interface paths {
                             startedAt: string | null;
                             status: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                             totalWorkerAttempts: number;
-                            triggerKind: "SLACK_INGESTER" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
+                            triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
                             updatedAt: string;
                         };
                     };
@@ -1607,7 +1622,7 @@ export interface paths {
                             startedAt: string | null;
                             status: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                             totalWorkerAttempts: number;
-                            triggerKind: "SLACK_INGESTER" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
+                            triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
                             updatedAt: string;
                         };
                     };
@@ -2266,7 +2281,7 @@ export interface paths {
                             startedAt: string | null;
                             status: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                             totalWorkerAttempts: number;
-                            triggerKind: "SLACK_INGESTER" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
+                            triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
                             updatedAt: string;
                         };
                     };
@@ -2367,7 +2382,7 @@ export interface paths {
                             startedAt: string | null;
                             status: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                             totalWorkerAttempts: number;
-                            triggerKind: "SLACK_INGESTER" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
+                            triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
                             updatedAt: string;
                         };
                     };
@@ -4584,6 +4599,21 @@ export interface paths {
                                 alarmId: string;
                                 analysisDate: string;
                                 analysisType: "ANALYZABLE" | "IGNORABLE";
+                                automaticExecution?: {
+                                    appliedMode: string;
+                                    completedAt: string | null;
+                                    createdAt: string;
+                                    durationMs: number | null;
+                                    id: string;
+                                    isLastApplied: boolean;
+                                    outcome: string | null;
+                                    reviewStatus: string;
+                                    runbookKey: string | null;
+                                    runbookVersion: string | null;
+                                    status: string;
+                                    totalCount: number;
+                                    triggerKind: string;
+                                } | null;
                                 avgMttaMs: number | null;
                                 avgMttfMs: number | null;
                                 avgMttrMs: number | null;
@@ -4797,6 +4827,21 @@ export interface paths {
                             alarmId: string;
                             analysisDate: string;
                             analysisType: "ANALYZABLE" | "IGNORABLE";
+                            automaticExecution?: {
+                                appliedMode: string;
+                                completedAt: string | null;
+                                createdAt: string;
+                                durationMs: number | null;
+                                id: string;
+                                isLastApplied: boolean;
+                                outcome: string | null;
+                                reviewStatus: string;
+                                runbookKey: string | null;
+                                runbookVersion: string | null;
+                                status: string;
+                                totalCount: number;
+                                triggerKind: string;
+                            } | null;
                             avgMttaMs: number | null;
                             avgMttfMs: number | null;
                             avgMttrMs: number | null;
@@ -4981,6 +5026,21 @@ export interface paths {
                             alarmId: string;
                             analysisDate: string;
                             analysisType: "ANALYZABLE" | "IGNORABLE";
+                            automaticExecution?: {
+                                appliedMode: string;
+                                completedAt: string | null;
+                                createdAt: string;
+                                durationMs: number | null;
+                                id: string;
+                                isLastApplied: boolean;
+                                outcome: string | null;
+                                reviewStatus: string;
+                                runbookKey: string | null;
+                                runbookVersion: string | null;
+                                status: string;
+                                totalCount: number;
+                                triggerKind: string;
+                            } | null;
                             avgMttaMs: number | null;
                             avgMttfMs: number | null;
                             avgMttrMs: number | null;
@@ -5184,6 +5244,21 @@ export interface paths {
                             alarmId: string;
                             analysisDate: string;
                             analysisType: "ANALYZABLE" | "IGNORABLE";
+                            automaticExecution?: {
+                                appliedMode: string;
+                                completedAt: string | null;
+                                createdAt: string;
+                                durationMs: number | null;
+                                id: string;
+                                isLastApplied: boolean;
+                                outcome: string | null;
+                                reviewStatus: string;
+                                runbookKey: string | null;
+                                runbookVersion: string | null;
+                                status: string;
+                                totalCount: number;
+                                triggerKind: string;
+                            } | null;
                             avgMttaMs: number | null;
                             avgMttfMs: number | null;
                             avgMttrMs: number | null;
