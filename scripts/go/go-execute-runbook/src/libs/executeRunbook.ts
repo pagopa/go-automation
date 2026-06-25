@@ -70,6 +70,7 @@ export async function executeRunbook(
         executionId,
         activeDelivery,
         attemptId,
+        activeDeadlineAtMs,
         coordinator,
         monitor,
         activeOperations,
@@ -95,6 +96,7 @@ export async function executeRunbook(
           executionId,
           activeDelivery,
           attemptId,
+          activeDeadlineAtMs,
           coordinator,
           monitor,
           activeOperations,
@@ -125,6 +127,7 @@ export async function executeRunbook(
         executionId,
         activeDelivery,
         attemptId,
+        activeDeadlineAtMs,
         coordinator,
         monitor,
         activeOperations,
@@ -233,6 +236,7 @@ async function acknowledgeCancellation(
   executionId: string,
   delivery: ExecuteRunbookDelivery,
   attemptId: string,
+  deadlineAtMs: number,
   coordinator: ExecutionAbortCoordinator,
   monitor: CancellationMonitor,
   activeOperations: AWS.AWSActiveOperationRegistry,
@@ -251,7 +255,7 @@ async function acknowledgeCancellation(
   };
   const result = await deps.watchtower.acknowledgeCancellation(executionId, request, {
     idempotencyKey: `cancel-ack:${executionId}:${cancelRequestId}:${attemptId}`,
-    deadlineAtMs: Date.parse(delivery.workerDeadlineAt),
+    deadlineAtMs,
   });
   if ('conflict' in result) throw new Error(`Cancellation acknowledgement conflict: ${result.conflict}`);
   coordinator.abort('USER_CANCELLED');

@@ -129,7 +129,11 @@ describe('executeRunbook', () => {
   });
 
   it('ACKs cancellation only after the owner callback succeeds', async () => {
+    const requestedDeadline = new Date(Date.now() + 120_000).toISOString();
+    const authoritativeDeadline = new Date(Date.now() + 60_000).toISOString();
+    const delivery = { ...DELIVERY, workerDeadlineAt: requestedDeadline };
     let cancelAckKey = '';
+    let cancelAckDeadlineAtMs = 0;
     let completeCalls = 0;
     const deps = fakeDeps({
       startExecution: async () => {
@@ -137,7 +141,7 @@ describe('executeRunbook', () => {
         return {
           disposition: 'START',
           attemptId: '0192c000-0000-7000-8000-0000000000e1',
-          workerDeadlineAt: DELIVERY.workerDeadlineAt,
+          workerDeadlineAt: authoritativeDeadline,
         };
       },
       progressExecution: async () => {
@@ -149,14 +153,15 @@ describe('executeRunbook', () => {
         completeCalls += 1;
         return { status: 'SUCCEEDED', outcome: 'NO_RUNBOOK' };
       },
-      acknowledgeCancellation: async (_id: string, _body: unknown, options: { readonly idempotencyKey: string }) => {
+      acknowledgeCancellation: async (_id: string, _body: unknown, options: LifecycleOptions) => {
         await Promise.resolve();
         cancelAckKey = options.idempotencyKey;
+        cancelAckDeadlineAtMs = options.deadlineAtMs;
         return { status: 'CANCELLED' };
       },
     });
 
-    const result = await executeRunbook(deps, INPUT, DELIVERY);
+    const result = await executeRunbook(deps, INPUT, delivery);
 
     assert.strictEqual(result.disposition, 'CANCEL_EXECUTION');
     assert.strictEqual(result.status, 'CANCELLED');
@@ -165,6 +170,8 @@ describe('executeRunbook', () => {
       cancelAckKey,
       'cancel-ack:0192c000-0000-7000-8000-000000000001:0192c000-0000-7000-8000-0000000000c1:0192c000-0000-7000-8000-0000000000e1',
     );
+    assert.strictEqual(cancelAckDeadlineAtMs, Date.parse(authoritativeDeadline));
+    assert.notStrictEqual(cancelAckDeadlineAtMs, Date.parse(requestedDeadline));
   });
 
   it('ACKs an idempotency payload mismatch without retrying SQS', async () => {
