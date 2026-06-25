@@ -132,10 +132,28 @@ function validateId(name: string, value: string, pattern: RegExp): string {
 }
 
 function validateCidr(name: string, value: string): string {
-  if (!/^\d{1,3}(?:\.\d{1,3}){3}\/(?:[0-9]|[12][0-9]|3[0-2])$/.test(value)) {
+  if (!isIpv4Cidr(value)) {
     throw new Error(`${name} must be an IPv4 CIDR block`);
   }
   return value;
+}
+
+function isIpv4Cidr(value: string): boolean {
+  const [address, prefix, extra] = value.split('/');
+  if (address === undefined || prefix === undefined || extra !== undefined) return false;
+  const octets = address.split('.');
+  if (octets.length !== 4 || !octets.every((octet) => isDecimalInRange(octet, 0, 255))) return false;
+  return isDecimalInRange(prefix, 0, 32);
+}
+
+function isDecimalInRange(value: string, min: number, max: number): boolean {
+  if (value === '') return false;
+  for (const char of value) {
+    const code = char.charCodeAt(0);
+    if (code < 48 || code > 57) return false;
+  }
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= min && parsed <= max;
 }
 
 function validateAvailabilityZone(region: string, value: string): string {

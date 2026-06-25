@@ -67,6 +67,21 @@ describe('execute-runbook monitoring plan', () => {
       /must use TLS/,
     );
   });
+
+  it('rejects malformed worker subnet CIDR blocks', () => {
+    for (const cidrBlock of ['999.31.65.0/24', '172.31.65.0/33', '172.31.65/24']) {
+      assert.throws(
+        () =>
+          loadExecuteRunbookDeploymentConfig({
+            ...BASE_ENV,
+            DEPLOY_REGION: 'eu-south-1',
+            EXECUTE_RUNBOOK_WORKER_SUBNET_AZ: 'eu-south-1a',
+            EXECUTE_RUNBOOK_WORKER_SUBNET_CIDR: cidrBlock,
+          }),
+        /IPv4 CIDR block/,
+      );
+    }
+  });
 });
 
 describe('execute-runbook source OAM link config', () => {
