@@ -19,4 +19,16 @@ describe('GOScriptConfigLoader', () => {
       /--go-ai-semantic-threshold/,
     );
   });
+
+  it('adds a long flag prefix when legacy scripts define cliFlag without dashes', () => {
+    const parameter = new GOConfigParameter({
+      name: 'aws.profile',
+      type: GOConfigParameterType.STRING,
+      required: true,
+      cliFlag: 'aws-profile',
+    });
+
+    assert.strictEqual(GOScriptConfigLoader.formatParameterName(parameter), '--aws-profile');
+    assert.match(GOScriptConfigLoader.formatMissingParametersError(['aws.profile'], [parameter]), /--aws-profile/);
+  });
 });
