@@ -67,4 +67,45 @@ describe('CancellationMonitor', () => {
     assert.strictEqual(monitor.cancelRequestId, '0192c000-0000-7000-8000-0000000000c1');
     await monitor.stop();
   });
+
+  it('uses the latest workerDeadlineAt returned by Watchtower for subsequent progress calls', async () => {
+    const initialDeadline = new Date(Date.now() + 60_000).toISOString();
+    const refreshedDeadline = new Date(Date.now() + 120_000).toISOString();
+    const seenDeadlines: number[] = [];
+    let observedCallback = '';
+    const client = {
+      progressExecution: async (_id: string, _body: unknown, options: { readonly deadlineAtMs: number }) => {
+        seenDeadlines.push(options.deadlineAtMs);
+        await Promise.resolve();
+        return seenDeadlines.length === 1
+          ? { cancelRequested: false, workerDeadlineAt: refreshedDeadline }
+          : { cancelRequested: false };
+      },
+    } as unknown as Pick<WatchtowerClient, 'progressExecution'>;
+    const coordinator = new ExecutionAbortCoordinator();
+    const monitor = new CancellationMonitor(
+      client,
+      '0192c000-0000-7000-8000-000000000001',
+      '0192c000-0000-7000-8000-0000000000e1',
+      {
+        sqsMessageId: 'message-1',
+        approximateReceiveCount: 1,
+        workerDeadlineAt: initialDeadline,
+      },
+      coordinator,
+      {
+        intervalMs: 60_000,
+        onWorkerDeadlineAt: (workerDeadlineAt) => {
+          observedCallback = workerDeadlineAt;
+        },
+      },
+    );
+
+    await monitor.progress('RUNBOOK');
+    await monitor.progress('RUNBOOK');
+
+    assert.deepStrictEqual(seenDeadlines, [Date.parse(initialDeadline), Date.parse(refreshedDeadline)]);
+    assert.strictEqual(observedCallback, refreshedDeadline);
+    await monitor.stop();
+  });
 });

@@ -15,7 +15,7 @@ export interface AutomaticAlarmAnalysisCommandV1 {
   schemaVersion: "1.0.0";
   trigger: {
     actorId?: string;
-    kind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
+    kind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY" | "WATCHTOWER_CLI";
     parentExecutionId?: string;
   };
 }

@@ -1,10 +1,13 @@
 import type { paths } from './generated/openapi.js';
+import type { AutomaticAlarmAnalysisCommandV1 } from './generated/AutomaticAlarmAnalysisCommandV1.js';
 
 export type HumanLoginRequest = paths['/auth/login']['post']['requestBody']['content']['application/json'];
 export type HumanLoginResponse = paths['/auth/login']['post']['responses'][200]['content']['application/json'];
 export type ServiceLoginRequest = paths['/auth/service/login']['post']['requestBody']['content']['application/json'];
 export type ServiceLoginResponse =
   paths['/auth/service/login']['post']['responses'][200]['content']['application/json'];
+export type CliLoginRequest = paths['/auth/cli-login']['post']['requestBody']['content']['application/json'];
+export type CliLoginResponse = paths['/auth/cli-login']['post']['responses'][200]['content']['application/json'];
 export type RefreshTokenRequest = paths['/auth/refresh']['post']['requestBody']['content']['application/json'];
 export type RefreshTokenResponse = paths['/auth/refresh']['post']['responses'][200]['content']['application/json'];
 
@@ -29,8 +32,25 @@ export type AutomaticRunbookExecutionsPage =
 export type AutomaticRunbookExecutionDto =
   paths['/api/automatic-runbook-executions/{id}']['get']['responses'][200]['content']['application/json'];
 export type AutomaticRunbookExecutionStatus = AutomaticRunbookExecutionDto['status'];
+export type AutomaticRunbookDispatchKind = AutomaticRunbookExecutionDto['dispatchKind'];
 export type AutomaticRunbookAttemptsResponse =
   paths['/api/automatic-runbook-executions/{id}/attempts']['get']['responses'][200]['content']['application/json'];
+
+export type CreateCliExecutionRequest =
+  paths['/api/automatic-runbook-executions/cli']['post']['requestBody']['content']['application/json'];
+type CreateCliExecutionWireResponse =
+  paths['/api/automatic-runbook-executions/cli']['post']['responses'][201]['content']['application/json'];
+export type CreateCliExecutionResponse = Omit<CreateCliExecutionWireResponse, 'command' | 'execution'> & {
+  readonly command: AutomaticAlarmAnalysisCommandV1;
+  readonly execution: NonNullable<CreateCliExecutionWireResponse['execution']>;
+};
+export type PreviewCliExecutionRequest =
+  paths['/api/automatic-runbook-executions/cli/preview']['post']['requestBody']['content']['application/json'];
+type PreviewCliExecutionWireResponse =
+  paths['/api/automatic-runbook-executions/cli/preview']['post']['responses'][200]['content']['application/json'];
+export type PreviewCliExecutionResponse = Omit<PreviewCliExecutionWireResponse, 'command'> & {
+  readonly command: AutomaticAlarmAnalysisCommandV1;
+};
 
 export type StartExecutionRequest =
   paths['/api/automatic-runbook-executions/{id}/start']['post']['requestBody']['content']['application/json'];

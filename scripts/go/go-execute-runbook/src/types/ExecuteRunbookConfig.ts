@@ -7,6 +7,12 @@ export interface ExecuteRunbookConfig {
   readonly watchtowerServiceId: string;
   readonly watchtowerPassword?: string;
   readonly watchtowerServiceSecretArn?: string;
+  readonly watchtowerHumanToken?: string;
+  readonly dryRun?: boolean;
+  readonly dryRunTimeoutMs?: number;
+  readonly apply?: string;
+  readonly confirmApply?: boolean;
+  readonly confirmApplyAll?: boolean;
 }
 
 export interface ExecuteRunbookCliConfig extends ExecuteRunbookConfig {

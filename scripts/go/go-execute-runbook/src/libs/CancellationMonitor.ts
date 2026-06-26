@@ -8,10 +8,12 @@ export interface CancellationMonitorOptions {
   readonly jitterRatio?: number;
   readonly maxConsecutiveFailures?: number;
   readonly maxUnavailableMs?: number;
+  readonly onWorkerDeadlineAt?: WorkerDeadlineObserverFn;
   readonly random?: CancellationMonitorRandomFn;
 }
 
 type CancellationMonitorRandomFn = () => number;
+type WorkerDeadlineObserverFn = (workerDeadlineAt: string) => void;
 
 /** Single-flight heartbeat loop that turns persistent control-plane loss into a typed abort. */
 export class CancellationMonitor {
@@ -23,6 +25,7 @@ export class CancellationMonitor {
   private consecutiveFailures = 0;
   private unavailableSinceMs: number | undefined;
   private observedCancelRequestId: string | undefined;
+  private workerDeadlineAt: string;
 
   constructor(
     private readonly client: Pick<WatchtowerClient, 'progressExecution'>,
@@ -31,7 +34,9 @@ export class CancellationMonitor {
     private readonly delivery: ExecuteRunbookDelivery,
     private readonly coordinator: ExecutionAbortCoordinator,
     private readonly options: CancellationMonitorOptions = {},
-  ) {}
+  ) {
+    this.workerDeadlineAt = delivery.workerDeadlineAt;
+  }
 
   get cancelRequestId(): string | undefined {
     return this.observedCancelRequestId;
@@ -70,11 +75,15 @@ export class CancellationMonitor {
     try {
       const response = await this.client.progressExecution(this.executionId, request, {
         idempotencyKey: `progress:${this.executionId}:${this.attemptId}:${heartbeatSequence}`,
-        deadlineAtMs: Date.parse(this.delivery.workerDeadlineAt),
+        deadlineAtMs: Date.parse(this.workerDeadlineAt),
         signal: this.coordinator.signal,
       });
       this.consecutiveFailures = 0;
       this.unavailableSinceMs = undefined;
+      if (response.workerDeadlineAt !== undefined) {
+        this.workerDeadlineAt = response.workerDeadlineAt;
+        this.options.onWorkerDeadlineAt?.(response.workerDeadlineAt);
+      }
       if (response.staleAttempt === true) {
         this.coordinator.abort('STALE_ATTEMPT');
       } else if (response.cancelRequested) {

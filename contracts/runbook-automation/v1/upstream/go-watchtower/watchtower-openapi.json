@@ -5035,6 +5035,12 @@
                     "RETRY"
                   ],
                   "type": "string"
+                },
+                {
+                  "enum": [
+                    "WATCHTOWER_CLI"
+                  ],
+                  "type": "string"
                 }
               ]
             }
@@ -5190,6 +5196,22 @@
                           },
                           "deliveryCycle": {
                             "type": "integer"
+                          },
+                          "dispatchKind": {
+                            "anyOf": [
+                              {
+                                "enum": [
+                                  "SQS"
+                                ],
+                                "type": "string"
+                              },
+                              {
+                                "enum": [
+                                  "CLI"
+                                ],
+                                "type": "string"
+                              }
+                            ]
                           },
                           "durationMs": {
                             "anyOf": [
@@ -5473,6 +5495,12 @@
                                   "RETRY"
                                 ],
                                 "type": "string"
+                              },
+                              {
+                                "enum": [
+                                  "WATCHTOWER_CLI"
+                                ],
+                                "type": "string"
                               }
                             ]
                           },
@@ -5492,6 +5520,7 @@
                           "outcome",
                           "reviewStatus",
                           "triggerKind",
+                          "dispatchKind",
                           "appliedMode",
                           "runbookKey",
                           "runbookVersion",
@@ -5733,6 +5762,22 @@
                     },
                     "deliveryCycle": {
                       "type": "integer"
+                    },
+                    "dispatchKind": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "SQS"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "CLI"
+                          ],
+                          "type": "string"
+                        }
+                      ]
                     },
                     "durationMs": {
                       "anyOf": [
@@ -6016,6 +6061,12 @@
                             "RETRY"
                           ],
                           "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "WATCHTOWER_CLI"
+                          ],
+                          "type": "string"
                         }
                       ]
                     },
@@ -6035,6 +6086,7 @@
                     "outcome",
                     "reviewStatus",
                     "triggerKind",
+                    "dispatchKind",
                     "appliedMode",
                     "runbookKey",
                     "runbookVersion",
@@ -6125,6 +6177,1198 @@
           }
         ],
         "summary": "Create a manual execution (Flow 2) — enqueued by the dispatcher",
+        "tags": [
+          "Automatic Runbook Executions"
+        ]
+      }
+    },
+    "/api/automatic-runbook-executions/cli": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "alarmEventId": {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  "mode": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "SHADOW"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "enum": [
+                          "APPLY_KNOWN"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "enum": [
+                          "APPLY_ALL"
+                        ],
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "alarmEventId"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "command": {},
+                    "dryRun": {
+                      "type": "boolean"
+                    },
+                    "execution": {
+                      "properties": {
+                        "alarmEventId": {
+                          "type": "string"
+                        },
+                        "alarmId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "analysisId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "appliedMode": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "SHADOW"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "APPLY_KNOWN"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "APPLY_ALL"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "bytesScanned": {
+                          "anyOf": [
+                            {
+                              "pattern": "^(0|[1-9][0-9]*)$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "cancelReason": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "cancelRequestedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "cancellationFinalizedBy": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "cancelledAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "completedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "deadlineAt": {
+                          "type": "string"
+                        },
+                        "deliveryCycle": {
+                          "type": "integer"
+                        },
+                        "dispatchKind": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "SQS"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "CLI"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "durationMs": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "environmentId": {
+                          "type": "string"
+                        },
+                        "errorCode": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "errorMessage": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "enum": [
+                                    "KNOWN_CASE"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "enum": [
+                                    "UNKNOWN_CASE"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "enum": [
+                                    "NO_DATA"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "enum": [
+                                    "NO_RUNBOOK"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "enum": [
+                                    "CONFIGURATION_ERROR"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "enum": [
+                                    "EXECUTION_ERROR"
+                                  ],
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "parentExecutionId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "productId": {
+                          "type": "string"
+                        },
+                        "queryCount": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "queuedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "recordsMatched": {
+                          "anyOf": [
+                            {
+                              "pattern": "^(0|[1-9][0-9]*)$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "recordsScanned": {
+                          "anyOf": [
+                            {
+                              "pattern": "^(0|[1-9][0-9]*)$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "reviewStatus": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "NOT_REQUIRED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "PENDING"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "CONFIRMED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "REJECTED"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "runbookKey": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "runbookVersion": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "startedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "PENDING_DISPATCH"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "QUEUED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "RUNNING"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "RETRY_PENDING"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "CANCEL_REQUESTED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "SUCCEEDED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "SKIPPED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "FAILED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "CANCELLED"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "totalWorkerAttempts": {
+                          "type": "integer"
+                        },
+                        "triggerKind": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "SLACK_INGESTOR"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "WATCHTOWER_UI"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "WATCHTOWER_API"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "RETRY"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "WATCHTOWER_CLI"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "parentExecutionId",
+                        "alarmEventId",
+                        "analysisId",
+                        "productId",
+                        "environmentId",
+                        "alarmId",
+                        "status",
+                        "outcome",
+                        "reviewStatus",
+                        "triggerKind",
+                        "dispatchKind",
+                        "appliedMode",
+                        "runbookKey",
+                        "runbookVersion",
+                        "errorCode",
+                        "errorMessage",
+                        "queryCount",
+                        "bytesScanned",
+                        "recordsScanned",
+                        "recordsMatched",
+                        "totalWorkerAttempts",
+                        "deliveryCycle",
+                        "cancelRequestedAt",
+                        "cancelReason",
+                        "cancelledAt",
+                        "cancellationFinalizedBy",
+                        "queuedAt",
+                        "startedAt",
+                        "deadlineAt",
+                        "completedAt",
+                        "durationMs",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "command"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create a CLI execution and return the canonical command",
+        "tags": [
+          "Automatic Runbook Executions"
+        ]
+      }
+    },
+    "/api/automatic-runbook-executions/cli/preview": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "alarmEventId": {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  "mode": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "SHADOW"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "enum": [
+                          "APPLY_KNOWN"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "enum": [
+                          "APPLY_ALL"
+                        ],
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "alarmEventId"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "command": {},
+                    "dryRun": {
+                      "type": "boolean"
+                    },
+                    "execution": {
+                      "properties": {
+                        "alarmEventId": {
+                          "type": "string"
+                        },
+                        "alarmId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "analysisId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "appliedMode": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "SHADOW"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "APPLY_KNOWN"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "APPLY_ALL"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "bytesScanned": {
+                          "anyOf": [
+                            {
+                              "pattern": "^(0|[1-9][0-9]*)$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "cancelReason": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "cancelRequestedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "cancellationFinalizedBy": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "cancelledAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "completedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "deadlineAt": {
+                          "type": "string"
+                        },
+                        "deliveryCycle": {
+                          "type": "integer"
+                        },
+                        "dispatchKind": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "SQS"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "CLI"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "durationMs": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "environmentId": {
+                          "type": "string"
+                        },
+                        "errorCode": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "errorMessage": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "enum": [
+                                    "KNOWN_CASE"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "enum": [
+                                    "UNKNOWN_CASE"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "enum": [
+                                    "NO_DATA"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "enum": [
+                                    "NO_RUNBOOK"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "enum": [
+                                    "CONFIGURATION_ERROR"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "enum": [
+                                    "EXECUTION_ERROR"
+                                  ],
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "parentExecutionId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "productId": {
+                          "type": "string"
+                        },
+                        "queryCount": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "queuedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "recordsMatched": {
+                          "anyOf": [
+                            {
+                              "pattern": "^(0|[1-9][0-9]*)$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "recordsScanned": {
+                          "anyOf": [
+                            {
+                              "pattern": "^(0|[1-9][0-9]*)$",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "reviewStatus": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "NOT_REQUIRED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "PENDING"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "CONFIRMED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "REJECTED"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "runbookKey": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "runbookVersion": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "startedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "PENDING_DISPATCH"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "QUEUED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "RUNNING"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "RETRY_PENDING"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "CANCEL_REQUESTED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "SUCCEEDED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "SKIPPED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "FAILED"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "CANCELLED"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "totalWorkerAttempts": {
+                          "type": "integer"
+                        },
+                        "triggerKind": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "SLACK_INGESTOR"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "WATCHTOWER_UI"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "WATCHTOWER_API"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "RETRY"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "enum": [
+                                "WATCHTOWER_CLI"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "parentExecutionId",
+                        "alarmEventId",
+                        "analysisId",
+                        "productId",
+                        "environmentId",
+                        "alarmId",
+                        "status",
+                        "outcome",
+                        "reviewStatus",
+                        "triggerKind",
+                        "dispatchKind",
+                        "appliedMode",
+                        "runbookKey",
+                        "runbookVersion",
+                        "errorCode",
+                        "errorMessage",
+                        "queryCount",
+                        "bytesScanned",
+                        "recordsScanned",
+                        "recordsMatched",
+                        "totalWorkerAttempts",
+                        "deliveryCycle",
+                        "cancelRequestedAt",
+                        "cancelReason",
+                        "cancelledAt",
+                        "cancellationFinalizedBy",
+                        "queuedAt",
+                        "startedAt",
+                        "deadlineAt",
+                        "completedAt",
+                        "durationMs",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "command"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Preview a CLI execution command without persisting an execution",
         "tags": [
           "Automatic Runbook Executions"
         ]
@@ -6534,6 +7778,22 @@
                     "deliveryCycle": {
                       "type": "integer"
                     },
+                    "dispatchKind": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "SQS"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "CLI"
+                          ],
+                          "type": "string"
+                        }
+                      ]
+                    },
                     "durationMs": {
                       "anyOf": [
                         {
@@ -6818,6 +8078,12 @@
                             "RETRY"
                           ],
                           "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "WATCHTOWER_CLI"
+                          ],
+                          "type": "string"
                         }
                       ]
                     },
@@ -6837,6 +8103,7 @@
                     "outcome",
                     "reviewStatus",
                     "triggerKind",
+                    "dispatchKind",
                     "appliedMode",
                     "runbookKey",
                     "runbookVersion",
@@ -7351,6 +8618,12 @@
                             "CANCELLATION_NOT_REQUESTED"
                           ],
                           "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "CANNOT_RETRY_CLI"
+                          ],
+                          "type": "string"
                         }
                       ]
                     },
@@ -7745,6 +9018,12 @@
                         {
                           "enum": [
                             "CANCELLATION_NOT_REQUESTED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "CANNOT_RETRY_CLI"
                           ],
                           "type": "string"
                         }
@@ -8258,6 +9537,12 @@
                             "CANCELLATION_NOT_REQUESTED"
                           ],
                           "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "CANNOT_RETRY_CLI"
+                          ],
+                          "type": "string"
                         }
                       ]
                     },
@@ -8712,6 +9997,12 @@
                             "CANCELLATION_NOT_REQUESTED"
                           ],
                           "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "CANNOT_RETRY_CLI"
+                          ],
+                          "type": "string"
                         }
                       ]
                     },
@@ -8896,6 +10187,10 @@
                     },
                     "staleAttempt": {
                       "type": "boolean"
+                    },
+                    "workerDeadlineAt": {
+                      "format": "date-time",
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -9089,6 +10384,22 @@
                     "deliveryCycle": {
                       "type": "integer"
                     },
+                    "dispatchKind": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "SQS"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "CLI"
+                          ],
+                          "type": "string"
+                        }
+                      ]
+                    },
                     "durationMs": {
                       "anyOf": [
                         {
@@ -9371,6 +10682,12 @@
                             "RETRY"
                           ],
                           "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "WATCHTOWER_CLI"
+                          ],
+                          "type": "string"
                         }
                       ]
                     },
@@ -9390,6 +10707,7 @@
                     "outcome",
                     "reviewStatus",
                     "triggerKind",
+                    "dispatchKind",
                     "appliedMode",
                     "runbookKey",
                     "runbookVersion",
@@ -9448,6 +10766,119 @@
                   },
                   "required": [
                     "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "conflict": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "IDEMPOTENCY_PAYLOAD_MISMATCH"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "CANCELLATION_REQUESTED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "CANNOT_CANCEL_TERMINAL"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "CANCELLATION_REQUEST_MISMATCH"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "CANCELLATION_NOT_REQUESTED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "CANNOT_RETRY_CLI"
+                          ],
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "status": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "PENDING_DISPATCH"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "QUEUED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "RUNNING"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "RETRY_PENDING"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "CANCEL_REQUESTED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "SUCCEEDED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "SKIPPED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "FAILED"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "CANCELLED"
+                          ],
+                          "type": "string"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "conflict"
                   ],
                   "type": "object"
                 }
@@ -9637,6 +11068,22 @@
                     "deliveryCycle": {
                       "type": "integer"
                     },
+                    "dispatchKind": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "SQS"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "CLI"
+                          ],
+                          "type": "string"
+                        }
+                      ]
+                    },
                     "durationMs": {
                       "anyOf": [
                         {
@@ -9919,6 +11366,12 @@
                             "RETRY"
                           ],
                           "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "WATCHTOWER_CLI"
+                          ],
+                          "type": "string"
                         }
                       ]
                     },
@@ -9938,6 +11391,7 @@
                     "outcome",
                     "reviewStatus",
                     "triggerKind",
+                    "dispatchKind",
                     "appliedMode",
                     "runbookKey",
                     "runbookVersion",
@@ -10829,6 +12283,311 @@
         "summary": "Update an ignore reason",
         "tags": [
           "Ignore Reasons"
+        ]
+      }
+    },
+    "/api/me/cli-token": {
+      "delete": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Revoke current user's CLI token",
+        "tags": [
+          "Profile"
+        ]
+      },
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "createdAt": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "defaultTtlDays": {
+                      "type": "number"
+                    },
+                    "expiresAt": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "hint": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "lastUsedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "maxTtlDays": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "hint",
+                    "createdAt",
+                    "lastUsedAt",
+                    "expiresAt",
+                    "defaultTtlDays",
+                    "maxTtlDays"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get current user's CLI token metadata and policy",
+        "tags": [
+          "Profile"
+        ]
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "expiresInDays": {
+                    "minimum": 1,
+                    "type": "number"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "defaultTtlDays": {
+                      "type": "number"
+                    },
+                    "expiresAt": {
+                      "type": "string"
+                    },
+                    "hint": {
+                      "type": "string"
+                    },
+                    "maxTtlDays": {
+                      "type": "number"
+                    },
+                    "token": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "token",
+                    "hint",
+                    "createdAt",
+                    "expiresAt",
+                    "defaultTtlDays",
+                    "maxTtlDays"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Generate or rotate current user's CLI token",
+        "tags": [
+          "Profile"
         ]
       }
     },
@@ -30475,6 +32234,145 @@
         ]
       }
     },
+    "/auth/cli-login": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "token": {
+                    "maxLength": 512,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "token"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "accessToken": {
+                      "type": "string"
+                    },
+                    "authMethod": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "CLI_PAT"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "SERVICE_LOGIN"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "HUMAN_LOGIN"
+                          ],
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "cliTokenExpiresAt": {
+                      "type": "string"
+                    },
+                    "expiresIn": {
+                      "type": "number"
+                    },
+                    "principalType": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "HUMAN"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "SERVICE"
+                          ],
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "refreshToken": {
+                      "type": "string"
+                    },
+                    "scope": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "accessToken",
+                    "refreshToken",
+                    "expiresIn"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Login with a scoped CLI Personal Access Token",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/auth/google/callback": {
       "post": {
         "requestBody": {
@@ -30911,11 +32809,58 @@
                     "accessToken": {
                       "type": "string"
                     },
+                    "authMethod": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "CLI_PAT"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "SERVICE_LOGIN"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "HUMAN_LOGIN"
+                          ],
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "cliTokenExpiresAt": {
+                      "type": "string"
+                    },
                     "expiresIn": {
                       "type": "number"
                     },
+                    "principalType": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "HUMAN"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "SERVICE"
+                          ],
+                          "type": "string"
+                        }
+                      ]
+                    },
                     "refreshToken": {
                       "type": "string"
+                    },
+                    "scope": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
                     }
                   },
                   "required": [

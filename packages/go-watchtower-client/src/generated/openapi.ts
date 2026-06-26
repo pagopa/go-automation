@@ -1366,7 +1366,7 @@ export interface paths {
                     productId?: string;
                     reviewStatus?: "NOT_REQUIRED" | "PENDING" | "CONFIRMED" | "REJECTED";
                     status?: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
-                    triggerKind?: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
+                    triggerKind?: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY" | "WATCHTOWER_CLI";
                 };
                 header?: never;
                 path?: never;
@@ -1395,6 +1395,7 @@ export interface paths {
                                 createdAt: string;
                                 deadlineAt: string;
                                 deliveryCycle: number;
+                                dispatchKind: "SQS" | "CLI";
                                 durationMs: number | null;
                                 environmentId: string;
                                 errorCode: string | null;
@@ -1413,7 +1414,7 @@ export interface paths {
                                 startedAt: string | null;
                                 status: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                                 totalWorkerAttempts: number;
-                                triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
+                                triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY" | "WATCHTOWER_CLI";
                                 updatedAt: string;
                             }[];
                             page: number;
@@ -1474,6 +1475,7 @@ export interface paths {
                             createdAt: string;
                             deadlineAt: string;
                             deliveryCycle: number;
+                            dispatchKind: "SQS" | "CLI";
                             durationMs: number | null;
                             environmentId: string;
                             errorCode: string | null;
@@ -1492,7 +1494,7 @@ export interface paths {
                             startedAt: string | null;
                             status: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                             totalWorkerAttempts: number;
-                            triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
+                            triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY" | "WATCHTOWER_CLI";
                             updatedAt: string;
                         };
                     };
@@ -1602,6 +1604,7 @@ export interface paths {
                             createdAt: string;
                             deadlineAt: string;
                             deliveryCycle: number;
+                            dispatchKind: "SQS" | "CLI";
                             durationMs: number | null;
                             environmentId: string;
                             errorCode: string | null;
@@ -1622,7 +1625,7 @@ export interface paths {
                             startedAt: string | null;
                             status: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                             totalWorkerAttempts: number;
-                            triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
+                            triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY" | "WATCHTOWER_CLI";
                             updatedAt: string;
                         };
                     };
@@ -1801,7 +1804,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED";
+                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED" | "CANNOT_RETRY_CLI";
                             status?: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                         };
                     };
@@ -1904,7 +1907,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED";
+                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED" | "CANNOT_RETRY_CLI";
                             status?: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                         };
                     };
@@ -2014,7 +2017,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED";
+                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED" | "CANNOT_RETRY_CLI";
                             status?: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                         };
                     };
@@ -2118,7 +2121,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED";
+                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED" | "CANNOT_RETRY_CLI";
                             status?: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                         };
                     };
@@ -2193,6 +2196,8 @@ export interface paths {
                             /** Format: uuid */
                             cancelRequestId?: string;
                             staleAttempt?: boolean;
+                            /** Format: date-time */
+                            workerDeadlineAt?: string;
                         };
                     };
                 };
@@ -2263,6 +2268,7 @@ export interface paths {
                             createdAt: string;
                             deadlineAt: string;
                             deliveryCycle: number;
+                            dispatchKind: "SQS" | "CLI";
                             durationMs: number | null;
                             environmentId: string;
                             errorCode: string | null;
@@ -2281,7 +2287,7 @@ export interface paths {
                             startedAt: string | null;
                             status: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                             totalWorkerAttempts: number;
-                            triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
+                            triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY" | "WATCHTOWER_CLI";
                             updatedAt: string;
                         };
                     };
@@ -2305,6 +2311,18 @@ export interface paths {
                     content: {
                         "application/json": {
                             error: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED" | "CANNOT_RETRY_CLI";
+                            status?: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                         };
                     };
                 };
@@ -2364,6 +2382,7 @@ export interface paths {
                             createdAt: string;
                             deadlineAt: string;
                             deliveryCycle: number;
+                            dispatchKind: "SQS" | "CLI";
                             durationMs: number | null;
                             environmentId: string;
                             errorCode: string | null;
@@ -2382,7 +2401,7 @@ export interface paths {
                             startedAt: string | null;
                             status: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                             totalWorkerAttempts: number;
-                            triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY";
+                            triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY" | "WATCHTOWER_CLI";
                             updatedAt: string;
                         };
                     };
@@ -2499,6 +2518,238 @@ export interface paths {
                 };
                 /** @description Default Response */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/automatic-runbook-executions/cli": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a CLI execution and return the canonical command */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        alarmEventId: string;
+                        mode?: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            command: unknown;
+                            dryRun?: boolean;
+                            execution?: {
+                                alarmEventId: string;
+                                alarmId: string | null;
+                                analysisId: string | null;
+                                appliedMode: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
+                                bytesScanned: string | null;
+                                cancellationFinalizedBy: string | null;
+                                cancelledAt: string | null;
+                                cancelReason: string | null;
+                                cancelRequestedAt: string | null;
+                                completedAt: string | null;
+                                createdAt: string;
+                                deadlineAt: string;
+                                deliveryCycle: number;
+                                dispatchKind: "SQS" | "CLI";
+                                durationMs: number | null;
+                                environmentId: string;
+                                errorCode: string | null;
+                                errorMessage: string | null;
+                                id: string;
+                                outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "NO_RUNBOOK" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
+                                parentExecutionId: string | null;
+                                productId: string;
+                                queryCount: number | null;
+                                queuedAt: string | null;
+                                recordsMatched: string | null;
+                                recordsScanned: string | null;
+                                reviewStatus: "NOT_REQUIRED" | "PENDING" | "CONFIRMED" | "REJECTED";
+                                runbookKey: string | null;
+                                runbookVersion: string | null;
+                                startedAt: string | null;
+                                status: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
+                                totalWorkerAttempts: number;
+                                triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY" | "WATCHTOWER_CLI";
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/automatic-runbook-executions/cli/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview a CLI execution command without persisting an execution */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        alarmEventId: string;
+                        mode?: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            command: unknown;
+                            dryRun?: boolean;
+                            execution?: {
+                                alarmEventId: string;
+                                alarmId: string | null;
+                                analysisId: string | null;
+                                appliedMode: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
+                                bytesScanned: string | null;
+                                cancellationFinalizedBy: string | null;
+                                cancelledAt: string | null;
+                                cancelReason: string | null;
+                                cancelRequestedAt: string | null;
+                                completedAt: string | null;
+                                createdAt: string;
+                                deadlineAt: string;
+                                deliveryCycle: number;
+                                dispatchKind: "SQS" | "CLI";
+                                durationMs: number | null;
+                                environmentId: string;
+                                errorCode: string | null;
+                                errorMessage: string | null;
+                                id: string;
+                                outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "NO_RUNBOOK" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
+                                parentExecutionId: string | null;
+                                productId: string;
+                                queryCount: number | null;
+                                queuedAt: string | null;
+                                recordsMatched: string | null;
+                                recordsScanned: string | null;
+                                reviewStatus: "NOT_REQUIRED" | "PENDING" | "CONFIRMED" | "REJECTED";
+                                runbookKey: string | null;
+                                runbookVersion: string | null;
+                                startedAt: string | null;
+                                status: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
+                                totalWorkerAttempts: number;
+                                triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY" | "WATCHTOWER_CLI";
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                422: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2867,6 +3118,181 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/api/me/cli-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get current user's CLI token metadata and policy */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            createdAt: string | null;
+                            defaultTtlDays: number;
+                            expiresAt: string | null;
+                            hint: string | null;
+                            lastUsedAt: string | null;
+                            maxTtlDays: number;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Generate or rotate current user's CLI token */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        expiresInDays?: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            createdAt: string;
+                            defaultTtlDays: number;
+                            expiresAt: string;
+                            hint: string;
+                            maxTtlDays: number;
+                            token: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        /** Revoke current user's CLI token */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            message: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/permissions/me": {
@@ -10088,6 +10514,78 @@ export interface paths {
         };
         trace?: never;
     };
+    "/auth/cli-login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Login with a scoped CLI Personal Access Token */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        token: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            accessToken: string;
+                            authMethod?: "CLI_PAT" | "SERVICE_LOGIN" | "HUMAN_LOGIN";
+                            cliTokenExpiresAt?: string;
+                            expiresIn: number;
+                            principalType?: "HUMAN" | "SERVICE";
+                            refreshToken: string;
+                            scope?: string[];
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/google/callback": {
         parameters: {
             query?: never;
@@ -10412,8 +10910,12 @@ export interface paths {
                     content: {
                         "application/json": {
                             accessToken: string;
+                            authMethod?: "CLI_PAT" | "SERVICE_LOGIN" | "HUMAN_LOGIN";
+                            cliTokenExpiresAt?: string;
                             expiresIn: number;
+                            principalType?: "HUMAN" | "SERVICE";
                             refreshToken: string;
+                            scope?: string[];
                         };
                     };
                 };

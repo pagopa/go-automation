@@ -19,9 +19,13 @@ import type {
   CancelExecutionResult,
   CompleteExecutionRequest,
   CompleteExecutionResult,
+  CreateCliExecutionRequest,
+  CreateCliExecutionResponse,
   EnvironmentDto,
   FailExecutionRequest,
   FailExecutionResult,
+  PreviewCliExecutionRequest,
+  PreviewCliExecutionResponse,
   ProductDto,
   ProgressExecutionRequest,
   ProgressExecutionResponse,
@@ -121,6 +125,22 @@ export class WatchtowerClient {
     return await this.authenticatedRequest<AutomaticRunbookAttemptsResponse>(
       'GET',
       `${executionPath(executionId)}/attempts`,
+    );
+  }
+
+  async createCliAutomaticRunbookExecution(body: CreateCliExecutionRequest): Promise<CreateCliExecutionResponse> {
+    return await this.authenticatedRequest<CreateCliExecutionResponse>(
+      'POST',
+      '/api/automatic-runbook-executions/cli',
+      body,
+    );
+  }
+
+  async previewCliAutomaticRunbookExecution(body: PreviewCliExecutionRequest): Promise<PreviewCliExecutionResponse> {
+    return await this.authenticatedRequest<PreviewCliExecutionResponse>(
+      'POST',
+      '/api/automatic-runbook-executions/cli/preview',
+      body,
     );
   }
 

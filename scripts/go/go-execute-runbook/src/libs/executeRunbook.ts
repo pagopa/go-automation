@@ -3,6 +3,7 @@ import { classifyRunbookOutcome, noRunbookCheck } from '@go-automation/go-runboo
 import type { RunbookCheck, RunbookOutput, ServiceRegistry } from '@go-automation/go-runbook';
 import type {
   AcknowledgeCancellationRequest,
+  AutomaticRunbookOutcome,
   CompleteExecutionRequest,
   AutomaticRunbookExecutionStatus,
   StartExecutionRequest,
@@ -20,6 +21,55 @@ import { CancellationMonitor } from './CancellationMonitor.js';
 import { classifyAutomationOutcome } from './classifyAutomationOutcome.js';
 import { ExecutionAbortCoordinator } from './ExecutionAbortCoordinator.js';
 import { formatCleanupWarnings } from './formatCleanupWarnings.js';
+
+export interface ExecuteRunbookDryRunResult {
+  readonly executionId: string;
+  readonly outcome: AutomaticRunbookOutcome;
+  readonly check: RunbookCheck;
+  readonly runbookKey?: string;
+  readonly runbookVersion?: string;
+}
+
+export interface ExecuteRunbookDryRunOptions {
+  readonly timeoutMs?: number;
+  readonly signal?: AbortSignal;
+}
+
+/** Runs the local runbook engine without any Watchtower lifecycle side effect. */
+export async function executeRunbookDryRun(
+  deps: ExecuteRunbookDeps,
+  input: ExecuteRunbookInput,
+  options: ExecuteRunbookDryRunOptions = {},
+): Promise<ExecuteRunbookDryRunResult> {
+  const coordinator = new ExecutionAbortCoordinator();
+  const activeOperations = new AWS.AWSActiveOperationRegistry();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const abortOnSignal = (): void => coordinator.abort('SHUTDOWN');
+  if (options.signal?.aborted === true) {
+    abortOnSignal();
+  } else {
+    options.signal?.addEventListener('abort', abortOnSignal, { once: true });
+  }
+  if (options.timeoutMs !== undefined) {
+    timeout = setTimeout(() => coordinator.abort('TIME_BUDGET'), options.timeoutMs);
+  }
+  try {
+    const output = await runOccurrence(deps, input, coordinator, activeOperations);
+    const abortCause = readAbortCause(coordinator);
+    if (abortCause !== undefined) throw new Error(abortCause);
+    const check = output === undefined ? noRunbookCheck() : classifyRunbookOutcome(output);
+    return {
+      executionId: input.executionId,
+      outcome: classifyAutomationOutcome(check),
+      check,
+      ...(output === undefined ? {} : { runbookKey: output.runbook.id, runbookVersion: output.runbook.version }),
+    };
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+    options.signal?.removeEventListener('abort', abortOnSignal);
+    await activeOperations.stopAll();
+  }
+}
 
 /** Runs one fenced Watchtower execution and returns normally only when SQS may ACK it. */
 export async function executeRunbook(
@@ -49,13 +99,24 @@ export async function executeRunbook(
   }
 
   const attemptId = start.attemptId;
-  const activeDelivery: ExecuteRunbookDelivery = { ...delivery, workerDeadlineAt: start.workerDeadlineAt };
-  const activeDeadlineAtMs = Date.parse(activeDelivery.workerDeadlineAt);
+  let activeDelivery: ExecuteRunbookDelivery = { ...delivery, workerDeadlineAt: start.workerDeadlineAt };
+  let activeDeadlineAtMs = Date.parse(activeDelivery.workerDeadlineAt);
   const coordinator = new ExecutionAbortCoordinator();
   const activeOperations = new AWS.AWSActiveOperationRegistry();
-  const monitor = new CancellationMonitor(deps.watchtower, executionId, attemptId, activeDelivery, coordinator);
-  const timeoutMs = activeDeadlineAtMs - Date.now();
-  const budgetTimer = setTimeout(() => coordinator.abort('TIME_BUDGET'), Math.max(1, timeoutMs));
+  let budgetTimer: ReturnType<typeof setTimeout> | undefined;
+  const rescheduleBudgetTimer = (): void => {
+    if (budgetTimer !== undefined) clearTimeout(budgetTimer);
+    const timeoutMs = activeDeadlineAtMs - Date.now();
+    budgetTimer = setTimeout(() => coordinator.abort('TIME_BUDGET'), Math.max(1, timeoutMs));
+  };
+  const monitor = new CancellationMonitor(deps.watchtower, executionId, attemptId, activeDelivery, coordinator, {
+    onWorkerDeadlineAt: (workerDeadlineAt) => {
+      activeDelivery = { ...activeDelivery, workerDeadlineAt };
+      activeDeadlineAtMs = Date.parse(workerDeadlineAt);
+      rescheduleBudgetTimer();
+    },
+  });
+  rescheduleBudgetTimer();
 
   try {
     await monitor.start('RUNBOOK_EXECUTION');
@@ -135,7 +196,7 @@ export async function executeRunbook(
     }
     throw error;
   } finally {
-    clearTimeout(budgetTimer);
+    if (budgetTimer !== undefined) clearTimeout(budgetTimer);
     await monitor.stop();
   }
 }

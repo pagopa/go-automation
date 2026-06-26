@@ -128,6 +128,37 @@ describe('executeRunbook', () => {
     assert.notStrictEqual(completeDeadlineAtMs, Date.parse(requestedDeadline));
   });
 
+  it('uses the refreshed progress deadline for terminal lifecycle callbacks', async () => {
+    const startDeadline = new Date(Date.now() + 60_000).toISOString();
+    const refreshedDeadline = new Date(Date.now() + 120_000).toISOString();
+    let completeDeadlineAtMs = 0;
+    const deps = fakeDeps({
+      startExecution: async () => {
+        await Promise.resolve();
+        return {
+          disposition: 'START',
+          attemptId: '0192c000-0000-7000-8000-0000000000e1',
+          workerDeadlineAt: startDeadline,
+        };
+      },
+      progressExecution: async () => {
+        await Promise.resolve();
+        return { cancelRequested: false, workerDeadlineAt: refreshedDeadline };
+      },
+      completeExecution: async (_id: string, _body: unknown, options: LifecycleOptions) => {
+        await Promise.resolve();
+        completeDeadlineAtMs = options.deadlineAtMs;
+        return { status: 'SKIPPED', outcome: 'NO_RUNBOOK' };
+      },
+    });
+
+    const result = await executeRunbook(deps, INPUT, DELIVERY);
+
+    assert.strictEqual(result.status, 'SKIPPED');
+    assert.strictEqual(completeDeadlineAtMs, Date.parse(refreshedDeadline));
+    assert.notStrictEqual(completeDeadlineAtMs, Date.parse(startDeadline));
+  });
+
   it('ACKs cancellation only after the owner callback succeeds', async () => {
     const requestedDeadline = new Date(Date.now() + 120_000).toISOString();
     const authoritativeDeadline = new Date(Date.now() + 60_000).toISOString();

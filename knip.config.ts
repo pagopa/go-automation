@@ -41,10 +41,6 @@ const config: KnipConfig = {
       entry: ['src/cron.ts'],
       project: ['src/**/*.ts'],
     },
-    // INTEROP scripts
-    'scripts/interop/*': {
-      project: ['src/**/*.ts'],
-    },
     // Lambda functions with standalone handler entrypoints
     'functions/go-AILambda': {
       entry: ['src/handler.ts'],

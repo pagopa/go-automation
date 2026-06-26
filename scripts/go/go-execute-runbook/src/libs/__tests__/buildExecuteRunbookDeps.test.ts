@@ -62,6 +62,16 @@ describe('buildExecuteRunbookDeps', () => {
       },
     );
   });
+
+  it('uses a trimmed scoped human token for CLI PAT authentication', async () => {
+    const deps = await buildExecuteRunbookDeps(
+      fakeScript(() => 'unused-service-secret'),
+      { ...BASE_CONFIG, watchtowerHumanToken: '  wtcli_token  ' },
+      { auth: 'CLI_PAT' },
+    );
+
+    assert.strictEqual(cliPatToken(deps.watchtower), 'wtcli_token');
+  });
 });
 
 function fakeScript(readSecretString: FakeSecretStringLoaderFn): Core.GOScript {
@@ -91,4 +101,12 @@ function servicePassword(watchtower: unknown): string {
       readonly auth: { readonly credentials: { readonly kind: 'SERVICE'; readonly password: string } };
     }
   ).auth.credentials.password;
+}
+
+function cliPatToken(watchtower: unknown): string {
+  return (
+    watchtower as {
+      readonly auth: { readonly credentials: { readonly kind: 'CLI_PAT'; readonly token: string } };
+    }
+  ).auth.credentials.token;
 }

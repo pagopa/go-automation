@@ -83,6 +83,10 @@
             {
               "const": "RETRY",
               "type": "string"
+            },
+            {
+              "const": "WATCHTOWER_CLI",
+              "type": "string"
             }
           ]
         },

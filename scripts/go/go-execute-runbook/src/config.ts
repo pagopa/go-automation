@@ -62,4 +62,41 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     required: false,
     sensitive: true,
   },
+  {
+    name: 'watchtower.human.token',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'Scoped Watchtower CLI Personal Access Token for local human-triggered runs',
+    required: false,
+    sensitive: true,
+  },
+  {
+    name: 'dry.run',
+    type: Core.GOConfigParameterType.BOOL,
+    description: 'Preview the CLI command and run the runbook locally without creating/updating a Watchtower execution',
+    required: false,
+  },
+  {
+    name: 'dry.run.timeout.ms',
+    type: Core.GOConfigParameterType.INT,
+    description: 'Optional local dry-run timeout in milliseconds',
+    required: false,
+  },
+  {
+    name: 'apply',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'Apply mode for CLI-created executions: none | known | all',
+    required: false,
+  },
+  {
+    name: 'confirm.apply',
+    type: Core.GOConfigParameterType.BOOL,
+    description: 'Confirm any apply mode against a non-local Watchtower URL',
+    required: false,
+  },
+  {
+    name: 'confirm.apply.all',
+    type: Core.GOConfigParameterType.BOOL,
+    description: 'Confirm apply all mode',
+    required: false,
+  },
 ] as const;

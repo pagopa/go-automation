@@ -1,6 +1,8 @@
 import { Core } from '@go-automation/go-common';
 
 import type {
+  CliLoginRequest,
+  CliLoginResponse,
   HumanLoginRequest,
   HumanLoginResponse,
   RefreshTokenRequest,
@@ -13,6 +15,7 @@ export type WatchtowerPasswordLoaderFn = () => Promise<string>;
 
 export type WatchtowerAuthCredentials =
   | { readonly kind: 'HUMAN'; readonly email: string; readonly password: string }
+  | { readonly kind: 'CLI_PAT'; readonly token: string }
   | {
       readonly kind: 'SERVICE';
       readonly serviceId: string;
@@ -65,6 +68,11 @@ export class WatchtowerAuth {
   }
 
   private async login(reloadPassword: boolean): Promise<string> {
+    if (this.credentials.kind === 'CLI_PAT') {
+      const request: CliLoginRequest = { token: this.credentials.token };
+      const response = await this.http.post<CliLoginResponse>('/auth/cli-login', request);
+      return this.storeTokens(response);
+    }
     if (this.credentials.kind === 'SERVICE') {
       const password =
         reloadPassword && this.credentials.reloadPassword !== undefined
@@ -82,7 +90,9 @@ export class WatchtowerAuth {
     return this.storeTokens(response);
   }
 
-  private storeTokens(response: RefreshTokenResponse | ServiceLoginResponse | HumanLoginResponse): string {
+  private storeTokens(
+    response: RefreshTokenResponse | ServiceLoginResponse | HumanLoginResponse | CliLoginResponse,
+  ): string {
     this.tokens = {
       accessToken: response.accessToken,
       refreshToken: response.refreshToken,

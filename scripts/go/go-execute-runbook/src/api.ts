@@ -1,7 +1,8 @@
 export { buildExecuteRunbookDeps } from './libs/buildExecuteRunbookDeps.js';
 export { classifyAutomationFailure } from './libs/classifyAutomationFailure.js';
 export { classifyAutomationOutcome } from './libs/classifyAutomationOutcome.js';
-export { executeRunbook } from './libs/executeRunbook.js';
+export { executeRunbook, executeRunbookDryRun } from './libs/executeRunbook.js';
+export type { ExecuteRunbookDryRunResult } from './libs/executeRunbook.js';
 export { failPreStartCommand } from './libs/failPreStartCommand.js';
 export { parseExecuteRunbookMessage, recoverValidExecutionId } from './libs/parseExecuteRunbookMessage.js';
 export { resolveExecuteRunbookInput } from './libs/resolveExecuteRunbookInput.js';
