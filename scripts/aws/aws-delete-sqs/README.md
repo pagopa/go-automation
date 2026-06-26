@@ -52,16 +52,16 @@ Lo script accetta parametri tramite CLI. Le path relative vengono risolte tramit
 
 ### Parametri CLI
 
-| Parametro              | Alias           | Tipo      | Obbligatorio | Default | Descrizione                                                                  |
-| ---------------------- | --------------- | --------- | ------------ | ------- | ---------------------------------------------------------------------------- |
-| `--aws-profile`        | `--ap`          | `string`  | Sì           | —       | Nome del profilo AWS SSO                                                     |
-| `--queue-name`         | `--qn`          | `string`  | No           | —       | Nome della coda SQS (Obbligatorio se non si fornisce `--queue-url`)          |
-| `--queue-url`          | `--qu`, `--url` | `string`  | No           | —       | URL completo della coda SQS (Obbligatorio se non si fornisce `--queue-name`) |
-| `--input-file`         | `-f`, `--input` | `string`  | No           | —       | Percorso del file NDJSON contenente i messaggi da eliminare                  |
-| `--purge-all`          | `--purge`       | `boolean` | No           | `false` | Se `true`, elimina TUTTI i messaggi presenti nella coda                      |
-| `--visibility-timeout` | `--vt`          | `number`  | No           | `30`    | Timeout di visibilità iniziale (in secondi) per i messaggi ricevuti          |
-| `--batch-size`         | `--bs`          | `number`  | No           | `10`    | Numero di messaggi da processare in parallelo (max 10)                       |
-| `--max-empty-receives` | `--mer`         | `number`  | No           | `3`     | Numero di poll vuoti consecutivi prima di considerare la coda scarica        |
+| Parametro              | Alias          | Tipo      | Obbligatorio | Default | Descrizione                                                                  |
+| ---------------------- | -------------- | --------- | ------------ | ------- | ---------------------------------------------------------------------------- |
+| `--aws-profile`        | `-ap`          | `string`  | Sì           | —       | Nome del profilo AWS SSO                                                     |
+| `--queue-name`         | `-qn`          | `string`  | No           | —       | Nome della coda SQS (Obbligatorio se non si fornisce `--queue-url`)          |
+| `--queue-url`          | `-qu`, `-url`  | `string`  | No           | —       | URL completo della coda SQS (Obbligatorio se non si fornisce `--queue-name`) |
+| `--input-file`         | `-f`, `-input` | `string`  | No           | —       | Percorso del file NDJSON contenente i messaggi da eliminare                  |
+| `--purge-all`          | `-purge`       | `boolean` | No           | `false` | Se `true`, elimina TUTTI i messaggi presenti nella coda                      |
+| `--visibility-timeout` | `-vt`          | `number`  | No           | `30`    | Timeout di visibilità iniziale (in secondi) per i messaggi ricevuti          |
+| `--batch-size`         | `-bs`          | `number`  | No           | `10`    | Numero di messaggi da processare in parallelo (max 10)                       |
+| `--max-empty-receives` | `-mer`         | `number`  | No           | `3`     | Numero di poll vuoti consecutivi prima di considerare la coda scarica        |
 
 ---
 

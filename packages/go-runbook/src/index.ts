@@ -33,6 +33,7 @@ export type { RunbookContext } from './types/RunbookContext.js';
 export type { RunbookExecutionResult } from './types/RunbookExecutionResult.js';
 export type { RunbookExecutionStatus } from './types/RunbookExecutionStatus.js';
 export type { Runbook } from './types/Runbook.js';
+export type { CloudExecutionPolicy } from './types/CloudExecutionPolicy.js';
 export type { KnownCase } from './types/KnownCase.js';
 export type {
   Condition,
@@ -70,6 +71,7 @@ export { RunbookValidationError } from './validation/RunbookValidationError.js';
 export type { ValidationErrorEntry } from './validation/ValidationErrorEntry.js';
 export type { ValidationErrorCode } from './validation/ValidationErrorCode.js';
 export { GoToGraphAnalyzer } from './validation/GoToGraphAnalyzer.js';
+export { assertCloudExecutableRunbook } from './validation/assertCloudExecutableRunbook.js';
 export type { GoToReference } from './validation/GoToGraphAnalyzer.js';
 
 // Trace
@@ -85,6 +87,8 @@ export { TraceBuilder } from './trace/TraceBuilder.js';
 
 // Output
 export type { RunbookOutput } from './output/RunbookOutput.js';
+export type { ClassifiedRunbookCheck, RunbookCheck, RunbookCheckStatus } from './output/RunbookCheck.js';
+export { classifyRunbookOutcome, noRunbookCheck } from './output/classifyRunbookOutcome.js';
 export type {
   RunbookOutcome,
   KnownCaseMatchedOutcome,
@@ -105,6 +109,7 @@ export { buildRunbookOutput } from './output/buildRunbookOutput.js';
 export type { BuildRunbookOutputOptions, RunbookOutputContextBuilderFn } from './output/buildRunbookOutput.js';
 export type { StepDiagnostics, CloudWatchLogsStepDiagnostics } from './trace/StepDiagnostics.js';
 export { interpolatePlaceholders } from './core/templatePlaceholders.js';
+export { throwIfRunbookAborted } from './core/throwIfRunbookAborted.js';
 
 // Actions
 export type {
@@ -122,12 +127,6 @@ export { logAction, notifyAction, escalateAction, compositeAction } from './acti
 
 // Services
 export type { ServiceRegistry } from './services/ServiceRegistry.js';
-export type { AthenaQueryOptions, AthenaQueryService } from './services/AthenaQueryService.js';
-export type { CloudWatchLogsQueryService } from './services/CloudWatchLogsQueryService.js';
-export type { CloudWatchMetricsQueryService } from './services/CloudWatchMetricsQueryService.js';
-export type { DynamoDBOperationsService } from './services/DynamoDBOperationsService.js';
-export { RunbookHttpService } from './services/RunbookHttpService.js';
-export type { RunbookHttpResponse } from './services/RunbookHttpService.js';
 
 // Steps
 export * from './steps/index.js';

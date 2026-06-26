@@ -172,8 +172,8 @@ export class GOScriptConfigLoader {
    * Format parameter name for display in error messages
    */
   static formatParameterName(param: GOConfigParameter): string {
-    const kebabName = param.name.replace(/\./g, '-');
-    return `--${kebabName}`;
+    const cliFlag = param.cliFlag.trim();
+    return cliFlag.startsWith('-') ? cliFlag : `--${cliFlag}`;
   }
 
   /**

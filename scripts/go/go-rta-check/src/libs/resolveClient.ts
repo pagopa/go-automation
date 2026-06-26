@@ -1,7 +1,7 @@
 import type { Core } from '@go-automation/go-common';
+import { WatchtowerClient } from '@go-automation/go-watchtower-client';
 
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
-import { WatchtowerClient } from '../watchtower/WatchtowerClient.js';
 import { resolveInput } from './promptInputs.js';
 
 /** Authenticated Watchtower connection. */
@@ -28,7 +28,7 @@ export async function resolveClient(script: Core.GOScript, config: GoRtaCheckCon
     return undefined;
   }
 
-  const client = new WatchtowerClient({ baseUrl, email, password });
+  const client = new WatchtowerClient({ baseUrl, credentials: { kind: 'HUMAN', email, password } });
   logger.info(`Login su ${baseUrl} …`);
   await client.login();
   return { client, baseUrl };

@@ -22,6 +22,7 @@ function createSchema(): GOConfigSchema {
     {
       name: 'batch.size',
       type: GOConfigParameterType.INT,
+      aliases: ['visibility.timeout'],
     },
   ]);
 
@@ -31,7 +32,7 @@ function createSchema(): GOConfigSchema {
 describe('GOUnknownParameterDetector', () => {
   it('accepts schema flags, aliases and built-in help flags', () => {
     const errors = GOUnknownParameterDetector.detect(
-      ['start-date', 'sd', 'from-date', 'verbose', 'v', 'batch-size', 'help', 'h'],
+      ['start-date', 'sd', 'from-date', 'verbose', 'v', 'batch-size', 'visibility-timeout', 'help', 'h'],
       createSchema(),
     );
 

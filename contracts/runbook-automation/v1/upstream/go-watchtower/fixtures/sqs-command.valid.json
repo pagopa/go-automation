@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0.0",
+  "executionId": "0192c000-0000-7000-8000-000000000001",
+  "alarmEvent": {
+    "id": "0192c000-0000-7000-8000-0000000000aa",
+    "productId": "0192c000-0000-7000-8000-0000000000bb",
+    "environmentId": "0192c000-0000-7000-8000-0000000000cc",
+    "alarmId": "0192c000-0000-7000-8000-0000000000dd",
+    "alarmName": "pn-core-5xx",
+    "firedAt": "2026-06-22T10:00:00.000Z",
+    "awsAccountId": "170533023216",
+    "awsRegion": "eu-south-1"
+  },
+  "trigger": {
+    "kind": "SLACK_INGESTOR"
+  }
+}

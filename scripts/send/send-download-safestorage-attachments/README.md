@@ -151,12 +151,12 @@ outputs/send-download-safestorage-attachments_2026-02-20T11-30-00/
 
 ## Parametri
 
-| Parametro           | Alias   | Obbligatorio | Default    | Descrizione                                                              |
-| ------------------- | ------- | :----------: | ---------- | ------------------------------------------------------------------------ |
-| `--input-file`      | `-i`    |      ✓       | —          | File di input (relativo a `inputs/` oppure path assoluto)                |
-| `--input-mode`      | `-m`    |      —       | `uri-list` | Formato del file: `uri-list` oppure `jsonl`                              |
-| `--aws-profile`     | `-p`    |      ✓       | —          | AWS SSO profile con accesso al bucket Safe Storage dell'account confinfo |
-| `--file-extensions` | `--ext` |      —       | _(tutti)_  | Filtra per estensione: lista separata da virgola, es. `pdf,txt,bin`      |
+| Parametro           | Alias  | Obbligatorio | Default    | Descrizione                                                              |
+| ------------------- | ------ | :----------: | ---------- | ------------------------------------------------------------------------ |
+| `--input-file`      | `-i`   |      ✓       | —          | File di input (relativo a `inputs/` oppure path assoluto)                |
+| `--input-mode`      | `-m`   |      —       | `uri-list` | Formato del file: `uri-list` oppure `jsonl`                              |
+| `--aws-profile`     | `-p`   |      ✓       | —          | AWS SSO profile con accesso al bucket Safe Storage dell'account confinfo |
+| `--file-extensions` | `-ext` |      —       | _(tutti)_  | Filtra per estensione: lista separata da virgola, es. `pdf,txt,bin`      |
 
 ---
 

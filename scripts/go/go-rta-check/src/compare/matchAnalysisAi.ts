@@ -1,7 +1,7 @@
 import type { RunbookOutput } from '@go-automation/go-runbook';
 import type { GOAISemanticMatcher, GOSemanticMatchResult } from '@go-automation/go-ai';
 
-import type { AlarmAnalysisDto } from '../types/WatchtowerDtos.js';
+import type { AlarmAnalysisDto } from '@go-automation/go-watchtower-client';
 import type {
   AnalysisMatch,
   AnalysisMatchSignals,

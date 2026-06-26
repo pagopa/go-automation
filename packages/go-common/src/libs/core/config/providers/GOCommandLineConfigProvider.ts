@@ -73,11 +73,9 @@ export class GOCommandLineConfigProvider extends GOConfigProviderBase {
       return this.values.get(key);
     }
 
-    // Try converting from hierarchical format to CLI flag format
-    // e.g., "http.timeout" -> "http-timeout"
-    const cliKey = GOConfigKeyTransformer.fromCLIFlag(`--${key.replace(/\./g, '-')}`);
-    if (this.values.has(cliKey)) {
-      return this.values.get(cliKey);
+    const normalizedKey = GOConfigKeyTransformer.normalize(key);
+    if (this.values.has(normalizedKey)) {
+      return this.values.get(normalizedKey);
     }
 
     return undefined;
@@ -91,8 +89,7 @@ export class GOCommandLineConfigProvider extends GOConfigProviderBase {
       return true;
     }
 
-    const cliKey = GOConfigKeyTransformer.fromCLIFlag(`--${key.replace(/\./g, '-')}`);
-    return this.values.has(cliKey);
+    return this.values.has(GOConfigKeyTransformer.normalize(key));
   }
 
   /**
@@ -109,8 +106,8 @@ export class GOCommandLineConfigProvider extends GOConfigProviderBase {
 
     // Normalize keys and store values
     for (const [flagName, value] of parsed) {
-      // Store with normalized key (remove dashes, use dots)
-      const normalizedKey = flagName.replace(/-/g, '.');
+      // Store with canonical normalized key (kebab/dot/camelCase -> dot.notation).
+      const normalizedKey = GOConfigKeyTransformer.normalize(flagName);
       this.values.set(normalizedKey, value);
 
       // Also store with original flag name for direct lookup

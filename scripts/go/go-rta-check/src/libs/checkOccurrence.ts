@@ -1,16 +1,15 @@
 import type { Core } from '@go-automation/go-common';
+import type { AlarmAnalysisDto, AlarmEventDto, WatchtowerClient } from '@go-automation/go-watchtower-client';
 import { executeRunbookForOccurrence } from 'go-analyze-alarm/api';
+import { classifyRunbookOutcome } from '@go-automation/go-runbook';
 import type { ServiceRegistry } from '@go-automation/go-runbook';
 
-import type { AlarmAnalysisDto, AlarmEventDto } from '../types/WatchtowerDtos.js';
 import type { AnalysisMatch, RtaCheckEvent, RtaCheckRow } from '../types/RtaCheckReport.js';
-import type { WatchtowerClient } from '../watchtower/WatchtowerClient.js';
 import type { AnalysisMatcherFn } from '../compare/AnalysisMatcher.js';
-import { classifyRunbookOutcome } from '../compare/classifyRunbookOutcome.js';
 import type { MatchAnalysisOptions } from '../compare/matchAnalysis.js';
 import { loadCachedOutput, saveCachedOutput } from '../runner/resumeCache.js';
 import type { RunbookCacheDescriptor } from '../runner/RunbookCacheDescriptor.js';
-import { buildCacheMeta, computeFingerprint, EXECUTION_REGION } from '../runner/runbookFingerprint.js';
+import { buildCacheMeta, computeFingerprint } from '../runner/runbookFingerprint.js';
 
 /** Per-occurrence orchestration context (built once, reused across occurrences). */
 export interface CheckContext {
@@ -42,7 +41,9 @@ export interface CheckContext {
  */
 export async function checkOccurrence(context: CheckContext, event: AlarmEventDto): Promise<RtaCheckRow> {
   const meta =
-    context.runbook !== undefined ? buildCacheMeta(context.runbook, context.awsProfiles, event.firedAt) : undefined;
+    context.runbook !== undefined
+      ? buildCacheMeta(context.runbook, context.awsProfiles, event.firedAt, event.awsAccountId, event.awsRegion)
+      : undefined;
   const fingerprint = meta !== undefined ? computeFingerprint(meta) : undefined;
 
   let output =
@@ -54,8 +55,14 @@ export async function checkOccurrence(context: CheckContext, event: AlarmEventDt
   if (output === undefined) {
     try {
       output = await executeRunbookForOccurrence(
-        { services: context.services, logger: context.engineLogger, region: EXECUTION_REGION },
-        { alarmName: context.alarmName, firedAt: event.firedAt, awsProfiles: context.awsProfiles },
+        { services: context.services, logger: context.engineLogger },
+        {
+          alarmName: context.alarmName,
+          firedAt: event.firedAt,
+          awsAccountId: event.awsAccountId,
+          region: event.awsRegion,
+          awsProfiles: context.awsProfiles,
+        },
       );
       if (meta !== undefined && fingerprint !== undefined) {
         await saveCachedOutput(context.script, context.alarmName, event.id, output, meta, fingerprint);

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "contractVersion": "1.0.0",
+  "ownerRepository": "go-watchtower",
+  "artifacts": [
+    {
+      "logicalName": "watchtower-openapi",
+      "path": "watchtower-openapi.json",
+      "sha256": "3a379a8d8a13ad81d4dc242dcf22440f32ba6e642412a558e2c95270211cfcb1"
+    },
+    {
+      "logicalName": "automatic-alarm-analysis-command-v1.schema",
+      "path": "automatic-alarm-analysis-command-v1.schema.json",
+      "sha256": "28b624ae6e36dd08deecd044160f814ceaab466413a498ab561709250d6bd915"
+    },
+    {
+      "logicalName": "fixtures:sqs-command.valid",
+      "path": "fixtures/sqs-command.valid.json",
+      "sha256": "d48c1168b23f131595399731a1ab3cd1e1390400b5267b1858eed3aeec4c9505"
+    },
+    {
+      "logicalName": "fixtures:sqs-command.invalid-version",
+      "path": "fixtures/sqs-command.invalid-version.json",
+      "sha256": "c0d385422fe48cdc3371be9e0a4f91586db55bdd074cd9a731ac4fac21e7baa8"
+    },
+    {
+      "logicalName": "fixtures:start-responses",
+      "path": "fixtures/start-responses.json",
+      "sha256": "90b6529db7047053892db0c1091e9d2379e89602286e2f5188d1eb0ecfefb9f8"
+    },
+    {
+      "logicalName": "fixtures:lifecycle-control-responses",
+      "path": "fixtures/lifecycle-control-responses.json",
+      "sha256": "8b6b06de40dbffb993bbf3953494cff6c6682f1463a324fa264ef313539ecab0"
+    }
+  ]
+}

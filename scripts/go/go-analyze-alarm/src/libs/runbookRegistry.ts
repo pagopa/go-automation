@@ -4,6 +4,7 @@
  * Single source of truth shared by the CLI (`main.ts`) and the in-process
  * executor (`executeRunbookForOccurrence`, consumed by `go-rta-check`).
  */
+import { assertCloudExecutableRunbook } from '@go-automation/go-runbook';
 import type { Runbook } from '@go-automation/go-runbook';
 
 // api gateway
@@ -24,8 +25,10 @@ import { buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook } fro
 // service logs
 import { buildWorkdayPnExternalChannelAlbAlarmRunbook } from './runbooks/workday-pn-external-channel-alb-alarm/runbook.js';
 
+type RunbookBuilderFn = () => Runbook;
+
 /** Maps alarm names (= runbook ids) to their runbook builders. */
-export const RUNBOOK_REGISTRY: ReadonlyMap<string, () => Runbook> = new Map<string, () => Runbook>([
+export const RUNBOOK_REGISTRY: ReadonlyMap<string, RunbookBuilderFn> = new Map<string, RunbookBuilderFn>([
   ['pn-address-book-io-IO-ApiGwAlarm', buildAddressBookIoApiGwAlarmRunbook],
   ['pn-delivery-B2B-ApiGwAlarm', buildDeliveryB2BApiGwAlarmRunbook],
   ['pn-delivery-IO_EXP-ApiGwAlarm', buildDeliveryIoExpApiGwAlarmRunbook],
@@ -45,3 +48,15 @@ export const RUNBOOK_REGISTRY: ReadonlyMap<string, () => Runbook> = new Map<stri
   ],
   ['workday-pn-external-channel-alb-alarm', buildWorkdayPnExternalChannelAlbAlarmRunbook],
 ]);
+
+/** Fails CI/deploy if a registered cloud v1 runbook is not explicitly read-only. */
+export function validateCloudRunbookRegistry(registry: ReadonlyMap<string, RunbookBuilderFn> = RUNBOOK_REGISTRY): void {
+  for (const [alarmName, buildRunbook] of registry) {
+    try {
+      assertCloudExecutableRunbook(buildRunbook());
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Cloud runbook registry rejected "${alarmName}": ${message}`, { cause: error });
+    }
+  }
+}

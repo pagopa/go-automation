@@ -1,9 +1,22 @@
-import type { AthenaClient, ColumnInfo, QueryExecution, Row } from '@aws-sdk/client-athena';
-import { GetQueryExecutionCommand, GetQueryResultsCommand, StartQueryExecutionCommand } from '@aws-sdk/client-athena';
+import type {
+  AthenaClient,
+  ColumnInfo,
+  QueryExecution,
+  Row,
+  StartQueryExecutionCommandOutput,
+} from '@aws-sdk/client-athena';
+import {
+  GetQueryExecutionCommand,
+  GetQueryResultsCommand,
+  StartQueryExecutionCommand,
+  StopQueryExecutionCommand,
+} from '@aws-sdk/client-athena';
 
 import { AWSS3Uri } from './AWSS3Uri.js';
 import { GOBackoff, GOPoller, GOPollingPolicies } from '../core/polling/index.js';
 import type { GOPollAttemptHandler, GOSleeper } from '../core/polling/index.js';
+import { AWSActiveOperationRegistry } from './AWSActiveOperationRegistry.js';
+import type { AWSRemoteCleanupWarningHandler } from './AWSActiveOperationRegistry.js';
 
 /**
  * Service for executing Athena queries.
@@ -40,6 +53,8 @@ export interface AWSAthenaQueryOptions {
   readonly sleeper?: GOSleeper;
   /** Optional abort signal to cancel the query. */
   readonly signal?: AbortSignal;
+  /** Receives bounded cleanup warnings without changing cancellation semantics. */
+  readonly onCleanupWarning?: AWSRemoteCleanupWarningHandler;
 }
 
 export type AWSAthenaPollAttemptHandler = GOPollAttemptHandler;
@@ -64,7 +79,15 @@ export interface AWSAthenaQueryResult {
 }
 
 export class AWSAthenaService {
-  constructor(private readonly client: AthenaClient) {}
+  constructor(
+    private readonly client: AthenaClient,
+    private readonly activeOperations: AWSActiveOperationRegistry | undefined = undefined,
+  ) {}
+
+  /** Returns a service bound to the active-operation registry of one execution. */
+  forExecution(activeOperations: AWSActiveOperationRegistry): AWSAthenaService {
+    return new AWSAthenaService(this.client, activeOperations);
+  }
 
   /**
    * Executes an Athena query and waits for results.
@@ -94,26 +117,51 @@ export class AWSAthenaService {
     const catalog = normalizeOptionalString(options.catalog);
     const workGroup = normalizeOptionalString(options.workGroup);
     const startedAt = Date.now();
-    const startResponse = await this.client.send(
-      new StartQueryExecutionCommand({
-        QueryString: query,
-        QueryExecutionContext: {
-          Database: database,
-          ...(catalog !== undefined ? { Catalog: catalog } : {}),
-        },
-        ...(workGroup !== undefined ? { WorkGroup: workGroup } : {}),
-        ...(outputLocation !== undefined ? { ResultConfiguration: { OutputLocation: outputLocation } } : {}),
-        ...(options.parameters !== undefined && options.parameters.length > 0
-          ? { ExecutionParameters: [...options.parameters] }
-          : {}),
-      }),
-      ...(options.signal !== undefined ? [{ abortSignal: options.signal }] : []),
-    );
+    let startResponse: StartQueryExecutionCommandOutput;
+    try {
+      startResponse = await this.client.send(
+        new StartQueryExecutionCommand({
+          QueryString: query,
+          QueryExecutionContext: {
+            Database: database,
+            ...(catalog !== undefined ? { Catalog: catalog } : {}),
+          },
+          ...(workGroup !== undefined ? { WorkGroup: workGroup } : {}),
+          ...(outputLocation !== undefined ? { ResultConfiguration: { OutputLocation: outputLocation } } : {}),
+          ...(options.parameters !== undefined && options.parameters.length > 0
+            ? { ExecutionParameters: [...options.parameters] }
+            : {}),
+        }),
+        ...(options.signal !== undefined ? [{ abortSignal: options.signal }] : []),
+      );
+    } catch (error: unknown) {
+      if (options.signal?.aborted === true) {
+        options.onCleanupWarning?.({
+          service: 'ATHENA',
+          operationId: 'unknown',
+          code: 'REMOTE_QUERY_STOP_FAILED',
+          message:
+            'REMOTE_OPERATION_ID_UNKNOWN: StartQueryExecution may have been accepted before the response was lost',
+        });
+      }
+      throw error;
+    }
 
     const executionId = startResponse.QueryExecutionId;
     if (executionId === undefined) {
       throw new Error('Athena query did not return a QueryExecutionId');
     }
+
+    const registry = this.activeOperations ?? new AWSActiveOperationRegistry();
+    const registered = registry.register({
+      service: 'ATHENA',
+      operationId: executionId,
+      stop: async (cleanupSignal): Promise<void> => {
+        await this.client.send(new StopQueryExecutionCommand({ QueryExecutionId: executionId }), {
+          abortSignal: cleanupSignal,
+        });
+      },
+    });
 
     const poller = new GOPoller({
       ...GOPollingPolicies.athenaQuery(),
@@ -124,29 +172,43 @@ export class AWSAthenaService {
       ...(options.signal !== undefined ? { signal: options.signal } : {}),
     });
 
-    const execution = await poller.poll<QueryExecution>(async () => {
-      const statusResponse = await this.client.send(
-        new GetQueryExecutionCommand({ QueryExecutionId: executionId }),
-        ...(options.signal !== undefined ? [{ abortSignal: options.signal }] : []),
-      );
-      const state = statusResponse.QueryExecution?.Status?.State;
+    let execution: QueryExecution;
+    let resultSet: { readonly rows: ReadonlyArray<Row>; readonly columnInfo: ReadonlyArray<ColumnInfo> };
+    try {
+      execution = await poller.poll<QueryExecution>(async () => {
+        const statusResponse = await this.client.send(
+          new GetQueryExecutionCommand({ QueryExecutionId: executionId }),
+          ...(options.signal !== undefined ? [{ abortSignal: options.signal }] : []),
+        );
+        const state = statusResponse.QueryExecution?.Status?.State;
 
-      if (state === 'SUCCEEDED') {
-        const queryExecution = statusResponse.QueryExecution;
-        if (queryExecution === undefined) {
-          return { type: 'failure', error: new Error('Athena query succeeded but no execution metadata was returned') };
+        if (state === 'SUCCEEDED') {
+          const queryExecution = statusResponse.QueryExecution;
+          if (queryExecution === undefined) {
+            return {
+              type: 'failure',
+              error: new Error('Athena query succeeded but no execution metadata was returned'),
+            };
+          }
+          return { type: 'success', value: queryExecution };
         }
-        return { type: 'success', value: queryExecution };
-      }
-      if (state === 'FAILED' || state === 'CANCELLED') {
-        const reason = statusResponse.QueryExecution?.Status?.StateChangeReason ?? 'Unknown';
-        return { type: 'failure', error: new Error(`Athena query ${state}: ${reason}`), reason };
-      }
-      // QUEUED | RUNNING | undefined → non-terminal, keep polling.
-      return { type: 'continue', ...(state !== undefined ? { reason: state } : {}) };
-    });
+        if (state === 'FAILED' || state === 'CANCELLED') {
+          const reason = statusResponse.QueryExecution?.Status?.StateChangeReason ?? 'Unknown';
+          return { type: 'failure', error: new Error(`Athena query ${state}: ${reason}`), reason };
+        }
+        return { type: 'continue', ...(state !== undefined ? { reason: state } : {}) };
+      });
 
-    const resultSet = await this.fetchAllResults(executionId, options.signal);
+      resultSet = await this.fetchAllResults(executionId, options.signal);
+    } catch (error: unknown) {
+      if (options.signal?.aborted === true) {
+        const warning = await registered.stop();
+        if (warning !== undefined) options.onCleanupWarning?.(warning);
+      }
+      throw error;
+    } finally {
+      registered.unregister();
+    }
     const completedAt = Date.now();
     const submittedAt = execution.Status?.SubmissionDateTime ?? new Date(startedAt);
     const completedDate = execution.Status?.CompletionDateTime ?? new Date(completedAt);

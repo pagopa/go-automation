@@ -26,7 +26,9 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   const ctx = resolveApiGwAlarmBuildContext(config);
   const { profile, minStatus, apiGwQuery, registry, allServices, servicesInRunbook } = ctx;
 
-  const builder = RunbookBuilder.create(config.id).metadata(config.metadata);
+  const builder = RunbookBuilder.create(config.id)
+    .metadata(config.metadata)
+    .cloudExecutionPolicy({ sideEffects: 'NONE' });
 
   // 1. Banner.
   builder.step(

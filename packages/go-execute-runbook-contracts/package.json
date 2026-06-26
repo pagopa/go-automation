@@ -1,0 +1,20 @@
+{
+  "name": "@go-automation/go-execute-runbook-contracts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

@@ -2,7 +2,6 @@
  * Factory for creating the AWS ServiceRegistry from the script AWS provider.
  */
 
-import { RunbookHttpService } from '@go-automation/go-runbook';
 import { Core } from '@go-automation/go-common';
 import type { ServiceRegistry } from '@go-automation/go-runbook';
 
@@ -22,6 +21,6 @@ export function createServiceRegistry(script: Core.GOScript): ServiceRegistry {
     cloudWatchMetrics: script.aws.services.cloudWatchMetrics,
     athena: script.aws.services.athena,
     dynamodb: script.aws.services.dynamoDB,
-    http: new RunbookHttpService(),
+    http: new Core.GOHttpClient({}),
   };
 }

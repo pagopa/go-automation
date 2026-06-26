@@ -2,13 +2,14 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { queryAthena } from '../AthenaQueryStep.js';
+import type { AWSAthenaQueryOptions } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import type { ServiceRegistry, AthenaQueryOptions } from '../../../services/index.js';
+import type { ServiceRegistry } from '../../../services/index.js';
 
 interface AthenaCall {
   readonly database: string;
   readonly query: string;
-  readonly options?: AthenaQueryOptions;
+  readonly options?: AWSAthenaQueryOptions;
 }
 
 function makeContext(params: ReadonlyArray<readonly [string, string]> = []): {
@@ -21,7 +22,7 @@ function makeContext(params: ReadonlyArray<readonly [string, string]> = []): {
       async query(
         database: string,
         query: string,
-        options?: AthenaQueryOptions,
+        options?: AWSAthenaQueryOptions,
       ): Promise<ReadonlyArray<Record<string, string>>> {
         calls.push({
           database,

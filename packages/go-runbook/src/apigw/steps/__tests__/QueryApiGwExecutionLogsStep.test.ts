@@ -1,12 +1,15 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { AWSCloudWatchLogsQueryOptions, ResultField } from '@go-automation/go-common/aws';
+import type {
+  AWSCloudWatchLogsQueryOptions,
+  AWSCloudWatchLogsService,
+  ResultField,
+} from '@go-automation/go-common/aws';
 import type { GOLogger } from '@go-automation/go-common/core';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
 import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
-import type { CloudWatchLogsQueryService } from '../../../services/CloudWatchLogsQueryService.js';
 import type { TimeRange } from '../../../types/TimeRange.js';
 
 import { queryApiGwExecutionLogs } from '../QueryApiGwExecutionLogsStep.js';
@@ -19,7 +22,7 @@ interface CapturedCall {
 }
 
 function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<ResultField>> = []): {
-  service: CloudWatchLogsQueryService;
+  service: AWSCloudWatchLogsService;
   calls: CapturedCall[];
 } {
   const calls: CapturedCall[] = [];
@@ -41,13 +44,13 @@ function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<ResultField>> = [
         return results;
       },
     ),
-  } as unknown as CloudWatchLogsQueryService;
+  } as unknown as AWSCloudWatchLogsService;
   return { service, calls };
 }
 
 function createContext(args: {
   readonly stepOutput: ReadonlyArray<ReadonlyArray<ResultField>>;
-  readonly cloudWatchLogs: CloudWatchLogsQueryService;
+  readonly cloudWatchLogs: AWSCloudWatchLogsService;
   readonly logger?: GOLogger;
 }): RunbookContext {
   return {

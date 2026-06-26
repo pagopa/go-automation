@@ -135,7 +135,7 @@ pnpm go:analyze:alarm:dev -- \
   -aps "sso_pn-core-prod,sso_pn-confinfo-prod"
 ```
 
-> Lo script usa il **primo profilo** della lista per costruire il `ServiceRegistry`. I profili aggiuntivi sono disponibili per estensioni future del runbook.
+> Lo script usa il **primo profilo** della lista per i servizi single-account, come Athena e Secrets Manager. Gli step CloudWatch Logs configurati con ricerca multi-profilo provano invece i profili indicati in ordine e usano il primo che riesce a interrogare il log group.
 
 ### Modalità production (build + node)
 

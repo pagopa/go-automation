@@ -1,7 +1,7 @@
 import { Core } from '@go-automation/go-common';
 import { createServiceRegistry } from 'go-analyze-alarm/api';
 
-import type { AlarmAnalysisDto } from '../types/WatchtowerDtos.js';
+import type { AlarmAnalysisDto } from '@go-automation/go-watchtower-client';
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
 import type { CheckContext } from './checkOccurrence.js';
 import type { Connection } from './resolveClient.js';

@@ -9,6 +9,12 @@ const config: KnipConfig = {
     'packages/go-common': {
       project: ['src/**/*.ts'],
     },
+    'packages/go-execute-runbook-contracts': {
+      project: ['src/**/*.ts'],
+    },
+    'packages/go-watchtower-client': {
+      project: ['src/**/*.ts'],
+    },
     'packages/go-cli': {
       project: ['src/**/*.ts'],
     },
@@ -35,10 +41,6 @@ const config: KnipConfig = {
       entry: ['src/cron.ts'],
       project: ['src/**/*.ts'],
     },
-    // INTEROP scripts
-    'scripts/interop/*': {
-      project: ['src/**/*.ts'],
-    },
     // Lambda functions with standalone handler entrypoints
     'functions/go-AILambda': {
       entry: ['src/handler.ts'],
@@ -52,11 +54,16 @@ const config: KnipConfig = {
     'functions/*': {
       project: ['src/**/*.ts'],
     },
+    'infra/*': {
+      project: ['src/**/*.ts'],
+    },
   },
   ignore: [
     // Barrel index.ts files: re-export hubs for module organization.
     // knip flags them as unused because their parent barrel re-exports transitively.
     '**/index.ts',
+    // Generated contract types expose the complete upstream OpenAPI surface.
+    'packages/go-watchtower-client/src/generated/**',
   ],
   ignoreDependencies: [
     // yaml is consumed transitively by go-common GOYAMLParser at runtime

@@ -1,0 +1,33 @@
+{
+  "progress_staleAttempt": {
+    "cancelRequested": false,
+    "staleAttempt": true
+  },
+  "complete_staleAttempt": {
+    "status": "RUNNING",
+    "outcome": null,
+    "staleAttempt": true
+  },
+  "complete_alreadyTerminal": {
+    "status": "SUCCEEDED",
+    "outcome": "KNOWN_CASE",
+    "alreadyTerminal": true
+  },
+  "complete_idempotencyMismatch_409": {
+    "conflict": "IDEMPOTENCY_PAYLOAD_MISMATCH",
+    "status": "SUCCEEDED"
+  },
+  "complete_cancellationRequested_409": {
+    "conflict": "CANCELLATION_REQUESTED"
+  },
+  "cancelAck_requestMismatch_409": {
+    "conflict": "CANCELLATION_REQUEST_MISMATCH"
+  },
+  "cancelAck_notRequested_409": {
+    "conflict": "CANCELLATION_NOT_REQUESTED"
+  },
+  "cancel_cannotCancelTerminal_409": {
+    "conflict": "CANNOT_CANCEL_TERMINAL",
+    "status": "SUCCEEDED"
+  }
+}

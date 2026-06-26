@@ -1,15 +1,22 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { GetQueryResultsCommand, StartQueryCommand, type ResultField } from '@aws-sdk/client-cloudwatch-logs';
+import {
+  GetQueryResultsCommand,
+  StartQueryCommand,
+  StopQueryCommand,
+  type ResultField,
+} from '@aws-sdk/client-cloudwatch-logs';
 
+import { AWSActiveOperationRegistry } from '../AWSActiveOperationRegistry.js';
 import { AWSCloudWatchLogsService } from '../AWSCloudWatchLogsService.js';
 import type { AWSCloudWatchLogsQueryStatistics } from '../AWSCloudWatchLogsService.js';
 import type { AWSClientProvider } from '../AWSClientProvider.js';
 import type { AWSMultiClientProvider } from '../AWSMultiClientProvider.js';
 
-type CloudWatchLogsCommand = StartQueryCommand | GetQueryResultsCommand;
+type CloudWatchLogsCommand = StartQueryCommand | GetQueryResultsCommand | StopQueryCommand;
 type CloudWatchLogsSendResponse =
+  | Record<string, never>
   | { readonly queryId: string }
   | {
       readonly status: string;
@@ -27,6 +34,7 @@ interface FakeCloudWatchLogsClient {
 interface FakeAWSClientProvider {
   readonly cloudWatchLogs: FakeCloudWatchLogsClient;
   getProfile(): string;
+  getRegion(): string;
 }
 
 interface FakeClientOptions {
@@ -37,7 +45,11 @@ interface FakeClientOptions {
     readonly results: ReadonlyArray<ReadonlyArray<ResultField>>;
     readonly statistics?: Partial<AWSCloudWatchLogsQueryStatistics>;
   }>;
+  readonly onGetQueryResults?: GetQueryResultsHook;
+  readonly queryStatus?: string;
 }
+
+type GetQueryResultsHook = () => void;
 
 class FakeMultiProvider {
   private readonly providers: Map<string, FakeAWSClientProvider>;
@@ -73,6 +85,7 @@ function createFakeProvider(profile: string, options: FakeClientOptions): FakeAW
   return {
     cloudWatchLogs: createFakeCloudWatchLogsClient(profile, options),
     getProfile: () => profile,
+    getRegion: () => 'eu-south-1',
   };
 }
 
@@ -91,6 +104,12 @@ function createFakeCloudWatchLogsClient(profile: string, options: FakeClientOpti
         return { queryId: `query-${profile}` };
       }
 
+      if (command instanceof StopQueryCommand) {
+        return {};
+      }
+
+      options.onGetQueryResults?.();
+
       const input = command.input as { readonly nextToken?: string };
       if (options.resultPages !== undefined) {
         const pageIndex = input.nextToken === undefined ? 0 : Number(input.nextToken.replace('page-', ''));
@@ -107,7 +126,7 @@ function createFakeCloudWatchLogsClient(profile: string, options: FakeClientOpti
       }
 
       return {
-        status: 'Complete',
+        status: options.queryStatus ?? 'Complete',
         results: [
           [
             { field: '@timestamp', value: options.timestamp ?? '2026-05-14T10:00:00.000Z' },
@@ -142,6 +161,49 @@ const timeRange = {
 };
 
 describe('AWSCloudWatchLogsService', () => {
+  it('uses OAM logGroupIdentifiers for an execution-scoped source account', async () => {
+    const provider = new FakeMultiProvider(new Map([['default', {}]]));
+    const service = createService(provider).forTarget({ accountId: '123456789012', region: 'eu-south-1' });
+
+    await service.query(['/aws/lambda/source'], 'fields @timestamp', timeRange);
+
+    const start = provider
+      .client('default')
+      .commands.find((command): command is StartQueryCommand => command instanceof StartQueryCommand);
+    assert.deepStrictEqual(start?.input.logGroupIdentifiers, [
+      'arn:aws:logs:eu-south-1:123456789012:log-group:/aws/lambda/source',
+    ]);
+    assert.strictEqual(start?.input.logGroupNames, undefined);
+  });
+
+  it('stops a remote Logs query once when the execution is aborted', async () => {
+    const controller = new AbortController();
+    const provider = new FakeMultiProvider(
+      new Map([
+        [
+          'default',
+          {
+            queryStatus: 'Running',
+            onGetQueryResults: () => controller.abort(),
+          },
+        ],
+      ]),
+    );
+    const service = createService(provider);
+
+    await assert.rejects(
+      service.query(['/aws/lambda/source'], 'fields @timestamp', timeRange, {
+        signal: controller.signal,
+        maxPollAttempts: 2,
+      }),
+    );
+
+    assert.strictEqual(
+      provider.client('default').commands.filter((command) => command instanceof StopQueryCommand).length,
+      1,
+    );
+  });
+
   it('uses the first profile by default', async () => {
     const provider = new FakeMultiProvider(
       new Map([
@@ -181,6 +243,24 @@ describe('AWSCloudWatchLogsService', () => {
 
     assert.strictEqual(provider.client('first').commands.length, 1);
     assert.strictEqual(provider.client('second').commands.length, 4);
+  });
+
+  it('keeps configured profile search available when scoped to an execution', async () => {
+    const provider = new FakeMultiProvider(
+      new Map([
+        ['first', { startError: new Error('ResourceNotFoundException: log group not found') }],
+        ['second', {}],
+      ]),
+    );
+    const service = createService(provider).forExecution(new AWSActiveOperationRegistry());
+
+    const rows = await service.query(['/aws/ecs/service'], 'fields @timestamp, @message', timeRange, {
+      logGroupResolutionMode: 'search-configured-profiles',
+    });
+
+    assert.strictEqual(profileValue(rows[0] ?? []), 'second');
+    assert.strictEqual(provider.client('first').commands.length, 1);
+    assert.strictEqual(provider.client('second').commands.length, 2);
   });
 
   it('queries each log group when searching configured profiles', async () => {

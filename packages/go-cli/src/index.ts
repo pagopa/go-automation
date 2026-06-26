@@ -53,7 +53,7 @@ function displayScriptParameters(
     console.log(`  ${'-'.repeat(header.length)}`);
 
     parameters.forEach((param) => {
-      const name = `--${param.name.replace(/\./g, '-')}`;
+      const name = Core.GOConfigKeyTransformer.toCLIFlag(param.name);
       const type = param.type.toUpperCase();
       const required = param.required ? 'Yes' : 'No';
       const defaultValue = param.defaultValue !== undefined ? String(param.defaultValue) : '-';
@@ -69,12 +69,17 @@ function displayScriptParameters(
     console.log(`  ${'-'.repeat(header.length)}`);
 
     parameters.forEach((param) => {
-      const name = `--${param.name.replace(/\./g, '-')}`;
-      const aliases = param.aliases?.map((a) => `-${a}`).join(', ') ?? '-';
+      const name = Core.GOConfigKeyTransformer.toCLIFlag(param.name);
+      const aliases = param.aliases?.map(formatAlias).join(', ') ?? '-';
       const defaultValue = param.defaultValue !== undefined ? ` (Default: ${String(param.defaultValue)})` : '';
       console.log(`  ${name.padEnd(25)} ${aliases.padEnd(12)} ${param.description}${defaultValue}`);
     });
   }
+}
+
+function formatAlias(alias: string): string {
+  if (alias.startsWith('-')) return alias;
+  return Core.GOConfigKeyTransformer.toCLIFlag(alias).replace(/^--/, '-');
 }
 
 async function main(): Promise<void> {

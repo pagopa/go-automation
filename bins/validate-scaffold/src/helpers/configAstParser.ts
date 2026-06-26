@@ -22,12 +22,27 @@ interface ConfigParameter {
   readonly required: boolean;
 }
 
-/**
- * Converts a dot-notation parameter name to CLI flag format.
- * Examples: 'start.date' → '--start-date', 'aws.profile' → '--aws-profile'
- */
+/** Converts a parameter name to the same kebab-case CLI flag format used by GOScript. */
 function toCliFlag(name: string): string {
-  return `--${name.replace(/\./g, '-')}`;
+  return `--${name
+    .split('.')
+    .flatMap((part) => splitCamelCase(part))
+    .join('-')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')}`;
+}
+
+function toAliasFlag(alias: string): string {
+  if (alias.startsWith('-')) return alias;
+  return toCliFlag(alias).replace(/^--/, '-');
+}
+
+function splitCamelCase(value: string): string[] {
+  if (value === '') return [];
+  return value
+    .replace(/([a-z])([A-Z])/g, '$1.$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1.$2')
+    .split('.');
 }
 
 /**
@@ -93,7 +108,7 @@ function parseParameterObject(obj: ts.ObjectLiteralExpression): ConfigParameter 
 
   const aliasesNode = getPropertyNode(obj, 'aliases');
   const rawAliases = aliasesNode !== undefined ? getStringArray(aliasesNode) : [];
-  const aliases = rawAliases.map((a) => (a.length === 1 ? `-${a}` : `--${a}`));
+  const aliases = rawAliases.map(toAliasFlag);
 
   return {
     name,

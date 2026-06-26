@@ -2,6 +2,7 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
+import { throwIfRunbookAborted } from '../../core/throwIfRunbookAborted.js';
 
 /**
  * Configuration for the DynamoDB put step.
@@ -54,10 +55,12 @@ class DynamoDBPutStep implements Step<void> {
    */
   async execute(context: RunbookContext): Promise<StepResult<void>> {
     try {
+      throwIfRunbookAborted(context);
       await context.services.dynamodb.putItem(this.tableName, { ...this.item });
 
       return { success: true, output: undefined };
     } catch (error: unknown) {
+      if (context.signal?.aborted === true) throw error;
       const message = error instanceof Error ? error.message : String(error);
       return { success: false, error: `DynamoDB put failed: ${message}` };
     }

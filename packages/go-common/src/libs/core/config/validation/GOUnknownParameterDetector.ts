@@ -6,6 +6,7 @@
  */
 
 import type { GOConfigSchema } from '../GOConfigSchema.js';
+import { GOConfigKeyTransformer } from '../GOConfigKeyTransformer.js';
 import { damerauLevenshteinDistance } from './GOStringDistance.js';
 
 /**
@@ -143,7 +144,9 @@ export class GOUnknownParameterDetector {
 
       // Aliases (may or may not have prefix)
       for (const alias of param.aliases) {
-        const bareAlias = alias.replace(/^--?/, '');
+        const bareAlias = alias.startsWith('-')
+          ? alias.replace(/^--?/, '')
+          : GOConfigKeyTransformer.toCLIFlag(alias).replace(/^--?/, '');
         validFlags.add(bareAlias);
       }
     }

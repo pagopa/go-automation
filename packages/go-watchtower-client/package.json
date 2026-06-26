@@ -1,0 +1,30 @@
+{
+  "name": "@go-automation/go-watchtower-client",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "generate": "openapi-typescript ../../contracts/runbook-automation/v1/upstream/go-watchtower/watchtower-openapi.json --alphabetize --output src/generated/openapi.ts && json2ts --input ../../contracts/runbook-automation/v1/upstream/go-watchtower/automatic-alarm-analysis-command-v1.schema.json --output src/generated/AutomaticAlarmAnalysisCommandV1.ts --bannerComment '/* Generated from the WT-owned JSON Schema. Do not edit. */' && cp ../../contracts/runbook-automation/v1/upstream/go-watchtower/automatic-alarm-analysis-command-v1.schema.json src/generated/automatic-alarm-analysis-command-v1.schema.json",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'"
+  },
+  "dependencies": {
+    "@go-automation/go-common": "workspace:*",
+    "ajv": "catalog:",
+    "ajv-formats": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "json-schema-to-typescript": "catalog:",
+    "openapi-typescript": "catalog:"
+  }
+}

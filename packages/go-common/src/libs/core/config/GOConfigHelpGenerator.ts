@@ -5,6 +5,7 @@
  */
 
 import { GOConfigParameter } from './GOConfigParameter.js';
+import { GOConfigKeyTransformer } from './GOConfigKeyTransformer.js';
 import { valueToString } from '../utils/GOValueToString.js';
 
 /**
@@ -173,7 +174,7 @@ export class GOConfigHelpGenerator {
     lines.push(`  CLI: ${parameter.cliFlag}`);
 
     if (parameter.aliases.length > 0) {
-      lines.push(`  Aliases: ${parameter.aliases.join(', ')}`);
+      lines.push(`  Aliases: ${parameter.aliases.map(formatAlias).join(', ')}`);
     }
 
     if (this.options.showEnvVars) {
@@ -261,7 +262,7 @@ export class GOConfigHelpGenerator {
     // Add aliases
     if (parameter.aliases.length > 0) {
       const aliasHint = this.padRight('', this.options.columnWidth);
-      lines.push(`  ${aliasHint}aliases: ${parameter.aliases.join(', ')}`);
+      lines.push(`  ${aliasHint}aliases: ${parameter.aliases.map(formatAlias).join(', ')}`);
     }
 
     return lines;
@@ -351,4 +352,9 @@ export class GOConfigHelpGenerator {
 
     return parts.join(' ');
   }
+}
+
+function formatAlias(alias: string): string {
+  if (alias.startsWith('-')) return alias;
+  return GOConfigKeyTransformer.toCLIFlag(alias).replace(/^--/, '-');
 }

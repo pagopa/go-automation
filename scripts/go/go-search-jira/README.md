@@ -84,30 +84,30 @@ Lo script risolve automaticamente il parametro `jira.token` anche dalla variabil
 
 ### Parametri CLI
 
-| Parametro CLI                   | Alias       | Tipo     | Obbligatorio                    | Default          | Descrizione                                        |
-| ------------------------------- | ----------- | -------- | ------------------------------- | ---------------- | -------------------------------------------------- |
-| `--action`                      | `--ac`      | string   | si                              | -                | `sync`, `search`, `status`, `clean`                |
-| `--jira-url`                    |             | string   | per `sync`                      | vuoto            | Base URL Jira, es. `https://example.atlassian.net` |
-| `--jira-email`                  |             | string   | per basic auth                  | vuoto            | Email associata al token Jira Cloud                |
-| `--jira-token`                  |             | string   | per `sync`                      | `JIRA_TOKEN` env | Token Jira. Parametro sensibile                    |
-| `--jira-auth-mode`              |             | string   | no                              | `basic`          | `basic` o `bearer` per Jira Cloud REST API v3      |
-| `--jira-jql`                    |             | string   | per `sync` se non usi issue key | vuoto            | JQL per scoprire le issue                          |
-| `--jira-issue-keys`             |             | string[] | per `sync` se non usi JQL       | vuoto            | Lista issue key, separata da virgole o spazi       |
-| `--sync-max-parallel-downloads` |             | int      | no                              | `5`              | Download concorrenti                               |
-| `--sync-max-attachment-size-mb` |             | int      | no                              | `500`            | Skip degli attachment piu grandi del limite        |
-| `--sync-keep-raw`               |             | bool     | no                              | `false`          | Conserva i binari scaricati dopo l'estrazione      |
-| `--sync-dry-run`                |             | bool     | no                              | `false`          | Pianifica senza scaricare o indicizzare            |
-| `--sync-force`                  |             | bool     | no                              | `false`          | Reindicizza attachment gia presenti                |
-| `--search-query`                | `-q`, `--q` | string   | per `search`                    | vuoto            | Query di ricerca                                   |
-| `--search-mode`                 |             | string   | no                              | `full-text`      | `full-text` o `literal`                            |
-| `--search-limit`                |             | int      | no                              | `20`             | Numero massimo risultati                           |
-| `--search-project`              |             | string   | no                              | vuoto            | Filtra per project key Jira                        |
-| `--output-file`                 | `--of`      | string   | no                              | auto             | File di export risultati                           |
-| `--output-format`               | `--ff`      | string   | no                              | `json`           | `txt`, `json`, `jsonl`, `csv`, `html`              |
-| `--clean-raw-only`              |             | bool     | no                              | `false`          | Cancella solo i binari in cache                    |
-| `--clean-yes`                   |             | bool     | no                              | `false`          | Salta la conferma interattiva                      |
-| `--storage-data-dir`            |             | string   | no                              | GOPaths data dir | Directory per `index.db` e cache attachment        |
-| `--storage-index-file-name`     |             | string   | no                              | `index.db`       | Nome del database SQLite                           |
+| Parametro CLI                   | Alias | Tipo     | Obbligatorio                    | Default          | Descrizione                                        |
+| ------------------------------- | ----- | -------- | ------------------------------- | ---------------- | -------------------------------------------------- |
+| `--action`                      | `-ac` | string   | si                              | -                | `sync`, `search`, `status`, `clean`                |
+| `--jira-url`                    |       | string   | per `sync`                      | vuoto            | Base URL Jira, es. `https://example.atlassian.net` |
+| `--jira-email`                  |       | string   | per basic auth                  | vuoto            | Email associata al token Jira Cloud                |
+| `--jira-token`                  |       | string   | per `sync`                      | `JIRA_TOKEN` env | Token Jira. Parametro sensibile                    |
+| `--jira-auth-mode`              |       | string   | no                              | `basic`          | `basic` o `bearer` per Jira Cloud REST API v3      |
+| `--jira-jql`                    |       | string   | per `sync` se non usi issue key | vuoto            | JQL per scoprire le issue                          |
+| `--jira-issue-keys`             |       | string[] | per `sync` se non usi JQL       | vuoto            | Lista issue key, separata da virgole o spazi       |
+| `--sync-max-parallel-downloads` |       | int      | no                              | `5`              | Download concorrenti                               |
+| `--sync-max-attachment-size-mb` |       | int      | no                              | `500`            | Skip degli attachment piu grandi del limite        |
+| `--sync-keep-raw`               |       | bool     | no                              | `false`          | Conserva i binari scaricati dopo l'estrazione      |
+| `--sync-dry-run`                |       | bool     | no                              | `false`          | Pianifica senza scaricare o indicizzare            |
+| `--sync-force`                  |       | bool     | no                              | `false`          | Reindicizza attachment gia presenti                |
+| `--search-query`                | `-q`  | string   | per `search`                    | vuoto            | Query di ricerca                                   |
+| `--search-mode`                 |       | string   | no                              | `full-text`      | `full-text` o `literal`                            |
+| `--search-limit`                |       | int      | no                              | `20`             | Numero massimo risultati                           |
+| `--search-project`              |       | string   | no                              | vuoto            | Filtra per project key Jira                        |
+| `--output-file`                 | `-of` | string   | no                              | auto             | File di export risultati                           |
+| `--output-format`               | `-ff` | string   | no                              | `json`           | `txt`, `json`, `jsonl`, `csv`, `html`              |
+| `--clean-raw-only`              |       | bool     | no                              | `false`          | Cancella solo i binari in cache                    |
+| `--clean-yes`                   |       | bool     | no                              | `false`          | Salta la conferma interattiva                      |
+| `--storage-data-dir`            |       | string   | no                              | GOPaths data dir | Directory per `index.db` e cache attachment        |
+| `--storage-index-file-name`     |       | string   | no                              | `index.db`       | Nome del database SQLite                           |
 
 ### Variabili d'ambiente
 

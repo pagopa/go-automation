@@ -102,7 +102,7 @@ export class GOConfigTypeConverter {
    */
   static toStringArray(value: string | string[], separator = ','): string[] {
     if (Array.isArray(value)) {
-      return value;
+      return value.map((v) => v.trim()).filter((v) => v.length > 0);
     }
 
     // Handle comma-separated values

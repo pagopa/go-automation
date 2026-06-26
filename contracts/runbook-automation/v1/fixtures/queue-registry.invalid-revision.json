@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "revision": "0000000000000000000000000000000000000000000000000000000000000000",
+  "publishedAt": "2026-06-22T00:00:00.000Z",
+  "queues": {
+    "eu-south-1": {
+      "queueUrl": "https://sqs.eu-south-1.amazonaws.com/170533023216/go-execute-runbook.fifo",
+      "queueArn": "arn:aws:sqs:eu-south-1:170533023216:go-execute-runbook.fifo",
+      "stackName": "go-execute-runbook",
+      "messageRetentionSeconds": 345600
+    }
+  }
+}

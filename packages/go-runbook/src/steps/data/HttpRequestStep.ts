@@ -2,7 +2,7 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
-import type { RunbookHttpResponse } from '../../services/RunbookHttpService.js';
+import type { GOHttpResponse } from '@go-automation/go-common/core';
 import { interpolatePlaceholders } from '../../core/templatePlaceholders.js';
 import { executeStep } from './executeStep.js';
 
@@ -39,7 +39,7 @@ export interface HttpRequestConfig {
  * });
  * ```
  */
-export class HttpRequestStep implements Step<RunbookHttpResponse> {
+export class HttpRequestStep implements Step<GOHttpResponse<unknown>> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -86,7 +86,7 @@ export class HttpRequestStep implements Step<RunbookHttpResponse> {
    * @param context - The runbook execution context
    * @returns Step result containing the HTTP response
    */
-  async execute(context: RunbookContext): Promise<StepResult<RunbookHttpResponse>> {
+  async execute(context: RunbookContext): Promise<StepResult<GOHttpResponse<unknown>>> {
     return executeStep('HTTP request', async () => {
       const resolvedUrl = interpolatePlaceholders(this.url, context, encodeURIComponent);
       const resolvedHeaders = this.headers !== undefined ? resolveHeaders(this.headers, context) : undefined;
@@ -97,8 +97,7 @@ export class HttpRequestStep implements Step<RunbookHttpResponse> {
         resolvedUrl,
         resolvedBody,
         resolvedHeaders,
-        undefined,
-        context.signal,
+        context.signal === undefined ? undefined : { signal: context.signal },
       );
 
       return { success: true, output: response };

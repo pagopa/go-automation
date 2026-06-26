@@ -2,6 +2,7 @@ import type { RunbookMetadata } from './RunbookMetadata.js';
 import type { StepDescriptor } from './StepDescriptor.js';
 import type { KnownCase } from './KnownCase.js';
 import type { CaseAction } from '../actions/CaseAction.js';
+import type { CloudExecutionPolicy } from './CloudExecutionPolicy.js';
 
 /**
  * Complete definition of a runbook.
@@ -18,6 +19,8 @@ export interface Runbook {
   readonly fallbackAction: CaseAction;
   /** Maximum number of iterations for anti-loop protection */
   readonly maxIterations?: number;
+  /** Explicit constraints for execution by a managed cloud worker. */
+  readonly cloudExecutionPolicy?: CloudExecutionPolicy;
   /**
    * Structured context exposed by runbook builders for downstream
    * consumers such as output builders. The shape is family-specific and

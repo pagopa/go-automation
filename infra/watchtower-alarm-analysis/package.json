@@ -1,0 +1,22 @@
+{
+  "name": "go-execute-runbook-infra",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "deploy": "sst deploy --stage ${DEPLOY_ENV}-${DEPLOY_REGION}",
+    "diff": "sst diff --stage ${DEPLOY_ENV}-${DEPLOY_REGION}",
+    "install:providers": "sst install --stage ${DEPLOY_ENV}-${DEPLOY_REGION}",
+    "remove": "sst remove --stage ${DEPLOY_ENV}-${DEPLOY_REGION}",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'"
+  },
+  "dependencies": {
+    "@go-automation/go-execute-runbook-contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "sst": "catalog:"
+  }
+}

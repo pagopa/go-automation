@@ -1,0 +1,24 @@
+{
+  "START": {
+    "disposition": "START",
+    "attemptId": "0192c000-0000-7000-8000-0000000000e1",
+    "workerDeadlineAt": "2026-06-22T10:12:00.000Z"
+  },
+  "ALREADY_STARTED": {
+    "disposition": "ALREADY_STARTED",
+    "attemptId": "0192c000-0000-7000-8000-0000000000e1",
+    "workerDeadlineAt": "2026-06-22T10:12:00.000Z"
+  },
+  "ALREADY_RUNNING": {
+    "disposition": "ALREADY_RUNNING",
+    "workerDeadlineAt": "2026-06-22T10:12:00.000Z"
+  },
+  "CANCEL_REQUESTED": {
+    "disposition": "CANCEL_REQUESTED",
+    "cancelRequestId": "0192c000-0000-7000-8000-0000000000c1"
+  },
+  "ALREADY_TERMINAL": {
+    "disposition": "ALREADY_TERMINAL",
+    "status": "SUCCEEDED"
+  }
+}

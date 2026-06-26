@@ -35,6 +35,14 @@ Per ogni occorrenza esegue **due verifiche**:
 
 Vedi `docs/evolutions/EVO-RTACHECK-OPUS-02.md` per il design completo.
 
+## Prerequisiti
+
+- Accesso a Watchtower con credenziali valide.
+- Profili AWS SSO configurati per gli account sorgente dei log CloudWatch analizzati dai runbook.
+- Profilo AWS standard per GO-AI/Bedrock quando `--analysis-matcher ai` è attivo.
+
+## Configurazione
+
 ### Matcher AI
 
 Il matcher AI usa `@go-automation/go-ai`, `GOBedrockClient` e il cappello `semantic-match`, descritto in `artifacts/goai.pdf`: invia due testi (`a` = esito/caso rilevato dal runbook, `b` = analisi Watchtower dell'operatore) e riceve `score`, `explanation`, `verdict`.
@@ -61,11 +69,14 @@ Parametri principali:
 | Flag                          | Default            | Significato                                                                 |
 | ----------------------------- | ------------------ | --------------------------------------------------------------------------- |
 | `--analysis-matcher`          | `ai`               | `ai` oppure `lexical`                                                       |
+| `--concurrency`               | `1`                | Numero di occorrenze/runbook processati in parallelo                        |
+| `--output-format`             | `all`              | Artifact da scrivere: `json`, `md` o `all`                                  |
 | `--go-ai-semantic-threshold`  | `70`               | Soglia 0..100 per considerare equivalente lo score GO-AI                    |
 | `--go-ai-fallback-to-lexical` | `true`             | Se GO-AI fallisce, usa il matcher lessicale invece di marcare `NO_EVIDENCE` |
+| `--aws-region`                | `eu-south-1`       | Regione AWS standard per credenziali/profili                                |
 | `--aws-profile`               | `sso_pn-analytics` | Profilo AWS standard usato da GO-AI/Bedrock                                 |
 
-## Esecuzione
+## Utilizzo
 
 Interattiva (selezione prodotto/allarme/periodo):
 

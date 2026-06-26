@@ -34,6 +34,7 @@ describe('GOConfigTypeConverter', () => {
   it('converts array configuration values', () => {
     assert.deepStrictEqual(GOConfigTypeConverter.toStringArray(' a, b ,, c '), ['a', 'b', 'c']);
     assert.deepStrictEqual(GOConfigTypeConverter.toStringArray(['x', 'y']), ['x', 'y']);
+    assert.deepStrictEqual(GOConfigTypeConverter.toStringArray([' x ', '', '  ', 'y']), ['x', 'y']);
     assert.deepStrictEqual(GOConfigTypeConverter.toStringArray(''), []);
     assert.deepStrictEqual(GOConfigTypeConverter.toIntArray('1, 2'), [1, 2]);
     assert.deepStrictEqual(GOConfigTypeConverter.toDoubleArray('1.5, 2.25'), [1.5, 2.25]);

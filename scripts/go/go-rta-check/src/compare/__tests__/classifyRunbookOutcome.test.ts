@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import type { RunbookOutcome, RunbookOutput } from '@go-automation/go-runbook';
 
-import { classifyRunbookOutcome } from '../classifyRunbookOutcome.js';
+import { classifyRunbookOutcome } from '@go-automation/go-runbook';
 
 interface MakeOptions {
   readonly recordsMatched?: number;

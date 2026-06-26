@@ -20,7 +20,15 @@ export type { AWSMultiClientProviderConfig } from './AWSMultiClientProvider.js';
 export { AWSProvider } from './AWSProvider.js';
 export { AWSClientsProvider } from './AWSClientsProvider.js';
 export { AWSServiceProvider } from './AWSServiceProvider.js';
+export { AWSSecretsManagerService } from './AWSSecretsManagerService.js';
 export { AWSAthenaService } from './AWSAthenaService.js';
+export { AWSActiveOperationRegistry } from './AWSActiveOperationRegistry.js';
+export type {
+  AWSRegisteredOperation,
+  AWSRemoteCleanupWarning,
+  AWSRemoteOperation,
+  AWSRemoteOperationService,
+} from './AWSActiveOperationRegistry.js';
 export type {
   AWSAthenaPollAttemptHandler,
   AWSAthenaQueryColumn,
@@ -34,12 +42,16 @@ export type { AWSS3UriParts } from './AWSS3Uri.js';
 export { AWSCloudWatchLogsService, sumCloudWatchLogsQueryStatistics } from './AWSCloudWatchLogsService.js';
 export type {
   AWSCloudWatchLogsLogGroupResolutionMode,
+  AWSCloudWatchLogsConfigurationError,
+  AWSCloudWatchLogsConfigurationErrorCode,
   AWSCloudWatchLogsQueryOptions,
   AWSCloudWatchLogsQueryExecution,
   AWSCloudWatchLogsQueryResult,
   AWSCloudWatchLogsQueryStatistics,
   AWSCloudWatchLogsTimeRange,
+  AWSCloudWatchLogsTarget,
 } from './AWSCloudWatchLogsService.js';
+export { isAWSCloudWatchLogsConfigurationError } from './AWSCloudWatchLogsService.js';
 export { AWSCloudWatchMetricsService } from './AWSCloudWatchMetricsService.js';
 export { AWSDynamoDBService } from './AWSDynamoDBService.js';
 

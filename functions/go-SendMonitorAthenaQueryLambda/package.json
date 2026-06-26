@@ -7,7 +7,7 @@
   "description": "Lambda",
   "scripts": {
     "test-build": "pnpm build && cd ../../artifacts/go-SendMonitorAthenaQueryLambda && zip -r ../../functions/go-SendMonitorAthenaQueryLambda/function.zip .",
-    "build": "tsc -b && node esbuild.config.mjs",
+    "build": "pnpm --filter=send-monitor-athena-query build && tsc -b && node esbuild.config.mjs",
     "build:typecheck": "pnpm --filter=send-monitor-athena-query build && tsc --noEmit",
     "clean": "rm -rf dist *.tsbuildinfo",
     "package": "pnpm build && cd ../../artifacts/go-SendMonitorAthenaQueryLambda && zip -r ../../functions/go-SendMonitorAthenaQueryLambda/function.zip .",

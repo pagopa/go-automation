@@ -5,7 +5,7 @@
  *
  * The runbook is rebuilt from the registry (a pure `() => Runbook`, no AWS) and
  * its serializable structure is hashed, alongside ids/versions, schema version,
- * AWS profiles/region and the occurrence time window.
+ * AWS profiles/target and the occurrence time window.
  */
 import { createHash } from 'node:crypto';
 
@@ -21,13 +21,10 @@ import type { CachedRunbookMeta } from './CachedRunbookMeta.js';
  * (e.g. after a change to the fingerprint inputs or a `go-runbook` upgrade whose
  * effect is not otherwise captured by the structural hash).
  */
-const CACHE_FINGERPRINT_VERSION = 1;
+const CACHE_FINGERPRINT_VERSION = 2;
 
 /** `RunbookOutput` schema version this build expects; mismatch ⇒ cache miss. */
 const EXPECTED_OUTPUT_SCHEMA_VERSION = '1.0.0';
-
-/** AWS region used for in-process runbook execution (kept in sync with the call site). */
-export const EXECUTION_REGION = 'eu-south-1';
 
 /** SHA-256 hex digest of a string. */
 function sha256(input: string): string {
@@ -65,12 +62,16 @@ export function resolveRunbookCacheDescriptor(alarmName: string): RunbookCacheDe
  * @param descriptor - The per-run runbook descriptor
  * @param awsProfiles - AWS profiles used for the execution
  * @param firedAt - Occurrence timestamp
+ * @param awsAccountId - AWS account targeted by the occurrence
+ * @param awsRegion - AWS region targeted by the occurrence
  * @returns The metadata whose hash is the cache fingerprint
  */
 export function buildCacheMeta(
   descriptor: RunbookCacheDescriptor,
   awsProfiles: ReadonlyArray<string>,
   firedAt: string,
+  awsAccountId: string,
+  awsRegion: string,
 ): CachedRunbookMeta {
   return {
     fingerprintVersion: CACHE_FINGERPRINT_VERSION,
@@ -78,7 +79,8 @@ export function buildCacheMeta(
     runbookVersion: descriptor.version,
     runbookHash: descriptor.hash,
     outputSchemaVersion: EXPECTED_OUTPUT_SCHEMA_VERSION,
-    region: EXECUTION_REGION,
+    awsAccountId,
+    awsRegion,
     awsProfiles: [...awsProfiles].sort((a, b) => a.localeCompare(b)),
     firedAt,
     windowMinutes: DEFAULT_TIME_WINDOW_MINUTES,

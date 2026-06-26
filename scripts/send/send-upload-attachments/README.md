@@ -18,10 +18,10 @@ Carica uno o più file su SafeStorage (canale PN `/delivery/attachments/preload`
 
 - Input **sempre** da file (nessun parametro per singolo file): formati supportati `csv`, `json`, `jsonl`
 - Upload parallelo con concorrenza configurabile (`--concurrency`)
-- Content type per riga, inferito dall'estensione (`.pdf`, `.json`) o da `--default.content.type`
+- Content type per riga, inferito dall'estensione (`.pdf`, `.json`) o da `--default-content-type`
 - Output incrementale: ogni riga viene scritta appena il caricamento termina, in ordine di input
 - Le righe in errore finiscono comunque nell'output, con il messaggio preciso nel campo `error`
-- `--skip.on.error`: `true` prosegue con i file successivi, `false` (default) si ferma al primo errore (gli upload in corso vengono completati e riportati nell'output)
+- `--skip-on-error`: `true` prosegue con i file successivi, `false` (default) si ferma al primo errore (gli upload in corso vengono completati e riportati nell'output)
 
 ## Prerequisiti
 
@@ -37,18 +37,18 @@ Serve inoltre una **API Key PN** valida per l'ambiente di destinazione (dev/uat/
 
 ### Parametri CLI
 
-| Parametro              | Alias | Tipo   | Obbligatorio | Default                      | Descrizione                                                           |
-| ---------------------- | ----- | ------ | ------------ | ---------------------------- | --------------------------------------------------------------------- |
-| `input-file`           | `i`   | STRING | Sì           | -                            | Path del file di input (csv, json o jsonl)                            |
-| `output-file`          | `o`   | STRING | No           | `<input>-results.<formato>`  | Path del file di output                                               |
-| `output-format`        | -     | STRING | No           | da estensione output o input | Formato di output: `csv`, `json`, `jsonl`                             |
-| `base-path`            | `b`   | STRING | Sì           | -                            | Base URL del servizio PN (es. `api.dev.notifichedigitali.it`)         |
-| `pn-api-key`           | `k`   | STRING | Sì           | -                            | API Key per autenticazione PN (sensibile)                             |
-| `skip-on-error`        | `s`   | BOOL   | No           | `false`                      | `true`: prosegue in caso di errore; `false`: si ferma al primo errore |
-| `concurrency`          | `n`   | INT    | No           | `3`                          | Numero di file caricati in parallelo                                  |
-| `default-content-type` | -     | STRING | No           | -                            | Content type quando non specificato e non inferibile dall'estensione  |
-| `proxy-url`            | -     | STRING | No           | -                            | URL del proxy HTTP per debugging (es. `http://127.0.0.1:9090`)        |
-| `debug`                | -     | BOOL   | No           | `false`                      | Abilita il logging di debug delle chiamate HTTP                       |
+| Parametro                | Alias | Tipo   | Obbligatorio | Default                      | Descrizione                                                           |
+| ------------------------ | ----- | ------ | ------------ | ---------------------------- | --------------------------------------------------------------------- |
+| `--input-file`           | `-i`  | STRING | Sì           | -                            | Path del file di input (csv, json o jsonl)                            |
+| `--output-file`          | `-o`  | STRING | No           | `<input>-results.<formato>`  | Path del file di output                                               |
+| `--output-format`        | -     | STRING | No           | da estensione output o input | Formato di output: `csv`, `json`, `jsonl`                             |
+| `--base-path`            | `-b`  | STRING | Sì           | -                            | Base URL del servizio PN (es. `api.dev.notifichedigitali.it`)         |
+| `--pn-api-key`           | `-k`  | STRING | Sì           | -                            | API Key per autenticazione PN (sensibile)                             |
+| `--skip-on-error`        | `-s`  | BOOL   | No           | `false`                      | `true`: prosegue in caso di errore; `false`: si ferma al primo errore |
+| `--concurrency`          | `-n`  | INT    | No           | `3`                          | Numero di file caricati in parallelo                                  |
+| `--default-content-type` | -     | STRING | No           | -                            | Content type quando non specificato e non inferibile dall'estensione  |
+| `--proxy-url`            | -     | STRING | No           | -                            | URL del proxy HTTP per debugging (es. `http://127.0.0.1:9090`)        |
+| `--debug`                | -     | BOOL   | No           | `false`                      | Abilita il logging di debug delle chiamate HTTP                       |
 
 ### Priorità di Configurazione
 
@@ -122,9 +122,9 @@ Note:
 ```bash
 # Dalla root del monorepo
 pnpm send:upload:attachments:dev -- \
-  --input.file data/files.csv \
-  --base.path api.dev.notifichedigitali.it \
-  --pn.api.key <api-key> \
+  --input-file data/files.csv \
+  --base-path api.dev.notifichedigitali.it \
+  --pn-api-key <api-key> \
   -n 5 -s true
 
 # Output JSON con nome custom
@@ -142,8 +142,8 @@ pnpm --filter=send-upload-attachments start -- -i data/files.csv -b <base-path> 
 
 ### Exit code
 
-- `0`: workflow completato (anche con righe fallite se `skip.on.error=true`; controllare il riepilogo e il campo `error` dell'output)
-- `1`: stop al primo errore (`skip.on.error=false`), errore fatale di lettura input o di scrittura output
+- `0`: workflow completato (anche con righe fallite se `--skip-on-error=true`; controllare il riepilogo e il campo `error` dell'output)
+- `1`: stop al primo errore (`--skip-on-error=false`), errore fatale di lettura input o di scrittura output
 
 ## Troubleshooting
 
@@ -151,13 +151,13 @@ pnpm --filter=send-upload-attachments start -- -i data/files.csv -b <base-path> 
 
 **Causa**: estensione non riconosciuta (diversa da `.pdf`/`.json`) e nessun `contentType` nella riga.
 
-**Soluzione**: aggiungere la colonna/campo `contentType` alla riga oppure usare `--default.content.type`.
+**Soluzione**: aggiungere la colonna/campo `contentType` alla riga oppure usare `--default-content-type`.
 
 #### Errore: `missing or empty 'filePath'`
 
 **Causa**: riga di input senza il campo `filePath`.
 
-**Soluzione**: correggere il file di input; con `skip.on.error=true` la riga viene saltata e riportata nell'output.
+**Soluzione**: correggere il file di input; con `--skip-on-error=true` la riga viene saltata e riportata nell'output.
 
 #### Errore: "Module not found"
 
@@ -176,7 +176,7 @@ pnpm --filter=send-upload-attachments build
 
 ```bash
 # Ispezione del traffico HTTP via proxy (es. Proxyman)
-pnpm send:upload:attachments:dev -- ... --proxy.url http://127.0.0.1:9090
+pnpm send:upload:attachments:dev -- ... --proxy-url http://127.0.0.1:9090
 
 # Type check senza build
 pnpm --filter=send-upload-attachments exec tsc --noEmit
