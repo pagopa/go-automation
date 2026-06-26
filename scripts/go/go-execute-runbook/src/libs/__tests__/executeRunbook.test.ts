@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { AWS, Core } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
+import type { AWS } from '@go-automation/go-common';
 import type { ServiceRegistry } from '@go-automation/go-runbook';
 import type { WatchtowerClient } from '@go-automation/go-watchtower-client';
 
@@ -35,6 +36,8 @@ interface LifecycleOptions {
   readonly idempotencyKey: string;
   readonly deadlineAtMs: number;
 }
+
+type StopObserverFn = () => void;
 
 describe('executeRunbook', () => {
   it('ACKs ALREADY_RUNNING without starting the engine or a terminal callback', async () => {
@@ -260,17 +263,87 @@ describe('executeRunbook', () => {
     assert.strictEqual(result.status, 'RUNNING');
     assert.strictEqual(completeCalls, 0);
   });
+
+  it('stops active AWS operations after a failed runbook outcome', async () => {
+    let queryCalls = 0;
+    let stopCalls = 0;
+    let completeBody: { readonly errorMessage?: string } | undefined;
+    const deps = fakeDeps(
+      {
+        startExecution: async () => {
+          await Promise.resolve();
+          return {
+            disposition: 'START',
+            attemptId: '0192c000-0000-7000-8000-0000000000e1',
+            workerDeadlineAt: DELIVERY.workerDeadlineAt,
+          };
+        },
+        progressExecution: async () => {
+          await Promise.resolve();
+          return { cancelRequested: false };
+        },
+        completeExecution: async (_id: string, body: { readonly errorMessage?: string }) => {
+          await Promise.resolve();
+          completeBody = body;
+          return { status: 'FAILED', outcome: 'FAILURE' };
+        },
+      },
+      {
+        cloudWatchLogs: failingCloudWatchLogsService(
+          () => {
+            queryCalls += 1;
+          },
+          () => (stopCalls += 1),
+        ),
+      },
+    );
+
+    const result = await executeRunbook(
+      deps,
+      { ...INPUT, alarmEvent: { ...INPUT.alarmEvent, alarmName: 'pn-tokenExchangeLambda-LogInvocationErrors-Alarm' } },
+      DELIVERY,
+    );
+
+    assert.strictEqual(result.status, 'FAILED');
+    assert.match(completeBody?.errorMessage ?? '', /query failed after remote operation registration/);
+    assert.strictEqual(queryCalls, 1);
+    assert.strictEqual(stopCalls, 1);
+  });
 });
 
-function fakeDeps(watchtower: Readonly<Record<string, unknown>>): ExecuteRunbookDeps {
+function fakeDeps(
+  watchtower: Readonly<Record<string, unknown>>,
+  services: Partial<ServiceRegistry> = {},
+): ExecuteRunbookDeps {
   return {
     watchtower: watchtower as unknown as WatchtowerClient,
-    logger: {} as Core.GOLogger,
+    logger: new Core.GOLogger(),
     services: {
       cloudWatchLogs: {} as AWS.AWSCloudWatchLogsService,
-      athena: {} as AWS.AWSAthenaService,
+      athena: { forExecution: () => ({}) } as unknown as AWS.AWSAthenaService,
+      ...services,
     } as ServiceRegistry,
     awsProfiles: [],
     useConfiguredAwsProfiles: false,
   };
+}
+
+function failingCloudWatchLogsService(onQuery: StopObserverFn, onStop: StopObserverFn): AWS.AWSCloudWatchLogsService {
+  return {
+    forTarget: (_target: unknown, activeOperations: AWS.AWSActiveOperationRegistry) => ({
+      queryWithStatistics: async () => {
+        await Promise.resolve();
+        onQuery();
+        activeOperations.register({
+          service: 'LOGS',
+          operationId: 'query-1',
+          stop: async () => {
+            await Promise.resolve();
+            onStop();
+          },
+        });
+        throw new Error('query failed after remote operation registration');
+      },
+    }),
+  } as unknown as AWS.AWSCloudWatchLogsService;
 }

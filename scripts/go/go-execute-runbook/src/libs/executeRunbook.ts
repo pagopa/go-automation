@@ -197,8 +197,25 @@ export async function executeRunbook(
     throw error;
   } finally {
     if (budgetTimer !== undefined) clearTimeout(budgetTimer);
-    await monitor.stop();
+    await stopMonitorAndActiveOperations(monitor, activeOperations);
   }
+}
+
+async function stopMonitorAndActiveOperations(
+  monitor: CancellationMonitor,
+  activeOperations: AWS.AWSActiveOperationRegistry,
+): Promise<void> {
+  const [monitorResult, activeOperationsResult] = await Promise.allSettled([
+    monitor.stop(),
+    activeOperations.stopAll(),
+  ]);
+  throwRejectedCleanup(monitorResult);
+  throwRejectedCleanup(activeOperationsResult);
+}
+
+function throwRejectedCleanup(result: PromiseSettledResult<unknown>): void {
+  if (result.status === 'fulfilled') return;
+  throw result.reason instanceof Error ? result.reason : new Error(String(result.reason));
 }
 
 function readAbortCause(coordinator: ExecutionAbortCoordinator): ExecutionAbortCause | undefined {
