@@ -18,7 +18,8 @@ import { validateModeCombination } from './libs/validateModeCombination.js';
 export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<ExecuteRunbookConfig>();
   const alarmEventId = config.alarmEventId?.trim();
-  const executionId = config.executionId?.trim();
+  const trimmedExecutionId = config.executionId?.trim();
+  const executionId = trimmedExecutionId === '' ? undefined : trimmedExecutionId;
   const dryRun = config.dryRun === true;
   const applyMode = resolveApplyMode(config.apply);
   const dryRunTimeoutMs = dryRun ? resolveDryRunTimeoutMs(config.dryRunTimeoutMs) : undefined;
