@@ -149,7 +149,7 @@
             }
           },
           "message": {
-            "template": "📮 *Report Paper Tracker*\n\n*Periodo analizzato:*\n• Da: {{startDate}}\n• A: {{endDate}}\n\n*Errori aggregati:*\n• Righe risultato: {{rowCount}}\n• Aggregazione: prodotto, categoria errore, recapitista\n• Ordinamento: numero errori decrescente\n• File generato: `{{fileName}}`\n\n*Analisi preliminare:*\n{{analysis}}\n\n_Report generato il {{timestamp}}_\n"
+            "template": "*Report Paper Tracker*\n\n*Periodo analizzato:*\n• {{startYear}}-{{startMonth}}-{{startDay}}\n\n*Errori aggregati:*\n• Righe risultato: {{rowCount}}\n• Aggregazione: prodotto, categoria errore, recapitista\n• Ordinamento: numero errori decrescente\n• File generato: `{{fileName}}`\n\n*Analisi preliminare:*\n{{analysis}}\n\n_Report generato il {{timestamp}}_\n"
           }
         },
         "analysis": {
