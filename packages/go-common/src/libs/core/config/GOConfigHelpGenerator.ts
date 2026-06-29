@@ -87,7 +87,7 @@ export class GOConfigHelpGenerator {
       description: options.description ?? '',
       usage: options.usage ?? [],
       columnWidth: options.columnWidth ?? 35,
-      lineWidth: options.lineWidth ?? 100,
+      lineWidth: normalizeLineWidth(options.lineWidth),
       colors: options.colors ?? consoleColorsEnabled(),
       includeDeprecated: options.includeDeprecated ?? false,
       showProgramInfos: options.showProgramInfos ?? false,
@@ -250,8 +250,8 @@ export class GOConfigHelpGenerator {
     }
 
     const lines = [this.formatOptionDeclaration(parameter)];
-    const descriptionIndent = '          ';
-    const descriptionWidth = Math.max(20, this.options.lineWidth - descriptionIndent.length);
+    const descriptionIndent = ' '.repeat(Math.min(10, this.options.lineWidth - 1));
+    const descriptionWidth = this.options.lineWidth - descriptionIndent.length;
     const descriptions = [parameter.abstract, parameter.description].filter(
       (description, index, values): description is string =>
         description !== undefined && description.trim() !== '' && values.indexOf(description) === index,
@@ -276,7 +276,9 @@ export class GOConfigHelpGenerator {
 
     if (metadata.length > 0) {
       if (descriptions.length > 0) lines.push('');
-      metadata.forEach((item) => lines.push(`${descriptionIndent}${item}`));
+      metadata.forEach((item) => {
+        this.wrapText(item, descriptionWidth).forEach((line) => lines.push(`${descriptionIndent}${line}`));
+      });
     }
 
     if (parameter.help !== undefined && parameter.help.trim() !== '') {
@@ -349,7 +351,21 @@ export class GOConfigHelpGenerator {
     const lines: string[] = [];
     let currentLine = '';
 
-    words.forEach((word) => {
+    words.forEach((originalWord) => {
+      let word = originalWord;
+
+      if (word.length > width) {
+        if (currentLine) {
+          lines.push(currentLine);
+          currentLine = '';
+        }
+        while (word.length > width) {
+          lines.push(word.slice(0, width));
+          word = word.slice(width);
+        }
+      }
+
+      if (word === '') return;
       if (currentLine.length + word.length + 1 <= width) {
         currentLine += (currentLine ? ' ' : '') + word;
       } else {
@@ -398,4 +414,9 @@ function formatAlias(alias: string): string {
 function formatLongFlag(flag: string): string {
   const trimmed = flag.trim();
   return trimmed.startsWith('-') ? trimmed : `--${trimmed}`;
+}
+
+function normalizeLineWidth(lineWidth: number | undefined): number {
+  if (lineWidth === undefined || !Number.isFinite(lineWidth)) return 100;
+  return Math.max(1, Math.trunc(lineWidth));
 }

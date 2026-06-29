@@ -124,6 +124,30 @@ describe('GOConfigHelpGenerator', () => {
     );
   });
 
+  it('keeps wrapped descriptions and metadata within a narrow line width', () => {
+    const output = new GOConfigHelpGenerator({
+      lineWidth: 25,
+      showEnvVars: false,
+    }).generate([
+      createParameter({
+        name: 'value',
+        type: GOConfigParameterType.STRING,
+        description: '12345678901234567890 second',
+        defaultValue: '12345678901234567890',
+      }),
+    ]);
+    const wrappedLines = output.split('\n').filter((line) => line.startsWith('          '));
+
+    assert.deepStrictEqual(wrappedLines, [
+      '          123456789012345',
+      '          67890 second',
+      '          Default:',
+      '          "12345678901234',
+      '          567890"',
+    ]);
+    assert.ok(wrappedLines.every((line) => line.length <= 25));
+  });
+
   it('colors headings, flags and placeholders without changing the plain-text layout', () => {
     const parameter = createParameter({
       name: 'output.format',
