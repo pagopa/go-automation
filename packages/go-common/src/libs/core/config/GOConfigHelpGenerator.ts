@@ -30,7 +30,7 @@ export interface GOConfigHelpGeneratorOptions {
   /** Column width for parameter names (default: 35) */
   columnWidth?: number | undefined;
 
-  /** Maximum line width for full help output (default: 100) */
+  /** Maximum line width used when wrapping description/help text (default: 100) */
   lineWidth?: number | undefined;
 
   /** Enable ANSI colors (default: auto-detected from the console) */
