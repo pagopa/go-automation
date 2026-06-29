@@ -394,9 +394,13 @@ export class GOScript {
    * Initialize configuration schema
    */
   private initializeConfigSchema(configOptions?: GOScriptConfigOptions): GOConfigSchema {
+    const programName = this.paths.getScriptName();
     const schema = new GOConfigSchema({
       name: this.metadata.name,
       version: this.metadata.version,
+      programName,
+      description: this.metadata.description,
+      usage: [`${programName} [OPTIONS]`],
       ...configOptions?.schema,
     });
 
