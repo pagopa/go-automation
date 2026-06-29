@@ -11,7 +11,4 @@ export interface ExecuteRunbookResult {
 }
 
 export type ExecuteRunbookSuppressedReason =
-  | 'ALREADY_RUNNING'
-  | 'ALREADY_TERMINAL'
-  | 'CANCEL_REQUESTED'
-  | 'STALE_ATTEMPT';
+  'ALREADY_RUNNING' | 'ALREADY_TERMINAL' | 'CANCEL_REQUESTED' | 'STALE_ATTEMPT';

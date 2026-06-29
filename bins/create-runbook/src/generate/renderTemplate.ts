@@ -11,6 +11,6 @@
 export function renderTemplate(content: string, tokens: ReadonlyMap<string, string>): string {
   return content.replace(/\{\{([A-Z0-9_]+)\}\}/g, (match: string, token: string): string => {
     const value = tokens.get(token);
-    return value ?? match /* unknown token: return original */;
+    return value ?? match; /* unknown token: return original */
   });
 }

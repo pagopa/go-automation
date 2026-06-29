@@ -71,10 +71,7 @@ export interface AWSCloudWatchLogsTarget {
 }
 
 export type AWSCloudWatchLogsConfigurationErrorCode =
-  | 'OAM_ACCESS_DENIED'
-  | 'LOG_GROUP_NOT_FOUND'
-  | 'OAM_REGION_MISMATCH'
-  | 'INVALID_OAM_TARGET';
+  'OAM_ACCESS_DENIED' | 'LOG_GROUP_NOT_FOUND' | 'OAM_REGION_MISMATCH' | 'INVALID_OAM_TARGET';
 
 export interface AWSCloudWatchLogsConfigurationError extends Error {
   readonly code: AWSCloudWatchLogsConfigurationErrorCode;

@@ -3,13 +3,7 @@
  * Conditions are used both in control flow steps and known case matching.
  */
 export type Condition =
-  | CompareCondition
-  | PatternCondition
-  | ExistsCondition
-  | ContainsCondition
-  | AndCondition
-  | OrCondition
-  | NotCondition;
+  CompareCondition | PatternCondition | ExistsCondition | ContainsCondition | AndCondition | OrCondition | NotCondition;
 
 /**
  * Comparison between a context value and an expected scalar.

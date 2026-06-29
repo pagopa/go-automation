@@ -17,8 +17,4 @@
  *   pair already visited; the loop guard short-circuited
  */
 export type TerminationReason =
-  | 'known-case'
-  | 'external-downstream'
-  | 'api-gw-execution-log-unresolved'
-  | 'no-match'
-  | 'loop-detected';
+  'known-case' | 'external-downstream' | 'api-gw-execution-log-unresolved' | 'no-match' | 'loop-detected';

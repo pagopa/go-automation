@@ -6,6 +6,8 @@
 
 import { GOConfigParameter } from './GOConfigParameter.js';
 import { GOConfigKeyTransformer } from './GOConfigKeyTransformer.js';
+import type { ChalkLikeColor } from '../logging/tableRenderer/colorize.js';
+import { colorize } from '../logging/tableRenderer/colorize.js';
 import { valueToString } from '../utils/GOValueToString.js';
 
 /**
@@ -26,6 +28,12 @@ export interface GOConfigHelpGeneratorOptions {
 
   /** Column width for parameter names (default: 35) */
   columnWidth?: number | undefined;
+
+  /** Maximum line width used when wrapping description/help text (default: 100) */
+  lineWidth?: number | undefined;
+
+  /** Enable ANSI colors (default: false) */
+  colors?: boolean | undefined;
 
   /** Include deprecated parameters (default: false) */
   includeDeprecated?: boolean | undefined;
@@ -55,6 +63,8 @@ interface GOConfigHelpGeneratorInternalOptions {
   description: string;
   usage: string[];
   columnWidth: number;
+  lineWidth: number;
+  colors: boolean;
   includeDeprecated: boolean;
   showProgramInfos: boolean;
   showDefaults: boolean;
@@ -76,6 +86,8 @@ export class GOConfigHelpGenerator {
       description: options.description ?? '',
       usage: options.usage ?? [],
       columnWidth: options.columnWidth ?? 35,
+      lineWidth: normalizeLineWidth(options.lineWidth),
+      colors: options.colors ?? false,
       includeDeprecated: options.includeDeprecated ?? false,
       showProgramInfos: options.showProgramInfos ?? false,
       showDefaults: options.showDefaults !== false,
@@ -106,9 +118,10 @@ export class GOConfigHelpGenerator {
 
     // Usage
     if (this.options.usage && this.options.usage.length > 0) {
-      lines.push('Usage:');
-      this.options.usage.forEach((usage) => {
-        lines.push(`  ${usage}`);
+      const usagePrefix = 'Usage: ';
+      this.options.usage.forEach((usage, index) => {
+        const prefix = index === 0 ? `${this.color('Usage:', 'yellow')} ` : ' '.repeat(usagePrefix.length);
+        lines.push(`${prefix}${usage}`);
       });
       lines.push('');
     }
@@ -118,11 +131,16 @@ export class GOConfigHelpGenerator {
 
     // Generate help for each group
     Object.entries(grouped).forEach(([groupName, params]) => {
-      lines.push(groupName);
-      lines.push('');
+      const renderedParameters = params
+        .map((param) => this.generateParameterHelp(param))
+        .filter((help) => help.length > 0);
+      if (renderedParameters.length === 0) return;
 
-      params.forEach((param) => {
-        lines.push(...this.generateParameterHelp(param));
+      lines.push(this.color(this.formatGroupHeading(groupName), 'yellow'));
+
+      renderedParameters.forEach((parameterHelp) => {
+        lines.push('');
+        lines.push(...parameterHelp);
       });
 
       lines.push('');
@@ -147,12 +165,12 @@ export class GOConfigHelpGenerator {
 
     // Generate compact help for each group
     Object.entries(grouped).forEach(([groupName, params]) => {
-      lines.push(groupName);
+      lines.push(this.formatGroupHeading(groupName));
       lines.push('');
 
       params.forEach((param) => {
-        const usage = this.padRight(param.getCliUsage(), this.options.columnWidth);
-        const abstract = param.abstract ?? '';
+        const usage = this.padRight(this.formatPrimaryUsage(param), this.options.columnWidth);
+        const abstract = param.abstract ?? param.description ?? '';
         lines.push(`  ${usage}${abstract}`);
       });
 
@@ -171,10 +189,10 @@ export class GOConfigHelpGenerator {
     lines.push(`Parameter: ${parameter.displayName}`);
     lines.push(`  Key: ${parameter.name}`);
     lines.push(`  Type: ${parameter.type}`);
-    lines.push(`  CLI: ${parameter.cliFlag}`);
+    lines.push(`  CLI: ${this.color(formatLongFlag(parameter.cliFlag), 'green')}`);
 
     if (parameter.aliases.length > 0) {
-      lines.push(`  Aliases: ${parameter.aliases.map(formatAlias).join(', ')}`);
+      lines.push(`  Aliases: ${parameter.aliases.map((alias) => this.color(formatAlias(alias), 'green')).join(', ')}`);
     }
 
     if (this.options.showEnvVars) {
@@ -225,47 +243,70 @@ export class GOConfigHelpGenerator {
    * Generate help for a single parameter (for list view)
    */
   private generateParameterHelp(parameter: GOConfigParameter): string[] {
-    const lines: string[] = [];
-
     // Skip deprecated if not included
     if (parameter.deprecated && !this.options.includeDeprecated) {
-      return lines;
+      return [];
     }
 
-    // Build parameter line
-    const usage = this.padRight(parameter.getCliUsage(), this.options.columnWidth);
-    let abstract = parameter.abstract ?? '';
+    const lines = [this.formatOptionDeclaration(parameter)];
+    const descriptionIndent = ' '.repeat(Math.min(10, this.options.lineWidth - 1));
+    const descriptionWidth = this.options.lineWidth - descriptionIndent.length;
+    const descriptions = [parameter.abstract, parameter.description].filter(
+      (description, index, values): description is string =>
+        description !== undefined && description.trim() !== '' && values.indexOf(description) === index,
+    );
 
-    // Add required indicator
-    if (parameter.required) {
-      abstract = `(required) ${abstract}`;
-    }
+    descriptions.forEach((description, index) => {
+      if (index > 0) lines.push('');
+      this.wrapText(description, descriptionWidth).forEach((line) => lines.push(`${descriptionIndent}${line}`));
+    });
 
-    // Add default value
+    const metadata: string[] = [];
+    if (parameter.required) metadata.push('Required: yes');
     if (parameter.defaultValue !== undefined && this.options.showDefaults) {
-      abstract = `${abstract} [default: ${this.formatValue(parameter.defaultValue)}]`;
+      metadata.push(`Default: ${this.formatValue(parameter.defaultValue)}`);
     }
-
-    // Add deprecated indicator
+    if (this.options.showEnvVars && parameter.envVar) metadata.push(`Environment: ${parameter.envVar}`);
     if (parameter.deprecated) {
-      abstract = `⚠️  DEPRECATED ${abstract}`;
+      metadata.push(
+        parameter.deprecationMessage === undefined ? 'Deprecated' : `Deprecated: ${parameter.deprecationMessage}`,
+      );
     }
 
-    lines.push(`  ${usage}${abstract}`);
-
-    // Add environment variable hint
-    if (this.options.showEnvVars && parameter.envVar) {
-      const envHint = this.padRight('', this.options.columnWidth);
-      lines.push(`  ${envHint}env: ${parameter.envVar}`);
+    if (metadata.length > 0) {
+      if (descriptions.length > 0) lines.push('');
+      metadata.forEach((item) => {
+        this.wrapText(item, descriptionWidth).forEach((line) => lines.push(`${descriptionIndent}${line}`));
+      });
     }
 
-    // Add aliases
-    if (parameter.aliases.length > 0) {
-      const aliasHint = this.padRight('', this.options.columnWidth);
-      lines.push(`  ${aliasHint}aliases: ${parameter.aliases.map(formatAlias).join(', ')}`);
+    if (parameter.help !== undefined && parameter.help.trim() !== '') {
+      lines.push('');
+      this.wrapText(parameter.help, descriptionWidth).forEach((line) => lines.push(`${descriptionIndent}${line}`));
     }
 
     return lines;
+  }
+
+  private formatOptionDeclaration(parameter: GOConfigParameter): string {
+    const aliases = parameter.aliases.map((alias) => this.color(formatAlias(alias), 'green'));
+    const flag = this.color(formatLongFlag(parameter.cliFlag), 'green');
+    const primaryUsage =
+      parameter.placeholder === '' ? flag : `${flag} ${this.color(parameter.placeholder, 'magenta')}`;
+    return aliases.length === 0 ? `      ${primaryUsage}` : `  ${aliases.join(', ')}, ${primaryUsage}`;
+  }
+
+  private color(text: string, color: ChalkLikeColor): string {
+    return colorize(text, this.options.colors ? color : undefined);
+  }
+
+  private formatPrimaryUsage(parameter: GOConfigParameter): string {
+    const flag = formatLongFlag(parameter.cliFlag);
+    return parameter.placeholder === '' ? flag : `${flag} ${parameter.placeholder}`;
+  }
+
+  private formatGroupHeading(groupName: string): string {
+    return `${groupName === 'General' ? 'Options' : groupName}:`;
   }
 
   /**
@@ -313,7 +354,21 @@ export class GOConfigHelpGenerator {
     const lines: string[] = [];
     let currentLine = '';
 
-    words.forEach((word) => {
+    words.forEach((originalWord) => {
+      let word = originalWord;
+
+      if (word.length > width) {
+        if (currentLine) {
+          lines.push(currentLine);
+          currentLine = '';
+        }
+        while (word.length > width) {
+          lines.push(word.slice(0, width));
+          word = word.slice(width);
+        }
+      }
+
+      if (word === '') return;
       if (currentLine.length + word.length + 1 <= width) {
         currentLine += (currentLine ? ' ' : '') + word;
       } else {
@@ -342,7 +397,7 @@ export class GOConfigHelpGenerator {
 
     // Add required parameters
     required.forEach((param) => {
-      parts.push(param.getCliUsage());
+      parts.push(this.formatPrimaryUsage(param));
     });
 
     // Add optional indicator
@@ -357,4 +412,14 @@ export class GOConfigHelpGenerator {
 function formatAlias(alias: string): string {
   if (alias.startsWith('-')) return alias;
   return GOConfigKeyTransformer.toCLIFlag(alias).replace(/^--/, '-');
+}
+
+function formatLongFlag(flag: string): string {
+  const trimmed = flag.trim();
+  return trimmed.startsWith('-') ? trimmed : `--${trimmed}`;
+}
+
+function normalizeLineWidth(lineWidth: number | undefined): number {
+  if (lineWidth === undefined || !Number.isFinite(lineWidth)) return 100;
+  return Math.max(1, Math.trunc(lineWidth));
 }

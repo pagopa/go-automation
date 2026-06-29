@@ -5,6 +5,7 @@ import { GOConfigHelpGenerator } from '../GOConfigHelpGenerator.js';
 import { GOConfigParameter } from '../GOConfigParameter.js';
 import type { GOConfigParameterOptions } from '../GOConfigParameter.js';
 import { GOConfigParameterType } from '../GOConfigParameterType.js';
+import { stripAnsi } from '../../logging/ansi.js';
 
 function createParameter(options: GOConfigParameterOptions): GOConfigParameter {
   return new GOConfigParameter(options);
@@ -19,6 +20,7 @@ describe('GOConfigHelpGenerator', () => {
       usage: ['go-tool --input-file data.json'],
       showProgramInfos: true,
       columnWidth: 26,
+      lineWidth: 70,
     });
     const output = generator.generate([
       createParameter({
@@ -40,11 +42,12 @@ describe('GOConfigHelpGenerator', () => {
 
     assert.match(output, /go-tool v2\.0\.0/);
     assert.match(output, /Runs an operational task/);
-    assert.match(output, /Usage:\n {2}go-tool --input-file data\.json/);
-    assert.match(output, /Input\n\n {2}--input-file <value>\s+\(required\) Input file/);
-    assert.match(output, /env: INPUT_FILE/);
-    assert.match(output, /aliases: -i/);
-    assert.match(output, /Output\n\n {2}--output-format <value>\s+Output format \[default: "json"\]/);
+    assert.match(output, /Usage: go-tool --input-file data\.json/);
+    assert.match(output, /Input:\n\n {2}-i, --input-file <value>\n {10}Input file/);
+    assert.match(output, /Required: yes/);
+    assert.match(output, /Environment: INPUT_FILE/);
+    assert.match(output, /Output:\n\n {6}--output-format <value>\n {10}Output format/);
+    assert.match(output, /Default: "json"/);
   });
 
   it('uses custom header and footer and excludes deprecated parameters by default', () => {
@@ -92,9 +95,89 @@ describe('GOConfigHelpGenerator', () => {
       }),
     ]);
 
-    assert.match(output, /DEPRECATED Old mode/);
-    assert.doesNotMatch(output, /default:/);
-    assert.doesNotMatch(output, /env:/);
+    assert.match(output, /Deprecated/);
+    assert.doesNotMatch(output, /Default:/);
+    assert.doesNotMatch(output, /Environment:/);
+  });
+
+  it('wraps detailed descriptions below declarations and aligns alternate usage lines', () => {
+    const generator = new GOConfigHelpGenerator({
+      programName: 'go-tool',
+      usage: ['go-tool [OPTIONS]', 'go-tool inspect [OPTIONS]'],
+      lineWidth: 60,
+    });
+    const output = generator.generate([
+      createParameter({
+        name: 'nonprintable.notation',
+        type: GOConfigParameterType.STRING,
+        description: 'Set the notation used to render non-printable characters while preserving readable output.',
+        cliFlag: 'nonprintable-notation',
+        aliases: ['n'],
+      }),
+    ]);
+
+    assert.match(output, /^Usage: go-tool \[OPTIONS\]\n {7}go-tool inspect \[OPTIONS\]/);
+    assert.match(output, /Options:\n\n {2}-n, --nonprintable-notation <value>/);
+    assert.match(
+      output,
+      / {10}Set the notation used to render non-printable\n {10}characters while preserving readable output\./,
+    );
+  });
+
+  it('keeps wrapped descriptions and metadata within a narrow line width', () => {
+    const output = new GOConfigHelpGenerator({
+      lineWidth: 25,
+      showEnvVars: false,
+    }).generate([
+      createParameter({
+        name: 'value',
+        type: GOConfigParameterType.STRING,
+        description: '12345678901234567890 second',
+        defaultValue: '12345678901234567890',
+      }),
+    ]);
+    const wrappedLines = output.split('\n').filter((line) => line.startsWith('          '));
+
+    assert.deepStrictEqual(wrappedLines, [
+      '          123456789012345',
+      '          67890 second',
+      '          Default:',
+      '          "12345678901234',
+      '          567890"',
+    ]);
+    assert.ok(wrappedLines.every((line) => line.length <= 25));
+  });
+
+  it('colors headings, flags and placeholders without changing the plain-text layout', () => {
+    const parameters = [
+      createParameter({
+        name: 'output.format',
+        type: GOConfigParameterType.STRING,
+        description: 'Output format',
+        aliases: ['o'],
+      }),
+      createParameter({
+        name: 'dry.run',
+        type: GOConfigParameterType.BOOL,
+        description: 'Preview changes',
+      }),
+    ];
+    const colored = new GOConfigHelpGenerator({
+      programName: 'go-tool',
+      usage: ['go-tool [OPTIONS]'],
+      colors: true,
+    }).generate(parameters);
+    const plain = new GOConfigHelpGenerator({
+      programName: 'go-tool',
+      usage: ['go-tool [OPTIONS]'],
+    }).generate(parameters);
+
+    assert.ok(colored.includes('\x1b[33mUsage:\x1b[0m'));
+    assert.ok(colored.includes('\x1b[33mOptions:\x1b[0m'));
+    assert.ok(colored.includes('\x1b[32m-o\x1b[0m, \x1b[32m--output-format\x1b[0m'));
+    assert.ok(colored.includes('\x1b[32m--dry-run\x1b[0m\n'));
+    assert.ok(colored.includes('\x1b[35m<value>\x1b[0m'));
+    assert.strictEqual(stripAnsi(colored), plain);
   });
 
   it('generates compact help and usage strings', () => {
@@ -114,6 +197,8 @@ describe('GOConfigHelpGenerator', () => {
     ];
 
     const compact = generator.generateCompact(parameters);
+    assert.match(compact, /^Options:/);
+    assert.doesNotMatch(compact, /^General/m);
     assert.match(compact, /--dry-run\s+Preview changes/);
     assert.match(compact, /--input-file <value>\s+Input file/);
     assert.strictEqual(generator.generateUsageString(parameters), 'go-tool --input-file <value> [options]');

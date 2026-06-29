@@ -211,12 +211,13 @@ docker run -d \
 Il formato cron e standard: `MIN HOUR DAY MONTH WEEKDAY`
 
 Esempi di schedule:
-| Schedule | Descrizione |
-|----------|-------------|
-| `0 9 * * *` | Ogni giorno alle 9:00 |
+
+| Schedule             | Descrizione                    |
+| -------------------- | ------------------------------ |
+| `0 9 * * *`          | Ogni giorno alle 9:00          |
 | `0 9,11,15,17 * * *` | Alle 9, 11, 15, 17 ogni giorno |
-| `*/30 * * * *` | Ogni 30 minuti |
-| `0 8 * * 1-5` | Alle 8:00 nei giorni feriali |
+| `*/30 * * * *`       | Ogni 30 minuti                 |
+| `0 8 * * 1-5`        | Alle 8:00 nei giorni feriali   |
 
 ### shell
 
