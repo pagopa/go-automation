@@ -25,6 +25,7 @@ import { GOFileCopier } from '../files/GOFileCopier.js';
 import { getDefaultSubdirForPathType } from '../files/GOFileCopierOptions.js';
 import type { GOFileCopyFileOptions } from '../files/GOFileCopierOptions.js';
 import type { GOFileCopyReport } from '../files/GOFileCopyReport.js';
+import { consoleColorsEnabled } from '../logging/ansi.js';
 import { GOLogger } from '../logging/GOLogger.js';
 import { GOLogEvent } from '../logging/GOLogEvent.js';
 import { GOLogEventCategory } from '../logging/GOLogEventCategory.js';
@@ -401,6 +402,7 @@ export class GOScript {
       programName,
       description: this.metadata.description,
       usage: [`${programName} [OPTIONS]`],
+      colors: consoleColorsEnabled(),
       ...configOptions?.schema,
     });
 

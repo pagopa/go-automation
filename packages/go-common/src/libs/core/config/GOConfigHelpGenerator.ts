@@ -6,7 +6,6 @@
 
 import { GOConfigParameter } from './GOConfigParameter.js';
 import { GOConfigKeyTransformer } from './GOConfigKeyTransformer.js';
-import { consoleColorsEnabled } from '../logging/ansi.js';
 import type { ChalkLikeColor } from '../logging/tableRenderer/colorize.js';
 import { colorize } from '../logging/tableRenderer/colorize.js';
 import { valueToString } from '../utils/GOValueToString.js';
@@ -33,7 +32,7 @@ export interface GOConfigHelpGeneratorOptions {
   /** Maximum line width used when wrapping description/help text (default: 100) */
   lineWidth?: number | undefined;
 
-  /** Enable ANSI colors (default: auto-detected from the console) */
+  /** Enable ANSI colors (default: false) */
   colors?: boolean | undefined;
 
   /** Include deprecated parameters (default: false) */
@@ -88,7 +87,7 @@ export class GOConfigHelpGenerator {
       usage: options.usage ?? [],
       columnWidth: options.columnWidth ?? 35,
       lineWidth: normalizeLineWidth(options.lineWidth),
-      colors: options.colors ?? consoleColorsEnabled(),
+      colors: options.colors ?? false,
       includeDeprecated: options.includeDeprecated ?? false,
       showProgramInfos: options.showProgramInfos ?? false,
       showDefaults: options.showDefaults !== false,

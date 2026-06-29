@@ -163,7 +163,6 @@ describe('GOConfigHelpGenerator', () => {
     const plain = new GOConfigHelpGenerator({
       programName: 'go-tool',
       usage: ['go-tool [OPTIONS]'],
-      colors: false,
     }).generate([parameter]);
 
     assert.ok(colored.includes('\x1b[33mUsage:\x1b[0m'));
