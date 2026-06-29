@@ -84,6 +84,6 @@ catalog:
   'undici': '^8.5.0'
   'unpdf': '^1.6.2'
   'yaml': '^2.9.0'
-  'dependency-cruiser': '^17.4.3'
+  'dependency-cruiser': '^18.0.0'
 
 catalogMode: strict
