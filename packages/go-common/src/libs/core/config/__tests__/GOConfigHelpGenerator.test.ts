@@ -197,6 +197,8 @@ describe('GOConfigHelpGenerator', () => {
     ];
 
     const compact = generator.generateCompact(parameters);
+    assert.match(compact, /^Options:/);
+    assert.doesNotMatch(compact, /^General/m);
     assert.match(compact, /--dry-run\s+Preview changes/);
     assert.match(compact, /--input-file <value>\s+Input file/);
     assert.strictEqual(generator.generateUsageString(parameters), 'go-tool --input-file <value> [options]');

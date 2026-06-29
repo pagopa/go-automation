@@ -136,7 +136,7 @@ export class GOConfigHelpGenerator {
         .filter((help) => help.length > 0);
       if (renderedParameters.length === 0) return;
 
-      lines.push(this.color(`${groupName === 'General' ? 'Options' : groupName}:`, 'yellow'));
+      lines.push(this.color(this.formatGroupHeading(groupName), 'yellow'));
 
       renderedParameters.forEach((parameterHelp) => {
         lines.push('');
@@ -165,7 +165,7 @@ export class GOConfigHelpGenerator {
 
     // Generate compact help for each group
     Object.entries(grouped).forEach(([groupName, params]) => {
-      lines.push(groupName);
+      lines.push(this.formatGroupHeading(groupName));
       lines.push('');
 
       params.forEach((param) => {
@@ -303,6 +303,10 @@ export class GOConfigHelpGenerator {
   private formatPrimaryUsage(parameter: GOConfigParameter): string {
     const flag = formatLongFlag(parameter.cliFlag);
     return parameter.placeholder === '' ? flag : `${flag} ${parameter.placeholder}`;
+  }
+
+  private formatGroupHeading(groupName: string): string {
+    return `${groupName === 'General' ? 'Options' : groupName}:`;
   }
 
   /**
