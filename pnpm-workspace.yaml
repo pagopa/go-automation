@@ -14,9 +14,6 @@ allowBuilds:
 
 minimumReleaseAge: 0
 
-overrides:
-  form-data: 4.0.6
-
 catalog:
   'ajv': '8.20.0'
   'ajv-formats': '3.0.1'

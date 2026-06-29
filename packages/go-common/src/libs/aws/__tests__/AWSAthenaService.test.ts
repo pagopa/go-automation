@@ -13,10 +13,7 @@ import { AWSAthenaService } from '../AWSAthenaService.js';
 import type { GOSleeper } from '../../core/polling/index.js';
 
 type AthenaCommand =
-  | StartQueryExecutionCommand
-  | GetQueryExecutionCommand
-  | GetQueryResultsCommand
-  | StopQueryExecutionCommand;
+  StartQueryExecutionCommand | GetQueryExecutionCommand | GetQueryResultsCommand | StopQueryExecutionCommand;
 
 type AthenaResponse =
   | Record<string, never>

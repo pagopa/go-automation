@@ -14,6 +14,4 @@ import type { GOPollDecisionSuccess } from './GOPollDecisionSuccess.js';
  * network glitch in the probe) and is distinct from a modelled `failure`.
  */
 export type GOPollDecision<T, E extends Error = Error> =
-  | GOPollDecisionContinue
-  | GOPollDecisionSuccess<T>
-  | GOPollDecisionFailure<E>;
+  GOPollDecisionContinue | GOPollDecisionSuccess<T> | GOPollDecisionFailure<E>;

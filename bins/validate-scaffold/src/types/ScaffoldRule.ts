@@ -90,9 +90,4 @@ interface CustomRule extends BaseRule {
  * 3. Handle the new case in ScaffoldEngine.runRule()
  */
 export type ScaffoldRule =
-  | FileExistsRule
-  | FileContainsRule
-  | FileNotContainsRule
-  | JsonHasKeyRule
-  | JsonKeyEqualsRule
-  | CustomRule;
+  FileExistsRule | FileContainsRule | FileNotContainsRule | JsonHasKeyRule | JsonKeyEqualsRule | CustomRule;

@@ -10,13 +10,7 @@ export type V1Status = Exclude<RunbookCheckStatus, 'NO_RUNBOOK'>;
 
 /** V2 (analysis agreement) outcome for one occurrence. */
 export type V2Status =
-  | 'MATCH_EXACT'
-  | 'MATCH_STRONG'
-  | 'MATCH_WEAK'
-  | 'NO_EVIDENCE'
-  | 'CONFLICT'
-  | 'NOT_LINKED'
-  | 'NOT_ANALYZED';
+  'MATCH_EXACT' | 'MATCH_STRONG' | 'MATCH_WEAK' | 'NO_EVIDENCE' | 'CONFLICT' | 'NOT_LINKED' | 'NOT_ANALYZED';
 
 /** Engine used for the V2 comparison. */
 export type AnalysisMatcherKind = 'lexical' | 'ai';

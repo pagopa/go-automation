@@ -54,9 +54,7 @@ import { Core } from '@go-automation/go-common';
 const script = new Core.GOScript({
   metadata: { name: 'my-script', version: '1.0.0', description: '...' },
   config: {
-    parameters: [
-      /* ... */
-    ],
+    parameters: [/* ... */],
   },
 });
 ```

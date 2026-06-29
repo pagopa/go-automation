@@ -169,8 +169,7 @@ export class QATestFormatAdapter implements GOCSVFormatAdapter<SENDNotificationR
         if (item['abstract']) row.abstract = item['abstract'];
         if (item['physicalCommunicationType'])
           row.physicalCommunicationType = item['physicalCommunicationType'] as
-            | 'AR_REGISTERED_LETTER'
-            | 'REGISTERED_LETTER_890';
+            'AR_REGISTERED_LETTER' | 'REGISTERED_LETTER_890';
         if (item['notificationFeePolicy'])
           row.notificationFeePolicy = item['notificationFeePolicy'] as 'FLAT_RATE' | 'DELIVERY_MODE';
         if (item['paFee']) row.paFee = item['paFee'];
