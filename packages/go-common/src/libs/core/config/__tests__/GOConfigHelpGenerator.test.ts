@@ -149,25 +149,33 @@ describe('GOConfigHelpGenerator', () => {
   });
 
   it('colors headings, flags and placeholders without changing the plain-text layout', () => {
-    const parameter = createParameter({
-      name: 'output.format',
-      type: GOConfigParameterType.STRING,
-      description: 'Output format',
-      aliases: ['o'],
-    });
+    const parameters = [
+      createParameter({
+        name: 'output.format',
+        type: GOConfigParameterType.STRING,
+        description: 'Output format',
+        aliases: ['o'],
+      }),
+      createParameter({
+        name: 'dry.run',
+        type: GOConfigParameterType.BOOL,
+        description: 'Preview changes',
+      }),
+    ];
     const colored = new GOConfigHelpGenerator({
       programName: 'go-tool',
       usage: ['go-tool [OPTIONS]'],
       colors: true,
-    }).generate([parameter]);
+    }).generate(parameters);
     const plain = new GOConfigHelpGenerator({
       programName: 'go-tool',
       usage: ['go-tool [OPTIONS]'],
-    }).generate([parameter]);
+    }).generate(parameters);
 
     assert.ok(colored.includes('\x1b[33mUsage:\x1b[0m'));
     assert.ok(colored.includes('\x1b[33mOptions:\x1b[0m'));
     assert.ok(colored.includes('\x1b[32m-o\x1b[0m, \x1b[32m--output-format\x1b[0m'));
+    assert.ok(colored.includes('\x1b[32m--dry-run\x1b[0m\n'));
     assert.ok(colored.includes('\x1b[35m<value>\x1b[0m'));
     assert.strictEqual(stripAnsi(colored), plain);
   });

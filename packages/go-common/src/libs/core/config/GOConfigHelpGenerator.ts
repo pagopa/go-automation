@@ -291,8 +291,8 @@ export class GOConfigHelpGenerator {
   private formatOptionDeclaration(parameter: GOConfigParameter): string {
     const aliases = parameter.aliases.map((alias) => this.color(formatAlias(alias), 'green'));
     const flag = this.color(formatLongFlag(parameter.cliFlag), 'green');
-    const placeholder = this.color(parameter.placeholder, 'magenta');
-    const primaryUsage = placeholder === '' ? flag : `${flag} ${placeholder}`;
+    const primaryUsage =
+      parameter.placeholder === '' ? flag : `${flag} ${this.color(parameter.placeholder, 'magenta')}`;
     return aliases.length === 0 ? `      ${primaryUsage}` : `  ${aliases.join(', ')}, ${primaryUsage}`;
   }
 
