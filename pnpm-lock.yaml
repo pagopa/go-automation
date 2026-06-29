@@ -97,8 +97,8 @@ catalogs:
       specifier: ^8.62.0
       version: 8.62.0
     adm-zip:
-      specifier: ^0.5.17
-      version: 0.5.17
+      specifier: ^0.5.18
+      version: 0.5.18
     ajv:
       specifier: 8.20.0
       version: 8.20.0
@@ -489,7 +489,7 @@ importers:
         version: 7.17.0(supports-color@10.2.2)
       adm-zip:
         specifier: 'catalog:'
-        version: 0.5.17
+        version: 0.5.18
       better-sqlite3:
         specifier: 'catalog:'
         version: 12.11.1
@@ -1955,8 +1955,8 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
-  adm-zip@0.5.17:
-    resolution: {integrity: sha512-+Ut8d9LLqwEvHHJl1+PIHqoyDxFgVN847JTVM3Izi3xHDWPE4UtzzXysMZQs64DMcrJfBeS/uoEP4AD3HQHnQQ==}
+  adm-zip@0.5.18:
+    resolution: {integrity: sha512-ufJnssQGbxzLNS1Ho9bCtX4rQKCCvoVuDLHoJyc3F9dOGDB4BkWs2Ci0kv53lqocAEQ/Cbi+I2XCsNYGqVYqng==}
     engines: {node: '>=12.0'}
 
   agent-base@6.0.2:
@@ -4719,7 +4719,7 @@ snapshots:
 
   acorn@8.17.0: {}
 
-  adm-zip@0.5.17: {}
+  adm-zip@0.5.18: {}
 
   agent-base@6.0.2(supports-color@10.2.2):
     dependencies:
