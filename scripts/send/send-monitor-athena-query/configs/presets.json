@@ -141,7 +141,7 @@
         },
         "slack": {
           "token": null,
-          "channel": "C09S6NBBBQF",
+          "channel": "C09SAJLEYJV",
           "send": {
             "on": {
               "empty": true,
