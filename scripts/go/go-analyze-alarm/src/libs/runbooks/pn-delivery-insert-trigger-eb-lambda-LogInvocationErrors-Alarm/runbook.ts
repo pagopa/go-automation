@@ -18,7 +18,7 @@ export function buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunboo
   return lambda.createLambdaAlarmRunbook({
     id: 'pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm',
     metadata: {
-      name: 'ANALISI ALLARME pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm',
+      name: 'pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm',
       description:
         'Gestire in modo standardizzato gli allarmi generati dalla lambda pn-delivery-insert-trigger-eb-lambda',
       version: '1.0.0',

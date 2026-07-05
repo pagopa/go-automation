@@ -3,6 +3,7 @@ import type { ExecuteRunbookQueueRegistryEntryV1 } from '@go-automation/go-execu
 import type { ExecuteRunbookDeploymentConfig } from '../config/DeploymentConfig.js';
 import {
   EXECUTE_RUNBOOK_BATCH_SIZE,
+  EXECUTE_RUNBOOK_LAMBDA_NAME,
   EXECUTE_RUNBOOK_LAMBDA_TIMEOUT_SECONDS,
   EXECUTE_RUNBOOK_MAX_RECEIVE_COUNT,
   EXECUTE_RUNBOOK_MESSAGE_RETENTION_SECONDS,
@@ -39,7 +40,7 @@ export function buildExecuteRunbookMonitoringPlan(
   config: ExecuteRunbookDeploymentConfig,
 ): ExecuteRunbookMonitoringPlan {
   assertExecuteRunbookCapacityConstants();
-  const base = 'go-execute-runbook';
+  const base = EXECUTE_RUNBOOK_LAMBDA_NAME;
   return {
     names: {
       stackName: base,

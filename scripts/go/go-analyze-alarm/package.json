@@ -35,6 +35,7 @@
   "license": "ISC",
   "dependencies": {
     "@go-automation/go-common": "workspace:*",
+    "@go-automation/go-execute-runbook-contracts": "workspace:*",
     "@go-automation/go-runbook": "workspace:*"
   },
   "devDependencies": {

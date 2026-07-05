@@ -212,6 +212,18 @@ importers:
 
   .:
     devDependencies:
+      '@aws-sdk/client-lambda':
+        specifier: 'catalog:'
+        version: 3.1075.0
+      '@aws-sdk/client-s3':
+        specifier: 'catalog:'
+        version: 3.1075.0
+      '@aws-sdk/client-secrets-manager':
+        specifier: 'catalog:'
+        version: 3.1075.0
+      '@aws-sdk/client-sts':
+        specifier: 'catalog:'
+        version: 3.1075.0
       '@eslint/js':
         specifier: 'catalog:'
         version: 10.0.1(eslint@10.6.0(jiti@2.7.0)(supports-color@10.2.2))
@@ -681,6 +693,9 @@ importers:
       '@go-automation/go-common':
         specifier: workspace:*
         version: link:../../../packages/go-common
+      '@go-automation/go-execute-runbook-contracts':
+        specifier: workspace:*
+        version: link:../../../packages/go-execute-runbook-contracts
       '@go-automation/go-runbook':
         specifier: workspace:*
         version: link:../../../packages/go-runbook

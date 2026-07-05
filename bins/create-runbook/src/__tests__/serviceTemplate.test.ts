@@ -9,7 +9,7 @@ function answers(): RunbookAnswers {
     templateId: 'service',
     id: 'workday-pn-foo-alarm',
     builderName: 'buildWorkdayPnFooAlarmRunbook',
-    metadataName: 'ANALISI ALLARME workday-pn-foo-alarm',
+    metadataName: 'workday-pn-foo-alarm',
     description: 'desc',
     version: '1.0.0',
     team: 'GO',

@@ -25,12 +25,14 @@ export async function buildExecuteRunbookDeps(
     credentials: await resolveWatchtowerCredentials(script, config, options.auth),
   });
   const services = createServiceRegistry(script);
+  const workerArtifactRevision = config.executeRunbookArtifactRevision?.trim();
   return {
     watchtower,
     logger: script.logger,
     services,
     awsProfiles,
     useConfiguredAwsProfiles: awsProfiles.length > 0,
+    ...(workerArtifactRevision === undefined || workerArtifactRevision === '' ? {} : { workerArtifactRevision }),
   };
 }
 

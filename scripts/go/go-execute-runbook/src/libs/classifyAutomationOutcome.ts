@@ -10,7 +10,7 @@ export function classifyAutomationOutcome(check: RunbookCheck): AutomaticRunbook
     case 'NO-DATA':
       return 'NO_DATA';
     case 'NO_RUNBOOK':
-      return 'NO_RUNBOOK';
+      throw new Error('NO_RUNBOOK is not a valid automatic worker outcome; capability pinning must fail first');
     case 'CONFIG-ERROR':
       return 'CONFIGURATION_ERROR';
     case 'EXECUTION-ERROR':

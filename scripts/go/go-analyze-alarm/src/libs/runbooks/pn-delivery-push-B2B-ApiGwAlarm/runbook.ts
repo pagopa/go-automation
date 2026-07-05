@@ -18,7 +18,7 @@ export function buildDeliveryPushB2BApiGwAlarmRunbook(): Runbook {
   return apigw.createApiGwAlarmRunbook({
     id: 'pn-delivery-push-B2B-ApiGwAlarm',
     metadata: {
-      name: 'ANALISI ALLARME pn-delivery-push-B2B-ApiGwAlarm',
+      name: 'pn-delivery-push-B2B-ApiGwAlarm',
       description: 'Analizza gli allarmi API Gateway del microservizio pn-delivery-push per le API B2B.',
       version: '3.0.0',
       type: 'alarm-resolution',

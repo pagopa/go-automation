@@ -153,6 +153,63 @@
           },
           {
             "in": "query",
+            "name": "automationDecision",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "EXECUTION_CREATED"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "EXECUTION_POLICY_OFF"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "UNLINKED_ALARM"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "CATALOG_UNAVAILABLE"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "NO_CAPABILITY"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "SCOPE_CONFIGURATION_UNSAFE"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "SCOPE_DENIED"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "LEGACY_EVENT_NOT_EVALUATED"
+                  ],
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
             "name": "sortBy",
             "required": false,
             "schema": {
@@ -283,6 +340,28 @@
                               }
                             ]
                           },
+                          "automationDecidedAt": {
+                            "anyOf": [
+                              {
+                                "format": "date-time",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "automationDecision": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "automationDecisionMetadata": {},
                           "awsAccountId": {
                             "type": "string"
                           },
@@ -475,6 +554,9 @@
                           "analysisId",
                           "linkedAt",
                           "resolvedAt",
+                          "automationDecision",
+                          "automationDecisionMetadata",
+                          "automationDecidedAt",
                           "createdAt"
                         ],
                         "type": "object"
@@ -682,6 +764,28 @@
                         }
                       ]
                     },
+                    "automationDecidedAt": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "automationDecision": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "automationDecisionMetadata": {},
                     "awsAccountId": {
                       "type": "string"
                     },
@@ -874,6 +978,9 @@
                     "analysisId",
                     "linkedAt",
                     "resolvedAt",
+                    "automationDecision",
+                    "automationDecisionMetadata",
+                    "automationDecidedAt",
                     "createdAt"
                   ],
                   "type": "object"
@@ -1107,6 +1214,28 @@
                         }
                       ]
                     },
+                    "automationDecidedAt": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "automationDecision": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "automationDecisionMetadata": {},
                     "awsAccountId": {
                       "type": "string"
                     },
@@ -1299,6 +1428,9 @@
                     "analysisId",
                     "linkedAt",
                     "resolvedAt",
+                    "automationDecision",
+                    "automationDecisionMetadata",
+                    "automationDecidedAt",
                     "createdAt"
                   ],
                   "type": "object"
@@ -1512,6 +1644,28 @@
                         }
                       ]
                     },
+                    "automationDecidedAt": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "automationDecision": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "automationDecisionMetadata": {},
                     "awsAccountId": {
                       "type": "string"
                     },
@@ -1704,6 +1858,9 @@
                     "analysisId",
                     "linkedAt",
                     "resolvedAt",
+                    "automationDecision",
+                    "automationDecisionMetadata",
+                    "automationDecidedAt",
                     "createdAt"
                   ],
                   "type": "object"
@@ -1900,6 +2057,28 @@
                         }
                       ]
                     },
+                    "automationDecidedAt": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "automationDecision": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "automationDecisionMetadata": {},
                     "awsAccountId": {
                       "type": "string"
                     },
@@ -2092,6 +2271,9 @@
                     "analysisId",
                     "linkedAt",
                     "resolvedAt",
+                    "automationDecision",
+                    "automationDecisionMetadata",
+                    "automationDecidedAt",
                     "createdAt"
                   ],
                   "type": "object"
@@ -4954,7 +5136,7 @@
                 },
                 {
                   "enum": [
-                    "NO_RUNBOOK"
+                    "CAPABILITY_WITHDRAWN"
                   ],
                   "type": "string"
                 },
@@ -5273,7 +5455,7 @@
                                   },
                                   {
                                     "enum": [
-                                      "NO_RUNBOOK"
+                                      "CAPABILITY_WITHDRAWN"
                                     ],
                                     "type": "string"
                                   },
@@ -5839,7 +6021,7 @@
                             },
                             {
                               "enum": [
-                                "NO_RUNBOOK"
+                                "CAPABILITY_WITHDRAWN"
                               ],
                               "type": "string"
                             },
@@ -6429,7 +6611,7 @@
                                 },
                                 {
                                   "enum": [
-                                    "NO_RUNBOOK"
+                                    "CAPABILITY_WITHDRAWN"
                                   ],
                                   "type": "string"
                                 },
@@ -7025,7 +7207,7 @@
                                 },
                                 {
                                   "enum": [
-                                    "NO_RUNBOOK"
+                                    "CAPABILITY_WITHDRAWN"
                                   ],
                                   "type": "string"
                                 },
@@ -7608,6 +7790,9 @@
                         }
                       ]
                     },
+                    "catalogRevision": {
+                      "type": "string"
+                    },
                     "completedAt": {
                       "anyOf": [
                         {
@@ -7827,6 +8012,36 @@
                         }
                       ]
                     },
+                    "executedRunbookDigest": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "executedRunbookKey": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "executedRunbookVersion": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "id": {
                       "type": "string"
                     },
@@ -7855,7 +8070,7 @@
                             },
                             {
                               "enum": [
-                                "NO_RUNBOOK"
+                                "CAPABILITY_WITHDRAWN"
                               ],
                               "type": "string"
                             },
@@ -7932,6 +8147,15 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "requestedRunbookDigest": {
+                      "type": "string"
+                    },
+                    "requestedRunbookKey": {
+                      "type": "string"
+                    },
+                    "requestedRunbookVersion": {
+                      "type": "string"
                     },
                     "resultSummary": {},
                     "reviewStatus": {
@@ -8089,6 +8313,9 @@
                     },
                     "updatedAt": {
                       "type": "string"
+                    },
+                    "workerRevision": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -8126,6 +8353,14 @@
                     "durationMs",
                     "createdAt",
                     "updatedAt",
+                    "requestedRunbookKey",
+                    "requestedRunbookVersion",
+                    "requestedRunbookDigest",
+                    "catalogRevision",
+                    "workerRevision",
+                    "executedRunbookKey",
+                    "executedRunbookVersion",
+                    "executedRunbookDigest",
                     "inputSnapshot",
                     "resultSummary",
                     "analysisPayload",
@@ -8624,6 +8859,12 @@
                             "CANNOT_RETRY_CLI"
                           ],
                           "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "RUNBOOK_CAPABILITY_MISMATCH"
+                          ],
+                          "type": "string"
                         }
                       ]
                     },
@@ -9026,6 +9267,12 @@
                             "CANNOT_RETRY_CLI"
                           ],
                           "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "RUNBOOK_CAPABILITY_MISMATCH"
+                          ],
+                          "type": "string"
                         }
                       ]
                     },
@@ -9185,7 +9432,7 @@
                       },
                       {
                         "enum": [
-                          "NO_RUNBOOK"
+                          "CAPABILITY_WITHDRAWN"
                         ],
                         "type": "string"
                       },
@@ -9216,12 +9463,18 @@
                     "type": "string"
                   },
                   "resultSummary": {},
+                  "runbookDigest": {
+                    "pattern": "^sha256-[0-9a-fA-F]{64}$",
+                    "type": "string"
+                  },
                   "runbookKey": {
                     "maxLength": 200,
+                    "minLength": 1,
                     "type": "string"
                   },
                   "runbookVersion": {
                     "maxLength": 100,
+                    "minLength": 1,
                     "type": "string"
                   },
                   "tracking": {
@@ -9297,7 +9550,10 @@
                 },
                 "required": [
                   "attemptId",
-                  "outcome"
+                  "outcome",
+                  "runbookKey",
+                  "runbookVersion",
+                  "runbookDigest"
                 ],
                 "type": "object"
               }
@@ -9370,7 +9626,7 @@
                             },
                             {
                               "enum": [
-                                "NO_RUNBOOK"
+                                "CAPABILITY_WITHDRAWN"
                               ],
                               "type": "string"
                             },
@@ -9543,6 +9799,12 @@
                             "CANNOT_RETRY_CLI"
                           ],
                           "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "RUNBOOK_CAPABILITY_MISMATCH"
+                          ],
+                          "type": "string"
                         }
                       ]
                     },
@@ -9671,6 +9933,12 @@
                           },
                           {
                             "enum": [
+                              "CAPABILITY"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "enum": [
                               "WORKER_CONFIGURATION"
                             ],
                             "type": "string"
@@ -9694,6 +9962,12 @@
                           {
                             "enum": [
                               "UNSUPPORTED_COMMAND_VERSION"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "enum": [
+                              "RUNBOOK_CAPABILITY_MISMATCH"
                             ],
                             "type": "string"
                           },
@@ -9766,6 +10040,12 @@
                           },
                           {
                             "enum": [
+                              "CAPABILITY"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "enum": [
                               "WORKER_CONFIGURATION"
                             ],
                             "type": "string"
@@ -9789,6 +10069,12 @@
                           {
                             "enum": [
                               "UNSUPPORTED_COMMAND_VERSION"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "enum": [
+                              "RUNBOOK_CAPABILITY_MISMATCH"
                             ],
                             "type": "string"
                           },
@@ -10001,6 +10287,12 @@
                         {
                           "enum": [
                             "CANNOT_RETRY_CLI"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "RUNBOOK_CAPABILITY_MISMATCH"
                           ],
                           "type": "string"
                         }
@@ -10460,7 +10752,7 @@
                             },
                             {
                               "enum": [
-                                "NO_RUNBOOK"
+                                "CAPABILITY_WITHDRAWN"
                               ],
                               "type": "string"
                             },
@@ -10815,6 +11107,12 @@
                             "CANNOT_RETRY_CLI"
                           ],
                           "type": "string"
+                        },
+                        {
+                          "enum": [
+                            "RUNBOOK_CAPABILITY_MISMATCH"
+                          ],
+                          "type": "string"
                         }
                       ]
                     },
@@ -11144,7 +11442,7 @@
                             },
                             {
                               "enum": [
-                                "NO_RUNBOOK"
+                                "CAPABILITY_WITHDRAWN"
                               ],
                               "type": "string"
                             },
@@ -11709,6 +12007,61 @@
         "tags": [
           "Automatic Runbook Executions"
         ]
+      }
+    },
+    "/api/automatic-runbooks/catalog": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/automatic-runbooks/catalog/coverage": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/automatic-runbooks/catalog/refresh": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/automatic-runbooks/catalog/status": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/automatic-runbooks/catalog/{key}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
       }
     },
     "/api/ignore-reasons": {
@@ -12286,6 +12639,15 @@
         ]
       }
     },
+    "/api/internal/automatic-runbooks/deployment-status": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/me/cli-token": {
       "delete": {
         "responses": {
@@ -12562,6 +12924,24 @@
             "description": "Default Response"
           },
           "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Default Response"
+          },
+          "500": {
             "content": {
               "application/json": {
                 "schema": {
@@ -21928,6 +22308,19 @@
                           }
                         ]
                       },
+                      "slackIngestorEnabled": {
+                        "type": "boolean"
+                      },
+                      "slackParserId": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "updatedAt": {
                         "type": "string"
                       }
@@ -21941,6 +22334,8 @@
                       "slackChannelId",
                       "defaultAwsAccountId",
                       "defaultAwsRegion",
+                      "slackIngestorEnabled",
+                      "slackParserId",
                       "onCallAlarmPattern",
                       "createdAt",
                       "updatedAt"
@@ -22063,6 +22458,37 @@
                   "slackChannelId": {
                     "maxLength": 255,
                     "type": "string"
+                  },
+                  "slackIngestorEnabled": {
+                    "type": "boolean"
+                  },
+                  "slackParserId": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "amazon-q"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "enum": [
+                          "opsgenie"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "enum": [
+                          "email-sns"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "enum": [
+                          "jsm"
+                        ],
+                        "type": "string"
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -22145,6 +22571,19 @@
                         }
                       ]
                     },
+                    "slackIngestorEnabled": {
+                      "type": "boolean"
+                    },
+                    "slackParserId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "updatedAt": {
                       "type": "string"
                     }
@@ -22158,6 +22597,8 @@
                     "slackChannelId",
                     "defaultAwsAccountId",
                     "defaultAwsRegion",
+                    "slackIngestorEnabled",
+                    "slackParserId",
                     "onCallAlarmPattern",
                     "createdAt",
                     "updatedAt"
@@ -22447,6 +22888,40 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "slackIngestorEnabled": {
+                    "type": "boolean"
+                  },
+                  "slackParserId": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "amazon-q"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "enum": [
+                          "opsgenie"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "enum": [
+                          "email-sns"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "enum": [
+                          "jsm"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "type": "object"
@@ -22526,6 +23001,19 @@
                         }
                       ]
                     },
+                    "slackIngestorEnabled": {
+                      "type": "boolean"
+                    },
+                    "slackParserId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "updatedAt": {
                       "type": "string"
                     }
@@ -22539,6 +23027,8 @@
                     "slackChannelId",
                     "defaultAwsAccountId",
                     "defaultAwsRegion",
+                    "slackIngestorEnabled",
+                    "slackParserId",
                     "onCallAlarmPattern",
                     "createdAt",
                     "updatedAt"
@@ -22836,6 +23326,19 @@
                               }
                             ]
                           },
+                          "slackIngestorEnabled": {
+                            "type": "boolean"
+                          },
+                          "slackParserId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "updatedAt": {
                             "type": "string"
                           }
@@ -22849,6 +23352,8 @@
                           "slackChannelId",
                           "defaultAwsAccountId",
                           "defaultAwsRegion",
+                          "slackIngestorEnabled",
+                          "slackParserId",
                           "onCallAlarmPattern",
                           "createdAt",
                           "updatedAt"
@@ -30017,6 +30522,205 @@
         "tags": [
           "Settings"
         ]
+      }
+    },
+    "/api/slack-ingestor/channels": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/slack-ingestor/channels/{environmentId}/check": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "environmentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/slack-ingestor/control": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "put": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/slack-ingestor/control/exclusions/alarms/{alarmId}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alarmId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alarmId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/slack-ingestor/control/exclusions/runbooks/{key}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/slack-ingestor/control/history": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/slack-ingestor/control/presets/only-alarm/{alarmId}": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alarmId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/slack-ingestor/control/presets/only-runbook/{key}": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/slack-ingestor/control/preview": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/slack-ingestor/control/validate": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/slack-ingestor/decision-stats": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/slack-ingestor/status": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
       }
     },
     "/api/system-events": {

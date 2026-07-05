@@ -49,17 +49,23 @@ describe('WatchtowerClient', () => {
       bodies.push(body);
       keys.push(new Headers(init?.headers).get('idempotency-key') ?? '');
       if (calls === 2) return await Promise.resolve(new Response('unavailable', { status: 503 }));
-      return await Promise.resolve(Response.json({ status: 'SUCCEEDED', outcome: 'NO_RUNBOOK' }));
+      return await Promise.resolve(Response.json({ status: 'SKIPPED', outcome: 'CAPABILITY_WITHDRAWN' }));
     });
     const client = serviceClient();
 
     const result = await client.completeExecution(
       '0192c000-0000-7000-8000-000000000001',
-      { attemptId: '0192c000-0000-7000-8000-0000000000e1', outcome: 'NO_RUNBOOK' },
+      {
+        attemptId: '0192c000-0000-7000-8000-0000000000e1',
+        outcome: 'CAPABILITY_WITHDRAWN',
+        runbookKey: 'pn-core-runbook',
+        runbookVersion: '1.0.0',
+        runbookDigest: 'sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      },
       { idempotencyKey: 'complete:execution:attempt', deadlineAtMs: Date.now() + 5_000 },
     );
 
-    assert.deepStrictEqual(result, { status: 'SUCCEEDED', outcome: 'NO_RUNBOOK' });
+    assert.deepStrictEqual(result, { status: 'SKIPPED', outcome: 'CAPABILITY_WITHDRAWN' });
     assert.deepStrictEqual(bodies, [bodies[0], bodies[0]]);
     assert.deepStrictEqual(keys, ['complete:execution:attempt', 'complete:execution:attempt']);
   });
@@ -90,7 +96,13 @@ describe('WatchtowerClient', () => {
 
     const result = await client.completeExecution(
       '0192c000-0000-7000-8000-000000000001',
-      { attemptId: '0192c000-0000-7000-8000-0000000000e1', outcome: 'NO_RUNBOOK' },
+      {
+        attemptId: '0192c000-0000-7000-8000-0000000000e1',
+        outcome: 'CAPABILITY_WITHDRAWN',
+        runbookKey: 'pn-core-runbook',
+        runbookVersion: '1.0.0',
+        runbookDigest: 'sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      },
       { idempotencyKey: 'complete:execution:attempt', deadlineAtMs: Date.now() + 5_000 },
     );
 

@@ -18,7 +18,7 @@ export function buildIoAuthorizerLambdaRunbook(): Runbook {
   return lambda.createLambdaAlarmRunbook({
     id: 'pn-ioAuthorizerLambda-LogInvocationErrors-Alarm',
     metadata: {
-      name: 'ANALISI ALLARME pn-ioAuthorizerLambda-LogInvocationErrors-Alarm',
+      name: 'pn-ioAuthorizerLambda-LogInvocationErrors-Alarm',
       description: 'Analizza gli allarmi LogInvocationErrors della lambda pn-ioAuthorizerLambda',
       version: '1.0.0',
       type: 'alarm-resolution',

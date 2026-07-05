@@ -33,6 +33,9 @@ export default $config({
       EXECUTE_RUNBOOK_MESSAGE_RETENTION_SECONDS,
       EXECUTE_RUNBOOK_REGISTRY_CONTROL_REGION,
       EXECUTE_RUNBOOK_VISIBILITY_TIMEOUT_SECONDS,
+      AUTOMATIC_RUNBOOK_CATALOG_KEY,
+      accountIdFromArn,
+      buildAutomaticRunbookCatalogBucketName,
       buildExecuteRunbookMonitoringPlan,
       buildQueueRegistryEntry,
       buildWorkerIamPolicy,
@@ -57,8 +60,50 @@ export default $config({
         region: sourceConfig.region,
       };
     }
+    const workerArtifactRevision = requiredEnvironment('EXECUTE_RUNBOOK_ARTIFACT_REVISION');
     const config = loadExecuteRunbookDeploymentConfig(process.env);
     const plan = buildExecuteRunbookMonitoringPlan(config);
+    const accountId = accountIdFromArn(config.watchtowerBackendRoleArn);
+    const automaticRunbookCatalogBucket =
+      config.region === EXECUTE_RUNBOOK_REGISTRY_CONTROL_REGION
+        ? new sst.aws.Bucket('AutomaticRunbookCatalogBucket', {
+            versioning: true,
+            cors: false,
+            enforceHttps: true,
+            policy: [
+              {
+                actions: ['s3:GetObject', 's3:GetObjectVersion'],
+                principals: [{ type: 'aws', identifiers: [config.watchtowerBackendRoleArn] }],
+                paths: [AUTOMATIC_RUNBOOK_CATALOG_KEY],
+              },
+            ],
+            lifecycle: [
+              {
+                id: 'RetainNoncurrentCatalogVersions',
+                prefix: 'automatic-runbooks/v1/',
+              },
+            ],
+            transform: {
+              bucket: {
+                bucket: buildAutomaticRunbookCatalogBucketName(config.environment, accountId),
+                forceDestroy: config.environment !== 'production',
+                tags: {
+                  ManagedBy: 'go-automation-sst',
+                  Service: 'go-execute-runbook',
+                  Environment: config.environment,
+                },
+              },
+              lifecycle: (args) => {
+                args.rules = args.rules.map((rule) => ({
+                  ...rule,
+                  noncurrentVersionExpiration: {
+                    noncurrentDays: config.environment === 'production' ? 365 : 30,
+                  },
+                }));
+              },
+            },
+          })
+        : undefined;
     const managedServicePrincipalSecret =
       config.servicePrincipalSecretArn === undefined
         ? new aws.secretsmanager.Secret('ExecuteRunbookServicePrincipalSecret', {
@@ -66,6 +111,7 @@ export default $config({
             description: 'GO Execute Runbook Watchtower service principal password. Set SecretString after deploy.',
           })
         : undefined;
+    // Safe: the managed secret is created above exactly when the config does not provide an ARN
     const servicePrincipalSecretArn = config.servicePrincipalSecretArn ?? managedServicePrincipalSecret!.arn;
     const workerIam = buildWorkerIamPolicy({
       region: config.region,
@@ -213,7 +259,9 @@ export default $config({
           WATCHTOWER_URL: config.watchtowerInternalUrl,
           WATCHTOWER_SERVICE_ID: 'runbook-automation-worker',
           WATCHTOWER_SERVICE_SECRET_ARN: servicePrincipalSecretArn,
+          EXECUTE_RUNBOOK_ARTIFACT_REVISION: workerArtifactRevision,
         },
+        tags: { ArtifactRevision: workerArtifactRevision },
         permissions: workerIam.map((statement) => ({
           actions: [...statement.actions],
           resources: [...statement.resources],
@@ -244,6 +292,9 @@ export default $config({
       queueRegistryParameter: queueRegistryParameter.name,
       queueRegistryParameterArn: queueRegistryParameter.arn,
       queueRegistryRevision: queueRegistry.apply((registry) => registry.revision),
+      automaticRunbookCatalogBucketName: automaticRunbookCatalogBucket?.name ?? null,
+      automaticRunbookCatalogKey: AUTOMATIC_RUNBOOK_CATALOG_KEY,
+      workerArtifactRevision,
     };
   },
 });

@@ -18,7 +18,7 @@ export function buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook(): 
   return lambda.createLambdaAlarmRunbook({
     id: 'pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm',
     metadata: {
-      name: 'ANALISI ALLARME pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm',
+      name: 'pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm',
       description: 'Gestire in modo standardizzato gli allarmi generati dalla lambda pn-ApiKeyAuthorizerV2Lambda',
       version: '1.0.0',
       type: 'alarm-resolution',

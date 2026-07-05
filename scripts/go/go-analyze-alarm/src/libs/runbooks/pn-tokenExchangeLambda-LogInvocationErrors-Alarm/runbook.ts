@@ -18,7 +18,7 @@ export function buildTokenExchangeLambdaRunbook(): Runbook {
   return lambda.createLambdaAlarmRunbook({
     id: 'pn-tokenExchangeLambda-LogInvocationErrors-Alarm',
     metadata: {
-      name: 'ANALISI ALLARME pn-tokenExchangeLambda-LogInvocationErrors-Alarm',
+      name: 'pn-tokenExchangeLambda-LogInvocationErrors-Alarm',
       description: 'Analizza gli allarmi LogInvocationErrors della lambda pn-tokenExchangeLambda',
       version: '1.0.0',
       type: 'alarm-resolution',

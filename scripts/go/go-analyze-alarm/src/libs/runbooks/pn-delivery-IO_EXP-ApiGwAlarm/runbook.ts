@@ -18,7 +18,7 @@ export function buildDeliveryIoExpApiGwAlarmRunbook(): Runbook {
   return apigw.createApiGwAlarmRunbook({
     id: 'pn-delivery-IO_EXP-ApiGwAlarm',
     metadata: {
-      name: 'ANALISI ALLARME pn-delivery-IO_EXP-ApiGwAlarm',
+      name: 'pn-delivery-IO_EXP-ApiGwAlarm',
       description: '',
       version: '3.0.0',
       type: 'alarm-resolution',

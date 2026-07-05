@@ -7,23 +7,23 @@
   "artifacts": [
     {
       "path": "../../contracts/runbook-automation/v1/upstream/go-watchtower/watchtower-openapi.json",
-      "sha256": "3a379a8d8a13ad81d4dc242dcf22440f32ba6e642412a558e2c95270211cfcb1"
+      "sha256": "d83df755c15ebe1014fccd8fde30917bea71030031d7f4cefe2e6cb7c7790d03"
     },
     {
       "path": "src/generated/openapi.ts",
-      "sha256": "e24accb748030db69765f0ce68cc124d96f6187c54698077e42838c1a29cf3e8"
+      "sha256": "0b9cbb3940edfdfaf21badf76feca83282261a959ea37b6c1fd975f352163668"
     },
     {
       "path": "../../contracts/runbook-automation/v1/upstream/go-watchtower/automatic-alarm-analysis-command-v1.schema.json",
-      "sha256": "28b624ae6e36dd08deecd044160f814ceaab466413a498ab561709250d6bd915"
+      "sha256": "d0c286d84e80074991269439efbb333ab55e4ba83f2f814fbdbab48ec5957637"
     },
     {
       "path": "src/generated/AutomaticAlarmAnalysisCommandV1.ts",
-      "sha256": "9b54e4c2c2bda02f7703654395b626f606a4bf2a3fc6ccfdcc805658988c4a31"
+      "sha256": "1fd7cfb9943e139b34a23eba94270ba5ac2334e41785515e0c2ed639d7c27e1b"
     },
     {
       "path": "src/generated/automatic-alarm-analysis-command-v1.schema.json",
-      "sha256": "28b624ae6e36dd08deecd044160f814ceaab466413a498ab561709250d6bd915"
+      "sha256": "d0c286d84e80074991269439efbb333ab55e4ba83f2f814fbdbab48ec5957637"
     }
   ]
 }
