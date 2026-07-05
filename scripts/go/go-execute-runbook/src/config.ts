@@ -70,6 +70,12 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     sensitive: true,
   },
   {
+    name: 'execute.runbook.artifact.revision',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'Revision of the deployed execute-runbook worker artifact',
+    required: false,
+  },
+  {
     name: 'dry.run',
     type: Core.GOConfigParameterType.BOOL,
     description: 'Preview the CLI command and run the runbook locally without creating/updating a Watchtower execution',

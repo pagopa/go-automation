@@ -135,22 +135,23 @@ export AWS_REGION=eu-south-1
 
 ### Parametri CLI
 
-| Parametro                         | Alias  | Env var                         | Obbligatorio | Default                     | Descrizione                                                                                    |
-| --------------------------------- | ------ | ------------------------------- | ------------ | --------------------------- | ---------------------------------------------------------------------------------------------- |
-| `--alarm-event-id`                | -      | `ALARM_EVENT_ID`                | Sì           | -                           | UUID dell'occorrenza allarme Watchtower da analizzare.                                         |
-| `--execution-id`                  | -      | `EXECUTION_ID`                  | No           | -                           | UUID della execution automatica Watchtower già esistente; attiva il percorso legacy service.   |
-| `--aws-profiles`                  | `-aps` | `AWS_PROFILES`                  | No           | -                           | Profili AWS SSO, separati da virgola, da usare in locale per runbook multi-account.            |
-| `--aws-region`                    | `-ar`  | `AWS_REGION`                    | No           | `eu-south-1`                | Regione AWS per i client locali e per eventuale lettura da Secrets Manager.                    |
-| `--watchtower-url`                | -      | `WATCHTOWER_URL`                | Sì           | -                           | Root del backend Watchtower. Un `/api` finale viene normalizzato.                              |
-| `--watchtower-human-token`        | -      | `WATCHTOWER_HUMAN_TOKEN`        | Sì\*         | -                           | PAT scoped `wtcli_...` dell'utente umano per create/preview/lifecycle CLI.                     |
-| `--watchtower-service-id`         | -      | `WATCHTOWER_SERVICE_ID`         | No\*\*       | `runbook-automation-worker` | Identificativo del service principal Watchtower.                                               |
-| `--watchtower-password`           | -      | `WATCHTOWER_PASSWORD`           | No\*\*       | -                           | Password locale del service principal.                                                         |
-| `--watchtower-service-secret-arn` | -      | `WATCHTOWER_SERVICE_SECRET_ARN` | No\*\*       | -                           | ARN Secrets Manager che contiene la password del service principal; usa il primo profilo AWS.  |
-| `--dry-run`                       | -      | `DRY_RUN`                       | No           | `false`                     | Non crea execution e non scrive lifecycle su Watchtower; esegue comunque query AWS reali.      |
-| `--dry-run-timeout-ms`            | -      | `DRY_RUN_TIMEOUT_MS`            | No           | -                           | Timeout locale opzionale del dry-run in millisecondi. Se omesso, non applica un budget locale. |
-| `--apply`                         | -      | `APPLY`                         | No           | `none`                      | `none`, `known`, `all`; mappa a `SHADOW`, `APPLY_KNOWN`, `APPLY_ALL`.                          |
-| `--confirm-apply`                 | -      | `CONFIRM_APPLY`                 | No           | `false`                     | Conferma apply `known/all` verso URL Watchtower non locali.                                    |
-| `--confirm-apply-all`             | -      | `CONFIRM_APPLY_ALL`             | No           | `false`                     | Conferma aggiuntiva per `--apply all`.                                                         |
+| Parametro                             | Alias  | Env var                             | Obbligatorio | Default                     | Descrizione                                                                                    |
+| ------------------------------------- | ------ | ----------------------------------- | ------------ | --------------------------- | ---------------------------------------------------------------------------------------------- |
+| `--alarm-event-id`                    | -      | `ALARM_EVENT_ID`                    | Sì           | -                           | UUID dell'occorrenza allarme Watchtower da analizzare.                                         |
+| `--execution-id`                      | -      | `EXECUTION_ID`                      | No           | -                           | UUID della execution automatica Watchtower già esistente; attiva il percorso legacy service.   |
+| `--aws-profiles`                      | `-aps` | `AWS_PROFILES`                      | No           | -                           | Profili AWS SSO, separati da virgola, da usare in locale per runbook multi-account.            |
+| `--aws-region`                        | `-ar`  | `AWS_REGION`                        | No           | `eu-south-1`                | Regione AWS per i client locali e per eventuale lettura da Secrets Manager.                    |
+| `--watchtower-url`                    | -      | `WATCHTOWER_URL`                    | Sì           | -                           | Root del backend Watchtower. Un `/api` finale viene normalizzato.                              |
+| `--watchtower-human-token`            | -      | `WATCHTOWER_HUMAN_TOKEN`            | Sì\*         | -                           | PAT scoped `wtcli_...` dell'utente umano per create/preview/lifecycle CLI.                     |
+| `--watchtower-service-id`             | -      | `WATCHTOWER_SERVICE_ID`             | No\*\*       | `runbook-automation-worker` | Identificativo del service principal Watchtower.                                               |
+| `--watchtower-password`               | -      | `WATCHTOWER_PASSWORD`               | No\*\*       | -                           | Password locale del service principal.                                                         |
+| `--watchtower-service-secret-arn`     | -      | `WATCHTOWER_SERVICE_SECRET_ARN`     | No\*\*       | -                           | ARN Secrets Manager che contiene la password del service principal; usa il primo profilo AWS.  |
+| `--execute-runbook-artifact-revision` | -      | `EXECUTE_RUNBOOK_ARTIFACT_REVISION` | No           | -                           | Revision diagnostica del worker; valorizzata automaticamente nel deploy cloud.                 |
+| `--dry-run`                           | -      | `DRY_RUN`                           | No           | `false`                     | Non crea execution e non scrive lifecycle su Watchtower; esegue comunque query AWS reali.      |
+| `--dry-run-timeout-ms`                | -      | `DRY_RUN_TIMEOUT_MS`                | No           | -                           | Timeout locale opzionale del dry-run in millisecondi. Se omesso, non applica un budget locale. |
+| `--apply`                             | -      | `APPLY`                             | No           | `none`                      | `none`, `known`, `all`; mappa a `SHADOW`, `APPLY_KNOWN`, `APPLY_ALL`.                          |
+| `--confirm-apply`                     | -      | `CONFIRM_APPLY`                     | No           | `false`                     | Conferma apply `known/all` verso URL Watchtower non locali.                                    |
+| `--confirm-apply-all`                 | -      | `CONFIRM_APPLY_ALL`                 | No           | `false`                     | Conferma aggiuntiva per `--apply all`.                                                         |
 
 `*` Richiesto quando non passi `--execution-id`.
 
@@ -160,22 +161,23 @@ export AWS_REGION=eu-south-1
 
 I nomi interni della config sono in dot notation (`alarm.event.id`, `watchtower.service.secret.arn`), ma da riga di comando si usano sempre flag kebab-case:
 
-| Nome interno                    | Flag CLI                          |
-| ------------------------------- | --------------------------------- |
-| `alarm.event.id`                | `--alarm-event-id`                |
-| `execution.id`                  | `--execution-id`                  |
-| `aws.profiles`                  | `--aws-profiles`                  |
-| `aws.region`                    | `--aws-region`                    |
-| `watchtower.url`                | `--watchtower-url`                |
-| `watchtower.service.id`         | `--watchtower-service-id`         |
-| `watchtower.password`           | `--watchtower-password`           |
-| `watchtower.service.secret.arn` | `--watchtower-service-secret-arn` |
-| `watchtower.human.token`        | `--watchtower-human-token`        |
-| `dry.run`                       | `--dry-run`                       |
-| `dry.run.timeout.ms`            | `--dry-run-timeout-ms`            |
-| `apply`                         | `--apply`                         |
-| `confirm.apply`                 | `--confirm-apply`                 |
-| `confirm.apply.all`             | `--confirm-apply-all`             |
+| Nome interno                        | Flag CLI                              |
+| ----------------------------------- | ------------------------------------- |
+| `alarm.event.id`                    | `--alarm-event-id`                    |
+| `execution.id`                      | `--execution-id`                      |
+| `aws.profiles`                      | `--aws-profiles`                      |
+| `aws.region`                        | `--aws-region`                        |
+| `watchtower.url`                    | `--watchtower-url`                    |
+| `watchtower.service.id`             | `--watchtower-service-id`             |
+| `watchtower.password`               | `--watchtower-password`               |
+| `watchtower.service.secret.arn`     | `--watchtower-service-secret-arn`     |
+| `watchtower.human.token`            | `--watchtower-human-token`            |
+| `execute.runbook.artifact.revision` | `--execute-runbook-artifact-revision` |
+| `dry.run`                           | `--dry-run`                           |
+| `dry.run.timeout.ms`                | `--dry-run-timeout-ms`                |
+| `apply`                             | `--apply`                             |
+| `confirm.apply`                     | `--confirm-apply`                     |
+| `confirm.apply.all`                 | `--confirm-apply-all`                 |
 
 ### Password Watchtower
 

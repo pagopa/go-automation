@@ -12,6 +12,13 @@ export interface AutomaticAlarmAnalysisCommandV1 {
     productId: string;
   };
   executionId: string;
+  runbook: {
+    catalogRevision: string;
+    definitionDigest: string;
+    key: string;
+    version: string;
+    workerRevision: string;
+  };
   schemaVersion: "1.0.0";
   trigger: {
     actorId?: string;

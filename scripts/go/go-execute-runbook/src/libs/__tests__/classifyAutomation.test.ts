@@ -9,7 +9,10 @@ describe('automation classifiers', () => {
     assert.strictEqual(classifyAutomationOutcome({ status: 'HIT', matchedCaseIds: [] }), 'KNOWN_CASE');
     assert.strictEqual(classifyAutomationOutcome({ status: 'MISS', matchedCaseIds: [] }), 'UNKNOWN_CASE');
     assert.strictEqual(classifyAutomationOutcome({ status: 'NO-DATA', matchedCaseIds: [] }), 'NO_DATA');
-    assert.strictEqual(classifyAutomationOutcome({ status: 'NO_RUNBOOK', matchedCaseIds: [] }), 'NO_RUNBOOK');
+    assert.throws(
+      () => classifyAutomationOutcome({ status: 'NO_RUNBOOK', matchedCaseIds: [] }),
+      /not a valid automatic worker outcome/,
+    );
     assert.strictEqual(
       classifyAutomationOutcome({ status: 'CONFIG-ERROR', matchedCaseIds: [] }),
       'CONFIGURATION_ERROR',

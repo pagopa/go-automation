@@ -18,7 +18,7 @@ export function buildAddressBookIoApiGwAlarmRunbook(): Runbook {
   return apigw.createApiGwAlarmRunbook({
     id: 'pn-address-book-io-IO-ApiGwAlarm',
     metadata: {
-      name: 'ANALISI ALLARME pn-address-book-io-IO-ApiGwAlarm',
+      name: 'pn-address-book-io-IO-ApiGwAlarm',
       description: 'Analizza gli allarmi API Gateway del microservizio pn-user-attributes',
       version: '3.0.0',
       type: 'alarm-resolution',

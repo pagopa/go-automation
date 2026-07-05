@@ -18,7 +18,7 @@ export function buildSlaViolationCheckerLambdaSqsRunbook(): Runbook {
   return lambda.createLambdaAlarmRunbook({
     id: 'pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm',
     metadata: {
-      name: 'ANALISI ALLARME pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm',
+      name: 'pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm',
       description: 'Analizza gli allarmi LogInvocationErrors della lambda pn-slaViolationCheckerLambda-SQS',
       version: '1.0.0',
       type: 'alarm-resolution',

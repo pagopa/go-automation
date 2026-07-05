@@ -17,6 +17,7 @@ export interface paths {
                 query?: {
                     alarmId?: string;
                     analysisId?: string;
+                    automationDecision?: "EXECUTION_CREATED" | "EXECUTION_POLICY_OFF" | "UNLINKED_ALARM" | "CATALOG_UNAVAILABLE" | "NO_CAPABILITY" | "SCOPE_CONFIGURATION_UNSAFE" | "SCOPE_DENIED" | "LEGACY_EVENT_NOT_EVALUATED";
                     awsAccountId?: string;
                     awsRegion?: string;
                     createdFrom?: string;
@@ -57,6 +58,9 @@ export interface paths {
                                 } | null;
                                 alarmId: string | null;
                                 analysisId: string | null;
+                                automationDecidedAt: string | null;
+                                automationDecision: string | null;
+                                automationDecisionMetadata: unknown;
                                 awsAccountId: string;
                                 awsRegion: string;
                                 /** Format: date-time */
@@ -147,6 +151,9 @@ export interface paths {
                             } | null;
                             alarmId: string | null;
                             analysisId: string | null;
+                            automationDecidedAt: string | null;
+                            automationDecision: string | null;
+                            automationDecisionMetadata: unknown;
                             awsAccountId: string;
                             awsRegion: string;
                             /** Format: date-time */
@@ -250,6 +257,9 @@ export interface paths {
                             } | null;
                             alarmId: string | null;
                             analysisId: string | null;
+                            automationDecidedAt: string | null;
+                            automationDecision: string | null;
+                            automationDecisionMetadata: unknown;
                             awsAccountId: string;
                             awsRegion: string;
                             /** Format: date-time */
@@ -391,6 +401,9 @@ export interface paths {
                             } | null;
                             alarmId: string | null;
                             analysisId: string | null;
+                            automationDecidedAt: string | null;
+                            automationDecision: string | null;
+                            automationDecisionMetadata: unknown;
                             awsAccountId: string;
                             awsRegion: string;
                             /** Format: date-time */
@@ -508,6 +521,9 @@ export interface paths {
                             } | null;
                             alarmId: string | null;
                             analysisId: string | null;
+                            automationDecidedAt: string | null;
+                            automationDecision: string | null;
+                            automationDecisionMetadata: unknown;
                             awsAccountId: string;
                             awsRegion: string;
                             /** Format: date-time */
@@ -1361,7 +1377,7 @@ export interface paths {
                     alarmId?: string;
                     environmentId?: string;
                     limit?: number;
-                    outcome?: "KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "NO_RUNBOOK" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR";
+                    outcome?: "KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "CAPABILITY_WITHDRAWN" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR";
                     page?: number;
                     productId?: string;
                     reviewStatus?: "NOT_REQUIRED" | "PENDING" | "CONFIRMED" | "REJECTED";
@@ -1401,7 +1417,7 @@ export interface paths {
                                 errorCode: string | null;
                                 errorMessage: string | null;
                                 id: string;
-                                outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "NO_RUNBOOK" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
+                                outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "CAPABILITY_WITHDRAWN" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
                                 parentExecutionId: string | null;
                                 productId: string;
                                 queryCount: number | null;
@@ -1481,7 +1497,7 @@ export interface paths {
                             errorCode: string | null;
                             errorMessage: string | null;
                             id: string;
-                            outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "NO_RUNBOOK" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
+                            outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "CAPABILITY_WITHDRAWN" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
                             parentExecutionId: string | null;
                             productId: string;
                             queryCount: number | null;
@@ -1576,6 +1592,7 @@ export interface paths {
                             cancelledAt: string | null;
                             cancelReason: string | null;
                             cancelRequestedAt: string | null;
+                            catalogRevision: string;
                             completedAt: string | null;
                             context: {
                                 alarmEventName: string;
@@ -1609,15 +1626,21 @@ export interface paths {
                             environmentId: string;
                             errorCode: string | null;
                             errorMessage: string | null;
+                            executedRunbookDigest: string | null;
+                            executedRunbookKey: string | null;
+                            executedRunbookVersion: string | null;
                             id: string;
                             inputSnapshot: unknown;
-                            outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "NO_RUNBOOK" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
+                            outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "CAPABILITY_WITHDRAWN" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
                             parentExecutionId: string | null;
                             productId: string;
                             queryCount: number | null;
                             queuedAt: string | null;
                             recordsMatched: string | null;
                             recordsScanned: string | null;
+                            requestedRunbookDigest: string;
+                            requestedRunbookKey: string;
+                            requestedRunbookVersion: string;
                             resultSummary: unknown;
                             reviewStatus: "NOT_REQUIRED" | "PENDING" | "CONFIRMED" | "REJECTED";
                             runbookKey: string | null;
@@ -1627,6 +1650,7 @@ export interface paths {
                             totalWorkerAttempts: number;
                             triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY" | "WATCHTOWER_CLI";
                             updatedAt: string;
+                            workerRevision: string;
                         };
                     };
                 };
@@ -1804,7 +1828,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED" | "CANNOT_RETRY_CLI";
+                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED" | "CANNOT_RETRY_CLI" | "RUNBOOK_CAPABILITY_MISMATCH";
                             status?: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                         };
                     };
@@ -1907,7 +1931,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED" | "CANNOT_RETRY_CLI";
+                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED" | "CANNOT_RETRY_CLI" | "RUNBOOK_CAPABILITY_MISMATCH";
                             status?: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                         };
                     };
@@ -1952,13 +1976,14 @@ export interface paths {
                         errorCode?: string;
                         errorMessage?: string;
                         failedStepId?: string;
-                        outcome: "KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "NO_RUNBOOK" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR";
+                        outcome: "KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "CAPABILITY_WITHDRAWN" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR";
                         queryCount?: number;
                         recordsMatched?: string;
                         recordsScanned?: string;
                         resultSummary?: unknown;
-                        runbookKey?: string;
-                        runbookVersion?: string;
+                        runbookDigest: string;
+                        runbookKey: string;
+                        runbookVersion: string;
                         tracking?: {
                             errorCode?: string;
                             errorDetail?: string;
@@ -1982,7 +2007,7 @@ export interface paths {
                             alreadyTerminal?: boolean;
                             analysisId?: string | null;
                             appliedMode?: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
-                            outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "NO_RUNBOOK" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
+                            outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "CAPABILITY_WITHDRAWN" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
                             staleAttempt?: boolean;
                             status: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                         };
@@ -2017,7 +2042,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED" | "CANNOT_RETRY_CLI";
+                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED" | "CANNOT_RETRY_CLI" | "RUNBOOK_CAPABILITY_MISMATCH";
                             status?: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                         };
                     };
@@ -2055,8 +2080,8 @@ export interface paths {
                 content: {
                     "application/json": {
                         approximateReceiveCount: number;
-                        errorCategory: "COMMAND" | "WORKER_CONFIGURATION" | "INTERNAL_INVARIANT";
-                        errorCode: "INVALID_COMMAND" | "UNSUPPORTED_COMMAND_VERSION" | "WORKER_CONFIGURATION_ERROR" | "INTERNAL_INVARIANT";
+                        errorCategory: "COMMAND" | "CAPABILITY" | "WORKER_CONFIGURATION" | "INTERNAL_INVARIANT";
+                        errorCode: "INVALID_COMMAND" | "UNSUPPORTED_COMMAND_VERSION" | "RUNBOOK_CAPABILITY_MISMATCH" | "WORKER_CONFIGURATION_ERROR" | "INTERNAL_INVARIANT";
                         errorMessage: string;
                         failedPhase: string;
                         /** @enum {boolean} */
@@ -2067,8 +2092,8 @@ export interface paths {
                     } | {
                         /** Format: uuid */
                         attemptId: string;
-                        errorCategory: "COMMAND" | "WORKER_CONFIGURATION" | "INTERNAL_INVARIANT";
-                        errorCode: "INVALID_COMMAND" | "UNSUPPORTED_COMMAND_VERSION" | "WORKER_CONFIGURATION_ERROR" | "INTERNAL_INVARIANT";
+                        errorCategory: "COMMAND" | "CAPABILITY" | "WORKER_CONFIGURATION" | "INTERNAL_INVARIANT";
+                        errorCode: "INVALID_COMMAND" | "UNSUPPORTED_COMMAND_VERSION" | "RUNBOOK_CAPABILITY_MISMATCH" | "WORKER_CONFIGURATION_ERROR" | "INTERNAL_INVARIANT";
                         errorMessage: string;
                         failedPhase: string;
                         /** @enum {boolean} */
@@ -2121,7 +2146,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED" | "CANNOT_RETRY_CLI";
+                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED" | "CANNOT_RETRY_CLI" | "RUNBOOK_CAPABILITY_MISMATCH";
                             status?: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                         };
                     };
@@ -2274,7 +2299,7 @@ export interface paths {
                             errorCode: string | null;
                             errorMessage: string | null;
                             id: string;
-                            outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "NO_RUNBOOK" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
+                            outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "CAPABILITY_WITHDRAWN" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
                             parentExecutionId: string | null;
                             productId: string;
                             queryCount: number | null;
@@ -2321,7 +2346,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED" | "CANNOT_RETRY_CLI";
+                            conflict: "IDEMPOTENCY_PAYLOAD_MISMATCH" | "CANCELLATION_REQUESTED" | "CANNOT_CANCEL_TERMINAL" | "CANCELLATION_REQUEST_MISMATCH" | "CANCELLATION_NOT_REQUESTED" | "CANNOT_RETRY_CLI" | "RUNBOOK_CAPABILITY_MISMATCH";
                             status?: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
                         };
                     };
@@ -2388,7 +2413,7 @@ export interface paths {
                             errorCode: string | null;
                             errorMessage: string | null;
                             id: string;
-                            outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "NO_RUNBOOK" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
+                            outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "CAPABILITY_WITHDRAWN" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
                             parentExecutionId: string | null;
                             productId: string;
                             queryCount: number | null;
@@ -2591,7 +2616,7 @@ export interface paths {
                                 errorCode: string | null;
                                 errorMessage: string | null;
                                 id: string;
-                                outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "NO_RUNBOOK" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
+                                outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "CAPABILITY_WITHDRAWN" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
                                 parentExecutionId: string | null;
                                 productId: string;
                                 queryCount: number | null;
@@ -2707,7 +2732,7 @@ export interface paths {
                                 errorCode: string | null;
                                 errorMessage: string | null;
                                 id: string;
-                                outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "NO_RUNBOOK" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
+                                outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "CAPABILITY_WITHDRAWN" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
                                 parentExecutionId: string | null;
                                 productId: string;
                                 queryCount: number | null;
@@ -2814,6 +2839,173 @@ export interface paths {
                             error: string;
                         };
                     };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/automatic-runbooks/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/automatic-runbooks/catalog/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/automatic-runbooks/catalog/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/automatic-runbooks/catalog/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/automatic-runbooks/catalog/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
                 };
             };
         };
@@ -3120,6 +3312,39 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/internal/automatic-runbooks/deployment-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/cli-token": {
         parameters: {
             query?: never;
@@ -3234,6 +3459,17 @@ export interface paths {
                 };
                 /** @description Default Response */
                 403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -6243,6 +6479,8 @@ export interface paths {
                             order: number;
                             productId: string;
                             slackChannelId: string | null;
+                            slackIngestorEnabled: boolean;
+                            slackParserId: string | null;
                             updatedAt: string;
                         }[];
                     };
@@ -6303,6 +6541,8 @@ export interface paths {
                         onCallAlarmPattern?: string;
                         order?: number;
                         slackChannelId?: string;
+                        slackIngestorEnabled?: boolean;
+                        slackParserId?: "amazon-q" | "opsgenie" | "email-sns" | "jsm";
                     };
                 };
             };
@@ -6324,6 +6564,8 @@ export interface paths {
                             order: number;
                             productId: string;
                             slackChannelId: string | null;
+                            slackIngestorEnabled: boolean;
+                            slackParserId: string | null;
                             updatedAt: string;
                         };
                     };
@@ -6409,6 +6651,8 @@ export interface paths {
                         onCallAlarmPattern?: string | null;
                         order?: number;
                         slackChannelId?: string | null;
+                        slackIngestorEnabled?: boolean;
+                        slackParserId?: "amazon-q" | "opsgenie" | "email-sns" | "jsm" | null;
                     };
                 };
             };
@@ -6430,6 +6674,8 @@ export interface paths {
                             order: number;
                             productId: string;
                             slackChannelId: string | null;
+                            slackIngestorEnabled: boolean;
+                            slackParserId: string | null;
                             updatedAt: string;
                         };
                     };
@@ -6603,6 +6849,8 @@ export interface paths {
                                 order: number;
                                 productId: string;
                                 slackChannelId: string | null;
+                                slackIngestorEnabled: boolean;
+                                slackParserId: string | null;
                                 updatedAt: string;
                             }[];
                             finalActions: {
@@ -9684,6 +9932,467 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/api/slack-ingestor/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slack-ingestor/channels/{environmentId}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    environmentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slack-ingestor/control": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slack-ingestor/control/exclusions/alarms/{alarmId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    alarmId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    alarmId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slack-ingestor/control/exclusions/runbooks/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slack-ingestor/control/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slack-ingestor/control/presets/only-alarm/{alarmId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    alarmId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slack-ingestor/control/presets/only-runbook/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slack-ingestor/control/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slack-ingestor/control/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slack-ingestor/decision-stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slack-ingestor/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/system-events": {

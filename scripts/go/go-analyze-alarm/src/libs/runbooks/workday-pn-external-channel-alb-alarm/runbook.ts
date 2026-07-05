@@ -17,7 +17,7 @@ export function buildWorkdayPnExternalChannelAlbAlarmRunbook(): Runbook {
   return service.createServiceAlarmRunbook({
     id: 'workday-pn-external-channel-alb-alarm',
     metadata: {
-      name: 'ANALISI ALLARME workday-pn-external-channel-alb-alarm',
+      name: 'workday-pn-external-channel-alb-alarm',
       description:
         'Gestire in modo standardizzato gli allarmi generati sul servizio pn-external-channel tramite analisi dei log applicativi.',
       version: '1.0.0',

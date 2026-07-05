@@ -28,6 +28,13 @@ describe('go-ExecuteRunbookLambda handler', () => {
         awsAccountId: '170533023216',
         awsRegion: 'eu-south-1',
       },
+      runbook: {
+        key: 'alarm',
+        version: '1.0.0',
+        definitionDigest: `sha256-${'a'.repeat(64)}`,
+        catalogRevision: `sha256-${'b'.repeat(64)}`,
+        workerRevision: 'build-abc123',
+      },
       trigger: { kind: 'SLACK_INGESTOR' },
     });
     const execute = async (): Promise<ExecuteRunbookResult> => {
@@ -98,6 +105,42 @@ describe('go-ExecuteRunbookLambda handler', () => {
     assert.deepStrictEqual(result, { batchItemFailures: [] });
     assert.strictEqual(failKey, 'fail:0192c000-0000-7000-8000-000000000001:message-1:1:UNSUPPORTED_COMMAND_VERSION');
   });
+
+  it('ACKs a capability mismatch only after the terminal PRE_START callback', async () => {
+    let failureBody: { readonly errorCode?: string; readonly errorCategory?: string } | undefined;
+    const deps = {
+      watchtower: {
+        failExecution: async (_id: string, body: typeof failureBody) => {
+          await Promise.resolve();
+          failureBody = body;
+          return { status: 'FAILED' };
+        },
+      },
+    } as unknown as ExecuteRunbookDeps;
+    const execute = async (): Promise<ExecuteRunbookResult> => {
+      await Promise.resolve();
+      throw Object.assign(new Error('mismatch'), { workerFailureCode: 'RUNBOOK_CAPABILITY_MISMATCH' as const });
+    };
+
+    const result = await processExecuteRunbookBatch(
+      sqsEvent(JSON.stringify(validCommand())),
+      deps,
+      () => 60_000,
+      execute,
+    );
+
+    assert.deepStrictEqual(result, { batchItemFailures: [] });
+    assert.deepStrictEqual(failureBody, {
+      scope: 'PRE_START',
+      errorCategory: 'CAPABILITY',
+      errorCode: 'RUNBOOK_CAPABILITY_MISMATCH',
+      errorMessage: 'mismatch',
+      failedPhase: 'CAPABILITY_VALIDATION',
+      retryable: false,
+      sqsMessageId: 'message-1',
+      approximateReceiveCount: 1,
+    });
+  });
 });
 
 function sqsEvent(body: string): SQSEvent {
@@ -136,6 +179,13 @@ function validCommand(): Readonly<Record<string, unknown>> {
       firedAt: '2026-06-22T10:00:00.000Z',
       awsAccountId: '170533023216',
       awsRegion: 'eu-south-1',
+    },
+    runbook: {
+      key: 'alarm',
+      version: '1.0.0',
+      definitionDigest: `sha256-${'a'.repeat(64)}`,
+      catalogRevision: `sha256-${'b'.repeat(64)}`,
+      workerRevision: 'build-abc123',
     },
     trigger: { kind: 'SLACK_INGESTOR' },
   };

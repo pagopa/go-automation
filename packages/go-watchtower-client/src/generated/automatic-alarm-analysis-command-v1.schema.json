@@ -55,6 +55,39 @@
       "format": "uuid",
       "type": "string"
     },
+    "runbook": {
+      "additionalProperties": false,
+      "properties": {
+        "catalogRevision": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "definitionDigest": {
+          "pattern": "^sha256[-:][0-9a-fA-F]{32,}$",
+          "type": "string"
+        },
+        "key": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "workerRevision": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "version",
+        "definitionDigest",
+        "catalogRevision",
+        "workerRevision"
+      ],
+      "type": "object"
+    },
     "schemaVersion": {
       "const": "1.0.0",
       "type": "string"
@@ -105,6 +138,7 @@
     "schemaVersion",
     "executionId",
     "alarmEvent",
+    "runbook",
     "trigger"
   ],
   "type": "object"
