@@ -58,13 +58,13 @@ export async function waitForWatchtowerDeploymentStatus(input: {
       tokenWasJustRefreshed = true;
       continue;
     }
+    tokenWasJustRefreshed = false;
     if (result.kind === 'transient') {
       lastTransientDetail = result.detail;
       console.warn(`Watchtower deployment status unavailable: ${result.detail}; retrying until timeout`);
       await delay(POLL_INTERVAL_MS);
       continue;
     }
-    tokenWasJustRefreshed = false;
     const status = result.status;
     if (status.catalogRevisionObserved && (!input.requireDrained || status.inFlightExecutions === 0)) return;
     const progress = status.catalogRevisionObserved
