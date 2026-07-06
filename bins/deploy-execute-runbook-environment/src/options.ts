@@ -30,7 +30,7 @@ export function parseOptions(args: ReadonlyArray<string>): EnvironmentDeployOpti
   const flags = new Set<string>();
   for (let index = 0; index < args.length; index += 1) {
     const name = args[index];
-    if (name === undefined || !name.startsWith('--')) throw new Error(`Unexpected argument: ${name ?? ''}`);
+    if (!name?.startsWith('--')) throw new Error(`Unexpected argument: ${name ?? ''}`);
     if (FLAG_OPTIONS.has(name)) {
       flags.add(name);
       continue;
