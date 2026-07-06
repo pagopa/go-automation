@@ -52,8 +52,9 @@ export function diffCatalog(
     return before !== undefined && after !== undefined && canonicalizeJson(before) !== canonicalizeJson(after);
   });
   const incompatibleChanged = changed.filter((key) => {
-    const before = previous.get(key)!; // Safe: changed only contains keys present in both catalogs
-    const after = incoming.get(key)!; // Safe: changed only contains keys present in both catalogs
+    const before = previous.get(key);
+    const after = incoming.get(key);
+    if (before === undefined || after === undefined) return false;
     return (
       before.version !== after.version ||
       before.definitionDigest !== after.definitionDigest ||
