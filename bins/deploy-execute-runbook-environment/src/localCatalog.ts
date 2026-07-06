@@ -1,3 +1,4 @@
+import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -6,7 +7,7 @@ import type { AutomaticRunbookCatalogV1, AutomaticRunbookDescriptorV1 } from './
 
 export interface LocalCatalogOptions {
   readonly environment: string;
-  readonly output: string;
+  readonly output?: string;
   readonly changeNote: string;
   readonly artifactRevision?: string;
 }
@@ -32,16 +33,26 @@ export function parseLocalCatalogOptions(args: ReadonlyArray<string>): LocalCata
   }
   const outputValue = values.get('--output');
   if (outputValue === '') throw new Error('--output cannot be empty');
-  const output = resolve(outputValue ?? join(tmpdir(), 'go-automatic-runbook-catalog.json'));
+  const output = outputValue === undefined ? undefined : resolve(outputValue);
   const changeNote = values.get('--change-note') ?? 'Local development catalog';
   const artifactRevision = values.get('--artifact-revision');
   if (changeNote.trim() === '') throw new Error('--change-note cannot be empty');
   if (artifactRevision?.trim() === '') {
     throw new Error('--artifact-revision cannot be empty');
   }
-  return artifactRevision === undefined
-    ? { environment, output, changeNote }
-    : { environment, output, changeNote, artifactRevision };
+  return {
+    environment,
+    changeNote,
+    ...(output === undefined ? {} : { output }),
+    ...(artifactRevision === undefined ? {} : { artifactRevision }),
+  };
+}
+
+/** Creates a private, unique temporary directory when no explicit output path was requested. */
+export async function createLocalCatalogOutputPath(output: string | undefined): Promise<string> {
+  if (output !== undefined) return output;
+  const directory = await mkdtemp(join(tmpdir(), 'go-automatic-runbook-catalog-'));
+  return join(directory, 'catalog.json');
 }
 
 export function buildLocalCatalog(input: {
