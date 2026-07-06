@@ -14,8 +14,8 @@ import {
 import { canonicalizeJson } from './canonicalJson.js';
 
 const SHA_256_PATTERN = /^sha256-[a-f0-9]{64}$/;
-const SEMVER_PATTERN =
-  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+const SEMVER_CORE_IDENTIFIER_PATTERN = /^(?:0|[1-9][0-9]*)$/;
+const SEMVER_SUFFIX_IDENTIFIER_PATTERN = /^[0-9A-Za-z-]+$/;
 const CATEGORY_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 
 export function canonicalizeAutomaticRunbookCatalogPayload(payload: AutomaticRunbookCatalogRevisionPayloadV1): string {
@@ -73,7 +73,7 @@ function validateRevisionPayload(payload: AutomaticRunbookCatalogRevisionPayload
 
 function validateDescriptor(descriptor: AutomaticRunbookDescriptorV1): void {
   if (descriptor.key.trim() === '') throw new Error('Automatic runbook key is required');
-  if (!SEMVER_PATTERN.test(descriptor.version)) throw new Error(`Invalid runbook SemVer: ${descriptor.key}`);
+  if (!isSemver(descriptor.version)) throw new Error(`Invalid runbook SemVer: ${descriptor.key}`);
   if (descriptor.name.trim() === '') throw new Error(`Runbook name is required: ${descriptor.key}`);
   if (descriptor.team.trim() === '') throw new Error(`Runbook team is required: ${descriptor.key}`);
   if (!Object.values(AutomaticRunbookKinds).includes(descriptor.kind)) {
@@ -94,6 +94,26 @@ function validateDescriptor(descriptor: AutomaticRunbookDescriptorV1): void {
   if (!SHA_256_PATTERN.test(descriptor.definitionDigest)) {
     throw new Error(`Invalid runbook definitionDigest: ${descriptor.key}`);
   }
+}
+
+function isSemver(value: string): boolean {
+  const buildSeparator = value.indexOf('+');
+  if (buildSeparator !== -1 && value.indexOf('+', buildSeparator + 1) !== -1) return false;
+  const versionAndPrerelease = buildSeparator === -1 ? value : value.slice(0, buildSeparator);
+  const build = buildSeparator === -1 ? undefined : value.slice(buildSeparator + 1);
+  if (build !== undefined && !hasValidSemverIdentifiers(build)) return false;
+
+  const prereleaseSeparator = versionAndPrerelease.indexOf('-');
+  const core = prereleaseSeparator === -1 ? versionAndPrerelease : versionAndPrerelease.slice(0, prereleaseSeparator);
+  const prerelease = prereleaseSeparator === -1 ? undefined : versionAndPrerelease.slice(prereleaseSeparator + 1);
+  if (prerelease !== undefined && !hasValidSemverIdentifiers(prerelease)) return false;
+
+  const coreIdentifiers = core.split('.');
+  return coreIdentifiers.length === 3 && coreIdentifiers.every((part) => SEMVER_CORE_IDENTIFIER_PATTERN.test(part));
+}
+
+function hasValidSemverIdentifiers(value: string): boolean {
+  return value.split('.').every((part) => SEMVER_SUFFIX_IDENTIFIER_PATTERN.test(part));
 }
 
 function validatePublication(publishedAt: string, actorArn: string, changeNote: string): void {
