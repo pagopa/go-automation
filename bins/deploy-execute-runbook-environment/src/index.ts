@@ -77,7 +77,7 @@ async function main(): Promise<void> {
   }
   logStep(`preflight ok: environment ${options.environment}, regions ${options.regions.join(', ')}`);
 
-  const control = regionalDeployments.get(EXECUTE_RUNBOOK_REGISTRY_CONTROL_REGION)!; // Safe: parseOptions requires the control region in --regions
+  const control = deploymentForRegion(regionalDeployments, EXECUTE_RUNBOOK_REGISTRY_CONTROL_REGION);
   const accountId = accountIdFromArn(control.watchtowerBackendRoleArn);
   const actorArn = options.dryRun
     ? 'dry-run'
@@ -139,8 +139,12 @@ async function main(): Promise<void> {
     }
     for (const region of driftedRegions) {
       logStep(`redeploying drifted region ${region}`);
-      // Safe: orderedRegions only contains regions loaded in the preflight loop
-      await deployRegion(region, options.environment, artifactRevision, regionalDeployments.get(region)!.values);
+      await deployRegion(
+        region,
+        options.environment,
+        artifactRevision,
+        deploymentForRegion(regionalDeployments, region).values,
+      );
       await verifyWorker(region, artifactRevision);
       logStep(`${region} verified at ${artifactRevision}`);
     }
@@ -175,8 +179,12 @@ async function main(): Promise<void> {
 
   for (const region of orderedRegions) {
     logStep(`deploying ${region}`);
-    // Safe: orderedRegions only contains regions loaded in the preflight loop
-    await deployRegion(region, options.environment, artifactRevision, regionalDeployments.get(region)!.values);
+    await deployRegion(
+      region,
+      options.environment,
+      artifactRevision,
+      deploymentForRegion(regionalDeployments, region).values,
+    );
     await verifyWorker(region, artifactRevision);
     logStep(`${region} verified at ${artifactRevision}`);
   }
@@ -202,6 +210,12 @@ async function waitForWatchtower(
     timeoutMs,
     requireDrained,
   });
+}
+
+function deploymentForRegion(deployments: ReadonlyMap<string, RegionalDeployment>, region: string): RegionalDeployment {
+  const deployment = deployments.get(region);
+  if (deployment === undefined) throw new Error(`No preflight deployment configuration for ${region}`);
+  return deployment;
 }
 
 function logStep(message: string): void {
