@@ -69,6 +69,10 @@ Parameters:
     Type: String
     Description: 'The name of the S3 bucket where Lambda logs will be stored'
 
+  DataMonitoringBucketName:
+    Type: String
+    Description: 'The name of the S3 bucket where data monitoring files will be stored'
+
   GoReportBucketName:
     Type: String
     Description: 'The name of the S3 bucket where reports will be stored'
@@ -239,6 +243,18 @@ Resources:
                   - kms:Decrypt
                 Resource:
                   - !Ref LogsBucketKmsKeyArn
+        - PolicyName: DataMonitoringBucketAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${DataMonitoringBucketName}'
+                  - !Sub 'arn:aws:s3:::${DataMonitoringBucketName}/*'
 
   GoSendMonitorAthenaQueryLambdaSchedulerRole:
     Type: AWS::IAM::Role
