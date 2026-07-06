@@ -163,12 +163,7 @@
       "values": {
         "from": null,
         "to": null,
-        "time": {
-          "lookback": {
-            "hours": 24
-          },
-          "zone": "Europe/Rome"
-        },
+        "time": null,
         "aws": {
           "profile": "sso_pn-core-test-FullAdmin",
           "region": "eu-south-1"
@@ -221,7 +216,7 @@
           "channel": "C09S6NBBBQF",
           "send": {
             "on": {
-              "empty": true,
+              "empty": false,
               "error": true
             }
           },
