@@ -107,6 +107,19 @@ Parameters:
       - 'false'
     Description: 'Enable/disable EventBridge schedule for multicanalita preset (default disabled = never)'
 
+  GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleEnabled:
+    Type: String
+    Default: 'DISABLED'
+    AllowedValues:
+      - 'ENABLED'
+      - 'DISABLED'
+    Description: 'Enable/disable EventBridge schedule for critical notification monitoring preset (default disabled = never)'
+
+  GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleExpression:
+    Type: String
+    Default: 'cron(15 12,18 ? * MON-FRI *)'
+    Description: 'Schedule expression for critical notification monitoring preset. Effective only when schedule is enabled'
+
 Conditions:
   GoSendMonitorAthenaQueryLambdaScheduleEnabledCondition:
     !Equals [!Ref GoSendMonitorAthenaQueryLambdaScheduleEnabled, 'true']
@@ -222,6 +235,29 @@ Resources:
                 Resource:
                   - !Ref LogsBucketKmsKeyArn
 
+  GoSendMonitorAthenaQueryLambdaSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - scheduler.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: GoSendMonitorAthenaQueryLambdaSchedulerInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt GoSendMonitorAthenaQueryLambda.Arn
+
   GoSendMonitorAthenaQueryLambdaAlarms:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -261,3 +297,17 @@ Resources:
         - Id: GoSendMonitorAthenaQueryLambdaTargetMulticanalita
           Arn: !GetAtt GoSendMonitorAthenaQueryLambda.Arn
           Input: '{"body":{"script.preset.name":"multicanalita"}}'
+
+  GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduler:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Description: 'Scheduler for GoSendMonitorAthenaQueryLambda (critical-notification-monitoring preset)'
+      ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleExpression
+      ScheduleExpressionTimezone: !Ref Timezone
+      State: !Ref GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleEnabled
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      Target:
+        Arn: !GetAtt GoSendMonitorAthenaQueryLambda.Arn
+        RoleArn: !GetAtt GoSendMonitorAthenaQueryLambdaSchedulerRole.Arn
+        Input: '{"body":{"script.preset.name":"critical-notification-monitoring"}}'
