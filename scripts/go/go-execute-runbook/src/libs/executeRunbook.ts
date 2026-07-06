@@ -288,25 +288,22 @@ function buildCompleteRequest(
   output: RunbookOutput | undefined,
   input: ExecuteRunbookInput,
 ): CompleteExecutionRequest {
-  const stats = output?.telemetry?.cloudWatchLogs?.statistics;
+  if (output === undefined) throw new Error('Runbook output is required to complete an execution');
+  const stats = output.telemetry?.cloudWatchLogs?.statistics;
   return {
     attemptId,
     outcome: classifyAutomationOutcome(check),
-    ...(output === undefined
-      ? {}
-      : {
-          runbookKey: output.runbook.id,
-          runbookVersion: output.runbook.version,
-          runbookDigest: inputDigestForOutput(output, input),
-          engineExecutionId: output.execution.executionId,
-          analysisPayload: output,
-          resultSummary: check,
-          tracking: buildTrackingEntries(output),
-        }),
+    runbookKey: output.runbook.id,
+    runbookVersion: output.runbook.version,
+    runbookDigest: inputDigestForOutput(output, input),
+    engineExecutionId: output.execution.executionId,
+    analysisPayload: output,
+    resultSummary: check,
+    tracking: buildTrackingEntries(output),
     ...(stats === undefined
       ? {}
       : {
-          queryCount: output?.telemetry?.cloudWatchLogs?.queryCount ?? 0,
+          queryCount: output.telemetry?.cloudWatchLogs?.queryCount ?? 0,
           bytesScanned: decimalMetric(stats.bytesScanned),
           recordsScanned: decimalMetric(stats.recordsScanned),
           recordsMatched: decimalMetric(stats.recordsMatched),
