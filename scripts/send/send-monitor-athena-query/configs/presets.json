@@ -190,7 +190,7 @@
               "ms": 10000
             }
           },
-          "query": "WITH trackings AS (\n  SELECT\n    t.*,\n    ROW_NUMBER() OVER (\n      PARTITION BY t.trackingId\n      ORDER BY t.updatedAt DESC\n    ) AS rn\n  FROM \"pn_paper_trackings_json_view\" t\n  WHERE p_year = '{{startYear}}'\n    AND p_month = '{{startMonth}}'\n    AND p_day = '{{startDay}}'\n),\nerrors AS (\n  SELECT e.*\n  FROM \"pn_paper_trackings_errors_json_view\" e\n  WHERE p_year = '{{startYear}}'\n    AND p_month = '{{startMonth}}'\n    AND p_day = '{{startDay}}'\n),\nlatest_trackings AS (\n  SELECT *\n  FROM trackings\n  WHERE rn = 1\n),\nerrors_with_trackings AS (\n  SELECT\n    latest_trackings.*,\n    errors.category AS errorCategory,\n    errors.productType AS errorProductType\n  FROM errors\n  LEFT JOIN latest_trackings\n    ON latest_trackings.trackingId = errors.trackingId\n  WHERE errors.type = 'ERROR'\n)\nSELECT\n  errorProductType AS prodotto,\n  errorCategory,\n  unifiedDeliveryDriver AS recapitista,\n  COUNT(*) AS numero_errori\nFROM errors_with_trackings\nGROUP BY errorProductType, errorCategory, unifiedDeliveryDriver\nORDER BY numero_errori DESC;\n"
+          "query": "WITH local_time AS ( SELECT CAST(current_timestamp AT TIME ZONE 'Europe/Rome' AS timestamp) AS now ), target_window AS ( SELECT CASE WHEN extract(hour FROM now) >= 17 THEN date_trunc('day', now) + INTERVAL '12' HOUR WHEN day_of_week(now) = 1 THEN date_trunc('day', now) - INTERVAL '3' DAY + INTERVAL '17' HOUR ELSE date_trunc('day', now) - INTERVAL '1' DAY + INTERVAL '17' HOUR END AS start_time, CASE WHEN extract(hour FROM now) >= 17 THEN date_trunc('day', now) + INTERVAL '17' HOUR ELSE date_trunc('day', now) + INTERVAL '12' HOUR END AS end_time FROM local_time ), hours_sequence AS ( SELECT h.hour_ts FROM target_window CROSS JOIN UNNEST(sequence(start_time, end_time - INTERVAL '1' HOUR, INTERVAL '1' HOUR)) AS h(hour_ts) ), partition_filters AS ( SELECT format('%04d', extract(year FROM hour_ts)) AS p_year, format('%02d', extract(month FROM hour_ts)) AS p_month, format('%02d', extract(day FROM hour_ts)) AS p_day, format('%02d', extract(hour FROM hour_ts)) AS p_hour FROM hours_sequence ) SELECT t.nome, t.cognome, t.eta FROM il_nome_della_tua_tabella t JOIN partition_filters f ON t.year = f.p_year AND t.month = f.p_month AND t.day = f.p_day AND t.hour = f.p_hour;"
         },
         "template": {
           "params": [],
@@ -218,7 +218,7 @@
         },
         "slack": {
           "token": null,
-          "channel": "C09SAJLEYJV",
+          "channel": "C09S6NBBBQF",
           "send": {
             "on": {
               "empty": true,
@@ -226,7 +226,7 @@
             }
           },
           "message": {
-            "template": "*Report Critical Monitoring*\n\n*Data analizzata:*\n• {{startYear}}-{{startMonth}}-{{startDay}}\n\n*Errori aggregati:*\n• Righe risultato: {{rowCount}}\n• Aggregazione: prodotto, categoria errore, recapitista\n• Ordinamento: numero errori decrescente\n• File generato: `{{fileName}}`\n\n*Analisi preliminare:*\n{{analysis}}\n\n_Report generato il {{timestamp}}_\n"
+            "template": "*Report Critical Monitoring*\n\n* Righe risultato: {{rowCount}}\n• Aggregazione: requestId, codiceOggetto, recapitista, cap\n• File generato: `{{fileName}}`\n\n*Analisi preliminare:*\n{{analysis}}\n\n_Report generato il {{timestamp}}_\n"
           }
         },
         "analysis": {
