@@ -28,8 +28,11 @@ export type RunbookCapabilityMismatchError = Error & {
 export function assertRunbookCapability(input: ExecuteRunbookInput, workerRevision = 'unknown'): void {
   const resolved = AUTOMATIC_RUNBOOK_REGISTRY.resolveByKey(input.runbook.key);
   const descriptor = resolved?.descriptor;
+  if (descriptor === undefined) {
+    return throwCapabilityMismatch({ requested: input.runbook, workerRevision });
+  }
   const matches =
-    descriptor?.version === input.runbook.version &&
+    descriptor.version === input.runbook.version &&
     descriptor.definitionDigest === input.runbook.definitionDigest &&
     descriptor.alarmNames.includes(input.alarmEvent.alarmName);
   if (matches) return;
@@ -37,16 +40,12 @@ export function assertRunbookCapability(input: ExecuteRunbookInput, workerRevisi
   const details: RunbookCapabilityMismatchDetails = {
     requested: input.runbook,
     workerRevision,
-    ...(descriptor === undefined
-      ? {}
-      : {
-          actual: {
-            key: descriptor.key,
-            version: descriptor.version,
-            definitionDigest: descriptor.definitionDigest,
-            alarmNames: descriptor.alarmNames,
-          },
-        }),
+    actual: {
+      key: descriptor.key,
+      version: descriptor.version,
+      definitionDigest: descriptor.definitionDigest,
+      alarmNames: descriptor.alarmNames,
+    },
   };
   return throwCapabilityMismatch(details);
 }
