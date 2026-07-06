@@ -34,16 +34,19 @@ interface SentCommand {
   readonly input: Readonly<Record<string, unknown>>;
 }
 
-function fakeS3Client(handler: (name: string, input: Readonly<Record<string, unknown>>) => unknown): {
+type FakeS3Handler = (name: string, input: Readonly<Record<string, unknown>>) => unknown;
+
+function fakeS3Client(handler: FakeS3Handler): {
   readonly client: S3Client;
   readonly sent: SentCommand[];
 } {
   const sent: SentCommand[] = [];
   const client = {
-    send: (command: { readonly input: Readonly<Record<string, unknown>> }) => {
+    send: async (command: { readonly input: Readonly<Record<string, unknown>> }) => {
       const name = command.constructor.name;
       sent.push({ name, input: command.input });
-      return Promise.resolve(handler(name, command.input));
+      const result = await handler(name, command.input);
+      return result;
     },
   } as unknown as S3Client; // Safe: publish.ts only calls client.send
   return { client, sent };
@@ -61,7 +64,16 @@ describe('catalog publication', () => {
     const body = serializeCatalog(CATALOG);
     const { client } = fakeS3Client((name) => {
       if (name === 'HeadObjectCommand') return { ETag: '"etag-1"', VersionId: 'v1' };
-      if (name === 'GetObjectCommand') return { Body: { transformToString: () => Promise.resolve(body) } };
+      if (name === 'GetObjectCommand') {
+        return {
+          Body: {
+            transformToString: async () => {
+              const result = await Promise.resolve(body);
+              return result;
+            },
+          },
+        };
+      }
       throw new Error(`Unexpected command ${name}`);
     });
     const current = await readCurrentCatalog(client, 'bucket', 'key');
@@ -77,7 +89,16 @@ describe('catalog publication', () => {
         storedBody = input['Body'] as string; // Safe: publishCatalog always sends a string body
         return { ETag: '"etag-2"', VersionId: 'v2' };
       }
-      if (name === 'GetObjectCommand') return { Body: { transformToString: () => Promise.resolve(storedBody) } };
+      if (name === 'GetObjectCommand') {
+        return {
+          Body: {
+            transformToString: async () => {
+              const result = await Promise.resolve(storedBody);
+              return result;
+            },
+          },
+        };
+      }
       throw new Error(`Unexpected command ${name}`);
     });
     const first = await publishCatalog(client, 'bucket', 'key', CATALOG, undefined);
@@ -94,7 +115,16 @@ describe('catalog publication', () => {
   it('rejects a publish whose read-back bytes differ', async () => {
     const { client } = fakeS3Client((name) => {
       if (name === 'PutObjectCommand') return { ETag: '"etag-3"' };
-      if (name === 'GetObjectCommand') return { Body: { transformToString: () => Promise.resolve('{}') } };
+      if (name === 'GetObjectCommand') {
+        return {
+          Body: {
+            transformToString: async () => {
+              const result = await Promise.resolve('{}');
+              return result;
+            },
+          },
+        };
+      }
       throw new Error(`Unexpected command ${name}`);
     });
     await assert.rejects(publishCatalog(client, 'bucket', 'key', CATALOG, undefined), /bytes do not match/u);
