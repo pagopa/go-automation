@@ -285,10 +285,9 @@ function scopedServices(
 function buildCompleteRequest(
   attemptId: string,
   check: RunbookCheck,
-  output: RunbookOutput | undefined,
+  output: RunbookOutput,
   input: ExecuteRunbookInput,
 ): CompleteExecutionRequest {
-  if (output === undefined) throw new Error('Runbook output is required to complete an execution');
   const stats = output.telemetry?.cloudWatchLogs?.statistics;
   return {
     attemptId,
