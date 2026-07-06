@@ -1,6 +1,7 @@
 {
   "Parameters": {
     "AthenaDatabase": "cdc_analytics_database",
+    "CriticalMonitoringAthenaDatabase": "monitoring_database",
     "AthenaCatalog": "AwsDataCatalog",
     "AthenaWorkgroup": "cdc_analytics_workgroup",
     "AthenaOutputBucket": "pn-cdc-analytics-athena-results-eu-south-1-830192246553-001",

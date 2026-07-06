@@ -26,6 +26,10 @@ Parameters:
     Type: String
     Description: 'The name of the Athena database to query'
 
+  CriticalMonitoringAthenaDatabase:
+    Type: String
+    Description: 'The name of the Athena database to query for critical monitoring'
+
   AthenaCatalog:
     Type: String
     Description: 'The name of the Athena catalog to use'
@@ -141,7 +145,6 @@ Resources:
       MemorySize: !Ref GoSendMonitorAthenaQueryLambdaMemorySize
       Environment:
         Variables:
-          ATHENA_DATABASE: !Ref AthenaDatabase
           ATHENA_CATALOG: !Ref AthenaCatalog
           ATHENA_WORKGROUP: !Ref AthenaWorkgroup
           ATHENA_OUTPUT_LOCATION: !Sub 's3://${AthenaOutputBucket}/'
@@ -199,6 +202,8 @@ Resources:
                   - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog'
                   - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/${AthenaDatabase}'
                   - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/${AthenaDatabase}/*'
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/${CriticalMonitoringAthenaDatabase}'
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/${CriticalMonitoringAthenaDatabase}/*'
         - PolicyName: GoSendMonitorAthenaQueryLambdaS3Access
           PolicyDocument:
             Version: '2012-10-17'
