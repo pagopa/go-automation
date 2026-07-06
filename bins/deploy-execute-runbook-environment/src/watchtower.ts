@@ -36,12 +36,12 @@ export async function waitForWatchtowerDeploymentStatus(input: {
   if (input.runbookKeys.length > 0) query.set('runbookKeys', input.runbookKeys.join(','));
   const statusUrl = `${normalizeBaseUrl(input.baseUrl)}/api/internal/automatic-runbooks/deployment-status?${query.toString()}`;
   const deadline = Date.now() + input.timeoutMs;
-  let token: string | undefined;
+  let authentication: { readonly token: string } | undefined;
   let tokenWasJustRefreshed = false;
   let lastTransientDetail: string | undefined;
   let lastProgressSummary: string | undefined;
   while (Date.now() < deadline) {
-    if (token === undefined) {
+    if (authentication === undefined) {
       const loginResult = await login(input.baseUrl, password);
       if (loginResult.kind === 'transient') {
         lastTransientDetail = loginResult.detail;
@@ -49,12 +49,12 @@ export async function waitForWatchtowerDeploymentStatus(input: {
         await delay(POLL_INTERVAL_MS);
         continue;
       }
-      token = loginResult.token;
+      authentication = { token: loginResult.token };
     }
-    const result = await pollDeploymentStatus(statusUrl, token);
+    const result = await pollDeploymentStatus(statusUrl, authentication.token);
     if (result.kind === 'unauthorized') {
       if (tokenWasJustRefreshed) throw new Error('Watchtower rejected a freshly issued service token');
-      token = undefined;
+      authentication = undefined;
       tokenWasJustRefreshed = true;
       continue;
     }

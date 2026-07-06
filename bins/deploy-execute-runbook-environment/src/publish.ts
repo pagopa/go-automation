@@ -17,7 +17,9 @@ export async function readCurrentCatalog(
   try {
     const head = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
     const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key, VersionId: head.VersionId }));
-    const catalog = JSON.parse(await object.Body!.transformToString()) as AutomaticRunbookCatalogV1;
+    const objectBody = object.Body;
+    if (objectBody === undefined) throw new Error('Current catalog has no body');
+    const catalog = JSON.parse(await objectBody.transformToString()) as AutomaticRunbookCatalogV1;
     validateAutomaticRunbookCatalog(catalog);
     if (head.ETag === undefined) throw new Error('Current catalog has no ETag');
     return { catalog, etag: head.ETag, ...(head.VersionId === undefined ? {} : { versionId: head.VersionId }) };
@@ -48,7 +50,9 @@ export async function publishCatalog(
     }),
   );
   const verified = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key, VersionId: result.VersionId }));
-  const remoteBody = await verified.Body!.transformToString();
+  const verifiedBody = verified.Body;
+  if (verifiedBody === undefined) throw new Error('Published catalog has no body');
+  const remoteBody = await verifiedBody.transformToString();
   if (remoteBody !== body) throw new Error('Published catalog bytes do not match the generated catalog');
   const etag = result.ETag;
   if (etag === undefined) throw new Error('Published catalog has no ETag');
