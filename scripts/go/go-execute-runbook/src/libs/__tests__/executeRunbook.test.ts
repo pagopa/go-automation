@@ -55,6 +55,22 @@ describe('executeRunbook', () => {
     assert.doesNotThrow(() => assertRunbookCapability(INPUT));
   });
 
+  it('reports the pinned worker revision for local capability mismatches', () => {
+    assert.throws(
+      () =>
+        assertRunbookCapability({
+          ...INPUT,
+          runbook: { ...INPUT.runbook, definitionDigest: `sha256-${'0'.repeat(64)}` },
+        }),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        const details = (error as { readonly details?: { readonly workerRevision?: unknown } }).details;
+        assert.strictEqual(details?.workerRevision, INPUT.runbook.workerRevision);
+        return true;
+      },
+    );
+  });
+
   it('ACKs ALREADY_RUNNING without starting the engine or a terminal callback', async () => {
     let completeCalls = 0;
     const deps = fakeDeps({
