@@ -27,8 +27,8 @@ export interface ExecuteRunbookDryRunResult {
   readonly executionId: string;
   readonly outcome: AutomaticRunbookOutcome;
   readonly check: RunbookCheck;
-  readonly runbookKey?: string;
-  readonly runbookVersion?: string;
+  readonly runbookKey: string;
+  readonly runbookVersion: string;
 }
 
 export interface ExecuteRunbookDryRunOptions {
