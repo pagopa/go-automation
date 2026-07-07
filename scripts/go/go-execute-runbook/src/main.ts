@@ -67,9 +67,7 @@ export async function main(script: Core.GOScript): Promise<void> {
         signal: abortController.signal,
       });
       script.logger.info(
-        `[dry-run] Execution ${result.executionId}: ${result.outcome} (${result.check.status})${
-          result.runbookKey === undefined ? '' : ` runbook=${result.runbookKey}@${result.runbookVersion ?? 'unknown'}`
-        }`,
+        `[dry-run] Execution ${result.executionId}: ${result.outcome} (${result.check.status}) runbook=${result.runbookKey}@${result.runbookVersion}`,
       );
     } finally {
       removeSignalHandlers();
