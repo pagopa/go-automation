@@ -9,6 +9,7 @@ import { AUTOMATIC_RUNBOOK_REGISTRY } from 'go-analyze-alarm/api';
 
 import type { ExecuteRunbookDeps } from '../../types/ExecuteRunbookDeps.js';
 import type { ExecuteRunbookInput } from '../../types/ExecuteRunbookInput.js';
+import { assertRunbookCapability } from '../assertRunbookCapability.js';
 import { executeRunbook } from '../executeRunbook.js';
 
 const RUNBOOK = AUTOMATIC_RUNBOOK_REGISTRY.resolveByKey('pn-tokenExchangeLambda-LogInvocationErrors-Alarm')!.descriptor;
@@ -50,6 +51,10 @@ interface LifecycleOptions {
 type StopObserverFn = () => void;
 
 describe('executeRunbook', () => {
+  it('allows local capability validation when the worker revision is unspecified', () => {
+    assert.doesNotThrow(() => assertRunbookCapability(INPUT));
+  });
+
   it('ACKs ALREADY_RUNNING without starting the engine or a terminal callback', async () => {
     let completeCalls = 0;
     const deps = fakeDeps({

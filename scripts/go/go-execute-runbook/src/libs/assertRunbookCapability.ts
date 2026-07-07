@@ -25,14 +25,15 @@ export type RunbookCapabilityMismatchError = Error & {
 };
 
 /** Validates capability pinning before lifecycle start or any AWS query. */
-export function assertRunbookCapability(input: ExecuteRunbookInput, workerRevision = 'unknown'): void {
+export function assertRunbookCapability(input: ExecuteRunbookInput, workerRevision?: string): void {
+  const reportedWorkerRevision = workerRevision ?? 'unknown';
   const resolved = AUTOMATIC_RUNBOOK_REGISTRY.resolveByKey(input.runbook.key);
   const descriptor = resolved?.descriptor;
   if (descriptor === undefined) {
-    return throwCapabilityMismatch({ requested: input.runbook, workerRevision });
+    return throwCapabilityMismatch({ requested: input.runbook, workerRevision: reportedWorkerRevision });
   }
   const matches =
-    workerRevision === input.runbook.workerRevision &&
+    (workerRevision === undefined || workerRevision === input.runbook.workerRevision) &&
     descriptor.version === input.runbook.version &&
     descriptor.definitionDigest === input.runbook.definitionDigest &&
     descriptor.alarmNames.includes(input.alarmEvent.alarmName);
@@ -40,7 +41,7 @@ export function assertRunbookCapability(input: ExecuteRunbookInput, workerRevisi
 
   const details: RunbookCapabilityMismatchDetails = {
     requested: input.runbook,
-    workerRevision,
+    workerRevision: reportedWorkerRevision,
     actual: {
       key: descriptor.key,
       version: descriptor.version,
