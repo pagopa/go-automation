@@ -30,6 +30,7 @@ import { buildWorkdayPnExternalChannelAlbAlarmRunbook } from './runbooks/workday
 export type RunbookBuilderFn = () => Runbook;
 
 export interface AutomaticRunbookRegistration {
+  readonly key: string;
   readonly alarmNames: readonly [string, ...string[]];
   readonly kind: AutomaticRunbookKind;
   readonly categories: readonly [string, ...string[]];
@@ -74,13 +75,18 @@ export class AutomaticRunbookRegistry {
 
   validateForCloud(): void {
     for (const resolved of this.byKey.values()) {
-      assertCloudExecutableRunbook(resolved.build());
-      const rebuilt = descriptorFrom({
-        alarmNames: resolved.descriptor.alarmNames,
-        kind: resolved.descriptor.kind,
-        categories: resolved.descriptor.categories as readonly [string, ...string[]],
-        build: resolved.build,
-      });
+      const runbook = resolved.build();
+      assertCloudExecutableRunbook(runbook);
+      const rebuilt = descriptorFrom(
+        {
+          key: resolved.descriptor.key,
+          alarmNames: resolved.descriptor.alarmNames,
+          kind: resolved.descriptor.kind,
+          categories: resolved.descriptor.categories as readonly [string, ...string[]],
+          build: resolved.build,
+        },
+        runbook,
+      );
       if (canonicalizeJson(rebuilt) !== canonicalizeJson(resolved.descriptor)) {
         throw new Error(`Automatic runbook metadata or digest is unstable: ${resolved.descriptor.key}`);
       }
@@ -89,18 +95,58 @@ export class AutomaticRunbookRegistry {
 }
 
 const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
-  registration('APIGW', ['DELIVERY'], buildAddressBookIoApiGwAlarmRunbook),
-  registration('APIGW', ['DELIVERY'], buildDeliveryB2BApiGwAlarmRunbook),
-  registration('APIGW', ['DELIVERY'], buildDeliveryIoExpApiGwAlarmRunbook),
-  registration('APIGW', ['DELIVERY'], buildDeliveryPushB2BApiGwAlarmRunbook),
-  registration('APIGW', ['INTEGRATION'], buildNationalRegistriesPNPGApiGwAlarmRunbook),
-  registration('LAMBDA', ['AUTHORIZATION'], buildIoAuthorizerLambdaRunbook),
-  registration('LAMBDA', ['AUTHORIZATION', 'INTEGRATION'], buildTokenExchangeLambdaRunbook),
-  registration('LAMBDA', ['DELIVERY'], buildSlaViolationCheckerLambdaSqsRunbook),
-  registration('LAMBDA', ['AUTHORIZATION'], buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook),
-  registration('LAMBDA', ['AUTHORIZATION'], buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook),
-  registration('LAMBDA', ['DELIVERY'], buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook),
-  registration('SERVICE', ['DELIVERY'], buildWorkdayPnExternalChannelAlbAlarmRunbook),
+  registration('pn-address-book-io-IO-ApiGwAlarm', 'APIGW', ['DELIVERY'], buildAddressBookIoApiGwAlarmRunbook),
+  registration('pn-delivery-B2B-ApiGwAlarm', 'APIGW', ['DELIVERY'], buildDeliveryB2BApiGwAlarmRunbook),
+  registration('pn-delivery-IO_EXP-ApiGwAlarm', 'APIGW', ['DELIVERY'], buildDeliveryIoExpApiGwAlarmRunbook),
+  registration('pn-delivery-push-B2B-ApiGwAlarm', 'APIGW', ['DELIVERY'], buildDeliveryPushB2BApiGwAlarmRunbook),
+  registration(
+    'pn-national-registries-PNPG-ApiGwAlarm',
+    'APIGW',
+    ['INTEGRATION'],
+    buildNationalRegistriesPNPGApiGwAlarmRunbook,
+  ),
+  registration(
+    'pn-ioAuthorizerLambda-LogInvocationErrors-Alarm',
+    'LAMBDA',
+    ['AUTHORIZATION'],
+    buildIoAuthorizerLambdaRunbook,
+  ),
+  registration(
+    'pn-tokenExchangeLambda-LogInvocationErrors-Alarm',
+    'LAMBDA',
+    ['AUTHORIZATION', 'INTEGRATION'],
+    buildTokenExchangeLambdaRunbook,
+  ),
+  registration(
+    'pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm',
+    'LAMBDA',
+    ['DELIVERY'],
+    buildSlaViolationCheckerLambdaSqsRunbook,
+  ),
+  registration(
+    'pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm',
+    'LAMBDA',
+    ['AUTHORIZATION'],
+    buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook,
+  ),
+  registration(
+    'pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm',
+    'LAMBDA',
+    ['AUTHORIZATION'],
+    buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook,
+  ),
+  registration(
+    'pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm',
+    'LAMBDA',
+    ['DELIVERY'],
+    buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook,
+  ),
+  registration(
+    'workday-pn-external-channel-alb-alarm',
+    'SERVICE',
+    ['DELIVERY'],
+    buildWorkdayPnExternalChannelAlbAlarmRunbook,
+  ),
 ];
 
 export const AUTOMATIC_RUNBOOK_REGISTRY: AutomaticRunbookRegistry = new AutomaticRunbookRegistry(REGISTRATIONS);
@@ -128,18 +174,24 @@ export function validateCloudRunbookRegistry(registry: ReadonlyMap<string, Runbo
 
 /** Builds a registration; alarmNames defaults to the runbook key for the common one-alarm case. */
 function registration(
+  key: string,
   kind: AutomaticRunbookKind,
   categories: readonly [string, ...string[]],
   build: RunbookBuilderFn,
   alarmNames?: readonly [string, ...string[]],
 ): AutomaticRunbookRegistration {
-  return { alarmNames: alarmNames ?? [build().metadata.id], kind, categories, build };
+  return { key, alarmNames: alarmNames ?? [key], kind, categories, build };
 }
 
-function descriptorFrom(registration: AutomaticRunbookRegistration): AutomaticRunbookDescriptorV1 {
-  const runbook = registration.build();
+function descriptorFrom(
+  registration: AutomaticRunbookRegistration,
+  runbook = registration.build(),
+): AutomaticRunbookDescriptorV1 {
+  if (runbook.metadata.id !== registration.key) {
+    throw new Error(`Automatic runbook registration key differs from metadata: ${registration.key}`);
+  }
   return {
-    key: runbook.metadata.id,
+    key: registration.key,
     version: runbook.metadata.version,
     name: runbook.metadata.name,
     description: runbook.metadata.description,

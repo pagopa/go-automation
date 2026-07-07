@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { AUTOMATIC_RUNBOOK_REGISTRY } from '../runbookRegistry.js';
+import { AUTOMATIC_RUNBOOK_REGISTRY, AutomaticRunbookRegistry } from '../runbookRegistry.js';
 
 describe('AUTOMATIC_RUNBOOK_REGISTRY', () => {
   it('resolves the same descriptor by alarm name and by stable key', () => {
@@ -21,5 +21,27 @@ describe('AUTOMATIC_RUNBOOK_REGISTRY', () => {
     );
     assert.ok(first.every(({ definitionDigest }) => /^sha256-[a-f0-9]{64}$/.test(definitionDigest)));
     assert.doesNotThrow(() => AUTOMATIC_RUNBOOK_REGISTRY.validateForCloud());
+  });
+
+  it('builds each runbook once per descriptor or validation pass', () => {
+    const source = AUTOMATIC_RUNBOOK_REGISTRY.resolveByKey('pn-delivery-B2B-ApiGwAlarm');
+    assert.ok(source);
+    let buildCalls = 0;
+    const registry = new AutomaticRunbookRegistry([
+      {
+        key: source.descriptor.key,
+        alarmNames: source.descriptor.alarmNames,
+        kind: source.descriptor.kind,
+        categories: source.descriptor.categories as readonly [string, ...string[]],
+        build: () => {
+          buildCalls += 1;
+          return source.build();
+        },
+      },
+    ]);
+
+    assert.strictEqual(buildCalls, 1);
+    registry.validateForCloud();
+    assert.strictEqual(buildCalls, 2);
   });
 });
