@@ -221,7 +221,7 @@
             }
           },
           "message": {
-            "template": "*Report Critical Monitoring*\n\n*Righe risultato:* {{rowCount}}\n• Aggregazione: requestId, codiceOggetto, recapitista, cap\n• File generato: `{{fileName}}`\n\n*Analisi preliminare:*\n{{analysis}}\n\n_Report generato il {{timestamp}}_\n"
+            "template": "*Report Critical Monitoring*\n\n*Righe risultato:* {{rowCount}}\n• Aggregazione: requestId, codiceOggetto, recapitista, cap, timestamp\n• File generato: `{{fileName}}`\n\n_Report generato il {{timestamp}}_\n"
           }
         },
         "analysis": {

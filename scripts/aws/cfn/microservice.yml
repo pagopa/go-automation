@@ -69,10 +69,6 @@ Parameters:
     Type: String
     Description: 'The name of the S3 bucket where Lambda logs will be stored'
 
-  DataMonitoringBucketName:
-    Type: String
-    Description: 'The name of the S3 bucket where data monitoring files will be stored'
-
   GoReportBucketName:
     Type: String
     Description: 'The name of the S3 bucket where reports will be stored'
@@ -253,8 +249,8 @@ Resources:
                   - s3:GetObject
                   - s3:ListBucket
                 Resource:
-                  - !Sub 'arn:aws:s3:::${DataMonitoringBucketName}'
-                  - !Sub 'arn:aws:s3:::${DataMonitoringBucketName}/*'
+                  - !Sub 'arn:aws:s3:::pn-datamonitoring-${AWS::Region}-${AWS::AccountId}'
+                  - !Sub 'arn:aws:s3:::pn-datamonitoring-${AWS::Region}-${AWS::AccountId}/*'
 
   GoSendMonitorAthenaQueryLambdaSchedulerRole:
     Type: AWS::IAM::Role
