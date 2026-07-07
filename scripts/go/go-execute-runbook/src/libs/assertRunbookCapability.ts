@@ -32,6 +32,7 @@ export function assertRunbookCapability(input: ExecuteRunbookInput, workerRevisi
     return throwCapabilityMismatch({ requested: input.runbook, workerRevision });
   }
   const matches =
+    workerRevision === input.runbook.workerRevision &&
     descriptor.version === input.runbook.version &&
     descriptor.definitionDigest === input.runbook.definitionDigest &&
     descriptor.alarmNames.includes(input.alarmEvent.alarmName);
