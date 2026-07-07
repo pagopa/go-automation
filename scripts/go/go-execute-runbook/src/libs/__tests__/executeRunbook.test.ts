@@ -95,6 +95,31 @@ describe('executeRunbook', () => {
     assert.strictEqual(startCalls, 0);
   });
 
+  it('rejects a worker revision mismatch before acquiring an attempt', async () => {
+    let startCalls = 0;
+    const deps = fakeDeps({
+      startExecution: async () => {
+        await Promise.resolve();
+        startCalls += 1;
+        return { disposition: 'ALREADY_RUNNING', workerDeadlineAt: DELIVERY.workerDeadlineAt };
+      },
+    });
+
+    await assert.rejects(
+      executeRunbook(
+        deps,
+        { ...INPUT, runbook: { ...INPUT.runbook, workerRevision: 'different-worker-revision' } },
+        DELIVERY,
+      ),
+      (error: unknown) =>
+        typeof error === 'object' &&
+        error !== null &&
+        'workerFailureCode' in error &&
+        error.workerFailureCode === 'RUNBOOK_CAPABILITY_MISMATCH',
+    );
+    assert.strictEqual(startCalls, 0);
+  });
+
   it('uses the authoritative start response deadline for worker lifecycle callbacks', async () => {
     const requestedDeadline = new Date(Date.now() + 120_000).toISOString();
     const authoritativeDeadline = new Date(Date.now() + 60_000).toISOString();
@@ -324,6 +349,7 @@ function fakeDeps(
     } as ServiceRegistry,
     awsProfiles: [],
     useConfiguredAwsProfiles: false,
+    workerArtifactRevision: INPUT.runbook.workerRevision,
   };
 }
 
