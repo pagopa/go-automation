@@ -164,7 +164,7 @@ export async function collectAnswers(template: RunbookTemplate, cli: CliArgs): P
     templateId: template.id,
     id,
     builderName,
-    metadataName: `${id}`,
+    metadataName: id,
     description,
     version,
     team,
