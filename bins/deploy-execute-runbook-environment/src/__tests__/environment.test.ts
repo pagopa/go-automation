@@ -34,4 +34,9 @@ describe('regional environment file parser', () => {
     const path = await withEnvFile('deploy_env=production\n');
     await assert.rejects(readEnvironmentFile(path), /invalid key/u);
   });
+
+  it('rejects duplicate keys with the offending line number', async () => {
+    const path = await withEnvFile('DEPLOY_ENV=production\nDEPLOY_ENV=test\n');
+    await assert.rejects(readEnvironmentFile(path), /:2 duplicates key DEPLOY_ENV/u);
+  });
 });
