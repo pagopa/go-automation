@@ -121,7 +121,7 @@ Parameters:
 
   GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleExpression:
     Type: String
-    Default: 'cron(15 12,18 ? * MON-FRI *)'
+    Default: 'cron(30 12,17 ? * MON-FRI *)'
     Description: 'Schedule expression for critical notification monitoring preset. Effective only when schedule is enabled'
 
 Conditions:
