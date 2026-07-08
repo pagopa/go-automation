@@ -53,7 +53,16 @@ export function assertRunbookCapability(input: ExecuteRunbookInput, workerRevisi
 }
 
 function throwCapabilityMismatch(details: RunbookCapabilityMismatchDetails): never {
-  throw Object.assign(new Error(`Runbook capability mismatch: ${JSON.stringify(details)}`), {
+  const requested = details.requested;
+  const registered =
+    details.actual === undefined
+      ? 'not registered'
+      : `${details.actual.key}@${details.actual.version} digest=${details.actual.definitionDigest}`;
+  const message =
+    `Runbook capability mismatch: requested=${requested.key}@${requested.version} ` +
+    `digest=${requested.definitionDigest} requestedWorker=${requested.workerRevision}; ` +
+    `worker=${details.workerRevision}; registered=${registered}`;
+  throw Object.assign(new Error(message), {
     workerFailureCode: 'RUNBOOK_CAPABILITY_MISMATCH' as const,
     details,
   });
