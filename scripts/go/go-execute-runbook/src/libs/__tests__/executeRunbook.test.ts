@@ -66,6 +66,9 @@ describe('executeRunbook', () => {
         assert.ok(error instanceof Error);
         const details = (error as { readonly details?: { readonly workerRevision?: unknown } }).details;
         assert.strictEqual(details?.workerRevision, INPUT.runbook.workerRevision);
+        assert.match(error.message, /requested=.* digest=.* requestedWorker=.*; worker=.*; registered=/u);
+        assert.doesNotMatch(error.message, /alarmNames|catalogRevision/u);
+        assert.ok(error.message.length < 2_048);
         return true;
       },
     );
