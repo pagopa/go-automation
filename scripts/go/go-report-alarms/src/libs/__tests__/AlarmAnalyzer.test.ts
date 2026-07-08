@@ -9,10 +9,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as path from 'path';
-import type { AlarmHistoryItem, HistoryItemType } from '@aws-sdk/client-cloudwatch';
 
 import { AlarmAnalyzer } from '../AlarmAnalyzer.js';
 import { Core } from '@go-automation/go-common';
+import type { AWS } from '@go-automation/go-common';
 
 const FIXTURES_DIR = path.join(import.meta.dirname, '__fixtures__');
 
@@ -26,7 +26,7 @@ interface AlarmFixture {
   }>;
 }
 
-async function loadAlarmItems(): Promise<AlarmHistoryItem[]> {
+async function loadAlarmItems(): Promise<AWS.AlarmHistoryItem[]> {
   const importer = new Core.GOJSONFileImporter<AlarmFixture>({
     inputPath: path.join(FIXTURES_DIR, 'alarm-history-items.json'),
   });
@@ -36,7 +36,7 @@ async function loadAlarmItems(): Promise<AlarmHistoryItem[]> {
   return fixture.items.map((item) => ({
     ...item,
     Timestamp: new Date(item.Timestamp),
-    HistoryItemType: item.HistoryItemType as HistoryItemType,
+    HistoryItemType: item.HistoryItemType as AWS.HistoryItemType,
   }));
 }
 
@@ -92,7 +92,7 @@ describe('AlarmAnalyzer', () => {
     });
 
     it('handles items with missing HistoryData', () => {
-      const items: AlarmHistoryItem[] = [
+      const items: AWS.AlarmHistoryItem[] = [
         { AlarmName: 'no-data-alarm', Timestamp: new Date(), HistoryItemType: 'Action' },
       ];
       const result = analyzer.filterAlarms(items, []);
@@ -102,7 +102,7 @@ describe('AlarmAnalyzer', () => {
     });
 
     it('handles items with malformed HistoryData JSON', () => {
-      const items: AlarmHistoryItem[] = [
+      const items: AWS.AlarmHistoryItem[] = [
         {
           AlarmName: 'bad-json-alarm',
           Timestamp: new Date(),
@@ -163,7 +163,7 @@ describe('AlarmAnalyzer', () => {
     });
 
     it('skips items without AlarmName', () => {
-      const items: AlarmHistoryItem[] = [{ Timestamp: new Date(), HistoryItemType: 'Action' }];
+      const items: AWS.AlarmHistoryItem[] = [{ Timestamp: new Date(), HistoryItemType: 'Action' }];
       const summary = analyzer.generateSummary(items);
       assert.deepStrictEqual(summary, []);
     });

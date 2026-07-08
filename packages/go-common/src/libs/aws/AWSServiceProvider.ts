@@ -1,5 +1,6 @@
 import type { AWSMultiClientProvider } from './AWSMultiClientProvider.js';
 import { AWSAthenaService } from './AWSAthenaService.js';
+import { AWSCloudWatchAlarmsService } from './AWSCloudWatchAlarmsService.js';
 import { AWSCloudWatchLogsService } from './AWSCloudWatchLogsService.js';
 import { AWSCloudWatchMetricsService } from './AWSCloudWatchMetricsService.js';
 import { AWSDynamoDBService } from './AWSDynamoDBService.js';
@@ -16,6 +17,7 @@ import { AWSSecretsManagerService } from './AWSSecretsManagerService.js';
  */
 export class AWSServiceProvider {
   private cachedCloudWatchLogsService: AWSCloudWatchLogsService | undefined;
+  private cachedCloudWatchAlarmsService: AWSCloudWatchAlarmsService | undefined;
   private cachedCloudWatchMetricsService: AWSCloudWatchMetricsService | undefined;
   private cachedDynamoDBService: AWSDynamoDBService | undefined;
   private cachedS3Service: AWSS3Service | undefined;
@@ -29,6 +31,11 @@ export class AWSServiceProvider {
   get cloudWatchLogs(): AWSCloudWatchLogsService {
     this.cachedCloudWatchLogsService ??= new AWSCloudWatchLogsService(this.clientProvider);
     return this.cachedCloudWatchLogsService;
+  }
+
+  get cloudWatchAlarms(): AWSCloudWatchAlarmsService {
+    this.cachedCloudWatchAlarmsService ??= new AWSCloudWatchAlarmsService(this.clientProvider.first.cloudWatch);
+    return this.cachedCloudWatchAlarmsService;
   }
 
   get cloudWatchMetrics(): AWSCloudWatchMetricsService {
@@ -72,6 +79,7 @@ export class AWSServiceProvider {
 
   close(): void {
     this.cachedCloudWatchLogsService = undefined;
+    this.cachedCloudWatchAlarmsService = undefined;
     this.cachedCloudWatchMetricsService = undefined;
     this.cachedDynamoDBService = undefined;
     this.cachedS3Service = undefined;

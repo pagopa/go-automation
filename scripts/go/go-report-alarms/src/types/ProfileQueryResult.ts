@@ -2,11 +2,9 @@
  * ProfileQueryResult - Result of querying a single AWS profile
  */
 
-import type { AlarmHistoryItem } from '@aws-sdk/client-cloudwatch';
+import type { AWS } from '@go-automation/go-common';
 
-/**
- * Result of querying a single AWS profile
- */
+/** Result of querying a single AWS profile. */
 export type ProfileQueryResult = ProfileQuerySuccess | ProfileQueryFailure;
 
 /**
@@ -15,7 +13,7 @@ export type ProfileQueryResult = ProfileQuerySuccess | ProfileQueryFailure;
 export interface ProfileQuerySuccess {
   readonly status: 'success';
   readonly profile: string;
-  readonly items: ReadonlyArray<AlarmHistoryItem>;
+  readonly items: ReadonlyArray<AWS.AlarmHistoryItem>;
   readonly itemCount: number;
 }
 
@@ -26,18 +24,4 @@ export interface ProfileQueryFailure {
   readonly status: 'failure';
   readonly profile: string;
   readonly error: Error;
-}
-
-/**
- * Type guard for successful profile query
- */
-export function isProfileQuerySuccess(result: ProfileQueryResult): result is ProfileQuerySuccess {
-  return result.status === 'success';
-}
-
-/**
- * Type guard for failed profile query
- */
-export function isProfileQueryFailure(result: ProfileQueryResult): result is ProfileQueryFailure {
-  return result.status === 'failure';
 }

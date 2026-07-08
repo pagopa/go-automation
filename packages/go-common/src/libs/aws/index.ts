@@ -52,6 +52,19 @@ export type {
   AWSCloudWatchLogsTarget,
 } from './AWSCloudWatchLogsService.js';
 export { isAWSCloudWatchLogsConfigurationError } from './AWSCloudWatchLogsService.js';
+export {
+  AWSCloudWatchAlarmsService,
+  getAlarmHistoryIsoTimestamps,
+  getAlarmHistoryStringValues,
+  isCloudWatchAlarmStateTransition,
+  selectAlarmHistoryProperties,
+} from './AWSCloudWatchAlarmsService.js';
+export type {
+  AWSCloudWatchAlarmHistoryOptions,
+  AWSCloudWatchAlarmHistoryStringKey,
+  AWSCloudWatchAlarmHistoryTimeRange,
+  AWSCloudWatchAlarmStateTransitionOptions,
+} from './AWSCloudWatchAlarmsService.js';
 export { AWSCloudWatchMetricsService } from './AWSCloudWatchMetricsService.js';
 export { AWSDynamoDBService } from './AWSDynamoDBService.js';
 
@@ -124,7 +137,13 @@ export { isProfileValidationSuccess, isProfileValidationFailure } from './AWSPro
 // Re-export essential AWS SDK types
 export type { Message, SendMessageBatchRequestEntry, SendMessageBatchCommandOutput } from '@aws-sdk/client-sqs';
 export type { SQSClient } from '@aws-sdk/client-sqs';
-export type { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
+export type {
+  AlarmHistoryItem,
+  AlarmType,
+  CloudWatchClient,
+  HistoryItemType,
+  ScanBy,
+} from '@aws-sdk/client-cloudwatch';
 export type { CloudWatchLogsClient, ResultField } from '@aws-sdk/client-cloudwatch-logs';
 export type { AthenaClient } from '@aws-sdk/client-athena';
 export type { ECSClient } from '@aws-sdk/client-ecs';
