@@ -6,6 +6,7 @@ import type { GetQueryResultsCommand, ResultField, StartQueryCommand } from '@aw
 import { AWSAthenaService } from '../AWSAthenaService.js';
 import { AWSClientProvider } from '../AWSClientProvider.js';
 import { AWSClientsProvider } from '../AWSClientsProvider.js';
+import { AWSCloudWatchAlarmsService } from '../AWSCloudWatchAlarmsService.js';
 import { AWSCloudWatchLogsService } from '../AWSCloudWatchLogsService.js';
 import { AWSCloudWatchMetricsService } from '../AWSCloudWatchMetricsService.js';
 import { AWSDynamoDBService } from '../AWSDynamoDBService.js';
@@ -284,6 +285,7 @@ describe('AWS unified provider facade', () => {
     const services = new AWSServiceProvider(asMultiProvider(new FakeAWSMultiClientProvider(['dev'])));
 
     assert.strictEqual(services.cloudWatchLogs, services.cloudWatchLogs);
+    assert.strictEqual(services.cloudWatchAlarms, services.cloudWatchAlarms);
     assert.strictEqual(services.cloudWatchMetrics, services.cloudWatchMetrics);
     assert.strictEqual(services.dynamoDB, services.dynamoDB);
     assert.strictEqual(services.s3, services.s3);
@@ -293,6 +295,7 @@ describe('AWS unified provider facade', () => {
     assert.strictEqual(services.getAthena(), services.athena);
 
     assert.ok(services.cloudWatchLogs instanceof AWSCloudWatchLogsService);
+    assert.ok(services.cloudWatchAlarms instanceof AWSCloudWatchAlarmsService);
     assert.ok(services.cloudWatchMetrics instanceof AWSCloudWatchMetricsService);
     assert.ok(services.dynamoDB instanceof AWSDynamoDBService);
     assert.ok(services.s3 instanceof AWSS3Service);
@@ -301,10 +304,12 @@ describe('AWS unified provider facade', () => {
     assert.ok(services.athena instanceof AWSAthenaService);
 
     const beforeClose = services.cloudWatchLogs;
+    const beforeCloudWatchAlarms = services.cloudWatchAlarms;
     const beforeAthena = services.athena;
     services.close();
 
     assert.notStrictEqual(services.cloudWatchLogs, beforeClose);
+    assert.notStrictEqual(services.cloudWatchAlarms, beforeCloudWatchAlarms);
     assert.notStrictEqual(services.athena, beforeAthena);
   });
 });

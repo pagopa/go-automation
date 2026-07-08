@@ -3,8 +3,8 @@
  */
 
 import { Core } from '@go-automation/go-common';
+import type { AWS } from '@go-automation/go-common';
 
-import type { AlarmHistoryItem } from '@aws-sdk/client-cloudwatch';
 import type { AlarmReportSummary, AlarmTimelineEntry } from '../types/alarms.types.js';
 import type { GoReportAlarmsConfig } from '../types/GoReportAlarmsConfig.js';
 import type { MultiProfileQueryResult } from '../types/MultiProfileQueryResult.js';
@@ -54,7 +54,7 @@ export function displayProfileSummary(script: Core.GOScript, result: MultiProfil
 export function displayIgnoredAlarmsReport(
   script: Core.GOScript,
   analyzer: AlarmAnalyzer,
-  ignored: ReadonlyArray<AlarmHistoryItem>,
+  ignored: ReadonlyArray<AWS.AlarmHistoryItem>,
 ): void {
   if (ignored.length === 0) {
     script.logger.section('No Alarms Ignored');

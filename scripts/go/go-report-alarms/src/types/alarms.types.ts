@@ -2,17 +2,17 @@
  * Types for CloudWatch Alarms Analysis
  */
 
-import type { AlarmHistoryItem } from '@aws-sdk/client-cloudwatch';
+import type { AWS } from '@go-automation/go-common';
 
 /**
  * Filtered alarms result
  */
 export interface FilteredAlarms {
   /** Alarms that are not in the ignore list */
-  readonly notIgnored: ReadonlyArray<AlarmHistoryItem>;
+  readonly notIgnored: ReadonlyArray<AWS.AlarmHistoryItem>;
 
   /** Alarms that match the ignore patterns */
-  readonly ignored: ReadonlyArray<AlarmHistoryItem>;
+  readonly ignored: ReadonlyArray<AWS.AlarmHistoryItem>;
 }
 
 /**
