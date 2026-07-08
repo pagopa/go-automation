@@ -95,14 +95,6 @@ Parameters:
     Default: 'cron(0 12 * * ? *)'
     Description: 'Schedule expression for GoSendMonitorAthenaQueryLambda with SCRIPT_PRESET_NAME=multicanalita. Effective only when schedule is enabled'
 
-  GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled:
-    Type: String
-    Default: 'false'
-    AllowedValues:
-      - 'true'
-      - 'false'
-    Description: 'Enable/disable EventBridge schedule for multicanalita preset (default disabled = never)'
-
   GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleEnabled:
     Type: String
     Default: 'DISABLED'
@@ -119,14 +111,18 @@ Parameters:
       - 'DISABLED'
     Description: 'Enable/disable EventBridge schedule for GoSendMonitorAthenaQueryLambda (default disabled = never)'
 
+  GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled:
+    Type: String
+    Default: 'DISABLED'
+    AllowedValues:
+      - 'ENABLED'
+      - 'DISABLED'
+    Description: 'Enable/disable EventBridge schedule for GoSendMonitorAthenaQueryLambda (multicanalita preset) (default disabled = never)'
+
   GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleExpression:
     Type: String
     Default: 'cron(30 12,17 ? * MON-FRI *)'
     Description: 'Schedule expression for critical notification monitoring preset. Effective only when schedule is enabled'
-
-Conditions:
-  GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabledCondition:
-    !Equals [!Ref GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled, 'true']
 
 Resources:
   GoSendMonitorAthenaQueryLambda:
@@ -303,17 +299,19 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${GoSendMonitorAthenaQueryLambdaName}-schedule*'
 
-  GoSendMonitorAthenaQueryLambdaMulticanalitaSchedule:
-    Type: AWS::Events::Rule
+  GoSendMonitorAthenaQueryLambdaMulticanalitaScheduler:
+    Type: AWS::Scheduler::Schedule
     Properties:
-      Name: !Sub '${GoSendMonitorAthenaQueryLambdaName}-schedule-multicanalita'
-      Description: 'Schedule for GoSendMonitorAthenaQueryLambda (multicanalita preset)'
+      Description: 'Scheduler for GoSendMonitorAthenaQueryLambda (multicanalita preset)'
       ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleExpression
-      State: !If [GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabledCondition, ENABLED, DISABLED]
-      Targets:
-        - Id: GoSendMonitorAthenaQueryLambdaTargetMulticanalita
-          Arn: !GetAtt GoSendMonitorAthenaQueryLambda.Arn
-          Input: '{"body":{"script.preset.name":"multicanalita"}}'
+      ScheduleExpressionTimezone: !Ref Timezone
+      State: !Ref GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      Target:
+        Arn: !GetAtt GoSendMonitorAthenaQueryLambda.Arn
+        RoleArn: !GetAtt GoSendMonitorAthenaQueryLambdaSchedulerRole.Arn
+        Input: '{"body":{"script.preset.name":"multicanalita"}}'
 
   GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduler:
     Type: AWS::Scheduler::Schedule
