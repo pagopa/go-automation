@@ -90,14 +90,6 @@ Parameters:
     Default: 'cron(0 12 * * ? *)'
     Description: 'Schedule expression for GoSendMonitorAthenaQueryLambda. Effective only when schedule is enabled'
 
-  GoSendMonitorAthenaQueryLambdaScheduleEnabled:
-    Type: String
-    Default: 'false'
-    AllowedValues:
-      - 'true'
-      - 'false'
-    Description: 'Enable/disable EventBridge schedule for GoSendMonitorAthenaQueryLambda (default disabled = never)'
-
   GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleExpression:
     Type: String
     Default: 'cron(0 12 * * ? *)'
@@ -119,14 +111,20 @@ Parameters:
       - 'DISABLED'
     Description: 'Enable/disable EventBridge schedule for critical notification monitoring preset (default disabled = never)'
 
+  GoSendMonitorAthenaQueryLambdaScheduleEnabled:
+    Type: String
+    Default: 'DISABLED'
+    AllowedValues:
+      - 'ENABLED'
+      - 'DISABLED'
+    Description: 'Enable/disable EventBridge schedule for GoSendMonitorAthenaQueryLambda (default disabled = never)'
+
   GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleExpression:
     Type: String
     Default: 'cron(15 12,18 ? * MON-FRI *)'
     Description: 'Schedule expression for critical notification monitoring preset. Effective only when schedule is enabled'
 
 Conditions:
-  GoSendMonitorAthenaQueryLambdaScheduleEnabledCondition:
-    !Equals [!Ref GoSendMonitorAthenaQueryLambdaScheduleEnabled, 'true']
   GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabledCondition:
     !Equals [!Ref GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled, 'true']
 
@@ -283,17 +281,19 @@ Resources:
         FunctionName: !Ref GoSendMonitorAthenaQueryLambdaName
         AlarmSNSTopicArn: !Ref AlarmSNSTopicArn
 
-  GoSendMonitorAthenaQueryLambdaSchedule:
-    Type: AWS::Events::Rule
+  GoSendMonitorAthenaQueryLambdaScheduler:
+    Type: AWS::Scheduler::Schedule
     Properties:
-      Name: !Sub '${GoSendMonitorAthenaQueryLambdaName}-schedule'
-      Description: 'Schedule for GoSendMonitorAthenaQueryLambda'
+      Description: !Sub 'Scheduler for ${GoSendMonitorAthenaQueryLambdaName} (papertracker preset)'
       ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaScheduleExpression
-      State: !If [GoSendMonitorAthenaQueryLambdaScheduleEnabledCondition, ENABLED, DISABLED]
-      Targets:
-        - Id: GoSendMonitorAthenaQueryLambdaTarget
-          Arn: !GetAtt GoSendMonitorAthenaQueryLambda.Arn
-          Input: '{"body":{"script.preset.name":"papertracker"}}'
+      ScheduleExpressionTimezone: !Ref Timezone
+      State: !Ref GoSendMonitorAthenaQueryLambdaScheduleEnabled
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      Target:
+        Arn: !GetAtt GoSendMonitorAthenaQueryLambda.Arn
+        RoleArn: !GetAtt GoSendMonitorAthenaQueryLambdaSchedulerRole.Arn
+        Input: '{"body":{"script.preset.name":"papertracker"}}'
 
   GoSendMonitorAthenaQueryLambdaScheduleInvokePermission:
     Type: AWS::Lambda::Permission

@@ -12,7 +12,7 @@
     "GoSendMonitorAthenaQueryLambdaTimeout": "300",
     "GoSendMonitorAthenaQueryLambdaMemorySize": "512",
     "GoSendMonitorAthenaQueryLambdaScheduleExpression": "cron(0 12 * * ? *)",
-    "GoSendMonitorAthenaQueryLambdaScheduleEnabled": "false",
+    "GoSendMonitorAthenaQueryLambdaScheduleEnabled": "DISABLED",
     "GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleExpression": "cron(0 12 * * ? *)",
     "GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled": "false"
   }
