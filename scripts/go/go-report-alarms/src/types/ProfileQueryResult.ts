@@ -4,9 +4,6 @@
 
 import type { AWS } from '@go-automation/go-common';
 
-/** Result of querying a single AWS profile. */
-export type ProfileQueryResult = ProfileQuerySuccess | ProfileQueryFailure;
-
 /**
  * Successful profile query result
  */
