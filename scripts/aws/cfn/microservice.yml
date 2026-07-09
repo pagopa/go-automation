@@ -85,7 +85,7 @@ Parameters:
     Type: Number
     Default: 128
 
-  GoSendMonitorAthenaQueryLambdaScheduleExpression:
+  GoSendMonitorAthenaQueryLambdaPaperTrackerScheduleExpression:
     Type: String
     Default: 'cron(0 12 * * ? *)'
     Description: 'Schedule expression for GoSendMonitorAthenaQueryLambda. Effective only when schedule is enabled'
@@ -103,13 +103,13 @@ Parameters:
       - 'DISABLED'
     Description: 'Enable/disable EventBridge schedule for critical notification monitoring preset (default disabled = never)'
 
-  GoSendMonitorAthenaQueryLambdaScheduleEnabled:
+  GoSendMonitorAthenaQueryLambdaPaperTrackerScheduleEnabled:
     Type: String
     Default: 'DISABLED'
     AllowedValues:
       - 'ENABLED'
       - 'DISABLED'
-    Description: 'Enable/disable EventBridge schedule for GoSendMonitorAthenaQueryLambda (default disabled = never)'
+    Description: 'Enable/disable EventBridge schedule for GoSendMonitorAthenaQueryLambda (paper tracker preset) (default disabled = never)'
 
   GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled:
     Type: String
@@ -282,9 +282,9 @@ Resources:
     Properties:
       Name: !Sub 'papertracker-${GoSendMonitorAthenaQueryLambdaName}-scheduler'
       Description: 'Scheduler for papertracker preset'
-      ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaScheduleExpression
+      ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaPaperTrackerScheduleExpression
       ScheduleExpressionTimezone: !Ref Timezone
-      State: !Ref GoSendMonitorAthenaQueryLambdaScheduleEnabled
+      State: !Ref GoSendMonitorAthenaQueryLambdaPaperTrackerScheduleEnabled
       FlexibleTimeWindow:
         Mode: 'OFF'
       Target:
