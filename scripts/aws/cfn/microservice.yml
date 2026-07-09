@@ -26,6 +26,10 @@ Parameters:
     Type: String
     Description: 'The name of the Athena database to query'
 
+  CriticalMonitoringAthenaDatabase:
+    Type: String
+    Description: 'The name of the Athena database to query for critical monitoring'
+
   AthenaCatalog:
     Type: String
     Description: 'The name of the Athena catalog to use'
@@ -81,37 +85,44 @@ Parameters:
     Type: Number
     Default: 128
 
-  GoSendMonitorAthenaQueryLambdaScheduleExpression:
+  GoSendMonitorAthenaQueryLambdaPaperTrackerScheduleExpression:
     Type: String
     Default: 'cron(0 12 * * ? *)'
     Description: 'Schedule expression for GoSendMonitorAthenaQueryLambda. Effective only when schedule is enabled'
-
-  GoSendMonitorAthenaQueryLambdaScheduleEnabled:
-    Type: String
-    Default: 'false'
-    AllowedValues:
-      - 'true'
-      - 'false'
-    Description: 'Enable/disable EventBridge schedule for GoSendMonitorAthenaQueryLambda (default disabled = never)'
 
   GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleExpression:
     Type: String
     Default: 'cron(0 12 * * ? *)'
     Description: 'Schedule expression for GoSendMonitorAthenaQueryLambda with SCRIPT_PRESET_NAME=multicanalita. Effective only when schedule is enabled'
 
+  GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleEnabled:
+    Type: String
+    Default: 'DISABLED'
+    AllowedValues:
+      - 'ENABLED'
+      - 'DISABLED'
+    Description: 'Enable/disable EventBridge schedule for critical notification monitoring preset (default disabled = never)'
+
+  GoSendMonitorAthenaQueryLambdaPaperTrackerScheduleEnabled:
+    Type: String
+    Default: 'DISABLED'
+    AllowedValues:
+      - 'ENABLED'
+      - 'DISABLED'
+    Description: 'Enable/disable EventBridge schedule for GoSendMonitorAthenaQueryLambda (paper tracker preset) (default disabled = never)'
+
   GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled:
     Type: String
-    Default: 'false'
+    Default: 'DISABLED'
     AllowedValues:
-      - 'true'
-      - 'false'
-    Description: 'Enable/disable EventBridge schedule for multicanalita preset (default disabled = never)'
+      - 'ENABLED'
+      - 'DISABLED'
+    Description: 'Enable/disable EventBridge schedule for GoSendMonitorAthenaQueryLambda (multicanalita preset) (default disabled = never)'
 
-Conditions:
-  GoSendMonitorAthenaQueryLambdaScheduleEnabledCondition:
-    !Equals [!Ref GoSendMonitorAthenaQueryLambdaScheduleEnabled, 'true']
-  GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabledCondition:
-    !Equals [!Ref GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled, 'true']
+  GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleExpression:
+    Type: String
+    Default: 'cron(30 12,17 ? * MON-FRI *)'
+    Description: 'Schedule expression for critical notification monitoring preset. Effective only when schedule is enabled'
 
 Resources:
   GoSendMonitorAthenaQueryLambda:
@@ -128,7 +139,6 @@ Resources:
       MemorySize: !Ref GoSendMonitorAthenaQueryLambdaMemorySize
       Environment:
         Variables:
-          ATHENA_DATABASE: !Ref AthenaDatabase
           ATHENA_CATALOG: !Ref AthenaCatalog
           ATHENA_WORKGROUP: !Ref AthenaWorkgroup
           ATHENA_OUTPUT_LOCATION: !Sub 's3://${AthenaOutputBucket}/'
@@ -186,6 +196,8 @@ Resources:
                   - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog'
                   - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/${AthenaDatabase}'
                   - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/${AthenaDatabase}/*'
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/${CriticalMonitoringAthenaDatabase}'
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/${CriticalMonitoringAthenaDatabase}/*'
         - PolicyName: GoSendMonitorAthenaQueryLambdaS3Access
           PolicyDocument:
             Version: '2012-10-17'
@@ -221,6 +233,41 @@ Resources:
                   - kms:Decrypt
                 Resource:
                   - !Ref LogsBucketKmsKeyArn
+        - PolicyName: DataMonitoringBucketAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::pn-datamonitoring-${AWS::Region}-${AWS::AccountId}'
+                  - !Sub 'arn:aws:s3:::pn-datamonitoring-${AWS::Region}-${AWS::AccountId}/*'
+
+  GoSendMonitorAthenaQueryLambdaSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - scheduler.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: GoSendMonitorAthenaQueryLambdaSchedulerInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt GoSendMonitorAthenaQueryLambda.Arn
 
   GoSendMonitorAthenaQueryLambdaAlarms:
     Type: AWS::CloudFormation::Stack
@@ -230,34 +277,47 @@ Resources:
         FunctionName: !Ref GoSendMonitorAthenaQueryLambdaName
         AlarmSNSTopicArn: !Ref AlarmSNSTopicArn
 
-  GoSendMonitorAthenaQueryLambdaSchedule:
-    Type: AWS::Events::Rule
+  GoSendMonitorAthenaQueryLambdaPaperTrackerScheduler:
+    Type: AWS::Scheduler::Schedule
     Properties:
-      Name: !Sub '${GoSendMonitorAthenaQueryLambdaName}-schedule'
-      Description: 'Schedule for GoSendMonitorAthenaQueryLambda'
-      ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaScheduleExpression
-      State: !If [GoSendMonitorAthenaQueryLambdaScheduleEnabledCondition, ENABLED, DISABLED]
-      Targets:
-        - Id: GoSendMonitorAthenaQueryLambdaTarget
-          Arn: !GetAtt GoSendMonitorAthenaQueryLambda.Arn
-          Input: '{"body":{"script.preset.name":"papertracker"}}'
+      Name: 'MonitorAthenaQueryLambdaPaperTracker-scheduler'
+      Description: 'Scheduler for papertracker preset'
+      ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaPaperTrackerScheduleExpression
+      ScheduleExpressionTimezone: !Ref Timezone
+      State: !Ref GoSendMonitorAthenaQueryLambdaPaperTrackerScheduleEnabled
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      Target:
+        Arn: !GetAtt GoSendMonitorAthenaQueryLambda.Arn
+        RoleArn: !GetAtt GoSendMonitorAthenaQueryLambdaSchedulerRole.Arn
+        Input: '{"body":{"script.preset.name":"papertracker"}}'
 
-  GoSendMonitorAthenaQueryLambdaScheduleInvokePermission:
-    Type: AWS::Lambda::Permission
+  GoSendMonitorAthenaQueryLambdaMulticanalitaScheduler:
+    Type: AWS::Scheduler::Schedule
     Properties:
-      FunctionName: !Ref GoSendMonitorAthenaQueryLambda
-      Action: lambda:InvokeFunction
-      Principal: events.amazonaws.com
-      SourceArn: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${GoSendMonitorAthenaQueryLambdaName}-schedule*'
-
-  GoSendMonitorAthenaQueryLambdaMulticanalitaSchedule:
-    Type: AWS::Events::Rule
-    Properties:
-      Name: !Sub '${GoSendMonitorAthenaQueryLambdaName}-schedule-multicanalita'
-      Description: 'Schedule for GoSendMonitorAthenaQueryLambda (multicanalita preset)'
+      Name: 'MonitorAthenaQueryLambdaMulticanalita-scheduler'
+      Description: 'Scheduler for multicanalita preset'
       ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleExpression
-      State: !If [GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabledCondition, ENABLED, DISABLED]
-      Targets:
-        - Id: GoSendMonitorAthenaQueryLambdaTargetMulticanalita
-          Arn: !GetAtt GoSendMonitorAthenaQueryLambda.Arn
-          Input: '{"body":{"script.preset.name":"multicanalita"}}'
+      ScheduleExpressionTimezone: !Ref Timezone
+      State: !Ref GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      Target:
+        Arn: !GetAtt GoSendMonitorAthenaQueryLambda.Arn
+        RoleArn: !GetAtt GoSendMonitorAthenaQueryLambdaSchedulerRole.Arn
+        Input: '{"body":{"script.preset.name":"multicanalita"}}'
+
+  GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduler:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: 'MonitorAthenaQueryLambdaCriticalNotificationMonitoring-scheduler'
+      Description: 'Scheduler for critical-notification-monitoring preset'
+      ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleExpression
+      ScheduleExpressionTimezone: !Ref Timezone
+      State: !Ref GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleEnabled
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      Target:
+        Arn: !GetAtt GoSendMonitorAthenaQueryLambda.Arn
+        RoleArn: !GetAtt GoSendMonitorAthenaQueryLambdaSchedulerRole.Arn
+        Input: '{"body":{"script.preset.name":"critical-notification-monitoring"}}'
