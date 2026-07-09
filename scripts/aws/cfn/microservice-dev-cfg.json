@@ -14,6 +14,8 @@
     "GoSendMonitorAthenaQueryLambdaScheduleExpression": "cron(0 12 * * ? *)",
     "GoSendMonitorAthenaQueryLambdaScheduleEnabled": "DISABLED",
     "GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleExpression": "cron(0 12 * * ? *)",
-    "GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled": "false"
+    "GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled": "DISABLED",
+    "GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleEnabled": "DISABLED",
+    "GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleExpression": "cron(30 12,17 ? * MON-FRI *)"
   }
 }
