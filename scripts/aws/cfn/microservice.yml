@@ -277,10 +277,10 @@ Resources:
         FunctionName: !Ref GoSendMonitorAthenaQueryLambdaName
         AlarmSNSTopicArn: !Ref AlarmSNSTopicArn
 
-  GoSendMonitorAthenaQueryLambdaScheduler:
+  GoSendMonitorAthenaQueryLambdaPaperTrackerScheduler:
     Type: AWS::Scheduler::Schedule
     Properties:
-      Name: !Sub 'papertracker-${GoSendMonitorAthenaQueryLambdaName}-scheduler'
+      Name: 'MonitorAthenaQueryLambdaPaperTracker-scheduler'
       Description: 'Scheduler for papertracker preset'
       ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaPaperTrackerScheduleExpression
       ScheduleExpressionTimezone: !Ref Timezone
@@ -295,7 +295,7 @@ Resources:
   GoSendMonitorAthenaQueryLambdaMulticanalitaScheduler:
     Type: AWS::Scheduler::Schedule
     Properties:
-      Name: !Sub 'multicanalita-${GoSendMonitorAthenaQueryLambdaName}-scheduler'
+      Name: 'MonitorAthenaQueryLambdaMulticanalita-scheduler'
       Description: 'Scheduler for multicanalita preset'
       ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleExpression
       ScheduleExpressionTimezone: !Ref Timezone
@@ -310,7 +310,7 @@ Resources:
   GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduler:
     Type: AWS::Scheduler::Schedule
     Properties:
-      Name: !Sub 'critical-notification-monitoring-${GoSendMonitorAthenaQueryLambdaName}-scheduler'
+      Name: 'MonitorAthenaQueryLambdaCriticalNotificationMonitoring-scheduler'
       Description: 'Scheduler for critical-notification-monitoring preset'
       ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleExpression
       ScheduleExpressionTimezone: !Ref Timezone
