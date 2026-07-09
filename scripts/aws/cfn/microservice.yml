@@ -280,7 +280,8 @@ Resources:
   GoSendMonitorAthenaQueryLambdaScheduler:
     Type: AWS::Scheduler::Schedule
     Properties:
-      Description: !Sub 'Scheduler for ${GoSendMonitorAthenaQueryLambdaName} (papertracker preset)'
+      Name: !Sub 'papertracker-${GoSendMonitorAthenaQueryLambdaName}-scheduler'
+      Description: 'Scheduler for papertracker preset'
       ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaScheduleExpression
       ScheduleExpressionTimezone: !Ref Timezone
       State: !Ref GoSendMonitorAthenaQueryLambdaScheduleEnabled
@@ -291,18 +292,11 @@ Resources:
         RoleArn: !GetAtt GoSendMonitorAthenaQueryLambdaSchedulerRole.Arn
         Input: '{"body":{"script.preset.name":"papertracker"}}'
 
-  GoSendMonitorAthenaQueryLambdaScheduleInvokePermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref GoSendMonitorAthenaQueryLambda
-      Action: lambda:InvokeFunction
-      Principal: events.amazonaws.com
-      SourceArn: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${GoSendMonitorAthenaQueryLambdaName}-schedule*'
-
   GoSendMonitorAthenaQueryLambdaMulticanalitaScheduler:
     Type: AWS::Scheduler::Schedule
     Properties:
-      Description: 'Scheduler for GoSendMonitorAthenaQueryLambda (multicanalita preset)'
+      Name: !Sub 'multicanalita-${GoSendMonitorAthenaQueryLambdaName}-scheduler'
+      Description: 'Scheduler for multicanalita preset'
       ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleExpression
       ScheduleExpressionTimezone: !Ref Timezone
       State: !Ref GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled
@@ -316,7 +310,8 @@ Resources:
   GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduler:
     Type: AWS::Scheduler::Schedule
     Properties:
-      Description: 'Scheduler for GoSendMonitorAthenaQueryLambda (critical-notification-monitoring preset)'
+      Name: !Sub 'critical-notification-monitoring-${GoSendMonitorAthenaQueryLambdaName}-scheduler'
+      Description: 'Scheduler for critical-notification-monitoring preset'
       ScheduleExpression: !Ref GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleExpression
       ScheduleExpressionTimezone: !Ref Timezone
       State: !Ref GoSendMonitorAthenaQueryLambdaCriticalNotificationMonitoringScheduleEnabled
