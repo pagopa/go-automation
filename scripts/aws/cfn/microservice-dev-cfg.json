@@ -11,7 +11,7 @@
     "SlackTokenSecretName": "go/send-monitor-tpp-messages/slack-token",
     "GoSendMonitorAthenaQueryLambdaTimeout": "300",
     "GoSendMonitorAthenaQueryLambdaMemorySize": "512",
-    "GoSendMonitorAthenaQueryLambdaScheduleExpression": "cron(0 12 * * ? *)",
+    "GoSendMonitorAthenaQueryLambdaPaperTrackerScheduleExpression": "cron(0 12 * * ? *)",
     "GoSendMonitorAthenaQueryLambdaPaperTrackerScheduleEnabled": "DISABLED",
     "GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleExpression": "cron(0 12 * * ? *)",
     "GoSendMonitorAthenaQueryLambdaMulticanalitaScheduleEnabled": "DISABLED",
