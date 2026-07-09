@@ -81,6 +81,19 @@ describe('catalog rollout classification', () => {
     assert.deepStrictEqual(diff.incompatible, [RUNBOOKS[0].key]);
   });
 
+  it('classifies adding an alarm alias to an existing key as incompatible', () => {
+    const next = buildCatalog({
+      environment: 'test',
+      artifactRevision: 'a',
+      actorArn: 'test',
+      changeNote: 'add alarm alias',
+      runbooks: [{ ...RUNBOOKS[0], alarmNames: ['send-api-errors', 'send-api-errors-att'] as [string, string] }],
+    });
+    const diff = diffCatalog(BASE, next);
+    assert.strictEqual(diff.kind, 'INCOMPATIBLE');
+    assert.deepStrictEqual(diff.incompatible, [RUNBOOKS[0].key]);
+  });
+
   it('classifies a version bump of an existing key as incompatible', () => {
     const next = buildCatalog({
       environment: 'test',

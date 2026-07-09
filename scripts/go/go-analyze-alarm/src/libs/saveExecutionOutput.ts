@@ -6,11 +6,14 @@ import { Core } from '@go-automation/go-common';
 import { apigw, lambda, service, buildRunbookOutput } from '@go-automation/go-runbook';
 import type { Runbook, RunbookExecutionResult } from '@go-automation/go-runbook';
 
+import { formatOutputSuffix } from './formatOutputSuffix.js';
+
 export async function saveExecutionOutput(
   script: Core.GOScript,
   runbook: Runbook,
   result: RunbookExecutionResult,
   traceFile?: string,
+  outputSuffix?: string,
 ): Promise<string> {
   const output = buildRunbookOutput(runbook, result, {
     ...(traceFile !== undefined ? { traceFile } : {}),
@@ -20,7 +23,7 @@ export async function saveExecutionOutput(
       service.buildServiceOutputContext(rb, executionResult),
   });
 
-  const fileName = `result-${runbook.metadata.id}.json`;
+  const fileName = `result-${runbook.metadata.id}${formatOutputSuffix(outputSuffix)}.json`;
   const resultInfoPath = script.paths.resolvePathWithInfo(fileName, Core.GOPathType.OUTPUT);
   const resultPath = resultInfoPath.path;
 

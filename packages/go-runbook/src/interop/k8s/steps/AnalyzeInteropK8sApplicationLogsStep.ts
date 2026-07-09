@@ -1,0 +1,153 @@
+import type { ResultField } from '@go-automation/go-common/aws';
+import type { RunbookContext } from '../../../types/RunbookContext.js';
+import type { Step } from '../../../types/Step.js';
+import type { StepKind } from '../../../types/StepKind.js';
+import type { StepResult } from '../../../types/StepResult.js';
+
+export interface InteropK8sApplicationLogAnalysis {
+  readonly logCount: number;
+  readonly cidCount: number;
+  readonly cids: ReadonlyArray<string>;
+  readonly rowsWithoutCidCount: number;
+  readonly representativeMessages: ReadonlyArray<string>;
+}
+
+export interface AnalyzeInteropK8sApplicationLogsStepConfig {
+  readonly id: string;
+  readonly label: string;
+  readonly fromStep: string;
+  readonly varPrefix: string;
+}
+
+const CID_PATTERN = /\bCID=([^\]\s,"']+)/u;
+const MAX_REPRESENTATIVE_MESSAGES = 5;
+
+export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sApplicationLogAnalysis> {
+  readonly id: string;
+  readonly label: string;
+  readonly kind: StepKind = 'transform';
+
+  private readonly fromStep: string;
+  private readonly varPrefix: string;
+
+  constructor(config: AnalyzeInteropK8sApplicationLogsStepConfig) {
+    this.id = config.id;
+    this.label = config.label;
+    this.fromStep = config.fromStep;
+    this.varPrefix = config.varPrefix;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async execute(context: RunbookContext): Promise<StepResult<InteropK8sApplicationLogAnalysis>> {
+    const rows = readResultRows(context, this.fromStep);
+    if (rows === undefined) return { success: false, error: `Step output not found: "${this.fromStep}"` };
+
+    const cids: string[] = [];
+    const seenCids = new Set<string>();
+    let rowsWithoutCidCount = 0;
+    const representativeMessages: string[] = [];
+
+    for (const row of rows) {
+      const cid = extractCid(row);
+      if (cid === undefined) {
+        rowsWithoutCidCount += 1;
+      } else if (!seenCids.has(cid)) {
+        seenCids.add(cid);
+        cids.push(cid);
+      }
+
+      const message = extractRepresentativeMessage(row);
+      if (message !== undefined && representativeMessages.length < MAX_REPRESENTATIVE_MESSAGES) {
+        representativeMessages.push(message);
+      }
+    }
+
+    const analysis: InteropK8sApplicationLogAnalysis = {
+      logCount: rows.length,
+      cidCount: cids.length,
+      cids,
+      rowsWithoutCidCount,
+      representativeMessages,
+    };
+
+    context.logger?.text(`      ├─ Log applicativi analizzati: ${rows.length}`);
+    context.logger?.text(`      ├─ CID distinti: ${cids.length}`);
+    context.logger?.text(`      └─ Righe senza CID: ${rowsWithoutCidCount}`);
+
+    return {
+      success: true,
+      output: analysis,
+      vars: {
+        [varName(this.varPrefix, 'LogCount')]: String(analysis.logCount),
+        [varName(this.varPrefix, 'CidCount')]: String(analysis.cidCount),
+        [varName(this.varPrefix, 'Cids')]: JSON.stringify(analysis.cids),
+        [varName(this.varPrefix, 'RowsWithoutCidCount')]: String(analysis.rowsWithoutCidCount),
+        [varName(this.varPrefix, 'ErrorMsg')]: analysis.representativeMessages[0] ?? '',
+        [varName(this.varPrefix, 'AnalysisCompleted')]: 'true',
+      },
+    };
+  }
+}
+
+function readResultRows(
+  context: RunbookContext,
+  stepId: string,
+): ReadonlyArray<ReadonlyArray<ResultField>> | undefined {
+  const value = context.stepResults.get(stepId);
+  if (!isUnknownArray(value)) return undefined;
+
+  const rows: ResultField[][] = [];
+  for (const row of value) {
+    if (!isUnknownArray(row)) continue;
+    rows.push(row.filter(isResultField));
+  }
+  return rows;
+}
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+function isResultField(value: unknown): value is ResultField {
+  return typeof value === 'object' && value !== null && 'field' in value;
+}
+
+function extractCid(row: ReadonlyArray<ResultField>): string | undefined {
+  const explicit = normalize(readField(row, ['cid', 'CID']));
+  if (explicit !== undefined) return explicit;
+
+  for (const candidate of readFields(row, ['@message', 'message', 'log'])) {
+    const match = CID_PATTERN.exec(candidate);
+    const cid = normalize(match?.[1]);
+    if (cid !== undefined) return cid;
+  }
+
+  return undefined;
+}
+
+function extractRepresentativeMessage(row: ReadonlyArray<ResultField>): string | undefined {
+  return normalize(readField(row, ['@message', 'message', 'log']));
+}
+
+function readField(row: ReadonlyArray<ResultField>, names: ReadonlyArray<string>): string | undefined {
+  return readFields(row, names)[0];
+}
+
+function readFields(row: ReadonlyArray<ResultField>, names: ReadonlyArray<string>): ReadonlyArray<string> {
+  const values: string[] = [];
+  for (const field of row) {
+    const fieldName = field.field;
+    if (fieldName === undefined || !names.includes(fieldName)) continue;
+    if (field.value !== undefined) values.push(field.value);
+  }
+  return values;
+}
+
+function normalize(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed === undefined || trimmed === '' ? undefined : trimmed;
+}
+
+function varName(prefix: string, suffix: string): string {
+  return `${prefix}${suffix}`;
+}

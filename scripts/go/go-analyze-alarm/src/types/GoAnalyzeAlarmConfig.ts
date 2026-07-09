@@ -2,7 +2,11 @@
  * Script configuration interface
  * Represents all validated configuration parameters
  */
+type AnalysisMode = 'single' | 'range';
+
 export interface GoAnalyzeAlarmConfig {
+  /** Analysis execution mode */
+  readonly analysisMode: AnalysisMode;
   /** Name of the CloudWatch alarm */
   readonly alarmName: string;
   /**

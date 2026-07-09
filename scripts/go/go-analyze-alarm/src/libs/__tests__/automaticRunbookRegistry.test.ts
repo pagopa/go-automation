@@ -11,6 +11,24 @@ describe('AUTOMATIC_RUNBOOK_REGISTRY', () => {
     assert.deepStrictEqual(byKey?.descriptor, byAlarm.descriptor);
   });
 
+  it('resolves INTEROP environment aliases to the same canonical descriptor', () => {
+    const prod = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName('k8s-interop-be-backend-for-frontend-errors-prod');
+    const att = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName('k8s-interop-be-backend-for-frontend-errors-att');
+    const test = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName('k8s-interop-be-backend-for-frontend-errors-test');
+
+    assert.ok(prod);
+    assert.ok(att);
+    assert.ok(test);
+    assert.strictEqual(prod.descriptor.key, 'k8s-interop-be-backend-for-frontend-errors');
+    assert.deepStrictEqual(att.descriptor, prod.descriptor);
+    assert.deepStrictEqual(test.descriptor, prod.descriptor);
+    assert.deepStrictEqual(prod.descriptor.alarmNames, [
+      'k8s-interop-be-backend-for-frontend-errors-att',
+      'k8s-interop-be-backend-for-frontend-errors-prod',
+      'k8s-interop-be-backend-for-frontend-errors-test',
+    ]);
+  });
+
   it('lists stable sorted descriptors and validates every cloud runbook', () => {
     const first = AUTOMATIC_RUNBOOK_REGISTRY.listDescriptors();
     const second = AUTOMATIC_RUNBOOK_REGISTRY.listDescriptors();

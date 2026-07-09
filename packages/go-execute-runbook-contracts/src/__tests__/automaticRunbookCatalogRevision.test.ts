@@ -61,6 +61,25 @@ describe('AutomaticRunbookCatalogV1', () => {
     );
   });
 
+  it('accepts multiple alarm names for one runbook and rejects aliases reused across descriptors', () => {
+    const multiAlarmRunbook = {
+      ...INPUT.runbooks[0]!,
+      alarmNames: ['send-api-errors-att', 'send-api-errors-prod'] as [string, string],
+    };
+    const catalog = buildAutomaticRunbookCatalog({ ...INPUT, runbooks: [multiAlarmRunbook] });
+    assert.doesNotThrow(() => validateAutomaticRunbookCatalog(catalog));
+
+    const otherRunbook = {
+      ...INPUT.runbooks[0]!,
+      key: 'send-apigw-analysis-other',
+      alarmNames: ['send-api-errors-att'] as [string],
+    };
+    assert.throws(
+      () => buildAutomaticRunbookCatalog({ ...INPUT, runbooks: [multiAlarmRunbook, otherRunbook] }),
+      /Ambiguous automatic runbook alarm name/u,
+    );
+  });
+
   it('validates the vendored fixtures', async () => {
     const root = resolve(import.meta.dirname, '../../../../contracts/runbook-automation/v1/fixtures');
     const valid = JSON.parse(
