@@ -6,22 +6,22 @@
     {
       "logicalName": "watchtower-openapi",
       "path": "watchtower-openapi.json",
-      "sha256": "3a379a8d8a13ad81d4dc242dcf22440f32ba6e642412a558e2c95270211cfcb1"
+      "sha256": "d83df755c15ebe1014fccd8fde30917bea71030031d7f4cefe2e6cb7c7790d03"
     },
     {
       "logicalName": "automatic-alarm-analysis-command-v1.schema",
       "path": "automatic-alarm-analysis-command-v1.schema.json",
-      "sha256": "28b624ae6e36dd08deecd044160f814ceaab466413a498ab561709250d6bd915"
+      "sha256": "d0c286d84e80074991269439efbb333ab55e4ba83f2f814fbdbab48ec5957637"
     },
     {
       "logicalName": "fixtures:sqs-command.valid",
       "path": "fixtures/sqs-command.valid.json",
-      "sha256": "d48c1168b23f131595399731a1ab3cd1e1390400b5267b1858eed3aeec4c9505"
+      "sha256": "b4d4f824d69d6c13bcb2ba1ede9e4407f078635553d34786a2eb99024b027579"
     },
     {
       "logicalName": "fixtures:sqs-command.invalid-version",
       "path": "fixtures/sqs-command.invalid-version.json",
-      "sha256": "c0d385422fe48cdc3371be9e0a4f91586db55bdd074cd9a731ac4fac21e7baa8"
+      "sha256": "438cf2dd085a1f849c93f33a0ca4371a10c4ec00e780925d09407010301df078"
     },
     {
       "logicalName": "fixtures:start-responses",

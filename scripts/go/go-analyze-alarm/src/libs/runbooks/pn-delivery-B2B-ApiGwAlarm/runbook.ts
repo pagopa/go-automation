@@ -18,7 +18,7 @@ export function buildDeliveryB2BApiGwAlarmRunbook(): Runbook {
   return apigw.createApiGwAlarmRunbook({
     id: 'pn-delivery-B2B-ApiGwAlarm',
     metadata: {
-      name: 'ANALISI ALLARME pn-delivery-B2B-ApiGwAlarm',
+      name: 'pn-delivery-B2B-ApiGwAlarm',
       description: '',
       version: '3.0.0',
       type: 'alarm-resolution',

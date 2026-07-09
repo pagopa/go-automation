@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "revision": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
+  "publishedAt": "2026-07-01T10:00:00.000Z",
+  "environment": "production",
+  "worker": {
+    "artifactRevision": "build-abc123",
+    "commandSchemaVersion": "1.0.0"
+  },
+  "release": {
+    "actorArn": "arn:aws:sts::123456789012:assumed-role/go-automation-deployer/operator",
+    "changeNote": "invalid fixture"
+  },
+  "runbooks": [
+    {
+      "key": "send-apigw-analysis",
+      "version": "1.0.0",
+      "name": "SEND API Gateway analysis",
+      "description": "Analyzes the SEND API Gateway alarm",
+      "team": "GO",
+      "kind": "APIGW",
+      "categories": ["DELIVERY"],
+      "tags": ["send"],
+      "alarmNames": ["send-api-errors"],
+      "definitionDigest": "sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}

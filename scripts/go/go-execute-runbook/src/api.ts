@@ -1,4 +1,9 @@
 export { buildExecuteRunbookDeps } from './libs/buildExecuteRunbookDeps.js';
+export { assertRunbookCapability } from './libs/assertRunbookCapability.js';
+export type {
+  RunbookCapabilityMismatchDetails,
+  RunbookCapabilityMismatchError,
+} from './libs/assertRunbookCapability.js';
 export { classifyAutomationFailure } from './libs/classifyAutomationFailure.js';
 export { classifyAutomationOutcome } from './libs/classifyAutomationOutcome.js';
 export { executeRunbook, executeRunbookDryRun } from './libs/executeRunbook.js';

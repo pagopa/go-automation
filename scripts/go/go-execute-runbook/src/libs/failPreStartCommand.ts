@@ -12,10 +12,10 @@ export async function failPreStartCommand(
   const errorCode = commandErrorCode(error);
   const request: FailExecutionRequest = {
     scope: 'PRE_START',
-    errorCategory: 'COMMAND',
+    errorCategory: errorCode === 'RUNBOOK_CAPABILITY_MISMATCH' ? 'CAPABILITY' : 'COMMAND',
     errorCode,
     errorMessage: boundedMessage(error),
-    failedPhase: 'COMMAND_VALIDATION',
+    failedPhase: errorCode === 'RUNBOOK_CAPABILITY_MISMATCH' ? 'CAPABILITY_VALIDATION' : 'COMMAND_VALIDATION',
     retryable: false,
     sqsMessageId: delivery.sqsMessageId,
     approximateReceiveCount: delivery.approximateReceiveCount,
@@ -30,9 +30,12 @@ export async function failPreStartCommand(
   }
 }
 
-function commandErrorCode(error: unknown): 'INVALID_COMMAND' | 'UNSUPPORTED_COMMAND_VERSION' {
+function commandErrorCode(
+  error: unknown,
+): 'INVALID_COMMAND' | 'UNSUPPORTED_COMMAND_VERSION' | 'RUNBOOK_CAPABILITY_MISMATCH' {
   if (typeof error === 'object' && error !== null && 'workerFailureCode' in error) {
     if (error.workerFailureCode === 'UNSUPPORTED_COMMAND_VERSION') return 'UNSUPPORTED_COMMAND_VERSION';
+    if (error.workerFailureCode === 'RUNBOOK_CAPABILITY_MISMATCH') return 'RUNBOOK_CAPABILITY_MISMATCH';
   }
   return 'INVALID_COMMAND';
 }

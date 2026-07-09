@@ -18,7 +18,7 @@ import {
 } from '@go-automation/go-runbook';
 import type { ServiceRegistry, RunbookOutput, ExecutionEnvironment } from '@go-automation/go-runbook';
 
-import { RUNBOOK_REGISTRY } from './runbookRegistry.js';
+import { AUTOMATIC_RUNBOOK_REGISTRY } from './runbookRegistry.js';
 import { computeTimeRange } from './computeTimeRange.js';
 import { createTimeRangeReference } from './createTimeRangeReference.js';
 import { DEFAULT_TIME_WINDOW_MINUTES } from './runbooks/constants.js';
@@ -32,6 +32,8 @@ export interface ExecuteRunbookForOccurrenceDeps {
 /** Per-occurrence input. */
 export interface ExecuteRunbookForOccurrenceInput {
   readonly alarmName: string;
+  /** Stable registry key pinned by the managed cloud command. */
+  readonly runbookKey?: string;
   /** Occurrence timestamp (ISO 8601) used as `alarmDatetime`. */
   readonly firedAt: string;
   /** Optional last-occurrence timestamp (ISO 8601) for multi-occurrence mode. */
@@ -60,11 +62,21 @@ export async function executeRunbookForOccurrence(
   deps: ExecuteRunbookForOccurrenceDeps,
   input: ExecuteRunbookForOccurrenceInput,
 ): Promise<RunbookOutput> {
-  const builder = RUNBOOK_REGISTRY.get(input.alarmName);
-  if (builder === undefined) {
-    throw new Error(`No runbook registered for alarm "${input.alarmName}".`);
+  const resolved =
+    input.runbookKey === undefined
+      ? AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(input.alarmName)
+      : AUTOMATIC_RUNBOOK_REGISTRY.resolveByKey(input.runbookKey);
+  if (resolved === undefined) {
+    throw new Error(
+      input.runbookKey === undefined
+        ? `No runbook registered for alarm "${input.alarmName}".`
+        : `No runbook registered with key "${input.runbookKey}".`,
+    );
   }
-  const runbook = builder();
+  if (!resolved.descriptor.alarmNames.includes(input.alarmName)) {
+    throw new Error(`Runbook "${resolved.descriptor.key}" does not support alarm "${input.alarmName}".`);
+  }
+  const runbook = resolved.build();
   if (input.executionMode === 'cloud') {
     assertCloudExecutableRunbook(runbook);
   }

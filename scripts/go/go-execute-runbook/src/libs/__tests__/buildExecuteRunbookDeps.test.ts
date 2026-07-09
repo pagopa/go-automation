@@ -14,6 +14,34 @@ const BASE_CONFIG: ExecuteRunbookConfig = {
 };
 
 describe('buildExecuteRunbookDeps', () => {
+  it('requires and trims the worker artifact revision in AWS-managed execution', async () => {
+    await assert.rejects(
+      buildExecuteRunbookDeps(
+        fakeScript(() => 'secret-from-aws', true),
+        BASE_CONFIG,
+      ),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /worker artifact revision is required/u);
+        assert.strictEqual(
+          (error as { readonly workerFailureCode?: unknown }).workerFailureCode,
+          'WORKER_CONFIGURATION_ERROR',
+        );
+        return true;
+      },
+    );
+
+    const deps = await buildExecuteRunbookDeps(
+      fakeScript(() => 'unused-secret', true),
+      {
+        ...BASE_CONFIG,
+        watchtowerPassword: 'service-password',
+        executeRunbookArtifactRevision: '  build-abc123  ',
+      },
+    );
+    assert.strictEqual(deps.workerArtifactRevision, 'build-abc123');
+  });
+
   it('trims an inline Watchtower service password', async () => {
     let secretReads = 0;
     const deps = await buildExecuteRunbookDeps(
@@ -74,9 +102,9 @@ describe('buildExecuteRunbookDeps', () => {
   });
 });
 
-function fakeScript(readSecretString: FakeSecretStringLoaderFn): Core.GOScript {
+function fakeScript(readSecretString: FakeSecretStringLoaderFn, isAWSManaged = false): Core.GOScript {
   return {
-    environment: { isAWSManaged: false },
+    environment: { isAWSManaged },
     logger: {} as Core.GOLogger,
     aws: {
       services: {

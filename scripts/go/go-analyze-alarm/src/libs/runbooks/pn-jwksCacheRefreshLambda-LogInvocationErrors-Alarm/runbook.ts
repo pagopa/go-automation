@@ -18,7 +18,7 @@ export function buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook(): Ru
   return lambda.createLambdaAlarmRunbook({
     id: 'pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm',
     metadata: {
-      name: 'ANALISI ALLARME pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm',
+      name: 'pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm',
       description: 'Gestire in modo standardizzato gli allarmi generati dalla lambda pn-jwksCacheRefreshLambda',
       version: '1.0.0',
       type: 'alarm-resolution',

@@ -8,4 +8,5 @@ export interface ExecuteRunbookDeps {
   readonly services: ServiceRegistry;
   readonly awsProfiles: ReadonlyArray<string>;
   readonly useConfiguredAwsProfiles: boolean;
+  readonly workerArtifactRevision?: string;
 }

@@ -5,10 +5,14 @@ import { Core } from '@go-automation/go-common';
 import type { AWS } from '@go-automation/go-common';
 import type { ServiceRegistry } from '@go-automation/go-runbook';
 import type { WatchtowerClient } from '@go-automation/go-watchtower-client';
+import { AUTOMATIC_RUNBOOK_REGISTRY } from 'go-analyze-alarm/api';
 
 import type { ExecuteRunbookDeps } from '../../types/ExecuteRunbookDeps.js';
 import type { ExecuteRunbookInput } from '../../types/ExecuteRunbookInput.js';
+import { assertRunbookCapability } from '../assertRunbookCapability.js';
 import { executeRunbook } from '../executeRunbook.js';
+
+const RUNBOOK = AUTOMATIC_RUNBOOK_REGISTRY.resolveByKey('pn-tokenExchangeLambda-LogInvocationErrors-Alarm')!.descriptor;
 
 const INPUT: ExecuteRunbookInput = {
   schemaVersion: '1.0.0',
@@ -18,10 +22,17 @@ const INPUT: ExecuteRunbookInput = {
     productId: '0192c000-0000-7000-8000-0000000000bb',
     environmentId: '0192c000-0000-7000-8000-0000000000cc',
     alarmId: '0192c000-0000-7000-8000-0000000000dd',
-    alarmName: 'alarm-without-runbook',
+    alarmName: RUNBOOK.alarmNames[0],
     firedAt: '2026-06-22T10:00:00.000Z',
     awsAccountId: '170533023216',
     awsRegion: 'eu-south-1',
+  },
+  runbook: {
+    key: RUNBOOK.key,
+    version: RUNBOOK.version,
+    definitionDigest: RUNBOOK.definitionDigest,
+    catalogRevision: `sha256-${'b'.repeat(64)}`,
+    workerRevision: 'build-abc123',
   },
   trigger: { kind: 'SLACK_INGESTOR' },
 };
@@ -40,6 +51,29 @@ interface LifecycleOptions {
 type StopObserverFn = () => void;
 
 describe('executeRunbook', () => {
+  it('allows local capability validation when the worker revision is unspecified', () => {
+    assert.doesNotThrow(() => assertRunbookCapability(INPUT));
+  });
+
+  it('reports the pinned worker revision for local capability mismatches', () => {
+    assert.throws(
+      () =>
+        assertRunbookCapability({
+          ...INPUT,
+          runbook: { ...INPUT.runbook, definitionDigest: `sha256-${'0'.repeat(64)}` },
+        }),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        const details = (error as { readonly details?: { readonly workerRevision?: unknown } }).details;
+        assert.strictEqual(details?.workerRevision, INPUT.runbook.workerRevision);
+        assert.match(error.message, /requested=.* digest=.* requestedWorker=.*; worker=.*; registered=/u);
+        assert.doesNotMatch(error.message, /alarmNames|catalogRevision/u);
+        assert.ok(error.message.length < 2_048);
+        return true;
+      },
+    );
+  });
+
   it('ACKs ALREADY_RUNNING without starting the engine or a terminal callback', async () => {
     let completeCalls = 0;
     const deps = fakeDeps({
@@ -50,7 +84,7 @@ describe('executeRunbook', () => {
       completeExecution: async () => {
         await Promise.resolve();
         completeCalls += 1;
-        return { status: 'SUCCEEDED', outcome: 'NO_RUNBOOK' };
+        return { status: 'SUCCEEDED', outcome: 'NO_DATA' };
       },
     });
 
@@ -60,40 +94,54 @@ describe('executeRunbook', () => {
     assert.strictEqual(completeCalls, 0);
   });
 
-  it('completes NO_RUNBOOK with the canonical key after acquiring an attempt', async () => {
-    let completeKey = '';
+  it('rejects a capability mismatch before acquiring an attempt', async () => {
+    let startCalls = 0;
     const deps = fakeDeps({
       startExecution: async () => {
         await Promise.resolve();
-        return {
-          disposition: 'START',
-          attemptId: '0192c000-0000-7000-8000-0000000000e1',
-          workerDeadlineAt: DELIVERY.workerDeadlineAt,
-        };
-      },
-      progressExecution: async () => {
-        await Promise.resolve();
-        return { cancelRequested: false };
-      },
-      completeExecution: async (
-        _id: string,
-        body: { readonly outcome: string },
-        options: { readonly idempotencyKey: string },
-      ) => {
-        await Promise.resolve();
-        completeKey = options.idempotencyKey;
-        assert.strictEqual(body.outcome, 'NO_RUNBOOK');
-        return { status: 'SKIPPED', outcome: 'NO_RUNBOOK' };
+        startCalls += 1;
+        return { disposition: 'ALREADY_RUNNING', workerDeadlineAt: DELIVERY.workerDeadlineAt };
       },
     });
 
-    const result = await executeRunbook(deps, INPUT, DELIVERY);
-
-    assert.strictEqual(result.status, 'SKIPPED');
-    assert.strictEqual(
-      completeKey,
-      'complete:0192c000-0000-7000-8000-000000000001:0192c000-0000-7000-8000-0000000000e1',
+    await assert.rejects(
+      executeRunbook(
+        deps,
+        { ...INPUT, runbook: { ...INPUT.runbook, definitionDigest: `sha256-${'0'.repeat(64)}` } },
+        DELIVERY,
+      ),
+      (error: unknown) =>
+        typeof error === 'object' &&
+        error !== null &&
+        'workerFailureCode' in error &&
+        error.workerFailureCode === 'RUNBOOK_CAPABILITY_MISMATCH',
     );
+    assert.strictEqual(startCalls, 0);
+  });
+
+  it('rejects a worker revision mismatch before acquiring an attempt', async () => {
+    let startCalls = 0;
+    const deps = fakeDeps({
+      startExecution: async () => {
+        await Promise.resolve();
+        startCalls += 1;
+        return { disposition: 'ALREADY_RUNNING', workerDeadlineAt: DELIVERY.workerDeadlineAt };
+      },
+    });
+
+    await assert.rejects(
+      executeRunbook(
+        deps,
+        { ...INPUT, runbook: { ...INPUT.runbook, workerRevision: 'different-worker-revision' } },
+        DELIVERY,
+      ),
+      (error: unknown) =>
+        typeof error === 'object' &&
+        error !== null &&
+        'workerFailureCode' in error &&
+        error.workerFailureCode === 'RUNBOOK_CAPABILITY_MISMATCH',
+    );
+    assert.strictEqual(startCalls, 0);
   });
 
   it('uses the authoritative start response deadline for worker lifecycle callbacks', async () => {
@@ -119,7 +167,7 @@ describe('executeRunbook', () => {
       completeExecution: async (_id: string, _body: unknown, options: LifecycleOptions) => {
         await Promise.resolve();
         completeDeadlineAtMs = options.deadlineAtMs;
-        return { status: 'SKIPPED', outcome: 'NO_RUNBOOK' };
+        return { status: 'SKIPPED', outcome: 'NO_DATA' };
       },
     });
 
@@ -151,7 +199,7 @@ describe('executeRunbook', () => {
       completeExecution: async (_id: string, _body: unknown, options: LifecycleOptions) => {
         await Promise.resolve();
         completeDeadlineAtMs = options.deadlineAtMs;
-        return { status: 'SKIPPED', outcome: 'NO_RUNBOOK' };
+        return { status: 'SKIPPED', outcome: 'NO_DATA' };
       },
     });
 
@@ -185,7 +233,7 @@ describe('executeRunbook', () => {
       completeExecution: async () => {
         await Promise.resolve();
         completeCalls += 1;
-        return { status: 'SUCCEEDED', outcome: 'NO_RUNBOOK' };
+        return { status: 'SUCCEEDED', outcome: 'NO_DATA' };
       },
       acknowledgeCancellation: async (_id: string, _body: unknown, options: LifecycleOptions) => {
         await Promise.resolve();
@@ -252,7 +300,7 @@ describe('executeRunbook', () => {
       completeExecution: async () => {
         await Promise.resolve();
         completeCalls += 1;
-        return { status: 'SUCCEEDED', outcome: 'NO_RUNBOOK' };
+        return { status: 'SUCCEEDED', outcome: 'NO_DATA' };
       },
     });
 
@@ -319,13 +367,29 @@ function fakeDeps(
     watchtower: watchtower as unknown as WatchtowerClient,
     logger: new Core.GOLogger(),
     services: {
-      cloudWatchLogs: {} as AWS.AWSCloudWatchLogsService,
+      cloudWatchLogs: successfulCloudWatchLogsService(),
       athena: { forExecution: () => ({}) } as unknown as AWS.AWSAthenaService,
       ...services,
     } as ServiceRegistry,
     awsProfiles: [],
     useConfiguredAwsProfiles: false,
+    workerArtifactRevision: INPUT.runbook.workerRevision,
   };
+}
+
+function successfulCloudWatchLogsService(): AWS.AWSCloudWatchLogsService {
+  return {
+    forTarget: () => ({
+      queryWithStatistics: async () => {
+        await Promise.resolve();
+        return {
+          rows: [],
+          statistics: { bytesScanned: 0, recordsScanned: 0, recordsMatched: 0 },
+          queryExecutions: [],
+        };
+      },
+    }),
+  } as unknown as AWS.AWSCloudWatchLogsService;
 }
 
 function failingCloudWatchLogsService(onQuery: StopObserverFn, onStop: StopObserverFn): AWS.AWSCloudWatchLogsService {

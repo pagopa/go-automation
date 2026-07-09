@@ -1,5 +1,5 @@
 import { AWS } from '@go-automation/go-common';
-import { classifyRunbookOutcome, noRunbookCheck } from '@go-automation/go-runbook';
+import { classifyRunbookOutcome } from '@go-automation/go-runbook';
 import type { RunbookCheck, RunbookOutput, ServiceRegistry } from '@go-automation/go-runbook';
 import type {
   AcknowledgeCancellationRequest,
@@ -8,7 +8,7 @@ import type {
   AutomaticRunbookExecutionStatus,
   StartExecutionRequest,
 } from '@go-automation/go-watchtower-client';
-import { RUNBOOK_REGISTRY, executeRunbookForOccurrence } from 'go-analyze-alarm/api';
+import { executeRunbookForOccurrence } from 'go-analyze-alarm/api';
 
 import type { ExecuteRunbookDelivery } from '../types/ExecuteRunbookDelivery.js';
 import type { ExecuteRunbookDeps } from '../types/ExecuteRunbookDeps.js';
@@ -17,6 +17,7 @@ import type { ExecuteRunbookResult } from '../types/ExecuteRunbookResult.js';
 import type { ExecuteRunbookSuppressedReason } from '../types/ExecuteRunbookResult.js';
 import type { ExecutionAbortCause } from '../types/ExecutionAbortCause.js';
 import { buildTrackingEntries } from './buildTrackingEntries.js';
+import { assertRunbookCapability } from './assertRunbookCapability.js';
 import { CancellationMonitor } from './CancellationMonitor.js';
 import { classifyAutomationOutcome } from './classifyAutomationOutcome.js';
 import { ExecutionAbortCoordinator } from './ExecutionAbortCoordinator.js';
@@ -26,8 +27,8 @@ export interface ExecuteRunbookDryRunResult {
   readonly executionId: string;
   readonly outcome: AutomaticRunbookOutcome;
   readonly check: RunbookCheck;
-  readonly runbookKey?: string;
-  readonly runbookVersion?: string;
+  readonly runbookKey: string;
+  readonly runbookVersion: string;
 }
 
 export interface ExecuteRunbookDryRunOptions {
@@ -41,6 +42,7 @@ export async function executeRunbookDryRun(
   input: ExecuteRunbookInput,
   options: ExecuteRunbookDryRunOptions = {},
 ): Promise<ExecuteRunbookDryRunResult> {
+  assertRunbookCapability(input, deps.workerArtifactRevision);
   const coordinator = new ExecutionAbortCoordinator();
   const activeOperations = new AWS.AWSActiveOperationRegistry();
   let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -57,12 +59,13 @@ export async function executeRunbookDryRun(
     const output = await runOccurrence(deps, input, coordinator, activeOperations);
     const abortCause = readAbortCause(coordinator);
     if (abortCause !== undefined) throw new Error(abortCause);
-    const check = output === undefined ? noRunbookCheck() : classifyRunbookOutcome(output);
+    const check = classifyRunbookOutcome(output);
     return {
       executionId: input.executionId,
       outcome: classifyAutomationOutcome(check),
       check,
-      ...(output === undefined ? {} : { runbookKey: output.runbook.id, runbookVersion: output.runbook.version }),
+      runbookKey: output.runbook.id,
+      runbookVersion: output.runbook.version,
     };
   } finally {
     if (timeout !== undefined) clearTimeout(timeout);
@@ -77,6 +80,7 @@ export async function executeRunbook(
   input: ExecuteRunbookInput,
   delivery: ExecuteRunbookDelivery,
 ): Promise<ExecuteRunbookResult> {
+  assertRunbookCapability(input, deps.workerArtifactRevision);
   const executionId = input.executionId;
   const startRequest: StartExecutionRequest = {
     sqsMessageId: delivery.sqsMessageId,
@@ -142,8 +146,8 @@ export async function executeRunbook(
     }
     if (abortCause !== undefined) throw new Error(abortCause);
 
-    const check = output === undefined ? noRunbookCheck() : classifyRunbookOutcome(output);
-    const completeRequest = buildCompleteRequest(attemptId, check, output);
+    const check = classifyRunbookOutcome(output);
+    const completeRequest = buildCompleteRequest(attemptId, check, output, input);
     const completeResult = await deps.watchtower.completeExecution(executionId, completeRequest, {
       idempotencyKey: `complete:${executionId}:${attemptId}`,
       deadlineAtMs: activeDeadlineAtMs,
@@ -244,12 +248,12 @@ async function runOccurrence(
   input: ExecuteRunbookInput,
   coordinator: ExecutionAbortCoordinator,
   activeOperations: AWS.AWSActiveOperationRegistry,
-): Promise<RunbookOutput | undefined> {
-  if (!RUNBOOK_REGISTRY.has(input.alarmEvent.alarmName)) return undefined;
+): Promise<RunbookOutput> {
   return await executeRunbookForOccurrence(
     { logger: deps.logger, services: scopedServices(deps, input, activeOperations) },
     {
       alarmName: input.alarmEvent.alarmName,
+      runbookKey: input.runbook.key,
       firedAt: input.alarmEvent.firedAt,
       awsAccountId: input.alarmEvent.awsAccountId,
       region: input.alarmEvent.awsRegion,
@@ -281,32 +285,37 @@ function scopedServices(
 function buildCompleteRequest(
   attemptId: string,
   check: RunbookCheck,
-  output: RunbookOutput | undefined,
+  output: RunbookOutput,
+  input: ExecuteRunbookInput,
 ): CompleteExecutionRequest {
-  const stats = output?.telemetry?.cloudWatchLogs?.statistics;
+  const stats = output.telemetry?.cloudWatchLogs?.statistics;
   return {
     attemptId,
     outcome: classifyAutomationOutcome(check),
-    ...(output === undefined
-      ? {}
-      : {
-          runbookKey: output.runbook.id,
-          runbookVersion: output.runbook.version,
-          engineExecutionId: output.execution.executionId,
-          analysisPayload: output,
-          resultSummary: check,
-          tracking: buildTrackingEntries(output),
-        }),
+    runbookKey: output.runbook.id,
+    runbookVersion: output.runbook.version,
+    runbookDigest: inputDigestForOutput(output, input),
+    engineExecutionId: output.execution.executionId,
+    analysisPayload: output,
+    resultSummary: check,
+    tracking: buildTrackingEntries(output),
     ...(stats === undefined
       ? {}
       : {
-          queryCount: output?.telemetry?.cloudWatchLogs?.queryCount ?? 0,
+          queryCount: output.telemetry?.cloudWatchLogs?.queryCount ?? 0,
           bytesScanned: decimalMetric(stats.bytesScanned),
           recordsScanned: decimalMetric(stats.recordsScanned),
           recordsMatched: decimalMetric(stats.recordsMatched),
         }),
     ...(check.error === undefined ? {} : { errorMessage: check.error.slice(0, 2_048) }),
   };
+}
+
+function inputDigestForOutput(output: RunbookOutput, input: ExecuteRunbookInput): string {
+  if (output.runbook.id !== input.runbook.key || output.runbook.version !== input.runbook.version) {
+    throw new Error('Executed runbook key/version differs from the pinned capability');
+  }
+  return input.runbook.definitionDigest;
 }
 
 async function acknowledgeCancellation(

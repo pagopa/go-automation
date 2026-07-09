@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import { loadExecuteRunbookDeploymentConfig } from '../config/DeploymentConfig.js';
 import { loadExecuteRunbookSourceLinkDeploymentConfig } from '../config/SourceLinkDeploymentConfig.js';
 import { buildExecuteRunbookMonitoringPlan } from '../stacks/monitoringPlan.js';
+import { buildAutomaticRunbookCatalogBucketName } from '../config/constants.js';
 
 const BASE_ENV = {
   DEPLOY_ENV: 'production',
@@ -19,6 +20,14 @@ const BASE_ENV = {
 } as const;
 
 describe('execute-runbook monitoring plan', () => {
+  it('derives one deterministic global catalog bucket per account and environment', () => {
+    assert.strictEqual(
+      buildAutomaticRunbookCatalogBucketName('production', '170533023216'),
+      'go-auto-170533023216-production-runbooks',
+    );
+    assert.throws(() => buildAutomaticRunbookCatalogBucketName('Production', '170533023216'), /DEPLOY_ENV/);
+  });
+
   it('uses fixed resource names independently of environment and region', () => {
     const supported = new Set(['eu-south-1', 'eu-west-1']);
     for (const region of supported) {

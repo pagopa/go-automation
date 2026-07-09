@@ -15,6 +15,7 @@ function isPermanentWorkerFailure(error: unknown): boolean {
   return (
     code === 'INVALID_COMMAND' ||
     code === 'UNSUPPORTED_COMMAND_VERSION' ||
+    code === 'RUNBOOK_CAPABILITY_MISMATCH' ||
     code === 'WORKER_CONFIGURATION_ERROR' ||
     code === 'INTERNAL_INVARIANT'
   );

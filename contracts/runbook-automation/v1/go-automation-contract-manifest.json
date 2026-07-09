@@ -22,6 +22,21 @@
       "logicalName": "QueueRegistryMissingRegionFixture",
       "path": "contracts/runbook-automation/v1/fixtures/queue-registry.missing-region.json",
       "sha256": "355541a4cdb6c85036f85fd5aa31c9ea2a4dd3ce2546d3c4fc11f31a3e20cc8d"
+    },
+    {
+      "logicalName": "AutomaticRunbookCatalogV1Schema",
+      "path": "contracts/runbook-automation/v1/automatic-runbook-catalog-v1.schema.json",
+      "sha256": "59fc995abf45ddd66d982d5b9cd8789c1eafe045bc412022905cd4f1f053d843"
+    },
+    {
+      "logicalName": "AutomaticRunbookCatalogValidFixture",
+      "path": "contracts/runbook-automation/v1/fixtures/automatic-runbook-catalog.valid.json",
+      "sha256": "f5db70a3e3bd46c05e789c6603517b9fe0bea0cb3465fedf6f705c3c0dd811fa"
+    },
+    {
+      "logicalName": "AutomaticRunbookCatalogInvalidRevisionFixture",
+      "path": "contracts/runbook-automation/v1/fixtures/automatic-runbook-catalog.invalid-revision.json",
+      "sha256": "12e72a380f8b6ad810be5d035355c9ba0d447704351193ec848c64001608558d"
     }
   ]
 }

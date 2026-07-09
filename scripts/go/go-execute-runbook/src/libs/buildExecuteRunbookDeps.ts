@@ -19,6 +19,10 @@ export async function buildExecuteRunbookDeps(
   config: ExecuteRunbookConfig,
   options: BuildExecuteRunbookDepsOptions = { auth: 'SERVICE' },
 ): Promise<ExecuteRunbookDeps> {
+  const workerArtifactRevision = config.executeRunbookArtifactRevision?.trim();
+  if (script.environment.isAWSManaged && (workerArtifactRevision === undefined || workerArtifactRevision === '')) {
+    throw configurationFailure('Execute-runbook worker artifact revision is required in AWS-managed execution');
+  }
   const awsProfiles = script.environment.isAWSManaged ? [] : (config.awsProfiles ?? []);
   const watchtower = new WatchtowerClient({
     baseUrl: config.watchtowerUrl,
@@ -31,6 +35,7 @@ export async function buildExecuteRunbookDeps(
     services,
     awsProfiles,
     useConfiguredAwsProfiles: awsProfiles.length > 0,
+    ...(workerArtifactRevision === undefined || workerArtifactRevision === '' ? {} : { workerArtifactRevision }),
   };
 }
 

@@ -18,7 +18,7 @@ export function buildNationalRegistriesPNPGApiGwAlarmRunbook(): Runbook {
   return apigw.createApiGwAlarmRunbook({
     id: 'pn-national-registries-PNPG-ApiGwAlarm',
     metadata: {
-      name: 'ANALISI ALLARME pn-national-registries-PNPG-ApiGwAlarm',
+      name: 'pn-national-registries-PNPG-ApiGwAlarm',
       description:
         'Gestire in modo standardizzato gli allarmi generati da Api Gateway quando si verificano errori sul microservizio pn-national-registries.',
       version: '1.0.0',
