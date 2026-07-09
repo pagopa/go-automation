@@ -23,6 +23,15 @@ export const scriptMetadata: Core.GOScriptMetadata = {
  */
 export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
+    name: 'analysis.mode',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'Analysis mode: single occurrence or range of occurrences for the configured alarm',
+    required: false,
+    defaultValue: 'single',
+    aliases: ['am'],
+    validator: (value) => value === 'single' || value === 'range' || 'Expected single or range',
+  },
+  {
     name: 'alarm.name',
     type: Core.GOConfigParameterType.STRING,
     description: 'Name of the CloudWatch alarm that triggered',

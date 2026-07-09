@@ -5,6 +5,8 @@
 import { Core } from '@go-automation/go-common';
 import type { RunbookExecutionResult } from '@go-automation/go-runbook';
 
+import { formatOutputSuffix } from './formatOutputSuffix.js';
+
 /**
  * Saves the RunbookExecutionTrace as a JSON file in the script's data directory.
  * File name: trace-{alarmName}.json
@@ -17,8 +19,9 @@ export async function saveExecutionTrace(
   script: Core.GOScript,
   result: RunbookExecutionResult,
   alarmName: string,
+  outputSuffix?: string,
 ): Promise<string> {
-  const fileName = `trace-${alarmName}.json`;
+  const fileName = `trace-${alarmName}${formatOutputSuffix(outputSuffix)}.json`;
   const traceInfoPath = script.paths.resolvePathWithInfo(fileName, Core.GOPathType.OUTPUT);
   const tracePath = traceInfoPath.path;
 

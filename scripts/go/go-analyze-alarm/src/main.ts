@@ -6,17 +6,11 @@
  */
 
 import { Core } from '@go-automation/go-common';
-import { RunbookEngine, ConditionEvaluator, apigw, lambda } from '@go-automation/go-runbook';
-import type { ExecutionEnvironment } from '@go-automation/go-runbook';
 
 import type { GoAnalyzeAlarmConfig } from './types/GoAnalyzeAlarmConfig.js';
+import { analyzeOccurrence } from './libs/analyzeOccurrence.js';
+import { assertRangeModeConfig, findAlarmOccurrences } from './libs/findAlarmOccurrences.js';
 import { RUNBOOK_REGISTRY } from './libs/runbookRegistry.js';
-import { DEFAULT_TIME_WINDOW_MINUTES } from './libs/runbooks/constants.js';
-import { createServiceRegistry } from './libs/createServiceRegistry.js';
-import { computeTimeRange } from './libs/computeTimeRange.js';
-import { createTimeRangeReference } from './libs/createTimeRangeReference.js';
-import { saveExecutionTrace } from './libs/saveExecutionTrace.js';
-import { saveExecutionOutput } from './libs/saveExecutionOutput.js';
 
 /**
  * Main script execution function.
@@ -29,9 +23,11 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.section('Go Analyze Alarm');
   script.logger.info(`Alarm: ${config.alarmName}`);
   script.logger.info(`Datetime: ${config.alarmDatetime}`);
+  script.logger.info(`Analysis mode: ${config.analysisMode}`);
   script.logger.info(`AWS Profiles: ${config.awsProfiles.join(', ')}`);
 
-  // Lookup runbook for this alarm
+  assertRangeModeConfig(config);
+
   const runbookBuilder = RUNBOOK_REGISTRY.get(config.alarmName);
   if (runbookBuilder === undefined) {
     script.logger.error(`No runbook found for alarm: "${config.alarmName}"`);
@@ -39,86 +35,33 @@ export async function main(script: Core.GOScript): Promise<void> {
     return;
   }
 
-  // Build the runbook
-  const runbook = runbookBuilder();
-  script.logger.info(`Runbook: ${runbook.metadata.name} v${runbook.metadata.version}`);
-
-  // Compute time range (single timestamp or first/last occurrence range)
-  const reference = createTimeRangeReference(config.alarmDatetime, config.alarmDatetimeEnd);
-  const { startTime, endTime } = computeTimeRange(reference, DEFAULT_TIME_WINDOW_MINUTES);
-  script.logger.info(`Time range: ${startTime} → ${endTime}`);
-
-  // Create params map for the runbook
-  const params = new Map<string, string>([
-    ['alarmName', config.alarmName],
-    ['alarmDatetime', config.alarmDatetime],
-    ['startTime', startTime],
-    ['endTime', endTime],
-  ]);
-
   if (config.awsProfiles.length === 0) {
     script.logger.error('No AWS profiles provided');
     return;
   }
 
-  script.logger.info(`Using AWS profiles: ${script.aws.clients.profileNames.join(', ')}`);
-
-  // Create service registry
-  const services = createServiceRegistry(script);
-
-  // Execute the runbook
-  script.logger.section('Executing Runbook');
-
-  const engine = new RunbookEngine(script.logger, new ConditionEvaluator());
-
-  // Build execution environment for trace
-  const environment: ExecutionEnvironment = {
-    awsProfiles: config.awsProfiles,
-    region: 'eu-south-1',
-    invokedBy: 'manual',
-  };
-
-  const result = await engine.execute(runbook, params, services, environment);
-
-  // Closing banner: dispatch by runbook kind (API Gateway vs Lambda),
-  // consistent with the engine's final case-match outcome.
-  const finalSummaryInput = {
-    logger: script.logger,
-    matchedCaseIds: result.matchedCases.map((c) => c.id),
-    vars: result.finalContext.vars,
-  };
-  if (lambda.isLambdaRunbookContext(runbook.runbookContext)) {
-    lambda.renderLambdaFinalSummary(finalSummaryInput);
-  } else {
-    apigw.renderApiGwFinalSummary(finalSummaryInput);
+  if (config.analysisMode === 'single') {
+    await analyzeOccurrence(script, config, runbookBuilder, {
+      alarmDatetime: config.alarmDatetime,
+      ...(config.alarmDatetimeEnd === undefined ? {} : { alarmDatetimeEnd: config.alarmDatetimeEnd }),
+    });
+    return;
   }
 
-  // Display results
-  script.logger.section('Runbook Result');
-  script.logger.info(`Status: ${result.status}`);
-  script.logger.info(`Steps executed: ${result.stepsExecuted}`);
-  script.logger.info(`Duration: ${result.durationMs}ms`);
-
-  const [primary, ...rest] = result.matchedCases;
-  if (primary === undefined) {
-    script.logger.warning('No known case matched');
-  } else if (rest.length === 0) {
-    script.logger.info(`Matched case: ${primary.description}`);
-  } else {
-    script.logger.info(`Matched cases (${result.matchedCases.length}):`);
-    for (const c of result.matchedCases) {
-      script.logger.info(`  - ${c.id} (priority ${c.priority}): ${c.description}`);
-    }
+  const occurrences = await findAlarmOccurrences(script, config);
+  if (occurrences.length === 0) {
+    script.logger.info(
+      `No OK → ALARM occurrences found for alarm "${config.alarmName}" between ${config.alarmDatetime} and ${config.alarmDatetimeEnd}`,
+    );
+    return;
   }
 
-  if (result.recoveredErrors.length > 0) {
-    script.logger.info(`Recovered errors: ${result.recoveredErrors.length}`);
-    for (const err of result.recoveredErrors) {
-      script.logger.text(`  - [${err.stepId}] ${err.originalError}`);
-    }
+  script.logger.info(`Found ${occurrences.length} OK → ALARM occurrence(s) for "${config.alarmName}"`);
+  for (const occurrence of occurrences) {
+    script.logger.section(`Occurrence ${occurrence}`);
+    await analyzeOccurrence(script, config, runbookBuilder, {
+      alarmDatetime: occurrence,
+      outputSuffix: occurrence,
+    });
   }
-
-  // Save execution trace to data directory
-  const traceFile = await saveExecutionTrace(script, result, config.alarmName);
-  await saveExecutionOutput(script, runbook, result, traceFile);
 }
