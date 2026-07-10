@@ -72,8 +72,8 @@ describe('displayReports', () => {
     const result: MultiProfileQueryResult = {
       items: [],
       totalItemCount: 3,
-      successfulProfiles: [{ profile: 'prod', itemCount: 3 }],
-      failedProfiles: [{ profile: 'att', error: new Error('Expired credentials') }],
+      successfulProfiles: [{ status: 'success', profile: 'prod', items: [], itemCount: 3 }],
+      failedProfiles: [{ status: 'failure', profile: 'att', error: new Error('Expired credentials') }],
       allSucceeded: false,
       profileCount: 2,
     };
