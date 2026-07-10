@@ -28,9 +28,9 @@ export function resolveInteropBffAlarmContext(alarmName: string): InteropAlarmCo
   const match = BFF_ALARM_PATTERN.exec(alarmName);
   const environment = match?.groups?.['environment'];
   if (!isInteropEnvironment(environment)) {
-    throw new Error(
-      `Unsupported INTEROP alarm name "${alarmName}". Expected one of: ${INTEROP_BFF_ALARM_NAMES.join(', ')}`,
-    );
+    // Sorted like the registry/catalog descriptors expose alarmNames.
+    const expectedAlarmNames = [...INTEROP_BFF_ALARM_NAMES].sort().join(', ');
+    throw new Error(`Unsupported INTEROP alarm name "${alarmName}". Expected one of: ${expectedAlarmNames}`);
   }
 
   return {
