@@ -25,10 +25,20 @@ export async function findAlarmOccurrences(
   return [...new Set(timestamps)].sort();
 }
 
+/**
+ * Asserts that the configuration is a valid range-mode configuration.
+ * Must be called only on the range path: calling it in single mode throws,
+ * which keeps the type assertion sound (no narrowing without validation).
+ *
+ * @param config - Script configuration to validate
+ */
 export function assertRangeModeConfig(config: GoAnalyzeAlarmConfig): asserts config is GoAnalyzeAlarmConfig & {
+  readonly analysisMode: 'range';
   readonly alarmDatetimeEnd: string;
 } {
-  if (config.analysisMode !== 'range') return;
+  if (config.analysisMode !== 'range') {
+    throw new Error(`assertRangeModeConfig called with analysis.mode=${config.analysisMode}`);
+  }
   if (config.alarmDatetimeEnd === undefined || config.alarmDatetimeEnd.trim() === '') {
     throw new Error('alarm.datetime.end is required when analysis.mode=range');
   }

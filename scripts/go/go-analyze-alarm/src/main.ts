@@ -26,8 +26,6 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.info(`Analysis mode: ${config.analysisMode}`);
   script.logger.info(`AWS Profiles: ${config.awsProfiles.join(', ')}`);
 
-  assertRangeModeConfig(config);
-
   const runbookBuilder = RUNBOOK_REGISTRY.get(config.alarmName);
   if (runbookBuilder === undefined) {
     script.logger.error(`No runbook found for alarm: "${config.alarmName}"`);
@@ -47,6 +45,8 @@ export async function main(script: Core.GOScript): Promise<void> {
     });
     return;
   }
+
+  assertRangeModeConfig(config);
 
   const occurrences = await findAlarmOccurrences(script, config);
   if (occurrences.length === 0) {

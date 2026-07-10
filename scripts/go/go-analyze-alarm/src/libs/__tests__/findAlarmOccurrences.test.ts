@@ -47,16 +47,20 @@ describe('findAlarmOccurrences', () => {
     });
   });
 
-  it('requires alarm.datetime.end only in range mode', () => {
-    const singleConfig: GoAnalyzeAlarmConfig = {
-      analysisMode: 'single',
+  it('accepts a valid range config and rejects missing end or single mode', () => {
+    const rangeConfig: GoAnalyzeAlarmConfig = {
+      analysisMode: 'range',
       alarmName: 'alarm',
       alarmDatetime: '2026-07-09T10:00:00.000Z',
+      alarmDatetimeEnd: '2026-07-09T11:00:00.000Z',
       awsProfiles: ['profile'],
     };
-    assert.doesNotThrow(() => assertRangeModeConfig(singleConfig));
+    assert.doesNotThrow(() => assertRangeModeConfig(rangeConfig));
 
-    const rangeConfig: GoAnalyzeAlarmConfig = { ...singleConfig, analysisMode: 'range' };
-    assert.throws(() => assertRangeModeConfig(rangeConfig), /alarm\.datetime\.end is required/);
+    const { alarmDatetimeEnd: _alarmDatetimeEnd, ...withoutEnd } = rangeConfig;
+    assert.throws(() => assertRangeModeConfig(withoutEnd), /alarm\.datetime\.end is required/);
+
+    const singleConfig: GoAnalyzeAlarmConfig = { ...withoutEnd, analysisMode: 'single' };
+    assert.throws(() => assertRangeModeConfig(singleConfig), /analysis\.mode=single/);
   });
 });
