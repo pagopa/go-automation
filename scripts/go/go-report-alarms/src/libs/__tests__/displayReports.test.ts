@@ -131,8 +131,12 @@ describe('displayReports', () => {
 
     assert.deepStrictEqual(messages(compact.calls, 'section'), ['Analyzable Alarms Details']);
     assert.ok(messages(compact.calls, 'text').includes('[3] alarm-a'));
-    assert.ok(messages(compact.calls, 'text').some((message) => message.startsWith(' - Last:  2026-07-01T12:00:00.000Z')));
-    assert.ok(messages(compact.calls, 'text').some((message) => message.startsWith(' - First: 2026-07-01T10:00:00.000Z')));
+    assert.ok(
+      messages(compact.calls, 'text').some((message) => message.startsWith(' - Last:  2026-07-01T12:00:00.000Z')),
+    );
+    assert.ok(
+      messages(compact.calls, 'text').some((message) => message.startsWith(' - First: 2026-07-01T10:00:00.000Z')),
+    );
 
     const verbose = createScript();
     displayDetailedTimeline(verbose.script, { ...CONFIG, verbose: true }, timeline);
