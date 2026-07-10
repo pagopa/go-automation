@@ -3,7 +3,7 @@
  * @module AlarmAnalyzer
  */
 
-import type { AlarmHistoryItem } from '@aws-sdk/client-cloudwatch';
+import type { AWS } from '@go-automation/go-common';
 
 import type { FilteredAlarms, AlarmTimelineEntry, AlarmReportSummary } from '../types/alarms.types.js';
 import type {
@@ -42,7 +42,7 @@ export class AlarmAnalyzer {
    * @returns Filtered alarms (ignored and not ignored)
    */
   filterAlarms(
-    alarmHistoryItems: ReadonlyArray<AlarmHistoryItem>,
+    alarmHistoryItems: ReadonlyArray<AWS.AlarmHistoryItem>,
     ignorePatterns: ReadonlyArray<string>,
   ): FilteredAlarms {
     // Pre-compile single RegExp for all patterns
@@ -79,8 +79,8 @@ export class AlarmAnalyzer {
       }
     });
 
-    const ignored: AlarmHistoryItem[] = [];
-    const notIgnored: AlarmHistoryItem[] = [];
+    const ignored: AWS.AlarmHistoryItem[] = [];
+    const notIgnored: AWS.AlarmHistoryItem[] = [];
 
     for (const item of stateUpdateItems) {
       const name = item.AlarmName;
@@ -100,7 +100,7 @@ export class AlarmAnalyzer {
    * @param alarmHistoryItems Array of alarm history items (should be already filtered)
    * @returns Array of alarm summaries with counts, sorted by alarm name
    */
-  generateSummary(alarmHistoryItems: ReadonlyArray<AlarmHistoryItem>): AlarmReportSummary[] {
+  generateSummary(alarmHistoryItems: ReadonlyArray<AWS.AlarmHistoryItem>): AlarmReportSummary[] {
     const countMap = new Map<string, number>();
 
     for (const item of alarmHistoryItems) {
@@ -121,7 +121,7 @@ export class AlarmAnalyzer {
    * @param alarmHistoryItems Array of alarm history items (should be already filtered)
    * @returns Combined summary and timeline data
    */
-  generateFullAnalysis(alarmHistoryItems: ReadonlyArray<AlarmHistoryItem>): CombinedAnalysisResult {
+  generateFullAnalysis(alarmHistoryItems: ReadonlyArray<AWS.AlarmHistoryItem>): CombinedAnalysisResult {
     const dataMap = new Map<string, AggregatedAlarmData>();
 
     for (const item of alarmHistoryItems) {

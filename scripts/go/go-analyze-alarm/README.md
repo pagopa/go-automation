@@ -17,10 +17,11 @@ Dato un allarme CloudWatch e il momento in cui e scattato, esegue automaticament
 ## Come funziona
 
 1. **Lookup runbook**: lo script cerca il runbook registrato per il nome dell'allarme fornito
-2. **Calcolo time window**: costruisce un intervallo `[alarmDatetime - 5min, alarmDatetime + 5min]`. Se viene fornito anche `--alarm-datetime-end`, l'intervallo diventa `[alarmDatetime - 5min, alarmDatetimeEnd + 5min]` per coprire allarmi multi-occorrenza
-3. **Esecuzione step-by-step**: ogni step del runbook interroga CloudWatch Logs, DynamoDB, Athena o altri servizi in base alle esigenze del runbook; le variabili estratte passano agli step successivi
-4. **Match casi noti**: al termine degli step, il RunbookEngine confronta i dati raccolti con i pattern dei casi noti e restituisce il primo match (o un fallback)
-5. **Salvataggio output**: salva sia il trace completo (`trace-{alarmName}.json`) sia il risultato sintetico (`result-{runbookId}.json`)
+2. **Modalità analisi**: con `analysis.mode=single` analizza una singola occorrenza; con `analysis.mode=range` recupera da CloudWatch History tutte le transizioni `OK → ALARM` dello stesso allarme nel range indicato
+3. **Calcolo time window**: costruisce un intervallo `[alarmDatetime - 5min, alarmDatetime + 5min]`. In `single`, se viene fornito anche `--alarm-datetime-end`, l'intervallo diventa `[alarmDatetime - 5min, alarmDatetimeEnd + 5min]` per coprire allarmi multi-occorrenza
+4. **Esecuzione step-by-step**: ogni step del runbook interroga CloudWatch Logs, DynamoDB, Athena o altri servizi in base alle esigenze del runbook; le variabili estratte passano agli step successivi
+5. **Match casi noti**: al termine degli step, il RunbookEngine confronta i dati raccolti con i pattern dei casi noti e restituisce il primo match (o un fallback)
+6. **Salvataggio output**: salva sia il trace completo (`trace-{alarmName}.json`) sia il risultato sintetico (`result-{runbookId}.json`). In `range`, ogni occorrenza aggiunge il timestamp al nome file per evitare overwrite
 
 ## Runbook disponibili
 
@@ -78,6 +79,7 @@ Lo script non include un file di configurazione dedicato: la configurazione oper
 
 | Parametro              | Alias  | Tipo     | Obbligatorio | Descrizione                                                                                          |
 | ---------------------- | ------ | -------- | ------------ | ---------------------------------------------------------------------------------------------------- |
+| `--analysis-mode`      | `-am`  | string   | No           | Modalità di analisi: `single` oppure `range`. Default: `single`                                      |
 | `--alarm-name`         | `-an`  | string   | Si           | Nome esatto dell'allarme CloudWatch                                                                  |
 | `--alarm-datetime`     | `-ad`  | string   | Si           | Timestamp allarme, o prima occorrenza per allarmi multi-occorrenza (ISO 8601)                        |
 | `--alarm-datetime-end` | `-ade` | string   | No           | Timestamp dell'ultima occorrenza per allarmi multi-occorrenza (ISO 8601). Estende la finestra finale |
@@ -89,6 +91,12 @@ Quando `--alarm-datetime-end` è fornito, la time window di analisi diventa
 `[alarm-datetime - 5min, alarm-datetime-end + 5min]` invece del classico
 `±5min` intorno a `--alarm-datetime`. Utile per allarmi che persistono per
 diversi minuti e producono errori distribuiti nell'intero intervallo.
+
+Con `--analysis-mode range`, `--alarm-datetime` e `--alarm-datetime-end`
+non indicano una singola finestra di analisi estesa: indicano il range
+CloudWatch History in cui cercare tutte le occorrenze `OK → ALARM` dello
+stesso `--alarm-name`. Ogni occorrenza trovata viene poi analizzata come
+singolo evento con la finestra standard.
 
 ## Utilizzo
 
@@ -123,6 +131,24 @@ pnpm go:analyze:alarm:dev -- \
 ```
 
 La time window risultante è `[14:25:00Z, 14:50:00Z]`.
+
+### Range mode: recupero occorrenze da CloudWatch History
+
+Usa `--analysis-mode range` quando vuoi passare un intervallo temporale e
+far recuperare allo script tutte le occorrenze dello stesso allarme:
+
+```bash
+pnpm go:analyze:alarm:dev -- \
+  --analysis-mode range \
+  -an "k8s-interop-be-backend-for-frontend-errors-prod" \
+  -ad "2026-07-09T09:00:00Z" \
+  -ade "2026-07-09T10:00:00Z" \
+  -aps "pdnd-interop-prod"
+```
+
+In questa modalità `--alarm-name` resta obbligatorio: lo script non fa
+discovery di altri allarmi. Cerca solo le transizioni `OK → ALARM` del nome
+allarme indicato.
 
 ### Analisi su più profili AWS
 
@@ -201,6 +227,15 @@ Esempio:
 ```text
 trace-pn-address-book-io-IO-ApiGwAlarm.json
 result-pn-address-book-io-IO-ApiGwAlarm.json
+```
+
+In `analysis.mode=range`, i file includono anche il timestamp
+dell'occorrenza (i caratteri riservati dei filesystem, come `:`, vengono
+sostituiti da `-`):
+
+```text
+trace-k8s-interop-be-backend-for-frontend-errors-prod-2026-07-09T09-30-00.000Z.json
+result-k8s-interop-be-backend-for-frontend-errors-2026-07-09T09-30-00.000Z.json
 ```
 
 Il result distingue esplicitamente:

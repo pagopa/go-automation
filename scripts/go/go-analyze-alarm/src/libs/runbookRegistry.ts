@@ -26,6 +26,11 @@ import { buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook } fro
 
 // service logs
 import { buildWorkdayPnExternalChannelAlbAlarmRunbook } from './runbooks/workday-pn-external-channel-alb-alarm/runbook.js';
+import { buildK8sInteropBeBackendForFrontendErrorsRunbook } from './runbooks/k8s-interop-be-backend-for-frontend-errors/runbook.js';
+import {
+  INTEROP_BFF_ALARM_NAMES,
+  INTEROP_BFF_RUNBOOK_KEY,
+} from './runbooks/k8s-interop-be-backend-for-frontend-errors/resolveInteropAlarmContext.js';
 
 export type RunbookBuilderFn = () => Runbook;
 
@@ -146,6 +151,13 @@ const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
     'SERVICE',
     ['DELIVERY'],
     buildWorkdayPnExternalChannelAlbAlarmRunbook,
+  ),
+  registration(
+    INTEROP_BFF_RUNBOOK_KEY,
+    'SERVICE',
+    ['INTEROP'],
+    buildK8sInteropBeBackendForFrontendErrorsRunbook,
+    INTEROP_BFF_ALARM_NAMES,
   ),
 ];
 

@@ -2,15 +2,16 @@
  * MultiProfileQueryResult - Aggregated result from querying multiple AWS profiles
  */
 
-import type { AlarmHistoryItem } from '@aws-sdk/client-cloudwatch';
-import type { ProfileQuerySuccess, ProfileQueryFailure } from './ProfileQueryResult.js';
+import type { AWS } from '@go-automation/go-common';
+import type { ProfileQuerySuccess } from './ProfileQuerySuccess.js';
+import type { ProfileQueryFailure } from './ProfileQueryFailure.js';
 
 /**
  * Aggregated result from querying all AWS profiles
  */
 export interface MultiProfileQueryResult {
   /** All alarm history items from successful profiles */
-  readonly items: ReadonlyArray<AlarmHistoryItem>;
+  readonly items: ReadonlyArray<AWS.AlarmHistoryItem>;
 
   /** Total item count across all successful profiles */
   readonly totalItemCount: number;

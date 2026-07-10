@@ -48,7 +48,6 @@ catalog:
   '@typescript-eslint/eslint-plugin': '^8.63.0'
   '@typescript-eslint/parser': '^8.63.0'
   'adm-zip': '^0.5.18'
-  'aws-sdk-client-mock': '^4.1.0'
   'better-sqlite3': '^12.11.1'
   'cheerio': '^1.2.0'
   'commander': '^15.0.0'

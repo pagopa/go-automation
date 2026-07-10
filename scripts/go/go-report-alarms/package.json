@@ -30,13 +30,11 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-cloudwatch": "catalog:",
     "@go-automation/go-common": "workspace:*",
     "luxon": "catalog:"
   },
   "devDependencies": {
     "@types/luxon": "catalog:",
-    "@types/node": "catalog:",
-    "aws-sdk-client-mock": "catalog:"
+    "@types/node": "catalog:"
   }
 }

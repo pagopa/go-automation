@@ -142,3 +142,6 @@ export * as lambda from './lambda/index.js';
 
 // Service log runbook toolkit
 export * as service from './service/index.js';
+
+// INTEROP runbook toolkit
+export * as interop from './interop/index.js';
