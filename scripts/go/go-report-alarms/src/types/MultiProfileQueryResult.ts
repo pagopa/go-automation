@@ -3,7 +3,8 @@
  */
 
 import type { AWS } from '@go-automation/go-common';
-import type { ProfileQuerySuccess, ProfileQueryFailure } from './ProfileQueryResult.js';
+import type { ProfileQuerySuccess } from './ProfileQuerySuccess.js';
+import type { ProfileQueryFailure } from './ProfileQueryFailure.js';
 
 /**
  * Aggregated result from querying all AWS profiles

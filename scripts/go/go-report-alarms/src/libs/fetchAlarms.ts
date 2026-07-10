@@ -6,7 +6,8 @@ import { AWS, Core } from '@go-automation/go-common';
 
 import type { GoReportAlarmsConfig } from '../types/GoReportAlarmsConfig.js';
 import type { MultiProfileQueryResult } from '../types/MultiProfileQueryResult.js';
-import type { ProfileQueryFailure, ProfileQuerySuccess } from '../types/ProfileQueryResult.js';
+import type { ProfileQueryFailure } from '../types/ProfileQueryFailure.js';
+import type { ProfileQuerySuccess } from '../types/ProfileQuerySuccess.js';
 
 import { displayProfileSummary } from './displayReports.js';
 

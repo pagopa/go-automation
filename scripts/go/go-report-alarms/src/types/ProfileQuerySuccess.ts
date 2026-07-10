@@ -1,5 +1,5 @@
 /**
- * ProfileQueryResult - Result of querying a single AWS profile
+ * ProfileQuerySuccess - Successful result of querying a single AWS profile
  */
 
 import type { AWS } from '@go-automation/go-common';
@@ -12,13 +12,4 @@ export interface ProfileQuerySuccess {
   readonly profile: string;
   readonly items: ReadonlyArray<AWS.AlarmHistoryItem>;
   readonly itemCount: number;
-}
-
-/**
- * Failed profile query result
- */
-export interface ProfileQueryFailure {
-  readonly status: 'failure';
-  readonly profile: string;
-  readonly error: Error;
 }
