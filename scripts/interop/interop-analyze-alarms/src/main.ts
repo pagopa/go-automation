@@ -42,7 +42,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     });
   }
 
-  script.prompt.startSpinner('Writing logs without CID in output file...');
+  script.prompt.startSpinner('Writing CID tracker logs in output file...');
   await cidExporter.export(cidLogArray);
   script.prompt.stopSpinner();
 }
