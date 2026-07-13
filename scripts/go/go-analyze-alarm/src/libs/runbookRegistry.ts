@@ -31,6 +31,11 @@ import {
   INTEROP_BFF_ALARM_NAMES,
   INTEROP_BFF_RUNBOOK_KEY,
 } from './runbooks/k8s-interop-be-backend-for-frontend-errors/resolveInteropAlarmContext.js';
+import { buildK8sInteropPublicCatalogAstroFrontendErrorsRunbook } from './runbooks/k8s-interop-public-catalog-astro-frontend-errors/runbook.js';
+import {
+  INTEROP_PUBLIC_CATALOG_ALARM_NAMES,
+  INTEROP_PUBLIC_CATALOG_RUNBOOK_KEY,
+} from './runbooks/k8s-interop-public-catalog-astro-frontend-errors/resolveInteropAlarmContext.js';
 
 export type RunbookBuilderFn = () => Runbook;
 
@@ -158,6 +163,13 @@ const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
     ['INTEROP'],
     buildK8sInteropBeBackendForFrontendErrorsRunbook,
     INTEROP_BFF_ALARM_NAMES,
+  ),
+  registration(
+    INTEROP_PUBLIC_CATALOG_RUNBOOK_KEY,
+    'SERVICE',
+    ['INTEROP'],
+    buildK8sInteropPublicCatalogAstroFrontendErrorsRunbook,
+    INTEROP_PUBLIC_CATALOG_ALARM_NAMES,
   ),
 ];
 

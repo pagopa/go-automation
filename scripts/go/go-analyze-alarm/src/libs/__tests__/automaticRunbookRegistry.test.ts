@@ -29,6 +29,22 @@ describe('AUTOMATIC_RUNBOOK_REGISTRY', () => {
     ]);
   });
 
+  it('resolves INTEROP public catalog aliases with the environment in the middle of the alarm name', () => {
+    const prod = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(
+      'k8s-interop-public-catalog-astro-frontend-errors-prod-public-catalog',
+    );
+    const att = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(
+      'k8s-interop-public-catalog-astro-frontend-errors-att-public-catalog',
+    );
+
+    assert.ok(prod);
+    assert.ok(att);
+    assert.strictEqual(prod.descriptor.key, 'k8s-interop-public-catalog-astro-frontend-errors');
+    assert.deepStrictEqual(att.descriptor, prod.descriptor);
+    assert.strictEqual(prod.descriptor.kind, 'SERVICE');
+    assert.deepStrictEqual(prod.descriptor.categories, ['INTEROP']);
+  });
+
   it('lists stable sorted descriptors and validates every cloud runbook', () => {
     const first = AUTOMATIC_RUNBOOK_REGISTRY.listDescriptors();
     const second = AUTOMATIC_RUNBOOK_REGISTRY.listDescriptors();
