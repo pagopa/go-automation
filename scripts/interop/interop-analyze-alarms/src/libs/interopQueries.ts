@@ -1,6 +1,6 @@
 import type { InteropAlarmContext } from '../types/index.js';
 
-export interface InteropCloudWatchLogsQuery {
+interface InteropCloudWatchLogsQuery {
   readonly logGroup: string;
   readonly query: string;
 }

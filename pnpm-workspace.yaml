@@ -39,7 +39,6 @@ catalog:
   '@eslint/js': '^10.0.1'
   '@slack/web-api': '^7.19.0'
   '@inquirer/prompts': '^8.5.2'
-  '@types/adm-zip': '^0.5.8'
   '@types/aws-lambda': '^8.10.162'
   '@types/better-sqlite3': '^7.6.13'
   '@types/luxon': '^3.7.2'
