@@ -26,7 +26,9 @@ Esegue query CloudWatch per estrarre informazioni operative sugli allarmi k8s IN
 aws sso login --profile <nome-profilo>
 ```
 
-## Parametri CLI
+## Configurazione
+
+### Parametri CLI
 
 | Parametro | Alias | Tipo | Obbligatorio | Descrizione |
 | --- | --- | --- | --- | --- |
