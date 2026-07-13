@@ -30,12 +30,12 @@ aws sso login --profile <nome-profilo>
 
 ### Parametri CLI
 
-| Parametro | Alias | Tipo | Obbligatorio | Descrizione |
-| --- | --- | --- | --- | --- |
-| `aws.profile` | `ap` | string | sì | Profilo AWS SSO da usare. |
-| `startDate` | `sd` | string | sì | Inizio range CloudWatch alarm history, formato ISO 8601. |
-| `endDate` | `ed` | string | sì | Fine range CloudWatch alarm history, formato ISO 8601. |
-| `alarmName` | `an` | string | no | Nome allarme CloudWatch. Se omesso, vengono analizzate le occorrenze k8s INTEROP supportate nel range. |
+| Parametro     | Alias | Tipo   | Obbligatorio | Descrizione                                                                                            |
+| ------------- | ----- | ------ | ------------ | ------------------------------------------------------------------------------------------------------ |
+| `aws.profile` | `ap`  | string | sì           | Profilo AWS SSO da usare.                                                                              |
+| `startDate`   | `sd`  | string | sì           | Inizio range CloudWatch alarm history, formato ISO 8601.                                               |
+| `endDate`     | `ed`  | string | sì           | Fine range CloudWatch alarm history, formato ISO 8601.                                                 |
+| `alarmName`   | `an`  | string | no           | Nome allarme CloudWatch. Se omesso, vengono analizzate le occorrenze k8s INTEROP supportate nel range. |
 
 ## Utilizzo
 
