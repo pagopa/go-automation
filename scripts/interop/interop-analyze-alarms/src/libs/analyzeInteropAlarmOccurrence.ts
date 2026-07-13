@@ -39,7 +39,7 @@ export async function analyzeInteropAlarmOccurrence(input: AnalyzeInteropAlarmOc
   );
   input.script.prompt.stopSpinner();
 
-  input.script.logger.step('Retriving logs without CID');
+  input.script.logger.step('Retrieving logs without CID');
   for (const row of rowsWithoutCid(applicationLogsRows)) {
     input.noCidLogArray.push(arrayValuesToCsvString(row));
   }
