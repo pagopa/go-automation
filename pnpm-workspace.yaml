@@ -69,7 +69,7 @@ catalog:
   'mailparser': '^3.9.14'
   'mammoth': '^1.12.0'
   'openapi-typescript': '7.13.0'
-  'prettier': '3.9.4'
+  'prettier': '3.9.5'
   'read-excel-file': '^9.2.0'
   'string-width': '^8.2.1'
   'sst': '4.17.0'
