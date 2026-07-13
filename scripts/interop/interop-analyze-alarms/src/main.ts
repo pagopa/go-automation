@@ -18,8 +18,8 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   script.logger.info(
     requestedAlarmName === undefined || requestedAlarmName === ''
-      ? 'Retriving alarm history for all alarms'
-      : `Retriving alarm history for alarm ${requestedAlarmName}`,
+      ? 'Retrieving alarm history for all alarms'
+      : `Retrieving alarm history for alarm ${requestedAlarmName}`,
   );
 
   const occurrences = await findInteropAlarmOccurrences(script, {
