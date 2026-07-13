@@ -64,7 +64,7 @@ const CASE_FIXTURES: ReadonlyMap<string, ReadonlyArray<string>> = new Map([
     'public-catalog-undefined-length-type-error',
     ["[ERROR] TypeError: Cannot read properties of undefined (reading 'length') at processCatalog"],
   ],
-  ['public-catalog-m2m-event-cleaner-missing-env-files', [M2M_ENV_FILES_MESSAGE]],
+  ['public-catalog-astro-frontend-missing-env-files', [M2M_ENV_FILES_MESSAGE]],
   [
     'public-catalog-error-fetching-from-database',
     ['ERROR - [CID=dfa09b91-7acf-41ea-96c6-eb02ec18ec49] Error fetching catalog data from the database'],
@@ -90,7 +90,7 @@ describe('INTEROP public catalog known cases', () => {
   });
 
   it('matches escaped-quote messages in CID tracker evidence too', () => {
-    const envFiles = knownCaseById('public-catalog-m2m-event-cleaner-missing-env-files');
+    const envFiles = knownCaseById('public-catalog-astro-frontend-missing-env-files');
     const ctx = context([[QUERY_INTEROP_CID_TRACKER_STEP_ID, cidTrackerResults([M2M_ENV_FILES_MESSAGE])]]);
     assert.strictEqual(evaluator.evaluate(envFiles.condition, ctx), true);
 
