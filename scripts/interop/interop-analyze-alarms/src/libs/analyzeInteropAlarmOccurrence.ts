@@ -64,7 +64,7 @@ export async function analyzeInteropAlarmOccurrence(input: AnalyzeInteropAlarmOc
     input.cidLogArray.push(`--- End cid ${cid} ---`);
   }
 
-  input.cidLogArray.push(`********* End ${timestamp} analisys *********`);
+  input.cidLogArray.push(`********* End ${timestamp} analysis *********`);
   return true;
 }
 
