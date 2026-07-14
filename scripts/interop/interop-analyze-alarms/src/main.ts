@@ -35,12 +35,15 @@ export async function main(script: Core.GOScript): Promise<void> {
     await analyzeInteropAlarmOccurrence({
       script,
       occurrence,
-      noCidExporter,
       noCidLogArray,
       cidLogArray,
       ...(requestedAlarmName === undefined || requestedAlarmName === '' ? {} : { requestedAlarmName }),
     });
   }
+
+  script.prompt.startSpinner('Writing logs without CID in output file...');
+  await noCidExporter.export(noCidLogArray);
+  script.prompt.stopSpinner();
 
   script.prompt.startSpinner('Writing CID tracker logs in output file...');
   await cidExporter.export(cidLogArray);

@@ -13,7 +13,6 @@ interface AnalyzeInteropAlarmOccurrenceInput {
   readonly script: Core.GOScript;
   readonly occurrence: InteropAlarmOccurrence;
   readonly requestedAlarmName?: string;
-  readonly noCidExporter: Core.GOFileListExporter;
   readonly noCidLogArray: string[];
   readonly cidLogArray: string[];
 }
@@ -43,10 +42,6 @@ export async function analyzeInteropAlarmOccurrence(input: AnalyzeInteropAlarmOc
   for (const row of rowsWithoutCid(applicationLogsRows)) {
     input.noCidLogArray.push(arrayValuesToCsvString(row));
   }
-
-  input.script.prompt.startSpinner('Writing logs without CID in output file...');
-  await input.noCidExporter.export(input.noCidLogArray);
-  input.script.prompt.stopSpinner();
 
   const cids = collectDistinctCids(applicationLogsRows);
   for (const cid of cids) {
