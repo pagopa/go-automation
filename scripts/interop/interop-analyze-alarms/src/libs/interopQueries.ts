@@ -43,7 +43,7 @@ export function buildCidTrackerQuery(context: InteropAlarmContext, cid: string):
 fields @timestamp, @message
 | sort @timestamp asc
 | parse @message "[CID=*]" as cid
-| filter cid= "${escapedCid}"
+| filter cid = "${escapedCid}"
 | display @timestamp, pod_app, cid, @message
    `,
   };
