@@ -5,11 +5,11 @@ import { analyzeInteropAlarmOccurrence } from './libs/analyzeInteropAlarmOccurre
 import { findInteropAlarmOccurrences } from './libs/findInteropAlarmOccurrences.js';
 
 export async function main(script: Core.GOScript): Promise<void> {
-  const now = new Date().toISOString().replace(/[:.]/g, '-');
-  const outputFolder = script.paths.getExecutionOutputDir();
+  const noCidPAth = script.paths.resolvePath('no_cid.txt', Core.GOPathType.OUTPUT);
+  const cidPath = script.paths.resolvePath('cid.txt', Core.GOPathType.OUTPUT);
 
-  const noCidExporter = new Core.GOFileListExporter({ outputPath: `${outputFolder}/${now}_no_cid.txt` });
-  const cidExporter = new Core.GOFileListExporter({ outputPath: `${outputFolder}/${now}_cid.txt` });
+  const noCidExporter = new Core.GOFileListExporter({ outputPath: noCidPAth });
+  const cidExporter = new Core.GOFileListExporter({ outputPath: cidPath });
 
   script.logger.section('Starting Interop Analyzer Alarms');
 
