@@ -1,7 +1,7 @@
 import { Core } from '@go-automation/go-common';
+import { interop } from '@go-automation/go-runbook';
 
 import type { InteropAlarmOccurrence } from '../types/index.js';
-import { buildApplicationLogsErrorsQuery, buildCidTrackerQuery } from './interopQueries.js';
 import { createOccurrenceTimeRange } from './createOccurrenceTimeRange.js';
 import { resolveInteropAlarmContext } from './resolveInteropAlarmContext.js';
 import { arrayValuesToCsvString, collectDistinctCids, rowsWithoutCid } from './resultFields.js';
@@ -28,12 +28,12 @@ export async function analyzeInteropAlarmOccurrence(input: AnalyzeInteropAlarmOc
   }
 
   const timeRange = createOccurrenceTimeRange(timestamp, WINDOW_SECONDS_BEFORE_ALARM, WINDOW_SECONDS_AFTER_ALARM);
-  const applicationLogsQuery = buildApplicationLogsErrorsQuery(alarmContext);
+  const applicationLogsQuery = interop.k8s.buildInteropK8sApplicationLogsQuery(alarmContext.podApp);
 
   input.script.prompt.startSpinner('Executing Application-Logs-Errors query...');
   const applicationLogsRows = await input.script.aws.services.cloudWatchLogs.query(
-    [applicationLogsQuery.logGroup],
-    applicationLogsQuery.query,
+    [alarmContext.logGroup],
+    applicationLogsQuery,
     timeRange,
   );
   input.script.prompt.stopSpinner();
@@ -46,10 +46,10 @@ export async function analyzeInteropAlarmOccurrence(input: AnalyzeInteropAlarmOc
   const cids = collectDistinctCids(applicationLogsRows);
   for (const cid of cids) {
     input.script.logger.step(`Querying cid: ${cid}`);
-    const cidTrackerQuery = buildCidTrackerQuery(alarmContext, cid);
+    const cidTrackerQuery = interop.k8s.buildInteropK8sCidTrackerQuery(cid);
     const cidResults = await input.script.aws.services.cloudWatchLogs.query(
-      [cidTrackerQuery.logGroup],
-      cidTrackerQuery.query,
+      [alarmContext.logGroup],
+      cidTrackerQuery,
       timeRange,
     );
 
