@@ -5,7 +5,7 @@ import { analyzeInteropAlarmOccurrence } from './libs/analyzeInteropAlarmOccurre
 import { findInteropAlarmOccurrences } from './libs/findInteropAlarmOccurrences.js';
 
 export async function main(script: Core.GOScript): Promise<void> {
-  const now = new Date().toISOString();
+  const now = new Date().toISOString().replace(/[:.]/g, '-');
   const outputFolder = script.paths.getExecutionOutputDir();
 
   const noCidExporter = new Core.GOFileListExporter({ outputPath: `${outputFolder}/${now}_no_cid.txt` });
