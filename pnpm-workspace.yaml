@@ -47,7 +47,7 @@ catalog:
   '@types/node': '^24.13.3'
   '@typescript-eslint/eslint-plugin': '^8.63.0'
   '@typescript-eslint/parser': '^8.63.0'
-  'adm-zip': '^0.5.18'
+  'adm-zip': '^0.6.0'
   'better-sqlite3': '^12.11.1'
   'cheerio': '^1.2.0'
   'commander': '^15.0.0'
