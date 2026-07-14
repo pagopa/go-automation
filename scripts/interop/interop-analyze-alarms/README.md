@@ -89,10 +89,10 @@ Ambienti supportati:
 
 ## Output
 
-I file vengono scritti nella execution output directory dello script:
+I file vengono scritti nella execution output directory dello script (che include già il timestamp):
 
-- `<timestamp>_no_cid.txt`
-- `<timestamp>_cid.txt`
+- `no_cid.txt`
+- `cid.txt`
 
 ---
 
