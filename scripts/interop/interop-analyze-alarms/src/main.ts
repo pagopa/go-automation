@@ -11,7 +11,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   const noCidExporter = new Core.GOFileListExporter({ outputPath: noCidPAth });
   const cidExporter = new Core.GOFileListExporter({ outputPath: cidPath });
 
-  script.logger.section('Starting Interop Analyzer Alarms');
+  script.logger.section('Starting Interop Analyze Alarms');
 
   const config = await script.getConfiguration<InteropAnalyzeAlarmsConfig>();
   const requestedAlarmName = config.alarmName?.trim();

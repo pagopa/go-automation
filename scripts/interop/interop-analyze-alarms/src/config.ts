@@ -10,7 +10,7 @@ import { Core } from '@go-automation/go-common';
  * Script metadata
  */
 export const scriptMetadata: Core.GOScriptMetadata = {
-  name: 'Interop Analyzer Alarms',
+  name: 'Interop Analyze Alarms',
   version: '1.0.0',
   description: 'Execute automatic queries for simple alarm analysis.',
   authors: ['Team GO - Gestione Operativa'],
