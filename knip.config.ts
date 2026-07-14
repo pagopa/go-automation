@@ -49,15 +49,6 @@ const config: KnipConfig = {
       entry: ['src/cron.ts'],
       project: ['src/**/*.ts'],
     },
-    // Lambda functions with standalone handler entrypoints
-    'functions/go-AILambda': {
-      entry: ['src/handler.ts'],
-      project: ['src/**/*.ts'],
-    },
-    'functions/go-BotQESlackHandler': {
-      entry: ['src/handler.ts'],
-      project: ['src/**/*.ts'],
-    },
     // Lambda functions
     'functions/*': {
       project: ['src/**/*.ts'],

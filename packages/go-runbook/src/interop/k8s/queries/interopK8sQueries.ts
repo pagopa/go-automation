@@ -1,24 +1,22 @@
 export function buildInteropK8sApplicationLogsQuery(podApp: string): string {
   const escapedPodApp = escapeLogsInsightsRegexLiteral(podApp);
   return `
-fields @timestamp, @message, log, pod_app, stream
-| sort @timestamp asc
-| filter (@message like /ERROR/ or stream = "stderr")
+filter (@message like /ERROR/ or stream = "stderr")
 | filter @logStream not like /adot-collector/
 | filter pod_app like /${escapedPodApp}/
 | parse @message "[CID=*]" as cid
-| display @timestamp, pod_app, cid, @message, log
+| display @timestamp, pod_app, cid, @message
+| sort @timestamp asc
 `.trim();
 }
 
 export function buildInteropK8sCidTrackerQuery(cid: string): string {
   const escapedCid = escapeLogsInsightsString(cid);
   return `
-fields @timestamp, @message, log, pod_app
-| sort @timestamp asc
-| parse @message "[CID=*]" as cid
+parse @message "[CID=*]" as cid
 | filter cid = "${escapedCid}"
-| display @timestamp, pod_app, cid, @message, log
+| display @timestamp, pod_app, cid, @message
+| sort @timestamp asc
 `.trim();
 }
 

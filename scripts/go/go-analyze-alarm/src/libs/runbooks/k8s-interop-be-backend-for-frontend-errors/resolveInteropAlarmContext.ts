@@ -1,12 +1,8 @@
 import { interop } from '@go-automation/go-runbook';
 
-export type InteropEnvironment = 'prod' | 'att' | 'test';
-
-export interface InteropAlarmContext extends interop.k8s.InteropK8sAlarmContext {
-  readonly environment: InteropEnvironment;
-}
-
-const INTEROP_ENVIRONMENTS: readonly [InteropEnvironment, ...InteropEnvironment[]] = ['prod', 'att', 'test'];
+import type { InteropAlarmContext } from '../interop/InteropAlarmContext.js';
+import type { InteropEnvironment } from '../interop/InteropEnvironment.js';
+import { INTEROP_ENVIRONMENTS, isInteropEnvironment } from '../interop/InteropEnvironment.js';
 
 export const INTEROP_BFF_RUNBOOK_KEY: string = 'k8s-interop-be-backend-for-frontend-errors';
 export const INTEROP_BFF_SERVICE_NAME: string = 'interop-be-backend-for-frontend';
@@ -44,8 +40,4 @@ export function resolveInteropBffAlarmContext(alarmName: string): InteropAlarmCo
 
 export function buildInteropApplicationLogGroup(environment: InteropEnvironment): string {
   return interop.k8s.buildInteropK8sApplicationLogGroup(environment);
-}
-
-function isInteropEnvironment(value: unknown): value is InteropEnvironment {
-  return typeof value === 'string' && INTEROP_ENVIRONMENTS.includes(value as InteropEnvironment);
 }

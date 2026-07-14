@@ -87,7 +87,6 @@
     "yaml": "catalog:"
   },
   "devDependencies": {
-    "@types/adm-zip": "catalog:",
     "@types/better-sqlite3": "catalog:",
     "@types/luxon": "catalog:",
     "@types/mailparser": "catalog:",

@@ -7,9 +7,12 @@ inputs:
     required: false
     default: '24'
   pnpm-version:
+    # Exact pin: the floating '11' range resolved to pnpm 11.12.0 (2026-07-11),
+    # whose self-install path crashes in pnpm/action-setup
+    # ("Cannot use 'in' operator to search for 'integrity' in undefined").
     description: pnpm version to install
     required: false
-    default: '11'
+    default: '11.11.0'
   install-args:
     description: Arguments passed to pnpm install
     required: false
