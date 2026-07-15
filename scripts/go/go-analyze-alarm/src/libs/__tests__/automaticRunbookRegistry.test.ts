@@ -29,6 +29,31 @@ describe('AUTOMATIC_RUNBOOK_REGISTRY', () => {
     ]);
   });
 
+  it('resolves INTEROP notification user lifecycle aliases to the same canonical descriptor', () => {
+    const prod = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(
+      'k8s-interop-be-notification-user-lifecycle-consumer-errors-prod',
+    );
+    const att = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(
+      'k8s-interop-be-notification-user-lifecycle-consumer-errors-att',
+    );
+    const test = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(
+      'k8s-interop-be-notification-user-lifecycle-consumer-errors-test',
+    );
+
+    assert.ok(prod);
+    assert.ok(att);
+    assert.ok(test);
+    assert.strictEqual(prod.descriptor.key, 'k8s-interop-be-notification-user-lifecycle-consumer-errors');
+    assert.deepStrictEqual(att.descriptor, prod.descriptor);
+    assert.deepStrictEqual(test.descriptor, prod.descriptor);
+    assert.deepStrictEqual(prod.descriptor.alarmNames, [
+      'k8s-interop-be-notification-user-lifecycle-consumer-errors-att',
+      'k8s-interop-be-notification-user-lifecycle-consumer-errors-prod',
+      'k8s-interop-be-notification-user-lifecycle-consumer-errors-test',
+    ]);
+    assert.deepStrictEqual(prod.descriptor.categories, ['INTEROP']);
+  });
+
   it('resolves INTEROP public catalog aliases with the environment in the middle of the alarm name', () => {
     const prod = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(
       'k8s-interop-public-catalog-astro-frontend-errors-prod-public-catalog',
@@ -42,6 +67,31 @@ describe('AUTOMATIC_RUNBOOK_REGISTRY', () => {
     assert.strictEqual(prod.descriptor.key, 'k8s-interop-public-catalog-astro-frontend-errors');
     assert.deepStrictEqual(att.descriptor, prod.descriptor);
     assert.strictEqual(prod.descriptor.kind, 'SERVICE');
+    assert.deepStrictEqual(prod.descriptor.categories, ['INTEROP']);
+  });
+
+  it('resolves INTEROP Selfcare users updater aliases to the same canonical descriptor', () => {
+    const prod = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(
+      'k8s-interop-be-selfcare-client-users-updater-errors-prod',
+    );
+    const att = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(
+      'k8s-interop-be-selfcare-client-users-updater-errors-att',
+    );
+    const test = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(
+      'k8s-interop-be-selfcare-client-users-updater-errors-test',
+    );
+
+    assert.ok(prod);
+    assert.ok(att);
+    assert.ok(test);
+    assert.strictEqual(prod.descriptor.key, 'k8s-interop-be-selfcare-client-users-updater-errors');
+    assert.deepStrictEqual(att.descriptor, prod.descriptor);
+    assert.deepStrictEqual(test.descriptor, prod.descriptor);
+    assert.deepStrictEqual(prod.descriptor.alarmNames, [
+      'k8s-interop-be-selfcare-client-users-updater-errors-att',
+      'k8s-interop-be-selfcare-client-users-updater-errors-prod',
+      'k8s-interop-be-selfcare-client-users-updater-errors-test',
+    ]);
     assert.deepStrictEqual(prod.descriptor.categories, ['INTEROP']);
   });
 

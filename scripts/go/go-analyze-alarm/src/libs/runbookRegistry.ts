@@ -31,11 +31,21 @@ import {
   INTEROP_BFF_ALARM_NAMES,
   INTEROP_BFF_RUNBOOK_KEY,
 } from './runbooks/k8s-interop-be-backend-for-frontend-errors/resolveInteropAlarmContext.js';
+import { buildK8sInteropBeNotificationUserLifecycleConsumerErrorsRunbook } from './runbooks/k8s-interop-be-notification-user-lifecycle-consumer-errors/runbook.js';
+import {
+  INTEROP_NOTIFICATION_USER_LIFECYCLE_ALARM_NAMES,
+  INTEROP_NOTIFICATION_USER_LIFECYCLE_RUNBOOK_KEY,
+} from './runbooks/k8s-interop-be-notification-user-lifecycle-consumer-errors/resolveInteropAlarmContext.js';
 import { buildK8sInteropPublicCatalogAstroFrontendErrorsRunbook } from './runbooks/k8s-interop-public-catalog-astro-frontend-errors/runbook.js';
 import {
   INTEROP_PUBLIC_CATALOG_ALARM_NAMES,
   INTEROP_PUBLIC_CATALOG_RUNBOOK_KEY,
 } from './runbooks/k8s-interop-public-catalog-astro-frontend-errors/resolveInteropAlarmContext.js';
+import { buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook } from './runbooks/k8s-interop-be-selfcare-client-users-updater-errors/runbook.js';
+import {
+  INTEROP_SELFCARE_USERS_UPDATER_ALARM_NAMES,
+  INTEROP_SELFCARE_USERS_UPDATER_RUNBOOK_KEY,
+} from './runbooks/k8s-interop-be-selfcare-client-users-updater-errors/resolveInteropAlarmContext.js';
 
 export type RunbookBuilderFn = () => Runbook;
 
@@ -165,11 +175,25 @@ const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
     INTEROP_BFF_ALARM_NAMES,
   ),
   registration(
+    INTEROP_NOTIFICATION_USER_LIFECYCLE_RUNBOOK_KEY,
+    'SERVICE',
+    ['INTEROP'],
+    buildK8sInteropBeNotificationUserLifecycleConsumerErrorsRunbook,
+    INTEROP_NOTIFICATION_USER_LIFECYCLE_ALARM_NAMES,
+  ),
+  registration(
     INTEROP_PUBLIC_CATALOG_RUNBOOK_KEY,
     'SERVICE',
     ['INTEROP'],
     buildK8sInteropPublicCatalogAstroFrontendErrorsRunbook,
     INTEROP_PUBLIC_CATALOG_ALARM_NAMES,
+  ),
+  registration(
+    INTEROP_SELFCARE_USERS_UPDATER_RUNBOOK_KEY,
+    'SERVICE',
+    ['INTEROP'],
+    buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook,
+    INTEROP_SELFCARE_USERS_UPDATER_ALARM_NAMES,
   ),
 ];
 
