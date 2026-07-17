@@ -1,8 +1,8 @@
 /**
  * GO Automation - New Runbook Scaffolder
  *
- * Creates a new runbook under go-analyze-alarm from a template, and (by
- * default) registers it in the analyzer's RUNBOOK_REGISTRY.
+ * Creates a new runbook in the go-runbook catalog from a template, and (by
+ * default) registers it in the automatic registry.
  *
  * Usage:
  *   pnpm create:runbook
@@ -19,11 +19,12 @@
  *   --version <semver>       Runbook metadata version (default: 1.0.0)
  *   --team <team>            Runbook metadata team (default: GO)
  *   --tags <csv>             Comma-separated metadata tags
+ *   --categories <csv>       Comma-separated automatic catalog categories
  *   --api-gw-log-group, --entry-service, --var-prefix, --log-group,
  *   --execution-log-group, --authorizer   (api-gateway template inputs)
  *   --entry-lambda, --var-prefix, --event-source   (lambda template inputs)
  *   --service-name, --var-prefix, --log-group   (service template inputs)
- *   --no-wire                Do not modify go-analyze-alarm main.ts
+ *   --no-wire                Do not modify the automatic runbook registry
  *   --dry-run                Render and print without writing or wiring
  *   --yes                    Skip the confirmation prompt
  */
@@ -35,9 +36,9 @@ import { parseCliArgs } from './cli/parseArgs.js';
 import { resolveTemplate, collectAnswers, confirmGeneration } from './cli/prompts.js';
 import { renderRunbookFiles, writeGeneratedFiles } from './generate/scaffoldRunbook.js';
 import type { GeneratedFile } from './generate/scaffoldRunbook.js';
-import { registerRunbookInAnalyzer } from './wiring/registerInAnalyzer.js';
+import { registerRunbookInCatalog } from './wiring/registerInCatalog.js';
 import { runbookIdError } from './validation/runbookIdError.js';
-import { ANALYZER_MAIN_FILE, REPO_ROOT, RUNBOOKS_DIR, TEMPLATES_ROOT } from './constants.js';
+import { REPO_ROOT, RUNBOOK_REGISTRY_FILE, RUNBOOKS_DIR, TEMPLATES_ROOT } from './constants.js';
 import type { RunbookAnswers } from './templates/RunbookAnswers.js';
 
 const BOLD = '\x1b[1m';
@@ -46,6 +47,8 @@ const CYAN = '\x1b[36m';
 const GREEN = '\x1b[32m';
 const YELLOW = '\x1b[33m';
 const RESET = '\x1b[0m';
+
+type AutomaticRunbookKind = 'APIGW' | 'LAMBDA' | 'SERVICE';
 
 async function pathExists(target: string): Promise<boolean> {
   try {
@@ -69,7 +72,7 @@ function printPlan(answers: RunbookAnswers, files: ReadonlyArray<GeneratedFile>,
     console.log(`  ${CYAN}${relativeToRepo(file.path)}${RESET}`);
   }
   const wiringLabel = wire
-    ? `import + RUNBOOK_REGISTRY in ${relativeToRepo(ANALYZER_MAIN_FILE)}`
+    ? `import + REGISTRATIONS in ${relativeToRepo(RUNBOOK_REGISTRY_FILE)}`
     : `${DIM}disabilitato (--no-wire)${RESET}`;
   console.log(`${BOLD}Wiring${RESET}    ${wiringLabel}`);
 }
@@ -86,20 +89,20 @@ function printNextSteps(answers: RunbookAnswers): void {
   if (answers.templateId === 'api-gateway') {
     console.log(`    1. Popola ${CYAN}knownUrls.ts${RESET} e ${CYAN}knownCases.ts${RESET}`);
     console.log(`    2. Aggiungi i servizi raggiungibili in ${CYAN}knownServices.ts${RESET}`);
-    console.log(`    3. Verifica i tipi: ${DIM}pnpm --filter=go-analyze-alarm exec tsc --noEmit${RESET}`);
+    console.log(`    3. Verifica i tipi: ${DIM}pnpm --filter=@go-automation/go-runbook build${RESET}`);
   } else if (answers.templateId === 'lambda') {
     console.log(`    1. Popola ${CYAN}knownCases.ts${RESET} (timeout/OOM già pronti; aggiungi i casi specifici)`);
     console.log(
       `    2. Per i downstream: ${CYAN}knownServices.ts${RESET} (DOWNSTREAMS) + ${CYAN}knownErrors.ts${RESET} (DOWNSTREAM_ERROR_PATTERNS)`,
     );
-    console.log(`    3. Verifica i tipi: ${DIM}pnpm --filter=go-analyze-alarm exec tsc --noEmit${RESET}`);
+    console.log(`    3. Verifica i tipi: ${DIM}pnpm --filter=@go-automation/go-runbook build${RESET}`);
   } else if (answers.templateId === 'service') {
     console.log(`    1. Popola ${CYAN}knownCases.ts${RESET} con i pattern ricorrenti nei log applicativi`);
     console.log(`    2. Se serve, personalizza query errori / trace in ${CYAN}knownServices.ts${RESET}`);
-    console.log(`    3. Verifica i tipi: ${DIM}pnpm --filter=go-analyze-alarm exec tsc --noEmit${RESET}`);
+    console.log(`    3. Verifica i tipi: ${DIM}pnpm --filter=@go-automation/go-runbook build${RESET}`);
   } else {
     console.log(`    1. Aggiungi step e known case in ${CYAN}runbook.ts${RESET}`);
-    console.log(`    2. Verifica i tipi: ${DIM}pnpm --filter=go-analyze-alarm exec tsc --noEmit${RESET}`);
+    console.log(`    2. Verifica i tipi: ${DIM}pnpm --filter=@go-automation/go-runbook build${RESET}`);
   }
   console.log('');
 }
@@ -116,16 +119,35 @@ function printSuccess(
   }
 
   if (wireRequested && wired) {
-    console.log(`  ${GREEN}~${RESET} ${relativeToRepo(ANALYZER_MAIN_FILE)} (import + RUNBOOK_REGISTRY)`);
+    console.log(`  ${GREEN}~${RESET} ${relativeToRepo(RUNBOOK_REGISTRY_FILE)} (import + REGISTRATIONS)`);
   } else if (wireRequested) {
-    console.log(`  ${YELLOW}!${RESET} ${relativeToRepo(ANALYZER_MAIN_FILE)}: builder già registrato`);
+    console.log(`  ${YELLOW}!${RESET} ${relativeToRepo(RUNBOOK_REGISTRY_FILE)}: builder già registrato`);
   } else {
-    console.log(`\n  ${YELLOW}Wiring saltato.${RESET} Registra a mano in ${relativeToRepo(ANALYZER_MAIN_FILE)}:`);
-    console.log(`    ${DIM}import { ${answers.builderName} } from './libs/runbooks/${answers.id}/runbook.js';${RESET}`);
-    console.log(`    ${DIM}['${answers.id}', ${answers.builderName}],${RESET}`);
+    console.log(`\n  ${YELLOW}Wiring saltato.${RESET} Registra a mano in ${relativeToRepo(RUNBOOK_REGISTRY_FILE)}.`);
   }
 
   printNextSteps(answers);
+}
+
+function catalogKindForTemplate(templateId: string): AutomaticRunbookKind | undefined {
+  switch (templateId) {
+    case 'api-gateway':
+      return 'APIGW';
+    case 'lambda':
+      return 'LAMBDA';
+    case 'service':
+      return 'SERVICE';
+    default:
+      return undefined;
+  }
+}
+
+function nonEmptyCategories(categories: ReadonlyArray<string>): readonly [string, ...string[]] {
+  const [first, ...rest] = categories;
+  if (first === undefined) {
+    throw new Error('È necessaria almeno una categoria per registrare il runbook.');
+  }
+  return [first, ...rest];
 }
 
 async function run(): Promise<void> {
@@ -139,6 +161,10 @@ async function run(): Promise<void> {
   const idError = runbookIdError(answers.id);
   if (idError !== undefined) {
     throw new Error(idError);
+  }
+  const catalogKind = catalogKindForTemplate(answers.templateId);
+  if (cli.wire && catalogKind === undefined) {
+    throw new Error(`Il template "${answers.templateId}" non supporta il wiring automatico. Usa --no-wire.`);
   }
 
   const targetDir = path.join(RUNBOOKS_DIR, answers.id);
@@ -168,10 +194,15 @@ async function run(): Promise<void> {
 
   let wired = false;
   if (cli.wire) {
-    wired = await registerRunbookInAnalyzer(ANALYZER_MAIN_FILE, {
+    if (catalogKind === undefined) {
+      throw new Error(`Il template "${answers.templateId}" non supporta il wiring automatico.`);
+    }
+    wired = await registerRunbookInCatalog(RUNBOOK_REGISTRY_FILE, {
       id: answers.id,
       builderName: answers.builderName,
-      importPath: `./libs/runbooks/${answers.id}/runbook.js`,
+      importPath: `./runbooks/${answers.id}/runbook.js`,
+      kind: catalogKind,
+      categories: nonEmptyCategories(answers.categories),
     });
   }
 

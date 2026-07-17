@@ -2,7 +2,7 @@
  * Known services for the {{RUNBOOK_ID}} runbook.
  */
 
-import type { lambda } from '@go-automation/go-runbook';
+import type { lambda } from '../framework.js';
 
 /** Entry Lambda whose log group is the primary source. */
 export const LAMBDA_FUNCTION: lambda.LambdaFunction = {

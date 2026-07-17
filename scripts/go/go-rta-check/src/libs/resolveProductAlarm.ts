@@ -1,6 +1,6 @@
 import type { Core } from '@go-automation/go-common';
 import type { AlarmDto, ProductDto, WatchtowerClient } from '@go-automation/go-watchtower-client';
-import { RUNBOOK_REGISTRY } from 'go-analyze-alarm/api';
+import { RUNBOOK_REGISTRY } from '@go-automation/go-runbook/catalog';
 
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
 

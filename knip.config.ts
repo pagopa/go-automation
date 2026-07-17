@@ -19,6 +19,7 @@ const config: KnipConfig = {
       project: ['src/**/*.ts'],
     },
     'packages/go-runbook': {
+      entry: ['src/catalog/exportAutomaticRunbookDescriptors.ts'],
       project: ['src/**/*.ts'],
     },
     'packages/go-send': {
@@ -30,14 +31,6 @@ const config: KnipConfig = {
     },
     // GO scripts
     'scripts/go/*': {
-      project: ['src/**/*.ts'],
-    },
-    // src/index.ts remains auto-discovered from package.json/main.
-    // This extra entry is invoked as a subprocess by the environment deploy
-    // orchestrator so that the deploy bin does not depend directly on a
-    // runbook script package.
-    'scripts/go/go-analyze-alarm': {
-      entry: ['src/exportAutomaticRunbookDescriptors.ts'],
       project: ['src/**/*.ts'],
     },
     // SEND scripts (default entry: src/index.ts, discovered automatically)

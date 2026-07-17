@@ -1,7 +1,7 @@
 import { Core } from '@go-automation/go-common';
 import { WatchtowerClient } from '@go-automation/go-watchtower-client';
 import type { WatchtowerAuthCredentials } from '@go-automation/go-watchtower-client';
-import { createServiceRegistry } from 'go-analyze-alarm/api';
+import { createServiceRegistry } from '@go-automation/go-runbook/catalog';
 
 import type { ExecuteRunbookConfig } from '../types/ExecuteRunbookConfig.js';
 import type { ExecuteRunbookDeps } from '../types/ExecuteRunbookDeps.js';

@@ -8,7 +8,7 @@ import type {
   AutomaticRunbookExecutionStatus,
   StartExecutionRequest,
 } from '@go-automation/go-watchtower-client';
-import { executeRunbookForOccurrence } from 'go-analyze-alarm/api';
+import { executeRunbookForOccurrence } from '@go-automation/go-runbook/catalog';
 
 import type { ExecuteRunbookDelivery } from '../types/ExecuteRunbookDelivery.js';
 import type { ExecuteRunbookDeps } from '../types/ExecuteRunbookDeps.js';

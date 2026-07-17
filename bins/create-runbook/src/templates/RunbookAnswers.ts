@@ -19,6 +19,8 @@ export interface RunbookAnswers {
   readonly team: string;
   /** Runbook metadata `tags`. */
   readonly tags: ReadonlyArray<string>;
+  /** Automatic catalog categories. */
+  readonly categories: ReadonlyArray<string>;
   /** Template-specific inputs, keyed by {@link TemplateInput.name}. */
   readonly extras: ReadonlyMap<string, string>;
 }

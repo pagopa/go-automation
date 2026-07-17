@@ -2,8 +2,10 @@
  * Runbook: {{RUNBOOK_ID}}
  */
 
-import { RunbookBuilder, log, logAction } from '@go-automation/go-runbook';
-import type { Runbook } from '@go-automation/go-runbook';
+import { logAction } from '../../../actions/ActionFactories.js';
+import { RunbookBuilder } from '../../../builders/RunbookBuilder.js';
+import { log } from '../../../steps/control/LogStep.js';
+import type { Runbook } from '../../../types/Runbook.js';
 
 /**
  * Builds the {{RUNBOOK_ID}} runbook definition.

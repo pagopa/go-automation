@@ -1,58 +1,61 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { applyRunbookRegistration } from '../wiring/registerInAnalyzer.js';
+import { applyRunbookRegistration } from '../wiring/registerInCatalog.js';
 
-const SAMPLE_MAIN = `import { Core } from '@go-automation/go-common';
-import type { Runbook } from '@go-automation/go-runbook';
+const SAMPLE_REGISTRY = `import type { AutomaticRunbookKind } from '@go-automation/go-execute-runbook-contracts';
 
-import { buildAddressBookIoApiGwAlarmRunbook } from './libs/runbooks/pn-address-book-io-IO-ApiGwAlarm/runbook.js';
-import { buildDeliveryB2BApiGwAlarmRunbook } from './libs/runbooks/pn-delivery-B2B-ApiGwAlarm/runbook.js';
+import { buildAddressBookIoApiGwAlarmRunbook } from './runbooks/pn-address-book-io-IO-ApiGwAlarm/runbook.js';
+import { buildDeliveryB2BApiGwAlarmRunbook } from './runbooks/pn-delivery-B2B-ApiGwAlarm/runbook.js';
 
-import { DEFAULT_TIME_WINDOW_MINUTES } from './libs/runbooks/constants.js';
+interface AutomaticRunbookRegistration {
+  readonly key: string;
+  readonly kind: AutomaticRunbookKind;
+}
 
-const RUNBOOK_REGISTRY = new Map<string, () => Runbook>([
-  ['pn-address-book-io-IO-ApiGwAlarm', buildAddressBookIoApiGwAlarmRunbook],
-  ['pn-delivery-B2B-ApiGwAlarm', buildDeliveryB2BApiGwAlarmRunbook],
-]);
+const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
+  registration('pn-address-book-io-IO-ApiGwAlarm', 'APIGW', ['DELIVERY'], buildAddressBookIoApiGwAlarmRunbook),
+  registration('pn-delivery-B2B-ApiGwAlarm', 'APIGW', ['DELIVERY'], buildDeliveryB2BApiGwAlarmRunbook),
+];
 
-export async function main(): Promise<void> {
-  const params = new Map<string, string>([['alarmName', 'x']]);
-  void params;
-  void Core;
-  void DEFAULT_TIME_WINDOW_MINUTES;
+function registration(): AutomaticRunbookRegistration {
+  throw new Error('not executed');
 }
 `;
 
 const REGISTRATION = {
   id: 'pn-foo-BAR-ApiGwAlarm',
   builderName: 'buildFooBarApiGwAlarmRunbook',
-  importPath: './libs/runbooks/pn-foo-BAR-ApiGwAlarm/runbook.js',
+  importPath: './runbooks/pn-foo-BAR-ApiGwAlarm/runbook.js',
+  kind: 'APIGW' as const,
+  categories: ['DELIVERY'] as const,
 };
 
 describe('applyRunbookRegistration', () => {
   it('adds the import after the last runbook import', () => {
-    const { content, changed } = applyRunbookRegistration(SAMPLE_MAIN, REGISTRATION);
+    const { content, changed } = applyRunbookRegistration(SAMPLE_REGISTRY, REGISTRATION);
 
     assert.strictEqual(changed, true);
     assert.match(
       content,
-      /buildDeliveryB2BApiGwAlarmRunbook \} from '\.\/libs\/runbooks\/pn-delivery-B2B-ApiGwAlarm\/runbook\.js';\nimport \{ buildFooBarApiGwAlarmRunbook \} from '\.\/libs\/runbooks\/pn-foo-BAR-ApiGwAlarm\/runbook\.js';/,
+      /buildDeliveryB2BApiGwAlarmRunbook \} from '\.\/runbooks\/pn-delivery-B2B-ApiGwAlarm\/runbook\.js';\nimport \{ buildFooBarApiGwAlarmRunbook \} from '\.\/runbooks\/pn-foo-BAR-ApiGwAlarm\/runbook\.js';/,
     );
   });
 
-  it('adds the registry entry inside the registry map', () => {
-    const { content } = applyRunbookRegistration(SAMPLE_MAIN, REGISTRATION);
+  it('adds the typed registration inside the catalog array', () => {
+    const { content } = applyRunbookRegistration(SAMPLE_REGISTRY, REGISTRATION);
 
-    const entryIndex = content.indexOf("['pn-foo-BAR-ApiGwAlarm', buildFooBarApiGwAlarmRunbook],");
-    const mainIndex = content.indexOf('export async function main');
+    const entryIndex = content.indexOf(
+      `registration('pn-foo-BAR-ApiGwAlarm', 'APIGW', ["DELIVERY"], buildFooBarApiGwAlarmRunbook),`,
+    );
+    const helperIndex = content.indexOf('function registration');
 
     assert.ok(entryIndex >= 0, 'registry entry should be present');
-    assert.ok(entryIndex < mainIndex, 'registry entry should be inside the registry, before main()');
+    assert.ok(entryIndex < helperIndex, 'registry entry should be inside REGISTRATIONS');
   });
 
   it('is idempotent when the builder is already registered', () => {
-    const once = applyRunbookRegistration(SAMPLE_MAIN, REGISTRATION);
+    const once = applyRunbookRegistration(SAMPLE_REGISTRY, REGISTRATION);
     const twice = applyRunbookRegistration(once.content, REGISTRATION);
 
     assert.strictEqual(twice.changed, false);

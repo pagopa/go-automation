@@ -2,7 +2,7 @@ import { toPascalCase } from './toPascalCase.js';
 
 /**
  * Suggests a builder function name for a runbook id, following the
- * `build<Name>Runbook` convention used in go-analyze-alarm.
+ * `build<Name>Runbook` convention used by the automatic runbook catalog.
  *
  * The leading `pn-` (if present) is dropped and the rest is PascalCased.
  * The result is a best-effort suggestion: some ids map to a builder name
