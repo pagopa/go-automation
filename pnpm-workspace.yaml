@@ -37,7 +37,7 @@ catalog:
   '@aws-sdk/credential-provider-ini': '3.973.1'
   '@aws-sdk/util-dynamodb': '3.996.6'
   '@eslint/js': '^10.0.1'
-  '@slack/web-api': '^7.19.0'
+  '@slack/web-api': '^8.0.0'
   '@inquirer/prompts': '^8.5.2'
   '@types/aws-lambda': '^8.10.162'
   '@types/better-sqlite3': '^7.6.13'
