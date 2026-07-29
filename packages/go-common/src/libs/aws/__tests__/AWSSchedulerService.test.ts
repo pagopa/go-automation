@@ -12,11 +12,11 @@ describe('AWSSchedulerService', () => {
       send: async (command: GetScheduleCommand) => {
         assert.ok(command instanceof GetScheduleCommand);
         assert.strictEqual(command.input.Name, 'my-scheduled-rule');
-        return {
+        return await Promise.resolve({
           Name: 'my-scheduled-rule',
           ScheduleExpression: 'rate(5 minutes)',
           State: 'ENABLED',
-        };
+        });
       },
     } as unknown as SchedulerClient;
 
