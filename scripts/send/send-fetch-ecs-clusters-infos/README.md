@@ -139,8 +139,8 @@ Descrivere il formato dell'output generato:
 
 ⏵ AWS Profile profile1 (env1)
     ℹ Clusters state
-    - cluster1: ACTIVE
-    - cluster2: ACTIVE
+    - cluster1: ACTIVE (PendingTasks: 0, RunningTasks: 14)
+    - cluster2: ACTIVE (PendingTasks: 0, RunningTasks: 23)
 
     ℹ Scheduled actions
     - RuleName1 (ENABLED) - cron(0 6 ? * MON-FRI *) Europe/Rome

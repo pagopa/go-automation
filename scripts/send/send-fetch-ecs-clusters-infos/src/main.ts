@@ -74,7 +74,7 @@ export async function main(script: Core.GOScript): Promise<void> {
       } else {
         status = cluster.pendingTasksCount + cluster.runningTasksCount === 0 ? 'NOT ACTIVE' : 'ACTIVE';
       }
-      script.logger.text(`- ${cluster.clusterName}: ${status} (PendingTasks: ${cluster.pendingTasksCount}, RunningTasks: ${cluster.runningTasksCount})`);
+      script.logger.text(`- ${cluster.clusterName}: ${status} - PendingTasks: ${cluster.pendingTasksCount}, RunningTasks: ${cluster.runningTasksCount}`);
     }
 
     if (item.rules && item.rules.length > 0) {
@@ -85,7 +85,7 @@ export async function main(script: Core.GOScript): Promise<void> {
         try {
           const schedule = await schedulerService.getSchedule(rule);
           script.logger.text(
-            `- ${rule} (${schedule.State}) - ${schedule.ScheduleExpression} ${schedule.ScheduleExpressionTimezone}`,
+            `- ${rule}: ${schedule.State} - ${schedule.ScheduleExpression} ${schedule.ScheduleExpressionTimezone}`,
           );
         } catch (error) {
           script.logger.warning(`Failed to get schedule details for rule ${rule}: ${(error as Error).message}`);
