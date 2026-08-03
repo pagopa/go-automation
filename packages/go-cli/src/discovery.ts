@@ -1,8 +1,9 @@
-import { glob } from 'glob';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import fs from 'node:fs/promises';
 import { Core } from '@go-automation/go-common';
+
+import { findScriptConfigFiles } from './scriptConfigFiles.js';
 
 const fileName = fileURLToPath(import.meta.url);
 const dirName = path.dirname(fileName);
@@ -70,10 +71,7 @@ export async function discoverScripts(): Promise<DiscoveredScript[]> {
   }
 
   // 2. Find all src/config.ts files
-  const configFiles = await glob('**/src/config.ts', {
-    cwd: scriptsDir,
-    absolute: true,
-  });
+  const configFiles = await findScriptConfigFiles(scriptsDir);
 
   const discovered: DiscoveredScript[] = [];
   let cacheUpdated = false;
