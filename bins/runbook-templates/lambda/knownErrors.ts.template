@@ -7,7 +7,7 @@
  *
  * TODO: populate when the Lambda calls downstream microservices.
  */
-import type { lambda } from '@go-automation/go-runbook';
+import type { lambda } from '../framework.js';
 
 export const DOWNSTREAM_ERROR_PATTERNS: ReadonlyArray<lambda.DownstreamErrorPattern> = [
   // {

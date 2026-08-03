@@ -11,9 +11,10 @@ export interface CliArgs {
   readonly version?: string;
   readonly team?: string;
   readonly tags?: string;
+  readonly categories?: string;
   /** Template-specific flag values, keyed by input name. */
   readonly extras: ReadonlyMap<string, string>;
-  /** Whether to wire the runbook into go-analyze-alarm (default true). */
+  /** Whether to wire the runbook into the automatic catalog (default true). */
   readonly wire: boolean;
   /** Preview only: render and print without writing or wiring. */
   readonly dryRun: boolean;
@@ -29,6 +30,7 @@ interface MutableCliArgs {
   version?: string;
   team?: string;
   tags?: string;
+  categories?: string;
   extras: ReadonlyMap<string, string>;
   wire: boolean;
   dryRun: boolean;
@@ -70,6 +72,7 @@ export function parseCliArgs(argv: ReadonlyArray<string>): CliArgs {
     version: { type: 'string' },
     team: { type: 'string' },
     tags: { type: 'string' },
+    categories: { type: 'string' },
     'no-wire': { type: 'boolean' },
     'dry-run': { type: 'boolean' },
     yes: { type: 'boolean' },
@@ -109,6 +112,8 @@ export function parseCliArgs(argv: ReadonlyArray<string>): CliArgs {
   if (team !== undefined) args.team = team;
   const tags = asString(values['tags']);
   if (tags !== undefined) args.tags = tags;
+  const categories = asString(values['categories']);
+  if (categories !== undefined) args.categories = categories;
 
   return args;
 }

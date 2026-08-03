@@ -1,6 +1,6 @@
 import type { Core } from '@go-automation/go-common';
 import type { AlarmAnalysisDto, AlarmEventDto, WatchtowerClient } from '@go-automation/go-watchtower-client';
-import { executeRunbookForOccurrence } from 'go-analyze-alarm/api';
+import { executeRunbookForOccurrence } from '@go-automation/go-runbook/catalog';
 import { classifyRunbookOutcome } from '@go-automation/go-runbook';
 import type { ServiceRegistry } from '@go-automation/go-runbook';
 

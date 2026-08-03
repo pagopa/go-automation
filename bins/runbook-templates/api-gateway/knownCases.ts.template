@@ -2,7 +2,7 @@
  * Known cases for the {{RUNBOOK_ID}} runbook.
  */
 
-import type { KnownCase } from '@go-automation/go-runbook';
+import type { KnownCase } from '../framework.js';
 
 /**
  * Known cases evaluated against the resulting context, highest priority

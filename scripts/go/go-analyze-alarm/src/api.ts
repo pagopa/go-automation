@@ -2,23 +2,24 @@
  * Programmatic API of `go-analyze-alarm` for in-process reuse.
  *
  * Importing this module does NOT bootstrap the CLI (unlike the package root
- * `index.ts`, which runs the script on import). Consumed by `go-rta-check`.
+ * `index.ts`, which runs the script on import).
+ *
+ * @deprecated Import the shared catalog directly from
+ * `@go-automation/go-runbook/catalog`.
  */
 export {
   AUTOMATIC_RUNBOOK_REGISTRY,
   AutomaticRunbookRegistry,
   RUNBOOK_REGISTRY,
   validateCloudRunbookRegistry,
-} from './libs/runbookRegistry.js';
+  executeRunbookForOccurrence,
+  createServiceRegistry,
+  DEFAULT_TIME_WINDOW_MINUTES,
+} from '@go-automation/go-runbook/catalog';
 export type {
   AutomaticRunbookRegistration,
   ResolvedAutomaticRunbook,
   RunbookBuilderFn,
-} from './libs/runbookRegistry.js';
-export { executeRunbookForOccurrence } from './libs/executeRunbookForOccurrence.js';
-export type {
   ExecuteRunbookForOccurrenceDeps,
   ExecuteRunbookForOccurrenceInput,
-} from './libs/executeRunbookForOccurrence.js';
-export { createServiceRegistry } from './libs/createServiceRegistry.js';
-export { DEFAULT_TIME_WINDOW_MINUTES } from './libs/runbooks/constants.js';
+} from '@go-automation/go-runbook/catalog';

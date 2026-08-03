@@ -2,7 +2,7 @@
  * Known services for the {{RUNBOOK_ID}} runbook.
  */
 
-import type { apigw } from '@go-automation/go-runbook';
+import type { apigw } from '../framework.js';
 
 /** API Gateway AccessLog log group on which the alarm fired. */
 export const API_GW_LOG_GROUP = '{{API_GW_LOG_GROUP}}';

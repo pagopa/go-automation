@@ -9,8 +9,15 @@ export const REPO_ROOT = path.resolve(currentDir, '..', '..', '..');
 /** Root directory holding the runbook template folders. */
 export const TEMPLATES_ROOT = path.join(REPO_ROOT, 'bins', 'runbook-templates');
 
-/** Directory under go-analyze-alarm where runbook folders live. */
-export const RUNBOOKS_DIR = path.join(REPO_ROOT, 'scripts', 'go', 'go-analyze-alarm', 'src', 'libs', 'runbooks');
+/** Directory under go-runbook where concrete automatic runbooks live. */
+export const RUNBOOKS_DIR = path.join(REPO_ROOT, 'packages', 'go-runbook', 'src', 'catalog', 'runbooks');
 
-/** The go-analyze-alarm entry point that holds the runbook registry. */
-export const ANALYZER_MAIN_FILE = path.join(REPO_ROOT, 'scripts', 'go', 'go-analyze-alarm', 'src', 'main.ts');
+/** Source file that holds the automatic runbook registry. */
+export const RUNBOOK_REGISTRY_FILE = path.join(
+  REPO_ROOT,
+  'packages',
+  'go-runbook',
+  'src',
+  'catalog',
+  'runbookRegistry.ts',
+);

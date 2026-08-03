@@ -10,7 +10,7 @@
 import { createHash } from 'node:crypto';
 
 import { Core } from '@go-automation/go-common';
-import { RUNBOOK_REGISTRY, DEFAULT_TIME_WINDOW_MINUTES } from 'go-analyze-alarm/api';
+import { RUNBOOK_REGISTRY, DEFAULT_TIME_WINDOW_MINUTES } from '@go-automation/go-runbook/catalog';
 import type { Runbook } from '@go-automation/go-runbook';
 
 import type { RunbookCacheDescriptor } from './RunbookCacheDescriptor.js';
