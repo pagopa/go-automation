@@ -205,10 +205,6 @@ overrides:
 importers:
 
   .:
-    dependencies:
-      '@go-automation/go-cli':
-        specifier: link:packages/go-cli
-        version: link:packages/go-cli
     devDependencies:
       '@aws-sdk/client-lambda':
         specifier: 'catalog:'
