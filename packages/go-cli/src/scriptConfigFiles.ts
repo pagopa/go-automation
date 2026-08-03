@@ -2,8 +2,15 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 async function listDirectoryNames(directory: string): Promise<string[]> {
-  const entries = await fs.readdir(directory, { withFileTypes: true });
-  return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  try {
+    const entries = await fs.readdir(directory, { withFileTypes: true });
+    return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  } catch (error) {
+    if (isMissingPathError(error)) {
+      return [];
+    }
+    throw error;
+  }
 }
 
 function isMissingPathError(error: unknown): boolean {

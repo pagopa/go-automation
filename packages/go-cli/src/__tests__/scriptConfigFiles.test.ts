@@ -12,6 +12,17 @@ async function createFile(filePath: string): Promise<void> {
 }
 
 describe('findScriptConfigFiles', () => {
+  it('returns no configs when the scripts path is missing or is not a directory', async (context) => {
+    const testDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'go-cli-discovery-'));
+    context.after(async () => fs.rm(testDirectory, { recursive: true, force: true }));
+
+    const filePath = path.join(testDirectory, 'scripts.txt');
+    await fs.writeFile(filePath, '');
+
+    assert.deepStrictEqual(await findScriptConfigFiles(path.join(testDirectory, 'missing')), []);
+    assert.deepStrictEqual(await findScriptConfigFiles(filePath), []);
+  });
+
   it('finds only configs in the supported category/script layout', async (context) => {
     const scriptsDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'go-cli-discovery-'));
     context.after(async () => fs.rm(scriptsDirectory, { recursive: true, force: true }));
