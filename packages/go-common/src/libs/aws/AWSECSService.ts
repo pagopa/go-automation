@@ -6,7 +6,7 @@ import {
   ListServicesCommand,
   ListTasksCommand,
 } from '@aws-sdk/client-ecs';
-import type { ECSClient, Service, Task } from '@aws-sdk/client-ecs';
+import { ECSClient, type DescribeClustersCommandOutput, type Service, type Task } from '@aws-sdk/client-ecs';
 
 import type { ECSClusterHealthReport, ECSServiceHealth, ECSTaskHealth } from './models/ECSClusterHealth.js';
 
@@ -130,5 +130,19 @@ export class AWSECSService {
       tasks: taskHealths,
       isHealthy: isClusterHealthy,
     };
+  }
+
+  /**
+   * Performs a comprehensive health analysis of an ECS cluster.
+   *
+   * @param clusterNames - clusterNames array
+   * @returns DescribeClustersCommandOutput type output
+   */
+  async describeCluster(clusterNames: string[]): Promise<DescribeClustersCommandOutput> {
+    const input = {
+      clusters: clusterNames,
+    };
+    const command = new DescribeClustersCommand(input);
+    return await this.client.send(command);
   }
 }

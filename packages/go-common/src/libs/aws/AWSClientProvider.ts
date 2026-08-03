@@ -13,6 +13,7 @@ import { AthenaClient } from '@aws-sdk/client-athena';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { ECSClient } from '@aws-sdk/client-ecs';
+import { SchedulerClient } from '@aws-sdk/client-scheduler';
 import { fromIni } from '@aws-sdk/credential-provider-ini';
 
 import { AWS_REGION } from './AWSRegion.js';
@@ -52,6 +53,7 @@ export class AWSClientProvider {
   private cachedS3Client: S3Client | null = null;
   private cachedECSClient: ECSClient | null = null;
   private cachedSecretsManagerClient: SecretsManagerClient | null = null;
+  private cachedSchedulerClient: SchedulerClient | null = null;
 
   constructor(config: AWSClientProviderConfig) {
     const profile = config.profile?.trim();
@@ -128,6 +130,14 @@ export class AWSClientProvider {
   }
 
   /**
+   * Returns the cached SchedulerClient instance.
+   */
+  get scheduler(): SchedulerClient {
+    this.cachedSchedulerClient ??= new SchedulerClient(this.clientConfig);
+    return this.cachedSchedulerClient;
+  }
+
+  /**
    * Returns the configured AWS profile name
    */
   getProfile(): string {
@@ -153,6 +163,7 @@ export class AWSClientProvider {
     this.cachedECSClient?.destroy();
     this.cachedS3Client?.destroy();
     this.cachedSecretsManagerClient?.destroy();
+    this.cachedSchedulerClient?.destroy();
 
     this.cachedDynamoDBClient = null;
     this.cachedCloudWatchClient = null;
@@ -162,5 +173,6 @@ export class AWSClientProvider {
     this.cachedECSClient = null;
     this.cachedS3Client = null;
     this.cachedSecretsManagerClient = null;
+    this.cachedSchedulerClient = null;
   }
 }
