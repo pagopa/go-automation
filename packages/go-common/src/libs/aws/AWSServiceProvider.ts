@@ -5,6 +5,7 @@ import { AWSCloudWatchLogsService } from './AWSCloudWatchLogsService.js';
 import { AWSCloudWatchMetricsService } from './AWSCloudWatchMetricsService.js';
 import { AWSDynamoDBService } from './AWSDynamoDBService.js';
 import { AWSECSService } from './AWSECSService.js';
+import { AWSSchedulerService } from './AWSSchedulerService.js';
 import { AWSS3Service } from './AWSS3Service.js';
 import { AWSSQSService } from './AWSSQSService.js';
 import { AWSSecretsManagerService } from './AWSSecretsManagerService.js';
@@ -25,6 +26,7 @@ export class AWSServiceProvider {
   private cachedECSService: AWSECSService | undefined;
   private cachedAthenaService: AWSAthenaService | undefined;
   private cachedSecretsManagerService: AWSSecretsManagerService | undefined;
+  private cachedSchedulerService: AWSSchedulerService | undefined;
 
   constructor(private readonly clientProvider: AWSMultiClientProvider) {}
 
@@ -77,6 +79,11 @@ export class AWSServiceProvider {
     return this.cachedSecretsManagerService;
   }
 
+  get scheduler(): AWSSchedulerService {
+    this.cachedSchedulerService ??= new AWSSchedulerService(this.clientProvider.first.scheduler);
+    return this.cachedSchedulerService;
+  }
+
   close(): void {
     this.cachedCloudWatchLogsService = undefined;
     this.cachedCloudWatchAlarmsService = undefined;
@@ -87,5 +94,6 @@ export class AWSServiceProvider {
     this.cachedECSService = undefined;
     this.cachedAthenaService = undefined;
     this.cachedSecretsManagerService = undefined;
+    this.cachedSchedulerService = undefined;
   }
 }
