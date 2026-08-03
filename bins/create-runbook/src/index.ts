@@ -73,7 +73,7 @@ function printPlan(answers: RunbookAnswers, files: ReadonlyArray<GeneratedFile>,
   }
   const wiringLabel = wire
     ? `import + REGISTRATIONS in ${relativeToRepo(RUNBOOK_REGISTRY_FILE)}`
-    : `${DIM}disabilitato (--no-wire)${RESET}`;
+    : `${DIM}disabilitato${RESET}`;
   console.log(`${BOLD}Wiring${RESET}    ${wiringLabel}`);
 }
 
@@ -156,16 +156,14 @@ async function run(): Promise<void> {
   console.log(`\n${BOLD}${CYAN}GO Automation — New Runbook${RESET}`);
 
   const template = await resolveTemplate(cli.type);
-  const answers = await collectAnswers(template, cli);
+  const wire = cli.wire && template.id !== 'base';
+  const answers = await collectAnswers(template, { ...cli, wire });
 
   const idError = runbookIdError(answers.id);
   if (idError !== undefined) {
     throw new Error(idError);
   }
   const catalogKind = catalogKindForTemplate(answers.templateId);
-  if (cli.wire && catalogKind === undefined) {
-    throw new Error(`Il template "${answers.templateId}" non supporta il wiring automatico. Usa --no-wire.`);
-  }
 
   const targetDir = path.join(RUNBOOKS_DIR, answers.id);
   if (await pathExists(targetDir)) {
@@ -174,7 +172,7 @@ async function run(): Promise<void> {
 
   const files = await renderRunbookFiles(template, answers, TEMPLATES_ROOT, targetDir);
 
-  printPlan(answers, files, cli.wire);
+  printPlan(answers, files, wire);
 
   if (cli.dryRun) {
     printGeneratedFileContents(files);
@@ -193,7 +191,7 @@ async function run(): Promise<void> {
   await writeGeneratedFiles(files);
 
   let wired = false;
-  if (cli.wire) {
+  if (wire) {
     if (catalogKind === undefined) {
       throw new Error(`Il template "${answers.templateId}" non supporta il wiring automatico.`);
     }
@@ -206,7 +204,7 @@ async function run(): Promise<void> {
     });
   }
 
-  printSuccess(answers, files, wired, cli.wire);
+  printSuccess(answers, files, wired, wire);
 }
 
 run().catch((error: unknown) => {
