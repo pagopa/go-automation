@@ -21,8 +21,8 @@ export type RunOptions = CoverageRunOptions | AnalysesRunOptions;
 type AnalysisMatcherResolver = typeof resolveAnalysisMatcher;
 
 /**
- * Validates the run mode and, only for `analyses`, the V2 matcher before any
- * credential is requested, so a relevant configuration mistake surfaces immediately.
+ * Validates the run mode and, only for `analyses`, the V2 matcher before the
+ * analyses workflow begins, so a relevant configuration mistake surfaces immediately.
  *
  * @param logger - GOScript logger, used to report the invalid value
  * @param config - Validated script configuration
