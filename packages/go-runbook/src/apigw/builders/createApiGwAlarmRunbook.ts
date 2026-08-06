@@ -191,6 +191,14 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     ...ctx.runbookContext,
   });
 
+  // Primary resource of the draft: the component under analysis. `type` stays
+  // undeclared until the Fase 0 coverage check confirms the censused ResourceType
+  // name — a wrong type would block the apply, while omitting it never does.
+  builder.analysisDefaults({
+    ...config.analysisDefaults,
+    resources: [{ name: config.entryService.name, role: 'PRIMARY' }, ...(config.analysisDefaults?.resources ?? [])],
+  });
+
   if (config.maxIterations !== undefined) {
     builder.maxIterations(config.maxIterations);
   }

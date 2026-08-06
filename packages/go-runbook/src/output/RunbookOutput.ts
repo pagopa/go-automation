@@ -1,5 +1,6 @@
 import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js';
 import type { RunbookType } from '../types/RunbookType.js';
+import type { AnalysisDraftV1 } from './AnalysisDraft.js';
 import type { RunbookOutcome } from './RunbookOutcome.js';
 import type { RunbookOutputContext } from './RunbookOutputContext.js';
 import type { RunbookTelemetry } from './RunbookTelemetry.js';
@@ -31,6 +32,8 @@ export interface RunbookOutput {
   };
   readonly input: Readonly<Record<string, string>>;
   readonly outcome: RunbookOutcome;
+  /** Deterministic analysis draft; absent when the outcome carries no analysis. */
+  readonly analysis?: AnalysisDraftV1;
   readonly telemetry?: RunbookTelemetry;
   readonly context: RunbookOutputContext;
 }

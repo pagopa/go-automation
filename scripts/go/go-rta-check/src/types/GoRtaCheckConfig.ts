@@ -5,6 +5,8 @@
  * interactive prompts (product/alarm selection, period, credentials).
  */
 export interface GoRtaCheckConfig {
+  /** Run mode: `analyses` (default) or `coverage`. */
+  readonly mode?: string;
   /** Watchtower base URL (or env `WATCHTOWER_BASE_URL`). */
   readonly watchtowerUrl?: string;
   /** Watchtower login email (or env `WATCHTOWER_EMAIL`, else prompt). */

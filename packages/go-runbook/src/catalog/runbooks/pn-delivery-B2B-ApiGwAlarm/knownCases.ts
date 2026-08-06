@@ -3,6 +3,7 @@
  */
 
 import type { KnownCase } from '../framework.js';
+import { SEND_DOWNSTREAMS } from '../framework.js';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   {
@@ -21,6 +22,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '[CASO NOTO] [EXECUTION LOG] Execution failed due to configuration error\n' +
         'Risoluzione: Chiusura - caso noto\n',
     },
+
+    analysis: {
+      resolution: 'Chiusura - caso noto',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+    },
   },
   {
     id: 'downstream-selfcarepg-500-internal-server-error',
@@ -38,6 +45,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '[CASO NOTO] [DOWNSTREAM] Service SelfcarePG returned errors=500 Internal Server Error\n' +
         'Risoluzione: Chiusura - caso noto\n' +
         'Downstream: SelfcarePG\n',
+    },
+
+    analysis: {
+      resolution: 'Chiusura - caso noto',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      downstreams: [SEND_DOWNSTREAMS.SELFCARE],
     },
   },
 ];

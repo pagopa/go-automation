@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { AnalysisMatch, RtaCheckRow } from '../../types/RtaCheckReport.js';
+import type { AnalysisMatch, RtaCheckRow } from '@go-automation/go-watchtower-runbook';
 import { formatVerificationCell } from '../renderConsole.js';
 
 function row(partial: Partial<AnalysisMatch>): RtaCheckRow {

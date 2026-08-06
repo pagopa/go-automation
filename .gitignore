@@ -55,6 +55,10 @@ Thumbs.db
 # Test coverage
 coverage/
 
+# Source code for the runbook-to-Watchtower coverage check (not a test report)
+!packages/go-watchtower-runbook/src/coverage/
+!packages/go-watchtower-runbook/src/coverage/**
+
 # Temporary files
 *.tmp
 .cache/

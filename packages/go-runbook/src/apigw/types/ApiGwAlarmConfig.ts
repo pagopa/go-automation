@@ -1,4 +1,5 @@
 import type { RunbookMetadata } from '../../types/RunbookMetadata.js';
+import type { RunbookAnalysisDefaults } from '../../types/RunbookAnalysisDefaults.js';
 import type { StepDescriptor } from '../../types/StepDescriptor.js';
 import type { KnownCase } from '../../types/KnownCase.js';
 import type { CaseAction } from '../../actions/CaseAction.js';
@@ -92,6 +93,8 @@ export interface ApiGwAlarmConfig {
   readonly authorizerFailureCheck?: ApiGwAuthorizerFailureCheckConfig;
   /** Casi noti valutati contro il contesto risultante */
   readonly knownCases: ReadonlyArray<KnownCase>;
+  /** Extra analysis references; the builder always prepends the primary resource. */
+  readonly analysisDefaults?: RunbookAnalysisDefaults;
   /**
    * Action eseguita quando nessun caso noto matcha. Quando omessa, la
    * factory genera una default action che riassume le var raccolte

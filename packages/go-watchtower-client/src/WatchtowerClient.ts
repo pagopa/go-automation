@@ -2,6 +2,7 @@ import { Core } from '@go-automation/go-common';
 
 import { WatchtowerAuth } from './WatchtowerAuth.js';
 import type { WatchtowerAuthCredentials } from './WatchtowerAuth.js';
+import type { ProductCensus } from './ProductCensus.js';
 import type {
   AcknowledgeCancellationRequest,
   AcknowledgeCancellationResult,
@@ -21,14 +22,19 @@ import type {
   CompleteExecutionResult,
   CreateCliExecutionRequest,
   CreateCliExecutionResponse,
+  DownstreamDto,
   EnvironmentDto,
   FailExecutionRequest,
   FailExecutionResult,
+  FinalActionDto,
+  IgnoreReasonDto,
   PreviewCliExecutionRequest,
   PreviewCliExecutionResponse,
   ProductDto,
   ProgressExecutionRequest,
   ProgressExecutionResponse,
+  ResourceDto,
+  RunbookDto,
   StartExecutionRequest,
   StartExecutionResponse,
 } from './WatchtowerTypes.js';
@@ -80,6 +86,56 @@ export class WatchtowerClient {
       'GET',
       `/api/products/${encodeURIComponent(productId)}/environments`,
     );
+  }
+
+  async listProductResources(productId: string): Promise<ReadonlyArray<ResourceDto>> {
+    return await this.authenticatedRequest<ResourceDto[]>(
+      'GET',
+      `/api/products/${encodeURIComponent(productId)}/resources`,
+    );
+  }
+
+  async listProductDownstreams(productId: string): Promise<ReadonlyArray<DownstreamDto>> {
+    return await this.authenticatedRequest<DownstreamDto[]>(
+      'GET',
+      `/api/products/${encodeURIComponent(productId)}/downstreams`,
+    );
+  }
+
+  async listProductFinalActions(productId: string): Promise<ReadonlyArray<FinalActionDto>> {
+    return await this.authenticatedRequest<FinalActionDto[]>(
+      'GET',
+      `/api/products/${encodeURIComponent(productId)}/final-actions`,
+    );
+  }
+
+  async listProductRunbooks(productId: string): Promise<ReadonlyArray<RunbookDto>> {
+    return await this.authenticatedRequest<RunbookDto[]>(
+      'GET',
+      `/api/products/${encodeURIComponent(productId)}/runbooks`,
+    );
+  }
+
+  /** Ignore reasons are global, not per-product: they stay outside `ProductCensus`. */
+  async listIgnoreReasons(): Promise<ReadonlyArray<IgnoreReasonDto>> {
+    return await this.authenticatedRequest<IgnoreReasonDto[]>('GET', '/api/ignore-reasons');
+  }
+
+  /**
+   * Loads every per-product taxonomy in one bounded fan-out of five requests.
+   *
+   * @param productId - Watchtower product identifier
+   * @returns The product taxonomies as returned by Watchtower, unfiltered
+   */
+  async getProductCensus(productId: string): Promise<ProductCensus> {
+    const [alarms, resources, downstreams, finalActions, runbooks] = await Promise.all([
+      this.listProductAlarms(productId),
+      this.listProductResources(productId),
+      this.listProductDownstreams(productId),
+      this.listProductFinalActions(productId),
+      this.listProductRunbooks(productId),
+    ]);
+    return { productId, alarms, resources, downstreams, finalActions, runbooks };
   }
 
   async listAlarmEvents(query: AlarmEventsQuery): Promise<ReadonlyArray<AlarmEventDto>> {

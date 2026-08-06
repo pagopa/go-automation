@@ -21,6 +21,12 @@ export const LAMBDA_RUNTIME_KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'requestId: {{vars.lambdaRequestId}}\n' +
         'Risoluzione: verificare timeout e Max Concurrency della Lambda.\n',
     },
+    analysis: {
+      resolution: 'Verificare il timeout configurato e la Max Concurrency della Lambda.',
+      // Richiede una verifica di configurazione: l'occorrenza resta aperta.
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+    },
   },
   {
     id: 'lambda-out-of-memory',
@@ -36,6 +42,12 @@ export const LAMBDA_RUNTIME_KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Max Memory Used: {{vars.lambdaMaxMemoryUsedMb}}/{{vars.lambdaMemorySizeMb}} MB\n' +
         'requestId: {{vars.lambdaRequestId}}\n' +
         'Risoluzione: aumentare la memoria allocata alla Lambda.\n',
+    },
+    analysis: {
+      resolution: 'Aumentare la memoria allocata alla Lambda.',
+      // Serve un intervento di configurazione: l'occorrenza resta aperta.
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
     },
   },
 ];

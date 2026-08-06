@@ -25,6 +25,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'requestId: {{vars.lambdaRequestId}}\n' +
         'Risoluzione: solitamente occorrenza singola non anomala. Nessuna azione specifica richiesta.\n',
     },
+
+    analysis: {
+      resolution: 'solitamente occorrenza singola non anomala. Nessuna azione specifica richiesta.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+    },
   },
   ...lambda.LAMBDA_RUNTIME_KNOWN_CASES,
 ];

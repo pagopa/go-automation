@@ -31,6 +31,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'requestId: {{vars.lambdaRequestId}}\n' +
         'Risoluzione: solitamente occorrenza singola non anomala. Nessuna azione specifica richiesta.\n',
     },
+
+    analysis: {
+      resolution: 'solitamente occorrenza singola non anomala. Nessuna azione specifica richiesta.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+    },
   },
   ...lambda.LAMBDA_RUNTIME_KNOWN_CASES,
   {
@@ -46,6 +52,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '[CASO NOTO] pn-ApiKeyAuthorizerV2Lambda: Error in get key - AxiosError read ECONNRESET\n' +
         'requestId: {{vars.lambdaRequestId}}\n' +
         'Risoluzione: brusca interruzione della connessione. Solitamente occorrenza singola non anomala, nessuna azione specifica richiesta.\n',
+    },
+
+    analysis: {
+      resolution:
+        'brusca interruzione della connessione. Solitamente occorrenza singola non anomala, nessuna azione specifica richiesta.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
     },
   },
 ];

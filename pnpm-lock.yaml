@@ -600,6 +600,28 @@ importers:
         specifier: 'catalog:'
         version: 7.13.0(typescript@6.0.3)
 
+  packages/go-watchtower-runbook:
+    dependencies:
+      '@go-automation/go-ai':
+        specifier: workspace:*
+        version: link:../go-ai
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../go-common
+      '@go-automation/go-runbook':
+        specifier: workspace:*
+        version: link:../go-runbook
+      '@go-automation/go-watchtower-client':
+        specifier: workspace:*
+        version: link:../go-watchtower-client
+      ajv:
+        specifier: 'catalog:'
+        version: 8.20.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+
   scripts/aws/aws-check-ecs:
     dependencies:
       '@go-automation/go-common':
@@ -748,6 +770,9 @@ importers:
       '@go-automation/go-watchtower-client':
         specifier: workspace:*
         version: link:../../../packages/go-watchtower-client
+      '@go-automation/go-watchtower-runbook':
+        specifier: workspace:*
+        version: link:../../../packages/go-watchtower-runbook
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

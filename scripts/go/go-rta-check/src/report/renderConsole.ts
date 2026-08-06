@@ -1,6 +1,6 @@
 import type { Core } from '@go-automation/go-common';
 
-import type { AnalysisMatchSource, RtaCheckReport, RtaCheckRow, V1Status } from '../types/RtaCheckReport.js';
+import type { AnalysisMatchSource, RtaCheckReport, RtaCheckRow, V1Status } from '@go-automation/go-watchtower-runbook';
 
 /** Preview shown after fetching occurrences, before running anything. */
 export interface RunPreview {

@@ -1,7 +1,7 @@
 import { Core } from '@go-automation/go-common';
 import * as nodePath from 'node:path';
 
-import type { AnalysisMatchSource, RtaCheckReport, RtaCheckRow } from '../types/RtaCheckReport.js';
+import type { AnalysisMatchSource, RtaCheckReport, RtaCheckRow } from '@go-automation/go-watchtower-runbook';
 
 /** Report artifact formats. */
 export type OutputFormat = 'json' | 'html';

@@ -16,6 +16,14 @@ export const scriptMetadata: Core.GOScriptMetadata = {
 
 export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
+    name: 'mode',
+    type: Core.GOConfigParameterType.STRING,
+    description:
+      'Modalità: analyses | coverage. Default analyses (esecuzioni ↔ analisi). coverage confronta le dichiarazioni dei runbook con il censimento Watchtower: sola lettura, senza AWS né esecuzione runbook',
+    required: false,
+    defaultValue: 'analyses',
+  },
+  {
     name: 'watchtower.url',
     type: Core.GOConfigParameterType.STRING,
     description:
@@ -152,8 +160,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'aws.profile',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Profilo AWS SSO standard per GO-AI/Bedrock',
+    description: 'Profilo AWS SSO per GO-AI/Bedrock (default sso_pn-analytics solo in mode analyses)',
     required: false,
-    defaultValue: 'sso_pn-analytics',
   },
 ] as const;

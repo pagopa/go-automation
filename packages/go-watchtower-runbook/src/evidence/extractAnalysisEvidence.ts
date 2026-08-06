@@ -1,5 +1,5 @@
 import type { AlarmAnalysisDto } from '@go-automation/go-watchtower-client';
-import { normalize } from './text.js';
+import { normalize } from '../comparison/text.js';
 
 /** Aggregate textual evidence extracted from a Watchtower analysis. */
 export interface AnalysisEvidence {

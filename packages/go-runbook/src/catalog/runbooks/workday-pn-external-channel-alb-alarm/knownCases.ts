@@ -44,6 +44,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Errore: ERR_CONS_DUPLICATED_EVENT\n' +
         'Trace ID: {{vars.externalChannelTraceId}}\n',
     },
+
+    analysis: {
+      resolution: 'Chiusura - caso noto. Evento duplicato lato recapitista, scenario gia tracciato in SNDA-2371.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+    },
   },
   {
     id: 'duplicated-event-err-cons',
@@ -64,6 +70,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Servizio: pn-external-channel\n' +
         'Errore: ERR_CONS_DUPLICATED_EVENT\n' +
         'Trace ID: {{vars.externalChannelTraceId}}\n',
+    },
+
+    analysis: {
+      resolution: 'Chiusura - caso noto. Evento duplicato lato recapitista, scenario gia tracciato in SNDA-2371.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
     },
   },
 ];

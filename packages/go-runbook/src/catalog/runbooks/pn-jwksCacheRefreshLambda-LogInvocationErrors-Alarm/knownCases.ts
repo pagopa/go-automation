@@ -33,6 +33,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'requestId: {{vars.lambdaRequestId}}\n' +
         'Risoluzione: casistica nota di irraggiungibilita temporanea del servizio. Verificare eventuale retry successivo.\n',
     },
+
+    analysis: {
+      resolution: 'casistica nota di irraggiungibilita temporanea del servizio. Verificare eventuale retry successivo.',
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+    },
   },
   {
     id: 'jwks-uci-bad-gateway',
@@ -50,6 +56,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'requestId: {{vars.lambdaRequestId}}\n' +
         'Risoluzione: spesso errore di rete temporaneo. Estendere di qualche minuto la finestra log e verificare il retry positivo.\n',
     },
+
+    analysis: {
+      resolution:
+        'spesso errore di rete temporaneo. Estendere di qualche minuto la finestra log e verificare il retry positivo.',
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+    },
   },
   {
     id: 'jwks-radd-econnreset',
@@ -64,6 +77,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '[CASO NOTO] JWKS cache refresh: errore di rete ECONNRESET su sede RADD\n' +
         'requestId: {{vars.lambdaRequestId}}\n' +
         'Risoluzione: solitamente il retry successivo risolve. Estendere la ricerca ai log successivi, anche con requestId differente.\n',
+    },
+
+    analysis: {
+      resolution:
+        'solitamente il retry successivo risolve. Estendere la ricerca ai log successivi, anche con requestId differente.',
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
     },
   },
   {
@@ -82,6 +102,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'requestId: {{vars.lambdaRequestId}}\n' +
         'Risoluzione: caso gia discusso nel thread Slack del 23/04/2026.\n',
     },
+
+    analysis: {
+      resolution: 'caso gia discusso nel thread Slack del 23/04/2026.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+    },
   },
   {
     id: 'jwks-inquery-internal-server-error',
@@ -98,6 +124,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '[CASO NOTO] JWKS cache refresh: Inquery risponde HTTP 500 Internal Server Error\n' +
         'requestId: {{vars.lambdaRequestId}}\n' +
         "Risoluzione: aggiornamento dell'11/05/2026 al thread Slack del 23/04/2026.\n",
+    },
+
+    analysis: {
+      resolution: "aggiornamento dell'11/05/2026 al thread Slack del 23/04/2026.",
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
     },
   },
 ];

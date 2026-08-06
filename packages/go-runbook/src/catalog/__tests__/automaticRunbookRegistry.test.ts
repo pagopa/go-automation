@@ -114,6 +114,7 @@ describe('AUTOMATIC_RUNBOOK_REGISTRY', () => {
     const registry = new AutomaticRunbookRegistry([
       {
         key: source.descriptor.key,
+        product: source.product,
         alarmNames: source.descriptor.alarmNames,
         kind: source.descriptor.kind,
         categories: source.descriptor.categories as readonly [string, ...string[]],

@@ -35,6 +35,13 @@ export type { RunbookExecutionStatus } from './types/RunbookExecutionStatus.js';
 export type { Runbook } from './types/Runbook.js';
 export type { CloudExecutionPolicy } from './types/CloudExecutionPolicy.js';
 export type { KnownCase } from './types/KnownCase.js';
+export type { KnownCaseAnalysis } from './types/KnownCaseAnalysis.js';
+export type { RunbookAnalysisDefaults } from './types/RunbookAnalysisDefaults.js';
+export type { AnalysisResourceRef } from './types/AnalysisResourceRef.js';
+export type { AnalysisLinkRef } from './types/AnalysisLinkRef.js';
+export type { RunbookProduct } from './types/RunbookProduct.js';
+export { INTEROP_DOWNSTREAMS, SEND_DOWNSTREAMS } from './analysis/downstreams/index.js';
+export type { InteropDownstream, SendDownstream } from './analysis/downstreams/index.js';
 export type {
   Condition,
   CompareCondition,
@@ -87,6 +94,10 @@ export { TraceBuilder } from './trace/TraceBuilder.js';
 
 // Output
 export type { RunbookOutput } from './output/RunbookOutput.js';
+export { buildAnalysisDraft } from './output/buildAnalysisDraft.js';
+export type { AnalysisDraftV1 } from './output/AnalysisDraft.js';
+export type { KnownCaseAnalysisDraft } from './output/KnownCaseAnalysisDraft.js';
+export type { UnknownCaseContextDraft } from './output/UnknownCaseContextDraft.js';
 export type { ClassifiedRunbookCheck, RunbookCheck, RunbookCheckStatus } from './output/RunbookCheck.js';
 export { classifyRunbookOutcome, noRunbookCheck } from './output/classifyRunbookOutcome.js';
 export type {

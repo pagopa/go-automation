@@ -8,6 +8,11 @@ export function resolveFormats(outputFormat?: string): ReadonlyArray<OutputForma
   return ['json', 'html'];
 }
 
+/** True when at least one AWS profile is configured, as runbook execution requires. */
+export function hasAwsProfiles(awsProfiles: ReadonlyArray<string> | undefined): awsProfiles is ReadonlyArray<string> {
+  return awsProfiles !== undefined && awsProfiles.length > 0;
+}
+
 /** Caps a list to `limit` items when a positive limit is given. */
 export function applyLimit<T>(items: ReadonlyArray<T>, limit?: number): ReadonlyArray<T> {
   return limit !== undefined && limit > 0 ? items.slice(0, limit) : items;
