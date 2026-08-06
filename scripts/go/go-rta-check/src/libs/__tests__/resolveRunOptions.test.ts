@@ -14,6 +14,7 @@ describe('resolveRunOptions', () => {
         mode: 'coverage',
         analysisMatcher: 'invalid',
         goAiSemanticThreshold: 101,
+        concurrency: Number.NaN,
       },
       () => {
         matcherWasResolved = true;
@@ -32,5 +33,19 @@ describe('resolveRunOptions', () => {
     });
 
     assert.strictEqual(options, undefined);
+  });
+
+  it('rejects analyses concurrency that is not a finite positive integer', () => {
+    const invalidValues = [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, 0, -1, 1.5];
+
+    for (const concurrency of invalidValues) {
+      const options = resolveRunOptions(new Core.GOLogger([]), {
+        mode: 'analyses',
+        analysisMatcher: 'lexical',
+        concurrency,
+      });
+
+      assert.strictEqual(options, undefined);
+    }
   });
 });

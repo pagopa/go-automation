@@ -1,5 +1,6 @@
 import type { Runbook } from '../types/Runbook.js';
 import type { RunbookExecutionResult } from '../types/RunbookExecutionResult.js';
+import type { KnownCaseAnalysis } from '../types/KnownCaseAnalysis.js';
 import type { AnalysisLinkRef } from '../types/AnalysisLinkRef.js';
 import type { AnalysisResourceRef } from '../types/AnalysisResourceRef.js';
 import type { AnalysisDraftV1 } from './AnalysisDraft.js';
@@ -41,24 +42,66 @@ export function buildAnalysisDraft(runbook: Runbook, result: RunbookExecutionRes
       : undefined;
   }
 
-  const defaults = runbook.analysisDefaults;
   const analyses = annotated.map((knownCase) => knownCase.analysis).filter(isDefined);
 
+  return buildKnownCaseDraft(
+    runbook,
+    primary.analysis,
+    analyses,
+    interpolateResolution(primary.analysis.resolution, result),
+  );
+}
+
+/**
+ * Builds every potential draft shape needed by static budget validation.
+ *
+ * Each annotated case is considered as the primary scalar source. Its
+ * references are merged with every following case in the same stable,
+ * priority-descending order used by the engine: higher-priority cases cannot
+ * coexist with a lower primary because they would become primary themselves.
+ * The declared resolution template is kept verbatim because its runtime
+ * placeholder values are not available during registry validation. Runtime
+ * transport bounds remain authoritative after interpolation.
+ *
+ * @param runbook - Runbook definition being validated
+ * @returns Real draft envelopes representing the statically knowable worst cases
+ */
+export function buildPotentialAnalysisDrafts(runbook: Runbook): ReadonlyArray<AnalysisDraftV1> {
+  const unknown = runbook.metadata.type === 'alarm-resolution' ? buildUnknownContext(runbook) : undefined;
+  const analyses = [...runbook.knownCases]
+    .sort((left, right) => right.priority - left.priority)
+    .map((knownCase) => knownCase.analysis)
+    .filter(isDefined);
+  if (analyses.length === 0) return unknown === undefined ? [] : [unknown];
+
+  const known = analyses.map((primary, primaryIndex) =>
+    buildKnownCaseDraft(runbook, primary, analyses.slice(primaryIndex), primary.resolution),
+  );
+  return unknown === undefined ? known : [...known, unknown];
+}
+
+function buildKnownCaseDraft(
+  runbook: Runbook,
+  primary: KnownCaseAnalysis,
+  analyses: ReadonlyArray<KnownCaseAnalysis>,
+  conclusionNotes: string,
+): KnownCaseAnalysisDraft {
+  const defaults = runbook.analysisDefaults;
   return {
     schemaVersion: 1,
     kind: 'KNOWN_CASE',
-    conclusionNotes: interpolateResolution(primary.analysis.resolution, result),
-    ...(primary.analysis.errorDetails === undefined ? {} : { errorDetails: primary.analysis.errorDetails }),
-    proposedStatus: primary.analysis.proposedStatus,
-    analysisType: primary.analysis.analysisType,
-    ...(primary.analysis.ignoreReasonCode === undefined ? {} : { ignoreReasonCode: primary.analysis.ignoreReasonCode }),
-    ...(primary.analysis.ignoreDetails === undefined ? {} : { ignoreDetails: primary.analysis.ignoreDetails }),
+    conclusionNotes,
+    ...(primary.errorDetails === undefined ? {} : { errorDetails: primary.errorDetails }),
+    proposedStatus: primary.proposedStatus,
+    analysisType: primary.analysisType,
+    ...(primary.ignoreReasonCode === undefined ? {} : { ignoreReasonCode: primary.ignoreReasonCode }),
+    ...(primary.ignoreDetails === undefined ? {} : { ignoreDetails: primary.ignoreDetails }),
     ...(defaults?.runbookName === undefined ? {} : { runbookName: defaults.runbookName }),
     resources: dedupeResources([...(defaults?.resources ?? []), ...analyses.flatMap((a) => a.resources ?? [])]),
     downstreams: dedupeStrings([...(defaults?.downstreams ?? []), ...analyses.flatMap((a) => a.downstreams ?? [])]),
     finalActions: dedupeStrings([...(defaults?.finalActions ?? []), ...analyses.flatMap((a) => a.finalActions ?? [])]),
     links: dedupeLinks([...(defaults?.links ?? []), ...analyses.flatMap((a) => a.links ?? [])]),
-  } satisfies KnownCaseAnalysisDraft;
+  };
 }
 
 function buildUnknownContext(runbook: Runbook): UnknownCaseContextDraft | undefined {

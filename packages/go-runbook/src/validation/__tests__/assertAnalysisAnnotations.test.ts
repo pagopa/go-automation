@@ -95,13 +95,27 @@ describe('assertAnalysisAnnotations', () => {
     assert.throws(() => assertAnalysisAnnotations(runbook, 'SEND'), /duplicate names/);
   });
 
-  it('rejects annotations whose potential draft exceeds the raw budget', () => {
+  it('does not add every mutually exclusive resolution to the same potential draft', () => {
     const runbook: Runbook = {
       ...buildRunbook({ defaults: {}, analysis: VALID_ANALYSIS }),
       knownCases: Array.from({ length: 40 }, (_unused, index) =>
         knownCase(`case-${index}`, { ...VALID_ANALYSIS, resolution: 'x'.repeat(4_000) }),
       ),
     };
+
+    assert.doesNotThrow(() => assertAnalysisAnnotations(runbook, 'SEND'));
+  });
+
+  it('rejects a real potential draft that exceeds the raw budget', () => {
+    const runbook = buildRunbook({
+      defaults: {},
+      analysis: {
+        ...VALID_ANALYSIS,
+        analysisType: 'IGNORABLE',
+        ignoreReasonCode: 'OTHER',
+        ignoreDetails: { diagnostic: 'x'.repeat(70_000) },
+      },
+    });
 
     assert.throws(() => assertAnalysisAnnotations(runbook, 'SEND'), /over the 64 KiB budget/);
   });

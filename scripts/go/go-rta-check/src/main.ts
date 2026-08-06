@@ -46,7 +46,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     return;
   }
 
-  const { analysisMatcher } = options;
+  const { analysisMatcher, concurrency } = options;
   const connection = await resolveClient(script, config);
   if (connection === undefined) return;
 
@@ -70,7 +70,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     dateTo: dateTo === '' ? '(fine)' : dateTo,
     totalOccurrences: events.length,
     linkedAnalyses: events.filter((event) => event.analysisId !== null).length,
-    concurrency: config.concurrency ?? 1,
+    concurrency,
   });
   logger.info(`Verifica V2: ${formatAnalysisMatcherLabel(analysisMatcher)}`);
 
@@ -112,7 +112,7 @@ export async function main(script: Core.GOScript): Promise<void> {
       awsProfiles: config.awsProfiles,
       analysisMatcher,
     }),
-    concurrency: config.concurrency ?? 1,
+    concurrency,
   });
   renderSummary(logger, report);
 

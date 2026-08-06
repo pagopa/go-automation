@@ -10,7 +10,7 @@ import type { RunbookExecutionResult } from '../../types/RunbookExecutionResult.
 import type { RunbookExecutionStatus } from '../../types/RunbookExecutionStatus.js';
 import type { RunbookExecutionTrace } from '../../trace/RunbookExecutionTrace.js';
 import { SEND_DOWNSTREAMS } from '../../analysis/downstreams/SEND_DOWNSTREAMS.js';
-import { buildAnalysisDraft } from '../buildAnalysisDraft.js';
+import { buildAnalysisDraft, buildPotentialAnalysisDrafts } from '../buildAnalysisDraft.js';
 
 describe('buildAnalysisDraft', () => {
   it('emits a KNOWN_CASE draft taking scalars from the primary case', () => {
@@ -82,6 +82,37 @@ describe('buildAnalysisDraft', () => {
 
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.conclusionNotes, 'File abc-123 in non disponibile');
+  });
+
+  it('builds static budget candidates with the same envelope and merge rules as runtime drafts', () => {
+    const cases: ReadonlyArray<KnownCase> = [
+      {
+        ...analysedCase('primary', {
+          resolution: 'Primary resolution',
+          downstreams: [SEND_DOWNSTREAMS.APP_IO],
+        }),
+        priority: 200,
+      },
+      {
+        ...analysedCase('secondary', {
+          resolution: 'Secondary resolution',
+          downstreams: [SEND_DOWNSTREAMS.ADE],
+        }),
+        priority: 100,
+      },
+    ];
+    const definition = runbook({
+      defaults: { downstreams: [SEND_DOWNSTREAMS.NESSUNO] },
+      cases,
+    });
+
+    const candidates = buildPotentialAnalysisDrafts(definition);
+    const runtimeDrafts = cases.map((_primary, index) =>
+      buildAnalysisDraft(definition, result({ matchedCases: cases.slice(index) })),
+    );
+    runtimeDrafts.push(buildAnalysisDraft(definition, result({ matchedCases: [] })));
+
+    assert.deepStrictEqual(candidates, runtimeDrafts);
   });
 
   it('emits the UNKNOWN_CASE_CONTEXT draft when no case matched', () => {

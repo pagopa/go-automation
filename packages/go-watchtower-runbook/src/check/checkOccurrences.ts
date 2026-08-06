@@ -31,14 +31,23 @@ export interface CheckOccurrencesInput {
  * @returns The machine-readable report
  */
 export async function checkOccurrences(input: CheckOccurrencesInput): Promise<RtaCheckReport> {
+  assertValidConcurrency(input.concurrency);
   const rows = await runRows(input);
   return buildReport(input.reportInput, rows);
+}
+
+function assertValidConcurrency(concurrency: number): void {
+  if (!Number.isFinite(concurrency) || !Number.isInteger(concurrency) || concurrency < 1) {
+    throw new RangeError(
+      `Invalid concurrency: ${String(concurrency)}. Expected a finite integer greater than or equal to 1.`,
+    );
+  }
 }
 
 async function runRows(input: CheckOccurrencesInput): Promise<ReadonlyArray<RtaCheckRow>> {
   const total = input.occurrences.length;
   const rows: RtaCheckRow[] = new Array<RtaCheckRow>(total);
-  const workers = Math.max(1, Math.min(Math.trunc(input.concurrency), total));
+  const workers = Math.min(input.concurrency, total);
   let next = 0;
 
   const runWorker = async (): Promise<void> => {

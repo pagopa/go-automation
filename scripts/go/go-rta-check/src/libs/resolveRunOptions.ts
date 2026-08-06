@@ -14,11 +14,20 @@ interface CoverageRunOptions {
 interface AnalysesRunOptions {
   readonly mode: 'analyses';
   readonly analysisMatcher: ResolvedAnalysisMatcher;
+  readonly concurrency: number;
 }
 
 export type RunOptions = CoverageRunOptions | AnalysesRunOptions;
 
 type AnalysisMatcherResolver = typeof resolveAnalysisMatcher;
+
+function resolveConcurrency(value: number | undefined): number {
+  const concurrency = value ?? 1;
+  if (!Number.isFinite(concurrency) || !Number.isInteger(concurrency) || concurrency < 1) {
+    throw new Error(`concurrency non valida: ${String(value)}. Deve essere un intero finito maggiore o uguale a 1.`);
+  }
+  return concurrency;
+}
 
 /**
  * Validates the run mode and, only for `analyses`, the V2 matcher before the
@@ -36,7 +45,12 @@ export function resolveRunOptions(
 ): RunOptions | undefined {
   try {
     const mode: RtaCheckMode = resolveMode(config.mode);
-    return mode === 'coverage' ? { mode } : { mode, analysisMatcher: resolveMatcher(config) };
+    if (mode === 'coverage') return { mode };
+    return {
+      mode,
+      concurrency: resolveConcurrency(config.concurrency),
+      analysisMatcher: resolveMatcher(config),
+    };
   } catch (error) {
     logger.error(valueToString(error));
     return undefined;

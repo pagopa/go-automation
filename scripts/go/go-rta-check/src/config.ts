@@ -89,7 +89,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'concurrency',
     type: Core.GOConfigParameterType.INT,
-    description: 'Esecuzioni runbook concorrenti (default 1)',
+    description: 'Esecuzioni runbook concorrenti: intero >= 1 (default 1)',
     required: false,
   },
   {

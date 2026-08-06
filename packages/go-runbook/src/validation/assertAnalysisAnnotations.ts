@@ -3,6 +3,7 @@ import type { Runbook } from '../types/Runbook.js';
 import type { RunbookProduct } from '../types/RunbookProduct.js';
 import { INTEROP_DOWNSTREAMS } from '../analysis/downstreams/INTEROP_DOWNSTREAMS.js';
 import { SEND_DOWNSTREAMS } from '../analysis/downstreams/SEND_DOWNSTREAMS.js';
+import { buildPotentialAnalysisDrafts } from '../output/buildAnalysisDraft.js';
 
 /** Watchtower registry names are bounded to 255 characters. */
 const MAX_NAME_LENGTH = 255;
@@ -148,19 +149,14 @@ function assertLinks(
   }
 }
 
-/**
- * Bounds the worst-case draft: defaults plus every annotated case merged together
- * is the largest payload a single run can emit.
- */
+/** Bounds the largest real draft envelope statically representable by the runbook. */
 function assertDraftBudget(runbookId: string, runbook: Runbook): void {
-  const worstCase = {
-    defaults: runbook.analysisDefaults,
-    cases: runbook.knownCases.map((knownCase) => knownCase.analysis).filter((analysis) => analysis !== undefined),
-  };
-  const bytes = Buffer.byteLength(JSON.stringify(worstCase), 'utf8');
-  if (bytes > MAX_DRAFT_BYTES) {
-    throw new Error(`Runbook "${runbookId}": potential analysis draft is ${bytes} bytes, over the 64 KiB budget`);
-  }
+  const largestBytes = buildPotentialAnalysisDrafts(runbook).reduce(
+    (largest, draft) => Math.max(largest, Buffer.byteLength(JSON.stringify(draft), 'utf8')),
+    0,
+  );
+  if (largestBytes <= MAX_DRAFT_BYTES) return;
+  throw new Error(`Runbook "${runbookId}": potential analysis draft is ${largestBytes} bytes, over the 64 KiB budget`);
 }
 
 function where(runbookId: string, caseId: string | undefined): string {

@@ -2,7 +2,7 @@ import type { Core } from '@go-automation/go-common';
 import type { AlarmAnalysisDto, AlarmEventDto, WatchtowerClient } from '@go-automation/go-watchtower-client';
 import { executeRunbookForOccurrence } from '@go-automation/go-runbook/catalog';
 import { classifyRunbookOutcome } from '@go-automation/go-runbook';
-import type { RunbookOutput, ServiceRegistry } from '@go-automation/go-runbook';
+import type { ServiceRegistry } from '@go-automation/go-runbook';
 
 import type { AnalysisMatch, RtaCheckEvent, RtaCheckRow } from '../types/RtaCheckReport.js';
 import type { AnalysisMatcherFn } from '../comparison/AnalysisMatcher.js';
@@ -10,6 +10,7 @@ import type { MatchAnalysisOptions } from '../comparison/matchAnalysis.js';
 import type { RunbookCacheDescriptor } from '../cache/RunbookCacheDescriptor.js';
 import type { RunbookCheckCache } from '../cache/RunbookCheckCache.js';
 import { runbookCheckCacheKey } from '../cache/RunbookCheckCache.js';
+import { persistRunbookOutput, readFreshRunbookOutput } from '../cache/RunbookCheckCacheIO.js';
 import { buildCacheMeta, computeFingerprint } from '../cache/runbookFingerprint.js';
 
 /** Per-occurrence orchestration context (built once, reused across occurrences). */
@@ -56,7 +57,7 @@ export async function checkOccurrence(input: CheckOccurrenceInput): Promise<RtaC
   let output =
     context.force || fingerprint === undefined || cache === undefined
       ? undefined
-      : await loadFreshOutput(cache, key, fingerprint);
+      : await readFreshRunbookOutput(cache, key, fingerprint);
   const fromCache = output !== undefined;
 
   if (output === undefined) {
@@ -71,9 +72,6 @@ export async function checkOccurrence(input: CheckOccurrenceInput): Promise<RtaC
           awsProfiles: context.awsProfiles,
         },
       );
-      if (cache !== undefined && meta !== undefined && fingerprint !== undefined) {
-        await cache.set(key, { fingerprint, savedAt: new Date().toISOString(), meta, output });
-      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return {
@@ -83,24 +81,20 @@ export async function checkOccurrence(input: CheckOccurrenceInput): Promise<RtaC
         fromCache: false,
       };
     }
+    if (cache !== undefined && meta !== undefined && fingerprint !== undefined) {
+      await persistRunbookOutput(cache, key, {
+        fingerprint,
+        savedAt: new Date().toISOString(),
+        meta,
+        output,
+      });
+    }
   }
 
   const check = classifyRunbookOutcome(output);
   const analysis = event.analysisId !== null ? await fetchAnalysisCached(context, event.analysisId) : undefined;
   const comparison = await context.analysisMatcher(output, check, analysis, event.firedAt, context.matchOptions);
   return { event: toEventInfo(event), runbook: check, comparison, fromCache };
-}
-
-/** Returns the cached output only when its fingerprint still matches the current inputs. */
-async function loadFreshOutput(
-  cache: RunbookCheckCache,
-  key: string,
-  expectedFingerprint: string,
-): Promise<RunbookOutput | undefined> {
-  const cached = await cache.get(key);
-  // Stale guard: a fingerprint mismatch (or a legacy entry without one) is a miss.
-  if (cached?.fingerprint !== expectedFingerprint) return undefined;
-  return cached.output;
 }
 
 async function fetchAnalysisCached(
