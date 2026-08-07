@@ -17,9 +17,10 @@ export interface RunOccurrencesOptions {
 /**
  * Runs the comparison for every occurrence and prints the results **table
  * incrementally**: a header first, then one row as each occurrence completes.
- * While an occurrence runs, a spinner shows a "loading" line in its place (TTY
- * only); on completion it is replaced by the final static row. Runbook engine
- * logs are suppressed (silent engine logger).
+ * During a sequential run, a spinner shows a "loading" line in its place (TTY
+ * only); concurrent runs print only the final static rows, avoiding interference
+ * between overlapping executions. Runbook engine logs are suppressed (silent
+ * engine logger).
  *
  * Execution, concurrency and aggregation live in `go-watchtower-runbook`: this
  * function is the rendering adapter and owns the filesystem resume cache.
@@ -30,6 +31,7 @@ export interface RunOccurrencesOptions {
 export async function runOccurrences(options: RunOccurrencesOptions): Promise<RtaCheckReport> {
   const { script, context } = options;
   const interactive = process.stdout.isTTY === true;
+  const useSingleSpinner = interactive && Math.min(options.concurrency, options.occurrences.length) <= 1;
   renderResultsHeader(script.logger);
 
   return await checkOccurrences({
@@ -40,14 +42,14 @@ export async function runOccurrences(options: RunOccurrencesOptions): Promise<Rt
     cache: new GOScriptRunbookCheckCache(script),
     onProgress: (event) => {
       if (event.kind === 'OCCURRENCE_STARTED') {
-        if (!interactive) return;
+        if (!useSingleSpinner) return;
         const label = productEnvLabel(context.productName, event.occurrence.environment?.name);
         script.prompt.startSpinner(
           `[${event.index}/${event.total}] ${label} · ${event.occurrence.firedAt} · esecuzione…`,
         );
         return;
       }
-      if (interactive) script.prompt.stopSpinner();
+      if (useSingleSpinner) script.prompt.stopSpinner();
       renderResultsRow(script.logger, context.productName, context.alarmName, event.row);
     },
   });
