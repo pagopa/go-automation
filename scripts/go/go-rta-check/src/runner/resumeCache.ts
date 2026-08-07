@@ -31,7 +31,7 @@ export class GOScriptRunbookCheckCache implements RunbookCheckCache {
     await exporter.export(value);
   }
 
-  /** Maps the opaque cache key onto the on-disk layout, sanitizing every segment. */
+  /** Maps an `<alarmName>/<eventId>` cache key onto the on-disk layout, sanitizing every segment. */
   private resolve(key: string): string {
     const separator = key.lastIndexOf('/');
     const alarmName = separator === -1 ? key : key.slice(0, separator);

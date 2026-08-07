@@ -13,14 +13,14 @@ export interface RunbookCheckCache {
 }
 
 /**
- * Builds the cache key of one occurrence.
+ * Builds the cache key of one occurrence as `<alarmName>/<eventId>`.
  *
- * Adapters must treat it as opaque and map it to their own storage layout: the
- * library never assumes a filesystem path.
+ * Adapters may use the two sanitized segments to define their storage layout,
+ * but must not use the resulting key directly as a filesystem path.
  *
  * @param alarmName - Alarm name, which equals the runbook id
  * @param eventId - Occurrence identifier
- * @returns The occurrence cache key
+ * @returns The occurrence cache key in `<alarmName>/<eventId>` format
  */
 export function runbookCheckCacheKey(alarmName: string, eventId: string): string {
   return `${alarmName}/${eventId}`;
