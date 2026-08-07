@@ -1,4 +1,6 @@
 import type { KnownCaseAnalysis } from '../types/KnownCaseAnalysis.js';
+import type { AnalysisLinkRef } from '../types/AnalysisLinkRef.js';
+import type { AnalysisResourceRef } from '../types/AnalysisResourceRef.js';
 import type { Runbook } from '../types/Runbook.js';
 import type { RunbookProduct } from '../types/RunbookProduct.js';
 import { INTEROP_DOWNSTREAMS } from '../analysis/downstreams/INTEROP_DOWNSTREAMS.js';
@@ -20,6 +22,15 @@ const DOWNSTREAM_CATALOGS: Readonly<Record<RunbookProduct, ReadonlySet<string>>>
   INTEROP: new Set<string>(Object.values(INTEROP_DOWNSTREAMS)),
 };
 
+type AnalysisReferences = Pick<KnownCaseAnalysis, 'resources' | 'downstreams' | 'finalActions' | 'links'>;
+
+interface ReferenceDeclaration<T> {
+  readonly value: T;
+  readonly location: string;
+}
+
+type ReferenceEqualityFn<T> = (left: T, right: T) => boolean;
+
 /**
  * Rejects a runbook whose analysis annotations would produce an invalid or
  * unresolvable draft, so a configuration error fails in CI instead of blocking
@@ -36,14 +47,11 @@ export function assertAnalysisAnnotations(runbook: Runbook, product: RunbookProd
   const runbookId = runbook.metadata.id;
   const catalog = DOWNSTREAM_CATALOGS[product];
 
-  for (const name of runbook.analysisDefaults?.downstreams ?? []) {
-    assertInCatalog(runbookId, undefined, name, catalog, product);
+  const defaults = runbook.analysisDefaults;
+  if (defaults?.runbookName !== undefined) {
+    assertBoundedNames(runbookId, undefined, [defaults.runbookName], 'runbookName');
   }
-  assertBoundedNames(runbookId, undefined, runbook.analysisDefaults?.finalActions ?? [], 'finalActions');
-  for (const resource of runbook.analysisDefaults?.resources ?? []) {
-    assertBoundedNames(runbookId, undefined, [resource.name], 'resources');
-  }
-  assertLinks(runbookId, undefined, runbook.analysisDefaults?.links ?? []);
+  assertReferences(runbookId, undefined, defaults ?? {}, catalog, product);
 
   for (const knownCase of runbook.knownCases) {
     const analysis = knownCase.analysis;
@@ -53,6 +61,7 @@ export function assertAnalysisAnnotations(runbook: Runbook, product: RunbookProd
     assertKnownCaseAnalysis(runbookId, knownCase.id, analysis, catalog, product);
   }
 
+  assertNoReferenceConflicts(runbookId, runbook);
   assertDraftBudget(runbookId, runbook);
 }
 
@@ -77,23 +86,51 @@ function assertKnownCaseAnalysis(
   if (analysis.analysisType === 'IGNORABLE' && (analysis.ignoreReasonCode ?? '').trim() === '') {
     throw new Error(`Runbook "${runbookId}": known case "${caseId}" is IGNORABLE without an ignoreReasonCode`);
   }
+  if (analysis.ignoreDetails !== undefined && (analysis.ignoreReasonCode ?? '').trim() === '') {
+    throw new Error(
+      `Runbook "${runbookId}": known case "${caseId}" declares ignoreDetails without an ignoreReasonCode`,
+    );
+  }
   if (analysis.ignoreReasonCode !== undefined && analysis.ignoreReasonCode.length > MAX_IGNORE_REASON_CODE_LENGTH) {
     throw new Error(
       `Runbook "${runbookId}": known case "${caseId}" ignoreReasonCode exceeds ${MAX_IGNORE_REASON_CODE_LENGTH} characters`,
     );
   }
 
-  for (const name of analysis.downstreams ?? []) {
+  assertReferences(runbookId, caseId, analysis, catalog, product);
+}
+
+function assertReferences(
+  runbookId: string,
+  caseId: string | undefined,
+  references: AnalysisReferences,
+  catalog: ReadonlySet<string>,
+  product: RunbookProduct,
+): void {
+  for (const name of references.downstreams ?? []) {
     assertInCatalog(runbookId, caseId, name, catalog, product);
   }
-  assertBoundedNames(runbookId, caseId, analysis.finalActions ?? [], 'finalActions');
-  for (const resource of analysis.resources ?? []) {
-    assertBoundedNames(runbookId, caseId, [resource.name], 'resources');
-    if (resource.type !== undefined && resource.type.length > MAX_NAME_LENGTH) {
-      throw new Error(`Runbook "${runbookId}": known case "${caseId}" declares a resource type longer than 255`);
+  assertBoundedNames(runbookId, caseId, references.finalActions ?? [], 'finalActions');
+  assertResources(runbookId, caseId, references.resources ?? []);
+  assertLinks(runbookId, caseId, references.links ?? []);
+}
+
+function assertResources(
+  runbookId: string,
+  caseId: string | undefined,
+  resources: ReadonlyArray<AnalysisResourceRef>,
+): void {
+  assertBoundedNames(
+    runbookId,
+    caseId,
+    resources.map((resource) => resource.name),
+    'resources',
+  );
+  for (const resource of resources) {
+    if (resource.type !== undefined && (resource.type.trim() === '' || resource.type.length > MAX_NAME_LENGTH)) {
+      throw new Error(`${where(runbookId, caseId)}: resource "${resource.name}" declares an invalid type`);
     }
   }
-  assertLinks(runbookId, caseId, analysis.links ?? []);
 }
 
 /** Fails on a value outside the catalog of the declared product (§5.1.2). */
@@ -128,13 +165,9 @@ function assertBoundedNames(
   }
 }
 
-function assertLinks(
-  runbookId: string,
-  caseId: string | undefined,
-  links: ReadonlyArray<{ readonly url: string; readonly name?: string; readonly type?: string }>,
-): void {
+function assertLinks(runbookId: string, caseId: string | undefined, links: ReadonlyArray<AnalysisLinkRef>): void {
   for (const link of links) {
-    if (!link.url.startsWith('http://') && !link.url.startsWith('https://')) {
+    if (!isAbsoluteHttpUrl(link.url)) {
       throw new Error(`${where(runbookId, caseId)}: link "${link.url}" is not an http/https URL`);
     }
     if (link.url.length > MAX_URL_LENGTH) {
@@ -147,6 +180,65 @@ function assertLinks(
       throw new Error(`${where(runbookId, caseId)}: link type exceeds ${MAX_LINK_TYPE_LENGTH} characters`);
     }
   }
+}
+
+function isAbsoluteHttpUrl(value: string): boolean {
+  if (value.trim() !== value) return false;
+  try {
+    const parsed = new URL(value);
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && parsed.hostname.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function assertNoReferenceConflicts(runbookId: string, runbook: Runbook): void {
+  const resources = new Map<string, ReferenceDeclaration<AnalysisResourceRef>>();
+  const links = new Map<string, ReferenceDeclaration<AnalysisLinkRef>>();
+  const declarations: ReadonlyArray<{
+    readonly caseId: string | undefined;
+    readonly references: AnalysisReferences;
+  }> = [
+    { caseId: undefined, references: runbook.analysisDefaults ?? {} },
+    ...runbook.knownCases
+      .filter((knownCase) => knownCase.analysis !== undefined)
+      .map((knownCase) => ({ caseId: knownCase.id, references: knownCase.analysis ?? {} })),
+  ];
+
+  for (const declaration of declarations) {
+    const location = where(runbookId, declaration.caseId);
+    for (const resource of declaration.references.resources ?? []) {
+      assertNoConflict(resources, resource.name, resource, location, sameResource, 'resource');
+    }
+    for (const link of declaration.references.links ?? []) {
+      assertNoConflict(links, link.url, link, location, sameLink, 'link');
+    }
+  }
+}
+
+function assertNoConflict<T>(
+  declarations: Map<string, ReferenceDeclaration<T>>,
+  key: string,
+  value: T,
+  location: string,
+  equals: ReferenceEqualityFn<T>,
+  kind: string,
+): void {
+  const previous = declarations.get(key);
+  if (previous === undefined) {
+    declarations.set(key, { value, location });
+    return;
+  }
+  if (equals(previous.value, value)) return;
+  throw new Error(`${location}: ${kind} "${key}" has conflicting metadata with ${previous.location}`);
+}
+
+function sameResource(left: AnalysisResourceRef, right: AnalysisResourceRef): boolean {
+  return left.type === right.type && left.role === right.role;
+}
+
+function sameLink(left: AnalysisLinkRef, right: AnalysisLinkRef): boolean {
+  return left.name === right.name && left.type === right.type;
 }
 
 /** Bounds the largest real draft envelope statically representable by the runbook. */
