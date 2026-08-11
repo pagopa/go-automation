@@ -7,8 +7,13 @@ import type { ResolvedAnalysisMatcher } from './resolveAnalysisMatcher.js';
 import { resolveMode } from './resolveMode.js';
 import type { RtaCheckMode } from './resolveMode.js';
 
+/** I modi di sola lettura non hanno opzioni proprie: bastano credenziali e censimento. */
 interface CoverageRunOptions {
   readonly mode: 'coverage';
+}
+
+interface ReadinessRunOptions {
+  readonly mode: 'readiness';
 }
 
 interface AnalysesRunOptions {
@@ -17,7 +22,7 @@ interface AnalysesRunOptions {
   readonly concurrency: number;
 }
 
-export type RunOptions = CoverageRunOptions | AnalysesRunOptions;
+export type RunOptions = CoverageRunOptions | ReadinessRunOptions | AnalysesRunOptions;
 
 type AnalysisMatcherResolver = typeof resolveAnalysisMatcher;
 
@@ -46,6 +51,7 @@ export function resolveRunOptions(
   try {
     const mode: RtaCheckMode = resolveMode(config.mode);
     if (mode === 'coverage') return { mode };
+    if (mode === 'readiness') return { mode };
     return {
       mode,
       concurrency: resolveConcurrency(config.concurrency),

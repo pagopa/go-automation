@@ -1,5 +1,7 @@
 import { Core } from '@go-automation/go-common';
 
+import { withWatchtowerReason } from './watchtowerErrorReason.js';
+
 import { WatchtowerAuth } from './WatchtowerAuth.js';
 import type { WatchtowerAuthCredentials } from './WatchtowerAuth.js';
 import type { ProductCensus } from './ProductCensus.js';
@@ -19,6 +21,8 @@ import type {
   CancelExecutionRequest,
   CancelExecutionResult,
   CompleteExecutionRequest,
+  ShadowReportQuery,
+  ShadowReportResponse,
   CompleteExecutionResult,
   CreateCliExecutionRequest,
   CreateCliExecutionResponse,
@@ -136,6 +140,22 @@ export class WatchtowerClient {
       this.listProductRunbooks(productId),
     ]);
     return { productId, alarms, resources, downstreams, finalActions, runbooks };
+  }
+
+  /**
+   * Readiness dello shadow per capability e prodotto (Fase 5).
+   *
+   * @param query - Finestra di osservazione ed eventuale filtro prodotto
+   */
+  async getShadowReport(query: ShadowReportQuery = {}): Promise<ShadowReportResponse> {
+    const params = new URLSearchParams();
+    if (query.days !== undefined) params.set('days', String(query.days));
+    if (query.productId !== undefined) params.set('productId', query.productId);
+    const suffix = params.size === 0 ? '' : `?${params.toString()}`;
+    return await this.authenticatedRequest<ShadowReportResponse>(
+      'GET',
+      `/api/automatic-runbook-executions/shadow-report${suffix}`,
+    );
   }
 
   async listAlarmEvents(query: AlarmEventsQuery): Promise<ReadonlyArray<AlarmEventDto>> {
@@ -329,9 +349,16 @@ export class WatchtowerClient {
     options: Core.GOHttpRequestOptions | undefined,
   ): Promise<T> {
     const headers = { authorization: `Bearer ${token}` };
-    if (method === 'GET') return await this.http.get<T>(path, headers, options);
-    if (method === 'PATCH') return await this.http.patch<T>(path, body, headers, options);
-    return await this.http.post<T>(path, body, headers, options);
+    try {
+      if (method === 'GET') return await this.http.get<T>(path, headers, options);
+      if (method === 'PATCH') return await this.http.patch<T>(path, body, headers, options);
+      return await this.http.post<T>(path, body, headers, options);
+    } catch (error: unknown) {
+      // Punto unico in cui il motivo applicativo entra nel messaggio. Il tipo e
+      // `statusCode` restano invariati, così il retry sul 401 e la gestione
+      // tipizzata del 409 a monte continuano a decidere come prima.
+      throw withWatchtowerReason(error);
+    }
   }
 }
 

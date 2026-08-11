@@ -23,6 +23,8 @@ import { buildCheckContext } from './libs/buildCheckContext.js';
 import { buildRtaCheckInput } from './libs/buildRtaCheckInput.js';
 import { runOccurrences } from './libs/runOccurrences.js';
 import { runCoverageMode } from './libs/runCoverageMode.js';
+import { runReadinessMode } from './libs/runReadinessMode.js';
+import { resolveProcessExitCode } from './libs/resolveProcessExitCode.js';
 import { resolveRunOptions } from './libs/resolveRunOptions.js';
 
 import { confirmRun, resolvePeriod } from './libs/promptInputs.js';
@@ -42,7 +44,18 @@ export async function main(script: Core.GOScript): Promise<void> {
   if (options === undefined) return;
 
   if (options.mode === 'coverage') {
-    process.exitCode = await runCoverageMode(script, config);
+    process.exitCode = resolveProcessExitCode(
+      await runCoverageMode(script, config),
+      config.exitCodeOnFindings === true,
+    );
+    return;
+  }
+
+  if (options.mode === 'readiness') {
+    process.exitCode = resolveProcessExitCode(
+      await runReadinessMode(script, config),
+      config.exitCodeOnFindings === true,
+    );
     return;
   }
 

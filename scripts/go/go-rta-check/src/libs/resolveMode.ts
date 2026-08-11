@@ -1,5 +1,5 @@
 /** Run modes of the script; `analyses` is the default and the historical behaviour. */
-const RTA_CHECK_MODES = ['analyses', 'coverage'] as const;
+const RTA_CHECK_MODES = ['analyses', 'coverage', 'readiness'] as const;
 
 export type RtaCheckMode = (typeof RTA_CHECK_MODES)[number];
 
@@ -14,6 +14,7 @@ export type RtaCheckMode = (typeof RTA_CHECK_MODES)[number];
  * ```typescript
  * resolveMode(undefined); // 'analyses'
  * resolveMode('coverage'); // 'coverage'
+ * resolveMode('readiness'); // 'readiness'
  * ```
  */
 export function resolveMode(value: string | undefined): RtaCheckMode {

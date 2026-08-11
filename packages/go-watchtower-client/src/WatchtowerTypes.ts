@@ -70,6 +70,11 @@ export type ProgressExecutionRequest =
   paths['/api/automatic-runbook-executions/{id}/progress']['patch']['requestBody']['content']['application/json'];
 export type ProgressExecutionResponse =
   paths['/api/automatic-runbook-executions/{id}/progress']['patch']['responses'][200]['content']['application/json'];
+export type ShadowReportQuery = paths['/api/automatic-runbook-executions/shadow-report']['get']['parameters']['query'];
+export type ShadowReportResponse =
+  paths['/api/automatic-runbook-executions/shadow-report']['get']['responses'][200]['content']['application/json'];
+export type ShadowCapabilityReport = ShadowReportResponse['capabilities'][number];
+
 export type CompleteExecutionRequest =
   paths['/api/automatic-runbook-executions/{id}/complete']['post']['requestBody']['content']['application/json'];
 export type AutomaticRunbookOutcome = CompleteExecutionRequest['outcome'];

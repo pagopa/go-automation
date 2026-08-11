@@ -6,16 +6,14 @@ import type { RunbookProduct } from '../types/RunbookProduct.js';
 import { INTEROP_DOWNSTREAMS } from '../analysis/downstreams/INTEROP_DOWNSTREAMS.js';
 import { SEND_DOWNSTREAMS } from '../analysis/downstreams/SEND_DOWNSTREAMS.js';
 import { buildPotentialAnalysisDrafts } from '../output/buildAnalysisDraft.js';
+import { ANALYSIS_DRAFT_BOUNDS } from '../output/analysisDraftBounds.js';
 
-/** Watchtower registry names are bounded to 255 characters. */
-const MAX_NAME_LENGTH = 255;
-/** `conclusionNotes`/`errorDetails` bound of the Watchtower analysis contract. */
-const MAX_TEXT_LENGTH = 5_000;
-const MAX_URL_LENGTH = 2_000;
-const MAX_LINK_TYPE_LENGTH = 50;
-const MAX_IGNORE_REASON_CODE_LENGTH = 100;
-/** Raw budget of the serialized draft enforced by Watchtower (§5.4). */
-const MAX_DRAFT_BYTES = 64 * 1_024;
+const MAX_NAME_LENGTH = ANALYSIS_DRAFT_BOUNDS.NAME_LENGTH;
+const MAX_TEXT_LENGTH = ANALYSIS_DRAFT_BOUNDS.TEXT_LENGTH;
+const MAX_URL_LENGTH = ANALYSIS_DRAFT_BOUNDS.URL_LENGTH;
+const MAX_LINK_TYPE_LENGTH = ANALYSIS_DRAFT_BOUNDS.LINK_TYPE_LENGTH;
+const MAX_IGNORE_REASON_CODE_LENGTH = ANALYSIS_DRAFT_BOUNDS.IGNORE_REASON_CODE_LENGTH;
+const MAX_DRAFT_BYTES = ANALYSIS_DRAFT_BOUNDS.DRAFT_BYTES;
 
 const DOWNSTREAM_CATALOGS: Readonly<Record<RunbookProduct, ReadonlySet<string>>> = {
   SEND: new Set<string>(Object.values(SEND_DOWNSTREAMS)),

@@ -13,7 +13,6 @@ export interface ExecuteRunbookConfig {
   readonly dryRunTimeoutMs?: number;
   readonly apply?: string;
   readonly confirmApply?: boolean;
-  readonly confirmApplyAll?: boolean;
 }
 
 export interface ExecuteRunbookCliConfig extends ExecuteRunbookConfig {

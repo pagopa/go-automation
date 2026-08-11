@@ -95,6 +95,7 @@ export { TraceBuilder } from './trace/TraceBuilder.js';
 // Output
 export type { RunbookOutput } from './output/RunbookOutput.js';
 export { buildAnalysisDraft } from './output/buildAnalysisDraft.js';
+export { ANALYSIS_DRAFT_BOUNDS } from './output/analysisDraftBounds.js';
 export type { AnalysisDraftV1 } from './output/AnalysisDraft.js';
 export type { KnownCaseAnalysisDraft } from './output/KnownCaseAnalysisDraft.js';
 export type { UnknownCaseContextDraft } from './output/UnknownCaseContextDraft.js';

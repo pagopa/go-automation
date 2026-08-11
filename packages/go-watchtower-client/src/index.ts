@@ -5,5 +5,6 @@ export type { WatchtowerClientOptions, WatchtowerLifecycleRequestOptions } from 
 export type { ProductCensus } from './ProductCensus.js';
 export * from './WatchtowerTypes.js';
 export { parseAutomaticAlarmAnalysisCommandV1 } from './parseAutomaticAlarmAnalysisCommandV1.js';
+export { watchtowerErrorReason } from './watchtowerErrorReason.js';
 export type { AutomaticAlarmAnalysisCommandV1 } from './generated/AutomaticAlarmAnalysisCommandV1.js';
 export type { paths as WatchtowerOpenApiPaths } from './generated/openapi.js';
