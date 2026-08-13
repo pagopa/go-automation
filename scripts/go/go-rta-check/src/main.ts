@@ -22,13 +22,13 @@ import { formatAnalysisMatcherLabel } from './libs/resolveAnalysisMatcher.js';
 import { buildCheckContext } from './libs/buildCheckContext.js';
 import { buildRtaCheckInput } from './libs/buildRtaCheckInput.js';
 import { runOccurrences } from './libs/runOccurrences.js';
-import { runCoverageMode } from './libs/runCoverageMode.js';
-import { runReadinessMode } from './libs/runReadinessMode.js';
-import { resolveProcessExitCode } from './libs/resolveProcessExitCode.js';
 import { resolveRunOptions } from './libs/resolveRunOptions.js';
 
 import { confirmRun, resolvePeriod } from './libs/promptInputs.js';
 import { alarmEventsQuery, applyLimit, hasAwsProfiles, resolveFormats } from './libs/runHelpers.js';
+import { runCoverageMode } from './libs/runCoverageMode.js';
+import { runReadinessMode } from './libs/runReadinessMode.js';
+import { resolveProcessExitCode } from './libs/resolveProcessExitCode.js';
 
 /**
  * Script entry: resolves inputs, runs the comparison over every occurrence and
@@ -43,19 +43,10 @@ export async function main(script: Core.GOScript): Promise<void> {
   const options = resolveRunOptions(logger, config);
   if (options === undefined) return;
 
-  if (options.mode === 'coverage') {
-    process.exitCode = resolveProcessExitCode(
-      await runCoverageMode(script, config),
-      config.exitCodeOnFindings === true,
-    );
-    return;
-  }
-
-  if (options.mode === 'readiness') {
-    process.exitCode = resolveProcessExitCode(
-      await runReadinessMode(script, config),
-      config.exitCodeOnFindings === true,
-    );
+  if (options.mode !== 'analyses') {
+    const mode =
+      options.mode === 'coverage' ? await runCoverageMode(script, config) : await runReadinessMode(script, config);
+    process.exitCode = resolveProcessExitCode(mode, config.exitCodeOnFindings === true);
     return;
   }
 

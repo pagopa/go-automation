@@ -78,6 +78,8 @@ export type ShadowCapabilityReport = ShadowReportResponse['capabilities'][number
 export type CompleteExecutionRequest =
   paths['/api/automatic-runbook-executions/{id}/complete']['post']['requestBody']['content']['application/json'];
 export type AutomaticRunbookOutcome = CompleteExecutionRequest['outcome'];
+/** Draft dell'analisi come viaggia sul callback di completamento. */
+export type CompleteExecutionAnalysisDraft = CompleteExecutionRequest['analysisDraft'];
 export type CompleteExecutionTracking = NonNullable<CompleteExecutionRequest['tracking']>;
 export type CompleteExecutionTrackingEntry = CompleteExecutionTracking[number];
 export type TrackingIdentifierType = CompleteExecutionTrackingEntry['identifierType'];

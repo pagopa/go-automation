@@ -20,7 +20,7 @@ function knownDraft(overrides: Partial<Extract<AnalysisDraftV1, { kind: 'KNOWN_C
     finalActions: [],
     links: [],
     ...overrides,
-  } as AnalysisDraftV1;
+  };
 }
 
 describe('toCompleteAnalysisDraft', () => {

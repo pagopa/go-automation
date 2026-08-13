@@ -1,8 +1,6 @@
 import { ANALYSIS_DRAFT_BOUNDS, type AnalysisDraftV1 } from '@go-automation/go-runbook';
 
-import type { CompleteExecutionRequest } from '@go-automation/go-watchtower-client';
-
-type WireDraft = CompleteExecutionRequest['analysisDraft'];
+import type { CompleteExecutionAnalysisDraft } from '@go-automation/go-watchtower-client';
 
 interface DraftReference {
   readonly name: string;
@@ -43,7 +41,7 @@ interface DraftLink {
  * @param draft - Draft built from the runbook known-case annotations
  * @returns The wire draft, or `undefined` when the runbook produced none
  */
-export function toCompleteAnalysisDraft(draft: AnalysisDraftV1 | undefined): WireDraft {
+export function toCompleteAnalysisDraft(draft: AnalysisDraftV1 | undefined): CompleteExecutionAnalysisDraft {
   if (draft === undefined) return undefined;
 
   const shared = {
@@ -56,7 +54,7 @@ export function toCompleteAnalysisDraft(draft: AnalysisDraftV1 | undefined): Wir
     links: clampArray(draft.links).filter(isBoundedLink).map(toWireLink),
   };
 
-  if (draft.kind === 'UNKNOWN_CASE_CONTEXT') return shared as WireDraft;
+  if (draft.kind === 'UNKNOWN_CASE_CONTEXT') return shared;
 
   return {
     ...shared,
@@ -70,7 +68,7 @@ export function toCompleteAnalysisDraft(draft: AnalysisDraftV1 | undefined): Wir
       ? {}
       : { ignoreReasonCode: draft.ignoreReasonCode.slice(0, ANALYSIS_DRAFT_BOUNDS.IGNORE_REASON_CODE_LENGTH) }),
     ...(draft.ignoreDetails === undefined ? {} : { ignoreDetails: draft.ignoreDetails }),
-  } as WireDraft;
+  };
 }
 
 function truncate(value: string, max: number): string {
@@ -81,7 +79,7 @@ function clampName(value: string): string {
   return value.slice(0, ANALYSIS_DRAFT_BOUNDS.NAME_LENGTH);
 }
 
-function clampArray<T>(values: readonly T[]): readonly T[] {
+function clampArray<T>(values: ReadonlyArray<T>): ReadonlyArray<T> {
   return values.length <= ANALYSIS_DRAFT_BOUNDS.ARRAY_ITEMS
     ? values
     : values.slice(0, ANALYSIS_DRAFT_BOUNDS.ARRAY_ITEMS);

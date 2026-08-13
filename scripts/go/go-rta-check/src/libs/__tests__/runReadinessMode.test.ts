@@ -4,10 +4,17 @@ import { describe, it } from 'node:test';
 import { runReadinessMode } from '../runReadinessMode.js';
 import { COVERAGE_EXIT_CODES } from '../runCoverageCheck.js';
 
-function fakeScript(): { script: { logger: Record<string, (m: string) => void> }; lines: string[] } {
+type LogFn = (message: string) => void;
+
+interface FakeScript {
+  readonly script: { readonly logger: Record<string, LogFn> };
+  readonly lines: string[];
+}
+
+function fakeScript(): FakeScript {
   const lines: string[] = [];
   const record =
-    (level: string) =>
+    (level: string): LogFn =>
     (message: string): void => {
       lines.push(`${level}:${message}`);
     };
@@ -44,10 +51,10 @@ function capability(overrides: Record<string, unknown> = {}): Record<string, unk
 
 function deps(coverageExit: number, capabilities: Record<string, unknown>[]): never {
   return {
-    resolveConnection: () =>
+    resolveConnection: async () =>
       Promise.resolve({
         client: {
-          getShadowReport: () =>
+          getShadowReport: async () =>
             Promise.resolve({
               windowDays: 14,
               since: '2026-07-27T00:00:00.000Z',
@@ -57,14 +64,14 @@ function deps(coverageExit: number, capabilities: Record<string, unknown>[]): ne
             }),
         },
       }),
-    runCheck: () => Promise.resolve({ kind: 'EVALUATED', exitCode: coverageExit }),
+    runCheck: async () => Promise.resolve({ kind: 'EVALUATED', exitCode: coverageExit }),
   } as never;
 }
 
 describe('runReadinessMode', () => {
   it('attiva solo quando copertura e shadow concordano', async () => {
     const { script, lines } = fakeScript();
-    const exit = await runReadinessMode(script as never, {} as never, deps(COVERAGE_EXIT_CODES.OK, [capability()]));
+    const exit = await runReadinessMode(script as never, {}, deps(COVERAGE_EXIT_CODES.OK, [capability()]));
     assert.equal(exit, COVERAGE_EXIT_CODES.OK);
     assert.ok(lines.some((l) => l.startsWith('ok:APPLY_KNOWN attivabile')));
   });
@@ -73,7 +80,7 @@ describe('runReadinessMode', () => {
     const { script } = fakeScript();
     const exit = await runReadinessMode(
       script as never,
-      {} as never,
+      {},
       deps(COVERAGE_EXIT_CODES.INVALID_COVERAGE, [capability()]),
     );
     assert.equal(exit, COVERAGE_EXIT_CODES.INVALID_COVERAGE);
@@ -88,22 +95,25 @@ describe('runReadinessMode', () => {
       unresolvedReferences: ['downstream:SPID'],
       ready: false,
     });
-    const exit = await runReadinessMode(script as never, {} as never, deps(COVERAGE_EXIT_CODES.OK, [blocked]));
+    const exit = await runReadinessMode(script as never, {}, deps(COVERAGE_EXIT_CODES.OK, [blocked]));
     assert.equal(exit, COVERAGE_EXIT_CODES.INVALID_COVERAGE);
     assert.ok(lines.some((l) => l.includes('da censire: downstream:SPID')));
   });
 
   it('assenza di evidenza non è un via libera', async () => {
     const { script, lines } = fakeScript();
-    const exit = await runReadinessMode(script as never, {} as never, deps(COVERAGE_EXIT_CODES.OK, []));
+    const exit = await runReadinessMode(script as never, {}, deps(COVERAGE_EXIT_CODES.OK, []));
     assert.equal(exit, COVERAGE_EXIT_CODES.INVALID_COVERAGE);
     assert.ok(lines.some((l) => l.includes('non ha ancora prodotto evidenza')));
   });
 
   it('un errore operativo non si confonde con «non pronto»', async () => {
     const { script } = fakeScript();
-    const broken = { resolveConnection: () => Promise.reject(new Error('boom')), runCheck: () => Promise.resolve({}) };
-    const exit = await runReadinessMode(script as never, {} as never, broken as never);
+    const broken = {
+      resolveConnection: async () => Promise.reject(new Error('boom')),
+      runCheck: async () => Promise.resolve({}),
+    };
+    const exit = await runReadinessMode(script as never, {}, broken as never);
     assert.equal(exit, COVERAGE_EXIT_CODES.NOT_EXECUTABLE);
   });
 });
