@@ -20,7 +20,7 @@ overrides:
 catalog:
   'ajv': '8.20.0'
   'ajv-formats': '3.0.1'
-  '@aws-sdk/client-athena': '3.1102.0'
+  '@aws-sdk/client-athena': '3.1111.0'
   '@aws-sdk/client-bedrock-runtime': '3.1111.0'
   '@aws-sdk/client-cloudformation': '3.1111.0'
   '@aws-sdk/client-cloudwatch': '3.1111.0'
@@ -51,7 +51,6 @@ catalog:
   '@typescript-eslint/parser': '^8.67.0'
   'adm-zip': '^0.6.0'
   'better-sqlite3': '^13.0.3'
-  'cheerio': '^1.2.0'
   'commander': '^15.0.0'
   'croner': '^10.0.1'
   'csv-parse': '^7.0.2'

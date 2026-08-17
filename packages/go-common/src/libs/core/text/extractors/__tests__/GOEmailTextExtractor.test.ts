@@ -24,7 +24,13 @@ const SAMPLE_HTML_EML = [
   'Date: Mon, 01 Jan 2024 10:00:00 +0000',
   'Content-Type: text/html; charset=utf-8',
   '',
-  '<html><body><p>Hello&nbsp;<b>world</b></p><script>alert(1)</script></body></html>',
+  [
+    '<html><head><style>.hidden { display: none }</style></head><body>',
+    '<p>Hello&nbsp;<b>world</b> &amp; team</p>',
+    '<script>alert(1)</script>',
+    '<p>Second paragraph<br>Next line</p>',
+    '</body></html>',
+  ].join(''),
 ].join('\r\n');
 
 describe('GOEmailTextExtractor', () => {
@@ -49,16 +55,19 @@ describe('GOEmailTextExtractor', () => {
     }
   });
 
-  it('falls back to HTML→text conversion stripping scripts', async () => {
+  it('converts an HTML-only message to plain text', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'go-eml-extractor-'));
     const file = path.join(dir, 'html.eml');
     try {
       await fs.writeFile(file, SAMPLE_HTML_EML);
       const result = await extractor.extract(file);
-      assert.match(result.text, /Hello\s+world/);
-      // Scripts must be dropped — neither the tag nor the body should appear.
+      assert.match(result.text, /Hello world & team/);
+      assert.match(result.text, /Second paragraph/);
+      assert.match(result.text, /Next line/);
       assert.doesNotMatch(result.text, /alert/);
+      assert.doesNotMatch(result.text, /display: none/);
       assert.doesNotMatch(result.text, /<script/i);
+      assert.doesNotMatch(result.text, /<style/i);
     } finally {
       await fs.rm(dir, { recursive: true, force: true });
     }
