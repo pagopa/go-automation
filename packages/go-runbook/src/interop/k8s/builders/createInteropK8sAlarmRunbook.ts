@@ -33,6 +33,14 @@ export function createInteropK8sAlarmRunbook(config: InteropK8sAlarmConfig): Run
         varPrefix: service.varPrefix,
       },
       queryProfileId: profile.id,
+    })
+    // The service under analysis is always the primary resource of the draft; the
+    // runbook adds the references it actually knows through `analysisDefaults`.
+    // `type` stays undeclared until the Fase 0 coverage check confirms the censused
+    // ResourceType name — a wrong type would block the apply, omitting it never does.
+    .analysisDefaults({
+      ...config.analysisDefaults,
+      resources: [{ name: service.name, role: 'PRIMARY' }, ...(config.analysisDefaults?.resources ?? [])],
     });
 
   builder.step(

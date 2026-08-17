@@ -5,20 +5,20 @@ import { classifyRunbookOutcome } from '@go-automation/go-runbook';
 import type { ServiceRegistry } from '@go-automation/go-runbook';
 
 import type { AnalysisMatch, RtaCheckEvent, RtaCheckRow } from '../types/RtaCheckReport.js';
-import type { AnalysisMatcherFn } from '../compare/AnalysisMatcher.js';
-import type { MatchAnalysisOptions } from '../compare/matchAnalysis.js';
-import { loadCachedOutput, saveCachedOutput } from '../runner/resumeCache.js';
-import type { RunbookCacheDescriptor } from '../runner/RunbookCacheDescriptor.js';
-import { buildCacheMeta, computeFingerprint } from '../runner/runbookFingerprint.js';
+import type { AnalysisMatcherFn } from '../comparison/AnalysisMatcher.js';
+import type { MatchAnalysisOptions } from '../comparison/matchAnalysis.js';
+import type { RunbookCacheDescriptor } from '../cache/RunbookCacheDescriptor.js';
+import type { RunbookCheckCache } from '../cache/RunbookCheckCache.js';
+import { runbookCheckCacheKey } from '../cache/RunbookCheckCache.js';
+import { persistRunbookOutput, readFreshRunbookOutput } from '../cache/RunbookCheckCacheIO.js';
+import { buildCacheMeta, computeFingerprint } from '../cache/runbookFingerprint.js';
 
 /** Per-occurrence orchestration context (built once, reused across occurrences). */
-export interface CheckContext {
+export interface RunbookCheckContext {
   readonly services: ServiceRegistry;
   /** Silent logger for the runbook engine, so its verbose logs are suppressed. */
   readonly engineLogger: Core.GOLogger;
   readonly client: WatchtowerClient;
-  /** GOScript instance, used to resolve the resume cache path (CACHE type). */
-  readonly script: Core.GOScript;
   readonly productId: string;
   readonly productName: string;
   readonly alarmName: string;
@@ -31,25 +31,33 @@ export interface CheckContext {
   readonly force: boolean;
 }
 
+export interface CheckOccurrenceInput {
+  readonly context: RunbookCheckContext;
+  readonly occurrence: AlarmEventDto;
+  /** Optional resume cache; without it every occurrence re-executes the runbook. */
+  readonly cache?: RunbookCheckCache;
+}
+
 /**
  * Runs (or reuses the cached) runbook for one occurrence, classifies V1, fetches
  * the linked analysis and computes the V2 comparison.
  *
- * @param context - The shared per-run context
- * @param event - The alarm-event occurrence
+ * @param input - The shared context, the occurrence and the optional resume cache
  * @returns The assembled report row
  */
-export async function checkOccurrence(context: CheckContext, event: AlarmEventDto): Promise<RtaCheckRow> {
+export async function checkOccurrence(input: CheckOccurrenceInput): Promise<RtaCheckRow> {
+  const { context, occurrence: event, cache } = input;
   const meta =
     context.runbook !== undefined
       ? buildCacheMeta(context.runbook, context.awsProfiles, event.firedAt, event.awsAccountId, event.awsRegion)
       : undefined;
   const fingerprint = meta !== undefined ? computeFingerprint(meta) : undefined;
+  const key = runbookCheckCacheKey(context.alarmName, event.id);
 
   let output =
-    context.force || fingerprint === undefined
+    context.force || fingerprint === undefined || cache === undefined
       ? undefined
-      : await loadCachedOutput(context.script, context.alarmName, event.id, fingerprint);
+      : await readFreshRunbookOutput(cache, key, fingerprint);
   const fromCache = output !== undefined;
 
   if (output === undefined) {
@@ -64,9 +72,6 @@ export async function checkOccurrence(context: CheckContext, event: AlarmEventDt
           awsProfiles: context.awsProfiles,
         },
       );
-      if (meta !== undefined && fingerprint !== undefined) {
-        await saveCachedOutput(context.script, context.alarmName, event.id, output, meta, fingerprint);
-      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return {
@@ -76,6 +81,14 @@ export async function checkOccurrence(context: CheckContext, event: AlarmEventDt
         fromCache: false,
       };
     }
+    if (cache !== undefined && meta !== undefined && fingerprint !== undefined) {
+      await persistRunbookOutput(cache, key, {
+        fingerprint,
+        savedAt: new Date().toISOString(),
+        meta,
+        output,
+      });
+    }
   }
 
   const check = classifyRunbookOutcome(output);
@@ -84,7 +97,10 @@ export async function checkOccurrence(context: CheckContext, event: AlarmEventDt
   return { event: toEventInfo(event), runbook: check, comparison, fromCache };
 }
 
-async function fetchAnalysisCached(context: CheckContext, analysisId: string): Promise<AlarmAnalysisDto | undefined> {
+async function fetchAnalysisCached(
+  context: RunbookCheckContext,
+  analysisId: string,
+): Promise<AlarmAnalysisDto | undefined> {
   if (context.analysisCache.has(analysisId)) return context.analysisCache.get(analysisId);
   let analysis: AlarmAnalysisDto | undefined;
   try {

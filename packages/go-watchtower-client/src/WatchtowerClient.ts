@@ -1,7 +1,10 @@
 import { Core } from '@go-automation/go-common';
 
+import { withWatchtowerReason } from './watchtowerErrorReason.js';
+
 import { WatchtowerAuth } from './WatchtowerAuth.js';
 import type { WatchtowerAuthCredentials } from './WatchtowerAuth.js';
+import type { ProductCensus } from './ProductCensus.js';
 import type {
   AcknowledgeCancellationRequest,
   AcknowledgeCancellationResult,
@@ -18,17 +21,24 @@ import type {
   CancelExecutionRequest,
   CancelExecutionResult,
   CompleteExecutionRequest,
+  ShadowReportQuery,
+  ShadowReportResponse,
   CompleteExecutionResult,
   CreateCliExecutionRequest,
   CreateCliExecutionResponse,
+  DownstreamDto,
   EnvironmentDto,
   FailExecutionRequest,
   FailExecutionResult,
+  FinalActionDto,
+  IgnoreReasonDto,
   PreviewCliExecutionRequest,
   PreviewCliExecutionResponse,
   ProductDto,
   ProgressExecutionRequest,
   ProgressExecutionResponse,
+  ResourceDto,
+  RunbookDto,
   StartExecutionRequest,
   StartExecutionResponse,
 } from './WatchtowerTypes.js';
@@ -79,6 +89,72 @@ export class WatchtowerClient {
     return await this.authenticatedRequest<EnvironmentDto[]>(
       'GET',
       `/api/products/${encodeURIComponent(productId)}/environments`,
+    );
+  }
+
+  async listProductResources(productId: string): Promise<ReadonlyArray<ResourceDto>> {
+    return await this.authenticatedRequest<ResourceDto[]>(
+      'GET',
+      `/api/products/${encodeURIComponent(productId)}/resources`,
+    );
+  }
+
+  async listProductDownstreams(productId: string): Promise<ReadonlyArray<DownstreamDto>> {
+    return await this.authenticatedRequest<DownstreamDto[]>(
+      'GET',
+      `/api/products/${encodeURIComponent(productId)}/downstreams`,
+    );
+  }
+
+  async listProductFinalActions(productId: string): Promise<ReadonlyArray<FinalActionDto>> {
+    return await this.authenticatedRequest<FinalActionDto[]>(
+      'GET',
+      `/api/products/${encodeURIComponent(productId)}/final-actions`,
+    );
+  }
+
+  async listProductRunbooks(productId: string): Promise<ReadonlyArray<RunbookDto>> {
+    return await this.authenticatedRequest<RunbookDto[]>(
+      'GET',
+      `/api/products/${encodeURIComponent(productId)}/runbooks`,
+    );
+  }
+
+  /** Ignore reasons are global, not per-product: they stay outside `ProductCensus`. */
+  async listIgnoreReasons(): Promise<ReadonlyArray<IgnoreReasonDto>> {
+    return await this.authenticatedRequest<IgnoreReasonDto[]>('GET', '/api/ignore-reasons');
+  }
+
+  /**
+   * Loads every per-product taxonomy in one bounded fan-out of five requests.
+   *
+   * @param productId - Watchtower product identifier
+   * @returns The product taxonomies as returned by Watchtower, unfiltered
+   */
+  async getProductCensus(productId: string): Promise<ProductCensus> {
+    const [alarms, resources, downstreams, finalActions, runbooks] = await Promise.all([
+      this.listProductAlarms(productId),
+      this.listProductResources(productId),
+      this.listProductDownstreams(productId),
+      this.listProductFinalActions(productId),
+      this.listProductRunbooks(productId),
+    ]);
+    return { productId, alarms, resources, downstreams, finalActions, runbooks };
+  }
+
+  /**
+   * Readiness dello shadow per capability e prodotto (Fase 5).
+   *
+   * @param query - Finestra di osservazione ed eventuale filtro prodotto
+   */
+  async getShadowReport(query: ShadowReportQuery = {}): Promise<ShadowReportResponse> {
+    const params = new URLSearchParams();
+    if (query.days !== undefined) params.set('days', String(query.days));
+    if (query.productId !== undefined) params.set('productId', query.productId);
+    const suffix = params.size === 0 ? '' : `?${params.toString()}`;
+    return await this.authenticatedRequest<ShadowReportResponse>(
+      'GET',
+      `/api/automatic-runbook-executions/shadow-report${suffix}`,
     );
   }
 
@@ -273,9 +349,16 @@ export class WatchtowerClient {
     options: Core.GOHttpRequestOptions | undefined,
   ): Promise<T> {
     const headers = { authorization: `Bearer ${token}` };
-    if (method === 'GET') return await this.http.get<T>(path, headers, options);
-    if (method === 'PATCH') return await this.http.patch<T>(path, body, headers, options);
-    return await this.http.post<T>(path, body, headers, options);
+    try {
+      if (method === 'GET') return await this.http.get<T>(path, headers, options);
+      if (method === 'PATCH') return await this.http.patch<T>(path, body, headers, options);
+      return await this.http.post<T>(path, body, headers, options);
+    } catch (error: unknown) {
+      // Punto unico in cui il motivo applicativo entra nel messaggio. Il tipo e
+      // `statusCode` restano invariati, così il retry sul 401 e la gestione
+      // tipizzata del 409 a monte continuano a decidere come prima.
+      throw withWatchtowerReason(error);
+    }
   }
 }
 

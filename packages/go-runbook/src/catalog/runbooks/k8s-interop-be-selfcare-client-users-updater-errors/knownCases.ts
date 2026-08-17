@@ -11,6 +11,8 @@ const REFS: InteropKnownCaseRefs = {
   varPrefix: INTEROP_SELFCARE_USERS_UPDATER_VAR_PREFIX,
 };
 
+const JIRA_BROWSE = 'https://pagopa.atlassian.net/browse';
+
 const SELFCARE_KAFKA_ERROR_PATTERN = [
   'The coordinator is not aware of this member',
   'The group coordinator is not available',
@@ -27,5 +29,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     resolution:
       'Caso noto legato ai broker Kafka di Selfcare o a una temporanea indisponibilità di rete. ' +
       'Verificare PIN-7325 e, se il problema persiste, coinvolgere il team Selfcare.',
+    // Chiede di verificare e, se persiste, di coinvolgere un altro team: resta aperta.
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    links: [{ url: `${JIRA_BROWSE}/PIN-7325`, name: 'PIN-7325', type: 'JIRA' }],
   }),
 ];

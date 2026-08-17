@@ -5,6 +5,8 @@
  * interactive prompts (product/alarm selection, period, credentials).
  */
 export interface GoRtaCheckConfig {
+  /** Run mode: `analyses` (default) or `coverage`. */
+  readonly mode?: string;
   /** Watchtower base URL (or env `WATCHTOWER_BASE_URL`). */
   readonly watchtowerUrl?: string;
   /** Watchtower login email (or env `WATCHTOWER_EMAIL`, else prompt). */
@@ -13,6 +15,10 @@ export interface GoRtaCheckConfig {
   readonly watchtowerPassword?: string;
   /** Watchtower product id; when omitted the user selects it interactively. */
   readonly productId?: string;
+  /** Propaga il verdetto nell'exit code: da accendere in CI. */
+  readonly exitCodeOnFindings?: boolean;
+  /** Finestra di osservazione dello shadow in mode readiness, in giorni. */
+  readonly readinessWindowDays?: number;
   /** Watchtower environment id to filter occurrences; when omitted: all environments (or prompt). */
   readonly environmentId?: string;
   /** Alarm name (= runbook id); when omitted the user selects it interactively. */

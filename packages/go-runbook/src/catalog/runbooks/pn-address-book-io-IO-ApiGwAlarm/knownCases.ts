@@ -3,6 +3,7 @@
  */
 
 import type { KnownCase } from '../framework.js';
+import { SEND_DOWNSTREAMS } from '../framework.js';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   // ── Gateway Timeout 504 senza log applicativi su pn-user-attributes ────
@@ -25,6 +26,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '[CASO NOTO] Gateway Timeout 504 senza log applicativi su pn-user-attributes\n' +
         'Risoluzione: Nessuna azione possibile, classificare come transitorio.\n' +
         'Status Code: {{vars.apiGwStatusCode}}',
+    },
+
+    analysis: {
+      resolution: 'Nessuna azione possibile, classificare come transitorio.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
     },
   },
 
@@ -57,6 +64,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Status Code: {{vars.apiGwStatusCode}}\n' +
         'Error: {{vars.apiGwErrorMessage}}',
     },
+
+    analysis: {
+      resolution:
+        "Nessuna azione possibile, classificare come transitorio. Se ricorrente, verificare la latenza dell'integrazione lato API Gateway.",
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+    },
   },
 
   // ── PDV 404: Record mancante su Personal Data Vault ────────────────────
@@ -88,6 +102,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Task JIRA: PN-15981\n' +
         'Errore: {{vars.userAttributesErrorMsg}}',
     },
+
+    analysis: {
+      resolution: 'Scenario di errore già noto ed in via di risoluzione sul codice applicativo',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+    },
   },
 
   {
@@ -110,6 +130,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '[CASO NOTO] 500 da AppIO - Internal Server Error\n' +
         'Risoluzione: Chiusura - caso noto\n' +
         'Downstream: AppIO\n',
+    },
+
+    analysis: {
+      resolution: 'Chiusura - caso noto',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      downstreams: [SEND_DOWNSTREAMS.APP_IO],
     },
   },
 
@@ -146,6 +173,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Risoluzione: Chiusura - caso noto\n' +
         'Downstream: AppIO\n',
     },
+
+    analysis: {
+      resolution: 'Chiusura - caso noto',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      downstreams: [SEND_DOWNSTREAMS.APP_IO],
+    },
   },
 
   // ── AppIO 500: Cosmos DB rate limit (429) ──────────────────────────────
@@ -166,6 +200,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '[CASO NOTO] AppIO Cosmos DB rate limit exceeded (429)\n' +
         'Risoluzione: Errore transitorio lato AppIO, verificare se ricorrente\n' +
         'Errore: {{vars.externalRegistriesErrorMsg}}',
+    },
+
+    analysis: {
+      resolution: 'Errore transitorio lato AppIO, verificare se ricorrente',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      downstreams: [SEND_DOWNSTREAMS.APP_IO],
     },
   },
 
@@ -188,6 +229,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Task JIRA: PN-16877\n' +
         'Errore: {{vars.userAttributesErrorMsg}}',
     },
+
+    analysis: {
+      resolution: 'Vedi caso 500 su pn-data-vault con messaggio PDV 404',
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+    },
   },
 
   // ── io-status activated, re-adding to addressbook ──────────────────────
@@ -207,6 +254,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '[CASO NOTO] Re-inserimento in addressbook dopo attivazione IO\n' +
         'Risoluzione: Nessuna azione necessaria\n' +
         'Errore: {{vars.userAttributesErrorMsg}}',
+    },
+
+    analysis: {
+      resolution: 'Nessuna azione necessaria',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
     },
   },
 
@@ -229,6 +282,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Task JIRA: PN-17228\n' +
         'Errore: {{vars.userAttributesErrorMsg}}',
     },
+
+    analysis: {
+      resolution: 'Errore noto su transazione DynamoDB',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+    },
   },
 
   // ── InternalError / SQS sendMessageBatch ───────────────────────────────
@@ -249,6 +308,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Risoluzione: Errore noto al gruppo Infra\n' +
         'Task JIRA: PN-16131\n' +
         'Errore: {{vars.userAttributesErrorMsg}}',
+    },
+
+    analysis: {
+      resolution: 'Errore noto al gruppo Infra',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
     },
   },
 
@@ -303,6 +368,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '[CASO NOTO] ReadTimeout di rete su ext-registry-private da pn-user-attributes\n' +
         'Risoluzione: NA - monitorare se ricorrente.\n' +
         'Errore: {{vars.userAttributesErrorMsg}}',
+    },
+
+    analysis: {
+      resolution: 'NA - monitorare se ricorrente.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
     },
   },
 ];

@@ -5,6 +5,8 @@ import { interopKnownCase } from '../interop/interopKnownCases.js';
 import { INTEROP_NOTIFICATION_USER_LIFECYCLE_VAR_PREFIX } from './resolveInteropAlarmContext.js';
 import { QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, QUERY_INTEROP_CID_TRACKER_STEP_ID } from './runbookSteps.js';
 
+const JIRA_BROWSE = 'https://pagopa.atlassian.net/browse';
+
 const REFS: InteropKnownCaseRefs = {
   applicationLogsStepId: QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
   cidTrackerStepId: QUERY_INTEROP_CID_TRACKER_STEP_ID,
@@ -20,6 +22,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       'Connection error: read ECONNRESET|' +
       'KafkaJS\\s*NumberOfRetriesExceeded: The replica is not available for the requested topic-partition',
     resolution: 'Verificare PIN-7325 e la disponibilita dei broker Kafka; raccogliere i CID se il problema persiste.',
+    // Chiede di verificare i broker e raccogliere i CID: l'analisi resta aperta.
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    links: [{ url: `${JIRA_BROWSE}/PIN-7325`, name: 'PIN-7325', type: 'JIRA' }],
   }),
   interopKnownCase(REFS, {
     id: 'notification-duplicate-event-stream-version',
@@ -29,6 +35,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       'Error creating event: error: duplicate key value violates unique constraint ' +
       '\\\\?"events_stream_id_version_key\\\\?"',
     resolution: 'Nessuna azione necessaria: richiesta duplicata gia censita. Vedere PIN-6474 e PIN-7796.',
+    proposedStatus: 'COMPLETED',
+    analysisType: 'ANALYZABLE',
+    links: [
+      { url: `${JIRA_BROWSE}/PIN-6474`, name: 'PIN-6474', type: 'JIRA' },
+      { url: `${JIRA_BROWSE}/PIN-7796`, name: 'PIN-7796', type: 'JIRA' },
+    ],
   }),
   interopKnownCase(REFS, {
     id: 'notification-certifier-tenant-istat-not-found',
@@ -36,5 +48,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 80,
     regex: 'Message: Certifier tenant ISTAT not found',
     resolution: 'Nessuna azione necessaria. Caso censito in PIN-10543.',
+    proposedStatus: 'COMPLETED',
+    analysisType: 'ANALYZABLE',
+    links: [{ url: `${JIRA_BROWSE}/PIN-10543`, name: 'PIN-10543', type: 'JIRA' }],
   }),
 ];

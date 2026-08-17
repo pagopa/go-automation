@@ -27,7 +27,8 @@
     "@go-automation/go-ai": "workspace:*",
     "@go-automation/go-common": "workspace:*",
     "@go-automation/go-runbook": "workspace:*",
-    "@go-automation/go-watchtower-client": "workspace:*"
+    "@go-automation/go-watchtower-client": "workspace:*",
+    "@go-automation/go-watchtower-runbook": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:"

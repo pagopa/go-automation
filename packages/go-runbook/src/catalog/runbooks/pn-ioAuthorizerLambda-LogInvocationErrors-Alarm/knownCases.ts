@@ -31,6 +31,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'requestId: {{vars.lambdaRequestId}}\n' +
         'Risoluzione: occorrenza singola, interruzione momentanea di connessione con pn-data-vault. Nessuna azione.\n',
     },
+
+    analysis: {
+      resolution: 'occorrenza singola, interruzione momentanea di connessione con pn-data-vault. Nessuna azione.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+    },
   },
   {
     id: 'invalid-source-details-qrcode',
@@ -50,6 +56,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       message:
         '[CASO NOTO] Invalid source details header QRCODE\n' +
         'Risoluzione: header della richiesta non valido pervenuto alla Lambda authorizer. Nessuna azione.\n',
+    },
+
+    analysis: {
+      resolution: 'header della richiesta non valido pervenuto alla Lambda authorizer. Nessuna azione.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
     },
   },
 ];

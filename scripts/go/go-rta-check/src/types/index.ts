@@ -8,4 +8,4 @@ export type {
   RtaCheckInput,
   RtaCheckSummary,
   AnalysisMatch,
-} from './RtaCheckReport.js';
+} from '@go-automation/go-watchtower-runbook';

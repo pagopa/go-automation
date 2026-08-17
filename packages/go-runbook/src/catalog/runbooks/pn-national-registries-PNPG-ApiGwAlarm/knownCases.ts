@@ -3,6 +3,7 @@
  */
 
 import type { KnownCase } from '../framework.js';
+import { SEND_DOWNSTREAMS } from '../framework.js';
 
 /**
  * Known cases evaluated against the resulting context, highest priority
@@ -26,6 +27,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '[CASO NOTO] [DOWNSTREAM] Service AdE returned errors=500 Internal Server Error\n' +
         'Risoluzione: Chiusura - caso noto. Downstream Agenzia Entrate in errore durante verifica legale rappresentante.\n' +
         'Downstream: AdE\n',
+    },
+
+    analysis: {
+      resolution: 'Chiusura - caso noto. Downstream Agenzia Entrate in errore durante verifica legale rappresentante.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      downstreams: [SEND_DOWNSTREAMS.ADE],
     },
   },
   {
@@ -62,6 +70,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Error: {{vars.apiGwErrorMessage}}\n' +
         'Downstream: AdE\n',
     },
+
+    analysis: {
+      resolution:
+        'Chiusura - caso noto. Richiesta scaduta per timeout verso Agenzia Entrate durante verifica legale rappresentante.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      downstreams: [SEND_DOWNSTREAMS.ADE],
+    },
   },
   {
     id: 'apigw-504-ade-legal-timeout-no-service-logs',
@@ -92,6 +108,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Error: {{vars.apiGwErrorMessage}}\n' +
         'Downstream: AdE\n',
     },
+
+    analysis: {
+      resolution:
+        'Chiusura - caso noto. Timeout API Gateway durante verifica legale rappresentante verso Agenzia Entrate, senza log applicativi correlati nel servizio pn-national-registries.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      downstreams: [SEND_DOWNSTREAMS.ADE],
+    },
   },
   {
     id: 'downstream-infocamere-500-elenco-legale-rappresentante',
@@ -111,6 +135,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Risoluzione: Chiusura - caso noto. Scenario dipendente da problematica del downstream InfoCamere gia segnalata.\n' +
         'Downstream: InfoCamere\n',
     },
+
+    analysis: {
+      resolution: 'Chiusura - caso noto. Scenario dipendente da problematica del downstream InfoCamere gia segnalata.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      downstreams: [SEND_DOWNSTREAMS.INFOCAMERE],
+    },
   },
   {
     id: 'downstream-infocamere-500-authentication',
@@ -129,6 +160,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '[CASO NOTO] [DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error\n' +
         'Risoluzione: Chiusura - caso noto. Downstream InfoCamere in errore durante autenticazione.\n' +
         'Downstream: InfoCamere\n',
+    },
+
+    analysis: {
+      resolution: 'Chiusura - caso noto. Downstream InfoCamere in errore durante autenticazione.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      downstreams: [SEND_DOWNSTREAMS.INFOCAMERE],
     },
   },
   {
@@ -159,6 +197,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Error: {{vars.apiGwErrorMessage}}\n' +
         'Downstream: INAD/InfoCamere\n',
     },
+
+    analysis: {
+      resolution:
+        "Chiusura - caso noto. Allarme scattato a causa di richieste scadute per timeout di attesa dal richiedente, a sua volta dovuto agli elevati tempi di risposta da parte di INAD/InfoCamere (v. analisi dell'oncall-pn-national-registries-PNPG-ApiGwLatencyAlarm).",
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      downstreams: [SEND_DOWNSTREAMS.INAD, SEND_DOWNSTREAMS.INFOCAMERE],
+    },
   },
   {
     id: 'apigw-504-timeout',
@@ -181,6 +227,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       message:
         '[CASO NOTO] API Gateway 504 - Execution failed due to a timeout error\n' +
         'Risoluzione: Nessuna azione necessaria. Timeout transitorio dovuto a ritardo di risposta del backend verso API Gateway.\n',
+    },
+
+    analysis: {
+      resolution:
+        'Nessuna azione necessaria. Timeout transitorio dovuto a ritardo di risposta del backend verso API Gateway.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
     },
   },
 ];

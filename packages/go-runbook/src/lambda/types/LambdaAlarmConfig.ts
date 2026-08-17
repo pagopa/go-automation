@@ -1,4 +1,5 @@
 import type { RunbookMetadata } from '../../types/RunbookMetadata.js';
+import type { RunbookAnalysisDefaults } from '../../types/RunbookAnalysisDefaults.js';
 import type { KnownCase } from '../../types/KnownCase.js';
 import type { StepDescriptor } from '../../types/StepDescriptor.js';
 import type { CaseAction } from '../../actions/CaseAction.js';
@@ -28,6 +29,8 @@ export interface LambdaAlarmConfig {
   readonly downstreamErrorPatterns?: ReadonlyArray<DownstreamErrorPattern>;
   /** Known cases evaluated against the resulting context. */
   readonly knownCases: ReadonlyArray<KnownCase>;
+  /** Extra analysis references; the builder always prepends the primary resource. */
+  readonly analysisDefaults?: RunbookAnalysisDefaults;
   /** Custom steps inserted between the invocation query and the downstream loop. */
   readonly preSteps?: ReadonlyArray<StepDescriptor>;
   /**

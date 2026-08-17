@@ -9,7 +9,7 @@ import type {
   RunbookCheck,
   V2Status,
 } from '../types/RtaCheckReport.js';
-import { extractAnalysisEvidence, pickOccurrenceExcerpt } from './extractAnalysisEvidence.js';
+import { extractAnalysisEvidence, pickOccurrenceExcerpt } from '../evidence/extractAnalysisEvidence.js';
 import { matchAnalysis, type MatchAnalysisOptions } from './matchAnalysis.js';
 
 export interface MatchAnalysisAiOptions extends MatchAnalysisOptions {

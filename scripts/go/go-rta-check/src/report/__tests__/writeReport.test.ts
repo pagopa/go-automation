@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { RtaCheckRow } from '../../types/RtaCheckReport.js';
+import type { RtaCheckRow } from '@go-automation/go-watchtower-runbook';
 import { toHtmlRow } from '../writeReport.js';
 
 function rowWithAiExplanation(explanation: string): RtaCheckRow {

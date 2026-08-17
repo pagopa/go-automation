@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "kind": "KNOWN_CASE",
+  "proposedStatus": "COMPLETED",
+  "analysisType": "ANALYZABLE",
+  "conclusionNotes": "Errori 5xx transitori rientrati senza intervento.",
+  "errorDetails": "Timeout verso il downstream durante il picco.",
+  "runbookName": "SEND API Gateway analysis",
+  "resources": [{ "name": "pn-ss", "type": "LAMBDA", "role": "PRIMARY" }],
+  "downstreams": ["SPID"],
+  "finalActions": ["Nessuna azione"],
+  "links": [{ "url": "https://example.test/runbook", "name": "Runbook", "type": "RUNBOOK" }]
+}

@@ -8,6 +8,8 @@ import {
 } from '@go-automation/go-execute-runbook-contracts';
 
 import type { Runbook } from '../types/Runbook.js';
+import type { RunbookProduct } from '../types/RunbookProduct.js';
+import { assertAnalysisAnnotations } from '../validation/assertAnalysisAnnotations.js';
 import { assertCloudExecutableRunbook } from '../validation/assertCloudExecutableRunbook.js';
 
 // api gateway
@@ -52,6 +54,8 @@ export type RunbookBuilderFn = () => Runbook;
 
 export interface AutomaticRunbookRegistration {
   readonly key: string;
+  /** Watchtower product owning the alarms; selects the downstream catalog (§5.1.2). */
+  readonly product: RunbookProduct;
   readonly alarmNames: readonly [string, ...string[]];
   readonly kind: AutomaticRunbookKind;
   readonly categories: readonly [string, ...string[]];
@@ -60,6 +64,7 @@ export interface AutomaticRunbookRegistration {
 
 export interface ResolvedAutomaticRunbook {
   readonly descriptor: AutomaticRunbookDescriptorV1;
+  readonly product: RunbookProduct;
   readonly build: RunbookBuilderFn;
 }
 
@@ -71,7 +76,7 @@ export class AutomaticRunbookRegistry {
   constructor(registrations: ReadonlyArray<AutomaticRunbookRegistration>) {
     for (const registration of registrations) {
       const descriptor = descriptorFrom(registration);
-      const resolved = { descriptor, build: registration.build };
+      const resolved = { descriptor, product: registration.product, build: registration.build };
       if (this.byKey.has(descriptor.key)) throw new Error(`Duplicate automatic runbook key: ${descriptor.key}`);
       this.byKey.set(descriptor.key, resolved);
       for (const alarmName of descriptor.alarmNames) {
@@ -98,9 +103,11 @@ export class AutomaticRunbookRegistry {
     for (const resolved of this.byKey.values()) {
       const runbook = resolved.build();
       assertCloudExecutableRunbook(runbook);
+      assertAnalysisAnnotations(runbook, resolved.product);
       const rebuilt = descriptorFrom(
         {
           key: resolved.descriptor.key,
+          product: resolved.product,
           alarmNames: resolved.descriptor.alarmNames,
           kind: resolved.descriptor.kind,
           categories: resolved.descriptor.categories as readonly [string, ...string[]],
@@ -116,60 +123,69 @@ export class AutomaticRunbookRegistry {
 }
 
 const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
-  registration('pn-address-book-io-IO-ApiGwAlarm', 'APIGW', ['DELIVERY'], buildAddressBookIoApiGwAlarmRunbook),
-  registration('pn-delivery-B2B-ApiGwAlarm', 'APIGW', ['DELIVERY'], buildDeliveryB2BApiGwAlarmRunbook),
-  registration('pn-delivery-IO_EXP-ApiGwAlarm', 'APIGW', ['DELIVERY'], buildDeliveryIoExpApiGwAlarmRunbook),
-  registration('pn-delivery-push-B2B-ApiGwAlarm', 'APIGW', ['DELIVERY'], buildDeliveryPushB2BApiGwAlarmRunbook),
+  registration('pn-address-book-io-IO-ApiGwAlarm', 'SEND', 'APIGW', ['DELIVERY'], buildAddressBookIoApiGwAlarmRunbook),
+  registration('pn-delivery-B2B-ApiGwAlarm', 'SEND', 'APIGW', ['DELIVERY'], buildDeliveryB2BApiGwAlarmRunbook),
+  registration('pn-delivery-IO_EXP-ApiGwAlarm', 'SEND', 'APIGW', ['DELIVERY'], buildDeliveryIoExpApiGwAlarmRunbook),
+  registration('pn-delivery-push-B2B-ApiGwAlarm', 'SEND', 'APIGW', ['DELIVERY'], buildDeliveryPushB2BApiGwAlarmRunbook),
   registration(
     'pn-national-registries-PNPG-ApiGwAlarm',
+    'SEND',
     'APIGW',
     ['INTEGRATION'],
     buildNationalRegistriesPNPGApiGwAlarmRunbook,
   ),
   registration(
     'pn-ioAuthorizerLambda-LogInvocationErrors-Alarm',
+    'SEND',
     'LAMBDA',
     ['AUTHORIZATION'],
     buildIoAuthorizerLambdaRunbook,
   ),
   registration(
     'pn-tokenExchangeLambda-LogInvocationErrors-Alarm',
+    'SEND',
     'LAMBDA',
     ['AUTHORIZATION', 'INTEGRATION'],
     buildTokenExchangeLambdaRunbook,
   ),
   registration(
     'pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm',
+    'SEND',
     'LAMBDA',
     ['DELIVERY'],
     buildSlaViolationCheckerLambdaSqsRunbook,
   ),
   registration(
     'pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm',
+    'SEND',
     'LAMBDA',
     ['AUTHORIZATION'],
     buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook,
   ),
   registration(
     'pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm',
+    'SEND',
     'LAMBDA',
     ['AUTHORIZATION'],
     buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook,
   ),
   registration(
     'pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm',
+    'SEND',
     'LAMBDA',
     ['DELIVERY'],
     buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook,
   ),
   registration(
     'workday-pn-external-channel-alb-alarm',
+    'SEND',
     'SERVICE',
     ['DELIVERY'],
     buildWorkdayPnExternalChannelAlbAlarmRunbook,
   ),
   registration(
     INTEROP_BFF_RUNBOOK_KEY,
+    'INTEROP',
     'SERVICE',
     ['INTEROP'],
     buildK8sInteropBeBackendForFrontendErrorsRunbook,
@@ -177,6 +193,7 @@ const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
   ),
   registration(
     INTEROP_NOTIFICATION_USER_LIFECYCLE_RUNBOOK_KEY,
+    'INTEROP',
     'SERVICE',
     ['INTEROP'],
     buildK8sInteropBeNotificationUserLifecycleConsumerErrorsRunbook,
@@ -184,6 +201,7 @@ const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
   ),
   registration(
     INTEROP_PUBLIC_CATALOG_RUNBOOK_KEY,
+    'INTEROP',
     'SERVICE',
     ['INTEROP'],
     buildK8sInteropPublicCatalogAstroFrontendErrorsRunbook,
@@ -191,6 +209,7 @@ const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
   ),
   registration(
     INTEROP_SELFCARE_USERS_UPDATER_RUNBOOK_KEY,
+    'INTEROP',
     'SERVICE',
     ['INTEROP'],
     buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook,
@@ -224,12 +243,13 @@ export function validateCloudRunbookRegistry(registry: ReadonlyMap<string, Runbo
 /** Builds a registration; alarmNames defaults to the runbook key for the common one-alarm case. */
 function registration(
   key: string,
+  product: RunbookProduct,
   kind: AutomaticRunbookKind,
   categories: readonly [string, ...string[]],
   build: RunbookBuilderFn,
   alarmNames?: readonly [string, ...string[]],
 ): AutomaticRunbookRegistration {
-  return { key, alarmNames: alarmNames ?? [key], kind, categories, build };
+  return { key, product, alarmNames: alarmNames ?? [key], kind, categories, build };
 }
 
 function descriptorFrom(

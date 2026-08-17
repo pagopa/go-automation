@@ -2,7 +2,7 @@ import type { RunbookOutput } from '@go-automation/go-runbook';
 
 import type { AlarmAnalysisDto } from '@go-automation/go-watchtower-client';
 import type { AnalysisMatch, AnalysisMatchSignals, RunbookCheck, V2Status } from '../types/RtaCheckReport.js';
-import { extractAnalysisEvidence, pickOccurrenceExcerpt } from './extractAnalysisEvidence.js';
+import { extractAnalysisEvidence, pickOccurrenceExcerpt } from '../evidence/extractAnalysisEvidence.js';
 import { matchedKeywordCategories } from './synonyms.js';
 import { normalize, tokenDice } from './text.js';
 

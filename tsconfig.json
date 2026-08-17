@@ -19,6 +19,7 @@
     { "path": "./packages/go-runbook" },
     { "path": "./packages/go-send" },
     { "path": "./packages/go-watchtower-client" },
+    { "path": "./packages/go-watchtower-runbook" },
     { "path": "./scripts/aws/aws-check-ecs" },
     { "path": "./scripts/aws/aws-delete-sqs" },
     { "path": "./scripts/aws/aws-dump-sqs" },

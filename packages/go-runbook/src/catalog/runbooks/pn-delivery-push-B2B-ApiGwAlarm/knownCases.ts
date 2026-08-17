@@ -3,6 +3,7 @@
  */
 
 import type { KnownCase } from '../framework.js';
+import { SEND_DOWNSTREAMS } from '../framework.js';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   {
@@ -27,6 +28,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '[CASO NOTO] File not found from safeStorage fileKey=<filekey>\n' +
         'Risoluzione: Chiusura - caso noto. Verificare se la fileKey e il documento sono presenti sul bucket SafeStorage; se la richiesta risulta anticipata, monitorare i cxId rumorosi o nuovi.\n' +
         'Downstream: SafeStorage\n',
+    },
+
+    analysis: {
+      resolution:
+        'Chiusura - caso noto. Verificare se la fileKey e il documento sono presenti sul bucket SafeStorage; se la richiesta risulta anticipata, monitorare i cxId rumorosi o nuovi.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      resources: [{ name: 'pn-ss' }],
     },
   },
   {
@@ -56,6 +65,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Risoluzione: Chiusura - caso noto. Richiesta di restore del documento duplicata.\n' +
         'Downstream: SafeStorage/S3\n',
     },
+
+    analysis: {
+      resolution: 'Chiusura - caso noto. Richiesta di restore del documento duplicata.',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      resources: [{ name: 'pn-ss' }],
+    },
   },
   {
     id: 'downstream-selfcarepg-503-service-unavailable',
@@ -84,6 +100,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         "Risoluzione: Chiusura - caso noto. Se l'errore si protrae nel tempo, contattare i riferimenti del downstream Selfcare.\n" +
         'Downstream: Selfcare\n',
     },
+
+    analysis: {
+      resolution:
+        "Chiusura - caso noto. Se l'errore si protrae nel tempo, contattare i riferimenti del downstream Selfcare.",
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      downstreams: [SEND_DOWNSTREAMS.SELFCARE],
+    },
   },
   {
     id: 'exception-in-call-getfile-pn-external-legal-facts',
@@ -107,6 +131,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '[CASO NOTO] Exception in call getFile fileKey=PN_EXTERNAL_LEGAL_FACTS\n' +
         "Risoluzione: Chiusura - caso noto. Errore probabilmente legato a indisponibilità di SelfcarePG, verificare se il caso è correlato al precedente 'downstream-selfcarepg-503-service-unavailable'.\n" +
         'Downstream: Safe Storage\n',
+    },
+
+    analysis: {
+      resolution:
+        "Chiusura - caso noto. Errore probabilmente legato a indisponibilità di SelfcarePG, verificare se il caso è correlato al precedente 'downstream-selfcarepg-503-service-unavailable'.",
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      resources: [{ name: 'pn-ss' }],
     },
   },
 ];

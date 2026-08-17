@@ -1,6 +1,7 @@
 import type { CaseAction } from '../../actions/CaseAction.js';
 import type { KnownCase } from '../../types/KnownCase.js';
 import type { RunbookMetadata } from '../../types/RunbookMetadata.js';
+import type { RunbookAnalysisDefaults } from '../../types/RunbookAnalysisDefaults.js';
 import type { StepDescriptor } from '../../types/StepDescriptor.js';
 import type { ServiceLogQueryProfile } from '../profiles/ServiceLogQueryProfile.js';
 import type { ServiceDescriptor } from './ServiceDescriptor.js';
@@ -22,6 +23,8 @@ export interface ServiceAlarmConfig {
   readonly service: ServiceDescriptor;
   /** Casi noti valutati contro il contesto risultante. */
   readonly knownCases: ReadonlyArray<KnownCase>;
+  /** Extra analysis references; the builder always prepends the primary resource. */
+  readonly analysisDefaults?: RunbookAnalysisDefaults;
   /** Step custom inseriti dopo l'analisi dei log errore e prima della query trace. */
   readonly preSteps?: ReadonlyArray<StepDescriptor>;
   /**

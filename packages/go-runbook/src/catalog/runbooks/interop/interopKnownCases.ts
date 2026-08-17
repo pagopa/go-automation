@@ -3,7 +3,7 @@
  * application-logs query and the CID tracker query of a runbook, and log
  * actions rendered with the runbook's INTEROP context vars.
  */
-import type { CaseAction, Condition, KnownCase } from '../framework.js';
+import type { AnalysisLinkRef, CaseAction, Condition, InteropDownstream, KnownCase } from '../framework.js';
 
 /** Per-runbook references needed to build INTEROP known cases. */
 export interface InteropKnownCaseRefs {
@@ -19,6 +19,15 @@ export interface InteropKnownCaseConfig {
   readonly priority: number;
   readonly regex: string;
   readonly resolution: string;
+  /** Proposed state: the apply persists IN_PROGRESS, a CONFIRMED review promotes it. */
+  readonly proposedStatus: 'IN_PROGRESS' | 'COMPLETED';
+  readonly analysisType: 'ANALYZABLE' | 'IGNORABLE';
+  readonly ignoreReasonCode?: string;
+  readonly errorDetails?: string;
+  /** Declared only through `INTEROP_DOWNSTREAMS`, never as raw strings. */
+  readonly downstreams?: ReadonlyArray<InteropDownstream>;
+  readonly finalActions?: ReadonlyArray<string>;
+  readonly links?: ReadonlyArray<AnalysisLinkRef>;
 }
 
 /**
@@ -36,6 +45,16 @@ export function interopKnownCase(refs: InteropKnownCaseRefs, config: InteropKnow
     priority: config.priority,
     condition: anyInteropEvidenceMatches(refs, config.regex),
     action: interopKnownCaseAction(refs, config.description, config.resolution),
+    analysis: {
+      resolution: config.resolution,
+      proposedStatus: config.proposedStatus,
+      analysisType: config.analysisType,
+      ...(config.ignoreReasonCode === undefined ? {} : { ignoreReasonCode: config.ignoreReasonCode }),
+      ...(config.errorDetails === undefined ? {} : { errorDetails: config.errorDetails }),
+      ...(config.downstreams === undefined ? {} : { downstreams: config.downstreams }),
+      ...(config.finalActions === undefined ? {} : { finalActions: config.finalActions }),
+      ...(config.links === undefined ? {} : { links: config.links }),
+    },
   };
 }
 

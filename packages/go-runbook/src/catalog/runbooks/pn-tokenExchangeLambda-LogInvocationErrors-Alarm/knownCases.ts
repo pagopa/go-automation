@@ -31,6 +31,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'requestId: {{vars.lambdaRequestId}}\n' +
         'Risoluzione: TBD - vedi thread Slack del 20/04/2026.\n',
     },
+
+    analysis: {
+      resolution: 'TBD - vedi thread Slack del 20/04/2026.',
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+    },
   },
   {
     id: 'emd-get-retrieval-id-ko',
@@ -52,6 +58,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'requestId: {{vars.lambdaRequestId}}\n' +
         'Risoluzione: nessuna azione - il servizio non è ancora abilitato ([Service disabled]).\n',
     },
+
+    analysis: {
+      resolution: 'nessuna azione - il servizio non è ancora abilitato ([Service disabled]).',
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+    },
   },
   {
     id: 'emd-get-retrieval-payload-ko',
@@ -72,6 +84,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '[CASO NOTO] [DOWNSTREAM pn-emd-integration] Ending process _tokenCheckTPP: Error getting retrieval payload (HTTP 404)\n' +
         'requestId: {{vars.lambdaRequestId}}\n' +
         'Risoluzione: nessuna azione - servizio non ancora in funzione ([Service disabled]). Da confermare.\n',
+    },
+
+    analysis: {
+      resolution: 'nessuna azione - servizio non ancora in funzione ([Service disabled]). Da confermare.',
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
     },
   },
 ];
