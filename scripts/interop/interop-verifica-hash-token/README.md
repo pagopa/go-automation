@@ -115,7 +115,7 @@ test:
 Dalla root del monorepo, lanciare lo script utilizzando il preset configurato:
 
 ```bash
-pnpm interop:verifica:hash:token:dev -- --script-preset-name test --aws-profile <tuo-profilo-aws>
+pnpm interop:verifica:hash:token:dev --script-preset-name test --aws-profile <tuo-profilo-aws>
 ```
 
 Oppure specificando i singoli parametri manualmente via CLI:
