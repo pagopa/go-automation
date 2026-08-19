@@ -104,25 +104,111 @@ pnpm go:rta:check -- \
 
 Parametri principali:
 
-| Flag                          | Default            | Significato                                                                 |
-| ----------------------------- | ------------------ | --------------------------------------------------------------------------- |
-| `--analysis-matcher`          | `ai`               | `ai` oppure `lexical`                                                       |
-| `--concurrency`               | `1`                | Numero di occorrenze/runbook processati in parallelo                        |
-| `--output-format`             | `all`              | Artifact da scrivere: `json`, `md` o `all`                                  |
-| `--go-ai-semantic-threshold`  | `70`               | Soglia 0..100 per considerare equivalente lo score GO-AI                    |
-| `--go-ai-fallback-to-lexical` | `true`             | Se GO-AI fallisce, usa il matcher lessicale invece di marcare `NO_EVIDENCE` |
-| `--aws-region`                | `eu-south-1`       | Regione AWS standard per credenziali/profili                                |
-| `--aws-profile`               | `sso_pn-analytics` | Profilo AWS standard usato da GO-AI/Bedrock                                 |
+| Flag                          | Default            | Significato                                                                                  |
+| ----------------------------- | ------------------ | -------------------------------------------------------------------------------------------- |
+| `--targets`                   | _(nessuno)_        | Scope prodotto→ambienti della selezione (vedi [Scope dei target](#scope-dei-target-targets)) |
+| `--non-interactive`           | `false`            | Disattiva ogni prompt (vedi [Modalità non interattiva](#modalità-non-interattiva-ci))        |
+| `--product-id`                | _(interattivo)_    | Fissa il prodotto e salta il primo passo                                                     |
+| `--environment-id`            | _(interattivo)_    | Fissa l'ambiente e salta il secondo passo                                                    |
+| `--alarm-name`                | _(interattivo)_    | Fissa il runbook e salta il terzo passo                                                      |
+| `--analysis-matcher`          | `ai`               | `ai` oppure `lexical`                                                                        |
+| `--concurrency`               | `1`                | Numero di occorrenze/runbook processati in parallelo                                         |
+| `--output-format`             | `all`              | Artifact da scrivere: `json`, `md` o `all`                                                   |
+| `--go-ai-semantic-threshold`  | `70`               | Soglia 0..100 per considerare equivalente lo score GO-AI                                     |
+| `--go-ai-fallback-to-lexical` | `true`             | Se GO-AI fallisce, usa il matcher lessicale invece di marcare `NO_EVIDENCE`                  |
+| `--aws-region`                | `eu-south-1`       | Regione AWS standard per credenziali/profili                                                 |
+| `--aws-profile`               | `sso_pn-analytics` | Profilo AWS standard usato da GO-AI/Bedrock                                                  |
+
+### Scope dei target (`targets`)
+
+`targets` delimita **cosa puoi selezionare**: un'entry per prodotto, con i propri ambienti (gli ambienti appartengono al prodotto, quindi vivono dentro l'entry). Se `targets` è omesso non c'è nessun vincolo: vengono offerti tutti i prodotti leggibili con le credenziali Watchtower.
+
+In `config.json` si usa la forma a oggetti:
+
+```json
+{
+  "targets": [
+    { "productId": "<uuid-send>", "environmentIds": ["<uuid-prod>", "<uuid-uat>"] },
+    { "productId": "<uuid-interop>", "environmentIds": [] }
+  ]
+}
+```
+
+`environmentIds` vuoto (o assente) = **nessuna restrizione** su quel prodotto: tutti i suoi ambienti restano selezionabili.
+
+Da CLI serve una forma compatta, perché il parser degli array splitta sulle virgole: `productId:envId1|envId2` (il separatore degli ambienti è `|`).
+
+```bash
+--targets "<uuid-send>:<uuid-prod>|<uuid-uat>" --targets "<uuid-interop>"
+```
+
+Voci ripetute per lo stesso prodotto vengono unite (con dedup, ordine di dichiarazione preservato); un prodotto dichiarato **almeno una volta senza ambienti** resta senza restrizioni. Gli id inesistenti su Watchtower vengono segnalati con un warning e ignorati; se però **tutti** gli ambienti configurati per il prodotto scelto sono sconosciuti, il run **si ferma** invece di ripiegare su "tutti gli ambienti": uno scope invalido non deve mai allargare l'esecuzione.
+
+#### `targets` è un confine, non un suggerimento
+
+Lo scope vale anche per i valori fissati da flag: `--product-id` e `--environment-id` sono risolti **dentro** `targets`, non prima. Un valore fuori dal confine è un errore, non un override silenzioso.
+
+| Caso                                                   | Esito         |
+| ------------------------------------------------------ | ------------- |
+| `--product-id` fuori da `targets`                      | errore + stop |
+| `--environment-id` fuori da `targets`                  | errore + stop |
+| `--environment-id` di un altro prodotto, o inesistente | errore + stop |
+| `--alarm-name` assente dal prodotto o senza runbook    | errore + stop |
+
+L'ultima riga vale da sempre; le altre chiudono un buco per cui un flag poteva far uscire il run dal confine configurato. In particolare un `--environment-id` non appartenente al prodotto veniva accettato e produceva zero occorrenze senza spiegazione.
+
+Per uscire dal confine si **ridefinisce il confine**, esplicitamente: `--targets` da CLI **sostituisce** il valore di `config.json` (la CLI ha priorità più alta), quindi un test estemporaneo su un altro prodotto si scrive così:
+
+```bash
+pnpm go:rta:check -- --targets "<uuid-altro-prodotto>" --product-id "<uuid-altro-prodotto>" …
+```
+
+### Selezione interattiva: prodotto → ambiente → runbook
+
+Quando prodotto, ambiente o allarme non sono fissati da flag, lo script guida una selezione in tre passi, con i **nomi risolti** da Watchtower:
+
+1. **Prodotto** — solo quelli nello scope di `targets`. Se ne resta uno solo viene scelto senza chiedere.
+2. **Ambiente** — solo quelli del prodotto e nello scope, più la voce `Tutti gli ambienti (n)`.
+3. **Runbook** — solo gli allarmi che hanno un runbook locale nel registry, **ordinati per occorrenze reali nell'ambiente scelto**.
+
+Ogni passo (dal secondo in poi) offre `← Indietro` per tornare alla scelta precedente; la voce non compare quando non c'è nessun passo interattivo a cui tornare. Le letture Watchtower sono memoizzate, quindi tornare indietro non ripaga le stesse chiamate.
+
+**Perché il conteggio delle occorrenze e non un filtro sui nomi.** I runbook non sono omogenei: quelli INTEROP portano l'ambiente nel nome dell'allarme (`…-prod-…`, `…-att-…`), quelli SEND hanno un solo nome valido per **tutti** gli ambienti. Dedurre l'ambiente dal nome è inaffidabile (per esempio `k8s-interop-public-catalog-…-prod-public-catalog` appartiene all'ambiente _Catalog_, non a Produzione), quindi l'associazione allarme↔ambiente è presa dai dati: per ogni allarme testabile lo script chiede a Watchtower il numero di occorrenze **nell'ambiente selezionato** (una richiesta paginata `pageSize=1`, si legge solo `totalItems`, in parallelo con concorrenza limitata).
+
+Il risultato ordina la lista: prima i runbook che sono scattati (più occorrenze in cima), poi quelli con conteggio non disponibile. I runbook **senza occorrenze non vengono eliminati** — un runbook SEND resta valido anche in una finestra vuota — ma sono raccolti dietro la voce `▸ Mostra anche i N runbook senza occorrenze`. Se nessun runbook ha occorrenze, il catalogo completo viene mostrato subito con un warning.
+
+Selezionando `Tutti gli ambienti`: se lo scope del prodotto è aperto non viene applicato alcun filtro; se `targets` lo restringe, il filtro è la lista degli ambienti in scope (che vale sia per il conteggio sia per l'esecuzione).
+
+### Modalità non interattiva (CI)
+
+Il wizard **non chiede mai** quando vale una di queste condizioni:
+
+- `--non-interactive` (alias `-ni`) — l'unico interruttore esplicito e affidabile;
+- **stdin non è un TTY** — nessuna risposta potrebbe mai arrivare;
+- `--alarm-name` **e** `--date-from` entrambi presenti — la convenzione flag-driven storica, preservata per non rompere le invocazioni esistenti.
+
+In quella modalità i tre passi si comportano così:
+
+| Passo    | Se non è fissato da flag                                                            |
+| -------- | ----------------------------------------------------------------------------------- |
+| Prodotto | **Errore + stop**: passa `--product-id` o restringi `targets` a un solo prodotto    |
+| Ambiente | **Tutti**: nessun filtro se lo scope è aperto, tutti quelli in scope se è ristretto |
+| Runbook  | **Errore + stop**: passa `--alarm-name`                                             |
+
+L'asimmetria è voluta: l'ambiente omesso ha un default documentato ("tutti"), prodotto e runbook no — e in CI fallire con un messaggio è sempre meglio che restare appesi a un prompt.
+
+Lo stesso vale per le domande che seguono la selezione: `--date-from` / `--date-to` omessi valgono "nessun limite" senza chiedere, e la conferma prima dell'esecuzione è implicita (era già così con la convenzione flag-driven).
 
 ## Utilizzo
 
-Interattiva (selezione prodotto/allarme/periodo):
+Interattiva (selezione prodotto/ambiente/runbook/periodo):
 
 ```bash
 pnpm go:rta:check -- \
   --watchtower-url "$WATCHTOWER_BASE_URL" \
   --aws-profiles "sso_pn-core-prod_readonly"
 # email/password: --watchtower-email / --watchtower-password, env (gestita da GOScript) o prompt
+# lo scope dei prodotti/ambienti proposti arriva da `targets` (config.json o --targets)
 ```
 
 Non interattiva / CI:
@@ -130,6 +216,7 @@ Non interattiva / CI:
 ```bash
 pnpm go:rta:check -- \
   --watchtower-url "$WATCHTOWER_BASE_URL" \
+  --non-interactive \
   --product-id "<uuid>" \
   --environment-id "<uuid>" \
   --alarm-name "pn-...-LogInvocationErrors-Alarm" \
@@ -185,7 +272,8 @@ Per non ripagare ogni volta le query CloudWatch, l'esito del **runbook (V1)** di
 
 - **Auth**: usa la login esistente di Watchtower (`POST /auth/login` → bearer; re-login su 401). Nessuna modifica a Watchtower.
 - **Base URL**: indica la **root** del backend (es. `https://…/bff`); `/auth/*` e `/api/*` sono fratelli sotto la root. Un eventuale `/api` finale viene rimosso automaticamente, quindi anche `https://…/bff/api` funziona.
-- **Ambiente**: opzionale. Con `--environment-id` (o selezione interattiva) filtri le occorrenze di quell'ambiente; **se omesso** vengono analizzati tutti gli ambienti del prodotto. In modalità non interattiva (flag-driven) l'omissione = tutti, senza prompt.
+- **Ambiente**: opzionale. Con `--environment-id` (o selezione interattiva) filtri le occorrenze di quell'ambiente; **se omesso** vengono analizzati tutti gli ambienti del prodotto — o, se `targets` restringe il prodotto, tutti quelli in scope. In [modalità non interattiva](#modalità-non-interattiva-ci) l'omissione = tutti, senza prompt.
+- **Scope e selezione**: `targets` è il confine operativo, e vale anche per i flag: `--product-id` / `--environment-id` vengono risolti al suo interno e falliscono se ne escono; `--alarm-name` deve esistere nel prodotto e avere un runbook locale. Ogni valore fissato salta il passo corrispondente del wizard. Dettagli in [Scope dei target](#scope-dei-target-targets) e [Selezione interattiva](#selezione-interattiva-prodotto--ambiente--runbook).
 - **Resume / cache**: i risultati per occorrenza sono cache-ati; `--force` riesegue e sovrascrive. Dettagli, motivazioni e trabocchetti nella sezione [Cache (resume)](#cache-resume).
 - **Output**: `data/go-rta-check/outputs/<run>/` con `results.json`, `summary.json`, `report.html`.
 - La V2 è **assistita** (mai un verdetto secco): mostra sempre i segnali e va validata a mano.

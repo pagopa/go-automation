@@ -16,16 +16,17 @@ import type { GoRtaCheckConfig } from './types/GoRtaCheckConfig.js';
 import { renderPreview, renderSummary } from './report/renderConsole.js';
 import { writeReport } from './report/writeReport.js';
 import { resolveClient } from './libs/resolveClient.js';
-import { resolveProductAlarm } from './libs/resolveProductAlarm.js';
-import { resolveEnvironment } from './libs/resolveEnvironment.js';
+import { allowsPrompt } from './libs/allowsPrompt.js';
+import { selectTarget } from './libs/selectTarget.js';
 import { formatAnalysisMatcherLabel } from './libs/resolveAnalysisMatcher.js';
 import { buildCheckContext } from './libs/buildCheckContext.js';
 import { buildRtaCheckInput } from './libs/buildRtaCheckInput.js';
 import { runOccurrences } from './libs/runOccurrences.js';
 import { resolveRunOptions } from './libs/resolveRunOptions.js';
 
-import { confirmRun, resolvePeriod } from './libs/promptInputs.js';
+import { resolvePeriod } from './libs/promptInputs.js';
 import { alarmEventsQuery, applyLimit, hasAwsProfiles, resolveFormats } from './libs/runHelpers.js';
+import { shouldExecute } from './libs/shouldExecute.js';
 import { runCoverageMode } from './libs/runCoverageMode.js';
 import { runReadinessMode } from './libs/runReadinessMode.js';
 import { resolveProcessExitCode } from './libs/resolveProcessExitCode.js';
@@ -54,15 +55,18 @@ export async function main(script: Core.GOScript): Promise<void> {
   const connection = await resolveClient(script, config);
   if (connection === undefined) return;
 
-  const target = await resolveProductAlarm(script, connection.client, config);
-  if (target === undefined) return;
-  const flagDriven = config.alarmName !== undefined && config.dateFrom !== undefined;
-  const environment = await resolveEnvironment(script, connection.client, target.productId, config, !flagDriven);
+  const allowPrompt = allowsPrompt(config, process.stdin.isTTY === true);
+  const selection = await selectTarget(script, connection.client, config, allowPrompt);
+  if (selection === undefined) {
+    logger.warning('Nessun runbook selezionato: operazione annullata.');
+    return;
+  }
+  const { target, environment } = selection;
 
-  const { dateFrom, dateTo } = await resolvePeriod(script, config);
+  const { dateFrom, dateTo } = await resolvePeriod(script, config, allowPrompt);
   logger.info('Recupero occorrenze da Watchtower …');
   const events = await connection.client.listAlarmEvents(
-    alarmEventsQuery(target.alarm.id, environment.environmentId, dateFrom, dateTo),
+    alarmEventsQuery(target.alarm.id, environment.environmentIds, dateFrom, dateTo),
   );
   const occurrences = applyLimit(events, config.limit);
 
@@ -78,18 +82,8 @@ export async function main(script: Core.GOScript): Promise<void> {
   });
   logger.info(`Verifica V2: ${formatAnalysisMatcherLabel(analysisMatcher)}`);
 
-  if (events.length === 0) {
-    logger.warning('Nessuna occorrenza nel periodo selezionato.');
-    return;
-  }
-  if (config.dryRun === true) {
-    logger.success('Dry-run: nessuna esecuzione runbook. Fine.');
-    return;
-  }
-  if (!(await confirmRun(script, config, occurrences.length))) {
-    logger.warning('Operazione annullata.');
-    return;
-  }
+  const gate = { script, config, totalEvents: events.length, occurrences: occurrences.length, allowPrompt };
+  if (!(await shouldExecute(gate))) return;
   if (!hasAwsProfiles(config.awsProfiles)) {
     logger.error('Profili AWS mancanti: passa --aws-profiles per eseguire i runbook.');
     return;

@@ -1,9 +1,9 @@
 import type { RtaCheckInput } from '@go-automation/go-watchtower-runbook';
 
+import type { ProductAlarm } from '../types/ProductAlarm.js';
+import type { ResolvedEnvironment } from '../types/ResolvedEnvironment.js';
 import type { Connection } from './resolveClient.js';
-import type { ProductAlarm } from './resolveProductAlarm.js';
 import type { ResolvedAnalysisMatcher } from './resolveAnalysisMatcher.js';
-import type { ResolvedEnvironment } from './resolveEnvironment.js';
 
 export interface BuildRtaCheckInputOptions {
   readonly connection: Connection;
