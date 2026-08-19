@@ -739,13 +739,7 @@ importers:
       '@go-automation/go-common':
         specifier: workspace:*
         version: link:../../../packages/go-common
-      luxon:
-        specifier: 'catalog:'
-        version: 3.7.2
     devDependencies:
-      '@types/luxon':
-        specifier: 'catalog:'
-        version: 3.7.4
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3
@@ -861,16 +855,10 @@ importers:
       croner:
         specifier: 'catalog:'
         version: 10.0.1
-      luxon:
-        specifier: 'catalog:'
-        version: 3.7.2
       yaml:
         specifier: 'catalog:'
         version: 2.9.0
     devDependencies:
-      '@types/luxon':
-        specifier: 'catalog:'
-        version: 3.7.4
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3

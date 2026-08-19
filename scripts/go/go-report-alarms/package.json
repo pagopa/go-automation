@@ -30,11 +30,9 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@go-automation/go-common": "workspace:*",
-    "luxon": "catalog:"
+    "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {
-    "@types/luxon": "catalog:",
     "@types/node": "catalog:"
   }
 }

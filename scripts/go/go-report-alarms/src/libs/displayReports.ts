@@ -10,7 +10,6 @@ import type { GoReportAlarmsConfig } from '../types/GoReportAlarmsConfig.js';
 import type { MultiProfileQueryResult } from '../types/MultiProfileQueryResult.js';
 
 import { AlarmAnalyzer } from './AlarmAnalyzer.js';
-import { googleSheetTimestamp } from './DateUtils.js';
 
 /**
  * Display multi-profile query summary.
@@ -116,12 +115,12 @@ export function displayDetailedTimeline(
       const last = entry.timestamps[0];
       const first = entry.timestamps[entry.timestamps.length - 1];
       if (first && last) {
-        script.logger.text(` - Last:  ${last.toISOString()} - (${googleSheetTimestamp(last)})`);
-        script.logger.text(` - First: ${first.toISOString()} - (${googleSheetTimestamp(first)})`);
+        script.logger.text(` - Last:  ${last.toISOString()} - (${Core.formatUtcDateTime(last)})`);
+        script.logger.text(` - First: ${first.toISOString()} - (${Core.formatUtcDateTime(first)})`);
       }
     } else {
       for (const timestamp of entry.timestamps) {
-        script.logger.text(`  - ${timestamp.toISOString()} - (${googleSheetTimestamp(timestamp)})`);
+        script.logger.text(`  - ${timestamp.toISOString()} - (${Core.formatUtcDateTime(timestamp)})`);
       }
     }
     script.logger.newline();

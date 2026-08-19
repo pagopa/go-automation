@@ -41,11 +41,9 @@
     "@aws-sdk/credential-provider-ini": "catalog:",
     "@go-automation/go-common": "workspace:*",
     "croner": "catalog:",
-    "luxon": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {
-    "@types/luxon": "catalog:",
     "@types/node": "catalog:"
   }
 }
