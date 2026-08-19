@@ -35,6 +35,44 @@ Per ogni occorrenza esegue **due verifiche**:
 
 Vedi `docs/evolutions/EVO-RTACHECK-OPUS-02.md` per il design completo.
 
+## Modalità
+
+`--mode` sceglie cosa esegue lo script: le tre modalità rispondono a domande diverse.
+
+| Mode                 | Cosa fa                                                                                                                                      | AWS                           |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `analyses` (default) | Il confronto esecuzioni ↔ analisi descritto sopra: esegue i runbook sulle occorrenze e classifica V1/V2.                                     | Sì (profili `--aws-profiles`) |
+| `coverage`           | Confronta i riferimenti **dichiarati** dai runbook con il censimento Watchtower del prodotto. Sola lettura, scrive un artifact di copertura. | No                            |
+| `readiness`          | Gate di attivazione di `APPLY_KNOWN`: unisce la copertura statica allo **shadow osservato**. Sola lettura, output solo a console.            | No                            |
+
+`readiness` passa solo se reggono **entrambe** le condizioni: copertura statica senza riferimenti mancanti **e**, nella finestra osservata, ogni known case valutato con `wouldApplyStatus = APPLIED`. Zero capability valutate non è un via libera: è assenza di evidenza, e l'esito resta negativo.
+
+### Finestra dello shadow
+
+`--readiness-window-days <n>` imposta quanti giorni indietro guardare per le valutazioni shadow: **default 14**. Vale solo con `--mode readiness`, nelle altre modalità è ignorato. Una finestra troppo corta rischia di non aver ancora incontrato i casi che contano (e l'esito diventa "assenza di evidenza"), una troppo lunga include comportamenti di versioni superate del runbook.
+
+### Exit code e `--exit-code-on-findings`
+
+`coverage` e `readiness` producono un **verdetto**, non solo un log:
+
+| Exit code | Significato                                                                       |
+| --------- | --------------------------------------------------------------------------------- |
+| `0`       | Conforme (copertura completa / `APPLY_KNOWN` attivabile).                         |
+| `1`       | Verdetto negativo: **ho misurato** e non va bene.                                 |
+| `2`       | Non eseguibile: **non ho potuto misurare** (config, credenziali, rete, risposta). |
+
+Di default il verdetto negativo **non** esce dal processo: da terminale un exit code diverso da zero fa dire a pnpm che il comando è fallito, subito dopo che lo script ha stampato il proprio esito. `--exit-code-on-findings` propaga il verdetto (`1`) ed è quello che serve in CI per fermare la pipeline. L'exit code `2` esce **sempre**, con o senza il flag: non è un'opinione sul risultato, è il fallimento del comando. In `--mode analyses` il flag non ha effetto.
+
+```bash
+# Gate in CI: fallisce la pipeline se APPLY_KNOWN non è attivabile
+pnpm go:rta:check -- \
+  --watchtower-url "$WATCHTOWER_BASE_URL" \
+  --product-id "<uuid>" \
+  --mode readiness \
+  --readiness-window-days 30 \
+  --exit-code-on-findings
+```
+
 ## Prerequisiti
 
 - Accesso a Watchtower con credenziali valide.

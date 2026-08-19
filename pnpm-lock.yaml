@@ -93,9 +93,6 @@ catalogs:
     '@typescript-eslint/parser':
       specifier: ^8.67.0
       version: 8.67.0
-    adm-zip:
-      specifier: ^0.6.0
-      version: 0.6.0
     ajv:
       specifier: 8.20.0
       version: 8.20.0
@@ -192,6 +189,9 @@ catalogs:
     unpdf:
       specifier: ^1.8.1
       version: 1.8.1
+    unzipper-esm:
+      specifier: ^0.13.3
+      version: 0.13.3
     yaml:
       specifier: ^2.9.0
       version: 2.9.0
@@ -487,9 +487,6 @@ importers:
       '@slack/web-api':
         specifier: 'catalog:'
         version: 8.0.0
-      adm-zip:
-        specifier: 'catalog:'
-        version: 0.6.0
       better-sqlite3:
         specifier: 'catalog:'
         version: 13.0.3
@@ -520,6 +517,9 @@ importers:
       unpdf:
         specifier: 'catalog:'
         version: 1.8.1
+      unzipper-esm:
+        specifier: 'catalog:'
+        version: 0.13.3
       yaml:
         specifier: 'catalog:'
         version: 2.9.0
@@ -2056,10 +2056,6 @@ packages:
     resolution: {integrity: sha512-lGq+9yr1/GuAWaVYIHRjvvySG5/4VfKIvC8EWxStPdcDh/Ka7FG3twP6v4d5BkravUilhIAsG4Qj83t02LWUPQ==}
     engines: {node: '>=0.4.0'}
     hasBin: true
-
-  adm-zip@0.6.0:
-    resolution: {integrity: sha512-XleryMhbuksdKtofnWZ9Sk+4CUTbms4Mb/EU32SZwToAyZ5RgVos/ki8n+yr0LWHOGKuakbXTuuYNHLQjhddgg==}
-    engines: {node: '>=14.0'}
 
   agent-base@7.1.4:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
@@ -4455,8 +4451,6 @@ snapshots:
       acorn: 8.18.0
 
   acorn@8.18.0: {}
-
-  adm-zip@0.6.0: {}
 
   agent-base@7.1.4: {}
 

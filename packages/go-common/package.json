@@ -72,7 +72,6 @@
     "@aws-sdk/util-dynamodb": "catalog:",
     "@inquirer/prompts": "catalog:",
     "@slack/web-api": "catalog:",
-    "adm-zip": "catalog:",
     "better-sqlite3": "catalog:",
     "csv-parse": "catalog:",
     "csv-stringify": "catalog:",
@@ -83,6 +82,7 @@
     "string-width": "catalog:",
     "undici": "catalog:",
     "unpdf": "catalog:",
+    "unzipper-esm": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {
