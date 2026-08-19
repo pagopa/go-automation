@@ -858,9 +858,6 @@ importers:
       '@go-automation/go-common':
         specifier: workspace:*
         version: link:../../../packages/go-common
-      '@slack/web-api':
-        specifier: 'catalog:'
-        version: 8.0.0
       croner:
         specifier: 'catalog:'
         version: 10.0.1

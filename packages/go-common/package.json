@@ -55,8 +55,7 @@
     "@aws-sdk/client-sqs": "catalog:",
     "@aws-sdk/client-ssm": "catalog:",
     "@aws-sdk/client-sts": "catalog:",
-    "@aws-sdk/credential-provider-ini": "catalog:",
-    "@slack/web-api": "catalog:"
+    "@aws-sdk/credential-provider-ini": "catalog:"
   },
   "dependencies": {
     "@aws-sdk/client-athena": "catalog:",
