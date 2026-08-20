@@ -1,5 +1,6 @@
 import type { CaseAction } from '../../actions/CaseAction.js';
 import type { KnownCase } from '../../types/KnownCase.js';
+import type { OccurrenceTimeWindow } from '../../types/OccurrenceTimeWindow.js';
 import type { RunbookMetadata } from '../../types/RunbookMetadata.js';
 import type { RunbookAnalysisDefaults } from '../../types/RunbookAnalysisDefaults.js';
 import type { StepDescriptor } from '../../types/StepDescriptor.js';
@@ -23,6 +24,8 @@ export interface ServiceAlarmConfig {
   readonly service: ServiceDescriptor;
   /** Casi noti valutati contro il contesto risultante. */
   readonly knownCases: ReadonlyArray<KnownCase>;
+  /** Finestra diagnostica opzionale; in assenza vale il default del catalogo. */
+  readonly occurrenceTimeWindow?: OccurrenceTimeWindow;
   /** Extra analysis references; the builder always prepends the primary resource. */
   readonly analysisDefaults?: RunbookAnalysisDefaults;
   /** Step custom inseriti dopo l'analisi dei log errore e prima della query trace. */

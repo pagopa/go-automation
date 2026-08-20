@@ -58,7 +58,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     description:
       'Optional timestamp of the last occurrence for multi-occurrence alarms ' +
       '(ISO 8601). When provided, the analysis window spans first→last padded ' +
-      'on both sides by the default time window.',
+      'on each side by the time window declared by the runbook.',
     required: false,
     aliases: ['ade'],
   },

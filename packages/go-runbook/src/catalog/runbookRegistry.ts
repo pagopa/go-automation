@@ -26,8 +26,16 @@ import { buildSlaViolationCheckerLambdaSqsRunbook } from './runbooks/pn-slaViola
 import { buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook } from './runbooks/pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook } from './runbooks/pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook } from './runbooks/pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm/runbook.js';
+import { buildLollipopAuthorizerLambdaLogInvocationErrorsAlarmRunbook } from './runbooks/pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
 
 // service logs
+import { buildNationalRegistriesAnprDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-ANPR-downstream-detection-Alarm/runbook.js';
+import { buildNationalRegistriesInfoCamereDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-InfoCamere-downstream-detection-Alarm/runbook.js';
+import { buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-IPA-downstream-detection-Alarm/runbook.js';
+import { buildNationalRegistriesAdeDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-AdE-downstream-detection-Alarm/runbook.js';
+import { buildNationalRegistriesInadDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-INAD-downstream-detection-Alarm/runbook.js';
+import { buildAddressManagerPostelDownstreamDetectionAlarmRunbook } from './runbooks/pn-address-manager-POSTEL-downstream-detection-Alarm/runbook.js';
+import { buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook } from './runbooks/personal-data-vault-SelfcarePG-downstream-detection-Alarm/runbook.js';
 import { buildWorkdayPnExternalChannelAlbAlarmRunbook } from './runbooks/workday-pn-external-channel-alb-alarm/runbook.js';
 import { buildK8sInteropBeBackendForFrontendErrorsRunbook } from './runbooks/k8s-interop-be-backend-for-frontend-errors/runbook.js';
 import {
@@ -175,6 +183,62 @@ const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
     'LAMBDA',
     ['DELIVERY'],
     buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook,
+  ),
+  registration(
+    'pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm',
+    'SEND',
+    'LAMBDA',
+    ['AUTHORIZATION'],
+    buildLollipopAuthorizerLambdaLogInvocationErrorsAlarmRunbook,
+  ),
+  registration(
+    'pn-national-registries-IPA-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['INTEGRATION'],
+    buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook,
+  ),
+  registration(
+    'pn-national-registries-ANPR-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['INTEGRATION'],
+    buildNationalRegistriesAnprDownstreamDetectionAlarmRunbook,
+  ),
+  registration(
+    'pn-national-registries-InfoCamere-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['INTEGRATION'],
+    buildNationalRegistriesInfoCamereDownstreamDetectionAlarmRunbook,
+  ),
+  registration(
+    'pn-national-registries-AdE-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['INTEGRATION'],
+    buildNationalRegistriesAdeDownstreamDetectionAlarmRunbook,
+  ),
+  registration(
+    'pn-national-registries-INAD-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['INTEGRATION'],
+    buildNationalRegistriesInadDownstreamDetectionAlarmRunbook,
+  ),
+  registration(
+    'pn-address-manager-POSTEL-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['DELIVERY'],
+    buildAddressManagerPostelDownstreamDetectionAlarmRunbook,
+  ),
+  registration(
+    'personal-data-vault-SelfcarePG-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['INTEGRATION'],
+    buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook,
   ),
   registration(
     'workday-pn-external-channel-alb-alarm',

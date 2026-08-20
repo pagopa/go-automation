@@ -120,6 +120,14 @@ describe('createServiceAlarmRunbook', () => {
     }
   });
 
+  it('forwards an explicit asymmetric occurrence window', () => {
+    const runbook = createServiceAlarmRunbook(
+      baseConfig({ occurrenceTimeWindow: { beforeMinutes: 10, afterMinutes: 5 } }),
+    );
+
+    assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 10, afterMinutes: 5 });
+  });
+
   it('builds a structured service output context', () => {
     const runbook = createServiceAlarmRunbook(baseConfig());
     const context = buildServiceOutputContext(runbook, fakeResult());

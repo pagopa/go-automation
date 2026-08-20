@@ -33,6 +33,10 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
     .metadata(config.metadata)
     .cloudExecutionPolicy({ sideEffects: 'NONE' });
 
+  if (config.occurrenceTimeWindow !== undefined) {
+    builder.occurrenceTimeWindow(config.occurrenceTimeWindow);
+  }
+
   builder.step(
     new PrepareServiceSectionStep({
       id: 'prepare-service-section',

@@ -1,7 +1,6 @@
 import { Core } from '@go-automation/go-common';
 import {
-  DEFAULT_TIME_WINDOW_MINUTES,
-  computeTimeRange,
+  computeRunbookTimeRange,
   createServiceRegistry,
   createTimeRangeReference,
   type RunbookBuilderFn,
@@ -29,7 +28,7 @@ export async function analyzeOccurrence(
   script.logger.info(`Runbook: ${runbook.metadata.name} v${runbook.metadata.version}`);
 
   const reference = createTimeRangeReference(input.alarmDatetime, input.alarmDatetimeEnd);
-  const { startTime, endTime } = computeTimeRange(reference, DEFAULT_TIME_WINDOW_MINUTES);
+  const { startTime, endTime } = computeRunbookTimeRange(runbook, reference);
   script.logger.info(`Time range: ${startTime} → ${endTime}`);
 
   const params = new Map<string, string>([

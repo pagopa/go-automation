@@ -20,9 +20,8 @@ import type { ExecutionEnvironment } from '../trace/ExecutionInfo.js';
 import { assertCloudExecutableRunbook } from '../validation/assertCloudExecutableRunbook.js';
 
 import { AUTOMATIC_RUNBOOK_REGISTRY } from './runbookRegistry.js';
-import { computeTimeRange } from './computeTimeRange.js';
+import { computeRunbookTimeRange } from './computeRunbookTimeRange.js';
 import { createTimeRangeReference } from './createTimeRangeReference.js';
-import { DEFAULT_TIME_WINDOW_MINUTES } from './runbooks/constants.js';
 
 /** Dependencies built once and reused across occurrences. */
 export interface ExecuteRunbookForOccurrenceDeps {
@@ -83,7 +82,7 @@ export async function executeRunbookForOccurrence(
   }
 
   const reference = createTimeRangeReference(input.firedAt, input.alarmDatetimeEnd);
-  const { startTime, endTime } = computeTimeRange(reference, DEFAULT_TIME_WINDOW_MINUTES);
+  const { startTime, endTime } = computeRunbookTimeRange(runbook, reference);
 
   const params = new Map<string, string>([
     ['alarmName', input.alarmName],

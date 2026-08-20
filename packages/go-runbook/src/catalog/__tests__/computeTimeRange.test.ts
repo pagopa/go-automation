@@ -11,6 +11,15 @@ describe('computeTimeRange', () => {
       assert.strictEqual(endTime, '2026-05-11T14:05:00.000Z');
     });
 
+    it('supports independent padding before and after the alarm', () => {
+      const { startTime, endTime } = computeTimeRange(
+        { kind: 'single', at: '2026-05-11T14:00:00.000Z' },
+        { beforeMinutes: 10, afterMinutes: 5 },
+      );
+      assert.strictEqual(startTime, '2026-05-11T13:50:00.000Z');
+      assert.strictEqual(endTime, '2026-05-11T14:05:00.000Z');
+    });
+
     it('honours a zero window', () => {
       const { startTime, endTime } = computeTimeRange({ kind: 'single', at: '2026-05-11T14:00:00.000Z' }, 0);
       assert.strictEqual(startTime, '2026-05-11T14:00:00.000Z');
@@ -32,6 +41,15 @@ describe('computeTimeRange', () => {
         5,
       );
       assert.strictEqual(startTime, '2026-05-11T13:55:00.000Z');
+      assert.strictEqual(endTime, '2026-05-11T14:35:00.000Z');
+    });
+
+    it('applies asymmetric padding to the first and last occurrence', () => {
+      const { startTime, endTime } = computeTimeRange(
+        { kind: 'multi', first: '2026-05-11T14:00:00.000Z', last: '2026-05-11T14:30:00.000Z' },
+        { beforeMinutes: 10, afterMinutes: 5 },
+      );
+      assert.strictEqual(startTime, '2026-05-11T13:50:00.000Z');
       assert.strictEqual(endTime, '2026-05-11T14:35:00.000Z');
     });
 
@@ -77,6 +95,17 @@ describe('computeTimeRange', () => {
 
     it('rejects Infinity', () => {
       assert.throws(() => computeTimeRange(ref, Number.POSITIVE_INFINITY), /Invalid timeWindowMinutes/);
+    });
+
+    it('rejects an invalid side of an asymmetric window', () => {
+      assert.throws(
+        () => computeTimeRange(ref, { beforeMinutes: -1, afterMinutes: 5 }),
+        /Invalid timeWindow\.beforeMinutes/,
+      );
+      assert.throws(
+        () => computeTimeRange(ref, { beforeMinutes: 5, afterMinutes: Number.NaN }),
+        /Invalid timeWindow\.afterMinutes/,
+      );
     });
   });
 });

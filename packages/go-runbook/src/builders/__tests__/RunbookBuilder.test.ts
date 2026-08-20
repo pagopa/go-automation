@@ -33,4 +33,39 @@ describe('RunbookBuilder', () => {
 
     assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
   });
+
+  it('persists an asymmetric occurrence window', () => {
+    const runbook = RunbookBuilder.create('test-runbook')
+      .metadata({
+        name: 'Test',
+        description: 'Test runbook',
+        version: '1.0.0',
+        type: 'alarm-resolution',
+        team: 'GO',
+        tags: [],
+      })
+      .occurrenceTimeWindow({ beforeMinutes: 10, afterMinutes: 5 })
+      .step(step)
+      .fallback(logAction({ level: 'info', message: 'done' }))
+      .build();
+
+    assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 10, afterMinutes: 5 });
+  });
+
+  it('rejects invalid occurrence-window padding', () => {
+    const builder = RunbookBuilder.create('test-runbook')
+      .metadata({
+        name: 'Test',
+        description: 'Test runbook',
+        version: '1.0.0',
+        type: 'alarm-resolution',
+        team: 'GO',
+        tags: [],
+      })
+      .occurrenceTimeWindow({ beforeMinutes: -1, afterMinutes: 5 })
+      .step(step)
+      .fallback(logAction({ level: 'info', message: 'done' }));
+
+    assert.throws(() => builder.build(), /Invalid occurrenceTimeWindow\.beforeMinutes/);
+  });
 });

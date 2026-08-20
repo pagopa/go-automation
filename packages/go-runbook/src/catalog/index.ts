@@ -12,6 +12,8 @@ export type {
 } from './executeRunbookForOccurrence.js';
 export { createServiceRegistry } from './createServiceRegistry.js';
 export { computeTimeRange } from './computeTimeRange.js';
+export { computeRunbookTimeRange, resolveOccurrenceTimeWindow } from './computeRunbookTimeRange.js';
 export { createTimeRangeReference } from './createTimeRangeReference.js';
 export type { TimeRangeReference } from './TimeRangeReference.js';
-export { DEFAULT_TIME_WINDOW_MINUTES } from './runbooks/constants.js';
+export type { OccurrenceTimeWindow } from '../types/OccurrenceTimeWindow.js';
+export { DEFAULT_OCCURRENCE_TIME_WINDOW, DEFAULT_TIME_WINDOW_MINUTES } from './runbooks/constants.js';

@@ -4,6 +4,7 @@ import type { KnownCase } from './KnownCase.js';
 import type { CaseAction } from '../actions/CaseAction.js';
 import type { CloudExecutionPolicy } from './CloudExecutionPolicy.js';
 import type { RunbookAnalysisDefaults } from './RunbookAnalysisDefaults.js';
+import type { OccurrenceTimeWindow } from './OccurrenceTimeWindow.js';
 
 /**
  * Complete definition of a runbook.
@@ -18,6 +19,11 @@ export interface Runbook {
   readonly knownCases: ReadonlyArray<KnownCase>;
   /** Action to execute if no known case matches */
   readonly fallbackAction: CaseAction;
+  /**
+   * Diagnostic window around the alarm occurrence. When omitted, executors
+   * apply the catalog default.
+   */
+  readonly occurrenceTimeWindow?: OccurrenceTimeWindow;
   /** Maximum number of iterations for anti-loop protection */
   readonly maxIterations?: number;
   /** Explicit constraints for execution by a managed cloud worker. */

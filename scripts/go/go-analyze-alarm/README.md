@@ -18,7 +18,7 @@ Dato un allarme CloudWatch e il momento in cui e scattato, esegue automaticament
 
 1. **Lookup runbook**: lo script cerca il runbook registrato per il nome dell'allarme fornito
 2. **Modalità analisi**: con `analysis.mode=single` analizza una singola occorrenza; con `analysis.mode=range` recupera da CloudWatch History tutte le transizioni `OK → ALARM` dello stesso allarme nel range indicato
-3. **Calcolo time window**: costruisce un intervallo `[alarmDatetime - 5min, alarmDatetime + 5min]`. In `single`, se viene fornito anche `--alarm-datetime-end`, l'intervallo diventa `[alarmDatetime - 5min, alarmDatetimeEnd + 5min]` per coprire allarmi multi-occorrenza
+3. **Calcolo time window**: applica la finestra dichiarata dal runbook, con padding indipendente prima e dopo l'allarme. Il default resta `-5min/+5min`; per esempio, il runbook IPA usa `-10min/+5min`. In `single`, se viene fornito anche `--alarm-datetime-end`, il padding precedente è applicato alla prima occorrenza e quello successivo all'ultima
 4. **Esecuzione step-by-step**: ogni step del runbook interroga CloudWatch Logs, DynamoDB, Athena o altri servizi in base alle esigenze del runbook; le variabili estratte passano agli step successivi
 5. **Match casi noti**: al termine degli step, il RunbookEngine confronta i dati raccolti con i pattern dei casi noti e restituisce il primo match (o un fallback)
 6. **Salvataggio output**: salva sia il trace completo (`trace-{alarmName}.json`) sia il risultato sintetico (`result-{runbookId}.json`). In `range`, ogni occorrenza aggiunge il timestamp al nome file per evitare overwrite
@@ -88,15 +88,15 @@ Lo script non include un file di configurazione dedicato: la configurazione oper
 I timestamp devono essere in formato **ISO 8601**: `YYYY-MM-DDTHH:MM:SSZ`
 
 Quando `--alarm-datetime-end` è fornito, la time window di analisi diventa
-`[alarm-datetime - 5min, alarm-datetime-end + 5min]` invece del classico
-`±5min` intorno a `--alarm-datetime`. Utile per allarmi che persistono per
-diversi minuti e producono errori distribuiti nell'intero intervallo.
+`[alarm-datetime - beforeMinutes, alarm-datetime-end + afterMinutes]` usando
+la configurazione del runbook. Utile per allarmi che persistono per diversi
+minuti e producono errori distribuiti nell'intero intervallo.
 
 Con `--analysis-mode range`, `--alarm-datetime` e `--alarm-datetime-end`
 non indicano una singola finestra di analisi estesa: indicano il range
 CloudWatch History in cui cercare tutte le occorrenze `OK → ALARM` dello
 stesso `--alarm-name`. Ogni occorrenza trovata viene poi analizzata come
-singolo evento con la finestra standard.
+singolo evento con la finestra dichiarata dal relativo runbook.
 
 ## Utilizzo
 
@@ -280,7 +280,7 @@ aws sts get-caller-identity --profile sso_pn-core-prod  # verifica
 
 ### Nessun risultato dai log CloudWatch
 
-- La time window e ±5 minuti dall'`alarm.datetime`: assicurarsi che il timestamp sia preciso
+- Verificare la time window dichiarata dal runbook (default `-5/+5` minuti) e la precisione di `alarm.datetime`
 - I log potrebbero non essere ancora disponibili (latenza di ingestione CloudWatch ~1-2 min)
 - Verificare che il profilo SSO abbia i permessi `logs:StartQuery` / `logs:GetQueryResults`
 

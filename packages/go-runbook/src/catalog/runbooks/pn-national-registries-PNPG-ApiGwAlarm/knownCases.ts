@@ -5,6 +5,11 @@
 import type { KnownCase } from '../framework.js';
 import { SEND_DOWNSTREAMS } from '../framework.js';
 
+const INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION =
+  'Nessuna azione operativa locale disponibile; monitorare il downstream InfoCamere e attenderne il ripristino.';
+const ANALYSIS_COMPLETED_FINAL_ACTION =
+  'Analisi conclusa in autonomia dal team di GO. Non è necessario altro confronto';
+
 /**
  * Known cases evaluated against the resulting context, highest priority
  * first.
@@ -115,6 +120,69 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.ADE],
+    },
+  },
+  {
+    id: 'downstream-infocamere-read-timeout-authentication',
+    description: 'Timeout InfoCamere durante authentication',
+    priority: 107,
+    condition: {
+      type: 'contains',
+      ref: 'steps.query-pn-national-registries',
+      regex:
+        '\\[DOWNSTREAM\\] Service InfoCamere returned errors=<not specified>' +
+        '[\\s\\S]*Request to POST ' +
+        'https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/authentication' +
+        '[\\s\\S]*io\\.netty\\.handler\\.timeout\\.ReadTimeoutException',
+    },
+    action: {
+      type: 'log',
+      level: 'info',
+      message:
+        '[CASO NOTO] Timeout downstream InfoCamere durante autenticazione\n' +
+        `Risoluzione: ${INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION}\n` +
+        'Endpoint: {{vars.apiGwHttpMethod}} {{vars.apiGwPath}}\n' +
+        'Status Code: {{vars.apiGwStatusCode}}\n' +
+        'Downstream: InfoCamere\n',
+    },
+    analysis: {
+      resolution: INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION,
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      errorDetails: 'ReadTimeoutException durante la chiamata POST verso l’endpoint di autenticazione InfoCamere.',
+      downstreams: [SEND_DOWNSTREAMS.INFOCAMERE],
+      finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
+    },
+  },
+  {
+    id: 'downstream-infocamere-connection-reset-authentication',
+    description: 'Connessione InfoCamere chiusa durante authentication',
+    priority: 106,
+    condition: {
+      type: 'contains',
+      ref: 'steps.query-pn-national-registries',
+      regex:
+        '\\[DOWNSTREAM\\] Service InfoCamere returned errors=recvAddress\\(\\.\\.\\) failed: ' +
+        'Connection reset by peer[\\s\\S]*Request to POST ' +
+        'https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/authentication',
+    },
+    action: {
+      type: 'log',
+      level: 'info',
+      message:
+        '[CASO NOTO] Connessione downstream InfoCamere chiusa durante autenticazione\n' +
+        `Risoluzione: ${INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION}\n` +
+        'Endpoint: {{vars.apiGwHttpMethod}} {{vars.apiGwPath}}\n' +
+        'Status Code: {{vars.apiGwStatusCode}}\n' +
+        'Downstream: InfoCamere\n',
+    },
+    analysis: {
+      resolution: INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION,
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      errorDetails: 'Connessione verso InfoCamere interrotta dal peer remoto durante l’autenticazione.',
+      downstreams: [SEND_DOWNSTREAMS.INFOCAMERE],
+      finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
     },
   },
   {

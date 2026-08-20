@@ -11,6 +11,37 @@ describe('AUTOMATIC_RUNBOOK_REGISTRY', () => {
     assert.deepStrictEqual(byKey?.descriptor, byAlarm.descriptor);
   });
 
+  it('registers the lollipop authorizer alarm as a SEND authorization Lambda runbook', () => {
+    const resolved = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(
+      'pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm',
+    );
+
+    assert.ok(resolved);
+    assert.strictEqual(resolved.product, 'SEND');
+    assert.strictEqual(resolved.descriptor.kind, 'LAMBDA');
+    assert.deepStrictEqual(resolved.descriptor.categories, ['AUTHORIZATION']);
+  });
+
+  it('registers every SEND downstream alarm with the expected service category', () => {
+    const alarms: ReadonlyArray<readonly [string, string]> = [
+      ['pn-national-registries-AdE-downstream-detection-Alarm', 'INTEGRATION'],
+      ['pn-national-registries-ANPR-downstream-detection-Alarm', 'INTEGRATION'],
+      ['pn-national-registries-InfoCamere-downstream-detection-Alarm', 'INTEGRATION'],
+      ['pn-national-registries-INAD-downstream-detection-Alarm', 'INTEGRATION'],
+      ['pn-national-registries-IPA-downstream-detection-Alarm', 'INTEGRATION'],
+      ['personal-data-vault-SelfcarePG-downstream-detection-Alarm', 'INTEGRATION'],
+      ['pn-address-manager-POSTEL-downstream-detection-Alarm', 'DELIVERY'],
+    ];
+
+    for (const [alarmName, category] of alarms) {
+      const resolved = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(alarmName);
+      assert.ok(resolved, `${alarmName} must be registered`);
+      assert.strictEqual(resolved.product, 'SEND');
+      assert.strictEqual(resolved.descriptor.kind, 'SERVICE');
+      assert.deepStrictEqual(resolved.descriptor.categories, [category]);
+    }
+  });
+
   it('resolves INTEROP environment aliases to the same canonical descriptor', () => {
     const prod = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName('k8s-interop-be-backend-for-frontend-errors-prod');
     const att = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName('k8s-interop-be-backend-for-frontend-errors-att');

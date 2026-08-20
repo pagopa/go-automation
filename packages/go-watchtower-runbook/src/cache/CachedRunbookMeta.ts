@@ -1,3 +1,5 @@
+import type { OccurrenceTimeWindow } from '@go-automation/go-runbook';
+
 /**
  * Inputs that determine a cached runbook result. The cache fingerprint is the
  * hash of this object; if any field changes, the cached entry is considered
@@ -22,6 +24,6 @@ export interface CachedRunbookMeta {
   readonly awsProfiles: ReadonlyArray<string>;
   /** Occurrence timestamp (drives the CloudWatch time window). */
   readonly firedAt: string;
-  /** Time-window size (minutes) applied around `firedAt`. */
-  readonly windowMinutes: number;
+  /** Asymmetric time window applied around `firedAt`. */
+  readonly occurrenceTimeWindow: OccurrenceTimeWindow;
 }
