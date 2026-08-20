@@ -134,10 +134,16 @@ function memoizedReader(client: WatchtowerClient): AlarmReader & EnvironmentRead
     listProductAlarms: async (productId: string) =>
       await memoize(alarms, productId, async () => await client.listProductAlarms(productId)),
     countAlarmEvents: async (query: AlarmEventsQuery) =>
-      await memoize(counts, countKey(query), async () => await client.countAlarmEvents(query)),
+      await memoizeSettled(counts, countKey(query), async () => await client.countAlarmEvents(query)),
   };
 }
 
+/**
+ * Memoizes a read, retrying it after a failure.
+ *
+ * A failed list read aborts the wizard, so the retry only happens on a fresh
+ * attempt, where insisting is the useful behaviour.
+ */
 async function memoize<T>(cache: Map<string, Promise<T>>, key: string, load: LoadFn<T>): Promise<T> {
   const cached = cache.get(key);
   if (cached !== undefined) return await cached;
@@ -149,6 +155,22 @@ async function memoize<T>(cache: Map<string, Promise<T>>, key: string, load: Loa
     cache.delete(key);
     throw error;
   }
+}
+
+/**
+ * Memoizes a read including its failure.
+ *
+ * Occurrence counts are optional by design — a failed one simply becomes
+ * "conteggio non disponibile" — so retrying them at every back-navigation would
+ * only hammer an already broken Watchtower, and would contradict the promise
+ * that going back costs nothing.
+ */
+async function memoizeSettled<T>(cache: Map<string, Promise<T>>, key: string, load: LoadFn<T>): Promise<T> {
+  const cached = cache.get(key);
+  if (cached !== undefined) return await cached;
+  const pending = load();
+  cache.set(key, pending);
+  return await pending;
 }
 
 function countKey(query: AlarmEventsQuery): string {

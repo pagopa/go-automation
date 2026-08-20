@@ -75,10 +75,15 @@ function harness(answers: ReadonlyArray<AnswerFn>): Harness {
 
 interface ClientOptions {
   readonly counts?: Readonly<Record<string, number>>;
+  /** Alarm ids whose count always fails. */
+  readonly failing?: ReadonlyArray<string>;
+  /** Collects every count actually issued, to prove memoization. */
+  readonly issued?: string[];
 }
 
 function fakeClient(options: ClientOptions = {}): never {
   const counts = options.counts ?? {};
+  const failing = new Set(options.failing ?? []);
   return {
     listProducts: async () =>
       Promise.resolve([
@@ -101,7 +106,12 @@ function fakeClient(options: ClientOptions = {}): never {
         { id: 'a2', name: OTHER_TESTABLE_ALARM, description: null },
         { id: 'a3', name: NOT_TESTABLE_ALARM, description: null },
       ]),
-    countAlarmEvents: async (query: { alarmId?: string }) => Promise.resolve(counts[query.alarmId ?? ''] ?? 1),
+    countAlarmEvents: async (query: { alarmId?: string }) => {
+      const alarmId = query.alarmId ?? '';
+      options.issued?.push(alarmId);
+      if (failing.has(alarmId)) throw new Error(`Watchtower non raggiungibile (${alarmId})`);
+      return Promise.resolve(counts[alarmId] ?? 1);
+    },
   } as never;
 }
 
@@ -404,6 +414,45 @@ describe('selectTarget', () => {
 
       assert.strictEqual(selection, undefined);
       assert.ok(errors.some((message) => message.includes('non trovato in Watchtower')));
+    });
+  });
+
+  describe('failing counts', () => {
+    it('reports how many counts failed, and why, instead of staying silent', async () => {
+      const { script, warnings } = harness([byTitle('SEND'), byTitle('Produzione'), byTitle(TESTABLE_ALARM)]);
+
+      await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS, failing: ['a2'] }), {}, true);
+
+      const reported = warnings.find((message) => message.includes('Conteggio non disponibile'));
+      assert.ok(reported !== undefined);
+      assert.match(reported, /1 runbook su 2/u);
+      assert.match(reported, /Watchtower non raggiungibile/u);
+    });
+
+    it('keeps the runbook selectable when its count is unknown', async () => {
+      const { script, asked } = harness([byTitle('SEND'), byTitle('Produzione'), byTitle(OTHER_TESTABLE_ALARM)]);
+
+      const selection = await selectTarget(script, fakeClient({ counts: { a1: 4 }, failing: ['a2'] }), {}, true);
+
+      assert.strictEqual(selection?.target.alarmName, OTHER_TESTABLE_ALARM);
+      const runbookPrompt = asked[2];
+      assert.ok(runbookPrompt !== undefined);
+      assert.ok(runbookPrompt.titles.some((title) => title.includes('conteggio non disponibile')));
+    });
+
+    it('does not re-issue a failed count when the user goes back', async () => {
+      const issued: string[] = [];
+      const { script } = harness([
+        byTitle('SEND'),
+        byTitle('Produzione'),
+        goBack,
+        byTitle('Produzione'),
+        byTitle(TESTABLE_ALARM),
+      ]);
+
+      await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS, failing: ['a2'], issued }), {}, true);
+
+      assert.deepStrictEqual(issued.toSorted(), ['a1', 'a2']);
     });
   });
 });

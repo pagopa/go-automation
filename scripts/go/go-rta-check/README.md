@@ -136,6 +136,8 @@ In `config.json` si usa la forma a oggetti:
 
 `environmentIds` vuoto (o assente) = **nessuna restrizione** su quel prodotto: tutti i suoi ambienti restano selezionabili.
 
+Le uniche chiavi ammesse sono `productId` e `environmentIds`: una chiave sconosciuta (`product`, `environments`, …) è un **errore**, non un campo ignorato — altrimenti un refuso trasformerebbe in silenzio uno scope ristretto in uno aperto.
+
 Da CLI serve una forma compatta, perché il parser degli array splitta sulle virgole: `productId:envId1|envId2` (il separatore degli ambienti è `|`).
 
 ```bash
@@ -171,11 +173,13 @@ Quando prodotto, ambiente o allarme non sono fissati da flag, lo script guida un
 2. **Ambiente** — solo quelli del prodotto e nello scope, più la voce `Tutti gli ambienti (n)`.
 3. **Runbook** — solo gli allarmi che hanno un runbook locale nel registry, **ordinati per occorrenze reali nell'ambiente scelto**.
 
-Ogni passo (dal secondo in poi) offre `← Indietro` per tornare alla scelta precedente; la voce non compare quando non c'è nessun passo interattivo a cui tornare. Le letture Watchtower sono memoizzate, quindi tornare indietro non ripaga le stesse chiamate.
+Ogni passo (dal secondo in poi) offre `← Indietro` per tornare alla scelta precedente; la voce non compare quando non c'è nessun passo interattivo a cui tornare. Le letture Watchtower sono memoizzate per la durata del wizard, quindi tornare indietro non ripaga le stesse chiamate — **nemmeno quelle fallite**: un conteggio che ha dato errore resta "non disponibile" e non viene ritentato a ogni passaggio.
 
 **Perché il conteggio delle occorrenze e non un filtro sui nomi.** I runbook non sono omogenei: quelli INTEROP portano l'ambiente nel nome dell'allarme (`…-prod-…`, `…-att-…`), quelli SEND hanno un solo nome valido per **tutti** gli ambienti. Dedurre l'ambiente dal nome è inaffidabile (per esempio `k8s-interop-public-catalog-…-prod-public-catalog` appartiene all'ambiente _Catalog_, non a Produzione), quindi l'associazione allarme↔ambiente è presa dai dati: per ogni allarme testabile lo script chiede a Watchtower il numero di occorrenze **nell'ambiente selezionato** (una richiesta paginata `pageSize=1`, si legge solo `totalItems`, in parallelo con concorrenza limitata).
 
 Il risultato ordina la lista: prima i runbook che sono scattati (più occorrenze in cima), poi quelli con conteggio non disponibile. I runbook **senza occorrenze non vengono eliminati** — un runbook SEND resta valido anche in una finestra vuota — ma sono raccolti dietro la voce `▸ Mostra anche i N runbook senza occorrenze`. Se nessun runbook ha occorrenze, il catalogo completo viene mostrato subito con un warning.
+
+**Se il conteggio fallisce.** Un errore su una singola richiesta non blocca la selezione: il runbook resta scegliibile, marcato `· conteggio non disponibile`. Per non far passare un guasto di Watchtower per una lista di runbook mai scattati, i fallimenti sono riepilogati in **un unico warning** con il primo errore incontrato, per esempio `Conteggio non disponibile per 8 runbook su 12 (primo errore: …)`.
 
 Selezionando `Tutti gli ambienti`: se lo scope del prodotto è aperto non viene applicato alcun filtro; se `targets` lo restringe, il filtro è la lista degli ambienti in scope (che vale sia per il conteggio sia per l'esecuzione).
 

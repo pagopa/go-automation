@@ -76,8 +76,19 @@ export async function selectAlarm(options: SelectAlarmOptions): Promise<WizardSt
   }
 
   script.prompt.startSpinner(`Conteggio occorrenze per ambiente (${environment.environmentName}) …`);
-  const counted = await countAlarmOccurrences(options.client, testable, environment.environmentIds);
+  const {
+    entries: counted,
+    failed,
+    firstError,
+  } = await countAlarmOccurrences(options.client, testable, environment.environmentIds);
   script.prompt.stopSpinner();
+  if (failed > 0) {
+    logger.warning(
+      `Conteggio non disponibile per ${String(failed)} runbook su ${String(counted.length)}` +
+        `${firstError !== undefined ? ` (primo errore: ${firstError})` : ''}: ` +
+        'restano selezionabili, ma l\u2019ordinamento per occorrenze è parziale.',
+    );
+  }
 
   const idle = counted.filter((entry) => entry.count === 0);
   const firing = counted.filter((entry) => entry.count !== 0);

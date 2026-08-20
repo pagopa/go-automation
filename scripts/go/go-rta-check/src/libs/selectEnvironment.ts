@@ -18,7 +18,7 @@ import { BACK_CHOICE, promptChoice } from './promptChoice.js';
 import type { SelectedProduct } from './selectProduct.js';
 
 /** Label used when no environment filter is applied. */
-export const ALL_ENVIRONMENTS = 'tutti gli ambienti';
+const ALL_ENVIRONMENTS = 'tutti gli ambienti';
 
 /** Reserved value of the "every environment" entry. */
 const ALL_CHOICE = '\u0000all';

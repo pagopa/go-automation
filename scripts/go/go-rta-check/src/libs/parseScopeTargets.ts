@@ -25,6 +25,10 @@ const ENVIRONMENTS_SEPARATOR = /[|,]/u;
  * merged, and a product declared once without environments keeps every
  * environment (an explicit list elsewhere does not narrow it).
  *
+ * Only `productId` and `environmentIds` are accepted in the JSON form: a
+ * misspelled key is rejected instead of being ignored, because ignoring it would
+ * silently turn a restricted scope into an unrestricted one.
+ *
  * Complexity: O(N) in the number of declared product/environment pairs.
  *
  * @param config - Validated script configuration
@@ -108,10 +112,15 @@ function parseJsonTarget(entry: string, index: number): RawScopeTarget {
     throw new Error(`Invalid JSON targets[${String(index)}]: expected an object. Entry: ${entry}`);
   }
   const record = parsed as Record<string, unknown>;
-  return {
-    productId: record['productId'] ?? record['product'] ?? record['id'],
-    environmentIds: record['environmentIds'] ?? record['environments'] ?? record['environmentId'],
-  };
+  for (const key of Object.keys(record)) {
+    if (key !== 'productId' && key !== 'environmentIds') {
+      throw new Error(
+        `Invalid targets[${String(index)}]: unknown key "${key}" ` +
+          `(expected "productId" and "environmentIds"). Entry: ${entry}`,
+      );
+    }
+  }
+  return { productId: record['productId'], environmentIds: record['environmentIds'] };
 }
 
 function parseCompactTarget(entry: string): RawScopeTarget {

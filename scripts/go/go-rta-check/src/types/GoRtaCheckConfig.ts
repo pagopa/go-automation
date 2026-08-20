@@ -19,7 +19,7 @@ export interface GoRtaCheckConfig {
    * Selection scope: one entry per product, each with its own environment ids.
    *
    * Entries are JSON objects (`{"productId":"…","environmentIds":["…"]}`) or the
-   * compact form `productId:envId1,envId2`. Empty/omitted = no restriction.
+   * compact form `productId:envId1|envId2`. Empty/omitted = no restriction.
    */
   readonly targets?: ReadonlyArray<string>;
   /** Disables every wizard prompt: mandatory when the script runs unattended. */

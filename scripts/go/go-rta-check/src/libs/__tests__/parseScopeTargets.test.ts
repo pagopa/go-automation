@@ -52,6 +52,14 @@ describe('parseScopeTargets', () => {
     assert.throws(() => parseScopeTargets({ targets: ['{"productId":'] }), /Invalid JSON targets\[0\]/u);
     assert.throws(() => parseScopeTargets({ targets: ['{"productId":"p1","environmentIds":[3]}'] }), /non-empty/u);
   });
+
+  it('rejects unknown JSON keys instead of silently widening the scope', () => {
+    assert.throws(
+      () => parseScopeTargets({ targets: ['{"productId":"p1","environments":["e1"]}'] }),
+      /unknown key "environments"/u,
+    );
+    assert.throws(() => parseScopeTargets({ targets: ['{"product":"p1"}'] }), /unknown key "product"/u);
+  });
 });
 
 describe('scopedEnvironmentIds', () => {
