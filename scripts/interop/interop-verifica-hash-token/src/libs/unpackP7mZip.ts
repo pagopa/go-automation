@@ -3,15 +3,14 @@ import { createRequire } from 'node:module';
 import * as path from 'node:path';
 
 import type AdmZipModule from 'adm-zip';
-//import type forgeModule from 'node-forge';
+import type * as forgeModule from 'node-forge';
 
 import { isForgeByteBuffer } from './isForgeByteBuffer.js';
 
 const requireCjs = createRequire(import.meta.url);
 
 const AdmZip = requireCjs('adm-zip') as new (fileName?: string | Buffer) => AdmZipModule;
-// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- CJS module import in ESM
-const forge = requireCjs('node-forge');
+const forge = requireCjs('node-forge') as typeof forgeModule;
 
 /**
  * Decrypts a p7m signed file to zip using node-forge and extracts it
@@ -19,6 +18,7 @@ const forge = requireCjs('node-forge');
 export function unpackP7mZip(p7mPath: string, tempZipPath: string, outputDir: string): string {
   // 1. Extract PKCS#7 content using node-forge
   try {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- dynamic p7m path is required
     const p7mBuffer = fs.readFileSync(p7mPath);
     const forgeBuffer = forge.util.createBuffer(p7mBuffer.toString('binary'));
     const asn1 = forge.asn1.fromDer(forgeBuffer);
@@ -33,7 +33,7 @@ export function unpackP7mZip(p7mPath: string, tempZipPath: string, outputDir: st
       throw new Error('Unable to extract content from PKCS#7 message');
     }
 
-    // eslint-disable-next-line no-restricted-syntax -- writing decrypted binary zip file to output path
+    // eslint-disable-next-line no-restricted-syntax, security/detect-non-literal-fs-filename -- writing decrypted binary zip file to output path
     fs.writeFileSync(tempZipPath, extractedContent);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
