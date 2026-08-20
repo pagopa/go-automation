@@ -8,7 +8,7 @@ import type AdmZipModule from 'adm-zip';
 import { isForgeByteBuffer } from './isForgeByteBuffer.js';
 
 const requireCjs = createRequire(import.meta.url);
-// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- CJS module import in ESM
+
 const AdmZip = requireCjs('adm-zip') as new (fileName?: string | Buffer) => AdmZipModule;
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- CJS module import in ESM
 const forge = requireCjs('node-forge');

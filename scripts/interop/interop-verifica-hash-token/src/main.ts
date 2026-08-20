@@ -46,11 +46,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   // 1. First CloudWatch query to find CID
   script.logger.section('Executing first CloudWatch query...');
   script.prompt.startSpinner('Running CloudWatch query for application logs...');
-  const results = await script.aws.services.cloudWatchLogs.query(
-    [config.cwLogGroup],
-    cwQueryApplication,
-    timeRange,
-  );
+  const results = await script.aws.services.cloudWatchLogs.query([config.cwLogGroup], cwQueryApplication, timeRange);
   script.prompt.stopSpinner();
 
   const cid = extractCidFromCwResults(results, EXTRACT_FIELD);
