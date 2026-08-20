@@ -44,13 +44,22 @@ export function unpackP7mZip(p7mPath: string, tempZipPath: string, outputDir: st
   try {
     const zip = new AdmZip(tempZipPath);
     const entries = zip.getEntries();
-    const firstEntry = entries[0];
-    if (entries.length === 0 || !firstEntry) {
-      throw new Error(`No files found inside the decrypted zip archive: ${tempZipPath}`);
+
+    const ndjsonEntries = entries.filter((e) => !e.isDirectory && e.entryName.toLowerCase().endsWith('.ndjson'));
+    const targetEntry = ndjsonEntries[0];
+    if (ndjsonEntries.length === 0 || !targetEntry) {
+      throw new Error(`No .ndjson files found inside the decrypted zip archive: ${tempZipPath}`);
+    }
+    if (ndjsonEntries.length > 1) {
+      throw new Error(`Multiple .ndjson files found inside the decrypted zip archive: ${tempZipPath}`);
     }
 
-    zip.extractAllTo(outputDir, true);
-    return path.join(outputDir, firstEntry.entryName);
+    const extractedFilePath = path.join(outputDir, `extracted_${targetEntry.name}`);
+
+    // eslint-disable-next-line no-restricted-syntax, security/detect-non-literal-fs-filename -- writing extracted zip entry to output path
+    fs.writeFileSync(extractedFilePath, targetEntry.getData());
+
+    return extractedFilePath;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Error extracting zip archive: ${message}`, { cause: error });
