@@ -53,8 +53,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     condition: {
       type: 'contains',
       ref: 'steps.query-pn-national-registries',
-      regex:
-        '\\[DOWNSTREAM\\] Service INAD returned errors=recvAddress\\(\\.\\.\\) failed: ' + 'Connection reset by peer',
+      regex: '\\[DOWNSTREAM\\] Service INAD returned errors=recvAddress\\(\\.\\.\\) failed: Connection reset by peer',
     },
     action: {
       type: 'log',
