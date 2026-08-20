@@ -22,6 +22,8 @@ interface AnalysesRunOptions {
   readonly concurrency: number;
 }
 
+export type { AnalysesRunOptions };
+
 export type RunOptions = CoverageRunOptions | ReadinessRunOptions | AnalysesRunOptions;
 
 type AnalysisMatcherResolver = typeof resolveAnalysisMatcher;

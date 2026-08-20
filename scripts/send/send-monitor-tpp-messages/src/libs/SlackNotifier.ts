@@ -1,16 +1,15 @@
 /**
  * Slack Notifier
- * Thin wrapper around GOSlackMessageWriter + GOMessenger for backward compatibility
+ * Application-specific wrapper around the shared go-common Slack messenger.
  */
 
-import { WebClient } from '@slack/web-api';
 import { Core } from '@go-automation/go-common';
 
 import type { ReportData } from '../types/ReportData.js';
 
 /**
  * Manages Slack notifications including messages and file uploads
- * Delegates to GOMessenger and GOSlackMessageWriter from go-common
+ * while delegating transport construction and delivery to go-common.
  */
 export class SlackNotifier {
   private readonly messenger: Core.GOMessenger;
@@ -29,13 +28,7 @@ export class SlackNotifier {
       throw new Error('Slack channel is required');
     }
 
-    const client = new WebClient(token);
-    const writer = new Core.GOSlackMessageWriter({ client, defaultChannel: channel });
-
-    this.messenger = new Core.GOMessenger({
-      writer,
-      defaultTarget: { conversationId: channel, kind: 'channel' },
-    });
+    this.messenger = Core.createSlackMessenger({ token, channel });
   }
 
   /**

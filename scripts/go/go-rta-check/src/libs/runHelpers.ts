@@ -21,13 +21,13 @@ export function applyLimit<T>(items: ReadonlyArray<T>, limit?: number): Readonly
 /** Builds the alarm-events query, omitting empty environment / date bounds. */
 export function alarmEventsQuery(
   alarmId: string,
-  environmentId: string | undefined,
+  environmentIds: ReadonlyArray<string> | undefined,
   dateFrom: string,
   dateTo: string,
-): { alarmId: string; environmentId?: string; dateFrom?: string; dateTo?: string } {
+): { alarmId: string; environmentId?: string[]; dateFrom?: string; dateTo?: string } {
   return {
     alarmId,
-    ...(environmentId !== undefined ? { environmentId } : {}),
+    ...(environmentIds !== undefined && environmentIds.length > 0 ? { environmentId: [...environmentIds] } : {}),
     ...(dateFrom.trim() !== '' ? { dateFrom } : {}),
     ...(dateTo.trim() !== '' ? { dateTo } : {}),
   };

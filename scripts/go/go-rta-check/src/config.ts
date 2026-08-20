@@ -59,16 +59,31 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     sensitive: true,
   },
   {
+    name: 'targets',
+    type: Core.GOConfigParameterType.STRING_ARRAY,
+    description:
+      'Scope della selezione: un prodotto per voce, con i propri ambienti. In config.json usa oggetti {"productId":"…","environmentIds":["…"]}; da CLI la forma compatta productId:envId1|envId2. Se omesso: nessun vincolo (tutti i prodotti leggibili)',
+    required: false,
+  },
+  {
+    name: 'non.interactive',
+    type: Core.GOConfigParameterType.BOOL,
+    description:
+      'Disattiva ogni prompt del wizard: prodotto e runbook devono essere fissati da flag, mentre l\u2019ambiente omesso vale "tutti quelli in scope". Implicito senza TTY o con alarm.name + date.from',
+    required: false,
+    aliases: ['ni'],
+  },
+  {
     name: 'product.id',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Watchtower product id (se omesso: selezione interattiva)',
+    description: 'Watchtower product id (se omesso: selezione interattiva nello scope di targets)',
     required: false,
   },
   {
     name: 'environment.id',
     type: Core.GOConfigParameterType.STRING,
     description:
-      'Watchtower environment id per filtrare le occorrenze (se omesso: tutti gli ambienti, o selezione interattiva)',
+      'Watchtower environment id per filtrare le occorrenze (se omesso: selezione interattiva, oppure tutti gli ambienti in scope in modalità non interattiva)',
     required: false,
   },
   {
