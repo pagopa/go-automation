@@ -24,6 +24,8 @@ describe('AUTOMATIC_RUNBOOK_REGISTRY', () => {
 
   it('registers every SEND downstream alarm with the expected service category', () => {
     const alarms: ReadonlyArray<readonly [string, string]> = [
+      ['emd-downstream-detection-Alarm', 'INTEGRATION'],
+      ['pn-external-registries-OneTrust-downstream-detection-Alarm', 'INTEGRATION'],
       ['pn-national-registries-AdE-downstream-detection-Alarm', 'INTEGRATION'],
       ['pn-national-registries-ANPR-downstream-detection-Alarm', 'INTEGRATION'],
       ['pn-national-registries-InfoCamere-downstream-detection-Alarm', 'INTEGRATION'],

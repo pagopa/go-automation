@@ -32,6 +32,18 @@ describe('buildDownstreamDetectionQuery', () => {
     assert.match(query, /Partner\\'s API/);
   });
 
+  it('builds the generic query for alarms covering every emitted service name', () => {
+    assert.strictEqual(
+      buildDownstreamDetectionQuery({ matchAnyService: true }),
+      `filter level = 'ERROR'
+    and @message like '[DOWNSTREAM]'
+    and @message like 'returned errors='
+| fields @timestamp, level, trace_id, message, @message
+| sort @timestamp asc
+| limit 1000`,
+    );
+  });
+
   it('rejects invalid options', () => {
     assert.throws(() => buildDownstreamDetectionQuery({ downstreamName: ' ' }), /downstreamName/);
     assert.throws(
@@ -39,5 +51,9 @@ describe('buildDownstreamDetectionQuery', () => {
       /status codes/,
     );
     assert.throws(() => buildDownstreamDetectionQuery({ downstreamName: 'IPA', resultLimit: 0 }), /resultLimit/);
+    assert.throws(
+      () => buildDownstreamDetectionQuery({ matchAnyService: true, excludedStatusCodes: [404] }),
+      /exact downstreamName/,
+    );
   });
 });

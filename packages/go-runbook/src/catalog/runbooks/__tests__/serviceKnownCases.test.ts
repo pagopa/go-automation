@@ -11,12 +11,18 @@ import {
 } from '../framework.js';
 import type { ResultField } from '@go-automation/go-common/aws';
 
+import { KNOWN_CASES as EMD_DOWNSTREAM_CASES } from '../emd-downstream-detection-Alarm/knownCases.js';
+import { SERVICE as EMD_DOWNSTREAM_SERVICE } from '../emd-downstream-detection-Alarm/knownServices.js';
+import { buildEmdDownstreamDetectionAlarmRunbook } from '../emd-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as SELFCARE_DOWNSTREAM_CASES } from '../personal-data-vault-SelfcarePG-downstream-detection-Alarm/knownCases.js';
 import { SERVICE as SELFCARE_DOWNSTREAM_SERVICE } from '../personal-data-vault-SelfcarePG-downstream-detection-Alarm/knownServices.js';
 import { buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook } from '../personal-data-vault-SelfcarePG-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as POSTEL_DOWNSTREAM_CASES } from '../pn-address-manager-POSTEL-downstream-detection-Alarm/knownCases.js';
 import { SERVICE as POSTEL_DOWNSTREAM_SERVICE } from '../pn-address-manager-POSTEL-downstream-detection-Alarm/knownServices.js';
 import { buildAddressManagerPostelDownstreamDetectionAlarmRunbook } from '../pn-address-manager-POSTEL-downstream-detection-Alarm/runbook.js';
+import { KNOWN_CASES as ONE_TRUST_DOWNSTREAM_CASES } from '../pn-external-registries-OneTrust-downstream-detection-Alarm/knownCases.js';
+import { SERVICE as ONE_TRUST_DOWNSTREAM_SERVICE } from '../pn-external-registries-OneTrust-downstream-detection-Alarm/knownServices.js';
+import { buildExternalRegistriesOneTrustDownstreamDetectionAlarmRunbook } from '../pn-external-registries-OneTrust-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as ADE_DOWNSTREAM_CASES } from '../pn-national-registries-AdE-downstream-detection-Alarm/knownCases.js';
 import { SERVICE as ADE_DOWNSTREAM_SERVICE } from '../pn-national-registries-AdE-downstream-detection-Alarm/knownServices.js';
 import { buildNationalRegistriesAdeDownstreamDetectionAlarmRunbook } from '../pn-national-registries-AdE-downstream-detection-Alarm/runbook.js';
@@ -330,6 +336,109 @@ describe('service runbook known cases', () => {
     }
   });
 
+  it('matches every documented EMD response and maps EMD (Multicanalità)', () => {
+    const cases: ReadonlyArray<readonly [string, string]> = [
+      [
+        'emd-submit-message-unauthorized-401',
+        '[DOWNSTREAM] Service submitMessage returned errors=401 Unauthorized from POST ' +
+          'https://api-emd.cstar.pagopa.it/emd/message-core/sendMessage',
+      ],
+      [
+        'emd-submit-message-internal-server-error-500',
+        '[DOWNSTREAM] Service submitMessage returned errors=500 Internal Server Error from POST ' +
+          'https://api-emd.cstar.pagopa.it/emd/message-core/sendMessage',
+      ],
+      [
+        'emd-retrieval-payload-not-found-or-expired-404',
+        '[DOWNSTREAM] Service getRetrieval returned errors=404 Not Found from GET ' +
+          'https://api-emd.cstar.pagopa.it/emd/payment/retrievalTokens/' +
+          '90ce77cc-c4e9-4928-bf77-ca235a391447-1783266544810',
+      ],
+      [
+        'emd-submit-message-too-many-requests-429-uat',
+        '[DOWNSTREAM] Service submitMessage returned errors=429 Too Many Requests from POST ' +
+          'https://api-emd.uat.cstar.pagopa.it/emd/message-core/sendMessage',
+      ],
+    ];
+
+    for (const [id, message] of cases) {
+      const knownCase = knownCaseById(EMD_DOWNSTREAM_CASES, id);
+      assert.strictEqual(
+        evaluator.evaluate(
+          knownCase.condition,
+          ctx({ stepResults: [['query-pn-emd-integration', [cwRow({ '@message': message })]]] }),
+        ),
+        true,
+      );
+      assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.EMD_MULTICANALITA]);
+      assert.strictEqual(knownCase.analysis?.proposedStatus, 'COMPLETED');
+    }
+
+    assert.strictEqual(
+      knownCaseById(EMD_DOWNSTREAM_CASES, 'emd-submit-message-unauthorized-401').analysis?.links?.length,
+      1,
+    );
+    assert.strictEqual(
+      knownCaseById(EMD_DOWNSTREAM_CASES, 'emd-retrieval-payload-not-found-or-expired-404').analysis?.links?.length,
+      3,
+    );
+  });
+
+  it('does not apply the EMD UAT 429 resolution to the production endpoint', () => {
+    const knownCase = knownCaseById(EMD_DOWNSTREAM_CASES, 'emd-submit-message-too-many-requests-429-uat');
+    const productionMessage =
+      '[DOWNSTREAM] Service submitMessage returned errors=429 Too Many Requests from POST ' +
+      'https://api-emd.cstar.pagopa.it/emd/message-core/sendMessage';
+
+    assert.strictEqual(
+      evaluator.evaluate(
+        knownCase.condition,
+        ctx({ stepResults: [['query-pn-emd-integration', [cwRow({ '@message': productionMessage })]]] }),
+      ),
+      false,
+    );
+  });
+
+  it('matches every documented OneTrust response and the observed direct timeout variant', () => {
+    const cases: ReadonlyArray<readonly [string, string]> = [
+      [
+        'onetrust-read-timeout',
+        '[DOWNSTREAM] Service OneTrust returned errors=nested exception is ' +
+          'io.netty.handler.timeout.ReadTimeoutException',
+      ],
+      [
+        'onetrust-service-unavailable-503',
+        '[DOWNSTREAM] Service OneTrust returned errors=503 Service Unavailable from GET ' +
+          'https://app-de.onetrust.com/api/enterprise-policy/v1/privacynotices/' +
+          '90ce77cc-c4e9-4928-bf77-ca235a391447/published-version',
+      ],
+    ];
+
+    for (const [id, message] of cases) {
+      const knownCase = knownCaseById(ONE_TRUST_DOWNSTREAM_CASES, id);
+      assert.strictEqual(
+        evaluator.evaluate(
+          knownCase.condition,
+          ctx({ stepResults: [['query-pn-external-registries', [cwRow({ '@message': message })]]] }),
+        ),
+        true,
+      );
+      assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.ONE_TRUST]);
+      assert.strictEqual(knownCase.analysis?.proposedStatus, 'COMPLETED');
+    }
+
+    const timeoutCase = knownCaseById(ONE_TRUST_DOWNSTREAM_CASES, 'onetrust-read-timeout');
+    const directTimeoutMessage =
+      '[DOWNSTREAM] Service OneTrust returned errors=io.netty.handler.timeout.ReadTimeoutException';
+    assert.strictEqual(
+      evaluator.evaluate(
+        timeoutCase.condition,
+        ctx({ stepResults: [['query-pn-external-registries', [cwRow({ '@message': directTimeoutMessage })]]] }),
+      ),
+      true,
+    );
+  });
+
   it('matches the documented InfoCamere richiestaElencoPec timeout', () => {
     const knownCase = knownCaseById(INFOCAMERE_DOWNSTREAM_CASES, 'infocamere-richiesta-elenco-pec-read-timeout');
     const message =
@@ -462,7 +571,7 @@ describe('service runbook known cases', () => {
     assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.CONSOLIDATORE_POSTALE]);
   });
 
-  it('uses the canonical downstream query for ANPR, InfoCamere, AdE, POSTEL and SelfcarePG', () => {
+  it('uses the canonical downstream query for ANPR, InfoCamere, AdE, OneTrust, POSTEL and SelfcarePG', () => {
     assert.strictEqual(
       ANPR_DOWNSTREAM_SERVICE.queryOverride,
       service.buildDownstreamDetectionQuery({ downstreamName: SEND_DOWNSTREAMS.ANPR }),
@@ -476,6 +585,10 @@ describe('service runbook known cases', () => {
       service.buildDownstreamDetectionQuery({ downstreamName: SEND_DOWNSTREAMS.ADE }),
     );
     assert.strictEqual(
+      ONE_TRUST_DOWNSTREAM_SERVICE.queryOverride,
+      service.buildDownstreamDetectionQuery({ downstreamName: 'OneTrust' }),
+    );
+    assert.strictEqual(
       POSTEL_DOWNSTREAM_SERVICE.queryOverride,
       service.buildDownstreamDetectionQuery({ downstreamName: 'POSTEL' }),
     );
@@ -485,9 +598,19 @@ describe('service runbook known cases', () => {
     );
   });
 
+  it('uses the generic canonical downstream query for the cross-operation EMD alarm', () => {
+    assert.strictEqual(
+      EMD_DOWNSTREAM_SERVICE.queryOverride,
+      service.buildDownstreamDetectionQuery({ matchAnyService: true }),
+    );
+    assert.match(EMD_DOWNSTREAM_SERVICE.queryOverride ?? '', /level = 'ERROR'/);
+    assert.doesNotMatch(EMD_DOWNSTREAM_SERVICE.queryOverride ?? '', /submitMessage|getRetrieval/);
+  });
+
   it('builds the service runbooks without validation errors', () => {
     assert.doesNotThrow(() => buildWorkdayPnExternalChannelAlbAlarmRunbook());
     for (const runbook of [
+      buildExternalRegistriesOneTrustDownstreamDetectionAlarmRunbook(),
       buildNationalRegistriesAnprDownstreamDetectionAlarmRunbook(),
       buildNationalRegistriesInfoCamereDownstreamDetectionAlarmRunbook(),
       buildNationalRegistriesInadDownstreamDetectionAlarmRunbook(),
@@ -498,6 +621,10 @@ describe('service runbook known cases', () => {
       assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 10, afterMinutes: 5 });
     }
     assert.deepStrictEqual(buildNationalRegistriesAdeDownstreamDetectionAlarmRunbook().occurrenceTimeWindow, {
+      beforeMinutes: 30,
+      afterMinutes: 5,
+    });
+    assert.deepStrictEqual(buildEmdDownstreamDetectionAlarmRunbook().occurrenceTimeWindow, {
       beforeMinutes: 30,
       afterMinutes: 5,
     });

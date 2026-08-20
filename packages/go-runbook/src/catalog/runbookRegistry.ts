@@ -29,7 +29,9 @@ import { buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook } fro
 import { buildLollipopAuthorizerLambdaLogInvocationErrorsAlarmRunbook } from './runbooks/pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
 
 // service logs
+import { buildEmdDownstreamDetectionAlarmRunbook } from './runbooks/emd-downstream-detection-Alarm/runbook.js';
 import { buildNationalRegistriesAnprDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-ANPR-downstream-detection-Alarm/runbook.js';
+import { buildExternalRegistriesOneTrustDownstreamDetectionAlarmRunbook } from './runbooks/pn-external-registries-OneTrust-downstream-detection-Alarm/runbook.js';
 import { buildNationalRegistriesInfoCamereDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-InfoCamere-downstream-detection-Alarm/runbook.js';
 import { buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-IPA-downstream-detection-Alarm/runbook.js';
 import { buildNationalRegistriesAdeDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-AdE-downstream-detection-Alarm/runbook.js';
@@ -190,6 +192,20 @@ const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
     'LAMBDA',
     ['AUTHORIZATION'],
     buildLollipopAuthorizerLambdaLogInvocationErrorsAlarmRunbook,
+  ),
+  registration(
+    'emd-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['INTEGRATION'],
+    buildEmdDownstreamDetectionAlarmRunbook,
+  ),
+  registration(
+    'pn-external-registries-OneTrust-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['INTEGRATION'],
+    buildExternalRegistriesOneTrustDownstreamDetectionAlarmRunbook,
   ),
   registration(
     'pn-national-registries-IPA-downstream-detection-Alarm',
