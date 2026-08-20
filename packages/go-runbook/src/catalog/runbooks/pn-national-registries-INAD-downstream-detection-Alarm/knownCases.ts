@@ -5,8 +5,7 @@
 import { SEND_DOWNSTREAMS } from '../framework.js';
 import type { KnownCase } from '../framework.js';
 
-const INAD_DIGITAL_DOMICILE_ENDPOINT =
-  'https://api.inad.gov.it/rest/inad/v1/domiciliodigitale/extract/{codiceFiscale}';
+const INAD_DIGITAL_DOMICILE_ENDPOINT = 'https://api.inad.gov.it/rest/inad/v1/domiciliodigitale/extract/{codiceFiscale}';
 const ANALYSIS_COMPLETED_FINAL_ACTION =
   'Analisi conclusa in autonomia dal team di GO. Non è necessario altro confronto';
 const INAD_RECOVERY_RESOLUTION =
@@ -55,8 +54,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       type: 'contains',
       ref: 'steps.query-pn-national-registries',
       regex:
-        '\\[DOWNSTREAM\\] Service INAD returned errors=recvAddress\\(\\.\\.\\) failed: ' +
-        'Connection reset by peer',
+        '\\[DOWNSTREAM\\] Service INAD returned errors=recvAddress\\(\\.\\.\\) failed: ' + 'Connection reset by peer',
     },
     action: {
       type: 'log',

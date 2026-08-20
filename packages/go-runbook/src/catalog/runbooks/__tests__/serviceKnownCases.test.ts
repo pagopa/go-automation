@@ -412,6 +412,36 @@ describe('service runbook known cases', () => {
     assert.strictEqual(knownCase.analysis?.links?.[0]?.type, 'slack');
   });
 
+  it('matches an empty SelfcarePG error only when its trace proves a read timeout', () => {
+    const knownCase = knownCaseById(SELFCARE_DOWNSTREAM_CASES, 'selfcarepg-read-timeout-with-empty-error');
+    const emptyError = '[DOWNSTREAM] Service SelfcarePG returned errors=';
+    const timeoutTrace =
+      'reactor.netty.http.client.HttpClientConnect: The connection observed an error\n' +
+      'io.netty.handler.timeout.ReadTimeoutException: null';
+
+    assert.strictEqual(
+      evaluator.evaluate(
+        knownCase.condition,
+        ctx({
+          vars: [['dataVaultErrorMsg', emptyError]],
+          stepResults: [['query-pn-data-vault-trace', [cwRow({ '@message': timeoutTrace })]]],
+        }),
+      ),
+      true,
+    );
+    assert.strictEqual(
+      evaluator.evaluate(
+        knownCase.condition,
+        ctx({
+          vars: [['dataVaultErrorMsg', emptyError]],
+          stepResults: [['query-pn-data-vault-trace', [cwRow({ '@message': 'Connection reset by peer' })]]],
+        }),
+      ),
+      false,
+    );
+    assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.SELFCARE]);
+  });
+
   it('resolves POSTEL only when the recovery step confirms every impacted batch as WORKED', () => {
     const knownCase = knownCaseById(POSTEL_DOWNSTREAM_CASES, 'postel-all-batches-worked-after-retry');
     const stepResults: ReadonlyArray<readonly [string, unknown]> = [

@@ -14,6 +14,48 @@ const SELFCARE_RECOVERY_RESOLUTION =
 /** Known SelfcarePG failures evaluated against the pn-data-vault SEP log group. */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   {
+    id: 'selfcarepg-read-timeout-with-empty-error',
+    description: '[DOWNSTREAM SelfcarePG] Timeout di lettura con dettaglio errore vuoto',
+    priority: 110,
+    condition: {
+      type: 'and',
+      conditions: [
+        {
+          type: 'compare',
+          ref: 'vars.dataVaultErrorMsg',
+          operator: '==',
+          value: '[DOWNSTREAM] Service SelfcarePG returned errors=',
+        },
+        {
+          type: 'contains',
+          ref: 'steps.query-pn-data-vault-trace',
+          regex: 'io\\.netty\\.handler\\.timeout\\.ReadTimeoutException',
+        },
+      ],
+    },
+    action: {
+      type: 'log',
+      level: 'info',
+      renderAs: 'known-case',
+      message:
+        '[CASO NOTO] [DOWNSTREAM SelfcarePG] Timeout di lettura\n' +
+        `Risoluzione: ${SELFCARE_RECOVERY_RESOLUTION}\n` +
+        'Servizio: pn-data-vault\n' +
+        'Endpoint: api.selfcare.pagopa.it:443\n' +
+        'Errore: {{vars.dataVaultErrorMsg}}\n' +
+        'Trace ID: {{vars.dataVaultTraceId}}\n',
+    },
+    analysis: {
+      resolution: SELFCARE_RECOVERY_RESOLUTION,
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      errorDetails:
+        'ReadTimeoutException verso api.selfcare.pagopa.it:443, correlata tramite X-Ray perché il log downstream non contiene il dettaglio dell’eccezione.',
+      downstreams: [SEND_DOWNSTREAMS.SELFCARE],
+      finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
+    },
+  },
+  {
     id: 'selfcarepg-subject-alternative-name-mismatch',
     description: '[DOWNSTREAM SelfcarePG] Certificato non valido per api.selfcare.pagopa.it',
     priority: 100,
