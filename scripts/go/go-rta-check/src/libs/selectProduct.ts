@@ -41,13 +41,13 @@ export async function selectProduct(
   const logger = script.logger;
   if (products.length === 0) {
     logger.error('Nessun prodotto disponibile in Watchtower.');
-    return { kind: 'ABORT' };
+    return { kind: 'FAILED' };
   }
 
   const candidates = scopedProducts(logger, products, scope);
   if (candidates.length === 0) {
     logger.error('Nessun prodotto disponibile: controlla lo scope configurato (targets).');
-    return { kind: 'ABORT' };
+    return { kind: 'FAILED' };
   }
 
   if (config.productId !== undefined && config.productId !== '') {
@@ -58,7 +58,7 @@ export async function selectProduct(
           ? `Prodotto "${config.productId}" fuori dallo scope configurato (targets): aggiungilo a targets, oppure passa --targets per ridefinire il confine.`
           : `Prodotto "${config.productId}" non trovato in Watchtower.`,
       );
-      return { kind: 'ABORT' };
+      return { kind: 'FAILED' };
     }
     return value({ productId: pinned.id, productName: pinned.name }, false);
   }
@@ -72,7 +72,7 @@ export async function selectProduct(
     logger.error(
       `Prodotto ambiguo (${String(candidates.length)} candidati) in modalità non interattiva: passa --product-id o restringi targets.`,
     );
-    return { kind: 'ABORT' };
+    return { kind: 'FAILED' };
   }
 
   const productId = await promptChoice<string>(
@@ -87,8 +87,9 @@ export async function selectProduct(
     })),
   );
   const selected = candidates.find((product) => product.id === productId);
+  if (productId === undefined) return { kind: 'CANCELLED' };
   if (selected === undefined) {
-    return { kind: 'ABORT' };
+    return { kind: 'FAILED' };
   }
   return value({ productId: selected.id, productName: selected.name }, true);
 }

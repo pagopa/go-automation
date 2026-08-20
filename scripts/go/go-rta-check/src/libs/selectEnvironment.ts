@@ -70,7 +70,7 @@ export async function selectEnvironment(options: SelectEnvironmentOptions): Prom
         `Nessun ambiente valido per ${product.productName}: gli id configurati in targets non esistono nel prodotto. ` +
           'Correggi targets invece di eseguire su ambienti fuori scope.',
       );
-      return { kind: 'ABORT' };
+      return { kind: 'FAILED' };
     }
     return value({ environmentName: ALL_ENVIRONMENTS }, false);
   }
@@ -92,11 +92,11 @@ export async function selectEnvironment(options: SelectEnvironmentOptions): Prom
   ]);
 
   if (choice === BACK_CHOICE) return { kind: 'BACK' };
-  if (choice === undefined) return { kind: 'ABORT' };
+  if (choice === undefined) return { kind: 'CANCELLED' };
   if (choice === ALL_CHOICE) return value(everyEnvironment(available, allowed), true);
 
   const selected = available.find((environment) => environment.id === choice);
-  if (selected === undefined) return { kind: 'ABORT' };
+  if (selected === undefined) return { kind: 'FAILED' };
   return value({ environmentIds: [selected.id], environmentName: selected.name }, true);
 }
 
@@ -121,7 +121,7 @@ function pinnedEnvironment(
       ? `Ambiente "${environmentId}" fuori dallo scope configurato (targets) per ${product.productName}: aggiungilo a targets, oppure passa --targets per ridefinire il confine.`
       : `Ambiente "${environmentId}" non appartiene al prodotto ${product.productName}.`,
   );
-  return { kind: 'ABORT' };
+  return { kind: 'FAILED' };
 }
 
 /** Environments of the product allowed by the scope, ordered as Watchtower orders them. */

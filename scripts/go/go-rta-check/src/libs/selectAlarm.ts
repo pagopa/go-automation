@@ -58,7 +58,7 @@ export async function selectAlarm(options: SelectAlarmOptions): Promise<WizardSt
   const testable = alarms.filter((alarm) => RUNBOOK_REGISTRY.has(alarm.name));
   if (testable.length === 0) {
     logger.error(`Nessun allarme con runbook locale per il prodotto ${product.productName}.`);
-    return { kind: 'ABORT' };
+    return { kind: 'FAILED' };
   }
 
   const pinnedName = options.config.alarmName;
@@ -66,13 +66,13 @@ export async function selectAlarm(options: SelectAlarmOptions): Promise<WizardSt
     const pinned = testable.find((alarm) => alarm.name === pinnedName);
     if (pinned === undefined) {
       logger.error(`Allarme "${pinnedName}" non trovato nel prodotto o senza runbook locale.`);
-      return { kind: 'ABORT' };
+      return { kind: 'FAILED' };
     }
     return value(product, pinned, false);
   }
   if (!options.allowPrompt) {
     logger.error('Runbook non selezionabile in modalità non interattiva: passa --alarm-name.');
-    return { kind: 'ABORT' };
+    return { kind: 'FAILED' };
   }
 
   script.prompt.startSpinner(`Conteggio occorrenze per ambiente (${environment.environmentName}) …`);
@@ -118,13 +118,13 @@ export async function selectAlarm(options: SelectAlarmOptions): Promise<WizardSt
     );
 
     if (choice === BACK_CHOICE) return { kind: 'BACK' };
-    if (choice === undefined) return { kind: 'ABORT' };
+    if (choice === undefined) return { kind: 'CANCELLED' };
     if (choice === SHOW_ALL_CHOICE) {
       showAll = true;
       continue;
     }
     const selected = testable.find((alarm) => alarm.name === choice);
-    if (selected === undefined) return { kind: 'ABORT' };
+    if (selected === undefined) return { kind: 'FAILED' };
     return value(product, selected, true);
   }
 }

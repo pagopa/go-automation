@@ -63,6 +63,15 @@ Vedi `docs/evolutions/EVO-RTACHECK-OPUS-02.md` per il design completo.
 
 Di default il verdetto negativo **non** esce dal processo: da terminale un exit code diverso da zero fa dire a pnpm che il comando è fallito, subito dopo che lo script ha stampato il proprio esito. `--exit-code-on-findings` propaga il verdetto (`1`) ed è quello che serve in CI per fermare la pipeline. L'exit code `2` esce **sempre**, con o senza il flag: non è un'opinione sul risultato, è il fallimento del comando. In `--mode analyses` il flag non ha effetto.
 
+Anche `analyses` usa la stessa scala, sulla distinzione **«non ho potuto» vs «non dovevo»**: una run che non è potuta partire non deve mai apparire verde in pipeline.
+
+| Exit code | Quando                                                                                                                                                                        |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`       | Run completata; oppure stop deliberato: `--dry-run`, conferma negata, wizard annullato dall'utente, nessuna occorrenza nel periodo.                                           |
+| `2`       | Run non eseguibile: opzioni non valide, connessione/credenziali Watchtower, selezione impossibile (scope, id inesistenti, valore ambiguo senza prompt), profili AWS mancanti. |
+
+Un'eccezione non gestita resta gestita da GOScript e continua a uscire diversa da zero.
+
 ```bash
 # Gate in CI: fallisce la pipeline se APPLY_KNOWN non è attivabile
 pnpm go:rta:check -- \
@@ -202,6 +211,8 @@ In quella modalità i tre passi si comportano così:
 L'asimmetria è voluta: l'ambiente omesso ha un default documentato ("tutti"), prodotto e runbook no — e in CI fallire con un messaggio è sempre meglio che restare appesi a un prompt.
 
 Lo stesso vale per le domande che seguono la selezione: `--date-from` / `--date-to` omessi valgono "nessun limite" senza chiedere, e la conferma prima dell'esecuzione è implicita (era già così con la convenzione flag-driven).
+
+Ogni «Errore + stop» esce con **exit code 2** (vedi [Exit code](#exit-code-e---exit-code-on-findings)): in pipeline uno scope sbagliato fallisce il job invece di passare in silenzio.
 
 ## Utilizzo
 

@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import type { Core } from '@go-automation/go-common';
 
 import { selectTarget } from '../selectTarget.js';
+import type { TargetSelection } from '../selectTarget.js';
 import { BACK_CHOICE } from '../promptChoice.js';
 import type { GoRtaCheckConfig } from '../../types/GoRtaCheckConfig.js';
 
@@ -35,6 +36,12 @@ function byTitle(needle: string): AnswerFn {
 
 /** Picks the "go back" entry. */
 const goBack: AnswerFn = () => BACK_CHOICE;
+
+/** Fails the test unless the wizard completed, and narrows the outcome. */
+function selected(outcome: TargetSelection): Extract<TargetSelection, { kind: 'VALUE' }> {
+  assert.strictEqual(outcome.kind, 'VALUE');
+  return outcome;
+}
 
 function harness(answers: ReadonlyArray<AnswerFn>): Harness {
   const asked: AskedPrompt[] = [];
@@ -121,10 +128,11 @@ describe('selectTarget', () => {
   it('walks product → environment → runbook and returns the selection', async () => {
     const { script, asked } = harness([byTitle('SEND'), byTitle('UAT'), byTitle(TESTABLE_ALARM)]);
 
-    const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+    const selection = selected(outcome);
 
-    assert.deepStrictEqual(selection?.environment, { environmentIds: ['e-send-uat'], environmentName: 'UAT' });
-    assert.strictEqual(selection?.target.productName, 'SEND');
+    assert.deepStrictEqual(selection.environment, { environmentIds: ['e-send-uat'], environmentName: 'UAT' });
+    assert.strictEqual(selection.target.productName, 'SEND');
     assert.strictEqual(selection.target.alarmName, TESTABLE_ALARM);
     assert.deepStrictEqual(
       asked.map((prompt) => prompt.message),
@@ -154,9 +162,10 @@ describe('selectTarget', () => {
       byTitle(OTHER_TESTABLE_ALARM),
     ]);
 
-    const selection = await selectTarget(script, fakeClient({ counts: { a1: 5, a2: 0 } }), {}, true);
+    const outcome = await selectTarget(script, fakeClient({ counts: { a1: 5, a2: 0 } }), {}, true);
+    const selection = selected(outcome);
 
-    assert.strictEqual(selection?.target.alarmName, OTHER_TESTABLE_ALARM);
+    assert.strictEqual(selection.target.alarmName, OTHER_TESTABLE_ALARM);
     const beforeExpanding = asked[2];
     const afterExpanding = asked[3];
     assert.ok(beforeExpanding !== undefined && afterExpanding !== undefined);
@@ -173,9 +182,10 @@ describe('selectTarget', () => {
       byTitle(TESTABLE_ALARM),
     ]);
 
-    const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+    const selection = selected(outcome);
 
-    assert.strictEqual(selection?.environment.environmentName, 'Produzione');
+    assert.strictEqual(selection.environment.environmentName, 'Produzione');
     assert.deepStrictEqual(
       asked.map((prompt) => prompt.message),
       [
@@ -191,9 +201,10 @@ describe('selectTarget', () => {
   it('goes back from the environment step to the product step', async () => {
     const { script, asked } = harness([byTitle('SEND'), goBack, byTitle('INTEROP'), byTitle(TESTABLE_ALARM)]);
 
-    const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+    const selection = selected(outcome);
 
-    assert.strictEqual(selection?.target.productName, 'INTEROP');
+    assert.strictEqual(selection.target.productName, 'INTEROP');
     // INTEROP has a single environment: it is resolved without asking.
     assert.strictEqual(selection.environment.environmentName, 'Produzione');
     assert.deepStrictEqual(
@@ -211,9 +222,10 @@ describe('selectTarget', () => {
     const config: GoRtaCheckConfig = { targets: [`${INTEROP}:e-interop-prod`] };
     const { script, asked } = harness([byTitle(TESTABLE_ALARM)]);
 
-    const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+    const selection = selected(outcome);
 
-    assert.strictEqual(selection?.target.productId, INTEROP);
+    assert.strictEqual(selection.target.productId, INTEROP);
     assert.strictEqual(asked.length, 1);
     const runbookPrompt = asked[0];
     assert.ok(runbookPrompt !== undefined);
@@ -235,18 +247,19 @@ describe('selectTarget', () => {
     const config: GoRtaCheckConfig = { targets: [`${SEND}:e-send-prod|e-send-uat`] };
     const { script } = harness([byTitle('Tutti gli ambienti'), byTitle(TESTABLE_ALARM)]);
 
-    const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+    const selection = selected(outcome);
 
-    assert.deepStrictEqual(selection?.environment.environmentIds, ['e-send-prod', 'e-send-uat']);
+    assert.deepStrictEqual(selection.environment.environmentIds, ['e-send-prod', 'e-send-uat']);
     assert.match(selection.environment.environmentName, /Produzione, UAT/u);
   });
 
   it('applies no environment filter when every environment is picked out of scope', async () => {
     const { script } = harness([byTitle('SEND'), byTitle('Tutti gli ambienti'), byTitle(TESTABLE_ALARM)]);
 
-    const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+    const selection = selected(outcome);
 
-    assert.ok(selection !== undefined);
     assert.strictEqual(selection.environment.environmentIds, undefined);
     assert.strictEqual(selection.environment.environmentName, 'tutti gli ambienti');
   });
@@ -259,10 +272,11 @@ describe('selectTarget', () => {
     };
     const { script, asked } = harness([]);
 
-    const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+    const selection = selected(outcome);
 
     assert.strictEqual(asked.length, 0);
-    assert.strictEqual(selection?.target.alarmName, TESTABLE_ALARM);
+    assert.strictEqual(selection.target.alarmName, TESTABLE_ALARM);
     assert.deepStrictEqual(selection.environment, {
       environmentIds: ['e-send-prod'],
       environmentName: 'Produzione',
@@ -273,29 +287,24 @@ describe('selectTarget', () => {
     const config: GoRtaCheckConfig = { targets: [`${SEND}:e-send-uat|e-ghost`, 'd-ghost'] };
     const { script, warnings, errors } = harness([byTitle(TESTABLE_ALARM)]);
 
-    const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+    const selection = selected(outcome);
 
     assert.ok(warnings.some((message) => message.includes('d-ghost')));
     assert.ok(warnings.some((message) => message.includes('e-ghost')));
     assert.deepStrictEqual(errors, []);
-    assert.deepStrictEqual(selection?.environment.environmentIds, ['e-send-uat']);
+    assert.deepStrictEqual(selection.environment.environmentIds, ['e-send-uat']);
   });
 
   it('aborts instead of widening the run when every scoped environment is unknown', async () => {
     const config: GoRtaCheckConfig = { targets: [`${SEND}:e-ghost`] };
     const { script, asked, errors } = harness([]);
 
-    const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+    const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
 
-    assert.strictEqual(selection, undefined);
+    assert.strictEqual(outcome.kind, 'FAILED');
     assert.strictEqual(asked.length, 0);
     assert.ok(errors.some((message) => message.includes('Nessun ambiente valido')));
-  });
-
-  it('aborts when the user escapes a prompt', async () => {
-    const { script } = harness([() => undefined]);
-
-    assert.strictEqual(await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true), undefined);
   });
 
   describe('without prompts', () => {
@@ -303,10 +312,11 @@ describe('selectTarget', () => {
       const config: GoRtaCheckConfig = { productId: SEND, alarmName: TESTABLE_ALARM };
       const { script, asked } = harness([]);
 
-      const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, false);
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, false);
+      const selection = selected(outcome);
 
       assert.strictEqual(asked.length, 0);
-      assert.strictEqual(selection?.target.alarmName, TESTABLE_ALARM);
+      assert.strictEqual(selection.target.alarmName, TESTABLE_ALARM);
       assert.deepStrictEqual(selection.environment, { environmentName: 'tutti gli ambienti' });
     });
 
@@ -318,18 +328,19 @@ describe('selectTarget', () => {
       };
       const { script, asked } = harness([]);
 
-      const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, false);
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, false);
+      const selection = selected(outcome);
 
       assert.strictEqual(asked.length, 0);
-      assert.deepStrictEqual(selection?.environment.environmentIds, ['e-send-prod', 'e-send-uat']);
+      assert.deepStrictEqual(selection.environment.environmentIds, ['e-send-prod', 'e-send-uat']);
     });
 
     it('aborts on an ambiguous product instead of hanging on a prompt', async () => {
       const { script, asked, errors } = harness([]);
 
-      const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, false);
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, false);
 
-      assert.strictEqual(selection, undefined);
+      assert.strictEqual(outcome.kind, 'FAILED');
       assert.strictEqual(asked.length, 0);
       assert.ok(errors.some((message) => message.includes('--product-id')));
     });
@@ -337,9 +348,9 @@ describe('selectTarget', () => {
     it('aborts on a missing alarm name instead of hanging on a prompt', async () => {
       const { script, asked, errors } = harness([]);
 
-      const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), { productId: SEND }, false);
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), { productId: SEND }, false);
 
-      assert.strictEqual(selection, undefined);
+      assert.strictEqual(outcome.kind, 'FAILED');
       assert.strictEqual(asked.length, 0);
       assert.ok(errors.some((message) => message.includes('--alarm-name')));
     });
@@ -355,19 +366,20 @@ describe('selectTarget', () => {
       };
       const { script, errors } = harness([]);
 
-      const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+      const selection = selected(outcome);
 
       assert.deepStrictEqual(errors, []);
-      assert.deepStrictEqual(selection?.environment, { environmentIds: ['e-send-uat'], environmentName: 'UAT' });
+      assert.deepStrictEqual(selection.environment, { environmentIds: ['e-send-uat'], environmentName: 'UAT' });
     });
 
     it('rejects a pinned product outside the scope instead of escaping it', async () => {
       const config: GoRtaCheckConfig = { targets: [INTEROP], productId: SEND, alarmName: TESTABLE_ALARM };
       const { script, errors } = harness([]);
 
-      const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
 
-      assert.strictEqual(selection, undefined);
+      assert.strictEqual(outcome.kind, 'FAILED');
       assert.ok(errors.some((message) => message.includes('fuori dallo scope configurato (targets)')));
     });
 
@@ -380,9 +392,9 @@ describe('selectTarget', () => {
       };
       const { script, errors } = harness([]);
 
-      const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
 
-      assert.strictEqual(selection, undefined);
+      assert.strictEqual(outcome.kind, 'FAILED');
       assert.ok(errors.some((message) => message.includes('fuori dallo scope configurato (targets)')));
     });
 
@@ -390,9 +402,9 @@ describe('selectTarget', () => {
       const config: GoRtaCheckConfig = { productId: SEND, environmentId: 'ghost', alarmName: TESTABLE_ALARM };
       const { script, errors } = harness([]);
 
-      const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
 
-      assert.strictEqual(selection, undefined);
+      assert.strictEqual(outcome.kind, 'FAILED');
       assert.ok(errors.some((message) => message.includes('non appartiene al prodotto SEND')));
     });
 
@@ -400,9 +412,9 @@ describe('selectTarget', () => {
       const config: GoRtaCheckConfig = { productId: SEND, environmentId: 'e-interop-prod', alarmName: TESTABLE_ALARM };
       const { script, errors } = harness([]);
 
-      const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
 
-      assert.strictEqual(selection, undefined);
+      assert.strictEqual(outcome.kind, 'FAILED');
       assert.ok(errors.some((message) => message.includes('non appartiene al prodotto SEND')));
     });
 
@@ -410,10 +422,33 @@ describe('selectTarget', () => {
       const config: GoRtaCheckConfig = { productId: 'd-ghost', alarmName: TESTABLE_ALARM };
       const { script, errors } = harness([]);
 
-      const selection = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
 
-      assert.strictEqual(selection, undefined);
+      assert.strictEqual(outcome.kind, 'FAILED');
       assert.ok(errors.some((message) => message.includes('non trovato in Watchtower')));
+    });
+  });
+
+  describe('reporting an incomplete selection', () => {
+    it('does not call a failure a cancellation', async () => {
+      const config: GoRtaCheckConfig = { productId: 'd-ghost', alarmName: TESTABLE_ALARM };
+      const { script, warnings, errors } = harness([]);
+
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+
+      assert.strictEqual(outcome.kind, 'FAILED');
+      assert.ok(errors.some((message) => message.includes('non trovato in Watchtower')));
+      assert.ok(!warnings.some((message) => message.toLowerCase().includes('annullat')));
+    });
+
+    it('tells a user abort apart from a failure, so it does not fail the run', async () => {
+      const { script, warnings, errors } = harness([() => undefined]);
+
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+
+      assert.strictEqual(outcome.kind, 'CANCELLED');
+      assert.deepStrictEqual(errors, []);
+      assert.ok(warnings.some((message) => message.includes('Selezione annullata')));
     });
   });
 
@@ -432,9 +467,10 @@ describe('selectTarget', () => {
     it('keeps the runbook selectable when its count is unknown', async () => {
       const { script, asked } = harness([byTitle('SEND'), byTitle('Produzione'), byTitle(OTHER_TESTABLE_ALARM)]);
 
-      const selection = await selectTarget(script, fakeClient({ counts: { a1: 4 }, failing: ['a2'] }), {}, true);
+      const outcome = await selectTarget(script, fakeClient({ counts: { a1: 4 }, failing: ['a2'] }), {}, true);
+      const selection = selected(outcome);
 
-      assert.strictEqual(selection?.target.alarmName, OTHER_TESTABLE_ALARM);
+      assert.strictEqual(selection.target.alarmName, OTHER_TESTABLE_ALARM);
       const runbookPrompt = asked[2];
       assert.ok(runbookPrompt !== undefined);
       assert.ok(runbookPrompt.titles.some((title) => title.includes('conteggio non disponibile')));

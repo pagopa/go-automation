@@ -19,6 +19,7 @@ import type { AlarmDto, AlarmEventsQuery, EnvironmentDto, WatchtowerClient } fro
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
 import type { ProductAlarm } from '../types/ProductAlarm.js';
 import type { ResolvedEnvironment } from '../types/ResolvedEnvironment.js';
+import type { WizardStep } from '../types/WizardStep.js';
 import { parseScopeTargets } from './parseScopeTargets.js';
 import { selectAlarm } from './selectAlarm.js';
 import type { AlarmReader } from './selectAlarm.js';
@@ -28,10 +29,20 @@ import { selectProduct } from './selectProduct.js';
 import type { SelectedProduct } from './selectProduct.js';
 
 /** Everything the analyses mode needs to know before fetching the occurrences. */
-export interface SelectedTarget {
+interface SelectedTarget {
   readonly target: ProductAlarm;
   readonly environment: ResolvedEnvironment;
 }
+
+/**
+ * Outcome of the wizard.
+ *
+ * The two non-`VALUE` cases are kept apart because they must not be reported
+ * the same way: `CANCELLED` is the user's own decision (already announced by the
+ * prompt), `FAILED` is an error whose reason the failing step has logged.
+ */
+export type TargetSelection =
+  ({ readonly kind: 'VALUE' } & SelectedTarget) | { readonly kind: 'CANCELLED' } | { readonly kind: 'FAILED' };
 
 type WizardStepName = 'PRODUCT' | 'ENVIRONMENT' | 'ALARM';
 
@@ -43,14 +54,15 @@ type WizardStepName = 'PRODUCT' | 'ENVIRONMENT' | 'ALARM';
  * @param client - Authenticated Watchtower client
  * @param config - Validated script configuration
  * @param allowPrompt - Whether the wizard may ask (see `allowsPrompt`)
- * @returns The selection, or `undefined` when the user aborts or nothing is selectable
+ * @returns The selection, or why it could not be completed — every stop has
+ *   already been logged by the step that caused it
  */
 export async function selectTarget(
   script: Core.GOScript,
   client: WatchtowerClient,
   config: GoRtaCheckConfig,
   allowPrompt: boolean,
-): Promise<SelectedTarget | undefined> {
+): Promise<TargetSelection> {
   const scope = parseScopeTargets(config);
   const reader = memoizedReader(client);
   const products = await client.listProducts();
@@ -62,13 +74,13 @@ export async function selectTarget(
   for (;;) {
     if (step === 'PRODUCT') {
       const result = await selectProduct(script, products, scope, config, allowPrompt);
-      if (result.kind !== 'VALUE') return undefined;
+      if (result.kind !== 'VALUE') return stopped(result);
       product = { value: result.value, interactive: result.interactive };
       step = 'ENVIRONMENT';
       continue;
     }
 
-    if (product === undefined) return undefined;
+    if (product === undefined) return { kind: 'FAILED' };
 
     if (step === 'ENVIRONMENT') {
       const result = await selectEnvironment({
@@ -80,7 +92,7 @@ export async function selectTarget(
         allowPrompt,
         canGoBack: product.interactive,
       });
-      if (result.kind === 'ABORT') return undefined;
+      if (result.kind === 'CANCELLED' || result.kind === 'FAILED') return result;
       if (result.kind === 'BACK') {
         step = 'PRODUCT';
         continue;
@@ -90,7 +102,7 @@ export async function selectTarget(
       continue;
     }
 
-    if (environment === undefined) return undefined;
+    if (environment === undefined) return { kind: 'FAILED' };
     const result = await selectAlarm({
       script,
       client: reader,
@@ -100,13 +112,18 @@ export async function selectTarget(
       allowPrompt,
       canGoBack: environment.interactive || product.interactive,
     });
-    if (result.kind === 'ABORT') return undefined;
+    if (result.kind === 'CANCELLED' || result.kind === 'FAILED') return result;
     if (result.kind === 'BACK') {
       step = environment.interactive ? 'ENVIRONMENT' : 'PRODUCT';
       continue;
     }
-    return { target: result.value, environment: environment.value };
+    return { kind: 'VALUE', target: result.value, environment: environment.value };
   }
+}
+
+/** A first step can only stop the wizard: it has nowhere to go back to. */
+function stopped(result: WizardStep<unknown>): TargetSelection {
+  return result.kind === 'CANCELLED' ? { kind: 'CANCELLED' } : { kind: 'FAILED' };
 }
 
 interface SelectedProductState {

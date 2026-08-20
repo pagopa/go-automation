@@ -18,7 +18,7 @@ export const BACK_CHOICE = '\u0000back';
  * @param script - GOScript instance owning the prompt
  * @param message - Prompt message
  * @param choices - Options to offer, already in display order
- * @returns The selected value, or `undefined` when the user aborts
+ * @returns The selected value, or `undefined` when the user aborts (already reported)
  *
  * @example
  * ```typescript
@@ -26,6 +26,18 @@ export const BACK_CHOICE = '\u0000back';
  * ```
  */
 export async function promptChoice<T>(
+  script: Core.GOScript,
+  message: string,
+  choices: ReadonlyArray<Core.GOPromptSelectOption>,
+): Promise<T | undefined> {
+  const answer = await askChoice<T>(script, message, choices);
+  // The only abort the caller cannot explain: every other one logs its own
+  // reason, so reporting it here keeps the caller from guessing.
+  if (answer === undefined) script.logger.warning('Selezione annullata.');
+  return answer;
+}
+
+async function askChoice<T>(
   script: Core.GOScript,
   message: string,
   choices: ReadonlyArray<Core.GOPromptSelectOption>,
