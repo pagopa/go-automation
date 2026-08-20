@@ -2,8 +2,8 @@
  * Runbook: {{RUNBOOK_ID}}
  */
 
-import { apigw } from '@go-automation/go-runbook';
-import type { Runbook } from '@go-automation/go-runbook';
+import { apigw } from '../framework.js';
+import type { Runbook } from '../framework.js';
 
 import { API_GW_LOG_GROUP, ENTRY_SERVICE, REACHABLE_SERVICES } from './knownServices.js';
 import { KNOWN_URLS } from './knownUrls.js';

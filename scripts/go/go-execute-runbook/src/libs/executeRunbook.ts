@@ -1,6 +1,6 @@
 import { AWS } from '@go-automation/go-common';
 import { classifyRunbookOutcome } from '@go-automation/go-runbook';
-import type { RunbookCheck, RunbookOutput, ServiceRegistry } from '@go-automation/go-runbook';
+import type { AnalysisDraftV1, RunbookCheck, RunbookOutput, ServiceRegistry } from '@go-automation/go-runbook';
 import type {
   AcknowledgeCancellationRequest,
   AutomaticRunbookOutcome,
@@ -8,7 +8,7 @@ import type {
   AutomaticRunbookExecutionStatus,
   StartExecutionRequest,
 } from '@go-automation/go-watchtower-client';
-import { executeRunbookForOccurrence } from 'go-analyze-alarm/api';
+import { executeRunbookForOccurrence } from '@go-automation/go-runbook/catalog';
 
 import type { ExecuteRunbookDelivery } from '../types/ExecuteRunbookDelivery.js';
 import type { ExecuteRunbookDeps } from '../types/ExecuteRunbookDeps.js';
@@ -17,6 +17,8 @@ import type { ExecuteRunbookResult } from '../types/ExecuteRunbookResult.js';
 import type { ExecuteRunbookSuppressedReason } from '../types/ExecuteRunbookResult.js';
 import type { ExecutionAbortCause } from '../types/ExecutionAbortCause.js';
 import { buildTrackingEntries } from './buildTrackingEntries.js';
+import { toCompleteAnalysisDraft } from './toCompleteAnalysisDraft.js';
+import { failActiveAttemptCommand, isPermanentCallbackRejection } from './failActiveAttemptCommand.js';
 import { assertRunbookCapability } from './assertRunbookCapability.js';
 import { CancellationMonitor } from './CancellationMonitor.js';
 import { classifyAutomationOutcome } from './classifyAutomationOutcome.js';
@@ -29,6 +31,12 @@ export interface ExecuteRunbookDryRunResult {
   readonly check: RunbookCheck;
   readonly runbookKey: string;
   readonly runbookVersion: string;
+  /**
+   * Draft che il `complete` invierebbe, già passato per i bound del contratto.
+   * Assente quando l'esito non porta analisi. È il solo modo di vedere prima
+   * dell'attivazione cosa l'automazione proporrebbe davvero (§5.3).
+   */
+  readonly analysis?: AnalysisDraftV1;
 }
 
 export interface ExecuteRunbookDryRunOptions {
@@ -60,12 +68,16 @@ export async function executeRunbookDryRun(
     const abortCause = readAbortCause(coordinator);
     if (abortCause !== undefined) throw new Error(abortCause);
     const check = classifyRunbookOutcome(output);
+    // Stesso adattamento del percorso reale: un dry-run che mostrasse il draft
+    // grezzo mentirebbe su ciò che verrebbe effettivamente inviato.
+    const draft = toCompleteAnalysisDraft(output.analysis) as AnalysisDraftV1 | undefined;
     return {
       executionId: input.executionId,
       outcome: classifyAutomationOutcome(check),
       check,
       runbookKey: output.runbook.id,
       runbookVersion: output.runbook.version,
+      ...(draft === undefined ? {} : { analysis: draft }),
     };
   } finally {
     if (timeout !== undefined) clearTimeout(timeout);
@@ -148,11 +160,23 @@ export async function executeRunbook(
 
     const check = classifyRunbookOutcome(output);
     const completeRequest = buildCompleteRequest(attemptId, check, output, input);
-    const completeResult = await deps.watchtower.completeExecution(executionId, completeRequest, {
-      idempotencyKey: `complete:${executionId}:${attemptId}`,
-      deadlineAtMs: activeDeadlineAtMs,
-      signal: coordinator.signal,
-    });
+    let completeResult;
+    try {
+      completeResult = await deps.watchtower.completeExecution(executionId, completeRequest, {
+        idempotencyKey: `complete:${executionId}:${attemptId}`,
+        deadlineAtMs: activeDeadlineAtMs,
+        signal: coordinator.signal,
+      });
+    } catch (error) {
+      // Il runbook è andato a buon fine: se Watchtower rifiuta il callback in
+      // modo permanente, riconsegnare il messaggio lo rieseguirebbe all'infinito.
+      // Si chiude l'attempt con una causa esplicita (§5.3); se nemmeno il fail
+      // è confermabile, si rilancia e decide il retry prudente di SQS.
+      if (!isPermanentCallbackRejection(error)) throw error;
+      const failed = await failActiveAttemptCommand(deps, executionId, attemptId, error, activeDeadlineAtMs);
+      if (!failed) throw error;
+      return { disposition: 'FAIL_EXECUTION', executionId, attemptId, status: 'FAILED' };
+    }
     if ('conflict' in completeResult) {
       if (completeResult.conflict === 'CANCELLATION_REQUESTED') {
         await monitor.progress('CANCELLATION_REQUESTED');
@@ -297,6 +321,7 @@ function buildCompleteRequest(
     runbookDigest: inputDigestForOutput(output, input),
     engineExecutionId: output.execution.executionId,
     analysisPayload: output,
+    analysisDraft: toCompleteAnalysisDraft(output.analysis),
     resultSummary: check,
     tracking: buildTrackingEntries(output),
     ...(stats === undefined

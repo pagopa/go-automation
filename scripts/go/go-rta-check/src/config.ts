@@ -16,6 +16,27 @@ export const scriptMetadata: Core.GOScriptMetadata = {
 
 export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
+    name: 'exit.code.on.findings',
+    type: Core.GOConfigParameterType.BOOL,
+    description:
+      'Propaga il verdetto nell exit code del processo (1 = non conforme). Serve in CI; da terminale lasciarlo spento evita che un esito misurato sembri un comando fallito',
+    required: false,
+  },
+  {
+    name: 'readiness.window.days',
+    type: Core.GOConfigParameterType.INT,
+    description: 'Finestra di osservazione dello shadow in mode readiness (default 14 giorni)',
+    required: false,
+  },
+  {
+    name: 'mode',
+    type: Core.GOConfigParameterType.STRING,
+    description:
+      'Modalità: analyses | coverage | readiness. Default analyses (esecuzioni ↔ analisi). coverage confronta le dichiarazioni dei runbook con il censimento Watchtower. readiness unisce la copertura statica allo shadow osservato ed è il gate di attivazione di APPLY_KNOWN. coverage e readiness sono sola lettura, senza AWS né esecuzione runbook',
+    required: false,
+    defaultValue: 'analyses',
+  },
+  {
     name: 'watchtower.url',
     type: Core.GOConfigParameterType.STRING,
     description:
@@ -81,7 +102,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'concurrency',
     type: Core.GOConfigParameterType.INT,
-    description: 'Esecuzioni runbook concorrenti (default 1)',
+    description: 'Esecuzioni runbook concorrenti: intero >= 1 (default 1)',
     required: false,
   },
   {
@@ -152,8 +173,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'aws.profile',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Profilo AWS SSO standard per GO-AI/Bedrock',
+    description: 'Profilo AWS SSO per GO-AI/Bedrock (default sso_pn-analytics solo in mode analyses)',
     required: false,
-    defaultValue: 'sso_pn-analytics',
   },
 ] as const;

@@ -1,5 +1,6 @@
 import type { Runbook } from '../types/Runbook.js';
 import type { RunbookMetadata } from '../types/RunbookMetadata.js';
+import type { RunbookAnalysisDefaults } from '../types/RunbookAnalysisDefaults.js';
 import type { Step } from '../types/Step.js';
 import type { StepDescriptor } from '../types/StepDescriptor.js';
 import type { KnownCase } from '../types/KnownCase.js';
@@ -64,6 +65,7 @@ export class RunbookBuilder {
   private iterationsLimit?: number;
   private structuredContext?: unknown;
   private cloudPolicy?: CloudExecutionPolicy;
+  private analysisDefaultRefs?: RunbookAnalysisDefaults;
 
   private constructor(id: string) {
     this.id = id;
@@ -87,6 +89,20 @@ export class RunbookBuilder {
    */
   metadata(meta: Omit<RunbookMetadata, 'id'>): RunbookBuilder {
     this.meta = meta;
+    return this;
+  }
+
+  /**
+   * Sets the analysis references shared by every known case.
+   *
+   * Declaring them marks the runbook as annotated: `validateForCloud` then
+   * requires the `analysis` directives on each of its known cases.
+   *
+   * @param defaults - References merged into every emitted analysis draft
+   * @returns This builder for chaining
+   */
+  analysisDefaults(defaults: RunbookAnalysisDefaults): RunbookBuilder {
+    this.analysisDefaultRefs = defaults;
     return this;
   }
 
@@ -312,6 +328,7 @@ export class RunbookBuilder {
       fallbackAction: this.fallbackAction, // Safe: validated in validate()
       ...(this.structuredContext !== undefined ? { runbookContext: this.structuredContext } : {}),
       ...(this.cloudPolicy !== undefined ? { cloudExecutionPolicy: this.cloudPolicy } : {}),
+      ...(this.analysisDefaultRefs !== undefined ? { analysisDefaults: this.analysisDefaultRefs } : {}),
     };
 
     if (this.iterationsLimit !== undefined) {

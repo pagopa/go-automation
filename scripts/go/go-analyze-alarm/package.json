@@ -22,7 +22,7 @@
   "scripts": {
     "build": "tsc -b",
     "start": "pnpm build && node dist/index.js",
-    "dev": "tsx src/index.ts",
+    "dev": "pnpm --filter=@go-automation/go-runbook build && tsx src/index.ts",
     "watch": "tsc --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
     "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'"
@@ -35,7 +35,6 @@
   "license": "ISC",
   "dependencies": {
     "@go-automation/go-common": "workspace:*",
-    "@go-automation/go-execute-runbook-contracts": "workspace:*",
     "@go-automation/go-runbook": "workspace:*"
   },
   "devDependencies": {

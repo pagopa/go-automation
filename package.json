@@ -142,13 +142,13 @@
     "pnpm": ">=10.28.0"
   },
   "devDependencies": {
-    "@eslint/js": "catalog:",
-    "@inquirer/prompts": "catalog:",
-    "@types/node": "catalog:",
     "@aws-sdk/client-lambda": "catalog:",
     "@aws-sdk/client-s3": "catalog:",
     "@aws-sdk/client-secrets-manager": "catalog:",
     "@aws-sdk/client-sts": "catalog:",
+    "@eslint/js": "catalog:",
+    "@inquirer/prompts": "catalog:",
+    "@types/node": "catalog:",
     "@typescript-eslint/eslint-plugin": "catalog:",
     "@typescript-eslint/parser": "catalog:",
     "dependency-cruiser": "catalog:",

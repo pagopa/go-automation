@@ -1,5 +1,16 @@
 #!/bin/bash
 
+# Check if upload_file.sh script is available
+if [ ! -s ./upload_file.sh ]
+then
+    cat << EOF 
+
+WARN: This script works as wrapper for the 'upload_file.sh' bash script and this file is not available in this folder.
+      Please, retrive from the remote repo the file, than try again. Exit.
+
+EOF
+    exit 0
+fi
 
 if [ $# -eq 0 ] || [ $1 == '--help' ] || [ $1 == '-h' ];
 then

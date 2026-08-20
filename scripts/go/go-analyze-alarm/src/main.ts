@@ -6,11 +6,11 @@
  */
 
 import { Core } from '@go-automation/go-common';
+import { RUNBOOK_REGISTRY } from '@go-automation/go-runbook/catalog';
 
 import type { GoAnalyzeAlarmConfig } from './types/GoAnalyzeAlarmConfig.js';
 import { analyzeOccurrence } from './libs/analyzeOccurrence.js';
 import { assertRangeModeConfig, findAlarmOccurrences } from './libs/findAlarmOccurrences.js';
-import { RUNBOOK_REGISTRY } from './libs/runbookRegistry.js';
 
 /**
  * Main script execution function.

@@ -2,8 +2,8 @@
  * Runbook: {{RUNBOOK_ID}}
  */
 
-import { lambda } from '@go-automation/go-runbook';
-import type { Runbook } from '@go-automation/go-runbook';
+import { lambda } from '../framework.js';
+import type { Runbook } from '../framework.js';
 
 import { LAMBDA_FUNCTION, DOWNSTREAMS } from './knownServices.js';
 import { DOWNSTREAM_ERROR_PATTERNS } from './knownErrors.js';

@@ -13,6 +13,7 @@ import type {
 } from './RunbookTelemetry.js';
 import { sumCloudWatchLogsQueryStatistics, type AWSCloudWatchLogsQueryStatistics } from '@go-automation/go-common/aws';
 import { emptyRunbookOutputContext } from './RunbookOutputContext.js';
+import { buildAnalysisDraft } from './buildAnalysisDraft.js';
 import { interpolatePlaceholders } from '../core/templatePlaceholders.js';
 
 const UNKNOWN_CASE_PREFIX = '[CASO NON RICONOSCIUTO]';
@@ -35,6 +36,7 @@ export function buildRunbookOutput(
 ): RunbookOutput {
   const trace = result.trace;
   const telemetry = buildRunbookTelemetry(trace.pipeline);
+  const analysis = buildAnalysisDraft(runbook, result);
   return {
     schemaVersion: '1.0.0',
     generatedAt: new Date().toISOString(),
@@ -62,6 +64,7 @@ export function buildRunbookOutput(
     },
     input: trace.input,
     outcome: buildOutcome(runbook, result),
+    ...(analysis !== undefined ? { analysis } : {}),
     ...(telemetry !== undefined ? { telemetry } : {}),
     context: options.contextBuilder?.(runbook, result) ?? emptyRunbookOutputContext(),
   };

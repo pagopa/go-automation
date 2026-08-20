@@ -6,6 +6,7 @@ import type { TemplateInput } from '../templates/TemplateInput.js';
 import type { CliArgs } from './parseArgs.js';
 import { RUNBOOK_TEMPLATES, findRunbookTemplate } from '../templates/runbookTemplates.js';
 import { deriveBuilderName } from '../naming/deriveBuilderName.js';
+import { categoriesError } from '../validation/categoriesError.js';
 import { runbookIdError } from '../validation/runbookIdError.js';
 
 type TextValidator = (value: string) => true | string;
@@ -16,11 +17,11 @@ interface TextPromptOptions {
   readonly validate?: TextValidator;
 }
 
-function parseTags(raw: string): ReadonlyArray<string> {
+function parseCommaSeparated(raw: string): ReadonlyArray<string> {
   return raw
     .split(',')
-    .map((tag) => tag.trim())
-    .filter((tag) => tag.length > 0);
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
 }
 
 function defaultTags(template: RunbookTemplate): string {
@@ -34,6 +35,10 @@ function validateIdInput(value: string): true | string {
 
 function requiredInput(value: string): true | string {
   return value.trim().length > 0 ? true : 'Campo obbligatorio.';
+}
+
+function validateCategoriesInput(value: string): true | string {
+  return categoriesError(parseCommaSeparated(value)) ?? true;
 }
 
 /**
@@ -157,6 +162,17 @@ export async function collectAnswers(template: RunbookTemplate, cli: CliArgs): P
     message: 'Tags (separati da virgola)',
     default: defaultTags(template),
   });
+  const categoriesRaw = cli.wire
+    ? await resolveText(cli.categories, {
+        message: 'Categorie catalogo (separate da virgola)',
+        validate: validateCategoriesInput,
+      })
+    : (cli.categories ?? '');
+  const categories = parseCommaSeparated(categoriesRaw);
+  const categoryError = categoriesError(categories);
+  if (cli.wire && categoryError !== undefined) {
+    throw new Error(categoryError);
+  }
 
   const extras = await collectExtras(template, id, cli);
 
@@ -168,7 +184,8 @@ export async function collectAnswers(template: RunbookTemplate, cli: CliArgs): P
     description,
     version,
     team,
-    tags: parseTags(tagsRaw),
+    tags: parseCommaSeparated(tagsRaw),
+    categories,
     extras,
   };
 }

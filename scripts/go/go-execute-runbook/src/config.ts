@@ -90,19 +90,13 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'apply',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Apply mode for CLI-created executions: none | known | all',
+    description: 'Apply mode for CLI-created executions: none | known',
     required: false,
   },
   {
     name: 'confirm.apply',
     type: Core.GOConfigParameterType.BOOL,
     description: 'Confirm any apply mode against a non-local Watchtower URL',
-    required: false,
-  },
-  {
-    name: 'confirm.apply.all',
-    type: Core.GOConfigParameterType.BOOL,
-    description: 'Confirm apply all mode',
     required: false,
   },
 ] as const;

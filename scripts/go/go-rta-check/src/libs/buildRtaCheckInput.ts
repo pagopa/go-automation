@@ -1,4 +1,5 @@
-import type { RtaCheckInput } from '../types/RtaCheckReport.js';
+import type { RtaCheckInput } from '@go-automation/go-watchtower-runbook';
+
 import type { Connection } from './resolveClient.js';
 import type { ProductAlarm } from './resolveProductAlarm.js';
 import type { ResolvedAnalysisMatcher } from './resolveAnalysisMatcher.js';

@@ -22,16 +22,15 @@
   "scripts": {
     "build": "tsc -b",
     "clean": "rm -rf dist *.tsbuildinfo",
-    "dev": "tsx src/index.ts",
+    "dev": "pnpm --filter=@go-automation/go-runbook build && tsx src/index.ts",
     "start": "pnpm build && node dist/index.js",
-    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
+    "test": "pnpm --filter=@go-automation/go-runbook build && node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
     "watch": "tsc --watch"
   },
   "dependencies": {
     "@go-automation/go-common": "workspace:*",
     "@go-automation/go-runbook": "workspace:*",
-    "@go-automation/go-watchtower-client": "workspace:*",
-    "go-analyze-alarm": "workspace:*"
+    "@go-automation/go-watchtower-client": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:"

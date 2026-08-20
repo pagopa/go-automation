@@ -9,10 +9,15 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./catalog": {
+      "types": "./dist/catalog/index.d.ts",
+      "default": "./dist/catalog/index.js"
     }
   },
   "scripts": {
     "build": "tsc -b",
+    "catalog:descriptors": "tsx src/catalog/exportAutomaticRunbookDescriptors.ts",
     "watch": "tsc --build --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
     "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
@@ -27,7 +32,8 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@go-automation/go-common": "workspace:*"
+    "@go-automation/go-common": "workspace:*",
+    "@go-automation/go-execute-runbook-contracts": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

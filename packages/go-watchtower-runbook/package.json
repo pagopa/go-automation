@@ -1,0 +1,36 @@
+{
+  "name": "@go-automation/go-watchtower-runbook",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Libreria applicativa read-only che confronta i runbook di go-runbook con i dati Watchtower: esecuzione/confronto delle occorrenze e copertura dichiarazioni ↔ censimento.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "pnpm --filter=@go-automation/go-runbook build && node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'"
+  },
+  "keywords": [
+    "go",
+    "go-automation"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "dependencies": {
+    "@go-automation/go-ai": "workspace:*",
+    "@go-automation/go-common": "workspace:*",
+    "@go-automation/go-runbook": "workspace:*",
+    "@go-automation/go-watchtower-client": "workspace:*",
+    "ajv": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

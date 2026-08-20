@@ -1,4 +1,4 @@
-import { AUTOMATIC_RUNBOOK_REGISTRY } from 'go-analyze-alarm/api';
+import { AUTOMATIC_RUNBOOK_REGISTRY } from '@go-automation/go-runbook/catalog';
 
 import type { ExecuteRunbookInput } from '../types/ExecuteRunbookInput.js';
 

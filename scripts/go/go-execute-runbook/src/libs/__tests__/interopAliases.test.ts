@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { Core } from '@go-automation/go-common';
 import type { ServiceRegistry } from '@go-automation/go-runbook';
 import type { WatchtowerClient } from '@go-automation/go-watchtower-client';
-import { AUTOMATIC_RUNBOOK_REGISTRY } from 'go-analyze-alarm/api';
+import { AUTOMATIC_RUNBOOK_REGISTRY } from '@go-automation/go-runbook/catalog';
 
 import type { ExecuteRunbookCliConfig } from '../../types/ExecuteRunbookConfig.js';
 import type { ExecuteRunbookDeps } from '../../types/ExecuteRunbookDeps.js';

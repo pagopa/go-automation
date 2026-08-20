@@ -2,8 +2,8 @@
  * Runbook: {{RUNBOOK_ID}}
  */
 
-import { service } from '@go-automation/go-runbook';
-import type { Runbook } from '@go-automation/go-runbook';
+import { service } from '../framework.js';
+import type { Runbook } from '../framework.js';
 
 import { SERVICE } from './knownServices.js';
 import { KNOWN_CASES } from './knownCases.js';
