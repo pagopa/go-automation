@@ -1,23 +1,9 @@
 test:
   aws.region: 'eu-south-1'
   cw.logGroup: '/aws/eks/interop-eks-cluster-test/application'
-  cw.queryApplication: |
-    fields @timestamp, @message
-    | sort @timestamp asc
-    | filter (@message like /ERROR/ or stream = "stderr") and (@message like "Request failed with status code 500" or @message like "Request failed with status code 503") and @message like "[CID="
-    | filter @logStream not like /adot-collector/
-    | filter pod_app like /interop-be-audit-signer/
-    | limit 1
-  cw.queryCid: |
-    fields @timestamp, @message
-    | sort @timestamp asc
-    | parse @message "[CID=*]" as CID
-    | filter CID = cid_replace
-    | display @message
-    | limit 10
   s3.bucketNameNdjson: 'interop-generated-jwt-details-test-es1'
   s3.prefixNdjson: 'token-details'
   s3.bucketNameP7m: 'interop-signed-jwt-audit-v2-test-es1'
   s3.prefixP7m: 'token-details'
-  startUtc: '2026-07-13 13:30:00'
-  endUtc: '2026-07-13 13:40:00'
+  startUtc: '2026-07-27 02:20:00'
+  endUtc: '2026-07-27 02:40:00'

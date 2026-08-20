@@ -17,6 +17,26 @@ export const scriptMetadata: Core.GOScriptMetadata = {
 };
 
 /**
+ * Default CloudWatch Logs query string for application logs
+ */
+export const DEFAULT_CW_QUERY_APPLICATION = `fields @timestamp, @message
+| sort @timestamp asc
+| filter (@message like /ERROR/ or stream = "stderr") and (@message like "Request failed with status code 500" or @message like "Request failed with status code 503") and @message like "[CID="
+| filter @logStream not like /adot-collector/
+| filter pod_app like /interop-be-audit-signer/
+| limit 1`;
+
+/**
+ * Default CloudWatch Logs query string for CID log details
+ */
+export const DEFAULT_CW_QUERY_CID = `fields @timestamp, @message
+| sort @timestamp asc
+| parse @message "[CID=*]" as CID
+| filter CID = cid_replace
+| display @message
+| limit 10`;
+
+/**
  * Script parameter definitions
  */
 export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
@@ -47,7 +67,8 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     name: 'cw.queryApplication',
     type: Core.GOConfigParameterType.STRING,
     description: 'CloudWatch Logs query string for application logs',
-    required: true,
+    required: false,
+    defaultValue: DEFAULT_CW_QUERY_APPLICATION,
     aliases: ['qa'],
     envVar: 'CW_QUERY_APPLICATION',
   },
@@ -55,7 +76,8 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     name: 'cw.queryCid',
     type: Core.GOConfigParameterType.STRING,
     description: 'CloudWatch Logs query string for CID log details',
-    required: true,
+    required: false,
+    defaultValue: DEFAULT_CW_QUERY_CID,
     aliases: ['qc'],
     envVar: 'CW_QUERY_CID',
   },

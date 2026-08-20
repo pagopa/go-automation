@@ -10,9 +10,9 @@ export interface InteropVerificaHashTokenConfig {
   /** CloudWatch Log Group Name */
   readonly cwLogGroup: string;
   /** CloudWatch Logs query string for application logs */
-  readonly cwQueryApplication: string;
+  readonly cwQueryApplication?: string;
   /** CloudWatch Logs query string for CID log details */
-  readonly cwQueryCid: string;
+  readonly cwQueryCid?: string;
   /** S3 bucket name for NDJSON tokens */
   readonly s3BucketNameNdjson: string;
   /** S3 prefix for NDJSON tokens */

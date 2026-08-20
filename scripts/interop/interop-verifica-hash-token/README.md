@@ -66,14 +66,14 @@ configurazione/presets.
 | `--aws-profile`           | `-ap` | -                       | **Sì**       | -               | Nome del profilo AWS SSO                                                                             |
 | `--aws-region`            | `-ar` | -                       | No           | `eu-south-1`    | Regione AWS                                                                                          |
 | `--cw-log-group`          | `-lg` | `CW_LOG_GROUP`          | **Sì**       | -               | Log group di CloudWatch                                                                              |
-| `--cw-query-application`  | `-qa` | `CW_QUERY_APPLICATION`  | **Sì**       | -               | Query CloudWatch iniziale per recupero del CID                                                       |
-| `--cw-query-cid`          | `-qc` | `CW_QUERY_CID`          | **Sì**       | -               | Query CloudWatch per recuperare il nome del file tramite CID (contiene il placeholder `cid_replace`) |
-| `--s3-bucket-name-ndjson` | `-bn` | `S3_BUCKET_NAME_NDJSON` | **Sì**       | -               | Nome bucket S3 per file NDJSON originali                                                             |
-| `--s3-prefix-ndjson`      | `-pn` | `S3_PREFIX_NDJSON`      | No           | `token-details` | Prefisso S3 per file NDJSON                                                                          |
-| `--s3-bucket-name-p7m`    | `-bp` | `S3_BUCKET_NAME_P7M`    | **Sì**       | -               | Nome bucket S3 per file P7M firmati                                                                  |
-| `--s3-prefix-p7m`         | `-pp` | `S3_PREFIX_P7M`         | No           | `token-details` | Prefisso S3 per file P7M                                                                             |
-| `--start-utc`             | `-su` | `START_UTC`             | **Sì**       | -               | Data d'inizio in UTC (`YYYY-MM-DD HH:MM:SS` o ISO 8601)                                              |
-| `--end-utc`               | `-eu` | `END_UTC`               | **Sì**       | -               | Data di fine in UTC (`YYYY-MM-DD HH:MM:SS` o ISO 8601)                                               |
+| `--cw-query-application`  | `-qa` | `CW_QUERY_APPLICATION`  | No           | Query predefinita per `interop-be-audit-signer` | Query CloudWatch iniziale per recupero del CID                                                       |
+| `--cw-query-cid`          | `-qc` | `CW_QUERY_CID`          | No           | Query predefinita CID                           | Query CloudWatch per recuperare il nome del file tramite CID (contiene il placeholder `cid_replace`) |
+| `--s3-bucket-name-ndjson` | `-bn` | `S3_BUCKET_NAME_NDJSON` | **Sì**       | -                                               | Nome bucket S3 per file NDJSON originali                                                             |
+| `--s3-prefix-ndjson`      | `-pn` | `S3_PREFIX_NDJSON`      | No           | `token-details`                                 | Prefisso S3 per file NDJSON                                                                          |
+| `--s3-bucket-name-p7m`    | `-bp` | `S3_BUCKET_NAME_P7M`    | **Sì**       | -                                               | Nome bucket S3 per file P7M firmati                                                                  |
+| `--s3-prefix-p7m`         | `-pp` | `S3_PREFIX_P7M`         | No           | `token-details`                                 | Prefisso S3 per file P7M                                                                             |
+| `--start-utc`             | `-su` | `START_UTC`             | **Sì**       | -                                               | Data d'inizio in UTC (`YYYY-MM-DD HH:MM:SS` o ISO 8601)                                              |
+| `--end-utc`               | `-eu` | `END_UTC`               | **Sì**       | -                                               | Data di fine in UTC (`YYYY-MM-DD HH:MM:SS` o ISO 8601)                                               |
 
 ### Preset di Configurazione (Consigliato)
 
@@ -84,20 +84,6 @@ esempio, è già presente un preset denominato `test`:
 test:
   aws.region: 'eu-south-1'
   cw.logGroup: '/aws/eks/interop-eks-cluster-test/application'
-  cw.queryApplication: |
-    fields @timestamp, @message
-    | sort @timestamp asc
-    | filter (@message like /ERROR/ or stream = "stderr") and (@message like "Request failed with status code 500" or @message like "Request failed with status code 503") and @message like "[CID="
-    | filter @logStream not like /adot-collector/
-    | filter pod_app like /interop-be-audit-signer/
-    | limit 1
-  cw.queryCid: |
-    fields @timestamp, @message
-    | sort @timestamp asc
-    | parse @message "[CID=*]" as CID
-    | filter CID = cid_replace
-    | display @message
-    | limit 10
   s3.bucketNameNdjson: 'interop-generated-jwt-details-test-es1'
   s3.prefixNdjson: 'token-details'
   s3.bucketNameP7m: 'interop-signed-jwt-audit-v2-test-es1'
@@ -118,24 +104,12 @@ Dalla root del monorepo, lanciare lo script utilizzando il preset configurato:
 pnpm interop:verifica:hash:token:dev --script-preset-name test --aws-profile <tuo-profilo-aws>
 ```
 
-Oppure specificando i singoli parametri manualmente via CLI:
+Oppure specificando i singoli parametri manualmente via CLI (le query verranno prese di default se non specificate):
 
 ```bash
 pnpm interop:verifica:hash:token:dev -- \
   --aws-profile pdnd-interop-test \
   --cw-log-group "/aws/eks/interop-eks-cluster-test/application" \
-  --cw-query-application "fields @timestamp, @message
-| sort @timestamp asc
-| filter (@message like /ERROR/ or stream = "stderr") and (@message like "Request failed with status code 500" or @message like "Request failed with status code 503") and @message like "[CID="
-| filter @logStream not like /adot-collector/
-| filter pod_app like /interop-be-audit-signer/
-| limit 1" \
-  --cw-query-cid "fields @timestamp, @message
-| sort @timestamp asc
-| parse @message "[CID=*]" as CID
-| filter CID = cid_replace
-| display @message
-| limit 10" \
   --s3-bucket-name-ndjson "interop-generated-jwt-details-test-es1" \
   --s3-bucket-name-p7m "interop-signed-jwt-audit-v2-test-es1" \
   --start-utc "2026-07-13 13:30:00" \

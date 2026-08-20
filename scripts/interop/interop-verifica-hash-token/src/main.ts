@@ -9,6 +9,7 @@ import * as path from 'node:path';
 
 import { Core } from '@go-automation/go-common';
 
+import { DEFAULT_CW_QUERY_APPLICATION, DEFAULT_CW_QUERY_CID } from './config.js';
 import {
   buildS3Key,
   calculateFileHash,
@@ -39,12 +40,15 @@ export async function main(script: Core.GOScript): Promise<void> {
   const end = parseUtcDate(config.endUtc);
   const timeRange = { start, end };
 
+  const cwQueryApplication = config.cwQueryApplication ?? DEFAULT_CW_QUERY_APPLICATION;
+  const cwQueryCid = config.cwQueryCid ?? DEFAULT_CW_QUERY_CID;
+
   // 1. First CloudWatch query to find CID
   script.logger.section('Executing first CloudWatch query...');
   script.prompt.startSpinner('Running CloudWatch query for application logs...');
   const results = await script.aws.services.cloudWatchLogs.query(
     [config.cwLogGroup],
-    config.cwQueryApplication,
+    cwQueryApplication,
     timeRange,
   );
   script.prompt.stopSpinner();
@@ -59,7 +63,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   // 2. Second CloudWatch query using the extracted CID
   script.logger.section('Executing second CloudWatch query...');
   script.prompt.startSpinner(`Running CloudWatch query for CID ${cid}...`);
-  const cidQuery = config.cwQueryCid.replace('cid_replace', `"${cid}"`);
+  const cidQuery = cwQueryCid.replace('cid_replace', `"${cid}"`);
   const resultsSecondQuery = await script.aws.services.cloudWatchLogs.query([config.cwLogGroup], cidQuery, timeRange);
   script.prompt.stopSpinner();
 
