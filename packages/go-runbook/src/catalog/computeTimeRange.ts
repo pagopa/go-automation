@@ -17,12 +17,12 @@ import type { OccurrenceTimeWindow } from '../types/OccurrenceTimeWindow.js';
  * @param reference - Reference point(s) for the window
  * @param timeWindow - Independent padding, or a number for the legacy symmetric form
  * @returns Start and end timestamps as ISO 8601 strings
- * @throws Error when `timeWindowMinutes` is not a finite non-negative
- *         number, when any of the input timestamps cannot be parsed, or
- *         when a `multi` range is inverted (`last` strictly before
- *         `first`). A degenerate range where `first === last` is
- *         accepted and produces the symmetric
- *         `[first - window, first + window]` span.
+ * @throws Error when `timeWindow` is invalid: a legacy numeric value or
+ *         either `beforeMinutes`/`afterMinutes` must be finite and
+ *         non-negative; when an input timestamp cannot be parsed; or when
+ *         a `multi` range is inverted (`last` strictly before `first`).
+ *         A degenerate range where `first === last` is accepted and produces
+ *         `[first - beforeMinutes, first + afterMinutes]`.
  */
 export function computeTimeRange(
   reference: TimeRangeReference,
