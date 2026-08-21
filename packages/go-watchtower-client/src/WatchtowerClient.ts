@@ -170,6 +170,23 @@ export class WatchtowerClient {
     }
   }
 
+  /**
+   * Counts the events matching the query without downloading them.
+   *
+   * Reads `pagination.totalItems` from a single one-item page, so the cost stays
+   * constant regardless of how many occurrences the filter selects.
+   *
+   * @param query - The same filter accepted by {@link listAlarmEvents}
+   * @returns The total number of matching alarm events
+   */
+  async countAlarmEvents(query: AlarmEventsQuery): Promise<number> {
+    const result = await this.authenticatedRequest<AlarmEventsPage>(
+      'GET',
+      withQuery('/api/alarm-events', { ...query, page: 1, pageSize: 1 }),
+    );
+    return result.pagination.totalItems;
+  }
+
   async getAlarmEvent(alarmEventId: string): Promise<AlarmEventDetailDto> {
     return await this.authenticatedRequest<AlarmEventDetailDto>(
       'GET',

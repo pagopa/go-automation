@@ -7,7 +7,7 @@ import type { RunbookCheckContext } from '@go-automation/go-watchtower-runbook';
 
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
 import type { Connection } from './resolveClient.js';
-import type { ProductAlarm } from './resolveProductAlarm.js';
+import type { ProductAlarm } from '../types/ProductAlarm.js';
 import type { ResolvedAnalysisMatcher } from './resolveAnalysisMatcher.js';
 
 export interface BuildCheckContextOptions {

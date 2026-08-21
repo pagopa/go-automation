@@ -15,6 +15,15 @@ export interface GoRtaCheckConfig {
   readonly watchtowerPassword?: string;
   /** Watchtower product id; when omitted the user selects it interactively. */
   readonly productId?: string;
+  /**
+   * Selection scope: one entry per product, each with its own environment ids.
+   *
+   * Entries are JSON objects (`{"productId":"…","environmentIds":["…"]}`) or the
+   * compact form `productId:envId1|envId2`. Empty/omitted = no restriction.
+   */
+  readonly targets?: ReadonlyArray<string>;
+  /** Disables every wizard prompt: mandatory when the script runs unattended. */
+  readonly nonInteractive?: boolean;
   /** Propaga il verdetto nell'exit code: da accendere in CI. */
   readonly exitCodeOnFindings?: boolean;
   /** Finestra di osservazione dello shadow in mode readiness, in giorni. */
