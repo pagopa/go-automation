@@ -35,10 +35,10 @@ Lo script automatizza il flusso di verifica dell'integrità dei token firmati:
 
 ### Software Richiesto
 
-| Software | Versione Minima | Note                                                                                     |
-|----------|-----------------|------------------------------------------------------------------------------------------|
-| Node.js  | >= 22.14.0      | Versione LTS del monorepo                                                                |
-| pnpm     | >= 10.28.0      | Package manager                                                                          |
+| Software | Versione Minima | Note                      |
+| -------- | --------------- | ------------------------- |
+| Node.js  | >= 22.14.0      | Versione LTS del monorepo |
+| pnpm     | >= 10.28.0      | Package manager           |
 
 ### Account e Permessi AWS
 
@@ -61,11 +61,11 @@ configurazione/presets.
 
 ### Parametri CLI e Variabili d'Ambiente
 
-| Parametro CLI             | Alias | Variabile d'Ambiente    | Obbligatorio | Default         | Descrizione                                                                                          |
-|---------------------------|-------|-------------------------|--------------|-----------------|------------------------------------------------------------------------------------------------------|
-| `--aws-profile`           | `-ap` | -                       | **Sì**       | -               | Nome del profilo AWS SSO                                                                             |
-| `--aws-region`            | `-ar` | -                       | No           | `eu-south-1`    | Regione AWS                                                                                          |
-| `--cw-log-group`          | `-lg` | `CW_LOG_GROUP`          | **Sì**       | -               | Log group di CloudWatch                                                                              |
+| Parametro CLI             | Alias | Variabile d'Ambiente    | Obbligatorio | Default                                         | Descrizione                                                                                          |
+| ------------------------- | ----- | ----------------------- | ------------ | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `--aws-profile`           | `-ap` | -                       | **Sì**       | -                                               | Nome del profilo AWS SSO                                                                             |
+| `--aws-region`            | `-ar` | -                       | No           | `eu-south-1`                                    | Regione AWS                                                                                          |
+| `--cw-log-group`          | `-lg` | `CW_LOG_GROUP`          | **Sì**       | -                                               | Log group di CloudWatch                                                                              |
 | `--cw-query-application`  | `-qa` | `CW_QUERY_APPLICATION`  | No           | Query predefinita per `interop-be-audit-signer` | Query CloudWatch iniziale per recupero del CID                                                       |
 | `--cw-query-cid`          | `-qc` | `CW_QUERY_CID`          | No           | Query predefinita CID                           | Query CloudWatch per recuperare il nome del file tramite CID (contiene il placeholder `cid_replace`) |
 | `--s3-bucket-name-ndjson` | `-bn` | `S3_BUCKET_NAME_NDJSON` | **Sì**       | -                                               | Nome bucket S3 per file NDJSON originali                                                             |
