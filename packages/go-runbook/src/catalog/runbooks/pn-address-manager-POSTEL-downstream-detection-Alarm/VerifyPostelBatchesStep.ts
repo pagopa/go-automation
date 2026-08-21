@@ -5,6 +5,7 @@ import type { Step } from '../../../types/Step.js';
 import type { StepKind } from '../../../types/StepKind.js';
 import type { StepResult } from '../../../types/StepResult.js';
 import type { TimeRange } from '../../../types/TimeRange.js';
+import { SEND_SERVICE_PROFILE } from '../../../service/profiles/SEND_SERVICE_PROFILE.js';
 import { executeCloudWatchLogsQuery } from '../../../steps/data/executeCloudWatchLogsQuery.js';
 import { executeStep } from '../../../steps/data/executeStep.js';
 import { readStepOutput } from '../../../steps/data/readStepOutput.js';
@@ -77,7 +78,7 @@ export class VerifyPostelBatchesStep implements Step<PostelBatchRecovery> {
   getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
     const timeRange = this.resolveLookupTimeRange(context);
     return {
-      queryProfileId: 'send-service-v1',
+      queryProfileId: SEND_SERVICE_PROFILE.id,
       queryKind: 'postel-batch-recovery',
       identifierMode: 'batch-id',
       sourceStep: this.fromStep,

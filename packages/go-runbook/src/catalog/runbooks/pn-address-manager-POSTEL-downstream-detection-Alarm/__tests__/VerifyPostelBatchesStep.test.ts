@@ -11,6 +11,7 @@ import { GOLogger } from '@go-automation/go-common/core';
 
 import { ConditionEvaluator } from '../../../../core/ConditionEvaluator.js';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
+import { SEND_SERVICE_PROFILE } from '../../../../service/profiles/SEND_SERVICE_PROFILE.js';
 import type { RunbookContext } from '../../../../types/RunbookContext.js';
 import type { ServiceRegistry } from '../../../../services/ServiceRegistry.js';
 import { buildAddressManagerPostelDownstreamDetectionAlarmRunbook } from '../runbook.js';
@@ -80,6 +81,13 @@ function step(): VerifyPostelBatchesStep {
 }
 
 describe('VerifyPostelBatchesStep', () => {
+  it('uses the canonical SEND service profile in its execution trace', () => {
+    const traceInfo = step().getTraceInfo(context([], [], []));
+
+    assert.strictEqual(traceInfo['queryProfileId'], SEND_SERVICE_PROFILE.id);
+    assert.strictEqual(traceInfo['queryKind'], 'postel-batch-recovery');
+  });
+
   it('deduplicates impacted batch ids and resolves only when every batch reached WORKED', async () => {
     const calls: QueryCall[] = [];
     const result = await step().execute(
