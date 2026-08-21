@@ -24,8 +24,8 @@
   "license": "ISC",
   "dependencies": {
     "@go-automation/go-common": "workspace:*",
-    "adm-zip": "catalog:",
-    "node-forge": "catalog:"
+    "node-forge": "catalog:",
+    "unzipper-esm": "catalog:"
   },
   "devDependencies": {
     "@types/node": "^24.10.9",

@@ -101,7 +101,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   // 5. Unpack .p7m file and zip
   script.logger.section('Unpacking and extracting .p7m file...');
   script.prompt.startSpinner('Decrypting and unzipping...');
-  const extractedNdjsonPath = unpackP7mZip(localP7mPath, localZipPath, outputDir);
+  const extractedNdjsonPath = await unpackP7mZip(localP7mPath, localZipPath, outputDir);
   script.prompt.stopSpinner();
   script.logger.info(`Extracted signed NDJSON content to: ${extractedNdjsonPath}`);
 
