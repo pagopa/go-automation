@@ -21,7 +21,7 @@ export const scriptMetadata: Core.GOScriptMetadata = {
  */
 export const DEFAULT_CW_QUERY_APPLICATION = `fields @timestamp, @message
 | sort @timestamp asc
-| filter (@message like /ERROR/ or stream = "stderr") and (@message like "Request failed with status code 500" or @message like "Request failed with status code 503") and @message like "[CID="
+| filter (@message like /ERROR/ or stream = "stderr") and (@message like "Request failed with status code 500" or @message like "Request failed with status code 503" or @message like "timeout of 30000ms exceeded") and @message like "[CID="
 | filter @logStream not like /adot-collector/
 | filter pod_app like /interop-be-audit-signer/
 | limit 1`;

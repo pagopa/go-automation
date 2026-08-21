@@ -13,6 +13,23 @@ const AdmZip = requireCjs('adm-zip') as new (fileName?: string | Buffer) => AdmZ
 const forge = requireCjs('node-forge') as typeof forgeModule;
 
 /**
+ * Recursively extracts binary string from ASN.1 nodes or values
+ */
+function extractStringFromAsn1(asn1Node: unknown): string {
+  if (!asn1Node || typeof asn1Node !== 'object') {
+    return '';
+  }
+  const node = asn1Node as { value?: unknown };
+  if (typeof node.value === 'string') {
+    return node.value;
+  }
+  if (Array.isArray(node.value)) {
+    return node.value.map((child: unknown) => extractStringFromAsn1(child)).join('');
+  }
+  return '';
+}
+
+/**
  * Decrypts a p7m signed file to zip using node-forge and extracts it
  */
 export function unpackP7mZip(p7mPath: string, tempZipPath: string, outputDir: string): string {
@@ -24,12 +41,27 @@ export function unpackP7mZip(p7mPath: string, tempZipPath: string, outputDir: st
     const asn1 = forge.asn1.fromDer(forgeBuffer);
     const p7 = forge.pkcs7.messageFromAsn1(asn1);
 
-    let extractedContent: Buffer;
-    if (typeof p7.content === 'string') {
-      extractedContent = Buffer.from(String(p7.content), 'binary');
+    let extractedContent: Buffer | undefined;
+    if (typeof p7.content === 'string' && p7.content.length > 0) {
+      extractedContent = Buffer.from(p7.content, 'binary');
     } else if (isForgeByteBuffer(p7.content)) {
-      extractedContent = Buffer.from(String(p7.content.getBytes()), 'binary');
-    } else {
+      const bytesStr = p7.content.getBytes();
+      if (bytesStr.length > 0) {
+        extractedContent = Buffer.from(bytesStr, 'binary');
+      }
+    }
+
+    if (!extractedContent) {
+      const rawCapture = (p7 as unknown as { rawCapture?: { content?: unknown } }).rawCapture;
+      if (rawCapture?.content) {
+        const binaryString = extractStringFromAsn1(rawCapture.content);
+        if (binaryString.length > 0) {
+          extractedContent = Buffer.from(binaryString, 'binary');
+        }
+      }
+    }
+
+    if (!extractedContent) {
       throw new Error('Unable to extract content from PKCS#7 message');
     }
 
