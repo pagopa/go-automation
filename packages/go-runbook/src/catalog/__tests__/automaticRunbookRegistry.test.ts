@@ -128,6 +128,26 @@ describe('AUTOMATIC_RUNBOOK_REGISTRY', () => {
     assert.deepStrictEqual(prod.descriptor.categories, ['INTEROP']);
   });
 
+  it('resolves INTEROP Selfcare API Gateway 5xx aliases to the same APIGW descriptor', () => {
+    const prod = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName('interop-selfcare-1.0-prod-apigw-5xx');
+    const att = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName('interop-selfcare-1.0-att-apigw-5xx');
+    const test = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName('interop-selfcare-1.0-test-apigw-5xx');
+
+    assert.ok(prod);
+    assert.ok(att);
+    assert.ok(test);
+    assert.strictEqual(prod.descriptor.key, 'interop-selfcare-1.0-apigw-5xx');
+    assert.strictEqual(prod.descriptor.kind, 'APIGW');
+    assert.deepStrictEqual(att.descriptor, prod.descriptor);
+    assert.deepStrictEqual(test.descriptor, prod.descriptor);
+    assert.deepStrictEqual(prod.descriptor.alarmNames, [
+      'interop-selfcare-1.0-att-apigw-5xx',
+      'interop-selfcare-1.0-prod-apigw-5xx',
+      'interop-selfcare-1.0-test-apigw-5xx',
+    ]);
+    assert.deepStrictEqual(prod.descriptor.categories, ['INTEROP']);
+  });
+
   it('lists stable sorted descriptors and validates every cloud runbook', () => {
     const first = AUTOMATIC_RUNBOOK_REGISTRY.listDescriptors();
     const second = AUTOMATIC_RUNBOOK_REGISTRY.listDescriptors();

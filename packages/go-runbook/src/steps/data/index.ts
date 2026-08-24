@@ -22,5 +22,6 @@ export { HttpRequestStep, httpRequest } from './HttpRequestStep.js';
 export type { HttpRequestConfig } from './HttpRequestStep.js';
 
 export { escapeSqlString, extractTemplateParameters } from './interpolateTemplate.js';
+export { readCloudWatchResultRows } from './readCloudWatchResultRows.js';
 export { resolveTimeRange } from './resolveTimeRange.js';
 export { executeStep } from './executeStep.js';

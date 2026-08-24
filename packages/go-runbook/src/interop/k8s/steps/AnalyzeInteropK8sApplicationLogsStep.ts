@@ -3,6 +3,7 @@ import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
 import type { StepKind } from '../../../types/StepKind.js';
 import type { StepResult } from '../../../types/StepResult.js';
+import { readCloudWatchResultRows } from '../../../steps/data/readCloudWatchResultRows.js';
 
 export interface InteropK8sApplicationLogAnalysis {
   readonly logCount: number;
@@ -39,7 +40,7 @@ export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sAppl
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<InteropK8sApplicationLogAnalysis>> {
-    const rows = readResultRows(context, this.fromStep);
+    const rows = readCloudWatchResultRows(context.stepResults.get(this.fromStep));
     if (rows === undefined) return { success: false, error: `Step output not found: "${this.fromStep}"` };
 
     const cids: string[] = [];
@@ -87,29 +88,6 @@ export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sAppl
       },
     };
   }
-}
-
-function readResultRows(
-  context: RunbookContext,
-  stepId: string,
-): ReadonlyArray<ReadonlyArray<ResultField>> | undefined {
-  const value = context.stepResults.get(stepId);
-  if (!isUnknownArray(value)) return undefined;
-
-  const rows: ResultField[][] = [];
-  for (const row of value) {
-    if (!isUnknownArray(row)) continue;
-    rows.push(row.filter(isResultField));
-  }
-  return rows;
-}
-
-function isUnknownArray(value: unknown): value is unknown[] {
-  return Array.isArray(value);
-}
-
-function isResultField(value: unknown): value is ResultField {
-  return typeof value === 'object' && value !== null && 'field' in value;
 }
 
 function extractCid(row: ReadonlyArray<ResultField>): string | undefined {

@@ -1,0 +1,406 @@
+import {
+  INTEROP_DOWNSTREAMS,
+  type AnalysisLinkRef,
+  type CaseAction,
+  type Condition,
+  type InteropDownstream,
+  type KnownCase,
+} from '../framework.js';
+
+import type { InteropEnvironment } from '../interop/InteropEnvironment.js';
+import {
+  QUERY_INTEROP_API_GW_5XX_STEP_ID,
+  QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
+  QUERY_INTEROP_CID_TRACKER_STEP_ID,
+} from './runbookSteps.js';
+
+interface InteropSelfcareKnownCaseConfig {
+  readonly id: string;
+  readonly description: string;
+  readonly priority: number;
+  readonly regex: string;
+  readonly resolution: string;
+  readonly proposedStatus: 'IN_PROGRESS' | 'COMPLETED';
+  readonly environments?: ReadonlyArray<InteropEnvironment>;
+  readonly evidence?: 'ALL' | 'API_GATEWAY';
+  readonly downstreams?: ReadonlyArray<InteropDownstream>;
+  readonly resources?: ReadonlyArray<string>;
+  readonly finalActions?: ReadonlyArray<string>;
+  readonly links?: ReadonlyArray<AnalysisLinkRef>;
+  readonly excludeRegex?: string;
+}
+
+const JIRA_BROWSE = 'https://pagopa.atlassian.net/browse';
+const TENANT_FINAL_CHECKS_SLACK = 'https://pagopaspa.slack.com/archives/C06D24MANNN/p1767882976519499';
+const INVALID_ROLES_SLACK = 'https://pagopaspa.slack.com/archives/C06D24MANNN/p1767608380741029';
+const TENANT_KIND_FEEDBACK_SLACK =
+  'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1782378212170059?thread_ts=1782372525.645849&cid=C0A7F9XQAT0';
+const RESPONSE_503_SLACK = 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1784212876030559';
+
+const KNOWN_SELFCARE_IDS = [
+  '56f4f576-af5e-4a90-8be2-1ac78dec899f',
+  'fc7b97a0-e921-454f-b744-4c09ae40c663',
+  '1219c34e-9797-45e9-a1e7-da9fb35ed468',
+  '560a56a0-745a-44cf-b228-0493ec48dce8',
+  'acb68e12-103c-4e43-983a-13ae587a6240',
+  '02184e01-fff2-4170-9d8c-c52867fca6f6',
+  '9357291b-3a55-4351-af16-61dcacf88b80',
+  '7467fffd-9e43-40a9-b74f-59e4d661f9fe',
+  '0a0da251-1568-4fed-82b5-10d6ccc1de7e',
+  '627dc018-0e91-47b5-9532-d0c8832f239f',
+  'a4cfa606-8981-4def-84f8-781149adb63d',
+  '8a8753ef-8adc-4baa-bfb4-22a0b39c2cdd',
+  '418ea95f-552d-4a51-8968-5b5c7531f6c9',
+  '4ee1cabf-53f4-469b-8b4b-9ac933ec1b4e',
+  '987cf14e-e746-4c85-8898-dbe960dbf11c',
+] as const;
+
+const KNOWN_SELFCARE_ID_PATTERN = KNOWN_SELFCARE_IDS.join('|');
+const TENANT_NOT_FOUND_PATTERN = 'Tenant with selfcareId[^\\n]*not found|Tenant not found by selfcareId';
+const KNOWN_TENANT_NOT_FOUND_PATTERN = `Tenant with selfcareId[^\\n]*(?:${KNOWN_SELFCARE_ID_PATTERN})[^\\n]*not found`;
+
+export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
+  knownCase({
+    id: 'tenant-not-found-known-selfcare-id',
+    description: 'Tenant non trovato per un SelfcareID esplicitamente censito come noto',
+    priority: 110,
+    regex: KNOWN_TENANT_NOT_FOUND_PATTERN,
+    resolution: 'SelfcareID presente nell’elenco del runbook: l’evidenza è attesa e non deve essere segnalata.',
+    proposedStatus: 'COMPLETED',
+    resources: ['interop-be-tenant-process'],
+    links: [jira('PIN-7918')],
+  }),
+  knownCase({
+    id: 'bff-unread-notifications-in-app-manager-unavailable',
+    description: 'Errore 504 nel recupero delle notifiche non lette da in-app-notification-manager',
+    priority: 190,
+    regex:
+      'Error while fetching unread notifications:[^\\n]*(?:ECONNREFUSED|ETIMEDOUT|status code 403)|' +
+      '10\\.1\\.2\\.37:8088',
+    resolution: 'Caso noto risolto dalla hotfix PIN-9041; nessuna azione immediata se non ricompare con continuità.',
+    proposedStatus: 'COMPLETED',
+    resources: ['interop-be-in-app-notification-manager'],
+    links: [jira('PIN-9041')],
+  }),
+  knownCase({
+    id: 'bff-s3-list-bucket-not-authorized',
+    description: 'Permesso s3:ListBucket mancante durante il recupero di un documento',
+    priority: 670,
+    regex: 'not authorized to perform:\\s*s3:ListBucket|no identity-based policy allows the s3:ListBucket action',
+    resolution: 'Verificare o ripristinare i permessi infrastrutturali sul bucket indicato. Riferimento PIN-9245.',
+    proposedStatus: 'IN_PROGRESS',
+    finalActions: ['Verificare policy IAM e permessi S3'],
+    links: [jira('PIN-9245')],
+  }),
+  knownCase({
+    id: 'bff-selfcare-products-retrieval-error',
+    description: 'Errore nel recupero dei prodotti Selfcare per l’istituzione',
+    priority: 660,
+    regex: 'Error retrieving products for institution',
+    resolution: 'Verificare la disponibilità di Selfcare e lo stato della lavorazione PIN-8874.',
+    proposedStatus: 'IN_PROGRESS',
+    downstreams: [INTEROP_DOWNSTREAMS.SELFCARE],
+    links: [jira('PIN-8874')],
+  }),
+  knownCase({
+    id: 'bff-selfcare-users-504',
+    description: 'Timeout 504 di Selfcare durante il recupero degli utenti del tenant',
+    priority: 180,
+    regex:
+      'api\\.selfcare\\.pagopa\\.it/external/v2/institutions/[^\\s]+/users[^\\n]*504|' +
+      'Error while retrieving users corresponding to tenant[^\\n]*status code 504',
+    resolution: 'Selfcare ha restituito 504: non c’è un’azione locale immediata; attendere il ripristino e monitorare.',
+    proposedStatus: 'COMPLETED',
+    environments: ['prod'],
+    downstreams: [INTEROP_DOWNSTREAMS.SELFCARE],
+  }),
+  knownCase({
+    id: 'bff-kafka-lock-timeout',
+    description: 'Timeout temporaneo durante la connessione ai broker Kafka',
+    priority: 650,
+    regex: 'KafkaJSLockTimeout: Timeout while acquiring lock|connect to broker[^\\n]+:9098',
+    resolution: 'Verificare la raggiungibilità dei broker Kafka se il problema persiste oltre il transitorio.',
+    proposedStatus: 'IN_PROGRESS',
+    environments: ['test'],
+    finalActions: ['Verificare connettività verso i broker Kafka'],
+  }),
+  knownCase({
+    id: 'bff-signed-contract-response-503',
+    description: 'Response 503 durante il recupero del contratto firmato',
+    priority: 640,
+    regex: 'Response\\s*503\\s*Service Unavailable',
+    resolution: 'Caso test senza risoluzione documentata: raccogliere CID e verificare il servizio correlato.',
+    proposedStatus: 'IN_PROGRESS',
+    environments: ['test'],
+    links: [slack(RESPONSE_503_SLACK, 'Thread Response 503 signedContract')],
+  }),
+  knownCase({
+    id: 'bff-tenant-kind-error-004-0004',
+    description: 'Tenant kind non trovato durante la creazione di un purpose',
+    priority: 630,
+    regex: 'errors:\\s*004-0004, Tenant kind for tenant[^\\n]*not found',
+    resolution: 'Caso in attesa di feedback del team di prodotto; raccogliere CID e log correlati.',
+    proposedStatus: 'IN_PROGRESS',
+    resources: ['interop-be-purpose-process'],
+    finalActions: ['Richiedere feedback al team di prodotto'],
+    links: [slack(TENANT_KIND_FEEDBACK_SLACK, 'Thread tenant kind 004-0004')],
+  }),
+  knownCase({
+    id: 'tenant-not-found-selfcare-id',
+    description: 'Tenant non trovato tramite SelfcareID',
+    priority: 620,
+    regex: TENANT_NOT_FOUND_PATTERN,
+    resolution:
+      'Verificare manualmente il tenant nel DB read_model nei diversi ambienti e applicare le regole di notifica del runbook.',
+    proposedStatus: 'IN_PROGRESS',
+    resources: ['interop-be-tenant-process'],
+    finalActions: ['Verificare tenant nel DB read_model', 'Applicare le regole di notifica tenant'],
+    links: [jira('PIN-7918'), slack(TENANT_FINAL_CHECKS_SLACK, 'Thread verifiche tenant')],
+    excludeRegex: KNOWN_TENANT_NOT_FOUND_PATTERN,
+  }),
+  knownCase({
+    id: 'bff-session-token-origin-not-allowed',
+    description: 'Tenant origin non consentita o SelfcareID fuori allow list',
+    priority: 610,
+    regex: 'Tenant origin is not allowed and SelfcareID[^\\n]*does not belong to allow list',
+    resolution: 'Verificare configurazione delle origin e allow list. Riferimento PIN-8726.',
+    proposedStatus: 'IN_PROGRESS',
+    finalActions: ['Verificare origin e allow list del tenant'],
+    links: [jira('PIN-8726')],
+  }),
+  knownCase({
+    id: 'bff-error-creating-eservice-descriptor',
+    description: 'Errore nella creazione del descriptor di un eService',
+    priority: 600,
+    regex: 'Error creating descriptor in EService',
+    resolution: 'Caso censito ma ancora da risolvere; verificare PIN-8720 e i log correlati al CID.',
+    proposedStatus: 'IN_PROGRESS',
+    links: [jira('PIN-8720')],
+  }),
+  knownCase({
+    id: 'bff-error-creating-eservice-template-document',
+    description: 'Errore nella creazione del documento INTERFACE del template eService',
+    priority: 590,
+    regex: 'Error creating eService template document of kind INTERFACE',
+    resolution: 'Caso censito in attesa di sviluppo; verificare PIN-8244 e i log correlati al CID.',
+    proposedStatus: 'IN_PROGRESS',
+    links: [jira('PIN-8244')],
+  }),
+  knownCase({
+    id: 'bff-selfcare-entity-not-filled',
+    description: 'Selfcare UserInstitutionResource non valorizzata',
+    priority: 580,
+    regex: 'Selfcare Entity not filled[^\\n]*UserInstitutionResource[^\\n]*field unknown not filled',
+    resolution: 'Caso in revisione: verificare la lavorazione PIN-7068 e i dati dell’istituzione.',
+    proposedStatus: 'IN_PROGRESS',
+    environments: ['prod', 'test'],
+    links: [jira('PIN-7068')],
+  }),
+  knownCase({
+    id: 'bff-invalid-content-disposition-header',
+    description: 'Carattere non valido nell’header Content-Disposition',
+    priority: 570,
+    regex: 'Invalid character in header content[^\\n]*Content-Disposition',
+    resolution: 'Caso in revisione: verificare PIN-7865 e il nome del contenuto che genera l’header non valido.',
+    proposedStatus: 'IN_PROGRESS',
+    links: [jira('PIN-7865')],
+  }),
+  knownCase({
+    id: 'bff-adm-zip-invalid-format',
+    description: 'Archivio ZIP non valido o troncato durante import eServices',
+    priority: 560,
+    regex: 'ADM-ZIP: Invalid or unsupported zip format\\. No END header found',
+    resolution: 'Verificare la validità dell’archivio ricevuto e la lavorazione PIN-9483.',
+    proposedStatus: 'IN_PROGRESS',
+    finalActions: ['Verificare integrità del file ZIP importato'],
+    links: [jira('PIN-9483')],
+  }),
+  knownCase({
+    id: 'purpose-process-econnreset-or-socket-hang-up',
+    description: 'Purpose-process indisponibile con ECONNRESET o socket hang up',
+    priority: 550,
+    regex: 'errors:\\s*008-9991[^\\n]*(?:read ECONNRESET|socket hang up)',
+    resolution: 'Verificare PIN-10449 e la disponibilità di purpose-process se il fenomeno non è transitorio.',
+    proposedStatus: 'IN_PROGRESS',
+    resources: ['interop-be-purpose-process'],
+    finalActions: ['Verificare disponibilità di purpose-process'],
+    links: [jira('PIN-10449')],
+  }),
+  knownCase({
+    id: 'purpose-process-tenant-kind-not-found',
+    description: 'Tenant kind non trovato in purpose-process',
+    priority: 540,
+    regex: 'Tenant kind for tenant[^\\n]*not found',
+    resolution: 'Caso censito senza soluzione definitiva; verificare PIN-8719 e il tenant indicato.',
+    proposedStatus: 'IN_PROGRESS',
+    resources: ['interop-be-purpose-process'],
+    links: [jira('PIN-8719')],
+    excludeRegex: 'errors:\\s*004-0004',
+  }),
+  knownCase({
+    id: 'purpose-process-pdf-generation-timeout',
+    description: 'Timeout durante la generazione PDF in purpose-process',
+    priority: 530,
+    regex: 'Error during pdf generation[^\\n]*Navigation timeout of 30000 ms exceeded',
+    resolution: 'Il documento non indica una soluzione: raccogliere CID e verificare purpose-process.',
+    proposedStatus: 'IN_PROGRESS',
+    resources: ['interop-be-purpose-process'],
+    finalActions: ['Verificare generazione PDF in purpose-process'],
+  }),
+  knownCase({
+    id: 'tenant-process-read-model-connection-refused',
+    description: 'Connessione al read_model rifiutata da tenant-process',
+    priority: 520,
+    regex: 'connect ECONNREFUSED 10\\.0\\.28\\.230:5432',
+    resolution: 'Verificare se l’errore coincide con un rollout manuale; altrimenti controllare il DB read_model.',
+    proposedStatus: 'IN_PROGRESS',
+    resources: ['interop-be-tenant-process'],
+    finalActions: ['Verificare disponibilità del DB read_model'],
+  }),
+  knownCase({
+    id: 'bff-saml-not-on-or-after-not-compliant',
+    description: 'Condizione SAML NotOnOrAfter non conforme',
+    priority: 170,
+    regex: 'Conditions NotOnOrAfter are not compliant',
+    resolution: 'Caso noto gestito in PIN-7913; nessuna azione immediata se resta isolato.',
+    proposedStatus: 'COMPLETED',
+    links: [jira('PIN-7913')],
+  }),
+  knownCase({
+    id: 'authorization-process-invalid-api-role',
+    description: 'Ruolo api non autorizzato per validateTokenGeneration',
+    priority: 510,
+    regex: 'Invalid roles[^\\n]*\\\\?"api\\\\?"[^\\n]*for this operation',
+    resolution: 'Verificare il chiamante e i ruoli usati su validateTokenGeneration; il PDF non indica una correzione.',
+    proposedStatus: 'IN_PROGRESS',
+    resources: ['interop-be-authorization-process'],
+    links: [slack(INVALID_ROLES_SLACK, 'Thread invalid api role')],
+  }),
+  knownCase({
+    id: 'bff-token-expired',
+    description: 'Token JWT di sessione scaduto',
+    priority: 160,
+    regex:
+      'Token verification failed: TokenExpiredError: jwt expired|' +
+      'Error while fetching unread notifications:[^\\n]*status code 401',
+    resolution: 'Token di sessione scaduto: caso noto, nessuna azione operativa immediata.',
+    proposedStatus: 'COMPLETED',
+    links: [jira('PIN-7962'), jira('PIN-7903')],
+  }),
+  knownCase({
+    id: 'bff-error-getting-public-key',
+    description: 'Errore nel recupero della public key di firma',
+    priority: 150,
+    regex: 'Error getting public key|error in secret or public key callback: Error getting signing key',
+    resolution: 'Il documento classifica il caso come errore lato client: nessuna azione necessaria. Vedere PIN-7777.',
+    proposedStatus: 'COMPLETED',
+    links: [jira('PIN-7777')],
+  }),
+  knownCase({
+    id: 'bff-privacy-notices-tos-retrieval-error',
+    description: 'Errore nel recupero delle privacy notices TOS',
+    priority: 140,
+    regex: 'Error retrieving privacy notices for consentType TOS',
+    resolution: 'Caso già censito e chiuso in PIN-7979; nessuna azione operativa immediata documentata.',
+    proposedStatus: 'COMPLETED',
+    links: [jira('PIN-7979')],
+  }),
+  knownCase({
+    id: 'duplicate-event-stream-version',
+    description: 'Evento duplicato su events_stream_id_version_key gestito tramite retry',
+    priority: 130,
+    regex: 'duplicate key value violates unique constraint[^\\n]*events_stream_id_version_key',
+    resolution: 'Nessuna azione immediata: il retry automatico gestisce il duplicato. Vedere PIN-7796.',
+    proposedStatus: 'COMPLETED',
+    resources: ['interop-be-purpose-process', 'interop-be-notification-config-process'],
+    links: [jira('PIN-7796')],
+  }),
+  knownCase({
+    id: 'api-gateway-backend-timeout-504',
+    description: 'API Gateway ha superato il timeout di 29 secondi del backend',
+    priority: 120,
+    regex: 'Execution failed due to a timeout error',
+    resolution:
+      'Il backend ha superato il timeout API Gateway: nessuna azione immediata documentata; monitorare il ripetersi.',
+    proposedStatus: 'COMPLETED',
+    evidence: 'API_GATEWAY',
+  }),
+];
+
+function knownCase(config: InteropSelfcareKnownCaseConfig): KnownCase {
+  const baseCondition =
+    config.evidence === 'API_GATEWAY' ? apiGatewayEvidenceMatches(config.regex) : anyEvidenceMatches(config.regex);
+  const matchingCondition: Condition =
+    config.excludeRegex === undefined
+      ? baseCondition
+      : {
+          type: 'and',
+          conditions: [baseCondition, { type: 'not', condition: anyEvidenceMatches(config.excludeRegex) }],
+        };
+  const condition = withEnvironment(matchingCondition, config.environments);
+  return {
+    id: config.id,
+    description: config.description,
+    priority: config.priority,
+    condition,
+    action: knownCaseAction(config.description, config.resolution),
+    analysis: {
+      resolution: config.resolution,
+      proposedStatus: config.proposedStatus,
+      analysisType: 'ANALYZABLE',
+      ...(config.downstreams === undefined ? {} : { downstreams: config.downstreams }),
+      ...(config.resources === undefined
+        ? {}
+        : { resources: config.resources.map((name) => ({ name, role: 'CASE_RELATED' as const })) }),
+      ...(config.finalActions === undefined ? {} : { finalActions: config.finalActions }),
+      ...(config.links === undefined ? {} : { links: config.links }),
+    },
+  };
+}
+
+function anyEvidenceMatches(regex: string): Condition {
+  return {
+    type: 'or',
+    conditions: [
+      apiGatewayEvidenceMatches(regex),
+      { type: 'contains', ref: `steps.${QUERY_INTEROP_APPLICATION_LOGS_STEP_ID}`, regex },
+      { type: 'contains', ref: `steps.${QUERY_INTEROP_CID_TRACKER_STEP_ID}`, regex },
+    ],
+  };
+}
+
+function apiGatewayEvidenceMatches(regex: string): Condition {
+  return { type: 'contains', ref: `steps.${QUERY_INTEROP_API_GW_5XX_STEP_ID}`, regex };
+}
+
+function withEnvironment(condition: Condition, environments: ReadonlyArray<InteropEnvironment> | undefined): Condition {
+  if (environments === undefined) return condition;
+  return {
+    type: 'and',
+    conditions: [{ type: 'contains', ref: 'vars.interopEnvironment', value: environments }, condition],
+  };
+}
+
+function knownCaseAction(title: string, resolution: string): CaseAction {
+  return {
+    type: 'log',
+    level: 'info',
+    renderAs: 'known-case',
+    message:
+      `[CASO NOTO] ${title}\n` +
+      `Risoluzione: ${resolution}\n` +
+      'Ambiente: {{vars.interopEnvironment}}\n' +
+      'API Gateway ID: {{vars.interopApiGwId}}\n' +
+      'Servizio: {{vars.interopPodApp}}\n' +
+      'Log applicativi: {{vars.interopBffLogCount}}\n' +
+      'CID analizzati: {{vars.interopBffCidCount}}\n',
+  };
+}
+
+function jira(key: string): AnalysisLinkRef {
+  return { url: `${JIRA_BROWSE}/${key}`, name: key, type: 'JIRA' };
+}
+
+function slack(url: string, name: string): AnalysisLinkRef {
+  return { url, name, type: 'SLACK' };
+}
