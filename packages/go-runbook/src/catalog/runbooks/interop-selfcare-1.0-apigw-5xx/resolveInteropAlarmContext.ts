@@ -51,6 +51,6 @@ export function resolveInteropSelfcareApiGwAlarmContext(alarmName: string): Inte
   };
 }
 
-export function buildInteropApiGwAccessLogGroup(environment: InteropEnvironment): string {
+function buildInteropApiGwAccessLogGroup(environment: InteropEnvironment): string {
   return INTEROP_SELFCARE_API_GW_LOG_GROUP_TEMPLATE.replace('<environment>', environment);
 }
