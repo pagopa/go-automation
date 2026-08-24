@@ -13,6 +13,10 @@ const REFS: InteropKnownCaseRefs = {
 };
 
 const JIRA_BROWSE = 'https://pagopa.atlassian.net/browse';
+const REACT_WARNING_SLACK_2026_07_13 = 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1783938590061959';
+const REACT_WARNING_SLACK_2026_07_17 = 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1784282838257439';
+const ENV_FILES_SLACK_2026_07_13 =
+  'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1783939160557559?thread_ts=1783938590.061959&cid=C0A7F9XQAT0';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopKnownCase(REFS, {
@@ -53,13 +57,51 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     // JSON-stringificato: il pattern usa wildcard al loro posto e la versione non è vincolata.
     regex: '\\[dotenv-flow@[^\\]]+\\]: .*\\.env\\*.* files loading failed: no .*\\.env\\*.* files matching pattern',
     resolution:
-      'Caso risolto con PIN-8733: se ricompare, verificare la configurazione dei file .env del M2M Event Cleaner.',
-    // PIN-8733 è DONE, ma la risoluzione chiede una verifica se il caso ricompare:
-    // l'allarme non si chiude da solo.
+      'PIN-8733 descrive un caso simile sul M2M Event Cleaner, non una risoluzione per questa pod_app. ' +
+      'Verificare i file .env di interop-public-catalog-astro-frontend e valutare una card specifica.',
+    // PIN-8733 è DONE per un altro servizio: il caso public catalog resta da verificare.
     proposedStatus: 'IN_PROGRESS',
     analysisType: 'ANALYZABLE',
     downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-    links: [{ url: `${JIRA_BROWSE}/PIN-8733`, name: 'PIN-8733', type: 'JIRA' }],
+    links: [
+      { url: `${JIRA_BROWSE}/PIN-8733`, name: 'PIN-8733', type: 'JIRA' },
+      { url: ENV_FILES_SLACK_2026_07_13, name: 'Thread Slack 13/07/2026', type: 'SLACK' },
+    ],
+  }),
+  interopKnownCase(REFS, {
+    id: 'public-catalog-react-list-key-warning',
+    description: 'Warning React per elementi della lista senza una key univoca',
+    priority: 80,
+    regex: 'Each child in a list should have a unique .*key.* prop',
+    resolution:
+      'Probabile falso positivo: verificare nei log correlati che tra i warning sia presente la risposta ' +
+      'GET /it/catalogo con Status: 200. Se la conferma manca, proseguire l’analisi. Vedere PIN-10606.',
+    // Il PDF parla di "probabile" falso positivo: senza la conferma del 200 non è sicuro chiudere l'analisi.
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    links: [
+      { url: `${JIRA_BROWSE}/PIN-10606`, name: 'PIN-10606', type: 'JIRA' },
+      { url: REACT_WARNING_SLACK_2026_07_13, name: 'Thread Slack 13/07/2026', type: 'SLACK' },
+      { url: REACT_WARNING_SLACK_2026_07_17, name: 'Thread Slack 17/07/2026', type: 'SLACK' },
+    ],
+  }),
+  interopKnownCase(REFS, {
+    id: 'public-catalog-failed-sql-query',
+    description: 'Fallimento di una query SQL del public catalog',
+    priority: 75,
+    // La query SQL è variabile e può estendersi su più righe: viene riconosciuta solo la firma stabile.
+    regex: 'Error: Failed query:',
+    resolution:
+      'Verificare se l’errore è collegato al warning React censito in PIN-10606; raccogliere query e CID ' +
+      'correlati e seguire PIN-10761.',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    links: [
+      { url: `${JIRA_BROWSE}/PIN-10761`, name: 'PIN-10761', type: 'JIRA' },
+      { url: REACT_WARNING_SLACK_2026_07_17, name: 'Thread Slack 17/07/2026', type: 'SLACK' },
+    ],
   }),
   interopKnownCase(REFS, {
     id: 'public-catalog-error-fetching-from-database',
