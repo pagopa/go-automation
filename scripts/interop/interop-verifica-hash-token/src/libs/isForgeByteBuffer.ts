@@ -10,5 +10,12 @@ export interface ForgeByteBuffer {
  * Type guard for node-forge ByteBuffer
  */
 export function isForgeByteBuffer(obj: unknown): obj is ForgeByteBuffer {
-  return typeof obj === 'object' && obj !== null && 'getBytes' in obj && typeof obj.getBytes === 'function';
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'getBytes' in obj &&
+    typeof obj.getBytes === 'function' &&
+    'toHex' in obj &&
+    typeof obj.toHex === 'function'
+  );
 }

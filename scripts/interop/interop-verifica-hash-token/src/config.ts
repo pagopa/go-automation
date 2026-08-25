@@ -32,7 +32,7 @@ export const DEFAULT_CW_QUERY_APPLICATION = `fields @timestamp, @message
 export const DEFAULT_CW_QUERY_CID = `fields @timestamp, @message
 | sort @timestamp asc
 | parse @message "[CID=*]" as CID
-| filter CID = cid_replace
+| filter CID = cid_replace and @message like /Getting file/
 | display @message
 | limit 10`;
 

@@ -3,7 +3,7 @@
  */
 export function parseUtcDate(dateStr: string): Date {
   const trimmed = dateStr.trim();
-  let normalized = trimmed;
+  let normalized: string;
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
     normalized = `${trimmed}T00:00:00Z`;
