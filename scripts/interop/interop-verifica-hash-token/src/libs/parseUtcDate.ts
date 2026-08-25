@@ -3,16 +3,17 @@
  */
 export function parseUtcDate(dateStr: string): Date {
   const trimmed = dateStr.trim();
-  if (trimmed.includes('T') || trimmed.endsWith('Z')) {
-    const d = new Date(trimmed);
-    if (Number.isNaN(d.getTime())) {
-      throw new Error(`Invalid date string: ${dateStr}`);
-    }
-    return d;
+  let normalized = trimmed;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    normalized = `${trimmed}T00:00:00Z`;
+  } else if (trimmed.includes('T')) {
+    normalized = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(trimmed) ? trimmed : `${trimmed}Z`;
+  } else {
+    normalized = `${trimmed.replace(' ', 'T')}Z`;
   }
-  // YYYY-MM-DD HH:MM:SS -> replace space with T and append Z to force UTC parsing
-  const formatted = `${trimmed.replace(' ', 'T')}Z`;
-  const d = new Date(formatted);
+
+  const d = new Date(normalized);
   if (Number.isNaN(d.getTime())) {
     throw new Error(`Invalid date string: ${dateStr}`);
   }
