@@ -101,7 +101,7 @@ test:
 Dalla root del monorepo, lanciare lo script utilizzando il preset configurato:
 
 ```bash
-pnpm interop:verifica:hash:token:dev --script-preset-name test --aws-profile <tuo-profilo-aws>
+pnpm interop:verifica:hash:token:dev --script-preset-name test --aws-profile <profilo-aws>
 ```
 
 Oppure specificando i singoli parametri manualmente via CLI (le query verranno prese di default se non specificate):
@@ -127,7 +127,7 @@ pnpm --filter=interop-verifica-hash-token build
 Eseguire lo script compilato:
 
 ```bash
-node dist/index.js --script-preset-name test --aws-profile <profilo>
+pnpm interop:verifica:hash:token:prod --script-preset-name <nome-script-preset> --aws-profile <profilo-aws>
 ```
 
 ---
