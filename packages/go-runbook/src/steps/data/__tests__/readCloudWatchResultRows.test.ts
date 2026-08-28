@@ -12,11 +12,17 @@ describe('readCloudWatchResultRows', () => {
   it('keeps valid rows and filters invalid fields', () => {
     assert.deepStrictEqual(
       readCloudWatchResultRows([
-        [{ field: '@message', value: 'first' }, null, 'invalid'],
+        [
+          { field: '@message', value: 'first' },
+          { field: 'count', value: 123 },
+          { field: 456, value: 'invalid field' },
+          null,
+          'invalid',
+        ],
         'invalid row',
-        [{ field: 'count', value: '2' }],
+        [{ field: 'count', value: '2' }, { field: 'optional-value' }],
       ]),
-      [[{ field: '@message', value: 'first' }], [{ field: 'count', value: '2' }]],
+      [[{ field: '@message', value: 'first' }], [{ field: 'count', value: '2' }, { field: 'optional-value' }]],
     );
   });
 
