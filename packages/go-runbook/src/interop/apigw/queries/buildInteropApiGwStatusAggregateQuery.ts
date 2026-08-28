@@ -2,6 +2,7 @@ export type InteropApiGwStatusClass = 4 | 5;
 
 /** Builds the common aggregate query for one API Gateway HTTP status family. */
 export function buildInteropApiGwStatusAggregateQuery(apiGwId: string, statusClass: InteropApiGwStatusClass): string {
+  assertInteropApiGwStatusClass(statusClass);
   const lowerBound = statusClass * 100;
   const upperBound = lowerBound + 100;
   const escapedApiGwId = escapeLogsInsightsString(apiGwId);
@@ -14,6 +15,12 @@ filter apigwId = "${escapedApiGwId}"
 | sort count desc
 | limit 10000
 `.trim();
+}
+
+function assertInteropApiGwStatusClass(value: unknown): asserts value is InteropApiGwStatusClass {
+  if (value !== 4 && value !== 5) {
+    throw new RangeError(`statusClass must be 4 or 5; received ${String(value)}`);
+  }
 }
 
 function escapeLogsInsightsString(value: string): string {

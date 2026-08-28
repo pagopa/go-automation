@@ -92,4 +92,33 @@ describe('AnalyzeInteropK8sApplicationLogsStep', () => {
     assert.strictEqual(result.vars?.['interopAuthLogCount'], '10');
     assert.strictEqual(result.vars?.['interopAuthLogsWithoutCidCount'], '3');
   });
+
+  it('uses errorMessage only as a fallback after the existing message fields', async () => {
+    const step = new AnalyzeInteropK8sApplicationLogsStep({
+      id: 'analyze',
+      label: 'Analyze',
+      fromStep: 'query',
+      varPrefix: 'interopAuth',
+    });
+
+    const result = await step.execute(
+      context([
+        [
+          'query',
+          [
+            row([
+              ['errorMessage', 'aggregated warning'],
+              ['log', 'log warning'],
+              ['message', 'message warning'],
+              ['@message', 'cloudwatch warning'],
+            ]),
+            row([['errorMessage', 'fallback warning']]),
+          ],
+        ],
+      ]),
+    );
+
+    assert.deepStrictEqual(result.output?.representativeMessages, ['cloudwatch warning', 'fallback warning']);
+    assert.strictEqual(result.vars?.['interopAuthErrorMsg'], 'cloudwatch warning');
+  });
 });

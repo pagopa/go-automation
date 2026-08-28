@@ -24,6 +24,7 @@ export interface AnalyzeInteropK8sApplicationLogsStepConfig {
 
 const CID_PATTERN = /\bCID=([^\]\s,"']+)/u;
 const MAX_REPRESENTATIVE_MESSAGES = 5;
+const REPRESENTATIVE_MESSAGE_FIELDS = ['@message', 'message', 'log', 'errorMessage'] as const;
 
 export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sApplicationLogAnalysis> {
   readonly id: string;
@@ -111,7 +112,11 @@ function extractCid(row: ReadonlyArray<ResultField>): string | undefined {
 }
 
 function extractRepresentativeMessage(row: ReadonlyArray<ResultField>): string | undefined {
-  return normalize(readField(row, ['@message', 'message', 'log', 'errorMessage']));
+  for (const fieldName of REPRESENTATIVE_MESSAGE_FIELDS) {
+    const message = normalize(readField(row, [fieldName]));
+    if (message !== undefined) return message;
+  }
+  return undefined;
 }
 
 function readRowCount(row: ReadonlyArray<ResultField>, countField: string | undefined): number {
