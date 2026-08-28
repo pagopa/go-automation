@@ -8,7 +8,7 @@ import {
 import { RunbookEngine, ConditionEvaluator, apigw, lambda, service } from '@go-automation/go-runbook';
 import type { ExecutionEnvironment, Runbook, RunbookExecutionResult } from '@go-automation/go-runbook';
 
-import type { GoAnalyzeAlarmConfig } from '../types/GoAnalyzeAlarmConfig.js';
+import type { AnalyzableAlarmConfig } from '../types/AnalyzableAlarmConfig.js';
 import { saveExecutionTrace } from './saveExecutionTrace.js';
 import { saveExecutionOutput } from './saveExecutionOutput.js';
 
@@ -20,7 +20,7 @@ export interface AnalyzeOccurrenceInput {
 
 export async function analyzeOccurrence(
   script: Core.GOScript,
-  config: GoAnalyzeAlarmConfig,
+  config: AnalyzableAlarmConfig,
   runbookBuilder: RunbookBuilderFn,
   input: AnalyzeOccurrenceInput,
 ): Promise<void> {

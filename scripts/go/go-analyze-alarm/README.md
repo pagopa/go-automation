@@ -17,7 +17,7 @@ Dato un allarme CloudWatch e il momento in cui e scattato, esegue automaticament
 ## Come funziona
 
 1. **Lookup runbook**: lo script cerca il runbook registrato per il nome dell'allarme fornito
-2. **Modalità analisi**: con `analysis.mode=single` analizza una singola occorrenza; con `analysis.mode=range` recupera da CloudWatch History tutte le transizioni `OK → ALARM` dello stesso allarme nel range indicato
+2. **Modalità analisi**: con `analysis.mode=single` analizza una singola occorrenza; con `analysis.mode=range` recupera da CloudWatch History tutte le transizioni `OK → ALARM` dello stesso allarme nel range indicato; con `analysis.mode=stats` non analizza nulla e produce solo statistiche offline sul catalogo runbook locale
 3. **Calcolo time window**: applica la finestra dichiarata dal runbook, con padding indipendente prima e dopo l'allarme. Il default resta `-5min/+5min`; per esempio, il runbook IPA usa `-10min/+5min`. In `single`, se viene fornito anche `--alarm-datetime-end`, il padding precedente è applicato alla prima occorrenza e quello successivo all'ultima
 4. **Esecuzione step-by-step**: ogni step del runbook interroga CloudWatch Logs, DynamoDB, Athena o altri servizi in base alle esigenze del runbook; le variabili estratte passano agli step successivi
 5. **Match casi noti**: al termine degli step, il RunbookEngine confronta i dati raccolti con i pattern dei casi noti e restituisce il primo match (o un fallback)
@@ -79,11 +79,16 @@ Lo script non include un file di configurazione dedicato: la configurazione oper
 
 | Parametro              | Alias  | Tipo     | Obbligatorio | Descrizione                                                                                          |
 | ---------------------- | ------ | -------- | ------------ | ---------------------------------------------------------------------------------------------------- |
-| `--analysis-mode`      | `-am`  | string   | No           | Modalità di analisi: `single` oppure `range`. Default: `single`                                      |
-| `--alarm-name`         | `-an`  | string   | Si           | Nome esatto dell'allarme CloudWatch                                                                  |
-| `--alarm-datetime`     | `-ad`  | string   | Si           | Timestamp allarme, o prima occorrenza per allarmi multi-occorrenza (ISO 8601)                        |
+| `--analysis-mode`      | `-am`  | string   | No           | Modalità: `single`, `range` oppure `stats`. Default: `single`                                        |
+| `--alarm-name`         | `-an`  | string   | Si\*         | Nome esatto dell'allarme CloudWatch                                                                  |
+| `--alarm-datetime`     | `-ad`  | string   | Si\*         | Timestamp allarme, o prima occorrenza per allarmi multi-occorrenza (ISO 8601)                        |
 | `--alarm-datetime-end` | `-ade` | string   | No           | Timestamp dell'ultima occorrenza per allarmi multi-occorrenza (ISO 8601). Estende la finestra finale |
-| `--aws-profiles`       | `-aps` | string[] | Si           | Profili AWS SSO (virgola-separati)                                                                   |
+| `--aws-profiles`       | `-aps` | string[] | Si\*         | Profili AWS SSO (virgola-separati)                                                                   |
+| `--stats-detail`       | `-sdt` | bool     | No           | Solo `stats`: stampa la tabella di dettaglio per runbook. Default: `true`                            |
+| `--stats-product`      | `-spr` | string   | No           | Solo `stats`: limita il report a un prodotto (`SEND`, `INTEROP`)                                     |
+| `--stats-save`         | `-ssv` | bool     | No           | Solo `stats`: salva il report JSON in `data/`. Default: `false`                                      |
+
+\* Obbligatori per `--analysis-mode single` e `range`; ignorati da `--analysis-mode stats`, che gira interamente offline.
 
 I timestamp devono essere in formato **ISO 8601**: `YYYY-MM-DDTHH:MM:SSZ`
 
@@ -149,6 +154,73 @@ pnpm go:analyze:alarm:dev -- \
 In questa modalità `--alarm-name` resta obbligatorio: lo script non fa
 discovery di altri allarmi. Cerca solo le transizioni `OK → ALARM` del nome
 allarme indicato.
+
+### Stats mode: statistiche offline del catalogo runbook
+
+Usa `--analysis-mode stats` per fotografare il catalogo runbook presente nel
+repository. È una modalità **completamente offline**: legge solo il registry
+locale, non contatta AWS né Watchtower e non richiede alcun profilo o
+credenziale.
+
+```bash
+# Report completo
+pnpm --filter=go-analyze-alarm exec tsx src/index.ts --analysis-mode stats
+
+# Solo i totali aggregati, senza la tabella di dettaglio
+pnpm --filter=go-analyze-alarm exec tsx src/index.ts -am stats --stats-detail false
+
+# Un solo prodotto, con export JSON
+pnpm --filter=go-analyze-alarm exec tsx src/index.ts -am stats -spr INTEROP --stats-save
+```
+
+Il report contiene:
+
+| Sezione                        | Contenuto                                                          |
+| ------------------------------ | ------------------------------------------------------------------ |
+| **Runbook Catalog Statistics** | totali: runbook, nomi allarme coperti, casi noti, step, medie      |
+| **By Product**                 | runbook, allarmi, casi e step per prodotto (`SEND`, `INTEROP`)     |
+| **By Kind**                    | stessi conteggi per tipologia (`APIGW`, `LAMBDA`, `SERVICE`)       |
+| **Product x Kind**             | matrice incrociata prodotto/tipologia con totali di riga e colonna |
+| **By Category**                | conteggi per categoria funzionale (`DELIVERY`, `INTEGRATION`, …)   |
+| **Top Tags**                   | i 10 tag più diffusi, più il numero di tag distinti                |
+| **Runbook Detail**             | una riga per runbook (disattivabile con `--stats-detail false`)    |
+
+Esempio di output (valori reali del catalogo):
+
+```text
+⏵ Runbook Catalog Statistics
+    ℹ Source: local registry (offline) — no AWS, no Watchtower
+    ┌────────────────────────────┬────────────────┐
+    │ Metric                     │          Value │
+    ├────────────────────────────┼────────────────┤
+    │ Runbooks                   │             28 │
+    │ Alarm names covered        │             42 │
+    │ Known cases                │            145 │
+    │ Known cases annotated      │   145 (100.0%) │
+    │ Steps                      │            169 │
+    │ Runbooks w/o known cases   │              0 │
+    │ Multi-alarm runbooks       │              6 │
+    │ Avg cases / runbook        │            5.2 │
+    │ Avg steps / runbook        │            6.0 │
+    └────────────────────────────┴────────────────┘
+
+⏵ Product x Kind
+    ┌────────────────────┬──────────┬──────────┬──────────┬────────┐
+    │ Product            │    APIGW │   LAMBDA │  SERVICE │  Total │
+    ├────────────────────┼──────────┼──────────┼──────────┼────────┤
+    │ SEND               │        5 │        7 │       10 │     22 │
+    │ INTEROP            │        2 │        0 │        4 │      6 │
+    │ Total              │        7 │        7 │       14 │     28 │
+    └────────────────────┴──────────┴──────────┴──────────┴────────┘
+```
+
+> Categorie e tag sono multi-valore: un runbook può appartenere a più bucket,
+> quindi le relative percentuali non sommano a 100%. Lo script lo segnala a
+> video quando succede.
+
+Con `--stats-save` il report viene esportato come `runbook-stats.json` (o
+`runbook-stats-{prodotto}.json` con `--stats-product`) nella directory di
+output dello script.
 
 ### Analisi su più profili AWS
 

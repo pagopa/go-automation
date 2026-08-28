@@ -25,17 +25,20 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'analysis.mode',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Analysis mode: single occurrence or range of occurrences for the configured alarm',
+    description:
+      'Analysis mode: "single" occurrence, "range" of occurrences for the configured alarm, ' +
+      'or "stats" for offline statistics of the local runbook catalog',
     required: false,
     defaultValue: 'single',
     aliases: ['am'],
-    validator: (value) => value === 'single' || value === 'range' || 'Expected single or range',
+    validator: (value) =>
+      value === 'single' || value === 'range' || value === 'stats' || 'Expected single, range or stats',
   },
   {
     name: 'alarm.name',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Name of the CloudWatch alarm that triggered',
-    required: true,
+    description: 'Name of the CloudWatch alarm that triggered (required unless analysis.mode=stats)',
+    required: false,
     aliases: ['an'],
   },
   {
@@ -43,8 +46,8 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     type: Core.GOConfigParameterType.STRING,
     description:
       'Timestamp when the alarm triggered, or first occurrence for multi-occurrence ' +
-      'alarms (ISO 8601 format, e.g. 2025-10-01T18:55:00Z)',
-    required: true,
+      'alarms (ISO 8601 format, e.g. 2025-10-01T18:55:00Z). Required unless analysis.mode=stats',
+    required: false,
     aliases: ['ad'],
   },
   {
@@ -65,8 +68,33 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'aws.profiles',
     type: Core.GOConfigParameterType.STRING_ARRAY,
-    description: 'AWS SSO profile names for multi-account mode (comma-separated)',
-    required: true,
+    description:
+      'AWS SSO profile names for multi-account mode (comma-separated). ' +
+      'Required unless analysis.mode=stats, which runs fully offline',
+    required: false,
     aliases: ['aps'],
+  },
+  {
+    name: 'stats.detail',
+    type: Core.GOConfigParameterType.BOOL,
+    description: 'In stats mode, print the per-runbook detail table',
+    required: false,
+    defaultValue: true,
+    aliases: ['sdt'],
+  },
+  {
+    name: 'stats.save',
+    type: Core.GOConfigParameterType.BOOL,
+    description: 'In stats mode, save the report as runbook-stats.json in the output directory',
+    required: false,
+    defaultValue: false,
+    aliases: ['ssv'],
+  },
+  {
+    name: 'stats.product',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'In stats mode, restrict the report to a single product (e.g. SEND, INTEROP)',
+    required: false,
+    aliases: ['spr'],
   },
 ] as const;
