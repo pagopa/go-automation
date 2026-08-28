@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@go-automation/go-common/core';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
 import type { StepKind } from '../../../types/StepKind.js';
@@ -9,6 +10,8 @@ export interface ResolveInteropK8sAlarmContextStepConfig {
   readonly label: string;
   readonly resolveAlarmContext: ResolveInteropK8sAlarmContextFn;
 }
+
+const RESOLVER_ID = 'interop-k8s-alarm-context';
 
 export class ResolveInteropK8sAlarmContextStep implements Step<InteropK8sAlarmContext> {
   readonly id: string;
@@ -26,7 +29,7 @@ export class ResolveInteropK8sAlarmContextStep implements Step<InteropK8sAlarmCo
   getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
     return {
       alarmName: context.params.get('alarmName') ?? null,
-      resolver: 'interop-k8s-alarm-context',
+      resolver: RESOLVER_ID,
     };
   }
 
@@ -37,7 +40,16 @@ export class ResolveInteropK8sAlarmContextStep implements Step<InteropK8sAlarmCo
       return { success: false, error: 'Missing required parameter: alarmName' };
     }
 
-    const alarmContext = this.resolveAlarmContext(alarmName);
+    let alarmContext: InteropK8sAlarmContext;
+    try {
+      alarmContext = this.resolveAlarmContext(alarmName);
+    } catch (error: unknown) {
+      return {
+        success: false,
+        error: `INTEROP k8s alarm context resolution failed (${RESOLVER_ID}): ${getErrorMessage(error)}`,
+      };
+    }
+
     context.logger?.text(`      ├─ Ambiente INTEROP: ${alarmContext.environment}`);
     context.logger?.text(`      ├─ Pod app: ${alarmContext.podApp}`);
     context.logger?.text(`      └─ Log group: ${alarmContext.logGroup}`);

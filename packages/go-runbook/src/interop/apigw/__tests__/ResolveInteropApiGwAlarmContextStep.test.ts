@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
+import type { ResolveInteropApiGwAlarmContextFn } from '../types/InteropApiGwAlarmContext.js';
 import { ResolveInteropApiGwAlarmContextStep } from '../steps/ResolveInteropApiGwAlarmContextStep.js';
 
 function context(alarmName?: string): RunbookContext {
@@ -18,20 +19,24 @@ function context(alarmName?: string): RunbookContext {
   };
 }
 
-function step(): ResolveInteropApiGwAlarmContextStep {
+const RESOLVE_FIXTURE: ResolveInteropApiGwAlarmContextFn = (alarmName) => ({
+  alarmName,
+  runbookKey: 'fixture',
+  environment: 'prod',
+  apiGwId: 'api-id',
+  apiGwLogGroup: 'access-logs',
+  podApp: 'service',
+  applicationLogGroup: 'application-logs',
+});
+
+function step(
+  resolveAlarmContext: ResolveInteropApiGwAlarmContextFn = RESOLVE_FIXTURE,
+): ResolveInteropApiGwAlarmContextStep {
   return new ResolveInteropApiGwAlarmContextStep({
     id: 'resolve',
     label: 'Resolve',
     resolverId: 'fixture-resolver',
-    resolveAlarmContext: (alarmName) => ({
-      alarmName,
-      runbookKey: 'fixture',
-      environment: 'prod',
-      apiGwId: 'api-id',
-      apiGwLogGroup: 'access-logs',
-      podApp: 'service',
-      applicationLogGroup: 'application-logs',
-    }),
+    resolveAlarmContext,
   });
 }
 
@@ -50,6 +55,17 @@ describe('ResolveInteropApiGwAlarmContextStep', () => {
     assert.deepStrictEqual(step().getTraceInfo(context('fixture-prod')), {
       alarmName: 'fixture-prod',
       resolver: 'fixture-resolver',
+    });
+  });
+
+  it('returns a failed step result when the resolver throws', async () => {
+    const result = await step(() => {
+      throw new Error('unsupported fixture alarm');
+    }).execute(context('fixture-unsupported'));
+
+    assert.deepStrictEqual(result, {
+      success: false,
+      error: 'INTEROP API Gateway alarm context resolution failed (fixture-resolver): unsupported fixture alarm',
     });
   });
 });

@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@go-automation/go-common/core';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
 import type { StepKind } from '../../../types/StepKind.js';
@@ -40,7 +41,16 @@ export class ResolveInteropApiGwAlarmContextStep implements Step<InteropApiGwAla
       return { success: false, error: 'Missing required parameter: alarmName' };
     }
 
-    const alarmContext = this.resolveAlarmContext(alarmName);
+    let alarmContext: InteropApiGwAlarmContext;
+    try {
+      alarmContext = this.resolveAlarmContext(alarmName);
+    } catch (error: unknown) {
+      return {
+        success: false,
+        error: `INTEROP API Gateway alarm context resolution failed (${this.resolverId}): ${getErrorMessage(error)}`,
+      };
+    }
+
     context.logger?.text(`      ├─ Ambiente INTEROP: ${alarmContext.environment}`);
     context.logger?.text(`      ├─ API Gateway ID: ${alarmContext.apiGwId}`);
     context.logger?.text(`      ├─ Access log group: ${alarmContext.apiGwLogGroup}`);
