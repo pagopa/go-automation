@@ -1,3 +1,4 @@
+import { unknownCaseFallback } from '../../../actions/unknownCaseFallback.js';
 import { RunbookBuilder } from '../../../builders/RunbookBuilder.js';
 import { interop } from '../framework.js';
 import type { Runbook } from '../framework.js';
@@ -130,19 +131,16 @@ export function buildInteropAuthServerApiGw4xxRunbook(): Runbook {
 
   for (const knownCase of KNOWN_CASES) builder.knownCase(knownCase);
 
-  builder.fallback({
-    type: 'log',
-    level: 'warn',
-    renderAs: 'unknown-case',
-    message:
-      '[CASO NON NOTO] Nessun caso noto del runbook API Gateway auth-server INTEROP ha matchato le evidenze.\n' +
-      'Ambiente: {{vars.interopEnvironment}}\n' +
-      'API Gateway ID: {{vars.interopApiGwId}}\n' +
-      'Errori 4xx API Gateway: {{vars.apiGwErrorCount}}\n' +
-      'Warning auth-server: {{vars.interopAuthServerLogCount}}\n' +
-      'CID estratti: {{vars.interopAuthServerCidCount}}\n' +
-      'Log CID tracker: {{vars.interopCidTrackerLogCount}}\n',
-  });
+  builder.fallback(
+    unknownCaseFallback('Nessun caso noto del runbook API Gateway auth-server INTEROP ha matchato le evidenze.', [
+      ['Ambiente', '{{vars.interopEnvironment}}'],
+      ['API Gateway ID', '{{vars.interopApiGwId}}'],
+      ['Errori 4xx API Gateway', '{{vars.apiGwErrorCount}}'],
+      ['Warning auth-server', '{{vars.interopAuthServerLogCount}}'],
+      ['CID estratti', '{{vars.interopAuthServerCidCount}}'],
+      ['Log CID tracker', '{{vars.interopCidTrackerLogCount}}'],
+    ]),
+  );
 
   return builder.build();
 }

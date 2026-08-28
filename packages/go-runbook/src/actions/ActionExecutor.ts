@@ -3,6 +3,7 @@ import type { CaseAction, CaseActionType, LogAction } from './CaseAction.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
 import { interpolatePlaceholders } from '../core/templatePlaceholders.js';
 import { throwIfRunbookAborted } from '../core/throwIfRunbookAborted.js';
+import { UNKNOWN_CASE_PREFIX } from './unknownCaseFallback.js';
 
 /**
  * Result of executing an action.
@@ -33,7 +34,6 @@ interface KnownCaseLogRow {
 }
 
 const KNOWN_CASE_PREFIX = '[CASO NOTO]';
-const UNKNOWN_CASE_PREFIX = '[CASO NON RICONOSCIUTO]';
 const UNAVAILABLE_VALUE = 'non disponibile';
 
 /**

@@ -1,12 +1,21 @@
 import type { LambdaAlarmConfig } from '../types/LambdaAlarmConfig.js';
 import type { LambdaQueryProfile } from '../profiles/LambdaQueryProfile.js';
-import type { Condition } from '../../types/Condition.js';
 import { isValidRegex } from '../helpers/matchDownstreamErrorPattern.js';
+import {
+  assertKnownCaseStepRefs,
+  assertPreStepIds,
+  failAlarmConfig,
+  type AlarmConfigValidationContext,
+} from '../../validation/alarmConfigValidation.js';
 
 const REQUEST_ID_PLACEHOLDER = '{{vars.lambdaRequestId}}';
 
+function context(config: LambdaAlarmConfig): AlarmConfigValidationContext {
+  return { builderName: 'createLambdaAlarmRunbook', runbookId: config.id };
+}
+
 function fail(config: LambdaAlarmConfig, message: string): never {
-  throw new Error(`createLambdaAlarmRunbook "${config.id}": ${message}`);
+  failAlarmConfig(context(config), message);
 }
 
 /**
@@ -81,16 +90,8 @@ function validateDownstreams(config: LambdaAlarmConfig): void {
  */
 function validateNoStepIdCollisions(config: LambdaAlarmConfig): void {
   const reserved = computeWiredStepIds({ ...config, preSteps: [], downstreams: [] });
-  const seenPreStepIds = new Set<string>();
-  for (const descriptor of config.preSteps ?? []) {
-    if (seenPreStepIds.has(descriptor.step.id)) {
-      fail(config, `preStep id "${descriptor.step.id}" is declared more than once.`);
-    }
-    seenPreStepIds.add(descriptor.step.id);
-    if (reserved.has(descriptor.step.id)) {
-      fail(config, `preStep id "${descriptor.step.id}" collides with a reserved pipeline step id.`);
-    }
-  }
+  const preStepIds = assertPreStepIds(context(config), config.preSteps, reserved);
+
   for (const downstream of config.downstreams ?? []) {
     const stepId = `query-${downstream.name}`;
     if (reserved.has(stepId)) {
@@ -99,39 +100,8 @@ function validateNoStepIdCollisions(config: LambdaAlarmConfig): void {
         `downstream "${downstream.name}" produces step id "${stepId}" which collides with a reserved pipeline step id.`,
       );
     }
-    if (seenPreStepIds.has(stepId)) {
+    if (preStepIds.has(stepId)) {
       fail(config, `downstream "${downstream.name}" produces step id "${stepId}" which collides with a preStep id.`);
-    }
-  }
-}
-
-/** Recursively collects `steps.X` references from a condition tree. */
-function collectStepRefs(condition: Condition, into: Set<string>): void {
-  switch (condition.type) {
-    case 'compare':
-    case 'pattern':
-    case 'exists':
-    case 'contains': {
-      if (condition.ref.startsWith('steps.')) {
-        const stepId = condition.ref.slice('steps.'.length).split('.')[0] ?? '';
-        if (stepId !== '') into.add(stepId);
-      }
-      return;
-    }
-    case 'and':
-    case 'or': {
-      for (const child of condition.conditions) {
-        collectStepRefs(child, into);
-      }
-      return;
-    }
-    case 'not': {
-      collectStepRefs(condition.condition, into);
-      return;
-    }
-    default: {
-      const exhaustive: never = condition;
-      throw new Error(`Unhandled condition type: ${JSON.stringify(exhaustive)}`);
     }
   }
 }
@@ -141,20 +111,12 @@ function collectStepRefs(condition: Condition, into: Set<string>): void {
  * not wired in this runbook (typically a typo or a missing downstream).
  */
 function validateKnownCaseStepRefs(config: LambdaAlarmConfig): void {
-  const wired = computeWiredStepIds(config);
-  for (const knownCase of config.knownCases) {
-    const refs = new Set<string>();
-    collectStepRefs(knownCase.condition, refs);
-    for (const stepId of refs) {
-      if (!wired.has(stepId)) {
-        fail(
-          config,
-          `knownCase "${knownCase.id}" references step "${stepId}" which is not wired in this runbook. ` +
-            'Remove the reference or declare the step/downstream.',
-        );
-      }
-    }
-  }
+  assertKnownCaseStepRefs(
+    context(config),
+    config.knownCases,
+    computeWiredStepIds(config),
+    '. Remove the reference or declare the step/downstream.',
+  );
 }
 
 /**

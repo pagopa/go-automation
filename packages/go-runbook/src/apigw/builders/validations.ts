@@ -1,8 +1,11 @@
 import type { ApiGwAlarmConfig } from '../types/ApiGwAlarmConfig.js';
 import type { ApiGwQueryProfile } from '../profiles/ApiGwQueryProfile.js';
-import type { KnownCase } from '../../types/KnownCase.js';
-import type { Condition } from '../../types/Condition.js';
 import { renderQueryTemplate } from '../profiles/render/renderQueryTemplate.js';
+import {
+  assertKnownCaseStepRefs,
+  assertPreStepIds,
+  type AlarmConfigValidationContext,
+} from '../../validation/alarmConfigValidation.js';
 import { getEffectiveExecutionLogGroup, isExecutionLogEnabled } from './executionLogEnablement.js';
 
 /**
@@ -118,88 +121,26 @@ function computeWiredStepIds(config: ApiGwAlarmConfig, profile: ApiGwQueryProfil
  * pipeline canonica (es. un preStep che si chiama `parse-api-gw-errors`).
  */
 function validateNoStepIdCollisions(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
-  const reserved = computeWiredStepIds({ ...config, preSteps: [] }, profile);
-  const seenPreStepIds = new Set<string>();
-  for (const descriptor of config.preSteps ?? []) {
-    if (seenPreStepIds.has(descriptor.step.id)) {
-      throw new Error(
-        `createApiGwAlarmRunbook "${config.id}": preStep id "${descriptor.step.id}" is declared more than once.`,
-      );
-    }
-    seenPreStepIds.add(descriptor.step.id);
-    if (reserved.has(descriptor.step.id)) {
-      throw new Error(
-        `createApiGwAlarmRunbook "${config.id}": preStep id "${descriptor.step.id}" ` +
-          'collides with a reserved pipeline step id.',
-      );
-    }
-  }
+  assertPreStepIds(context(config), config.preSteps, computeWiredStepIds({ ...config, preSteps: [] }, profile));
 }
 
 /**
- * Visita ricorsiva di `Condition` per raccogliere tutti i `ref` che
- * iniziano con `steps.`.
- */
-function collectStepRefs(condition: Condition, into: Set<string>): void {
-  switch (condition.type) {
-    case 'compare':
-    case 'pattern':
-    case 'exists':
-    case 'contains': {
-      if (condition.ref.startsWith('steps.')) {
-        const afterPrefix = condition.ref.slice('steps.'.length);
-        const stepId = afterPrefix.split('.')[0] ?? '';
-        if (stepId !== '') into.add(stepId);
-      }
-      return;
-    }
-    case 'and':
-    case 'or': {
-      for (const c of condition.conditions) collectStepRefs(c, into);
-      return;
-    }
-    case 'not': {
-      collectStepRefs(condition.condition, into);
-      return;
-    }
-    default: {
-      const _exhaustive: never = condition;
-      throw new Error(`Unhandled condition type: ${JSON.stringify(_exhaustive)}`);
-    }
-  }
-}
-
-/**
- * V3: orphan step refs. Per ogni `KnownCase`, ricorre nella `condition`
- * e per ogni `ref` con prefisso `steps.` verifica che lo step ID sia
- * effettivamente cablato nella pipeline. Cattura il bug
- * "runbook che cita uno step inesistente nel profilo corrente".
+ * V3: orphan step refs. Per ogni `KnownCase` verifica che gli step citati
+ * con prefisso `steps.` siano effettivamente cablati nella pipeline. Cattura
+ * il bug "runbook che cita uno step inesistente nel profilo corrente".
  */
 function validateKnownCaseStepRefs(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
-  const wired = computeWiredStepIds(config, profile);
-  for (const knownCase of config.knownCases) {
-    const refs = new Set<string>();
-    collectStepRefs(knownCase.condition, refs);
-    for (const stepId of refs) {
-      if (!wired.has(stepId)) {
-        throw orphanStepRefError(config, profile, knownCase, stepId);
-      }
-    }
-  }
-}
-
-function orphanStepRefError(
-  config: ApiGwAlarmConfig,
-  profile: ApiGwQueryProfile,
-  knownCase: KnownCase,
-  stepId: string,
-): Error {
-  return new Error(
-    `createApiGwAlarmRunbook "${config.id}": knownCase "${knownCase.id}" references ` +
-      `step "${stepId}" which is not wired in this runbook ` +
-      `(profile "${profile.id}" + current config). ` +
+  assertKnownCaseStepRefs(
+    context(config),
+    config.knownCases,
+    computeWiredStepIds(config, profile),
+    ` (profile "${profile.id}" + current config). ` +
       'Either switch profile / config to wire that step, or remove the reference from the known case.',
   );
+}
+
+function context(config: ApiGwAlarmConfig): AlarmConfigValidationContext {
+  return { builderName: 'createApiGwAlarmRunbook', runbookId: config.id };
 }
 
 /**

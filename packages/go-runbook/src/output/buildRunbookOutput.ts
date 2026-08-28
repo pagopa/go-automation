@@ -15,8 +15,8 @@ import { sumCloudWatchLogsQueryStatistics, type AWSCloudWatchLogsQueryStatistics
 import { emptyRunbookOutputContext } from './RunbookOutputContext.js';
 import { buildAnalysisDraft } from './buildAnalysisDraft.js';
 import { interpolatePlaceholders } from '../core/templatePlaceholders.js';
+import { UNKNOWN_CASE_PREFIX } from '../actions/unknownCaseFallback.js';
 
-const UNKNOWN_CASE_PREFIX = '[CASO NON RICONOSCIUTO]';
 const UNAVAILABLE_VALUE = 'non disponibile';
 
 export interface BuildRunbookOutputOptions {
