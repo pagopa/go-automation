@@ -145,6 +145,7 @@ export type {
   ScanBy,
 } from '@aws-sdk/client-cloudwatch';
 export type { CloudWatchLogsClient, ResultField } from '@aws-sdk/client-cloudwatch-logs';
+export { readRowField, readRowFields, readResultFieldRows } from './AWSCloudWatchResultRows.js';
 export type { AthenaClient } from '@aws-sdk/client-athena';
 export type { ECSClient } from '@aws-sdk/client-ecs';
 

@@ -95,6 +95,7 @@ export { TraceBuilder } from './trace/TraceBuilder.js';
 
 // Output
 export type { RunbookOutput } from './output/RunbookOutput.js';
+export type { LogLine } from './output/LogLine.js';
 export { buildAnalysisDraft } from './output/buildAnalysisDraft.js';
 export { ANALYSIS_DRAFT_BOUNDS } from './output/analysisDraftBounds.js';
 export type { AnalysisDraftV1 } from './output/AnalysisDraft.js';

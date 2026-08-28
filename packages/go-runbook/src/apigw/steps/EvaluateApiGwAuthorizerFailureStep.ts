@@ -1,3 +1,4 @@
+import { readRowField } from '@go-automation/go-common/aws';
 import type { ResultField } from '@go-automation/go-common/aws';
 
 import type { Step } from '../../types/Step.js';
@@ -6,7 +7,6 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { StepResult } from '../../types/StepResult.js';
 import { readStepOutput } from '../../steps/data/readStepOutput.js';
 
-import { extractCwField } from '../helpers/extractCwField.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
 import type { AccessLogSchema } from '../profiles/schemas/AccessLogSchema.js';
 import { SEND_API_GW_PROFILE } from '../profiles/SEND_API_GW_PROFILE.js';
@@ -157,8 +157,8 @@ class EvaluateApiGwAuthorizerFailureStepImpl implements Step<ApiGwAuthorizerFail
   private extractEvidence(row: ReadonlyArray<ResultField> | undefined): AuthorizerEvidence | undefined {
     if (row === undefined || this.schema.authorizer === undefined) return undefined;
 
-    const path = this.sanitize(extractCwField(row, this.schema.pathField));
-    const httpMethod = this.sanitize(extractCwField(row, this.schema.httpMethodField));
+    const path = this.sanitize(readRowField(row, this.schema.pathField));
+    const httpMethod = this.sanitize(readRowField(row, this.schema.httpMethodField));
     const authorizer = this.selectAuthorizer(path, httpMethod);
     if (authorizer === undefined) return undefined;
 
@@ -232,7 +232,7 @@ class EvaluateApiGwAuthorizerFailureStepImpl implements Step<ApiGwAuthorizerFail
 
   private pickFirstMeaningfulField(row: ReadonlyArray<ResultField>, fields: ReadonlyArray<string>): string | undefined {
     for (const field of fields) {
-      const value = this.sanitize(extractCwField(row, field));
+      const value = this.sanitize(readRowField(row, field));
       if (value !== undefined) return value;
     }
     return undefined;

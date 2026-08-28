@@ -1,3 +1,4 @@
+import { isNonBlankString, isObject } from '@go-automation/go-common/core';
 import type { ApiGwService } from '../types/ApiGwService.js';
 
 export interface ApiGwRunbookContext {
@@ -8,23 +9,15 @@ export interface ApiGwRunbookContext {
 }
 
 export function isApiGwRunbookContext(value: unknown): value is ApiGwRunbookContext {
-  if (!isRecord(value)) return false;
+  if (!isObject(value)) return false;
   if (value['kind'] !== 'apigw') return false;
-  if (!isNonEmptyString(value['apiGwLogGroup'])) return false;
-  if (!isNonEmptyString(value['queryProfileId'])) return false;
+  if (!isNonBlankString(value['apiGwLogGroup'])) return false;
+  if (!isNonBlankString(value['queryProfileId'])) return false;
   const services = value['services'];
   return Array.isArray(services) && services.every(isApiGwService);
 }
 
 function isApiGwService(value: unknown): value is ApiGwService {
-  if (!isRecord(value)) return false;
-  return isNonEmptyString(value['name']) && isNonEmptyString(value['varPrefix']) && isNonEmptyString(value['logGroup']);
-}
-
-function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-  return typeof value === 'object' && value !== null;
-}
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim() !== '';
+  if (!isObject(value)) return false;
+  return isNonBlankString(value['name']) && isNonBlankString(value['varPrefix']) && isNonBlankString(value['logGroup']);
 }

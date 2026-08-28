@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { isPath, smartTruncate, truncatePath, truncateText } from '../GOStringUtils.js';
+import { isPath, smartTruncate, trimToUndefined, truncatePath, truncateText } from '../GOStringUtils.js';
 
 describe('GOStringUtils', () => {
   it('detects path-like strings', () => {
@@ -31,5 +31,17 @@ describe('GOStringUtils', () => {
   it('exposes path and text truncation wrappers', () => {
     assert.strictEqual(truncatePath('/a/b/c/d/file.txt', 12, '...'), '.../file.txt');
     assert.strictEqual(truncateText('hello world', 8, '...'), 'hello...');
+  });
+});
+
+describe('trimToUndefined', () => {
+  it('trims a value that carries content', () => {
+    assert.strictEqual(trimToUndefined('  eu-south-1 '), 'eu-south-1');
+  });
+
+  it('reports missing, empty and whitespace-only values as absent', () => {
+    assert.strictEqual(trimToUndefined(undefined), undefined);
+    assert.strictEqual(trimToUndefined(''), undefined);
+    assert.strictEqual(trimToUndefined('   '), undefined);
   });
 });

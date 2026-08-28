@@ -1,5 +1,5 @@
+import { readRowField } from '@go-automation/go-common/aws';
 import type { ResultField } from '@go-automation/go-common/aws';
-import { extractCwField } from '../../../apigw/helpers/extractCwField.js';
 import { readCloudWatchResultRows } from '../../../steps/data/readCloudWatchResultRows.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
@@ -45,13 +45,13 @@ export class AnalyzeInteropApiGwAggregatesStep implements Step<InteropApiGwAggre
     let errorCount = 0;
 
     for (const row of rows) {
-      errorCount += parseCount(extractCwField(row, 'count'));
-      addNormalized(statuses, extractCwField(row, 'status'));
-      addNormalized(integrationStatuses, extractCwField(row, 'integrationStatus'));
-      addNormalized(integrationErrors, extractCwField(row, 'integrationError'));
-      addNormalized(httpMethods, extractCwField(row, 'httpMethod'));
-      addNormalized(requestPaths, extractCwField(row, 'requestPath'));
-      addNormalized(sourceIps, extractCwField(row, 'sourceIp'));
+      errorCount += parseCount(readRowField(row, 'count'));
+      addNormalized(statuses, readRowField(row, 'status'));
+      addNormalized(integrationStatuses, readRowField(row, 'integrationStatus'));
+      addNormalized(integrationErrors, readRowField(row, 'integrationError'));
+      addNormalized(httpMethods, readRowField(row, 'httpMethod'));
+      addNormalized(requestPaths, readRowField(row, 'requestPath'));
+      addNormalized(sourceIps, readRowField(row, 'sourceIp'));
     }
 
     const analysis: InteropApiGwAggregateAnalysis = {
@@ -92,7 +92,7 @@ function selectPrimaryAggregateRow(
   let primaryCount = -1;
 
   for (const row of rows) {
-    const count = parseCount(extractCwField(row, 'count'));
+    const count = parseCount(readRowField(row, 'count'));
     if (
       primary === undefined ||
       count > primaryCount ||
@@ -138,5 +138,5 @@ function addNormalized(target: Set<string>, value: string | undefined): void {
 }
 
 function readNormalizedField(row: ReadonlyArray<ResultField> | undefined, name: string): string | undefined {
-  return row === undefined ? undefined : normalizeInteropApiGwAggregateValue(extractCwField(row, name));
+  return row === undefined ? undefined : normalizeInteropApiGwAggregateValue(readRowField(row, name));
 }

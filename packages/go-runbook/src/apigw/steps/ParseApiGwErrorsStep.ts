@@ -1,3 +1,4 @@
+import { readRowField } from '@go-automation/go-common/aws';
 import type { ResultField } from '@go-automation/go-common/aws';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
@@ -5,7 +6,6 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { StepResult } from '../../types/StepResult.js';
 import { readStepOutput } from '../../steps/data/readStepOutput.js';
 
-import { extractCwField } from '../helpers/extractCwField.js';
 import { extractTraceId } from '../helpers/extractTraceId.js';
 import { pickHighestStatusCode, pickPrimaryStatusCode, rowMeetsThreshold } from '../helpers/accessLogRow.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
@@ -76,7 +76,7 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
     // `authorizerStatus` or `integrationServiceStatus`
     // (e.g. an authorizer 500 with `status=-`).
     // Rows are only ever read downstream (extractTraceId, pickPrimaryStatusCode,
-    // extractCwField) — no defensive clone needed.
+    // readRowField) — no defensive clone needed.
     const errorRows: ResultField[][] = [];
     for (const row of results) {
       if (rowMeetsThreshold(row, this.minStatusCode, this.schema)) {
@@ -126,7 +126,7 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
 
     const additional: Partial<ApiGwErrorInfo> = {};
     for (const [field, contextVar] of this.schema.fieldToVar) {
-      const raw = extractCwField(firstRow, field);
+      const raw = readRowField(firstRow, field);
       if (raw === undefined) continue;
       // API Gateway uses the literal `-` to mark "not present" for these
       // fields. Persist it as a var (so case conditions can compare on

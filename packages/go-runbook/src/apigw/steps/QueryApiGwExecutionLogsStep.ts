@@ -1,3 +1,4 @@
+import { readRowField } from '@go-automation/go-common/aws';
 import type { ResultField } from '@go-automation/go-common/aws';
 
 import type { Step } from '../../types/Step.js';
@@ -10,7 +11,6 @@ import { resolveTimeRange } from '../../steps/data/resolveTimeRange.js';
 import { executeStep } from '../../steps/data/executeStep.js';
 import { executeCloudWatchLogsQuery } from '../../steps/data/executeCloudWatchLogsQuery.js';
 
-import { extractCwField } from '../helpers/extractCwField.js';
 import { buildApiGwVars, rowMeetsThreshold, sanitizeApiGwField } from '../helpers/accessLogRow.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
 import type { ExecutionLogSpec } from '../profiles/specs/ExecutionLogSpec.js';
@@ -194,7 +194,7 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
       // riassociazione andrà spostata nel profilo (roadmap §12.3).
       const output: ResultField[][] = [];
       for (const row of rows) {
-        const message = extractCwField(row, '@message') ?? '';
+        const message = readRowField(row, '@message') ?? '';
         const matched = requestIds.find((req) => message.includes(req.requestId));
         output.push([
           ...row,
@@ -227,7 +227,7 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
 
   private rowHasApiGwErrorMessage(row: ReadonlyArray<ResultField>): boolean {
     if (!rowMeetsThreshold(row, this.minStatusCode, this.accessLogSchema)) return false;
-    return sanitizeApiGwField(extractCwField(row, this.accessLogSchema.errorMessageField), this.accessLogSchema) !== '';
+    return sanitizeApiGwField(readRowField(row, this.accessLogSchema.errorMessageField), this.accessLogSchema) !== '';
   }
 
   /**
@@ -258,10 +258,10 @@ function collectRequestIds(
 ): ReadonlyArray<RequestIdWithPath> {
   const byRequestId = new Map<string, RequestIdWithPath>();
   for (const row of rows) {
-    const requestId = sanitizeApiGwField(extractCwField(row, schema.requestIdField), schema);
+    const requestId = sanitizeApiGwField(readRowField(row, schema.requestIdField), schema);
     if (requestId === '') continue;
 
-    const rawPath = sanitizeApiGwField(extractCwField(row, schema.pathField), schema);
+    const rawPath = sanitizeApiGwField(readRowField(row, schema.pathField), schema);
     const path = rawPath === '' ? requestId : rawPath;
     if (!byRequestId.has(requestId)) {
       byRequestId.set(requestId, { path, requestId });

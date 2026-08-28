@@ -1,3 +1,4 @@
+import { isNonBlankString, isObject } from '@go-automation/go-common/core';
 import type { ServiceDescriptor } from '../types/ServiceDescriptor.js';
 
 export interface ServiceRunbookContext {
@@ -7,23 +8,15 @@ export interface ServiceRunbookContext {
 }
 
 export function isServiceRunbookContext(value: unknown): value is ServiceRunbookContext {
-  if (!isRecord(value)) return false;
+  if (!isObject(value)) return false;
   if (value['kind'] !== 'service') return false;
-  if (!isNonEmptyString(value['queryProfileId'])) return false;
+  if (!isNonBlankString(value['queryProfileId'])) return false;
 
   const service = value['service'];
   return (
-    isRecord(service) &&
-    isNonEmptyString(service['name']) &&
-    isNonEmptyString(service['logGroup']) &&
-    isNonEmptyString(service['varPrefix'])
+    isObject(service) &&
+    isNonBlankString(service['name']) &&
+    isNonBlankString(service['logGroup']) &&
+    isNonBlankString(service['varPrefix'])
   );
-}
-
-function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-  return typeof value === 'object' && value !== null;
-}
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim() !== '';
 }

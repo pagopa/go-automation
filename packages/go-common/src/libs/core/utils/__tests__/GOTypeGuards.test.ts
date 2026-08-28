@@ -16,6 +16,7 @@ import {
   isNodeError,
   isNodeErrnoCode,
   isNonEmptyArray,
+  isNonBlankString,
   isNonEmptyString,
   isNullish,
   isNumber,
@@ -151,5 +152,22 @@ describe('GOTypeGuards', () => {
     assert.strictEqual(isNonEmptyArray([1]), true);
     assert.strictEqual(isNonEmptyArray([]), false);
     assert.strictEqual(isNonEmptyArray('no'), false);
+  });
+});
+
+describe('isNonBlankString', () => {
+  it('accepts a string with content', () => {
+    assert.strictEqual(isNonBlankString('eu-south-1'), true);
+  });
+
+  it('rejects whitespace-only strings, unlike isNonEmptyString', () => {
+    assert.strictEqual(isNonBlankString('   '), false);
+    assert.strictEqual(isNonEmptyString('   '), true);
+  });
+
+  it('rejects empty strings and non-strings', () => {
+    assert.strictEqual(isNonBlankString(''), false);
+    assert.strictEqual(isNonBlankString(undefined), false);
+    assert.strictEqual(isNonBlankString(42), false);
   });
 });
