@@ -52,6 +52,7 @@ export {
   hasMessage,
 } from './GOTypeGuards.js';
 export { parseInteger, parseFiniteNumber } from './GONumberParse.js';
+export { omitUndefined } from './GOObjectUtils.js';
 export { GOConcurrencyPool } from './GOConcurrencyPool.js';
 export { formatUtcDateTime } from './GODateUtils.js';
 export { GODateTokens } from './GODateTokens.js';

@@ -1,11 +1,20 @@
 /**
+ * Record-shaping helpers for assembling objects under
+ * {@link https://www.typescriptlang.org/tsconfig#exactOptionalPropertyTypes
+ * `exactOptionalPropertyTypes: true`}, which forbids assigning an explicit
+ * `undefined` to an optional property.
+ */
+
+/**
  * Returns a shallow copy of `record` with all `undefined` properties removed.
  *
- * Designed to replace the `...(x !== undefined ? { x } : {})` spread chain
- * that {@link https://www.typescriptlang.org/tsconfig#exactOptionalPropertyTypes
- * `exactOptionalPropertyTypes: true`} forces on call sites with optional
- * fields. Use it when you have **three or more** optional fields to assemble
- * at once — for one-off cases the inline spread is still clearer.
+ * Replaces the `...(x !== undefined ? { x } : {})` spread chain that
+ * `exactOptionalPropertyTypes` forces on call sites with optional fields. Use
+ * it when you have **three or more** optional fields to assemble at once — for
+ * one-off cases the inline spread is still clearer.
+ *
+ * @param record - Object whose `undefined` properties should be dropped
+ * @returns A copy carrying only the defined properties
  *
  * @example
  * ```typescript

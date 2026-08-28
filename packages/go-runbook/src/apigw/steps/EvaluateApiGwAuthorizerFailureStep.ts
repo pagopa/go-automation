@@ -1,3 +1,4 @@
+import { omitUndefined } from '@go-automation/go-common/core';
 import { readRowField } from '@go-automation/go-common/aws';
 import type { ResultField } from '@go-automation/go-common/aws';
 
@@ -12,7 +13,6 @@ import type { AccessLogSchema } from '../profiles/schemas/AccessLogSchema.js';
 import { SEND_API_GW_PROFILE } from '../profiles/SEND_API_GW_PROFILE.js';
 import type { ApiGwAuthorizerFailureCheckConfig } from '../types/ApiGwAlarmConfig.js';
 import type { ApiGwAuthorizerLambdaConfig } from '../authorizers/ApiGwAuthorizerLambdaRegistry.js';
-import { omitUndefined } from '../../core/omitUndefined.js';
 
 const DEFAULT_STATUS_THRESHOLD = 500;
 
