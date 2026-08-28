@@ -3,23 +3,15 @@
  */
 
 import { lambda, SEND_DOWNSTREAMS } from '../framework.js';
-import type { Condition, KnownCase } from '../framework.js';
+import type { KnownCase } from '../framework.js';
 
-const JIRA_BROWSE = 'https://pagopa.atlassian.net/browse';
+import { jiraLink, slackLink } from '../common/analysisLinks.js';
+import { lambdaLogEvidenceMatches } from '../common/evidenceConditions.js';
+
 const XRAY_SLACK_11_MAY = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1778514522543109';
 const XRAY_SLACK_25_MAY = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1779714501970569';
 const APP_IO_SLACK =
   'https://pagopaspa.slack.com/archives/C064KJYNLPL/p1779713635239249?thread_ts=1779460059.183959&cid=C064KJYNLPL';
-
-function matchLambdaLog(regex: string): Condition {
-  return {
-    type: 'or',
-    conditions: [
-      { type: 'contains', ref: 'steps.query-lambda-invocation', regex },
-      { type: 'contains', ref: 'steps.query-lambda-errors', regex },
-    ],
-  };
-}
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   {
@@ -29,10 +21,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     condition: {
       type: 'or',
       conditions: [
-        matchLambdaLog(
+        lambdaLogEvidenceMatches(
           'Errore nella chiamata idpKeys(?:CieGet|SpidTagGet):[\\s\\S]*Message:\\s*Timeout of 1000ms exceeded',
         ),
-        matchLambdaLog('IDP_CERT_DATA_RETRIEVING_ERROR'),
+        lambdaLogEvidenceMatches('IDP_CERT_DATA_RETRIEVING_ERROR'),
       ],
     },
     action: {
@@ -50,7 +42,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.APP_IO],
       finalActions: ['Attendere il ripristino del backend di IO'],
-      links: [{ url: APP_IO_SLACK, name: 'Thread Slack 25/05/2026', type: 'SLACK' }],
+      links: [slackLink(APP_IO_SLACK, 'Thread Slack 25/05/2026')],
     },
   },
   ...lambda.LAMBDA_RUNTIME_KNOWN_CASES,
@@ -58,7 +50,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'missing-aws-lambda-trace-data-xray',
     description: 'Falso positivo X-Ray per dati di tracing Lambda mancanti',
     priority: 90,
-    condition: matchLambdaLog('Missing AWS Lambda trace data for X-Ray'),
+    condition: lambdaLogEvidenceMatches('Missing AWS Lambda trace data for X-Ray'),
     action: {
       type: 'log',
       level: 'info',
@@ -73,9 +65,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       links: [
-        { url: `${JIRA_BROWSE}/PN-20042`, name: 'PN-20042', type: 'JIRA' },
-        { url: XRAY_SLACK_11_MAY, name: 'Thread Slack 11/05/2026', type: 'SLACK' },
-        { url: XRAY_SLACK_25_MAY, name: 'Thread Slack 25/05/2026', type: 'SLACK' },
+        jiraLink('PN-20042'),
+        slackLink(XRAY_SLACK_11_MAY, 'Thread Slack 11/05/2026'),
+        slackLink(XRAY_SLACK_25_MAY, 'Thread Slack 25/05/2026'),
       ],
     },
   },
@@ -86,8 +78,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     condition: {
       type: 'and',
       conditions: [
-        matchLambdaLog('SIGNATURE_VALIDATION_ERROR'),
-        matchLambdaLog("entityID:\\s*'https://spid\\.register\\.it'"),
+        lambdaLogEvidenceMatches('SIGNATURE_VALIDATION_ERROR'),
+        lambdaLogEvidenceMatches("entityID:\\s*'https://spid\\.register\\.it'"),
       ],
     },
     action: {
@@ -104,7 +96,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Nessuna azione per entityID https://spid.register.it; segnalare il caso se riguarda un provider differente.',
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
-      links: [{ url: `${JIRA_BROWSE}/PN-19959`, name: 'PN-19959', type: 'JIRA' }],
+      links: [jiraLink('PN-19959')],
     },
   },
 ];

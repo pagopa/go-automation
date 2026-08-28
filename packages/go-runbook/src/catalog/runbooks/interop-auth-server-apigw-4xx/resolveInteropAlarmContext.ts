@@ -13,8 +13,8 @@ export const INTEROP_AUTH_SERVER_VAR_PREFIX = 'interopAuthServer';
 export const INTEROP_AUTH_SERVER_API_GW_PROFILE_ID = 'interop-api-gateway-auth-server-4xx';
 export const INTEROP_AUTH_SERVER_API_GW_LOG_GROUP_TEMPLATE: string =
   interop.apigw.INTEROP_API_GW_ACCESS_LOG_GROUP_TEMPLATE;
-export const INTEROP_AUTH_SERVER_APPLICATION_LOG_GROUP_TEMPLATE =
-  '/aws/eks/interop-eks-cluster-<environment>/application';
+export const INTEROP_AUTH_SERVER_APPLICATION_LOG_GROUP_TEMPLATE: string =
+  interop.k8s.INTEROP_K8S_APPLICATION_LOG_GROUP_TEMPLATE;
 
 /** Actual CloudWatch alarms: the low-request variant exists only in att and test. */
 export const INTEROP_AUTH_SERVER_API_GW_ALARM_NAMES: readonly [string, ...string[]] = [

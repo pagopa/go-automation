@@ -1,24 +1,13 @@
-import type { AnalysisLinkRef, CaseAction, Condition, KnownCase } from '../framework.js';
-import type { InteropEnvironment } from '../interop/InteropEnvironment.js';
+import type { KnownCase } from '../framework.js';
+import { slackLink } from '../common/analysisLinks.js';
+import { createInteropApiGwKnownCaseFactory } from '../interop/interopApiGwKnownCases.js';
 
+import { INTEROP_AUTH_SERVER_VAR_PREFIX } from './resolveInteropAlarmContext.js';
 import {
   QUERY_INTEROP_API_GW_4XX_STEP_ID,
   QUERY_INTEROP_AUTH_SERVER_CID_TRACKER_STEP_ID,
   QUERY_INTEROP_AUTH_SERVER_WARNINGS_STEP_ID,
 } from './runbookSteps.js';
-
-interface InteropAuthServerKnownCaseConfig {
-  readonly id: string;
-  readonly description: string;
-  readonly priority: number;
-  readonly regex: string;
-  readonly resolution: string;
-  readonly proposedStatus: 'IN_PROGRESS' | 'COMPLETED';
-  readonly evidence?: 'ANY' | 'API_GATEWAY';
-  readonly environments?: ReadonlyArray<InteropEnvironment>;
-  readonly finalActions?: ReadonlyArray<string>;
-  readonly links?: ReadonlyArray<AnalysisLinkRef>;
-}
 
 const PRODUCT_REVIEW_ACTION = 'Necessario confronto con il team di prodotto';
 const DEPLOYMENT_DOCUMENTATION =
@@ -28,6 +17,14 @@ const TEST_RATE_LIMIT_THREAD = 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0
 const TOKEN_STATE_THREAD = 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1773161605955019';
 const UNEXPECTED_KID_THREAD =
   'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1780490021408979?thread_ts=1780471525.339529&cid=C0A7F9XQAT0';
+
+const knownCase = createInteropApiGwKnownCaseFactory({
+  apiGatewayStepId: QUERY_INTEROP_API_GW_4XX_STEP_ID,
+  applicationLogsStepId: QUERY_INTEROP_AUTH_SERVER_WARNINGS_STEP_ID,
+  cidTrackerStepId: QUERY_INTEROP_AUTH_SERVER_CID_TRACKER_STEP_ID,
+  varPrefix: INTEROP_AUTH_SERVER_VAR_PREFIX,
+  applicationLogsLabel: 'Warning auth-server',
+});
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
@@ -43,7 +40,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     proposedStatus: 'IN_PROGRESS',
     environments: ['test'],
     finalActions: [PRODUCT_REVIEW_ACTION],
-    links: [slack(TEST_RATE_LIMIT_THREAD, 'Thread rate limit ambiente test')],
+    links: [slackLink(TEST_RATE_LIMIT_THREAD, 'Thread rate limit ambiente test')],
   }),
   knownCase({
     id: 'auth-server-unexpected-client-assertion-audience',
@@ -61,7 +58,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     finalActions: [PRODUCT_REVIEW_ACTION],
     links: [
       { url: DEPLOYMENT_DOCUMENTATION, name: 'Deployment authorization-server-node', type: 'DOCUMENTATION' },
-      slack(AUDIENCE_EXAMPLE, 'Esempio audience non valida'),
+      slackLink(AUDIENCE_EXAMPLE, 'Esempio audience non valida'),
     ],
   }),
   knownCase({
@@ -85,7 +82,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       'La risoluzione nel documento è marcata TBV, quindi il caso resta aperto.',
     proposedStatus: 'IN_PROGRESS',
     finalActions: [PRODUCT_REVIEW_ACTION],
-    links: [slack(TOKEN_STATE_THREAD, 'Thread token-generation-states')],
+    links: [slackLink(TOKEN_STATE_THREAD, 'Thread token-generation-states')],
   }),
   knownCase({
     id: 'auth-server-client-assertion-signature-validation-failed',
@@ -108,7 +105,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       'Il documento non indica una risoluzione automatica.',
     proposedStatus: 'IN_PROGRESS',
     finalActions: [PRODUCT_REVIEW_ACTION],
-    links: [slack(UNEXPECTED_KID_THREAD, 'Thread formato kid inatteso')],
+    links: [slackLink(UNEXPECTED_KID_THREAD, 'Thread formato kid inatteso')],
   }),
   knownCase({
     id: 'auth-server-platform-state-inactive',
@@ -133,66 +130,3 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     evidence: 'API_GATEWAY',
   }),
 ];
-
-function knownCase(config: InteropAuthServerKnownCaseConfig): KnownCase {
-  const evidenceCondition =
-    config.evidence === 'API_GATEWAY' ? apiGatewayEvidenceMatches(config.regex) : anyEvidenceMatches(config.regex);
-  const condition = withEnvironment(evidenceCondition, config.environments);
-  return {
-    id: config.id,
-    description: config.description,
-    priority: config.priority,
-    condition,
-    action: knownCaseAction(config.description, config.resolution),
-    analysis: {
-      resolution: config.resolution,
-      proposedStatus: config.proposedStatus,
-      analysisType: 'ANALYZABLE',
-      ...(config.finalActions === undefined ? {} : { finalActions: config.finalActions }),
-      ...(config.links === undefined ? {} : { links: config.links }),
-    },
-  };
-}
-
-function anyEvidenceMatches(regex: string): Condition {
-  return {
-    type: 'or',
-    conditions: [
-      apiGatewayEvidenceMatches(regex),
-      { type: 'contains', ref: `steps.${QUERY_INTEROP_AUTH_SERVER_WARNINGS_STEP_ID}`, regex },
-      { type: 'contains', ref: `steps.${QUERY_INTEROP_AUTH_SERVER_CID_TRACKER_STEP_ID}`, regex },
-    ],
-  };
-}
-
-function apiGatewayEvidenceMatches(regex: string): Condition {
-  return { type: 'contains', ref: `steps.${QUERY_INTEROP_API_GW_4XX_STEP_ID}`, regex };
-}
-
-function withEnvironment(condition: Condition, environments: ReadonlyArray<InteropEnvironment> | undefined): Condition {
-  if (environments === undefined) return condition;
-  return {
-    type: 'and',
-    conditions: [{ type: 'contains', ref: 'vars.interopEnvironment', value: environments }, condition],
-  };
-}
-
-function knownCaseAction(title: string, resolution: string): CaseAction {
-  return {
-    type: 'log',
-    level: 'info',
-    renderAs: 'known-case',
-    message:
-      `[CASO NOTO] ${title}\n` +
-      `Risoluzione: ${resolution}\n` +
-      'Ambiente: {{vars.interopEnvironment}}\n' +
-      'API Gateway ID: {{vars.interopApiGwId}}\n' +
-      'Servizio: {{vars.interopPodApp}}\n' +
-      'Warning auth-server: {{vars.interopAuthServerLogCount}}\n' +
-      'CID analizzati: {{vars.interopAuthServerCidCount}}\n',
-  };
-}
-
-function slack(url: string, name: string): AnalysisLinkRef {
-  return { url, name, type: 'SLACK' };
-}

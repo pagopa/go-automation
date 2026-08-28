@@ -1,6 +1,5 @@
 import { interop } from '../framework.js';
 
-export const INTEROP_AUTH_SERVER_API_GW_4XX_QUERY_PROFILE_ID = 'interop-api-gateway-auth-server-4xx';
 export const INTEROP_AUTH_SERVER_WARNINGS_QUERY_PROFILE_ID = 'interop-k8s-auth-server-warnings';
 
 export function buildInteropAuthServerApiGw4xxAggregateQuery(apiGwId: string): string {

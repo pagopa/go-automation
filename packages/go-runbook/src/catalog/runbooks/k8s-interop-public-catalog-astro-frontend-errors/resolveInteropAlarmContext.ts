@@ -6,7 +6,7 @@ import { INTEROP_ENVIRONMENTS, isInteropEnvironment } from '../interop/InteropEn
 export const INTEROP_PUBLIC_CATALOG_RUNBOOK_KEY: string = 'k8s-interop-public-catalog-astro-frontend-errors';
 export const INTEROP_PUBLIC_CATALOG_SERVICE_NAME: string = 'interop-public-catalog-astro-frontend';
 export const INTEROP_PUBLIC_CATALOG_VAR_PREFIX: string = 'interopPublicCatalog';
-export const INTEROP_PUBLIC_CATALOG_STATIC_LOG_GROUP: string = '/aws/eks/interop-eks-cluster-<environment>/application';
+export const INTEROP_PUBLIC_CATALOG_STATIC_LOG_GROUP: string = interop.k8s.INTEROP_K8S_APPLICATION_LOG_GROUP_TEMPLATE;
 
 // The concrete alarm names carry the environment in the MIDDLE
 // (…-errors-<env>-public-catalog), so the alias list and the pattern keep the

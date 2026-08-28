@@ -9,9 +9,9 @@ import type {
 } from '@go-automation/go-common/aws';
 import type { ServiceRegistry } from '../../../../services/ServiceRegistry.js';
 import type { RunbookContext } from '../../../../types/RunbookContext.js';
+import { interop } from '../../framework.js';
 
-import { AnalyzeInteropApiGw5xxStep } from '../AnalyzeInteropApiGw5xxStep.js';
-import { QueryInteropApiGw5xxStep } from '../QueryInteropApiGw5xxStep.js';
+import { buildInteropApiGw5xxAggregateQuery, INTEROP_API_GW_5XX_QUERY_PROFILE_ID } from '../queries.js';
 
 interface SeenQuery {
   readonly logGroups: ReadonlyArray<string>;
@@ -68,10 +68,14 @@ describe('INTEROP Selfcare API Gateway custom steps', () => {
       },
     };
 
-    const step = new QueryInteropApiGw5xxStep({
+    const step = new interop.apigw.QueryInteropApiGwAggregatesStep({
       id: 'query-api-gw-logs',
       label: 'Query',
       timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+      queryProfileId: INTEROP_API_GW_5XX_QUERY_PROFILE_ID,
+      queryKind: 'interop-api-gateway-5xx-aggregate',
+      errorFamilyLabel: '5xx',
+      buildQuery: buildInteropApiGw5xxAggregateQuery,
     });
     const result = await step.execute(context(cloudWatchLogs));
 
@@ -103,7 +107,12 @@ describe('INTEROP Selfcare API Gateway custom steps', () => {
         { field: 'status', value: '500' },
       ],
     ];
-    const step = new AnalyzeInteropApiGw5xxStep({ id: 'analyze', label: 'Analyze', fromStep: 'query' });
+    const step = new interop.apigw.AnalyzeInteropApiGwAggregatesStep({
+      id: 'analyze',
+      label: 'Analyze',
+      fromStep: 'query',
+      errorFamilyLabel: '5xx',
+    });
     const result = await step.execute(context({}, new Map([['query', rows]])));
 
     assert.strictEqual(result.success, true);
@@ -136,7 +145,12 @@ describe('INTEROP Selfcare API Gateway custom steps', () => {
         { field: 'sourceIp', value: '203.0.113.200' },
       ],
     ];
-    const step = new AnalyzeInteropApiGw5xxStep({ id: 'analyze', label: 'Analyze', fromStep: 'query' });
+    const step = new interop.apigw.AnalyzeInteropApiGwAggregatesStep({
+      id: 'analyze',
+      label: 'Analyze',
+      fromStep: 'query',
+      errorFamilyLabel: '5xx',
+    });
     const result = await step.execute(context({}, new Map([['query', rows]])));
 
     assert.strictEqual(result.success, true);

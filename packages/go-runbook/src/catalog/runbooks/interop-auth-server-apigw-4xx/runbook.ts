@@ -6,7 +6,6 @@ import { KNOWN_CASES } from './knownCases.js';
 import {
   buildInteropAuthServerApiGw4xxAggregateQuery,
   buildInteropAuthServerWarningsQuery,
-  INTEROP_AUTH_SERVER_API_GW_4XX_QUERY_PROFILE_ID,
   INTEROP_AUTH_SERVER_WARNINGS_QUERY_PROFILE_ID,
 } from './queries.js';
 import {
@@ -75,7 +74,7 @@ export function buildInteropAuthServerApiGw4xxRunbook(): Runbook {
       id: QUERY_INTEROP_API_GW_4XX_STEP_ID,
       label: 'Query aggregata access log 4xx API Gateway auth-server INTEROP',
       timeRangeFromParams: API_GW_TIME_RANGE,
-      queryProfileId: INTEROP_AUTH_SERVER_API_GW_4XX_QUERY_PROFILE_ID,
+      queryProfileId: INTEROP_AUTH_SERVER_API_GW_PROFILE_ID,
       queryKind: 'interop-api-gateway-auth-server-4xx-aggregate',
       errorFamilyLabel: '4xx',
       buildQuery: buildInteropAuthServerApiGw4xxAggregateQuery,

@@ -2,10 +2,13 @@ import { RunbookBuilder } from '../../../builders/RunbookBuilder.js';
 import type { Runbook } from '../framework.js';
 import { interop } from '../framework.js';
 
-import { AnalyzeInteropApiGw5xxStep } from './AnalyzeInteropApiGw5xxStep.js';
 import { KNOWN_CASES } from './knownCases.js';
-import { INTEROP_BFF_5XX_QUERY_PROFILE_ID, buildInteropBff5xxApplicationLogsQuery } from './queries.js';
-import { QueryInteropApiGw5xxStep } from './QueryInteropApiGw5xxStep.js';
+import {
+  buildInteropApiGw5xxAggregateQuery,
+  buildInteropBff5xxApplicationLogsQuery,
+  INTEROP_API_GW_5XX_QUERY_PROFILE_ID,
+  INTEROP_BFF_5XX_QUERY_PROFILE_ID,
+} from './queries.js';
 import {
   INTEROP_SELFCARE_API_GW_LOG_GROUP_TEMPLATE,
   INTEROP_SELFCARE_API_GW_PROFILE_ID,
@@ -13,8 +16,8 @@ import {
   INTEROP_SELFCARE_API_GW_SERVICE_NAME,
   INTEROP_SELFCARE_API_GW_VAR_PREFIX,
   INTEROP_SELFCARE_APPLICATION_LOG_GROUP_TEMPLATE,
+  resolveInteropSelfcareApiGwAlarmContext,
 } from './resolveInteropAlarmContext.js';
-import { ResolveInteropSelfcareApiGwContextStep } from './ResolveInteropSelfcareApiGwContextStep.js';
 import {
   ANALYZE_INTEROP_API_GW_5XX_STEP_ID,
   ANALYZE_INTEROP_APPLICATION_LOGS_STEP_ID,
@@ -58,25 +61,32 @@ export function buildInteropSelfcareApiGw5xxRunbook(): Runbook {
     });
 
   builder.step(
-    new ResolveInteropSelfcareApiGwContextStep({
+    new interop.apigw.ResolveInteropApiGwAlarmContextStep({
       id: RESOLVE_INTEROP_SELFCARE_API_GW_CONTEXT_STEP_ID,
       label: 'Risoluzione contesto API Gateway Selfcare INTEROP',
+      resolverId: 'interop-selfcare-api-gateway-context',
+      resolveAlarmContext: resolveInteropSelfcareApiGwAlarmContext,
     }),
   );
 
   builder.step(
-    new QueryInteropApiGw5xxStep({
+    new interop.apigw.QueryInteropApiGwAggregatesStep({
       id: QUERY_INTEROP_API_GW_5XX_STEP_ID,
       label: 'Query aggregata access log 5xx API Gateway INTEROP',
       timeRangeFromParams: TIME_RANGE_FROM_PARAMS,
+      queryProfileId: INTEROP_API_GW_5XX_QUERY_PROFILE_ID,
+      queryKind: 'interop-api-gateway-5xx-aggregate',
+      errorFamilyLabel: '5xx',
+      buildQuery: buildInteropApiGw5xxAggregateQuery,
     }),
   );
 
   builder.step(
-    new AnalyzeInteropApiGw5xxStep({
+    new interop.apigw.AnalyzeInteropApiGwAggregatesStep({
       id: ANALYZE_INTEROP_API_GW_5XX_STEP_ID,
       label: 'Analisi aggregati 5xx API Gateway INTEROP',
       fromStep: QUERY_INTEROP_API_GW_5XX_STEP_ID,
+      errorFamilyLabel: '5xx',
     }),
   );
 

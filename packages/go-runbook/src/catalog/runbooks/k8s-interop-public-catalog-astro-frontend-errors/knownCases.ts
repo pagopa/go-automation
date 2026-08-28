@@ -1,6 +1,7 @@
 import type { KnownCase } from '../framework.js';
 import { INTEROP_DOWNSTREAMS } from '../framework.js';
 
+import { jiraLink, slackLink } from '../common/analysisLinks.js';
 import type { InteropKnownCaseRefs } from '../interop/interopKnownCases.js';
 import { interopKnownCase } from '../interop/interopKnownCases.js';
 import { INTEROP_PUBLIC_CATALOG_VAR_PREFIX } from './resolveInteropAlarmContext.js';
@@ -12,7 +13,6 @@ const REFS: InteropKnownCaseRefs = {
   varPrefix: INTEROP_PUBLIC_CATALOG_VAR_PREFIX,
 };
 
-const JIRA_BROWSE = 'https://pagopa.atlassian.net/browse';
 const REACT_WARNING_SLACK_2026_07_13 = 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1783938590061959';
 const REACT_WARNING_SLACK_2026_07_17 = 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1784282838257439';
 const ENV_FILES_SLACK_2026_07_13 =
@@ -31,7 +31,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     analysisType: 'ANALYZABLE',
     // Colonna "Downstream" del runbook documentale: NA su entrambe le righe censite.
     downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-    links: [{ url: `${JIRA_BROWSE}/PIN-8696`, name: 'PIN-8696', type: 'JIRA' }],
+    links: [jiraLink('PIN-8696')],
   }),
   interopKnownCase(REFS, {
     id: 'public-catalog-undefined-length-type-error',
@@ -42,10 +42,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     proposedStatus: 'IN_PROGRESS',
     analysisType: 'ANALYZABLE',
     downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-    links: [
-      { url: `${JIRA_BROWSE}/PIN-8718`, name: 'PIN-8718', type: 'JIRA' },
-      { url: `${JIRA_BROWSE}/PIN-8836`, name: 'PIN-8836', type: 'JIRA' },
-    ],
+    links: [jiraLink('PIN-8718'), jiraLink('PIN-8836')],
   }),
   interopKnownCase(REFS, {
     id: 'public-catalog-astro-frontend-missing-env-files',
@@ -63,10 +60,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     proposedStatus: 'IN_PROGRESS',
     analysisType: 'ANALYZABLE',
     downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-    links: [
-      { url: `${JIRA_BROWSE}/PIN-8733`, name: 'PIN-8733', type: 'JIRA' },
-      { url: ENV_FILES_SLACK_2026_07_13, name: 'Thread Slack 13/07/2026', type: 'SLACK' },
-    ],
+    links: [jiraLink('PIN-8733'), slackLink(ENV_FILES_SLACK_2026_07_13, 'Thread Slack 13/07/2026')],
   }),
   interopKnownCase(REFS, {
     id: 'public-catalog-react-list-key-warning',
@@ -81,9 +75,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     analysisType: 'ANALYZABLE',
     downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
     links: [
-      { url: `${JIRA_BROWSE}/PIN-10606`, name: 'PIN-10606', type: 'JIRA' },
-      { url: REACT_WARNING_SLACK_2026_07_13, name: 'Thread Slack 13/07/2026', type: 'SLACK' },
-      { url: REACT_WARNING_SLACK_2026_07_17, name: 'Thread Slack 17/07/2026', type: 'SLACK' },
+      jiraLink('PIN-10606'),
+      slackLink(REACT_WARNING_SLACK_2026_07_13, 'Thread Slack 13/07/2026'),
+      slackLink(REACT_WARNING_SLACK_2026_07_17, 'Thread Slack 17/07/2026'),
     ],
   }),
   interopKnownCase(REFS, {
@@ -98,10 +92,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     proposedStatus: 'IN_PROGRESS',
     analysisType: 'ANALYZABLE',
     downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-    links: [
-      { url: `${JIRA_BROWSE}/PIN-10761`, name: 'PIN-10761', type: 'JIRA' },
-      { url: REACT_WARNING_SLACK_2026_07_17, name: 'Thread Slack 17/07/2026', type: 'SLACK' },
-    ],
+    links: [jiraLink('PIN-10761'), slackLink(REACT_WARNING_SLACK_2026_07_17, 'Thread Slack 17/07/2026')],
   }),
   interopKnownCase(REFS, {
     id: 'public-catalog-error-fetching-from-database',
@@ -113,9 +104,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     proposedStatus: 'IN_PROGRESS',
     analysisType: 'ANALYZABLE',
     downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-    links: [
-      { url: `${JIRA_BROWSE}/PIN-8836`, name: 'PIN-8836', type: 'JIRA' },
-      { url: `${JIRA_BROWSE}/PIN-8718`, name: 'PIN-8718', type: 'JIRA' },
-    ],
+    links: [jiraLink('PIN-8836'), jiraLink('PIN-8718')],
   }),
 ];

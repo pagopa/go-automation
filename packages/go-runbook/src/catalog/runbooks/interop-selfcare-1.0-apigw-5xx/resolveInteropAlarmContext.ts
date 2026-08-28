@@ -15,7 +15,7 @@ export const INTEROP_SELFCARE_API_GW_PROFILE_ID: string = 'interop-api-gateway-b
 export const INTEROP_SELFCARE_API_GW_LOG_GROUP_TEMPLATE: string =
   interop.apigw.INTEROP_API_GW_ACCESS_LOG_GROUP_TEMPLATE;
 export const INTEROP_SELFCARE_APPLICATION_LOG_GROUP_TEMPLATE: string =
-  '/aws/eks/interop-eks-cluster-<environment>/application';
+  interop.k8s.INTEROP_K8S_APPLICATION_LOG_GROUP_TEMPLATE;
 
 export const INTEROP_SELFCARE_API_GW_ALARM_NAMES: readonly [string, ...string[]] = INTEROP_ENVIRONMENTS.map(
   (environment) => `interop-selfcare-1.0-${environment}-apigw-5xx`,

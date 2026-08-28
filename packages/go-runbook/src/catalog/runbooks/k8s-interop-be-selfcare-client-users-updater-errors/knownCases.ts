@@ -1,5 +1,6 @@
 import type { KnownCase } from '../framework.js';
 
+import { jiraLink } from '../common/analysisLinks.js';
 import type { InteropKnownCaseRefs } from '../interop/interopKnownCases.js';
 import { interopKnownCase } from '../interop/interopKnownCases.js';
 import { INTEROP_SELFCARE_USERS_UPDATER_VAR_PREFIX } from './resolveInteropAlarmContext.js';
@@ -10,8 +11,6 @@ const REFS: InteropKnownCaseRefs = {
   cidTrackerStepId: QUERY_INTEROP_CID_TRACKER_STEP_ID,
   varPrefix: INTEROP_SELFCARE_USERS_UPDATER_VAR_PREFIX,
 };
-
-const JIRA_BROWSE = 'https://pagopa.atlassian.net/browse';
 
 const SELFCARE_KAFKA_ERROR_PATTERN = [
   'The coordinator is not aware of this member',
@@ -32,6 +31,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     // Chiede di verificare e, se persiste, di coinvolgere un altro team: resta aperta.
     proposedStatus: 'IN_PROGRESS',
     analysisType: 'ANALYZABLE',
-    links: [{ url: `${JIRA_BROWSE}/PIN-7325`, name: 'PIN-7325', type: 'JIRA' }],
+    links: [jiraLink('PIN-7325')],
   }),
 ];

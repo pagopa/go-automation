@@ -518,7 +518,7 @@ describe('service runbook known cases', () => {
       true,
     );
     assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.SELFCARE]);
-    assert.strictEqual(knownCase.analysis?.links?.[0]?.type, 'slack');
+    assert.strictEqual(knownCase.analysis?.links?.[0]?.type, 'SLACK');
   });
 
   it('matches an empty SelfcarePG error only when its trace proves a read timeout', () => {

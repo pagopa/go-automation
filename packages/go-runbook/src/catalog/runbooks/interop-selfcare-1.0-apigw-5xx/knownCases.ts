@@ -1,36 +1,12 @@
-import {
-  INTEROP_DOWNSTREAMS,
-  type AnalysisLinkRef,
-  type CaseAction,
-  type Condition,
-  type InteropDownstream,
-  type KnownCase,
-} from '../framework.js';
-
-import type { InteropEnvironment } from '../interop/InteropEnvironment.js';
+import { INTEROP_DOWNSTREAMS, type KnownCase } from '../framework.js';
+import { jiraLink, slackLink } from '../common/analysisLinks.js';
+import { createInteropApiGwKnownCaseFactory } from '../interop/interopApiGwKnownCases.js';
 import {
   QUERY_INTEROP_API_GW_5XX_STEP_ID,
   QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
   QUERY_INTEROP_CID_TRACKER_STEP_ID,
 } from './runbookSteps.js';
-
-interface InteropSelfcareKnownCaseConfig {
-  readonly id: string;
-  readonly description: string;
-  readonly priority: number;
-  readonly regex: string;
-  readonly resolution: string;
-  readonly proposedStatus: 'IN_PROGRESS' | 'COMPLETED';
-  readonly environments?: ReadonlyArray<InteropEnvironment>;
-  readonly evidence?: 'ALL' | 'API_GATEWAY';
-  readonly downstreams?: ReadonlyArray<InteropDownstream>;
-  readonly resources?: ReadonlyArray<string>;
-  readonly finalActions?: ReadonlyArray<string>;
-  readonly links?: ReadonlyArray<AnalysisLinkRef>;
-  readonly excludeRegex?: string;
-}
-
-const JIRA_BROWSE = 'https://pagopa.atlassian.net/browse';
+import { INTEROP_SELFCARE_API_GW_VAR_PREFIX } from './resolveInteropAlarmContext.js';
 const TENANT_FINAL_CHECKS_SLACK = 'https://pagopaspa.slack.com/archives/C06D24MANNN/p1767882976519499';
 const INVALID_ROLES_SLACK = 'https://pagopaspa.slack.com/archives/C06D24MANNN/p1767608380741029';
 const TENANT_KIND_FEEDBACK_SLACK =
@@ -59,6 +35,14 @@ const KNOWN_SELFCARE_ID_PATTERN = KNOWN_SELFCARE_IDS.join('|');
 const TENANT_NOT_FOUND_PATTERN = 'Tenant with selfcareId[^\\n]*not found|Tenant not found by selfcareId';
 const KNOWN_TENANT_NOT_FOUND_PATTERN = `Tenant with selfcareId[^\\n]*(?:${KNOWN_SELFCARE_ID_PATTERN})[^\\n]*not found`;
 
+const knownCase = createInteropApiGwKnownCaseFactory({
+  apiGatewayStepId: QUERY_INTEROP_API_GW_5XX_STEP_ID,
+  applicationLogsStepId: QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
+  cidTrackerStepId: QUERY_INTEROP_CID_TRACKER_STEP_ID,
+  varPrefix: INTEROP_SELFCARE_API_GW_VAR_PREFIX,
+  applicationLogsLabel: 'Log applicativi',
+});
+
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'tenant-not-found-known-selfcare-id',
@@ -68,7 +52,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     resolution: 'SelfcareID presente nell’elenco del runbook: l’evidenza è attesa e non deve essere segnalata.',
     proposedStatus: 'COMPLETED',
     resources: ['interop-be-tenant-process'],
-    links: [jira('PIN-7918')],
+    links: [jiraLink('PIN-7918')],
   }),
   knownCase({
     id: 'bff-unread-notifications-in-app-manager-unavailable',
@@ -80,7 +64,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     resolution: 'Caso noto risolto dalla hotfix PIN-9041; nessuna azione immediata se non ricompare con continuità.',
     proposedStatus: 'COMPLETED',
     resources: ['interop-be-in-app-notification-manager'],
-    links: [jira('PIN-9041')],
+    links: [jiraLink('PIN-9041')],
   }),
   knownCase({
     id: 'bff-s3-list-bucket-not-authorized',
@@ -90,7 +74,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     resolution: 'Verificare o ripristinare i permessi infrastrutturali sul bucket indicato. Riferimento PIN-9245.',
     proposedStatus: 'IN_PROGRESS',
     finalActions: ['Verificare policy IAM e permessi S3'],
-    links: [jira('PIN-9245')],
+    links: [jiraLink('PIN-9245')],
   }),
   knownCase({
     id: 'bff-selfcare-products-retrieval-error',
@@ -100,7 +84,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     resolution: 'Verificare la disponibilità di Selfcare e lo stato della lavorazione PIN-8874.',
     proposedStatus: 'IN_PROGRESS',
     downstreams: [INTEROP_DOWNSTREAMS.SELFCARE],
-    links: [jira('PIN-8874')],
+    links: [jiraLink('PIN-8874')],
   }),
   knownCase({
     id: 'bff-selfcare-users-504',
@@ -132,7 +116,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     resolution: 'Caso test senza risoluzione documentata: raccogliere CID e verificare il servizio correlato.',
     proposedStatus: 'IN_PROGRESS',
     environments: ['test'],
-    links: [slack(RESPONSE_503_SLACK, 'Thread Response 503 signedContract')],
+    links: [slackLink(RESPONSE_503_SLACK, 'Thread Response 503 signedContract')],
   }),
   knownCase({
     id: 'bff-tenant-kind-error-004-0004',
@@ -143,7 +127,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     proposedStatus: 'IN_PROGRESS',
     resources: ['interop-be-purpose-process'],
     finalActions: ['Richiedere feedback al team di prodotto'],
-    links: [slack(TENANT_KIND_FEEDBACK_SLACK, 'Thread tenant kind 004-0004')],
+    links: [slackLink(TENANT_KIND_FEEDBACK_SLACK, 'Thread tenant kind 004-0004')],
   }),
   knownCase({
     id: 'tenant-not-found-selfcare-id',
@@ -155,7 +139,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     proposedStatus: 'IN_PROGRESS',
     resources: ['interop-be-tenant-process'],
     finalActions: ['Verificare tenant nel DB read_model', 'Applicare le regole di notifica tenant'],
-    links: [jira('PIN-7918'), slack(TENANT_FINAL_CHECKS_SLACK, 'Thread verifiche tenant')],
+    links: [jiraLink('PIN-7918'), slackLink(TENANT_FINAL_CHECKS_SLACK, 'Thread verifiche tenant')],
     excludeRegex: KNOWN_TENANT_NOT_FOUND_PATTERN,
   }),
   knownCase({
@@ -166,7 +150,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     resolution: 'Verificare configurazione delle origin e allow list. Riferimento PIN-8726.',
     proposedStatus: 'IN_PROGRESS',
     finalActions: ['Verificare origin e allow list del tenant'],
-    links: [jira('PIN-8726')],
+    links: [jiraLink('PIN-8726')],
   }),
   knownCase({
     id: 'bff-error-creating-eservice-descriptor',
@@ -175,7 +159,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     regex: 'Error creating descriptor in EService',
     resolution: 'Caso censito ma ancora da risolvere; verificare PIN-8720 e i log correlati al CID.',
     proposedStatus: 'IN_PROGRESS',
-    links: [jira('PIN-8720')],
+    links: [jiraLink('PIN-8720')],
   }),
   knownCase({
     id: 'bff-error-creating-eservice-template-document',
@@ -184,7 +168,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     regex: 'Error creating eService template document of kind INTERFACE',
     resolution: 'Caso censito in attesa di sviluppo; verificare PIN-8244 e i log correlati al CID.',
     proposedStatus: 'IN_PROGRESS',
-    links: [jira('PIN-8244')],
+    links: [jiraLink('PIN-8244')],
   }),
   knownCase({
     id: 'bff-selfcare-entity-not-filled',
@@ -194,7 +178,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     resolution: 'Caso in revisione: verificare la lavorazione PIN-7068 e i dati dell’istituzione.',
     proposedStatus: 'IN_PROGRESS',
     environments: ['prod', 'test'],
-    links: [jira('PIN-7068')],
+    links: [jiraLink('PIN-7068')],
   }),
   knownCase({
     id: 'bff-invalid-content-disposition-header',
@@ -203,7 +187,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     regex: 'Invalid character in header content[^\\n]*Content-Disposition',
     resolution: 'Caso in revisione: verificare PIN-7865 e il nome del contenuto che genera l’header non valido.',
     proposedStatus: 'IN_PROGRESS',
-    links: [jira('PIN-7865')],
+    links: [jiraLink('PIN-7865')],
   }),
   knownCase({
     id: 'bff-adm-zip-invalid-format',
@@ -213,7 +197,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     resolution: 'Verificare la validità dell’archivio ricevuto e la lavorazione PIN-9483.',
     proposedStatus: 'IN_PROGRESS',
     finalActions: ['Verificare integrità del file ZIP importato'],
-    links: [jira('PIN-9483')],
+    links: [jiraLink('PIN-9483')],
   }),
   knownCase({
     id: 'purpose-process-econnreset-or-socket-hang-up',
@@ -224,7 +208,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     proposedStatus: 'IN_PROGRESS',
     resources: ['interop-be-purpose-process'],
     finalActions: ['Verificare disponibilità di purpose-process'],
-    links: [jira('PIN-10449')],
+    links: [jiraLink('PIN-10449')],
   }),
   knownCase({
     id: 'purpose-process-tenant-kind-not-found',
@@ -234,7 +218,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     resolution: 'Caso censito senza soluzione definitiva; verificare PIN-8719 e il tenant indicato.',
     proposedStatus: 'IN_PROGRESS',
     resources: ['interop-be-purpose-process'],
-    links: [jira('PIN-8719')],
+    links: [jiraLink('PIN-8719')],
     excludeRegex: 'errors:\\s*004-0004',
   }),
   knownCase({
@@ -264,7 +248,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     regex: 'Conditions NotOnOrAfter are not compliant',
     resolution: 'Caso noto gestito in PIN-7913; nessuna azione immediata se resta isolato.',
     proposedStatus: 'COMPLETED',
-    links: [jira('PIN-7913')],
+    links: [jiraLink('PIN-7913')],
   }),
   knownCase({
     id: 'authorization-process-invalid-api-role',
@@ -274,7 +258,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     resolution: 'Verificare il chiamante e i ruoli usati su validateTokenGeneration; il PDF non indica una correzione.',
     proposedStatus: 'IN_PROGRESS',
     resources: ['interop-be-authorization-process'],
-    links: [slack(INVALID_ROLES_SLACK, 'Thread invalid api role')],
+    links: [slackLink(INVALID_ROLES_SLACK, 'Thread invalid api role')],
   }),
   knownCase({
     id: 'bff-token-expired',
@@ -285,7 +269,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       'Error while fetching unread notifications:[^\\n]*status code 401',
     resolution: 'Token di sessione scaduto: caso noto, nessuna azione operativa immediata.',
     proposedStatus: 'COMPLETED',
-    links: [jira('PIN-7962'), jira('PIN-7903')],
+    links: [jiraLink('PIN-7962'), jiraLink('PIN-7903')],
   }),
   knownCase({
     id: 'bff-error-getting-public-key',
@@ -294,7 +278,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     regex: 'Error getting public key|error in secret or public key callback: Error getting signing key',
     resolution: 'Il documento classifica il caso come errore lato client: nessuna azione necessaria. Vedere PIN-7777.',
     proposedStatus: 'COMPLETED',
-    links: [jira('PIN-7777')],
+    links: [jiraLink('PIN-7777')],
   }),
   knownCase({
     id: 'bff-privacy-notices-tos-retrieval-error',
@@ -303,7 +287,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     regex: 'Error retrieving privacy notices for consentType TOS',
     resolution: 'Caso già censito e chiuso in PIN-7979; nessuna azione operativa immediata documentata.',
     proposedStatus: 'COMPLETED',
-    links: [jira('PIN-7979')],
+    links: [jiraLink('PIN-7979')],
   }),
   knownCase({
     id: 'duplicate-event-stream-version',
@@ -313,7 +297,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     resolution: 'Nessuna azione immediata: il retry automatico gestisce il duplicato. Vedere PIN-7796.',
     proposedStatus: 'COMPLETED',
     resources: ['interop-be-purpose-process', 'interop-be-notification-config-process'],
-    links: [jira('PIN-7796')],
+    links: [jiraLink('PIN-7796')],
   }),
   knownCase({
     id: 'api-gateway-backend-timeout-504',
@@ -326,81 +310,3 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     evidence: 'API_GATEWAY',
   }),
 ];
-
-function knownCase(config: InteropSelfcareKnownCaseConfig): KnownCase {
-  const baseCondition =
-    config.evidence === 'API_GATEWAY' ? apiGatewayEvidenceMatches(config.regex) : anyEvidenceMatches(config.regex);
-  const matchingCondition: Condition =
-    config.excludeRegex === undefined
-      ? baseCondition
-      : {
-          type: 'and',
-          conditions: [baseCondition, { type: 'not', condition: anyEvidenceMatches(config.excludeRegex) }],
-        };
-  const condition = withEnvironment(matchingCondition, config.environments);
-  return {
-    id: config.id,
-    description: config.description,
-    priority: config.priority,
-    condition,
-    action: knownCaseAction(config.description, config.resolution),
-    analysis: {
-      resolution: config.resolution,
-      proposedStatus: config.proposedStatus,
-      analysisType: 'ANALYZABLE',
-      ...(config.downstreams === undefined ? {} : { downstreams: config.downstreams }),
-      ...(config.resources === undefined
-        ? {}
-        : { resources: config.resources.map((name) => ({ name, role: 'CASE_RELATED' as const })) }),
-      ...(config.finalActions === undefined ? {} : { finalActions: config.finalActions }),
-      ...(config.links === undefined ? {} : { links: config.links }),
-    },
-  };
-}
-
-function anyEvidenceMatches(regex: string): Condition {
-  return {
-    type: 'or',
-    conditions: [
-      apiGatewayEvidenceMatches(regex),
-      { type: 'contains', ref: `steps.${QUERY_INTEROP_APPLICATION_LOGS_STEP_ID}`, regex },
-      { type: 'contains', ref: `steps.${QUERY_INTEROP_CID_TRACKER_STEP_ID}`, regex },
-    ],
-  };
-}
-
-function apiGatewayEvidenceMatches(regex: string): Condition {
-  return { type: 'contains', ref: `steps.${QUERY_INTEROP_API_GW_5XX_STEP_ID}`, regex };
-}
-
-function withEnvironment(condition: Condition, environments: ReadonlyArray<InteropEnvironment> | undefined): Condition {
-  if (environments === undefined) return condition;
-  return {
-    type: 'and',
-    conditions: [{ type: 'contains', ref: 'vars.interopEnvironment', value: environments }, condition],
-  };
-}
-
-function knownCaseAction(title: string, resolution: string): CaseAction {
-  return {
-    type: 'log',
-    level: 'info',
-    renderAs: 'known-case',
-    message:
-      `[CASO NOTO] ${title}\n` +
-      `Risoluzione: ${resolution}\n` +
-      'Ambiente: {{vars.interopEnvironment}}\n' +
-      'API Gateway ID: {{vars.interopApiGwId}}\n' +
-      'Servizio: {{vars.interopPodApp}}\n' +
-      'Log applicativi: {{vars.interopBffLogCount}}\n' +
-      'CID analizzati: {{vars.interopBffCidCount}}\n',
-  };
-}
-
-function jira(key: string): AnalysisLinkRef {
-  return { url: `${JIRA_BROWSE}/${key}`, name: key, type: 'JIRA' };
-}
-
-function slack(url: string, name: string): AnalysisLinkRef {
-  return { url, name, type: 'SLACK' };
-}

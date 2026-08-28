@@ -2,8 +2,10 @@
  * Known cases for the personal-data-vault-SelfcarePG-downstream-detection-Alarm runbook.
  */
 
-import { SEND_DOWNSTREAMS } from '../framework.js';
 import type { KnownCase } from '../framework.js';
+import { SEND_DOWNSTREAMS } from '../framework.js';
+
+import { slackLink } from '../common/analysisLinks.js';
 
 const SELFCARE_INCIDENT_URL = 'https://pagopaspa.slack.com/archives/C0585442Z39/p1774447095884019';
 const ANALYSIS_COMPLETED_FINAL_ACTION =
@@ -85,7 +87,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Errore TLS: il certificato presentato dal downstream non contiene api.selfcare.pagopa.it tra i Subject Alternative Name.',
       downstreams: [SEND_DOWNSTREAMS.SELFCARE],
       finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
-      links: [{ url: SELFCARE_INCIDENT_URL, name: 'Thread Slack del disservizio SelfcarePG', type: 'slack' }],
+      links: [slackLink(SELFCARE_INCIDENT_URL, 'Thread Slack del disservizio SelfcarePG')],
     },
   },
 ];

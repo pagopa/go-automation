@@ -2,8 +2,10 @@
  * Known cases for the emd-downstream-detection-Alarm runbook.
  */
 
-import { SEND_DOWNSTREAMS } from '../framework.js';
 import type { KnownCase } from '../framework.js';
+import { SEND_DOWNSTREAMS } from '../framework.js';
+
+import { slackLink } from '../common/analysisLinks.js';
 
 const EMD_SUBMIT_MESSAGE_ENDPOINT = 'https://api-emd.cstar.pagopa.it/emd/message-core/sendMessage';
 const EMD_SUBMIT_MESSAGE_UAT_ENDPOINT = 'https://api-emd.uat.cstar.pagopa.it/emd/message-core/sendMessage';
@@ -55,7 +57,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       errorDetails: `HTTP 401 Unauthorized restituito da EMD durante la chiamata POST ${EMD_SUBMIT_MESSAGE_ENDPOINT}.`,
       downstreams: [SEND_DOWNSTREAMS.EMD_MULTICANALITA],
       finalActions: ['Contattare il prodotto EMD'],
-      links: [{ url: EMD_401_INCIDENT_URL, name: 'Thread Slack EMD HTTP 401', type: 'slack' }],
+      links: [slackLink(EMD_401_INCIDENT_URL, 'Thread Slack EMD HTTP 401')],
     },
   },
   {
@@ -125,9 +127,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       downstreams: [SEND_DOWNSTREAMS.EMD_MULTICANALITA],
       finalActions: ['Contattare il prodotto EMD se la numerosità è alta'],
       links: [
-        { url: EMD_404_REPORT_URL, name: 'Segnalazione Slack EMD HTTP 404', type: 'slack' },
-        { url: EMD_404_RESOLUTION_URL, name: 'Risoluzione Slack EMD HTTP 404', type: 'slack' },
-        { url: EMD_404_DISCUSSION_URL, name: 'Discussione team EMD HTTP 404', type: 'slack' },
+        slackLink(EMD_404_REPORT_URL, 'Segnalazione Slack EMD HTTP 404'),
+        slackLink(EMD_404_RESOLUTION_URL, 'Risoluzione Slack EMD HTTP 404'),
+        slackLink(EMD_404_DISCUSSION_URL, 'Discussione team EMD HTTP 404'),
       ],
     },
   },
