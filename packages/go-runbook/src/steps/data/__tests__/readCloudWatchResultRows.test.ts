@@ -26,6 +26,13 @@ describe('readCloudWatchResultRows', () => {
     );
   });
 
+  it('drops empty rows and rows whose fields are all invalid', () => {
+    assert.deepStrictEqual(
+      readCloudWatchResultRows([[], [{ field: 'count', value: 123 }, { field: 456, value: 'invalid field' }, null]]),
+      [],
+    );
+  });
+
   it('preserves an empty result set', () => {
     assert.deepStrictEqual(readCloudWatchResultRows([]), []);
   });

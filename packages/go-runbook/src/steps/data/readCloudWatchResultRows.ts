@@ -12,7 +12,8 @@ export function readCloudWatchResultRows(value: unknown): ReadonlyArray<Readonly
   const rows: ResultField[][] = [];
   for (const row of value) {
     if (!Array.isArray(row)) continue;
-    rows.push(row.filter(isResultField));
+    const fields = row.filter(isResultField);
+    if (fields.length > 0) rows.push(fields);
   }
   return rows;
 }
