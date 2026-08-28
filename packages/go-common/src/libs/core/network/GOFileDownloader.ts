@@ -51,6 +51,7 @@ import type { GORetryClassifier } from '../polling/index.js';
 import { isEnoentError } from '../utils/GOTypeGuards.js';
 
 import type { GOFileDownloaderConfig } from './GOFileDownloaderConfig.js';
+import { parseRetryAfterMs } from './GORetryAfter.js';
 import { GOFileDownloaderError } from './GOFileDownloaderError.js';
 import type { GOFileDownloadResult } from './GOFileDownloadResult.js';
 
@@ -221,7 +222,7 @@ export class GOFileDownloader {
       const response = await fetch(url, fetchOptions);
 
       if (!response.ok) {
-        const retryAfter = this.parseRetryAfter(response.headers.get('retry-after'));
+        const retryAfter = parseRetryAfterMs(response.headers.get('retry-after'));
         const error = new RetriableHttpError(
           `HTTP ${response.status} ${response.statusText}`,
           response.status,
@@ -307,20 +308,6 @@ export class GOFileDownloader {
       }
     }
     await fs.rename(partialPath, destPath);
-  }
-
-  private parseRetryAfter(headerValue: string | null): number | undefined {
-    if (headerValue === null) return undefined;
-    const seconds = Number.parseInt(headerValue, 10);
-    if (Number.isFinite(seconds) && seconds >= 0) {
-      return seconds * 1_000;
-    }
-    const dateMs = Date.parse(headerValue);
-    if (Number.isFinite(dateMs)) {
-      const delta = dateMs - Date.now();
-      return delta > 0 ? delta : 0;
-    }
-    return undefined;
   }
 
   private toDownloaderError(error: unknown, url: string, attempts: number): GOFileDownloaderError {
