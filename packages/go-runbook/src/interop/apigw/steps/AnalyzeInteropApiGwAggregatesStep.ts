@@ -59,7 +59,7 @@ export class AnalyzeInteropApiGwAggregatesStep implements Step<InteropApiGwAggre
       errorCount,
       statuses: [...statuses].sort(),
       integrationStatuses: [...integrationStatuses].sort(),
-      integrationErrors: [...integrationErrors],
+      integrationErrors: [...integrationErrors].sort(),
       httpMethods: [...httpMethods].sort(),
       requestPaths: [...requestPaths].sort(),
       sourceIps: [...sourceIps].sort(),
@@ -93,13 +93,38 @@ function selectPrimaryAggregateRow(
 
   for (const row of rows) {
     const count = parseCount(extractCwField(row, 'count'));
-    if (primary === undefined || count > primaryCount) {
+    if (
+      primary === undefined ||
+      count > primaryCount ||
+      (count === primaryCount && compareRepresentativeFields(row, primary) < 0)
+    ) {
       primary = row;
       primaryCount = count;
     }
   }
 
   return primary;
+}
+
+const REPRESENTATIVE_FIELDS = [
+  'status',
+  'integrationStatus',
+  'integrationError',
+  'httpMethod',
+  'requestPath',
+  'sourceIp',
+] as const;
+
+function compareRepresentativeFields(left: ReadonlyArray<ResultField>, right: ReadonlyArray<ResultField>): number {
+  for (const field of REPRESENTATIVE_FIELDS) {
+    const leftValue = readNormalizedField(left, field);
+    const rightValue = readNormalizedField(right, field);
+    if (leftValue === rightValue) continue;
+    if (leftValue === undefined) return 1;
+    if (rightValue === undefined) return -1;
+    return leftValue < rightValue ? -1 : 1;
+  }
+  return 0;
 }
 
 function parseCount(value: string | undefined): number {

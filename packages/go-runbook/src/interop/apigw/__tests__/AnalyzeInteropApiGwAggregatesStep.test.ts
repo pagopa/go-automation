@@ -16,6 +16,7 @@ describe('AnalyzeInteropApiGwAggregatesStep', () => {
       row([
         ['count', '1'],
         ['status', '401'],
+        ['integrationError', 'zeta'],
         ['httpMethod', 'GET'],
         ['requestPath', '/minor'],
       ]),
@@ -52,6 +53,41 @@ describe('AnalyzeInteropApiGwAggregatesStep', () => {
     assert.strictEqual(result.vars?.['apiGwHttpMethod'], 'POST');
     assert.strictEqual(result.vars?.['apiGwPath'], '/dominant');
     assert.strictEqual(result.vars?.['apiGwSourceIp'], '203.0.113.20');
+    assert.deepStrictEqual(result.output?.integrationErrors, ['dominant', 'zeta']);
+  });
+
+  it('uses a deterministic representative row when aggregate counts are tied', async () => {
+    const first = row([
+      ['count', '10'],
+      ['status', '429'],
+      ['integrationError', 'zeta'],
+      ['httpMethod', 'POST'],
+      ['requestPath', '/zeta'],
+    ]);
+    const second = row([
+      ['count', '10'],
+      ['status', '401'],
+      ['integrationError', 'alpha'],
+      ['httpMethod', 'GET'],
+      ['requestPath', '/alpha'],
+    ]);
+    const step = new AnalyzeInteropApiGwAggregatesStep({
+      id: 'analyze',
+      label: 'Analyze',
+      fromStep: 'query',
+      errorFamilyLabel: '4xx',
+    });
+
+    const forward = await step.execute(contextWithRows([first, second]));
+    const reverse = await step.execute(contextWithRows([second, first]));
+
+    assert.deepStrictEqual(forward.output, reverse.output);
+    assert.deepStrictEqual(forward.vars, reverse.vars);
+    assert.deepStrictEqual(forward.output?.integrationErrors, ['alpha', 'zeta']);
+    assert.strictEqual(forward.vars?.['apiGwStatusCode'], '401');
+    assert.strictEqual(forward.vars?.['apiGwErrorMessage'], 'alpha');
+    assert.strictEqual(forward.vars?.['apiGwHttpMethod'], 'GET');
+    assert.strictEqual(forward.vars?.['apiGwPath'], '/alpha');
   });
 
   it('drops API Gateway placeholder values from the analysis and representative variables', async () => {
@@ -92,3 +128,16 @@ describe('AnalyzeInteropApiGwAggregatesStep', () => {
     assert.strictEqual(result.vars?.['apiGwSourceIp'], '');
   });
 });
+
+function contextWithRows(rows: ReadonlyArray<ReadonlyArray<ResultField>>): RunbookContext {
+  return {
+    executionId: 'test',
+    startedAt: new Date('2026-08-24T10:00:00.000Z'),
+    stepResults: new Map([['query', rows]]),
+    vars: new Map(),
+    params: new Map(),
+    logs: [],
+    services: {} as ServiceRegistry,
+    recoveredErrors: [],
+  };
+}
