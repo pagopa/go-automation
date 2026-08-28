@@ -53,4 +53,42 @@ describe('AnalyzeInteropApiGwAggregatesStep', () => {
     assert.strictEqual(result.vars?.['apiGwPath'], '/dominant');
     assert.strictEqual(result.vars?.['apiGwSourceIp'], '203.0.113.20');
   });
+
+  it('drops API Gateway placeholder values from the analysis and representative variables', async () => {
+    const rows = [
+      row([
+        ['count', '2'],
+        ['status', '403'],
+        ['integrationStatus', '-'],
+        ['integrationError', ' - '],
+        ['httpMethod', 'GET'],
+        ['requestPath', '/token.oauth2'],
+        ['sourceIp', '-'],
+      ]),
+    ];
+    const context: RunbookContext = {
+      executionId: 'test',
+      startedAt: new Date('2026-08-24T10:00:00.000Z'),
+      stepResults: new Map([['query', rows]]),
+      vars: new Map(),
+      params: new Map(),
+      logs: [],
+      services: {} as ServiceRegistry,
+      recoveredErrors: [],
+    };
+    const step = new AnalyzeInteropApiGwAggregatesStep({
+      id: 'analyze',
+      label: 'Analyze',
+      fromStep: 'query',
+      errorFamilyLabel: '4xx',
+    });
+
+    const result = await step.execute(context);
+    assert.deepStrictEqual(result.output?.integrationStatuses, []);
+    assert.deepStrictEqual(result.output?.integrationErrors, []);
+    assert.deepStrictEqual(result.output?.sourceIps, []);
+    assert.strictEqual(result.vars?.['apiGwIntegrationStatus'], '');
+    assert.strictEqual(result.vars?.['apiGwErrorMessage'], '');
+    assert.strictEqual(result.vars?.['apiGwSourceIp'], '');
+  });
 });

@@ -21,6 +21,15 @@ describe('QueryInteropApiGwAggregatesStep', () => {
         { field: 'status', value: '403' },
         { field: 'sourceIp', value: '203.0.113.4' },
       ],
+      [
+        { field: 'latestTimestamp', value: '2026-08-24 09:58:00.000' },
+        { field: 'count', value: '1' },
+        { field: 'status', value: '403' },
+        { field: 'httpMethod', value: 'GET' },
+        { field: 'requestPath', value: '/token.oauth2' },
+        { field: 'integrationError', value: ' - ' },
+        { field: 'sourceIp', value: '-' },
+      ],
     ];
     const cloudWatchLogs = {
       async queryWithStatistics(
@@ -71,5 +80,9 @@ describe('QueryInteropApiGwAggregatesStep', () => {
     assert.strictEqual(seenRange?.end.toISOString(), '2026-08-24T10:01:00.000Z');
     assert.match(result.output?.[0]?.find(({ field }) => field === 'message')?.value ?? '', /API Gateway 403/u);
     assert.strictEqual(result.output?.[0]?.find(({ field }) => field === '@timestamp')?.value, rows[0]?.[0]?.value);
+    assert.strictEqual(
+      result.output?.[1]?.find(({ field }) => field === 'message')?.value,
+      'API Gateway 403 GET /token.oauth2',
+    );
   });
 });

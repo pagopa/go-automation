@@ -5,6 +5,7 @@ import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
 import type { StepKind } from '../../../types/StepKind.js';
 import type { StepResult } from '../../../types/StepResult.js';
+import { normalizeInteropApiGwAggregateValue } from '../helpers/normalizeInteropApiGwAggregateValue.js';
 import type { InteropApiGwAggregateAnalysis } from '../types/InteropApiGwAggregateAnalysis.js';
 
 export interface AnalyzeInteropApiGwAggregatesStepConfig {
@@ -107,15 +108,10 @@ function parseCount(value: string | undefined): number {
 }
 
 function addNormalized(target: Set<string>, value: string | undefined): void {
-  const normalized = normalize(value);
-  if (normalized !== undefined && normalized !== '') target.add(normalized);
+  const normalized = normalizeInteropApiGwAggregateValue(value);
+  if (normalized !== undefined) target.add(normalized);
 }
 
 function readNormalizedField(row: ReadonlyArray<ResultField> | undefined, name: string): string | undefined {
-  return row === undefined ? undefined : normalize(extractCwField(row, name));
-}
-
-function normalize(value: string | undefined): string | undefined {
-  const normalized = value?.trim();
-  return normalized === '' ? undefined : normalized;
+  return row === undefined ? undefined : normalizeInteropApiGwAggregateValue(extractCwField(row, name));
 }

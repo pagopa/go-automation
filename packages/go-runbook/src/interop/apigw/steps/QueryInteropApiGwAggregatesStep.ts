@@ -11,6 +11,7 @@ import type { Step } from '../../../types/Step.js';
 import type { StepKind } from '../../../types/StepKind.js';
 import type { StepResult } from '../../../types/StepResult.js';
 import type { StepDiagnostics } from '../../../trace/StepDiagnostics.js';
+import { normalizeInteropApiGwAggregateValue } from '../helpers/normalizeInteropApiGwAggregateValue.js';
 
 export type BuildInteropApiGwAggregateQueryFn = (apiGwId: string) => string;
 
@@ -106,15 +107,17 @@ function enrichAggregateRows(
 }
 
 function buildAggregateMessage(row: ReadonlyArray<ResultField>): string | undefined {
-  const sourceIp = extractCwField(row, 'sourceIp');
+  const readNormalized = (field: string): string | undefined =>
+    normalizeInteropApiGwAggregateValue(extractCwField(row, field));
+  const sourceIp = readNormalized('sourceIp');
   const parts = [
     'API Gateway',
-    extractCwField(row, 'status'),
-    extractCwField(row, 'httpMethod'),
-    extractCwField(row, 'requestPath'),
-    extractCwField(row, 'integrationError'),
+    readNormalized('status'),
+    readNormalized('httpMethod'),
+    readNormalized('requestPath'),
+    readNormalized('integrationError'),
     sourceIp === undefined ? undefined : `sourceIp=${sourceIp}`,
-  ].filter((part): part is string => part !== undefined && part.trim() !== '' && part !== '-');
+  ].filter((part): part is string => part !== undefined);
   return parts.length === 1 ? undefined : parts.join(' ');
 }
 
