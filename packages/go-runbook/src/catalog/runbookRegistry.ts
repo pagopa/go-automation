@@ -59,6 +59,11 @@ import {
   INTEROP_SELFCARE_USERS_UPDATER_ALARM_NAMES,
   INTEROP_SELFCARE_USERS_UPDATER_RUNBOOK_KEY,
 } from './runbooks/k8s-interop-be-selfcare-client-users-updater-errors/resolveInteropAlarmContext.js';
+import { buildK8sInteropBeSelfcareOnboardingConsumerErrorsRunbook } from './runbooks/k8s-interop-be-selfcare-onboarding-consumer-errors/runbook.js';
+import {
+  INTEROP_SELFCARE_ONBOARDING_CONSUMER_ALARM_NAMES,
+  INTEROP_SELFCARE_ONBOARDING_CONSUMER_RUNBOOK_KEY,
+} from './runbooks/k8s-interop-be-selfcare-onboarding-consumer-errors/resolveInteropAlarmContext.js';
 import { buildInteropSelfcareApiGw5xxRunbook } from './runbooks/interop-selfcare-1.0-apigw-5xx/runbook.js';
 import {
   INTEROP_SELFCARE_API_GW_ALARM_NAMES,
@@ -304,6 +309,14 @@ const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
     ['INTEROP'],
     buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook,
     INTEROP_SELFCARE_USERS_UPDATER_ALARM_NAMES,
+  ),
+  registration(
+    INTEROP_SELFCARE_ONBOARDING_CONSUMER_RUNBOOK_KEY,
+    'INTEROP',
+    'SERVICE',
+    ['INTEROP'],
+    buildK8sInteropBeSelfcareOnboardingConsumerErrorsRunbook,
+    INTEROP_SELFCARE_ONBOARDING_CONSUMER_ALARM_NAMES,
   ),
   registration(
     INTEROP_SELFCARE_API_GW_RUNBOOK_KEY,

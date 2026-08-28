@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { ConditionEvaluator, INTEROP_DOWNSTREAMS, type RunbookContext, type ServiceRegistry } from '../../framework.js';
 
 import { KNOWN_CASES } from '../knownCases.js';
-import { INTEROP_SELFCARE_USERS_UPDATER_SERVICE_NAME } from '../resolveInteropAlarmContext.js';
+import { INTEROP_SELFCARE_ONBOARDING_CONSUMER_SERVICE_NAME } from '../resolveInteropAlarmContext.js';
 import { QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, QUERY_INTEROP_CID_TRACKER_STEP_ID } from '../runbookSteps.js';
 
 interface LogRowField {
@@ -21,8 +21,8 @@ const DOCUMENTED_MESSAGES: ReadonlyArray<string> = [
 
 function applicationLogRows(messages: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<LogRowField>> {
   return messages.map((message) => [
-    { field: '@timestamp', value: '2026-07-15 10:00:00.000' },
-    { field: 'pod_app', value: INTEROP_SELFCARE_USERS_UPDATER_SERVICE_NAME },
+    { field: '@timestamp', value: '2026-08-28 10:00:00.000' },
+    { field: 'pod_app', value: INTEROP_SELFCARE_ONBOARDING_CONSUMER_SERVICE_NAME },
     { field: '@message', value: message },
   ]);
 }
@@ -30,7 +30,7 @@ function applicationLogRows(messages: ReadonlyArray<string>): ReadonlyArray<Read
 function context(stepResults: ReadonlyArray<readonly [string, unknown]>): RunbookContext {
   return {
     executionId: 'test',
-    startedAt: new Date('2026-07-15T10:00:00.000Z'),
+    startedAt: new Date('2026-08-28T10:00:00.000Z'),
     stepResults: new Map<string, unknown>(stepResults),
     vars: new Map(),
     params: new Map(),
@@ -40,14 +40,18 @@ function context(stepResults: ReadonlyArray<readonly [string, unknown]>): Runboo
   };
 }
 
-describe('INTEROP Selfcare users updater known cases', () => {
+describe('INTEROP Selfcare onboarding consumer known cases', () => {
   const evaluator = new ConditionEvaluator();
   const knownCase = KNOWN_CASES[0];
 
-  it('declares a single stable known case for the Selfcare Kafka failures', () => {
+  it('declares the consolidated Selfcare Kafka case as an actionable downstream issue', () => {
     assert.ok(knownCase !== undefined);
     assert.strictEqual(knownCase.id, 'selfcare-kafka-broker-communication-errors');
+    assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
     assert.deepStrictEqual(knownCase.analysis?.downstreams, [INTEROP_DOWNSTREAMS.SELFCARE]);
+    assert.deepStrictEqual(knownCase.analysis?.links, [
+      { url: 'https://pagopa.atlassian.net/browse/PIN-7325', name: 'PIN-7325', type: 'JIRA' },
+    ]);
   });
 
   it('matches every error signature documented in the runbook', () => {
@@ -67,7 +71,7 @@ describe('INTEROP Selfcare users updater known cases', () => {
     assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), true);
   });
 
-  it('does not classify a generic connection reset as the documented case', () => {
+  it('does not classify a generic connection reset as the documented Kafka case', () => {
     assert.ok(knownCase !== undefined);
     const ctx = context([
       [QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, applicationLogRows(['Request failed: read ECONNRESET'])],

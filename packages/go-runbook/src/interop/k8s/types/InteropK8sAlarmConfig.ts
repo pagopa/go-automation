@@ -1,5 +1,6 @@
 import type { CaseAction } from '../../../actions/CaseAction.js';
 import type { KnownCase } from '../../../types/KnownCase.js';
+import type { OccurrenceTimeWindow } from '../../../types/OccurrenceTimeWindow.js';
 import type { RunbookMetadata } from '../../../types/RunbookMetadata.js';
 import type { RunbookAnalysisDefaults } from '../../../types/RunbookAnalysisDefaults.js';
 import type { TimeRangeFromParams } from '../../../steps/data/TimeRangeFromParams.js';
@@ -24,5 +25,6 @@ export interface InteropK8sAlarmConfig {
   readonly queryProfile?: InteropK8sQueryProfile;
   readonly stepIds?: Partial<InteropK8sRunbookStepIds>;
   readonly timeRangeFromParams?: TimeRangeFromParams;
+  readonly occurrenceTimeWindow?: OccurrenceTimeWindow;
   readonly maxIterations?: number;
 }

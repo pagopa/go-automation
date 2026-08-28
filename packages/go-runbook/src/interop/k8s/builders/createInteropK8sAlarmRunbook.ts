@@ -43,6 +43,10 @@ export function createInteropK8sAlarmRunbook(config: InteropK8sAlarmConfig): Run
       resources: [{ name: service.name, role: 'PRIMARY' }, ...(config.analysisDefaults?.resources ?? [])],
     });
 
+  if (config.occurrenceTimeWindow !== undefined) {
+    builder.occurrenceTimeWindow(config.occurrenceTimeWindow);
+  }
+
   builder.step(
     new ResolveInteropK8sAlarmContextStep({
       id: stepIds.resolveContext,

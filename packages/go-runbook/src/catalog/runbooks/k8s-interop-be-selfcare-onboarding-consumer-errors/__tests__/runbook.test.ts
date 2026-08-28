@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import { service } from '../../framework.js';
 
-import { buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook } from '../runbook.js';
+import { buildK8sInteropBeSelfcareOnboardingConsumerErrorsRunbook } from '../runbook.js';
 import {
   ANALYZE_INTEROP_APPLICATION_LOGS_STEP_ID,
   ANALYZE_INTEROP_CID_TRACKER_STEP_ID,
@@ -12,15 +12,15 @@ import {
   RESOLVE_INTEROP_ALARM_CONTEXT_STEP_ID,
 } from '../runbookSteps.js';
 import {
-  INTEROP_SELFCARE_USERS_UPDATER_RUNBOOK_KEY,
-  INTEROP_SELFCARE_USERS_UPDATER_SERVICE_NAME,
+  INTEROP_SELFCARE_ONBOARDING_CONSUMER_RUNBOOK_KEY,
+  INTEROP_SELFCARE_ONBOARDING_CONSUMER_SERVICE_NAME,
 } from '../resolveInteropAlarmContext.js';
 
-describe('buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook', () => {
+describe('buildK8sInteropBeSelfcareOnboardingConsumerErrorsRunbook', () => {
   it('builds a SERVICE-compatible read-only runbook with the expected pipeline', () => {
-    const runbook = buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook();
+    const runbook = buildK8sInteropBeSelfcareOnboardingConsumerErrorsRunbook();
 
-    assert.strictEqual(runbook.metadata.id, INTEROP_SELFCARE_USERS_UPDATER_RUNBOOK_KEY);
+    assert.strictEqual(runbook.metadata.id, INTEROP_SELFCARE_ONBOARDING_CONSUMER_RUNBOOK_KEY);
     assert.deepStrictEqual(
       runbook.steps.map((descriptor) => descriptor.step.id),
       [
@@ -34,6 +34,6 @@ describe('buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook', () => {
     assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
     assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 5, afterMinutes: 1 });
     assert.ok(service.isServiceRunbookContext(runbook.runbookContext));
-    assert.strictEqual(runbook.runbookContext.service.name, INTEROP_SELFCARE_USERS_UPDATER_SERVICE_NAME);
+    assert.strictEqual(runbook.runbookContext.service.name, INTEROP_SELFCARE_ONBOARDING_CONSUMER_SERVICE_NAME);
   });
 });
