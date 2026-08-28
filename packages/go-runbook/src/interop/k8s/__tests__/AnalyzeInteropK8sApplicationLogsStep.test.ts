@@ -56,4 +56,38 @@ describe('AnalyzeInteropK8sApplicationLogsStep', () => {
     assert.strictEqual(result.vars?.['interopBffRowsWithoutCidCount'], '1');
     assert.strictEqual(result.vars?.['interopBffAnalysisCompleted'], 'true');
   });
+
+  it('uses aggregate counts and errorMessage when a query groups application logs', async () => {
+    const step = new AnalyzeInteropK8sApplicationLogsStep({
+      id: 'analyze',
+      label: 'Analyze',
+      fromStep: 'query',
+      varPrefix: 'interopAuth',
+      countField: 'count',
+    });
+
+    const result = await step.execute(
+      context([
+        [
+          'query',
+          [
+            row([
+              ['count', '7'],
+              ['cid', 'cid-1'],
+              ['errorMessage', 'aggregated warning'],
+            ]),
+            row([
+              ['count', '3'],
+              ['errorMessage', 'warning without cid'],
+            ]),
+          ],
+        ],
+      ]),
+    );
+
+    assert.strictEqual(result.output?.logCount, 10);
+    assert.strictEqual(result.output?.rowsWithoutCidCount, 3);
+    assert.deepStrictEqual(result.output?.representativeMessages, ['aggregated warning', 'warning without cid']);
+    assert.strictEqual(result.vars?.['interopAuthLogCount'], '10');
+  });
 });

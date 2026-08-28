@@ -148,6 +148,26 @@ describe('AUTOMATIC_RUNBOOK_REGISTRY', () => {
     assert.deepStrictEqual(prod.descriptor.categories, ['INTEROP']);
   });
 
+  it('resolves every INTEROP auth-server API Gateway 4xx alias, including low-request alarms', () => {
+    const alarmNames = [
+      'interop-auth-server-prod-apigw-4xx',
+      'interop-auth-server-att-apigw-4xx',
+      'interop-auth-server-test-apigw-4xx',
+      'interop-auth-server-att-apigw-4xx-low-requests',
+      'interop-auth-server-test-apigw-4xx-low-requests',
+    ];
+    const resolved = alarmNames.map((alarmName) => AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(alarmName));
+
+    assert.ok(resolved.every((entry) => entry !== undefined));
+    const descriptor = resolved[0]?.descriptor;
+    assert.ok(descriptor !== undefined);
+    assert.strictEqual(descriptor.key, 'interop-auth-server-apigw-4xx');
+    assert.strictEqual(descriptor.kind, 'APIGW');
+    assert.deepStrictEqual(descriptor.categories, ['INTEROP']);
+    assert.deepStrictEqual(descriptor.alarmNames, [...alarmNames].sort());
+    assert.ok(resolved.every((entry) => entry?.descriptor === resolved[0]?.descriptor));
+  });
+
   it('lists stable sorted descriptors and validates every cloud runbook', () => {
     const first = AUTOMATIC_RUNBOOK_REGISTRY.listDescriptors();
     const second = AUTOMATIC_RUNBOOK_REGISTRY.listDescriptors();

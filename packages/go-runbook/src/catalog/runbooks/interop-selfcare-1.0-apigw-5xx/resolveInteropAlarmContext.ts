@@ -1,23 +1,19 @@
 import { interop } from '../framework.js';
+import type { InteropApiGwAlarmContext } from '../../../interop/apigw/types/InteropApiGwAlarmContext.js';
 
 import type { InteropEnvironment } from '../interop/InteropEnvironment.js';
 import { INTEROP_ENVIRONMENTS, isInteropEnvironment } from '../interop/InteropEnvironment.js';
 
-export interface InteropSelfcareApiGwAlarmContext {
-  readonly alarmName: string;
-  readonly runbookKey: string;
+export interface InteropSelfcareApiGwAlarmContext extends InteropApiGwAlarmContext {
   readonly environment: InteropEnvironment;
-  readonly apiGwId: string;
-  readonly apiGwLogGroup: string;
-  readonly podApp: string;
-  readonly applicationLogGroup: string;
 }
 
 export const INTEROP_SELFCARE_API_GW_RUNBOOK_KEY: string = 'interop-selfcare-1.0-apigw-5xx';
 export const INTEROP_SELFCARE_API_GW_SERVICE_NAME: string = 'interop-be-backend-for-frontend';
 export const INTEROP_SELFCARE_API_GW_VAR_PREFIX: string = 'interopBff';
 export const INTEROP_SELFCARE_API_GW_PROFILE_ID: string = 'interop-api-gateway-bff-5xx';
-export const INTEROP_SELFCARE_API_GW_LOG_GROUP_TEMPLATE: string = 'amazon-apigateway-interop-access-logs-<environment>';
+export const INTEROP_SELFCARE_API_GW_LOG_GROUP_TEMPLATE: string =
+  interop.apigw.INTEROP_API_GW_ACCESS_LOG_GROUP_TEMPLATE;
 export const INTEROP_SELFCARE_APPLICATION_LOG_GROUP_TEMPLATE: string =
   '/aws/eks/interop-eks-cluster-<environment>/application';
 
@@ -45,12 +41,8 @@ export function resolveInteropSelfcareApiGwAlarmContext(alarmName: string): Inte
     runbookKey: INTEROP_SELFCARE_API_GW_RUNBOOK_KEY,
     environment,
     apiGwId: API_GW_IDS[environment],
-    apiGwLogGroup: buildInteropApiGwAccessLogGroup(environment),
+    apiGwLogGroup: interop.apigw.buildInteropApiGwAccessLogGroup(environment),
     podApp: INTEROP_SELFCARE_API_GW_SERVICE_NAME,
     applicationLogGroup: interop.k8s.buildInteropK8sApplicationLogGroup(environment),
   };
-}
-
-function buildInteropApiGwAccessLogGroup(environment: InteropEnvironment): string {
-  return INTEROP_SELFCARE_API_GW_LOG_GROUP_TEMPLATE.replace('<environment>', environment);
 }

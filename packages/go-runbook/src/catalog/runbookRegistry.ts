@@ -64,6 +64,11 @@ import {
   INTEROP_SELFCARE_API_GW_ALARM_NAMES,
   INTEROP_SELFCARE_API_GW_RUNBOOK_KEY,
 } from './runbooks/interop-selfcare-1.0-apigw-5xx/resolveInteropAlarmContext.js';
+import { buildInteropAuthServerApiGw4xxRunbook } from './runbooks/interop-auth-server-apigw-4xx/runbook.js';
+import {
+  INTEROP_AUTH_SERVER_API_GW_ALARM_NAMES,
+  INTEROP_AUTH_SERVER_API_GW_RUNBOOK_KEY,
+} from './runbooks/interop-auth-server-apigw-4xx/resolveInteropAlarmContext.js';
 
 export type RunbookBuilderFn = () => Runbook;
 
@@ -307,6 +312,14 @@ const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
     ['INTEROP'],
     buildInteropSelfcareApiGw5xxRunbook,
     INTEROP_SELFCARE_API_GW_ALARM_NAMES,
+  ),
+  registration(
+    INTEROP_AUTH_SERVER_API_GW_RUNBOOK_KEY,
+    'INTEROP',
+    'APIGW',
+    ['INTEROP'],
+    buildInteropAuthServerApiGw4xxRunbook,
+    INTEROP_AUTH_SERVER_API_GW_ALARM_NAMES,
   ),
 ];
 

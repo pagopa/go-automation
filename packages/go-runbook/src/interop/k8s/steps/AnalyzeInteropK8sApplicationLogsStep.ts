@@ -18,6 +18,8 @@ export interface AnalyzeInteropK8sApplicationLogsStepConfig {
   readonly label: string;
   readonly fromStep: string;
   readonly varPrefix: string;
+  /** Optional aggregate field whose numeric values represent the original log count. */
+  readonly countField?: string;
 }
 
 const CID_PATTERN = /\bCID=([^\]\s,"']+)/u;
@@ -30,12 +32,14 @@ export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sAppl
 
   private readonly fromStep: string;
   private readonly varPrefix: string;
+  private readonly countField: string | undefined;
 
   constructor(config: AnalyzeInteropK8sApplicationLogsStepConfig) {
     this.id = config.id;
     this.label = config.label;
     this.fromStep = config.fromStep;
     this.varPrefix = config.varPrefix;
+    this.countField = config.countField;
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -46,12 +50,15 @@ export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sAppl
     const cids: string[] = [];
     const seenCids = new Set<string>();
     let rowsWithoutCidCount = 0;
+    let logCount = 0;
     const representativeMessages: string[] = [];
 
     for (const row of rows) {
+      const rowCount = readRowCount(row, this.countField);
+      logCount += rowCount;
       const cid = extractCid(row);
       if (cid === undefined) {
-        rowsWithoutCidCount += 1;
+        rowsWithoutCidCount += rowCount;
       } else if (!seenCids.has(cid)) {
         seenCids.add(cid);
         cids.push(cid);
@@ -64,14 +71,14 @@ export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sAppl
     }
 
     const analysis: InteropK8sApplicationLogAnalysis = {
-      logCount: rows.length,
+      logCount,
       cidCount: cids.length,
       cids,
       rowsWithoutCidCount,
       representativeMessages,
     };
 
-    context.logger?.text(`      ├─ Log applicativi analizzati: ${rows.length}`);
+    context.logger?.text(`      ├─ Log applicativi analizzati: ${analysis.logCount}`);
     context.logger?.text(`      ├─ CID distinti: ${cids.length}`);
     context.logger?.text(`      └─ Righe senza CID: ${rowsWithoutCidCount}`);
 
@@ -104,7 +111,13 @@ function extractCid(row: ReadonlyArray<ResultField>): string | undefined {
 }
 
 function extractRepresentativeMessage(row: ReadonlyArray<ResultField>): string | undefined {
-  return normalize(readField(row, ['@message', 'message', 'log']));
+  return normalize(readField(row, ['@message', 'message', 'log', 'errorMessage']));
+}
+
+function readRowCount(row: ReadonlyArray<ResultField>, countField: string | undefined): number {
+  if (countField === undefined) return 1;
+  const parsed = Number(readField(row, [countField]));
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 1;
 }
 
 function readField(row: ReadonlyArray<ResultField>, names: ReadonlyArray<string>): string | undefined {
