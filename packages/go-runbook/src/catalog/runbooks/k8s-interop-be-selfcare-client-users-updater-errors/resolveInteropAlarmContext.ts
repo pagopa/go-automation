@@ -7,7 +7,7 @@ export const INTEROP_SELFCARE_USERS_UPDATER_RUNBOOK_KEY: string = 'k8s-interop-b
 export const INTEROP_SELFCARE_USERS_UPDATER_SERVICE_NAME: string = 'interop-be-selfcare-client-users-updater';
 export const INTEROP_SELFCARE_USERS_UPDATER_VAR_PREFIX: string = 'interopSelfcareUsersUpdater';
 export const INTEROP_SELFCARE_USERS_UPDATER_STATIC_LOG_GROUP: string =
-  '/aws/eks/interop-eks-cluster-<environment>/application';
+  interop.k8s.INTEROP_K8S_APPLICATION_LOG_GROUP_TEMPLATE;
 
 export const INTEROP_SELFCARE_USERS_UPDATER_ALARM_NAMES: readonly [string, ...string[]] = INTEROP_ENVIRONMENTS.map(
   (environment) => `${INTEROP_SELFCARE_USERS_UPDATER_RUNBOOK_KEY}-${environment}`,

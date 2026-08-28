@@ -14,8 +14,17 @@ import {
   select as inquirerSelect,
 } from '@inquirer/prompts';
 
+import { DateTime } from 'luxon';
+
 import { GOLogEventCategory } from '../logging/GOLogEventCategory.js';
 import { GOLogger } from '../logging/GOLogger.js';
+import {
+  describeDateInputFormats,
+  parseDateInput,
+  tryParseDateInput,
+  type GODateBoundary,
+  type GODateInputOptions,
+} from '../utils/GODateInput.js';
 import { valueToString } from '../utils/GOValueToString.js';
 
 import { GOLoadingBar } from './GOLoadingBar.js';
@@ -65,6 +74,76 @@ export interface GOPromptNumberOptions {
 
   /** Validation function */
   validate?: GOPromptNumberValidator;
+}
+
+export type GOPromptDateValidator = (value: Date) => boolean | string;
+
+export interface GOPromptDateOptions {
+  /** Default value, prefilled and editable; a Date is shown as ISO 8601 */
+  readonly initial?: string | Date;
+
+  /** IANA time zone used to resolve inputs without an explicit offset (default `UTC`) */
+  readonly timeZone?: string;
+
+  /** Edge of the day for answers carrying no time (default `start`) */
+  readonly boundary?: GODateBoundary;
+
+  /** Accept an empty answer, resolved as `undefined` (default: false) */
+  readonly allowEmpty?: boolean;
+
+  /** Earliest accepted instant */
+  readonly min?: Date;
+
+  /** Latest accepted instant */
+  readonly max?: Date;
+
+  /** Reference instant for relative answers; injected by tests (default: now) */
+  readonly now?: Date;
+
+  /** Validation function, run on the parsed date */
+  readonly validate?: GOPromptDateValidator;
+}
+
+/** Computes one bound of a preset range. Must be pure. */
+export type GOPromptDateRangeBoundFn = (now: Date, timeZone: string) => Date;
+
+export interface GOPromptDateRangePreset {
+  /** Entry shown in the preset list */
+  readonly title: string;
+
+  /** Start of the range; omitted means unbounded */
+  readonly from?: GOPromptDateRangeBoundFn;
+
+  /** End of the range; omitted means unbounded */
+  readonly to?: GOPromptDateRangeBoundFn;
+
+  /** Ask for both bounds instead of computing them (default: false) */
+  readonly custom?: boolean;
+}
+
+export interface GOPromptDateRange {
+  /** Start of the range; `undefined` means unbounded */
+  readonly from?: Date;
+
+  /** End of the range; `undefined` means unbounded */
+  readonly to?: Date;
+}
+
+export interface GOPromptDateRangeOptions {
+  /** Preset list shown before asking for explicit bounds (default: `GO_DEFAULT_DATE_RANGE_PRESETS`) */
+  readonly presets?: ReadonlyArray<GOPromptDateRangePreset>;
+
+  /** IANA time zone used to resolve the bounds (default `UTC`) */
+  readonly timeZone?: string;
+
+  /** Reference instant for the presets; injected by tests (default: now) */
+  readonly now?: Date;
+
+  /** Message of the start-date question, on the custom branch */
+  readonly fromMessage?: string;
+
+  /** Message of the end-date question, on the custom branch */
+  readonly toMessage?: string;
 }
 
 export interface GOPromptSelectOption {
@@ -175,6 +254,71 @@ function toGOPromptSelectOptions(choices: ReadonlyArray<GOPromptChoice>): GOProm
       ...(choice.description !== undefined ? { description: choice.description } : {}),
     };
   });
+}
+
+/**
+ * Preset ranges offered by `GOPrompt.dateRange` when the caller supplies none.
+ *
+ * Titles are in English, like every other built-in message of this module;
+ * pass `presets` to localize them or to offer a different set.
+ */
+export const GO_DEFAULT_DATE_RANGE_PRESETS: ReadonlyArray<GOPromptDateRangePreset> = [
+  { title: 'Last 24 hours', from: (now) => shiftMillis(now, -24 * 3_600_000), to: (now) => new Date(now.getTime()) },
+  { title: 'Last 7 days', from: (now) => shiftMillis(now, -7 * 86_400_000), to: (now) => new Date(now.getTime()) },
+  { title: 'Last 30 days', from: (now) => shiftMillis(now, -30 * 86_400_000), to: (now) => new Date(now.getTime()) },
+  {
+    title: 'Current month',
+    from: (now, timeZone) => DateTime.fromJSDate(now).setZone(timeZone).startOf('month').toJSDate(),
+    to: (now) => new Date(now.getTime()),
+  },
+  { title: 'No limit' },
+  { title: 'Custom…', custom: true },
+];
+
+/** Shifts an instant by a signed amount of milliseconds, without mutating it. */
+function shiftMillis(value: Date, millis: number): Date {
+  return new Date(value.getTime() + millis);
+}
+
+/** Narrows the prompt options down to what the date parser needs. */
+function toDateInputOptions(options?: GOPromptDateOptions): GODateInputOptions {
+  return {
+    ...(options?.timeZone !== undefined ? { timeZone: options.timeZone } : {}),
+    ...(options?.boundary !== undefined ? { boundary: options.boundary } : {}),
+    ...(options?.now !== undefined ? { now: options.now } : {}),
+  };
+}
+
+/** Renders the prefilled answer: a Date becomes the ISO 8601 text the user can edit. */
+function formatInitialDate(initial: string | Date | undefined): string | undefined {
+  if (initial === undefined) return undefined;
+  return initial instanceof Date ? initial.toISOString() : initial;
+}
+
+/** Validates a typed date answer, reporting the accepted formats on failure. */
+function validateDateAnswer(
+  raw: string,
+  options: GOPromptDateOptions | undefined,
+  parseOptions: GODateInputOptions,
+): boolean | string {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    return options?.allowEmpty === true ? true : 'A date is required';
+  }
+
+  const parsed = tryParseDateInput(trimmed, parseOptions);
+  if (parsed === undefined) {
+    return `Invalid date. Accepted formats: ${describeDateInputFormats()}`;
+  }
+
+  if (options?.min !== undefined && parsed.date.getTime() < options.min.getTime()) {
+    return `Date must be on or after ${options.min.toISOString()}`;
+  }
+  if (options?.max !== undefined && parsed.date.getTime() > options.max.getTime()) {
+    return `Date must be on or before ${options.max.toISOString()}`;
+  }
+
+  return options?.validate?.(parsed.date) ?? true;
 }
 
 function isExitPromptError(error: unknown): boolean {
@@ -518,6 +662,115 @@ export class GOPrompt {
     }
 
     return value;
+  }
+
+  /**
+   * Ask for a date, accepting far more than ISO 8601
+   *
+   * Typing a timestamp by hand is error prone, so the answer goes through
+   * `parseDateInput`: keywords (`now`, `today`, `yesterday`, and their Italian
+   * spellings), offsets from now (`-7d`, `-24h`), calendar days in either
+   * `2026-08-24` or `24/08/2026` order, epoch seconds or milliseconds, and ISO
+   * 8601 itself. An `initial` value is prefilled and editable, which is usually
+   * enough to remind the user of the shape expected.
+   *
+   * A day with no time of day resolves to the edge named by `boundary`, so a
+   * period asked as two questions covers the whole of its last day.
+   *
+   * @param message - Question shown to the user
+   * @param options - Prefilled value, time zone, boundary, bounds and validation
+   * @returns The chosen instant, or `undefined` when cancelled or left empty
+   * @throws Error when a prompt adapter returns an answer its own validation should have rejected
+   *
+   * @example
+   * ```typescript
+   * const from = await prompt.date('Start date', { initial: new Date(), boundary: 'start' });
+   * ```
+   */
+  public async date(message: string, options?: GOPromptDateOptions): Promise<Date | undefined> {
+    const parseOptions = toDateInputOptions(options);
+    const initial = formatInitialDate(options?.initial);
+
+    const value = await this.runPrompt(async () =>
+      this.promptAdapter.text({
+        message: message,
+        ...(initial !== undefined ? { default: initial } : {}),
+        validate: (answer) => validateDateAnswer(answer, options, parseOptions),
+      }),
+    );
+
+    if (value === undefined || value.trim().length === 0) {
+      return undefined;
+    }
+
+    const parsed = parseDateInput(value, parseOptions);
+
+    if (this.logger && this.logResponses) {
+      this.logger.log(GOLogEventCategory.INFO, `${message} → ${parsed.iso}`);
+    }
+
+    return parsed.date;
+  }
+
+  /**
+   * Ask for a period, offering presets before asking for explicit bounds
+   *
+   * Most answers are a well-known window, so the user picks one from a list and
+   * never types a date at all. The `custom` preset falls back to two `date`
+   * questions, the second bounded by the first so an inverted range is refused
+   * where it is typed rather than downstream.
+   *
+   * @param message - Question shown above the preset list
+   * @param options - Presets, time zone, reference instant and bound messages
+   * @returns The chosen period, where a missing bound means unbounded, or
+   * `undefined` when the preset selection is cancelled
+   *
+   * @example
+   * ```typescript
+   * const period = await prompt.dateRange('Analysis period');
+   * const from = period?.from?.toISOString() ?? '';
+   * ```
+   */
+  public async dateRange(message: string, options?: GOPromptDateRangeOptions): Promise<GOPromptDateRange | undefined> {
+    const timeZone = options?.timeZone ?? 'UTC';
+    const now = options?.now ?? new Date();
+    const presets = options?.presets ?? GO_DEFAULT_DATE_RANGE_PRESETS;
+
+    const index = await this.select<number>(
+      message,
+      presets.map((preset, position) => ({ title: preset.title, value: position })),
+    );
+    if (index === undefined) return undefined;
+
+    const preset = presets[index];
+    if (preset === undefined) return undefined;
+
+    if (preset.custom !== true) {
+      return {
+        ...(preset.from !== undefined ? { from: preset.from(now, timeZone) } : {}),
+        ...(preset.to !== undefined ? { to: preset.to(now, timeZone) } : {}),
+      };
+    }
+
+    const from = await this.date(options?.fromMessage ?? 'Start date (empty = no limit)', {
+      timeZone,
+      boundary: 'start',
+      allowEmpty: true,
+      now,
+    });
+
+    const to = await this.date(options?.toMessage ?? 'End date (empty = no limit)', {
+      timeZone,
+      boundary: 'end',
+      allowEmpty: true,
+      now,
+      ...(from !== undefined ? { min: from } : {}),
+    });
+
+    return {
+      ...(from !== undefined ? { from } : {}),
+      ...(to !== undefined ? { to } : {}),
+    };
   }
 
   /**

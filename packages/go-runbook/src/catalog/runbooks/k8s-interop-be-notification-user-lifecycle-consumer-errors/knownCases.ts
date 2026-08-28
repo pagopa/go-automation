@@ -1,11 +1,10 @@
 import type { KnownCase } from '../framework.js';
 
+import { jiraLink } from '../common/analysisLinks.js';
 import type { InteropKnownCaseRefs } from '../interop/interopKnownCases.js';
 import { interopKnownCase } from '../interop/interopKnownCases.js';
 import { INTEROP_NOTIFICATION_USER_LIFECYCLE_VAR_PREFIX } from './resolveInteropAlarmContext.js';
 import { QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, QUERY_INTEROP_CID_TRACKER_STEP_ID } from './runbookSteps.js';
-
-const JIRA_BROWSE = 'https://pagopa.atlassian.net/browse';
 
 const REFS: InteropKnownCaseRefs = {
   applicationLogsStepId: QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
@@ -25,7 +24,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     // Chiede di verificare i broker e raccogliere i CID: l'analisi resta aperta.
     proposedStatus: 'IN_PROGRESS',
     analysisType: 'ANALYZABLE',
-    links: [{ url: `${JIRA_BROWSE}/PIN-7325`, name: 'PIN-7325', type: 'JIRA' }],
+    links: [jiraLink('PIN-7325')],
   }),
   interopKnownCase(REFS, {
     id: 'notification-duplicate-event-stream-version',
@@ -37,10 +36,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     resolution: 'Nessuna azione necessaria: richiesta duplicata gia censita. Vedere PIN-6474 e PIN-7796.',
     proposedStatus: 'COMPLETED',
     analysisType: 'ANALYZABLE',
-    links: [
-      { url: `${JIRA_BROWSE}/PIN-6474`, name: 'PIN-6474', type: 'JIRA' },
-      { url: `${JIRA_BROWSE}/PIN-7796`, name: 'PIN-7796', type: 'JIRA' },
-    ],
+    links: [jiraLink('PIN-6474'), jiraLink('PIN-7796')],
   }),
   interopKnownCase(REFS, {
     id: 'notification-certifier-tenant-istat-not-found',
@@ -50,6 +46,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     resolution: 'Nessuna azione necessaria. Caso censito in PIN-10543.',
     proposedStatus: 'COMPLETED',
     analysisType: 'ANALYZABLE',
-    links: [{ url: `${JIRA_BROWSE}/PIN-10543`, name: 'PIN-10543', type: 'JIRA' }],
+    links: [jiraLink('PIN-10543')],
   }),
 ];

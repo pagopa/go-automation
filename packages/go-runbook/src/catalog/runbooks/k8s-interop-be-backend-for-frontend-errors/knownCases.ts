@@ -1,5 +1,6 @@
 import type { KnownCase, KnownCaseAnalysis } from '../framework.js';
 
+import { jiraLink } from '../common/analysisLinks.js';
 import type { InteropKnownCaseRefs } from '../interop/interopKnownCases.js';
 import { anyInteropEvidenceMatches, interopKnownCase, interopKnownCaseAction } from '../interop/interopKnownCases.js';
 import { INTEROP_BFF_VAR_PREFIX } from './resolveInteropAlarmContext.js';
@@ -10,8 +11,6 @@ const REFS: InteropKnownCaseRefs = {
   cidTrackerStepId: QUERY_INTEROP_CID_TRACKER_STEP_ID,
   varPrefix: INTEROP_BFF_VAR_PREFIX,
 };
-
-const JIRA_BROWSE = 'https://pagopa.atlassian.net/browse';
 
 /** Resolutions shared between the log action and the analysis draft, so they never drift. */
 const PUBLIC_KEY_RESOLUTION =
@@ -43,7 +42,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     // La verifica è condizionata a un aumento di volume: sulla singola occorrenza non c'è azione.
     proposedStatus: 'COMPLETED',
     analysisType: 'ANALYZABLE',
-    links: [{ url: `${JIRA_BROWSE}/PIN-7865`, name: 'PIN-7865', type: 'JIRA' }],
+    links: [jiraLink('PIN-7865')],
   }),
   interopKnownCase(REFS, {
     id: 'bff-adm-zip-invalid-format',
@@ -54,7 +53,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     // Verifica condizionata alla persistenza del fenomeno.
     proposedStatus: 'COMPLETED',
     analysisType: 'ANALYZABLE',
-    links: [{ url: `${JIRA_BROWSE}/PIN-9483`, name: 'PIN-9483', type: 'JIRA' }],
+    links: [jiraLink('PIN-9483')],
   }),
   interopKnownCase(REFS, {
     id: 'bff-token-expired',
@@ -138,6 +137,6 @@ function analyzable(
     resolution,
     proposedStatus,
     analysisType: 'ANALYZABLE',
-    links: [{ url: `${JIRA_BROWSE}/${jiraKey}`, name: jiraKey, type: 'JIRA' }],
+    links: [jiraLink(jiraKey)],
   };
 }

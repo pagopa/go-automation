@@ -11,6 +11,8 @@ import { RUNBOOK_REGISTRY } from '@go-automation/go-runbook/catalog';
 import type { GoAnalyzeAlarmConfig } from './types/GoAnalyzeAlarmConfig.js';
 import { analyzeOccurrence } from './libs/analyzeOccurrence.js';
 import { assertRangeModeConfig, findAlarmOccurrences } from './libs/findAlarmOccurrences.js';
+import { runStatsMode } from './libs/runStatsMode.js';
+import { toAnalyzableConfig } from './libs/toAnalyzableConfig.js';
 
 /**
  * Main script execution function.
@@ -18,7 +20,14 @@ import { assertRangeModeConfig, findAlarmOccurrences } from './libs/findAlarmOcc
  * @param script - The GOScript instance for logging and configuration
  */
 export async function main(script: Core.GOScript): Promise<void> {
-  const config = await script.getConfiguration<GoAnalyzeAlarmConfig>();
+  const rawConfig = await script.getConfiguration<GoAnalyzeAlarmConfig>();
+
+  if (rawConfig.analysisMode === 'stats') {
+    await runStatsMode(script, rawConfig);
+    return;
+  }
+
+  const config = toAnalyzableConfig(rawConfig);
 
   script.logger.section('Go Analyze Alarm');
   script.logger.info(`Alarm: ${config.alarmName}`);
@@ -30,11 +39,6 @@ export async function main(script: Core.GOScript): Promise<void> {
   if (runbookBuilder === undefined) {
     script.logger.error(`No runbook found for alarm: "${config.alarmName}"`);
     script.logger.info(`Available runbooks: ${[...RUNBOOK_REGISTRY.keys()].join(', ')}`);
-    return;
-  }
-
-  if (config.awsProfiles.length === 0) {
-    script.logger.error('No AWS profiles provided');
     return;
   }
 

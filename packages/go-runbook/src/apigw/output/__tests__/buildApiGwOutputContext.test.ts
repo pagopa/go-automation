@@ -47,6 +47,7 @@ function createResult(): RunbookExecutionResult {
     ['apiGwStatusCode', '500'],
     ['apiGwHttpMethod', 'POST'],
     ['apiGwPath', '/delivery/check'],
+    ['apiGwSourceIp', '203.0.113.42'],
     ['xRayTraceId', '1-abc'],
     ['apiGwErrorMessage', 'Internal server error'],
     ['apiGwAuthorizerLambdaName', 'pn-ioAuthorizerLambda'],
@@ -151,6 +152,7 @@ describe('buildApiGwOutputContext', () => {
 
     assert.ok(context !== undefined);
     assert.strictEqual(context.fields.find((field) => field.name === 'endpoint')?.value, 'POST /delivery/check');
+    assert.strictEqual(context.fields.find((field) => field.name === 'apiGwSourceIp')?.value, '203.0.113.42');
     assert.strictEqual(context.fields.find((field) => field.name === 'authorizerLatency')?.value, '5011 ms');
     assert.strictEqual(
       context.evidence.find((evidence) => evidence.id === 'pn-delivery-recent-errors')?.truncated,
@@ -159,6 +161,7 @@ describe('buildApiGwOutputContext', () => {
 
     const details = context.details as unknown as ApiGwOutputContext;
     assert.strictEqual(details.apiGateway.traceId, '1-abc');
+    assert.strictEqual(details.apiGateway.sourceIp, '203.0.113.42');
     assert.strictEqual(details.authorizer?.lambdaName, 'pn-ioAuthorizerLambda');
     assert.strictEqual(details.authorizer?.latencyMs, 5011);
     assert.strictEqual(details.authorizer?.outcome, 'timeout');

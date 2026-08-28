@@ -26,8 +26,18 @@ import { buildSlaViolationCheckerLambdaSqsRunbook } from './runbooks/pn-slaViola
 import { buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook } from './runbooks/pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook } from './runbooks/pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook } from './runbooks/pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm/runbook.js';
+import { buildLollipopAuthorizerLambdaLogInvocationErrorsAlarmRunbook } from './runbooks/pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
 
 // service logs
+import { buildEmdDownstreamDetectionAlarmRunbook } from './runbooks/emd-downstream-detection-Alarm/runbook.js';
+import { buildNationalRegistriesAnprDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-ANPR-downstream-detection-Alarm/runbook.js';
+import { buildExternalRegistriesOneTrustDownstreamDetectionAlarmRunbook } from './runbooks/pn-external-registries-OneTrust-downstream-detection-Alarm/runbook.js';
+import { buildNationalRegistriesInfoCamereDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-InfoCamere-downstream-detection-Alarm/runbook.js';
+import { buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-IPA-downstream-detection-Alarm/runbook.js';
+import { buildNationalRegistriesAdeDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-AdE-downstream-detection-Alarm/runbook.js';
+import { buildNationalRegistriesInadDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-INAD-downstream-detection-Alarm/runbook.js';
+import { buildAddressManagerPostelDownstreamDetectionAlarmRunbook } from './runbooks/pn-address-manager-POSTEL-downstream-detection-Alarm/runbook.js';
+import { buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook } from './runbooks/personal-data-vault-SelfcarePG-downstream-detection-Alarm/runbook.js';
 import { buildWorkdayPnExternalChannelAlbAlarmRunbook } from './runbooks/workday-pn-external-channel-alb-alarm/runbook.js';
 import { buildK8sInteropBeBackendForFrontendErrorsRunbook } from './runbooks/k8s-interop-be-backend-for-frontend-errors/runbook.js';
 import {
@@ -49,6 +59,21 @@ import {
   INTEROP_SELFCARE_USERS_UPDATER_ALARM_NAMES,
   INTEROP_SELFCARE_USERS_UPDATER_RUNBOOK_KEY,
 } from './runbooks/k8s-interop-be-selfcare-client-users-updater-errors/resolveInteropAlarmContext.js';
+import { buildK8sInteropBeSelfcareOnboardingConsumerErrorsRunbook } from './runbooks/k8s-interop-be-selfcare-onboarding-consumer-errors/runbook.js';
+import {
+  INTEROP_SELFCARE_ONBOARDING_CONSUMER_ALARM_NAMES,
+  INTEROP_SELFCARE_ONBOARDING_CONSUMER_RUNBOOK_KEY,
+} from './runbooks/k8s-interop-be-selfcare-onboarding-consumer-errors/resolveInteropAlarmContext.js';
+import { buildInteropSelfcareApiGw5xxRunbook } from './runbooks/interop-selfcare-1.0-apigw-5xx/runbook.js';
+import {
+  INTEROP_SELFCARE_API_GW_ALARM_NAMES,
+  INTEROP_SELFCARE_API_GW_RUNBOOK_KEY,
+} from './runbooks/interop-selfcare-1.0-apigw-5xx/resolveInteropAlarmContext.js';
+import { buildInteropAuthServerApiGw4xxRunbook } from './runbooks/interop-auth-server-apigw-4xx/runbook.js';
+import {
+  INTEROP_AUTH_SERVER_API_GW_ALARM_NAMES,
+  INTEROP_AUTH_SERVER_API_GW_RUNBOOK_KEY,
+} from './runbooks/interop-auth-server-apigw-4xx/resolveInteropAlarmContext.js';
 
 export type RunbookBuilderFn = () => Runbook;
 
@@ -177,6 +202,76 @@ const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
     buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook,
   ),
   registration(
+    'pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm',
+    'SEND',
+    'LAMBDA',
+    ['AUTHORIZATION'],
+    buildLollipopAuthorizerLambdaLogInvocationErrorsAlarmRunbook,
+  ),
+  registration(
+    'emd-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['INTEGRATION'],
+    buildEmdDownstreamDetectionAlarmRunbook,
+  ),
+  registration(
+    'pn-external-registries-OneTrust-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['INTEGRATION'],
+    buildExternalRegistriesOneTrustDownstreamDetectionAlarmRunbook,
+  ),
+  registration(
+    'pn-national-registries-IPA-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['INTEGRATION'],
+    buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook,
+  ),
+  registration(
+    'pn-national-registries-ANPR-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['INTEGRATION'],
+    buildNationalRegistriesAnprDownstreamDetectionAlarmRunbook,
+  ),
+  registration(
+    'pn-national-registries-InfoCamere-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['INTEGRATION'],
+    buildNationalRegistriesInfoCamereDownstreamDetectionAlarmRunbook,
+  ),
+  registration(
+    'pn-national-registries-AdE-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['INTEGRATION'],
+    buildNationalRegistriesAdeDownstreamDetectionAlarmRunbook,
+  ),
+  registration(
+    'pn-national-registries-INAD-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['INTEGRATION'],
+    buildNationalRegistriesInadDownstreamDetectionAlarmRunbook,
+  ),
+  registration(
+    'pn-address-manager-POSTEL-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['DELIVERY'],
+    buildAddressManagerPostelDownstreamDetectionAlarmRunbook,
+  ),
+  registration(
+    'personal-data-vault-SelfcarePG-downstream-detection-Alarm',
+    'SEND',
+    'SERVICE',
+    ['INTEGRATION'],
+    buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook,
+  ),
+  registration(
     'workday-pn-external-channel-alb-alarm',
     'SEND',
     'SERVICE',
@@ -214,6 +309,30 @@ const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
     ['INTEROP'],
     buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook,
     INTEROP_SELFCARE_USERS_UPDATER_ALARM_NAMES,
+  ),
+  registration(
+    INTEROP_SELFCARE_ONBOARDING_CONSUMER_RUNBOOK_KEY,
+    'INTEROP',
+    'SERVICE',
+    ['INTEROP'],
+    buildK8sInteropBeSelfcareOnboardingConsumerErrorsRunbook,
+    INTEROP_SELFCARE_ONBOARDING_CONSUMER_ALARM_NAMES,
+  ),
+  registration(
+    INTEROP_SELFCARE_API_GW_RUNBOOK_KEY,
+    'INTEROP',
+    'APIGW',
+    ['INTEROP'],
+    buildInteropSelfcareApiGw5xxRunbook,
+    INTEROP_SELFCARE_API_GW_ALARM_NAMES,
+  ),
+  registration(
+    INTEROP_AUTH_SERVER_API_GW_RUNBOOK_KEY,
+    'INTEROP',
+    'APIGW',
+    ['INTEROP'],
+    buildInteropAuthServerApiGw4xxRunbook,
+    INTEROP_AUTH_SERVER_API_GW_ALARM_NAMES,
   ),
 ];
 

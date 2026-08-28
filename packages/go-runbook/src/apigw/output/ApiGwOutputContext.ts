@@ -22,6 +22,7 @@ export interface ApiGatewayOutput {
   readonly statusCode?: string;
   readonly httpMethod?: string;
   readonly path?: string;
+  readonly sourceIp?: string;
   readonly traceId?: string;
   readonly traceIdField?: string;
   readonly fallbackUuid?: string;

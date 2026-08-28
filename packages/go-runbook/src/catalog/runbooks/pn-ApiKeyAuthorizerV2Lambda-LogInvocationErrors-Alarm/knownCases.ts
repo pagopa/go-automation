@@ -3,17 +3,9 @@
  */
 
 import { lambda } from '../framework.js';
-import type { Condition, KnownCase } from '../framework.js';
+import type { KnownCase } from '../framework.js';
 
-function matchLambdaLog(regex: string): Condition {
-  return {
-    type: 'or',
-    conditions: [
-      { type: 'contains', ref: 'steps.query-lambda-invocation', regex },
-      { type: 'contains', ref: 'steps.query-lambda-errors', regex },
-    ],
-  };
-}
+import { lambdaLogEvidenceMatches } from '../common/evidenceConditions.js';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   {
@@ -43,7 +35,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'apikey-authorizer-get-key-econnreset',
     description: 'Errore get key causato da interruzione connessione (ECONNRESET)',
     priority: 90,
-    condition: matchLambdaLog('Error in get key[\\s\\S]*AxiosError:\\s*read ECONNRESET'),
+    condition: lambdaLogEvidenceMatches('Error in get key[\\s\\S]*AxiosError:\\s*read ECONNRESET'),
     action: {
       type: 'log',
       level: 'info',

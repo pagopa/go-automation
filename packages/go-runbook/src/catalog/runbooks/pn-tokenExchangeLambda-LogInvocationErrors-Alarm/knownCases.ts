@@ -9,19 +9,15 @@
 import { lambda } from '../framework.js';
 import type { KnownCase } from '../framework.js';
 
+import { lambdaLogEvidenceMatches } from '../common/evidenceConditions.js';
+
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   ...lambda.LAMBDA_RUNTIME_KNOWN_CASES,
   {
     id: 'emd-retrieval-id-size',
     description: '[DOWNSTREAM pn-emd-integration] retrievalId con dimensione non valida (HTTP 400)',
     priority: 90,
-    condition: {
-      type: 'or',
-      conditions: [
-        { type: 'contains', ref: 'steps.query-lambda-invocation', regex: 'size must be between 50 and 50' },
-        { type: 'contains', ref: 'steps.query-lambda-errors', regex: 'size must be between 50 and 50' },
-      ],
-    },
+    condition: lambdaLogEvidenceMatches('size must be between 50 and 50'),
     action: {
       type: 'log',
       level: 'info',
@@ -42,13 +38,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'emd-get-retrieval-id-ko',
     description: '[DOWNSTREAM pn-emd-integration] impossibile individuare il retrievalId (HTTP 404)',
     priority: 89,
-    condition: {
-      type: 'or',
-      conditions: [
-        { type: 'contains', ref: 'steps.query-lambda-invocation', regex: 'Error in get retrievalId' },
-        { type: 'contains', ref: 'steps.query-lambda-errors', regex: 'Error in get retrievalId' },
-      ],
-    },
+    condition: lambdaLogEvidenceMatches('Error in get retrievalId'),
     action: {
       type: 'log',
       level: 'info',
@@ -69,13 +59,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'emd-get-retrieval-payload-ko',
     description: '[DOWNSTREAM pn-emd-integration] errore nel recupero del retrieval payload (HTTP 404)',
     priority: 88,
-    condition: {
-      type: 'or',
-      conditions: [
-        { type: 'contains', ref: 'steps.query-lambda-invocation', regex: 'Error getting retrieval payload' },
-        { type: 'contains', ref: 'steps.query-lambda-errors', regex: 'Error getting retrieval payload' },
-      ],
-    },
+    condition: lambdaLogEvidenceMatches('Error getting retrieval payload'),
     action: {
       type: 'log',
       level: 'info',

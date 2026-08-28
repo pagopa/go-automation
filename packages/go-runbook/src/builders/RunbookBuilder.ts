@@ -8,6 +8,7 @@ import type { IfBranchConfig } from '../types/IfBranchConfig.js';
 import type { SwitchBranchConfig } from '../types/SwitchBranchConfig.js';
 import type { CaseAction } from '../actions/CaseAction.js';
 import type { CloudExecutionPolicy } from '../types/CloudExecutionPolicy.js';
+import type { OccurrenceTimeWindow } from '../types/OccurrenceTimeWindow.js';
 import type { ValidationErrorEntry } from '../validation/ValidationErrorEntry.js';
 import type { GoToReference } from '../validation/GoToGraphAnalyzer.js';
 import { RunbookValidationError } from '../validation/RunbookValidationError.js';
@@ -66,6 +67,7 @@ export class RunbookBuilder {
   private structuredContext?: unknown;
   private cloudPolicy?: CloudExecutionPolicy;
   private analysisDefaultRefs?: RunbookAnalysisDefaults;
+  private occurrenceWindow?: OccurrenceTimeWindow;
 
   private constructor(id: string) {
     this.id = id;
@@ -89,6 +91,17 @@ export class RunbookBuilder {
    */
   metadata(meta: Omit<RunbookMetadata, 'id'>): RunbookBuilder {
     this.meta = meta;
+    return this;
+  }
+
+  /**
+   * Configures the diagnostic padding around alarm occurrences.
+   *
+   * @param window - Independent non-negative padding before and after the occurrence
+   * @returns This builder for chaining
+   */
+  occurrenceTimeWindow(window: OccurrenceTimeWindow): RunbookBuilder {
+    this.occurrenceWindow = { ...window };
     return this;
   }
 
@@ -232,6 +245,17 @@ export class RunbookBuilder {
       });
     }
 
+    if (this.occurrenceWindow !== undefined) {
+      for (const [field, value] of Object.entries(this.occurrenceWindow)) {
+        if (!Number.isFinite(value) || value < 0) {
+          errors.push({
+            code: 'INVALID_OCCURRENCE_TIME_WINDOW',
+            message: `Invalid occurrenceTimeWindow.${field}: ${String(value)}. Expected a finite, non-negative number.`,
+          });
+        }
+      }
+    }
+
     // 2. Check duplicate step IDs
     const stepIds = new Set<string>();
     const orderedStepIds: string[] = [];
@@ -326,6 +350,7 @@ export class RunbookBuilder {
       steps: [...this.stepDescriptors],
       knownCases: [...this.cases],
       fallbackAction: this.fallbackAction, // Safe: validated in validate()
+      ...(this.occurrenceWindow !== undefined ? { occurrenceTimeWindow: { ...this.occurrenceWindow } } : {}),
       ...(this.structuredContext !== undefined ? { runbookContext: this.structuredContext } : {}),
       ...(this.cloudPolicy !== undefined ? { cloudExecutionPolicy: this.cloudPolicy } : {}),
       ...(this.analysisDefaultRefs !== undefined ? { analysisDefaults: this.analysisDefaultRefs } : {}),

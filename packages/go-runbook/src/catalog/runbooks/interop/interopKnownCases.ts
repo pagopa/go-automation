@@ -5,6 +5,8 @@
  */
 import type { AnalysisLinkRef, CaseAction, Condition, InteropDownstream, KnownCase } from '../framework.js';
 
+import { anyStepEvidenceMatches } from '../common/evidenceConditions.js';
+
 /** Per-runbook references needed to build INTEROP known cases. */
 export interface InteropKnownCaseRefs {
   readonly applicationLogsStepId: string;
@@ -66,13 +68,7 @@ export function interopKnownCase(refs: InteropKnownCaseRefs, config: InteropKnow
  * @returns An `or` condition over both query steps
  */
 export function anyInteropEvidenceMatches(refs: InteropKnownCaseRefs, regex: string): Condition {
-  return {
-    type: 'or',
-    conditions: [
-      { type: 'contains', ref: `steps.${refs.applicationLogsStepId}`, regex },
-      { type: 'contains', ref: `steps.${refs.cidTrackerStepId}`, regex },
-    ],
-  };
+  return anyStepEvidenceMatches([refs.applicationLogsStepId, refs.cidTrackerStepId], regex);
 }
 
 /**

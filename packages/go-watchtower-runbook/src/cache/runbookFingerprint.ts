@@ -10,7 +10,7 @@
 import { createHash } from 'node:crypto';
 
 import { Core } from '@go-automation/go-common';
-import { RUNBOOK_REGISTRY, DEFAULT_TIME_WINDOW_MINUTES } from '@go-automation/go-runbook/catalog';
+import { RUNBOOK_REGISTRY, resolveOccurrenceTimeWindow } from '@go-automation/go-runbook/catalog';
 import type { Runbook } from '@go-automation/go-runbook';
 
 import type { RunbookCacheDescriptor } from './RunbookCacheDescriptor.js';
@@ -21,7 +21,7 @@ import type { CachedRunbookMeta } from './CachedRunbookMeta.js';
  * (e.g. after a change to the fingerprint inputs or a `go-runbook` upgrade whose
  * effect is not otherwise captured by the structural hash).
  */
-const CACHE_FINGERPRINT_VERSION = 2;
+const CACHE_FINGERPRINT_VERSION = 3;
 
 /** `RunbookOutput` schema version this build expects; mismatch ⇒ cache miss. */
 const EXPECTED_OUTPUT_SCHEMA_VERSION = '1.0.0';
@@ -53,6 +53,7 @@ export function resolveRunbookCacheDescriptor(alarmName: string): RunbookCacheDe
     id: runbook.metadata.id,
     version: runbook.metadata.version,
     hash: hashRunbookDefinition(runbook),
+    occurrenceTimeWindow: { ...resolveOccurrenceTimeWindow(runbook) },
   };
 }
 
@@ -83,7 +84,7 @@ export function buildCacheMeta(
     awsRegion,
     awsProfiles: [...awsProfiles].sort((a, b) => a.localeCompare(b)),
     firedAt,
-    windowMinutes: DEFAULT_TIME_WINDOW_MINUTES,
+    occurrenceTimeWindow: { ...descriptor.occurrenceTimeWindow },
   };
 }
 

@@ -33,6 +33,7 @@ export type { RunbookContext } from './types/RunbookContext.js';
 export type { RunbookExecutionResult } from './types/RunbookExecutionResult.js';
 export type { RunbookExecutionStatus } from './types/RunbookExecutionStatus.js';
 export type { Runbook } from './types/Runbook.js';
+export type { OccurrenceTimeWindow } from './types/OccurrenceTimeWindow.js';
 export type { CloudExecutionPolicy } from './types/CloudExecutionPolicy.js';
 export type { KnownCase } from './types/KnownCase.js';
 export type { KnownCaseAnalysis } from './types/KnownCaseAnalysis.js';

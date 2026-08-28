@@ -7,7 +7,12 @@ import type { CachedRunbookMeta } from '../CachedRunbookMeta.js';
 import type { RunbookCacheDescriptor } from '../RunbookCacheDescriptor.js';
 import { buildCacheMeta, computeFingerprint, resolveRunbookCacheDescriptor } from '../runbookFingerprint.js';
 
-const descriptor: RunbookCacheDescriptor = { id: 'r', version: '1.0.0', hash: 'h0' };
+const descriptor: RunbookCacheDescriptor = {
+  id: 'r',
+  version: '1.0.0',
+  hash: 'h0',
+  occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 5 },
+};
 const awsAccountId = '170533023216';
 const awsRegion = 'eu-south-1';
 
@@ -31,7 +36,7 @@ describe('runbookFingerprint', () => {
     assert.equal(meta.awsAccountId, awsAccountId);
     assert.equal(meta.awsRegion, awsRegion);
     assert.equal(meta.firedAt, '2026-01-01T00:00:00Z');
-    assert.equal(typeof meta.windowMinutes, 'number');
+    assert.deepEqual(meta.occurrenceTimeWindow, { beforeMinutes: 5, afterMinutes: 5 });
   });
 
   it('computeFingerprint is deterministic and profile-order-insensitive', () => {
@@ -46,6 +51,10 @@ describe('runbookFingerprint', () => {
     assert.notEqual(base, computeFingerprint(cacheMeta({ ...descriptor, hash: 'h1' })));
     assert.notEqual(base, computeFingerprint(cacheMeta({ ...descriptor, version: '2.0.0' })));
     assert.notEqual(base, computeFingerprint(cacheMeta({ ...descriptor, id: 'other' })));
+    assert.notEqual(
+      base,
+      computeFingerprint(cacheMeta({ ...descriptor, occurrenceTimeWindow: { beforeMinutes: 10, afterMinutes: 5 } })),
+    );
     assert.notEqual(base, computeFingerprint(cacheMeta(descriptor, ['a', 'c'])));
     assert.notEqual(base, computeFingerprint(cacheMeta(descriptor, ['a'], 'T2')));
     assert.notEqual(base, computeFingerprint(cacheMeta(descriptor, ['a'], 'T', '123456789012')));
@@ -60,6 +69,8 @@ describe('runbookFingerprint', () => {
     if (resolved === undefined) throw new Error('expected a descriptor for a registered alarm');
     assert.ok(resolved.id.length > 0);
     assert.match(resolved.hash, /^[0-9a-f]{64}$/);
+    assert.ok(Number.isFinite(resolved.occurrenceTimeWindow.beforeMinutes));
+    assert.ok(Number.isFinite(resolved.occurrenceTimeWindow.afterMinutes));
     // Rebuilding the same runbook yields the same structural hash.
     assert.equal(resolveRunbookCacheDescriptor(known)?.hash, resolved.hash);
   });

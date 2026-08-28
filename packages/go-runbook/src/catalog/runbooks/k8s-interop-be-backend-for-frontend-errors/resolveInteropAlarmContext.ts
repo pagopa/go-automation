@@ -7,7 +7,7 @@ import { INTEROP_ENVIRONMENTS, isInteropEnvironment } from '../interop/InteropEn
 export const INTEROP_BFF_RUNBOOK_KEY: string = 'k8s-interop-be-backend-for-frontend-errors';
 export const INTEROP_BFF_SERVICE_NAME: string = 'interop-be-backend-for-frontend';
 export const INTEROP_BFF_VAR_PREFIX: string = 'interopBff';
-export const INTEROP_BFF_STATIC_LOG_GROUP: string = '/aws/eks/interop-eks-cluster-<environment>/application';
+export const INTEROP_BFF_STATIC_LOG_GROUP: string = interop.k8s.INTEROP_K8S_APPLICATION_LOG_GROUP_TEMPLATE;
 
 export const INTEROP_BFF_ALARM_NAMES: readonly [string, ...string[]] = INTEROP_ENVIRONMENTS.map(
   (environment) => `${INTEROP_BFF_RUNBOOK_KEY}-${environment}`,

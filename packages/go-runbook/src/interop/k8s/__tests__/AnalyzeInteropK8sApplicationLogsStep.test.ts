@@ -51,9 +51,74 @@ describe('AnalyzeInteropK8sApplicationLogsStep', () => {
 
     assert.strictEqual(result.success, true);
     assert.deepStrictEqual(result.output?.cids, ['cid-1', 'cid-2']);
-    assert.strictEqual(result.output?.rowsWithoutCidCount, 1);
+    assert.strictEqual(result.output?.logsWithoutCidCount, 1);
     assert.strictEqual(result.vars?.['interopBffCidCount'], '2');
-    assert.strictEqual(result.vars?.['interopBffRowsWithoutCidCount'], '1');
+    assert.strictEqual(result.vars?.['interopBffLogsWithoutCidCount'], '1');
+    assert.strictEqual(result.vars?.['interopBffRowsWithoutCidCount'], undefined);
     assert.strictEqual(result.vars?.['interopBffAnalysisCompleted'], 'true');
+  });
+
+  it('uses aggregate counts and errorMessage when a query groups application logs', async () => {
+    const step = new AnalyzeInteropK8sApplicationLogsStep({
+      id: 'analyze',
+      label: 'Analyze',
+      fromStep: 'query',
+      varPrefix: 'interopAuth',
+      countField: 'count',
+    });
+
+    const result = await step.execute(
+      context([
+        [
+          'query',
+          [
+            row([
+              ['count', '7'],
+              ['cid', 'cid-1'],
+              ['errorMessage', 'aggregated warning'],
+            ]),
+            row([
+              ['count', '3'],
+              ['errorMessage', 'warning without cid'],
+            ]),
+          ],
+        ],
+      ]),
+    );
+
+    assert.strictEqual(result.output?.logCount, 10);
+    assert.strictEqual(result.output?.logsWithoutCidCount, 3);
+    assert.deepStrictEqual(result.output?.representativeMessages, ['aggregated warning', 'warning without cid']);
+    assert.strictEqual(result.vars?.['interopAuthLogCount'], '10');
+    assert.strictEqual(result.vars?.['interopAuthLogsWithoutCidCount'], '3');
+  });
+
+  it('uses errorMessage only as a fallback after the existing message fields', async () => {
+    const step = new AnalyzeInteropK8sApplicationLogsStep({
+      id: 'analyze',
+      label: 'Analyze',
+      fromStep: 'query',
+      varPrefix: 'interopAuth',
+    });
+
+    const result = await step.execute(
+      context([
+        [
+          'query',
+          [
+            row([
+              ['errorMessage', 'aggregated warning'],
+              ['log', 'log warning'],
+              ['message', 'message warning'],
+              ['@message', 'cloudwatch warning'],
+            ]),
+            row([['errorMessage', 'fallback warning']]),
+          ],
+        ],
+      ]),
+    );
+
+    assert.deepStrictEqual(result.output?.representativeMessages, ['cloudwatch warning', 'fallback warning']);
+    assert.strictEqual(result.vars?.['interopAuthErrorMsg'], 'cloudwatch warning');
   });
 });

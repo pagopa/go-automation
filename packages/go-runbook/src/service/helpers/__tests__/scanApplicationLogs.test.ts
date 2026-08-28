@@ -27,6 +27,14 @@ describe('scanApplicationLogs', () => {
     assert.strictEqual(scan.traceIdCandidate?.canonical, CANONICAL);
   });
 
+  it('extracts Root from a compound AWS X-Ray trace header field', () => {
+    const compound = `Self=1-6a1d12ce-111111111111111111111111;Root=${CANONICAL};Parent=0123456789abcdef;Sampled=0`;
+    const scan = scanApplicationLogs([row({ level: 'ERROR', '@message': 'boom', trace_id: compound })], SCHEMA);
+
+    assert.strictEqual(scan.traceIdCandidate?.raw, compound);
+    assert.strictEqual(scan.traceIdCandidate?.canonical, CANONICAL);
+  });
+
   it('extracts an X-Ray trace id present in the message', () => {
     const scan = scanApplicationLogs([row({ level: 'ERROR', '@message': `failed Root=${CANONICAL} end` })], SCHEMA);
 
