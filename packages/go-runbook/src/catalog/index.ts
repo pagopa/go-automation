@@ -5,6 +5,7 @@ export {
   validateCloudRunbookRegistry,
 } from './runbookRegistry.js';
 export type { AutomaticRunbookRegistration, ResolvedAutomaticRunbook, RunbookBuilderFn } from './runbookRegistry.js';
+export type { AutomaticRunbookKind } from '@go-automation/go-execute-runbook-contracts';
 export { executeRunbookForOccurrence } from './executeRunbookForOccurrence.js';
 export type {
   ExecuteRunbookForOccurrenceDeps,

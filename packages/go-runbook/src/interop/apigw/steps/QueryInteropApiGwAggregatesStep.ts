@@ -35,14 +35,22 @@ export class QueryInteropApiGwAggregatesStep implements Step<ReadonlyArray<Reado
   readonly label: string;
   readonly kind: StepKind = 'data';
 
-  private readonly config: QueryInteropApiGwAggregatesStepConfig;
+  private readonly timeRangeFromParams: TimeRangeFromParams;
+  private readonly queryProfileId: string;
+  private readonly queryKind: string;
+  private readonly errorFamilyLabel: string;
+  private readonly buildQuery: BuildInteropApiGwAggregateQueryFn;
   private readonly apiGwIdVar: string;
   private readonly logGroupVar: string;
 
   constructor(config: QueryInteropApiGwAggregatesStepConfig) {
     this.id = config.id;
     this.label = config.label;
-    this.config = config;
+    this.timeRangeFromParams = { ...config.timeRangeFromParams };
+    this.queryProfileId = config.queryProfileId;
+    this.queryKind = config.queryKind;
+    this.errorFamilyLabel = config.errorFamilyLabel;
+    this.buildQuery = config.buildQuery;
     this.apiGwIdVar = config.apiGwIdVar ?? DEFAULT_API_GW_ID_VAR;
     this.logGroupVar = config.logGroupVar ?? DEFAULT_LOG_GROUP_VAR;
   }
@@ -51,15 +59,15 @@ export class QueryInteropApiGwAggregatesStep implements Step<ReadonlyArray<Reado
     const apiGwId = context.vars.get(this.apiGwIdVar);
     const logGroup = context.vars.get(this.logGroupVar);
     return {
-      queryProfileId: this.config.queryProfileId,
-      queryKind: this.config.queryKind,
+      queryProfileId: this.queryProfileId,
+      queryKind: this.queryKind,
       identifierMode: 'api-gateway-id',
       identifiers: { apiGwId: apiGwId ?? null },
-      query: apiGwId === undefined ? '' : this.config.buildQuery(apiGwId),
+      query: apiGwId === undefined ? '' : this.buildQuery(apiGwId),
       logGroups: logGroup === undefined ? [] : [logGroup],
       timeRange: {
-        start: context.params.get(this.config.timeRangeFromParams.start) ?? null,
-        end: context.params.get(this.config.timeRangeFromParams.end) ?? null,
+        start: context.params.get(this.timeRangeFromParams.start) ?? null,
+        end: context.params.get(this.timeRangeFromParams.end) ?? null,
       },
     };
   }
@@ -70,8 +78,8 @@ export class QueryInteropApiGwAggregatesStep implements Step<ReadonlyArray<Reado
     const logGroup = readRequiredVar(context, this.logGroupVar);
     if (logGroup === undefined) return missingVarFailure(this.logGroupVar);
 
-    const query = this.config.buildQuery(apiGwId);
-    const timeRange = resolveTimeRange(context, this.config.timeRangeFromParams);
+    const query = this.buildQuery(apiGwId);
+    const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
     context.logger?.text(`      ├─ Query access log API Gateway INTEROP [apigwId=${apiGwId}]`);
     const result = await context.services.cloudWatchLogs.queryWithStatistics(
       [logGroup],
@@ -79,7 +87,7 @@ export class QueryInteropApiGwAggregatesStep implements Step<ReadonlyArray<Reado
       timeRange,
       buildQueryOptions(context),
     );
-    context.logger?.text(`      └─ Aggregati ${this.config.errorFamilyLabel} trovati: ${result.rows.length}`);
+    context.logger?.text(`      └─ Aggregati ${this.errorFamilyLabel} trovati: ${result.rows.length}`);
 
     return {
       success: true,

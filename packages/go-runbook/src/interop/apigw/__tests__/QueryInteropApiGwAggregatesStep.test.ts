@@ -85,4 +85,53 @@ describe('QueryInteropApiGwAggregatesStep', () => {
       'API Gateway 403 GET /token.oauth2',
     );
   });
+
+  it('snapshots its configuration instead of retaining the caller object', () => {
+    const timeRangeFromParams = { start: 'startTime', end: 'endTime' };
+    const config = {
+      id: 'query',
+      label: 'Query',
+      timeRangeFromParams,
+      queryProfileId: 'profile',
+      queryKind: 'kind',
+      errorFamilyLabel: '4xx',
+      buildQuery: (apiGwId: string) => `original ${apiGwId}`,
+      apiGwIdVar: 'apiGwId',
+      logGroupVar: 'logGroup',
+    };
+    const step = new QueryInteropApiGwAggregatesStep(config);
+
+    config.queryProfileId = 'mutated-profile';
+    config.queryKind = 'mutated-kind';
+    config.buildQuery = (apiGwId: string) => `mutated ${apiGwId}`;
+    config.apiGwIdVar = 'mutatedApiGwId';
+    config.logGroupVar = 'mutatedLogGroup';
+    timeRangeFromParams.start = 'mutatedStartTime';
+
+    const trace = step.getTraceInfo({
+      executionId: 'test',
+      startedAt: new Date('2026-08-24T10:00:00.000Z'),
+      stepResults: new Map(),
+      vars: new Map([
+        ['apiGwId', 'api-id'],
+        ['logGroup', 'access-logs'],
+      ]),
+      params: new Map([
+        ['startTime', '2026-08-24T09:58:00.000Z'],
+        ['endTime', '2026-08-24T10:01:00.000Z'],
+      ]),
+      logs: [],
+      services: {} as ServiceRegistry,
+      recoveredErrors: [],
+    });
+
+    assert.strictEqual(trace['queryProfileId'], 'profile');
+    assert.strictEqual(trace['queryKind'], 'kind');
+    assert.strictEqual(trace['query'], 'original api-id');
+    assert.deepStrictEqual(trace['logGroups'], ['access-logs']);
+    assert.deepStrictEqual(trace['timeRange'], {
+      start: '2026-08-24T09:58:00.000Z',
+      end: '2026-08-24T10:01:00.000Z',
+    });
+  });
 });

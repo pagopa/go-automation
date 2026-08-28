@@ -9,7 +9,7 @@ export interface InteropK8sApplicationLogAnalysis {
   readonly logCount: number;
   readonly cidCount: number;
   readonly cids: ReadonlyArray<string>;
-  readonly rowsWithoutCidCount: number;
+  readonly logsWithoutCidCount: number;
   readonly representativeMessages: ReadonlyArray<string>;
 }
 
@@ -49,7 +49,7 @@ export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sAppl
 
     const cids: string[] = [];
     const seenCids = new Set<string>();
-    let rowsWithoutCidCount = 0;
+    let logsWithoutCidCount = 0;
     let logCount = 0;
     const representativeMessages: string[] = [];
 
@@ -58,7 +58,7 @@ export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sAppl
       logCount += rowCount;
       const cid = extractCid(row);
       if (cid === undefined) {
-        rowsWithoutCidCount += rowCount;
+        logsWithoutCidCount += rowCount;
       } else if (!seenCids.has(cid)) {
         seenCids.add(cid);
         cids.push(cid);
@@ -74,13 +74,13 @@ export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sAppl
       logCount,
       cidCount: cids.length,
       cids,
-      rowsWithoutCidCount,
+      logsWithoutCidCount,
       representativeMessages,
     };
 
     context.logger?.text(`      ├─ Log applicativi analizzati: ${analysis.logCount}`);
     context.logger?.text(`      ├─ CID distinti: ${cids.length}`);
-    context.logger?.text(`      └─ Righe senza CID: ${rowsWithoutCidCount}`);
+    context.logger?.text(`      └─ Log senza CID: ${logsWithoutCidCount}`);
 
     return {
       success: true,
@@ -89,7 +89,7 @@ export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sAppl
         [varName(this.varPrefix, 'LogCount')]: String(analysis.logCount),
         [varName(this.varPrefix, 'CidCount')]: String(analysis.cidCount),
         [varName(this.varPrefix, 'Cids')]: JSON.stringify(analysis.cids),
-        [varName(this.varPrefix, 'RowsWithoutCidCount')]: String(analysis.rowsWithoutCidCount),
+        [varName(this.varPrefix, 'LogsWithoutCidCount')]: String(analysis.logsWithoutCidCount),
         [varName(this.varPrefix, 'ErrorMsg')]: analysis.representativeMessages[0] ?? '',
         [varName(this.varPrefix, 'AnalysisCompleted')]: 'true',
       },

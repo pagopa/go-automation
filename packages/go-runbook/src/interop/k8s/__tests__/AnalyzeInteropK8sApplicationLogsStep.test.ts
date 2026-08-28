@@ -51,9 +51,10 @@ describe('AnalyzeInteropK8sApplicationLogsStep', () => {
 
     assert.strictEqual(result.success, true);
     assert.deepStrictEqual(result.output?.cids, ['cid-1', 'cid-2']);
-    assert.strictEqual(result.output?.rowsWithoutCidCount, 1);
+    assert.strictEqual(result.output?.logsWithoutCidCount, 1);
     assert.strictEqual(result.vars?.['interopBffCidCount'], '2');
-    assert.strictEqual(result.vars?.['interopBffRowsWithoutCidCount'], '1');
+    assert.strictEqual(result.vars?.['interopBffLogsWithoutCidCount'], '1');
+    assert.strictEqual(result.vars?.['interopBffRowsWithoutCidCount'], undefined);
     assert.strictEqual(result.vars?.['interopBffAnalysisCompleted'], 'true');
   });
 
@@ -86,8 +87,9 @@ describe('AnalyzeInteropK8sApplicationLogsStep', () => {
     );
 
     assert.strictEqual(result.output?.logCount, 10);
-    assert.strictEqual(result.output?.rowsWithoutCidCount, 3);
+    assert.strictEqual(result.output?.logsWithoutCidCount, 3);
     assert.deepStrictEqual(result.output?.representativeMessages, ['aggregated warning', 'warning without cid']);
     assert.strictEqual(result.vars?.['interopAuthLogCount'], '10');
+    assert.strictEqual(result.vars?.['interopAuthLogsWithoutCidCount'], '3');
   });
 });

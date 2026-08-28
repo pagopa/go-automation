@@ -9,6 +9,7 @@ export interface InteropAuthServerApiGwAlarmContext extends InteropApiGwAlarmCon
 
 export const INTEROP_AUTH_SERVER_API_GW_RUNBOOK_KEY = 'interop-auth-server-apigw-4xx';
 export const INTEROP_AUTH_SERVER_SERVICE_NAME = 'interop-be-authorization-server-node';
+export const INTEROP_AUTH_SERVER_POD_APP_FILTER = 'interop-be-authorization-server';
 export const INTEROP_AUTH_SERVER_VAR_PREFIX = 'interopAuthServer';
 export const INTEROP_AUTH_SERVER_API_GW_PROFILE_ID = 'interop-api-gateway-auth-server-4xx';
 export const INTEROP_AUTH_SERVER_API_GW_LOG_GROUP_TEMPLATE: string =

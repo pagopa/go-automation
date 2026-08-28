@@ -13,6 +13,7 @@ import {
   INTEROP_AUTH_SERVER_API_GW_PROFILE_ID,
   INTEROP_AUTH_SERVER_API_GW_RUNBOOK_KEY,
   INTEROP_AUTH_SERVER_APPLICATION_LOG_GROUP_TEMPLATE,
+  INTEROP_AUTH_SERVER_POD_APP_FILTER,
   INTEROP_AUTH_SERVER_SERVICE_NAME,
   INTEROP_AUTH_SERVER_VAR_PREFIX,
   resolveInteropAuthServerApiGwAlarmContext,
@@ -96,7 +97,7 @@ export function buildInteropAuthServerApiGw4xxRunbook(): Runbook {
       label: `Query warning applicativi ${INTEROP_AUTH_SERVER_SERVICE_NAME}`,
       timeRangeFromParams: APPLICATION_TIME_RANGE,
       queryProfileId: INTEROP_AUTH_SERVER_WARNINGS_QUERY_PROFILE_ID,
-      buildQuery: buildInteropAuthServerWarningsQuery,
+      buildQuery: () => buildInteropAuthServerWarningsQuery(INTEROP_AUTH_SERVER_POD_APP_FILTER),
     }),
   );
 

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { buildInteropAuthServerApiGw4xxAggregateQuery, buildInteropAuthServerWarningsQuery } from '../queries.js';
+import { INTEROP_AUTH_SERVER_POD_APP_FILTER } from '../resolveInteropAlarmContext.js';
 
 describe('INTEROP auth-server API Gateway queries', () => {
   it('uses the optimized numeric 4xx range and retains the diagnostic dimensions', () => {
@@ -15,9 +16,10 @@ describe('INTEROP auth-server API Gateway queries', () => {
   });
 
   it('filters auth-server warnings, excludes non-causal invalid claims and retains a sample CID', () => {
-    const query = buildInteropAuthServerWarningsQuery('interop-be-authorization-server-node');
+    const query = buildInteropAuthServerWarningsQuery(INTEROP_AUTH_SERVER_POD_APP_FILTER);
 
-    assert.match(query, /pod_app like \/interop\\-be\\-authorization\\-server\\-node\//u);
+    assert.match(query, /pod_app like \/interop\\-be\\-authorization\\-server\//u);
+    assert.doesNotMatch(query, /authorization\\-server\\-node/u);
     assert.match(query, /@message like \/WARN\//u);
     assert.match(query, /@message not like \/Invalid claims in client assertion payload\//u);
     assert.match(query, /latest\(cidValue\) as cid/u);

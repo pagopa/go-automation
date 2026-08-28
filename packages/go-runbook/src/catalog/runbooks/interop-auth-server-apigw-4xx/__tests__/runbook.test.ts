@@ -97,6 +97,8 @@ describe('buildInteropAuthServerApiGw4xxRunbook', () => {
     assert.strictEqual(seen.length, 3);
     assert.strictEqual(seen[0]?.range.end.toISOString(), '2026-08-24T10:01:00.000Z');
     assert.strictEqual(seen[1]?.range.end.toISOString(), '2026-08-24T10:00:00.000Z');
+    assert.match(seen[1]?.query ?? '', /pod_app like \/interop\\-be\\-authorization\\-server\//u);
+    assert.doesNotMatch(seen[1]?.query ?? '', /authorization\\-server\\-node/u);
     assert.strictEqual(seen[2]?.range.end.toISOString(), '2026-08-24T10:01:00.000Z');
   });
 
