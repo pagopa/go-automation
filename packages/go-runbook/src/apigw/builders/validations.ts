@@ -82,6 +82,16 @@ function validateCapabilityParity(config: ApiGwAlarmConfig, profile: ApiGwQueryP
   }
 }
 
+function validateExecutionLogAnalysisMode(config: ApiGwAlarmConfig): void {
+  const mode = config.executionLogAnalysisMode;
+  if (mode !== undefined && mode !== 'terminal' && mode !== 'best-effort') {
+    throw new Error(
+      `createApiGwAlarmRunbook "${config.id}": unsupported executionLogAnalysisMode ` +
+        `'${String(mode)}'. Expected 'terminal' or 'best-effort'.`,
+    );
+  }
+}
+
 /**
  * Calcola l'insieme degli step ID effettivamente cablati nella pipeline
  * dato il config risolto. È deterministico.
@@ -97,7 +107,9 @@ function computeWiredStepIds(config: ApiGwAlarmConfig, profile: ApiGwQueryProfil
 
   if (isExecutionLogEnabled(config, profile)) {
     ids.add('query-api-gw-execution-logs');
-    ids.add('stop-api-gw-execution-log-unresolved');
+    if (config.executionLogAnalysisMode !== 'best-effort') {
+      ids.add('stop-api-gw-execution-log-unresolved');
+    }
   }
 
   ids.add('parse-api-gw-errors');
@@ -154,6 +166,7 @@ function context(config: ApiGwAlarmConfig): AlarmConfigValidationContext {
 export function validateApiGwAlarmConfig(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
   validatePlaceholders(profile);
   validateCapabilityParity(config, profile);
+  validateExecutionLogAnalysisMode(config);
   validateNoStepIdCollisions(config, profile);
   validateKnownCaseStepRefs(config, profile);
 }

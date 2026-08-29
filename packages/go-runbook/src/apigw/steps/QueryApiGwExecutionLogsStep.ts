@@ -17,6 +17,7 @@ import type { ExecutionLogSpec } from '../profiles/specs/ExecutionLogSpec.js';
 import type { AccessLogSchema } from '../profiles/schemas/AccessLogSchema.js';
 import { SEND_API_GW_PROFILE } from '../profiles/SEND_API_GW_PROFILE.js';
 import { renderQueryTemplate } from '../profiles/render/renderQueryTemplate.js';
+import type { ApiGwExecutionLogAnalysisMode } from '../types/ApiGwExecutionLogAnalysisMode.js';
 
 const QUERY_MODE_VAR = 'apiGwExecutionLogMode';
 
@@ -60,6 +61,8 @@ export interface QueryApiGwExecutionLogsConfig {
    * Quando assente, viene usato `spec.maxRequestIds`.
    */
   readonly maxRequestIdsOverride?: number;
+  /** Default `terminal`; see {@link ApiGwExecutionLogAnalysisMode}. */
+  readonly analysisMode?: ApiGwExecutionLogAnalysisMode;
 }
 
 class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
@@ -75,6 +78,7 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
   private readonly accessLogSchema: AccessLogSchema;
   private readonly queryProfileId: string;
   private readonly maxRequestIdsOverride: number | undefined;
+  private readonly analysisMode: ApiGwExecutionLogAnalysisMode;
 
   constructor(config: QueryApiGwExecutionLogsConfig) {
     this.id = config.id;
@@ -90,6 +94,7 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
     this.accessLogSchema = config.accessLogSchema ?? SEND_API_GW_PROFILE.accessLog.schema;
     this.queryProfileId = config.queryProfileId ?? SEND_API_GW_PROFILE.id;
     this.maxRequestIdsOverride = config.maxRequestIdsOverride;
+    this.analysisMode = config.analysisMode ?? 'terminal';
   }
 
   getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
@@ -165,14 +170,15 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
       // di mandare una query che AWS rifiuterebbe.
       const limit = this.maxRequestIdsOverride ?? this.spec.maxRequestIds;
       if (requestIds.length > limit) {
-        return {
-          success: false,
-          error:
-            `Execution log query would combine ${requestIds.length} requestId predicates, ` +
-            `over the limit of ${limit}. ` +
-            'Either reduce the time window, raise `ApiGwAlarmConfig.executionLogMaxRequestIds` ' +
-            'consciously, or split the runbook by sub-path.',
-        };
+        const error =
+          `Execution log query would combine ${requestIds.length} requestId predicates, ` +
+          `over the limit of ${limit}. ` +
+          'Either reduce the time window, raise `ApiGwAlarmConfig.executionLogMaxRequestIds` ' +
+          'consciously, or split the runbook by sub-path.';
+        if (this.analysisMode === 'best-effort') {
+          return this.buildUnavailableResult(accessLogVars, requestIds, error);
+        }
+        return { success: false, error };
       }
 
       reporter?.sectionApiGwExecutionLog();
@@ -182,10 +188,18 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
       const query = this.buildExecutionLogQuery(requestIds);
 
       // V04 (C3/D7): UNA sola chiamata AWS per N requestId, OR-combinati.
-      const queryResult = await executeCloudWatchLogsQuery(context, [this.executionLogGroup], query, timeRange, {
-        ...(context.signal !== undefined ? { signal: context.signal } : {}),
-        logGroupResolutionMode: 'search-configured-profiles',
-      });
+      let queryResult;
+      try {
+        queryResult = await executeCloudWatchLogsQuery(context, [this.executionLogGroup], query, timeRange, {
+          ...(context.signal !== undefined ? { signal: context.signal } : {}),
+          logGroupResolutionMode: 'search-configured-profiles',
+        });
+      } catch (error: unknown) {
+        if (this.analysisMode === 'terminal') throw error;
+        const message = error instanceof Error ? error.message : String(error);
+        reporter?.queryFailed([this.executionLogGroup], message);
+        return this.buildUnavailableResult(accessLogVars, requestIds, message);
+      }
       const rows = queryResult.rows;
 
       // Riassociazione requestId/path per ogni riga restituita. SEND
@@ -217,12 +231,37 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
           apiGwExecutionLogRequestIds: requestIds.map((request) => request.requestId).join(','),
           apiGwExecutionLogPaths: requestIds.map((request) => request.path).join(','),
           apiGwExecutionLogCount: String(output.length),
-          terminationReason: 'api-gw-execution-log-unresolved',
-          lastErrorMsg: buildUnresolvedMessage(requestIds.length),
+          ...(this.analysisMode === 'terminal'
+            ? {
+                terminationReason: 'api-gw-execution-log-unresolved',
+                lastErrorMsg: buildUnresolvedMessage(requestIds.length),
+              }
+            : {}),
         },
         next: 'resolve' as const,
       };
     });
+  }
+
+  private buildUnavailableResult(
+    accessLogVars: Readonly<Record<string, string>>,
+    requestIds: ReadonlyArray<RequestIdWithPath>,
+    reason: string,
+  ): StepResult<ReadonlyArray<ReadonlyArray<ResultField>>> {
+    return {
+      success: true,
+      output: [],
+      vars: {
+        ...accessLogVars,
+        [QUERY_MODE_VAR]: 'unavailable',
+        apiGwExecutionLogGroup: this.executionLogGroup ?? '',
+        apiGwExecutionLogRequestCount: String(requestIds.length),
+        apiGwExecutionLogRequestIds: requestIds.map((request) => request.requestId).join(','),
+        apiGwExecutionLogPaths: requestIds.map((request) => request.path).join(','),
+        apiGwExecutionLogCount: '0',
+        apiGwExecutionLogUnavailableReason: reason,
+      },
+    };
   }
 
   private rowHasApiGwErrorMessage(row: ReadonlyArray<ResultField>): boolean {

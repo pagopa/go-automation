@@ -86,6 +86,15 @@ describe('createApiGwAlarmRunbook', () => {
     ]);
   });
 
+  it('omits the terminal execution-log guard in best-effort mode', () => {
+    const runbook = createApiGwAlarmRunbook(baseConfig({ executionLogAnalysisMode: 'best-effort' }));
+    const stepIds = runbook.steps.map((descriptor) => descriptor.step.id);
+
+    assert.ok(stepIds.includes('query-api-gw-execution-logs'));
+    assert.ok(!stepIds.includes('stop-api-gw-execution-log-unresolved'));
+    assert.ok(stepIds.indexOf('query-api-gw-execution-logs') < stepIds.indexOf('query-pn-a'));
+  });
+
   it('exposes API Gateway runbookContext for output builders', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig());
 

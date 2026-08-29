@@ -25,6 +25,7 @@ import { resolveApiGwAlarmBuildContext } from './resolveApiGwAlarmBuildContext.j
 export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   const ctx = resolveApiGwAlarmBuildContext(config);
   const { profile, minStatus, apiGwQuery, registry, allServices, servicesInRunbook } = ctx;
+  const executionLogAnalysisMode = config.executionLogAnalysisMode ?? 'terminal';
 
   const builder = RunbookBuilder.create(config.id)
     .metadata(config.metadata)
@@ -102,6 +103,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
         accessLogSchema: profile.accessLog.schema,
         queryProfileId: profile.id,
         executionLogGroup: ctx.effectiveExecutionLogGroup,
+        analysisMode: executionLogAnalysisMode,
         ...(config.executionLogMaxRequestIds !== undefined
           ? { maxRequestIdsOverride: config.executionLogMaxRequestIds }
           : {}),
@@ -109,13 +111,15 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
       { silent: true },
     );
 
-    builder.step(
-      stopApiGwExecutionLogAnalysis({
-        id: 'stop-api-gw-execution-log-unresolved',
-        label: 'Stop se execution log API Gateway non determinante',
-      }),
-      { silent: true },
-    );
+    if (executionLogAnalysisMode === 'terminal') {
+      builder.step(
+        stopApiGwExecutionLogAnalysis({
+          id: 'stop-api-gw-execution-log-unresolved',
+          label: 'Stop se execution log API Gateway non determinante',
+        }),
+        { silent: true },
+      );
+    }
   }
 
   // 6. Custom pre-steps.

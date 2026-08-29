@@ -13,6 +13,7 @@ import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { TimeRange } from '../../../types/TimeRange.js';
 
 import { queryApiGwExecutionLogs } from '../QueryApiGwExecutionLogsStep.js';
+import type { ApiGwExecutionLogAnalysisMode } from '../../types/ApiGwExecutionLogAnalysisMode.js';
 
 interface CapturedCall {
   readonly logGroups: ReadonlyArray<string>;
@@ -83,7 +84,10 @@ function captureLogger(): { logger: GOLogger; lines: string[] } {
 }
 
 function createStep(
-  args: { readonly maxRequestIdsOverride?: number } = {},
+  args: {
+    readonly maxRequestIdsOverride?: number;
+    readonly analysisMode?: ApiGwExecutionLogAnalysisMode;
+  } = {},
 ): Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
   return queryApiGwExecutionLogs({
     id: 'query-execution-logs',
@@ -92,6 +96,7 @@ function createStep(
     executionLogGroup: 'API-Gateway-Execution-Logs_test/prod',
     timeRangeFromParams: { start: 'startTime', end: 'endTime' },
     ...(args.maxRequestIdsOverride !== undefined ? { maxRequestIdsOverride: args.maxRequestIdsOverride } : {}),
+    ...(args.analysisMode !== undefined ? { analysisMode: args.analysisMode } : {}),
   });
 }
 
@@ -244,6 +249,59 @@ describe('queryApiGwExecutionLogs', () => {
     assert.strictEqual(result.success, false);
     assert.match(result.error ?? '', /would combine 2 requestId predicates/);
     assert.match(result.error ?? '', /over the limit of 1/);
+    assert.strictEqual(calls.length, 0);
+  });
+
+  it('degrades to unavailable and continues when a best-effort execution-log query fails', async () => {
+    const service = {
+      query: mock.fn(async (): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+        await Promise.resolve();
+        throw new Error('MalformedQueryException: time range exceeds the log retention settings');
+      }),
+    } as unknown as AWSCloudWatchLogsService;
+    const step = createStep({ analysisMode: 'best-effort' });
+
+    const result = await step.execute(
+      createContext({
+        cloudWatchLogs: service,
+        stepOutput: [
+          buildRow({
+            status: '504',
+            errorMessage: 'Endpoint request timed out',
+            requestId: 'req-retained-out',
+            path: '/delivery/v2.3/price/1/2',
+          }),
+        ],
+      }),
+    );
+
+    assert.strictEqual(result.success, true);
+    assert.deepStrictEqual(result.output, []);
+    assert.strictEqual(result.next, undefined);
+    assert.strictEqual(result.vars?.['apiGwExecutionLogMode'], 'unavailable');
+    assert.strictEqual(result.vars?.['apiGwExecutionLogRequestCount'], '1');
+    assert.strictEqual(result.vars?.['apiGwExecutionLogCount'], '0');
+    assert.match(result.vars?.['apiGwExecutionLogUnavailableReason'] ?? '', /retention settings/);
+    assert.strictEqual(result.vars?.['terminationReason'], undefined);
+  });
+
+  it('degrades to unavailable when a best-effort query exceeds the requestId limit', async () => {
+    const { service, calls } = createFakeCwLogs();
+    const step = createStep({ analysisMode: 'best-effort', maxRequestIdsOverride: 1 });
+
+    const result = await step.execute(
+      createContext({
+        cloudWatchLogs: service,
+        stepOutput: [
+          buildRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
+          buildRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/bar' }),
+        ],
+      }),
+    );
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.vars?.['apiGwExecutionLogMode'], 'unavailable');
+    assert.match(result.vars?.['apiGwExecutionLogUnavailableReason'] ?? '', /over the limit of 1/);
     assert.strictEqual(calls.length, 0);
   });
 

@@ -7,6 +7,7 @@ import type { ApiGwService } from './ApiGwService.js';
 import type { KnownUrl } from './KnownUrl.js';
 import type { ApiGwQueryProfile } from '../profiles/ApiGwQueryProfile.js';
 import type { ApiGwAuthorizerLambdaConfig } from '../authorizers/ApiGwAuthorizerLambdaRegistry.js';
+import type { ApiGwExecutionLogAnalysisMode } from './ApiGwExecutionLogAnalysisMode.js';
 
 export interface ApiGwAuthorizerSelectionRule {
   /**
@@ -111,6 +112,13 @@ export interface ApiGwAlarmConfig {
    * 50). Ignorato se la capability executionLog non è attiva.
    */
   readonly executionLogMaxRequestIds?: number;
+  /**
+   * Behaviour of the optional execution-log branch. Default `terminal`
+   * preserves the legacy pipeline. `best-effort` treats execution logs as
+   * enrichment and always falls through to application logs when they are
+   * unavailable or do not identify a known case.
+   */
+  readonly executionLogAnalysisMode?: ApiGwExecutionLogAnalysisMode;
   /** Limite iterazioni anti-loop opzionale forwarded all'engine */
   readonly maxIterations?: number;
 }
