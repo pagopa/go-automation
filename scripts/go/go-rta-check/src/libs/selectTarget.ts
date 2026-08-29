@@ -7,14 +7,22 @@
  * by the scope are resolved silently and skipped on the way back.
  *
  * Watchtower reads are memoized for the whole wizard, so navigating back and
- * forth never repeats a request.
+ * forth never repeats a request. The memoization lives in a session the caller
+ * may keep across runs, which is what makes a second run of the wizard — the
+ * "analizza un altro runbook" loop — start instantly.
  *
  * When prompts are not allowed (see `allowsPrompt`) the wizard never asks: the
  * environment falls back to every environment in scope, while an ambiguous
  * product or runbook aborts with an explicit error instead of hanging.
  */
 import type { Core } from '@go-automation/go-common';
-import type { AlarmDto, AlarmEventsQuery, EnvironmentDto, WatchtowerClient } from '@go-automation/go-watchtower-client';
+import type {
+  AlarmDto,
+  AlarmEventsQuery,
+  EnvironmentDto,
+  ProductDto,
+  WatchtowerClient,
+} from '@go-automation/go-watchtower-client';
 
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
 import type { ProductAlarm } from '../types/ProductAlarm.js';
@@ -29,9 +37,38 @@ import { selectProduct } from './selectProduct.js';
 import type { SelectedProduct } from './selectProduct.js';
 
 /** Everything the analyses mode needs to know before fetching the occurrences. */
-interface SelectedTarget {
+export interface SelectedTarget {
   readonly target: ProductAlarm;
   readonly environment: ResolvedEnvironment;
+  /** State to hand back to `selectTarget` to pick another runbook of the same product. */
+  readonly resume: TargetWizardResume;
+}
+
+/**
+ * Selection to restart the wizard from, skipping the steps already answered.
+ *
+ * The `interactive` flags travel with it because they decide where "indietro"
+ * leads: a step resolved silently (single candidate, pinned by flag) is not a
+ * destination the user could act on.
+ */
+export interface TargetWizardResume {
+  readonly product: SelectedProduct;
+  readonly productInteractive: boolean;
+  readonly environment: ResolvedEnvironment;
+  readonly environmentInteractive: boolean;
+}
+
+/** Watchtower reads memoized across every run of the wizard. */
+export interface TargetWizardSession extends AlarmReader, EnvironmentReader {
+  listProducts(): Promise<ReadonlyArray<ProductDto>>;
+}
+
+/** Optional inputs that turn a fresh wizard into a resumed one. */
+export interface SelectTargetOptions {
+  /** Memoized reads to reuse; a private session is created when absent. */
+  readonly session?: TargetWizardSession;
+  /** Product and environment to keep, jumping straight to the runbook step. */
+  readonly resume?: TargetWizardResume;
 }
 
 /**
@@ -54,6 +91,7 @@ type WizardStepName = 'PRODUCT' | 'ENVIRONMENT' | 'ALARM';
  * @param client - Authenticated Watchtower client
  * @param config - Validated script configuration
  * @param allowPrompt - Whether the wizard may ask (see `allowsPrompt`)
+ * @param options - Memoized session and resume point, when the wizard is run again
  * @returns The selection, or why it could not be completed — every stop has
  *   already been logged by the step that caused it
  */
@@ -62,18 +100,21 @@ export async function selectTarget(
   client: WatchtowerClient,
   config: GoRtaCheckConfig,
   allowPrompt: boolean,
+  options: SelectTargetOptions = {},
 ): Promise<TargetSelection> {
   const scope = parseScopeTargets(config);
-  const reader = memoizedReader(client);
-  const products = await client.listProducts();
+  const reader = options.session ?? createTargetWizardSession(client);
+  const resume = options.resume;
 
-  let step: WizardStepName = 'PRODUCT';
-  let product: SelectedProductState | undefined;
-  let environment: SelectedEnvironmentState | undefined;
+  let step: WizardStepName = resume === undefined ? 'PRODUCT' : 'ALARM';
+  let product: SelectedProductState | undefined =
+    resume === undefined ? undefined : { value: resume.product, interactive: resume.productInteractive };
+  let environment: SelectedEnvironmentState | undefined =
+    resume === undefined ? undefined : { value: resume.environment, interactive: resume.environmentInteractive };
 
   for (;;) {
     if (step === 'PRODUCT') {
-      const result = await selectProduct(script, products, scope, config, allowPrompt);
+      const result = await selectProduct(script, await reader.listProducts(), scope, config, allowPrompt);
       if (result.kind !== 'VALUE') return stopped(result);
       product = { value: result.value, interactive: result.interactive };
       step = 'ENVIRONMENT';
@@ -117,7 +158,17 @@ export async function selectTarget(
       step = environment.interactive ? 'ENVIRONMENT' : 'PRODUCT';
       continue;
     }
-    return { kind: 'VALUE', target: result.value, environment: environment.value };
+    return {
+      kind: 'VALUE',
+      target: result.value,
+      environment: environment.value,
+      resume: {
+        product: product.value,
+        productInteractive: product.interactive,
+        environment: environment.value,
+        environmentInteractive: environment.interactive,
+      },
+    };
   }
 }
 
@@ -139,13 +190,28 @@ interface SelectedEnvironmentState {
 /** Deferred read whose result is memoized by the wizard. */
 type LoadFn<T> = () => Promise<T>;
 
-/** Memoizes the reads issued by the wizard so going back never re-queries Watchtower. */
-function memoizedReader(client: WatchtowerClient): AlarmReader & EnvironmentReader {
+/**
+ * Creates the memoized reads shared by the wizard, so neither going back nor
+ * running the wizard again ever re-queries Watchtower.
+ *
+ * @param client - Authenticated Watchtower client
+ * @returns A session to pass to `selectTarget` through `options.session`
+ *
+ * @example
+ * ```typescript
+ * const session = createTargetWizardSession(client);
+ * const first = await selectTarget(script, client, config, true, { session });
+ * const second = await selectTarget(script, client, config, true, { session });
+ * ```
+ */
+export function createTargetWizardSession(client: WatchtowerClient): TargetWizardSession {
+  const products = new Map<string, Promise<ReadonlyArray<ProductDto>>>();
   const environments = new Map<string, Promise<ReadonlyArray<EnvironmentDto>>>();
   const alarms = new Map<string, Promise<ReadonlyArray<AlarmDto>>>();
   const counts = new Map<string, Promise<number>>();
 
   return {
+    listProducts: async () => await memoize(products, '', async () => await client.listProducts()),
     listProductEnvironments: async (productId: string) =>
       await memoize(environments, productId, async () => await client.listProductEnvironments(productId)),
     listProductAlarms: async (productId: string) =>

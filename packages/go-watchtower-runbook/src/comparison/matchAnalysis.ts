@@ -151,7 +151,7 @@ export function matchAnalysis(
     };
   }
 
-  const evidence = extractAnalysisEvidence(analysis);
+  const evidence = extractAnalysisEvidence(analysis, firedAt);
   const excerpt = pickOccurrenceExcerpt(analysis, firedAt);
   const caseMessage = runbookCaseMessage(output);
   const caseDescription = check.primaryCaseDescription ?? '';

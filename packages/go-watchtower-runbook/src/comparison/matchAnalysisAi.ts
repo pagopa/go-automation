@@ -47,7 +47,7 @@ function runbookSemanticText(output: RunbookOutput, check: RunbookCheck): string
 function analysisSemanticText(analysis: AlarmAnalysisDto, firedAt: string): string {
   const excerpt = pickOccurrenceExcerpt(analysis, firedAt).trim();
   if (excerpt !== '') return excerpt;
-  return extractAnalysisEvidence(analysis).text.trim();
+  return extractAnalysisEvidence(analysis, firedAt).text.trim();
 }
 
 function aiStatus(result: GOSemanticMatchResult, threshold: number): V2Status {

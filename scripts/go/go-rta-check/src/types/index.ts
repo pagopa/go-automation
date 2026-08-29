@@ -1,4 +1,5 @@
 export type { GoRtaCheckConfig } from './GoRtaCheckConfig.js';
+export type { NextRunChoice } from './NextRunChoice.js';
 export type { ProductAlarm } from './ProductAlarm.js';
 export type { ResolvedEnvironment } from './ResolvedEnvironment.js';
 export type { ScopeTarget } from './ScopeTarget.js';

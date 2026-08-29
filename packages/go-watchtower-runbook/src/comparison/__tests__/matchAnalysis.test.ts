@@ -59,6 +59,45 @@ describe('matchAnalysis', () => {
     assert.deepStrictEqual(result.signals.traceIdOverlap, ['r1']);
   });
 
+  it('treats a timezone-less tracking timestamp as UTC occurrence evidence', () => {
+    const linked = analysis({
+      conclusionNotes: 'Fallback aggregato',
+      trackingIds: [
+        {
+          traceId: 'r1',
+          timestamp: '2026-01-01T00:00:30',
+          errorCode: '500',
+          errorDetail: 'Timeout vicino all’occorrenza',
+        },
+      ],
+    });
+    const result = matchAnalysis(outputWithRequestId('r1'), HIT, linked, NOW, OPTIONS);
+
+    assert.strictEqual(result.status, 'MATCH_EXACT');
+    assert.strictEqual(result.analysisExcerpt, '500 — Timeout vicino all’occorrenza');
+  });
+
+  it('does not use a trackingId from another occurrence as deterministic evidence', () => {
+    const linked = analysis({
+      conclusionNotes: 'Timeout runtime della Lambda',
+      linkedEventsCount: 2,
+      occurrences: 2,
+      trackingIds: [
+        {
+          traceId: 'r1',
+          timestamp: '2026-01-01T06:00:00Z',
+          errorCode: '500',
+          errorDetail: 'Errore appartenente a un’altra occorrenza',
+        },
+      ],
+    });
+    const result = matchAnalysis(outputWithRequestId('r1'), HIT, linked, NOW, OPTIONS);
+
+    assert.notStrictEqual(result.status, 'MATCH_EXACT');
+    assert.deepStrictEqual(result.signals.traceIdOverlap, []);
+    assert.strictEqual(result.analysisExcerpt, 'Timeout runtime della Lambda');
+  });
+
   it('IGNORED with the reason code for an IGNORABLE analysis by default', () => {
     const ignorable = analysis({
       analysisType: 'IGNORABLE',

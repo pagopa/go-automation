@@ -78,6 +78,8 @@ Anche `analyses` usa la stessa scala, sulla distinzione **«non ho potuto» vs �
 | `0`       | Run completata; oppure stop deliberato: `--dry-run`, conferma negata, wizard annullato dall'utente, nessuna occorrenza nel periodo.                                           |
 | `2`       | Run non eseguibile: opzioni non valide, connessione/credenziali Watchtower, selezione impossibile (scope, id inesistenti, valore ambiguo senza prompt), profili AWS mancanti. |
 
+Quando una sessione interattiva analizza più runbook di seguito (vedi [Analizzare più runbook](#analizzare-più-runbook-nella-stessa-sessione)) **vince l'esito peggiore**: un `2` al primo runbook non viene cancellato da una run successiva andata a buon fine.
+
 Un'eccezione non gestita resta gestita da GOScript e continua a uscire diversa da zero.
 
 ```bash
@@ -200,6 +202,25 @@ Il risultato ordina la lista: prima i runbook che sono scattati (più occorrenze
 
 Selezionando `Tutti gli ambienti`: se lo scope del prodotto è aperto non viene applicato alcun filtro; se `targets` lo restringe, il filtro è la lista degli ambienti in scope (che vale sia per il conteggio sia per l'esecuzione).
 
+### Analizzare più runbook nella stessa sessione
+
+Al termine di ogni run lo script **non esce**: chiede cosa fare, perché rivedere più runbook di fila è il caso d'uso normale e rifare login e selezione ogni volta è tempo sprecato.
+
+| Voce                                          | Effetto                                                                          |
+| --------------------------------------------- | -------------------------------------------------------------------------------- |
+| `Analizza un altro runbook di <prodotto>`     | Torna al passo **Runbook**, mantenendo prodotto e ambiente già scelti.           |
+| `Analizza un runbook di un altro prodotto`    | Riparte dal passo **Prodotto**, cioè dal menù iniziale.                          |
+| `Esci`                                        | Chiude la sessione con l'exit code accumulato.                                   |
+
+Dettagli del comportamento:
+
+- Login Watchtower e letture già fatte (prodotti, ambienti, allarmi, conteggi) sono **riusati**: il giro successivo parte immediato. I conteggi delle occorrenze restano quelli della sessione, non vengono rinfrescati.
+- Il **periodo viene richiesto di nuovo** a ogni run, così si può cambiare finestra senza uscire; se è fissato con `--date-from` / `--date-to` resta quello.
+- `Analizza un runbook di un altro prodotto` compare **solo se il prodotto era stato scelto davvero**: con un solo prodotto in scope o con `--product-id` la voce sarebbe un giro a vuoto.
+- La sessione si ferma da sola quando un altro giro non potrebbe funzionare (profili AWS mancanti) e quando il wizard viene annullato.
+- Anche una run che si è fermata da sola (`--dry-run`, conferma negata, nessuna occorrenza) offre il menù: è il momento in cui si vuole provare un altro runbook o un altro periodo.
+- Il menù **non compare mai** in [modalità non interattiva](#modalità-non-interattiva-ci) né con `--alarm-name` fissato: una domanda senza risposta bloccherebbe il processo, e con il runbook fissato ogni giro sarebbe identico al precedente.
+
 ### Modalità non interattiva (CI)
 
 Il wizard **non chiede mai** quando vale una di queste condizioni:
@@ -298,5 +319,5 @@ Per non ripagare ogni volta le query CloudWatch, l'esito del **runbook (V1)** di
 - **Ambiente**: opzionale. Con `--environment-id` (o selezione interattiva) filtri le occorrenze di quell'ambiente; **se omesso** vengono analizzati tutti gli ambienti del prodotto — o, se `targets` restringe il prodotto, tutti quelli in scope. In [modalità non interattiva](#modalità-non-interattiva-ci) l'omissione = tutti, senza prompt.
 - **Scope e selezione**: `targets` è il confine operativo, e vale anche per i flag: `--product-id` / `--environment-id` vengono risolti al suo interno e falliscono se ne escono; `--alarm-name` deve esistere nel prodotto e avere un runbook locale. Ogni valore fissato salta il passo corrispondente del wizard. Dettagli in [Scope dei target](#scope-dei-target-targets) e [Selezione interattiva](#selezione-interattiva-prodotto--ambiente--runbook).
 - **Resume / cache**: i risultati per occorrenza sono cache-ati; `--force` riesegue e sovrascrive. Dettagli, motivazioni e trabocchetti nella sezione [Cache (resume)](#cache-resume).
-- **Output**: `data/go-rta-check/outputs/<run>/` con `results.json`, `summary.json`, `report.html`.
+- **Output**: `data/go-rta-check/outputs/<run>/<NN-nome-allarme>/` con `results.json`, `summary.json`, `report.html`. La sottocartella numerata tiene separati gli artifact dei runbook analizzati nella stessa sessione, che altrimenti si sovrascriverebbero.
 - La V2 è **assistita** (mai un verdetto secco): mostra sempre i segnali e va validata a mano.
