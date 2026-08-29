@@ -120,7 +120,12 @@ export async function matchAnalysisAi(
   options: MatchAnalysisAiOptions,
 ): Promise<AnalysisMatch> {
   const lexical = matchAnalysis(output, check, analysis, firedAt, options);
-  if (analysis === undefined || lexical.status === 'NOT_LINKED' || lexical.status === 'NOT_ANALYZED') {
+  if (
+    analysis === undefined ||
+    lexical.status === 'NOT_LINKED' ||
+    lexical.status === 'IGNORED' ||
+    lexical.status === 'NOT_ANALYZED'
+  ) {
     return withAiNotApplicable(lexical);
   }
   if (check.status !== 'HIT' || check.primaryCaseId === undefined) {

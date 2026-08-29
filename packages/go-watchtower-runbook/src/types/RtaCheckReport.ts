@@ -10,7 +10,14 @@ export type V1Status = Exclude<RunbookCheckStatus, 'NO_RUNBOOK'>;
 
 /** V2 (analysis agreement) outcome for one occurrence. */
 export type V2Status =
-  'MATCH_EXACT' | 'MATCH_STRONG' | 'MATCH_WEAK' | 'NO_EVIDENCE' | 'CONFLICT' | 'NOT_LINKED' | 'NOT_ANALYZED';
+  | 'MATCH_EXACT'
+  | 'MATCH_STRONG'
+  | 'MATCH_WEAK'
+  | 'NO_EVIDENCE'
+  | 'CONFLICT'
+  | 'NOT_LINKED'
+  | 'IGNORED'
+  | 'NOT_ANALYZED';
 
 /** Engine used for the V2 comparison. */
 export type AnalysisMatcherKind = 'lexical' | 'ai';
@@ -53,6 +60,10 @@ export interface AnalysisMatch {
   readonly semanticExplanation?: string;
   /** Reference text from the analysis (trackingEntry or aggregate), for side-by-side. */
   readonly analysisExcerpt?: string;
+  /** Watchtower ignore-reason code, set when `status` is `IGNORED`. */
+  readonly ignoreReasonCode?: string;
+  /** Human-readable ignore-reason label, set when `status` is `IGNORED`. */
+  readonly ignoreReasonLabel?: string;
 }
 
 /** Occurrence event info embedded in a row. */
@@ -115,7 +126,7 @@ export interface RtaCheckInput {
 
 /** Full machine-readable report. */
 export interface RtaCheckReport {
-  readonly schemaVersion: '1.0.0';
+  readonly schemaVersion: '1.1.0';
   readonly generatedAt: string;
   readonly input: RtaCheckInput;
   readonly summary: RtaCheckSummary;

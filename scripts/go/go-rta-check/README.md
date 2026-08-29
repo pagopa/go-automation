@@ -5,7 +5,7 @@ Confronta l'esecuzione dei **runbook** di `go-analyze-alarm` con le **analisi Wa
 Per ogni occorrenza esegue **due verifiche**:
 
 - **V1 — copertura runbook** (deterministica): `HIT` / `MISS` / `NO-DATA` / `CONFIG-ERROR` / `EXECUTION-ERROR`.
-- **V2 — coerenza con l'analisi** (assistita): `MATCH_EXACT` / `MATCH_STRONG` / `MATCH_WEAK` / `NO_EVIDENCE` / `CONFLICT` / `NOT_LINKED` / `NOT_ANALYZED`, con segnali e motivazioni (incl. overlap `traceId`/`requestId`). Di default usa GO-AI `semantic-match`; `--analysis-matcher lexical` forza il matcher lessicale storico.
+- **V2 — coerenza con l'analisi** (assistita): `MATCH_EXACT` / `MATCH_STRONG` / `MATCH_WEAK` / `NO_EVIDENCE` / `CONFLICT` / `NOT_LINKED` / `IGNORED` / `NOT_ANALYZED`, con segnali e motivazioni (incl. overlap `traceId`/`requestId`). Di default usa GO-AI `semantic-match`; `--analysis-matcher lexical` forza il matcher lessicale storico.
 
 ### Significato degli stati
 
@@ -23,15 +23,23 @@ Per ogni occorrenza esegue **due verifiche**:
 
 **V2 — Verifica (coerenza con l'analisi Watchtower, assistita)**
 
-| Verifica       | Significato                                                                                                             |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `MATCH_EXACT`  | `traceId`/`requestId` in comune, oppure id/descrizione del caso citati nell'analisi.                                    |
-| `MATCH_STRONG` | Segnali forti concordi (downstream / keyword / descrizione), score alto.                                                |
-| `MATCH_WEAK`   | Solo segnali deboli concordi.                                                                                           |
-| `NO_EVIDENCE`  | Analisi collegata ma testo insufficiente/non correlabile, **oppure** il runbook non ha rilevato un caso da confrontare. |
-| `CONFLICT`     | Categoria d'errore divergente, oppure GO-AI segnala una divergenza semantica forte con score molto basso.               |
-| `NOT_LINKED`   | Occorrenza **senza analisi** collegata.                                                                                 |
-| `NOT_ANALYZED` | Analisi `IGNORABLE` o non `COMPLETED` → non usata come oracolo (salvo `--include-ignorable` / `--include-incomplete`).  |
+| Verifica       | Significato                                                                                                                                                                                                      |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MATCH_EXACT`  | `traceId`/`requestId` in comune, oppure id/descrizione del caso citati nell'analisi.                                                                                                                             |
+| `MATCH_STRONG` | Segnali forti concordi (downstream / keyword / descrizione), score alto.                                                                                                                                         |
+| `MATCH_WEAK`   | Solo segnali deboli concordi.                                                                                                                                                                                    |
+| `NO_EVIDENCE`  | Analisi collegata ma testo insufficiente/non correlabile, **oppure** il runbook non ha rilevato un caso da confrontare.                                                                                          |
+| `CONFLICT`     | Categoria d'errore divergente, oppure GO-AI segnala una divergenza semantica forte con score molto basso.                                                                                                        |
+| `NOT_LINKED`   | Occorrenza **senza analisi** collegata.                                                                                                                                                                          |
+| `IGNORED`      | Analisi collegata e classificata `IGNORABLE`: esiste, ma non è usata come oracolo (salvo `--include-ignorable`). La cella "Verifica" riporta tra parentesi il codice del motivo, es. `IGNORED (FALSE_POSITIVE)`. |
+| `NOT_ANALYZED` | Analisi collegata ma non ancora `COMPLETED` → non usata come oracolo (salvo `--include-incomplete`).                                                                                                             |
+
+> `IGNORED` e `NOT_ANALYZED` distinguono due situazioni diverse: nel primo caso
+> l'analisi **c'è ed è conclusa** (l'occorrenza è stata deliberatamente marcata
+> come ignorabile), nel secondo l'analisi è ancora in lavorazione. Il codice tra
+> parentesi è `ignoreReasonCode` di Watchtower; se assente si ricade sulla label
+> leggibile del motivo. Per queste righe il suffisso del matcher viene omesso:
+> nessun confronto è stato eseguito.
 
 Vedi `docs/evolutions/EVO-RTACHECK-OPUS-02.md` per il design completo.
 

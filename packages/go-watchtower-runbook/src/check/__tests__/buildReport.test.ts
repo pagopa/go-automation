@@ -52,4 +52,15 @@ describe('buildSummary', () => {
     assert.strictEqual(summary.analysisCompatibility.MATCH_EXACT, 1);
     assert.strictEqual(summary.analysisCompatibility.NOT_LINKED, 2);
   });
+
+  it('counts IGNORED separately from NOT_ANALYZED', () => {
+    const summary = buildSummary([
+      makeRow('HIT', 'IGNORED', 'a1'),
+      makeRow('HIT', 'IGNORED', 'a2'),
+      makeRow('HIT', 'NOT_ANALYZED', 'a3'),
+    ]);
+
+    assert.strictEqual(summary.analysisCompatibility.IGNORED, 2);
+    assert.strictEqual(summary.analysisCompatibility.NOT_ANALYZED, 1);
+  });
 });

@@ -59,10 +59,74 @@ describe('matchAnalysis', () => {
     assert.deepStrictEqual(result.signals.traceIdOverlap, ['r1']);
   });
 
-  it('NOT_ANALYZED for an IGNORABLE analysis by default', () => {
+  it('IGNORED with the reason code for an IGNORABLE analysis by default', () => {
+    const ignorable = analysis({
+      analysisType: 'IGNORABLE',
+      ignoreReasonCode: 'FALSE_POSITIVE',
+      ignoreReason: {
+        code: 'FALSE_POSITIVE',
+        description: null,
+        detailsSchema: null,
+        label: 'Falso positivo',
+        sortOrder: 1,
+      },
+    });
+    const result = matchAnalysis(outputWithRequestId('r1'), HIT, ignorable, NOW, OPTIONS);
+
+    assert.strictEqual(result.status, 'IGNORED');
+    assert.strictEqual(result.ignoreReasonCode, 'FALSE_POSITIVE');
+    assert.strictEqual(result.ignoreReasonLabel, 'Falso positivo');
+    assert.match(result.reasons[0] ?? '', /FALSE_POSITIVE \(Falso positivo\)/);
+  });
+
+  it('IGNORED falls back to the nested ignoreReason code when the flat one is null', () => {
+    const ignorable = analysis({
+      analysisType: 'IGNORABLE',
+      ignoreReasonCode: null,
+      ignoreReason: {
+        code: 'MAINTENANCE',
+        description: null,
+        detailsSchema: null,
+        label: 'Manutenzione programmata',
+        sortOrder: 2,
+      },
+    });
+    const result = matchAnalysis(outputWithRequestId('r1'), HIT, ignorable, NOW, OPTIONS);
+
+    assert.strictEqual(result.status, 'IGNORED');
+    assert.strictEqual(result.ignoreReasonCode, 'MAINTENANCE');
+  });
+
+  it('IGNORED without a reason when the analysis carries none', () => {
     const ignorable = analysis({ analysisType: 'IGNORABLE' });
     const result = matchAnalysis(outputWithRequestId('r1'), HIT, ignorable, NOW, OPTIONS);
+
+    assert.strictEqual(result.status, 'IGNORED');
+    assert.strictEqual(result.ignoreReasonCode, undefined);
+    assert.strictEqual(result.ignoreReasonLabel, undefined);
+  });
+
+  it('does not ignore the analysis when includeIgnorable is set', () => {
+    const ignorable = analysis({
+      analysisType: 'IGNORABLE',
+      ignoreReasonCode: 'FALSE_POSITIVE',
+      trackingIds: [{ traceId: 'r1', timestamp: NOW }],
+    });
+    const result = matchAnalysis(outputWithRequestId('r1'), HIT, ignorable, NOW, {
+      ...OPTIONS,
+      includeIgnorable: true,
+    });
+
+    assert.strictEqual(result.status, 'MATCH_EXACT');
+  });
+
+  it('NOT_ANALYZED stays reserved for analyses that are not COMPLETED', () => {
+    const pending = analysis({ status: 'IN_PROGRESS' });
+    const result = matchAnalysis(outputWithRequestId('r1'), HIT, pending, NOW, OPTIONS);
+
     assert.strictEqual(result.status, 'NOT_ANALYZED');
+    assert.strictEqual(result.ignoreReasonCode, undefined);
+    assert.match(result.reasons[0] ?? '', /IN_PROGRESS/);
   });
 
   it('NO_EVIDENCE when the runbook did not match a case', () => {
