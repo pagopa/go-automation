@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { GOLogger } from '@go-automation/go-common/core';
 
 import { ActionExecutor } from '../ActionExecutor.js';
-import { UNKNOWN_CASE_PREFIX, unknownCaseFallback } from '../unknownCaseFallback.js';
+import { renderLogActionText, UNKNOWN_CASE_PREFIX } from '../renderLogAction.js';
+import { unknownCaseFallback } from '../unknownCaseFallback.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 
 function contextWith(vars: ReadonlyMap<string, string>): RunbookContext {
@@ -36,12 +37,16 @@ async function renderedRows(
 }
 
 describe('unknownCaseFallback', () => {
-  it('emits the prefix the executor keys off, so the caller never spells it', () => {
+  it('declares the rendering mode the marker follows from, never the marker itself', () => {
     const action = unknownCaseFallback('Titolo.', [['Campo', 'valore']]);
     assert.strictEqual(action.type, 'log');
-    assert.ok(action.type === 'log' && action.message.startsWith(`${UNKNOWN_CASE_PREFIX} Titolo.`));
-    assert.ok(action.type === 'log' && action.renderAs === 'unknown-case');
-    assert.ok(action.type === 'log' && action.level === 'warn');
+    assert.strictEqual(action.renderAs, 'unknown-case');
+    assert.strictEqual(action.level, 'warn');
+    // The title carries no marker: the rendering mode is what puts it there.
+    assert.strictEqual(action.title, 'Titolo.');
+
+    const rendered = renderLogActionText(action, { vars: new Map(), params: new Map() });
+    assert.ok(rendered.startsWith(`${UNKNOWN_CASE_PREFIX} Titolo.`));
   });
 
   it('renders the title once, as a single Esito row', async () => {

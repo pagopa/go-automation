@@ -1,5 +1,5 @@
-import { unknownCaseFallback, type UnknownCaseRow } from '../../actions/unknownCaseFallback.js';
-import type { CaseAction } from '../../actions/CaseAction.js';
+import type { CaseAction, LogActionRow } from '../../actions/CaseAction.js';
+import { unknownCaseFallback } from '../../actions/unknownCaseFallback.js';
 import type { LambdaDownstream } from '../types/LambdaDownstream.js';
 
 /**
@@ -10,9 +10,11 @@ import type { LambdaDownstream } from '../types/LambdaDownstream.js';
  * @returns A warning {@link CaseAction}
  */
 export function defaultLambdaUnknownCaseFallback(downstreams: ReadonlyArray<LambdaDownstream>): CaseAction {
-  const downstreamRows: ReadonlyArray<UnknownCaseRow> = downstreams.map((downstream) => [
-    downstream.name,
-    `msg={{vars.${downstream.varPrefix}ErrorMsg}}; logCount={{vars.${downstream.varPrefix}LogCount}}`,
+  // One row per aspect: a single compound row would survive the
+  // unavailable-row filter even when every part of it is missing.
+  const downstreamRows: ReadonlyArray<LogActionRow> = downstreams.flatMap((downstream) => [
+    [`${downstream.name} — errore`, `{{vars.${downstream.varPrefix}ErrorMsg}}`],
+    [`${downstream.name} — log`, `{{vars.${downstream.varPrefix}LogCount}}`],
   ]);
 
   return unknownCaseFallback("Impossibile identificare univocamente la causa dell'errore.", [

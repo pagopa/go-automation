@@ -1,5 +1,5 @@
-import { unknownCaseFallback, type UnknownCaseRow } from '../../actions/unknownCaseFallback.js';
-import type { CaseAction } from '../../actions/CaseAction.js';
+import type { CaseAction, LogActionRow } from '../../actions/CaseAction.js';
+import { unknownCaseFallback } from '../../actions/unknownCaseFallback.js';
 import type { ApiGwService } from '../types/ApiGwService.js';
 
 /**
@@ -16,11 +16,12 @@ export function defaultUnknownCaseFallback(
   traceIdContextVar: string,
   traceIdLabel: string,
 ): CaseAction {
-  const serviceRows: ReadonlyArray<UnknownCaseRow> = services.map((service) => [
-    service.name,
-    `msg={{vars.${service.varPrefix}ErrorMsg}}; ` +
-      `url={{vars.${service.varPrefix}NextUrl}}; ` +
-      `target={{vars.${service.varPrefix}NextUrlTarget}}`,
+  // One row per aspect: a single compound row would survive the
+  // unavailable-row filter even when every part of it is missing.
+  const serviceRows: ReadonlyArray<LogActionRow> = services.flatMap((service) => [
+    [`${service.name} — errore`, `{{vars.${service.varPrefix}ErrorMsg}}`],
+    [`${service.name} — url`, `{{vars.${service.varPrefix}NextUrl}}`],
+    [`${service.name} — target`, `{{vars.${service.varPrefix}NextUrlTarget}}`],
   ]);
 
   return unknownCaseFallback("Impossibile identificare univocamente la causa dell'errore.", [

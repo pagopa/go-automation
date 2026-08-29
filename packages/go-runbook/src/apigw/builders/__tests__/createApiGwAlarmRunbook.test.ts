@@ -223,23 +223,26 @@ describe('createApiGwAlarmRunbook', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig());
     assert.strictEqual(runbook.fallbackAction.type, 'log');
     if (runbook.fallbackAction.type === 'log') {
-      assert.match(runbook.fallbackAction.message, /^\[CASO NON RICONOSCIUTO\]/);
-      assert.match(runbook.fallbackAction.message, /Errori API Gateway: \{\{vars\.apiGwErrorCount\}\}/);
-      assert.match(runbook.fallbackAction.message, /X-Ray Trace ID: \{\{vars\.xRayTraceId\}\}/);
-      assert.match(runbook.fallbackAction.message, /pn-a: msg=\{\{vars\.aErrorMsg\}\}; url=/);
-      assert.match(runbook.fallbackAction.message, /pn-b: msg=\{\{vars\.bErrorMsg\}\}; url=/);
+      assert.strictEqual(runbook.fallbackAction.renderAs, 'unknown-case');
+      const rows = new Map(runbook.fallbackAction.details?.map(([label, value]) => [label, value]));
+      assert.strictEqual(rows.get('Errori API Gateway'), '{{vars.apiGwErrorCount}}');
+      assert.strictEqual(rows.get('X-Ray Trace ID'), '{{vars.xRayTraceId}}');
+      // One row per aspect, so a missing value drops just that row.
+      assert.strictEqual(rows.get('pn-a — errore'), '{{vars.aErrorMsg}}');
+      assert.strictEqual(rows.get('pn-b — errore'), '{{vars.bErrorMsg}}');
+      assert.strictEqual(rows.get('pn-b — target'), '{{vars.bNextUrlTarget}}');
     }
   });
 
   it('honours a custom fallback action', () => {
     const runbook = createApiGwAlarmRunbook(
       baseConfig({
-        fallbackAction: { type: 'log', level: 'error', message: 'custom' },
+        fallbackAction: { type: 'log', level: 'error', title: 'custom' },
       }),
     );
     assert.strictEqual(runbook.fallbackAction.type, 'log');
     if (runbook.fallbackAction.type === 'log') {
-      assert.strictEqual(runbook.fallbackAction.message, 'custom');
+      assert.strictEqual(runbook.fallbackAction.title, 'custom');
     }
   });
 
@@ -249,7 +252,7 @@ describe('createApiGwAlarmRunbook', () => {
       description: 'demo case',
       priority: 1,
       condition: { type: 'exists', ref: 'vars.foo' },
-      action: { type: 'log', level: 'info', message: 'hit' },
+      action: { type: 'log', level: 'info', title: 'hit' },
     };
     const runbook = createApiGwAlarmRunbook(baseConfig({ knownCases: [knownCase], maxIterations: 42 }));
     assert.strictEqual(runbook.knownCases.length, 1);
@@ -264,14 +267,14 @@ describe('createApiGwAlarmRunbook', () => {
         description: 'Primary matching case',
         priority: 20,
         condition: { type: 'compare', ref: 'vars.aNextUrlTarget', operator: '==', value: 'pn-b' },
-        action: { type: 'log', level: 'info', message: 'primary' },
+        action: { type: 'log', level: 'info', title: 'primary' },
       },
       {
         id: 'secondary',
         description: 'Secondary matching case',
         priority: 10,
         condition: { type: 'compare', ref: 'vars.aNextUrlTarget', operator: '==', value: 'pn-b' },
-        action: { type: 'log', level: 'info', message: 'secondary' },
+        action: { type: 'log', level: 'info', title: 'secondary' },
       },
     ];
     const calls: string[] = [];
@@ -445,7 +448,7 @@ describe('createApiGwAlarmRunbook', () => {
           ref: 'steps.query-api-gw-execution-logs',
           regex: 'ExecutionKnownFailure',
         },
-        action: { type: 'log', level: 'info', message: '[CASO NOTO] execution known failure' },
+        action: { type: 'log', level: 'info', title: '[CASO NOTO] execution known failure' },
       },
     ];
     const calls: { readonly logGroup: string; readonly query: string }[] = [];

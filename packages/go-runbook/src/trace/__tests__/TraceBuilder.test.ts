@@ -20,7 +20,7 @@ const RUNBOOK: Runbook = {
   },
   steps: [],
   knownCases: [],
-  fallbackAction: { type: 'log', level: 'warn', message: 'fallback' },
+  fallbackAction: { type: 'log', level: 'warn', title: 'fallback' },
 };
 
 const ENV: ExecutionEnvironment = {

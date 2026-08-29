@@ -15,9 +15,7 @@ import { sumCloudWatchLogsQueryStatistics, type AWSCloudWatchLogsQueryStatistics
 import { emptyRunbookOutputContext } from './RunbookOutputContext.js';
 import { buildAnalysisDraft } from './buildAnalysisDraft.js';
 import { interpolatePlaceholders } from '../core/templatePlaceholders.js';
-import { UNKNOWN_CASE_PREFIX } from '../actions/unknownCaseFallback.js';
-
-const UNAVAILABLE_VALUE = 'non disponibile';
+import { renderLogActionText } from '../actions/renderLogAction.js';
 
 export interface BuildRunbookOutputOptions {
   readonly traceFile?: string;
@@ -233,14 +231,10 @@ function resolvedActionMessage(
 function resolveActionMessage(action: CaseAction, result: RunbookExecutionResult): string | undefined {
   switch (action.type) {
     case 'log':
-      return interpolatePlaceholders(
-        action.message,
-        {
-          vars: result.finalContext.vars,
-          params: result.finalContext.params,
-        },
-        interpolationOptionsFor(action.message),
-      );
+      return renderLogActionText(action, {
+        vars: result.finalContext.vars,
+        params: result.finalContext.params,
+      });
     case 'notify':
       return interpolatePlaceholders(action.template, {
         vars: result.finalContext.vars,
@@ -259,8 +253,4 @@ function resolveActionMessage(action: CaseAction, result: RunbookExecutionResult
       throw new Error(`Unknown action type: ${(_exhaustive as CaseAction).type}`);
     }
   }
-}
-
-function interpolationOptionsFor(template: string): { readonly missingValue?: string } {
-  return template.trimStart().startsWith(UNKNOWN_CASE_PREFIX) ? { missingValue: UNAVAILABLE_VALUE } : {};
 }

@@ -28,7 +28,7 @@ describe('RunbookBuilder', () => {
       })
       .cloudExecutionPolicy({ sideEffects: 'NONE' })
       .step(step)
-      .fallback(logAction({ level: 'info', message: 'done' }))
+      .fallback(logAction({ level: 'info', title: 'done' }))
       .build();
 
     assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
@@ -46,7 +46,7 @@ describe('RunbookBuilder', () => {
       })
       .occurrenceTimeWindow({ beforeMinutes: 10, afterMinutes: 5 })
       .step(step)
-      .fallback(logAction({ level: 'info', message: 'done' }))
+      .fallback(logAction({ level: 'info', title: 'done' }))
       .build();
 
     assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 10, afterMinutes: 5 });
@@ -64,7 +64,7 @@ describe('RunbookBuilder', () => {
       })
       .occurrenceTimeWindow({ beforeMinutes: -1, afterMinutes: 5 })
       .step(step)
-      .fallback(logAction({ level: 'info', message: 'done' }));
+      .fallback(logAction({ level: 'info', title: 'done' }));
 
     assert.throws(() => builder.build(), /Invalid occurrenceTimeWindow\.beforeMinutes/);
   });

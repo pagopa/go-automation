@@ -40,7 +40,7 @@ export class TraceBuilder {
   private static readonly defaultActionTrace: ActionTrace = {
     executed: false,
     actionType: 'fallback',
-    actionDetail: { type: 'log', level: 'warn', message: 'Nessuna azione eseguita' },
+    actionDetail: { type: 'log', level: 'warn', title: 'Nessuna azione eseguita' },
     status: 'success',
     durationMs: 0,
   };

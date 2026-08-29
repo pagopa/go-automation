@@ -27,7 +27,7 @@ function createRunbook(withContext: boolean = true): Runbook {
     },
     steps: [],
     knownCases: [],
-    fallbackAction: { type: 'log', level: 'warn', message: 'fallback' },
+    fallbackAction: { type: 'log', level: 'warn', title: 'fallback' },
     ...(withContext
       ? {
           runbookContext: {

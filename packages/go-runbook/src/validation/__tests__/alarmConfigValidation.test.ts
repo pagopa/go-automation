@@ -30,7 +30,7 @@ function knownCase(id: string, ref: string): KnownCase {
     description: id,
     priority: 100,
     condition: { type: 'exists', ref },
-    action: { type: 'log', level: 'info', message: id },
+    action: { type: 'log', level: 'info', title: id },
   };
 }
 

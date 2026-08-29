@@ -97,7 +97,7 @@ describe('createLambdaAlarmRunbook', () => {
                 description: 'd',
                 priority: 1,
                 condition: { type: 'contains', ref: 'steps.query-nope', regex: 'x' },
-                action: { type: 'log', level: 'info', message: 'm' },
+                action: { type: 'log', level: 'info', title: 'm' },
               },
             ],
           }),

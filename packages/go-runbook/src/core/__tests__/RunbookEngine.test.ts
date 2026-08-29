@@ -66,7 +66,7 @@ function emptyServices(): ServiceRegistry {
 }
 
 function createRunbook(steps: ReadonlyArray<StepDescriptor>, knownCases: ReadonlyArray<KnownCase> = []): Runbook {
-  const fallbackAction: CaseAction = { type: 'log', level: 'warn', message: 'fallback' };
+  const fallbackAction: CaseAction = { type: 'log', level: 'warn', title: 'fallback' };
   return {
     metadata: {
       id: 'test-runbook',
@@ -91,7 +91,7 @@ describe('RunbookEngine status handling', () => {
       description: 'Would match only if the runbook completed',
       priority: 10,
       condition: { type: 'compare', ref: 'params.mode', operator: '==', value: 'match' },
-      action: { type: 'log', level: 'info', message: 'matched' },
+      action: { type: 'log', level: 'info', title: 'matched' },
     };
 
     const result = await createEngine().execute(
@@ -177,14 +177,14 @@ describe('RunbookEngine status handling', () => {
         description: 'Secondary case',
         priority: 10,
         condition: { type: 'compare', ref: 'params.mode', operator: '==', value: 'match' },
-        action: { type: 'log', level: 'warn', message: 'secondary action' },
+        action: { type: 'log', level: 'warn', title: 'secondary action' },
       },
       {
         id: 'primary',
         description: 'Primary case',
         priority: 20,
         condition: { type: 'compare', ref: 'params.mode', operator: '==', value: 'match' },
-        action: { type: 'log', level: 'warn', message: 'primary action' },
+        action: { type: 'log', level: 'warn', title: 'primary action' },
       },
     ];
 
@@ -206,7 +206,7 @@ describe('RunbookEngine status handling', () => {
     assert.strictEqual(actionTrace.executed, true);
     assert.strictEqual(actionTrace.actionDetail.type, 'log');
     if (actionTrace.actionDetail.type === 'log') {
-      assert.strictEqual(actionTrace.actionDetail.message, 'primary action');
+      assert.strictEqual(actionTrace.actionDetail.title, 'primary action');
     }
   });
 });

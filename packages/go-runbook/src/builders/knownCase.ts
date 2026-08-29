@@ -1,16 +1,10 @@
-import type { CaseAction } from '../actions/CaseAction.js';
+import type { CaseAction, LogActionRow } from '../actions/CaseAction.js';
 import type { Condition } from '../types/Condition.js';
 import type { KnownCase } from '../types/KnownCase.js';
 import type { KnownCaseAnalysis } from '../types/KnownCaseAnalysis.js';
 
-/** Prefix on which `ActionExecutor` renders a matched case as a table. */
-const KNOWN_CASE_PREFIX = '[CASO NOTO]';
-
 /** Label of the row carrying the resolution, first among the details. */
 const RESOLUTION_LABEL = 'Risoluzione';
-
-/** One `Etichetta: valore` row of the console table; the value may hold `{{vars.x}}`. */
-export type KnownCaseRow = readonly [label: string, value: string];
 
 /**
  * Declarative form of a known case.
@@ -34,7 +28,7 @@ export interface KnownCaseSpec {
   /** What to do about the case. Feeds the console row and the analysis draft. */
   readonly resolution: string;
   /** Evidence rows rendered after the resolution. */
-  readonly details?: ReadonlyArray<KnownCaseRow>;
+  readonly details?: ReadonlyArray<LogActionRow>;
   /** Console severity. Defaults to `info`: a recognised case is not a failure. */
   readonly level?: 'info' | 'warn' | 'error';
   /** Analysis directives, minus the resolution this spec already carries. */
@@ -61,15 +55,12 @@ export interface KnownCaseSpec {
  * ```
  */
 export function knownCase(spec: KnownCaseSpec): KnownCase {
-  const rows: ReadonlyArray<KnownCaseRow> = [[RESOLUTION_LABEL, spec.resolution], ...(spec.details ?? [])];
   const action: CaseAction = {
     type: 'log',
     level: spec.level ?? 'info',
     renderAs: 'known-case',
-    message: [
-      `${KNOWN_CASE_PREFIX} ${spec.title ?? spec.description}`,
-      ...rows.map(([label, value]) => `${label}: ${value}`),
-    ].join('\n'),
+    title: spec.title ?? spec.description,
+    details: [[RESOLUTION_LABEL, spec.resolution], ...(spec.details ?? [])],
   };
 
   return {

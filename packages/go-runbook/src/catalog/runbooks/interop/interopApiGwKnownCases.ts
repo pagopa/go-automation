@@ -97,13 +97,14 @@ function knownCaseAction(refs: InteropApiGwKnownCaseRefs, title: string, resolut
     type: 'log',
     level: 'info',
     renderAs: 'known-case',
-    message:
-      `[CASO NOTO] ${title}\n` +
-      `Risoluzione: ${resolution}\n` +
-      'Ambiente: {{vars.interopEnvironment}}\n' +
-      'API Gateway ID: {{vars.interopApiGwId}}\n' +
-      'Servizio: {{vars.interopPodApp}}\n' +
-      `${refs.applicationLogsLabel}: {{vars.${refs.varPrefix}LogCount}}\n` +
-      `CID analizzati: {{vars.${refs.varPrefix}CidCount}}\n`,
+    title,
+    details: [
+      ['Risoluzione', resolution],
+      ['Ambiente', '{{vars.interopEnvironment}}'],
+      ['API Gateway ID', '{{vars.interopApiGwId}}'],
+      ['Servizio', '{{vars.interopPodApp}}'],
+      [refs.applicationLogsLabel, `{{vars.${refs.varPrefix}LogCount}}`],
+      ['CID analizzati', `{{vars.${refs.varPrefix}CidCount}}`],
+    ],
   };
 }

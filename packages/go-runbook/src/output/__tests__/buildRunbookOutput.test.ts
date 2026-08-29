@@ -13,7 +13,7 @@ import type { StepTrace } from '../../trace/StepTrace.js';
 import type { ServiceRegistry } from '../../services/ServiceRegistry.js';
 import { buildRunbookOutput } from '../buildRunbookOutput.js';
 
-const FALLBACK_ACTION: CaseAction = { type: 'log', level: 'warn', message: 'fallback {{vars.reason}}' };
+const FALLBACK_ACTION: CaseAction = { type: 'log', level: 'warn', title: 'fallback {{vars.reason}}' };
 
 function createRunbook(args: { readonly type?: RunbookType; readonly knownCases?: ReadonlyArray<KnownCase> }): Runbook {
   return {
@@ -122,7 +122,7 @@ function knownCase(): KnownCase {
     description: 'Known case',
     priority: 10,
     condition: { type: 'compare', ref: 'vars.reason', operator: '==', value: 'known' },
-    action: { type: 'log', level: 'info', message: 'known {{vars.reason}}' },
+    action: { type: 'log', level: 'info', title: 'known {{vars.reason}}' },
   };
 }
 

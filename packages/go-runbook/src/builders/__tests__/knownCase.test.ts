@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { renderLogActionText } from '../../actions/renderLogAction.js';
 import { knownCase, type KnownCaseSpec } from '../knownCase.js';
 
 const BASE = {
@@ -12,10 +13,13 @@ const BASE = {
   analysis: { proposedStatus: 'COMPLETED', analysisType: 'ANALYZABLE' },
 } as const;
 
+const EMPTY = { vars: new Map<string, string>(), params: new Map<string, string>() };
+
+/** The action as the operator reads it, placeholders left verbatim. */
 function messageOf(spec: KnownCaseSpec): string {
   const action = knownCase(spec).action;
   assert.strictEqual(action.type, 'log');
-  return action.type === 'log' ? action.message : '';
+  return action.type === 'log' ? renderLogActionText(action, EMPTY) : '';
 }
 
 describe('knownCase', () => {
@@ -55,9 +59,13 @@ describe('knownCase', () => {
     assert.ok(action.type === 'log' && action.level === 'warn');
   });
 
-  it('keeps placeholders verbatim for the executor to resolve', () => {
-    const message = messageOf({ ...BASE, details: [['Errore', '{{vars.fooErrorMsg}}']] });
-    assert.ok(message.includes('Errore: {{vars.fooErrorMsg}}'));
+  it('stores the placeholder as a template, leaving the executor to resolve it per row', () => {
+    const action = knownCase({ ...BASE, details: [['Errore', '{{vars.fooErrorMsg}}']] }).action;
+    assert.ok(action.type === 'log');
+    assert.deepStrictEqual(action.type === 'log' ? action.details?.at(-1) : undefined, [
+      'Errore',
+      '{{vars.fooErrorMsg}}',
+    ]);
   });
 
   it('carries the remaining analysis directives through untouched', () => {

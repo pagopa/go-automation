@@ -91,7 +91,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     },
   }),
 
-  {
+  knownCase({
     id: 'appio-downstream-500',
     description: 'Allarme scattato per un 500 ricevuto da AppIO - Internal Server Error',
     priority: 89,
@@ -104,22 +104,15 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       ref: 'steps.query-pn-external-registries',
       regex: '\\[DOWNSTREAM\\] Service IO returned errors=500 Internal Server Error from (POST|PUT)',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      message:
-        '[CASO NOTO] 500 da AppIO - Internal Server Error\n' +
-        'Risoluzione: Chiusura - caso noto\n' +
-        'Downstream: AppIO\n',
-    },
-
+    title: '500 da AppIO - Internal Server Error',
+    resolution: 'Chiusura - caso noto',
+    details: [['Downstream', 'AppIO']],
     analysis: {
-      resolution: 'Chiusura - caso noto',
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.APP_IO],
     },
-  },
+  }),
 
   // ── AppIO 404: Activation not found ────────────────────────────────────
   knownCase({
