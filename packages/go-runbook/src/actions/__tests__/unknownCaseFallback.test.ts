@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { GOLogger } from '@go-automation/go-common/core';
 
 import { ActionExecutor } from '../ActionExecutor.js';
-import { renderLogActionText, UNKNOWN_CASE_PREFIX } from '../renderLogAction.js';
+import { renderLogActionText } from '../renderLogAction.js';
 import { unknownCaseFallback } from '../unknownCaseFallback.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 
@@ -46,7 +46,7 @@ describe('unknownCaseFallback', () => {
     assert.strictEqual(action.title, 'Titolo.');
 
     const rendered = renderLogActionText(action, { vars: new Map(), params: new Map() });
-    assert.ok(rendered.startsWith(`${UNKNOWN_CASE_PREFIX} Titolo.`));
+    assert.ok(rendered.startsWith('[CASO NON RICONOSCIUTO] Titolo.'));
   });
 
   it('renders the title once, as a single Esito row', async () => {

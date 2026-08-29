@@ -2,10 +2,10 @@ import type { LogAction } from './CaseAction.js';
 import { interpolatePlaceholders } from '../core/templatePlaceholders.js';
 
 /** Marker a matched known case is rendered under. */
-export const KNOWN_CASE_PREFIX = '[CASO NOTO]';
+const KNOWN_CASE_PREFIX = '[CASO NOTO]';
 
 /** Marker an unidentified outcome is rendered under. */
-export const UNKNOWN_CASE_PREFIX = '[CASO NON RICONOSCIUTO]';
+const UNKNOWN_CASE_PREFIX = '[CASO NON RICONOSCIUTO]';
 
 /** Stands in for a placeholder the run never resolved. */
 export const UNAVAILABLE_VALUE = 'non disponibile';
@@ -59,7 +59,7 @@ export function renderLogActionText(action: LogAction, values: LogActionValues):
 }
 
 /** The marker the action's rendering mode puts in front of the title. */
-export function prefixFor(action: LogAction): string | undefined {
+function prefixFor(action: LogAction): string | undefined {
   if (action.renderAs === 'known-case') return KNOWN_CASE_PREFIX;
   if (action.renderAs === 'unknown-case') return UNKNOWN_CASE_PREFIX;
   return undefined;
