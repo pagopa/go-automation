@@ -17,6 +17,7 @@ const DOCUMENTED_MESSAGES: ReadonlyArray<string> = [
   'The group coordinator is not available',
   'Crash: KafkaJSNumberOfRetriesExceeded: The replica is not available for the requested topic-partition',
   'Connection error: read ECONNRESET',
+  'Connection error: read ETIMEDOUT',
 ];
 
 function applicationLogRows(messages: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<LogRowField>> {
