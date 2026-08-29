@@ -3,6 +3,7 @@
  */
 
 import { SEND_DOWNSTREAMS } from '../framework.js';
+import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
 
 const INFOCAMERE_PEC_ENDPOINT = 'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/richiestaElencoPec';
@@ -14,7 +15,7 @@ const INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION =
 
 /** Known InfoCamere failures evaluated against the pn-national-registries downstream query. */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
-  {
+  knownCase({
     id: 'infocamere-richiesta-elenco-pec-read-timeout',
     description: '[DOWNSTREAM InfoCamere] Timeout durante la richiesta elenco PEC',
     priority: 120,
@@ -28,28 +29,22 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/richiestaElencoPec' +
         '[\\s\\S]*io\\.netty\\.handler\\.timeout\\.ReadTimeoutException',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      renderAs: 'known-case',
-      message:
-        '[CASO NOTO] [DOWNSTREAM InfoCamere] Timeout durante la richiesta elenco PEC\n' +
-        `Risoluzione: ${INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION}\n` +
-        'Servizio: pn-national-registries\n' +
-        `Endpoint: ${INFOCAMERE_PEC_ENDPOINT}\n` +
-        'Errore: {{vars.nationalRegistriesErrorMsg}}\n' +
-        'Trace ID: {{vars.nationalRegistriesTraceId}}\n',
-    },
+    resolution: INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION,
+    details: [
+      ['Servizio', 'pn-national-registries'],
+      ['Endpoint', INFOCAMERE_PEC_ENDPOINT],
+      ['Errore', '{{vars.nationalRegistriesErrorMsg}}'],
+      ['Trace ID', '{{vars.nationalRegistriesTraceId}}'],
+    ],
     analysis: {
-      resolution: INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION,
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       errorDetails: `ReadTimeoutException restituita da InfoCamere durante la chiamata POST ${INFOCAMERE_PEC_ENDPOINT}.`,
       downstreams: [SEND_DOWNSTREAMS.RICHIESTA_ELENCO_PEC_INFOCAMERE],
       finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
     },
-  },
-  {
+  }),
+  knownCase({
     id: 'infocamere-authentication-internal-server-error-500',
     description: '[DOWNSTREAM InfoCamere] Errore HTTP 500 durante autenticazione',
     priority: 110,
@@ -60,20 +55,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '\\[DOWNSTREAM\\] Service InfoCamere returned errors=500 Internal Server Error from POST ' +
         'https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/authentication(?:\\?client_id=[^\\s"]*)?',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      renderAs: 'known-case',
-      message:
-        '[CASO NOTO] [DOWNSTREAM InfoCamere] Errore HTTP 500 durante autenticazione\n' +
-        `Risoluzione: ${INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION}\n` +
-        'Servizio: pn-national-registries\n' +
-        `Endpoint: ${INFOCAMERE_AUTHENTICATION_ENDPOINT}\n` +
-        'Errore: {{vars.nationalRegistriesErrorMsg}}\n' +
-        'Trace ID: {{vars.nationalRegistriesTraceId}}\n',
-    },
+    resolution: INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION,
+    details: [
+      ['Servizio', 'pn-national-registries'],
+      ['Endpoint', INFOCAMERE_AUTHENTICATION_ENDPOINT],
+      ['Errore', '{{vars.nationalRegistriesErrorMsg}}'],
+      ['Trace ID', '{{vars.nationalRegistriesTraceId}}'],
+    ],
     analysis: {
-      resolution: INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION,
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       errorDetails:
@@ -82,8 +71,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       downstreams: [SEND_DOWNSTREAMS.INFOCAMERE],
       finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
     },
-  },
-  {
+  }),
+  knownCase({
     id: 'infocamere-connect-timeout',
     description: '[DOWNSTREAM InfoCamere] Timeout di connessione',
     priority: 100,
@@ -94,28 +83,22 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '\\[DOWNSTREAM\\] Service InfoCamere returned errors=finishConnect\\(\\.\\.\\) failed: ' +
         'Connection timed out: icapis\\.infocamere\\.it',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      renderAs: 'known-case',
-      message:
-        '[CASO NOTO] [DOWNSTREAM InfoCamere] Timeout di connessione\n' +
-        `Risoluzione: ${INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION}\n` +
-        'Servizio: pn-national-registries\n' +
-        'Endpoint: icapis.infocamere.it\n' +
-        'Errore: {{vars.nationalRegistriesErrorMsg}}\n' +
-        'Trace ID: {{vars.nationalRegistriesTraceId}}\n',
-    },
+    resolution: INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION,
+    details: [
+      ['Servizio', 'pn-national-registries'],
+      ['Endpoint', 'icapis.infocamere.it'],
+      ['Errore', '{{vars.nationalRegistriesErrorMsg}}'],
+      ['Trace ID', '{{vars.nationalRegistriesTraceId}}'],
+    ],
     analysis: {
-      resolution: INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION,
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       errorDetails: 'Connessione verso icapis.infocamere.it scaduta prima di essere stabilita.',
       downstreams: [SEND_DOWNSTREAMS.INFOCAMERE],
       finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
     },
-  },
-  {
+  }),
+  knownCase({
     id: 'infocamere-connection-reset-by-peer',
     description: '[DOWNSTREAM InfoCamere] Connessione chiusa dal downstream',
     priority: 90,
@@ -126,24 +109,18 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '\\[DOWNSTREAM\\] Service InfoCamere returned errors=recvAddress\\(\\.\\.\\) failed: ' +
         'Connection reset by peer',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      renderAs: 'known-case',
-      message:
-        '[CASO NOTO] [DOWNSTREAM InfoCamere] Connessione chiusa dal downstream\n' +
-        `Risoluzione: ${INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION}\n` +
-        'Servizio: pn-national-registries\n' +
-        'Errore: {{vars.nationalRegistriesErrorMsg}}\n' +
-        'Trace ID: {{vars.nationalRegistriesTraceId}}\n',
-    },
+    resolution: INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION,
+    details: [
+      ['Servizio', 'pn-national-registries'],
+      ['Errore', '{{vars.nationalRegistriesErrorMsg}}'],
+      ['Trace ID', '{{vars.nationalRegistriesTraceId}}'],
+    ],
     analysis: {
-      resolution: INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION,
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       errorDetails: 'Connessione verso InfoCamere interrotta dal peer remoto durante la ricezione.',
       downstreams: [SEND_DOWNSTREAMS.INFOCAMERE],
       finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
     },
-  },
+  }),
 ];

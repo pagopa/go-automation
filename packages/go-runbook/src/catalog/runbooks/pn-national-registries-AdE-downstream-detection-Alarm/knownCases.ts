@@ -3,6 +3,7 @@
  */
 
 import { SEND_DOWNSTREAMS } from '../framework.js';
+import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
 
 const ADE_LEGAL_REPRESENTATIVE_ENDPOINT =
@@ -18,7 +19,7 @@ const TRANSIENT_INTERNAL_SERVER_ERROR_RESOLUTION =
 
 /** Known AdE timeouts evaluated against the pn-national-registries downstream query. */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
-  {
+  knownCase({
     id: 'ade-legal-representative-internal-server-error-500',
     description: '[DOWNSTREAM AdE] HTTP 500 durante la verifica del rappresentante legale',
     priority: 120,
@@ -29,28 +30,22 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '\\[DOWNSTREAM\\] Service AdE returned errors=500 Internal Server Error from POST ' +
         'https://gatewaywebservices\\.agenziaentrate\\.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      renderAs: 'known-case',
-      message:
-        '[CASO NOTO] [DOWNSTREAM AdE] HTTP 500 durante la verifica del rappresentante legale\n' +
-        `Risoluzione: ${TRANSIENT_INTERNAL_SERVER_ERROR_RESOLUTION}\n` +
-        'Servizio: pn-national-registries\n' +
-        `Endpoint: ${ADE_LEGAL_REPRESENTATIVE_ENDPOINT}\n` +
-        'Errore: {{vars.nationalRegistriesErrorMsg}}\n' +
-        'Trace ID: {{vars.nationalRegistriesTraceId}}\n',
-    },
+    resolution: TRANSIENT_INTERNAL_SERVER_ERROR_RESOLUTION,
+    details: [
+      ['Servizio', 'pn-national-registries'],
+      ['Endpoint', ADE_LEGAL_REPRESENTATIVE_ENDPOINT],
+      ['Errore', '{{vars.nationalRegistriesErrorMsg}}'],
+      ['Trace ID', '{{vars.nationalRegistriesTraceId}}'],
+    ],
     analysis: {
-      resolution: TRANSIENT_INTERNAL_SERVER_ERROR_RESOLUTION,
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       errorDetails: `HTTP 500 restituito da AdE durante la chiamata POST ${ADE_LEGAL_REPRESENTATIVE_ENDPOINT}.`,
       downstreams: [SEND_DOWNSTREAMS.VERIFICA_LEGALE_RAPPRESENTANTE_ADE],
       finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
     },
-  },
-  {
+  }),
+  knownCase({
     id: 'ade-legal-representative-read-timeout',
     description: '[DOWNSTREAM AdE] Timeout durante la verifica del rappresentante legale',
     priority: 110,
@@ -62,28 +57,23 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'https://gatewaywebservices\\.agenziaentrate\\.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService' +
         '[\\s\\S]*ReadTimeoutException',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      renderAs: 'known-case',
-      message:
-        '[CASO NOTO] [DOWNSTREAM AdE] Timeout verifica rappresentante legale\n' +
-        `Risoluzione: ${SPORADIC_TIMEOUT_RESOLUTION}\n` +
-        'Servizio: pn-national-registries\n' +
-        `Endpoint: ${ADE_LEGAL_REPRESENTATIVE_ENDPOINT}\n` +
-        'Errore: {{vars.nationalRegistriesErrorMsg}}\n' +
-        'Trace ID: {{vars.nationalRegistriesTraceId}}\n',
-    },
+    title: '[DOWNSTREAM AdE] Timeout verifica rappresentante legale',
+    resolution: SPORADIC_TIMEOUT_RESOLUTION,
+    details: [
+      ['Servizio', 'pn-national-registries'],
+      ['Endpoint', ADE_LEGAL_REPRESENTATIVE_ENDPOINT],
+      ['Errore', '{{vars.nationalRegistriesErrorMsg}}'],
+      ['Trace ID', '{{vars.nationalRegistriesTraceId}}'],
+    ],
     analysis: {
-      resolution: SPORADIC_TIMEOUT_RESOLUTION,
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       errorDetails: `Timeout di lettura restituito da AdE durante la chiamata POST ${ADE_LEGAL_REPRESENTATIVE_ENDPOINT}.`,
       downstreams: [SEND_DOWNSTREAMS.VERIFICA_LEGALE_RAPPRESENTANTE_ADE],
       finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
     },
-  },
-  {
+  }),
+  knownCase({
     id: 'ade-read-timeout',
     description: '[DOWNSTREAM AdE] Timeout di lettura generico',
     priority: 100,
@@ -94,24 +84,19 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '\\[DOWNSTREAM\\] Service AdE returned errors=nested exception is ' +
         'io\\.netty\\.handler\\.timeout\\.ReadTimeoutException',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      renderAs: 'known-case',
-      message:
-        '[CASO NOTO] [DOWNSTREAM AdE] Timeout di lettura\n' +
-        `Risoluzione: ${SPORADIC_TIMEOUT_RESOLUTION}\n` +
-        'Servizio: pn-national-registries\n' +
-        'Errore: {{vars.nationalRegistriesErrorMsg}}\n' +
-        'Trace ID: {{vars.nationalRegistriesTraceId}}\n',
-    },
+    title: '[DOWNSTREAM AdE] Timeout di lettura',
+    resolution: SPORADIC_TIMEOUT_RESOLUTION,
+    details: [
+      ['Servizio', 'pn-national-registries'],
+      ['Errore', '{{vars.nationalRegistriesErrorMsg}}'],
+      ['Trace ID', '{{vars.nationalRegistriesTraceId}}'],
+    ],
     analysis: {
-      resolution: SPORADIC_TIMEOUT_RESOLUTION,
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       errorDetails: 'Timeout di lettura restituito dal downstream Agenzia delle Entrate a pn-national-registries.',
       downstreams: [SEND_DOWNSTREAMS.ADE],
       finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
     },
-  },
+  }),
 ];

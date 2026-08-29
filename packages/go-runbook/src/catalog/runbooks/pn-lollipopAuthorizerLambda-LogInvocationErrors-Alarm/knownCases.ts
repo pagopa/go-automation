@@ -3,6 +3,7 @@
  */
 
 import { lambda, SEND_DOWNSTREAMS } from '../framework.js';
+import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
 
 import { jiraLink, slackLink } from '../common/analysisLinks.js';
@@ -14,7 +15,7 @@ const APP_IO_SLACK =
   'https://pagopaspa.slack.com/archives/C064KJYNLPL/p1779713635239249?thread_ts=1779460059.183959&cid=C064KJYNLPL';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
-  {
+  knownCase({
     id: 'app-io-backend-idp-keys-unavailable',
     description: '[DOWNSTREAM AppIO - backend IO] Timeout o errore nel recupero delle chiavi CIE/SPID',
     priority: 110,
@@ -27,41 +28,27 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         lambdaLogEvidenceMatches('IDP_CERT_DATA_RETRIEVING_ERROR'),
       ],
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      renderAs: 'known-case',
-      message:
-        '[CASO NOTO] [DOWNSTREAM AppIO - backend IO] Recupero chiavi CIE/SPID non disponibile\n' +
-        'requestId: {{vars.lambdaRequestId}}\n' +
-        'Risoluzione: nessuna azione possibile al momento; attendere il ripristino del backend di IO.\n',
-    },
+    title: '[DOWNSTREAM AppIO - backend IO] Recupero chiavi CIE/SPID non disponibile',
+    resolution: 'Nessuna azione possibile al momento; attendere il ripristino del backend di IO.',
+    details: [['requestId', '{{vars.lambdaRequestId}}']],
     analysis: {
-      resolution: 'Nessuna azione possibile al momento; attendere il ripristino del backend di IO.',
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.APP_IO],
       finalActions: ['Attendere il ripristino del backend di IO'],
       links: [slackLink(APP_IO_SLACK, 'Thread Slack 25/05/2026')],
     },
-  },
+  }),
   ...lambda.LAMBDA_RUNTIME_KNOWN_CASES,
-  {
+  knownCase({
     id: 'missing-aws-lambda-trace-data-xray',
     description: 'Falso positivo X-Ray per dati di tracing Lambda mancanti',
     priority: 90,
     condition: lambdaLogEvidenceMatches('Missing AWS Lambda trace data for X-Ray'),
-    action: {
-      type: 'log',
-      level: 'info',
-      renderAs: 'known-case',
-      message:
-        '[CASO NOTO] Missing AWS Lambda trace data for X-Ray\n' +
-        'requestId: {{vars.lambdaRequestId}}\n' +
-        'Risoluzione: nessuna azione; falso positivo causato da librerie Node già rimosse dalle Lambda interessate.\n',
-    },
+    title: 'Missing AWS Lambda trace data for X-Ray',
+    resolution: 'Nessuna azione; falso positivo causato da librerie Node già rimosse dalle Lambda interessate.',
+    details: [['requestId', '{{vars.lambdaRequestId}}']],
     analysis: {
-      resolution: 'Nessuna azione; falso positivo causato da librerie Node già rimosse dalle Lambda interessate.',
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       links: [
@@ -70,8 +57,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         slackLink(XRAY_SLACK_25_MAY, 'Thread Slack 25/05/2026'),
       ],
     },
-  },
-  {
+  }),
+  knownCase({
     id: 'register-it-signature-validation-error',
     description: 'Errore noto di validazione firma per il provider SPID register.it',
     priority: 89,
@@ -82,21 +69,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         lambdaLogEvidenceMatches("entityID:\\s*'https://spid\\.register\\.it'"),
       ],
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      renderAs: 'known-case',
-      message:
-        '[CASO NOTO] Firma non valida per il provider SPID register.it\n' +
-        'requestId: {{vars.lambdaRequestId}}\n' +
-        'Risoluzione: nessuna azione per entityID https://spid.register.it; segnalare il caso se riguarda un provider differente.\n',
-    },
+    title: 'Firma non valida per il provider SPID register.it',
+    resolution:
+      'Nessuna azione per entityID https://spid.register.it; segnalare il caso se riguarda un provider differente.',
+    details: [['requestId', '{{vars.lambdaRequestId}}']],
     analysis: {
-      resolution:
-        'Nessuna azione per entityID https://spid.register.it; segnalare il caso se riguarda un provider differente.',
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       links: [jiraLink('PN-19959')],
     },
-  },
+  }),
 ];

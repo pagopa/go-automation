@@ -4,6 +4,7 @@ export * as lambda from '../../lambda/index.js';
 export * as service from '../../service/index.js';
 
 export { ConditionEvaluator } from '../../core/ConditionEvaluator.js';
+export { knownCase } from '../../builders/knownCase.js';
 export type { CaseAction } from '../../actions/CaseAction.js';
 export type { Condition } from '../../types/Condition.js';
 export type { KnownCase } from '../../types/KnownCase.js';

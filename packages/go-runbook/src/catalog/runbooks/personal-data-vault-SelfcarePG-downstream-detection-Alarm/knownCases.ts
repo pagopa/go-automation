@@ -3,6 +3,7 @@
  */
 
 import type { KnownCase } from '../framework.js';
+import { knownCase } from '../framework.js';
 import { SEND_DOWNSTREAMS } from '../framework.js';
 
 import { slackLink } from '../common/analysisLinks.js';
@@ -15,7 +16,7 @@ const SELFCARE_RECOVERY_RESOLUTION =
 
 /** Known SelfcarePG failures evaluated against the pn-data-vault SEP log group. */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
-  {
+  knownCase({
     id: 'selfcarepg-read-timeout-with-empty-error',
     description: '[DOWNSTREAM SelfcarePG] Timeout di lettura con dettaglio errore vuoto',
     priority: 110,
@@ -35,20 +36,15 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         },
       ],
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      renderAs: 'known-case',
-      message:
-        '[CASO NOTO] [DOWNSTREAM SelfcarePG] Timeout di lettura\n' +
-        `Risoluzione: ${SELFCARE_RECOVERY_RESOLUTION}\n` +
-        'Servizio: pn-data-vault\n' +
-        'Endpoint: api.selfcare.pagopa.it:443\n' +
-        'Errore: {{vars.dataVaultErrorMsg}}\n' +
-        'Trace ID: {{vars.dataVaultTraceId}}\n',
-    },
+    title: '[DOWNSTREAM SelfcarePG] Timeout di lettura',
+    resolution: SELFCARE_RECOVERY_RESOLUTION,
+    details: [
+      ['Servizio', 'pn-data-vault'],
+      ['Endpoint', 'api.selfcare.pagopa.it:443'],
+      ['Errore', '{{vars.dataVaultErrorMsg}}'],
+      ['Trace ID', '{{vars.dataVaultTraceId}}'],
+    ],
     analysis: {
-      resolution: SELFCARE_RECOVERY_RESOLUTION,
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       errorDetails:
@@ -56,8 +52,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       downstreams: [SEND_DOWNSTREAMS.SELFCARE],
       finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
     },
-  },
-  {
+  }),
+  knownCase({
     id: 'selfcarepg-subject-alternative-name-mismatch',
     description: '[DOWNSTREAM SelfcarePG] Certificato non valido per api.selfcare.pagopa.it',
     priority: 100,
@@ -68,19 +64,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         '\\[DOWNSTREAM\\] Service SelfcarePG returned errors=No subject alternative DNS name matching ' +
         'api\\.selfcare\\.pagopa\\.it found',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      renderAs: 'known-case',
-      message:
-        '[CASO NOTO] [DOWNSTREAM SelfcarePG] Errore certificato su api.selfcare.pagopa.it\n' +
-        `Risoluzione: ${SELFCARE_RECOVERY_RESOLUTION}\n` +
-        'Servizio: pn-data-vault\n' +
-        'Errore: {{vars.dataVaultErrorMsg}}\n' +
-        'Trace ID: {{vars.dataVaultTraceId}}\n',
-    },
+    title: '[DOWNSTREAM SelfcarePG] Errore certificato su api.selfcare.pagopa.it',
+    resolution: SELFCARE_RECOVERY_RESOLUTION,
+    details: [
+      ['Servizio', 'pn-data-vault'],
+      ['Errore', '{{vars.dataVaultErrorMsg}}'],
+      ['Trace ID', '{{vars.dataVaultTraceId}}'],
+    ],
     analysis: {
-      resolution: SELFCARE_RECOVERY_RESOLUTION,
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       errorDetails:
@@ -89,5 +80,5 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
       links: [slackLink(SELFCARE_INCIDENT_URL, 'Thread Slack del disservizio SelfcarePG')],
     },
-  },
+  }),
 ];

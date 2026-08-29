@@ -3,10 +3,11 @@
  */
 
 import type { KnownCase } from '../framework.js';
+import { knownCase } from '../framework.js';
 import { SEND_DOWNSTREAMS } from '../framework.js';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
-  {
+  knownCase({
     id: 'execution-failed-configuration-error',
     description: 'Allarme',
     priority: 101,
@@ -15,21 +16,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       ref: 'steps.query-api-gw-execution-logs',
       regex: 'Execution failed due to configuration error',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      message:
-        '[CASO NOTO] [EXECUTION LOG] Execution failed due to configuration error\n' +
-        'Risoluzione: Chiusura - caso noto\n',
-    },
-
+    title: '[EXECUTION LOG] Execution failed due to configuration error',
+    resolution: 'Chiusura - caso noto',
     analysis: {
-      resolution: 'Chiusura - caso noto',
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
     },
-  },
-  {
+  }),
+  knownCase({
     id: 'downstream-pdv-500-internal-server-error',
     description: 'Allarme',
     priority: 100,
@@ -38,20 +32,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       ref: 'steps.query-pn-data-vault',
       regex: '\\[DOWNSTREAM\\] Service PersonalDataVault_UserRegistry returned errors=500 Internal Server Error',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      message:
-        '[CASO NOTO] [DOWNSTREAM] Service PersonalDataVault_UserRegistry returned errors=500 Internal Server Error\n' +
-        'Risoluzione: Chiusura - caso noto\n' +
-        'Downstream: PersonalDataVault\n',
-    },
-
+    title: '[DOWNSTREAM] Service PersonalDataVault_UserRegistry returned errors=500 Internal Server Error',
+    resolution: 'Chiusura - caso noto',
+    details: [['Downstream', 'PersonalDataVault']],
     analysis: {
-      resolution: 'Chiusura - caso noto',
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.PERSONAL_DATA_VAULT],
     },
-  },
+  }),
 ];

@@ -3,6 +3,7 @@
  */
 
 import type { KnownCase } from '../framework.js';
+import { knownCase } from '../framework.js';
 import { SEND_DOWNSTREAMS } from '../framework.js';
 
 const INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION =
@@ -15,7 +16,7 @@ const ANALYSIS_COMPLETED_FINAL_ACTION =
  * first.
  */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
-  {
+  knownCase({
     id: 'downstream-ade-500-verifica-legale-rappresentante',
     description: 'Agenzia Entrate non disponibile durante verifica legale rappresentante',
     priority: 110,
@@ -25,23 +26,16 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       regex:
         '\\[DOWNSTREAM\\] Service AdE returned errors=500 Internal Server Error from POST https://gatewaywebservices\\.agenziaentrate\\.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      message:
-        '[CASO NOTO] [DOWNSTREAM] Service AdE returned errors=500 Internal Server Error\n' +
-        'Risoluzione: Chiusura - caso noto. Downstream Agenzia Entrate in errore durante verifica legale rappresentante.\n' +
-        'Downstream: AdE\n',
-    },
-
+    title: '[DOWNSTREAM] Service AdE returned errors=500 Internal Server Error',
+    resolution: 'Chiusura - caso noto. Downstream Agenzia Entrate in errore durante verifica legale rappresentante.',
+    details: [['Downstream', 'AdE']],
     analysis: {
-      resolution: 'Chiusura - caso noto. Downstream Agenzia Entrate in errore durante verifica legale rappresentante.',
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.ADE],
     },
-  },
-  {
+  }),
+  knownCase({
     id: 'downstream-ade-read-timeout-verifica-legale-rappresentante',
     description: 'Timeout Agenzia Entrate durante verifica legale rappresentante',
     priority: 109,
@@ -64,27 +58,22 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         },
       ],
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      message:
-        '[CASO NOTO] Timeout downstream AdE - VerificaRappresentanteEnteService\n' +
-        'Risoluzione: Chiusura - caso noto. Richiesta scaduta per timeout verso Agenzia Entrate durante verifica legale rappresentante.\n' +
-        'Endpoint: {{vars.apiGwHttpMethod}} {{vars.apiGwPath}}\n' +
-        'Status Code: {{vars.apiGwStatusCode}}\n' +
-        'Error: {{vars.apiGwErrorMessage}}\n' +
-        'Downstream: AdE\n',
-    },
-
+    title: 'Timeout downstream AdE - VerificaRappresentanteEnteService',
+    resolution:
+      'Chiusura - caso noto. Richiesta scaduta per timeout verso Agenzia Entrate durante verifica legale rappresentante.',
+    details: [
+      ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
+      ['Status Code', '{{vars.apiGwStatusCode}}'],
+      ['Error', '{{vars.apiGwErrorMessage}}'],
+      ['Downstream', 'AdE'],
+    ],
     analysis: {
-      resolution:
-        'Chiusura - caso noto. Richiesta scaduta per timeout verso Agenzia Entrate durante verifica legale rappresentante.',
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.ADE],
     },
-  },
-  {
+  }),
+  knownCase({
     id: 'apigw-504-ade-legal-timeout-no-service-logs',
     description: 'Timeout API Gateway su verifica legale rappresentante AdE senza log applicativi correlati',
     priority: 108,
@@ -102,27 +91,22 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         },
       ],
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      message:
-        '[CASO NOTO] API Gateway 504 - Endpoint request timed out su AdE legal\n' +
-        'Risoluzione: Chiusura - caso noto. Timeout API Gateway durante verifica legale rappresentante verso Agenzia Entrate, senza log applicativi correlati nel servizio pn-national-registries.\n' +
-        'Endpoint: {{vars.apiGwHttpMethod}} {{vars.apiGwPath}}\n' +
-        'Status Code: {{vars.apiGwStatusCode}}\n' +
-        'Error: {{vars.apiGwErrorMessage}}\n' +
-        'Downstream: AdE\n',
-    },
-
+    title: 'API Gateway 504 - Endpoint request timed out su AdE legal',
+    resolution:
+      'Chiusura - caso noto. Timeout API Gateway durante verifica legale rappresentante verso Agenzia Entrate, senza log applicativi correlati nel servizio pn-national-registries.',
+    details: [
+      ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
+      ['Status Code', '{{vars.apiGwStatusCode}}'],
+      ['Error', '{{vars.apiGwErrorMessage}}'],
+      ['Downstream', 'AdE'],
+    ],
     analysis: {
-      resolution:
-        'Chiusura - caso noto. Timeout API Gateway durante verifica legale rappresentante verso Agenzia Entrate, senza log applicativi correlati nel servizio pn-national-registries.',
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.ADE],
     },
-  },
-  {
+  }),
+  knownCase({
     id: 'downstream-infocamere-read-timeout-authentication',
     description: 'Timeout InfoCamere durante authentication',
     priority: 107,
@@ -135,26 +119,22 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/authentication' +
         '[\\s\\S]*io\\.netty\\.handler\\.timeout\\.ReadTimeoutException',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      message:
-        '[CASO NOTO] Timeout downstream InfoCamere durante autenticazione\n' +
-        `Risoluzione: ${INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION}\n` +
-        'Endpoint: {{vars.apiGwHttpMethod}} {{vars.apiGwPath}}\n' +
-        'Status Code: {{vars.apiGwStatusCode}}\n' +
-        'Downstream: InfoCamere\n',
-    },
+    title: 'Timeout downstream InfoCamere durante autenticazione',
+    resolution: INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION,
+    details: [
+      ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
+      ['Status Code', '{{vars.apiGwStatusCode}}'],
+      ['Downstream', 'InfoCamere'],
+    ],
     analysis: {
-      resolution: INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION,
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       errorDetails: 'ReadTimeoutException durante la chiamata POST verso l’endpoint di autenticazione InfoCamere.',
       downstreams: [SEND_DOWNSTREAMS.INFOCAMERE],
       finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
     },
-  },
-  {
+  }),
+  knownCase({
     id: 'downstream-infocamere-connection-reset-authentication',
     description: 'Connessione InfoCamere chiusa durante authentication',
     priority: 106,
@@ -166,26 +146,22 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Connection reset by peer[\\s\\S]*Request to POST ' +
         'https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/authentication',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      message:
-        '[CASO NOTO] Connessione downstream InfoCamere chiusa durante autenticazione\n' +
-        `Risoluzione: ${INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION}\n` +
-        'Endpoint: {{vars.apiGwHttpMethod}} {{vars.apiGwPath}}\n' +
-        'Status Code: {{vars.apiGwStatusCode}}\n' +
-        'Downstream: InfoCamere\n',
-    },
+    title: 'Connessione downstream InfoCamere chiusa durante autenticazione',
+    resolution: INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION,
+    details: [
+      ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
+      ['Status Code', '{{vars.apiGwStatusCode}}'],
+      ['Downstream', 'InfoCamere'],
+    ],
     analysis: {
-      resolution: INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION,
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       errorDetails: 'Connessione verso InfoCamere interrotta dal peer remoto durante l’autenticazione.',
       downstreams: [SEND_DOWNSTREAMS.INFOCAMERE],
       finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
     },
-  },
-  {
+  }),
+  knownCase({
     id: 'downstream-infocamere-500-elenco-legale-rappresentante',
     description: 'InfoCamere non disponibile durante elenco legale rappresentante',
     priority: 105,
@@ -195,23 +171,16 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       regex:
         '\\[DOWNSTREAM\\] Service InfoCamere returned errors=500 Internal Server Error from GET https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/listaLegaleRappresentante/',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      message:
-        '[CASO NOTO] [DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error\n' +
-        'Risoluzione: Chiusura - caso noto. Scenario dipendente da problematica del downstream InfoCamere gia segnalata.\n' +
-        'Downstream: InfoCamere\n',
-    },
-
+    title: '[DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error',
+    resolution: 'Chiusura - caso noto. Scenario dipendente da problematica del downstream InfoCamere gia segnalata.',
+    details: [['Downstream', 'InfoCamere']],
     analysis: {
-      resolution: 'Chiusura - caso noto. Scenario dipendente da problematica del downstream InfoCamere gia segnalata.',
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.INFOCAMERE],
     },
-  },
-  {
+  }),
+  knownCase({
     id: 'downstream-infocamere-500-authentication',
     description: 'InfoCamere non disponibile durante authentication',
     priority: 104,
@@ -221,23 +190,16 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       regex:
         '\\[DOWNSTREAM\\] Service InfoCamere returned errors=500 Internal Server Error from POST https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/authentication(?:\\?client_id=[^\\s"]*)?',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      message:
-        '[CASO NOTO] [DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error\n' +
-        'Risoluzione: Chiusura - caso noto. Downstream InfoCamere in errore durante autenticazione.\n' +
-        'Downstream: InfoCamere\n',
-    },
-
+    title: '[DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error',
+    resolution: 'Chiusura - caso noto. Downstream InfoCamere in errore durante autenticazione.',
+    details: [['Downstream', 'InfoCamere']],
     analysis: {
-      resolution: 'Chiusura - caso noto. Downstream InfoCamere in errore durante autenticazione.',
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.INFOCAMERE],
     },
-  },
-  {
+  }),
+  knownCase({
     id: 'apigw-504-infocamere-inad-timeout',
     description: 'Timeout API Gateway su legal-institutions per tempi risposta INAD/InfoCamere',
     priority: 103,
@@ -254,27 +216,22 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         },
       ],
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      message:
-        '[CASO NOTO] API Gateway 504 - Endpoint request timed out su INAD/InfoCamere\n' +
-        "Risoluzione: Chiusura - caso noto. Allarme scattato a causa di richieste scadute per timeout di attesa dal richiedente, a sua volta dovuto agli elevati tempi di risposta da parte di INAD/InfoCamere (v. analisi dell'oncall-pn-national-registries-PNPG-ApiGwLatencyAlarm).\n" +
-        'Endpoint: {{vars.apiGwHttpMethod}} {{vars.apiGwPath}}\n' +
-        'Status Code: {{vars.apiGwStatusCode}}\n' +
-        'Error: {{vars.apiGwErrorMessage}}\n' +
-        'Downstream: INAD/InfoCamere\n',
-    },
-
+    title: 'API Gateway 504 - Endpoint request timed out su INAD/InfoCamere',
+    resolution:
+      "Chiusura - caso noto. Allarme scattato a causa di richieste scadute per timeout di attesa dal richiedente, a sua volta dovuto agli elevati tempi di risposta da parte di INAD/InfoCamere (v. analisi dell'oncall-pn-national-registries-PNPG-ApiGwLatencyAlarm).",
+    details: [
+      ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
+      ['Status Code', '{{vars.apiGwStatusCode}}'],
+      ['Error', '{{vars.apiGwErrorMessage}}'],
+      ['Downstream', 'INAD/InfoCamere'],
+    ],
     analysis: {
-      resolution:
-        "Chiusura - caso noto. Allarme scattato a causa di richieste scadute per timeout di attesa dal richiedente, a sua volta dovuto agli elevati tempi di risposta da parte di INAD/InfoCamere (v. analisi dell'oncall-pn-national-registries-PNPG-ApiGwLatencyAlarm).",
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.INAD, SEND_DOWNSTREAMS.INFOCAMERE],
     },
-  },
-  {
+  }),
+  knownCase({
     id: 'apigw-504-timeout',
     description: 'API Gateway 504 per timeout di risposta dal backend',
     priority: 100,
@@ -289,19 +246,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         },
       ],
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      message:
-        '[CASO NOTO] API Gateway 504 - Execution failed due to a timeout error\n' +
-        'Risoluzione: Nessuna azione necessaria. Timeout transitorio dovuto a ritardo di risposta del backend verso API Gateway.\n',
-    },
-
+    title: 'API Gateway 504 - Execution failed due to a timeout error',
+    resolution:
+      'Nessuna azione necessaria. Timeout transitorio dovuto a ritardo di risposta del backend verso API Gateway.',
     analysis: {
-      resolution:
-        'Nessuna azione necessaria. Timeout transitorio dovuto a ritardo di risposta del backend verso API Gateway.',
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
     },
-  },
+  }),
 ];

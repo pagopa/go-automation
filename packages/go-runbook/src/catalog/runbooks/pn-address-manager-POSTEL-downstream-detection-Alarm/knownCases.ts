@@ -3,6 +3,7 @@
  */
 
 import { SEND_DOWNSTREAMS } from '../framework.js';
+import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
 
 const ANALYSIS_COMPLETED_FINAL_ACTION =
@@ -10,7 +11,7 @@ const ANALYSIS_COMPLETED_FINAL_ACTION =
 
 /** POSTEL case resolved only after every impacted batch is observed in WORKED state. */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
-  {
+  knownCase({
     id: 'postel-all-batches-worked-after-retry',
     description: '[DOWNSTREAM POSTEL] Tutti i batch impattati sono stati recuperati dai retry',
     priority: 100,
@@ -25,23 +26,17 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         { type: 'compare', ref: 'vars.postelAllBatchesWorked', operator: '==', value: 'true' },
       ],
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      renderAs: 'known-case',
-      message:
-        '[CASO NOTO] [DOWNSTREAM POSTEL] Batch recuperati dai retry\n' +
-        'Risoluzione: tutti i batch impattati hanno raggiunto lo stato WORKED; nessuna azione operativa necessaria.\n' +
-        'Servizio: pn-address-manager\n' +
-        'Batch impattati: {{vars.postelImpactedBatchCount}}\n' +
-        'Batch WORKED: {{vars.postelWorkedBatchCount}}\n' +
-        'Batch ID: {{vars.postelImpactedBatchIds}}\n' +
-        'Finestra di verifica fino a: {{vars.postelRecoveryWindowEnd}}\n',
-    },
+    title: '[DOWNSTREAM POSTEL] Batch recuperati dai retry',
+    resolution:
+      'Tutti i {{vars.postelImpactedBatchCount}} batch impattati hanno raggiunto lo stato WORKED tramite retry; nessuna azione operativa necessaria.',
+    details: [
+      ['Servizio', 'pn-address-manager'],
+      ['Batch impattati', '{{vars.postelImpactedBatchCount}}'],
+      ['Batch WORKED', '{{vars.postelWorkedBatchCount}}'],
+      ['Batch ID', '{{vars.postelImpactedBatchIds}}'],
+      ['Finestra di verifica fino a', '{{vars.postelRecoveryWindowEnd}}'],
+    ],
     analysis: {
-      resolution:
-        'Tutti i {{vars.postelImpactedBatchCount}} batch impattati hanno raggiunto lo stato WORKED tramite retry; ' +
-        'nessuna azione operativa necessaria.',
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       errorDetails:
@@ -49,5 +44,5 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       downstreams: [SEND_DOWNSTREAMS.CONSOLIDATORE_POSTALE],
       finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
     },
-  },
+  }),
 ];
