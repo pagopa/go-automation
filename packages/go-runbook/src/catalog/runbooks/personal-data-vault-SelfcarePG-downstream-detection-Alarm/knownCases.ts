@@ -7,6 +7,8 @@ import { knownCase } from '../framework.js';
 import { SEND_DOWNSTREAMS } from '../framework.js';
 
 import { slackLink } from '../common/analysisLinks.js';
+import { all } from '../common/conditions.js';
+import { stepEvidenceMatches } from '../common/evidenceConditions.js';
 
 const SELFCARE_INCIDENT_URL = 'https://pagopaspa.slack.com/archives/C0585442Z39/p1774447095884019';
 const ANALYSIS_COMPLETED_FINAL_ACTION =
@@ -20,22 +22,15 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'selfcarepg-read-timeout-with-empty-error',
     description: '[DOWNSTREAM SelfcarePG] Timeout di lettura con dettaglio errore vuoto',
     priority: 110,
-    condition: {
-      type: 'and',
-      conditions: [
-        {
-          type: 'compare',
-          ref: 'vars.dataVaultErrorMsg',
-          operator: '==',
-          value: '[DOWNSTREAM] Service SelfcarePG returned errors=',
-        },
-        {
-          type: 'contains',
-          ref: 'steps.query-pn-data-vault-trace',
-          regex: 'io\\.netty\\.handler\\.timeout\\.ReadTimeoutException',
-        },
-      ],
-    },
+    condition: all(
+      {
+        type: 'compare',
+        ref: 'vars.dataVaultErrorMsg',
+        operator: '==',
+        value: '[DOWNSTREAM] Service SelfcarePG returned errors=',
+      },
+      stepEvidenceMatches('query-pn-data-vault-trace', 'io\\.netty\\.handler\\.timeout\\.ReadTimeoutException'),
+    ),
     title: '[DOWNSTREAM SelfcarePG] Timeout di lettura',
     resolution: SELFCARE_RECOVERY_RESOLUTION,
     details: [
@@ -57,13 +52,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'selfcarepg-subject-alternative-name-mismatch',
     description: '[DOWNSTREAM SelfcarePG] Certificato non valido per api.selfcare.pagopa.it',
     priority: 100,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-data-vault',
-      regex:
-        '\\[DOWNSTREAM\\] Service SelfcarePG returned errors=No subject alternative DNS name matching ' +
+    condition: stepEvidenceMatches(
+      'query-pn-data-vault',
+
+      '\\[DOWNSTREAM\\] Service SelfcarePG returned errors=No subject alternative DNS name matching ' +
         'api\\.selfcare\\.pagopa\\.it found',
-    },
+    ),
     title: '[DOWNSTREAM SelfcarePG] Errore certificato su api.selfcare.pagopa.it',
     resolution: SELFCARE_RECOVERY_RESOLUTION,
     details: [

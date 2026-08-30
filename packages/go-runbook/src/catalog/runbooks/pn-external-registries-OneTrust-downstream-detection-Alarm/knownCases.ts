@@ -6,6 +6,8 @@ import { SEND_DOWNSTREAMS } from '../framework.js';
 import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
 
+import { stepEvidenceMatches } from '../common/evidenceConditions.js';
+
 const ONE_TRUST_PUBLISHED_VERSION_ENDPOINT =
   'https://app-de.onetrust.com/api/enterprise-policy/v1/privacynotices/{uuid}/published-version';
 const ONE_TRUST_TRANSIENT_FAILURE_RESOLUTION =
@@ -17,13 +19,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'onetrust-read-timeout',
     description: '[DOWNSTREAM OneTrust] Timeout di lettura',
     priority: 110,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-external-registries',
-      regex:
-        '\\[DOWNSTREAM\\] Service OneTrust returned errors=(?:nested exception is )?' +
+    condition: stepEvidenceMatches(
+      'query-pn-external-registries',
+
+      '\\[DOWNSTREAM\\] Service OneTrust returned errors=(?:nested exception is )?' +
         'io\\.netty\\.handler\\.timeout\\.ReadTimeoutException',
-    },
+    ),
     resolution: ONE_TRUST_TRANSIENT_FAILURE_RESOLUTION,
     details: [
       ['Servizio', 'pn-external-registries'],
@@ -41,13 +42,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'onetrust-service-unavailable-503',
     description: '[DOWNSTREAM OneTrust] Servizio temporaneamente non disponibile (HTTP 503)',
     priority: 100,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-external-registries',
-      regex:
-        '\\[DOWNSTREAM\\] Service OneTrust returned errors=503 Service Unavailable from GET ' +
+    condition: stepEvidenceMatches(
+      'query-pn-external-registries',
+
+      '\\[DOWNSTREAM\\] Service OneTrust returned errors=503 Service Unavailable from GET ' +
         'https://app-de\\.onetrust\\.com/api/enterprise-policy/v1/privacynotices/[^/\\s"]+/published-version',
-    },
+    ),
     resolution: ONE_TRUST_TRANSIENT_FAILURE_RESOLUTION,
     details: [
       ['Servizio', 'pn-external-registries'],

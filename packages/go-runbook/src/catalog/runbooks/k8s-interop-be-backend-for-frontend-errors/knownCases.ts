@@ -1,6 +1,7 @@
 import type { KnownCase, KnownCaseAnalysis } from '../framework.js';
 
 import { jiraLink } from '../common/analysisLinks.js';
+import { all } from '../common/conditions.js';
 import type { InteropKnownCaseRefs } from '../interop/interopKnownCases.js';
 import { anyInteropEvidenceMatches, interopKnownCase, interopKnownCaseAction } from '../interop/interopKnownCases.js';
 import { INTEROP_BFF_VAR_PREFIX } from './resolveInteropAlarmContext.js';
@@ -81,13 +82,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'bff-agreement-api-econnreset',
     description: 'ECONNRESET nella chiamata agreement API dal BFF',
     priority: 80,
-    condition: {
-      type: 'and',
-      conditions: [
-        anyInteropEvidenceMatches(REFS, 'errors: 008-9991'),
-        anyInteropEvidenceMatches(REFS, 'read ECONNRESET'),
-      ],
-    },
+    condition: all(
+      anyInteropEvidenceMatches(REFS, 'errors: 008-9991'),
+      anyInteropEvidenceMatches(REFS, 'read ECONNRESET'),
+    ),
     action: interopKnownCaseAction(
       REFS,
       'ECONNRESET nella chiamata agreement API dal BFF',
@@ -100,13 +98,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'purpose-process-unavailable-econnreset',
     description: 'Errore transitorio verso purpose-process',
     priority: 70,
-    condition: {
-      type: 'and',
-      conditions: [
-        anyInteropEvidenceMatches(REFS, 'purpose-process'),
-        anyInteropEvidenceMatches(REFS, 'read ECONNRESET|socket hang up'),
-      ],
-    },
+    condition: all(
+      anyInteropEvidenceMatches(REFS, 'purpose-process'),
+      anyInteropEvidenceMatches(REFS, 'read ECONNRESET|socket hang up'),
+    ),
     action: interopKnownCaseAction(
       REFS,
       'Errore transitorio verso purpose-process',

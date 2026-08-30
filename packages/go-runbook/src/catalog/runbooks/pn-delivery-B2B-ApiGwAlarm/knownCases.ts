@@ -3,10 +3,12 @@
  */
 
 import { SEND_DOWNSTREAMS, knownCase } from '../framework.js';
-import type { Condition, KnownCase } from '../framework.js';
+import type { KnownCase } from '../framework.js';
 
 import { slackLink } from '../common/analysisLinks.js';
+import { all, any, not } from '../common/conditions.js';
 import { stepEvidenceMatches } from '../common/evidenceConditions.js';
+import { apiGwPathMatches, apiGwStatusIs } from '../../../apigw/knownCases/conditions.js';
 
 const SELFCARE_500_THREAD = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1763476967853039';
 const NO_APPLICATION_LOGS_THREAD = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1771856191424399';
@@ -15,22 +17,6 @@ const F24_GONE_THREAD_7_JULY = 'https://pagopaspa.slack.com/archives/C087KRMD16E
 const MISSING_PAYMENT_THREAD_GO = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1779973763295549';
 const MISSING_PAYMENT_THREAD_DELIVERY = 'https://pagopaspa.slack.com/archives/C064KJYNLPL/p1779974451222819';
 const DOCUMENT_INDEX_THREAD = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1786977695806849';
-
-function apiGwStatusIs(status: string): Condition {
-  return { type: 'compare', ref: 'vars.apiGwStatusCode', operator: '==', value: status };
-}
-
-function apiGwPathMatches(regex: string): Condition {
-  return { type: 'pattern', ref: 'vars.apiGwPath', regex };
-}
-
-function all(...conditions: ReadonlyArray<Condition>): Condition {
-  return { type: 'and', conditions };
-}
-
-function any(...conditions: ReadonlyArray<Condition>): Condition {
-  return { type: 'or', conditions };
-}
 
 const EXTERNAL_REGISTRIES_SELFCARE_READ_TIMEOUT = any(
   stepEvidenceMatches(
@@ -389,14 +375,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Error during retrieve of the groups[\\s\\S]*ResourceAccessException:[\\s\\S]*ext-registry-private/pa/v1/groups-all[\\s\\S]*Read timed out',
       ),
       { type: 'exists', ref: 'vars.externalRegistriesLogCount' },
-      {
-        type: 'not',
-        condition: any(
+      not(
+        any(
           EXTERNAL_REGISTRIES_SELFCARE_READ_TIMEOUT,
           EXTERNAL_REGISTRIES_SELFCARE_RETRY_TIMEOUT,
           EXTERNAL_REGISTRIES_CONNECTION_ABORTED,
         ),
-      },
+      ),
     ),
     title: 'pn-delivery - timeout verso pn-external-registries',
     resolution: 'Errore di rete noto; segnalare il caso se si protrae nel tempo.',

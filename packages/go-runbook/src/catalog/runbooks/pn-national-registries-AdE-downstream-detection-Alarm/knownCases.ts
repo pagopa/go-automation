@@ -6,6 +6,8 @@ import { SEND_DOWNSTREAMS } from '../framework.js';
 import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
 
+import { stepEvidenceMatches } from '../common/evidenceConditions.js';
+
 const ADE_LEGAL_REPRESENTATIVE_ENDPOINT =
   'https://gatewaywebservices.agenziaentrate.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService';
 const ANALYSIS_COMPLETED_FINAL_ACTION =
@@ -23,13 +25,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'ade-legal-representative-internal-server-error-500',
     description: '[DOWNSTREAM AdE] HTTP 500 durante la verifica del rappresentante legale',
     priority: 120,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-national-registries',
-      regex:
-        '\\[DOWNSTREAM\\] Service AdE returned errors=500 Internal Server Error from POST ' +
+    condition: stepEvidenceMatches(
+      'query-pn-national-registries',
+
+      '\\[DOWNSTREAM\\] Service AdE returned errors=500 Internal Server Error from POST ' +
         'https://gatewaywebservices\\.agenziaentrate\\.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService',
-    },
+    ),
     resolution: TRANSIENT_INTERNAL_SERVER_ERROR_RESOLUTION,
     details: [
       ['Servizio', 'pn-national-registries'],
@@ -49,14 +50,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'ade-legal-representative-read-timeout',
     description: '[DOWNSTREAM AdE] Timeout durante la verifica del rappresentante legale',
     priority: 110,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-national-registries',
-      regex:
-        '\\[DOWNSTREAM\\] Service AdE returned errors=<not specified>[\\s\\S]*Request to POST ' +
+    condition: stepEvidenceMatches(
+      'query-pn-national-registries',
+
+      '\\[DOWNSTREAM\\] Service AdE returned errors=<not specified>[\\s\\S]*Request to POST ' +
         'https://gatewaywebservices\\.agenziaentrate\\.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService' +
         '[\\s\\S]*ReadTimeoutException',
-    },
+    ),
     title: '[DOWNSTREAM AdE] Timeout verifica rappresentante legale',
     resolution: SPORADIC_TIMEOUT_RESOLUTION,
     details: [
@@ -77,13 +77,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'ade-read-timeout',
     description: '[DOWNSTREAM AdE] Timeout di lettura generico',
     priority: 100,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-national-registries',
-      regex:
-        '\\[DOWNSTREAM\\] Service AdE returned errors=nested exception is ' +
+    condition: stepEvidenceMatches(
+      'query-pn-national-registries',
+
+      '\\[DOWNSTREAM\\] Service AdE returned errors=nested exception is ' +
         'io\\.netty\\.handler\\.timeout\\.ReadTimeoutException',
-    },
+    ),
     title: '[DOWNSTREAM AdE] Timeout di lettura',
     resolution: SPORADIC_TIMEOUT_RESOLUTION,
     details: [

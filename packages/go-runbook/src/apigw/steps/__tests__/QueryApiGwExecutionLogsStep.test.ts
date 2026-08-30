@@ -233,12 +233,14 @@ describe('queryApiGwExecutionLogs', () => {
   });
 
   it('fails fast when the extracted requestIds exceed the configured limit', async () => {
+    const { logger, lines } = captureLogger();
     const { service, calls } = createFakeCwLogs();
     const step = createStep({ maxRequestIdsOverride: 1 });
 
     const result = await step.execute(
       createContext({
         cloudWatchLogs: service,
+        logger,
         stepOutput: [
           buildRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
           buildRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/bar' }),
@@ -250,6 +252,7 @@ describe('queryApiGwExecutionLogs', () => {
     assert.match(result.error ?? '', /would combine 2 requestId predicates/);
     assert.match(result.error ?? '', /over the limit of 1/);
     assert.strictEqual(calls.length, 0);
+    assert.match(lines.join('\n'), /Query execution log non eseguita[\s\S]*over the limit of 1/);
   });
 
   it('degrades to unavailable and continues when a best-effort execution-log query fails', async () => {
@@ -286,12 +289,14 @@ describe('queryApiGwExecutionLogs', () => {
   });
 
   it('degrades to unavailable when a best-effort query exceeds the requestId limit', async () => {
+    const { logger, lines } = captureLogger();
     const { service, calls } = createFakeCwLogs();
     const step = createStep({ analysisMode: 'best-effort', maxRequestIdsOverride: 1 });
 
     const result = await step.execute(
       createContext({
         cloudWatchLogs: service,
+        logger,
         stepOutput: [
           buildRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
           buildRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/bar' }),
@@ -303,6 +308,7 @@ describe('queryApiGwExecutionLogs', () => {
     assert.strictEqual(result.vars?.['apiGwExecutionLogMode'], 'unavailable');
     assert.match(result.vars?.['apiGwExecutionLogUnavailableReason'] ?? '', /over the limit of 1/);
     assert.strictEqual(calls.length, 0);
+    assert.match(lines.join('\n'), /Query execution log non eseguita[\s\S]*over the limit of 1/);
   });
 
   it('continues without early resolution when no requestId can be extracted', async () => {

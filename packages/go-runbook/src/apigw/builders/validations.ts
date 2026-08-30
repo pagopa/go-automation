@@ -4,6 +4,7 @@ import { renderQueryTemplate } from '../profiles/render/renderQueryTemplate.js';
 import {
   assertKnownCaseStepRefs,
   assertPreStepIds,
+  failAlarmConfig,
   type AlarmConfigValidationContext,
 } from '../../validation/alarmConfigValidation.js';
 import { getEffectiveExecutionLogGroup, isExecutionLogEnabled } from './executionLogEnablement.js';
@@ -53,18 +54,21 @@ function validatePlaceholders(profile: ApiGwQueryProfile): void {
  * assente).
  */
 function validateCapabilityParity(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
+  const validationContext = context(config);
   const executionLogGroup = getEffectiveExecutionLogGroup(config);
   if (executionLogGroup !== undefined && profile.executionLog === undefined) {
-    throw new Error(
-      `createApiGwAlarmRunbook "${config.id}": entryService.executionLogGroup is set but ` +
+    failAlarmConfig(
+      validationContext,
+      'entryService.executionLogGroup is set but ' +
         `the profile "${profile.id}" has no executionLog capability. ` +
         'Either remove executionLogGroup from the entry service or switch to a profile that supports it.',
     );
   }
 
   if (config.authorizerFailureCheck !== undefined && profile.accessLog.schema.authorizer === undefined) {
-    throw new Error(
-      `createApiGwAlarmRunbook "${config.id}": authorizerFailureCheck is set but ` +
+    failAlarmConfig(
+      validationContext,
+      'authorizerFailureCheck is set but ' +
         `the profile "${profile.id}" has no accessLog.authorizer capability. ` +
         'Either remove authorizerFailureCheck or switch to a profile that declares authorizer fields.',
     );
@@ -74,20 +78,29 @@ function validateCapabilityParity(config: ApiGwAlarmConfig, profile: ApiGwQueryP
     const hasDefault = config.authorizerFailureCheck.defaultAuthorizer !== undefined;
     const hasRules = (config.authorizerFailureCheck.rules?.length ?? 0) > 0;
     if (!hasDefault && !hasRules) {
-      throw new Error(
-        `createApiGwAlarmRunbook "${config.id}": authorizerFailureCheck requires ` +
-          'a defaultAuthorizer or at least one selection rule.',
+      failAlarmConfig(
+        validationContext,
+        'authorizerFailureCheck requires a defaultAuthorizer or at least one selection rule.',
       );
     }
   }
 }
 
-function validateExecutionLogAnalysisMode(config: ApiGwAlarmConfig): void {
+function validateExecutionLogAnalysisMode(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
   const mode = config.executionLogAnalysisMode;
   if (mode !== undefined && mode !== 'terminal' && mode !== 'best-effort') {
-    throw new Error(
-      `createApiGwAlarmRunbook "${config.id}": unsupported executionLogAnalysisMode ` +
-        `'${String(mode)}'. Expected 'terminal' or 'best-effort'.`,
+    failAlarmConfig(
+      context(config),
+      `unsupported executionLogAnalysisMode '${String(mode)}'. Expected 'terminal' or 'best-effort'.`,
+    );
+  }
+
+  if (mode !== undefined && !isExecutionLogEnabled(config, profile)) {
+    failAlarmConfig(
+      context(config),
+      'executionLogAnalysisMode is set but execution logs are not enabled. ' +
+        'Configure entryService.executionLogGroup and use a profile with executionLog capability, ' +
+        'or remove executionLogAnalysisMode.',
     );
   }
 }
@@ -166,7 +179,7 @@ function context(config: ApiGwAlarmConfig): AlarmConfigValidationContext {
 export function validateApiGwAlarmConfig(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
   validatePlaceholders(profile);
   validateCapabilityParity(config, profile);
-  validateExecutionLogAnalysisMode(config);
+  validateExecutionLogAnalysisMode(config, profile);
   validateNoStepIdCollisions(config, profile);
   validateKnownCaseStepRefs(config, profile);
 }

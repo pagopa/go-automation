@@ -172,6 +172,24 @@ describe('buildApiGwOutputContext', () => {
     assert.strictEqual(details.services[0]?.recentLogs[1]?.message, 'new service');
   });
 
+  it('exposes why execution logs are unavailable in fields and typed details', () => {
+    const result = createResult();
+    const vars = new Map(result.finalContext.vars);
+    const reason = 'MalformedQueryException: time range exceeds the log retention settings';
+    vars.set('apiGwExecutionLogMode', 'unavailable');
+    vars.set('apiGwExecutionLogCount', '0');
+    vars.set('apiGwExecutionLogUnavailableReason', reason);
+
+    const context = buildApiGwOutputContext(createRunbook(), {
+      ...result,
+      finalContext: { ...result.finalContext, vars },
+    });
+
+    assert.strictEqual(context?.fields.find((field) => field.name === 'executionLogUnavailableReason')?.value, reason);
+    const details = context?.details as unknown as ApiGwOutputContext;
+    assert.strictEqual(details.executionLogs?.unavailableReason, reason);
+  });
+
   it('includes a successful authorizer gate outcome when exposed by vars', () => {
     const result = createResult();
     const noErrorResult: RunbookExecutionResult = {

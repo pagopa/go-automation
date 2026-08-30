@@ -10,6 +10,7 @@ import type { TimeRangeFromParams } from '../../steps/data/TimeRangeFromParams.j
 import { resolveTimeRange } from '../../steps/data/resolveTimeRange.js';
 import { executeStep } from '../../steps/data/executeStep.js';
 import { executeCloudWatchLogsQuery } from '../../steps/data/executeCloudWatchLogsQuery.js';
+import type { ExecutedCloudWatchLogsQuery } from '../../steps/data/executeCloudWatchLogsQuery.js';
 
 import { buildApiGwVars, rowMeetsThreshold, sanitizeApiGwField } from '../helpers/accessLogRow.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
@@ -175,6 +176,8 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
           `over the limit of ${limit}. ` +
           'Either reduce the time window, raise `ApiGwAlarmConfig.executionLogMaxRequestIds` ' +
           'consciously, or split the runbook by sub-path.';
+        reporter?.sectionApiGwExecutionLog();
+        reporter?.apiGwExecutionLogSkipped(this.executionLogGroup, error);
         if (this.analysisMode === 'best-effort') {
           return this.buildUnavailableResult(accessLogVars, requestIds, error);
         }
@@ -188,7 +191,7 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
       const query = this.buildExecutionLogQuery(requestIds);
 
       // V04 (C3/D7): UNA sola chiamata AWS per N requestId, OR-combinati.
-      let queryResult;
+      let queryResult: ExecutedCloudWatchLogsQuery;
       try {
         queryResult = await executeCloudWatchLogsQuery(context, [this.executionLogGroup], query, timeRange, {
           ...(context.signal !== undefined ? { signal: context.signal } : {}),

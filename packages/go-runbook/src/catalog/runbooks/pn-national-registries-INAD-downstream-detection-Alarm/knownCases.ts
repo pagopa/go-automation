@@ -6,6 +6,8 @@ import { SEND_DOWNSTREAMS } from '../framework.js';
 import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
 
+import { stepEvidenceMatches } from '../common/evidenceConditions.js';
+
 const INAD_DIGITAL_DOMICILE_ENDPOINT = 'https://api.inad.gov.it/rest/inad/v1/domiciliodigitale/extract/{codiceFiscale}';
 const ANALYSIS_COMPLETED_FINAL_ACTION =
   'Analisi conclusa in autonomia dal team di GO. Non è necessario altro confronto';
@@ -19,13 +21,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'inad-digital-domicile-internal-server-error-500',
     description: '[DOWNSTREAM INAD] HTTP 500 durante il recupero del domicilio digitale',
     priority: 130,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-national-registries',
-      regex:
-        '\\[DOWNSTREAM\\] Service INAD returned errors=500 Internal Server Error from GET ' +
+    condition: stepEvidenceMatches(
+      'query-pn-national-registries',
+
+      '\\[DOWNSTREAM\\] Service INAD returned errors=500 Internal Server Error from GET ' +
         'https://api\\.inad\\.gov\\.it/rest/inad/v1/domiciliodigitale/extract/[^\\s"]+',
-    },
+    ),
     resolution: INAD_RECOVERY_RESOLUTION,
     details: [
       ['Servizio', 'pn-national-registries'],
@@ -45,11 +46,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'inad-connection-reset-by-peer',
     description: '[DOWNSTREAM INAD] Connessione chiusa dal downstream',
     priority: 120,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-national-registries',
-      regex: '\\[DOWNSTREAM\\] Service INAD returned errors=recvAddress\\(\\.\\.\\) failed: Connection reset by peer',
-    },
+    condition: stepEvidenceMatches(
+      'query-pn-national-registries',
+      '\\[DOWNSTREAM\\] Service INAD returned errors=recvAddress\\(\\.\\.\\) failed: Connection reset by peer',
+    ),
     resolution: INAD_RECOVERY_RESOLUTION,
     details: [
       ['Servizio', 'pn-national-registries'],
@@ -69,13 +69,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'inad-connect-timeout',
     description: '[DOWNSTREAM INAD] Timeout di connessione',
     priority: 110,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-national-registries',
-      regex:
-        '\\[DOWNSTREAM\\] Service INAD returned errors=connection timed out after \\d+ ms: ' +
+    condition: stepEvidenceMatches(
+      'query-pn-national-registries',
+
+      '\\[DOWNSTREAM\\] Service INAD returned errors=connection timed out after \\d+ ms: ' +
         'api\\.inad\\.gov\\.it/[^\\s"]+:443',
-    },
+    ),
     resolution: INAD_RECOVERY_RESOLUTION,
     details: [
       ['Servizio', 'pn-national-registries'],
@@ -95,11 +94,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'inad-service-unavailable-503',
     description: '[DOWNSTREAM INAD] Servizio temporaneamente non disponibile (HTTP 503)',
     priority: 100,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-national-registries',
-      regex: '\\[DOWNSTREAM\\] Service INAD returned errors=503 Service Unavailable',
-    },
+    condition: stepEvidenceMatches(
+      'query-pn-national-registries',
+      '\\[DOWNSTREAM\\] Service INAD returned errors=503 Service Unavailable',
+    ),
     title: '[DOWNSTREAM INAD] Servizio non disponibile (HTTP 503)',
     resolution: INAD_RECOVERY_RESOLUTION,
     details: [

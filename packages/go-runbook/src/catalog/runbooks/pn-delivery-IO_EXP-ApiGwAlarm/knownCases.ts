@@ -5,17 +5,14 @@
 import type { KnownCase } from '../framework.js';
 import { knownCase } from '../framework.js';
 import { SEND_DOWNSTREAMS } from '../framework.js';
+import { stepEvidenceMatches } from '../common/evidenceConditions.js';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'execution-failed-configuration-error',
     description: 'Allarme',
     priority: 101,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-api-gw-execution-logs',
-      regex: 'Execution failed due to configuration error',
-    },
+    condition: stepEvidenceMatches('query-api-gw-execution-logs', 'Execution failed due to configuration error'),
     title: '[EXECUTION LOG] Execution failed due to configuration error',
     resolution: 'Chiusura - caso noto',
     analysis: {
@@ -27,11 +24,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'downstream-pdv-500-internal-server-error',
     description: 'Allarme',
     priority: 100,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-data-vault',
-      regex: '\\[DOWNSTREAM\\] Service PersonalDataVault_UserRegistry returned errors=500 Internal Server Error',
-    },
+    condition: stepEvidenceMatches(
+      'query-pn-data-vault',
+      '\\[DOWNSTREAM\\] Service PersonalDataVault_UserRegistry returned errors=500 Internal Server Error',
+    ),
     title: '[DOWNSTREAM] Service PersonalDataVault_UserRegistry returned errors=500 Internal Server Error',
     resolution: 'Chiusura - caso noto',
     details: [['Downstream', 'PersonalDataVault']],

@@ -291,6 +291,13 @@ export class ApiGwReporter {
     this.logger.text('═══ Verifica execution log API Gateway ═══');
   }
 
+  /** Reports that the execution-log query was skipped before reaching AWS. */
+  apiGwExecutionLogSkipped(logGroup: string, reason: string): void {
+    this.logger.text('  ├─ ⚠ Query execution log non eseguita');
+    this.logger.text(`  │    ├─ Log group: ${logGroup}`);
+    this.logger.text(`  │    └─ Causa: ${reason}`);
+  }
+
   /**
    * Reports that the latest CloudWatch query attempt **failed** — the
    * AWS call threw (typically a `ResourceNotFoundException` on a

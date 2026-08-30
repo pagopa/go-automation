@@ -48,6 +48,7 @@ export interface ApiGwExecutionLogsOutput {
   readonly logGroup?: string;
   readonly requestCount?: number;
   readonly logCount?: number;
+  readonly unavailableReason?: string;
   readonly requestIds: ReadonlyArray<ApiGwExecutionLogRequest>;
 }
 

@@ -6,6 +6,7 @@ import type { ResultField } from '@go-automation/go-common/aws';
 
 import { createApiGwAlarmRunbook } from '../createApiGwAlarmRunbook.js';
 import type { ApiGwAlarmConfig } from '../../types/ApiGwAlarmConfig.js';
+import type { ApiGwExecutionLogAnalysisMode } from '../../types/ApiGwExecutionLogAnalysisMode.js';
 import { isApiGwRunbookContext } from '../../output/ApiGwRunbookContext.js';
 import { API_GW_AUTHORIZER_LAMBDAS } from '../../authorizers/ApiGwAuthorizerLambdaRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
@@ -14,6 +15,8 @@ import type { StepDescriptor } from '../../../types/StepDescriptor.js';
 import type { KnownCase } from '../../../types/KnownCase.js';
 import { RunbookEngine } from '../../../core/RunbookEngine.js';
 import { ConditionEvaluator } from '../../../core/ConditionEvaluator.js';
+import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
+import type { ApiGwQueryProfile } from '../../profiles/ApiGwQueryProfile.js';
 
 function fakeContext(params: ReadonlyArray<readonly [string, string]>): RunbookContext {
   return {
@@ -93,6 +96,50 @@ describe('createApiGwAlarmRunbook', () => {
     assert.ok(stepIds.includes('query-api-gw-execution-logs'));
     assert.ok(!stepIds.includes('stop-api-gw-execution-log-unresolved'));
     assert.ok(stepIds.indexOf('query-api-gw-execution-logs') < stepIds.indexOf('query-pn-a'));
+  });
+
+  it('rejects an explicit execution-log mode when the log group is missing', () => {
+    assert.throws(
+      () =>
+        createApiGwAlarmRunbook(
+          baseConfig({
+            entryService: { name: 'pn-a', logGroup: '/aws/ecs/pn-a', varPrefix: 'a' },
+            executionLogAnalysisMode: 'best-effort',
+          }),
+        ),
+      /executionLogAnalysisMode is set but execution logs are not enabled/,
+    );
+  });
+
+  it('rejects an explicit execution-log mode when the profile has no capability', () => {
+    const queryProfile = {
+      id: 'send-without-execution-logs',
+      accessLog: SEND_API_GW_PROFILE.accessLog,
+      serviceLog: SEND_API_GW_PROFILE.serviceLog,
+    } satisfies ApiGwQueryProfile;
+
+    assert.throws(
+      () =>
+        createApiGwAlarmRunbook(
+          baseConfig({
+            executionLogAnalysisMode: 'best-effort',
+            queryProfile,
+          }),
+        ),
+      /entryService\.executionLogGroup is set but the profile .* has no executionLog capability/,
+    );
+  });
+
+  it('rejects an unsupported execution-log mode received across an untyped runtime boundary', () => {
+    assert.throws(
+      () =>
+        createApiGwAlarmRunbook(
+          baseConfig({
+            executionLogAnalysisMode: 'unsupported' as unknown as ApiGwExecutionLogAnalysisMode,
+          }),
+        ),
+      /unsupported executionLogAnalysisMode 'unsupported'/,
+    );
   });
 
   it('exposes API Gateway runbookContext for output builders', () => {

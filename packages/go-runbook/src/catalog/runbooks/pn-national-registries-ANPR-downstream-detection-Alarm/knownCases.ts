@@ -6,6 +6,8 @@ import { SEND_DOWNSTREAMS } from '../framework.js';
 import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
 
+import { stepEvidenceMatches } from '../common/evidenceConditions.js';
+
 const ANPR_NOTIFICATION_ENDPOINT =
   'https://modipa.anpr.interno.it/govway/rest/in/MinInternoPortaANPR-PDND/C001-servizioNotifica/v1/anpr-service-e002';
 const ANALYSIS_COMPLETED_FINAL_ACTION =
@@ -20,14 +22,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'anpr-not-found-404',
     description: '[DOWNSTREAM ANPR] Risposta HTTP 404 dal servizio di notifica',
     priority: 120,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-national-registries',
-      regex:
-        '\\[DOWNSTREAM\\] Service ANPR returned errors=404 Not Found from POST ' +
+    condition: stepEvidenceMatches(
+      'query-pn-national-registries',
+
+      '\\[DOWNSTREAM\\] Service ANPR returned errors=404 Not Found from POST ' +
         'https://modipa\\.anpr\\.interno\\.it/govway/rest/in/MinInternoPortaANPR-PDND/' +
         'C001-servizioNotifica/v1/anpr-service-e002',
-    },
+    ),
     resolution: TRANSIENT_ANPR_FAILURE_RESOLUTION,
     details: [
       ['Servizio', 'pn-national-registries'],
@@ -47,11 +48,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'anpr-not-specified-error',
     description: '[DOWNSTREAM ANPR] Errore senza dettaglio restituito dal downstream',
     priority: 110,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-national-registries',
-      regex: '\\[DOWNSTREAM\\] Service ANPR returned errors=<not specified>',
-    },
+    condition: stepEvidenceMatches(
+      'query-pn-national-registries',
+      '\\[DOWNSTREAM\\] Service ANPR returned errors=<not specified>',
+    ),
     title: '[DOWNSTREAM ANPR] Errore senza dettaglio',
     resolution: TRANSIENT_ANPR_FAILURE_RESOLUTION,
     details: [
@@ -71,14 +71,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'anpr-bad-request-400',
     description: '[DOWNSTREAM ANPR] Risposta HTTP 400 dal servizio di notifica',
     priority: 100,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-national-registries',
-      regex:
-        '\\[DOWNSTREAM\\] Service ANPR returned errors=400 Bad Request from POST ' +
+    condition: stepEvidenceMatches(
+      'query-pn-national-registries',
+
+      '\\[DOWNSTREAM\\] Service ANPR returned errors=400 Bad Request from POST ' +
         'https://modipa\\.anpr\\.interno\\.it/govway/rest/in/MinInternoPortaANPR-PDND/' +
         'C001-servizioNotifica/v1/anpr-service-e002',
-    },
+    ),
     resolution: TRANSIENT_ANPR_FAILURE_RESOLUTION,
     details: [
       ['Servizio', 'pn-national-registries'],

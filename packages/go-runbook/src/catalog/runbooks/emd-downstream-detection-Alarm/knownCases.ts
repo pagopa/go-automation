@@ -7,6 +7,7 @@ import { knownCase } from '../framework.js';
 import { SEND_DOWNSTREAMS } from '../framework.js';
 
 import { slackLink } from '../common/analysisLinks.js';
+import { stepEvidenceMatches } from '../common/evidenceConditions.js';
 
 const EMD_SUBMIT_MESSAGE_ENDPOINT = 'https://api-emd.cstar.pagopa.it/emd/message-core/sendMessage';
 const EMD_SUBMIT_MESSAGE_UAT_ENDPOINT = 'https://api-emd.uat.cstar.pagopa.it/emd/message-core/sendMessage';
@@ -32,13 +33,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'emd-submit-message-unauthorized-401',
     description: '[DOWNSTREAM EMD] Errore di autorizzazione durante submitMessage (HTTP 401)',
     priority: 130,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-emd-integration',
-      regex:
-        '\\[DOWNSTREAM\\] Service submitMessage returned errors=401 Unauthorized from POST ' +
+    condition: stepEvidenceMatches(
+      'query-pn-emd-integration',
+
+      '\\[DOWNSTREAM\\] Service submitMessage returned errors=401 Unauthorized from POST ' +
         'https://api-emd\\.cstar\\.pagopa\\.it/emd/message-core/sendMessage',
-    },
+    ),
     resolution: EMD_401_RESOLUTION,
     details: [
       ['Servizio', 'pn-emd-integration'],
@@ -59,13 +59,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'emd-submit-message-internal-server-error-500',
     description: '[DOWNSTREAM EMD] Errore interno durante submitMessage (HTTP 500)',
     priority: 120,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-emd-integration',
-      regex:
-        '\\[DOWNSTREAM\\] Service submitMessage returned errors=500 Internal Server Error from POST ' +
+    condition: stepEvidenceMatches(
+      'query-pn-emd-integration',
+
+      '\\[DOWNSTREAM\\] Service submitMessage returned errors=500 Internal Server Error from POST ' +
         'https://api-emd\\.cstar\\.pagopa\\.it/emd/message-core/sendMessage',
-    },
+    ),
     resolution: EMD_500_RESOLUTION,
     details: [
       ['Servizio', 'pn-emd-integration'],
@@ -87,13 +86,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'emd-retrieval-payload-not-found-or-expired-404',
     description: '[DOWNSTREAM EMD] Retrieval payload non trovato o scaduto (HTTP 404)',
     priority: 110,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-emd-integration',
-      regex:
-        '\\[DOWNSTREAM\\] Service getRetrieval returned errors=404 Not Found from GET ' +
+    condition: stepEvidenceMatches(
+      'query-pn-emd-integration',
+
+      '\\[DOWNSTREAM\\] Service getRetrieval returned errors=404 Not Found from GET ' +
         'https://api-emd\\.cstar\\.pagopa\\.it/emd/payment/retrievalTokens/[^\\s"]+',
-    },
+    ),
     resolution: EMD_404_RESOLUTION,
     details: [
       ['Servizio', 'pn-emd-integration'],
@@ -120,13 +118,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'emd-submit-message-too-many-requests-429-uat',
     description: '[DOWNSTREAM EMD] Rate limiting durante submitMessage in UAT (HTTP 429)',
     priority: 100,
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-emd-integration',
-      regex:
-        '\\[DOWNSTREAM\\] Service submitMessage returned errors=429 Too Many Requests from POST ' +
+    condition: stepEvidenceMatches(
+      'query-pn-emd-integration',
+
+      '\\[DOWNSTREAM\\] Service submitMessage returned errors=429 Too Many Requests from POST ' +
         'https://api-emd\\.uat\\.cstar\\.pagopa\\.it/emd/message-core/sendMessage',
-    },
+    ),
     resolution: EMD_429_UAT_RESOLUTION,
     details: [
       ['Servizio', 'pn-emd-integration'],

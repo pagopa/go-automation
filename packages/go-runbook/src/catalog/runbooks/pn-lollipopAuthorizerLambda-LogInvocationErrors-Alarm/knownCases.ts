@@ -7,6 +7,7 @@ import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
 
 import { jiraLink, slackLink } from '../common/analysisLinks.js';
+import { all } from '../common/conditions.js';
 import { lambdaLogEvidenceMatches } from '../common/evidenceConditions.js';
 
 const XRAY_SLACK_11_MAY = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1778514522543109';
@@ -62,13 +63,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'register-it-signature-validation-error',
     description: 'Errore noto di validazione firma per il provider SPID register.it',
     priority: 89,
-    condition: {
-      type: 'and',
-      conditions: [
-        lambdaLogEvidenceMatches('SIGNATURE_VALIDATION_ERROR'),
-        lambdaLogEvidenceMatches("entityID:\\s*'https://spid\\.register\\.it'"),
-      ],
-    },
+    condition: all(
+      lambdaLogEvidenceMatches('SIGNATURE_VALIDATION_ERROR'),
+      lambdaLogEvidenceMatches("entityID:\\s*'https://spid\\.register\\.it'"),
+    ),
     title: 'Firma non valida per il provider SPID register.it',
     resolution:
       'Nessuna azione per entityID https://spid.register.it; segnalare il caso se riguarda un provider differente.',

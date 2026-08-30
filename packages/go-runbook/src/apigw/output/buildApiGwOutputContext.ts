@@ -107,6 +107,12 @@ function buildFields(
   addResultField(fields, 'authorizerRequestId', 'authorizerRequestId', vars.get('apiGwAuthorizerRequestId'));
   addResultField(fields, 'executionLogMode', 'Execution log mode', vars.get('apiGwExecutionLogMode'));
   addResultField(fields, 'executionLogCount', 'Execution log trovati', vars.get('apiGwExecutionLogCount'));
+  addResultField(
+    fields,
+    'executionLogUnavailableReason',
+    'Motivo execution log non disponibili',
+    vars.get('apiGwExecutionLogUnavailableReason'),
+  );
   addResultField(fields, 'lastErrorMsg', 'Ultimo errore', vars.get('lastErrorMsg'));
   addResultField(fields, 'servicesVisited', 'Servizi analizzati', vars.get('apiGwServicesVisited'));
   return fields;
@@ -185,6 +191,7 @@ function optionalExecutionLogs(vars: ReadonlyMap<string, string>): {
   const logGroup = normalizeOutputValue(vars.get('apiGwExecutionLogGroup'));
   const requestCount = parseInteger(vars.get('apiGwExecutionLogRequestCount'));
   const logCount = parseInteger(vars.get('apiGwExecutionLogCount'));
+  const unavailableReason = normalizeOutputValue(vars.get('apiGwExecutionLogUnavailableReason'));
   const requestIds = splitCsv(vars.get('apiGwExecutionLogRequestIds'));
   const paths = splitCsv(vars.get('apiGwExecutionLogPaths'));
 
@@ -193,6 +200,7 @@ function optionalExecutionLogs(vars: ReadonlyMap<string, string>): {
     logGroup === undefined &&
     requestCount === undefined &&
     logCount === undefined &&
+    unavailableReason === undefined &&
     requestIds.length === 0
   ) {
     return {};
@@ -204,6 +212,7 @@ function optionalExecutionLogs(vars: ReadonlyMap<string, string>): {
       ...optionalString('logGroup', logGroup),
       ...optionalNumber('requestCount', requestCount),
       ...optionalNumber('logCount', logCount),
+      ...optionalString('unavailableReason', unavailableReason),
       requestIds: requestIds.map((requestId, index) => ({
         requestId,
         ...optionalString('path', paths[index]),

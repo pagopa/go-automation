@@ -5,6 +5,9 @@
 import type { KnownCase } from '../framework.js';
 import { knownCase } from '../framework.js';
 import { SEND_DOWNSTREAMS } from '../framework.js';
+import { all } from '../common/conditions.js';
+import { stepEvidenceMatches } from '../common/evidenceConditions.js';
+import { apiGwStatusIs } from '../../../apigw/knownCases/conditions.js';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   // ── Gateway Timeout 504 senza log applicativi su pn-user-attributes ────
@@ -13,13 +16,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'gateway-timeout-504',
     description: 'Gateway Timeout 504 senza log applicativi su pn-user-attributes',
     priority: 105,
-    condition: {
-      type: 'and',
-      conditions: [
-        { type: 'compare', ref: 'vars.apiGwStatusCode', operator: '==', value: '504' },
-        { type: 'compare', ref: 'vars.userAttributesLogCount', operator: '==', value: '0' },
-      ],
-    },
+    condition: all(apiGwStatusIs('504'), {
+      type: 'compare',
+      ref: 'vars.userAttributesLogCount',
+      operator: '==',
+      value: '0',
+    }),
     resolution: 'Nessuna azione possibile, classificare come transitorio.',
     details: [['Status Code', '{{vars.apiGwStatusCode}}']],
     analysis: {
@@ -39,14 +41,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'apigw-endpoint-timeout-no-logs',
     description: 'API GW endpoint timeout senza log applicativi su pn-user-attributes',
     priority: 103,
-    condition: {
-      type: 'and',
-      conditions: [
-        { type: 'compare', ref: 'vars.apiGwStatusCode', operator: '==', value: '500' },
-        { type: 'compare', ref: 'vars.userAttributesLogCount', operator: '==', value: '0' },
-        { type: 'pattern', ref: 'vars.apiGwErrorMessage', regex: 'Endpoint request timed out' },
-      ],
-    },
+    condition: all(
+      apiGwStatusIs('500'),
+      { type: 'compare', ref: 'vars.userAttributesLogCount', operator: '==', value: '0' },
+      { type: 'pattern', ref: 'vars.apiGwErrorMessage', regex: 'Endpoint request timed out' },
+    ),
     resolution:
       "Nessuna azione possibile, classificare come transitorio. Se ricorrente, verificare la latenza dell'integrazione lato API Gateway.",
     details: [
@@ -99,11 +98,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     // il messaggio rappresentativo in `externalRegistriesErrorMsg`).
     // Il caso matcha sia POST sia PUT e l'enumerazione completa delle
     // righe matchate finisce nel trace via `contains.regex`.
-    condition: {
-      type: 'contains',
-      ref: 'steps.query-pn-external-registries',
-      regex: '\\[DOWNSTREAM\\] Service IO returned errors=500 Internal Server Error from (POST|PUT)',
-    },
+    condition: stepEvidenceMatches(
+      'query-pn-external-registries',
+      '\\[DOWNSTREAM\\] Service IO returned errors=500 Internal Server Error from (POST|PUT)',
+    ),
     title: '500 da AppIO - Internal Server Error',
     resolution: 'Chiusura - caso noto',
     details: [['Downstream', 'AppIO']],
