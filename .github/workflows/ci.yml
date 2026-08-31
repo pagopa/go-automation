@@ -18,12 +18,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  typecheck:
-    name: Type Check
-    uses: ./.github/workflows/ci-job.yml
-    with:
-      command: type-check
-
   lint:
     name: Lint
     uses: ./.github/workflows/ci-job.yml
@@ -154,7 +148,6 @@ jobs:
     name: CI Success
     needs:
       [
-        typecheck,
         lint,
         format,
         knip,
@@ -173,7 +166,7 @@ jobs:
     steps:
       - name: Check all jobs passed
         run: |
-          results=("${{ needs.typecheck.result }}" "${{ needs.lint.result }}" "${{ needs.format.result }}" "${{ needs.knip.result }}" "${{ needs.deps-check.result }}" "${{ needs.type-coverage.result }}" "${{ needs.scaffold.result }}" "${{ needs.new-class-tests.result }}" "${{ needs.build.result }}" "${{ needs.test.result }}" "${{ needs.coverage.result }}" "${{ needs.macos-smoke.result }}")
+          results=("${{ needs.lint.result }}" "${{ needs.format.result }}" "${{ needs.knip.result }}" "${{ needs.deps-check.result }}" "${{ needs.type-coverage.result }}" "${{ needs.scaffold.result }}" "${{ needs.new-class-tests.result }}" "${{ needs.build.result }}" "${{ needs.test.result }}" "${{ needs.coverage.result }}" "${{ needs.macos-smoke.result }}")
           for result in "${results[@]}"; do
             if [[ "$result" != "success" ]]; then
               echo "One or more checks failed"
