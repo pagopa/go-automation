@@ -40,30 +40,15 @@ import { buildAddressManagerPostelDownstreamDetectionAlarmRunbook } from './runb
 import { buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook } from './runbooks/personal-data-vault-SelfcarePG-downstream-detection-Alarm/runbook.js';
 import { buildWorkdayPnExternalChannelAlbAlarmRunbook } from './runbooks/workday-pn-external-channel-alb-alarm/runbook.js';
 import { buildK8sInteropBeBackendForFrontendErrorsRunbook } from './runbooks/k8s-interop-be-backend-for-frontend-errors/runbook.js';
-import {
-  INTEROP_BFF_ALARM_NAMES,
-  INTEROP_BFF_RUNBOOK_KEY,
-} from './runbooks/k8s-interop-be-backend-for-frontend-errors/resolveInteropAlarmContext.js';
+import { BFF_ALARM } from './runbooks/k8s-interop-be-backend-for-frontend-errors/alarmDefinition.js';
 import { buildK8sInteropBeNotificationUserLifecycleConsumerErrorsRunbook } from './runbooks/k8s-interop-be-notification-user-lifecycle-consumer-errors/runbook.js';
-import {
-  INTEROP_NOTIFICATION_USER_LIFECYCLE_ALARM_NAMES,
-  INTEROP_NOTIFICATION_USER_LIFECYCLE_RUNBOOK_KEY,
-} from './runbooks/k8s-interop-be-notification-user-lifecycle-consumer-errors/resolveInteropAlarmContext.js';
+import { NOTIFICATION_USER_LIFECYCLE_ALARM } from './runbooks/k8s-interop-be-notification-user-lifecycle-consumer-errors/alarmDefinition.js';
 import { buildK8sInteropPublicCatalogAstroFrontendErrorsRunbook } from './runbooks/k8s-interop-public-catalog-astro-frontend-errors/runbook.js';
-import {
-  INTEROP_PUBLIC_CATALOG_ALARM_NAMES,
-  INTEROP_PUBLIC_CATALOG_RUNBOOK_KEY,
-} from './runbooks/k8s-interop-public-catalog-astro-frontend-errors/resolveInteropAlarmContext.js';
+import { PUBLIC_CATALOG_ALARM } from './runbooks/k8s-interop-public-catalog-astro-frontend-errors/alarmDefinition.js';
 import { buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook } from './runbooks/k8s-interop-be-selfcare-client-users-updater-errors/runbook.js';
-import {
-  INTEROP_SELFCARE_USERS_UPDATER_ALARM_NAMES,
-  INTEROP_SELFCARE_USERS_UPDATER_RUNBOOK_KEY,
-} from './runbooks/k8s-interop-be-selfcare-client-users-updater-errors/resolveInteropAlarmContext.js';
+import { SELFCARE_USERS_UPDATER_ALARM } from './runbooks/k8s-interop-be-selfcare-client-users-updater-errors/alarmDefinition.js';
 import { buildK8sInteropBeSelfcareOnboardingConsumerErrorsRunbook } from './runbooks/k8s-interop-be-selfcare-onboarding-consumer-errors/runbook.js';
-import {
-  INTEROP_SELFCARE_ONBOARDING_CONSUMER_ALARM_NAMES,
-  INTEROP_SELFCARE_ONBOARDING_CONSUMER_RUNBOOK_KEY,
-} from './runbooks/k8s-interop-be-selfcare-onboarding-consumer-errors/resolveInteropAlarmContext.js';
+import { SELFCARE_ONBOARDING_CONSUMER_ALARM } from './runbooks/k8s-interop-be-selfcare-onboarding-consumer-errors/alarmDefinition.js';
 import { buildInteropSelfcareApiGw5xxRunbook } from './runbooks/interop-selfcare-1.0-apigw-5xx/runbook.js';
 import {
   INTEROP_SELFCARE_API_GW_ALARM_NAMES,
@@ -279,44 +264,44 @@ const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
     buildWorkdayPnExternalChannelAlbAlarmRunbook,
   ),
   registration(
-    INTEROP_BFF_RUNBOOK_KEY,
+    BFF_ALARM.runbookKey,
     'INTEROP',
     'SERVICE',
     ['INTEROP'],
     buildK8sInteropBeBackendForFrontendErrorsRunbook,
-    INTEROP_BFF_ALARM_NAMES,
+    BFF_ALARM.alarmNames,
   ),
   registration(
-    INTEROP_NOTIFICATION_USER_LIFECYCLE_RUNBOOK_KEY,
+    NOTIFICATION_USER_LIFECYCLE_ALARM.runbookKey,
     'INTEROP',
     'SERVICE',
     ['INTEROP'],
     buildK8sInteropBeNotificationUserLifecycleConsumerErrorsRunbook,
-    INTEROP_NOTIFICATION_USER_LIFECYCLE_ALARM_NAMES,
+    NOTIFICATION_USER_LIFECYCLE_ALARM.alarmNames,
   ),
   registration(
-    INTEROP_PUBLIC_CATALOG_RUNBOOK_KEY,
+    PUBLIC_CATALOG_ALARM.runbookKey,
     'INTEROP',
     'SERVICE',
     ['INTEROP'],
     buildK8sInteropPublicCatalogAstroFrontendErrorsRunbook,
-    INTEROP_PUBLIC_CATALOG_ALARM_NAMES,
+    PUBLIC_CATALOG_ALARM.alarmNames,
   ),
   registration(
-    INTEROP_SELFCARE_USERS_UPDATER_RUNBOOK_KEY,
+    SELFCARE_USERS_UPDATER_ALARM.runbookKey,
     'INTEROP',
     'SERVICE',
     ['INTEROP'],
     buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook,
-    INTEROP_SELFCARE_USERS_UPDATER_ALARM_NAMES,
+    SELFCARE_USERS_UPDATER_ALARM.alarmNames,
   ),
   registration(
-    INTEROP_SELFCARE_ONBOARDING_CONSUMER_RUNBOOK_KEY,
+    SELFCARE_ONBOARDING_CONSUMER_ALARM.runbookKey,
     'INTEROP',
     'SERVICE',
     ['INTEROP'],
     buildK8sInteropBeSelfcareOnboardingConsumerErrorsRunbook,
-    INTEROP_SELFCARE_ONBOARDING_CONSUMER_ALARM_NAMES,
+    SELFCARE_ONBOARDING_CONSUMER_ALARM.alarmNames,
   ),
   registration(
     INTEROP_SELFCARE_API_GW_RUNBOOK_KEY,

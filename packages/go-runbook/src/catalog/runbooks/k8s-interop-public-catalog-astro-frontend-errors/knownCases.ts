@@ -1,16 +1,15 @@
+import { PUBLIC_CATALOG_ALARM } from './alarmDefinition.js';
 import type { KnownCase } from '../framework.js';
 import { INTEROP_DOWNSTREAMS } from '../framework.js';
 
 import { jiraLink, slackLink } from '../common/analysisLinks.js';
 import type { InteropKnownCaseRefs } from '../interop/interopKnownCases.js';
 import { interopKnownCase } from '../interop/interopKnownCases.js';
-import { INTEROP_PUBLIC_CATALOG_VAR_PREFIX } from './resolveInteropAlarmContext.js';
-import { QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, QUERY_INTEROP_CID_TRACKER_STEP_ID } from './runbookSteps.js';
 
 const REFS: InteropKnownCaseRefs = {
-  applicationLogsStepId: QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
-  cidTrackerStepId: QUERY_INTEROP_CID_TRACKER_STEP_ID,
-  varPrefix: INTEROP_PUBLIC_CATALOG_VAR_PREFIX,
+  applicationLogsStepId: PUBLIC_CATALOG_ALARM.stepIds.queryApplicationLogs,
+  cidTrackerStepId: PUBLIC_CATALOG_ALARM.stepIds.queryCidTracker,
+  varPrefix: PUBLIC_CATALOG_ALARM.varPrefix,
 };
 
 const REACT_WARNING_SLACK_2026_07_13 = 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1783938590061959';

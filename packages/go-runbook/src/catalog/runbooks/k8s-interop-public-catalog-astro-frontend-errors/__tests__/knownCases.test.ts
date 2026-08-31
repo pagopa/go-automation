@@ -1,10 +1,10 @@
+import { PUBLIC_CATALOG_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { ConditionEvaluator, type KnownCase, type RunbookContext, type ServiceRegistry } from '../../framework.js';
 
 import { KNOWN_CASES } from '../knownCases.js';
-import { QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, QUERY_INTEROP_CID_TRACKER_STEP_ID } from '../runbookSteps.js';
 
 interface LogRowField {
   readonly field: string;
@@ -90,18 +90,18 @@ describe('INTEROP public catalog known cases', () => {
       const fixture = CASE_FIXTURES.get(knownCase.id);
       assert.ok(fixture !== undefined, `missing fixture for known case: ${knownCase.id}`);
 
-      const ctx = context([[QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, applicationLogRows(fixture)]]);
+      const ctx = context([[PUBLIC_CATALOG_ALARM.stepIds.queryApplicationLogs, applicationLogRows(fixture)]]);
       assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), true, `expected match: ${knownCase.id}`);
     }
   });
 
   it('matches escaped-quote messages in CID tracker evidence too', () => {
     const envFiles = knownCaseById('public-catalog-astro-frontend-missing-env-files');
-    const ctx = context([[QUERY_INTEROP_CID_TRACKER_STEP_ID, cidTrackerResults([M2M_ENV_FILES_MESSAGE])]]);
+    const ctx = context([[PUBLIC_CATALOG_ALARM.stepIds.queryCidTracker, cidTrackerResults([M2M_ENV_FILES_MESSAGE])]]);
     assert.strictEqual(evaluator.evaluate(envFiles.condition, ctx), true);
 
     const plainQuotesMessage = M2M_ENV_FILES_MESSAGE.replaceAll('\\"', '"');
-    const plainCtx = context([[QUERY_INTEROP_CID_TRACKER_STEP_ID, cidTrackerResults([plainQuotesMessage])]]);
+    const plainCtx = context([[PUBLIC_CATALOG_ALARM.stepIds.queryCidTracker, cidTrackerResults([plainQuotesMessage])]]);
     assert.strictEqual(evaluator.evaluate(envFiles.condition, plainCtx), true);
   });
 
@@ -112,7 +112,7 @@ describe('INTEROP public catalog known cases', () => {
     // Combined message observed in production (PIN-8718 / PIN-8836).
     const ctx = context([
       [
-        QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
+        PUBLIC_CATALOG_ALARM.stepIds.queryApplicationLogs,
         applicationLogRows([
           "[ERROR] TypeError: Cannot read properties of undefined (reading 'length') at ... " +
             'ERROR - [CID=dfa09b91-7acf-41ea-96c6-eb02ec18ec49] Error fetching tenants from the database',

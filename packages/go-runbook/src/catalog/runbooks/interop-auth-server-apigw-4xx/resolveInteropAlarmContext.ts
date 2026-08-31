@@ -52,3 +52,8 @@ export function resolveInteropAuthServerApiGwAlarmContext(alarmName: string): In
     applicationLogGroup: interop.k8s.buildInteropK8sApplicationLogGroup(environment),
   };
 }
+
+/** Ids of the seven pipeline steps, referenced by known cases and tests. */
+export const STEP_IDS: interop.apigw.InteropApiGwRunbookStepIds = interop.apigw.defaultInteropApiGwRunbookStepIds(
+  INTEROP_AUTH_SERVER_SERVICE_NAME,
+);

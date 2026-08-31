@@ -1,16 +1,15 @@
+import { BFF_ALARM } from './alarmDefinition.js';
 import type { KnownCase, KnownCaseAnalysis } from '../framework.js';
 
 import { jiraLink } from '../common/analysisLinks.js';
 import { all } from '../common/conditions.js';
 import type { InteropKnownCaseRefs } from '../interop/interopKnownCases.js';
 import { anyInteropEvidenceMatches, interopKnownCase, interopKnownCaseAction } from '../interop/interopKnownCases.js';
-import { INTEROP_BFF_VAR_PREFIX } from './resolveInteropAlarmContext.js';
-import { QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, QUERY_INTEROP_CID_TRACKER_STEP_ID } from './runbookSteps.js';
 
 const REFS: InteropKnownCaseRefs = {
-  applicationLogsStepId: QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
-  cidTrackerStepId: QUERY_INTEROP_CID_TRACKER_STEP_ID,
-  varPrefix: INTEROP_BFF_VAR_PREFIX,
+  applicationLogsStepId: BFF_ALARM.stepIds.queryApplicationLogs,
+  cidTrackerStepId: BFF_ALARM.stepIds.queryCidTracker,
+  varPrefix: BFF_ALARM.varPrefix,
 };
 
 /** Resolutions shared between the log action and the analysis draft, so they never drift. */

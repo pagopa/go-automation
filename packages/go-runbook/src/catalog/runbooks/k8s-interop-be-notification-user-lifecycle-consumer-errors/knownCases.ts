@@ -1,16 +1,15 @@
+import { NOTIFICATION_USER_LIFECYCLE_ALARM } from './alarmDefinition.js';
 import { INTEROP_DOWNSTREAMS, type KnownCase } from '../framework.js';
 
 import { jiraLink } from '../common/analysisLinks.js';
 import type { InteropKnownCaseRefs } from '../interop/interopKnownCases.js';
 import { interopKnownCase } from '../interop/interopKnownCases.js';
 import { SELFCARE_KAFKA_BROKER_COMMUNICATION_PATTERN } from '../interop/selfcareKafkaKnownCase.js';
-import { INTEROP_NOTIFICATION_USER_LIFECYCLE_VAR_PREFIX } from './resolveInteropAlarmContext.js';
-import { QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, QUERY_INTEROP_CID_TRACKER_STEP_ID } from './runbookSteps.js';
 
 const REFS: InteropKnownCaseRefs = {
-  applicationLogsStepId: QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
-  cidTrackerStepId: QUERY_INTEROP_CID_TRACKER_STEP_ID,
-  varPrefix: INTEROP_NOTIFICATION_USER_LIFECYCLE_VAR_PREFIX,
+  applicationLogsStepId: NOTIFICATION_USER_LIFECYCLE_ALARM.stepIds.queryApplicationLogs,
+  cidTrackerStepId: NOTIFICATION_USER_LIFECYCLE_ALARM.stepIds.queryCidTracker,
+  varPrefix: NOTIFICATION_USER_LIFECYCLE_ALARM.varPrefix,
 };
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [

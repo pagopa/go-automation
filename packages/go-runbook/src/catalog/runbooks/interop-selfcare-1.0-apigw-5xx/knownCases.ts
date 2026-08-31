@@ -1,11 +1,7 @@
+import { STEP_IDS } from './resolveInteropAlarmContext.js';
 import { INTEROP_DOWNSTREAMS, type KnownCase } from '../framework.js';
 import { jiraLink, slackLink } from '../common/analysisLinks.js';
 import { createInteropApiGwKnownCaseFactory } from '../interop/interopApiGwKnownCases.js';
-import {
-  QUERY_INTEROP_API_GW_5XX_STEP_ID,
-  QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
-  QUERY_INTEROP_CID_TRACKER_STEP_ID,
-} from './runbookSteps.js';
 import { INTEROP_SELFCARE_API_GW_VAR_PREFIX } from './resolveInteropAlarmContext.js';
 const TENANT_FINAL_CHECKS_SLACK = 'https://pagopaspa.slack.com/archives/C06D24MANNN/p1767882976519499';
 const INVALID_ROLES_SLACK = 'https://pagopaspa.slack.com/archives/C06D24MANNN/p1767608380741029';
@@ -36,9 +32,9 @@ const TENANT_NOT_FOUND_PATTERN = 'Tenant with selfcareId[^\\n]*not found|Tenant 
 const KNOWN_TENANT_NOT_FOUND_PATTERN = `Tenant with selfcareId[^\\n]*(?:${KNOWN_SELFCARE_ID_PATTERN})[^\\n]*not found`;
 
 const knownCase = createInteropApiGwKnownCaseFactory({
-  apiGatewayStepId: QUERY_INTEROP_API_GW_5XX_STEP_ID,
-  applicationLogsStepId: QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
-  cidTrackerStepId: QUERY_INTEROP_CID_TRACKER_STEP_ID,
+  apiGatewayStepId: STEP_IDS.queryApiGwAggregates,
+  applicationLogsStepId: STEP_IDS.queryApplicationLogs,
+  cidTrackerStepId: STEP_IDS.queryCidTracker,
   varPrefix: INTEROP_SELFCARE_API_GW_VAR_PREFIX,
   applicationLogsLabel: 'Log applicativi',
 });

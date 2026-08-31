@@ -1,20 +1,14 @@
+import { NOTIFICATION_USER_LIFECYCLE_ALARM } from './alarmDefinition.js';
 import { interop } from '../framework.js';
 import type { Runbook } from '../framework.js';
 
 import { KNOWN_CASES } from './knownCases.js';
-import {
-  INTEROP_NOTIFICATION_USER_LIFECYCLE_RUNBOOK_KEY,
-  INTEROP_NOTIFICATION_USER_LIFECYCLE_SERVICE_NAME,
-  INTEROP_NOTIFICATION_USER_LIFECYCLE_STATIC_LOG_GROUP,
-  INTEROP_NOTIFICATION_USER_LIFECYCLE_VAR_PREFIX,
-  resolveInteropNotificationUserLifecycleAlarmContext,
-} from './resolveInteropAlarmContext.js';
 
 export function buildK8sInteropBeNotificationUserLifecycleConsumerErrorsRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: INTEROP_NOTIFICATION_USER_LIFECYCLE_RUNBOOK_KEY,
+    id: NOTIFICATION_USER_LIFECYCLE_ALARM.runbookKey,
     metadata: {
-      name: INTEROP_NOTIFICATION_USER_LIFECYCLE_RUNBOOK_KEY,
+      name: NOTIFICATION_USER_LIFECYCLE_ALARM.runbookKey,
       description:
         'Analizza gli allarmi k8s INTEROP del notification user lifecycle consumer leggendo i log applicativi, estraendo i CID e consultando il CID tracker.',
       version: '1.0.0',
@@ -23,11 +17,11 @@ export function buildK8sInteropBeNotificationUserLifecycleConsumerErrorsRunbook(
       tags: ['interop', 'k8s', 'service', 'notification', 'kafka'],
     },
     service: {
-      name: INTEROP_NOTIFICATION_USER_LIFECYCLE_SERVICE_NAME,
-      logGroup: INTEROP_NOTIFICATION_USER_LIFECYCLE_STATIC_LOG_GROUP,
-      varPrefix: INTEROP_NOTIFICATION_USER_LIFECYCLE_VAR_PREFIX,
+      name: NOTIFICATION_USER_LIFECYCLE_ALARM.podApp,
+      logGroup: NOTIFICATION_USER_LIFECYCLE_ALARM.logGroup,
+      varPrefix: NOTIFICATION_USER_LIFECYCLE_ALARM.varPrefix,
     },
-    resolveAlarmContext: resolveInteropNotificationUserLifecycleAlarmContext,
+    resolveAlarmContext: NOTIFICATION_USER_LIFECYCLE_ALARM.resolveContext,
     knownCases: KNOWN_CASES,
   });
 }

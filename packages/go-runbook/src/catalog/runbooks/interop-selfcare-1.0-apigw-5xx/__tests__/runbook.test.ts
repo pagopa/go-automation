@@ -1,3 +1,4 @@
+import { STEP_IDS } from '../resolveInteropAlarmContext.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -15,15 +16,6 @@ import {
   INTEROP_SELFCARE_API_GW_RUNBOOK_KEY,
   INTEROP_SELFCARE_API_GW_SERVICE_NAME,
 } from '../resolveInteropAlarmContext.js';
-import {
-  ANALYZE_INTEROP_API_GW_5XX_STEP_ID,
-  ANALYZE_INTEROP_APPLICATION_LOGS_STEP_ID,
-  ANALYZE_INTEROP_CID_TRACKER_STEP_ID,
-  QUERY_INTEROP_API_GW_5XX_STEP_ID,
-  QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
-  QUERY_INTEROP_CID_TRACKER_STEP_ID,
-  RESOLVE_INTEROP_SELFCARE_API_GW_CONTEXT_STEP_ID,
-} from '../runbookSteps.js';
 
 describe('buildInteropSelfcareApiGw5xxRunbook', () => {
   it('builds the custom read-only APIGW → BFF → CID pipeline', () => {
@@ -33,13 +25,13 @@ describe('buildInteropSelfcareApiGw5xxRunbook', () => {
     assert.deepStrictEqual(
       runbook.steps.map((descriptor) => descriptor.step.id),
       [
-        RESOLVE_INTEROP_SELFCARE_API_GW_CONTEXT_STEP_ID,
-        QUERY_INTEROP_API_GW_5XX_STEP_ID,
-        ANALYZE_INTEROP_API_GW_5XX_STEP_ID,
-        QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
-        ANALYZE_INTEROP_APPLICATION_LOGS_STEP_ID,
-        QUERY_INTEROP_CID_TRACKER_STEP_ID,
-        ANALYZE_INTEROP_CID_TRACKER_STEP_ID,
+        STEP_IDS.resolveContext,
+        STEP_IDS.queryApiGwAggregates,
+        STEP_IDS.analyzeApiGwAggregates,
+        STEP_IDS.queryApplicationLogs,
+        STEP_IDS.analyzeApplicationLogs,
+        STEP_IDS.queryCidTracker,
+        STEP_IDS.analyzeCidTracker,
       ],
     );
     assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 5, afterMinutes: 1 });

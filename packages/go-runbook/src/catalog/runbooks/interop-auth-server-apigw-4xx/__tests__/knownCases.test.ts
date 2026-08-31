@@ -1,10 +1,10 @@
+import { STEP_IDS } from '../resolveInteropAlarmContext.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { ConditionEvaluator, type KnownCase, type RunbookContext, type ServiceRegistry } from '../../framework.js';
 
 import { KNOWN_CASES } from '../knownCases.js';
-import { QUERY_INTEROP_API_GW_4XX_STEP_ID, QUERY_INTEROP_AUTH_SERVER_WARNINGS_STEP_ID } from '../runbookSteps.js';
 
 interface Fixture {
   readonly message: string;
@@ -114,8 +114,7 @@ describe('INTEROP auth-server API Gateway known cases', () => {
 });
 
 function context(fixture: Fixture): RunbookContext {
-  const sourceStep =
-    fixture.source === 'API_GATEWAY' ? QUERY_INTEROP_API_GW_4XX_STEP_ID : QUERY_INTEROP_AUTH_SERVER_WARNINGS_STEP_ID;
+  const sourceStep = fixture.source === 'API_GATEWAY' ? STEP_IDS.queryApiGwAggregates : STEP_IDS.queryApplicationLogs;
   return {
     executionId: 'test',
     startedAt: new Date('2026-08-24T10:00:00.000Z'),

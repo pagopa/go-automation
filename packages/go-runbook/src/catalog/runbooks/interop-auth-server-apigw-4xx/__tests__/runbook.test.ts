@@ -1,3 +1,4 @@
+import { STEP_IDS } from '../resolveInteropAlarmContext.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -21,15 +22,6 @@ import {
   INTEROP_AUTH_SERVER_API_GW_RUNBOOK_KEY,
   INTEROP_AUTH_SERVER_SERVICE_NAME,
 } from '../resolveInteropAlarmContext.js';
-import {
-  ANALYZE_INTEROP_API_GW_4XX_STEP_ID,
-  ANALYZE_INTEROP_AUTH_SERVER_CID_TRACKER_STEP_ID,
-  ANALYZE_INTEROP_AUTH_SERVER_WARNINGS_STEP_ID,
-  QUERY_INTEROP_API_GW_4XX_STEP_ID,
-  QUERY_INTEROP_AUTH_SERVER_CID_TRACKER_STEP_ID,
-  QUERY_INTEROP_AUTH_SERVER_WARNINGS_STEP_ID,
-  RESOLVE_INTEROP_AUTH_SERVER_API_GW_CONTEXT_STEP_ID,
-} from '../runbookSteps.js';
 
 describe('buildInteropAuthServerApiGw4xxRunbook', () => {
   it('builds the read-only APIGW → warnings → CID pipeline with the asymmetric window', () => {
@@ -39,13 +31,13 @@ describe('buildInteropAuthServerApiGw4xxRunbook', () => {
     assert.deepStrictEqual(
       runbook.steps.map(({ step }) => step.id),
       [
-        RESOLVE_INTEROP_AUTH_SERVER_API_GW_CONTEXT_STEP_ID,
-        QUERY_INTEROP_API_GW_4XX_STEP_ID,
-        ANALYZE_INTEROP_API_GW_4XX_STEP_ID,
-        QUERY_INTEROP_AUTH_SERVER_WARNINGS_STEP_ID,
-        ANALYZE_INTEROP_AUTH_SERVER_WARNINGS_STEP_ID,
-        QUERY_INTEROP_AUTH_SERVER_CID_TRACKER_STEP_ID,
-        ANALYZE_INTEROP_AUTH_SERVER_CID_TRACKER_STEP_ID,
+        STEP_IDS.resolveContext,
+        STEP_IDS.queryApiGwAggregates,
+        STEP_IDS.analyzeApiGwAggregates,
+        STEP_IDS.queryApplicationLogs,
+        STEP_IDS.analyzeApplicationLogs,
+        STEP_IDS.queryCidTracker,
+        STEP_IDS.analyzeCidTracker,
       ],
     );
     assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 2, afterMinutes: 1 });
