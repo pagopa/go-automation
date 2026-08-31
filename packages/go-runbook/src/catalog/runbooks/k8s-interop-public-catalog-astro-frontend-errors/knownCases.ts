@@ -16,6 +16,9 @@ const REACT_WARNING_SLACK_2026_07_13 = 'https://pagopaspa.slack.com/archives/C0A
 const REACT_WARNING_SLACK_2026_07_17 = 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1784282838257439';
 const ENV_FILES_SLACK_2026_07_13 =
   'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1783939160557559?thread_ts=1783938590.061959&cid=C0A7F9XQAT0';
+const ASTRO_RENDER_SLACK_2026_07_13 = 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1783954003529819';
+const ASTRO_RENDER_SLACK_2026_07_14 =
+  'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1784026375370299?thread_ts=1784014737.320699&cid=C0A7F9XQAT0';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   interopKnownCase(REFS, {
@@ -104,5 +107,22 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     analysisType: 'ANALYZABLE',
     downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
     links: [jiraLink('PIN-8836'), jiraLink('PIN-8718')],
+  }),
+  interopKnownCase(REFS, {
+    id: 'public-catalog-astro-node-could-not-render',
+    description: 'Astro Node non riesce a renderizzare una risorsa del public catalog frontend',
+    priority: 65,
+    // Il target successivo a "Could not render" è variabile: la firma stabile termina prima del suo valore.
+    regex: '\\[ERROR\\] \\[@astrojs/node\\] Could not render',
+    resolution:
+      'Il documento non indica una risoluzione operativa. Raccogliere il target non renderizzato, il CID e i log ' +
+      'correlati; consultare i thread Slack del 13/07/2026 e 14/07/2026.',
+    proposedStatus: 'IN_PROGRESS',
+    analysisType: 'ANALYZABLE',
+    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+    links: [
+      slackLink(ASTRO_RENDER_SLACK_2026_07_13, 'Thread Slack 13/07/2026'),
+      slackLink(ASTRO_RENDER_SLACK_2026_07_14, 'Thread Slack 14/07/2026'),
+    ],
   }),
 ];

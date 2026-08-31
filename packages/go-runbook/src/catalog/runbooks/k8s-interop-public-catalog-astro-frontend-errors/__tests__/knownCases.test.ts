@@ -75,6 +75,7 @@ const CASE_FIXTURES: ReadonlyMap<string, ReadonlyArray<string>> = new Map([
     'public-catalog-error-fetching-from-database',
     ['ERROR - [CID=dfa09b91-7acf-41ea-96c6-eb02ec18ec49] Error fetching catalog data from the database'],
   ],
+  ['public-catalog-astro-node-could-not-render', ['[ERROR] [@astrojs/node] Could not render /it/catalogo/servizi']],
 ]);
 
 describe('INTEROP public catalog known cases', () => {
@@ -83,6 +84,24 @@ describe('INTEROP public catalog known cases', () => {
   it('has unique IDs and priorities', () => {
     assert.strictEqual(new Set(KNOWN_CASES.map((knownCase) => knownCase.id)).size, KNOWN_CASES.length);
     assert.strictEqual(new Set(KNOWN_CASES.map((knownCase) => knownCase.priority)).size, KNOWN_CASES.length);
+    assert.deepStrictEqual(KNOWN_CASES.map((knownCase) => knownCase.id).sort(), [...CASE_FIXTURES.keys()].sort());
+  });
+
+  it('covers the Astro node render failure added to the updated operational PDF', () => {
+    const renderFailure = knownCaseById('public-catalog-astro-node-could-not-render');
+    const fixture = CASE_FIXTURES.get(renderFailure.id);
+    assert.ok(fixture !== undefined);
+
+    const ctx = context([[PUBLIC_CATALOG_ALARM.stepIds.queryApplicationLogs, applicationLogRows(fixture)]]);
+    assert.strictEqual(evaluator.evaluate(renderFailure.condition, ctx), true);
+    assert.strictEqual(renderFailure.analysis?.proposedStatus, 'IN_PROGRESS');
+    assert.deepStrictEqual(
+      renderFailure.analysis?.links?.map((link) => link.url),
+      [
+        'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1783954003529819',
+        'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1784026375370299?thread_ts=1784014737.320699&cid=C0A7F9XQAT0',
+      ],
+    );
   });
 
   it('matches every known case against a realistic application-log fixture', () => {
