@@ -1,4 +1,5 @@
-import type { GOLogger } from '@go-automation/go-common/core';
+import type { GOLogger, TreeNode } from '@go-automation/go-common/core';
+import { renderTree } from '@go-automation/go-common/core';
 import type { TerminationReason } from '../types/TerminationReason.js';
 
 /**
@@ -138,8 +139,23 @@ export interface ApiGwReporterTermination {
  * Output style: box-drawing characters (`═ ├ │ └`) to keep the
  * hierarchy visible in modern terminals while staying monospaced.
  */
+/**
+ * Indent of a sub-tree hanging under a service-level line.
+ *
+ * The banner is written by several steps in sequence, so the depth of a
+ * fragment is caller knowledge; everything below it is computed by `renderTree`.
+ */
+const NESTED = '  │    ';
+
 export class ApiGwReporter {
   constructor(private readonly logger: GOLogger) {}
+
+  /** Emits a sub-tree hanging under a line this reporter already wrote. */
+  private tree(nodes: ReadonlyArray<TreeNode>, indent: string): void {
+    for (const line of renderTree(nodes, { indent })) {
+      this.logger.text(line);
+    }
+  }
 
   /**
    * Section header for the API Gateway preparation step (query +
@@ -294,8 +310,7 @@ export class ApiGwReporter {
   /** Reports that the execution-log query was skipped before reaching AWS. */
   apiGwExecutionLogSkipped(logGroup: string, reason: string): void {
     this.logger.text('  ├─ ⚠ Query execution log non eseguita');
-    this.logger.text(`  │    ├─ Log group: ${logGroup}`);
-    this.logger.text(`  │    └─ Causa: ${reason}`);
+    this.tree([{ label: `Log group: ${logGroup}` }, { label: `Causa: ${reason}` }], NESTED);
   }
 
   /**
@@ -310,11 +325,12 @@ export class ApiGwReporter {
    * runs at the end).
    */
   queryFailed(logGroups: ReadonlyArray<string>, errorMessage: string): void {
-    this.logger.text(`  │    └─ ⚠ Query fallita`);
+    const children: TreeNode[] = [];
     if (logGroups.length > 0) {
-      this.logger.text(`  │       ├─ Log group${logGroups.length === 1 ? '' : 's'}: ${logGroups.join(', ')}`);
+      children.push({ label: `Log group${logGroups.length === 1 ? '' : 's'}: ${logGroups.join(', ')}` });
     }
-    this.logger.text(`  │       └─ Causa: ${errorMessage}`);
+    children.push({ label: `Causa: ${errorMessage}` });
+    this.tree([{ label: '⚠ Query fallita', children }], NESTED);
   }
 
   /**
@@ -372,13 +388,13 @@ export class ApiGwReporter {
    */
   decisionTraceIdSwap(serviceName: string, rawTraceId: string, newTraceId: string): void {
     this.logger.text(`  ├─ trace_id rilevato nei log → swap di xRayTraceId`);
-    if (rawTraceId === newTraceId) {
-      // Already in canonical form — no transformation was applied.
-      this.logger.text(`  │    └─ Nuovo trace (già canonical): ${newTraceId}`);
-    } else {
-      this.logger.text(`  │    ├─ Originale: ${rawTraceId}`);
-      this.logger.text(`  │    └─ Nuovo trace: ${newTraceId}`);
-    }
+    this.tree(
+      rawTraceId === newTraceId
+        ? // Already in canonical form — no transformation was applied.
+          [{ label: `Nuovo trace (già canonical): ${newTraceId}` }]
+        : [{ label: `Originale: ${rawTraceId}` }, { label: `Nuovo trace: ${newTraceId}` }],
+      NESTED,
+    );
     this.logger.text(`  └─ Riprova ${serviceName} con il nuovo trace_id`);
   }
 
@@ -406,12 +422,10 @@ export class ApiGwReporter {
           this.logger.text(`  └─ Esito: caso noto (${t.matchedCaseIds[0]})`);
         } else {
           this.logger.text(`  ├─ Casi noti rilevati: ${t.matchedCaseIds.length}`);
-          t.matchedCaseIds.forEach((id, idx) => {
-            const isLast = idx === t.matchedCaseIds.length - 1;
-            const branch = isLast ? '└─' : '├─';
-            const tag = idx === 0 ? ' ← primario' : '';
-            this.logger.text(`  │    ${branch} ${id}${tag}`);
-          });
+          this.tree(
+            t.matchedCaseIds.map((id, index) => ({ label: `${id}${index === 0 ? ' ← primario' : ''}` })),
+            NESTED,
+          );
           this.logger.text(`  └─ (eseguita solo l'action del caso primario; gli altri sono informativi nel trace)`);
         }
         break;

@@ -4,6 +4,7 @@ import type { Step } from '../../../types/Step.js';
 import type { StepKind } from '../../../types/StepKind.js';
 import type { StepResult } from '../../../types/StepResult.js';
 import type { InteropK8sCidTrackerResult } from './QueryInteropK8sCidTrackerStep.js';
+import { logStepTree } from '../../../core/logStepTree.js';
 
 export interface InteropK8sCidTrackerAnalysis {
   readonly cidCount: number;
@@ -64,9 +65,11 @@ export class AnalyzeInteropK8sCidTrackerStep implements Step<InteropK8sCidTracke
       messages,
     };
 
-    context.logger?.text(`      ├─ CID tracker analizzati: ${analysis.cidCount}`);
-    context.logger?.text(`      ├─ Log correlati: ${analysis.logCount}`);
-    context.logger?.text(`      └─ Pod app correlati: ${analysis.podApps.join(', ') || '-'}`);
+    logStepTree(context.logger, [
+      { label: `CID tracker analizzati: ${analysis.cidCount}` },
+      { label: `Log correlati: ${analysis.logCount}` },
+      { label: `Pod app correlati: ${analysis.podApps.join(', ') || '-'}` },
+    ]);
 
     return {
       success: true,

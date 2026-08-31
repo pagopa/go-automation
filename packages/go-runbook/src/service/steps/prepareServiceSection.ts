@@ -28,8 +28,8 @@ export class PrepareServiceSectionStep implements Step<void> {
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<void>> {
     context.logger?.newline();
-    context.logger?.text(`    ═══ Servizio: ${this.serviceName} ═══`);
-    context.logger?.text(`      ├─ Log group: ${this.logGroup}`);
+    context.logger?.text(`═══ Servizio: ${this.serviceName} ═══`);
+    context.logger?.text(`  ├─ Log group: ${this.logGroup}`);
 
     return {
       success: true,

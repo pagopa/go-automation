@@ -69,7 +69,7 @@ export class QueryServiceTraceLogsStep implements Step<ReadonlyArray<ReadonlyArr
     return executeStep('CloudWatch service trace logs query', async () => {
       const traceId = this.resolveTraceId(context);
       if (traceId === '') {
-        context.logger?.text(`      └─ Query trace ${this.serviceName}: skip, trace_id non disponibile`);
+        context.logger?.text(`  └─ Query trace ${this.serviceName}: skip, trace_id non disponibile`);
         return {
           success: true,
           output: [],
@@ -77,7 +77,7 @@ export class QueryServiceTraceLogsStep implements Step<ReadonlyArray<ReadonlyArr
         };
       }
 
-      context.logger?.text(`      ├─ Query trace ${this.serviceName} [trace_id=${traceId}]`);
+      context.logger?.text(`  ├─ Query trace ${this.serviceName} [trace_id=${traceId}]`);
 
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
       const query = this.buildQuery(traceId);
@@ -86,7 +86,7 @@ export class QueryServiceTraceLogsStep implements Step<ReadonlyArray<ReadonlyArr
         logGroupResolutionMode: 'search-configured-profiles',
       });
 
-      context.logger?.text(`      └─ Log trace trovati: ${result.rows.length}`);
+      context.logger?.text(`  └─ Log trace trovati: ${result.rows.length}`);
 
       return {
         success: true,

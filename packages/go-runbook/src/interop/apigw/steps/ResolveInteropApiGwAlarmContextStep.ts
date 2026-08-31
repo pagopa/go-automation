@@ -4,6 +4,7 @@ import type { Step } from '../../../types/Step.js';
 import type { StepKind } from '../../../types/StepKind.js';
 import type { StepResult } from '../../../types/StepResult.js';
 import type { InteropApiGwAlarmContext, ResolveInteropApiGwAlarmContextFn } from '../types/InteropApiGwAlarmContext.js';
+import { logStepTree } from '../../../core/logStepTree.js';
 
 export interface ResolveInteropApiGwAlarmContextStepConfig {
   readonly id: string;
@@ -51,11 +52,13 @@ export class ResolveInteropApiGwAlarmContextStep implements Step<InteropApiGwAla
       };
     }
 
-    context.logger?.text(`      ├─ Ambiente INTEROP: ${alarmContext.environment}`);
-    context.logger?.text(`      ├─ API Gateway ID: ${alarmContext.apiGwId}`);
-    context.logger?.text(`      ├─ Access log group: ${alarmContext.apiGwLogGroup}`);
-    context.logger?.text(`      ├─ Pod app: ${alarmContext.podApp}`);
-    context.logger?.text(`      └─ Application log group: ${alarmContext.applicationLogGroup}`);
+    logStepTree(context.logger, [
+      { label: `Ambiente INTEROP: ${alarmContext.environment}` },
+      { label: `API Gateway ID: ${alarmContext.apiGwId}` },
+      { label: `Access log group: ${alarmContext.apiGwLogGroup}` },
+      { label: `Pod app: ${alarmContext.podApp}` },
+      { label: `Application log group: ${alarmContext.applicationLogGroup}` },
+    ]);
 
     return {
       success: true,

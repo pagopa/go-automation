@@ -7,6 +7,7 @@ import type { StepKind } from '../../../types/StepKind.js';
 import type { StepResult } from '../../../types/StepResult.js';
 import { normalizeInteropApiGwAggregateValue } from '../helpers/normalizeInteropApiGwAggregateValue.js';
 import type { InteropApiGwAggregateAnalysis } from '../types/InteropApiGwAggregateAnalysis.js';
+import { logStepTree } from '../../../core/logStepTree.js';
 
 export interface AnalyzeInteropApiGwAggregatesStepConfig {
   readonly id: string;
@@ -65,9 +66,11 @@ export class AnalyzeInteropApiGwAggregatesStep implements Step<InteropApiGwAggre
       sourceIps: [...sourceIps].sort(),
     };
 
-    context.logger?.text(`      ├─ Aggregati API Gateway analizzati: ${analysis.aggregateCount}`);
-    context.logger?.text(`      ├─ Errori ${this.errorFamilyLabel} complessivi: ${analysis.errorCount}`);
-    context.logger?.text(`      └─ Status: ${analysis.statuses.join(', ') || '-'}`);
+    logStepTree(context.logger, [
+      { label: `Aggregati API Gateway analizzati: ${analysis.aggregateCount}` },
+      { label: `Errori ${this.errorFamilyLabel} complessivi: ${analysis.errorCount}` },
+      { label: `Status: ${analysis.statuses.join(', ') || '-'}` },
+    ]);
 
     return {
       success: true,

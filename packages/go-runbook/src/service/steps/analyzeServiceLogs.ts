@@ -45,17 +45,17 @@ export class AnalyzeServiceLogsStep implements Step<ServiceLogAnalysis> {
     const traceIdRaw = scan.traceIdCandidate?.raw;
     const fallbackUuid = scan.fallbackUuid;
 
-    context.logger?.text(`      ├─ Analisi log`);
-    context.logger?.text(`      │    ├─ Errori applicativi: ${results.length}`);
+    context.logger?.text(`  ├─ Analisi log`);
+    context.logger?.text(`  │    ├─ Errori applicativi: ${results.length}`);
     if (scan.errorMessage !== '') {
-      context.logger?.text(`      │    ├─ Error message individuato (len=${scan.errorMessage.length})`);
+      context.logger?.text(`  │    ├─ Error message individuato (len=${scan.errorMessage.length})`);
     } else {
-      context.logger?.text(`      │    ├─ Nessun error message rilevato`);
+      context.logger?.text(`  │    ├─ Nessun error message rilevato`);
     }
     if (traceId !== undefined) {
-      context.logger?.text(`      │    └─ Trace ID: ${traceId}`);
+      context.logger?.text(`  │    └─ Trace ID: ${traceId}`);
     } else {
-      context.logger?.text(`      │    └─ Nessun trace_id rilevato`);
+      context.logger?.text(`  │    └─ Nessun trace_id rilevato`);
     }
 
     const vars: Record<string, string> = {
