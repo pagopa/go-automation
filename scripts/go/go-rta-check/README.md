@@ -206,11 +206,11 @@ Selezionando `Tutti gli ambienti`: se lo scope del prodotto è aperto non viene 
 
 Al termine di ogni run lo script **non esce**: chiede cosa fare, perché rivedere più runbook di fila è il caso d'uso normale e rifare login e selezione ogni volta è tempo sprecato.
 
-| Voce                                          | Effetto                                                                          |
-| --------------------------------------------- | -------------------------------------------------------------------------------- |
-| `Analizza un altro runbook di <prodotto>`     | Torna al passo **Runbook**, mantenendo prodotto e ambiente già scelti.           |
-| `Analizza un runbook di un altro prodotto`    | Riparte dal passo **Prodotto**, cioè dal menù iniziale.                          |
-| `Esci`                                        | Chiude la sessione con l'exit code accumulato.                                   |
+| Voce                                       | Effetto                                                                |
+| ------------------------------------------ | ---------------------------------------------------------------------- |
+| `Analizza un altro runbook di <prodotto>`  | Torna al passo **Runbook**, mantenendo prodotto e ambiente già scelti. |
+| `Analizza un runbook di un altro prodotto` | Riparte dal passo **Prodotto**, cioè dal menù iniziale.                |
+| `Esci`                                     | Chiude la sessione con l'exit code accumulato.                         |
 
 Dettagli del comportamento:
 
