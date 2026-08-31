@@ -9,7 +9,7 @@ import { ConditionEvaluator } from '../../../../core/ConditionEvaluator.js';
 import type { ServiceRegistry } from '../../../../services/ServiceRegistry.js';
 
 import { DELIVERY_API_GW_EXECUTION_LOG_GROUP } from '../../constants.js';
-import { buildDeliveryB2BApiGwAlarmRunbook } from '../runbook.js';
+import { buildRunbook } from '../runbook.js';
 import { API_GW_LOG_GROUP } from '../knownServices.js';
 
 type EvidenceKind =
@@ -270,7 +270,7 @@ describe('pn-delivery-B2B real occurrence regressions', () => {
       const calls: string[] = [];
       const firedAt = new Date(occurrence.firedAt);
       const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
-        buildDeliveryB2BApiGwAlarmRunbook(),
+        buildRunbook(),
         new Map([
           ['startTime', new Date(firedAt.getTime() - 10 * 60_000).toISOString()],
           ['endTime', new Date(firedAt.getTime() + 5 * 60_000).toISOString()],

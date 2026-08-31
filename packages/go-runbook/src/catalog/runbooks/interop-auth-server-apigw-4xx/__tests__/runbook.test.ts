@@ -17,11 +17,11 @@ import type { ServiceRegistry } from '../../../../services/ServiceRegistry.js';
 import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionResult.js';
 import { apigw } from '../../framework.js';
 
-import { buildInteropAuthServerApiGw4xxRunbook } from '../runbook.js';
+import { buildRunbook } from '../runbook.js';
 
-describe('buildInteropAuthServerApiGw4xxRunbook', () => {
+describe('buildRunbook', () => {
   it('builds the read-only APIGW → warnings → CID pipeline with the asymmetric window', () => {
-    const runbook = buildInteropAuthServerApiGw4xxRunbook();
+    const runbook = buildRunbook();
 
     assert.strictEqual(runbook.metadata.id, AUTH_SERVER_ALARM.runbookKey);
     assert.deepStrictEqual(
@@ -117,7 +117,7 @@ describe('buildInteropAuthServerApiGw4xxRunbook', () => {
       result.matchedCases.map(({ id }) => id),
       ['auth-server-api-gateway-forbidden-403'],
     );
-    const draft = buildAnalysisDraft(buildInteropAuthServerApiGw4xxRunbook(), result);
+    const draft = buildAnalysisDraft(buildRunbook(), result);
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'COMPLETED');
     assert.match(draft.conclusionNotes, /nessuna azione necessaria/u);
@@ -125,7 +125,7 @@ describe('buildInteropAuthServerApiGw4xxRunbook', () => {
 });
 
 async function execute(cloudWatchLogs: unknown): Promise<RunbookExecutionResult> {
-  const runbook = buildInteropAuthServerApiGw4xxRunbook();
+  const runbook = buildRunbook();
   const engine = new RunbookEngine(new GOLogger(), new ConditionEvaluator());
   return engine.execute(
     runbook,

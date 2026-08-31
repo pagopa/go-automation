@@ -4,11 +4,11 @@ import { describe, it } from 'node:test';
 
 import { service } from '../../framework.js';
 
-import { buildK8sInteropBeBackendForFrontendErrorsRunbook } from '../runbook.js';
+import { buildRunbook } from '../runbook.js';
 
-describe('buildK8sInteropBeBackendForFrontendErrorsRunbook', () => {
+describe('buildRunbook', () => {
   it('builds a SERVICE-compatible read-only runbook with the expected pipeline', () => {
-    const runbook = buildK8sInteropBeBackendForFrontendErrorsRunbook();
+    const runbook = buildRunbook();
 
     assert.strictEqual(runbook.metadata.id, BFF_ALARM.runbookKey);
     assert.deepStrictEqual(

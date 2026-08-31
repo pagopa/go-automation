@@ -5,7 +5,7 @@ import { interop } from '../framework.js';
 
 import { KNOWN_CASES } from './knownCases.js';
 
-export function buildInteropAuthServerApiGw4xxRunbook(): Runbook {
+export function buildRunbook(): Runbook {
   return interop.apigw.createInteropApiGwAlarmRunbook({
     id: AUTH_SERVER_ALARM.runbookKey,
     metadata: {

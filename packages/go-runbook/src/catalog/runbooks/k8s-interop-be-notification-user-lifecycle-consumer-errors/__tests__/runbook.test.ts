@@ -4,11 +4,11 @@ import { describe, it } from 'node:test';
 
 import { service } from '../../framework.js';
 
-import { buildK8sInteropBeNotificationUserLifecycleConsumerErrorsRunbook } from '../runbook.js';
+import { buildRunbook } from '../runbook.js';
 
-describe('buildK8sInteropBeNotificationUserLifecycleConsumerErrorsRunbook', () => {
+describe('buildRunbook', () => {
   it('builds a SERVICE-compatible read-only runbook with the expected pipeline', () => {
-    const runbook = buildK8sInteropBeNotificationUserLifecycleConsumerErrorsRunbook();
+    const runbook = buildRunbook();
 
     assert.strictEqual(runbook.metadata.id, NOTIFICATION_USER_LIFECYCLE_ALARM.runbookKey);
     assert.deepStrictEqual(

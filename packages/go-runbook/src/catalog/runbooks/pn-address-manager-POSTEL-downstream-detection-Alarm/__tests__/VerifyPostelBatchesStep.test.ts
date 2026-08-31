@@ -14,7 +14,7 @@ import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { SEND_SERVICE_PROFILE } from '../../../../service/profiles/SEND_SERVICE_PROFILE.js';
 import type { RunbookContext } from '../../../../types/RunbookContext.js';
 import type { ServiceRegistry } from '../../../../services/ServiceRegistry.js';
-import { buildAddressManagerPostelDownstreamDetectionAlarmRunbook } from '../runbook.js';
+import { buildRunbook } from '../runbook.js';
 import { POSTEL_WORKED_BATCH_QUERY, VerifyPostelBatchesStep } from '../VerifyPostelBatchesStep.js';
 
 const BATCH_1 = '4e761d4d-5b3d-4c7b-8d77-7f81353b2d5b';
@@ -198,7 +198,7 @@ describe('VerifyPostelBatchesStep', () => {
     } as unknown as ServiceRegistry;
 
     const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
-      buildAddressManagerPostelDownstreamDetectionAlarmRunbook(),
+      buildRunbook(),
       new Map([
         ['alarmName', 'pn-address-manager-POSTEL-downstream-detection-Alarm'],
         ['alarmDatetime', '2026-07-24T12:30:00.000Z'],

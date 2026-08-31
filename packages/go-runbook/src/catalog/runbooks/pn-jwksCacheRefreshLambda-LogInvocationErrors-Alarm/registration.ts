@@ -2,7 +2,7 @@ import { AutomaticRunbookKinds } from '@go-automation/go-execute-runbook-contrac
 
 import type { AutomaticRunbookRegistration } from '../../AutomaticRunbookRegistration.js';
 import { RunbookProducts } from '../../../types/RunbookProduct.js';
-import { buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook } from './runbook.js';
+import { buildRunbook } from './runbook.js';
 
 const KEY = 'pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm';
 
@@ -12,5 +12,5 @@ export const JWKS_CACHE_REFRESH_LAMBDA_REGISTRATION: AutomaticRunbookRegistratio
   kind: AutomaticRunbookKinds.LAMBDA,
   categories: ['AUTHORIZATION'],
   alarmNames: [KEY],
-  build: buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook,
+  build: buildRunbook,
 };

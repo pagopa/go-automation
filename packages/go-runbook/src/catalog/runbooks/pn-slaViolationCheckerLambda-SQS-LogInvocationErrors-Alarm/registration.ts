@@ -2,7 +2,7 @@ import { AutomaticRunbookKinds } from '@go-automation/go-execute-runbook-contrac
 
 import type { AutomaticRunbookRegistration } from '../../AutomaticRunbookRegistration.js';
 import { RunbookProducts } from '../../../types/RunbookProduct.js';
-import { buildSlaViolationCheckerLambdaSqsRunbook } from './runbook.js';
+import { buildRunbook } from './runbook.js';
 
 const KEY = 'pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm';
 
@@ -12,5 +12,5 @@ export const SLA_VIOLATION_CHECKER_LAMBDA_SQS_REGISTRATION: AutomaticRunbookRegi
   kind: AutomaticRunbookKinds.LAMBDA,
   categories: ['DELIVERY'],
   alarmNames: [KEY],
-  build: buildSlaViolationCheckerLambdaSqsRunbook,
+  build: buildRunbook,
 };

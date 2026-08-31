@@ -2,7 +2,7 @@ import { AutomaticRunbookKinds } from '@go-automation/go-execute-runbook-contrac
 
 import type { AutomaticRunbookRegistration } from '../../AutomaticRunbookRegistration.js';
 import { RunbookProducts } from '../../../types/RunbookProduct.js';
-import { buildIoAuthorizerLambdaRunbook } from './runbook.js';
+import { buildRunbook } from './runbook.js';
 
 const KEY = 'pn-ioAuthorizerLambda-LogInvocationErrors-Alarm';
 
@@ -12,5 +12,5 @@ export const IO_AUTHORIZER_LAMBDA_REGISTRATION: AutomaticRunbookRegistration = {
   kind: AutomaticRunbookKinds.LAMBDA,
   categories: ['AUTHORIZATION'],
   alarmNames: [KEY],
-  build: buildIoAuthorizerLambdaRunbook,
+  build: buildRunbook,
 };

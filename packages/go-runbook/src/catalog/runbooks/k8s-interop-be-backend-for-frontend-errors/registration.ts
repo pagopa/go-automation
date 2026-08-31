@@ -3,7 +3,7 @@ import { AutomaticRunbookKinds } from '@go-automation/go-execute-runbook-contrac
 import type { AutomaticRunbookRegistration } from '../../AutomaticRunbookRegistration.js';
 import { RunbookProducts } from '../../../types/RunbookProduct.js';
 import { BFF_ALARM } from './alarmDefinition.js';
-import { buildK8sInteropBeBackendForFrontendErrorsRunbook } from './runbook.js';
+import { buildRunbook } from './runbook.js';
 
 export const BFF_REGISTRATION: AutomaticRunbookRegistration = {
   key: BFF_ALARM.runbookKey,
@@ -11,5 +11,5 @@ export const BFF_REGISTRATION: AutomaticRunbookRegistration = {
   kind: AutomaticRunbookKinds.SERVICE,
   categories: ['INTEROP'],
   alarmNames: BFF_ALARM.alarmNames,
-  build: buildK8sInteropBeBackendForFrontendErrorsRunbook,
+  build: buildRunbook,
 };

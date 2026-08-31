@@ -2,7 +2,7 @@ import { AutomaticRunbookKinds } from '@go-automation/go-execute-runbook-contrac
 
 import type { AutomaticRunbookRegistration } from '../../AutomaticRunbookRegistration.js';
 import { RunbookProducts } from '../../../types/RunbookProduct.js';
-import { buildAddressManagerPostelDownstreamDetectionAlarmRunbook } from './runbook.js';
+import { buildRunbook } from './runbook.js';
 
 const KEY = 'pn-address-manager-POSTEL-downstream-detection-Alarm';
 
@@ -12,5 +12,5 @@ export const ADDRESS_MANAGER_POSTEL_REGISTRATION: AutomaticRunbookRegistration =
   kind: AutomaticRunbookKinds.SERVICE,
   categories: ['DELIVERY'],
   alarmNames: [KEY],
-  build: buildAddressManagerPostelDownstreamDetectionAlarmRunbook,
+  build: buildRunbook,
 };

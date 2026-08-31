@@ -3,7 +3,7 @@ import { AutomaticRunbookKinds } from '@go-automation/go-execute-runbook-contrac
 import type { AutomaticRunbookRegistration } from '../../AutomaticRunbookRegistration.js';
 import { RunbookProducts } from '../../../types/RunbookProduct.js';
 import { SELFCARE_ALARM } from './alarmDefinition.js';
-import { buildInteropSelfcareApiGw5xxRunbook } from './runbook.js';
+import { buildRunbook } from './runbook.js';
 
 export const SELFCARE_APIGW_REGISTRATION: AutomaticRunbookRegistration = {
   key: SELFCARE_ALARM.runbookKey,
@@ -11,5 +11,5 @@ export const SELFCARE_APIGW_REGISTRATION: AutomaticRunbookRegistration = {
   kind: AutomaticRunbookKinds.APIGW,
   categories: ['INTEROP'],
   alarmNames: SELFCARE_ALARM.alarmNames,
-  build: buildInteropSelfcareApiGw5xxRunbook,
+  build: buildRunbook,
 };

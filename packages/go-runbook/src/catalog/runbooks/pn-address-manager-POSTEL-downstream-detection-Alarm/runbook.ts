@@ -11,7 +11,7 @@ import { SERVICE } from './knownServices.js';
 import { VerifyPostelBatchesStep } from './VerifyPostelBatchesStep.js';
 
 /** Builds the pn-address-manager POSTEL downstream-detection runbook. */
-export function buildAddressManagerPostelDownstreamDetectionAlarmRunbook(): Runbook {
+export function buildRunbook(): Runbook {
   return service.createServiceAlarmRunbook({
     id: 'pn-address-manager-POSTEL-downstream-detection-Alarm',
     metadata: {

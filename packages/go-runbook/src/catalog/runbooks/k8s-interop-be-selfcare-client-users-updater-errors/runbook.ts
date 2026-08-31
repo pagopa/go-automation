@@ -4,7 +4,7 @@ import type { Runbook } from '../framework.js';
 
 import { KNOWN_CASES } from './knownCases.js';
 
-export function buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook(): Runbook {
+export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
     id: SELFCARE_USERS_UPDATER_ALARM.runbookKey,
     metadata: {

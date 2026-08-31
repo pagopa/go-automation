@@ -9,7 +9,7 @@ import { KNOWN_CASES } from './knownCases.js';
 import { SERVICE } from './knownServices.js';
 
 /** Builds the pn-national-registries AdE downstream-detection runbook. */
-export function buildNationalRegistriesAdeDownstreamDetectionAlarmRunbook(): Runbook {
+export function buildRunbook(): Runbook {
   return service.createServiceAlarmRunbook({
     id: 'pn-national-registries-AdE-downstream-detection-Alarm',
     metadata: {

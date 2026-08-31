@@ -14,7 +14,7 @@ import { KNOWN_CASES } from './knownCases.js';
  *
  * @returns A validated {@link Runbook} ready for execution
  */
-export function buildDeliveryPushB2BApiGwAlarmRunbook(): Runbook {
+export function buildRunbook(): Runbook {
   return apigw.createApiGwAlarmRunbook({
     id: 'pn-delivery-push-B2B-ApiGwAlarm',
     metadata: {

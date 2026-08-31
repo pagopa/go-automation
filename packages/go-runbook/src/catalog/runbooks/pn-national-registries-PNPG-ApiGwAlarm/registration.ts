@@ -2,7 +2,7 @@ import { AutomaticRunbookKinds } from '@go-automation/go-execute-runbook-contrac
 
 import type { AutomaticRunbookRegistration } from '../../AutomaticRunbookRegistration.js';
 import { RunbookProducts } from '../../../types/RunbookProduct.js';
-import { buildNationalRegistriesPNPGApiGwAlarmRunbook } from './runbook.js';
+import { buildRunbook } from './runbook.js';
 
 const KEY = 'pn-national-registries-PNPG-ApiGwAlarm';
 
@@ -12,5 +12,5 @@ export const NATIONAL_REGISTRIES_PNPG_REGISTRATION: AutomaticRunbookRegistration
   kind: AutomaticRunbookKinds.APIGW,
   categories: ['INTEGRATION'],
   alarmNames: [KEY],
-  build: buildNationalRegistriesPNPGApiGwAlarmRunbook,
+  build: buildRunbook,
 };

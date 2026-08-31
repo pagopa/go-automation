@@ -2,7 +2,7 @@ import { AutomaticRunbookKinds } from '@go-automation/go-execute-runbook-contrac
 
 import type { AutomaticRunbookRegistration } from '../../AutomaticRunbookRegistration.js';
 import { RunbookProducts } from '../../../types/RunbookProduct.js';
-import { buildNationalRegistriesInadDownstreamDetectionAlarmRunbook } from './runbook.js';
+import { buildRunbook } from './runbook.js';
 
 const KEY = 'pn-national-registries-INAD-downstream-detection-Alarm';
 
@@ -12,5 +12,5 @@ export const NATIONAL_REGISTRIES_INAD_REGISTRATION: AutomaticRunbookRegistration
   kind: AutomaticRunbookKinds.SERVICE,
   categories: ['INTEGRATION'],
   alarmNames: [KEY],
-  build: buildNationalRegistriesInadDownstreamDetectionAlarmRunbook,
+  build: buildRunbook,
 };

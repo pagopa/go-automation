@@ -5,7 +5,7 @@ import { interop } from '../framework.js';
 
 import { KNOWN_CASES } from './knownCases.js';
 
-export function buildInteropSelfcareApiGw5xxRunbook(): Runbook {
+export function buildRunbook(): Runbook {
   return interop.apigw.createInteropApiGwAlarmRunbook({
     id: SELFCARE_ALARM.runbookKey,
     metadata: {

@@ -4,7 +4,7 @@ import type { Runbook } from '../framework.js';
 
 import { KNOWN_CASES } from './knownCases.js';
 
-export function buildK8sInteropBeNotificationUserLifecycleConsumerErrorsRunbook(): Runbook {
+export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
     id: NOTIFICATION_USER_LIFECYCLE_ALARM.runbookKey,
     metadata: {

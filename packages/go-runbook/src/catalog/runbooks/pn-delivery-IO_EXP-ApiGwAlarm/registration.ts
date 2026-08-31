@@ -2,7 +2,7 @@ import { AutomaticRunbookKinds } from '@go-automation/go-execute-runbook-contrac
 
 import type { AutomaticRunbookRegistration } from '../../AutomaticRunbookRegistration.js';
 import { RunbookProducts } from '../../../types/RunbookProduct.js';
-import { buildDeliveryIoExpApiGwAlarmRunbook } from './runbook.js';
+import { buildRunbook } from './runbook.js';
 
 const KEY = 'pn-delivery-IO_EXP-ApiGwAlarm';
 
@@ -12,5 +12,5 @@ export const DELIVERY_IO_EXP_REGISTRATION: AutomaticRunbookRegistration = {
   kind: AutomaticRunbookKinds.APIGW,
   categories: ['DELIVERY'],
   alarmNames: [KEY],
-  build: buildDeliveryIoExpApiGwAlarmRunbook,
+  build: buildRunbook,
 };

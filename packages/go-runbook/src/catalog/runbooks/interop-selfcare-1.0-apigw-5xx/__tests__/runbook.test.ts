@@ -11,11 +11,11 @@ import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
 import type { ServiceRegistry } from '../../../../services/ServiceRegistry.js';
 
-import { buildInteropSelfcareApiGw5xxRunbook } from '../runbook.js';
+import { buildRunbook } from '../runbook.js';
 
-describe('buildInteropSelfcareApiGw5xxRunbook', () => {
+describe('buildRunbook', () => {
   it('builds the custom read-only APIGW → BFF → CID pipeline', () => {
-    const runbook = buildInteropSelfcareApiGw5xxRunbook();
+    const runbook = buildRunbook();
 
     assert.strictEqual(runbook.metadata.id, SELFCARE_ALARM.runbookKey);
     assert.deepStrictEqual(
@@ -57,7 +57,7 @@ describe('buildInteropSelfcareApiGw5xxRunbook', () => {
         };
       },
     };
-    const runbook = buildInteropSelfcareApiGw5xxRunbook();
+    const runbook = buildRunbook();
     const engine = new RunbookEngine(new GOLogger(), new ConditionEvaluator());
     const result = await engine.execute(
       runbook,
@@ -121,7 +121,7 @@ describe('buildInteropSelfcareApiGw5xxRunbook', () => {
         };
       },
     };
-    const runbook = buildInteropSelfcareApiGw5xxRunbook();
+    const runbook = buildRunbook();
     const engine = new RunbookEngine(new GOLogger(), new ConditionEvaluator());
     const result = await engine.execute(
       runbook,

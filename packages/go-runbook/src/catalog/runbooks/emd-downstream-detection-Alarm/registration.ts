@@ -2,7 +2,7 @@ import { AutomaticRunbookKinds } from '@go-automation/go-execute-runbook-contrac
 
 import type { AutomaticRunbookRegistration } from '../../AutomaticRunbookRegistration.js';
 import { RunbookProducts } from '../../../types/RunbookProduct.js';
-import { buildEmdDownstreamDetectionAlarmRunbook } from './runbook.js';
+import { buildRunbook } from './runbook.js';
 
 const KEY = 'emd-downstream-detection-Alarm';
 
@@ -12,5 +12,5 @@ export const EMD_DOWNSTREAM_DETECTION_REGISTRATION: AutomaticRunbookRegistration
   kind: AutomaticRunbookKinds.SERVICE,
   categories: ['INTEGRATION'],
   alarmNames: [KEY],
-  build: buildEmdDownstreamDetectionAlarmRunbook,
+  build: buildRunbook,
 };

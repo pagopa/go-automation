@@ -2,7 +2,7 @@ import { AutomaticRunbookKinds } from '@go-automation/go-execute-runbook-contrac
 
 import type { AutomaticRunbookRegistration } from '../../AutomaticRunbookRegistration.js';
 import { RunbookProducts } from '../../../types/RunbookProduct.js';
-import { buildTokenExchangeLambdaRunbook } from './runbook.js';
+import { buildRunbook } from './runbook.js';
 
 const KEY = 'pn-tokenExchangeLambda-LogInvocationErrors-Alarm';
 
@@ -12,5 +12,5 @@ export const TOKEN_EXCHANGE_LAMBDA_REGISTRATION: AutomaticRunbookRegistration = 
   kind: AutomaticRunbookKinds.LAMBDA,
   categories: ['AUTHORIZATION', 'INTEGRATION'],
   alarmNames: [KEY],
-  build: buildTokenExchangeLambdaRunbook,
+  build: buildRunbook,
 };

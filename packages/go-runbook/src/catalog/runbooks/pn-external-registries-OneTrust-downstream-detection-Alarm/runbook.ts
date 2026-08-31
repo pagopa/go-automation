@@ -9,7 +9,7 @@ import { KNOWN_CASES } from './knownCases.js';
 import { SERVICE } from './knownServices.js';
 
 /** Builds the pn-external-registries OneTrust downstream-detection runbook. */
-export function buildExternalRegistriesOneTrustDownstreamDetectionAlarmRunbook(): Runbook {
+export function buildRunbook(): Runbook {
   return service.createServiceAlarmRunbook({
     id: 'pn-external-registries-OneTrust-downstream-detection-Alarm',
     metadata: {
