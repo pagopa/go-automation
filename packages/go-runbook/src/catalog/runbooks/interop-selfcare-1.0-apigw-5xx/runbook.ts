@@ -4,12 +4,6 @@ import { interop } from '../framework.js';
 
 import { KNOWN_CASES } from './knownCases.js';
 import {
-  buildInteropApiGw5xxAggregateQuery,
-  buildInteropBff5xxApplicationLogsQuery,
-  INTEROP_API_GW_5XX_QUERY_PROFILE_ID,
-  INTEROP_BFF_5XX_QUERY_PROFILE_ID,
-} from './queries.js';
-import {
   INTEROP_SELFCARE_API_GW_LOG_GROUP_TEMPLATE,
   INTEROP_SELFCARE_API_GW_PROFILE_ID,
   INTEROP_SELFCARE_API_GW_RUNBOOK_KEY,
@@ -34,20 +28,15 @@ export function buildInteropSelfcareApiGw5xxRunbook(): Runbook {
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
     resolverId: 'interop-selfcare-api-gateway-context',
     resolveAlarmContext: resolveInteropSelfcareApiGwAlarmContext,
+    queryProfile: interop.apigw.INTEROP_API_GW_5XX_SERVICE_ERRORS_PROFILE,
     apiGw: {
       logGroupTemplate: INTEROP_SELFCARE_API_GW_LOG_GROUP_TEMPLATE,
       profileId: INTEROP_SELFCARE_API_GW_PROFILE_ID,
-      queryProfileId: INTEROP_API_GW_5XX_QUERY_PROFILE_ID,
-      queryKind: 'interop-api-gateway-5xx-aggregate',
-      errorFamilyLabel: '5xx',
-      buildQuery: buildInteropApiGw5xxAggregateQuery,
     },
     application: {
       serviceName: INTEROP_SELFCARE_API_GW_SERVICE_NAME,
       logGroupTemplate: INTEROP_SELFCARE_APPLICATION_LOG_GROUP_TEMPLATE,
       varPrefix: INTEROP_SELFCARE_API_GW_VAR_PREFIX,
-      queryProfileId: INTEROP_BFF_5XX_QUERY_PROFILE_ID,
-      buildQuery: buildInteropBff5xxApplicationLogsQuery,
     },
     knownCases: KNOWN_CASES,
     fallbackAction: unknownCaseFallback(

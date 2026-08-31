@@ -50,11 +50,16 @@ export function defaultInteropApiGwRunbookStepIds(serviceName: string): InteropA
  * @returns A validated {@link Runbook} ready for the engine
  */
 export function createInteropApiGwAlarmRunbook(config: InteropApiGwAlarmConfig): Runbook {
-  const { apiGw, application } = config;
+  const { apiGw, application, queryProfile } = config;
   const stepIds = { ...defaultInteropApiGwRunbookStepIds(application.serviceName), ...config.stepIds };
   const timeRange = config.timeRangeFromParams ?? DEFAULT_TIME_RANGE;
   const applicationTimeRange = application.timeRangeFromParams ?? timeRange;
   const applicationLabel = application.label ?? `log applicativi ${application.serviceName}`;
+  const podAppFilter = application.podAppFilter;
+  const buildApplicationLogsQuery =
+    podAppFilter === undefined
+      ? queryProfile.buildApplicationLogsQuery
+      : (): string => queryProfile.buildApplicationLogsQuery(podAppFilter);
 
   const builder = RunbookBuilder.create(config.id)
     .metadata(config.metadata)
@@ -94,21 +99,21 @@ export function createInteropApiGwAlarmRunbook(config: InteropApiGwAlarmConfig):
   builder.step(
     new QueryInteropApiGwAggregatesStep({
       id: stepIds.queryApiGwAggregates,
-      label: `Query aggregata access log ${apiGw.errorFamilyLabel} API Gateway INTEROP`,
+      label: `Query aggregata access log ${queryProfile.errorFamilyLabel} API Gateway INTEROP`,
       timeRangeFromParams: timeRange,
-      queryProfileId: apiGw.queryProfileId,
-      queryKind: apiGw.queryKind,
-      errorFamilyLabel: apiGw.errorFamilyLabel,
-      buildQuery: apiGw.buildQuery,
+      queryProfileId: queryProfile.apiGwQueryProfileId,
+      queryKind: queryProfile.apiGwQueryKind,
+      errorFamilyLabel: queryProfile.errorFamilyLabel,
+      buildQuery: queryProfile.buildApiGwAggregateQuery,
     }),
   );
 
   builder.step(
     new AnalyzeInteropApiGwAggregatesStep({
       id: stepIds.analyzeApiGwAggregates,
-      label: `Analisi aggregati ${apiGw.errorFamilyLabel} API Gateway INTEROP`,
+      label: `Analisi aggregati ${queryProfile.errorFamilyLabel} API Gateway INTEROP`,
       fromStep: stepIds.queryApiGwAggregates,
-      errorFamilyLabel: apiGw.errorFamilyLabel,
+      errorFamilyLabel: queryProfile.errorFamilyLabel,
     }),
   );
 
@@ -117,8 +122,8 @@ export function createInteropApiGwAlarmRunbook(config: InteropApiGwAlarmConfig):
       id: stepIds.queryApplicationLogs,
       label: `Query ${applicationLabel}`,
       timeRangeFromParams: applicationTimeRange,
-      queryProfileId: application.queryProfileId,
-      buildQuery: application.buildQuery,
+      queryProfileId: queryProfile.applicationLogsQueryProfileId,
+      buildQuery: buildApplicationLogsQuery,
     }),
   );
 

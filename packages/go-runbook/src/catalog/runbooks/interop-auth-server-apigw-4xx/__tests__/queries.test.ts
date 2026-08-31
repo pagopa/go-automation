@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { buildInteropAuthServerApiGw4xxAggregateQuery, buildInteropAuthServerWarningsQuery } from '../queries.js';
+import { interop } from '../../framework.js';
+
+const PROFILE = interop.apigw.INTEROP_API_GW_4XX_SERVICE_WARNINGS_PROFILE;
 import { INTEROP_AUTH_SERVER_POD_APP_FILTER } from '../resolveInteropAlarmContext.js';
 
 describe('INTEROP auth-server API Gateway queries', () => {
   it('uses the optimized numeric 4xx range and retains the diagnostic dimensions', () => {
-    const query = buildInteropAuthServerApiGw4xxAggregateQuery('ffmbmcmreh');
+    const query = PROFILE.buildApiGwAggregateQuery('ffmbmcmreh');
 
     assert.match(query, /filter apigwId = "ffmbmcmreh"/u);
     assert.match(query, /filter status >= 400 and status < 500/u);
@@ -16,7 +18,7 @@ describe('INTEROP auth-server API Gateway queries', () => {
   });
 
   it('filters auth-server warnings, excludes non-causal invalid claims and retains a sample CID', () => {
-    const query = buildInteropAuthServerWarningsQuery(INTEROP_AUTH_SERVER_POD_APP_FILTER);
+    const query = PROFILE.buildApplicationLogsQuery(INTEROP_AUTH_SERVER_POD_APP_FILTER);
 
     assert.match(query, /pod_app like \/interop\\-be\\-authorization\\-server\//u);
     assert.doesNotMatch(query, /authorization\\-server\\-node/u);

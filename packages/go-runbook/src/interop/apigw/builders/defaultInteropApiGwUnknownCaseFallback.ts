@@ -10,11 +10,11 @@ import type { InteropApiGwAlarmConfig } from '../types/InteropApiGwAlarmConfig.j
  * @returns A warning {@link CaseAction}
  */
 export function defaultInteropApiGwUnknownCaseFallback(config: InteropApiGwAlarmConfig): CaseAction {
-  const { apiGw, application } = config;
+  const { application, queryProfile } = config;
   return unknownCaseFallback(`Nessun caso noto del runbook ${config.id} ha matchato le evidenze.`, [
     ['Ambiente', '{{vars.interopEnvironment}}'],
     ['API Gateway ID', '{{vars.interopApiGwId}}'],
-    [`Errori ${apiGw.errorFamilyLabel} API Gateway`, '{{vars.apiGwErrorCount}}'],
+    [`Errori ${queryProfile.errorFamilyLabel} API Gateway`, '{{vars.apiGwErrorCount}}'],
     [`Log applicativi ${application.serviceName}`, `{{vars.${application.varPrefix}LogCount}}`],
     ['CID estratti', `{{vars.${application.varPrefix}CidCount}}`],
     ['Log CID tracker', '{{vars.interopCidTrackerLogCount}}'],

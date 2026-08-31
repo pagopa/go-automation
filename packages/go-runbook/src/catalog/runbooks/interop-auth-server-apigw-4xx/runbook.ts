@@ -4,11 +4,6 @@ import { interop } from '../framework.js';
 
 import { KNOWN_CASES } from './knownCases.js';
 import {
-  buildInteropAuthServerApiGw4xxAggregateQuery,
-  buildInteropAuthServerWarningsQuery,
-  INTEROP_AUTH_SERVER_WARNINGS_QUERY_PROFILE_ID,
-} from './queries.js';
-import {
   INTEROP_AUTH_SERVER_API_GW_LOG_GROUP_TEMPLATE,
   INTEROP_AUTH_SERVER_API_GW_PROFILE_ID,
   INTEROP_AUTH_SERVER_API_GW_RUNBOOK_KEY,
@@ -34,20 +29,16 @@ export function buildInteropAuthServerApiGw4xxRunbook(): Runbook {
     occurrenceTimeWindow: { beforeMinutes: 2, afterMinutes: 1 },
     resolverId: 'interop-auth-server-api-gateway-context',
     resolveAlarmContext: resolveInteropAuthServerApiGwAlarmContext,
+    queryProfile: interop.apigw.INTEROP_API_GW_4XX_SERVICE_WARNINGS_PROFILE,
     apiGw: {
       logGroupTemplate: INTEROP_AUTH_SERVER_API_GW_LOG_GROUP_TEMPLATE,
       profileId: INTEROP_AUTH_SERVER_API_GW_PROFILE_ID,
-      queryProfileId: INTEROP_AUTH_SERVER_API_GW_PROFILE_ID,
-      queryKind: 'interop-api-gateway-auth-server-4xx-aggregate',
-      errorFamilyLabel: '4xx',
-      buildQuery: buildInteropAuthServerApiGw4xxAggregateQuery,
     },
     application: {
       serviceName: INTEROP_AUTH_SERVER_SERVICE_NAME,
       logGroupTemplate: INTEROP_AUTH_SERVER_APPLICATION_LOG_GROUP_TEMPLATE,
       varPrefix: INTEROP_AUTH_SERVER_VAR_PREFIX,
-      queryProfileId: INTEROP_AUTH_SERVER_WARNINGS_QUERY_PROFILE_ID,
-      buildQuery: () => buildInteropAuthServerWarningsQuery(INTEROP_AUTH_SERVER_POD_APP_FILTER),
+      podAppFilter: INTEROP_AUTH_SERVER_POD_APP_FILTER,
       // The warning scan stops at the alarm instant: later warnings belong
       // to a different occurrence.
       timeRangeFromParams: { start: 'startTime', end: 'alarmDatetime' },
