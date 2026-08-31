@@ -8,7 +8,6 @@ function answers(): RunbookAnswers {
   return {
     templateId: 'service',
     id: 'workday-pn-foo-alarm',
-    builderName: 'buildWorkdayPnFooAlarmRunbook',
     metadataName: 'workday-pn-foo-alarm',
     description: 'desc',
     version: '1.0.0',

@@ -7,8 +7,6 @@ import type { RunbookProduct } from '../templates/RunbookProduct.js';
 export interface RunbookRegistration {
   /** Stable automatic runbook key, also the directory name. */
   readonly id: string;
-  /** Builder function name to import and reference. */
-  readonly builderName: string;
   /** Name of the constant exported by `registration.ts`. */
   readonly constName: string;
   /** Watchtower product owning the alarms; selects the downstream catalog. */
@@ -47,7 +45,7 @@ export function renderRegistrationFile(registration: RunbookRegistration): strin
     '',
     `import type { AutomaticRunbookRegistration } from '../../AutomaticRunbookRegistration.js';`,
     `import { RunbookProducts } from '../../../types/RunbookProduct.js';`,
-    `import { ${registration.builderName} } from './runbook.js';`,
+    `import { buildRunbook } from './runbook.js';`,
     '',
     `const KEY = '${registration.id}';`,
     '',
@@ -57,7 +55,7 @@ export function renderRegistrationFile(registration: RunbookRegistration): strin
     `  kind: AutomaticRunbookKinds.${registration.kind},`,
     `  categories: [${categories}],`,
     '  alarmNames: [KEY],',
-    `  build: ${registration.builderName},`,
+    '  build: buildRunbook,',
     '};',
     '',
   ].join('\n');

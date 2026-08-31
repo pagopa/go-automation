@@ -6,7 +6,6 @@ import type { RunbookProduct } from '../templates/RunbookProduct.js';
 import type { TemplateInput } from '../templates/TemplateInput.js';
 import type { CliArgs } from './parseArgs.js';
 import { RUNBOOK_TEMPLATES, findRunbookTemplate } from '../templates/runbookTemplates.js';
-import { deriveBuilderName } from '../naming/deriveBuilderName.js';
 import { categoriesError } from '../validation/categoriesError.js';
 import { runbookIdError } from '../validation/runbookIdError.js';
 
@@ -182,10 +181,6 @@ export async function collectAnswers(template: RunbookTemplate, cli: CliArgs): P
     throw new Error(idError);
   }
 
-  const builderName = await resolveText(cli.builder, {
-    message: 'Builder function name',
-    default: deriveBuilderName(id),
-  });
   const description = await resolveText(cli.description, { message: 'Descrizione', default: '' });
   const version = await resolveText(cli.version, { message: 'Versione', default: '1.0.0' });
   const team = await resolveText(cli.team, { message: 'Team', default: 'GO' });
@@ -211,7 +206,6 @@ export async function collectAnswers(template: RunbookTemplate, cli: CliArgs): P
   return {
     templateId: template.id,
     id,
-    builderName,
     metadataName: id,
     description,
     version,

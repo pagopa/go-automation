@@ -12,7 +12,7 @@ import type { Runbook } from '../../../types/Runbook.js';
  *
  * @returns A validated {@link Runbook} ready for execution
  */
-export function {{BUILDER_NAME}}(): Runbook {
+export function buildRunbook(): Runbook {
   return (
     RunbookBuilder.create('{{RUNBOOK_ID}}')
       .metadata({

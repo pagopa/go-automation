@@ -9,8 +9,6 @@ export interface RunbookAnswers {
   readonly templateId: string;
   /** Runbook id / directory name. */
   readonly id: string;
-  /** Builder function name (e.g. `buildDeliveryB2BApiGwAlarmRunbook`). */
-  readonly builderName: string;
   /** Runbook metadata `name`. */
   readonly metadataName: string;
   /** Runbook metadata `description`. */

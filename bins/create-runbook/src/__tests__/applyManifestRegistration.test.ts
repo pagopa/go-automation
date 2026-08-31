@@ -15,7 +15,6 @@ const MANIFEST = readFileSync(CATALOG_MANIFEST_FILE, 'utf8');
 
 const REGISTRATION: RunbookRegistration = {
   id: 'pn-foo-BAR-ApiGwAlarm',
-  builderName: 'buildFooBarApiGwAlarmRunbook',
   constName: 'FOO_BAR_API_GW_ALARM_REGISTRATION',
   product: 'SEND',
   kind: 'APIGW',
@@ -70,7 +69,7 @@ describe('renderRegistrationFile', () => {
         '',
         `import type { AutomaticRunbookRegistration } from '../../AutomaticRunbookRegistration.js';`,
         `import { RunbookProducts } from '../../../types/RunbookProduct.js';`,
-        `import { buildFooBarApiGwAlarmRunbook } from './runbook.js';`,
+        `import { buildRunbook } from './runbook.js';`,
         '',
         `const KEY = 'pn-foo-BAR-ApiGwAlarm';`,
         '',
@@ -80,7 +79,7 @@ describe('renderRegistrationFile', () => {
         `  kind: AutomaticRunbookKinds.APIGW,`,
         `  categories: ['DELIVERY'],`,
         '  alarmNames: [KEY],',
-        '  build: buildFooBarApiGwAlarmRunbook,',
+        '  build: buildRunbook,',
         '};',
         '',
       ].join('\n'),

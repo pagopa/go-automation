@@ -14,7 +14,6 @@
  * Flags:
  *   --type <id>              Template id (api-gateway | lambda | service | base); prompted if omitted
  *   --id <runbook-id>        Runbook id and directory name
- *   --builder <name>         Builder function name (default: derived from id)
  *   --description <text>     Runbook metadata description
  *   --version <semver>       Runbook metadata version (default: 1.0.0)
  *   --team <team>            Runbook metadata team (default: GO)
@@ -70,7 +69,6 @@ function relativeToRepo(target: string): string {
 function printPlan(answers: RunbookAnswers, files: ReadonlyArray<GeneratedFile>, wire: boolean): void {
   console.log(`\n${BOLD}Runbook${RESET}   ${answers.id}`);
   console.log(`${BOLD}Template${RESET}  ${answers.templateId}`);
-  console.log(`${BOLD}Builder${RESET}   ${answers.builderName}()`);
   console.log(`${BOLD}File (${String(files.length)})${RESET}`);
   for (const file of files) {
     console.log(`  ${CYAN}${relativeToRepo(file.path)}${RESET}`);
@@ -168,8 +166,7 @@ async function renderRegistration(
   }
   const registration: RunbookRegistration = {
     id: answers.id,
-    builderName: answers.builderName,
-    constName: deriveRegistrationName(answers.builderName),
+    constName: deriveRegistrationName(answers.id),
     product: answers.product,
     kind: catalogKind,
     categories: nonEmptyCategories(answers.categories),

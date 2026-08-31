@@ -6,7 +6,6 @@ import { RUNBOOK_TEMPLATES } from '../templates/runbookTemplates.js';
 export interface CliArgs {
   readonly type?: string;
   readonly id?: string;
-  readonly builder?: string;
   readonly description?: string;
   readonly version?: string;
   readonly team?: string;
@@ -26,7 +25,6 @@ export interface CliArgs {
 interface MutableCliArgs {
   type?: string;
   id?: string;
-  builder?: string;
   description?: string;
   version?: string;
   team?: string;
@@ -69,7 +67,6 @@ export function parseCliArgs(argv: ReadonlyArray<string>): CliArgs {
   const options: Record<string, { type: 'string' | 'boolean' }> = {
     type: { type: 'string' },
     id: { type: 'string' },
-    builder: { type: 'string' },
     description: { type: 'string' },
     version: { type: 'string' },
     team: { type: 'string' },
@@ -105,8 +102,6 @@ export function parseCliArgs(argv: ReadonlyArray<string>): CliArgs {
   if (type !== undefined) args.type = type;
   const id = asString(values['id']);
   if (id !== undefined) args.id = id;
-  const builder = asString(values['builder']);
-  if (builder !== undefined) args.builder = builder;
   const description = asString(values['description']);
   if (description !== undefined) args.description = description;
   const version = asString(values['version']);

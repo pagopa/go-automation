@@ -13,7 +13,7 @@ import { KNOWN_CASES } from './knownCases.js';
  *
  * @returns A validated {@link Runbook} ready for execution
  */
-export function {{BUILDER_NAME}}(): Runbook {
+export function buildRunbook(): Runbook {
   return service.createServiceAlarmRunbook({
     id: '{{RUNBOOK_ID}}',
     metadata: {
