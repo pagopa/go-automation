@@ -16,7 +16,11 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-import { extractConfigParameters } from './helpers/configAstParser.js';
+import {
+  describeRedundantOverrides,
+  extractConfigParameters,
+  findRedundantOverrides,
+} from './helpers/configAstParser.js';
 import type { ScaffoldRule } from './types/index.js';
 
 /** Packages that are inherited from the root workspace and must not be in script devDependencies */
@@ -322,6 +326,26 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
       }
 
       return { rule: ruleName, passed: true };
+    },
+  },
+  {
+    name: 'Config parameters do not restate the default envVar or cliFlag',
+    severity: 'warning',
+    check: 'custom',
+    validate: async (scriptPath) => {
+      const ruleName = 'Config parameters do not restate the default envVar or cliFlag';
+      const redundant = findRedundantOverrides(await extractConfigParameters(scriptPath));
+
+      if (redundant.length === 0) return { rule: ruleName, passed: true };
+
+      const first = redundant[0];
+      return {
+        rule: ruleName,
+        passed: false,
+        file: 'src/config.ts',
+        ...(first !== undefined ? { line: first.line } : {}),
+        message: describeRedundantOverrides(redundant).join('; '),
+      };
     },
   },
   {

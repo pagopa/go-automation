@@ -12,9 +12,19 @@ import type { Dirent } from 'fs';
 import * as path from 'path';
 
 import { discoverWorkspacePackages, toWorkspaceRelativePath } from './workspaceDiscovery.js';
+import {
+  describeRedundantOverrides,
+  extractParametersFromFile,
+  findRedundantOverrides,
+} from './helpers/configAstParser.js';
 import type { ScaffoldRule } from './types/index.js';
 
 const DEPENDENCY_SECTIONS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'] as const;
+
+const PACKAGE_WORKSPACE_PARENT = 'packages';
+
+/** Directories never worth scanning when looking for framework config parameters. */
+const SKIPPED_SCAN_DIRECTORIES: ReadonlySet<string> = new Set(['node_modules', 'dist', 'coverage', '__tests__']);
 
 export interface MonorepoRulesContext {
   readonly workspaceParents: ReadonlyArray<string>;
@@ -128,6 +138,43 @@ function formatDependencyCatalogViolation(violation: DependencyCatalogViolation)
 
 function formatPackageJsonReadViolation(violation: PackageJsonReadViolation): string {
   return `${violation.packageJsonFile}: ${violation.reason}`;
+}
+
+/**
+ * Recursively collects TypeScript sources that declare `GOConfigParameterOptions`.
+ * Keeps the AST parsing cost proportional to the (very small) number of framework
+ * files that actually define config parameters.
+ */
+async function collectParameterSourceFiles(directory: string): Promise<ReadonlyArray<string>> {
+  let entries: Dirent[];
+  try {
+    entries = await fs.readdir(directory, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const found: string[] = [];
+
+  for (const entry of entries) {
+    const fullPath = path.join(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      if (SKIPPED_SCAN_DIRECTORIES.has(entry.name)) continue;
+      found.push(...(await collectParameterSourceFiles(fullPath)));
+      continue;
+    }
+
+    if (!entry.name.endsWith('.ts') || entry.name.endsWith('.d.ts')) continue;
+
+    try {
+      const content = await fs.readFile(fullPath, 'utf-8');
+      if (content.includes('GOConfigParameterOptions')) found.push(fullPath);
+    } catch {
+      // Unreadable file: nothing to validate.
+    }
+  }
+
+  return found;
 }
 
 export function createMonorepoRules(context: MonorepoRulesContext): ReadonlyArray<ScaffoldRule> {
@@ -373,6 +420,45 @@ export function createMonorepoRules(context: MonorepoRulesContext): ReadonlyArra
         }
 
         return { rule: ruleName, passed: true };
+      },
+    },
+
+    // ── Framework config parameters ────────────────────────────────────
+
+    {
+      name: 'Framework parameters do not restate the default envVar or cliFlag',
+      severity: 'warning',
+      check: 'custom',
+      validate: async (rootDir) => {
+        const ruleName = 'Framework parameters do not restate the default envVar or cliFlag';
+        const files = await collectParameterSourceFiles(path.join(rootDir, PACKAGE_WORKSPACE_PARENT));
+
+        const messages: string[] = [];
+        let firstFile: string | undefined;
+        let firstLine: number | undefined;
+
+        for (const file of files) {
+          const redundant = findRedundantOverrides(await extractParametersFromFile(file));
+          if (redundant.length === 0) continue;
+
+          const relativeFile = toWorkspaceRelativePath(rootDir, file);
+          if (firstFile === undefined) {
+            firstFile = relativeFile;
+            firstLine = redundant[0]?.line;
+          }
+
+          messages.push(`${relativeFile}: ${describeRedundantOverrides(redundant).join('; ')}`);
+        }
+
+        if (messages.length === 0) return { rule: ruleName, passed: true };
+
+        return {
+          rule: ruleName,
+          passed: false,
+          ...(firstFile !== undefined ? { file: firstFile } : {}),
+          ...(firstLine !== undefined ? { line: firstLine } : {}),
+          message: messages.join(' | '),
+        };
       },
     },
   ];

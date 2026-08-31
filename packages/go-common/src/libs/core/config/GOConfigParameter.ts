@@ -92,10 +92,18 @@ export interface GOConfigParameterOptions {
   /** Group/category for organizing help output */
   group?: string;
 
-  /** Environment variable name (auto-generated if not specified) */
+  /**
+   * Environment variable name.
+   * Derived from `name` when omitted (`start.date` → `START_DATE`); set it only
+   * to use a different variable, never to restate the derived value.
+   */
   envVar?: string;
 
-  /** CLI flag name (auto-generated if not specified) */
+  /**
+   * CLI flag name.
+   * Derived from `name` when omitted (`start.date` → `--start-date`); set it only
+   * to use a different flag, never to restate the derived value.
+   */
   cliFlag?: string;
 
   /** Custom placeholder for help (e.g., "<port>", "<url>") */
