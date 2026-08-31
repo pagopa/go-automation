@@ -70,7 +70,6 @@ export async function runAnalysesMode(
     if (selection.kind === 'FAILED') return worstExitCode(exitCode, COVERAGE_EXIT_CODES.NOT_EXECUTABLE);
     if (selection.kind === 'CANCELLED') return exitCode;
 
-    runIndex += 1;
     const outcome = await runSingleAnalysis({
       script,
       config,
@@ -78,8 +77,17 @@ export async function runAnalysesMode(
       connection,
       selection,
       allowPrompt,
-      runIndex,
+      canGoBack: mayLoop,
+      runIndex: runIndex + 1,
     });
+    // Leaving the period step is not a run: nothing was produced, so the index
+    // stays free for the analysis the user is about to pick instead.
+    if (outcome.kind === 'BACK') {
+      resume = selection.resume;
+      continue;
+    }
+
+    runIndex += 1;
     exitCode = worstExitCode(exitCode, outcome.exitCode);
 
     if (!mayLoop || !outcome.canContinue) return exitCode;
@@ -101,20 +109,30 @@ interface SingleAnalysisOptions {
   readonly connection: Connection;
   readonly selection: SelectedTarget;
   readonly allowPrompt: boolean;
+  /** Whether the period step may send the user back to the runbook selection. */
+  readonly canGoBack: boolean;
   /** 1-based position in the session, used to keep the artifacts apart. */
   readonly runIndex: number;
 }
 
-/** Outcome of one analysis: its exit code, and whether the session may go on. */
-interface SingleAnalysisOutcome {
-  readonly exitCode: CoverageExitCode;
-  /**
-   * `false` only for a missing prerequisite of the whole session (no AWS
-   * profiles): another run would fail exactly the same way, so insisting would
-   * only make the user answer the menu again for nothing.
-   */
-  readonly canContinue: boolean;
-}
+/**
+ * Outcome of one analysis.
+ *
+ * `BACK` means the user left the period step: no run happened, and the caller
+ * has to reopen the wizard rather than record anything.
+ */
+type SingleAnalysisOutcome =
+  | { readonly kind: 'BACK' }
+  | {
+      readonly kind: 'DONE';
+      readonly exitCode: CoverageExitCode;
+      /**
+       * `false` only for a missing prerequisite of the whole session (no AWS
+       * profiles): another run would fail exactly the same way, so insisting
+       * would only make the user answer the menu again for nothing.
+       */
+      readonly canContinue: boolean;
+    };
 
 /**
  * Analyses one runbook: occurrences, preview, execution gate, run and report.
@@ -127,7 +145,10 @@ async function runSingleAnalysis(params: SingleAnalysisOptions): Promise<SingleA
   const logger = script.logger;
   const { target, environment } = selection;
 
-  const { dateFrom, dateTo } = await resolvePeriod(script, config, allowPrompt);
+  const period = await resolvePeriod(script, config, allowPrompt, params.canGoBack);
+  if (period.kind === 'BACK') return { kind: 'BACK' };
+
+  const { dateFrom, dateTo } = period;
   logger.info('Recupero occorrenze da Watchtower …');
   const events = await connection.client.listAlarmEvents(
     alarmEventsQuery(target.alarm.id, environment.environmentIds, dateFrom, dateTo),
@@ -147,10 +168,10 @@ async function runSingleAnalysis(params: SingleAnalysisOptions): Promise<SingleA
   logger.info(`Verifica V2: ${formatAnalysisMatcherLabel(options.analysisMatcher)}`);
 
   const gate = { script, config, totalEvents: events.length, occurrences: occurrences.length, allowPrompt };
-  if (!(await shouldExecute(gate))) return { exitCode: COVERAGE_EXIT_CODES.OK, canContinue: true };
+  if (!(await shouldExecute(gate))) return { kind: 'DONE', exitCode: COVERAGE_EXIT_CODES.OK, canContinue: true };
   if (!hasAwsProfiles(config.awsProfiles)) {
     logger.error('Profili AWS mancanti: passa --aws-profiles per eseguire i runbook.');
-    return { exitCode: COVERAGE_EXIT_CODES.NOT_EXECUTABLE, canContinue: false };
+    return { kind: 'DONE', exitCode: COVERAGE_EXIT_CODES.NOT_EXECUTABLE, canContinue: false };
   }
 
   const report = await runOccurrences({
@@ -185,7 +206,7 @@ async function runSingleAnalysis(params: SingleAnalysisOptions): Promise<SingleA
   );
   logger.section('Report');
   for (const file of files) logger.info(`Salvato: ${file}`);
-  return { exitCode: COVERAGE_EXIT_CODES.OK, canContinue: true };
+  return { kind: 'DONE', exitCode: COVERAGE_EXIT_CODES.OK, canContinue: true };
 }
 
 /**

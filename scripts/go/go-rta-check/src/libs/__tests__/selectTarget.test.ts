@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { Core } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
 
 import { createTargetWizardSession, selectTarget } from '../selectTarget.js';
 import type { TargetSelection } from '../selectTarget.js';
@@ -37,6 +37,9 @@ function byTitle(needle: string): AnswerFn {
 /** Picks the "go back" entry. */
 const goBack: AnswerFn = () => BACK_CHOICE;
 
+/** Leaves the prompt with ← instead of picking the "go back" entry. */
+const pressBackKey: AnswerFn = () => Core.GO_PROMPT_BACK;
+
 /** Fails the test unless the wizard completed, and narrows the outcome. */
 function selected(outcome: TargetSelection): Extract<TargetSelection, { kind: 'VALUE' }> {
   assert.strictEqual(outcome.kind, 'VALUE');
@@ -71,7 +74,9 @@ function harness(answers: ReadonlyArray<AnswerFn>): Harness {
     },
     prompt: {
       select: ask,
+      selectWithBack: ask,
       autocomplete: ask,
+      autocompleteWithBack: ask,
       startSpinner: (): void => undefined,
       stopSpinner: (): void => undefined,
     },
@@ -154,7 +159,7 @@ describe('selectTarget', () => {
     assert.deepStrictEqual(runbookPrompt.titles, [
       `${OTHER_TESTABLE_ALARM} · 40 occorrenze`,
       `${TESTABLE_ALARM} · 2 occorrenze`,
-      '← Indietro: cambia ambiente o prodotto',
+      '← Indietro: cambia ambiente o prodotto · premi ←',
     ]);
   });
 
@@ -453,6 +458,62 @@ describe('selectTarget', () => {
       assert.strictEqual(outcome.kind, 'CANCELLED');
       assert.deepStrictEqual(errors, []);
       assert.ok(warnings.some((message) => message.includes('Selezione annullata')));
+    });
+  });
+
+  describe('going back with the keyboard', () => {
+    it('goes back from the runbook step when ← is pressed', async () => {
+      const { script, asked } = harness([
+        byTitle('SEND'),
+        byTitle('UAT'),
+        pressBackKey,
+        byTitle('Produzione'),
+        byTitle(TESTABLE_ALARM),
+      ]);
+
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+      const selection = selected(outcome);
+
+      assert.strictEqual(selection.environment.environmentName, 'Produzione');
+      assert.deepStrictEqual(
+        asked.map((prompt) => prompt.message),
+        [
+          'Seleziona il prodotto',
+          "Seleziona l'ambiente (SEND)",
+          'Seleziona il runbook da testare (SEND · UAT)',
+          "Seleziona l'ambiente (SEND)",
+          'Seleziona il runbook da testare (SEND · Produzione)',
+        ],
+      );
+    });
+
+    it('goes back from the environment step when ← is pressed', async () => {
+      const { script } = harness([byTitle('SEND'), pressBackKey, byTitle('INTEROP'), byTitle(TESTABLE_ALARM)]);
+
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+      const selection = selected(outcome);
+
+      assert.strictEqual(selection.target.productName, 'INTEROP');
+    });
+
+    it('announces the shortcut on the entry it stands for', async () => {
+      const { script, asked } = harness([byTitle('SEND'), byTitle('UAT'), byTitle(TESTABLE_ALARM)]);
+
+      await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+
+      const environmentPrompt = asked[1];
+      assert.ok(environmentPrompt !== undefined);
+      assert.ok(environmentPrompt.titles.includes('← Indietro: cambia prodotto · premi ←'));
+    });
+
+    it('does not announce a shortcut on a step with nowhere to go back to', async () => {
+      const { script, asked } = harness([byTitle('SEND'), byTitle('UAT'), byTitle(TESTABLE_ALARM)]);
+
+      await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+
+      const productPrompt = asked[0];
+      assert.ok(productPrompt !== undefined);
+      assert.ok(!productPrompt.titles.some((title) => title.includes('premi ←')));
     });
   });
 
