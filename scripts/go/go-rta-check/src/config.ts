@@ -96,14 +96,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'date.from',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Inizio periodo su firedAt (ISO 8601). Se omesso: prompt',
+    description: `Inizio periodo su firedAt (${Core.describeDateInputFormats()}). Se omesso: prompt`,
     required: false,
     aliases: ['df'],
   },
   {
     name: 'date.to',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Fine periodo su firedAt (ISO 8601). Se omesso: prompt',
+    description: `Fine periodo su firedAt (${Core.describeDateInputFormats()}). Se omesso: prompt`,
     required: false,
     aliases: ['dt'],
   },

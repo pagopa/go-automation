@@ -3,17 +3,9 @@
  */
 
 import { lambda } from '../framework.js';
-import type { Condition, KnownCase } from '../framework.js';
+import type { KnownCase } from '../framework.js';
 
-function matchLambdaLog(regex: string): Condition {
-  return {
-    type: 'or',
-    conditions: [
-      { type: 'contains', ref: 'steps.query-lambda-invocation', regex },
-      { type: 'contains', ref: 'steps.query-lambda-errors', regex },
-    ],
-  };
-}
+import { lambdaLogEvidenceMatches } from '../common/evidenceConditions.js';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   ...lambda.LAMBDA_RUNTIME_KNOWN_CASES,
@@ -21,7 +13,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'jwks-inquery-tfdc-service-unavailable',
     description: 'Download JWKS Inquery caftfdc_pagopa.it fallito con HTTP 503',
     priority: 90,
-    condition: matchLambdaLog(
+    condition: lambdaLogEvidenceMatches(
       'Error during addJwksCacheEntry.*caftfdc_pagopa\\.it.*iqpanel\\.inquery\\.it.*status:\\s*503.*Service Unavailable',
     ),
     action: {
@@ -44,7 +36,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'jwks-uci-bad-gateway',
     description: 'Download JWKS gestione.sedi.uci.it fallito con HTTP 502',
     priority: 89,
-    condition: matchLambdaLog(
+    condition: lambdaLogEvidenceMatches(
       'Error during addJwksCacheEntry.*gestione\\.sedi\\.uci\\.it.*status:\\s*502.*Bad Gateway',
     ),
     action: {
@@ -68,7 +60,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'jwks-radd-econnreset',
     description: 'Download JWKS sedi RADD fallito con read ECONNRESET',
     priority: 88,
-    condition: matchLambdaLog('Error during addJwksCacheEntry.*AxiosError:\\s*read ECONNRESET'),
+    condition: lambdaLogEvidenceMatches('Error during addJwksCacheEntry.*AxiosError:\\s*read ECONNRESET'),
     action: {
       type: 'log',
       level: 'info',
@@ -90,7 +82,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'jwks-cafconfagricoltura-url-rewrite-error',
     description: 'Download JWKS cafconfagricoltura.it fallito con HTTP 500 URL Rewrite Module Error',
     priority: 87,
-    condition: matchLambdaLog(
+    condition: lambdaLogEvidenceMatches(
       'Error downloading URL:\\s*https://www\\.cafconfagricoltura\\.it/\\.well-known/jwks\\.json.*status:\\s*500.*URL Rewrite Module Error',
     ),
     action: {
@@ -113,7 +105,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'jwks-inquery-internal-server-error',
     description: 'Download JWKS Inquery fallito con HTTP 500 Internal Server Error',
     priority: 86,
-    condition: matchLambdaLog(
+    condition: lambdaLogEvidenceMatches(
       'Error downloading URL:\\s*https://iqpanel\\.inquery\\.it/\\.well-known/jwks\\.json.*status:\\s*500.*Internal Server Error',
     ),
     action: {

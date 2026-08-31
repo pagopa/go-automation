@@ -32,6 +32,7 @@ describe('buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook', () => {
       ],
     );
     assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
+    assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 5, afterMinutes: 1 });
     assert.ok(service.isServiceRunbookContext(runbook.runbookContext));
     assert.strictEqual(runbook.runbookContext.service.name, INTEROP_SELFCARE_USERS_UPDATER_SERVICE_NAME);
   });

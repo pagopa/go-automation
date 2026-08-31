@@ -77,4 +77,15 @@ describe('ResolveInteropK8sAlarmContextStep', () => {
     const withoutParam = step(() => ALARM_CONTEXT).getTraceInfo(context([]));
     assert.strictEqual(withoutParam['alarmName'], null);
   });
+
+  it('returns a failed step result when the resolver throws', async () => {
+    const result = await step(() => {
+      throw new RangeError('unsupported fixture alarm');
+    }).execute(context([['alarmName', 'fixture-unsupported']]));
+
+    assert.deepStrictEqual(result, {
+      success: false,
+      error: 'INTEROP k8s alarm context resolution failed (interop-k8s-alarm-context): unsupported fixture alarm',
+    });
+  });
 });

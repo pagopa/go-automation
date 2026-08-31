@@ -61,6 +61,17 @@ const CASE_FIXTURES: ReadonlyMap<string, ReadonlyArray<string>> = new Map([
   ],
   ['public-catalog-astro-frontend-missing-env-files', [M2M_ENV_FILES_MESSAGE]],
   [
+    'public-catalog-react-list-key-warning',
+    [
+      'Check the render method of `EServiceCatalog`. See https://react.dev/link/warning-keys for more information. ' +
+        'Each child in a list should have a unique "key" prop.',
+    ],
+  ],
+  [
+    'public-catalog-failed-sql-query',
+    ['[ERROR] Error: Failed query: select * from catalog_items at async executeQuery'],
+  ],
+  [
     'public-catalog-error-fetching-from-database',
     ['ERROR - [CID=dfa09b91-7acf-41ea-96c6-eb02ec18ec49] Error fetching catalog data from the database'],
   ],
@@ -112,5 +123,15 @@ describe('INTEROP public catalog known cases', () => {
     assert.strictEqual(evaluator.evaluate(typeError.condition, ctx), true);
     assert.strictEqual(evaluator.evaluate(fetchError.condition, ctx), true);
     assert.ok(typeError.priority > fetchError.priority);
+  });
+
+  it('keeps cases requiring operator confirmation open', () => {
+    const reactWarning = knownCaseById('public-catalog-react-list-key-warning');
+    const missingEnvFiles = knownCaseById('public-catalog-astro-frontend-missing-env-files');
+
+    assert.strictEqual(reactWarning.analysis?.proposedStatus, 'IN_PROGRESS');
+    assert.match(reactWarning.analysis?.resolution ?? '', /Status: 200/);
+    assert.strictEqual(missingEnvFiles.analysis?.proposedStatus, 'IN_PROGRESS');
+    assert.match(missingEnvFiles.analysis?.resolution ?? '', /non una risoluzione per questa pod_app/);
   });
 });

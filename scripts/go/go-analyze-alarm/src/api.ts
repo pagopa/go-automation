@@ -14,6 +14,9 @@ export {
   validateCloudRunbookRegistry,
   executeRunbookForOccurrence,
   createServiceRegistry,
+  computeRunbookTimeRange,
+  resolveOccurrenceTimeWindow,
+  DEFAULT_OCCURRENCE_TIME_WINDOW,
   DEFAULT_TIME_WINDOW_MINUTES,
 } from '@go-automation/go-runbook/catalog';
 export type {
@@ -22,4 +25,5 @@ export type {
   RunbookBuilderFn,
   ExecuteRunbookForOccurrenceDeps,
   ExecuteRunbookForOccurrenceInput,
+  OccurrenceTimeWindow,
 } from '@go-automation/go-runbook/catalog';

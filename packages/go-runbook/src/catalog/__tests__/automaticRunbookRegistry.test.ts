@@ -11,6 +11,39 @@ describe('AUTOMATIC_RUNBOOK_REGISTRY', () => {
     assert.deepStrictEqual(byKey?.descriptor, byAlarm.descriptor);
   });
 
+  it('registers the lollipop authorizer alarm as a SEND authorization Lambda runbook', () => {
+    const resolved = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(
+      'pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm',
+    );
+
+    assert.ok(resolved);
+    assert.strictEqual(resolved.product, 'SEND');
+    assert.strictEqual(resolved.descriptor.kind, 'LAMBDA');
+    assert.deepStrictEqual(resolved.descriptor.categories, ['AUTHORIZATION']);
+  });
+
+  it('registers every SEND downstream alarm with the expected service category', () => {
+    const alarms: ReadonlyArray<readonly [string, string]> = [
+      ['emd-downstream-detection-Alarm', 'INTEGRATION'],
+      ['pn-external-registries-OneTrust-downstream-detection-Alarm', 'INTEGRATION'],
+      ['pn-national-registries-AdE-downstream-detection-Alarm', 'INTEGRATION'],
+      ['pn-national-registries-ANPR-downstream-detection-Alarm', 'INTEGRATION'],
+      ['pn-national-registries-InfoCamere-downstream-detection-Alarm', 'INTEGRATION'],
+      ['pn-national-registries-INAD-downstream-detection-Alarm', 'INTEGRATION'],
+      ['pn-national-registries-IPA-downstream-detection-Alarm', 'INTEGRATION'],
+      ['personal-data-vault-SelfcarePG-downstream-detection-Alarm', 'INTEGRATION'],
+      ['pn-address-manager-POSTEL-downstream-detection-Alarm', 'DELIVERY'],
+    ];
+
+    for (const [alarmName, category] of alarms) {
+      const resolved = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(alarmName);
+      assert.ok(resolved, `${alarmName} must be registered`);
+      assert.strictEqual(resolved.product, 'SEND');
+      assert.strictEqual(resolved.descriptor.kind, 'SERVICE');
+      assert.deepStrictEqual(resolved.descriptor.categories, [category]);
+    }
+  });
+
   it('resolves INTEROP environment aliases to the same canonical descriptor', () => {
     const prod = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName('k8s-interop-be-backend-for-frontend-errors-prod');
     const att = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName('k8s-interop-be-backend-for-frontend-errors-att');
@@ -93,6 +126,69 @@ describe('AUTOMATIC_RUNBOOK_REGISTRY', () => {
       'k8s-interop-be-selfcare-client-users-updater-errors-test',
     ]);
     assert.deepStrictEqual(prod.descriptor.categories, ['INTEROP']);
+  });
+
+  it('resolves INTEROP Selfcare onboarding consumer aliases to the same canonical descriptor', () => {
+    const prod = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(
+      'k8s-interop-be-selfcare-onboarding-consumer-errors-prod',
+    );
+    const att = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName('k8s-interop-be-selfcare-onboarding-consumer-errors-att');
+    const test = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(
+      'k8s-interop-be-selfcare-onboarding-consumer-errors-test',
+    );
+
+    assert.ok(prod);
+    assert.ok(att);
+    assert.ok(test);
+    assert.strictEqual(prod.descriptor.key, 'k8s-interop-be-selfcare-onboarding-consumer-errors');
+    assert.deepStrictEqual(att.descriptor, prod.descriptor);
+    assert.deepStrictEqual(test.descriptor, prod.descriptor);
+    assert.deepStrictEqual(prod.descriptor.alarmNames, [
+      'k8s-interop-be-selfcare-onboarding-consumer-errors-att',
+      'k8s-interop-be-selfcare-onboarding-consumer-errors-prod',
+      'k8s-interop-be-selfcare-onboarding-consumer-errors-test',
+    ]);
+    assert.deepStrictEqual(prod.descriptor.categories, ['INTEROP']);
+  });
+
+  it('resolves INTEROP Selfcare API Gateway 5xx aliases to the same APIGW descriptor', () => {
+    const prod = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName('interop-selfcare-1.0-prod-apigw-5xx');
+    const att = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName('interop-selfcare-1.0-att-apigw-5xx');
+    const test = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName('interop-selfcare-1.0-test-apigw-5xx');
+
+    assert.ok(prod);
+    assert.ok(att);
+    assert.ok(test);
+    assert.strictEqual(prod.descriptor.key, 'interop-selfcare-1.0-apigw-5xx');
+    assert.strictEqual(prod.descriptor.kind, 'APIGW');
+    assert.deepStrictEqual(att.descriptor, prod.descriptor);
+    assert.deepStrictEqual(test.descriptor, prod.descriptor);
+    assert.deepStrictEqual(prod.descriptor.alarmNames, [
+      'interop-selfcare-1.0-att-apigw-5xx',
+      'interop-selfcare-1.0-prod-apigw-5xx',
+      'interop-selfcare-1.0-test-apigw-5xx',
+    ]);
+    assert.deepStrictEqual(prod.descriptor.categories, ['INTEROP']);
+  });
+
+  it('resolves every INTEROP auth-server API Gateway 4xx alias, including low-request alarms', () => {
+    const alarmNames = [
+      'interop-auth-server-prod-apigw-4xx',
+      'interop-auth-server-att-apigw-4xx',
+      'interop-auth-server-test-apigw-4xx',
+      'interop-auth-server-att-apigw-4xx-low-requests',
+      'interop-auth-server-test-apigw-4xx-low-requests',
+    ];
+    const resolved = alarmNames.map((alarmName) => AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(alarmName));
+
+    assert.ok(resolved.every((entry) => entry !== undefined));
+    const descriptor = resolved[0]?.descriptor;
+    assert.ok(descriptor !== undefined);
+    assert.strictEqual(descriptor.key, 'interop-auth-server-apigw-4xx');
+    assert.strictEqual(descriptor.kind, 'APIGW');
+    assert.deepStrictEqual(descriptor.categories, ['INTEROP']);
+    assert.deepStrictEqual(descriptor.alarmNames, [...alarmNames].sort());
+    assert.ok(resolved.every((entry) => entry?.descriptor === resolved[0]?.descriptor));
   });
 
   it('lists stable sorted descriptors and validates every cloud runbook', () => {

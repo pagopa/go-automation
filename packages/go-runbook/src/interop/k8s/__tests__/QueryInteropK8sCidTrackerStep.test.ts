@@ -49,7 +49,7 @@ describe('QueryInteropK8sCidTrackerStep', () => {
     let calls = 0;
     const result = await step().execute(
       context(
-        { logCount: 1, cidCount: 0, cids: [], rowsWithoutCidCount: 1, representativeMessages: [] },
+        { logCount: 1, cidCount: 0, cids: [], logsWithoutCidCount: 1, representativeMessages: [] },
         {
           async queryWithStatistics(): Promise<AWSCloudWatchLogsQueryResult> {
             calls += 1;
@@ -71,7 +71,7 @@ describe('QueryInteropK8sCidTrackerStep', () => {
     const rows: ReadonlyArray<ReadonlyArray<ResultField>> = [[{ field: '@message', value: '[CID=cid-1] ok' }]];
     const result = await step().execute(
       context(
-        { logCount: 2, cidCount: 2, cids: ['cid-1', 'cid-2'], rowsWithoutCidCount: 0, representativeMessages: [] },
+        { logCount: 2, cidCount: 2, cids: ['cid-1', 'cid-2'], logsWithoutCidCount: 0, representativeMessages: [] },
         {
           async queryWithStatistics(
             logGroups: ReadonlyArray<string>,

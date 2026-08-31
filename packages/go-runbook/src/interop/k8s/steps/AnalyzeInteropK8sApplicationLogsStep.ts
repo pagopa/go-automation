@@ -3,12 +3,13 @@ import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
 import type { StepKind } from '../../../types/StepKind.js';
 import type { StepResult } from '../../../types/StepResult.js';
+import { readCloudWatchResultRows } from '../../../steps/data/readCloudWatchResultRows.js';
 
 export interface InteropK8sApplicationLogAnalysis {
   readonly logCount: number;
   readonly cidCount: number;
   readonly cids: ReadonlyArray<string>;
-  readonly rowsWithoutCidCount: number;
+  readonly logsWithoutCidCount: number;
   readonly representativeMessages: ReadonlyArray<string>;
 }
 
@@ -17,10 +18,13 @@ export interface AnalyzeInteropK8sApplicationLogsStepConfig {
   readonly label: string;
   readonly fromStep: string;
   readonly varPrefix: string;
+  /** Optional aggregate field whose numeric values represent the original log count. */
+  readonly countField?: string;
 }
 
 const CID_PATTERN = /\bCID=([^\]\s,"']+)/u;
 const MAX_REPRESENTATIVE_MESSAGES = 5;
+const REPRESENTATIVE_MESSAGE_FIELDS = ['@message', 'message', 'log', 'errorMessage'] as const;
 
 export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sApplicationLogAnalysis> {
   readonly id: string;
@@ -29,28 +33,33 @@ export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sAppl
 
   private readonly fromStep: string;
   private readonly varPrefix: string;
+  private readonly countField: string | undefined;
 
   constructor(config: AnalyzeInteropK8sApplicationLogsStepConfig) {
     this.id = config.id;
     this.label = config.label;
     this.fromStep = config.fromStep;
     this.varPrefix = config.varPrefix;
+    this.countField = config.countField;
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<InteropK8sApplicationLogAnalysis>> {
-    const rows = readResultRows(context, this.fromStep);
+    const rows = readCloudWatchResultRows(context.stepResults.get(this.fromStep));
     if (rows === undefined) return { success: false, error: `Step output not found: "${this.fromStep}"` };
 
     const cids: string[] = [];
     const seenCids = new Set<string>();
-    let rowsWithoutCidCount = 0;
+    let logsWithoutCidCount = 0;
+    let logCount = 0;
     const representativeMessages: string[] = [];
 
     for (const row of rows) {
+      const rowCount = readRowCount(row, this.countField);
+      logCount += rowCount;
       const cid = extractCid(row);
       if (cid === undefined) {
-        rowsWithoutCidCount += 1;
+        logsWithoutCidCount += rowCount;
       } else if (!seenCids.has(cid)) {
         seenCids.add(cid);
         cids.push(cid);
@@ -63,16 +72,16 @@ export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sAppl
     }
 
     const analysis: InteropK8sApplicationLogAnalysis = {
-      logCount: rows.length,
+      logCount,
       cidCount: cids.length,
       cids,
-      rowsWithoutCidCount,
+      logsWithoutCidCount,
       representativeMessages,
     };
 
-    context.logger?.text(`      ├─ Log applicativi analizzati: ${rows.length}`);
+    context.logger?.text(`      ├─ Log applicativi analizzati: ${analysis.logCount}`);
     context.logger?.text(`      ├─ CID distinti: ${cids.length}`);
-    context.logger?.text(`      └─ Righe senza CID: ${rowsWithoutCidCount}`);
+    context.logger?.text(`      └─ Log senza CID: ${logsWithoutCidCount}`);
 
     return {
       success: true,
@@ -81,35 +90,12 @@ export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sAppl
         [varName(this.varPrefix, 'LogCount')]: String(analysis.logCount),
         [varName(this.varPrefix, 'CidCount')]: String(analysis.cidCount),
         [varName(this.varPrefix, 'Cids')]: JSON.stringify(analysis.cids),
-        [varName(this.varPrefix, 'RowsWithoutCidCount')]: String(analysis.rowsWithoutCidCount),
+        [varName(this.varPrefix, 'LogsWithoutCidCount')]: String(analysis.logsWithoutCidCount),
         [varName(this.varPrefix, 'ErrorMsg')]: analysis.representativeMessages[0] ?? '',
         [varName(this.varPrefix, 'AnalysisCompleted')]: 'true',
       },
     };
   }
-}
-
-function readResultRows(
-  context: RunbookContext,
-  stepId: string,
-): ReadonlyArray<ReadonlyArray<ResultField>> | undefined {
-  const value = context.stepResults.get(stepId);
-  if (!isUnknownArray(value)) return undefined;
-
-  const rows: ResultField[][] = [];
-  for (const row of value) {
-    if (!isUnknownArray(row)) continue;
-    rows.push(row.filter(isResultField));
-  }
-  return rows;
-}
-
-function isUnknownArray(value: unknown): value is unknown[] {
-  return Array.isArray(value);
-}
-
-function isResultField(value: unknown): value is ResultField {
-  return typeof value === 'object' && value !== null && 'field' in value;
 }
 
 function extractCid(row: ReadonlyArray<ResultField>): string | undefined {
@@ -126,7 +112,17 @@ function extractCid(row: ReadonlyArray<ResultField>): string | undefined {
 }
 
 function extractRepresentativeMessage(row: ReadonlyArray<ResultField>): string | undefined {
-  return normalize(readField(row, ['@message', 'message', 'log']));
+  for (const fieldName of REPRESENTATIVE_MESSAGE_FIELDS) {
+    const message = normalize(readField(row, [fieldName]));
+    if (message !== undefined) return message;
+  }
+  return undefined;
+}
+
+function readRowCount(row: ReadonlyArray<ResultField>, countField: string | undefined): number {
+  if (countField === undefined) return 1;
+  const parsed = Number(readField(row, [countField]));
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 1;
 }
 
 function readField(row: ReadonlyArray<ResultField>, names: ReadonlyArray<string>): string | undefined {

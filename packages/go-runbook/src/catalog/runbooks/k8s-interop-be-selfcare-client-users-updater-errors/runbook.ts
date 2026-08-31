@@ -29,5 +29,6 @@ export function buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook(): Runb
     },
     resolveAlarmContext: resolveInteropSelfcareUsersUpdaterAlarmContext,
     knownCases: KNOWN_CASES,
+    occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
   });
 }

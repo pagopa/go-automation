@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { ConditionEvaluator, type RunbookContext, type ServiceRegistry } from '../../framework.js';
+import { ConditionEvaluator, INTEROP_DOWNSTREAMS, type RunbookContext, type ServiceRegistry } from '../../framework.js';
 
 import { KNOWN_CASES } from '../knownCases.js';
 import { INTEROP_SELFCARE_USERS_UPDATER_SERVICE_NAME } from '../resolveInteropAlarmContext.js';
@@ -47,6 +47,7 @@ describe('INTEROP Selfcare users updater known cases', () => {
   it('declares a single stable known case for the Selfcare Kafka failures', () => {
     assert.ok(knownCase !== undefined);
     assert.strictEqual(knownCase.id, 'selfcare-kafka-broker-communication-errors');
+    assert.deepStrictEqual(knownCase.analysis?.downstreams, [INTEROP_DOWNSTREAMS.SELFCARE]);
   });
 
   it('matches every error signature documented in the runbook', () => {

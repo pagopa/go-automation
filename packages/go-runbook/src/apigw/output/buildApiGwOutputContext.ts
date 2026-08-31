@@ -68,6 +68,7 @@ export function buildApiGwOutputContext(
       ...optionalString('statusCode', vars.get('apiGwStatusCode')),
       ...optionalString('httpMethod', vars.get('apiGwHttpMethod')),
       ...optionalString('path', vars.get('apiGwPath')),
+      ...optionalString('sourceIp', vars.get('apiGwSourceIp')),
       ...optionalString('traceId', resolveTraceId(vars)),
       ...optionalString('traceIdField', resolveTraceIdField(vars)),
       ...optionalString('fallbackUuid', vars.get('fallbackUuid')),
@@ -95,6 +96,7 @@ function buildFields(
   addField(fields, 'alarmDatetime', 'Alarm datetime', params.get('alarmDatetime'));
   addField(fields, 'endpoint', 'Endpoint', endpoint(vars));
   addField(fields, 'apiGwStatusCode', 'API Gateway status', vars.get('apiGwStatusCode'));
+  addField(fields, 'apiGwSourceIp', 'Source IP', vars.get('apiGwSourceIp'));
   addField(fields, 'apiGwErrorMessage', 'API Gateway error message', vars.get('apiGwErrorMessage'));
   addField(fields, 'traceId', resolveTraceIdLabel(vars), resolveTraceId(vars));
   addField(fields, 'fallbackUuid', 'Fallback UUID', vars.get('fallbackUuid'));

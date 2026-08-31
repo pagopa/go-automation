@@ -9,19 +9,15 @@
 import { lambda } from '../framework.js';
 import type { KnownCase } from '../framework.js';
 
+import { lambdaLogEvidenceMatches } from '../common/evidenceConditions.js';
+
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   ...lambda.LAMBDA_RUNTIME_KNOWN_CASES,
   {
     id: 'iam-policy-socket-hang-up',
     description: 'Errore generazione IAM policy verso pn-data-vault (socket hang up)',
     priority: 90,
-    condition: {
-      type: 'or',
-      conditions: [
-        { type: 'contains', ref: 'steps.query-lambda-invocation', regex: 'socket hang up' },
-        { type: 'contains', ref: 'steps.query-lambda-errors', regex: 'socket hang up' },
-      ],
-    },
+    condition: lambdaLogEvidenceMatches('socket hang up'),
     action: {
       type: 'log',
       level: 'info',
@@ -42,13 +38,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'invalid-source-details-qrcode',
     description: 'Header source details QRCODE non valido',
     priority: 89,
-    condition: {
-      type: 'or',
-      conditions: [
-        { type: 'contains', ref: 'steps.query-lambda-invocation', regex: 'Invalid source details header QRCODE' },
-        { type: 'contains', ref: 'steps.query-lambda-errors', regex: 'Invalid source details header QRCODE' },
-      ],
-    },
+    condition: lambdaLogEvidenceMatches('Invalid source details header QRCODE'),
     action: {
       type: 'log',
       level: 'info',

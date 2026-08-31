@@ -9,7 +9,7 @@ export const INTEROP_NOTIFICATION_USER_LIFECYCLE_SERVICE_NAME: string =
   'interop-be-notification-user-lifecycle-consumer';
 export const INTEROP_NOTIFICATION_USER_LIFECYCLE_VAR_PREFIX: string = 'interopNotificationUserLifecycle';
 export const INTEROP_NOTIFICATION_USER_LIFECYCLE_STATIC_LOG_GROUP: string =
-  '/aws/eks/interop-eks-cluster-<environment>/application';
+  interop.k8s.INTEROP_K8S_APPLICATION_LOG_GROUP_TEMPLATE;
 
 export const INTEROP_NOTIFICATION_USER_LIFECYCLE_ALARM_NAMES: readonly [string, ...string[]] = INTEROP_ENVIRONMENTS.map(
   (environment) => `${INTEROP_NOTIFICATION_USER_LIFECYCLE_RUNBOOK_KEY}-${environment}`,
