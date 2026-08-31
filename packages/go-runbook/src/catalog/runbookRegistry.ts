@@ -1,76 +1,14 @@
 /** Typed automatic-runbook registry shared by CLI, worker and catalog generator. */
 import { createHash } from 'node:crypto';
 
-import {
-  canonicalizeJson,
-  type AutomaticRunbookDescriptorV1,
-  type AutomaticRunbookKind,
-} from '@go-automation/go-execute-runbook-contracts';
+import { canonicalizeJson, type AutomaticRunbookDescriptorV1 } from '@go-automation/go-execute-runbook-contracts';
 
-import type { Runbook } from '../types/Runbook.js';
-import type { RunbookProduct } from '../types/RunbookProduct.js';
 import { assertAnalysisAnnotations } from '../validation/assertAnalysisAnnotations.js';
 import { assertCloudExecutableRunbook } from '../validation/assertCloudExecutableRunbook.js';
-
-// api gateway
-import { buildAddressBookIoApiGwAlarmRunbook } from './runbooks/pn-address-book-io-IO-ApiGwAlarm/runbook.js';
-import { buildDeliveryB2BApiGwAlarmRunbook } from './runbooks/pn-delivery-B2B-ApiGwAlarm/runbook.js';
-import { buildDeliveryIoExpApiGwAlarmRunbook } from './runbooks/pn-delivery-IO_EXP-ApiGwAlarm/runbook.js';
-import { buildDeliveryPushB2BApiGwAlarmRunbook } from './runbooks/pn-delivery-push-B2B-ApiGwAlarm/runbook.js';
-import { buildNationalRegistriesPNPGApiGwAlarmRunbook } from './runbooks/pn-national-registries-PNPG-ApiGwAlarm/runbook.js';
-
-// lambda
-import { buildIoAuthorizerLambdaRunbook } from './runbooks/pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
-import { buildTokenExchangeLambdaRunbook } from './runbooks/pn-tokenExchangeLambda-LogInvocationErrors-Alarm/runbook.js';
-import { buildSlaViolationCheckerLambdaSqsRunbook } from './runbooks/pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm/runbook.js';
-import { buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook } from './runbooks/pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm/runbook.js';
-import { buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook } from './runbooks/pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm/runbook.js';
-import { buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook } from './runbooks/pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm/runbook.js';
-import { buildLollipopAuthorizerLambdaLogInvocationErrorsAlarmRunbook } from './runbooks/pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
-
-// service logs
-import { buildEmdDownstreamDetectionAlarmRunbook } from './runbooks/emd-downstream-detection-Alarm/runbook.js';
-import { buildNationalRegistriesAnprDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-ANPR-downstream-detection-Alarm/runbook.js';
-import { buildExternalRegistriesOneTrustDownstreamDetectionAlarmRunbook } from './runbooks/pn-external-registries-OneTrust-downstream-detection-Alarm/runbook.js';
-import { buildNationalRegistriesInfoCamereDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-InfoCamere-downstream-detection-Alarm/runbook.js';
-import { buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-IPA-downstream-detection-Alarm/runbook.js';
-import { buildNationalRegistriesAdeDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-AdE-downstream-detection-Alarm/runbook.js';
-import { buildNationalRegistriesInadDownstreamDetectionAlarmRunbook } from './runbooks/pn-national-registries-INAD-downstream-detection-Alarm/runbook.js';
-import { buildAddressManagerPostelDownstreamDetectionAlarmRunbook } from './runbooks/pn-address-manager-POSTEL-downstream-detection-Alarm/runbook.js';
-import { buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook } from './runbooks/personal-data-vault-SelfcarePG-downstream-detection-Alarm/runbook.js';
-import { buildWorkdayPnExternalChannelAlbAlarmRunbook } from './runbooks/workday-pn-external-channel-alb-alarm/runbook.js';
-import { buildK8sInteropBeBackendForFrontendErrorsRunbook } from './runbooks/k8s-interop-be-backend-for-frontend-errors/runbook.js';
-import { BFF_ALARM } from './runbooks/k8s-interop-be-backend-for-frontend-errors/alarmDefinition.js';
-import { buildK8sInteropBeNotificationUserLifecycleConsumerErrorsRunbook } from './runbooks/k8s-interop-be-notification-user-lifecycle-consumer-errors/runbook.js';
-import { NOTIFICATION_USER_LIFECYCLE_ALARM } from './runbooks/k8s-interop-be-notification-user-lifecycle-consumer-errors/alarmDefinition.js';
-import { buildK8sInteropPublicCatalogAstroFrontendErrorsRunbook } from './runbooks/k8s-interop-public-catalog-astro-frontend-errors/runbook.js';
-import { PUBLIC_CATALOG_ALARM } from './runbooks/k8s-interop-public-catalog-astro-frontend-errors/alarmDefinition.js';
-import { buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook } from './runbooks/k8s-interop-be-selfcare-client-users-updater-errors/runbook.js';
-import { SELFCARE_USERS_UPDATER_ALARM } from './runbooks/k8s-interop-be-selfcare-client-users-updater-errors/alarmDefinition.js';
-import { buildK8sInteropBeSelfcareOnboardingConsumerErrorsRunbook } from './runbooks/k8s-interop-be-selfcare-onboarding-consumer-errors/runbook.js';
-import { SELFCARE_ONBOARDING_CONSUMER_ALARM } from './runbooks/k8s-interop-be-selfcare-onboarding-consumer-errors/alarmDefinition.js';
-import { buildInteropSelfcareApiGw5xxRunbook } from './runbooks/interop-selfcare-1.0-apigw-5xx/runbook.js';
-import { SELFCARE_ALARM } from './runbooks/interop-selfcare-1.0-apigw-5xx/alarmDefinition.js';
-import { buildInteropAuthServerApiGw4xxRunbook } from './runbooks/interop-auth-server-apigw-4xx/runbook.js';
-import { AUTH_SERVER_ALARM } from './runbooks/interop-auth-server-apigw-4xx/alarmDefinition.js';
-
-export type RunbookBuilderFn = () => Runbook;
-
-export interface AutomaticRunbookRegistration {
-  readonly key: string;
-  /** Watchtower product owning the alarms; selects the downstream catalog (§5.1.2). */
-  readonly product: RunbookProduct;
-  readonly alarmNames: readonly [string, ...string[]];
-  readonly kind: AutomaticRunbookKind;
-  readonly categories: readonly [string, ...string[]];
-  readonly build: RunbookBuilderFn;
-}
-
-export interface ResolvedAutomaticRunbook {
-  readonly descriptor: AutomaticRunbookDescriptorV1;
-  readonly product: RunbookProduct;
-  readonly build: RunbookBuilderFn;
-}
+import type { AutomaticRunbookRegistration } from './AutomaticRunbookRegistration.js';
+import { CATALOG_MANIFEST } from './catalogManifest.js';
+import type { ResolvedAutomaticRunbook } from './ResolvedAutomaticRunbook.js';
+import type { RunbookBuilderFn } from './RunbookBuilderFn.js';
 
 export class AutomaticRunbookRegistry {
   private readonly byKey = new Map<string, ResolvedAutomaticRunbook>();
@@ -126,200 +64,11 @@ export class AutomaticRunbookRegistry {
   }
 }
 
-const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
-  registration('pn-address-book-io-IO-ApiGwAlarm', 'SEND', 'APIGW', ['DELIVERY'], buildAddressBookIoApiGwAlarmRunbook),
-  registration('pn-delivery-B2B-ApiGwAlarm', 'SEND', 'APIGW', ['DELIVERY'], buildDeliveryB2BApiGwAlarmRunbook),
-  registration('pn-delivery-IO_EXP-ApiGwAlarm', 'SEND', 'APIGW', ['DELIVERY'], buildDeliveryIoExpApiGwAlarmRunbook),
-  registration('pn-delivery-push-B2B-ApiGwAlarm', 'SEND', 'APIGW', ['DELIVERY'], buildDeliveryPushB2BApiGwAlarmRunbook),
-  registration(
-    'pn-national-registries-PNPG-ApiGwAlarm',
-    'SEND',
-    'APIGW',
-    ['INTEGRATION'],
-    buildNationalRegistriesPNPGApiGwAlarmRunbook,
-  ),
-  registration(
-    'pn-ioAuthorizerLambda-LogInvocationErrors-Alarm',
-    'SEND',
-    'LAMBDA',
-    ['AUTHORIZATION'],
-    buildIoAuthorizerLambdaRunbook,
-  ),
-  registration(
-    'pn-tokenExchangeLambda-LogInvocationErrors-Alarm',
-    'SEND',
-    'LAMBDA',
-    ['AUTHORIZATION', 'INTEGRATION'],
-    buildTokenExchangeLambdaRunbook,
-  ),
-  registration(
-    'pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm',
-    'SEND',
-    'LAMBDA',
-    ['DELIVERY'],
-    buildSlaViolationCheckerLambdaSqsRunbook,
-  ),
-  registration(
-    'pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm',
-    'SEND',
-    'LAMBDA',
-    ['AUTHORIZATION'],
-    buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook,
-  ),
-  registration(
-    'pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm',
-    'SEND',
-    'LAMBDA',
-    ['AUTHORIZATION'],
-    buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook,
-  ),
-  registration(
-    'pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm',
-    'SEND',
-    'LAMBDA',
-    ['DELIVERY'],
-    buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook,
-  ),
-  registration(
-    'pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm',
-    'SEND',
-    'LAMBDA',
-    ['AUTHORIZATION'],
-    buildLollipopAuthorizerLambdaLogInvocationErrorsAlarmRunbook,
-  ),
-  registration(
-    'emd-downstream-detection-Alarm',
-    'SEND',
-    'SERVICE',
-    ['INTEGRATION'],
-    buildEmdDownstreamDetectionAlarmRunbook,
-  ),
-  registration(
-    'pn-external-registries-OneTrust-downstream-detection-Alarm',
-    'SEND',
-    'SERVICE',
-    ['INTEGRATION'],
-    buildExternalRegistriesOneTrustDownstreamDetectionAlarmRunbook,
-  ),
-  registration(
-    'pn-national-registries-IPA-downstream-detection-Alarm',
-    'SEND',
-    'SERVICE',
-    ['INTEGRATION'],
-    buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook,
-  ),
-  registration(
-    'pn-national-registries-ANPR-downstream-detection-Alarm',
-    'SEND',
-    'SERVICE',
-    ['INTEGRATION'],
-    buildNationalRegistriesAnprDownstreamDetectionAlarmRunbook,
-  ),
-  registration(
-    'pn-national-registries-InfoCamere-downstream-detection-Alarm',
-    'SEND',
-    'SERVICE',
-    ['INTEGRATION'],
-    buildNationalRegistriesInfoCamereDownstreamDetectionAlarmRunbook,
-  ),
-  registration(
-    'pn-national-registries-AdE-downstream-detection-Alarm',
-    'SEND',
-    'SERVICE',
-    ['INTEGRATION'],
-    buildNationalRegistriesAdeDownstreamDetectionAlarmRunbook,
-  ),
-  registration(
-    'pn-national-registries-INAD-downstream-detection-Alarm',
-    'SEND',
-    'SERVICE',
-    ['INTEGRATION'],
-    buildNationalRegistriesInadDownstreamDetectionAlarmRunbook,
-  ),
-  registration(
-    'pn-address-manager-POSTEL-downstream-detection-Alarm',
-    'SEND',
-    'SERVICE',
-    ['DELIVERY'],
-    buildAddressManagerPostelDownstreamDetectionAlarmRunbook,
-  ),
-  registration(
-    'personal-data-vault-SelfcarePG-downstream-detection-Alarm',
-    'SEND',
-    'SERVICE',
-    ['INTEGRATION'],
-    buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook,
-  ),
-  registration(
-    'workday-pn-external-channel-alb-alarm',
-    'SEND',
-    'SERVICE',
-    ['DELIVERY'],
-    buildWorkdayPnExternalChannelAlbAlarmRunbook,
-  ),
-  registration(
-    BFF_ALARM.runbookKey,
-    'INTEROP',
-    'SERVICE',
-    ['INTEROP'],
-    buildK8sInteropBeBackendForFrontendErrorsRunbook,
-    BFF_ALARM.alarmNames,
-  ),
-  registration(
-    NOTIFICATION_USER_LIFECYCLE_ALARM.runbookKey,
-    'INTEROP',
-    'SERVICE',
-    ['INTEROP'],
-    buildK8sInteropBeNotificationUserLifecycleConsumerErrorsRunbook,
-    NOTIFICATION_USER_LIFECYCLE_ALARM.alarmNames,
-  ),
-  registration(
-    PUBLIC_CATALOG_ALARM.runbookKey,
-    'INTEROP',
-    'SERVICE',
-    ['INTEROP'],
-    buildK8sInteropPublicCatalogAstroFrontendErrorsRunbook,
-    PUBLIC_CATALOG_ALARM.alarmNames,
-  ),
-  registration(
-    SELFCARE_USERS_UPDATER_ALARM.runbookKey,
-    'INTEROP',
-    'SERVICE',
-    ['INTEROP'],
-    buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook,
-    SELFCARE_USERS_UPDATER_ALARM.alarmNames,
-  ),
-  registration(
-    SELFCARE_ONBOARDING_CONSUMER_ALARM.runbookKey,
-    'INTEROP',
-    'SERVICE',
-    ['INTEROP'],
-    buildK8sInteropBeSelfcareOnboardingConsumerErrorsRunbook,
-    SELFCARE_ONBOARDING_CONSUMER_ALARM.alarmNames,
-  ),
-  registration(
-    SELFCARE_ALARM.runbookKey,
-    'INTEROP',
-    'APIGW',
-    ['INTEROP'],
-    buildInteropSelfcareApiGw5xxRunbook,
-    SELFCARE_ALARM.alarmNames,
-  ),
-  registration(
-    AUTH_SERVER_ALARM.runbookKey,
-    'INTEROP',
-    'APIGW',
-    ['INTEROP'],
-    buildInteropAuthServerApiGw4xxRunbook,
-    AUTH_SERVER_ALARM.alarmNames,
-  ),
-];
-
-export const AUTOMATIC_RUNBOOK_REGISTRY: AutomaticRunbookRegistry = new AutomaticRunbookRegistry(REGISTRATIONS);
+export const AUTOMATIC_RUNBOOK_REGISTRY: AutomaticRunbookRegistry = new AutomaticRunbookRegistry(CATALOG_MANIFEST);
 
 /** Compatibility map for existing local consumers; new code should use AUTOMATIC_RUNBOOK_REGISTRY. */
 export const RUNBOOK_REGISTRY: ReadonlyMap<string, RunbookBuilderFn> = new Map(
-  REGISTRATIONS.flatMap((entry) => entry.alarmNames.map((alarmName) => [alarmName, entry.build] as const)),
+  CATALOG_MANIFEST.flatMap((entry) => entry.alarmNames.map((alarmName) => [alarmName, entry.build] as const)),
 );
 
 /** Compatibility wrapper used by existing CI checks. */
@@ -336,18 +85,6 @@ export function validateCloudRunbookRegistry(registry: ReadonlyMap<string, Runbo
       throw new Error(`Cloud runbook registry rejected "${alarmName}": ${message}`, { cause: error });
     }
   }
-}
-
-/** Builds a registration; alarmNames defaults to the runbook key for the common one-alarm case. */
-function registration(
-  key: string,
-  product: RunbookProduct,
-  kind: AutomaticRunbookKind,
-  categories: readonly [string, ...string[]],
-  build: RunbookBuilderFn,
-  alarmNames?: readonly [string, ...string[]],
-): AutomaticRunbookRegistration {
-  return { key, product, alarmNames: alarmNames ?? [key], kind, categories, build };
 }
 
 function descriptorFrom(

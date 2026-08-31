@@ -4,7 +4,9 @@ export {
   RUNBOOK_REGISTRY,
   validateCloudRunbookRegistry,
 } from './runbookRegistry.js';
-export type { AutomaticRunbookRegistration, ResolvedAutomaticRunbook, RunbookBuilderFn } from './runbookRegistry.js';
+export type { AutomaticRunbookRegistration } from './AutomaticRunbookRegistration.js';
+export type { ResolvedAutomaticRunbook } from './ResolvedAutomaticRunbook.js';
+export type { RunbookBuilderFn } from './RunbookBuilderFn.js';
 export type { AutomaticRunbookKind } from '@go-automation/go-execute-runbook-contracts';
 export { executeRunbookForOccurrence } from './executeRunbookForOccurrence.js';
 export type {

@@ -40,6 +40,7 @@ export type { KnownCaseAnalysis } from './types/KnownCaseAnalysis.js';
 export type { RunbookAnalysisDefaults } from './types/RunbookAnalysisDefaults.js';
 export type { AnalysisResourceRef } from './types/AnalysisResourceRef.js';
 export type { AnalysisLinkRef } from './types/AnalysisLinkRef.js';
+export { RunbookProducts } from './types/RunbookProduct.js';
 export type { RunbookProduct } from './types/RunbookProduct.js';
 export { INTEROP_DOWNSTREAMS, SEND_DOWNSTREAMS } from './analysis/downstreams/index.js';
 export type { InteropDownstream, SendDownstream } from './analysis/downstreams/index.js';
