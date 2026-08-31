@@ -11,6 +11,7 @@ export interface CliArgs {
   readonly version?: string;
   readonly team?: string;
   readonly tags?: string;
+  readonly product?: string;
   readonly categories?: string;
   /** Template-specific flag values, keyed by input name. */
   readonly extras: ReadonlyMap<string, string>;
@@ -30,6 +31,7 @@ interface MutableCliArgs {
   version?: string;
   team?: string;
   tags?: string;
+  product?: string;
   categories?: string;
   extras: ReadonlyMap<string, string>;
   wire: boolean;
@@ -72,6 +74,7 @@ export function parseCliArgs(argv: ReadonlyArray<string>): CliArgs {
     version: { type: 'string' },
     team: { type: 'string' },
     tags: { type: 'string' },
+    product: { type: 'string' },
     categories: { type: 'string' },
     'no-wire': { type: 'boolean' },
     'dry-run': { type: 'boolean' },
@@ -112,6 +115,8 @@ export function parseCliArgs(argv: ReadonlyArray<string>): CliArgs {
   if (team !== undefined) args.team = team;
   const tags = asString(values['tags']);
   if (tags !== undefined) args.tags = tags;
+  const product = asString(values['product']);
+  if (product !== undefined) args.product = product;
   const categories = asString(values['categories']);
   if (categories !== undefined) args.categories = categories;
 

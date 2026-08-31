@@ -2,7 +2,7 @@
  * GO Automation - New Runbook Scaffolder
  *
  * Creates a new runbook in the go-runbook catalog from a template, and (by
- * default) registers it in the automatic registry.
+ * default) registers it in the automatic catalog manifest.
  *
  * Usage:
  *   pnpm create:runbook
@@ -19,12 +19,13 @@
  *   --version <semver>       Runbook metadata version (default: 1.0.0)
  *   --team <team>            Runbook metadata team (default: GO)
  *   --tags <csv>             Comma-separated metadata tags
+ *   --product <name>         Watchtower product: SEND | INTEROP (default: SEND); prompted when wiring
  *   --categories <csv>       Comma-separated automatic catalog categories
  *   --api-gw-log-group, --entry-service, --var-prefix, --log-group,
  *   --execution-log-group, --authorizer   (api-gateway template inputs)
  *   --entry-lambda, --var-prefix, --event-source   (lambda template inputs)
  *   --service-name, --var-prefix, --log-group   (service template inputs)
- *   --no-wire                Do not modify the automatic runbook registry
+ *   --no-wire                Do not modify the automatic runbook catalog manifest
  *   --dry-run                Render and print without writing or wiring
  *   --yes                    Skip the confirmation prompt
  */
@@ -35,10 +36,13 @@ import * as fs from 'node:fs/promises';
 import { parseCliArgs } from './cli/parseArgs.js';
 import { resolveTemplate, collectAnswers, confirmGeneration } from './cli/prompts.js';
 import { renderRunbookFiles, writeGeneratedFiles } from './generate/scaffoldRunbook.js';
+import { formatTypeScript } from './generate/formatTypeScript.js';
 import type { GeneratedFile } from './generate/scaffoldRunbook.js';
-import { registerRunbookInCatalog } from './wiring/registerInCatalog.js';
+import { registerRunbookInCatalog, renderRegistrationFile } from './wiring/registerInCatalog.js';
+import type { RunbookRegistration } from './wiring/registerInCatalog.js';
+import { deriveRegistrationName } from './naming/deriveRegistrationName.js';
 import { runbookIdError } from './validation/runbookIdError.js';
-import { REPO_ROOT, RUNBOOK_REGISTRY_FILE, RUNBOOKS_DIR, TEMPLATES_ROOT } from './constants.js';
+import { CATALOG_MANIFEST_FILE, REPO_ROOT, RUNBOOKS_DIR, TEMPLATES_ROOT } from './constants.js';
 import type { RunbookAnswers } from './templates/RunbookAnswers.js';
 
 const BOLD = '\x1b[1m';
@@ -72,7 +76,7 @@ function printPlan(answers: RunbookAnswers, files: ReadonlyArray<GeneratedFile>,
     console.log(`  ${CYAN}${relativeToRepo(file.path)}${RESET}`);
   }
   const wiringLabel = wire
-    ? `import + REGISTRATIONS in ${relativeToRepo(RUNBOOK_REGISTRY_FILE)}`
+    ? `import + CATALOG_MANIFEST in ${relativeToRepo(CATALOG_MANIFEST_FILE)}`
     : `${DIM}disabilitato${RESET}`;
   console.log(`${BOLD}Wiring${RESET}    ${wiringLabel}`);
 }
@@ -119,11 +123,11 @@ function printSuccess(
   }
 
   if (wireRequested && wired) {
-    console.log(`  ${GREEN}~${RESET} ${relativeToRepo(RUNBOOK_REGISTRY_FILE)} (import + REGISTRATIONS)`);
+    console.log(`  ${GREEN}~${RESET} ${relativeToRepo(CATALOG_MANIFEST_FILE)} (import + CATALOG_MANIFEST)`);
   } else if (wireRequested) {
-    console.log(`  ${YELLOW}!${RESET} ${relativeToRepo(RUNBOOK_REGISTRY_FILE)}: builder già registrato`);
+    console.log(`  ${YELLOW}!${RESET} ${relativeToRepo(CATALOG_MANIFEST_FILE)}: runbook già registrato`);
   } else {
-    console.log(`\n  ${YELLOW}Wiring saltato.${RESET} Registra a mano in ${relativeToRepo(RUNBOOK_REGISTRY_FILE)}.`);
+    console.log(`\n  ${YELLOW}Wiring saltato.${RESET} Registra a mano in ${relativeToRepo(CATALOG_MANIFEST_FILE)}.`);
   }
 
   printNextSteps(answers);
@@ -150,6 +154,31 @@ function nonEmptyCategories(categories: ReadonlyArray<string>): readonly [string
   return [first, ...rest];
 }
 
+/**
+ * Builds the catalog registration for a runbook and renders its
+ * `registration.ts`, so the file shows up in the plan like any other.
+ */
+async function renderRegistration(
+  answers: RunbookAnswers,
+  catalogKind: AutomaticRunbookKind | undefined,
+  targetDir: string,
+): Promise<{ readonly file: GeneratedFile; readonly registration: RunbookRegistration }> {
+  if (catalogKind === undefined) {
+    throw new Error(`Il template "${answers.templateId}" non supporta il wiring automatico.`);
+  }
+  const registration: RunbookRegistration = {
+    id: answers.id,
+    builderName: answers.builderName,
+    constName: deriveRegistrationName(answers.builderName),
+    product: answers.product,
+    kind: catalogKind,
+    categories: nonEmptyCategories(answers.categories),
+  };
+  const outputPath = path.join(targetDir, 'registration.ts');
+  const content = await formatTypeScript(renderRegistrationFile(registration), outputPath);
+  return { file: { path: outputPath, content }, registration };
+}
+
 async function run(): Promise<void> {
   const cli = parseCliArgs(process.argv.slice(2));
 
@@ -170,7 +199,9 @@ async function run(): Promise<void> {
     throw new Error(`La cartella runbook esiste già: ${relativeToRepo(targetDir)}`);
   }
 
-  const files = await renderRunbookFiles(template, answers, TEMPLATES_ROOT, targetDir);
+  const templateFiles = await renderRunbookFiles(template, answers, TEMPLATES_ROOT, targetDir);
+  const wiring = wire ? await renderRegistration(answers, catalogKind, targetDir) : undefined;
+  const files = wiring === undefined ? templateFiles : [...templateFiles, wiring.file];
 
   printPlan(answers, files, wire);
 
@@ -190,19 +221,7 @@ async function run(): Promise<void> {
 
   await writeGeneratedFiles(files);
 
-  let wired = false;
-  if (wire) {
-    if (catalogKind === undefined) {
-      throw new Error(`Il template "${answers.templateId}" non supporta il wiring automatico.`);
-    }
-    wired = await registerRunbookInCatalog(RUNBOOK_REGISTRY_FILE, {
-      id: answers.id,
-      builderName: answers.builderName,
-      importPath: `./runbooks/${answers.id}/runbook.js`,
-      kind: catalogKind,
-      categories: nonEmptyCategories(answers.categories),
-    });
-  }
+  const wired = wiring !== undefined && (await registerRunbookInCatalog(CATALOG_MANIFEST_FILE, wiring.registration));
 
   printSuccess(answers, files, wired, wire);
 }

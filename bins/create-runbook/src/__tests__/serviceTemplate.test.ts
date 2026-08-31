@@ -14,6 +14,7 @@ function answers(): RunbookAnswers {
     version: '1.0.0',
     team: 'GO',
     tags: ['service'],
+    product: 'SEND',
     categories: ['DELIVERY'],
     extras: new Map<string, string>([
       ['service-name', 'pn-foo'],
