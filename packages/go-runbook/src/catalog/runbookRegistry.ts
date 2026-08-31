@@ -50,15 +50,9 @@ import { SELFCARE_USERS_UPDATER_ALARM } from './runbooks/k8s-interop-be-selfcare
 import { buildK8sInteropBeSelfcareOnboardingConsumerErrorsRunbook } from './runbooks/k8s-interop-be-selfcare-onboarding-consumer-errors/runbook.js';
 import { SELFCARE_ONBOARDING_CONSUMER_ALARM } from './runbooks/k8s-interop-be-selfcare-onboarding-consumer-errors/alarmDefinition.js';
 import { buildInteropSelfcareApiGw5xxRunbook } from './runbooks/interop-selfcare-1.0-apigw-5xx/runbook.js';
-import {
-  INTEROP_SELFCARE_API_GW_ALARM_NAMES,
-  INTEROP_SELFCARE_API_GW_RUNBOOK_KEY,
-} from './runbooks/interop-selfcare-1.0-apigw-5xx/resolveInteropAlarmContext.js';
+import { SELFCARE_ALARM } from './runbooks/interop-selfcare-1.0-apigw-5xx/alarmDefinition.js';
 import { buildInteropAuthServerApiGw4xxRunbook } from './runbooks/interop-auth-server-apigw-4xx/runbook.js';
-import {
-  INTEROP_AUTH_SERVER_API_GW_ALARM_NAMES,
-  INTEROP_AUTH_SERVER_API_GW_RUNBOOK_KEY,
-} from './runbooks/interop-auth-server-apigw-4xx/resolveInteropAlarmContext.js';
+import { AUTH_SERVER_ALARM } from './runbooks/interop-auth-server-apigw-4xx/alarmDefinition.js';
 
 export type RunbookBuilderFn = () => Runbook;
 
@@ -304,20 +298,20 @@ const REGISTRATIONS: ReadonlyArray<AutomaticRunbookRegistration> = [
     SELFCARE_ONBOARDING_CONSUMER_ALARM.alarmNames,
   ),
   registration(
-    INTEROP_SELFCARE_API_GW_RUNBOOK_KEY,
+    SELFCARE_ALARM.runbookKey,
     'INTEROP',
     'APIGW',
     ['INTEROP'],
     buildInteropSelfcareApiGw5xxRunbook,
-    INTEROP_SELFCARE_API_GW_ALARM_NAMES,
+    SELFCARE_ALARM.alarmNames,
   ),
   registration(
-    INTEROP_AUTH_SERVER_API_GW_RUNBOOK_KEY,
+    AUTH_SERVER_ALARM.runbookKey,
     'INTEROP',
     'APIGW',
     ['INTEROP'],
     buildInteropAuthServerApiGw4xxRunbook,
-    INTEROP_AUTH_SERVER_API_GW_ALARM_NAMES,
+    AUTH_SERVER_ALARM.alarmNames,
   ),
 ];
 

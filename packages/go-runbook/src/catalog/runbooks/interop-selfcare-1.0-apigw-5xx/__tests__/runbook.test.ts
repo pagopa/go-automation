@@ -1,4 +1,4 @@
-import { STEP_IDS } from '../resolveInteropAlarmContext.js';
+import { SELFCARE_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -12,32 +12,28 @@ import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
 import type { ServiceRegistry } from '../../../../services/ServiceRegistry.js';
 
 import { buildInteropSelfcareApiGw5xxRunbook } from '../runbook.js';
-import {
-  INTEROP_SELFCARE_API_GW_RUNBOOK_KEY,
-  INTEROP_SELFCARE_API_GW_SERVICE_NAME,
-} from '../resolveInteropAlarmContext.js';
 
 describe('buildInteropSelfcareApiGw5xxRunbook', () => {
   it('builds the custom read-only APIGW → BFF → CID pipeline', () => {
     const runbook = buildInteropSelfcareApiGw5xxRunbook();
 
-    assert.strictEqual(runbook.metadata.id, INTEROP_SELFCARE_API_GW_RUNBOOK_KEY);
+    assert.strictEqual(runbook.metadata.id, SELFCARE_ALARM.runbookKey);
     assert.deepStrictEqual(
       runbook.steps.map((descriptor) => descriptor.step.id),
       [
-        STEP_IDS.resolveContext,
-        STEP_IDS.queryApiGwAggregates,
-        STEP_IDS.analyzeApiGwAggregates,
-        STEP_IDS.queryApplicationLogs,
-        STEP_IDS.analyzeApplicationLogs,
-        STEP_IDS.queryCidTracker,
-        STEP_IDS.analyzeCidTracker,
+        SELFCARE_ALARM.stepIds.resolveContext,
+        SELFCARE_ALARM.stepIds.queryApiGwAggregates,
+        SELFCARE_ALARM.stepIds.analyzeApiGwAggregates,
+        SELFCARE_ALARM.stepIds.queryApplicationLogs,
+        SELFCARE_ALARM.stepIds.analyzeApplicationLogs,
+        SELFCARE_ALARM.stepIds.queryCidTracker,
+        SELFCARE_ALARM.stepIds.analyzeCidTracker,
       ],
     );
     assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 5, afterMinutes: 1 });
     assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
     assert.ok(apigw.isApiGwRunbookContext(runbook.runbookContext));
-    assert.strictEqual(runbook.runbookContext.services[0]?.name, INTEROP_SELFCARE_API_GW_SERVICE_NAME);
+    assert.strictEqual(runbook.runbookContext.services[0]?.name, SELFCARE_ALARM.serviceName);
     assert.ok(runbook.knownCases.length >= 20);
   });
 

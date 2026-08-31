@@ -8,9 +8,12 @@ import type { BuildInteropApiGwAggregateQueryFn } from '../steps/QueryInteropApi
  * The access-log side is the same aggregate for every runbook of the family,
  * parameterised by the error family; the application side differs per service,
  * which is why a profile pairs them.
+ *
+ * A profile carries no id of its own: the id a runbook advertises in its
+ * `runbookContext` describes that runbook, so two runbooks sharing this
+ * profile still each declare their own.
  */
 export interface InteropApiGwQueryProfile {
-  readonly id: string;
   /** Error family analysed, e.g. `4xx` or `5xx`. Rendered in step labels. */
   readonly errorFamilyLabel: string;
   /** Profile id recorded in the aggregate query's trace metadata. */

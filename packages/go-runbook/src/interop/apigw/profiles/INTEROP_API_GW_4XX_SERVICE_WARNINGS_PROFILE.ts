@@ -4,7 +4,6 @@ import type { InteropApiGwQueryProfile } from './InteropApiGwQueryProfile.js';
 
 /** 4xx on the API Gateway, aggregated warning scan on the service behind it. */
 export const INTEROP_API_GW_4XX_SERVICE_WARNINGS_PROFILE: InteropApiGwQueryProfile = {
-  id: 'interop-api-gateway-4xx-service-warnings',
   errorFamilyLabel: '4xx',
   apiGwQueryProfileId: 'interop-api-gateway-auth-server-4xx',
   apiGwQueryKind: 'interop-api-gateway-auth-server-4xx-aggregate',

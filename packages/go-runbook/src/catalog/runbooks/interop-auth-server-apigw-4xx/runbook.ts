@@ -1,24 +1,15 @@
+import { AUTH_SERVER_ALARM } from './alarmDefinition.js';
 import { unknownCaseFallback } from '../../../actions/unknownCaseFallback.js';
 import type { Runbook } from '../framework.js';
 import { interop } from '../framework.js';
 
 import { KNOWN_CASES } from './knownCases.js';
-import {
-  INTEROP_AUTH_SERVER_API_GW_LOG_GROUP_TEMPLATE,
-  INTEROP_AUTH_SERVER_API_GW_PROFILE_ID,
-  INTEROP_AUTH_SERVER_API_GW_RUNBOOK_KEY,
-  INTEROP_AUTH_SERVER_APPLICATION_LOG_GROUP_TEMPLATE,
-  INTEROP_AUTH_SERVER_POD_APP_FILTER,
-  INTEROP_AUTH_SERVER_SERVICE_NAME,
-  INTEROP_AUTH_SERVER_VAR_PREFIX,
-  resolveInteropAuthServerApiGwAlarmContext,
-} from './resolveInteropAlarmContext.js';
 
 export function buildInteropAuthServerApiGw4xxRunbook(): Runbook {
   return interop.apigw.createInteropApiGwAlarmRunbook({
-    id: INTEROP_AUTH_SERVER_API_GW_RUNBOOK_KEY,
+    id: AUTH_SERVER_ALARM.runbookKey,
     metadata: {
-      name: INTEROP_AUTH_SERVER_API_GW_RUNBOOK_KEY,
+      name: AUTH_SERVER_ALARM.runbookKey,
       description:
         'Analizza gli allarmi 4xx dell’API Gateway authorization-server INTEROP, i warning applicativi e i log correlati tramite CID.',
       version: '1.0.0',
@@ -28,22 +19,22 @@ export function buildInteropAuthServerApiGw4xxRunbook(): Runbook {
     },
     occurrenceTimeWindow: { beforeMinutes: 2, afterMinutes: 1 },
     resolverId: 'interop-auth-server-api-gateway-context',
-    resolveAlarmContext: resolveInteropAuthServerApiGwAlarmContext,
+    resolveAlarmContext: AUTH_SERVER_ALARM.resolveContext,
     queryProfile: interop.apigw.INTEROP_API_GW_4XX_SERVICE_WARNINGS_PROFILE,
     apiGw: {
-      logGroupTemplate: INTEROP_AUTH_SERVER_API_GW_LOG_GROUP_TEMPLATE,
-      profileId: INTEROP_AUTH_SERVER_API_GW_PROFILE_ID,
+      logGroupTemplate: AUTH_SERVER_ALARM.apiGwLogGroupTemplate,
+      profileId: AUTH_SERVER_ALARM.apiGwProfileId,
     },
     application: {
-      serviceName: INTEROP_AUTH_SERVER_SERVICE_NAME,
-      logGroupTemplate: INTEROP_AUTH_SERVER_APPLICATION_LOG_GROUP_TEMPLATE,
-      varPrefix: INTEROP_AUTH_SERVER_VAR_PREFIX,
-      podAppFilter: INTEROP_AUTH_SERVER_POD_APP_FILTER,
+      serviceName: AUTH_SERVER_ALARM.serviceName,
+      logGroupTemplate: AUTH_SERVER_ALARM.applicationLogGroupTemplate,
+      varPrefix: AUTH_SERVER_ALARM.varPrefix,
+      ...(AUTH_SERVER_ALARM.podAppFilter !== undefined ? { podAppFilter: AUTH_SERVER_ALARM.podAppFilter } : {}),
       // The warning scan stops at the alarm instant: later warnings belong
       // to a different occurrence.
       timeRangeFromParams: { start: 'startTime', end: 'alarmDatetime' },
       countField: 'count',
-      label: `warning applicativi ${INTEROP_AUTH_SERVER_SERVICE_NAME}`,
+      label: `warning applicativi ${AUTH_SERVER_ALARM.serviceName}`,
     },
     knownCases: KNOWN_CASES,
     fallbackAction: unknownCaseFallback(

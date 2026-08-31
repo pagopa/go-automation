@@ -1,4 +1,4 @@
-import { STEP_IDS } from '../resolveInteropAlarmContext.js';
+import { AUTH_SERVER_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -18,32 +18,28 @@ import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionR
 import { apigw } from '../../framework.js';
 
 import { buildInteropAuthServerApiGw4xxRunbook } from '../runbook.js';
-import {
-  INTEROP_AUTH_SERVER_API_GW_RUNBOOK_KEY,
-  INTEROP_AUTH_SERVER_SERVICE_NAME,
-} from '../resolveInteropAlarmContext.js';
 
 describe('buildInteropAuthServerApiGw4xxRunbook', () => {
   it('builds the read-only APIGW → warnings → CID pipeline with the asymmetric window', () => {
     const runbook = buildInteropAuthServerApiGw4xxRunbook();
 
-    assert.strictEqual(runbook.metadata.id, INTEROP_AUTH_SERVER_API_GW_RUNBOOK_KEY);
+    assert.strictEqual(runbook.metadata.id, AUTH_SERVER_ALARM.runbookKey);
     assert.deepStrictEqual(
       runbook.steps.map(({ step }) => step.id),
       [
-        STEP_IDS.resolveContext,
-        STEP_IDS.queryApiGwAggregates,
-        STEP_IDS.analyzeApiGwAggregates,
-        STEP_IDS.queryApplicationLogs,
-        STEP_IDS.analyzeApplicationLogs,
-        STEP_IDS.queryCidTracker,
-        STEP_IDS.analyzeCidTracker,
+        AUTH_SERVER_ALARM.stepIds.resolveContext,
+        AUTH_SERVER_ALARM.stepIds.queryApiGwAggregates,
+        AUTH_SERVER_ALARM.stepIds.analyzeApiGwAggregates,
+        AUTH_SERVER_ALARM.stepIds.queryApplicationLogs,
+        AUTH_SERVER_ALARM.stepIds.analyzeApplicationLogs,
+        AUTH_SERVER_ALARM.stepIds.queryCidTracker,
+        AUTH_SERVER_ALARM.stepIds.analyzeCidTracker,
       ],
     );
     assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 2, afterMinutes: 1 });
     assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
     assert.ok(apigw.isApiGwRunbookContext(runbook.runbookContext));
-    assert.strictEqual(runbook.runbookContext.services[0]?.name, INTEROP_AUTH_SERVER_SERVICE_NAME);
+    assert.strictEqual(runbook.runbookContext.services[0]?.name, AUTH_SERVER_ALARM.serviceName);
     assert.strictEqual(runbook.knownCases.length, 8);
   });
 

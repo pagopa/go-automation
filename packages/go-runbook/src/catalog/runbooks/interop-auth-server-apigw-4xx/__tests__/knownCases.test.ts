@@ -1,4 +1,4 @@
-import { STEP_IDS } from '../resolveInteropAlarmContext.js';
+import { AUTH_SERVER_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -114,7 +114,10 @@ describe('INTEROP auth-server API Gateway known cases', () => {
 });
 
 function context(fixture: Fixture): RunbookContext {
-  const sourceStep = fixture.source === 'API_GATEWAY' ? STEP_IDS.queryApiGwAggregates : STEP_IDS.queryApplicationLogs;
+  const sourceStep =
+    fixture.source === 'API_GATEWAY'
+      ? AUTH_SERVER_ALARM.stepIds.queryApiGwAggregates
+      : AUTH_SERVER_ALARM.stepIds.queryApplicationLogs;
   return {
     executionId: 'test',
     startedAt: new Date('2026-08-24T10:00:00.000Z'),

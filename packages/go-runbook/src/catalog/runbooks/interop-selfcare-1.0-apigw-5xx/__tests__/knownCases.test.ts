@@ -1,4 +1,4 @@
-import { STEP_IDS } from '../resolveInteropAlarmContext.js';
+import { SELFCARE_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -239,10 +239,10 @@ function context(fixture: Fixture): RunbookContext {
   const rows = applicationLogRows([fixture.message]);
   const sourceStep =
     fixture.source === 'API_GATEWAY'
-      ? STEP_IDS.queryApiGwAggregates
+      ? SELFCARE_ALARM.stepIds.queryApiGwAggregates
       : fixture.source === 'CID_TRACKER'
-        ? STEP_IDS.queryCidTracker
-        : STEP_IDS.queryApplicationLogs;
+        ? SELFCARE_ALARM.stepIds.queryCidTracker
+        : SELFCARE_ALARM.stepIds.queryApplicationLogs;
   return {
     executionId: 'test',
     startedAt: new Date('2026-08-24T09:10:11.000Z'),

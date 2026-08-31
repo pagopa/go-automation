@@ -1,23 +1,15 @@
+import { SELFCARE_ALARM } from './alarmDefinition.js';
 import { unknownCaseFallback } from '../../../actions/unknownCaseFallback.js';
 import type { Runbook } from '../framework.js';
 import { interop } from '../framework.js';
 
 import { KNOWN_CASES } from './knownCases.js';
-import {
-  INTEROP_SELFCARE_API_GW_LOG_GROUP_TEMPLATE,
-  INTEROP_SELFCARE_API_GW_PROFILE_ID,
-  INTEROP_SELFCARE_API_GW_RUNBOOK_KEY,
-  INTEROP_SELFCARE_API_GW_SERVICE_NAME,
-  INTEROP_SELFCARE_API_GW_VAR_PREFIX,
-  INTEROP_SELFCARE_APPLICATION_LOG_GROUP_TEMPLATE,
-  resolveInteropSelfcareApiGwAlarmContext,
-} from './resolveInteropAlarmContext.js';
 
 export function buildInteropSelfcareApiGw5xxRunbook(): Runbook {
   return interop.apigw.createInteropApiGwAlarmRunbook({
-    id: INTEROP_SELFCARE_API_GW_RUNBOOK_KEY,
+    id: SELFCARE_ALARM.runbookKey,
     metadata: {
-      name: INTEROP_SELFCARE_API_GW_RUNBOOK_KEY,
+      name: SELFCARE_ALARM.runbookKey,
       description:
         'Analizza gli allarmi 5xx dell’API Gateway Selfcare INTEROP, i log del backend-for-frontend e i log correlati tramite CID.',
       version: '1.0.0',
@@ -27,16 +19,16 @@ export function buildInteropSelfcareApiGw5xxRunbook(): Runbook {
     },
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
     resolverId: 'interop-selfcare-api-gateway-context',
-    resolveAlarmContext: resolveInteropSelfcareApiGwAlarmContext,
+    resolveAlarmContext: SELFCARE_ALARM.resolveContext,
     queryProfile: interop.apigw.INTEROP_API_GW_5XX_SERVICE_ERRORS_PROFILE,
     apiGw: {
-      logGroupTemplate: INTEROP_SELFCARE_API_GW_LOG_GROUP_TEMPLATE,
-      profileId: INTEROP_SELFCARE_API_GW_PROFILE_ID,
+      logGroupTemplate: SELFCARE_ALARM.apiGwLogGroupTemplate,
+      profileId: SELFCARE_ALARM.apiGwProfileId,
     },
     application: {
-      serviceName: INTEROP_SELFCARE_API_GW_SERVICE_NAME,
-      logGroupTemplate: INTEROP_SELFCARE_APPLICATION_LOG_GROUP_TEMPLATE,
-      varPrefix: INTEROP_SELFCARE_API_GW_VAR_PREFIX,
+      serviceName: SELFCARE_ALARM.serviceName,
+      logGroupTemplate: SELFCARE_ALARM.applicationLogGroupTemplate,
+      varPrefix: SELFCARE_ALARM.varPrefix,
     },
     knownCases: KNOWN_CASES,
     fallbackAction: unknownCaseFallback(
