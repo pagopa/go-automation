@@ -44,7 +44,8 @@ function emptyContext(): RunbookContext {
 
 /** Helper: a TraceBuilder primed with a single step (so traceEarlyResolution can attach to it). */
 function builderWithOneStep(): TraceBuilder {
-  return new TraceBuilder('exec', RUNBOOK, new Map()).traceStep(
+  const builder = new TraceBuilder('exec', RUNBOOK, new Map());
+  builder.traceStep(
     'analyze-x',
     'Analyze x',
     'transform',
@@ -59,41 +60,42 @@ function builderWithOneStep(): TraceBuilder {
     {},
     'resolve',
   );
+  return builder;
 }
 
 describe('TraceBuilder', () => {
   it('stores step diagnostics in the pipeline trace', () => {
-    const trace = new TraceBuilder('exec', RUNBOOK, new Map())
-      .traceStep(
-        'query-logs',
-        'Query logs',
-        'data',
-        'sequential',
-        '2026-05-13T00:00:00.000Z',
-        '2026-05-13T00:00:00.001Z',
-        1,
-        'success',
-        false,
-        {},
-        [],
-        {},
-        'continue',
-        {
-          cloudWatchLogs: {
-            rowsReturned: 2,
-            statistics: { bytesScanned: 2048, recordsScanned: 100, recordsMatched: 2 },
-            queryExecutions: [
-              {
-                queryId: 'qid-1',
-                profile: 'profile-1',
-                logGroups: ['/aws/logs'],
-                statistics: { bytesScanned: 2048, recordsScanned: 100, recordsMatched: 2 },
-              },
-            ],
-          },
+    const builder = new TraceBuilder('exec', RUNBOOK, new Map());
+    builder.traceStep(
+      'query-logs',
+      'Query logs',
+      'data',
+      'sequential',
+      '2026-05-13T00:00:00.000Z',
+      '2026-05-13T00:00:00.001Z',
+      1,
+      'success',
+      false,
+      {},
+      [],
+      {},
+      'continue',
+      {
+        cloudWatchLogs: {
+          rowsReturned: 2,
+          statistics: { bytesScanned: 2048, recordsScanned: 100, recordsMatched: 2 },
+          queryExecutions: [
+            {
+              queryId: 'qid-1',
+              profile: 'profile-1',
+              logGroups: ['/aws/logs'],
+              statistics: { bytesScanned: 2048, recordsScanned: 100, recordsMatched: 2 },
+            },
+          ],
         },
-      )
-      .build(emptyContext(), 'completed', ENV);
+      },
+    );
+    const trace = builder.build(emptyContext(), 'completed', ENV);
 
     assert.strictEqual(trace.pipeline[0]?.diagnostics?.cloudWatchLogs?.statistics.bytesScanned, 2048);
     assert.strictEqual(trace.pipeline[0]?.diagnostics?.cloudWatchLogs?.queryExecutions[0]?.queryId, 'qid-1');
@@ -120,13 +122,13 @@ describe('TraceBuilder', () => {
         },
       ];
 
-      const trace = builderWithOneStep()
-        .traceEarlyResolution({
-          resolved: true,
-          matchedCaseIds: ['pdv-404'],
-          evaluations,
-        })
-        .build(emptyContext(), 'completed', ENV);
+      const builder = builderWithOneStep();
+      builder.traceEarlyResolution({
+        resolved: true,
+        matchedCaseIds: ['pdv-404'],
+        evaluations,
+      });
+      const trace = builder.build(emptyContext(), 'completed', ENV);
 
       // Top-level caseMatching reflects the early resolution.
       assert.strictEqual(trace.caseMatching.casesEvaluated, 2);
@@ -150,13 +152,13 @@ describe('TraceBuilder', () => {
         },
       ];
 
-      const trace = builderWithOneStep()
-        .traceEarlyResolution({
-          resolved: false,
-          matchedCaseIds: [],
-          evaluations,
-        })
-        .build(emptyContext(), 'completed', ENV);
+      const builder = builderWithOneStep();
+      builder.traceEarlyResolution({
+        resolved: false,
+        matchedCaseIds: [],
+        evaluations,
+      });
+      const trace = builder.build(emptyContext(), 'completed', ENV);
 
       // No promotion: caseEvaluations stays empty, ready for a later
       // matchKnownCases pass to populate it.
@@ -168,22 +170,22 @@ describe('TraceBuilder', () => {
 
     it('is a no-op when there is no step trace to attach to', () => {
       // Brand-new builder, no step yet.
-      const trace = new TraceBuilder('exec', RUNBOOK, new Map())
-        .traceEarlyResolution({
-          resolved: true,
-          matchedCaseIds: ['x'],
-          evaluations: [
-            {
-              caseId: 'x',
-              description: '',
-              priority: 1,
-              condition: { type: 'exists', ref: 'vars.x' },
-              matched: true,
-              resolvedValues: {},
-            },
-          ],
-        })
-        .build(emptyContext(), 'completed', ENV);
+      const builder = new TraceBuilder('exec', RUNBOOK, new Map());
+      builder.traceEarlyResolution({
+        resolved: true,
+        matchedCaseIds: ['x'],
+        evaluations: [
+          {
+            caseId: 'x',
+            description: '',
+            priority: 1,
+            condition: { type: 'exists', ref: 'vars.x' },
+            matched: true,
+            resolvedValues: {},
+          },
+        ],
+      });
+      const trace = builder.build(emptyContext(), 'completed', ENV);
 
       // No step trace, no promotion, no crash.
       assert.strictEqual(trace.pipeline.length, 0);

@@ -17,21 +17,19 @@ import type { StepDiagnostics } from './StepDiagnostics.js';
 /**
  * Builder for the {@link RunbookExecutionTrace}.
  *
- * The trace API is exposed as a fluent, immutable chain
- * (`builder = builder.traceStep(...)`) to keep call sites readable and
- * allow future replacement with a true persistent builder. Internally the
- * collections are mutated in place — the engine drives the builder
- * sequentially in a single goroutine-equivalent context, so allocating a
- * fresh builder + spread-cloned array on every step would be wasteful
- * (the trace can contain hundreds of step entries). Each `trace*` method
- * returns `this`, so the caller's reassignment stays valid.
+ * The builder is **mutable and single-owner**: the engine drives it
+ * sequentially and is the only thing holding it. Every `trace*` method records
+ * into the builder and returns nothing, so a caller cannot mistake it for a
+ * persistent structure — {@link traceEarlyResolution} in particular *replaces*
+ * the recorded case evaluations, which would be a trap on an object that looked
+ * shareable.
  *
  * @example
  * ```typescript
- * const builder = new TraceBuilder('exec-123', runbook, params)
- *   .traceStep('query-logs', 'Search errors', 'data', 'sequential', t0, t1, 1833, 'success', false, input, output, {}, 'continue')
- *   .traceCaseEvaluation(knownCase, true, { 'vars.statusCode': '504' })
- *   .traceAction(action, 'notify', 'success', 120);
+ * const builder = new TraceBuilder('exec-123', runbook, params);
+ * builder.traceStep('query-logs', 'Search errors', 'data', 'sequential', t0, t1, 1833, 'success', false, input, output, {}, 'continue');
+ * builder.traceCaseEvaluation(knownCase, true, { 'vars.statusCode': '504' });
+ * builder.traceAction(action, 'notify', 'success', 120);
  *
  * const trace = builder.build(finalContext, 'completed', environment);
  * ```
@@ -64,7 +62,6 @@ export class TraceBuilder {
   /**
    * Records the trace of an executed step.
    *
-   * @returns this
    */
   traceStep(
     stepId: string,
@@ -83,7 +80,7 @@ export class TraceBuilder {
     diagnostics?: StepDiagnostics,
     error?: string,
     parentStepId?: string,
-  ): TraceBuilder {
+  ): void {
     const stepTrace: StepTrace = {
       executionOrder: this.stepTraces.length + 1,
       stepId,
@@ -105,7 +102,6 @@ export class TraceBuilder {
     };
 
     this.stepTraces.push(stepTrace);
-    return this;
   }
 
   /**
@@ -118,14 +114,13 @@ export class TraceBuilder {
    * (no match found at that point) stay confined to the step's
    * `earlyResolution` detail.
    *
-   * @returns this
    */
-  traceEarlyResolution(earlyResolution: EarlyResolutionTrace): TraceBuilder {
+  traceEarlyResolution(earlyResolution: EarlyResolutionTrace): void {
     const lastIndex = this.stepTraces.length - 1;
-    if (lastIndex < 0) return this;
+    if (lastIndex < 0) return;
 
     const lastStep = this.stepTraces[lastIndex];
-    if (lastStep === undefined) return this;
+    if (lastStep === undefined) return;
 
     this.stepTraces[lastIndex] = { ...lastStep, earlyResolution };
 
@@ -136,20 +131,13 @@ export class TraceBuilder {
       this.caseEvaluations.length = 0;
       this.caseEvaluations.push(...earlyResolution.evaluations);
     }
-
-    return this;
   }
 
   /**
    * Records the evaluation of a known case.
    *
-   * @returns this
    */
-  traceCaseEvaluation(
-    knownCase: KnownCase,
-    matched: boolean,
-    resolvedValues: Readonly<Record<string, unknown>>,
-  ): TraceBuilder {
+  traceCaseEvaluation(knownCase: KnownCase, matched: boolean, resolvedValues: Readonly<Record<string, unknown>>): void {
     this.caseEvaluations.push({
       caseId: knownCase.id,
       description: knownCase.description,
@@ -158,13 +146,11 @@ export class TraceBuilder {
       matched,
       resolvedValues,
     });
-    return this;
   }
 
   /**
    * Records the result of an executed action.
    *
-   * @returns this
    */
   traceAction(
     action: CaseAction,
@@ -173,7 +159,7 @@ export class TraceBuilder {
     durationMs: number,
     resolvedMessage?: string,
     error?: string,
-  ): TraceBuilder {
+  ): void {
     this.actionTraces.push({
       executed: true,
       actionType,
@@ -183,7 +169,6 @@ export class TraceBuilder {
       ...(resolvedMessage !== undefined ? { resolvedMessage } : {}),
       ...(error !== undefined ? { error } : {}),
     });
-    return this;
   }
 
   /**

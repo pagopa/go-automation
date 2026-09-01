@@ -211,3 +211,46 @@ describe('RunbookEngine status handling', () => {
     }
   });
 });
+
+describe('RunbookEngine narrative flushing', () => {
+  /** A reporter whose flush fails the way a broken pipe or a full disk would. */
+  function explodingReporter(): ServiceRegistry {
+    return createTestServiceRegistry({
+      reporter: {
+        section: (): void => undefined,
+        add: (): void => undefined,
+        flush: (): never => {
+          throw new Error('EPIPE: broken pipe');
+        },
+      },
+    });
+  }
+
+  it('keeps a successful outcome when closing the narrative throws', async () => {
+    const executions: string[] = [];
+
+    const result = await createEngine().execute(
+      createRunbook([{ step: new RecordingStep('only-step', executions) }]),
+      new Map(),
+      explodingReporter(),
+    );
+
+    assert.strictEqual(result.status, 'completed');
+    assert.deepStrictEqual(executions, ['only-step']);
+  });
+
+  it('keeps the original failure instead of the logging error', async () => {
+    const executions: string[] = [];
+
+    const result = await createEngine().execute(
+      createRunbook([{ step: new ReturnedFailureStep('failing-step', executions, 'planned failure') }]),
+      new Map(),
+      explodingReporter(),
+    );
+
+    // Without the guard the finally block would surface `EPIPE: broken pipe`
+    // and the real reason for the failure would be lost.
+    assert.strictEqual(result.status, 'failed');
+    assert.match(result.trace.execution.failureReason ?? '', /planned failure/u);
+  });
+});
