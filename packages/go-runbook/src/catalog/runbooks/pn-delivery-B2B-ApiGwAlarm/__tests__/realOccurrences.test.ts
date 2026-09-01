@@ -14,6 +14,7 @@ import { API_GW_LOG_GROUP } from '../knownServices.js';
 import { createTestServiceRegistry } from '../../../../services/createTestServiceRegistry.js';
 
 type EvidenceKind =
+  | 'no-application-logs'
   | 'timeout-empty-execution'
   | 'timeout-expired-execution'
   | 'external-registries-selfcare-timeout'
@@ -29,6 +30,21 @@ interface RealOccurrence {
 }
 
 const REAL_OCCURRENCES: ReadonlyArray<RealOccurrence> = [
+  {
+    firedAt: '2026-06-16T14:16:25.590Z',
+    kind: 'no-application-logs',
+    expectedCaseId: 'apigw-500-no-application-logs',
+  },
+  {
+    firedAt: '2026-06-16T13:52:25.415Z',
+    kind: 'no-application-logs',
+    expectedCaseId: 'apigw-500-no-application-logs',
+  },
+  {
+    firedAt: '2026-06-03T08:09:09.310Z',
+    kind: 'no-application-logs',
+    expectedCaseId: 'apigw-500-no-application-logs',
+  },
   {
     firedAt: '2026-08-28T03:39:34.634Z',
     kind: 'timeout-empty-execution',
@@ -100,6 +116,13 @@ function accessLogRow(kind: EvidenceKind): ResultField[] {
   };
 
   switch (kind) {
+    case 'no-application-logs':
+      return row({
+        ...common,
+        status: '500',
+        errorMessage: '-',
+        path: '/delivery/v2.6/notifications/sent/IUN',
+      });
     case 'timeout-empty-execution':
     case 'timeout-expired-execution':
     case 'external-registries-selfcare-timeout':
@@ -139,6 +162,7 @@ function accessLogRow(kind: EvidenceKind): ResultField[] {
 
 function deliveryRows(kind: EvidenceKind): ReadonlyArray<ReadonlyArray<ResultField>> {
   switch (kind) {
+    case 'no-application-logs':
     case 'timeout-empty-execution':
     case 'timeout-expired-execution':
       return [];

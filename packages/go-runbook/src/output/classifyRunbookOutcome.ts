@@ -16,9 +16,26 @@ const CONFIG_ERROR_SIGNATURES: ReadonlyArray<string> = [
   'security token',
 ];
 
+const HISTORICAL_DATA_UNAVAILABLE_SIGNATURES: ReadonlyArray<string> = [
+  'before the log groups creation time',
+  'exceeds the log groups log retention settings',
+];
+
+function isHistoricalDataUnavailable(text: string): boolean {
+  const lower = text.toLowerCase();
+  return HISTORICAL_DATA_UNAVAILABLE_SIGNATURES.some((signature) => lower.includes(signature));
+}
+
 function isConfigError(text: string): boolean {
+  if (isHistoricalDataUnavailable(text)) return false;
   const lower = text.toLowerCase();
   return CONFIG_ERROR_SIGNATURES.some((signature) => lower.includes(signature));
+}
+
+function classifyFailure(error: string): 'NO-DATA' | 'CONFIG-ERROR' | 'EXECUTION-ERROR' {
+  if (isHistoricalDataUnavailable(error)) return 'NO-DATA';
+  if (isConfigError(error)) return 'CONFIG-ERROR';
+  return 'EXECUTION-ERROR';
 }
 
 function outcomeError(outcome: RunbookOutcome): string {
@@ -61,7 +78,7 @@ export function classifyRunbookOutcome(output: RunbookOutput): ClassifiedRunbook
     case 'procedure-failure': {
       const error = outcomeError(outcome) || recoveredText;
       return {
-        status: isConfigError(error) ? 'CONFIG-ERROR' : 'EXECUTION-ERROR',
+        status: classifyFailure(error),
         outcomeKind: outcome.kind,
         matchedCaseIds: [],
         ...(error !== '' ? { error } : {}),

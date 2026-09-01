@@ -108,7 +108,7 @@ const DOCUMENTED_CASES: ReadonlyArray<CaseEvidence> = [
   },
   {
     id: 'apigw-500-no-application-logs',
-    vars: { apiGwStatusCode: '500', deliveryLogCount: '0' },
+    vars: { apiGwStatusCode: '500', apiGwErrorMessage: '-', deliveryLogCount: '0' },
   },
   {
     id: 'data-vault-selfcarepg-500',

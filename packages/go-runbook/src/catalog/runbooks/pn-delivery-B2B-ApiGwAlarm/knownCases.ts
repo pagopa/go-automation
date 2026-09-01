@@ -240,7 +240,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     condition: all(
       apiGwStatusIs('500'),
       { type: 'compare', ref: 'vars.deliveryLogCount', operator: '==', value: '0' },
-      { type: 'not', condition: { type: 'exists', ref: 'vars.apiGwErrorMessage' } },
+      // The SEND AccessLog schema preserves API Gateway's `-` sentinel in
+      // vars even though it is omitted from the typed diagnostic output.
+      any(not({ type: 'exists', ref: 'vars.apiGwErrorMessage' }), {
+        type: 'compare',
+        ref: 'vars.apiGwErrorMessage',
+        operator: '==',
+        value: '-',
+      }),
     ),
     title: 'API Gateway 500 senza log applicativi correlati',
     resolution: 'Caso noto documentato nel thread Slack; non sono richieste azioni ulteriori.',

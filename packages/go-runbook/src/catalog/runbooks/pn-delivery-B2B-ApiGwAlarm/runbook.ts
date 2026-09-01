@@ -20,7 +20,7 @@ export function buildRunbook(): Runbook {
     metadata: {
       name: 'pn-delivery-B2B-ApiGwAlarm',
       description: 'Analizza gli errori 5xx della API pubblica B2B di pn-delivery e i servizi correlati.',
-      version: '4.0.0',
+      version: '4.1.0',
       type: 'alarm-resolution',
       team: 'GO',
       tags: [
