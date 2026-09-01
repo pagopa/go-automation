@@ -1,3 +1,4 @@
+import { varEquals } from '../common/varConditions.js';
 /**
  * Known cases for the personal-data-vault-SelfcarePG-downstream-detection-Alarm runbook.
  */
@@ -23,12 +24,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: '[DOWNSTREAM SelfcarePG] Timeout di lettura con dettaglio errore vuoto',
     priority: 110,
     condition: all(
-      {
-        type: 'compare',
-        ref: 'vars.dataVaultErrorMsg',
-        operator: '==',
-        value: '[DOWNSTREAM] Service SelfcarePG returned errors=',
-      },
+      varEquals('dataVaultErrorMsg', '[DOWNSTREAM] Service SelfcarePG returned errors='),
       stepEvidenceMatches('query-pn-data-vault-trace', 'io\\.netty\\.handler\\.timeout\\.ReadTimeoutException'),
     ),
     title: '[DOWNSTREAM SelfcarePG] Timeout di lettura',

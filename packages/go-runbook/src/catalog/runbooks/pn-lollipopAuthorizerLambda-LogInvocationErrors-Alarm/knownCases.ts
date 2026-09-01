@@ -7,7 +7,7 @@ import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
 
 import { jiraLink, slackLink } from '../common/analysisLinks.js';
-import { all } from '../common/conditions.js';
+import { all, any } from '../common/conditions.js';
 import { lambdaLogEvidenceMatches } from '../common/evidenceConditions.js';
 
 const XRAY_SLACK_11_MAY = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1778514522543109';
@@ -20,15 +20,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'app-io-backend-idp-keys-unavailable',
     description: '[DOWNSTREAM AppIO - backend IO] Timeout o errore nel recupero delle chiavi CIE/SPID',
     priority: 110,
-    condition: {
-      type: 'or',
-      conditions: [
-        lambdaLogEvidenceMatches(
-          'Errore nella chiamata idpKeys(?:CieGet|SpidTagGet):[\\s\\S]*Message:\\s*Timeout of 1000ms exceeded',
-        ),
-        lambdaLogEvidenceMatches('IDP_CERT_DATA_RETRIEVING_ERROR'),
-      ],
-    },
+    condition: any(
+      lambdaLogEvidenceMatches(
+        'Errore nella chiamata idpKeys(?:CieGet|SpidTagGet):[\\s\\S]*Message:\\s*Timeout of 1000ms exceeded',
+      ),
+      lambdaLogEvidenceMatches('IDP_CERT_DATA_RETRIEVING_ERROR'),
+    ),
     title: '[DOWNSTREAM AppIO - backend IO] Recupero chiavi CIE/SPID non disponibile',
     resolution: 'Nessuna azione possibile al momento; attendere il ripristino del backend di IO.',
     details: [['requestId', '{{vars.lambdaRequestId}}']],

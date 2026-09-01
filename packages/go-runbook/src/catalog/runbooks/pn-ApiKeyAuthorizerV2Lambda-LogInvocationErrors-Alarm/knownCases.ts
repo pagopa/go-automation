@@ -1,3 +1,4 @@
+import { varEquals } from '../common/varConditions.js';
 /**
  * Known cases for the pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm runbook.
  */
@@ -13,7 +14,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'apikey-authorizer-timeout-single-occurrence',
     description: 'Timeout della Lambda authorizer pn-ApiKeyAuthorizerV2Lambda',
     priority: 110,
-    condition: { type: 'compare', ref: 'vars.lambdaErrorCategory', operator: '==', value: 'timeout' },
+    condition: varEquals('lambdaErrorCategory', 'timeout'),
     title: 'Timeout pn-ApiKeyAuthorizerV2Lambda',
     resolution: 'solitamente occorrenza singola non anomala. Nessuna azione specifica richiesta.',
     details: [

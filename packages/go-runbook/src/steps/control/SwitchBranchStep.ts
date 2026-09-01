@@ -20,10 +20,10 @@ import { executeSubPipeline } from './executeSubPipeline.js';
  *   label: 'Handle error by type',
  *   ref: 'vars.errorType',
  *   cases: new Map([
- *     ['timeout', [setVar({ id: 'set-retry', label: 'Set retry', varName: 'action', value: 'retry' })]],
- *     ['not-found', [setVar({ id: 'set-skip', label: 'Set skip', varName: 'action', value: 'skip' })]],
+ *     ['timeout', [new SetVarStep({ id: 'set-retry', label: 'Set retry', varName: 'action', value: 'retry' })]],
+ *     ['not-found', [new SetVarStep({ id: 'set-skip', label: 'Set skip', varName: 'action', value: 'skip' })]],
  *   ]),
- *   defaultSteps: [setVar({ id: 'set-escalate', label: 'Escalate', varName: 'action', value: 'escalate' })],
+ *   defaultSteps: [new SetVarStep({ id: 'set-escalate', label: 'Escalate', varName: 'action', value: 'escalate' })],
  * });
  * ```
  */

@@ -1,3 +1,4 @@
+import { varEquals, varMatches } from '../common/varConditions.js';
 /**
  * Known cases for the pn-national-registries-PNPG-ApiGwAlarm runbook.
  */
@@ -44,9 +45,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 109,
     condition: all(
       apiGwStatusIs('504'),
-      { type: 'pattern', ref: 'vars.apiGwErrorMessage', regex: 'Endpoint request timed out' },
+      varMatches('apiGwErrorMessage', 'Endpoint request timed out'),
       apiGwPathMatches('^/national-registries-private/agenzia-entrate/legal$'),
-      { type: 'compare', ref: 'vars.nationalRegistriesNextUrlTarget', operator: '==', value: 'AdE' },
+      varEquals('nationalRegistriesNextUrlTarget', 'AdE'),
       stepEvidenceMatches(
         'query-pn-national-registries',
 
@@ -74,9 +75,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 108,
     condition: all(
       apiGwStatusIs('504'),
-      { type: 'compare', ref: 'vars.nationalRegistriesLogCount', operator: '==', value: '0' },
-      { type: 'pattern', ref: 'vars.apiGwErrorMessage', regex: 'Endpoint request timed out' },
-      { type: 'compare', ref: 'vars.apiGwHttpMethod', operator: '==', value: 'POST' },
+      varEquals('nationalRegistriesLogCount', '0'),
+      varMatches('apiGwErrorMessage', 'Endpoint request timed out'),
+      varEquals('apiGwHttpMethod', 'POST'),
       apiGwPathMatches('^/national-registries-private/agenzia-entrate/legal$'),
     ),
     title: 'API Gateway 504 - Endpoint request timed out su AdE legal',
@@ -189,8 +190,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 103,
     condition: all(
       apiGwStatusIs('504'),
-      { type: 'compare', ref: 'vars.nationalRegistriesLogCount', operator: '==', value: '0' },
-      { type: 'pattern', ref: 'vars.apiGwErrorMessage', regex: 'Endpoint request timed out' },
+      varEquals('nationalRegistriesLogCount', '0'),
+      varMatches('apiGwErrorMessage', 'Endpoint request timed out'),
       apiGwPathMatches('^/national-registries-private/infocamere/legal-institutions$'),
     ),
     title: 'API Gateway 504 - Endpoint request timed out su INAD/InfoCamere',
@@ -212,11 +213,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'apigw-504-timeout',
     description: 'API Gateway 504 per timeout di risposta dal backend',
     priority: 100,
-    condition: all(apiGwStatusIs('504'), {
-      type: 'pattern',
-      ref: 'vars.apiGwErrorMessage',
-      regex: 'Execution failed due to a timeout error',
-    }),
+    condition: all(apiGwStatusIs('504'), varMatches('apiGwErrorMessage', 'Execution failed due to a timeout error')),
     title: 'API Gateway 504 - Execution failed due to a timeout error',
     resolution:
       'Nessuna azione necessaria. Timeout transitorio dovuto a ritardo di risposta del backend verso API Gateway.',

@@ -1,3 +1,4 @@
+import { varEquals } from '../common/varConditions.js';
 /**
  * Known cases for the pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm runbook.
  *
@@ -15,7 +16,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'delivery-insert-trigger-eb-timeout-single-occurrence',
     description: 'Timeout della Lambda pn-delivery-insert-trigger-eb-lambda',
     priority: 110,
-    condition: { type: 'compare', ref: 'vars.lambdaErrorCategory', operator: '==', value: 'timeout' },
+    condition: varEquals('lambdaErrorCategory', 'timeout'),
     title: 'Timeout pn-delivery-insert-trigger-eb-lambda',
     resolution: 'solitamente occorrenza singola non anomala. Nessuna azione specifica richiesta.',
     details: [

@@ -1,3 +1,4 @@
+import { varEquals } from '../common/varConditions.js';
 /**
  * Known cases for the pn-address-manager-POSTEL-downstream-detection-Alarm runbook.
  */
@@ -20,7 +21,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 100,
     condition: all(
       stepEvidenceMatches('query-pn-address-manager', '\\[DOWNSTREAM\\] Service POSTEL returned errors='),
-      { type: 'compare', ref: 'vars.postelAllBatchesWorked', operator: '==', value: 'true' },
+      varEquals('postelAllBatchesWorked', 'true'),
     ),
     title: '[DOWNSTREAM POSTEL] Batch recuperati dai retry',
     resolution:

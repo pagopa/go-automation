@@ -1,3 +1,4 @@
+import { varEquals, varExists, varMatches } from '../common/varConditions.js';
 /**
  * Known cases for the pn-delivery-B2B-ApiGwAlarm runbook.
  */
@@ -50,9 +51,9 @@ const EXTERNAL_REGISTRIES_CONNECTION_ABORTED = stepEvidenceMatches(
 );
 
 const GENERIC_API_GATEWAY_500 = any(
-  not({ type: 'exists', ref: 'vars.apiGwErrorMessage' }),
-  { type: 'compare', ref: 'vars.apiGwErrorMessage', operator: '==', value: '-' },
-  { type: 'pattern', ref: 'vars.apiGwErrorMessage', regex: '^Internal server error$' },
+  not(varExists('apiGwErrorMessage')),
+  varEquals('apiGwErrorMessage', '-'),
+  varMatches('apiGwErrorMessage', '^Internal server error$'),
 );
 
 /**
@@ -200,7 +201,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 297,
     condition: all(
       apiGwStatusIs('503'),
-      { type: 'pattern', ref: 'vars.apiGwErrorMessage', regex: 'Internal server error' },
+      varMatches('apiGwErrorMessage', 'Internal server error'),
       stepEvidenceMatches(
         'query-api-gw-execution-logs',
         'Lambda invocation failed with status: 503\\.[\\s\\S]*Lambda request id:',
@@ -260,11 +261,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'apigw-waf-rule-evaluation-error',
     description: 'API Gateway 500 per errore di valutazione delle regole AWS WAF',
     priority: 286,
-    condition: all(apiGwStatusIs('500'), {
-      type: 'pattern',
-      ref: 'vars.apiGwErrorMessage',
-      regex: 'error evaluating the AWS WAF rules',
-    }),
+    condition: all(apiGwStatusIs('500'), varMatches('apiGwErrorMessage', 'error evaluating the AWS WAF rules')),
     title: 'API Gateway 500 - errore di valutazione WAF',
     resolution:
       'Errore infrastrutturale AWS nella valutazione delle regole WAF: non dipende da pn-delivery e non richiede azioni.',
@@ -282,11 +279,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'apigw-endpoint-network-error',
     description: 'API Gateway 504 per errore di rete nella comunicazione con l’integrazione',
     priority: 285,
-    condition: all(apiGwStatusIs('504'), {
-      type: 'pattern',
-      ref: 'vars.apiGwErrorMessage',
-      regex: 'Network error communicating with endpoint',
-    }),
+    condition: all(apiGwStatusIs('504'), varMatches('apiGwErrorMessage', 'Network error communicating with endpoint')),
     title: 'API Gateway 504 - Network error communicating with endpoint',
     resolution:
       'Errore di rete transitorio fra API Gateway e l’integrazione: nessuna azione necessaria salvo ricorrenza.',
@@ -306,8 +299,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 296,
     condition: all(
       apiGwStatusIs('504'),
-      { type: 'pattern', ref: 'vars.apiGwErrorMessage', regex: 'Endpoint request timed out' },
-      { type: 'compare', ref: 'vars.deliveryLogCount', operator: '==', value: '0' },
+      varMatches('apiGwErrorMessage', 'Endpoint request timed out'),
+      varEquals('deliveryLogCount', '0'),
     ),
     title: 'API Gateway 504 - Endpoint request timed out',
     resolution: 'Nessuna azione necessaria; API Gateway ha superato il timeout di risposta di circa 29 secondi.',
@@ -328,7 +321,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 295,
     condition: all(
       apiGwStatusIs('500'),
-      { type: 'compare', ref: 'vars.deliveryLogCount', operator: '==', value: '0' },
+      varEquals('deliveryLogCount', '0'),
       {
         type: 'compare',
         ref: `vars.${VERSIONING_LAMBDA_PROBE_STATE_VAR}`,
@@ -480,7 +473,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'query-pn-delivery',
         'Error during retrieve of the groups[\\s\\S]*ResourceAccessException:[\\s\\S]*ext-registry-private/pa/v1/groups-all[\\s\\S]*Read timed out',
       ),
-      { type: 'exists', ref: 'vars.externalRegistriesLogCount' },
+      varExists('externalRegistriesLogCount'),
       not(
         any(
           EXTERNAL_REGISTRIES_SELFCARE_READ_TIMEOUT,
@@ -508,7 +501,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'query-pn-delivery',
         'I/O error on POST request for ["\\\\]*http://[^\\s"\\\\]+/datavault-private/v1/recipients/external/PG["\\\\]*:[\\s\\S]*Read timed out',
       ),
-      { type: 'exists', ref: 'vars.dataVaultLogCount' },
+      varExists('dataVaultLogCount'),
     ),
     title: 'pn-delivery - ReadTimeout verso pn-data-vault',
     resolution: 'Timeout di rete noto nella chiamata a pn-data-vault; monitorare se ricorrente.',

@@ -1,3 +1,4 @@
+import { varMatches } from '../common/varConditions.js';
 /**
  * Known cases for the pn-delivery-push-B2B-ApiGwAlarm runbook.
  */
@@ -67,11 +68,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'exception-in-call-getfile-pn-external-legal-facts',
     description: 'Errore durante chiamata getFile, probabilmente legata a indisponibilità Safe Storage',
     priority: 101,
-    condition: all(apiGwStatusIs('403'), {
-      type: 'pattern',
-      ref: 'vars.apiGwErrorMessage',
-      regex: 'Invalid key=value pair \\(missing equal-sign\\) in Authorization header',
-    }),
+    condition: all(
+      apiGwStatusIs('403'),
+      varMatches('apiGwErrorMessage', 'Invalid key=value pair \\(missing equal-sign\\) in Authorization header'),
+    ),
     title: 'Exception in call getFile fileKey=PN_EXTERNAL_LEGAL_FACTS',
     resolution:
       "Chiusura - caso noto. Errore probabilmente legato a indisponibilità di SelfcarePG, verificare se il caso è correlato al precedente 'downstream-selfcarepg-503-service-unavailable'.",

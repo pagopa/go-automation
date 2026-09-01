@@ -31,10 +31,10 @@ export interface SetVarStepConfig {
  * @example
  * ```typescript
  * // Literal value
- * const step1 = setVar({ id: 'set-env', label: 'Set environment', varName: 'env', value: 'production' });
+ * const step1 = new SetVarStep({ id: 'set-env', label: 'Set environment', varName: 'env', value: 'production' });
  *
  * // Template expression
- * const step2 = setVar({
+ * const step2 = new SetVarStep({
  *   id: 'set-url',
  *   label: 'Build API URL',
  *   varName: 'apiUrl',
