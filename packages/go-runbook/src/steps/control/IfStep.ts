@@ -31,7 +31,7 @@ export interface IfStepConfig {
  *
  * @example
  * ```typescript
- * const step = ifCondition({
+ * const step = new IfStep({
  *   id: 'check-status',
  *   label: 'Check HTTP status code',
  *   condition: { type: 'compare', ref: 'vars.statusCode', operator: '==', value: '504' },
@@ -82,14 +82,4 @@ export class IfStep implements Step<void> {
     }
     return this.elseGoTo !== undefined ? { goTo: this.elseGoTo } : 'continue';
   }
-}
-
-/**
- * Factory function for creating a conditional control flow step.
- *
- * @param config - Step configuration
- * @returns A new IfStep instance
- */
-export function ifCondition(config: IfStepConfig): IfStep {
-  return new IfStep(config);
 }

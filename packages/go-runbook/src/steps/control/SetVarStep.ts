@@ -89,13 +89,3 @@ export class SetVarStep implements Step<void> {
     return '';
   }
 }
-
-/**
- * Factory function for creating a set-variable control step.
- *
- * @param config - Step configuration
- * @returns A new SetVarStep instance
- */
-export function setVar(config: SetVarStepConfig): SetVarStep {
-  return new SetVarStep(config);
-}

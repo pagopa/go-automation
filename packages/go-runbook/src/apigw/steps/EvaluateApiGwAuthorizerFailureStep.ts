@@ -40,7 +40,7 @@ export interface EvaluateApiGwAuthorizerFailureConfig {
   readonly queryProfileId?: string;
 }
 
-class EvaluateApiGwAuthorizerFailureStepImpl implements Step<ApiGwAuthorizerFailureInfo | undefined> {
+export class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAuthorizerFailureInfo | undefined> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'transform';
@@ -300,10 +300,4 @@ function toReporterInput(info: ApiGwAuthorizerFailureInfo): ApiGwAuthorizerRepor
       httpMethod: info.httpMethod,
     }),
   };
-}
-
-export function evaluateApiGwAuthorizerFailure(
-  config: EvaluateApiGwAuthorizerFailureConfig,
-): Step<ApiGwAuthorizerFailureInfo | undefined> {
-  return new EvaluateApiGwAuthorizerFailureStepImpl(config);
 }

@@ -38,7 +38,7 @@ export interface ParseApiGwErrorsConfig {
   readonly queryProfileId?: string;
 }
 
-class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
+export class ParseApiGwErrorsStep implements Step<ApiGwErrorInfo> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'transform';
@@ -199,30 +199,4 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
     if (field === 'integrationRequestId') return 'integrationRequestId';
     return undefined;
   }
-}
-
-/**
- * Factory: creates a step that parses API Gateway AccessLog query results.
- *
- * The step scans the rows produced by an upstream CloudWatch Logs Insights
- * query, filters them by minimum HTTP status code, then extracts the
- * trace id, status code and the additional diagnostic fields declared by
- * `schema.fieldToVar`. When no errors are present the step short-circuits
- * the runbook with `next: 'stop'`.
- *
- * V04: lo schema dei campi è letto dal profilo (default SEND per
- * back-compat). I nomi degli helper sono generici: `extractTraceId` legge
- * `schema.traceIdField` e scrive `vars[schema.traceIdContextVar]`.
- *
- * Vars written:
- * - `apiGwErrorCount`: total number of error rows (always)
- * - `apiGwStatusCode`: status code of the first error row (when errors found)
- * - `<schema.traceIdContextVar>`: trace id of the first error row (when extractable)
- * - tutti i campi `schema.fieldToVar` quando presenti nel primo row
- *
- * @param config - Step configuration
- * @returns Step that extracts API Gateway error metadata
- */
-export function parseApiGwErrors(config: ParseApiGwErrorsConfig): Step<ApiGwErrorInfo> {
-  return new ParseApiGwErrorsStepImpl(config);
 }

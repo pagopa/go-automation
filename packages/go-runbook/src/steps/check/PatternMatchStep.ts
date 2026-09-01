@@ -9,7 +9,7 @@ import { valueToString } from '@go-automation/go-common/core';
 /**
  * Configuration for a pattern match step.
  */
-interface PatternMatchStepConfig {
+export interface PatternMatchStepConfig {
   readonly id: string;
   readonly label: string;
   /** Reference to a value in context (e.g. 'vars.x', 'params.x', 'steps.x.output') */
@@ -24,7 +24,7 @@ interface PatternMatchStepConfig {
  *
  * @example
  * ```typescript
- * const step = patternMatch({
+ * const step = new PatternMatchStep({
  *   id: 'check-error-format',
  *   label: 'Verify error message matches expected pattern',
  *   ref: 'vars.errorMessage',
@@ -32,7 +32,7 @@ interface PatternMatchStepConfig {
  * });
  * ```
  */
-class PatternMatchStep implements Step<boolean> {
+export class PatternMatchStep implements Step<boolean> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'check';
@@ -79,14 +79,4 @@ class PatternMatchStep implements Step<boolean> {
       error: `Pattern match failed for step "${this.id}": "${valueStr}" does not match /${this.regex}/`,
     };
   }
-}
-
-/**
- * Factory function that creates a PatternMatchStep.
- *
- * @param config - Configuration containing id, label, ref, and regex pattern
- * @returns A Step that tests a context value against a regular expression
- */
-export function patternMatch(config: PatternMatchStepConfig): Step<boolean> {
-  return new PatternMatchStep(config);
 }

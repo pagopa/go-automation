@@ -11,7 +11,7 @@ import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
 import type { TimeRange } from '../../../types/TimeRange.js';
 
-import { queryApiGwExecutionLogs } from '../QueryApiGwExecutionLogsStep.js';
+import { QueryApiGwExecutionLogsStep } from '../QueryApiGwExecutionLogsStep.js';
 import type { ApiGwExecutionLogAnalysisMode } from '../../types/ApiGwExecutionLogAnalysisMode.js';
 import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 import { ConsoleRunbookReporter } from '../../../services/reporters/ConsoleRunbookReporter.js';
@@ -93,7 +93,7 @@ function createStep(
     readonly analysisMode?: ApiGwExecutionLogAnalysisMode;
   } = {},
 ): Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
-  return queryApiGwExecutionLogs({
+  return new QueryApiGwExecutionLogsStep({
     id: 'query-execution-logs',
     label: 'Query execution logs',
     fromStep: 'query-api-gw-logs',
@@ -128,7 +128,7 @@ describe('queryApiGwExecutionLogs', () => {
 
   it('skips execution-log analysis as not-configured when executionLogGroup is missing', async () => {
     const { service, calls } = createFakeCwLogs();
-    const step = queryApiGwExecutionLogs({
+    const step = new QueryApiGwExecutionLogsStep({
       id: 'query-execution-logs',
       label: 'Query execution logs',
       fromStep: 'query-api-gw-logs',

@@ -16,7 +16,7 @@ export interface PrepareApiGwSectionConfig {
   readonly apiGwLogGroup: string;
 }
 
-class PrepareApiGwSectionStepImpl implements Step<undefined> {
+export class PrepareApiGwSectionStep implements Step<undefined> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'control';
@@ -34,19 +34,4 @@ class PrepareApiGwSectionStepImpl implements Step<undefined> {
     new ApiGwReporter(context.services.reporter).sectionPrepare(this.apiGwLogGroup);
     return { success: true };
   }
-}
-
-/**
- * Factory: zero-op step that prints the "Preparazione: query API Gateway"
- * section header via the {@link ApiGwReporter}.
- *
- * The step is intentionally trivial: it exists only so the reporter
- * banner appears in the structured log stream at exactly the right
- * point in the pipeline (before the API Gateway query runs).
- *
- * @param config - Step configuration
- * @returns Step that emits the section header
- */
-export function prepareApiGwSection(config: PrepareApiGwSectionConfig): Step<undefined> {
-  return new PrepareApiGwSectionStepImpl(config);
 }

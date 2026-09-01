@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import { decideNext } from '../DecideNextStep.js';
+import { DecideNextStep } from '../DecideNextStep.js';
 import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 
 function createContext(vars: Record<string, string> = {}): RunbookContext {
@@ -22,7 +22,7 @@ const services = new Set(['pn-user-attributes', 'pn-data-vault', 'pn-external-re
 
 describe('decideNext', () => {
   it('emits goTo on the target service when the URL is internal', async () => {
-    const step = decideNext({
+    const step = new DecideNextStep({
       id: 'decide',
       label: 'Decide',
       serviceName: 'pn-user-attributes',
@@ -44,7 +44,7 @@ describe('decideNext', () => {
   });
 
   it('keeps fallbackUuid when moving to the target service', async () => {
-    const step = decideNext({
+    const step = new DecideNextStep({
       id: 'decide',
       label: 'Decide',
       serviceName: 'pn-user-attributes',
@@ -67,7 +67,7 @@ describe('decideNext', () => {
   });
 
   it('retries the same service with only the detected trace_id after a fallback query', async () => {
-    const step = decideNext({
+    const step = new DecideNextStep({
       id: 'decide',
       label: 'Decide',
       serviceName: 'pn-data-vault',
@@ -94,7 +94,7 @@ describe('decideNext', () => {
   });
 
   it('stops with external-downstream when the target is outside the runbook', async () => {
-    const step = decideNext({
+    const step = new DecideNextStep({
       id: 'decide',
       label: 'Decide',
       serviceName: 'pn-external-registries',
@@ -117,7 +117,7 @@ describe('decideNext', () => {
   });
 
   it('stops with loop-detected when the target is the current service', async () => {
-    const step = decideNext({
+    const step = new DecideNextStep({
       id: 'decide',
       label: 'Decide',
       serviceName: 'pn-data-vault',
@@ -142,7 +142,7 @@ describe('decideNext', () => {
   });
 
   it('does not retry the same service for fallback UUID alone', async () => {
-    const step = decideNext({
+    const step = new DecideNextStep({
       id: 'decide',
       label: 'Decide',
       serviceName: 'pn-data-vault',
@@ -164,7 +164,7 @@ describe('decideNext', () => {
   });
 
   it('stops with no-match when there is nothing left to follow', async () => {
-    const step = decideNext({
+    const step = new DecideNextStep({
       id: 'decide',
       label: 'Decide',
       serviceName: 'pn-user-attributes',
@@ -179,7 +179,7 @@ describe('decideNext', () => {
   });
 
   it('detects a loop when the next destination key was already visited', async () => {
-    const step = decideNext({
+    const step = new DecideNextStep({
       id: 'decide',
       label: 'Decide',
       serviceName: 'pn-user-attributes',
@@ -204,7 +204,7 @@ describe('decideNext', () => {
   });
 
   it('stops when trace_id swap would exceed the safety limit', async () => {
-    const step = decideNext({
+    const step = new DecideNextStep({
       id: 'decide',
       label: 'Decide',
       serviceName: 'pn-data-vault',

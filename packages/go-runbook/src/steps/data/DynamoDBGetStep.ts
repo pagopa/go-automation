@@ -25,7 +25,7 @@ export interface DynamoDBGetConfig {
  *
  * @example
  * ```typescript
- * const step = getDynamoDBItem({
+ * const step = new DynamoDBGetStep({
  *   id: 'fetch-notification',
  *   label: 'Fetch notification by IUN',
  *   tableName: 'pn-Notifications',
@@ -93,14 +93,4 @@ function resolveKey(key: Readonly<Record<string, unknown>>, context: RunbookCont
     }
   }
   return resolved;
-}
-
-/**
- * Factory function for creating a DynamoDB GetItem data step.
- *
- * @param config - Step configuration
- * @returns A new DynamoDBGetStep instance
- */
-export function getDynamoDBItem(config: DynamoDBGetConfig): DynamoDBGetStep {
-  return new DynamoDBGetStep(config);
 }

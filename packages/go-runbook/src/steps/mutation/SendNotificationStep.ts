@@ -28,7 +28,7 @@ export interface SendNotificationConfig {
  *
  * @example
  * ```typescript
- * const step = sendNotification({
+ * const step = new SendNotificationStep({
  *   id: 'notify-team',
  *   label: 'Notify team about alarm resolution',
  *   channel: 'slack',
@@ -36,7 +36,7 @@ export interface SendNotificationConfig {
  * });
  * ```
  */
-class SendNotificationStep implements Step<void> {
+export class SendNotificationStep implements Step<void> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'mutation';
@@ -74,14 +74,4 @@ class SendNotificationStep implements Step<void> {
       return { success: false, error: `Send notification failed: ${message}` };
     }
   }
-}
-
-/**
- * Factory function for creating a send notification mutation step.
- *
- * @param config - Step configuration
- * @returns A new SendNotificationStep instance
- */
-export function sendNotification(config: SendNotificationConfig): Step<void> {
-  return new SendNotificationStep(config);
 }

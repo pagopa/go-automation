@@ -6,14 +6,14 @@ import { applyPipelineHooks, orphanHookAnchors } from '../../builders/applyPipel
 
 import type { ApiGwAlarmConfig } from '../types/ApiGwAlarmConfig.js';
 
-import { parseApiGwErrors } from '../steps/ParseApiGwErrorsStep.js';
-import { prepareApiGwSection } from '../steps/PrepareApiGwSectionStep.js';
-import { queryServiceLogs } from '../steps/QueryServiceLogsStep.js';
+import { ParseApiGwErrorsStep } from '../steps/ParseApiGwErrorsStep.js';
+import { PrepareApiGwSectionStep } from '../steps/PrepareApiGwSectionStep.js';
+import { QueryServiceLogsStep } from '../steps/QueryServiceLogsStep.js';
 import { AnalyzeServiceLogsStep } from '../steps/AnalyzeServiceLogsStep.js';
-import { decideNext } from '../steps/DecideNextStep.js';
-import { queryApiGwExecutionLogs } from '../steps/QueryApiGwExecutionLogsStep.js';
-import { stopApiGwExecutionLogAnalysis } from '../steps/StopApiGwExecutionLogAnalysisStep.js';
-import { evaluateApiGwAuthorizerFailure } from '../steps/EvaluateApiGwAuthorizerFailureStep.js';
+import { DecideNextStep } from '../steps/DecideNextStep.js';
+import { QueryApiGwExecutionLogsStep } from '../steps/QueryApiGwExecutionLogsStep.js';
+import { StopApiGwExecutionLogAnalysisStep } from '../steps/StopApiGwExecutionLogAnalysisStep.js';
+import { EvaluateApiGwAuthorizerFailureStep } from '../steps/EvaluateApiGwAuthorizerFailureStep.js';
 import { builtinApiGwAuthorizerKnownCases } from '../knownCases/authorizerKnownCases.js';
 import { defaultUnknownCaseFallback } from './defaultUnknownCaseFallback.js';
 import { resolveApiGwAlarmBuildContext } from './resolveApiGwAlarmBuildContext.js';
@@ -36,7 +36,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
 
   // 1. Banner.
   builder.step(
-    prepareApiGwSection({
+    new PrepareApiGwSectionStep({
       id: 'prepare-api-gw-section',
       label: 'Preparazione API Gateway',
       apiGwLogGroup: config.apiGwLogGroup,
@@ -67,7 +67,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   // preparation section in the console output, before authorizer/execution
   // log sections open their own banners.
   builder.step(
-    parseApiGwErrors({
+    new ParseApiGwErrorsStep({
       id: 'parse-api-gw-errors',
       label: `Estrazione ${profile.accessLog.schema.traceIdLabel} e metadati API Gateway`,
       fromStep: 'query-api-gw-logs',
@@ -81,7 +81,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   // 4. Authorizer gate (condizionale, prima di ogni trace-id flow).
   if (config.authorizerFailureCheck !== undefined) {
     builder.step(
-      evaluateApiGwAuthorizerFailure({
+      new EvaluateApiGwAuthorizerFailureStep({
         id: 'evaluate-api-gw-authorizer-failure',
         label: 'Valutazione Lambda authorizer API Gateway',
         fromStep: 'query-api-gw-logs',
@@ -96,7 +96,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   // 5. ExecutionLog branch (condizionale).
   if (ctx.executionLogEnabled && profile.executionLog !== undefined && ctx.effectiveExecutionLogGroup !== undefined) {
     builder.step(
-      queryApiGwExecutionLogs({
+      new QueryApiGwExecutionLogsStep({
         id: 'query-api-gw-execution-logs',
         label: 'Query API Gateway ExecutionLog per requestId',
         fromStep: 'query-api-gw-logs',
@@ -116,7 +116,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
 
     if (executionLogAnalysisMode === 'terminal') {
       builder.step(
-        stopApiGwExecutionLogAnalysis({
+        new StopApiGwExecutionLogAnalysisStep({
           id: 'stop-api-gw-execution-log-unresolved',
           label: 'Stop se execution log API Gateway non determinante',
         }),
@@ -131,7 +131,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   // 7. Per-service triplets.
   for (const service of allServices) {
     builder.step(
-      queryServiceLogs({
+      new QueryServiceLogsStep({
         id: `query-${service.name}`,
         label: `Query log ${service.name}`,
         serviceName: service.name,
@@ -164,7 +164,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     }
 
     builder.step(
-      decideNext({
+      new DecideNextStep({
         id: `decide-${service.name}`,
         label: `Decisione flusso per ${service.name}`,
         serviceName: service.name,

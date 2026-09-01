@@ -30,7 +30,7 @@ export interface HttpRequestConfig {
  *
  * @example
  * ```typescript
- * const step = httpRequest({
+ * const step = new HttpRequestStep({
  *   id: 'fetch-status',
  *   label: 'Fetch service status',
  *   method: 'GET',
@@ -162,14 +162,4 @@ function resolveBody(body: unknown, context: RunbookContext): unknown {
     return interpolatePlaceholders(body, context);
   }
   return body;
-}
-
-/**
- * Factory function for creating an HTTP request data step.
- *
- * @param config - Step configuration
- * @returns A new HttpRequestStep instance
- */
-export function httpRequest(config: HttpRequestConfig): HttpRequestStep {
-  return new HttpRequestStep(config);
 }

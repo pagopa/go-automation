@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { queryAthena } from '../AthenaQueryStep.js';
+import { AthenaQueryStep } from '../AthenaQueryStep.js';
 import type { AWSAthenaQueryOptions } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
@@ -52,7 +52,7 @@ function makeContext(params: ReadonlyArray<readonly [string, string]> = []): {
 
 describe('AthenaQueryStep', () => {
   it('passes inline outputLocation to the Athena service', async () => {
-    const step = queryAthena({
+    const step = new AthenaQueryStep({
       id: 'athena',
       label: 'Athena',
       database: 'db',
@@ -77,7 +77,7 @@ describe('AthenaQueryStep', () => {
   });
 
   it('resolves outputLocation from runbook params', async () => {
-    const step = queryAthena({
+    const step = new AthenaQueryStep({
       id: 'athena',
       label: 'Athena',
       database: 'db',
@@ -93,7 +93,7 @@ describe('AthenaQueryStep', () => {
   });
 
   it('omits outputLocation when neither inline config nor param config is set', async () => {
-    const step = queryAthena({
+    const step = new AthenaQueryStep({
       id: 'athena',
       label: 'Athena',
       database: 'db',
@@ -108,7 +108,7 @@ describe('AthenaQueryStep', () => {
   });
 
   it('fails clearly when outputLocationParam is configured but missing', async () => {
-    const step = queryAthena({
+    const step = new AthenaQueryStep({
       id: 'athena',
       label: 'Athena',
       database: 'db',

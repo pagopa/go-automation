@@ -5,7 +5,7 @@ import type { AWSCloudWatchLogsService, ResultField } from '@go-automation/go-co
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { TimeRange } from '../../../types/TimeRange.js';
 
-import { queryServiceLogs } from '../QueryServiceLogsStep.js';
+import { QueryServiceLogsStep } from '../QueryServiceLogsStep.js';
 import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 import { ConsoleRunbookReporter } from '../../../services/reporters/ConsoleRunbookReporter.js';
 import { NOOP_RUNBOOK_REPORTER } from '../../../services/reporters/NOOP_RUNBOOK_REPORTER.js';
@@ -70,7 +70,7 @@ function createContext(args: {
 describe('queryServiceLogs', () => {
   it('skips the AWS call when no identifier is available', async () => {
     const { service, calls } = createFakeCwLogs();
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-foo',
@@ -88,7 +88,7 @@ describe('queryServiceLogs', () => {
 
   it('issues a single-clause filter when only xRayTraceId is present', async () => {
     const { service, calls } = createFakeCwLogs([[{ field: '@message', value: 'hit' }]]);
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-foo',
@@ -109,7 +109,7 @@ describe('queryServiceLogs', () => {
 
   it('uses only fallbackUuid when both xRayTraceId and fallbackUuid are present', async () => {
     const { service, calls } = createFakeCwLogs();
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-foo',
@@ -134,7 +134,7 @@ describe('queryServiceLogs', () => {
 
   it('escapes single quotes in identifiers (SQL escaping)', async () => {
     const { service, calls } = createFakeCwLogs();
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-foo',
@@ -152,7 +152,7 @@ describe('queryServiceLogs', () => {
 
   it('queries only the fallback when xRayTraceId is empty', async () => {
     const { service, calls } = createFakeCwLogs();
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-foo',
@@ -176,7 +176,7 @@ describe('queryServiceLogs', () => {
 
   it('reads the trace id from the profile-provided context var name', async () => {
     const { service, calls } = createFakeCwLogs();
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-foo',
@@ -206,7 +206,7 @@ describe('queryServiceLogs', () => {
       [{ field: '@message', value: 'row2' }],
     ];
     const { service } = createFakeCwLogs(rows);
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-foo',
@@ -222,7 +222,7 @@ describe('queryServiceLogs', () => {
 
   it('increments apiGwVisitCount only when entering a NEW service', async () => {
     const { service } = createFakeCwLogs([[{ field: '@message', value: 'r' }]]);
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-foo',
@@ -259,7 +259,7 @@ describe('queryServiceLogs', () => {
 
   it('increments apiGwVisitCount and appends to the chain when switching to a different service', async () => {
     const { service } = createFakeCwLogs([[{ field: '@message', value: 'r1' }], [{ field: '@message', value: 'r2' }]]);
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-bar',
@@ -299,7 +299,7 @@ describe('queryServiceLogs', () => {
       },
     } as unknown as AWSCloudWatchLogsService;
 
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-data-vault',
@@ -335,7 +335,7 @@ describe('queryServiceLogs', () => {
   it('throws at construction when the queryTemplate lacks the {{FILTER_CLAUSE}} placeholder', () => {
     assert.throws(
       () =>
-        queryServiceLogs({
+        new QueryServiceLogsStep({
           id: 'q',
           label: 'Q',
           serviceName: 'pn-foo',

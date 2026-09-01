@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import type { ResultField } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
-import { evaluateApiGwAuthorizerFailure } from '../EvaluateApiGwAuthorizerFailureStep.js';
+import { EvaluateApiGwAuthorizerFailureStep } from '../EvaluateApiGwAuthorizerFailureStep.js';
 import type { ApiGwAuthorizerFailureInfo } from '../EvaluateApiGwAuthorizerFailureStep.js';
 import { API_GW_AUTHORIZER_LAMBDAS } from '../../authorizers/ApiGwAuthorizerLambdaRegistry.js';
 import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
@@ -27,7 +27,7 @@ function buildRow(fields: Record<string, string>): ResultField[] {
 }
 
 function createStep(): Step<ApiGwAuthorizerFailureInfo | undefined> {
-  return evaluateApiGwAuthorizerFailure({
+  return new EvaluateApiGwAuthorizerFailureStep({
     id: 'evaluate-authorizer',
     label: 'Evaluate authorizer',
     fromStep: 'query-api-gw-logs',
@@ -160,7 +160,7 @@ describe('evaluateApiGwAuthorizerFailure', () => {
   });
 
   it('uses route rules to select the authorizer timeout by path and method', async () => {
-    const step = evaluateApiGwAuthorizerFailure({
+    const step = new EvaluateApiGwAuthorizerFailureStep({
       id: 'evaluate-authorizer',
       label: 'Evaluate authorizer',
       fromStep: 'query-api-gw-logs',
@@ -194,7 +194,7 @@ describe('evaluateApiGwAuthorizerFailure', () => {
   });
 
   it('returns failure when the upstream step output is missing', async () => {
-    const step = evaluateApiGwAuthorizerFailure({
+    const step = new EvaluateApiGwAuthorizerFailureStep({
       id: 'evaluate-authorizer',
       label: 'Evaluate authorizer',
       fromStep: 'missing-step',

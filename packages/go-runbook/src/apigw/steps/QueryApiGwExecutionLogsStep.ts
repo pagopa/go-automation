@@ -66,7 +66,7 @@ export interface QueryApiGwExecutionLogsConfig {
   readonly analysisMode?: ApiGwExecutionLogAnalysisMode;
 }
 
-class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
+export class QueryApiGwExecutionLogsStep implements Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -317,18 +317,4 @@ function buildUnresolvedMessage(requestCount: number): string {
     return "API Gateway ha prodotto un errorMessage, ma non e' stato possibile recuperare requestId da analizzare.";
   }
   return "API Gateway execution log analizzati, ma non e' stato possibile determinare il problema.";
-}
-
-/**
- * Factory: creates the requestId-based API Gateway execution-log query step.
- *
- * V04: la query è UNA sola chiamata AWS con filter clause OR-combinata su
- * tutti i requestId (al posto di N chiamate sequenziali pre-V04). Un
- * limite difensivo (`spec.maxRequestIds`, default 50) protegge da query
- * troppo lunghe per CloudWatch Logs Insights.
- */
-export function queryApiGwExecutionLogs(
-  config: QueryApiGwExecutionLogsConfig,
-): Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
-  return new QueryApiGwExecutionLogsStepImpl(config);
 }

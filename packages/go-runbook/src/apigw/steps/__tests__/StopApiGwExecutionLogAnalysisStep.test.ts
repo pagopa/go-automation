@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 
-import { stopApiGwExecutionLogAnalysis } from '../StopApiGwExecutionLogAnalysisStep.js';
+import { StopApiGwExecutionLogAnalysisStep } from '../StopApiGwExecutionLogAnalysisStep.js';
 import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 
 function createContext(vars: Record<string, string> = {}): RunbookContext {
@@ -21,7 +21,7 @@ function createContext(vars: Record<string, string> = {}): RunbookContext {
 
 describe('stopApiGwExecutionLogAnalysis', () => {
   it('does not stop the runbook when execution logs were not queried', async () => {
-    const step = stopApiGwExecutionLogAnalysis({
+    const step = new StopApiGwExecutionLogAnalysisStep({
       id: 'stop-execution-log-analysis',
       label: 'Stop execution log analysis',
     });
@@ -34,7 +34,7 @@ describe('stopApiGwExecutionLogAnalysis', () => {
   });
 
   it('stops with execution-log termination vars when execution logs were queried', async () => {
-    const step = stopApiGwExecutionLogAnalysis({
+    const step = new StopApiGwExecutionLogAnalysisStep({
       id: 'stop-execution-log-analysis',
       label: 'Stop execution log analysis',
     });

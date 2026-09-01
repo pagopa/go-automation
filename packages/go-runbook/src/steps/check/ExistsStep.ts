@@ -8,7 +8,7 @@ import { valueToString } from '@go-automation/go-common/core';
 /**
  * Configuration for an exists step.
  */
-interface ExistsStepConfig {
+export interface ExistsStepConfig {
   readonly id: string;
   readonly label: string;
   /** Reference to a value in context (e.g. 'vars.x', 'params.x', 'steps.step1.output[0]') */
@@ -21,14 +21,14 @@ interface ExistsStepConfig {
  *
  * @example
  * ```typescript
- * const step = exists({
+ * const step = new ExistsStep({
  *   id: 'check-trace-id',
  *   label: 'Verify traceId was extracted',
  *   ref: 'vars.traceId',
  * });
  * ```
  */
-class ExistsStep implements Step<boolean> {
+export class ExistsStep implements Step<boolean> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'check';
@@ -63,14 +63,4 @@ class ExistsStep implements Step<boolean> {
       error: `Exists check failed for step "${this.id}": reference "${this.ref}" is ${value === undefined ? 'undefined' : value === null ? 'null' : 'empty'}`,
     };
   }
-}
-
-/**
- * Factory function that creates an ExistsStep.
- *
- * @param config - Configuration containing id, label, and the ref to check for existence
- * @returns A Step that checks whether a context value exists
- */
-export function exists(config: ExistsStepConfig): Step<boolean> {
-  return new ExistsStep(config);
 }

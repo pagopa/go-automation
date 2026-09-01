@@ -59,7 +59,7 @@ export interface DecideNextOutput {
     | { readonly kind: 'stop'; readonly reason: TerminationReason; readonly downstreamTarget?: string };
 }
 
-class DecideNextStepImpl implements Step<DecideNextOutput> {
+export class DecideNextStep implements Step<DecideNextOutput> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'control';
@@ -213,35 +213,4 @@ function parseVisitedKeys(raw: string | undefined): ReadonlySet<string> {
 
 function serializeVisitedKeys(set: ReadonlySet<string>): string {
   return [...set].join('\n');
-}
-
-/**
- * Factory: creates the decision step that drives the dynamic API Gateway
- * analysis loop for a single microservice.
- *
- * The step is meant to run **after** the corresponding `analyze-<service>`
- * step; it inspects:
- * - `<varPrefix>FreshTraceId` / `<varPrefix>FreshTraceIdRaw` to re-query
- *   the same service with a concrete trace id after fallback-UUID lookup,
- * - `<varPrefix>NextUrl` / `<varPrefix>NextUrlTarget` to detect a known URL,
- * - `fallbackUuid` to carry fallback-driven correlation to the next service,
- *
- * and emits one of three flow directives:
- *
- * - `{ goTo: query-<currentService> }` when a fallback query surfaced a
- *   valid `trace_id`; `fallbackUuid` is cleared so the next query uses
- *   only the canonical trace id;
- * - `{ goTo: query-<target> }` when the URL points to a service in scope;
- * - `'stop'` otherwise (external downstream, loop detected, or no signal).
- *
- * The step keeps a running set of `(service|xRayTraceId|fallbackUuid)`
- * keys in the `apiGwVisitedKeys` var so a `goTo` whose destination has
- * already been visited with the same identifiers is short-circuited as
- * a `loop-detected` termination.
- *
- * @param config - Step configuration
- * @returns Step that decides the next flow directive
- */
-export function decideNext(config: DecideNextConfig): Step<DecideNextOutput> {
-  return new DecideNextStepImpl(config);
 }
