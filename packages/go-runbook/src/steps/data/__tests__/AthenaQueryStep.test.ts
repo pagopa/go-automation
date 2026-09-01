@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { queryAthena } from '../AthenaQueryStep.js';
 import type { AWSAthenaQueryOptions } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../../services/index.js';
+import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 
 interface AthenaCall {
   readonly database: string;
@@ -17,7 +17,7 @@ function makeContext(params: ReadonlyArray<readonly [string, string]> = []): {
   readonly calls: AthenaCall[];
 } {
   const calls: AthenaCall[] = [];
-  const services = {
+  const services = createTestServiceRegistry({
     athena: {
       async query(
         database: string,
@@ -33,7 +33,7 @@ function makeContext(params: ReadonlyArray<readonly [string, string]> = []): {
         return [{ ok: 'true' }];
       },
     },
-  } as unknown as ServiceRegistry;
+  });
 
   return {
     calls,

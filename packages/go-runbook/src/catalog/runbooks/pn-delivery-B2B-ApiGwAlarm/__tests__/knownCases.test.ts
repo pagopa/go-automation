@@ -2,9 +2,10 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { ConditionEvaluator } from '../../framework.js';
-import type { RunbookContext, ServiceRegistry } from '../../framework.js';
+import type { RunbookContext } from '../../framework.js';
 
 import { KNOWN_CASES } from '../knownCases.js';
+import { createTestServiceRegistry } from '../../../../services/createTestServiceRegistry.js';
 
 interface CaseEvidence {
   readonly id: string;
@@ -20,7 +21,7 @@ function context(evidence: CaseEvidence): RunbookContext {
     vars: new Map(Object.entries(evidence.vars ?? {})),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

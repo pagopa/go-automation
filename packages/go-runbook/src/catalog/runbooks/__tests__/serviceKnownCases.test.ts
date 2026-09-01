@@ -1,14 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-  ConditionEvaluator,
-  service,
-  SEND_DOWNSTREAMS,
-  type KnownCase,
-  type RunbookContext,
-  type ServiceRegistry,
-} from '../framework.js';
+import { ConditionEvaluator, service, SEND_DOWNSTREAMS, type KnownCase, type RunbookContext } from '../framework.js';
 import type { ResultField } from '@go-automation/go-common/aws';
 
 import { KNOWN_CASES as EMD_DOWNSTREAM_CASES } from '../emd-downstream-detection-Alarm/knownCases.js';
@@ -40,6 +33,7 @@ import { SERVICE as IPA_DOWNSTREAM_SERVICE } from '../pn-national-registries-IPA
 import { buildRunbook as buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook } from '../pn-national-registries-IPA-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as EXTERNAL_CHANNEL_CASES } from '../workday-pn-external-channel-alb-alarm/knownCases.js';
 import { buildRunbook as buildWorkdayPnExternalChannelAlbAlarmRunbook } from '../workday-pn-external-channel-alb-alarm/runbook.js';
+import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 
 function ctx(args: {
   readonly stepResults?: ReadonlyArray<readonly [string, unknown]>;
@@ -52,7 +46,7 @@ function ctx(args: {
     vars: new Map(args.vars ?? []),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

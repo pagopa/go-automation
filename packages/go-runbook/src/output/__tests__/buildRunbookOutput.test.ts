@@ -10,8 +10,8 @@ import type { RunbookExecutionStatus } from '../../types/RunbookExecutionStatus.
 import type { RunbookType } from '../../types/RunbookType.js';
 import type { RunbookExecutionTrace } from '../../trace/RunbookExecutionTrace.js';
 import type { StepTrace } from '../../trace/StepTrace.js';
-import type { ServiceRegistry } from '../../services/ServiceRegistry.js';
 import { buildRunbookOutput } from '../buildRunbookOutput.js';
+import { createTestServiceRegistry } from '../../services/createTestServiceRegistry.js';
 
 const FALLBACK_ACTION: CaseAction = { type: 'log', level: 'warn', title: 'fallback {{vars.reason}}' };
 
@@ -49,7 +49,7 @@ function createResult(args: {
     vars,
     params,
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [
       {
         stepId: 'recoverable',

@@ -4,6 +4,7 @@
 
 import { Core } from '@go-automation/go-common';
 
+import { ConsoleRunbookReporter } from '../services/reporters/ConsoleRunbookReporter.js';
 import type { ServiceRegistry } from '../services/ServiceRegistry.js';
 
 /**
@@ -23,5 +24,6 @@ export function createServiceRegistry(script: Core.GOScript): ServiceRegistry {
     athena: script.aws.services.athena,
     dynamodb: script.aws.services.dynamoDB,
     http: new Core.GOHttpClient({}),
+    reporter: new ConsoleRunbookReporter(script.logger),
   };
 }

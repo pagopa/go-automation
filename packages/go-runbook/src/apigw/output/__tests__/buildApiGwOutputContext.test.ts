@@ -6,9 +6,9 @@ import type { Runbook } from '../../../types/Runbook.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { RunbookExecutionResult } from '../../../types/RunbookExecutionResult.js';
 import type { RunbookExecutionTrace } from '../../../trace/RunbookExecutionTrace.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { ApiGwOutputContext } from '../ApiGwOutputContext.js';
 import { buildApiGwOutputContext } from '../buildApiGwOutputContext.js';
+import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 
 function row(fields: Record<string, string>): ResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
@@ -98,7 +98,7 @@ function createResult(): RunbookExecutionResult {
       ['endTime', '2026-01-01T00:05:00.000Z'],
     ]),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
   const trace: RunbookExecutionTrace = {

@@ -2,9 +2,9 @@ import { AUTH_SERVER_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { ConditionEvaluator, type KnownCase, type RunbookContext, type ServiceRegistry } from '../../framework.js';
-
 import { KNOWN_CASES } from '../knownCases.js';
+import { createTestServiceRegistry } from '../../../../services/createTestServiceRegistry.js';
+import { ConditionEvaluator, type KnownCase, type RunbookContext } from '../../framework.js';
 
 interface Fixture {
   readonly message: string;
@@ -125,7 +125,7 @@ function context(fixture: Fixture): RunbookContext {
     vars: new Map([['interopEnvironment', fixture.environment ?? 'prod']]),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

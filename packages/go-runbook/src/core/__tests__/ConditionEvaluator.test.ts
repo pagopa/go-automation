@@ -2,9 +2,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { RunbookContext } from '../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../services/ServiceRegistry.js';
 import type { Condition } from '../../types/Condition.js';
 import { ConditionEvaluator } from '../ConditionEvaluator.js';
+import { createTestServiceRegistry } from '../../services/createTestServiceRegistry.js';
 
 interface Row {
   readonly [key: string]: string;
@@ -21,7 +21,7 @@ function ctx(args: {
     vars: new Map(Object.entries(args.vars ?? {})),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

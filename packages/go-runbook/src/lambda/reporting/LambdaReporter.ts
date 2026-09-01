@@ -1,5 +1,6 @@
-import type { GOLogger, TreeNode } from '@go-automation/go-common/core';
-import { renderTree } from '@go-automation/go-common/core';
+import type { TreeNode } from '@go-automation/go-common/core';
+
+import type { RunbookReporter } from '../../services/RunbookReporter.js';
 import type { TerminationReason } from '../types/TerminationReason.js';
 import type { LambdaErrorCategory } from '../types/LambdaErrorCategory.js';
 
@@ -34,12 +35,12 @@ function present(value: string | undefined): value is string {
  * Renders the Lambda analysis flow as a structured, human-readable
  * narrative on the runbook logger. Mirrors `apigw.ApiGwReporter`.
  *
- * Every method describes the *shape* of the output as {@link TreeNode}s:
- * the branch characters and the indentation come from {@link renderTree},
- * so no method has to know how deep it sits.
+ * Every method describes the *shape* of the output as {@link TreeNode}s and
+ * hands it to the {@link RunbookReporter}: branch characters, indentation and
+ * the moment of printing are decided there.
  */
 export class LambdaReporter {
-  constructor(private readonly logger: GOLogger) {}
+  constructor(private readonly reporter: RunbookReporter) {}
 
   sectionPrepare(lambdaName: string, logGroup: string, eventSource?: string): void {
     this.section('Preparazione: query Lambda');
@@ -139,13 +140,10 @@ export class LambdaReporter {
   }
 
   private section(title: string): void {
-    this.logger.newline();
-    this.logger.text(`\u2550\u2550\u2550 ${title} \u2550\u2550\u2550`);
+    this.reporter.section(title);
   }
 
   private tree(nodes: ReadonlyArray<TreeNode>): void {
-    for (const line of renderTree(nodes)) {
-      this.logger.text(line);
-    }
+    this.reporter.add(...nodes);
   }
 }

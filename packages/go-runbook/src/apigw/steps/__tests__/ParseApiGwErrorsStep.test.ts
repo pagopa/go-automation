@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 
 import type { ResultField } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import { parseApiGwErrors } from '../ParseApiGwErrorsStep.js';
+import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 
 function createContext(stepOutput: unknown): RunbookContext {
   return {
@@ -14,7 +14,7 @@ function createContext(stepOutput: unknown): RunbookContext {
     vars: new Map(),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

@@ -2,15 +2,10 @@ import { NOTIFICATION_USER_LIFECYCLE_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import {
-  ConditionEvaluator,
-  INTEROP_DOWNSTREAMS,
-  type KnownCase,
-  type RunbookContext,
-  type ServiceRegistry,
-} from '../../framework.js';
+import { ConditionEvaluator, INTEROP_DOWNSTREAMS, type KnownCase, type RunbookContext } from '../../framework.js';
 
 import { KNOWN_CASES } from '../knownCases.js';
+import { createTestServiceRegistry } from '../../../../services/createTestServiceRegistry.js';
 
 interface LogRowField {
   readonly field: string;
@@ -42,7 +37,7 @@ function context(stepResults: ReadonlyArray<readonly [string, unknown]>): Runboo
     vars: new Map(),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

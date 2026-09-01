@@ -2,10 +2,16 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { GOLogger } from '@go-automation/go-common/core';
 
+import type { RunbookReporter } from '../../../services/RunbookReporter.js';
+
+import { ConsoleRunbookReporter } from '../../../services/reporters/ConsoleRunbookReporter.js';
 import { LambdaReporter } from '../LambdaReporter.js';
 
-/** Minimal GOLogger capturing the text/newline output the reporter emits. */
-function captureLogger(): { readonly lines: string[]; readonly logger: GOLogger } {
+/**
+ * Captures the rendered narrative. The console reporter holds the last node back
+ * until it knows whether a sibling follows, so tests flush before asserting.
+ */
+function captureLogger(): { readonly lines: string[]; readonly logger: RunbookReporter } {
   const lines: string[] = [];
   const logger = {
     text: (line: string): void => {
@@ -15,13 +21,14 @@ function captureLogger(): { readonly lines: string[]; readonly logger: GOLogger 
       lines.push('');
     },
   } as unknown as GOLogger;
-  return { lines, logger };
+  return { lines, logger: new ConsoleRunbookReporter(logger) };
 }
 
 describe('LambdaReporter', () => {
   it('renders the preparation banner with lambda, event source and log group', () => {
     const { lines, logger } = captureLogger();
     new LambdaReporter(logger).sectionPrepare('pn-x', '/aws/lambda/pn-x', 'sqs');
+    logger.flush();
     const out = lines.join('\n');
     assert.match(out, /Preparazione: query Lambda/);
     assert.match(out, /Lambda: pn-x/);
@@ -38,6 +45,7 @@ describe('LambdaReporter', () => {
       runtimeStatus: 'timeout',
       durationMs: 10000,
     });
+    logger.flush();
     const out = lines.join('\n');
     assert.match(out, /Errori individuati: 1/);
     assert.match(out, /Categoria: timeout/);
@@ -49,6 +57,7 @@ describe('LambdaReporter', () => {
     const reporter = new LambdaReporter(logger);
     reporter.invocation('req-1', 3);
     reporter.downstream('pn-emd-integration', '/aws/ecs/pn-emd-integration', 2);
+    logger.flush();
     const out = lines.join('\n');
     assert.match(out, /Flusso invocazione/);
     assert.match(out, /filter: req-1/);
@@ -58,6 +67,7 @@ describe('LambdaReporter', () => {
   it('renders the closing summary for a known case', () => {
     const { lines, logger } = captureLogger();
     new LambdaReporter(logger).stopSummary({ reason: 'known-case', matchedCaseIds: ['lambda-timeout'] });
+    logger.flush();
     const out = lines.join('\n');
     assert.match(out, /Esecuzione terminata/);
     assert.match(out, /caso noto \(lambda-timeout\)/);
@@ -66,6 +76,7 @@ describe('LambdaReporter', () => {
   it('renders the no-errors outcome', () => {
     const { lines, logger } = captureLogger();
     new LambdaReporter(logger).stopSummary({ reason: 'no-errors', matchedCaseIds: [] });
+    logger.flush();
     assert.match(lines.join('\n'), /nessun errore individuato/);
   });
 
@@ -73,6 +84,7 @@ describe('LambdaReporter', () => {
     const { lines, logger } = captureLogger();
     new LambdaReporter(logger).invocation('req-1', 3);
 
+    logger.flush();
     assert.deepStrictEqual(lines, [
       '',
       '\u2550\u2550\u2550 Flusso invocazione (per requestId) \u2550\u2550\u2550',
@@ -85,6 +97,7 @@ describe('LambdaReporter', () => {
     const { lines, logger } = captureLogger();
     new LambdaReporter(logger).queryFailed(['/a', '/b'], 'AccessDenied');
 
+    logger.flush();
     assert.deepStrictEqual(lines, [
       '  \u2514\u2500 \u26a0 Query fallita',
       '     \u251c\u2500 Log groups: /a, /b',
@@ -96,6 +109,7 @@ describe('LambdaReporter', () => {
     const { lines, logger } = captureLogger();
     new LambdaReporter(logger).stopSummary({ reason: 'known-case', matchedCaseIds: ['a', 'b', 'c'] });
 
+    logger.flush();
     assert.deepStrictEqual(lines.slice(2), [
       '  \u2514\u2500 Casi noti rilevati: 3',
       '     \u251c\u2500 a \u2190 primario',
@@ -112,6 +126,7 @@ describe('LambdaReporter', () => {
       category: 'timeout',
     });
 
+    logger.flush();
     assert.deepStrictEqual(lines.slice(2), [
       '  \u251c\u2500 Categoria errore: timeout',
       '  \u2514\u2500 Casi noti rilevati: 2',

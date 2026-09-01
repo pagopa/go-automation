@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 
 import type { Runbook } from '../../types/Runbook.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../services/ServiceRegistry.js';
 import type { ExecutionEnvironment } from '../ExecutionInfo.js';
 import type { CaseEvaluationTrace } from '../CaseEvaluationTrace.js';
 import { TraceBuilder } from '../TraceBuilder.js';
+import { createTestServiceRegistry } from '../../services/createTestServiceRegistry.js';
 
 const RUNBOOK: Runbook = {
   metadata: {
@@ -37,7 +37,7 @@ function emptyContext(): RunbookContext {
     vars: new Map(),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

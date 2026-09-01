@@ -9,11 +9,13 @@ import type {
 import type { GOLogger } from '@go-automation/go-common/core';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { TimeRange } from '../../../types/TimeRange.js';
 
 import { queryApiGwExecutionLogs } from '../QueryApiGwExecutionLogsStep.js';
 import type { ApiGwExecutionLogAnalysisMode } from '../../types/ApiGwExecutionLogAnalysisMode.js';
+import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { ConsoleRunbookReporter } from '../../../services/reporters/ConsoleRunbookReporter.js';
+import type { RunbookReporter } from '../../../services/RunbookReporter.js';
 
 interface CapturedCall {
   readonly logGroups: ReadonlyArray<string>;
@@ -52,7 +54,7 @@ function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<ResultField>> = [
 function createContext(args: {
   readonly stepOutput: ReadonlyArray<ReadonlyArray<ResultField>>;
   readonly cloudWatchLogs: AWSCloudWatchLogsService;
-  readonly logger?: GOLogger;
+  readonly reporter?: RunbookReporter;
 }): RunbookContext {
   return {
     executionId: 'test',
@@ -64,9 +66,11 @@ function createContext(args: {
       ['endTime', '2026-01-01T00:10:00.000Z'],
     ]),
     logs: [],
-    services: { cloudWatchLogs: args.cloudWatchLogs } as unknown as ServiceRegistry,
+    services: createTestServiceRegistry({
+      cloudWatchLogs: args.cloudWatchLogs,
+      ...(args.reporter !== undefined ? { reporter: args.reporter } : {}),
+    }),
     recoveredErrors: [],
-    ...(args.logger !== undefined ? { logger: args.logger } : {}),
   };
 }
 
@@ -74,13 +78,13 @@ function buildRow(fields: Record<string, string>): ResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
 }
 
-function captureLogger(): { logger: GOLogger; lines: string[] } {
+function captureLogger(): { reporter: ConsoleRunbookReporter; lines: string[] } {
   const lines: string[] = [];
   const logger = {
     text: (message: string) => lines.push(message),
     newline: () => lines.push(''),
   } as unknown as GOLogger;
-  return { logger, lines };
+  return { reporter: new ConsoleRunbookReporter(logger), lines };
 }
 
 function createStep(
@@ -150,7 +154,7 @@ describe('queryApiGwExecutionLogs', () => {
   });
 
   it('extracts requestIds, renders one OR-combined query and enriches execution-log rows', async () => {
-    const { logger, lines } = captureLogger();
+    const { reporter, lines } = captureLogger();
     const { service, calls } = createFakeCwLogs([
       [buildField('@message', 'Execution failed for req-1')],
       [buildField('@message', 'Execution failed for req-2')],
@@ -161,7 +165,7 @@ describe('queryApiGwExecutionLogs', () => {
     const result = await step.execute(
       createContext({
         cloudWatchLogs: service,
-        logger,
+        reporter,
         stepOutput: [
           buildRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
           buildRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/bar' }),
@@ -186,6 +190,7 @@ describe('queryApiGwExecutionLogs', () => {
     assert.strictEqual(result.vars?.['apiGwExecutionLogPaths'], '/foo,/bar');
     assert.strictEqual(result.vars?.['apiGwExecutionLogCount'], '3');
     assert.strictEqual(result.next, 'resolve');
+    reporter.flush();
     const joined = lines.join('\n');
     assert.match(joined, /Verifica execution log API Gateway/);
     assert.match(joined, /query execution log/);
@@ -233,14 +238,14 @@ describe('queryApiGwExecutionLogs', () => {
   });
 
   it('fails fast when the extracted requestIds exceed the configured limit', async () => {
-    const { logger, lines } = captureLogger();
+    const { reporter, lines } = captureLogger();
     const { service, calls } = createFakeCwLogs();
     const step = createStep({ maxRequestIdsOverride: 1 });
 
     const result = await step.execute(
       createContext({
         cloudWatchLogs: service,
-        logger,
+        reporter,
         stepOutput: [
           buildRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
           buildRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/bar' }),
@@ -252,6 +257,7 @@ describe('queryApiGwExecutionLogs', () => {
     assert.match(result.error ?? '', /would combine 2 requestId predicates/);
     assert.match(result.error ?? '', /over the limit of 1/);
     assert.strictEqual(calls.length, 0);
+    reporter.flush();
     assert.match(lines.join('\n'), /Query execution log non eseguita[\s\S]*over the limit of 1/);
   });
 
@@ -289,14 +295,14 @@ describe('queryApiGwExecutionLogs', () => {
   });
 
   it('degrades to unavailable when a best-effort query exceeds the requestId limit', async () => {
-    const { logger, lines } = captureLogger();
+    const { reporter, lines } = captureLogger();
     const { service, calls } = createFakeCwLogs();
     const step = createStep({ analysisMode: 'best-effort', maxRequestIdsOverride: 1 });
 
     const result = await step.execute(
       createContext({
         cloudWatchLogs: service,
-        logger,
+        reporter,
         stepOutput: [
           buildRow({ status: '500', errorMessage: 'Internal server error', requestId: 'req-1', path: '/foo' }),
           buildRow({ status: '503', errorMessage: 'Bad gateway', requestId: 'req-2', path: '/bar' }),
@@ -308,6 +314,7 @@ describe('queryApiGwExecutionLogs', () => {
     assert.strictEqual(result.vars?.['apiGwExecutionLogMode'], 'unavailable');
     assert.match(result.vars?.['apiGwExecutionLogUnavailableReason'] ?? '', /over the limit of 1/);
     assert.strictEqual(calls.length, 0);
+    reporter.flush();
     assert.match(lines.join('\n'), /Query execution log non eseguita[\s\S]*over the limit of 1/);
   });
 

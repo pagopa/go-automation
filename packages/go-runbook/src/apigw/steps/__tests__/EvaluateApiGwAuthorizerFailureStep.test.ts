@@ -4,10 +4,10 @@ import assert from 'node:assert/strict';
 import type { ResultField } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import { evaluateApiGwAuthorizerFailure } from '../EvaluateApiGwAuthorizerFailureStep.js';
 import type { ApiGwAuthorizerFailureInfo } from '../EvaluateApiGwAuthorizerFailureStep.js';
 import { API_GW_AUTHORIZER_LAMBDAS } from '../../authorizers/ApiGwAuthorizerLambdaRegistry.js';
+import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 
 function createContext(stepOutput: unknown): RunbookContext {
   return {
@@ -17,7 +17,7 @@ function createContext(stepOutput: unknown): RunbookContext {
     vars: new Map(),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

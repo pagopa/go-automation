@@ -97,7 +97,7 @@ export class RunbookEngine {
     environment?: ExecutionEnvironment,
     signal?: AbortSignal,
   ): Promise<RunbookExecutionResult> {
-    const context: RunbookContext = createInitialContext(params, services, signal, this.logger);
+    const context: RunbookContext = createInitialContext(params, services, signal);
     const maxIterations = runbook.maxIterations ?? DEFAULT_MAX_ITERATIONS;
     const env = environment ?? DEFAULT_ENVIRONMENT;
 
@@ -146,6 +146,11 @@ export class RunbookEngine {
         this.logger.error(`Runbook execution failed: ${failureReason}`);
       }
       finalContext = context;
+    } finally {
+      // The reporter holds the last node back until it knows whether a sibling
+      // follows; nothing else will report, so close the level here. Runs on the
+      // rethrown max-iterations path too.
+      services.reporter.flush();
     }
 
     // Collect every matched known case. Early resolution wins when it

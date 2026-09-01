@@ -89,7 +89,7 @@ class EvaluateApiGwAuthorizerFailureStepImpl implements Step<ApiGwAuthorizerFail
     }
 
     const rows = upstream.value;
-    const reporter = context.logger !== undefined ? new ApiGwReporter(context.logger) : undefined;
+    const reporter = new ApiGwReporter(context.services.reporter);
     const firstEvidence = this.extractEvidence(rows[0]);
     let firstError: ApiGwAuthorizerFailureInfo | undefined;
 

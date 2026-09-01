@@ -85,14 +85,12 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
     }
 
     if (errorRows.length === 0) {
-      if (context.logger !== undefined) {
-        new ApiGwReporter(context.logger).apiGwResult({
-          errorCount: 0,
-          statusCode: '',
-          traceId: undefined,
-          traceIdLabel: this.schema.traceIdLabel,
-        });
-      }
+      new ApiGwReporter(context.services.reporter).apiGwResult({
+        errorCount: 0,
+        statusCode: '',
+        traceId: undefined,
+        traceIdLabel: this.schema.traceIdLabel,
+      });
       return {
         success: true,
         output: { errorCount: 0, xRayTraceId: undefined, statusCode: '' },
@@ -141,17 +139,15 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
       }
     }
 
-    if (context.logger !== undefined) {
-      new ApiGwReporter(context.logger).apiGwResult({
-        errorCount: errorRows.length,
-        statusCode,
-        traceId,
-        traceIdLabel: this.schema.traceIdLabel,
-        ...(additional.errorMessage !== undefined ? { errorMessage: additional.errorMessage } : {}),
-        ...(additional.path !== undefined ? { path: additional.path } : {}),
-        ...(additional.httpMethod !== undefined ? { httpMethod: additional.httpMethod } : {}),
-      });
-    }
+    new ApiGwReporter(context.services.reporter).apiGwResult({
+      errorCount: errorRows.length,
+      statusCode,
+      traceId,
+      traceIdLabel: this.schema.traceIdLabel,
+      ...(additional.errorMessage !== undefined ? { errorMessage: additional.errorMessage } : {}),
+      ...(additional.path !== undefined ? { path: additional.path } : {}),
+      ...(additional.httpMethod !== undefined ? { httpMethod: additional.httpMethod } : {}),
+    });
 
     return {
       success: true,

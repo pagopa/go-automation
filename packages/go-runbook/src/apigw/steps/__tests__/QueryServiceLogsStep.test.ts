@@ -3,10 +3,13 @@ import assert from 'node:assert/strict';
 
 import type { AWSCloudWatchLogsService, ResultField } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { TimeRange } from '../../../types/TimeRange.js';
 
 import { queryServiceLogs } from '../QueryServiceLogsStep.js';
+import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { ConsoleRunbookReporter } from '../../../services/reporters/ConsoleRunbookReporter.js';
+import { NOOP_RUNBOOK_REPORTER } from '../../../services/reporters/NOOP_RUNBOOK_REPORTER.js';
+import type { GOLogger } from '@go-automation/go-common/core';
 
 interface CapturedCall {
   readonly logGroups: ReadonlyArray<string>;
@@ -40,7 +43,16 @@ function createContext(args: {
   readonly cloudWatchLogs: AWSCloudWatchLogsService;
   readonly capturedLines?: string[];
 }): RunbookContext {
-  const ctx: RunbookContext = {
+  const captured = args.capturedLines;
+  const reporter =
+    captured === undefined
+      ? NOOP_RUNBOOK_REPORTER
+      : new ConsoleRunbookReporter({
+          text: (msg: string) => captured.push(msg),
+          newline: () => captured.push(''),
+        } as unknown as GOLogger);
+
+  return {
     executionId: 'test',
     startedAt: new Date('2026-01-01T00:00:00.000Z'),
     stepResults: new Map(),
@@ -50,18 +62,9 @@ function createContext(args: {
       ['endTime', '2026-01-01T00:10:00.000Z'],
     ]),
     logs: [],
-    services: { cloudWatchLogs: args.cloudWatchLogs } as unknown as ServiceRegistry,
+    services: createTestServiceRegistry({ cloudWatchLogs: args.cloudWatchLogs, reporter }),
     recoveredErrors: [],
   };
-  if (args.capturedLines !== undefined) {
-    const captured = args.capturedLines;
-    const logger = {
-      text: (msg: string) => captured.push(msg),
-      newline: () => captured.push(''),
-    };
-    return { ...ctx, logger } as unknown as RunbookContext;
-  }
-  return ctx;
 }
 
 describe('queryServiceLogs', () => {
@@ -306,13 +309,14 @@ describe('queryServiceLogs', () => {
     });
 
     const captured: string[] = [];
-    const result = await step.execute(
-      createContext({
-        vars: { xRayTraceId: '1-abc' },
-        cloudWatchLogs: throwingService,
-        capturedLines: captured,
-      }),
-    );
+    const context = createContext({
+      vars: { xRayTraceId: '1-abc' },
+      cloudWatchLogs: throwingService,
+      capturedLines: captured,
+    });
+    const result = await step.execute(context);
+    // The reporter holds the last node back; the engine would flush it.
+    context.services.reporter.flush();
 
     // The step returns a failed StepResult (executeStep converts the
     // thrown error), and the reporter banner is rendered before the

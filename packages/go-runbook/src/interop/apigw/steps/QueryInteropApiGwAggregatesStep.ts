@@ -80,14 +80,14 @@ export class QueryInteropApiGwAggregatesStep implements Step<ReadonlyArray<Reado
 
     const query = this.buildQuery(apiGwId);
     const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
-    context.logger?.text(`  ├─ Query access log API Gateway INTEROP [apigwId=${apiGwId}]`);
+    context.services.reporter.add({ label: `Query access log API Gateway INTEROP [apigwId=${apiGwId}]` });
     const result = await context.services.cloudWatchLogs.queryWithStatistics(
       [logGroup],
       query,
       timeRange,
       buildQueryOptions(context),
     );
-    context.logger?.text(`  └─ Aggregati ${this.errorFamilyLabel} trovati: ${result.rows.length}`);
+    context.services.reporter.add({ label: `Aggregati ${this.errorFamilyLabel} trovati: ${result.rows.length}` });
 
     return {
       success: true,

@@ -15,6 +15,7 @@ import type { Step } from '../../types/Step.js';
 import type { StepDescriptor } from '../../types/StepDescriptor.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
+import { createTestServiceRegistry } from '../../services/createTestServiceRegistry.js';
 
 class RecordingStep implements Step<void> {
   readonly label: string;
@@ -62,7 +63,7 @@ function createEngine(): RunbookEngine {
 }
 
 function emptyServices(): ServiceRegistry {
-  return {} as unknown as ServiceRegistry;
+  return createTestServiceRegistry();
 }
 
 function createRunbook(steps: ReadonlyArray<StepDescriptor>, knownCases: ReadonlyArray<KnownCase> = []): Runbook {

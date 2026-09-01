@@ -1,6 +1,7 @@
 import type { GOLogger } from '@go-automation/go-common/core';
 import type { TerminationReason } from '../types/TerminationReason.js';
 import { LambdaReporter } from './LambdaReporter.js';
+import { ConsoleRunbookReporter } from '../../services/reporters/ConsoleRunbookReporter.js';
 
 /**
  * Input expected by {@link renderLambdaFinalSummary}. The consumer script
@@ -32,7 +33,10 @@ export function renderLambdaFinalSummary(input: LambdaFinalSummaryInput): void {
   const reason: TerminationReason =
     input.matchedCaseIds.length > 0 ? 'known-case' : terminationReason !== '' ? terminationReason : 'no-match';
 
-  new LambdaReporter(input.logger).stopSummary({
+  // Self-contained render outside the engine: owns its reporter and closes the
+  // level itself, since no step will report after the summary.
+  const reporter = new ConsoleRunbookReporter(input.logger);
+  new LambdaReporter(reporter).stopSummary({
     reason,
     matchedCaseIds: input.matchedCaseIds,
     ...(category !== '' ? { category } : {}),
@@ -40,4 +44,5 @@ export function renderLambdaFinalSummary(input: LambdaFinalSummaryInput): void {
     ...(errorMessage !== '' ? { errorMessage } : {}),
     ...(requestId !== '' ? { requestId } : {}),
   });
+  reporter.flush();
 }

@@ -142,6 +142,11 @@ export { logAction, notifyAction, escalateAction, compositeAction } from './acti
 
 // Services
 export type { ServiceRegistry } from './services/ServiceRegistry.js';
+export type { RunbookReporter } from './services/RunbookReporter.js';
+export { ConsoleRunbookReporter } from './services/reporters/ConsoleRunbookReporter.js';
+export { CollectingRunbookReporter } from './services/reporters/CollectingRunbookReporter.js';
+export { NOOP_RUNBOOK_REPORTER } from './services/reporters/NOOP_RUNBOOK_REPORTER.js';
+export { createTestServiceRegistry } from './services/createTestServiceRegistry.js';
 
 // Steps
 export * from './steps/index.js';

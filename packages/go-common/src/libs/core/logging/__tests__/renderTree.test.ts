@@ -51,3 +51,20 @@ describe('renderTree', () => {
     assert.deepStrictEqual(renderTree([]), []);
   });
 });
+
+describe('renderTree with siblingsFollow', () => {
+  it('keeps the tee on the last node when more siblings will follow', () => {
+    assert.deepStrictEqual(renderTree([{ label: 'a' }], { siblingsFollow: true }), ['  ├─ a']);
+  });
+
+  it('keeps the vertical running under that node', () => {
+    assert.deepStrictEqual(renderTree([{ label: 'a', children: [{ label: 'a1' }] }], { siblingsFollow: true }), [
+      '  ├─ a',
+      '  │  └─ a1',
+    ]);
+  });
+
+  it('closes the level normally when it is not set', () => {
+    assert.deepStrictEqual(renderTree([{ label: 'a' }]), ['  └─ a']);
+  });
+});

@@ -4,7 +4,6 @@ import type { Step } from '../../../types/Step.js';
 import type { StepKind } from '../../../types/StepKind.js';
 import type { StepResult } from '../../../types/StepResult.js';
 import type { InteropK8sAlarmContext, ResolveInteropK8sAlarmContextFn } from '../types/InteropK8sAlarmContext.js';
-import { logStepTree } from '../../../core/logStepTree.js';
 
 export interface ResolveInteropK8sAlarmContextStepConfig {
   readonly id: string;
@@ -51,11 +50,11 @@ export class ResolveInteropK8sAlarmContextStep implements Step<InteropK8sAlarmCo
       };
     }
 
-    logStepTree(context.logger, [
+    context.services.reporter.add(
       { label: `Ambiente INTEROP: ${alarmContext.environment}` },
       { label: `Pod app: ${alarmContext.podApp}` },
       { label: `Log group: ${alarmContext.logGroup}` },
-    ]);
+    );
 
     return {
       success: true,

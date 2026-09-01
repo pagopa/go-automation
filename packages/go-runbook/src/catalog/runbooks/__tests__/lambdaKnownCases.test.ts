@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { ConditionEvaluator, lambda, SEND_DOWNSTREAMS } from '../framework.js';
-import type { Condition, KnownCase, RunbookContext, ServiceRegistry } from '../framework.js';
+import type { Condition, KnownCase, RunbookContext } from '../framework.js';
 
 import { KNOWN_CASES as TOKEN_EXCHANGE_CASES } from '../pn-tokenExchangeLambda-LogInvocationErrors-Alarm/knownCases.js';
 import { KNOWN_CASES as IO_AUTHORIZER_CASES } from '../pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/knownCases.js';
@@ -19,6 +19,7 @@ import { buildRunbook as buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunb
 import { buildRunbook as buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook } from '../pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildRunbook as buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook } from '../pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildRunbook as buildLollipopAuthorizerLambdaLogInvocationErrorsAlarmRunbook } from '../pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
+import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 
 /** Collects every regex string referenced by a condition tree. */
 function collectRegexes(condition: Condition): ReadonlyArray<string> {
@@ -62,7 +63,7 @@ function lambdaLogContext(messages: ReadonlyArray<string>): RunbookContext {
     vars: new Map(),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

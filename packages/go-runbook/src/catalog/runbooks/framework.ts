@@ -14,4 +14,3 @@ export { INTEROP_DOWNSTREAMS, SEND_DOWNSTREAMS } from '../../analysis/downstream
 export type { InteropDownstream } from '../../analysis/downstreams/index.js';
 export type { Runbook } from '../../types/Runbook.js';
 export type { RunbookContext } from '../../types/RunbookContext.js';
-export type { ServiceRegistry } from '../../services/ServiceRegistry.js';

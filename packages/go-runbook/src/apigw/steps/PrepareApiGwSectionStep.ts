@@ -31,9 +31,7 @@ class PrepareApiGwSectionStepImpl implements Step<undefined> {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<undefined>> {
-    if (context.logger !== undefined) {
-      new ApiGwReporter(context.logger).sectionPrepare(this.apiGwLogGroup);
-    }
+    new ApiGwReporter(context.services.reporter).sectionPrepare(this.apiGwLogGroup);
     return { success: true };
   }
 }

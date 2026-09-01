@@ -2,9 +2,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { ServiceLogSchema } from '../../types/ServiceLogSchema.js';
 import { AnalyzeServiceLogsStep } from '../analyzeServiceLogs.js';
+import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 
 const SCHEMA: ServiceLogSchema = {
   messageFieldCandidates: ['message', '@message'],
@@ -20,7 +20,7 @@ function ctx(stepResults: ReadonlyArray<readonly [string, unknown]> = []): Runbo
     vars: new Map<string, string>(),
     params: new Map<string, string>(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

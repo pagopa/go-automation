@@ -1,10 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { interpolatePlaceholders } from '../../../core/templatePlaceholders.js';
 import { extractTemplateParameters } from '../interpolateTemplate.js';
+import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 
 function createContext(params: Record<string, string> = {}, vars: Record<string, string> = {}): RunbookContext {
   return {
@@ -14,7 +14,7 @@ function createContext(params: Record<string, string> = {}, vars: Record<string,
     vars: new Map(Object.entries(vars)),
     params: new Map(Object.entries(params)),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

@@ -142,7 +142,7 @@ class QueryApiGwExecutionLogsStepImpl implements Step<ReadonlyArray<ReadonlyArra
         };
       }
 
-      const reporter = context.logger !== undefined ? new ApiGwReporter(context.logger) : undefined;
+      const reporter = new ApiGwReporter(context.services.reporter);
       const firstRow = rowsWithErrorMessage[0];
       const accessLogVars =
         firstRow !== undefined

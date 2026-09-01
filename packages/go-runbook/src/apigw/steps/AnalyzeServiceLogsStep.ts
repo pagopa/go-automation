@@ -93,7 +93,7 @@ export class AnalyzeServiceLogsStep implements Step<ServiceLogsAnalysis> {
     const upstream = readStepOutput<ReadonlyArray<ResultField[]>>(context, this.fromStep);
     if (!upstream.ok) return upstream.failure;
     const results = upstream.value;
-    const reporter = context.logger !== undefined ? new ApiGwReporter(context.logger) : undefined;
+    const reporter = new ApiGwReporter(context.services.reporter);
 
     const fallbackUuidExisting = (context.vars.get('fallbackUuid') ?? '').trim();
 

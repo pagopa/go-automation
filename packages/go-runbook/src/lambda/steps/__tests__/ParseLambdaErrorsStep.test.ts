@@ -4,6 +4,7 @@ import type { ResultField } from '@go-automation/go-common/aws';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { ParseLambdaErrorsStep } from '../ParseLambdaErrorsStep.js';
+import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 
 function row(message: string): ReadonlyArray<ResultField> {
   return [
@@ -13,7 +14,7 @@ function row(message: string): ReadonlyArray<ResultField> {
 }
 
 function context(stepResults: Map<string, unknown>): RunbookContext {
-  return { vars: new Map(), stepResults } as unknown as RunbookContext;
+  return { vars: new Map(), stepResults, services: createTestServiceRegistry() } as unknown as RunbookContext;
 }
 
 const step = new ParseLambdaErrorsStep({

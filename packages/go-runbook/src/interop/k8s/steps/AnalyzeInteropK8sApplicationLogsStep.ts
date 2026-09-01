@@ -4,7 +4,6 @@ import type { Step } from '../../../types/Step.js';
 import type { StepKind } from '../../../types/StepKind.js';
 import type { StepResult } from '../../../types/StepResult.js';
 import { readCloudWatchResultRows } from '../../../steps/data/readCloudWatchResultRows.js';
-import { logStepTree } from '../../../core/logStepTree.js';
 
 export interface InteropK8sApplicationLogAnalysis {
   readonly logCount: number;
@@ -80,11 +79,11 @@ export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sAppl
       representativeMessages,
     };
 
-    logStepTree(context.logger, [
+    context.services.reporter.add(
       { label: `Log applicativi analizzati: ${analysis.logCount}` },
       { label: `CID distinti: ${cids.length}` },
       { label: `Log senza CID: ${logsWithoutCidCount}` },
-    ]);
+    );
 
     return {
       success: true,

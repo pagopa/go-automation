@@ -2,8 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import { PrepareServiceSectionStep } from '../prepareServiceSection.js';
+import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 
 function ctx(): RunbookContext {
   return {
@@ -13,7 +13,7 @@ function ctx(): RunbookContext {
     vars: new Map<string, string>(),
     params: new Map<string, string>(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

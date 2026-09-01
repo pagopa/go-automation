@@ -4,5 +4,4 @@
 export { RunbookEngine } from './RunbookEngine.js';
 export { ConditionEvaluator } from './ConditionEvaluator.js';
 export { compileRegex } from './compileRegex.js';
-export { logStepTree } from './logStepTree.js';
 export { interpolatePlaceholders } from './templatePlaceholders.js';

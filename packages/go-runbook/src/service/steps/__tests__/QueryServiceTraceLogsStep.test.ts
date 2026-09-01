@@ -2,9 +2,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { QueryServiceTraceLogsConfig } from '../queryServiceTraceLogs.js';
 import { QueryServiceTraceLogsStep } from '../queryServiceTraceLogs.js';
+import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 
 const BASE: Omit<QueryServiceTraceLogsConfig, 'queryTemplate'> = {
   id: 'query-pn-foo-trace',
@@ -24,7 +24,7 @@ function ctx(vars: ReadonlyArray<readonly [string, string]> = []): RunbookContex
     vars: new Map<string, string>(vars),
     params: new Map<string, string>(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

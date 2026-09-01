@@ -69,9 +69,7 @@ export class QueryLambdaInvocationStep implements Step<Rows> {
         ...(context.signal !== undefined ? { signal: context.signal } : {}),
         logGroupResolutionMode: 'search-configured-profiles',
       });
-      if (context.logger !== undefined) {
-        new LambdaReporter(context.logger).invocation(requestId, result.rows.length);
-      }
+      new LambdaReporter(context.services.reporter).invocation(requestId, result.rows.length);
       return {
         success: true,
         output: result.rows,

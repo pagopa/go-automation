@@ -8,12 +8,24 @@ export interface RenderTreeOptions {
   readonly indent?: string;
   /** Box-drawing characters. Defaults to {@link TREE_CHARS}. */
   readonly chars?: TreeChars;
+  /**
+   * When true the last node keeps the `tee`, because more siblings will be
+   * rendered later. Used by streaming writers that emit a level one node at a
+   * time and only learn it has ended when the level closes.
+   */
+  readonly siblingsFollow?: boolean;
 }
 
-function renderLevel(nodes: ReadonlyArray<TreeNode>, prefix: string, chars: TreeChars, lines: string[]): void {
+function renderLevel(
+  nodes: ReadonlyArray<TreeNode>,
+  prefix: string,
+  chars: TreeChars,
+  lines: string[],
+  siblingsFollow: boolean,
+): void {
   const lastIndex = nodes.length - 1;
   for (const [index, node] of nodes.entries()) {
-    const isLast = index === lastIndex;
+    const isLast = index === lastIndex && !siblingsFollow;
     const branch = isLast ? chars.elbow : chars.tee;
     lines.push(`${prefix}${branch} ${node.label}`);
     const children = node.children ?? [];
@@ -23,7 +35,7 @@ function renderLevel(nodes: ReadonlyArray<TreeNode>, prefix: string, chars: Tree
     // Children hang under the parent's label: a `tee` keeps the vertical
     // running, an `elbow` leaves blank space of the very same width.
     const continuation = isLast ? ' '.repeat(chars.elbow.length) : chars.pipe.padEnd(chars.tee.length, ' ');
-    renderLevel(children, `${prefix}${continuation} `, chars, lines);
+    renderLevel(children, `${prefix}${continuation} `, chars, lines, false);
   }
 }
 
@@ -47,6 +59,6 @@ function renderLevel(nodes: ReadonlyArray<TreeNode>, prefix: string, chars: Tree
  */
 export function renderTree(nodes: ReadonlyArray<TreeNode>, options: RenderTreeOptions = {}): ReadonlyArray<string> {
   const lines: string[] = [];
-  renderLevel(nodes, options.indent ?? '  ', options.chars ?? TREE_CHARS, lines);
+  renderLevel(nodes, options.indent ?? '  ', options.chars ?? TREE_CHARS, lines, options.siblingsFollow ?? false);
   return lines;
 }

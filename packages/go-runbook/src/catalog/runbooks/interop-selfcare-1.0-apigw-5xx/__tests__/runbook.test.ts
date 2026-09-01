@@ -9,9 +9,9 @@ import { apigw } from '../../framework.js';
 import { ConditionEvaluator } from '../../../../core/ConditionEvaluator.js';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
-import type { ServiceRegistry } from '../../../../services/ServiceRegistry.js';
 
 import { buildRunbook } from '../runbook.js';
+import { createTestServiceRegistry } from '../../../../services/createTestServiceRegistry.js';
 
 describe('buildRunbook', () => {
   it('builds the custom read-only APIGW → BFF → CID pipeline', () => {
@@ -66,7 +66,7 @@ describe('buildRunbook', () => {
         ['startTime', '2026-08-24T09:05:11.000Z'],
         ['endTime', '2026-08-24T09:11:11.000Z'],
       ]),
-      { cloudWatchLogs } as unknown as ServiceRegistry,
+      createTestServiceRegistry({ cloudWatchLogs }),
     );
 
     assert.deepStrictEqual(
@@ -130,7 +130,7 @@ describe('buildRunbook', () => {
         ['startTime', '2026-08-24T09:05:11.000Z'],
         ['endTime', '2026-08-24T09:11:11.000Z'],
       ]),
-      { cloudWatchLogs } as unknown as ServiceRegistry,
+      createTestServiceRegistry({ cloudWatchLogs }),
     );
 
     assert.deepStrictEqual(

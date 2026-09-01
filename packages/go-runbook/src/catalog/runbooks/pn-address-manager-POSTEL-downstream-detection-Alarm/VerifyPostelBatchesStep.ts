@@ -102,7 +102,9 @@ export class VerifyPostelBatchesStep implements Step<PostelBatchRecovery> {
 
       if (impactedBatchIds.length === 0) {
         const output = buildRecovery([], new Set<string>(), 0, timeRange);
-        context.logger?.text('  └─ Verifica batch POSTEL: nessun batch_id individuato nei log di errore');
+        context.services.reporter.add({
+          label: 'Verifica batch POSTEL: nessun batch_id individuato nei log di errore',
+        });
         return {
           success: true,
           output,
@@ -111,7 +113,9 @@ export class VerifyPostelBatchesStep implements Step<PostelBatchRecovery> {
         };
       }
 
-      context.logger?.text(`  ├─ Verifica batch POSTEL: ${String(impactedBatchIds.length)} batch impattati`);
+      context.services.reporter.add({
+        label: `Verifica batch POSTEL: ${String(impactedBatchIds.length)} batch impattati`,
+      });
       const queryResult = await executeCloudWatchLogsQuery(context, [this.logGroup], this.query, timeRange, {
         ...(context.signal !== undefined ? { signal: context.signal } : {}),
         logGroupResolutionMode: 'search-configured-profiles',
@@ -124,9 +128,9 @@ export class VerifyPostelBatchesStep implements Step<PostelBatchRecovery> {
         queryResult.rows.length,
         timeRange,
       );
-      context.logger?.text(
-        `  └─ Batch POSTEL WORKED: ${String(output.workedBatchIds.length)}/${String(output.impactedBatchIds.length)}`,
-      );
+      context.services.reporter.add({
+        label: `Batch POSTEL WORKED: ${String(output.workedBatchIds.length)}/${String(output.impactedBatchIds.length)}`,
+      });
 
       return {
         success: true,

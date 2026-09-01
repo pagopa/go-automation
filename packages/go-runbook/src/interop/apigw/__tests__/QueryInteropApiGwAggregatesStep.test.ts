@@ -7,9 +7,9 @@ import type {
   AWSCloudWatchLogsTimeRange,
   ResultField,
 } from '@go-automation/go-common/aws';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { QueryInteropApiGwAggregatesStep } from '../steps/QueryInteropApiGwAggregatesStep.js';
+import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 
 describe('QueryInteropApiGwAggregatesStep', () => {
   it('queries the resolved group and enriches aggregate rows as output evidence', async () => {
@@ -62,7 +62,7 @@ describe('QueryInteropApiGwAggregatesStep', () => {
         ['endTime', '2026-08-24T10:01:00.000Z'],
       ]),
       logs: [],
-      services: { cloudWatchLogs } as unknown as ServiceRegistry,
+      services: createTestServiceRegistry({ cloudWatchLogs }),
       recoveredErrors: [],
     };
     const step = new QueryInteropApiGwAggregatesStep({
@@ -121,7 +121,7 @@ describe('QueryInteropApiGwAggregatesStep', () => {
         ['endTime', '2026-08-24T10:01:00.000Z'],
       ]),
       logs: [],
-      services: {} as ServiceRegistry,
+      services: createTestServiceRegistry(),
       recoveredErrors: [],
     });
 

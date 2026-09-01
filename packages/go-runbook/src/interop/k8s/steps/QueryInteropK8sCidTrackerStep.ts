@@ -85,7 +85,7 @@ export class QueryInteropK8sCidTrackerStep implements Step<ReadonlyArray<Interop
     }
 
     if (analysis.cids.length === 0) {
-      context.logger?.text('  └─ Query CID tracker: skip, nessun CID disponibile');
+      context.services.reporter.add({ label: 'Query CID tracker: skip, nessun CID disponibile' });
       return {
         success: true,
         output: [],
@@ -105,7 +105,7 @@ export class QueryInteropK8sCidTrackerStep implements Step<ReadonlyArray<Interop
     let totalRows = 0;
 
     for (const cid of analysis.cids) {
-      context.logger?.text(`  ├─ Query CID tracker [cid=${cid}]`);
+      context.services.reporter.add({ label: `Query CID tracker [cid=${cid}]` });
       const query = this.buildQuery(cid);
       const result = await context.services.cloudWatchLogs.queryWithStatistics([logGroup], query, timeRange, options);
       totalRows += result.rows.length;
@@ -114,7 +114,7 @@ export class QueryInteropK8sCidTrackerStep implements Step<ReadonlyArray<Interop
       cidResults.push({ cid, rows: result.rows });
     }
 
-    context.logger?.text(`  └─ Log CID tracker trovati: ${totalRows}`);
+    context.services.reporter.add({ label: `Log CID tracker trovati: ${totalRows}` });
 
     return {
       success: true,

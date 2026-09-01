@@ -7,9 +7,9 @@ import type {
   AWSCloudWatchLogsTimeRange,
   ResultField,
 } from '@go-automation/go-common/aws';
-import type { ServiceRegistry } from '../../../../services/ServiceRegistry.js';
 import type { RunbookContext } from '../../../../types/RunbookContext.js';
 import { interop } from '../../framework.js';
+import { createTestServiceRegistry } from '../../../../services/createTestServiceRegistry.js';
 
 const PROFILE = interop.apigw.INTEROP_API_GW_5XX_SERVICE_ERRORS_PROFILE;
 
@@ -34,7 +34,7 @@ function context(cloudWatchLogs: unknown, stepResults = new Map<string, unknown>
       ['endTime', '2026-08-24T09:11:11.000Z'],
     ]),
     logs: [],
-    services: { cloudWatchLogs } as unknown as ServiceRegistry,
+    services: createTestServiceRegistry({ cloudWatchLogs }),
     recoveredErrors: [],
   };
 }

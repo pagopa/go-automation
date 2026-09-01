@@ -11,6 +11,7 @@ import type { ServiceRegistry } from '../../../../services/ServiceRegistry.js';
 import { DELIVERY_API_GW_EXECUTION_LOG_GROUP } from '../../constants.js';
 import { buildRunbook } from '../runbook.js';
 import { API_GW_LOG_GROUP } from '../knownServices.js';
+import { createTestServiceRegistry } from '../../../../services/createTestServiceRegistry.js';
 
 type EvidenceKind =
   | 'timeout-empty-execution'
@@ -189,7 +190,7 @@ function deliveryRows(kind: EvidenceKind): ReadonlyArray<ReadonlyArray<ResultFie
 }
 
 function createServices(kind: EvidenceKind, calls: string[]): ServiceRegistry {
-  return {
+  return createTestServiceRegistry({
     cloudWatchLogs: {
       query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
         await Promise.resolve();
@@ -261,7 +262,7 @@ function createServices(kind: EvidenceKind, calls: string[]): ServiceRegistry {
         return [];
       },
     },
-  } as unknown as ServiceRegistry;
+  });
 }
 
 describe('pn-delivery-B2B real occurrence regressions', () => {

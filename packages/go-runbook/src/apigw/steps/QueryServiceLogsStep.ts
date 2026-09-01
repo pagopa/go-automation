@@ -127,7 +127,7 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
 
       const visitPlan = planApiGwServiceVisit(context.vars, this.serviceName);
 
-      const reporter = context.logger !== undefined ? new ApiGwReporter(context.logger) : undefined;
+      const reporter = new ApiGwReporter(context.services.reporter);
       if (visitPlan.isNewVisit) {
         reporter?.sectionService(visitPlan.visitNumber, this.serviceName, this.entryService, this.logGroups);
       }

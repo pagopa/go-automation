@@ -7,10 +7,10 @@ import type {
   AWSCloudWatchLogsTimeRange,
   ResultField,
 } from '@go-automation/go-common/aws';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { InteropK8sApplicationLogAnalysis } from '../steps/AnalyzeInteropK8sApplicationLogsStep.js';
 import { QueryInteropK8sCidTrackerStep } from '../steps/QueryInteropK8sCidTrackerStep.js';
+import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 
 interface SeenQuery {
   readonly logGroups: ReadonlyArray<string>;
@@ -30,7 +30,7 @@ function context(analysis: InteropK8sApplicationLogAnalysis, cloudWatchLogs: unk
       ['endTime', '2026-07-09T10:05:00.000Z'],
     ]),
     logs: [],
-    services: { cloudWatchLogs } as unknown as ServiceRegistry,
+    services: createTestServiceRegistry({ cloudWatchLogs }),
     recoveredErrors: [],
   };
 }

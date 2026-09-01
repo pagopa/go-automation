@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import type { ResultField } from '@go-automation/go-common/aws';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { AnalyzeInteropK8sCidTrackerStep } from '../steps/AnalyzeInteropK8sCidTrackerStep.js';
 import type { InteropK8sCidTrackerResult } from '../steps/QueryInteropK8sCidTrackerStep.js';
+import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 
 function row(fields: ReadonlyArray<readonly [string, string]>): ReadonlyArray<ResultField> {
   return fields.map(([field, value]) => ({ field, value }));
@@ -19,7 +19,7 @@ function context(output: ReadonlyArray<InteropK8sCidTrackerResult>): RunbookCont
     vars: new Map(),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import type { GOLogger } from '@go-automation/go-common/core';
 import type { RunbookContext } from '../types/RunbookContext.js';
 import type { StepResult } from '../types/StepResult.js';
 import type { LogEntry } from '../types/LogEntry.js';
@@ -17,14 +16,12 @@ import type { ServiceRegistry } from '../services/ServiceRegistry.js';
  * @param params - Input parameters for the runbook
  * @param services - Service registry
  * @param signal - Optional abort signal to cancel the runbook execution
- * @param logger - Optional logger surfaced to steps that emit progress
  * @returns A new initial context
  */
 export function createInitialContext(
   params: ReadonlyMap<string, string>,
   services: ServiceRegistry,
   signal?: AbortSignal,
-  logger?: GOLogger,
 ): RunbookContext {
   return {
     executionId: randomUUID(),
@@ -36,7 +33,6 @@ export function createInitialContext(
     services,
     recoveredErrors: [],
     ...(signal ? { signal } : {}),
-    ...(logger ? { logger } : {}),
   };
 }
 

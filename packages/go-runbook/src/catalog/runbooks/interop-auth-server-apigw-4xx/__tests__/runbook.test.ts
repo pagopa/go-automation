@@ -13,11 +13,11 @@ import { GOLogger } from '@go-automation/go-common/core';
 import { ConditionEvaluator } from '../../../../core/ConditionEvaluator.js';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
-import type { ServiceRegistry } from '../../../../services/ServiceRegistry.js';
 import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionResult.js';
 import { apigw } from '../../framework.js';
 
 import { buildRunbook } from '../runbook.js';
+import { createTestServiceRegistry } from '../../../../services/createTestServiceRegistry.js';
 
 describe('buildRunbook', () => {
   it('builds the read-only APIGW → warnings → CID pipeline with the asymmetric window', () => {
@@ -135,6 +135,6 @@ async function execute(cloudWatchLogs: unknown): Promise<RunbookExecutionResult>
       ['startTime', '2026-08-24T09:58:00.000Z'],
       ['endTime', '2026-08-24T10:01:00.000Z'],
     ]),
-    { cloudWatchLogs } as unknown as ServiceRegistry,
+    createTestServiceRegistry({ cloudWatchLogs }),
   );
 }

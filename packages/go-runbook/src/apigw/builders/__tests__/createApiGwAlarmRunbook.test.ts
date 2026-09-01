@@ -10,13 +10,13 @@ import type { ApiGwExecutionLogAnalysisMode } from '../../types/ApiGwExecutionLo
 import { isApiGwRunbookContext } from '../../output/ApiGwRunbookContext.js';
 import { API_GW_AUTHORIZER_LAMBDAS } from '../../authorizers/ApiGwAuthorizerLambdaRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { StepDescriptor } from '../../../types/StepDescriptor.js';
 import type { KnownCase } from '../../../types/KnownCase.js';
 import { RunbookEngine } from '../../../core/RunbookEngine.js';
 import { ConditionEvaluator } from '../../../core/ConditionEvaluator.js';
 import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
 import type { ApiGwQueryProfile } from '../../profiles/ApiGwQueryProfile.js';
+import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
 
 function fakeContext(params: ReadonlyArray<readonly [string, string]>): RunbookContext {
   return {
@@ -26,7 +26,7 @@ function fakeContext(params: ReadonlyArray<readonly [string, string]>): RunbookC
     vars: new Map(),
     params: new Map(params),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }
@@ -334,7 +334,7 @@ describe('createApiGwAlarmRunbook', () => {
       },
     ];
     const calls: string[] = [];
-    const services = {
+    const services = createTestServiceRegistry({
       cloudWatchLogs: {
         query: async (
           logGroups: ReadonlyArray<string>,
@@ -364,7 +364,7 @@ describe('createApiGwAlarmRunbook', () => {
           return [cwRow({ level: 'ERROR', '@message': 'pn-b should not be queried' })];
         },
       },
-    } as unknown as ServiceRegistry;
+    });
 
     const runbook = createApiGwAlarmRunbook(
       baseConfig({
@@ -392,7 +392,7 @@ describe('createApiGwAlarmRunbook', () => {
 
   it('stops before execution logs and service traversal when the authorizer gate resolves a timeout', async () => {
     const calls: string[] = [];
-    const services = {
+    const services = createTestServiceRegistry({
       cloudWatchLogs: {
         query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
           await Promise.resolve();
@@ -414,7 +414,7 @@ describe('createApiGwAlarmRunbook', () => {
           return [];
         },
       },
-    } as unknown as ServiceRegistry;
+    });
 
     const runbook = createApiGwAlarmRunbook(
       baseConfig({
@@ -444,7 +444,7 @@ describe('createApiGwAlarmRunbook', () => {
 
   it('continues with service traversal when authorizerStatus is missing', async () => {
     const calls: string[] = [];
-    const services = {
+    const services = createTestServiceRegistry({
       cloudWatchLogs: {
         query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
           await Promise.resolve();
@@ -467,7 +467,7 @@ describe('createApiGwAlarmRunbook', () => {
           return [cwRow({ level: 'ERROR', '@message': 'application error' })];
         },
       },
-    } as unknown as ServiceRegistry;
+    });
 
     const runbook = createApiGwAlarmRunbook(
       baseConfig({
@@ -508,7 +508,7 @@ describe('createApiGwAlarmRunbook', () => {
       },
     ];
     const calls: { readonly logGroup: string; readonly query: string }[] = [];
-    const services = {
+    const services = createTestServiceRegistry({
       cloudWatchLogs: {
         query: async (
           logGroups: ReadonlyArray<string>,
@@ -554,7 +554,7 @@ describe('createApiGwAlarmRunbook', () => {
           return [cwRow({ '@timestamp': '2026-01-01T00:00:00.000Z', '@message': 'execution detail' })];
         },
       },
-    } as unknown as ServiceRegistry;
+    });
 
     const runbook = createApiGwAlarmRunbook(
       baseConfig({
@@ -596,7 +596,7 @@ describe('createApiGwAlarmRunbook', () => {
 
   it('stops before the X-Ray flow when execution logs have no matching known case', async () => {
     const calls: string[] = [];
-    const services = {
+    const services = createTestServiceRegistry({
       cloudWatchLogs: {
         query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
           await Promise.resolve();
@@ -617,7 +617,7 @@ describe('createApiGwAlarmRunbook', () => {
           return [cwRow({ '@timestamp': '2026-01-01T00:00:00.000Z', '@message': 'unknown execution detail' })];
         },
       },
-    } as unknown as ServiceRegistry;
+    });
 
     const runbook = createApiGwAlarmRunbook(
       baseConfig({
@@ -646,7 +646,7 @@ describe('createApiGwAlarmRunbook', () => {
 
   it('continues with trace-id service traversal when execution-log requestId extraction fails', async () => {
     const calls: string[] = [];
-    const services = {
+    const services = createTestServiceRegistry({
       cloudWatchLogs: {
         query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
           await Promise.resolve();
@@ -677,7 +677,7 @@ describe('createApiGwAlarmRunbook', () => {
           return [];
         },
       },
-    } as unknown as ServiceRegistry;
+    });
 
     const runbook = createApiGwAlarmRunbook(
       baseConfig({

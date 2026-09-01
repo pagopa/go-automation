@@ -88,7 +88,7 @@ class DecideNextStepImpl implements Step<DecideNextOutput> {
     const fallbackUuid = (context.vars.get('fallbackUuid') ?? '').trim();
 
     const visited = parseVisitedKeys(context.vars.get(VISITED_KEYS_VAR));
-    const reporter = context.logger !== undefined ? new ApiGwReporter(context.logger) : undefined;
+    const reporter = new ApiGwReporter(context.services.reporter);
 
     const currentKey = buildKey(this.serviceName, traceId, fallbackUuid);
     const nextVisited = new Set(visited);

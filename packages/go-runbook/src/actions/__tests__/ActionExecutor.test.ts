@@ -5,8 +5,8 @@ import { GOLogEvent, GOLogEventCategory, GOLogger } from '@go-automation/go-comm
 import type { GOLoggerHandler } from '@go-automation/go-common/core';
 
 import { ActionExecutor } from '../ActionExecutor.js';
-import type { ServiceRegistry } from '../../services/ServiceRegistry.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
+import { createTestServiceRegistry } from '../../services/createTestServiceRegistry.js';
 
 class RecordingHandler implements GOLoggerHandler {
   readonly events: GOLogEvent[] = [];
@@ -29,7 +29,7 @@ function createContext(vars: ReadonlyMap<string, string> = new Map()): RunbookCo
     vars,
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

@@ -13,9 +13,9 @@ import { ConditionEvaluator } from '../../../../core/ConditionEvaluator.js';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { SEND_SERVICE_PROFILE } from '../../../../service/profiles/SEND_SERVICE_PROFILE.js';
 import type { RunbookContext } from '../../../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../../../services/ServiceRegistry.js';
 import { buildRunbook } from '../runbook.js';
 import { POSTEL_WORKED_BATCH_QUERY, VerifyPostelBatchesStep } from '../VerifyPostelBatchesStep.js';
+import { createTestServiceRegistry } from '../../../../services/createTestServiceRegistry.js';
 
 const BATCH_1 = '4e761d4d-5b3d-4c7b-8d77-7f81353b2d5b';
 const BATCH_2 = '8a859d33-fb60-47da-a429-879ba7f9c609';
@@ -49,7 +49,7 @@ function context(
     vars: new Map(),
     params: new Map(params),
     logs: [],
-    services: {
+    services: createTestServiceRegistry({
       cloudWatchLogs: {
         async queryWithStatistics(
           logGroups: ReadonlyArray<string>,
@@ -66,7 +66,7 @@ function context(
           };
         },
       },
-    } as unknown as ServiceRegistry,
+    }),
     recoveredErrors: [],
   };
 }
@@ -167,7 +167,7 @@ describe('VerifyPostelBatchesStep', () => {
   it('resolves the complete runbook at the recovery step when all impacted batches are WORKED', async () => {
     const queries: string[] = [];
     const errorMessage = '[DOWNSTREAM] Service POSTEL returned errors=503 Service Unavailable';
-    const services = {
+    const services = createTestServiceRegistry({
       cloudWatchLogs: {
         async queryWithStatistics(
           _logGroups: ReadonlyArray<string>,
@@ -195,7 +195,7 @@ describe('VerifyPostelBatchesStep', () => {
           };
         },
       },
-    } as unknown as ServiceRegistry;
+    });
 
     const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
       buildRunbook(),
