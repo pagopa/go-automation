@@ -11,7 +11,8 @@ type ConditionType = string | number | boolean;
 
 interface PredicateEvaluation {
   readonly matched: boolean;
-  readonly detail: unknown;
+  /** Trace payload; absent when the caller only asked for a boolean. */
+  readonly detail?: unknown;
 }
 
 export interface ConditionEvaluationDetails {
@@ -61,6 +62,29 @@ interface MatchDetailMulti {
  * matches every row of a multi-thousand-row CloudWatch result.
  */
 const MAX_TRACE_MATCHES = 10;
+
+/**
+ * Records a resolved value under its ref, keeping earlier entries.
+ *
+ * The same ref can appear several times in one condition — six `contains` on the
+ * same query output is a real case in the catalog — and each occurrence resolves
+ * to a different match detail. Keying purely by ref made every occurrence but
+ * the last disappear from the trace, which is precisely the information someone
+ * reading it is after. Repeats are therefore suffixed with their 1-based
+ * position (`ref`, `ref#2`, `ref#3`), matching the order the predicates appear
+ * in the `condition` tree that the trace carries alongside.
+ */
+function recordResolvedValue(values: Record<string, unknown>, ref: string, detail: unknown): void {
+  if (!Object.hasOwn(values, ref)) {
+    values[ref] = detail;
+    return;
+  }
+  let occurrence = 2;
+  while (Object.hasOwn(values, `${ref}#${String(occurrence)}`)) {
+    occurrence += 1;
+  }
+  values[`${ref}#${String(occurrence)}`] = detail;
+}
 
 /**
  * Evaluates conditions against the runbook context.
@@ -118,44 +142,61 @@ export class ConditionEvaluator {
     context: RunbookContext,
     options?: ConditionEvaluationOptions,
   ): boolean | ConditionEvaluationDetails {
+    const collect = options?.withResolvedValues === true;
     const values: Record<string, unknown> = {};
-    const matched = this.evaluateAndCollect(condition, context, values);
+    const matched = this.evaluateAndCollect(condition, context, values, collect);
     if (options?.withResolvedValues === true) {
       return { matched, resolvedValues: values };
     }
     return matched;
   }
 
-  private evaluateAndCollect(condition: Condition, context: RunbookContext, values: Record<string, unknown>): boolean {
+  /**
+   * Walks the condition tree.
+   *
+   * `collect` drives the two modes the evaluator has to serve. When it is
+   * `false` the caller only wants a verdict, so `and` / `or` stop at the first
+   * decisive branch and the predicates skip building their trace payload. When
+   * it is `true` every branch is visited even after the outcome is settled,
+   * because the case trace has to show why the branches that did *not* decide
+   * were resolved the way they were.
+   */
+  private evaluateAndCollect(
+    condition: Condition,
+    context: RunbookContext,
+    values: Record<string, unknown>,
+    collect: boolean,
+  ): boolean {
     switch (condition.type) {
       case 'compare': {
         const actual = resolveRef(condition.ref, context);
-        const result = this.evaluateCompareWithDetail(actual, condition.operator, condition.value);
-        values[condition.ref] = result.detail;
+        const result = this.evaluateCompare(actual, condition.operator, condition.value, collect);
+        if (collect) recordResolvedValue(values, condition.ref, result.detail);
         return result.matched;
       }
       case 'pattern': {
         const actual = resolveRef(condition.ref, context);
-        const result = this.evaluatePatternWithDetail(actual, condition.regex);
-        values[condition.ref] = result.detail;
+        const result = this.evaluatePattern(actual, condition.regex, collect);
+        if (collect) recordResolvedValue(values, condition.ref, result.detail);
         return result.matched;
       }
       case 'exists': {
         const actual = resolveRef(condition.ref, context);
-        const result = this.evaluateExistsWithDetail(actual);
-        values[condition.ref] = result.detail;
+        const result = this.evaluateExists(actual, collect);
+        if (collect) recordResolvedValue(values, condition.ref, result.detail);
         return result.matched;
       }
       case 'contains': {
         const actual = resolveRef(condition.ref, context);
-        const result = this.evaluateContainsWithDetail(actual, condition);
-        values[condition.ref] = result.detail;
+        const result = this.evaluateContains(actual, condition, collect);
+        if (collect) recordResolvedValue(values, condition.ref, result.detail);
         return result.matched;
       }
       case 'and': {
         let matched = true;
         for (const c of condition.conditions) {
-          if (!this.evaluateAndCollect(c, context, values)) {
+          if (!this.evaluateAndCollect(c, context, values, collect)) {
+            if (!collect) return false;
             matched = false;
           }
         }
@@ -164,14 +205,15 @@ export class ConditionEvaluator {
       case 'or': {
         let matched = false;
         for (const c of condition.conditions) {
-          if (this.evaluateAndCollect(c, context, values)) {
+          if (this.evaluateAndCollect(c, context, values, collect)) {
+            if (!collect) return true;
             matched = true;
           }
         }
         return matched;
       }
       case 'not':
-        return !this.evaluateAndCollect(condition.condition, context, values);
+        return !this.evaluateAndCollect(condition.condition, context, values, collect);
       default: {
         const _exhaustive: never = condition;
         throw new Error(`Unknown condition type: ${(_exhaustive as Condition).type}`);
@@ -179,18 +221,14 @@ export class ConditionEvaluator {
     }
   }
 
-  private evaluateExistsWithDetail(actual: unknown): PredicateEvaluation {
+  private evaluateExists(actual: unknown, collect: boolean): PredicateEvaluation {
     if (!Array.isArray(actual)) {
-      return {
-        matched: actual !== undefined && actual !== null && valueToString(actual) !== '',
-        detail: actual,
-      };
+      const matched = actual !== undefined && actual !== null && valueToString(actual) !== '';
+      return collect ? { matched, detail: actual } : { matched };
     }
     const arr = actual as ReadonlyArray<unknown>;
-    return {
-      matched: arr.length > 0,
-      detail: { matched: arr.length > 0, totalElements: arr.length },
-    };
+    const matched = arr.length > 0;
+    return collect ? { matched, detail: { matched, totalElements: arr.length } } : { matched };
   }
 
   /**
@@ -198,10 +236,11 @@ export class ConditionEvaluator {
    * returns the resolved value as-is. For array refs returns the first
    * element that satisfies the comparison (or `{ matched: false }`).
    */
-  private evaluateCompareWithDetail(
+  private evaluateCompare(
     actual: unknown,
     operator: CompareOperator,
     expected: ConditionType,
+    collect: boolean,
   ): PredicateEvaluation {
     if (actual === undefined || actual === null) {
       return { matched: false, detail: actual };
@@ -214,6 +253,7 @@ export class ConditionEvaluator {
       const el = arr[i];
       if (el === undefined || el === null) continue;
       if (compareValues(el, operator, expected)) {
+        if (!collect) return { matched: true };
         const detail: MatchDetailSingle = {
           matched: true,
           matchedIndex: i,
@@ -223,7 +263,9 @@ export class ConditionEvaluator {
         return { matched: true, detail };
       }
     }
-    return { matched: false, detail: { matched: false, matchedCount: 0, totalElements: arr.length } };
+    return collect
+      ? { matched: false, detail: { matched: false, matchedCount: 0, totalElements: arr.length } }
+      : { matched: false };
   }
 
   /**
@@ -231,7 +273,7 @@ export class ConditionEvaluator {
    * the first matching element (consistent with the OR + short-circuit
    * semantic of {@link evaluatePattern}).
    */
-  private evaluatePatternWithDetail(actual: unknown, regex: string): PredicateEvaluation {
+  private evaluatePattern(actual: unknown, regex: string, collect: boolean): PredicateEvaluation {
     if (actual === undefined || actual === null) {
       return { matched: false, detail: actual };
     }
@@ -244,6 +286,7 @@ export class ConditionEvaluator {
       const el = arr[i];
       if (el === undefined || el === null) continue;
       if (compiled.test(valueToString(el))) {
+        if (!collect) return { matched: true };
         const detail: MatchDetailSingle = {
           matched: true,
           matchedIndex: i,
@@ -253,7 +296,9 @@ export class ConditionEvaluator {
         return { matched: true, detail };
       }
     }
-    return { matched: false, detail: { matched: false, matchedCount: 0, totalElements: arr.length } };
+    return collect
+      ? { matched: false, detail: { matched: false, matchedCount: 0, totalElements: arr.length } }
+      : { matched: false };
   }
 
   /**
@@ -263,7 +308,7 @@ export class ConditionEvaluator {
    *   {@link MAX_TRACE_MATCHES} sample hits (the rest are dropped from
    *   the trace and a `truncated` flag is raised).
    */
-  private evaluateContainsWithDetail(actual: unknown, condition: ContainsCondition): PredicateEvaluation {
+  private evaluateContains(actual: unknown, condition: ContainsCondition, collect: boolean): PredicateEvaluation {
     if (actual === undefined || actual === null) {
       return { matched: false, detail: actual };
     }
@@ -279,6 +324,8 @@ export class ConditionEvaluator {
         const el = arr[i];
         if (el === undefined || el === null) continue;
         if (compiled.test(valueToString(el))) {
+          // A verdict needs one hit; the count only exists for the trace.
+          if (!collect) return { matched: true };
           matchedCount += 1;
           if (samples.length < MAX_TRACE_MATCHES) {
             samples.push({ index: i, element: el });

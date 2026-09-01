@@ -11,6 +11,7 @@ import type { ExecutionEnvironment, Runbook, RunbookExecutionResult } from '@go-
 import type { AnalyzableAlarmConfig } from '../types/AnalyzableAlarmConfig.js';
 import { saveExecutionTrace } from './saveExecutionTrace.js';
 import { saveExecutionOutput } from './saveExecutionOutput.js';
+import { ConsoleRunbookReporter } from '@go-automation/go-runbook/catalog';
 
 export interface AnalyzeOccurrenceInput {
   readonly alarmDatetime: string;
@@ -43,7 +44,7 @@ export async function analyzeOccurrence(
 
   script.logger.info(`Using AWS profiles: ${script.aws.clients.profileNames.join(', ')}`);
 
-  const services = createServiceRegistry(script);
+  const services = createServiceRegistry(script, new ConsoleRunbookReporter(script.logger));
 
   script.logger.section('Executing Runbook');
 

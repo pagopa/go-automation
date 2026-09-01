@@ -14,6 +14,9 @@ export type {
   ExecuteRunbookForOccurrenceInput,
 } from './executeRunbookForOccurrence.js';
 export { createServiceRegistry } from './createServiceRegistry.js';
+export type { RunbookReporter } from '../services/RunbookReporter.js';
+export { ConsoleRunbookReporter } from '../services/reporters/ConsoleRunbookReporter.js';
+export { NOOP_RUNBOOK_REPORTER } from '../services/reporters/NOOP_RUNBOOK_REPORTER.js';
 export { computeTimeRange } from './computeTimeRange.js';
 export { computeRunbookTimeRange, resolveOccurrenceTimeWindow } from './computeRunbookTimeRange.js';
 export { createTimeRangeReference } from './createTimeRangeReference.js';
