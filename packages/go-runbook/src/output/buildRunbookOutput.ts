@@ -1,3 +1,4 @@
+import { omitUndefined } from '@go-automation/go-common/core';
 import type { CaseAction } from '../actions/CaseAction.js';
 import type { KnownCase } from '../types/KnownCase.js';
 import type { Runbook } from '../types/Runbook.js';
@@ -122,9 +123,11 @@ function buildOutcome(runbook: Runbook, result: RunbookExecutionResult): Runbook
     const failedStep = result.trace.pipeline.find((step) => step.status === 'failed' && !step.recovered);
     return {
       kind: 'failed',
-      ...(result.trace.execution.failureReason !== undefined ? { reason: result.trace.execution.failureReason } : {}),
-      ...(failedStep?.stepId !== undefined ? { failedStepId: failedStep.stepId } : {}),
-      ...(failedStep?.error !== undefined ? { error: failedStep.error } : {}),
+      ...omitUndefined({
+        reason: result.trace.execution.failureReason,
+        failedStepId: failedStep?.stepId,
+        error: failedStep?.error,
+      }),
       message: result.trace.summary.description,
     };
   }

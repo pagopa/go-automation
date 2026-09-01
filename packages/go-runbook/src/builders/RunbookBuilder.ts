@@ -1,3 +1,4 @@
+import { omitUndefined } from '@go-automation/go-common/core';
 import type { Runbook } from '../types/Runbook.js';
 import type { RunbookMetadata } from '../types/RunbookMetadata.js';
 import type { RunbookAnalysisDefaults } from '../types/RunbookAnalysisDefaults.js';
@@ -342,6 +343,9 @@ export class RunbookBuilder {
       throw new Error('Invalid runbook configuration: missing metadata or fallback action.');
     }
 
+    // Copied, not aliased: the built runbook must not share the builder's own window object.
+    const occurrenceTimeWindow = this.occurrenceWindow !== undefined ? { ...this.occurrenceWindow } : undefined;
+
     const result: Runbook = {
       metadata: {
         id: this.id,
@@ -350,10 +354,12 @@ export class RunbookBuilder {
       steps: [...this.stepDescriptors],
       knownCases: [...this.cases],
       fallbackAction: this.fallbackAction, // Safe: validated in validate()
-      ...(this.occurrenceWindow !== undefined ? { occurrenceTimeWindow: { ...this.occurrenceWindow } } : {}),
-      ...(this.structuredContext !== undefined ? { runbookContext: this.structuredContext } : {}),
-      ...(this.cloudPolicy !== undefined ? { cloudExecutionPolicy: this.cloudPolicy } : {}),
-      ...(this.analysisDefaultRefs !== undefined ? { analysisDefaults: this.analysisDefaultRefs } : {}),
+      ...omitUndefined({
+        occurrenceTimeWindow,
+        runbookContext: this.structuredContext,
+        cloudExecutionPolicy: this.cloudPolicy,
+        analysisDefaults: this.analysisDefaultRefs,
+      }),
     };
 
     if (this.iterationsLimit !== undefined) {

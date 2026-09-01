@@ -1,3 +1,4 @@
+import { omitUndefined } from '@go-automation/go-common/core';
 import type { ResultField } from '@go-automation/go-common/aws';
 import type { AWSCloudWatchLogsLogGroupResolutionMode } from '@go-automation/go-common/aws';
 import type { Step } from '../../types/Step.js';
@@ -122,9 +123,11 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
       const interpolatedQuery = interpolatePlaceholders(this.query, context);
 
       const result = await executeCloudWatchLogsQuery(context, this.logGroups, interpolatedQuery, timeRange, {
-        ...(context.signal !== undefined ? { signal: context.signal } : {}),
-        ...(this.logGroupResolutionMode !== undefined ? { logGroupResolutionMode: this.logGroupResolutionMode } : {}),
-        ...(this.paginateResults !== undefined ? { paginateResults: this.paginateResults } : {}),
+        ...omitUndefined({
+          signal: context.signal,
+          logGroupResolutionMode: this.logGroupResolutionMode,
+          paginateResults: this.paginateResults,
+        }),
       });
 
       return {

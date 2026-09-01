@@ -1,3 +1,4 @@
+import { omitUndefined } from '@go-automation/go-common/core';
 import { readRowField } from '@go-automation/go-common/aws';
 import type { ResultField } from '@go-automation/go-common/aws';
 import type { Step } from '../../types/Step.js';
@@ -144,9 +145,11 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
       statusCode,
       traceId,
       traceIdLabel: this.schema.traceIdLabel,
-      ...(additional.errorMessage !== undefined ? { errorMessage: additional.errorMessage } : {}),
-      ...(additional.path !== undefined ? { path: additional.path } : {}),
-      ...(additional.httpMethod !== undefined ? { httpMethod: additional.httpMethod } : {}),
+      ...omitUndefined({
+        errorMessage: additional.errorMessage,
+        path: additional.path,
+        httpMethod: additional.httpMethod,
+      }),
     });
 
     return {

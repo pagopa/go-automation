@@ -1,3 +1,4 @@
+import { omitUndefined } from '@go-automation/go-common/core';
 import type { StepKind } from '../types/StepKind.js';
 import type { StepTrace } from './StepTrace.js';
 import type { CaseEvaluationTrace } from './CaseEvaluationTrace.js';
@@ -95,10 +96,8 @@ export class TraceBuilder {
       input,
       output,
       varsWritten,
-      ...(diagnostics !== undefined ? { diagnostics } : {}),
       flowDirective,
-      ...(error !== undefined ? { error } : {}),
-      ...(parentStepId !== undefined ? { parentStepId } : {}),
+      ...omitUndefined({ diagnostics, error, parentStepId }),
     };
 
     this.stepTraces.push(stepTrace);

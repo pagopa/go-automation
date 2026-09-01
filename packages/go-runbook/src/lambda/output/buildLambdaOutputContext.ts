@@ -1,4 +1,4 @@
-import { parseFiniteNumber, parseInteger } from '@go-automation/go-common/core';
+import { omitUndefined, parseFiniteNumber, parseInteger } from '@go-automation/go-common/core';
 import { readResultFieldRows } from '@go-automation/go-common/aws';
 import type { LogLine } from '../../output/LogLine.js';
 import type { ResultField } from '@go-automation/go-common/aws';
@@ -107,9 +107,11 @@ function buildDownstream(
 
   return {
     target,
-    ...(declared?.logGroup !== undefined ? { logGroup: declared.logGroup } : {}),
-    ...(logCount !== undefined ? { logCount } : rows.length > 0 ? { logCount: rows.length } : {}),
-    ...(errorMessage !== undefined ? { errorMessage } : {}),
+    ...omitUndefined({
+      logGroup: declared?.logGroup,
+      logCount: logCount ?? (rows.length > 0 ? rows.length : undefined),
+      errorMessage,
+    }),
     recentLogs,
   };
 }
