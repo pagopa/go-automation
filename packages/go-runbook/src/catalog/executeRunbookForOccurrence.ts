@@ -9,7 +9,6 @@
 import { Core } from '@go-automation/go-common';
 
 import * as apigw from '../apigw/index.js';
-import { ConditionEvaluator } from '../core/ConditionEvaluator.js';
 import { RunbookEngine } from '../core/RunbookEngine.js';
 import * as lambda from '../lambda/index.js';
 import { buildRunbookOutput } from '../output/buildRunbookOutput.js';
@@ -101,7 +100,7 @@ export async function executeRunbookForOccurrence(
     invokedBy: input.executionMode === 'cloud' ? 'alarm' : 'manual',
   };
 
-  const engine = new RunbookEngine(deps.logger, new ConditionEvaluator());
+  const engine = new RunbookEngine(deps.logger);
   const result = await engine.execute(runbook, params, deps.services, environment, input.signal);
 
   return buildRunbookOutput(runbook, result, {

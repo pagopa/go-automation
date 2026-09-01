@@ -9,7 +9,6 @@ import type {
 } from '@go-automation/go-common/aws';
 import { GOLogger } from '@go-automation/go-common/core';
 
-import { ConditionEvaluator } from '../../../../core/ConditionEvaluator.js';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { SEND_SERVICE_PROFILE } from '../../../../service/profiles/SEND_SERVICE_PROFILE.js';
 import type { RunbookContext } from '../../../../types/RunbookContext.js';
@@ -197,7 +196,7 @@ describe('VerifyPostelBatchesStep', () => {
       },
     });
 
-    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+    const result = await new RunbookEngine(new GOLogger()).execute(
       buildRunbook(),
       new Map([
         ['alarmName', 'pn-address-manager-POSTEL-downstream-detection-Alarm'],

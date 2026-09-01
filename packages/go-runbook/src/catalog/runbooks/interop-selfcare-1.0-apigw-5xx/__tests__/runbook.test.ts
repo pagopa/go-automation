@@ -6,7 +6,6 @@ import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/g
 import { GOLogger } from '@go-automation/go-common/core';
 
 import { apigw } from '../../framework.js';
-import { ConditionEvaluator } from '../../../../core/ConditionEvaluator.js';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
 
@@ -58,7 +57,7 @@ describe('buildRunbook', () => {
       },
     };
     const runbook = buildRunbook();
-    const engine = new RunbookEngine(new GOLogger(), new ConditionEvaluator());
+    const engine = new RunbookEngine(new GOLogger());
     const result = await engine.execute(
       runbook,
       new Map([
@@ -122,7 +121,7 @@ describe('buildRunbook', () => {
       },
     };
     const runbook = buildRunbook();
-    const engine = new RunbookEngine(new GOLogger(), new ConditionEvaluator());
+    const engine = new RunbookEngine(new GOLogger());
     const result = await engine.execute(
       runbook,
       new Map([

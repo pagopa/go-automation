@@ -5,7 +5,6 @@ import type { ResultField } from '@go-automation/go-common/aws';
 import { GOLogger } from '@go-automation/go-common/core';
 
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
-import { ConditionEvaluator } from '../../../../core/ConditionEvaluator.js';
 import type { ServiceRegistry } from '../../../../services/ServiceRegistry.js';
 
 import { DELIVERY_API_GW_EXECUTION_LOG_GROUP } from '../../constants.js';
@@ -310,7 +309,7 @@ describe('pn-delivery-B2B real occurrence regressions', () => {
     it(`${occurrence.firedAt} resolves as ${occurrence.expectedCaseId}`, async () => {
       const calls: string[] = [];
       const firedAt = new Date(occurrence.firedAt);
-      const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+      const result = await new RunbookEngine(new GOLogger()).execute(
         buildRunbook(),
         new Map([
           ['startTime', new Date(firedAt.getTime() - 10 * 60_000).toISOString()],

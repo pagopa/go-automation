@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import { GOLogger } from '@go-automation/go-common/core';
 
 import { RunbookEngine } from '../RunbookEngine.js';
-import { ConditionEvaluator } from '../ConditionEvaluator.js';
 import type { CaseAction } from '../../actions/CaseAction.js';
 import type { ServiceRegistry } from '../../services/ServiceRegistry.js';
 import type { FlowDirective } from '../../types/FlowDirective.js';
@@ -59,7 +58,7 @@ class ReturnedFailureStep implements Step<void> {
 }
 
 function createEngine(): RunbookEngine {
-  return new RunbookEngine(new GOLogger(), new ConditionEvaluator());
+  return new RunbookEngine(new GOLogger());
 }
 
 function emptyServices(): ServiceRegistry {

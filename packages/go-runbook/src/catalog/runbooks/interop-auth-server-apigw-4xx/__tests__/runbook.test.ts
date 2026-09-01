@@ -10,7 +10,6 @@ import type {
 } from '@go-automation/go-common/aws';
 import { GOLogger } from '@go-automation/go-common/core';
 
-import { ConditionEvaluator } from '../../../../core/ConditionEvaluator.js';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
 import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionResult.js';
@@ -126,7 +125,7 @@ describe('buildRunbook', () => {
 
 async function execute(cloudWatchLogs: unknown): Promise<RunbookExecutionResult> {
   const runbook = buildRunbook();
-  const engine = new RunbookEngine(new GOLogger(), new ConditionEvaluator());
+  const engine = new RunbookEngine(new GOLogger());
   return engine.execute(
     runbook,
     new Map([

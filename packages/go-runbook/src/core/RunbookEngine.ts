@@ -12,7 +12,7 @@ import type { ServiceRegistry } from '../services/ServiceRegistry.js';
 import type { ExecutionEnvironment } from '../trace/ExecutionInfo.js';
 import type { EarlyResolutionTrace } from '../trace/EarlyResolutionTrace.js';
 import type { CaseEvaluationTrace } from '../trace/CaseEvaluationTrace.js';
-import { ConditionEvaluator } from './ConditionEvaluator.js';
+import { sharedConditionEvaluator } from './ConditionEvaluator.js';
 import { buildStepIndex } from './buildStepIndex.js';
 import { detectRuntimeCycle } from './detectRuntimeCycle.js';
 import { ActionExecutor } from '../actions/ActionExecutor.js';
@@ -57,17 +57,14 @@ interface StepExecutionOutcome {
  *
  * @example
  * ```typescript
- * const engine = new RunbookEngine(logger, new ConditionEvaluator());
+ * const engine = new RunbookEngine(logger);
  * const result = await engine.execute(runbook, params, services);
  * ```
  */
 export class RunbookEngine {
   private readonly actionExecutor: ActionExecutor;
 
-  constructor(
-    private readonly logger: GOLogger,
-    private readonly conditionEvaluator: ConditionEvaluator,
-  ) {
+  constructor(private readonly logger: GOLogger) {
     this.actionExecutor = new ActionExecutor(logger);
   }
 
@@ -481,7 +478,7 @@ export class RunbookEngine {
 
     for (const knownCase of sortedCases) {
       throwIfRunbookAborted(context);
-      const { matched, resolvedValues } = this.conditionEvaluator.evaluate(knownCase.condition, context, {
+      const { matched, resolvedValues } = sharedConditionEvaluator.evaluate(knownCase.condition, context, {
         withResolvedValues: true,
       });
 

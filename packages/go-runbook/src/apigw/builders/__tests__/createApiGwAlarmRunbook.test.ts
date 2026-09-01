@@ -12,7 +12,6 @@ import { API_GW_AUTHORIZER_LAMBDAS } from '../../authorizers/ApiGwAuthorizerLamb
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { KnownCase } from '../../../types/KnownCase.js';
 import { RunbookEngine } from '../../../core/RunbookEngine.js';
-import { ConditionEvaluator } from '../../../core/ConditionEvaluator.js';
 import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
 import type { ApiGwQueryProfile } from '../../profiles/ApiGwQueryProfile.js';
 import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
@@ -436,7 +435,7 @@ describe('createApiGwAlarmRunbook', () => {
       }),
     );
 
-    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+    const result = await new RunbookEngine(new GOLogger()).execute(
       runbook,
       new Map([
         ['startTime', '2026-01-01T00:00:00.000Z'],
@@ -487,7 +486,7 @@ describe('createApiGwAlarmRunbook', () => {
       }),
     );
 
-    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+    const result = await new RunbookEngine(new GOLogger()).execute(
       runbook,
       new Map([
         ['startTime', '2026-01-01T00:00:00.000Z'],
@@ -540,7 +539,7 @@ describe('createApiGwAlarmRunbook', () => {
       }),
     );
 
-    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+    const result = await new RunbookEngine(new GOLogger()).execute(
       runbook,
       new Map([
         ['startTime', '2026-01-01T00:00:00.000Z'],
@@ -631,7 +630,7 @@ describe('createApiGwAlarmRunbook', () => {
       }),
     );
 
-    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+    const result = await new RunbookEngine(new GOLogger()).execute(
       runbook,
       new Map([
         ['startTime', '2026-01-01T00:00:00.000Z'],
@@ -693,7 +692,7 @@ describe('createApiGwAlarmRunbook', () => {
       }),
     );
 
-    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+    const result = await new RunbookEngine(new GOLogger()).execute(
       runbook,
       new Map([
         ['startTime', '2026-01-01T00:00:00.000Z'],
@@ -753,7 +752,7 @@ describe('createApiGwAlarmRunbook', () => {
       }),
     );
 
-    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+    const result = await new RunbookEngine(new GOLogger()).execute(
       runbook,
       new Map([
         ['startTime', '2026-01-01T00:00:00.000Z'],

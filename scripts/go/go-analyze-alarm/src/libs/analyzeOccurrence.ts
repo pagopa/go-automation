@@ -5,7 +5,7 @@ import {
   createTimeRangeReference,
   type RunbookBuilderFn,
 } from '@go-automation/go-runbook/catalog';
-import { RunbookEngine, ConditionEvaluator, apigw, lambda, service } from '@go-automation/go-runbook';
+import { RunbookEngine, apigw, lambda, service } from '@go-automation/go-runbook';
 import type { ExecutionEnvironment, Runbook, RunbookExecutionResult } from '@go-automation/go-runbook';
 
 import type { AnalyzableAlarmConfig } from '../types/AnalyzableAlarmConfig.js';
@@ -48,7 +48,7 @@ export async function analyzeOccurrence(
 
   script.logger.section('Executing Runbook');
 
-  const engine = new RunbookEngine(script.logger, new ConditionEvaluator());
+  const engine = new RunbookEngine(script.logger);
   const environment: ExecutionEnvironment = {
     awsProfiles: config.awsProfiles,
     region: 'eu-south-1',
