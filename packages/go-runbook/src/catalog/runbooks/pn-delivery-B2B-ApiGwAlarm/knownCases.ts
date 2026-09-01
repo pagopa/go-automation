@@ -9,6 +9,7 @@ import { slackLink } from '../common/analysisLinks.js';
 import { all, any, not } from '../common/conditions.js';
 import { stepEvidenceMatches } from '../common/evidenceConditions.js';
 import { apiGwPathMatches, apiGwStatusIs } from '../../../apigw/knownCases/conditions.js';
+import { VERSIONING_LAMBDA_ERROR_COUNT_VAR, VERSIONING_LAMBDA_PROBE_STATE_VAR } from './versioningLambdaProbe.js';
 
 const SELFCARE_500_THREAD = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1763476967853039';
 const NO_APPLICATION_LOGS_THREAD = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1771856191424399';
@@ -46,6 +47,12 @@ const EXTERNAL_REGISTRIES_SELFCARE_RETRY_TIMEOUT = all(
 const EXTERNAL_REGISTRIES_CONNECTION_ABORTED = stepEvidenceMatches(
   'query-pn-external-registries',
   'reactor\\.netty\\.channel\\.AbortedException: Connection has been closed BEFORE send operation',
+);
+
+const GENERIC_API_GATEWAY_500 = any(
+  not({ type: 'exists', ref: 'vars.apiGwErrorMessage' }),
+  { type: 'compare', ref: 'vars.apiGwErrorMessage', operator: '==', value: '-' },
+  { type: 'pattern', ref: 'vars.apiGwErrorMessage', regex: '^Internal server error$' },
 );
 
 /**
@@ -212,6 +219,88 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   }),
 
   knownCase({
+    id: 'selfcare-tls-hostname-mismatch',
+    description: 'Chiamata a Selfcare fallita per certificato TLS non corrispondente all’hostname',
+    priority: 520,
+    condition: stepEvidenceMatches(
+      'query-pn-data-vault',
+      'No subject alternative DNS name matching api\\.selfcare\\.pagopa\\.it found',
+    ),
+    title: 'Selfcare - certificato TLS non valido per api.selfcare.pagopa.it',
+    resolution:
+      'Il certificato presentato da Selfcare non copre l’hostname richiesto: segnalare al team Selfcare se ricorrente.',
+    details: [
+      ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
+      ['Errore', '{{vars.dataVaultErrorMsg}}'],
+    ],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+    },
+  }),
+
+  knownCase({
+    id: 'pn-ss-get-file-document-deleted',
+    description: 'safe-storage restituisce 410 GONE perché il documento è stato cancellato',
+    priority: 283,
+    condition: stepEvidenceMatches('query-pn-f24', 'Ending process getFile\\(\\) with errors=410 GONE'),
+    title: 'safe-storage 410 GONE - documento cancellato',
+    resolution: 'Risorsa rimossa permanentemente da safe-storage: nessuna azione di ripristino possibile.',
+    details: [
+      ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
+      ['Errore', '{{vars.f24ErrorMsg}}'],
+    ],
+    analysis: {
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+    },
+  }),
+
+  knownCase({
+    id: 'apigw-waf-rule-evaluation-error',
+    description: 'API Gateway 500 per errore di valutazione delle regole AWS WAF',
+    priority: 286,
+    condition: all(apiGwStatusIs('500'), {
+      type: 'pattern',
+      ref: 'vars.apiGwErrorMessage',
+      regex: 'error evaluating the AWS WAF rules',
+    }),
+    title: 'API Gateway 500 - errore di valutazione WAF',
+    resolution:
+      'Errore infrastrutturale AWS nella valutazione delle regole WAF: non dipende da pn-delivery e non richiede azioni.',
+    details: [
+      ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
+      ['Errore', '{{vars.apiGwErrorMessage}}'],
+    ],
+    analysis: {
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+    },
+  }),
+
+  knownCase({
+    id: 'apigw-endpoint-network-error',
+    description: 'API Gateway 504 per errore di rete nella comunicazione con l’integrazione',
+    priority: 285,
+    condition: all(apiGwStatusIs('504'), {
+      type: 'pattern',
+      ref: 'vars.apiGwErrorMessage',
+      regex: 'Network error communicating with endpoint',
+    }),
+    title: 'API Gateway 504 - Network error communicating with endpoint',
+    resolution:
+      'Errore di rete transitorio fra API Gateway e l’integrazione: nessuna azione necessaria salvo ricorrenza.',
+    details: [
+      ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
+      ['Errore', '{{vars.apiGwErrorMessage}}'],
+    ],
+    analysis: {
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+    },
+  }),
+
+  knownCase({
     id: 'apigw-endpoint-timeout-no-delivery-logs',
     description: 'API Gateway 504 per superamento del timeout di integrazione senza errori su pn-delivery',
     priority: 296,
@@ -240,18 +329,28 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     condition: all(
       apiGwStatusIs('500'),
       { type: 'compare', ref: 'vars.deliveryLogCount', operator: '==', value: '0' },
-      // The SEND AccessLog schema preserves API Gateway's `-` sentinel in
-      // vars even though it is omitted from the typed diagnostic output.
-      any(not({ type: 'exists', ref: 'vars.apiGwErrorMessage' }), {
+      {
         type: 'compare',
-        ref: 'vars.apiGwErrorMessage',
+        ref: `vars.${VERSIONING_LAMBDA_PROBE_STATE_VAR}`,
         operator: '==',
-        value: '-',
-      }),
+        value: 'queried',
+      },
+      {
+        type: 'compare',
+        ref: `vars.${VERSIONING_LAMBDA_ERROR_COUNT_VAR}`,
+        operator: '==',
+        value: '0',
+      },
+      GENERIC_API_GATEWAY_500,
     ),
     title: 'API Gateway 500 senza log applicativi correlati',
-    resolution: 'Caso noto documentato nel thread Slack; non sono richieste azioni ulteriori.',
-    details: [['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}']],
+    resolution:
+      'Nessun errore trovato né su pn-delivery né sulla Lambda di versioning; non sono richieste azioni ulteriori.',
+    details: [
+      ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
+      ['Verifica Lambda versioning', '{{vars.versioningLambdaProbeState}}'],
+      ['Errori Lambda versioning', '{{vars.versioningLambdaErrorCount}}'],
+    ],
     analysis: {
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',

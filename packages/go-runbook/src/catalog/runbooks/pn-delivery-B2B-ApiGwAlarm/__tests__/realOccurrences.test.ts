@@ -10,11 +10,12 @@ import type { ServiceRegistry } from '../../../../services/ServiceRegistry.js';
 
 import { DELIVERY_API_GW_EXECUTION_LOG_GROUP } from '../../constants.js';
 import { buildRunbook } from '../runbook.js';
-import { API_GW_LOG_GROUP } from '../knownServices.js';
+import { API_GW_LOG_GROUP, VERSIONING_LAMBDA_LOG_GROUP } from '../knownServices.js';
 import { createTestServiceRegistry } from '../../../../services/createTestServiceRegistry.js';
 
 type EvidenceKind =
   | 'no-application-logs'
+  | 'no-application-logs-internal-error'
   | 'timeout-empty-execution'
   | 'timeout-expired-execution'
   | 'external-registries-selfcare-timeout'
@@ -30,6 +31,11 @@ interface RealOccurrence {
 }
 
 const REAL_OCCURRENCES: ReadonlyArray<RealOccurrence> = [
+  {
+    firedAt: '2026-07-22T08:53:28.977Z',
+    kind: 'no-application-logs-internal-error',
+    expectedCaseId: 'apigw-500-no-application-logs',
+  },
   {
     firedAt: '2026-06-16T14:16:25.590Z',
     kind: 'no-application-logs',
@@ -123,6 +129,13 @@ function accessLogRow(kind: EvidenceKind): ResultField[] {
         errorMessage: '-',
         path: '/delivery/v2.6/notifications/sent/IUN',
       });
+    case 'no-application-logs-internal-error':
+      return row({
+        ...common,
+        status: '500',
+        errorMessage: 'Internal server error',
+        path: '/delivery/v2.6/notifications/sent/IUN',
+      });
     case 'timeout-empty-execution':
     case 'timeout-expired-execution':
     case 'external-registries-selfcare-timeout':
@@ -163,6 +176,7 @@ function accessLogRow(kind: EvidenceKind): ResultField[] {
 function deliveryRows(kind: EvidenceKind): ReadonlyArray<ReadonlyArray<ResultField>> {
   switch (kind) {
     case 'no-application-logs':
+    case 'no-application-logs-internal-error':
     case 'timeout-empty-execution':
     case 'timeout-expired-execution':
       return [];
@@ -224,6 +238,7 @@ function createServices(kind: EvidenceKind, calls: string[]): ServiceRegistry {
         if (logGroup === API_GW_LOG_GROUP) return [accessLogRow(kind)];
         if (logGroup === DELIVERY_API_GW_EXECUTION_LOG_GROUP) {
           if (
+            kind === 'no-application-logs-internal-error' ||
             kind === 'timeout-expired-execution' ||
             kind === 'external-registries-selfcare-timeout' ||
             kind === 'external-registries-connection-aborted'
@@ -233,6 +248,7 @@ function createServices(kind: EvidenceKind, calls: string[]): ServiceRegistry {
           return [];
         }
         if (logGroup === '/aws/ecs/pn-delivery') return deliveryRows(kind);
+        if (logGroup === VERSIONING_LAMBDA_LOG_GROUP) return [];
         if (logGroup === '/aws/ecs/pn-external-registries') {
           if (kind === 'external-registries-selfcare-timeout') {
             return [
@@ -307,7 +323,15 @@ describe('pn-delivery-B2B real occurrence regressions', () => {
       assert.strictEqual(result.matchedCases[0]?.id, occurrence.expectedCaseId);
       assert.ok(calls.includes('/aws/ecs/pn-delivery'));
 
+      if (occurrence.kind === 'no-application-logs' || occurrence.kind === 'no-application-logs-internal-error') {
+        assert.ok(calls.includes(VERSIONING_LAMBDA_LOG_GROUP));
+        assert.strictEqual(result.resolvedAtStep, 'query-versioning-lambda-errors');
+        assert.strictEqual(result.finalContext.vars.get('versioningLambdaProbeState'), 'queried');
+        assert.strictEqual(result.finalContext.vars.get('versioningLambdaErrorCount'), '0');
+      }
+
       if (
+        occurrence.kind === 'no-application-logs-internal-error' ||
         occurrence.kind === 'timeout-expired-execution' ||
         occurrence.kind === 'external-registries-selfcare-timeout' ||
         occurrence.kind === 'external-registries-connection-aborted'

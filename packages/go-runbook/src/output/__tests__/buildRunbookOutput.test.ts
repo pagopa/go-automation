@@ -12,6 +12,8 @@ import type { RunbookExecutionTrace } from '../../trace/RunbookExecutionTrace.js
 import type { StepTrace } from '../../trace/StepTrace.js';
 import { buildRunbookOutput } from '../buildRunbookOutput.js';
 import { createTestServiceRegistry } from '../../services/createTestServiceRegistry.js';
+import { classifyRunbookOutcome } from '../classifyRunbookOutcome.js';
+import type { RunbookOutput } from '../RunbookOutput.js';
 
 const FALLBACK_ACTION: CaseAction = { type: 'log', level: 'warn', title: 'fallback {{vars.reason}}' };
 
@@ -268,5 +270,50 @@ describe('buildRunbookOutput', () => {
       output.telemetry?.cloudWatchLogs?.queryExecutions.map((execution) => execution.queryId),
       ['qid-1', 'qid-2'],
     );
+  });
+});
+
+describe('classifyRunbookOutcome evidence for outcomes to diagnose', () => {
+  it('carries the fallback fields on a MISS so the reason can be read later', () => {
+    const output = {
+      execution: { durationMs: 10, recoveredErrors: [] },
+      outcome: {
+        kind: 'unknown-case' as const,
+        casesEvaluated: 26,
+        message: 'no match',
+        fallbackMessage: 'Caso non riconosciuto',
+      },
+      telemetry: { cloudWatchLogs: { statistics: { recordsScanned: 100, recordsMatched: 5, bytesScanned: 1 } } },
+      context: {
+        fields: [{ name: 'apiGwErrorMessage', label: 'Error message API GW', value: 'Internal server error' }],
+        evidence: [],
+      },
+    } as unknown as RunbookOutput;
+
+    const check = classifyRunbookOutcome(output);
+
+    assert.strictEqual(check.status, 'MISS');
+    assert.deepStrictEqual(check.fields, [
+      { name: 'apiGwErrorMessage', label: 'Error message API GW', value: 'Internal server error' },
+    ]);
+    assert.strictEqual(check.fallbackMessage, 'Caso non riconosciuto');
+  });
+
+  it('leaves a HIT without the diagnostic payload', () => {
+    const output = {
+      execution: { durationMs: 10, recoveredErrors: [] },
+      outcome: {
+        kind: 'known-case-matched' as const,
+        primaryCaseId: 'c',
+        primaryCaseDescription: 'd',
+        matchedCases: [{ id: 'c' }],
+      },
+      context: { fields: [{ name: 'x', label: 'x', value: 'y' }], evidence: [] },
+    } as unknown as RunbookOutput;
+
+    const check = classifyRunbookOutcome(output);
+
+    assert.strictEqual(check.status, 'HIT');
+    assert.strictEqual(check.fields, undefined);
   });
 });

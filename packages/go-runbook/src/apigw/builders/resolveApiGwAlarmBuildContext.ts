@@ -1,4 +1,5 @@
-import type { StepDescriptor } from '../../types/StepDescriptor.js';
+import type { PipelineHook } from '../../types/PipelineHook.js';
+import type { ApiGwPipelineAnchor } from '../types/ApiGwPipelineAnchor.js';
 import type { ApiGwRunbookContext } from '../output/ApiGwRunbookContext.js';
 import type { ApiGwQueryProfile } from '../profiles/ApiGwQueryProfile.js';
 import { resolveApiGwQueryProfile } from '../profiles/resolveApiGwQueryProfile.js';
@@ -14,7 +15,7 @@ const DEFAULT_MIN_STATUS_CODE = 500;
 export interface ApiGwAlarmBuildContext {
   readonly config: ApiGwAlarmConfig;
   readonly profile: ApiGwQueryProfile;
-  readonly preSteps: ReadonlyArray<StepDescriptor>;
+  readonly hooks: ReadonlyArray<PipelineHook<ApiGwPipelineAnchor>>;
   readonly minStatus: number;
   readonly apiGwQuery: string;
   readonly registry: KnownUrlsRegistry;
@@ -43,7 +44,7 @@ export function resolveApiGwAlarmBuildContext(config: ApiGwAlarmConfig): ApiGwAl
   const context: ApiGwAlarmBuildContext = {
     config,
     profile,
-    preSteps: config.preSteps ?? [],
+    hooks: config.hooks ?? [],
     minStatus,
     apiGwQuery,
     registry: new KnownUrlsRegistry(config.knownUrls),

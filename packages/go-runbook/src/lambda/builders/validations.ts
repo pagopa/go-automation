@@ -3,7 +3,7 @@ import type { LambdaQueryProfile } from '../profiles/LambdaQueryProfile.js';
 import { isValidRegex } from '../helpers/matchDownstreamErrorPattern.js';
 import {
   assertKnownCaseStepRefs,
-  assertPreStepIds,
+  assertStepDescriptorIds,
   failAlarmConfig,
   type AlarmConfigValidationContext,
 } from '../../validation/alarmConfigValidation.js';
@@ -29,8 +29,8 @@ function computeWiredStepIds(config: LambdaAlarmConfig): ReadonlySet<string> {
     'query-lambda-invocation',
     'analyze-lambda-invocation',
   ]);
-  for (const descriptor of config.preSteps ?? []) {
-    ids.add(descriptor.step.id);
+  for (const hook of config.hooks ?? []) {
+    ids.add(hook.step.id);
   }
   for (const downstream of config.downstreams ?? []) {
     ids.add(`query-${downstream.name}`);
@@ -89,8 +89,8 @@ function validateDownstreams(config: LambdaAlarmConfig): void {
  * downstream query ids that collide with reserved pipeline ids.
  */
 function validateNoStepIdCollisions(config: LambdaAlarmConfig): void {
-  const reserved = computeWiredStepIds({ ...config, preSteps: [], downstreams: [] });
-  const preStepIds = assertPreStepIds(context(config), config.preSteps, reserved);
+  const reserved = computeWiredStepIds({ ...config, hooks: [], downstreams: [] });
+  const preStepIds = assertStepDescriptorIds(context(config), config.hooks, reserved, 'hook');
 
   for (const downstream of config.downstreams ?? []) {
     const stepId = `query-${downstream.name}`;

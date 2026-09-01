@@ -28,6 +28,36 @@ function context(evidence: CaseEvidence): RunbookContext {
 
 const DOCUMENTED_CASES: ReadonlyArray<CaseEvidence> = [
   {
+    // From the Watchtower analysis of 2026-03-25; not in the runbook PDF.
+    id: 'selfcare-tls-hostname-mismatch',
+    steps: [
+      [
+        'query-pn-data-vault',
+        [
+          '[DOWNSTREAM] Service SelfcarePG returned errors=No subject alternative DNS name matching api.selfcare.pagopa.it found.',
+        ],
+      ],
+    ],
+  },
+  {
+    // From the Watchtower analysis of 2026-03-31; not in the runbook PDF.
+    id: 'pn-ss-get-file-document-deleted',
+    steps: [['query-pn-f24', ['Ending process getFile() with errors=410 GONE "Document has been deleted"']]],
+  },
+  {
+    // Observed in production (2026-04-25, 2026-04-08); not in the runbook PDF.
+    id: 'apigw-waf-rule-evaluation-error',
+    vars: {
+      apiGwStatusCode: '500',
+      apiGwErrorMessage: 'There was an error evaluating the AWS WAF rules associated with this API',
+    },
+  },
+  {
+    // Observed in production (2026-06-02); not in the runbook PDF.
+    id: 'apigw-endpoint-network-error',
+    vars: { apiGwStatusCode: '504', apiGwErrorMessage: 'Network error communicating with endpoint' },
+  },
+  {
     id: 'pdv-tokenizer-404-tbd',
     steps: [
       [
@@ -108,7 +138,13 @@ const DOCUMENTED_CASES: ReadonlyArray<CaseEvidence> = [
   },
   {
     id: 'apigw-500-no-application-logs',
-    vars: { apiGwStatusCode: '500', apiGwErrorMessage: '-', deliveryLogCount: '0' },
+    vars: {
+      apiGwStatusCode: '500',
+      apiGwErrorMessage: '-',
+      deliveryLogCount: '0',
+      versioningLambdaProbeState: 'queried',
+      versioningLambdaErrorCount: '0',
+    },
   },
   {
     id: 'data-vault-selfcarepg-500',
@@ -235,7 +271,7 @@ describe('pn-delivery-B2B-ApiGwAlarm known cases', () => {
     assert.ok(minimumActionable > maximumCompleted);
   });
 
-  it('does not classify a 500 with an API Gateway error message as the no-log versioning case', () => {
+  it('does not resolve the no-log versioning case before the Lambda probe runs', () => {
     const knownCase = KNOWN_CASES.find((candidate) => candidate.id === 'apigw-500-no-application-logs');
     assert.ok(knownCase !== undefined);
 
@@ -253,6 +289,86 @@ describe('pn-delivery-B2B-ApiGwAlarm known cases', () => {
       ),
       false,
     );
+  });
+
+  it('resolves a generic API Gateway 500 only after both application probes return zero errors', () => {
+    const knownCase = KNOWN_CASES.find((candidate) => candidate.id === 'apigw-500-no-application-logs');
+    assert.ok(knownCase !== undefined);
+
+    assert.strictEqual(
+      evaluator.evaluate(
+        knownCase.condition,
+        context({
+          id: knownCase.id,
+          vars: {
+            apiGwStatusCode: '500',
+            apiGwErrorMessage: 'Internal server error',
+            deliveryLogCount: '0',
+            versioningLambdaProbeState: 'queried',
+            versioningLambdaErrorCount: '0',
+          },
+        }),
+      ),
+      true,
+    );
+  });
+
+  it('does not infer zero Lambda errors from an unavailable probe', () => {
+    const knownCase = KNOWN_CASES.find((candidate) => candidate.id === 'apigw-500-no-application-logs');
+    assert.ok(knownCase !== undefined);
+
+    assert.strictEqual(
+      evaluator.evaluate(
+        knownCase.condition,
+        context({
+          id: knownCase.id,
+          vars: {
+            apiGwStatusCode: '500',
+            apiGwErrorMessage: 'Internal server error',
+            deliveryLogCount: '0',
+            versioningLambdaProbeState: 'unavailable',
+            versioningLambdaErrorCount: '',
+          },
+        }),
+      ),
+      false,
+    );
+  });
+
+  it('does not hide Lambda errors, WAF errors, or API Gateway network errors behind the no-log case', () => {
+    const knownCase = KNOWN_CASES.find((candidate) => candidate.id === 'apigw-500-no-application-logs');
+    assert.ok(knownCase !== undefined);
+
+    const scenarios: ReadonlyArray<Readonly<Record<string, string>>> = [
+      {
+        apiGwStatusCode: '500',
+        apiGwErrorMessage: 'Internal server error',
+        deliveryLogCount: '0',
+        versioningLambdaProbeState: 'queried',
+        versioningLambdaErrorCount: '1',
+      },
+      {
+        apiGwStatusCode: '500',
+        apiGwErrorMessage: 'AWS WAF evaluation error',
+        deliveryLogCount: '0',
+        versioningLambdaProbeState: 'queried',
+        versioningLambdaErrorCount: '0',
+      },
+      {
+        apiGwStatusCode: '500',
+        apiGwErrorMessage: 'Network error communicating with endpoint',
+        deliveryLogCount: '0',
+        versioningLambdaProbeState: 'queried',
+        versioningLambdaErrorCount: '0',
+      },
+    ];
+
+    for (const vars of scenarios) {
+      assert.strictEqual(
+        evaluator.evaluate(knownCase.condition, context({ id: knownCase.id, vars: { ...vars } })),
+        false,
+      );
+    }
   });
 
   it('recognizes the production pn-exception stack variant of the Selfcare ReadTimeout', () => {

@@ -3,7 +3,7 @@ import type { ApiGwQueryProfile } from '../profiles/ApiGwQueryProfile.js';
 import { renderQueryTemplate } from '../profiles/render/renderQueryTemplate.js';
 import {
   assertKnownCaseStepRefs,
-  assertPreStepIds,
+  assertStepDescriptorIds,
   failAlarmConfig,
   type AlarmConfigValidationContext,
 } from '../../validation/alarmConfigValidation.js';
@@ -127,8 +127,8 @@ function computeWiredStepIds(config: ApiGwAlarmConfig, profile: ApiGwQueryProfil
 
   ids.add('parse-api-gw-errors');
 
-  for (const descriptor of config.preSteps ?? []) {
-    ids.add(descriptor.step.id);
+  for (const hook of config.hooks ?? []) {
+    ids.add(hook.step.id);
   }
 
   const services = [config.entryService, ...(config.services ?? [])];
@@ -142,11 +142,14 @@ function computeWiredStepIds(config: ApiGwAlarmConfig, profile: ApiGwQueryProfil
 }
 
 /**
- * V4: collisioni step ID. I preSteps non devono usare ID riservati alla
+ * V4: collisioni step ID. Gli hook non devono usare ID riservati alla
  * pipeline canonica (es. un preStep che si chiama `parse-api-gw-errors`).
  */
 function validateNoStepIdCollisions(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
-  assertPreStepIds(context(config), config.preSteps, computeWiredStepIds({ ...config, preSteps: [] }, profile));
+  // One check for every anchor: hooks share a single id namespace, so a step
+  // declared twice at different anchors is still a duplicate.
+  const reserved = computeWiredStepIds({ ...config, hooks: [] }, profile);
+  assertStepDescriptorIds(context(config), config.hooks, reserved, 'hook');
 }
 
 /**

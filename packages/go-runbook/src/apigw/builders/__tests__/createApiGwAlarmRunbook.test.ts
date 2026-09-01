@@ -10,13 +10,14 @@ import type { ApiGwExecutionLogAnalysisMode } from '../../types/ApiGwExecutionLo
 import { isApiGwRunbookContext } from '../../output/ApiGwRunbookContext.js';
 import { API_GW_AUTHORIZER_LAMBDAS } from '../../authorizers/ApiGwAuthorizerLambdaRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import type { StepDescriptor } from '../../../types/StepDescriptor.js';
 import type { KnownCase } from '../../../types/KnownCase.js';
 import { RunbookEngine } from '../../../core/RunbookEngine.js';
 import { ConditionEvaluator } from '../../../core/ConditionEvaluator.js';
 import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
 import type { ApiGwQueryProfile } from '../../profiles/ApiGwQueryProfile.js';
 import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import type { PipelineHook } from '../../../types/PipelineHook.js';
+import type { ApiGwPipelineAnchor } from '../../types/ApiGwPipelineAnchor.js';
 
 function fakeContext(params: ReadonlyArray<readonly [string, string]>): RunbookContext {
   return {
@@ -209,8 +210,9 @@ describe('createApiGwAlarmRunbook', () => {
         execute: async () => ({ success: true as const }),
       },
       continueOnFailure: true,
-    } satisfies StepDescriptor;
-    const runbook = createApiGwAlarmRunbook(baseConfig({ preSteps: [preStep] }));
+      at: 'before-service-traversal',
+    } satisfies PipelineHook<ApiGwPipelineAnchor>;
+    const runbook = createApiGwAlarmRunbook(baseConfig({ hooks: [preStep] }));
     const stepIds = runbook.steps.map((d) => d.step.id);
 
     assert.deepStrictEqual(stepIds.slice(0, 7), [
@@ -225,6 +227,67 @@ describe('createApiGwAlarmRunbook', () => {
 
     const preDescriptor = runbook.steps.find((d) => d.step.id === 'pre-1');
     assert.strictEqual(preDescriptor?.continueOnFailure, true);
+  });
+
+  it('inserts entry analysis enrichment steps between entry analysis and decision', () => {
+    const enrichmentStep = {
+      step: {
+        id: 'enrich-entry',
+        label: 'Enrich entry evidence',
+        kind: 'data' as const,
+        // eslint-disable-next-line @typescript-eslint/require-await
+        execute: async () => ({ success: true as const, next: 'resolve' as const }),
+      },
+      silent: true,
+      at: 'after-entry-analysis',
+    } satisfies PipelineHook<ApiGwPipelineAnchor>;
+
+    const runbook = createApiGwAlarmRunbook(baseConfig({ hooks: [enrichmentStep] }));
+    const stepIds = runbook.steps.map((descriptor) => descriptor.step.id);
+
+    assert.deepStrictEqual(stepIds.slice(5, 12), [
+      'query-pn-a',
+      'analyze-pn-a',
+      'enrich-entry',
+      'decide-pn-a',
+      'query-pn-b',
+      'analyze-pn-b',
+      'decide-pn-b',
+    ]);
+    assert.strictEqual(runbook.steps.find((descriptor) => descriptor.step.id === 'enrich-entry')?.silent, true);
+  });
+
+  it('rejects hook ids that clash with each other or with the canonical pipeline', () => {
+    const hook = (id: string, at: ApiGwPipelineAnchor): PipelineHook<ApiGwPipelineAnchor> => ({
+      at,
+      step: {
+        id,
+        label: id,
+        kind: 'data',
+        // eslint-disable-next-line @typescript-eslint/require-await
+        execute: async () => ({ success: true }),
+      },
+    });
+
+    // Hooks share one id namespace, so the same id at two different anchors is
+    // still a duplicate.
+    assert.throws(
+      () =>
+        createApiGwAlarmRunbook(
+          baseConfig({
+            hooks: [
+              hook('shared-custom-id', 'before-service-traversal'),
+              hook('shared-custom-id', 'after-entry-analysis'),
+            ],
+          }),
+        ),
+      /hook id "shared-custom-id" is declared more than once/,
+    );
+
+    assert.throws(
+      () => createApiGwAlarmRunbook(baseConfig({ hooks: [hook('decide-pn-a', 'after-entry-analysis')] })),
+      /hook id "decide-pn-a" collides/,
+    );
   });
 
   it('resolves the {{minStatusCode}} placeholder at build time (default 500)', () => {

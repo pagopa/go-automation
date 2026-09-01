@@ -22,6 +22,10 @@ const DATA_VAULT_QUERY = `{{FILTER_CLAUSE}}
 export const API_GW_LOG_GROUP =
   'pn-delivery-microsvc-prod-DeliveryMicroservicePublicAPI-1LXSVUHQG11JS-PublicApiLogGroup-Q9vhNTsSTzh7';
 
+/** Lambda checked by the documented "500 without application logs" case. */
+export const VERSIONING_LAMBDA_LOG_GROUP =
+  '/aws/lambda/pn-delivery-versioning-v1v21-getnotificationrequeststatus-lambda';
+
 /**
  * Entry service: the trace always lands on pn-delivery first.
  */

@@ -37,15 +37,38 @@ export function assertPreStepIds(
   preSteps: ReadonlyArray<StepDescriptor> | undefined,
   reservedStepIds: ReadonlySet<string>,
 ): ReadonlySet<string> {
+  return assertStepDescriptorIds(ctx, preSteps, reservedStepIds, 'preStep');
+}
+
+/**
+ * Fail-fast on custom step descriptor ids that are duplicated or collide
+ * with the canonical pipeline.
+ *
+ * Families with more than one extension point use this generic form so the
+ * diagnostic names the actual hook rather than labelling every custom step a
+ * `preStep`.
+ *
+ * @param ctx - Builder and runbook under validation
+ * @param descriptors - Custom steps declared by the runbook author
+ * @param reservedStepIds - Ids already occupied by the pipeline or another hook
+ * @param descriptorLabel - Human-readable hook name used in error messages
+ * @returns The declared custom step ids
+ */
+export function assertStepDescriptorIds(
+  ctx: AlarmConfigValidationContext,
+  descriptors: ReadonlyArray<StepDescriptor> | undefined,
+  reservedStepIds: ReadonlySet<string>,
+  descriptorLabel: string,
+): ReadonlySet<string> {
   const seen = new Set<string>();
-  for (const descriptor of preSteps ?? []) {
+  for (const descriptor of descriptors ?? []) {
     const stepId = descriptor.step.id;
     if (seen.has(stepId)) {
-      failAlarmConfig(ctx, `preStep id "${stepId}" is declared more than once.`);
+      failAlarmConfig(ctx, `${descriptorLabel} id "${stepId}" is declared more than once.`);
     }
     seen.add(stepId);
     if (reservedStepIds.has(stepId)) {
-      failAlarmConfig(ctx, `preStep id "${stepId}" collides with a reserved pipeline step id.`);
+      failAlarmConfig(ctx, `${descriptorLabel} id "${stepId}" collides with a reserved pipeline step id.`);
     }
   }
   return seen;

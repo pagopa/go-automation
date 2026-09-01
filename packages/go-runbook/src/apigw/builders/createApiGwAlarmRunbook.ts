@@ -1,6 +1,8 @@
 import { RunbookBuilder } from '../../builders/RunbookBuilder.js';
 import { CloudWatchLogsQueryStep } from '../../steps/data/CloudWatchLogsQueryStep.js';
 import type { Runbook } from '../../types/Runbook.js';
+import type { ApiGwPipelineAnchor } from '../types/ApiGwPipelineAnchor.js';
+import { applyPipelineHooks, orphanHookAnchors } from '../../builders/applyPipelineHooks.js';
 
 import type { ApiGwAlarmConfig } from '../types/ApiGwAlarmConfig.js';
 
@@ -24,7 +26,8 @@ import { resolveApiGwAlarmBuildContext } from './resolveApiGwAlarmBuildContext.j
  */
 export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   const ctx = resolveApiGwAlarmBuildContext(config);
-  const { profile, minStatus, apiGwQuery, registry, allServices, servicesInRunbook } = ctx;
+  const { profile, minStatus, apiGwQuery, registry, allServices, servicesInRunbook, hooks } = ctx;
+  const reachedAnchors = new Set<ApiGwPipelineAnchor>();
   const executionLogAnalysisMode = config.executionLogAnalysisMode ?? 'terminal';
 
   const builder = RunbookBuilder.create(config.id)
@@ -122,13 +125,8 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
     }
   }
 
-  // 6. Custom pre-steps.
-  for (const descriptor of ctx.preSteps) {
-    const opts: { continueOnFailure?: boolean; silent?: boolean } = {};
-    if (descriptor.continueOnFailure === true) opts.continueOnFailure = true;
-    if (descriptor.silent === true) opts.silent = true;
-    builder.step(descriptor.step, opts);
-  }
+  // 6. Custom steps declared for this point of the pipeline.
+  applyPipelineHooks(builder, hooks, 'before-service-traversal', reachedAnchors);
 
   // 7. Per-service triplets.
   for (const service of allServices) {
@@ -160,6 +158,10 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
       }),
       { silent: true },
     );
+
+    if (service.name === config.entryService.name) {
+      applyPipelineHooks(builder, hooks, 'after-entry-analysis', reachedAnchors);
+    }
 
     builder.step(
       decideNext({
@@ -205,6 +207,13 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
 
   if (config.maxIterations !== undefined) {
     builder.maxIterations(config.maxIterations);
+  }
+
+  const orphans = orphanHookAnchors(hooks, reachedAnchors);
+  if (orphans.length > 0) {
+    throw new Error(
+      `[${config.id}] hooks target anchors the API Gateway pipeline never reaches: ${orphans.join(', ')}.`,
+    );
   }
 
   return builder.build();

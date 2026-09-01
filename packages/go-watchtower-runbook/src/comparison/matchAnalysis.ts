@@ -140,6 +140,8 @@ export function matchAnalysis(
     };
   }
 
+  const excerpt = pickOccurrenceExcerpt(analysis, firedAt);
+
   if (check.status !== 'HIT' || check.primaryCaseId === undefined) {
     return {
       status: 'NO_EVIDENCE',
@@ -148,11 +150,14 @@ export function matchAnalysis(
       signals: emptySignals(),
       matcher: 'lexical',
       aiAttempted: false,
+      // Carried precisely here: an occurrence the runbook could not classify is
+      // the one whose human analysis someone has to read to write the missing
+      // known case.
+      ...(excerpt !== '' ? { analysisExcerpt: excerpt } : {}),
     };
   }
 
   const evidence = extractAnalysisEvidence(analysis, firedAt);
-  const excerpt = pickOccurrenceExcerpt(analysis, firedAt);
   const caseMessage = runbookCaseMessage(output);
   const caseDescription = check.primaryCaseDescription ?? '';
 

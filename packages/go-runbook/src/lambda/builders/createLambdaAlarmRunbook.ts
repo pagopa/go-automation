@@ -11,6 +11,8 @@ import { AnalyzeLambdaInvocationStep } from '../steps/AnalyzeLambdaInvocationSte
 import { QueryDownstreamLogsStep } from '../steps/QueryDownstreamLogsStep.js';
 import { resolveLambdaAlarmBuildContext } from './resolveLambdaAlarmBuildContext.js';
 import { defaultLambdaUnknownCaseFallback } from './defaultUnknownCaseFallback.js';
+import { applyPipelineHooks, orphanHookAnchors } from '../../builders/applyPipelineHooks.js';
+import type { LambdaPipelineAnchor } from '../types/LambdaPipelineAnchor.js';
 
 const TIME_RANGE: TimeRangeFromParams = { start: 'startTime', end: 'endTime' };
 
@@ -25,6 +27,7 @@ const TIME_RANGE: TimeRangeFromParams = { start: 'startTime', end: 'endTime' };
  */
 export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
   const ctx = resolveLambdaAlarmBuildContext(config);
+  const reachedAnchors = new Set<LambdaPipelineAnchor>();
   const builder = RunbookBuilder.create(config.id)
     .metadata(config.metadata)
     .cloudExecutionPolicy({ sideEffects: 'NONE' });
@@ -93,13 +96,8 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
     { silent: true },
   );
 
-  // 5. Custom pre-steps.
-  for (const descriptor of ctx.preSteps) {
-    const opts: { continueOnFailure?: boolean; silent?: boolean } = {};
-    if (descriptor.continueOnFailure === true) opts.continueOnFailure = true;
-    if (descriptor.silent === true) opts.silent = true;
-    builder.step(descriptor.step, opts);
-  }
+  // 5. Custom steps declared for this point of the pipeline.
+  applyPipelineHooks(builder, ctx.hooks, 'before-downstream-queries', reachedAnchors);
 
   // 6. Per-downstream query (no-op unless routed there).
   for (const downstream of ctx.downstreams) {
@@ -134,6 +132,11 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
 
   if (config.maxIterations !== undefined) {
     builder.maxIterations(config.maxIterations);
+  }
+
+  const orphans = orphanHookAnchors(ctx.hooks, reachedAnchors);
+  if (orphans.length > 0) {
+    throw new Error(`[${config.id}] hooks target anchors the Lambda pipeline never reaches: ${orphans.join(', ')}.`);
   }
 
   return builder.build();

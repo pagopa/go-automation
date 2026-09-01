@@ -7,6 +7,8 @@ import { PrepareServiceSectionStep } from '../steps/prepareServiceSection.js';
 import { AnalyzeServiceLogsStep } from '../steps/analyzeServiceLogs.js';
 import { QueryServiceTraceLogsStep } from '../steps/queryServiceTraceLogs.js';
 import { defaultServiceUnknownCaseFallback } from './defaultUnknownCaseFallback.js';
+import { applyPipelineHooks, orphanHookAnchors } from '../../builders/applyPipelineHooks.js';
+import type { ServicePipelineAnchor } from '../types/ServicePipelineAnchor.js';
 
 const TIME_RANGE = { start: 'startTime', end: 'endTime' } as const;
 
@@ -29,6 +31,7 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
   const errorQuery = service.queryOverride ?? profile.errorQuery;
   const traceQuery = service.traceQueryOverride ?? profile.traceQueryTemplate;
 
+  const reachedAnchors = new Set<ServicePipelineAnchor>();
   const builder = RunbookBuilder.create(config.id)
     .metadata(config.metadata)
     .cloudExecutionPolicy({ sideEffects: 'NONE' });
@@ -75,12 +78,7 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
     { silent: true },
   );
 
-  for (const descriptor of config.preSteps ?? []) {
-    const opts: { continueOnFailure?: boolean; silent?: boolean } = {};
-    if (descriptor.continueOnFailure === true) opts.continueOnFailure = true;
-    if (descriptor.silent === true) opts.silent = true;
-    builder.step(descriptor.step, opts);
-  }
+  applyPipelineHooks(builder, config.hooks ?? [], 'after-service-analysis', reachedAnchors);
 
   builder.step(
     new QueryServiceTraceLogsStep({
@@ -117,6 +115,11 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
 
   if (config.maxIterations !== undefined) {
     builder.maxIterations(config.maxIterations);
+  }
+
+  const orphans = orphanHookAnchors(config.hooks ?? [], reachedAnchors);
+  if (orphans.length > 0) {
+    throw new Error(`[${config.id}] hooks target anchors the service pipeline never reaches: ${orphans.join(', ')}.`);
   }
 
   return builder.build();

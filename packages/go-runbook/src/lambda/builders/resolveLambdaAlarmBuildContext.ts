@@ -1,4 +1,5 @@
-import type { StepDescriptor } from '../../types/StepDescriptor.js';
+import type { PipelineHook } from '../../types/PipelineHook.js';
+import type { LambdaPipelineAnchor } from '../types/LambdaPipelineAnchor.js';
 import type { LambdaAlarmConfig } from '../types/LambdaAlarmConfig.js';
 import type { LambdaDownstream } from '../types/LambdaDownstream.js';
 import type { DownstreamErrorPattern } from '../types/DownstreamErrorPattern.js';
@@ -12,7 +13,7 @@ export interface LambdaAlarmBuildContext {
   readonly profile: LambdaQueryProfile;
   readonly downstreams: ReadonlyArray<LambdaDownstream>;
   readonly downstreamErrorPatterns: ReadonlyArray<DownstreamErrorPattern>;
-  readonly preSteps: ReadonlyArray<StepDescriptor>;
+  readonly hooks: ReadonlyArray<PipelineHook<LambdaPipelineAnchor>>;
   readonly runbookContext: LambdaRunbookContext;
 }
 
@@ -38,7 +39,7 @@ export function resolveLambdaAlarmBuildContext(config: LambdaAlarmConfig): Lambd
     profile,
     downstreams,
     downstreamErrorPatterns: config.downstreamErrorPatterns ?? [],
-    preSteps: config.preSteps ?? [],
+    hooks: config.hooks ?? [],
     runbookContext,
   };
 }

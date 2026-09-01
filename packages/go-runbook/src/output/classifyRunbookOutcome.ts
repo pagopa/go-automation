@@ -91,11 +91,16 @@ export function classifyRunbookOutcome(output: RunbookOutput): ClassifiedRunbook
         return { status: 'CONFIG-ERROR', outcomeKind: outcome.kind, matchedCaseIds: [], error: recoveredText, ...base };
       }
       const noData = stats === undefined || stats.recordsMatched === 0 || stats.recordsScanned === 0;
+      // These are the outcomes someone has to diagnose, so they carry the
+      // evidence the fallback would have shown on screen.
+      const fallbackMessage = outcome.kind === 'unknown-case' ? outcome.fallbackMessage : undefined;
       return {
         status: noData ? 'NO-DATA' : 'MISS',
         outcomeKind: outcome.kind,
         matchedCaseIds: [],
         ...(recoveredText !== '' ? { error: recoveredText } : {}),
+        ...(output.context.fields.length > 0 ? { fields: output.context.fields } : {}),
+        ...(fallbackMessage !== undefined ? { fallbackMessage } : {}),
         ...base,
       };
     }
