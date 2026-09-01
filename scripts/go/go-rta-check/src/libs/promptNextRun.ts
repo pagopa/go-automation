@@ -1,7 +1,7 @@
 /**
  * Continuation menu shown after a runbook has been analysed.
  *
- * The analyses mode is a review session more often than a one-shot command, so
+ * The analysis mode is a review session more often than a one-shot command, so
  * it offers another run instead of exiting: the Watchtower login and the reads
  * already paid for are reused, and only the steps the user wants to change are
  * asked again.
