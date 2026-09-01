@@ -27,7 +27,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   // Your business logic here
 
   const configFileImporter = new Core.GOJSONFileImporter({
-    inputPath: config.configFile,
+    inputPath: config.configfile,
   });
   const configFile: ConfigFileItem[] = (await configFileImporter.import()) as ConfigFileItem[];
   // Insert a function to validate input configFile here

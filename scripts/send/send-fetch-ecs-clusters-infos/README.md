@@ -52,7 +52,7 @@ aws sso login --profile <nome-profilo>
 
 | Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
 |-----------|-------|------|--------------|---------|-------------|
-| `--configFile` | | Stringa | Sì | | Percorso del file JSON contenente la configurazione dei cluster e delle regole |
+| `--configfile` | | Stringa | Sì | | Percorso del file JSON contenente la configurazione dei cluster e delle regole |
 | `--awsProfiles` | | Array / Stringa | Sì | | Lista dei profili AWS da elaborare (es. `--awsProfiles profile1 profile2`) |
 
 ### Variabili d'Ambiente
@@ -97,7 +97,7 @@ pnpm send:fetch:ecs:clusters:infos:dev
 pnpm --filter=send-fetch-ecs-clusters-infos dev
 
 # Con parametri
-pnpm send:fetch:ecs:clusters:infos:dev -- --configFile configs/config.json --awsProfiles profile1
+pnpm send:fetch:ecs:clusters:infos:dev -- --configfile configs/config.json --awsProfiles profile1
 ```
 
 ### Modalità Production (build + node)
@@ -110,17 +110,17 @@ pnpm --filter=send-fetch-ecs-clusters-infos build
 pnpm --filter=send-fetch-ecs-clusters-infos start
 
 # Oppure direttamente
-node dist/index.js --configFile configs/config.json --awsProfiles profile1
+node dist/index.js --configfile configs/config.json --awsProfiles profile1
 ```
 
 ### Esempi Pratici
 
 ```bash
 # Esempio 1: Caso d'uso comune
-pnpm send:fetch:ecs:clusters:infos:dev -- --configFile configs/config.json --awsProfiles uat-profile
+pnpm send:fetch:ecs:clusters:infos:dev -- --configfile configs/config.json --awsProfiles uat-profile
 
 # Esempio 2: Esecuzione di produzione diretta
-node dist/index.js --configFile configs/config.json --awsProfiles prod-profile
+node dist/index.js --configfile configs/config.json --awsProfiles prod-profile
 ```
 
 ## Output

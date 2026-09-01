@@ -5,5 +5,5 @@
 export interface SendFetchEcsClustersInfosConfig {
   /** AWS profile name */
   readonly awsProfiles: ReadonlyArray<string>;
-  readonly configFile: string;
+  readonly configfile: string;
 }
