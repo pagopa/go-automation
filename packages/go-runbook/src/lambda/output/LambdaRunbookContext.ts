@@ -1,4 +1,4 @@
-import { isNonBlankString, isObject } from '@go-automation/go-common/core';
+import { isNonBlankString, isPlainObject } from '@go-automation/go-common/core';
 import type { LambdaFunction } from '../types/LambdaFunction.js';
 import type { LambdaDownstream } from '../types/LambdaDownstream.js';
 
@@ -21,10 +21,11 @@ export interface LambdaRunbookContext {
  * @returns `true` when the value is a Lambda runbook context
  */
 export function isLambdaRunbookContext(value: unknown): value is LambdaRunbookContext {
-  if (!isObject(value)) return false;
+  if (!isPlainObject(value)) return false;
   if (value['kind'] !== 'lambda') return false;
   if (!isNonBlankString(value['queryProfileId'])) return false;
   const lambda = value['lambda'];
-  if (!isObject(lambda) || !isNonBlankString(lambda['name']) || !isNonBlankString(lambda['logGroup'])) return false;
+  if (!isPlainObject(lambda) || !isNonBlankString(lambda['name']) || !isNonBlankString(lambda['logGroup']))
+    return false;
   return Array.isArray(value['downstreams']);
 }

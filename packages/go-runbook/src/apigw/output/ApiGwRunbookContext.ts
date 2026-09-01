@@ -1,4 +1,4 @@
-import { isNonBlankString, isObject } from '@go-automation/go-common/core';
+import { isNonBlankString, isPlainObject } from '@go-automation/go-common/core';
 import type { ApiGwService } from '../types/ApiGwService.js';
 
 export interface ApiGwRunbookContext {
@@ -9,7 +9,7 @@ export interface ApiGwRunbookContext {
 }
 
 export function isApiGwRunbookContext(value: unknown): value is ApiGwRunbookContext {
-  if (!isObject(value)) return false;
+  if (!isPlainObject(value)) return false;
   if (value['kind'] !== 'apigw') return false;
   if (!isNonBlankString(value['apiGwLogGroup'])) return false;
   if (!isNonBlankString(value['queryProfileId'])) return false;
@@ -18,6 +18,6 @@ export function isApiGwRunbookContext(value: unknown): value is ApiGwRunbookCont
 }
 
 function isApiGwService(value: unknown): value is ApiGwService {
-  if (!isObject(value)) return false;
+  if (!isPlainObject(value)) return false;
   return isNonBlankString(value['name']) && isNonBlankString(value['varPrefix']) && isNonBlankString(value['logGroup']);
 }

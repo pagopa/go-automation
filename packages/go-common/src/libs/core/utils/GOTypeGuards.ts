@@ -135,6 +135,10 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
 /**
  * Checks if a value is an object (including arrays, dates, etc., but not null).
  *
+ * Narrows to `object`, not to a record: arrays and class instances pass, so
+ * claiming string-keyed properties would be unsound. Reach for
+ * {@link isPlainObject} when the next thing you do is read `value['key']`.
+ *
  * @param value - Value to check
  * @returns true if value is an object
  *
@@ -147,7 +151,7 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
  * isObject('string');     // false
  * ```
  */
-export function isObject(value: unknown): value is Record<string, unknown> {
+export function isObject(value: unknown): value is object {
   return typeof value === 'object' && value !== null;
 }
 
