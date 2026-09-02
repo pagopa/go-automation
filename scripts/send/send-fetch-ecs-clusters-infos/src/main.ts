@@ -53,7 +53,7 @@ export async function main(script: Core.GOScript): Promise<void> {
       for (const name of item.clusters) {
         if (!outputClusterName.includes(name)) {
           script.logger.warning(
-            `Cluster '${name}' not found. Check into the ${item.profile} section in ${config.configFile} for some typo. Skipping infos for this cluster...`,
+            `Cluster '${name}' not found. Check into the ${item.profile} section in ${config.configfile} for some typo. Skipping infos for this cluster...`,
           );
           continue;
         }
