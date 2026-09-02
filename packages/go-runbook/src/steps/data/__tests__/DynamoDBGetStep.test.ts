@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import { DynamoDBGetStep } from '../DynamoDBGetStep.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 interface GetItemCall {
   readonly tableName: string;

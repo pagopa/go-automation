@@ -5,7 +5,7 @@ import { describe, it } from 'node:test';
 import { ConditionEvaluator, INTEROP_DOWNSTREAMS, type KnownCase, type RunbookContext } from '../../framework.js';
 
 import { KNOWN_CASES } from '../knownCases.js';
-import { createTestServiceRegistry } from '../../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 
 interface LogRowField {
   readonly field: string;

@@ -5,12 +5,12 @@ import type { ResultField } from '@go-automation/go-common/aws';
 import { GOLogger } from '@go-automation/go-common/core';
 
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
-import type { ServiceRegistry } from '../../../../services/ServiceRegistry.js';
+import type { ServiceRegistry } from '../../../../registry/ServiceRegistry.js';
 
 import { DELIVERY_API_GW_EXECUTION_LOG_GROUP } from '../../constants.js';
 import { buildRunbook } from '../runbook.js';
 import { API_GW_LOG_GROUP, VERSIONING_LAMBDA_LOG_GROUP } from '../knownServices.js';
-import { createTestServiceRegistry } from '../../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 
 type EvidenceKind =
   | 'no-application-logs'

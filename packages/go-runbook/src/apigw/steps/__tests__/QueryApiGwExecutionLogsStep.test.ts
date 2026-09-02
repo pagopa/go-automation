@@ -13,9 +13,9 @@ import type { TimeRange } from '../../../types/TimeRange.js';
 
 import { QueryApiGwExecutionLogsStep } from '../QueryApiGwExecutionLogsStep.js';
 import type { ApiGwExecutionLogAnalysisMode } from '../../types/ApiGwExecutionLogAnalysisMode.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
-import { ConsoleRunbookReporter } from '../../../services/reporters/ConsoleRunbookReporter.js';
-import type { RunbookReporter } from '../../../services/RunbookReporter.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
+import { ConsoleRunbookReporter } from '../../../registry/reporters/ConsoleRunbookReporter.js';
+import type { RunbookReporter } from '../../../registry/RunbookReporter.js';
 
 interface CapturedCall {
   readonly logGroups: ReadonlyArray<string>;

@@ -2,8 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
-import { CollectingRunbookReporter } from '../../../services/reporters/CollectingRunbookReporter.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
+import { CollectingRunbookReporter } from '../../../registry/reporters/CollectingRunbookReporter.js';
 import { PrepareApiGwSectionStep } from '../PrepareApiGwSectionStep.js';
 
 function createContext(reporter: CollectingRunbookReporter): RunbookContext {

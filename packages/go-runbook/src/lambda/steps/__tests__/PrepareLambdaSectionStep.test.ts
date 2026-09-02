@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { PrepareLambdaSectionStep } from '../PrepareLambdaSectionStep.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function emptyContext(): RunbookContext {
   return {

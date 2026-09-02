@@ -6,9 +6,9 @@ import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { TimeRange } from '../../../types/TimeRange.js';
 
 import { QueryServiceLogsStep } from '../QueryServiceLogsStep.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
-import { ConsoleRunbookReporter } from '../../../services/reporters/ConsoleRunbookReporter.js';
-import { NOOP_RUNBOOK_REPORTER } from '../../../services/reporters/NOOP_RUNBOOK_REPORTER.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
+import { ConsoleRunbookReporter } from '../../../registry/reporters/ConsoleRunbookReporter.js';
+import { NOOP_RUNBOOK_REPORTER } from '../../../registry/reporters/NOOP_RUNBOOK_REPORTER.js';
 import type { GOLogger } from '@go-automation/go-common/core';
 
 interface CapturedCall {

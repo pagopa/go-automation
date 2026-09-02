@@ -9,7 +9,7 @@ import type {
 } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { QueryInteropApiGwAggregatesStep } from '../steps/QueryInteropApiGwAggregatesStep.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 describe('QueryInteropApiGwAggregatesStep', () => {
   it('queries the resolved group and enriches aggregate rows as output evidence', async () => {

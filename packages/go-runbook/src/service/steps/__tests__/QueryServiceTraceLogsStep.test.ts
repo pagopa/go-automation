@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { QueryServiceTraceLogsConfig } from '../queryServiceTraceLogs.js';
 import { QueryServiceTraceLogsStep } from '../queryServiceTraceLogs.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 const BASE: Omit<QueryServiceTraceLogsConfig, 'queryTemplate'> = {
   id: 'query-pn-foo-trace',

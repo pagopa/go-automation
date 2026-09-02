@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { PrepareServiceSectionStep } from '../prepareServiceSection.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function ctx(): RunbookContext {
   return {

@@ -4,7 +4,7 @@ import type { ResultField } from '@go-automation/go-common/aws';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { ParseLambdaErrorsStep } from '../ParseLambdaErrorsStep.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function row(message: string): ReadonlyArray<ResultField> {
   return [

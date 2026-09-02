@@ -5,7 +5,7 @@ import { GOLogger } from '@go-automation/go-common/core';
 
 import { RunbookEngine } from '../RunbookEngine.js';
 import type { CaseAction } from '../../actions/CaseAction.js';
-import type { ServiceRegistry } from '../../services/ServiceRegistry.js';
+import type { ServiceRegistry } from '../../registry/ServiceRegistry.js';
 import type { FlowDirective } from '../../types/FlowDirective.js';
 import type { KnownCase } from '../../types/KnownCase.js';
 import type { Runbook } from '../../types/Runbook.js';
@@ -14,7 +14,7 @@ import type { Step } from '../../types/Step.js';
 import type { StepDescriptor } from '../../types/StepDescriptor.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
-import { createTestServiceRegistry } from '../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../registry/createTestServiceRegistry.js';
 
 class RecordingStep implements Step<void> {
   readonly label: string;

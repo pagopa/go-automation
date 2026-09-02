@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import type { ResultField } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { ParseApiGwErrorsStep } from '../ParseApiGwErrorsStep.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function createContext(stepOutput: unknown): RunbookContext {
   return {

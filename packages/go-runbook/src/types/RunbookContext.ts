@@ -1,6 +1,6 @@
 import type { LogEntry } from './LogEntry.js';
 import type { ErrorRecoveryInfo } from './ErrorRecoveryInfo.js';
-import type { ServiceRegistry } from '../services/ServiceRegistry.js';
+import type { ServiceRegistry } from '../registry/ServiceRegistry.js';
 
 /**
  * Immutable execution context of the runbook.

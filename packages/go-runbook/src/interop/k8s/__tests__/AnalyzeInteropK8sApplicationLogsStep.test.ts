@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import type { ResultField } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { AnalyzeInteropK8sApplicationLogsStep } from '../steps/AnalyzeInteropK8sApplicationLogsStep.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function context(stepResults: ReadonlyArray<readonly [string, unknown]>): RunbookContext {
   return {

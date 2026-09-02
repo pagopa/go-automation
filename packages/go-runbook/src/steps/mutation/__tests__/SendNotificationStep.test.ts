@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import { createTestServiceRegistry, type TestServiceOverrides } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry, type TestServiceOverrides } from '../../../registry/createTestServiceRegistry.js';
 import { SendNotificationStep } from '../SendNotificationStep.js';
 
 function createContext(args: {

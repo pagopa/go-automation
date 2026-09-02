@@ -10,8 +10,8 @@ import type {
 import type { GOLogger } from '@go-automation/go-common/core';
 import { CloudWatchLogsQueryStep } from '../CloudWatchLogsQueryStep.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
-import { ConsoleRunbookReporter } from '../../../services/reporters/ConsoleRunbookReporter.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
+import { ConsoleRunbookReporter } from '../../../registry/reporters/ConsoleRunbookReporter.js';
 
 function makeContext(params: ReadonlyArray<readonly [string, string]> = []): RunbookContext {
   return {

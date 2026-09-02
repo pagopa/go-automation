@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import type { MetricDatapoint, MetricDimension } from '@go-automation/go-common/aws';
 import { CloudWatchMetricsStep } from '../CloudWatchMetricsStep.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 interface MetricsCall {
   readonly namespace: string;

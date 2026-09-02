@@ -6,7 +6,7 @@ import type { GOLoggerHandler } from '@go-automation/go-common/core';
 
 import { ActionExecutor } from '../ActionExecutor.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
-import { createTestServiceRegistry } from '../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../registry/createTestServiceRegistry.js';
 
 class RecordingHandler implements GOLoggerHandler {
   readonly events: GOLogEvent[] = [];

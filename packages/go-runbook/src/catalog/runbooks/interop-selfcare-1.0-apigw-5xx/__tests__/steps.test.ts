@@ -9,7 +9,7 @@ import type {
 } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../../types/RunbookContext.js';
 import { interop } from '../../framework.js';
-import { createTestServiceRegistry } from '../../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 
 const PROFILE = interop.apigw.INTEROP_API_GW_5XX_SERVICE_ERRORS_PROFILE;
 

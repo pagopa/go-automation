@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { ServiceLogSchema } from '../../types/ServiceLogSchema.js';
 import { AnalyzeServiceLogsStep } from '../analyzeServiceLogs.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 const SCHEMA: ServiceLogSchema = {
   messageFieldCandidates: ['message', '@message'],

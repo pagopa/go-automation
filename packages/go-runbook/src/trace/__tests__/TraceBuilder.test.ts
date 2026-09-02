@@ -6,7 +6,7 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { ExecutionEnvironment } from '../ExecutionInfo.js';
 import type { CaseEvaluationTrace } from '../CaseEvaluationTrace.js';
 import { TraceBuilder } from '../TraceBuilder.js';
-import { createTestServiceRegistry } from '../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../registry/createTestServiceRegistry.js';
 
 const RUNBOOK: Runbook = {
   metadata: {

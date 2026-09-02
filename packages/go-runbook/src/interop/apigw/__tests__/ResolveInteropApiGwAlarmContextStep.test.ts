@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { ResolveInteropApiGwAlarmContextFn } from '../types/InteropApiGwAlarmContext.js';
 import { ResolveInteropApiGwAlarmContextStep } from '../steps/ResolveInteropApiGwAlarmContextStep.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function context(alarmName?: string): RunbookContext {
   return {

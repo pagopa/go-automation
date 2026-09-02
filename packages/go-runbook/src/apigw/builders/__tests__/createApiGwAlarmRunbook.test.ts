@@ -14,7 +14,7 @@ import type { KnownCase } from '../../../types/KnownCase.js';
 import { RunbookEngine } from '../../../core/RunbookEngine.js';
 import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
 import type { ApiGwQueryProfile } from '../../profiles/ApiGwQueryProfile.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 import type { PipelineHook } from '../../../types/PipelineHook.js';
 import type { ApiGwPipelineAnchor } from '../../types/ApiGwPipelineAnchor.js';
 

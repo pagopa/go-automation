@@ -4,8 +4,8 @@
 
 import { Core } from '@go-automation/go-common';
 
-import type { RunbookReporter } from '../services/RunbookReporter.js';
-import type { ServiceRegistry } from '../services/ServiceRegistry.js';
+import type { RunbookReporter } from '../registry/RunbookReporter.js';
+import type { ServiceRegistry } from '../registry/ServiceRegistry.js';
 
 /**
  * Creates a ServiceRegistry from the unified script AWS provider.

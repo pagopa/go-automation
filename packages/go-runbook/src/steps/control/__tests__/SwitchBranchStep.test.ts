@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 import { SetVarStep } from '../SetVarStep.js';
 import { SwitchBranchStep } from '../SwitchBranchStep.js';
 

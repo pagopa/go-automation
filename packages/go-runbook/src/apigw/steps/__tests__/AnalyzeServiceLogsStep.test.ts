@@ -6,7 +6,7 @@ import type { RunbookContext } from '../../../types/RunbookContext.js';
 
 import { AnalyzeServiceLogsStep } from '../AnalyzeServiceLogsStep.js';
 import { KnownUrlsRegistry } from '../../registries/KnownUrlsRegistry.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function row(message: string, level: string = 'ERROR'): ResultField[] {
   const fields: ResultField[] = [{ field: '@message', value: message }];

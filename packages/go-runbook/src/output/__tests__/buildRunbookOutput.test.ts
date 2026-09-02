@@ -11,7 +11,7 @@ import type { RunbookType } from '../../types/RunbookType.js';
 import type { RunbookExecutionTrace } from '../../trace/RunbookExecutionTrace.js';
 import type { StepTrace } from '../../trace/StepTrace.js';
 import { buildRunbookOutput } from '../buildRunbookOutput.js';
-import { createTestServiceRegistry } from '../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../registry/createTestServiceRegistry.js';
 import { classifyRunbookOutcome } from '../classifyRunbookOutcome.js';
 import type { RunbookOutput } from '../RunbookOutput.js';
 

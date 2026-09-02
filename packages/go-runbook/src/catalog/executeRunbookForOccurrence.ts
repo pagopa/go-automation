@@ -14,7 +14,7 @@ import * as lambda from '../lambda/index.js';
 import { buildRunbookOutput } from '../output/buildRunbookOutput.js';
 import type { RunbookOutput } from '../output/RunbookOutput.js';
 import * as service from '../service/index.js';
-import type { ServiceRegistry } from '../services/ServiceRegistry.js';
+import type { ServiceRegistry } from '../registry/ServiceRegistry.js';
 import type { ExecutionEnvironment } from '../trace/ExecutionInfo.js';
 import { assertCloudExecutableRunbook } from '../validation/assertCloudExecutableRunbook.js';
 

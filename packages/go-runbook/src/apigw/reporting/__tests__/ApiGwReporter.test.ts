@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { GOLogger } from '@go-automation/go-common/core';
-import { ConsoleRunbookReporter } from '../../../services/reporters/ConsoleRunbookReporter.js';
+import { ConsoleRunbookReporter } from '../../../registry/reporters/ConsoleRunbookReporter.js';
 import { ApiGwReporter, renderApiGwFinalSummary } from '../ApiGwReporter.js';
 
 /**

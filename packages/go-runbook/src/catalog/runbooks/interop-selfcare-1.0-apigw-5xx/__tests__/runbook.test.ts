@@ -10,7 +10,7 @@ import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
 
 import { buildRunbook } from '../runbook.js';
-import { createTestServiceRegistry } from '../../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 
 describe('buildRunbook', () => {
   it('builds the custom read-only APIGW → BFF → CID pipeline', () => {

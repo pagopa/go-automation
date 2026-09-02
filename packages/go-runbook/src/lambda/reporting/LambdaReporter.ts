@@ -1,6 +1,6 @@
 import type { TreeNode } from '@go-automation/go-common/core';
 
-import type { RunbookReporter } from '../../services/RunbookReporter.js';
+import type { RunbookReporter } from '../../registry/RunbookReporter.js';
 import type { TerminationReason } from '../types/TerminationReason.js';
 import type { LambdaErrorCategory } from '../types/LambdaErrorCategory.js';
 

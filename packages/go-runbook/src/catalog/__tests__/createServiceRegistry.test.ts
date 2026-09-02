@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import type { Core } from '@go-automation/go-common';
 
 import { createServiceRegistry } from '../createServiceRegistry.js';
-import { NOOP_RUNBOOK_REPORTER } from '../../services/reporters/NOOP_RUNBOOK_REPORTER.js';
+import { NOOP_RUNBOOK_REPORTER } from '../../registry/reporters/NOOP_RUNBOOK_REPORTER.js';
 
 describe('createServiceRegistry', () => {
   it('uses the generic Athena service from the script AWS provider', () => {

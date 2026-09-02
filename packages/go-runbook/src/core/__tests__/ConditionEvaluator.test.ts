@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { Condition } from '../../types/Condition.js';
 import { ConditionEvaluator } from '../ConditionEvaluator.js';
-import { createTestServiceRegistry } from '../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../registry/createTestServiceRegistry.js';
 
 interface Row {
   readonly [key: string]: string;

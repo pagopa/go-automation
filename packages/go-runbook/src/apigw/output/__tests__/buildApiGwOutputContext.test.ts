@@ -8,7 +8,7 @@ import type { RunbookExecutionResult } from '../../../types/RunbookExecutionResu
 import type { RunbookExecutionTrace } from '../../../trace/RunbookExecutionTrace.js';
 import type { ApiGwOutputContext } from '../ApiGwOutputContext.js';
 import { buildApiGwOutputContext } from '../buildApiGwOutputContext.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function row(fields: Record<string, string>): ResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));

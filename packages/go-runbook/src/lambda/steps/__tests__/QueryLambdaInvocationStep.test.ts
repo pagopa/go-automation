@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { QueryLambdaInvocationStep } from '../QueryLambdaInvocationStep.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function context(vars: Map<string, string>): RunbookContext {
   return { vars, stepResults: new Map(), services: createTestServiceRegistry() } as unknown as RunbookContext;

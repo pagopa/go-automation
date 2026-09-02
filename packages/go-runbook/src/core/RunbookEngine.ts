@@ -8,7 +8,7 @@ import type { KnownCase } from '../types/KnownCase.js';
 import type { ErrorRecoveryInfo } from '../types/ErrorRecoveryInfo.js';
 import type { FlowDirective, FlowDirectiveString } from '../types/FlowDirective.js';
 import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js';
-import type { ServiceRegistry } from '../services/ServiceRegistry.js';
+import type { ServiceRegistry } from '../registry/ServiceRegistry.js';
 import type { ExecutionEnvironment } from '../trace/ExecutionInfo.js';
 import type { EarlyResolutionTrace } from '../trace/EarlyResolutionTrace.js';
 import type { CaseEvaluationTrace } from '../trace/CaseEvaluationTrace.js';

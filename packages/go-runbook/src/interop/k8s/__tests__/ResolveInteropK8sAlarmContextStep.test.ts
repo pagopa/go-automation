@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { InteropK8sAlarmContext, ResolveInteropK8sAlarmContextFn } from '../types/InteropK8sAlarmContext.js';
 import { ResolveInteropK8sAlarmContextStep } from '../steps/ResolveInteropK8sAlarmContextStep.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 const ALARM_CONTEXT: InteropK8sAlarmContext = {
   alarmName: 'k8s-interop-be-backend-for-frontend-errors-att',

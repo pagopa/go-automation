@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { AthenaQueryStep } from '../AthenaQueryStep.js';
 import type { AWSAthenaQueryOptions } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 interface AthenaCall {
   readonly database: string;

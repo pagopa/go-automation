@@ -1,7 +1,7 @@
 import type { GOLogger } from '@go-automation/go-common/core';
 import type { TerminationReason } from '../types/TerminationReason.js';
 import { LambdaReporter } from './LambdaReporter.js';
-import { ConsoleRunbookReporter } from '../../services/reporters/ConsoleRunbookReporter.js';
+import { ConsoleRunbookReporter } from '../../registry/reporters/ConsoleRunbookReporter.js';
 
 /**
  * Input expected by {@link renderLambdaFinalSummary}. The consumer script

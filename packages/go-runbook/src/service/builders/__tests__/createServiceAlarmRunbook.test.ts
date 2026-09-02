@@ -9,7 +9,7 @@ import { isServiceRunbookContext } from '../../output/ServiceRunbookContext.js';
 import { buildServiceOutputContext } from '../../output/buildServiceOutputContext.js';
 import type { RunbookExecutionResult } from '../../../types/RunbookExecutionResult.js';
 import type { RunbookExecutionTrace } from '../../../trace/RunbookExecutionTrace.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function baseConfig(overrides: Partial<ServiceAlarmConfig> = {}): ServiceAlarmConfig {
   return {

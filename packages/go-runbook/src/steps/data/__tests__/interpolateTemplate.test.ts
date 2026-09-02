@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { interpolatePlaceholders } from '../../../core/templatePlaceholders.js';
 import { extractTemplateParameters } from '../interpolateTemplate.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function createContext(params: Record<string, string> = {}, vars: Record<string, string> = {}): RunbookContext {
   return {

@@ -1,7 +1,7 @@
 import type { GOLogger, TreeNode } from '@go-automation/go-common/core';
 
-import { ConsoleRunbookReporter } from '../../services/reporters/ConsoleRunbookReporter.js';
-import type { RunbookReporter } from '../../services/RunbookReporter.js';
+import { ConsoleRunbookReporter } from '../../registry/reporters/ConsoleRunbookReporter.js';
+import type { RunbookReporter } from '../../registry/RunbookReporter.js';
 import type { TerminationReason } from '../types/TerminationReason.js';
 
 /**

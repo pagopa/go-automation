@@ -33,7 +33,7 @@ import { SERVICE as IPA_DOWNSTREAM_SERVICE } from '../pn-national-registries-IPA
 import { buildRunbook as buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook } from '../pn-national-registries-IPA-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as EXTERNAL_CHANNEL_CASES } from '../workday-pn-external-channel-alb-alarm/knownCases.js';
 import { buildRunbook as buildWorkdayPnExternalChannelAlbAlarmRunbook } from '../workday-pn-external-channel-alb-alarm/runbook.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function ctx(args: {
   readonly stepResults?: ReadonlyArray<readonly [string, unknown]>;

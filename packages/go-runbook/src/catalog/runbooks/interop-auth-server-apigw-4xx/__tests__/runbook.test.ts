@@ -16,7 +16,7 @@ import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionR
 import { apigw } from '../../framework.js';
 
 import { buildRunbook } from '../runbook.js';
-import { createTestServiceRegistry } from '../../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 
 describe('buildRunbook', () => {
   it('builds the read-only APIGW → warnings → CID pipeline with the asymmetric window', () => {

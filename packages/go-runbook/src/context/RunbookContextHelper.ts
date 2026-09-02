@@ -3,7 +3,7 @@ import type { RunbookContext } from '../types/RunbookContext.js';
 import type { StepResult } from '../types/StepResult.js';
 import type { LogEntry } from '../types/LogEntry.js';
 import type { ErrorRecoveryInfo } from '../types/ErrorRecoveryInfo.js';
-import type { ServiceRegistry } from '../services/ServiceRegistry.js';
+import type { ServiceRegistry } from '../registry/ServiceRegistry.js';
 
 /**
  * Helper functions for immutable RunbookContext operations.

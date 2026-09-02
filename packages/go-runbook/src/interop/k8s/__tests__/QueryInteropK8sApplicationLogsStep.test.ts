@@ -9,7 +9,7 @@ import type {
 } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { QueryInteropK8sApplicationLogsStep } from '../steps/QueryInteropK8sApplicationLogsStep.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 interface SeenQuery {
   readonly logGroups: ReadonlyArray<string>;

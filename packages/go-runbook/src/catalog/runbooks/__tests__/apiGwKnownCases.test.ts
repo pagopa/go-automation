@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { ConditionEvaluator, SEND_DOWNSTREAMS, type KnownCase, type RunbookContext } from '../framework.js';
 
 import { KNOWN_CASES as NATIONAL_REGISTRIES_PNPG_CASES } from '../pn-national-registries-PNPG-ApiGwAlarm/knownCases.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function ctx(args: {
   readonly vars?: Record<string, string>;

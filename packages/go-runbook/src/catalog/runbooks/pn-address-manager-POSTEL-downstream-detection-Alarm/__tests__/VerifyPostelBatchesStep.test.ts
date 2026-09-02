@@ -14,7 +14,7 @@ import { SEND_SERVICE_PROFILE } from '../../../../service/profiles/SEND_SERVICE_
 import type { RunbookContext } from '../../../../types/RunbookContext.js';
 import { buildRunbook } from '../runbook.js';
 import { POSTEL_WORKED_BATCH_QUERY, VerifyPostelBatchesStep } from '../VerifyPostelBatchesStep.js';
-import { createTestServiceRegistry } from '../../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 
 const BATCH_1 = '4e761d4d-5b3d-4c7b-8d77-7f81353b2d5b';
 const BATCH_2 = '8a859d33-fb60-47da-a429-879ba7f9c609';

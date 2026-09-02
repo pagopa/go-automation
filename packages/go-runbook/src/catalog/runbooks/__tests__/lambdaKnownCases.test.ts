@@ -19,7 +19,7 @@ import { buildRunbook as buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunb
 import { buildRunbook as buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook } from '../pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildRunbook as buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook } from '../pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm/runbook.js';
 import { buildRunbook as buildLollipopAuthorizerLambdaLogInvocationErrorsAlarmRunbook } from '../pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 /** Collects every regex string referenced by a condition tree. */
 function collectRegexes(condition: Condition): ReadonlyArray<string> {

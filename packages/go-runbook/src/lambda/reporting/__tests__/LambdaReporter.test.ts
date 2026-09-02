@@ -2,9 +2,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { GOLogger } from '@go-automation/go-common/core';
 
-import type { RunbookReporter } from '../../../services/RunbookReporter.js';
+import type { RunbookReporter } from '../../../registry/RunbookReporter.js';
 
-import { ConsoleRunbookReporter } from '../../../services/reporters/ConsoleRunbookReporter.js';
+import { ConsoleRunbookReporter } from '../../../registry/reporters/ConsoleRunbookReporter.js';
 import { LambdaReporter } from '../LambdaReporter.js';
 
 /**

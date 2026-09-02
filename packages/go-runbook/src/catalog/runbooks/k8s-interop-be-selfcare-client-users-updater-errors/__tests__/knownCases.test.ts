@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { KNOWN_CASES } from '../knownCases.js';
-import { createTestServiceRegistry } from '../../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { ConditionEvaluator, INTEROP_DOWNSTREAMS, type RunbookContext } from '../../framework.js';
 
 interface LogRowField {

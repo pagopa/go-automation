@@ -3,10 +3,10 @@ import { describe, it } from 'node:test';
 
 import type { GOHttpRequestOptions, GOHttpResponse } from '@go-automation/go-common/core';
 
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
+import type { ServiceRegistry } from '../../../registry/ServiceRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { HttpRequestStep } from '../HttpRequestStep.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 interface HttpCall {
   readonly method: string;

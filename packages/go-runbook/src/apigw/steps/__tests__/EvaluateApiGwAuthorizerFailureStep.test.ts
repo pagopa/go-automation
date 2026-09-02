@@ -7,7 +7,7 @@ import type { Step } from '../../../types/Step.js';
 import { EvaluateApiGwAuthorizerFailureStep } from '../EvaluateApiGwAuthorizerFailureStep.js';
 import type { ApiGwAuthorizerFailureInfo } from '../EvaluateApiGwAuthorizerFailureStep.js';
 import { API_GW_AUTHORIZER_LAMBDAS } from '../../authorizers/ApiGwAuthorizerLambdaRegistry.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function createContext(stepOutput: unknown): RunbookContext {
   return {

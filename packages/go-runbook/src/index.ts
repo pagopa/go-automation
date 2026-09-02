@@ -141,12 +141,12 @@ export type { ActionExecutionResult } from './actions/ActionExecutor.js';
 export { logAction, notifyAction, escalateAction, compositeAction } from './actions/ActionFactories.js';
 
 // Services
-export type { ServiceRegistry } from './services/ServiceRegistry.js';
-export type { RunbookReporter } from './services/RunbookReporter.js';
-export { ConsoleRunbookReporter } from './services/reporters/ConsoleRunbookReporter.js';
-export { CollectingRunbookReporter } from './services/reporters/CollectingRunbookReporter.js';
-export { NOOP_RUNBOOK_REPORTER } from './services/reporters/NOOP_RUNBOOK_REPORTER.js';
-export { createTestServiceRegistry } from './services/createTestServiceRegistry.js';
+export type { ServiceRegistry } from './registry/ServiceRegistry.js';
+export type { RunbookReporter } from './registry/RunbookReporter.js';
+export { ConsoleRunbookReporter } from './registry/reporters/ConsoleRunbookReporter.js';
+export { CollectingRunbookReporter } from './registry/reporters/CollectingRunbookReporter.js';
+export { NOOP_RUNBOOK_REPORTER } from './registry/reporters/NOOP_RUNBOOK_REPORTER.js';
+export { createTestServiceRegistry } from './registry/createTestServiceRegistry.js';
 
 // Steps
 export * from './steps/index.js';

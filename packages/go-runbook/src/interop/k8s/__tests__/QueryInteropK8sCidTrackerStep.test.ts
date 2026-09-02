@@ -10,7 +10,7 @@ import type {
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { InteropK8sApplicationLogAnalysis } from '../steps/AnalyzeInteropK8sApplicationLogsStep.js';
 import { QueryInteropK8sCidTrackerStep } from '../steps/QueryInteropK8sCidTrackerStep.js';
-import { createTestServiceRegistry } from '../../../services/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 interface SeenQuery {
   readonly logGroups: ReadonlyArray<string>;
