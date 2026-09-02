@@ -139,6 +139,17 @@ export class RunbookBuilder {
   }
 
   /**
+   * Ids of the steps wired so far — the source of truth for "does this runbook
+   * contain step X", against a hand-maintained list that can drift from what
+   * the builder actually assembled.
+   *
+   * @returns The wired step ids, in insertion order
+   */
+  wiredStepIds(): ReadonlySet<string> {
+    return new Set(this.stepDescriptors.map((descriptor) => descriptor.step.id));
+  }
+
+  /**
    * Adds an IfStep with inline sub-pipelines.
    * Alternative to ifCondition with goTo: the then/else pipelines
    * are executed inline in a child context.

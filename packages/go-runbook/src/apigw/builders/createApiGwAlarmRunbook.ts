@@ -183,6 +183,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   }
   // 9. Known cases, fallback, context, analysis defaults, iteration cap, build.
   return finishAlarmRunbook(builder, config, {
+    builderName: 'createApiGwAlarmRunbook',
     defaultFallback: () =>
       defaultUnknownCaseFallback(
         allServices,

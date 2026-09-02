@@ -78,6 +78,7 @@ export function createInteropK8sAlarmRunbook(config: InteropK8sAlarmConfig): Run
   );
 
   return finishAlarmRunbook(builder, config, {
+    builderName: 'createInteropK8sAlarmRunbook',
     defaultFallback: () => defaultInteropK8sUnknownCaseFallback(service),
     runbookContext: {
       kind: 'service',

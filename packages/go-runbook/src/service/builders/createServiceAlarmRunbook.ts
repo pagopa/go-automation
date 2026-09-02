@@ -96,6 +96,7 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
   );
 
   return finishAlarmRunbook(builder, config, {
+    builderName: 'createServiceAlarmRunbook',
     defaultFallback: () => defaultServiceUnknownCaseFallback(service),
     runbookContext: { kind: 'service', service, queryProfileId: profile.id },
     primaryResource: service.name,

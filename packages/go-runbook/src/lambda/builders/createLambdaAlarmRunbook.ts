@@ -116,6 +116,7 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
 
   // 7. Known cases, fallback, context, analysis defaults, iteration cap, build.
   return finishAlarmRunbook(builder, config, {
+    builderName: 'createLambdaAlarmRunbook',
     defaultFallback: () => defaultLambdaUnknownCaseFallback(ctx.downstreams),
     runbookContext: { ...ctx.runbookContext },
     primaryResource: config.lambda.name,

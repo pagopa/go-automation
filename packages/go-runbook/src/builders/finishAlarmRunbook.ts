@@ -6,6 +6,7 @@ import type { RunbookAnalysisDefaults } from '../types/RunbookAnalysisDefaults.j
 import type { RunbookBuilder } from './RunbookBuilder.js';
 import { omitUndefined } from '@go-automation/go-common/core';
 
+import { assertKnownCaseStepRefs } from '../validation/alarmConfigValidation.js';
 import { orphanHookAnchors } from './applyPipelineHooks.js';
 
 /**
@@ -60,6 +61,8 @@ export interface FinishAlarmRunbookOptions<TAnchor extends string> {
   readonly defaultRunbookName?: string;
   /** Hook wiring; omit for a pipeline that declares no anchors. */
   readonly anchors?: AlarmRunbookAnchors<TAnchor>;
+  /** Factory name reported when a known case points at a step nobody wired. */
+  readonly builderName: string;
 }
 
 /**
@@ -94,6 +97,16 @@ export function finishAlarmRunbook<TAnchor extends string = never>(
   config: AlarmRunbookTailConfig,
   options: FinishAlarmRunbookOptions<TAnchor>,
 ): Runbook {
+  // Checked against what the builder assembled, not against a list each toolkit
+  // maintains by hand: three of the five forgot the check entirely, so a case
+  // left on a renamed step id built cleanly and could never match again.
+  assertKnownCaseStepRefs(
+    { builderName: options.builderName, runbookId: config.id },
+    config.knownCases,
+    builder.wiredStepIds(),
+    '. Remove the reference or wire the step.',
+  );
+
   for (const knownCase of config.knownCases) {
     builder.knownCase(knownCase);
   }

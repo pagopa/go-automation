@@ -138,6 +138,7 @@ export function createInteropApiGwAlarmRunbook(config: InteropApiGwAlarmConfig):
   );
 
   return finishAlarmRunbook(builder, config, {
+    builderName: 'createInteropApiGwAlarmRunbook',
     defaultFallback: () => defaultInteropApiGwUnknownCaseFallback(config),
     runbookContext: {
       kind: 'apigw',
