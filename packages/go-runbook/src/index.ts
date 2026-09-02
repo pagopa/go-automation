@@ -27,6 +27,7 @@ export type { FlowDirective } from './types/FlowDirective.js';
 export type { Step } from './types/Step.js';
 export type { StepResult } from './types/StepResult.js';
 export type { StepDescriptor } from './types/StepDescriptor.js';
+export type { PipelineHook } from './types/PipelineHook.js';
 export type { RunbookType } from './types/RunbookType.js';
 export type { RunbookMetadata } from './types/RunbookMetadata.js';
 export type { RunbookContext } from './types/RunbookContext.js';

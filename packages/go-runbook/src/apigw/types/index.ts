@@ -8,6 +8,7 @@ export type { KnownUrlMatch } from './KnownUrlMatch.js';
 
 export type { ApiGwService } from './ApiGwService.js';
 export type { ApiGwExecutionLogAnalysisMode } from './ApiGwExecutionLogAnalysisMode.js';
+export type { ApiGwPipelineAnchor } from './ApiGwPipelineAnchor.js';
 export type {
   ApiGwAlarmConfig,
   ApiGwAuthorizerFailureCheckConfig,
