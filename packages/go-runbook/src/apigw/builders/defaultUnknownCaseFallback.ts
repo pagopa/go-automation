@@ -1,5 +1,5 @@
 import type { CaseAction, LogActionRow } from '../../actions/CaseAction.js';
-import { unknownCaseFallback } from '../../actions/unknownCaseFallback.js';
+import { unknownCaseFallback, UNKNOWN_CASE_TITLE } from '../../actions/unknownCaseFallback.js';
 import type { ApiGwService } from '../types/ApiGwService.js';
 
 /**
@@ -24,8 +24,7 @@ export function defaultUnknownCaseFallback(
     [`${service.name} — target`, `{{vars.${service.varPrefix}NextUrlTarget}}`],
   ]);
 
-  return unknownCaseFallback("Impossibile identificare univocamente la causa dell'errore.", [
-    ['Dettaglio', 'nessun caso noto ha soddisfatto le condizioni del runbook.'],
+  return unknownCaseFallback(UNKNOWN_CASE_TITLE, [
     ['Errori API Gateway', '{{vars.apiGwErrorCount}}'],
     ['Status API Gateway', '{{vars.apiGwStatusCode}}'],
     [traceIdLabel, `{{vars.${traceIdContextVar}}}`],

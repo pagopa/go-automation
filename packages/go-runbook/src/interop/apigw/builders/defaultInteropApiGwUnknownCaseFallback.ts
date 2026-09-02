@@ -1,5 +1,5 @@
 import type { CaseAction } from '../../../actions/CaseAction.js';
-import { unknownCaseFallback } from '../../../actions/unknownCaseFallback.js';
+import { unknownCaseFallback, UNKNOWN_CASE_TITLE } from '../../../actions/unknownCaseFallback.js';
 import type { InteropApiGwAlarmConfig } from '../types/InteropApiGwAlarmConfig.js';
 
 /**
@@ -11,7 +11,7 @@ import type { InteropApiGwAlarmConfig } from '../types/InteropApiGwAlarmConfig.j
  */
 export function defaultInteropApiGwUnknownCaseFallback(config: InteropApiGwAlarmConfig): CaseAction {
   const { application, queryProfile } = config;
-  return unknownCaseFallback(`Nessun caso noto del runbook ${config.id} ha matchato le evidenze.`, [
+  return unknownCaseFallback(UNKNOWN_CASE_TITLE, [
     ['Ambiente', '{{vars.interopEnvironment}}'],
     ['API Gateway ID', '{{vars.interopApiGwId}}'],
     [`Errori ${queryProfile.errorFamilyLabel} API Gateway`, '{{vars.apiGwErrorCount}}'],

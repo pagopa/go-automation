@@ -1,4 +1,4 @@
-import { unknownCaseFallback } from '../../actions/unknownCaseFallback.js';
+import { unknownCaseFallback, UNKNOWN_CASE_TITLE } from '../../actions/unknownCaseFallback.js';
 import type { CaseAction } from '../../actions/CaseAction.js';
 import type { ServiceDescriptor } from '../types/ServiceDescriptor.js';
 
@@ -10,8 +10,7 @@ import type { ServiceDescriptor } from '../types/ServiceDescriptor.js';
  * @returns A warning {@link CaseAction}
  */
 export function defaultServiceUnknownCaseFallback(service: ServiceDescriptor): CaseAction {
-  return unknownCaseFallback("Impossibile identificare univocamente la causa dell'errore.", [
-    ['Dettaglio', 'nessun caso noto ha soddisfatto le condizioni del runbook.'],
+  return unknownCaseFallback(UNKNOWN_CASE_TITLE, [
     ['Servizio', service.name],
     ['Log group', service.logGroup],
     ['Log errore', `{{vars.${service.varPrefix}LogCount}}`],

@@ -1,5 +1,5 @@
 import type { CaseAction, LogActionRow } from '../../actions/CaseAction.js';
-import { unknownCaseFallback } from '../../actions/unknownCaseFallback.js';
+import { unknownCaseFallback, UNKNOWN_CASE_TITLE } from '../../actions/unknownCaseFallback.js';
 import type { LambdaDownstream } from '../types/LambdaDownstream.js';
 
 /**
@@ -17,7 +17,7 @@ export function defaultLambdaUnknownCaseFallback(downstreams: ReadonlyArray<Lamb
     [`${downstream.name} — log`, `{{vars.${downstream.varPrefix}LogCount}}`],
   ]);
 
-  return unknownCaseFallback("Impossibile identificare univocamente la causa dell'errore.", [
+  return unknownCaseFallback(UNKNOWN_CASE_TITLE, [
     ['Lambda', '{{vars.lambdaFunctionName}}'],
     ['Errori individuati', '{{vars.lambdaErrorCount}}'],
     ['Categoria', '{{vars.lambdaErrorCategory}}'],

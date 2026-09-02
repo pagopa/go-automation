@@ -2,6 +2,13 @@ import { logAction } from './ActionFactories.js';
 import type { CaseAction, LogActionRow } from './CaseAction.js';
 
 /**
+ * What the operator reads when no known case matched, whatever the runbook
+ * family. One wording for one situation: a runbook that has something more
+ * specific to say passes its own title instead.
+ */
+export const UNKNOWN_CASE_TITLE = "Impossibile identificare univocamente la causa dell'errore.";
+
+/**
  * Builds the action executed when no known case matched.
  *
  * Callers supply the wording and the rows; the marker and the rendering

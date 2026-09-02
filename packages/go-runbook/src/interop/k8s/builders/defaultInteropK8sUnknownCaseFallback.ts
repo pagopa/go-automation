@@ -1,4 +1,4 @@
-import { unknownCaseFallback } from '../../../actions/unknownCaseFallback.js';
+import { unknownCaseFallback, UNKNOWN_CASE_TITLE } from '../../../actions/unknownCaseFallback.js';
 import type { CaseAction } from '../../../actions/CaseAction.js';
 import type { InteropK8sServiceDescriptor } from '../types/InteropK8sServiceDescriptor.js';
 
@@ -10,7 +10,7 @@ import type { InteropK8sServiceDescriptor } from '../types/InteropK8sServiceDesc
  * @returns A warning {@link CaseAction}
  */
 export function defaultInteropK8sUnknownCaseFallback(service: InteropK8sServiceDescriptor): CaseAction {
-  return unknownCaseFallback('Nessun caso noto INTEROP k8s ha matchato le evidenze raccolte.', [
+  return unknownCaseFallback(UNKNOWN_CASE_TITLE, [
     ['Ambiente', '{{vars.interopEnvironment}}'],
     ['Log group', '{{vars.interopLogGroup}}'],
     ['Servizio', '{{vars.interopPodApp}}'],
