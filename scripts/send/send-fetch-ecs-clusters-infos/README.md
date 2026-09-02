@@ -27,8 +27,8 @@ Elenco delle funzionalità principali:
 
 | Software | Versione Minima | Note |
 |----------|-----------------|------|
-| Node.js  | >= 18.0.0       | LTS consigliata |
-| pnpm     | >= 8.0.0        | Package manager |
+| Node.js  | >= 22.14.0       | LTS consigliata |
+| pnpm     | >= 10.28.0        | Package manager |
 | TypeScript | >= 5.0.0      | Incluso nel progetto |
 
 ### Account e Permessi
