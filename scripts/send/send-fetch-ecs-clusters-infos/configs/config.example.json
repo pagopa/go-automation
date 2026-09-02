@@ -1,0 +1,14 @@
+[
+  {
+    "env": "Environment",
+    "profile": "AWSProfile",
+    "rules": [
+      "EventBridgeRule1",
+      "EventBridgeRuleN"
+    ],
+    "clusters": [
+      "Cluster1",
+      "ClusterN"
+    ]
+  }
+]
