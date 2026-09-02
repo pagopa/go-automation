@@ -25,8 +25,8 @@ export interface RegistrationResult {
   readonly changed: boolean;
 }
 
-/** Matches the existing registration imports of the manifest. */
-const MANIFEST_IMPORT_RE = /^import \{ \w+ \} from '\.\/runbooks\/[^']+\/registration\.js';$/gmu;
+/** Matches the existing registration imports, capturing the constant and the runbook id. */
+const MANIFEST_IMPORT_RE = /^import \{ (\w+) \} from '\.\/runbooks\/([^']+)\/registration\.js';$/gmu;
 
 /** Anchor used to locate the manifest array. */
 const MANIFEST_ANCHOR = 'export const CATALOG_MANIFEST: ReadonlyArray<AutomaticRunbookRegistration> = [';
@@ -77,7 +77,8 @@ function insertRegistrationImport(source: string, registration: RunbookRegistrat
   return `${source.slice(0, lastImportEnd)}\n${importLine}${source.slice(lastImportEnd)}`;
 }
 
-function insertManifestEntry(source: string, registration: RunbookRegistration): string {
+/** Index just past the last entry of the `CATALOG_MANIFEST` array. */
+function manifestArrayEnd(source: string): number {
   const anchorIndex = source.indexOf(MANIFEST_ANCHOR);
   if (anchorIndex === -1) {
     throw new Error('Impossibile trovare CATALOG_MANIFEST nel manifest.');
@@ -86,26 +87,70 @@ function insertManifestEntry(source: string, registration: RunbookRegistration):
   if (closeIndex === -1) {
     throw new Error('Impossibile trovare la chiusura di CATALOG_MANIFEST nel manifest.');
   }
+  return closeIndex;
+}
+
+function insertManifestEntry(source: string, registration: RunbookRegistration): string {
+  const closeIndex = manifestArrayEnd(source);
   return `${source.slice(0, closeIndex)}  ${registration.constName},\n${source.slice(closeIndex)}`;
+}
+
+/**
+ * Runbook id the manifest imports `constName` from, or `undefined` when the
+ * constant is not imported at all.
+ */
+function importedFromRunbook(source: string, constName: string): string | undefined {
+  for (const match of source.matchAll(MANIFEST_IMPORT_RE)) {
+    if (match[1] === constName) return match[2];
+  }
+  return undefined;
+}
+
+/** Whether `constName` is already listed as an entry of the manifest array. */
+function hasManifestEntry(source: string, constName: string): boolean {
+  const anchorIndex = source.indexOf(MANIFEST_ANCHOR);
+  const body = source.slice(anchorIndex + MANIFEST_ANCHOR.length, manifestArrayEnd(source));
+  return body.split('\n').some((line) => line.trim() === `${constName},`);
 }
 
 /**
  * Inserts the import and the array entry for a new runbook into the catalog manifest.
  *
- * Idempotent: when the registration constant is already referenced, the source is
- * returned unchanged.
+ * Idempotent per runbook: re-registering the same id returns the source
+ * unchanged, and a manifest left half-wired gains only the missing half.
+ *
+ * The import is matched on the runbook it comes from, not on the constant name
+ * appearing anywhere in the file: a substring test reported
+ * `ONBOARDING_CONSUMER_REGISTRATION` as already registered because
+ * `SELFCARE_ONBOARDING_CONSUMER_REGISTRATION` was, so the runbook's
+ * `registration.ts` was written but never reached the manifest — and the
+ * scaffolder said "runbook già registrato", which reads like success.
  *
  * @param source - Current catalog manifest source
  * @param registration - Runbook to register
  * @returns The (possibly) updated content and whether it changed
+ * @throws When another runbook already exports a constant with the same name,
+ *         which would not compile: the manifest imports them into one scope
  */
 export function applyManifestRegistration(source: string, registration: RunbookRegistration): RegistrationResult {
-  if (source.includes(registration.constName)) {
+  const importedFrom = importedFromRunbook(source, registration.constName);
+  if (importedFrom !== undefined && importedFrom !== registration.id) {
+    throw new Error(
+      `Il manifest importa già ${registration.constName} da runbooks/${importedFrom}. ` +
+        `Rinomina la costante esportata da runbooks/${registration.id}/registration.ts.`,
+    );
+  }
+
+  const needsImport = importedFrom === undefined;
+  const needsEntry = !hasManifestEntry(source, registration.constName);
+  if (!needsImport && !needsEntry) {
     return { content: source, changed: false };
   }
-  const withImport = insertRegistrationImport(source, registration);
-  const withEntry = insertManifestEntry(withImport, registration);
-  return { content: withEntry, changed: true };
+
+  let content = source;
+  if (needsImport) content = insertRegistrationImport(content, registration);
+  if (needsEntry) content = insertManifestEntry(content, registration);
+  return { content, changed: true };
 }
 
 /**

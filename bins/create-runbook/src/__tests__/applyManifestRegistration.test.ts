@@ -58,6 +58,51 @@ describe('applyManifestRegistration', () => {
       assert.ok(content.includes(line), `missing line after patch: ${line}`);
     }
   });
+
+  it('registers a runbook whose constant is a suffix of an existing one', () => {
+    // The manifest already imports SELFCARE_ONBOARDING_CONSUMER_REGISTRATION.
+    // A substring test reported this one as registered, so its registration.ts
+    // was written but the manifest never imported it.
+    const suffix: RunbookRegistration = {
+      ...REGISTRATION,
+      id: 'onboarding-consumer',
+      constName: 'ONBOARDING_CONSUMER_REGISTRATION',
+    };
+    const { content, changed } = applyManifestRegistration(MANIFEST, suffix);
+
+    assert.strictEqual(changed, true);
+    assert.match(
+      content,
+      /import \{ ONBOARDING_CONSUMER_REGISTRATION \} from '\.\/runbooks\/onboarding-consumer\/registration\.js';/u,
+    );
+  });
+
+  it('rejects a constant another runbook already exports, which would not compile', () => {
+    const collision: RunbookRegistration = {
+      ...REGISTRATION,
+      id: 'another-runbook',
+      constName: 'SELFCARE_APIGW_REGISTRATION',
+    };
+
+    assert.throws(
+      () => applyManifestRegistration(MANIFEST, collision),
+      /importa già SELFCARE_APIGW_REGISTRATION da runbooks\/interop-selfcare/u,
+    );
+  });
+
+  it('completes a half-wired manifest instead of reporting it as registered', () => {
+    const withImportOnly = applyManifestRegistration(MANIFEST, REGISTRATION).content.replace(
+      `  ${REGISTRATION.constName},\n`,
+      '',
+    );
+
+    const { content, changed } = applyManifestRegistration(withImportOnly, REGISTRATION);
+
+    assert.strictEqual(changed, true);
+    assert.ok(content.includes(`  ${REGISTRATION.constName},\n`), 'the missing array entry should be added');
+    const imports = [...content.matchAll(/import \{ FOO_BAR_API_GW_ALARM_REGISTRATION \}/gu)];
+    assert.strictEqual(imports.length, 1, 'the existing import should not be duplicated');
+  });
 });
 
 describe('renderRegistrationFile', () => {
