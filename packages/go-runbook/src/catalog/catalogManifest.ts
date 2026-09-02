@@ -21,6 +21,7 @@ import { API_KEY_AUTHORIZER_V2_LAMBDA_REGISTRATION } from './runbooks/pn-ApiKeyA
 import { JWKS_CACHE_REFRESH_LAMBDA_REGISTRATION } from './runbooks/pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm/registration.js';
 import { DELIVERY_INSERT_TRIGGER_EB_LAMBDA_REGISTRATION } from './runbooks/pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm/registration.js';
 import { LOLLIPOP_AUTHORIZER_LAMBDA_REGISTRATION } from './runbooks/pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm/registration.js';
+import { SENDER_DASHBOARD_DATA_INDEXER_REGISTRATION } from './runbooks/pn-bff-SenderDashboardDataIndexer-LogInvocationErrors-Alarm/registration.js';
 
 // service logs
 import { EMD_DOWNSTREAM_DETECTION_REGISTRATION } from './runbooks/emd-downstream-detection-Alarm/registration.js';
@@ -33,8 +34,11 @@ import { NATIONAL_REGISTRIES_INAD_REGISTRATION } from './runbooks/pn-national-re
 import { ADDRESS_MANAGER_POSTEL_REGISTRATION } from './runbooks/pn-address-manager-POSTEL-downstream-detection-Alarm/registration.js';
 import { PERSONAL_DATA_VAULT_SELFCARE_PG_REGISTRATION } from './runbooks/personal-data-vault-SelfcarePG-downstream-detection-Alarm/registration.js';
 import { WORKDAY_EXTERNAL_CHANNEL_ALB_REGISTRATION } from './runbooks/workday-pn-external-channel-alb-alarm/registration.js';
+import { MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION } from './runbooks/pn-mandate-acceptance-failure-tech-Alarm/registration.js';
 
 // interop kubernetes
+import { ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-attribute-registry-readmodel-writer-sql-errors/registration.js';
+import { CATALOG_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-catalog-readmodel-writer-sql-errors/registration.js';
 import { BFF_REGISTRATION } from './runbooks/k8s-interop-be-backend-for-frontend-errors/registration.js';
 import { NOTIFICATION_USER_LIFECYCLE_REGISTRATION } from './runbooks/k8s-interop-be-notification-user-lifecycle-consumer-errors/registration.js';
 import { PUBLIC_CATALOG_REGISTRATION } from './runbooks/k8s-interop-public-catalog-astro-frontend-errors/registration.js';
@@ -60,6 +64,7 @@ export const CATALOG_MANIFEST: ReadonlyArray<AutomaticRunbookRegistration> = [
   JWKS_CACHE_REFRESH_LAMBDA_REGISTRATION,
   DELIVERY_INSERT_TRIGGER_EB_LAMBDA_REGISTRATION,
   LOLLIPOP_AUTHORIZER_LAMBDA_REGISTRATION,
+  SENDER_DASHBOARD_DATA_INDEXER_REGISTRATION,
   // service logs
   EMD_DOWNSTREAM_DETECTION_REGISTRATION,
   EXTERNAL_REGISTRIES_ONE_TRUST_REGISTRATION,
@@ -71,7 +76,10 @@ export const CATALOG_MANIFEST: ReadonlyArray<AutomaticRunbookRegistration> = [
   ADDRESS_MANAGER_POSTEL_REGISTRATION,
   PERSONAL_DATA_VAULT_SELFCARE_PG_REGISTRATION,
   WORKDAY_EXTERNAL_CHANNEL_ALB_REGISTRATION,
+  MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION,
   // interop kubernetes
+  ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_REGISTRATION,
+  CATALOG_READMODEL_WRITER_SQL_REGISTRATION,
   BFF_REGISTRATION,
   NOTIFICATION_USER_LIFECYCLE_REGISTRATION,
   PUBLIC_CATALOG_REGISTRATION,

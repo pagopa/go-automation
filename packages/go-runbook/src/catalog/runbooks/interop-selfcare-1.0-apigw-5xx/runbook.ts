@@ -1,5 +1,5 @@
 import { SELFCARE_ALARM } from './alarmDefinition.js';
-import { unknownCaseFallback } from '../../../actions/unknownCaseFallback.js';
+import { unknownCaseFallback, UNKNOWN_CASE_TITLE } from '../../../actions/unknownCaseFallback.js';
 import type { Runbook } from '../framework.js';
 import { interop } from '../framework.js';
 
@@ -31,16 +31,13 @@ export function buildRunbook(): Runbook {
       varPrefix: SELFCARE_ALARM.varPrefix,
     },
     knownCases: KNOWN_CASES,
-    fallbackAction: unknownCaseFallback(
-      'Nessun caso noto del runbook API Gateway Selfcare INTEROP ha matchato le evidenze.',
-      [
-        ['Ambiente', '{{vars.interopEnvironment}}'],
-        ['API Gateway ID', '{{vars.interopApiGwId}}'],
-        ['Errori 5xx API Gateway', '{{vars.apiGwErrorCount}}'],
-        ['Log applicativi BFF', '{{vars.interopBffLogCount}}'],
-        ['CID estratti', '{{vars.interopBffCidCount}}'],
-        ['Log CID tracker', '{{vars.interopCidTrackerLogCount}}'],
-      ],
-    ),
+    fallbackAction: unknownCaseFallback(UNKNOWN_CASE_TITLE, [
+      ['Ambiente', '{{vars.interopEnvironment}}'],
+      ['API Gateway ID', '{{vars.interopApiGwId}}'],
+      ['Errori 5xx API Gateway', '{{vars.apiGwErrorCount}}'],
+      ['Log applicativi BFF', '{{vars.interopBffLogCount}}'],
+      ['CID estratti', '{{vars.interopBffCidCount}}'],
+      ['Log CID tracker', '{{vars.interopCidTrackerLogCount}}'],
+    ]),
   });
 }
