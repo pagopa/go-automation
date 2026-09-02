@@ -2,7 +2,8 @@ import { RunbookBuilder } from '../../builders/RunbookBuilder.js';
 import { CloudWatchLogsQueryStep } from '../../steps/data/CloudWatchLogsQueryStep.js';
 import type { Runbook } from '../../types/Runbook.js';
 import type { ApiGwPipelineAnchor } from '../types/ApiGwPipelineAnchor.js';
-import { applyPipelineHooks, orphanHookAnchors } from '../../builders/applyPipelineHooks.js';
+import { applyPipelineHooks } from '../../builders/applyPipelineHooks.js';
+import { finishAlarmRunbook } from '../../builders/finishAlarmRunbook.js';
 
 import type { ApiGwAlarmConfig } from '../types/ApiGwAlarmConfig.js';
 
@@ -180,41 +181,16 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   for (const knownCase of builtinApiGwAuthorizerKnownCases(config)) {
     builder.knownCase(knownCase);
   }
-  for (const knownCase of config.knownCases) {
-    builder.knownCase(knownCase);
-  }
-
-  // 9. Fallback.
-  builder.fallback(
-    config.fallbackAction ??
+  // 9. Known cases, fallback, context, analysis defaults, iteration cap, build.
+  return finishAlarmRunbook(builder, config, {
+    defaultFallback: () =>
       defaultUnknownCaseFallback(
         allServices,
         profile.accessLog.schema.traceIdContextVar,
         profile.accessLog.schema.traceIdLabel,
       ),
-  );
-  builder.runbookContext({
-    ...ctx.runbookContext,
+    runbookContext: { ...ctx.runbookContext },
+    primaryResource: config.entryService.name,
+    anchors: { hooks, reached: reachedAnchors, pipelineName: 'API Gateway' },
   });
-
-  // Primary resource of the draft: the component under analysis. `type` stays
-  // undeclared until the Fase 0 coverage check confirms the censused ResourceType
-  // name — a wrong type would block the apply, while omitting it never does.
-  builder.analysisDefaults({
-    ...config.analysisDefaults,
-    resources: [{ name: config.entryService.name, role: 'PRIMARY' }, ...(config.analysisDefaults?.resources ?? [])],
-  });
-
-  if (config.maxIterations !== undefined) {
-    builder.maxIterations(config.maxIterations);
-  }
-
-  const orphans = orphanHookAnchors(hooks, reachedAnchors);
-  if (orphans.length > 0) {
-    throw new Error(
-      `[${config.id}] hooks target anchors the API Gateway pipeline never reaches: ${orphans.join(', ')}.`,
-    );
-  }
-
-  return builder.build();
 }

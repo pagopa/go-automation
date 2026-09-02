@@ -7,7 +7,8 @@ import { PrepareServiceSectionStep } from '../steps/prepareServiceSection.js';
 import { AnalyzeServiceLogsStep } from '../steps/analyzeServiceLogs.js';
 import { QueryServiceTraceLogsStep } from '../steps/queryServiceTraceLogs.js';
 import { defaultServiceUnknownCaseFallback } from './defaultUnknownCaseFallback.js';
-import { applyPipelineHooks, orphanHookAnchors } from '../../builders/applyPipelineHooks.js';
+import { applyPipelineHooks } from '../../builders/applyPipelineHooks.js';
+import { finishAlarmRunbook } from '../../builders/finishAlarmRunbook.js';
 import type { ServicePipelineAnchor } from '../types/ServicePipelineAnchor.js';
 
 const TIME_RANGE = { start: 'startTime', end: 'endTime' } as const;
@@ -94,35 +95,12 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
     { silent: true },
   );
 
-  for (const knownCase of config.knownCases) {
-    builder.knownCase(knownCase);
-  }
-
-  builder.fallback(config.fallbackAction ?? defaultServiceUnknownCaseFallback(service));
-  builder.runbookContext({
-    kind: 'service',
-    service,
-    queryProfileId: profile.id,
+  return finishAlarmRunbook(builder, config, {
+    defaultFallback: () => defaultServiceUnknownCaseFallback(service),
+    runbookContext: { kind: 'service', service, queryProfileId: profile.id },
+    primaryResource: service.name,
+    anchors: { hooks: config.hooks ?? [], reached: reachedAnchors, pipelineName: 'service' },
   });
-
-  // Primary resource of the draft: the component under analysis. `type` stays
-  // undeclared until the Fase 0 coverage check confirms the censused ResourceType
-  // name — a wrong type would block the apply, while omitting it never does.
-  builder.analysisDefaults({
-    ...config.analysisDefaults,
-    resources: [{ name: service.name, role: 'PRIMARY' }, ...(config.analysisDefaults?.resources ?? [])],
-  });
-
-  if (config.maxIterations !== undefined) {
-    builder.maxIterations(config.maxIterations);
-  }
-
-  const orphans = orphanHookAnchors(config.hooks ?? [], reachedAnchors);
-  if (orphans.length > 0) {
-    throw new Error(`[${config.id}] hooks target anchors the service pipeline never reaches: ${orphans.join(', ')}.`);
-  }
-
-  return builder.build();
 }
 
 function validateConfig(config: ServiceAlarmConfig): void {

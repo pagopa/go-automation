@@ -11,7 +11,8 @@ import { AnalyzeLambdaInvocationStep } from '../steps/AnalyzeLambdaInvocationSte
 import { QueryDownstreamLogsStep } from '../steps/QueryDownstreamLogsStep.js';
 import { resolveLambdaAlarmBuildContext } from './resolveLambdaAlarmBuildContext.js';
 import { defaultLambdaUnknownCaseFallback } from './defaultUnknownCaseFallback.js';
-import { applyPipelineHooks, orphanHookAnchors } from '../../builders/applyPipelineHooks.js';
+import { applyPipelineHooks } from '../../builders/applyPipelineHooks.js';
+import { finishAlarmRunbook } from '../../builders/finishAlarmRunbook.js';
 import type { LambdaPipelineAnchor } from '../types/LambdaPipelineAnchor.js';
 
 const TIME_RANGE: TimeRangeFromParams = { start: 'startTime', end: 'endTime' };
@@ -113,31 +114,11 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
     );
   }
 
-  // 7. Known cases declared by the runbook.
-  for (const knownCase of config.knownCases) {
-    builder.knownCase(knownCase);
-  }
-
-  // 8. Fallback + structured context.
-  builder.fallback(config.fallbackAction ?? defaultLambdaUnknownCaseFallback(ctx.downstreams));
-  builder.runbookContext({ ...ctx.runbookContext });
-
-  // Primary resource of the draft: the component under analysis. `type` stays
-  // undeclared until the Fase 0 coverage check confirms the censused ResourceType
-  // name — a wrong type would block the apply, while omitting it never does.
-  builder.analysisDefaults({
-    ...config.analysisDefaults,
-    resources: [{ name: config.lambda.name, role: 'PRIMARY' }, ...(config.analysisDefaults?.resources ?? [])],
+  // 7. Known cases, fallback, context, analysis defaults, iteration cap, build.
+  return finishAlarmRunbook(builder, config, {
+    defaultFallback: () => defaultLambdaUnknownCaseFallback(ctx.downstreams),
+    runbookContext: { ...ctx.runbookContext },
+    primaryResource: config.lambda.name,
+    anchors: { hooks: ctx.hooks, reached: reachedAnchors, pipelineName: 'Lambda' },
   });
-
-  if (config.maxIterations !== undefined) {
-    builder.maxIterations(config.maxIterations);
-  }
-
-  const orphans = orphanHookAnchors(ctx.hooks, reachedAnchors);
-  if (orphans.length > 0) {
-    throw new Error(`[${config.id}] hooks target anchors the Lambda pipeline never reaches: ${orphans.join(', ')}.`);
-  }
-
-  return builder.build();
 }

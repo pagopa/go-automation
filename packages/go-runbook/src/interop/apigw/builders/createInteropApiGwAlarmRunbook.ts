@@ -1,4 +1,5 @@
 import { RunbookBuilder } from '../../../builders/RunbookBuilder.js';
+import { finishAlarmRunbook } from '../../../builders/finishAlarmRunbook.js';
 import type { Runbook } from '../../../types/Runbook.js';
 import type { TimeRangeFromParams } from '../../../steps/data/TimeRangeFromParams.js';
 
@@ -63,25 +64,7 @@ export function createInteropApiGwAlarmRunbook(config: InteropApiGwAlarmConfig):
 
   const builder = RunbookBuilder.create(config.id)
     .metadata(config.metadata)
-    .cloudExecutionPolicy({ sideEffects: 'NONE' })
-    .runbookContext({
-      kind: 'apigw',
-      apiGwLogGroup: apiGw.logGroupTemplate,
-      queryProfileId: apiGw.profileId,
-      services: [
-        {
-          name: application.serviceName,
-          logGroup: application.logGroupTemplate,
-          varPrefix: application.varPrefix,
-        },
-      ],
-    })
-    // The service under analysis is always the primary resource of the draft.
-    .analysisDefaults({
-      runbookName: config.id,
-      ...config.analysisDefaults,
-      resources: [{ name: application.serviceName, role: 'PRIMARY' }, ...(config.analysisDefaults?.resources ?? [])],
-    });
+    .cloudExecutionPolicy({ sideEffects: 'NONE' });
 
   if (config.occurrenceTimeWindow !== undefined) {
     builder.occurrenceTimeWindow(config.occurrenceTimeWindow);
@@ -154,13 +137,21 @@ export function createInteropApiGwAlarmRunbook(config: InteropApiGwAlarmConfig):
     }),
   );
 
-  for (const knownCase of config.knownCases) builder.knownCase(knownCase);
-
-  builder.fallback(config.fallbackAction ?? defaultInteropApiGwUnknownCaseFallback(config));
-
-  if (config.maxIterations !== undefined) {
-    builder.maxIterations(config.maxIterations);
-  }
-
-  return builder.build();
+  return finishAlarmRunbook(builder, config, {
+    defaultFallback: () => defaultInteropApiGwUnknownCaseFallback(config),
+    runbookContext: {
+      kind: 'apigw',
+      apiGwLogGroup: apiGw.logGroupTemplate,
+      queryProfileId: apiGw.profileId,
+      services: [
+        {
+          name: application.serviceName,
+          logGroup: application.logGroupTemplate,
+          varPrefix: application.varPrefix,
+        },
+      ],
+    },
+    primaryResource: application.serviceName,
+    defaultRunbookName: config.id,
+  });
 }
