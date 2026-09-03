@@ -1,3 +1,5 @@
+import type { RunbookExecutionStatus } from '../../types/RunbookExecutionStatus.js';
+import { renderExecutionFailureSummary } from '../../reporting/renderExecutionFailureSummary.js';
 import type { GOLogger, TreeNode } from '@go-automation/go-common/core';
 
 import { ConsoleRunbookReporter } from '../../registry/reporters/ConsoleRunbookReporter.js';
@@ -18,6 +20,10 @@ import type { TerminationReason } from '../types/TerminationReason.js';
 export interface ApiGwFinalSummaryInput {
   /** Logger used to emit the structured banner. */
   readonly logger: GOLogger;
+  /** Engine outcome: a run that did not complete has no diagnosis to report. */
+  readonly status: RunbookExecutionStatus;
+  /** Why the run stopped, when the engine recorded one. */
+  readonly failureReason?: string;
   /**
    * IDs of the known cases the engine ultimately matched (either via
    * early resolution or via the post-loop case match), sorted by
@@ -45,6 +51,11 @@ export interface ApiGwFinalSummaryInput {
  * @param input - Fields collected from the engine result
  */
 export function renderApiGwFinalSummary(input: ApiGwFinalSummaryInput): void {
+  if (input.status !== 'completed') {
+    renderExecutionFailureSummary(input.logger, input.status, input.failureReason);
+    return;
+  }
+
   const servicesVisited = parseVisitedChain(input.vars.get('apiGwServicesVisited'));
   const lastErrorMsg = (input.vars.get('lastErrorMsg') ?? '').trim();
   const terminationReason = (input.vars.get('terminationReason') ?? '').trim() as TerminationReason | '';

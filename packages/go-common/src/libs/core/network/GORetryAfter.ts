@@ -7,14 +7,52 @@ import { trimToUndefined } from '../utils/GOStringUtils.js';
  */
 const DELAY_SECONDS_PATTERN = /^\d+$/u;
 
+const DAY = '(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)';
+const DAY_LONG = '(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)';
+const MONTH = '(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)';
+const TIME = '(?:[01]\\d|2[0-3]):[0-5]\\d:(?:[0-5]\\d|60)';
+
 /**
- * All three date formats RFC 9110 admits start with a day name (`Wed, …`,
- * `Wednesday, …`, `Wed Oct …`). Requiring a leading letter keeps `Date.parse`
- * away from values it would otherwise swallow: it reads `-5`, `+5` and `1.5`
- * as years, which would turn a malformed header into a past date and thus
- * into a zero delay — exactly the hot retry this parser exists to prevent.
+ * The preferred format, and the only one a conforming server should send:
+ * `Sun, 06 Nov 1994 08:49:37 GMT` (RFC 9110 §5.6.7).
  */
-const HTTP_DATE_PATTERN = /^[A-Za-z]/u;
+const IMF_FIXDATE = new RegExp(`^${DAY}, \\d{2} ${MONTH} \\d{4} ${TIME} GMT$`, 'u');
+
+/** Obsolete RFC 850 format: `Sunday, 06-Nov-94 08:49:37 GMT`. */
+const RFC_850_DATE = new RegExp(`^${DAY_LONG}, \\d{2}-${MONTH}-\\d{2} ${TIME} GMT$`, 'u');
+
+/**
+ * Obsolete asctime format: `Sun Nov  6 08:49:37 1994`. It carries no timezone,
+ * and RFC 9110 §5.6.7 requires it to be read as GMT — while `Date.parse` reads
+ * it in host-local time, which shifts the delay by the machine's offset.
+ */
+const ASCTIME_DATE = new RegExp(`^${DAY} ${MONTH} (?:[ 1-2]\\d|3[01]) ${TIME} \\d{4}$`, 'u');
+
+/**
+ * Parses an HTTP-date in any of the three grammars RFC 9110 admits.
+ *
+ * A leading-letter test used to stand in for this, but it only kept
+ * `Date.parse` away from bare numbers: `January 1, 2030` and `Mar 2027` passed
+ * it and resolved to delays of years. That contradicts the documented
+ * malformed-value fallback, and `GOFileDownloader` honours the value uncapped.
+ *
+ * @param value - Trimmed header value
+ * @returns Epoch milliseconds, or `undefined` when the value is not an HTTP-date
+ */
+function parseHttpDateMs(value: string): number | undefined {
+  if (IMF_FIXDATE.test(value) || RFC_850_DATE.test(value)) {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? undefined : parsed;
+  }
+
+  // asctime: appended `GMT` is what makes `Date.parse` read it as the RFC says.
+  if (ASCTIME_DATE.test(value)) {
+    const parsed = Date.parse(`${value} GMT`);
+    return Number.isNaN(parsed) ? undefined : parsed;
+  }
+
+  return undefined;
+}
 
 /**
  * Parses a `Retry-After` response header into a delay in milliseconds.
@@ -55,10 +93,8 @@ export function parseRetryAfterMs(
     return Number.isFinite(delayMs) ? delayMs : undefined;
   }
 
-  if (!HTTP_DATE_PATTERN.test(value)) return undefined;
-
-  const dateMs = Date.parse(value);
-  if (Number.isNaN(dateMs)) return undefined;
+  const dateMs = parseHttpDateMs(value);
+  if (dateMs === undefined) return undefined;
   // A date already in the past means "retry now", not "retry in the past".
   return Math.max(0, dateMs - now);
 }

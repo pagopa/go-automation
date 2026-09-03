@@ -79,10 +79,9 @@ describe('parseRetryAfterMs — no implicit cap', () => {
   });
 });
 
-describe('parseRetryAfterMs — Date.parse leniency', () => {
+describe('parseRetryAfterMs — the three RFC 9110 grammars', () => {
   // Date.parse reads bare numbers as years, so a malformed numeric header
-  // would resolve to a past date and collapse to a zero delay. Guarding the
-  // date branch on a leading letter is what keeps these undefined.
+  // would resolve to a past date and collapse to a zero delay.
   for (const header of ['-5', '+5', '1.5']) {
     it(`does not let Date.parse turn "${header}" into a zero delay`, () => {
       const parsed = parseRetryAfterMs(header, NOW);
@@ -90,15 +89,41 @@ describe('parseRetryAfterMs — Date.parse leniency', () => {
     });
   }
 
-  it('still accepts the timezone-qualified date formats RFC 9110 admits', () => {
-    assert.strictEqual(parseRetryAfterMs('Thu, 01 Jan 2026 00:02:00 GMT', NOW), 120_000);
-    assert.strictEqual(parseRetryAfterMs('Thursday, 01-Jan-26 00:02:00 GMT', NOW), 120_000);
+  it('accepts all three formats RFC 9110 admits', () => {
+    assert.strictEqual(parseRetryAfterMs('Thu, 01 Jan 2026 00:02:00 GMT', NOW), 120_000, 'IMF-fixdate');
+    assert.strictEqual(parseRetryAfterMs('Thursday, 01-Jan-26 00:02:00 GMT', NOW), 120_000, 'RFC 850');
+    assert.strictEqual(parseRetryAfterMs('Thu Jan  1 00:02:00 2026', NOW), 120_000, 'asctime');
   });
 
-  it('accepts the asctime format, whose instant Date.parse reads as local time', () => {
-    // asctime carries no timezone, so the resolved instant shifts with the
-    // host offset. Both former implementations had the same behaviour: they
-    // called bare Date.parse too. Assert it parses, not what it resolves to.
-    assert.notStrictEqual(parseRetryAfterMs('Thu Jan  1 00:02:00 2026', NOW), undefined);
+  it('reads the timezone-less asctime format as GMT, as RFC 9110 §5.6.7 requires', () => {
+    // Bare `Date.parse` reads it in host-local time. East of Greenwich that
+    // lands the instant in the past, and `Math.max(0, …)` turns a "wait two
+    // minutes" into an immediate retry against the server asking us to wait.
+    assert.strictEqual(parseRetryAfterMs('Thu Jan  1 00:02:00 2026', NOW), 120_000);
+  });
+
+  it('rejects a date that only looks like one to Date.parse', () => {
+    // These passed the former leading-letter test and resolved to delays of
+    // years, which `GOFileDownloader` would have honoured uncapped.
+    for (const header of ['January 1, 2030', 'Mar 2027', '2026-01-01T00:02:00Z', 'Tue Dec 2026']) {
+      assert.strictEqual(parseRetryAfterMs(header, NOW), undefined, header);
+    }
+  });
+
+  it('rejects an HTTP-date with the right shape but impossible fields', () => {
+    for (const header of [
+      'Thu, 32 Jan 2026 00:02:00 GMT',
+      'Thu, 01 Foo 2026 00:02:00 GMT',
+      'Xyz, 01 Jan 2026 00:02:00 GMT',
+      'Thu, 01 Jan 2026 24:02:00 GMT',
+    ]) {
+      assert.strictEqual(parseRetryAfterMs(header, NOW), undefined, header);
+    }
+  });
+
+  it('requires the GMT zone the grammar mandates', () => {
+    assert.strictEqual(parseRetryAfterMs('Thu, 01 Jan 2026 00:02:00', NOW), undefined);
+    assert.strictEqual(parseRetryAfterMs('Thu, 01 Jan 2026 00:02:00 UTC', NOW), undefined);
+    assert.strictEqual(parseRetryAfterMs('Thu, 01 Jan 2026 00:02:00 +0100', NOW), undefined);
   });
 });

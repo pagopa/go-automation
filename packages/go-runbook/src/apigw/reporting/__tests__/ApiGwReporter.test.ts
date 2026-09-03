@@ -396,6 +396,7 @@ describe('renderApiGwFinalSummary', () => {
     const { logger, narrative, lines } = captureLogger();
     renderApiGwFinalSummary({
       logger,
+      status: 'completed',
       matchedCaseIds: [],
       vars: new Map<string, string>([
         ['apiGwServicesVisited', 'pn-user-attributes|42,pn-external-registries|87'],
@@ -414,6 +415,7 @@ describe('renderApiGwFinalSummary', () => {
     const { logger, narrative, lines } = captureLogger();
     renderApiGwFinalSummary({
       logger,
+      status: 'completed',
       matchedCaseIds: ['gateway-timeout-504'],
       vars: new Map<string, string>([
         // The decide step had already written `no-match` before the
@@ -432,6 +434,7 @@ describe('renderApiGwFinalSummary', () => {
     const { logger, narrative, lines } = captureLogger();
     renderApiGwFinalSummary({
       logger,
+      status: 'completed',
       matchedCaseIds: [],
       vars: new Map<string, string>([
         ['apiGwErrorMessage', 'Endpoint request timed out'],
@@ -449,6 +452,7 @@ describe('renderApiGwFinalSummary', () => {
     const { logger, narrative, lines } = captureLogger();
     renderApiGwFinalSummary({
       logger,
+      status: 'completed',
       matchedCaseIds: [],
       vars: new Map<string, string>([
         ['apiGwErrorMessage', '-'],
@@ -460,5 +464,43 @@ describe('renderApiGwFinalSummary', () => {
     narrative.flush();
     const joined = lines.join('\n');
     assert.match(joined, /Nessun error message disponibile/);
+  });
+
+  it('says the run failed instead of presenting it as a clean no-match', () => {
+    const { logger, lines } = captureLogger();
+
+    renderApiGwFinalSummary({
+      logger,
+      status: 'failed',
+      failureReason: 'MalformedQueryException su query-api-gw-logs',
+      matchedCaseIds: [],
+      vars: new Map(),
+    });
+
+    const rendered = lines.join('\n');
+    assert.match(rendered, /Esito: esecuzione fallita/u);
+    assert.match(rendered, /MalformedQueryException/u);
+    assert.doesNotMatch(rendered, /caso non riconosciuto/u);
+  });
+
+  it('reports an aborted run as interrupted, not as an outcome', () => {
+    const { logger, lines } = captureLogger();
+
+    renderApiGwFinalSummary({ logger, status: 'aborted', matchedCaseIds: [], vars: new Map() });
+
+    assert.match(lines.join('\n'), /Esito: esecuzione interrotta/u);
+  });
+
+  it('does not read a termination reason the failed pipeline never wrote', () => {
+    const { logger, lines } = captureLogger();
+
+    renderApiGwFinalSummary({
+      logger,
+      status: 'failed',
+      matchedCaseIds: [],
+      vars: new Map([['terminationReason', 'no-match']]),
+    });
+
+    assert.doesNotMatch(lines.join('\n'), /caso non riconosciuto/u);
   });
 });

@@ -67,8 +67,12 @@ export async function analyzeOccurrence(
 function renderFinalSummary(script: Core.GOScript, runbook: Runbook, result: RunbookExecutionResult): void {
   const finalSummaryInput = {
     logger: script.logger,
+    status: result.status,
     matchedCaseIds: result.matchedCases.map((c) => c.id),
     vars: result.finalContext.vars,
+    ...(result.trace.execution.failureReason !== undefined
+      ? { failureReason: result.trace.execution.failureReason }
+      : {}),
   };
 
   if (lambda.isLambdaRunbookContext(runbook.runbookContext)) {
