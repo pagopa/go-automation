@@ -3,7 +3,8 @@ import type { KnownCase } from '../../types/KnownCase.js';
 import type { OccurrenceTimeWindow } from '../../types/OccurrenceTimeWindow.js';
 import type { RunbookMetadata } from '../../types/RunbookMetadata.js';
 import type { RunbookAnalysisDefaults } from '../../types/RunbookAnalysisDefaults.js';
-import type { StepDescriptor } from '../../types/StepDescriptor.js';
+import type { PipelineHook } from '../../types/PipelineHook.js';
+import type { ServicePipelineAnchor } from './ServicePipelineAnchor.js';
 import type { ServiceLogQueryProfile } from '../profiles/ServiceLogQueryProfile.js';
 import type { ServiceDescriptor } from './ServiceDescriptor.js';
 
@@ -28,8 +29,12 @@ export interface ServiceAlarmConfig {
   readonly occurrenceTimeWindow?: OccurrenceTimeWindow;
   /** Extra analysis references; the builder always prepends the primary resource. */
   readonly analysisDefaults?: RunbookAnalysisDefaults;
-  /** Step custom inseriti dopo l'analisi dei log errore e prima della query trace. */
-  readonly preSteps?: ReadonlyArray<StepDescriptor>;
+  /**
+   * Custom steps spliced into the canonical pipeline at named points.
+   *
+   * See {@link ServicePipelineAnchor} for the available positions.
+   */
+  readonly hooks?: ReadonlyArray<PipelineHook<ServicePipelineAnchor>>;
   /**
    * Action eseguita quando nessun caso noto matcha. Quando omessa, la
    * factory genera una default action che riassume i log raccolti.

@@ -135,6 +135,10 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
 /**
  * Checks if a value is an object (including arrays, dates, etc., but not null).
  *
+ * Narrows to `object`, not to a record: arrays and class instances pass, so
+ * claiming string-keyed properties would be unsound. Reach for
+ * {@link isPlainObject} when the next thing you do is read `value['key']`.
+ *
  * @param value - Value to check
  * @returns true if value is an object
  *
@@ -308,6 +312,27 @@ export function isPromise(value: unknown): value is Promise<unknown> {
  */
 export function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0;
+}
+
+/**
+ * Checks if a value is a string carrying actual content.
+ *
+ * Stricter than {@link isNonEmptyString}: a whitespace-only string is
+ * rejected. Use it to validate identifiers and configuration values, where
+ * a blank string is as unusable as a missing one.
+ *
+ * @param value - Value to check
+ * @returns true if value is a string with non-whitespace content
+ *
+ * @example
+ * ```typescript
+ * isNonBlankString('eu-south-1'); // true
+ * isNonBlankString('   ');        // false
+ * isNonEmptyString('   ');        // true - length-based, not content-based
+ * ```
+ */
+export function isNonBlankString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim() !== '';
 }
 
 /**

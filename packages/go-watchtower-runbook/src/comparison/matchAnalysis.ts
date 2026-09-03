@@ -55,11 +55,34 @@ function emptySignals(): AnalysisMatchSignals {
   };
 }
 
+/** Synthetic ignore-reason code, preferring the flat field over the nested object. */
+function ignoreReasonCode(analysis: AlarmAnalysisDto): string | undefined {
+  return nonEmpty(analysis.ignoreReasonCode ?? analysis.ignoreReason?.code);
+}
+
+/** Trimmed value, or `undefined` when null/absent/blank. */
+function nonEmpty(value: string | null | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed === undefined || trimmed === '' ? undefined : trimmed;
+}
+
+/** Human-readable ignore reason: `CODE (label)` when both are known and differ. */
+function ignoreReasonText(code: string | undefined, label: string | undefined): string | undefined {
+  if (code === undefined) return label;
+  if (label === undefined || label === code) return code;
+  return `${code} (${label})`;
+}
+
 /**
  * Compares the runbook's matched case (V2) with the linked Watchtower analysis.
  * Lexical and **assisted**: never a hard verdict. Returns a confidence-graded
  * status with explicit reasons and signals (incl. near-deterministic traceId
  * overlap). Only meaningful when the runbook actually matched a case (V1 = HIT).
+ *
+ * Analyses excluded from the oracle keep two distinct statuses, so an ignored
+ * occurrence is never mistaken for a missing one: `IGNORED` (analysis exists but
+ * is `IGNORABLE`, carrying its reason code) and `NOT_ANALYZED` (analysis not yet
+ * `COMPLETED`).
  *
  * @param output - The structured runbook output (for correlation ids / message)
  * @param check - The V1 classification of the same occurrence
@@ -86,19 +109,38 @@ export function matchAnalysis(
     };
   }
 
-  const ignorable = analysis.analysisType === 'IGNORABLE';
-  const notCompleted = analysis.status !== 'COMPLETED';
-  if ((ignorable && !options.includeIgnorable) || (notCompleted && !options.includeIncomplete)) {
-    const why = ignorable ? 'analisi IGNORABLE' : `analisi non COMPLETED (${analysis.status})`;
+  if (analysis.analysisType === 'IGNORABLE' && !options.includeIgnorable) {
+    const code = ignoreReasonCode(analysis);
+    const label = nonEmpty(analysis.ignoreReason?.label);
+    const detail = ignoreReasonText(code, label);
+    return {
+      status: 'IGNORED',
+      confidence: 0,
+      reasons: [
+        detail === undefined
+          ? 'Analisi IGNORABLE senza motivo indicato: non usata come oracolo.'
+          : `Analisi IGNORABLE (${detail}): non usata come oracolo.`,
+      ],
+      signals: emptySignals(),
+      matcher: 'lexical',
+      aiAttempted: false,
+      ...(code !== undefined ? { ignoreReasonCode: code } : {}),
+      ...(label !== undefined ? { ignoreReasonLabel: label } : {}),
+    };
+  }
+
+  if (analysis.status !== 'COMPLETED' && !options.includeIncomplete) {
     return {
       status: 'NOT_ANALYZED',
       confidence: 0,
-      reasons: [`Analisi non usata come oracolo: ${why}.`],
+      reasons: [`Analisi non usata come oracolo: analisi non COMPLETED (${analysis.status}).`],
       signals: emptySignals(),
       matcher: 'lexical',
       aiAttempted: false,
     };
   }
+
+  const excerpt = pickOccurrenceExcerpt(analysis, firedAt);
 
   if (check.status !== 'HIT' || check.primaryCaseId === undefined) {
     return {
@@ -108,11 +150,14 @@ export function matchAnalysis(
       signals: emptySignals(),
       matcher: 'lexical',
       aiAttempted: false,
+      // Carried precisely here: an occurrence the runbook could not classify is
+      // the one whose human analysis someone has to read to write the missing
+      // known case.
+      ...(excerpt !== '' ? { analysisExcerpt: excerpt } : {}),
     };
   }
 
-  const evidence = extractAnalysisEvidence(analysis);
-  const excerpt = pickOccurrenceExcerpt(analysis, firedAt);
+  const evidence = extractAnalysisEvidence(analysis, firedAt);
   const caseMessage = runbookCaseMessage(output);
   const caseDescription = check.primaryCaseDescription ?? '';
 

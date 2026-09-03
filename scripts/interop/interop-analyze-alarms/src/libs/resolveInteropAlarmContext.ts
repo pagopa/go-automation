@@ -1,3 +1,4 @@
+import { trimToUndefined } from '@go-automation/go-common/core';
 import type { InteropAlarmContext, InteropEnvironment } from '../types/index.js';
 
 const INTEROP_ENVIRONMENTS: readonly [InteropEnvironment, ...InteropEnvironment[]] = ['prod', 'att', 'test'];
@@ -6,8 +7,8 @@ const K8S_INTEROP_ALARM_PATTERN = /^k8s-(?<podApp>.+)-errors-(?<tail>.+)$/u;
 export function resolveInteropAlarmContext(alarmName: string): InteropAlarmContext {
   const normalizedAlarmName = alarmName.trim();
   const match = K8S_INTEROP_ALARM_PATTERN.exec(normalizedAlarmName);
-  const podApp = normalize(match?.groups?.['podApp']);
-  const tail = normalize(match?.groups?.['tail']);
+  const podApp = trimToUndefined(match?.groups?.['podApp']);
+  const tail = trimToUndefined(match?.groups?.['tail']);
 
   if (podApp === undefined || tail === undefined) {
     throw new Error(
@@ -38,9 +39,4 @@ function resolveEnvironmentFromTail(tail: string): InteropEnvironment | undefine
 
 function isInteropEnvironment(value: string): value is InteropEnvironment {
   return INTEROP_ENVIRONMENTS.includes(value as InteropEnvironment);
-}
-
-function normalize(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed === undefined || trimmed === '' ? undefined : trimmed;
 }

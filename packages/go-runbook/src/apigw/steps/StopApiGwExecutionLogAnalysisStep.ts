@@ -10,7 +10,7 @@ export interface StopApiGwExecutionLogAnalysisConfig {
   readonly label: string;
 }
 
-class StopApiGwExecutionLogAnalysisStepImpl implements Step<void> {
+export class StopApiGwExecutionLogAnalysisStep implements Step<void> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'control';
@@ -38,12 +38,4 @@ class StopApiGwExecutionLogAnalysisStepImpl implements Step<void> {
       next: 'stop',
     };
   }
-}
-
-/**
- * Factory: creates the guard step that stops the runbook when the
- * requestId-based execution-log branch did not match any known case.
- */
-export function stopApiGwExecutionLogAnalysis(config: StopApiGwExecutionLogAnalysisConfig): Step<void> {
-  return new StopApiGwExecutionLogAnalysisStepImpl(config);
 }

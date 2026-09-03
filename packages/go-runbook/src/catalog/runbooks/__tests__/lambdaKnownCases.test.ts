@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { ConditionEvaluator, lambda, SEND_DOWNSTREAMS } from '../framework.js';
-import type { Condition, KnownCase, RunbookContext, ServiceRegistry } from '../framework.js';
+import type { Condition, KnownCase, RunbookContext } from '../framework.js';
 
 import { KNOWN_CASES as TOKEN_EXCHANGE_CASES } from '../pn-tokenExchangeLambda-LogInvocationErrors-Alarm/knownCases.js';
 import { KNOWN_CASES as IO_AUTHORIZER_CASES } from '../pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/knownCases.js';
@@ -12,13 +12,14 @@ import { KNOWN_CASES as API_KEY_AUTHORIZER_CASES } from '../pn-ApiKeyAuthorizerV
 import { KNOWN_CASES as DELIVERY_INSERT_TRIGGER_EB_CASES } from '../pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm/knownCases.js';
 import { KNOWN_CASES as LOLLIPOP_AUTHORIZER_CASES } from '../pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm/knownCases.js';
 import { DOWNSTREAM_ERROR_PATTERNS as LOLLIPOP_AUTHORIZER_DOWNSTREAM_PATTERNS } from '../pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm/knownErrors.js';
-import { buildTokenExchangeLambdaRunbook } from '../pn-tokenExchangeLambda-LogInvocationErrors-Alarm/runbook.js';
-import { buildIoAuthorizerLambdaRunbook } from '../pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
-import { buildSlaViolationCheckerLambdaSqsRunbook } from '../pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm/runbook.js';
-import { buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook } from '../pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm/runbook.js';
-import { buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook } from '../pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm/runbook.js';
-import { buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook } from '../pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm/runbook.js';
-import { buildLollipopAuthorizerLambdaLogInvocationErrorsAlarmRunbook } from '../pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
+import { buildRunbook as buildTokenExchangeLambdaRunbook } from '../pn-tokenExchangeLambda-LogInvocationErrors-Alarm/runbook.js';
+import { buildRunbook as buildIoAuthorizerLambdaRunbook } from '../pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
+import { buildRunbook as buildSlaViolationCheckerLambdaSqsRunbook } from '../pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm/runbook.js';
+import { buildRunbook as buildJwksCacheRefreshLambdaLogInvocationErrorsAlarmRunbook } from '../pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm/runbook.js';
+import { buildRunbook as buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook } from '../pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm/runbook.js';
+import { buildRunbook as buildDeliveryInsertTriggerEbLambdaLogInvocationErrorsAlarmRunbook } from '../pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm/runbook.js';
+import { buildRunbook as buildLollipopAuthorizerLambdaLogInvocationErrorsAlarmRunbook } from '../pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm/runbook.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 /** Collects every regex string referenced by a condition tree. */
 function collectRegexes(condition: Condition): ReadonlyArray<string> {
@@ -62,7 +63,7 @@ function lambdaLogContext(messages: ReadonlyArray<string>): RunbookContext {
     vars: new Map(),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

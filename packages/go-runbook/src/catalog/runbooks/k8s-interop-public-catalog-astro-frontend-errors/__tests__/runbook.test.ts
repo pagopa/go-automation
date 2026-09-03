@@ -1,31 +1,24 @@
+import { PUBLIC_CATALOG_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { service } from '../../framework.js';
 
-import { buildK8sInteropPublicCatalogAstroFrontendErrorsRunbook } from '../runbook.js';
-import {
-  ANALYZE_INTEROP_APPLICATION_LOGS_STEP_ID,
-  ANALYZE_INTEROP_CID_TRACKER_STEP_ID,
-  QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
-  QUERY_INTEROP_CID_TRACKER_STEP_ID,
-  RESOLVE_INTEROP_ALARM_CONTEXT_STEP_ID,
-} from '../runbookSteps.js';
-import { INTEROP_PUBLIC_CATALOG_RUNBOOK_KEY } from '../resolveInteropAlarmContext.js';
+import { buildRunbook } from '../runbook.js';
 
-describe('buildK8sInteropPublicCatalogAstroFrontendErrorsRunbook', () => {
+describe('buildRunbook', () => {
   it('builds a SERVICE-compatible read-only runbook with the expected pipeline', () => {
-    const runbook = buildK8sInteropPublicCatalogAstroFrontendErrorsRunbook();
+    const runbook = buildRunbook();
 
-    assert.strictEqual(runbook.metadata.id, INTEROP_PUBLIC_CATALOG_RUNBOOK_KEY);
+    assert.strictEqual(runbook.metadata.id, PUBLIC_CATALOG_ALARM.runbookKey);
     assert.deepStrictEqual(
       runbook.steps.map((descriptor) => descriptor.step.id),
       [
-        RESOLVE_INTEROP_ALARM_CONTEXT_STEP_ID,
-        QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
-        ANALYZE_INTEROP_APPLICATION_LOGS_STEP_ID,
-        QUERY_INTEROP_CID_TRACKER_STEP_ID,
-        ANALYZE_INTEROP_CID_TRACKER_STEP_ID,
+        PUBLIC_CATALOG_ALARM.stepIds.resolveContext,
+        PUBLIC_CATALOG_ALARM.stepIds.queryApplicationLogs,
+        PUBLIC_CATALOG_ALARM.stepIds.analyzeApplicationLogs,
+        PUBLIC_CATALOG_ALARM.stepIds.queryCidTracker,
+        PUBLIC_CATALOG_ALARM.stepIds.analyzeCidTracker,
       ],
     );
     assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });

@@ -12,12 +12,12 @@ export const TEMPLATES_ROOT = path.join(REPO_ROOT, 'bins', 'runbook-templates');
 /** Directory under go-runbook where concrete automatic runbooks live. */
 export const RUNBOOKS_DIR = path.join(REPO_ROOT, 'packages', 'go-runbook', 'src', 'catalog', 'runbooks');
 
-/** Source file that holds the automatic runbook registry. */
-export const RUNBOOK_REGISTRY_FILE = path.join(
+/** Hand-maintained source file that lists every automatic runbook. */
+export const CATALOG_MANIFEST_FILE = path.join(
   REPO_ROOT,
   'packages',
   'go-runbook',
   'src',
   'catalog',
-  'runbookRegistry.ts',
+  'catalogManifest.ts',
 );

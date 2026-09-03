@@ -2,6 +2,7 @@
  * Runbook: pn-address-manager-POSTEL-downstream-detection-Alarm
  */
 
+import { unknownCaseFallback } from '../../../actions/unknownCaseFallback.js';
 import { service } from '../framework.js';
 import type { Runbook } from '../framework.js';
 
@@ -10,7 +11,7 @@ import { SERVICE } from './knownServices.js';
 import { VerifyPostelBatchesStep } from './VerifyPostelBatchesStep.js';
 
 /** Builds the pn-address-manager POSTEL downstream-detection runbook. */
-export function buildAddressManagerPostelDownstreamDetectionAlarmRunbook(): Runbook {
+export function buildRunbook(): Runbook {
   return service.createServiceAlarmRunbook({
     id: 'pn-address-manager-POSTEL-downstream-detection-Alarm',
     metadata: {
@@ -28,8 +29,9 @@ export function buildAddressManagerPostelDownstreamDetectionAlarmRunbook(): Runb
       beforeMinutes: 10,
       afterMinutes: 5,
     },
-    preSteps: [
+    hooks: [
       {
+        at: 'after-service-analysis',
         step: new VerifyPostelBatchesStep({
           id: 'verify-postel-batches',
           label: 'Verifica recupero batch POSTEL',
@@ -40,21 +42,15 @@ export function buildAddressManagerPostelDownstreamDetectionAlarmRunbook(): Runb
         silent: true,
       },
     ],
-    fallbackAction: {
-      type: 'log',
-      level: 'warn',
-      renderAs: 'unknown-case',
-      message:
-        '[CASO NON RICONOSCIUTO]\n' +
-        'Esito: recupero dei batch POSTEL non ancora dimostrato.\n' +
-        'Dettaglio: proseguire la verifica dei batch mancanti e del downstream Consolidatore postale.\n' +
-        'Servizio: pn-address-manager\n' +
-        'Batch impattati: {{vars.postelImpactedBatchCount}}\n' +
-        'Batch WORKED: {{vars.postelWorkedBatchCount}}\n' +
-        'Batch non verificati: {{vars.postelPendingBatchCount}}\n' +
-        'Batch ID non verificati: {{vars.postelPendingBatchIds}}\n' +
-        'Finestra di recupero: {{vars.postelRecoveryAfterMinutes}} minuti\n' +
-        'Errore: {{vars.addressManagerErrorMsg}}\n',
-    },
+    fallbackAction: unknownCaseFallback('Recupero dei batch POSTEL non ancora dimostrato.', [
+      ['Dettaglio', 'proseguire la verifica dei batch mancanti e del downstream Consolidatore postale.'],
+      ['Servizio', 'pn-address-manager'],
+      ['Batch impattati', '{{vars.postelImpactedBatchCount}}'],
+      ['Batch WORKED', '{{vars.postelWorkedBatchCount}}'],
+      ['Batch non verificati', '{{vars.postelPendingBatchCount}}'],
+      ['Batch ID non verificati', '{{vars.postelPendingBatchIds}}'],
+      ['Finestra di recupero', '{{vars.postelRecoveryAfterMinutes}} minuti'],
+      ['Errore', '{{vars.addressManagerErrorMsg}}'],
+    ]),
   });
 }

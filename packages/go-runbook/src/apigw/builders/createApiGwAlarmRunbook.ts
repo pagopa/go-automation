@@ -1,17 +1,20 @@
 import { RunbookBuilder } from '../../builders/RunbookBuilder.js';
 import { CloudWatchLogsQueryStep } from '../../steps/data/CloudWatchLogsQueryStep.js';
 import type { Runbook } from '../../types/Runbook.js';
+import type { ApiGwPipelineAnchor } from '../types/ApiGwPipelineAnchor.js';
+import { applyPipelineHooks } from '../../builders/applyPipelineHooks.js';
+import { finishAlarmRunbook } from '../../builders/finishAlarmRunbook.js';
 
 import type { ApiGwAlarmConfig } from '../types/ApiGwAlarmConfig.js';
 
-import { parseApiGwErrors } from '../steps/ParseApiGwErrorsStep.js';
-import { prepareApiGwSection } from '../steps/PrepareApiGwSectionStep.js';
-import { queryServiceLogs } from '../steps/QueryServiceLogsStep.js';
+import { ParseApiGwErrorsStep } from '../steps/ParseApiGwErrorsStep.js';
+import { PrepareApiGwSectionStep } from '../steps/PrepareApiGwSectionStep.js';
+import { QueryServiceLogsStep } from '../steps/QueryServiceLogsStep.js';
 import { AnalyzeServiceLogsStep } from '../steps/AnalyzeServiceLogsStep.js';
-import { decideNext } from '../steps/DecideNextStep.js';
-import { queryApiGwExecutionLogs } from '../steps/QueryApiGwExecutionLogsStep.js';
-import { stopApiGwExecutionLogAnalysis } from '../steps/StopApiGwExecutionLogAnalysisStep.js';
-import { evaluateApiGwAuthorizerFailure } from '../steps/EvaluateApiGwAuthorizerFailureStep.js';
+import { DecideNextStep } from '../steps/DecideNextStep.js';
+import { QueryApiGwExecutionLogsStep } from '../steps/QueryApiGwExecutionLogsStep.js';
+import { StopApiGwExecutionLogAnalysisStep } from '../steps/StopApiGwExecutionLogAnalysisStep.js';
+import { EvaluateApiGwAuthorizerFailureStep } from '../steps/EvaluateApiGwAuthorizerFailureStep.js';
 import { builtinApiGwAuthorizerKnownCases } from '../knownCases/authorizerKnownCases.js';
 import { defaultUnknownCaseFallback } from './defaultUnknownCaseFallback.js';
 import { resolveApiGwAlarmBuildContext } from './resolveApiGwAlarmBuildContext.js';
@@ -24,7 +27,9 @@ import { resolveApiGwAlarmBuildContext } from './resolveApiGwAlarmBuildContext.j
  */
 export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   const ctx = resolveApiGwAlarmBuildContext(config);
-  const { profile, minStatus, apiGwQuery, registry, allServices, servicesInRunbook } = ctx;
+  const { profile, minStatus, apiGwQuery, registry, allServices, servicesInRunbook, hooks } = ctx;
+  const reachedAnchors = new Set<ApiGwPipelineAnchor>();
+  const executionLogAnalysisMode = config.executionLogAnalysisMode ?? 'terminal';
 
   const builder = RunbookBuilder.create(config.id)
     .metadata(config.metadata)
@@ -32,7 +37,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
 
   // 1. Banner.
   builder.step(
-    prepareApiGwSection({
+    new PrepareApiGwSectionStep({
       id: 'prepare-api-gw-section',
       label: 'Preparazione API Gateway',
       apiGwLogGroup: config.apiGwLogGroup,
@@ -63,7 +68,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   // preparation section in the console output, before authorizer/execution
   // log sections open their own banners.
   builder.step(
-    parseApiGwErrors({
+    new ParseApiGwErrorsStep({
       id: 'parse-api-gw-errors',
       label: `Estrazione ${profile.accessLog.schema.traceIdLabel} e metadati API Gateway`,
       fromStep: 'query-api-gw-logs',
@@ -77,7 +82,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   // 4. Authorizer gate (condizionale, prima di ogni trace-id flow).
   if (config.authorizerFailureCheck !== undefined) {
     builder.step(
-      evaluateApiGwAuthorizerFailure({
+      new EvaluateApiGwAuthorizerFailureStep({
         id: 'evaluate-api-gw-authorizer-failure',
         label: 'Valutazione Lambda authorizer API Gateway',
         fromStep: 'query-api-gw-logs',
@@ -92,7 +97,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   // 5. ExecutionLog branch (condizionale).
   if (ctx.executionLogEnabled && profile.executionLog !== undefined && ctx.effectiveExecutionLogGroup !== undefined) {
     builder.step(
-      queryApiGwExecutionLogs({
+      new QueryApiGwExecutionLogsStep({
         id: 'query-api-gw-execution-logs',
         label: 'Query API Gateway ExecutionLog per requestId',
         fromStep: 'query-api-gw-logs',
@@ -102,6 +107,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
         accessLogSchema: profile.accessLog.schema,
         queryProfileId: profile.id,
         executionLogGroup: ctx.effectiveExecutionLogGroup,
+        analysisMode: executionLogAnalysisMode,
         ...(config.executionLogMaxRequestIds !== undefined
           ? { maxRequestIdsOverride: config.executionLogMaxRequestIds }
           : {}),
@@ -109,27 +115,24 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
       { silent: true },
     );
 
-    builder.step(
-      stopApiGwExecutionLogAnalysis({
-        id: 'stop-api-gw-execution-log-unresolved',
-        label: 'Stop se execution log API Gateway non determinante',
-      }),
-      { silent: true },
-    );
+    if (executionLogAnalysisMode === 'terminal') {
+      builder.step(
+        new StopApiGwExecutionLogAnalysisStep({
+          id: 'stop-api-gw-execution-log-unresolved',
+          label: 'Stop se execution log API Gateway non determinante',
+        }),
+        { silent: true },
+      );
+    }
   }
 
-  // 6. Custom pre-steps.
-  for (const descriptor of ctx.preSteps) {
-    const opts: { continueOnFailure?: boolean; silent?: boolean } = {};
-    if (descriptor.continueOnFailure === true) opts.continueOnFailure = true;
-    if (descriptor.silent === true) opts.silent = true;
-    builder.step(descriptor.step, opts);
-  }
+  // 6. Custom steps declared for this point of the pipeline.
+  applyPipelineHooks(builder, hooks, 'before-service-traversal', reachedAnchors);
 
   // 7. Per-service triplets.
   for (const service of allServices) {
     builder.step(
-      queryServiceLogs({
+      new QueryServiceLogsStep({
         id: `query-${service.name}`,
         label: `Query log ${service.name}`,
         serviceName: service.name,
@@ -157,8 +160,12 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
       { silent: true },
     );
 
+    if (service.name === config.entryService.name) {
+      applyPipelineHooks(builder, hooks, 'after-entry-analysis', reachedAnchors);
+    }
+
     builder.step(
-      decideNext({
+      new DecideNextStep({
         id: `decide-${service.name}`,
         label: `Decisione flusso per ${service.name}`,
         serviceName: service.name,
@@ -174,34 +181,17 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   for (const knownCase of builtinApiGwAuthorizerKnownCases(config)) {
     builder.knownCase(knownCase);
   }
-  for (const knownCase of config.knownCases) {
-    builder.knownCase(knownCase);
-  }
-
-  // 9. Fallback.
-  builder.fallback(
-    config.fallbackAction ??
+  // 9. Known cases, fallback, context, analysis defaults, iteration cap, build.
+  return finishAlarmRunbook(builder, config, {
+    builderName: 'createApiGwAlarmRunbook',
+    defaultFallback: () =>
       defaultUnknownCaseFallback(
         allServices,
         profile.accessLog.schema.traceIdContextVar,
         profile.accessLog.schema.traceIdLabel,
       ),
-  );
-  builder.runbookContext({
-    ...ctx.runbookContext,
+    runbookContext: { ...ctx.runbookContext },
+    primaryResource: config.entryService.name,
+    anchors: { hooks, reached: reachedAnchors, pipelineName: 'API Gateway' },
   });
-
-  // Primary resource of the draft: the component under analysis. `type` stays
-  // undeclared until the Fase 0 coverage check confirms the censused ResourceType
-  // name — a wrong type would block the apply, while omitting it never does.
-  builder.analysisDefaults({
-    ...config.analysisDefaults,
-    resources: [{ name: config.entryService.name, role: 'PRIMARY' }, ...(config.analysisDefaults?.resources ?? [])],
-  });
-
-  if (config.maxIterations !== undefined) {
-    builder.maxIterations(config.maxIterations);
-  }
-
-  return builder.build();
 }

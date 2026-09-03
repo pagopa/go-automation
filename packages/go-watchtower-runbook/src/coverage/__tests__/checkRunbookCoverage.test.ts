@@ -306,7 +306,7 @@ function runbookOf(defaults: RunbookAnalysisDefaults, analysis: Partial<KnownCas
     },
     steps: [],
     knownCases: [knownCase(analysis)],
-    fallbackAction: { type: 'log', level: 'info', message: 'fallback' },
+    fallbackAction: { type: 'log', level: 'info', title: 'fallback' },
     cloudExecutionPolicy: { sideEffects: 'NONE' },
     analysisDefaults: defaults,
   };
@@ -318,7 +318,7 @@ function knownCase(analysis: Partial<KnownCaseAnalysis>): KnownCase {
     description: 'primary',
     priority: 100,
     condition: { type: 'contains', ref: 'steps.query', regex: 'boom' },
-    action: { type: 'log', level: 'info', message: '[CASO NOTO] primary' },
+    action: { type: 'log', level: 'info', renderAs: 'known-case', title: 'primary' },
     analysis: {
       resolution: 'Chiusura - caso noto.',
       proposedStatus: 'COMPLETED',

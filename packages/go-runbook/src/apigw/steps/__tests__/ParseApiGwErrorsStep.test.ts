@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 
 import type { ResultField } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
-import { parseApiGwErrors } from '../ParseApiGwErrorsStep.js';
+import { ParseApiGwErrorsStep } from '../ParseApiGwErrorsStep.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function createContext(stepOutput: unknown): RunbookContext {
   return {
@@ -14,7 +14,7 @@ function createContext(stepOutput: unknown): RunbookContext {
     vars: new Map(),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }
@@ -25,7 +25,7 @@ function buildRow(fields: Record<string, string>): ResultField[] {
 
 describe('parseApiGwErrors', () => {
   it('returns next=stop and apiGwErrorCount=0 when no rows meet the threshold', async () => {
-    const step = parseApiGwErrors({
+    const step = new ParseApiGwErrorsStep({
       id: 'parse',
       label: 'Parse',
       fromStep: 'query-api-gw-logs',
@@ -38,7 +38,7 @@ describe('parseApiGwErrors', () => {
   });
 
   it('extracts xRayTraceId, statusCode and all extended fields from the first error row', async () => {
-    const step = parseApiGwErrors({
+    const step = new ParseApiGwErrorsStep({
       id: 'parse',
       label: 'Parse',
       fromStep: 'query-api-gw-logs',
@@ -74,7 +74,7 @@ describe('parseApiGwErrors', () => {
   });
 
   it("preserves the API Gateway '-' placeholder in vars but hides it from the typed output", async () => {
-    const step = parseApiGwErrors({
+    const step = new ParseApiGwErrorsStep({
       id: 'parse',
       label: 'Parse',
       fromStep: 'query-api-gw-logs',
@@ -95,7 +95,7 @@ describe('parseApiGwErrors', () => {
   });
 
   it('filters rows below the configured threshold', async () => {
-    const step = parseApiGwErrors({
+    const step = new ParseApiGwErrorsStep({
       id: 'parse',
       label: 'Parse',
       fromStep: 'query-api-gw-logs',
@@ -108,7 +108,7 @@ describe('parseApiGwErrors', () => {
   });
 
   it('uses the highest status row as primary diagnostic when 4xx and 5xx rows are mixed', async () => {
-    const step = parseApiGwErrors({
+    const step = new ParseApiGwErrorsStep({
       id: 'parse',
       label: 'Parse',
       fromStep: 'query-api-gw-logs',
@@ -139,7 +139,7 @@ describe('parseApiGwErrors', () => {
   });
 
   it('keeps rows whose only error signal is on authorizerStatus or integrationServiceStatus', async () => {
-    const step = parseApiGwErrors({ id: 'parse', label: 'Parse', fromStep: 'query-api-gw-logs' });
+    const step = new ParseApiGwErrorsStep({ id: 'parse', label: 'Parse', fromStep: 'query-api-gw-logs' });
     // status='-', authorizerStatus='500' -> should still count as an error row
     const ctx = createContext([
       buildRow({
@@ -164,7 +164,7 @@ describe('parseApiGwErrors', () => {
   });
 
   it('apiGwStatusCode falls back to integrationServiceStatus when status and authorizerStatus are both "-"', async () => {
-    const step = parseApiGwErrors({ id: 'parse', label: 'Parse', fromStep: 'query-api-gw-logs' });
+    const step = new ParseApiGwErrorsStep({ id: 'parse', label: 'Parse', fromStep: 'query-api-gw-logs' });
     const ctx = createContext([
       buildRow({
         status: '-',
@@ -178,7 +178,7 @@ describe('parseApiGwErrors', () => {
   });
 
   it('prefers `status` over the other two when all three are present', async () => {
-    const step = parseApiGwErrors({ id: 'parse', label: 'Parse', fromStep: 'query-api-gw-logs' });
+    const step = new ParseApiGwErrorsStep({ id: 'parse', label: 'Parse', fromStep: 'query-api-gw-logs' });
     const ctx = createContext([
       buildRow({
         status: '500',
@@ -191,7 +191,7 @@ describe('parseApiGwErrors', () => {
   });
 
   it('still drops rows whose three status fields are all below the threshold', async () => {
-    const step = parseApiGwErrors({ id: 'parse', label: 'Parse', fromStep: 'query-api-gw-logs' });
+    const step = new ParseApiGwErrorsStep({ id: 'parse', label: 'Parse', fromStep: 'query-api-gw-logs' });
     const ctx = createContext([buildRow({ status: '404', authorizerStatus: '200', integrationServiceStatus: '-' })]);
     const result = await step.execute(ctx);
     assert.strictEqual(result.success, true);
@@ -200,7 +200,7 @@ describe('parseApiGwErrors', () => {
   });
 
   it('returns failure when the upstream step output is missing', async () => {
-    const step = parseApiGwErrors({
+    const step = new ParseApiGwErrorsStep({
       id: 'parse',
       label: 'Parse',
       fromStep: 'missing-step',

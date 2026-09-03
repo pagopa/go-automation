@@ -6,9 +6,9 @@ import type { Runbook } from '../../../types/Runbook.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { RunbookExecutionResult } from '../../../types/RunbookExecutionResult.js';
 import type { RunbookExecutionTrace } from '../../../trace/RunbookExecutionTrace.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { ApiGwOutputContext } from '../ApiGwOutputContext.js';
 import { buildApiGwOutputContext } from '../buildApiGwOutputContext.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function row(fields: Record<string, string>): ResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
@@ -27,7 +27,7 @@ function createRunbook(withContext: boolean = true): Runbook {
     },
     steps: [],
     knownCases: [],
-    fallbackAction: { type: 'log', level: 'warn', message: 'fallback' },
+    fallbackAction: { type: 'log', level: 'warn', title: 'fallback' },
     ...(withContext
       ? {
           runbookContext: {
@@ -98,7 +98,7 @@ function createResult(): RunbookExecutionResult {
       ['endTime', '2026-01-01T00:05:00.000Z'],
     ]),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
   const trace: RunbookExecutionTrace = {
@@ -170,6 +170,24 @@ describe('buildApiGwOutputContext', () => {
     assert.strictEqual(details.services[0]?.recentLogs.length, 2);
     assert.strictEqual(details.services[0]?.recentLogs[0]?.message, 'fallback message field');
     assert.strictEqual(details.services[0]?.recentLogs[1]?.message, 'new service');
+  });
+
+  it('exposes why execution logs are unavailable in fields and typed details', () => {
+    const result = createResult();
+    const vars = new Map(result.finalContext.vars);
+    const reason = 'MalformedQueryException: time range exceeds the log retention settings';
+    vars.set('apiGwExecutionLogMode', 'unavailable');
+    vars.set('apiGwExecutionLogCount', '0');
+    vars.set('apiGwExecutionLogUnavailableReason', reason);
+
+    const context = buildApiGwOutputContext(createRunbook(), {
+      ...result,
+      finalContext: { ...result.finalContext, vars },
+    });
+
+    assert.strictEqual(context?.fields.find((field) => field.name === 'executionLogUnavailableReason')?.value, reason);
+    const details = context?.details as unknown as ApiGwOutputContext;
+    assert.strictEqual(details.executionLogs?.unavailableReason, reason);
   });
 
   it('includes a successful authorizer gate outcome when exposed by vars', () => {

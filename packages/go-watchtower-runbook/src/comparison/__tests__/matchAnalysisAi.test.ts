@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import type { RunbookOutput } from '@go-automation/go-runbook';
 import type { GOAISemanticMatcher } from '@go-automation/go-ai';
 
+import { matchAnalysis } from '../matchAnalysis.js';
 import { matchAnalysisAi } from '../matchAnalysisAi.js';
 import type { RunbookCheck } from '../../types/RtaCheckReport.js';
 import { alarmAnalysisFixture as analysis } from './alarmAnalysisFixture.js';
@@ -70,6 +71,15 @@ function semanticMatcherResult(
         explanation: 'Risultato semantico controllato dal test.',
         verdict,
       };
+    },
+  };
+}
+
+/** Matcher that fails the test if the AI path is entered at all. */
+function neverInvoked(): Pick<GOAISemanticMatcher, 'match'> {
+  return {
+    match: () => {
+      throw new Error('semanticMatcher invoked for a comparison the AI must skip');
     },
   };
 }
@@ -226,5 +236,70 @@ describe('matchAnalysisAi', () => {
     assert.strictEqual(result.aiFallback, true);
     assert.strictEqual(result.aiError, 'Bedrock unavailable');
     assert.match(result.reasons.join('\n'), /fallback lessicale/);
+  });
+
+  it('keeps the ignore reason on an IGNORED analysis, so the console can say why', async () => {
+    const ignorable = analysis({
+      analysisType: 'IGNORABLE',
+      ignoreReasonCode: 'FALSE_POSITIVE',
+      ignoreReason: {
+        code: 'FALSE_POSITIVE',
+        description: null,
+        detailsSchema: null,
+        label: 'Falso positivo',
+        sortOrder: 1,
+      },
+    });
+    const result = await matchAnalysisAi(outputWithRequestId('r1'), HIT, ignorable, NOW, {
+      includeIgnorable: false,
+      includeIncomplete: false,
+      semanticMatcher: neverInvoked(),
+      semanticThreshold: 70,
+      fallbackToLexical: true,
+    });
+
+    assert.strictEqual(result.status, 'IGNORED');
+    assert.strictEqual(result.ignoreReasonCode, 'FALSE_POSITIVE');
+    assert.strictEqual(result.ignoreReasonLabel, 'Falso positivo');
+    assert.strictEqual(result.aiAttempted, false);
+  });
+
+  it('keeps the lexical matcher on a comparison the AI never ran on', async () => {
+    const inProgress = analysis({ status: 'IN_PROGRESS' });
+    const result = await matchAnalysisAi(outputWithRequestId('r1'), HIT, inProgress, NOW, {
+      includeIgnorable: false,
+      includeIncomplete: false,
+      semanticMatcher: neverInvoked(),
+      semanticThreshold: 70,
+      fallbackToLexical: true,
+    });
+
+    assert.strictEqual(result.status, 'NOT_ANALYZED');
+    assert.strictEqual(result.matcher, 'lexical');
+    assert.strictEqual(result.aiAttempted, false);
+  });
+
+  it('agrees with the lexical matcher on every field it did not compute', async () => {
+    const ignorable = analysis({
+      analysisType: 'IGNORABLE',
+      ignoreReasonCode: 'MAINTENANCE',
+      ignoreReason: {
+        code: 'MAINTENANCE',
+        description: null,
+        detailsSchema: null,
+        label: 'Manutenzione',
+        sortOrder: 2,
+      },
+    });
+    const options = { includeIgnorable: false, includeIncomplete: false };
+    const lexical = matchAnalysis(outputWithRequestId('r1'), HIT, ignorable, NOW, options);
+    const withAi = await matchAnalysisAi(outputWithRequestId('r1'), HIT, ignorable, NOW, {
+      ...options,
+      semanticMatcher: neverInvoked(),
+      semanticThreshold: 70,
+      fallbackToLexical: true,
+    });
+
+    assert.deepStrictEqual(withAi, { ...lexical, aiAttempted: false });
   });
 });

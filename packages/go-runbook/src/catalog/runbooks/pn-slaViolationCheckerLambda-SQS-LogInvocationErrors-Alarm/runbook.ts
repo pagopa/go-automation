@@ -14,7 +14,7 @@ import { KNOWN_CASES } from './knownCases.js';
  *
  * @returns A validated {@link Runbook} ready for execution
  */
-export function buildSlaViolationCheckerLambdaSqsRunbook(): Runbook {
+export function buildRunbook(): Runbook {
   return lambda.createLambdaAlarmRunbook({
     id: 'pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm',
     metadata: {

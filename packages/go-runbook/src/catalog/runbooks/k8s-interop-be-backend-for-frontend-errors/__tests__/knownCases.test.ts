@@ -1,10 +1,10 @@
+import { BFF_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { ConditionEvaluator, type KnownCase, type RunbookContext, type ServiceRegistry } from '../../framework.js';
-
 import { KNOWN_CASES } from '../knownCases.js';
-import { QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, QUERY_INTEROP_CID_TRACKER_STEP_ID } from '../runbookSteps.js';
+import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
+import { ConditionEvaluator, type KnownCase, type RunbookContext } from '../../framework.js';
 
 interface LogRowField {
   readonly field: string;
@@ -36,7 +36,7 @@ function context(stepResults: ReadonlyArray<readonly [string, unknown]>): Runboo
     vars: new Map(),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }
@@ -78,7 +78,7 @@ describe('INTEROP BFF known cases', () => {
       const fixture = CASE_FIXTURES.get(knownCase.id);
       assert.ok(fixture !== undefined, `missing fixture for known case: ${knownCase.id}`);
 
-      const ctx = context([[QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, applicationLogRows(fixture)]]);
+      const ctx = context([[BFF_ALARM.stepIds.queryApplicationLogs, applicationLogRows(fixture)]]);
       assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), true, `expected match: ${knownCase.id}`);
     }
   });
@@ -87,7 +87,7 @@ describe('INTEROP BFF known cases', () => {
     const duplicate = knownCaseById('purpose-process-duplicate-event-stream-version');
     const ctx = context([
       [
-        QUERY_INTEROP_CID_TRACKER_STEP_ID,
+        BFF_ALARM.stepIds.queryCidTracker,
         cidTrackerResults(['duplicate key value violates unique constraint "events_stream_id_version_key"']),
       ],
     ]);
@@ -101,7 +101,7 @@ describe('INTEROP BFF known cases', () => {
 
     const ctx = context([
       [
-        QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
+        BFF_ALARM.stepIds.queryApplicationLogs,
         applicationLogRows(['Token verification failed: TokenExpiredError: jwt expired']),
       ],
     ]);
@@ -116,7 +116,7 @@ describe('INTEROP BFF known cases', () => {
 
     const ctx = context([
       [
-        QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
+        BFF_ALARM.stepIds.queryApplicationLogs,
         applicationLogRows([
           'ADM-ZIP: Invalid or unsupported zip format. No END header found',
           'errors: 008-9991, Unexpected error while calling agreement API: read ECONNRESET',

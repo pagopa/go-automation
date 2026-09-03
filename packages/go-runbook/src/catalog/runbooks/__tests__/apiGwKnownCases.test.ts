@@ -1,15 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-  ConditionEvaluator,
-  SEND_DOWNSTREAMS,
-  type KnownCase,
-  type RunbookContext,
-  type ServiceRegistry,
-} from '../framework.js';
+import { ConditionEvaluator, SEND_DOWNSTREAMS, type KnownCase, type RunbookContext } from '../framework.js';
 
 import { KNOWN_CASES as NATIONAL_REGISTRIES_PNPG_CASES } from '../pn-national-registries-PNPG-ApiGwAlarm/knownCases.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function ctx(args: {
   readonly vars?: Record<string, string>;
@@ -22,7 +17,7 @@ function ctx(args: {
     vars: new Map(Object.entries(args.vars ?? {})),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

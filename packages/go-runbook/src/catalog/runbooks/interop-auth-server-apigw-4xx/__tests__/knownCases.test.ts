@@ -1,10 +1,10 @@
+import { AUTH_SERVER_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { ConditionEvaluator, type KnownCase, type RunbookContext, type ServiceRegistry } from '../../framework.js';
-
 import { KNOWN_CASES } from '../knownCases.js';
-import { QUERY_INTEROP_API_GW_4XX_STEP_ID, QUERY_INTEROP_AUTH_SERVER_WARNINGS_STEP_ID } from '../runbookSteps.js';
+import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
+import { ConditionEvaluator, type KnownCase, type RunbookContext } from '../../framework.js';
 
 interface Fixture {
   readonly message: string;
@@ -115,7 +115,9 @@ describe('INTEROP auth-server API Gateway known cases', () => {
 
 function context(fixture: Fixture): RunbookContext {
   const sourceStep =
-    fixture.source === 'API_GATEWAY' ? QUERY_INTEROP_API_GW_4XX_STEP_ID : QUERY_INTEROP_AUTH_SERVER_WARNINGS_STEP_ID;
+    fixture.source === 'API_GATEWAY'
+      ? AUTH_SERVER_ALARM.stepIds.queryApiGwAggregates
+      : AUTH_SERVER_ALARM.stepIds.queryApplicationLogs;
   return {
     executionId: 'test',
     startedAt: new Date('2026-08-24T10:00:00.000Z'),
@@ -123,7 +125,7 @@ function context(fixture: Fixture): RunbookContext {
     vars: new Map([['interopEnvironment', fixture.environment ?? 'prod']]),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

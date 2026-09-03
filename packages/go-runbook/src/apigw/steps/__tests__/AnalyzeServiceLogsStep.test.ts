@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 
 import type { ResultField } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 
 import { AnalyzeServiceLogsStep } from '../AnalyzeServiceLogsStep.js';
 import { KnownUrlsRegistry } from '../../registries/KnownUrlsRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function row(message: string, level: string = 'ERROR'): ResultField[] {
   const fields: ResultField[] = [{ field: '@message', value: message }];
@@ -25,7 +25,7 @@ function createContext(args: {
     vars: new Map(Object.entries(args.vars ?? {})),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

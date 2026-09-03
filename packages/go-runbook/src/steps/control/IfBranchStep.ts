@@ -20,8 +20,8 @@ import { executeSubPipeline } from './executeSubPipeline.js';
  *   id: 'branch-on-error',
  *   label: 'Branch on error type',
  *   condition: { type: 'compare', ref: 'vars.errorType', operator: '==', value: 'timeout' },
- *   thenSteps: [setVar({ id: 'set-retry', label: 'Set retry flag', varName: 'shouldRetry', value: 'true' })],
- *   elseSteps: [setVar({ id: 'set-skip', label: 'Set skip flag', varName: 'shouldRetry', value: 'false' })],
+ *   thenSteps: [new SetVarStep({ id: 'set-retry', label: 'Set retry flag', varName: 'shouldRetry', value: 'true' })],
+ *   elseSteps: [new SetVarStep({ id: 'set-skip', label: 'Set skip flag', varName: 'shouldRetry', value: 'false' })],
  * });
  * ```
  */

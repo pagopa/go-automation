@@ -14,7 +14,7 @@ import { KNOWN_CASES } from './knownCases.js';
  *
  * @returns A validated {@link Runbook} ready for execution
  */
-export function buildApiKeyAuthorizerV2LambdaLogInvocationErrorsAlarmRunbook(): Runbook {
+export function buildRunbook(): Runbook {
   return lambda.createLambdaAlarmRunbook({
     id: 'pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm',
     metadata: {

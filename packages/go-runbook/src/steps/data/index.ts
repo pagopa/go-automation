@@ -6,19 +6,19 @@ export { CloudWatchLogsQueryStep } from './CloudWatchLogsQueryStep.js';
 export type { CloudWatchLogsQueryConfig } from './CloudWatchLogsQueryStep.js';
 export type { TimeRangeFromParams } from './TimeRangeFromParams.js';
 
-export { CloudWatchMetricsStep, getCloudWatchMetrics } from './CloudWatchMetricsStep.js';
+export { CloudWatchMetricsStep } from './CloudWatchMetricsStep.js';
 export type { CloudWatchMetricsConfig } from './CloudWatchMetricsStep.js';
 
-export { AthenaQueryStep, queryAthena } from './AthenaQueryStep.js';
+export { AthenaQueryStep } from './AthenaQueryStep.js';
 export type { AthenaQueryConfig } from './AthenaQueryStep.js';
 
-export { DynamoDBQueryStep, queryDynamoDB } from './DynamoDBQueryStep.js';
+export { DynamoDBQueryStep } from './DynamoDBQueryStep.js';
 export type { DynamoDBQueryConfig } from './DynamoDBQueryStep.js';
 
-export { DynamoDBGetStep, getDynamoDBItem } from './DynamoDBGetStep.js';
+export { DynamoDBGetStep } from './DynamoDBGetStep.js';
 export type { DynamoDBGetConfig } from './DynamoDBGetStep.js';
 
-export { HttpRequestStep, httpRequest } from './HttpRequestStep.js';
+export { HttpRequestStep } from './HttpRequestStep.js';
 export type { HttpRequestConfig } from './HttpRequestStep.js';
 
 export { escapeSqlString, extractTemplateParameters } from './interpolateTemplate.js';

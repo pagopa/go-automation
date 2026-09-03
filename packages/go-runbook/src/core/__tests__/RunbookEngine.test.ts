@@ -4,9 +4,8 @@ import assert from 'node:assert/strict';
 import { GOLogger } from '@go-automation/go-common/core';
 
 import { RunbookEngine } from '../RunbookEngine.js';
-import { ConditionEvaluator } from '../ConditionEvaluator.js';
 import type { CaseAction } from '../../actions/CaseAction.js';
-import type { ServiceRegistry } from '../../services/ServiceRegistry.js';
+import type { ServiceRegistry } from '../../registry/ServiceRegistry.js';
 import type { FlowDirective } from '../../types/FlowDirective.js';
 import type { KnownCase } from '../../types/KnownCase.js';
 import type { Runbook } from '../../types/Runbook.js';
@@ -15,6 +14,7 @@ import type { Step } from '../../types/Step.js';
 import type { StepDescriptor } from '../../types/StepDescriptor.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
+import { createTestServiceRegistry } from '../../registry/createTestServiceRegistry.js';
 
 class RecordingStep implements Step<void> {
   readonly label: string;
@@ -58,15 +58,15 @@ class ReturnedFailureStep implements Step<void> {
 }
 
 function createEngine(): RunbookEngine {
-  return new RunbookEngine(new GOLogger(), new ConditionEvaluator());
+  return new RunbookEngine(new GOLogger());
 }
 
 function emptyServices(): ServiceRegistry {
-  return {} as unknown as ServiceRegistry;
+  return createTestServiceRegistry();
 }
 
 function createRunbook(steps: ReadonlyArray<StepDescriptor>, knownCases: ReadonlyArray<KnownCase> = []): Runbook {
-  const fallbackAction: CaseAction = { type: 'log', level: 'warn', message: 'fallback' };
+  const fallbackAction: CaseAction = { type: 'log', level: 'warn', title: 'fallback' };
   return {
     metadata: {
       id: 'test-runbook',
@@ -91,7 +91,7 @@ describe('RunbookEngine status handling', () => {
       description: 'Would match only if the runbook completed',
       priority: 10,
       condition: { type: 'compare', ref: 'params.mode', operator: '==', value: 'match' },
-      action: { type: 'log', level: 'info', message: 'matched' },
+      action: { type: 'log', level: 'info', title: 'matched' },
     };
 
     const result = await createEngine().execute(
@@ -177,14 +177,14 @@ describe('RunbookEngine status handling', () => {
         description: 'Secondary case',
         priority: 10,
         condition: { type: 'compare', ref: 'params.mode', operator: '==', value: 'match' },
-        action: { type: 'log', level: 'warn', message: 'secondary action' },
+        action: { type: 'log', level: 'warn', title: 'secondary action' },
       },
       {
         id: 'primary',
         description: 'Primary case',
         priority: 20,
         condition: { type: 'compare', ref: 'params.mode', operator: '==', value: 'match' },
-        action: { type: 'log', level: 'warn', message: 'primary action' },
+        action: { type: 'log', level: 'warn', title: 'primary action' },
       },
     ];
 
@@ -206,7 +206,50 @@ describe('RunbookEngine status handling', () => {
     assert.strictEqual(actionTrace.executed, true);
     assert.strictEqual(actionTrace.actionDetail.type, 'log');
     if (actionTrace.actionDetail.type === 'log') {
-      assert.strictEqual(actionTrace.actionDetail.message, 'primary action');
+      assert.strictEqual(actionTrace.actionDetail.title, 'primary action');
     }
+  });
+});
+
+describe('RunbookEngine narrative flushing', () => {
+  /** A reporter whose flush fails the way a broken pipe or a full disk would. */
+  function explodingReporter(): ServiceRegistry {
+    return createTestServiceRegistry({
+      reporter: {
+        section: (): void => undefined,
+        add: (): void => undefined,
+        flush: (): never => {
+          throw new Error('EPIPE: broken pipe');
+        },
+      },
+    });
+  }
+
+  it('keeps a successful outcome when closing the narrative throws', async () => {
+    const executions: string[] = [];
+
+    const result = await createEngine().execute(
+      createRunbook([{ step: new RecordingStep('only-step', executions) }]),
+      new Map(),
+      explodingReporter(),
+    );
+
+    assert.strictEqual(result.status, 'completed');
+    assert.deepStrictEqual(executions, ['only-step']);
+  });
+
+  it('keeps the original failure instead of the logging error', async () => {
+    const executions: string[] = [];
+
+    const result = await createEngine().execute(
+      createRunbook([{ step: new ReturnedFailureStep('failing-step', executions, 'planned failure') }]),
+      new Map(),
+      explodingReporter(),
+    );
+
+    // Without the guard the finally block would surface `EPIPE: broken pipe`
+    // and the real reason for the failure would be lost.
+    assert.strictEqual(result.status, 'failed');
+    assert.match(result.trace.execution.failureReason ?? '', /planned failure/u);
   });
 });

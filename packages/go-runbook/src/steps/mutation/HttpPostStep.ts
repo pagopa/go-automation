@@ -27,7 +27,7 @@ export interface HttpPostConfig {
  *
  * @example
  * ```typescript
- * const step = httpPost({
+ * const step = new HttpPostStep({
  *   id: 'create-ticket',
  *   label: 'Create support ticket',
  *   url: 'https://api.example.com/tickets',
@@ -36,7 +36,7 @@ export interface HttpPostConfig {
  * });
  * ```
  */
-class HttpPostStep implements Step<GOHttpResponse<unknown>> {
+export class HttpPostStep implements Step<GOHttpResponse<unknown>> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'mutation';
@@ -77,14 +77,4 @@ class HttpPostStep implements Step<GOHttpResponse<unknown>> {
       return { success: false, error: `HTTP POST request failed: ${message}` };
     }
   }
-}
-
-/**
- * Factory function for creating an HTTP POST mutation step.
- *
- * @param config - Step configuration
- * @returns A new HttpPostStep instance
- */
-export function httpPost(config: HttpPostConfig): Step<GOHttpResponse<unknown>> {
-  return new HttpPostStep(config);
 }

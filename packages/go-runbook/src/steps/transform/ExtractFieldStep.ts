@@ -9,7 +9,7 @@ import { readStepOutput } from '../data/readStepOutput.js';
 /**
  * Configuration for the ExtractFieldStep.
  */
-interface ExtractFieldConfig {
+export interface ExtractFieldConfig {
   /** Unique identifier of the step within the runbook */
   readonly id: string;
   /** Human-readable label for logs and UI */
@@ -28,7 +28,7 @@ interface ExtractFieldConfig {
  *
  * @example
  * ```typescript
- * const step = extractField({
+ * const step = new ExtractFieldStep({
  *   id: 'extract-status',
  *   label: 'Extract status from response',
  *   fromStep: 'fetch-data',
@@ -37,7 +37,7 @@ interface ExtractFieldConfig {
  * });
  * ```
  */
-class ExtractFieldStep implements Step<string> {
+export class ExtractFieldStep implements Step<string> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'transform';
@@ -83,14 +83,4 @@ class ExtractFieldStep implements Step<string> {
       vars: { [this.saveAs]: stringValue },
     };
   }
-}
-
-/**
- * Factory function that creates an ExtractFieldStep instance.
- *
- * @param config - Configuration for the extract field step
- * @returns A Step that extracts a field value from a previous step's output
- */
-export function extractField(config: ExtractFieldConfig): Step<string> {
-  return new ExtractFieldStep(config);
 }

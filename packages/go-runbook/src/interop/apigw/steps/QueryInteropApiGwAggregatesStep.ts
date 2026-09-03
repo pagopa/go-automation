@@ -1,9 +1,9 @@
+import { readRowField } from '@go-automation/go-common/aws';
 import type {
   AWSCloudWatchLogsQueryOptions,
   AWSCloudWatchLogsQueryResult,
   ResultField,
 } from '@go-automation/go-common/aws';
-import { extractCwField } from '../../../apigw/helpers/extractCwField.js';
 import { resolveTimeRange } from '../../../steps/data/resolveTimeRange.js';
 import type { TimeRangeFromParams } from '../../../steps/data/TimeRangeFromParams.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
@@ -80,14 +80,14 @@ export class QueryInteropApiGwAggregatesStep implements Step<ReadonlyArray<Reado
 
     const query = this.buildQuery(apiGwId);
     const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
-    context.logger?.text(`      ├─ Query access log API Gateway INTEROP [apigwId=${apiGwId}]`);
+    context.services.reporter.add({ label: `Query access log API Gateway INTEROP [apigwId=${apiGwId}]` });
     const result = await context.services.cloudWatchLogs.queryWithStatistics(
       [logGroup],
       query,
       timeRange,
       buildQueryOptions(context),
     );
-    context.logger?.text(`      └─ Aggregati ${this.errorFamilyLabel} trovati: ${result.rows.length}`);
+    context.services.reporter.add({ label: `Aggregati ${this.errorFamilyLabel} trovati: ${result.rows.length}` });
 
     return {
       success: true,
@@ -102,11 +102,11 @@ function enrichAggregateRows(
 ): ReadonlyArray<ReadonlyArray<ResultField>> {
   return rows.map((row) => {
     const additions: ResultField[] = [];
-    if (extractCwField(row, '@timestamp') === undefined) {
-      const latestTimestamp = extractCwField(row, 'latestTimestamp');
+    if (readRowField(row, '@timestamp') === undefined) {
+      const latestTimestamp = readRowField(row, 'latestTimestamp');
       if (latestTimestamp !== undefined) additions.push({ field: '@timestamp', value: latestTimestamp });
     }
-    if (extractCwField(row, '@message') === undefined && extractCwField(row, 'message') === undefined) {
+    if (readRowField(row, '@message') === undefined && readRowField(row, 'message') === undefined) {
       const message = buildAggregateMessage(row);
       if (message !== undefined) additions.push({ field: 'message', value: message });
     }
@@ -116,7 +116,7 @@ function enrichAggregateRows(
 
 function buildAggregateMessage(row: ReadonlyArray<ResultField>): string | undefined {
   const readNormalized = (field: string): string | undefined =>
-    normalizeInteropApiGwAggregateValue(extractCwField(row, field));
+    normalizeInteropApiGwAggregateValue(readRowField(row, field));
   const sourceIp = readNormalized('sourceIp');
   const parts = [
     'API Gateway',

@@ -69,9 +69,7 @@ export class QueryDownstreamLogsStep implements Step<Rows> {
       });
 
       const representative = scanLambdaLogs(result.rows)?.message ?? '';
-      if (context.logger !== undefined) {
-        new LambdaReporter(context.logger).downstream(this.downstream.name, logGroup, result.rows.length);
-      }
+      new LambdaReporter(context.services.reporter).downstream(this.downstream.name, logGroup, result.rows.length);
 
       const vars: Record<string, string> = {
         [`${this.downstream.varPrefix}LogCount`]: String(result.rows.length),

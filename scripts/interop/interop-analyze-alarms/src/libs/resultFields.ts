@@ -1,6 +1,13 @@
-import type { ResultField } from '@go-automation/go-common/aws';
+import { readRowFields, type ResultField } from '@go-automation/go-common/aws';
+import { trimToUndefined } from '@go-automation/go-common/core';
 
 const CID_PATTERN = /\bCID=([^\]\s,"']+)/u;
+
+/** Field names that may carry the correlation id explicitly. */
+const CID_FIELDS: ReadonlyArray<string> = ['cid', 'CID'];
+
+/** Field names whose text may embed a `CID=...` token. */
+const MESSAGE_FIELDS: ReadonlyArray<string> = ['@message', 'message', 'log'];
 
 export function arrayValuesToCsvString(row: ReadonlyArray<ResultField>): string {
   const values: string[] = [];
@@ -34,33 +41,13 @@ export function rowsWithoutCid(
 }
 
 function extractCid(row: ReadonlyArray<ResultField>): string | undefined {
-  const explicit = normalize(readField(row, ['cid', 'CID']));
+  const explicit = trimToUndefined(readRowFields(row, CID_FIELDS)[0]);
   if (explicit !== undefined) return explicit;
 
-  for (const candidate of readFields(row, ['@message', 'message', 'log'])) {
-    const match = CID_PATTERN.exec(candidate);
-    const cid = normalize(match?.[1]);
+  for (const candidate of readRowFields(row, MESSAGE_FIELDS)) {
+    const cid = trimToUndefined(CID_PATTERN.exec(candidate)?.[1]);
     if (cid !== undefined) return cid;
   }
 
   return undefined;
-}
-
-function readField(row: ReadonlyArray<ResultField>, names: ReadonlyArray<string>): string | undefined {
-  return readFields(row, names)[0];
-}
-
-function readFields(row: ReadonlyArray<ResultField>, names: ReadonlyArray<string>): ReadonlyArray<string> {
-  const values: string[] = [];
-  for (const field of row) {
-    const fieldName = field.field;
-    if (fieldName === undefined || !names.includes(fieldName)) continue;
-    if (field.value !== undefined) values.push(field.value);
-  }
-  return values;
-}
-
-function normalize(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed === undefined || trimmed === '' ? undefined : trimmed;
 }

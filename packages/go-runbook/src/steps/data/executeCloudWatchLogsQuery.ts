@@ -44,17 +44,16 @@ function toCloudWatchLogsDiagnostics(result: AWSCloudWatchLogsQueryResult): Clou
 }
 
 function logQueryStatistics(context: RunbookContext, diagnostics: CloudWatchLogsStepDiagnostics): void {
-  const logger = context.logger;
-  if (logger === undefined) return;
-
   const stats = diagnostics.statistics;
   const queryIds = diagnostics.queryExecutions.map((execution) => execution.queryId).join(', ');
   const querySuffix = queryIds === '' ? '' : `, queryIds=${queryIds}`;
   const rowsReturned = `${diagnostics.rowsReturned}${querySuffix}`;
   const bytesFormatted = formatBytes(stats.bytesScanned);
 
-  logger.text(`  ├─ Query bytes stats: bytesScanned=${stats.bytesScanned} (${bytesFormatted})`);
-  logger.text(
-    `  ├─ Query record stats: recordsScanned=${stats.recordsScanned}, recordsMatched=${stats.recordsMatched}, rowsReturned=${rowsReturned}`,
+  context.services.reporter.add(
+    { label: `Query bytes stats: bytesScanned=${stats.bytesScanned} (${bytesFormatted})` },
+    {
+      label: `Query record stats: recordsScanned=${stats.recordsScanned}, recordsMatched=${stats.recordsMatched}, rowsReturned=${rowsReturned}`,
+    },
   );
 }

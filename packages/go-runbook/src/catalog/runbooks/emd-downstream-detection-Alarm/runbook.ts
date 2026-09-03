@@ -9,7 +9,7 @@ import { KNOWN_CASES } from './knownCases.js';
 import { SERVICE } from './knownServices.js';
 
 /** Builds the EMD (Multicanalità) downstream-detection runbook. */
-export function buildEmdDownstreamDetectionAlarmRunbook(): Runbook {
+export function buildRunbook(): Runbook {
   return service.createServiceAlarmRunbook({
     id: 'emd-downstream-detection-Alarm',
     metadata: {

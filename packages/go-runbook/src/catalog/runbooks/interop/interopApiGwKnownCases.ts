@@ -1,5 +1,6 @@
 import type { AnalysisLinkRef, CaseAction, Condition, InteropDownstream, KnownCase } from '../framework.js';
 
+import { all, not } from '../common/conditions.js';
 import { anyStepEvidenceMatches, stepEvidenceMatches } from '../common/evidenceConditions.js';
 
 import type { InteropEnvironment } from './InteropEnvironment.js';
@@ -39,13 +40,7 @@ export function createInteropApiGwKnownCaseFactory(refs: InteropApiGwKnownCaseRe
     const matchingCondition =
       config.excludeRegex === undefined
         ? baseCondition
-        : {
-            type: 'and' as const,
-            conditions: [
-              baseCondition,
-              { type: 'not' as const, condition: anyEvidenceMatches(refs, config.excludeRegex) },
-            ],
-          };
+        : all(baseCondition, not(anyEvidenceMatches(refs, config.excludeRegex)));
 
     return {
       id: config.id,
@@ -86,10 +81,7 @@ function apiGatewayEvidenceMatches(refs: InteropApiGwKnownCaseRefs, regex: strin
 
 function withEnvironment(condition: Condition, environments: ReadonlyArray<InteropEnvironment> | undefined): Condition {
   if (environments === undefined) return condition;
-  return {
-    type: 'and',
-    conditions: [{ type: 'contains', ref: 'vars.interopEnvironment', value: environments }, condition],
-  };
+  return all({ type: 'contains', ref: 'vars.interopEnvironment', value: environments }, condition);
 }
 
 function knownCaseAction(refs: InteropApiGwKnownCaseRefs, title: string, resolution: string): CaseAction {
@@ -97,13 +89,14 @@ function knownCaseAction(refs: InteropApiGwKnownCaseRefs, title: string, resolut
     type: 'log',
     level: 'info',
     renderAs: 'known-case',
-    message:
-      `[CASO NOTO] ${title}\n` +
-      `Risoluzione: ${resolution}\n` +
-      'Ambiente: {{vars.interopEnvironment}}\n' +
-      'API Gateway ID: {{vars.interopApiGwId}}\n' +
-      'Servizio: {{vars.interopPodApp}}\n' +
-      `${refs.applicationLogsLabel}: {{vars.${refs.varPrefix}LogCount}}\n` +
-      `CID analizzati: {{vars.${refs.varPrefix}CidCount}}\n`,
+    title,
+    details: [
+      ['Risoluzione', resolution],
+      ['Ambiente', '{{vars.interopEnvironment}}'],
+      ['API Gateway ID', '{{vars.interopApiGwId}}'],
+      ['Servizio', '{{vars.interopPodApp}}'],
+      [refs.applicationLogsLabel, `{{vars.${refs.varPrefix}LogCount}}`],
+      ['CID analizzati', `{{vars.${refs.varPrefix}CidCount}}`],
+    ],
   };
 }

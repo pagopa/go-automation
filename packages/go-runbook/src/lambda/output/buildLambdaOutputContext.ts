@@ -1,3 +1,6 @@
+import { omitUndefined, parseFiniteNumber, parseInteger } from '@go-automation/go-common/core';
+import { readResultFieldRows } from '@go-automation/go-common/aws';
+import type { LogLine } from '../../output/LogLine.js';
 import type { ResultField } from '@go-automation/go-common/aws';
 
 import type { Runbook } from '../../types/Runbook.js';
@@ -8,8 +11,9 @@ import {
   type RunbookOutputContext,
   type RunbookResultField,
 } from '../../output/RunbookOutputContext.js';
-import { extractField } from '../helpers/extractField.js';
-import type { LambdaDownstreamOutput, LambdaLogLine, LambdaOutputContext } from './LambdaOutputContext.js';
+import { addResultField, optionalNumber, optionalString, normalizeOutputValue } from '../../output/outputValues.js';
+import { extractRecentLogLines, logLineToRecord } from '../../output/resultRows.js';
+import type { LambdaDownstreamOutput, LambdaOutputContext } from './LambdaOutputContext.js';
 import { isLambdaRunbookContext } from './LambdaRunbookContext.js';
 
 const DEFAULT_MAX_RECENT_LOGS = 5;
@@ -42,11 +46,11 @@ export function buildLambdaOutputContext(
   const params = result.finalContext.params;
   const context = runbook.runbookContext;
 
-  const errorRows = readRows(result.finalContext.stepResults.get('query-lambda-errors'));
-  const invocationRows = readRows(result.finalContext.stepResults.get('query-lambda-invocation'));
-  const recentErrors = extractRecentLogs(errorRows, maxRecentLogs);
+  const errorRows = readResultFieldRows(result.finalContext.stepResults.get('query-lambda-errors'));
+  const invocationRows = readResultFieldRows(result.finalContext.stepResults.get('query-lambda-invocation'));
+  const recentErrors = extractRecentLogLines(errorRows, maxRecentLogs);
 
-  const downstreamTarget = normalize(vars.get('lambdaDownstreamTarget'));
+  const downstreamTarget = normalizeOutputValue(vars.get('lambdaDownstreamTarget'));
   const downstream = buildDownstream(context.downstreams, downstreamTarget, result, vars, maxRecentLogs);
 
   const lambdaContext: LambdaOutputContext = {
@@ -68,8 +72,8 @@ export function buildLambdaOutputContext(
       ...optionalString('requestId', vars.get('lambdaRequestId')),
       ...optionalString('errorCategory', vars.get('lambdaErrorCategory')),
       ...optionalString('runtimeStatus', vars.get('lambdaRuntimeStatus')),
-      ...optionalNumber('durationMs', parseNumber(vars.get('lambdaDurationMs'))),
-      ...optionalNumber('billedDurationMs', parseNumber(vars.get('lambdaBilledDurationMs'))),
+      ...optionalNumber('durationMs', parseFiniteNumber(vars.get('lambdaDurationMs'))),
+      ...optionalNumber('billedDurationMs', parseFiniteNumber(vars.get('lambdaBilledDurationMs'))),
       ...optionalNumber('memorySizeMb', parseInteger(vars.get('lambdaMemorySizeMb'))),
       ...optionalNumber('maxMemoryUsedMb', parseInteger(vars.get('lambdaMaxMemoryUsedMb'))),
       ...optionalString('errorMessage', vars.get('lastErrorMsg')),
@@ -95,17 +99,19 @@ function buildDownstream(
 ): LambdaDownstreamOutput | undefined {
   if (target === undefined) return undefined;
   const declared = downstreams.find((entry) => entry.name === target);
-  const rows = readRows(result.finalContext.stepResults.get(`query-${target}`));
-  const recentLogs = extractRecentLogs(rows, maxRecentLogs);
+  const rows = readResultFieldRows(result.finalContext.stepResults.get(`query-${target}`));
+  const recentLogs = extractRecentLogLines(rows, maxRecentLogs);
   const varPrefix = declared?.varPrefix;
-  const errorMessage = varPrefix !== undefined ? normalize(vars.get(`${varPrefix}ErrorMsg`)) : undefined;
+  const errorMessage = varPrefix !== undefined ? normalizeOutputValue(vars.get(`${varPrefix}ErrorMsg`)) : undefined;
   const logCount = varPrefix !== undefined ? parseInteger(vars.get(`${varPrefix}LogCount`)) : undefined;
 
   return {
     target,
-    ...(declared?.logGroup !== undefined ? { logGroup: declared.logGroup } : {}),
-    ...(logCount !== undefined ? { logCount } : rows.length > 0 ? { logCount: rows.length } : {}),
-    ...(errorMessage !== undefined ? { errorMessage } : {}),
+    ...omitUndefined({
+      logGroup: declared?.logGroup,
+      logCount: logCount ?? (rows.length > 0 ? rows.length : undefined),
+      errorMessage,
+    }),
     recentLogs,
   };
 }
@@ -115,23 +121,23 @@ function buildFields(
   params: ReadonlyMap<string, string>,
 ): ReadonlyArray<RunbookResultField> {
   const fields: RunbookResultField[] = [];
-  addField(fields, 'alarmName', 'Alarm', params.get('alarmName'));
-  addField(fields, 'alarmDatetime', 'Alarm datetime', params.get('alarmDatetime'));
-  addField(fields, 'lambda', 'Lambda', vars.get('lambdaFunctionName'));
-  addField(fields, 'eventSource', 'Event source', vars.get('lambdaEventSource'));
-  addField(fields, 'errorCategory', 'Categoria errore', vars.get('lambdaErrorCategory'));
-  addField(fields, 'runtimeStatus', 'Runtime status', vars.get('lambdaRuntimeStatus'));
-  addField(fields, 'duration', 'Duration', durationLabel(vars));
-  addField(fields, 'memory', 'Memory', memoryLabel(vars));
-  addField(fields, 'requestId', 'requestId', vars.get('lambdaRequestId'));
-  addField(fields, 'invocationLogCount', 'Invocation log trovati', vars.get('lambdaInvocationLogCount'));
-  addField(fields, 'downstreamTarget', 'Downstream', vars.get('lambdaDownstreamTarget'));
-  addField(fields, 'lastErrorMsg', 'Ultimo errore', vars.get('lastErrorMsg'));
+  addResultField(fields, 'alarmName', 'Alarm', params.get('alarmName'));
+  addResultField(fields, 'alarmDatetime', 'Alarm datetime', params.get('alarmDatetime'));
+  addResultField(fields, 'lambda', 'Lambda', vars.get('lambdaFunctionName'));
+  addResultField(fields, 'eventSource', 'Event source', vars.get('lambdaEventSource'));
+  addResultField(fields, 'errorCategory', 'Categoria errore', vars.get('lambdaErrorCategory'));
+  addResultField(fields, 'runtimeStatus', 'Runtime status', vars.get('lambdaRuntimeStatus'));
+  addResultField(fields, 'duration', 'Duration', durationLabel(vars));
+  addResultField(fields, 'memory', 'Memory', memoryLabel(vars));
+  addResultField(fields, 'requestId', 'requestId', vars.get('lambdaRequestId'));
+  addResultField(fields, 'invocationLogCount', 'Invocation log trovati', vars.get('lambdaInvocationLogCount'));
+  addResultField(fields, 'downstreamTarget', 'Downstream', vars.get('lambdaDownstreamTarget'));
+  addResultField(fields, 'lastErrorMsg', 'Ultimo errore', vars.get('lastErrorMsg'));
   return fields;
 }
 
 function buildEvidence(
-  recentErrors: ReadonlyArray<LambdaLogLine>,
+  recentErrors: ReadonlyArray<LogLine>,
   invocationRows: ReadonlyArray<ReadonlyArray<ResultField>>,
   downstream: LambdaDownstreamOutput | undefined,
   maxRecentLogs: number,
@@ -148,7 +154,7 @@ function buildEvidence(
       truncated: errorTotalRows > maxRecentLogs,
     });
   }
-  const invocationLogs = extractRecentLogs(invocationRows, maxRecentLogs);
+  const invocationLogs = extractRecentLogLines(invocationRows, maxRecentLogs);
   if (invocationLogs.length > 0) {
     evidence.push({
       id: 'lambda-invocation-flow',
@@ -172,100 +178,14 @@ function buildEvidence(
   return evidence;
 }
 
-function addField(fields: RunbookResultField[], name: string, label: string, value: string | undefined): void {
-  const normalized = normalize(value);
-  if (normalized === undefined) return;
-  fields.push({ name, label, value: normalized });
-}
-
 function durationLabel(vars: ReadonlyMap<string, string>): string | undefined {
-  const duration = normalize(vars.get('lambdaDurationMs'));
+  const duration = normalizeOutputValue(vars.get('lambdaDurationMs'));
   return duration === undefined ? undefined : `${duration} ms`;
 }
 
 function memoryLabel(vars: ReadonlyMap<string, string>): string | undefined {
-  const used = normalize(vars.get('lambdaMaxMemoryUsedMb'));
-  const size = normalize(vars.get('lambdaMemorySizeMb'));
+  const used = normalizeOutputValue(vars.get('lambdaMaxMemoryUsedMb'));
+  const size = normalizeOutputValue(vars.get('lambdaMemorySizeMb'));
   if (used === undefined && size === undefined) return undefined;
   return `${used ?? '?'}/${size ?? '?'} MB`;
-}
-
-function readRows(value: unknown): ReadonlyArray<ReadonlyArray<ResultField>> {
-  if (!Array.isArray(value)) return [];
-  const rows: ResultField[][] = [];
-  for (const row of value) {
-    if (!Array.isArray(row)) continue;
-    rows.push(row.filter(isResultField));
-  }
-  return rows;
-}
-
-function isResultField(value: unknown): value is ResultField {
-  return typeof value === 'object' && value !== null && 'field' in value;
-}
-
-function extractRecentLogs(
-  rows: ReadonlyArray<ReadonlyArray<ResultField>>,
-  maxRecentLogs: number,
-): ReadonlyArray<LambdaLogLine> {
-  const logLines = rows
-    .map(rowToLogLine)
-    .filter((line): line is LambdaLogLine => line !== undefined)
-    .sort((a, b) => timestampValue(a.timestamp) - timestampValue(b.timestamp));
-  return logLines.slice(Math.max(0, logLines.length - maxRecentLogs));
-}
-
-function rowToLogLine(row: ReadonlyArray<ResultField>): LambdaLogLine | undefined {
-  const message = normalize(extractFirst(row, ['@message', 'message']));
-  if (message === undefined) return undefined;
-  return {
-    timestamp: normalize(extractFirst(row, ['@timestamp', 'timestamp'])) ?? '',
-    message,
-  };
-}
-
-function extractFirst(row: ReadonlyArray<ResultField>, fields: ReadonlyArray<string>): string | undefined {
-  for (const field of fields) {
-    const value = extractField(row, field);
-    if (normalize(value) !== undefined) return value;
-  }
-  return undefined;
-}
-
-function parseInteger(value: string | undefined): number | undefined {
-  const normalized = normalize(value);
-  if (normalized === undefined) return undefined;
-  const parsed = Number(normalized);
-  return Number.isInteger(parsed) ? parsed : undefined;
-}
-
-function parseNumber(value: string | undefined): number | undefined {
-  const normalized = normalize(value);
-  if (normalized === undefined) return undefined;
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function optionalString<K extends string>(key: K, value: string | undefined): { readonly [P in K]?: string } {
-  const normalized = normalize(value);
-  return normalized === undefined ? {} : ({ [key]: normalized } as { readonly [P in K]?: string });
-}
-
-function optionalNumber<K extends string>(key: K, value: number | undefined): { readonly [P in K]?: number } {
-  return value === undefined ? {} : ({ [key]: value } as { readonly [P in K]?: number });
-}
-
-function normalize(value: string | undefined): string | undefined {
-  const trimmed = (value ?? '').trim();
-  if (trimmed === '' || trimmed === '-') return undefined;
-  return trimmed;
-}
-
-function timestampValue(value: string): number {
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
-}
-
-function logLineToRecord(logLine: LambdaLogLine): Readonly<Record<string, string>> {
-  return { timestamp: logLine.timestamp, message: logLine.message };
 }

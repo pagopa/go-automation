@@ -1,4 +1,6 @@
-import type { GOLogger } from '@go-automation/go-common/core';
+import type { TreeNode } from '@go-automation/go-common/core';
+
+import type { RunbookReporter } from '../../registry/RunbookReporter.js';
 import type { TerminationReason } from '../types/TerminationReason.js';
 import type { LambdaErrorCategory } from '../types/LambdaErrorCategory.js';
 
@@ -24,103 +26,109 @@ export interface LambdaTermination {
   readonly requestId?: string;
 }
 
+/** True when an optional string carries something to print. */
+function present(value: string | undefined): value is string {
+  return value !== undefined && value !== '';
+}
+
 /**
  * Renders the Lambda analysis flow as a structured, human-readable
  * narrative on the runbook logger. Mirrors `apigw.ApiGwReporter`.
+ *
+ * Every method describes the *shape* of the output as {@link TreeNode}s and
+ * hands it to the {@link RunbookReporter}: branch characters, indentation and
+ * the moment of printing are decided there.
  */
 export class LambdaReporter {
-  constructor(private readonly logger: GOLogger) {}
+  constructor(private readonly reporter: RunbookReporter) {}
 
   sectionPrepare(lambdaName: string, logGroup: string, eventSource?: string): void {
-    this.logger.newline();
-    this.logger.text('═══ Preparazione: query Lambda ═══');
-    this.logger.text(
-      `  ├─ Lambda: ${lambdaName}${eventSource !== undefined && eventSource !== '' ? `  (eventSource: ${eventSource})` : ''}`,
-    );
-    this.logger.text(`  └─ Log group: ${logGroup}`);
+    this.section('Preparazione: query Lambda');
+    this.tree([
+      { label: `Lambda: ${lambdaName}${present(eventSource) ? `  (eventSource: ${eventSource})` : ''}` },
+      { label: `Log group: ${logGroup}` },
+    ]);
   }
 
   lambdaResult(info: LambdaResultInfo): void {
-    this.logger.text(`  ├─ Errori individuati: ${info.errorCount}`);
-    this.logger.text(`  ├─ Categoria: ${info.category}`);
-    if (info.runtimeStatus !== undefined && info.runtimeStatus !== '') {
+    const nodes: TreeNode[] = [
+      { label: `Errori individuati: ${info.errorCount}` },
+      { label: `Categoria: ${info.category}` },
+    ];
+    if (present(info.runtimeStatus)) {
       const memory =
         info.maxMemoryUsedMb !== undefined && info.memorySizeMb !== undefined
-          ? `, Memory ${info.maxMemoryUsedMb}/${info.memorySizeMb} MB`
+          ? `Memory ${info.maxMemoryUsedMb}/${info.memorySizeMb} MB`
           : '';
       const duration = info.durationMs !== undefined ? `Duration ${info.durationMs} ms` : '';
-      const detail = [duration, memory].filter((part) => part !== '').join('');
-      this.logger.text(
-        `  ├─ Runtime status: ${info.runtimeStatus}${detail !== '' ? ` (${detail.replace(/^, /, '')})` : ''}`,
-      );
+      const detail = [duration, memory].filter((part) => part !== '').join(', ');
+      nodes.push({ label: `Runtime status: ${info.runtimeStatus}${detail !== '' ? ` (${detail})` : ''}` });
     }
-    if (info.downstreamTarget !== undefined && info.downstreamTarget !== '') {
-      this.logger.text(`  ├─ Downstream individuato: ${info.downstreamTarget}`);
+    if (present(info.downstreamTarget)) {
+      nodes.push({ label: `Downstream individuato: ${info.downstreamTarget}` });
     }
-    if (info.requestId !== undefined && info.requestId !== '') {
-      this.logger.text(`  └─ requestId: ${info.requestId}`);
-    } else {
-      this.logger.text(`  └─ requestId: non disponibile`);
-    }
+    nodes.push({ label: `requestId: ${present(info.requestId) ? info.requestId : 'non disponibile'}` });
+    this.tree(nodes);
   }
 
   invocation(requestId: string, logCount: number): void {
-    this.logger.newline();
-    this.logger.text('═══ Flusso invocazione (per requestId) ═══');
-    this.logger.text(`  ├─ Query CloudWatch [filter: ${requestId}]`);
-    this.logger.text(`  └─ Log trovati: ${logCount}`);
+    this.section('Flusso invocazione (per requestId)');
+    this.tree([{ label: `Query CloudWatch [filter: ${requestId}]` }, { label: `Log trovati: ${logCount}` }]);
   }
 
   downstream(name: string, logGroup: string, logCount: number): void {
-    this.logger.newline();
-    this.logger.text(`═══ Downstream: ${name} ═══`);
-    this.logger.text(`  ├─ Log group: ${logGroup}`);
-    this.logger.text(`  └─ Log trovati: ${logCount}`);
+    this.section(`Downstream: ${name}`);
+    this.tree([{ label: `Log group: ${logGroup}` }, { label: `Log trovati: ${logCount}` }]);
   }
 
   queryFailed(logGroups: ReadonlyArray<string>, errorMessage: string): void {
-    this.logger.text(`  └─ ⚠ Query fallita`);
+    const children: TreeNode[] = [];
     if (logGroups.length > 0) {
-      this.logger.text(`     ├─ Log group${logGroups.length === 1 ? '' : 's'}: ${logGroups.join(', ')}`);
+      children.push({ label: `Log group${logGroups.length === 1 ? '' : 's'}: ${logGroups.join(', ')}` });
     }
-    this.logger.text(`     └─ Causa: ${errorMessage}`);
+    children.push({ label: `Causa: ${errorMessage}` });
+    this.tree([{ label: '\u26a0 Query fallita', children }]);
   }
 
   stopSummary(termination: LambdaTermination): void {
-    this.logger.newline();
-    this.logger.text('═══ Esecuzione terminata ═══');
-    if (termination.category !== undefined && termination.category !== '') {
-      this.logger.text(`  ├─ Categoria errore: ${termination.category}`);
+    this.section('Esecuzione terminata');
+    const nodes: TreeNode[] = [];
+    if (present(termination.category)) {
+      nodes.push({ label: `Categoria errore: ${termination.category}` });
     }
+    const ids = termination.matchedCaseIds;
     switch (termination.reason) {
       case 'known-case':
-        if (termination.matchedCaseIds.length <= 1) {
-          this.logger.text(
-            `  └─ Esito: caso noto${termination.matchedCaseIds[0] !== undefined ? ` (${termination.matchedCaseIds[0]})` : ''}`,
-          );
-        } else {
-          this.logger.text(`  ├─ Casi noti rilevati: ${termination.matchedCaseIds.length}`);
-          termination.matchedCaseIds.forEach((id, idx) => {
-            const isLast = idx === termination.matchedCaseIds.length - 1;
-            const branch = isLast ? '└─' : '├─';
-            const tag = idx === 0 ? ' ← primario' : '';
-            this.logger.text(`  │    ${branch} ${id}${tag}`);
-          });
-        }
+        nodes.push(
+          ids.length <= 1
+            ? { label: `Esito: caso noto${ids[0] !== undefined ? ` (${ids[0]})` : ''}` }
+            : {
+                label: `Casi noti rilevati: ${ids.length}`,
+                children: ids.map((id, index) => ({ label: `${id}${index === 0 ? ' \u2190 primario' : ''}` })),
+              },
+        );
         break;
       case 'downstream':
-        this.logger.text(`  ├─ Esito: errore downstream (${termination.downstreamTarget ?? 'n/a'})`);
-        this.logger.text(
-          `  └─ ${termination.errorMessage !== undefined && termination.errorMessage !== '' ? `Errore: ${termination.errorMessage}` : 'Nessun error message disponibile'}`,
+        nodes.push(
+          { label: `Esito: errore downstream (${termination.downstreamTarget ?? 'n/a'})` },
+          {
+            label: present(termination.errorMessage)
+              ? `Errore: ${termination.errorMessage}`
+              : 'Nessun error message disponibile',
+          },
         );
         break;
       case 'no-errors':
-        this.logger.text(`  └─ Esito: nessun errore individuato nella finestra temporale`);
+        nodes.push({ label: 'Esito: nessun errore individuato nella finestra temporale' });
         break;
       case 'no-match':
-        this.logger.text(`  ├─ Esito: caso non riconosciuto`);
-        this.logger.text(
-          `  └─ ${termination.errorMessage !== undefined && termination.errorMessage !== '' ? `Errore più rappresentativo: ${termination.errorMessage}` : 'Nessun error message disponibile'}`,
+        nodes.push(
+          { label: 'Esito: caso non riconosciuto' },
+          {
+            label: present(termination.errorMessage)
+              ? `Errore pi\u00f9 rappresentativo: ${termination.errorMessage}`
+              : 'Nessun error message disponibile',
+          },
         );
         break;
       default: {
@@ -128,5 +136,14 @@ export class LambdaReporter {
         throw new Error(`Unknown TerminationReason: ${String(exhaustive)}`);
       }
     }
+    this.tree(nodes);
+  }
+
+  private section(title: string): void {
+    this.reporter.section(title);
+  }
+
+  private tree(nodes: ReadonlyArray<TreeNode>): void {
+    this.reporter.add(...nodes);
   }
 }

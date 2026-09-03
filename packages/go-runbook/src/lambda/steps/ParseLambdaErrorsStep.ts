@@ -1,3 +1,4 @@
+import { omitUndefined } from '@go-automation/go-common/core';
 import type { ResultField } from '@go-automation/go-common/aws';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
@@ -77,18 +78,18 @@ export class ParseLambdaErrorsStep implements Step<LambdaErrorScan> {
     if (scan.report?.maxMemoryUsedMb !== undefined) vars['lambdaMaxMemoryUsedMb'] = String(scan.report.maxMemoryUsedMb);
     if (downstreamTarget !== undefined) vars['lambdaDownstreamTarget'] = downstreamTarget;
 
-    if (context.logger !== undefined) {
-      new LambdaReporter(context.logger).lambdaResult({
-        errorCount: scan.errorCount,
-        category: scan.category,
-        ...(scan.requestId !== undefined ? { requestId: scan.requestId } : {}),
-        ...(scan.report?.status !== undefined ? { runtimeStatus: scan.report.status } : {}),
-        ...(scan.report?.durationMs !== undefined ? { durationMs: scan.report.durationMs } : {}),
-        ...(scan.report?.memorySizeMb !== undefined ? { memorySizeMb: scan.report.memorySizeMb } : {}),
-        ...(scan.report?.maxMemoryUsedMb !== undefined ? { maxMemoryUsedMb: scan.report.maxMemoryUsedMb } : {}),
-        ...(downstreamTarget !== undefined ? { downstreamTarget } : {}),
-      });
-    }
+    new LambdaReporter(context.services.reporter).lambdaResult({
+      errorCount: scan.errorCount,
+      category: scan.category,
+      ...omitUndefined({
+        requestId: scan.requestId,
+        runtimeStatus: scan.report?.status,
+        durationMs: scan.report?.durationMs,
+        memorySizeMb: scan.report?.memorySizeMb,
+        maxMemoryUsedMb: scan.report?.maxMemoryUsedMb,
+        downstreamTarget,
+      }),
+    });
 
     return { success: true, output: scan, vars };
   }

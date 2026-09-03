@@ -6,6 +6,9 @@
   },
   "files": [],
   "references": [
+    { "path": "./bins/check-new-class-tests" },
+    { "path": "./bins/create-runbook" },
+    { "path": "./bins/validate-scaffold" },
     { "path": "./functions/go-AILambda" },
     { "path": "./functions/go-BotQESlackHandler" },
     { "path": "./functions/go-ExecuteRunbookLambda" },

@@ -14,6 +14,7 @@ import type { BorderStyle } from './tableRenderer/BorderStyle.js';
 import type { ChalkLikeColor } from './tableRenderer/colorize.js';
 import { colorize } from './tableRenderer/colorize.js';
 import { displayWidth } from './tableRenderer/displayWidth.js';
+import { expandTabs } from './tableRenderer/expandTabs.js';
 import { renderRow } from './tableRenderer/renderRow.js';
 import { renderSeparator } from './tableRenderer/renderSeparator.js';
 import type { ResolvedColumn } from './tableRenderer/ResolvedColumn.js';
@@ -171,9 +172,13 @@ export class GOTableFormatter {
     const maxWidth = options.maxColumnWidth ?? DEFAULT_MAX_COLUMN_WIDTH;
 
     return options.columns.map((col) => {
-      const formatter: (value: unknown) => string = col.formatter ?? ((value) => valueToString(value));
+      const format: (value: unknown) => string = col.formatter ?? ((value) => valueToString(value));
+      // Expand once, here: `resolveColumns` measures with this formatter and
+      // `renderRow` pads with it, so both see the same text.
+      const formatter = (value: unknown): string => expandTabs(format(value));
 
-      let maxCellW = displayWidth(col.header);
+      const header = expandTabs(col.header);
+      let maxCellW = displayWidth(header);
       for (const row of options.data) {
         const formatted = formatter(row[col.key]);
         for (const line of formatted.split('\n')) {
@@ -185,7 +190,7 @@ export class GOTableFormatter {
       const targetW = col.width ?? Math.min(maxCellW + INNER_PADDING, maxWidth);
 
       return {
-        header: col.header,
+        header,
         key: col.key,
         width: Math.max(MIN_COLUMN_WIDTH, targetW),
         align: col.align ?? 'left',

@@ -4,19 +4,20 @@
 
 import { lambda } from '../framework.js';
 import type { KnownCase } from '../framework.js';
+// Uncomment with the example below:
+// import { knownCase } from '../framework.js';
+// import { stepEvidenceMatches } from '../common/evidenceConditions.js';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   ...lambda.LAMBDA_RUNTIME_KNOWN_CASES,
   // add alarm-specific cases here, e.g.:
-  // {
-  //   id: 'example-specific-error',
-  //   description: 'Allarme',
-  //   priority: 50,
-  //   condition: { type: 'contains', ref: 'steps.query-lambda-invocation', regex: 'some error pattern' },
-  //   action: {
-  //     type: 'log',
-  //     level: 'info',
-  //     message: '[CASO NOTO] ...\n' + 'Risoluzione: Chiusura - caso noto\n',
-  //   },
-  // },
+  // knownCase({
+  //   id: 'example-known-case',
+  //   description: 'Caso noto da log applicativo',
+  //   priority: 100,
+  //   condition: stepEvidenceMatches('query-lambda-errors', 'some error pattern'),
+  //   resolution: 'Chiusura - caso noto',
+  //   details: [['Errore', '{{vars.{{LAMBDA_VAR_PREFIX}}ErrorMsg}}']],
+  //   analysis: { proposedStatus: 'COMPLETED', analysisType: 'ANALYZABLE' },
+  // }),
 ];

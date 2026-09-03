@@ -30,7 +30,7 @@ function runbook(policy: boolean): Runbook {
     },
     steps: [{ step: noopStep }],
     knownCases: [],
-    fallbackAction: logAction({ level: 'info', message: 'done' }),
+    fallbackAction: logAction({ level: 'info', title: 'done' }),
     ...(policy ? { cloudExecutionPolicy: { sideEffects: 'NONE' as const } } : {}),
   };
 }

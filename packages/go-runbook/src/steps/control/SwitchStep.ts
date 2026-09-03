@@ -30,7 +30,7 @@ export interface SwitchStepConfig {
  *
  * @example
  * ```typescript
- * const step = switchOn({
+ * const step = new SwitchStep({
  *   id: 'route-by-status',
  *   label: 'Route by HTTP status code',
  *   ref: 'vars.statusCode',
@@ -86,14 +86,4 @@ export class SwitchStep implements Step<void> {
 
     return this.defaultGoTo !== undefined ? { goTo: this.defaultGoTo } : 'continue';
   }
-}
-
-/**
- * Factory function for creating a switch control flow step.
- *
- * @param config - Step configuration
- * @returns A new SwitchStep instance
- */
-export function switchOn(config: SwitchStepConfig): SwitchStep {
-  return new SwitchStep(config);
 }

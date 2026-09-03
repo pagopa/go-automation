@@ -6,11 +6,11 @@ import { RUNBOOK_TEMPLATES } from '../templates/runbookTemplates.js';
 export interface CliArgs {
   readonly type?: string;
   readonly id?: string;
-  readonly builder?: string;
   readonly description?: string;
   readonly version?: string;
   readonly team?: string;
   readonly tags?: string;
+  readonly product?: string;
   readonly categories?: string;
   /** Template-specific flag values, keyed by input name. */
   readonly extras: ReadonlyMap<string, string>;
@@ -25,11 +25,11 @@ export interface CliArgs {
 interface MutableCliArgs {
   type?: string;
   id?: string;
-  builder?: string;
   description?: string;
   version?: string;
   team?: string;
   tags?: string;
+  product?: string;
   categories?: string;
   extras: ReadonlyMap<string, string>;
   wire: boolean;
@@ -67,11 +67,11 @@ export function parseCliArgs(argv: ReadonlyArray<string>): CliArgs {
   const options: Record<string, { type: 'string' | 'boolean' }> = {
     type: { type: 'string' },
     id: { type: 'string' },
-    builder: { type: 'string' },
     description: { type: 'string' },
     version: { type: 'string' },
     team: { type: 'string' },
     tags: { type: 'string' },
+    product: { type: 'string' },
     categories: { type: 'string' },
     'no-wire': { type: 'boolean' },
     'dry-run': { type: 'boolean' },
@@ -102,8 +102,6 @@ export function parseCliArgs(argv: ReadonlyArray<string>): CliArgs {
   if (type !== undefined) args.type = type;
   const id = asString(values['id']);
   if (id !== undefined) args.id = id;
-  const builder = asString(values['builder']);
-  if (builder !== undefined) args.builder = builder;
   const description = asString(values['description']);
   if (description !== undefined) args.description = description;
   const version = asString(values['version']);
@@ -112,6 +110,8 @@ export function parseCliArgs(argv: ReadonlyArray<string>): CliArgs {
   if (team !== undefined) args.team = team;
   const tags = asString(values['tags']);
   if (tags !== undefined) args.tags = tags;
+  const product = asString(values['product']);
+  if (product !== undefined) args.product = product;
   const categories = asString(values['categories']);
   if (categories !== undefined) args.categories = categories;
 

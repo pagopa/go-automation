@@ -1,3 +1,4 @@
+export type { LogLine } from './LogLine.js';
 export type { RunbookOutput } from './RunbookOutput.js';
 export type {
   RunbookOutcome,

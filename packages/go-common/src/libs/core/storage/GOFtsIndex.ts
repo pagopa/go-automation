@@ -40,6 +40,7 @@ import * as path from 'node:path';
 import type BetterSqliteDatabase from 'better-sqlite3';
 import type { Database as BetterSqliteDatabaseInstance, Statement as BetterSqliteStatement } from 'better-sqlite3';
 
+import { parseInteger } from '../utils/GONumberParse.js';
 import { valueToString } from '../utils/GOValueToString.js';
 
 import type { GOFtsIndexConfig } from './GOFtsIndexConfig.js';
@@ -343,8 +344,7 @@ export class GOFtsIndex {
     const state = this.acquireOpen();
     const row = state.getSchemaVersionStmt.get(SCHEMA_VERSION_KEY) as { value: string } | undefined;
     if (row === undefined) return 0;
-    const parsed = Number.parseInt(row.value, 10);
-    return Number.isFinite(parsed) ? parsed : 0;
+    return parseInteger(row.value) ?? 0;
   }
 
   /**

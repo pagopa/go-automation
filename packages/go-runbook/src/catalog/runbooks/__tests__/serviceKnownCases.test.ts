@@ -1,45 +1,39 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-  ConditionEvaluator,
-  service,
-  SEND_DOWNSTREAMS,
-  type KnownCase,
-  type RunbookContext,
-  type ServiceRegistry,
-} from '../framework.js';
+import { ConditionEvaluator, service, SEND_DOWNSTREAMS, type KnownCase, type RunbookContext } from '../framework.js';
 import type { ResultField } from '@go-automation/go-common/aws';
 
 import { KNOWN_CASES as EMD_DOWNSTREAM_CASES } from '../emd-downstream-detection-Alarm/knownCases.js';
 import { SERVICE as EMD_DOWNSTREAM_SERVICE } from '../emd-downstream-detection-Alarm/knownServices.js';
-import { buildEmdDownstreamDetectionAlarmRunbook } from '../emd-downstream-detection-Alarm/runbook.js';
+import { buildRunbook as buildEmdDownstreamDetectionAlarmRunbook } from '../emd-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as SELFCARE_DOWNSTREAM_CASES } from '../personal-data-vault-SelfcarePG-downstream-detection-Alarm/knownCases.js';
 import { SERVICE as SELFCARE_DOWNSTREAM_SERVICE } from '../personal-data-vault-SelfcarePG-downstream-detection-Alarm/knownServices.js';
-import { buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook } from '../personal-data-vault-SelfcarePG-downstream-detection-Alarm/runbook.js';
+import { buildRunbook as buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook } from '../personal-data-vault-SelfcarePG-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as POSTEL_DOWNSTREAM_CASES } from '../pn-address-manager-POSTEL-downstream-detection-Alarm/knownCases.js';
 import { SERVICE as POSTEL_DOWNSTREAM_SERVICE } from '../pn-address-manager-POSTEL-downstream-detection-Alarm/knownServices.js';
-import { buildAddressManagerPostelDownstreamDetectionAlarmRunbook } from '../pn-address-manager-POSTEL-downstream-detection-Alarm/runbook.js';
+import { buildRunbook as buildAddressManagerPostelDownstreamDetectionAlarmRunbook } from '../pn-address-manager-POSTEL-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as ONE_TRUST_DOWNSTREAM_CASES } from '../pn-external-registries-OneTrust-downstream-detection-Alarm/knownCases.js';
 import { SERVICE as ONE_TRUST_DOWNSTREAM_SERVICE } from '../pn-external-registries-OneTrust-downstream-detection-Alarm/knownServices.js';
-import { buildExternalRegistriesOneTrustDownstreamDetectionAlarmRunbook } from '../pn-external-registries-OneTrust-downstream-detection-Alarm/runbook.js';
+import { buildRunbook as buildExternalRegistriesOneTrustDownstreamDetectionAlarmRunbook } from '../pn-external-registries-OneTrust-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as ADE_DOWNSTREAM_CASES } from '../pn-national-registries-AdE-downstream-detection-Alarm/knownCases.js';
 import { SERVICE as ADE_DOWNSTREAM_SERVICE } from '../pn-national-registries-AdE-downstream-detection-Alarm/knownServices.js';
-import { buildNationalRegistriesAdeDownstreamDetectionAlarmRunbook } from '../pn-national-registries-AdE-downstream-detection-Alarm/runbook.js';
+import { buildRunbook as buildNationalRegistriesAdeDownstreamDetectionAlarmRunbook } from '../pn-national-registries-AdE-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as ANPR_DOWNSTREAM_CASES } from '../pn-national-registries-ANPR-downstream-detection-Alarm/knownCases.js';
 import { SERVICE as ANPR_DOWNSTREAM_SERVICE } from '../pn-national-registries-ANPR-downstream-detection-Alarm/knownServices.js';
-import { buildNationalRegistriesAnprDownstreamDetectionAlarmRunbook } from '../pn-national-registries-ANPR-downstream-detection-Alarm/runbook.js';
+import { buildRunbook as buildNationalRegistriesAnprDownstreamDetectionAlarmRunbook } from '../pn-national-registries-ANPR-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as INFOCAMERE_DOWNSTREAM_CASES } from '../pn-national-registries-InfoCamere-downstream-detection-Alarm/knownCases.js';
 import { SERVICE as INFOCAMERE_DOWNSTREAM_SERVICE } from '../pn-national-registries-InfoCamere-downstream-detection-Alarm/knownServices.js';
-import { buildNationalRegistriesInfoCamereDownstreamDetectionAlarmRunbook } from '../pn-national-registries-InfoCamere-downstream-detection-Alarm/runbook.js';
+import { buildRunbook as buildNationalRegistriesInfoCamereDownstreamDetectionAlarmRunbook } from '../pn-national-registries-InfoCamere-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as INAD_DOWNSTREAM_CASES } from '../pn-national-registries-INAD-downstream-detection-Alarm/knownCases.js';
 import { SERVICE as INAD_DOWNSTREAM_SERVICE } from '../pn-national-registries-INAD-downstream-detection-Alarm/knownServices.js';
-import { buildNationalRegistriesInadDownstreamDetectionAlarmRunbook } from '../pn-national-registries-INAD-downstream-detection-Alarm/runbook.js';
+import { buildRunbook as buildNationalRegistriesInadDownstreamDetectionAlarmRunbook } from '../pn-national-registries-INAD-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as IPA_DOWNSTREAM_CASES } from '../pn-national-registries-IPA-downstream-detection-Alarm/knownCases.js';
 import { SERVICE as IPA_DOWNSTREAM_SERVICE } from '../pn-national-registries-IPA-downstream-detection-Alarm/knownServices.js';
-import { buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook } from '../pn-national-registries-IPA-downstream-detection-Alarm/runbook.js';
+import { buildRunbook as buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook } from '../pn-national-registries-IPA-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as EXTERNAL_CHANNEL_CASES } from '../workday-pn-external-channel-alb-alarm/knownCases.js';
-import { buildWorkdayPnExternalChannelAlbAlarmRunbook } from '../workday-pn-external-channel-alb-alarm/runbook.js';
+import { buildRunbook as buildWorkdayPnExternalChannelAlbAlarmRunbook } from '../workday-pn-external-channel-alb-alarm/runbook.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function ctx(args: {
   readonly stepResults?: ReadonlyArray<readonly [string, unknown]>;
@@ -52,7 +46,7 @@ function ctx(args: {
     vars: new Map(args.vars ?? []),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

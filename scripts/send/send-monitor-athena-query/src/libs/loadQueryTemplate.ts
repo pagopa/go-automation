@@ -1,3 +1,4 @@
+import { trimToUndefined } from '@go-automation/go-common/core';
 import { readFile } from 'node:fs/promises';
 
 import { Core } from '@go-automation/go-common';
@@ -5,8 +6,8 @@ import { Core } from '@go-automation/go-common';
 import type { SendMonitorAthenaQueryConfig } from '../types/index.js';
 
 export async function loadQueryTemplate(config: SendMonitorAthenaQueryConfig, paths: Core.GOPaths): Promise<string> {
-  const inlineQuery = normalizeOptionalText(config.athenaQuery);
-  const queryFile = normalizeOptionalText(config.athenaQueryFile);
+  const inlineQuery = trimToUndefined(config.athenaQuery);
+  const queryFile = trimToUndefined(config.athenaQueryFile);
 
   if (
     (inlineQuery === undefined && queryFile === undefined) ||
@@ -26,9 +27,4 @@ export async function loadQueryTemplate(config: SendMonitorAthenaQueryConfig, pa
   const filePath = paths.resolvePath(queryFile, Core.GOPathType.CONFIG);
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- query files are resolved by GOPaths from config directories or absolute operator input.
   return readFile(filePath, 'utf8');
-}
-
-function normalizeOptionalText(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed && trimmed.length > 0 ? trimmed : undefined;
 }

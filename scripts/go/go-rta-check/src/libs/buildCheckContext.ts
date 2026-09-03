@@ -9,6 +9,7 @@ import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
 import type { Connection } from './resolveClient.js';
 import type { ProductAlarm } from '../types/ProductAlarm.js';
 import type { ResolvedAnalysisMatcher } from './resolveAnalysisMatcher.js';
+import { NOOP_RUNBOOK_REPORTER } from '@go-automation/go-runbook/catalog';
 
 export interface BuildCheckContextOptions {
   readonly script: Core.GOScript;
@@ -27,7 +28,9 @@ export interface BuildCheckContextOptions {
  */
 export function buildCheckContext(options: BuildCheckContextOptions): RunbookCheckContext {
   return {
-    services: createServiceRegistry(options.script),
+    // This script renders its own coverage table: the per-step runbook
+    // narrative must stay out of stdout.
+    services: createServiceRegistry(options.script, NOOP_RUNBOOK_REPORTER),
     engineLogger: new Core.GOLogger(),
     client: options.connection.client,
     productId: options.target.productId,

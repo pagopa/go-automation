@@ -43,7 +43,7 @@ export interface AthenaQueryConfig {
  *
  * @example
  * ```typescript
- * const step = queryAthena({
+ * const step = new AthenaQueryStep({
  *   id: 'fetch-delivery-data',
  *   label: 'Fetch delivery data from Athena',
  *   database: 'send_analytics',
@@ -130,14 +130,4 @@ export class AthenaQueryStep implements Step<ReadonlyArray<Record<string, string
 
     return undefined;
   }
-}
-
-/**
- * Factory function for creating an Athena query data step.
- *
- * @param config - Step configuration
- * @returns A new AthenaQueryStep instance
- */
-export function queryAthena(config: AthenaQueryConfig): AthenaQueryStep {
-  return new AthenaQueryStep(config);
 }

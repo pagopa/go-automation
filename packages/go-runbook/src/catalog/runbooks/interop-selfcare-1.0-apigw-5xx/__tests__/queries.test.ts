@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { buildInteropApiGw5xxAggregateQuery, buildInteropBff5xxApplicationLogsQuery } from '../queries.js';
+import { interop } from '../../framework.js';
+
+const PROFILE = interop.apigw.INTEROP_API_GW_5XX_SERVICE_ERRORS_PROFILE;
 
 describe('INTEROP Selfcare API Gateway queries', () => {
   it('builds the 5xx aggregate with an exact API Gateway id and an early numeric status filter', () => {
-    const query = buildInteropApiGw5xxAggregateQuery('tf9isbi4pi');
+    const query = PROFILE.buildApiGwAggregateQuery('tf9isbi4pi');
 
     assert.match(query, /filter apigwId = "tf9isbi4pi"/u);
     assert.match(query, /filter status >= 500 and status < 600/u);
@@ -15,7 +17,7 @@ describe('INTEROP Selfcare API Gateway queries', () => {
   });
 
   it('includes Response 5xx regardless of severity and keeps the BFF/adot filters', () => {
-    const query = buildInteropBff5xxApplicationLogsQuery('interop-be-backend-for-frontend');
+    const query = PROFILE.buildApplicationLogsQuery('interop-be-backend-for-frontend');
 
     assert.match(query, /@message like \/\(\?i\)Response\\s\*5\[0-9\]\{2\}\//u);
     assert.match(query, /@logStream not like \/adot-collector\//u);

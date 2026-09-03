@@ -1,20 +1,14 @@
+import { SELFCARE_USERS_UPDATER_ALARM } from './alarmDefinition.js';
 import { interop } from '../framework.js';
 import type { Runbook } from '../framework.js';
 
 import { KNOWN_CASES } from './knownCases.js';
-import {
-  INTEROP_SELFCARE_USERS_UPDATER_RUNBOOK_KEY,
-  INTEROP_SELFCARE_USERS_UPDATER_SERVICE_NAME,
-  INTEROP_SELFCARE_USERS_UPDATER_STATIC_LOG_GROUP,
-  INTEROP_SELFCARE_USERS_UPDATER_VAR_PREFIX,
-  resolveInteropSelfcareUsersUpdaterAlarmContext,
-} from './resolveInteropAlarmContext.js';
 
-export function buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook(): Runbook {
+export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
-    id: INTEROP_SELFCARE_USERS_UPDATER_RUNBOOK_KEY,
+    id: SELFCARE_USERS_UPDATER_ALARM.runbookKey,
     metadata: {
-      name: INTEROP_SELFCARE_USERS_UPDATER_RUNBOOK_KEY,
+      name: SELFCARE_USERS_UPDATER_ALARM.runbookKey,
       description:
         'Analizza gli allarmi k8s INTEROP del selfcare client users updater leggendo i log applicativi, estraendo i CID e consultando il CID tracker.',
       version: '1.0.0',
@@ -23,11 +17,11 @@ export function buildK8sInteropBeSelfcareClientUsersUpdaterErrorsRunbook(): Runb
       tags: ['interop', 'k8s', 'service', 'selfcare', 'kafka'],
     },
     service: {
-      name: INTEROP_SELFCARE_USERS_UPDATER_SERVICE_NAME,
-      logGroup: INTEROP_SELFCARE_USERS_UPDATER_STATIC_LOG_GROUP,
-      varPrefix: INTEROP_SELFCARE_USERS_UPDATER_VAR_PREFIX,
+      name: SELFCARE_USERS_UPDATER_ALARM.podApp,
+      logGroup: SELFCARE_USERS_UPDATER_ALARM.logGroup,
+      varPrefix: SELFCARE_USERS_UPDATER_ALARM.varPrefix,
     },
-    resolveAlarmContext: resolveInteropSelfcareUsersUpdaterAlarmContext,
+    resolveAlarmContext: SELFCARE_USERS_UPDATER_ALARM.resolveContext,
     knownCases: KNOWN_CASES,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
   });

@@ -2,9 +2,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 
-import { stopApiGwExecutionLogAnalysis } from '../StopApiGwExecutionLogAnalysisStep.js';
+import { StopApiGwExecutionLogAnalysisStep } from '../StopApiGwExecutionLogAnalysisStep.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function createContext(vars: Record<string, string> = {}): RunbookContext {
   return {
@@ -14,14 +14,14 @@ function createContext(vars: Record<string, string> = {}): RunbookContext {
     vars: new Map(Object.entries(vars)),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }
 
 describe('stopApiGwExecutionLogAnalysis', () => {
   it('does not stop the runbook when execution logs were not queried', async () => {
-    const step = stopApiGwExecutionLogAnalysis({
+    const step = new StopApiGwExecutionLogAnalysisStep({
       id: 'stop-execution-log-analysis',
       label: 'Stop execution log analysis',
     });
@@ -34,7 +34,7 @@ describe('stopApiGwExecutionLogAnalysis', () => {
   });
 
   it('stops with execution-log termination vars when execution logs were queried', async () => {
-    const step = stopApiGwExecutionLogAnalysis({
+    const step = new StopApiGwExecutionLogAnalysisStep({
       id: 'stop-execution-log-analysis',
       label: 'Stop execution log analysis',
     });

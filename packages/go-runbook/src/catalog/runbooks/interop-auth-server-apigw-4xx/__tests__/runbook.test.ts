@@ -1,3 +1,4 @@
+import { AUTH_SERVER_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -9,49 +10,35 @@ import type {
 } from '@go-automation/go-common/aws';
 import { GOLogger } from '@go-automation/go-common/core';
 
-import { ConditionEvaluator } from '../../../../core/ConditionEvaluator.js';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
-import type { ServiceRegistry } from '../../../../services/ServiceRegistry.js';
 import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionResult.js';
 import { apigw } from '../../framework.js';
 
-import { buildInteropAuthServerApiGw4xxRunbook } from '../runbook.js';
-import {
-  INTEROP_AUTH_SERVER_API_GW_RUNBOOK_KEY,
-  INTEROP_AUTH_SERVER_SERVICE_NAME,
-} from '../resolveInteropAlarmContext.js';
-import {
-  ANALYZE_INTEROP_API_GW_4XX_STEP_ID,
-  ANALYZE_INTEROP_AUTH_SERVER_CID_TRACKER_STEP_ID,
-  ANALYZE_INTEROP_AUTH_SERVER_WARNINGS_STEP_ID,
-  QUERY_INTEROP_API_GW_4XX_STEP_ID,
-  QUERY_INTEROP_AUTH_SERVER_CID_TRACKER_STEP_ID,
-  QUERY_INTEROP_AUTH_SERVER_WARNINGS_STEP_ID,
-  RESOLVE_INTEROP_AUTH_SERVER_API_GW_CONTEXT_STEP_ID,
-} from '../runbookSteps.js';
+import { buildRunbook } from '../runbook.js';
+import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 
-describe('buildInteropAuthServerApiGw4xxRunbook', () => {
+describe('buildRunbook', () => {
   it('builds the read-only APIGW → warnings → CID pipeline with the asymmetric window', () => {
-    const runbook = buildInteropAuthServerApiGw4xxRunbook();
+    const runbook = buildRunbook();
 
-    assert.strictEqual(runbook.metadata.id, INTEROP_AUTH_SERVER_API_GW_RUNBOOK_KEY);
+    assert.strictEqual(runbook.metadata.id, AUTH_SERVER_ALARM.runbookKey);
     assert.deepStrictEqual(
       runbook.steps.map(({ step }) => step.id),
       [
-        RESOLVE_INTEROP_AUTH_SERVER_API_GW_CONTEXT_STEP_ID,
-        QUERY_INTEROP_API_GW_4XX_STEP_ID,
-        ANALYZE_INTEROP_API_GW_4XX_STEP_ID,
-        QUERY_INTEROP_AUTH_SERVER_WARNINGS_STEP_ID,
-        ANALYZE_INTEROP_AUTH_SERVER_WARNINGS_STEP_ID,
-        QUERY_INTEROP_AUTH_SERVER_CID_TRACKER_STEP_ID,
-        ANALYZE_INTEROP_AUTH_SERVER_CID_TRACKER_STEP_ID,
+        AUTH_SERVER_ALARM.stepIds.resolveContext,
+        AUTH_SERVER_ALARM.stepIds.queryApiGwAggregates,
+        AUTH_SERVER_ALARM.stepIds.analyzeApiGwAggregates,
+        AUTH_SERVER_ALARM.stepIds.queryApplicationLogs,
+        AUTH_SERVER_ALARM.stepIds.analyzeApplicationLogs,
+        AUTH_SERVER_ALARM.stepIds.queryCidTracker,
+        AUTH_SERVER_ALARM.stepIds.analyzeCidTracker,
       ],
     );
     assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 2, afterMinutes: 1 });
     assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
     assert.ok(apigw.isApiGwRunbookContext(runbook.runbookContext));
-    assert.strictEqual(runbook.runbookContext.services[0]?.name, INTEROP_AUTH_SERVER_SERVICE_NAME);
+    assert.strictEqual(runbook.runbookContext.services[0]?.name, AUTH_SERVER_ALARM.serviceName);
     assert.strictEqual(runbook.knownCases.length, 8);
   });
 
@@ -129,7 +116,7 @@ describe('buildInteropAuthServerApiGw4xxRunbook', () => {
       result.matchedCases.map(({ id }) => id),
       ['auth-server-api-gateway-forbidden-403'],
     );
-    const draft = buildAnalysisDraft(buildInteropAuthServerApiGw4xxRunbook(), result);
+    const draft = buildAnalysisDraft(buildRunbook(), result);
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'COMPLETED');
     assert.match(draft.conclusionNotes, /nessuna azione necessaria/u);
@@ -137,8 +124,8 @@ describe('buildInteropAuthServerApiGw4xxRunbook', () => {
 });
 
 async function execute(cloudWatchLogs: unknown): Promise<RunbookExecutionResult> {
-  const runbook = buildInteropAuthServerApiGw4xxRunbook();
-  const engine = new RunbookEngine(new GOLogger(), new ConditionEvaluator());
+  const runbook = buildRunbook();
+  const engine = new RunbookEngine(new GOLogger());
   return engine.execute(
     runbook,
     new Map([
@@ -147,6 +134,6 @@ async function execute(cloudWatchLogs: unknown): Promise<RunbookExecutionResult>
       ['startTime', '2026-08-24T09:58:00.000Z'],
       ['endTime', '2026-08-24T10:01:00.000Z'],
     ]),
-    { cloudWatchLogs } as unknown as ServiceRegistry,
+    createTestServiceRegistry({ cloudWatchLogs }),
   );
 }

@@ -31,10 +31,10 @@ export interface SetVarStepConfig {
  * @example
  * ```typescript
  * // Literal value
- * const step1 = setVar({ id: 'set-env', label: 'Set environment', varName: 'env', value: 'production' });
+ * const step1 = new SetVarStep({ id: 'set-env', label: 'Set environment', varName: 'env', value: 'production' });
  *
  * // Template expression
- * const step2 = setVar({
+ * const step2 = new SetVarStep({
  *   id: 'set-url',
  *   label: 'Build API URL',
  *   varName: 'apiUrl',
@@ -88,14 +88,4 @@ export class SetVarStep implements Step<void> {
 
     return '';
   }
-}
-
-/**
- * Factory function for creating a set-variable control step.
- *
- * @param config - Step configuration
- * @returns A new SetVarStep instance
- */
-export function setVar(config: SetVarStepConfig): SetVarStep {
-  return new SetVarStep(config);
 }

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { ResolveInteropApiGwAlarmContextFn } from '../types/InteropApiGwAlarmContext.js';
 import { ResolveInteropApiGwAlarmContextStep } from '../steps/ResolveInteropApiGwAlarmContextStep.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function context(alarmName?: string): RunbookContext {
   return {
@@ -14,7 +14,7 @@ function context(alarmName?: string): RunbookContext {
     vars: new Map(),
     params: new Map(alarmName === undefined ? [] : [['alarmName', alarmName]]),
     logs: [],
-    services: {} as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { Core } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
 
-import { selectTarget } from '../selectTarget.js';
+import { createTargetWizardSession, selectTarget } from '../selectTarget.js';
 import type { TargetSelection } from '../selectTarget.js';
 import { BACK_CHOICE } from '../promptChoice.js';
 import type { GoRtaCheckConfig } from '../../types/GoRtaCheckConfig.js';
@@ -36,6 +36,9 @@ function byTitle(needle: string): AnswerFn {
 
 /** Picks the "go back" entry. */
 const goBack: AnswerFn = () => BACK_CHOICE;
+
+/** Leaves the prompt with ← instead of picking the "go back" entry. */
+const pressBackKey: AnswerFn = () => Core.GO_PROMPT_BACK;
 
 /** Fails the test unless the wizard completed, and narrows the outcome. */
 function selected(outcome: TargetSelection): Extract<TargetSelection, { kind: 'VALUE' }> {
@@ -71,7 +74,9 @@ function harness(answers: ReadonlyArray<AnswerFn>): Harness {
     },
     prompt: {
       select: ask,
+      selectWithBack: ask,
       autocomplete: ask,
+      autocompleteWithBack: ask,
       startSpinner: (): void => undefined,
       stopSpinner: (): void => undefined,
     },
@@ -86,17 +91,21 @@ interface ClientOptions {
   readonly failing?: ReadonlyArray<string>;
   /** Collects every count actually issued, to prove memoization. */
   readonly issued?: string[];
+  /** Counts the product list reads, to prove they are shared across wizard runs. */
+  readonly productReads?: { count: number };
 }
 
 function fakeClient(options: ClientOptions = {}): never {
   const counts = options.counts ?? {};
   const failing = new Set(options.failing ?? []);
   return {
-    listProducts: async () =>
-      Promise.resolve([
+    listProducts: async () => {
+      if (options.productReads !== undefined) options.productReads.count += 1;
+      return Promise.resolve([
         { id: SEND, name: 'SEND', description: null },
         { id: INTEROP, name: 'INTEROP', description: null },
-      ]),
+      ]);
+    },
     listProductEnvironments: async (productId: string) =>
       Promise.resolve(
         productId === SEND
@@ -150,7 +159,7 @@ describe('selectTarget', () => {
     assert.deepStrictEqual(runbookPrompt.titles, [
       `${OTHER_TESTABLE_ALARM} · 40 occorrenze`,
       `${TESTABLE_ALARM} · 2 occorrenze`,
-      '← Indietro: cambia ambiente o prodotto',
+      '← Indietro: cambia ambiente o prodotto · premi ←',
     ]);
   });
 
@@ -449,6 +458,135 @@ describe('selectTarget', () => {
       assert.strictEqual(outcome.kind, 'CANCELLED');
       assert.deepStrictEqual(errors, []);
       assert.ok(warnings.some((message) => message.includes('Selezione annullata')));
+    });
+  });
+
+  describe('going back with the keyboard', () => {
+    it('goes back from the runbook step when ← is pressed', async () => {
+      const { script, asked } = harness([
+        byTitle('SEND'),
+        byTitle('UAT'),
+        pressBackKey,
+        byTitle('Produzione'),
+        byTitle(TESTABLE_ALARM),
+      ]);
+
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+      const selection = selected(outcome);
+
+      assert.strictEqual(selection.environment.environmentName, 'Produzione');
+      assert.deepStrictEqual(
+        asked.map((prompt) => prompt.message),
+        [
+          'Seleziona il prodotto',
+          "Seleziona l'ambiente (SEND)",
+          'Seleziona il runbook da testare (SEND · UAT)',
+          "Seleziona l'ambiente (SEND)",
+          'Seleziona il runbook da testare (SEND · Produzione)',
+        ],
+      );
+    });
+
+    it('goes back from the environment step when ← is pressed', async () => {
+      const { script } = harness([byTitle('SEND'), pressBackKey, byTitle('INTEROP'), byTitle(TESTABLE_ALARM)]);
+
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+      const selection = selected(outcome);
+
+      assert.strictEqual(selection.target.productName, 'INTEROP');
+    });
+
+    it('announces the shortcut on the entry it stands for', async () => {
+      const { script, asked } = harness([byTitle('SEND'), byTitle('UAT'), byTitle(TESTABLE_ALARM)]);
+
+      await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+
+      const environmentPrompt = asked[1];
+      assert.ok(environmentPrompt !== undefined);
+      assert.ok(environmentPrompt.titles.includes('← Indietro: cambia prodotto · premi ←'));
+    });
+
+    it('does not announce a shortcut on a step with nowhere to go back to', async () => {
+      const { script, asked } = harness([byTitle('SEND'), byTitle('UAT'), byTitle(TESTABLE_ALARM)]);
+
+      await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+
+      const productPrompt = asked[0];
+      assert.ok(productPrompt !== undefined);
+      assert.ok(!productPrompt.titles.some((title) => title.includes('premi ←')));
+    });
+  });
+
+  describe('running the wizard again', () => {
+    it('reports the state to resume from, with the interactivity of each step', async () => {
+      const { script } = harness([byTitle('SEND'), byTitle('UAT'), byTitle(TESTABLE_ALARM)]);
+
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true);
+      const selection = selected(outcome);
+
+      assert.deepStrictEqual(selection.resume, {
+        product: { productId: SEND, productName: 'SEND' },
+        productInteractive: true,
+        environment: { environmentIds: ['e-send-uat'], environmentName: 'UAT' },
+        environmentInteractive: true,
+      });
+    });
+
+    it('marks the implied steps as non interactive, so they are not offered again', async () => {
+      const config: GoRtaCheckConfig = { targets: [`${INTEROP}:e-interop-prod`] };
+      const { script } = harness([byTitle(TESTABLE_ALARM)]);
+
+      const outcome = await selectTarget(script, fakeClient({ counts: DEFAULT_COUNTS }), config, true);
+      const selection = selected(outcome);
+
+      assert.strictEqual(selection.resume.productInteractive, false);
+      assert.strictEqual(selection.resume.environmentInteractive, false);
+    });
+
+    it('resumes on the runbook step, keeping the product and the environment', async () => {
+      const first = harness([byTitle('SEND'), byTitle('UAT'), byTitle(TESTABLE_ALARM)]);
+      const previous = selected(await selectTarget(first.script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true));
+
+      const second = harness([byTitle(OTHER_TESTABLE_ALARM)]);
+      const outcome = await selectTarget(second.script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true, {
+        resume: previous.resume,
+      });
+      const selection = selected(outcome);
+
+      assert.strictEqual(selection.target.alarmName, OTHER_TESTABLE_ALARM);
+      assert.strictEqual(selection.environment.environmentName, 'UAT');
+      assert.deepStrictEqual(
+        second.asked.map((prompt) => prompt.message),
+        ['Seleziona il runbook da testare (SEND · UAT)'],
+      );
+    });
+
+    it('still goes back to the earlier steps of a resumed wizard', async () => {
+      const first = harness([byTitle('SEND'), byTitle('UAT'), byTitle(TESTABLE_ALARM)]);
+      const previous = selected(await selectTarget(first.script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true));
+
+      const second = harness([goBack, byTitle('Produzione'), byTitle(TESTABLE_ALARM)]);
+      const outcome = await selectTarget(second.script, fakeClient({ counts: DEFAULT_COUNTS }), {}, true, {
+        resume: previous.resume,
+      });
+      const selection = selected(outcome);
+
+      assert.strictEqual(selection.environment.environmentName, 'Produzione');
+    });
+
+    it('shares the memoized reads across two runs, without re-querying Watchtower', async () => {
+      const productReads = { count: 0 };
+      const issued: string[] = [];
+      const client = fakeClient({ counts: DEFAULT_COUNTS, issued, productReads });
+      const session = createTargetWizardSession(client);
+
+      const first = harness([byTitle('SEND'), byTitle('Produzione'), byTitle(TESTABLE_ALARM)]);
+      await selectTarget(first.script, client, {}, true, { session });
+      const second = harness([byTitle('SEND'), byTitle('Produzione'), byTitle(OTHER_TESTABLE_ALARM)]);
+      await selectTarget(second.script, client, {}, true, { session });
+
+      assert.strictEqual(productReads.count, 1);
+      assert.deepStrictEqual(issued.toSorted(), ['a1', 'a2']);
     });
   });
 

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { GOConfigParameter } from '../../config/GOConfigParameter.js';
 import {
   GOSCRIPT_PRESET_FILE_PARAMETER,
   GOSCRIPT_PRESET_NAME_PARAMETER,
@@ -15,14 +16,19 @@ describe('GOScriptSystemParameters', () => {
 
     assert.ok(presetName);
     assert.strictEqual(presetName.reserved, true);
-    assert.strictEqual(presetName.cliFlag, '--script-preset-name');
     assert.deepStrictEqual(presetName.aliases, ['spn']);
-    assert.strictEqual(presetName.envVar, 'SCRIPT_PRESET_NAME');
 
     assert.ok(presetFile);
     assert.strictEqual(presetFile.reserved, true);
-    assert.strictEqual(presetFile.cliFlag, '--script-preset-file');
     assert.deepStrictEqual(presetFile.aliases, ['spf']);
-    assert.strictEqual(presetFile.envVar, 'SCRIPT_PRESET_FILE');
+
+    // Flags and env vars are left to GOConfigParameter, which derives them from the name.
+    const resolvedName = new GOConfigParameter(presetName);
+    assert.strictEqual(resolvedName.cliFlag, '--script-preset-name');
+    assert.strictEqual(resolvedName.envVar, 'SCRIPT_PRESET_NAME');
+
+    const resolvedFile = new GOConfigParameter(presetFile);
+    assert.strictEqual(resolvedFile.cliFlag, '--script-preset-file');
+    assert.strictEqual(resolvedFile.envVar, 'SCRIPT_PRESET_FILE');
   });
 });

@@ -5,6 +5,7 @@ import type { ResultField } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { AnalyzeLambdaInvocationStep } from '../AnalyzeLambdaInvocationStep.js';
 import type { DownstreamErrorPattern } from '../../types/DownstreamErrorPattern.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 const PATTERNS: ReadonlyArray<DownstreamErrorPattern> = [
   { pattern: 'External service pn-emd-integration returned errors', target: 'pn-emd-integration' },
@@ -18,7 +19,7 @@ function row(message: string): ReadonlyArray<ResultField> {
 }
 
 function context(vars: Map<string, string>, stepResults: Map<string, unknown>): RunbookContext {
-  return { vars, stepResults } as unknown as RunbookContext;
+  return { vars, stepResults, services: createTestServiceRegistry() } as unknown as RunbookContext;
 }
 
 const step = new AnalyzeLambdaInvocationStep({

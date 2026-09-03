@@ -1,14 +1,10 @@
+import { SELFCARE_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { ConditionEvaluator, type KnownCase, type RunbookContext, type ServiceRegistry } from '../../framework.js';
-
 import { KNOWN_CASES } from '../knownCases.js';
-import {
-  QUERY_INTEROP_API_GW_5XX_STEP_ID,
-  QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
-  QUERY_INTEROP_CID_TRACKER_STEP_ID,
-} from '../runbookSteps.js';
+import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
+import { ConditionEvaluator, type KnownCase, type RunbookContext } from '../../framework.js';
 
 interface Fixture {
   readonly message: string;
@@ -243,10 +239,10 @@ function context(fixture: Fixture): RunbookContext {
   const rows = applicationLogRows([fixture.message]);
   const sourceStep =
     fixture.source === 'API_GATEWAY'
-      ? QUERY_INTEROP_API_GW_5XX_STEP_ID
+      ? SELFCARE_ALARM.stepIds.queryApiGwAggregates
       : fixture.source === 'CID_TRACKER'
-        ? QUERY_INTEROP_CID_TRACKER_STEP_ID
-        : QUERY_INTEROP_APPLICATION_LOGS_STEP_ID;
+        ? SELFCARE_ALARM.stepIds.queryCidTracker
+        : SELFCARE_ALARM.stepIds.queryApplicationLogs;
   return {
     executionId: 'test',
     startedAt: new Date('2026-08-24T09:10:11.000Z'),
@@ -254,7 +250,7 @@ function context(fixture: Fixture): RunbookContext {
     vars: new Map([['interopEnvironment', fixture.environment ?? 'prod']]),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

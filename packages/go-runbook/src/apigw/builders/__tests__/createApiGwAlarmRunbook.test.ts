@@ -6,14 +6,17 @@ import type { ResultField } from '@go-automation/go-common/aws';
 
 import { createApiGwAlarmRunbook } from '../createApiGwAlarmRunbook.js';
 import type { ApiGwAlarmConfig } from '../../types/ApiGwAlarmConfig.js';
+import type { ApiGwExecutionLogAnalysisMode } from '../../types/ApiGwExecutionLogAnalysisMode.js';
 import { isApiGwRunbookContext } from '../../output/ApiGwRunbookContext.js';
 import { API_GW_AUTHORIZER_LAMBDAS } from '../../authorizers/ApiGwAuthorizerLambdaRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
-import type { StepDescriptor } from '../../../types/StepDescriptor.js';
 import type { KnownCase } from '../../../types/KnownCase.js';
 import { RunbookEngine } from '../../../core/RunbookEngine.js';
-import { ConditionEvaluator } from '../../../core/ConditionEvaluator.js';
+import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
+import type { ApiGwQueryProfile } from '../../profiles/ApiGwQueryProfile.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
+import type { PipelineHook } from '../../../types/PipelineHook.js';
+import type { ApiGwPipelineAnchor } from '../../types/ApiGwPipelineAnchor.js';
 
 function fakeContext(params: ReadonlyArray<readonly [string, string]>): RunbookContext {
   return {
@@ -23,7 +26,7 @@ function fakeContext(params: ReadonlyArray<readonly [string, string]>): RunbookC
     vars: new Map(),
     params: new Map(params),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }
@@ -84,6 +87,59 @@ describe('createApiGwAlarmRunbook', () => {
       'analyze-pn-b',
       'decide-pn-b',
     ]);
+  });
+
+  it('omits the terminal execution-log guard in best-effort mode', () => {
+    const runbook = createApiGwAlarmRunbook(baseConfig({ executionLogAnalysisMode: 'best-effort' }));
+    const stepIds = runbook.steps.map((descriptor) => descriptor.step.id);
+
+    assert.ok(stepIds.includes('query-api-gw-execution-logs'));
+    assert.ok(!stepIds.includes('stop-api-gw-execution-log-unresolved'));
+    assert.ok(stepIds.indexOf('query-api-gw-execution-logs') < stepIds.indexOf('query-pn-a'));
+  });
+
+  it('rejects an explicit execution-log mode when the log group is missing', () => {
+    assert.throws(
+      () =>
+        createApiGwAlarmRunbook(
+          baseConfig({
+            entryService: { name: 'pn-a', logGroup: '/aws/ecs/pn-a', varPrefix: 'a' },
+            executionLogAnalysisMode: 'best-effort',
+          }),
+        ),
+      /executionLogAnalysisMode is set but execution logs are not enabled/,
+    );
+  });
+
+  it('rejects an explicit execution-log mode when the profile has no capability', () => {
+    const queryProfile = {
+      id: 'send-without-execution-logs',
+      accessLog: SEND_API_GW_PROFILE.accessLog,
+      serviceLog: SEND_API_GW_PROFILE.serviceLog,
+    } satisfies ApiGwQueryProfile;
+
+    assert.throws(
+      () =>
+        createApiGwAlarmRunbook(
+          baseConfig({
+            executionLogAnalysisMode: 'best-effort',
+            queryProfile,
+          }),
+        ),
+      /entryService\.executionLogGroup is set but the profile .* has no executionLog capability/,
+    );
+  });
+
+  it('rejects an unsupported execution-log mode received across an untyped runtime boundary', () => {
+    assert.throws(
+      () =>
+        createApiGwAlarmRunbook(
+          baseConfig({
+            executionLogAnalysisMode: 'unsupported' as unknown as ApiGwExecutionLogAnalysisMode,
+          }),
+        ),
+      /unsupported executionLogAnalysisMode 'unsupported'/,
+    );
   });
 
   it('exposes API Gateway runbookContext for output builders', () => {
@@ -153,8 +209,9 @@ describe('createApiGwAlarmRunbook', () => {
         execute: async () => ({ success: true as const }),
       },
       continueOnFailure: true,
-    } satisfies StepDescriptor;
-    const runbook = createApiGwAlarmRunbook(baseConfig({ preSteps: [preStep] }));
+      at: 'before-service-traversal',
+    } satisfies PipelineHook<ApiGwPipelineAnchor>;
+    const runbook = createApiGwAlarmRunbook(baseConfig({ hooks: [preStep] }));
     const stepIds = runbook.steps.map((d) => d.step.id);
 
     assert.deepStrictEqual(stepIds.slice(0, 7), [
@@ -169,6 +226,67 @@ describe('createApiGwAlarmRunbook', () => {
 
     const preDescriptor = runbook.steps.find((d) => d.step.id === 'pre-1');
     assert.strictEqual(preDescriptor?.continueOnFailure, true);
+  });
+
+  it('inserts entry analysis enrichment steps between entry analysis and decision', () => {
+    const enrichmentStep = {
+      step: {
+        id: 'enrich-entry',
+        label: 'Enrich entry evidence',
+        kind: 'data' as const,
+        // eslint-disable-next-line @typescript-eslint/require-await
+        execute: async () => ({ success: true as const, next: 'resolve' as const }),
+      },
+      silent: true,
+      at: 'after-entry-analysis',
+    } satisfies PipelineHook<ApiGwPipelineAnchor>;
+
+    const runbook = createApiGwAlarmRunbook(baseConfig({ hooks: [enrichmentStep] }));
+    const stepIds = runbook.steps.map((descriptor) => descriptor.step.id);
+
+    assert.deepStrictEqual(stepIds.slice(5, 12), [
+      'query-pn-a',
+      'analyze-pn-a',
+      'enrich-entry',
+      'decide-pn-a',
+      'query-pn-b',
+      'analyze-pn-b',
+      'decide-pn-b',
+    ]);
+    assert.strictEqual(runbook.steps.find((descriptor) => descriptor.step.id === 'enrich-entry')?.silent, true);
+  });
+
+  it('rejects hook ids that clash with each other or with the canonical pipeline', () => {
+    const hook = (id: string, at: ApiGwPipelineAnchor): PipelineHook<ApiGwPipelineAnchor> => ({
+      at,
+      step: {
+        id,
+        label: id,
+        kind: 'data',
+        // eslint-disable-next-line @typescript-eslint/require-await
+        execute: async () => ({ success: true }),
+      },
+    });
+
+    // Hooks share one id namespace, so the same id at two different anchors is
+    // still a duplicate.
+    assert.throws(
+      () =>
+        createApiGwAlarmRunbook(
+          baseConfig({
+            hooks: [
+              hook('shared-custom-id', 'before-service-traversal'),
+              hook('shared-custom-id', 'after-entry-analysis'),
+            ],
+          }),
+        ),
+      /hook id "shared-custom-id" is declared more than once/,
+    );
+
+    assert.throws(
+      () => createApiGwAlarmRunbook(baseConfig({ hooks: [hook('decide-pn-a', 'after-entry-analysis')] })),
+      /hook id "decide-pn-a" collides/,
+    );
   });
 
   it('resolves the {{minStatusCode}} placeholder at build time (default 500)', () => {
@@ -223,23 +341,26 @@ describe('createApiGwAlarmRunbook', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig());
     assert.strictEqual(runbook.fallbackAction.type, 'log');
     if (runbook.fallbackAction.type === 'log') {
-      assert.match(runbook.fallbackAction.message, /^\[CASO NON RICONOSCIUTO\]/);
-      assert.match(runbook.fallbackAction.message, /Errori API Gateway: \{\{vars\.apiGwErrorCount\}\}/);
-      assert.match(runbook.fallbackAction.message, /X-Ray Trace ID: \{\{vars\.xRayTraceId\}\}/);
-      assert.match(runbook.fallbackAction.message, /pn-a: msg=\{\{vars\.aErrorMsg\}\}; url=/);
-      assert.match(runbook.fallbackAction.message, /pn-b: msg=\{\{vars\.bErrorMsg\}\}; url=/);
+      assert.strictEqual(runbook.fallbackAction.renderAs, 'unknown-case');
+      const rows = new Map(runbook.fallbackAction.details?.map(([label, value]) => [label, value]));
+      assert.strictEqual(rows.get('Errori API Gateway'), '{{vars.apiGwErrorCount}}');
+      assert.strictEqual(rows.get('X-Ray Trace ID'), '{{vars.xRayTraceId}}');
+      // One row per aspect, so a missing value drops just that row.
+      assert.strictEqual(rows.get('pn-a — errore'), '{{vars.aErrorMsg}}');
+      assert.strictEqual(rows.get('pn-b — errore'), '{{vars.bErrorMsg}}');
+      assert.strictEqual(rows.get('pn-b — target'), '{{vars.bNextUrlTarget}}');
     }
   });
 
   it('honours a custom fallback action', () => {
     const runbook = createApiGwAlarmRunbook(
       baseConfig({
-        fallbackAction: { type: 'log', level: 'error', message: 'custom' },
+        fallbackAction: { type: 'log', level: 'error', title: 'custom' },
       }),
     );
     assert.strictEqual(runbook.fallbackAction.type, 'log');
     if (runbook.fallbackAction.type === 'log') {
-      assert.strictEqual(runbook.fallbackAction.message, 'custom');
+      assert.strictEqual(runbook.fallbackAction.title, 'custom');
     }
   });
 
@@ -249,7 +370,7 @@ describe('createApiGwAlarmRunbook', () => {
       description: 'demo case',
       priority: 1,
       condition: { type: 'exists', ref: 'vars.foo' },
-      action: { type: 'log', level: 'info', message: 'hit' },
+      action: { type: 'log', level: 'info', title: 'hit' },
     };
     const runbook = createApiGwAlarmRunbook(baseConfig({ knownCases: [knownCase], maxIterations: 42 }));
     assert.strictEqual(runbook.knownCases.length, 1);
@@ -264,18 +385,18 @@ describe('createApiGwAlarmRunbook', () => {
         description: 'Primary matching case',
         priority: 20,
         condition: { type: 'compare', ref: 'vars.aNextUrlTarget', operator: '==', value: 'pn-b' },
-        action: { type: 'log', level: 'info', message: 'primary' },
+        action: { type: 'log', level: 'info', title: 'primary' },
       },
       {
         id: 'secondary',
         description: 'Secondary matching case',
         priority: 10,
         condition: { type: 'compare', ref: 'vars.aNextUrlTarget', operator: '==', value: 'pn-b' },
-        action: { type: 'log', level: 'info', message: 'secondary' },
+        action: { type: 'log', level: 'info', title: 'secondary' },
       },
     ];
     const calls: string[] = [];
-    const services = {
+    const services = createTestServiceRegistry({
       cloudWatchLogs: {
         query: async (
           logGroups: ReadonlyArray<string>,
@@ -305,7 +426,7 @@ describe('createApiGwAlarmRunbook', () => {
           return [cwRow({ level: 'ERROR', '@message': 'pn-b should not be queried' })];
         },
       },
-    } as unknown as ServiceRegistry;
+    });
 
     const runbook = createApiGwAlarmRunbook(
       baseConfig({
@@ -314,7 +435,7 @@ describe('createApiGwAlarmRunbook', () => {
       }),
     );
 
-    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+    const result = await new RunbookEngine(new GOLogger()).execute(
       runbook,
       new Map([
         ['startTime', '2026-01-01T00:00:00.000Z'],
@@ -333,7 +454,7 @@ describe('createApiGwAlarmRunbook', () => {
 
   it('stops before execution logs and service traversal when the authorizer gate resolves a timeout', async () => {
     const calls: string[] = [];
-    const services = {
+    const services = createTestServiceRegistry({
       cloudWatchLogs: {
         query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
           await Promise.resolve();
@@ -355,7 +476,7 @@ describe('createApiGwAlarmRunbook', () => {
           return [];
         },
       },
-    } as unknown as ServiceRegistry;
+    });
 
     const runbook = createApiGwAlarmRunbook(
       baseConfig({
@@ -365,7 +486,7 @@ describe('createApiGwAlarmRunbook', () => {
       }),
     );
 
-    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+    const result = await new RunbookEngine(new GOLogger()).execute(
       runbook,
       new Map([
         ['startTime', '2026-01-01T00:00:00.000Z'],
@@ -385,7 +506,7 @@ describe('createApiGwAlarmRunbook', () => {
 
   it('continues with service traversal when authorizerStatus is missing', async () => {
     const calls: string[] = [];
-    const services = {
+    const services = createTestServiceRegistry({
       cloudWatchLogs: {
         query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
           await Promise.resolve();
@@ -408,7 +529,7 @@ describe('createApiGwAlarmRunbook', () => {
           return [cwRow({ level: 'ERROR', '@message': 'application error' })];
         },
       },
-    } as unknown as ServiceRegistry;
+    });
 
     const runbook = createApiGwAlarmRunbook(
       baseConfig({
@@ -418,7 +539,7 @@ describe('createApiGwAlarmRunbook', () => {
       }),
     );
 
-    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+    const result = await new RunbookEngine(new GOLogger()).execute(
       runbook,
       new Map([
         ['startTime', '2026-01-01T00:00:00.000Z'],
@@ -445,11 +566,11 @@ describe('createApiGwAlarmRunbook', () => {
           ref: 'steps.query-api-gw-execution-logs',
           regex: 'ExecutionKnownFailure',
         },
-        action: { type: 'log', level: 'info', message: '[CASO NOTO] execution known failure' },
+        action: { type: 'log', level: 'info', title: '[CASO NOTO] execution known failure' },
       },
     ];
     const calls: { readonly logGroup: string; readonly query: string }[] = [];
-    const services = {
+    const services = createTestServiceRegistry({
       cloudWatchLogs: {
         query: async (
           logGroups: ReadonlyArray<string>,
@@ -495,7 +616,7 @@ describe('createApiGwAlarmRunbook', () => {
           return [cwRow({ '@timestamp': '2026-01-01T00:00:00.000Z', '@message': 'execution detail' })];
         },
       },
-    } as unknown as ServiceRegistry;
+    });
 
     const runbook = createApiGwAlarmRunbook(
       baseConfig({
@@ -509,7 +630,7 @@ describe('createApiGwAlarmRunbook', () => {
       }),
     );
 
-    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+    const result = await new RunbookEngine(new GOLogger()).execute(
       runbook,
       new Map([
         ['startTime', '2026-01-01T00:00:00.000Z'],
@@ -537,7 +658,7 @@ describe('createApiGwAlarmRunbook', () => {
 
   it('stops before the X-Ray flow when execution logs have no matching known case', async () => {
     const calls: string[] = [];
-    const services = {
+    const services = createTestServiceRegistry({
       cloudWatchLogs: {
         query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
           await Promise.resolve();
@@ -558,7 +679,7 @@ describe('createApiGwAlarmRunbook', () => {
           return [cwRow({ '@timestamp': '2026-01-01T00:00:00.000Z', '@message': 'unknown execution detail' })];
         },
       },
-    } as unknown as ServiceRegistry;
+    });
 
     const runbook = createApiGwAlarmRunbook(
       baseConfig({
@@ -571,7 +692,7 @@ describe('createApiGwAlarmRunbook', () => {
       }),
     );
 
-    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+    const result = await new RunbookEngine(new GOLogger()).execute(
       runbook,
       new Map([
         ['startTime', '2026-01-01T00:00:00.000Z'],
@@ -587,7 +708,7 @@ describe('createApiGwAlarmRunbook', () => {
 
   it('continues with trace-id service traversal when execution-log requestId extraction fails', async () => {
     const calls: string[] = [];
-    const services = {
+    const services = createTestServiceRegistry({
       cloudWatchLogs: {
         query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
           await Promise.resolve();
@@ -618,7 +739,7 @@ describe('createApiGwAlarmRunbook', () => {
           return [];
         },
       },
-    } as unknown as ServiceRegistry;
+    });
 
     const runbook = createApiGwAlarmRunbook(
       baseConfig({
@@ -631,7 +752,7 @@ describe('createApiGwAlarmRunbook', () => {
       }),
     );
 
-    const result = await new RunbookEngine(new GOLogger(), new ConditionEvaluator()).execute(
+    const result = await new RunbookEngine(new GOLogger()).execute(
       runbook,
       new Map([
         ['startTime', '2026-01-01T00:00:00.000Z'],

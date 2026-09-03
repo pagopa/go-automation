@@ -1,3 +1,4 @@
+import { SELFCARE_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -5,47 +6,33 @@ import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/g
 import { GOLogger } from '@go-automation/go-common/core';
 
 import { apigw } from '../../framework.js';
-import { ConditionEvaluator } from '../../../../core/ConditionEvaluator.js';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
-import type { ServiceRegistry } from '../../../../services/ServiceRegistry.js';
 
-import { buildInteropSelfcareApiGw5xxRunbook } from '../runbook.js';
-import {
-  INTEROP_SELFCARE_API_GW_RUNBOOK_KEY,
-  INTEROP_SELFCARE_API_GW_SERVICE_NAME,
-} from '../resolveInteropAlarmContext.js';
-import {
-  ANALYZE_INTEROP_API_GW_5XX_STEP_ID,
-  ANALYZE_INTEROP_APPLICATION_LOGS_STEP_ID,
-  ANALYZE_INTEROP_CID_TRACKER_STEP_ID,
-  QUERY_INTEROP_API_GW_5XX_STEP_ID,
-  QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
-  QUERY_INTEROP_CID_TRACKER_STEP_ID,
-  RESOLVE_INTEROP_SELFCARE_API_GW_CONTEXT_STEP_ID,
-} from '../runbookSteps.js';
+import { buildRunbook } from '../runbook.js';
+import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 
-describe('buildInteropSelfcareApiGw5xxRunbook', () => {
+describe('buildRunbook', () => {
   it('builds the custom read-only APIGW → BFF → CID pipeline', () => {
-    const runbook = buildInteropSelfcareApiGw5xxRunbook();
+    const runbook = buildRunbook();
 
-    assert.strictEqual(runbook.metadata.id, INTEROP_SELFCARE_API_GW_RUNBOOK_KEY);
+    assert.strictEqual(runbook.metadata.id, SELFCARE_ALARM.runbookKey);
     assert.deepStrictEqual(
       runbook.steps.map((descriptor) => descriptor.step.id),
       [
-        RESOLVE_INTEROP_SELFCARE_API_GW_CONTEXT_STEP_ID,
-        QUERY_INTEROP_API_GW_5XX_STEP_ID,
-        ANALYZE_INTEROP_API_GW_5XX_STEP_ID,
-        QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
-        ANALYZE_INTEROP_APPLICATION_LOGS_STEP_ID,
-        QUERY_INTEROP_CID_TRACKER_STEP_ID,
-        ANALYZE_INTEROP_CID_TRACKER_STEP_ID,
+        SELFCARE_ALARM.stepIds.resolveContext,
+        SELFCARE_ALARM.stepIds.queryApiGwAggregates,
+        SELFCARE_ALARM.stepIds.analyzeApiGwAggregates,
+        SELFCARE_ALARM.stepIds.queryApplicationLogs,
+        SELFCARE_ALARM.stepIds.analyzeApplicationLogs,
+        SELFCARE_ALARM.stepIds.queryCidTracker,
+        SELFCARE_ALARM.stepIds.analyzeCidTracker,
       ],
     );
     assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 5, afterMinutes: 1 });
     assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
     assert.ok(apigw.isApiGwRunbookContext(runbook.runbookContext));
-    assert.strictEqual(runbook.runbookContext.services[0]?.name, INTEROP_SELFCARE_API_GW_SERVICE_NAME);
+    assert.strictEqual(runbook.runbookContext.services[0]?.name, SELFCARE_ALARM.serviceName);
     assert.ok(runbook.knownCases.length >= 20);
   });
 
@@ -69,8 +56,8 @@ describe('buildInteropSelfcareApiGw5xxRunbook', () => {
         };
       },
     };
-    const runbook = buildInteropSelfcareApiGw5xxRunbook();
-    const engine = new RunbookEngine(new GOLogger(), new ConditionEvaluator());
+    const runbook = buildRunbook();
+    const engine = new RunbookEngine(new GOLogger());
     const result = await engine.execute(
       runbook,
       new Map([
@@ -78,7 +65,7 @@ describe('buildInteropSelfcareApiGw5xxRunbook', () => {
         ['startTime', '2026-08-24T09:05:11.000Z'],
         ['endTime', '2026-08-24T09:11:11.000Z'],
       ]),
-      { cloudWatchLogs } as unknown as ServiceRegistry,
+      createTestServiceRegistry({ cloudWatchLogs }),
     );
 
     assert.deepStrictEqual(
@@ -133,8 +120,8 @@ describe('buildInteropSelfcareApiGw5xxRunbook', () => {
         };
       },
     };
-    const runbook = buildInteropSelfcareApiGw5xxRunbook();
-    const engine = new RunbookEngine(new GOLogger(), new ConditionEvaluator());
+    const runbook = buildRunbook();
+    const engine = new RunbookEngine(new GOLogger());
     const result = await engine.execute(
       runbook,
       new Map([
@@ -142,7 +129,7 @@ describe('buildInteropSelfcareApiGw5xxRunbook', () => {
         ['startTime', '2026-08-24T09:05:11.000Z'],
         ['endTime', '2026-08-24T09:11:11.000Z'],
       ]),
-      { cloudWatchLogs } as unknown as ServiceRegistry,
+      createTestServiceRegistry({ cloudWatchLogs }),
     );
 
     assert.deepStrictEqual(

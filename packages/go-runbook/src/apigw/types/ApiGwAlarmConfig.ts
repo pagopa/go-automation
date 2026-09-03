@@ -1,12 +1,14 @@
 import type { RunbookMetadata } from '../../types/RunbookMetadata.js';
 import type { RunbookAnalysisDefaults } from '../../types/RunbookAnalysisDefaults.js';
-import type { StepDescriptor } from '../../types/StepDescriptor.js';
+import type { PipelineHook } from '../../types/PipelineHook.js';
+import type { ApiGwPipelineAnchor } from './ApiGwPipelineAnchor.js';
 import type { KnownCase } from '../../types/KnownCase.js';
 import type { CaseAction } from '../../actions/CaseAction.js';
 import type { ApiGwService } from './ApiGwService.js';
 import type { KnownUrl } from './KnownUrl.js';
 import type { ApiGwQueryProfile } from '../profiles/ApiGwQueryProfile.js';
 import type { ApiGwAuthorizerLambdaConfig } from '../authorizers/ApiGwAuthorizerLambdaRegistry.js';
+import type { ApiGwExecutionLogAnalysisMode } from './ApiGwExecutionLogAnalysisMode.js';
 
 export interface ApiGwAuthorizerSelectionRule {
   /**
@@ -81,17 +83,18 @@ export interface ApiGwAlarmConfig {
   /** Known URL usati per arricchire il trace e guidare il loop di analisi. */
   readonly knownUrls: ReadonlyArray<KnownUrl>;
   /**
-   * Step custom inseriti fra il parsing API Gateway e la pipeline
-   * per-servizio.
-   */
-  readonly preSteps?: ReadonlyArray<StepDescriptor>;
-  /**
    * Gate opzionale per errori della Lambda authorizer. Quando configurato,
    * viene eseguito subito dopo la query AccessLog e prima di execution log,
    * parsing trace id e pipeline per-servizio.
    */
   readonly authorizerFailureCheck?: ApiGwAuthorizerFailureCheckConfig;
   /** Casi noti valutati contro il contesto risultante */
+  /**
+   * Custom steps spliced into the canonical pipeline at named points.
+   *
+   * See {@link ApiGwPipelineAnchor} for the available positions.
+   */
+  readonly hooks?: ReadonlyArray<PipelineHook<ApiGwPipelineAnchor>>;
   readonly knownCases: ReadonlyArray<KnownCase>;
   /** Extra analysis references; the builder always prepends the primary resource. */
   readonly analysisDefaults?: RunbookAnalysisDefaults;
@@ -111,6 +114,13 @@ export interface ApiGwAlarmConfig {
    * 50). Ignorato se la capability executionLog non è attiva.
    */
   readonly executionLogMaxRequestIds?: number;
+  /**
+   * Behaviour of the optional execution-log branch. Default `terminal`
+   * preserves the legacy pipeline. `best-effort` treats execution logs as
+   * enrichment and always falls through to application logs when they are
+   * unavailable or do not identify a known case.
+   */
+  readonly executionLogAnalysisMode?: ApiGwExecutionLogAnalysisMode;
   /** Limite iterazioni anti-loop opzionale forwarded all'engine */
   readonly maxIterations?: number;
 }
