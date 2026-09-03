@@ -150,7 +150,13 @@ export class ActionExecutor {
         { header: 'Valore', key: 'value' },
       ],
       data: [
-        { field: banner.titleField, value: interpolatePlaceholders(action.title, context) },
+        {
+          field: banner.titleField,
+          // Same fallback as the rows and as `renderLogActionText`: without it
+          // the title leaks a raw `{{vars.x}}` into the very table whose rows
+          // read `non disponibile`, and disagrees with the stored message.
+          value: interpolatePlaceholders(action.title, context, { missingValue: UNAVAILABLE_VALUE }),
+        },
         // A row the run never produced tells the reader nothing.
         ...rows
           .filter((row) => !banner.dropUnavailable || row.value !== UNAVAILABLE_VALUE)

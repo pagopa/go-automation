@@ -136,4 +136,25 @@ describe('ActionExecutor', () => {
 
     assert.strictEqual(result.resolvedMessage, '[CASO NON RICONOSCIUTO] Mancata diagnosi\nAmbiente: non disponibile');
   });
+
+  it('substitutes an unresolved placeholder in the title too, not only in the rows', async () => {
+    // The console table and the stored `resolvedMessage` describe the same
+    // action: a title rendered without the fallback leaked `{{vars.x}}` into
+    // the very table whose rows already read `non disponibile`.
+    const handler = new RecordingHandler();
+    const action = {
+      type: 'log',
+      level: 'info',
+      renderAs: 'known-case',
+      title: 'Timeout su {{vars.serviceName}}',
+      details: [['Errore', '{{vars.errorMsg}}']],
+    } as const;
+
+    const result = await new ActionExecutor(new GOLogger([handler])).execute(action, createContext());
+
+    const joined = handler.events.map((event) => event.message).join('\n');
+    assert.doesNotMatch(joined, /\{\{vars\.serviceName\}\}/u, 'the title must not leak a raw placeholder');
+    assert.match(joined, /Timeout su non disponibile/u);
+    assert.match(result.resolvedMessage ?? '', /Timeout su non disponibile/u);
+  });
 });

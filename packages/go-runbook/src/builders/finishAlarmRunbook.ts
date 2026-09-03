@@ -83,12 +83,11 @@ export interface FinishAlarmRunbookOptions<TAnchor extends string> {
  * @example
  * ```typescript
  * return finishAlarmRunbook(builder, config, {
- *   defaultFallback: defaultLambdaUnknownCaseFallback(ctx.downstreams),
+ *   builderName: 'createLambdaAlarmRunbook',
+ *   defaultFallback: () => defaultLambdaUnknownCaseFallback(ctx.downstreams),
  *   runbookContext: { ...ctx.runbookContext },
  *   primaryResource: config.lambda.name,
- *   hooks: ctx.hooks,
- *   reachedAnchors,
- *   pipelineName: 'Lambda',
+ *   anchors: { hooks: ctx.hooks, reached: reachedAnchors, pipelineName: 'Lambda' },
  * });
  * ```
  */
