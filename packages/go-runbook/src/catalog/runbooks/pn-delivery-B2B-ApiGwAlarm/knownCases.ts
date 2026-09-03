@@ -144,17 +144,17 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
 
   knownCase({
     id: 'delivery-document-index-out-of-bounds',
-    description: 'Indice documento -1 causa ArrayIndexOutOfBoundsException su pn-delivery',
+    description: 'Indice documento fuori dai limiti causa ArrayIndexOutOfBoundsException su pn-delivery',
     priority: 299,
     condition: all(
       apiGwStatusIs('500'),
-      apiGwPathMatches('/attachments/documents/-1$'),
+      apiGwPathMatches('/attachments/documents/-?\\d+$'),
       stepEvidenceMatches(
         'query-pn-delivery',
         'PnInternalException:[\\s\\S]*nested exception is java\\.lang\\.ArrayIndexOutOfBoundsException',
       ),
     ),
-    title: 'pn-delivery - indice documento non valido (-1)',
+    title: 'pn-delivery - indice documento fuori dai limiti',
     resolution: 'Caso noto documentato nel thread Slack del 17/08/2026.',
     details: [
       ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],

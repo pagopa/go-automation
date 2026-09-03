@@ -262,6 +262,65 @@ describe('pn-delivery-B2B-ApiGwAlarm known cases', () => {
     assert.strictEqual(new Set(KNOWN_CASES.map((knownCase) => knownCase.priority)).size, KNOWN_CASES.length);
   });
 
+  it('matches every numeric out-of-bounds document index without accepting arbitrary path segments', () => {
+    const knownCase = KNOWN_CASES.find((candidate) => candidate.id === 'delivery-document-index-out-of-bounds');
+    assert.ok(knownCase !== undefined);
+    const outOfBoundsError = (index: string): string =>
+      'it.pagopa.pn.commons.exceptions.PnInternalException: Internal Server Error; nested exception is ' +
+      `java.lang.ArrayIndexOutOfBoundsException: Index ${index} out of bounds for length 2`;
+
+    for (const index of ['-1', '2', '3', '2147483647']) {
+      assert.strictEqual(
+        evaluator.evaluate(
+          knownCase.condition,
+          context({
+            id: knownCase.id,
+            vars: {
+              apiGwStatusCode: '500',
+              apiGwPath: `/delivery/notifications/sent/IUN/attachments/documents/${index}`,
+            },
+            steps: [['query-pn-delivery', [outOfBoundsError(index)]]],
+          }),
+        ),
+        true,
+        `expected numeric index ${index} to match`,
+      );
+    }
+
+    for (const path of [
+      '/delivery/notifications/sent/IUN/attachments/documents/not-a-number',
+      '/delivery/notifications/sent/IUN/attachments/payment/2',
+    ]) {
+      assert.strictEqual(
+        evaluator.evaluate(
+          knownCase.condition,
+          context({
+            id: knownCase.id,
+            vars: { apiGwStatusCode: '500', apiGwPath: path },
+            steps: [['query-pn-delivery', [outOfBoundsError('2')]]],
+          }),
+        ),
+        false,
+        `expected path ${path} not to match`,
+      );
+    }
+
+    assert.strictEqual(
+      evaluator.evaluate(
+        knownCase.condition,
+        context({
+          id: knownCase.id,
+          vars: {
+            apiGwStatusCode: '500',
+            apiGwPath: '/delivery/notifications/sent/IUN/attachments/documents/2',
+          },
+          steps: [['query-pn-delivery', ['java.lang.IllegalArgumentException: invalid document index']]],
+        }),
+      ),
+      false,
+    );
+  });
+
   it('keeps every actionable case above every automatically completed case', () => {
     const actionable = KNOWN_CASES.filter((knownCase) => knownCase.analysis?.proposedStatus === 'IN_PROGRESS');
     const completed = KNOWN_CASES.filter((knownCase) => knownCase.analysis?.proposedStatus === 'COMPLETED');
