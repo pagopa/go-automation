@@ -6,17 +6,51 @@ import { SEND_DOWNSTREAMS } from '../framework.js';
 import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
 
+import { slackLink } from '../common/analysisLinks.js';
 import { stepEvidenceMatches } from '../common/evidenceConditions.js';
 
 const INAD_DIGITAL_DOMICILE_ENDPOINT = 'https://api.inad.gov.it/rest/inad/v1/domiciliodigitale/extract/{codiceFiscale}';
+const INAD_OSCL_DIGITAL_DOMICILE_ENDPOINT =
+  'https://domiciliodigitaleapi.oscl.infocamere.it/rest/inad/v1/domiciliodigitale/extract/';
+const INAD_UNAUTHORIZED_THREAD = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1788443083384209';
 const ANALYSIS_COMPLETED_FINAL_ACTION =
   'Analisi conclusa in autonomia dal team di GO. Non è necessario altro confronto';
 const INAD_RECOVERY_RESOLUTION =
   'Monitorare il downstream INAD e attenderne il ripristino; nel caso censito il servizio è rientrato al polling ' +
   'successivo senza ulteriori azioni.';
+const INAD_UNAUTHORIZED_RESOLUTION =
+  'La pagina Confluence non documenta una risoluzione operativa. Mantenere l’analisi aperta e consultare il ' +
+  'thread Slack del 03/09/2026 prima di chiuderla.';
 
 /** Known INAD failures evaluated against the pn-national-registries downstream query. */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
+  knownCase({
+    id: 'inad-unauthorized-after-token-refresh-401',
+    description: '[DOWNSTREAM INAD] HTTP 401 anche dopo il refresh del token',
+    priority: 140,
+    condition: stepEvidenceMatches(
+      'query-pn-national-registries',
+      'Service INAD returned errors=401 Unauthorized from GET ' +
+        'https://domiciliodigitaleapi\\.oscl\\.infocamere\\.it/rest/inad/v1/domiciliodigitale/extract/[^\\s"]*',
+    ),
+    title: '[DOWNSTREAM INAD] Autenticazione fallita dopo il refresh del token (HTTP 401)',
+    resolution: INAD_UNAUTHORIZED_RESOLUTION,
+    level: 'warn',
+    details: [
+      ['Servizio', 'pn-national-registries'],
+      ['Endpoint', INAD_OSCL_DIGITAL_DOMICILE_ENDPOINT],
+      ['Errore', '{{vars.nationalRegistriesErrorMsg}}'],
+      ['Trace ID', '{{vars.nationalRegistriesTraceId}}'],
+    ],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      errorDetails: 'HTTP 401 Unauthorized restituito da INAD anche dopo il refresh del token.',
+      downstreams: [SEND_DOWNSTREAMS.INAD],
+      finalActions: ['Consultare il thread Slack del 03/09/2026 e completare la risoluzione operativa'],
+      links: [slackLink(INAD_UNAUTHORIZED_THREAD, 'Thread Slack 03/09/2026')],
+    },
+  }),
   knownCase({
     id: 'inad-digital-domicile-internal-server-error-500',
     description: '[DOWNSTREAM INAD] HTTP 500 durante il recupero del domicilio digitale',
