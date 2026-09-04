@@ -121,6 +121,46 @@ describe('parseRetryAfterMs — the three RFC 9110 grammars', () => {
     }
   });
 
+  it("resolves RFC 850's two-digit year in a window rolling with now", () => {
+    // `Date.parse` pivots at a fixed year: it reads `-50` as 1950 whatever the
+    // current date, so this deadline collapsed to an immediate retry.
+    assert.strictEqual(
+      parseRetryAfterMs('Sunday, 06-Nov-50 08:49:37 GMT', NOW),
+      Date.parse('2050-11-06T08:49:37.000Z') - NOW,
+    );
+  });
+
+  it('reads a year more than 50 ahead as the same digits in the past century', () => {
+    // RFC 9110 §5.6.7: from 2026, `-77` is 1977, not 2077 — long past, so the
+    // delay clamps to zero instead of stretching half a century out.
+    assert.strictEqual(parseRetryAfterMs('Sunday, 06-Nov-77 08:49:37 GMT', NOW), 0);
+    // 2076 is exactly 50 years ahead, the last year still inside the window.
+    assert.strictEqual(
+      parseRetryAfterMs('Sunday, 06-Nov-76 08:49:37 GMT', NOW),
+      Date.parse('2076-11-06T08:49:37.000Z') - NOW,
+    );
+  });
+
+  it('anchors the window on now rather than on a fixed century', () => {
+    const farFuture = Date.parse('2140-01-01T00:00:00.000Z');
+    assert.strictEqual(
+      parseRetryAfterMs('Sunday, 06-Nov-45 08:49:37 GMT', farFuture),
+      Date.parse('2145-11-06T08:49:37.000Z') - farFuture,
+    );
+  });
+
+  it('still rejects an RFC 850 date with impossible fields', () => {
+    // The two-digit year is rewritten before parsing; that must not smuggle
+    // past the field validation `Date.parse` was doing.
+    for (const header of [
+      'Thursday, 32-Jan-26 00:02:00 GMT',
+      'Thursday, 01-Foo-26 00:02:00 GMT',
+      'Xyzday, 01-Jan-26 00:02:00 GMT',
+    ]) {
+      assert.strictEqual(parseRetryAfterMs(header, NOW), undefined, header);
+    }
+  });
+
   it('requires the GMT zone the grammar mandates', () => {
     assert.strictEqual(parseRetryAfterMs('Thu, 01 Jan 2026 00:02:00', NOW), undefined);
     assert.strictEqual(parseRetryAfterMs('Thu, 01 Jan 2026 00:02:00 UTC', NOW), undefined);
