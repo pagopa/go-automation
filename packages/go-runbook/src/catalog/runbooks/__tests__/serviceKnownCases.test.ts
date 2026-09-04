@@ -274,6 +274,32 @@ describe('service runbook known cases', () => {
     assert.match(INAD_DOWNSTREAM_SERVICE.queryOverride ?? '', /not like.*INAD.*404/);
   });
 
+  it('matches the documented INAD 401 and keeps the analysis open pending its resolution', () => {
+    const knownCase = knownCaseById(INAD_DOWNSTREAM_CASES, 'inad-unauthorized-after-token-refresh-401');
+    const message =
+      '[DOWNSTREAM] Service INAD returned errors=401 Unauthorized from GET ' +
+      'https://domiciliodigitaleapi.oscl.infocamere.it/rest/inad/v1/domiciliodigitale/extract/';
+
+    assert.strictEqual(
+      evaluator.evaluate(
+        knownCase.condition,
+        ctx({ stepResults: [['query-pn-national-registries', [cwRow({ '@message': message })]]] }),
+      ),
+      true,
+    );
+    assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
+    assert.strictEqual(knownCase.analysis?.analysisType, 'ANALYZABLE');
+    assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.INAD]);
+    assert.deepStrictEqual(knownCase.analysis?.links, [
+      {
+        url: 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1788443083384209',
+        name: 'Thread Slack 03/09/2026',
+        type: 'SLACK',
+      },
+    ]);
+    assert.match(knownCase.analysis?.resolution ?? '', /non documenta una risoluzione operativa/);
+  });
+
   it('matches the additional transient INAD failures observed in production', () => {
     const cases: ReadonlyArray<readonly [string, string]> = [
       [

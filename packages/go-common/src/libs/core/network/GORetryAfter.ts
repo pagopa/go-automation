@@ -18,8 +18,59 @@ const TIME = '(?:[01]\\d|2[0-3]):[0-5]\\d:(?:[0-5]\\d|60)';
  */
 const IMF_FIXDATE = new RegExp(`^${DAY}, \\d{2} ${MONTH} \\d{4} ${TIME} GMT$`, 'u');
 
-/** Obsolete RFC 850 format: `Sunday, 06-Nov-94 08:49:37 GMT`. */
-const RFC_850_DATE = new RegExp(`^${DAY_LONG}, \\d{2}-${MONTH}-\\d{2} ${TIME} GMT$`, 'u');
+/**
+ * Obsolete RFC 850 format: `Sunday, 06-Nov-94 08:49:37 GMT`. The parts are
+ * captured because its two-digit year has to be resolved against `now` before
+ * the value can be parsed — see `toImfFixdate`.
+ */
+const RFC_850_DATE = new RegExp(`^(${DAY_LONG}), (\\d{2})-(${MONTH})-(\\d{2}) (${TIME}) GMT$`, 'u');
+
+/** Width of the rolling window RFC 9110 §5.6.7 gives a two-digit year. */
+const MAX_YEARS_AHEAD = 50;
+
+const YEARS_PER_CENTURY = 100;
+
+/**
+ * Resolves an RFC 850 two-digit year to a full year, following the rolling
+ * window of RFC 9110 §5.6.7: a timestamp more than 50 years in the future is
+ * the most recent past year ending in the same two digits.
+ *
+ * `Date.parse` instead pivots on a fixed year — in V8, `-50` is always 1950 —
+ * so from 2026 it reads a valid 2050 deadline as a date 76 years past, which
+ * `parseRetryAfterMs` then clamps to an immediate retry.
+ *
+ * @param twoDigitYear - The header's two-digit year, 0-99
+ * @param now - Epoch milliseconds the window is anchored to
+ * @returns The four-digit year
+ */
+function resolveTwoDigitYear(twoDigitYear: number, now: number): number {
+  const nowYear = new Date(now).getUTCFullYear();
+  const currentCentury = Math.floor(nowYear / YEARS_PER_CENTURY) * YEARS_PER_CENTURY;
+  const candidate = currentCentury + twoDigitYear;
+  return candidate - nowYear > MAX_YEARS_AHEAD ? candidate - YEARS_PER_CENTURY : candidate;
+}
+
+/**
+ * Rewrites an RFC 850 date as the equivalent IMF-fixdate, with the two-digit
+ * year expanded to the century RFC 9110 §5.6.7 pins it to.
+ *
+ * The output is the format `Date.prototype.toUTCString` produces, which
+ * `Date.parse` is required to accept, so it keeps the field validation the
+ * direct parse gave us: an impossible day such as `32-Jan-26` still yields
+ * `NaN`. The weekday is carried over verbatim rather than recomputed —
+ * `Date.parse` ignores it, and the grammar never had it agree with the date.
+ *
+ * @param value - Header value already matched against `RFC_850_DATE`
+ * @param now - Epoch milliseconds the two-digit year is resolved against
+ * @returns The same instant in IMF-fixdate form
+ */
+function toImfFixdate(value: string, now: number): string {
+  return value.replace(
+    RFC_850_DATE,
+    (_match: string, dayName: string, dayOfMonth: string, month: string, twoDigitYear: string, time: string): string =>
+      `${dayName.slice(0, 3)}, ${dayOfMonth} ${month} ${resolveTwoDigitYear(Number(twoDigitYear), now)} ${time} GMT`,
+  );
+}
 
 /**
  * Obsolete asctime format: `Sun Nov  6 08:49:37 1994`. It carries no timezone,
@@ -37,11 +88,19 @@ const ASCTIME_DATE = new RegExp(`^${DAY} ${MONTH} (?:[ 1-2]\\d|3[01]) ${TIME} \\
  * malformed-value fallback, and `GOFileDownloader` honours the value uncapped.
  *
  * @param value - Trimmed header value
+ * @param now - Epoch milliseconds used to resolve RFC 850's two-digit year
  * @returns Epoch milliseconds, or `undefined` when the value is not an HTTP-date
  */
-function parseHttpDateMs(value: string): number | undefined {
-  if (IMF_FIXDATE.test(value) || RFC_850_DATE.test(value)) {
+function parseHttpDateMs(value: string, now: number): number | undefined {
+  if (IMF_FIXDATE.test(value)) {
     const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? undefined : parsed;
+  }
+
+  // RFC 850: normalised first, because its two-digit year is meaningless to
+  // `Date.parse` without the window `now` defines.
+  if (RFC_850_DATE.test(value)) {
+    const parsed = Date.parse(toImfFixdate(value, now));
     return Number.isNaN(parsed) ? undefined : parsed;
   }
 
@@ -93,7 +152,7 @@ export function parseRetryAfterMs(
     return Number.isFinite(delayMs) ? delayMs : undefined;
   }
 
-  const dateMs = parseHttpDateMs(value);
+  const dateMs = parseHttpDateMs(value, now);
   if (dateMs === undefined) return undefined;
   // A date already in the past means "retry now", not "retry in the past".
   return Math.max(0, dateMs - now);
