@@ -26,6 +26,7 @@ import { SENDER_DASHBOARD_DATA_INDEXER_REGISTRATION } from './runbooks/pn-bff-Se
 // service logs
 import { EMD_DOWNSTREAM_DETECTION_REGISTRATION } from './runbooks/emd-downstream-detection-Alarm/registration.js';
 import { EXTERNAL_REGISTRIES_ONE_TRUST_REGISTRATION } from './runbooks/pn-external-registries-OneTrust-downstream-detection-Alarm/registration.js';
+import { EXTERNAL_REGISTRIES_IO_REGISTRATION } from './runbooks/pn-external-registries-IO-downstream-detection-Alarm/registration.js';
 import { NATIONAL_REGISTRIES_IPA_REGISTRATION } from './runbooks/pn-national-registries-IPA-downstream-detection-Alarm/registration.js';
 import { NATIONAL_REGISTRIES_ANPR_REGISTRATION } from './runbooks/pn-national-registries-ANPR-downstream-detection-Alarm/registration.js';
 import { NATIONAL_REGISTRIES_INFO_CAMERE_REGISTRATION } from './runbooks/pn-national-registries-InfoCamere-downstream-detection-Alarm/registration.js';
@@ -69,6 +70,7 @@ export const CATALOG_MANIFEST: ReadonlyArray<AutomaticRunbookRegistration> = [
   // service logs
   EMD_DOWNSTREAM_DETECTION_REGISTRATION,
   EXTERNAL_REGISTRIES_ONE_TRUST_REGISTRATION,
+  EXTERNAL_REGISTRIES_IO_REGISTRATION,
   NATIONAL_REGISTRIES_IPA_REGISTRATION,
   NATIONAL_REGISTRIES_ANPR_REGISTRATION,
   NATIONAL_REGISTRIES_INFO_CAMERE_REGISTRATION,
