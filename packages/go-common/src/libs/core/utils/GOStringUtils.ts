@@ -133,3 +133,25 @@ export function truncatePath(path: string, maxLength: number, ellipsis: string =
 export function truncateText(text: string, maxLength: number, ellipsis: string = '…'): string {
   return smartTruncate(text, { maxLength, ellipsis, forcePathStyle: false });
 }
+
+/**
+ * Trims a string and reports a blank result as absent.
+ *
+ * Collapses the "missing / empty / whitespace-only" cases that arrive from
+ * maps, environment variables and parsed payloads into a single `undefined`,
+ * so callers test one condition instead of three.
+ *
+ * @param value - Raw value to normalise
+ * @returns The trimmed value, or `undefined` when it carries no content
+ *
+ * @example
+ * ```typescript
+ * trimToUndefined('  eu-south-1 '); // 'eu-south-1'
+ * trimToUndefined('   ');           // undefined
+ * trimToUndefined(undefined);       // undefined
+ * ```
+ */
+export function trimToUndefined(value: string | undefined): string | undefined {
+  const trimmed = (value ?? '').trim();
+  return trimmed === '' ? undefined : trimmed;
+}

@@ -13,7 +13,6 @@ import { formatTagsLiteral } from './formatTagsLiteral.js';
 export function commonPlaceholders(answers: RunbookAnswers): Map<string, string> {
   return new Map<string, string>([
     ['RUNBOOK_ID', answers.id],
-    ['BUILDER_NAME', answers.builderName],
     ['METADATA_NAME', answers.metadataName],
     ['METADATA_DESCRIPTION', answers.description],
     ['METADATA_VERSION', answers.version],

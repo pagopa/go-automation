@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { AnalysisMatch, RtaCheckRow } from '../../types/RtaCheckReport.js';
+import type { AnalysisMatch, RtaCheckRow } from '@go-automation/go-watchtower-runbook';
 import { formatVerificationCell } from '../renderConsole.js';
 
 function row(partial: Partial<AnalysisMatch>): RtaCheckRow {
@@ -58,5 +58,37 @@ describe('formatVerificationCell', () => {
 
   it('shows n/a when AI was not applicable to the row', () => {
     assert.strictEqual(formatVerificationCell(row({ aiAttempted: false })), 'MATCH_STRONG (0.88) · n/a');
+  });
+
+  it('shows the ignore reason code instead of the matcher for an ignored analysis', () => {
+    assert.strictEqual(
+      formatVerificationCell(
+        row({
+          status: 'IGNORED',
+          confidence: 0,
+          matcher: 'lexical',
+          aiAttempted: false,
+          ignoreReasonCode: 'FALSE_POSITIVE',
+          ignoreReasonLabel: 'Falso positivo',
+        }),
+      ),
+      'IGNORED (FALSE_POSITIVE)',
+    );
+  });
+
+  it('falls back to the ignore reason label when no code is available', () => {
+    assert.strictEqual(
+      formatVerificationCell(
+        row({ status: 'IGNORED', confidence: 0, aiAttempted: false, ignoreReasonLabel: 'Falso positivo' }),
+      ),
+      'IGNORED (Falso positivo)',
+    );
+  });
+
+  it('shows the bare status when the ignored analysis carries no reason', () => {
+    assert.strictEqual(
+      formatVerificationCell(row({ status: 'IGNORED', confidence: 0, aiAttempted: false })),
+      'IGNORED',
+    );
   });
 });

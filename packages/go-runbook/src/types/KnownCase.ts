@@ -1,5 +1,6 @@
 import type { Condition } from './Condition.js';
 import type { CaseAction } from '../actions/CaseAction.js';
+import type { KnownCaseAnalysis } from './KnownCaseAnalysis.js';
 
 /**
  * A known case: a recognizable pattern in the final result
@@ -16,4 +17,11 @@ export interface KnownCase {
   readonly action: CaseAction;
   /** Priority: if multiple cases match, the one with higher priority wins */
   readonly priority: number;
+  /**
+   * Analysis directives used to pre-populate a Watchtower analysis.
+   *
+   * Optional on the type because known cases also exist outside the automatic
+   * runbooks; `validateForCloud` makes it mandatory for the registered ones.
+   */
+  readonly analysis?: KnownCaseAnalysis;
 }

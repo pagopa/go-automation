@@ -1,10 +1,10 @@
+import { PUBLIC_CATALOG_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { ConditionEvaluator, type KnownCase, type RunbookContext, type ServiceRegistry } from '../../framework.js';
-
 import { KNOWN_CASES } from '../knownCases.js';
-import { QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, QUERY_INTEROP_CID_TRACKER_STEP_ID } from '../runbookSteps.js';
+import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
+import { ConditionEvaluator, type KnownCase, type RunbookContext } from '../../framework.js';
 
 interface LogRowField {
   readonly field: string;
@@ -36,7 +36,7 @@ function context(stepResults: ReadonlyArray<readonly [string, unknown]>): Runboo
     vars: new Map(),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }
@@ -61,9 +61,21 @@ const CASE_FIXTURES: ReadonlyMap<string, ReadonlyArray<string>> = new Map([
   ],
   ['public-catalog-astro-frontend-missing-env-files', [M2M_ENV_FILES_MESSAGE]],
   [
+    'public-catalog-react-list-key-warning',
+    [
+      'Check the render method of `EServiceCatalog`. See https://react.dev/link/warning-keys for more information. ' +
+        'Each child in a list should have a unique "key" prop.',
+    ],
+  ],
+  [
+    'public-catalog-failed-sql-query',
+    ['[ERROR] Error: Failed query: select * from catalog_items at async executeQuery'],
+  ],
+  [
     'public-catalog-error-fetching-from-database',
     ['ERROR - [CID=dfa09b91-7acf-41ea-96c6-eb02ec18ec49] Error fetching catalog data from the database'],
   ],
+  ['public-catalog-astro-node-could-not-render', ['[ERROR] [@astrojs/node] Could not render /it/catalogo/servizi']],
 ]);
 
 describe('INTEROP public catalog known cases', () => {
@@ -72,6 +84,24 @@ describe('INTEROP public catalog known cases', () => {
   it('has unique IDs and priorities', () => {
     assert.strictEqual(new Set(KNOWN_CASES.map((knownCase) => knownCase.id)).size, KNOWN_CASES.length);
     assert.strictEqual(new Set(KNOWN_CASES.map((knownCase) => knownCase.priority)).size, KNOWN_CASES.length);
+    assert.deepStrictEqual(KNOWN_CASES.map((knownCase) => knownCase.id).sort(), [...CASE_FIXTURES.keys()].sort());
+  });
+
+  it('covers the Astro node render failure added to the updated operational PDF', () => {
+    const renderFailure = knownCaseById('public-catalog-astro-node-could-not-render');
+    const fixture = CASE_FIXTURES.get(renderFailure.id);
+    assert.ok(fixture !== undefined);
+
+    const ctx = context([[PUBLIC_CATALOG_ALARM.stepIds.queryApplicationLogs, applicationLogRows(fixture)]]);
+    assert.strictEqual(evaluator.evaluate(renderFailure.condition, ctx), true);
+    assert.strictEqual(renderFailure.analysis?.proposedStatus, 'IN_PROGRESS');
+    assert.deepStrictEqual(
+      renderFailure.analysis?.links?.map((link) => link.url),
+      [
+        'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1783954003529819',
+        'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1784026375370299?thread_ts=1784014737.320699&cid=C0A7F9XQAT0',
+      ],
+    );
   });
 
   it('matches every known case against a realistic application-log fixture', () => {
@@ -79,18 +109,18 @@ describe('INTEROP public catalog known cases', () => {
       const fixture = CASE_FIXTURES.get(knownCase.id);
       assert.ok(fixture !== undefined, `missing fixture for known case: ${knownCase.id}`);
 
-      const ctx = context([[QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, applicationLogRows(fixture)]]);
+      const ctx = context([[PUBLIC_CATALOG_ALARM.stepIds.queryApplicationLogs, applicationLogRows(fixture)]]);
       assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), true, `expected match: ${knownCase.id}`);
     }
   });
 
   it('matches escaped-quote messages in CID tracker evidence too', () => {
     const envFiles = knownCaseById('public-catalog-astro-frontend-missing-env-files');
-    const ctx = context([[QUERY_INTEROP_CID_TRACKER_STEP_ID, cidTrackerResults([M2M_ENV_FILES_MESSAGE])]]);
+    const ctx = context([[PUBLIC_CATALOG_ALARM.stepIds.queryCidTracker, cidTrackerResults([M2M_ENV_FILES_MESSAGE])]]);
     assert.strictEqual(evaluator.evaluate(envFiles.condition, ctx), true);
 
     const plainQuotesMessage = M2M_ENV_FILES_MESSAGE.replaceAll('\\"', '"');
-    const plainCtx = context([[QUERY_INTEROP_CID_TRACKER_STEP_ID, cidTrackerResults([plainQuotesMessage])]]);
+    const plainCtx = context([[PUBLIC_CATALOG_ALARM.stepIds.queryCidTracker, cidTrackerResults([plainQuotesMessage])]]);
     assert.strictEqual(evaluator.evaluate(envFiles.condition, plainCtx), true);
   });
 
@@ -101,7 +131,7 @@ describe('INTEROP public catalog known cases', () => {
     // Combined message observed in production (PIN-8718 / PIN-8836).
     const ctx = context([
       [
-        QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
+        PUBLIC_CATALOG_ALARM.stepIds.queryApplicationLogs,
         applicationLogRows([
           "[ERROR] TypeError: Cannot read properties of undefined (reading 'length') at ... " +
             'ERROR - [CID=dfa09b91-7acf-41ea-96c6-eb02ec18ec49] Error fetching tenants from the database',
@@ -112,5 +142,15 @@ describe('INTEROP public catalog known cases', () => {
     assert.strictEqual(evaluator.evaluate(typeError.condition, ctx), true);
     assert.strictEqual(evaluator.evaluate(fetchError.condition, ctx), true);
     assert.ok(typeError.priority > fetchError.priority);
+  });
+
+  it('keeps cases requiring operator confirmation open', () => {
+    const reactWarning = knownCaseById('public-catalog-react-list-key-warning');
+    const missingEnvFiles = knownCaseById('public-catalog-astro-frontend-missing-env-files');
+
+    assert.strictEqual(reactWarning.analysis?.proposedStatus, 'IN_PROGRESS');
+    assert.match(reactWarning.analysis?.resolution ?? '', /Status: 200/);
+    assert.strictEqual(missingEnvFiles.analysis?.proposedStatus, 'IN_PROGRESS');
+    assert.match(missingEnvFiles.analysis?.resolution ?? '', /non una risoluzione per questa pod_app/);
   });
 });

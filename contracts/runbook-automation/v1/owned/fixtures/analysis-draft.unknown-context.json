@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "kind": "UNKNOWN_CASE_CONTEXT",
+  "runbookName": "SEND API Gateway analysis",
+  "resources": [{ "name": "pn-ss", "type": "LAMBDA" }],
+  "downstreams": [],
+  "finalActions": [],
+  "links": []
+}

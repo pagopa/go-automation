@@ -8,7 +8,7 @@ import { sharedConditionEvaluator } from '../../core/ConditionEvaluator.js';
 /**
  * Configuration for an assert step.
  */
-interface AssertStepConfig {
+export interface AssertStepConfig {
   readonly id: string;
   readonly label: string;
   readonly condition: Condition;
@@ -20,14 +20,14 @@ interface AssertStepConfig {
  *
  * @example
  * ```typescript
- * const step = assert({
+ * const step = new AssertStep({
  *   id: 'check-status',
  *   label: 'Verify status code is 200',
  *   condition: { type: 'compare', ref: 'vars.statusCode', operator: '==', value: '200' },
  * });
  * ```
  */
-class AssertStep implements Step<boolean> {
+export class AssertStep implements Step<boolean> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'check';
@@ -60,14 +60,4 @@ class AssertStep implements Step<boolean> {
       error: `Assertion failed for step "${this.id}": condition not satisfied`,
     };
   }
-}
-
-/**
- * Factory function that creates an AssertStep.
- *
- * @param config - Configuration containing id, label, and the condition to assert
- * @returns A Step that evaluates the condition and returns a boolean result
- */
-export function assert(config: AssertStepConfig): Step<boolean> {
-  return new AssertStep(config);
 }

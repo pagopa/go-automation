@@ -1,5 +1,6 @@
 import { formatUnsafeKeyLocation, isDangerousKey } from '../security/DangerousKeys.js';
 import { valueToString } from '../utils/GOValueToString.js';
+import { isPlainObject } from '../utils/GOTypeGuards.js';
 
 export type GOFlattenedConfigValue = string | string[];
 
@@ -53,7 +54,7 @@ export class GOConfigObjectFlattener {
         continue;
       }
 
-      if (this.isFlattenableObject(value)) {
+      if (isPlainObject(value)) {
         const nested = this.flattenObject(value, fullKey, depth + 1);
         for (const [nestedKey, nestedValue] of nested) {
           result.set(nestedKey, nestedValue);
@@ -90,7 +91,9 @@ export class GOConfigObjectFlattener {
       return;
     }
 
-    if (!this.isObjectLike(value) || Buffer.isBuffer(value) || value instanceof Date) {
+    // Arrays are handled by the caller; isPlainObject also rejects Buffer and
+    // Date through their prototype, so no extra guard is needed here.
+    if (!isPlainObject(value)) {
       return;
     }
 
@@ -106,13 +109,5 @@ export class GOConfigObjectFlattener {
     if (depth > this.maxDepth) {
       throw new Error(`Configuration object exceeds maximum depth of ${String(this.maxDepth)} at "${location}"`);
     }
-  }
-
-  private isFlattenableObject(value: unknown): value is Record<string, unknown> {
-    return this.isObjectLike(value) && !Buffer.isBuffer(value) && !(value instanceof Date);
-  }
-
-  private isObjectLike(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null;
   }
 }

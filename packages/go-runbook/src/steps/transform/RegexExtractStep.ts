@@ -10,7 +10,7 @@ import { readStepOutput } from '../data/readStepOutput.js';
 /**
  * Configuration for the RegexExtractStep.
  */
-interface RegexExtractConfig {
+export interface RegexExtractConfig {
   /** Unique identifier of the step within the runbook */
   readonly id: string;
   /** Human-readable label for logs and UI */
@@ -34,7 +34,7 @@ interface RegexExtractConfig {
  *
  * @example
  * ```typescript
- * const step = regexExtract({
+ * const step = new RegexExtractStep({
  *   id: 'extract-error-code',
  *   label: 'Extract error code from message',
  *   fromStep: 'fetch-logs',
@@ -45,7 +45,7 @@ interface RegexExtractConfig {
  * });
  * ```
  */
-class RegexExtractStep implements Step<string | undefined> {
+export class RegexExtractStep implements Step<string | undefined> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'transform';
@@ -108,14 +108,4 @@ class RegexExtractStep implements Step<string | undefined> {
       vars: { [this.saveAs]: extracted },
     };
   }
-}
-
-/**
- * Factory function that creates a RegexExtractStep instance.
- *
- * @param config - Configuration for the regex extract step
- * @returns A Step that extracts a regex capture group from a previous step's output
- */
-export function regexExtract(config: RegexExtractConfig): Step<string | undefined> {
-  return new RegexExtractStep(config);
 }

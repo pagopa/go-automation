@@ -1,17 +1,17 @@
 import { Core } from '@go-automation/go-common';
 import {
-  DEFAULT_TIME_WINDOW_MINUTES,
-  computeTimeRange,
+  computeRunbookTimeRange,
   createServiceRegistry,
   createTimeRangeReference,
   type RunbookBuilderFn,
 } from '@go-automation/go-runbook/catalog';
-import { RunbookEngine, ConditionEvaluator, apigw, lambda, service } from '@go-automation/go-runbook';
+import { RunbookEngine, apigw, lambda, service } from '@go-automation/go-runbook';
 import type { ExecutionEnvironment, Runbook, RunbookExecutionResult } from '@go-automation/go-runbook';
 
-import type { GoAnalyzeAlarmConfig } from '../types/GoAnalyzeAlarmConfig.js';
+import type { AnalyzableAlarmConfig } from '../types/AnalyzableAlarmConfig.js';
 import { saveExecutionTrace } from './saveExecutionTrace.js';
 import { saveExecutionOutput } from './saveExecutionOutput.js';
+import { ConsoleRunbookReporter } from '@go-automation/go-runbook/catalog';
 
 export interface AnalyzeOccurrenceInput {
   readonly alarmDatetime: string;
@@ -21,7 +21,7 @@ export interface AnalyzeOccurrenceInput {
 
 export async function analyzeOccurrence(
   script: Core.GOScript,
-  config: GoAnalyzeAlarmConfig,
+  config: AnalyzableAlarmConfig,
   runbookBuilder: RunbookBuilderFn,
   input: AnalyzeOccurrenceInput,
 ): Promise<void> {
@@ -29,7 +29,7 @@ export async function analyzeOccurrence(
   script.logger.info(`Runbook: ${runbook.metadata.name} v${runbook.metadata.version}`);
 
   const reference = createTimeRangeReference(input.alarmDatetime, input.alarmDatetimeEnd);
-  const { startTime, endTime } = computeTimeRange(reference, DEFAULT_TIME_WINDOW_MINUTES);
+  const { startTime, endTime } = computeRunbookTimeRange(runbook, reference);
   script.logger.info(`Time range: ${startTime} → ${endTime}`);
 
   const params = new Map<string, string>([
@@ -44,11 +44,11 @@ export async function analyzeOccurrence(
 
   script.logger.info(`Using AWS profiles: ${script.aws.clients.profileNames.join(', ')}`);
 
-  const services = createServiceRegistry(script);
+  const services = createServiceRegistry(script, new ConsoleRunbookReporter(script.logger));
 
   script.logger.section('Executing Runbook');
 
-  const engine = new RunbookEngine(script.logger, new ConditionEvaluator());
+  const engine = new RunbookEngine(script.logger);
   const environment: ExecutionEnvironment = {
     awsProfiles: config.awsProfiles,
     region: 'eu-south-1',
@@ -67,8 +67,12 @@ export async function analyzeOccurrence(
 function renderFinalSummary(script: Core.GOScript, runbook: Runbook, result: RunbookExecutionResult): void {
   const finalSummaryInput = {
     logger: script.logger,
+    status: result.status,
     matchedCaseIds: result.matchedCases.map((c) => c.id),
     vars: result.finalContext.vars,
+    ...(result.trace.execution.failureReason !== undefined
+      ? { failureReason: result.trace.execution.failureReason }
+      : {}),
   };
 
   if (lambda.isLambdaRunbookContext(runbook.runbookContext)) {

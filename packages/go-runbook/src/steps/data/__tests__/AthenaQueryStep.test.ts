@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { queryAthena } from '../AthenaQueryStep.js';
+import { AthenaQueryStep } from '../AthenaQueryStep.js';
 import type { AWSAthenaQueryOptions } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../../services/index.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 interface AthenaCall {
   readonly database: string;
@@ -17,7 +17,7 @@ function makeContext(params: ReadonlyArray<readonly [string, string]> = []): {
   readonly calls: AthenaCall[];
 } {
   const calls: AthenaCall[] = [];
-  const services = {
+  const services = createTestServiceRegistry({
     athena: {
       async query(
         database: string,
@@ -33,7 +33,7 @@ function makeContext(params: ReadonlyArray<readonly [string, string]> = []): {
         return [{ ok: 'true' }];
       },
     },
-  } as unknown as ServiceRegistry;
+  });
 
   return {
     calls,
@@ -52,7 +52,7 @@ function makeContext(params: ReadonlyArray<readonly [string, string]> = []): {
 
 describe('AthenaQueryStep', () => {
   it('passes inline outputLocation to the Athena service', async () => {
-    const step = queryAthena({
+    const step = new AthenaQueryStep({
       id: 'athena',
       label: 'Athena',
       database: 'db',
@@ -77,7 +77,7 @@ describe('AthenaQueryStep', () => {
   });
 
   it('resolves outputLocation from runbook params', async () => {
-    const step = queryAthena({
+    const step = new AthenaQueryStep({
       id: 'athena',
       label: 'Athena',
       database: 'db',
@@ -93,7 +93,7 @@ describe('AthenaQueryStep', () => {
   });
 
   it('omits outputLocation when neither inline config nor param config is set', async () => {
-    const step = queryAthena({
+    const step = new AthenaQueryStep({
       id: 'athena',
       label: 'Athena',
       database: 'db',
@@ -108,7 +108,7 @@ describe('AthenaQueryStep', () => {
   });
 
   it('fails clearly when outputLocationParam is configured but missing', async () => {
-    const step = queryAthena({
+    const step = new AthenaQueryStep({
       id: 'athena',
       label: 'Athena',
       database: 'db',

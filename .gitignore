@@ -13,6 +13,7 @@ data/*
 packages/go-cli/.go-cli-history.json
 packages/go-cli/.go-cli-presets.json
 packages/go-cli/.discovery-cache.json
+docs/reviews/
 
 # Reports generati
 reports/
@@ -54,6 +55,10 @@ Thumbs.db
 
 # Test coverage
 coverage/
+
+# Source code for the runbook-to-Watchtower coverage check (not a test report)
+!packages/go-watchtower-runbook/src/coverage/
+!packages/go-watchtower-runbook/src/coverage/**
 
 # Temporary files
 *.tmp

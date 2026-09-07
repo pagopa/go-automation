@@ -1,6 +1,8 @@
 import type { CaseAction } from '../../../actions/CaseAction.js';
 import type { KnownCase } from '../../../types/KnownCase.js';
+import type { OccurrenceTimeWindow } from '../../../types/OccurrenceTimeWindow.js';
 import type { RunbookMetadata } from '../../../types/RunbookMetadata.js';
+import type { RunbookAnalysisDefaults } from '../../../types/RunbookAnalysisDefaults.js';
 import type { TimeRangeFromParams } from '../../../steps/data/TimeRangeFromParams.js';
 import type { InteropK8sQueryProfile } from '../profiles/InteropK8sQueryProfile.js';
 import type { ResolveInteropK8sAlarmContextFn } from './InteropK8sAlarmContext.js';
@@ -14,9 +16,15 @@ export interface InteropK8sAlarmConfig {
   readonly service: InteropK8sServiceDescriptor;
   readonly resolveAlarmContext: ResolveInteropK8sAlarmContextFn;
   readonly knownCases: ReadonlyArray<KnownCase>;
+  /**
+   * Analysis references shared by the known cases. The builder always prepends the
+   * service as `PRIMARY` resource, so only the extra references go here.
+   */
+  readonly analysisDefaults?: RunbookAnalysisDefaults;
   readonly fallbackAction?: CaseAction;
   readonly queryProfile?: InteropK8sQueryProfile;
   readonly stepIds?: Partial<InteropK8sRunbookStepIds>;
   readonly timeRangeFromParams?: TimeRangeFromParams;
+  readonly occurrenceTimeWindow?: OccurrenceTimeWindow;
   readonly maxIterations?: number;
 }

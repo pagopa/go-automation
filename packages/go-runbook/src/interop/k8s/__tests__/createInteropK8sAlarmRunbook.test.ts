@@ -31,6 +31,7 @@ describe('createInteropK8sAlarmRunbook', () => {
         logGroup: '/aws/eks/interop-eks-cluster-prod/application',
       }),
       knownCases: [],
+      occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
     });
 
     const stepIds = defaultInteropK8sRunbookStepIds(SERVICE_NAME);
@@ -45,6 +46,7 @@ describe('createInteropK8sAlarmRunbook', () => {
       ],
     );
     assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
+    assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 5, afterMinutes: 1 });
     assert.ok(isServiceRunbookContext(runbook.runbookContext));
     assert.strictEqual(runbook.runbookContext.service.name, SERVICE_NAME);
   });

@@ -16,6 +16,27 @@ export const scriptMetadata: Core.GOScriptMetadata = {
 
 export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
+    name: 'exit.code.on.findings',
+    type: Core.GOConfigParameterType.BOOL,
+    description:
+      'Propaga il verdetto nell exit code del processo (1 = non conforme). Serve in CI; da terminale lasciarlo spento evita che un esito misurato sembri un comando fallito',
+    required: false,
+  },
+  {
+    name: 'readiness.window.days',
+    type: Core.GOConfigParameterType.INT,
+    description: 'Finestra di osservazione dello shadow in mode readiness (default 14 giorni)',
+    required: false,
+  },
+  {
+    name: 'mode',
+    type: Core.GOConfigParameterType.STRING,
+    description:
+      'Modalità: analyses | coverage | readiness. Default analyses (esecuzioni ↔ analisi). coverage confronta le dichiarazioni dei runbook con il censimento Watchtower. readiness unisce la copertura statica allo shadow osservato ed è il gate di attivazione di APPLY_KNOWN. coverage e readiness sono sola lettura, senza AWS né esecuzione runbook',
+    required: false,
+    defaultValue: 'analyses',
+  },
+  {
     name: 'watchtower.url',
     type: Core.GOConfigParameterType.STRING,
     description:
@@ -38,16 +59,31 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     sensitive: true,
   },
   {
+    name: 'targets',
+    type: Core.GOConfigParameterType.STRING_ARRAY,
+    description:
+      'Scope della selezione: un prodotto per voce, con i propri ambienti. In config.json usa oggetti {"productId":"…","environmentIds":["…"]}; da CLI la forma compatta productId:envId1|envId2. Se omesso: nessun vincolo (tutti i prodotti leggibili)',
+    required: false,
+  },
+  {
+    name: 'non.interactive',
+    type: Core.GOConfigParameterType.BOOL,
+    description:
+      'Disattiva ogni prompt del wizard: prodotto e runbook devono essere fissati da flag, mentre l\u2019ambiente omesso vale "tutti quelli in scope". Implicito senza TTY o con alarm.name + date.from',
+    required: false,
+    aliases: ['ni'],
+  },
+  {
     name: 'product.id',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Watchtower product id (se omesso: selezione interattiva)',
+    description: 'Watchtower product id (se omesso: selezione interattiva nello scope di targets)',
     required: false,
   },
   {
     name: 'environment.id',
     type: Core.GOConfigParameterType.STRING,
     description:
-      'Watchtower environment id per filtrare le occorrenze (se omesso: tutti gli ambienti, o selezione interattiva)',
+      'Watchtower environment id per filtrare le occorrenze (se omesso: selezione interattiva, oppure tutti gli ambienti in scope in modalità non interattiva)',
     required: false,
   },
   {
@@ -60,14 +96,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'date.from',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Inizio periodo su firedAt (ISO 8601). Se omesso: prompt',
+    description: `Inizio periodo su firedAt (${Core.describeDateInputFormats()}). Se omesso: prompt`,
     required: false,
     aliases: ['df'],
   },
   {
     name: 'date.to',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Fine periodo su firedAt (ISO 8601). Se omesso: prompt',
+    description: `Fine periodo su firedAt (${Core.describeDateInputFormats()}). Se omesso: prompt`,
     required: false,
     aliases: ['dt'],
   },
@@ -81,7 +117,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'concurrency',
     type: Core.GOConfigParameterType.INT,
-    description: 'Esecuzioni runbook concorrenti (default 1)',
+    description: 'Esecuzioni runbook concorrenti: intero >= 1 (default 1)',
     required: false,
   },
   {
@@ -152,8 +188,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'aws.profile',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Profilo AWS SSO standard per GO-AI/Bedrock',
+    description: 'Profilo AWS SSO per GO-AI/Bedrock (default sso_pn-analytics solo in mode analyses)',
     required: false,
-    defaultValue: 'sso_pn-analytics',
   },
 ] as const;

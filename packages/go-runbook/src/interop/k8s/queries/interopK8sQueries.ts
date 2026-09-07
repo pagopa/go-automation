@@ -1,3 +1,4 @@
+import { escapeLogsInsightsRegexLiteral, escapeLogsInsightsString } from '@go-automation/go-common/aws';
 export function buildInteropK8sApplicationLogsQuery(podApp: string): string {
   const escapedPodApp = escapeLogsInsightsRegexLiteral(podApp);
   return `
@@ -19,34 +20,3 @@ parse @message "[CID=*]" as cid
 | sort @timestamp asc
 `.trim();
 }
-
-function escapeLogsInsightsString(value: string): string {
-  return value.replace(/\0/g, '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-}
-
-function escapeLogsInsightsRegexLiteral(value: string): string {
-  const escaped: string[] = [];
-  for (const char of value) {
-    escaped.push(REGEX_LITERAL_SPECIAL_CHARS.has(char) ? `\\${char}` : char);
-  }
-  return escaped.join('');
-}
-
-const REGEX_LITERAL_SPECIAL_CHARS: ReadonlySet<string> = new Set([
-  '\\',
-  '/',
-  '[',
-  ']',
-  '{',
-  '}',
-  '(',
-  ')',
-  '*',
-  '+',
-  '?',
-  '.',
-  '^',
-  '$',
-  '|',
-  '-',
-]);

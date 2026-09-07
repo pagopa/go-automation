@@ -11,6 +11,7 @@ import type { ExecuteRunbookDeps } from '../../types/ExecuteRunbookDeps.js';
 import type { ExecuteRunbookInput } from '../../types/ExecuteRunbookInput.js';
 import { assertRunbookCapability } from '../assertRunbookCapability.js';
 import { executeRunbook } from '../executeRunbook.js';
+import { createTestServiceRegistry } from '@go-automation/go-runbook';
 
 const RUNBOOK = AUTOMATIC_RUNBOOK_REGISTRY.resolveByKey('pn-tokenExchangeLambda-LogInvocationErrors-Alarm')!.descriptor;
 
@@ -366,11 +367,11 @@ function fakeDeps(
   return {
     watchtower: watchtower as unknown as WatchtowerClient,
     logger: new Core.GOLogger(),
-    services: {
+    services: createTestServiceRegistry({
       cloudWatchLogs: successfulCloudWatchLogsService(),
       athena: { forExecution: () => ({}) } as unknown as AWS.AWSAthenaService,
       ...services,
-    } as ServiceRegistry,
+    }),
     awsProfiles: [],
     useConfiguredAwsProfiles: false,
     workerArtifactRevision: INPUT.runbook.workerRevision,

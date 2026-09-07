@@ -1,44 +1,56 @@
 import type { Core } from '@go-automation/go-common';
-
 import type { AlarmEventDto } from '@go-automation/go-watchtower-client';
-import type { RtaCheckRow } from '../types/RtaCheckReport.js';
+import { checkOccurrences } from '@go-automation/go-watchtower-runbook';
+import type { RtaCheckInput, RtaCheckReport, RunbookCheckContext } from '@go-automation/go-watchtower-runbook';
+
 import { productEnvLabel, renderResultsHeader, renderResultsRow } from '../report/renderConsole.js';
-import { checkOccurrence } from './checkOccurrence.js';
-import type { CheckContext } from './checkOccurrence.js';
+import { GOScriptRunbookCheckCache } from '../runner/resumeCache.js';
+
+export interface RunOccurrencesOptions {
+  readonly script: Core.GOScript;
+  readonly context: RunbookCheckContext;
+  readonly occurrences: ReadonlyArray<AlarmEventDto>;
+  readonly reportInput: RtaCheckInput;
+  readonly concurrency: number;
+}
 
 /**
- * Runs the comparison for every occurrence (sequentially, to bound CloudWatch
- * cost) and prints the results **table incrementally**: a header first, then one
- * row as each occurrence completes. While an occurrence runs, a spinner shows a
- * "loading" line in its place (TTY only); on completion it is replaced by the
- * final static row. Runbook engine logs are suppressed (silent engine logger).
+ * Runs the comparison for every occurrence and prints the results **table
+ * incrementally**: a header first, then one row as each occurrence completes.
+ * During a sequential run, a spinner shows a "loading" line in its place (TTY
+ * only); concurrent runs print only the final static rows, avoiding interference
+ * between overlapping executions. Runbook engine logs are suppressed (silent
+ * engine logger).
  *
- * @param context - The shared per-run context
- * @param occurrences - The occurrences to process (already limited)
- * @param script - GOScript (logger for the table, prompt for the spinner)
- * @returns The assembled rows
+ * Execution, concurrency and aggregation live in `go-watchtower-runbook`: this
+ * function is the rendering adapter and owns the filesystem resume cache.
+ *
+ * @param options - Script, run context, occurrences, report inputs and concurrency
+ * @returns The assembled report
  */
-export async function runOccurrences(
-  context: CheckContext,
-  occurrences: ReadonlyArray<AlarmEventDto>,
-  script: Core.GOScript,
-): Promise<ReadonlyArray<RtaCheckRow>> {
+export async function runOccurrences(options: RunOccurrencesOptions): Promise<RtaCheckReport> {
+  const { script, context } = options;
   const interactive = process.stdout.isTTY === true;
+  const useSingleSpinner = interactive && Math.min(options.concurrency, options.occurrences.length) <= 1;
   renderResultsHeader(script.logger);
 
-  const rows: RtaCheckRow[] = [];
-  const total = occurrences.length;
-  let index = 0;
-  for (const event of occurrences) {
-    index += 1;
-    if (interactive) {
-      const label = productEnvLabel(context.productName, event.environment?.name);
-      script.prompt.startSpinner(`[${index}/${total}] ${label} · ${event.firedAt} · esecuzione…`);
-    }
-    const row = await checkOccurrence(context, event);
-    if (interactive) script.prompt.stopSpinner();
-    rows.push(row);
-    renderResultsRow(script.logger, context.productName, context.alarmName, row);
-  }
-  return rows;
+  return await checkOccurrences({
+    context,
+    occurrences: options.occurrences,
+    reportInput: options.reportInput,
+    concurrency: options.concurrency,
+    cache: new GOScriptRunbookCheckCache(script),
+    onProgress: (event) => {
+      if (event.kind === 'OCCURRENCE_STARTED') {
+        if (!useSingleSpinner) return;
+        const label = productEnvLabel(context.productName, event.occurrence.environment?.name);
+        script.prompt.startSpinner(
+          `[${event.index}/${event.total}] ${label} · ${event.occurrence.firedAt} · esecuzione…`,
+        );
+        return;
+      }
+      if (useSingleSpinner) script.prompt.stopSpinner();
+      renderResultsRow(script.logger, context.productName, context.alarmName, event.row);
+    },
+  });
 }

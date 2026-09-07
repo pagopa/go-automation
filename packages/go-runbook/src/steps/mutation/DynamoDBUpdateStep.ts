@@ -30,7 +30,7 @@ export interface DynamoDBUpdateConfig {
  *
  * @example
  * ```typescript
- * const step = dynamoDBUpdate({
+ * const step = new DynamoDBUpdateStep({
  *   id: 'update-status',
  *   label: 'Update item status to resolved',
  *   tableName: 'pn-notifications',
@@ -41,7 +41,7 @@ export interface DynamoDBUpdateConfig {
  * });
  * ```
  */
-class DynamoDBUpdateStep implements Step<void> {
+export class DynamoDBUpdateStep implements Step<void> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'mutation';
@@ -86,14 +86,4 @@ class DynamoDBUpdateStep implements Step<void> {
       return { success: false, error: `DynamoDB update failed: ${message}` };
     }
   }
-}
-
-/**
- * Factory function for creating a DynamoDB update mutation step.
- *
- * @param config - Step configuration
- * @returns A new DynamoDBUpdateStep instance
- */
-export function dynamoDBUpdate(config: DynamoDBUpdateConfig): Step<void> {
-  return new DynamoDBUpdateStep(config);
 }

@@ -39,6 +39,31 @@ describe('runbook known URLs', () => {
     assertMatchesTarget(DELIVERY_PUSH_B2B_KNOWN_URLS, observedUrl, 'pn-data-vault');
   });
 
+  it('matches every documented pn-delivery B2B internal hop by path', () => {
+    const cases = [
+      ['http://internal.example.local:8080/ext-registry-private/pa/v1/groups-all', 'pn-external-registries'],
+      ['http://internal.example.local:8080/f24-private/pdf/IUN?pathTokens=0%2C0', 'pn-f24'],
+      ['http://vpce.example.local:8080/safe-storage/v1/files/PN_F24_META-id.json', 'pn-safestorage'],
+    ] as const;
+
+    for (const [observedUrl, target] of cases) {
+      assertMatchesTarget(DELIVERY_B2B_KNOWN_URLS, observedUrl, target);
+    }
+  });
+
+  it('classifies documented external downstream URLs after delivery traversal', () => {
+    assertMatchesTarget(
+      DELIVERY_B2B_KNOWN_URLS,
+      'https://api.tokenizer.pdv.pagopa.it/tokenizer/v1/tokens/id/pii',
+      'PersonalDataVault',
+    );
+    assertMatchesTarget(
+      DELIVERY_B2B_KNOWN_URLS,
+      'https://api.selfcare.pagopa.it/external/data-vault/v1/pn-pg/institutions/add',
+      'Selfcare',
+    );
+  });
+
   it('matches delivery-push internal safestorage URLs by path without hard-coding the host', () => {
     assertMatchesTarget(
       DELIVERY_PUSH_B2B_KNOWN_URLS,

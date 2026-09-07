@@ -9,7 +9,7 @@ import { isServiceRunbookContext } from '../../output/ServiceRunbookContext.js';
 import { buildServiceOutputContext } from '../../output/buildServiceOutputContext.js';
 import type { RunbookExecutionResult } from '../../../types/RunbookExecutionResult.js';
 import type { RunbookExecutionTrace } from '../../../trace/RunbookExecutionTrace.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function baseConfig(overrides: Partial<ServiceAlarmConfig> = {}): ServiceAlarmConfig {
   return {
@@ -71,7 +71,7 @@ function fakeResult(): RunbookExecutionResult {
         ['endTime', '2026-06-09T00:05:00.000Z'],
       ]),
       logs: [],
-      services: {} as unknown as ServiceRegistry,
+      services: createTestServiceRegistry(),
       recoveredErrors: [],
     },
     recoveredErrors: [],
@@ -118,6 +118,14 @@ describe('createServiceAlarmRunbook', () => {
     for (const descriptor of runbook.steps) {
       assert.strictEqual(descriptor.silent, true, `step ${descriptor.step.id} should be silent`);
     }
+  });
+
+  it('forwards an explicit asymmetric occurrence window', () => {
+    const runbook = createServiceAlarmRunbook(
+      baseConfig({ occurrenceTimeWindow: { beforeMinutes: 10, afterMinutes: 5 } }),
+    );
+
+    assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 10, afterMinutes: 5 });
   });
 
   it('builds a structured service output context', () => {

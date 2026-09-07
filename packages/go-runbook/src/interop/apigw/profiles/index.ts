@@ -1,0 +1,3 @@
+export type { InteropApiGwQueryProfile } from './InteropApiGwQueryProfile.js';
+export { INTEROP_API_GW_5XX_SERVICE_ERRORS_PROFILE } from './INTEROP_API_GW_5XX_SERVICE_ERRORS_PROFILE.js';
+export { INTEROP_API_GW_4XX_SERVICE_WARNINGS_PROFILE } from './INTEROP_API_GW_4XX_SERVICE_WARNINGS_PROFILE.js';

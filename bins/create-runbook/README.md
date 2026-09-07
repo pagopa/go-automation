@@ -32,11 +32,16 @@ pnpm create:runbook --type base --id pn-foo-Bar --dry-run
 
 ## Templates
 
-| id            | files generated                                                     | description                                          |
-| ------------- | ------------------------------------------------------------------- | ---------------------------------------------------- |
-| `api-gateway` | `knownServices.ts`, `knownUrls.ts`, `knownCases.ts`, `runbook.ts`   | Full API Gateway alarm runbook (4 files)             |
-| `lambda`      | `knownServices.ts`, `knownErrors.ts`, `knownCases.ts`, `runbook.ts` | Lambda `LogInvocationErrors` alarm runbook (4 files) |
-| `base`        | `runbook.ts`                                                        | Generic `RunbookBuilder` runbook                     |
+| id            | files generated                                                     | description                                |
+| ------------- | ------------------------------------------------------------------- | ------------------------------------------ |
+| `api-gateway` | `knownServices.ts`, `knownUrls.ts`, `knownCases.ts`, `runbook.ts`   | Full API Gateway alarm runbook             |
+| `lambda`      | `knownServices.ts`, `knownErrors.ts`, `knownCases.ts`, `runbook.ts` | Lambda `LogInvocationErrors` alarm runbook |
+| `service`     | `knownServices.ts`, `knownCases.ts`, `runbook.ts`                   | Application-log alarm runbook              |
+| `base`        | `runbook.ts`                                                        | Generic `RunbookBuilder` runbook           |
+
+Every template exports its builder as `buildRunbook()`: the runbook's identity is
+its directory, not the function name. When wiring is enabled a `registration.ts`
+is generated too, declaring the runbook's catalog identity.
 
 Template sources live in `bins/runbook-templates/<id>/*.template` and use
 `{{TOKEN}}` placeholders.
@@ -51,18 +56,19 @@ No changes to the generator engine are required.
 
 ## Flags
 
-| flag                   | description                                                            |
-| ---------------------- | ---------------------------------------------------------------------- |
-| `--type <id>`          | Template id (`api-gateway` \| `lambda` \| `base`); prompted if omitted |
-| `--id <runbook-id>`    | Runbook id and directory name                                          |
-| `--builder <name>`     | Builder function name (default: derived from id)                       |
-| `--description <text>` | Runbook metadata description                                           |
-| `--version <semver>`   | Runbook metadata version (default: `1.0.0`)                            |
-| `--team <team>`        | Runbook metadata team (default: `GO`)                                  |
-| `--tags <csv>`         | Comma-separated metadata tags                                          |
-| `--no-wire`            | Do not modify `go-analyze-alarm` `main.ts`                             |
-| `--dry-run`            | Render and print without writing or wiring                             |
-| `--yes`                | Skip the confirmation prompt                                           |
+| flag                   | description                                                                         |
+| ---------------------- | ----------------------------------------------------------------------------------- |
+| `--type <id>`          | Template id (`api-gateway` \| `lambda` \| `service` \| `base`); prompted if omitted |
+| `--id <runbook-id>`    | Runbook id and directory name                                                       |
+| `--description <text>` | Runbook metadata description                                                        |
+| `--version <semver>`   | Runbook metadata version (default: `1.0.0`)                                         |
+| `--team <team>`        | Runbook metadata team (default: `GO`)                                               |
+| `--tags <csv>`         | Comma-separated metadata tags                                                       |
+| `--product <name>`     | Watchtower product: `SEND` \| `INTEROP` (default `SEND`)                            |
+| `--categories <csv>`   | Comma-separated automatic catalog categories                                        |
+| `--no-wire`            | Do not generate `registration.ts` nor touch `catalogManifest.ts`                    |
+| `--dry-run`            | Render and print without writing or wiring                                          |
+| `--yes`                | Skip the confirmation prompt                                                        |
 
 API Gateway template inputs: `--api-gw-log-group`, `--entry-service`,
 `--var-prefix`, `--log-group`, `--execution-log-group`, `--authorizer`.

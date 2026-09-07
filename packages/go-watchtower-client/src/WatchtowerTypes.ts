@@ -16,6 +16,16 @@ export type AlarmDto =
   paths['/api/products/{productId}/alarms']['get']['responses'][200]['content']['application/json'][number];
 export type EnvironmentDto =
   paths['/api/products/{productId}/environments']['get']['responses'][200]['content']['application/json'][number];
+export type ResourceDto =
+  paths['/api/products/{productId}/resources']['get']['responses'][200]['content']['application/json'][number];
+export type DownstreamDto =
+  paths['/api/products/{productId}/downstreams']['get']['responses'][200]['content']['application/json'][number];
+export type FinalActionDto =
+  paths['/api/products/{productId}/final-actions']['get']['responses'][200]['content']['application/json'][number];
+export type RunbookDto =
+  paths['/api/products/{productId}/runbooks']['get']['responses'][200]['content']['application/json'][number];
+export type IgnoreReasonDto =
+  paths['/api/ignore-reasons']['get']['responses'][200]['content']['application/json'][number];
 export type AlarmEventsQuery = NonNullable<paths['/api/alarm-events']['get']['parameters']['query']>;
 export type AlarmEventsPage = paths['/api/alarm-events']['get']['responses'][200]['content']['application/json'];
 export type AlarmEventDto = AlarmEventsPage['data'][number];
@@ -60,9 +70,16 @@ export type ProgressExecutionRequest =
   paths['/api/automatic-runbook-executions/{id}/progress']['patch']['requestBody']['content']['application/json'];
 export type ProgressExecutionResponse =
   paths['/api/automatic-runbook-executions/{id}/progress']['patch']['responses'][200]['content']['application/json'];
+export type ShadowReportQuery = paths['/api/automatic-runbook-executions/shadow-report']['get']['parameters']['query'];
+export type ShadowReportResponse =
+  paths['/api/automatic-runbook-executions/shadow-report']['get']['responses'][200]['content']['application/json'];
+export type ShadowCapabilityReport = ShadowReportResponse['capabilities'][number];
+
 export type CompleteExecutionRequest =
   paths['/api/automatic-runbook-executions/{id}/complete']['post']['requestBody']['content']['application/json'];
 export type AutomaticRunbookOutcome = CompleteExecutionRequest['outcome'];
+/** Draft dell'analisi come viaggia sul callback di completamento. */
+export type CompleteExecutionAnalysisDraft = CompleteExecutionRequest['analysisDraft'];
 export type CompleteExecutionTracking = NonNullable<CompleteExecutionRequest['tracking']>;
 export type CompleteExecutionTrackingEntry = CompleteExecutionTracking[number];
 export type TrackingIdentifierType = CompleteExecutionTrackingEntry['identifierType'];

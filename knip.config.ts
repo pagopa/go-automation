@@ -15,11 +15,13 @@ const config: KnipConfig = {
     'packages/go-watchtower-client': {
       project: ['src/**/*.ts'],
     },
+    'packages/go-watchtower-runbook': {
+      project: ['src/**/*.ts'],
+    },
     'packages/go-cli': {
       project: ['src/**/*.ts'],
     },
     'packages/go-runbook': {
-      entry: ['src/catalog/exportAutomaticRunbookDescriptors.ts'],
       project: ['src/**/*.ts'],
     },
     'packages/go-send': {

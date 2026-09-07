@@ -1,3 +1,5 @@
+import type { RunbookProduct } from './RunbookProduct.js';
+
 /**
  * Fully resolved answers for a runbook scaffold: the common fields shared
  * by every template plus the template-specific values in {@link extras}.
@@ -7,8 +9,6 @@ export interface RunbookAnswers {
   readonly templateId: string;
   /** Runbook id / directory name. */
   readonly id: string;
-  /** Builder function name (e.g. `buildDeliveryB2BApiGwAlarmRunbook`). */
-  readonly builderName: string;
   /** Runbook metadata `name`. */
   readonly metadataName: string;
   /** Runbook metadata `description`. */
@@ -19,6 +19,8 @@ export interface RunbookAnswers {
   readonly team: string;
   /** Runbook metadata `tags`. */
   readonly tags: ReadonlyArray<string>;
+  /** Watchtower product owning the alarms. */
+  readonly product: RunbookProduct;
   /** Automatic catalog categories. */
   readonly categories: ReadonlyArray<string>;
   /** Template-specific inputs, keyed by {@link TemplateInput.name}. */

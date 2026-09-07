@@ -1,8 +1,12 @@
 import type { ApiGwAlarmConfig } from '../types/ApiGwAlarmConfig.js';
 import type { ApiGwQueryProfile } from '../profiles/ApiGwQueryProfile.js';
-import type { KnownCase } from '../../types/KnownCase.js';
-import type { Condition } from '../../types/Condition.js';
 import { renderQueryTemplate } from '../profiles/render/renderQueryTemplate.js';
+import {
+  assertKnownCaseStepRefs,
+  assertStepDescriptorIds,
+  failAlarmConfig,
+  type AlarmConfigValidationContext,
+} from '../../validation/alarmConfigValidation.js';
 import { getEffectiveExecutionLogGroup, isExecutionLogEnabled } from './executionLogEnablement.js';
 
 /**
@@ -50,18 +54,21 @@ function validatePlaceholders(profile: ApiGwQueryProfile): void {
  * assente).
  */
 function validateCapabilityParity(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
+  const validationContext = context(config);
   const executionLogGroup = getEffectiveExecutionLogGroup(config);
   if (executionLogGroup !== undefined && profile.executionLog === undefined) {
-    throw new Error(
-      `createApiGwAlarmRunbook "${config.id}": entryService.executionLogGroup is set but ` +
+    failAlarmConfig(
+      validationContext,
+      'entryService.executionLogGroup is set but ' +
         `the profile "${profile.id}" has no executionLog capability. ` +
         'Either remove executionLogGroup from the entry service or switch to a profile that supports it.',
     );
   }
 
   if (config.authorizerFailureCheck !== undefined && profile.accessLog.schema.authorizer === undefined) {
-    throw new Error(
-      `createApiGwAlarmRunbook "${config.id}": authorizerFailureCheck is set but ` +
+    failAlarmConfig(
+      validationContext,
+      'authorizerFailureCheck is set but ' +
         `the profile "${profile.id}" has no accessLog.authorizer capability. ` +
         'Either remove authorizerFailureCheck or switch to a profile that declares authorizer fields.',
     );
@@ -71,11 +78,30 @@ function validateCapabilityParity(config: ApiGwAlarmConfig, profile: ApiGwQueryP
     const hasDefault = config.authorizerFailureCheck.defaultAuthorizer !== undefined;
     const hasRules = (config.authorizerFailureCheck.rules?.length ?? 0) > 0;
     if (!hasDefault && !hasRules) {
-      throw new Error(
-        `createApiGwAlarmRunbook "${config.id}": authorizerFailureCheck requires ` +
-          'a defaultAuthorizer or at least one selection rule.',
+      failAlarmConfig(
+        validationContext,
+        'authorizerFailureCheck requires a defaultAuthorizer or at least one selection rule.',
       );
     }
+  }
+}
+
+function validateExecutionLogAnalysisMode(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
+  const mode = config.executionLogAnalysisMode;
+  if (mode !== undefined && mode !== 'terminal' && mode !== 'best-effort') {
+    failAlarmConfig(
+      context(config),
+      `unsupported executionLogAnalysisMode '${String(mode)}'. Expected 'terminal' or 'best-effort'.`,
+    );
+  }
+
+  if (mode !== undefined && !isExecutionLogEnabled(config, profile)) {
+    failAlarmConfig(
+      context(config),
+      'executionLogAnalysisMode is set but execution logs are not enabled. ' +
+        'Configure entryService.executionLogGroup and use a profile with executionLog capability, ' +
+        'or remove executionLogAnalysisMode.',
+    );
   }
 }
 
@@ -94,13 +120,15 @@ function computeWiredStepIds(config: ApiGwAlarmConfig, profile: ApiGwQueryProfil
 
   if (isExecutionLogEnabled(config, profile)) {
     ids.add('query-api-gw-execution-logs');
-    ids.add('stop-api-gw-execution-log-unresolved');
+    if (config.executionLogAnalysisMode !== 'best-effort') {
+      ids.add('stop-api-gw-execution-log-unresolved');
+    }
   }
 
   ids.add('parse-api-gw-errors');
 
-  for (const descriptor of config.preSteps ?? []) {
-    ids.add(descriptor.step.id);
+  for (const hook of config.hooks ?? []) {
+    ids.add(hook.step.id);
   }
 
   const services = [config.entryService, ...(config.services ?? [])];
@@ -114,92 +142,33 @@ function computeWiredStepIds(config: ApiGwAlarmConfig, profile: ApiGwQueryProfil
 }
 
 /**
- * V4: collisioni step ID. I preSteps non devono usare ID riservati alla
+ * V4: collisioni step ID. Gli hook non devono usare ID riservati alla
  * pipeline canonica (es. un preStep che si chiama `parse-api-gw-errors`).
  */
 function validateNoStepIdCollisions(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
-  const reserved = computeWiredStepIds({ ...config, preSteps: [] }, profile);
-  const seenPreStepIds = new Set<string>();
-  for (const descriptor of config.preSteps ?? []) {
-    if (seenPreStepIds.has(descriptor.step.id)) {
-      throw new Error(
-        `createApiGwAlarmRunbook "${config.id}": preStep id "${descriptor.step.id}" is declared more than once.`,
-      );
-    }
-    seenPreStepIds.add(descriptor.step.id);
-    if (reserved.has(descriptor.step.id)) {
-      throw new Error(
-        `createApiGwAlarmRunbook "${config.id}": preStep id "${descriptor.step.id}" ` +
-          'collides with a reserved pipeline step id.',
-      );
-    }
-  }
+  // One check for every anchor: hooks share a single id namespace, so a step
+  // declared twice at different anchors is still a duplicate.
+  const reserved = computeWiredStepIds({ ...config, hooks: [] }, profile);
+  assertStepDescriptorIds(context(config), config.hooks, reserved, 'hook');
 }
 
 /**
- * Visita ricorsiva di `Condition` per raccogliere tutti i `ref` che
- * iniziano con `steps.`.
- */
-function collectStepRefs(condition: Condition, into: Set<string>): void {
-  switch (condition.type) {
-    case 'compare':
-    case 'pattern':
-    case 'exists':
-    case 'contains': {
-      if (condition.ref.startsWith('steps.')) {
-        const afterPrefix = condition.ref.slice('steps.'.length);
-        const stepId = afterPrefix.split('.')[0] ?? '';
-        if (stepId !== '') into.add(stepId);
-      }
-      return;
-    }
-    case 'and':
-    case 'or': {
-      for (const c of condition.conditions) collectStepRefs(c, into);
-      return;
-    }
-    case 'not': {
-      collectStepRefs(condition.condition, into);
-      return;
-    }
-    default: {
-      const _exhaustive: never = condition;
-      throw new Error(`Unhandled condition type: ${JSON.stringify(_exhaustive)}`);
-    }
-  }
-}
-
-/**
- * V3: orphan step refs. Per ogni `KnownCase`, ricorre nella `condition`
- * e per ogni `ref` con prefisso `steps.` verifica che lo step ID sia
- * effettivamente cablato nella pipeline. Cattura il bug
- * "runbook che cita uno step inesistente nel profilo corrente".
+ * V3: orphan step refs. Per ogni `KnownCase` verifica che gli step citati
+ * con prefisso `steps.` siano effettivamente cablati nella pipeline. Cattura
+ * il bug "runbook che cita uno step inesistente nel profilo corrente".
  */
 function validateKnownCaseStepRefs(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
-  const wired = computeWiredStepIds(config, profile);
-  for (const knownCase of config.knownCases) {
-    const refs = new Set<string>();
-    collectStepRefs(knownCase.condition, refs);
-    for (const stepId of refs) {
-      if (!wired.has(stepId)) {
-        throw orphanStepRefError(config, profile, knownCase, stepId);
-      }
-    }
-  }
-}
-
-function orphanStepRefError(
-  config: ApiGwAlarmConfig,
-  profile: ApiGwQueryProfile,
-  knownCase: KnownCase,
-  stepId: string,
-): Error {
-  return new Error(
-    `createApiGwAlarmRunbook "${config.id}": knownCase "${knownCase.id}" references ` +
-      `step "${stepId}" which is not wired in this runbook ` +
-      `(profile "${profile.id}" + current config). ` +
+  assertKnownCaseStepRefs(
+    context(config),
+    config.knownCases,
+    computeWiredStepIds(config, profile),
+    ` (profile "${profile.id}" + current config). ` +
       'Either switch profile / config to wire that step, or remove the reference from the known case.',
   );
+}
+
+function context(config: ApiGwAlarmConfig): AlarmConfigValidationContext {
+  return { builderName: 'createApiGwAlarmRunbook', runbookId: config.id };
 }
 
 /**
@@ -213,6 +182,7 @@ function orphanStepRefError(
 export function validateApiGwAlarmConfig(config: ApiGwAlarmConfig, profile: ApiGwQueryProfile): void {
   validatePlaceholders(profile);
   validateCapabilityParity(config, profile);
+  validateExecutionLogAnalysisMode(config, profile);
   validateNoStepIdCollisions(config, profile);
   validateKnownCaseStepRefs(config, profile);
 }

@@ -1,11 +1,11 @@
+import { NOTIFICATION_USER_LIFECYCLE_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { ConditionEvaluator, type KnownCase, type RunbookContext, type ServiceRegistry } from '../../framework.js';
+import { ConditionEvaluator, INTEROP_DOWNSTREAMS, type KnownCase, type RunbookContext } from '../../framework.js';
 
 import { KNOWN_CASES } from '../knownCases.js';
-import { INTEROP_NOTIFICATION_USER_LIFECYCLE_SERVICE_NAME } from '../resolveInteropAlarmContext.js';
-import { QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, QUERY_INTEROP_CID_TRACKER_STEP_ID } from '../runbookSteps.js';
+import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 
 interface LogRowField {
   readonly field: string;
@@ -24,7 +24,7 @@ const CASE_FIXTURES: ReadonlyMap<string, ReadonlyArray<string>> = new Map([
 function applicationLogRows(messages: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<LogRowField>> {
   return messages.map((message) => [
     { field: '@timestamp', value: '2026-07-15 10:00:00.000' },
-    { field: 'pod_app', value: INTEROP_NOTIFICATION_USER_LIFECYCLE_SERVICE_NAME },
+    { field: 'pod_app', value: NOTIFICATION_USER_LIFECYCLE_ALARM.podApp },
     { field: '@message', value: message },
   ]);
 }
@@ -37,7 +37,7 @@ function context(stepResults: ReadonlyArray<readonly [string, unknown]>): Runboo
     vars: new Map(),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }
@@ -56,11 +56,32 @@ describe('INTEROP notification user lifecycle known cases', () => {
     assert.strictEqual(new Set(KNOWN_CASES.map((knownCase) => knownCase.priority)).size, KNOWN_CASES.length);
   });
 
+  it('classifies the Kafka/Selfcare communication variants observed in production', () => {
+    const knownCase = knownCaseById('notification-kafka-broker-communication-errors');
+    const messages = [
+      'Connection error: read ECONNRESET',
+      'Connection error: read ETIMEDOUT',
+      'The group coordinator is not available',
+      'The coordinator is not aware of this member',
+      'KafkaJSNumberOfRetriesExceeded: The replica is not available for the requested topic-partition',
+    ];
+
+    assert.deepStrictEqual(knownCase.analysis?.downstreams, [INTEROP_DOWNSTREAMS.SELFCARE]);
+    for (const message of messages) {
+      const ctx = context([
+        [NOTIFICATION_USER_LIFECYCLE_ALARM.stepIds.queryApplicationLogs, applicationLogRows([message])],
+      ]);
+      assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), true, `expected match: ${message}`);
+    }
+  });
+
   it('matches every documented known case against application logs', () => {
     for (const knownCase of KNOWN_CASES) {
       const fixture = CASE_FIXTURES.get(knownCase.id);
       assert.ok(fixture !== undefined, `missing fixture for known case: ${knownCase.id}`);
-      const ctx = context([[QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, applicationLogRows(fixture)]]);
+      const ctx = context([
+        [NOTIFICATION_USER_LIFECYCLE_ALARM.stepIds.queryApplicationLogs, applicationLogRows(fixture)],
+      ]);
       assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), true, `expected match: ${knownCase.id}`);
     }
   });
@@ -70,7 +91,18 @@ describe('INTEROP notification user lifecycle known cases', () => {
     const rows = applicationLogRows([
       'ERROR - Crash: KafkaJSNumberOfRetriesExceeded: The replica is not available for the requested topic-partition',
     ]);
-    const ctx = context([[QUERY_INTEROP_CID_TRACKER_STEP_ID, [{ cid: 'cid-1', rows }]]]);
+    const ctx = context([[NOTIFICATION_USER_LIFECYCLE_ALARM.stepIds.queryCidTracker, [{ cid: 'cid-1', rows }]]]);
+    assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), true);
+  });
+
+  it('matches the duplicate-event case in JSON-encoded CID tracker evidence', () => {
+    const knownCase = knownCaseById('notification-duplicate-event-stream-version');
+    const rawMessage = JSON.stringify({
+      log: 'Error creating event: error: duplicate key value violates unique constraint "events_stream_id_version_key"',
+    });
+    const rows = applicationLogRows([rawMessage]);
+    const ctx = context([[NOTIFICATION_USER_LIFECYCLE_ALARM.stepIds.queryCidTracker, [{ cid: 'cid-1', rows }]]]);
+
     assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), true);
   });
 
@@ -79,7 +111,7 @@ describe('INTEROP notification user lifecycle known cases', () => {
     const duplicate = knownCaseById('notification-duplicate-event-stream-version');
     const ctx = context([
       [
-        QUERY_INTEROP_APPLICATION_LOGS_STEP_ID,
+        NOTIFICATION_USER_LIFECYCLE_ALARM.stepIds.queryApplicationLogs,
         applicationLogRows([
           'Request failed: read ECONNRESET',
           'duplicate key value violates unique constraint "another_constraint"',

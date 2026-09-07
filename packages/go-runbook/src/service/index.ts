@@ -10,5 +10,6 @@ export * from './builders/index.js';
 export * from './helpers/index.js';
 export * from './output/index.js';
 export * from './profiles/index.js';
+export * from './queries/index.js';
 export * from './steps/index.js';
 export * from './types/index.js';

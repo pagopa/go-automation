@@ -14,6 +14,10 @@ export type { AWSClientProviderConfig } from './AWSClientProvider.js';
 
 // Multi-client provider (multiple profiles)
 export { AWSMultiClientProvider } from './AWSMultiClientProvider.js';
+export { AWSAccountProfileSet } from './AWSAccountProfileSet.js';
+export type { AWSProfileSet } from './AWSProfileSet.js';
+export type { AWSExecutionTarget } from './AWSExecutionTarget.js';
+export { AWSTargetNotConfiguredError, isAWSTargetNotConfiguredError } from './AWSTargetNotConfiguredError.js';
 export type { AWSMultiClientProviderConfig } from './AWSMultiClientProvider.js';
 
 // Unified AWS facade and service providers
@@ -148,6 +152,8 @@ export type {
   ScanBy,
 } from '@aws-sdk/client-cloudwatch';
 export type { CloudWatchLogsClient, ResultField } from '@aws-sdk/client-cloudwatch-logs';
+export { readRowField, readRowFields, readResultFieldRows } from './AWSCloudWatchResultRows.js';
+export { escapeLogsInsightsString, escapeLogsInsightsRegexLiteral } from './AWSCloudWatchLogsInsightsEscape.js';
 export type { AthenaClient } from '@aws-sdk/client-athena';
 export type { ECSClient } from '@aws-sdk/client-ecs';
 export type { SchedulerClient } from '@aws-sdk/client-scheduler';

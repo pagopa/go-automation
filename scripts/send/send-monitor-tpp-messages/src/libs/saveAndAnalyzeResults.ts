@@ -4,9 +4,10 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { DateTime } from 'luxon';
 import { Core } from '@go-automation/go-common';
+
 import { analyzeThreshold, generateThresholdReport } from './AthenaUtils.js';
+import { formatDateForAthena } from './DateUtils.js';
 import type { CSVRow } from '../types/CSVRow.js';
 
 /**
@@ -26,7 +27,7 @@ interface SaveAnalysisResult {
  * @returns Generated filename with timestamp
  */
 function generateFileName(prefix: string = 'report'): string {
-  const timestamp = DateTime.now().toFormat('yyyy-MM-dd_HH-mm-ss');
+  const timestamp = formatDateForAthena(new Date()).replace(' ', '_').replaceAll(':', '-');
   return `${prefix}_${timestamp}.csv`;
 }
 

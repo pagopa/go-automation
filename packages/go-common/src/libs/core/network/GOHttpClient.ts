@@ -8,6 +8,7 @@ import type { GOHttpClientConfig } from './GOHttpClientConfig.js';
 import { GOHttpClientError } from './GOHttpClientError.js';
 import type { GOHttpClientEventMap } from './GOHttpClientEvents.js';
 import type { GOHttpMethod, GOHttpRequestOptions, GOHttpResponse, GOHttpRetryPolicy } from './GOHttpRequestOptions.js';
+import { parseRetryAfterMs } from './GORetryAfter.js';
 
 type ResponseMode = 'body' | 'headers';
 type RequestBody = string | Uint8Array | ArrayBuffer | Blob | FormData | URLSearchParams;
@@ -467,16 +468,8 @@ function createResponseError(response: Response, data: unknown, attempt: number)
     response.status,
     data,
     attempt,
-    parseRetryAfter(response.headers.get('retry-after')),
+    parseRetryAfterMs(response.headers.get('retry-after')),
   );
-}
-
-function parseRetryAfter(value: string | null): number | undefined {
-  if (value === null) return undefined;
-  const seconds = Number(value);
-  if (Number.isFinite(seconds) && seconds >= 0) return Math.round(seconds * 1_000);
-  const date = Date.parse(value);
-  return Number.isNaN(date) ? undefined : Math.max(0, date - Date.now());
 }
 
 function shouldRetry(error: unknown, request: PreparedRequest, attempt: number): boolean {

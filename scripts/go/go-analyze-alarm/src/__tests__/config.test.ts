@@ -18,6 +18,7 @@ describe('go-analyze-alarm config', () => {
     assert.deepStrictEqual(parameter.aliases, ['am']);
     assert.strictEqual(parameter.validator?.('single'), true);
     assert.strictEqual(parameter.validator?.('range'), true);
-    assert.match(String(parameter.validator?.('batch')), /Expected single or range/);
+    assert.strictEqual(parameter.validator?.('stats'), true);
+    assert.match(String(parameter.validator?.('batch')), /Expected single, range or stats/);
   });
 });

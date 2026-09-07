@@ -3,10 +3,13 @@ import assert from 'node:assert/strict';
 
 import type { AWSCloudWatchLogsService, ResultField } from '@go-automation/go-common/aws';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { TimeRange } from '../../../types/TimeRange.js';
 
-import { queryServiceLogs } from '../QueryServiceLogsStep.js';
+import { QueryServiceLogsStep } from '../QueryServiceLogsStep.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
+import { ConsoleRunbookReporter } from '../../../registry/reporters/ConsoleRunbookReporter.js';
+import { NOOP_RUNBOOK_REPORTER } from '../../../registry/reporters/NOOP_RUNBOOK_REPORTER.js';
+import type { GOLogger } from '@go-automation/go-common/core';
 
 interface CapturedCall {
   readonly logGroups: ReadonlyArray<string>;
@@ -40,7 +43,16 @@ function createContext(args: {
   readonly cloudWatchLogs: AWSCloudWatchLogsService;
   readonly capturedLines?: string[];
 }): RunbookContext {
-  const ctx: RunbookContext = {
+  const captured = args.capturedLines;
+  const reporter =
+    captured === undefined
+      ? NOOP_RUNBOOK_REPORTER
+      : new ConsoleRunbookReporter({
+          text: (msg: string) => captured.push(msg),
+          newline: () => captured.push(''),
+        } as unknown as GOLogger);
+
+  return {
     executionId: 'test',
     startedAt: new Date('2026-01-01T00:00:00.000Z'),
     stepResults: new Map(),
@@ -50,24 +62,15 @@ function createContext(args: {
       ['endTime', '2026-01-01T00:10:00.000Z'],
     ]),
     logs: [],
-    services: { cloudWatchLogs: args.cloudWatchLogs } as unknown as ServiceRegistry,
+    services: createTestServiceRegistry({ cloudWatchLogs: args.cloudWatchLogs, reporter }),
     recoveredErrors: [],
   };
-  if (args.capturedLines !== undefined) {
-    const captured = args.capturedLines;
-    const logger = {
-      text: (msg: string) => captured.push(msg),
-      newline: () => captured.push(''),
-    };
-    return { ...ctx, logger } as unknown as RunbookContext;
-  }
-  return ctx;
 }
 
 describe('queryServiceLogs', () => {
   it('skips the AWS call when no identifier is available', async () => {
     const { service, calls } = createFakeCwLogs();
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-foo',
@@ -85,7 +88,7 @@ describe('queryServiceLogs', () => {
 
   it('issues a single-clause filter when only xRayTraceId is present', async () => {
     const { service, calls } = createFakeCwLogs([[{ field: '@message', value: 'hit' }]]);
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-foo',
@@ -106,7 +109,7 @@ describe('queryServiceLogs', () => {
 
   it('uses only fallbackUuid when both xRayTraceId and fallbackUuid are present', async () => {
     const { service, calls } = createFakeCwLogs();
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-foo',
@@ -131,7 +134,7 @@ describe('queryServiceLogs', () => {
 
   it('escapes single quotes in identifiers (SQL escaping)', async () => {
     const { service, calls } = createFakeCwLogs();
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-foo',
@@ -149,7 +152,7 @@ describe('queryServiceLogs', () => {
 
   it('queries only the fallback when xRayTraceId is empty', async () => {
     const { service, calls } = createFakeCwLogs();
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-foo',
@@ -173,7 +176,7 @@ describe('queryServiceLogs', () => {
 
   it('reads the trace id from the profile-provided context var name', async () => {
     const { service, calls } = createFakeCwLogs();
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-foo',
@@ -203,7 +206,7 @@ describe('queryServiceLogs', () => {
       [{ field: '@message', value: 'row2' }],
     ];
     const { service } = createFakeCwLogs(rows);
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-foo',
@@ -219,7 +222,7 @@ describe('queryServiceLogs', () => {
 
   it('increments apiGwVisitCount only when entering a NEW service', async () => {
     const { service } = createFakeCwLogs([[{ field: '@message', value: 'r' }]]);
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-foo',
@@ -256,7 +259,7 @@ describe('queryServiceLogs', () => {
 
   it('increments apiGwVisitCount and appends to the chain when switching to a different service', async () => {
     const { service } = createFakeCwLogs([[{ field: '@message', value: 'r1' }], [{ field: '@message', value: 'r2' }]]);
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-bar',
@@ -296,7 +299,7 @@ describe('queryServiceLogs', () => {
       },
     } as unknown as AWSCloudWatchLogsService;
 
-    const step = queryServiceLogs({
+    const step = new QueryServiceLogsStep({
       id: 'q',
       label: 'Q',
       serviceName: 'pn-data-vault',
@@ -306,13 +309,14 @@ describe('queryServiceLogs', () => {
     });
 
     const captured: string[] = [];
-    const result = await step.execute(
-      createContext({
-        vars: { xRayTraceId: '1-abc' },
-        cloudWatchLogs: throwingService,
-        capturedLines: captured,
-      }),
-    );
+    const context = createContext({
+      vars: { xRayTraceId: '1-abc' },
+      cloudWatchLogs: throwingService,
+      capturedLines: captured,
+    });
+    const result = await step.execute(context);
+    // The reporter holds the last node back; the engine would flush it.
+    context.services.reporter.flush();
 
     // The step returns a failed StepResult (executeStep converts the
     // thrown error), and the reporter banner is rendered before the
@@ -331,7 +335,7 @@ describe('queryServiceLogs', () => {
   it('throws at construction when the queryTemplate lacks the {{FILTER_CLAUSE}} placeholder', () => {
     assert.throws(
       () =>
-        queryServiceLogs({
+        new QueryServiceLogsStep({
           id: 'q',
           label: 'Q',
           serviceName: 'pn-foo',

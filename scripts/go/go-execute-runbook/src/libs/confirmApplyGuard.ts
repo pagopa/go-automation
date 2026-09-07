@@ -23,19 +23,6 @@ export async function confirmApplyGuard(
       );
     }
   }
-  if (applyMode === 'APPLY_ALL') {
-    const confirmedAll =
-      config.confirmApplyAll === true ||
-      (script.environment.isInteractive
-        ? (await script.prompt.confirm(
-            'Confermi APPLY_ALL? Può creare o aggiornare analisi anche per casi non riconosciuti.',
-            false,
-          )) === true
-        : false);
-    if (!confirmedAll) {
-      throw new Error(`${Core.GOConfigKeyTransformer.toCLIFlag('confirm.apply.all')} is required for apply all`);
-    }
-  }
 }
 
 function isLocalWatchtowerUrl(value: string): boolean {

@@ -1,3 +1,4 @@
+import { parseFiniteNumber } from '../utils/GONumberParse.js';
 import { valueToString } from '../utils/GOValueToString.js';
 
 export type GOThresholdOperator = '>' | '>=' | '<' | '<=' | '==' | '!=';
@@ -121,12 +122,8 @@ function toNumber(value: unknown): number | undefined {
   }
 
   if (typeof value === 'string') {
-    const normalized = value.trim().replace(',', '.');
-    if (normalized.length === 0) {
-      return undefined;
-    }
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : undefined;
+    // Decimal comma first: locale-formatted metrics reach the evaluator as strings.
+    return parseFiniteNumber(value.replace(',', '.'));
   }
 
   return undefined;

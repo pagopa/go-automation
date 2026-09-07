@@ -1,7 +1,4 @@
-export interface ServiceLogLine {
-  readonly timestamp: string;
-  readonly message: string;
-}
+import type { LogLine } from '../../output/LogLine.js';
 
 export interface ServiceOutputContext {
   readonly alarm: {
@@ -21,7 +18,7 @@ export interface ServiceOutputContext {
     readonly fallbackUuid?: string;
     readonly errorMessage?: string;
     readonly traceLogCount?: number;
-    readonly recentLogs: ReadonlyArray<ServiceLogLine>;
-    readonly traceLogs: ReadonlyArray<ServiceLogLine>;
+    readonly recentLogs: ReadonlyArray<LogLine>;
+    readonly traceLogs: ReadonlyArray<LogLine>;
   };
 }

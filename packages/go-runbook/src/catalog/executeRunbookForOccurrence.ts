@@ -9,20 +9,18 @@
 import { Core } from '@go-automation/go-common';
 
 import * as apigw from '../apigw/index.js';
-import { ConditionEvaluator } from '../core/ConditionEvaluator.js';
 import { RunbookEngine } from '../core/RunbookEngine.js';
 import * as lambda from '../lambda/index.js';
 import { buildRunbookOutput } from '../output/buildRunbookOutput.js';
 import type { RunbookOutput } from '../output/RunbookOutput.js';
 import * as service from '../service/index.js';
-import type { ServiceRegistry } from '../services/ServiceRegistry.js';
+import type { ServiceRegistry } from '../registry/ServiceRegistry.js';
 import type { ExecutionEnvironment } from '../trace/ExecutionInfo.js';
 import { assertCloudExecutableRunbook } from '../validation/assertCloudExecutableRunbook.js';
 
 import { AUTOMATIC_RUNBOOK_REGISTRY } from './runbookRegistry.js';
-import { computeTimeRange } from './computeTimeRange.js';
+import { computeRunbookTimeRange } from './computeRunbookTimeRange.js';
 import { createTimeRangeReference } from './createTimeRangeReference.js';
-import { DEFAULT_TIME_WINDOW_MINUTES } from './runbooks/constants.js';
 
 /** Dependencies built once and reused across occurrences. */
 export interface ExecuteRunbookForOccurrenceDeps {
@@ -83,7 +81,7 @@ export async function executeRunbookForOccurrence(
   }
 
   const reference = createTimeRangeReference(input.firedAt, input.alarmDatetimeEnd);
-  const { startTime, endTime } = computeTimeRange(reference, DEFAULT_TIME_WINDOW_MINUTES);
+  const { startTime, endTime } = computeRunbookTimeRange(runbook, reference);
 
   const params = new Map<string, string>([
     ['alarmName', input.alarmName],
@@ -102,7 +100,7 @@ export async function executeRunbookForOccurrence(
     invokedBy: input.executionMode === 'cloud' ? 'alarm' : 'manual',
   };
 
-  const engine = new RunbookEngine(deps.logger, new ConditionEvaluator());
+  const engine = new RunbookEngine(deps.logger);
   const result = await engine.execute(runbook, params, deps.services, environment, input.signal);
 
   return buildRunbookOutput(runbook, result, {

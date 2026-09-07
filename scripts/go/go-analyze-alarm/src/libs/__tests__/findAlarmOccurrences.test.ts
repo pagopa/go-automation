@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import type { Core } from '@go-automation/go-common';
 
 import { assertRangeModeConfig, findAlarmOccurrences } from '../findAlarmOccurrences.js';
-import type { GoAnalyzeAlarmConfig } from '../../types/GoAnalyzeAlarmConfig.js';
+import type { AnalyzableAlarmConfig } from '../../types/AnalyzableAlarmConfig.js';
 
 describe('findAlarmOccurrences', () => {
   it('queries CloudWatch history for the concrete alarm name and returns sorted unique timestamps', async () => {
@@ -48,19 +48,21 @@ describe('findAlarmOccurrences', () => {
   });
 
   it('accepts a valid range config and rejects missing end or single mode', () => {
-    const rangeConfig: GoAnalyzeAlarmConfig = {
+    const rangeConfig: AnalyzableAlarmConfig = {
       analysisMode: 'range',
       alarmName: 'alarm',
       alarmDatetime: '2026-07-09T10:00:00.000Z',
       alarmDatetimeEnd: '2026-07-09T11:00:00.000Z',
       awsProfiles: ['profile'],
+      statsDetail: true,
+      statsSave: false,
     };
     assert.doesNotThrow(() => assertRangeModeConfig(rangeConfig));
 
     const { alarmDatetimeEnd: _alarmDatetimeEnd, ...withoutEnd } = rangeConfig;
     assert.throws(() => assertRangeModeConfig(withoutEnd), /alarm\.datetime\.end is required/);
 
-    const singleConfig: GoAnalyzeAlarmConfig = { ...withoutEnd, analysisMode: 'single' };
+    const singleConfig: AnalyzableAlarmConfig = { ...withoutEnd, analysisMode: 'single' };
     assert.throws(() => assertRangeModeConfig(singleConfig), /analysis\.mode=single/);
   });
 });

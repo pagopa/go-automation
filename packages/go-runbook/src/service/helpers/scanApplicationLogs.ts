@@ -126,5 +126,9 @@ function canonicalTraceId(raw: string): string | undefined {
   if (/^[0-9a-fA-F]{32}$/.test(raw)) {
     return `1-${raw.slice(0, 8)}-${raw.slice(8)}`;
   }
+  const xrayHeaderRoot = /(?:^|;)Root=(1-[0-9a-fA-F]{8}-[0-9a-fA-F]{24})(?:;|$)/.exec(raw)?.[1];
+  if (xrayHeaderRoot !== undefined) {
+    return xrayHeaderRoot;
+  }
   return undefined;
 }

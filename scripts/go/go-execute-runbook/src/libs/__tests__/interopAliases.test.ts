@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { Core } from '@go-automation/go-common';
-import type { ServiceRegistry } from '@go-automation/go-runbook';
+import { createTestServiceRegistry } from '@go-automation/go-runbook';
 import type { WatchtowerClient } from '@go-automation/go-watchtower-client';
 import { AUTOMATIC_RUNBOOK_REGISTRY } from '@go-automation/go-runbook/catalog';
 
@@ -74,7 +74,7 @@ function fakeDeps(alarmName: string): ExecuteRunbookDeps {
       },
     } as unknown as WatchtowerClient,
     logger: new Core.GOLogger(),
-    services: {} as ServiceRegistry,
+    services: createTestServiceRegistry(),
     awsProfiles: [],
     useConfiguredAwsProfiles: false,
     workerArtifactRevision: 'worker-interop',

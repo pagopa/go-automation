@@ -36,7 +36,7 @@ export interface CloudWatchMetricsConfig {
  *
  * @example
  * ```typescript
- * const step = getCloudWatchMetrics({
+ * const step = new CloudWatchMetricsStep({
  *   id: 'fetch-errors',
  *   label: 'Fetch 5XX errors',
  *   namespace: 'AWS/ApiGateway',
@@ -126,14 +126,4 @@ function resolveDimensions(
     name: dim.name,
     value: interpolatePlaceholders(dim.value, context),
   }));
-}
-
-/**
- * Factory function for creating a CloudWatch Metrics data step.
- *
- * @param config - Step configuration
- * @returns A new CloudWatchMetricsStep instance
- */
-export function getCloudWatchMetrics(config: CloudWatchMetricsConfig): CloudWatchMetricsStep {
-  return new CloudWatchMetricsStep(config);
 }

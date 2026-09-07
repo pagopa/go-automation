@@ -2,9 +2,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { RunbookContext } from '../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../services/ServiceRegistry.js';
 import type { Condition } from '../../types/Condition.js';
 import { ConditionEvaluator } from '../ConditionEvaluator.js';
+import { createTestServiceRegistry } from '../../registry/createTestServiceRegistry.js';
 
 interface Row {
   readonly [key: string]: string;
@@ -21,7 +21,7 @@ function ctx(args: {
     vars: new Map(Object.entries(args.vars ?? {})),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }
@@ -287,5 +287,171 @@ describe('ConditionEvaluator (array-aware)', () => {
       };
       assert.strictEqual(evaluator.evaluate(condition, c), true);
     });
+  });
+});
+
+describe('ConditionEvaluator boolean vs trace mode', () => {
+  /** Counts how many array elements a predicate actually looked at. */
+  function countingRows(size: number, hitAt: number): ReadonlyArray<string> {
+    return Array.from({ length: size }, (_, i) => (i === hitAt ? 'BOOM' : `riga ${String(i)}`));
+  }
+
+  it('stops an `and` at the first false branch when no trace is requested', () => {
+    let secondBranchRan = false;
+    const context = ctx({
+      vars: { status: '500' },
+      stepResults: [
+        [
+          'q',
+          new Proxy([] as string[], {
+            get(target, prop, receiver): unknown {
+              if (prop === 'length') secondBranchRan = true;
+              return Reflect.get(target, prop, receiver) as unknown;
+            },
+          }),
+        ],
+      ],
+    });
+    const condition: Condition = {
+      type: 'and',
+      conditions: [
+        { type: 'compare', ref: 'vars.status', operator: '==', value: '999' },
+        { type: 'contains', ref: 'steps.q.output', regex: 'BOOM' },
+      ],
+    };
+
+    assert.strictEqual(new ConditionEvaluator().evaluate(condition, context), false);
+    assert.strictEqual(secondBranchRan, false, 'the second branch must not be evaluated');
+  });
+
+  it('still visits every branch when the trace is requested', () => {
+    const context = ctx({ vars: { a: '1', b: '2' } });
+    const condition: Condition = {
+      type: 'and',
+      conditions: [
+        { type: 'compare', ref: 'vars.a', operator: '==', value: '999' },
+        { type: 'compare', ref: 'vars.b', operator: '==', value: '2' },
+      ],
+    };
+
+    const detailed = new ConditionEvaluator().evaluate(condition, context, { withResolvedValues: true });
+
+    assert.strictEqual(detailed.matched, false);
+    // The branch that did not decide the outcome is still in the trace.
+    assert.deepStrictEqual(detailed.resolvedValues, { 'vars.a': '1', 'vars.b': '2' });
+  });
+
+  it('stops an `or` at the first true branch when no trace is requested', () => {
+    const context = ctx({ vars: { a: '1', b: '2' } });
+    const condition: Condition = {
+      type: 'or',
+      conditions: [
+        { type: 'compare', ref: 'vars.a', operator: '==', value: '1' },
+        { type: 'compare', ref: 'vars.b', operator: '==', value: '2' },
+      ],
+    };
+    const evaluator = new ConditionEvaluator();
+
+    assert.strictEqual(evaluator.evaluate(condition, context), true);
+    assert.deepStrictEqual(evaluator.evaluate(condition, context, { withResolvedValues: true }).resolvedValues, {
+      'vars.a': '1',
+      'vars.b': '2',
+    });
+  });
+
+  it('leaves a `contains` regex as soon as one element matches, when no trace is requested', () => {
+    const rows = countingRows(1000, 0);
+    const context = ctx({ stepResults: [['q', rows]] });
+    const condition: Condition = { type: 'contains', ref: 'steps.q.output', regex: 'BOOM' };
+    const evaluator = new ConditionEvaluator();
+
+    assert.strictEqual(evaluator.evaluate(condition, context), true);
+
+    // The trace mode still counts every hit, which is why it cannot leave early.
+    const detailed = evaluator.evaluate(condition, context, { withResolvedValues: true });
+    assert.deepStrictEqual(detailed.resolvedValues['steps.q.output'], {
+      matched: true,
+      matchedCount: 1,
+      matchedElements: [{ index: 0, element: 'BOOM' }],
+      totalElements: 1000,
+      truncated: false,
+    });
+  });
+});
+
+describe('ConditionEvaluator resolved values for repeated refs', () => {
+  it('keeps every occurrence when a ref is referenced more than once', () => {
+    const context = ctx({ vars: { msg: 'Read timed out' } });
+    const condition: Condition = {
+      type: 'and',
+      conditions: [
+        { type: 'pattern', ref: 'vars.msg', regex: 'Read' },
+        { type: 'pattern', ref: 'vars.msg', regex: 'timed out' },
+        { type: 'pattern', ref: 'vars.msg', regex: 'nope' },
+      ],
+    };
+
+    const { resolvedValues } = new ConditionEvaluator().evaluate(condition, context, { withResolvedValues: true });
+
+    assert.deepStrictEqual(resolvedValues, {
+      'vars.msg': 'Read timed out',
+      'vars.msg#2': 'Read timed out',
+      'vars.msg#3': 'Read timed out',
+    });
+  });
+
+  it('keeps the distinct match details of several predicates on the same array', () => {
+    const rows = ['ERROR alpha', 'WARN beta', 'INFO gamma'];
+    const context = ctx({ stepResults: [['q', rows]] });
+    const condition: Condition = {
+      type: 'and',
+      conditions: [
+        { type: 'contains', ref: 'steps.q.output', regex: 'alpha' },
+        { type: 'contains', ref: 'steps.q.output', regex: 'beta' },
+      ],
+    };
+
+    const { resolvedValues } = new ConditionEvaluator().evaluate(condition, context, { withResolvedValues: true });
+
+    // Before the fix the second predicate overwrote the first and the trace
+    // could not show which rows satisfied which pattern.
+    assert.deepStrictEqual(resolvedValues['steps.q.output'], {
+      matched: true,
+      matchedCount: 1,
+      matchedElements: [{ index: 0, element: 'ERROR alpha' }],
+      totalElements: 3,
+      truncated: false,
+    });
+    assert.deepStrictEqual(resolvedValues['steps.q.output#2'], {
+      matched: true,
+      matchedCount: 1,
+      matchedElements: [{ index: 1, element: 'WARN beta' }],
+      totalElements: 3,
+      truncated: false,
+    });
+  });
+
+  it('leaves a ref used once untouched', () => {
+    const context = ctx({ vars: { only: 'x' } });
+    const condition: Condition = { type: 'exists', ref: 'vars.only' };
+
+    const { resolvedValues } = new ConditionEvaluator().evaluate(condition, context, { withResolvedValues: true });
+
+    assert.deepStrictEqual(resolvedValues, { 'vars.only': 'x' });
+  });
+
+  it('does not confuse a ref with an inherited object property', () => {
+    const context = ctx({ vars: { constructor: 'a', toString: 'b' } });
+    const condition: Condition = {
+      type: 'and',
+      conditions: [
+        { type: 'exists', ref: 'vars.constructor' },
+        { type: 'exists', ref: 'vars.toString' },
+      ],
+    };
+
+    const { resolvedValues } = new ConditionEvaluator().evaluate(condition, context, { withResolvedValues: true });
+
+    assert.deepStrictEqual(resolvedValues, { 'vars.constructor': 'a', 'vars.toString': 'b' });
   });
 });

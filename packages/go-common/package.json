@@ -56,8 +56,7 @@
     "@aws-sdk/client-sqs": "catalog:",
     "@aws-sdk/client-ssm": "catalog:",
     "@aws-sdk/client-sts": "catalog:",
-    "@aws-sdk/credential-provider-ini": "catalog:",
-    "@slack/web-api": "catalog:"
+    "@aws-sdk/credential-provider-ini": "catalog:"
   },
   "dependencies": {
     "@aws-sdk/client-athena": "catalog:",
@@ -74,9 +73,7 @@
     "@aws-sdk/util-dynamodb": "catalog:",
     "@inquirer/prompts": "catalog:",
     "@slack/web-api": "catalog:",
-    "adm-zip": "catalog:",
     "better-sqlite3": "catalog:",
-    "cheerio": "catalog:",
     "csv-parse": "catalog:",
     "csv-stringify": "catalog:",
     "luxon": "catalog:",
@@ -86,6 +83,7 @@
     "string-width": "catalog:",
     "undici": "catalog:",
     "unpdf": "catalog:",
+    "unzipper-esm": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {

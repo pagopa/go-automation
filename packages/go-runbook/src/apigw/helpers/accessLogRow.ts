@@ -1,7 +1,7 @@
+import { readRowField } from '@go-automation/go-common/aws';
 import type { ResultField } from '@go-automation/go-common/aws';
 
 import type { AccessLogSchema } from '../profiles/schemas/AccessLogSchema.js';
-import { extractCwField } from './extractCwField.js';
 
 /**
  * Helpers shared by the API Gateway AccessLog consumers
@@ -24,7 +24,7 @@ export function rowMeetsThreshold(
   schema: AccessLogSchema,
 ): boolean {
   for (const field of schema.statusFields) {
-    const raw = extractCwField(row, field);
+    const raw = readRowField(row, field);
     if (raw === undefined) continue;
     if (schema.notApplicableSentinels.includes(raw)) continue;
     const num = Number(raw);
@@ -43,7 +43,7 @@ export function rowMeetsThreshold(
  */
 export function pickPrimaryStatusCode(row: ReadonlyArray<ResultField>, schema: AccessLogSchema): string {
   for (const field of schema.statusFields) {
-    const raw = extractCwField(row, field);
+    const raw = readRowField(row, field);
     if (raw === undefined) continue;
     if (schema.notApplicableSentinels.includes(raw)) continue;
     if (!Number.isNaN(Number(raw))) {
@@ -62,7 +62,7 @@ export function pickPrimaryStatusCode(row: ReadonlyArray<ResultField>, schema: A
 export function pickHighestStatusCode(row: ReadonlyArray<ResultField>, schema: AccessLogSchema): number | undefined {
   let highest: number | undefined;
   for (const field of schema.statusFields) {
-    const raw = extractCwField(row, field);
+    const raw = readRowField(row, field);
     if (raw === undefined) continue;
     if (schema.notApplicableSentinels.includes(raw)) continue;
     const num = Number(raw);
@@ -101,7 +101,7 @@ export function buildApiGwVars(
     apiGwStatusCode: pickPrimaryStatusCode(row, schema),
   };
   for (const [field, contextVar] of schema.fieldToVar) {
-    const raw = extractCwField(row, field);
+    const raw = readRowField(row, field);
     if (raw !== undefined) {
       vars[contextVar] = raw;
     }

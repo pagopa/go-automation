@@ -5,6 +5,7 @@ import { buildExecuteRunbookDeps } from './libs/buildExecuteRunbookDeps.js';
 import { confirmApplyGuard } from './libs/confirmApplyGuard.js';
 import { executeRunbook, executeRunbookDryRun } from './libs/executeRunbook.js';
 import { installProcessSignalForwarding } from './libs/installProcessSignalForwarding.js';
+import { logDryRunAnalysis } from './libs/logDryRunAnalysis.js';
 import { resolveApplyMode } from './libs/resolveApplyMode.js';
 import { resolveDryRunTimeoutMs } from './libs/resolveDryRunTimeoutMs.js';
 import { resolveExecuteRunbookInput } from './libs/resolveExecuteRunbookInput.js';
@@ -69,6 +70,7 @@ export async function main(script: Core.GOScript): Promise<void> {
       script.logger.info(
         `[dry-run] Execution ${result.executionId}: ${result.outcome} (${result.check.status}) runbook=${result.runbookKey}@${result.runbookVersion}`,
       );
+      logDryRunAnalysis(script, result.analysis);
     } finally {
       removeSignalHandlers();
     }

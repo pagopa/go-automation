@@ -1375,6 +1375,7 @@ export interface paths {
             parameters: {
                 query?: {
                     alarmId?: string;
+                    analysisApplyStatus?: "PENDING" | "APPLIED" | "BLOCKED" | "NOT_REQUESTED" | "PRESERVED_HUMAN" | "NOT_APPLICABLE";
                     environmentId?: string;
                     limit?: number;
                     outcome?: "KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "CAPABILITY_WITHDRAWN" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR";
@@ -1400,6 +1401,7 @@ export interface paths {
                             data: {
                                 alarmEventId: string;
                                 alarmId: string | null;
+                                analysisApplyStatus: "PENDING" | "APPLIED" | "BLOCKED" | "NOT_REQUESTED" | "PRESERVED_HUMAN" | "NOT_APPLICABLE";
                                 analysisId: string | null;
                                 appliedMode: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
                                 bytesScanned: string | null;
@@ -1466,7 +1468,7 @@ export interface paths {
                     "application/json": {
                         /** Format: uuid */
                         alarmEventId: string;
-                        mode?: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
+                        mode?: "SHADOW" | "APPLY_KNOWN";
                     };
                 };
             };
@@ -1480,6 +1482,7 @@ export interface paths {
                         "application/json": {
                             alarmEventId: string;
                             alarmId: string | null;
+                            analysisApplyStatus: "PENDING" | "APPLIED" | "BLOCKED" | "NOT_REQUESTED" | "PRESERVED_HUMAN" | "NOT_APPLICABLE";
                             analysisId: string | null;
                             appliedMode: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
                             bytesScanned: string | null;
@@ -1584,6 +1587,9 @@ export interface paths {
                         "application/json": {
                             alarmEventId: string;
                             alarmId: string | null;
+                            analysisApplyDiagnostics: unknown;
+                            analysisApplyStatus: "PENDING" | "APPLIED" | "BLOCKED" | "NOT_REQUESTED" | "PRESERVED_HUMAN" | "NOT_APPLICABLE";
+                            analysisDraft: unknown;
                             analysisId: string | null;
                             analysisPayload: unknown;
                             appliedMode: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
@@ -1642,6 +1648,9 @@ export interface paths {
                             requestedRunbookKey: string;
                             requestedRunbookVersion: string;
                             resultSummary: unknown;
+                            reviewedAt: string | null;
+                            reviewedByLabel: string | null;
+                            reviewNote: string | null;
                             reviewStatus: "NOT_REQUIRED" | "PENDING" | "CONFIRMED" | "REJECTED";
                             runbookKey: string | null;
                             runbookVersion: string | null;
@@ -1968,6 +1977,7 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
+                        analysisDraft?: unknown;
                         analysisPayload?: unknown;
                         /** Format: uuid */
                         attemptId: string;
@@ -2005,6 +2015,8 @@ export interface paths {
                     content: {
                         "application/json": {
                             alreadyTerminal?: boolean;
+                            analysisApplyBlockCode?: "ALARM_UNLINKED" | "DRAFT_TOO_LARGE" | "MISSING_DRAFT" | "INVALID_DRAFT" | "TEMPORAL_INCOHERENCE" | "UNRESOLVED_REFERENCES" | "RESOURCE_TYPE_MISMATCH" | "INVALID_IGNORE_DETAILS" | "VALIDATION_ERRORS";
+                            analysisApplyStatus?: "PENDING" | "APPLIED" | "BLOCKED" | "NOT_REQUESTED" | "PRESERVED_HUMAN" | "NOT_APPLICABLE";
                             analysisId?: string | null;
                             appliedMode?: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
                             outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "CAPABILITY_WITHDRAWN" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
@@ -2080,8 +2092,8 @@ export interface paths {
                 content: {
                     "application/json": {
                         approximateReceiveCount: number;
-                        errorCategory: "COMMAND" | "CAPABILITY" | "WORKER_CONFIGURATION" | "INTERNAL_INVARIANT";
-                        errorCode: "INVALID_COMMAND" | "UNSUPPORTED_COMMAND_VERSION" | "RUNBOOK_CAPABILITY_MISMATCH" | "WORKER_CONFIGURATION_ERROR" | "INTERNAL_INVARIANT";
+                        errorCategory: "COMMAND" | "CAPABILITY" | "WORKER_CONFIGURATION" | "INTERNAL_INVARIANT" | "CALLBACK";
+                        errorCode: "INVALID_COMMAND" | "UNSUPPORTED_COMMAND_VERSION" | "RUNBOOK_CAPABILITY_MISMATCH" | "WORKER_CONFIGURATION_ERROR" | "INTERNAL_INVARIANT" | "WORKER_CALLBACK_REJECTED";
                         errorMessage: string;
                         failedPhase: string;
                         /** @enum {boolean} */
@@ -2092,8 +2104,8 @@ export interface paths {
                     } | {
                         /** Format: uuid */
                         attemptId: string;
-                        errorCategory: "COMMAND" | "CAPABILITY" | "WORKER_CONFIGURATION" | "INTERNAL_INVARIANT";
-                        errorCode: "INVALID_COMMAND" | "UNSUPPORTED_COMMAND_VERSION" | "RUNBOOK_CAPABILITY_MISMATCH" | "WORKER_CONFIGURATION_ERROR" | "INTERNAL_INVARIANT";
+                        errorCategory: "COMMAND" | "CAPABILITY" | "WORKER_CONFIGURATION" | "INTERNAL_INVARIANT" | "CALLBACK";
+                        errorCode: "INVALID_COMMAND" | "UNSUPPORTED_COMMAND_VERSION" | "RUNBOOK_CAPABILITY_MISMATCH" | "WORKER_CONFIGURATION_ERROR" | "INTERNAL_INVARIANT" | "WORKER_CALLBACK_REJECTED";
                         errorMessage: string;
                         failedPhase: string;
                         /** @enum {boolean} */
@@ -2282,6 +2294,7 @@ export interface paths {
                         "application/json": {
                             alarmEventId: string;
                             alarmId: string | null;
+                            analysisApplyStatus: "PENDING" | "APPLIED" | "BLOCKED" | "NOT_REQUESTED" | "PRESERVED_HUMAN" | "NOT_APPLICABLE";
                             analysisId: string | null;
                             appliedMode: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
                             bytesScanned: string | null;
@@ -2381,8 +2394,13 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
-                        decision: "CONFIRMED" | "REJECTED";
+                        /** @enum {string} */
+                        decision: "CONFIRMED";
                         note?: string;
+                    } | {
+                        /** @enum {string} */
+                        decision: "REJECTED";
+                        note: string;
                     };
                 };
             };
@@ -2394,40 +2412,44 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            alarmEventId: string;
-                            alarmId: string | null;
-                            analysisId: string | null;
-                            appliedMode: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
-                            bytesScanned: string | null;
-                            cancellationFinalizedBy: string | null;
-                            cancelledAt: string | null;
-                            cancelReason: string | null;
-                            cancelRequestedAt: string | null;
-                            completedAt: string | null;
-                            createdAt: string;
-                            deadlineAt: string;
-                            deliveryCycle: number;
-                            dispatchKind: "SQS" | "CLI";
-                            durationMs: number | null;
-                            environmentId: string;
-                            errorCode: string | null;
-                            errorMessage: string | null;
-                            id: string;
-                            outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "CAPABILITY_WITHDRAWN" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
-                            parentExecutionId: string | null;
-                            productId: string;
-                            queryCount: number | null;
-                            queuedAt: string | null;
-                            recordsMatched: string | null;
-                            recordsScanned: string | null;
-                            reviewStatus: "NOT_REQUIRED" | "PENDING" | "CONFIRMED" | "REJECTED";
-                            runbookKey: string | null;
-                            runbookVersion: string | null;
-                            startedAt: string | null;
-                            status: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
-                            totalWorkerAttempts: number;
-                            triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY" | "WATCHTOWER_CLI";
-                            updatedAt: string;
+                            alreadyReviewed: boolean;
+                            execution: {
+                                alarmEventId: string;
+                                alarmId: string | null;
+                                analysisApplyStatus: "PENDING" | "APPLIED" | "BLOCKED" | "NOT_REQUESTED" | "PRESERVED_HUMAN" | "NOT_APPLICABLE";
+                                analysisId: string | null;
+                                appliedMode: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
+                                bytesScanned: string | null;
+                                cancellationFinalizedBy: string | null;
+                                cancelledAt: string | null;
+                                cancelReason: string | null;
+                                cancelRequestedAt: string | null;
+                                completedAt: string | null;
+                                createdAt: string;
+                                deadlineAt: string;
+                                deliveryCycle: number;
+                                dispatchKind: "SQS" | "CLI";
+                                durationMs: number | null;
+                                environmentId: string;
+                                errorCode: string | null;
+                                errorMessage: string | null;
+                                id: string;
+                                outcome: ("KNOWN_CASE" | "UNKNOWN_CASE" | "NO_DATA" | "CAPABILITY_WITHDRAWN" | "CONFIGURATION_ERROR" | "EXECUTION_ERROR") | null;
+                                parentExecutionId: string | null;
+                                productId: string;
+                                queryCount: number | null;
+                                queuedAt: string | null;
+                                recordsMatched: string | null;
+                                recordsScanned: string | null;
+                                reviewStatus: "NOT_REQUIRED" | "PENDING" | "CONFIRMED" | "REJECTED";
+                                runbookKey: string | null;
+                                runbookVersion: string | null;
+                                startedAt: string | null;
+                                status: "PENDING_DISPATCH" | "QUEUED" | "RUNNING" | "RETRY_PENDING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "CANCELLED";
+                                totalWorkerAttempts: number;
+                                triggerKind: "SLACK_INGESTOR" | "WATCHTOWER_UI" | "WATCHTOWER_API" | "RETRY" | "WATCHTOWER_CLI";
+                                updatedAt: string;
+                            };
                         };
                     };
                 };
@@ -2450,6 +2472,18 @@ export interface paths {
                     content: {
                         "application/json": {
                             error: string;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            conflict: "REVIEW_NOT_APPLICABLE" | "REVIEW_NOT_TERMINAL" | "REVIEW_ALREADY_DECIDED" | "REVIEW_SUPERSEDED" | "REVIEW_TARGET_CHANGED" | "REVIEW_INVARIANT_VIOLATION";
+                            reviewStatus?: "NOT_REQUIRED" | "PENDING" | "CONFIRMED" | "REJECTED";
                         };
                     };
                 };
@@ -2582,7 +2616,7 @@ export interface paths {
                     "application/json": {
                         /** Format: uuid */
                         alarmEventId: string;
-                        mode?: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
+                        mode?: "SHADOW" | "APPLY_KNOWN";
                     };
                 };
             };
@@ -2599,6 +2633,7 @@ export interface paths {
                             execution?: {
                                 alarmEventId: string;
                                 alarmId: string | null;
+                                analysisApplyStatus: "PENDING" | "APPLIED" | "BLOCKED" | "NOT_REQUESTED" | "PRESERVED_HUMAN" | "NOT_APPLICABLE";
                                 analysisId: string | null;
                                 appliedMode: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
                                 bytesScanned: string | null;
@@ -2698,7 +2733,7 @@ export interface paths {
                     "application/json": {
                         /** Format: uuid */
                         alarmEventId: string;
-                        mode?: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
+                        mode?: "SHADOW" | "APPLY_KNOWN";
                     };
                 };
             };
@@ -2715,6 +2750,7 @@ export interface paths {
                             execution?: {
                                 alarmEventId: string;
                                 alarmId: string | null;
+                                analysisApplyStatus: "PENDING" | "APPLIED" | "BLOCKED" | "NOT_REQUESTED" | "PRESERVED_HUMAN" | "NOT_APPLICABLE";
                                 analysisId: string | null;
                                 appliedMode: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
                                 bytesScanned: string | null;
@@ -2792,6 +2828,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/automatic-runbook-executions/shadow-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Shadow readiness per capability and product */
+        get: {
+            parameters: {
+                query?: {
+                    days?: number;
+                    productId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            capabilities: {
+                                blockedByCode: {
+                                    [key: string]: number;
+                                };
+                                contextInvalid: number;
+                                contextValid: number;
+                                evaluated: number;
+                                productId: string;
+                                productName: string;
+                                ready: boolean;
+                                runbookKey: string | null;
+                                unresolvedReferences: string[];
+                                wouldApply: number;
+                                wouldBlock: number;
+                            }[];
+                            readyCapabilities: number;
+                            /** Format: date-time */
+                            since: string;
+                            totalCapabilities: number;
+                            windowDays: number;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/automatic-runbook-executions/stats": {
         parameters: {
             query?: never;
@@ -2816,6 +2923,13 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
+                            blockedByCode: {
+                                [key: string]: number;
+                            };
+                            blockedRemediation: number;
+                            byApplyStatus: {
+                                [key: string]: number;
+                            };
                             byOutcome: {
                                 [key: string]: number;
                             };
@@ -2825,7 +2939,10 @@ export interface paths {
                             defaultMode: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL";
                             inDlq: number;
                             modeOverride: "SHADOW" | "APPLY_KNOWN" | "APPLY_ALL" | null;
+                            oldestPendingReviewHours: number | null;
                             pendingReview: number;
+                            reviewConfirmed: number;
+                            reviewRejected: number;
                         };
                     };
                 };
@@ -6652,7 +6769,7 @@ export interface paths {
                         order?: number;
                         slackChannelId?: string | null;
                         slackIngestorEnabled?: boolean;
-                        slackParserId?: "amazon-q" | "opsgenie" | "email-sns" | "jsm" | null;
+                        slackParserId?: ("amazon-q" | "opsgenie" | "email-sns" | "jsm") | null;
                     };
                 };
             };

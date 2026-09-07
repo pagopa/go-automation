@@ -3,40 +3,40 @@
  */
 
 import type { TimeRangeReference } from './TimeRangeReference.js';
+import type { OccurrenceTimeWindow } from '../types/OccurrenceTimeWindow.js';
 
 /**
  * Computes the analysis window for an alarm.
  *
- * - For a `single` reference the window is symmetric around `at`:
- *   `[at - windowMinutes, at + windowMinutes]`.
+ * - For a `single` reference the window is padded independently around `at`:
+ *   `[at - beforeMinutes, at + afterMinutes]`.
  * - For a `multi` reference the window stretches from the first to the
- *   last occurrence, padded by `windowMinutes` on each side:
- *   `[first - windowMinutes, last + windowMinutes]`.
+ *   last occurrence, with independent padding on each side:
+ *   `[first - beforeMinutes, last + afterMinutes]`.
  *
  * @param reference - Reference point(s) for the window
- * @param timeWindowMinutes - Padding window in minutes (must be a finite, non-negative number)
+ * @param timeWindow - Independent padding, or a number for the legacy symmetric form
  * @returns Start and end timestamps as ISO 8601 strings
- * @throws Error when `timeWindowMinutes` is not a finite non-negative
- *         number, when any of the input timestamps cannot be parsed, or
- *         when a `multi` range is inverted (`last` strictly before
- *         `first`). A degenerate range where `first === last` is
- *         accepted and produces the symmetric
- *         `[first - window, first + window]` span.
+ * @throws Error when `timeWindow` is invalid: a legacy numeric value or
+ *         either `beforeMinutes`/`afterMinutes` must be finite and
+ *         non-negative; when an input timestamp cannot be parsed; or when
+ *         a `multi` range is inverted (`last` strictly before `first`).
+ *         A degenerate range where `first === last` is accepted and produces
+ *         `[first - beforeMinutes, first + afterMinutes]`.
  */
 export function computeTimeRange(
   reference: TimeRangeReference,
-  timeWindowMinutes: number,
+  timeWindow: number | OccurrenceTimeWindow,
 ): { startTime: string; endTime: string } {
-  if (!Number.isFinite(timeWindowMinutes) || timeWindowMinutes < 0) {
-    throw new Error(`Invalid timeWindowMinutes: ${String(timeWindowMinutes)}. Expected a finite, non-negative number.`);
-  }
-  const offsetMs = timeWindowMinutes * 60 * 1000;
+  const { beforeMinutes, afterMinutes } = normalizeTimeWindow(timeWindow);
+  const beforeOffsetMs = beforeMinutes * 60 * 1000;
+  const afterOffsetMs = afterMinutes * 60 * 1000;
 
   if (reference.kind === 'single') {
     const at = parseIso(reference.at, 'alarmDatetime');
     return {
-      startTime: new Date(at.getTime() - offsetMs).toISOString(),
-      endTime: new Date(at.getTime() + offsetMs).toISOString(),
+      startTime: new Date(at.getTime() - beforeOffsetMs).toISOString(),
+      endTime: new Date(at.getTime() + afterOffsetMs).toISOString(),
     };
   }
 
@@ -48,9 +48,26 @@ export function computeTimeRange(
   }
 
   return {
-    startTime: new Date(first.getTime() - offsetMs).toISOString(),
-    endTime: new Date(last.getTime() + offsetMs).toISOString(),
+    startTime: new Date(first.getTime() - beforeOffsetMs).toISOString(),
+    endTime: new Date(last.getTime() + afterOffsetMs).toISOString(),
   };
+}
+
+function normalizeTimeWindow(timeWindow: number | OccurrenceTimeWindow): OccurrenceTimeWindow {
+  if (typeof timeWindow === 'number') {
+    assertValidMinutes(timeWindow, 'timeWindowMinutes');
+    return { beforeMinutes: timeWindow, afterMinutes: timeWindow };
+  }
+
+  assertValidMinutes(timeWindow.beforeMinutes, 'timeWindow.beforeMinutes');
+  assertValidMinutes(timeWindow.afterMinutes, 'timeWindow.afterMinutes');
+  return timeWindow;
+}
+
+function assertValidMinutes(value: number, label: string): void {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(`Invalid ${label}: ${String(value)}. Expected a finite, non-negative number.`);
+  }
 }
 
 function parseIso(value: string, label: string): Date {

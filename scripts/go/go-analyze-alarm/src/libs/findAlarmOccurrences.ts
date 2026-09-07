@@ -1,6 +1,6 @@
 import { Core } from '@go-automation/go-common';
 
-import type { GoAnalyzeAlarmConfig } from '../types/GoAnalyzeAlarmConfig.js';
+import type { AnalyzableAlarmConfig } from '../types/AnalyzableAlarmConfig.js';
 
 export interface FindAlarmOccurrencesConfig {
   readonly alarmName: string;
@@ -32,7 +32,7 @@ export async function findAlarmOccurrences(
  *
  * @param config - Script configuration to validate
  */
-export function assertRangeModeConfig(config: GoAnalyzeAlarmConfig): asserts config is GoAnalyzeAlarmConfig & {
+export function assertRangeModeConfig(config: AnalyzableAlarmConfig): asserts config is AnalyzableAlarmConfig & {
   readonly analysisMode: 'range';
   readonly alarmDatetimeEnd: string;
 } {

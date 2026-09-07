@@ -29,7 +29,7 @@ export interface LogStepConfig {
  *
  * @example
  * ```typescript
- * const step = log({
+ * const step = new LogStep({
  *   id: 'log-result',
  *   label: 'Log analysis result',
  *   level: 'info',
@@ -68,14 +68,4 @@ export class LogStep implements Step<void> {
       next: 'continue',
     };
   }
-}
-
-/**
- * Factory function for creating a log control step.
- *
- * @param config - Step configuration
- * @returns A new LogStep instance
- */
-export function log(config: LogStepConfig): LogStep {
-  return new LogStep(config);
 }

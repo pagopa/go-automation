@@ -1,6 +1,6 @@
 import type { Core } from '@go-automation/go-common';
 
-import type { AnalysisMatchSource, RtaCheckReport, RtaCheckRow, V1Status } from '../types/RtaCheckReport.js';
+import type { AnalysisMatchSource, RtaCheckReport, RtaCheckRow, V1Status } from '@go-automation/go-watchtower-runbook';
 
 /** Preview shown after fetching occurrences, before running anything. */
 export interface RunPreview {
@@ -67,6 +67,14 @@ function matcherLabel(row: RtaCheckRow): string {
 /** Formats the live-table V2 verification cell, including matcher visibility. */
 export function formatVerificationCell(row: RtaCheckRow): string {
   const comparison = row.comparison;
+
+  // No comparison ran for an ignored analysis: show why it was ignored instead
+  // of the matcher, which would suggest a verification that never happened.
+  if (comparison.status === 'IGNORED') {
+    const reason = comparison.ignoreReasonCode ?? comparison.ignoreReasonLabel;
+    return reason === undefined || reason === '' ? comparison.status : `${comparison.status} (${reason})`;
+  }
+
   const base =
     comparison.confidence > 0 ? `${comparison.status} (${comparison.confidence.toFixed(2)})` : comparison.status;
   const matcher = matcherLabel(row);

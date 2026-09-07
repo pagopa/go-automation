@@ -64,9 +64,11 @@ export class AnalyzeInteropK8sCidTrackerStep implements Step<InteropK8sCidTracke
       messages,
     };
 
-    context.logger?.text(`      ├─ CID tracker analizzati: ${analysis.cidCount}`);
-    context.logger?.text(`      ├─ Log correlati: ${analysis.logCount}`);
-    context.logger?.text(`      └─ Pod app correlati: ${analysis.podApps.join(', ') || '-'}`);
+    context.services.reporter.add(
+      { label: `CID tracker analizzati: ${analysis.cidCount}` },
+      { label: `Log correlati: ${analysis.logCount}` },
+      { label: `Pod app correlati: ${analysis.podApps.join(', ') || '-'}` },
+    );
 
     return {
       success: true,

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { InteropK8sAlarmContext, ResolveInteropK8sAlarmContextFn } from '../types/InteropK8sAlarmContext.js';
 import { ResolveInteropK8sAlarmContextStep } from '../steps/ResolveInteropK8sAlarmContextStep.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 const ALARM_CONTEXT: InteropK8sAlarmContext = {
   alarmName: 'k8s-interop-be-backend-for-frontend-errors-att',
@@ -22,7 +22,7 @@ function context(params: ReadonlyArray<readonly [string, string]>): RunbookConte
     vars: new Map(),
     params: new Map(params),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }
@@ -76,5 +76,16 @@ describe('ResolveInteropK8sAlarmContextStep', () => {
 
     const withoutParam = step(() => ALARM_CONTEXT).getTraceInfo(context([]));
     assert.strictEqual(withoutParam['alarmName'], null);
+  });
+
+  it('returns a failed step result when the resolver throws', async () => {
+    const result = await step(() => {
+      throw new RangeError('unsupported fixture alarm');
+    }).execute(context([['alarmName', 'fixture-unsupported']]));
+
+    assert.deepStrictEqual(result, {
+      success: false,
+      error: 'INTEROP k8s alarm context resolution failed (interop-k8s-alarm-context): unsupported fixture alarm',
+    });
   });
 });

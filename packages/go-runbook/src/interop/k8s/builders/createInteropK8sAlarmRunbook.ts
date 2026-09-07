@@ -1,4 +1,5 @@
 import { RunbookBuilder } from '../../../builders/RunbookBuilder.js';
+import { finishAlarmRunbook } from '../../../builders/finishAlarmRunbook.js';
 import type { Runbook } from '../../../types/Runbook.js';
 import type { InteropK8sAlarmConfig } from '../types/InteropK8sAlarmConfig.js';
 import type { InteropK8sRunbookStepIds } from '../types/InteropK8sRunbookStepIds.js';
@@ -24,16 +25,11 @@ export function createInteropK8sAlarmRunbook(config: InteropK8sAlarmConfig): Run
 
   const builder = RunbookBuilder.create(config.id)
     .metadata(config.metadata)
-    .cloudExecutionPolicy({ sideEffects: 'NONE' })
-    .runbookContext({
-      kind: 'service',
-      service: {
-        name: service.name,
-        logGroup: service.logGroup,
-        varPrefix: service.varPrefix,
-      },
-      queryProfileId: profile.id,
-    });
+    .cloudExecutionPolicy({ sideEffects: 'NONE' });
+
+  if (config.occurrenceTimeWindow !== undefined) {
+    builder.occurrenceTimeWindow(config.occurrenceTimeWindow);
+  }
 
   builder.step(
     new ResolveInteropK8sAlarmContextStep({
@@ -81,17 +77,16 @@ export function createInteropK8sAlarmRunbook(config: InteropK8sAlarmConfig): Run
     }),
   );
 
-  for (const knownCase of config.knownCases) {
-    builder.knownCase(knownCase);
-  }
-
-  builder.fallback(config.fallbackAction ?? defaultInteropK8sUnknownCaseFallback(service));
-
-  if (config.maxIterations !== undefined) {
-    builder.maxIterations(config.maxIterations);
-  }
-
-  return builder.build();
+  return finishAlarmRunbook(builder, config, {
+    builderName: 'createInteropK8sAlarmRunbook',
+    defaultFallback: () => defaultInteropK8sUnknownCaseFallback(service),
+    runbookContext: {
+      kind: 'service',
+      service: { name: service.name, logGroup: service.logGroup, varPrefix: service.varPrefix },
+      queryProfileId: profile.id,
+    },
+    primaryResource: service.name,
+  });
 }
 
 export function defaultInteropK8sRunbookStepIds(serviceName: string): InteropK8sRunbookStepIds {

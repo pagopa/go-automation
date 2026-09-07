@@ -8,11 +8,11 @@ import type { KnownCase } from '../types/KnownCase.js';
 import type { ErrorRecoveryInfo } from '../types/ErrorRecoveryInfo.js';
 import type { FlowDirective, FlowDirectiveString } from '../types/FlowDirective.js';
 import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js';
-import type { ServiceRegistry } from '../services/ServiceRegistry.js';
+import type { ServiceRegistry } from '../registry/ServiceRegistry.js';
 import type { ExecutionEnvironment } from '../trace/ExecutionInfo.js';
 import type { EarlyResolutionTrace } from '../trace/EarlyResolutionTrace.js';
 import type { CaseEvaluationTrace } from '../trace/CaseEvaluationTrace.js';
-import { ConditionEvaluator } from './ConditionEvaluator.js';
+import { sharedConditionEvaluator } from './ConditionEvaluator.js';
 import { buildStepIndex } from './buildStepIndex.js';
 import { detectRuntimeCycle } from './detectRuntimeCycle.js';
 import { ActionExecutor } from '../actions/ActionExecutor.js';
@@ -40,7 +40,6 @@ type StepTraceStatus = 'success' | 'failed' | 'skipped';
 
 interface StepExecutionOutcome {
   readonly context: RunbookContext;
-  readonly traceBuilder: TraceBuilder;
   readonly result: StepResult<unknown>;
 }
 
@@ -58,17 +57,14 @@ interface StepExecutionOutcome {
  *
  * @example
  * ```typescript
- * const engine = new RunbookEngine(logger, new ConditionEvaluator());
+ * const engine = new RunbookEngine(logger);
  * const result = await engine.execute(runbook, params, services);
  * ```
  */
 export class RunbookEngine {
   private readonly actionExecutor: ActionExecutor;
 
-  constructor(
-    private readonly logger: GOLogger,
-    private readonly conditionEvaluator: ConditionEvaluator,
-  ) {
+  constructor(private readonly logger: GOLogger) {
     this.actionExecutor = new ActionExecutor(logger);
   }
 
@@ -97,13 +93,13 @@ export class RunbookEngine {
     environment?: ExecutionEnvironment,
     signal?: AbortSignal,
   ): Promise<RunbookExecutionResult> {
-    const context: RunbookContext = createInitialContext(params, services, signal, this.logger);
+    const context: RunbookContext = createInitialContext(params, services, signal);
     const maxIterations = runbook.maxIterations ?? DEFAULT_MAX_ITERATIONS;
     const env = environment ?? DEFAULT_ENVIRONMENT;
 
     this.logger.info(`Starting runbook: ${runbook.metadata.name} (${runbook.metadata.id})`);
 
-    let traceBuilder = new TraceBuilder(context.executionId, runbook, params);
+    const traceBuilder = new TraceBuilder(context.executionId, runbook, params);
     let finalContext: RunbookContext;
     let status: RunbookExecutionStatus = 'completed';
     let failureReason: string | undefined;
@@ -121,7 +117,6 @@ export class RunbookEngine {
         runbook.knownCases,
       );
       finalContext = stepsResult.context;
-      traceBuilder = stepsResult.traceBuilder;
       if (stepsResult.aborted) {
         status = 'aborted';
         failureReason = 'Execution aborted by signal';
@@ -146,6 +141,21 @@ export class RunbookEngine {
         this.logger.error(`Runbook execution failed: ${failureReason}`);
       }
       finalContext = context;
+    } finally {
+      // The reporter holds the last node back until it knows whether a sibling
+      // follows; nothing else will report, so close the level here. Runs on the
+      // rethrown max-iterations path too.
+      //
+      // Best effort on purpose: a logger handler can throw (a broken pipe when
+      // the output is piped into `head`, a full disk on the file handler) and
+      // `GOLogger` does not contain handler errors. Letting that escape a
+      // `finally` would replace the runbook's real outcome with a logging
+      // failure.
+      try {
+        services.reporter.flush();
+      } catch {
+        // The narrative is already truncated; the execution result is what matters.
+      }
     }
 
     // Collect every matched known case. Early resolution wins when it
@@ -164,7 +174,6 @@ export class RunbookEngine {
     } else {
       const caseResult = this.matchKnownCases(runbook.knownCases, finalContext, traceBuilder);
       matchedCases = caseResult.matchedCases;
-      traceBuilder = caseResult.traceBuilder;
     }
 
     // Execute only the primary matched action. `matchedCases` still keeps
@@ -174,7 +183,7 @@ export class RunbookEngine {
       throwIfRunbookAborted(finalContext);
       const primaryAction = matchedCases[0]?.action ?? runbook.fallbackAction;
       const actionResult = await this.actionExecutor.execute(primaryAction, finalContext);
-      traceBuilder = traceBuilder.traceAction(
+      traceBuilder.traceAction(
         actionResult.action,
         actionResult.actionType,
         actionResult.status,
@@ -217,17 +226,15 @@ export class RunbookEngine {
     initialContext: RunbookContext,
     maxIterations: number,
     runbookId: string,
-    initialTraceBuilder: TraceBuilder,
+    traceBuilder: TraceBuilder,
     knownCases: ReadonlyArray<KnownCase>,
   ): Promise<{
     context: RunbookContext;
-    traceBuilder: TraceBuilder;
     earlyResolution?: { matchedCases: ReadonlyArray<KnownCase>; resolvedAtStepId: string };
     aborted: boolean;
     failureReason?: string;
   }> {
     let context = initialContext;
-    let traceBuilder = initialTraceBuilder;
 
     const stepIndex = buildStepIndex(stepDescriptors);
 
@@ -267,7 +274,6 @@ export class RunbookEngine {
 
       const execution = await this.executeStepDescriptor(descriptor, context, reachedVia, traceBuilder);
       context = execution.context;
-      traceBuilder = execution.traceBuilder;
       const result = execution.result;
 
       const directive = result.next ?? 'continue';
@@ -282,7 +288,6 @@ export class RunbookEngine {
       if (result.success === false) {
         return {
           context,
-          traceBuilder,
           aborted: false,
           failureReason: result.error ?? `Step "${step.id}" failed without an error message.`,
         };
@@ -298,7 +303,7 @@ export class RunbookEngine {
         }
 
         const earlyResult = this.evaluateKnownCasesForEarlyResolution(knownCases, context);
-        traceBuilder = traceBuilder.traceEarlyResolution(earlyResult.trace);
+        traceBuilder.traceEarlyResolution(earlyResult.trace);
 
         if (earlyResult.matchedCases.length > 0) {
           if (descriptor.silent !== true) {
@@ -307,7 +312,6 @@ export class RunbookEngine {
           }
           return {
             context,
-            traceBuilder,
             earlyResolution: { matchedCases: earlyResult.matchedCases, resolvedAtStepId: step.id },
             aborted: false,
           };
@@ -332,7 +336,7 @@ export class RunbookEngine {
       }
     }
 
-    return { context, traceBuilder, aborted };
+    return { context, aborted };
   }
 
   private async executeStepDescriptor(
@@ -395,7 +399,7 @@ export class RunbookEngine {
 
     const directive = result.next ?? 'continue';
     const varsWritten: Readonly<Record<string, string>> = result.vars ?? {};
-    const nextTraceBuilder = traceBuilder.traceStep(
+    traceBuilder.traceStep(
       step.id,
       step.label,
       step.kind,
@@ -415,7 +419,6 @@ export class RunbookEngine {
 
     return {
       context: updateContextWithStepResult(updatedContext, step.id, result),
-      traceBuilder: nextTraceBuilder,
       result,
     };
   }
@@ -475,7 +478,7 @@ export class RunbookEngine {
 
     for (const knownCase of sortedCases) {
       throwIfRunbookAborted(context);
-      const { matched, resolvedValues } = this.conditionEvaluator.evaluate(knownCase.condition, context, {
+      const { matched, resolvedValues } = sharedConditionEvaluator.evaluate(knownCase.condition, context, {
         withResolvedValues: true,
       });
 
@@ -530,18 +533,17 @@ export class RunbookEngine {
   private matchKnownCases(
     knownCases: ReadonlyArray<KnownCase>,
     context: RunbookContext,
-    initialTraceBuilder: TraceBuilder,
-  ): { matchedCases: ReadonlyArray<KnownCase>; traceBuilder: TraceBuilder } {
+    traceBuilder: TraceBuilder,
+  ): { matchedCases: ReadonlyArray<KnownCase> } {
     const { matchedCases, sortedCases, evaluations } = this.evaluateKnownCasesCore(knownCases, context);
 
     // `sortedCases[i]` corresponds to `evaluations[i]` by construction, so we
     // can pair them up directly without a separate id→case lookup map.
-    let traceBuilder = initialTraceBuilder;
     for (let i = 0; i < evaluations.length; i++) {
       const knownCase = sortedCases[i];
       const evaluation = evaluations[i];
       if (knownCase !== undefined && evaluation !== undefined) {
-        traceBuilder = traceBuilder.traceCaseEvaluation(knownCase, evaluation.matched, evaluation.resolvedValues);
+        traceBuilder.traceCaseEvaluation(knownCase, evaluation.matched, evaluation.resolvedValues);
       }
     }
 
@@ -554,6 +556,6 @@ export class RunbookEngine {
       this.logger.success(description);
     }
 
-    return { matchedCases, traceBuilder };
+    return { matchedCases };
   }
 }

@@ -3,6 +3,7 @@
  */
 
 export * from './GOAbortableRequest.js';
+export * from './GORetryAfter.js';
 export * from './GOHttpClient.js';
 export * from './GOHttpClientConfig.js';
 export * from './GOHttpClientError.js';

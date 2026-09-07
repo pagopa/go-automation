@@ -1,5 +1,7 @@
+import { omitUndefined } from '@go-automation/go-common/core';
 import type { Runbook } from '../types/Runbook.js';
 import type { RunbookMetadata } from '../types/RunbookMetadata.js';
+import type { RunbookAnalysisDefaults } from '../types/RunbookAnalysisDefaults.js';
 import type { Step } from '../types/Step.js';
 import type { StepDescriptor } from '../types/StepDescriptor.js';
 import type { KnownCase } from '../types/KnownCase.js';
@@ -7,6 +9,7 @@ import type { IfBranchConfig } from '../types/IfBranchConfig.js';
 import type { SwitchBranchConfig } from '../types/SwitchBranchConfig.js';
 import type { CaseAction } from '../actions/CaseAction.js';
 import type { CloudExecutionPolicy } from '../types/CloudExecutionPolicy.js';
+import type { OccurrenceTimeWindow } from '../types/OccurrenceTimeWindow.js';
 import type { ValidationErrorEntry } from '../validation/ValidationErrorEntry.js';
 import type { GoToReference } from '../validation/GoToGraphAnalyzer.js';
 import { RunbookValidationError } from '../validation/RunbookValidationError.js';
@@ -49,7 +52,7 @@ function isSwitchStepWithGoTo(step: Step): step is Step & {
  *     tags: ['api-gateway', '5xx'],
  *   })
  *   .step(new CloudWatchLogsQueryStep({ ... }))
- *   .step(extractField({ ... }), { continueOnFailure: true })
+ *   .step(new ExtractFieldStep({ ... }), { continueOnFailure: true })
  *   .knownCase({ ... })
  *   .fallback(logAction({ ... }))
  *   .build();
@@ -64,6 +67,8 @@ export class RunbookBuilder {
   private iterationsLimit?: number;
   private structuredContext?: unknown;
   private cloudPolicy?: CloudExecutionPolicy;
+  private analysisDefaultRefs?: RunbookAnalysisDefaults;
+  private occurrenceWindow?: OccurrenceTimeWindow;
 
   private constructor(id: string) {
     this.id = id;
@@ -91,6 +96,31 @@ export class RunbookBuilder {
   }
 
   /**
+   * Configures the diagnostic padding around alarm occurrences.
+   *
+   * @param window - Independent non-negative padding before and after the occurrence
+   * @returns This builder for chaining
+   */
+  occurrenceTimeWindow(window: OccurrenceTimeWindow): RunbookBuilder {
+    this.occurrenceWindow = { ...window };
+    return this;
+  }
+
+  /**
+   * Sets the analysis references shared by every known case.
+   *
+   * Declaring them marks the runbook as annotated: `validateForCloud` then
+   * requires the `analysis` directives on each of its known cases.
+   *
+   * @param defaults - References merged into every emitted analysis draft
+   * @returns This builder for chaining
+   */
+  analysisDefaults(defaults: RunbookAnalysisDefaults): RunbookBuilder {
+    this.analysisDefaultRefs = defaults;
+    return this;
+  }
+
+  /**
    * Adds a step to the runbook.
    * Supports an optional second parameter for execution options.
    *
@@ -106,6 +136,17 @@ export class RunbookBuilder {
     };
     this.stepDescriptors.push(descriptor);
     return this;
+  }
+
+  /**
+   * Ids of the steps wired so far — the source of truth for "does this runbook
+   * contain step X", against a hand-maintained list that can drift from what
+   * the builder actually assembled.
+   *
+   * @returns The wired step ids, in insertion order
+   */
+  wiredStepIds(): ReadonlySet<string> {
+    return new Set(this.stepDescriptors.map((descriptor) => descriptor.step.id));
   }
 
   /**
@@ -216,6 +257,17 @@ export class RunbookBuilder {
       });
     }
 
+    if (this.occurrenceWindow !== undefined) {
+      for (const [field, value] of Object.entries(this.occurrenceWindow)) {
+        if (!Number.isFinite(value) || value < 0) {
+          errors.push({
+            code: 'INVALID_OCCURRENCE_TIME_WINDOW',
+            message: `Invalid occurrenceTimeWindow.${field}: ${String(value)}. Expected a finite, non-negative number.`,
+          });
+        }
+      }
+    }
+
     // 2. Check duplicate step IDs
     const stepIds = new Set<string>();
     const orderedStepIds: string[] = [];
@@ -302,6 +354,9 @@ export class RunbookBuilder {
       throw new Error('Invalid runbook configuration: missing metadata or fallback action.');
     }
 
+    // Copied, not aliased: the built runbook must not share the builder's own window object.
+    const occurrenceTimeWindow = this.occurrenceWindow !== undefined ? { ...this.occurrenceWindow } : undefined;
+
     const result: Runbook = {
       metadata: {
         id: this.id,
@@ -310,8 +365,12 @@ export class RunbookBuilder {
       steps: [...this.stepDescriptors],
       knownCases: [...this.cases],
       fallbackAction: this.fallbackAction, // Safe: validated in validate()
-      ...(this.structuredContext !== undefined ? { runbookContext: this.structuredContext } : {}),
-      ...(this.cloudPolicy !== undefined ? { cloudExecutionPolicy: this.cloudPolicy } : {}),
+      ...omitUndefined({
+        occurrenceTimeWindow,
+        runbookContext: this.structuredContext,
+        cloudExecutionPolicy: this.cloudPolicy,
+        analysisDefaults: this.analysisDefaultRefs,
+      }),
     };
 
     if (this.iterationsLimit !== undefined) {

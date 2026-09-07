@@ -1,3 +1,4 @@
+import { trimToUndefined } from '@go-automation/go-common/core';
 import { Core } from '@go-automation/go-common';
 
 import type { InteropAlarmOccurrence } from '../types/index.js';
@@ -14,7 +15,7 @@ export async function findInteropAlarmOccurrences(
 ): Promise<ReadonlyArray<InteropAlarmOccurrence>> {
   const start = parseDate(config.startDate, 'startDate');
   const end = parseDate(config.endDate, 'endDate');
-  const alarmName = normalize(config.alarmName);
+  const alarmName = trimToUndefined(config.alarmName);
 
   const items = await script.aws.services.cloudWatchAlarms.describeAlarmStateTransitions({
     timeRange: { start, end },
@@ -26,7 +27,7 @@ export async function findInteropAlarmOccurrences(
   const seen = new Set<string>();
 
   for (const item of items) {
-    const currentAlarmName = normalize(item.AlarmName);
+    const currentAlarmName = trimToUndefined(item.AlarmName);
     const timestamp = item.Timestamp?.toISOString();
     if (currentAlarmName === undefined || timestamp === undefined) continue;
 
@@ -49,9 +50,4 @@ function parseDate(value: string, label: string): Date {
     throw new Error(`Invalid ${label}: "${value}". Expected ISO 8601 format.`);
   }
   return parsed;
-}
-
-function normalize(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed === undefined || trimmed === '' ? undefined : trimmed;
 }

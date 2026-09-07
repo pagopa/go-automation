@@ -7,49 +7,36 @@
  */
 
 import { lambda } from '../framework.js';
+import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
+
+import { lambdaLogEvidenceMatches } from '../common/evidenceConditions.js';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   ...lambda.LAMBDA_RUNTIME_KNOWN_CASES,
-  {
+  knownCase({
     id: 'iam-policy-socket-hang-up',
     description: 'Errore generazione IAM policy verso pn-data-vault (socket hang up)',
     priority: 90,
-    condition: {
-      type: 'or',
-      conditions: [
-        { type: 'contains', ref: 'steps.query-lambda-invocation', regex: 'socket hang up' },
-        { type: 'contains', ref: 'steps.query-lambda-errors', regex: 'socket hang up' },
-      ],
+    condition: lambdaLogEvidenceMatches('socket hang up'),
+    title: 'Error generating IAM policy: socket hang up verso pn-data-vault',
+    resolution: 'occorrenza singola, interruzione momentanea di connessione con pn-data-vault. Nessuna azione.',
+    details: [['requestId', '{{vars.lambdaRequestId}}']],
+    analysis: {
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      renderAs: 'known-case',
-      message:
-        '[CASO NOTO] Error generating IAM policy: socket hang up verso pn-data-vault\n' +
-        'requestId: {{vars.lambdaRequestId}}\n' +
-        'Risoluzione: occorrenza singola, interruzione momentanea di connessione con pn-data-vault. Nessuna azione.\n',
-    },
-  },
-  {
+  }),
+  knownCase({
     id: 'invalid-source-details-qrcode',
     description: 'Header source details QRCODE non valido',
     priority: 89,
-    condition: {
-      type: 'or',
-      conditions: [
-        { type: 'contains', ref: 'steps.query-lambda-invocation', regex: 'Invalid source details header QRCODE' },
-        { type: 'contains', ref: 'steps.query-lambda-errors', regex: 'Invalid source details header QRCODE' },
-      ],
+    condition: lambdaLogEvidenceMatches('Invalid source details header QRCODE'),
+    title: 'Invalid source details header QRCODE',
+    resolution: 'header della richiesta non valido pervenuto alla Lambda authorizer. Nessuna azione.',
+    analysis: {
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
     },
-    action: {
-      type: 'log',
-      level: 'info',
-      renderAs: 'known-case',
-      message:
-        '[CASO NOTO] Invalid source details header QRCODE\n' +
-        'Risoluzione: header della richiesta non valido pervenuto alla Lambda authorizer. Nessuna azione.\n',
-    },
-  },
+  }),
 ];

@@ -1,4 +1,9 @@
-import type { GOLogger } from '@go-automation/go-common/core';
+import type { RunbookExecutionStatus } from '../../types/RunbookExecutionStatus.js';
+import { renderExecutionFailureSummary } from '../../reporting/renderExecutionFailureSummary.js';
+import type { GOLogger, TreeNode } from '@go-automation/go-common/core';
+
+import { ConsoleRunbookReporter } from '../../registry/reporters/ConsoleRunbookReporter.js';
+import type { RunbookReporter } from '../../registry/RunbookReporter.js';
 import type { TerminationReason } from '../types/TerminationReason.js';
 
 /**
@@ -15,6 +20,10 @@ import type { TerminationReason } from '../types/TerminationReason.js';
 export interface ApiGwFinalSummaryInput {
   /** Logger used to emit the structured banner. */
   readonly logger: GOLogger;
+  /** Engine outcome: a run that did not complete has no diagnosis to report. */
+  readonly status: RunbookExecutionStatus;
+  /** Why the run stopped, when the engine recorded one. */
+  readonly failureReason?: string;
   /**
    * IDs of the known cases the engine ultimately matched (either via
    * early resolution or via the post-loop case match), sorted by
@@ -42,6 +51,11 @@ export interface ApiGwFinalSummaryInput {
  * @param input - Fields collected from the engine result
  */
 export function renderApiGwFinalSummary(input: ApiGwFinalSummaryInput): void {
+  if (input.status !== 'completed') {
+    renderExecutionFailureSummary(input.logger, input.status, input.failureReason);
+    return;
+  }
+
   const servicesVisited = parseVisitedChain(input.vars.get('apiGwServicesVisited'));
   const lastErrorMsg = (input.vars.get('lastErrorMsg') ?? '').trim();
   const terminationReason = (input.vars.get('terminationReason') ?? '').trim() as TerminationReason | '';
@@ -72,13 +86,17 @@ export function renderApiGwFinalSummary(input: ApiGwFinalSummaryInput): void {
   const reason: TerminationReason =
     input.matchedCaseIds.length > 0 ? 'known-case' : terminationReason !== '' ? terminationReason : 'no-match';
 
-  new ApiGwReporter(input.logger).stopSummary({
+  // Self-contained render outside the engine: owns its reporter and closes the
+  // level itself, since no step will report after the summary.
+  const summaryReporter = new ConsoleRunbookReporter(input.logger);
+  new ApiGwReporter(summaryReporter).stopSummary({
     reason,
     matchedCaseIds: input.matchedCaseIds,
     ...(downstreamTarget !== '' ? { downstreamTarget } : {}),
     ...(errorMessage !== '' ? { errorMessage } : {}),
     servicesVisited,
   });
+  summaryReporter.flush();
 }
 
 /**
@@ -139,16 +157,15 @@ export interface ApiGwReporterTermination {
  * hierarchy visible in modern terminals while staying monospaced.
  */
 export class ApiGwReporter {
-  constructor(private readonly logger: GOLogger) {}
+  constructor(private readonly reporter: RunbookReporter) {}
 
   /**
    * Section header for the API Gateway preparation step (query +
    * trace-id extraction).
    */
   sectionPrepare(logGroup: string): void {
-    this.logger.newline();
-    this.logger.text('═══ Preparazione: query API Gateway ═══');
-    this.logger.text(`  ├─ Log group: ${logGroup}`);
+    this.reporter.section('Preparazione: query API Gateway');
+    this.reporter.add({ label: `Log group: ${logGroup}` });
   }
 
   /**
@@ -177,25 +194,25 @@ export class ApiGwReporter {
     readonly path?: string;
     readonly httpMethod?: string;
   }): void {
-    this.logger.text(`  ├─ Errori HTTP individuati: ${args.errorCount} (status ${args.statusCode || 'n/a'})`);
+    this.reporter.add({ label: `Errori HTTP individuati: ${args.errorCount} (status ${args.statusCode || 'n/a'})` });
 
     const method =
       args.httpMethod !== undefined && args.httpMethod !== '' && args.httpMethod !== '-' ? args.httpMethod : '';
     const path = args.path !== undefined && args.path !== '' && args.path !== '-' ? args.path : '';
     if (method !== '' || path !== '') {
       const label = method !== '' && path !== '' ? `${method} ${path}` : method !== '' ? method : path;
-      this.logger.text(`  ├─ Endpoint: ${label}`);
+      this.reporter.add({ label: `Endpoint: ${label}` });
     }
 
     if (args.errorMessage !== undefined && args.errorMessage !== '' && args.errorMessage !== '-') {
-      this.logger.text(`  ├─ Error message API GW: ${args.errorMessage}`);
+      this.reporter.add({ label: `Error message API GW: ${args.errorMessage}` });
     }
 
     const traceLabel = args.traceIdLabel ?? 'Trace ID';
     if (args.traceId !== undefined && args.traceId !== '') {
-      this.logger.text(`  └─ ${traceLabel}: ${args.traceId}`);
+      this.reporter.add({ label: `${traceLabel}: ${args.traceId}` });
     } else {
-      this.logger.text(`  └─ ${traceLabel}: non disponibile`);
+      this.reporter.add({ label: `${traceLabel}: non disponibile` });
     }
   }
 
@@ -210,21 +227,20 @@ export class ApiGwReporter {
     readonly outcome: 'none' | 'timeout' | 'error';
     readonly failureType?: string;
   }): void {
-    this.logger.newline();
-    this.logger.text('═══ Verifica Lambda authorizer API Gateway ═══');
-    this.logger.text(`  ├─ Lambda: ${args.lambdaName}`);
-    this.logger.text(`  ├─ authorizerStatus: ${formatOptional(args.authorizerStatus)}`);
-    this.logger.text(`  ├─ authorizerLatency: ${formatLatency(args.authorizerLatencyMs)}`);
-    this.logger.text(`  ├─ authorizerRequestId: ${formatOptional(args.authorizerRequestId)}`);
+    this.reporter.section('Verifica Lambda authorizer API Gateway');
+    this.reporter.add({ label: `Lambda: ${args.lambdaName}` });
+    this.reporter.add({ label: `authorizerStatus: ${formatOptional(args.authorizerStatus)}` });
+    this.reporter.add({ label: `authorizerLatency: ${formatLatency(args.authorizerLatencyMs)}` });
+    this.reporter.add({ label: `authorizerRequestId: ${formatOptional(args.authorizerRequestId)}` });
     if (args.timeoutMs !== undefined) {
-      this.logger.text(`  ├─ timeout configurato: ${args.timeoutMs} ms`);
+      this.reporter.add({ label: `timeout configurato: ${args.timeoutMs} ms` });
     }
 
     const method = args.httpMethod !== undefined && args.httpMethod !== '' ? args.httpMethod : '';
     const path = args.path !== undefined && args.path !== '' ? args.path : '';
     if (method !== '' || path !== '') {
       const label = method !== '' && path !== '' ? `${method} ${path}` : method !== '' ? method : path;
-      this.logger.text(`  ├─ Endpoint: ${label}`);
+      this.reporter.add({ label: `Endpoint: ${label}` });
     }
 
     const outcome =
@@ -233,7 +249,7 @@ export class ApiGwReporter {
         : args.outcome === 'timeout'
           ? 'timeout authorizer'
           : 'errore authorizer';
-    this.logger.text(`  └─ Esito: ${outcome}`);
+    this.reporter.add({ label: `Esito: ${outcome}` });
   }
 
   /**
@@ -245,11 +261,10 @@ export class ApiGwReporter {
    * @param logGroups - CloudWatch log groups scanned for this visit
    */
   sectionService(visitNumber: number, serviceName: string, entry: boolean, logGroups: ReadonlyArray<string>): void {
-    this.logger.newline();
     const tag = entry ? ' (entry)' : '';
-    this.logger.text(`═══ Servizio ${visitNumber}: ${serviceName}${tag} ═══`);
+    this.reporter.section(`Servizio ${visitNumber}: ${serviceName}${tag}`);
     if (logGroups.length > 0) {
-      this.logger.text(`  ├─ Log group: ${logGroups.join(', ')}`);
+      this.reporter.add({ label: `Log group: ${logGroups.join(', ')}` });
     }
   }
 
@@ -258,37 +273,46 @@ export class ApiGwReporter {
    */
   query(queryNumber: number, identifiers: ReadonlyArray<string>): void {
     const idList = identifiers.length === 0 ? 'nessun identificatore' : identifiers.join(' OR ');
-    this.logger.text(`  ├─ Query CloudWatch ${queryNumber} [filter: ${idList}]`);
+    this.reporter.add({ label: `Query CloudWatch ${queryNumber} [filter: ${idList}]` });
   }
 
   /**
    * Reports the number of log rows returned by the last query.
    */
   queryResult(logCount: number): void {
-    this.logger.text(`  │    └─ ${logCount} log trovati`);
+    this.reporter.add({ label: `${logCount} log trovati` });
   }
 
   apiGwExecutionLogQuery(
     logGroup: string,
     requestIds: ReadonlyArray<{ readonly path: string; readonly requestId: string }>,
   ): void {
-    this.logger.text(`  ├─ errorMessage API Gateway valorizzato: query execution log`);
-    this.logger.text(`  │    ├─ Log group: ${logGroup}`);
-    this.logger.text(`  │    ├─ RequestId da analizzare: ${requestIds.length}`);
-    requestIds.forEach((request, idx) => {
-      const isLast = idx === requestIds.length - 1;
-      const branch = isLast ? '└─' : '├─';
-      this.logger.text(`  │    │   ${branch} ${request.path}: ${request.requestId}`);
+    this.reporter.add({
+      label: 'errorMessage API Gateway valorizzato: query execution log',
+      children: [
+        { label: `Log group: ${logGroup}` },
+        {
+          label: `RequestId da analizzare: ${requestIds.length}`,
+          children: requestIds.map((request) => ({ label: `${request.path}: ${request.requestId}` })),
+        },
+      ],
     });
   }
 
   apiGwExecutionLogResult(logCount: number): void {
-    this.logger.text(`  │    └─ Execution log trovati: ${logCount}`);
+    this.reporter.add({ label: `Execution log trovati: ${logCount}` });
   }
 
   sectionApiGwExecutionLog(): void {
-    this.logger.newline();
-    this.logger.text('═══ Verifica execution log API Gateway ═══');
+    this.reporter.section('Verifica execution log API Gateway');
+  }
+
+  /** Reports that the execution-log query was skipped before reaching AWS. */
+  apiGwExecutionLogSkipped(logGroup: string, reason: string): void {
+    this.reporter.add({
+      label: '⚠ Query execution log non eseguita',
+      children: [{ label: `Log group: ${logGroup}` }, { label: `Causa: ${reason}` }],
+    });
   }
 
   /**
@@ -303,11 +327,12 @@ export class ApiGwReporter {
    * runs at the end).
    */
   queryFailed(logGroups: ReadonlyArray<string>, errorMessage: string): void {
-    this.logger.text(`  │    └─ ⚠ Query fallita`);
+    const children: TreeNode[] = [];
     if (logGroups.length > 0) {
-      this.logger.text(`  │       ├─ Log group${logGroups.length === 1 ? '' : 's'}: ${logGroups.join(', ')}`);
+      children.push({ label: `Log group${logGroups.length === 1 ? '' : 's'}: ${logGroups.join(', ')}` });
     }
-    this.logger.text(`  │       └─ Causa: ${errorMessage}`);
+    children.push({ label: `Causa: ${errorMessage}` });
+    this.reporter.add({ label: '⚠ Query fallita', children });
   }
 
   /**
@@ -318,40 +343,44 @@ export class ApiGwReporter {
     readonly knownUrl?: { readonly observedUrl: string; readonly target: string };
     readonly fallbackUuid?: string;
   }): void {
-    this.logger.text(`  ├─ Analisi log`);
-    if (args.errorMessageLen > 0) {
-      this.logger.text(`  │    ├─ Error message individuato (len=${args.errorMessageLen})`);
-    } else {
-      this.logger.text(`  │    ├─ Nessun error message rilevato`);
-    }
+    const findings: TreeNode[] = [
+      {
+        label:
+          args.errorMessageLen > 0
+            ? `Error message individuato (len=${args.errorMessageLen})`
+            : 'Nessun error message rilevato',
+      },
+    ];
     if (args.knownUrl !== undefined) {
-      this.logger.text(`  │    ├─ KnownUrl rilevato → target: ${args.knownUrl.target}`);
-      this.logger.text(`  │    │   URL: ${args.knownUrl.observedUrl}`);
+      findings.push({
+        label: `KnownUrl rilevato → target: ${args.knownUrl.target}`,
+        children: [{ label: `URL: ${args.knownUrl.observedUrl}` }],
+      });
     }
-    if (args.fallbackUuid !== undefined) {
-      this.logger.text(`  │    └─ FALLBACK-UUID estratto: ${args.fallbackUuid}`);
-    } else {
-      this.logger.text(`  │    └─ Nessun FALLBACK-UUID nuovo`);
-    }
+    findings.push({
+      label:
+        args.fallbackUuid !== undefined ? `FALLBACK-UUID estratto: ${args.fallbackUuid}` : 'Nessun FALLBACK-UUID nuovo',
+    });
+    this.reporter.add({ label: 'Analisi log', children: findings });
   }
 
   /**
    * Reports the decision taken for the current service.
    */
   decisionKnownCase(caseId: string): void {
-    this.logger.text(`  └─ Match caso noto: ${caseId}`);
+    this.reporter.add({ label: `Match caso noto: ${caseId}` });
   }
 
   decisionGoToService(target: string): void {
-    this.logger.text(`  └─ Prosegue con il servizio: ${target}`);
+    this.reporter.add({ label: `Prosegue con il servizio: ${target}` });
   }
 
   decisionExternalDownstream(target: string): void {
-    this.logger.text(`  └─ URL downstream individuato (${target}) — analisi terminata`);
+    this.reporter.add({ label: `URL downstream individuato (${target}) — analisi terminata` });
   }
 
   decisionFallbackRetry(serviceName: string): void {
-    this.logger.text(`  └─ Riprova ${serviceName} con FALLBACK-UUID`);
+    this.reporter.add({ label: `Riprova ${serviceName} con FALLBACK-UUID` });
   }
 
   /**
@@ -364,76 +393,74 @@ export class ApiGwReporter {
    * @param newTraceId   - Canonical X-Ray form used from now on
    */
   decisionTraceIdSwap(serviceName: string, rawTraceId: string, newTraceId: string): void {
-    this.logger.text(`  ├─ trace_id rilevato nei log → swap di xRayTraceId`);
-    if (rawTraceId === newTraceId) {
-      // Already in canonical form — no transformation was applied.
-      this.logger.text(`  │    └─ Nuovo trace (già canonical): ${newTraceId}`);
-    } else {
-      this.logger.text(`  │    ├─ Originale: ${rawTraceId}`);
-      this.logger.text(`  │    └─ Nuovo trace: ${newTraceId}`);
-    }
-    this.logger.text(`  └─ Riprova ${serviceName} con il nuovo trace_id`);
+    this.reporter.add({
+      label: 'trace_id rilevato nei log → swap di xRayTraceId',
+      children:
+        rawTraceId === newTraceId
+          ? // Already in canonical form — no transformation was applied.
+            [{ label: `Nuovo trace (già canonical): ${newTraceId}` }]
+          : [{ label: `Originale: ${rawTraceId}` }, { label: `Nuovo trace: ${newTraceId}` }],
+    });
+    this.reporter.add({ label: `Riprova ${serviceName} con il nuovo trace_id` });
   }
 
   decisionNoMatch(): void {
-    this.logger.text(`  └─ Nessun KnownUrl in questo servizio, nessun FALLBACK-UUID nuovo`);
+    this.reporter.add({ label: `Nessun KnownUrl in questo servizio, nessun FALLBACK-UUID nuovo` });
   }
 
   decisionLoopDetected(target: string): void {
-    this.logger.text(`  └─ Loop rilevato (${target} già visitato con gli stessi identificatori)`);
+    this.reporter.add({ label: `Loop rilevato (${target} già visitato con gli stessi identificatori)` });
   }
 
   /**
    * Closing summary printed once the analysis loop exits.
    */
   stopSummary(t: ApiGwReporterTermination): void {
-    this.logger.newline();
-    this.logger.text('═══ Esecuzione terminata ═══');
+    this.reporter.section('Esecuzione terminata');
     const chain = t.servicesVisited.map((s) => `${s.name} (${s.logCount} log)`).join(' → ');
-    this.logger.text(`  ├─ Servizi analizzati: ${t.servicesVisited.length}${chain ? ` — ${chain}` : ''}`);
+    this.reporter.add({ label: `Servizi analizzati: ${t.servicesVisited.length}${chain ? ` — ${chain}` : ''}` });
     switch (t.reason) {
       case 'known-case':
         if (t.matchedCaseIds.length === 0) {
-          this.logger.text(`  └─ Esito: caso noto`);
+          this.reporter.add({ label: `Esito: caso noto` });
         } else if (t.matchedCaseIds.length === 1) {
-          this.logger.text(`  └─ Esito: caso noto (${t.matchedCaseIds[0]})`);
+          this.reporter.add({ label: `Esito: caso noto (${t.matchedCaseIds[0]})` });
         } else {
-          this.logger.text(`  ├─ Casi noti rilevati: ${t.matchedCaseIds.length}`);
-          t.matchedCaseIds.forEach((id, idx) => {
-            const isLast = idx === t.matchedCaseIds.length - 1;
-            const branch = isLast ? '└─' : '├─';
-            const tag = idx === 0 ? ' ← primario' : '';
-            this.logger.text(`  │    ${branch} ${id}${tag}`);
+          this.reporter.add({
+            label: `Casi noti rilevati: ${t.matchedCaseIds.length}`,
+            children: t.matchedCaseIds.map((id, index) => ({ label: `${id}${index === 0 ? ' ← primario' : ''}` })),
           });
-          this.logger.text(`  └─ (eseguita solo l'action del caso primario; gli altri sono informativi nel trace)`);
+          this.reporter.add({
+            label: `(eseguita solo l'action del caso primario; gli altri sono informativi nel trace)`,
+          });
         }
         break;
       case 'external-downstream':
-        this.logger.text(`  ├─ Esito: URL downstream (${t.downstreamTarget ?? 'n/a'})`);
+        this.reporter.add({ label: `Esito: URL downstream (${t.downstreamTarget ?? 'n/a'})` });
         if (t.errorMessage !== undefined && t.errorMessage !== '') {
-          this.logger.text(`  └─ Errore: ${t.errorMessage}`);
+          this.reporter.add({ label: `Errore: ${t.errorMessage}` });
         } else {
-          this.logger.text(`  └─ Nessun error message disponibile`);
+          this.reporter.add({ label: `Nessun error message disponibile` });
         }
         break;
       case 'api-gw-execution-log-unresolved':
-        this.logger.text(`  ├─ Esito: caso non riconosciuto negli execution log API Gateway`);
+        this.reporter.add({ label: `Esito: caso non riconosciuto negli execution log API Gateway` });
         if (t.errorMessage !== undefined && t.errorMessage !== '') {
-          this.logger.text(`  └─ Dettaglio: ${t.errorMessage}`);
+          this.reporter.add({ label: `Dettaglio: ${t.errorMessage}` });
         } else {
-          this.logger.text(`  └─ Non e' stato possibile determinare il problema`);
+          this.reporter.add({ label: `Non e' stato possibile determinare il problema` });
         }
         break;
       case 'no-match':
-        this.logger.text(`  ├─ Esito: caso non riconosciuto`);
+        this.reporter.add({ label: `Esito: caso non riconosciuto` });
         if (t.errorMessage !== undefined && t.errorMessage !== '') {
-          this.logger.text(`  └─ Errore più rappresentativo: ${t.errorMessage}`);
+          this.reporter.add({ label: `Errore più rappresentativo: ${t.errorMessage}` });
         } else {
-          this.logger.text(`  └─ Nessun error message disponibile`);
+          this.reporter.add({ label: `Nessun error message disponibile` });
         }
         break;
       case 'loop-detected':
-        this.logger.text(`  └─ Esito: loop rilevato — analisi interrotta`);
+        this.reporter.add({ label: `Esito: loop rilevato — analisi interrotta` });
         break;
       default: {
         const _exhaustive: never = t.reason;

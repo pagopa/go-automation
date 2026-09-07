@@ -6,9 +6,9 @@ import type { Runbook } from '../../../types/Runbook.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { RunbookExecutionResult } from '../../../types/RunbookExecutionResult.js';
 import type { RunbookExecutionTrace } from '../../../trace/RunbookExecutionTrace.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { ApiGwOutputContext } from '../ApiGwOutputContext.js';
 import { buildApiGwOutputContext } from '../buildApiGwOutputContext.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function row(fields: Record<string, string>): ResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
@@ -27,7 +27,7 @@ function createRunbook(withContext: boolean = true): Runbook {
     },
     steps: [],
     knownCases: [],
-    fallbackAction: { type: 'log', level: 'warn', message: 'fallback' },
+    fallbackAction: { type: 'log', level: 'warn', title: 'fallback' },
     ...(withContext
       ? {
           runbookContext: {
@@ -47,6 +47,7 @@ function createResult(): RunbookExecutionResult {
     ['apiGwStatusCode', '500'],
     ['apiGwHttpMethod', 'POST'],
     ['apiGwPath', '/delivery/check'],
+    ['apiGwSourceIp', '203.0.113.42'],
     ['xRayTraceId', '1-abc'],
     ['apiGwErrorMessage', 'Internal server error'],
     ['apiGwAuthorizerLambdaName', 'pn-ioAuthorizerLambda'],
@@ -97,7 +98,7 @@ function createResult(): RunbookExecutionResult {
       ['endTime', '2026-01-01T00:05:00.000Z'],
     ]),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
   const trace: RunbookExecutionTrace = {
@@ -151,6 +152,7 @@ describe('buildApiGwOutputContext', () => {
 
     assert.ok(context !== undefined);
     assert.strictEqual(context.fields.find((field) => field.name === 'endpoint')?.value, 'POST /delivery/check');
+    assert.strictEqual(context.fields.find((field) => field.name === 'apiGwSourceIp')?.value, '203.0.113.42');
     assert.strictEqual(context.fields.find((field) => field.name === 'authorizerLatency')?.value, '5011 ms');
     assert.strictEqual(
       context.evidence.find((evidence) => evidence.id === 'pn-delivery-recent-errors')?.truncated,
@@ -159,6 +161,7 @@ describe('buildApiGwOutputContext', () => {
 
     const details = context.details as unknown as ApiGwOutputContext;
     assert.strictEqual(details.apiGateway.traceId, '1-abc');
+    assert.strictEqual(details.apiGateway.sourceIp, '203.0.113.42');
     assert.strictEqual(details.authorizer?.lambdaName, 'pn-ioAuthorizerLambda');
     assert.strictEqual(details.authorizer?.latencyMs, 5011);
     assert.strictEqual(details.authorizer?.outcome, 'timeout');
@@ -167,6 +170,24 @@ describe('buildApiGwOutputContext', () => {
     assert.strictEqual(details.services[0]?.recentLogs.length, 2);
     assert.strictEqual(details.services[0]?.recentLogs[0]?.message, 'fallback message field');
     assert.strictEqual(details.services[0]?.recentLogs[1]?.message, 'new service');
+  });
+
+  it('exposes why execution logs are unavailable in fields and typed details', () => {
+    const result = createResult();
+    const vars = new Map(result.finalContext.vars);
+    const reason = 'MalformedQueryException: time range exceeds the log retention settings';
+    vars.set('apiGwExecutionLogMode', 'unavailable');
+    vars.set('apiGwExecutionLogCount', '0');
+    vars.set('apiGwExecutionLogUnavailableReason', reason);
+
+    const context = buildApiGwOutputContext(createRunbook(), {
+      ...result,
+      finalContext: { ...result.finalContext, vars },
+    });
+
+    assert.strictEqual(context?.fields.find((field) => field.name === 'executionLogUnavailableReason')?.value, reason);
+    const details = context?.details as unknown as ApiGwOutputContext;
+    assert.strictEqual(details.executionLogs?.unavailableReason, reason);
   });
 
   it('includes a successful authorizer gate outcome when exposed by vars', () => {

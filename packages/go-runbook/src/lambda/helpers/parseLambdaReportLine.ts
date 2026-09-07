@@ -1,3 +1,4 @@
+import { omitUndefined } from '@go-automation/go-common/core';
 /**
  * Structured fields extracted from a Lambda `REPORT` runtime log line.
  */
@@ -45,12 +46,5 @@ export function parseLambdaReportLine(message: string): LambdaReportInfo | undef
   const maxMemoryUsedMb = firstNumber(trimmed, /Max Memory Used:\s*(\d+)\s*MB/i);
   const status = firstGroup(trimmed, /Status:\s*(\S+)/i);
 
-  return {
-    ...(requestId !== undefined ? { requestId } : {}),
-    ...(durationMs !== undefined ? { durationMs } : {}),
-    ...(billedDurationMs !== undefined ? { billedDurationMs } : {}),
-    ...(memorySizeMb !== undefined ? { memorySizeMb } : {}),
-    ...(maxMemoryUsedMb !== undefined ? { maxMemoryUsedMb } : {}),
-    ...(status !== undefined ? { status } : {}),
-  };
+  return omitUndefined({ requestId, durationMs, billedDurationMs, memorySizeMb, maxMemoryUsedMb, status });
 }

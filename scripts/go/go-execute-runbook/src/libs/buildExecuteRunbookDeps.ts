@@ -5,6 +5,7 @@ import { createServiceRegistry } from '@go-automation/go-runbook/catalog';
 
 import type { ExecuteRunbookConfig } from '../types/ExecuteRunbookConfig.js';
 import type { ExecuteRunbookDeps } from '../types/ExecuteRunbookDeps.js';
+import { ConsoleRunbookReporter } from '@go-automation/go-runbook/catalog';
 
 type ExecuteRunbookAuthMode = 'SERVICE' | 'CLI_PAT';
 
@@ -28,7 +29,7 @@ export async function buildExecuteRunbookDeps(
     baseUrl: config.watchtowerUrl,
     credentials: await resolveWatchtowerCredentials(script, config, options.auth),
   });
-  const services = createServiceRegistry(script);
+  const services = createServiceRegistry(script, new ConsoleRunbookReporter(script.logger));
   return {
     watchtower,
     logger: script.logger,

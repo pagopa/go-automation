@@ -7,6 +7,9 @@ import { PrepareServiceSectionStep } from '../steps/prepareServiceSection.js';
 import { AnalyzeServiceLogsStep } from '../steps/analyzeServiceLogs.js';
 import { QueryServiceTraceLogsStep } from '../steps/queryServiceTraceLogs.js';
 import { defaultServiceUnknownCaseFallback } from './defaultUnknownCaseFallback.js';
+import { applyPipelineHooks } from '../../builders/applyPipelineHooks.js';
+import { finishAlarmRunbook } from '../../builders/finishAlarmRunbook.js';
+import type { ServicePipelineAnchor } from '../types/ServicePipelineAnchor.js';
 
 const TIME_RANGE = { start: 'startTime', end: 'endTime' } as const;
 
@@ -29,9 +32,14 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
   const errorQuery = service.queryOverride ?? profile.errorQuery;
   const traceQuery = service.traceQueryOverride ?? profile.traceQueryTemplate;
 
+  const reachedAnchors = new Set<ServicePipelineAnchor>();
   const builder = RunbookBuilder.create(config.id)
     .metadata(config.metadata)
     .cloudExecutionPolicy({ sideEffects: 'NONE' });
+
+  if (config.occurrenceTimeWindow !== undefined) {
+    builder.occurrenceTimeWindow(config.occurrenceTimeWindow);
+  }
 
   builder.step(
     new PrepareServiceSectionStep({
@@ -71,12 +79,7 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
     { silent: true },
   );
 
-  for (const descriptor of config.preSteps ?? []) {
-    const opts: { continueOnFailure?: boolean; silent?: boolean } = {};
-    if (descriptor.continueOnFailure === true) opts.continueOnFailure = true;
-    if (descriptor.silent === true) opts.silent = true;
-    builder.step(descriptor.step, opts);
-  }
+  applyPipelineHooks(builder, config.hooks ?? [], 'after-service-analysis', reachedAnchors);
 
   builder.step(
     new QueryServiceTraceLogsStep({
@@ -92,22 +95,13 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
     { silent: true },
   );
 
-  for (const knownCase of config.knownCases) {
-    builder.knownCase(knownCase);
-  }
-
-  builder.fallback(config.fallbackAction ?? defaultServiceUnknownCaseFallback(service));
-  builder.runbookContext({
-    kind: 'service',
-    service,
-    queryProfileId: profile.id,
+  return finishAlarmRunbook(builder, config, {
+    builderName: 'createServiceAlarmRunbook',
+    defaultFallback: () => defaultServiceUnknownCaseFallback(service),
+    runbookContext: { kind: 'service', service, queryProfileId: profile.id },
+    primaryResource: service.name,
+    anchors: { hooks: config.hooks ?? [], reached: reachedAnchors, pipelineName: 'service' },
   });
-
-  if (config.maxIterations !== undefined) {
-    builder.maxIterations(config.maxIterations);
-  }
-
-  return builder.build();
 }
 
 function validateConfig(config: ServiceAlarmConfig): void {

@@ -13,7 +13,7 @@ import { KNOWN_CASES } from './knownCases.js';
  *
  * @returns A validated {@link Runbook} ready for execution
  */
-export function buildWorkdayPnExternalChannelAlbAlarmRunbook(): Runbook {
+export function buildRunbook(): Runbook {
   return service.createServiceAlarmRunbook({
     id: 'workday-pn-external-channel-alb-alarm',
     metadata: {

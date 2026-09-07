@@ -3,9 +3,14 @@ import assert from 'node:assert/strict';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { PrepareLambdaSectionStep } from '../PrepareLambdaSectionStep.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function emptyContext(): RunbookContext {
-  return { vars: new Map(), stepResults: new Map() } as unknown as RunbookContext;
+  return {
+    vars: new Map(),
+    stepResults: new Map(),
+    services: createTestServiceRegistry(),
+  } as unknown as RunbookContext;
 }
 
 describe('PrepareLambdaSectionStep', () => {

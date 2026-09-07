@@ -1,4 +1,9 @@
 export type { GoRtaCheckConfig } from './GoRtaCheckConfig.js';
+export type { NextRunChoice } from './NextRunChoice.js';
+export type { ProductAlarm } from './ProductAlarm.js';
+export type { ResolvedEnvironment } from './ResolvedEnvironment.js';
+export type { ScopeTarget } from './ScopeTarget.js';
+export type { WizardStep } from './WizardStep.js';
 export type { ProductDto, AlarmDto, AlarmAnalysisDto } from '@go-automation/go-watchtower-client';
 export type {
   RunbookCheck,
@@ -8,4 +13,4 @@ export type {
   RtaCheckInput,
   RtaCheckSummary,
   AnalysisMatch,
-} from './RtaCheckReport.js';
+} from '@go-automation/go-watchtower-runbook';

@@ -1,3 +1,5 @@
+import type { LogLine } from '../../output/LogLine.js';
+
 export interface ApiGwOutputContext {
   readonly alarm: ApiGwAlarmOutput;
   readonly apiGateway: ApiGatewayOutput;
@@ -22,11 +24,12 @@ export interface ApiGatewayOutput {
   readonly statusCode?: string;
   readonly httpMethod?: string;
   readonly path?: string;
+  readonly sourceIp?: string;
   readonly traceId?: string;
   readonly traceIdField?: string;
   readonly fallbackUuid?: string;
   readonly errorMessage?: string;
-  readonly recentLogs: ReadonlyArray<ApiGwLogLine>;
+  readonly recentLogs: ReadonlyArray<LogLine>;
 }
 
 export interface ApiGwAuthorizerOutput {
@@ -45,6 +48,7 @@ export interface ApiGwExecutionLogsOutput {
   readonly logGroup?: string;
   readonly requestCount?: number;
   readonly logCount?: number;
+  readonly unavailableReason?: string;
   readonly requestIds: ReadonlyArray<ApiGwExecutionLogRequest>;
 }
 
@@ -60,10 +64,5 @@ export interface ApiGwServiceOutput {
   readonly errorMessage?: string;
   readonly knownUrl?: string;
   readonly knownUrlTarget?: string;
-  readonly recentLogs: ReadonlyArray<ApiGwLogLine>;
-}
-
-export interface ApiGwLogLine {
-  readonly timestamp: string;
-  readonly message: string;
+  readonly recentLogs: ReadonlyArray<LogLine>;
 }

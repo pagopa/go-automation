@@ -40,13 +40,10 @@
     "@aws-sdk/client-athena": "catalog:",
     "@aws-sdk/credential-provider-ini": "catalog:",
     "@go-automation/go-common": "workspace:*",
-    "@slack/web-api": "catalog:",
     "croner": "catalog:",
-    "luxon": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {
-    "@types/luxon": "catalog:",
     "@types/node": "catalog:"
   }
 }
