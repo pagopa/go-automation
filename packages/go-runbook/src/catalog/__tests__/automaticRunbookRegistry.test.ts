@@ -143,6 +143,24 @@ describe('AUTOMATIC_RUNBOOK_REGISTRY', () => {
     assert.deepStrictEqual(prod.descriptor.categories, ['INTEROP']);
   });
 
+  it('resolves every INTEROP compute agreements consumer alias', () => {
+    const alarmNames = [
+      'k8s-interop-be-compute-agreements-consumer-errors-prod',
+      'k8s-interop-be-compute-agreements-consumer-errors-att',
+      'k8s-interop-be-compute-agreements-consumer-errors-test',
+    ];
+    const resolved = alarmNames.map((alarmName) => AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(alarmName));
+
+    assert.ok(resolved.every((entry) => entry !== undefined));
+    const descriptor = resolved[0]?.descriptor;
+    assert.ok(descriptor !== undefined);
+    assert.strictEqual(descriptor.key, 'k8s-interop-be-compute-agreements-consumer-errors');
+    assert.strictEqual(descriptor.kind, 'SERVICE');
+    assert.deepStrictEqual(descriptor.categories, ['INTEROP']);
+    assert.deepStrictEqual(descriptor.alarmNames, [...alarmNames].sort());
+    assert.ok(resolved.every((entry) => entry?.descriptor === descriptor));
+  });
+
   it('resolves INTEROP public catalog aliases with the environment in the middle of the alarm name', () => {
     const prod = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(
       'k8s-interop-public-catalog-astro-frontend-errors-prod-public-catalog',

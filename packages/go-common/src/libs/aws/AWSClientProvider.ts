@@ -13,6 +13,7 @@ import { AthenaClient } from '@aws-sdk/client-athena';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { ECSClient } from '@aws-sdk/client-ecs';
+import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { fromIni } from '@aws-sdk/credential-provider-ini';
 
 import { AWS_REGION } from './AWSRegion.js';
@@ -52,6 +53,8 @@ export class AWSClientProvider {
   private cachedS3Client: S3Client | null = null;
   private cachedECSClient: ECSClient | null = null;
   private cachedSecretsManagerClient: SecretsManagerClient | null = null;
+  private cachedSTSClient: STSClient | null = null;
+  private cachedAccountId: Promise<string> | undefined;
 
   constructor(config: AWSClientProviderConfig) {
     const profile = config.profile?.trim();
@@ -128,6 +131,44 @@ export class AWSClientProvider {
   }
 
   /**
+   * Returns the cached STSClient instance.
+   */
+  get sts(): STSClient {
+    this.cachedSTSClient ??= new STSClient(this.clientConfig);
+    return this.cachedSTSClient;
+  }
+
+  /**
+   * Resolves the AWS account id backing this profile via `sts:GetCallerIdentity`.
+   *
+   * The in-flight promise is cached, so concurrent callers share a single API
+   * call and the identity is resolved at most once per provider instance.
+   *
+   * @returns The 12-digit AWS account id owning the profile credentials
+   * @throws Error when the identity cannot be resolved
+   */
+  async resolveAccountId(): Promise<string> {
+    const pending = (this.cachedAccountId ??= this.requestAccountId());
+    try {
+      return await pending;
+    } catch (error: unknown) {
+      // A failed lookup must not be cached: credentials may be refreshed later.
+      // Only this attempt is dropped, so a retry started meanwhile survives.
+      if (this.cachedAccountId === pending) this.cachedAccountId = undefined;
+      throw error;
+    }
+  }
+
+  private async requestAccountId(): Promise<string> {
+    const identity = await this.sts.send(new GetCallerIdentityCommand({}));
+    const accountId = identity.Account?.trim();
+    if (accountId === undefined || accountId === '') {
+      throw new Error(`GetCallerIdentity returned no account id for profile '${this.getProfile()}'`);
+    }
+    return accountId;
+  }
+
+  /**
    * Returns the configured AWS profile name
    */
   getProfile(): string {
@@ -153,6 +194,7 @@ export class AWSClientProvider {
     this.cachedECSClient?.destroy();
     this.cachedS3Client?.destroy();
     this.cachedSecretsManagerClient?.destroy();
+    this.cachedSTSClient?.destroy();
 
     this.cachedDynamoDBClient = null;
     this.cachedCloudWatchClient = null;
@@ -162,5 +204,7 @@ export class AWSClientProvider {
     this.cachedECSClient = null;
     this.cachedS3Client = null;
     this.cachedSecretsManagerClient = null;
+    this.cachedSTSClient = null;
+    this.cachedAccountId = undefined;
   }
 }

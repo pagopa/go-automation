@@ -14,6 +14,10 @@ export type { AWSClientProviderConfig } from './AWSClientProvider.js';
 
 // Multi-client provider (multiple profiles)
 export { AWSMultiClientProvider } from './AWSMultiClientProvider.js';
+export { AWSAccountProfileSet } from './AWSAccountProfileSet.js';
+export type { AWSProfileSet } from './AWSProfileSet.js';
+export type { AWSExecutionTarget } from './AWSExecutionTarget.js';
+export { AWSTargetNotConfiguredError, isAWSTargetNotConfiguredError } from './AWSTargetNotConfiguredError.js';
 export type { AWSMultiClientProviderConfig } from './AWSMultiClientProvider.js';
 
 // Unified AWS facade and service providers

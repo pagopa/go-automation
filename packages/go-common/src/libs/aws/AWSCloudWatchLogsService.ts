@@ -13,7 +13,7 @@ import {
 
 import { GOPoller, GOPollingPolicies } from '../core/polling/index.js';
 
-import type { AWSMultiClientProvider } from './AWSMultiClientProvider.js';
+import type { AWSProfileSet } from './AWSProfileSet.js';
 import { AWSActiveOperationRegistry } from './AWSActiveOperationRegistry.js';
 import type { AWSRemoteCleanupWarningHandler } from './AWSActiveOperationRegistry.js';
 
@@ -114,17 +114,23 @@ interface ProfileAttemptError {
 }
 
 /**
- * CloudWatch Logs Insights service backed by {@link AWSMultiClientProvider}.
+ * CloudWatch Logs Insights service backed by an {@link AWSProfileSet}.
  *
- * The default behaviour is conservative and uses the first configured
- * profile only. Callers that need cross-account log group discovery can
- * opt into `search-configured-profiles` per query.
+ * The service knows nothing about accounts: it queries the profiles it was
+ * given. Whoever composes it decides which those are — an account-scoped set
+ * makes `search-configured-profiles` a search among the roles of one account,
+ * which is the only search that is meaningful, since log group names repeat
+ * identically across environments.
+ *
+ * The default behaviour is conservative and uses the first profile of the set.
+ * Callers that need log group discovery opt into `search-configured-profiles`
+ * per query.
  */
 export class AWSCloudWatchLogsService {
   private readonly logGroupProfileCache = new Map<string, string>();
 
   constructor(
-    private readonly clientProvider: AWSMultiClientProvider,
+    private readonly clientProvider: AWSProfileSet,
     private readonly target: AWSCloudWatchLogsTarget | undefined = undefined,
     private readonly activeOperations: AWSActiveOperationRegistry | undefined = undefined,
   ) {
@@ -242,12 +248,13 @@ export class AWSCloudWatchLogsService {
   }
 
   private buildCandidateProfiles(logGroup: string): ReadonlyArray<string> {
+    const searchable = this.clientProvider.profileNames;
     const cached = this.logGroupProfileCache.get(logGroup);
-    if (cached === undefined) {
-      return this.clientProvider.profileNames;
+    if (cached === undefined || !searchable.includes(cached)) {
+      return searchable;
     }
 
-    return [cached, ...this.clientProvider.profileNames.filter((profile) => profile !== cached)];
+    return [cached, ...searchable.filter((profile) => profile !== cached)];
   }
 
   private async queryWithProfile(
