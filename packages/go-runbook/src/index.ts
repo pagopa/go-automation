@@ -143,6 +143,8 @@ export { logAction, notifyAction, escalateAction, compositeAction } from './acti
 
 // Services
 export type { ServiceRegistry } from './registry/ServiceRegistry.js';
+export type { ResolvedServiceRegistry } from './registry/ResolvedServiceRegistry.js';
+export type { ServiceRegistryResolverFn } from './registry/ServiceRegistryResolverFn.js';
 export type { RunbookReporter } from './registry/RunbookReporter.js';
 export { ConsoleRunbookReporter } from './registry/reporters/ConsoleRunbookReporter.js';
 export { CollectingRunbookReporter } from './registry/reporters/CollectingRunbookReporter.js';

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import type { TestContext } from 'node:test';
 
 import type { GetQueryResultsCommand, ResultField, StartQueryCommand } from '@aws-sdk/client-cloudwatch-logs';
 
@@ -16,6 +17,7 @@ import { AWSProvider } from '../AWSProvider.js';
 import { AWSServiceProvider } from '../AWSServiceProvider.js';
 import { AWSS3Service } from '../AWSS3Service.js';
 import { AWSSQSService } from '../AWSSQSService.js';
+import { isAWSTargetNotConfiguredError } from '../AWSTargetNotConfiguredError.js';
 
 type CloudWatchLogsCommand = StartQueryCommand | GetQueryResultsCommand;
 type CloudWatchLogsSendResponse =
@@ -311,5 +313,128 @@ describe('AWS unified provider facade', () => {
     assert.notStrictEqual(services.cloudWatchLogs, beforeClose);
     assert.notStrictEqual(services.cloudWatchAlarms, beforeCloudWatchAlarms);
     assert.notStrictEqual(services.athena, beforeAthena);
+  });
+});
+
+const TARGET_REGION = 'eu-south-1';
+const UAT_ACCOUNT = '222222222222';
+const PROD_ACCOUNT = '111111111111';
+
+/**
+ * Replaces the one STS lookup every account selection goes through.
+ *
+ * The map is read on each call, so a test can let an expired session recover by
+ * rewriting the entry between two attempts.
+ *
+ * @param t - The running test, which restores the stub when it ends
+ * @param identities - Profile to account id, or to the error it fails with
+ * @returns The profiles asked for an identity, in call order
+ */
+function stubIdentities(t: TestContext, identities: ReadonlyMap<string, string | Error>): { readonly calls: string[] } {
+  const calls: string[] = [];
+  t.mock.method(AWSClientProvider.prototype, 'resolveAccountId', async function (this: AWSClientProvider) {
+    await Promise.resolve();
+    const profile = this.getProfile();
+    calls.push(profile);
+    const outcome = identities.get(profile);
+    if (outcome === undefined) throw new Error(`No scripted identity for '${profile}'`);
+    if (outcome instanceof Error) throw outcome;
+    return outcome;
+  });
+  return { calls };
+}
+
+describe('AWSProvider — services bound to one execution target', () => {
+  it('binds the services to the profile owning the account, not to the first configured one', async (t) => {
+    stubIdentities(
+      t,
+      new Map([
+        ['sso_prod', PROD_ACCOUNT],
+        ['sso_uat', UAT_ACCOUNT],
+      ]),
+    );
+    const provider = new AWSProvider({ profiles: ['sso_prod', 'sso_uat'], region: TARGET_REGION });
+
+    const services = await provider.servicesFor({ accountId: UAT_ACCOUNT, region: TARGET_REGION });
+
+    assert.deepStrictEqual(services.profileNames, ['sso_uat']);
+    provider.close();
+  });
+
+  it('memoises the services per target, so concurrent occurrences share one identity lookup', async (t) => {
+    const { calls } = stubIdentities(
+      t,
+      new Map([
+        ['sso_prod', PROD_ACCOUNT],
+        ['sso_uat', UAT_ACCOUNT],
+      ]),
+    );
+    const provider = new AWSProvider({ profiles: ['sso_prod', 'sso_uat'], region: TARGET_REGION });
+    const target = { accountId: UAT_ACCOUNT, region: TARGET_REGION };
+
+    const [first, second] = await Promise.all([provider.servicesFor(target), provider.servicesFor(target)]);
+    const third = await provider.servicesFor(target);
+
+    assert.strictEqual(first, second, 'concurrent callers must share the pending resolution');
+    assert.strictEqual(first, third, 'a settled resolution must be reused, keeping the log group cache warm');
+    assert.deepStrictEqual([...calls].sort(), ['sso_prod', 'sso_uat'], 'each profile is asked once');
+    provider.close();
+  });
+
+  it('gives two accounts independent services', async (t) => {
+    stubIdentities(
+      t,
+      new Map([
+        ['sso_prod', PROD_ACCOUNT],
+        ['sso_uat', UAT_ACCOUNT],
+      ]),
+    );
+    const provider = new AWSProvider({ profiles: ['sso_prod', 'sso_uat'], region: TARGET_REGION });
+
+    const uat = await provider.servicesFor({ accountId: UAT_ACCOUNT, region: TARGET_REGION });
+    const prod = await provider.servicesFor({ accountId: PROD_ACCOUNT, region: TARGET_REGION });
+
+    assert.notStrictEqual(uat, prod);
+    assert.deepStrictEqual(uat.profileNames, ['sso_uat']);
+    assert.deepStrictEqual(prod.profileNames, ['sso_prod']);
+    provider.close();
+  });
+
+  it('never caches a failed resolution, so refreshed credentials recover', async (t) => {
+    const identities = new Map<string, string | Error>([['sso_uat', new Error('ExpiredToken')]]);
+    stubIdentities(t, identities);
+    const provider = new AWSProvider({ profiles: ['sso_uat'], region: TARGET_REGION });
+    const target = { accountId: UAT_ACCOUNT, region: TARGET_REGION };
+
+    await assert.rejects(async () => provider.servicesFor(target));
+    identities.set('sso_uat', UAT_ACCOUNT);
+
+    const services = await provider.servicesFor(target);
+    assert.deepStrictEqual(services.profileNames, ['sso_uat']);
+    provider.close();
+  });
+
+  it('keeps the run-wide services when every profile owns the account', async (t) => {
+    stubIdentities(t, new Map([['sso_uat', UAT_ACCOUNT]]));
+    const provider = new AWSProvider({ profiles: ['sso_uat'], region: TARGET_REGION });
+
+    const services = await provider.servicesFor({ accountId: UAT_ACCOUNT, region: TARGET_REGION });
+
+    assert.strictEqual(services, provider.services, 'nothing was narrowed, so there is nothing to rebuild');
+    provider.close();
+  });
+
+  it('propagates the typed configuration error instead of serving the wrong account', async (t) => {
+    stubIdentities(t, new Map([['sso_prod', PROD_ACCOUNT]]));
+    const provider = new AWSProvider({ profiles: ['sso_prod'], region: TARGET_REGION });
+
+    const error = await provider
+      .servicesFor({ accountId: UAT_ACCOUNT, region: TARGET_REGION })
+      .then(() => undefined)
+      .catch((caught: unknown) => caught);
+
+    assert.ok(isAWSTargetNotConfiguredError(error));
+    assert.strictEqual(error.code, 'AWS_ACCOUNT_NOT_CONFIGURED');
+    provider.close();
   });
 });

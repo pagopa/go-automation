@@ -1,4 +1,4 @@
-import type { AWSMultiClientProvider } from './AWSMultiClientProvider.js';
+import type { AWSProfileSet } from './AWSProfileSet.js';
 import { AWSAthenaService } from './AWSAthenaService.js';
 import { AWSCloudWatchAlarmsService } from './AWSCloudWatchAlarmsService.js';
 import { AWSCloudWatchLogsService } from './AWSCloudWatchLogsService.js';
@@ -12,8 +12,10 @@ import { AWSSecretsManagerService } from './AWSSecretsManagerService.js';
 /**
  * High-level AWS service provider.
  *
- * Services are instantiated lazily on first access and backed by the
- * shared multi-client provider.
+ * Services are instantiated lazily on first access and backed by the profile
+ * set the provider was built on. The set decides which accounts are reachable,
+ * so no service here has to know what an account is: see
+ * {@link AWSProvider.servicesFor} for the provider bound to one target.
  */
 export class AWSServiceProvider {
   private cachedCloudWatchLogsService: AWSCloudWatchLogsService | undefined;
@@ -26,7 +28,18 @@ export class AWSServiceProvider {
   private cachedAthenaService: AWSAthenaService | undefined;
   private cachedSecretsManagerService: AWSSecretsManagerService | undefined;
 
-  constructor(private readonly clientProvider: AWSMultiClientProvider) {}
+  constructor(private readonly clientProvider: AWSProfileSet) {}
+
+  /**
+   * The profiles these services may query, in resolution order.
+   *
+   * Callers that report what an execution actually read need the profiles the
+   * set was narrowed to, not the ones configured for the whole run: on a
+   * multi-account run the two differ.
+   */
+  get profileNames(): ReadonlyArray<string> {
+    return this.clientProvider.profileNames;
+  }
 
   get cloudWatchLogs(): AWSCloudWatchLogsService {
     this.cachedCloudWatchLogsService ??= new AWSCloudWatchLogsService(this.clientProvider);
@@ -77,6 +90,10 @@ export class AWSServiceProvider {
     return this.cachedSecretsManagerService;
   }
 
+  /**
+   * Drops the cached services. The AWS clients belong to the profile set, which
+   * is shared with every other provider built on it, so they are not destroyed.
+   */
   close(): void {
     this.cachedCloudWatchLogsService = undefined;
     this.cachedCloudWatchAlarmsService = undefined;

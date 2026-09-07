@@ -5,8 +5,12 @@
  * Each profile has its own lazy-initialized AWSClientProvider.
  */
 
+import { AWSAccountProfileSet } from './AWSAccountProfileSet.js';
 import { AWSClientProvider } from './AWSClientProvider.js';
+import type { AWSExecutionTarget } from './AWSExecutionTarget.js';
+import type { AWSProfileSet } from './AWSProfileSet.js';
 import { AWS_REGION } from './AWSRegion.js';
+import { AWSTargetNotConfiguredError } from './AWSTargetNotConfiguredError.js';
 
 /**
  * Configuration options for AWSMultiClientProvider
@@ -20,6 +24,13 @@ export interface AWSMultiClientProviderConfig {
 }
 
 type AWSMultiClientOperationHandler<T> = (profile: string, clientProvider: AWSClientProvider) => Promise<T>;
+
+/** One profile's resolved account id, or the error that prevented resolving it. */
+interface AWSProfileIdentity {
+  readonly profile: string;
+  readonly accountId?: string;
+  readonly error?: Error;
+}
 
 const DEFAULT_CREDENTIAL_CHAIN_PROFILE = '__go_default_credential_chain__';
 const DEFAULT_CREDENTIAL_CHAIN_PROFILE_NAME = 'default';
@@ -52,7 +63,7 @@ const DEFAULT_CREDENTIAL_CHAIN_PROFILE_NAME = 'default';
  * provider.close();
  * ```
  */
-export class AWSMultiClientProvider {
+export class AWSMultiClientProvider implements AWSProfileSet {
   private readonly profiles: ReadonlyArray<string>;
   private readonly region: string;
   private readonly providers: Map<string, AWSClientProvider>;
@@ -128,6 +139,85 @@ export class AWSMultiClientProvider {
     this.providers.set(internalProfile, provider);
 
     return provider;
+  }
+
+  /**
+   * Returns the profiles that can read `target`.
+   *
+   * The one place that decides which credentials serve an account, so the
+   * services built on the result never have to ask. A target no profile can
+   * reach fails here instead of silently reading whichever account comes first
+   * in configuration order: log group and table names repeat across
+   * environments, so the wrong account answers successfully with no rows.
+   *
+   * @param target - Source account and region of the execution
+   * @returns The narrowed set, or this provider when every profile matches
+   * @throws AWSTargetNotConfiguredError when no profile can read the target
+   */
+  async profileSetFor(target: AWSExecutionTarget): Promise<AWSProfileSet> {
+    const region = target.region.trim();
+    if (region !== this.region) {
+      throw new AWSTargetNotConfiguredError(
+        'AWS_REGION_NOT_CONFIGURED',
+        `AWS clients are configured for region ${this.region}, but the execution target is ${region}`,
+      );
+    }
+
+    const accountId = target.accountId.trim();
+    if (accountId === '') {
+      throw new AWSTargetNotConfiguredError(
+        'AWS_ACCOUNT_NOT_CONFIGURED',
+        'The execution target carries no AWS account id, so no profile can be selected for it',
+      );
+    }
+
+    const identities = await this.resolveIdentities();
+    const matching = identities.filter((identity) => identity.accountId === accountId).map(({ profile }) => profile);
+    if (matching.length > 0) {
+      // Nothing narrowed: keep the identity, so callers can skip rebuilding.
+      return matching.length === this.profiles.length ? this : new AWSAccountProfileSet(this, matching);
+    }
+
+    // A profile whose identity could not be checked may well be the right one:
+    // saying "no profile resolves to that account" would be a guess, and would
+    // hide the expired session that actually needs fixing.
+    const unresolved = identities.filter((identity) => identity.error !== undefined);
+    if (unresolved.length > 0) {
+      const causes = unresolved.map(({ profile, error }) => `${profile}: ${error?.message ?? 'unknown error'}`);
+      throw new AWSTargetNotConfiguredError(
+        'AWS_PROFILE_IDENTITY_UNAVAILABLE',
+        `No configured AWS profile could be matched to account ${accountId}, and the identity of ` +
+          `${unresolved.length} of ${identities.length} profiles could not be resolved — ${causes.join('; ')}`,
+      );
+    }
+
+    throw new AWSTargetNotConfiguredError(
+      'AWS_ACCOUNT_NOT_CONFIGURED',
+      `No configured AWS profile resolves to account ${accountId}. ` +
+        `Configured profiles: ${this.profileNames.join(', ')}`,
+    );
+  }
+
+  /**
+   * Resolves every configured profile's account id in parallel, keeping the
+   * failures instead of collapsing them into "no match".
+   *
+   * Not memoised: {@link AWSClientProvider.resolveAccountId} already
+   * single-flights the successful lookups and drops the failed ones, so caching
+   * here would pin a failure past the credential refresh that fixes it.
+   *
+   * @returns One entry per profile, carrying its account id or its error
+   */
+  private async resolveIdentities(): Promise<ReadonlyArray<AWSProfileIdentity>> {
+    return await Promise.all(
+      this.profileNames.map(async (profile): Promise<AWSProfileIdentity> => {
+        try {
+          return { profile, accountId: await this.getClientProvider(profile).resolveAccountId() };
+        } catch (error: unknown) {
+          return { profile, error: error instanceof Error ? error : new Error(String(error)) };
+        }
+      }),
+    );
   }
 
   /**
