@@ -32,22 +32,27 @@ const YEARS_PER_CENTURY = 100;
 
 /**
  * Resolves an RFC 850 two-digit year to a full year, following the rolling
- * window of RFC 9110 §5.6.7: a timestamp more than 50 years in the future is
- * the most recent past year ending in the same two digits.
+ * window of RFC 9110 §5.6.7: the most recent year ending in those two digits
+ * that is not more than 50 years in the future.
  *
  * `Date.parse` instead pivots on a fixed year — in V8, `-50` is always 1950 —
  * so from 2026 it reads a valid 2050 deadline as a date 76 years past, which
  * `parseRetryAfterMs` then clamps to an immediate retry.
+ *
+ * The search is anchored on the far end of the window rather than on the
+ * current century, which is the same year everywhere except near a century
+ * boundary: in 2099 a `-00` deadline is 2100, one year ahead, while the
+ * current century would answer 2000 and clamp it to an immediate retry.
  *
  * @param twoDigitYear - The header's two-digit year, 0-99
  * @param now - Epoch milliseconds the window is anchored to
  * @returns The four-digit year
  */
 function resolveTwoDigitYear(twoDigitYear: number, now: number): number {
-  const nowYear = new Date(now).getUTCFullYear();
-  const currentCentury = Math.floor(nowYear / YEARS_PER_CENTURY) * YEARS_PER_CENTURY;
-  const candidate = currentCentury + twoDigitYear;
-  return candidate - nowYear > MAX_YEARS_AHEAD ? candidate - YEARS_PER_CENTURY : candidate;
+  const latestAccepted = new Date(now).getUTCFullYear() + MAX_YEARS_AHEAD;
+  const century = Math.floor(latestAccepted / YEARS_PER_CENTURY) * YEARS_PER_CENTURY;
+  const candidate = century + twoDigitYear;
+  return candidate > latestAccepted ? candidate - YEARS_PER_CENTURY : candidate;
 }
 
 /**

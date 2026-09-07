@@ -149,6 +149,25 @@ describe('parseRetryAfterMs — the three RFC 9110 grammars', () => {
     );
   });
 
+  it('crosses the century boundary instead of reaching a hundred years back', () => {
+    // RFC 9110 §5.6.7 asks for the most recent year ending in those digits that
+    // is not more than 50 years ahead. Anchoring on the current century read
+    // `-00` from 2099 as 2000 — 99 years past — and clamped a deadline one year
+    // away to an immediate retry.
+    const endOfCentury = Date.parse('2099-06-01T00:00:00.000Z');
+    assert.strictEqual(
+      parseRetryAfterMs('Saturday, 06-Nov-00 08:49:37 GMT', endOfCentury),
+      Date.parse('2100-11-06T08:49:37.000Z') - endOfCentury,
+    );
+    // 2149 is exactly 50 years ahead and still inside the window; 2150 is not,
+    // so `-50` falls back to the same digits in the past.
+    assert.strictEqual(
+      parseRetryAfterMs('Saturday, 06-Nov-49 08:49:37 GMT', endOfCentury),
+      Date.parse('2149-11-06T08:49:37.000Z') - endOfCentury,
+    );
+    assert.strictEqual(parseRetryAfterMs('Saturday, 06-Nov-50 08:49:37 GMT', endOfCentury), 0);
+  });
+
   it('still rejects an RFC 850 date with impossible fields', () => {
     // The two-digit year is rewritten before parsing; that must not smuggle
     // past the field validation `Date.parse` was doing.
