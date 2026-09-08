@@ -46,8 +46,8 @@ catalogs:
       specifier: 3.1127.0
       version: 3.1127.0
     '@aws-sdk/client-scheduler':
-      specifier: 3.1101.0
-      version: 3.1101.0
+      specifier: 3.1127.0
+      version: 3.1127.0
     '@aws-sdk/client-secrets-manager':
       specifier: 3.1127.0
       version: 3.1127.0
@@ -474,7 +474,7 @@ importers:
         version: 3.1127.0
       '@aws-sdk/client-scheduler':
         specifier: 'catalog:'
-        version: 3.1101.0
+        version: 3.1127.0
       '@aws-sdk/client-secrets-manager':
         specifier: 'catalog:'
         version: 3.1127.0
@@ -843,7 +843,7 @@ importers:
         version: link:../../../packages/go-common
     devDependencies:
       '@types/node':
-        specifier: ^24.10.9
+        specifier: 'catalog:'
         version: 24.13.3
 
   scripts/send/send-fetch-timeline-from-iun:
@@ -989,8 +989,8 @@ packages:
     resolution: {integrity: sha512-0ZSAgmEda33xPqVPt+bx2KzrXV1cUCKRRVPGliLu+V7DzHPa04CqPSi1maGEM4O0LDP0iI6HRSW5ULloNwayNw==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-scheduler@3.1101.0':
-    resolution: {integrity: sha512-GsYtTOpJMfNbWPafX6PNs505Ne9RgRtUGd8guhHpGsAjPQZyay5rvT/vyMMPgq3fg9cRnv3oEc3mVynM6UNScA==}
+  '@aws-sdk/client-scheduler@3.1127.0':
+    resolution: {integrity: sha512-EPqngKCbsTxq7Uz/FjdtoMT/1vERIhRHNwer05FJ+evHichlhnClwY4+Csqi5O9sLzr752+BlPxQSkoL+9MSag==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/client-secrets-manager@3.1127.0':
@@ -3348,7 +3348,7 @@ snapshots:
       '@smithy/types': 4.17.2
       tslib: 2.8.1
 
-  '@aws-sdk/client-scheduler@3.1101.0':
+  '@aws-sdk/client-scheduler@3.1127.0':
     dependencies:
       '@aws-sdk/core': 3.977.9
       '@aws-sdk/credential-provider-node': 3.972.82
