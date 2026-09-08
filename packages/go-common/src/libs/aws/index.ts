@@ -117,6 +117,9 @@ export type { ECSClusterHealthReport, ECSServiceHealth, ECSTaskHealth } from './
 export type { MetricDatapoint } from './models/MetricDatapoint.js';
 export type { MetricDimension } from './models/MetricDimension.js';
 
+// Scheduler service
+export { AWSSchedulerService } from './AWSSchedulerService.js';
+
 // Credentials management
 export { GOAWSCredentialsManager } from './GOAWSCredentialsManager.js';
 export { GOAWSCredentialsErrorType } from './GOAWSCredentialsError.js';
@@ -153,6 +156,7 @@ export { readRowField, readRowFields, readResultFieldRows } from './AWSCloudWatc
 export { escapeLogsInsightsString, escapeLogsInsightsRegexLiteral } from './AWSCloudWatchLogsInsightsEscape.js';
 export type { AthenaClient } from '@aws-sdk/client-athena';
 export type { ECSClient } from '@aws-sdk/client-ecs';
+export type { SchedulerClient } from '@aws-sdk/client-scheduler';
 
 // DynamoDB types
 export type {

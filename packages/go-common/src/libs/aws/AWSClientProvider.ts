@@ -13,6 +13,7 @@ import { AthenaClient } from '@aws-sdk/client-athena';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { ECSClient } from '@aws-sdk/client-ecs';
+import { SchedulerClient } from '@aws-sdk/client-scheduler';
 import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { fromIni } from '@aws-sdk/credential-provider-ini';
 
@@ -53,6 +54,7 @@ export class AWSClientProvider {
   private cachedS3Client: S3Client | null = null;
   private cachedECSClient: ECSClient | null = null;
   private cachedSecretsManagerClient: SecretsManagerClient | null = null;
+  private cachedSchedulerClient: SchedulerClient | null = null;
   private cachedSTSClient: STSClient | null = null;
   private cachedAccountId: Promise<string> | undefined;
 
@@ -131,6 +133,14 @@ export class AWSClientProvider {
   }
 
   /**
+   * Returns the cached SchedulerClient instance.
+   */
+  get scheduler(): SchedulerClient {
+    this.cachedSchedulerClient ??= new SchedulerClient(this.clientConfig);
+    return this.cachedSchedulerClient;
+  }
+
+  /**
    * Returns the cached STSClient instance.
    */
   get sts(): STSClient {
@@ -194,6 +204,7 @@ export class AWSClientProvider {
     this.cachedECSClient?.destroy();
     this.cachedS3Client?.destroy();
     this.cachedSecretsManagerClient?.destroy();
+    this.cachedSchedulerClient?.destroy();
     this.cachedSTSClient?.destroy();
 
     this.cachedDynamoDBClient = null;
@@ -204,6 +215,7 @@ export class AWSClientProvider {
     this.cachedECSClient = null;
     this.cachedS3Client = null;
     this.cachedSecretsManagerClient = null;
+    this.cachedSchedulerClient = null;
     this.cachedSTSClient = null;
     this.cachedAccountId = undefined;
   }
