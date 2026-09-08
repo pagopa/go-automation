@@ -54,8 +54,11 @@ export type {
   AWSCloudWatchLogsQueryStatistics,
   AWSCloudWatchLogsTimeRange,
   AWSCloudWatchLogsTarget,
+  AWSCloudWatchLogsSource,
 } from './AWSCloudWatchLogsService.js';
 export { isAWSCloudWatchLogsConfigurationError } from './AWSCloudWatchLogsService.js';
+export { parseAwsProfileEntries } from './parseAwsProfileEntries.js';
+export type { AWSProfileEntries } from './parseAwsProfileEntries.js';
 export {
   AWSCloudWatchAlarmsService,
   getAlarmHistoryIsoTimestamps,

@@ -3,8 +3,8 @@
  * Integrates logging, configuration, and prompts into a unified script framework
  */
 
-import { AWSProvider, GOAWSCredentialsManager } from '../../aws/index.js';
-import type { GOAWSCredentialsLogHandler, GOAWSCredentialsPromptHandler } from '../../aws/index.js';
+import { AWSProvider, GOAWSCredentialsManager, parseAwsProfileEntries } from '../../aws/index.js';
+import type { AWSProfileEntries, GOAWSCredentialsLogHandler, GOAWSCredentialsPromptHandler } from '../../aws/index.js';
 import type { GOConfigProvider } from '../config/GOConfigProvider.js';
 import { GOSecretRedactor, GOSecretsSpecifierFactory } from '../config/GOSecretsSpecifier.js';
 import { GOConfigReader } from '../config/GOConfigReader.js';
@@ -718,11 +718,9 @@ export class GOScript {
    * one API (`script.aws`) while preserving both CLI parameter styles.
    */
   private resolveAwsProfileNames(): ReadonlyArray<string> {
-    const profiles = this.getConfigStringArray('aws.profiles')
-      ?.map((profile) => profile.trim())
-      .filter((profile) => profile.length > 0);
+    const profiles = this.resolveAwsProfileEntries().profileNames;
 
-    if (profiles !== undefined && profiles.length > 0) {
+    if (profiles.length > 0) {
       return profiles;
     }
 
@@ -732,6 +730,17 @@ export class GOScript {
     }
 
     return [];
+  }
+
+  /**
+   * Parses `aws.profiles` once: plain names for SSO and client construction,
+   * plus the log-group fallbacks each profile declared.
+   *
+   * A flat list yields no fallbacks, so every script that never writes the
+   * `profile:fallback` form behaves exactly as before.
+   */
+  private resolveAwsProfileEntries(): AWSProfileEntries {
+    return parseAwsProfileEntries(this.getConfigStringArray('aws.profiles') ?? []);
   }
 
   private resolveAwsRegion(): string | undefined {
@@ -1406,10 +1415,8 @@ export class GOScript {
 
     // Handle multi-profile if aws.profiles is configured
     if (this.hasAwsProfilesParam) {
-      const profiles = this.getConfigStringArray('aws.profiles')
-        ?.map((profile) => profile.trim())
-        .filter((profile) => profile.length > 0);
-      if (profiles !== undefined && profiles.length > 0) {
+      const profiles = this.resolveAwsProfileEntries().profileNames;
+      if (profiles.length > 0) {
         await this.handleMultiProfileAWSCredentials(profiles);
         return;
       }
@@ -1564,9 +1571,15 @@ export class GOScript {
       // there fails with CredentialsProviderError. This mirrors handleAWSCredentials(), which already
       // skips profile resolution in AWS-managed environments.
       const profiles = this.environment.isAWSManaged ? [] : this.resolveAwsProfileNames();
+      // Same reason profiles are dropped above: an AWS-managed runtime has no
+      // named profiles, so a fallback declared against one could never apply.
+      const logFallbacksByProfile = this.environment.isAWSManaged
+        ? undefined
+        : this.resolveAwsProfileEntries().fallbacksByProfile;
       this.awsProvider = new AWSProvider({
         profiles,
         ...(region !== undefined ? { region } : {}),
+        ...(logFallbacksByProfile === undefined || logFallbacksByProfile.size === 0 ? {} : { logFallbacksByProfile }),
       });
     }
     return this.awsProvider;
