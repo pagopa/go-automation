@@ -25,11 +25,11 @@ Elenco delle funzionalità principali:
 
 ### Software Richiesto
 
-| Software | Versione Minima | Note |
-|----------|-----------------|------|
-| Node.js  | >= 22.14.0       | LTS consigliata |
-| pnpm     | >= 10.28.0        | Package manager |
-| TypeScript | >= 5.0.0      | Incluso nel progetto |
+| Software   | Versione Minima | Note                 |
+| ---------- | --------------- | -------------------- |
+| Node.js    | >= 22.14.0      | LTS consigliata      |
+| pnpm       | >= 10.28.0      | Package manager      |
+| TypeScript | >= 5.0.0        | Incluso nel progetto |
 
 ### Account e Permessi
 
@@ -50,21 +50,22 @@ aws sso login --profile <nome-profilo>
 
 ### Parametri CLI
 
-| Parametro | Alias | Tipo | Obbligatorio | Default | Descrizione |
-|-----------|-------|------|--------------|---------|-------------|
-| `--config-file` | | Stringa | Sì | | Percorso del file JSON contenente la configurazione dei cluster e delle regole |
-| `--aws-profiles` | | Array / Stringa | Sì | | Lista dei profili AWS da elaborare (es. `--awsProfiles profile1 profile2`) |
+| Parametro        | Alias | Tipo            | Obbligatorio | Default | Descrizione                                                                    |
+| ---------------- | ----- | --------------- | ------------ | ------- | ------------------------------------------------------------------------------ |
+| `--config-file`  |       | Stringa         | Sì           |         | Percorso del file JSON contenente la configurazione dei cluster e delle regole |
+| `--aws-profiles` |       | Array / Stringa | Sì           |         | Lista dei profili AWS da elaborare (es. `--awsProfiles profile1 profile2`)     |
 
 ### Variabili d'Ambiente
 
-| Variabile | Descrizione | Esempio |
-|-----------|-------------|---------|
-| `CONFIG_FILE` | Percorso del file JSON di configurazione | `configs/config.json` |
+| Variabile      | Descrizione                                    | Esempio               |
+| -------------- | ---------------------------------------------- | --------------------- |
+| `CONFIG_FILE`  | Percorso del file JSON di configurazione       | `configs/config.json` |
 | `AWS_PROFILES` | Profili AWS da elaborare (separati da virgola) | `profile-1,profile-2` |
 
 ### File di Configurazione
 
 #### 1. Configurazione del Script (`configs/config.json`)
+
 Questo file descrive i cluster e le regole da monitorare per ciascun profilo/ambiente.
 
 ```json
@@ -159,6 +160,7 @@ Descrivere il formato dell'output generato:
 **Causa**: Profilo AWS non configurato o sessione SSO scaduta.
 
 **Soluzione**:
+
 ```bash
 # Effettuare login SSO
 aws sso login --profile <nome-profilo>
@@ -169,6 +171,7 @@ aws sso login --profile <nome-profilo>
 **Causa**: Dipendenze non installate o build non eseguito.
 
 **Soluzione**:
+
 ```bash
 pnpm install
 pnpm build:common
@@ -195,4 +198,3 @@ pnpm --filter=send-fetch-ecs-clusters-infos exec tsc --noEmit
 
 **Ultima modifica**: 2026-07-29
 **Maintainer**: Team GO - Gestione Operativa
-
