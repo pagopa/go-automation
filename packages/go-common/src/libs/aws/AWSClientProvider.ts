@@ -139,7 +139,7 @@ export class AWSClientProvider {
     this.cachedSchedulerClient ??= new SchedulerClient(this.clientConfig);
     return this.cachedSchedulerClient;
   }
-  
+
   /**
    * Returns the cached STSClient instance.
    */
