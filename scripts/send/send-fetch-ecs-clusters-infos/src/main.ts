@@ -27,7 +27,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   // Your business logic here
 
   const configFileImporter = new Core.GOJSONFileImporter({
-    inputPath: config.configfile,
+    inputPath: config.configFile,
   });
   const configFile: ConfigFileItem[] = (await configFileImporter.import()) as ConfigFileItem[];
   // Insert a function to validate input configFile here
@@ -53,7 +53,7 @@ export async function main(script: Core.GOScript): Promise<void> {
       for (const name of item.clusters) {
         if (!outputClusterName.includes(name)) {
           script.logger.warning(
-            `Cluster '${name}' not found. Check into the ${item.profile} section in ${config.configfile} for some typo. Skipping infos for this cluster...`,
+            `Cluster '${name}' not found. Check into the ${item.profile} section in ${config.configFile} for some typo. Skipping infos for this cluster...`,
           );
           continue;
         }
@@ -74,7 +74,9 @@ export async function main(script: Core.GOScript): Promise<void> {
       } else {
         status = cluster.pendingTasksCount + cluster.runningTasksCount === 0 ? 'NOT ACTIVE' : 'ACTIVE';
       }
-      script.logger.text(`- ${cluster.clusterName}: ${status} - PendingTasks: ${cluster.pendingTasksCount}, RunningTasks: ${cluster.runningTasksCount}`);
+      script.logger.text(
+        `- ${cluster.clusterName}: ${status} - PendingTasks: ${cluster.pendingTasksCount}, RunningTasks: ${cluster.runningTasksCount}`,
+      );
     }
 
     if (item.rules && item.rules.length > 0) {

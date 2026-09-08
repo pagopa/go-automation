@@ -28,7 +28,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     aliases: ['aps'],
   },
   {
-    name: 'configfile',
+    name: 'config.file',
     type: Core.GOConfigParameterType.STRING,
     description: 'Configuration file',
     required: true,
