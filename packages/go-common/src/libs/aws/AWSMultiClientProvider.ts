@@ -205,16 +205,6 @@ export class AWSMultiClientProvider implements AWSProfileSet {
   }
 
   /**
-   * Resolves every configured profile's account id in parallel, keeping the
-   * failures instead of collapsing them into "no match".
-   *
-   * Not memoised: {@link AWSClientProvider.resolveAccountId} already
-   * single-flights the successful lookups and drops the failed ones, so caching
-   * here would pin a failure past the credential refresh that fixes it.
-   *
-   * @returns One entry per profile, carrying its account id or its error
-   */
-  /**
    * The account each configured profile's credentials belong to.
    *
    * Profiles whose identity cannot be resolved are omitted rather than failing
@@ -231,6 +221,16 @@ export class AWSMultiClientProvider implements AWSProfileSet {
     );
   }
 
+  /**
+   * Resolves every configured profile's account id in parallel, keeping the
+   * failures instead of collapsing them into "no match".
+   *
+   * Not memoised: {@link AWSClientProvider.resolveAccountId} already
+   * single-flights the successful lookups and drops the failed ones, so caching
+   * here would pin a failure past the credential refresh that fixes it.
+   *
+   * @returns One entry per profile, carrying its account id or its error
+   */
   private async resolveIdentities(): Promise<ReadonlyArray<AWSProfileIdentity>> {
     return await Promise.all(
       this.profileNames.map(async (profile): Promise<AWSProfileIdentity> => {
