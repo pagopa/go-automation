@@ -733,11 +733,17 @@ export class GOScript {
   }
 
   /**
-   * Parses `aws.profiles` once: plain names for SSO and client construction,
+   * Parses `aws.profiles` into plain names for SSO and client construction,
    * plus the log-group fallbacks each profile declared.
    *
    * A flat list yields no fallbacks, so every script that never writes the
    * `profile:fallback` form behaves exactly as before.
+   *
+   * Not cached: a reused Lambda container can receive different `aws.profiles`
+   * per invocation, and {@link refreshAwsClientsIfProfileChanged} notices
+   * through this very call. A memoised result would pin the first invocation's
+   * profiles and defeat the refresh, which is a far worse trade than parsing a
+   * handful of strings again.
    */
   private resolveAwsProfileEntries(): AWSProfileEntries {
     return parseAwsProfileEntries(this.getConfigStringArray('aws.profiles') ?? []);
