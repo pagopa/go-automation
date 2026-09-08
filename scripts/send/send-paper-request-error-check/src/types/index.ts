@@ -5,10 +5,13 @@
 export type {
   CheckFeedbackResult,
   ExecutionMode,
+  FetchTimelinesResult,
   GetNotificationAttachmentsResult,
   GlacierRestoreConfig,
   PaperRequestMetrics,
   PdfValidationConfig,
+  PdfValidationResult,
   RetrieveAttachmentsResult,
+  RetrieveGlacierResult,
   SendPaperRequestErrorCheckConfig,
 } from './SendPaperRequestErrorCheckConfig.js';

@@ -1,10 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import { QueryCommand } from '@aws-sdk/client-dynamodb';
-import type { AttributeValue } from '@aws-sdk/client-dynamodb';
-import { unmarshall } from '@aws-sdk/util-dynamodb';
 import type { Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, CheckFeedbackResult } from '../types/index.js';
+import { get } from '../utils/get.js';
 
 /** Nome della tabella DynamoDB delle timeline */
 const TIMELINES_TABLE_NAME = 'pn-Timelines';
@@ -60,7 +58,7 @@ export async function checkFeedbackFromRequestIds(
   requestIds: ReadonlyArray<string>,
 ): Promise<CheckFeedbackResult> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
-  const dynamoDbClient = script.aws.clients.dynamoDB;
+  const dynamoDbService = script.aws.services.dynamoDB;
   const logger = script.logger;
   const outputDir = config.outputDir || 'results';
 
@@ -80,16 +78,9 @@ export async function checkFeedbackFromRequestIds(
     const iun = extractIunFromRequestId(requestId);
 
     try {
-      const command = new QueryCommand({
-        TableName: TIMELINES_TABLE_NAME,
-        KeyConditionExpression: 'iun = :val',
-        ExpressionAttributeValues: {
-          ':val': { S: iun },
-        },
+      const items = await dynamoDbService.query(TIMELINES_TABLE_NAME, 'iun = :val', {
+        ':val': { S: iun },
       });
-
-      const response = await dynamoDbClient.send(command);
-      const items: ReadonlyArray<Record<string, AttributeValue>> = response.Items ?? [];
 
       if (items.length > 0) {
         const partsAfterIun = requestId.includes(iun) ? (requestId.split(iun)[1] ?? '') : '';
@@ -99,16 +90,15 @@ export async function checkFeedbackFromRequestIds(
         const feedbackString = `SEND_ANALOG_FEEDBACK.IUN_${iun}${feedbackSuffix}`;
         const completelyUnreachableString = `COMPLETELY_UNREACHABLE.IUN_${iun}${completelyUnreachableSuffix}`;
 
-        const feedbackEvent = items.find((item: Record<string, AttributeValue>) => {
-          const id = item['timelineElementId']?.S;
+        const feedbackEvent = items.find((item) => {
+          const id = get<string>(item, 'timelineElementId');
           return id === feedbackString || id === completelyUnreachableString;
         });
 
         if (feedbackEvent) {
-          const unmarshalledEvent = unmarshall(feedbackEvent) as Record<string, unknown>;
           logger.info(`✅ Trovato feedback per ${requestId}`);
-          foundRequestIds.push({ requestId, event: unmarshalledEvent });
-          appendToFile(foundFilePath, JSON.stringify({ [requestId]: unmarshalledEvent }));
+          foundRequestIds.push({ requestId, event: feedbackEvent });
+          appendToFile(foundFilePath, JSON.stringify({ [requestId]: feedbackEvent }));
         } else {
           logger.warning(`❌ Feedback non trovato per ${requestId}`);
           notFoundRequestIds.push(requestId);
@@ -139,3 +129,4 @@ export async function checkFeedbackFromRequestIds(
     notFoundRequestIds,
   };
 }
+

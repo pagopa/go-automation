@@ -1,12 +1,10 @@
 import fs from 'fs';
 import path from 'path';
-import { QueryCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
-import type { AttributeValue } from '@aws-sdk/client-dynamodb';
 import { ListObjectVersionsCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { STSClient, GetCallerIdentityCommand } from '@aws-sdk/client-sts';
-import { unmarshall } from '@aws-sdk/util-dynamodb';
-import type { Core } from '@go-automation/go-common';
+import type { S3Client } from '@aws-sdk/client-s3';
+import type { AWS, Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, GetNotificationAttachmentsResult } from '../types/index.js';
+import { get } from '../utils/get.js';
 
 /** Tabelle DynamoDB coinvolte */
 const NOTIFICATIONS_TABLE_NAME = 'pn-Notifications';
@@ -27,7 +25,7 @@ function appendToFile(filePath: string, content: string): void {
  * Recupera lo stato dell'oggetto su S3 SafeStorage (versioni e delete markers).
  */
 async function checkS3ObjectState(
-  s3Client: Core.GOScript['aws']['clients']['s3'],
+  s3Client: S3Client,
   bucket: string,
   documentKey: string,
 ) {
@@ -63,7 +61,7 @@ async function checkS3ObjectState(
  * Rimuove i Delete Markers da S3 per consentire il ripristino dell'allegato.
  */
 async function removeDeleteMarkers(
-  s3Client: Core.GOScript['aws']['clients']['s3'],
+  s3Client: S3Client,
   bucket: string,
   documentKey: string,
   deleteMarkers: ReadonlyArray<{ VersionId?: string | undefined }>,
@@ -88,29 +86,23 @@ async function removeDeleteMarkers(
  * Aggiorna lo stato del documento su pn-SsDocumenti a 'attached'.
  */
 async function updateDocumentState(
-  dynamoDbClient: Core.GOScript['aws']['clients']['dynamoDB'],
+  dynamoDbService: AWS.AWSDynamoDBService,
   documentKey: string,
 ): Promise<boolean> {
   try {
-    const command = new UpdateItemCommand({
-      TableName: SS_DOCUMENTI_TABLE_NAME,
-      Key: {
-        documentKey: { S: documentKey },
-      },
-      UpdateExpression: 'SET #documentState = :newdocumentState',
-      ExpressionAttributeNames: {
-        '#documentState': 'documentState',
-      },
-      ExpressionAttributeValues: {
-        ':newdocumentState': { S: 'attached' },
-      },
-    });
-    await dynamoDbClient.send(command);
+    await dynamoDbService.updateItem(
+      SS_DOCUMENTI_TABLE_NAME,
+      { documentKey },
+      'SET #documentState = :newdocumentState',
+      { ':newdocumentState': 'attached' },
+      { '#documentState': 'documentState' },
+    );
     return true;
   } catch {
     return false;
   }
 }
+
 
 /**
  * Esegue la verifica e il ripristino opzionale degli allegati di notifica via IUN.
@@ -124,23 +116,29 @@ export async function getNotificationAttachments(
   iuns: ReadonlyArray<string>,
 ): Promise<GetNotificationAttachmentsResult> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
-  const dynamoDbClient = script.aws.clients.dynamoDB;
+  const dynamoDbService = script.aws.services.dynamoDB;
+  const s3Service = script.aws.services.s3;
   const s3Client = script.aws.clients.s3;
   const logger = script.logger;
 
   const outputDir = config.outputDir || 'results';
   const timestamp = new Date().toISOString().replace(/:/g, '-').replace('.', '-');
 
-  // Risoluzione bucket di destinazione
+  // Risoluzione bucket di destinazione tramite servizio S3 di common
   let bucket = config.bucket;
   if (!bucket) {
     try {
-      const stsClient = new STSClient({});
-      const callerIdentity = await stsClient.send(new GetCallerIdentityCommand({}));
-      const accountId = callerIdentity.Account ?? '';
-      bucket = `pn-safestorage-eu-south-1-${accountId}`;
+      const buckets = await s3Service.listBuckets();
+      const target = buckets.find(
+        (b) => b.name && b.name.includes('safestorage') && !b.name.includes('staging'),
+      );
+      if (target?.name) {
+        bucket = target.name;
+      }
     } catch {
-      logger.warning(`Impossibile ricavare AccountId via STS, imposto bucket predefinito safe-storage`);
+      logger.warning(`Impossibile elencare i bucket via S3 Service, imposto bucket predefinito safe-storage`);
+    }
+    if (!bucket) {
       bucket = 'pn-safestorage-eu-south-1';
     }
   }
@@ -169,15 +167,10 @@ export async function getNotificationAttachments(
     logger.info(`[${i + 1}/${iuns.length}] Elaborazione IUN: ${iun}`);
 
     try {
-      // 1. Query notifica
-      const notifQuery = new QueryCommand({
-        TableName: NOTIFICATIONS_TABLE_NAME,
-        KeyConditionExpression: 'iun = :val',
-        ExpressionAttributeValues: { ':val': { S: iun } },
+      // 1. Query notifica via DynamoDB Service
+      const items = await dynamoDbService.query(NOTIFICATIONS_TABLE_NAME, 'iun = :val', {
+        ':val': { S: iun },
       });
-
-      const notifRes = await dynamoDbClient.send(notifQuery);
-      const items: ReadonlyArray<Record<string, AttributeValue>> = notifRes.Items ?? [];
 
       if (items.length === 0) {
         notificationsNotFound++;
@@ -187,10 +180,10 @@ export async function getNotificationAttachments(
       }
 
       notificationsFound++;
-      const notif = unmarshall(items[0]!) as Record<string, unknown>;
-      const documents = Array.isArray(notif['documents']) ? (notif['documents'] as Array<Record<string, unknown>>) : [];
-      const firstDocRef = documents[0]?.['ref'] as Record<string, unknown> | undefined;
-      const documentKey = typeof firstDocRef?.['key'] === 'string' ? firstDocRef['key'] : undefined;
+      const notif = items[0]!;
+      const documents = get<Array<Record<string, unknown>>>(notif, 'documents', []);
+      const firstDocRef = get<Record<string, unknown>>(documents[0], 'ref');
+      const documentKey = get<string>(firstDocRef, 'key');
 
       if (!documentKey) {
         attachmentsNotFound++;
@@ -216,27 +209,22 @@ export async function getNotificationAttachments(
         }
       }
 
-      // 3. Query pn-SsDocumenti per stato documento
-      const docQuery = new QueryCommand({
-        TableName: SS_DOCUMENTI_TABLE_NAME,
-        KeyConditionExpression: 'documentKey = :val',
-        ExpressionAttributeValues: { ':val': { S: documentKey } },
+      // 3. Query pn-SsDocumenti per stato documento via DynamoDB Service
+      const docItems = await dynamoDbService.query(SS_DOCUMENTI_TABLE_NAME, 'documentKey = :val', {
+        ':val': { S: documentKey },
       });
-
-      const docRes = await dynamoDbClient.send(docQuery);
-      const docItems: ReadonlyArray<Record<string, AttributeValue>> = docRes.Items ?? [];
 
       let documentLogicalState = 'UNKNOWN';
       let documentState = 'UNKNOWN';
 
       if (docItems.length > 0) {
-        const docObj = unmarshall(docItems[0]!) as Record<string, unknown>;
-        documentLogicalState = String(docObj['documentLogicalState'] ?? 'UNKNOWN');
-        documentState = String(docObj['documentState'] ?? 'UNKNOWN');
+        const docObj = docItems[0]!;
+        documentLogicalState = get<string>(docObj, 'documentLogicalState', 'UNKNOWN');
+        documentState = get<string>(docObj, 'documentState', 'UNKNOWN');
       }
 
       if (config.restore) {
-        const updated = await updateDocumentState(dynamoDbClient, documentKey);
+        const updated = await updateDocumentState(dynamoDbService, documentKey);
         if (!updated) {
           dynamoUpdateErrors++;
           logger.error(`Impossibile aggiornare lo stato DynamoDB per ${documentKey}`);
@@ -268,3 +256,4 @@ export async function getNotificationAttachments(
     dynamoUpdateErrors,
   };
 }
+

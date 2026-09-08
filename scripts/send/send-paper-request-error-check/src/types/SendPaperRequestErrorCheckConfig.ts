@@ -38,14 +38,19 @@
   * Struttura delle metriche di report finale per l'elaborazione
   */
  export interface PaperRequestMetrics {
-   readonly totalInitialRequestIds: number;
-   readonly canceledCount: number;
-   readonly perfectedCount: number;
-   readonly invalidAttachmentsCount: number;
-   readonly toResubmitCount: number;
-   readonly toVerifyManuallyCount: number;
-   readonly glacierRestoredCount: number;
- }
+  totalInitialRequestIds: number;
+  canceledCount: number;
+  perfectedCount: number;
+  invalidAttachmentsCount: number;
+  toResubmitCount: number;
+  toVerifyManuallyCount: number;
+  glacierRestoredCount: number;
+  attachmentsFoundCount?: number | undefined;
+  validPdfCount?: number | undefined;
+  invalidPdfCount?: number | undefined;
+  timelinesFetchedCount?: number | undefined;
+  errorsCount?: number | undefined;
+}
 
 /**
  * Risultati dell'elaborazione per la verifica dei feedback da requestId
@@ -78,6 +83,38 @@ export interface RetrieveAttachmentsResult {
   readonly totalIuns: number;
   readonly attachmentsExtractedCount: number;
   readonly aarsExtractedCount: number;
+  readonly errorsCount: number;
+}
+
+/**
+ * Risultati dell'elaborazione per il ripristino da S3 Glacier
+ */
+export interface RetrieveGlacierResult {
+  readonly totalItems: number;
+  readonly skippedByUser: boolean;
+  readonly restoredCount: number;
+  readonly alreadyInProgressCount: number;
+  readonly alreadyAvailableCount: number;
+  readonly errorsCount: number;
+}
+
+/**
+ * Risultati dell'elaborazione per la validazione dei magic bytes dei PDF su S3
+ */
+export interface PdfValidationResult {
+  readonly totalChecked: number;
+  readonly validPdfCount: number;
+  readonly invalidPdfCount: number;
+  readonly errorCount: number;
+}
+
+/**
+ * Risultati dell'elaborazione per il download delle timeline per IUN
+ */
+export interface FetchTimelinesResult {
+  readonly totalIuns: number;
+  readonly timelinesFetchedCount: number;
+  readonly emptyTimelinesCount: number;
   readonly errorsCount: number;
 }
 
