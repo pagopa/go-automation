@@ -20,7 +20,8 @@ export interface AWSProfileEntries {
  * its account needs an STS call, which belongs to the AWS provider and not to
  * configuration parsing.
  *
- * Complexity: O(N) in the number of declared pairs.
+ * Complexity: O(N) in the number of declared tokens — membership goes through
+ * sets, while the arrays only carry the order the caller depends on.
  *
  * @param entries - Raw `aws.profiles` values, blanks ignored
  * @returns The profile names and the fallback tokens declared for each
@@ -34,8 +35,12 @@ export interface AWSProfileEntries {
  * ```
  */
 export function parseAwsProfileEntries(entries: ReadonlyArray<string>): AWSProfileEntries {
+  // Sets carry the membership tests, arrays and insertion order carry the
+  // result: the profile order drives SSO login and which profile answers for
+  // an account, and the fallback order is the order they are tried in.
   const profileNames: string[] = [];
-  const fallbacksByProfile = new Map<string, string[]>();
+  const declaredProfiles = new Set<string>();
+  const fallbacksByProfile = new Map<string, Set<string>>();
 
   for (const raw of entries) {
     const entry = raw.trim();
@@ -46,7 +51,10 @@ export function parseAwsProfileEntries(entries: ReadonlyArray<string>): AWSProfi
     if (profile === '') {
       throw new Error(`Invalid AWS profile entry "${entry}": the profile name is required`);
     }
-    if (!profileNames.includes(profile)) profileNames.push(profile);
+    if (!declaredProfiles.has(profile)) {
+      declaredProfiles.add(profile);
+      profileNames.push(profile);
+    }
     if (separator === -1) continue;
 
     const fallbacks = entry
@@ -58,16 +66,19 @@ export function parseAwsProfileEntries(entries: ReadonlyArray<string>): AWSProfi
       throw new Error(`Invalid AWS profile entry "${entry}": declare at least one fallback after ":"`);
     }
 
-    const merged = fallbacksByProfile.get(profile) ?? [];
+    const merged = fallbacksByProfile.get(profile) ?? new Set<string>();
     for (const fallback of fallbacks) {
       // Self-reference is always a no-op, so it is a typo rather than a choice.
       if (fallback === profile) {
         throw new Error(`Invalid AWS profile entry "${entry}": ${profile} cannot be its own fallback`);
       }
-      if (!merged.includes(fallback)) merged.push(fallback);
+      merged.add(fallback);
     }
     fallbacksByProfile.set(profile, merged);
   }
 
-  return { profileNames, fallbacksByProfile };
+  return {
+    profileNames,
+    fallbacksByProfile: new Map([...fallbacksByProfile].map(([profile, merged]) => [profile, [...merged]])),
+  };
 }
