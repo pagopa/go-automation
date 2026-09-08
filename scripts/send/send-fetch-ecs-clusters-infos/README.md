@@ -53,7 +53,7 @@ aws sso login --profile <nome-profilo>
 | Parametro        | Alias | Tipo            | Obbligatorio | Default | Descrizione                                                                    |
 | ---------------- | ----- | --------------- | ------------ | ------- | ------------------------------------------------------------------------------ |
 | `--config-file`  |       | Stringa         | Sì           |         | Percorso del file JSON contenente la configurazione dei cluster e delle regole |
-| `--aws-profiles` |       | Array / Stringa | Sì           |         | Lista dei profili AWS da elaborare (es. `--awsProfiles profile1 profile2`)     |
+| `--aws-profiles` |       | Array / Stringa | Sì           |         | Lista dei profili AWS da elaborare (es. `--aws-profiles profile1 profile2`)     |
 
 ### Variabili d'Ambiente
 
