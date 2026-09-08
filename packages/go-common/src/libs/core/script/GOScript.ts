@@ -716,9 +716,13 @@ export class GOScript {
    * `aws.profiles` wins when present; otherwise `aws.profile` is promoted
    * to a single-element multi-profile provider. This keeps script code on
    * one API (`script.aws`) while preserving both CLI parameter styles.
+   *
+   * @param entries - Already parsed `aws.profiles`, so a caller that also needs
+   *   the declared fallbacks derives both halves from the same parse
+   * @returns The effective profile names, empty when neither parameter is set
    */
-  private resolveAwsProfileNames(): ReadonlyArray<string> {
-    const profiles = this.resolveAwsProfileEntries().profileNames;
+  private resolveAwsProfileNames(entries: AWSProfileEntries = this.resolveAwsProfileEntries()): ReadonlyArray<string> {
+    const profiles = entries.profileNames;
 
     if (profiles.length > 0) {
       return profiles;
@@ -1576,12 +1580,11 @@ export class GOScript {
       // on developer machines / CI, not in the runtime — building clients with fromIni({ profile })
       // there fails with CredentialsProviderError. This mirrors handleAWSCredentials(), which already
       // skips profile resolution in AWS-managed environments.
-      const profiles = this.environment.isAWSManaged ? [] : this.resolveAwsProfileNames();
-      // Same reason profiles are dropped above: an AWS-managed runtime has no
-      // named profiles, so a fallback declared against one could never apply.
-      const logFallbacksByProfile = this.environment.isAWSManaged
-        ? undefined
-        : this.resolveAwsProfileEntries().fallbacksByProfile;
+      // The declared log-group fallbacks go the same way, for the same reason.
+      // Parsed once, so names and fallbacks always describe the same value.
+      const entries = this.environment.isAWSManaged ? undefined : this.resolveAwsProfileEntries();
+      const profiles = entries === undefined ? [] : this.resolveAwsProfileNames(entries);
+      const logFallbacksByProfile = entries?.fallbacksByProfile;
       this.awsProvider = new AWSProvider({
         profiles,
         ...(region !== undefined ? { region } : {}),
