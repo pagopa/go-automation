@@ -3,6 +3,7 @@ import { AWSMultiClientProvider } from './AWSMultiClientProvider.js';
 import type { AWSMultiClientProviderConfig } from './AWSMultiClientProvider.js';
 import { AWSClientsProvider } from './AWSClientsProvider.js';
 import { AWSServiceProvider } from './AWSServiceProvider.js';
+import type { AWSCloudWatchLogsService, AWSCloudWatchLogsSource } from './AWSCloudWatchLogsService.js';
 
 /**
  * Unified AWS facade exposed by GOScript.
@@ -21,6 +22,9 @@ export class AWSProvider {
     this.multiClientProviderConfig = {
       ...(config.profiles !== undefined ? { profiles: [...config.profiles] } : {}),
       ...(config.region !== undefined ? { region: config.region } : {}),
+      ...(config.logFallbacksByProfile === undefined
+        ? {}
+        : { logFallbacksByProfile: new Map(config.logFallbacksByProfile) }),
     };
   }
 
@@ -65,7 +69,59 @@ export class AWSProvider {
 
   private async buildServicesFor(target: AWSExecutionTarget): Promise<AWSServiceProvider> {
     const profileSet = await this.multiClientProvider.profileSetFor(target);
+    const cloudWatchLogs = await this.buildCloudWatchLogsFor(target, profileSet.profileNames[0]);
+    if (cloudWatchLogs !== undefined) return new AWSServiceProvider(profileSet, cloudWatchLogs);
     return profileSet === this.multiClientProvider ? this.services : new AWSServiceProvider(profileSet);
+  }
+
+  /**
+   * Binds CloudWatch Logs to the places the occurrence's account declared, or
+   * returns `undefined` when it declared none — leaving the composition, and
+   * the behaviour, exactly as it was.
+   *
+   * The service is built on the *full* profile set rather than the narrowed
+   * one: reading a fallback with its own credentials needs a profile that the
+   * account-scoped set does not contain.
+   *
+   * @param target - Account and region of the occurrence
+   * @param occurrenceProfile - First profile bound to that account
+   * @returns The bound Logs service, or `undefined` when nothing was declared
+   * @throws Error when a declared fallback names an unknown profile
+   */
+  private async buildCloudWatchLogsFor(
+    target: AWSExecutionTarget,
+    occurrenceProfile: string | undefined,
+  ): Promise<AWSCloudWatchLogsService | undefined> {
+    const declared = this.multiClientProviderConfig.logFallbacksByProfile;
+    if (declared === undefined || declared.size === 0 || occurrenceProfile === undefined) return undefined;
+    const tokens = declared.get(occurrenceProfile);
+    if (tokens === undefined || tokens.length === 0) return undefined;
+
+    const accountByProfile = await this.multiClientProvider.accountIdByProfile();
+    const profileByAccount = new Map<string, string>();
+    for (const [profile, accountId] of accountByProfile) {
+      // Configuration order wins, so a stable profile answers for the account.
+      if (!profileByAccount.has(accountId)) profileByAccount.set(accountId, profile);
+    }
+
+    const fallbacks: AWSCloudWatchLogsSource[] = tokens.map((token) => {
+      const accountId = /^\d{12}$/.test(token) ? token : accountByProfile.get(token);
+      if (accountId === undefined) {
+        throw new Error(
+          `AWS profile "${occurrenceProfile}" declares the log fallback "${token}", ` +
+            `which is neither a 12-digit account id nor a configured profile whose identity could be resolved`,
+        );
+      }
+      const profile = profileByAccount.get(accountId);
+      return { accountId, ...(profile === undefined ? {} : { profile }) };
+    });
+
+    return this.services.cloudWatchLogs.forTarget({
+      accountId: target.accountId,
+      region: target.region,
+      profile: occurrenceProfile,
+      fallbacks,
+    });
   }
 
   close(): void {

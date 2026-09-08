@@ -64,10 +64,43 @@ export interface AWSCloudWatchLogsQueryOptions {
   readonly onCleanupWarning?: AWSRemoteCleanupWarningHandler;
 }
 
+/**
+ * A place a log group may live, and how its credentials are obtained.
+ *
+ * When {@link profile} is set the log group is read directly by name with that
+ * profile: holding credentials for the owning account is both cheaper and less
+ * demanding than an OAM link. Without it the group is read as a cross-account
+ * ARN through the OAM links of the first configured profile, which is the only
+ * option for an AWS-managed worker, since it runs on a task role and has no
+ * profiles to name.
+ */
+export interface AWSCloudWatchLogsSource {
+  /** Account owning the log group. */
+  readonly accountId: string;
+  /** Configured profile whose credentials belong to {@link accountId}. */
+  readonly profile?: string;
+}
+
 /** Source account and region fixed for one OAM-backed execution. */
 export interface AWSCloudWatchLogsTarget {
   readonly accountId?: string;
   readonly region: string;
+  /** Profile bound to {@link accountId}, when the run holds its credentials. */
+  readonly profile?: string;
+  /**
+   * Further places to look, in order, when the log group is not in
+   * {@link accountId}.
+   *
+   * A product does not always keep the alarm and the log group in the same
+   * account: SEND fires an alarm in one and writes the application logs in
+   * another. The occurrence still names the account that fired, so without this
+   * the query asks the wrong account and comes back as a configuration error.
+   *
+   * This is an allowlist, not a search: log group names repeat identically
+   * across environments, so a name found in an account of another environment
+   * would answer with the wrong data.
+   */
+  readonly fallbacks?: ReadonlyArray<AWSCloudWatchLogsSource>;
 }
 
 export type AWSCloudWatchLogsConfigurationErrorCode =
@@ -128,6 +161,7 @@ interface ProfileAttemptError {
  */
 export class AWSCloudWatchLogsService {
   private readonly logGroupProfileCache = new Map<string, string>();
+  private readonly logGroupAccountCache = new Map<string, string>();
 
   constructor(
     private readonly clientProvider: AWSProfileSet,
@@ -191,6 +225,7 @@ export class AWSCloudWatchLogsService {
 
   clearLogGroupResolutionCache(): void {
     this.logGroupProfileCache.clear();
+    this.logGroupAccountCache.clear();
   }
 
   private async queryWithTarget(
@@ -210,15 +245,105 @@ export class AWSCloudWatchLogsService {
         `CloudWatch Logs provider region ${providerRegion} does not match execution target ${target.region}`,
       );
     }
-    const identifiers = logGroups.map((logGroup) => toLogGroupIdentifier(logGroup, target));
-    return await this.queryWithProfile(
-      this.clientProvider.first.getProfile(),
-      identifiers,
-      query,
-      timeRange,
-      options,
-      true,
-    );
+
+    const sources = targetSources(target);
+    if (sources.length <= 1) {
+      return await this.querySource(sources[0], logGroups, target, query, timeRange, options);
+    }
+
+    // One query per log group: two groups of the same step can live in
+    // different accounts, and a single call would have to name one.
+    const results: AWSCloudWatchLogsQueryResult[] = [];
+    for (const logGroup of logGroups) {
+      results.push(await this.queryLogGroupAcrossSources(logGroup, sources, target, query, timeRange, options));
+    }
+
+    return {
+      rows: sortRowsByTimestamp(results.flatMap((result) => result.rows)),
+      statistics: sumCloudWatchLogsQueryStatistics(results.map((result) => result.statistics)),
+      queryExecutions: results.flatMap((result) => result.queryExecutions),
+    };
+  }
+
+  /**
+   * Tries the occurrence's account first, then its declared fallbacks, exactly
+   * as {@link queryLogGroupAcrossProfiles} does across profiles: the same
+   * recoverable-error test decides whether to move on, so a missing log group or
+   * a denied account continues the search while anything else surfaces.
+   */
+  private async queryLogGroupAcrossSources(
+    logGroup: string,
+    sources: ReadonlyArray<AWSCloudWatchLogsSource>,
+    target: AWSCloudWatchLogsTarget,
+    query: string,
+    timeRange: AWSCloudWatchLogsTimeRange,
+    options: AWSCloudWatchLogsQueryOptions,
+  ): Promise<AWSCloudWatchLogsQueryResult> {
+    // An explicit ARN already names its account: validate it and query it once.
+    if (logGroup.trim().startsWith('arn:')) {
+      return await this.querySource(undefined, [logGroup], target, query, timeRange, options);
+    }
+
+    const attempts: ProfileAttemptError[] = [];
+    for (const source of this.buildCandidateSources(logGroup, sources)) {
+      try {
+        const result = await this.querySource(source, [logGroup], target, query, timeRange, options);
+        this.logGroupAccountCache.set(logGroup, source.accountId);
+        return result;
+      } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        attempts.push({ profile: source.profile ?? source.accountId, error: err });
+        if (!isRecoverableProfileSearchError(err)) {
+          throw err;
+        }
+      }
+    }
+
+    throw buildSourceResolutionError(logGroup, attempts);
+  }
+
+  /**
+   * Reads the log groups from one source: directly by name when the run holds
+   * that account's credentials, otherwise as cross-account ARNs through the OAM
+   * links of the first configured profile.
+   */
+  private async querySource(
+    source: AWSCloudWatchLogsSource | undefined,
+    logGroups: ReadonlyArray<string>,
+    target: AWSCloudWatchLogsTarget,
+    query: string,
+    timeRange: AWSCloudWatchLogsTimeRange,
+    options: AWSCloudWatchLogsQueryOptions,
+  ): Promise<AWSCloudWatchLogsQueryResult> {
+    if (source?.profile !== undefined && !logGroups.some((logGroup) => logGroup.trim().startsWith('arn:'))) {
+      return await this.queryWithProfile(source.profile, logGroups, query, timeRange, options);
+    }
+
+    const accountTarget =
+      source === undefined
+        ? target
+        : { region: target.region, accountId: source.accountId, ...allowedAccounts(target) };
+    const identifiers = logGroups.map((logGroup) => toLogGroupIdentifier(logGroup, accountTarget));
+    // The occurrence's own profile is the monitoring identity: it is the one
+    // holding the OAM links to its product's accounts. Falling back to the
+    // first configured profile would pick whichever product happens to be
+    // declared first, which is another product's account entirely.
+    const monitoringProfile = target.profile ?? this.clientProvider.first.getProfile();
+    return await this.queryWithProfile(monitoringProfile, identifiers, query, timeRange, options, true);
+  }
+
+  /** Last source that answered for this log group first, then the declared order. */
+  private buildCandidateSources(
+    logGroup: string,
+    sources: ReadonlyArray<AWSCloudWatchLogsSource>,
+  ): ReadonlyArray<AWSCloudWatchLogsSource> {
+    const cached = this.logGroupAccountCache.get(logGroup);
+    const preferred = sources.find((source) => source.accountId === cached);
+    if (preferred === undefined) {
+      return sources;
+    }
+
+    return [preferred, ...sources.filter((source) => source !== preferred)];
   }
 
   private async queryLogGroupAcrossProfiles(
@@ -527,6 +652,40 @@ function isRecoverableProfileSearchError(error: unknown): boolean {
   return isRecoverableProfileSearchError(candidate.cause);
 }
 
+/** The occurrence's account first, then the declared fallbacks, one per account. */
+function targetSources(target: AWSCloudWatchLogsTarget): ReadonlyArray<AWSCloudWatchLogsSource> {
+  const declared =
+    target.accountId === undefined
+      ? (target.fallbacks ?? [])
+      : [
+          { accountId: target.accountId, ...(target.profile === undefined ? {} : { profile: target.profile }) },
+          ...(target.fallbacks ?? []),
+        ];
+
+  const byAccount = new Map<string, AWSCloudWatchLogsSource>();
+  for (const source of declared) {
+    // First declaration wins: the occurrence's account keeps its own profile
+    // even when a fallback repeats it.
+    if (!byAccount.has(source.accountId)) byAccount.set(source.accountId, source);
+  }
+  return [...byAccount.values()];
+}
+
+/** Accounts an explicit log group ARN may name for this target. */
+function allowedAccounts(target: AWSCloudWatchLogsTarget): {
+  readonly fallbacks?: ReadonlyArray<AWSCloudWatchLogsSource>;
+} {
+  return target.fallbacks === undefined ? {} : { fallbacks: target.fallbacks };
+}
+
+function buildSourceResolutionError(logGroup: string, attempts: ReadonlyArray<ProfileAttemptError>): Error {
+  const details = attempts.map((attempt) => `- ${attempt.profile}: ${attempt.error.message}`).join('\n');
+  return configurationError(
+    'LOG_GROUP_NOT_FOUND',
+    `CloudWatch Logs log group "${logGroup}" could not be queried in any allowed account:\n${details}`,
+  );
+}
+
 function buildProfileResolutionError(logGroup: string, attempts: ReadonlyArray<ProfileAttemptError>): Error {
   const details = attempts.map((attempt) => `- ${attempt.profile}: ${attempt.error.message}`).join('\n');
   return new Error(
@@ -665,6 +824,17 @@ function validateTarget(target: AWSCloudWatchLogsTarget): void {
   if (target.accountId !== undefined && !/^\d{12}$/.test(target.accountId)) {
     throw configurationError('INVALID_OAM_TARGET', `Invalid AWS account id: ${target.accountId}`);
   }
+  for (const fallback of target.fallbacks ?? []) {
+    if (!/^\d{12}$/.test(fallback.accountId)) {
+      throw configurationError('INVALID_OAM_TARGET', `Invalid AWS fallback account id: ${fallback.accountId}`);
+    }
+  }
+  // Without a primary account a bare log group name is queried as-is, so the
+  // fallbacks would never be reached: refuse the combination instead of
+  // silently ignoring them.
+  if (target.accountId === undefined && (target.fallbacks ?? []).length > 0) {
+    throw configurationError('INVALID_OAM_TARGET', 'CloudWatch Logs fallbacks require a target account id');
+  }
 }
 
 function toLogGroupIdentifier(logGroup: string, target: AWSCloudWatchLogsTarget): string {
@@ -674,7 +844,9 @@ function toLogGroupIdentifier(logGroup: string, target: AWSCloudWatchLogsTarget)
   }
   if (trimmed.startsWith('arn:')) {
     const arnMatch = /^arn:aws:logs:([^:]+):(\d{12}):log-group:(.+)$/.exec(trimmed);
-    if (arnMatch?.[1] !== target.region || arnMatch[2] !== target.accountId) {
+    const arnAccount = arnMatch?.[2];
+    const allowed = targetSources(target).map((source) => source.accountId);
+    if (arnMatch?.[1] !== target.region || arnAccount === undefined || !allowed.includes(arnAccount)) {
       throw configurationError('INVALID_OAM_TARGET', `Log group ARN is outside the execution target: ${trimmed}`);
     }
     return trimmed;

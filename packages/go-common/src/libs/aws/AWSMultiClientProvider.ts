@@ -21,6 +21,12 @@ export interface AWSMultiClientProviderConfig {
 
   /** AWS region (defaults to eu-south-1) */
   readonly region?: string;
+
+  /**
+   * Per profile, where else its log groups may live: tokens are a profile name
+   * or a 12-digit account id, as declared in `aws.profiles`.
+   */
+  readonly logFallbacksByProfile?: ReadonlyMap<string, ReadonlyArray<string>>;
 }
 
 type AWSMultiClientOperationHandler<T> = (profile: string, clientProvider: AWSClientProvider) => Promise<T>;
@@ -195,6 +201,23 @@ export class AWSMultiClientProvider implements AWSProfileSet {
       'AWS_ACCOUNT_NOT_CONFIGURED',
       `No configured AWS profile resolves to account ${accountId}. ` +
         `Configured profiles: ${this.profileNames.join(', ')}`,
+    );
+  }
+
+  /**
+   * The account each configured profile's credentials belong to.
+   *
+   * Profiles whose identity cannot be resolved are omitted rather than failing
+   * the lookup: the caller decides whether the missing one mattered.
+   *
+   * @returns Account id by profile name, in configuration order
+   */
+  async accountIdByProfile(): Promise<ReadonlyMap<string, string>> {
+    const identities = await this.resolveIdentities();
+    return new Map(
+      identities
+        .filter((identity): identity is AWSProfileIdentity & { accountId: string } => identity.accountId !== undefined)
+        .map(({ profile, accountId }) => [profile, accountId]),
     );
   }
 

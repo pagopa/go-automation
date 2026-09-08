@@ -30,7 +30,17 @@ export class AWSServiceProvider {
   private cachedSecretsManagerService: AWSSecretsManagerService | undefined;
   private cachedSchedulerService: AWSSchedulerService | undefined;
 
-  constructor(private readonly clientProvider: AWSProfileSet) {}
+  /**
+   * @param clientProvider - The profiles these services may query
+   * @param cloudWatchLogsOverride - Logs service already bound to an execution
+   *   target. Composed by {@link AWSProvider} when the occurrence's account
+   *   declares log-group fallbacks, because reading them needs profiles outside
+   *   this (account-narrowed) set.
+   */
+  constructor(
+    private readonly clientProvider: AWSProfileSet,
+    private readonly cloudWatchLogsOverride: AWSCloudWatchLogsService | undefined = undefined,
+  ) {}
 
   /**
    * The profiles these services may query, in resolution order.
@@ -44,7 +54,8 @@ export class AWSServiceProvider {
   }
 
   get cloudWatchLogs(): AWSCloudWatchLogsService {
-    this.cachedCloudWatchLogsService ??= new AWSCloudWatchLogsService(this.clientProvider);
+    this.cachedCloudWatchLogsService ??=
+      this.cloudWatchLogsOverride ?? new AWSCloudWatchLogsService(this.clientProvider);
     return this.cachedCloudWatchLogsService;
   }
 
