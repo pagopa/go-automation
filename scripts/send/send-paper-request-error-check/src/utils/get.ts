@@ -7,11 +7,7 @@
  * @param defaultValue - Valore di fallback opzionale
  * @returns Il valore della proprietà o il valore di default
  */
-export function get<T = unknown>(
-  obj: unknown,
-  key: string,
-  defaultValue?: T,
-): T {
+export function get<T = unknown>(obj: unknown, key: string, defaultValue?: T): T {
   if (obj === null || obj === undefined || typeof obj !== 'object') {
     return defaultValue as T;
   }

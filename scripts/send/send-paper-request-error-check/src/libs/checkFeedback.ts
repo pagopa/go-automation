@@ -22,7 +22,7 @@ export function extractIunFromRequestId(requestId: string): string {
   const trimmed = requestId.trim();
   if (trimmed.includes('.IUN_')) {
     const afterIun = trimmed.split('.IUN_')[1];
-    return afterIun ? afterIun.split('.')[0] ?? trimmed : trimmed;
+    return afterIun ? (afterIun.split('.')[0] ?? trimmed) : trimmed;
   }
   if (trimmed.startsWith('IUN_')) {
     const afterIun = trimmed.substring(4);
@@ -30,7 +30,7 @@ export function extractIunFromRequestId(requestId: string): string {
   }
   if (trimmed.includes('IUN_')) {
     const afterIun = trimmed.split('IUN_')[1];
-    return afterIun ? afterIun.split('.')[0] ?? trimmed : trimmed;
+    return afterIun ? (afterIun.split('.')[0] ?? trimmed) : trimmed;
   }
   return trimmed.split('.')[0] ?? trimmed;
 }
@@ -43,7 +43,7 @@ function appendToFile(filePath: string, content: string): void {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.appendFileSync(filePath, content + '\n', 'utf8');
+  fs.appendFileSync(filePath, `${content}\n`, 'utf8');
 }
 
 /**
@@ -62,7 +62,7 @@ export async function checkFeedbackFromRequestIds(
   const logger = script.logger;
   const outputDir = config.outputDir || 'results';
 
-  const foundRequestIds: Array<{ requestId: string; event: Record<string, unknown> }> = [];
+  const foundRequestIds: { requestId: string; event: Record<string, unknown> }[] = [];
   const notFoundRequestIds: string[] = [];
 
   const foundFilePath = path.join(outputDir, 'found.json');
@@ -129,4 +129,3 @@ export async function checkFeedbackFromRequestIds(
     notFoundRequestIds,
   };
 }
-

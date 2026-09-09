@@ -16,7 +16,7 @@ function appendToFile(filePath: string, content: string): void {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.appendFileSync(filePath, content + '\n', 'utf8');
+  fs.appendFileSync(filePath, `${content}\n`, 'utf8');
 }
 
 /**
@@ -35,11 +35,14 @@ async function retrieveNotificationAttachments(
     return 0;
   }
 
-  const notif = items[0]!;
+  const notif = items[0];
+  if (!notif) {
+    return 0;
+  }
   const attachmentKeys: string[] = [];
 
   // Documenti notifica
-  const documents = get<Array<Record<string, unknown>>>(notif, 'documents', []);
+  const documents = get<Record<string, unknown>[]>(notif, 'documents', []);
   for (const doc of documents) {
     const ref = get<Record<string, unknown>>(doc, 'ref');
     const key = get<string>(ref, 'key');
@@ -49,9 +52,9 @@ async function retrieveNotificationAttachments(
   }
 
   // Modelli PagoPA dei destinatari
-  const recipients = get<Array<Record<string, unknown>>>(notif, 'recipients', []);
+  const recipients = get<Record<string, unknown>[]>(notif, 'recipients', []);
   for (const recipient of recipients) {
-    const payments = get<Array<Record<string, unknown>>>(recipient, 'payments', []);
+    const payments = get<Record<string, unknown>[]>(recipient, 'payments', []);
     for (const payment of payments) {
       const pagoPaForm = get<Record<string, unknown>>(payment, 'pagoPaForm');
       const ref = get<Record<string, unknown>>(pagoPaForm, 'ref');
@@ -76,11 +79,7 @@ async function retrieveNotificationAttachments(
 /**
  * Recupera i documenti AAR (AAR_GENERATION) dalla timeline di un IUN.
  */
-async function retrieveAARs(
-  dynamoDbService: AWS.AWSDynamoDBService,
-  iun: string,
-  outputDir: string,
-): Promise<number> {
+async function retrieveAARs(dynamoDbService: AWS.AWSDynamoDBService, iun: string, outputDir: string): Promise<number> {
   const items = await dynamoDbService.query(TIMELINES_TABLE_NAME, 'iun = :val', {
     ':val': { S: iun },
   });
@@ -158,4 +157,3 @@ export async function retrieveAttachmentsFromIun(
     errorsCount,
   };
 }
-

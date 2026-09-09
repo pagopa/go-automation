@@ -1,6 +1,5 @@
-import fs from 'fs';
 import path from 'path';
-import type { Core } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
 import { get } from '../utils/get.js';
 import type {
   CheckFeedbackResult,
@@ -16,7 +15,7 @@ import type {
  * Gestore delle metriche e della generazione del report finale di elaborazione.
  */
 export class PaperRequestReporter {
-  private metrics: PaperRequestMetrics = {
+  private readonly metrics: PaperRequestMetrics = {
     totalInitialRequestIds: 0,
     canceledCount: 0,
     perfectedCount: 0,
@@ -106,22 +105,19 @@ export class PaperRequestReporter {
    * @param outputDir - Cartella di destinazione dei file di report
    * @param logger - Istanza del logger di GOScript
    */
-  public generateReport(outputDir: string, logger: Core.GOLogger): PaperRequestMetrics {
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
-    }
-
+  public async generateReport(outputDir: string, logger: Core.GOLogger): Promise<PaperRequestMetrics> {
     const timestamp = new Date().toISOString();
     const reportData = {
       timestamp,
       metrics: this.metrics,
     };
 
-    // 1. Salvataggio JSON
+    // 1. Salvataggio JSON via GOJSONListExporter
     const jsonPath = path.join(outputDir, 'summary_report.json');
-    fs.writeFileSync(jsonPath, JSON.stringify(reportData, null, 2), 'utf8');
+    const jsonExporter = new Core.GOJSONListExporter({ outputPath: jsonPath, jsonl: false });
+    await jsonExporter.export(reportData);
 
-    // 2. Salvataggio CSV
+    // 2. Salvataggio CSV via GOFileListExporter
     const csvPath = path.join(outputDir, 'summary_report.csv');
     const csvLines = [
       'Metric,Value',
@@ -138,7 +134,8 @@ export class PaperRequestReporter {
       `timelinesFetchedCount,${this.metrics.timelinesFetchedCount ?? 0}`,
       `errorsCount,${this.metrics.errorsCount ?? 0}`,
     ];
-    fs.writeFileSync(csvPath, csvLines.join('\n'), 'utf8');
+    const fileExporter = new Core.GOFileListExporter({ outputPath: csvPath });
+    await fileExporter.export(csvLines);
 
     // 3. Stampa tabella di riepilogo a console
     logger.section('SUMMARY REPORT METRICS');

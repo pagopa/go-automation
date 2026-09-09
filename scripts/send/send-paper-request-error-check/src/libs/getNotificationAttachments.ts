@@ -18,25 +18,29 @@ function appendToFile(filePath: string, content: string): void {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.appendFileSync(filePath, content + '\n', 'utf8');
+  fs.appendFileSync(filePath, `${content}\n`, 'utf8');
+}
+
+export interface S3ObjectState {
+  readonly found: boolean;
+  readonly hasDeleteMarker: boolean;
+  readonly versions: ReadonlyArray<unknown>;
+  readonly deleteMarkers: ReadonlyArray<{ VersionId?: string | undefined }>;
+  readonly error?: unknown;
 }
 
 /**
  * Recupera lo stato dell'oggetto su S3 SafeStorage (versioni e delete markers).
  */
-async function checkS3ObjectState(
-  s3Client: S3Client,
-  bucket: string,
-  documentKey: string,
-) {
+async function checkS3ObjectState(s3Client: S3Client, bucket: string, documentKey: string): Promise<S3ObjectState> {
   try {
     const command = new ListObjectVersionsCommand({
       Bucket: bucket,
       Prefix: documentKey,
     });
     const res = await s3Client.send(command);
-    const versions = (res.Versions || []).filter((v) => v.Key === documentKey);
-    const deleteMarkers = (res.DeleteMarkers || []).filter((dm) => dm.Key === documentKey);
+    const versions = (res.Versions ?? []).filter((v) => v.Key === documentKey);
+    const deleteMarkers = (res.DeleteMarkers ?? []).filter((dm) => dm.Key === documentKey);
 
     if (versions.length === 0 && deleteMarkers.length === 0) {
       return { found: false, hasDeleteMarker: false, versions: [], deleteMarkers: [] };
@@ -45,9 +49,9 @@ async function checkS3ObjectState(
     const latestDeleteMarker = deleteMarkers.find((dm) => dm.IsLatest);
     const latestVersion = versions.find((v) => v.IsLatest);
 
-    if (latestDeleteMarker && latestDeleteMarker.IsLatest) {
+    if (latestDeleteMarker?.IsLatest) {
       return { found: true, hasDeleteMarker: true, versions, deleteMarkers };
-    } else if (latestVersion && latestVersion.IsLatest) {
+    } else if (latestVersion?.IsLatest) {
       return { found: true, hasDeleteMarker: false, versions, deleteMarkers };
     } else {
       return { found: false, hasDeleteMarker: false, versions, deleteMarkers };
@@ -65,7 +69,7 @@ async function removeDeleteMarkers(
   bucket: string,
   documentKey: string,
   deleteMarkers: ReadonlyArray<{ VersionId?: string | undefined }>,
-) {
+): Promise<void> {
   for (const marker of deleteMarkers) {
     if (!marker.VersionId) continue;
     try {
@@ -85,10 +89,7 @@ async function removeDeleteMarkers(
 /**
  * Aggiorna lo stato del documento su pn-SsDocumenti a 'attached'.
  */
-async function updateDocumentState(
-  dynamoDbService: AWS.AWSDynamoDBService,
-  documentKey: string,
-): Promise<boolean> {
+async function updateDocumentState(dynamoDbService: AWS.AWSDynamoDBService, documentKey: string): Promise<boolean> {
   try {
     await dynamoDbService.updateItem(
       SS_DOCUMENTI_TABLE_NAME,
@@ -102,7 +103,6 @@ async function updateDocumentState(
     return false;
   }
 }
-
 
 /**
  * Esegue la verifica e il ripristino opzionale degli allegati di notifica via IUN.
@@ -129,18 +129,14 @@ export async function getNotificationAttachments(
   if (!bucket) {
     try {
       const buckets = await s3Service.listBuckets();
-      const target = buckets.find(
-        (b) => b.name && b.name.includes('safestorage') && !b.name.includes('staging'),
-      );
+      const target = buckets.find((b) => b.name && b.name.includes('safestorage') && !b.name.includes('staging'));
       if (target?.name) {
         bucket = target.name;
       }
     } catch {
       logger.warning(`Impossibile elencare i bucket via S3 Service, imposto bucket predefinito safe-storage`);
     }
-    if (!bucket) {
-      bucket = 'pn-safestorage-eu-south-1';
-    }
+    bucket ??= 'pn-safestorage-eu-south-1';
   }
 
   logger.info(`Bucket SafeStorage di riferimento: ${bucket}`);
@@ -180,8 +176,10 @@ export async function getNotificationAttachments(
       }
 
       notificationsFound++;
-      const notif = items[0]!;
-      const documents = get<Array<Record<string, unknown>>>(notif, 'documents', []);
+      const notif = items[0];
+      if (!notif) continue;
+
+      const documents = get<Record<string, unknown>[]>(notif, 'documents', []);
       const firstDocRef = get<Record<string, unknown>>(documents[0], 'ref');
       const documentKey = get<string>(firstDocRef, 'key');
 
@@ -218,33 +216,39 @@ export async function getNotificationAttachments(
       let documentState = 'UNKNOWN';
 
       if (docItems.length > 0) {
-        const docObj = docItems[0]!;
-        documentLogicalState = get<string>(docObj, 'documentLogicalState', 'UNKNOWN');
-        documentState = get<string>(docObj, 'documentState', 'UNKNOWN');
-      }
-
-      if (config.restore) {
-        const updated = await updateDocumentState(dynamoDbService, documentKey);
-        if (!updated) {
-          dynamoUpdateErrors++;
-          logger.error(`Impossibile aggiornare lo stato DynamoDB per ${documentKey}`);
-        } else {
-          documentState = 'attached';
+        const docObj = docItems[0];
+        if (docObj) {
+          documentLogicalState = get<string>(docObj, 'documentLogicalState', 'UNKNOWN');
+          documentState = get<string>(docObj, 'documentState', 'UNKNOWN');
         }
       }
 
       attachmentsFound++;
       appendToFile(
         csvFile,
-        `${iun},${documentKey},${documentLogicalState},${documentState},${s3State.hasDeleteMarker ? 'true' : 'false'}`,
+        `${iun},${documentKey},${documentLogicalState},${documentState},${s3State.hasDeleteMarker}`,
       );
-    } catch (err) {
+
+      // 4. Ripristino stato documento se richiesto
+      if (config.restore && (s3State.hasDeleteMarker || documentState !== 'attached')) {
+        logger.info(`Aggiornamento stato documento a 'attached' per IUN ${iun} su pn-SsDocumenti...`);
+        const updated = await updateDocumentState(dynamoDbService, documentKey);
+        if (updated) {
+          logger.info(`Stato aggiornato con successo a 'attached' per Key ${documentKey}`);
+        } else {
+          dynamoUpdateErrors++;
+          logger.error(`Errore durante l'aggiornamento dello stato per Key ${documentKey}`);
+        }
+      }
+    } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      logger.error(`Errore durante l'elaborazione di IUN ${iun}: ${errorMsg}`);
+      logger.error(`Errore nell'elaborazione dell'IUN ${iun}: ${errorMsg}`);
     }
   }
 
-  logger.info(`Elaborazione allegati notifiche completata per ${iuns.length} IUN.`);
+  logger.info(
+    `Elaborazione Get Attachments completata: ${notificationsFound} notifiche trovate (${notificationsNotFound} non trovate), ${attachmentsFound} allegati trovati (${attachmentsNotFound} non trovati), ${deleteMarkersFound} con delete marker.`,
+  );
 
   return {
     totalProcessed: iuns.length,
@@ -256,4 +260,3 @@ export async function getNotificationAttachments(
     dynamoUpdateErrors,
   };
 }
-

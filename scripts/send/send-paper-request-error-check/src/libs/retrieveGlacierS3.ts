@@ -1,6 +1,3 @@
-import fs from 'fs';
-import readline from 'node:readline/promises';
-import { stdin as input, stdout as output } from 'node:process';
 import { RestoreObjectCommand } from '@aws-sdk/client-s3';
 import type { Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, RetrieveGlacierResult } from '../types/index.js';
@@ -41,84 +38,57 @@ export function parseGlacierItems(rawItems: ReadonlyArray<string>): GlacierItem[
 /**
  * Chiede la conferma interattiva all'utente prima di avviare le operazioni sul Glacier.
  *
+ * @param script - Istanza GOScript
  * @param count - Numero di oggetti da ripristinare
  * @returns boolean `true` se l'utente accetta, `false` se rifiuta o annulla
  */
-async function promptUserConfirmation(count: number): Promise<boolean> {
-  // Se non si dispone di TTY o input interattivo
-  if (!input.isTTY) {
-    return false;
-  }
-
-  const rl = readline.createInterface({ input, output });
-  try {
-    const questionText = `\n⚠️  ATTENZIONE: Si sta per avviare il ripristino da S3 Glacier per ${count} oggetti.\nVuoi procedere con il restore da Glacier? (s/N): `;
-    const answer = await rl.question(questionText);
-    const trimmed = answer.trim().toLowerCase();
-    return trimmed === 's' || trimmed === 'si' || trimmed === 'sì' || trimmed === 'y' || trimmed === 'yes';
-  } catch {
-    return false;
-  } finally {
-    rl.close();
-  }
+async function promptUserConfirmation(script: Core.GOScript, count: number): Promise<boolean> {
+  return script.prompt.confirm({
+    message: `⚠️  ATTENZIONE: Si sta per avviare il ripristino da S3 Glacier per ${count} oggetti.\nVuoi procedere con il restore da Glacier?`,
+    default: false,
+  });
 }
 
 /**
  * Risolve il nome del bucket S3 SafeStorage se non specificato in configurazione.
  */
-async function resolveSafestorageBucket(
-  script: Core.GOScript,
-  configuredBucket?: string,
-): Promise<string> {
+async function resolveSafestorageBucket(script: Core.GOScript, configuredBucket?: string): Promise<string> {
   if (configuredBucket) {
     return configuredBucket;
   }
-
   try {
     const buckets = await script.aws.services.s3.listBuckets();
     const target = buckets.find(
-      (b) => b.name && b.name.includes('safestorage') && !b.name.includes('staging'),
+      (b) => b.name?.includes('safestorage') || b.name?.includes('safe-storage') || b.name?.includes('pn-safestorage'),
     );
-
     if (target?.name) {
       return target.name;
     }
   } catch {
-    // Fallback in caso di errore nella lista bucket
+    script.logger.warning('Impossibile elencare i bucket S3, uso bucket predefinito safe-storage');
   }
-
   return 'pn-safestorage-eu-south-1';
 }
 
 /**
- * Modulo per il recupero massivo degli oggetti archiviati su S3 Glacier.
- * Richiede conferma esplicita dell'utente prima di effettuare le richieste di restore.
+ * Esegue il ripristino (RestoreObject) da S3 Glacier per un elenco di fileKey / IUN.
  *
- * @param script - Istanza di Core.GOScript per accedere ai client AWS ed al logger
- * @param inputItems - Elenco opzionale di righe 'IUN,fileKey' o chiavi S3
+ * @param script - Istanza GOScript
+ * @param rawItems - Righe di input contenenti IUN o IUN,fileKey
  * @returns Risultati dell'operazione di restore da Glacier
  */
 export async function retrieveGlacierS3(
   script: Core.GOScript,
-  inputItems?: ReadonlyArray<string>,
+  rawItems: ReadonlyArray<string>,
 ): Promise<RetrieveGlacierResult> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
-  const s3Client = script.aws.clients.s3;
   const logger = script.logger;
+  const s3Client = script.aws.clients.s3;
 
-  // Caricamento item da inputItems o da file di configurazione
-  let rawLines: string[] = [];
-  if (inputItems && inputItems.length > 0) {
-    rawLines = [...inputItems];
-  } else if (config.inputFile && fs.existsSync(config.inputFile)) {
-    const fileContent = fs.readFileSync(config.inputFile, { encoding: 'utf8' });
-    rawLines = fileContent.split('\n');
-  }
-
-  const glacierItems = parseGlacierItems(rawLines);
+  const glacierItems = parseGlacierItems(rawItems);
 
   if (glacierItems.length === 0) {
-    logger.warning('Nessun elemento valido trovato per il ripristino da Glacier.');
+    logger.warning('Nessun elemento valido fornito per il restore da Glacier S3.');
     return {
       totalItems: 0,
       skippedByUser: false,
@@ -129,28 +99,31 @@ export async function retrieveGlacierS3(
     };
   }
 
-  logger.info(`Trovati ${glacierItems.length} elementi per il controllo/restore Glacier.`);
+  logger.info(`Trovati ${glacierItems.length} elementi per il ripristino da Glacier S3.`);
 
-  // Controllo di conferma utente
-  const userConfirmed = await promptUserConfirmation(glacierItems.length);
-
-  if (!userConfirmed) {
-    logger.info('🛑 Ripristino da S3 Glacier annullato dall\'utente (scelta: "No"). Si passa al passaggio successivo.');
-    return {
-      totalItems: glacierItems.length,
-      skippedByUser: true,
-      restoredCount: 0,
-      alreadyInProgressCount: 0,
-      alreadyAvailableCount: 0,
-      errorsCount: 0,
-    };
+  // Chiede conferma all'utente se non in modalità force / non-interattiva
+  if (!config.force) {
+    const userConfirmed = await promptUserConfirmation(script, glacierItems.length);
+    if (!userConfirmed) {
+      logger.info("Ripristino·da·Glacier·annullato·dall'utente.");
+      return {
+        totalItems: glacierItems.length,
+        skippedByUser: true,
+        restoredCount: 0,
+        alreadyInProgressCount: 0,
+        alreadyAvailableCount: 0,
+        errorsCount: 0,
+      };
+    }
   }
 
-  const bucketName = await resolveSafestorageBucket(script, config.bucket);
-  const expirationDays = config.glacier?.expirationDays ?? 30;
-  const tier = config.glacier?.tier ?? 'Bulk';
+  const bucketName = await resolveSafestorageBucket(script, config.bucketName);
+  const expirationDays = config.expirationDays ?? 7;
+  const tier = config.glacierTier ?? 'Standard';
 
-  logger.info(`Inizio restore Glacier sul bucket [${bucketName}] (Expiration: ${expirationDays} giorni, Tier: ${tier})...`);
+  logger.info(
+    `Avvio restore da Glacier sul bucket [${bucketName}], giorni mantenimento: ${expirationDays}, tier: ${tier}...`,
+  );
 
   let restoredCount = 0;
   let alreadyInProgressCount = 0;
@@ -158,7 +131,9 @@ export async function retrieveGlacierS3(
   let errorsCount = 0;
 
   for (let i = 0; i < glacierItems.length; i++) {
-    const item = glacierItems[i]!;
+    const item = glacierItems[i];
+    if (!item) continue;
+
     logger.info(`[${i + 1}/${glacierItems.length}] Invio richiesta restore per IUN ${item.iun} (Key: ${item.fileKey})`);
 
     try {
@@ -192,7 +167,7 @@ export async function retrieveGlacierS3(
     } catch (err: unknown) {
       const errorObj = err as { name?: string; $metadata?: { httpStatusCode?: number }; message?: string };
       const statusCode = errorObj.$metadata?.httpStatusCode;
-      const errorName = errorObj.name || '';
+      const errorName = errorObj.name ?? '';
 
       if (statusCode === 409 || errorName === 'RestoreAlreadyInProgress') {
         logger.info(`ℹ️ IUN ${item.iun}: Restore già in corso (${errorName || 'HTTP 409'})`);
@@ -202,7 +177,7 @@ export async function retrieveGlacierS3(
         alreadyAvailableCount++;
       } else {
         errorsCount++;
-        const errorMsg = errorObj.message || String(err);
+        const errorMsg = errorObj.message ?? String(err);
         logger.error(`❌ IUN ${item.iun}: Errore durante la richiesta di restore: ${errorMsg}`);
       }
     }
@@ -221,4 +196,3 @@ export async function retrieveGlacierS3(
     errorsCount,
   };
 }
-

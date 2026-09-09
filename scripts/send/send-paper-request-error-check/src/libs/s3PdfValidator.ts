@@ -17,7 +17,7 @@ function appendToFile(filePath: string, content: string): void {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.appendFileSync(filePath, content + '\n', 'utf8');
+  fs.appendFileSync(filePath, `${content}\n`, 'utf8');
 }
 
 /**
@@ -83,7 +83,7 @@ async function validatePDFMagicBytes(
     };
   } catch (err: unknown) {
     const errorObj = err as { name?: string; message?: string };
-    const errorType = errorObj.name || 'UnknownError';
+    const errorType = errorObj.name ?? 'UnknownError';
     return {
       fileKey,
       valid: false,
@@ -95,17 +95,12 @@ async function validatePDFMagicBytes(
 /**
  * Risolve il bucket S3 SafeStorage se non configurato esplicitamente.
  */
-async function resolveSafestorageBucket(
-  script: Core.GOScript,
-  configuredBucket?: string,
-): Promise<string> {
+async function resolveSafestorageBucket(script: Core.GOScript, configuredBucket?: string): Promise<string> {
   if (configuredBucket) return configuredBucket;
 
   try {
     const buckets = await script.aws.services.s3.listBuckets();
-    const target = buckets.find(
-      (b) => b.name && b.name.includes('safestorage') && !b.name.includes('staging'),
-    );
+    const target = buckets.find((b) => b.name && b.name.includes('safestorage') && !b.name.includes('staging'));
     if (target?.name) return target.name;
   } catch {
     // Fallback
@@ -178,7 +173,7 @@ export async function validateS3Pdfs(
     const batch = fileKeys.slice(i, i + concurrency);
     logger.info(`Validazione batch [${i + 1}-${Math.min(i + concurrency, fileKeys.length)}/${fileKeys.length}]...`);
 
-    const promises = batch.map((fileKey) => validatePDFMagicBytes(s3Client, bucket, fileKey));
+    const promises = batch.map(async (fileKey) => validatePDFMagicBytes(s3Client, bucket, fileKey));
     const results = await Promise.all(promises);
 
     for (const res of results) {
@@ -192,7 +187,7 @@ export async function validateS3Pdfs(
       } else {
         errorCount++;
         logger.error(`⚠️ Errore durante il check del file ${res.fileKey}: ${res.error}`);
-        appendToFile(errorsFile, `${res.fileKey},${res.error || 'Unknown'}`);
+        appendToFile(errorsFile, `${res.fileKey},${res.error ?? 'Unknown'}`);
       }
     }
   }
@@ -208,4 +203,3 @@ export async function validateS3Pdfs(
     errorCount,
   };
 }
-

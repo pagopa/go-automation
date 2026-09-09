@@ -1,6 +1,5 @@
-import fs from 'fs';
 import path from 'path';
-import type { Core } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, FetchTimelinesResult } from '../types/index.js';
 import { get } from '../utils/get.js';
 
@@ -87,7 +86,9 @@ export async function fetchTimelines(
   let errorsCount = 0;
 
   for (let i = 0; i < iuns.length; i++) {
-    const iun = iuns[i]!;
+    const iun = iuns[i];
+    if (!iun) continue;
+
     if ((i + 1) % 50 === 0 || i === 0 || i === iuns.length - 1) {
       logger.info(`[${i + 1}/${iuns.length}] Query timeline per IUN: ${iun}`);
     }
@@ -104,16 +105,16 @@ export async function fetchTimelines(
       }
 
       timelinesFetchedCount++;
-      const firstItem = items[0]!;
+      const firstItem = items[0];
+      if (!firstItem) continue;
+
       const paId = get<string>(firstItem, 'paId');
 
       let notificationSentAt: string | undefined;
       const timelineElements: TimelineElement[] = [];
 
       for (const itemObj of items) {
-        if (!notificationSentAt) {
-          notificationSentAt = get<string>(itemObj, 'notificationSentAt');
-        }
+        notificationSentAt ??= get<string>(itemObj, 'notificationSentAt');
 
         const timelineElementId = get<string>(itemObj, 'timelineElementId', '');
         const category = get<string>(itemObj, 'category', '');
@@ -146,14 +147,10 @@ export async function fetchTimelines(
     }
   }
 
-  // Scrittura del file JSON di output
+  // Scrittura del file JSON di output via GOJSONListExporter
   const destinationFile = path.join(outputDir, 'timelines.json');
-  const dir = path.dirname(destinationFile);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-
-  fs.writeFileSync(destinationFile, JSON.stringify(timelinesResult, null, 2), 'utf8');
+  const exporter = new Core.GOJSONListExporter({ outputPath: destinationFile, jsonl: false });
+  await exporter.export(timelinesResult);
 
   logger.info(
     `Scaricamento timeline completato: ${timelinesFetchedCount} trovate, ${emptyTimelinesCount} vuote, ${errorsCount} errori. File salvato in [${destinationFile}].`,
@@ -166,4 +163,3 @@ export async function fetchTimelines(
     errorsCount,
   };
 }
-
