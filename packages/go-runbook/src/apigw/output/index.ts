@@ -9,7 +9,6 @@ export type {
   ApiGwExecutionLogRequest,
   ApiGwServiceOutput,
   ApiGwOutputContext,
-  ApiGwLogLine,
 } from './ApiGwOutputContext.js';
 export { buildApiGwOutputContext } from './buildApiGwOutputContext.js';
 export type { BuildApiGwOutputContextOptions } from './buildApiGwOutputContext.js';

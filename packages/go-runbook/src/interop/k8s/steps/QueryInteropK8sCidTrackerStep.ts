@@ -30,10 +30,29 @@ export interface QueryInteropK8sCidTrackerStepConfig {
   readonly varPrefix?: string;
   readonly queryProfileId?: string;
   readonly buildQuery?: BuildInteropK8sCidTrackerQueryFn;
+  /** Upper bound on the CIDs queried; defaults to {@link DEFAULT_MAX_CIDS}. */
+  readonly maxCids?: number;
 }
 
 const DEFAULT_LOG_GROUP_VAR = 'interopLogGroup';
 const DEFAULT_VAR_PREFIX = 'interopCidTracker';
+
+/**
+ * CIDs queried at most, one sequential CloudWatch query each.
+ *
+ * A safety bound, not a semantic one: the known cases match against this step's
+ * raw rows, so every skipped CID is evidence lost. It exists because the
+ * upstream scan returns one row per log line — up to 10.000 on the API Gateway
+ * 5xx profile, unbounded on the k8s one — and an unbounded fan-out lets a
+ * single alarm issue thousands of sequential queries.
+ *
+ * A hundred costs ~100 s against the 720 s worker budget at one second per
+ * query, and overruns it only when queries are slow. Watch
+ * `<varPrefix>SkippedCidCount` on real runs: a value that is always zero means
+ * the bound never bites, a value often above zero means it is cutting evidence
+ * and the fix is one query for all CIDs, not a larger number.
+ */
+const DEFAULT_MAX_CIDS = 100;
 
 export class QueryInteropK8sCidTrackerStep implements Step<ReadonlyArray<InteropK8sCidTrackerResult>> {
   readonly id: string;
@@ -46,6 +65,7 @@ export class QueryInteropK8sCidTrackerStep implements Step<ReadonlyArray<Interop
   private readonly varPrefix: string;
   private readonly queryProfileId: string;
   private readonly buildQuery: BuildInteropK8sCidTrackerQueryFn;
+  private readonly maxCids: number;
 
   constructor(config: QueryInteropK8sCidTrackerStepConfig) {
     this.id = config.id;
@@ -56,12 +76,13 @@ export class QueryInteropK8sCidTrackerStep implements Step<ReadonlyArray<Interop
     this.varPrefix = config.varPrefix ?? DEFAULT_VAR_PREFIX;
     this.queryProfileId = config.queryProfileId ?? INTEROP_K8S_QUERY_PROFILE.cidTrackerQueryProfileId;
     this.buildQuery = config.buildQuery ?? INTEROP_K8S_QUERY_PROFILE.buildCidTrackerQuery;
+    this.maxCids = config.maxCids ?? DEFAULT_MAX_CIDS;
   }
 
   getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
     const logGroup = context.vars.get(this.logGroupVar);
     const analysis = readApplicationAnalysis(context, this.fromStep);
-    const cids = analysis?.cids ?? [];
+    const cids = (analysis?.cids ?? []).slice(0, this.maxCids);
     return {
       queryProfileId: this.queryProfileId,
       queryKind: 'interop-cid-tracker',
@@ -85,7 +106,7 @@ export class QueryInteropK8sCidTrackerStep implements Step<ReadonlyArray<Interop
     }
 
     if (analysis.cids.length === 0) {
-      context.logger?.text('      └─ Query CID tracker: skip, nessun CID disponibile');
+      context.services.reporter.add({ label: 'Query CID tracker: skip, nessun CID disponibile' });
       return {
         success: true,
         output: [],
@@ -97,6 +118,14 @@ export class QueryInteropK8sCidTrackerStep implements Step<ReadonlyArray<Interop
       };
     }
 
+    const queriedCids = analysis.cids.slice(0, this.maxCids);
+    const skippedCids = analysis.cids.length - queriedCids.length;
+    if (skippedCids > 0) {
+      context.services.reporter.add({
+        label: `Query CID tracker: ${String(queriedCids.length)} CID su ${String(analysis.cids.length)} (limite ${String(this.maxCids)})`,
+      });
+    }
+
     const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
     const options = buildQueryOptions(context);
     const cidResults: InteropK8sCidTrackerResult[] = [];
@@ -104,8 +133,8 @@ export class QueryInteropK8sCidTrackerStep implements Step<ReadonlyArray<Interop
     const queryExecutions: AWSCloudWatchLogsQueryExecution[] = [];
     let totalRows = 0;
 
-    for (const cid of analysis.cids) {
-      context.logger?.text(`      ├─ Query CID tracker [cid=${cid}]`);
+    for (const cid of queriedCids) {
+      context.services.reporter.add({ label: `Query CID tracker [cid=${cid}]` });
       const query = this.buildQuery(cid);
       const result = await context.services.cloudWatchLogs.queryWithStatistics([logGroup], query, timeRange, options);
       totalRows += result.rows.length;
@@ -114,7 +143,7 @@ export class QueryInteropK8sCidTrackerStep implements Step<ReadonlyArray<Interop
       cidResults.push({ cid, rows: result.rows });
     }
 
-    context.logger?.text(`      └─ Log CID tracker trovati: ${totalRows}`);
+    context.services.reporter.add({ label: `Log CID tracker trovati: ${totalRows}` });
 
     return {
       success: true,
@@ -122,8 +151,9 @@ export class QueryInteropK8sCidTrackerStep implements Step<ReadonlyArray<Interop
       diagnostics: toStepDiagnostics(totalRows, statistics, queryExecutions),
       vars: {
         [varName(this.varPrefix, 'Executed')]: 'true',
-        [varName(this.varPrefix, 'CidCount')]: String(analysis.cids.length),
+        [varName(this.varPrefix, 'CidCount')]: String(queriedCids.length),
         [varName(this.varPrefix, 'LogCount')]: String(totalRows),
+        [varName(this.varPrefix, 'SkippedCidCount')]: String(skippedCids),
       },
     };
   }

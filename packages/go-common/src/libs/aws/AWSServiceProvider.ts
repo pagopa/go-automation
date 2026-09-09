@@ -1,10 +1,11 @@
-import type { AWSMultiClientProvider } from './AWSMultiClientProvider.js';
+import type { AWSProfileSet } from './AWSProfileSet.js';
 import { AWSAthenaService } from './AWSAthenaService.js';
 import { AWSCloudWatchAlarmsService } from './AWSCloudWatchAlarmsService.js';
 import { AWSCloudWatchLogsService } from './AWSCloudWatchLogsService.js';
 import { AWSCloudWatchMetricsService } from './AWSCloudWatchMetricsService.js';
 import { AWSDynamoDBService } from './AWSDynamoDBService.js';
 import { AWSECSService } from './AWSECSService.js';
+import { AWSSchedulerService } from './AWSSchedulerService.js';
 import { AWSS3Service } from './AWSS3Service.js';
 import { AWSSQSService } from './AWSSQSService.js';
 import { AWSSecretsManagerService } from './AWSSecretsManagerService.js';
@@ -12,8 +13,10 @@ import { AWSSecretsManagerService } from './AWSSecretsManagerService.js';
 /**
  * High-level AWS service provider.
  *
- * Services are instantiated lazily on first access and backed by the
- * shared multi-client provider.
+ * Services are instantiated lazily on first access and backed by the profile
+ * set the provider was built on. The set decides which accounts are reachable,
+ * so no service here has to know what an account is: see
+ * {@link AWSProvider.servicesFor} for the provider bound to one target.
  */
 export class AWSServiceProvider {
   private cachedCloudWatchLogsService: AWSCloudWatchLogsService | undefined;
@@ -25,11 +28,34 @@ export class AWSServiceProvider {
   private cachedECSService: AWSECSService | undefined;
   private cachedAthenaService: AWSAthenaService | undefined;
   private cachedSecretsManagerService: AWSSecretsManagerService | undefined;
+  private cachedSchedulerService: AWSSchedulerService | undefined;
 
-  constructor(private readonly clientProvider: AWSMultiClientProvider) {}
+  /**
+   * @param clientProvider - The profiles these services may query
+   * @param cloudWatchLogsOverride - Logs service already bound to an execution
+   *   target. Composed by {@link AWSProvider} when the occurrence's account
+   *   declares log-group fallbacks, because reading them needs profiles outside
+   *   this (account-narrowed) set.
+   */
+  constructor(
+    private readonly clientProvider: AWSProfileSet,
+    private readonly cloudWatchLogsOverride: AWSCloudWatchLogsService | undefined = undefined,
+  ) {}
+
+  /**
+   * The profiles these services may query, in resolution order.
+   *
+   * Callers that report what an execution actually read need the profiles the
+   * set was narrowed to, not the ones configured for the whole run: on a
+   * multi-account run the two differ.
+   */
+  get profileNames(): ReadonlyArray<string> {
+    return this.clientProvider.profileNames;
+  }
 
   get cloudWatchLogs(): AWSCloudWatchLogsService {
-    this.cachedCloudWatchLogsService ??= new AWSCloudWatchLogsService(this.clientProvider);
+    this.cachedCloudWatchLogsService ??=
+      this.cloudWatchLogsOverride ?? new AWSCloudWatchLogsService(this.clientProvider);
     return this.cachedCloudWatchLogsService;
   }
 
@@ -77,6 +103,15 @@ export class AWSServiceProvider {
     return this.cachedSecretsManagerService;
   }
 
+  get scheduler(): AWSSchedulerService {
+    this.cachedSchedulerService ??= new AWSSchedulerService(this.clientProvider.first.scheduler);
+    return this.cachedSchedulerService;
+  }
+
+  /**
+   * Drops the cached services. The AWS clients belong to the profile set, which
+   * is shared with every other provider built on it, so they are not destroyed.
+   */
   close(): void {
     this.cachedCloudWatchLogsService = undefined;
     this.cachedCloudWatchAlarmsService = undefined;
@@ -87,5 +122,6 @@ export class AWSServiceProvider {
     this.cachedECSService = undefined;
     this.cachedAthenaService = undefined;
     this.cachedSecretsManagerService = undefined;
+    this.cachedSchedulerService = undefined;
   }
 }

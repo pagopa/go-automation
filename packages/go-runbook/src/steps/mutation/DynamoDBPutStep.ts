@@ -24,7 +24,7 @@ export interface DynamoDBPutConfig {
  *
  * @example
  * ```typescript
- * const step = dynamoDBPut({
+ * const step = new DynamoDBPutStep({
  *   id: 'insert-record',
  *   label: 'Insert audit record',
  *   tableName: 'pn-audit-log',
@@ -32,7 +32,7 @@ export interface DynamoDBPutConfig {
  * });
  * ```
  */
-class DynamoDBPutStep implements Step<void> {
+export class DynamoDBPutStep implements Step<void> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'mutation';
@@ -65,14 +65,4 @@ class DynamoDBPutStep implements Step<void> {
       return { success: false, error: `DynamoDB put failed: ${message}` };
     }
   }
-}
-
-/**
- * Factory function for creating a DynamoDB put mutation step.
- *
- * @param config - Step configuration
- * @returns A new DynamoDBPutStep instance
- */
-export function dynamoDBPut(config: DynamoDBPutConfig): Step<void> {
-  return new DynamoDBPutStep(config);
 }

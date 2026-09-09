@@ -3,25 +3,52 @@
  */
 
 import { Core } from '@go-automation/go-common';
+import type { AWSServiceProvider } from '@go-automation/go-common/aws';
 
-import type { ServiceRegistry } from '../services/ServiceRegistry.js';
+import type { RunbookReporter } from '../registry/RunbookReporter.js';
+import type { ServiceRegistry } from '../registry/ServiceRegistry.js';
 
 /**
  * Creates a ServiceRegistry from the unified script AWS provider.
  *
- * CloudWatch Logs uses the multi-profile service because runbooks may need to
- * resolve log groups across the configured account list. Other services keep
- * the first-profile behavior used by the previous implementation.
+ * The registry reads whichever account the script's AWS profiles resolve to
+ * first. That is correct only for callers pinned to a single account: anything
+ * executing occurrences across several accounts must go through a
+ * `ServiceRegistryResolverFn`, which binds the services to the account of
+ * each occurrence.
+ *
+ * The narrative reporter is a required argument on purpose: a console default
+ * would silently route step output to `script.logger`, which is wrong for
+ * callers that render their own report (see `go-rta-check`).
  *
  * @param script - GOScript instance with initialized AWS providers
+ * @param reporter - Where steps report their narrative
  * @returns ServiceRegistry with all services initialized
  */
-export function createServiceRegistry(script: Core.GOScript): ServiceRegistry {
+export function createServiceRegistry(script: Core.GOScript, reporter: RunbookReporter): ServiceRegistry {
+  return buildServiceRegistry(script.aws.services, reporter, new Core.GOHttpClient({}));
+}
+
+/**
+ * Assembles a registry from an AWS service provider already bound to the right
+ * account, so resolvers and the script factory agree on its composition.
+ *
+ * @param services - AWS services, scoped to the target when there is one
+ * @param reporter - Where steps report their narrative
+ * @param http - HTTP client shared across the run
+ * @returns The assembled service registry
+ */
+export function buildServiceRegistry(
+  services: AWSServiceProvider,
+  reporter: RunbookReporter,
+  http: Core.GOHttpClient,
+): ServiceRegistry {
   return {
-    cloudWatchLogs: script.aws.services.cloudWatchLogs,
-    cloudWatchMetrics: script.aws.services.cloudWatchMetrics,
-    athena: script.aws.services.athena,
-    dynamodb: script.aws.services.dynamoDB,
-    http: new Core.GOHttpClient({}),
+    cloudWatchLogs: services.cloudWatchLogs,
+    cloudWatchMetrics: services.cloudWatchMetrics,
+    athena: services.athena,
+    dynamodb: services.dynamoDB,
+    http,
+    reporter,
   };
 }

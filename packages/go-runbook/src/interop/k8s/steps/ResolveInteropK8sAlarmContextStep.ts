@@ -50,9 +50,11 @@ export class ResolveInteropK8sAlarmContextStep implements Step<InteropK8sAlarmCo
       };
     }
 
-    context.logger?.text(`      ├─ Ambiente INTEROP: ${alarmContext.environment}`);
-    context.logger?.text(`      ├─ Pod app: ${alarmContext.podApp}`);
-    context.logger?.text(`      └─ Log group: ${alarmContext.logGroup}`);
+    context.services.reporter.add(
+      { label: `Ambiente INTEROP: ${alarmContext.environment}` },
+      { label: `Pod app: ${alarmContext.podApp}` },
+      { label: `Log group: ${alarmContext.logGroup}` },
+    );
 
     return {
       success: true,

@@ -1,7 +1,8 @@
 import type { RunbookMetadata } from '../../types/RunbookMetadata.js';
 import type { RunbookAnalysisDefaults } from '../../types/RunbookAnalysisDefaults.js';
 import type { KnownCase } from '../../types/KnownCase.js';
-import type { StepDescriptor } from '../../types/StepDescriptor.js';
+import type { PipelineHook } from '../../types/PipelineHook.js';
+import type { LambdaPipelineAnchor } from './LambdaPipelineAnchor.js';
 import type { CaseAction } from '../../actions/CaseAction.js';
 import type { LambdaFunction } from './LambdaFunction.js';
 import type { LambdaDownstream } from './LambdaDownstream.js';
@@ -31,8 +32,12 @@ export interface LambdaAlarmConfig {
   readonly knownCases: ReadonlyArray<KnownCase>;
   /** Extra analysis references; the builder always prepends the primary resource. */
   readonly analysisDefaults?: RunbookAnalysisDefaults;
-  /** Custom steps inserted between the invocation query and the downstream loop. */
-  readonly preSteps?: ReadonlyArray<StepDescriptor>;
+  /**
+   * Custom steps spliced into the canonical pipeline at named points.
+   *
+   * See {@link LambdaPipelineAnchor} for the available positions.
+   */
+  readonly hooks?: ReadonlyArray<PipelineHook<LambdaPipelineAnchor>>;
   /**
    * Action executed when no known case matches. When omitted, the factory
    * generates a default action summarising the collected vars.

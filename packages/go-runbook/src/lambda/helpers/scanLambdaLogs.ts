@@ -1,7 +1,7 @@
+import { readRowField } from '@go-automation/go-common/aws';
 import type { ResultField } from '@go-automation/go-common/aws';
 
 import type { LambdaErrorCategory } from '../types/LambdaErrorCategory.js';
-import { extractField } from './extractField.js';
 import { extractLambdaRequestId } from './extractLambdaRequestId.js';
 import { parseLambdaReportLine } from './parseLambdaReportLine.js';
 import type { LambdaReportInfo } from './parseLambdaReportLine.js';
@@ -32,7 +32,7 @@ function isRuntimeLine(message: string): boolean {
  */
 function firstRequestIdField(rows: ReadonlyArray<ReadonlyArray<ResultField>>): string | undefined {
   for (const row of rows) {
-    const value = (extractField(row, '@requestId') ?? '').trim();
+    const value = (readRowField(row, '@requestId') ?? '').trim();
     if (value !== '') return value;
   }
   return undefined;
@@ -53,7 +53,7 @@ function firstRequestIdField(rows: ReadonlyArray<ReadonlyArray<ResultField>>): s
 export function scanLambdaLogs(rows: ReadonlyArray<ReadonlyArray<ResultField>>): LambdaErrorScan | undefined {
   if (rows.length === 0) return undefined;
 
-  const messages = rows.map((row) => (extractField(row, '@message') ?? '').trim()).filter((message) => message !== '');
+  const messages = rows.map((row) => (readRowField(row, '@message') ?? '').trim()).filter((message) => message !== '');
 
   let report: LambdaReportInfo | undefined;
   // Prefer the reliable @requestId Logs Insights field; fall back to parsing

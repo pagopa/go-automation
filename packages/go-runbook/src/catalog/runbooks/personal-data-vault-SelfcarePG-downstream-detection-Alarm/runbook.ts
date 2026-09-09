@@ -9,7 +9,7 @@ import { KNOWN_CASES } from './knownCases.js';
 import { SERVICE } from './knownServices.js';
 
 /** Builds the personal-data-vault SelfcarePG downstream-detection runbook. */
-export function buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook(): Runbook {
+export function buildRunbook(): Runbook {
   return service.createServiceAlarmRunbook({
     id: 'personal-data-vault-SelfcarePG-downstream-detection-Alarm',
     metadata: {

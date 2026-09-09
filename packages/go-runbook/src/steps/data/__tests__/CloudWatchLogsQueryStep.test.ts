@@ -10,7 +10,8 @@ import type {
 import type { GOLogger } from '@go-automation/go-common/core';
 import { CloudWatchLogsQueryStep } from '../CloudWatchLogsQueryStep.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
+import { ConsoleRunbookReporter } from '../../../registry/reporters/ConsoleRunbookReporter.js';
 
 function makeContext(params: ReadonlyArray<readonly [string, string]> = []): RunbookContext {
   return {
@@ -20,7 +21,7 @@ function makeContext(params: ReadonlyArray<readonly [string, string]> = []): Run
     vars: new Map(),
     params: new Map(params),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }
@@ -115,8 +116,11 @@ describe('CloudWatchLogsQueryStep.execute', () => {
         ['startTime', '2026-01-01T00:00:00.000Z'],
         ['endTime', '2026-01-01T00:10:00.000Z'],
       ]),
-      logger: { text: (message: string) => logLines.push(message) } as unknown as GOLogger,
-      services: {
+      services: createTestServiceRegistry({
+        reporter: new ConsoleRunbookReporter({
+          text: (message: string) => logLines.push(message),
+          newline: () => logLines.push(''),
+        } as unknown as GOLogger),
         cloudWatchLogs: {
           async queryWithStatistics(): Promise<AWSCloudWatchLogsQueryResult> {
             await Promise.resolve();
@@ -138,7 +142,7 @@ describe('CloudWatchLogsQueryStep.execute', () => {
             throw new Error('query() should not be used when queryWithStatistics is available');
           },
         },
-      } as unknown as ServiceRegistry,
+      }),
     };
 
     const result = await step.execute(context);
@@ -147,6 +151,7 @@ describe('CloudWatchLogsQueryStep.execute', () => {
     assert.deepStrictEqual(result.output, rows);
     assert.strictEqual(result.diagnostics?.cloudWatchLogs?.statistics.bytesScanned, 1024);
     assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions[0]?.queryId, 'qid-1');
+    context.services.reporter.flush();
     assert.ok(logLines.some((line) => line.includes('bytesScanned=1024')));
   });
 
@@ -165,7 +170,7 @@ describe('CloudWatchLogsQueryStep.execute', () => {
         ['startTime', '2026-01-01T00:00:00.000Z'],
         ['endTime', '2026-01-01T00:10:00.000Z'],
       ]),
-      services: {
+      services: createTestServiceRegistry({
         cloudWatchLogs: {
           async queryWithStatistics(
             _logGroups: ReadonlyArray<string>,
@@ -186,7 +191,7 @@ describe('CloudWatchLogsQueryStep.execute', () => {
             throw new Error('query() should not be used when queryWithStatistics is available');
           },
         },
-      } as unknown as ServiceRegistry,
+      }),
     };
 
     const result = await step.execute(context);

@@ -5,4 +5,9 @@
  * this is what selects the downstream catalog at build time and gives the Fase 0
  * coverage check the runbook → product map.
  */
-export type RunbookProduct = 'SEND' | 'INTEROP';
+export const RunbookProducts = {
+  SEND: 'SEND',
+  INTEROP: 'INTEROP',
+} as const;
+
+export type RunbookProduct = (typeof RunbookProducts)[keyof typeof RunbookProducts];

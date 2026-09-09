@@ -84,12 +84,13 @@ export function interopKnownCaseAction(refs: InteropKnownCaseRefs, title: string
     type: 'log',
     level: 'info',
     renderAs: 'known-case',
-    message:
-      `[CASO NOTO] ${title}\n` +
-      `Risoluzione: ${resolution}\n` +
-      'Ambiente: {{vars.interopEnvironment}}\n' +
-      'Log group: {{vars.interopLogGroup}}\n' +
-      'Servizio: {{vars.interopPodApp}}\n' +
-      `CID analizzati: {{vars.${refs.varPrefix}CidCount}}\n`,
+    title,
+    details: [
+      ['Risoluzione', resolution],
+      ['Ambiente', '{{vars.interopEnvironment}}'],
+      ['Log group', '{{vars.interopLogGroup}}'],
+      ['Servizio', '{{vars.interopPodApp}}'],
+      ['CID analizzati', `{{vars.${refs.varPrefix}CidCount}}`],
+    ],
   };
 }

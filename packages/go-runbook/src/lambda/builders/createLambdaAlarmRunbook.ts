@@ -11,6 +11,9 @@ import { AnalyzeLambdaInvocationStep } from '../steps/AnalyzeLambdaInvocationSte
 import { QueryDownstreamLogsStep } from '../steps/QueryDownstreamLogsStep.js';
 import { resolveLambdaAlarmBuildContext } from './resolveLambdaAlarmBuildContext.js';
 import { defaultLambdaUnknownCaseFallback } from './defaultUnknownCaseFallback.js';
+import { applyPipelineHooks } from '../../builders/applyPipelineHooks.js';
+import { finishAlarmRunbook } from '../../builders/finishAlarmRunbook.js';
+import type { LambdaPipelineAnchor } from '../types/LambdaPipelineAnchor.js';
 
 const TIME_RANGE: TimeRangeFromParams = { start: 'startTime', end: 'endTime' };
 
@@ -25,6 +28,7 @@ const TIME_RANGE: TimeRangeFromParams = { start: 'startTime', end: 'endTime' };
  */
 export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
   const ctx = resolveLambdaAlarmBuildContext(config);
+  const reachedAnchors = new Set<LambdaPipelineAnchor>();
   const builder = RunbookBuilder.create(config.id)
     .metadata(config.metadata)
     .cloudExecutionPolicy({ sideEffects: 'NONE' });
@@ -93,13 +97,8 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
     { silent: true },
   );
 
-  // 5. Custom pre-steps.
-  for (const descriptor of ctx.preSteps) {
-    const opts: { continueOnFailure?: boolean; silent?: boolean } = {};
-    if (descriptor.continueOnFailure === true) opts.continueOnFailure = true;
-    if (descriptor.silent === true) opts.silent = true;
-    builder.step(descriptor.step, opts);
-  }
+  // 5. Custom steps declared for this point of the pipeline.
+  applyPipelineHooks(builder, ctx.hooks, 'before-downstream-queries', reachedAnchors);
 
   // 6. Per-downstream query (no-op unless routed there).
   for (const downstream of ctx.downstreams) {
@@ -115,26 +114,12 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
     );
   }
 
-  // 7. Known cases declared by the runbook.
-  for (const knownCase of config.knownCases) {
-    builder.knownCase(knownCase);
-  }
-
-  // 8. Fallback + structured context.
-  builder.fallback(config.fallbackAction ?? defaultLambdaUnknownCaseFallback(ctx.downstreams));
-  builder.runbookContext({ ...ctx.runbookContext });
-
-  // Primary resource of the draft: the component under analysis. `type` stays
-  // undeclared until the Fase 0 coverage check confirms the censused ResourceType
-  // name — a wrong type would block the apply, while omitting it never does.
-  builder.analysisDefaults({
-    ...config.analysisDefaults,
-    resources: [{ name: config.lambda.name, role: 'PRIMARY' }, ...(config.analysisDefaults?.resources ?? [])],
+  // 7. Known cases, fallback, context, analysis defaults, iteration cap, build.
+  return finishAlarmRunbook(builder, config, {
+    builderName: 'createLambdaAlarmRunbook',
+    defaultFallback: () => defaultLambdaUnknownCaseFallback(ctx.downstreams),
+    runbookContext: { ...ctx.runbookContext },
+    primaryResource: config.lambda.name,
+    anchors: { hooks: ctx.hooks, reached: reachedAnchors, pipelineName: 'Lambda' },
   });
-
-  if (config.maxIterations !== undefined) {
-    builder.maxIterations(config.maxIterations);
-  }
-
-  return builder.build();
 }

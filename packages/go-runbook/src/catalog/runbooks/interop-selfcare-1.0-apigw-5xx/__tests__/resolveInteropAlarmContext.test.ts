@@ -1,14 +1,8 @@
+import { SELFCARE_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import {
-  INTEROP_SELFCARE_API_GW_ALARM_NAMES,
-  INTEROP_SELFCARE_API_GW_RUNBOOK_KEY,
-  INTEROP_SELFCARE_API_GW_SERVICE_NAME,
-  resolveInteropSelfcareApiGwAlarmContext,
-} from '../resolveInteropAlarmContext.js';
-
-describe('resolveInteropSelfcareApiGwAlarmContext', () => {
+describe('SELFCARE_ALARM.resolveContext', () => {
   it('resolves every supported environment with the API Gateway ids declared by the query section', () => {
     const expectedIds = new Map([
       ['prod', 'tf9isbi4pi'],
@@ -16,10 +10,10 @@ describe('resolveInteropSelfcareApiGwAlarmContext', () => {
       ['test', 'an24tfmqw3'],
     ]);
 
-    for (const alarmName of INTEROP_SELFCARE_API_GW_ALARM_NAMES) {
-      const context = resolveInteropSelfcareApiGwAlarmContext(alarmName);
-      assert.strictEqual(context.runbookKey, INTEROP_SELFCARE_API_GW_RUNBOOK_KEY);
-      assert.strictEqual(context.podApp, INTEROP_SELFCARE_API_GW_SERVICE_NAME);
+    for (const alarmName of SELFCARE_ALARM.alarmNames) {
+      const context = SELFCARE_ALARM.resolveContext(alarmName);
+      assert.strictEqual(context.runbookKey, SELFCARE_ALARM.runbookKey);
+      assert.strictEqual(context.podApp, SELFCARE_ALARM.serviceName);
       assert.strictEqual(context.apiGwId, expectedIds.get(context.environment));
       assert.strictEqual(context.apiGwLogGroup, `amazon-apigateway-interop-access-logs-${context.environment}`);
       assert.strictEqual(
@@ -31,12 +25,9 @@ describe('resolveInteropSelfcareApiGwAlarmContext', () => {
 
   it('rejects names outside the three registered aliases', () => {
     assert.throws(
-      () => resolveInteropSelfcareApiGwAlarmContext('interop-selfcare-1.0-dev-apigw-5xx'),
+      () => SELFCARE_ALARM.resolveContext('interop-selfcare-1.0-dev-apigw-5xx'),
       /Unsupported INTEROP alarm name/u,
     );
-    assert.throws(
-      () => resolveInteropSelfcareApiGwAlarmContext(INTEROP_SELFCARE_API_GW_RUNBOOK_KEY),
-      /Unsupported INTEROP alarm name/u,
-    );
+    assert.throws(() => SELFCARE_ALARM.resolveContext(SELFCARE_ALARM.runbookKey), /Unsupported INTEROP alarm name/u);
   });
 });

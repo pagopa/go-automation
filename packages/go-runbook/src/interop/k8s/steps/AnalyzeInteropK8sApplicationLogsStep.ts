@@ -79,9 +79,11 @@ export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sAppl
       representativeMessages,
     };
 
-    context.logger?.text(`      ├─ Log applicativi analizzati: ${analysis.logCount}`);
-    context.logger?.text(`      ├─ CID distinti: ${cids.length}`);
-    context.logger?.text(`      └─ Log senza CID: ${logsWithoutCidCount}`);
+    context.services.reporter.add(
+      { label: `Log applicativi analizzati: ${analysis.logCount}` },
+      { label: `CID distinti: ${cids.length}` },
+      { label: `Log senza CID: ${logsWithoutCidCount}` },
+    );
 
     return {
       success: true,

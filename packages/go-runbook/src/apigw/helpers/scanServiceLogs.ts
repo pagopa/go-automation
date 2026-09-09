@@ -80,7 +80,7 @@ export interface ServiceLogsScan {
  *
  * Each row is materialised into a `Map<field, value>` exactly once, so
  * field lookups are O(1) instead of the O(fields) `Array.find` of
- * {@link extractCwField}. Overall cost is O(rows · fields), versus the
+ * {@link readRowField}. Overall cost is O(rows · fields), versus the
  * O(rows · fields · ~6) of calling the four granular helpers separately.
  *
  * @param results - CloudWatch Logs Insights result rows

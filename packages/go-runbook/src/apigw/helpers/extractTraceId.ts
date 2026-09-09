@@ -1,6 +1,6 @@
+import { readRowField } from '@go-automation/go-common/aws';
 import type { ResultField } from '@go-automation/go-common/aws';
 import type { AccessLogSchema } from '../profiles/schemas/AccessLogSchema.js';
-import { extractCwField } from './extractCwField.js';
 
 /**
  * Estrae il trace id da una riga di AccessLog, generico per prodotto.
@@ -23,7 +23,7 @@ import { extractCwField } from './extractCwField.js';
  * @returns il trace id estratto, oppure `undefined` se il campo è assente
  */
 export function extractTraceId(row: ReadonlyArray<ResultField>, schema: AccessLogSchema): string | undefined {
-  const raw = extractCwField(row, schema.traceIdField);
+  const raw = readRowField(row, schema.traceIdField);
   if (raw === undefined) return undefined;
 
   if (schema.traceIdExtractPattern === undefined) {

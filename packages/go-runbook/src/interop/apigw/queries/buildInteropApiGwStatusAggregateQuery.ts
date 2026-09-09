@@ -1,3 +1,4 @@
+import { escapeLogsInsightsString } from '@go-automation/go-common/aws';
 export type InteropApiGwStatusClass = 4 | 5;
 
 /** Builds the common aggregate query for one API Gateway HTTP status family. */
@@ -21,8 +22,4 @@ function assertInteropApiGwStatusClass(value: unknown): asserts value is Interop
   if (value !== 4 && value !== 5) {
     throw new RangeError(`statusClass must be 4 or 5; received ${String(value)}`);
   }
-}
-
-function escapeLogsInsightsString(value: string): string {
-  return value.replace(/\0/g, '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }

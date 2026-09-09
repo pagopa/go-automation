@@ -44,6 +44,7 @@ export function buildSummary(rows: ReadonlyArray<RtaCheckRow>): RtaCheckSummary 
     NO_EVIDENCE: 0,
     CONFLICT: 0,
     NOT_LINKED: 0,
+    IGNORED: 0,
     NOT_ANALYZED: 0,
   };
   for (const row of rows) {
@@ -77,7 +78,7 @@ export function buildSummary(rows: ReadonlyArray<RtaCheckRow>): RtaCheckSummary 
  */
 export function buildReport(input: RtaCheckInput, rows: ReadonlyArray<RtaCheckRow>): RtaCheckReport {
   return {
-    schemaVersion: '1.0.0',
+    schemaVersion: '1.1.0',
     generatedAt: new Date().toISOString(),
     input,
     summary: buildSummary(rows),

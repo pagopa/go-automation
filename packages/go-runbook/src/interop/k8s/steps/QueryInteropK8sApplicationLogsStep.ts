@@ -77,9 +77,9 @@ export class QueryInteropK8sApplicationLogsStep implements Step<ReadonlyArray<Re
     const query = this.buildQuery(podApp);
     const options = buildQueryOptions(context);
 
-    context.logger?.text(`      ├─ Query log applicativi INTEROP [pod_app=${podApp}]`);
+    context.services.reporter.add({ label: `Query log applicativi INTEROP [pod_app=${podApp}]` });
     const result = await context.services.cloudWatchLogs.queryWithStatistics([logGroup], query, timeRange, options);
-    context.logger?.text(`      └─ Log applicativi trovati: ${result.rows.length}`);
+    context.services.reporter.add({ label: `Log applicativi trovati: ${result.rows.length}` });
 
     return {
       success: true,

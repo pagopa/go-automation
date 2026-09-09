@@ -1,3 +1,5 @@
+import { omitUndefined } from '@go-automation/go-common/core';
+import { readRowField } from '@go-automation/go-common/aws';
 import type { ResultField } from '@go-automation/go-common/aws';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
@@ -5,7 +7,6 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { StepResult } from '../../types/StepResult.js';
 import { readStepOutput } from '../../steps/data/readStepOutput.js';
 
-import { extractCwField } from '../helpers/extractCwField.js';
 import { extractTraceId } from '../helpers/extractTraceId.js';
 import { pickHighestStatusCode, pickPrimaryStatusCode, rowMeetsThreshold } from '../helpers/accessLogRow.js';
 import { ApiGwReporter } from '../reporting/ApiGwReporter.js';
@@ -37,7 +38,7 @@ export interface ParseApiGwErrorsConfig {
   readonly queryProfileId?: string;
 }
 
-class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
+export class ParseApiGwErrorsStep implements Step<ApiGwErrorInfo> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'transform';
@@ -76,7 +77,7 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
     // `authorizerStatus` or `integrationServiceStatus`
     // (e.g. an authorizer 500 with `status=-`).
     // Rows are only ever read downstream (extractTraceId, pickPrimaryStatusCode,
-    // extractCwField) — no defensive clone needed.
+    // readRowField) — no defensive clone needed.
     const errorRows: ResultField[][] = [];
     for (const row of results) {
       if (rowMeetsThreshold(row, this.minStatusCode, this.schema)) {
@@ -85,14 +86,12 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
     }
 
     if (errorRows.length === 0) {
-      if (context.logger !== undefined) {
-        new ApiGwReporter(context.logger).apiGwResult({
-          errorCount: 0,
-          statusCode: '',
-          traceId: undefined,
-          traceIdLabel: this.schema.traceIdLabel,
-        });
-      }
+      new ApiGwReporter(context.services.reporter).apiGwResult({
+        errorCount: 0,
+        statusCode: '',
+        traceId: undefined,
+        traceIdLabel: this.schema.traceIdLabel,
+      });
       return {
         success: true,
         output: { errorCount: 0, xRayTraceId: undefined, statusCode: '' },
@@ -126,7 +125,7 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
 
     const additional: Partial<ApiGwErrorInfo> = {};
     for (const [field, contextVar] of this.schema.fieldToVar) {
-      const raw = extractCwField(firstRow, field);
+      const raw = readRowField(firstRow, field);
       if (raw === undefined) continue;
       // API Gateway uses the literal `-` to mark "not present" for these
       // fields. Persist it as a var (so case conditions can compare on
@@ -141,17 +140,17 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
       }
     }
 
-    if (context.logger !== undefined) {
-      new ApiGwReporter(context.logger).apiGwResult({
-        errorCount: errorRows.length,
-        statusCode,
-        traceId,
-        traceIdLabel: this.schema.traceIdLabel,
-        ...(additional.errorMessage !== undefined ? { errorMessage: additional.errorMessage } : {}),
-        ...(additional.path !== undefined ? { path: additional.path } : {}),
-        ...(additional.httpMethod !== undefined ? { httpMethod: additional.httpMethod } : {}),
-      });
-    }
+    new ApiGwReporter(context.services.reporter).apiGwResult({
+      errorCount: errorRows.length,
+      statusCode,
+      traceId,
+      traceIdLabel: this.schema.traceIdLabel,
+      ...omitUndefined({
+        errorMessage: additional.errorMessage,
+        path: additional.path,
+        httpMethod: additional.httpMethod,
+      }),
+    });
 
     return {
       success: true,
@@ -200,30 +199,4 @@ class ParseApiGwErrorsStepImpl implements Step<ApiGwErrorInfo> {
     if (field === 'integrationRequestId') return 'integrationRequestId';
     return undefined;
   }
-}
-
-/**
- * Factory: creates a step that parses API Gateway AccessLog query results.
- *
- * The step scans the rows produced by an upstream CloudWatch Logs Insights
- * query, filters them by minimum HTTP status code, then extracts the
- * trace id, status code and the additional diagnostic fields declared by
- * `schema.fieldToVar`. When no errors are present the step short-circuits
- * the runbook with `next: 'stop'`.
- *
- * V04: lo schema dei campi è letto dal profilo (default SEND per
- * back-compat). I nomi degli helper sono generici: `extractTraceId` legge
- * `schema.traceIdField` e scrive `vars[schema.traceIdContextVar]`.
- *
- * Vars written:
- * - `apiGwErrorCount`: total number of error rows (always)
- * - `apiGwStatusCode`: status code of the first error row (when errors found)
- * - `<schema.traceIdContextVar>`: trace id of the first error row (when extractable)
- * - tutti i campi `schema.fieldToVar` quando presenti nel primo row
- *
- * @param config - Step configuration
- * @returns Step that extracts API Gateway error metadata
- */
-export function parseApiGwErrors(config: ParseApiGwErrorsConfig): Step<ApiGwErrorInfo> {
-  return new ParseApiGwErrorsStepImpl(config);
 }

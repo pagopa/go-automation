@@ -3,8 +3,8 @@
  * Integrates logging, configuration, and prompts into a unified script framework
  */
 
-import { AWSProvider, GOAWSCredentialsManager } from '../../aws/index.js';
-import type { GOAWSCredentialsLogHandler, GOAWSCredentialsPromptHandler } from '../../aws/index.js';
+import { AWSProvider, GOAWSCredentialsManager, parseAwsProfileEntries } from '../../aws/index.js';
+import type { AWSProfileEntries, GOAWSCredentialsLogHandler, GOAWSCredentialsPromptHandler } from '../../aws/index.js';
 import type { GOConfigProvider } from '../config/GOConfigProvider.js';
 import { GOSecretRedactor, GOSecretsSpecifierFactory } from '../config/GOSecretsSpecifier.js';
 import { GOConfigReader } from '../config/GOConfigReader.js';
@@ -716,13 +716,15 @@ export class GOScript {
    * `aws.profiles` wins when present; otherwise `aws.profile` is promoted
    * to a single-element multi-profile provider. This keeps script code on
    * one API (`script.aws`) while preserving both CLI parameter styles.
+   *
+   * @param entries - Already parsed `aws.profiles`, so a caller that also needs
+   *   the declared fallbacks derives both halves from the same parse
+   * @returns The effective profile names, empty when neither parameter is set
    */
-  private resolveAwsProfileNames(): ReadonlyArray<string> {
-    const profiles = this.getConfigStringArray('aws.profiles')
-      ?.map((profile) => profile.trim())
-      .filter((profile) => profile.length > 0);
+  private resolveAwsProfileNames(entries: AWSProfileEntries = this.resolveAwsProfileEntries()): ReadonlyArray<string> {
+    const profiles = entries.profileNames;
 
-    if (profiles !== undefined && profiles.length > 0) {
+    if (profiles.length > 0) {
       return profiles;
     }
 
@@ -732,6 +734,23 @@ export class GOScript {
     }
 
     return [];
+  }
+
+  /**
+   * Parses `aws.profiles` into plain names for SSO and client construction,
+   * plus the log-group fallbacks each profile declared.
+   *
+   * A flat list yields no fallbacks, so every script that never writes the
+   * `profile:fallback` form behaves exactly as before.
+   *
+   * Not cached: a reused Lambda container can receive different `aws.profiles`
+   * per invocation, and {@link refreshAwsClientsIfProfileChanged} notices
+   * through this very call. A memoised result would pin the first invocation's
+   * profiles and defeat the refresh, which is a far worse trade than parsing a
+   * handful of strings again.
+   */
+  private resolveAwsProfileEntries(): AWSProfileEntries {
+    return parseAwsProfileEntries(this.getConfigStringArray('aws.profiles') ?? []);
   }
 
   private resolveAwsRegion(): string | undefined {
@@ -1406,10 +1425,8 @@ export class GOScript {
 
     // Handle multi-profile if aws.profiles is configured
     if (this.hasAwsProfilesParam) {
-      const profiles = this.getConfigStringArray('aws.profiles')
-        ?.map((profile) => profile.trim())
-        .filter((profile) => profile.length > 0);
-      if (profiles !== undefined && profiles.length > 0) {
+      const profiles = this.resolveAwsProfileEntries().profileNames;
+      if (profiles.length > 0) {
         await this.handleMultiProfileAWSCredentials(profiles);
         return;
       }
@@ -1563,10 +1580,15 @@ export class GOScript {
       // on developer machines / CI, not in the runtime — building clients with fromIni({ profile })
       // there fails with CredentialsProviderError. This mirrors handleAWSCredentials(), which already
       // skips profile resolution in AWS-managed environments.
-      const profiles = this.environment.isAWSManaged ? [] : this.resolveAwsProfileNames();
+      // The declared log-group fallbacks go the same way, for the same reason.
+      // Parsed once, so names and fallbacks always describe the same value.
+      const entries = this.environment.isAWSManaged ? undefined : this.resolveAwsProfileEntries();
+      const profiles = entries === undefined ? [] : this.resolveAwsProfileNames(entries);
+      const logFallbacksByProfile = entries?.fallbacksByProfile;
       this.awsProvider = new AWSProvider({
         profiles,
         ...(region !== undefined ? { region } : {}),
+        ...(logFallbacksByProfile === undefined || logFallbacksByProfile.size === 0 ? {} : { logFallbacksByProfile }),
       });
     }
     return this.awsProvider;

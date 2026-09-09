@@ -1,3 +1,4 @@
+import { omitUndefined } from '@go-automation/go-common/core';
 import type { Runbook } from '../types/Runbook.js';
 import type { RunbookMetadata } from '../types/RunbookMetadata.js';
 import type { RunbookAnalysisDefaults } from '../types/RunbookAnalysisDefaults.js';
@@ -51,7 +52,7 @@ function isSwitchStepWithGoTo(step: Step): step is Step & {
  *     tags: ['api-gateway', '5xx'],
  *   })
  *   .step(new CloudWatchLogsQueryStep({ ... }))
- *   .step(extractField({ ... }), { continueOnFailure: true })
+ *   .step(new ExtractFieldStep({ ... }), { continueOnFailure: true })
  *   .knownCase({ ... })
  *   .fallback(logAction({ ... }))
  *   .build();
@@ -135,6 +136,17 @@ export class RunbookBuilder {
     };
     this.stepDescriptors.push(descriptor);
     return this;
+  }
+
+  /**
+   * Ids of the steps wired so far — the source of truth for "does this runbook
+   * contain step X", against a hand-maintained list that can drift from what
+   * the builder actually assembled.
+   *
+   * @returns The wired step ids, in insertion order
+   */
+  wiredStepIds(): ReadonlySet<string> {
+    return new Set(this.stepDescriptors.map((descriptor) => descriptor.step.id));
   }
 
   /**
@@ -342,6 +354,9 @@ export class RunbookBuilder {
       throw new Error('Invalid runbook configuration: missing metadata or fallback action.');
     }
 
+    // Copied, not aliased: the built runbook must not share the builder's own window object.
+    const occurrenceTimeWindow = this.occurrenceWindow !== undefined ? { ...this.occurrenceWindow } : undefined;
+
     const result: Runbook = {
       metadata: {
         id: this.id,
@@ -350,10 +365,12 @@ export class RunbookBuilder {
       steps: [...this.stepDescriptors],
       knownCases: [...this.cases],
       fallbackAction: this.fallbackAction, // Safe: validated in validate()
-      ...(this.occurrenceWindow !== undefined ? { occurrenceTimeWindow: { ...this.occurrenceWindow } } : {}),
-      ...(this.structuredContext !== undefined ? { runbookContext: this.structuredContext } : {}),
-      ...(this.cloudPolicy !== undefined ? { cloudExecutionPolicy: this.cloudPolicy } : {}),
-      ...(this.analysisDefaultRefs !== undefined ? { analysisDefaults: this.analysisDefaultRefs } : {}),
+      ...omitUndefined({
+        occurrenceTimeWindow,
+        runbookContext: this.structuredContext,
+        cloudExecutionPolicy: this.cloudPolicy,
+        analysisDefaults: this.analysisDefaultRefs,
+      }),
     };
 
     if (this.iterationsLimit !== undefined) {

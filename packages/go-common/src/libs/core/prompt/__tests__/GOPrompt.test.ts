@@ -5,7 +5,13 @@
 import { describe, it, mock, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { GOPrompt, type GOPromptAdapter, type GOPromptInputOptions } from '../GOPrompt.js';
+import {
+  GO_PROMPT_BACK,
+  GOPrompt,
+  type GOPromptAdapter,
+  type GOPromptInputOptions,
+  type GOPromptSelectInputOptions,
+} from '../GOPrompt.js';
 import { GOLogger } from '../../logging/GOLogger.js';
 
 // Mock logger
@@ -385,5 +391,222 @@ describe('GOPrompt.dateRange', () => {
     assert.deepStrictEqual(offered[0], ['Ultime 2 ore']);
     assert.strictEqual(range?.from?.toISOString(), '2026-08-24T08:00:00.000Z');
     assert.strictEqual(range?.to, undefined);
+  });
+});
+
+describe('selectWithBack', () => {
+  const choices = [
+    { title: 'Produzione', value: 'prod' },
+    { title: '← Indietro', value: 'back' },
+  ];
+
+  /** Rejection raised by inquirer once the prompt is aborted through its signal. */
+  function abortError(): Error {
+    const error = new Error('Prompt was aborted');
+    error.name = 'AbortPromptError';
+    return error;
+  }
+
+  /**
+   * Prompt whose select answers `answer`, after emitting `keys` on stdin the way
+   * readline does while the prompt is on screen.
+   */
+  function createBackPrompt(
+    answer: unknown,
+    keys: ReadonlyArray<string> = [],
+  ): { prompt: GOPrompt; signals: (AbortSignal | undefined)[] } {
+    const signals: (AbortSignal | undefined)[] = [];
+    const unused = async <T>(): Promise<T | undefined> => await Promise.resolve(undefined);
+    const adapter: GOPromptAdapter = {
+      text: unused,
+      password: unused,
+      number: unused,
+      confirm: unused,
+      select: async <T>(_options: unknown, context?: { readonly signal?: AbortSignal }): Promise<T | undefined> => {
+        signals.push(context?.signal);
+        for (const name of keys) process.stdin.emit('keypress', '', { name });
+        if (context?.signal?.aborted === true) throw abortError();
+        return await Promise.resolve(answer as T);
+      },
+      checkbox: unused,
+      search: unused,
+    };
+
+    return { prompt: new GOPrompt(logger, false, adapter), signals };
+  }
+
+  it('returns the selected value when no shortcut is pressed', async () => {
+    const { prompt } = createBackPrompt('prod');
+
+    assert.strictEqual(await prompt.selectWithBack<string>('Ambiente', choices), 'prod');
+  });
+
+  it('returns the back sentinel when ← is pressed', async () => {
+    const { prompt } = createBackPrompt('prod', ['left']);
+
+    assert.strictEqual(await prompt.selectWithBack<string>('Ambiente', choices), GO_PROMPT_BACK);
+  });
+
+  it('ignores the keys that are not the shortcut', async () => {
+    const { prompt } = createBackPrompt('prod', ['right', 'down', 'backspace']);
+
+    assert.strictEqual(await prompt.selectWithBack<string>('Ambiente', choices), 'prod');
+  });
+
+  it('hands the prompt a signal to be aborted with', async () => {
+    const { prompt, signals } = createBackPrompt('prod');
+
+    await prompt.selectWithBack<string>('Ambiente', choices);
+
+    assert.ok(signals[0] instanceof AbortSignal);
+  });
+
+  it('returns undefined when the prompt is cancelled', async () => {
+    const { prompt } = createBackPrompt(undefined);
+
+    assert.strictEqual(await prompt.selectWithBack<string>('Ambiente', choices), undefined);
+  });
+
+  it('leaves no keypress listener behind', async () => {
+    const before = process.stdin.listenerCount('keypress');
+    const { prompt } = createBackPrompt('prod', ['left']);
+
+    await prompt.selectWithBack<string>('Ambiente', choices);
+
+    assert.strictEqual(process.stdin.listenerCount('keypress'), before);
+  });
+});
+
+describe('autocompleteWithBack', () => {
+  const choices = [
+    { title: 'Produzione', value: 'prod' },
+    { title: '← Indietro', value: 'back' },
+  ];
+
+  /** Rejection raised by inquirer once the prompt is aborted through its signal. */
+  function abortError(): Error {
+    const error = new Error('Prompt was aborted');
+    error.name = 'AbortPromptError';
+    return error;
+  }
+
+  /**
+   * Prompt whose search answers `answer`, after running the filter through every
+   * `queries` entry the way typing does, then emitting `keys` on stdin.
+   */
+  function createSearchPrompt(answer: unknown, queries: ReadonlyArray<string>, keys: ReadonlyArray<string>): GOPrompt {
+    const unused = async <T>(): Promise<T | undefined> => await Promise.resolve(undefined);
+    const search = async <T>(
+      options: GOPromptSelectInputOptions<T>,
+      context?: { readonly signal?: AbortSignal },
+    ): Promise<T | undefined> => {
+      for (const query of queries) await options.source?.(query);
+      for (const name of keys) process.stdin.emit('keypress', '', { name });
+      if (context?.signal?.aborted === true) throw abortError();
+      return answer as T;
+    };
+
+    const adapter: GOPromptAdapter = {
+      text: unused,
+      password: unused,
+      number: unused,
+      confirm: unused,
+      select: unused,
+      checkbox: unused,
+      search: search,
+    };
+
+    return new GOPrompt(logger, false, adapter);
+  }
+
+  it('returns the selected value when no shortcut is pressed', async () => {
+    const prompt = createSearchPrompt('prod', [''], []);
+
+    assert.strictEqual(await prompt.autocompleteWithBack<string>('Runbook', choices), 'prod');
+  });
+
+  it('returns the back sentinel when ← is pressed on an empty filter', async () => {
+    const prompt = createSearchPrompt('prod', [''], ['left']);
+
+    assert.strictEqual(await prompt.autocompleteWithBack<string>('Runbook', choices), GO_PROMPT_BACK);
+  });
+
+  it('leaves ← to the filter once the user has typed', async () => {
+    const prompt = createSearchPrompt('prod', ['', 'pro'], ['left']);
+
+    assert.strictEqual(await prompt.autocompleteWithBack<string>('Runbook', choices), 'prod');
+  });
+
+  it('goes back again once the filter is cleared', async () => {
+    const prompt = createSearchPrompt('prod', ['', 'pro', ''], ['left']);
+
+    assert.strictEqual(await prompt.autocompleteWithBack<string>('Runbook', choices), GO_PROMPT_BACK);
+  });
+
+  it('still filters through the suggestions of the caller', async () => {
+    const seen: string[] = [];
+    const prompt = createSearchPrompt('prod', ['pro'], []);
+
+    await prompt.autocompleteWithBack<string>('Runbook', choices, {
+      suggest: async (input, all) => {
+        seen.push(input);
+        return await Promise.resolve(all.filter((choice) => choice.title.includes(input)));
+      },
+    });
+
+    assert.deepStrictEqual(seen, ['pro']);
+  });
+
+  it('leaves no keypress listener behind', async () => {
+    const before = process.stdin.listenerCount('keypress');
+    const prompt = createSearchPrompt('prod', [''], ['left']);
+
+    await prompt.autocompleteWithBack<string>('Runbook', choices);
+
+    assert.strictEqual(process.stdin.listenerCount('keypress'), before);
+  });
+});
+
+describe('GOPrompt.dateRangeWithBack', () => {
+  /** Value carried by the "go back" entry, past the last preset. */
+  const backValue = -1;
+
+  it('offers the way back after the presets', async () => {
+    const { prompt, offered } = createDatePrompt([0]);
+
+    await prompt.dateRangeWithBack('Period', { now: NOW, backLabel: '← Back to the runbook' });
+
+    assert.deepStrictEqual(offered[0]?.slice(-2), ['Custom…', '← Back to the runbook']);
+  });
+
+  it('names the way back in English unless the caller says otherwise', async () => {
+    const { prompt, offered } = createDatePrompt([0]);
+
+    await prompt.dateRangeWithBack('Period', { now: NOW });
+
+    assert.deepStrictEqual(offered[0]?.slice(-1), ['← Back']);
+  });
+
+  it('returns the sentinel when the way back is picked', async () => {
+    const { prompt } = createDatePrompt([backValue]);
+
+    assert.strictEqual(await prompt.dateRangeWithBack('Period', { now: NOW }), GO_PROMPT_BACK);
+  });
+
+  it('resolves the presets exactly like the plain picker', async () => {
+    const { prompt } = createDatePrompt([1]);
+
+    const range = await prompt.dateRangeWithBack('Period', { now: NOW });
+
+    assert.notStrictEqual(range, GO_PROMPT_BACK);
+    assert.strictEqual(range === GO_PROMPT_BACK ? undefined : range?.from?.toISOString(), '2026-08-17T10:00:00.000Z');
+  });
+
+  it('leaves the plain picker without a way back', async () => {
+    const { prompt, offered } = createDatePrompt([0]);
+
+    await prompt.dateRange('Period', { now: NOW, backLabel: '← Back' });
+
+    assert.ok(!(offered[0] ?? []).includes('← Back'));
   });
 });

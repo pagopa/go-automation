@@ -44,9 +44,7 @@ export class PrepareLambdaSectionStep implements Step<undefined> {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<undefined>> {
-    if (context.logger !== undefined) {
-      new LambdaReporter(context.logger).sectionPrepare(this.lambdaName, this.logGroup, this.eventSource);
-    }
+    new LambdaReporter(context.services.reporter).sectionPrepare(this.lambdaName, this.logGroup, this.eventSource);
     return {
       success: true,
       vars: {

@@ -21,7 +21,7 @@ import type { CachedRunbookMeta } from './CachedRunbookMeta.js';
  * (e.g. after a change to the fingerprint inputs or a `go-runbook` upgrade whose
  * effect is not otherwise captured by the structural hash).
  */
-const CACHE_FINGERPRINT_VERSION = 3;
+const CACHE_FINGERPRINT_VERSION = 4;
 
 /** `RunbookOutput` schema version this build expects; mismatch ⇒ cache miss. */
 const EXPECTED_OUTPUT_SCHEMA_VERSION = '1.0.0';

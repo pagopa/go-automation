@@ -6,7 +6,14 @@ export { GOPaths, GOPathType } from './GOPaths.js';
 export type { GOPathTypeValue, GOPathResolutionResult, GOConfigPathResult, GOPathsOptions } from './GOPaths.js';
 export { GOPathEnvironmentVariables } from './GOPathEnvironmentVariables.js';
 export type { GOPathEnvVarKey, GOPathEnvVarValue } from './GOPathEnvironmentVariables.js';
-export { smartTruncate, truncatePath, truncateText, isPath, type GOSmartTruncateOptions } from './GOStringUtils.js';
+export {
+  smartTruncate,
+  truncatePath,
+  truncateText,
+  trimToUndefined,
+  isPath,
+  type GOSmartTruncateOptions,
+} from './GOStringUtils.js';
 export {
   formatConfigSourceDisplay,
   formatConfigValueDisplay,
@@ -39,10 +46,13 @@ export {
   isBigInt,
   isPromise,
   isNonEmptyString,
+  isNonBlankString,
   isNonEmptyArray,
   hasProperty,
   hasMessage,
 } from './GOTypeGuards.js';
+export { parseInteger, parseFiniteNumber } from './GONumberParse.js';
+export { omitUndefined } from './GOObjectUtils.js';
 export { GOConcurrencyPool } from './GOConcurrencyPool.js';
 export { formatUtcDateTime } from './GODateUtils.js';
 export { GODateTokens } from './GODateTokens.js';

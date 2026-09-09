@@ -1,5 +1,9 @@
-export { extractField } from './ExtractFieldStep.js';
-export { regexExtract } from './RegexExtractStep.js';
-export { mapArray } from './MapStep.js';
-export { template } from './TemplateStep.js';
+export { ExtractFieldStep } from './ExtractFieldStep.js';
+export type { ExtractFieldConfig } from './ExtractFieldStep.js';
+export { RegexExtractStep } from './RegexExtractStep.js';
+export type { RegexExtractConfig } from './RegexExtractStep.js';
+export { MapStep } from './MapStep.js';
+export type { MapArrayConfig } from './MapStep.js';
+export { TemplateStep } from './TemplateStep.js';
+export type { TemplateConfig } from './TemplateStep.js';
 export { navigateFieldPath, parseFieldPath } from '@go-automation/go-common/core';

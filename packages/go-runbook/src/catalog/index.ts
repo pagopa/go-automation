@@ -4,14 +4,19 @@ export {
   RUNBOOK_REGISTRY,
   validateCloudRunbookRegistry,
 } from './runbookRegistry.js';
-export type { AutomaticRunbookRegistration, ResolvedAutomaticRunbook, RunbookBuilderFn } from './runbookRegistry.js';
+export type { AutomaticRunbookRegistration } from './AutomaticRunbookRegistration.js';
+export type { ResolvedAutomaticRunbook } from './ResolvedAutomaticRunbook.js';
+export type { RunbookBuilderFn } from './RunbookBuilderFn.js';
 export type { AutomaticRunbookKind } from '@go-automation/go-execute-runbook-contracts';
 export { executeRunbookForOccurrence } from './executeRunbookForOccurrence.js';
 export type {
   ExecuteRunbookForOccurrenceDeps,
   ExecuteRunbookForOccurrenceInput,
 } from './executeRunbookForOccurrence.js';
-export { createServiceRegistry } from './createServiceRegistry.js';
+export { createServiceRegistry, buildServiceRegistry } from './createServiceRegistry.js';
+export type { RunbookReporter } from '../registry/RunbookReporter.js';
+export { ConsoleRunbookReporter } from '../registry/reporters/ConsoleRunbookReporter.js';
+export { NOOP_RUNBOOK_REPORTER } from '../registry/reporters/NOOP_RUNBOOK_REPORTER.js';
 export { computeTimeRange } from './computeTimeRange.js';
 export { computeRunbookTimeRange, resolveOccurrenceTimeWindow } from './computeRunbookTimeRange.js';
 export { createTimeRangeReference } from './createTimeRangeReference.js';

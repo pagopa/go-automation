@@ -10,6 +10,7 @@ import { getErrorMessage } from '../errors/GOErrorUtils.js';
 import { isDangerousKey } from '../security/DangerousKeys.js';
 import { GOPathType, type GOPaths } from '../utils/GOPaths.js';
 import { GOPresetUnknownKeysError } from './GOPresetUnknownKeysError.js';
+import { isPlainObject } from '../utils/GOTypeGuards.js';
 
 export interface GOScriptPresetDefinition {
   readonly name: string;
@@ -244,7 +245,7 @@ export class GOScriptPresetLoader {
       };
     }
 
-    if (!this.isRecord(parsed)) {
+    if (!isPlainObject(parsed)) {
       throw new Error(`Invalid presets file ${sourcePath}. Expected a JSON/YAML object or array.`);
     }
 
@@ -276,7 +277,7 @@ export class GOScriptPresetLoader {
     rawPresets.forEach((entry, index) => {
       const label = `presets[${String(index)}]`;
       const sourceLabel = `${sourcePath}.${label}`;
-      if (!this.isRecord(entry)) {
+      if (!isPlainObject(entry)) {
         throw new Error(`Invalid preset definition ${label} in ${sourcePath}. Expected an object.`);
       }
 
@@ -289,7 +290,7 @@ export class GOScriptPresetLoader {
       names.add(name);
 
       const rawValues = entry['values'];
-      if (!this.isRecord(rawValues)) {
+      if (!isPlainObject(rawValues)) {
         throw new Error(`Preset "${name}" in ${sourcePath} must contain an object values field`);
       }
 
@@ -327,7 +328,7 @@ export class GOScriptPresetLoader {
       }
       names.add(normalizedName);
 
-      if (!this.isRecord(values)) {
+      if (!isPlainObject(values)) {
         throw new Error(`Preset "${normalizedName}" in ${sourcePath} must be an object`);
       }
 
@@ -467,7 +468,7 @@ export class GOScriptPresetLoader {
       return;
     }
 
-    if (this.isRecord(value)) {
+    if (isPlainObject(value)) {
       this.assertNoDangerousKeys(value, location, depth);
     }
   }
@@ -484,9 +485,5 @@ export class GOScriptPresetLoader {
         `Preset structure exceeds maximum depth of ${String(MAX_PRESET_STRUCTURE_DEPTH)} at "${location}"`,
       );
     }
-  }
-
-  private isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 }

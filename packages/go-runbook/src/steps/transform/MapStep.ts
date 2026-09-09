@@ -9,7 +9,7 @@ import { readStepOutput } from '../data/readStepOutput.js';
  */
 type MapArrayMappingFn = (element: unknown, index: number) => unknown;
 
-interface MapArrayConfig {
+export interface MapArrayConfig {
   /** Unique identifier of the step within the runbook */
   readonly id: string;
   /** Human-readable label for logs and UI */
@@ -26,7 +26,7 @@ interface MapArrayConfig {
  *
  * @example
  * ```typescript
- * const step = mapArray({
+ * const step = new MapStep({
  *   id: 'map-names',
  *   label: 'Extract names from users',
  *   fromStep: 'fetch-users',
@@ -34,7 +34,7 @@ interface MapArrayConfig {
  * });
  * ```
  */
-class MapStep implements Step<unknown[]> {
+export class MapStep implements Step<unknown[]> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'transform';
@@ -75,14 +75,4 @@ class MapStep implements Step<unknown[]> {
       output: mapped,
     };
   }
-}
-
-/**
- * Factory function that creates a MapStep instance.
- *
- * @param config - Configuration for the map array step
- * @returns A Step that maps each element of a previous step's array output
- */
-export function mapArray(config: MapArrayConfig): Step<unknown[]> {
-  return new MapStep(config);
 }

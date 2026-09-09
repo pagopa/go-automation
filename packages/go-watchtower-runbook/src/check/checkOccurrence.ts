@@ -1,8 +1,10 @@
 import type { Core } from '@go-automation/go-common';
+import { isAWSTargetNotConfiguredError } from '@go-automation/go-common/aws';
+
 import type { AlarmAnalysisDto, AlarmEventDto, WatchtowerClient } from '@go-automation/go-watchtower-client';
 import { executeRunbookForOccurrence } from '@go-automation/go-runbook/catalog';
 import { classifyRunbookOutcome } from '@go-automation/go-runbook';
-import type { ServiceRegistry } from '@go-automation/go-runbook';
+import type { ServiceRegistryResolverFn } from '@go-automation/go-runbook';
 
 import type { AnalysisMatch, RtaCheckEvent, RtaCheckRow } from '../types/RtaCheckReport.js';
 import type { AnalysisMatcherFn } from '../comparison/AnalysisMatcher.js';
@@ -15,7 +17,15 @@ import { buildCacheMeta, computeFingerprint } from '../cache/runbookFingerprint.
 
 /** Per-occurrence orchestration context (built once, reused across occurrences). */
 export interface RunbookCheckContext {
-  readonly services: ServiceRegistry;
+  /**
+   * Builds the collaborators bound to one account and region.
+   *
+   * Occurrences of a single alarm span several environments, so the services
+   * are resolved per occurrence: log group and table names repeat identically
+   * across accounts, and services left on the first configured profile answer
+   * successfully with no rows for all the others.
+   */
+  readonly servicesFor: ServiceRegistryResolverFn;
   /** Silent logger for the runbook engine, so its verbose logs are suppressed. */
   readonly engineLogger: Core.GOLogger;
   readonly client: WatchtowerClient;
@@ -24,6 +34,14 @@ export interface RunbookCheckContext {
   readonly alarmName: string;
   /** Per-run runbook identity + structural hash; `undefined` when unregistered. */
   readonly runbook: RunbookCacheDescriptor | undefined;
+  /**
+   * Profiles configured for the whole run.
+   *
+   * Part of the cache fingerprint, because the configured set decides which
+   * accounts are reachable at all, and it is known before any AWS call. What a
+   * single occurrence actually read is narrower, and comes from the resolution:
+   * see the execution telemetry below.
+   */
   readonly awsProfiles: ReadonlyArray<string>;
   readonly analysisCache: Map<string, AlarmAnalysisDto | undefined>;
   readonly analysisMatcher: AnalysisMatcherFn;
@@ -62,22 +80,26 @@ export async function checkOccurrence(input: CheckOccurrenceInput): Promise<RtaC
 
   if (output === undefined) {
     try {
+      const resolved = await context.servicesFor({ accountId: event.awsAccountId, region: event.awsRegion });
       output = await executeRunbookForOccurrence(
-        { services: context.services, logger: context.engineLogger },
+        { services: resolved.services, logger: context.engineLogger },
         {
           alarmName: context.alarmName,
           firedAt: event.firedAt,
           awsAccountId: event.awsAccountId,
           region: event.awsRegion,
-          awsProfiles: context.awsProfiles,
+          // The profiles bound to this occurrence's account, not every profile
+          // configured for the run: the trace reports what was read.
+          awsProfiles: resolved.awsProfiles,
         },
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      const status = classifyExecutionFailure(error);
       return {
         event: toEventInfo(event),
-        runbook: { status: 'EXECUTION-ERROR', matchedCaseIds: [], error: message },
-        comparison: failedComparison(event.analysisId !== null),
+        runbook: { status, matchedCaseIds: [], error: message },
+        comparison: failedComparison(event.analysisId !== null, status),
         fromCache: false,
       };
     }
@@ -112,6 +134,22 @@ async function fetchAnalysisCached(
   return analysis;
 }
 
+/**
+ * Separates a deterministic configuration fault from a runtime failure.
+ *
+ * An occurrence whose AWS account no configured profile can read will fail the
+ * same way on every retry, and reporting it as an execution error would hide it
+ * among the transient ones. The error carries its own code, so the distinction
+ * does not depend on matching words in a message the way
+ * `classifyRunbookOutcome` has to for failures that reach it as plain text.
+ *
+ * @param error - The error raised while executing the occurrence
+ * @returns The V1 status to report
+ */
+function classifyExecutionFailure(error: unknown): 'CONFIG-ERROR' | 'EXECUTION-ERROR' {
+  return isAWSTargetNotConfiguredError(error) ? 'CONFIG-ERROR' : 'EXECUTION-ERROR';
+}
+
 function toEventInfo(event: AlarmEventDto): RtaCheckEvent {
   return {
     id: event.id,
@@ -123,11 +161,26 @@ function toEventInfo(event: AlarmEventDto): RtaCheckEvent {
   };
 }
 
-function failedComparison(hasAnalysis: boolean): AnalysisMatch {
+/**
+ * The empty comparison reported when the runbook never produced an output.
+ *
+ * The reason names the actual cause: a misconfigured AWS target is a run-wide
+ * fault to fix once, and calling it an execution error would send whoever reads
+ * the report looking for a transient failure.
+ *
+ * @param hasAnalysis - Whether the occurrence is linked to a Watchtower analysis
+ * @param status - The V1 status reported for the failure
+ * @returns The comparison row for a runbook that did not run
+ */
+function failedComparison(hasAnalysis: boolean, status: 'CONFIG-ERROR' | 'EXECUTION-ERROR'): AnalysisMatch {
   return {
     status: hasAnalysis ? 'NO_EVIDENCE' : 'NOT_LINKED',
     confidence: 0,
-    reasons: ['Runbook non eseguito (errore di esecuzione).'],
+    reasons: [
+      status === 'CONFIG-ERROR'
+        ? 'Runbook non eseguito (target AWS non configurato).'
+        : 'Runbook non eseguito (errore di esecuzione).',
+    ],
     signals: {
       caseIdMentioned: false,
       descriptionOverlap: 0,

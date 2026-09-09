@@ -164,7 +164,7 @@ function runbook(fixture: RunbookFixture): Runbook {
     },
     steps: [],
     knownCases: fixture.cases,
-    fallbackAction: { type: 'log', level: 'info', message: 'fallback' },
+    fallbackAction: { type: 'log', level: 'info', title: 'fallback' },
     ...(fixture.defaults === undefined ? {} : { analysisDefaults: fixture.defaults }),
   };
 }
@@ -175,7 +175,7 @@ function analysedCase(id: string, analysis: Partial<KnownCaseAnalysis>): KnownCa
     description: id,
     priority: 100,
     condition: { type: 'contains', ref: 'steps.query', regex: 'boom' },
-    action: { type: 'log', level: 'info', message: `[CASO NOTO] ${id}` },
+    action: { type: 'log', level: 'info', title: `[CASO NOTO] ${id}` },
     analysis: {
       resolution: 'Chiusura - caso noto.',
       proposedStatus: 'IN_PROGRESS',

@@ -64,7 +64,7 @@ interface ActiveIdentifier {
   readonly value: string;
 }
 
-class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
+export class QueryServiceLogsStep implements Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -127,7 +127,7 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
 
       const visitPlan = planApiGwServiceVisit(context.vars, this.serviceName);
 
-      const reporter = context.logger !== undefined ? new ApiGwReporter(context.logger) : undefined;
+      const reporter = new ApiGwReporter(context.services.reporter);
       if (visitPlan.isNewVisit) {
         reporter?.sectionService(visitPlan.visitNumber, this.serviceName, this.entryService, this.logGroups);
       }
@@ -224,21 +224,4 @@ class QueryServiceLogsStepImpl implements Step<ReadonlyArray<ReadonlyArray<Resul
 
     return undefined;
   }
-}
-
-/**
- * Factory: creates a step that queries a microservice log group filtering
- * by trace id or fallback UUID, assembled dynamically from the runbook
- * context using the predicate template of the provided profile.
- *
- * V04: i predicate sono parametrizzati dal profilo
- * (`spec.tracePredicateTemplate` / `spec.fallbackPredicateTemplate`),
- * permettendo a prodotti diversi di filtrare su campi strutturati
- * (es. INTEROP `trace_id = '<value>'`) invece di `@message like '<value>'`.
- *
- * @param config - Step configuration
- * @returns Step that returns the raw rows of the CloudWatch Logs query
- */
-export function queryServiceLogs(config: QueryServiceLogsConfig): Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
-  return new QueryServiceLogsStepImpl(config);
 }

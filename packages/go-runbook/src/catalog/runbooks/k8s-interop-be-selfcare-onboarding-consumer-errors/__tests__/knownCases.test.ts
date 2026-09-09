@@ -1,11 +1,10 @@
+import { SELFCARE_ONBOARDING_CONSUMER_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { ConditionEvaluator, INTEROP_DOWNSTREAMS, type RunbookContext, type ServiceRegistry } from '../../framework.js';
-
 import { KNOWN_CASES } from '../knownCases.js';
-import { INTEROP_SELFCARE_ONBOARDING_CONSUMER_SERVICE_NAME } from '../resolveInteropAlarmContext.js';
-import { QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, QUERY_INTEROP_CID_TRACKER_STEP_ID } from '../runbookSteps.js';
+import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
+import { ConditionEvaluator, INTEROP_DOWNSTREAMS, type RunbookContext } from '../../framework.js';
 
 interface LogRowField {
   readonly field: string;
@@ -17,12 +16,13 @@ const DOCUMENTED_MESSAGES: ReadonlyArray<string> = [
   'The group coordinator is not available',
   'Crash: KafkaJSNumberOfRetriesExceeded: The replica is not available for the requested topic-partition',
   'Connection error: read ECONNRESET',
+  'Connection error: read ETIMEDOUT',
 ];
 
 function applicationLogRows(messages: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<LogRowField>> {
   return messages.map((message) => [
     { field: '@timestamp', value: '2026-08-28 10:00:00.000' },
-    { field: 'pod_app', value: INTEROP_SELFCARE_ONBOARDING_CONSUMER_SERVICE_NAME },
+    { field: 'pod_app', value: SELFCARE_ONBOARDING_CONSUMER_ALARM.podApp },
     { field: '@message', value: message },
   ]);
 }
@@ -35,7 +35,7 @@ function context(stepResults: ReadonlyArray<readonly [string, unknown]>): Runboo
     vars: new Map(),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }
@@ -57,7 +57,9 @@ describe('INTEROP Selfcare onboarding consumer known cases', () => {
   it('matches every error signature documented in the runbook', () => {
     assert.ok(knownCase !== undefined);
     for (const message of DOCUMENTED_MESSAGES) {
-      const ctx = context([[QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, applicationLogRows([message])]]);
+      const ctx = context([
+        [SELFCARE_ONBOARDING_CONSUMER_ALARM.stepIds.queryApplicationLogs, applicationLogRows([message])],
+      ]);
       assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), true, `expected match: ${message}`);
     }
   });
@@ -67,14 +69,17 @@ describe('INTEROP Selfcare onboarding consumer known cases', () => {
     const rows = applicationLogRows([
       'Crash: KafkaJS NumberOfRetriesExceeded: The replica is not available for the requested topic-partition',
     ]);
-    const ctx = context([[QUERY_INTEROP_CID_TRACKER_STEP_ID, [{ cid: 'cid-1', rows }]]]);
+    const ctx = context([[SELFCARE_ONBOARDING_CONSUMER_ALARM.stepIds.queryCidTracker, [{ cid: 'cid-1', rows }]]]);
     assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), true);
   });
 
   it('does not classify a generic connection reset as the documented Kafka case', () => {
     assert.ok(knownCase !== undefined);
     const ctx = context([
-      [QUERY_INTEROP_APPLICATION_LOGS_STEP_ID, applicationLogRows(['Request failed: read ECONNRESET'])],
+      [
+        SELFCARE_ONBOARDING_CONSUMER_ALARM.stepIds.queryApplicationLogs,
+        applicationLogRows(['Request failed: read ECONNRESET']),
+      ],
     ]);
     assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), false);
   });

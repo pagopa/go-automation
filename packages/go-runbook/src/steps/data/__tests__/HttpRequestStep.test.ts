@@ -3,9 +3,10 @@ import { describe, it } from 'node:test';
 
 import type { GOHttpRequestOptions, GOHttpResponse } from '@go-automation/go-common/core';
 
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
+import type { ServiceRegistry } from '../../../registry/ServiceRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { HttpRequestStep } from '../HttpRequestStep.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 interface HttpCall {
   readonly method: string;
@@ -73,7 +74,7 @@ describe('HttpRequestStep', () => {
           ['query', 'a/b'],
           ['token', 'secret-token'],
         ],
-        services: {
+        services: createTestServiceRegistry({
           http: {
             async request(
               method: string,
@@ -87,7 +88,7 @@ describe('HttpRequestStep', () => {
               return response;
             },
           },
-        } as unknown as ServiceRegistry,
+        }),
         signal,
       }),
     );
@@ -118,7 +119,7 @@ function makeContext(options: {
     vars: new Map(options.vars ?? []),
     params: new Map(options.params ?? []),
     logs: [],
-    services: options.services ?? ({} as unknown as ServiceRegistry),
+    services: options.services ?? (createTestServiceRegistry()),
     recoveredErrors: [],
     ...(options.signal === undefined ? {} : { signal: options.signal }),
   };

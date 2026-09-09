@@ -34,7 +34,7 @@ export interface DynamoDBQueryConfig {
  *
  * @example
  * ```typescript
- * const step = queryDynamoDB({
+ * const step = new DynamoDBQueryStep({
  *   id: 'fetch-notifications',
  *   label: 'Fetch notifications by IUN',
  *   tableName: 'pn-Notifications',
@@ -140,14 +140,4 @@ function resolveAttributeNames(
     resolved[key] = interpolatePlaceholders(value, context);
   }
   return resolved;
-}
-
-/**
- * Factory function for creating a DynamoDB query data step.
- *
- * @param config - Step configuration
- * @returns A new DynamoDBQueryStep instance
- */
-export function queryDynamoDB(config: DynamoDBQueryConfig): DynamoDBQueryStep {
-  return new DynamoDBQueryStep(config);
 }

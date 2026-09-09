@@ -6,7 +6,7 @@ import type { RunbookContext } from '../../types/RunbookContext.js';
 /**
  * Configuration for the TemplateStep.
  */
-interface TemplateConfig {
+export interface TemplateConfig {
   /** Unique identifier of the step within the runbook */
   readonly id: string;
   /** Human-readable label for logs and UI */
@@ -36,7 +36,7 @@ const PLACEHOLDER_REGEX = /\{\{(vars|params)\.([^}{]+)\}\}/g;
  *
  * @example
  * ```typescript
- * const step = template({
+ * const step = new TemplateStep({
  *   id: 'build-url',
  *   label: 'Build API URL from params',
  *   template: 'https://api.example.com/{{params.env}}/items/{{vars.itemId}}',
@@ -44,7 +44,7 @@ const PLACEHOLDER_REGEX = /\{\{(vars|params)\.([^}{]+)\}\}/g;
  * });
  * ```
  */
-class TemplateStep implements Step<string> {
+export class TemplateStep implements Step<string> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'transform';
@@ -78,14 +78,4 @@ class TemplateStep implements Step<string> {
       vars: { [this.saveAs]: result },
     };
   }
-}
-
-/**
- * Factory function that creates a TemplateStep instance.
- *
- * @param config - Configuration for the template step
- * @returns A Step that interpolates a template string with context vars and params
- */
-export function template(config: TemplateConfig): Step<string> {
-  return new TemplateStep(config);
 }

@@ -1,7 +1,7 @@
+import { readRowField } from '@go-automation/go-common/aws';
 import type { ResultField } from '@go-automation/go-common/aws';
 
 import type { DownstreamErrorPattern } from '../types/DownstreamErrorPattern.js';
-import { extractField } from './extractField.js';
 
 /**
  * Returns the first downstream target whose pattern matches the message.
@@ -49,7 +49,7 @@ export function findDownstreamInRows(
 ): DownstreamMatch | undefined {
   if (patterns.length === 0) return undefined;
   for (const row of rows) {
-    const message = (extractField(row, '@message') ?? '').trim();
+    const message = (readRowField(row, '@message') ?? '').trim();
     if (message === '') continue;
     const target = matchDownstreamErrorPattern(message, patterns);
     if (target !== undefined) return { target, message };

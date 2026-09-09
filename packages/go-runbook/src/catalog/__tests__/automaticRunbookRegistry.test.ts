@@ -22,10 +22,31 @@ describe('AUTOMATIC_RUNBOOK_REGISTRY', () => {
     assert.deepStrictEqual(resolved.descriptor.categories, ['AUTHORIZATION']);
   });
 
+  it('registers the Sender Dashboard data indexer as a SEND delivery Lambda runbook', () => {
+    const resolved = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(
+      'pn-bff-SenderDashboardDataIndexer-LogInvocationErrors-Alarm',
+    );
+
+    assert.ok(resolved);
+    assert.strictEqual(resolved.product, 'SEND');
+    assert.strictEqual(resolved.descriptor.kind, 'LAMBDA');
+    assert.deepStrictEqual(resolved.descriptor.categories, ['DELIVERY']);
+  });
+
+  it('registers the pn-mandate acceptance failure alarm as a SEND authorization service runbook', () => {
+    const resolved = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName('pn-mandate-acceptance-failure-tech-Alarm');
+
+    assert.ok(resolved);
+    assert.strictEqual(resolved.product, 'SEND');
+    assert.strictEqual(resolved.descriptor.kind, 'SERVICE');
+    assert.deepStrictEqual(resolved.descriptor.categories, ['AUTHORIZATION']);
+  });
+
   it('registers every SEND downstream alarm with the expected service category', () => {
     const alarms: ReadonlyArray<readonly [string, string]> = [
       ['emd-downstream-detection-Alarm', 'INTEGRATION'],
       ['pn-external-registries-OneTrust-downstream-detection-Alarm', 'INTEGRATION'],
+      ['pn-external-registries-IO-downstream-detection-Alarm', 'INTEGRATION'],
       ['pn-national-registries-AdE-downstream-detection-Alarm', 'INTEGRATION'],
       ['pn-national-registries-ANPR-downstream-detection-Alarm', 'INTEGRATION'],
       ['pn-national-registries-InfoCamere-downstream-detection-Alarm', 'INTEGRATION'],
@@ -62,6 +83,42 @@ describe('AUTOMATIC_RUNBOOK_REGISTRY', () => {
     ]);
   });
 
+  it('resolves every INTEROP attribute registry readmodel writer SQL alias', () => {
+    const alarmNames = [
+      'k8s-interop-be-attribute-registry-readmodel-writer-sql-errors-prod',
+      'k8s-interop-be-attribute-registry-readmodel-writer-sql-errors-att',
+      'k8s-interop-be-attribute-registry-readmodel-writer-sql-errors-test',
+    ];
+    const resolved = alarmNames.map((alarmName) => AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(alarmName));
+
+    assert.ok(resolved.every((entry) => entry !== undefined));
+    const descriptor = resolved[0]?.descriptor;
+    assert.ok(descriptor !== undefined);
+    assert.strictEqual(descriptor.key, 'k8s-interop-be-attribute-registry-readmodel-writer-sql-errors');
+    assert.strictEqual(descriptor.kind, 'SERVICE');
+    assert.deepStrictEqual(descriptor.categories, ['INTEROP']);
+    assert.deepStrictEqual(descriptor.alarmNames, [...alarmNames].sort());
+    assert.ok(resolved.every((entry) => entry?.descriptor === descriptor));
+  });
+
+  it('resolves every INTEROP catalog readmodel writer SQL alias', () => {
+    const alarmNames = [
+      'k8s-interop-be-catalog-readmodel-writer-sql-errors-prod',
+      'k8s-interop-be-catalog-readmodel-writer-sql-errors-att',
+      'k8s-interop-be-catalog-readmodel-writer-sql-errors-test',
+    ];
+    const resolved = alarmNames.map((alarmName) => AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(alarmName));
+
+    assert.ok(resolved.every((entry) => entry !== undefined));
+    const descriptor = resolved[0]?.descriptor;
+    assert.ok(descriptor !== undefined);
+    assert.strictEqual(descriptor.key, 'k8s-interop-be-catalog-readmodel-writer-sql-errors');
+    assert.strictEqual(descriptor.kind, 'SERVICE');
+    assert.deepStrictEqual(descriptor.categories, ['INTEROP']);
+    assert.deepStrictEqual(descriptor.alarmNames, [...alarmNames].sort());
+    assert.ok(resolved.every((entry) => entry?.descriptor === descriptor));
+  });
+
   it('resolves INTEROP notification user lifecycle aliases to the same canonical descriptor', () => {
     const prod = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(
       'k8s-interop-be-notification-user-lifecycle-consumer-errors-prod',
@@ -85,6 +142,24 @@ describe('AUTOMATIC_RUNBOOK_REGISTRY', () => {
       'k8s-interop-be-notification-user-lifecycle-consumer-errors-test',
     ]);
     assert.deepStrictEqual(prod.descriptor.categories, ['INTEROP']);
+  });
+
+  it('resolves every INTEROP compute agreements consumer alias', () => {
+    const alarmNames = [
+      'k8s-interop-be-compute-agreements-consumer-errors-prod',
+      'k8s-interop-be-compute-agreements-consumer-errors-att',
+      'k8s-interop-be-compute-agreements-consumer-errors-test',
+    ];
+    const resolved = alarmNames.map((alarmName) => AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(alarmName));
+
+    assert.ok(resolved.every((entry) => entry !== undefined));
+    const descriptor = resolved[0]?.descriptor;
+    assert.ok(descriptor !== undefined);
+    assert.strictEqual(descriptor.key, 'k8s-interop-be-compute-agreements-consumer-errors');
+    assert.strictEqual(descriptor.kind, 'SERVICE');
+    assert.deepStrictEqual(descriptor.categories, ['INTEROP']);
+    assert.deepStrictEqual(descriptor.alarmNames, [...alarmNames].sort());
+    assert.ok(resolved.every((entry) => entry?.descriptor === descriptor));
   });
 
   it('resolves INTEROP public catalog aliases with the environment in the middle of the alarm name', () => {

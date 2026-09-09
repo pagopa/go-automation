@@ -1,8 +1,4 @@
-/** A single log line surfaced in the Lambda output context. */
-export interface LambdaLogLine {
-  readonly timestamp: string;
-  readonly message: string;
-}
+import type { LogLine } from '../../output/LogLine.js';
 
 /** Downstream microservice block of the Lambda output context. */
 export interface LambdaDownstreamOutput {
@@ -10,7 +6,7 @@ export interface LambdaDownstreamOutput {
   readonly logGroup?: string;
   readonly logCount?: number;
   readonly errorMessage?: string;
-  readonly recentLogs: ReadonlyArray<LambdaLogLine>;
+  readonly recentLogs: ReadonlyArray<LogLine>;
 }
 
 /** Typed `details.lambda` payload of a Lambda runbook result. */
@@ -39,7 +35,7 @@ export interface LambdaOutputContext {
     readonly maxMemoryUsedMb?: number;
     readonly errorMessage?: string;
     readonly invocationLogCount?: number;
-    readonly recentLogs: ReadonlyArray<LambdaLogLine>;
+    readonly recentLogs: ReadonlyArray<LogLine>;
   };
   readonly downstream?: LambdaDownstreamOutput;
 }

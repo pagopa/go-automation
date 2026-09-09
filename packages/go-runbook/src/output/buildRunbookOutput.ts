@@ -1,3 +1,4 @@
+import { omitUndefined } from '@go-automation/go-common/core';
 import type { CaseAction } from '../actions/CaseAction.js';
 import type { KnownCase } from '../types/KnownCase.js';
 import type { Runbook } from '../types/Runbook.js';
@@ -15,9 +16,7 @@ import { sumCloudWatchLogsQueryStatistics, type AWSCloudWatchLogsQueryStatistics
 import { emptyRunbookOutputContext } from './RunbookOutputContext.js';
 import { buildAnalysisDraft } from './buildAnalysisDraft.js';
 import { interpolatePlaceholders } from '../core/templatePlaceholders.js';
-
-const UNKNOWN_CASE_PREFIX = '[CASO NON RICONOSCIUTO]';
-const UNAVAILABLE_VALUE = 'non disponibile';
+import { renderLogActionText } from '../actions/renderLogAction.js';
 
 export interface BuildRunbookOutputOptions {
   readonly traceFile?: string;
@@ -124,9 +123,11 @@ function buildOutcome(runbook: Runbook, result: RunbookExecutionResult): Runbook
     const failedStep = result.trace.pipeline.find((step) => step.status === 'failed' && !step.recovered);
     return {
       kind: 'failed',
-      ...(result.trace.execution.failureReason !== undefined ? { reason: result.trace.execution.failureReason } : {}),
-      ...(failedStep?.stepId !== undefined ? { failedStepId: failedStep.stepId } : {}),
-      ...(failedStep?.error !== undefined ? { error: failedStep.error } : {}),
+      ...omitUndefined({
+        reason: result.trace.execution.failureReason,
+        failedStepId: failedStep?.stepId,
+        error: failedStep?.error,
+      }),
       message: result.trace.summary.description,
     };
   }
@@ -233,14 +234,10 @@ function resolvedActionMessage(
 function resolveActionMessage(action: CaseAction, result: RunbookExecutionResult): string | undefined {
   switch (action.type) {
     case 'log':
-      return interpolatePlaceholders(
-        action.message,
-        {
-          vars: result.finalContext.vars,
-          params: result.finalContext.params,
-        },
-        interpolationOptionsFor(action.message),
-      );
+      return renderLogActionText(action, {
+        vars: result.finalContext.vars,
+        params: result.finalContext.params,
+      });
     case 'notify':
       return interpolatePlaceholders(action.template, {
         vars: result.finalContext.vars,
@@ -259,8 +256,4 @@ function resolveActionMessage(action: CaseAction, result: RunbookExecutionResult
       throw new Error(`Unknown action type: ${(_exhaustive as CaseAction).type}`);
     }
   }
-}
-
-function interpolationOptionsFor(template: string): { readonly missingValue?: string } {
-  return template.trimStart().startsWith(UNKNOWN_CASE_PREFIX) ? { missingValue: UNAVAILABLE_VALUE } : {};
 }

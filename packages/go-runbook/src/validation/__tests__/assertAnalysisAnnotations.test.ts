@@ -232,7 +232,7 @@ function buildRunbook(options: RunbookFixtureOptions): Runbook {
     },
     steps: [],
     knownCases: [knownCase('primary', options.analysis)],
-    fallbackAction: { type: 'log', level: 'info', message: 'fallback' },
+    fallbackAction: { type: 'log', level: 'info', title: 'fallback' },
     ...(options.defaults === undefined ? {} : { analysisDefaults: options.defaults }),
   };
 }
@@ -243,7 +243,7 @@ function knownCase(id: string, analysis: KnownCaseAnalysis | undefined): KnownCa
     description: id,
     priority: 100,
     condition: { type: 'contains', ref: 'steps.query', regex: 'boom' },
-    action: { type: 'log', level: 'info', message: `[CASO NOTO] ${id}` },
+    action: { type: 'log', level: 'info', title: `[CASO NOTO] ${id}` },
     ...(analysis === undefined ? {} : { analysis }),
   };
 }

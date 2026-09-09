@@ -2,10 +2,10 @@ import { input, select, confirm } from '@inquirer/prompts';
 
 import type { RunbookTemplate } from '../templates/RunbookTemplate.js';
 import type { RunbookAnswers } from '../templates/RunbookAnswers.js';
+import type { RunbookProduct } from '../templates/RunbookProduct.js';
 import type { TemplateInput } from '../templates/TemplateInput.js';
 import type { CliArgs } from './parseArgs.js';
 import { RUNBOOK_TEMPLATES, findRunbookTemplate } from '../templates/runbookTemplates.js';
-import { deriveBuilderName } from '../naming/deriveBuilderName.js';
 import { categoriesError } from '../validation/categoriesError.js';
 import { runbookIdError } from '../validation/runbookIdError.js';
 
@@ -39,6 +39,36 @@ function requiredInput(value: string): true | string {
 
 function validateCategoriesInput(value: string): true | string {
   return categoriesError(parseCommaSeparated(value)) ?? true;
+}
+
+const RUNBOOK_PRODUCTS: ReadonlyArray<RunbookProduct> = ['SEND', 'INTEROP'];
+
+function isRunbookProduct(value: string): value is RunbookProduct {
+  return RUNBOOK_PRODUCTS.some((product) => product === value);
+}
+
+/**
+ * Resolves the Watchtower product, prompting only when the runbook is wired
+ * into the catalog. Unwired runbooks never reach the registry, so the value
+ * is irrelevant and the default is used.
+ */
+async function resolveProduct(cliValue: string | undefined, wire: boolean): Promise<RunbookProduct> {
+  if (cliValue !== undefined) {
+    const normalized = cliValue.trim().toUpperCase();
+    if (!isRunbookProduct(normalized)) {
+      throw new Error(`Prodotto sconosciuto: "${cliValue}". Disponibili: ${RUNBOOK_PRODUCTS.join(', ')}.`);
+    }
+    return normalized;
+  }
+  if (!wire) {
+    return 'SEND';
+  }
+  const chosen = await select({
+    message: 'Prodotto Watchtower (proprietario degli allarmi)',
+    choices: RUNBOOK_PRODUCTS.map((product) => ({ name: product, value: product })),
+    default: 'SEND',
+  });
+  return chosen;
 }
 
 /**
@@ -151,10 +181,6 @@ export async function collectAnswers(template: RunbookTemplate, cli: CliArgs): P
     throw new Error(idError);
   }
 
-  const builderName = await resolveText(cli.builder, {
-    message: 'Builder function name',
-    default: deriveBuilderName(id),
-  });
   const description = await resolveText(cli.description, { message: 'Descrizione', default: '' });
   const version = await resolveText(cli.version, { message: 'Versione', default: '1.0.0' });
   const team = await resolveText(cli.team, { message: 'Team', default: 'GO' });
@@ -162,6 +188,7 @@ export async function collectAnswers(template: RunbookTemplate, cli: CliArgs): P
     message: 'Tags (separati da virgola)',
     default: defaultTags(template),
   });
+  const product = await resolveProduct(cli.product, cli.wire);
   const categoriesRaw = cli.wire
     ? await resolveText(cli.categories, {
         message: 'Categorie catalogo (separate da virgola)',
@@ -179,12 +206,12 @@ export async function collectAnswers(template: RunbookTemplate, cli: CliArgs): P
   return {
     templateId: template.id,
     id,
-    builderName,
     metadataName: id,
     description,
     version,
     team,
     tags: parseCommaSeparated(tagsRaw),
+    product,
     categories,
     extras,
   };

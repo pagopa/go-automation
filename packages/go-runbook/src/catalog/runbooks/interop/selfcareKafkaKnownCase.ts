@@ -5,11 +5,11 @@ import { jiraLink } from '../common/analysisLinks.js';
 import type { InteropKnownCaseRefs } from './interopKnownCases.js';
 import { interopKnownCase } from './interopKnownCases.js';
 
-const SELFCARE_KAFKA_ERROR_PATTERN = [
+export const SELFCARE_KAFKA_BROKER_COMMUNICATION_PATTERN: string = [
   'The coordinator is not aware of this member',
   'The group coordinator is not available',
   'KafkaJS\\s*NumberOfRetriesExceeded: The replica is not available for the requested topic-partition',
-  'Connection error: read ECONNRESET',
+  'Connection error: read (?:ECONNRESET|ETIMEDOUT)',
 ].join('|');
 
 /** Builds the Kafka/Selfcare case shared by INTEROP consumer runbooks. */
@@ -18,7 +18,7 @@ export function createSelfcareKafkaBrokerCommunicationKnownCase(refs: InteropKno
     id: 'selfcare-kafka-broker-communication-errors',
     description: 'Errore di comunicazione KafkaJS verso i broker Selfcare',
     priority: 100,
-    regex: SELFCARE_KAFKA_ERROR_PATTERN,
+    regex: SELFCARE_KAFKA_BROKER_COMMUNICATION_PATTERN,
     resolution:
       'Caso noto legato ai broker Kafka di Selfcare o a una temporanea indisponibilità di rete. ' +
       'Verificare PIN-7325 e, se il problema persiste, coinvolgere il team Selfcare.',

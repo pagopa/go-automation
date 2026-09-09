@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import type { ResultField } from '@go-automation/go-common/aws';
-import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { AnalyzeInteropK8sApplicationLogsStep } from '../steps/AnalyzeInteropK8sApplicationLogsStep.js';
+import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
 function context(stepResults: ReadonlyArray<readonly [string, unknown]>): RunbookContext {
   return {
@@ -14,7 +14,7 @@ function context(stepResults: ReadonlyArray<readonly [string, unknown]>): Runboo
     vars: new Map(),
     params: new Map(),
     logs: [],
-    services: {} as unknown as ServiceRegistry,
+    services: createTestServiceRegistry(),
     recoveredErrors: [],
   };
 }

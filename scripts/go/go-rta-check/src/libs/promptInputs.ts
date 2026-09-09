@@ -1,15 +1,27 @@
 import { Core } from '@go-automation/go-common';
 
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
+import { BACK_SHORTCUT_HINT } from './promptChoice.js';
 
 /** Lazily prompts for a value when not supplied via config. */
 type PromptFn = () => Promise<string | undefined>;
 
+/** Question shown above the period presets. */
+const PERIOD_MESSAGE = 'Periodo di analisi (su firedAt)';
+
 /** Resolved analysis period (firedAt range). */
-export interface ResolvedPeriod {
+interface ResolvedPeriod {
   readonly dateFrom: string;
   readonly dateTo: string;
 }
+
+/**
+ * Outcome of the period step.
+ *
+ * `BACK` is kept apart from a resolved period because it is not an answer: the
+ * caller has to reopen the runbook selection instead of running anything.
+ */
+export type PeriodOutcome = ({ readonly kind: 'VALUE' } & ResolvedPeriod) | { readonly kind: 'BACK' };
 
 /**
  * Period presets offered before asking for explicit bounds.
@@ -54,23 +66,44 @@ export async function resolveInput(value: string | undefined, prompt: PromptFn):
  * @param script - GOScript (prompt)
  * @param config - Validated script configuration
  * @param allowPrompt - Whether the missing bounds may be asked for
- * @returns The resolved period (empty string = unbounded)
+ * @param canGoBack - Whether the preset menu may send the user back to the runbook step
+ * @returns The resolved period (empty string = unbounded), or `BACK`
  * @throws Error when a bound given by flag cannot be parsed
  */
 export async function resolvePeriod(
   script: Core.GOScript,
   config: GoRtaCheckConfig,
   allowPrompt: boolean,
-): Promise<ResolvedPeriod> {
+  canGoBack: boolean = false,
+): Promise<PeriodOutcome> {
   if (allowPrompt && config.dateFrom === undefined && config.dateTo === undefined) {
-    const period = await script.prompt.dateRange('Periodo di analisi (su firedAt)', { presets: PERIOD_PRESETS });
-    return { dateFrom: period?.from?.toISOString() ?? '', dateTo: period?.to?.toISOString() ?? '' };
+    const period = await askPeriod(script, canGoBack);
+    if (period === Core.GO_PROMPT_BACK) return { kind: 'BACK' };
+    return {
+      kind: 'VALUE',
+      dateFrom: period?.from?.toISOString() ?? '',
+      dateTo: period?.to?.toISOString() ?? '',
+    };
   }
 
   return {
+    kind: 'VALUE',
     dateFrom: await resolveBound(script, config.dateFrom, 'start', allowPrompt, 'Data inizio'),
     dateTo: await resolveBound(script, config.dateTo, 'end', allowPrompt, 'Data fine'),
   };
+}
+
+/** Asks for the period, offering the way back only where there is one. */
+async function askPeriod(
+  script: Core.GOScript,
+  canGoBack: boolean,
+): Promise<Core.GOPromptDateRange | typeof Core.GO_PROMPT_BACK | undefined> {
+  if (!canGoBack) return await script.prompt.dateRange(PERIOD_MESSAGE, { presets: PERIOD_PRESETS });
+
+  return await script.prompt.dateRangeWithBack(PERIOD_MESSAGE, {
+    presets: PERIOD_PRESETS,
+    backLabel: `← Indietro: cambia runbook${BACK_SHORTCUT_HINT}`,
+  });
 }
 
 /**

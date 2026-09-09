@@ -24,12 +24,13 @@ export function builtinApiGwAuthorizerKnownCases(config: ApiGwAlarmConfig): Read
         type: 'log',
         level: 'info',
         renderAs: 'known-case',
-        message:
-          '[CASO NOTO] Timeout Lambda authorizer API Gateway\n' +
-          'Lambda: {{vars.apiGwAuthorizerLambdaName}}\n' +
-          'Dettaglio: {{vars.lastErrorMsg}}\n' +
-          'authorizerRequestId: {{vars.apiGwAuthorizerRequestId}}\n' +
-          'Endpoint: {{vars.apiGwAuthorizerHttpMethod}} {{vars.apiGwAuthorizerPath}}',
+        title: 'Timeout Lambda authorizer API Gateway',
+        details: [
+          ['Lambda', '{{vars.apiGwAuthorizerLambdaName}}'],
+          ['Dettaglio', '{{vars.lastErrorMsg}}'],
+          ['authorizerRequestId', '{{vars.apiGwAuthorizerRequestId}}'],
+          ['Endpoint', '{{vars.apiGwAuthorizerHttpMethod}} {{vars.apiGwAuthorizerPath}}'],
+        ],
       },
       analysis: {
         resolution: TIMEOUT_RESOLUTION,
@@ -47,12 +48,13 @@ export function builtinApiGwAuthorizerKnownCases(config: ApiGwAlarmConfig): Read
         type: 'log',
         level: 'info',
         renderAs: 'known-case',
-        message:
-          '[CASO NOTO] Errore Lambda authorizer API Gateway\n' +
-          'Lambda: {{vars.apiGwAuthorizerLambdaName}}\n' +
-          'Dettaglio: {{vars.lastErrorMsg}}\n' +
-          'authorizerRequestId: {{vars.apiGwAuthorizerRequestId}}\n' +
-          'Endpoint: {{vars.apiGwAuthorizerHttpMethod}} {{vars.apiGwAuthorizerPath}}',
+        title: 'Errore Lambda authorizer API Gateway',
+        details: [
+          ['Lambda', '{{vars.apiGwAuthorizerLambdaName}}'],
+          ['Dettaglio', '{{vars.lastErrorMsg}}'],
+          ['authorizerRequestId', '{{vars.apiGwAuthorizerRequestId}}'],
+          ['Endpoint', '{{vars.apiGwAuthorizerHttpMethod}} {{vars.apiGwAuthorizerPath}}'],
+        ],
       },
       analysis: {
         resolution: ERROR_RESOLUTION,

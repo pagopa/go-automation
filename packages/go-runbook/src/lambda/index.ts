@@ -33,6 +33,7 @@ export { DEFAULT_LAMBDA_INVOCATION_QUERY } from './queries/DEFAULT_LAMBDA_INVOCA
 
 // Types
 export type { LambdaAlarmConfig } from './types/LambdaAlarmConfig.js';
+export type { LambdaPipelineAnchor } from './types/LambdaPipelineAnchor.js';
 export type { LambdaFunction } from './types/LambdaFunction.js';
 export type { LambdaEventSource } from './types/LambdaEventSource.js';
 export type { LambdaDownstream } from './types/LambdaDownstream.js';

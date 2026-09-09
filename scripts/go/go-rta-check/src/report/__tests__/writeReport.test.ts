@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { RtaCheckRow } from '@go-automation/go-watchtower-runbook';
-import { toHtmlRow } from '../writeReport.js';
+import { reportSubdirectory, toHtmlRow } from '../writeReport.js';
 
 function rowWithAiExplanation(explanation: string): RtaCheckRow {
   return {
@@ -51,5 +51,25 @@ describe('toHtmlRow', () => {
     assert.match(exported.aiDetail, /"semanticScore": 87/);
     assert.match(exported.aiDetail, /"semanticVerdict": "equivalent"/);
     assert.ok(exported.aiDetail.includes(explanation));
+  });
+});
+
+describe('reportSubdirectory', () => {
+  it('prefixes the folder with the position of the run in the session', () => {
+    assert.strictEqual(reportSubdirectory(1, 'pn-delivery-B2B-ApiGwAlarm'), '01-pn-delivery-B2B-ApiGwAlarm');
+    assert.strictEqual(reportSubdirectory(12, 'pn-delivery-B2B-ApiGwAlarm'), '12-pn-delivery-B2B-ApiGwAlarm');
+  });
+
+  it('keeps two runs of the same runbook apart', () => {
+    assert.notStrictEqual(reportSubdirectory(1, 'same-alarm'), reportSubdirectory(2, 'same-alarm'));
+  });
+
+  it('drops the characters a folder name must not carry', () => {
+    assert.strictEqual(reportSubdirectory(3, 'pn-delivery/B2B Alarm'), '03-pn-delivery-B2B-Alarm');
+    assert.strictEqual(reportSubdirectory(4, '../escape'), '04-escape');
+  });
+
+  it('falls back to the bare ordinal when nothing usable is left', () => {
+    assert.strictEqual(reportSubdirectory(5, '///'), '05');
   });
 });

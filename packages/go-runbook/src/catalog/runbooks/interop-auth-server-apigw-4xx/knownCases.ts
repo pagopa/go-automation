@@ -1,13 +1,7 @@
+import { AUTH_SERVER_ALARM } from './alarmDefinition.js';
 import type { KnownCase } from '../framework.js';
 import { slackLink } from '../common/analysisLinks.js';
 import { createInteropApiGwKnownCaseFactory } from '../interop/interopApiGwKnownCases.js';
-
-import { INTEROP_AUTH_SERVER_VAR_PREFIX } from './resolveInteropAlarmContext.js';
-import {
-  QUERY_INTEROP_API_GW_4XX_STEP_ID,
-  QUERY_INTEROP_AUTH_SERVER_CID_TRACKER_STEP_ID,
-  QUERY_INTEROP_AUTH_SERVER_WARNINGS_STEP_ID,
-} from './runbookSteps.js';
 
 const PRODUCT_REVIEW_ACTION = 'Necessario confronto con il team di prodotto';
 const DEPLOYMENT_DOCUMENTATION =
@@ -19,10 +13,10 @@ const UNEXPECTED_KID_THREAD =
   'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1780490021408979?thread_ts=1780471525.339529&cid=C0A7F9XQAT0';
 
 const knownCase = createInteropApiGwKnownCaseFactory({
-  apiGatewayStepId: QUERY_INTEROP_API_GW_4XX_STEP_ID,
-  applicationLogsStepId: QUERY_INTEROP_AUTH_SERVER_WARNINGS_STEP_ID,
-  cidTrackerStepId: QUERY_INTEROP_AUTH_SERVER_CID_TRACKER_STEP_ID,
-  varPrefix: INTEROP_AUTH_SERVER_VAR_PREFIX,
+  apiGatewayStepId: AUTH_SERVER_ALARM.stepIds.queryApiGwAggregates,
+  applicationLogsStepId: AUTH_SERVER_ALARM.stepIds.queryApplicationLogs,
+  cidTrackerStepId: AUTH_SERVER_ALARM.stepIds.queryCidTracker,
+  varPrefix: AUTH_SERVER_ALARM.varPrefix,
   applicationLogsLabel: 'Warning auth-server',
 });
 

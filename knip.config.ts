@@ -17,15 +17,11 @@ const config: KnipConfig = {
     },
     'packages/go-watchtower-runbook': {
       project: ['src/**/*.ts'],
-      // ajv is loaded through createRequire for CJS/ESM interop (same pattern as
-      // go-watchtower-client), which knip does not resolve statically.
-      ignoreDependencies: ['ajv'],
     },
     'packages/go-cli': {
       project: ['src/**/*.ts'],
     },
     'packages/go-runbook': {
-      entry: ['src/catalog/exportAutomaticRunbookDescriptors.ts'],
       project: ['src/**/*.ts'],
     },
     'packages/go-send': {

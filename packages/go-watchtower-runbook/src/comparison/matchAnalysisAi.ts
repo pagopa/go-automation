@@ -47,7 +47,7 @@ function runbookSemanticText(output: RunbookOutput, check: RunbookCheck): string
 function analysisSemanticText(analysis: AlarmAnalysisDto, firedAt: string): string {
   const excerpt = pickOccurrenceExcerpt(analysis, firedAt).trim();
   if (excerpt !== '') return excerpt;
-  return extractAnalysisEvidence(analysis).text.trim();
+  return extractAnalysisEvidence(analysis, firedAt).text.trim();
 }
 
 function aiStatus(result: GOSemanticMatchResult, threshold: number): V2Status {
@@ -59,15 +59,21 @@ function aiStatus(result: GOSemanticMatchResult, threshold: number): V2Status {
   return result.score >= strongThreshold ? 'MATCH_STRONG' : 'MATCH_WEAK';
 }
 
+/**
+ * Records that the AI matcher did not run on this comparison, leaving the
+ * lexical verdict otherwise untouched.
+ *
+ * Spreads on purpose: listing the fields to keep meant every optional one the
+ * lexical matcher sets outside that list was silently dropped — `matcher` and,
+ * on an `IGNORED` row, `ignoreReasonCode` / `ignoreReasonLabel`, which the
+ * console needs to say *why* an analysis was ignored. Callers always pass a
+ * lexical result, so there are no AI fields to strip.
+ *
+ * @param match - The lexical comparison outcome
+ * @returns The same outcome, marked as not attempted by the AI matcher
+ */
 function withAiNotApplicable(match: AnalysisMatch): AnalysisMatch {
-  return {
-    status: match.status,
-    confidence: match.confidence,
-    reasons: match.reasons,
-    signals: match.signals,
-    aiAttempted: false,
-    ...(match.analysisExcerpt !== undefined ? { analysisExcerpt: match.analysisExcerpt } : {}),
-  };
+  return { ...match, aiAttempted: false };
 }
 
 function hasDeterministicExactMatch(match: AnalysisMatch): boolean {
@@ -120,7 +126,12 @@ export async function matchAnalysisAi(
   options: MatchAnalysisAiOptions,
 ): Promise<AnalysisMatch> {
   const lexical = matchAnalysis(output, check, analysis, firedAt, options);
-  if (analysis === undefined || lexical.status === 'NOT_LINKED' || lexical.status === 'NOT_ANALYZED') {
+  if (
+    analysis === undefined ||
+    lexical.status === 'NOT_LINKED' ||
+    lexical.status === 'IGNORED' ||
+    lexical.status === 'NOT_ANALYZED'
+  ) {
     return withAiNotApplicable(lexical);
   }
   if (check.status !== 'HIT' || check.primaryCaseId === undefined) {
