@@ -5,7 +5,7 @@ import { logAction } from '../../actions/ActionFactories.js';
 import type { Runbook } from '../../types/Runbook.js';
 import type { Step } from '../../types/Step.js';
 
-import { validateCloudRunbookRegistry } from '../runbookRegistry.js';
+import { validateCloudRunbookRegistry } from '../RunbookCatalog.js';
 
 const noopStep: Step<void> = {
   id: 'read-only',

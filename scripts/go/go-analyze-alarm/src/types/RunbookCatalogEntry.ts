@@ -1,5 +1,5 @@
 import type { RunbookProduct } from '@go-automation/go-runbook';
-import type { AutomaticRunbookKind } from '@go-automation/go-runbook/catalog';
+import type { RunbookKind } from '@go-automation/go-runbook/catalog';
 
 /**
  * Flattened view of a single runbook registered in the local catalog.
@@ -18,7 +18,7 @@ export interface RunbookCatalogEntry {
   /** Product owning the alarms handled by the runbook */
   readonly product: RunbookProduct;
   /** Runbook family declared on the registry entry: `APIGW`, `LAMBDA` or `SERVICE` */
-  readonly kind: AutomaticRunbookKind;
+  readonly kind: RunbookKind;
   /** Functional categories declared on the registry entry */
   readonly categories: ReadonlyArray<string>;
   /** Tags declared by the runbook metadata */

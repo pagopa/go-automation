@@ -1,16 +1,16 @@
-import { service } from '../framework.js';
+import { downstream } from '../framework.js';
 import type { Runbook } from '../framework.js';
 
 import { EXTERNAL_REGISTRIES_IO_ALARM } from './alarmDefinition.js';
 import { KNOWN_CASES } from './knownCases.js';
-import { SERVICE } from './knownServices.js';
+import { DOWNSTREAM, SERVICE } from './knownServices.js';
 
 const RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3312976074/pn-external-registries-IO-downstream-detection-Alarm';
 
 /** Builds the read-only IO downstream runbook documented by Confluence page 3312976074. */
 export function buildRunbook(): Runbook {
-  return service.createServiceAlarmRunbook({
+  return downstream.createDownstreamAlarmRunbook({
     id: EXTERNAL_REGISTRIES_IO_ALARM,
     metadata: {
       name: EXTERNAL_REGISTRIES_IO_ALARM,
@@ -23,6 +23,7 @@ export function buildRunbook(): Runbook {
       tags: ['service', 'pn-external-registries', 'downstream', 'IO'],
     },
     service: SERVICE,
+    downstream: DOWNSTREAM,
     knownCases: KNOWN_CASES,
     occurrenceTimeWindow: {
       // The source alarm evaluates 3 of 6 five-minute periods. Include the

@@ -5,12 +5,12 @@
  * Watchtower call and no credential is involved.
  */
 
-import { AUTOMATIC_RUNBOOK_REGISTRY, type AutomaticRunbookRegistry } from '@go-automation/go-runbook/catalog';
+import { RUNBOOK_CATALOG, type RunbookCatalog } from '@go-automation/go-runbook/catalog';
 
 import type { RunbookCatalogEntry } from '../../types/RunbookCatalogEntry.js';
 
 /** Read surface of the registry used here; keeps the collector testable with a fake. */
-export type RunbookCatalogSource = Pick<AutomaticRunbookRegistry, 'listDescriptors' | 'resolveByKey'>;
+export type RunbookCatalogSource = Pick<RunbookCatalog, 'listDescriptors' | 'resolveByKey'>;
 
 /**
  * Flattens every registered runbook into a {@link RunbookCatalogEntry}.
@@ -29,7 +29,7 @@ export type RunbookCatalogSource = Pick<AutomaticRunbookRegistry, 'listDescripto
  * ```
  */
 export function collectRunbookCatalogEntries(
-  source: RunbookCatalogSource = AUTOMATIC_RUNBOOK_REGISTRY,
+  source: RunbookCatalogSource = RUNBOOK_CATALOG,
 ): ReadonlyArray<RunbookCatalogEntry> {
   const entries: RunbookCatalogEntry[] = [];
 

@@ -1,35 +1,35 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ConditionEvaluator, service, SEND_DOWNSTREAMS, type KnownCase, type RunbookContext } from '../framework.js';
+import { ConditionEvaluator, SEND_DOWNSTREAMS, type KnownCase, type RunbookContext } from '../framework.js';
 import type { ResultField } from '@go-automation/go-common/aws';
 
 import { KNOWN_CASES as EMD_DOWNSTREAM_CASES } from '../emd-downstream-detection-Alarm/knownCases.js';
-import { SERVICE as EMD_DOWNSTREAM_SERVICE } from '../emd-downstream-detection-Alarm/knownServices.js';
+import { DOWNSTREAM as EMD_DOWNSTREAM } from '../emd-downstream-detection-Alarm/knownServices.js';
 import { buildRunbook as buildEmdDownstreamDetectionAlarmRunbook } from '../emd-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as SELFCARE_DOWNSTREAM_CASES } from '../personal-data-vault-SelfcarePG-downstream-detection-Alarm/knownCases.js';
-import { SERVICE as SELFCARE_DOWNSTREAM_SERVICE } from '../personal-data-vault-SelfcarePG-downstream-detection-Alarm/knownServices.js';
+import { DOWNSTREAM as SELFCARE_DOWNSTREAM } from '../personal-data-vault-SelfcarePG-downstream-detection-Alarm/knownServices.js';
 import { buildRunbook as buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook } from '../personal-data-vault-SelfcarePG-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as POSTEL_DOWNSTREAM_CASES } from '../pn-address-manager-POSTEL-downstream-detection-Alarm/knownCases.js';
-import { SERVICE as POSTEL_DOWNSTREAM_SERVICE } from '../pn-address-manager-POSTEL-downstream-detection-Alarm/knownServices.js';
+import { DOWNSTREAM as POSTEL_DOWNSTREAM } from '../pn-address-manager-POSTEL-downstream-detection-Alarm/knownServices.js';
 import { buildRunbook as buildAddressManagerPostelDownstreamDetectionAlarmRunbook } from '../pn-address-manager-POSTEL-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as ONE_TRUST_DOWNSTREAM_CASES } from '../pn-external-registries-OneTrust-downstream-detection-Alarm/knownCases.js';
-import { SERVICE as ONE_TRUST_DOWNSTREAM_SERVICE } from '../pn-external-registries-OneTrust-downstream-detection-Alarm/knownServices.js';
+import { DOWNSTREAM as ONE_TRUST_DOWNSTREAM } from '../pn-external-registries-OneTrust-downstream-detection-Alarm/knownServices.js';
 import { buildRunbook as buildExternalRegistriesOneTrustDownstreamDetectionAlarmRunbook } from '../pn-external-registries-OneTrust-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as ADE_DOWNSTREAM_CASES } from '../pn-national-registries-AdE-downstream-detection-Alarm/knownCases.js';
-import { SERVICE as ADE_DOWNSTREAM_SERVICE } from '../pn-national-registries-AdE-downstream-detection-Alarm/knownServices.js';
+import { DOWNSTREAM as ADE_DOWNSTREAM } from '../pn-national-registries-AdE-downstream-detection-Alarm/knownServices.js';
 import { buildRunbook as buildNationalRegistriesAdeDownstreamDetectionAlarmRunbook } from '../pn-national-registries-AdE-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as ANPR_DOWNSTREAM_CASES } from '../pn-national-registries-ANPR-downstream-detection-Alarm/knownCases.js';
-import { SERVICE as ANPR_DOWNSTREAM_SERVICE } from '../pn-national-registries-ANPR-downstream-detection-Alarm/knownServices.js';
+import { DOWNSTREAM as ANPR_DOWNSTREAM } from '../pn-national-registries-ANPR-downstream-detection-Alarm/knownServices.js';
 import { buildRunbook as buildNationalRegistriesAnprDownstreamDetectionAlarmRunbook } from '../pn-national-registries-ANPR-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as INFOCAMERE_DOWNSTREAM_CASES } from '../pn-national-registries-InfoCamere-downstream-detection-Alarm/knownCases.js';
-import { SERVICE as INFOCAMERE_DOWNSTREAM_SERVICE } from '../pn-national-registries-InfoCamere-downstream-detection-Alarm/knownServices.js';
+import { DOWNSTREAM as INFOCAMERE_DOWNSTREAM } from '../pn-national-registries-InfoCamere-downstream-detection-Alarm/knownServices.js';
 import { buildRunbook as buildNationalRegistriesInfoCamereDownstreamDetectionAlarmRunbook } from '../pn-national-registries-InfoCamere-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as INAD_DOWNSTREAM_CASES } from '../pn-national-registries-INAD-downstream-detection-Alarm/knownCases.js';
-import { SERVICE as INAD_DOWNSTREAM_SERVICE } from '../pn-national-registries-INAD-downstream-detection-Alarm/knownServices.js';
+import { DOWNSTREAM as INAD_DOWNSTREAM } from '../pn-national-registries-INAD-downstream-detection-Alarm/knownServices.js';
 import { buildRunbook as buildNationalRegistriesInadDownstreamDetectionAlarmRunbook } from '../pn-national-registries-INAD-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as IPA_DOWNSTREAM_CASES } from '../pn-national-registries-IPA-downstream-detection-Alarm/knownCases.js';
-import { SERVICE as IPA_DOWNSTREAM_SERVICE } from '../pn-national-registries-IPA-downstream-detection-Alarm/knownServices.js';
+import { DOWNSTREAM as IPA_DOWNSTREAM } from '../pn-national-registries-IPA-downstream-detection-Alarm/knownServices.js';
 import { buildRunbook as buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook } from '../pn-national-registries-IPA-downstream-detection-Alarm/runbook.js';
 import { KNOWN_CASES as EXTERNAL_CHANNEL_CASES } from '../workday-pn-external-channel-alb-alarm/knownCases.js';
 import { buildRunbook as buildWorkdayPnExternalChannelAlbAlarmRunbook } from '../workday-pn-external-channel-alb-alarm/runbook.js';
@@ -194,14 +194,8 @@ describe('service runbook known cases', () => {
   });
 
   it('uses the canonical IPA query and includes HTTP 404', () => {
-    assert.strictEqual(
-      IPA_DOWNSTREAM_SERVICE.queryOverride,
-      service.buildDownstreamDetectionQuery({
-        downstreamName: SEND_DOWNSTREAMS.IPA,
-      }),
-    );
-    assert.doesNotMatch(IPA_DOWNSTREAM_SERVICE.queryOverride ?? '', /not like.*404/);
-    assert.doesNotMatch(IPA_DOWNSTREAM_SERVICE.queryOverride ?? '', /INAD/);
+    // No status code is excluded here: every IPA failure counts.
+    assert.deepStrictEqual(IPA_DOWNSTREAM, { kind: 'named', name: SEND_DOWNSTREAMS.IPA });
   });
 
   it('matches AdE HTTP 500 and both timeout variants, mapping the specialized downstream', () => {
@@ -264,14 +258,12 @@ describe('service runbook known cases', () => {
       true,
     );
     assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.INAD]);
-    assert.strictEqual(
-      INAD_DOWNSTREAM_SERVICE.queryOverride,
-      service.buildDownstreamDetectionQuery({
-        downstreamName: SEND_DOWNSTREAMS.INAD,
-        excludedStatusCodes: [404],
-      }),
-    );
-    assert.match(INAD_DOWNSTREAM_SERVICE.queryOverride ?? '', /not like.*INAD.*404/);
+    // 404 is a legitimate "not found", not a downstream failure.
+    assert.deepStrictEqual(INAD_DOWNSTREAM, {
+      kind: 'named',
+      name: SEND_DOWNSTREAMS.INAD,
+      excludedStatusCodes: [404],
+    });
   });
 
   it('matches the documented INAD 401 and keeps the analysis open pending its resolution', () => {
@@ -591,40 +583,33 @@ describe('service runbook known cases', () => {
     assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.CONSOLIDATORE_POSTALE]);
   });
 
-  it('uses the canonical downstream query for ANPR, InfoCamere, AdE, OneTrust, POSTEL and SelfcarePG', () => {
-    assert.strictEqual(
-      ANPR_DOWNSTREAM_SERVICE.queryOverride,
-      service.buildDownstreamDetectionQuery({ downstreamName: SEND_DOWNSTREAMS.ANPR }),
-    );
-    assert.strictEqual(
-      INFOCAMERE_DOWNSTREAM_SERVICE.queryOverride,
-      service.buildDownstreamDetectionQuery({ downstreamName: SEND_DOWNSTREAMS.INFOCAMERE }),
-    );
-    assert.strictEqual(
-      ADE_DOWNSTREAM_SERVICE.queryOverride,
-      service.buildDownstreamDetectionQuery({ downstreamName: SEND_DOWNSTREAMS.ADE }),
-    );
-    assert.strictEqual(
-      ONE_TRUST_DOWNSTREAM_SERVICE.queryOverride,
-      service.buildDownstreamDetectionQuery({ downstreamName: 'OneTrust' }),
-    );
-    assert.strictEqual(
-      POSTEL_DOWNSTREAM_SERVICE.queryOverride,
-      service.buildDownstreamDetectionQuery({ downstreamName: 'POSTEL' }),
-    );
-    assert.strictEqual(
-      SELFCARE_DOWNSTREAM_SERVICE.queryOverride,
-      service.buildDownstreamDetectionQuery({ downstreamName: 'SelfcarePG' }),
-    );
+  it('declares each downstream by census name, and the marker only when it differs', () => {
+    // The three below emit a name the census does not use: keeping both makes
+    // the query follow the log while the analysis annotation stays checkable.
+    assert.deepStrictEqual(ANPR_DOWNSTREAM, { kind: 'named', name: SEND_DOWNSTREAMS.ANPR });
+    assert.deepStrictEqual(INFOCAMERE_DOWNSTREAM, { kind: 'named', name: SEND_DOWNSTREAMS.INFOCAMERE });
+    assert.deepStrictEqual(ADE_DOWNSTREAM, { kind: 'named', name: SEND_DOWNSTREAMS.ADE });
+    assert.deepStrictEqual(ONE_TRUST_DOWNSTREAM, {
+      kind: 'named',
+      name: SEND_DOWNSTREAMS.ONE_TRUST,
+      emittedAs: 'OneTrust',
+    });
+    assert.deepStrictEqual(POSTEL_DOWNSTREAM, {
+      kind: 'named',
+      name: SEND_DOWNSTREAMS.CONSOLIDATORE_POSTALE,
+      emittedAs: 'POSTEL',
+    });
+    assert.deepStrictEqual(SELFCARE_DOWNSTREAM, {
+      kind: 'named',
+      name: SEND_DOWNSTREAMS.SELFCARE,
+      emittedAs: 'SelfcarePG',
+    });
   });
 
-  it('uses the generic canonical downstream query for the cross-operation EMD alarm', () => {
-    assert.strictEqual(
-      EMD_DOWNSTREAM_SERVICE.queryOverride,
-      service.buildDownstreamDetectionQuery({ matchAnyService: true }),
-    );
-    assert.match(EMD_DOWNSTREAM_SERVICE.queryOverride ?? '', /level = 'ERROR'/);
-    assert.doesNotMatch(EMD_DOWNSTREAM_SERVICE.queryOverride ?? '', /submitMessage|getRetrieval/);
+  it('watches every downstream for the cross-operation EMD alarm', () => {
+    // Its metric filter covers all of them: narrowing to one name would drop
+    // occurrences the alarm counted.
+    assert.deepStrictEqual(EMD_DOWNSTREAM, { kind: 'any' });
   });
 
   it('builds the service runbooks without validation errors', () => {

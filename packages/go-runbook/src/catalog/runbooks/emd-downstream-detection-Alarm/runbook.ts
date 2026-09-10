@@ -2,15 +2,15 @@
  * Runbook: emd-downstream-detection-Alarm
  */
 
-import { service } from '../framework.js';
+import { downstream } from '../framework.js';
 import type { Runbook } from '../framework.js';
 
 import { KNOWN_CASES } from './knownCases.js';
-import { SERVICE } from './knownServices.js';
+import { DOWNSTREAM, SERVICE } from './knownServices.js';
 
 /** Builds the EMD (Multicanalità) downstream-detection runbook. */
 export function buildRunbook(): Runbook {
-  return service.createServiceAlarmRunbook({
+  return downstream.createDownstreamAlarmRunbook({
     id: 'emd-downstream-detection-Alarm',
     metadata: {
       name: 'emd-downstream-detection-Alarm',
@@ -22,6 +22,7 @@ export function buildRunbook(): Runbook {
       tags: ['service', 'pn-emd-integration', 'downstream', 'EMD', 'Multicanalità'],
     },
     service: SERVICE,
+    downstream: DOWNSTREAM,
     knownCases: KNOWN_CASES,
     occurrenceTimeWindow: {
       // The alarm evaluates six five-minute periods. A production occurrence

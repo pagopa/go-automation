@@ -5,7 +5,7 @@ import { Core } from '@go-automation/go-common';
 import type { AWS } from '@go-automation/go-common';
 import type { ServiceRegistry } from '@go-automation/go-runbook';
 import type { WatchtowerClient } from '@go-automation/go-watchtower-client';
-import { AUTOMATIC_RUNBOOK_REGISTRY } from '@go-automation/go-runbook/catalog';
+import { RUNBOOK_CATALOG } from '@go-automation/go-runbook/catalog';
 
 import type { ExecuteRunbookDeps } from '../../types/ExecuteRunbookDeps.js';
 import type { ExecuteRunbookInput } from '../../types/ExecuteRunbookInput.js';
@@ -13,7 +13,7 @@ import { assertRunbookCapability } from '../assertRunbookCapability.js';
 import { executeRunbook } from '../executeRunbook.js';
 import { createTestServiceRegistry } from '@go-automation/go-runbook';
 
-const RUNBOOK = AUTOMATIC_RUNBOOK_REGISTRY.resolveByKey('pn-tokenExchangeLambda-LogInvocationErrors-Alarm')!.descriptor;
+const RUNBOOK = RUNBOOK_CATALOG.resolveByKey('pn-tokenExchangeLambda-LogInvocationErrors-Alarm')!.descriptor;
 
 const INPUT: ExecuteRunbookInput = {
   schemaVersion: '1.0.0',

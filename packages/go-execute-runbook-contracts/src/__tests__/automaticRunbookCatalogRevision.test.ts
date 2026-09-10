@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { describe, it } from 'node:test';
 
 import type { AutomaticRunbookCatalogV1, BuildAutomaticRunbookCatalogInputV1 } from '../AutomaticRunbookCatalogV1.js';
+import { AutomaticRunbookKinds } from '../AutomaticRunbookCatalogV1.js';
 import {
   buildAutomaticRunbookCatalog,
   computeAutomaticRunbookCatalogRevision,
@@ -90,5 +91,27 @@ describe('AutomaticRunbookCatalogV1', () => {
     ) as AutomaticRunbookCatalogV1;
     assert.doesNotThrow(() => validateAutomaticRunbookCatalog(valid));
     assert.throws(() => validateAutomaticRunbookCatalog(invalid), /revision/);
+  });
+});
+
+describe('published catalog schema', () => {
+  it('keeps the schema kind enum equal to AutomaticRunbookKinds', async () => {
+    const schemaPath = resolve(
+      import.meta.dirname,
+      '../../../../contracts/runbook-automation/v1/automatic-runbook-catalog-v1.schema.json',
+    );
+    const schema = JSON.parse(await readFile(schemaPath, 'utf8')) as {
+      readonly properties: {
+        readonly runbooks: { readonly items: { readonly properties: { readonly kind: { readonly enum: string[] } } } };
+      };
+    };
+
+    // The enum is hand-written JSON while the constant is TypeScript: nothing
+    // else ties them together, so adding a kind to one and forgetting the other
+    // publishes a catalog that the consumer's validator rejects.
+    assert.deepStrictEqual(
+      [...schema.properties.runbooks.items.properties.kind.enum].sort(),
+      [...Object.values(AutomaticRunbookKinds)].sort(),
+    );
   });
 });

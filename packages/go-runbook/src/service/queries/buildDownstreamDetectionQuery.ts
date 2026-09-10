@@ -19,6 +19,22 @@ export type DownstreamDetectionQueryOptions = DownstreamDetectionQueryCommonOpti
 interface DownstreamDetectionQueryCommonOptions {
   /** HTTP status codes that must not contribute to an exact-service diagnosis. */
   readonly excludedStatusCodes?: ReadonlyArray<number>;
+  /**
+   * Also require `level = 'ERROR'`, as the `matchAnyService` variant always
+   * does. For alarms whose metric filter carries that predicate too, so the
+   * runbook counts what the alarm counted.
+   */
+  readonly errorLevelOnly?: boolean;
+  /**
+   * Also require the marker in the parsed `message` field, not only in the raw
+   * `@message` event.
+   *
+   * The raw event carries the whole record, so a marker quoted inside a stack
+   * trace matches it while the structured field stays clean. An alarm whose
+   * metric filter reads `message` counts only the latter, and a runbook that
+   * scanned both would analyse occurrences the alarm never raised.
+   */
+  readonly matchStructuredMessage?: boolean;
   /** Maximum number of chronologically ordered rows returned by Logs Insights. */
   readonly resultLimit?: number;
 }
@@ -64,6 +80,11 @@ export function buildDownstreamDetectionQuery(options: DownstreamDetectionQueryO
       throw new Error('buildDownstreamDetectionQuery: downstreamName must be a non-empty string.');
     }
     filters = exactServiceFilters(downstreamName, excludedStatusCodes);
+    if (options.matchStructuredMessage === true) {
+      const marker = `[DOWNSTREAM] Service ${downstreamName} returned errors=`;
+      filters = [`message like ${quoteLogsInsightsString(marker)}`, ...filters];
+    }
+    if (options.errorLevelOnly === true) filters = ["level = 'ERROR'", ...filters];
   }
 
   return [

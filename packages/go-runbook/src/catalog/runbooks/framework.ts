@@ -2,6 +2,7 @@ export * as apigw from '../../apigw/index.js';
 export * as interop from '../../interop/index.js';
 export * as lambda from '../../lambda/index.js';
 export * as service from '../../service/index.js';
+export * as downstream from '../../downstream/index.js';
 
 export { ConditionEvaluator } from '../../core/ConditionEvaluator.js';
 export { knownCase } from '../../builders/knownCase.js';

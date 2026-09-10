@@ -1,5 +1,5 @@
 import type { AutomaticAlarmAnalysisCommandV1 } from '@go-automation/go-watchtower-client';
-import { AUTOMATIC_RUNBOOK_REGISTRY } from '@go-automation/go-runbook/catalog';
+import { RUNBOOK_CATALOG } from '@go-automation/go-runbook/catalog';
 
 import type { ExecuteRunbookCliConfig } from '../types/ExecuteRunbookConfig.js';
 import type { ExecuteRunbookDeps } from '../types/ExecuteRunbookDeps.js';
@@ -10,7 +10,7 @@ export async function resolveExecuteRunbookInput(
 ): Promise<AutomaticAlarmAnalysisCommandV1> {
   const alarmEvent = await deps.watchtower.getAlarmEvent(config.alarmEventId);
   if (alarmEvent.alarmId === null) throw new Error('Alarm event is not linked to an alarm');
-  const resolved = AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(alarmEvent.name);
+  const resolved = RUNBOOK_CATALOG.resolveByAlarmName(alarmEvent.name);
   if (resolved === undefined) throw new Error(`No automatic runbook is registered for alarm "${alarmEvent.name}"`);
   const descriptor = resolved.descriptor;
   return {

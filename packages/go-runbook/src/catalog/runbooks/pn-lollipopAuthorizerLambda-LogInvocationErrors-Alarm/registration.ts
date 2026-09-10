@@ -1,15 +1,15 @@
-import { AutomaticRunbookKinds } from '@go-automation/go-execute-runbook-contracts';
+import { RunbookKinds } from '../../../types/RunbookKind.js';
 
-import type { AutomaticRunbookRegistration } from '../../AutomaticRunbookRegistration.js';
+import type { RunbookRegistration } from '../../RunbookRegistration.js';
 import { RunbookProducts } from '../../../types/RunbookProduct.js';
 import { buildRunbook } from './runbook.js';
 
 const KEY = 'pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm';
 
-export const LOLLIPOP_AUTHORIZER_LAMBDA_REGISTRATION: AutomaticRunbookRegistration = {
+export const LOLLIPOP_AUTHORIZER_LAMBDA_REGISTRATION: RunbookRegistration = {
   key: KEY,
   product: RunbookProducts.SEND,
-  kind: AutomaticRunbookKinds.LAMBDA,
+  kind: RunbookKinds.LAMBDA,
   categories: ['AUTHORIZATION'],
   alarmNames: [KEY],
   build: buildRunbook,

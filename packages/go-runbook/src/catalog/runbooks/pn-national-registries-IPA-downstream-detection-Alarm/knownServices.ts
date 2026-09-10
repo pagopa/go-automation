@@ -2,14 +2,17 @@
  * Known services for the pn-national-registries-IPA-downstream-detection-Alarm runbook.
  */
 
-import { service, SEND_DOWNSTREAMS } from '../framework.js';
-
 /** Application service whose logs contain the IPA downstream errors. */
-export const SERVICE: service.ServiceDescriptor = {
+
+import type { downstream } from '../framework.js';
+import { SEND_DOWNSTREAMS } from '../framework.js';
+
+/** Application service whose logs carry the downstream markers. */
+export const SERVICE = {
   name: 'pn-national-registries',
   varPrefix: 'nationalRegistries',
   logGroup: '/aws/ecs/pn-national-registries',
-  queryOverride: service.buildDownstreamDetectionQuery({
-    downstreamName: SEND_DOWNSTREAMS.IPA,
-  }),
 };
+
+/** Downstream this runbook diagnoses. */
+export const DOWNSTREAM: downstream.DownstreamSelector = { kind: 'named', name: SEND_DOWNSTREAMS.IPA };
