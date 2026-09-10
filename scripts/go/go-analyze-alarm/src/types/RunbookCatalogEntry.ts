@@ -17,7 +17,7 @@ export interface RunbookCatalogEntry {
   readonly version: string;
   /** Product owning the alarms handled by the runbook */
   readonly product: RunbookProduct;
-  /** Runbook family declared on the registry entry: `APIGW`, `LAMBDA` or `SERVICE` */
+/** Runbook family declared on the registry entry (see {@link RunbookKind}). */
   readonly kind: RunbookKind;
   /** Functional categories declared on the registry entry */
   readonly categories: ReadonlyArray<string>;
