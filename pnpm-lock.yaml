@@ -551,6 +551,9 @@ importers:
 
   packages/go-execute-runbook-contracts:
     devDependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../go-common
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3
@@ -560,9 +563,6 @@ importers:
       '@go-automation/go-common':
         specifier: workspace:*
         version: link:../go-common
-      '@go-automation/go-execute-runbook-contracts':
-        specifier: workspace:*
-        version: link:../go-execute-runbook-contracts
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

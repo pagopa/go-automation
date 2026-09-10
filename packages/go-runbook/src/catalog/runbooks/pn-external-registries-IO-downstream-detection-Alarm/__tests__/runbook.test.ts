@@ -5,13 +5,13 @@ import { GOLogger } from '@go-automation/go-common/core';
 import type { ResultField } from '@go-automation/go-common/aws';
 
 import { computeRunbookTimeRange } from '../../../computeRunbookTimeRange.js';
-import { service } from '../../framework.js';
+import { SEND_DOWNSTREAMS, service } from '../../framework.js';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { assertCloudExecutableRunbook } from '../../../../validation/assertCloudExecutableRunbook.js';
 import { assertAnalysisAnnotations } from '../../../../validation/assertAnalysisAnnotations.js';
 import { EXTERNAL_REGISTRIES_IO_ALARM } from '../alarmDefinition.js';
-import { SERVICE } from '../knownServices.js';
+import { DOWNSTREAM, SERVICE } from '../knownServices.js';
 import { buildRunbook } from '../runbook.js';
 
 const TRACE_ID = '1-69bd2170-e25ad8375848680f6a33bd33';
@@ -31,20 +31,26 @@ describe('external-registries IO downstream runbook', () => {
     );
     assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
     assert.ok(service.isServiceRunbookContext(runbook.runbookContext));
-    assert.deepStrictEqual(runbook.runbookContext.service, SERVICE);
+    // Identity only: the query is the toolkit's business, asserted below.
+    const { queryOverride, ...identity } = runbook.runbookContext.service;
+    assert.deepStrictEqual(identity, SERVICE);
+    assert.match(queryOverride ?? '', /\[DOWNSTREAM\] Service IO returned errors=/u);
     assert.strictEqual(runbook.runbookContext.queryProfileId, 'send-service');
     assert.doesNotThrow(() => assertCloudExecutableRunbook(runbook));
     assert.doesNotThrow(() => assertAnalysisAnnotations(runbook, 'SEND'));
   });
 
-  it('preserves the ERROR/message predicates and the canonical downstream projection', () => {
+  it('declares the census name, the emitted marker and the ERROR predicate', () => {
     assert.strictEqual(SERVICE.logGroup, '/aws/ecs/pn-external-registries');
-    assert.strictEqual(
-      SERVICE.queryOverride,
-      `filter level = 'ERROR' and message like '[DOWNSTREAM] Service IO returned errors='\n| ${service.buildDownstreamDetectionQuery({ downstreamName: 'IO' })}`,
-    );
-    assert.match(SERVICE.queryOverride ?? '', /fields[^\n]*trace_id[^\n]*message/u);
-    assert.doesNotMatch(SERVICE.queryOverride ?? '', /not like|OneTrust|AppIO/u);
+    // The application writes `IO` while the census calls it `AppIO`: the query
+    // must follow the log, the analysis annotation the census.
+    assert.deepStrictEqual(DOWNSTREAM, {
+      kind: 'named',
+      name: SEND_DOWNSTREAMS.APP_IO,
+      emittedAs: 'IO',
+      errorLevelOnly: true,
+      matchStructuredMessage: true,
+    });
   });
 
   it('covers all six five-minute evaluation periods without treating them as a recovery timer', () => {
@@ -109,7 +115,17 @@ describe('external-registries IO downstream runbook', () => {
     assert.strictEqual(result.stepsExecuted, 4);
     assert.deepStrictEqual(result.matchedCases, []);
     assert.strictEqual(queries.length, 2);
-    assert.strictEqual(queries[0], SERVICE.queryOverride);
+    // The scan keeps both predicates of the metric filter and the canonical
+    // projection, whichever way the query is assembled.
+    assert.match(queries[0] ?? '', /level = 'ERROR'/u);
+    // Which field carries the marker is the point, not just the text: the raw
+    // event holds the whole record, so a marker quoted inside a stack trace
+    // would match `@message` while the structured field stays clean. The alarm
+    // counts the structured one, so the scan must require it too.
+    assert.match(queries[0] ?? '', /(?<![@\w])message like '\[DOWNSTREAM\] Service IO returned errors='/u);
+    assert.match(queries[0] ?? '', /@message like '\[DOWNSTREAM\] Service IO returned errors='/u);
+    assert.match(queries[0] ?? '', /fields[^\n]*trace_id[^\n]*message/u);
+    assert.doesNotMatch(queries[0] ?? '', /not like|OneTrust|AppIO/u);
     assert.ok(queries[1]?.includes(`filter @message like '${TRACE_ID}'`));
     assert.match(queries[1] ?? '', /sort @timestamp asc/u);
   });

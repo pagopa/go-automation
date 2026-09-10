@@ -2,10 +2,23 @@ export const AUTOMATIC_RUNBOOK_CATALOG_SCHEMA_VERSION = 1 as const;
 export const AUTOMATIC_RUNBOOK_COMMAND_SCHEMA_VERSION = '1.0.0' as const;
 export const AUTOMATIC_RUNBOOK_CATALOG_KEY = 'automatic-runbooks/v1/current.json' as const;
 
+/**
+ * Family of a runbook, as published to Watchtower.
+ *
+ * Names the analysis the runbook performs: `SERVICE` reads a service's
+ * application logs, `DOWNSTREAM` looks for the downstream markers those logs
+ * carry, `K8S` reads the logs of a pod.
+ *
+ * Declared here because the value travels on the wire and a consumer validates
+ * against it. `go-runbook` declares the same members independently, and the
+ * deploy refuses to compile if the two drift apart.
+ */
 export const AutomaticRunbookKinds = {
   APIGW: 'APIGW',
   LAMBDA: 'LAMBDA',
   SERVICE: 'SERVICE',
+  DOWNSTREAM: 'DOWNSTREAM',
+  K8S: 'K8S',
 } as const;
 
 export type AutomaticRunbookKind = (typeof AutomaticRunbookKinds)[keyof typeof AutomaticRunbookKinds];

@@ -2,13 +2,21 @@
  * Known services for the pn-external-registries-OneTrust-downstream-detection-Alarm runbook.
  */
 
-import { service } from '../framework.js';
-
 /** Application service whose logs contain the OneTrust downstream errors. */
-export const SERVICE: service.ServiceDescriptor = {
+
+import type { downstream } from '../framework.js';
+import { SEND_DOWNSTREAMS } from '../framework.js';
+
+/** Application service whose logs carry the downstream markers. */
+export const SERVICE = {
   name: 'pn-external-registries',
   varPrefix: 'externalRegistries',
   logGroup: '/aws/ecs/pn-external-registries',
-  // The log marker is `OneTrust`; the Watchtower downstream census uses `One-Trust`.
-  queryOverride: service.buildDownstreamDetectionQuery({ downstreamName: 'OneTrust' }),
+};
+
+/** Downstream this runbook diagnoses. */
+export const DOWNSTREAM: downstream.DownstreamSelector = {
+  kind: 'named',
+  name: SEND_DOWNSTREAMS.ONE_TRUST,
+  emittedAs: 'OneTrust',
 };

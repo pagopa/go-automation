@@ -4,7 +4,7 @@
  * Maintained by hand. To add a runbook, declare its identity in
  * `runbooks/<id>/registration.ts` and add the two lines below: the import and the array entry.
  */
-import type { AutomaticRunbookRegistration } from './AutomaticRunbookRegistration.js';
+import type { RunbookRegistration } from './RunbookRegistration.js';
 
 // api gateway
 import { ADDRESS_BOOK_IO_REGISTRATION } from './runbooks/pn-address-book-io-IO-ApiGwAlarm/registration.js';
@@ -51,7 +51,7 @@ import { SELFCARE_ONBOARDING_CONSUMER_REGISTRATION } from './runbooks/k8s-intero
 import { SELFCARE_APIGW_REGISTRATION } from './runbooks/interop-selfcare-1.0-apigw-5xx/registration.js';
 import { AUTH_SERVER_APIGW_REGISTRATION } from './runbooks/interop-auth-server-apigw-4xx/registration.js';
 
-export const CATALOG_MANIFEST: ReadonlyArray<AutomaticRunbookRegistration> = [
+export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   // api gateway
   ADDRESS_BOOK_IO_REGISTRATION,
   DELIVERY_B2B_REGISTRATION,

@@ -4,16 +4,14 @@ import { describe, it } from 'node:test';
 import { Core } from '@go-automation/go-common';
 import { createTestServiceRegistry } from '@go-automation/go-runbook';
 import type { WatchtowerClient } from '@go-automation/go-watchtower-client';
-import { AUTOMATIC_RUNBOOK_REGISTRY } from '@go-automation/go-runbook/catalog';
+import { RUNBOOK_CATALOG } from '@go-automation/go-runbook/catalog';
 
 import type { ExecuteRunbookCliConfig } from '../../types/ExecuteRunbookConfig.js';
 import type { ExecuteRunbookDeps } from '../../types/ExecuteRunbookDeps.js';
 import { assertRunbookCapability } from '../assertRunbookCapability.js';
 import { resolveExecuteRunbookInput } from '../resolveExecuteRunbookInput.js';
 
-const INTEROP_RUNBOOK = AUTOMATIC_RUNBOOK_REGISTRY.resolveByKey(
-  'k8s-interop-be-backend-for-frontend-errors',
-)!.descriptor;
+const INTEROP_RUNBOOK = RUNBOOK_CATALOG.resolveByKey('k8s-interop-be-backend-for-frontend-errors')!.descriptor;
 
 describe('go-execute-runbook INTEROP alarm aliases', () => {
   it('resolves a concrete environment alarm to the canonical runbook key and preserves alarmName', async () => {

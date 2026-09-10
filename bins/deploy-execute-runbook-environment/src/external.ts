@@ -15,6 +15,7 @@ export {
   canonicalizeJson,
   validateAutomaticRunbookCatalog,
 } from '../../../packages/go-execute-runbook-contracts/src/index.js';
+export type { RunbookDescriptor } from '../../../packages/go-runbook/src/catalog/RunbookDescriptor.js';
 export {
   accountIdFromArn,
   buildAutomaticRunbookCatalogBucketName,

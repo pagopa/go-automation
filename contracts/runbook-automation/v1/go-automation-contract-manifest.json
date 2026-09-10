@@ -26,7 +26,7 @@
     {
       "logicalName": "AutomaticRunbookCatalogV1Schema",
       "path": "contracts/runbook-automation/v1/automatic-runbook-catalog-v1.schema.json",
-      "sha256": "59fc995abf45ddd66d982d5b9cd8789c1eafe045bc412022905cd4f1f053d843"
+      "sha256": "542c004ae0d72239ad494c17ce3cae93170347baf49760428085f6488486dc8c"
     },
     {
       "logicalName": "AutomaticRunbookCatalogValidFixture",

@@ -1,21 +1,23 @@
 /** Typed automatic-runbook registry shared by CLI, worker and catalog generator. */
 import { createHash } from 'node:crypto';
 
-import { canonicalizeJson, type AutomaticRunbookDescriptorV1 } from '@go-automation/go-execute-runbook-contracts';
+import { canonicalizeJson } from '@go-automation/go-common/core';
+
+import type { RunbookDescriptor } from './RunbookDescriptor.js';
 
 import { assertAnalysisAnnotations } from '../validation/assertAnalysisAnnotations.js';
 import { assertCloudExecutableRunbook } from '../validation/assertCloudExecutableRunbook.js';
-import type { AutomaticRunbookRegistration } from './AutomaticRunbookRegistration.js';
+import type { RunbookRegistration } from './RunbookRegistration.js';
 import { CATALOG_MANIFEST } from './catalogManifest.js';
-import type { ResolvedAutomaticRunbook } from './ResolvedAutomaticRunbook.js';
+import type { ResolvedRunbook } from './ResolvedRunbook.js';
 import type { RunbookBuilderFn } from './RunbookBuilderFn.js';
 
-export class AutomaticRunbookRegistry {
-  private readonly byKey = new Map<string, ResolvedAutomaticRunbook>();
-  private readonly byAlarmName = new Map<string, ResolvedAutomaticRunbook>();
-  private readonly descriptors: ReadonlyArray<AutomaticRunbookDescriptorV1>;
+export class RunbookCatalog {
+  private readonly byKey = new Map<string, ResolvedRunbook>();
+  private readonly byAlarmName = new Map<string, ResolvedRunbook>();
+  private readonly descriptors: ReadonlyArray<RunbookDescriptor>;
 
-  constructor(registrations: ReadonlyArray<AutomaticRunbookRegistration>) {
+  constructor(registrations: ReadonlyArray<RunbookRegistration>) {
     for (const registration of registrations) {
       const descriptor = descriptorFrom(registration);
       const resolved = { descriptor, product: registration.product, build: registration.build };
@@ -29,15 +31,15 @@ export class AutomaticRunbookRegistry {
     this.descriptors = [...this.byKey.values()].map(({ descriptor }) => descriptor).sort(compareDescriptorKey);
   }
 
-  resolveByAlarmName(alarmName: string): ResolvedAutomaticRunbook | undefined {
+  resolveByAlarmName(alarmName: string): ResolvedRunbook | undefined {
     return this.byAlarmName.get(alarmName);
   }
 
-  resolveByKey(key: string): ResolvedAutomaticRunbook | undefined {
+  resolveByKey(key: string): ResolvedRunbook | undefined {
     return this.byKey.get(key);
   }
 
-  listDescriptors(): ReadonlyArray<AutomaticRunbookDescriptorV1> {
+  listDescriptors(): ReadonlyArray<RunbookDescriptor> {
     return this.descriptors;
   }
 
@@ -64,9 +66,9 @@ export class AutomaticRunbookRegistry {
   }
 }
 
-export const AUTOMATIC_RUNBOOK_REGISTRY: AutomaticRunbookRegistry = new AutomaticRunbookRegistry(CATALOG_MANIFEST);
+export const RUNBOOK_CATALOG: RunbookCatalog = new RunbookCatalog(CATALOG_MANIFEST);
 
-/** Compatibility map for existing local consumers; new code should use AUTOMATIC_RUNBOOK_REGISTRY. */
+/** Compatibility map for existing local consumers; new code should use RUNBOOK_CATALOG. */
 export const RUNBOOK_REGISTRY: ReadonlyMap<string, RunbookBuilderFn> = new Map(
   CATALOG_MANIFEST.flatMap((entry) => entry.alarmNames.map((alarmName) => [alarmName, entry.build] as const)),
 );
@@ -74,7 +76,7 @@ export const RUNBOOK_REGISTRY: ReadonlyMap<string, RunbookBuilderFn> = new Map(
 /** Compatibility wrapper used by existing CI checks. */
 export function validateCloudRunbookRegistry(registry: ReadonlyMap<string, RunbookBuilderFn> = RUNBOOK_REGISTRY): void {
   if (registry === RUNBOOK_REGISTRY) {
-    AUTOMATIC_RUNBOOK_REGISTRY.validateForCloud();
+    RUNBOOK_CATALOG.validateForCloud();
     return;
   }
   for (const [alarmName, buildRunbook] of registry) {
@@ -87,10 +89,7 @@ export function validateCloudRunbookRegistry(registry: ReadonlyMap<string, Runbo
   }
 }
 
-function descriptorFrom(
-  registration: AutomaticRunbookRegistration,
-  runbook = registration.build(),
-): AutomaticRunbookDescriptorV1 {
+function descriptorFrom(registration: RunbookRegistration, runbook = registration.build()): RunbookDescriptor {
   if (runbook.metadata.id !== registration.key) {
     throw new Error(`Automatic runbook registration key differs from metadata: ${registration.key}`);
   }
@@ -108,6 +107,6 @@ function descriptorFrom(
   };
 }
 
-function compareDescriptorKey(left: AutomaticRunbookDescriptorV1, right: AutomaticRunbookDescriptorV1): number {
+function compareDescriptorKey(left: RunbookDescriptor, right: RunbookDescriptor): number {
   return left.key < right.key ? -1 : left.key > right.key ? 1 : 0;
 }
