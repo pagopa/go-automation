@@ -5,6 +5,7 @@ import type { S3Client } from '@aws-sdk/client-s3';
 import type { AWS, Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, GetNotificationAttachmentsResult } from '../types/index.js';
 import { get } from '../utils/get.js';
+import { iun_from_rid } from '../utils/get.js';
 
 /** Tabelle DynamoDB coinvolte */
 const NOTIFICATIONS_TABLE_NAME = 'pn-Notifications';
@@ -157,7 +158,8 @@ export async function getNotificationAttachments(
   let dynamoUpdateErrors = 0;
 
   for (let i = 0; i < iuns.length; i++) {
-    const iun = iuns[i]?.trim();
+    //const iun = iuns[i]?.trim();
+    const iun = iun_from_rid(iuns[i]);
     if (!iun) continue;
 
     logger.info(`[${i + 1}/${iuns.length}] Elaborazione IUN: ${iun}`);

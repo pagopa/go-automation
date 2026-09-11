@@ -1,6 +1,5 @@
 /**
- * Accesso sicuro alle proprietà di un oggetto record/dizionario
- * simile alla sintassi `.get(key, default)` di Python.
+ * Accesso sicuro alle proprietà di un oggetto record/dizionario.
  *
  * @param obj - L'oggetto da cui estrarre la proprietà
  * @param key - La chiave da cercare
@@ -13,4 +12,12 @@ export function get<T = unknown>(obj: unknown, key: string, defaultValue?: T): T
   }
   const val = (obj as Record<string, unknown>)[key];
   return val !== undefined && val !== null ? (val as T) : (defaultValue as T);
+}
+
+export function iun_from_rid(rid: string | undefined): string {
+  if (rid === undefined) {
+    return '';
+  }
+  const regex = /(?<=IUN_)[^.]+/;
+  return rid.match(regex)?.[0] ?? '';
 }

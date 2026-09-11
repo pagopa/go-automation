@@ -17,6 +17,6 @@ export async function readInputLines(filePath?: string): Promise<string[]> {
   }
 
   const importer = new Core.GOFileListImporter({ skipEmptyLines: true });
-  const lines = await importer.importAll(filePath);
-  return lines.map((line) => line.trim()).filter((line) => line.length > 0 && !line.startsWith('#'));
+  const { items } = await importer.import(filePath);
+  return items.map((line) => line.trim()).filter((line) => line.length > 0 && !line.startsWith('#'));
 }

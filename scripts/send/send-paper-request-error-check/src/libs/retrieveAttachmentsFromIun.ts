@@ -3,6 +3,7 @@ import path from 'path';
 import type { AWS, Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, RetrieveAttachmentsResult } from '../types/index.js';
 import { get } from '../utils/get.js';
+import { iun_from_rid } from '../utils/get.js';
 
 /** Tabelle DynamoDB coinvolte */
 const NOTIFICATIONS_TABLE_NAME = 'pn-Notifications';
@@ -128,7 +129,7 @@ export async function retrieveAttachmentsFromIun(
   logger.info(`Inizio recupero allegati ed AAR da pn-Notifications / pn-Timelines per ${iuns.length} IUN...`);
 
   for (let i = 0; i < iuns.length; i++) {
-    const iun = iuns[i]?.trim();
+    const iun = iun_from_rid(iuns[i]);
     if (!iun) continue;
 
     logger.info(`[${i + 1}/${iuns.length}] Recupero allegati per IUN: ${iun}`);

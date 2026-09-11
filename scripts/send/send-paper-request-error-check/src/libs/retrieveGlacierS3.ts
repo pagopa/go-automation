@@ -43,10 +43,10 @@ export function parseGlacierItems(rawItems: ReadonlyArray<string>): GlacierItem[
  * @returns boolean `true` se l'utente accetta, `false` se rifiuta o annulla
  */
 async function promptUserConfirmation(script: Core.GOScript, count: number): Promise<boolean> {
-  return script.prompt.confirm({
-    message: `⚠️  ATTENZIONE: Si sta per avviare il ripristino da S3 Glacier per ${count} oggetti.\nVuoi procedere con il restore da Glacier?`,
-    default: false,
-  });
+  return script.prompt.confirm(
+    `⚠️  ATTENZIONE: Si sta per avviare il ripristino da S3 Glacier per ${count} oggetti.\nVuoi procedere con il restore da Glacier?`,
+    false,
+  );
 }
 
 /**

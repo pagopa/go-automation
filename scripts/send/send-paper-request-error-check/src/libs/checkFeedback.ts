@@ -74,7 +74,7 @@ export async function checkFeedbackFromRequestIds(
     const requestId = requestIds[i]?.trim();
     if (!requestId) continue;
 
-    logger.info(`[${i + 1}/${requestIds.length}] Verifica requestId: ${requestId}`);
+    logger.text(`[${i + 1}/${requestIds.length}] Verifica requestId: ${requestId}`);
     const iun = extractIunFromRequestId(requestId);
 
     try {
