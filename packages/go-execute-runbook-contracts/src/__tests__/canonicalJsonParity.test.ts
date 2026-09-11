@@ -27,6 +27,12 @@ const CORPUS: ReadonlyArray<readonly [string, unknown]> = [
   // order after it.
   ['astral vs BMP keys', { '\u{1D400}': 1, ﬀ: 2, z: 3 }],
   ['keys sharing a prefix', { ab: 1, a: 2, abc: 3 }],
+  // Integer-like keys are the case where the platform's own key order fights
+  // the one we sorted for: an object emits them numerically, ahead of every
+  // other key. Both copies have to resist that the same way.
+  ['integer-like keys', { '10': 1, '2': 2, name: 'x' }],
+  ['keys that only look numeric', { '01': 'n', '1': 'c', '-1': 'neg' }],
+  ['integer-like keys nested in an array', [{ '100': 1, '20': 2, '3': 3 }]],
   ['strings JSON must escape', { 'a b': '"\\\n' }],
   ['numbers JSON reformats', [1e21, 1e-7, 0.1 + 0.2, Number.MAX_SAFE_INTEGER]],
   // Shape of a real descriptor: the value whose digest actually ships.
