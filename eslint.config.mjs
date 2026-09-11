@@ -9,6 +9,7 @@ import tseslint from 'typescript-eslint';
 import globals from 'globals';
 import eslintPluginSecurity from 'eslint-plugin-security';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+import sonarjs from 'eslint-plugin-sonarjs';
 
 /**
  * Custom plugin: enforces that main.ts only contains the main() function.
@@ -444,6 +445,78 @@ export default tseslint.config(
     rules: {
       'security/detect-non-literal-fs-filename': 'off',
       'no-console': 'off',
+    },
+  },
+
+  // ===== SonarJS: duplicated and redundant code =====
+  // Added for the duplication family, which jscpd cannot cover: jscpd compares
+  // tokens across files and stops reporting a copy the moment it drifts, while
+  // these rules read the AST inside one file and catch a clone that was edited.
+  // The recommended set is enabled whole so new rules arrive switched on, then
+  // trimmed below. Counts are the violations present when the plugin was added.
+  sonarjs.configs.recommended,
+  {
+    files: ['**/*.ts'],
+    rules: {
+      // Real findings, left visible as warnings rather than silenced: each one
+      // is a duplicate or a no-op that someone has to decide about, not a rule
+      // to argue with. Fixing them turns these back into errors.
+      'sonarjs/no-identical-functions': 'warn', // 4: two byte-identical bodies
+      'sonarjs/duplicates-in-character-class': 'warn', // 2: [0-9a-fA-F] under /i
+      'sonarjs/no-redundant-jump': 'warn', // 1: `continue` that ends a loop body
+
+      // Style opinions that contradict conventions this repo already settled.
+      'sonarjs/cognitive-complexity': 'off', // 73: threshold is not ours to adopt
+      'sonarjs/no-nested-conditional': 'off', // 28
+      'sonarjs/no-nested-template-literals': 'off', // 16
+      'sonarjs/function-return-type': 'off', // 14
+      'sonarjs/use-type-alias': 'off', // 6: we prefer interfaces, see CLAUDE.md
+      'sonarjs/todo-tag': 'off', // 7: TODO comments are allowed here
+      'sonarjs/concise-regex': 'off', // 6
+      'sonarjs/prefer-regexp-exec': 'off', // 6
+      'sonarjs/single-character-alternation': 'off', // 2
+      'sonarjs/regex-complexity': 'off', // 1
+
+      // False positives on this codebase.
+      // `sort()` without a comparator is the intent wherever we order strings.
+      'sonarjs/no-alphabetical-sort': 'off', // 54
+      // Flags defensive checks on values TypeScript types as always present,
+      // such as `Error.captureStackTrace !== undefined` for non-V8 runtimes.
+      'sonarjs/different-types-comparison': 'off', // 22
+      // Scripts invoke `pnpm`, `git` and `aws` by name on purpose.
+      'sonarjs/no-os-command-from-path': 'off', // 8
+      // `Math.random` is used for jitter and ids, never for secrets.
+      'sonarjs/pseudo-random': 'off', // 8
+      // `/tmp` is the only writable directory in a Lambda.
+      'sonarjs/publicly-writable-directories': 'off', // 25
+      // VPC CIDRs belong in the infrastructure config.
+      'sonarjs/no-hardcoded-ip': 'off', // 6
+      // `void` marks a deliberately discarded promise or value.
+      'sonarjs/void-use': 'off', // 4
+
+      // Already covered by a rule this config enables.
+      'sonarjs/no-unused-vars': 'off', // 7: @typescript-eslint/no-unused-vars
+
+      // Worth revisiting, switched off only to keep the baseline green:
+      // super-linear-regex (10, ReDoS), no-ignored-exceptions (7, all in
+      // go-cli), deprecation (3).
+      'sonarjs/super-linear-regex': 'off',
+      'sonarjs/no-ignored-exceptions': 'off',
+      'sonarjs/deprecation': 'off',
+    },
+  },
+
+  // Test files legitimately hardcode fixtures: http:// URLs, sample credentials,
+  // exact floats and /tmp paths are the data under test, not a defect.
+  {
+    files: ['**/*.test.ts', '**/*.spec.ts'],
+    rules: {
+      'sonarjs/assertions-in-tests': 'off',
+      'sonarjs/no-clear-text-protocols': 'off',
+      'sonarjs/no-floating-point-equality': 'off',
+      'sonarjs/no-hardcoded-passwords': 'off',
+      'sonarjs/no-misleading-array-reverse': 'off',
+      'sonarjs/no-trivial-assertions': 'off',
     },
   },
 

@@ -1,0 +1,20 @@
+{
+  "path": ["packages", "scripts", "functions", "infra", "bins"],
+  "format": ["typescript"],
+  "minTokens": 50,
+  "threshold": 3,
+  "reporters": ["silent"],
+  "absolute": false,
+  "gitignore": true,
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.sst/**",
+    "**/*.d.ts",
+    "**/generated/**",
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "packages/go-runbook/src/catalog/runbooks/**"
+  ]
+}
