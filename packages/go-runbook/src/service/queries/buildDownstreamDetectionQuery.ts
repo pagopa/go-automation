@@ -105,10 +105,16 @@ export function buildDownstreamDetectionQuery(options: DownstreamDetectionQueryO
     if (downstreamName === '') {
       throw new Error('buildDownstreamDetectionQuery: downstreamName must be a non-empty string.');
     }
-    filters = exactServiceFilters(downstreamName, excludedStatusCodes);
+    // An exclusion has to read the field the inclusion reads, or the two answer
+    // different questions. With the exclusions left on `@message`, a record
+    // whose structured `message` says `errors=500` would still be dropped by
+    // `@message not like '…errors=404'` if the raw event happened to quote a
+    // 404 elsewhere, in a stack trace or a retry it embeds — suppressing an
+    // occurrence the alarm counted.
+    const exclusionField = options.matchStructuredMessage === true ? 'message' : '@message';
+    filters = exactServiceFilters(downstreamName, excludedStatusCodes, exclusionField);
     if (options.matchStructuredMessage === true) {
-      const marker = `[DOWNSTREAM] Service ${downstreamName} returned errors=`;
-      filters = [`message like ${quoteLogsInsightsString(marker)}`, ...filters];
+      filters = [`message like ${quoteLogsInsightsString(downstreamMarker(downstreamName))}`, ...filters];
     }
     if (options.errorLevelOnly === true) filters = ["level = 'ERROR'", ...filters];
   }
@@ -121,17 +127,28 @@ export function buildDownstreamDetectionQuery(options: DownstreamDetectionQueryO
   ].join('\n');
 }
 
+/**
+ * The raw event always carries the marker, so the inclusion stays on
+ * `@message`. The exclusions take the field the caller is counting on, which
+ * `exclusionField` names.
+ */
 function exactServiceFilters(
   downstreamName: string,
   excludedStatusCodes: ReadonlyArray<number>,
+  exclusionField: string,
 ): ReadonlyArray<string> {
-  const marker = `[DOWNSTREAM] Service ${downstreamName} returned errors=`;
+  const marker = downstreamMarker(downstreamName);
   return [
     `@message like ${quoteLogsInsightsString(marker)}`,
     ...excludedStatusCodes.map(
-      (statusCode) => `@message not like ${quoteLogsInsightsString(`${marker}${String(statusCode)}`)}`,
+      (statusCode) => `${exclusionField} not like ${quoteLogsInsightsString(`${marker}${String(statusCode)}`)}`,
     ),
   ];
+}
+
+/** The exact text the application writes before the failing status or error. */
+function downstreamMarker(downstreamName: string): string {
+  return `[DOWNSTREAM] Service ${downstreamName} returned errors=`;
 }
 
 function quoteLogsInsightsString(value: string): string {
