@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import type { Ajv as AjvInstance, AnySchema, Options as AjvOptions, ValidateFunction } from 'ajv';
 import type { KnownCase, RunbookAnalysisDefaults, RunbookProduct } from '@go-automation/go-runbook';
 import { INTEROP_DOWNSTREAMS, SEND_DOWNSTREAMS } from '@go-automation/go-runbook';
-import type { AutomaticRunbookRegistry } from '@go-automation/go-runbook/catalog';
+import type { RunbookCatalog } from '@go-automation/go-runbook/catalog';
 import type { IgnoreReasonDto, ProductCensus, ProductDto } from '@go-automation/go-watchtower-client';
 
 import type { CoverageIssue, CoverageIssueCode } from './CoverageIssue.js';
@@ -30,7 +30,7 @@ const WATCHTOWER_PRODUCT_NAMES: Readonly<Record<RunbookProduct, string>> = {
 };
 
 export interface RunbookCoverageInput {
-  readonly registry: AutomaticRunbookRegistry;
+  readonly registry: RunbookCatalog;
   /** Watchtower products used to resolve each declared `RunbookProduct` by exact name. */
   readonly products: ReadonlyArray<ProductDto>;
   /** Census of every Watchtower product the alarms may belong to. */
@@ -94,7 +94,7 @@ interface RunbookDeclaration {
   readonly knownCases: ReadonlyArray<KnownCase>;
 }
 
-function extractDeclarations(registry: AutomaticRunbookRegistry): ReadonlyArray<RunbookDeclaration> {
+function extractDeclarations(registry: RunbookCatalog): ReadonlyArray<RunbookDeclaration> {
   const declarations: RunbookDeclaration[] = [];
   for (const descriptor of registry.listDescriptors()) {
     const resolved = registry.resolveByKey(descriptor.key);

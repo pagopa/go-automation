@@ -45,6 +45,16 @@ jobs:
       command: deps:check
       install-args: --frozen-lockfile --ignore-scripts
 
+  # Runs dup:report, not dup:check: both enforce the same threshold from
+  # .jscpd.json, but the quiet reporter only prints the percentage, so a CI
+  # failure would name no file. The verbose one lists every clone in the log.
+  duplication:
+    name: Code Duplication
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      command: dup:report
+      install-args: --frozen-lockfile --ignore-scripts
+
   type-coverage:
     name: Type Coverage
     uses: ./.github/workflows/ci-job.yml
@@ -152,6 +162,7 @@ jobs:
         format,
         knip,
         deps-check,
+        duplication,
         type-coverage,
         scaffold,
         new-class-tests,
@@ -166,7 +177,7 @@ jobs:
     steps:
       - name: Check all jobs passed
         run: |
-          results=("${{ needs.lint.result }}" "${{ needs.format.result }}" "${{ needs.knip.result }}" "${{ needs.deps-check.result }}" "${{ needs.type-coverage.result }}" "${{ needs.scaffold.result }}" "${{ needs.new-class-tests.result }}" "${{ needs.build.result }}" "${{ needs.test.result }}" "${{ needs.coverage.result }}" "${{ needs.macos-smoke.result }}")
+          results=("${{ needs.lint.result }}" "${{ needs.format.result }}" "${{ needs.knip.result }}" "${{ needs.deps-check.result }}" "${{ needs.duplication.result }}" "${{ needs.type-coverage.result }}" "${{ needs.scaffold.result }}" "${{ needs.new-class-tests.result }}" "${{ needs.build.result }}" "${{ needs.test.result }}" "${{ needs.coverage.result }}" "${{ needs.macos-smoke.result }}")
           for result in "${results[@]}"; do
             if [[ "$result" != "success" ]]; then
               echo "One or more checks failed"

@@ -8,17 +8,45 @@ export type DownstreamDetectionQueryOptions = DownstreamDetectionQueryCommonOpti
         /** Exact service name emitted after `[DOWNSTREAM] Service` in application logs. */
         readonly downstreamName: string;
         readonly matchAnyService?: false;
+        /** HTTP status codes that must not contribute to the diagnosis. */
+        readonly excludedStatusCodes?: ReadonlyArray<number>;
+        /**
+         * Also require the marker in the parsed `message` field, not only in the
+         * raw `@message` event.
+         *
+         * The raw event carries the whole record, so a marker quoted inside a
+         * stack trace matches it while the structured field stays clean. An
+         * alarm whose metric filter reads `message` counts only the latter, and
+         * a runbook that scanned both would analyse occurrences the alarm never
+         * raised.
+         */
+        readonly matchStructuredMessage?: boolean;
       }
     | {
         /** Match the generic metric-filter contract when the alarm covers every emitted service name. */
         readonly matchAnyService: true;
         readonly downstreamName?: never;
+        // Both of these describe the exact marker, which this variant does not
+        // build: it matches `[DOWNSTREAM]` and `returned errors=` as separate
+        // fragments and never assembles a service name. Declaring them here as
+        // `never` turns passing one into a compile error rather than an option
+        // that silently does nothing; the constructor rejects them at runtime
+        // too, for options assembled dynamically.
+        readonly excludedStatusCodes?: never;
+        readonly matchStructuredMessage?: never;
       }
   );
 
 interface DownstreamDetectionQueryCommonOptions {
-  /** HTTP status codes that must not contribute to an exact-service diagnosis. */
-  readonly excludedStatusCodes?: ReadonlyArray<number>;
+  /**
+   * Also require `level = 'ERROR'`, as the `matchAnyService` variant always
+   * does. For alarms whose metric filter carries that predicate too, so the
+   * runbook counts what the alarm counted.
+   *
+   * Additive in both variants: it never removes the predicate from the generic
+   * query, which carries it by contract.
+   */
+  readonly errorLevelOnly?: boolean;
   /** Maximum number of chronologically ordered rows returned by Logs Insights. */
   readonly resultLimit?: number;
 }
@@ -50,8 +78,18 @@ export function buildDownstreamDetectionQuery(options: DownstreamDetectionQueryO
 
   let filters: ReadonlyArray<string>;
   if (options.matchAnyService === true) {
+    // Checked first, and the reason it is the strictest of the three: ignoring
+    // a downstreamName here would not narrow the query, it would widen it. The
+    // caller asked about one service and would get the markers of every one,
+    // so the runbook would analyse occurrences its alarm never raised.
+    if (options.downstreamName !== undefined) {
+      throw new Error('buildDownstreamDetectionQuery: downstreamName and matchAnyService are mutually exclusive.');
+    }
     if (excludedStatusCodes.length > 0) {
       throw new Error('buildDownstreamDetectionQuery: excluded status codes require an exact downstreamName.');
+    }
+    if (options.matchStructuredMessage !== undefined) {
+      throw new Error('buildDownstreamDetectionQuery: matchStructuredMessage requires an exact downstreamName.');
     }
     filters = [
       "level = 'ERROR'",
@@ -59,11 +97,26 @@ export function buildDownstreamDetectionQuery(options: DownstreamDetectionQueryO
       `@message like ${quoteLogsInsightsString('returned errors=')}`,
     ];
   } else {
-    const downstreamName = options.downstreamName.trim();
+    // The cast covers the same dynamically assembled options as the guards
+    // above: the union makes the name mandatory here, but an object built at
+    // runtime can arrive without it, and `.trim()` would then throw a
+    // TypeError that names neither the option nor the function.
+    const downstreamName = (options.downstreamName as string | undefined)?.trim() ?? '';
     if (downstreamName === '') {
       throw new Error('buildDownstreamDetectionQuery: downstreamName must be a non-empty string.');
     }
-    filters = exactServiceFilters(downstreamName, excludedStatusCodes);
+    // An exclusion has to read the field the inclusion reads, or the two answer
+    // different questions. With the exclusions left on `@message`, a record
+    // whose structured `message` says `errors=500` would still be dropped by
+    // `@message not like '…errors=404'` if the raw event happened to quote a
+    // 404 elsewhere, in a stack trace or a retry it embeds — suppressing an
+    // occurrence the alarm counted.
+    const exclusionField = options.matchStructuredMessage === true ? 'message' : '@message';
+    filters = exactServiceFilters(downstreamName, excludedStatusCodes, exclusionField);
+    if (options.matchStructuredMessage === true) {
+      filters = [`message like ${quoteLogsInsightsString(downstreamMarker(downstreamName))}`, ...filters];
+    }
+    if (options.errorLevelOnly === true) filters = ["level = 'ERROR'", ...filters];
   }
 
   return [
@@ -74,17 +127,28 @@ export function buildDownstreamDetectionQuery(options: DownstreamDetectionQueryO
   ].join('\n');
 }
 
+/**
+ * The raw event always carries the marker, so the inclusion stays on
+ * `@message`. The exclusions take the field the caller is counting on, which
+ * `exclusionField` names.
+ */
 function exactServiceFilters(
   downstreamName: string,
   excludedStatusCodes: ReadonlyArray<number>,
+  exclusionField: string,
 ): ReadonlyArray<string> {
-  const marker = `[DOWNSTREAM] Service ${downstreamName} returned errors=`;
+  const marker = downstreamMarker(downstreamName);
   return [
     `@message like ${quoteLogsInsightsString(marker)}`,
     ...excludedStatusCodes.map(
-      (statusCode) => `@message not like ${quoteLogsInsightsString(`${marker}${String(statusCode)}`)}`,
+      (statusCode) => `${exclusionField} not like ${quoteLogsInsightsString(`${marker}${String(statusCode)}`)}`,
     ),
   ];
+}
+
+/** The exact text the application writes before the failing status or error. */
+function downstreamMarker(downstreamName: string): string {
+  return `[DOWNSTREAM] Service ${downstreamName} returned errors=`;
 }
 
 function quoteLogsInsightsString(value: string): string {

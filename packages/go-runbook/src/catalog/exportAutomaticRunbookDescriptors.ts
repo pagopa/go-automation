@@ -1,4 +1,4 @@
-import { AUTOMATIC_RUNBOOK_REGISTRY } from './runbookRegistry.js';
+import { RUNBOOK_CATALOG } from './RunbookCatalog.js';
 
-AUTOMATIC_RUNBOOK_REGISTRY.validateForCloud();
-process.stdout.write(JSON.stringify(AUTOMATIC_RUNBOOK_REGISTRY.listDescriptors()));
+RUNBOOK_CATALOG.validateForCloud();
+process.stdout.write(JSON.stringify(RUNBOOK_CATALOG.listDescriptors()));

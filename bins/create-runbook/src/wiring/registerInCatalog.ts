@@ -1,5 +1,7 @@
 import * as fs from 'node:fs/promises';
 
+import type { RunbookKind } from '../../../../packages/go-runbook/src/types/RunbookKind.js';
+
 import { formatTypeScript } from '../generate/formatTypeScript.js';
 import type { RunbookProduct } from '../templates/RunbookProduct.js';
 
@@ -12,7 +14,7 @@ export interface RunbookRegistration {
   /** Watchtower product owning the alarms; selects the downstream catalog. */
   readonly product: RunbookProduct;
   /** Automatic runbook family. */
-  readonly kind: 'APIGW' | 'LAMBDA' | 'SERVICE';
+  readonly kind: RunbookKind;
   /** Non-empty categories exposed by the Watchtower catalog. */
   readonly categories: readonly [string, ...string[]];
 }
@@ -29,7 +31,7 @@ export interface RegistrationResult {
 const MANIFEST_IMPORT_RE = /^import \{ (\w+) \} from '\.\/runbooks\/([^']+)\/registration\.js';$/gmu;
 
 /** Anchor used to locate the manifest array. */
-const MANIFEST_ANCHOR = 'export const CATALOG_MANIFEST: ReadonlyArray<AutomaticRunbookRegistration> = [';
+const MANIFEST_ANCHOR = 'export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [';
 
 /**
  * Renders `runbooks/<id>/registration.ts`: the catalog identity of a runbook,
@@ -41,18 +43,18 @@ const MANIFEST_ANCHOR = 'export const CATALOG_MANIFEST: ReadonlyArray<AutomaticR
 export function renderRegistrationFile(registration: RunbookRegistration): string {
   const categories = registration.categories.map((category) => `'${category}'`).join(', ');
   return [
-    `import { AutomaticRunbookKinds } from '@go-automation/go-execute-runbook-contracts';`,
+    `import { RunbookKinds } from '../../../types/RunbookKind.js';`,
     '',
-    `import type { AutomaticRunbookRegistration } from '../../AutomaticRunbookRegistration.js';`,
+    `import type { RunbookRegistration } from '../../RunbookRegistration.js';`,
     `import { RunbookProducts } from '../../../types/RunbookProduct.js';`,
     `import { buildRunbook } from './runbook.js';`,
     '',
     `const KEY = '${registration.id}';`,
     '',
-    `export const ${registration.constName}: AutomaticRunbookRegistration = {`,
+    `export const ${registration.constName}: RunbookRegistration = {`,
     '  key: KEY,',
     `  product: RunbookProducts.${registration.product},`,
-    `  kind: AutomaticRunbookKinds.${registration.kind},`,
+    `  kind: RunbookKinds.${registration.kind},`,
     `  categories: [${categories}],`,
     '  alarmNames: [KEY],',
     '  build: buildRunbook,',

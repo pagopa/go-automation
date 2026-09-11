@@ -3,16 +3,16 @@
  */
 
 import { unknownCaseFallback } from '../../../actions/unknownCaseFallback.js';
-import { service } from '../framework.js';
+import { downstream } from '../framework.js';
 import type { Runbook } from '../framework.js';
 
 import { KNOWN_CASES } from './knownCases.js';
-import { SERVICE } from './knownServices.js';
+import { DOWNSTREAM, SERVICE } from './knownServices.js';
 import { VerifyPostelBatchesStep } from './VerifyPostelBatchesStep.js';
 
 /** Builds the pn-address-manager POSTEL downstream-detection runbook. */
 export function buildRunbook(): Runbook {
-  return service.createServiceAlarmRunbook({
+  return downstream.createDownstreamAlarmRunbook({
     id: 'pn-address-manager-POSTEL-downstream-detection-Alarm',
     metadata: {
       name: 'pn-address-manager-POSTEL-downstream-detection-Alarm',
@@ -24,6 +24,7 @@ export function buildRunbook(): Runbook {
       tags: ['service', 'pn-address-manager', 'downstream', 'POSTEL', 'batch-retry'],
     },
     service: SERVICE,
+    downstream: DOWNSTREAM,
     knownCases: KNOWN_CASES,
     occurrenceTimeWindow: {
       beforeMinutes: 10,

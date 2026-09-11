@@ -18,7 +18,7 @@ import type { ServiceRegistry } from '../registry/ServiceRegistry.js';
 import type { ExecutionEnvironment } from '../trace/ExecutionInfo.js';
 import { assertCloudExecutableRunbook } from '../validation/assertCloudExecutableRunbook.js';
 
-import { AUTOMATIC_RUNBOOK_REGISTRY } from './runbookRegistry.js';
+import { RUNBOOK_CATALOG } from './RunbookCatalog.js';
 import { computeRunbookTimeRange } from './computeRunbookTimeRange.js';
 import { createTimeRangeReference } from './createTimeRangeReference.js';
 
@@ -63,8 +63,8 @@ export async function executeRunbookForOccurrence(
 ): Promise<RunbookOutput> {
   const resolved =
     input.runbookKey === undefined
-      ? AUTOMATIC_RUNBOOK_REGISTRY.resolveByAlarmName(input.alarmName)
-      : AUTOMATIC_RUNBOOK_REGISTRY.resolveByKey(input.runbookKey);
+      ? RUNBOOK_CATALOG.resolveByAlarmName(input.alarmName)
+      : RUNBOOK_CATALOG.resolveByKey(input.runbookKey);
   if (resolved === undefined) {
     throw new Error(
       input.runbookKey === undefined
