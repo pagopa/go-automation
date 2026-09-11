@@ -8,33 +8,45 @@ export type DownstreamDetectionQueryOptions = DownstreamDetectionQueryCommonOpti
         /** Exact service name emitted after `[DOWNSTREAM] Service` in application logs. */
         readonly downstreamName: string;
         readonly matchAnyService?: false;
+        /** HTTP status codes that must not contribute to the diagnosis. */
+        readonly excludedStatusCodes?: ReadonlyArray<number>;
+        /**
+         * Also require the marker in the parsed `message` field, not only in the
+         * raw `@message` event.
+         *
+         * The raw event carries the whole record, so a marker quoted inside a
+         * stack trace matches it while the structured field stays clean. An
+         * alarm whose metric filter reads `message` counts only the latter, and
+         * a runbook that scanned both would analyse occurrences the alarm never
+         * raised.
+         */
+        readonly matchStructuredMessage?: boolean;
       }
     | {
         /** Match the generic metric-filter contract when the alarm covers every emitted service name. */
         readonly matchAnyService: true;
         readonly downstreamName?: never;
+        // Both of these describe the exact marker, which this variant does not
+        // build: it matches `[DOWNSTREAM]` and `returned errors=` as separate
+        // fragments and never assembles a service name. Declaring them here as
+        // `never` turns passing one into a compile error rather than an option
+        // that silently does nothing; the constructor rejects them at runtime
+        // too, for options assembled dynamically.
+        readonly excludedStatusCodes?: never;
+        readonly matchStructuredMessage?: never;
       }
   );
 
 interface DownstreamDetectionQueryCommonOptions {
-  /** HTTP status codes that must not contribute to an exact-service diagnosis. */
-  readonly excludedStatusCodes?: ReadonlyArray<number>;
   /**
    * Also require `level = 'ERROR'`, as the `matchAnyService` variant always
    * does. For alarms whose metric filter carries that predicate too, so the
    * runbook counts what the alarm counted.
+   *
+   * Additive in both variants: it never removes the predicate from the generic
+   * query, which carries it by contract.
    */
   readonly errorLevelOnly?: boolean;
-  /**
-   * Also require the marker in the parsed `message` field, not only in the raw
-   * `@message` event.
-   *
-   * The raw event carries the whole record, so a marker quoted inside a stack
-   * trace matches it while the structured field stays clean. An alarm whose
-   * metric filter reads `message` counts only the latter, and a runbook that
-   * scanned both would analyse occurrences the alarm never raised.
-   */
-  readonly matchStructuredMessage?: boolean;
   /** Maximum number of chronologically ordered rows returned by Logs Insights. */
   readonly resultLimit?: number;
 }
@@ -68,6 +80,9 @@ export function buildDownstreamDetectionQuery(options: DownstreamDetectionQueryO
   if (options.matchAnyService === true) {
     if (excludedStatusCodes.length > 0) {
       throw new Error('buildDownstreamDetectionQuery: excluded status codes require an exact downstreamName.');
+    }
+    if (options.matchStructuredMessage !== undefined) {
+      throw new Error('buildDownstreamDetectionQuery: matchStructuredMessage requires an exact downstreamName.');
     }
     filters = [
       "level = 'ERROR'",
