@@ -78,6 +78,13 @@ export function buildDownstreamDetectionQuery(options: DownstreamDetectionQueryO
 
   let filters: ReadonlyArray<string>;
   if (options.matchAnyService === true) {
+    // Checked first, and the reason it is the strictest of the three: ignoring
+    // a downstreamName here would not narrow the query, it would widen it. The
+    // caller asked about one service and would get the markers of every one,
+    // so the runbook would analyse occurrences its alarm never raised.
+    if (options.downstreamName !== undefined) {
+      throw new Error('buildDownstreamDetectionQuery: downstreamName and matchAnyService are mutually exclusive.');
+    }
     if (excludedStatusCodes.length > 0) {
       throw new Error('buildDownstreamDetectionQuery: excluded status codes require an exact downstreamName.');
     }
@@ -90,7 +97,11 @@ export function buildDownstreamDetectionQuery(options: DownstreamDetectionQueryO
       `@message like ${quoteLogsInsightsString('returned errors=')}`,
     ];
   } else {
-    const downstreamName = options.downstreamName.trim();
+    // The cast covers the same dynamically assembled options as the guards
+    // above: the union makes the name mandatory here, but an object built at
+    // runtime can arrive without it, and `.trim()` would then throw a
+    // TypeError that names neither the option nor the function.
+    const downstreamName = (options.downstreamName as string | undefined)?.trim() ?? '';
     if (downstreamName === '') {
       throw new Error('buildDownstreamDetectionQuery: downstreamName must be a non-empty string.');
     }

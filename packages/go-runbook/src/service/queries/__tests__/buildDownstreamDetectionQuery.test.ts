@@ -55,17 +55,27 @@ describe('buildDownstreamDetectionQuery', () => {
   });
 
   it('rejects exact-service options on the generic variant instead of ignoring them', () => {
-    // Both calls are compile errors for a typed caller: the options live in the
-    // exact-service arm of the union. The assertions bypass that on purpose,
-    // because the runtime guard is what protects options assembled dynamically,
-    // and because an option that silently does nothing is the bug being tested.
-    const generic = (options: Record<string, unknown>): string =>
+    // Every call here is a compile error for a typed caller: these options
+    // live in the exact-service arm of the union. The assertions bypass that on
+    // purpose, because the runtime guard is what protects options assembled
+    // dynamically, and because an option that silently does nothing — or worse,
+    // silently widens the query — is the bug being tested.
+    const untyped = (options: Record<string, unknown>): string =>
       buildDownstreamDetectionQuery(options as unknown as DownstreamDetectionQueryOptions);
 
-    assert.throws(() => generic({ matchAnyService: true, excludedStatusCodes: [404] }), /exact downstreamName/);
-    assert.throws(() => generic({ matchAnyService: true, matchStructuredMessage: true }), /exact downstreamName/);
+    // Neither variant selected: the name is mandatory in the exact arm, so a
+    // typed caller cannot get here, and the message has to say what is missing
+    // rather than let `.trim()` throw on undefined.
+    assert.throws(() => untyped({}), /downstreamName/);
+
+    // The strictest of the three: ignoring a downstreamName would widen the
+    // query to every service rather than narrow it, so the caller would get an
+    // answer to a question it did not ask.
+    assert.throws(() => untyped({ matchAnyService: true, downstreamName: 'IPA' }), /mutually exclusive/);
+    assert.throws(() => untyped({ matchAnyService: true, excludedStatusCodes: [404] }), /exact downstreamName/);
+    assert.throws(() => untyped({ matchAnyService: true, matchStructuredMessage: true }), /exact downstreamName/);
     // `false` asks for the same thing as `true` here — neither is buildable —
     // so it must be rejected rather than read as "nothing requested".
-    assert.throws(() => generic({ matchAnyService: true, matchStructuredMessage: false }), /exact downstreamName/);
+    assert.throws(() => untyped({ matchAnyService: true, matchStructuredMessage: false }), /exact downstreamName/);
   });
 });
