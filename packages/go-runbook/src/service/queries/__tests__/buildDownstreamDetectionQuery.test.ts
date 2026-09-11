@@ -54,6 +54,26 @@ describe('buildDownstreamDetectionQuery', () => {
     assert.throws(() => buildDownstreamDetectionQuery({ downstreamName: 'IPA', resultLimit: 0 }), /resultLimit/);
   });
 
+  it('excludes status codes on the same field the inclusion reads', () => {
+    // Left on `@message`, the exclusion would drop a record whose structured
+    // `message` says `errors=500` whenever the raw event quotes a 404 anywhere
+    // else — a stack trace, an embedded retry — suppressing an occurrence the
+    // alarm counted. Both predicates have to read the same field.
+    const structured = buildDownstreamDetectionQuery({
+      downstreamName: 'IO',
+      excludedStatusCodes: [404],
+      matchStructuredMessage: true,
+    });
+    assert.match(structured, /(?<![@\w])message not like '\[DOWNSTREAM\] Service IO returned errors=404'/u);
+    assert.doesNotMatch(structured, /@message not like/u);
+
+    // Without the option the alarm counts the raw event, so the exclusion
+    // stays there.
+    const raw = buildDownstreamDetectionQuery({ downstreamName: 'IO', excludedStatusCodes: [404] });
+    assert.match(raw, /@message not like '\[DOWNSTREAM\] Service IO returned errors=404'/u);
+    assert.doesNotMatch(raw, /(?<![@\w])message not like/u);
+  });
+
   it('rejects exact-service options on the generic variant instead of ignoring them', () => {
     // Every call here is a compile error for a typed caller: these options
     // live in the exact-service arm of the union. The assertions bypass that on
