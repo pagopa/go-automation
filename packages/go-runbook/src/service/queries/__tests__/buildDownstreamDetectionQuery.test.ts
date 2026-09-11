@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import type { DownstreamDetectionQueryOptions } from '../buildDownstreamDetectionQuery.js';
 import { buildDownstreamDetectionQuery } from '../buildDownstreamDetectionQuery.js';
 
 describe('buildDownstreamDetectionQuery', () => {
@@ -51,9 +52,20 @@ describe('buildDownstreamDetectionQuery', () => {
       /status codes/,
     );
     assert.throws(() => buildDownstreamDetectionQuery({ downstreamName: 'IPA', resultLimit: 0 }), /resultLimit/);
-    assert.throws(
-      () => buildDownstreamDetectionQuery({ matchAnyService: true, excludedStatusCodes: [404] }),
-      /exact downstreamName/,
-    );
+  });
+
+  it('rejects exact-service options on the generic variant instead of ignoring them', () => {
+    // Both calls are compile errors for a typed caller: the options live in the
+    // exact-service arm of the union. The assertions bypass that on purpose,
+    // because the runtime guard is what protects options assembled dynamically,
+    // and because an option that silently does nothing is the bug being tested.
+    const generic = (options: Record<string, unknown>): string =>
+      buildDownstreamDetectionQuery(options as unknown as DownstreamDetectionQueryOptions);
+
+    assert.throws(() => generic({ matchAnyService: true, excludedStatusCodes: [404] }), /exact downstreamName/);
+    assert.throws(() => generic({ matchAnyService: true, matchStructuredMessage: true }), /exact downstreamName/);
+    // `false` asks for the same thing as `true` here — neither is buildable —
+    // so it must be rejected rather than read as "nothing requested".
+    assert.throws(() => generic({ matchAnyService: true, matchStructuredMessage: false }), /exact downstreamName/);
   });
 });
