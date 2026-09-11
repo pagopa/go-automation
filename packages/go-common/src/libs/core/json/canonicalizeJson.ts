@@ -40,7 +40,10 @@ export function canonicalizeJson(value: unknown): string {
  */
 function serializeJsonValue(value: unknown): string | undefined {
   if (Array.isArray(value)) {
-    return `[${value.map((item) => serializeJsonValue(item) ?? 'null').join(',')}]`;
+    // `Array.from`, not `map`: `map` skips holes and leaves them as holes, and
+    // joining those writes nothing between the commas. A sparse array would
+    // come out as `[1,,3]`, which is not even parseable JSON.
+    return `[${Array.from(value, (item: unknown) => serializeJsonValue(item) ?? 'null').join(',')}]`;
   }
 
   if (typeof value === 'object' && value !== null) {
