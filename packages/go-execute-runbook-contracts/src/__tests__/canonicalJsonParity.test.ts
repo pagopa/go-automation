@@ -16,7 +16,14 @@ import { canonicalizeJson as contractsCanonicalizeJson } from '../canonicalJson.
  * test keeps them honest, which is why the corpus covers each branch of the
  * algorithm rather than a couple of happy paths.
  */
+// Built by assignment because a sparse literal is a lint error. A hole is not
+// the same as an explicit `undefined`: JSON writes both as null, but only one
+// of the two survives `Array.prototype.map`.
+const arrayWithHole: number[] = [1];
+arrayWithHole[2] = 3;
+
 const CORPUS: ReadonlyArray<readonly [string, unknown]> = [
+  ['array with a hole', arrayWithHole],
   ['primitives', [1, -0, 'x', true, false, null]],
   ['empty containers', { a: {}, b: [] }],
   ['key order', { zeta: 1, Alpha: 2, alpha: 3, _under: 4, '0': 5, '': 6 }],

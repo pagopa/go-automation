@@ -42,6 +42,23 @@ describe('canonicalizeJson', () => {
     assert.strictEqual(canonicalizeJson(['b', 'a', 'c']), '["b","a","c"]');
   });
 
+  it('writes a hole in an array as null', () => {
+    // `Array.prototype.map` skips holes and leaves them as holes, so joining
+    // the result writes nothing between the commas: the output was `[1,,3]`,
+    // which is not parseable JSON at all. Built by assignment because a sparse
+    // literal is a lint error.
+    const withHole: number[] = [1];
+    withHole[2] = 3;
+    const allHoles: number[] = [];
+    allHoles.length = 3;
+
+    assert.strictEqual(canonicalizeJson(withHole), '[1,null,3]');
+    assert.strictEqual(canonicalizeJson(allHoles), '[null,null,null]');
+    assert.strictEqual(canonicalizeJson({ a: allHoles }), '{"a":[null,null,null]}');
+    // The property the broken output lost: canonical JSON has to parse back.
+    assert.deepStrictEqual(JSON.parse(canonicalizeJson(withHole)), [1, null, 3]);
+  });
+
   it('writes the same text as JSON.stringify for values JSON cannot represent', () => {
     assert.strictEqual(canonicalizeJson({ absent: undefined, kept: 1 }), '{"kept":1}');
     assert.strictEqual(canonicalizeJson([undefined, 1]), '[null,1]');
