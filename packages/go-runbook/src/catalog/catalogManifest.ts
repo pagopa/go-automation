@@ -50,6 +50,7 @@ import { SELFCARE_ONBOARDING_CONSUMER_REGISTRATION } from './runbooks/k8s-intero
 // interop api gateway
 import { SELFCARE_APIGW_REGISTRATION } from './runbooks/interop-selfcare-1.0-apigw-5xx/registration.js';
 import { AUTH_SERVER_APIGW_REGISTRATION } from './runbooks/interop-auth-server-apigw-4xx/registration.js';
+import { AUTH_SERVER_5XX_APIGW_REGISTRATION } from './runbooks/interop-auth-server-apigw-5xx/registration.js';
 
 export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   // api gateway
@@ -92,4 +93,5 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   // interop api gateway
   SELFCARE_APIGW_REGISTRATION,
   AUTH_SERVER_APIGW_REGISTRATION,
+  AUTH_SERVER_5XX_APIGW_REGISTRATION,
 ];
