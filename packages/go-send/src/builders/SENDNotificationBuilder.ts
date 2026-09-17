@@ -183,7 +183,8 @@ export class SENDNotificationBuilder {
   }
 
   /**
-   * Add a recipient with both physical and digital addresses
+   * Add a recipient with both physical and digital addresses.
+   * Same recipient as {@link addDigitalRecipient}, which already carries the physical address PN requires.
    */
   addMixedRecipient(
     taxId: string,
@@ -192,14 +193,7 @@ export class SENDNotificationBuilder {
     digitalDomicile: SENDDigitalDomicile,
     recipientType: SENDRecipientType = SENDRecipientType.PF,
   ): this {
-    this.currentRecipients.push({
-      taxId,
-      denomination,
-      recipientType,
-      physicalAddress: address,
-      digitalDomicile,
-    });
-    return this;
+    return this.addDigitalRecipient(taxId, denomination, address, digitalDomicile, recipientType);
   }
 
   /**

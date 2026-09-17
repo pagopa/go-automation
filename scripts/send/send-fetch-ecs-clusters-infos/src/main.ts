@@ -55,7 +55,6 @@ export async function main(script: Core.GOScript): Promise<void> {
           script.logger.warning(
             `Cluster '${name}' not found. Check into the ${item.profile} section in ${config.configFile} for some typo. Skipping infos for this cluster...`,
           );
-          continue;
         }
       }
     }
