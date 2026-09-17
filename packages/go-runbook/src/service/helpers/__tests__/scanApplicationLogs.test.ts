@@ -48,6 +48,15 @@ describe('scanApplicationLogs', () => {
     assert.strictEqual(scan.traceIdCandidate?.canonical, CANONICAL);
   });
 
+  it('matches the label and the hex digits of a labeled trace id in any case', () => {
+    const upper = RAW_32.toUpperCase();
+    const scan = scanApplicationLogs([row({ level: 'ERROR', '@message': `TRACE-ID: ${upper}` })], SCHEMA);
+    const longer = scanApplicationLogs([row({ level: 'ERROR', '@message': `traceId=${upper}F` })], SCHEMA);
+
+    assert.strictEqual(scan.traceIdCandidate?.raw, upper);
+    assert.strictEqual(longer.traceIdCandidate, undefined);
+  });
+
   it('does NOT treat a bare 32-hex token (e.g. MD5) as a trace id when unlabeled', () => {
     const scan = scanApplicationLogs(
       [row({ level: 'ERROR', '@message': 'computed md5 5d41402abc4b2a76b9719d911017c592 for payload' })],
