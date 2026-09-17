@@ -458,13 +458,6 @@ export default tseslint.config(
   {
     files: ['**/*.ts'],
     rules: {
-      // Real findings, left visible as warnings rather than silenced: each one
-      // is a duplicate or a no-op that someone has to decide about, not a rule
-      // to argue with. Fixing them turns these back into errors.
-      'sonarjs/no-identical-functions': 'warn', // 4: two byte-identical bodies
-      'sonarjs/duplicates-in-character-class': 'warn', // 2: [0-9a-fA-F] under /i
-      'sonarjs/no-redundant-jump': 'warn', // 1: `continue` that ends a loop body
-
       // Style opinions that contradict conventions this repo already settled.
       'sonarjs/cognitive-complexity': 'off', // 73: threshold is not ours to adopt
       'sonarjs/no-nested-conditional': 'off', // 28
