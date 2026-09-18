@@ -47,7 +47,10 @@ const KNOWN_TENANT_NOT_FOUND_CONDITION: Condition = any(
   ...Object.entries(KNOWN_SELFCARE_IDS_BY_ENVIRONMENT).map(([environment, ids]) =>
     all(
       { type: 'contains', ref: 'vars.interopEnvironment', value: [environment] },
-      anyStepEvidenceMatches(TENANT_EVIDENCE_STEPS, `Tenant with selfcareId\\s+(?:${ids.join('|')})\\s+not found`),
+      anyStepEvidenceMatches(
+        TENANT_EVIDENCE_STEPS,
+        `Tenant with selfcareId[^\\n]*(?:${ids.join('|')})[^\\n]*not found`,
+      ),
     ),
   ),
 );
