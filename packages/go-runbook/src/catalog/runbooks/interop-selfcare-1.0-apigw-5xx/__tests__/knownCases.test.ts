@@ -165,6 +165,19 @@ describe('INTEROP Selfcare API Gateway known cases', () => {
     assert.strictEqual(evaluator.evaluate(generic.condition, unknownContext), true);
   });
 
+  it('suppresses a known SelfcareID when same-line details surround the ID', () => {
+    const knownId = knownCaseById('tenant-not-found-known-selfcare-id');
+    const generic = knownCaseById('tenant-not-found-selfcare-id');
+    const detailedContext = context({
+      message:
+        'Tenant with selfcareId lookup detail: 56f4f576-af5e-4a90-8be2-1ac78dec899f in tenant read model not found',
+      environment: 'prod',
+    });
+
+    assert.strictEqual(evaluator.evaluate(knownId.condition, detailedContext), true);
+    assert.strictEqual(evaluator.evaluate(generic.condition, detailedContext), false);
+  });
+
   it('suppresses each documented SelfcareID only in its listed environments', () => {
     const knownId = knownCaseById('tenant-not-found-known-selfcare-id');
     const generic = knownCaseById('tenant-not-found-selfcare-id');
