@@ -1,5 +1,8 @@
 import { escapeLogsInsightsRegexLiteral } from '@go-automation/go-common/aws';
 
+/** Maximum number of rows returned by an INTEROP API Gateway application-log query. */
+export const INTEROP_API_GW_APPLICATION_QUERY_LIMIT = 10_000;
+
 /**
  * Error scan of a service behind an INTEROP API Gateway.
  *
@@ -25,7 +28,7 @@ filter (@message like /ERROR/ or stream = "stderr" or @message like /(?i)Respons
 | parse @message "[CID=*]" as cid
 | display @timestamp, pod_app, cid, @message
 | sort @timestamp asc
-| limit 10000
+| limit ${String(INTEROP_API_GW_APPLICATION_QUERY_LIMIT)}
 `.trim();
 }
 
@@ -49,6 +52,6 @@ fields @timestamp, @message
 | stats count(*) as count, latest(@timestamp) as latestTimestamp, latest(cidValue) as cid by errorMessage
 | display latestTimestamp, count, cid, errorMessage
 | sort count desc
-| limit 10000
+| limit ${String(INTEROP_API_GW_APPLICATION_QUERY_LIMIT)}
 `.trim();
 }

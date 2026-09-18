@@ -5,4 +5,5 @@ export {
 export {
   buildInteropApiGwServiceErrorsQuery,
   buildInteropApiGwServiceWarningsQuery,
+  INTEROP_API_GW_APPLICATION_QUERY_LIMIT,
 } from './interopApiGwApplicationQueries.js';

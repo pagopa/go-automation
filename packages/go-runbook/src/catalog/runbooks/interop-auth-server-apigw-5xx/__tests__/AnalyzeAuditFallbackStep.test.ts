@@ -8,6 +8,14 @@ import {
   AUDIT_FALLBACK_PATTERN,
 } from '../AnalyzeAuditFallbackStep.js';
 import { AUTH_SERVER_5XX_ALARM as alarm } from '../alarmDefinition.js';
+import { INTEROP_API_GW_APPLICATION_QUERY_LIMIT } from '../../../../interop/apigw/queries/interopApiGwApplicationQueries.js';
+
+const SUCCESS = [
+  AUDIT_FALLBACK_PATTERN,
+  'Storing file token-details/20260911/a.ndjson in bucket interop-generated-jwt-details-fallback-prod-es1',
+  'Auditing succeeded through fallback',
+  'Token generated',
+];
 
 function context(): RunbookContext & { stepResults: Map<string, unknown> } {
   return {
@@ -50,12 +58,6 @@ describe('AnalyzeAuditFallbackStep', () => {
   });
 
   it('reads JSON-encoded logs and ignores success markers from another service', async () => {
-    const messages = [
-      AUDIT_FALLBACK_PATTERN,
-      'Storing file token-details/20260911/a.ndjson in bucket interop-generated-jwt-details-fallback-prod-es1',
-      'Auditing succeeded through fallback',
-      'Token generated',
-    ];
     for (const podApp of [alarm.serviceName, 'another-service']) {
       const ctx = context();
       ctx.stepResults.set(alarm.stepIds.queryApplicationLogs, [
@@ -64,7 +66,7 @@ describe('AnalyzeAuditFallbackStep', () => {
       ctx.stepResults.set(alarm.stepIds.queryCidTracker, [
         {
           cid: 'a',
-          rows: messages.map((message) => [
+          rows: SUCCESS.map((message) => [
             { field: 'pod_app', value: podApp },
             { field: '@message', value: JSON.stringify({ log: message }) },
           ]),
@@ -73,5 +75,38 @@ describe('AnalyzeAuditFallbackStep', () => {
       const result = await new AnalyzeAuditFallbackStep().execute(ctx);
       assert.strictEqual(result.vars?.[AUDIT_FALLBACK_CONFIRMED_VAR], String(podApp === alarm.serviceName));
     }
+  });
+
+  it('fails closed when the application evidence reaches the query row limit', async () => {
+    const ctx = context();
+    ctx.stepResults.set(alarm.stepIds.queryApplicationLogs, [
+      [
+        { field: 'cid', value: 'a' },
+        { field: '@message', value: `[CID=a] ${AUDIT_FALLBACK_PATTERN}` },
+      ],
+      ...Array.from({ length: INTEROP_API_GW_APPLICATION_QUERY_LIMIT - 1 }, (_, index) => [
+        { field: '@message', value: `ERROR unrelated-${String(index)}` },
+      ]),
+    ]);
+    ctx.stepResults.set(alarm.stepIds.queryCidTracker, [
+      {
+        cid: 'a',
+        rows: SUCCESS.map((message) => [
+          { field: 'pod_app', value: alarm.serviceName },
+          { field: '@message', value: message },
+        ]),
+      },
+    ]);
+
+    const result = await new AnalyzeAuditFallbackStep().execute(ctx);
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.vars?.[AUDIT_FALLBACK_CONFIRMED_VAR], 'false');
+    assert.deepStrictEqual(result.output, {
+      confirmedCids: ['a'],
+      unresolvedCids: [],
+      uncorrelatedErrors: 0,
+      applicationEvidenceComplete: false,
+    });
   });
 });
