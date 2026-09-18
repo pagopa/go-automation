@@ -7,12 +7,19 @@ import { escapeLogsInsightsRegexLiteral } from '@go-automation/go-common/aws';
  * a `Response 5xx` line, without an error severity.
  *
  * @param podApp - k8s pod app whose application logs are scanned
+ * @param additionalMessagePatterns - Literal message markers that must survive the severity filter
  * @returns The CloudWatch Logs Insights query
  */
-export function buildInteropApiGwServiceErrorsQuery(podApp: string): string {
+export function buildInteropApiGwServiceErrorsQuery(
+  podApp: string,
+  additionalMessagePatterns: ReadonlyArray<string> = [],
+): string {
   const escapedPodApp = escapeLogsInsightsRegexLiteral(podApp);
+  const additionalPredicates = additionalMessagePatterns
+    .map((pattern) => ` or @message like /${escapeLogsInsightsRegexLiteral(pattern)}/`)
+    .join('');
   return `
-filter (@message like /ERROR/ or stream = "stderr" or @message like /(?i)Response\\s*5[0-9]{2}/)
+filter (@message like /ERROR/ or stream = "stderr" or @message like /(?i)Response\\s*5[0-9]{2}/${additionalPredicates})
 | filter @logStream not like /adot-collector/
 | filter pod_app like /${escapedPodApp}/
 | parse @message "[CID=*]" as cid
