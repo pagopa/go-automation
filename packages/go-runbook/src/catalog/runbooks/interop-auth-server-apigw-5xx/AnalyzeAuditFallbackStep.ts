@@ -3,6 +3,7 @@ import type { Step } from '../../../types/Step.js';
 import type { StepResult } from '../../../types/StepResult.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { readCloudWatchResultRows } from '../../../steps/data/readCloudWatchResultRows.js';
+import { INTEROP_API_GW_APPLICATION_QUERY_LIMIT } from '../../../interop/apigw/queries/interopApiGwApplicationQueries.js';
 import { AUTH_SERVER_5XX_ALARM } from './alarmDefinition.js';
 import { isInteropEnvironment } from '../interop/InteropEnvironment.js';
 
@@ -14,6 +15,7 @@ interface AuditFallbackAnalysis {
   readonly confirmedCids: ReadonlyArray<string>;
   readonly unresolvedCids: ReadonlyArray<string>;
   readonly uncorrelatedErrors: number;
+  readonly applicationEvidenceComplete: boolean;
 }
 
 /** Confirms recovery only when every observed audit/Kafka failure has a complete CID trace. */
@@ -65,10 +67,19 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
     for (const cid of candidates) {
       (hasCompletedFallback(traces.get(cid) ?? [], expectedBucket) ? confirmedCids : unresolvedCids).push(cid);
     }
-    const confirmed = confirmedCids.length > 0 && unresolvedCids.length === 0 && uncorrelatedErrors === 0;
-    const output = { confirmedCids, unresolvedCids, uncorrelatedErrors };
+    // Reaching the query cap means additional failures may have been omitted. Without
+    // a total count, only a result strictly below the cap proves that the evidence is complete.
+    const applicationEvidenceComplete = application.length < INTEROP_API_GW_APPLICATION_QUERY_LIMIT;
+    const confirmed =
+      applicationEvidenceComplete &&
+      confirmedCids.length > 0 &&
+      unresolvedCids.length === 0 &&
+      uncorrelatedErrors === 0;
+    const output = { confirmedCids, unresolvedCids, uncorrelatedErrors, applicationEvidenceComplete };
     context.services.reporter.add({
-      label: `Fallback audit: ${confirmedCids.length} CID confermati, ${unresolvedCids.length} da verificare, ${uncorrelatedErrors} errori senza CID`,
+      label:
+        `Fallback audit: ${confirmedCids.length} CID confermati, ${unresolvedCids.length} da verificare, ` +
+        `${uncorrelatedErrors} errori senza CID, evidenza applicativa ${applicationEvidenceComplete ? 'completa' : 'potenzialmente troncata'}`,
     });
     return { success: true, output, vars: { [AUDIT_FALLBACK_CONFIRMED_VAR]: String(confirmed) } };
   }
