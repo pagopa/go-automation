@@ -178,6 +178,20 @@ describe('INTEROP Selfcare API Gateway known cases', () => {
     assert.strictEqual(evaluator.evaluate(generic.condition, detailedContext), false);
   });
 
+  it('keeps an unlisted SelfcareID actionable when another evidence row contains a listed ID', () => {
+    const knownId = knownCaseById('tenant-not-found-known-selfcare-id');
+    const generic = knownCaseById('tenant-not-found-selfcare-id');
+    const mixedContext = context({ message: '', environment: 'prod' }, [
+      'Tenant with selfcareId 56f4f576-af5e-4a90-8be2-1ac78dec899f not found',
+      'Tenant with selfcareId brand-new-id not found',
+    ]);
+
+    assert.strictEqual(evaluator.evaluate(knownId.condition, mixedContext), true);
+    assert.strictEqual(evaluator.evaluate(generic.condition, mixedContext), true);
+    assert.ok(generic.priority > knownId.priority);
+    assert.strictEqual(generic.analysis?.proposedStatus, 'IN_PROGRESS');
+  });
+
   it('suppresses each documented SelfcareID only in its listed environments', () => {
     const knownId = knownCaseById('tenant-not-found-known-selfcare-id');
     const generic = knownCaseById('tenant-not-found-selfcare-id');
@@ -315,8 +329,8 @@ describe('INTEROP Selfcare API Gateway known cases', () => {
   });
 });
 
-function context(fixture: Fixture): RunbookContext {
-  const rows = applicationLogRows([fixture.message]);
+function context(fixture: Fixture, messages: ReadonlyArray<string> = [fixture.message]): RunbookContext {
+  const rows = applicationLogRows(messages);
   const sourceStep =
     fixture.source === 'API_GATEWAY'
       ? SELFCARE_ALARM.stepIds.queryApiGwAggregates

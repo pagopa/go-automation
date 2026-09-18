@@ -1,7 +1,7 @@
 import { SELFCARE_ALARM } from './alarmDefinition.js';
 import { INTEROP_DOWNSTREAMS, type Condition, type KnownCase } from '../framework.js';
 import { jiraLink, slackLink } from '../common/analysisLinks.js';
-import { all, any, not } from '../common/conditions.js';
+import { all, any } from '../common/conditions.js';
 import { anyStepEvidenceMatches } from '../common/evidenceConditions.js';
 import { createInteropApiGwKnownCaseFactory } from '../interop/interopApiGwKnownCases.js';
 import { type InteropEnvironment } from '../interop/InteropEnvironment.js';
@@ -50,6 +50,18 @@ const KNOWN_TENANT_NOT_FOUND_CONDITION: Condition = any(
       anyStepEvidenceMatches(
         TENANT_EVIDENCE_STEPS,
         `Tenant with selfcareId[^\\n]*(?:${ids.join('|')})[^\\n]*not found`,
+      ),
+    ),
+  ),
+);
+const UNKNOWN_TENANT_NOT_FOUND_CONDITION: Condition = any(
+  ...Object.entries(KNOWN_SELFCARE_IDS_BY_ENVIRONMENT).map(([environment, ids]) =>
+    all(
+      { type: 'contains', ref: 'vars.interopEnvironment', value: [environment] },
+      anyStepEvidenceMatches(
+        TENANT_EVIDENCE_STEPS,
+        `Tenant with selfcareId(?![^\\n]*(?:${ids.join('|')}))[^\\n]*not found|` +
+          `Tenant not found by selfcareId(?![^\\n]*(?:${ids.join('|')}))`,
       ),
     ),
   ),
@@ -165,10 +177,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       finalActions: ['Verificare tenant nel DB read_model', 'Applicare le regole di notifica tenant'],
       links: [jiraLink('PIN-7918'), slackLink(TENANT_FINAL_CHECKS_SLACK, 'Thread verifiche tenant')],
     }),
-    condition: all(
-      anyStepEvidenceMatches(TENANT_EVIDENCE_STEPS, TENANT_NOT_FOUND_PATTERN),
-      not(KNOWN_TENANT_NOT_FOUND_CONDITION),
-    ),
+    condition: UNKNOWN_TENANT_NOT_FOUND_CONDITION,
   },
   knownCase({
     id: 'bff-session-token-origin-not-allowed',
