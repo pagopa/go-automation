@@ -25,5 +25,16 @@ describe('buildRunbook', () => {
     assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 5, afterMinutes: 1 });
     assert.ok(service.isServiceRunbookContext(runbook.runbookContext));
     assert.strictEqual(runbook.runbookContext.service.name, SELFCARE_USERS_UPDATER_ALARM.podApp);
+    assert.deepStrictEqual(runbook.analysisDefaults, {
+      runbookName: SELFCARE_USERS_UPDATER_ALARM.runbookKey,
+      links: [
+        {
+          url: 'https://pagopa.atlassian.net/wiki/spaces/GO/pages/2129330177/k8s-interop-be-selfcare-client-users-updater-errors',
+          name: SELFCARE_USERS_UPDATER_ALARM.runbookKey,
+          type: 'CONFLUENCE',
+        },
+      ],
+      resources: [{ name: SELFCARE_USERS_UPDATER_ALARM.podApp, role: 'PRIMARY' }],
+    });
   });
 });

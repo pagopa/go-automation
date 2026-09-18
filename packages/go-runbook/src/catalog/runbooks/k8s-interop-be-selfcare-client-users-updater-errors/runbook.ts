@@ -4,6 +4,9 @@ import type { Runbook } from '../framework.js';
 
 import { KNOWN_CASES } from './knownCases.js';
 
+const CONFLUENCE_RUNBOOK_URL =
+  'https://pagopa.atlassian.net/wiki/spaces/GO/pages/2129330177/k8s-interop-be-selfcare-client-users-updater-errors';
+
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
     id: SELFCARE_USERS_UPDATER_ALARM.runbookKey,
@@ -24,5 +27,15 @@ export function buildRunbook(): Runbook {
     resolveAlarmContext: SELFCARE_USERS_UPDATER_ALARM.resolveContext,
     knownCases: KNOWN_CASES,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
+    analysisDefaults: {
+      runbookName: SELFCARE_USERS_UPDATER_ALARM.runbookKey,
+      links: [
+        {
+          url: CONFLUENCE_RUNBOOK_URL,
+          name: SELFCARE_USERS_UPDATER_ALARM.runbookKey,
+          type: 'CONFLUENCE',
+        },
+      ],
+    },
   });
 }
