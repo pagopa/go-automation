@@ -2,7 +2,7 @@ import type { Runbook } from '../framework.js';
 import { interop } from '../framework.js';
 import { AUTH_SERVER_5XX_ALARM as alarm } from './alarmDefinition.js';
 import { KNOWN_CASES } from './knownCases.js';
-import { AnalyzeAuditFallbackStep } from './AnalyzeAuditFallbackStep.js';
+import { AnalyzeAuditFallbackStep, AUDIT_FALLBACK_PATTERN } from './AnalyzeAuditFallbackStep.js';
 
 export function buildRunbook(): Runbook {
   const runbook = interop.apigw.createInteropApiGwAlarmRunbook({
@@ -22,6 +22,8 @@ export function buildRunbook(): Runbook {
     queryProfile: {
       ...interop.apigw.INTEROP_API_GW_5XX_SERVICE_ERRORS_PROFILE,
       applicationLogsQueryProfileId: 'interop-k8s-auth-server-5xx',
+      buildApplicationLogsQuery: (podApp) =>
+        interop.apigw.buildInteropApiGwServiceErrorsQuery(podApp, [AUDIT_FALLBACK_PATTERN]),
     },
     apiGw: { logGroupTemplate: alarm.apiGwLogGroupTemplate, profileId: alarm.apiGwProfileId },
     application: {

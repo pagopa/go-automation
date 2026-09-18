@@ -176,6 +176,7 @@ describe('INTEROP auth-server 5xx runbook', () => {
     assert.match(queries[0] ?? '', /apigwId = "ffmbmcmreh"/u);
     assert.match(queries[0] ?? '', /status >= 500/u);
     assert.match(queries[1] ?? '', /ERROR.*stderr.*Response/u);
+    assert.match(queries[1] ?? '', /@message like \/Main auditing flow failed, going through fallback\//u);
     assert.ok(queries[1]?.includes('pod_app like /interop\\-be\\-authorization\\-server/'));
     assert.doesNotMatch(queries[1] ?? '', /not like.*Invalid claims/u);
     assert.match(queries[2] ?? '', /filter cid = "cid-1"/u);
