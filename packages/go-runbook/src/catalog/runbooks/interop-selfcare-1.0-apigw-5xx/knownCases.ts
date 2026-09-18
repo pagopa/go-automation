@@ -1,34 +1,71 @@
 import { SELFCARE_ALARM } from './alarmDefinition.js';
-import { INTEROP_DOWNSTREAMS, type KnownCase } from '../framework.js';
+import { INTEROP_DOWNSTREAMS, type Condition, type KnownCase } from '../framework.js';
 import { jiraLink, slackLink } from '../common/analysisLinks.js';
+import { all, any } from '../common/conditions.js';
+import { anyStepEvidenceMatches } from '../common/evidenceConditions.js';
 import { createInteropApiGwKnownCaseFactory } from '../interop/interopApiGwKnownCases.js';
+import { type InteropEnvironment } from '../interop/InteropEnvironment.js';
 const TENANT_FINAL_CHECKS_SLACK = 'https://pagopaspa.slack.com/archives/C06D24MANNN/p1767882976519499';
 const INVALID_ROLES_SLACK = 'https://pagopaspa.slack.com/archives/C06D24MANNN/p1767608380741029';
 const TENANT_KIND_FEEDBACK_SLACK =
   'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1782378212170059?thread_ts=1782372525.645849&cid=C0A7F9XQAT0';
 const RESPONSE_503_SLACK = 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1784212876030559';
 
-const KNOWN_SELFCARE_IDS = [
+// Confluence v103: entries without an environment retain their existing scope.
+const COMMON_KNOWN_SELFCARE_IDS = [
   '56f4f576-af5e-4a90-8be2-1ac78dec899f',
   'fc7b97a0-e921-454f-b744-4c09ae40c663',
   '1219c34e-9797-45e9-a1e7-da9fb35ed468',
-  '560a56a0-745a-44cf-b228-0493ec48dce8',
   'acb68e12-103c-4e43-983a-13ae587a6240',
   '02184e01-fff2-4170-9d8c-c52867fca6f6',
   '9357291b-3a55-4351-af16-61dcacf88b80',
-  '7467fffd-9e43-40a9-b74f-59e4d661f9fe',
-  '0a0da251-1568-4fed-82b5-10d6ccc1de7e',
-  '627dc018-0e91-47b5-9532-d0c8832f239f',
-  'a4cfa606-8981-4def-84f8-781149adb63d',
-  '8a8753ef-8adc-4baa-bfb4-22a0b39c2cdd',
-  '418ea95f-552d-4a51-8968-5b5c7531f6c9',
-  '4ee1cabf-53f4-469b-8b4b-9ac933ec1b4e',
-  '987cf14e-e746-4c85-8898-dbe960dbf11c',
 ] as const;
 
-const KNOWN_SELFCARE_ID_PATTERN = KNOWN_SELFCARE_IDS.join('|');
+const KNOWN_SELFCARE_IDS_BY_ENVIRONMENT: Readonly<Record<InteropEnvironment, ReadonlyArray<string>>> = {
+  prod: [
+    ...COMMON_KNOWN_SELFCARE_IDS,
+    '560a56a0-745a-44cf-b228-0493ec48dce8',
+    '7467fffd-9e43-40a9-b74f-59e4d661f9fe',
+    '0a0da251-1568-4fed-82b5-10d6ccc1de7e',
+    '627dc018-0e91-47b5-9532-d0c8832f239f',
+    'a4cfa606-8981-4def-84f8-781149adb63d',
+    '418ea95f-552d-4a51-8968-5b5c7531f6c9',
+    '4ee1cabf-53f4-469b-8b4b-9ac933ec1b4e',
+    '987cf14e-e746-4c85-8898-dbe960dbf11c',
+  ],
+  att: [...COMMON_KNOWN_SELFCARE_IDS, '0a0da251-1568-4fed-82b5-10d6ccc1de7e', '8a8753ef-8adc-4baa-bfb4-22a0b39c2cdd'],
+  test: [...COMMON_KNOWN_SELFCARE_IDS, '560a56a0-745a-44cf-b228-0493ec48dce8', '7467fffd-9e43-40a9-b74f-59e4d661f9fe'],
+};
+
 const TENANT_NOT_FOUND_PATTERN = 'Tenant with selfcareId[^\\n]*not found|Tenant not found by selfcareId';
-const KNOWN_TENANT_NOT_FOUND_PATTERN = `Tenant with selfcareId[^\\n]*(?:${KNOWN_SELFCARE_ID_PATTERN})[^\\n]*not found`;
+const TENANT_EVIDENCE_STEPS = [
+  SELFCARE_ALARM.stepIds.queryApiGwAggregates,
+  SELFCARE_ALARM.stepIds.queryApplicationLogs,
+  SELFCARE_ALARM.stepIds.queryCidTracker,
+];
+const KNOWN_TENANT_NOT_FOUND_CONDITION: Condition = any(
+  ...Object.entries(KNOWN_SELFCARE_IDS_BY_ENVIRONMENT).map(([environment, ids]) =>
+    all(
+      { type: 'contains', ref: 'vars.interopEnvironment', value: [environment] },
+      anyStepEvidenceMatches(
+        TENANT_EVIDENCE_STEPS,
+        `Tenant with selfcareId[^\\n]*(?:${ids.join('|')})[^\\n]*not found`,
+      ),
+    ),
+  ),
+);
+const UNKNOWN_TENANT_NOT_FOUND_CONDITION: Condition = any(
+  ...Object.entries(KNOWN_SELFCARE_IDS_BY_ENVIRONMENT).map(([environment, ids]) =>
+    all(
+      { type: 'contains', ref: 'vars.interopEnvironment', value: [environment] },
+      anyStepEvidenceMatches(
+        TENANT_EVIDENCE_STEPS,
+        `Tenant with selfcareId(?![^\\n]*(?:${ids.join('|')}))[^\\n]*not found|` +
+          `Tenant not found by selfcareId(?![^\\n]*(?:${ids.join('|')}))`,
+      ),
+    ),
+  ),
+);
 
 const knownCase = createInteropApiGwKnownCaseFactory({
   apiGatewayStepId: SELFCARE_ALARM.stepIds.queryApiGwAggregates,
@@ -39,16 +76,19 @@ const knownCase = createInteropApiGwKnownCaseFactory({
 });
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
-  knownCase({
-    id: 'tenant-not-found-known-selfcare-id',
-    description: 'Tenant non trovato per un SelfcareID esplicitamente censito come noto',
-    priority: 110,
-    regex: KNOWN_TENANT_NOT_FOUND_PATTERN,
-    resolution: 'SelfcareID presente nell’elenco del runbook: l’evidenza è attesa e non deve essere segnalata.',
-    proposedStatus: 'COMPLETED',
-    resources: ['interop-be-tenant-process'],
-    links: [jiraLink('PIN-7918')],
-  }),
+  {
+    ...knownCase({
+      id: 'tenant-not-found-known-selfcare-id',
+      description: 'Tenant non trovato per un SelfcareID esplicitamente censito come noto',
+      priority: 110,
+      regex: TENANT_NOT_FOUND_PATTERN,
+      resolution: 'SelfcareID censito come noto per questo ambiente: l’evidenza è attesa e non deve essere segnalata.',
+      proposedStatus: 'COMPLETED',
+      resources: ['interop-be-tenant-process'],
+      links: [jiraLink('PIN-7918')],
+    }),
+    condition: KNOWN_TENANT_NOT_FOUND_CONDITION,
+  },
   knownCase({
     id: 'bff-unread-notifications-in-app-manager-unavailable',
     description: 'Errore 504 nel recupero delle notifiche non lette da in-app-notification-manager',
@@ -124,19 +164,21 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     finalActions: ['Richiedere feedback al team di prodotto'],
     links: [slackLink(TENANT_KIND_FEEDBACK_SLACK, 'Thread tenant kind 004-0004')],
   }),
-  knownCase({
-    id: 'tenant-not-found-selfcare-id',
-    description: 'Tenant non trovato tramite SelfcareID',
-    priority: 620,
-    regex: TENANT_NOT_FOUND_PATTERN,
-    resolution:
-      'Verificare manualmente il tenant nel DB read_model nei diversi ambienti e applicare le regole di notifica del runbook.',
-    proposedStatus: 'IN_PROGRESS',
-    resources: ['interop-be-tenant-process'],
-    finalActions: ['Verificare tenant nel DB read_model', 'Applicare le regole di notifica tenant'],
-    links: [jiraLink('PIN-7918'), slackLink(TENANT_FINAL_CHECKS_SLACK, 'Thread verifiche tenant')],
-    excludeRegex: KNOWN_TENANT_NOT_FOUND_PATTERN,
-  }),
+  {
+    ...knownCase({
+      id: 'tenant-not-found-selfcare-id',
+      description: 'Tenant non trovato tramite SelfcareID',
+      priority: 620,
+      regex: TENANT_NOT_FOUND_PATTERN,
+      resolution:
+        'Verificare manualmente il tenant nel DB read_model nei diversi ambienti e applicare le regole di notifica del runbook.',
+      proposedStatus: 'IN_PROGRESS',
+      resources: ['interop-be-tenant-process'],
+      finalActions: ['Verificare tenant nel DB read_model', 'Applicare le regole di notifica tenant'],
+      links: [jiraLink('PIN-7918'), slackLink(TENANT_FINAL_CHECKS_SLACK, 'Thread verifiche tenant')],
+    }),
+    condition: UNKNOWN_TENANT_NOT_FOUND_CONDITION,
+  },
   knownCase({
     id: 'bff-session-token-origin-not-allowed',
     description: 'Tenant origin non consentita o SelfcareID fuori allow list',
@@ -168,11 +210,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-selfcare-entity-not-filled',
     description: 'Selfcare UserInstitutionResource non valorizzata',
-    priority: 580,
-    regex: 'Selfcare Entity not filled[^\\n]*UserInstitutionResource[^\\n]*field unknown not filled',
-    resolution: 'Caso in revisione: verificare la lavorazione PIN-7068 e i dati dell’istituzione.',
-    proposedStatus: 'IN_PROGRESS',
+    priority: 170,
+    regex: 'Selfcare entity UserInstitutionResource with field unknown not filled',
+    resolution:
+      'Comportamento atteso: il BFF restituisce volutamente 500 (fail-fast) per segnalare un dato corrotto o non conforme del provider esterno. Riferimento PIN-7068.',
+    proposedStatus: 'COMPLETED',
     environments: ['prod', 'test'],
+    downstreams: [INTEROP_DOWNSTREAMS.SELFCARE],
     links: [jiraLink('PIN-7068')],
   }),
   knownCase({
@@ -239,11 +283,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'bff-saml-not-on-or-after-not-compliant',
     description: 'Condizione SAML NotOnOrAfter non conforme',
-    priority: 170,
+    priority: 580,
     regex: 'Conditions NotOnOrAfter are not compliant',
-    resolution: 'Caso noto gestito in PIN-7913; nessuna azione immediata se resta isolato.',
-    proposedStatus: 'COMPLETED',
-    links: [jiraLink('PIN-7913')],
+    resolution: 'Risoluzione non documentata: raccogliere CID e log SAML e verificare la necessità di una hotfix.',
+    proposedStatus: 'IN_PROGRESS',
+    finalActions: ['Verificare la necessità di aprire una card di hotfix per la validazione SAML'],
   }),
   knownCase({
     id: 'authorization-process-invalid-api-role',

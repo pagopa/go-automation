@@ -71,8 +71,7 @@ const FIXTURES: ReadonlyMap<string, Fixture> = new Map([
   [
     'bff-selfcare-entity-not-filled',
     {
-      message:
-        'Selfcare Entity not filled - detail: Selfcare entity UserInstitutionResource with field unknown not filled',
+      message: 'errors: 008-0003, Selfcare entity UserInstitutionResource with field unknown not filled',
     },
   ],
   [
@@ -166,6 +165,101 @@ describe('INTEROP Selfcare API Gateway known cases', () => {
     assert.strictEqual(evaluator.evaluate(generic.condition, unknownContext), true);
   });
 
+  it('suppresses a known SelfcareID when same-line details surround the ID', () => {
+    const knownId = knownCaseById('tenant-not-found-known-selfcare-id');
+    const generic = knownCaseById('tenant-not-found-selfcare-id');
+    const detailedContext = context({
+      message:
+        'Tenant with selfcareId lookup detail: 56f4f576-af5e-4a90-8be2-1ac78dec899f in tenant read model not found',
+      environment: 'prod',
+    });
+
+    assert.strictEqual(evaluator.evaluate(knownId.condition, detailedContext), true);
+    assert.strictEqual(evaluator.evaluate(generic.condition, detailedContext), false);
+  });
+
+  it('keeps an unlisted SelfcareID actionable when another evidence row contains a listed ID', () => {
+    const knownId = knownCaseById('tenant-not-found-known-selfcare-id');
+    const generic = knownCaseById('tenant-not-found-selfcare-id');
+    const mixedContext = context({ message: '', environment: 'prod' }, [
+      'Tenant with selfcareId 56f4f576-af5e-4a90-8be2-1ac78dec899f not found',
+      'Tenant with selfcareId brand-new-id not found',
+    ]);
+
+    assert.strictEqual(evaluator.evaluate(knownId.condition, mixedContext), true);
+    assert.strictEqual(evaluator.evaluate(generic.condition, mixedContext), true);
+    assert.ok(generic.priority > knownId.priority);
+    assert.strictEqual(generic.analysis?.proposedStatus, 'IN_PROGRESS');
+  });
+
+  it('suppresses each documented SelfcareID only in its listed environments', () => {
+    const knownId = knownCaseById('tenant-not-found-known-selfcare-id');
+    const generic = knownCaseById('tenant-not-found-selfcare-id');
+    const environments = ['prod', 'att', 'test'] as const;
+    // Independently transcribed from the Confluence v103 exclusion table.
+    const exclusions: ReadonlyArray<readonly [string, ReadonlyArray<string>]> = [
+      ['56f4f576-af5e-4a90-8be2-1ac78dec899f', environments],
+      ['fc7b97a0-e921-454f-b744-4c09ae40c663', environments],
+      ['1219c34e-9797-45e9-a1e7-da9fb35ed468', environments],
+      ['560a56a0-745a-44cf-b228-0493ec48dce8', ['test', 'prod']],
+      ['acb68e12-103c-4e43-983a-13ae587a6240', environments],
+      ['02184e01-fff2-4170-9d8c-c52867fca6f6', environments],
+      ['9357291b-3a55-4351-af16-61dcacf88b80', environments],
+      ['7467fffd-9e43-40a9-b74f-59e4d661f9fe', ['test', 'prod']],
+      ['0a0da251-1568-4fed-82b5-10d6ccc1de7e', ['prod', 'att']],
+      ['627dc018-0e91-47b5-9532-d0c8832f239f', ['prod']],
+      ['a4cfa606-8981-4def-84f8-781149adb63d', ['prod']],
+      ['8a8753ef-8adc-4baa-bfb4-22a0b39c2cdd', ['att']],
+      ['418ea95f-552d-4a51-8968-5b5c7531f6c9', ['prod']],
+      ['4ee1cabf-53f4-469b-8b4b-9ac933ec1b4e', ['prod']],
+      ['987cf14e-e746-4c85-8898-dbe960dbf11c', ['prod']],
+    ];
+
+    for (const [id, allowedEnvironments] of exclusions) {
+      for (const environment of environments) {
+        const fixture = context({
+          message: `Tenant not found by selfcareId - detail: Tenant with selfcareId ${id} not found`,
+          environment,
+        });
+        const suppressed = allowedEnvironments.includes(environment);
+        assert.strictEqual(evaluator.evaluate(knownId.condition, fixture), suppressed, `${id} in ${environment}`);
+        assert.strictEqual(evaluator.evaluate(generic.condition, fixture), !suppressed, `${id} in ${environment}`);
+      }
+    }
+  });
+
+  it('recognizes both PIN-7068 message formats as expected provider-data failures in prod and test', () => {
+    const knownCase = knownCaseById('bff-selfcare-entity-not-filled');
+    const messages = [
+      'errors: 008-0003, Selfcare entity UserInstitutionResource with field unknown not filled',
+      'Selfcare Entity not filled - detail: Selfcare entity UserInstitutionResource with field unknown not filled',
+    ];
+
+    for (const message of messages) {
+      for (const environment of ['prod', 'test', 'att'] as const) {
+        for (const source of ['APPLICATION', 'CID_TRACKER'] as const) {
+          assert.strictEqual(
+            evaluator.evaluate(knownCase.condition, context({ message, environment, source })),
+            environment !== 'att',
+            `${environment}: ${source}: ${message}`,
+          );
+        }
+      }
+    }
+    assert.strictEqual(knownCase.analysis?.proposedStatus, 'COMPLETED');
+    assert.match(knownCase.analysis?.resolution ?? '', /Comportamento atteso/);
+    assert.strictEqual(
+      evaluator.evaluate(knownCase.condition, context({ message: 'errors: 008-0003, a different provider error' })),
+      false,
+    );
+  });
+
+  it('keeps the unresolved SAML case actionable for hotfix assessment', () => {
+    const knownCase = knownCaseById('bff-saml-not-on-or-after-not-compliant');
+    assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
+    assert.ok(knownCase.analysis?.finalActions?.some((action) => action.includes('hotfix')));
+  });
+
   it('keeps the BFF 004-0004 tenant-kind case separate from the purpose-process generic case', () => {
     const specific = knownCaseById('bff-tenant-kind-error-004-0004');
     const generic = knownCaseById('purpose-process-tenant-kind-not-found');
@@ -235,8 +329,8 @@ describe('INTEROP Selfcare API Gateway known cases', () => {
   });
 });
 
-function context(fixture: Fixture): RunbookContext {
-  const rows = applicationLogRows([fixture.message]);
+function context(fixture: Fixture, messages: ReadonlyArray<string> = [fixture.message]): RunbookContext {
+  const rows = applicationLogRows(messages);
   const sourceStep =
     fixture.source === 'API_GATEWAY'
       ? SELFCARE_ALARM.stepIds.queryApiGwAggregates

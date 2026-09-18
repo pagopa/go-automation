@@ -38,8 +38,11 @@ import { WORKDAY_EXTERNAL_CHANNEL_ALB_REGISTRATION } from './runbooks/workday-pn
 import { MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION } from './runbooks/pn-mandate-acceptance-failure-tech-Alarm/registration.js';
 
 // interop kubernetes
+import { AUTHORIZATION_PROCESS_REGISTRATION } from './runbooks/k8s-interop-be-authorization-process-errors/registration.js';
+import { ISTAT_IMPORTER_REGISTRATION } from './runbooks/k8s-interop-be-istat-certified-attributes-importer-errors/registration.js';
 import { ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-attribute-registry-readmodel-writer-sql-errors/registration.js';
 import { CATALOG_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-catalog-readmodel-writer-sql-errors/registration.js';
+import { ESERVICE_TEMPLATE_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-eservice-template-readmodel-writer-sql-errors/registration.js';
 import { COMPUTE_AGREEMENTS_CONSUMER_REGISTRATION } from './runbooks/k8s-interop-be-compute-agreements-consumer-errors/registration.js';
 import { BFF_REGISTRATION } from './runbooks/k8s-interop-be-backend-for-frontend-errors/registration.js';
 import { NOTIFICATION_USER_LIFECYCLE_REGISTRATION } from './runbooks/k8s-interop-be-notification-user-lifecycle-consumer-errors/registration.js';
@@ -50,6 +53,7 @@ import { SELFCARE_ONBOARDING_CONSUMER_REGISTRATION } from './runbooks/k8s-intero
 // interop api gateway
 import { SELFCARE_APIGW_REGISTRATION } from './runbooks/interop-selfcare-1.0-apigw-5xx/registration.js';
 import { AUTH_SERVER_APIGW_REGISTRATION } from './runbooks/interop-auth-server-apigw-4xx/registration.js';
+import { AUTH_SERVER_5XX_APIGW_REGISTRATION } from './runbooks/interop-auth-server-apigw-5xx/registration.js';
 
 export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   // api gateway
@@ -81,8 +85,11 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   WORKDAY_EXTERNAL_CHANNEL_ALB_REGISTRATION,
   MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION,
   // interop kubernetes
+  AUTHORIZATION_PROCESS_REGISTRATION,
+  ISTAT_IMPORTER_REGISTRATION,
   ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_REGISTRATION,
   CATALOG_READMODEL_WRITER_SQL_REGISTRATION,
+  ESERVICE_TEMPLATE_READMODEL_WRITER_SQL_REGISTRATION,
   COMPUTE_AGREEMENTS_CONSUMER_REGISTRATION,
   BFF_REGISTRATION,
   NOTIFICATION_USER_LIFECYCLE_REGISTRATION,
@@ -92,4 +99,5 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   // interop api gateway
   SELFCARE_APIGW_REGISTRATION,
   AUTH_SERVER_APIGW_REGISTRATION,
+  AUTH_SERVER_5XX_APIGW_REGISTRATION,
 ];
