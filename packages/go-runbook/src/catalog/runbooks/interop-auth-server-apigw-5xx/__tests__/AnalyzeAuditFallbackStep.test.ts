@@ -22,7 +22,17 @@ function context(): RunbookContext & { stepResults: Map<string, unknown> } {
   return {
     executionId: 'audit-test',
     startedAt: new Date(),
-    stepResults: new Map(),
+    stepResults: new Map([
+      [
+        alarm.stepIds.queryApiGwAggregates,
+        [
+          [
+            { field: 'count', value: '1' },
+            { field: 'integrationError', value: ' - ' },
+          ],
+        ],
+      ],
+    ]),
     vars: new Map([['interopEnvironment', 'prod']]),
     params: new Map(),
     logs: [],
@@ -142,6 +152,42 @@ describe('AnalyzeAuditFallbackStep', () => {
     assert.strictEqual(result.output?.additionalApplicationErrors, 1);
   });
 
+  it('confirms the CID sequence but refuses alarm completion when another API Gateway 5xx remains', async () => {
+    const ctx = context();
+    ctx.stepResults.set(alarm.stepIds.queryApiGwAggregates, [
+      [
+        { field: 'count', value: '1' },
+        { field: 'integrationError', value: ' - ' },
+      ],
+      [
+        { field: 'count', value: '1' },
+        { field: 'integrationError', value: 'Unexpected gateway transport failure' },
+      ],
+    ]);
+    ctx.stepResults.set(alarm.stepIds.queryApplicationLogs, [
+      [
+        { field: 'cid', value: 'a' },
+        { field: '@message', value: `[CID=a] ${AUDIT_FALLBACK_PATTERN}` },
+      ],
+    ]);
+    ctx.stepResults.set(alarm.stepIds.queryCidTracker, [
+      {
+        cid: 'a',
+        rows: SUCCESS.map((message) => [
+          { field: 'pod_app', value: alarm.serviceName },
+          { field: '@message', value: message },
+        ]),
+      },
+    ]);
+
+    const result = await new AnalyzeAuditFallbackStep().execute(ctx);
+
+    assert.strictEqual(result.vars?.[AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR], 'true');
+    assert.strictEqual(result.vars?.[AUDIT_FALLBACK_CONFIRMED_VAR], 'false');
+    assert.strictEqual(result.output?.apiGatewayErrorCount, 2);
+    assert.strictEqual(result.output?.apiGatewayIntegrationErrorCount, 1);
+  });
+
   it('fails closed when the application evidence reaches the query row limit', async () => {
     const ctx = context();
     ctx.stepResults.set(alarm.stepIds.queryApplicationLogs, [
@@ -174,6 +220,10 @@ describe('AnalyzeAuditFallbackStep', () => {
       uncorrelatedErrors: 0,
       additionalApplicationErrors: 0,
       applicationEvidenceComplete: false,
+      apiGatewayErrorCount: 1,
+      apiGatewayIntegrationErrorCount: 0,
+      apiGatewayCountsValid: true,
+      apiGatewayEvidenceComplete: true,
     });
   });
 });
