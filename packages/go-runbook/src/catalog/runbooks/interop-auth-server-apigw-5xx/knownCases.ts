@@ -7,6 +7,7 @@ import { AUTH_SERVER_5XX_ALARM as alarm } from './alarmDefinition.js';
 import {
   AUDIT_FALLBACK_CONFIRMED_VAR,
   AUDIT_FALLBACK_PATTERN,
+  AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR,
   KAFKA_LOCK_PATTERN,
 } from './AnalyzeAuditFallbackStep.js';
 
@@ -23,13 +24,17 @@ const fallbackConfirmed = {
   operator: '==',
   value: 'true',
 } as const;
+const fallbackSequenceConfirmed = {
+  ...fallbackConfirmed,
+  ref: `vars.${AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR}`,
+};
 const apiGatewayFallbackEvidence = stepEvidenceMatches(alarm.stepIds.queryApiGwAggregates, AUDIT_FALLBACK_PATTERN);
 const STANDALONE_KAFKA_LOCK_PATTERN = `^(?![^\\n]*${AUDIT_FALLBACK_PATTERN})[^\\n]*${KAFKA_LOCK_PATTERN}`;
 
 function unlessCorrelatedFallbackRecovered(rule: KnownCase): KnownCase {
   return {
     ...rule,
-    condition: all(rule.condition, any(not(fallbackConfirmed), apiGatewayFallbackEvidence)),
+    condition: all(rule.condition, any(not(fallbackSequenceConfirmed), apiGatewayFallbackEvidence)),
   };
 }
 

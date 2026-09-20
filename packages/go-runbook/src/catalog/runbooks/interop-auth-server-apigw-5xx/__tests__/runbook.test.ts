@@ -192,6 +192,16 @@ describe('INTEROP auth-server 5xx runbook', () => {
     assert.strictEqual(draft.proposedStatus, 'COMPLETED');
   });
 
+  it('does not close the alarm when a recovered fallback is mixed with an unknown application error', async () => {
+    const { result, draft } = await execute({
+      application: [row(FALLBACK, 'a'), row('ERROR unclassified authorization failure', 'b')],
+      traces: { a: SUCCESS },
+    });
+
+    assert.deepStrictEqual(result.matchedCases, []);
+    assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
+  });
+
   for (const [integrationError, expectedPrimaryCase] of [
     [FALLBACK, 'auth-server-audit-fallback-unverified'],
     [STANDALONE_KAFKA_TIMEOUT, 'auth-server-kafka-lock-timeout'],

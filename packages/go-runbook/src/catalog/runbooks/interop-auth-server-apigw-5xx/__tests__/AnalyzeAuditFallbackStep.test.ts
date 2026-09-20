@@ -6,6 +6,7 @@ import {
   AnalyzeAuditFallbackStep,
   AUDIT_FALLBACK_CONFIRMED_VAR,
   AUDIT_FALLBACK_PATTERN,
+  AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR,
 } from '../AnalyzeAuditFallbackStep.js';
 import { AUTH_SERVER_5XX_ALARM as alarm } from '../alarmDefinition.js';
 import { INTEROP_API_GW_APPLICATION_QUERY_LIMIT } from '../../../../interop/apigw/queries/interopApiGwApplicationQueries.js';
@@ -112,6 +113,35 @@ describe('AnalyzeAuditFallbackStep', () => {
     assert.deepStrictEqual(result.output?.confirmedCids, ['a']);
   });
 
+  it('confirms the CID sequence but refuses alarm completion when another application error remains', async () => {
+    const ctx = context();
+    ctx.stepResults.set(alarm.stepIds.queryApplicationLogs, [
+      [
+        { field: 'cid', value: 'a' },
+        { field: '@message', value: `[CID=a] ${AUDIT_FALLBACK_PATTERN}` },
+      ],
+      [
+        { field: 'cid', value: 'b' },
+        { field: '@message', value: '[CID=b] ERROR unclassified authorization failure' },
+      ],
+    ]);
+    ctx.stepResults.set(alarm.stepIds.queryCidTracker, [
+      {
+        cid: 'a',
+        rows: SUCCESS.map((message) => [
+          { field: 'pod_app', value: alarm.serviceName },
+          { field: '@message', value: message },
+        ]),
+      },
+    ]);
+
+    const result = await new AnalyzeAuditFallbackStep().execute(ctx);
+
+    assert.strictEqual(result.vars?.[AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR], 'true');
+    assert.strictEqual(result.vars?.[AUDIT_FALLBACK_CONFIRMED_VAR], 'false');
+    assert.strictEqual(result.output?.additionalApplicationErrors, 1);
+  });
+
   it('fails closed when the application evidence reaches the query row limit', async () => {
     const ctx = context();
     ctx.stepResults.set(alarm.stepIds.queryApplicationLogs, [
@@ -119,8 +149,9 @@ describe('AnalyzeAuditFallbackStep', () => {
         { field: 'cid', value: 'a' },
         { field: '@message', value: `[CID=a] ${AUDIT_FALLBACK_PATTERN}` },
       ],
-      ...Array.from({ length: INTEROP_API_GW_APPLICATION_QUERY_LIMIT - 1 }, (_, index) => [
-        { field: '@message', value: `ERROR unrelated-${String(index)}` },
+      ...Array.from({ length: INTEROP_API_GW_APPLICATION_QUERY_LIMIT - 1 }, () => [
+        { field: 'cid', value: 'a' },
+        { field: '@message', value: `[CID=a] ${AUDIT_FALLBACK_PATTERN}` },
       ]),
     ]);
     ctx.stepResults.set(alarm.stepIds.queryCidTracker, [
@@ -141,6 +172,7 @@ describe('AnalyzeAuditFallbackStep', () => {
       confirmedCids: ['a'],
       unresolvedCids: [],
       uncorrelatedErrors: 0,
+      additionalApplicationErrors: 0,
       applicationEvidenceComplete: false,
     });
   });
