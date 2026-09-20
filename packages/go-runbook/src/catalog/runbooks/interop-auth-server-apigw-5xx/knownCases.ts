@@ -1,6 +1,7 @@
 import type { KnownCase } from '../framework.js';
-import { all, not } from '../common/conditions.js';
+import { all, any, not } from '../common/conditions.js';
 import { jiraLink, slackLink } from '../common/analysisLinks.js';
+import { stepEvidenceMatches } from '../common/evidenceConditions.js';
 import { createInteropApiGwKnownCaseFactory } from '../interop/interopApiGwKnownCases.js';
 import { AUTH_SERVER_5XX_ALARM as alarm } from './alarmDefinition.js';
 import {
@@ -22,9 +23,14 @@ const fallbackConfirmed = {
   operator: '==',
   value: 'true',
 } as const;
+const apiGatewayFallbackEvidence = stepEvidenceMatches(alarm.stepIds.queryApiGwAggregates, AUDIT_FALLBACK_PATTERN);
+const STANDALONE_KAFKA_LOCK_PATTERN = `^(?![^\\n]*${AUDIT_FALLBACK_PATTERN})[^\\n]*${KAFKA_LOCK_PATTERN}`;
 
-function unlessRecovered(rule: KnownCase): KnownCase {
-  return { ...rule, condition: all(rule.condition, not(fallbackConfirmed)) };
+function unlessCorrelatedFallbackRecovered(rule: KnownCase): KnownCase {
+  return {
+    ...rule,
+    condition: all(rule.condition, any(not(fallbackConfirmed), apiGatewayFallbackEvidence)),
+  };
 }
 
 /** Nine documented families; audit fallback is split by verified outcome. */
@@ -76,7 +82,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     proposedStatus: 'IN_PROGRESS',
     links: [jiraLink('PIN-10908')],
   }),
-  unlessRecovered(
+  unlessCorrelatedFallbackRecovered(
     knownCase({
       id: 'auth-server-audit-fallback-unverified',
       description: 'Fallback audit S3 senza conferma completa di recupero',
@@ -88,18 +94,16 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       finalActions: ['Verificare salvataggio audit e generazione token per tutti i CID coinvolti'],
     }),
   ),
-  unlessRecovered(
-    knownCase({
-      id: 'auth-server-kafka-lock-timeout',
-      description: 'Timeout durante la connessione ai broker Kafka',
-      priority: 640,
-      regex: KAFKA_LOCK_PATTERN,
-      resolution:
-        'Non è richiesta una hotfix immediata. Verificare la ricorrenza e avvisare il team di prodotto se il problema si ripete.',
-      proposedStatus: 'IN_PROGRESS',
-      finalActions: ['Verificare ricorrenza e avvisare il team di prodotto se necessario'],
-    }),
-  ),
+  knownCase({
+    id: 'auth-server-kafka-lock-timeout',
+    description: 'Timeout durante la connessione ai broker Kafka',
+    priority: 640,
+    regex: STANDALONE_KAFKA_LOCK_PATTERN,
+    resolution:
+      'Non è richiesta una hotfix immediata. Verificare la ricorrenza e avvisare il team di prodotto se il problema si ripete.',
+    proposedStatus: 'IN_PROGRESS',
+    finalActions: ['Verificare ricorrenza e avvisare il team di prodotto se necessario'],
+  }),
   {
     ...knownCase({
       id: 'auth-server-audit-fallback-succeeded',

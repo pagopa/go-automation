@@ -14,6 +14,8 @@ import type { InteropEnvironment } from '../../interop/InteropEnvironment.js';
 
 const FALLBACK =
   'Main auditing flow failed, going through fallback. Error: Timeout while acquiring lock (4 waiting locks): "connect to broker b-3.interopplatformevents.gfkljw.c4.kafka.eu-south-1.amazonaws.com:9098"';
+const STANDALONE_KAFKA_TIMEOUT =
+  'ERROR - Timeout while acquiring lock (4 waiting locks): "connect to broker b-1.interopplatformevents.gfkljw.c4.kafka.eu-south-1.amazonaws.com:9098"';
 const SUCCESS = [
   FALLBACK,
   'Storing file token-details/20260626/a.ndjson in bucket interop-generated-jwt-details-fallback-prod-es1',
@@ -124,12 +126,7 @@ describe('INTEROP auth-server 5xx runbook', () => {
     ['auth-server-api-gateway-timeout', 'Execution failed due to a timeout error', 'API_GATEWAY', 'COMPLETED'],
     ['auth-server-waf-timeout', 'WAF call got timed out', 'API_GATEWAY', 'COMPLETED'],
     ['auth-server-waf-timeout', 'WAF call got timed out', 'APPLICATION', 'COMPLETED'],
-    [
-      'auth-server-kafka-lock-timeout',
-      'ERROR - Timeout while acquiring lock (4 waiting locks): "connect to broker b-1.interopplatformevents.gfkljw.c4.kafka.eu-south-1.amazonaws.com:9098',
-      'APPLICATION',
-      'IN_PROGRESS',
-    ],
+    ['auth-server-kafka-lock-timeout', STANDALONE_KAFKA_TIMEOUT, 'APPLICATION', 'IN_PROGRESS'],
     ['auth-server-audit-fallback-unverified', FALLBACK, 'APPLICATION', 'IN_PROGRESS'],
     [
       'auth-server-invalid-client-assertion-header',
@@ -194,6 +191,24 @@ describe('INTEROP auth-server 5xx runbook', () => {
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'COMPLETED');
   });
+
+  for (const [integrationError, expectedPrimaryCase] of [
+    [FALLBACK, 'auth-server-audit-fallback-unverified'],
+    [STANDALONE_KAFKA_TIMEOUT, 'auth-server-kafka-lock-timeout'],
+  ] as const) {
+    it(`keeps API Gateway-only ${expectedPrimaryCase} evidence actionable after another CID recovers`, async () => {
+      const { result, draft } = await execute({
+        integrationError,
+        application: [row(FALLBACK, 'a')],
+        traces: { a: SUCCESS },
+      });
+
+      assert.strictEqual(result.matchedCases[0]?.id, expectedPrimaryCase);
+      assert.ok(result.matchedCases.some(({ id }) => id === 'auth-server-audit-fallback-succeeded'));
+      assert.strictEqual(draft?.kind, 'KNOWN_CASE');
+      assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
+    });
+  }
 
   for (const environment of ['prod', 'att', 'test'] as const) {
     it(`uses the ${environment} API Gateway and log groups for the entire pipeline`, async () => {
