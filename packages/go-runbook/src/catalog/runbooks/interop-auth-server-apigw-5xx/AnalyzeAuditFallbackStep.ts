@@ -9,6 +9,7 @@ import { isInteropEnvironment } from '../interop/InteropEnvironment.js';
 
 export const AUDIT_FALLBACK_PATTERN = 'Main auditing flow failed, going through fallback';
 export const KAFKA_LOCK_PATTERN = 'Timeout while acquiring lock[^\\n]*connect to broker';
+export const AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR = 'interopAuthServerAuditFallbackSequenceConfirmed';
 export const AUDIT_FALLBACK_CONFIRMED_VAR = 'interopAuthServerAuditFallbackConfirmed';
 const FALLBACK_STORAGE_PATTERN = /Storing file token-details\/\S+ in bucket ([a-z0-9.-]+)(?=$|[\s"'])/u;
 const AUDIT_FALLBACK_SUCCEEDED_PATTERN = 'Auditing succeeded through fallback';
@@ -17,10 +18,11 @@ interface AuditFallbackAnalysis {
   readonly confirmedCids: ReadonlyArray<string>;
   readonly unresolvedCids: ReadonlyArray<string>;
   readonly uncorrelatedErrors: number;
+  readonly additionalApplicationErrors: number;
   readonly applicationEvidenceComplete: boolean;
 }
 
-/** Confirms recovery only when every observed audit/Kafka failure has a complete CID trace. */
+/** Confirms every fallback CID and permits completion only when no other application error remains. */
 export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
   readonly id = 'analyze-auth-server-audit-fallback';
   readonly label = 'Verifica fallback audit S3 e generazione token per CID';
@@ -43,9 +45,13 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
 
     const candidates = new Set<string>();
     let uncorrelatedErrors = 0;
+    let additionalApplicationErrors = 0;
     for (const row of application) {
       const message = readMessage(row);
-      if (!isAuditFailure(message)) continue;
+      if (!isAuditFailure(message)) {
+        additionalApplicationErrors += 1;
+        continue;
+      }
       const explicitCid = row.find((field) => field.field === 'cid' || field.field === 'CID')?.value?.trim();
       const cid =
         explicitCid !== undefined && explicitCid !== '' ? explicitCid : /\bCID=([^\]\s,"']+)/u.exec(message)?.[1];
@@ -77,18 +83,33 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
     // Reaching the query cap means additional failures may have been omitted. Without
     // a total count, only a result strictly below the cap proves that the evidence is complete.
     const applicationEvidenceComplete = application.length < INTEROP_API_GW_APPLICATION_QUERY_LIMIT;
-    const confirmed =
+    const sequenceConfirmed =
       applicationEvidenceComplete &&
       confirmedCids.length > 0 &&
       unresolvedCids.length === 0 &&
       uncorrelatedErrors === 0;
-    const output = { confirmedCids, unresolvedCids, uncorrelatedErrors, applicationEvidenceComplete };
+    const confirmed = sequenceConfirmed && additionalApplicationErrors === 0;
+    const output = {
+      confirmedCids,
+      unresolvedCids,
+      uncorrelatedErrors,
+      additionalApplicationErrors,
+      applicationEvidenceComplete,
+    };
     context.services.reporter.add({
       label:
         `Fallback audit: ${confirmedCids.length} CID confermati, ${unresolvedCids.length} da verificare, ` +
-        `${uncorrelatedErrors} errori senza CID, evidenza applicativa ${applicationEvidenceComplete ? 'completa' : 'potenzialmente troncata'}`,
+        `${uncorrelatedErrors} errori senza CID, ${additionalApplicationErrors} errori applicativi aggiuntivi, ` +
+        `evidenza applicativa ${applicationEvidenceComplete ? 'completa' : 'potenzialmente troncata'}`,
     });
-    return { success: true, output, vars: { [AUDIT_FALLBACK_CONFIRMED_VAR]: String(confirmed) } };
+    return {
+      success: true,
+      output,
+      vars: {
+        [AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR]: String(sequenceConfirmed),
+        [AUDIT_FALLBACK_CONFIRMED_VAR]: String(confirmed),
+      },
+    };
   }
 }
 
