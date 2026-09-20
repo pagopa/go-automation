@@ -77,6 +77,41 @@ describe('AnalyzeAuditFallbackStep', () => {
     }
   });
 
+  it('accepts only the correlated fallback-writer markers between auth-server boundaries', async () => {
+    const ctx = context();
+    ctx.stepResults.set(alarm.stepIds.queryApplicationLogs, [
+      [{ field: '@message', value: `[CID=a] ${AUDIT_FALLBACK_PATTERN}` }],
+    ]);
+    ctx.stepResults.set(alarm.stepIds.queryCidTracker, [
+      {
+        cid: 'a',
+        rows: [
+          [
+            { field: 'pod_app', value: alarm.serviceName },
+            { field: '@message', value: AUDIT_FALLBACK_PATTERN },
+          ],
+          [
+            { field: 'pod_app', value: 'interop-be-fallback-writer' },
+            { field: '@message', value: SUCCESS[1] ?? '' },
+          ],
+          [
+            { field: 'pod_app', value: 'interop-be-fallback-writer' },
+            { field: '@message', value: SUCCESS[2] ?? '' },
+          ],
+          [
+            { field: 'pod_app', value: alarm.serviceName },
+            { field: '@message', value: 'Token generated' },
+          ],
+        ],
+      },
+    ]);
+
+    const result = await new AnalyzeAuditFallbackStep().execute(ctx);
+
+    assert.strictEqual(result.vars?.[AUDIT_FALLBACK_CONFIRMED_VAR], 'true');
+    assert.deepStrictEqual(result.output?.confirmedCids, ['a']);
+  });
+
   it('fails closed when the application evidence reaches the query row limit', async () => {
     const ctx = context();
     ctx.stepResults.set(alarm.stepIds.queryApplicationLogs, [
