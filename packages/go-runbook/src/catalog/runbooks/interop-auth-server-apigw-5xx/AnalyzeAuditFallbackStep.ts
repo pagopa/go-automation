@@ -10,6 +10,8 @@ import { isInteropEnvironment } from '../interop/InteropEnvironment.js';
 export const AUDIT_FALLBACK_PATTERN = 'Main auditing flow failed, going through fallback';
 export const KAFKA_LOCK_PATTERN = 'Timeout while acquiring lock[^\\n]*connect to broker';
 export const AUDIT_FALLBACK_CONFIRMED_VAR = 'interopAuthServerAuditFallbackConfirmed';
+const FALLBACK_STORAGE_PATTERN = /Storing file token-details\/\S+ in bucket ([a-z0-9.-]+)(?=$|[\s"'])/u;
+const AUDIT_FALLBACK_SUCCEEDED_PATTERN = 'Auditing succeeded through fallback';
 
 interface AuditFallbackAnalysis {
   readonly confirmedCids: ReadonlyArray<string>;
@@ -57,7 +59,12 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
       if (typeof entry.cid !== 'string' || entry.cid.trim() === '') continue;
       const rows = readCloudWatchResultRows(entry.rows);
       if (rows === undefined) continue;
-      const messages = rows.filter(isAuthServerRow).map(readMessage);
+      const messages = rows.flatMap((row) => {
+        const message = readMessage(row);
+        // Failure and token-generation boundaries remain trusted only from the auth server.
+        // The two portable fallback markers may instead come from a correlated writer service.
+        return isAuthServerRow(row) || isPortableFallbackEvidence(message) ? [message] : [];
+      });
       traces.set(entry.cid, messages);
       if (messages.some(isAuditFailure)) candidates.add(entry.cid);
     }
@@ -107,17 +114,17 @@ function isAuditFailure(message: string): boolean {
   );
 }
 
+function isPortableFallbackEvidence(message: string): boolean {
+  return FALLBACK_STORAGE_PATTERN.test(message) || message.includes(AUDIT_FALLBACK_SUCCEEDED_PATTERN);
+}
+
 function hasCompletedFallback(messages: ReadonlyArray<string>, expectedBucket: string): boolean {
   // CID tracker returns chronological logs. Every new failure invalidates prior success.
   let stage = 0;
   for (const message of messages) {
     if (isAuditFailure(message)) stage = message.includes(AUDIT_FALLBACK_PATTERN) ? 1 : 0;
-    else if (
-      stage === 1 &&
-      /Storing file token-details\/\S+ in bucket ([a-z0-9.-]+)(?=$|[\s"'])/u.exec(message)?.[1] === expectedBucket
-    )
-      stage = 2;
-    else if (stage === 2 && message.includes('Auditing succeeded through fallback')) stage = 3;
+    else if (stage === 1 && FALLBACK_STORAGE_PATTERN.exec(message)?.[1] === expectedBucket) stage = 2;
+    else if (stage === 2 && message.includes(AUDIT_FALLBACK_SUCCEEDED_PATTERN)) stage = 3;
     else if (stage === 3 && message.includes('Token generated')) stage = 4;
   }
   return stage === 4;
