@@ -1,6 +1,9 @@
 import { escapeLogsInsightsString } from '@go-automation/go-common/aws';
 export type InteropApiGwStatusClass = 4 | 5;
 
+/** Maximum number of distinct rows returned by an INTEROP API Gateway aggregate query. */
+export const INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT = 10_000;
+
 /** Builds the common aggregate query for one API Gateway HTTP status family. */
 export function buildInteropApiGwStatusAggregateQuery(apiGwId: string, statusClass: InteropApiGwStatusClass): string {
   assertInteropApiGwStatusClass(statusClass);
@@ -14,7 +17,7 @@ filter apigwId = "${escapedApiGwId}"
   by status, integrationStatus, integrationError, httpMethod, requestPath, sourceIp
 | display latestTimestamp, count, status, integrationStatus, integrationError, httpMethod, requestPath, sourceIp
 | sort count desc
-| limit 10000
+| limit ${String(INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT)}
 `.trim();
 }
 

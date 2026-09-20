@@ -35,6 +35,10 @@ function row(message: string, cid?: string): ReadonlyArray<ResultField> {
 interface Scenario {
   readonly environment?: InteropEnvironment;
   readonly integrationError?: string;
+  readonly apiGatewayAggregates?: ReadonlyArray<{
+    readonly count: number;
+    readonly integrationError?: string;
+  }>;
   readonly application?: ReadonlyArray<ReadonlyArray<ResultField>>;
   readonly traces?: Readonly<Record<string, ReadonlyArray<string>>>;
 }
@@ -54,13 +58,13 @@ async function execute(scenario: Scenario): Promise<{
       queriedLogGroups.push(...logGroups);
       let rows: ReadonlyArray<ReadonlyArray<ResultField>>;
       if (logGroups[0]?.startsWith('amazon-apigateway') === true) {
-        rows = [
-          [
-            { field: 'count', value: '1' },
+        rows = (scenario.apiGatewayAggregates ?? [{ count: 1, integrationError: scenario.integrationError }]).map(
+          ({ count, integrationError }) => [
+            { field: 'count', value: String(count) },
             { field: 'status', value: '504' },
-            { field: 'integrationError', value: scenario.integrationError ?? '' },
+            { field: 'integrationError', value: integrationError ?? '' },
           ],
-        ];
+        );
       } else if (query.includes('filter cid =')) {
         const cid = /filter cid = "([^"]+)"/u.exec(query)?.[1] ?? '';
         rows = (scenario.traces?.[cid] ?? []).map((message) => row(message));
@@ -181,6 +185,7 @@ describe('INTEROP auth-server 5xx runbook', () => {
 
   it('confirms fallback recovery only after the complete sequence for every affected CID', async () => {
     const { result, draft } = await execute({
+      apiGatewayAggregates: [{ count: 2 }],
       application: [row(FALLBACK, 'a'), row(FALLBACK, 'b')],
       traces: { a: SUCCESS, b: SUCCESS },
     });
@@ -202,11 +207,22 @@ describe('INTEROP auth-server 5xx runbook', () => {
     assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
   });
 
+  it('does not close the alarm when a recovered fallback is mixed with an independent API Gateway 5xx', async () => {
+    const { result, draft } = await execute({
+      apiGatewayAggregates: [{ count: 1 }, { count: 1, integrationError: 'Unexpected gateway transport failure' }],
+      application: [row(FALLBACK, 'a')],
+      traces: { a: SUCCESS },
+    });
+
+    assert.deepStrictEqual(result.matchedCases, []);
+    assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
+  });
+
   for (const [integrationError, expectedPrimaryCase] of [
     [FALLBACK, 'auth-server-audit-fallback-unverified'],
     [STANDALONE_KAFKA_TIMEOUT, 'auth-server-kafka-lock-timeout'],
   ] as const) {
-    it(`keeps API Gateway-only ${expectedPrimaryCase} evidence actionable after another CID recovers`, async () => {
+    it(`keeps API Gateway-only ${expectedPrimaryCase} evidence actionable without closing a recovered CID`, async () => {
       const { result, draft } = await execute({
         integrationError,
         application: [row(FALLBACK, 'a')],
@@ -214,7 +230,7 @@ describe('INTEROP auth-server 5xx runbook', () => {
       });
 
       assert.strictEqual(result.matchedCases[0]?.id, expectedPrimaryCase);
-      assert.ok(result.matchedCases.some(({ id }) => id === 'auth-server-audit-fallback-succeeded'));
+      assert.ok(result.matchedCases.every(({ id }) => id !== 'auth-server-audit-fallback-succeeded'));
       assert.strictEqual(draft?.kind, 'KNOWN_CASE');
       assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
     });

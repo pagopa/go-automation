@@ -1,9 +1,11 @@
-import type { ResultField } from '@go-automation/go-common/aws';
+import { readRowField, type ResultField } from '@go-automation/go-common/aws';
 import type { Step } from '../../../types/Step.js';
 import type { StepResult } from '../../../types/StepResult.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { readCloudWatchResultRows } from '../../../steps/data/readCloudWatchResultRows.js';
 import { INTEROP_API_GW_APPLICATION_QUERY_LIMIT } from '../../../interop/apigw/queries/interopApiGwApplicationQueries.js';
+import { INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT } from '../../../interop/apigw/queries/buildInteropApiGwStatusAggregateQuery.js';
+import { normalizeInteropApiGwAggregateValue } from '../../../interop/apigw/helpers/normalizeInteropApiGwAggregateValue.js';
 import { AUTH_SERVER_5XX_ALARM } from './alarmDefinition.js';
 import { isInteropEnvironment } from '../interop/InteropEnvironment.js';
 
@@ -20,9 +22,13 @@ interface AuditFallbackAnalysis {
   readonly uncorrelatedErrors: number;
   readonly additionalApplicationErrors: number;
   readonly applicationEvidenceComplete: boolean;
+  readonly apiGatewayErrorCount: number;
+  readonly apiGatewayIntegrationErrorCount: number;
+  readonly apiGatewayCountsValid: boolean;
+  readonly apiGatewayEvidenceComplete: boolean;
 }
 
-/** Confirms every fallback CID and permits completion only when no other application error remains. */
+/** Confirms every fallback CID and permits completion only when no other application or gateway error remains. */
 export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
   readonly id = 'analyze-auth-server-audit-fallback';
   readonly label = 'Verifica fallback audit S3 e generazione token per CID';
@@ -38,9 +44,15 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
     const application = readCloudWatchResultRows(
       context.stepResults.get(AUTH_SERVER_5XX_ALARM.stepIds.queryApplicationLogs),
     );
+    const apiGateway = readCloudWatchResultRows(
+      context.stepResults.get(AUTH_SERVER_5XX_ALARM.stepIds.queryApiGwAggregates),
+    );
     const tracker: unknown = context.stepResults.get(AUTH_SERVER_5XX_ALARM.stepIds.queryCidTracker);
-    if (application === undefined || !Array.isArray(tracker)) {
-      return { success: false, error: 'Log applicativi o CID tracker non disponibili per la verifica audit' };
+    if (application === undefined || apiGateway === undefined || !Array.isArray(tracker)) {
+      return {
+        success: false,
+        error: 'Aggregati API Gateway, log applicativi o CID tracker non disponibili per la verifica audit',
+      };
     }
 
     const candidates = new Set<string>();
@@ -83,24 +95,49 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
     // Reaching the query cap means additional failures may have been omitted. Without
     // a total count, only a result strictly below the cap proves that the evidence is complete.
     const applicationEvidenceComplete = application.length < INTEROP_API_GW_APPLICATION_QUERY_LIMIT;
+    let apiGatewayErrorCount = 0;
+    let apiGatewayIntegrationErrorCount = 0;
+    let apiGatewayCountsValid = true;
+    for (const row of apiGateway) {
+      const count = readAggregateCount(row);
+      if (count === undefined) apiGatewayCountsValid = false;
+      else apiGatewayErrorCount += count;
+      if (normalizeInteropApiGwAggregateValue(readRowField(row, 'integrationError')) !== undefined) {
+        apiGatewayIntegrationErrorCount += count ?? 1;
+      }
+    }
+    const apiGatewayEvidenceComplete = apiGateway.length < INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT;
     const sequenceConfirmed =
       applicationEvidenceComplete &&
       confirmedCids.length > 0 &&
       unresolvedCids.length === 0 &&
       uncorrelatedErrors === 0;
-    const confirmed = sequenceConfirmed && additionalApplicationErrors === 0;
+    // Aggregates do not expose the application CID. Exact counts and the absence of a
+    // gateway-side integration error are therefore the strongest available correlation.
+    const apiGatewayEvidenceMatchesFallbacks =
+      apiGatewayEvidenceComplete &&
+      apiGatewayCountsValid &&
+      apiGatewayIntegrationErrorCount === 0 &&
+      apiGatewayErrorCount === confirmedCids.length;
+    const confirmed = sequenceConfirmed && additionalApplicationErrors === 0 && apiGatewayEvidenceMatchesFallbacks;
     const output = {
       confirmedCids,
       unresolvedCids,
       uncorrelatedErrors,
       additionalApplicationErrors,
       applicationEvidenceComplete,
+      apiGatewayErrorCount,
+      apiGatewayIntegrationErrorCount,
+      apiGatewayCountsValid,
+      apiGatewayEvidenceComplete,
     };
     context.services.reporter.add({
       label:
         `Fallback audit: ${confirmedCids.length} CID confermati, ${unresolvedCids.length} da verificare, ` +
         `${uncorrelatedErrors} errori senza CID, ${additionalApplicationErrors} errori applicativi aggiuntivi, ` +
-        `evidenza applicativa ${applicationEvidenceComplete ? 'completa' : 'potenzialmente troncata'}`,
+        `${apiGatewayErrorCount} errori API Gateway (${apiGatewayIntegrationErrorCount} di integrazione), ` +
+        `evidenza applicativa ${applicationEvidenceComplete ? 'completa' : 'potenzialmente troncata'}, ` +
+        `evidenza API Gateway ${apiGatewayEvidenceComplete ? 'completa' : 'potenzialmente troncata'}`,
     });
     return {
       success: true,
@@ -111,6 +148,11 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
       },
     };
   }
+}
+
+function readAggregateCount(row: ReadonlyArray<ResultField>): number | undefined {
+  const count = Number(readRowField(row, 'count'));
+  return Number.isSafeInteger(count) && count > 0 ? count : undefined;
 }
 
 function readMessage(row: ReadonlyArray<ResultField>): string {
