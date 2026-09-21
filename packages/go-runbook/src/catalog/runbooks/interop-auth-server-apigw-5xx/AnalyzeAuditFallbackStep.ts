@@ -112,13 +112,12 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
       confirmedCids.length > 0 &&
       unresolvedCids.length === 0 &&
       uncorrelatedErrors === 0;
-    // Aggregates do not expose the application CID. Exact counts and the absence of a
-    // gateway-side integration error are therefore the strongest available correlation.
+    // Aggregates do not expose the application CID: access-log request counts cannot be
+    // compared with deduplicated application CIDs because retries may emit multiple 5xx.
+    // Keep the evidence fail-closed on truncation/malformed counts and reject an explicit
+    // gateway-side integration error, without pretending the two cardinalities correlate.
     const apiGatewayEvidenceMatchesFallbacks =
-      apiGatewayEvidenceComplete &&
-      apiGatewayCountsValid &&
-      apiGatewayIntegrationErrorCount === 0 &&
-      apiGatewayErrorCount === confirmedCids.length;
+      apiGatewayEvidenceComplete && apiGatewayCountsValid && apiGatewayIntegrationErrorCount === 0;
     const confirmed = sequenceConfirmed && additionalApplicationErrors === 0 && apiGatewayEvidenceMatchesFallbacks;
     const output = {
       confirmedCids,
