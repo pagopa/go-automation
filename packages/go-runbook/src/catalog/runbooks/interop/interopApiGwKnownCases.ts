@@ -29,6 +29,7 @@ interface InteropApiGwKnownCaseConfig {
   readonly finalActions?: ReadonlyArray<string>;
   readonly links?: ReadonlyArray<AnalysisLinkRef>;
   readonly excludeRegex?: string;
+  readonly guard?: Condition;
 }
 
 type InteropApiGwKnownCaseFn = (config: InteropApiGwKnownCaseConfig) => KnownCase;
@@ -41,12 +42,13 @@ export function createInteropApiGwKnownCaseFactory(refs: InteropApiGwKnownCaseRe
       config.excludeRegex === undefined
         ? baseCondition
         : all(baseCondition, not(anyEvidenceMatches(refs, config.excludeRegex)));
+    const guardedCondition = config.guard === undefined ? matchingCondition : all(matchingCondition, config.guard);
 
     return {
       id: config.id,
       description: config.description,
       priority: config.priority,
-      condition: withEnvironment(matchingCondition, config.environments),
+      condition: withEnvironment(guardedCondition, config.environments),
       action: knownCaseAction(refs, config.description, config.resolution),
       analysis: {
         resolution: config.resolution,

@@ -207,6 +207,18 @@ describe('INTEROP auth-server 5xx runbook', () => {
     assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
   });
 
+  it('does not let a completed co-occurring case override the fallback completion guard', async () => {
+    const invalidHeader =
+      'Invalid claims in client assertion header: [{"code":"unrecognized_keys","keys":["x5c","use"]}]';
+    const { result, draft } = await execute({
+      application: [row(FALLBACK, 'a'), row(invalidHeader, 'b')],
+      traces: { a: SUCCESS },
+    });
+
+    assert.deepStrictEqual(result.matchedCases, []);
+    assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
+  });
+
   it('does not close the alarm when a recovered fallback is mixed with an independent API Gateway 5xx', async () => {
     const { result, draft } = await execute({
       apiGatewayAggregates: [{ count: 1 }, { count: 1, integrationError: 'Unexpected gateway transport failure' }],
