@@ -197,6 +197,21 @@ describe('INTEROP auth-server 5xx runbook', () => {
     assert.strictEqual(draft.proposedStatus, 'COMPLETED');
   });
 
+  it('confirms one recovered fallback CID even when API Gateway reports retried 5xx requests', async () => {
+    const { result, draft } = await execute({
+      apiGatewayAggregates: [{ count: 2 }],
+      application: [row(FALLBACK, 'a')],
+      traces: { a: SUCCESS },
+    });
+
+    assert.deepStrictEqual(
+      result.matchedCases.map((item) => item.id),
+      ['auth-server-audit-fallback-succeeded'],
+    );
+    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
+    assert.strictEqual(draft.proposedStatus, 'COMPLETED');
+  });
+
   it('does not close the alarm when a recovered fallback is mixed with an unknown application error', async () => {
     const { result, draft } = await execute({
       application: [row(FALLBACK, 'a'), row('ERROR unclassified authorization failure', 'b')],

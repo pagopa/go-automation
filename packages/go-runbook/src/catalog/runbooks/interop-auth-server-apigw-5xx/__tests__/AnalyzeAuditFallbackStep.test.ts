@@ -188,6 +188,38 @@ describe('AnalyzeAuditFallbackStep', () => {
     assert.strictEqual(result.output?.apiGatewayIntegrationErrorCount, 1);
   });
 
+  it('does not compare retried API Gateway requests with deduplicated fallback CIDs', async () => {
+    const ctx = context();
+    ctx.stepResults.set(alarm.stepIds.queryApiGwAggregates, [
+      [
+        { field: 'count', value: '2' },
+        { field: 'integrationError', value: ' - ' },
+      ],
+    ]);
+    ctx.stepResults.set(alarm.stepIds.queryApplicationLogs, [
+      [
+        { field: 'cid', value: 'a' },
+        { field: '@message', value: `[CID=a] ${AUDIT_FALLBACK_PATTERN}` },
+      ],
+    ]);
+    ctx.stepResults.set(alarm.stepIds.queryCidTracker, [
+      {
+        cid: 'a',
+        rows: SUCCESS.map((message) => [
+          { field: 'pod_app', value: alarm.serviceName },
+          { field: '@message', value: message },
+        ]),
+      },
+    ]);
+
+    const result = await new AnalyzeAuditFallbackStep().execute(ctx);
+
+    assert.strictEqual(result.vars?.[AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR], 'true');
+    assert.strictEqual(result.vars?.[AUDIT_FALLBACK_CONFIRMED_VAR], 'true');
+    assert.strictEqual(result.output?.apiGatewayErrorCount, 2);
+    assert.deepStrictEqual(result.output?.confirmedCids, ['a']);
+  });
+
   it('fails closed when the application evidence reaches the query row limit', async () => {
     const ctx = context();
     ctx.stepResults.set(alarm.stepIds.queryApplicationLogs, [
