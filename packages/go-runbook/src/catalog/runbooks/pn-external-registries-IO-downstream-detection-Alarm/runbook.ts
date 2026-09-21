@@ -16,7 +16,7 @@ export function buildRunbook(): Runbook {
       name: EXTERNAL_REGISTRIES_IO_ALARM,
       description:
         'Analizza gli errori del downstream IO su pn-external-registries, correlando il trace_id ' +
-        'e riconoscendo timeout di rete e risposte HTTP 500 con JSON incompleto.',
+        'e distinguendo timeout, errori di attivazione, indisponibilità IO/Cosmos DB ed errori applicativi.',
       version: '1.0.0',
       type: 'alarm-resolution',
       team: 'GO',
