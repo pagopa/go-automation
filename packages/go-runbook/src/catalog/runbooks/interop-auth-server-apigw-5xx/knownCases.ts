@@ -1,5 +1,5 @@
 import type { KnownCase } from '../framework.js';
-import { all, any, not } from '../common/conditions.js';
+import { any, not } from '../common/conditions.js';
 import { jiraLink, slackLink } from '../common/analysisLinks.js';
 import { stepEvidenceMatches } from '../common/evidenceConditions.js';
 import { createInteropApiGwKnownCaseFactory } from '../interop/interopApiGwKnownCases.js';
@@ -28,15 +28,9 @@ const fallbackSequenceConfirmed = {
   ...fallbackConfirmed,
   ref: `vars.${AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR}`,
 };
+const fallbackCompletionAllowed = any(not(fallbackSequenceConfirmed), fallbackConfirmed);
 const apiGatewayFallbackEvidence = stepEvidenceMatches(alarm.stepIds.queryApiGwAggregates, AUDIT_FALLBACK_PATTERN);
 const STANDALONE_KAFKA_LOCK_PATTERN = `^(?![^\\n]*${AUDIT_FALLBACK_PATTERN})[^\\n]*${KAFKA_LOCK_PATTERN}`;
-
-function unlessCorrelatedFallbackRecovered(rule: KnownCase): KnownCase {
-  return {
-    ...rule,
-    condition: all(rule.condition, any(not(fallbackSequenceConfirmed), apiGatewayFallbackEvidence)),
-  };
-}
 
 /** Nine documented families; audit fallback is split by verified outcome. */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
@@ -87,18 +81,17 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     proposedStatus: 'IN_PROGRESS',
     links: [jiraLink('PIN-10908')],
   }),
-  unlessCorrelatedFallbackRecovered(
-    knownCase({
-      id: 'auth-server-audit-fallback-unverified',
-      description: 'Fallback audit S3 senza conferma completa di recupero',
-      priority: 650,
-      regex: AUDIT_FALLBACK_PATTERN,
-      resolution:
-        'Verificare per ogni CID la scrittura in S3, Auditing succeeded through fallback e Token generated. Senza queste evidenze non è confermato il rilascio del token. Correlare anche gli allarmi k8s-interop-be-authorization-server-node-errors e generated-jwt-fallback-write-activity con il suffisso dell’ambiente analizzato.',
-      proposedStatus: 'IN_PROGRESS',
-      finalActions: ['Verificare salvataggio audit e generazione token per tutti i CID coinvolti'],
-    }),
-  ),
+  knownCase({
+    id: 'auth-server-audit-fallback-unverified',
+    description: 'Fallback audit S3 senza conferma completa di recupero',
+    priority: 650,
+    regex: AUDIT_FALLBACK_PATTERN,
+    resolution:
+      'Verificare per ogni CID la scrittura in S3, Auditing succeeded through fallback e Token generated. Senza queste evidenze non è confermato il rilascio del token. Correlare anche gli allarmi k8s-interop-be-authorization-server-node-errors e generated-jwt-fallback-write-activity con il suffisso dell’ambiente analizzato.',
+    proposedStatus: 'IN_PROGRESS',
+    finalActions: ['Verificare salvataggio audit e generazione token per tutti i CID coinvolti'],
+    guard: any(not(fallbackSequenceConfirmed), apiGatewayFallbackEvidence),
+  }),
   knownCase({
     id: 'auth-server-kafka-lock-timeout',
     description: 'Timeout durante la connessione ai broker Kafka',
@@ -128,6 +121,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     regex: 'Invalid claims in client assertion header:[^\\n]*unrecognized_keys[^\\n]*x5c[^\\n]*use',
     resolution: 'Picco di richieste malformate con chiavi x5c e use non valide nell’header della client assertion.',
     proposedStatus: 'COMPLETED',
+    guard: fallbackCompletionAllowed,
   }),
   knownCase({
     id: 'auth-server-waf-timeout',
@@ -136,6 +130,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     regex: 'WAF call got timed out',
     resolution: 'Momentaneo disservizio del WAF; nessun intervento previsto dal runbook.',
     proposedStatus: 'COMPLETED',
+    guard: fallbackCompletionAllowed,
   }),
   knownCase({
     id: 'auth-server-api-gateway-timeout',
@@ -146,5 +141,6 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     resolution:
       'Timeout temporaneo di rete oltre 29000 ms; solitamente non associato a errori del pod authorization-server.',
     proposedStatus: 'COMPLETED',
+    guard: fallbackCompletionAllowed,
   }),
 ];
