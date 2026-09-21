@@ -46,6 +46,7 @@ import { ESERVICE_TEMPLATE_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/
 import { COMPUTE_AGREEMENTS_CONSUMER_REGISTRATION } from './runbooks/k8s-interop-be-compute-agreements-consumer-errors/registration.js';
 import { BFF_REGISTRATION } from './runbooks/k8s-interop-be-backend-for-frontend-errors/registration.js';
 import { NOTIFICATION_USER_LIFECYCLE_REGISTRATION } from './runbooks/k8s-interop-be-notification-user-lifecycle-consumer-errors/registration.js';
+import { PURPOSE_OUTBOUND_WRITER_REGISTRATION } from './runbooks/k8s-interop-be-purpose-outbound-writer-errors/registration.js';
 import { PUBLIC_CATALOG_REGISTRATION } from './runbooks/k8s-interop-public-catalog-astro-frontend-errors/registration.js';
 import { SELFCARE_USERS_UPDATER_REGISTRATION } from './runbooks/k8s-interop-be-selfcare-client-users-updater-errors/registration.js';
 import { SELFCARE_ONBOARDING_CONSUMER_REGISTRATION } from './runbooks/k8s-interop-be-selfcare-onboarding-consumer-errors/registration.js';
@@ -93,6 +94,7 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   COMPUTE_AGREEMENTS_CONSUMER_REGISTRATION,
   BFF_REGISTRATION,
   NOTIFICATION_USER_LIFECYCLE_REGISTRATION,
+  PURPOSE_OUTBOUND_WRITER_REGISTRATION,
   PUBLIC_CATALOG_REGISTRATION,
   SELFCARE_USERS_UPDATER_REGISTRATION,
   SELFCARE_ONBOARDING_CONSUMER_REGISTRATION,
