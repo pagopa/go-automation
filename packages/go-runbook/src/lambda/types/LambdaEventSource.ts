@@ -3,4 +3,4 @@
  * analysis pipeline, but it is surfaced in the output and can hint at
  * follow-up checks (e.g. SQS retries/DLQ for `sqs`).
  */
-export type LambdaEventSource = 'api-gateway-authorizer' | 'sqs' | 'scheduled' | 'unknown';
+export type LambdaEventSource = 'api-gateway-authorizer' | 'cloudwatch-logs' | 'sqs' | 'scheduled' | 'unknown';
