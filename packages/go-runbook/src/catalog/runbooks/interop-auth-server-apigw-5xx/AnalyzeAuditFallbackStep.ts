@@ -4,7 +4,7 @@ import type { StepResult } from '../../../types/StepResult.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { readCloudWatchResultRows } from '../../../steps/data/readCloudWatchResultRows.js';
 import { INTEROP_API_GW_APPLICATION_QUERY_LIMIT } from '../../../interop/apigw/queries/interopApiGwApplicationQueries.js';
-import { INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT } from '../../../interop/apigw/queries/buildInteropApiGwStatusAggregateQuery.js';
+import { INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT } from '../../../interop/apigw/queries/index.js';
 import { normalizeInteropApiGwAggregateValue } from '../../../interop/apigw/helpers/normalizeInteropApiGwAggregateValue.js';
 import { AUTH_SERVER_5XX_ALARM } from './alarmDefinition.js';
 import { isInteropEnvironment } from '../interop/InteropEnvironment.js';
