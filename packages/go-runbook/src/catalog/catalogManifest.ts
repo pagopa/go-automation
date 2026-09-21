@@ -22,6 +22,7 @@ import { JWKS_CACHE_REFRESH_LAMBDA_REGISTRATION } from './runbooks/pn-jwksCacheR
 import { DELIVERY_INSERT_TRIGGER_EB_LAMBDA_REGISTRATION } from './runbooks/pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm/registration.js';
 import { LOLLIPOP_AUTHORIZER_LAMBDA_REGISTRATION } from './runbooks/pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm/registration.js';
 import { SENDER_DASHBOARD_DATA_INDEXER_REGISTRATION } from './runbooks/pn-bff-SenderDashboardDataIndexer-LogInvocationErrors-Alarm/registration.js';
+import { DOWNSTREAM_MONITORING_LAMBDA_REGISTRATION } from './runbooks/pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm/registration.js';
 
 // service logs
 import { EMD_DOWNSTREAM_DETECTION_REGISTRATION } from './runbooks/emd-downstream-detection-Alarm/registration.js';
@@ -45,6 +46,7 @@ import { CATALOG_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-intero
 import { ESERVICE_TEMPLATE_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-eservice-template-readmodel-writer-sql-errors/registration.js';
 import { COMPUTE_AGREEMENTS_CONSUMER_REGISTRATION } from './runbooks/k8s-interop-be-compute-agreements-consumer-errors/registration.js';
 import { BFF_REGISTRATION } from './runbooks/k8s-interop-be-backend-for-frontend-errors/registration.js';
+import { NOTIFIER_REGISTRATION } from './runbooks/k8s-interop-be-notifier-errors/registration.js';
 import { NOTIFICATION_USER_LIFECYCLE_REGISTRATION } from './runbooks/k8s-interop-be-notification-user-lifecycle-consumer-errors/registration.js';
 import { PURPOSE_OUTBOUND_WRITER_REGISTRATION } from './runbooks/k8s-interop-be-purpose-outbound-writer-errors/registration.js';
 import { PUBLIC_CATALOG_REGISTRATION } from './runbooks/k8s-interop-public-catalog-astro-frontend-errors/registration.js';
@@ -72,6 +74,7 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   DELIVERY_INSERT_TRIGGER_EB_LAMBDA_REGISTRATION,
   LOLLIPOP_AUTHORIZER_LAMBDA_REGISTRATION,
   SENDER_DASHBOARD_DATA_INDEXER_REGISTRATION,
+  DOWNSTREAM_MONITORING_LAMBDA_REGISTRATION,
   // service logs
   EMD_DOWNSTREAM_DETECTION_REGISTRATION,
   EXTERNAL_REGISTRIES_ONE_TRUST_REGISTRATION,
@@ -93,6 +96,7 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   ESERVICE_TEMPLATE_READMODEL_WRITER_SQL_REGISTRATION,
   COMPUTE_AGREEMENTS_CONSUMER_REGISTRATION,
   BFF_REGISTRATION,
+  NOTIFIER_REGISTRATION,
   NOTIFICATION_USER_LIFECYCLE_REGISTRATION,
   PURPOSE_OUTBOUND_WRITER_REGISTRATION,
   PUBLIC_CATALOG_REGISTRATION,

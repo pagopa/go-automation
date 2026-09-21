@@ -29,6 +29,15 @@ describe('RUNBOOK_CATALOG', () => {
     assert.deepStrictEqual(resolved.descriptor.categories, ['DELIVERY']);
   });
 
+  it('registers the downstream monitoring alarm as a SEND integration Lambda runbook', () => {
+    const resolved = RUNBOOK_CATALOG.resolveByAlarmName('pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm');
+
+    assert.ok(resolved);
+    assert.strictEqual(resolved.product, 'SEND');
+    assert.strictEqual(resolved.descriptor.kind, 'LAMBDA');
+    assert.deepStrictEqual(resolved.descriptor.categories, ['INTEGRATION']);
+  });
+
   it('registers the pn-mandate acceptance failure alarm as a SEND authorization service runbook', () => {
     const resolved = RUNBOOK_CATALOG.resolveByAlarmName('pn-mandate-acceptance-failure-tech-Alarm');
 

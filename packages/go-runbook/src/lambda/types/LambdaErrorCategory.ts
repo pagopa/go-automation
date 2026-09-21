@@ -9,7 +9,7 @@
 export type LambdaErrorCategory =
   | 'timeout' // 'Status: timeout' | 'Task timed out'
   | 'out-of-memory' // 'OutOfMemory' | 'JavaScript heap out of memory' | 'signal: killed' | MaxMemoryUsed >= MemorySize
-  | 'throttle' // 'Rate Exceeded' | 'TooManyRequestsException'
+  | 'throttle' // 'Rate Exceeded' | 'TooManyRequestsException' | 'SlowDown'
   | 'downstream' // 'External service <X> returned errors' | DownstreamErrorPattern match
   | 'application-error' // 'ERROR' | 'Exception' | 'Status: error'
   | 'unknown';

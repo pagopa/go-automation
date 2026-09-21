@@ -38,6 +38,12 @@ describe('classifyLambdaError', () => {
   it('classifies throttle, downstream and application errors', () => {
     assert.strictEqual(classifyLambdaError('Rate Exceeded'), 'throttle');
     assert.strictEqual(
+      classifyLambdaError(
+        'ERROR Invoke Error {"errorType":"SlowDown","errorMessage":"Please reduce your request rate."}',
+      ),
+      'throttle',
+    );
+    assert.strictEqual(
       classifyLambdaError('External service pn-emd-integration returned errors { status code 404 }'),
       'downstream',
     );
