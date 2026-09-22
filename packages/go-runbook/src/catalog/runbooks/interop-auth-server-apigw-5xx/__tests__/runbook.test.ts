@@ -40,7 +40,13 @@ interface Scenario {
     readonly integrationError?: string;
   }>;
   readonly application?: ReadonlyArray<ReadonlyArray<ResultField>>;
-  readonly traces?: Readonly<Record<string, ReadonlyArray<string>>>;
+  readonly traces?: Readonly<Record<string, ReadonlyArray<string | TrackerMessage>>>;
+}
+
+interface TrackerMessage {
+  readonly message: string;
+  readonly podApp: string;
+  readonly stream?: string;
 }
 
 async function execute(scenario: Scenario): Promise<{
@@ -67,7 +73,15 @@ async function execute(scenario: Scenario): Promise<{
         );
       } else if (query.includes('filter cid =')) {
         const cid = /filter cid = "([^"]+)"/u.exec(query)?.[1] ?? '';
-        rows = (scenario.traces?.[cid] ?? []).map((message) => row(message));
+        rows = (scenario.traces?.[cid] ?? []).map((evidence) =>
+          typeof evidence === 'string'
+            ? row(evidence)
+            : [
+                { field: 'pod_app', value: evidence.podApp },
+                ...(evidence.stream === undefined ? [] : [{ field: 'stream', value: evidence.stream }]),
+                { field: '@message', value: evidence.message },
+              ],
+        );
       } else rows = scenario.application ?? [];
       return {
         rows,
@@ -181,6 +195,7 @@ describe('INTEROP auth-server 5xx runbook', () => {
     assert.ok(queries[1]?.includes('pod_app like /interop\\-be\\-authorization\\-server/'));
     assert.doesNotMatch(queries[1] ?? '', /not like.*Invalid claims/u);
     assert.match(queries[2] ?? '', /filter cid = "cid-1"/u);
+    assert.match(queries[2] ?? '', /display @timestamp, pod_app, cid, stream, @message/u);
   });
 
   it('confirms fallback recovery only after the complete sequence for every affected CID', async () => {
@@ -216,6 +231,25 @@ describe('INTEROP auth-server 5xx runbook', () => {
     const { result, draft } = await execute({
       application: [row(FALLBACK, 'a'), row('ERROR unclassified authorization failure', 'b')],
       traces: { a: SUCCESS },
+    });
+
+    assert.deepStrictEqual(result.matchedCases, []);
+    assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
+  });
+
+  it('does not close the alarm when a correlated service emits an unknown error', async () => {
+    const { result, draft } = await execute({
+      application: [row(FALLBACK, 'a')],
+      traces: {
+        a: [
+          ...SUCCESS,
+          {
+            message: 'Unclassified fallback-writer failure',
+            podApp: 'interop-be-fallback-writer',
+            stream: 'stderr',
+          },
+        ],
+      },
     });
 
     assert.deepStrictEqual(result.matchedCases, []);
