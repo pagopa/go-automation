@@ -7,59 +7,59 @@ settings:
 catalogs:
   default:
     '@aws-sdk/client-athena':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/client-bedrock-runtime':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/client-cloudformation':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/client-cloudwatch':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/client-cloudwatch-logs':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/client-dynamodb':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/client-ec2':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/client-ecs':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/client-eventbridge':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/client-kinesis':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/client-kms':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/client-lambda':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/client-s3':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/client-scheduler':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/client-secrets-manager':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/client-sqs':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/client-ssm':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/client-sts':
-      specifier: 3.1134.0
-      version: 3.1134.0
+      specifier: 3.1136.0
+      version: 3.1136.0
     '@aws-sdk/credential-provider-ini':
       specifier: 3.973.16
       version: 3.973.16
@@ -217,19 +217,19 @@ importers:
     devDependencies:
       '@aws-sdk/client-lambda':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-s3':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-secrets-manager':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-sts':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@eslint/js':
         specifier: 'catalog:'
-        version: 10.0.1(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))
+        version: 10.0.1(eslint@10.10.0(jiti@2.7.0))
       '@inquirer/prompts':
         specifier: 'catalog:'
         version: 8.7.2(@types/node@24.13.3)
@@ -238,28 +238,28 @@ importers:
         version: 24.13.3
       '@typescript-eslint/eslint-plugin':
         specifier: 'catalog:'
-        version: 8.70.0(@typescript-eslint/parser@8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+        version: 8.70.0(@typescript-eslint/parser@8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)
       '@typescript-eslint/parser':
         specifier: 'catalog:'
-        version: 8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+        version: 8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)
       dependency-cruiser:
         specifier: 'catalog:'
         version: 18.3.1
       eslint:
         specifier: 'catalog:'
-        version: 10.10.0(jiti@2.7.0)(supports-color@10.2.2)
+        version: 10.10.0(jiti@2.7.0)
       eslint-config-prettier:
         specifier: 'catalog:'
-        version: 10.1.8(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))
+        version: 10.1.8(eslint@10.10.0(jiti@2.7.0))
       eslint-plugin-prettier:
         specifier: 'catalog:'
-        version: 5.5.6(eslint-config-prettier@10.1.8(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2)))(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(prettier@3.9.7)
+        version: 5.5.6(eslint-config-prettier@10.1.8(eslint@10.10.0(jiti@2.7.0)))(eslint@10.10.0(jiti@2.7.0))(prettier@3.9.7)
       eslint-plugin-security:
         specifier: 'catalog:'
         version: 4.0.1
       eslint-plugin-sonarjs:
         specifier: 'catalog:'
-        version: 4.2.1(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))
+        version: 4.2.1(eslint@10.10.0(jiti@2.7.0))
       globals:
         specifier: 'catalog:'
         version: 17.12.0
@@ -271,7 +271,7 @@ importers:
         version: 6.36.0
       license-report:
         specifier: 'catalog:'
-        version: 6.8.5(supports-color@10.2.2)
+        version: 6.8.5
       prettier:
         specifier: 'catalog:'
         version: 3.9.7
@@ -286,13 +286,13 @@ importers:
         version: 6.0.3
       typescript-eslint:
         specifier: 'catalog:'
-        version: 8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+        version: 8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)
 
   functions/go-AILambda:
     dependencies:
       '@aws-sdk/client-bedrock-runtime':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/credential-provider-ini':
         specifier: 'catalog:'
         version: 3.973.16
@@ -314,7 +314,7 @@ importers:
     dependencies:
       '@aws-sdk/client-lambda':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
     devDependencies:
       '@types/aws-lambda':
         specifier: 'catalog:'
@@ -374,7 +374,7 @@ importers:
     dependencies:
       '@aws-sdk/client-s3':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@go-automation/go-common':
         specifier: workspace:*
         version: link:../../packages/go-common
@@ -412,7 +412,7 @@ importers:
     dependencies:
       '@aws-sdk/client-bedrock-runtime':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/credential-provider-ini':
         specifier: 'catalog:'
         version: 3.973.16
@@ -447,61 +447,61 @@ importers:
     dependencies:
       '@aws-sdk/client-athena':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-cloudformation':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-cloudwatch':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-cloudwatch-logs':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-dynamodb':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-ec2':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-ecs':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-eventbridge':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-kinesis':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-kms':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-lambda':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-s3':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-scheduler':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-secrets-manager':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-sqs':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-ssm':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/client-sts':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/credential-provider-ini':
         specifier: 'catalog:'
         version: 3.973.16
       '@aws-sdk/util-dynamodb':
         specifier: 'catalog:'
-        version: 3.996.9(@aws-sdk/client-dynamodb@3.1134.0)
+        version: 3.996.9(@aws-sdk/client-dynamodb@3.1136.0)
       '@inquirer/prompts':
         specifier: 'catalog:'
         version: 8.7.2(@types/node@24.13.3)
@@ -588,7 +588,7 @@ importers:
     devDependencies:
       '@aws-sdk/client-dynamodb':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3
@@ -701,7 +701,7 @@ importers:
     dependencies:
       '@aws-sdk/client-lambda':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/credential-provider-ini':
         specifier: 'catalog:'
         version: 3.973.16
@@ -833,7 +833,7 @@ importers:
     dependencies:
       '@aws-sdk/client-s3':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/credential-provider-ini':
         specifier: 'catalog:'
         version: 3.973.16
@@ -895,7 +895,7 @@ importers:
     dependencies:
       '@aws-sdk/client-athena':
         specifier: 'catalog:'
-        version: 3.1134.0
+        version: 3.1136.0
       '@aws-sdk/credential-provider-ini':
         specifier: 'catalog:'
         version: 3.973.16
@@ -946,148 +946,112 @@ packages:
     resolution: {integrity: sha512-6uTniZc87q+B5eXouGTl+7Tmc482rEeCcvxpsvREP8EfF0gvloRZ41UOA9sbSJlyy8TbqIBXb3kKfKarEArUQA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-athena@3.1134.0':
-    resolution: {integrity: sha512-eMVJDlknalUBcvBcyyQhpzpbik1vy5my6EaIGKT3CK0ZzQXlmNdG5FaAYNvua+ItKVQoQ/N7PHC3CLb0Hn431A==}
+  '@aws-sdk/client-athena@3.1136.0':
+    resolution: {integrity: sha512-+aefzX5iNrERyxgr/8/i2o+J9hjZCxt4a1AbQEfm0bIaWb/2j0TMKlKfZyX0Hlluov6pshLG2F1vC1u2qwoa9g==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-bedrock-runtime@3.1134.0':
-    resolution: {integrity: sha512-NIxJFcNVkosSAz92CEVR/CQI1yPBHJ7XugVzIlFMzOfkTMC7KZMH0S5gnXj58sOgD0wxQFc7w1H6HAqFc9Dt2g==}
+  '@aws-sdk/client-bedrock-runtime@3.1136.0':
+    resolution: {integrity: sha512-/k+JZc/dWsw2WyRA9k03WVFUNXQyVDWQtcLOKVYJmIBprJg6TirrjVsMxist2UPGH3RFTvl+HG+Wne1PzDLJTg==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-cloudformation@3.1134.0':
-    resolution: {integrity: sha512-/kAGvsDVrcHvp3vxp+L5pGm+Y9tlcYT3pJH0jiYFEZC2HOkTjpOg8M09qkuIr2mYxJGWCxcjes5I+IQRCtKfAg==}
+  '@aws-sdk/client-cloudformation@3.1136.0':
+    resolution: {integrity: sha512-Wgn2ZtycD3JEqb5QzLGEzSKahMVKV1EwNSN8QPdt79RBKSitfzk6bev1RbbNQFp1qy3aORAB6d8wtXhMu/QjQQ==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-cloudwatch-logs@3.1134.0':
-    resolution: {integrity: sha512-ZyMDF3uh/5njAeOKVOy2gNX966vx+yilHAllSUuLv4qwAJKFgXoObOqba5b511KkQsUsYbkZYnCzmJV3Ql9j0w==}
+  '@aws-sdk/client-cloudwatch-logs@3.1136.0':
+    resolution: {integrity: sha512-7KVuBRvXwXM4zpIdYbEZH+dle/WpbBKLNxrDaqvtC8ORuN/PbIzfAmBjkJ0dyBl2qwmt5hg3WgZpezP9ky7skw==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-cloudwatch@3.1134.0':
-    resolution: {integrity: sha512-rlipNXiSvN3AHu79iOWSb763v08AdYEq1fWcE6S9nnJH83OHOTSlRwsUmQC9kPwE8IWRvwllsolnr9VAoHsPlA==}
+  '@aws-sdk/client-cloudwatch@3.1136.0':
+    resolution: {integrity: sha512-DHFKsAYnnDxXhzPnQ7ef9LEdIdW89aCFmmTbHfpizg4jWI2wPvC2ZV2fv4IYdv5Ivk0XNp49kwQOeWbMGgnzpg==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-dynamodb@3.1134.0':
-    resolution: {integrity: sha512-i2FzVUVQWT0fEPE7/CxIP0620svDeNZKw4yU7VAa1s3otwXJ7CP2hgblvbPD6H3p+mTNSPfHoEyxK0iZDmBODQ==}
+  '@aws-sdk/client-dynamodb@3.1136.0':
+    resolution: {integrity: sha512-EEgixP37uQV7UqFxl1JaWGYA7QQeeP0yKSN5uCkAbNw9gBifGGk2cqm8qt1Mz+kzw0OwpL8W445R1UT+RTRBhA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-ec2@3.1134.0':
-    resolution: {integrity: sha512-DTG9guEM6l8VDffqpmqOXICfPGmsAqfSItx6OBJnLLIohj59G//5xIvWvCoOKDro0cOuzV9Hk96TMp3dMIbYew==}
+  '@aws-sdk/client-ec2@3.1136.0':
+    resolution: {integrity: sha512-2LcLxH/qf7pUim9+C/k3BrQUo02iyeoHnmPQUgTDHvgHiGf/HHMj6FUkks7W7PupNh2eKs1dpNYCYHT4NiyYFg==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-ecs@3.1134.0':
-    resolution: {integrity: sha512-jVQOKcvWDE7bnb6VzlKwhDAEY4drgrkdxmTTOI0e4MKQrKmjkol4wLj7ECqq/B6CBoY5bpnaukfvFfvECr+qSg==}
+  '@aws-sdk/client-ecs@3.1136.0':
+    resolution: {integrity: sha512-l2RvsqOnhomz/yQPw8IVUWjd0P3p+Ks61yZSrPhioLHEQuxfkQa/ekBdU1NmCNnZOFrq+DHeDC3uP5umbCfLDg==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-eventbridge@3.1134.0':
-    resolution: {integrity: sha512-iAwuLIXcr7DmPXtxgNUZfBsLo37GIfb7utxsSdBQeFfta4BH+5ep37w92o3kxtYcEcqzfrGQCSbv1R+mDS97cA==}
+  '@aws-sdk/client-eventbridge@3.1136.0':
+    resolution: {integrity: sha512-4VwDxpBt9a0IrqxxV9LX+BRGdgwp4oYFNgdSaUvBEYN18N2IF4Nu6akfTxxBB5e1hKXrZ1tTDvcN4scAeNUl7Q==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-kinesis@3.1134.0':
-    resolution: {integrity: sha512-A5JfT1/x/lbFTIDRidGocYqHtuSO+kfCapnNiP5SEnKA+quoUkgiKnotAz4tc8l38+Et9vhCjn0+iTYYP+dnMQ==}
+  '@aws-sdk/client-kinesis@3.1136.0':
+    resolution: {integrity: sha512-rrUBs9laPPulz7Qp7XIJlJyZ/6PVA+Em2MtbWgu8H1aJEe6YnV9BaHsZHjLNKvJvrXWalakLU5Y7qE4zWB1gYA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-kms@3.1134.0':
-    resolution: {integrity: sha512-O0+ZaS6O0geKGQU0OFh6yzslh0z+4sivDQ+dr5WX2Ovl147YjOscDYfU7Axx7mg3q9+U/Io9iKhVTTp47zcFNw==}
-    engines: {node: '>=20.0.0'}
-
-  '@aws-sdk/client-lambda@3.1127.0':
-    resolution: {integrity: sha512-fyfvc2mtIz9Wrb7ThJWhSb2fa5GFafMM1H9kzUR69wZ7U8woW+9RNjpTT2gVYpyiMT5JkcNyjAZDvlOzswYbig==}
+  '@aws-sdk/client-kms@3.1136.0':
+    resolution: {integrity: sha512-qWSFC+JSf9k7ZkuZ5DwnVSvJky0jgV6HG2TD/X3kPYTav2P2KXGnkfzt3TXYXTnJRWtdEfHP3mheLrQj/58iSw==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/client-lambda@3.1134.0':
     resolution: {integrity: sha512-eVZllUXQJ0KMgpUHExXPrA+/D10BtDZ22BkDNBVQiH9VKt8aasPkpa1L/SjH/PKAVyKfDVfoIKLNIihuZxZDHw==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-s3@3.1134.0':
-    resolution: {integrity: sha512-dHgbuWMkladVNpR5gEQ7K9ub20w/hcf9IJXtMr+S3/rYpr6Z4gWUEX1seAPj00nAxJqtAaYvX3wdr2BVukZXXQ==}
+  '@aws-sdk/client-lambda@3.1136.0':
+    resolution: {integrity: sha512-vrXo4EWXyN7JOzuMXV2WdWTQbXiD6zfet2dVlJhPyh3xV2eVeeVKnduxhpSU9763gctIGM8wAulzzQXfIObQAw==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-scheduler@3.1134.0':
-    resolution: {integrity: sha512-GG+j2K5vd2muC67sOTTP9OXOjPqGiI1TZm5d9KgGV2gKTP/qcSxDGN5dz+qqozxY7lWgvvdVU7TyLfJ64b12sQ==}
+  '@aws-sdk/client-s3@3.1136.0':
+    resolution: {integrity: sha512-1FUvu6nuUi3y9VjQAYootkfWKQqZ8aT8wZoV5I0bpeMkGVgntYpJ11xLicGotGE6E1qtLXB+GdOJM9B+OQYWDA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-secrets-manager@3.1134.0':
-    resolution: {integrity: sha512-zU5qnW369Kpn4PFuV8R8zWqefbjy4ZRIXTSN3hCFN1elIxZsb0avXUQ/wamh4WXVWCR0exBlaDgvO+8nxWHOvw==}
+  '@aws-sdk/client-scheduler@3.1136.0':
+    resolution: {integrity: sha512-GmiBVLlWeHluHYYjmam502YaxO5hJJOkGiQaP5h6FIRcwS0sZzxT7I+vQJ/x2OneemvI/Osre6bGrb/96zvTjw==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-sqs@3.1134.0':
-    resolution: {integrity: sha512-jQ+tvOmQ18y/566A0P1TUoz7RqT97jIfFC+FSvewPz6fO2uslGy5tM+8hjS+l/Wj4NAWmn5KDQX+CFEt1CtNTg==}
+  '@aws-sdk/client-secrets-manager@3.1136.0':
+    resolution: {integrity: sha512-w/iiB4i0XbF0iKbrRRgbKBCwiKz7UmA+640L0XIfk5UVcuQq9ngS/Q7C015yYTPKBP0WL4ffac+Zu1qVd7mcmQ==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-ssm@3.1134.0':
-    resolution: {integrity: sha512-ZjAv1kZxMUDK/reFxSOSutpTXSgMIgnd6kTcicCFvIQCHO1f1/pIk8kT0x0Qy6grjx4BXPvTJ84GiEZtD/y9WA==}
+  '@aws-sdk/client-sqs@3.1136.0':
+    resolution: {integrity: sha512-m3Nadi9aqXnc0c879465tV5sn/z0lSdjMZ/ijxRREO5v0qwygPHzsWdcjkqGnVmngDPr4VqmxqIGBS+yJ9cTkA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-sts@3.1134.0':
-    resolution: {integrity: sha512-y3H216ZCfzVGGirfZWCF0u6ycQRdEVGWNpxH9IRmAIVSQebIIP84MCjhGP2l5u1AQf+fW0TZh1W2QgSCZBO4uA==}
+  '@aws-sdk/client-ssm@3.1136.0':
+    resolution: {integrity: sha512-tMZyh47eKTo6HbHf5Gg8lHaYwowOp77YTMqfmys9ilpd7bQTq8PYH1Oqy4SxAIptcBe71uy1I7q3YziWVZZC6w==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/core@3.977.9':
-    resolution: {integrity: sha512-reqPFEQrZxDZpeGj4PFMepBeR5LGYHRqq/L0motTzgFkCRBA4rFdaVXDSLYyGHhxVz7sT2PDnPN9CluGSfgyJA==}
+  '@aws-sdk/client-sts@3.1136.0':
+    resolution: {integrity: sha512-6NfisbmH1dBbYy6UgLsaWpeVIfWqQc3j0GYLgV5ciDsthsYMcwlgZjfaoOVoctUhXzBU4Rw50GAqzDGTrgnS9A==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/core@3.978.0':
     resolution: {integrity: sha512-2yX9LUmxPklVjSGTb8dfnWRJSiFQ3TeH2nn7G1mdKHTfnabzF0+gfrS8rYfLWmZrQ8A3mEcxMJjRc51dL5KWaA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/credential-provider-env@3.972.70':
-    resolution: {integrity: sha512-H404B7dJl2mCrBqahDEYsanB0xhdDp6tXnXcTUnXmmpy2Q3J0Ho0bUajZ2jr/RdwzCyS59Gi8xXIFwPLGBl6Uw==}
-    engines: {node: '>=20.0.0'}
-
   '@aws-sdk/credential-provider-env@3.972.71':
     resolution: {integrity: sha512-JN+JHruYZw3GUZB8YGAlDk4wTDPOEAEEdEzj5nS0xodWR4smzHsN7PnK2j6IeOsDIj2aqua5DSbhXl9Gtf90FQ==}
-    engines: {node: '>=20.0.0'}
-
-  '@aws-sdk/credential-provider-http@3.972.72':
-    resolution: {integrity: sha512-X98zYOrVOeuosCX+6ktf29FC2N2GHPLia7qv6mzPzTc+RPAuHWCDS++Z6JK7eGYqb/v6uaW7bAXaOvDBfol+0w==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/credential-provider-http@3.972.73':
     resolution: {integrity: sha512-uyYYnJOnlis8uQzaYGPd7N1JoioCoNpXgnkXYixsWJXHXgXyYi8WXJSDfofxJeWfQIGWLe2Nwyq60Uc7MZdVOg==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/credential-provider-ini@3.973.15':
-    resolution: {integrity: sha512-Rykg6s5ceBuynMOGWgoowO4N+27JfnqXAnVaSunZl0hOO1XodSrxGNz6sCEbnmS0lAfQZDKyb3fbr46gSuv6Sg==}
-    engines: {node: '>=20.0.0'}
-
   '@aws-sdk/credential-provider-ini@3.973.16':
     resolution: {integrity: sha512-i++ly+0Uxa+u3ebSSyr0S/3CFhFJDxCXT3+Zj+mW2bXenEx5bKGCdTIKFu39SgXBNhWDjex/8cXUx9MUTMCrTw==}
-    engines: {node: '>=20.0.0'}
-
-  '@aws-sdk/credential-provider-login@3.972.77':
-    resolution: {integrity: sha512-Jb59xfEISoN5mmbnA+HYqdtrSX3CgCtJoof+V5D8/TgUI56W63GEEd5Y58WijU3Ou6+WEgaLD1feVzaRXV5IDQ==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/credential-provider-login@3.972.78':
     resolution: {integrity: sha512-eUtswnXu0+Ii9ieRK+0L7aPFV3Z/dnW2VntJzjBP9xs8s+8p5nBNuymIXtXwZ+5r5+XJP3e32nMkuZ/r0HozEA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/credential-provider-node@3.972.82':
-    resolution: {integrity: sha512-znDkEOGXB8W3kG1LJUKP3foBZY/9qLM0eil/DxWXSp37XsdsRLQHE/d/OaCGGVgKpA6znR38h/+INk8do1FjiA==}
-    engines: {node: '>=20.0.0'}
-
   '@aws-sdk/credential-provider-node@3.972.83':
     resolution: {integrity: sha512-jdso7ejzfRnatxMUZK4S/U6KbaDPCvfIV4XL+IQAPFDBt5rj5Fq595euqlK8Le4lNCMFR9oUpt+1l0aMgaayOQ==}
-    engines: {node: '>=20.0.0'}
-
-  '@aws-sdk/credential-provider-process@3.972.70':
-    resolution: {integrity: sha512-2ry03fGRJr4sV3jI+ocjj5JqALnFD6ymM5KiNCDZMvq8bX2GSbE0vji4aM43TVCl2nXqqLRZaUxdq/KeWRAY4Q==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/credential-provider-process@3.972.71':
     resolution: {integrity: sha512-lYmXJa4gvq4xN1lrT5NiP5vIYYKcGWAdj8y+8o6dlcateB5eF3Dn8DtmjjHKfMBrTPAMr2pebIiX/UOj8c1/UA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/credential-provider-sso@3.973.14':
-    resolution: {integrity: sha512-jkhg/8ocAAoc0RFyLMhCw+/zZh7gystQgd4F4hznNa8P4Cc501PQmxd+jGLiMHodPJ+7Zv/3znM62gZojyasmA==}
-    engines: {node: '>=20.0.0'}
-
   '@aws-sdk/credential-provider-sso@3.973.15':
     resolution: {integrity: sha512-6Jhcf4v0pSFdjk1EW2kvzuEBKD+UZ2uNcHUIglKKLndD20YhvkL2kdmDOV5/j4mYuWWwe/a1FQ1aomU86/Cg5Q==}
-    engines: {node: '>=20.0.0'}
-
-  '@aws-sdk/credential-provider-web-identity@3.972.76':
-    resolution: {integrity: sha512-d3AGyVu759PGr35mEB2s22xxlNEA5rpdxtSPJthfPFJvoQ8dt357iVPECqWfUxXp1toJAvKmbtcIYVGigaGsCA==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/credential-provider-web-identity@3.972.77':
@@ -1130,10 +1094,6 @@ packages:
     resolution: {integrity: sha512-bIrDaMENQmYRBHntOiOheqkiw5+fhKW4Lqb+mS1uqF0VwvdWI22fW2HFgWrng66CmYd+4k8ePlpj38sEfTuMLQ==}
     engines: {node: '>= 14.0.0'}
 
-  '@aws-sdk/nested-clients@3.997.44':
-    resolution: {integrity: sha512-NhEgryjlBF9w38ZXqGymQV28IhkYa1mKhlbYnqIis57AYwWGVYfUPgg/qC2rLRqOUfblxx++irvju10kVTa8Vw==}
-    engines: {node: '>=20.0.0'}
-
   '@aws-sdk/nested-clients@3.997.45':
     resolution: {integrity: sha512-mooq9Q+jLa18VoM7HouczmslZU60iiB0aKc/Ztnq/luIL1ud0z4DnYprLR/ZO1gp331S9tJctM1HZr7u6YKBXQ==}
     engines: {node: '>=20.0.0'}
@@ -1142,16 +1102,12 @@ packages:
     resolution: {integrity: sha512-L+2xZTye/2T96f3lwCws0Zw6GG2JHZW9e8FpVgGBeeExSKyeoZ6CWRpBml/7DNiK/O26jrgPM9F+Ay8VkgzUWQ==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/token-providers@3.1116.0':
-    resolution: {integrity: sha512-ygIivKqh8aHzNkucOCXHyIBgBpLPfrSI0mCqXF+vLBsPTUKqj0VSqAY0GFPe7lQl4HntjOcQ+KSyS7oUV2C54Q==}
-    engines: {node: '>=20.0.0'}
-
   '@aws-sdk/token-providers@3.1129.0':
     resolution: {integrity: sha512-Sbl3rpzQdsG4ZK2zh0JWUYyZPKKorJlVOddA2T0DVbKJFrsW8J6wgnslxxUH04+WaBMr4A1HzJZvZX0xUvkniA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/token-providers@3.1134.0':
-    resolution: {integrity: sha512-bQKuWGhkv6eSdyASCHH1ppi/9DCtxRNN/7tCUbsGsrJtR5Kqj4xknx6zbQ7DolxsD28upl7rzPgukPWgDk0J5Q==}
+  '@aws-sdk/token-providers@3.1136.0':
+    resolution: {integrity: sha512-CHjdpFszuNTUEQ2z1F85pOiHxpLe0fDyvTUoNAZ7YczdTMEfU6TSA7FVZelAM67L/g6xcS31U64HuBl42dSKCA==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/types@3.974.5':
@@ -3358,7 +3314,7 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-athena@3.1134.0':
+  '@aws-sdk/client-athena@3.1136.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-node': 3.972.83
@@ -3369,14 +3325,14 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-bedrock-runtime@3.1134.0':
+  '@aws-sdk/client-bedrock-runtime@3.1136.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-node': 3.972.83
       '@aws-sdk/eventstream-handler-node': 3.972.34
       '@aws-sdk/middleware-eventstream': 3.972.29
       '@aws-sdk/middleware-websocket': 3.972.53
-      '@aws-sdk/token-providers': 3.1134.0
+      '@aws-sdk/token-providers': 3.1136.0
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
       '@smithy/fetch-http-handler': 5.8.0
@@ -3384,7 +3340,7 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-cloudformation@3.1134.0':
+  '@aws-sdk/client-cloudformation@3.1136.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-node': 3.972.83
@@ -3395,7 +3351,7 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-cloudwatch-logs@3.1134.0':
+  '@aws-sdk/client-cloudwatch-logs@3.1136.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-node': 3.972.83
@@ -3406,7 +3362,7 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-cloudwatch@3.1134.0':
+  '@aws-sdk/client-cloudwatch@3.1136.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-node': 3.972.83
@@ -3418,7 +3374,7 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-dynamodb@3.1134.0':
+  '@aws-sdk/client-dynamodb@3.1136.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-node': 3.972.83
@@ -3431,7 +3387,7 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-ec2@3.1134.0':
+  '@aws-sdk/client-ec2@3.1136.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-node': 3.972.83
@@ -3443,7 +3399,7 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-ecs@3.1134.0':
+  '@aws-sdk/client-ecs@3.1136.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-node': 3.972.83
@@ -3454,7 +3410,7 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-eventbridge@3.1134.0':
+  '@aws-sdk/client-eventbridge@3.1136.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-node': 3.972.83
@@ -3466,7 +3422,7 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-kinesis@3.1134.0':
+  '@aws-sdk/client-kinesis@3.1136.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-node': 3.972.83
@@ -3477,21 +3433,10 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-kms@3.1134.0':
+  '@aws-sdk/client-kms@3.1136.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-node': 3.972.83
-      '@aws-sdk/types': 3.974.5
-      '@smithy/core': 3.33.3
-      '@smithy/fetch-http-handler': 5.8.0
-      '@smithy/node-http-handler': 4.12.1
-      '@smithy/types': 4.18.0
-      tslib: 2.8.1
-
-  '@aws-sdk/client-lambda@3.1127.0':
-    dependencies:
-      '@aws-sdk/core': 3.977.9
-      '@aws-sdk/credential-provider-node': 3.972.82
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
       '@smithy/fetch-http-handler': 5.8.0
@@ -3510,7 +3455,18 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-s3@3.1134.0':
+  '@aws-sdk/client-lambda@3.1136.0':
+    dependencies:
+      '@aws-sdk/core': 3.978.0
+      '@aws-sdk/credential-provider-node': 3.972.83
+      '@aws-sdk/types': 3.974.5
+      '@smithy/core': 3.33.3
+      '@smithy/fetch-http-handler': 5.8.0
+      '@smithy/node-http-handler': 4.12.1
+      '@smithy/types': 4.18.0
+      tslib: 2.8.1
+
+  '@aws-sdk/client-s3@3.1136.0':
     dependencies:
       '@aws-sdk/checksums': 3.1001.0
       '@aws-sdk/core': 3.978.0
@@ -3524,7 +3480,7 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-scheduler@3.1134.0':
+  '@aws-sdk/client-scheduler@3.1136.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-node': 3.972.83
@@ -3535,7 +3491,7 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-secrets-manager@3.1134.0':
+  '@aws-sdk/client-secrets-manager@3.1136.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-node': 3.972.83
@@ -3546,7 +3502,7 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-sqs@3.1134.0':
+  '@aws-sdk/client-sqs@3.1136.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-node': 3.972.83
@@ -3558,7 +3514,7 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-ssm@3.1134.0':
+  '@aws-sdk/client-ssm@3.1136.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-node': 3.972.83
@@ -3569,7 +3525,7 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-sts@3.1134.0':
+  '@aws-sdk/client-sts@3.1136.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/credential-provider-node': 3.972.83
@@ -3579,17 +3535,6 @@ snapshots:
       '@smithy/fetch-http-handler': 5.8.0
       '@smithy/node-http-handler': 4.12.1
       '@smithy/types': 4.18.0
-      tslib: 2.8.1
-
-  '@aws-sdk/core@3.977.9':
-    dependencies:
-      '@aws-sdk/types': 3.974.5
-      '@aws-sdk/xml-builder': 3.972.40
-      '@aws/lambda-invoke-store': 0.3.0
-      '@smithy/core': 3.33.3
-      '@smithy/signature-v4': 5.7.3
-      '@smithy/types': 4.18.0
-      bowser: 2.14.1
       tslib: 2.8.1
 
   '@aws-sdk/core@3.978.0':
@@ -3603,29 +3548,11 @@ snapshots:
       bowser: 2.14.1
       tslib: 2.8.1
 
-  '@aws-sdk/credential-provider-env@3.972.70':
-    dependencies:
-      '@aws-sdk/core': 3.977.9
-      '@aws-sdk/types': 3.974.5
-      '@smithy/core': 3.33.3
-      '@smithy/types': 4.18.0
-      tslib: 2.8.1
-
   '@aws-sdk/credential-provider-env@3.972.71':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
-      '@smithy/types': 4.18.0
-      tslib: 2.8.1
-
-  '@aws-sdk/credential-provider-http@3.972.72':
-    dependencies:
-      '@aws-sdk/core': 3.977.9
-      '@aws-sdk/types': 3.974.5
-      '@smithy/core': 3.33.3
-      '@smithy/fetch-http-handler': 5.8.0
-      '@smithy/node-http-handler': 4.12.1
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
@@ -3636,22 +3563,6 @@ snapshots:
       '@smithy/core': 3.33.3
       '@smithy/fetch-http-handler': 5.8.0
       '@smithy/node-http-handler': 4.12.1
-      '@smithy/types': 4.18.0
-      tslib: 2.8.1
-
-  '@aws-sdk/credential-provider-ini@3.973.15':
-    dependencies:
-      '@aws-sdk/core': 3.977.9
-      '@aws-sdk/credential-provider-env': 3.972.70
-      '@aws-sdk/credential-provider-http': 3.972.72
-      '@aws-sdk/credential-provider-login': 3.972.77
-      '@aws-sdk/credential-provider-process': 3.972.70
-      '@aws-sdk/credential-provider-sso': 3.973.14
-      '@aws-sdk/credential-provider-web-identity': 3.972.76
-      '@aws-sdk/nested-clients': 3.997.44
-      '@aws-sdk/types': 3.974.5
-      '@smithy/core': 3.33.3
-      '@smithy/credential-provider-imds': 4.5.2
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
@@ -3671,35 +3582,12 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/credential-provider-login@3.972.77':
-    dependencies:
-      '@aws-sdk/core': 3.977.9
-      '@aws-sdk/nested-clients': 3.997.44
-      '@aws-sdk/types': 3.974.5
-      '@smithy/core': 3.33.3
-      '@smithy/types': 4.18.0
-      tslib: 2.8.1
-
   '@aws-sdk/credential-provider-login@3.972.78':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/nested-clients': 3.997.45
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
-      '@smithy/types': 4.18.0
-      tslib: 2.8.1
-
-  '@aws-sdk/credential-provider-node@3.972.82':
-    dependencies:
-      '@aws-sdk/credential-provider-env': 3.972.70
-      '@aws-sdk/credential-provider-http': 3.972.72
-      '@aws-sdk/credential-provider-ini': 3.973.15
-      '@aws-sdk/credential-provider-process': 3.972.70
-      '@aws-sdk/credential-provider-sso': 3.973.14
-      '@aws-sdk/credential-provider-web-identity': 3.972.76
-      '@aws-sdk/types': 3.974.5
-      '@smithy/core': 3.33.3
-      '@smithy/credential-provider-imds': 4.5.2
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
@@ -3717,27 +3605,9 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/credential-provider-process@3.972.70':
-    dependencies:
-      '@aws-sdk/core': 3.977.9
-      '@aws-sdk/types': 3.974.5
-      '@smithy/core': 3.33.3
-      '@smithy/types': 4.18.0
-      tslib: 2.8.1
-
   '@aws-sdk/credential-provider-process@3.972.71':
     dependencies:
       '@aws-sdk/core': 3.978.0
-      '@aws-sdk/types': 3.974.5
-      '@smithy/core': 3.33.3
-      '@smithy/types': 4.18.0
-      tslib: 2.8.1
-
-  '@aws-sdk/credential-provider-sso@3.973.14':
-    dependencies:
-      '@aws-sdk/core': 3.977.9
-      '@aws-sdk/nested-clients': 3.997.44
-      '@aws-sdk/token-providers': 3.1116.0
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
       '@smithy/types': 4.18.0
@@ -3748,15 +3618,6 @@ snapshots:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/nested-clients': 3.997.45
       '@aws-sdk/token-providers': 3.1129.0
-      '@aws-sdk/types': 3.974.5
-      '@smithy/core': 3.33.3
-      '@smithy/types': 4.18.0
-      tslib: 2.8.1
-
-  '@aws-sdk/credential-provider-web-identity@3.972.76':
-    dependencies:
-      '@aws-sdk/core': 3.977.9
-      '@aws-sdk/nested-clients': 3.997.44
       '@aws-sdk/types': 3.974.5
       '@smithy/core': 3.33.3
       '@smithy/types': 4.18.0
@@ -3840,17 +3701,6 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/nested-clients@3.997.44':
-    dependencies:
-      '@aws-sdk/core': 3.977.9
-      '@aws-sdk/signature-v4-multi-region': 3.996.46
-      '@aws-sdk/types': 3.974.5
-      '@smithy/core': 3.33.3
-      '@smithy/fetch-http-handler': 5.8.0
-      '@smithy/node-http-handler': 4.12.1
-      '@smithy/types': 4.18.0
-      tslib: 2.8.1
-
   '@aws-sdk/nested-clients@3.997.45':
     dependencies:
       '@aws-sdk/core': 3.978.0
@@ -3869,15 +3719,6 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/token-providers@3.1116.0':
-    dependencies:
-      '@aws-sdk/core': 3.977.9
-      '@aws-sdk/nested-clients': 3.997.44
-      '@aws-sdk/types': 3.974.5
-      '@smithy/core': 3.33.3
-      '@smithy/types': 4.18.0
-      tslib: 2.8.1
-
   '@aws-sdk/token-providers@3.1129.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
@@ -3887,7 +3728,7 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/token-providers@3.1134.0':
+  '@aws-sdk/token-providers@3.1136.0':
     dependencies:
       '@aws-sdk/core': 3.978.0
       '@aws-sdk/nested-clients': 3.997.45
@@ -3901,9 +3742,9 @@ snapshots:
       '@smithy/types': 4.18.0
       tslib: 2.8.1
 
-  '@aws-sdk/util-dynamodb@3.996.9(@aws-sdk/client-dynamodb@3.1134.0)':
+  '@aws-sdk/util-dynamodb@3.996.9(@aws-sdk/client-dynamodb@3.1136.0)':
     dependencies:
-      '@aws-sdk/client-dynamodb': 3.1134.0
+      '@aws-sdk/client-dynamodb': 3.1136.0
       tslib: 2.8.1
 
   '@aws-sdk/xml-builder@3.972.40':
@@ -3913,7 +3754,7 @@ snapshots:
 
   '@aws/durable-execution-sdk-js@1.0.2':
     dependencies:
-      '@aws-sdk/client-lambda': 3.1127.0
+      '@aws-sdk/client-lambda': 3.1134.0
 
   '@aws/lambda-invoke-store@0.3.0': {}
 
@@ -4031,14 +3872,14 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@eslint-community/eslint-utils@4.10.1(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))':
+  '@eslint-community/eslint-utils@4.10.1(eslint@10.10.0(jiti@2.7.0))':
     dependencies:
-      eslint: 10.10.0(jiti@2.7.0)(supports-color@10.2.2)
+      eslint: 10.10.0(jiti@2.7.0)
       eslint-visitor-keys: 3.4.3
 
   '@eslint-community/regexpp@4.12.2': {}
 
-  '@eslint/config-array@0.23.5(supports-color@10.2.2)':
+  '@eslint/config-array@0.23.5':
     dependencies:
       '@eslint/object-schema': 3.0.5
       debug: 4.4.3(supports-color@10.2.2)
@@ -4054,9 +3895,9 @@ snapshots:
     dependencies:
       '@types/json-schema': 7.0.15
 
-  '@eslint/js@10.0.1(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))':
+  '@eslint/js@10.0.1(eslint@10.10.0(jiti@2.7.0))':
     optionalDependencies:
-      eslint: 10.10.0(jiti@2.7.0)(supports-color@10.2.2)
+      eslint: 10.10.0(jiti@2.7.0)
 
   '@eslint/object-schema@3.0.5': {}
 
@@ -4485,15 +4326,15 @@ snapshots:
 
   '@types/retry@0.12.5': {}
 
-  '@typescript-eslint/eslint-plugin@8.70.0(@typescript-eslint/parser@8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)':
+  '@typescript-eslint/eslint-plugin@8.70.0(@typescript-eslint/parser@8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)':
     dependencies:
       '@eslint-community/regexpp': 4.12.2
-      '@typescript-eslint/parser': 8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+      '@typescript-eslint/parser': 8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)
       '@typescript-eslint/scope-manager': 8.70.0
-      '@typescript-eslint/type-utils': 8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
-      '@typescript-eslint/utils': 8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+      '@typescript-eslint/type-utils': 8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)
+      '@typescript-eslint/utils': 8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)
       '@typescript-eslint/visitor-keys': 8.70.0
-      eslint: 10.10.0(jiti@2.7.0)(supports-color@10.2.2)
+      eslint: 10.10.0(jiti@2.7.0)
       ignore: 7.0.8
       natural-compare: 1.4.0
       ts-api-utils: 2.5.0(typescript@6.0.3)
@@ -4501,19 +4342,19 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/parser@8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)':
+  '@typescript-eslint/parser@8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)':
     dependencies:
       '@typescript-eslint/scope-manager': 8.70.0
       '@typescript-eslint/types': 8.70.0
-      '@typescript-eslint/typescript-estree': 8.70.0(supports-color@10.2.2)(typescript@6.0.3)
+      '@typescript-eslint/typescript-estree': 8.70.0(typescript@6.0.3)
       '@typescript-eslint/visitor-keys': 8.70.0
       debug: 4.4.3(supports-color@10.2.2)
-      eslint: 10.10.0(jiti@2.7.0)(supports-color@10.2.2)
+      eslint: 10.10.0(jiti@2.7.0)
       typescript: 6.0.3
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/project-service@8.70.0(supports-color@10.2.2)(typescript@6.0.3)':
+  '@typescript-eslint/project-service@8.70.0(typescript@6.0.3)':
     dependencies:
       '@typescript-eslint/tsconfig-utils': 8.70.0(typescript@6.0.3)
       '@typescript-eslint/types': 8.70.0
@@ -4531,13 +4372,13 @@ snapshots:
     dependencies:
       typescript: 6.0.3
 
-  '@typescript-eslint/type-utils@8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)':
+  '@typescript-eslint/type-utils@8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)':
     dependencies:
       '@typescript-eslint/types': 8.70.0
-      '@typescript-eslint/typescript-estree': 8.70.0(supports-color@10.2.2)(typescript@6.0.3)
-      '@typescript-eslint/utils': 8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+      '@typescript-eslint/typescript-estree': 8.70.0(typescript@6.0.3)
+      '@typescript-eslint/utils': 8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)
       debug: 4.4.3(supports-color@10.2.2)
-      eslint: 10.10.0(jiti@2.7.0)(supports-color@10.2.2)
+      eslint: 10.10.0(jiti@2.7.0)
       ts-api-utils: 2.5.0(typescript@6.0.3)
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -4545,9 +4386,9 @@ snapshots:
 
   '@typescript-eslint/types@8.70.0': {}
 
-  '@typescript-eslint/typescript-estree@8.70.0(supports-color@10.2.2)(typescript@6.0.3)':
+  '@typescript-eslint/typescript-estree@8.70.0(typescript@6.0.3)':
     dependencies:
-      '@typescript-eslint/project-service': 8.70.0(supports-color@10.2.2)(typescript@6.0.3)
+      '@typescript-eslint/project-service': 8.70.0(typescript@6.0.3)
       '@typescript-eslint/tsconfig-utils': 8.70.0(typescript@6.0.3)
       '@typescript-eslint/types': 8.70.0
       '@typescript-eslint/visitor-keys': 8.70.0
@@ -4560,13 +4401,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/utils@8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)':
+  '@typescript-eslint/utils@8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)':
     dependencies:
-      '@eslint-community/eslint-utils': 4.10.1(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))
+      '@eslint-community/eslint-utils': 4.10.1(eslint@10.10.0(jiti@2.7.0))
       '@typescript-eslint/scope-manager': 8.70.0
       '@typescript-eslint/types': 8.70.0
-      '@typescript-eslint/typescript-estree': 8.70.0(supports-color@10.2.2)(typescript@6.0.3)
-      eslint: 10.10.0(jiti@2.7.0)(supports-color@10.2.2)
+      '@typescript-eslint/typescript-estree': 8.70.0(typescript@6.0.3)
+      eslint: 10.10.0(jiti@2.7.0)
       typescript: 6.0.3
     transitivePeerDependencies:
       - supports-color
@@ -4841,30 +4682,30 @@ snapshots:
 
   escape-string-regexp@4.0.0: {}
 
-  eslint-config-prettier@10.1.8(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2)):
+  eslint-config-prettier@10.1.8(eslint@10.10.0(jiti@2.7.0)):
     dependencies:
-      eslint: 10.10.0(jiti@2.7.0)(supports-color@10.2.2)
+      eslint: 10.10.0(jiti@2.7.0)
 
-  eslint-plugin-prettier@5.5.6(eslint-config-prettier@10.1.8(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2)))(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(prettier@3.9.7):
+  eslint-plugin-prettier@5.5.6(eslint-config-prettier@10.1.8(eslint@10.10.0(jiti@2.7.0)))(eslint@10.10.0(jiti@2.7.0))(prettier@3.9.7):
     dependencies:
-      eslint: 10.10.0(jiti@2.7.0)(supports-color@10.2.2)
+      eslint: 10.10.0(jiti@2.7.0)
       prettier: 3.9.7
       prettier-linter-helpers: 1.0.1
       synckit: 0.11.13
     optionalDependencies:
-      eslint-config-prettier: 10.1.8(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))
+      eslint-config-prettier: 10.1.8(eslint@10.10.0(jiti@2.7.0))
 
   eslint-plugin-security@4.0.1:
     dependencies:
       safe-regex: 2.1.1
 
-  eslint-plugin-sonarjs@4.2.1(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2)):
+  eslint-plugin-sonarjs@4.2.1(eslint@10.10.0(jiti@2.7.0)):
     dependencies:
       '@eslint-community/regexpp': 4.12.2
       '@sonarsource/analyzer-commons-configurations': 2.31.0-5284
       builtin-modules: 3.3.0
       bytes: 3.1.2
-      eslint: 10.10.0(jiti@2.7.0)(supports-color@10.2.2)
+      eslint: 10.10.0(jiti@2.7.0)
       functional-red-black-tree: 1.0.1
       globals: 17.12.0
       jsx-ast-utils-x: 0.1.0
@@ -4887,11 +4728,11 @@ snapshots:
 
   eslint-visitor-keys@5.0.1: {}
 
-  eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2):
+  eslint@10.10.0(jiti@2.7.0):
     dependencies:
-      '@eslint-community/eslint-utils': 4.10.1(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))
+      '@eslint-community/eslint-utils': 4.10.1(eslint@10.10.0(jiti@2.7.0))
       '@eslint-community/regexpp': 4.12.2
-      '@eslint/config-array': 0.23.5(supports-color@10.2.2)
+      '@eslint/config-array': 0.23.5
       '@eslint/config-helpers': 0.7.0
       '@eslint/core': 1.2.1
       '@eslint/plugin-kit': 0.7.3
@@ -5292,7 +5133,7 @@ snapshots:
 
   libqp@2.1.1: {}
 
-  license-report@6.8.5(supports-color@10.2.2):
+  license-report@6.8.5:
     dependencies:
       '@kessler/tableify': 1.0.2
       debug: 4.4.3(supports-color@10.2.2)
@@ -5836,13 +5677,13 @@ snapshots:
     dependencies:
       tagged-tag: 1.0.0
 
-  typescript-eslint@8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3):
+  typescript-eslint@8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3):
     dependencies:
-      '@typescript-eslint/eslint-plugin': 8.70.0(@typescript-eslint/parser@8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
-      '@typescript-eslint/parser': 8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
-      '@typescript-eslint/typescript-estree': 8.70.0(supports-color@10.2.2)(typescript@6.0.3)
-      '@typescript-eslint/utils': 8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
-      eslint: 10.10.0(jiti@2.7.0)(supports-color@10.2.2)
+      '@typescript-eslint/eslint-plugin': 8.70.0(@typescript-eslint/parser@8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)
+      '@typescript-eslint/parser': 8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)
+      '@typescript-eslint/typescript-estree': 8.70.0(typescript@6.0.3)
+      '@typescript-eslint/utils': 8.70.0(eslint@10.10.0(jiti@2.7.0))(typescript@6.0.3)
+      eslint: 10.10.0(jiti@2.7.0)
       typescript: 6.0.3
     transitivePeerDependencies:
       - supports-color
