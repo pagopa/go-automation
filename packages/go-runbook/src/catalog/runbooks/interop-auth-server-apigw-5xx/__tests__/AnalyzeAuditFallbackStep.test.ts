@@ -117,6 +117,11 @@ describe('AnalyzeAuditFallbackStep', () => {
             { field: 'pod_app', value: alarm.serviceName },
             { field: '@message', value: 'Token generated' },
           ],
+          [
+            { field: 'pod_app', value: alarm.serviceName },
+            { field: 'stream', value: 'stdout' },
+            { field: '@message', value: 'Authorization request completed' },
+          ],
         ],
       },
     ]);
@@ -138,6 +143,52 @@ describe('AnalyzeAuditFallbackStep', () => {
         { field: 'pod_app', value: 'interop-be-fallback-writer' },
         { field: 'stream', value: 'stderr' },
         { field: '@message', value: 'Unclassified writer failure' },
+      ],
+    ]) {
+      const ctx = context();
+      ctx.stepResults.set(alarm.stepIds.queryApplicationLogs, [
+        [{ field: '@message', value: `[CID=a] ${AUDIT_FALLBACK_PATTERN}` }],
+      ]);
+      ctx.stepResults.set(alarm.stepIds.queryCidTracker, [
+        {
+          cid: 'a',
+          rows: [
+            ...SUCCESS.map((message) => [
+              { field: 'pod_app', value: alarm.serviceName },
+              { field: '@message', value: message },
+            ]),
+            errorRow,
+          ],
+        },
+      ]);
+
+      const result = await new AnalyzeAuditFallbackStep().execute(ctx);
+
+      assert.strictEqual(result.vars?.[AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR], 'true');
+      assert.strictEqual(result.vars?.[AUDIT_FALLBACK_CONFIRMED_VAR], 'false');
+      assert.strictEqual(result.output?.additionalTrackerErrors, 1);
+    }
+  });
+
+  it('blocks completion when the authorization server emits an unrelated error after recovery', async () => {
+    for (const errorRow of [
+      [
+        { field: 'pod_app', value: alarm.serviceName },
+        { field: 'stream', value: 'stdout' },
+        { field: '@message', value: 'ERROR unrelated authorization failure' },
+      ],
+      [
+        { field: 'pod_app', value: alarm.serviceName },
+        { field: 'stream', value: 'stderr' },
+        { field: '@message', value: 'Unrelated authorization failure' },
+      ],
+      [
+        { field: 'pod_app', value: alarm.serviceName },
+        { field: 'stream', value: 'stdout' },
+        {
+          field: '@message',
+          value: JSON.stringify({ level: 'ERROR', log: 'Unrelated authorization failure' }),
+        },
       ],
     ]) {
       const ctx = context();

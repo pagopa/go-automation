@@ -267,6 +267,25 @@ describe('INTEROP auth-server 5xx runbook', () => {
     assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
   });
 
+  it('does not close the alarm when the authorization server emits another error after recovery', async () => {
+    const { result, draft } = await execute({
+      application: [row(FALLBACK, 'a')],
+      traces: {
+        a: [
+          ...SUCCESS,
+          {
+            message: 'Unrelated authorization failure',
+            podApp: alarm.serviceName,
+            stream: 'stderr',
+          },
+        ],
+      },
+    });
+
+    assert.deepStrictEqual(result.matchedCases, []);
+    assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
+  });
+
   it('does not let a completed co-occurring case override the fallback completion guard', async () => {
     const invalidHeader =
       'Invalid claims in client assertion header: [{"code":"unrecognized_keys","keys":["x5c","use"]}]';

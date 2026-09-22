@@ -81,8 +81,15 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
       if (rows === undefined) continue;
       const messages = rows.flatMap((row) => {
         const message = readMessage(row);
-        // Failure and token-generation boundaries remain trusted only from the auth server.
-        if (isAuthServerRow(row)) return [message];
+        if (isAuthServerRow(row)) {
+          // Only the fallback sequence is trusted from the auth server. Any unrelated
+          // error for the same CID makes the recovery outcome unsafe to close.
+          if (isAuditFailure(message) || isPortableFallbackEvidence(message) || message.includes('Token generated')) {
+            return [message];
+          }
+          if (isTrackerError(row, message)) additionalTrackerErrors += 1;
+          return [];
+        }
         // The two portable fallback markers may instead come from a correlated writer service.
         // Any other error from that service makes the recovery outcome unsafe to close.
         if (isTrackerError(row, message)) {
@@ -148,7 +155,7 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
       label:
         `Fallback audit: ${confirmedCids.length} CID confermati, ${unresolvedCids.length} da verificare, ` +
         `${uncorrelatedErrors} errori senza CID, ${additionalApplicationErrors} errori applicativi aggiuntivi, ` +
-        `${additionalTrackerErrors} errori aggiuntivi nei servizi correlati, ` +
+        `${additionalTrackerErrors} errori aggiuntivi nel CID tracker, ` +
         `${apiGatewayErrorCount} errori API Gateway (${apiGatewayIntegrationErrorCount} di integrazione), ` +
         `evidenza applicativa ${applicationEvidenceComplete ? 'completa' : 'potenzialmente troncata'}, ` +
         `evidenza API Gateway ${apiGatewayEvidenceComplete ? 'completa' : 'potenzialmente troncata'}`,
@@ -196,7 +203,11 @@ function isPortableFallbackEvidence(message: string): boolean {
 }
 
 function isTrackerError(row: ReadonlyArray<ResultField>, message: string): boolean {
-  return readRowField(row, 'stream') === 'stderr' || message.includes('ERROR');
+  return (
+    readRowField(row, 'stream') === 'stderr' ||
+    message.includes('ERROR') ||
+    readRowField(row, '@message')?.includes('ERROR') === true
+  );
 }
 
 function hasCompletedFallback(messages: ReadonlyArray<string>, expectedBucket: string): boolean {
