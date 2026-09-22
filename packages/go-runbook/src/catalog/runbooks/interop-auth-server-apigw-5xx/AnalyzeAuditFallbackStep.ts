@@ -21,6 +21,7 @@ interface AuditFallbackAnalysis {
   readonly unresolvedCids: ReadonlyArray<string>;
   readonly uncorrelatedErrors: number;
   readonly additionalApplicationErrors: number;
+  readonly additionalTrackerErrors: number;
   readonly applicationEvidenceComplete: boolean;
   readonly apiGatewayErrorCount: number;
   readonly apiGatewayIntegrationErrorCount: number;
@@ -58,6 +59,7 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
     const candidates = new Set<string>();
     let uncorrelatedErrors = 0;
     let additionalApplicationErrors = 0;
+    let additionalTrackerErrors = 0;
     for (const row of application) {
       const message = readMessage(row);
       if (!isAuditFailure(message)) {
@@ -80,8 +82,14 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
       const messages = rows.flatMap((row) => {
         const message = readMessage(row);
         // Failure and token-generation boundaries remain trusted only from the auth server.
+        if (isAuthServerRow(row)) return [message];
         // The two portable fallback markers may instead come from a correlated writer service.
-        return isAuthServerRow(row) || isPortableFallbackEvidence(message) ? [message] : [];
+        // Any other error from that service makes the recovery outcome unsafe to close.
+        if (isTrackerError(row, message)) {
+          additionalTrackerErrors += 1;
+          return [];
+        }
+        return isPortableFallbackEvidence(message) ? [message] : [];
       });
       traces.set(entry.cid, messages);
       if (messages.some(isAuditFailure)) candidates.add(entry.cid);
@@ -118,12 +126,17 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
     // gateway-side integration error, without pretending the two cardinalities correlate.
     const apiGatewayEvidenceMatchesFallbacks =
       apiGatewayEvidenceComplete && apiGatewayCountsValid && apiGatewayIntegrationErrorCount === 0;
-    const confirmed = sequenceConfirmed && additionalApplicationErrors === 0 && apiGatewayEvidenceMatchesFallbacks;
+    const confirmed =
+      sequenceConfirmed &&
+      additionalApplicationErrors === 0 &&
+      additionalTrackerErrors === 0 &&
+      apiGatewayEvidenceMatchesFallbacks;
     const output = {
       confirmedCids,
       unresolvedCids,
       uncorrelatedErrors,
       additionalApplicationErrors,
+      additionalTrackerErrors,
       applicationEvidenceComplete,
       apiGatewayErrorCount,
       apiGatewayIntegrationErrorCount,
@@ -134,6 +147,7 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
       label:
         `Fallback audit: ${confirmedCids.length} CID confermati, ${unresolvedCids.length} da verificare, ` +
         `${uncorrelatedErrors} errori senza CID, ${additionalApplicationErrors} errori applicativi aggiuntivi, ` +
+        `${additionalTrackerErrors} errori aggiuntivi nei servizi correlati, ` +
         `${apiGatewayErrorCount} errori API Gateway (${apiGatewayIntegrationErrorCount} di integrazione), ` +
         `evidenza applicativa ${applicationEvidenceComplete ? 'completa' : 'potenzialmente troncata'}, ` +
         `evidenza API Gateway ${apiGatewayEvidenceComplete ? 'completa' : 'potenzialmente troncata'}`,
@@ -178,6 +192,10 @@ function isAuditFailure(message: string): boolean {
 
 function isPortableFallbackEvidence(message: string): boolean {
   return FALLBACK_STORAGE_PATTERN.test(message) || message.includes(AUDIT_FALLBACK_SUCCEEDED_PATTERN);
+}
+
+function isTrackerError(row: ReadonlyArray<ResultField>, message: string): boolean {
+  return readRowField(row, 'stream') === 'stderr' || message.includes('ERROR');
 }
 
 function hasCompletedFallback(messages: ReadonlyArray<string>, expectedBucket: string): boolean {

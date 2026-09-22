@@ -16,7 +16,7 @@ export function buildInteropK8sCidTrackerQuery(cid: string): string {
   return `
 parse @message "[CID=*]" as cid
 | filter cid = "${escapedCid}"
-| display @timestamp, pod_app, cid, @message
+| display @timestamp, pod_app, cid, stream, @message
 | sort @timestamp asc
 `.trim();
 }
