@@ -227,6 +227,17 @@ describe('INTEROP auth-server 5xx runbook', () => {
     assert.strictEqual(draft.proposedStatus, 'COMPLETED');
   });
 
+  it('does not close the alarm without API Gateway aggregate evidence', async () => {
+    const { result, draft } = await execute({
+      apiGatewayAggregates: [],
+      application: [row(FALLBACK, 'a')],
+      traces: { a: SUCCESS },
+    });
+
+    assert.deepStrictEqual(result.matchedCases, []);
+    assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
+  });
+
   it('does not close the alarm when a recovered fallback is mixed with an unknown application error', async () => {
     const { result, draft } = await execute({
       application: [row(FALLBACK, 'a'), row('ERROR unclassified authorization failure', 'b')],

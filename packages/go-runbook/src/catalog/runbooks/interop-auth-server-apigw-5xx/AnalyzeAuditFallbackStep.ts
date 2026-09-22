@@ -114,7 +114,8 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
         apiGatewayIntegrationErrorCount += count ?? 1;
       }
     }
-    const apiGatewayEvidenceComplete = apiGateway.length < INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT;
+    const apiGatewayEvidenceComplete =
+      apiGateway.length > 0 && apiGateway.length < INTEROP_API_GW_STATUS_AGGREGATE_QUERY_LIMIT;
     const sequenceConfirmed =
       applicationEvidenceComplete &&
       confirmedCids.length > 0 &&

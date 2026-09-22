@@ -262,6 +262,33 @@ describe('AnalyzeAuditFallbackStep', () => {
     assert.deepStrictEqual(result.output?.confirmedCids, ['a']);
   });
 
+  it('fails closed when API Gateway returns no aggregate evidence', async () => {
+    const ctx = context();
+    ctx.stepResults.set(alarm.stepIds.queryApiGwAggregates, []);
+    ctx.stepResults.set(alarm.stepIds.queryApplicationLogs, [
+      [
+        { field: 'cid', value: 'a' },
+        { field: '@message', value: `[CID=a] ${AUDIT_FALLBACK_PATTERN}` },
+      ],
+    ]);
+    ctx.stepResults.set(alarm.stepIds.queryCidTracker, [
+      {
+        cid: 'a',
+        rows: SUCCESS.map((message) => [
+          { field: 'pod_app', value: alarm.serviceName },
+          { field: '@message', value: message },
+        ]),
+      },
+    ]);
+
+    const result = await new AnalyzeAuditFallbackStep().execute(ctx);
+
+    assert.strictEqual(result.vars?.[AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR], 'true');
+    assert.strictEqual(result.vars?.[AUDIT_FALLBACK_CONFIRMED_VAR], 'false');
+    assert.strictEqual(result.output?.apiGatewayErrorCount, 0);
+    assert.strictEqual(result.output?.apiGatewayEvidenceComplete, false);
+  });
+
   it('fails closed when the application evidence reaches the query row limit', async () => {
     const ctx = context();
     ctx.stepResults.set(alarm.stepIds.queryApplicationLogs, [
