@@ -117,9 +117,9 @@ export async function retrieveGlacierS3(
     }
   }
 
-  const bucketName = await resolveSafestorageBucket(script, config.bucketName);
-  const expirationDays = config.expirationDays ?? 7;
-  const tier = config.glacierTier ?? 'Standard';
+  const bucketName = await resolveSafestorageBucket(script, config.bucket);
+  const expirationDays = config.glacier?.expirationDays ?? 7;
+  const tier = config.glacier?.tier ?? 'Standard';
 
   logger.info(
     `Avvio restore da Glacier sul bucket [${bucketName}], giorni mantenimento: ${expirationDays}, tier: ${tier}...`,

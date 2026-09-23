@@ -2,8 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import type { AWS, Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, RetrieveAttachmentsResult } from '../types/index.js';
-import { get } from '../utils/get.js';
-import { iun_from_rid } from '../utils/get.js';
+import { get, iunFromRid } from '../utils/get.js';
 
 /** Tabelle DynamoDB coinvolte */
 const NOTIFICATIONS_TABLE_NAME = 'pn-Notifications';
@@ -14,9 +13,12 @@ const TIMELINES_TABLE_NAME = 'pn-Timelines';
  */
 function appendToFile(filePath: string, content: string): void {
   const dir = path.dirname(filePath);
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (!fs.existsSync(dir)) {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     fs.mkdirSync(dir, { recursive: true });
   }
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   fs.appendFileSync(filePath, `${content}\n`, 'utf8');
 }
 
@@ -129,7 +131,7 @@ export async function retrieveAttachmentsFromIun(
   logger.info(`Inizio recupero allegati ed AAR da pn-Notifications / pn-Timelines per ${iuns.length} IUN...`);
 
   for (let i = 0; i < iuns.length; i++) {
-    const iun = iun_from_rid(iuns[i]);
+    const iun = iunFromRid(iuns[i]);
     if (!iun) continue;
 
     logger.info(`[${i + 1}/${iuns.length}] Recupero allegati per IUN: ${iun}`);

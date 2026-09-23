@@ -14,7 +14,7 @@ export function get<T = unknown>(obj: unknown, key: string, defaultValue?: T): T
   return val !== undefined && val !== null ? (val as T) : (defaultValue as T);
 }
 
-export function iun_from_rid(rid: string | undefined): string {
+export function iunFromRid(rid: string | undefined): string {
   if (rid === undefined) {
     return '';
   }

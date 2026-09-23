@@ -199,7 +199,6 @@ export class PaperRequestReporter {
     const jsonExporter = new Core.GOJSONListExporter({ outputPath: jsonPath, jsonl: false });
     await jsonExporter.export([reportData]);
 
-
     // 2. Salvataggio CSV via GOFileListExporter
     const csvPath = path.join(outputDir, 'summary_report.csv');
     const csvLines = [

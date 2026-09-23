@@ -14,9 +14,12 @@ const PDF_MAGIC_BYTES = Buffer.from([0x25, 0x50, 0x44, 0x46]);
  */
 function appendToFile(filePath: string, content: string): void {
   const dir = path.dirname(filePath);
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (!fs.existsSync(dir)) {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     fs.mkdirSync(dir, { recursive: true });
   }
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   fs.appendFileSync(filePath, `${content}\n`, 'utf8');
 }
 

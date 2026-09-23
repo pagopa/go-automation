@@ -4,8 +4,7 @@ import { ListObjectVersionsCommand, DeleteObjectCommand } from '@aws-sdk/client-
 import type { S3Client } from '@aws-sdk/client-s3';
 import type { AWS, Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, GetNotificationAttachmentsResult } from '../types/index.js';
-import { get } from '../utils/get.js';
-import { iun_from_rid } from '../utils/get.js';
+import { get, iunFromRid } from '../utils/get.js';
 
 /** Tabelle DynamoDB coinvolte */
 const NOTIFICATIONS_TABLE_NAME = 'pn-Notifications';
@@ -16,9 +15,12 @@ const SS_DOCUMENTI_TABLE_NAME = 'pn-SsDocumenti';
  */
 function appendToFile(filePath: string, content: string): void {
   const dir = path.dirname(filePath);
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (!fs.existsSync(dir)) {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     fs.mkdirSync(dir, { recursive: true });
   }
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   fs.appendFileSync(filePath, `${content}\n`, 'utf8');
 }
 
@@ -159,7 +161,7 @@ export async function getNotificationAttachments(
 
   for (let i = 0; i < iuns.length; i++) {
     //const iun = iuns[i]?.trim();
-    const iun = iun_from_rid(iuns[i]);
+    const iun = iunFromRid(iuns[i]);
     if (!iun) continue;
 
     logger.info(`[${i + 1}/${iuns.length}] Elaborazione IUN: ${iun}`);

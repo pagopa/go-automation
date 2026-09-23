@@ -12,6 +12,7 @@ import { Core } from '@go-automation/go-common';
  * @returns Array di righe lette dal file
  */
 export async function readInputLines(filePath?: string): Promise<string[]> {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (!filePath || !fs.existsSync(filePath)) {
     return [];
   }
