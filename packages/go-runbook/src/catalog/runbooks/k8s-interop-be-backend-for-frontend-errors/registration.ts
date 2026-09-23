@@ -1,14 +1,14 @@
-import { AutomaticRunbookKinds } from '@go-automation/go-execute-runbook-contracts';
+import { RunbookKinds } from '../../../types/RunbookKind.js';
 
-import type { AutomaticRunbookRegistration } from '../../AutomaticRunbookRegistration.js';
+import type { RunbookRegistration } from '../../RunbookRegistration.js';
 import { RunbookProducts } from '../../../types/RunbookProduct.js';
 import { BFF_ALARM } from './alarmDefinition.js';
 import { buildRunbook } from './runbook.js';
 
-export const BFF_REGISTRATION: AutomaticRunbookRegistration = {
+export const BFF_REGISTRATION: RunbookRegistration = {
   key: BFF_ALARM.runbookKey,
   product: RunbookProducts.INTEROP,
-  kind: AutomaticRunbookKinds.SERVICE,
+  kind: RunbookKinds.K8S,
   categories: ['INTEROP'],
   alarmNames: BFF_ALARM.alarmNames,
   build: buildRunbook,

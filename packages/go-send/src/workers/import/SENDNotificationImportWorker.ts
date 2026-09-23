@@ -12,7 +12,11 @@ import * as fs from 'fs';
 
 import { GOEventEmitterBase } from '@go-automation/go-common/core';
 import type { GOListImporter } from '@go-automation/go-common/core';
-import type { GOListImportErrorEvent, GOListImportProgressEvent } from '@go-automation/go-common/core';
+import type {
+  GOListImportError,
+  GOListImportErrorEvent,
+  GOListImportProgressEvent,
+} from '@go-automation/go-common/core';
 import type { GOListExporterStreamWriter } from '@go-automation/go-common/core';
 import { SENDNotifications } from '../../SENDNotifications.js';
 
@@ -32,6 +36,16 @@ import { getErrorMessage } from '@go-automation/go-common/core';
 
 type ImportSource = string | Buffer;
 type NotificationExportWriter = GOListExporterStreamWriter<unknown>;
+
+/** Converts an importer error, from the `import:error` event or the import result, into a worker error. */
+function toImportWorkerError(importError: GOListImportError): SENDNotificationImportWorkerError {
+  return {
+    rowIndex: importError.itemIndex,
+    rowData: importError.itemData,
+    message: importError.message,
+    type: 'import',
+  };
+}
 
 export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotificationImportWorkerEventMap> {
   private readonly rowProcessor: SENDNotificationImportRowProcessor;
@@ -113,14 +127,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
     };
 
     const errorHandler = (importError: GOListImportErrorEvent): void => {
-      this.emit('worker:error', {
-        error: {
-          rowIndex: importError.itemIndex,
-          rowData: importError.itemData,
-          message: importError.message,
-          type: 'import',
-        },
-      });
+      this.emit('worker:error', { error: toImportWorkerError(importError) });
     };
 
     this.importer.on('import:progress', progressHandler);
@@ -129,14 +136,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
     try {
       const importResult = await this.importer.import(source);
 
-      const errors: SENDNotificationImportWorkerError[] = [
-        ...(importResult.errors ?? []).map((e) => ({
-          rowIndex: e.itemIndex,
-          rowData: e.itemData,
-          message: e.message,
-          type: 'import' as const,
-        })),
-      ];
+      const errors: SENDNotificationImportWorkerError[] = (importResult.errors ?? []).map(toImportWorkerError);
 
       const result = await this.batchProcessor.processBatch(
         importResult.items,
@@ -210,14 +210,7 @@ export class SENDNotificationImportWorker extends GOEventEmitterBase<SENDNotific
     };
 
     const errorHandler = (importError: GOListImportErrorEvent): void => {
-      this.emit('worker:error', {
-        error: {
-          rowIndex: importError.itemIndex,
-          rowData: importError.itemData,
-          message: importError.message,
-          type: 'import',
-        },
-      });
+      this.emit('worker:error', { error: toImportWorkerError(importError) });
     };
 
     this.importer.on('import:progress', progressHandler);

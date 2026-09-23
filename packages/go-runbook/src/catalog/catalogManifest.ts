@@ -4,7 +4,7 @@
  * Maintained by hand. To add a runbook, declare its identity in
  * `runbooks/<id>/registration.ts` and add the two lines below: the import and the array entry.
  */
-import type { AutomaticRunbookRegistration } from './AutomaticRunbookRegistration.js';
+import type { RunbookRegistration } from './RunbookRegistration.js';
 
 // api gateway
 import { ADDRESS_BOOK_IO_REGISTRATION } from './runbooks/pn-address-book-io-IO-ApiGwAlarm/registration.js';
@@ -22,6 +22,7 @@ import { JWKS_CACHE_REFRESH_LAMBDA_REGISTRATION } from './runbooks/pn-jwksCacheR
 import { DELIVERY_INSERT_TRIGGER_EB_LAMBDA_REGISTRATION } from './runbooks/pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm/registration.js';
 import { LOLLIPOP_AUTHORIZER_LAMBDA_REGISTRATION } from './runbooks/pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm/registration.js';
 import { SENDER_DASHBOARD_DATA_INDEXER_REGISTRATION } from './runbooks/pn-bff-SenderDashboardDataIndexer-LogInvocationErrors-Alarm/registration.js';
+import { DOWNSTREAM_MONITORING_LAMBDA_REGISTRATION } from './runbooks/pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm/registration.js';
 
 // service logs
 import { EMD_DOWNSTREAM_DETECTION_REGISTRATION } from './runbooks/emd-downstream-detection-Alarm/registration.js';
@@ -38,11 +39,16 @@ import { WORKDAY_EXTERNAL_CHANNEL_ALB_REGISTRATION } from './runbooks/workday-pn
 import { MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION } from './runbooks/pn-mandate-acceptance-failure-tech-Alarm/registration.js';
 
 // interop kubernetes
+import { AUTHORIZATION_PROCESS_REGISTRATION } from './runbooks/k8s-interop-be-authorization-process-errors/registration.js';
+import { ISTAT_IMPORTER_REGISTRATION } from './runbooks/k8s-interop-be-istat-certified-attributes-importer-errors/registration.js';
 import { ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-attribute-registry-readmodel-writer-sql-errors/registration.js';
 import { CATALOG_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-catalog-readmodel-writer-sql-errors/registration.js';
+import { ESERVICE_TEMPLATE_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-eservice-template-readmodel-writer-sql-errors/registration.js';
 import { COMPUTE_AGREEMENTS_CONSUMER_REGISTRATION } from './runbooks/k8s-interop-be-compute-agreements-consumer-errors/registration.js';
 import { BFF_REGISTRATION } from './runbooks/k8s-interop-be-backend-for-frontend-errors/registration.js';
+import { NOTIFIER_REGISTRATION } from './runbooks/k8s-interop-be-notifier-errors/registration.js';
 import { NOTIFICATION_USER_LIFECYCLE_REGISTRATION } from './runbooks/k8s-interop-be-notification-user-lifecycle-consumer-errors/registration.js';
+import { PURPOSE_OUTBOUND_WRITER_REGISTRATION } from './runbooks/k8s-interop-be-purpose-outbound-writer-errors/registration.js';
 import { PUBLIC_CATALOG_REGISTRATION } from './runbooks/k8s-interop-public-catalog-astro-frontend-errors/registration.js';
 import { SELFCARE_USERS_UPDATER_REGISTRATION } from './runbooks/k8s-interop-be-selfcare-client-users-updater-errors/registration.js';
 import { SELFCARE_ONBOARDING_CONSUMER_REGISTRATION } from './runbooks/k8s-interop-be-selfcare-onboarding-consumer-errors/registration.js';
@@ -50,8 +56,9 @@ import { SELFCARE_ONBOARDING_CONSUMER_REGISTRATION } from './runbooks/k8s-intero
 // interop api gateway
 import { SELFCARE_APIGW_REGISTRATION } from './runbooks/interop-selfcare-1.0-apigw-5xx/registration.js';
 import { AUTH_SERVER_APIGW_REGISTRATION } from './runbooks/interop-auth-server-apigw-4xx/registration.js';
+import { AUTH_SERVER_5XX_APIGW_REGISTRATION } from './runbooks/interop-auth-server-apigw-5xx/registration.js';
 
-export const CATALOG_MANIFEST: ReadonlyArray<AutomaticRunbookRegistration> = [
+export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   // api gateway
   ADDRESS_BOOK_IO_REGISTRATION,
   DELIVERY_B2B_REGISTRATION,
@@ -67,6 +74,7 @@ export const CATALOG_MANIFEST: ReadonlyArray<AutomaticRunbookRegistration> = [
   DELIVERY_INSERT_TRIGGER_EB_LAMBDA_REGISTRATION,
   LOLLIPOP_AUTHORIZER_LAMBDA_REGISTRATION,
   SENDER_DASHBOARD_DATA_INDEXER_REGISTRATION,
+  DOWNSTREAM_MONITORING_LAMBDA_REGISTRATION,
   // service logs
   EMD_DOWNSTREAM_DETECTION_REGISTRATION,
   EXTERNAL_REGISTRIES_ONE_TRUST_REGISTRATION,
@@ -81,15 +89,21 @@ export const CATALOG_MANIFEST: ReadonlyArray<AutomaticRunbookRegistration> = [
   WORKDAY_EXTERNAL_CHANNEL_ALB_REGISTRATION,
   MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION,
   // interop kubernetes
+  AUTHORIZATION_PROCESS_REGISTRATION,
+  ISTAT_IMPORTER_REGISTRATION,
   ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_REGISTRATION,
   CATALOG_READMODEL_WRITER_SQL_REGISTRATION,
+  ESERVICE_TEMPLATE_READMODEL_WRITER_SQL_REGISTRATION,
   COMPUTE_AGREEMENTS_CONSUMER_REGISTRATION,
   BFF_REGISTRATION,
+  NOTIFIER_REGISTRATION,
   NOTIFICATION_USER_LIFECYCLE_REGISTRATION,
+  PURPOSE_OUTBOUND_WRITER_REGISTRATION,
   PUBLIC_CATALOG_REGISTRATION,
   SELFCARE_USERS_UPDATER_REGISTRATION,
   SELFCARE_ONBOARDING_CONSUMER_REGISTRATION,
   // interop api gateway
   SELFCARE_APIGW_REGISTRATION,
   AUTH_SERVER_APIGW_REGISTRATION,
+  AUTH_SERVER_5XX_APIGW_REGISTRATION,
 ];

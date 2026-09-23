@@ -1,13 +1,9 @@
-export {
-  AUTOMATIC_RUNBOOK_REGISTRY,
-  AutomaticRunbookRegistry,
-  RUNBOOK_REGISTRY,
-  validateCloudRunbookRegistry,
-} from './runbookRegistry.js';
-export type { AutomaticRunbookRegistration } from './AutomaticRunbookRegistration.js';
-export type { ResolvedAutomaticRunbook } from './ResolvedAutomaticRunbook.js';
+export { RUNBOOK_CATALOG, RunbookCatalog, RUNBOOK_REGISTRY, validateCloudRunbookRegistry } from './RunbookCatalog.js';
+export type { RunbookRegistration } from './RunbookRegistration.js';
+export type { ResolvedRunbook } from './ResolvedRunbook.js';
 export type { RunbookBuilderFn } from './RunbookBuilderFn.js';
-export type { AutomaticRunbookKind } from '@go-automation/go-execute-runbook-contracts';
+export type { RunbookKind } from '../types/RunbookKind.js';
+export { RunbookKinds } from '../types/RunbookKind.js';
 export { executeRunbookForOccurrence } from './executeRunbookForOccurrence.js';
 export type {
   ExecuteRunbookForOccurrenceDeps,

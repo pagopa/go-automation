@@ -5,6 +5,9 @@
  * for JSON and NDJSON/JSONL files.
  */
 
+// Canonical serialization
+export { canonicalizeJson } from './canonicalizeJson.js';
+
 // Field path navigation
 export { parseFieldPath, navigateFieldPath } from './fieldPath.js';
 

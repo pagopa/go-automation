@@ -1,15 +1,15 @@
-import { AutomaticRunbookKinds } from '@go-automation/go-execute-runbook-contracts';
+import { RunbookKinds } from '../../../types/RunbookKind.js';
 
-import type { AutomaticRunbookRegistration } from '../../AutomaticRunbookRegistration.js';
+import type { RunbookRegistration } from '../../RunbookRegistration.js';
 import { RunbookProducts } from '../../../types/RunbookProduct.js';
 import { buildRunbook } from './runbook.js';
 
 const KEY = 'pn-address-book-io-IO-ApiGwAlarm';
 
-export const ADDRESS_BOOK_IO_REGISTRATION: AutomaticRunbookRegistration = {
+export const ADDRESS_BOOK_IO_REGISTRATION: RunbookRegistration = {
   key: KEY,
   product: RunbookProducts.SEND,
-  kind: AutomaticRunbookKinds.APIGW,
+  kind: RunbookKinds.APIGW,
   categories: ['DELIVERY'],
   alarmNames: [KEY],
   build: buildRunbook,

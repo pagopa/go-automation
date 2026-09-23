@@ -76,15 +76,8 @@ function isSensitiveKey(key: string): boolean {
   );
 }
 
-function redactJsonStringField(match: string, key: string, separator: string): string {
-  if (!isSensitiveKey(key)) {
-    return match;
-  }
-
-  return `"${key}"${separator}"${REDACTED_JSON_VALUE}"`;
-}
-
-function redactJsonPrimitiveField(match: string, key: string, separator: string): string {
+/** Replacer shared by the string and primitive JSON field patterns: both redact to a JSON string. */
+function redactJsonField(match: string, key: string, separator: string): string {
   if (!isSensitiveKey(key)) {
     return match;
   }
@@ -139,8 +132,8 @@ function redactSensitiveStructuredEntry(value: unknown, seen: WeakSet<object>): 
  */
 export function redactSensitiveLogText(text: string): string {
   return text
-    .replace(JSON_STRING_FIELD_PATTERN, redactJsonStringField)
-    .replace(JSON_PRIMITIVE_FIELD_PATTERN, redactJsonPrimitiveField)
+    .replace(JSON_STRING_FIELD_PATTERN, redactJsonField)
+    .replace(JSON_PRIMITIVE_FIELD_PATTERN, redactJsonField)
     .replace(AUTHORIZATION_SCHEME_PATTERN, `$1$2$3${REDACTED_VALUE}`)
     .replace(AUTHORIZATION_VALUE_PATTERN, `$1${REDACTED_VALUE}`)
     .replace(SENSITIVE_ASSIGNMENT_PATTERN, `$1$2${REDACTED_VALUE}`)

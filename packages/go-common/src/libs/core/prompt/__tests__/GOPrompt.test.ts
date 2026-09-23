@@ -394,18 +394,18 @@ describe('GOPrompt.dateRange', () => {
   });
 });
 
+/** Rejection raised by inquirer once the prompt is aborted through its signal. */
+function abortError(): Error {
+  const error = new Error('Prompt was aborted');
+  error.name = 'AbortPromptError';
+  return error;
+}
+
 describe('selectWithBack', () => {
   const choices = [
     { title: 'Produzione', value: 'prod' },
     { title: '← Indietro', value: 'back' },
   ];
-
-  /** Rejection raised by inquirer once the prompt is aborted through its signal. */
-  function abortError(): Error {
-    const error = new Error('Prompt was aborted');
-    error.name = 'AbortPromptError';
-    return error;
-  }
 
   /**
    * Prompt whose select answers `answer`, after emitting `keys` on stdin the way
@@ -482,13 +482,6 @@ describe('autocompleteWithBack', () => {
     { title: 'Produzione', value: 'prod' },
     { title: '← Indietro', value: 'back' },
   ];
-
-  /** Rejection raised by inquirer once the prompt is aborted through its signal. */
-  function abortError(): Error {
-    const error = new Error('Prompt was aborted');
-    error.name = 'AbortPromptError';
-    return error;
-  }
 
   /**
    * Prompt whose search answers `answer`, after running the filter through every

@@ -3,7 +3,7 @@ import type { LambdaReportInfo } from './parseLambdaReportLine.js';
 
 const TIMEOUT_RE = /Status:\s*timeout|Task timed out|timed?\s*out/i;
 const OOM_RE = /OutOfMemory|JavaScript heap out of memory|Runtime exited with error:\s*signal:\s*killed/i;
-const THROTTLE_RE = /Rate Exceeded|TooManyRequestsException|throttl/i;
+const THROTTLE_RE = /Rate Exceeded|TooManyRequestsException|SlowDown|Please reduce your request rate|throttl/i;
 const DOWNSTREAM_RE = /External service\s+\S+\s+returned errors/i;
 const APPLICATION_ERROR_RE = /\bERROR\b|Exception|Status:\s*error/;
 

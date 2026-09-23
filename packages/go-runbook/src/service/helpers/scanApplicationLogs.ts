@@ -22,9 +22,10 @@ const XRAY_TRACE_ID_PATTERN = /\b1-[0-9a-fA-F]{8}-[0-9a-fA-F]{24}\b/;
  *
  * Requiring the label avoids treating any bare 32-hex token (MD5, dash-less
  * UUID, request hash) found in a log line as a trace id, which would trigger a
- * trace query on a non-existent identifier.
+ * trace query on a non-existent identifier. The `i` flag covers the label and
+ * the uppercase hex digits alike.
  */
-const LABELED_TRACE_ID_PATTERN = /trace[_-]?id["'\s:=]+([0-9a-fA-F]{32})(?![0-9a-fA-F])/i;
+const LABELED_TRACE_ID_PATTERN = /trace[_-]?id["'\s:=]+([0-9a-f]{32})(?![0-9a-f])/i;
 
 export interface TraceIdCandidateMatch {
   readonly raw: string;

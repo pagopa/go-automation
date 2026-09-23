@@ -94,15 +94,26 @@ export class QATestFormatAdapter implements GOCSVFormatAdapter<SENDNotificationR
       // Set default values for required fields that are not in the QA format
       defaultValues: {
         recipientType: 'PF',
-        documentKey: 'PN_NOTIFICATION_ATTACHMENTS-2d278594387b4a55a062981236165af8.pdf',
+        documentKey: 'PN_NOTIFICATION_ATTACHMENTS-102dcf171c8f4befa9e32afbc95f1878.pdf',
+        documentSha256: '1gpDEYpQ7gAEmeSRl8CaBLhaIyeaYRmeL7v90YJtMeY=',
         documentVersionToken: 'v1',
-        documentSha256: 'B916a8083NjVXZV0nDm7iSRU0ijXZUGFyGvXvIvneBs=',
-        group: '6a29778620b0d07091c75df4', // vecchio forse è stato cancellato -> '695fcc3d48f30c04cb3fbca4',
+        group: '6aabc24a6e192d3f5f475c74', // vecchio forse è stato cancellato -> '695fcc3d48f30c04cb3fbca4',
         //physicalMunicipalityDetails: 'Roma',
 
-        // GROUP ID
-        // COmune di Sappada : 699f08faf8a140751720e3e0
-        // COmune di Milano : 6a29778620b0d07091c75df4
+        // GROUP ID TEST
+        // Comune di Sappada : 699f08faf8a140751720e3e0
+        // Comune di Milano : 6a29778620b0d07091c75df4
+
+        // GROUP ID UAT
+        // Provincia di Como : 6aabc24a6e192d3f5f475c74
+
+        // [TEST] DOCUMENT INFO
+        // documentKey: 'PN_NOTIFICATION_ATTACHMENTS-2d278594387b4a55a062981236165af8.pdf',
+        // documentSha256: 'B916a8083NjVXZV0nDm7iSRU0ijXZUGFyGvXvIvneBs=',
+
+        // [UAT] DOCUMENT INFO
+        // documentKey: 'PN_NOTIFICATION_ATTACHMENTS-102dcf171c8f4befa9e32afbc95f1878.pdf',
+        // documentSha256: '1gpDEYpQ7gAEmeSRl8CaBLhaIyeaYRmeL7v90YJtMeY=',
       },
 
       // Use standard SEND validator

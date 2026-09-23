@@ -2,15 +2,15 @@
  * Runbook: pn-external-registries-OneTrust-downstream-detection-Alarm
  */
 
-import { service } from '../framework.js';
+import { downstream } from '../framework.js';
 import type { Runbook } from '../framework.js';
 
 import { KNOWN_CASES } from './knownCases.js';
-import { SERVICE } from './knownServices.js';
+import { DOWNSTREAM, SERVICE } from './knownServices.js';
 
 /** Builds the pn-external-registries OneTrust downstream-detection runbook. */
 export function buildRunbook(): Runbook {
-  return service.createServiceAlarmRunbook({
+  return downstream.createDownstreamAlarmRunbook({
     id: 'pn-external-registries-OneTrust-downstream-detection-Alarm',
     metadata: {
       name: 'pn-external-registries-OneTrust-downstream-detection-Alarm',
@@ -22,6 +22,7 @@ export function buildRunbook(): Runbook {
       tags: ['service', 'pn-external-registries', 'downstream', 'OneTrust'],
     },
     service: SERVICE,
+    downstream: DOWNSTREAM,
     knownCases: KNOWN_CASES,
     occurrenceTimeWindow: {
       beforeMinutes: 10,

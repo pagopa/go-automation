@@ -3,8 +3,8 @@ import { describe, it } from 'node:test';
 
 import type { KnownCase, KnownCaseAnalysis, Runbook, RunbookAnalysisDefaults } from '@go-automation/go-runbook';
 import { INTEROP_DOWNSTREAMS, SEND_DOWNSTREAMS } from '@go-automation/go-runbook';
-import { AutomaticRunbookRegistry } from '@go-automation/go-runbook/catalog';
-import type { AutomaticRunbookRegistration } from '@go-automation/go-runbook/catalog';
+import { RunbookCatalog } from '@go-automation/go-runbook/catalog';
+import type { RunbookRegistration } from '@go-automation/go-runbook/catalog';
 import type { IgnoreReasonDto, ProductCensus, ProductDto } from '@go-automation/go-watchtower-client';
 
 import { checkRunbookCoverage } from '../checkRunbookCoverage.js';
@@ -273,8 +273,8 @@ async function run(options: RunOptions): ReturnType<typeof checkRunbookCoverage>
   });
 }
 
-function registryOf(registrations: ReadonlyArray<AutomaticRunbookRegistration>): AutomaticRunbookRegistry {
-  return new AutomaticRunbookRegistry(registrations);
+function registryOf(registrations: ReadonlyArray<RunbookRegistration>): RunbookCatalog {
+  return new RunbookCatalog(registrations);
 }
 
 function registration(
@@ -282,7 +282,7 @@ function registration(
   product: 'SEND' | 'INTEROP',
   alarmNames: ReadonlyArray<string>,
   runbook: Runbook,
-): AutomaticRunbookRegistration {
+): RunbookRegistration {
   return {
     key,
     product,

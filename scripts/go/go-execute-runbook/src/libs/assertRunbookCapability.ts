@@ -1,4 +1,4 @@
-import { AUTOMATIC_RUNBOOK_REGISTRY } from '@go-automation/go-runbook/catalog';
+import { RUNBOOK_CATALOG } from '@go-automation/go-runbook/catalog';
 
 import type { ExecuteRunbookInput } from '../types/ExecuteRunbookInput.js';
 
@@ -27,7 +27,7 @@ export type RunbookCapabilityMismatchError = Error & {
 /** Validates capability pinning before lifecycle start or any AWS query. */
 export function assertRunbookCapability(input: ExecuteRunbookInput, workerRevision?: string): void {
   const reportedWorkerRevision = workerRevision ?? input.runbook.workerRevision;
-  const resolved = AUTOMATIC_RUNBOOK_REGISTRY.resolveByKey(input.runbook.key);
+  const resolved = RUNBOOK_CATALOG.resolveByKey(input.runbook.key);
   const descriptor = resolved?.descriptor;
   if (descriptor === undefined) {
     return throwCapabilityMismatch({ requested: input.runbook, workerRevision: reportedWorkerRevision });

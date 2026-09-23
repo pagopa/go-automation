@@ -32,8 +32,7 @@
   "author": "Team GO - Gestione Operativa",
   "license": "ISC",
   "dependencies": {
-    "@go-automation/go-common": "workspace:*",
-    "@go-automation/go-execute-runbook-contracts": "workspace:*"
+    "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

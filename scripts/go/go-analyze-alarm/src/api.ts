@@ -8,8 +8,8 @@
  * `@go-automation/go-runbook/catalog`.
  */
 export {
-  AUTOMATIC_RUNBOOK_REGISTRY,
-  AutomaticRunbookRegistry,
+  RUNBOOK_CATALOG,
+  RunbookCatalog,
   RUNBOOK_REGISTRY,
   validateCloudRunbookRegistry,
   executeRunbookForOccurrence,
@@ -20,8 +20,8 @@ export {
   DEFAULT_TIME_WINDOW_MINUTES,
 } from '@go-automation/go-runbook/catalog';
 export type {
-  AutomaticRunbookRegistration,
-  ResolvedAutomaticRunbook,
+  RunbookRegistration,
+  ResolvedRunbook,
   RunbookBuilderFn,
   ExecuteRunbookForOccurrenceDeps,
   ExecuteRunbookForOccurrenceInput,

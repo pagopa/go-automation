@@ -16,7 +16,10 @@ const DOCUMENTED_MESSAGES: ReadonlyArray<string> = [
   'The group coordinator is not available',
   'Crash: KafkaJSNumberOfRetriesExceeded: The replica is not available for the requested topic-partition',
   'Connection error: read ECONNRESET',
-  'Connection error: read ETIMEDOUT',
+  "The coordinator is loading and hence can't process requests for this group",
+  'ERROR - Crash: KafkaJSNumberOfRetriesExceeded: Request Metadata(key: 3, version: 6) timed out',
+  'ERROR - Connection error: read ECONNRESET',
+  'Crash: KafkaJSNumberOfRetriesExceeded: Request Metadata(key: 3, version: 6) timed out',
 ];
 
 function applicationLogRows(messages: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<LogRowField>> {
@@ -47,7 +50,12 @@ describe('INTEROP Selfcare users updater known cases', () => {
   it('declares a single stable known case for the Selfcare Kafka failures', () => {
     assert.ok(knownCase !== undefined);
     assert.strictEqual(knownCase.id, 'selfcare-kafka-broker-communication-errors');
+    assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
     assert.deepStrictEqual(knownCase.analysis?.downstreams, [INTEROP_DOWNSTREAMS.SELFCARE]);
+    assert.deepStrictEqual(knownCase.analysis?.links, [
+      { url: 'https://pagopa.atlassian.net/browse/PIN-7325', name: 'PIN-7325', type: 'JIRA' },
+    ]);
+    assert.ok((knownCase.analysis?.finalActions?.length ?? 0) > 0);
   });
 
   it('matches every error signature documented in the runbook', () => {
@@ -73,6 +81,17 @@ describe('INTEROP Selfcare users updater known cases', () => {
       [
         SELFCARE_USERS_UPDATER_ALARM.stepIds.queryApplicationLogs,
         applicationLogRows(['Request failed: read ECONNRESET']),
+      ],
+    ]);
+    assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), false);
+  });
+
+  it('does not retain ETIMEDOUT, which is not present in the current Confluence cases', () => {
+    assert.ok(knownCase !== undefined);
+    const ctx = context([
+      [
+        SELFCARE_USERS_UPDATER_ALARM.stepIds.queryApplicationLogs,
+        applicationLogRows(['Connection error: read ETIMEDOUT']),
       ],
     ]);
     assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), false);

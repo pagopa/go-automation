@@ -1,19 +1,25 @@
-import { service } from '../framework.js';
-
 /**
- * Preserves both predicates of the documented metric filter and q1.
- * The canonical downstream helper adds chronological ordering and projects
- * trace_id plus structured/raw messages, which are needed by q2 and analysis.
- * Its exact-service variant alone does not restrict the level to ERROR.
+ * Known services for the pn-external-registries IO downstream-detection runbook.
  */
-const IO_DOWNSTREAM_QUERY = `filter level = 'ERROR' and message like '[DOWNSTREAM] Service IO returned errors='
-| ${service.buildDownstreamDetectionQuery({ downstreamName: 'IO' })}`;
 
-/** Application service whose logs contain IO downstream errors. */
-export const SERVICE: service.ServiceDescriptor = {
+import type { downstream } from '../framework.js';
+import { SEND_DOWNSTREAMS } from '../framework.js';
+
+/** Application service whose logs carry the downstream markers. */
+export const SERVICE = {
   name: 'pn-external-registries',
   varPrefix: 'externalRegistries',
   logGroup: '/aws/ecs/pn-external-registries',
-  // The application emits `IO`; the analysis census identifies it as `AppIO`.
-  queryOverride: IO_DOWNSTREAM_QUERY,
+};
+
+/** Downstream this runbook diagnoses. */
+export const DOWNSTREAM: downstream.DownstreamSelector = {
+  kind: 'named',
+  name: SEND_DOWNSTREAMS.APP_IO,
+  // The application emits `IO`; the census calls the same downstream `AppIO`.
+  emittedAs: 'IO',
+  // Both predicates of the alarm's metric filter: ERROR level, and the marker
+  // in the structured field rather than anywhere in the raw event.
+  errorLevelOnly: true,
+  matchStructuredMessage: true,
 };

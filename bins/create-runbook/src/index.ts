@@ -37,6 +37,9 @@ import { resolveTemplate, collectAnswers, confirmGeneration } from './cli/prompt
 import { renderRunbookFiles, writeGeneratedFiles } from './generate/scaffoldRunbook.js';
 import { formatTypeScript } from './generate/formatTypeScript.js';
 import type { GeneratedFile } from './generate/scaffoldRunbook.js';
+import { RunbookKinds } from '../../../packages/go-runbook/src/types/RunbookKind.js';
+import type { RunbookKind } from '../../../packages/go-runbook/src/types/RunbookKind.js';
+
 import { registerRunbookInCatalog, renderRegistrationFile } from './wiring/registerInCatalog.js';
 import type { RunbookRegistration } from './wiring/registerInCatalog.js';
 import { deriveRegistrationName } from './naming/deriveRegistrationName.js';
@@ -50,8 +53,6 @@ const CYAN = '\x1b[36m';
 const GREEN = '\x1b[32m';
 const YELLOW = '\x1b[33m';
 const RESET = '\x1b[0m';
-
-type AutomaticRunbookKind = 'APIGW' | 'LAMBDA' | 'SERVICE';
 
 async function pathExists(target: string): Promise<boolean> {
   try {
@@ -131,14 +132,14 @@ function printSuccess(
   printNextSteps(answers);
 }
 
-function catalogKindForTemplate(templateId: string): AutomaticRunbookKind | undefined {
+function catalogKindForTemplate(templateId: string): RunbookKind | undefined {
   switch (templateId) {
     case 'api-gateway':
-      return 'APIGW';
+      return RunbookKinds.APIGW;
     case 'lambda':
-      return 'LAMBDA';
+      return RunbookKinds.LAMBDA;
     case 'service':
-      return 'SERVICE';
+      return RunbookKinds.SERVICE;
     default:
       return undefined;
   }
@@ -158,7 +159,7 @@ function nonEmptyCategories(categories: ReadonlyArray<string>): readonly [string
  */
 async function renderRegistration(
   answers: RunbookAnswers,
-  catalogKind: AutomaticRunbookKind | undefined,
+  catalogKind: RunbookKind | undefined,
   targetDir: string,
 ): Promise<{ readonly file: GeneratedFile; readonly registration: RunbookRegistration }> {
   if (catalogKind === undefined) {

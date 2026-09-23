@@ -1,6 +1,6 @@
 import type { Core } from '@go-automation/go-common';
 import { valueToString } from '@go-automation/go-common/core';
-import { AUTOMATIC_RUNBOOK_REGISTRY } from '@go-automation/go-runbook/catalog';
+import { RUNBOOK_CATALOG } from '@go-automation/go-runbook/catalog';
 import type { ProductCensus, WatchtowerClient } from '@go-automation/go-watchtower-client';
 import type { CoverageReport } from '@go-automation/go-watchtower-runbook';
 import { checkRunbookCoverage, COVERAGE_ERROR_CODES } from '@go-automation/go-watchtower-runbook';
@@ -60,7 +60,7 @@ export async function runCoverageCheck(logger: Core.GOLogger, client: Watchtower
     const ignoreReasons = await client.listIgnoreReasons();
 
     const report = await checkRunbookCoverage({
-      registry: AUTOMATIC_RUNBOOK_REGISTRY,
+      registry: RUNBOOK_CATALOG,
       products,
       census,
       ignoreReasons,
