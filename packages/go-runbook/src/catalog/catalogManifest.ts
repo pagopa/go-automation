@@ -23,6 +23,7 @@ import { DELIVERY_INSERT_TRIGGER_EB_LAMBDA_REGISTRATION } from './runbooks/pn-de
 import { LOLLIPOP_AUTHORIZER_LAMBDA_REGISTRATION } from './runbooks/pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm/registration.js';
 import { SENDER_DASHBOARD_DATA_INDEXER_REGISTRATION } from './runbooks/pn-bff-SenderDashboardDataIndexer-LogInvocationErrors-Alarm/registration.js';
 import { DOWNSTREAM_MONITORING_LAMBDA_REGISTRATION } from './runbooks/pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm/registration.js';
+import { CDC_PREPROC_DATA_QUALITY_FILTER_REGISTRATION } from './runbooks/pn-cdc-preproc-data-quality-filter-LogInvocationErrors-Alarm/registration.js';
 
 // service logs
 import { EMD_DOWNSTREAM_DETECTION_REGISTRATION } from './runbooks/emd-downstream-detection-Alarm/registration.js';
@@ -75,6 +76,7 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   LOLLIPOP_AUTHORIZER_LAMBDA_REGISTRATION,
   SENDER_DASHBOARD_DATA_INDEXER_REGISTRATION,
   DOWNSTREAM_MONITORING_LAMBDA_REGISTRATION,
+  CDC_PREPROC_DATA_QUALITY_FILTER_REGISTRATION,
   // service logs
   EMD_DOWNSTREAM_DETECTION_REGISTRATION,
   EXTERNAL_REGISTRIES_ONE_TRUST_REGISTRATION,
