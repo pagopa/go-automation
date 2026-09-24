@@ -2,7 +2,6 @@
  * Send Paper Request Error Check - Input Lines Reader
  */
 
-import fs from 'fs';
 import { Core } from '@go-automation/go-common';
 
 /**
@@ -12,12 +11,26 @@ import { Core } from '@go-automation/go-common';
  * @returns Array di righe lette dal file
  */
 export async function readInputLines(filePath?: string): Promise<string[]> {
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  if (!filePath || !fs.existsSync(filePath)) {
+  if (!filePath) {
     return [];
   }
 
-  const importer = new Core.GOFileListImporter({ skipEmptyLines: true });
-  const { items } = await importer.import(filePath);
-  return items.map((line) => line.trim()).filter((line) => line.length > 0 && !line.startsWith('#'));
+  const importer = new Core.GOFileListImporter({ trim: true, skipEmptyLines: true, commentPrefix: '#' });
+  try {
+    const { items } = await importer.import(filePath);
+    return items;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      const errWithCode = error as Error & { code?: string };
+      if (errWithCode.code === 'ENOENT' || error.message.includes('ENOENT')) {
+        return [];
+      }
+    } else if (typeof error === 'object' && error !== null && 'code' in error) {
+      const errObj = error as { code?: unknown };
+      if (errObj.code === 'ENOENT') {
+        return [];
+      }
+    }
+    throw error;
+  }
 }

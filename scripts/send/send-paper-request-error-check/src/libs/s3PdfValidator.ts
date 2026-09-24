@@ -1,27 +1,12 @@
-import fs from 'fs';
 import path from 'path';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import type { S3Client } from '@aws-sdk/client-s3';
 import type { Readable } from 'stream';
-import type { Core } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, PdfValidationResult } from '../types/index.js';
 
 /** Signature Magic Bytes del formato PDF ("%PDF" = 0x25 0x50 0x44 0x46) */
 const PDF_MAGIC_BYTES = Buffer.from([0x25, 0x50, 0x44, 0x46]);
-
-/**
- * Utilità di scrittura/append su file.
- */
-function appendToFile(filePath: string, content: string): void {
-  const dir = path.dirname(filePath);
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  if (!fs.existsSync(dir)) {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  fs.appendFileSync(filePath, `${content}\n`, 'utf8');
-}
 
 /**
  * Converte uno stream di risposta S3 in un Buffer limitato ai primi byte richiesti.
@@ -163,9 +148,17 @@ export async function validateS3Pdfs(
   const invalidPdfsFile = path.join(outputDir, 'invalid_pdfs.csv');
   const errorsFile = path.join(outputDir, 'pdf_validation_errors.csv');
 
-  appendToFile(validPdfsFile, 'fileKey');
-  appendToFile(invalidPdfsFile, 'fileKey,reason');
-  appendToFile(errorsFile, 'fileKey,error');
+  const validExporter = new Core.GOFileListExporter({ outputPath: validPdfsFile });
+  const invalidExporter = new Core.GOFileListExporter({ outputPath: invalidPdfsFile });
+  const errorsExporter = new Core.GOFileListExporter({ outputPath: errorsFile });
+
+  const validStream = await validExporter.exportStream();
+  const invalidStream = await invalidExporter.exportStream();
+  const errorsStream = await errorsExporter.exportStream();
+
+  await validStream.append('fileKey');
+  await invalidStream.append('fileKey,reason');
+  await errorsStream.append('fileKey,error');
 
   let validPdfCount = 0;
   let invalidPdfCount = 0;
@@ -182,15 +175,15 @@ export async function validateS3Pdfs(
     for (const res of results) {
       if (res.valid) {
         validPdfCount++;
-        appendToFile(validPdfsFile, res.fileKey);
+        await validStream.append(res.fileKey);
       } else if (res.error === 'InvalidMagicBytes') {
         invalidPdfCount++;
         logger.warning(`❌ PDF Non Valido (Magic Bytes errati): ${res.fileKey}`);
-        appendToFile(invalidPdfsFile, `${res.fileKey},InvalidMagicBytes`);
+        await invalidStream.append(`${res.fileKey},InvalidMagicBytes`);
       } else {
         errorCount++;
         logger.error(`⚠️ Errore durante il check del file ${res.fileKey}: ${res.error}`);
-        appendToFile(errorsFile, `${res.fileKey},${res.error ?? 'Unknown'}`);
+        await errorsStream.append(`${res.fileKey},${res.error ?? 'Unknown'}`);
       }
     }
   }
@@ -198,6 +191,10 @@ export async function validateS3Pdfs(
   logger.info(
     `Validazione PDF S3 completata: ${validPdfCount} validi, ${invalidPdfCount} non validi, ${errorCount} errori su ${fileKeys.length} totali.`,
   );
+
+  await validStream.close();
+  await invalidStream.close();
+  await errorsStream.close();
 
   return {
     totalChecked: fileKeys.length,

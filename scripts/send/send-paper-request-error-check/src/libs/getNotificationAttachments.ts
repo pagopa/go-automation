@@ -1,28 +1,13 @@
-import fs from 'fs';
 import path from 'path';
 import { ListObjectVersionsCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import type { S3Client } from '@aws-sdk/client-s3';
-import type { AWS, Core } from '@go-automation/go-common';
+import { AWS, Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, GetNotificationAttachmentsResult } from '../types/index.js';
 import { get, iunFromRid } from '../utils/get.js';
 
 /** Tabelle DynamoDB coinvolte */
 const NOTIFICATIONS_TABLE_NAME = 'pn-Notifications';
 const SS_DOCUMENTI_TABLE_NAME = 'pn-SsDocumenti';
-
-/**
- * Utilità di scrittura/append su file.
- */
-function appendToFile(filePath: string, content: string): void {
-  const dir = path.dirname(filePath);
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  if (!fs.existsSync(dir)) {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  fs.appendFileSync(filePath, `${content}\n`, 'utf8');
-}
 
 export interface S3ObjectState {
   readonly found: boolean;
@@ -149,8 +134,16 @@ export async function getNotificationAttachments(
   const notFoundNotificationsFile = path.join(outputDir, `not_found_notifications_${timestamp}.txt`);
   const notFoundAttachmentsFile = path.join(outputDir, `not_found_attachments_${timestamp}.csv`);
 
-  appendToFile(csvFile, 'IUN,Attachment,documentLogicalState,documentState,hasDeleteMarker');
-  appendToFile(notFoundAttachmentsFile, 'IUN,Attachment');
+  const csvExporter = new Core.GOFileListExporter({ outputPath: csvFile });
+  const notFoundNotificationsExporter = new Core.GOFileListExporter({ outputPath: notFoundNotificationsFile });
+  const notFoundAttachmentsExporter = new Core.GOFileListExporter({ outputPath: notFoundAttachmentsFile });
+
+  const csvStream = await csvExporter.exportStream();
+  const notFoundNotificationsStream = await notFoundNotificationsExporter.exportStream();
+  const notFoundAttachmentsStream = await notFoundAttachmentsExporter.exportStream();
+
+  await csvStream.append('IUN,Attachment,documentLogicalState,documentState,hasDeleteMarker');
+  await notFoundAttachmentsStream.append('IUN,Attachment');
 
   let notificationsFound = 0;
   let notificationsNotFound = 0;
@@ -174,7 +167,7 @@ export async function getNotificationAttachments(
 
       if (items.length === 0) {
         notificationsNotFound++;
-        appendToFile(notFoundNotificationsFile, iun);
+        await notFoundNotificationsStream.append(iun);
         logger.warning(`Notifica non trovata per IUN ${iun}`);
         continue;
       }
@@ -189,7 +182,7 @@ export async function getNotificationAttachments(
 
       if (!documentKey) {
         attachmentsNotFound++;
-        appendToFile(notFoundAttachmentsFile, `${iun},`);
+        await notFoundAttachmentsStream.append(`${iun},`);
         logger.warning(`Nessun documentKey trovato nei documenti per IUN ${iun}`);
         continue;
       }
@@ -198,7 +191,7 @@ export async function getNotificationAttachments(
       const s3State = await checkS3ObjectState(s3Client, bucket, documentKey);
       if (!s3State.found) {
         attachmentsNotFound++;
-        appendToFile(notFoundAttachmentsFile, `${iun},${documentKey}`);
+        await notFoundAttachmentsStream.append(`${iun},${documentKey}`);
         logger.warning(`Allegato non trovato su S3 per IUN ${iun} (Key: ${documentKey})`);
         continue;
       }
@@ -228,8 +221,7 @@ export async function getNotificationAttachments(
       }
 
       attachmentsFound++;
-      appendToFile(
-        csvFile,
+      await csvStream.append(
         `${iun},${documentKey},${documentLogicalState},${documentState},${s3State.hasDeleteMarker}`,
       );
 
@@ -251,8 +243,12 @@ export async function getNotificationAttachments(
   }
 
   logger.info(
-    `Elaborazione Get Attachments completata: ${notificationsFound} notifiche trovate (${notificationsNotFound} non trovate), ${attachmentsFound} allegati trovati (${attachmentsNotFound} non trovati), ${deleteMarkersFound} con delete marker.`,
+    `Elaborazione Get Attachments completata: ${notificationsFound} notifiche trovate (${notificationsNotFound} non trovate), ${attachmentsFound} allegati trovati (${attachmentsNotFound} non trovate), ${deleteMarkersFound} con delete marker.`,
   );
+
+  await csvStream.close();
+  await notFoundNotificationsStream.close();
+  await notFoundAttachmentsStream.close();
 
   return {
     totalProcessed: iuns.length,

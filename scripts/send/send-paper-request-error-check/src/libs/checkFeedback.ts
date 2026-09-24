@@ -1,6 +1,5 @@
-import fs from 'fs';
 import path from 'path';
-import type { Core } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, CheckFeedbackResult } from '../types/index.js';
 import { get } from '../utils/get.js';
 
@@ -36,20 +35,6 @@ export function extractIunFromRequestId(requestId: string): string {
 }
 
 /**
- * Utilità di salvataggio/append su file.
- */
-function appendToFile(filePath: string, content: string): void {
-  const dir = path.dirname(filePath);
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  if (!fs.existsSync(dir)) {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  fs.appendFileSync(filePath, `${content}\n`, 'utf8');
-}
-
-/**
  * Verifica per ciascun requestId l'esistenza di un evento di feedback in DynamoDB (pn-Timelines).
  *
  * @param script - Istanza di Core.GOScript per accedere ai client e logger
@@ -70,6 +55,11 @@ export async function checkFeedbackFromRequestIds(
 
   const foundFilePath = path.join(outputDir, 'found.json');
   const notFoundFilePath = path.join(outputDir, 'not_found.txt');
+
+  const foundExporter = new Core.GOFileListExporter({ outputPath: foundFilePath });
+  const notFoundExporter = new Core.GOFileListExporter({ outputPath: notFoundFilePath });
+  const foundStream = await foundExporter.exportStream();
+  const notFoundStream = await notFoundExporter.exportStream();
 
   logger.info(`Inizio verifica feedback su pn-Timelines per ${requestIds.length} requestId...`);
 
@@ -101,28 +91,31 @@ export async function checkFeedbackFromRequestIds(
         if (feedbackEvent) {
           logger.info(`✅ Trovato feedback per ${requestId}`);
           foundRequestIds.push({ requestId, event: feedbackEvent });
-          appendToFile(foundFilePath, JSON.stringify({ [requestId]: feedbackEvent }));
+          await foundStream.append(JSON.stringify({ [requestId]: feedbackEvent }));
         } else {
           logger.warning(`❌ Feedback non trovato per ${requestId}`);
           notFoundRequestIds.push(requestId);
-          appendToFile(notFoundFilePath, requestId);
+          await notFoundStream.append(requestId);
         }
       } else {
         logger.warning(`❌ Nessun elemento timeline trovato per IUN ${iun} (${requestId})`);
         notFoundRequestIds.push(requestId);
-        appendToFile(notFoundFilePath, requestId);
+        await notFoundStream.append(requestId);
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       logger.error(`Errore durante la query per ${requestId} (IUN: ${iun}): ${errorMsg}`);
       notFoundRequestIds.push(requestId);
-      appendToFile(notFoundFilePath, requestId);
+      await notFoundStream.append(requestId);
     }
   }
 
   logger.info(
     `Verifica feedback completata: ${foundRequestIds.length} trovati, ${notFoundRequestIds.length} non trovati su ${requestIds.length} totali.`,
   );
+
+  await foundStream.close();
+  await notFoundStream.close();
 
   return {
     totalChecked: requestIds.length,

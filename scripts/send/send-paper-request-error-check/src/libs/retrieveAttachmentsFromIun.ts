@@ -1,6 +1,5 @@
-import fs from 'fs';
 import path from 'path';
-import type { AWS, Core } from '@go-automation/go-common';
+import { AWS, Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, RetrieveAttachmentsResult } from '../types/index.js';
 import { get, iunFromRid } from '../utils/get.js';
 
@@ -9,26 +8,12 @@ const NOTIFICATIONS_TABLE_NAME = 'pn-Notifications';
 const TIMELINES_TABLE_NAME = 'pn-Timelines';
 
 /**
- * Utilità di scrittura/append su file.
- */
-function appendToFile(filePath: string, content: string): void {
-  const dir = path.dirname(filePath);
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  if (!fs.existsSync(dir)) {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  fs.appendFileSync(filePath, `${content}\n`, 'utf8');
-}
-
-/**
  * Recupera le chiavi S3 degli allegati per una notifica a partire da un IUN.
  */
 async function retrieveNotificationAttachments(
   dynamoDbService: AWS.AWSDynamoDBService,
   iun: string,
-  outputDir: string,
+  attachmentsStream: Core.GOListExporterStreamWriter<string>,
 ): Promise<number> {
   const items = await dynamoDbService.query(NOTIFICATIONS_TABLE_NAME, 'iun = :val', {
     ':val': { S: iun },
@@ -73,8 +58,7 @@ async function retrieveNotificationAttachments(
     attachments: attachmentKeys,
   };
 
-  const attachmentsFilePath = path.join(outputDir, 'attachments.json');
-  appendToFile(attachmentsFilePath, JSON.stringify(resultPayload));
+  await attachmentsStream.append(JSON.stringify(resultPayload));
 
   return attachmentKeys.length;
 }
@@ -82,13 +66,16 @@ async function retrieveNotificationAttachments(
 /**
  * Recupera i documenti AAR (AAR_GENERATION) dalla timeline di un IUN.
  */
-async function retrieveAARs(dynamoDbService: AWS.AWSDynamoDBService, iun: string, outputDir: string): Promise<number> {
+async function retrieveAARs(
+  dynamoDbService: AWS.AWSDynamoDBService,
+  iun: string,
+  aarStream: Core.GOListExporterStreamWriter<string>,
+): Promise<number> {
   const items = await dynamoDbService.query(TIMELINES_TABLE_NAME, 'iun = :val', {
     ':val': { S: iun },
   });
 
   let count = 0;
-  const aarFilePath = path.join(outputDir, 'aar.json');
 
   for (const item of items) {
     const category = get<string>(item, 'category');
@@ -98,7 +85,7 @@ async function retrieveAARs(dynamoDbService: AWS.AWSDynamoDBService, iun: string
 
       if (generatedAarUrl) {
         const legalFactKey = generatedAarUrl.replace('safestorage://', '');
-        appendToFile(aarFilePath, `${iun},${legalFactKey}`);
+        await aarStream.append(`${iun},${legalFactKey}`);
         count++;
       }
     }
@@ -124,6 +111,15 @@ export async function retrieveAttachmentsFromIun(
 
   const outputDir = config.outputDir || 'results';
 
+  const attachmentsFilePath = path.join(outputDir, 'attachments.json');
+  const aarFilePath = path.join(outputDir, 'aar.json');
+
+  const attachmentsExporter = new Core.GOFileListExporter({ outputPath: attachmentsFilePath });
+  const aarExporter = new Core.GOFileListExporter({ outputPath: aarFilePath });
+
+  const attachmentsStream = await attachmentsExporter.exportStream();
+  const aarStream = await aarExporter.exportStream();
+
   let attachmentsExtractedCount = 0;
   let aarsExtractedCount = 0;
   let errorsCount = 0;
@@ -137,10 +133,10 @@ export async function retrieveAttachmentsFromIun(
     logger.info(`[${i + 1}/${iuns.length}] Recupero allegati per IUN: ${iun}`);
 
     try {
-      const attCount = await retrieveNotificationAttachments(dynamoDbService, iun, outputDir);
+      const attCount = await retrieveNotificationAttachments(dynamoDbService, iun, attachmentsStream);
       attachmentsExtractedCount += attCount;
 
-      const aarCount = await retrieveAARs(dynamoDbService, iun, outputDir);
+      const aarCount = await retrieveAARs(dynamoDbService, iun, aarStream);
       aarsExtractedCount += aarCount;
     } catch (err) {
       errorsCount++;
@@ -152,6 +148,9 @@ export async function retrieveAttachmentsFromIun(
   logger.info(
     `Recupero completato: ${attachmentsExtractedCount} allegati e ${aarsExtractedCount} AAR trovati su ${iuns.length} IUN (${errorsCount} errori).`,
   );
+
+  await attachmentsStream.close();
+  await aarStream.close();
 
   return {
     totalIuns: iuns.length,
