@@ -1,0 +1,42 @@
+{
+  "name": "send-paper-request-error-check",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Script di verifica, diagnosi errori e ripristino per paper request (esecuzioni modulari o pipeline completa)",
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "start": "pnpm build && node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "keywords": [
+    "send",
+    "go-automation",
+    "paper-request"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "catalog:",
+    "@aws-sdk/client-s3": "catalog:",
+    "@aws-sdk/client-sts": "catalog:",
+    "@aws-sdk/util-dynamodb": "catalog:",
+    "@go-automation/go-common": "workspace:*",
+    "@go-automation/go-send": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./config": "./dist/config.js",
+    "./main": "./dist/main.js"
+  }
+}
