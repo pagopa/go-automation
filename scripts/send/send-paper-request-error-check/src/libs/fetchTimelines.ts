@@ -150,7 +150,7 @@ export async function fetchTimelines(
   // Scrittura del file JSON di output via GOJSONListExporter
   const destinationFile = path.join(outputDir, 'timelines.json');
   const exporter = new Core.GOJSONListExporter({ outputPath: destinationFile, jsonl: false });
-  await exporter.export(timelinesResult);
+  await exporter.export(timelinesResult as unknown as ReadonlyArray<Record<string, unknown>>);
 
   logger.info(
     `Scaricamento timeline completato: ${timelinesFetchedCount} trovate, ${emptyTimelinesCount} vuote, ${errorsCount} errori. File salvato in [${destinationFile}].`,

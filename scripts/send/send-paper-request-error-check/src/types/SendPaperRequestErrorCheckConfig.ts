@@ -140,6 +140,9 @@ export interface SendPaperRequestErrorCheckConfig {
   /** Abilita la modalità di ripristino/restore allegati */
   readonly restore: boolean;
 
+  /** Forza l'esecuzione senza richiedere conferme interattive */
+  readonly force?: boolean;
+
   /** Directory di output per risultati e report */
   readonly outputDir: string;
 
