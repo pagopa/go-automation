@@ -6,7 +6,7 @@ import type { ResultField } from '@go-automation/go-common/aws';
 import { resolveOccurrenceTimeWindow } from '../../../computeRunbookTimeRange.js';
 import { RUNBOOK_CATALOG } from '../../../RunbookCatalog.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
-import { ConditionEvaluator } from '../../framework.js';
+import { ConditionEvaluator, lambda } from '../../framework.js';
 import type { KnownCase, RunbookContext } from '../../framework.js';
 
 import { CDC_PREPROC_DATA_QUALITY_FILTER_ALARM } from '../alarmDefinition.js';
@@ -14,7 +14,7 @@ import { KNOWN_CASES } from '../knownCases.js';
 import { LAMBDA_FUNCTION } from '../knownServices.js';
 import { buildRunbook } from '../runbook.js';
 
-function contextWithMessages(messages: ReadonlyArray<string>, category = 'application-error'): RunbookContext {
+function contextWithMessages(messages: ReadonlyArray<string>, category?: string): RunbookContext {
   const rows: ReadonlyArray<ReadonlyArray<ResultField>> = messages.map((message) => [
     { field: '@timestamp', value: '2026-08-25T08:06:00.000Z' },
     { field: '@requestId', value: 'c6b49674-286d-424f-8074-5e19a69dc7a8' },
@@ -25,7 +25,7 @@ function contextWithMessages(messages: ReadonlyArray<string>, category = 'applic
     executionId: 'cdc-test',
     startedAt: new Date('2026-08-25T08:06:00.000Z'),
     stepResults: new Map([['query-lambda-errors', rows]]),
-    vars: new Map([['lambdaErrorCategory', category]]),
+    vars: new Map([['lambdaErrorCategory', category ?? lambda.scanLambdaLogs(rows)?.category ?? 'unknown']]),
     params: new Map(),
     logs: [],
     services: createTestServiceRegistry(),
@@ -137,6 +137,25 @@ describe('pn-cdc preprocessing runbook', () => {
         false,
       );
       assert.strictEqual(evaluator.evaluate(technical.condition, contextWithMessages([technicalLog], category)), false);
+    }
+  });
+
+  it('gives runtime cases precedence over quarantine and processing errors in separate rows', () => {
+    const technicalLog = 'ERROR PROCESSING_FAILED Technical error during record processing. RecordID=record-1';
+    for (const [runtimeLog, expectedCaseId] of [
+      ['Task timed out after 10.00 seconds', 'lambda-timeout'],
+      ['FATAL ERROR: JavaScript heap out of memory', 'lambda-out-of-memory'],
+    ] as const) {
+      for (const applicationLog of [INVALID_CONSENTS_LOG, technicalLog]) {
+        const ctx = contextWithMessages([applicationLog, runtimeLog]);
+        const matches = KNOWN_CASES.filter(({ condition }) => evaluator.evaluate(condition, ctx)).sort(
+          (left, right) => right.priority - left.priority,
+        );
+        assert.deepStrictEqual(
+          matches.map(({ id }) => id),
+          [expectedCaseId],
+        );
+      }
     }
   });
 });

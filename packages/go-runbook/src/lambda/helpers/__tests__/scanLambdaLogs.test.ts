@@ -55,6 +55,38 @@ describe('scanLambdaLogs', () => {
     assert.strictEqual(scan.errorCount, 3);
   });
 
+  it('prioritizes explicit runtime failures in later rows over an application error', () => {
+    const applicationError = 'ERROR Record routed to quarantine. Result=Ok';
+    for (const [runtimeMessage, category] of [
+      ['Task timed out after 10.00 seconds', 'timeout'],
+      ['FATAL ERROR: JavaScript heap out of memory', 'out-of-memory'],
+    ] as const) {
+      const scan = scanLambdaLogs([row(applicationError), row(runtimeMessage)]);
+      assert.ok(scan !== undefined);
+      assert.strictEqual(scan.message, applicationError);
+      assert.strictEqual(scan.category, category);
+    }
+  });
+
+  it('gives timeout precedence when timeout and explicit OOM both appear', () => {
+    const scan = scanLambdaLogs([
+      row('ERROR Record routed to quarantine. Result=Ok'),
+      row('FATAL ERROR: JavaScript heap out of memory'),
+      row('Task timed out after 10.00 seconds'),
+    ]);
+    assert.ok(scan !== undefined);
+    assert.strictEqual(scan.category, 'timeout');
+  });
+
+  it('does not treat a saturated REPORT as explicit OOM over an application error', () => {
+    const scan = scanLambdaLogs([
+      row('ERROR Record routed to quarantine. Result=Ok'),
+      row('REPORT RequestId: 11111111-2222-3333-4444-555555555555 Memory Size: 128 MB Max Memory Used: 128 MB'),
+    ]);
+    assert.ok(scan !== undefined);
+    assert.strictEqual(scan.category, 'application-error');
+  });
+
   it('prefers the @requestId field when the message has no RequestId: token', () => {
     const rowWithField: ReadonlyArray<ResultField> = [
       { field: '@timestamp', value: '2026-01-01T00:00:00.000Z' },
