@@ -4,6 +4,18 @@ import { describe, it } from 'node:test';
 import { RUNBOOK_CATALOG, RunbookCatalog } from '../RunbookCatalog.js';
 
 describe('RUNBOOK_CATALOG', () => {
+  it('registers every INTEROP runbook for prod, att and test', () => {
+    for (const descriptor of RUNBOOK_CATALOG.listDescriptors()) {
+      if (!descriptor.categories.includes('INTEROP')) continue;
+      for (const environment of ['prod', 'att', 'test']) {
+        assert.ok(
+          descriptor.alarmNames.some((alarmName) => new RegExp(`-${environment}(?:-|$)`, 'u').test(alarmName)),
+          `${descriptor.key} is missing ${environment}`,
+        );
+      }
+    }
+  });
+
   it('resolves the same descriptor by alarm name and by stable key', () => {
     const byAlarm = RUNBOOK_CATALOG.resolveByAlarmName('pn-delivery-B2B-ApiGwAlarm');
     assert.ok(byAlarm);

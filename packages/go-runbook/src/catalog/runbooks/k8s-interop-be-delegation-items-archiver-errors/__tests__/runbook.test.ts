@@ -7,12 +7,12 @@ import { RUNBOOK_CATALOG } from '../../../RunbookCatalog.js';
 import { resolveOccurrenceTimeWindow } from '../../../computeRunbookTimeRange.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { assertCloudExecutableRunbook } from '../../../../validation/assertCloudExecutableRunbook.js';
-import { TENANT_READMODEL_WRITER_SQL_ALARM as alarm } from '../alarmDefinition.js';
+import { DELEGATION_ITEMS_ARCHIVER_ALARM as alarm } from '../alarmDefinition.js';
 import { KNOWN_CASES } from '../knownCases.js';
 import { buildRunbook } from '../runbook.js';
 
 const DOCUMENTED_MESSAGE =
-  'ERROR - Connection error: Client network socket disconnected before secure TLS connection was established';
+  'ERROR - Response Heartbeat(key: 12, version: 3) - The coordinator is not aware of this member';
 
 function rows(message: string): ReadonlyArray<ReadonlyArray<ResultField>> {
   return [
@@ -25,8 +25,8 @@ function rows(message: string): ReadonlyArray<ReadonlyArray<ResultField>> {
 
 function context(stepId: string, output: unknown): RunbookContext {
   return {
-    executionId: 'tenant-readmodel-writer-test',
-    startedAt: new Date('2026-09-21T14:20:34.111Z'),
+    executionId: 'delegation-items-archiver-test',
+    startedAt: new Date('2026-09-21T14:14:33.822Z'),
     stepResults: new Map([[stepId, output]]),
     vars: new Map(),
     params: new Map(),
@@ -36,7 +36,7 @@ function context(stepId: string, output: unknown): RunbookContext {
   };
 }
 
-describe('tenant readmodel writer SQL runbook', () => {
+describe('delegation items archiver runbook', () => {
   const evaluator = new ConditionEvaluator();
 
   it('registers prod, att and test with environment-specific log groups', () => {
@@ -62,7 +62,7 @@ describe('tenant readmodel writer SQL runbook', () => {
     assert.throws(() => alarm.resolveContext(`${alarm.runbookKey}-dev`), /Unsupported INTEROP alarm/u);
   });
 
-  it('builds the application log and CID pipeline with the documented source', () => {
+  it('builds the application log and CID pipeline with the source link', () => {
     const runbook = buildRunbook();
     assert.deepStrictEqual(
       runbook.steps.map(({ step }) => step.id),
@@ -78,7 +78,7 @@ describe('tenant readmodel writer SQL runbook', () => {
     assert.deepStrictEqual(resolveOccurrenceTimeWindow(runbook), { beforeMinutes: 5, afterMinutes: 5 });
     assert.deepStrictEqual(runbook.analysisDefaults?.links, [
       {
-        url: 'https://pagopa.atlassian.net/wiki/spaces/GO/pages/2500296801/k8s-interop-be-tenant-readmodel-writer-sql-errors-prod',
+        url: 'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3344762934/k8s-interop-be-delegation-items-archiver-errors-prod',
         name: alarm.runbookKey,
         type: 'CONFLUENCE',
       },
@@ -86,7 +86,7 @@ describe('tenant readmodel writer SQL runbook', () => {
     assert.doesNotThrow(() => assertCloudExecutableRunbook(runbook));
   });
 
-  it('matches the documented Kafka TLS error in application logs and CID tracker evidence', () => {
+  it('recognizes the documented heartbeat error in application logs and CID evidence', () => {
     assert.strictEqual(KNOWN_CASES.length, 1);
     const knownCase = KNOWN_CASES[0];
     assert.ok(knownCase);
@@ -104,9 +104,9 @@ describe('tenant readmodel writer SQL runbook', () => {
       true,
     );
     for (const otherMessage of [
-      'ERROR - Connection timeout',
-      'ERROR - Connection error: Connection refused',
-      'Request failed: Client network socket disconnected before secure TLS connection was established',
+      'The coordinator is not aware of this member, re-joining the group',
+      'ERROR - Response Heartbeat(key: 12, version: 3) - The coordinator is not available',
+      'ERROR - Connection error: Client network socket disconnected before secure TLS connection was established',
     ]) {
       assert.strictEqual(
         evaluator.evaluate(knownCase.condition, context(alarm.stepIds.queryApplicationLogs, rows(otherMessage))),
@@ -115,7 +115,7 @@ describe('tenant readmodel writer SQL runbook', () => {
     }
   });
 
-  it('keeps the unresolved case open and links the documented hotfix', () => {
+  it('keeps the unresolved cause open and links PIN-7325 for review', () => {
     const knownCase = KNOWN_CASES[0];
     assert.ok(knownCase);
     assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');

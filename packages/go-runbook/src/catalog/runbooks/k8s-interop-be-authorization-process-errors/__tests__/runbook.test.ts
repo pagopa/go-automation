@@ -50,25 +50,22 @@ function context(stepId: string, output: unknown): RunbookContext {
 describe('authorization-process runbook', () => {
   const evaluator = new ConditionEvaluator();
 
-  it('registers only the production alarm documented by Confluence', () => {
-    assert.deepStrictEqual(alarm.alarmNames, ['k8s-interop-be-authorization-process-errors-prod']);
-    assert.strictEqual(
-      RUNBOOK_CATALOG.resolveByAlarmName('k8s-interop-be-authorization-process-errors-prod')?.descriptor.key,
-      alarm.runbookKey,
-    );
-    assert.strictEqual(alarm.resolveContext(alarm.alarmNames[0]).environment, 'prod');
-    assert.strictEqual(
-      alarm.resolveContext(alarm.alarmNames[0]).logGroup,
-      '/aws/eks/interop-eks-cluster-prod/application',
-    );
-    for (const name of [
-      'k8s-interop-be-authorization-process-errors-att',
-      'k8s-interop-be-authorization-process-errors-test',
-      'k8s-interop-be-authorization-process-errors-dev',
-    ]) {
-      assert.strictEqual(RUNBOOK_CATALOG.resolveByAlarmName(name), undefined);
-      assert.throws(() => alarm.resolveContext(name), /Unsupported INTEROP alarm/);
+  it('registers prod, att and test with environment-specific log groups', () => {
+    assert.deepStrictEqual(alarm.alarmNames, [
+      `${alarm.runbookKey}-prod`,
+      `${alarm.runbookKey}-att`,
+      `${alarm.runbookKey}-test`,
+    ]);
+    for (const environment of ['prod', 'att', 'test'] as const) {
+      const name = `${alarm.runbookKey}-${environment}`;
+      assert.strictEqual(RUNBOOK_CATALOG.resolveByAlarmName(name)?.descriptor.key, alarm.runbookKey);
+      assert.strictEqual(alarm.resolveContext(name).environment, environment);
+      assert.strictEqual(
+        alarm.resolveContext(name).logGroup,
+        `/aws/eks/interop-eks-cluster-${environment}/application`,
+      );
     }
+    assert.throws(() => alarm.resolveContext(`${alarm.runbookKey}-dev`), /Unsupported INTEROP alarm/);
   });
 
   it('builds the standard read-only application-log and CID pipeline with the documented window', () => {
