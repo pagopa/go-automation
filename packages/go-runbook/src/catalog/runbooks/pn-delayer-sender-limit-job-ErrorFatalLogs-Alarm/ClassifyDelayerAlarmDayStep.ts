@@ -45,7 +45,7 @@ function parseOccurrence(value: string | undefined, field: string): Date {
 }
 
 /** Conservatively includes any Monday inside a multi-occurrence interval. */
-export function intervalIncludesRomeMonday(first: Date, last: Date): boolean {
+function intervalIncludesRomeMonday(first: Date, last: Date): boolean {
   if (last.getTime() - first.getTime() >= 7 * DAY_MS) return true;
   if (isRomeMonday(first) || isRomeMonday(last)) return true;
   for (let time = first.getTime() + DAY_MS; time < last.getTime(); time += DAY_MS) {

@@ -5,8 +5,6 @@ import type { RunbookRegistration } from '../../RunbookRegistration.js';
 import { CDC_PREPROC_DATA_QUALITY_FILTER_ALARM } from './alarmDefinition.js';
 import { buildRunbook } from './runbook.js';
 
-export { CDC_PREPROC_DATA_QUALITY_FILTER_ALARM } from './alarmDefinition.js';
-
 export const CDC_PREPROC_DATA_QUALITY_FILTER_REGISTRATION: RunbookRegistration = {
   key: CDC_PREPROC_DATA_QUALITY_FILTER_ALARM,
   product: RunbookProducts.SEND,
