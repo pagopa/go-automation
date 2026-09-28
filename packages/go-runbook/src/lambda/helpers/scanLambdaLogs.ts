@@ -11,9 +11,9 @@ import { classifyLambdaError } from './classifyLambdaError.js';
 export interface LambdaErrorScan {
   /** Number of rows returned by the error scan. */
   readonly errorCount: number;
-  /** Representative error message (drives classification and known cases). */
+  /** Representative error message; explicit runtime failures may be in another row. */
   readonly message: string;
-  /** Classified error category. */
+  /** Category across all rows for explicit runtime failures, otherwise from the representative message. */
   readonly category: LambdaErrorCategory;
   /** Lambda requestId, when extractable. */
   readonly requestId?: string;
@@ -41,7 +41,9 @@ function firstRequestIdField(rows: ReadonlyArray<ReadonlyArray<ResultField>>): s
 /**
  * Scans the rows produced by the Lambda error query and extracts the
  * representative error, the requestId, the parsed REPORT line and the
- * classified category.
+ * classified category. Explicit runtime failures in any row take precedence
+ * over a separate application error; a saturated REPORT alone remains a
+ * last-resort OOM signal.
  *
  * The representative message prefers a real error line over the runtime
  * `START`/`END`/`REPORT` lines, but falls back to the `REPORT` line (e.g.
@@ -66,7 +68,16 @@ export function scanLambdaLogs(rows: ReadonlyArray<ReadonlyArray<ResultField>>):
 
   const reportMessage = messages.find((message) => /^REPORT\b/.test(message));
   const representative = messages.find((message) => !isRuntimeLine(message)) ?? reportMessage ?? messages[0] ?? '';
-  const category = classifyLambdaError(representative, report);
+  let explicitRuntimeCategory: 'timeout' | 'out-of-memory' | undefined;
+  for (const message of messages) {
+    const rowCategory = classifyLambdaError(message);
+    if (rowCategory === 'timeout') {
+      explicitRuntimeCategory = 'timeout';
+      break;
+    }
+    if (rowCategory === 'out-of-memory') explicitRuntimeCategory = 'out-of-memory';
+  }
+  const category = explicitRuntimeCategory ?? classifyLambdaError(representative, report);
 
   return {
     errorCount: rows.length,
