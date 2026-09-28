@@ -15,7 +15,7 @@ type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
 type QueryKind = 'errors' | 'invocation';
 
 /** Source q1, with the additional runtime signatures suggested in its comments. */
-export const BOTH_ACCOUNTS_ERROR_QUERY = `fields @timestamp, @xrayTraceId, @requestId, @message
+const BOTH_ACCOUNTS_ERROR_QUERY = `fields @timestamp, @xrayTraceId, @requestId, @message
 | filter @message like 'ERROR'
     or @message like /(?i)timed?\\s*out/
     or @message like /(?i)OutOfMemory/
