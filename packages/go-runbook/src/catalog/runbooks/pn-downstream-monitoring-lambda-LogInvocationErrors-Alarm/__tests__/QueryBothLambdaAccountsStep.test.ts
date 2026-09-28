@@ -106,6 +106,22 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
     assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 2);
   });
 
+  it('matches configured profile names when an entry declares a fallback', async () => {
+    const calls: QueryCall[] = [];
+    const input = context([['awsProfiles', 'sso_pn-core-prod,sso_pn-confinfo-prod:sso_pn-core-prod']], calls);
+
+    const result = await new QueryBothLambdaAccountsStep('errors').execute(input);
+
+    assert.strictEqual(result.success, true);
+    assert.deepStrictEqual(
+      calls.map(({ accountId, profile }) => ({ accountId, profile })),
+      [
+        { accountId: '510769970275', profile: 'sso_pn-core-prod' },
+        { accountId: '350578575906', profile: 'sso_pn-confinfo-prod' },
+      ],
+    );
+  });
+
   it('bounds invocation reconstruction in both accounts', async () => {
     const calls: QueryCall[] = [];
     const input = context([['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']], calls);

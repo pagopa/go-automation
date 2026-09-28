@@ -1,4 +1,4 @@
-import { readRowField } from '@go-automation/go-common/aws';
+import { parseAwsProfileEntries, readRowField } from '@go-automation/go-common/aws';
 import type { AWSCloudWatchLogsQueryStatistics, ResultField } from '@go-automation/go-common/aws';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
@@ -106,10 +106,7 @@ export class QueryBothLambdaAccountsStep implements Step<Rows> {
 function resolveExecutionSources(context: RunbookContext): { region: string; profiles: Map<string, string> } {
   const region = context.params.get('awsRegion') ?? 'eu-south-1';
   const accountId = context.params.get('awsAccountId');
-  const configuredProfiles = (context.params.get('awsProfiles') ?? '')
-    .split(',')
-    .map((profile) => profile.trim())
-    .filter((profile) => profile !== '');
+  const configuredProfiles = parseAwsProfileEntries((context.params.get('awsProfiles') ?? '').split(',')).profileNames;
   const knownAccounts: ReadonlyArray<string> = LAMBDA_LOG_SOURCES.map((source) => source.accountId);
   if (accountId !== undefined && !knownAccounts.includes(accountId)) {
     throw new Error(`pn-downstream-monitoring-lambda: unsupported occurrence account ${accountId}`);
