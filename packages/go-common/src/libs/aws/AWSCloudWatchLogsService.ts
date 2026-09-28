@@ -174,7 +174,7 @@ export class AWSCloudWatchLogsService {
   /** Returns an execution-scoped OAM service without mutating the shared provider. */
   forTarget(
     target: AWSCloudWatchLogsTarget,
-    activeOperations: AWSActiveOperationRegistry = new AWSActiveOperationRegistry(),
+    activeOperations: AWSActiveOperationRegistry = this.activeOperations ?? new AWSActiveOperationRegistry(),
   ): AWSCloudWatchLogsService {
     return new AWSCloudWatchLogsService(this.clientProvider, target, activeOperations);
   }
