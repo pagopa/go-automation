@@ -95,6 +95,7 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
         ({ groups, query, paginateResults }) =>
           groups[0] === '/aws/lambda/pn-downstream-monitoring-lambda' &&
           query.includes("@message like 'ERROR'") &&
+          query.endsWith('| limit 1000') &&
           paginateResults === true,
       ),
     );
@@ -103,6 +104,23 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
       ['core', 'confinfo'],
     );
     assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 2);
+  });
+
+  it('bounds invocation reconstruction in both accounts', async () => {
+    const calls: QueryCall[] = [];
+    const input = context([['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']], calls);
+    const result = await new QueryBothLambdaAccountsStep('invocation').execute(input);
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(calls.length, 2);
+    assert.ok(
+      calls.every(
+        ({ query, paginateResults }) =>
+          query.includes("@requestId = 'b95bb742-cc30-4f07-80bc-45a38011e5c4'") &&
+          query.endsWith('| limit 1000') &&
+          paginateResults === true,
+      ),
+    );
   });
 
   it('uses OAM targets in cloud execution and fails if either account cannot be read', async () => {

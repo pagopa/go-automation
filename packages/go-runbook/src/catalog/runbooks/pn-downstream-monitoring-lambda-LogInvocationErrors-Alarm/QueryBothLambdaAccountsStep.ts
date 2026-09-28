@@ -21,7 +21,8 @@ const BOTH_ACCOUNTS_ERROR_QUERY = `fields @timestamp, @xrayTraceId, @requestId, 
     or @message like /(?i)OutOfMemory/
     or @message like /(?i)fatal/
     or @message like /(?i)Status:\\s*error/
-| sort @timestamp asc`;
+| sort @timestamp asc
+| limit 1000`;
 
 /** Reads both production accounts independently, failing if either cannot be checked. */
 export class QueryBothLambdaAccountsStep implements Step<Rows> {
@@ -97,7 +98,8 @@ export class QueryBothLambdaAccountsStep implements Step<Rows> {
     }
     return `fields @timestamp, @requestId, @message
 | filter @requestId = '${requestId}'
-| sort @timestamp asc`;
+| sort @timestamp asc
+| limit 1000`;
   }
 }
 
