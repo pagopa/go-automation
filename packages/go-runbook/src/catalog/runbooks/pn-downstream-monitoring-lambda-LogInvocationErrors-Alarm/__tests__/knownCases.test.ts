@@ -44,8 +44,9 @@ describe('pn-downstream-monitoring-lambda known cases', () => {
     assert.strictEqual(evaluator.evaluate(knownCase.condition, contextWithError(message)), true);
     assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
     assert.match(knownCase.analysis?.resolution ?? '', /account core/u);
-    assert.match(knownCase.analysis?.resolution ?? '', /account confinfo/u);
-    assert.match(knownCase.analysis?.resolution ?? '', /Written <N> record\(s\)/u);
+    assert.match(knownCase.analysis?.resolution ?? '', /core e confinfo/u);
+    assert.match(knownCase.analysis?.resolution ?? '', /sezione Monitoring della Lambda/u);
+    assert.doesNotMatch(knownCase.analysis?.resolution ?? '', /Written|recupero dei record|remediation completata/u);
   });
 
   it('does not match a generic HTTP 503 or an incomplete SlowDown message', () => {

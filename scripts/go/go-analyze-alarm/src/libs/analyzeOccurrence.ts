@@ -35,6 +35,8 @@ export async function analyzeOccurrence(
   const params = new Map<string, string>([
     ['alarmName', config.alarmName],
     ['alarmDatetime', input.alarmDatetime],
+    ['awsRegion', 'eu-south-1'],
+    ['awsProfiles', config.awsProfiles.join(',')],
     ['startTime', startTime],
     ['endTime', endTime],
   ]);

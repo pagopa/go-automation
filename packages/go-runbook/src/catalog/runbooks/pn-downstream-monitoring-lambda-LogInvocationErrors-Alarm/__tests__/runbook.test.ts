@@ -25,12 +25,20 @@ describe('pn-downstream-monitoring-lambda runbook', () => {
         name: 'pn-downstream-monitoring-lambda',
         logGroup: '/aws/lambda/pn-downstream-monitoring-lambda',
         varPrefix: 'downstreamMonitoring',
-        eventSource: 'cloudwatch-logs',
-        configuredTimeoutMs: 60_000,
       },
       downstreams: [],
       queryProfileId: 'send',
     });
     assert.doesNotThrow(() => assertCloudExecutableRunbook(runbook));
+    assert.deepStrictEqual(
+      runbook.steps.map(({ step }) => step.id),
+      [
+        'prepare-lambda-section',
+        'query-lambda-errors',
+        'parse-lambda-errors',
+        'query-lambda-invocation',
+        'analyze-lambda-invocation',
+      ],
+    );
   });
 });

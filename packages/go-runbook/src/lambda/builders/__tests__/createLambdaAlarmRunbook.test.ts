@@ -29,6 +29,26 @@ describe('createLambdaAlarmRunbook', () => {
     ]);
   });
 
+  it('rejects a replacement query with a noncanonical step id', () => {
+    const wrongQuery = {
+      id: 'wrong-id',
+      label: 'Wrong',
+      kind: 'data' as const,
+      // eslint-disable-next-line @typescript-eslint/require-await
+      async execute() {
+        return { success: true, output: [] };
+      },
+    };
+    assert.throws(
+      () => createLambdaAlarmRunbook(baseConfig({ errorQueryStep: wrongQuery })),
+      /errorQueryStep must use id "query-lambda-errors"/,
+    );
+    assert.throws(
+      () => createLambdaAlarmRunbook(baseConfig({ invocationQueryStep: wrongQuery })),
+      /invocationQueryStep must use id "query-lambda-invocation"/,
+    );
+  });
+
   it('attaches a lambda runbook context', () => {
     const runbook = createLambdaAlarmRunbook(baseConfig());
     assert.ok(isLambdaRunbookContext(runbook.runbookContext));
