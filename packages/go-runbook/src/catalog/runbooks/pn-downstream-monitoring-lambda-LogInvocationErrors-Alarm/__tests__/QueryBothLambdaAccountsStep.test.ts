@@ -122,6 +122,43 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
     );
   });
 
+  it('uses OAM for the account without a configured profile in account-aware execution', async () => {
+    for (const [awsAccountId, awsProfiles, expectedProfiles] of [
+      ['510769970275', 'sso_pn-core-prod_readonly', ['sso_pn-core-prod_readonly', undefined]],
+      ['350578575906', 'sso_pn-confinfo-prod', [undefined, 'sso_pn-confinfo-prod']],
+    ] as const) {
+      const calls: QueryCall[] = [];
+      const input = context(
+        [
+          ['awsAccountId', awsAccountId],
+          ['awsProfiles', awsProfiles],
+        ],
+        calls,
+      );
+
+      const result = await new QueryBothLambdaAccountsStep('errors').execute(input);
+
+      assert.strictEqual(result.success, true);
+      assert.deepStrictEqual(
+        calls.map(({ accountId, profile }) => ({ accountId, profile })),
+        [
+          { accountId: '510769970275', profile: expectedProfiles[0] },
+          { accountId: '350578575906', profile: expectedProfiles[1] },
+        ],
+      );
+    }
+  });
+
+  it('requires both production profiles in local execution', async () => {
+    const calls: QueryCall[] = [];
+    const input = context([['awsProfiles', 'sso_pn-core-prod_readonly']], calls);
+
+    const result = await new QueryBothLambdaAccountsStep('errors').execute(input);
+
+    assert.strictEqual(result.success, false);
+    assert.deepStrictEqual(calls, []);
+  });
+
   it('bounds invocation reconstruction in both accounts', async () => {
     const calls: QueryCall[] = [];
     const input = context([['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']], calls);

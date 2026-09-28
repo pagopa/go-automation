@@ -120,7 +120,10 @@ function resolveExecutionSources(context: RunbookContext): { region: string; pro
     for (const source of LAMBDA_LOG_SOURCES) {
       const profile = source.profiles.find((candidate) => configuredProfiles.includes(candidate));
       if (profile === undefined) {
-        throw new Error(`pn-downstream-monitoring-lambda: missing ${source.name} production AWS profile`);
+        if (accountId === undefined) {
+          throw new Error(`pn-downstream-monitoring-lambda: missing ${source.name} production AWS profile`);
+        }
+        continue;
       }
       profiles.set(source.name, profile);
     }
