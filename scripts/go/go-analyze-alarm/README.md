@@ -84,6 +84,7 @@ Lo script non include un file di configurazione dedicato: la configurazione oper
 | `--alarm-datetime`     | `-ad`  | string   | Si\*         | Timestamp allarme, o prima occorrenza per allarmi multi-occorrenza (ISO 8601)                        |
 | `--alarm-datetime-end` | `-ade` | string   | No           | Timestamp dell'ultima occorrenza per allarmi multi-occorrenza (ISO 8601). Estende la finestra finale |
 | `--aws-profiles`       | `-aps` | string[] | Si\*         | Profili AWS SSO (virgola-separati)                                                                   |
+| `--aws-region`         | `-ar`  | string   | No           | Regione AWS per client e runbook. Default: `eu-south-1`                                              |
 | `--stats-detail`       | `-sdt` | bool     | No           | Solo `stats`: stampa la tabella di dettaglio per runbook. Default: `true`                            |
 | `--stats-product`      | `-spr` | string   | No           | Solo `stats`: limita il report a un prodotto (`SEND`, `INTEROP`)                                     |
 | `--stats-save`         | `-ssv` | bool     | No           | Solo `stats`: salva il report JSON in `data/`. Default: `false`                                      |
