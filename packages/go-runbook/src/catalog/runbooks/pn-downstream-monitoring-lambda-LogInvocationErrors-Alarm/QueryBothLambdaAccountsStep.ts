@@ -1,5 +1,5 @@
-import { parseAwsProfileEntries, readRowField } from '@go-automation/go-common/aws';
-import type { AWSCloudWatchLogsQueryStatistics, ResultField } from '@go-automation/go-common/aws';
+import { parseAwsProfileEntries, readRowField, sumCloudWatchLogsQueryStatistics } from '@go-automation/go-common/aws';
+import type { ResultField } from '@go-automation/go-common/aws';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
@@ -205,11 +205,7 @@ function mergeDiagnostics(diagnostics: ReadonlyArray<StepDiagnostics | undefined
   const values = diagnostics.flatMap((entry) => (entry?.cloudWatchLogs === undefined ? [] : [entry.cloudWatchLogs]));
   if (values.length === 0 || values.length !== diagnostics.length) return undefined;
   const executions = values.flatMap((value) => value.queryExecutions);
-  const statistics: AWSCloudWatchLogsQueryStatistics = {
-    bytesScanned: values.reduce((sum, value) => sum + value.statistics.bytesScanned, 0),
-    recordsScanned: values.reduce((sum, value) => sum + value.statistics.recordsScanned, 0),
-    recordsMatched: values.reduce((sum, value) => sum + value.statistics.recordsMatched, 0),
-  };
+  const statistics = sumCloudWatchLogsQueryStatistics(values.map((value) => value.statistics));
   return {
     cloudWatchLogs: {
       rowsReturned: values.reduce((sum, value) => sum + value.rowsReturned, 0),
