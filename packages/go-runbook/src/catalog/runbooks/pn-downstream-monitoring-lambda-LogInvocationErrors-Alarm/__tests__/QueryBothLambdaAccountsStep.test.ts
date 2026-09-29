@@ -17,6 +17,10 @@ interface QueryCall {
   readonly paginateResults?: boolean;
 }
 
+const CORE_REQUEST_ID = 'b95bb742-cc30-4f07-80bc-45a38011e5c4';
+const SECOND_CORE_REQUEST_ID = '1a1bf5ea-2088-4ea7-9133-12fcbfaabacc';
+const CONFINFO_REQUEST_ID = 'd848f0c5-1089-5c2b-9a3b-91a94511ee52';
+
 function context(
   params: ReadonlyArray<readonly [string, string]>,
   calls: QueryCall[],
@@ -26,8 +30,22 @@ function context(
   return {
     executionId: 'dual-account-test',
     startedAt: new Date('2026-09-08T14:00:00.000Z'),
-    stepResults: new Map(),
-    vars: new Map([['lambdaRequestId', 'b95bb742-cc30-4f07-80bc-45a38011e5c4']]),
+    stepResults: new Map([
+      [
+        'query-lambda-errors',
+        [
+          [
+            { field: 'sourceAccount', value: 'core' },
+            { field: '@requestId', value: CORE_REQUEST_ID },
+          ],
+          [
+            { field: 'sourceAccount', value: 'confinfo' },
+            { field: '@requestId', value: CORE_REQUEST_ID },
+          ],
+        ],
+      ],
+    ]),
+    vars: new Map([['lambdaRequestId', CORE_REQUEST_ID]]),
     params: new Map([['startTime', '2026-09-08T13:55:00.000Z'], ['endTime', '2026-09-08T14:05:00.000Z'], ...params]),
     logs: [],
     services: createTestServiceRegistry({
@@ -174,6 +192,101 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
           paginateResults === true,
       ),
     );
+  });
+
+  it('queries every distinct request ID only in its source account', async () => {
+    const calls: QueryCall[] = [];
+    const input = context([['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']], calls);
+    (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [
+      [
+        { field: 'sourceAccount', value: 'core' },
+        { field: '@requestId', value: CORE_REQUEST_ID },
+      ],
+      [
+        { field: 'sourceAccount', value: 'core' },
+        { field: '@requestId', value: CORE_REQUEST_ID },
+      ],
+      [
+        { field: 'sourceAccount', value: 'core' },
+        { field: '@requestId', value: SECOND_CORE_REQUEST_ID },
+      ],
+      [
+        { field: 'sourceAccount', value: 'confinfo' },
+        { field: '@message', value: `ERROR RequestId: ${CONFINFO_REQUEST_ID}` },
+      ],
+    ]);
+
+    const result = await new QueryBothLambdaAccountsStep('invocation').execute(input);
+
+    assert.strictEqual(result.success, true);
+    assert.deepStrictEqual(
+      calls.map(({ accountId, query }) => ({
+        accountId,
+        coreRequestId: query.includes(CORE_REQUEST_ID),
+        secondCoreRequestId: query.includes(SECOND_CORE_REQUEST_ID),
+        confinfoRequestId: query.includes(CONFINFO_REQUEST_ID),
+        bounded: query.endsWith('| limit 1000'),
+      })),
+      [
+        {
+          accountId: '510769970275',
+          coreRequestId: true,
+          secondCoreRequestId: false,
+          confinfoRequestId: false,
+          bounded: true,
+        },
+        {
+          accountId: '510769970275',
+          coreRequestId: false,
+          secondCoreRequestId: true,
+          confinfoRequestId: false,
+          bounded: true,
+        },
+        {
+          accountId: '350578575906',
+          coreRequestId: false,
+          secondCoreRequestId: false,
+          confinfoRequestId: true,
+          bounded: true,
+        },
+      ],
+    );
+    assert.deepStrictEqual(
+      result.output?.map((row) => row.find((field) => field.field === 'sourceAccount')?.value),
+      ['core', 'core', 'confinfo'],
+    );
+    assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 3);
+  });
+
+  it('skips an account without a request ID and reports zero when no IDs are available', async () => {
+    const calls: QueryCall[] = [];
+    const input = context([['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']], calls);
+    (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [
+      [
+        { field: 'sourceAccount', value: 'confinfo' },
+        { field: '@requestId', value: CONFINFO_REQUEST_ID },
+      ],
+    ]);
+
+    const result = await new QueryBothLambdaAccountsStep('invocation').execute(input);
+    assert.strictEqual(result.success, true);
+    assert.deepStrictEqual(
+      calls.map(({ accountId }) => accountId),
+      ['350578575906'],
+    );
+    assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 1);
+
+    (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [
+      [
+        { field: 'sourceAccount', value: 'core' },
+        { field: '@message', value: 'ERROR without request ID' },
+      ],
+    ]);
+    const noIds = await new QueryBothLambdaAccountsStep('invocation').execute(input);
+    assert.strictEqual(noIds.success, true);
+    assert.deepStrictEqual(noIds.output, []);
+    assert.strictEqual(noIds.vars?.['lambdaInvocationLogCount'], '0');
+    assert.strictEqual(calls.length, 1);
   });
 
   it('uses OAM targets in cloud execution and fails if either account cannot be read', async () => {
