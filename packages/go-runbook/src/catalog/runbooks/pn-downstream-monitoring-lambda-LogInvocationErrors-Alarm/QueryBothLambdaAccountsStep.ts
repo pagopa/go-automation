@@ -7,7 +7,9 @@ import type { StepResult } from '../../../types/StepResult.js';
 import type { StepDiagnostics } from '../../../trace/StepDiagnostics.js';
 import { executeCloudWatchLogsQuery } from '../../../steps/data/executeCloudWatchLogsQuery.js';
 import { executeStep } from '../../../steps/data/executeStep.js';
+import { readStepOutput } from '../../../steps/data/readStepOutput.js';
 import { resolveTimeRange } from '../../../steps/data/resolveTimeRange.js';
+import { extractLambdaRequestId } from '../../../lambda/helpers/extractLambdaRequestId.js';
 
 import { LAMBDA_FUNCTION, LAMBDA_LOG_SOURCES } from './knownServices.js';
 
@@ -36,27 +38,36 @@ export class QueryBothLambdaAccountsStep implements Step<Rows> {
       queryKind === 'errors' ? 'Query errori Lambda core e confinfo' : 'Query invocazione Lambda core e confinfo';
   }
 
-  getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
+  getTraceInfo(): Readonly<Record<string, unknown>> {
     return {
       queryKind: this.queryKind === 'errors' ? 'lambda-error-scan' : 'lambda-invocation-flow',
       queryProfileId: 'send',
       logGroup: LAMBDA_FUNCTION.logGroup,
       sources: LAMBDA_LOG_SOURCES.map(({ name, accountId }) => ({ name, accountId })),
-      query: this.queryFor(context),
+      ...(this.queryKind === 'errors'
+        ? { query: BOTH_ACCOUNTS_ERROR_QUERY }
+        : { queryTemplate: invocationQueryFor('<requestId>'), correlation: 'sourceAccount + requestId' }),
     };
   }
 
   async execute(context: RunbookContext): Promise<StepResult<Rows>> {
-    if (this.queryKind === 'invocation' && (context.vars.get('lambdaRequestId') ?? '').trim() === '') {
-      return { success: true, output: [], vars: { lambdaInvocationLogCount: '0' } };
-    }
+    const upstream = this.queryKind === 'invocation' ? readStepOutput<Rows>(context, 'query-lambda-errors') : undefined;
+    if (upstream !== undefined && !upstream.ok) return upstream.failure;
 
     return executeStep('Lambda logs in core and confinfo', async () => {
+      const invocationRequestIds = upstream === undefined ? undefined : requestIdsBySource(upstream.value);
+      if (invocationRequestIds !== undefined && [...invocationRequestIds.values()].every((ids) => ids.length === 0)) {
+        return { success: true, output: [], vars: { lambdaInvocationLogCount: '0' } };
+      }
       const { region, profiles } = resolveExecutionSources(context);
       const timeRange = resolveTimeRange(context, { start: 'startTime', end: 'endTime' });
-      const query = this.queryFor(context);
       const results: { rows: Rows; diagnostics?: StepDiagnostics }[] = [];
       for (const source of LAMBDA_LOG_SOURCES) {
+        const queries =
+          this.queryKind === 'errors'
+            ? [BOTH_ACCOUNTS_ERROR_QUERY]
+            : (invocationRequestIds?.get(source.name) ?? []).map(invocationQueryFor);
+        if (queries.length === 0) continue;
         const profile = profiles.get(source.name);
         const cloudWatchLogs = context.services.cloudWatchLogs.forTarget({
           accountId: source.accountId,
@@ -64,14 +75,16 @@ export class QueryBothLambdaAccountsStep implements Step<Rows> {
           ...(profile === undefined ? {} : { profile }),
         });
         const scopedContext = { ...context, services: { ...context.services, cloudWatchLogs } };
-        const result = await executeCloudWatchLogsQuery(scopedContext, [LAMBDA_FUNCTION.logGroup], query, timeRange, {
-          ...(context.signal === undefined ? {} : { signal: context.signal }),
-          paginateResults: true,
-        });
-        results.push({
-          rows: result.rows.map((row) => [...row, { field: 'sourceAccount', value: source.name }]),
-          ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
-        });
+        for (const query of queries) {
+          const result = await executeCloudWatchLogsQuery(scopedContext, [LAMBDA_FUNCTION.logGroup], query, timeRange, {
+            ...(context.signal === undefined ? {} : { signal: context.signal }),
+            paginateResults: true,
+          });
+          results.push({
+            rows: result.rows.map((row) => [...row, { field: 'sourceAccount', value: source.name }]),
+            ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
+          });
+        }
       }
       const rows = results
         .flatMap((result) => result.rows)
@@ -88,19 +101,32 @@ export class QueryBothLambdaAccountsStep implements Step<Rows> {
       };
     });
   }
+}
 
-  private queryFor(context: RunbookContext): string {
-    if (this.queryKind === 'errors') return BOTH_ACCOUNTS_ERROR_QUERY;
-    const requestId = (context.vars.get('lambdaRequestId') ?? '').trim();
-    if (requestId === '') return 'Nessun requestId: query di invocazione omessa';
+function requestIdsBySource(rows: Rows): Map<string, ReadonlyArray<string>> {
+  const idsBySource = new Map<string, Set<string>>(LAMBDA_LOG_SOURCES.map(({ name }) => [name, new Set<string>()]));
+  for (const row of rows) {
+    const source = readRowField(row, 'sourceAccount') ?? '';
+    const ids = idsBySource.get(source);
+    if (ids === undefined) {
+      throw new Error(`QueryBothLambdaAccountsStep: invalid error-row source ${source || '(missing)'}`);
+    }
+    const requestId =
+      (readRowField(row, '@requestId') ?? '').trim() || extractLambdaRequestId(readRowField(row, '@message') ?? '');
+    if (requestId === undefined || requestId === '') continue;
     if (!/^[A-Za-z0-9-]{1,128}$/.test(requestId)) {
       throw new Error('QueryBothLambdaAccountsStep: invalid Lambda requestId');
     }
-    return `fields @timestamp, @requestId, @message
+    ids.add(requestId);
+  }
+  return new Map([...idsBySource].map(([source, ids]) => [source, [...ids]]));
+}
+
+function invocationQueryFor(requestId: string): string {
+  return `fields @timestamp, @requestId, @message
 | filter @requestId = '${requestId}'
 | sort @timestamp asc
 | limit 1000`;
-  }
 }
 
 function resolveExecutionSources(context: RunbookContext): { region: string; profiles: Map<string, string> } {
@@ -133,7 +159,7 @@ function resolveExecutionSources(context: RunbookContext): { region: string; pro
 
 function mergeDiagnostics(diagnostics: ReadonlyArray<StepDiagnostics | undefined>): StepDiagnostics | undefined {
   const values = diagnostics.flatMap((entry) => (entry?.cloudWatchLogs === undefined ? [] : [entry.cloudWatchLogs]));
-  if (values.length !== LAMBDA_LOG_SOURCES.length) return undefined;
+  if (values.length === 0 || values.length !== diagnostics.length) return undefined;
   const executions = values.flatMap((value) => value.queryExecutions);
   const statistics: AWSCloudWatchLogsQueryStatistics = {
     bytesScanned: values.reduce((sum, value) => sum + value.statistics.bytesScanned, 0),
