@@ -26,6 +26,7 @@ const BOTH_ACCOUNTS_ERROR_QUERY = `fields @timestamp, @xrayTraceId, @requestId, 
 | filter @message like 'ERROR'
     or @message like /(?i)timed?\\s*out/
     or @message like /(?i)OutOfMemory/
+    or @message like /(?i)Runtime exited with error:\\s*signal:\\s*killed/
     or @message like /(?i)fatal/
     or @message like /(?i)Status:\\s*error/
 | sort @timestamp asc

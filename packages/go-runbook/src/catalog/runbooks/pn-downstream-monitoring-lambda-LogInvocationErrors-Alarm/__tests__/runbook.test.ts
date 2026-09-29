@@ -124,6 +124,61 @@ describe('pn-downstream-monitoring-lambda runbook', () => {
     );
   });
 
+  it('classifies a signal-killed runtime line when it is the only error in confinfo', async () => {
+    const requestId = 'd848f0c5-1089-5c2b-9a3b-91a94511ee52';
+    const invocationCalls: { accountId: string; query: string }[] = [];
+    const cloudWatchLogs = {
+      forTarget({ accountId }: { accountId: string }) {
+        return {
+          // eslint-disable-next-line @typescript-eslint/require-await
+          async queryWithStatistics(_groups: ReadonlyArray<string>, query: string) {
+            const isErrorScan = query.includes("@message like 'ERROR'");
+            if (!isErrorScan) invocationCalls.push({ accountId, query });
+            const rows: ReadonlyArray<ReadonlyArray<ResultField>> =
+              isErrorScan &&
+              accountId === '350578575906' &&
+              query.includes('Runtime exited with error:\\s*signal:\\s*killed')
+                ? [
+                    [
+                      { field: '@timestamp', value: '2026-09-08T14:00:00.000Z' },
+                      { field: '@requestId', value: requestId },
+                      { field: '@message', value: 'Runtime exited with error: signal: killed' },
+                    ],
+                  ]
+                : [];
+            return {
+              rows,
+              statistics: { bytesScanned: 1, recordsScanned: rows.length, recordsMatched: rows.length },
+              queryExecutions: [],
+            };
+          },
+        };
+      },
+    };
+
+    const result = await new RunbookEngine(new GOLogger()).execute(
+      buildRunbook(),
+      new Map([
+        ['alarmName', DOWNSTREAM_MONITORING_LAMBDA_ALARM],
+        ['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod'],
+        ['startTime', '2026-09-08T13:55:00.000Z'],
+        ['endTime', '2026-09-08T14:05:00.000Z'],
+      ]),
+      createTestServiceRegistry({ cloudWatchLogs }),
+    );
+
+    assert.strictEqual(result.status, 'completed');
+    assert.strictEqual(result.finalContext.vars.get('lambdaErrorCategory'), 'out-of-memory');
+    assert.deepStrictEqual(
+      result.matchedCases.map(({ id }) => id),
+      ['lambda-out-of-memory'],
+    );
+    assert.deepStrictEqual(
+      invocationCalls.map(({ accountId, query }) => ({ accountId, correlated: query.includes(requestId) })),
+      [{ accountId: '350578575906', correlated: true }],
+    );
+  });
+
   it('stops before correlation when an account error scan reaches the row limit', async () => {
     const queries: string[] = [];
     const saturatedRows = Array.from({ length: 1000 }, () => [
