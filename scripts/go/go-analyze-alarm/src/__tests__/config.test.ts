@@ -4,6 +4,13 @@ import { describe, it } from 'node:test';
 import { scriptParameters } from '../config.js';
 
 describe('go-analyze-alarm config', () => {
+  it('accepts a configured AWS region and defaults to eu-south-1', () => {
+    const parameter = scriptParameters.find((candidate) => candidate.name === 'aws.region');
+    assert.ok(parameter !== undefined);
+    assert.strictEqual(parameter.defaultValue, 'eu-south-1');
+    assert.deepStrictEqual(parameter.aliases, ['ar']);
+  });
+
   it('declares analysis.mode as the only new analysis parameter with single default', () => {
     const analysisParameters = scriptParameters.filter((parameter) => parameter.name.startsWith('analysis.'));
     assert.deepStrictEqual(
