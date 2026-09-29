@@ -17,6 +17,8 @@ interface QueryCall {
   readonly paginateResults?: boolean;
 }
 
+type RowsForQueryFn = (accountId: string, query: string) => ReadonlyArray<ReadonlyArray<ResultField>>;
+
 const CORE_REQUEST_ID = 'b95bb742-cc30-4f07-80bc-45a38011e5c4';
 const SECOND_CORE_REQUEST_ID = '1a1bf5ea-2088-4ea7-9133-12fcbfaabacc';
 const CONFINFO_REQUEST_ID = 'd848f0c5-1089-5c2b-9a3b-91a94511ee52';
@@ -26,6 +28,7 @@ function context(
   calls: QueryCall[],
   failingAccount?: string,
   rowsByAccount?: ReadonlyMap<string, ReadonlyArray<ReadonlyArray<ResultField>>>,
+  rowsForQuery?: RowsForQueryFn,
 ): RunbookContext {
   return {
     executionId: 'dual-account-test',
@@ -73,7 +76,8 @@ function context(
                   { field: '@message', value: `${target.accountId} ERROR Invoke Error` },
                 ],
               ];
-              const rows = rowsByAccount?.get(target.accountId) ?? defaultRows;
+              const rows =
+                rowsForQuery?.(target.accountId, query) ?? rowsByAccount?.get(target.accountId) ?? defaultRows;
               return {
                 rows,
                 statistics: { bytesScanned: 1, recordsScanned: 1, recordsMatched: 1 },
@@ -194,7 +198,7 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
     );
   });
 
-  it('queries every distinct request ID only in its source account', async () => {
+  it('batches every distinct request ID only in its source account', async () => {
     const calls: QueryCall[] = [];
     const input = context([['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']], calls);
     (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [
@@ -231,13 +235,6 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
         {
           accountId: '510769970275',
           coreRequestId: true,
-          secondCoreRequestId: false,
-          confinfoRequestId: false,
-          bounded: true,
-        },
-        {
-          accountId: '510769970275',
-          coreRequestId: false,
           secondCoreRequestId: true,
           confinfoRequestId: false,
           bounded: true,
@@ -253,9 +250,121 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
     );
     assert.deepStrictEqual(
       result.output?.map((row) => row.find((field) => field.field === 'sourceAccount')?.value),
-      ['core', 'core', 'confinfo'],
+      ['core', 'confinfo'],
     );
+    assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 2);
+  });
+
+  it('bounds a large set of request IDs to batches of 25', async () => {
+    const calls: QueryCall[] = [];
+    const input = context([['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']], calls);
+    const requestIds = Array.from({ length: 60 }, (_, index) => `req-${String(index)}`);
+    (input.stepResults as Map<string, unknown>).set(
+      'query-lambda-errors',
+      requestIds.map((requestId) => [
+        { field: 'sourceAccount', value: 'core' },
+        { field: '@requestId', value: requestId },
+      ]),
+    );
+
+    const result = await new QueryBothLambdaAccountsStep('invocation').execute(input);
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(calls.length, 3);
+    assert.ok(calls.every(({ accountId }) => accountId === '510769970275'));
+    for (const [index, call] of calls.entries()) {
+      assert.ok(call !== undefined);
+      const batch = requestIds.slice(index * 25, (index + 1) * 25);
+      assert.strictEqual((call.query.match(/@requestId = '/g) ?? []).length, batch.length);
+      assert.ok(batch.every((requestId) => call.query.includes(`@requestId = '${requestId}'`)));
+    }
     assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 3);
+  });
+
+  it('splits a saturated batch so no request ID is silently dropped', async () => {
+    const calls: QueryCall[] = [];
+    const input = context(
+      [['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']],
+      calls,
+      undefined,
+      undefined,
+      (_accountId, query) => {
+        const row = [{ field: '@message', value: query }];
+        return query.includes(' or @requestId') ? Array.from({ length: 1000 }, () => row) : [row];
+      },
+    );
+    const requestIds = ['req-0', 'req-1', 'req-2', 'req-3'];
+    (input.stepResults as Map<string, unknown>).set(
+      'query-lambda-errors',
+      requestIds.map((requestId) => [
+        { field: 'sourceAccount', value: 'core' },
+        { field: '@requestId', value: requestId },
+      ]),
+    );
+
+    const result = await new QueryBothLambdaAccountsStep('invocation').execute(input);
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(calls.length, 7);
+    assert.strictEqual(result.output?.length, 4);
+    assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 7);
+    assert.deepStrictEqual(
+      result.output?.map((row) => row.find((field) => field.field === '@message')?.value),
+      requestIds.map(
+        (requestId) =>
+          `fields @timestamp, @requestId, @message\n| filter @requestId = '${requestId}'\n| sort @timestamp asc\n| limit 1000`,
+      ),
+    );
+  });
+
+  it('fails explicitly when a single invocation still reaches the row limit', async () => {
+    const calls: QueryCall[] = [];
+    const saturatedRows = Array.from({ length: 1000 }, () => [{ field: '@message', value: 'many rows' }]);
+    const input = context(
+      [['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']],
+      calls,
+      undefined,
+      undefined,
+      () => saturatedRows,
+    );
+    (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [
+      [
+        { field: 'sourceAccount', value: 'core' },
+        { field: '@requestId', value: CORE_REQUEST_ID },
+      ],
+    ]);
+
+    const result = await new QueryBothLambdaAccountsStep('invocation').execute(input);
+
+    assert.strictEqual(result.success, false);
+    assert.match(result.error ?? '', /reached the 1000-row limit/);
+    assert.strictEqual(calls.length, 1);
+  });
+
+  it('fails explicitly when splitting would exceed the 100-query budget', async () => {
+    const calls: QueryCall[] = [];
+    const saturatedRow = [{ field: '@message', value: 'many rows' }];
+    const saturatedRows = Array.from({ length: 1000 }, () => saturatedRow);
+    const input = context(
+      [['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']],
+      calls,
+      undefined,
+      undefined,
+      (_accountId, query) => (query.includes(' or @requestId') ? saturatedRows : [saturatedRow]),
+    );
+    (input.stepResults as Map<string, unknown>).set(
+      'query-lambda-errors',
+      Array.from({ length: 60 }, (_, index) => [
+        { field: 'sourceAccount', value: 'core' },
+        { field: '@requestId', value: `req-${String(index)}` },
+      ]),
+    );
+
+    const result = await new QueryBothLambdaAccountsStep('invocation').execute(input);
+
+    assert.strictEqual(result.success, false);
+    assert.match(result.error ?? '', /query budget exceeded \(100 queries\)/);
+    assert.strictEqual(calls.length, 100);
   });
 
   it('skips an account without a request ID and reports zero when no IDs are available', async () => {

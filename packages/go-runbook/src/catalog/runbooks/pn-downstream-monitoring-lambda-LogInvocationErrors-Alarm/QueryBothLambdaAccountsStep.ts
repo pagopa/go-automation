@@ -15,6 +15,11 @@ import { LAMBDA_FUNCTION, LAMBDA_LOG_SOURCES } from './knownServices.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
 type QueryKind = 'errors' | 'invocation';
+/** At most 80 initial queries for the 2,000 rows that the two error scans can return. */
+const INVOCATION_BATCH_SIZE = 25;
+/** Same sequential fan-out bound used by the INTEROP CID tracker. */
+const MAX_INVOCATION_QUERIES = 100;
+const QUERY_ROW_LIMIT = 1000;
 
 /** Source q1, with the additional runtime signatures suggested in its comments. */
 const BOTH_ACCOUNTS_ERROR_QUERY = `fields @timestamp, @xrayTraceId, @requestId, @message
@@ -24,7 +29,7 @@ const BOTH_ACCOUNTS_ERROR_QUERY = `fields @timestamp, @xrayTraceId, @requestId, 
     or @message like /(?i)fatal/
     or @message like /(?i)Status:\\s*error/
 | sort @timestamp asc
-| limit 1000`;
+| limit ${QUERY_ROW_LIMIT}`;
 
 /** Reads both production accounts independently, failing if either cannot be checked. */
 export class QueryBothLambdaAccountsStep implements Step<Rows> {
@@ -46,7 +51,12 @@ export class QueryBothLambdaAccountsStep implements Step<Rows> {
       sources: LAMBDA_LOG_SOURCES.map(({ name, accountId }) => ({ name, accountId })),
       ...(this.queryKind === 'errors'
         ? { query: BOTH_ACCOUNTS_ERROR_QUERY }
-        : { queryTemplate: invocationQueryFor('<requestId>'), correlation: 'sourceAccount + requestId' }),
+        : {
+            queryTemplate: invocationQueryFor(['<requestId>']),
+            correlation: 'sourceAccount + requestId',
+            batchSize: INVOCATION_BATCH_SIZE,
+            maxQueries: MAX_INVOCATION_QUERIES,
+          }),
     };
   }
 
@@ -62,12 +72,10 @@ export class QueryBothLambdaAccountsStep implements Step<Rows> {
       const { region, profiles } = resolveExecutionSources(context);
       const timeRange = resolveTimeRange(context, { start: 'startTime', end: 'endTime' });
       const results: { rows: Rows; diagnostics?: StepDiagnostics }[] = [];
+      let invocationQueryCount = 0;
       for (const source of LAMBDA_LOG_SOURCES) {
-        const queries =
-          this.queryKind === 'errors'
-            ? [BOTH_ACCOUNTS_ERROR_QUERY]
-            : (invocationRequestIds?.get(source.name) ?? []).map(invocationQueryFor);
-        if (queries.length === 0) continue;
+        const requestIds = invocationRequestIds?.get(source.name) ?? [];
+        if (this.queryKind === 'invocation' && requestIds.length === 0) continue;
         const profile = profiles.get(source.name);
         const cloudWatchLogs = context.services.cloudWatchLogs.forTarget({
           accountId: source.accountId,
@@ -75,15 +83,42 @@ export class QueryBothLambdaAccountsStep implements Step<Rows> {
           ...(profile === undefined ? {} : { profile }),
         });
         const scopedContext = { ...context, services: { ...context.services, cloudWatchLogs } };
-        for (const query of queries) {
+        const queryBatch = async (batch: ReadonlyArray<string> | undefined): Promise<void> => {
+          if (batch !== undefined) {
+            if (invocationQueryCount >= MAX_INVOCATION_QUERIES) {
+              throw new Error(`Lambda invocation query budget exceeded (${String(MAX_INVOCATION_QUERIES)} queries)`);
+            }
+            invocationQueryCount += 1;
+          }
+          const query = batch === undefined ? BOTH_ACCOUNTS_ERROR_QUERY : invocationQueryFor(batch);
           const result = await executeCloudWatchLogsQuery(scopedContext, [LAMBDA_FUNCTION.logGroup], query, timeRange, {
             ...(context.signal === undefined ? {} : { signal: context.signal }),
             paginateResults: true,
           });
+          const saturated = batch !== undefined && result.rows.length >= QUERY_ROW_LIMIT;
+          // A full batch may omit later request IDs. Keep its diagnostics, then
+          // replace its partial rows with the results of narrower queries.
           results.push({
-            rows: result.rows.map((row) => [...row, { field: 'sourceAccount', value: source.name }]),
+            rows: saturated ? [] : result.rows.map((row) => [...row, { field: 'sourceAccount', value: source.name }]),
             ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
           });
+          if (saturated && batch !== undefined) {
+            if (batch.length === 1) {
+              throw new Error(
+                `Lambda invocation ${batch[0]} in ${source.name} reached the ${String(QUERY_ROW_LIMIT)}-row limit`,
+              );
+            }
+            const middle = Math.ceil(batch.length / 2);
+            await queryBatch(batch.slice(0, middle));
+            await queryBatch(batch.slice(middle));
+          }
+        };
+        if (this.queryKind === 'errors') {
+          await queryBatch(undefined);
+        } else {
+          for (let index = 0; index < requestIds.length; index += INVOCATION_BATCH_SIZE) {
+            await queryBatch(requestIds.slice(index, index + INVOCATION_BATCH_SIZE));
+          }
         }
       }
       const rows = results
@@ -122,11 +157,12 @@ function requestIdsBySource(rows: Rows): Map<string, ReadonlyArray<string>> {
   return new Map([...idsBySource].map(([source, ids]) => [source, [...ids]]));
 }
 
-function invocationQueryFor(requestId: string): string {
+function invocationQueryFor(requestIds: ReadonlyArray<string>): string {
+  const filter = requestIds.map((requestId) => `@requestId = '${requestId}'`).join(' or ');
   return `fields @timestamp, @requestId, @message
-| filter @requestId = '${requestId}'
+| filter ${filter}
 | sort @timestamp asc
-| limit 1000`;
+| limit ${QUERY_ROW_LIMIT}`;
 }
 
 function resolveExecutionSources(context: RunbookContext): { region: string; profiles: Map<string, string> } {
