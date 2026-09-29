@@ -123,4 +123,46 @@ describe('pn-downstream-monitoring-lambda runbook', () => {
       ['core', 'confinfo'],
     );
   });
+
+  it('stops before correlation when an account error scan reaches the row limit', async () => {
+    const queries: string[] = [];
+    const saturatedRows = Array.from({ length: 1000 }, () => [
+      { field: '@requestId', value: 'b95bb742-cc30-4f07-80bc-45a38011e5c4' },
+      { field: '@message', value: 'ERROR' },
+    ]);
+    const cloudWatchLogs = {
+      forTarget() {
+        return {
+          // eslint-disable-next-line @typescript-eslint/require-await
+          async queryWithStatistics(_groups: ReadonlyArray<string>, query: string) {
+            queries.push(query);
+            return {
+              rows: saturatedRows,
+              statistics: { bytesScanned: 1, recordsScanned: 1000, recordsMatched: 1000 },
+              queryExecutions: [],
+            };
+          },
+        };
+      },
+    };
+
+    const result = await new RunbookEngine(new GOLogger()).execute(
+      buildRunbook(),
+      new Map([
+        ['alarmName', DOWNSTREAM_MONITORING_LAMBDA_ALARM],
+        ['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod'],
+        ['startTime', '2026-09-08T13:55:00.000Z'],
+        ['endTime', '2026-09-08T14:05:00.000Z'],
+      ]),
+      createTestServiceRegistry({ cloudWatchLogs }),
+    );
+
+    assert.strictEqual(result.status, 'failed');
+    assert.match(result.trace.execution.failureReason ?? '', /core.*1000-row limit/);
+    assert.deepStrictEqual(
+      result.trace.pipeline.map(({ stepId }) => stepId),
+      ['prepare-lambda-section', 'query-lambda-errors'],
+    );
+    assert.strictEqual(queries.length, 1);
+  });
 });

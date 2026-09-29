@@ -95,6 +95,13 @@ export class QueryBothLambdaAccountsStep implements Step<Rows> {
             ...(context.signal === undefined ? {} : { signal: context.signal }),
             paginateResults: true,
           });
+          if (batch === undefined && result.rows.length >= QUERY_ROW_LIMIT) {
+            const message =
+              `Lambda error scan in ${source.name} (${source.accountId}) reached the ` +
+              `${String(QUERY_ROW_LIMIT)}-row limit; invocation correlation requires a complete scan`;
+            context.services.reporter.add({ label: message });
+            throw new Error(message);
+          }
           const saturated = batch !== undefined && result.rows.length >= QUERY_ROW_LIMIT;
           // A full batch may omit later request IDs. Keep its diagnostics, then
           // replace its partial rows with the results of narrower queries.
