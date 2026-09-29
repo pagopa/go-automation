@@ -78,15 +78,23 @@ function context(
               ];
               const rows =
                 rowsForQuery?.(target.accountId, query) ?? rowsByAccount?.get(target.accountId) ?? defaultRows;
+              const statistics = {
+                bytesScanned: 1,
+                recordsScanned: 1,
+                recordsMatched: 1,
+                ...(target.accountId === '510769970275'
+                  ? { logGroupsScanned: 2, estimatedBytesSkipped: 4 }
+                  : { logGroupsScanned: 3, estimatedRecordsSkipped: 6 }),
+              };
               return {
                 rows,
-                statistics: { bytesScanned: 1, recordsScanned: 1, recordsMatched: 1 },
+                statistics,
                 queryExecutions: [
                   {
                     queryId: target.accountId,
                     profile: target.profile ?? 'monitoring',
                     logGroups: groups,
-                    statistics: { bytesScanned: 1, recordsScanned: 1, recordsMatched: 1 },
+                    statistics,
                   },
                 ],
               };
@@ -126,6 +134,14 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
       ['core', 'confinfo'],
     );
     assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 2);
+    assert.deepStrictEqual(result.diagnostics?.cloudWatchLogs?.statistics, {
+      bytesScanned: 2,
+      recordsScanned: 2,
+      recordsMatched: 2,
+      logGroupsScanned: 5,
+      estimatedBytesSkipped: 4,
+      estimatedRecordsSkipped: 6,
+    });
   });
 
   it('accepts an error scan just below the row limit', async () => {
