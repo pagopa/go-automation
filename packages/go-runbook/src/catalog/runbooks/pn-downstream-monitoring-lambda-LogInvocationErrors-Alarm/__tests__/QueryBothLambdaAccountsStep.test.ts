@@ -128,6 +128,52 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
     assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 2);
   });
 
+  it('accepts an error scan just below the row limit', async () => {
+    const calls: QueryCall[] = [];
+    const rows = Array.from({ length: 999 }, (_, index) => [
+      { field: '@timestamp', value: `2026-09-08T14:00:${String(index % 60).padStart(2, '0')}.000Z` },
+      { field: '@message', value: `ERROR ${String(index)}` },
+    ]);
+    const input = context(
+      [['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']],
+      calls,
+      undefined,
+      undefined,
+      (accountId) => (accountId === '510769970275' ? rows : []),
+    );
+
+    const result = await new QueryBothLambdaAccountsStep('errors').execute(input);
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.output?.length, 999);
+    assert.strictEqual(calls.length, 2);
+  });
+
+  it('fails the error scan explicitly if either account reaches the row limit', async () => {
+    const saturatedRows = Array.from({ length: 1000 }, () => [{ field: '@message', value: 'ERROR' }]);
+    for (const [accountId, source, expectedQueries] of [
+      ['510769970275', 'core', 1],
+      ['350578575906', 'confinfo', 2],
+    ] as const) {
+      const calls: QueryCall[] = [];
+      const input = context(
+        [['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']],
+        calls,
+        undefined,
+        undefined,
+        (targetAccountId) => (targetAccountId === accountId ? saturatedRows : []),
+      );
+
+      const result = await new QueryBothLambdaAccountsStep('errors').execute(input);
+
+      assert.strictEqual(result.success, false);
+      assert.match(result.error ?? '', new RegExp(`${source} \\(${accountId}\\) reached the 1000-row limit`));
+      assert.match(result.error ?? '', /correlation requires a complete scan/);
+      assert.strictEqual(result.output, undefined);
+      assert.strictEqual(calls.length, expectedQueries);
+    }
+  });
+
   it('matches configured profile names when an entry declares a fallback', async () => {
     const calls: QueryCall[] = [];
     const input = context([['awsProfiles', 'sso_pn-core-prod,sso_pn-confinfo-prod:sso_pn-core-prod']], calls);
