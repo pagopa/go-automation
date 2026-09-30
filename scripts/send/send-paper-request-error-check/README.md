@@ -39,7 +39,7 @@ tramite la CLI `--mode` (`-m`).
 ### Parametri CLI
 
 | Parametro                     | Alias             | Tipo    | Default     | Descrizione                                                                                                                                        |
-|-------------------------------|-------------------|---------|-------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
+| ----------------------------- | ----------------- | ------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--mode`                      | `-m`              | string  | `all`       | Modalità di esecuzione (`all`, `check-feedback`, `get-attachments`, `retrieve-attachments`, `retrieve-glacier`, `validate-pdf`, `fetch-timelines`) |
 | `--aws.profile`               | `-p`, `--profile` | string  | -           | Nome del profilo AWS SSO                                                                                                                           |
 | `--envName`                   | `-e`              | string  | -           | Nome dell'ambiente (`dev`, `uat`, `test`, `prod`, `hotfix`)                                                                                        |
