@@ -73,12 +73,13 @@ async function execute(
 }
 
 describe('e-service template readmodel writer SQL runbook', () => {
-  it('registers exactly the production and attestation alarms documented by Confluence', () => {
+  it('registers prod, att and test with environment-specific log groups', () => {
     assert.deepStrictEqual(alarm.alarmNames, [
       'k8s-interop-be-eservice-template-readmodel-writer-sql-errors-prod',
       'k8s-interop-be-eservice-template-readmodel-writer-sql-errors-att',
+      'k8s-interop-be-eservice-template-readmodel-writer-sql-errors-test',
     ]);
-    for (const environment of ['prod', 'att'] as const) {
+    for (const environment of ['prod', 'att', 'test'] as const) {
       const alarmName = `${alarm.runbookKey}-${environment}`;
       assert.strictEqual(RUNBOOK_CATALOG.resolveByAlarmName(alarmName)?.descriptor.key, alarm.runbookKey);
       assert.strictEqual(alarm.resolveContext(alarmName).environment, environment);
@@ -87,11 +88,7 @@ describe('e-service template readmodel writer SQL runbook', () => {
         `/aws/eks/interop-eks-cluster-${environment}/application`,
       );
     }
-    for (const environment of ['test', 'dev']) {
-      const alarmName = `${alarm.runbookKey}-${environment}`;
-      assert.strictEqual(RUNBOOK_CATALOG.resolveByAlarmName(alarmName), undefined);
-      assert.throws(() => alarm.resolveContext(alarmName), /Unsupported INTEROP alarm/u);
-    }
+    assert.throws(() => alarm.resolveContext(`${alarm.runbookKey}-dev`), /Unsupported INTEROP alarm/u);
   });
 
   it('builds the standard read-only pipeline with the documented window and source', () => {
@@ -116,7 +113,7 @@ describe('e-service template readmodel writer SQL runbook', () => {
     );
   });
 
-  for (const environment of ['prod', 'att'] as const) {
+  for (const environment of ['prod', 'att', 'test'] as const) {
     it(`uses the correct service and environment-specific log group in ${environment}`, async () => {
       const { draft, logGroups, queries } = await execute(environment, {
         applicationMessage: KAFKA_MEMBER_REJOIN,

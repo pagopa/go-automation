@@ -31,10 +31,13 @@ export async function analyzeOccurrence(
   const reference = createTimeRangeReference(input.alarmDatetime, input.alarmDatetimeEnd);
   const { startTime, endTime } = computeRunbookTimeRange(runbook, reference);
   script.logger.info(`Time range: ${startTime} → ${endTime}`);
+  const awsRegion = script.aws.clients.first.getRegion();
 
   const params = new Map<string, string>([
     ['alarmName', config.alarmName],
     ['alarmDatetime', input.alarmDatetime],
+    ['awsRegion', awsRegion],
+    ['awsProfiles', config.awsProfiles.join(',')],
     ['startTime', startTime],
     ['endTime', endTime],
   ]);
@@ -51,7 +54,7 @@ export async function analyzeOccurrence(
   const engine = new RunbookEngine(script.logger);
   const environment: ExecutionEnvironment = {
     awsProfiles: config.awsProfiles,
-    region: 'eu-south-1',
+    region: awsRegion,
     invokedBy: 'manual',
   };
 

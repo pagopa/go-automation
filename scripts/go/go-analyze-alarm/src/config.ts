@@ -75,6 +75,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     aliases: ['aps'],
   },
   {
+    name: 'aws.region',
+    type: Core.GOConfigParameterType.STRING,
+    description: 'AWS region for alarm analysis (default: eu-south-1)',
+    required: false,
+    defaultValue: 'eu-south-1',
+    aliases: ['ar'],
+  },
+  {
     name: 'stats.detail',
     type: Core.GOConfigParameterType.BOOL,
     description: 'In stats mode, print the per-runbook detail table',

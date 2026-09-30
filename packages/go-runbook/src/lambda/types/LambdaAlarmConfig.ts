@@ -8,6 +8,7 @@ import type { LambdaFunction } from './LambdaFunction.js';
 import type { LambdaDownstream } from './LambdaDownstream.js';
 import type { DownstreamErrorPattern } from './DownstreamErrorPattern.js';
 import type { LambdaQueryProfile } from '../profiles/LambdaQueryProfile.js';
+import type { Step } from '../../types/Step.js';
 
 /**
  * Declarative configuration consumed by `createLambdaAlarmRunbook`.
@@ -30,6 +31,10 @@ export interface LambdaAlarmConfig {
   readonly downstreamErrorPatterns?: ReadonlyArray<DownstreamErrorPattern>;
   /** Known cases evaluated against the resulting context. */
   readonly knownCases: ReadonlyArray<KnownCase>;
+  /** Optional account-aware error query with the canonical `query-lambda-errors` step id. */
+  readonly errorQueryStep?: Step;
+  /** Optional account-aware invocation query with the canonical `query-lambda-invocation` step id. */
+  readonly invocationQueryStep?: Step;
   /** Extra analysis references; the builder always prepends the primary resource. */
   readonly analysisDefaults?: RunbookAnalysisDefaults;
   /**

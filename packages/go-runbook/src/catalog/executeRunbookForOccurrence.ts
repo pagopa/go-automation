@@ -86,6 +86,9 @@ export async function executeRunbookForOccurrence(
   const params = new Map<string, string>([
     ['alarmName', input.alarmName],
     ['alarmDatetime', input.firedAt],
+    ['awsAccountId', input.awsAccountId],
+    ['awsRegion', input.region],
+    ['awsProfiles', input.awsProfiles.join(',')],
     ['startTime', startTime],
     ['endTime', endTime],
   ]);

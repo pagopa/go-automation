@@ -27,6 +27,12 @@ const TIME_RANGE: TimeRangeFromParams = { start: 'startTime', end: 'endTime' };
  * @returns A validated {@link Runbook} ready for the engine
  */
 export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
+  if (config.errorQueryStep !== undefined && config.errorQueryStep.id !== 'query-lambda-errors') {
+    throw new Error('createLambdaAlarmRunbook: errorQueryStep must use id "query-lambda-errors"');
+  }
+  if (config.invocationQueryStep !== undefined && config.invocationQueryStep.id !== 'query-lambda-invocation') {
+    throw new Error('createLambdaAlarmRunbook: invocationQueryStep must use id "query-lambda-invocation"');
+  }
   const ctx = resolveLambdaAlarmBuildContext(config);
   const reachedAnchors = new Set<LambdaPipelineAnchor>();
   const builder = RunbookBuilder.create(config.id)
@@ -50,15 +56,16 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
 
   // 2. Error scan on the Lambda log group.
   builder.step(
-    new CloudWatchLogsQueryStep({
-      id: 'query-lambda-errors',
-      label: 'Query log Lambda per errori',
-      logGroups: [config.lambda.logGroup],
-      query: ctx.profile.errorQuery,
-      timeRangeFromParams: TIME_RANGE,
-      logGroupResolutionMode: 'search-configured-profiles',
-      traceMetadata: { queryProfileId: ctx.profile.id, queryKind: 'lambda-error-scan' },
-    }),
+    config.errorQueryStep ??
+      new CloudWatchLogsQueryStep({
+        id: 'query-lambda-errors',
+        label: 'Query log Lambda per errori',
+        logGroups: [config.lambda.logGroup],
+        query: ctx.profile.errorQuery,
+        timeRangeFromParams: TIME_RANGE,
+        logGroupResolutionMode: 'search-configured-profiles',
+        traceMetadata: { queryProfileId: ctx.profile.id, queryKind: 'lambda-error-scan' },
+      }),
     { silent: true },
   );
 
@@ -75,13 +82,14 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
 
   // 4. Reconstruct the invocation flow for the requestId.
   builder.step(
-    new QueryLambdaInvocationStep({
-      id: 'query-lambda-invocation',
-      label: 'Ricostruzione flusso per requestId',
-      lambdaLogGroup: config.lambda.logGroup,
-      queryTemplate: ctx.profile.invocationQueryTemplate,
-      timeRangeFromParams: TIME_RANGE,
-    }),
+    config.invocationQueryStep ??
+      new QueryLambdaInvocationStep({
+        id: 'query-lambda-invocation',
+        label: 'Ricostruzione flusso per requestId',
+        lambdaLogGroup: config.lambda.logGroup,
+        queryTemplate: ctx.profile.invocationQueryTemplate,
+        timeRangeFromParams: TIME_RANGE,
+      }),
     { silent: true },
   );
 
