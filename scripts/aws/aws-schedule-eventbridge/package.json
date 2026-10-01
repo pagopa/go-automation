@@ -1,0 +1,36 @@
+{
+  "name": "aws-schedule-eventbridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Script per operare sugli schedule di Amazon EventBridge Scheduler",
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "dev": "tsx src/index.ts",
+    "start": "pnpm build && node dist/index.js",
+    "test": "pnpm -w exec vitest run aws-schedule-eventbridge",
+    "test:coverage": "pnpm -w exec vitest run --coverage aws-schedule-eventbridge",
+    "watch": "tsc -b --watch"
+  },
+  "keywords": [
+    "aws",
+    "eventbridge",
+    "scheduler",
+    "go-automation"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "dependencies": {
+    "@go-automation/go-common": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "vitest": "catalog:"
+  }
+}
