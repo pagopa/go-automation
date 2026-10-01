@@ -9,7 +9,7 @@ import { get, iunFromRid } from '../utils/get.js';
 const NOTIFICATIONS_TABLE_NAME = 'pn-Notifications';
 const SS_DOCUMENTI_TABLE_NAME = 'pn-SsDocumenti';
 
-export interface S3ObjectState {
+interface S3ObjectState {
   readonly found: boolean;
   readonly hasDeleteMarker: boolean;
   readonly versions: ReadonlyArray<unknown>;

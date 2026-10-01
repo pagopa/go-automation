@@ -5,7 +5,7 @@ import type { SendPaperRequestErrorCheckConfig, RetrieveGlacierResult } from '..
 /**
  * Struttura di un elemento da ripristinare da Glacier.
  */
-export interface GlacierItem {
+interface GlacierItem {
   readonly iun: string;
   readonly fileKey: string;
 }
@@ -13,7 +13,7 @@ export interface GlacierItem {
 /**
  * Legge ed estrae l'elenco degli elementi (IUN, fileKey) da file o da array.
  */
-export function parseGlacierItems(rawItems: ReadonlyArray<string>): GlacierItem[] {
+function parseGlacierItems(rawItems: ReadonlyArray<string>): GlacierItem[] {
   const result: GlacierItem[] = [];
   for (const rawLine of rawItems) {
     const trimmed = rawLine.trim();

@@ -13,7 +13,7 @@ import { validateS3Pdfs } from './s3PdfValidator.js';
 import { fetchTimelines } from './fetchTimelines.js';
 import type { PaperRequestReporter } from './reporter.js';
 
-export async function runCheckFeedbackStep(
+async function runCheckFeedbackStep(
   script: Core.GOScript,
   inputLines: string[],
   reporter: PaperRequestReporter,
@@ -32,7 +32,7 @@ export async function runCheckFeedbackStep(
   );
 }
 
-export async function runGetAttachmentsStep(
+async function runGetAttachmentsStep(
   script: Core.GOScript,
   inputLines: string[],
   reporter: PaperRequestReporter,
@@ -51,7 +51,7 @@ export async function runGetAttachmentsStep(
   );
 }
 
-export async function runRetrieveAttachmentsStep(
+async function runRetrieveAttachmentsStep(
   script: Core.GOScript,
   inputLines: string[],
   reporter: PaperRequestReporter,
@@ -70,7 +70,7 @@ export async function runRetrieveAttachmentsStep(
   );
 }
 
-export async function runRetrieveGlacierStep(
+async function runRetrieveGlacierStep(
   script: Core.GOScript,
   inputLines: string[],
   reporter: PaperRequestReporter,
@@ -87,7 +87,7 @@ export async function runRetrieveGlacierStep(
   }
 }
 
-export async function runValidatePdfStep(
+async function runValidatePdfStep(
   script: Core.GOScript,
   inputLines: string[],
   reporter: PaperRequestReporter,
@@ -100,7 +100,7 @@ export async function runValidatePdfStep(
   );
 }
 
-export async function runFetchTimelinesStep(
+async function runFetchTimelinesStep(
   script: Core.GOScript,
   inputLines: string[],
   reporter: PaperRequestReporter,

@@ -29,7 +29,7 @@ async function streamToBuffer(stream: Readable, maxBytes = 5): Promise<Buffer> {
 /**
  * Esito della validazione dei magic bytes di un singolo file S3.
  */
-export interface SinglePdfValidationOutcome {
+interface SinglePdfValidationOutcome {
   readonly fileKey: string;
   readonly valid: boolean;
   readonly error?: string | undefined;

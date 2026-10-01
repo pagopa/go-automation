@@ -9,7 +9,7 @@ const TIMELINES_TABLE_NAME = 'pn-Timelines';
 /**
  * Struttura di un elemento di timeline estratto.
  */
-export interface TimelineElement {
+interface TimelineElement {
   readonly timelineElementId: string;
   readonly category: string;
   readonly timestamp: string;
@@ -19,7 +19,7 @@ export interface TimelineElement {
 /**
  * Struttura del documento timeline per una notifica IUN.
  */
-export interface IunTimelineDocument {
+interface IunTimelineDocument {
   readonly iun: string;
   readonly paId?: string | undefined;
   readonly notificationSentAt?: string | undefined;
@@ -29,7 +29,7 @@ export interface IunTimelineDocument {
 /**
  * Estrae l'IUN pulito eliminando prefissi e suffissi.
  */
-export function extractCleanIun(line: string): string {
+function extractCleanIun(line: string): string {
   let cleaned = line.trim();
   if (cleaned.includes('IUN_')) {
     cleaned = cleaned.split('IUN_')[1]?.split('.RECINDEX')[0] ?? cleaned;

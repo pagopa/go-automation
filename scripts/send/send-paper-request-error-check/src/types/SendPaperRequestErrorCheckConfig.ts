@@ -8,7 +8,7 @@
  * - `validate-pdf`: convalida i magic bytes dei PDF su S3
  * - `fetch-timelines`: scarica le timeline da DynamoDB per IUN
  */
-export type ExecutionMode =
+type ExecutionMode =
   | 'all'
   | 'check-feedback'
   | 'get-attachments'
@@ -20,7 +20,7 @@ export type ExecutionMode =
 /**
  * Configurazione per il ripristino S3 Glacier
  */
-export interface GlacierRestoreConfig {
+interface GlacierRestoreConfig {
   readonly expirationDays: number;
   readonly tier: 'Bulk' | 'Standard' | 'Expedited';
 }
@@ -28,7 +28,7 @@ export interface GlacierRestoreConfig {
 /**
  * Configurazione per la validazione PDF S3
  */
-export interface PdfValidationConfig {
+interface PdfValidationConfig {
   readonly concurrency: number;
   readonly batchSize: number;
   readonly dryRun: boolean;

@@ -82,14 +82,14 @@ esempio, è già presente un preset denominato `test`:
 
 ```yaml
 test:
-   aws.region: 'eu-south-1'
-   cw.logGroup: '/aws/eks/interop-eks-cluster-test/application'
-   s3.bucketNameNdjson: 'interop-generated-jwt-details-test-es1'
-   s3.prefixNdjson: 'token-details'
-   s3.bucketNameP7m: 'interop-signed-jwt-audit-v2-test-es1'
-   s3.prefixP7m: 'token-details'
-   startUtc: '2026-07-13 13:30:00'
-   endUtc: '2026-07-13 13:40:00'
+  aws.region: 'eu-south-1'
+  cw.logGroup: '/aws/eks/interop-eks-cluster-test/application'
+  s3.bucketNameNdjson: 'interop-generated-jwt-details-test-es1'
+  s3.prefixNdjson: 'token-details'
+  s3.bucketNameP7m: 'interop-signed-jwt-audit-v2-test-es1'
+  s3.prefixP7m: 'token-details'
+  startUtc: '2026-07-13 13:30:00'
+  endUtc: '2026-07-13 13:40:00'
 ```
 
 ---

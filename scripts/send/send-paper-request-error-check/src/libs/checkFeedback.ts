@@ -17,7 +17,7 @@ const TIMELINES_TABLE_NAME = 'pn-Timelines';
  * @param requestId - Il request ID da elaborare
  * @returns L'IUN estratto
  */
-export function extractIunFromRequestId(requestId: string): string {
+function extractIunFromRequestId(requestId: string): string {
   const trimmed = requestId.trim();
   if (trimmed.includes('.IUN_')) {
     const afterIun = trimmed.split('.IUN_')[1];
