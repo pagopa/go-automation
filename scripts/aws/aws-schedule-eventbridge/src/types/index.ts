@@ -10,5 +10,6 @@ export type { ScheduleRead } from './ScheduleRead.js';
 export type { ScheduleReadStatus } from './ScheduleReadStatus.js';
 export type { ScheduleSweepAction } from './ScheduleSweepAction.js';
 export type { ScheduleSweepEntry } from './ScheduleSweepEntry.js';
+export type { ScheduleSweepGate } from './ScheduleSweepGate.js';
 export type { ScheduleSweepPlan } from './ScheduleSweepPlan.js';
 export type { ScheduleSweepVerdict } from './ScheduleSweepVerdict.js';

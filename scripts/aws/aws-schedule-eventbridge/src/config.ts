@@ -17,7 +17,7 @@ export const scriptMetadata: Core.GOScriptMetadata = {
   name: 'AWS Schedule EventBridge',
   version: '1.0.0',
   description:
-    'Operates on Amazon EventBridge Scheduler schedules - list, describe, enable and disable a single schedule.',
+    'Operates on Amazon EventBridge Scheduler schedules across several AWS accounts - list, describe, enable and disable one schedule fleet-wide.',
   authors: ['Team GO - Gestione Operativa'],
 };
 
@@ -26,11 +26,11 @@ export const scriptMetadata: Core.GOScriptMetadata = {
  */
 export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
-    name: 'aws.profile',
-    type: Core.GOConfigParameterType.STRING,
-    description: 'AWS SSO profile name (e.g., sso_pn-core-prod)',
+    name: 'aws.profiles',
+    type: Core.GOConfigParameterType.STRING_ARRAY,
+    description: 'AWS SSO profile names, one per account to sweep (comma-separated)',
     required: true,
-    aliases: ['ap'],
+    aliases: ['aps'],
   },
   {
     name: 'aws.region',
@@ -83,9 +83,17 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'yes',
     type: Core.GOConfigParameterType.BOOL,
-    description: 'Skip the interactive confirmation before enabling or disabling a schedule',
+    description: 'Skip the interactive confirmation that covers the whole batch of accounts',
     required: false,
     defaultValue: false,
     aliases: ['y'],
+  },
+  {
+    name: 'fail.on.missing',
+    type: Core.GOConfigParameterType.BOOL,
+    description: 'Treat an account that does not have the schedule as a failure instead of drift',
+    required: false,
+    defaultValue: false,
+    aliases: ['fom'],
   },
 ] as const;

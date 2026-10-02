@@ -4,18 +4,20 @@
  * Operates on Amazon EventBridge Scheduler schedules:
  * - `list`: enumerates the schedules of a group, with optional prefix/state filters.
  * - `describe`: prints every field of a single schedule.
- * - `enable` / `disable`: toggles the state of a single schedule, behind an
- *   interactive confirmation.
+ * - `enable` / `disable`: sweeps one schedule to the requested state across
+ *   every configured account, previewing the change per account before a single
+ *   confirmation covers the whole batch.
  *
- * Mutations target one schedule per invocation: there is no bulk or wildcard
- * mode, by design.
+ * Mutations still target one schedule name per invocation — there is no bulk or
+ * wildcard mode — but the blast radius is every account in `--aws-profiles`,
+ * within one region.
  */
 
 import type { Core } from '@go-automation/go-common';
 
 import { runDescribeSchedule } from './libs/describeSchedule.js';
 import { runListSchedules } from './libs/listSchedules.js';
-import { runSetScheduleState } from './libs/setScheduleState.js';
+import { runScheduleSweep } from './libs/runScheduleSweep.js';
 import type { AwsScheduleEventbridgeConfig } from './types/index.js';
 
 /**
@@ -27,13 +29,14 @@ export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<AwsScheduleEventbridgeConfig>();
 
   script.logger.section('AWS Schedule EventBridge');
+  script.logger.info(`Profiles: ${config.awsProfiles.join(', ')} | Region: ${config.awsRegion}`);
 
   // Only `list` works without a target: every other action acts on one schedule.
   if (config.action !== 'list' && config.scheduleName === undefined) {
     throw new Error(`--schedule-name is required for the "${config.action}" action`);
   }
 
-  // Client and service are built and cached by the framework from aws.profile/aws.region.
+  // Client and service are built and cached by the framework from aws.profiles/aws.region.
   const service = script.aws.services.scheduler;
 
   switch (config.action) {
@@ -44,10 +47,10 @@ export async function main(script: Core.GOScript): Promise<void> {
       await runDescribeSchedule(script, service, config);
       break;
     case 'enable':
-      await runSetScheduleState(script, service, config, 'ENABLED');
+      await runScheduleSweep(script, config, 'ENABLED');
       break;
     case 'disable':
-      await runSetScheduleState(script, service, config, 'DISABLED');
+      await runScheduleSweep(script, config, 'DISABLED');
       break;
     default:
       // Unreachable: `action` is narrowed by the config validator.

@@ -7,8 +7,8 @@ import type { ScheduleAction } from './ScheduleAction.js';
  * Represents all validated configuration parameters.
  */
 export interface AwsScheduleEventbridgeConfig {
-  /** AWS profile name for SSO authentication */
-  readonly awsProfile: string;
+  /** AWS profile names for SSO authentication, one per account to sweep */
+  readonly awsProfiles: ReadonlyArray<string>;
 
   /** AWS region hosting the schedules */
   readonly awsRegion: string;
@@ -30,4 +30,7 @@ export interface AwsScheduleEventbridgeConfig {
 
   /** Skip the interactive confirmation before a mutation */
   readonly yes: boolean;
+
+  /** Treat an account that does not have the schedule as a failure instead of drift */
+  readonly failOnMissing: boolean;
 }
