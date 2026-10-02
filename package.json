@@ -173,7 +173,6 @@
     "tsx": "catalog:",
     "type-coverage": "catalog:",
     "typescript": "catalog:",
-    "typescript-eslint": "catalog:",
-    "vitest": "catalog:"
+    "typescript-eslint": "catalog:"
   }
 }

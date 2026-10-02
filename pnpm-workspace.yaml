@@ -80,7 +80,6 @@ catalog:
   'undici': '^8.11.2'
   'unpdf': '^1.8.1'
   'unzipper-esm': '^0.13.3'
-  'vitest': '^5.0.3'
   'yaml': '^2.9.1'
   'dependency-cruiser': '^18.4.0'
   'jscpd': '^5.3.3'
