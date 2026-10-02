@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Operates on Amazon EventBridge Scheduler schedules - list, describe, enable and disable a single schedule.",
+  "description": "Operates on Amazon EventBridge Scheduler schedules across several AWS accounts - list, describe, enable and disable one schedule fleet-wide.",
   "main": "dist/index.js",
   "files": [
     "dist",
