@@ -31,6 +31,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     description: 'AWS SSO profile names, one per account to sweep (comma-separated)',
     required: true,
     aliases: ['aps'],
+    // `required` only rejects undefined, and the parser trims empty entries
+    // away, so `--aws-profiles ''` or `--aws-profiles ,` arrives here as an
+    // empty array. An empty profile list makes the framework fall back to the
+    // default credential chain, which would point a fleet mutation at whatever
+    // account happens to be ambient.
+    validator: (value) =>
+      (Array.isArray(value) && value.length > 0) ||
+      'At least one AWS profile is required: an empty --aws-profiles would fall back to the default credential chain',
   },
   {
     name: 'aws.region',

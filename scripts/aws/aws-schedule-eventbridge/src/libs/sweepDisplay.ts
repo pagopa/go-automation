@@ -32,10 +32,13 @@ const RESULT_COLUMNS: ReadonlyArray<Core.GOTableColumn> = [
 /**
  * Prints what the sweep is about to do to each account.
  *
- * The preview is advisory, and says so: `setScheduleState` re-reads the
- * schedule before writing it, so nothing between this table and the write can
- * corrupt anything. The worst case is an account reporting `unchanged` because
- * somebody else got there first, which is reported as its own outcome.
+ * The preview is advisory, and says so. `setScheduleState` re-reads the
+ * schedule before writing it, which narrows the window the preview opens but
+ * does not close it: `GetSchedule` and `UpdateSchedule` are separate calls, and
+ * Scheduler offers no conditional write, so a configuration change landing
+ * between the two is still overwritten by the snapshot just read. Only a state
+ * change that reaches the target before the re-read is caught, and it surfaces
+ * as `unchanged`.
  *
  * @param script - The GOScript instance providing the logger
  * @param plan - The plan produced by `planScheduleSweep`
@@ -53,8 +56,9 @@ export function displaySweepPlan(script: Core.GOScript, plan: ScheduleSweepPlan)
   script.logger.section(`Planned sweep to ${plan.targetState}`);
   script.logger.table({ columns: [...PLAN_COLUMNS], data });
   script.logger.info(
-    'States above are a preview: each write re-reads its schedule, so a concurrent change ' +
-      'is reported as UNCHANGED rather than applied blindly.',
+    'States above are a preview: each write re-reads its schedule first, so an account already ' +
+      'moved to the target state is reported as UNCHANGED. A configuration change made during ' +
+      'the write itself is still overwritten.',
   );
 }
 

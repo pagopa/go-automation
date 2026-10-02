@@ -19,6 +19,7 @@ import { describe, it } from 'node:test';
 
 import type { AWS, Core } from '@go-automation/go-common';
 
+import { scriptParameters } from '../config.js';
 import { buildSweepVerdict } from '../libs/buildSweepVerdict.js';
 import { isScheduleAction } from '../libs/isScheduleAction.js';
 import { isScheduleNotFound } from '../libs/isScheduleNotFound.js';
@@ -276,6 +277,27 @@ describe('buildSweepVerdict', () => {
   });
 });
 
+describe('aws.profiles validation', () => {
+  /** The declared validator for a parameter, or undefined when it has none. */
+  function validatorFor(name: string): Core.GOConfigParameterValidator | undefined {
+    return scriptParameters.find((parameter) => parameter.name === name)?.validator;
+  }
+
+  it('rejects an empty profile list, which would fall back to the default credential chain', () => {
+    const validate = validatorFor('aws.profiles');
+    assert.ok(validate !== undefined, 'aws.profiles must declare a validator');
+
+    // `--aws-profiles ''` and `--aws-profiles ,` both reach the validator as [].
+    const result = validate?.([]);
+    assert.equal(typeof result, 'string');
+    assert.match(String(result), /At least one AWS profile is required/);
+  });
+
+  it('accepts a non-empty profile list', () => {
+    assert.equal(validatorFor('aws.profiles')?.(['sso_dev', 'sso_prod']), true);
+  });
+});
+
 describe('scheduleDisplay', () => {
   it('renders the table headers even with no account contributing a row', () => {
     const { script, calls } = createMockScript();
@@ -326,6 +348,38 @@ describe('scheduleDisplay', () => {
         ['sso_prod', 'ERROR', '-'],
       ],
     );
+  });
+
+  it('prints the target input and the service-specific parameter block', () => {
+    const { script, calls } = createMockScript();
+
+    displayScheduleDetail(script, {
+      $metadata: {},
+      Name: 'nightly-job',
+      Target: {
+        Arn: 'arn:aws:ecs:eu-south-1:123456789012:cluster/batch',
+        RoleArn: 'arn:aws:iam::123456789012:role/scheduler-invoke',
+        Input: '{"mode":"full"}',
+        EcsParameters: { TaskDefinitionArn: 'arn:aws:ecs:eu-south-1:123456789012:task-definition/job:7' },
+      },
+    });
+
+    const detail = calls[0]?.payload as Record<string, unknown> | undefined;
+    assert.equal(detail?.['Target Input'], '{"mode":"full"}');
+    assert.match(String(detail?.['Target Parameters']), /^EcsParameters=\{"TaskDefinitionArn":/);
+  });
+
+  it('dashes the target parameters when the target declares none', () => {
+    const { script, calls } = createMockScript();
+
+    displayScheduleDetail(script, {
+      $metadata: {},
+      Target: { Arn: 'arn:aws:lambda:eu-south-1:123456789012:function:reconcile', RoleArn: 'arn:role' },
+    });
+
+    const detail = calls[0]?.payload as Record<string, unknown> | undefined;
+    assert.equal(detail?.['Target Parameters'], '-');
+    assert.equal(detail?.['Target Input'], '-');
   });
 
   it('replaces missing fields with a dash and formats dates as UTC', () => {

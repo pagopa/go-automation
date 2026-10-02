@@ -92,6 +92,32 @@ export function displayScheduleDrift(script: Core.GOScript, reads: ReadonlyArray
   script.logger.table({ columns: [...DRIFT_COLUMNS], data });
 }
 
+/** The service-specific parameter blocks a target can carry, one at most */
+const TARGET_PARAMETER_KEYS = [
+  'EcsParameters',
+  'EventBridgeParameters',
+  'KinesisParameters',
+  'SageMakerPipelineParameters',
+  'SqsParameters',
+] as const;
+
+/**
+ * Renders whichever service-specific parameter block the target declares.
+ *
+ * These blocks are nested objects and mutually exclusive in practice, so they
+ * collapse to one JSON row rather than a column per service: `describe` claims
+ * to print every field, and silently dropping the ECS or SQS parameters would
+ * make that false.
+ */
+function formatTargetParameters(schedule: AWS.GetScheduleCommandOutput): string {
+  const target = schedule.Target;
+  const declared = TARGET_PARAMETER_KEYS.filter((key) => target?.[key] !== undefined).map(
+    (key) => `${key}=${JSON.stringify(target?.[key])}`,
+  );
+
+  return declared.length === 0 ? '-' : declared.join(' ');
+}
+
 /**
  * Prints the full detail of a single schedule as a key-value table.
  *
@@ -114,8 +140,10 @@ export function displayScheduleDetail(script: Core.GOScript, schedule: AWS.GetSc
     'Target ARN': schedule.Target?.Arn ?? '-',
     'Target Role ARN': schedule.Target?.RoleArn ?? '-',
     'Target DLQ ARN': schedule.Target?.DeadLetterConfig?.Arn ?? '-',
+    'Target Input': schedule.Target?.Input ?? '-',
     'Retry Max Attempts': schedule.Target?.RetryPolicy?.MaximumRetryAttempts ?? '-',
     'Retry Max Event Age': schedule.Target?.RetryPolicy?.MaximumEventAgeInSeconds ?? '-',
+    'Target Parameters': formatTargetParameters(schedule),
     'Action After Completion': schedule.ActionAfterCompletion ?? '-',
     'KMS Key ARN': schedule.KmsKeyArn ?? '-',
     'Creation Date': formatDate(schedule.CreationDate),

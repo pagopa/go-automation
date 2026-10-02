@@ -16,7 +16,7 @@ Script per operare sugli schedule di **Amazon EventBridge Scheduler** su **più 
 ## Funzionalità
 
 - `list` — elenca gli schedule di un gruppo in **tutti** gli account indicati, con filtri opzionali per prefisso del nome e per stato. La paginazione dell'API è gestita internamente: il risultato è sempre completo.
-- `describe` — stampa tutti i campi di uno schedule (espressione, timezone, target, retry policy, DLQ, finestra flessibile, KMS key, date) per ogni account, più una tabella di confronto cross-account quando gli account sono più di uno.
+- `describe` — stampa tutti i campi di uno schedule (espressione, timezone, target con input e parametri service-specific, retry policy, DLQ, finestra flessibile, KMS key, date) per ogni account, più una tabella di confronto cross-account quando gli account sono più di uno.
 - `enable` / `disable` — porta **un solo schedule** allo stato richiesto in **tutti** gli account indicati: mostra prima cosa cambierà in ciascuno, chiede una conferma sola per l'intero batch, poi applica e riporta l'esito per account.
 
 ### Perché enable/disable rileggono lo schedule
@@ -25,7 +25,9 @@ Script per operare sugli schedule di **Amazon EventBridge Scheduler** su **più 
 
 Lo script (tramite `AWSSchedulerService` di go-common) esegue quindi sempre `GetSchedule` e rinvia tutti i campi scrivibili invariati, cambiando solo `State`. Se lo stato richiesto è già quello corrente, nessun `UpdateSchedule` viene emesso.
 
-Questa rilettura rende anche **innocua** la finestra fra la preview e la scrittura: la preview è _advisory_, e nel caso peggiore un account riporta `UNCHANGED` perché qualcun altro è arrivato prima. Non c'è modo di sovrascrivere una configurazione cambiata nel frattempo.
+La rilettura **restringe** la finestra fra la preview e la scrittura, ma non la chiude: `GetSchedule` e `UpdateSchedule` sono due chiamate separate e Scheduler non offre una scrittura condizionale, quindi una modifica di configurazione che arriva **fra** le due viene sovrascritta dallo snapshot appena letto. Viene intercettato solo un cambio di _stato_ che raggiunge il target prima della rilettura, e viene riportato come `UNCHANGED`.
+
+In pratica la race residua è stretta (i millisecondi di una `UpdateSchedule`) e il sweep è idempotente, ma se un altro processo può riconfigurare lo stesso schedule va coordinato fuori da questo script.
 
 ### Scope e blast radius
 
@@ -187,7 +189,9 @@ Un account senza risultati produce un warning e nessuna riga; un account fallito
 
 ### `describe` — un blocco per account, più il confronto
 
-Per ogni account riporta `Name`, `Group`, `State`, `ARN`, `Description`, `Schedule Expression`, `Timezone`, `Start Date`, `End Date`, la finestra flessibile, il target (ARN, role, DLQ, retry policy), `Action After Completion`, `KMS Key ARN` e le date di creazione/ultima modifica.
+Per ogni account riporta `Name`, `Group`, `State`, `ARN`, `Description`, `Schedule Expression`, `Timezone`, `Start Date`, `End Date`, la finestra flessibile, il target (ARN, role, DLQ, `Target Input`, retry policy), `Action After Completion`, `KMS Key ARN` e le date di creazione/ultima modifica.
+
+`Target Parameters` riporta il blocco di parametri service-specific dichiarato dal target — `EcsParameters`, `EventBridgeParameters`, `KinesisParameters`, `SageMakerPipelineParameters` o `SqsParameters` — serializzato in JSON su una riga sola: sono mutuamente esclusivi in pratica, quindi non meritano una colonna ciascuno.
 
 Con più di un account segue la tabella di confronto, limitata ai campi che driftano davvero:
 
