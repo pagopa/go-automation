@@ -9,11 +9,13 @@
  *
  * Esecuzione:
  *   pnpm --filter=aws-schedule-eventbridge test
- *   pnpm vitest run aws-schedule-eventbridge
+ *   node --import tsx/esm --test scripts/aws/aws-schedule-eventbridge/src/__tests__/scheduleActions.test.ts
  */
 
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+
 import type { AWS, Core } from '@go-automation/go-common';
-import { describe, expect, it } from 'vitest';
 
 import { runDescribeSchedule } from '../libs/describeSchedule.js';
 import { runListSchedules } from '../libs/listSchedules.js';
@@ -150,15 +152,15 @@ const ENABLED_SCHEDULE: AWS.GetScheduleCommandOutput = {
 
 describe('type guards', () => {
   it('accepts the supported actions and rejects anything else', () => {
-    expect(isScheduleAction('list')).toBe(true);
-    expect(isScheduleAction('disable')).toBe(true);
-    expect(isScheduleAction('delete')).toBe(false);
+    assert.equal(isScheduleAction('list'), true);
+    assert.equal(isScheduleAction('disable'), true);
+    assert.equal(isScheduleAction('delete'), false);
   });
 
   it('accepts only the two schedule states', () => {
-    expect(isScheduleState('ENABLED')).toBe(true);
-    expect(isScheduleState('DISABLED')).toBe(true);
-    expect(isScheduleState('enabled')).toBe(false);
+    assert.equal(isScheduleState('ENABLED'), true);
+    assert.equal(isScheduleState('DISABLED'), true);
+    assert.equal(isScheduleState('enabled'), false);
   });
 });
 
@@ -169,8 +171,8 @@ describe('runListSchedules', () => {
 
     await runListSchedules(script, service, buildConfig({ scheduleGroup: 'batch' }));
 
-    expect(calls.listSchedules).toHaveLength(1);
-    expect(calls.listSchedules[0]).toEqual({ groupName: 'batch' });
+    assert.equal(calls.listSchedules.length, 1);
+    assert.deepEqual(calls.listSchedules[0], { groupName: 'batch' });
   });
 
   it('forwards the name prefix and state filters', async () => {
@@ -179,7 +181,7 @@ describe('runListSchedules', () => {
 
     await runListSchedules(script, service, buildConfig({ namePrefix: 'nightly', state: 'ENABLED' }));
 
-    expect(calls.listSchedules[0]).toEqual({
+    assert.deepEqual(calls.listSchedules[0], {
       groupName: 'default',
       namePrefix: 'nightly',
       state: 'ENABLED',
@@ -192,8 +194,11 @@ describe('runListSchedules', () => {
 
     await runListSchedules(script, service, buildConfig());
 
-    expect(calls.some((call) => call.method === 'table')).toBe(false);
-    expect(calls.at(-1)).toEqual({ method: 'info', payload: 'No schedules match the given filters.' });
+    assert.equal(
+      calls.some((call) => call.method === 'table'),
+      false,
+    );
+    assert.deepEqual(calls.at(-1), { method: 'info', payload: 'No schedules match the given filters.' });
   });
 
   it('renders one table row per schedule', async () => {
@@ -208,9 +213,9 @@ describe('runListSchedules', () => {
     await runListSchedules(script, service, buildConfig());
 
     const table = calls.find((call) => call.method === 'table')?.payload as Core.GOTableOptions | undefined;
-    expect(table?.data).toHaveLength(2);
-    expect(table?.data[0]?.['name']).toBe('a');
-    expect(table?.data[1]?.['targetArn']).toBe('-');
+    assert.equal(table?.data.length, 2);
+    assert.equal(table?.data[0]?.['name'], 'a');
+    assert.equal(table?.data[1]?.['targetArn'], '-');
   });
 });
 
@@ -221,19 +226,20 @@ describe('runDescribeSchedule', () => {
 
     await runDescribeSchedule(script, service, buildConfig({ action: 'describe', scheduleName: 'nightly-job' }));
 
-    expect(serviceCalls.getSchedule).toEqual([{ name: 'nightly-job', groupName: 'default' }]);
+    assert.deepEqual(serviceCalls.getSchedule, [{ name: 'nightly-job', groupName: 'default' }]);
     const detail = calls.find((call) => call.method === 'keyValueTable')?.payload as
       Record<string, unknown> | undefined;
-    expect(detail?.['Name']).toBe('nightly-job');
-    expect(detail?.['State']).toBe('ENABLED');
+    assert.equal(detail?.['Name'], 'nightly-job');
+    assert.equal(detail?.['State'], 'ENABLED');
   });
 
   it('refuses to run without a schedule name', async () => {
     const { script } = createMockScript();
     const { service } = createMockSchedulerService();
 
-    await expect(runDescribeSchedule(script, service, buildConfig({ action: 'describe' }))).rejects.toThrow(
-      '--schedule-name is required',
+    await assert.rejects(
+      runDescribeSchedule(script, service, buildConfig({ action: 'describe' })),
+      /--schedule-name is required/,
     );
   });
 });
@@ -247,9 +253,12 @@ describe('runSetScheduleState', () => {
 
     await runSetScheduleState(script, service, disableConfig, 'DISABLED');
 
-    expect(confirmCalls).toEqual(['Set schedule "nightly-job" to DISABLED?']);
-    expect(serviceCalls.setScheduleState).toEqual([{ name: 'nightly-job', state: 'DISABLED', groupName: 'default' }]);
-    expect(calls.some((call) => call.method === 'success')).toBe(true);
+    assert.deepEqual(confirmCalls, ['Set schedule "nightly-job" to DISABLED?']);
+    assert.deepEqual(serviceCalls.setScheduleState, [{ name: 'nightly-job', state: 'DISABLED', groupName: 'default' }]);
+    assert.equal(
+      calls.some((call) => call.method === 'success'),
+      true,
+    );
   });
 
   it('mutates nothing when the confirmation is refused', async () => {
@@ -258,8 +267,8 @@ describe('runSetScheduleState', () => {
 
     await runSetScheduleState(script, service, disableConfig, 'DISABLED');
 
-    expect(serviceCalls.setScheduleState).toEqual([]);
-    expect(calls).toContainEqual({ method: 'warning', payload: 'Operation cancelled by user.' });
+    assert.deepEqual(serviceCalls.setScheduleState, []);
+    assert.ok(calls.some((call) => call.method === 'warning' && call.payload === 'Operation cancelled by user.'));
   });
 
   it('treats a cancelled prompt (undefined) as a refusal', async () => {
@@ -269,8 +278,8 @@ describe('runSetScheduleState', () => {
 
     await runSetScheduleState(script, service, disableConfig, 'DISABLED');
 
-    expect(serviceCalls.setScheduleState).toEqual([]);
-    expect(calls).toContainEqual({ method: 'warning', payload: 'Operation cancelled by user.' });
+    assert.deepEqual(serviceCalls.setScheduleState, []);
+    assert.ok(calls.some((call) => call.method === 'warning' && call.payload === 'Operation cancelled by user.'));
   });
 
   it('skips the confirmation when --yes is set', async () => {
@@ -279,8 +288,8 @@ describe('runSetScheduleState', () => {
 
     await runSetScheduleState(script, service, { ...disableConfig, yes: true }, 'DISABLED');
 
-    expect(confirmCalls).toEqual([]);
-    expect(serviceCalls.setScheduleState).toHaveLength(1);
+    assert.deepEqual(confirmCalls, []);
+    assert.equal(serviceCalls.setScheduleState.length, 1);
   });
 
   it('returns early, without prompting, when the state already matches', async () => {
@@ -294,20 +303,23 @@ describe('runSetScheduleState', () => {
       'ENABLED',
     );
 
-    expect(confirmCalls).toEqual([]);
-    expect(serviceCalls.setScheduleState).toEqual([]);
-    expect(calls).toContainEqual({
-      method: 'info',
-      payload: 'Schedule "nightly-job" is already ENABLED. Nothing to do.',
-    });
+    assert.deepEqual(confirmCalls, []);
+    assert.deepEqual(serviceCalls.setScheduleState, []);
+    assert.ok(
+      calls.some(
+        (call) =>
+          call.method === 'info' && call.payload === 'Schedule "nightly-job" is already ENABLED. Nothing to do.',
+      ),
+    );
   });
 
   it('refuses to run without a schedule name', async () => {
     const { script } = createMockScript(true);
     const { service } = createMockSchedulerService();
 
-    await expect(runSetScheduleState(script, service, buildConfig({ action: 'disable' }), 'DISABLED')).rejects.toThrow(
-      '--schedule-name is required',
+    await assert.rejects(
+      runSetScheduleState(script, service, buildConfig({ action: 'disable' }), 'DISABLED'),
+      /--schedule-name is required/,
     );
   });
 });
@@ -319,14 +331,11 @@ describe('scheduleDisplay', () => {
     displayScheduleTable(script, []);
 
     const table = calls[0]?.payload as Core.GOTableOptions | undefined;
-    expect(table?.data).toEqual([]);
-    expect(table?.columns.map((column) => column.header)).toEqual([
-      'Name',
-      'Group',
-      'State',
-      'Target ARN',
-      'Last Modified',
-    ]);
+    assert.deepEqual(table?.data, []);
+    assert.deepEqual(
+      table?.columns.map((column) => column.header),
+      ['Name', 'Group', 'State', 'Target ARN', 'Last Modified'],
+    );
   });
 
   it('replaces missing fields with a dash and formats dates as UTC', () => {
@@ -339,8 +348,8 @@ describe('scheduleDisplay', () => {
     });
 
     const detail = calls[0]?.payload as Record<string, unknown> | undefined;
-    expect(detail?.['Description']).toBe('-');
-    expect(detail?.['Start Date']).toBe('-');
-    expect(detail?.['Last Modification Date']).toBe('2026-09-15T08:30:00.000Z');
+    assert.equal(detail?.['Description'], '-');
+    assert.equal(detail?.['Start Date'], '-');
+    assert.equal(detail?.['Last Modification Date'], '2026-09-15T08:30:00.000Z');
   });
 });

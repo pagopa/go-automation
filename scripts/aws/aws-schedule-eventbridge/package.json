@@ -14,8 +14,8 @@
     "clean": "rm -rf dist *.tsbuildinfo",
     "dev": "tsx src/index.ts",
     "start": "pnpm build && node dist/index.js",
-    "test": "pnpm -w exec vitest run aws-schedule-eventbridge",
-    "test:coverage": "pnpm -w exec vitest run --coverage aws-schedule-eventbridge",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
+    "test:coverage": "mkdir -p coverage && node --import tsx/esm --test --experimental-test-coverage --test-coverage-include='src/**/*.ts' --test-coverage-exclude='src/**/__tests__/**' --test-coverage-lines=${GO_COVERAGE_LINES_THRESHOLD:-90} --test-coverage-branches=${GO_COVERAGE_BRANCHES_THRESHOLD:-80} --test-coverage-functions=${GO_COVERAGE_FUNCTIONS_THRESHOLD:-90} --test-reporter=lcov --test-reporter-destination=coverage/lcov.info --test-reporter=spec --test-reporter-destination=stdout 'src/**/__tests__/**/*.test.ts'",
     "watch": "tsc -b --watch"
   },
   "keywords": [
@@ -30,7 +30,6 @@
     "@go-automation/go-common": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "catalog:",
-    "vitest": "catalog:"
+    "@types/node": "catalog:"
   }
 }
