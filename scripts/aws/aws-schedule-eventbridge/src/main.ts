@@ -36,15 +36,14 @@ export async function main(script: Core.GOScript): Promise<void> {
     throw new Error(`--schedule-name is required for the "${config.action}" action`);
   }
 
-  // Client and service are built and cached by the framework from aws.profiles/aws.region.
-  const service = script.aws.services.scheduler;
-
+  // The per-profile clients are built and cached by the framework from
+  // aws.profiles/aws.region; every action fans out over them itself.
   switch (config.action) {
     case 'list':
-      await runListSchedules(script, service, config);
+      await runListSchedules(script, config);
       break;
     case 'describe':
-      await runDescribeSchedule(script, service, config);
+      await runDescribeSchedule(script, config);
       break;
     case 'enable':
       await runScheduleSweep(script, config, 'ENABLED');

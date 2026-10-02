@@ -7,13 +7,31 @@
 
 import type { AWS, Core } from '@go-automation/go-common';
 
-/** Columns of the `list` table */
+import type { ScheduleRead } from '../types/index.js';
+
+/**
+ * Columns of the `list` table.
+ *
+ * `Profile` leads, and the other widths were rebalanced to pay for it rather
+ * than appended to: the total stays around 150 characters, as before.
+ */
 const LIST_COLUMNS: ReadonlyArray<Core.GOTableColumn> = [
-  { header: 'Name', key: 'name', width: 42 },
-  { header: 'Group', key: 'group', width: 18 },
+  { header: 'Profile', key: 'profile', width: 24 },
+  { header: 'Name', key: 'name', width: 36 },
+  { header: 'Group', key: 'group', width: 14 },
   { header: 'State', key: 'state', width: 10 },
-  { header: 'Target ARN', key: 'targetArn', width: 60 },
+  { header: 'Target ARN', key: 'targetArn', width: 44 },
   { header: 'Last Modified', key: 'lastModified', width: 22 },
+];
+
+/** Columns of the drift table: only the fields that actually diverge between accounts */
+const DRIFT_COLUMNS: ReadonlyArray<Core.GOTableColumn> = [
+  { header: 'Profile', key: 'profile', width: 24 },
+  { header: 'Account', key: 'accountId', width: 14 },
+  { header: 'State', key: 'state', width: 10 },
+  { header: 'Schedule Expression', key: 'expression', width: 26 },
+  { header: 'Timezone', key: 'timezone', width: 18 },
+  { header: 'Target ARN', key: 'targetArn', width: 44 },
 ];
 
 /** Renders a date as a sortable UTC timestamp, or a dash when absent */
@@ -22,21 +40,56 @@ function formatDate(value: Date | undefined): string {
 }
 
 /**
- * Prints the summaries returned by `listSchedules` as a table.
+ * Prints the summaries returned by `listSchedules`, from every account, as a
+ * single table keyed by profile.
+ *
+ * Takes the map `mapParallelSettled` already returns rather than an invented
+ * pair type: its insertion order is the configuration order, so the rows come
+ * out grouped by account with no sorting of our own.
  *
  * @param script - The GOScript instance providing the logger
- * @param summaries - Schedule summaries to render
+ * @param byProfile - Schedule summaries per profile, in configuration order
  */
-export function displayScheduleTable(script: Core.GOScript, summaries: ReadonlyArray<AWS.ScheduleSummary>): void {
-  const data = summaries.map((summary) => ({
-    name: summary.Name ?? '-',
-    group: summary.GroupName ?? '-',
-    state: summary.State ?? '-',
-    targetArn: summary.Target?.Arn ?? '-',
-    lastModified: formatDate(summary.LastModificationDate),
-  }));
+export function displayScheduleTable(
+  script: Core.GOScript,
+  byProfile: ReadonlyMap<string, ReadonlyArray<AWS.ScheduleSummary>>,
+): void {
+  const data = Array.from(byProfile).flatMap(([profile, summaries]) =>
+    summaries.map((summary) => ({
+      profile,
+      name: summary.Name ?? '-',
+      group: summary.GroupName ?? '-',
+      state: summary.State ?? '-',
+      targetArn: summary.Target?.Arn ?? '-',
+      lastModified: formatDate(summary.LastModificationDate),
+    })),
+  );
 
   script.logger.table({ columns: [...LIST_COLUMNS], data });
+}
+
+/**
+ * Prints one narrow row per account, to make divergence between them visible.
+ *
+ * Only the fields that realistically drift are shown. A transposed field-by
+ * field matrix was considered and dropped: it needs dynamic column generation
+ * and degrades past three or four accounts.
+ *
+ * @param script - The GOScript instance providing the logger
+ * @param reads - One read per configured profile, in configuration order
+ */
+export function displayScheduleDrift(script: Core.GOScript, reads: ReadonlyArray<ScheduleRead>): void {
+  const data = reads.map((read) => ({
+    profile: read.profile,
+    accountId: read.accountId ?? '-',
+    state: read.schedule?.State ?? (read.status === 'not-found' ? 'MISSING' : 'ERROR'),
+    expression: read.schedule?.ScheduleExpression ?? '-',
+    timezone: read.schedule?.ScheduleExpressionTimezone ?? '-',
+    targetArn: read.schedule?.Target?.Arn ?? '-',
+  }));
+
+  script.logger.section('Cross-account comparison');
+  script.logger.table({ columns: [...DRIFT_COLUMNS], data });
 }
 
 /**

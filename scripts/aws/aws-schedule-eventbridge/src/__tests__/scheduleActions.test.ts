@@ -56,7 +56,7 @@ interface ProfileFixture {
   /** Summaries returned by `ListSchedules` */
   readonly summaries?: ReadonlyArray<AWS.ScheduleSummary>;
 
-  /** Error `GetSchedule` rejects with, taking precedence over `schedule` */
+  /** Error every read rejects with, taking precedence over `schedule` and `summaries` */
   readonly failWith?: Error;
 
   /** Error `UpdateSchedule` rejects with */
@@ -137,6 +137,7 @@ function createFakeSchedulerClient(
 
       switch (name) {
         case 'ListSchedulesCommand':
+          if (fixture.failWith !== undefined) throw fixture.failWith;
           return await Promise.resolve({ Schedules: [...(fixture.summaries ?? [])] });
         case 'UpdateScheduleCommand':
           if (fixture.failUpdate !== undefined) throw fixture.failUpdate;
@@ -254,64 +255,6 @@ function createSweepHarness(options: SweepHarnessOptions): SweepHarness {
   } as unknown as Core.GOScript;
 
   return { script, commands, calls, confirmCalls, schedulerAccesses };
-}
-
-interface MockScript {
-  readonly script: Core.GOScript;
-  readonly calls: LoggedCall[];
-}
-
-/** Builds a single-profile GOScript double, for the actions still taking a service. */
-function createMockScript(): MockScript {
-  const calls: LoggedCall[] = [];
-
-  const record =
-    (method: string) =>
-    (payload: unknown): void => {
-      calls.push({ method, payload });
-    };
-
-  const script = {
-    logger: {
-      section: record('section'),
-      info: record('info'),
-      success: record('success'),
-      warning: record('warning'),
-      error: record('error'),
-      table: record('table'),
-      keyValueTable: record('keyValueTable'),
-    },
-  } as unknown as Core.GOScript;
-
-  return { script, calls };
-}
-
-interface SchedulerServiceCalls {
-  readonly getSchedule: { readonly name: string; readonly groupName: string | undefined }[];
-  readonly listSchedules: (AWS.AWSScheduleListFilters | undefined)[];
-}
-
-/** Builds an AWSSchedulerService double, for the actions still taking a service. */
-function createMockSchedulerService(
-  stubs: {
-    readonly schedule?: AWS.GetScheduleCommandOutput;
-    readonly summaries?: ReadonlyArray<AWS.ScheduleSummary>;
-  } = {},
-): { readonly service: AWS.AWSSchedulerService; readonly calls: SchedulerServiceCalls } {
-  const calls: SchedulerServiceCalls = { getSchedule: [], listSchedules: [] };
-
-  const service = {
-    getSchedule: async (name: string, groupName?: string): Promise<AWS.GetScheduleCommandOutput> => {
-      calls.getSchedule.push({ name, groupName });
-      return await Promise.resolve(stubs.schedule ?? { $metadata: {} });
-    },
-    listSchedules: async (filters?: AWS.AWSScheduleListFilters): Promise<AWS.ScheduleSummary[]> => {
-      calls.listSchedules.push(filters);
-      return await Promise.resolve([...(stubs.summaries ?? [])]);
-    },
-  } as unknown as AWS.AWSSchedulerService;
-
-  return { service, calls };
 }
 
 /** Builds a config, applying the given overrides on top of the defaults. */
@@ -631,81 +574,211 @@ describe('runScheduleSweep', () => {
   });
 });
 
+/** Every `ListSchedules` the fleet received, across all profiles. */
+function listCommands(commands: ReadonlyArray<CommandRecord>): ReadonlyArray<CommandRecord> {
+  return commands.filter((record) => record.command === 'ListSchedulesCommand');
+}
+
+/** The single table the renderer emitted, if any. */
+function renderedTable(calls: ReadonlyArray<LoggedCall>, index = 0): Core.GOTableOptions | undefined {
+  return calls.filter((call) => call.method === 'table')[index]?.payload as Core.GOTableOptions | undefined;
+}
+
 describe('runListSchedules', () => {
-  it('passes the group and omits the filters that were not provided', async () => {
-    const { script } = createMockScript();
-    const { service, calls } = createMockSchedulerService({ summaries: [{ Name: 'nightly-job' }] });
+  const listConfig = buildConfig({ action: 'list' });
 
-    await runListSchedules(script, service, buildConfig({ scheduleGroup: 'batch' }));
-
-    assert.equal(calls.listSchedules.length, 1);
-    assert.deepEqual(calls.listSchedules[0], { groupName: 'batch' });
-  });
-
-  it('forwards the name prefix and state filters', async () => {
-    const { script } = createMockScript();
-    const { service, calls } = createMockSchedulerService({ summaries: [{ Name: 'nightly-job' }] });
-
-    await runListSchedules(script, service, buildConfig({ namePrefix: 'nightly', state: 'ENABLED' }));
-
-    assert.deepEqual(calls.listSchedules[0], {
-      groupName: 'default',
-      namePrefix: 'nightly',
-      state: 'ENABLED',
-    });
-  });
-
-  it('reports an empty result without rendering a table', async () => {
-    const { script, calls } = createMockScript();
-    const { service } = createMockSchedulerService({ summaries: [] });
-
-    await runListSchedules(script, service, buildConfig());
-
-    assert.equal(
-      calls.some((call) => call.method === 'table'),
-      false,
-    );
-    assert.deepEqual(calls.at(-1), { method: 'info', payload: 'No schedules match the given filters.' });
-  });
-
-  it('renders one table row per schedule', async () => {
-    const { script, calls } = createMockScript();
-    const { service } = createMockSchedulerService({
-      summaries: [
-        { Name: 'a', GroupName: 'default', State: 'ENABLED', Target: { Arn: 'arn:a' } },
-        { Name: 'b', GroupName: 'default', State: 'DISABLED' },
+  it('queries every profile and omits the filters that were not provided', async () => {
+    const harness = createSweepHarness({
+      profiles: [
+        ['sso_dev', { summaries: [{ Name: 'nightly-job' }] }],
+        ['sso_uat', { summaries: [{ Name: 'nightly-job' }] }],
       ],
     });
 
-    await runListSchedules(script, service, buildConfig());
+    await runListSchedules(harness.script, { ...listConfig, scheduleGroup: 'batch' });
 
-    const table = calls.find((call) => call.method === 'table')?.payload as Core.GOTableOptions | undefined;
+    assert.deepEqual(
+      listCommands(harness.commands).map((record) => [record.profile, record.input]),
+      [
+        ['sso_dev', { GroupName: 'batch' }],
+        ['sso_uat', { GroupName: 'batch' }],
+      ],
+    );
+  });
+
+  it('forwards the name prefix and state filters', async () => {
+    const harness = createSweepHarness({ profiles: [['sso_dev', { summaries: [{ Name: 'nightly-job' }] }]] });
+
+    await runListSchedules(harness.script, { ...listConfig, namePrefix: 'nightly', state: 'ENABLED' });
+
+    assert.deepEqual(listCommands(harness.commands)[0]?.input, {
+      GroupName: 'default',
+      NamePrefix: 'nightly',
+      State: 'ENABLED',
+    });
+  });
+
+  it('merges the rows of every profile into one table, with the profile named', async () => {
+    const harness = createSweepHarness({
+      profiles: [
+        ['sso_dev', { summaries: [{ Name: 'a', GroupName: 'default', State: 'ENABLED', Target: { Arn: 'arn:a' } }] }],
+        ['sso_uat', { summaries: [{ Name: 'b', GroupName: 'default', State: 'DISABLED' }] }],
+      ],
+    });
+
+    await runListSchedules(harness.script, listConfig);
+
+    const table = renderedTable(harness.calls);
     assert.equal(table?.data.length, 2);
-    assert.equal(table?.data[0]?.['name'], 'a');
+    assert.deepEqual(
+      table?.data.map((row) => [row['profile'], row['name']]),
+      [
+        ['sso_dev', 'a'],
+        ['sso_uat', 'b'],
+      ],
+    );
     assert.equal(table?.data[1]?.['targetArn'], '-');
+  });
+
+  it('warns about a profile with no match, without dropping it from the report', async () => {
+    const harness = createSweepHarness({
+      profiles: [
+        ['sso_dev', { summaries: [{ Name: 'a' }] }],
+        ['sso_uat', { summaries: [] }],
+      ],
+    });
+
+    await runListSchedules(harness.script, listConfig);
+
+    assert.equal(renderedTable(harness.calls)?.data.length, 1);
+    assert.ok(
+      harness.calls.some(
+        (call) => call.method === 'warning' && String(call.payload).startsWith('sso_uat: no schedule matches'),
+      ),
+    );
+  });
+
+  it('reports an empty fleet without rendering a table', async () => {
+    const harness = createSweepHarness({ profiles: [['sso_dev', { summaries: [] }]] });
+
+    await runListSchedules(harness.script, listConfig);
+
+    assert.equal(renderedTable(harness.calls), undefined);
+    assert.deepEqual(harness.calls.at(-1), {
+      method: 'info',
+      payload: 'No schedule matches the given filters in any account.',
+    });
+  });
+
+  it('keeps going when some profiles fail, and throws only when all of them do', async () => {
+    const partial = createSweepHarness({
+      profiles: [
+        ['sso_dev', { summaries: [{ Name: 'a' }] }],
+        ['sso_uat', { failWith: new Error('AccessDeniedException') }],
+      ],
+    });
+
+    await runListSchedules(partial.script, listConfig);
+    assert.ok(partial.calls.some((call) => call.method === 'error' && String(call.payload).includes('sso_uat')));
+
+    const total = createSweepHarness({
+      profiles: [
+        ['sso_dev', { failWith: new Error('AccessDeniedException') }],
+        ['sso_uat', { failWith: new Error('AccessDeniedException') }],
+      ],
+    });
+
+    await assert.rejects(runListSchedules(total.script, listConfig), /All profiles failed/);
   });
 });
 
 describe('runDescribeSchedule', () => {
-  it('fetches the schedule in its group and prints the detail', async () => {
-    const { script, calls } = createMockScript();
-    const { service, calls: serviceCalls } = createMockSchedulerService({ schedule: scheduleIn('ENABLED') });
+  const describeConfig = buildConfig({ action: 'describe', scheduleName: 'nightly-job' });
 
-    await runDescribeSchedule(script, service, buildConfig({ action: 'describe', scheduleName: 'nightly-job' }));
+  it('prints one detail block per account that has the schedule', async () => {
+    const harness = createSweepHarness({
+      profiles: [
+        ['sso_dev', { schedule: scheduleIn('ENABLED') }],
+        ['sso_uat', { schedule: scheduleIn('DISABLED'), accountId: '210987654321' }],
+      ],
+    });
 
-    assert.deepEqual(serviceCalls.getSchedule, [{ name: 'nightly-job', groupName: 'default' }]);
-    const detail = calls.find((call) => call.method === 'keyValueTable')?.payload as
-      Record<string, unknown> | undefined;
-    assert.equal(detail?.['Name'], 'nightly-job');
-    assert.equal(detail?.['State'], 'ENABLED');
+    await runDescribeSchedule(harness.script, describeConfig);
+
+    const details = harness.calls
+      .filter((call) => call.method === 'keyValueTable')
+      .map((call) => (call.payload as Record<string, unknown>)['State']);
+    assert.deepEqual(details, ['ENABLED', 'DISABLED']);
+    assert.ok(harness.calls.some((call) => call.payload === 'Profile: sso_uat (210987654321)'));
+  });
+
+  it('warns for each account that does not have the schedule', async () => {
+    const harness = createSweepHarness({
+      profiles: [
+        ['sso_dev', { schedule: scheduleIn('ENABLED') }],
+        ['sso_uat', {}],
+        ['sso_prod', {}],
+      ],
+    });
+
+    await runDescribeSchedule(harness.script, describeConfig);
+
+    const warnings = harness.calls.filter(
+      (call) => call.method === 'warning' && String(call.payload).includes('does not exist in this account'),
+    );
+    assert.equal(warnings.length, 2);
+  });
+
+  it('renders the drift table only with more than one account configured', async () => {
+    const single = createSweepHarness({ profiles: [['sso_dev', { schedule: scheduleIn('ENABLED') }]] });
+    await runDescribeSchedule(single.script, describeConfig);
+    assert.equal(renderedTable(single.calls), undefined);
+
+    const fleet = createSweepHarness({
+      profiles: [
+        ['sso_dev', { schedule: scheduleIn('ENABLED') }],
+        ['sso_uat', {}],
+      ],
+    });
+    await runDescribeSchedule(fleet.script, describeConfig);
+
+    const drift = renderedTable(fleet.calls);
+    assert.deepEqual(
+      drift?.columns.map((column) => column.header),
+      ['Profile', 'Account', 'State', 'Schedule Expression', 'Timezone', 'Target ARN'],
+    );
+    assert.deepEqual(
+      drift?.data.map((row) => [row['profile'], row['state']]),
+      [
+        ['sso_dev', 'ENABLED'],
+        ['sso_uat', 'MISSING'],
+      ],
+    );
+  });
+
+  it('throws when every account failed, and when a missing one is fatal', async () => {
+    const allFailed = createSweepHarness({
+      profiles: [['sso_dev', { failWith: new Error('AccessDeniedException') }]],
+    });
+    await assert.rejects(runDescribeSchedule(allFailed.script, describeConfig), /All profiles failed/);
+
+    const strict = createSweepHarness({
+      profiles: [
+        ['sso_dev', { schedule: scheduleIn('ENABLED') }],
+        ['sso_uat', {}],
+      ],
+    });
+    await assert.rejects(
+      runDescribeSchedule(strict.script, { ...describeConfig, failOnMissing: true }),
+      /is missing in 1 of 2 account\(s\)/,
+    );
   });
 
   it('refuses to run without a schedule name', async () => {
-    const { script } = createMockScript();
-    const { service } = createMockSchedulerService();
+    const harness = createSweepHarness({ profiles: [['sso_dev', {}]] });
 
     await assert.rejects(
-      runDescribeSchedule(script, service, buildConfig({ action: 'describe' })),
+      runDescribeSchedule(harness.script, buildConfig({ action: 'describe' })),
       /--schedule-name is required/,
     );
   });

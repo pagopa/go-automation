@@ -24,7 +24,7 @@ import { isScheduleAction } from '../libs/isScheduleAction.js';
 import { isScheduleNotFound } from '../libs/isScheduleNotFound.js';
 import { isScheduleState } from '../libs/isScheduleState.js';
 import { planScheduleSweep } from '../libs/planScheduleSweep.js';
-import { displayScheduleDetail, displayScheduleTable } from '../libs/scheduleDisplay.js';
+import { displayScheduleDetail, displayScheduleDrift, displayScheduleTable } from '../libs/scheduleDisplay.js';
 import type { ScheduleMutation, ScheduleMutationOutcome, ScheduleRead } from '../types/index.js';
 
 interface LoggedCall {
@@ -277,16 +277,54 @@ describe('buildSweepVerdict', () => {
 });
 
 describe('scheduleDisplay', () => {
-  it('renders the table headers even with an empty list', () => {
+  it('renders the table headers even with no account contributing a row', () => {
     const { script, calls } = createMockScript();
 
-    displayScheduleTable(script, []);
+    displayScheduleTable(script, new Map());
 
     const table = calls[0]?.payload as Core.GOTableOptions | undefined;
     assert.deepEqual(table?.data, []);
     assert.deepEqual(
       table?.columns.map((column) => column.header),
-      ['Name', 'Group', 'State', 'Target ARN', 'Last Modified'],
+      ['Profile', 'Name', 'Group', 'State', 'Target ARN', 'Last Modified'],
+    );
+  });
+
+  it('keeps the rows grouped by account, in the map insertion order', () => {
+    const { script, calls } = createMockScript();
+
+    displayScheduleTable(
+      script,
+      new Map([
+        ['sso_dev', [{ Name: 'a' }, { Name: 'b' }]],
+        ['sso_uat', [{ Name: 'c' }]],
+      ]),
+    );
+
+    const table = calls[0]?.payload as Core.GOTableOptions | undefined;
+    assert.deepEqual(
+      table?.data.map((row) => [row['profile'], row['name']]),
+      [
+        ['sso_dev', 'a'],
+        ['sso_dev', 'b'],
+        ['sso_uat', 'c'],
+      ],
+    );
+  });
+
+  it('labels a drift row by what went wrong when the schedule is absent', () => {
+    const { script, calls } = createMockScript();
+
+    displayScheduleDrift(script, [foundRead('sso_dev', 'ENABLED'), missingRead('sso_uat'), failedRead('sso_prod')]);
+
+    const table = calls.find((call) => call.method === 'table')?.payload as Core.GOTableOptions | undefined;
+    assert.deepEqual(
+      table?.data.map((row) => [row['profile'], row['state'], row['accountId']]),
+      [
+        ['sso_dev', 'ENABLED', '123456789012'],
+        ['sso_uat', 'MISSING', '123456789012'],
+        ['sso_prod', 'ERROR', '-'],
+      ],
     );
   });
 
