@@ -6,7 +6,9 @@
 
 import { Core } from '@go-automation/go-common';
 
-import { SCHEDULE_ACTIONS, SCHEDULE_STATES, isScheduleAction, isScheduleState } from './types/index.js';
+import { SCHEDULE_ACTIONS } from './types/index.js';
+import { isScheduleAction } from './libs/isScheduleAction.js';
+import { SCHEDULE_STATES, isScheduleState } from './libs/isScheduleState.js';
 
 /**
  * Script metadata

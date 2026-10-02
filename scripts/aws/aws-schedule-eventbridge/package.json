@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Script per operare sugli schedule di Amazon EventBridge Scheduler",
+  "description": "Operates on Amazon EventBridge Scheduler schedules - list, describe, enable and disable a single schedule.",
   "main": "dist/index.js",
   "files": [
     "dist",

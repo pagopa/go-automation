@@ -2,8 +2,7 @@
  * `list` action: enumerates the schedules matching the CLI filters.
  */
 
-import { Core } from '@go-automation/go-common';
-import type { AWS } from '@go-automation/go-common';
+import { Core, type AWS } from '@go-automation/go-common';
 
 import type { AwsScheduleEventbridgeConfig } from '../types/index.js';
 import { displayScheduleTable } from './scheduleDisplay.js';

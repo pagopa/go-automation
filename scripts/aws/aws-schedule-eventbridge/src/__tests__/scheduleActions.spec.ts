@@ -19,7 +19,8 @@ import { runDescribeSchedule } from '../libs/describeSchedule.js';
 import { runListSchedules } from '../libs/listSchedules.js';
 import { runSetScheduleState } from '../libs/setScheduleState.js';
 import { displayScheduleDetail, displayScheduleTable } from '../libs/scheduleDisplay.js';
-import { isScheduleAction, isScheduleState } from '../types/index.js';
+import { isScheduleAction } from '../libs/isScheduleAction.js';
+import { isScheduleState } from '../libs/isScheduleState.js';
 import type { AwsScheduleEventbridgeConfig } from '../types/index.js';
 
 interface LoggedCall {
