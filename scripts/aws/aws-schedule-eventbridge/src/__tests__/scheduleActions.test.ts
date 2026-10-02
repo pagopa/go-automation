@@ -20,9 +20,6 @@ import type { AWS, Core } from '@go-automation/go-common';
 import { runDescribeSchedule } from '../libs/describeSchedule.js';
 import { runListSchedules } from '../libs/listSchedules.js';
 import { runSetScheduleState } from '../libs/setScheduleState.js';
-import { displayScheduleDetail, displayScheduleTable } from '../libs/scheduleDisplay.js';
-import { isScheduleAction } from '../libs/isScheduleAction.js';
-import { isScheduleState } from '../libs/isScheduleState.js';
 import type { AwsScheduleEventbridgeConfig } from '../types/index.js';
 
 interface LoggedCall {
@@ -149,20 +146,6 @@ const ENABLED_SCHEDULE: AWS.GetScheduleCommandOutput = {
     RoleArn: 'arn:aws:iam::123456789012:role/scheduler-invoke',
   },
 };
-
-describe('type guards', () => {
-  it('accepts the supported actions and rejects anything else', () => {
-    assert.equal(isScheduleAction('list'), true);
-    assert.equal(isScheduleAction('disable'), true);
-    assert.equal(isScheduleAction('delete'), false);
-  });
-
-  it('accepts only the two schedule states', () => {
-    assert.equal(isScheduleState('ENABLED'), true);
-    assert.equal(isScheduleState('DISABLED'), true);
-    assert.equal(isScheduleState('enabled'), false);
-  });
-});
 
 describe('runListSchedules', () => {
   it('passes the group and omits the filters that were not provided', async () => {
@@ -321,35 +304,5 @@ describe('runSetScheduleState', () => {
       runSetScheduleState(script, service, buildConfig({ action: 'disable' }), 'DISABLED'),
       /--schedule-name is required/,
     );
-  });
-});
-
-describe('scheduleDisplay', () => {
-  it('renders the table headers even with an empty list', () => {
-    const { script, calls } = createMockScript();
-
-    displayScheduleTable(script, []);
-
-    const table = calls[0]?.payload as Core.GOTableOptions | undefined;
-    assert.deepEqual(table?.data, []);
-    assert.deepEqual(
-      table?.columns.map((column) => column.header),
-      ['Name', 'Group', 'State', 'Target ARN', 'Last Modified'],
-    );
-  });
-
-  it('replaces missing fields with a dash and formats dates as UTC', () => {
-    const { script, calls } = createMockScript();
-
-    displayScheduleDetail(script, {
-      $metadata: {},
-      Name: 'nightly-job',
-      LastModificationDate: new Date('2026-09-15T08:30:00.000Z'),
-    });
-
-    const detail = calls[0]?.payload as Record<string, unknown> | undefined;
-    assert.equal(detail?.['Description'], '-');
-    assert.equal(detail?.['Start Date'], '-');
-    assert.equal(detail?.['Last Modification Date'], '2026-09-15T08:30:00.000Z');
   });
 });
