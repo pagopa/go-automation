@@ -6,7 +6,8 @@ import { all, any } from '../common/conditions.js';
 import { stepEvidenceMatches } from '../common/evidenceConditions.js';
 import { varEquals } from '../common/varConditions.js';
 
-const INCIDENT_THREAD = 'https://pagopaspa.slack.com/archives/C064KJYNLPL/p1790086829253919';
+const INCIDENT_THREAD_22_SEPTEMBER_2026 = 'https://pagopaspa.slack.com/archives/C064KJYNLPL/p1790086829253919';
+const INCIDENT_THREAD_01_OCTOBER_2026 = 'https://pagopaspa.slack.com/archives/C064KJYNLPL/p1790861502607049';
 
 const INVALID_SENDER_LIMIT: Condition = any(
   stepEvidenceMatches('query-pn-delayer-sender-limit-job', 'Invalid sender limit percentage \\['),
@@ -14,6 +15,7 @@ const INVALID_SENDER_LIMIT: Condition = any(
     'query-pn-delayer-sender-limit-job',
     'Invalid senderLimit percentage: job will fail without retry',
   ),
+  stepEvidenceMatches('query-pn-delayer-sender-limit-job', 'No drivers found for province:'),
 );
 
 const DETAILS = [
@@ -23,7 +25,11 @@ const DETAILS = [
   ['Trace ID', '{{vars.delayerSenderLimitJobTraceId}}'],
 ] as const;
 
-/** The same documented failure has different operational outcomes on Monday. */
+/**
+ * The same documented failure has different operational outcomes on Monday.
+ *
+ * Confluence v3, checked on 2026-10-03.
+ */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'invalid-sender-limit-monday',
@@ -44,7 +50,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Avvisare il prodotto',
         'Verificare la presenza dell’allarme pn-BatchWorkflowStateMachine-FailedAlarm',
       ],
-      links: [slackLink(INCIDENT_THREAD, 'Thread Slack del caso noto')],
+      links: [
+        slackLink(INCIDENT_THREAD_01_OCTOBER_2026, 'Thread Slack 01/10/2026'),
+        slackLink(INCIDENT_THREAD_22_SEPTEMBER_2026, 'Thread Slack 22/09/2026'),
+      ],
     },
   }),
   knownCase({
@@ -59,7 +68,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       errorDetails: 'Percentuale sender limit non valida: il job fallisce senza retry.',
-      links: [slackLink(INCIDENT_THREAD, 'Thread Slack del caso noto')],
+      links: [
+        slackLink(INCIDENT_THREAD_01_OCTOBER_2026, 'Thread Slack 01/10/2026'),
+        slackLink(INCIDENT_THREAD_22_SEPTEMBER_2026, 'Thread Slack 22/09/2026'),
+      ],
     },
   }),
 ];

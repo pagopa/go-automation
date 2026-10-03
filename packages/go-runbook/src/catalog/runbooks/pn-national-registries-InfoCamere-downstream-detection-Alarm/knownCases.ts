@@ -6,16 +6,24 @@ import { SEND_DOWNSTREAMS } from '../framework.js';
 import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
 
+import { slackLink } from '../common/analysisLinks.js';
 import { stepEvidenceMatches } from '../common/evidenceConditions.js';
 
 const INFOCAMERE_PEC_ENDPOINT = 'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/richiestaElencoPec';
 const INFOCAMERE_AUTHENTICATION_ENDPOINT = 'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/authentication';
+const INFOCAMERE_LEGAL_REPRESENTATIVE_ENDPOINT =
+  'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/listaLegaleRappresentante';
+const INFOCAMERE_LEGAL_REPRESENTATIVE_THREAD = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1759230886444479';
 const ANALYSIS_COMPLETED_FINAL_ACTION =
   'Analisi conclusa in autonomia dal team di GO. Non è necessario altro confronto';
 const INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION =
   'Nessuna azione operativa locale disponibile; monitorare il downstream InfoCamere e attenderne il ripristino.';
 
-/** Known InfoCamere failures evaluated against the pn-national-registries downstream query. */
+/**
+ * Known InfoCamere failures evaluated against the pn-national-registries downstream query.
+ *
+ * Confluence v6, checked on 2026-10-03.
+ */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'infocamere-richiesta-elenco-pec-read-timeout',
@@ -119,6 +127,37 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       errorDetails: 'Connessione verso InfoCamere interrotta dal peer remoto durante la ricezione.',
       downstreams: [SEND_DOWNSTREAMS.INFOCAMERE],
       finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
+    },
+  }),
+  knownCase({
+    id: 'infocamere-legal-representative-internal-server-error-500',
+    description: '[DOWNSTREAM InfoCamere] HTTP 500 durante l’elenco legale rappresentante',
+    priority: 130,
+    condition: stepEvidenceMatches(
+      'query-pn-national-registries',
+
+      '\\[DOWNSTREAM\\] Service InfoCamere returned errors=500 Internal Server Error from GET ' +
+        'https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/listaLegaleRappresentante/',
+    ),
+    title: '[DOWNSTREAM InfoCamere] Elenco legale rappresentante non disponibile (HTTP 500)',
+    resolution:
+      'Caso noto: il team di sviluppo sta mitigando l’errore con una retry strategy. ' +
+      'La pagina non indica una risoluzione operativa; monitorare il downstream InfoCamere.',
+    details: [
+      ['Servizio', 'pn-national-registries'],
+      ['Endpoint', INFOCAMERE_LEGAL_REPRESENTATIVE_ENDPOINT],
+      ['Errore', '{{vars.nationalRegistriesErrorMsg}}'],
+      ['Trace ID', '{{vars.nationalRegistriesTraceId}}'],
+    ],
+    analysis: {
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      errorDetails:
+        'HTTP 500 (WSPA_ERR_00, appName wspa-lref) restituito da InfoCamere sulla chiamata GET ' +
+        `${INFOCAMERE_LEGAL_REPRESENTATIVE_ENDPOINT}; mitigazione tramite retry strategy in corso lato sviluppo.`,
+      downstreams: [SEND_DOWNSTREAMS.ELENCO_LEGALE_RAPPRESENTANTE_INFOCAMERE],
+      finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
+      links: [slackLink(INFOCAMERE_LEGAL_REPRESENTATIVE_THREAD, 'Thread Slack 30/09/2025')],
     },
   }),
 ];

@@ -12,6 +12,7 @@ import { KNOWN_CASES } from '../knownCases.js';
 const FIRST_DOCUMENTED_ERROR =
   'Invalid sender limit percentage [4.221290863369656] for productType: 890, paId: 9a7c1b23-46a3-489b-8ed4-398ffb32b45a, province: RM with totalEstimate: 3579, weeklyEstimate: 15108 Error processing sender limit job for province: RM, tenderId: 20260921, deliveryWeek: 2026-11-02';
 const SECOND_DOCUMENTED_ERROR = 'Invalid senderLimit percentage: job will fail without retry';
+const THIRD_DOCUMENTED_ERROR = 'No drivers found for province: RM';
 
 function context(message: string, alarmDatetime: string, alarmDatetimeEnd?: string): RunbookContext {
   const row: ReadonlyArray<ResultField> = [{ field: 'message', value: message }];
@@ -35,7 +36,7 @@ describe('pn-delayer sender limit known cases', () => {
 
   it('recognizes both documented messages and selects the Monday action in Rome time', async () => {
     const mondayUtcSundayNight = '2026-09-27T22:30:00.000Z';
-    for (const message of [FIRST_DOCUMENTED_ERROR, SECOND_DOCUMENTED_ERROR]) {
+    for (const message of [FIRST_DOCUMENTED_ERROR, SECOND_DOCUMENTED_ERROR, THIRD_DOCUMENTED_ERROR]) {
       const input = context(message, mondayUtcSundayNight);
       const result = await new ClassifyDelayerAlarmDayStep().execute(input);
       assert.strictEqual(result.vars?.['delayerAlarmIncludesMonday'], 'true');
@@ -48,6 +49,9 @@ describe('pn-delayer sender limit known cases', () => {
       'Avvisare il prodotto',
       'Verificare la presenza dell’allarme pn-BatchWorkflowStateMachine-FailedAlarm',
     ]);
+    // La pagina elenca entrambi i thread nella stessa riga di Casi noti.
+    assert.strictEqual(KNOWN_CASES[0]?.analysis?.links?.length, 2);
+    assert.strictEqual(KNOWN_CASES[1]?.analysis?.links?.length, 2);
   });
 
   it('closes the known case on other days and leaves different errors unmatched', async () => {

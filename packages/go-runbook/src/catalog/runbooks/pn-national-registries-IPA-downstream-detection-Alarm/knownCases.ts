@@ -12,7 +12,14 @@ const IPA_WS23_ENDPOINT = 'https://www.indicepa.gov.it/ws/WS23DOMDIGCFServices/a
 const ANALYSIS_COMPLETED_FINAL_ACTION =
   'Analisi conclusa in autonomia dal team di GO. Non è necessario altro confronto';
 
-/** Known IPA responses and failures evaluated against the pn-national-registries log query. */
+const IPA_TRANSIENT_FAILURE_RESOLUTION =
+  'Monitorare il downstream IPA e attenderne il ripristino; nel caso censito il servizio è rientrato al polling successivo senza ulteriori azioni.';
+
+/**
+ * Known IPA responses and failures evaluated against the pn-national-registries log query.
+ *
+ * Confluence v7, checked on 2026-10-03.
+ */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'ipa-known-response-404',
@@ -49,8 +56,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'https://www\\.indicepa\\.gov\\.it/ws/WS23DOMDIGCFServices/api/WS23_DOM_DIG_CF',
     ),
     title: '[DOWNSTREAM IPA] Indice PA non disponibile (HTTP 503)',
-    resolution:
-      'Monitorare il downstream IPA e attenderne il ripristino; nel caso censito il servizio è rientrato al polling successivo senza ulteriori azioni.',
+    resolution: IPA_TRANSIENT_FAILURE_RESOLUTION,
     details: [
       ['Servizio', 'pn-national-registries'],
       ['Endpoint', IPA_WS23_ENDPOINT],
@@ -61,6 +67,30 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       errorDetails: `HTTP 503 Service Unavailable restituito da IPA sulla chiamata POST ${IPA_WS23_ENDPOINT}.`,
+      downstreams: [SEND_DOWNSTREAMS.IPA],
+      finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
+    },
+  }),
+  knownCase({
+    id: 'ipa-connection-prematurely-closed',
+    description: '[DOWNSTREAM IPA] Connessione chiusa prematuramente dal downstream',
+    priority: 120,
+    condition: stepEvidenceMatches(
+      'query-pn-national-registries',
+
+      '\\[DOWNSTREAM\\] Service IPA returned errors=Connection prematurely closed BEFORE response',
+    ),
+    title: '[DOWNSTREAM IPA] Connessione chiusa prima della risposta',
+    resolution: IPA_TRANSIENT_FAILURE_RESOLUTION,
+    details: [
+      ['Servizio', 'pn-national-registries'],
+      ['Errore', '{{vars.nationalRegistriesErrorMsg}}'],
+      ['Trace ID', '{{vars.nationalRegistriesTraceId}}'],
+    ],
+    analysis: {
+      proposedStatus: 'COMPLETED',
+      analysisType: 'ANALYZABLE',
+      errorDetails: 'Connessione verso IPA chiusa prematuramente prima della risposta.',
       downstreams: [SEND_DOWNSTREAMS.IPA],
       finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
     },

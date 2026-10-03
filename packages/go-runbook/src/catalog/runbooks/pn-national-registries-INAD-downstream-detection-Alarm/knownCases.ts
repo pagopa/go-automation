@@ -13,6 +13,7 @@ const INAD_DIGITAL_DOMICILE_ENDPOINT = 'https://api.inad.gov.it/rest/inad/v1/dom
 const INAD_OSCL_DIGITAL_DOMICILE_ENDPOINT =
   'https://domiciliodigitaleapi.oscl.infocamere.it/rest/inad/v1/domiciliodigitale/extract/';
 const INAD_UNAUTHORIZED_THREAD = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1788443083384209';
+const INAD_INTERNAL_SERVER_ERROR_THREAD = 'https://pagopaspa.slack.com/archives/C064KJYNLPL/p1790939699138239';
 const ANALYSIS_COMPLETED_FINAL_ACTION =
   'Analisi conclusa in autonomia dal team di GO. Non è necessario altro confronto';
 const INAD_RECOVERY_RESOLUTION =
@@ -61,19 +62,23 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       '\\[DOWNSTREAM\\] Service INAD returned errors=500 Internal Server Error from GET ' +
         'https://api\\.inad\\.gov\\.it/rest/inad/v1/domiciliodigitale/extract/[^\\s"]+',
     ),
-    resolution: INAD_RECOVERY_RESOLUTION,
+    resolution:
+      'La pagina non indica una risoluzione operativa: per questo caso riporta solo la segnalazione del ' +
+      '02/10/2026. Consultare il thread Slack prima di chiudere.',
     details: [
       ['Servizio', 'pn-national-registries'],
       ['Endpoint', INAD_DIGITAL_DOMICILE_ENDPOINT],
       ['Errore', '{{vars.nationalRegistriesErrorMsg}}'],
       ['Trace ID', '{{vars.nationalRegistriesTraceId}}'],
     ],
+    level: 'warn',
     analysis: {
-      proposedStatus: 'COMPLETED',
+      proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
       errorDetails: `HTTP 500 restituito da INAD durante la chiamata GET ${INAD_DIGITAL_DOMICILE_ENDPOINT}.`,
       downstreams: [SEND_DOWNSTREAMS.INAD],
-      finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
+      finalActions: ['Consultare il thread Slack del 02/10/2026 e completare la risoluzione operativa'],
+      links: [slackLink(INAD_INTERNAL_SERVER_ERROR_THREAD, 'Thread Slack segnalazione 02/10/2026')],
     },
   }),
   knownCase({
