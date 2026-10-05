@@ -92,23 +92,23 @@ Questo file descrive i cluster e le regole da monitorare per ciascun profilo/amb
 
 ```bash
 # Dalla root del monorepo
-pnpm send:fetch:ecs:clusters:infos:dev
+pnpm aws:fetch:ecs:clusters:infos:dev
 
 # Oppure con filter
-pnpm --filter=send-fetch-ecs-clusters-infos dev
+pnpm --filter=aws-fetch-ecs-clusters-infos dev
 
 # Con parametri
-pnpm send:fetch:ecs:clusters:infos:dev -- --config-file configs/config.json --awsProfiles profile1
+pnpm aws:fetch:ecs:clusters:infos:dev -- --config-file configs/config.json --awsProfiles profile1
 ```
 
 ### Modalità Production (build + node)
 
 ```bash
 # Build
-pnpm --filter=send-fetch-ecs-clusters-infos build
+pnpm --filter=aws-fetch-ecs-clusters-infos build
 
 # Esecuzione
-pnpm --filter=send-fetch-ecs-clusters-infos start
+pnpm --filter=aws-fetch-ecs-clusters-infos start
 
 # Oppure direttamente
 node dist/index.js --config-file configs/config.json --awsProfiles profile1
@@ -118,7 +118,7 @@ node dist/index.js --config-file configs/config.json --awsProfiles profile1
 
 ```bash
 # Esempio 1: Caso d'uso comune
-pnpm send:fetch:ecs:clusters:infos:dev -- --config-file configs/config.json --awsProfiles uat-profile
+pnpm aws:fetch:ecs:clusters:infos:dev -- --config-file configs/config.json --awsProfiles uat-profile
 
 # Esempio 2: Esecuzione di produzione diretta
 node dist/index.js --config-file configs/config.json --awsProfiles prod-profile
@@ -130,13 +130,13 @@ node dist/index.js --config-file configs/config.json --awsProfiles prod-profile
 
 Descrivere il formato dell'output generato:
 
-- **Log**: `<monorepo path>/data/send-fetch-ecs-clusters-infos/send-fetch-ecs-clusters-infos_<ISO8610 timestamp>/execution.log`
+- **Log**: `<monorepo path>/data/aws-fetch-ecs-clusters-infos/aws-fetch-ecs-clusters-infos_<ISO8610 timestamp>/execution.log`
 
 ### Esempio Output Console
 
 ```
 ...
-⏵ Starting send-fetch-ecs-clusters-infos
+⏵ Starting aws-fetch-ecs-clusters-infos
 
 ⏵ AWS Profile profile1 (env1)
     ℹ Clusters state
@@ -175,7 +175,7 @@ aws sso login --profile <nome-profilo>
 ```bash
 pnpm install
 pnpm build:common
-pnpm --filter=send-fetch-ecs-clusters-infos build
+pnpm --filter=aws-fetch-ecs-clusters-infos build
 ```
 
 #### Errore: "Invalid date format"
@@ -188,10 +188,10 @@ pnpm --filter=send-fetch-ecs-clusters-infos build
 
 ```bash
 # Eseguire con debug output
-DEBUG=* pnpm send:fetch:ecs:clusters:infos:dev
+DEBUG=* pnpm aws:fetch:ecs:clusters:infos:dev
 
 # Type check senza build
-pnpm --filter=send-fetch-ecs-clusters-infos exec tsc --noEmit
+pnpm --filter=aws-fetch-ecs-clusters-infos exec tsc --noEmit
 ```
 
 ---
