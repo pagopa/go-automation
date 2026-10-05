@@ -5,3 +5,4 @@ export * from './extractFileNameFromCwResults.js';
 export * from './buildS3Key.js';
 export * from './unpackP7mZip.js';
 export * from './calculateFileHash.js';
+export * from './verifyFileHashes.js';

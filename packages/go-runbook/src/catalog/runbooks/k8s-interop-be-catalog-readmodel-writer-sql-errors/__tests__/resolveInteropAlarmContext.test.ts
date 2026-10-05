@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { interop } from '../../framework.js';
+import { RUNBOOK_CATALOG } from '../../../RunbookCatalog.js';
 
 describe('CATALOG_READMODEL_WRITER_SQL_ALARM.resolveContext', () => {
   it('resolves every environment declared by the Confluence runbook', () => {
@@ -18,6 +19,10 @@ describe('CATALOG_READMODEL_WRITER_SQL_ALARM.resolveContext', () => {
       assert.strictEqual(context.runbookKey, CATALOG_READMODEL_WRITER_SQL_ALARM.runbookKey);
       assert.strictEqual(context.logGroup, interop.k8s.buildInteropK8sApplicationLogGroup(context.environment));
       assert.strictEqual(context.podApp, CATALOG_READMODEL_WRITER_SQL_ALARM.podApp);
+      assert.strictEqual(
+        RUNBOOK_CATALOG.resolveByAlarmName(alarmName)?.descriptor.key,
+        CATALOG_READMODEL_WRITER_SQL_ALARM.runbookKey,
+      );
     }
   });
 

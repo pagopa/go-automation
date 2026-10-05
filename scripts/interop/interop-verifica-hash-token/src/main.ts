@@ -12,11 +12,11 @@ import { Core } from '@go-automation/go-common';
 import { DEFAULT_CW_QUERY_APPLICATION, DEFAULT_CW_QUERY_CID } from './config.js';
 import {
   buildS3Key,
-  calculateFileHash,
   extractCidFromCwResults,
   extractFileNameFromCwResults,
   parseUtcDate,
   unpackP7mZip,
+  verifyFileHashes,
 } from './libs/index.js';
 import type { InteropVerificaHashTokenConfig } from './types/index.js';
 
@@ -51,8 +51,9 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   const cid = extractCidFromCwResults(results, EXTRACT_FIELD);
   if (!cid) {
-    script.logger.error(`No CID found in CloudWatch logs matching the application query.`);
-    return;
+    throw new Error(
+      'No CID found in CloudWatch logs matching the application query. Hash verification was not performed.',
+    );
   }
   script.logger.info(`Extracted Correlation ID (CID): ${cid}`);
 
@@ -65,12 +66,13 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   let filenameBase = extractFileNameFromCwResults(resultsSecondQuery, EXTRACT_FIELD);
   if (!filenameBase) {
-    script.logger.error('No filename found in CloudWatch logs matching the CID query.');
-    return;
+    throw new Error(
+      'No filename found in CloudWatch logs matching the CID query. Hash verification was not performed.',
+    );
   }
 
   // Strip common extensions to get the base name
-  filenameBase = filenameBase.replace('.ndjson', '').replace('.zip', '').replace('.p7m', '');
+  filenameBase = filenameBase.replace(/\.ndjson(?:\.zip\.p7m|\.zip)?$/u, '');
   script.logger.info(`Extracted filename base: ${filenameBase}`);
 
   // 3. Resolve S3 Keys
@@ -100,7 +102,7 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   // 5. Unpack .p7m file and zip
   script.logger.section('Unpacking and extracting .p7m file...');
-  script.prompt.startSpinner('Decrypting and unzipping...');
+  script.prompt.startSpinner('Extracting PKCS#7 content and unzipping...');
   const extractedNdjsonPath = await unpackP7mZip(localP7mPath, localZipPath, outputDir);
   script.prompt.stopSpinner();
   script.logger.info(`Extracted signed NDJSON content to: ${extractedNdjsonPath}`);
@@ -108,16 +110,11 @@ export async function main(script: Core.GOScript): Promise<void> {
   // 6. Hash verification
   script.logger.section('Verifying SHA-256 hashes...');
   script.prompt.startSpinner('Calculating hashes...');
-  const hashExtracted = await calculateFileHash(extractedNdjsonPath);
-  const hashOriginal = await calculateFileHash(localPureNdjsonPath);
+  const { hashExtracted, hashOriginal } = await verifyFileHashes(extractedNdjsonPath, localPureNdjsonPath);
   script.prompt.stopSpinner();
 
   script.logger.text(`Extracted file hash: ${hashExtracted}`);
   script.logger.text(`Original file hash:  ${hashOriginal}`);
 
-  if (hashExtracted === hashOriginal) {
-    script.logger.success('Hash verification successful! The token content matches.');
-  } else {
-    script.logger.error('Hash verification failed! The token contents differ.');
-  }
+  script.logger.success('Hash verification successful! The token content matches.');
 }
