@@ -267,7 +267,7 @@ Se il run riporta l'errore solo per alcuni profili, gli altri sono stati comunqu
 
 #### Il sweep riporta un fallimento solo in alcuni account
 
-**Causa**: Esito atteso. L'exit code non-zero su fallimento parziale è **intenzionale**: serve a far accorgere CI e operatore che la flotta non è convergiuta. Gli account sani sono comunque stati aggiornati.
+**Causa**: Esito atteso. L'exit code non-zero su fallimento parziale è **intenzionale**: serve a far accorgere CI e operatore che la flotta non è convergita. Gli account sani sono comunque stati aggiornati.
 
 **Soluzione**: leggere la tabella `Sweep result` per capire quali account hanno fallito e perché, poi **ri-eseguire lo stesso comando**: il sweep è idempotente e gli account già allineati risultano `NO-OP`.
 
