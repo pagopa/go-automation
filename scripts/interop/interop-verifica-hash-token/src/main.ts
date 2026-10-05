@@ -18,6 +18,7 @@ import {
   unpackP7mZip,
   verifyFileHashes,
 } from './libs/index.js';
+import type { FileHashes } from './libs/index.js';
 import type { InteropVerificaHashTokenConfig } from './types/index.js';
 
 const EXTRACT_FIELD = '@message';
@@ -110,8 +111,13 @@ export async function main(script: Core.GOScript): Promise<void> {
   // 6. Hash verification
   script.logger.section('Verifying SHA-256 hashes...');
   script.prompt.startSpinner('Calculating hashes...');
-  const { hashExtracted, hashOriginal } = await verifyFileHashes(extractedNdjsonPath, localPureNdjsonPath);
-  script.prompt.stopSpinner();
+  let hashes: FileHashes;
+  try {
+    hashes = await verifyFileHashes(extractedNdjsonPath, localPureNdjsonPath);
+  } finally {
+    script.prompt.stopSpinner();
+  }
+  const { hashExtracted, hashOriginal } = hashes;
 
   script.logger.text(`Extracted file hash: ${hashExtracted}`);
   script.logger.text(`Original file hash:  ${hashOriginal}`);
