@@ -28,7 +28,7 @@ function extractStringFromAsn1(asn1Node: unknown): string {
 }
 
 /**
- * Decrypts a p7m signed file to zip using node-forge and extracts it using unzipper-esm
+ * Extracts embedded PKCS#7 content and unzips it; does not validate signatures or certificates.
  */
 export async function unpackP7mZip(p7mPath: string, tempZipPath: string, outputDir: string): Promise<string> {
   // 1. Extract PKCS#7 content using node-forge
@@ -66,7 +66,7 @@ export async function unpackP7mZip(p7mPath: string, tempZipPath: string, outputD
 
     extractedContent = contentBuf;
 
-    // eslint-disable-next-line no-restricted-syntax, security/detect-non-literal-fs-filename -- writing decrypted binary zip file to output path
+    // eslint-disable-next-line no-restricted-syntax, security/detect-non-literal-fs-filename -- writing extracted binary zip file to output path
     fs.writeFileSync(tempZipPath, extractedContent);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
@@ -80,10 +80,10 @@ export async function unpackP7mZip(p7mPath: string, tempZipPath: string, outputD
 
     const targetFile = ndjsonFiles[0];
     if (ndjsonFiles.length === 0 || !targetFile) {
-      throw new Error(`No .ndjson files found inside the decrypted zip archive: ${tempZipPath}`);
+      throw new Error(`No .ndjson files found inside the extracted zip archive: ${tempZipPath}`);
     }
     if (ndjsonFiles.length > 1) {
-      throw new Error(`Multiple .ndjson files found inside the decrypted zip archive: ${tempZipPath}`);
+      throw new Error(`Multiple .ndjson files found inside the extracted zip archive: ${tempZipPath}`);
     }
 
     const filename = path.basename(targetFile.path);

@@ -1,54 +1,97 @@
-import { CATALOG_READMODEL_WRITER_SQL_ALARM } from './alarmDefinition.js';
-import { INTEROP_DOWNSTREAMS, type KnownCase } from '../framework.js';
-
+import { INTEROP_DOWNSTREAMS, knownCase, type KnownCase } from '../framework.js';
 import { jiraLink } from '../common/analysisLinks.js';
-import type { InteropKnownCaseRefs } from '../interop/interopKnownCases.js';
-import { interopKnownCase } from '../interop/interopKnownCases.js';
+import { all } from '../common/conditions.js';
+import { stepEvidenceMatches } from '../common/evidenceConditions.js';
+import { varEquals } from '../common/varConditions.js';
+import { CATALOG_READMODEL_WRITER_SQL_ALARM as alarm } from './alarmDefinition.js';
 
-const REFS: InteropKnownCaseRefs = {
-  applicationLogsStepId: CATALOG_READMODEL_WRITER_SQL_ALARM.stepIds.queryApplicationLogs,
-  cidTrackerStepId: CATALOG_READMODEL_WRITER_SQL_ALARM.stepIds.queryCidTracker,
-  varPrefix: CATALOG_READMODEL_WRITER_SQL_ALARM.varPrefix,
-};
-
-const TEMPORARY_NETWORK_RESOLUTION =
-  'Il documento classifica il caso come problema temporaneo di rete ma non indica una risoluzione operativa. ' +
-  'Verificare se l’errore persiste e, in tal caso, proseguire l’analisi sui CID disponibili.';
+const NETWORK_RESOLUTION =
+  'Raccogliere timestamp, frequenza e log completi del writer, identificare la controparte effettivamente contattata ' +
+  'e verificare l’esito dei tentativi successivi. Usare i CID quando presenti; in loro assenza cercare per pod ' +
+  'e intervallo temporale con Application-Logs-Context, ampliando la finestra se necessario. ' +
+  'Il solo timeout o errore TLS non dimostra che il problema sia transitorio o risolto. ' +
+  'I criteri operativi della pagina richiedono almeno cinque periodi da 60 secondi senza nuove ricorrenze ERROR/stderr, ' +
+  'prove di elaborazione effettiva e propagazione attesa nel readmodel SQL, senza arretrato in aumento. ' +
+  'Estendere l’osservazione con il team di prodotto per fenomeni intermittenti; in assenza di carico o prova di ripresa ' +
+  'mantenere l’analisi aperta. Se l’errore persiste o ricompare, il consumer non avanza, compaiono crash con retry esauriti ' +
+  'o il recupero non è verificabile, proseguire l’analisi coinvolgendo il team di prodotto Interoperabilità e allegando ' +
+  'ambiente, intervallo UTC, log completi e CID disponibili. Il referente nominativo e l’eventuale SLA restano da confermare; ' +
+  'non è documentata una correzione definitiva per questa casistica.';
 
 const KAFKA_COORDINATOR_RESOLUTION =
-  'Problema noto di connessione al cluster Kafka. Consultare PIN-7325 per lo stato e le indicazioni operative ' +
-  'aggiornate; se l’errore persiste, proseguire l’analisi.';
+  'Consultare PIN-7325: la descrizione contempla perdita della sessione del consumer group per problemi di rete ' +
+  'o elaborazione lenta, non soltanto connessione al cluster. La descrizione e i 20 commenti consultati non citano ' +
+  'il catalog readmodel writer SQL: il collegamento della pagina va confermato con evidenze di questo servizio. ' +
+  'Raccogliere timestamp, frequenza delle ricorrenze e log del writer e verificare la ripresa del consumer. ' +
+  'Usare i CID quando disponibili; in loro assenza cercare per pod e intervallo temporale, ampliando la finestra se necessario. ' +
+  'La card non documenta una correzione definitiva; il tentativo di rejoin non prova il recupero. ' +
+  'Usare Application-Logs-Context per controllare tutti i livelli del writer. I criteri operativi della pagina richiedono ' +
+  'almeno cinque periodi da 60 secondi senza nuove ricorrenze ERROR/stderr, prove di elaborazione effettiva e propagazione ' +
+  'attesa nel readmodel SQL, senza arretrato in aumento. Estendere l’osservazione con il team di prodotto per fenomeni ' +
+  'intermittenti; in assenza di carico o prova di ripresa mantenere l’analisi aperta. Se il fenomeno persiste o ricompare, ' +
+  'il consumer non avanza, compaiono crash con retry esauriti o la ripresa non è verificabile, proseguire l’analisi ' +
+  'coinvolgendo il team di prodotto Interoperabilità e allegando ambiente, intervallo UTC, log completi e CID disponibili. ' +
+  'Il referente nominativo e l’eventuale SLA restano da confermare: questi criteri operativi non sono una correzione di PIN-7325.';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
-  interopKnownCase(REFS, {
+  knownCase({
     id: 'catalog-readmodel-writer-temporary-network-errors',
-    description: 'Problema temporaneo di rete del catalog readmodel writer SQL',
+    description: 'Errore di connessione del catalog readmodel writer SQL; temporaneità da verificare',
     priority: 100,
-    // La pagina Confluence contiene sia uno sia due spazi attorno al separatore.
-    regex:
-      'ERROR\\s*-\\s*Connection\\s+(?:timeout|error:\\s*Client network socket disconnected before secure TLS connection was established)',
-    resolution: TEMPORARY_NETWORK_RESOLUTION,
-    // La risoluzione documentale è "NA": non proponiamo una chiusura automatica.
-    proposedStatus: 'IN_PROGRESS',
-    analysisType: 'ANALYZABLE',
-    errorDetails: 'Timeout o interruzione del socket di rete prima dell’instaurazione della connessione TLS.',
-    // "NA" nella colonna Downstream corrisponde al valore censito "Nessuno".
-    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-    finalActions: ['Verificare la persistenza dell’errore e approfondire i CID disponibili'],
+    // Entrambi i casi sono censiti solo in Prod; il tracker comprende anche altri servizi.
+    condition: all(
+      varEquals('interopEnvironment', 'prod'),
+      stepEvidenceMatches(
+        alarm.stepIds.queryApplicationLogs,
+        'ERROR\\s*-\\s*Connection\\s+(?:timeout\\b|error:\\s*Client network socket disconnected before secure TLS connection was established\\b)',
+      ),
+    ),
+    resolution: NETWORK_RESOLUTION,
+    details: [
+      ['Ambiente', '{{vars.interopEnvironment}}'],
+      ['Log group', '{{vars.interopLogGroup}}'],
+      ['Servizio', '{{vars.interopPodApp}}'],
+      ['CID analizzati', `{{vars.${alarm.varPrefix}CidCount}}`],
+    ],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      errorDetails:
+        'Timeout o socket interrotto prima della connessione TLS; controparte, durata e recupero da verificare.',
+      downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+      finalActions: [
+        'Identificare la controparte e verificare persistenza e ripresa delle connessioni con il team di prodotto',
+      ],
+    },
   }),
-  interopKnownCase(REFS, {
+  knownCase({
     id: 'catalog-readmodel-writer-kafka-coordinator-member-rejoin',
     description: 'Il coordinator Kafka non riconosce il member del catalog readmodel writer SQL',
     priority: 90,
-    regex:
-      'The coordinator is not aware of this member, re-joining the group\\s*-\\s*The coordinator is not aware of this member',
+    condition: all(
+      varEquals('interopEnvironment', 'prod'),
+      stepEvidenceMatches(
+        alarm.stepIds.queryApplicationLogs,
+        'The coordinator is not aware of this member,\\s*re-joining the group\\s*-\\s*The coordinator is not aware of this member\\b',
+      ),
+    ),
     resolution: KAFKA_COORDINATOR_RESOLUTION,
-    // PIN-7325 è presentata come hotfix: serve conferma umana prima della chiusura.
-    proposedStatus: 'IN_PROGRESS',
-    analysisType: 'ANALYZABLE',
-    errorDetails: 'Il consumer deve effettuare il rejoin perché il coordinator Kafka non riconosce il member.',
-    downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-    finalActions: ['Verificare PIN-7325 e la persistenza degli errori di connessione a Kafka'],
-    links: [jiraLink('PIN-7325')],
+    details: [
+      ['Ambiente', '{{vars.interopEnvironment}}'],
+      ['Log group', '{{vars.interopLogGroup}}'],
+      ['Servizio', '{{vars.interopPodApp}}'],
+      ['CID analizzati', `{{vars.${alarm.varPrefix}CidCount}}`],
+    ],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      errorDetails:
+        'Il consumer tenta il rejoin perché il coordinator non lo riconosce; causa e recupero da verificare.',
+      downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
+      finalActions: [
+        'Confermare il collegamento a PIN-7325 e verificare la ripresa del consumer con il team di prodotto',
+      ],
+      links: [jiraLink('PIN-7325')],
+    },
   }),
 ];
