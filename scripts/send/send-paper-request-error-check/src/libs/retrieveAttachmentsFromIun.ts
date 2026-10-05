@@ -14,18 +14,18 @@ async function retrieveNotificationAttachments(
   dynamoDbService: AWS.AWSDynamoDBService,
   iun: string,
   attachmentsStream: Core.GOListExporterStreamWriter<string>,
-): Promise<number> {
+): Promise<string[]> {
   const items = await dynamoDbService.query(NOTIFICATIONS_TABLE_NAME, 'iun = :val', {
     ':val': { S: iun },
   });
 
   if (items.length === 0) {
-    return 0;
+    return [];
   }
 
   const notif = items[0];
   if (!notif) {
-    return 0;
+    return [];
   }
   const attachmentKeys: string[] = [];
 
@@ -60,7 +60,7 @@ async function retrieveNotificationAttachments(
 
   await attachmentsStream.append(JSON.stringify(resultPayload));
 
-  return attachmentKeys.length;
+  return attachmentKeys;
 }
 
 /**
@@ -70,12 +70,12 @@ async function retrieveAARs(
   dynamoDbService: AWS.AWSDynamoDBService,
   iun: string,
   aarStream: Core.GOListExporterStreamWriter<string>,
-): Promise<number> {
+): Promise<string[]> {
   const items = await dynamoDbService.query(TIMELINES_TABLE_NAME, 'iun = :val', {
     ':val': { S: iun },
   });
 
-  let count = 0;
+  const aarKeys: string[] = [];
 
   for (const item of items) {
     const category = get<string>(item, 'category');
@@ -86,12 +86,12 @@ async function retrieveAARs(
       if (generatedAarUrl) {
         const legalFactKey = generatedAarUrl.replace('safestorage://', '');
         await aarStream.append(`${iun},${legalFactKey}`);
-        count++;
+        aarKeys.push(legalFactKey);
       }
     }
   }
 
-  return count;
+  return aarKeys;
 }
 
 /**
@@ -123,6 +123,7 @@ export async function retrieveAttachmentsFromIun(
   let attachmentsExtractedCount = 0;
   let aarsExtractedCount = 0;
   let errorsCount = 0;
+  const extractedKeys: string[] = [];
 
   logger.info(`Inizio recupero allegati ed AAR da pn-Notifications / pn-Timelines per ${iuns.length} IUN...`);
 
@@ -133,11 +134,17 @@ export async function retrieveAttachmentsFromIun(
     logger.info(`[${i + 1}/${iuns.length}] Recupero allegati per IUN: ${iun}`);
 
     try {
-      const attCount = await retrieveNotificationAttachments(dynamoDbService, iun, attachmentsStream);
-      attachmentsExtractedCount += attCount;
+      const attKeys = await retrieveNotificationAttachments(dynamoDbService, iun, attachmentsStream);
+      attachmentsExtractedCount += attKeys.length;
+      for (const k of attKeys) {
+        extractedKeys.push(`${iun},${k}`);
+      }
 
-      const aarCount = await retrieveAARs(dynamoDbService, iun, aarStream);
-      aarsExtractedCount += aarCount;
+      const aarKeys = await retrieveAARs(dynamoDbService, iun, aarStream);
+      aarsExtractedCount += aarKeys.length;
+      for (const k of aarKeys) {
+        extractedKeys.push(`${iun},${k}`);
+      }
     } catch (err) {
       errorsCount++;
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -157,5 +164,6 @@ export async function retrieveAttachmentsFromIun(
     attachmentsExtractedCount,
     aarsExtractedCount,
     errorsCount,
+    extractedKeys,
   };
 }

@@ -84,6 +84,8 @@ export interface RetrieveAttachmentsResult {
   readonly attachmentsExtractedCount: number;
   readonly aarsExtractedCount: number;
   readonly errorsCount: number;
+  readonly extractedKeys?: ReadonlyArray<string> | undefined;
+
 }
 
 /**

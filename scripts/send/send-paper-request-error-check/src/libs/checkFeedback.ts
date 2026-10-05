@@ -1,38 +1,10 @@
 import path from 'path';
 import { Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, CheckFeedbackResult } from '../types/index.js';
-import { get } from '../utils/get.js';
+import { extractIun, get } from '../utils/get.js';
 
 /** Nome della tabella DynamoDB delle timeline */
 const TIMELINES_TABLE_NAME = 'pn-Timelines';
-
-/**
- * Estrae l'IUN da un requestId fornito.
- * Gestisce i formati:
- * - `PREPARE_ANALOG_DOMICILE.IUN_ABCD-EFGH-1234.ATTEMPT_1`
- * - `SEND_ANALOG_FEEDBACK.IUN_ABCD-EFGH-1234.PCRETRY_0`
- * - `IUN_ABCD-EFGH-1234.PCRETRY_0`
- * - `ABCD-EFGH-1234`
- *
- * @param requestId - Il request ID da elaborare
- * @returns L'IUN estratto
- */
-function extractIunFromRequestId(requestId: string): string {
-  const trimmed = requestId.trim();
-  if (trimmed.includes('.IUN_')) {
-    const afterIun = trimmed.split('.IUN_')[1];
-    return afterIun ? (afterIun.split('.')[0] ?? trimmed) : trimmed;
-  }
-  if (trimmed.startsWith('IUN_')) {
-    const afterIun = trimmed.substring(4);
-    return afterIun.split('.')[0] ?? trimmed;
-  }
-  if (trimmed.includes('IUN_')) {
-    const afterIun = trimmed.split('IUN_')[1];
-    return afterIun ? (afterIun.split('.')[0] ?? trimmed) : trimmed;
-  }
-  return trimmed.split('.')[0] ?? trimmed;
-}
 
 /**
  * Verifica per ciascun requestId l'esistenza di un evento di feedback in DynamoDB (pn-Timelines).
@@ -68,7 +40,7 @@ export async function checkFeedbackFromRequestIds(
     if (!requestId) continue;
 
     logger.text(`[${i + 1}/${requestIds.length}] Verifica requestId: ${requestId}`);
-    const iun = extractIunFromRequestId(requestId);
+    const iun = extractIun(requestId);
 
     try {
       const items = await dynamoDbService.query(TIMELINES_TABLE_NAME, 'iun = :val', {

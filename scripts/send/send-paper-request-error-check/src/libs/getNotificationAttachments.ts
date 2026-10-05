@@ -201,6 +201,11 @@ export async function getNotificationAttachments(
         if (config.restore) {
           logger.info(`Rimozione Delete Markers per IUN ${iun} (Key: ${documentKey})...`);
           await removeDeleteMarkers(s3Client, bucket, documentKey, s3State.deleteMarkers);
+        } else {
+          attachmentsNotFound++;
+          await notFoundAttachmentsStream.append(`${iun},${documentKey}`);
+          logger.warning(`Allegato con Delete Marker su S3 per IUN ${iun} (Key: ${documentKey})`);
+          continue;
         }
       }
 

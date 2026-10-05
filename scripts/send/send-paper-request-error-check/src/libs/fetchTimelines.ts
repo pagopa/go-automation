@@ -1,7 +1,8 @@
 import path from 'path';
 import { Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, FetchTimelinesResult } from '../types/index.js';
-import { get } from '../utils/get.js';
+import { extractIun, get } from '../utils/get.js';
+import { processTimelines } from './verifyNotification.js';
 
 /** Nome della tabella DynamoDB delle timeline */
 const TIMELINES_TABLE_NAME = 'pn-Timelines';
@@ -27,20 +28,6 @@ interface IunTimelineDocument {
 }
 
 /**
- * Estrae l'IUN pulito eliminando prefissi e suffissi.
- */
-function extractCleanIun(line: string): string {
-  let cleaned = line.trim();
-  if (cleaned.includes('IUN_')) {
-    cleaned = cleaned.split('IUN_')[1]?.split('.RECINDEX')[0] ?? cleaned;
-  }
-  if (cleaned.includes('|')) {
-    cleaned = cleaned.split('|')[0] ?? cleaned;
-  }
-  return cleaned.trim();
-}
-
-/**
  * Scarica le timeline da DynamoDB per una lista di IUN e salva il risultato in `timelines.json`.
  *
  * @param script - Istanza GOScript
@@ -61,7 +48,7 @@ export async function fetchTimelines(
   const iunSet = new Set<string>();
   if (iunsInput) {
     for (const rawLine of iunsInput) {
-      const iun = extractCleanIun(rawLine);
+      const iun = extractIun(rawLine);
       if (iun) iunSet.add(iun);
     }
   }
@@ -134,12 +121,19 @@ export async function fetchTimelines(
       // Ordina gli eventi di timeline per timestamp crescente
       timelineElements.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
-      timelinesResult.push({
+      const dateTreshold = new Date();
+      dateTreshold.setDate(dateTreshold.getDate() - 120);
+      const tresholdIsoDate = dateTreshold.toISOString().substring(0, 10);
+
+      const timelinesResultFinal = processTimelines(script, timelinesResult, tresholdIsoDate)
+
+      timelinesResultFinal.push({
         iun,
         paId,
         notificationSentAt,
         timeline: timelineElements,
       });
+
     } catch (err: unknown) {
       errorsCount++;
       const errorMsg = err instanceof Error ? err.message : String(err);
