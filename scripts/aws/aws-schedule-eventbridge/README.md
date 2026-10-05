@@ -99,8 +99,12 @@ Ogni parametro è leggibile anche da variabile d'ambiente, con il nome derivato 
 | ----------------- | ------------------------------------ | ------------------ |
 | `AWS_PROFILES`    | Profili AWS SSO, separati da virgola | `sso_dev,sso_prod` |
 | `AWS_REGION`      | Region AWS                           | `eu-south-1`       |
+| `ACTION`          | Azione da eseguire                   | `describe`         |
 | `SCHEDULE_NAME`   | Nome dello schedule                  | `nightly-job`      |
 | `SCHEDULE_GROUP`  | Gruppo dello schedule                | `default`          |
+| `NAME_PREFIX`     | Filtro per prefisso del nome         | `nightly`          |
+| `STATE`           | Filtro per stato                     | `ENABLED`          |
+| `YES`             | Salta la conferma interattiva        | `true`             |
 | `FAIL_ON_MISSING` | Rende fatale uno schedule assente    | `true`             |
 
 > `AWS_PROFILES` è un nome **derivato da GOScript** dal parametro `aws.profiles`, non la `AWS_PROFILE` dell'SDK AWS. Lo script non dichiara più `aws.profile`, quindi una `AWS_PROFILE` nell'ambiente non viene letta: va usata `AWS_PROFILES` (o `--aws-profiles`).
