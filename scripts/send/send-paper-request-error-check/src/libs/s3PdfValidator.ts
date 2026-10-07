@@ -114,7 +114,7 @@ export async function validateS3Pdfs(
 
   const outputDir = config.outputDir || 'results';
 
-  // Estrazione delle chiavi S3 pulite
+  // Estrazione delle chiavi S3 pulite (escludendo gli AAR se presenti)
   const fileKeys: string[] = [];
   if (inputKeys) {
     for (const line of inputKeys) {
@@ -123,7 +123,14 @@ export async function validateS3Pdfs(
       // Supporta sia formato semplice 'fileKey' che CSV 'IUN,fileKey'
       const parts = trimmed.split(',');
       const key = parts.length >= 2 ? parts[1]?.trim() : parts[0]?.trim();
-      if (key) fileKeys.push(key);
+      if (key) {
+        const upper = key.toUpperCase();
+        if (upper.includes('AAR') || upper.includes('LEGAL_FACT')) {
+          logger.info(`ℹ️ File ${key} è un documento AAR, escluso dalla validazione PDF allegati.`);
+          continue;
+        }
+        fileKeys.push(key);
+      }
     }
   }
 

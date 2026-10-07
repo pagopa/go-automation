@@ -81,6 +81,14 @@ export class PaperRequestReporter {
     this.retrieveAttachmentsResult = result;
     this.metrics.attachmentsFoundCount =
       (this.metrics.attachmentsFoundCount ?? 0) + result.attachmentsExtractedCount + result.aarsExtractedCount;
+    this.metrics.glacierEligibleAarCount =
+      (this.metrics.glacierEligibleAarCount ?? 0) + (result.glacierEligibleAarKeys?.length ?? 0);
+    this.metrics.pdfEligibleAttachmentsCount =
+      (this.metrics.pdfEligibleAttachmentsCount ?? 0) + (result.validPdfAttachmentKeys?.length ?? 0);
+    this.metrics.skippedAttachmentsDeleteMarkerCount =
+      (this.metrics.skippedAttachmentsDeleteMarkerCount ?? 0) + (result.skippedAttachmentsDeleteMarkerCount ?? 0);
+    this.metrics.skippedAarActiveTierCount =
+      (this.metrics.skippedAarActiveTierCount ?? 0) + (result.skippedAarActiveTierCount ?? 0);
     this.metrics.errorsCount = (this.metrics.errorsCount ?? 0) + result.errorsCount;
   }
 
@@ -210,6 +218,10 @@ export class PaperRequestReporter {
       `toResubmitCount,${this.metrics.toResubmitCount}`,
       `toVerifyManuallyCount,${this.metrics.toVerifyManuallyCount}`,
       `glacierRestoredCount,${this.metrics.glacierRestoredCount}`,
+      `glacierEligibleAarCount,${this.metrics.glacierEligibleAarCount ?? 0}`,
+      `pdfEligibleAttachmentsCount,${this.metrics.pdfEligibleAttachmentsCount ?? 0}`,
+      `skippedAttachmentsDeleteMarkerCount,${this.metrics.skippedAttachmentsDeleteMarkerCount ?? 0}`,
+      `skippedAarActiveTierCount,${this.metrics.skippedAarActiveTierCount ?? 0}`,
       `attachmentsFoundCount,${this.metrics.attachmentsFoundCount ?? 0}`,
       `validPdfCount,${this.metrics.validPdfCount ?? 0}`,
       `invalidPdfCount,${this.metrics.invalidPdfCount ?? 0}`,
@@ -253,7 +265,8 @@ export class PaperRequestReporter {
       const ra = this.retrieveAttachmentsResult;
       logger.info(
         `[Retrieve Attachments] IUN processati: ${ra.totalIuns}` +
-          ` → allegati estratti: ${ra.attachmentsExtractedCount}, AAR estratti: ${ra.aarsExtractedCount}` +
+          ` → allegati estratti: ${ra.attachmentsExtractedCount} (${ra.validPdfAttachmentKeys?.length ?? 0} per validazione PDF, ${ra.skippedAttachmentsDeleteMarkerCount ?? 0} scartati delete marker)` +
+          `, AAR estratti: ${ra.aarsExtractedCount} (${ra.glacierEligibleAarKeys?.length ?? 0} eleggibili Glacier >1 anno, ${ra.skippedAarActiveTierCount ?? 0} active tier)` +
           `, errori: ${ra.errorsCount}`,
       );
     }

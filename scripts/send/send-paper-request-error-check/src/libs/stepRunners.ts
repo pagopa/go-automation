@@ -166,33 +166,42 @@ export async function executeStepByMode(
     await runFetchTimelinesStep(script, currentLines, reporter);
   }
 
-  let extractedKeys: string[] = [];
+  let retrieveResult: RetrieveAttachmentsResult | undefined;
   if (config.mode === 'retrieve-attachments' || isAll) {
-    const retrieveResult = await runRetrieveAttachmentsStep(script, currentLines, reporter);
-    if (retrieveResult.extractedKeys && retrieveResult.extractedKeys.length > 0) {
-      extractedKeys = [...retrieveResult.extractedKeys];
-    }
+    retrieveResult = await runRetrieveAttachmentsStep(script, currentLines, reporter);
   }
 
   if (config.mode === 'get-attachments' || isAll) {
     await runGetAttachmentsStep(script, currentLines, reporter);
   }
 
-  const s3TargetLines = isAll && extractedKeys.length > 0 ? extractedKeys : currentLines;
-
   if (config.mode === 'retrieve-glacier' || isAll) {
-    if (isAll && extractedKeys.length === 0) {
-      script.logger.info('Nessuna chiave allegato S3 estratta per il ripristino da Glacier. Step saltato.');
+    if (isAll) {
+      const glacierLines = retrieveResult?.glacierEligibleAarKeys ? [...retrieveResult.glacierEligibleAarKeys] : [];
+      if (glacierLines.length === 0) {
+        script.logger.info(
+          'Nessun file AAR con notifica più vecchia di 1 anno per il ripristino da Glacier. Step saltato.',
+        );
+      } else {
+        await runRetrieveGlacierStep(script, glacierLines, reporter);
+      }
     } else {
-      await runRetrieveGlacierStep(script, s3TargetLines, reporter);
+      await runRetrieveGlacierStep(script, currentLines, reporter);
     }
   }
 
   if (config.mode === 'validate-pdf' || isAll) {
-    if (isAll && extractedKeys.length === 0) {
-      script.logger.info('Nessuna chiave allegato S3 estratta per la validazione PDF. Step saltato.');
+    if (isAll) {
+      const pdfLines = retrieveResult?.validPdfAttachmentKeys ? [...retrieveResult.validPdfAttachmentKeys] : [];
+      if (pdfLines.length === 0) {
+        script.logger.info(
+          'Nessun allegato idoneo per la validazione PDF (notifiche con delete marker/annullate o nessun allegato). Step saltato.',
+        );
+      } else {
+        await runValidatePdfStep(script, pdfLines, reporter);
+      }
     } else {
-      await runValidatePdfStep(script, s3TargetLines, reporter);
+      await runValidatePdfStep(script, currentLines, reporter);
     }
   }
 }

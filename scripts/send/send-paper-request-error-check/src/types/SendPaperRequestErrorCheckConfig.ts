@@ -49,6 +49,10 @@ export interface PaperRequestMetrics {
   validPdfCount?: number | undefined;
   invalidPdfCount?: number | undefined;
   timelinesFetchedCount?: number | undefined;
+  glacierEligibleAarCount?: number | undefined;
+  pdfEligibleAttachmentsCount?: number | undefined;
+  skippedAttachmentsDeleteMarkerCount?: number | undefined;
+  skippedAarActiveTierCount?: number | undefined;
   errorsCount?: number | undefined;
 }
 
@@ -85,7 +89,12 @@ export interface RetrieveAttachmentsResult {
   readonly aarsExtractedCount: number;
   readonly errorsCount: number;
   readonly extractedKeys?: ReadonlyArray<string> | undefined;
-
+  readonly attachmentKeys?: ReadonlyArray<string> | undefined;
+  readonly aarKeys?: ReadonlyArray<string> | undefined;
+  readonly glacierEligibleAarKeys?: ReadonlyArray<string> | undefined;
+  readonly validPdfAttachmentKeys?: ReadonlyArray<string> | undefined;
+  readonly skippedAttachmentsDeleteMarkerCount?: number | undefined;
+  readonly skippedAarActiveTierCount?: number | undefined;
 }
 
 /**

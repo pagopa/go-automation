@@ -121,19 +121,12 @@ export async function fetchTimelines(
       // Ordina gli eventi di timeline per timestamp crescente
       timelineElements.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
-      const dateTreshold = new Date();
-      dateTreshold.setDate(dateTreshold.getDate() - 120);
-      const tresholdIsoDate = dateTreshold.toISOString().substring(0, 10);
-
-      const timelinesResultFinal = processTimelines(script, timelinesResult, tresholdIsoDate)
-
-      timelinesResultFinal.push({
+      timelinesResult.push({
         iun,
         paId,
         notificationSentAt,
         timeline: timelineElements,
       });
-
     } catch (err: unknown) {
       errorsCount++;
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -141,13 +134,19 @@ export async function fetchTimelines(
     }
   }
 
+  const dateTreshold = new Date();
+  dateTreshold.setDate(dateTreshold.getDate() - 120);
+  const tresholdIsoDate = dateTreshold.toISOString().substring(0, 10);
+
+  const filteredTimelines = processTimelines(timelinesResult, tresholdIsoDate);
+
   // Scrittura del file JSON di output via GOJSONListExporter
   const destinationFile = path.join(outputDir, 'timelines.json');
   const exporter = new Core.GOJSONListExporter({ outputPath: destinationFile, jsonl: false });
-  await exporter.export(timelinesResult as unknown as ReadonlyArray<Record<string, unknown>>);
+  await exporter.export(filteredTimelines as unknown as ReadonlyArray<Record<string, unknown>>);
 
   logger.info(
-    `Scaricamento timeline completato: ${timelinesFetchedCount} trovate, ${emptyTimelinesCount} vuote, ${errorsCount} errori. File salvato in [${destinationFile}].`,
+    `Scaricamento timeline completato: ${timelinesFetchedCount} trovate (${filteredTimelines.length} mantenute post-filtro 120gg), ${emptyTimelinesCount} vuote, ${errorsCount} errori. File salvato in [${destinationFile}].`,
   );
 
   return {
