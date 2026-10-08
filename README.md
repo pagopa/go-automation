@@ -40,7 +40,7 @@ L'adozione di un core condiviso garantisce che gli script rimangano snelli e foc
 
 L'organizzazione del repository segue una struttura modulare domain-driven, con separazione netta tra componenti core e script eseguibili. I principi organizzativi includono:
 
-- **Namespace gerarchico**: script raggruppati per dominio (`go/`, `send/`, `interop/`)
+- **Namespace gerarchico**: script raggruppati per dominio (`aws/`, `go/`, `send/`, `interop/`)
 - **Convenzioni di naming uniformi**: coerenza tra package, file e identificatori
 - **Configurazioni standardizzate**: template condivisi per `tsconfig.json` e `package.json`
 

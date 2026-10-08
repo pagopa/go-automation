@@ -276,7 +276,7 @@ Dopo la creazione, esegue automaticamente `pnpm install` e verifica il build.
 
 Il nome finale dello script segue il pattern: `{prodotto}-{verbo}-{descrizione}`.
 
-- **Prodotto**: `go-`, `send-`, `interop-`
+- **Prodotto**: `go-`, `send-`, `interop-`, `aws-`
 - **Verbo**: un'azione chiara (vedi tabella in [ARCHITECTURE.md](ARCHITECTURE.md))
 - **Descrizione**: l'oggetto dell'azione
 
@@ -1101,6 +1101,7 @@ packages:
   - packages/* # Librerie condivise
   - scripts/go/* # Script team GO
   - scripts/send/* # Script team SEND
+  - scripts/aws/* # Script multi-account AWS
   - scripts/interop/* # Script team INTEROP
 ```
 

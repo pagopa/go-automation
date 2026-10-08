@@ -147,19 +147,20 @@ go-automation/
 
 ### Descrizione delle Cartelle
 
-| Directory            | Scopo                                                       |
-| -------------------- | ----------------------------------------------------------- |
-| `packages/`          | Librerie condivise pubblicate come workspace packages       |
-| `scripts/go/`        | Script per gestione operativa interna                       |
-| `scripts/send/`      | Script specifici per prodotto SEND                          |
-| `scripts/interop/`   | Script specifici per prodotto INTEROP                       |
-| `functions/`         | Adapter Lambda che riusano script esistenti                 |
-| `infra/`             | Infrastruttura condivisa (Docker e asset runtime)           |
-| `artifacts/`         | Output di deploy standalone e bundle Lambda                 |
-| `docs/`              | Documentazione tecnica e guide                              |
-| `bins/`              | Tooling di scaffolding, deploy e validazione                |
-| `data/`              | Directory centralizzata per input/output/config script      |
-| `.github/workflows/` | Pipeline CI, coverage, scaffold validation e security audit |
+| Directory            | Scopo                                                                             |
+| -------------------- | --------------------------------------------------------------------------------- |
+| `packages/`          | Librerie condivise pubblicate come workspace packages                             |
+| `scripts/aws/`       | Script multi-account per operazioni AWS dirette (SQS, ECS, DynamoDB, EventBridge) |
+| `scripts/go/`        | Script per gestione operativa interna                                             |
+| `scripts/send/`      | Script specifici per prodotto SEND                                                |
+| `scripts/interop/`   | Script specifici per prodotto INTEROP                                             |
+| `functions/`         | Adapter Lambda che riusano script esistenti                                       |
+| `infra/`             | Infrastruttura condivisa (Docker e asset runtime)                                 |
+| `artifacts/`         | Output di deploy standalone e bundle Lambda                                       |
+| `docs/`              | Documentazione tecnica e guide                                                    |
+| `bins/`              | Tooling di scaffolding, deploy e validazione                                      |
+| `data/`              | Directory centralizzata per input/output/config script                            |
+| `.github/workflows/` | Pipeline CI, coverage, scaffold validation e security audit                       |
 
 ---
 
