@@ -21,7 +21,7 @@
     "ecs"
   ],
   "author": "Team GO - Gestione Operativa",
-  "license": "ISC",
+  "license": "EUPL-1.2",
   "dependencies": {
     "@go-automation/go-common": "workspace:*"
   },
