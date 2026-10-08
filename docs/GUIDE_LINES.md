@@ -562,6 +562,18 @@ export class AlarmAnalyzer {
 }
 ```
 
+### Note di Design Locali (`EVO-*-OPUS-NN.md`)
+
+Un commento JSDoc o un README può rimandare a
+`docs/evolutions/EVO-<NOME>-OPUS-<NN>.md` — per esempio, `EVO-POLL-OPUS-01.md`
+(citato da `packages/go-common/src/libs/core/polling/*.ts`) o
+`EVO-RTACHECK-OPUS-02.md` (citato da `scripts/go/go-rta-check/README.md`).
+`docs/evolutions/*` è deliberatamente in `.gitignore`: questi file sono appunti
+di design dell'autore, non documentazione di prodotto, e non sono versionati
+per convenzione — non un link rotto da inseguire o da ricreare. Non sono
+richiesti per la review di una PR: un riferimento a un file sotto
+`docs/evolutions/` che non esiste nel tuo checkout è atteso, non un errore.
+
 ---
 
 ## Pattern Proibiti
