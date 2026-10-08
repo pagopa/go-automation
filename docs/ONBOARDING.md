@@ -8,7 +8,7 @@ Questa guida ti aiuterà a configurare il tuo ambiente di sviluppo per lavorare 
 Assicurati di avere installato il seguente software:
 
 - **Node.js**: v24.0.0 o superiore (Consigliato l'uso di `nvm` o `fnm`)
-- **pnpm**: v10.0.0 o superiore (`corepack enable` raccomandato)
+- **pnpm**: v11.11.0 o superiore (`corepack enable` raccomandato)
 - **Git**: Ultima versione stabile
 - **AWS CLI v2**: Per l'autenticazione SSO (Fondamentale)
 - **Visual Studio Code**: IDE raccomandato

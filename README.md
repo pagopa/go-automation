@@ -40,7 +40,7 @@ L'adozione di un core condiviso garantisce che gli script rimangano snelli e foc
 
 L'organizzazione del repository segue una struttura modulare domain-driven, con separazione netta tra componenti core e script eseguibili. I principi organizzativi includono:
 
-- **Namespace gerarchico**: script raggruppati per dominio (`go/`, `send/`, `interop/`)
+- **Namespace gerarchico**: script raggruppati per dominio (`aws/`, `go/`, `send/`, `interop/`)
 - **Convenzioni di naming uniformi**: coerenza tra package, file e identificatori
 - **Configurazioni standardizzate**: template condivisi per `tsconfig.json` e `package.json`
 
@@ -82,7 +82,7 @@ Le dipendenze condivise del monorepo sono centralizzate nel catalogo di `pnpm-wo
 | [Scripts - Guida Completa](docs/SCRIPTS.md)    | Architettura, convenzioni, quality gates, Lambda, toolchain    |
 | [**Deploy**](docs/DEPLOY.md)                   | **Guida alla pacchettizzazione e rilascio degli script**       |
 | [**Troubleshooting**](docs/TROUBLESHOOTING.md) | **Soluzioni ai problemi comuni e FAQ**                         |
-| [Runbook Engine](docs/RUNBOOKENGINE.md)        | Reference del motore di esecuzione runbook (go-common)         |
+| [Runbook Engine](docs/RUNBOOKENGINE.md)        | Reference del motore di esecuzione runbook (go-runbook)        |
 
 ## Comandi Principali
 
@@ -102,6 +102,14 @@ pnpm --filter=<script-name> dev -- [options]
 
 # Production mode (build + node)
 pnpm --filter=<script-name> start -- [options]
+```
+
+In alternativa, `pnpm go` offre un entry point centralizzato (backed by
+`@go-automation/go-cli`) con discovery e scaffold integrati, senza dover
+conoscere in anticipo il nome esatto del filtro pnpm:
+
+```bash
+pnpm go
 ```
 
 ### Creazione Nuovo Script
