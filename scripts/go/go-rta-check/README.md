@@ -41,7 +41,9 @@ Per ogni occorrenza esegue **due verifiche**:
 > leggibile del motivo. Per queste righe il suffisso del matcher viene omesso:
 > nessun confronto è stato eseguito.
 
-Vedi `docs/evolutions/EVO-RTACHECK-OPUS-02.md` per il design completo.
+Vedi `docs/evolutions/EVO-RTACHECK-OPUS-02.md` per il design completo — appunto
+di design locale, non versionato per convenzione (vedi
+[`../../../docs/GUIDE_LINES.md`](../../../docs/GUIDE_LINES.md#documentazione-jsdoc)).
 
 ## Modalità
 
