@@ -22,7 +22,7 @@
     "go-automation"
   ],
   "author": "Team GO - Gestione Operativa",
-  "license": "ISC",
+  "license": "EUPL-1.2",
   "engines": {
     "node": ">=22.14.0",
     "pnpm": ">=10.28.0"

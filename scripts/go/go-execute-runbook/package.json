@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "description": "Executes one fenced automatic Watchtower runbook lifecycle.",
   "main": "dist/index.js",
   "exports": {
     ".": "./dist/index.js",

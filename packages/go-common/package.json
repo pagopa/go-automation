@@ -37,7 +37,7 @@
     "go-automation"
   ],
   "author": "Team GO - Gestione Operativa",
-  "license": "ISC",
+  "license": "EUPL-1.2",
   "peerDependencies": {
     "@aws-sdk/client-athena": "catalog:",
     "@aws-sdk/client-cloudformation": "catalog:",

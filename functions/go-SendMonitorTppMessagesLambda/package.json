@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "description": "Lambda wrapper for send-monitor-tpp-messages: monitors TPP messages via Athena queries, uploads generated CSV reports to S3 and optionally notifies Slack.",
   "main": "dist/handler.mjs",
   "scripts": {
     "test-build": "pnpm build && cd ../../artifacts/go-SendMonitorTppMessagesLambda && zip -r ../../functions/go-SendMonitorTppMessagesLambda/function.zip .",
