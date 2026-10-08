@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "description": "Lambda wrapping go-ai: invokes Bedrock directly, or relays the result back to Slack via go-BotQESlackHandler.",
   "scripts": {
     "test-build": "echo 'Skipping CodeBuild packaging for this function'",
     "build": "node esbuild.config.mjs",

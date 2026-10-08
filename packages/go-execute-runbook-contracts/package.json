@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "description": "Shared TypeScript types and JSON Schema contracts for the automatic runbook catalog and execute-runbook queue registry, consumed by go-ExecuteRunbookLambda and its SST infrastructure.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
