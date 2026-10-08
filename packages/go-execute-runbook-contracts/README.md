@@ -22,7 +22,10 @@ package insieme a `go-runbook` per generare il catalogo da pubblicare.
 ## Esempio
 
 ```typescript
-import { buildAutomaticRunbookCatalog, validateAutomaticRunbookCatalog } from '@go-automation/go-execute-runbook-contracts';
+import {
+  buildAutomaticRunbookCatalog,
+  validateAutomaticRunbookCatalog,
+} from '@go-automation/go-execute-runbook-contracts';
 
 const catalog = buildAutomaticRunbookCatalog(input);
 validateAutomaticRunbookCatalog(catalog);

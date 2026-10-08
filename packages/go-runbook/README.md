@@ -31,9 +31,9 @@ import { RunbookBuilder, RunbookEngine, CloudWatchLogsQueryStep, logAction } fro
 
 const runbook = RunbookBuilder.create('alarm-api-gw-5xx')
   .metadata({ name: 'API GW 5xx' /* ... */ })
-  .step(new CloudWatchLogsQueryStep({ /* ... */ }))
-  .knownCase({ /* ... */ })
-  .fallback(logAction({ /* ... */ }))
+  .step(new CloudWatchLogsQueryStep({/* ... */}))
+  .knownCase({/* ... */})
+  .fallback(logAction({/* ... */}))
   .build();
 
 const engine = new RunbookEngine(logger);

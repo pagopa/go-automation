@@ -17,12 +17,12 @@ directory dei report CSV su S3 (`AWSS3Service.uploadDirectory`).
 
 ## Configurazione
 
-| Variabile              | Scopo                                                |
-| ---------------------- | ----------------------------------------------------- |
-| `SLACK_TOKEN`          | Mappata a `slack.token` (redatta nei log)              |
-| `REPORTS_S3_BUCKET`    | Bucket S3 per l'upload dei CSV (se assente, nessun upload) |
-| `REPORTS_S3_PREFIX`    | Prefisso chiave S3 (default `reports/tpp-monitor`)     |
-| `DEBUG_RESOURCE_SNAPSHOTS` | Abilita snapshot diagnostici di memoria/handle nei log |
+| Variabile                  | Scopo                                                      |
+| -------------------------- | ---------------------------------------------------------- |
+| `SLACK_TOKEN`              | Mappata a `slack.token` (redatta nei log)                  |
+| `REPORTS_S3_BUCKET`        | Bucket S3 per l'upload dei CSV (se assente, nessun upload) |
+| `REPORTS_S3_PREFIX`        | Prefisso chiave S3 (default `reports/tpp-monitor`)         |
+| `DEBUG_RESOURCE_SNAPSHOTS` | Abilita snapshot diagnostici di memoria/handle nei log     |
 
 Le credenziali AWS arrivano dal ruolo di esecuzione (nessun profilo SSO).
 

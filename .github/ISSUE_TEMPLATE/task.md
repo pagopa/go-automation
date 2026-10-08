@@ -1,9 +1,9 @@
 ---
 name: Task
 about: Lavoro generico su go-automation (feature, refactor, chore)
-title: ""
-labels: ""
-assignees: ""
+title: ''
+labels: ''
+assignees: ''
 ---
 
 ## Obiettivo

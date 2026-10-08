@@ -1,9 +1,9 @@
 ---
 name: Bug report
 about: Segnala un difetto riscontrato in uno script, runbook o Lambda
-title: ""
+title: ''
 labels: bug
-assignees: ""
+assignees: ''
 ---
 
 ## Descrizione

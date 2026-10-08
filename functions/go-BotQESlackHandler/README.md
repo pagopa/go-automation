@@ -22,10 +22,10 @@ verificare la firma della richiesta Slack.
 
 Esposto dietro API Gateway (`POST`, `application/x-www-form-urlencoded`).
 
-| Variabile              | Scopo                                               |
-| ---------------------- | ---------------------------------------------------- |
+| Variabile              | Scopo                                                              |
+| ---------------------- | ------------------------------------------------------------------ |
 | `GO_AI_LAMBDA_NAME`    | Nome della Lambda `go-AILambda` da invocare (default `go-ai-prod`) |
-| `SLACK_SIGNING_SECRET` | Verifica della firma della richiesta Slack          |
+| `SLACK_SIGNING_SECRET` | Verifica della firma della richiesta Slack                         |
 
 ## Documentazione
 

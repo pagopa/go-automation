@@ -15,7 +15,7 @@ non esiste uno script CLI a monte e non usa
 1. **Diretta** (AWS CLI, altre Lambda): evento `{ hat, input }` →
    restituisce `GOAIResponse`.
 2. **Da `go-BotQESlackHandler`**: evento `{ hat, input, responseUrl,
-   userName }` → invoca Bedrock tramite `GOBedrockClient`, posta il
+userName }` → invoca Bedrock tramite `GOBedrockClient`, posta il
    risultato formattato su Slack via `responseUrl`, non ritorna nulla.
 
 Richiede il permesso IAM `bedrock:InvokeModel` sul model ARN configurato.

@@ -1,9 +1,9 @@
 ---
 name: Nuovo runbook
 about: Richiedi o traccia l'aggiunta di un runbook al catalogo go-runbook
-title: "runbook: "
+title: 'runbook: '
 labels: runbook
-assignees: ""
+assignees: ''
 ---
 
 ## Allarme / prodotto Watchtower

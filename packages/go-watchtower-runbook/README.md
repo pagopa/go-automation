@@ -28,7 +28,7 @@ Unico consumer: `scripts/go/go-rta-check`, che fa da adapter CLI
 ```typescript
 import { checkRunbookCoverage } from '@go-automation/go-watchtower-runbook';
 
-const report = await checkRunbookCoverage({ /* runbook catalog + product census */ });
+const report = await checkRunbookCoverage({/* runbook catalog + product census */});
 ```
 
 ## Documentazione
