@@ -22,8 +22,8 @@ const HTTP_DOWNLOAD_RETRIABLE_STATUSES: ReadonlySet<number> = new Set([408, 425,
  * in the monorepo.
  *
  * Every entry is a **factory** that returns a fresh POJO on each call: this
- * preserves the "no shared mutable state" invariant of the module (see
- * EVO-POLL-OPUS-01 §7.10). Consumers compose presets with `{ ...preset(), ... }`
+ * preserves the "no shared mutable state" invariant of the module. Consumers
+ * compose presets with `{ ...preset(), ... }`
  * to override individual fields without mutating the source.
  *
  * Governance: a preset is added only when it covers ≥2 callsite reals.
