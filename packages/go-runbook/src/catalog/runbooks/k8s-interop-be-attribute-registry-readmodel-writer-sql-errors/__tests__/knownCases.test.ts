@@ -6,6 +6,7 @@ import { ConditionEvaluator, INTEROP_DOWNSTREAMS, type KnownCase, type RunbookCo
 
 import { KNOWN_CASES } from '../knownCases.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
+import type { InteropEnvironment } from '../../interop/InteropEnvironment.js';
 
 interface LogRowField {
   readonly field: string;
@@ -28,12 +29,15 @@ function applicationLogRows(messages: ReadonlyArray<string>): ReadonlyArray<Read
   ]);
 }
 
-function context(stepResults: ReadonlyArray<readonly [string, unknown]>): RunbookContext {
+function context(
+  stepResults: ReadonlyArray<readonly [string, unknown]>,
+  environment: InteropEnvironment = 'prod',
+): RunbookContext {
   return {
     executionId: 'test',
     startedAt: new Date('2026-08-28T10:00:00.000Z'),
     stepResults: new Map<string, unknown>(stepResults),
-    vars: new Map(),
+    vars: new Map([['interopEnvironment', environment]]),
     params: new Map(),
     logs: [],
     services: createTestServiceRegistry(),
@@ -67,14 +71,40 @@ describe('INTEROP attribute registry readmodel writer SQL known cases', () => {
     }
   });
 
-  it('matches the documented Kafka coordinator message in CID tracker evidence', () => {
+  it('matches the documented Kafka coordinator message in the writer application evidence', () => {
     const knownCase = knownCaseById('attribute-registry-kafka-coordinator-member-rejoin');
     const rows = applicationLogRows([DOCUMENTED_KAFKA_MESSAGE]);
+    const ctx = context([[ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM.stepIds.queryApplicationLogs, rows]]);
+
+    assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), true);
+  });
+
+  it('does not classify cases found only in CID tracker evidence', () => {
+    const rows = applicationLogRows([...DOCUMENTED_NETWORK_MESSAGES, DOCUMENTED_KAFKA_MESSAGE]);
     const ctx = context([
       [ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM.stepIds.queryCidTracker, [{ cid: 'cid-1', rows }]],
     ]);
 
-    assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), true);
+    for (const knownCase of KNOWN_CASES) {
+      assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), false);
+    }
+  });
+
+  it('limits both documented cases to Prod', () => {
+    for (const environment of ['att', 'test'] as const) {
+      const ctx = context(
+        [
+          [
+            ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM.stepIds.queryApplicationLogs,
+            applicationLogRows([...DOCUMENTED_NETWORK_MESSAGES, DOCUMENTED_KAFKA_MESSAGE]),
+          ],
+        ],
+        environment,
+      );
+      for (const knownCase of KNOWN_CASES) {
+        assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), false);
+      }
+    }
   });
 
   it('does not broaden the cases to undocumented generic network or Kafka errors', () => {
@@ -83,7 +113,15 @@ describe('INTEROP attribute registry readmodel writer SQL known cases', () => {
     const ctx = context([
       [
         ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM.stepIds.queryApplicationLogs,
-        applicationLogRows(['Request failed: Connection timeout', 'The group coordinator is not available']),
+        applicationLogRows([
+          'Request failed: Connection timeout',
+          'ERROR - Connection timeouts',
+          'ERROR - Connection error: read ECONNRESET',
+          'The group coordinator is not available',
+          'Response Heartbeat(key: 12, version: 3) - The coordinator is not aware of this member',
+          'The coordinator is not aware of this member, re-joining the group',
+          `${DOCUMENTED_KAFKA_MESSAGE}ship`,
+        ]),
       ],
     ]);
 
@@ -97,6 +135,7 @@ describe('INTEROP attribute registry readmodel writer SQL known cases', () => {
       assert.strictEqual(knownCase.analysis?.analysisType, 'ANALYZABLE');
       assert.deepStrictEqual(knownCase.analysis?.downstreams, [INTEROP_DOWNSTREAMS.NESSUNO]);
       assert.ok(knownCase.analysis?.resolution.includes('proseguire l’analisi'));
+      assert.ok(knownCase.analysis?.resolution.includes('in loro assenza cercare per pod'));
     }
 
     assert.deepStrictEqual(knownCaseById('attribute-registry-kafka-coordinator-member-rejoin').analysis?.links, [

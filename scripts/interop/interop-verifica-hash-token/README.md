@@ -24,10 +24,15 @@ Lo script automatizza il flusso di verifica dell'integrità dei token firmati:
 2. **Identificazione File**: Esegue una seconda query CloudWatch filtrata per il `CID` trovato, identificando il nome
    del file del token registrato.
 3. **Download da S3**: Scarica da Amazon S3 sia il file token originale (`.ndjson`) sia quello firmato PKCS#7 (`.p7m`).
-4. **Verifica e Decrittografia**: Valida ed estrae il file originale firmato `.p7m` tramite la libreria `node-forge` e
-   decompressione del file ZIP risultante.
+4. **Estrazione del contenuto**: Estrae il contenuto PKCS#7 dal `.p7m` tramite `node-forge` e decomprime lo ZIP
+   risultante. Non verifica la firma digitale né la catena dei certificati e non esegue una decrittografia.
 5. **Verifica dell'Hash**: Calcola l'hash SHA-256 di entrambi i file tramite streaming Node.js e li confronta per
    validarne la corrispondenza e l'integrità.
+
+Le query predefinite scelgono il primo CID della finestra (`limit 1`) e il primo filename trovato fra i messaggi
+`Getting file` correlati. Una singola esecuzione verifica soltanto quel file. Per un incidente con più CID o file,
+circoscrivere le query e ripetere la verifica per ciascuno; l'uguaglianza di un file non dimostra il recupero degli altri.
+Senza CID usare la procedura manuale del runbook, correlando filename, timestamp e pod.
 
 ---
 
@@ -88,9 +93,11 @@ test:
   s3.prefixNdjson: 'token-details'
   s3.bucketNameP7m: 'interop-signed-jwt-audit-v2-test-es1'
   s3.prefixP7m: 'token-details'
-  startUtc: '2026-07-13 13:30:00'
-  endUtc: '2026-07-13 13:40:00'
+  startUtc: '2026-08-20 02:20:00'
+  endUtc: '2026-08-21 02:40:00'
 ```
+
+Le date nel preset sono statiche: sostituirle o sovrascriverle con l'intervallo UTC dell'incidente da verificare.
 
 ---
 
@@ -101,7 +108,7 @@ test:
 Dalla root del monorepo, lanciare lo script utilizzando il preset configurato:
 
 ```bash
-pnpm interop:verifica:hash:token:dev --script-preset-name test --aws-profile <profilo-aws>
+pnpm interop:verifica:hash:token:dev --script-preset-name test --aws-profile <profilo-aws> --start-utc <inizio-UTC> --end-utc <fine-UTC>
 ```
 
 Oppure specificando i singoli parametri manualmente via CLI (le query verranno prese di default se non specificate):
@@ -144,8 +151,12 @@ Al suo interno vengono scaricati ed estratti i seguenti file per le verifiche:
 1. `token1.ndjson.zip.p7m` - Il file firmato PKCS#7 originale scaricata da S3.
 2. `token1.ndjson.zip` - L'archivio ZIP estratto dalla firma DER.
 3. `token_original.ndjson` - Il file JSON originale scaricato da S3 per il confronto.
-4. L'NDJSON estratto dallo ZIP (es. `token1.ndjson`), utilizzato per la computazione dell'hash finale.
+4. L'NDJSON estratto dallo ZIP (es. `extracted_token1.ndjson`), utilizzato per la computazione dell'hash finale.
 5. `execution.log` - File di log dettagliato dell'esecuzione (generato automaticamente da `GOScript`).
+
+Il confronto usa SHA-256. Un esito positivo attesta l'uguaglianza dei contenuti scaricati; occorre collegare quegli
+oggetti al file dell'errore prima di dichiarare recuperato il caso del runbook. Non attesta la validità della firma.
+CID o filename mancanti, hash differenti, download o estrazione falliti producono un errore e un'uscita CLI non zero.
 
 ### Esempio Output Console
 
@@ -175,8 +186,8 @@ Verifica hash dei token per l'allarme interop-be-audit-signer
   Downloaded original NDJSON to: C:\Users\...\data\interop-verifica-hash-token\outputs\...\token_original.ndjson
 
 > Unpacking and extracting .p7m file...
-  [SPINNER] Decrypting and unzipping...
-  Extracted signed NDJSON content to: C:\Users\...\data\interop-verifica-hash-token\outputs\...\token1.ndjson
+  [SPINNER] Extracting PKCS#7 content and unzipping...
+  Extracted signed NDJSON content to: C:\Users\...\data\interop-verifica-hash-token\outputs\...\extracted_token1.ndjson
 
 > Verifying SHA-256 hashes...
   [SPINNER] Calculating hashes...
