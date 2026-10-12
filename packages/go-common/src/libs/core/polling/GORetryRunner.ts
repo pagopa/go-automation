@@ -22,7 +22,7 @@ export type GORetryOperationFn<T> = (attempt: number) => Promise<T>;
  * Per-run state (`previousDelayMs`) lives in `run()`, NOT in the runner
  * instance: two `run()` calls in parallel on the same instance are
  * isolated even when sharing a stateful backoff like
- * `GOBackoff.decorrelatedJittered`. See EVO-POLL-OPUS-01 §7.9.
+ * `GOBackoff.decorrelatedJittered`.
  *
  * @example
  * ```typescript

@@ -30,7 +30,7 @@ export type GOPollCheckFn<T, E extends Error = Error> = (attempt: number) => Pro
  *
  * Per-run state (`previousDelayMs`) lives in `poll()`, NOT on the instance:
  * two `poll()` calls in parallel on the same instance are isolated even
- * when sharing a stateful backoff. See EVO-POLL-OPUS-01 §7.9.
+ * when sharing a stateful backoff.
  *
  * @example
  * ```typescript
