@@ -24,6 +24,8 @@ export interface InteropK8sAlarmSpec {
   readonly podApp: string;
   /** Prefix of the context vars the pipeline writes (`<prefix>LogCount`, …). */
   readonly varPrefix: string;
+  /** Documented environments for this alarm; defaults to prod, att and test. */
+  readonly environments?: readonly [InteropEnvironment, ...InteropEnvironment[]];
   /**
    * Alarm naming, when it is not `<runbookKey>-<environment>`. Some alarms
    * carry the environment in the middle and end with a namespace segment.
@@ -41,7 +43,7 @@ export interface InteropK8sAlarm {
   readonly varPrefix: string;
   /** Application log group template shared by every INTEROP k8s runbook. */
   readonly logGroup: string;
-  /** Every alarm this runbook answers to, one per environment. */
+  /** Every alarm this runbook answers to, one per supported environment. */
   readonly alarmNames: readonly [string, ...string[]];
   /** Ids of the five pipeline steps, referenced by known cases and tests. */
   readonly stepIds: interop.k8s.InteropK8sRunbookStepIds;
@@ -71,15 +73,16 @@ export interface InteropK8sAlarm {
  */
 export function defineInteropK8sAlarm(spec: InteropK8sAlarmSpec): InteropK8sAlarm {
   const buildName = spec.alarmName ?? defaultAlarmName;
-  const alarmNames = INTEROP_ENVIRONMENTS.map((environment) => buildName(spec.runbookKey, environment)) as [
+  const environments = spec.environments ?? INTEROP_ENVIRONMENTS;
+  const alarmNames = environments.map((environment) => buildName(spec.runbookKey, environment)) as [
     string,
     ...string[],
-  ]; // Safe: INTEROP_ENVIRONMENTS is a non-empty tuple.
+  ]; // Safe: environments is a non-empty tuple.
 
   // Alarm names are plain slugs, so the environment can be recovered by
   // matching each candidate name rather than by escaping a pattern.
   const environmentByAlarmName = new Map<string, InteropEnvironment>(
-    INTEROP_ENVIRONMENTS.map((environment) => [buildName(spec.runbookKey, environment), environment]),
+    environments.map((environment) => [buildName(spec.runbookKey, environment), environment]),
   );
 
   return {

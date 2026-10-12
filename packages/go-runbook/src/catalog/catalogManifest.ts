@@ -43,6 +43,7 @@ import { DELAYER_SENDER_LIMIT_JOB_REGISTRATION } from './runbooks/pn-delayer-sen
 // interop kubernetes
 import { AGREEMENT_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-agreement-readmodel-writer-sql-errors/registration.js';
 import { AUDIT_SIGNER_REGISTRATION } from './runbooks/k8s-interop-be-audit-signer-errors/registration.js';
+import { ASYNC_TOKEN_GENERATION_READMODEL_CHECKER_REGISTRATION } from './runbooks/k8s-interop-be-async-token-generation-readmodel-checker-errors/registration.js';
 import { AUTHORIZATION_PROCESS_REGISTRATION } from './runbooks/k8s-interop-be-authorization-process-errors/registration.js';
 import { ISTAT_IMPORTER_REGISTRATION } from './runbooks/k8s-interop-be-istat-certified-attributes-importer-errors/registration.js';
 import { ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-attribute-registry-readmodel-writer-sql-errors/registration.js';
@@ -104,6 +105,7 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   // interop kubernetes
   AGREEMENT_READMODEL_WRITER_SQL_REGISTRATION,
   AUDIT_SIGNER_REGISTRATION,
+  ASYNC_TOKEN_GENERATION_READMODEL_CHECKER_REGISTRATION,
   AUTHORIZATION_PROCESS_REGISTRATION,
   ISTAT_IMPORTER_REGISTRATION,
   ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_REGISTRATION,
