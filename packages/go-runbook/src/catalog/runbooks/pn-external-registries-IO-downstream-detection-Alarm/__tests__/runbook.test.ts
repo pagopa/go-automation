@@ -7,6 +7,7 @@ import type { ResultField } from '@go-automation/go-common/aws';
 import { computeRunbookTimeRange } from '../../../computeRunbookTimeRange.js';
 import { SEND_DOWNSTREAMS, service } from '../../framework.js';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
+import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { assertCloudExecutableRunbook } from '../../../../validation/assertCloudExecutableRunbook.js';
 import { assertAnalysisAnnotations } from '../../../../validation/assertAnalysisAnnotations.js';
@@ -67,6 +68,7 @@ describe('external-registries IO downstream runbook', () => {
     assert.deepStrictEqual(runbook.analysisDefaults, {
       runbookName: EXTERNAL_REGISTRIES_IO_ALARM,
       resources: [{ name: 'pn-external-registries', role: 'PRIMARY' }],
+      finalActions: ['Documentare la causa verificata e aggiornare il runbook se emerge una nuova casistica'],
       links: [
         {
           url: 'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3312976074/pn-external-registries-IO-downstream-detection-Alarm',
@@ -115,6 +117,11 @@ describe('external-registries IO downstream runbook', () => {
     assert.strictEqual(result.stepsExecuted, 4);
     assert.deepStrictEqual(result.matchedCases, []);
     assert.strictEqual(queries.length, 2);
+    const draft = buildAnalysisDraft(runbook, result);
+    assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
+    assert.deepStrictEqual(draft.finalActions, [
+      'Documentare la causa verificata e aggiornare il runbook se emerge una nuova casistica',
+    ]);
     // The scan keeps both predicates of the metric filter and the canonical
     // projection, whichever way the query is assembled.
     assert.match(queries[0] ?? '', /level = 'ERROR'/u);
@@ -163,5 +170,98 @@ describe('external-registries IO downstream runbook', () => {
     assert.strictEqual(calls, 1);
     assert.strictEqual(result.matchedCases[0]?.id, 'io-read-timeout');
     assert.strictEqual(result.matchedCases[0]?.analysis?.proposedStatus, 'IN_PROGRESS');
+  });
+
+  it('publishes the courtesy timeline checks for the documented JSON failure without proposing closure', async () => {
+    const runbook = buildRunbook();
+    const message =
+      `[DOWNSTREAM] Service IO returned errors=500 Internal Server Error from POST ` +
+      `https://api.io.pagopa.it/api/v1/messages;${JSON.stringify({
+        detail:
+          'invalid json response body at https://api-app.internal.io.pagopa.it/api/v1/messages-sending/' +
+          'remote-contents/configurations/01HMVMHCZZ8D0VTFWMRHBM5D6F reason: Unexpected end of JSON input',
+        status: 500,
+        title: 'Internal server error',
+      })}`;
+    const services = createTestServiceRegistry({
+      cloudWatchLogs: {
+        async query(): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
+          await Promise.resolve();
+          return [
+            [
+              { field: 'level', value: 'ERROR' },
+              { field: 'message', value: message },
+              { field: 'trace_id', value: TRACE_ID },
+            ],
+          ];
+        },
+      },
+    });
+    const result = await new RunbookEngine(new GOLogger()).execute(
+      runbook,
+      new Map([
+        ['startTime', '2026-10-12T09:30:00.000Z'],
+        ['endTime', '2026-10-12T10:05:00.000Z'],
+      ]),
+      services,
+    );
+    const draft = buildAnalysisDraft(runbook, result);
+    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
+    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
+    assert.deepStrictEqual(draft.downstreams, [SEND_DOWNSTREAMS.APP_IO]);
+    assert.ok(draft.finalActions.includes('Consultare PN-21426 e i due thread di segnalazione del 07/09/2026'));
+    assert.ok(
+      draft.finalActions.includes(
+        'Correlare trace_id, IUN e ioMode nei log di pn-external-registries e delivery-push-workflow',
+      ),
+    );
+    assert.ok(
+      draft.finalActions.includes(
+        'Per ioMode Courtesy verificare l’esito dell’invio su IO e l’evento SEND_COURTESY_MESSAGE in timeline',
+      ),
+    );
+    assert.match(draft.conclusionNotes, /Per ioMode Courtesy/u);
+    assert.match(draft.conclusionNotes, /il solo successo di un retry non prova/u);
+    assert.ok(draft.links.some(({ url }) => url === 'https://pagopa.atlassian.net/browse/PN-21426'));
+  });
+
+  it('identifies the missing Micrometer counter as an application failure in the draft', async () => {
+    const runbook = buildRunbook();
+    const services = createTestServiceRegistry({
+      cloudWatchLogs: {
+        async query(): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
+          await Promise.resolve();
+          return [
+            [
+              { field: 'level', value: 'ERROR' },
+              {
+                field: 'message',
+                value:
+                  '[DOWNSTREAM] Service IO returned errors=Unable to find a meter that matches all the requirements at once. NumberOfIOMessageSentSuccessfully',
+              },
+              { field: 'trace_id', value: TRACE_ID },
+            ],
+          ];
+        },
+      },
+    });
+    const result = await new RunbookEngine(new GOLogger()).execute(
+      runbook,
+      new Map([
+        ['startTime', '2026-10-12T09:30:00.000Z'],
+        ['endTime', '2026-10-12T10:05:00.000Z'],
+      ]),
+      services,
+    );
+    const draft = buildAnalysisDraft(runbook, result);
+    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
+    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
+    assert.deepStrictEqual(draft.downstreams, [SEND_DOWNSTREAMS.NESSUNO]);
+    assert.ok(
+      draft.finalActions.includes(
+        'Verificare la registrazione del contatore NumberOfIOMessageSentSuccessfully e il deployment di pn-external-registries',
+      ),
+    );
+    assert.match(draft.conclusionNotes, /errore applicativo non dimostra un disservizio IO/u);
   });
 });

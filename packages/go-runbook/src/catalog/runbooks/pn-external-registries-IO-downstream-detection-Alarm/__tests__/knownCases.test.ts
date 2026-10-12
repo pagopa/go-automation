@@ -166,6 +166,67 @@ describe('external-registries IO downstream known cases', () => {
     assert.strictEqual(matches('io-messages-invalid-json-response-500', [HTTP_ERROR, INVALID_JSON_DETAIL]), false);
   });
 
+  it('requires complete signature tokens instead of accepting invalid suffixes', () => {
+    for (const [caseId, message] of [
+      [
+        'io-meter-not-found',
+        METER_NOT_FOUND.replace('NumberOfIOMessageSentSuccessfully', 'NumberOfIOMessageSentSuccessfullyOther'),
+      ],
+      [
+        'io-activation-cosmos-conflict',
+        ACTIVATION_CONFLICT.replace('COSMOS_ERROR_RESPONSE', 'COSMOS_ERROR_RESPONSE_OTHER'),
+      ],
+      ['io-activation-cosmos-timeout', ACTIVATION_ROUTING.replace('routing the request', 'routing the requests')],
+      ['io-activation-not-found', ACTIVATION_NOT_FOUND.replace('for the user', 'for the users')],
+      ['io-messages-connection-reset', MESSAGE_CONNECTION_RESET.replace('ECONNRESET', 'ECONNRESET_OTHER')],
+      ['io-messages-invalid-json-response-500', INVALID_JSON.replace('JSON input', 'JSON inputs')],
+    ] as const) {
+      assert.strictEqual(matches(caseId, [message]), false, message);
+    }
+  });
+
+  it('requires the exact JSON codes and keys of the Cosmos and generic message errors', () => {
+    for (const message of [
+      MESSAGE_COSMOS_UNAVAILABLE.replace('"code":503', '"code":5030'),
+      MESSAGE_COSMOS_UNAVAILABLE.replace('"code":503', '"code":503.5'),
+      MESSAGE_COSMOS_UNAVAILABLE.replace('"code":503', '"code":"503"'),
+      MESSAGE_COSMOS_UNAVAILABLE.replace('"code":503', '"otherCode":503'),
+      MESSAGE_COSMOS_UNAVAILABLE.replace('ServiceUnavailable', 'ServiceUnavailableOther'),
+      MESSAGE_COSMOS_UNAVAILABLE.replace('Channel is closed', 'Channel is closedOther'),
+    ]) {
+      assert.strictEqual(matches('io-messages-cosmos-unavailable', [message]), false, message);
+    }
+    for (const message of [
+      MESSAGE_GENERIC_ERROR.replace('"statusCode":500', '"statusCode":5000'),
+      MESSAGE_GENERIC_ERROR.replace('"statusCode":500', '"statusCode":500.5'),
+      MESSAGE_GENERIC_ERROR.replace('"statusCode":500', '"statusCode":"500"'),
+      MESSAGE_GENERIC_ERROR.replace('"statusCode":500', '"otherStatusCode":500'),
+      MESSAGE_GENERIC_ERROR.replace('Internal server error', 'Internal server errorOther'),
+      MESSAGE_GENERIC_ERROR.replace('"activityId"', '"activityIdOther"'),
+      MESSAGE_GENERIC_ERROR.replace('"activity-1"', '""'),
+    ]) {
+      assert.strictEqual(matches('io-messages-generic-internal-error', [message]), false, message);
+    }
+  });
+
+  it('recognizes the same JSON message error regardless of property order', () => {
+    assert.strictEqual(
+      matches('io-messages-generic-internal-error', [
+        HTTP_ERROR + JSON.stringify({ activityId: 'activity-1', message: 'Internal server error', statusCode: 500 }),
+      ]),
+      true,
+    );
+    assert.strictEqual(
+      matches('io-messages-cosmos-unavailable', [
+        HTTP_ERROR +
+          JSON.stringify({
+            detail: { error: { body: { message: 'Channel is closed', code: 'ServiceUnavailable' }, code: 503 } },
+          }),
+      ]),
+      true,
+    );
+  });
+
   it('leaves empty or unknown evidence to the standard fallback', () => {
     for (const { id } of KNOWN_CASES) {
       assert.strictEqual(matches(id, []), false);
@@ -173,12 +234,14 @@ describe('external-registries IO downstream known cases', () => {
     }
   });
 
-  it('keeps unresolved cases open without inventing final actions', () => {
+  it('keeps unresolved cases open and exposes the checks required by their resolutions', () => {
     for (const knownCase of KNOWN_CASES) {
       assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
       assert.strictEqual(knownCase.analysis?.analysisType, 'ANALYZABLE');
-      assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.APP_IO]);
-      assert.strictEqual(knownCase.analysis?.finalActions, undefined);
+      assert.deepStrictEqual(knownCase.analysis?.downstreams, [
+        knownCase.id === 'io-meter-not-found' ? SEND_DOWNSTREAMS.NESSUNO : SEND_DOWNSTREAMS.APP_IO,
+      ]);
+      assert.ok((knownCase.analysis?.finalActions?.length ?? 0) > 0, knownCase.id);
       assert.match(knownCase.analysis?.resolution ?? '', /Mantenere l’analisi aperta/u);
     }
     const httpCase = KNOWN_CASES.find(({ id }) => id === 'io-messages-invalid-json-response-500');
