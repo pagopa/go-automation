@@ -1,0 +1,119 @@
+name: 'Runbook: caso noto mancante'
+description: 'Un caso nuovo, o documentato (Confluence/Jira) ma assente da knownCases.ts'
+title: '[Caso mancante] '
+labels:
+  - report/missing-case
+  - area/runbooks
+  - status/needs-triage
+type: Feature
+projects:
+  - 'pagopa/26'
+body:
+  - type: markdown
+    attributes:
+      value: |
+        La segnalazione entra in triage (`status/needs-triage`): il maintainer imposta Area/Domain/Priority
+        e la collega al milestone competente. Le trace contengono identificativi di produzione: **oscurali** prima di allegarle.
+  - type: input
+    id: runbook
+    attributes:
+      label: 'Runbook key o alarm name'
+      description: "La `key` di catalogo o l'`alarmName` (vedi `go-cli runbook list`)."
+    validations:
+      required: true
+  - type: dropdown
+    id: product
+    attributes:
+      label: 'Prodotto'
+      options:
+        - 'send'
+        - 'interop'
+        - 'go'
+        - 'aws'
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 'Ambiente / account'
+      description: "Es. `prod`, `uat`, oppure l'account id. Non il nome del profilo SSO."
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: 'Come è stata eseguita'
+      options:
+        - 'go-cli runbook run'
+        - 'go-cli analysis run'
+        - 'Watchtower Lambda (shadow/apply)'
+        - 'Altro'
+    validations:
+      required: true
+  - type: input
+    id: window
+    attributes:
+      label: 'Finestra temporale o alarm-event id'
+      description: "`--at` / `--to` usati, oppure l'alarm-event id di Watchtower."
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: 'Commit go-automation'
+      description: 'Output di `git rev-parse --short HEAD`, se noto.'
+    validations:
+      required: false
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 'Tipo di segnalazione'
+      options:
+        - 'Nuovo caso'
+        - 'Documentato ma assente dal catalogo'
+    validations:
+      required: true
+  - type: textarea
+    id: signature
+    attributes:
+      label: "Firma dell'errore / righe di log"
+      description: 'Le righe di log che identificano il caso.'
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 'Classificazione e azione attese'
+      description: "Come andrebbe classificato e cosa deve fare l'operatore."
+    validations:
+      required: true
+  - type: textarea
+    id: refs
+    attributes:
+      label: 'Riferimenti'
+      description: 'GO-xxx, URL Confluence, ecc.'
+    validations:
+      required: false
+  - type: input
+    id: freq
+    attributes:
+      label: 'Frequenza'
+      description: 'Quante volte e con che cadenza si presenta.'
+    validations:
+      required: false
+  - type: textarea
+    id: trace
+    attributes:
+      label: 'Trace / result'
+      description: "Incolla o allega `trace-*.json` / `result-*.json` da `data/go-analyze-alarm/outputs/<run>/`. Il campo `caseMatching.evaluations` mostra l'esito di ogni caso."
+      render: json
+    validations:
+      required: false
+  - type: checkboxes
+    id: sanitized
+    attributes:
+      label: 'Dati sensibili'
+      options:
+        - label: 'Ho rimosso dati sensibili (codici fiscali, IUN, token)'
+          required: true

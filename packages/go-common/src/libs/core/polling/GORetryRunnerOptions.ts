@@ -26,7 +26,7 @@ export interface GORetryRunnerOptions {
   /**
    * Backoff strategy. Default `GOBackoff.exponentialJittered()`.
    *
-   * Must be a pure function — see EVO-POLL-OPUS-01 §7.9.
+   * Must be a pure function.
    */
   readonly backoff?: GOBackoffFn;
 

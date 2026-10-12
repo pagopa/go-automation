@@ -1,0 +1,35 @@
+{
+  "name": "aws-schedule-eventbridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Operates on Amazon EventBridge Scheduler schedules across several AWS accounts - list, describe, enable and disable one schedule fleet-wide.",
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "dev": "tsx src/index.ts",
+    "start": "pnpm build && node dist/index.js",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
+    "test:coverage": "mkdir -p coverage && node --import tsx/esm --test --experimental-test-coverage --test-coverage-include='src/**/*.ts' --test-coverage-exclude='src/**/__tests__/**' --test-coverage-lines=${GO_COVERAGE_LINES_THRESHOLD:-90} --test-coverage-branches=${GO_COVERAGE_BRANCHES_THRESHOLD:-80} --test-coverage-functions=${GO_COVERAGE_FUNCTIONS_THRESHOLD:-90} --test-reporter=lcov --test-reporter-destination=coverage/lcov.info --test-reporter=spec --test-reporter-destination=stdout 'src/**/__tests__/**/*.test.ts'",
+    "watch": "tsc -b --watch"
+  },
+  "keywords": [
+    "aws",
+    "eventbridge",
+    "scheduler",
+    "go-automation"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "dependencies": {
+    "@go-automation/go-common": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

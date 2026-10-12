@@ -41,6 +41,8 @@ import { MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION } from './runbooks/pn-mand
 import { DELAYER_SENDER_LIMIT_JOB_REGISTRATION } from './runbooks/pn-delayer-sender-limit-job-ErrorFatalLogs-Alarm/registration.js';
 
 // interop kubernetes
+import { AGREEMENT_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-agreement-readmodel-writer-sql-errors/registration.js';
+import { AUDIT_SIGNER_REGISTRATION } from './runbooks/k8s-interop-be-audit-signer-errors/registration.js';
 import { AUTHORIZATION_PROCESS_REGISTRATION } from './runbooks/k8s-interop-be-authorization-process-errors/registration.js';
 import { ISTAT_IMPORTER_REGISTRATION } from './runbooks/k8s-interop-be-istat-certified-attributes-importer-errors/registration.js';
 import { ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-attribute-registry-readmodel-writer-sql-errors/registration.js';
@@ -48,11 +50,14 @@ import { CATALOG_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-intero
 import { CATALOG_PLATFORMSTATE_WRITER_REGISTRATION } from './runbooks/k8s-interop-be-catalog-platformstate-writer-errors/registration.js';
 import { TENANT_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-tenant-readmodel-writer-sql-errors/registration.js';
 import { DELEGATION_ITEMS_ARCHIVER_REGISTRATION } from './runbooks/k8s-interop-be-delegation-items-archiver-errors/registration.js';
+import { DELEGATION_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-delegation-readmodel-writer-sql-errors/registration.js';
+import { ESERVICE_TEMPLATE_INSTANCES_UPDATER_REGISTRATION } from './runbooks/k8s-interop-be-eservice-template-instances-updater-errors/registration.js';
 import { ESERVICE_TEMPLATE_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-eservice-template-readmodel-writer-sql-errors/registration.js';
 import { COMPUTE_AGREEMENTS_CONSUMER_REGISTRATION } from './runbooks/k8s-interop-be-compute-agreements-consumer-errors/registration.js';
 import { BFF_REGISTRATION } from './runbooks/k8s-interop-be-backend-for-frontend-errors/registration.js';
 import { NOTIFIER_REGISTRATION } from './runbooks/k8s-interop-be-notifier-errors/registration.js';
 import { NOTIFICATION_USER_LIFECYCLE_REGISTRATION } from './runbooks/k8s-interop-be-notification-user-lifecycle-consumer-errors/registration.js';
+import { IN_APP_NOTIFICATION_DISPATCHER_REGISTRATION } from './runbooks/k8s-interop-be-in-app-notification-dispatcher-errors/registration.js';
 import { PURPOSE_OUTBOUND_WRITER_REGISTRATION } from './runbooks/k8s-interop-be-purpose-outbound-writer-errors/registration.js';
 import { PUBLIC_CATALOG_REGISTRATION } from './runbooks/k8s-interop-public-catalog-astro-frontend-errors/registration.js';
 import { SELFCARE_USERS_UPDATER_REGISTRATION } from './runbooks/k8s-interop-be-selfcare-client-users-updater-errors/registration.js';
@@ -97,6 +102,8 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION,
   DELAYER_SENDER_LIMIT_JOB_REGISTRATION,
   // interop kubernetes
+  AGREEMENT_READMODEL_WRITER_SQL_REGISTRATION,
+  AUDIT_SIGNER_REGISTRATION,
   AUTHORIZATION_PROCESS_REGISTRATION,
   ISTAT_IMPORTER_REGISTRATION,
   ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_REGISTRATION,
@@ -104,11 +111,14 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   CATALOG_PLATFORMSTATE_WRITER_REGISTRATION,
   TENANT_READMODEL_WRITER_SQL_REGISTRATION,
   DELEGATION_ITEMS_ARCHIVER_REGISTRATION,
+  DELEGATION_READMODEL_WRITER_SQL_REGISTRATION,
+  ESERVICE_TEMPLATE_INSTANCES_UPDATER_REGISTRATION,
   ESERVICE_TEMPLATE_READMODEL_WRITER_SQL_REGISTRATION,
   COMPUTE_AGREEMENTS_CONSUMER_REGISTRATION,
   BFF_REGISTRATION,
   NOTIFIER_REGISTRATION,
   NOTIFICATION_USER_LIFECYCLE_REGISTRATION,
+  IN_APP_NOTIFICATION_DISPATCHER_REGISTRATION,
   PURPOSE_OUTBOUND_WRITER_REGISTRATION,
   PUBLIC_CATALOG_REGISTRATION,
   SELFCARE_USERS_UPDATER_REGISTRATION,

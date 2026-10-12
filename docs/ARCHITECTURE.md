@@ -23,7 +23,7 @@
 
 GO Automation è un **monorepo TypeScript** gestito con **pnpm workspaces**. Oggi il repository è organizzato in quattro layer principali:
 
-- **Libreria condivisa**: `@go-automation/go-common` - framework script, utilities core, adapter AWS/SEND, import/export, JSON utilities, messaging e runbook
+- **Libreria condivisa**: `@go-automation/go-common` - framework script, utilities core, adapter AWS, import/export, JSON utilities e messaging (SEND e Runbook sono oggi package standalone, `go-send` e `go-runbook`)
 - **Script CLI**: package eseguibili organizzati per team/prodotto (GO, SEND, INTEROP)
 - **Functions serverless**: package in `functions/*` che riusano la business logic degli script tramite `GOScript.createLambdaHandler()`
 - **Toolchain centralizzata**: TypeScript strict, ESLint flat config, scaffold validation, CI riutilizzabile, coverage e security audit
@@ -54,21 +54,26 @@ GO Automation è un **monorepo TypeScript** gestito con **pnpm workspaces**. Ogg
 ```text
 go-automation/
 ├── packages/
-│   └── go-common/
-│       ├── src/libs/
-│       │   ├── aws/             # Client provider, S3, SQS, ECS, credenziali
-│       │   ├── core/
-│       │   │   ├── config/      # Reader, provider, parser, validation
-│       │   │   ├── exporters/   # CSV, JSON, HTML, binary, file
-│       │   │   ├── importers/   # CSV, JSON, file
-│       │   │   ├── json/        # Detector, extractor e field-path helpers
-│       │   │   ├── messaging/   # GOMessenger e adapter Slack
-│       │   │   ├── prompt/      # Spinner, progress e prompt UI
-│       │   │   └── script/      # GOScript, lifecycle e Lambda handler
-│       │   ├── runbook/         # Engine, step, servizi e tracing
-│       │   └── send/            # Builder, servizi e worker SEND
-│       ├── package.json
-│       └── tsconfig.json
+│   ├── go-common/
+│   │   ├── src/libs/
+│   │   │   ├── aws/             # Client provider, S3, SQS, ECS, credenziali
+│   │   │   └── core/
+│   │   │       ├── config/      # Reader, provider, parser, validation
+│   │   │       ├── exporters/   # CSV, JSON, HTML, binary, file
+│   │   │       ├── importers/   # CSV, JSON, file
+│   │   │       ├── json/        # Detector, extractor e field-path helpers
+│   │   │       ├── messaging/   # GOMessenger e adapter Slack
+│   │   │       ├── prompt/      # Spinner, progress e prompt UI
+│   │   │       └── script/      # GOScript, lifecycle e Lambda handler
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   ├── go-ai/                   # Client e helper per provider AI
+│   ├── go-cli/                  # Entry point di `pnpm go` (discovery, scaffold)
+│   ├── go-execute-runbook-contracts/  # Tipi condivisi runbook ↔ infra Lambda
+│   ├── go-runbook/               # Engine, step, servizi e tracing dei runbook
+│   ├── go-send/                  # Builder, servizi e worker SEND
+│   ├── go-watchtower-client/      # Client HTTP verso la console Watchtower
+│   └── go-watchtower-runbook/     # Esecuzione runbook integrata con Watchtower
 │
 ├── scripts/
 │   ├── aws/                     # CloudFormation e config AWS collegate agli script
@@ -147,19 +152,20 @@ go-automation/
 
 ### Descrizione delle Cartelle
 
-| Directory            | Scopo                                                       |
-| -------------------- | ----------------------------------------------------------- |
-| `packages/`          | Librerie condivise pubblicate come workspace packages       |
-| `scripts/go/`        | Script per gestione operativa interna                       |
-| `scripts/send/`      | Script specifici per prodotto SEND                          |
-| `scripts/interop/`   | Script specifici per prodotto INTEROP                       |
-| `functions/`         | Adapter Lambda che riusano script esistenti                 |
-| `infra/`             | Infrastruttura condivisa (Docker e asset runtime)           |
-| `artifacts/`         | Output di deploy standalone e bundle Lambda                 |
-| `docs/`              | Documentazione tecnica e guide                              |
-| `bins/`              | Tooling di scaffolding, deploy e validazione                |
-| `data/`              | Directory centralizzata per input/output/config script      |
-| `.github/workflows/` | Pipeline CI, coverage, scaffold validation e security audit |
+| Directory            | Scopo                                                                             |
+| -------------------- | --------------------------------------------------------------------------------- |
+| `packages/`          | Librerie condivise pubblicate come workspace packages                             |
+| `scripts/aws/`       | Script multi-account per operazioni AWS dirette (SQS, ECS, DynamoDB, EventBridge) |
+| `scripts/go/`        | Script per gestione operativa interna                                             |
+| `scripts/send/`      | Script specifici per prodotto SEND                                                |
+| `scripts/interop/`   | Script specifici per prodotto INTEROP                                             |
+| `functions/`         | Adapter Lambda che riusano script esistenti                                       |
+| `infra/`             | Infrastruttura condivisa (Docker e asset runtime)                                 |
+| `artifacts/`         | Output di deploy standalone e bundle Lambda                                       |
+| `docs/`              | Documentazione tecnica e guide                                                    |
+| `bins/`              | Tooling di scaffolding, deploy e validazione                                      |
+| `data/`              | Directory centralizzata per input/output/config script                            |
+| `.github/workflows/` | Pipeline CI, coverage, scaffold validation e security audit                       |
 
 ---
 
@@ -507,11 +513,11 @@ allowBuilds:
 
 ### Naming Conventions
 
-| Tipo      | Pattern                   | Esempio                                         |
-| --------- | ------------------------- | ----------------------------------------------- |
-| Packages  | `@go-automation/{name}`   | `@go-automation/go-common`                      |
-| Scripts   | `{team}-{name}`           | `go-report-alarms`, `send-import-notifications` |
-| Functions | `go-{descrizione}-lambda` | `go-send-monitor-tpp-messages-lambda`           |
+| Tipo      | Pattern                   | Esempio                                                 |
+| --------- | ------------------------- | ------------------------------------------------------- |
+| Packages  | `@go-automation/{name}`   | `@go-automation/go-common`, `@go-automation/go-runbook` |
+| Scripts   | `{team}-{name}`           | `go-report-alarms`, `send-import-notifications`         |
+| Functions | `go-{descrizione}-lambda` | `go-send-monitor-tpp-messages-lambda`                   |
 
 ### Comandi Workspace
 
@@ -661,18 +667,41 @@ La build non è più solo compilazione: il monorepo usa una pipeline centralizza
 │ scripts/*                    │
 │ CLI packages                 │
 └──────────────┬───────────────┘
-               │
+               │ (a seconda dello script)
                ▼
+┌─────────────────────────────────────────────────────┐
+│ go-runbook · go-send · go-ai · go-watchtower-client │
+│ go-watchtower-runbook                               │
+└──────────────────────────┬──────────────────────────┘
+                            │
+                            ▼
 ┌──────────────────────────────┐
 │ @go-automation/go-common     │
-│ Core + AWS + SEND + JSON     │
-│ Messaging + Runbook          │
+│ Core + AWS + Messaging       │
 └──────────────┬───────────────┘
                │
                ▼
 ┌──────────────────────────────┐
 │ External dependencies        │
 │ AWS SDK, prompts, yaml, ...  │
+└──────────────────────────────┘
+
+┌──────────────────────────────┐
+│ go-cli                       │
+│ entry point di `pnpm go`     │
+├──────────────────────────────┤
+│ importa:                     │
+│ - @go-automation/go-common   │
+│   (Core)                     │
+└──────────────────────────────┘
+
+┌──────────────────────────────┐
+│ go-watchtower-runbook        │
+├──────────────────────────────┤
+│ importa:                     │
+│ - go-runbook                 │
+│ - go-watchtower-client       │
+│ - go-ai                      │
 └──────────────────────────────┘
 
 ┌──────────────────────────────┐
@@ -683,6 +712,13 @@ La build non è più solo compilazione: il monorepo usa una pipeline centralizza
 │ - uno script workspace       │
 │ - @go-automation/go-common   │
 └──────────────────────────────┘
+
+┌─────────────────────────────────┐
+│ infra/watchtower-alarm-analysis │
+├─────────────────────────────────┤
+│ importa:                        │
+│ - go-execute-runbook-contracts  │
+└─────────────────────────────────┘
 ```
 
 ### Dipendenze Esterne Principali
