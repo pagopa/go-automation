@@ -42,7 +42,9 @@ describe('pn-delayer sender limit job runbook', () => {
     assert.strictEqual(SERVICE.logGroup, '/aws/ecs/pn-delayer-sender-limit-job');
     assert.match(DELAYER_ERROR_QUERY, /filter @message like 'ERROR'/u);
     assert.match(DELAYER_ERROR_QUERY, /display @timestamp, trace_id, message, @message/u);
-    assert.match(DELAYER_ERROR_QUERY, /dedup message/u);
+    // `limit` must stay after `dedup`: before it, it caps the input to the
+    // de-duplication rather than the distinct rows the operator reads.
+    assert.match(DELAYER_ERROR_QUERY, /\| dedup message\n\| limit 1000$/u);
     assert.deepStrictEqual(resolveOccurrenceTimeWindow(runbook), { beforeMinutes: 5, afterMinutes: 5 });
   });
 });

@@ -1,11 +1,11 @@
 import type { service } from '../framework.js';
 
-/** The source query searches ERROR lines and retains both parsed and raw messages. */
+/** Limit distinct ERROR messages after deduplication, preserving the raw log. */
 export const DELAYER_ERROR_QUERY = `filter @message like 'ERROR'
 | sort @timestamp asc
-| limit 1000
 | display @timestamp, trace_id, message, @message
-| dedup message`;
+| dedup message
+| limit 1000`;
 
 export const SERVICE: service.ServiceDescriptor = {
   name: 'pn-delayer-sender-limit-job',
