@@ -16,7 +16,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       varEquals('interopEnvironment', 'prod'),
       stepEvidenceMatches(
         alarm.stepIds.queryApplicationLogs,
-        'The coordinator is not aware of this member,\\s*re-joining the group',
+        'The coordinator is not aware of this member,\\s*re-joining the group\\b',
       ),
     ),
     resolution:
