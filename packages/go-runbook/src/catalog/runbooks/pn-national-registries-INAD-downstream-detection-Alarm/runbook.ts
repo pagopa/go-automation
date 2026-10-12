@@ -24,6 +24,16 @@ export function buildRunbook(): Runbook {
     service: SERVICE,
     downstream: DOWNSTREAM,
     knownCases: KNOWN_CASES,
+    analysisDefaults: {
+      runbookName: 'pn-national-registries-INAD-downstream-detection-Alarm',
+      links: [
+        {
+          url: 'https://pagopa.atlassian.net/wiki/spaces/GO/pages/2363785411/pn-national-registries-INAD-downstream-detection-Alarm',
+          name: 'pn-national-registries-INAD-downstream-detection-Alarm',
+          type: 'CONFLUENCE',
+        },
+      ],
+    },
     occurrenceTimeWindow: {
       beforeMinutes: 10,
       afterMinutes: 5,

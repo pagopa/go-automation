@@ -15,4 +15,9 @@ export const SERVICE = {
 };
 
 /** Downstream this runbook diagnoses. */
-export const DOWNSTREAM: downstream.DownstreamSelector = { kind: 'named', name: SEND_DOWNSTREAMS.IPA };
+export const DOWNSTREAM: downstream.DownstreamSelector = {
+  kind: 'named',
+  name: SEND_DOWNSTREAMS.IPA,
+  errorLevelOnly: true,
+  matchStructuredMessage: true,
+};

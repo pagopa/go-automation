@@ -24,6 +24,16 @@ export function buildRunbook(): Runbook {
     service: SERVICE,
     downstream: DOWNSTREAM,
     knownCases: KNOWN_CASES,
+    analysisDefaults: {
+      runbookName: 'pn-national-registries-IPA-downstream-detection-Alarm',
+      links: [
+        {
+          url: 'https://pagopa.atlassian.net/wiki/spaces/GO/pages/2386001921/pn-national-registries-IPA-downstream-detection-Alarm',
+          name: 'pn-national-registries-IPA-downstream-detection-Alarm',
+          type: 'CONFLUENCE',
+        },
+      ],
+    },
     occurrenceTimeWindow: {
       // Six 5-minute evaluation periods, as clarified by Gaspare in Confluence.
       beforeMinutes: 30,
