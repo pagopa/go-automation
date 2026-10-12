@@ -3,6 +3,7 @@ import { interop } from '../framework.js';
 import type { Runbook } from '../framework.js';
 
 import { KNOWN_CASES } from './knownCases.js';
+import { ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_QUERY_PROFILE } from './queryProfile.js';
 
 const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3294068772/k8s-interop-be-attribute-registry-readmodel-writer-sql-errors';
@@ -15,17 +16,19 @@ export function buildRunbook(): Runbook {
       description:
         'Analizza gli allarmi k8s INTEROP dell’attribute registry readmodel writer SQL leggendo i log ' +
         'applicativi, estraendo i CID e consultando il CID tracker.',
-      version: '1.0.0',
+      version: '1.0.1',
       type: 'alarm-resolution',
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'attribute-registry', 'readmodel', 'sql', 'kafka'],
     },
+    occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
     service: {
       name: ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM.podApp,
       logGroup: ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM.logGroup,
       varPrefix: ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM.varPrefix,
     },
     resolveAlarmContext: ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM.resolveContext,
+    queryProfile: ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_QUERY_PROFILE,
     knownCases: KNOWN_CASES,
     analysisDefaults: {
       runbookName: ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM.runbookKey,

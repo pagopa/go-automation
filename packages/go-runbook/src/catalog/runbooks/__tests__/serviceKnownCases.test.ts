@@ -619,12 +619,15 @@ describe('service runbook known cases', () => {
       buildNationalRegistriesAnprDownstreamDetectionAlarmRunbook(),
       buildNationalRegistriesInfoCamereDownstreamDetectionAlarmRunbook(),
       buildNationalRegistriesInadDownstreamDetectionAlarmRunbook(),
-      buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook(),
       buildAddressManagerPostelDownstreamDetectionAlarmRunbook(),
       buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook(),
     ]) {
       assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 10, afterMinutes: 5 });
     }
+    assert.deepStrictEqual(buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook().occurrenceTimeWindow, {
+      beforeMinutes: 30,
+      afterMinutes: 5,
+    });
     assert.deepStrictEqual(buildNationalRegistriesAdeDownstreamDetectionAlarmRunbook().occurrenceTimeWindow, {
       beforeMinutes: 30,
       afterMinutes: 5,
