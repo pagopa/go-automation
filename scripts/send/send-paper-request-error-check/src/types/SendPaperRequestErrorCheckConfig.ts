@@ -133,11 +133,9 @@ export interface FetchTimelinesResult {
  * Interfaccia di configurazione principale dello script Send Paper Request Error Check
  */
 export interface SendPaperRequestErrorCheckConfig {
-  /** Nome del profilo AWS SSO per autenticazione */
-  readonly awsProfile?: string;
 
   /** Ambiente AWS di destinazione (dev, uat, test, prod, hotfix) */
-  readonly envName?: string;
+  envName?: string;
 
   /** Modalità di esecuzione (all o singolo modulo) */
   readonly mode: ExecutionMode;
@@ -162,4 +160,10 @@ export interface SendPaperRequestErrorCheckConfig {
 
   /** Configurazione specifica per la validazione PDF */
   readonly pdfValidation: PdfValidationConfig;
+
+  /** Nome del profilo AWS SSO per autenticazione account Core*/
+  awsProfileCore?: string;
+
+  /** Nome del profilo AWS SSO per autenticazione account Core*/
+  awsProfileConfinfo?: string;
 }

@@ -1,5 +1,6 @@
 import { RestoreObjectCommand } from '@aws-sdk/client-s3';
-import type { Core } from '@go-automation/go-common';
+import { Core, AWS } from '@go-automation/go-common';
+import { getConfinfoS3Client, getCoreDynamoDBService } from '../utils/awsClients.js';
 import type { SendPaperRequestErrorCheckConfig, RetrieveGlacierResult } from '../types/index.js';
 import { isNotificationOlderThanOneYear } from './verifyNotification.js';
 import { get } from '../utils/get.js';
@@ -71,13 +72,19 @@ async function promptUserConfirmation(script: Core.GOScript, count: number): Pro
 
 /**
  * Risolve il nome del bucket S3 SafeStorage se non specificato in configurazione.
+ * Usa il profilo Confinfo per elencare i bucket (SafeStorage è nell'account Confinfo).
  */
-async function resolveSafestorageBucket(script: Core.GOScript, configuredBucket?: string): Promise<string> {
+async function resolveSafestorageBucket(
+  script: Core.GOScript,
+  config: SendPaperRequestErrorCheckConfig,
+  configuredBucket?: string,
+): Promise<string> {
   if (configuredBucket) {
     return configuredBucket;
   }
   try {
-    const buckets = await script.aws.services.s3.listBuckets();
+    const s3Service = new AWS.AWSS3Service(getConfinfoS3Client(script, config));
+    const buckets = await s3Service.listBuckets();
     const target = buckets.find(
       (b) => b.name?.includes('safestorage') || b.name?.includes('safe-storage') || b.name?.includes('pn-safestorage'),
     );
@@ -95,6 +102,7 @@ async function resolveSafestorageBucket(script: Core.GOScript, configuredBucket?
  */
 async function filterGlacierEligibleItems(
   script: Core.GOScript,
+  config: SendPaperRequestErrorCheckConfig,
   items: GlacierItem[],
 ): Promise<GlacierItem[]> {
   const logger = script.logger;
@@ -111,7 +119,8 @@ async function filterGlacierEligibleItems(
     let sentAt = item.sentAt;
     if (!sentAt && item.iun && item.iun !== 'N/A') {
       try {
-        const notifItems = await script.aws.services.dynamoDB.query(NOTIFICATIONS_TABLE_NAME, 'iun = :val', {
+        const dynamoDbService = getCoreDynamoDBService(script, config);
+        const notifItems = await dynamoDbService.query(NOTIFICATIONS_TABLE_NAME, 'iun = :val', {
           ':val': { S: item.iun },
         });
         if (notifItems.length > 0 && notifItems[0]) {
@@ -151,7 +160,7 @@ export async function retrieveGlacierS3(
 ): Promise<RetrieveGlacierResult> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
   const logger = script.logger;
-  const s3Client = script.aws.clients.s3;
+  const s3Client = getConfinfoS3Client(script, config);
 
   const parsedItems = parseGlacierItems(rawItems);
 
@@ -168,7 +177,7 @@ export async function retrieveGlacierS3(
   }
 
   // Filtra rigorosamente solo AAR di notifiche > 1 anno
-  const glacierItems = await filterGlacierEligibleItems(script, parsedItems);
+  const glacierItems = await filterGlacierEligibleItems(script, config, parsedItems);
 
   if (glacierItems.length === 0) {
     logger.info(
@@ -202,7 +211,7 @@ export async function retrieveGlacierS3(
     }
   }
 
-  const bucketName = await resolveSafestorageBucket(script, config.bucket);
+  const bucketName = await resolveSafestorageBucket(script, config, config.bucket);
   const expirationDays = config.glacier?.expirationDays ?? 7;
   const tier = config.glacier?.tier ?? 'Standard';
 

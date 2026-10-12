@@ -1,6 +1,7 @@
 import path from 'path';
 import { Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, FetchTimelinesResult } from '../types/index.js';
+import { getCoreDynamoDBService } from '../utils/awsClients.js';
 import { extractIun, get } from '../utils/get.js';
 import { processTimelines } from './verifyNotification.js';
 
@@ -39,7 +40,7 @@ export async function fetchTimelines(
   iunsInput?: ReadonlyArray<string>,
 ): Promise<FetchTimelinesResult> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
-  const dynamoDbService = script.aws.services.dynamoDB;
+  const dynamoDbService = getCoreDynamoDBService(script, config);
   const logger = script.logger;
 
   const outputDir = config.outputDir || 'results';

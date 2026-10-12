@@ -1,5 +1,6 @@
 import path from 'path';
-import { AWS, Core } from '@go-automation/go-common';
+import { Core, AWS } from '@go-automation/go-common';
+import { getCoreDynamoDBService } from '../utils/awsClients.js';
 import type { SendPaperRequestErrorCheckConfig, RetrieveAttachmentsResult } from '../types/index.js';
 import { get, iunFromRid } from '../utils/get.js';
 import {
@@ -147,7 +148,7 @@ export async function retrieveAttachmentsFromIun(
   iuns: ReadonlyArray<string>,
 ): Promise<RetrieveAttachmentsResult> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
-  const dynamoDbService = script.aws.services.dynamoDB;
+  const dynamoDbService = getCoreDynamoDBService(script, config);
   const logger = script.logger;
 
   const outputDir = config.outputDir || 'results';

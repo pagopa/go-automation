@@ -1,8 +1,8 @@
 import path from 'path';
-import { GetObjectCommand } from '@aws-sdk/client-s3';
-import type { S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, type S3Client } from '@aws-sdk/client-s3';
+import { getConfinfoS3Client } from '../utils/awsClients.js';
 import type { Readable } from 'stream';
-import { Core } from '@go-automation/go-common';
+import { Core, AWS } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, PdfValidationResult } from '../types/index.js';
 
 /** Signature Magic Bytes del formato PDF ("%PDF" = 0x25 0x50 0x44 0x46) */
@@ -82,12 +82,18 @@ async function validatePDFMagicBytes(
 
 /**
  * Risolve il bucket S3 SafeStorage se non configurato esplicitamente.
+ * Usa il profilo Confinfo per elencare i bucket (SafeStorage è nell'account Confinfo).
  */
-async function resolveSafestorageBucket(script: Core.GOScript, configuredBucket?: string): Promise<string> {
+async function resolveSafestorageBucket(
+  script: Core.GOScript,
+  config: SendPaperRequestErrorCheckConfig,
+  configuredBucket?: string,
+): Promise<string> {
   if (configuredBucket) return configuredBucket;
 
   try {
-    const buckets = await script.aws.services.s3.listBuckets();
+    const s3Service = new AWS.AWSS3Service(getConfinfoS3Client(script, config));
+    const buckets = await s3Service.listBuckets();
     const target = buckets.find((b) => b.name && b.name.includes('safestorage') && !b.name.includes('staging'));
     if (target?.name) return target.name;
   } catch {
@@ -109,7 +115,7 @@ export async function validateS3Pdfs(
   inputKeys?: ReadonlyArray<string>,
 ): Promise<PdfValidationResult> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
-  const s3Client = script.aws.clients.s3;
+  const s3Client = getConfinfoS3Client(script, config);
   const logger = script.logger;
 
   const outputDir = config.outputDir || 'results';
@@ -144,7 +150,7 @@ export async function validateS3Pdfs(
     };
   }
 
-  const bucket = await resolveSafestorageBucket(script, config.bucket);
+  const bucket = await resolveSafestorageBucket(script, config, config.bucket);
   const concurrency = Math.max(1, config.pdfValidation?.concurrency || 20);
 
   logger.info(

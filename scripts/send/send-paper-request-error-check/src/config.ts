@@ -44,17 +44,10 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
         : 'Mode deve essere uno tra: all, check-feedback, get-attachments, retrieve-attachments, retrieve-glacier, validate-pdf, fetch-timelines',
   },
   {
-    name: 'aws.profile',
-    type: Core.GOConfigParameterType.STRING,
-    description: 'AWS SSO profile name (es. sso_pn-core-dev, sso_pn-confinfo-prod)',
-    required: false,
-    aliases: ['ap', 'profile', 'p'],
-  },
-  {
     name: 'envName',
     type: Core.GOConfigParameterType.STRING,
     description: 'Ambiente di destinazione (dev|uat|test|prod|hotfix)',
-    required: false,
+    required: true,
     aliases: ['e'],
   },
   {
@@ -125,8 +118,21 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
 ] as const;
 
 /**
- * Hook eseguito dopo il caricamento della configurazione
+ * Hook eseguito dopo il caricamento della configurazione.
+ *
+ * Deriva i nomi dei profili AWS SSO a partire dall'ambiente (`envName`) e
+ * li imposta come lista multi-profilo (`aws.profiles`) che GOScript utilizzerà
+ * per autenticarsi: il profilo Core è il primo (client di default per DynamoDB),
+ * il profilo Confinfo è il secondo (usato esplicitamente per S3/SafeStorage).
  */
-export function prepareConfig(_context: Core.GOScriptHookContext): void {
-  // Hook per eventuale normalizzazione dinamica delle opzioni
+export function prepareConfig(context: Core.GOScriptHookContext): void {
+  // 1️⃣ Leggi l'ambiente (fallback a 'dev' se non specificato)
+  const env = context.config.getString('envName') ?? 'dev';
+
+  // 2️⃣ Risolvi i nomi dei profili – permetti override manuali
+  const coreProfile = context.config.getString('awsProfileCore') ?? `sso_pn-core-${env}`;
+  const confinfoProfile = context.config.getString('awsProfileConfinfo') ?? `sso_pn-confinfo-${env}`;
+
+  // 3️⃣ Imposta la lista multi-profilo (Core primo ⇒ client di default)
+  context.config.set('aws.profiles', [coreProfile, confinfoProfile]);
 }

@@ -1,6 +1,7 @@
 import path from 'path';
 import { Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, CheckFeedbackResult } from '../types/index.js';
+import { getCoreDynamoDBService } from '../utils/awsClients.js';
 import { extractIun, get } from '../utils/get.js';
 
 /** Nome della tabella DynamoDB delle timeline */
@@ -18,7 +19,7 @@ export async function checkFeedbackFromRequestIds(
   requestIds: ReadonlyArray<string>,
 ): Promise<CheckFeedbackResult> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
-  const dynamoDbService = script.aws.services.dynamoDB;
+  const dynamoDbService = getCoreDynamoDBService(script, config);
   const logger = script.logger;
   const outputDir = config.outputDir || 'results';
 
@@ -55,7 +56,7 @@ export async function checkFeedbackFromRequestIds(
         const feedbackString = `SEND_ANALOG_FEEDBACK.IUN_${iun}${feedbackSuffix}`;
         const completelyUnreachableString = `COMPLETELY_UNREACHABLE.IUN_${iun}${completelyUnreachableSuffix}`;
 
-        const feedbackEvent = items.find((item) => {
+        const feedbackEvent = items.find((item: Record<string, unknown>) => {
           const id = get<string>(item, 'timelineElementId');
           return id === feedbackString || id === completelyUnreachableString;
         });
