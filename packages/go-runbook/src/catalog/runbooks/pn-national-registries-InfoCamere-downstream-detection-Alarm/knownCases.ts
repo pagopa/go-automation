@@ -141,7 +141,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     resolution:
       'Caso noto: il team di sviluppo sta cercando di mitigare l’errore con strategie di retry. ' +
       'La pagina non indica una risoluzione operativa. Consultare il thread Slack del 30/09/2025 ' +
-      'anche per verificare l’oscuramento del codice fiscale nei log.',
+      'anche per verificare l’oscuramento del codice fiscale nei log. Mantenere l’analisi aperta per queste verifiche.',
+    level: 'warn',
     details: [
       ['Servizio', 'pn-national-registries'],
       ['Endpoint', INFOCAMERE_LEGAL_REPRESENTATIVE_ENDPOINT],
@@ -149,13 +150,16 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       ['Trace ID', '{{vars.nationalRegistriesTraceId}}'],
     ],
     analysis: {
-      proposedStatus: 'COMPLETED',
+      proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
       errorDetails:
         'HTTP 500 (WSPA_ERR_00, appName wspa-lref) restituito da InfoCamere sulla chiamata GET ' +
         `${INFOCAMERE_LEGAL_REPRESENTATIVE_ENDPOINT}; mitigazione tramite retry strategy in corso lato sviluppo.`,
       downstreams: [SEND_DOWNSTREAMS.ELENCO_LEGALE_RAPPRESENTANTE_INFOCAMERE],
-      finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
+      finalActions: [
+        'Consultare il thread Slack del 30/09/2025',
+        'Verificare l’oscuramento del codice fiscale nei log',
+      ],
       links: [slackLink(INFOCAMERE_LEGAL_REPRESENTATIVE_THREAD, 'Thread Slack 30/09/2025')],
     },
   }),

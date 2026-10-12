@@ -103,7 +103,7 @@ describe('national registries and delayer documented execution', () => {
     assert.doesNotMatch(draft.conclusionNotes, /rientrato al polling|ripristinato/u);
   });
 
-  it('maps the documented InfoCamere HTTP 500 to the legal-representative downstream', async () => {
+  it('keeps the documented InfoCamere HTTP 500 open for Slack and identifier-masking checks', async () => {
     const { draft, queries } = await execute(
       buildInfoCamereRunbook(),
       '[DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error from GET ' +
@@ -111,7 +111,11 @@ describe('national registries and delayer documented execution', () => {
         '{"code":"WSPA_ERR_00","appName":"wspa-lref","description":"Internal Server Error!"}',
     );
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'COMPLETED');
+    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
+    assert.deepStrictEqual(draft.finalActions, [
+      'Consultare il thread Slack del 30/09/2025',
+      'Verificare l’oscuramento del codice fiscale nei log',
+    ]);
     assert.deepStrictEqual(draft.downstreams, [SEND_DOWNSTREAMS.ELENCO_LEGALE_RAPPRESENTANTE_INFOCAMERE]);
     assert.match(queries[0] ?? '', /level = 'ERROR'/u);
     assert.ok(queries[0]?.includes("message like '[DOWNSTREAM] Service InfoCamere returned errors='"));
