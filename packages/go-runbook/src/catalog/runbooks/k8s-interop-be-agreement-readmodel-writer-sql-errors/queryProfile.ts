@@ -3,7 +3,7 @@ import { escapeLogsInsightsString } from '@go-automation/go-common/aws';
 import { interop } from '../framework.js';
 
 /** Select the exact writer using the ERROR/log or stderr criterion read in AWS. */
-export function buildApplicationLogsQuery(podApp: string): string {
+function buildApplicationLogsQuery(podApp: string): string {
   return `
 filter (log like /ERROR/ or stream = "stderr")
 | filter @logStream not like /adot-collector/
