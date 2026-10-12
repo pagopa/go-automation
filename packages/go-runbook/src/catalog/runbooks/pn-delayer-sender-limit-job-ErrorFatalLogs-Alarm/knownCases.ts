@@ -6,7 +6,6 @@ import { all, any } from '../common/conditions.js';
 import { stepEvidenceMatches } from '../common/evidenceConditions.js';
 import { varEquals } from '../common/varConditions.js';
 
-
 const INCIDENT_THREAD_22_SEPTEMBER_2026 = 'https://pagopaspa.slack.com/archives/C064KJYNLPL/p1790086829253919';
 const INCIDENT_THREAD_01_OCTOBER_2026 = 'https://pagopaspa.slack.com/archives/C064KJYNLPL/p1790861502607049';
 const INCIDENT_LINKS = [
