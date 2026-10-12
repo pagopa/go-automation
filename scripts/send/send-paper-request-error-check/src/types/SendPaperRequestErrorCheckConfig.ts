@@ -133,7 +133,6 @@ export interface FetchTimelinesResult {
  * Interfaccia di configurazione principale dello script Send Paper Request Error Check
  */
 export interface SendPaperRequestErrorCheckConfig {
-
   /** Ambiente AWS di destinazione (dev, uat, test, prod, hotfix) */
   envName?: string;
 

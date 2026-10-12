@@ -180,9 +180,7 @@ export async function retrieveGlacierS3(
   const glacierItems = await filterGlacierEligibleItems(script, config, parsedItems);
 
   if (glacierItems.length === 0) {
-    logger.info(
-      'Nessun file AAR con notifica più vecchia di 1 anno da ripristinare da Glacier. Step completato.',
-    );
+    logger.info('Nessun file AAR con notifica più vecchia di 1 anno da ripristinare da Glacier. Step completato.');
     return {
       totalItems: 0,
       skippedByUser: false,

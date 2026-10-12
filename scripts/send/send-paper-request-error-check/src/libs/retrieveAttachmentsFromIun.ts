@@ -3,11 +3,7 @@ import { Core, AWS } from '@go-automation/go-common';
 import { getCoreDynamoDBService } from '../utils/awsClients.js';
 import type { SendPaperRequestErrorCheckConfig, RetrieveAttachmentsResult } from '../types/index.js';
 import { get, iunFromRid } from '../utils/get.js';
-import {
-  isNotificationOlderThanOneYear,
-  isNotificationExcluded,
-  type TimelineEvent,
-} from './verifyNotification.js';
+import { isNotificationOlderThanOneYear, isNotificationExcluded, type TimelineEvent } from './verifyNotification.js';
 
 /** Tabelle DynamoDB coinvolte */
 const NOTIFICATIONS_TABLE_NAME = 'pn-Notifications';
@@ -199,7 +195,7 @@ export async function retrieveAttachmentsFromIun(
       const attData = await retrieveNotificationAttachments(dynamoDbService, iun, attachmentsStream);
       const aarData = await retrieveAARs(dynamoDbService, iun, aarStream);
 
-      const effectiveSentAt = attData.sentAt || aarData.notificationSentAt;
+      const effectiveSentAt = attData.sentAt ?? aarData.notificationSentAt;
       const isOlder1Y = isNotificationOlderThanOneYear(effectiveSentAt);
       const exclusionResult = isNotificationExcluded(aarData.timelineEvents);
 

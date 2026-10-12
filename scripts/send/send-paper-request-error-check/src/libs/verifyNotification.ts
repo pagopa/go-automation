@@ -18,6 +18,7 @@ export interface ExclusionCheckResult {
   readonly eventTimestamp?: string | undefined;
 }
 
+// eslint-disable-next-line
 const REGEX_IUN_PATTERN = /(?:\w{4}-){3}\d{6}-\w-\d/;
 
 /**
@@ -118,8 +119,6 @@ export function isNotificationExcluded(
 export function processTimelines<
   T extends { readonly iun?: string | undefined; readonly timeline?: ReadonlyArray<TimelineEvent> | undefined },
 >(data: ReadonlyArray<T>, timestampThreshold: string): T[] {
-  console.log(`Elaborazione timeline con limite temporale 120gg: ${timestampThreshold}`);
-
   const cancelledOutput: string[] = [];
   const viewedOutput: string[] = [];
   const refinementOutput: string[] = [];
@@ -136,7 +135,7 @@ export function processTimelines<
 
     if (check.excluded) {
       let idToReport = item.iun;
-      for (const ev of timeline) {
+      for (const ev of timeline as { timelineElementId?: string }[]) {
         if (ev.timelineElementId) {
           const match = ev.timelineElementId.match(REGEX_IUN_PATTERN);
           if (match?.[0]) {
