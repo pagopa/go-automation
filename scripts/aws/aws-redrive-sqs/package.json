@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "description": "Redrives SQS messages - Moves messages from a source queue to a target queue.",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc -b",
