@@ -352,7 +352,7 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
       undefined,
       (_accountId, query) => {
         const row = [{ field: '@message', value: query }];
-        return query.includes(' or @requestId') ? Array.from({ length: 1000 }, () => row) : [row];
+        return (query.match(/@requestId = '/g) ?? []).length > 1 ? Array.from({ length: 1000 }, () => row) : [row];
       },
     );
     const requestIds = ['req-0', 'req-1', 'req-2', 'req-3'];
@@ -374,7 +374,7 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
       result.output?.map((row) => row.find((field) => field.field === '@message')?.value),
       requestIds.map(
         (requestId) =>
-          `fields @timestamp, @requestId, @message\n| filter @requestId = '${requestId}'\n| sort @timestamp asc\n| limit 1000`,
+          `fields @timestamp, @requestId, @message\n| filter (@requestId = '${requestId}' or @message like '${requestId}')\n| sort @timestamp asc\n| limit 1000`,
       ),
     );
   });
@@ -412,7 +412,7 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
       calls,
       undefined,
       undefined,
-      (_accountId, query) => (query.includes(' or @requestId') ? saturatedRows : [saturatedRow]),
+      (_accountId, query) => ((query.match(/@requestId = '/g) ?? []).length > 1 ? saturatedRows : [saturatedRow]),
     );
     (input.stepResults as Map<string, unknown>).set(
       'query-lambda-errors',

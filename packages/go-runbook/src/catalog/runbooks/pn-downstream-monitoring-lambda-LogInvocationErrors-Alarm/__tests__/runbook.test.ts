@@ -30,6 +30,8 @@ describe('pn-downstream-monitoring-lambda runbook', () => {
         name: 'pn-downstream-monitoring-lambda',
         logGroup: '/aws/lambda/pn-downstream-monitoring-lambda',
         varPrefix: 'downstreamMonitoring',
+        eventSource: 'cloudwatch-logs',
+        configuredTimeoutMs: 60_000,
       },
       downstreams: [],
       queryProfileId: 'send',
@@ -43,6 +45,7 @@ describe('pn-downstream-monitoring-lambda runbook', () => {
         'parse-lambda-errors',
         'query-lambda-invocation',
         'analyze-lambda-invocation',
+        'analyze-s3-recovery',
       ],
     );
   });

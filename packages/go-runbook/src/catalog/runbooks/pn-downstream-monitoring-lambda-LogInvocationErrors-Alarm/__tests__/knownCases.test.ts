@@ -64,4 +64,43 @@ describe('pn-downstream-monitoring-lambda known cases', () => {
       false,
     );
   });
+
+  it('accepts reordered JSON and requires exact keys, types and values', () => {
+    const knownCase = byId('downstream-monitoring-aws-slow-down');
+    const payload = {
+      $metadata: { httpStatusCode: 503 },
+      errorMessage: 'Please reduce your request rate.',
+      errorType: 'SlowDown',
+    };
+    const message = `ERROR Invoke Error ${JSON.stringify(payload)}`;
+    assert.strictEqual(evaluator.evaluate(knownCase.condition, contextWithError(message)), true);
+    for (const invalid of [
+      message.replace('503', '5030'),
+      message.replace('503', '503.5'),
+      message.replace('503', '"503"'),
+      message.replace('httpStatusCode', 'otherStatusCode'),
+      message.replace('errorType', 'otherErrorType'),
+      message.replace('SlowDown', 'SlowDownOther'),
+      message.replace('request rate.', 'request rate. Other error'),
+    ]) {
+      assert.strictEqual(evaluator.evaluate(knownCase.condition, contextWithError(invalid)), false, invalid);
+    }
+  });
+
+  it('distinguishes an S3 stack from an unidentified AWS SlowDown', () => {
+    const message = `ERROR Invoke Error ${JSON.stringify({
+      errorType: 'SlowDown',
+      errorMessage: 'Please reduce your request rate.',
+      $metadata: { httpStatusCode: 503 },
+      stack: ['at S3RestXmlProtocol.handleError (...)'],
+    })}`;
+    assert.strictEqual(
+      evaluator.evaluate(byId('downstream-monitoring-s3-slow-down').condition, contextWithError(message)),
+      true,
+    );
+    assert.strictEqual(
+      evaluator.evaluate(byId('downstream-monitoring-aws-slow-down').condition, contextWithError(message)),
+      false,
+    );
+  });
 });

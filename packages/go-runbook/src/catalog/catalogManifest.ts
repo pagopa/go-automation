@@ -12,6 +12,7 @@ import { DELIVERY_B2B_REGISTRATION } from './runbooks/pn-delivery-B2B-ApiGwAlarm
 import { DELIVERY_IO_EXP_REGISTRATION } from './runbooks/pn-delivery-IO_EXP-ApiGwAlarm/registration.js';
 import { DELIVERY_PUSH_B2B_REGISTRATION } from './runbooks/pn-delivery-push-B2B-ApiGwAlarm/registration.js';
 import { NATIONAL_REGISTRIES_PNPG_REGISTRATION } from './runbooks/pn-national-registries-PNPG-ApiGwAlarm/registration.js';
+import { BFF_INFO_PA_REGISTRATION } from './runbooks/pn-bff-WEB-noextension-InfoPa-comp-5xx-ApiGwAlarm/registration.js';
 
 // lambda
 import { IO_AUTHORIZER_LAMBDA_REGISTRATION } from './runbooks/pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/registration.js';
@@ -77,6 +78,7 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   DELIVERY_IO_EXP_REGISTRATION,
   DELIVERY_PUSH_B2B_REGISTRATION,
   NATIONAL_REGISTRIES_PNPG_REGISTRATION,
+  BFF_INFO_PA_REGISTRATION,
   // lambda
   IO_AUTHORIZER_LAMBDA_REGISTRATION,
   TOKEN_EXCHANGE_LAMBDA_REGISTRATION,

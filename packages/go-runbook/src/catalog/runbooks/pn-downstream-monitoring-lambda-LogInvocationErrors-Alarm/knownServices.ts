@@ -5,6 +5,8 @@ export const LAMBDA_FUNCTION: lambda.LambdaFunction = {
   name: 'pn-downstream-monitoring-lambda',
   logGroup: '/aws/lambda/pn-downstream-monitoring-lambda',
   varPrefix: 'downstreamMonitoring',
+  eventSource: 'cloudwatch-logs',
+  configuredTimeoutMs: 60_000,
 };
 
 /** The two production accounts that own the identically named Lambda log group. */
