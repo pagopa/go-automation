@@ -91,14 +91,9 @@ Questo file descrive i cluster e le regole da monitorare per ciascun profilo/amb
 ### Modalità Development (via pnpm/tsx)
 
 ```bash
-# Dalla root del monorepo
-pnpm aws:fetch:ecs:clusters:infos:dev
+# Da qualsiasi folder nel monorepo
+pnpm -w aws:fetch:ecs:clusters:infos:dev --config-file ./configs/<file.json> --aws-profiles <profile1>,...,<profileN>
 
-# Oppure con filter
-pnpm --filter=aws-fetch-ecs-clusters-infos dev
-
-# Con parametri
-pnpm aws:fetch:ecs:clusters:infos:dev -- --config-file configs/config.json --awsProfiles profile1
 ```
 
 ### Modalità Production (build + node)
@@ -108,20 +103,20 @@ pnpm aws:fetch:ecs:clusters:infos:dev -- --config-file configs/config.json --aws
 pnpm --filter=aws-fetch-ecs-clusters-infos build
 
 # Esecuzione
-pnpm --filter=aws-fetch-ecs-clusters-infos start
+pnpm --filter=aws-fetch-ecs-clusters-infos start --config-file ./configs/<file.json> --aws-profiles <profile1>,...,<profileN>
 
 # Oppure direttamente
-node dist/index.js --config-file configs/config.json --awsProfiles profile1
+node dist/index.js --config-file ./configs/<file.json> --aws-profiles <profile1>,...,<profileN>
 ```
 
 ### Esempi Pratici
 
 ```bash
 # Esempio 1: Caso d'uso comune
-pnpm aws:fetch:ecs:clusters:infos:dev -- --config-file configs/config.json --awsProfiles uat-profile
+pnpm -w aws:fetch:ecs:clusters:infos:dev --config-file ./configs/<file.json> --aws-profiles <profile1>,...,<profileN>
 
 # Esempio 2: Esecuzione di produzione diretta
-node dist/index.js --config-file configs/config.json --awsProfiles prod-profile
+node dist/index.js --config-file ./configs/<file.json> --aws-profiles <profile1>,...,<profileN>
 ```
 
 ## Output
