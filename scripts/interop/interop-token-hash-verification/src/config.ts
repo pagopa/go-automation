@@ -12,7 +12,7 @@ import { Core } from '@go-automation/go-common';
 export const scriptMetadata: Core.GOScriptMetadata = {
   name: 'Interop Verifica Hash Token',
   version: '1.0.0',
-  description: "Verifica hash dei token per l'allarme interop-be-audit-signer",
+  description: "Verifica hash dei token per gli allarmi audit-signer",
   authors: ['Team GO - Gestione Operativa'],
 };
 
@@ -130,5 +130,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     required: true,
     aliases: ['eu'],
     envVar: 'END_UTC',
+  },
+  {
+    name: 'm2m',
+    type: Core.GOConfigParameterType.BOOL,
+    description: 'End time in UTC (format: YYYY-MM-DD HH:MM:SS or ISO 8601)',
+    required: false,
+    default: false,
+    aliases: ['mm'],
+    envVar: 'IS_M2M',
   },
 ] as const;

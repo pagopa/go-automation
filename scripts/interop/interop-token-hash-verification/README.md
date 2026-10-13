@@ -2,7 +2,7 @@
 
 > Versione: 1.0.0 | Autore: Team GO - Gestione Operativa
 
-Script per la verifica dell'integrità e dell'hash dei token per l'allarme `interop-be-audit-signer`.
+Script per la verifica dell'integrità e dell'hash dei token per gli allarmi sui ms `k8s-interop-be-audit-signer-errors` e `k8s-interop-be-m2m-audit-signer-errors`.
 
 ## Indice
 
@@ -23,7 +23,8 @@ Lo script automatizza il flusso di verifica dell'integrità dei token firmati:
    specifici dell'applicazione `interop-be-audit-signer` nell'intervallo temporale impostato.
 2. **Identificazione File**: Esegue una seconda query CloudWatch filtrata per il `CID` trovato, identificando il nome
    del file del token registrato.
-3. **Download da S3**: Scarica da Amazon S3 sia il file token originale (`.ndjson`) sia quello firmato PKCS#7 (`.p7m`).
+3. **Download da S3**: Controlla se è presente la stringa m2m all'interno del Cloudwatch Log Group e scarica da Amazon
+   S3 sia il file token originale (`.ndjson`) sia quello firmato PKCS#7 (`.p7m`) dal bucket corrispondente.
 4. **Estrazione del contenuto**: Estrae il contenuto PKCS#7 dal `.p7m` tramite `node-forge` e decomprime lo ZIP
    risultante. Non verifica la firma digitale né la catena dei certificati e non esegue una decrittografia.
 5. **Verifica dell'Hash**: Calcola l'hash SHA-256 di entrambi i file tramite streaming Node.js e li confronta per
@@ -31,7 +32,8 @@ Lo script automatizza il flusso di verifica dell'integrità dei token firmati:
 
 Le query predefinite scelgono il primo CID della finestra (`limit 1`) e il primo filename trovato fra i messaggi
 `Getting file` correlati. Una singola esecuzione verifica soltanto quel file. Per un incidente con più CID o file,
-circoscrivere le query e ripetere la verifica per ciascuno; l'uguaglianza di un file non dimostra il recupero degli altri.
+circoscrivere le query e ripetere la verifica per ciascuno; l'uguaglianza di un file non dimostra il recupero degli
+altri.
 Senza CID usare la procedura manuale del runbook, correlando filename, timestamp e pod.
 
 ---
@@ -41,7 +43,7 @@ Senza CID usare la procedura manuale del runbook, correlando filename, timestamp
 ### Software Richiesto
 
 | Software | Versione Minima | Note                      |
-| -------- | --------------- | ------------------------- |
+|----------|-----------------|---------------------------|
 | Node.js  | >= 22.14.0      | Versione LTS del monorepo |
 | pnpm     | >= 10.28.0      | Package manager           |
 
@@ -67,7 +69,7 @@ configurazione/presets.
 ### Parametri CLI e Variabili d'Ambiente
 
 | Parametro CLI             | Alias | Variabile d'Ambiente    | Obbligatorio | Default                                         | Descrizione                                                                                          |
-| ------------------------- | ----- | ----------------------- | ------------ | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+|---------------------------|-------|-------------------------|--------------|-------------------------------------------------|------------------------------------------------------------------------------------------------------|
 | `--aws-profile`           | `-ap` | -                       | **Sì**       | -                                               | Nome del profilo AWS SSO                                                                             |
 | `--aws-region`            | `-ar` | -                       | No           | `eu-south-1`                                    | Regione AWS                                                                                          |
 | `--cw-log-group`          | `-lg` | `CW_LOG_GROUP`          | **Sì**       | -                                               | Log group di CloudWatch                                                                              |
@@ -79,6 +81,7 @@ configurazione/presets.
 | `--s3-prefix-p7m`         | `-pp` | `S3_PREFIX_P7M`         | No           | `token-details`                                 | Prefisso S3 per file P7M                                                                             |
 | `--start-utc`             | `-su` | `START_UTC`             | **Sì**       | -                                               | Data d'inizio in UTC (`YYYY-MM-DD HH:MM:SS` o ISO 8601)                                              |
 | `--end-utc`               | `-eu` | `END_UTC`               | **Sì**       | -                                               | Data di fine in UTC (`YYYY-MM-DD HH:MM:SS` o ISO 8601)                                               |
+| `--m2m`                   | `-mm` | `END_UTC`               | **No**       | false                                           | Valore usato per verificare il tipo di processo se M2M oppure no                                     |
 
 ### Preset di Configurazione (Consigliato)
 

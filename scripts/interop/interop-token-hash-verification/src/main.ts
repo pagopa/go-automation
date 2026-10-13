@@ -41,8 +41,17 @@ export async function main(script: Core.GOScript): Promise<void> {
   const end = parseUtcDate(config.endUtc);
   const timeRange = { start, end };
 
-  const cwQueryApplication = config.cwQueryApplication ?? DEFAULT_CW_QUERY_APPLICATION;
+  let cwQueryApplication = config.cwQueryApplication ?? DEFAULT_CW_QUERY_APPLICATION;
   const cwQueryCid = config.cwQueryCid ?? DEFAULT_CW_QUERY_CID;
+
+  let s3BucketNameP7m = config.s3BucketNameP7m;
+  let s3BucketNameNdjson = config.s3BucketNameNdjson;
+
+  if (config.isM2M) {
+    cwQueryApplication = cwQueryApplication.replace('interop-be-audit-signer', 'interop-be-m2m-audit-signer');
+    s3BucketNameP7m = s3BucketNameP7m.replace('jwt', 'm2m-jwt');
+    s3BucketNameNdjson = s3BucketNameNdjson.replace('jwt', 'm2m-jwt');
+  }
 
   // 1. First CloudWatch query to find CID
   script.logger.section('Executing first CloudWatch query...');
@@ -87,17 +96,18 @@ export async function main(script: Core.GOScript): Promise<void> {
   const localPureNdjsonPath = path.join(outputDir, 'token_original.ndjson');
 
   script.logger.section('Downloading files from S3...');
-  script.logger.step(`S3 Bucket (P7M): ${config.s3BucketNameP7m}`);
+  script.logger.step(`S3 Bucket (P7M): ${s3BucketNameP7m}`);
   script.logger.step(`S3 Key (P7M): ${s3KeyP7m}`);
   script.prompt.startSpinner('Downloading P7M file...');
-  await script.aws.services.s3.downloadToFile(config.s3BucketNameP7m, s3KeyP7m, localP7mPath);
+
+  await script.aws.services.s3.downloadToFile(s3BucketNameP7m, s3KeyP7m, localP7mPath);
   script.prompt.stopSpinner();
   script.logger.info(`Downloaded signed P7M to: ${localP7mPath}`);
 
-  script.logger.step(`S3 Bucket (NDJSON): ${config.s3BucketNameNdjson}`);
+  script.logger.step(`S3 Bucket (NDJSON): ${s3BucketNameNdjson}`);
   script.logger.step(`S3 Key (NDJSON): ${s3KeyNdjson}`);
   script.prompt.startSpinner('Downloading NDJSON file...');
-  await script.aws.services.s3.downloadToFile(config.s3BucketNameNdjson, s3KeyNdjson, localPureNdjsonPath);
+  await script.aws.services.s3.downloadToFile(s3BucketNameNdjson, s3KeyNdjson, localPureNdjsonPath);
   script.prompt.stopSpinner();
   script.logger.info(`Downloaded original NDJSON to: ${localPureNdjsonPath}`);
 

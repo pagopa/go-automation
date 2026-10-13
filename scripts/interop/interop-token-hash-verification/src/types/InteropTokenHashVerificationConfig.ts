@@ -25,4 +25,6 @@ export interface InteropTokenHashVerificationConfig {
   readonly startUtc: string;
   /** End time in UTC */
   readonly endUtc: string;
+  /** Boolean for M2M check */
+  readonly isM2M: string;
 }
