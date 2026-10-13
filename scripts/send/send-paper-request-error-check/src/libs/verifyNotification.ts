@@ -8,12 +8,6 @@ export interface TimelineEvent {
   timelineElementId?: string;
 }
 
-export interface JsonItem {
-  iun?: string;
-  timeline?: TimelineEvent[];
-  [key: string]: unknown;
-}
-
 export interface ExclusionCheckResult {
   readonly excluded: boolean;
   readonly reason?: 'CANCELLED' | 'VIEWED_OVER_120D' | 'REFINEMENT_OVER_120D' | undefined;
@@ -46,7 +40,7 @@ export function isNotificationOlderThanOneYear(sentAt?: string, referenceDate: D
  * @param referenceDate - Data di riferimento opzionale (default: now)
  * @returns Stringa ISO in formato YYYY-MM-DD o ISO string
  */
-export function get120DaysThresholdIso(referenceDate: Date = new Date()): string {
+function get120DaysThresholdIso(referenceDate: Date = new Date()): string {
   const threshold = new Date(referenceDate);
   threshold.setDate(threshold.getDate() - 120);
   return threshold.toISOString();

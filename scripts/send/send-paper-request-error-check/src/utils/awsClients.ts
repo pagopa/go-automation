@@ -7,14 +7,14 @@ import type { SendPaperRequestErrorCheckConfig } from '../types/index.js';
 /**
  * Risolve il nome del profilo Core a partire dall'ambiente o dalla configurazione.
  */
-export function getCoreProfile(config: SendPaperRequestErrorCheckConfig): string {
+function getCoreProfile(config: SendPaperRequestErrorCheckConfig): string {
   return config.awsProfileCore ?? `sso_pn-core-${config.envName ?? 'dev'}`;
 }
 
 /**
  * Risolve il nome del profilo Confinfo a partire dall'ambiente o dalla configurazione.
  */
-export function getConfinfoProfile(config: SendPaperRequestErrorCheckConfig): string {
+function getConfinfoProfile(config: SendPaperRequestErrorCheckConfig): string {
   return config.awsProfileConfinfo ?? `sso_pn-confinfo-${config.envName ?? 'dev'}`;
 }
 
@@ -27,20 +27,9 @@ export function getConfinfoS3Client(script: Core.GOScript, config: SendPaperRequ
 }
 
 /**
- * Ottiene il servizio S3 associato al profilo Confinfo.
- */
-export function getConfinfoS3Service(
-  script: Core.GOScript,
-  config: SendPaperRequestErrorCheckConfig,
-): AWS.AWSS3Service {
-  const s3Client = getConfinfoS3Client(script, config);
-  return new AWS.AWSS3Service(s3Client);
-}
-
-/**
  * Ottiene il client DynamoDB associato al profilo Core.
  */
-export function getCoreDynamoDBClient(script: Core.GOScript, config: SendPaperRequestErrorCheckConfig): DynamoDBClient {
+function getCoreDynamoDBClient(script: Core.GOScript, config: SendPaperRequestErrorCheckConfig): DynamoDBClient {
   const coreProfile = getCoreProfile(config);
   return script.aws.clients.get(coreProfile).dynamoDB;
 }

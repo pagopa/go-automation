@@ -19,7 +19,7 @@ interface GlacierItem {
 /**
  * Verifica se una chiave file appartiene a un documento AAR (Avviso di Avvenuta Ricezione).
  */
-export function isAarFileKey(fileKey: string): boolean {
+function isAarFileKey(fileKey: string): boolean {
   const upper = fileKey.toUpperCase();
   return upper.includes('AAR') || upper.includes('LEGAL_FACT');
 }
