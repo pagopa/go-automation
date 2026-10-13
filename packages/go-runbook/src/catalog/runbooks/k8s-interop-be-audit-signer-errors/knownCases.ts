@@ -22,7 +22,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       'In Prod scaricare l’originale da interop-generated-jwt-details-prod-es1, chiave token-details/<YYYYMMDD>/<file>.ndjson, ' +
       'e il corrispondente .ndjson.zip.p7m da interop-signed-jwt-audit-v2-prod-es1. ' +
       'Estrarre il contenuto PKCS#7, decomprimere lo ZIP e confrontare l’hash dell’NDJSON estratto con quello originale ' +
-      '(script interop-verifica-hash-token disponibile nel repository). ' +
+      '(script interop-token-hash-verification disponibile nel repository). ' +
       'Documentare bucket, chiavi e hash per ogni file interessato: solo la corrispondenza dei contenuti del file corretto ' +
       'consente di considerare il caso transitorio e recuperato secondo il runbook. ' +
       'L’estrazione e il confronto non attestano la validità della firma o del certificato. ' +

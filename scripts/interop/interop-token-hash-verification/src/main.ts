@@ -19,7 +19,7 @@ import {
   verifyFileHashes,
 } from './libs/index.js';
 import type { FileHashes } from './libs/index.js';
-import type { InteropVerificaHashTokenConfig } from './types/index.js';
+import type { InteropTokenHashVerificationConfig } from './types/index.js';
 
 const EXTRACT_FIELD = '@message';
 
@@ -35,7 +35,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.section('Starting Interop Verifica Hash Token');
 
   // Load configuration
-  const config = await script.getConfiguration<InteropVerificaHashTokenConfig>();
+  const config = await script.getConfiguration<InteropTokenHashVerificationConfig>();
 
   const start = parseUtcDate(config.startUtc);
   const end = parseUtcDate(config.endUtc);

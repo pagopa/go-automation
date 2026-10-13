@@ -2,7 +2,7 @@
  * Script configuration interface
  * Represents all validated configuration parameters
  */
-export interface InteropVerificaHashTokenConfig {
+export interface InteropTokenHashVerificationConfig {
   /** AWS profile name */
   readonly awsProfile: string;
   /** AWS region */

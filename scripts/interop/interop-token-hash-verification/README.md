@@ -128,7 +128,7 @@ pnpm interop:verifica:hash:token:dev -- \
 Compilare prima lo script:
 
 ```bash
-pnpm --filter=interop-verifica-hash-token build
+pnpm --filter=interop-token-hash-verification build
 ```
 
 Eseguire lo script compilato:
@@ -144,7 +144,7 @@ pnpm interop:verifica:hash:token:prod --script-preset-name <nome-script-preset> 
 ### File Generati
 
 Durante l'esecuzione, lo script crea una cartella dedicata per l'output in:
-`data/interop-verifica-hash-token/outputs/interop-verifica-hash-token_{timestamp}/`
+`data/interop-token-hash-verification/outputs/interop-token-hash-verification_{timestamp}/`
 
 Al suo interno vengono scaricati ed estratti i seguenti file per le verifiche:
 
@@ -179,15 +179,15 @@ Verifica hash dei token per l'allarme interop-be-audit-signer
   - S3 Bucket (P7M): interop-signed-jwt-audit-v2-test-es1
   - S3 Key (P7M): token-details/7db928cf-2b81-42e6-a05c-dfb7c2512f45.ndjson.zip.p7m
   [SPINNER] Downloading P7M file...
-  Downloaded signed P7M to: C:\Users\...\data\interop-verifica-hash-token\outputs\...\token1.ndjson.zip.p7m
+  Downloaded signed P7M to: C:\Users\...\data\interop-token-hash-verification\outputs\...\token1.ndjson.zip.p7m
   - S3 Bucket (NDJSON): interop-generated-jwt-details-test-es1
   - S3 Key (NDJSON): token-details/7db928cf-2b81-42e6-a05c-dfb7c2512f45.ndjson
   [SPINNER] Downloading NDJSON file...
-  Downloaded original NDJSON to: C:\Users\...\data\interop-verifica-hash-token\outputs\...\token_original.ndjson
+  Downloaded original NDJSON to: C:\Users\...\data\interop-token-hash-verification\outputs\...\token_original.ndjson
 
 > Unpacking and extracting .p7m file...
   [SPINNER] Extracting PKCS#7 content and unzipping...
-  Extracted signed NDJSON content to: C:\Users\...\data\interop-verifica-hash-token\outputs\...\extracted_token1.ndjson
+  Extracted signed NDJSON content to: C:\Users\...\data\interop-token-hash-verification\outputs\...\extracted_token1.ndjson
 
 > Verifying SHA-256 hashes...
   [SPINNER] Calculating hashes...
