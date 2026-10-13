@@ -2,8 +2,9 @@ import { ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM } from '../alarmDefinitio
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { resolveOccurrenceTimeWindow } from '../../../computeRunbookTimeRange.js';
+import { computeRunbookTimeRange, resolveOccurrenceTimeWindow } from '../../../computeRunbookTimeRange.js';
 import { service } from '../../framework.js';
+import { assertCloudExecutableRunbook } from '../../../../validation/assertCloudExecutableRunbook.js';
 
 import { buildRunbook } from '../runbook.js';
 
@@ -23,6 +24,7 @@ describe('buildRunbook', () => {
       ],
     );
     assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
+    assert.doesNotThrow(() => assertCloudExecutableRunbook(runbook));
     assert.ok(service.isServiceRunbookContext(runbook.runbookContext));
     assert.strictEqual(runbook.runbookContext.service.name, ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_ALARM.podApp);
   });
@@ -43,10 +45,14 @@ describe('buildRunbook', () => {
     });
   });
 
-  it('uses the catalog 5/5 occurrence window because the source page declares none', () => {
+  it('uses the documented 5/1 occurrence window instead of the catalog 5/5 default', () => {
     const runbook = buildRunbook();
 
-    assert.strictEqual(runbook.occurrenceTimeWindow, undefined);
-    assert.deepStrictEqual(resolveOccurrenceTimeWindow(runbook), { beforeMinutes: 5, afterMinutes: 5 });
+    assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 5, afterMinutes: 1 });
+    assert.deepStrictEqual(resolveOccurrenceTimeWindow(runbook), { beforeMinutes: 5, afterMinutes: 1 });
+    assert.deepStrictEqual(computeRunbookTimeRange(runbook, { kind: 'single', at: '2026-09-30T10:00:00Z' }), {
+      startTime: '2026-09-30T09:55:00.000Z',
+      endTime: '2026-09-30T10:01:00.000Z',
+    });
   });
 });

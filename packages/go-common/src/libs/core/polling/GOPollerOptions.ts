@@ -24,7 +24,7 @@ export interface GOPollerOptions {
   /**
    * Backoff strategy. Default `GOBackoff.exponential()`.
    *
-   * Must be a pure function — see EVO-POLL-OPUS-01 §7.9.
+   * Must be a pure function
    */
   readonly backoff?: GOBackoffFn;
 

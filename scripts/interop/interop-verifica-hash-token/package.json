@@ -13,6 +13,7 @@
     "build": "tsc",
     "start": "pnpm build && node dist/index.js",
     "dev": "tsx src/index.ts",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
     "watch": "tsc --watch",
     "clean": "rm -rf dist *.tsbuildinfo"
   },
@@ -21,7 +22,7 @@
     "go-automation"
   ],
   "author": "Team GO - Gestione Operativa",
-  "license": "ISC",
+  "license": "EUPL-1.2",
   "dependencies": {
     "@go-automation/go-common": "workspace:*",
     "node-forge": "catalog:",

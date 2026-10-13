@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "description": "Shared TypeScript types and JSON Schema contracts for the automatic runbook catalog and execute-runbook queue registry, consumed by the watchtower-alarm-analysis SST infrastructure and its deployment tooling.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [

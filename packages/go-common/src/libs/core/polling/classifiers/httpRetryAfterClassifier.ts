@@ -6,7 +6,7 @@ import type { GORetryClassifier } from '../GORetryClassifier.js';
  * a server-driven delay if the error carries `retryAfterMs`.
  *
  * Replaces the legacy pattern of a backoff factory with a mutable `withRetryAfter`
- * setter (see EVO-POLL-OPUS-01 §7.9): the override is veicolato dal classifier
+ * setter: the override is veicolato dal classifier
  * stesso come `GORetryAdvice.delayMs`, never via shared mutable state.
  *
  * The error must expose:

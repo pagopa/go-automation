@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "description": "Receives the Slack /goai slash command and invokes go-AILambda asynchronously with the response URL.",
   "scripts": {
     "test-build": "echo 'Skipping CodeBuild packaging for this function'",
     "build": "node esbuild.config.mjs",

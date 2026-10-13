@@ -153,27 +153,21 @@ describe('service runbook known cases', () => {
     ]);
   });
 
-  it('matches IPA 404 responses as a completed known case without operational action', () => {
-    const knownCase = knownCaseById(IPA_DOWNSTREAM_CASES, 'ipa-known-response-404');
-
+  it('leaves IPA 404 responses uncensused, as the source only documents 503 and premature closure', () => {
     for (const message of [
       '[DOWNSTREAM] Service IPA returned errors=404',
       '[DOWNSTREAM] Service IPA returned errors=404 Not Found from POST https://www.indicepa.gov.it/example',
     ]) {
       assert.strictEqual(
-        evaluator.evaluate(
-          knownCase.condition,
-          ctx({ stepResults: [['query-pn-national-registries', [cwRow({ '@message': message })]]] }),
+        IPA_DOWNSTREAM_CASES.some(({ condition }) =>
+          evaluator.evaluate(
+            condition,
+            ctx({ stepResults: [['query-pn-national-registries', [cwRow({ '@message': message })]]] }),
+          ),
         ),
-        true,
+        false,
       );
     }
-    assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.IPA]);
-    assert.strictEqual(knownCase.analysis?.proposedStatus, 'COMPLETED');
-    assert.strictEqual(knownCase.analysis?.analysisType, 'ANALYZABLE');
-    assert.deepStrictEqual(knownCase.analysis?.finalActions, [
-      'Analisi conclusa in autonomia dal team di GO. Non è necessario altro confronto',
-    ]);
   });
 
   it('does not treat INAD or a different IPA status as the documented case', () => {
@@ -195,7 +189,12 @@ describe('service runbook known cases', () => {
 
   it('uses the canonical IPA query and includes HTTP 404', () => {
     // No status code is excluded here: every IPA failure counts.
-    assert.deepStrictEqual(IPA_DOWNSTREAM, { kind: 'named', name: SEND_DOWNSTREAMS.IPA });
+    assert.deepStrictEqual(IPA_DOWNSTREAM, {
+      kind: 'named',
+      name: SEND_DOWNSTREAMS.IPA,
+      errorLevelOnly: true,
+      matchStructuredMessage: true,
+    });
   });
 
   it('matches AdE HTTP 500 and both timeout variants, mapping the specialized downstream', () => {
@@ -295,11 +294,6 @@ describe('service runbook known cases', () => {
   it('matches the additional transient INAD failures observed in production', () => {
     const cases: ReadonlyArray<readonly [string, string]> = [
       [
-        'inad-digital-domicile-internal-server-error-500',
-        '[DOWNSTREAM] Service INAD returned errors=500 Internal Server Error from GET ' +
-          'https://api.inad.gov.it/rest/inad/v1/domiciliodigitale/extract/RKASLN96R24C219Z',
-      ],
-      [
         'inad-connect-timeout',
         '[DOWNSTREAM] Service INAD returned errors=connection timed out after 3000 ms: ' +
           'api.inad.gov.it/80.82.15.226:443',
@@ -322,6 +316,148 @@ describe('service runbook known cases', () => {
       assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.INAD]);
       assert.strictEqual(knownCase.analysis?.proposedStatus, 'COMPLETED');
     }
+  });
+
+  it('keeps the INAD 500 open against its 02/10/2026 report', () => {
+    const knownCase = knownCaseById(INAD_DOWNSTREAM_CASES, 'inad-digital-domicile-internal-server-error-500');
+    const message =
+      '[DOWNSTREAM] Service INAD returned errors=500 Internal Server Error from GET ' +
+      'https://api.inad.gov.it/rest/inad/v1/domiciliodigitale/extract/RKASLN96R24C219Z';
+
+    assert.strictEqual(
+      evaluator.evaluate(
+        knownCase.condition,
+        ctx({ stepResults: [['query-pn-national-registries', [cwRow({ '@message': message })]]] }),
+      ),
+      true,
+    );
+    assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.INAD]);
+    // La pagina riporta solo una segnalazione aperta: non si puo' dichiarare l'analisi conclusa.
+    assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
+    assert.strictEqual(knownCase.analysis?.links?.length, 1);
+  });
+
+  it('matches the IPA connection-prematurely-closed signature of the documented row', () => {
+    const knownCase = knownCaseById(IPA_DOWNSTREAM_CASES, 'ipa-connection-prematurely-closed');
+
+    assert.strictEqual(
+      evaluator.evaluate(
+        knownCase.condition,
+        ctx({
+          stepResults: [
+            [
+              'query-pn-national-registries',
+              [
+                cwRow({
+                  '@message': '[DOWNSTREAM] Service IPA returned errors=Connection prematurely closed BEFORE response',
+                }),
+              ],
+            ],
+          ],
+        }),
+      ),
+      true,
+    );
+    assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.IPA]);
+  });
+
+  it('does not broaden the IPA premature-closure signature to other downstreams or invalid suffixes', () => {
+    const knownCase = knownCaseById(IPA_DOWNSTREAM_CASES, 'ipa-connection-prematurely-closed');
+    for (const message of [
+      '[DOWNSTREAM] Service INAD returned errors=Connection prematurely closed BEFORE response',
+      '[DOWNSTREAM] Service IPA returned errors=Connection prematurely closed BEFORE responses',
+      '[DOWNSTREAM] Service IPA returned errors=Connection prematurely closed AFTER response',
+    ]) {
+      assert.strictEqual(
+        evaluator.evaluate(
+          knownCase.condition,
+          ctx({ stepResults: [['query-pn-national-registries', [cwRow({ '@message': message })]]] }),
+        ),
+        false,
+      );
+    }
+  });
+
+  it('maps the InfoCamere legal-representative 500 to its own census downstream', () => {
+    const knownCase = knownCaseById(
+      INFOCAMERE_DOWNSTREAM_CASES,
+      'infocamere-legal-representative-internal-server-error-500',
+    );
+    const message =
+      '[DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error from GET ' +
+      'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/listaLegaleRappresentante/ABCDEF12G34H567I;' +
+      '{"code":"WSPA_ERR_00","appName":"wspa-lref","description":"Internal Server Error!"}';
+
+    assert.strictEqual(
+      evaluator.evaluate(
+        knownCase.condition,
+        ctx({ stepResults: [['query-pn-national-registries', [cwRow({ '@message': message })]]] }),
+      ),
+      true,
+    );
+    assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.ELENCO_LEGALE_RAPPRESENTANTE_INFOCAMERE]);
+  });
+
+  it('recognizes the InfoCamere signature with masked identifiers and JSON logs', () => {
+    const knownCase = knownCaseById(
+      INFOCAMERE_DOWNSTREAM_CASES,
+      'infocamere-legal-representative-internal-server-error-500',
+    );
+    const message =
+      '[DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error from GET ' +
+      'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/listaLegaleRappresentante/***;' +
+      '{"appName": "wspa-lref", "description": "Internal Server Error!", "code": "WSPA_ERR_00"}';
+    const fieldSets: ReadonlyArray<Record<string, string>> = [
+      { message },
+      { '@message': JSON.stringify({ message, level: 'ERROR' }) },
+    ];
+    for (const fields of fieldSets) {
+      assert.strictEqual(
+        evaluator.evaluate(
+          knownCase.condition,
+          ctx({ stepResults: [['query-pn-national-registries', [cwRow(fields)]]] }),
+        ),
+        true,
+      );
+    }
+  });
+
+  it('requires the documented InfoCamere error code and appName in the same event', () => {
+    const knownCase = knownCaseById(
+      INFOCAMERE_DOWNSTREAM_CASES,
+      'infocamere-legal-representative-internal-server-error-500',
+    );
+    const request =
+      '[DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error from GET ' +
+      'https://icapis.infocamere.it/ic/pe/wspa/wspa/rest/listaLegaleRappresentante/TEST-CF;';
+    for (const body of [
+      '',
+      '{"code":"OTHER_ERROR","appName":"wspa-lref"}',
+      '{"code":"WSPA_ERR_00_OTHER","appName":"wspa-lref"}',
+      '{"code":"WSPA_ERR_00","appName":"other-app"}',
+    ]) {
+      assert.strictEqual(
+        evaluator.evaluate(
+          knownCase.condition,
+          ctx({ stepResults: [['query-pn-national-registries', [cwRow({ message: request + body })]]] }),
+        ),
+        false,
+      );
+    }
+    assert.strictEqual(
+      evaluator.evaluate(
+        knownCase.condition,
+        ctx({
+          stepResults: [
+            [
+              'query-pn-national-registries',
+              [cwRow({ message: request }), cwRow({ message: '{"code":"WSPA_ERR_00","appName":"wspa-lref"}' })],
+            ],
+          ],
+        }),
+      ),
+      false,
+    );
   });
 
   it('matches every documented ANPR response and maps the ANPR downstream', () => {
@@ -587,7 +723,12 @@ describe('service runbook known cases', () => {
     // The three below emit a name the census does not use: keeping both makes
     // the query follow the log while the analysis annotation stays checkable.
     assert.deepStrictEqual(ANPR_DOWNSTREAM, { kind: 'named', name: SEND_DOWNSTREAMS.ANPR });
-    assert.deepStrictEqual(INFOCAMERE_DOWNSTREAM, { kind: 'named', name: SEND_DOWNSTREAMS.INFOCAMERE });
+    assert.deepStrictEqual(INFOCAMERE_DOWNSTREAM, {
+      kind: 'named',
+      name: SEND_DOWNSTREAMS.INFOCAMERE,
+      errorLevelOnly: true,
+      matchStructuredMessage: true,
+    });
     assert.deepStrictEqual(ADE_DOWNSTREAM, { kind: 'named', name: SEND_DOWNSTREAMS.ADE });
     assert.deepStrictEqual(ONE_TRUST_DOWNSTREAM, {
       kind: 'named',
@@ -619,12 +760,15 @@ describe('service runbook known cases', () => {
       buildNationalRegistriesAnprDownstreamDetectionAlarmRunbook(),
       buildNationalRegistriesInfoCamereDownstreamDetectionAlarmRunbook(),
       buildNationalRegistriesInadDownstreamDetectionAlarmRunbook(),
-      buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook(),
       buildAddressManagerPostelDownstreamDetectionAlarmRunbook(),
       buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook(),
     ]) {
       assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 10, afterMinutes: 5 });
     }
+    assert.deepStrictEqual(buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook().occurrenceTimeWindow, {
+      beforeMinutes: 30,
+      afterMinutes: 5,
+    });
     assert.deepStrictEqual(buildNationalRegistriesAdeDownstreamDetectionAlarmRunbook().occurrenceTimeWindow, {
       beforeMinutes: 30,
       afterMinutes: 5,

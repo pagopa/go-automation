@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="850" viewBox="0 0 1600 850" role="img" aria-labelledby="title desc">
+  <title id="title">Runbook Automation — architettura cloud AWS</title>
+  <desc id="desc">Gli allarmi CloudWatch degli account SEND e INTEROP vengono inoltrati alla coda SQS go-alarms-queue nell'account pn-analytics. La coda attiva la Lambda go-execute-runbook, che cerca il runbook associato, consulta i log sorgente tramite CloudWatch Cross-Account Observability e salva l'analisi in Amazon RDS. Watchtower rende consultabili le analisi.</desc>
+  <defs>
+    <style>
+      text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .title { fill: #17243c; font-size: 35px; font-weight: 750; letter-spacing: -1px; }
+      .subtitle { fill: #65748b; font-size: 16px; }
+      .group-title { fill: #22314d; font-size: 19px; font-weight: 700; }
+      .group-sub { fill: #748198; font-size: 13px; }
+      .service { fill: #16243d; font-size: 20px; font-weight: 720; }
+      .service-small { fill: #16243d; font-size: 18px; font-weight: 720; }
+      .detail { fill: #65748b; font-size: 14px; }
+      .eyebrow { font-size: 12px; font-weight: 750; letter-spacing: 1.1px; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .line-label { fill: #506078; font-size: 13px; font-weight: 650; }
+    </style>
+    <filter id="shadow" x="-20%" y="-30%" width="140%" height="170%">
+      <feDropShadow dx="0" dy="7" stdDeviation="12" flood-color="#203454" flood-opacity="0.09"/>
+    </filter>
+    <marker id="blue-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L9 5 L1 9 Z" fill="#3b70d5"/></marker>
+    <marker id="teal-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L9 5 L1 9 Z" fill="#1f9d96"/></marker>
+    <marker id="violet-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L9 5 L1 9 Z" fill="#7b61c8"/></marker>
+  </defs>
+
+  <rect width="1600" height="850" fill="#f7f9fc"/>
+  <rect x="0" y="0" width="1600" height="9" fill="#f59e0b"/>
+  <text x="60" y="78" class="title">Runbook Automation</text>
+  <text x="61" y="109" class="subtitle">Architettura cloud AWS · dal segnale di allarme all'analisi consultabile</text>
+
+  <!-- Confini degli account -->
+  <rect x="58" y="160" width="398" height="568" rx="23" fill="#eef4ff" stroke="#b9d0f6" stroke-width="2"/>
+  <text x="82" y="198" class="group-title">Account sorgente</text>
+  <text x="82" y="222" class="group-sub">Ambienti SEND e INTEROP</text>
+
+  <rect x="505" y="160" width="1037" height="568" rx="23" fill="#fff" stroke="#f3c778" stroke-width="2"/>
+  <rect x="505" y="160" width="1037" height="57" rx="23" fill="#fff6e8"/>
+  <path d="M505 194 H1542 V217 H505 Z" fill="#fff6e8"/>
+  <text x="532" y="197" class="group-title">pn-analytics</text>
+  <text x="1498" y="196" text-anchor="end" class="group-sub">account di monitoraggio</text>
+
+  <!-- SEND -->
+  <g filter="url(#shadow)">
+    <rect x="82" y="254" width="345" height="150" rx="17" fill="#fff" stroke="#d5e1f3"/>
+  </g>
+  <rect x="82" y="254" width="7" height="150" rx="3.5" fill="#3b70d5"/>
+  <text x="108" y="286" class="eyebrow" fill="#3b70d5">ACCOUNT / AMBIENTE</text>
+  <text x="108" y="316" class="service">SEND</text>
+  <circle cx="115" cy="348" r="5" fill="#3b70d5"/>
+  <text x="130" y="353" class="detail">CloudWatch Alarms</text>
+  <circle cx="115" cy="380" r="5" fill="#1f9d96"/>
+  <text x="130" y="385" class="detail">CloudWatch Logs</text>
+
+  <!-- INTEROP -->
+  <g filter="url(#shadow)">
+    <rect x="82" y="460" width="345" height="150" rx="17" fill="#fff" stroke="#d5e1f3"/>
+  </g>
+  <rect x="82" y="460" width="7" height="150" rx="3.5" fill="#3b70d5"/>
+  <text x="108" y="492" class="eyebrow" fill="#3b70d5">ACCOUNT / AMBIENTE</text>
+  <text x="108" y="522" class="service">INTEROP</text>
+  <circle cx="115" cy="554" r="5" fill="#3b70d5"/>
+  <text x="130" y="559" class="detail">CloudWatch Alarms</text>
+  <circle cx="115" cy="586" r="5" fill="#1f9d96"/>
+  <text x="130" y="591" class="detail">CloudWatch Logs</text>
+
+  <!-- Collegamenti dietro i servizi -->
+  <path d="M427 348 H568" fill="none" stroke="#3b70d5" stroke-width="3" marker-end="url(#blue-arrow)"/>
+  <path d="M427 554 H480 V362 H568" fill="none" stroke="#3b70d5" stroke-width="3" marker-end="url(#blue-arrow)"/>
+  <path d="M819 355 H874" fill="none" stroke="#3b70d5" stroke-width="3" marker-end="url(#blue-arrow)"/>
+  <path d="M1153 355 H1214" fill="none" stroke="#7b61c8" stroke-width="3" marker-end="url(#violet-arrow)"/>
+  <path d="M1353 411 V502" fill="none" stroke="#7b61c8" stroke-width="3" marker-end="url(#violet-arrow)"/>
+  <path d="M1008 502 V411" fill="none" stroke="#1f9d96" stroke-width="3" marker-end="url(#teal-arrow)"/>
+  <path d="M427 380 H468 V668 H599 V625" fill="none" stroke="#1f9d96" stroke-width="2.5" stroke-dasharray="8 6" marker-end="url(#teal-arrow)"/>
+  <path d="M427 586 H568" fill="none" stroke="#1f9d96" stroke-width="2.5" stroke-dasharray="8 6" marker-end="url(#teal-arrow)"/>
+
+  <!-- SQS -->
+  <g filter="url(#shadow)">
+    <rect x="568" y="288" width="251" height="123" rx="18" fill="#fff" stroke="#d4dded"/>
+  </g>
+  <rect x="568" y="288" width="251" height="7" rx="3.5" fill="#b264c7"/>
+  <text x="592" y="319" class="eyebrow" fill="#9d51b4">AMAZON SQS</text>
+  <text x="592" y="350" class="service-small mono">go-alarms-queue</text>
+  <text x="592" y="379" class="detail">Messaggi di allarme</text>
+  <text x="592" y="399" class="detail">da SEND e INTEROP</text>
+
+  <!-- Lambda -->
+  <g filter="url(#shadow)">
+    <rect x="874" y="288" width="279" height="123" rx="18" fill="#fff" stroke="#d4dded"/>
+  </g>
+  <rect x="874" y="288" width="279" height="7" rx="3.5" fill="#ef9239"/>
+  <text x="898" y="319" class="eyebrow" fill="#ca6b19">AWS LAMBDA</text>
+  <text x="898" y="350" class="service-small mono">go-execute-runbook</text>
+  <text x="898" y="379" class="detail">Trova ed esegue il runbook</text>
+  <text x="898" y="399" class="detail">associato, se presente</text>
+
+  <!-- RDS -->
+  <g filter="url(#shadow)">
+    <rect x="1214" y="288" width="278" height="123" rx="18" fill="#fff" stroke="#d4dded"/>
+  </g>
+  <rect x="1214" y="288" width="278" height="7" rx="3.5" fill="#7b61c8"/>
+  <text x="1238" y="319" class="eyebrow" fill="#7b61c8">DATABASE · PN-ANALYTICS</text>
+  <text x="1238" y="350" class="service">Amazon RDS</text>
+  <text x="1238" y="379" class="detail">Memorizza le analisi</text>
+  <text x="1238" y="399" class="detail">dei runbook eseguiti</text>
+
+  <!-- OAM -->
+  <g filter="url(#shadow)">
+    <rect x="568" y="502" width="585" height="123" rx="18" fill="#f1fbf9" stroke="#9bd7d1"/>
+  </g>
+  <rect x="568" y="502" width="585" height="7" rx="3.5" fill="#1f9d96"/>
+  <text x="592" y="533" class="eyebrow" fill="#14867e">CLOUDWATCH CROSS-ACCOUNT OBSERVABILITY</text>
+  <text x="592" y="564" class="service-small">Vista centralizzata dei log</text>
+  <text x="592" y="591" class="detail">La Lambda interroga i log degli ambienti sorgente</text>
+  <text x="592" y="611" class="detail">tramite l'account di monitoraggio pn-analytics</text>
+
+  <!-- Watchtower -->
+  <g filter="url(#shadow)">
+    <rect x="1214" y="502" width="278" height="123" rx="18" fill="#fff" stroke="#d4dded"/>
+  </g>
+  <rect x="1214" y="502" width="278" height="7" rx="3.5" fill="#3b70d5"/>
+  <text x="1238" y="533" class="eyebrow" fill="#3b70d5">CONSULTAZIONE</text>
+  <text x="1238" y="564" class="service">Watchtower</text>
+  <text x="1238" y="591" class="detail">Visualizza le analisi</text>
+  <text x="1238" y="611" class="detail">salvate su RDS</text>
+
+  <!-- Legenda -->
+  <line x1="61" y1="782" x2="108" y2="782" stroke="#3b70d5" stroke-width="3" marker-end="url(#blue-arrow)"/>
+  <text x="124" y="787" class="line-label">Evento di allarme e attivazione</text>
+  <line x1="465" y1="782" x2="512" y2="782" stroke="#1f9d96" stroke-width="2.5" stroke-dasharray="8 6" marker-end="url(#teal-arrow)"/>
+  <text x="528" y="787" class="line-label">Log disponibili via osservabilità cross-account</text>
+  <line x1="1067" y1="782" x2="1114" y2="782" stroke="#7b61c8" stroke-width="3" marker-end="url(#violet-arrow)"/>
+  <text x="1130" y="787" class="line-label">Analisi salvata e consultata</text>
+</svg>
