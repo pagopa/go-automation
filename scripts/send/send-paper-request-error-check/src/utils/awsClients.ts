@@ -8,14 +8,14 @@ import type { SendPaperRequestErrorCheckConfig } from '../types/index.js';
  * Risolve il nome del profilo Core a partire dall'ambiente o dalla configurazione.
  */
 export function getCoreProfile(config: SendPaperRequestErrorCheckConfig): string {
-  return config.awsProfileCore ?? `sso_pn-core-${config.envName || 'dev'}`;
+  return config.awsProfileCore ?? `sso_pn-core-${config.envName ?? 'dev'}`;
 }
 
 /**
  * Risolve il nome del profilo Confinfo a partire dall'ambiente o dalla configurazione.
  */
 export function getConfinfoProfile(config: SendPaperRequestErrorCheckConfig): string {
-  return config.awsProfileConfinfo ?? `sso_pn-confinfo-${config.envName || 'dev'}`;
+  return config.awsProfileConfinfo ?? `sso_pn-confinfo-${config.envName ?? 'dev'}`;
 }
 
 /**

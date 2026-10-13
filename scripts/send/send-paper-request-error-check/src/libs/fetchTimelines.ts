@@ -139,7 +139,7 @@ export async function fetchTimelines(
   dateTreshold.setDate(dateTreshold.getDate() - 120);
   const tresholdIsoDate = dateTreshold.toISOString().substring(0, 10);
 
-  const filteredTimelines = processTimelines(timelinesResult, tresholdIsoDate);
+  const filteredTimelines = await processTimelines(timelinesResult, tresholdIsoDate, script);
 
   // Scrittura del file JSON di output via GOJSONListExporter
   const destinationFile = path.join(outputDir, 'timelines.json');

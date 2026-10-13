@@ -1,4 +1,6 @@
-import * as fs from 'fs';
+import path from 'path';
+import { Core } from '@go-automation/go-common';
+import type { SendPaperRequestErrorCheckConfig } from '../types/index.js';
 
 export interface TimelineEvent {
   category?: string;
@@ -114,15 +116,19 @@ export function isNotificationExcluded(
  *
  * @param data - Array di documenti timeline
  * @param timestampThreshold - Limite temporale ISO (es. 120 giorni fa)
+ * @param script
  * @returns Array con i soli documenti che non sono stati scartati dal filtro
  */
-export function processTimelines<
+export async function processTimelines<
   T extends { readonly iun?: string | undefined; readonly timeline?: ReadonlyArray<TimelineEvent> | undefined },
->(data: ReadonlyArray<T>, timestampThreshold: string): T[] {
+>(data: ReadonlyArray<T>, timestampThreshold: string, script: Core.GOScript): Promise<T[]> {
+  const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
   const cancelledOutput: string[] = [];
   const viewedOutput: string[] = [];
   const refinementOutput: string[] = [];
   const keptItems: T[] = [];
+  const logger = script.logger;
+  const outputDir = config.outputDir ?? 'results';
 
   for (const item of data) {
     const timeline = item.timeline;
@@ -146,11 +152,11 @@ export function processTimelines<
       }
 
       if (check.reason === 'CANCELLED') {
-        cancelledOutput.push(idToReport || 'UNKNOWN');
+        cancelledOutput.push(idToReport ?? 'UNKNOWN');
       } else if (check.reason === 'VIEWED_OVER_120D') {
-        viewedOutput.push(idToReport || 'UNKNOWN');
+        viewedOutput.push(idToReport ?? 'UNKNOWN');
       } else if (check.reason === 'REFINEMENT_OVER_120D') {
-        refinementOutput.push(idToReport || 'UNKNOWN');
+        refinementOutput.push(idToReport ?? 'UNKNOWN');
       }
     } else {
       keptItems.push(item);
@@ -158,17 +164,24 @@ export function processTimelines<
   }
 
   try {
-    const formatOutput = (arr: string[]) => (arr.length > 0 ? `${arr.join('\n')}\n` : '');
+    const notificationCancelledPath = path.join(outputDir, 'NOTIFICATION_CANCELLED.txt');
+    const notificationViewedPath = path.join(outputDir, 'NOTIFICATION_VIEWED.txt');
+    const refinementPath = path.join(outputDir, 'REFINEMENT.txt');
 
-    fs.writeFileSync('NOTIFICATION_CANCELLED.txt', formatOutput(cancelledOutput));
-    fs.writeFileSync('NOTIFICATION_VIEWED.txt', formatOutput(viewedOutput));
-    fs.writeFileSync('REFINEMENT.txt', formatOutput(refinementOutput));
+    const cancelledExporter = new Core.GOFileListExporter({ outputPath: notificationCancelledPath });
+    const viewedExporter = new Core.GOFileListExporter({ outputPath: notificationViewedPath });
+    const refinementExporter = new Core.GOFileListExporter({ outputPath: refinementPath });
 
-    console.log(
+    await cancelledExporter.export(cancelledOutput);
+    await viewedExporter.export(viewedOutput);
+    await refinementExporter.export(refinementOutput);
+
+    logger.info(
       `Filtro completato: ${cancelledOutput.length} CANCELLED, ${viewedOutput.length} VIEWED (>120gg), ${refinementOutput.length} REFINEMENT (>120gg) scartate. Mantenute: ${keptItems.length}.`,
     );
   } catch (error) {
-    console.error('Errore durante il salvataggio dei file di report filtro:', error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    logger.error(`Errore durante il salvataggio dei file di report filtro: ${errorMsg}`);
   }
 
   return keptItems;
