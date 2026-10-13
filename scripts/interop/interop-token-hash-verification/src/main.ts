@@ -47,7 +47,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   let s3BucketNameP7m = config.s3BucketNameP7m;
   let s3BucketNameNdjson = config.s3BucketNameNdjson;
 
-  if (config.isM2M) {
+  if (config.m2m) {
     cwQueryApplication = cwQueryApplication.replace('interop-be-audit-signer', 'interop-be-m2m-audit-signer');
     s3BucketNameP7m = s3BucketNameP7m.replace('jwt', 'm2m-jwt');
     s3BucketNameNdjson = s3BucketNameNdjson.replace('jwt', 'm2m-jwt');

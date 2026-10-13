@@ -31,6 +31,7 @@ describe('main hash verification spinner cleanup', () => {
         s3BucketNameP7m: 'signed',
         startUtc: '2026-10-05T07:55:00Z',
         endUtc: '2026-10-05T08:01:00Z',
+        m2m: false,
       };
       const script = {
         async getConfiguration(): Promise<InteropTokenHashVerificationConfig> {

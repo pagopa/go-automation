@@ -43,7 +43,7 @@ Senza CID usare la procedura manuale del runbook, correlando filename, timestamp
 ### Software Richiesto
 
 | Software | Versione Minima | Note                      |
-|----------|-----------------|---------------------------|
+| -------- | --------------- | ------------------------- |
 | Node.js  | >= 22.14.0      | Versione LTS del monorepo |
 | pnpm     | >= 10.28.0      | Package manager           |
 
@@ -69,7 +69,7 @@ configurazione/presets.
 ### Parametri CLI e Variabili d'Ambiente
 
 | Parametro CLI             | Alias | Variabile d'Ambiente    | Obbligatorio | Default                                         | Descrizione                                                                                          |
-|---------------------------|-------|-------------------------|--------------|-------------------------------------------------|------------------------------------------------------------------------------------------------------|
+| ------------------------- | ----- | ----------------------- | ------------ | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `--aws-profile`           | `-ap` | -                       | **Sì**       | -                                               | Nome del profilo AWS SSO                                                                             |
 | `--aws-region`            | `-ar` | -                       | No           | `eu-south-1`                                    | Regione AWS                                                                                          |
 | `--cw-log-group`          | `-lg` | `CW_LOG_GROUP`          | **Sì**       | -                                               | Log group di CloudWatch                                                                              |
@@ -111,13 +111,13 @@ Le date nel preset sono statiche: sostituirle o sovrascriverle con l'intervallo 
 Dalla root del monorepo, lanciare lo script utilizzando il preset configurato:
 
 ```bash
-pnpm interop:verifica:hash:token:dev --script-preset-name test --aws-profile <profilo-aws> --start-utc <inizio-UTC> --end-utc <fine-UTC>
+pnpm interop:token:hash:verification:dev --script-preset-name test --aws-profile <profilo-aws> --start-utc <inizio-UTC> --end-utc <fine-UTC>
 ```
 
 Oppure specificando i singoli parametri manualmente via CLI (le query verranno prese di default se non specificate):
 
 ```bash
-pnpm interop:verifica:hash:token:dev -- \
+pnpm interop:token:hash:verification:dev -- \
   --aws-profile pdnd-interop-test \
   --cw-log-group "/aws/eks/interop-eks-cluster-test/application" \
   --s3-bucket-name-ndjson "interop-generated-jwt-details-test-es1" \
@@ -137,7 +137,7 @@ pnpm --filter=interop-token-hash-verification build
 Eseguire lo script compilato:
 
 ```bash
-pnpm interop:verifica:hash:token:prod --script-preset-name <nome-script-preset> --aws-profile <profilo-aws>
+pnpm interop:token:hash:verification:prod --script-preset-name <nome-script-preset> --aws-profile <profilo-aws>
 ```
 
 ---
