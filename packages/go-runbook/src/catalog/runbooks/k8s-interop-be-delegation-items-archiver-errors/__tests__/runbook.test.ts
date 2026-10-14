@@ -28,7 +28,7 @@ function context(stepId: string, output: unknown): RunbookContext {
     executionId: 'delegation-items-archiver-test',
     startedAt: new Date('2026-09-21T14:14:33.822Z'),
     stepResults: new Map([[stepId, output]]),
-    vars: new Map(),
+    vars: new Map([['interopEnvironment', 'prod']]),
     params: new Map(),
     logs: [],
     services: createTestServiceRegistry(),
@@ -71,6 +71,7 @@ describe('delegation items archiver runbook', () => {
         alarm.stepIds.queryApplicationLogs,
         alarm.stepIds.analyzeApplicationLogs,
         alarm.stepIds.queryCidTracker,
+        'query-delegation-items-archiver-context',
         alarm.stepIds.analyzeCidTracker,
       ],
     );
@@ -78,22 +79,33 @@ describe('delegation items archiver runbook', () => {
     assert.deepStrictEqual(resolveOccurrenceTimeWindow(runbook), { beforeMinutes: 5, afterMinutes: 5 });
     assert.deepStrictEqual(runbook.analysisDefaults?.links, [
       {
-        url: 'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3344762934/k8s-interop-be-delegation-items-archiver-errors-prod',
+        url: 'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3344762934/k8s-interop-be-delegation-items-archiver-errors',
         name: alarm.runbookKey,
         type: 'CONFLUENCE',
       },
     ]);
     assert.doesNotThrow(() => assertCloudExecutableRunbook(runbook));
+    assert.deepStrictEqual(runbook.analysisDefaults?.resources, [
+      { name: alarm.runbookKey, type: 'Service', role: 'PRIMARY' },
+    ]);
   });
 
-  it('recognizes the documented heartbeat error in application logs and CID evidence', () => {
-    assert.strictEqual(KNOWN_CASES.length, 1);
+  it('recognizes heartbeat and rejoin in archiver evidence, excluding other services in the CID tracker', () => {
+    assert.strictEqual(KNOWN_CASES.length, 4);
     const knownCase = KNOWN_CASES[0];
     assert.ok(knownCase);
     assert.strictEqual(
       evaluator.evaluate(knownCase.condition, context(alarm.stepIds.queryApplicationLogs, rows(DOCUMENTED_MESSAGE))),
       true,
     );
+    for (const message of [
+      DOCUMENTED_MESSAGE.replace('version: 3', 'version: 4'),
+      'ERROR - The coordinator is not aware of this member, re-joining the group',
+    ])
+      assert.strictEqual(
+        evaluator.evaluate(knownCase.condition, context(alarm.stepIds.queryApplicationLogs, rows(message))),
+        true,
+      );
     assert.strictEqual(
       evaluator.evaluate(
         knownCase.condition,
@@ -101,7 +113,7 @@ describe('delegation items archiver runbook', () => {
           { cid: 'cid-1', rows: rows(JSON.stringify({ log: DOCUMENTED_MESSAGE })) },
         ]),
       ),
-      true,
+      false,
     );
     for (const otherMessage of [
       'The coordinator is not aware of this member, re-joining the group',
@@ -124,5 +136,9 @@ describe('delegation items archiver runbook', () => {
     assert.deepStrictEqual(knownCase.analysis?.links, [
       { url: 'https://pagopa.atlassian.net/browse/PIN-7325', name: 'PIN-7325', type: 'JIRA' },
     ]);
+    for (const candidate of KNOWN_CASES) {
+      assert.strictEqual(candidate.analysis?.proposedStatus, 'IN_PROGRESS');
+      assert.deepStrictEqual(candidate.analysis?.finalActions, ['Necessario confronto con il team di prodotto']);
+    }
   });
 });
