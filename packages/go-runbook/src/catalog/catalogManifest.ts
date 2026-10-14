@@ -65,6 +65,7 @@ import { IN_APP_NOTIFICATION_DISPATCHER_REGISTRATION } from './runbooks/k8s-inte
 import { PURPOSE_OUTBOUND_WRITER_REGISTRATION } from './runbooks/k8s-interop-be-purpose-outbound-writer-errors/registration.js';
 import { NOTIFICATION_SCHEDULER_REGISTRATION } from './runbooks/k8s-interop-be-scheduled-notification-scheduler-errors/registration.js';
 import { PUBLIC_CATALOG_REGISTRATION } from './runbooks/k8s-interop-public-catalog-astro-frontend-errors/registration.js';
+import { PUBLIC_CATALOG_STRAPI_REGISTRATION } from './runbooks/k8s-interop-public-catalog-strapi-errors/registration.js';
 import { SELFCARE_USERS_UPDATER_REGISTRATION } from './runbooks/k8s-interop-be-selfcare-client-users-updater-errors/registration.js';
 import { SELFCARE_ONBOARDING_CONSUMER_REGISTRATION } from './runbooks/k8s-interop-be-selfcare-onboarding-consumer-errors/registration.js';
 
@@ -131,6 +132,7 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   PURPOSE_OUTBOUND_WRITER_REGISTRATION,
   NOTIFICATION_SCHEDULER_REGISTRATION,
   PUBLIC_CATALOG_REGISTRATION,
+  PUBLIC_CATALOG_STRAPI_REGISTRATION,
   SELFCARE_USERS_UPDATER_REGISTRATION,
   SELFCARE_ONBOARDING_CONSUMER_REGISTRATION,
   // interop api gateway
