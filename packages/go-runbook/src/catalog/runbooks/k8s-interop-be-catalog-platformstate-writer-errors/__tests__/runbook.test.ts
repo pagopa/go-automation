@@ -31,7 +31,7 @@ function context(stepId: string, message: string, cidTracker = false): RunbookCo
     executionId: 'test',
     startedAt: new Date('2026-09-21T14:11:00Z'),
     stepResults: new Map([[stepId, cidTracker ? [{ cid: 'cid-1', rows }] : rows]]),
-    vars: new Map(),
+    vars: new Map([['interopEnvironment', 'prod']]),
     params: new Map(),
     logs: [],
     services: createTestServiceRegistry(),
@@ -70,6 +70,7 @@ describe('catalog platformstate writer alarm', () => {
         alarm.stepIds.queryApplicationLogs,
         alarm.stepIds.analyzeApplicationLogs,
         alarm.stepIds.queryCidTracker,
+        'query-platformstate-writer-context',
         alarm.stepIds.analyzeCidTracker,
       ],
     );
@@ -86,21 +87,30 @@ describe('catalog platformstate writer alarm', () => {
     assert.doesNotThrow(() => assertCloudExecutableRunbook(runbook));
   });
 
-  it('recognizes every documented network and Kafka signature in application logs or CID evidence', () => {
+  it('recognizes writer signatures in application logs and excludes CID-only evidence', () => {
     const evaluator = new ConditionEvaluator();
-    assert.strictEqual(KNOWN_CASES.length, 2);
-    const [network, kafka] = KNOWN_CASES;
+    assert.strictEqual(KNOWN_CASES.length, 3);
+    const network = KNOWN_CASES.find(({ id }) => id === 'catalog-platformstate-writer-temporary-network-errors');
+    const kafka = KNOWN_CASES.find(({ id }) => id === 'catalog-platformstate-writer-kafka-coordinator-member-rejoin');
     assert.ok(network);
     assert.ok(kafka);
 
     for (const stepId of [alarm.stepIds.queryApplicationLogs, alarm.stepIds.queryCidTracker]) {
       const cidTracker = stepId === alarm.stepIds.queryCidTracker;
       for (const message of DOCUMENTED_NETWORK_MESSAGES) {
-        assert.strictEqual(evaluator.evaluate(network.condition, context(stepId, message, cidTracker)), true, message);
+        assert.strictEqual(
+          evaluator.evaluate(network.condition, context(stepId, message, cidTracker)),
+          !cidTracker,
+          message,
+        );
         assert.strictEqual(evaluator.evaluate(kafka.condition, context(stepId, message, cidTracker)), false, message);
       }
       for (const message of DOCUMENTED_KAFKA_MESSAGES) {
-        assert.strictEqual(evaluator.evaluate(kafka.condition, context(stepId, message, cidTracker)), true, message);
+        assert.strictEqual(
+          evaluator.evaluate(kafka.condition, context(stepId, message, cidTracker)),
+          !cidTracker,
+          message,
+        );
         assert.strictEqual(evaluator.evaluate(network.condition, context(stepId, message, cidTracker)), false, message);
       }
     }
@@ -114,8 +124,10 @@ describe('catalog platformstate writer alarm', () => {
       assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
       assert.deepStrictEqual(knownCase.analysis?.downstreams, [INTEROP_DOWNSTREAMS.NESSUNO]);
     }
-    assert.deepStrictEqual(KNOWN_CASES[1]?.analysis?.links, [
-      { url: 'https://pagopa.atlassian.net/browse/PIN-7325', name: 'PIN-7325', type: 'JIRA' },
-    ]);
+    assert.deepStrictEqual(
+      KNOWN_CASES.find(({ id }) => id === 'catalog-platformstate-writer-kafka-coordinator-member-rejoin')?.analysis
+        ?.links,
+      [{ url: 'https://pagopa.atlassian.net/browse/PIN-7325', name: 'PIN-7325', type: 'JIRA' }],
+    );
   });
 });

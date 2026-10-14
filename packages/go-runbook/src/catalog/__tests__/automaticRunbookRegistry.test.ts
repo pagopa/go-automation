@@ -4,14 +4,21 @@ import { describe, it } from 'node:test';
 import { RUNBOOK_CATALOG, RunbookCatalog } from '../RunbookCatalog.js';
 
 describe('RUNBOOK_CATALOG', () => {
-  it('registers every INTEROP runbook for prod, att and test', () => {
+  it('registers INTEROP runbooks for their documented environments', () => {
     for (const descriptor of RUNBOOK_CATALOG.listDescriptors()) {
       if (!descriptor.categories.includes('INTEROP')) continue;
-      for (const environment of ['prod', 'att', 'test']) {
+      const environments =
+        descriptor.key === 'k8s-interop-be-async-token-generation-readmodel-checker-errors'
+          ? ['att']
+          : ['prod', 'att', 'test'];
+      for (const environment of environments) {
         assert.ok(
           descriptor.alarmNames.some((alarmName) => new RegExp(`-${environment}(?:-|$)`, 'u').test(alarmName)),
           `${descriptor.key} is missing ${environment}`,
         );
+      }
+      if (environments.length === 1) {
+        assert.deepStrictEqual(descriptor.alarmNames, [`${descriptor.key}-att`]);
       }
     }
   });

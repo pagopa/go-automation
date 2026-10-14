@@ -24,6 +24,7 @@ const QUERY_ROW_LIMIT = 1000;
 /** Source q1, with the additional runtime signatures suggested in its comments. */
 const BOTH_ACCOUNTS_ERROR_QUERY = `fields @timestamp, @xrayTraceId, @requestId, @message
 | filter @message like 'ERROR'
+    or @message like /(?i)Invoke Error/
     or @message like /(?i)timed?\\s*out/
     or @message like /(?i)OutOfMemory/
     or @message like /(?i)Runtime exited with error:\\s*signal:\\s*killed/
@@ -139,7 +140,18 @@ export class QueryBothLambdaAccountsStep implements Step<Rows> {
       return {
         success: true,
         output: rows,
-        ...(this.queryKind === 'invocation' ? { vars: { lambdaInvocationLogCount: String(rows.length) } } : {}),
+        vars:
+          this.queryKind === 'invocation'
+            ? { lambdaInvocationLogCount: String(rows.length) }
+            : {
+                downstreamMonitoringAccountsChecked: LAMBDA_LOG_SOURCES.map(({ name }) => name).join(','),
+                downstreamMonitoringCoreErrorLogCount: String(
+                  rows.filter((row) => readRowField(row, 'sourceAccount') === 'core').length,
+                ),
+                downstreamMonitoringConfinfoErrorLogCount: String(
+                  rows.filter((row) => readRowField(row, 'sourceAccount') === 'confinfo').length,
+                ),
+              },
         ...(diagnostics === undefined ? {} : { diagnostics }),
       };
     });
@@ -166,7 +178,9 @@ function requestIdsBySource(rows: Rows): Map<string, ReadonlyArray<string>> {
 }
 
 function invocationQueryFor(requestIds: ReadonlyArray<string>): string {
-  const filter = requestIds.map((requestId) => `@requestId = '${requestId}'`).join(' or ');
+  const filter = requestIds
+    .map((requestId) => `(@requestId = '${requestId}' or @message like '${requestId}')`)
+    .join(' or ');
   return `fields @timestamp, @requestId, @message
 | filter ${filter}
 | sort @timestamp asc

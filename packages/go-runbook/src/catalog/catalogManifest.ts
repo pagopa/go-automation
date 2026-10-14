@@ -12,6 +12,7 @@ import { DELIVERY_B2B_REGISTRATION } from './runbooks/pn-delivery-B2B-ApiGwAlarm
 import { DELIVERY_IO_EXP_REGISTRATION } from './runbooks/pn-delivery-IO_EXP-ApiGwAlarm/registration.js';
 import { DELIVERY_PUSH_B2B_REGISTRATION } from './runbooks/pn-delivery-push-B2B-ApiGwAlarm/registration.js';
 import { NATIONAL_REGISTRIES_PNPG_REGISTRATION } from './runbooks/pn-national-registries-PNPG-ApiGwAlarm/registration.js';
+import { BFF_INFO_PA_REGISTRATION } from './runbooks/pn-bff-WEB-noextension-InfoPa-comp-5xx-ApiGwAlarm/registration.js';
 
 // lambda
 import { IO_AUTHORIZER_LAMBDA_REGISTRATION } from './runbooks/pn-ioAuthorizerLambda-LogInvocationErrors-Alarm/registration.js';
@@ -39,10 +40,12 @@ import { PERSONAL_DATA_VAULT_SELFCARE_PG_REGISTRATION } from './runbooks/persona
 import { WORKDAY_EXTERNAL_CHANNEL_ALB_REGISTRATION } from './runbooks/workday-pn-external-channel-alb-alarm/registration.js';
 import { MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION } from './runbooks/pn-mandate-acceptance-failure-tech-Alarm/registration.js';
 import { DELAYER_SENDER_LIMIT_JOB_REGISTRATION } from './runbooks/pn-delayer-sender-limit-job-ErrorFatalLogs-Alarm/registration.js';
+import { LOGSAVER_REGISTRATION } from './runbooks/pn-logsaver-be-FailedInvocation-Alarm/registration.js';
 
 // interop kubernetes
 import { AGREEMENT_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-agreement-readmodel-writer-sql-errors/registration.js';
 import { AUDIT_SIGNER_REGISTRATION } from './runbooks/k8s-interop-be-audit-signer-errors/registration.js';
+import { ASYNC_TOKEN_GENERATION_READMODEL_CHECKER_REGISTRATION } from './runbooks/k8s-interop-be-async-token-generation-readmodel-checker-errors/registration.js';
 import { AUTHORIZATION_PROCESS_REGISTRATION } from './runbooks/k8s-interop-be-authorization-process-errors/registration.js';
 import { ISTAT_IMPORTER_REGISTRATION } from './runbooks/k8s-interop-be-istat-certified-attributes-importer-errors/registration.js';
 import { ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-attribute-registry-readmodel-writer-sql-errors/registration.js';
@@ -59,6 +62,7 @@ import { NOTIFIER_REGISTRATION } from './runbooks/k8s-interop-be-notifier-errors
 import { NOTIFICATION_USER_LIFECYCLE_REGISTRATION } from './runbooks/k8s-interop-be-notification-user-lifecycle-consumer-errors/registration.js';
 import { IN_APP_NOTIFICATION_DISPATCHER_REGISTRATION } from './runbooks/k8s-interop-be-in-app-notification-dispatcher-errors/registration.js';
 import { PURPOSE_OUTBOUND_WRITER_REGISTRATION } from './runbooks/k8s-interop-be-purpose-outbound-writer-errors/registration.js';
+import { NOTIFICATION_SCHEDULER_REGISTRATION } from './runbooks/k8s-interop-be-scheduled-notification-scheduler-errors/registration.js';
 import { PUBLIC_CATALOG_REGISTRATION } from './runbooks/k8s-interop-public-catalog-astro-frontend-errors/registration.js';
 import { SELFCARE_USERS_UPDATER_REGISTRATION } from './runbooks/k8s-interop-be-selfcare-client-users-updater-errors/registration.js';
 import { SELFCARE_ONBOARDING_CONSUMER_REGISTRATION } from './runbooks/k8s-interop-be-selfcare-onboarding-consumer-errors/registration.js';
@@ -76,6 +80,7 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   DELIVERY_IO_EXP_REGISTRATION,
   DELIVERY_PUSH_B2B_REGISTRATION,
   NATIONAL_REGISTRIES_PNPG_REGISTRATION,
+  BFF_INFO_PA_REGISTRATION,
   // lambda
   IO_AUTHORIZER_LAMBDA_REGISTRATION,
   TOKEN_EXCHANGE_LAMBDA_REGISTRATION,
@@ -101,9 +106,11 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   WORKDAY_EXTERNAL_CHANNEL_ALB_REGISTRATION,
   MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION,
   DELAYER_SENDER_LIMIT_JOB_REGISTRATION,
+  LOGSAVER_REGISTRATION,
   // interop kubernetes
   AGREEMENT_READMODEL_WRITER_SQL_REGISTRATION,
   AUDIT_SIGNER_REGISTRATION,
+  ASYNC_TOKEN_GENERATION_READMODEL_CHECKER_REGISTRATION,
   AUTHORIZATION_PROCESS_REGISTRATION,
   ISTAT_IMPORTER_REGISTRATION,
   ATTRIBUTE_REGISTRY_READMODEL_WRITER_SQL_REGISTRATION,
@@ -120,6 +127,7 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   NOTIFICATION_USER_LIFECYCLE_REGISTRATION,
   IN_APP_NOTIFICATION_DISPATCHER_REGISTRATION,
   PURPOSE_OUTBOUND_WRITER_REGISTRATION,
+  NOTIFICATION_SCHEDULER_REGISTRATION,
   PUBLIC_CATALOG_REGISTRATION,
   SELFCARE_USERS_UPDATER_REGISTRATION,
   SELFCARE_ONBOARDING_CONSUMER_REGISTRATION,

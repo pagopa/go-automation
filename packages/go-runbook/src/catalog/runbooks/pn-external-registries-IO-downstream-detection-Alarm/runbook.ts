@@ -17,7 +17,7 @@ export function buildRunbook(): Runbook {
       description:
         'Analizza gli errori del downstream IO su pn-external-registries, correlando il trace_id ' +
         'e distinguendo timeout, errori di attivazione, indisponibilità IO/Cosmos DB ed errori applicativi.',
-      version: '1.0.0',
+      version: '1.0.1',
       type: 'alarm-resolution',
       team: 'GO',
       tags: ['service', 'pn-external-registries', 'downstream', 'IO'],
@@ -26,13 +26,14 @@ export function buildRunbook(): Runbook {
     downstream: DOWNSTREAM,
     knownCases: KNOWN_CASES,
     occurrenceTimeWindow: {
-      // The source alarm evaluates 3 of 6 five-minute periods. Include the
-      // full evaluation window, not just the latest ten minutes of errors.
+      // Preserve the diagnostic window associated with the documented 3/6 periods.
+      // This scan interval is not a fixed alarm recovery timer.
       beforeMinutes: 30,
       afterMinutes: 5,
     },
     analysisDefaults: {
       runbookName: EXTERNAL_REGISTRIES_IO_ALARM,
+      finalActions: ['Documentare la causa verificata e aggiornare il runbook se emerge una nuova casistica'],
       links: [{ url: RUNBOOK_URL, name: EXTERNAL_REGISTRIES_IO_ALARM, type: 'CONFLUENCE' }],
     },
   });
