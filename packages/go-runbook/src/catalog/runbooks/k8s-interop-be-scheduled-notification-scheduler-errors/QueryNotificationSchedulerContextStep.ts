@@ -23,7 +23,8 @@ export class QueryNotificationSchedulerContextStep implements Step<Rows> {
     return executeStep('Notification scheduler context', async () => {
       const logGroup = context.vars.get('interopLogGroup');
       const podApp = context.vars.get('interopPodApp');
-      if (logGroup === undefined || podApp === undefined) throw new Error('Missing resolved INTEROP writer context');
+      if (logGroup === undefined || podApp === undefined)
+        throw new Error('Missing resolved INTEROP notification scheduler context');
       const query = `fields @timestamp, pod_app, @logStream, stream, log, @message
 | filter pod_app = "${escapeLogsInsightsString(podApp)}"
 | filter @logStream not like /adot-collector/
