@@ -41,6 +41,7 @@ import { WORKDAY_EXTERNAL_CHANNEL_ALB_REGISTRATION } from './runbooks/workday-pn
 import { MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION } from './runbooks/pn-mandate-acceptance-failure-tech-Alarm/registration.js';
 import { DELAYER_SENDER_LIMIT_JOB_REGISTRATION } from './runbooks/pn-delayer-sender-limit-job-ErrorFatalLogs-Alarm/registration.js';
 import { LOGSAVER_REGISTRATION } from './runbooks/pn-logsaver-be-FailedInvocation-Alarm/registration.js';
+import { SPIDHUB_EXTERNAL_ELB_REGISTRATION } from './runbooks/spidhub-prod-ExternalELBAlarm/registration.js';
 
 // interop kubernetes
 import { AGREEMENT_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-agreement-readmodel-writer-sql-errors/registration.js';
@@ -107,6 +108,7 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION,
   DELAYER_SENDER_LIMIT_JOB_REGISTRATION,
   LOGSAVER_REGISTRATION,
+  SPIDHUB_EXTERNAL_ELB_REGISTRATION,
   // interop kubernetes
   AGREEMENT_READMODEL_WRITER_SQL_REGISTRATION,
   AUDIT_SIGNER_REGISTRATION,
