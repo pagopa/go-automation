@@ -26,7 +26,7 @@ function context(stepResults: ReadonlyArray<readonly [string, unknown]>): Runboo
     executionId: 'purpose-outbound-writer-test',
     startedAt: new Date('2026-09-09T10:00:00.000Z'),
     stepResults: new Map<string, unknown>(stepResults),
-    vars: new Map(),
+    vars: new Map([['interopEnvironment', 'prod']]),
     params: new Map(),
     logs: [],
     services: createTestServiceRegistry(),
@@ -52,11 +52,11 @@ describe('INTEROP purpose outbound writer known cases', () => {
     assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), true);
   });
 
-  it('matches the documented error in JSON-encoded CID tracker evidence', () => {
+  it('does not classify the writer using CID-only evidence', () => {
     assert.ok(knownCase !== undefined);
     const rows = applicationLogRows([JSON.stringify({ log: DOCUMENTED_MESSAGE })]);
     const ctx = context([[alarm.stepIds.queryCidTracker, [{ cid: 'cid-1', rows }]]]);
-    assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), true);
+    assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), false);
   });
 
   it('does not classify a different Kafka coordinator error', () => {

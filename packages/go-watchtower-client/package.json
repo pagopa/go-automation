@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "description": "Generated TypeScript client for the Watchtower API (auth, alarm analyses, product census), regenerated from contracts/runbook-automation/v1/upstream/go-watchtower.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {

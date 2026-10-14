@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "main": "dist/handler.mjs",
-  "description": "Lambda",
+  "description": "Lambda wrapper for send-monitor-athena-query, scheduling Athena report batches.",
   "scripts": {
     "test-build": "pnpm build && cd ../../artifacts/go-SendMonitorAthenaQueryLambda && zip -r ../../functions/go-SendMonitorAthenaQueryLambda/function.zip .",
     "build": "pnpm --filter=send-monitor-athena-query build && tsc -b && node esbuild.config.mjs",
