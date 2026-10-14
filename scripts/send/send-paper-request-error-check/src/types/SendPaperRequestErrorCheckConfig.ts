@@ -41,9 +41,12 @@ export interface PaperRequestMetrics {
   totalInitialRequestIds: number;
   canceledCount: number;
   perfectedCount: number;
+  viewedCount: number;
+  refinedCount: number;
   invalidAttachmentsCount: number;
   toResubmitCount: number;
-  toVerifyManuallyCount: number;
+  withFeedback: number;
+  withoutFeedback: number;
   glacierRestoredCount: number;
   attachmentsFoundCount?: number | undefined;
   validPdfCount?: number | undefined;

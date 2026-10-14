@@ -4,6 +4,7 @@ import type { SendPaperRequestErrorCheckConfig } from '../types/index.js';
 import { getCoreDynamoDBService } from '../utils/awsClients.js';
 import { extractIun, get } from '../utils/get.js';
 import { processTimelines } from './verifyNotification.js';
+import type { PaperRequestReporter } from './reporter.js';
 
 /** Nome della tabella DynamoDB delle timeline */
 const TIMELINES_TABLE_NAME = 'pn-Timelines';
@@ -32,18 +33,20 @@ export interface IunTimelineDocument {
  * Scarica le timeline da DynamoDB per una lista di IUN e salva il risultato in `timelines.json`.
  *
  * @param script - Istanza GOScript
+ * @param reporter
  * @param iunsInput - Elenco di IUN o righe di file da elaborare
  * @returns Risultati dell'estrazione timeline
  */
 export async function fetchTimelines(
   script: Core.GOScript,
+  reporter: PaperRequestReporter,
   iunsInput?: ReadonlyArray<string>,
 ): Promise<{
   totalIuns: number;
   timelinesFetchedCount: number;
   emptyTimelinesCount: number;
   errorsCount: number;
-  filteredIuns: string[]
+  filteredIuns: string[];
 }> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
   const dynamoDbService = getCoreDynamoDBService(script, config);
@@ -69,7 +72,7 @@ export async function fetchTimelines(
       timelinesFetchedCount: 0,
       emptyTimelinesCount: 0,
       errorsCount: 0,
-      filteredIuns: []
+      filteredIuns: [],
     };
   }
 
@@ -146,8 +149,8 @@ export async function fetchTimelines(
   dateTreshold.setDate(dateTreshold.getDate() - 120);
   const tresholdIsoDate = dateTreshold.toISOString().substring(0, 10);
 
-  const filteredTimelines = await processTimelines(timelinesResult, tresholdIsoDate, script);
-  const filteredIuns: string[] = filteredTimelines.map(item => item.iun)
+  const filteredTimelines = await processTimelines(timelinesResult, tresholdIsoDate, script, reporter);
+  const filteredIuns: string[] = filteredTimelines.map((item) => item.iun);
 
   // Scrittura del file JSON di output via GOJSONListExporter
   const destinationFile = path.join(outputDir, 'timelines.json');

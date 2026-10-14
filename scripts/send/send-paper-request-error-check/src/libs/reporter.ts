@@ -16,16 +16,19 @@ import type {
 export class PaperRequestReporter {
   private readonly metrics: PaperRequestMetrics = {
     totalInitialRequestIds: 0,
+    withFeedback: 0,
+    withoutFeedback: 0,
+    timelinesFetchedCount: 0,
     canceledCount: 0,
     perfectedCount: 0,
+    viewedCount: 0,
+    refinedCount: 0,
     invalidAttachmentsCount: 0,
     toResubmitCount: 0,
-    toVerifyManuallyCount: 0,
     glacierRestoredCount: 0,
     attachmentsFoundCount: 0,
     validPdfCount: 0,
     invalidPdfCount: 0,
-    timelinesFetchedCount: 0,
     errorsCount: 0,
   };
 
@@ -35,13 +38,15 @@ export class PaperRequestReporter {
   private retrieveAttachmentsResult: RetrieveAttachmentsResult | undefined;
   private glacierResult: RetrieveGlacierResult | undefined;
   private pdfValidationResult: PdfValidationResult | undefined;
-  private fetchTimelinesResult: {
-    totalIuns: number;
-    timelinesFetchedCount: number;
-    emptyTimelinesCount: number;
-    errorsCount: number;
-    filteredIuns: string[]
-  } | undefined;
+  private fetchTimelinesResult:
+    | {
+        totalIuns: number;
+        timelinesFetchedCount: number;
+        emptyTimelinesCount: number;
+        errorsCount: number;
+        filteredIuns: string[];
+      }
+    | undefined;
 
   /**
    * Imposta il conteggio iniziale totale dei requestId / IUN.
@@ -61,13 +66,16 @@ export class PaperRequestReporter {
     // Esempio classificazione logica feedback
     for (const found of result.foundRequestIds) {
       const category = get<string>(found.event, 'category', '');
-      if (category === 'REFINEMENT' || category === 'PERFECTED') {
+      this.metrics.withFeedback++;
+      if (category === 'PERFECTED') {
         this.metrics.perfectedCount++;
+        } else if (category === 'REFINEMENT') {
+        this.metrics.refinedCount++;
       } else if (category === 'CANCELED' || category === 'CANCELLED') {
         this.metrics.canceledCount++;
       }
     }
-    this.metrics.toVerifyManuallyCount += result.notFoundCount;
+    this.metrics.withoutFeedback += result.notFoundCount;
   }
 
   /**
@@ -125,11 +133,24 @@ export class PaperRequestReporter {
     timelinesFetchedCount: number;
     emptyTimelinesCount: number;
     errorsCount: number;
-    filteredIuns: string[]
+    filteredIuns: string[];
   }): void {
     this.fetchTimelinesResult = result;
     this.metrics.timelinesFetchedCount = (this.metrics.timelinesFetchedCount ?? 0) + result.timelinesFetchedCount;
     this.metrics.errorsCount = (this.metrics.errorsCount ?? 0) + result.errorsCount;
+  }
+
+  /**
+   * Registra i risultati dello step di verifica della notifica
+   */
+  public recordVerifyNotificationTimeline(result: {
+      notificationCanceled: number;
+      notificationViewed: number;
+      notificationRefined: number;
+  }): void {
+    this.metrics.canceledCount = this.metrics.canceledCount + result.notificationCanceled;
+    this.metrics.viewedCount = this.metrics.viewedCount + result.notificationViewed;
+    this.metrics.refinedCount = this.metrics.refinedCount + result.notificationRefined;
   }
 
   /**
@@ -227,7 +248,8 @@ export class PaperRequestReporter {
       `perfectedCount,${this.metrics.perfectedCount}`,
       `invalidAttachmentsCount,${this.metrics.invalidAttachmentsCount}`,
       `toResubmitCount,${this.metrics.toResubmitCount}`,
-      `toVerifyManuallyCount,${this.metrics.toVerifyManuallyCount}`,
+      `withFeedback,${this.metrics.withFeedback}`,
+      `withoutFeedback,${this.metrics.withoutFeedback}`,
       `glacierRestoredCount,${this.metrics.glacierRestoredCount}`,
       `glacierEligibleAarCount,${this.metrics.glacierEligibleAarCount ?? 0}`,
       `pdfEligibleAttachmentsCount,${this.metrics.pdfEligibleAttachmentsCount ?? 0}`,
@@ -316,14 +338,18 @@ export class PaperRequestReporter {
     }
 
     logger.info('----------------------------------------------------');
+    logger.info(`Total initial Requests         : ${this.metrics.totalInitialRequestIds}`)
+    logger.info(`Requests with Feedback         : ${this.metrics.withFeedback}`);
+    logger.info(`Requests without Feedback      : ${this.metrics.withoutFeedback}`);
+    logger.info(`Timelines Fetched              : ${this.metrics.timelinesFetchedCount ?? 0}`);
     logger.info(`Perfected Requests             : ${this.metrics.perfectedCount}`);
+    logger.info(`Viewed Requests                : ${this.metrics.viewedCount}`);
     logger.info(`Canceled Requests              : ${this.metrics.canceledCount}`);
+    logger.info(`Refined Requests               : ${this.metrics.refinedCount}`)
     logger.info(`Invalid Attachments            : ${this.metrics.invalidAttachmentsCount}`);
     logger.info(`Glacier Restored Objects       : ${this.metrics.glacierRestoredCount}`);
     logger.info(`Valid PDFs Checked             : ${this.metrics.validPdfCount ?? 0}`);
     logger.info(`Invalid PDFs Checked           : ${this.metrics.invalidPdfCount ?? 0}`);
-    logger.info(`Timelines Fetched              : ${this.metrics.timelinesFetchedCount ?? 0}`);
-    logger.info(`Requests to Verify             : ${this.metrics.toVerifyManuallyCount}`);
     logger.info(`Total Errors                   : ${this.metrics.errorsCount ?? 0}`);
     logger.info('----------------------------------------------------');
 

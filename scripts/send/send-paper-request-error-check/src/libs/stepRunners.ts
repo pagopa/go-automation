@@ -50,9 +50,7 @@ async function runGetAttachmentsStep(
 ): Promise<void> {
   script.logger.section('Step: Check Notification Attachments');
   if (inputLines.length === 0) {
-    script.logger.warning(
-      'Nessun attachment da scaricare.',
-    );
+    script.logger.warning('Nessun attachment da scaricare.');
     return;
   }
   const result = await getNotificationAttachments(script, inputLines);
@@ -69,9 +67,7 @@ async function runRetrieveAttachmentsStep(
 ): Promise<RetrieveAttachmentsResult> {
   script.logger.section('Step: Retrieve Attachments key & AARs key from IUN');
   if (inputLines.length === 0) {
-    script.logger.warning(
-      'Nessuna notifica rimasta da verificare.',
-    );
+    script.logger.warning('Nessuna notifica rimasta da verificare.');
     return {
       totalIuns: 0,
       attachmentsExtractedCount: 0,
@@ -130,7 +126,7 @@ async function runFetchTimelinesStep(
     );
     return [];
   }
-  const result = await fetchTimelines(script, inputLines);
+  const result = await fetchTimelines(script, reporter, inputLines);
   reporter.recordFetchTimelines(result);
   script.logger.info(
     `Risultato Fetch Timelines: ${result.timelinesFetchedCount}/${result.totalIuns} timeline scaricate, ${result.emptyTimelinesCount} vuote, ${result.errorsCount} errori.`,

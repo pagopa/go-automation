@@ -1,6 +1,7 @@
 import path from 'path';
 import { Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig } from '../types/index.js';
+import type { PaperRequestReporter } from './reporter.js';
 
 export interface TimelineEvent {
   category?: string;
@@ -111,11 +112,12 @@ export function isNotificationExcluded(
  * @param data - Array di documenti timeline
  * @param timestampThreshold - Limite temporale ISO (es. 120 giorni fa)
  * @param script
+ * @param reporter
  * @returns Array con i soli documenti che non sono stati scartati dal filtro
  */
 export async function processTimelines<
   T extends { readonly iun?: string | undefined; readonly timeline?: ReadonlyArray<TimelineEvent> | undefined },
->(data: ReadonlyArray<T>, timestampThreshold: string, script: Core.GOScript): Promise<T[]> {
+>(data: ReadonlyArray<T>, timestampThreshold: string, script: Core.GOScript, reporter: PaperRequestReporter): Promise<T[]> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
   const cancelledOutput: string[] = [];
   const viewedOutput: string[] = [];
@@ -169,6 +171,14 @@ export async function processTimelines<
     await cancelledExporter.export(cancelledOutput);
     await viewedExporter.export(viewedOutput);
     await refinementExporter.export(refinementOutput);
+
+    const result = {
+      notificationCanceled: cancelledOutput.length,
+      notificationViewed: viewedOutput.length,
+      notificationRefined: refinementOutput.length,
+    }
+
+    reporter.recordVerifyNotificationTimeline(result);
 
     logger.info(
       `Filtro completato: ${cancelledOutput.length} CANCELLED, ${viewedOutput.length} VIEWED (>120gg), ${refinementOutput.length} REFINEMENT (>120gg) scartate. Mantenute: ${keptItems.length}.`,
