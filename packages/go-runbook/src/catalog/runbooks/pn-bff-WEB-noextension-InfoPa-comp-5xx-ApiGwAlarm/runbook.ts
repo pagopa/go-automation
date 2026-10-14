@@ -7,7 +7,7 @@ import { INFO_PA_QUERY_PROFILE } from './queryProfile.js';
 import { SetVarStep } from '../../../steps/control/SetVarStep.js';
 
 export const INFO_PA_ALARM = 'pn-bff-WEB-noextension-InfoPa-comp-5xx-ApiGwAlarm';
-export const RUNBOOK_URL: string = `https://pagopa.atlassian.net/wiki/spaces/GO/pages/2913599691/${INFO_PA_ALARM}`;
+const RUNBOOK_URL: string = `https://pagopa.atlassian.net/wiki/spaces/GO/pages/2913599691/${INFO_PA_ALARM}`;
 
 export function buildRunbook(): Runbook {
   return apigw.createApiGwAlarmRunbook({

@@ -3,7 +3,7 @@ import type { ApiGwQueryProfile } from '../../../apigw/profiles/ApiGwQueryProfil
 
 // Verified against the child alarm and REST API on 2026-10-13.
 // resourcePath excludes the public /bff prefix. Older rows may only have path.
-export const INFO_PA_SCOPE_FILTER = `filter (
+const INFO_PA_SCOPE_FILTER = `filter (
     httpMethod = 'GET' and (
       resourcePath in ['/v1/institutions', '/v1/institutions/products', '/v1/pa/groups', '/v1/pa/additional-languages']
       or (not ispresent(resourcePath) and path like /\\/v1\\/(institutions(\\/products)?|pa\\/(groups|additional-languages))$/)

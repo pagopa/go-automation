@@ -30,7 +30,7 @@ export const ERROR_QUERY: string = `fields @timestamp, @logStream, trace_id, mes
 | sort @timestamp asc
 | limit ${ROW_LIMIT}`;
 
-export const STREAM_QUERY: string = `stats min(@timestamp) as firstLog, max(@timestamp) as lastLog,
+const STREAM_QUERY: string = `stats min(@timestamp) as firstLog, max(@timestamp) as lastLog,
     count(*) as logCount by @logStream
 | sort lastLog desc
 | limit ${ROW_LIMIT}`;
