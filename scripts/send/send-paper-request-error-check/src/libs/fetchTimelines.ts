@@ -1,6 +1,6 @@
 import path from 'path';
 import { Core } from '@go-automation/go-common';
-import type { SendPaperRequestErrorCheckConfig, FetchTimelinesResult } from '../types/index.js';
+import type { SendPaperRequestErrorCheckConfig } from '../types/index.js';
 import { getCoreDynamoDBService } from '../utils/awsClients.js';
 import { extractIun, get } from '../utils/get.js';
 import { processTimelines } from './verifyNotification.js';
@@ -21,7 +21,7 @@ interface TimelineElement {
 /**
  * Struttura del documento timeline per una notifica IUN.
  */
-interface IunTimelineDocument {
+export interface IunTimelineDocument {
   readonly iun: string;
   readonly paId?: string | undefined;
   readonly notificationSentAt?: string | undefined;
@@ -38,7 +38,13 @@ interface IunTimelineDocument {
 export async function fetchTimelines(
   script: Core.GOScript,
   iunsInput?: ReadonlyArray<string>,
-): Promise<FetchTimelinesResult> {
+): Promise<{
+  totalIuns: number;
+  timelinesFetchedCount: number;
+  emptyTimelinesCount: number;
+  errorsCount: number;
+  filteredIuns: string[]
+}> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
   const dynamoDbService = getCoreDynamoDBService(script, config);
   const logger = script.logger;
@@ -63,6 +69,7 @@ export async function fetchTimelines(
       timelinesFetchedCount: 0,
       emptyTimelinesCount: 0,
       errorsCount: 0,
+      filteredIuns: []
     };
   }
 
@@ -140,6 +147,7 @@ export async function fetchTimelines(
   const tresholdIsoDate = dateTreshold.toISOString().substring(0, 10);
 
   const filteredTimelines = await processTimelines(timelinesResult, tresholdIsoDate, script);
+  const filteredIuns: string[] = filteredTimelines.map(item => item.iun)
 
   // Scrittura del file JSON di output via GOJSONListExporter
   const destinationFile = path.join(outputDir, 'timelines.json');
@@ -155,5 +163,6 @@ export async function fetchTimelines(
     timelinesFetchedCount,
     emptyTimelinesCount,
     errorsCount,
+    filteredIuns,
   };
 }

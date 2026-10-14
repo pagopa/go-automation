@@ -48,10 +48,10 @@ async function runGetAttachmentsStep(
   inputLines: string[],
   reporter: PaperRequestReporter,
 ): Promise<void> {
-  script.logger.section('Step: Get Notification Attachments');
+  script.logger.section('Step: Check Notification Attachments');
   if (inputLines.length === 0) {
     script.logger.warning(
-      'Nessun file di input fornito (--inputFile / -f) o il file è vuoto. Fornire un file con gli IUN da verificare.',
+      'Nessun attachment da scaricare.',
     );
     return;
   }
@@ -67,10 +67,10 @@ async function runRetrieveAttachmentsStep(
   inputLines: string[],
   reporter: PaperRequestReporter,
 ): Promise<RetrieveAttachmentsResult> {
-  script.logger.section('Step: Retrieve Attachments & AARs from IUN');
+  script.logger.section('Step: Retrieve Attachments key & AARs key from IUN');
   if (inputLines.length === 0) {
     script.logger.warning(
-      'Nessun file di input fornito (--inputFile / -f) o il file è vuoto. Fornire un file con gli IUN da elaborare.',
+      'Nessuna notifica rimasta da verificare.',
     );
     return {
       totalIuns: 0,
@@ -122,19 +122,20 @@ async function runFetchTimelinesStep(
   script: Core.GOScript,
   inputLines: string[],
   reporter: PaperRequestReporter,
-): Promise<void> {
-  script.logger.section('Step: Fetch Timelines from DynamoDB');
+): Promise<string[]> {
+  script.logger.section('Step: Check notification status (REFINEMENT, VIEWED, CANCELLED)');
   if (inputLines.length === 0) {
     script.logger.warning(
       'Nessun file di input fornito (--inputFile / -f) o il file è vuoto. Fornire un file con gli IUN per scaricare le timeline.',
     );
-    return;
+    return [];
   }
   const result = await fetchTimelines(script, inputLines);
   reporter.recordFetchTimelines(result);
   script.logger.info(
     `Risultato Fetch Timelines: ${result.timelinesFetchedCount}/${result.totalIuns} timeline scaricate, ${result.emptyTimelinesCount} vuote, ${result.errorsCount} errori.`,
   );
+  return result.filteredIuns;
 }
 
 export async function executeStepByMode(
@@ -163,7 +164,7 @@ export async function executeStepByMode(
   }
 
   if (config.mode === 'fetch-timelines' || isAll) {
-    await runFetchTimelinesStep(script, currentLines, reporter);
+    currentLines = await runFetchTimelinesStep(script, currentLines, reporter);
   }
 
   let retrieveResult: RetrieveAttachmentsResult | undefined;

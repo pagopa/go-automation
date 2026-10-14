@@ -127,6 +127,7 @@ export interface FetchTimelinesResult {
   readonly timelinesFetchedCount: number;
   readonly emptyTimelinesCount: number;
   readonly errorsCount: number;
+  readonly filteredTimelines: string;
 }
 
 /**

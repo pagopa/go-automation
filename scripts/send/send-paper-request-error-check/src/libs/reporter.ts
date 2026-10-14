@@ -3,7 +3,6 @@ import { Core } from '@go-automation/go-common';
 import { get } from '../utils/get.js';
 import type {
   CheckFeedbackResult,
-  FetchTimelinesResult,
   GetNotificationAttachmentsResult,
   PaperRequestMetrics,
   PdfValidationResult,
@@ -36,7 +35,13 @@ export class PaperRequestReporter {
   private retrieveAttachmentsResult: RetrieveAttachmentsResult | undefined;
   private glacierResult: RetrieveGlacierResult | undefined;
   private pdfValidationResult: PdfValidationResult | undefined;
-  private fetchTimelinesResult: FetchTimelinesResult | undefined;
+  private fetchTimelinesResult: {
+    totalIuns: number;
+    timelinesFetchedCount: number;
+    emptyTimelinesCount: number;
+    errorsCount: number;
+    filteredIuns: string[]
+  } | undefined;
 
   /**
    * Imposta il conteggio iniziale totale dei requestId / IUN.
@@ -115,7 +120,13 @@ export class PaperRequestReporter {
   /**
    * Registra i risultati dello step Fetch Timelines.
    */
-  public recordFetchTimelines(result: FetchTimelinesResult): void {
+  public recordFetchTimelines(result: {
+    totalIuns: number;
+    timelinesFetchedCount: number;
+    emptyTimelinesCount: number;
+    errorsCount: number;
+    filteredIuns: string[]
+  }): void {
     this.fetchTimelinesResult = result;
     this.metrics.timelinesFetchedCount = (this.metrics.timelinesFetchedCount ?? 0) + result.timelinesFetchedCount;
     this.metrics.errorsCount = (this.metrics.errorsCount ?? 0) + result.errorsCount;
@@ -312,7 +323,7 @@ export class PaperRequestReporter {
     logger.info(`Valid PDFs Checked             : ${this.metrics.validPdfCount ?? 0}`);
     logger.info(`Invalid PDFs Checked           : ${this.metrics.invalidPdfCount ?? 0}`);
     logger.info(`Timelines Fetched              : ${this.metrics.timelinesFetchedCount ?? 0}`);
-    logger.info(`Requests to Verify Manually    : ${this.metrics.toVerifyManuallyCount}`);
+    logger.info(`Requests to Verify             : ${this.metrics.toVerifyManuallyCount}`);
     logger.info(`Total Errors                   : ${this.metrics.errorsCount ?? 0}`);
     logger.info('----------------------------------------------------');
 
