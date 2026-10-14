@@ -44,10 +44,9 @@ body:
     attributes:
       label: 'Come è stata eseguita'
       options:
-        - 'go-cli runbook run'
-        - 'go-cli analysis run'
-        - 'Watchtower Lambda (shadow/apply)'
-        - 'Altro'
+        - 'pnpm'
+        - 'Lambda'
+        - 'go-cli'
     validations:
       required: true
   - type: input
@@ -58,10 +57,10 @@ body:
     validations:
       required: true
   - type: input
-    id: commit
+    id: version
     attributes:
-      label: 'Commit go-automation'
-      description: 'Output di `git rev-parse --short HEAD`, se noto.'
+      label: 'Versione del runbook'
+      description: "La riga `Runbook: <name> v<version>` all'inizio del log, oppure `runbook.version` in `result-*.json` / `execution.runbookVersion` in `trace-*.json`. Senza un run: `Version` in `go-cli runbook show <key>`."
     validations:
       required: false
   - type: dropdown
@@ -74,31 +73,11 @@ body:
         - 'Più casi in match'
     validations:
       required: true
-  - type: input
-    id: obtained
-    attributes:
-      label: 'Case id ottenuto'
-      description: "L'id del caso riconosciuto, o `unknown`."
-    validations:
-      required: true
-  - type: input
-    id: expected
-    attributes:
-      label: 'Case id atteso'
-    validations:
-      required: true
-  - type: textarea
-    id: table
-    attributes:
-      label: 'Tabella dei casi come stampata'
-      description: "Incolla la tabella di known/unknown case dall'output."
-      render: text
-    validations:
-      required: false
   - type: textarea
     id: why
     attributes:
       label: 'Perché è sbagliato'
+      description: 'Quale classificazione ti aspettavi e perché quella ottenuta non è corretta.'
     validations:
       required: true
   - type: textarea
