@@ -69,7 +69,7 @@ export class PaperRequestReporter {
       this.metrics.withFeedback++;
       if (category === 'PERFECTED') {
         this.metrics.perfectedCount++;
-        } else if (category === 'REFINEMENT') {
+      } else if (category === 'REFINEMENT') {
         this.metrics.refinedCount++;
       } else if (category === 'CANCELED' || category === 'CANCELLED') {
         this.metrics.canceledCount++;
@@ -144,9 +144,9 @@ export class PaperRequestReporter {
    * Registra i risultati dello step di verifica della notifica
    */
   public recordVerifyNotificationTimeline(result: {
-      notificationCanceled: number;
-      notificationViewed: number;
-      notificationRefined: number;
+    notificationCanceled: number;
+    notificationViewed: number;
+    notificationRefined: number;
   }): void {
     this.metrics.canceledCount = this.metrics.canceledCount + result.notificationCanceled;
     this.metrics.viewedCount = this.metrics.viewedCount + result.notificationViewed;
@@ -338,14 +338,14 @@ export class PaperRequestReporter {
     }
 
     logger.info('----------------------------------------------------');
-    logger.info(`Total initial Requests         : ${this.metrics.totalInitialRequestIds}`)
+    logger.info(`Total initial Requests         : ${this.metrics.totalInitialRequestIds}`);
     logger.info(`Requests with Feedback         : ${this.metrics.withFeedback}`);
     logger.info(`Requests without Feedback      : ${this.metrics.withoutFeedback}`);
     logger.info(`Timelines Fetched              : ${this.metrics.timelinesFetchedCount ?? 0}`);
     logger.info(`Perfected Requests             : ${this.metrics.perfectedCount}`);
     logger.info(`Viewed Requests                : ${this.metrics.viewedCount}`);
     logger.info(`Canceled Requests              : ${this.metrics.canceledCount}`);
-    logger.info(`Refined Requests               : ${this.metrics.refinedCount}`)
+    logger.info(`Refined Requests               : ${this.metrics.refinedCount}`);
     logger.info(`Invalid Attachments            : ${this.metrics.invalidAttachmentsCount}`);
     logger.info(`Glacier Restored Objects       : ${this.metrics.glacierRestoredCount}`);
     logger.info(`Valid PDFs Checked             : ${this.metrics.validPdfCount ?? 0}`);

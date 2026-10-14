@@ -123,17 +123,6 @@ export interface PdfValidationResult {
 }
 
 /**
- * Risultati dell'elaborazione per il download delle timeline per IUN
- */
-export interface FetchTimelinesResult {
-  readonly totalIuns: number;
-  readonly timelinesFetchedCount: number;
-  readonly emptyTimelinesCount: number;
-  readonly errorsCount: number;
-  readonly filteredTimelines: string;
-}
-
-/**
  * Interfaccia di configurazione principale dello script Send Paper Request Error Check
  */
 export interface SendPaperRequestErrorCheckConfig {

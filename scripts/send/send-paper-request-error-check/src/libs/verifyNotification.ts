@@ -117,7 +117,12 @@ export function isNotificationExcluded(
  */
 export async function processTimelines<
   T extends { readonly iun?: string | undefined; readonly timeline?: ReadonlyArray<TimelineEvent> | undefined },
->(data: ReadonlyArray<T>, timestampThreshold: string, script: Core.GOScript, reporter: PaperRequestReporter): Promise<T[]> {
+>(
+  data: ReadonlyArray<T>,
+  timestampThreshold: string,
+  script: Core.GOScript,
+  reporter: PaperRequestReporter,
+): Promise<T[]> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
   const cancelledOutput: string[] = [];
   const viewedOutput: string[] = [];
@@ -176,7 +181,7 @@ export async function processTimelines<
       notificationCanceled: cancelledOutput.length,
       notificationViewed: viewedOutput.length,
       notificationRefined: refinementOutput.length,
-    }
+    };
 
     reporter.recordVerifyNotificationTimeline(result);
 

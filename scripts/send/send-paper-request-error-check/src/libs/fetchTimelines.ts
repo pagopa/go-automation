@@ -22,7 +22,7 @@ interface TimelineElement {
 /**
  * Struttura del documento timeline per una notifica IUN.
  */
-export interface IunTimelineDocument {
+interface IunTimelineDocument {
   readonly iun: string;
   readonly paId?: string | undefined;
   readonly notificationSentAt?: string | undefined;

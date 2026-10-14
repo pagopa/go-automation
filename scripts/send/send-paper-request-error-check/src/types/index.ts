@@ -4,7 +4,6 @@
  */
 export type {
   CheckFeedbackResult,
-  FetchTimelinesResult,
   GetNotificationAttachmentsResult,
   PaperRequestMetrics,
   PdfValidationResult,
