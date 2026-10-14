@@ -39,7 +39,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     analysis: {
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
-      finalActions: ['Analisi conclusa in autonomia dal team di GO. Non è necessario altro confronto'],
+      finalActions: [
+        'Monitorare la ricorrenza degli errori SlowDown S3 e verificare con Infra lo stato ' +
+          'dell’eventuale intervento citato nella segnalazione storica.',
+      ],
     },
   }),
   knownCase({
@@ -99,6 +102,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       description: runtimeCase.description,
       priority: runtimeCase.priority,
       condition: runtimeCase.condition,
+      title: runtimeCase.action.type === 'log' ? runtimeCase.action.title : runtimeCase.description,
       resolution:
         runtimeCase.id === 'lambda-timeout'
           ? 'Verificare durata e timeout configurato, individuare la chiamata interrotta e controllare i retry ' +
@@ -108,8 +112,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
             'mantenere l’analisi aperta se il recupero non è verificato.',
       level: 'warn',
       details: [
+        ...(runtimeCase.action.type === 'log'
+          ? (runtimeCase.action.details ?? []).filter(([label]) => label !== 'Risoluzione')
+          : []),
         ['Account con errori', '{{vars.downstreamMonitoringErrorAccounts}}'],
-        ['Lambda request ID', '{{vars.lambdaRequestId}}'],
       ],
       analysis: { proposedStatus: 'IN_PROGRESS', analysisType: 'ANALYZABLE', finalActions: [FEEDBACK_ACTION] },
     }),

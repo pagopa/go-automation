@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import type { ResultField } from '@go-automation/go-common/aws';
 
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
-import { ConditionEvaluator } from '../../framework.js';
+import { ConditionEvaluator, lambda } from '../../framework.js';
 import type { KnownCase, RunbookContext } from '../../framework.js';
 import { KNOWN_CASES } from '../knownCases.js';
 
@@ -35,6 +35,43 @@ function byId(id: string): KnownCase {
 
 describe('pn-downstream-monitoring-lambda known cases', () => {
   const evaluator = new ConditionEvaluator();
+
+  it('requires monitoring and Infra verification after observed S3 recovery', () => {
+    const knownCase = byId('downstream-monitoring-s3-slow-down-recovered');
+    assert.strictEqual(knownCase.analysis?.proposedStatus, 'COMPLETED');
+    const finalActions = knownCase.analysis?.finalActions?.join(' ') ?? '';
+    assert.match(finalActions, /Monitorare la ricorrenza/u);
+    assert.match(finalActions, /verificare con Infra lo stato/u);
+    assert.match(finalActions, /intervento citato nella segnalazione storica/u);
+    assert.doesNotMatch(finalActions, /Non è necessario altro confronto/u);
+  });
+
+  for (const runtimeCase of lambda.LAMBDA_RUNTIME_KNOWN_CASES) {
+    it(`preserves console evidence for ${runtimeCase.id} while replacing the resolution`, () => {
+      const knownCase = byId(runtimeCase.id);
+      assert.strictEqual(runtimeCase.action.type, 'log');
+      assert.strictEqual(knownCase.action.type, 'log');
+      if (runtimeCase.action.type !== 'log' || knownCase.action.type !== 'log') return;
+
+      assert.strictEqual(knownCase.action.title, runtimeCase.action.title);
+      const details = knownCase.action.details ?? [];
+      assert.deepStrictEqual(
+        details.filter(([label]) => label !== 'Risoluzione' && label !== 'Account con errori'),
+        (runtimeCase.action.details ?? []).filter(([label]) => label !== 'Risoluzione'),
+      );
+      assert.deepStrictEqual(
+        details.filter(([label]) => label === 'Account con errori'),
+        [['Account con errori', '{{vars.downstreamMonitoringErrorAccounts}}']],
+      );
+      assert.deepStrictEqual(
+        details.filter(([label]) => label === 'Risoluzione'),
+        [['Risoluzione', knownCase.analysis?.resolution]],
+      );
+      assert.notStrictEqual(knownCase.analysis?.resolution, runtimeCase.analysis?.resolution);
+      assert.match(knownCase.analysis?.resolution ?? '', /analisi aperta/u);
+      assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
+    });
+  }
 
   it('matches the complete SlowDown 503 signature documented in Confluence', () => {
     const message =
