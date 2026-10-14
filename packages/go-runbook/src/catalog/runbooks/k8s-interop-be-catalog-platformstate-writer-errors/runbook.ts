@@ -41,9 +41,14 @@ export function buildRunbook(): Runbook {
       ],
     },
   });
+  const contextStep = { step: new QueryWriterContextStep() };
   // AnalyzeCidTracker signals early resolution: collect context before that step.
   return {
     ...runbook,
-    steps: [...runbook.steps.slice(0, 4), { step: new QueryWriterContextStep() }, ...runbook.steps.slice(4)],
+    steps: runbook.steps.flatMap((descriptor) =>
+      descriptor.step.id === CATALOG_PLATFORMSTATE_WRITER_ALARM.stepIds.analyzeCidTracker
+        ? [contextStep, descriptor]
+        : [descriptor],
+    ),
   };
 }
