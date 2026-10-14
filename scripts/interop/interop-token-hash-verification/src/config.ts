@@ -12,7 +12,7 @@ import { Core } from '@go-automation/go-common';
 export const scriptMetadata: Core.GOScriptMetadata = {
   name: 'Interop Verifica Hash Token',
   version: '1.0.0',
-  description: "Verifica hash dei token per l'allarme interop-be-audit-signer",
+  description: 'Verifica hash dei token per gli allarmi audit-signer',
   authors: ['Team GO - Gestione Operativa'],
 };
 
@@ -61,7 +61,6 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     description: 'CloudWatch Log Group Name',
     required: true,
     aliases: ['lg'],
-    envVar: 'CW_LOG_GROUP',
   },
   {
     name: 'cw.queryApplication',
@@ -70,7 +69,6 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     required: false,
     defaultValue: DEFAULT_CW_QUERY_APPLICATION,
     aliases: ['qa'],
-    envVar: 'CW_QUERY_APPLICATION',
   },
   {
     name: 'cw.queryCid',
@@ -79,7 +77,6 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     required: false,
     defaultValue: DEFAULT_CW_QUERY_CID,
     aliases: ['qc'],
-    envVar: 'CW_QUERY_CID',
   },
   {
     name: 's3.bucketNameNdjson',
@@ -87,7 +84,6 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     description: 'S3 bucket name for NDJSON tokens',
     required: true,
     aliases: ['bn'],
-    envVar: 'S3_BUCKET_NAME_NDJSON',
   },
   {
     name: 's3.prefixNdjson',
@@ -96,7 +92,6 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     required: false,
     defaultValue: 'token-details',
     aliases: ['pn'],
-    envVar: 'S3_PREFIX_NDJSON',
   },
   {
     name: 's3.bucketNameP7m',
@@ -104,7 +99,6 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     description: 'S3 bucket name for signed P7M tokens',
     required: true,
     aliases: ['bp'],
-    envVar: 'S3_BUCKET_NAME_P7M',
   },
   {
     name: 's3.prefixP7m',
@@ -113,7 +107,6 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     required: false,
     defaultValue: 'token-details',
     aliases: ['pp'],
-    envVar: 'S3_PREFIX_P7M',
   },
   {
     name: 'startUtc',
@@ -121,7 +114,6 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     description: 'Start time in UTC (format: YYYY-MM-DD HH:MM:SS or ISO 8601)',
     required: true,
     aliases: ['su'],
-    envVar: 'START_UTC',
   },
   {
     name: 'endUtc',
@@ -129,6 +121,13 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     description: 'End time in UTC (format: YYYY-MM-DD HH:MM:SS or ISO 8601)',
     required: true,
     aliases: ['eu'],
-    envVar: 'END_UTC',
+  },
+  {
+    name: 'm2m',
+    type: Core.GOConfigParameterType.BOOL,
+    description: 'End time in UTC (format: YYYY-MM-DD HH:MM:SS or ISO 8601)',
+    required: false,
+    defaultValue: false,
+    aliases: ['mm'],
   },
 ] as const;

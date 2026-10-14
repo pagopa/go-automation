@@ -9,7 +9,7 @@ import { describe, it } from 'node:test';
 import type * as forgeModule from 'node-forge';
 
 import { main } from '../../main.js';
-import type { InteropVerificaHashTokenConfig } from '../../types/index.js';
+import type { InteropTokenHashVerificationConfig } from '../../types/index.js';
 
 const forge = createRequire(import.meta.url)('node-forge') as typeof forgeModule;
 const TOKEN_CONTENT = '{"token":"same"}\n';
@@ -24,16 +24,17 @@ describe('main hash verification spinner cleanup', () => {
       const events: string[] = [];
       let activeSpinner: string | undefined;
       let queryCount = 0;
-      const config: InteropVerificaHashTokenConfig = {
+      const config: InteropTokenHashVerificationConfig = {
         awsProfile: 'pdnd-interop-test',
         cwLogGroup: '/aws/eks/interop-eks-cluster-test/application',
         s3BucketNameNdjson: 'originals',
         s3BucketNameP7m: 'signed',
         startUtc: '2026-10-05T07:55:00Z',
         endUtc: '2026-10-05T08:01:00Z',
+        m2m: false,
       };
       const script = {
-        async getConfiguration(): Promise<InteropVerificaHashTokenConfig> {
+        async getConfiguration(): Promise<InteropTokenHashVerificationConfig> {
           await Promise.resolve();
           return config;
         },

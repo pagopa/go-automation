@@ -1,5 +1,5 @@
 {
-  "name": "interop-verifica-hash-token",
+  "name": "interop-token-hash-verification",
   "version": "1.0.0",
   "private": true,
   "type": "module",

@@ -2,7 +2,7 @@
 
 > Versione: 1.0.0 | Autore: Team GO - Gestione Operativa
 
-Script per la verifica dell'integrità e dell'hash dei token per l'allarme `interop-be-audit-signer`.
+Script per la verifica dell'integrità e dell'hash dei token per gli allarmi sui ms `k8s-interop-be-audit-signer-errors` e `k8s-interop-be-m2m-audit-signer-errors`.
 
 ## Indice
 
@@ -23,7 +23,8 @@ Lo script automatizza il flusso di verifica dell'integrità dei token firmati:
    specifici dell'applicazione `interop-be-audit-signer` nell'intervallo temporale impostato.
 2. **Identificazione File**: Esegue una seconda query CloudWatch filtrata per il `CID` trovato, identificando il nome
    del file del token registrato.
-3. **Download da S3**: Scarica da Amazon S3 sia il file token originale (`.ndjson`) sia quello firmato PKCS#7 (`.p7m`).
+3. **Download da S3**: Controlla se è presente la stringa m2m all'interno del Cloudwatch Log Group e scarica da Amazon
+   S3 sia il file token originale (`.ndjson`) sia quello firmato PKCS#7 (`.p7m`) dal bucket corrispondente.
 4. **Estrazione del contenuto**: Estrae il contenuto PKCS#7 dal `.p7m` tramite `node-forge` e decomprime lo ZIP
    risultante. Non verifica la firma digitale né la catena dei certificati e non esegue una decrittografia.
 5. **Verifica dell'Hash**: Calcola l'hash SHA-256 di entrambi i file tramite streaming Node.js e li confronta per
@@ -31,7 +32,8 @@ Lo script automatizza il flusso di verifica dell'integrità dei token firmati:
 
 Le query predefinite scelgono il primo CID della finestra (`limit 1`) e il primo filename trovato fra i messaggi
 `Getting file` correlati. Una singola esecuzione verifica soltanto quel file. Per un incidente con più CID o file,
-circoscrivere le query e ripetere la verifica per ciascuno; l'uguaglianza di un file non dimostra il recupero degli altri.
+circoscrivere le query e ripetere la verifica per ciascuno; l'uguaglianza di un file non dimostra il recupero degli
+altri.
 Senza CID usare la procedura manuale del runbook, correlando filename, timestamp e pod.
 
 ---
@@ -79,6 +81,7 @@ configurazione/presets.
 | `--s3-prefix-p7m`         | `-pp` | `S3_PREFIX_P7M`         | No           | `token-details`                                 | Prefisso S3 per file P7M                                                                             |
 | `--start-utc`             | `-su` | `START_UTC`             | **Sì**       | -                                               | Data d'inizio in UTC (`YYYY-MM-DD HH:MM:SS` o ISO 8601)                                              |
 | `--end-utc`               | `-eu` | `END_UTC`               | **Sì**       | -                                               | Data di fine in UTC (`YYYY-MM-DD HH:MM:SS` o ISO 8601)                                               |
+| `--m2m`                   | `-mm` | `END_UTC`               | **No**       | false                                           | Valore usato per verificare il tipo di processo se M2M oppure no                                     |
 
 ### Preset di Configurazione (Consigliato)
 
@@ -108,13 +111,13 @@ Le date nel preset sono statiche: sostituirle o sovrascriverle con l'intervallo 
 Dalla root del monorepo, lanciare lo script utilizzando il preset configurato:
 
 ```bash
-pnpm interop:verifica:hash:token:dev --script-preset-name test --aws-profile <profilo-aws> --start-utc <inizio-UTC> --end-utc <fine-UTC>
+pnpm interop:token:hash:verification:dev --script-preset-name test --aws-profile <profilo-aws> --start-utc <inizio-UTC> --end-utc <fine-UTC>
 ```
 
 Oppure specificando i singoli parametri manualmente via CLI (le query verranno prese di default se non specificate):
 
 ```bash
-pnpm interop:verifica:hash:token:dev -- \
+pnpm interop:token:hash:verification:dev -- \
   --aws-profile pdnd-interop-test \
   --cw-log-group "/aws/eks/interop-eks-cluster-test/application" \
   --s3-bucket-name-ndjson "interop-generated-jwt-details-test-es1" \
@@ -128,13 +131,13 @@ pnpm interop:verifica:hash:token:dev -- \
 Compilare prima lo script:
 
 ```bash
-pnpm --filter=interop-verifica-hash-token build
+pnpm --filter=interop-token-hash-verification build
 ```
 
 Eseguire lo script compilato:
 
 ```bash
-pnpm interop:verifica:hash:token:prod --script-preset-name <nome-script-preset> --aws-profile <profilo-aws>
+pnpm interop:token:hash:verification:prod --script-preset-name <nome-script-preset> --aws-profile <profilo-aws>
 ```
 
 ---
@@ -144,7 +147,7 @@ pnpm interop:verifica:hash:token:prod --script-preset-name <nome-script-preset> 
 ### File Generati
 
 Durante l'esecuzione, lo script crea una cartella dedicata per l'output in:
-`data/interop-verifica-hash-token/outputs/interop-verifica-hash-token_{timestamp}/`
+`data/interop-token-hash-verification/outputs/interop-token-hash-verification_{timestamp}/`
 
 Al suo interno vengono scaricati ed estratti i seguenti file per le verifiche:
 
@@ -179,15 +182,15 @@ Verifica hash dei token per l'allarme interop-be-audit-signer
   - S3 Bucket (P7M): interop-signed-jwt-audit-v2-test-es1
   - S3 Key (P7M): token-details/7db928cf-2b81-42e6-a05c-dfb7c2512f45.ndjson.zip.p7m
   [SPINNER] Downloading P7M file...
-  Downloaded signed P7M to: C:\Users\...\data\interop-verifica-hash-token\outputs\...\token1.ndjson.zip.p7m
+  Downloaded signed P7M to: C:\Users\...\data\interop-token-hash-verification\outputs\...\token1.ndjson.zip.p7m
   - S3 Bucket (NDJSON): interop-generated-jwt-details-test-es1
   - S3 Key (NDJSON): token-details/7db928cf-2b81-42e6-a05c-dfb7c2512f45.ndjson
   [SPINNER] Downloading NDJSON file...
-  Downloaded original NDJSON to: C:\Users\...\data\interop-verifica-hash-token\outputs\...\token_original.ndjson
+  Downloaded original NDJSON to: C:\Users\...\data\interop-token-hash-verification\outputs\...\token_original.ndjson
 
 > Unpacking and extracting .p7m file...
   [SPINNER] Extracting PKCS#7 content and unzipping...
-  Extracted signed NDJSON content to: C:\Users\...\data\interop-verifica-hash-token\outputs\...\extracted_token1.ndjson
+  Extracted signed NDJSON content to: C:\Users\...\data\interop-token-hash-verification\outputs\...\extracted_token1.ndjson
 
 > Verifying SHA-256 hashes...
   [SPINNER] Calculating hashes...

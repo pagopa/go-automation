@@ -37,7 +37,7 @@
     { "path": "./scripts/go/go-rta-check" },
     { "path": "./scripts/go/go-search-jira" },
     { "path": "./scripts/interop/interop-analyze-alarms" },
-    { "path": "./scripts/interop/interop-verifica-hash-token" },
+    { "path": "./scripts/interop/interop-token-hash-verification" },
     { "path": "./scripts/send/send-download-safestorage-attachments" },
     { "path": "./scripts/aws/aws-fetch-ecs-clusters-infos" },
     { "path": "./scripts/send/send-fetch-timeline-from-iun" },

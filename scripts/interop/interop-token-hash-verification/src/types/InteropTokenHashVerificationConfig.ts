@@ -2,7 +2,7 @@
  * Script configuration interface
  * Represents all validated configuration parameters
  */
-export interface InteropVerificaHashTokenConfig {
+export interface InteropTokenHashVerificationConfig {
   /** AWS profile name */
   readonly awsProfile: string;
   /** AWS region */
@@ -25,4 +25,6 @@ export interface InteropVerificaHashTokenConfig {
   readonly startUtc: string;
   /** End time in UTC */
   readonly endUtc: string;
+  /** Boolean for M2M check */
+  readonly m2m: boolean;
 }

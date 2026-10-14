@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { main } from '../../main.js';
-import type { InteropVerificaHashTokenConfig } from '../../types/index.js';
+import type { InteropTokenHashVerificationConfig } from '../../types/index.js';
 
 interface ScriptHarness {
   readonly script: Core.GOScript;
@@ -12,16 +12,17 @@ interface ScriptHarness {
 
 function createScript(applicationLog: string | undefined): ScriptHarness {
   const queries: string[] = [];
-  const config: InteropVerificaHashTokenConfig = {
+  const config: InteropTokenHashVerificationConfig = {
     awsProfile: 'pdnd-interop-prod',
     cwLogGroup: '/aws/eks/interop-eks-cluster-prod/application',
     s3BucketNameNdjson: 'originals',
     s3BucketNameP7m: 'signed',
     startUtc: '2026-10-05T07:55:00Z',
     endUtc: '2026-10-05T08:01:00Z',
+    m2m: false,
   };
   const script = {
-    async getConfiguration(): Promise<InteropVerificaHashTokenConfig> {
+    async getConfiguration(): Promise<InteropTokenHashVerificationConfig> {
       await Promise.resolve();
       return config;
     },
