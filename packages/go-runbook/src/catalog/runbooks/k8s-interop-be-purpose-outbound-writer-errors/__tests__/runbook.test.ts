@@ -25,11 +25,12 @@ describe('purpose outbound writer runbook', () => {
         alarm.stepIds.queryApplicationLogs,
         alarm.stepIds.analyzeApplicationLogs,
         alarm.stepIds.queryCidTracker,
+        'query-purpose-outbound-writer-context',
         alarm.stepIds.analyzeCidTracker,
       ],
     );
     assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
-    assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 5, afterMinutes: 1 });
+    assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 5, afterMinutes: 5 });
     assert.ok(service.isServiceRunbookContext(runbook.runbookContext));
     assert.strictEqual(runbook.runbookContext.service.name, alarm.podApp);
   });
