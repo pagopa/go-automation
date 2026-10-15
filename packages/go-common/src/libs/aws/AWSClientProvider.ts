@@ -14,6 +14,7 @@ import { SQSClient } from '@aws-sdk/client-sqs';
 import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { ECSClient } from '@aws-sdk/client-ecs';
 import { SchedulerClient } from '@aws-sdk/client-scheduler';
+import { SSMClient } from '@aws-sdk/client-ssm';
 import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { fromIni } from '@aws-sdk/credential-provider-ini';
 
@@ -55,6 +56,7 @@ export class AWSClientProvider {
   private cachedECSClient: ECSClient | null = null;
   private cachedSecretsManagerClient: SecretsManagerClient | null = null;
   private cachedSchedulerClient: SchedulerClient | null = null;
+  private cachedSSMClient: SSMClient | null = null;
   private cachedSTSClient: STSClient | null = null;
   private cachedAccountId: Promise<string> | undefined;
 
@@ -141,6 +143,14 @@ export class AWSClientProvider {
   }
 
   /**
+   * Returns the cached SSMClient instance.
+   */
+  get ssm(): SSMClient {
+    this.cachedSSMClient ??= new SSMClient(this.clientConfig);
+    return this.cachedSSMClient;
+  }
+
+  /**
    * Returns the cached STSClient instance.
    */
   get sts(): STSClient {
@@ -205,6 +215,7 @@ export class AWSClientProvider {
     this.cachedS3Client?.destroy();
     this.cachedSecretsManagerClient?.destroy();
     this.cachedSchedulerClient?.destroy();
+    this.cachedSSMClient?.destroy();
     this.cachedSTSClient?.destroy();
 
     this.cachedDynamoDBClient = null;
@@ -216,6 +227,7 @@ export class AWSClientProvider {
     this.cachedS3Client = null;
     this.cachedSecretsManagerClient = null;
     this.cachedSchedulerClient = null;
+    this.cachedSSMClient = null;
     this.cachedSTSClient = null;
     this.cachedAccountId = undefined;
   }

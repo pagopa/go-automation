@@ -9,6 +9,7 @@ import { AWSSchedulerService } from './AWSSchedulerService.js';
 import { AWSS3Service } from './AWSS3Service.js';
 import { AWSSQSService } from './AWSSQSService.js';
 import { AWSSecretsManagerService } from './AWSSecretsManagerService.js';
+import { AWSSSMService } from './AWSSSMService.js';
 
 /**
  * High-level AWS service provider.
@@ -29,6 +30,7 @@ export class AWSServiceProvider {
   private cachedAthenaService: AWSAthenaService | undefined;
   private cachedSecretsManagerService: AWSSecretsManagerService | undefined;
   private cachedSchedulerService: AWSSchedulerService | undefined;
+  private cachedSSMService: AWSSSMService | undefined;
 
   /**
    * @param clientProvider - The profiles these services may query
@@ -108,6 +110,11 @@ export class AWSServiceProvider {
     return this.cachedSchedulerService;
   }
 
+  get ssm(): AWSSSMService {
+    this.cachedSSMService ??= new AWSSSMService(this.clientProvider.first.ssm);
+    return this.cachedSSMService;
+  }
+
   /**
    * Drops the cached services. The AWS clients belong to the profile set, which
    * is shared with every other provider built on it, so they are not destroyed.
@@ -123,5 +130,6 @@ export class AWSServiceProvider {
     this.cachedAthenaService = undefined;
     this.cachedSecretsManagerService = undefined;
     this.cachedSchedulerService = undefined;
+    this.cachedSSMService = undefined;
   }
 }
