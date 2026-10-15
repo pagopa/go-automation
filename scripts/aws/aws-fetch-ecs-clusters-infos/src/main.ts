@@ -7,8 +7,11 @@
 
 import { Core } from '@go-automation/go-common';
 import type { ConfigFileItem, SendFetchEcsClustersInfosConfig } from './types/index.js';
-import { AWSSchedulerService, AWSSSMService } from '@go-automation/go-common/aws';
-import { getAndPrintEcsClustersStatus } from './libs/outputClusterStatesSections.js';
+import {
+  getAndPrintSSMParametersValues,
+  getAndPrintEcsClustersStatus,
+  getAndPrintScheduledActions,
+} from './libs/sections.js';
 
 /**
  * Main script execution function
@@ -35,53 +38,18 @@ export async function main(script: Core.GOScript): Promise<void> {
 
     script.logger.newline();
     script.logger.info(`Clusters state`);
-    const minimalClusters = await getAndPrintEcsClustersStatus(script, item, config);
-    if (minimalClusters) {
-      for (const cluster of minimalClusters) {
-        let status = 'UNDEFINED';
-        if (cluster.pendingTasksCount !== undefined && cluster.runningTasksCount !== undefined) {
-          status = cluster.pendingTasksCount + cluster.runningTasksCount === 0 ? 'NOT ACTIVE' : 'ACTIVE';
-        }
-        script.logger.text(
-          `- ${cluster.clusterName}: ${status} - PendingTasks: ${cluster.pendingTasksCount}, RunningTasks: ${cluster.runningTasksCount}`,
-        );
-      }
-    }
+    const clusterRows = await getAndPrintEcsClustersStatus(script, item);
+    script.logger.simpleTable(clusterRows);
 
-    if (item.rules && item.rules.length > 0) {
-      script.logger.newline();
-      script.logger.info('Scheduled actions');
-      const schedulerService = new AWSSchedulerService(script.aws.clients.get(item.profile).scheduler);
-      for (const rule of item.rules) {
-        try {
-          const schedule = await schedulerService.getSchedule(rule);
-          script.logger.text(
-            `- ${rule}: ${schedule.State} - ${schedule.ScheduleExpression} ${schedule.ScheduleExpressionTimezone}`,
-          );
-        } catch (error) {
-          script.logger.warning(`Failed to get schedule details for rule ${rule}: ${(error as Error).message}`);
-        }
-      }
-    }
+    script.logger.newline();
+    script.logger.info('Scheduled actions');
+    const scheduledRows = await getAndPrintScheduledActions(script, item);
+    script.logger.simpleTable(scheduledRows);
 
     script.logger.newline();
     script.logger.info(`Useful SSM parameter key/value`);
-
-    if (!item.ssmParameters || item.ssmParameters.length === 0) {
-      script.logger.text(`No ssmParameter in config file for "${item.profile}" profile.`);
-    } else {
-      const ssmParameterService = new AWSSSMService(script.aws.clients.get(item.profile).ssm);
-      for (const ssmParameterName of item.ssmParameters) {
-        try {
-          const ssmParameterValue = await ssmParameterService.getParameterStoreValue(ssmParameterName, false);
-          script.logger.text(`- ${ssmParameterName}: ${ssmParameterValue}`);
-        } catch (error) {
-          script.logger.warning(
-            `Failed to get SSM parameter ${ssmParameterName} for profile ${item.profile}: ${(error as Error).message}`,
-          );
-        }
-      }
-    }
+    const ssmRows = await getAndPrintSSMParametersValues(script, item);
+    script.logger.simpleTable(ssmRows);
   }
   script.logger.newline();
 }
