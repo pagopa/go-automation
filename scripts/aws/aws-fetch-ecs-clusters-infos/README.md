@@ -79,6 +79,7 @@ Questo file descrive i cluster e le regole da monitorare per ciascun profilo/amb
   }
 ]
 ```
+
 Nota: il campo ssmParameters è opzionale e può essere omesso o dichiarato come array vuoto [].
 
 ### Priorità di Configurazione
