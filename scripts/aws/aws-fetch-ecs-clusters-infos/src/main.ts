@@ -8,7 +8,7 @@
 import { Core } from '@go-automation/go-common';
 
 import type { ConfigFileItem, SendFetchEcsClustersInfosConfig } from './types/index.js';
-import { AWSECSService, AWSSchedulerService } from '@go-automation/go-common/aws';
+import { AWSECSService, AWSSchedulerService, AWSSSMService } from '@go-automation/go-common/aws';
 
 /**
  * Main script execution function
@@ -30,7 +30,6 @@ export async function main(script: Core.GOScript): Promise<void> {
     inputPath: config.configFile,
   });
   const configFile: ConfigFileItem[] = (await configFileImporter.import()) as ConfigFileItem[];
-  // Insert a function to validate input configFile here
 
   // for every aws-profiles as script inputs available also into the config.json file do...
   for (const item of configFile) {
@@ -65,6 +64,7 @@ export async function main(script: Core.GOScript): Promise<void> {
         runningTasksCount: x.runningTasksCount,
       };
     });
+    script.logger.newline();
     script.logger.info(`Clusters state`);
     for (const cluster of minimalClusters) {
       let status;
@@ -79,7 +79,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     }
 
     if (item.rules && item.rules.length > 0) {
-      script.logger.text('');
+      script.logger.newline();
       script.logger.info('Scheduled actions');
       const schedulerService = new AWSSchedulerService(script.aws.clients.get(item.profile).scheduler);
       for (const rule of item.rules) {
@@ -93,7 +93,19 @@ export async function main(script: Core.GOScript): Promise<void> {
         }
       }
     }
+
+    script.logger.newline();
+    script.logger.info(`Useful SSM parameter key/value`);
+    if (!item.ssmParameters || item.ssmParameters.length === 0) {
+      script.logger.text(`No ssmParameter in config file for "${item.profile}" profile.`);
+    } else {
+      const ssmParameterClient = script.aws.clients.get(item.profile).ssm;
+      const ssmParameterService = new AWSSSMService(ssmParameterClient);
+      for (const ssmParameterName of item.ssmParameters) {
+        const ssmParameterValue = await ssmParameterService.getParameterStoreValue(ssmParameterName);
+        script.logger.text(`- ${ssmParameterName}: ${ssmParameterValue}`);
+      }
+    }
   }
-  // Empty line
-  script.logger.text('');
+  script.logger.newline();
 }

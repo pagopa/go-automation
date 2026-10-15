@@ -3,4 +3,5 @@ export interface ConfigFileItem {
   profile: string;
   rules: string[];
   clusters: string[];
+  ssmParameters?: string[];
 }
