@@ -6,9 +6,9 @@
  */
 
 import { Core } from '@go-automation/go-common';
-
 import type { ConfigFileItem, SendFetchEcsClustersInfosConfig } from './types/index.js';
-import { AWSECSService, AWSSchedulerService, AWSSSMService } from '@go-automation/go-common/aws';
+import { AWSSchedulerService, AWSSSMService } from '@go-automation/go-common/aws';
+import { getAndPrintEcsClustersStatus } from './libs/outputClusterStatesSections.js';
 
 /**
  * Main script execution function
@@ -19,63 +19,33 @@ import { AWSECSService, AWSSchedulerService, AWSSSMService } from '@go-automatio
  * @param script - The GOScript instance for logging and prompts
  */
 export async function main(script: Core.GOScript): Promise<void> {
-  script.logger.section('Starting send-fetch-ecs-clusters-infos');
-
-  // Example: Log configuration
   const config = await script.getConfiguration<SendFetchEcsClustersInfosConfig>();
-
-  // Your business logic here
-
   const configFileImporter = new Core.GOJSONFileImporter({
     inputPath: config.configFile,
   });
   const configFile: ConfigFileItem[] = (await configFileImporter.import()) as ConfigFileItem[];
-
-  // for every aws-profiles as script inputs available also into the config.json file do...
+  script.logger.section('Starting send-fetch-ecs-clusters-infos');
   for (const item of configFile) {
     const selectedAwsProfiles: boolean = config.awsProfiles.includes(item.profile);
     if (!selectedAwsProfiles) {
       continue;
     }
+
     script.logger.section(`AWS Profile ${item.profile} (${item.env})`);
-    const ecsService = new AWSECSService(script.aws.clients.get(item.profile).ecs);
-    const describeClusterOutput = await ecsService.describeCluster(item.clusters);
-    const clusters = describeClusterOutput.clusters;
-    if (!clusters) {
-      script.logger.warning(
-        `Ops! Something goes wrong during describeCluster operation. Skipping infos for this AWS profile...`,
-      );
-      continue;
-    }
-    if (clusters.length < item.clusters.length) {
-      const outputClusterName = clusters.map((k) => k.clusterName);
-      for (const name of item.clusters) {
-        if (!outputClusterName.includes(name)) {
-          script.logger.warning(
-            `Cluster '${name}' not found. Check into the ${item.profile} section in ${config.configFile} for some typo. Skipping infos for this cluster...`,
-          );
-        }
-      }
-    }
-    const minimalClusters = clusters.map((x) => {
-      return {
-        clusterName: x.clusterName,
-        pendingTasksCount: x.pendingTasksCount,
-        runningTasksCount: x.runningTasksCount,
-      };
-    });
+
     script.logger.newline();
     script.logger.info(`Clusters state`);
-    for (const cluster of minimalClusters) {
-      let status;
-      if (cluster.pendingTasksCount === undefined || cluster.runningTasksCount === undefined) {
-        status = 'UNDEFINED';
-      } else {
-        status = cluster.pendingTasksCount + cluster.runningTasksCount === 0 ? 'NOT ACTIVE' : 'ACTIVE';
+    const minimalClusters = await getAndPrintEcsClustersStatus(script, item, config);
+    if (minimalClusters) {
+      for (const cluster of minimalClusters) {
+        let status = 'UNDEFINED';
+        if (cluster.pendingTasksCount !== undefined && cluster.runningTasksCount !== undefined) {
+          status = cluster.pendingTasksCount + cluster.runningTasksCount === 0 ? 'NOT ACTIVE' : 'ACTIVE';
+        }
+        script.logger.text(
+          `- ${cluster.clusterName}: ${status} - PendingTasks: ${cluster.pendingTasksCount}, RunningTasks: ${cluster.runningTasksCount}`,
+        );
       }
-      script.logger.text(
-        `- ${cluster.clusterName}: ${status} - PendingTasks: ${cluster.pendingTasksCount}, RunningTasks: ${cluster.runningTasksCount}`,
-      );
     }
 
     if (item.rules && item.rules.length > 0) {
@@ -96,11 +66,11 @@ export async function main(script: Core.GOScript): Promise<void> {
 
     script.logger.newline();
     script.logger.info(`Useful SSM parameter key/value`);
+
     if (!item.ssmParameters || item.ssmParameters.length === 0) {
       script.logger.text(`No ssmParameter in config file for "${item.profile}" profile.`);
     } else {
-      const ssmParameterClient = script.aws.clients.get(item.profile).ssm;
-      const ssmParameterService = new AWSSSMService(ssmParameterClient);
+      const ssmParameterService = new AWSSSMService(script.aws.clients.get(item.profile).ssm);
       for (const ssmParameterName of item.ssmParameters) {
         const ssmParameterValue = await ssmParameterService.getParameterStoreValue(ssmParameterName);
         script.logger.text(`- ${ssmParameterName}: ${ssmParameterValue}`);
