@@ -72,8 +72,14 @@ export async function main(script: Core.GOScript): Promise<void> {
     } else {
       const ssmParameterService = new AWSSSMService(script.aws.clients.get(item.profile).ssm);
       for (const ssmParameterName of item.ssmParameters) {
-        const ssmParameterValue = await ssmParameterService.getParameterStoreValue(ssmParameterName);
-        script.logger.text(`- ${ssmParameterName}: ${ssmParameterValue}`);
+        try {
+          const ssmParameterValue = await ssmParameterService.getParameterStoreValue(ssmParameterName, false);
+          script.logger.text(`- ${ssmParameterName}: ${ssmParameterValue}`);
+        } catch (error) {
+          script.logger.warning(
+            `Failed to get SSM parameter ${ssmParameterName} for profile ${item.profile}: ${(error as Error).message}`,
+          );
+        }
       }
     }
   }
