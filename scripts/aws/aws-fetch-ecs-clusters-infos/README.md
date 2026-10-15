@@ -74,10 +74,12 @@ Questo file descrive i cluster e le regole da monitorare per ciascun profilo/amb
     "profile": "profile-1",
     "env": "production",
     "clusters": ["cluster-a", "cluster-b"],
-    "rules": ["rule-1", "rule-2"]
+    "rules": ["rule-1", "rule-2"],
+    "ssmParameters": ["param1", "param2"]
   }
 ]
 ```
+Nota: il campo ssmParameters è opzionale e può essere omesso o dichiarato come array vuoto [].
 
 ### Priorità di Configurazione
 
@@ -134,6 +136,7 @@ Descrivere il formato dell'output generato:
 ⏵ Starting aws-fetch-ecs-clusters-infos
 
 ⏵ AWS Profile profile1 (env1)
+
     ℹ Clusters state
     - cluster1: ACTIVE (PendingTasks: 0, RunningTasks: 14)
     - cluster2: ACTIVE (PendingTasks: 0, RunningTasks: 23)
@@ -142,8 +145,20 @@ Descrivere il formato dell'output generato:
     - RuleName1 (ENABLED) - cron(0 6 ? * MON-FRI *) Europe/Rome
     - RuleName2 (ENABLED) - cron(0 20 ? * MON-FRI *) Europe/Rome
 
+    ℹ Useful SSM parameter key/value
+    No ssmParameter in config file for "sso_pn-core-hotfix" profile.
+
 ⏵ AWS Profile profile2 (env2)
-...
+
+    ℹ Clusters state
+    - cluster1: ACTIVE (PendingTasks: 0, RunningTasks: 14)
+
+    ℹ Scheduled actions
+    - RuleName1 (ENABLED) - cron(0 6 ? * MON-FRI *) Europe/Rome
+
+    ℹ Useful SSM parameter key/value
+    - paramName1: paramValue1
+
 ```
 
 ## Troubleshooting
