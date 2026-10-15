@@ -39,8 +39,8 @@ export async function main(script: Core.GOScript): Promise<void> {
       continue;
     }
     script.logger.section(`AWS Profile ${item.profile} (${item.env})`);
-    const ecsClient = new AWSECSService(script.aws.clients.get(item.profile).ecs);
-    const describeClusterOutput = await ecsClient.describeCluster(item.clusters);
+    const ecsService = new AWSECSService(script.aws.clients.get(item.profile).ecs);
+    const describeClusterOutput = await ecsService.describeCluster(item.clusters);
     const clusters = describeClusterOutput.clusters;
     if (!clusters) {
       script.logger.warning(
