@@ -19,7 +19,7 @@ export async function getAndPrintEcsClustersStatus(
       describeClusterOutput = await ecsService.describeCluster([clstr]);
     } catch (error) {
       script.logger.warning(
-        `Failed to get detail for cluster ${clstr} and profile ${item.profile}: ${(error as Error).message}`,
+        `Failed to get detail for cluster ${clstr} and profile ${item.profile}: ${(error as Error).name}`,
       );
     }
 
@@ -64,7 +64,7 @@ export async function getAndPrintScheduledActions(
         timezone: schedule.ScheduleExpressionTimezone,
       });
     } catch (error) {
-      script.logger.warning(`Failed to get schedule details for rule ${rule}: ${(error as Error).message}`);
+      script.logger.warning(`Failed to get schedule details for rule ${rule}: ${(error as Error).name}`);
     }
   }
   return tableRows;
@@ -86,7 +86,7 @@ export async function getAndPrintSSMParametersValues(
       tableRows.push({ name: ssmParameterName, value: ssmParameterValue });
     } catch (error) {
       script.logger.warning(
-        `Failed to get SSM parameter ${ssmParameterName} for profile ${item.profile}: ${(error as Error).message}`,
+        `Failed to get SSM parameter ${ssmParameterName} for profile ${item.profile}: ${(error as Error).name}`,
       );
     }
   }
