@@ -76,6 +76,7 @@ import { SELFCARE_APIGW_REGISTRATION } from './runbooks/interop-selfcare-1.0-api
 import { AUTH_SERVER_APIGW_REGISTRATION } from './runbooks/interop-auth-server-apigw-4xx/registration.js';
 import { AUTH_SERVER_5XX_APIGW_REGISTRATION } from './runbooks/interop-auth-server-apigw-5xx/registration.js';
 import { INTEROP_API_V2_5XX_APIGW_REGISTRATION } from './runbooks/interop-api-v2-apigw-5xx/registration.js';
+import { BFF_WEB_NOEXTENSION_NOTIFICATION_RECEIVED_COMP_5XX_API_GW_ALARM_REGISTRATION } from './runbooks/pn-bff-WEB-noextension-NotificationReceived-comp-5xx-ApiGwAlarm/registration.js';
 
 export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   // api gateway
@@ -144,4 +145,5 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   AUTH_SERVER_APIGW_REGISTRATION,
   AUTH_SERVER_5XX_APIGW_REGISTRATION,
   INTEROP_API_V2_5XX_APIGW_REGISTRATION,
+  BFF_WEB_NOEXTENSION_NOTIFICATION_RECEIVED_COMP_5XX_API_GW_ALARM_REGISTRATION,
 ];
