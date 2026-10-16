@@ -37,6 +37,16 @@ export function buildRunbook(): Runbook {
       label: `warning applicativi ${AUTH_SERVER_ALARM.serviceName}`,
     },
     knownCases: KNOWN_CASES,
+    analysisDefaults: {
+      runbookName: AUTH_SERVER_ALARM.runbookKey,
+      links: [
+        {
+          url: 'https://pagopa.atlassian.net/wiki/spaces/GO/pages/2125398072/interop-auth-server-prod-apigw-4xx',
+          name: 'interop-auth-server-prod-apigw-4xx',
+          type: 'CONFLUENCE',
+        },
+      ],
+    },
     fallbackAction: unknownCaseFallback(UNKNOWN_CASE_TITLE, [
       ['Ambiente', '{{vars.interopEnvironment}}'],
       ['API Gateway ID', '{{vars.interopApiGwId}}'],

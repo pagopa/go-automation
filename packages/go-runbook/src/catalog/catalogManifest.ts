@@ -41,6 +41,7 @@ import { WORKDAY_EXTERNAL_CHANNEL_ALB_REGISTRATION } from './runbooks/workday-pn
 import { MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION } from './runbooks/pn-mandate-acceptance-failure-tech-Alarm/registration.js';
 import { DELAYER_SENDER_LIMIT_JOB_REGISTRATION } from './runbooks/pn-delayer-sender-limit-job-ErrorFatalLogs-Alarm/registration.js';
 import { LOGSAVER_REGISTRATION } from './runbooks/pn-logsaver-be-FailedInvocation-Alarm/registration.js';
+import { SPIDHUB_EXTERNAL_ELB_REGISTRATION } from './runbooks/spidhub-prod-ExternalELBAlarm/registration.js';
 
 // interop kubernetes
 import { AGREEMENT_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-agreement-readmodel-writer-sql-errors/registration.js';
@@ -53,10 +54,12 @@ import { CATALOG_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-intero
 import { CATALOG_PLATFORMSTATE_WRITER_REGISTRATION } from './runbooks/k8s-interop-be-catalog-platformstate-writer-errors/registration.js';
 import { TENANT_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-tenant-readmodel-writer-sql-errors/registration.js';
 import { DELEGATION_ITEMS_ARCHIVER_REGISTRATION } from './runbooks/k8s-interop-be-delegation-items-archiver-errors/registration.js';
+import { DELEGATION_OUTBOUND_WRITER_REGISTRATION } from './runbooks/k8s-interop-be-delegation-outbound-writer-errors/registration.js';
 import { DELEGATION_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-delegation-readmodel-writer-sql-errors/registration.js';
 import { ESERVICE_TEMPLATE_INSTANCES_UPDATER_REGISTRATION } from './runbooks/k8s-interop-be-eservice-template-instances-updater-errors/registration.js';
 import { ESERVICE_TEMPLATE_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-eservice-template-readmodel-writer-sql-errors/registration.js';
 import { COMPUTE_AGREEMENTS_CONSUMER_REGISTRATION } from './runbooks/k8s-interop-be-compute-agreements-consumer-errors/registration.js';
+import { M2M_EVENT_DISPATCHER_REGISTRATION } from './runbooks/k8s-interop-be-m2m-event-dispatcher-errors-prod/registration.js';
 import { BFF_REGISTRATION } from './runbooks/k8s-interop-be-backend-for-frontend-errors/registration.js';
 import { NOTIFIER_REGISTRATION } from './runbooks/k8s-interop-be-notifier-errors/registration.js';
 import { NOTIFICATION_USER_LIFECYCLE_REGISTRATION } from './runbooks/k8s-interop-be-notification-user-lifecycle-consumer-errors/registration.js';
@@ -64,6 +67,7 @@ import { IN_APP_NOTIFICATION_DISPATCHER_REGISTRATION } from './runbooks/k8s-inte
 import { PURPOSE_OUTBOUND_WRITER_REGISTRATION } from './runbooks/k8s-interop-be-purpose-outbound-writer-errors/registration.js';
 import { NOTIFICATION_SCHEDULER_REGISTRATION } from './runbooks/k8s-interop-be-scheduled-notification-scheduler-errors/registration.js';
 import { PUBLIC_CATALOG_REGISTRATION } from './runbooks/k8s-interop-public-catalog-astro-frontend-errors/registration.js';
+import { PUBLIC_CATALOG_STRAPI_REGISTRATION } from './runbooks/k8s-interop-public-catalog-strapi-errors/registration.js';
 import { SELFCARE_USERS_UPDATER_REGISTRATION } from './runbooks/k8s-interop-be-selfcare-client-users-updater-errors/registration.js';
 import { SELFCARE_ONBOARDING_CONSUMER_REGISTRATION } from './runbooks/k8s-interop-be-selfcare-onboarding-consumer-errors/registration.js';
 
@@ -72,6 +76,7 @@ import { SELFCARE_APIGW_REGISTRATION } from './runbooks/interop-selfcare-1.0-api
 import { AUTH_SERVER_APIGW_REGISTRATION } from './runbooks/interop-auth-server-apigw-4xx/registration.js';
 import { AUTH_SERVER_5XX_APIGW_REGISTRATION } from './runbooks/interop-auth-server-apigw-5xx/registration.js';
 import { INTEROP_API_V2_5XX_APIGW_REGISTRATION } from './runbooks/interop-api-v2-apigw-5xx/registration.js';
+import { BFF_WEB_NOEXTENSION_NOTIFICATION_RECEIVED_COMP_5XX_API_GW_ALARM_REGISTRATION } from './runbooks/pn-bff-WEB-noextension-NotificationReceived-comp-5xx-ApiGwAlarm/registration.js';
 
 export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   // api gateway
@@ -107,6 +112,7 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   MANDATE_ACCEPTANCE_FAILURE_TECH_REGISTRATION,
   DELAYER_SENDER_LIMIT_JOB_REGISTRATION,
   LOGSAVER_REGISTRATION,
+  SPIDHUB_EXTERNAL_ELB_REGISTRATION,
   // interop kubernetes
   AGREEMENT_READMODEL_WRITER_SQL_REGISTRATION,
   AUDIT_SIGNER_REGISTRATION,
@@ -118,10 +124,12 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   CATALOG_PLATFORMSTATE_WRITER_REGISTRATION,
   TENANT_READMODEL_WRITER_SQL_REGISTRATION,
   DELEGATION_ITEMS_ARCHIVER_REGISTRATION,
+  DELEGATION_OUTBOUND_WRITER_REGISTRATION,
   DELEGATION_READMODEL_WRITER_SQL_REGISTRATION,
   ESERVICE_TEMPLATE_INSTANCES_UPDATER_REGISTRATION,
   ESERVICE_TEMPLATE_READMODEL_WRITER_SQL_REGISTRATION,
   COMPUTE_AGREEMENTS_CONSUMER_REGISTRATION,
+  M2M_EVENT_DISPATCHER_REGISTRATION,
   BFF_REGISTRATION,
   NOTIFIER_REGISTRATION,
   NOTIFICATION_USER_LIFECYCLE_REGISTRATION,
@@ -129,6 +137,7 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   PURPOSE_OUTBOUND_WRITER_REGISTRATION,
   NOTIFICATION_SCHEDULER_REGISTRATION,
   PUBLIC_CATALOG_REGISTRATION,
+  PUBLIC_CATALOG_STRAPI_REGISTRATION,
   SELFCARE_USERS_UPDATER_REGISTRATION,
   SELFCARE_ONBOARDING_CONSUMER_REGISTRATION,
   // interop api gateway
@@ -136,4 +145,5 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   AUTH_SERVER_APIGW_REGISTRATION,
   AUTH_SERVER_5XX_APIGW_REGISTRATION,
   INTEROP_API_V2_5XX_APIGW_REGISTRATION,
+  BFF_WEB_NOEXTENSION_NOTIFICATION_RECEIVED_COMP_5XX_API_GW_ALARM_REGISTRATION,
 ];
