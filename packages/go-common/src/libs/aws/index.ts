@@ -124,6 +124,9 @@ export type { MetricDimension } from './models/MetricDimension.js';
 export { AWSSchedulerService } from './AWSSchedulerService.js';
 export type { AWSScheduleListFilters, AWSScheduleStateChange } from './AWSSchedulerService.js';
 
+// SSM service
+export { AWSSSMService } from './AWSSSMService.js';
+
 // Credentials management
 export { GOAWSCredentialsManager } from './GOAWSCredentialsManager.js';
 export { GOAWSCredentialsErrorType } from './GOAWSCredentialsError.js';
@@ -166,6 +169,7 @@ export type {
   ScheduleSummary,
   SchedulerClient,
 } from '@aws-sdk/client-scheduler';
+export type { SSMClient } from '@aws-sdk/client-ssm';
 
 // DynamoDB types
 export type {
