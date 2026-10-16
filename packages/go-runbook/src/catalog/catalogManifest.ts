@@ -54,6 +54,7 @@ import { CATALOG_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-intero
 import { CATALOG_PLATFORMSTATE_WRITER_REGISTRATION } from './runbooks/k8s-interop-be-catalog-platformstate-writer-errors/registration.js';
 import { TENANT_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-tenant-readmodel-writer-sql-errors/registration.js';
 import { DELEGATION_ITEMS_ARCHIVER_REGISTRATION } from './runbooks/k8s-interop-be-delegation-items-archiver-errors/registration.js';
+import { DELEGATION_OUTBOUND_WRITER_REGISTRATION } from './runbooks/k8s-interop-be-delegation-outbound-writer-errors/registration.js';
 import { DELEGATION_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-delegation-readmodel-writer-sql-errors/registration.js';
 import { ESERVICE_TEMPLATE_INSTANCES_UPDATER_REGISTRATION } from './runbooks/k8s-interop-be-eservice-template-instances-updater-errors/registration.js';
 import { ESERVICE_TEMPLATE_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-eservice-template-readmodel-writer-sql-errors/registration.js';
@@ -121,6 +122,7 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   CATALOG_PLATFORMSTATE_WRITER_REGISTRATION,
   TENANT_READMODEL_WRITER_SQL_REGISTRATION,
   DELEGATION_ITEMS_ARCHIVER_REGISTRATION,
+  DELEGATION_OUTBOUND_WRITER_REGISTRATION,
   DELEGATION_READMODEL_WRITER_SQL_REGISTRATION,
   ESERVICE_TEMPLATE_INSTANCES_UPDATER_REGISTRATION,
   ESERVICE_TEMPLATE_READMODEL_WRITER_SQL_REGISTRATION,

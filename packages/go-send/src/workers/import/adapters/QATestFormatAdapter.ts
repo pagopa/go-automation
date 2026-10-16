@@ -94,18 +94,25 @@ export class QATestFormatAdapter implements GOCSVFormatAdapter<SENDNotificationR
       // Set default values for required fields that are not in the QA format
       defaultValues: {
         recipientType: 'PF',
-        documentKey: 'PN_NOTIFICATION_ATTACHMENTS-102dcf171c8f4befa9e32afbc95f1878.pdf',
-        documentSha256: '1gpDEYpQ7gAEmeSRl8CaBLhaIyeaYRmeL7v90YJtMeY=',
+        documentKey: 'PN_NOTIFICATION_ATTACHMENTS-c75f9e00f90f4a5aa1910450d060eb56.pdf',
+        documentSha256: '1QKD/Ks6BohyQ+bgMxHf9NrpNhVmGUPxRYE1aerU4JQ=',
         documentVersionToken: 'v1',
-        group: '6aabc24a6e192d3f5f475c74', // vecchio forse è stato cancellato -> '695fcc3d48f30c04cb3fbca4',
+        group: '6ad0f2bd1b98fb4c4038b393', // vecchio forse è stato cancellato -> '695fcc3d48f30c04cb3fbca4',
         //physicalMunicipalityDetails: 'Roma',
 
         // GROUP ID TEST
-        // Comune di Sappada : 699f08faf8a140751720e3e0
-        // Comune di Milano : 6a29778620b0d07091c75df4
+        // group: '699f08faf8a140751720e3e0', // Comune di Sappada
+        // group: '6a29778620b0d07091c75df4', // Comune di Milano
 
         // GROUP ID UAT
-        // Provincia di Como : 6aabc24a6e192d3f5f475c74
+        // group: '6aabc24a6e192d3f5f475c74', // Provincia di Como
+        // documentKey: 'PN_NOTIFICATION_ATTACHMENTS-102dcf171c8f4befa9e32afbc95f1878.pdf',
+        // documentSha256: '1gpDEYpQ7gAEmeSRl8CaBLhaIyeaYRmeL7v90YJtMeY=',
+
+        // GROUP ID HOTFIX
+        // group: '6ad0f2bd1b98fb4c4038b393', // Comune di Sappada
+        // documentKey: 'PN_NOTIFICATION_ATTACHMENTS-28b5f1f5e3654f059508901033e2a60f.pdf',
+        // documentSha256: '1gpDEYpQ7gAEmeSRl8CaBLhaIyeaYRmeL7v90YJtMeY=',
 
         // [TEST] DOCUMENT INFO
         // documentKey: 'PN_NOTIFICATION_ATTACHMENTS-2d278594387b4a55a062981236165af8.pdf',
