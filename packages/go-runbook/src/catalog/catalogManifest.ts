@@ -59,6 +59,7 @@ import { DELEGATION_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-int
 import { ESERVICE_TEMPLATE_INSTANCES_UPDATER_REGISTRATION } from './runbooks/k8s-interop-be-eservice-template-instances-updater-errors/registration.js';
 import { ESERVICE_TEMPLATE_READMODEL_WRITER_SQL_REGISTRATION } from './runbooks/k8s-interop-be-eservice-template-readmodel-writer-sql-errors/registration.js';
 import { COMPUTE_AGREEMENTS_CONSUMER_REGISTRATION } from './runbooks/k8s-interop-be-compute-agreements-consumer-errors/registration.js';
+import { M2M_EVENT_DISPATCHER_REGISTRATION } from './runbooks/k8s-interop-be-m2m-event-dispatcher-errors-prod/registration.js';
 import { BFF_REGISTRATION } from './runbooks/k8s-interop-be-backend-for-frontend-errors/registration.js';
 import { NOTIFIER_REGISTRATION } from './runbooks/k8s-interop-be-notifier-errors/registration.js';
 import { NOTIFICATION_USER_LIFECYCLE_REGISTRATION } from './runbooks/k8s-interop-be-notification-user-lifecycle-consumer-errors/registration.js';
@@ -127,6 +128,7 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   ESERVICE_TEMPLATE_INSTANCES_UPDATER_REGISTRATION,
   ESERVICE_TEMPLATE_READMODEL_WRITER_SQL_REGISTRATION,
   COMPUTE_AGREEMENTS_CONSUMER_REGISTRATION,
+  M2M_EVENT_DISPATCHER_REGISTRATION,
   BFF_REGISTRATION,
   NOTIFIER_REGISTRATION,
   NOTIFICATION_USER_LIFECYCLE_REGISTRATION,
