@@ -17,6 +17,7 @@ const RUNBOOK_URL =
  * @returns A validated {@link Runbook} ready for execution
  */
 export function buildRunbook(): Runbook {
+  const contextStep = { step: new QueryPublicCatalogStrapiContextStep() };
   const runbook = interop.k8s.createInteropK8sAlarmRunbook({
     id: alarm.runbookKey,
     metadata: {
@@ -33,12 +34,20 @@ export function buildRunbook(): Runbook {
     queryProfile: STRAPI_QUERY_PROFILE,
     knownCases: KNOWN_CASES,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 5 },
+    additionalLogEvidence: [
+      {
+        id: 'public-catalog-strapi-context',
+        label: 'Contesto di avvio e richieste HTTP Strapi',
+        sourceStep: contextStep.step.id,
+        // Keep startup signals before later HTTP/error rows; the query rejects 1,000 rows or more.
+        maxLogLines: 1000,
+      },
+    ],
     analysisDefaults: {
       runbookName: alarm.runbookKey,
       links: [{ url: RUNBOOK_URL, name: alarm.runbookKey, type: 'CONFLUENCE' }],
     },
   });
-  const contextStep = { step: new QueryPublicCatalogStrapiContextStep() };
   return {
     ...runbook,
     // AnalyzeCidTracker resolves cases: collect the context before that step.

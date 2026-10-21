@@ -13,6 +13,7 @@ import { PUBLIC_CATALOG_STRAPI_ALARM as alarm } from '../alarmDefinition.js';
 import { buildRunbook } from '../runbook.js';
 import { KNOWN_CASES } from '../knownCases.js';
 import { STRAPI_QUERY_PROFILE } from '../queryProfile.js';
+import { executeRunbookForOccurrence } from '../../../executeRunbookForOccurrence.js';
 
 function rows(messages: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<ResultField>> {
   return messages.map((log) => [
@@ -180,5 +181,61 @@ describe('INTEROP public catalog Strapi runbook', () => {
       }
       assert.notStrictEqual(buildAnalysisDraft(runbook, result)?.kind, 'KNOWN_CASE');
     }
+  });
+
+  it('exports startup, stderr warnings and HTTP stdout in the serialized cloud occurrence', async () => {
+    const contextMessages = [
+      { stream: 'stdout', log: '> strapi start' },
+      { stream: 'stderr', log: FIXTURES[1][1] },
+      { stream: 'stdout', log: 'HTTP GET /admin/register-admin 200' },
+      ...Array.from({ length: 6 }, () => ({ stream: 'stderr', log: FIXTURES[0][1] })),
+    ];
+    const contextRows = contextMessages.map(({ log, stream }, index) => [
+      { field: '@timestamp', value: `2026-10-06T00:35:0${String(index)}Z` },
+      { field: 'pod_app', value: alarm.podApp },
+      { field: 'stream', value: stream },
+      { field: 'log', value: log },
+      { field: '@message', value: JSON.stringify({ log, stream, pod_app: alarm.podApp }) },
+    ]);
+    const output = await executeRunbookForOccurrence(
+      {
+        logger: new GOLogger(),
+        services: createTestServiceRegistry({
+          cloudWatchLogs: {
+            // eslint-disable-next-line @typescript-eslint/require-await
+            async queryWithStatistics(_groups: ReadonlyArray<string>, query: string) {
+              const resultRows = query.includes('limit 1000') ? contextRows : rows([FIXTURES[0][1]]);
+              return {
+                rows: resultRows,
+                statistics: { bytesScanned: 1, recordsMatched: resultRows.length, recordsScanned: resultRows.length },
+                queryExecutions: [],
+              };
+            },
+          },
+        }),
+      },
+      {
+        alarmName: `${alarm.runbookKey}-prod-public-catalog`,
+        firedAt: '2026-10-06T00:36:08Z',
+        awsAccountId: '111111111111',
+        region: 'eu-south-1',
+        awsProfiles: [],
+        executionMode: 'cloud',
+      },
+    );
+    const serialized = JSON.parse(JSON.stringify(output)) as typeof output;
+    const evidence = serialized.context.evidence.find(
+      ({ sourceStep }) => sourceStep === 'query-public-catalog-strapi-context',
+    );
+    assert.ok(evidence, 'missing Strapi startup and HTTP context in the occurrence result');
+    assert.strictEqual(evidence.type, 'log-sample');
+    assert.strictEqual(evidence.truncated, false);
+    assert.deepStrictEqual(
+      evidence.items?.map(({ message }) => message),
+      contextMessages.map(({ log, stream }) => JSON.stringify({ log, stream, pod_app: alarm.podApp })),
+    );
+    assert.ok(serialized.context.evidence.some(({ sourceStep }) => sourceStep === alarm.stepIds.queryApplicationLogs));
+    assert.strictEqual(serialized.analysis?.kind, 'KNOWN_CASE');
+    assert.strictEqual(serialized.analysis.proposedStatus, 'IN_PROGRESS');
   });
 });
