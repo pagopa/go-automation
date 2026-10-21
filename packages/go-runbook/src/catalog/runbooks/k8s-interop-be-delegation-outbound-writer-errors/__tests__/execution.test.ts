@@ -9,6 +9,7 @@ import { createTestServiceRegistry } from '../../../../registry/createTestServic
 import { buildRunbook } from '../runbook.js';
 import { DELEGATION_OUTBOUND_WRITER_ALARM as alarm } from '../alarmDefinition.js';
 import { DELEGATION_OUTBOUND_WRITER_QUERY_PROFILE } from '../queryProfile.js';
+import { executeRunbookForOccurrence } from '../../../executeRunbookForOccurrence.js';
 
 const HEARTBEAT = 'ERROR - Response Heartbeat(key: 12, version: 3) - The coordinator is not aware of this member';
 const REJOIN = 'ERROR - The coordinator is not aware of this member, re-joining the group';
@@ -127,5 +128,60 @@ describe('delegation outbound writer evidence execution', () => {
     assert.match(query, /filter log like \/ERROR\/ or stream = "stderr"/);
     assert.doesNotMatch(query, /parse log|dedup/);
     assert.match(query, /@logStream, stream, log, @message/);
+  });
+
+  it('exports restart and rejoin signals in the serialized cloud occurrence, including early context rows', async () => {
+    const contextMessages = [
+      'WARN - Error during restart service',
+      'INFO - The coordinator is not aware of this member, re-joining the group',
+      'INFO - Consumer has joined the group',
+      ...Array.from({ length: 6 }, () => HEARTBEAT),
+    ];
+    const output = await executeRunbookForOccurrence(
+      {
+        logger: new GOLogger(),
+        services: createTestServiceRegistry({
+          cloudWatchLogs: {
+            // eslint-disable-next-line @typescript-eslint/require-await
+            async queryWithStatistics(_groups: ReadonlyArray<string>, query: string) {
+              const messages = query.includes('limit 1000') ? contextMessages : [HEARTBEAT];
+              const rows = messages.map((message, index) => [
+                { field: '@timestamp', value: `2026-10-06T18:00:0${String(index)}Z` },
+                { field: 'pod_app', value: alarm.podApp },
+                { field: 'log', value: message },
+                { field: '@message', value: JSON.stringify({ pod_app: alarm.podApp, log: message }) },
+              ]);
+              return {
+                rows,
+                statistics: { recordsMatched: rows.length, recordsScanned: rows.length, bytesScanned: 1 },
+                queryExecutions: [],
+              };
+            },
+          },
+        }),
+      },
+      {
+        alarmName: `${alarm.runbookKey}-prod`,
+        firedAt: '2026-10-06T18:00:08Z',
+        awsAccountId: '111111111111',
+        region: 'eu-south-1',
+        awsProfiles: [],
+        executionMode: 'cloud',
+      },
+    );
+    const serialized = JSON.parse(JSON.stringify(output)) as typeof output;
+    const evidence = serialized.context.evidence.find(
+      ({ sourceStep }) => sourceStep === 'query-delegation-outbound-writer-context',
+    );
+    assert.ok(evidence, 'missing outbound-writer context evidence in the occurrence result');
+    assert.strictEqual(evidence.type, 'log-sample');
+    assert.strictEqual(evidence.truncated, false);
+    assert.deepStrictEqual(
+      evidence.items?.map(({ message }) => message),
+      contextMessages.map((log) => JSON.stringify({ pod_app: alarm.podApp, log })),
+    );
+    assert.ok(serialized.context.evidence.some(({ sourceStep }) => sourceStep === alarm.stepIds.queryApplicationLogs));
+    assert.strictEqual(serialized.analysis?.kind, 'KNOWN_CASE');
+    assert.strictEqual(serialized.analysis.proposedStatus, 'IN_PROGRESS');
   });
 });

@@ -8,6 +8,7 @@ const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3375694080/k8s-interop-be-delegation-outbound-writer-errors';
 
 export function buildRunbook(): Runbook {
+  const contextStep = { step: new QueryDelegationOutboundWriterContextStep() };
   const runbook = interop.k8s.createInteropK8sAlarmRunbook({
     id: alarm.runbookKey,
     metadata: {
@@ -23,12 +24,20 @@ export function buildRunbook(): Runbook {
     knownCases: KNOWN_CASES,
     queryProfile: DELEGATION_OUTBOUND_WRITER_QUERY_PROFILE,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 5 },
+    additionalLogEvidence: [
+      {
+        id: 'delegation-outbound-writer-context',
+        label: 'Contesto di riavvio e rejoin del delegation outbound writer',
+        sourceStep: contextStep.step.id,
+        // Keep initial restart/rejoin signals; the query rejects 1,000 rows or more.
+        maxLogLines: 1000,
+      },
+    ],
     analysisDefaults: {
       runbookName: alarm.runbookKey,
       links: [{ url: CONFLUENCE_RUNBOOK_URL, name: alarm.runbookKey, type: 'CONFLUENCE' }],
     },
   });
-  const contextStep = { step: new QueryDelegationOutboundWriterContextStep() };
   return {
     ...runbook,
     analysisDefaults: {
