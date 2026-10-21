@@ -2,17 +2,19 @@ import { knownCase, SEND_DOWNSTREAMS, type KnownCase } from '../framework.js';
 import { stepEvidenceMatches } from '../common/evidenceConditions.js';
 import { all, any } from '../common/conditions.js';
 import { varEquals, varExists, varMatches } from '../common/varConditions.js';
+
+// Evaluate gateway cases together after grouping, preserving their priority order.
+const EXECUTION_LOGS_GROUPED = { type: 'exists', ref: 'steps.resolve-api-gw-diagnosis' } as const;
+
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'authorizer-invocation-504',
     description: 'Invocazione authorizer terminata con 504 senza Lambda request ID',
     priority: 600,
-    condition: all(
-      stepEvidenceMatches(
-        'query-api-gw-execution-logs',
-        'Lambda invocation failed with status: 504\\. Lambda request id: N/A',
-      ),
-      stepEvidenceMatches('query-api-gw-execution-logs', 'AUTHORIZER_CONFIGURATION_ERROR'),
+    condition: stepEvidenceMatches(
+      'resolve-api-gw-diagnosis.requests',
+      '^(?=[\\s\\S]*Lambda invocation failed with status: 504\\. Lambda request id: N/A)' +
+        '(?=[\\s\\S]*AUTHORIZER_CONFIGURATION_ERROR)',
     ),
     resolution: 'Risoluzione non documentata.',
     analysis: {
@@ -27,9 +29,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'integration-signature-mismatch',
     description: 'Firma AWS non valida durante l’invocazione dell’integrazione',
     priority: 590,
-    condition: stepEvidenceMatches(
-      'query-api-gw-execution-logs',
-      'Execution failed due to configuration error: The request signature we calculated does not match the signature you provided',
+    condition: all(
+      EXECUTION_LOGS_GROUPED,
+      stepEvidenceMatches(
+        'query-api-gw-execution-logs',
+        'Execution failed due to configuration error: The request signature we calculated does not match the signature you provided',
+      ),
     ),
     resolution: 'Thread Slack 25/08/2026 - Apertura ticket AWS',
     analysis: { proposedStatus: 'IN_PROGRESS', analysisType: 'ANALYZABLE', finalActions: [], links: [] },
@@ -38,9 +43,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'authorizer-configuration-error',
     description: 'Errore nella fase di autorizzazione API Gateway',
     priority: 580,
-    condition: stepEvidenceMatches(
-      'query-api-gw-execution-logs',
-      'Gateway response type: AUTHORIZER_CONFIGURATION_ERROR with status code: 500',
+    condition: all(
+      EXECUTION_LOGS_GROUPED,
+      stepEvidenceMatches(
+        'query-api-gw-execution-logs',
+        'Gateway response type: AUTHORIZER_CONFIGURATION_ERROR with status code: 500',
+      ),
     ),
     resolution: 'Da notificare a team prodotto',
     analysis: { proposedStatus: 'IN_PROGRESS', analysisType: 'ANALYZABLE', finalActions: [], links: [] },
@@ -49,7 +57,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'authorizer-access-log-failure',
     description: 'Errore authorizer segnalato dall’access log con dettaglio da verificare',
     priority: 570,
-    condition: all(varExists('apiGwExecutionLogMode'), varMatches('apiGwAuthorizerStatus', '^5[0-9]{2}$')),
+    condition: all(
+      EXECUTION_LOGS_GROUPED,
+      varExists('apiGwExecutionLogMode'),
+      varMatches('apiGwAuthorizerStatus', '^5[0-9]{2}$'),
+    ),
     resolution: 'Risoluzione non documentata.',
     analysis: {
       proposedStatus: 'IN_PROGRESS',
@@ -64,6 +76,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: 'Integrazione 502 con authorizer 200 e risposta API Gateway 500',
     priority: 560,
     condition: all(
+      EXECUTION_LOGS_GROUPED,
       varExists('apiGwExecutionLogMode'),
       varEquals('apiGwAuthorizerStatus', '200'),
       varEquals('apiGwIntegrationServiceStatus', '502'),
@@ -82,7 +95,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     id: 'execution-failed-configuration-error',
     description: 'Allarme',
     priority: 101,
-    condition: stepEvidenceMatches('query-api-gw-execution-logs', 'Execution failed due to configuration error'),
+    condition: all(
+      EXECUTION_LOGS_GROUPED,
+      stepEvidenceMatches('query-api-gw-execution-logs', 'Execution failed due to configuration error'),
+    ),
     title: '[EXECUTION LOG] Execution failed due to configuration error',
     resolution: 'Risoluzione non documentata.',
     analysis: { proposedStatus: 'IN_PROGRESS', analysisType: 'ANALYZABLE', finalActions: [], links: [] },

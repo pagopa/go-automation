@@ -16,6 +16,9 @@ import { API_GW_LOG_GROUP } from '../knownServices.js';
 
 const ROOT = '1-6ad0dd73-32533ff75fc4602939265354';
 const REQUEST = '42e21ca4-bb03-4597-9af8-e80691ca0d80';
+const OTHER_REQUEST = '7388b958-f570-4d9a-9146-304bfcc48b0c';
+const INVOCATION_504 = 'Lambda invocation failed with status: 504. Lambda request id: N/A';
+const AUTHORIZER_ERROR = 'Gateway response type: AUTHORIZER_CONFIGURATION_ERROR with status code: 500';
 const FALLBACK = '11111111-1111-1111-1111-111111111111';
 const EXECUTION_GROUP = 'API-Gateway-Execution-Logs_64pohg7bg0/unique';
 const row = (values: Record<string, string>): ReadonlyArray<ResultField> =>
@@ -34,8 +37,9 @@ const access = (values: Record<string, string> = {}): ReadonlyArray<ResultField>
 
 async function execute(
   accessRow: ReadonlyArray<ResultField>,
-  executionMessages: ReadonlyArray<string> | Error = [],
+  executionMessages: ReadonlyArray<string | { requestId: string; message: string }> | Error = [],
   application: Record<string, ReadonlyArray<ReadonlyArray<ResultField>>> = {},
+  additionalAccessRows: ReadonlyArray<ReadonlyArray<ResultField>> = [],
 ): Promise<{
   result: RunbookExecutionResult;
   draft: KnownCaseAnalysisDraft;
@@ -48,10 +52,14 @@ async function execute(
       const group = groups[0] ?? '';
       calls.push({ group, query });
       let rows: ReadonlyArray<ReadonlyArray<ResultField>>;
-      if (group === API_GW_LOG_GROUP) rows = [accessRow];
+      if (group === API_GW_LOG_GROUP) rows = [accessRow, ...additionalAccessRows];
       else if (group === EXECUTION_GROUP) {
         if (executionMessages instanceof Error) throw executionMessages;
-        rows = executionMessages.map((message) => row({ '@message': `(${REQUEST}) ${message}` }));
+        rows = executionMessages.map((entry) =>
+          row({
+            '@message': typeof entry === 'string' ? `(${REQUEST}) ${entry}` : `(${entry.requestId}) ${entry.message}`,
+          }),
+        );
       } else rows = application[group] ?? [];
       return {
         rows,
@@ -128,6 +136,45 @@ describe('IO_EXP diagnosis', () => {
     ]);
     assert.strictEqual(result.matchedCases[0]?.id, 'integration-signature-mismatch');
     assert.strictEqual(draft?.proposedStatus, 'IN_PROGRESS');
+  });
+
+  it('does not combine an integration 504 with an authorizer configuration error from another request', async () => {
+    const { result } = await execute(
+      access(),
+      [
+        { requestId: REQUEST, message: INVOCATION_504 },
+        { requestId: OTHER_REQUEST, message: AUTHORIZER_ERROR },
+      ],
+      {},
+      [access({ requestId: OTHER_REQUEST, authorizerStatus: '500' })],
+    );
+    assert.strictEqual(result.matchedCases[0]?.id, 'authorizer-configuration-error');
+    assert.ok(!result.matchedCases.some(({ id }) => id === 'authorizer-invocation-504'));
+  });
+
+  it('recognizes signatures in the same request despite interleaved requests and reversed log order', async () => {
+    const messages = [
+      { requestId: REQUEST, message: INVOCATION_504 },
+      { requestId: OTHER_REQUEST, message: AUTHORIZER_ERROR },
+      { requestId: REQUEST, message: AUTHORIZER_ERROR },
+    ];
+    for (const executionMessages of [messages, [...messages].reverse()]) {
+      const { result } = await execute(access({ authorizerStatus: '500' }), executionMessages, {}, [
+        access({ requestId: OTHER_REQUEST }),
+      ]);
+      assert.strictEqual(result.matchedCases[0]?.id, 'authorizer-invocation-504');
+    }
+  });
+
+  it('does not correlate execution signatures whose request IDs are missing or unknown', async () => {
+    for (const requestId of ['', 'unrequested-id']) {
+      const { result } = await execute(access({ authorizerStatus: '500' }), [
+        { requestId, message: INVOCATION_504 },
+        { requestId, message: AUTHORIZER_ERROR },
+      ]);
+      assert.strictEqual(result.matchedCases[0]?.id, 'authorizer-configuration-error');
+      assert.ok(!result.matchedCases.some(({ id }) => id === 'authorizer-invocation-504'));
+    }
   });
 
   it('retains an unresolved authorizer diagnosis when execution logs cannot be read', async () => {

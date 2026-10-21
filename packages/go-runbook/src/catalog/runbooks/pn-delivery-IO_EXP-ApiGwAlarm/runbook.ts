@@ -9,6 +9,8 @@ import { API_GW_LOG_GROUP, ENTRY_SERVICE, REACHABLE_SERVICES } from './knownServ
 import { KNOWN_URLS } from './knownUrls.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { SetVarStep } from '../../../steps/control/SetVarStep.js';
+import { readStepOutput } from '../../../steps/data/readStepOutput.js';
+import { readRowField, type ResultField } from '@go-automation/go-common/aws';
 
 /**
  * Builds the pn-delivery-IO_EXP-ApiGwAlarm runbook definition.
@@ -40,9 +42,30 @@ export function buildRunbook(): Runbook {
         silent: true,
         step: {
           id: 'resolve-api-gw-diagnosis',
-          label: 'Valuta i segnali API Gateway prima dei servizi applicativi',
-          kind: 'control',
-          execute: async () => Promise.resolve({ success: true, next: 'resolve' as const }),
+          label: 'Raggruppa gli execution log per richiesta e valuta i casi API Gateway',
+          kind: 'transform',
+          // eslint-disable-next-line @typescript-eslint/require-await
+          execute: async (context) => {
+            const upstream = readStepOutput<ReadonlyArray<ReadonlyArray<ResultField>>>(
+              context,
+              'query-api-gw-execution-logs',
+            );
+            if (!upstream.ok) return upstream.failure;
+            const byRequestId = new Map<string, string[]>();
+            for (const row of upstream.value) {
+              const requestId = (readRowField(row, 'requestId') ?? '').trim();
+              if (requestId === '' || requestId === '-') continue;
+              const message = readRowField(row, '@message') ?? '';
+              const messages = byRequestId.get(requestId);
+              if (messages === undefined) byRequestId.set(requestId, [message]);
+              else messages.push(message);
+            }
+            return {
+              success: true,
+              output: { requests: [...byRequestId].map(([requestId, messages]) => ({ requestId, messages })) },
+              next: 'resolve' as const,
+            };
+          },
         },
       },
       {
