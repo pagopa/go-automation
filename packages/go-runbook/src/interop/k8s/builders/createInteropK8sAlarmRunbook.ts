@@ -84,6 +84,7 @@ export function createInteropK8sAlarmRunbook(config: InteropK8sAlarmConfig): Run
       kind: 'service',
       service: { name: service.name, logGroup: service.logGroup, varPrefix: service.varPrefix },
       queryProfileId: profile.id,
+      ...(config.additionalLogEvidence === undefined ? {} : { additionalLogEvidence: config.additionalLogEvidence }),
     },
     primaryResource: service.name,
   });

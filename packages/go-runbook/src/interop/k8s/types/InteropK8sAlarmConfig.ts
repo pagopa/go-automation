@@ -8,6 +8,7 @@ import type { InteropK8sQueryProfile } from '../profiles/InteropK8sQueryProfile.
 import type { ResolveInteropK8sAlarmContextFn } from './InteropK8sAlarmContext.js';
 import type { InteropK8sRunbookStepIds } from './InteropK8sRunbookStepIds.js';
 import type { InteropK8sServiceDescriptor } from './InteropK8sServiceDescriptor.js';
+import type { ServiceLogEvidenceSource } from '../../../service/output/ServiceRunbookContext.js';
 
 /** Configuration accepted by `createInteropK8sAlarmRunbook`. */
 export interface InteropK8sAlarmConfig {
@@ -27,4 +28,6 @@ export interface InteropK8sAlarmConfig {
   readonly timeRangeFromParams?: TimeRangeFromParams;
   readonly occurrenceTimeWindow?: OccurrenceTimeWindow;
   readonly maxIterations?: number;
+  /** Extra query steps whose logs must reach occurrence evidence. */
+  readonly additionalLogEvidence?: ReadonlyArray<ServiceLogEvidenceSource>;
 }

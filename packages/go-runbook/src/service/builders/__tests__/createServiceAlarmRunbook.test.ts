@@ -143,6 +143,57 @@ describe('createServiceAlarmRunbook', () => {
     assert.strictEqual(context.evidence.length, 2);
   });
 
+  it('exports declared extra log evidence with explicit limits and omits missing or empty sources', () => {
+    const base = createServiceAlarmRunbook(baseConfig());
+    assert.ok(isServiceRunbookContext(base.runbookContext));
+    const runbook = {
+      ...base,
+      runbookContext: {
+        ...base.runbookContext,
+        additionalLogEvidence: [
+          { id: 'context', label: 'Restart context', sourceStep: 'query-context', maxLogLines: 2 },
+          { id: 'missing', label: 'Missing context', sourceStep: 'query-missing' },
+          { id: 'empty', label: 'Empty context', sourceStep: 'query-empty' },
+        ],
+      },
+    };
+    const baseResult = fakeResult();
+    const result = {
+      ...baseResult,
+      finalContext: {
+        ...baseResult.finalContext,
+        stepResults: new Map([
+          ...baseResult.finalContext.stepResults,
+          [
+            'query-context',
+            [
+              row({ '@timestamp': '2026-06-09T00:00:03Z', '@message': 'recovery completed' }),
+              row({ '@timestamp': '2026-06-09T00:00:01Z', '@message': 'restart' }),
+              row({ '@timestamp': '2026-06-09T00:00:02Z', '@message': 'recovering' }),
+            ],
+          ],
+          ['query-empty', []],
+        ]),
+      },
+    };
+    const output = buildServiceOutputContext(runbook, result);
+    assert.strictEqual(output?.evidence.length, 3);
+    assert.deepStrictEqual(output.evidence[2], {
+      id: 'context',
+      label: 'Restart context',
+      type: 'log-sample',
+      sourceStep: 'query-context',
+      items: [
+        { timestamp: '2026-06-09T00:00:02Z', message: 'recovering' },
+        { timestamp: '2026-06-09T00:00:03Z', message: 'recovery completed' },
+      ],
+      truncated: true,
+    });
+    const limited = buildServiceOutputContext(runbook, result, { maxRecentLogs: 1 });
+    assert.strictEqual(limited?.evidence[2]?.items?.length, 1);
+    assert.strictEqual(limited?.evidence[2]?.truncated, true);
+  });
+
   for (const matchKnownCase of [false, true]) {
     it(`retains the first extracted trace in the output ${matchKnownCase ? 'on early resolution' : 'and the correlation query'}`, async () => {
       const firstTraceId = '1-6ad86e11-bbc9b685f973172eb4c3377e';

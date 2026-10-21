@@ -8,6 +8,7 @@ const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3344762934/k8s-interop-be-delegation-items-archiver-errors';
 
 export function buildRunbook(): Runbook {
+  const contextStep = { step: new QueryDelegationItemsArchiverContextStep() };
   const runbook = interop.k8s.createInteropK8sAlarmRunbook({
     id: alarm.runbookKey,
     metadata: {
@@ -23,12 +24,20 @@ export function buildRunbook(): Runbook {
     knownCases: KNOWN_CASES,
     queryProfile: ARCHIVER_QUERY_PROFILE,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 5 },
+    additionalLogEvidence: [
+      {
+        id: 'delegation-items-archiver-context',
+        label: 'Contesto di riavvio e recupero archiviazione',
+        sourceStep: contextStep.step.id,
+        // Preserve the episode's initial signals as well as its end; the query rejects 1,000 rows or more.
+        maxLogLines: 1000,
+      },
+    ],
     analysisDefaults: {
       runbookName: alarm.runbookKey,
       links: [{ url: CONFLUENCE_RUNBOOK_URL, name: alarm.runbookKey, type: 'CONFLUENCE' }],
     },
   });
-  const contextStep = { step: new QueryDelegationItemsArchiverContextStep() };
   return {
     ...runbook,
     analysisDefaults: {
