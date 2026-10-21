@@ -31,28 +31,28 @@ async function execute(
 }> {
   const calls: { accountId: string; query: string }[] = [];
   const cloudWatchLogs = {
-    forTarget({ accountId }: { accountId: string }) {
-      return {
-        // eslint-disable-next-line @typescript-eslint/require-await
-        async queryWithStatistics(_groups: ReadonlyArray<string>, query: string) {
-          calls.push({ accountId, query });
-          const rows =
-            accountId === '510769970275' ? (query.includes("@message like 'ERROR'") ? errorRows : invocationRows) : [];
-          return {
-            rows,
-            statistics: { bytesScanned: 1, recordsScanned: rows.length, recordsMatched: rows.length },
-            queryExecutions: [],
-          };
+    getConfiguredSources() {
+      return ['source-a', 'source-b'].map((accountId) => ({
+        key: accountId,
+        service: {
+          // eslint-disable-next-line @typescript-eslint/require-await
+          async queryWithStatistics(_groups: ReadonlyArray<string>, query: string) {
+            calls.push({ accountId, query });
+            const rows =
+              accountId === 'source-a' ? (query.includes("@message like 'ERROR'") ? errorRows : invocationRows) : [];
+            return {
+              rows,
+              statistics: { bytesScanned: 1, recordsScanned: rows.length, recordsMatched: rows.length },
+              queryExecutions: [],
+            };
+          },
         },
-      };
+      }));
     },
   };
   const result = await new RunbookEngine(new GOLogger()).execute(
     buildRunbook(),
     new Map([
-      ['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod'],
-      ['awsAccountId', '350578575906'],
-      ['awsRegion', 'eu-south-1'],
       ['startTime', '2026-10-20T00:56:00.000Z'],
       ['endTime', '2026-10-20T01:06:00.000Z'],
     ]),
@@ -72,7 +72,7 @@ describe('DailyExport DynamoDB runbook', () => {
     assert.match(runbook.analysisDefaults?.links?.[0]?.url ?? '', /3411443959/);
   });
 
-  it('finds a timeout REPORT in core for an occurrence attributed to confinfo', async () => {
+  it('finds a timeout REPORT in the configured source', async () => {
     const { result, calls } = await execute([row(REPORT)], [row(REPORT)]);
     assert.strictEqual(result.status, 'completed');
     assert.strictEqual(result.finalContext.vars.get('lambdaErrorCategory'), 'timeout');
@@ -82,7 +82,7 @@ describe('DailyExport DynamoDB runbook', () => {
     );
     assert.deepStrictEqual(
       calls.map(({ accountId }) => accountId),
-      ['510769970275', '350578575906', '510769970275'],
+      ['source-a', 'source-b', 'source-a'],
     );
     assert.ok(calls.slice(0, 2).every(({ query }) => query.includes('Status:\\s*timeout')));
     assert.ok(calls[2]?.query.includes(REQUEST_ID));

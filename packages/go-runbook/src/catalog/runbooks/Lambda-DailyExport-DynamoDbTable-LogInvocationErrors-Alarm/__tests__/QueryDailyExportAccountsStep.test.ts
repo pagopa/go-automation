@@ -1,490 +1,198 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-
 import type { ResultField } from '@go-automation/go-common/aws';
-
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import type { RunbookContext } from '../../framework.js';
 import { QueryDailyExportAccountsStep } from '../QueryDailyExportAccountsStep.js';
 
-interface QueryCall {
-  readonly accountId: string;
-  readonly profile?: string;
-  readonly groups: ReadonlyArray<string>;
-  readonly query: string;
-  readonly paginateResults?: boolean;
+type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
+interface Call {
+  key: string;
+  query: string;
+}
+type RowsForQueryFn = (key: string, query: string) => Rows;
+const SOURCES = ['configured-reader-a', 'configured-reader-b'];
+
+function row(requestId: string, key?: string): ReadonlyArray<ResultField> {
+  return [
+    { field: '@requestId', value: requestId },
+    { field: '@message', value: 'ERROR' },
+    ...(key === undefined ? [] : [{ field: 'sourceKey', value: key }]),
+  ];
 }
 
-type RowsForQueryFn = (accountId: string, query: string) => ReadonlyArray<ReadonlyArray<ResultField>>;
-
-const CORE_REQUEST_ID = 'b95bb742-cc30-4f07-80bc-45a38011e5c4';
-const SECOND_CORE_REQUEST_ID = '1a1bf5ea-2088-4ea7-9133-12fcbfaabacc';
-const CONFINFO_REQUEST_ID = 'd848f0c5-1089-5c2b-9a3b-91a94511ee52';
-
 function context(
-  params: ReadonlyArray<readonly [string, string]>,
-  calls: QueryCall[],
-  failingAccount?: string,
-  rowsByAccount?: ReadonlyMap<string, ReadonlyArray<ReadonlyArray<ResultField>>>,
-  rowsForQuery?: RowsForQueryFn,
+  calls: Call[],
+  keys: ReadonlyArray<string> = SOURCES,
+  rowsForQuery: RowsForQueryFn = () => [row('request-1')],
 ): RunbookContext {
   return {
-    executionId: 'dual-account-test',
-    startedAt: new Date('2026-09-08T14:00:00.000Z'),
-    stepResults: new Map([
-      [
-        'query-lambda-errors',
-        [
-          [
-            { field: 'sourceAccount', value: 'core' },
-            { field: '@requestId', value: CORE_REQUEST_ID },
-          ],
-          [
-            { field: 'sourceAccount', value: 'confinfo' },
-            { field: '@requestId', value: CORE_REQUEST_ID },
-          ],
-        ],
-      ],
-    ]),
-    vars: new Map([['lambdaRequestId', CORE_REQUEST_ID]]),
-    params: new Map([['startTime', '2026-09-08T13:55:00.000Z'], ['endTime', '2026-09-08T14:05:00.000Z'], ...params]),
+    executionId: 'test',
+    startedAt: new Date(),
     logs: [],
+    recoveredErrors: [],
+    vars: new Map(),
+    params: new Map([
+      ['startTime', '2026-10-20T00:56:00Z'],
+      ['endTime', '2026-10-20T01:06:00Z'],
+    ]),
+    stepResults: new Map([['query-lambda-errors', [row('request-a', SOURCES[0]), row('request-b', SOURCES[1])]]]),
     services: createTestServiceRegistry({
       cloudWatchLogs: {
-        forTarget(target: { accountId: string; region: string; profile?: string }) {
-          return {
-            // eslint-disable-next-line @typescript-eslint/require-await
-            async queryWithStatistics(
-              groups: ReadonlyArray<string>,
-              query: string,
-              _timeRange: { start: Date; end: Date },
-              options: { paginateResults?: boolean },
-            ) {
-              calls.push({
-                accountId: target.accountId,
-                ...(target.profile === undefined ? {} : { profile: target.profile }),
-                groups,
-                query,
-                ...(options.paginateResults === undefined ? {} : { paginateResults: options.paginateResults }),
-              });
-              if (target.accountId === failingAccount) throw new Error('AccessDenied');
-              const defaultRows: ReadonlyArray<ReadonlyArray<ResultField>> = [
-                [
-                  { field: '@timestamp', value: '2026-09-08T14:00:00.000Z' },
-                  { field: '@message', value: `${target.accountId} ERROR Invoke Error` },
-                ],
-              ];
-              const rows =
-                rowsForQuery?.(target.accountId, query) ?? rowsByAccount?.get(target.accountId) ?? defaultRows;
-              const statistics = {
-                bytesScanned: 1,
-                recordsScanned: 1,
-                recordsMatched: 1,
-                ...(target.accountId === '510769970275'
-                  ? { logGroupsScanned: 2, estimatedBytesSkipped: 4 }
-                  : { logGroupsScanned: 3, estimatedRecordsSkipped: 6 }),
-              };
-              return {
-                rows,
-                statistics,
-                queryExecutions: [
-                  {
-                    queryId: target.accountId,
-                    profile: target.profile ?? 'monitoring',
-                    logGroups: groups,
-                    statistics,
-                  },
-                ],
-              };
+        forTarget() {
+          assert.fail('The runbook must not construct account or profile targets');
+        },
+        getConfiguredSources() {
+          return keys.map((key) => ({
+            key,
+            service: {
+              // eslint-disable-next-line @typescript-eslint/require-await
+              async queryWithStatistics(groups: ReadonlyArray<string>, query: string) {
+                assert.deepStrictEqual(groups, ['/aws/lambda/Lambda-DailyExport-DynamoDbTable']);
+                calls.push({ key, query });
+                const rows = rowsForQuery(key, query);
+                return {
+                  rows,
+                  statistics: { bytesScanned: 1, recordsScanned: rows.length, recordsMatched: rows.length },
+                  queryExecutions: [
+                    {
+                      queryId: key,
+                      profile: key,
+                      logGroups: groups,
+                      statistics: { bytesScanned: 1, recordsScanned: rows.length, recordsMatched: rows.length },
+                    },
+                  ],
+                };
+              },
             },
-          };
+          }));
         },
       },
     }),
-    recoveredErrors: [],
   };
 }
 
-describe('Lambda-DailyExport-DynamoDbTable dual account query', () => {
-  it('reads core and confinfo with separate local profiles and retains each source', async () => {
-    const calls: QueryCall[] = [];
-    const input = context([['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']], calls);
-    const result = await new QueryDailyExportAccountsStep('errors').execute(input);
+describe('DailyExport queries configured sources', () => {
+  it('reads every runtime source and preserves its key without deriving identities from names', async () => {
+    const calls: Call[] = [],
+      keys = ['runtime-alpha', 'runtime-beta', 'runtime-gamma'];
+    const input = context(calls, keys);
+    const step = new QueryDailyExportAccountsStep('errors');
+    assert.deepStrictEqual(step.getTraceInfo(input)['sources'], keys);
+    const result = await step.execute(input);
     assert.strictEqual(result.success, true);
     assert.deepStrictEqual(
-      calls.map(({ accountId, profile }) => ({ accountId, profile })),
-      [
-        { accountId: '510769970275', profile: 'sso_pn-core-prod_readonly' },
-        { accountId: '350578575906', profile: 'sso_pn-confinfo-prod' },
-      ],
-    );
-    assert.ok(
-      calls.every(
-        ({ groups, query, paginateResults }) =>
-          groups[0] === '/aws/lambda/Lambda-DailyExport-DynamoDbTable' &&
-          query.includes("@message like 'ERROR'") &&
-          query.endsWith('| limit 1000') &&
-          paginateResults === true,
-      ),
+      calls.map(({ key }) => key),
+      keys,
     );
     assert.deepStrictEqual(
-      result.output?.map((row) => row.find((field) => field.field === 'sourceAccount')?.value),
-      ['core', 'confinfo'],
+      result.output?.map((r) => r.find((f) => f.field === 'sourceKey')?.value),
+      keys,
     );
-    assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 2);
-    assert.deepStrictEqual(result.diagnostics?.cloudWatchLogs?.statistics, {
-      bytesScanned: 2,
-      recordsScanned: 2,
-      recordsMatched: 2,
-      logGroupsScanned: 5,
-      estimatedBytesSkipped: 4,
-      estimatedRecordsSkipped: 6,
-    });
+    assert.strictEqual(result.diagnostics?.cloudWatchLogs?.statistics.bytesScanned, 3);
+    assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 3);
+    assert.ok(calls.every(({ query }) => query.includes('Status:\\s*timeout')));
   });
-
-  it('accepts an error scan just below the row limit', async () => {
-    const calls: QueryCall[] = [];
-    const rows = Array.from({ length: 999 }, (_, index) => [
-      { field: '@timestamp', value: `2026-09-08T14:00:${String(index % 60).padStart(2, '0')}.000Z` },
-      { field: '@message', value: `ERROR ${String(index)}` },
-    ]);
-    const input = context(
-      [['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']],
-      calls,
-      undefined,
-      undefined,
-      (accountId) => (accountId === '510769970275' ? rows : []),
-    );
-
-    const result = await new QueryDailyExportAccountsStep('errors').execute(input);
-
-    assert.strictEqual(result.success, true);
-    assert.strictEqual(result.output?.length, 999);
-    assert.strictEqual(calls.length, 2);
-  });
-
-  it('fails the error scan explicitly if either account reaches the row limit', async () => {
-    const saturatedRows = Array.from({ length: 1000 }, () => [{ field: '@message', value: 'ERROR' }]);
-    for (const [accountId, source, expectedQueries] of [
-      ['510769970275', 'core', 1],
-      ['350578575906', 'confinfo', 2],
-    ] as const) {
-      const calls: QueryCall[] = [];
-      const input = context(
-        [['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']],
-        calls,
-        undefined,
-        undefined,
-        (targetAccountId) => (targetAccountId === accountId ? saturatedRows : []),
-      );
-
-      const result = await new QueryDailyExportAccountsStep('errors').execute(input);
-
+  it('fails if the configured scope has fewer than two sources', async () => {
+    for (const keys of [[], ['single-reader']]) {
+      const calls: Call[] = [];
+      const result = await new QueryDailyExportAccountsStep('errors').execute(context(calls, keys));
       assert.strictEqual(result.success, false);
-      assert.match(result.error ?? '', new RegExp(`${source} \\(${accountId}\\) reached the 1000-row limit`));
-      assert.match(result.error ?? '', /correlation requires a complete scan/);
-      assert.strictEqual(result.output, undefined);
-      assert.strictEqual(calls.length, expectedQueries);
+      assert.deepStrictEqual(calls, []);
     }
   });
-
-  it('matches configured profile names when an entry declares a fallback', async () => {
-    const calls: QueryCall[] = [];
-    const input = context([['awsProfiles', 'sso_pn-core-prod,sso_pn-confinfo-prod:sso_pn-core-prod']], calls);
-
+  it('does not convert access failures into empty source evidence', async () => {
+    const calls: Call[] = [];
+    const input = context(calls, SOURCES, (key) => {
+      if (key === SOURCES[1]) throw Error('AccessDenied');
+      return [row('request-1')];
+    });
     const result = await new QueryDailyExportAccountsStep('errors').execute(input);
-
-    assert.strictEqual(result.success, true);
-    assert.deepStrictEqual(
-      calls.map(({ accountId, profile }) => ({ accountId, profile })),
-      [
-        { accountId: '510769970275', profile: 'sso_pn-core-prod' },
-        { accountId: '350578575906', profile: 'sso_pn-confinfo-prod' },
-      ],
-    );
-  });
-
-  it('uses OAM for the account without a configured profile in account-aware execution', async () => {
-    for (const [awsAccountId, awsProfiles, expectedProfiles] of [
-      ['510769970275', 'sso_pn-core-prod_readonly', ['sso_pn-core-prod_readonly', undefined]],
-      ['350578575906', 'sso_pn-confinfo-prod', [undefined, 'sso_pn-confinfo-prod']],
-    ] as const) {
-      const calls: QueryCall[] = [];
-      const input = context(
-        [
-          ['awsAccountId', awsAccountId],
-          ['awsProfiles', awsProfiles],
-        ],
-        calls,
-      );
-
-      const result = await new QueryDailyExportAccountsStep('errors').execute(input);
-
-      assert.strictEqual(result.success, true);
-      assert.deepStrictEqual(
-        calls.map(({ accountId, profile }) => ({ accountId, profile })),
-        [
-          { accountId: '510769970275', profile: expectedProfiles[0] },
-          { accountId: '350578575906', profile: expectedProfiles[1] },
-        ],
-      );
-    }
-  });
-
-  it('requires both production profiles in local execution', async () => {
-    const calls: QueryCall[] = [];
-    const input = context([['awsProfiles', 'sso_pn-core-prod_readonly']], calls);
-
-    const result = await new QueryDailyExportAccountsStep('errors').execute(input);
-
     assert.strictEqual(result.success, false);
-    assert.deepStrictEqual(calls, []);
+    assert.strictEqual(result.output, undefined);
   });
-
-  it('bounds invocation reconstruction in both accounts', async () => {
-    const calls: QueryCall[] = [];
-    const input = context([['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']], calls);
+  it('rejects a saturated error scan in any configured source', async () => {
+    for (const saturated of SOURCES) {
+      const calls: Call[] = [];
+      const result = await new QueryDailyExportAccountsStep('errors').execute(
+        context(calls, SOURCES, (key) =>
+          key === saturated ? Array.from({ length: 1000 }, () => row('request-1')) : [],
+        ),
+      );
+      assert.strictEqual(result.success, false);
+      assert.match(result.error ?? '', /1000-row limit/);
+    }
+  });
+  it('correlates request IDs only within their configured source and deduplicates them', async () => {
+    const calls: Call[] = [];
+    const input = context(calls);
+    (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [
+      row('request-a', SOURCES[0]),
+      row('request-a', SOURCES[0]),
+      row('request-b', SOURCES[1]),
+    ]);
     const result = await new QueryDailyExportAccountsStep('invocation').execute(input);
-
     assert.strictEqual(result.success, true);
     assert.strictEqual(calls.length, 2);
-    assert.ok(
-      calls.every(
-        ({ query, paginateResults }) =>
-          query.includes("@requestId = 'b95bb742-cc30-4f07-80bc-45a38011e5c4'") &&
-          query.endsWith('| limit 1000') &&
-          paginateResults === true,
-      ),
-    );
+    assert.ok(calls[0]?.query.includes('request-a'));
+    assert.ok(!calls[0]?.query.includes('request-b'));
+    assert.ok(calls[1]?.query.includes('request-b'));
+    assert.ok(!calls[1]?.query.includes('request-a'));
   });
-
-  it('batches every distinct request ID only in its source account', async () => {
-    const calls: QueryCall[] = [];
-    const input = context([['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']], calls);
+  it('splits saturated request batches instead of dropping invocation evidence', async () => {
+    const calls: Call[] = [];
+    const input = context(calls, SOURCES, (_key, query) =>
+      (query.match(/@requestId = '/g) ?? []).length > 1
+        ? Array.from({ length: 1000 }, () => row('batch'))
+        : [row('single')],
+    );
     (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [
-      [
-        { field: 'sourceAccount', value: 'core' },
-        { field: '@requestId', value: CORE_REQUEST_ID },
-      ],
-      [
-        { field: 'sourceAccount', value: 'core' },
-        { field: '@requestId', value: CORE_REQUEST_ID },
-      ],
-      [
-        { field: 'sourceAccount', value: 'core' },
-        { field: '@requestId', value: SECOND_CORE_REQUEST_ID },
-      ],
-      [
-        { field: 'sourceAccount', value: 'confinfo' },
-        { field: '@message', value: `ERROR RequestId: ${CONFINFO_REQUEST_ID}` },
-      ],
+      row('request-a', SOURCES[0]),
+      row('request-b', SOURCES[0]),
     ]);
-
     const result = await new QueryDailyExportAccountsStep('invocation').execute(input);
-
-    assert.strictEqual(result.success, true);
-    assert.deepStrictEqual(
-      calls.map(({ accountId, query }) => ({
-        accountId,
-        coreRequestId: query.includes(CORE_REQUEST_ID),
-        secondCoreRequestId: query.includes(SECOND_CORE_REQUEST_ID),
-        confinfoRequestId: query.includes(CONFINFO_REQUEST_ID),
-        bounded: query.endsWith('| limit 1000'),
-      })),
-      [
-        {
-          accountId: '510769970275',
-          coreRequestId: true,
-          secondCoreRequestId: true,
-          confinfoRequestId: false,
-          bounded: true,
-        },
-        {
-          accountId: '350578575906',
-          coreRequestId: false,
-          secondCoreRequestId: false,
-          confinfoRequestId: true,
-          bounded: true,
-        },
-      ],
-    );
-    assert.deepStrictEqual(
-      result.output?.map((row) => row.find((field) => field.field === 'sourceAccount')?.value),
-      ['core', 'confinfo'],
-    );
-    assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 2);
-  });
-
-  it('bounds a large set of request IDs to batches of 25', async () => {
-    const calls: QueryCall[] = [];
-    const input = context([['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']], calls);
-    const requestIds = Array.from({ length: 60 }, (_, index) => `req-${String(index)}`);
-    (input.stepResults as Map<string, unknown>).set(
-      'query-lambda-errors',
-      requestIds.map((requestId) => [
-        { field: 'sourceAccount', value: 'core' },
-        { field: '@requestId', value: requestId },
-      ]),
-    );
-
-    const result = await new QueryDailyExportAccountsStep('invocation').execute(input);
-
     assert.strictEqual(result.success, true);
     assert.strictEqual(calls.length, 3);
-    assert.ok(calls.every(({ accountId }) => accountId === '510769970275'));
-    for (const [index, call] of calls.entries()) {
-      assert.ok(call !== undefined);
-      const batch = requestIds.slice(index * 25, (index + 1) * 25);
-      assert.strictEqual((call.query.match(/@requestId = '/g) ?? []).length, batch.length);
-      assert.ok(batch.every((requestId) => call.query.includes(`@requestId = '${requestId}'`)));
-    }
-    assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 3);
+    assert.strictEqual(result.output?.length, 2);
   });
-
-  it('splits a saturated batch so no request ID is silently dropped', async () => {
-    const calls: QueryCall[] = [];
-    const input = context(
-      [['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']],
-      calls,
-      undefined,
-      undefined,
-      (_accountId, query) => {
-        const row = [{ field: '@message', value: query }];
-        return (query.match(/@requestId = '/g) ?? []).length > 1 ? Array.from({ length: 1000 }, () => row) : [row];
-      },
-    );
-    const requestIds = ['req-0', 'req-1', 'req-2', 'req-3'];
-    (input.stepResults as Map<string, unknown>).set(
-      'query-lambda-errors',
-      requestIds.map((requestId) => [
-        { field: 'sourceAccount', value: 'core' },
-        { field: '@requestId', value: requestId },
-      ]),
-    );
-
+  it('fails when a single invocation is saturated or the split budget is exhausted', async () => {
+    const calls: Call[] = [];
+    const input = context(calls, SOURCES, () => Array.from({ length: 1000 }, () => row('single')));
+    (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [row('request-a', SOURCES[0])]);
     const result = await new QueryDailyExportAccountsStep('invocation').execute(input);
-
-    assert.strictEqual(result.success, true);
-    assert.strictEqual(calls.length, 7);
-    assert.strictEqual(result.output?.length, 4);
-    assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 7);
-    assert.deepStrictEqual(
-      result.output?.map((row) => row.find((field) => field.field === '@message')?.value),
-      requestIds.map(
-        (requestId) =>
-          `fields @timestamp, @requestId, @message\n| filter (@requestId = '${requestId}' or @message like '${requestId}')\n| sort @timestamp asc\n| limit 1000`,
-      ),
-    );
-  });
-
-  it('fails explicitly when a single invocation still reaches the row limit', async () => {
-    const calls: QueryCall[] = [];
-    const saturatedRows = Array.from({ length: 1000 }, () => [{ field: '@message', value: 'many rows' }]);
-    const input = context(
-      [['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']],
-      calls,
-      undefined,
-      undefined,
-      () => saturatedRows,
-    );
-    (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [
-      [
-        { field: 'sourceAccount', value: 'core' },
-        { field: '@requestId', value: CORE_REQUEST_ID },
-      ],
-    ]);
-
-    const result = await new QueryDailyExportAccountsStep('invocation').execute(input);
-
     assert.strictEqual(result.success, false);
-    assert.match(result.error ?? '', /reached the 1000-row limit/);
-    assert.strictEqual(calls.length, 1);
-  });
-
-  it('fails explicitly when splitting would exceed the 100-query budget', async () => {
-    const calls: QueryCall[] = [];
-    const saturatedRow = [{ field: '@message', value: 'many rows' }];
-    const saturatedRows = Array.from({ length: 1000 }, () => saturatedRow);
-    const input = context(
-      [['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']],
-      calls,
-      undefined,
-      undefined,
-      (_accountId, query) => ((query.match(/@requestId = '/g) ?? []).length > 1 ? saturatedRows : [saturatedRow]),
+    assert.match(result.error ?? '', /1000-row limit/);
+    const budgetCalls: Call[] = [];
+    const budget = context(budgetCalls, SOURCES, (_key, query) =>
+      (query.match(/@requestId = '/g) ?? []).length > 1
+        ? Array.from({ length: 1000 }, () => row('batch'))
+        : [row('single')],
     );
-    (input.stepResults as Map<string, unknown>).set(
+    (budget.stepResults as Map<string, unknown>).set(
       'query-lambda-errors',
-      Array.from({ length: 60 }, (_, index) => [
-        { field: 'sourceAccount', value: 'core' },
-        { field: '@requestId', value: `req-${String(index)}` },
-      ]),
+      Array.from({ length: 60 }, (_, i) => row(`request-${String(i)}`, SOURCES[0])),
     );
-
-    const result = await new QueryDailyExportAccountsStep('invocation').execute(input);
-
-    assert.strictEqual(result.success, false);
-    assert.match(result.error ?? '', /query budget exceeded \(100 queries\)/);
-    assert.strictEqual(calls.length, 100);
+    const exhausted = await new QueryDailyExportAccountsStep('invocation').execute(budget);
+    assert.strictEqual(exhausted.success, false);
+    assert.match(exhausted.error ?? '', /query budget exceeded/);
+    assert.strictEqual(budgetCalls.length, 100);
   });
-
-  it('skips an account without a request ID and reports zero when no IDs are available', async () => {
-    const calls: QueryCall[] = [];
-    const input = context([['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']], calls);
+  it('rejects unknown source keys and skips correlation when no request ID was extracted', async () => {
+    const calls: Call[] = [];
+    const input = context(calls);
+    (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [row('request-a', 'outside-scope')]);
+    const invalid = await new QueryDailyExportAccountsStep('invocation').execute(input);
+    assert.strictEqual(invalid.success, false);
+    assert.deepStrictEqual(calls, []);
     (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [
       [
-        { field: 'sourceAccount', value: 'confinfo' },
-        { field: '@requestId', value: CONFINFO_REQUEST_ID },
-      ],
-    ]);
-
-    const result = await new QueryDailyExportAccountsStep('invocation').execute(input);
-    assert.strictEqual(result.success, true);
-    assert.deepStrictEqual(
-      calls.map(({ accountId }) => accountId),
-      ['350578575906'],
-    );
-    assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 1);
-
-    (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [
-      [
-        { field: 'sourceAccount', value: 'core' },
-        { field: '@message', value: 'ERROR without request ID' },
+        { field: 'sourceKey', value: SOURCES[0] },
+        { field: '@message', value: 'ERROR without id' },
       ],
     ]);
     const noIds = await new QueryDailyExportAccountsStep('invocation').execute(input);
     assert.strictEqual(noIds.success, true);
     assert.deepStrictEqual(noIds.output, []);
-    assert.strictEqual(noIds.vars?.['lambdaInvocationLogCount'], '0');
-    assert.strictEqual(calls.length, 1);
-  });
-
-  it('uses OAM targets in cloud execution and fails if either account cannot be read', async () => {
-    const calls: QueryCall[] = [];
-    const input = context(
-      [
-        ['awsAccountId', '510769970275'],
-        ['awsProfiles', ''],
-      ],
-      calls,
-      '350578575906',
-    );
-    const result = await new QueryDailyExportAccountsStep('errors').execute(input);
-    assert.strictEqual(result.success, false);
-    assert.strictEqual(calls.length, 2);
-    assert.ok(calls.every(({ profile }) => profile === undefined));
-  });
-
-  it('rejects an occurrence in a different environment before querying production', async () => {
-    const calls: QueryCall[] = [];
-    const input = context(
-      [
-        ['awsAccountId', '151559006927'],
-        ['awsProfiles', ''],
-      ],
-      calls,
-    );
-    const result = await new QueryDailyExportAccountsStep('errors').execute(input);
-    assert.strictEqual(result.success, false);
     assert.deepStrictEqual(calls, []);
   });
 });

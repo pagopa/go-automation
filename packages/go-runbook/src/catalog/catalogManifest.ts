@@ -78,6 +78,7 @@ import { AUTH_SERVER_5XX_APIGW_REGISTRATION } from './runbooks/interop-auth-serv
 import { INTEROP_API_V2_5XX_APIGW_REGISTRATION } from './runbooks/interop-api-v2-apigw-5xx/registration.js';
 import { BFF_WEB_NOEXTENSION_NOTIFICATION_RECEIVED_COMP_5XX_API_GW_ALARM_REGISTRATION } from './runbooks/pn-bff-WEB-noextension-NotificationReceived-comp-5xx-ApiGwAlarm/registration.js';
 import { LAMBDA_DAILY_EXPORT_DYNAMO_DB_TABLE_LOG_INVOCATION_ERRORS_ALARM_REGISTRATION } from './runbooks/Lambda-DailyExport-DynamoDbTable-LogInvocationErrors-Alarm/registration.js';
+import { SERVICE_DESK_ALB_ALARM_REGISTRATION } from './runbooks/pn-service-desk-alb-alarm/registration.js';
 
 export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   // api gateway
@@ -148,4 +149,5 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   INTEROP_API_V2_5XX_APIGW_REGISTRATION,
   BFF_WEB_NOEXTENSION_NOTIFICATION_RECEIVED_COMP_5XX_API_GW_ALARM_REGISTRATION,
   LAMBDA_DAILY_EXPORT_DYNAMO_DB_TABLE_LOG_INVOCATION_ERRORS_ALARM_REGISTRATION,
+  SERVICE_DESK_ALB_ALARM_REGISTRATION,
 ];

@@ -170,6 +170,51 @@ const timeRange = {
 };
 
 describe('AWSCloudWatchLogsService', () => {
+  it('exposes independent readers for exactly the configured local profiles', async () => {
+    const provider = new FakeMultiProvider(
+      new Map([
+        ['reader-one', {}],
+        ['reader-two', {}],
+      ]),
+    );
+    const sources = createService(provider).getConfiguredSources();
+    assert.deepStrictEqual(
+      sources.map(({ key }) => key),
+      ['reader-one', 'reader-two'],
+    );
+    for (const source of sources) {
+      const result = await source.service.query(['/aws/ecs/service'], 'fields @message', timeRange, {
+        logGroupResolutionMode: 'search-configured-profiles',
+      });
+      assert.deepStrictEqual(result.map(profileValue), [source.key]);
+    }
+    assert.strictEqual(provider.client('reader-one').commands.filter((c) => c instanceof StartQueryCommand).length, 1);
+    assert.strictEqual(provider.client('reader-two').commands.filter((c) => c instanceof StartQueryCommand).length, 1);
+  });
+
+  it('exposes only the current target and declared fallbacks in account-scoped execution', async () => {
+    const provider = new FakeMultiProvider(
+      new Map([
+        ['reader-one', {}],
+        ['reader-two', {}],
+        ['outside-scope', {}],
+      ]),
+    );
+    const service = createService(provider).forTarget({
+      accountId: '111111111111',
+      region: 'eu-south-1',
+      profile: 'reader-one',
+      fallbacks: [{ accountId: '222222222222', profile: 'reader-two' }],
+    });
+    const sources = service.getConfiguredSources();
+    assert.deepStrictEqual(
+      sources.map(({ key }) => key),
+      ['111111111111', '222222222222'],
+    );
+    for (const source of sources) await source.service.query(['/aws/ecs/service'], 'fields @message', timeRange);
+    assert.strictEqual(provider.client('outside-scope').commands.length, 0);
+  });
+
   it('uses OAM logGroupIdentifiers for an execution-scoped source account', async () => {
     const provider = new FakeMultiProvider(new Map([['default', {}]]));
     const service = createService(provider).forTarget({ accountId: '123456789012', region: 'eu-south-1' });

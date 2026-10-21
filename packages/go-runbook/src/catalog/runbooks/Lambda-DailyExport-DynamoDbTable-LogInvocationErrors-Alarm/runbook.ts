@@ -20,11 +20,11 @@ export function buildRunbook(): Runbook {
     id: 'Lambda-DailyExport-DynamoDbTable-LogInvocationErrors-Alarm',
     metadata: {
       name: 'Lambda-DailyExport-DynamoDbTable-LogInvocationErrors-Alarm',
-      description: 'Analizza gli errori della Lambda DailyExport DynamoDB negli account core e confinfo.',
+      description: 'Analizza gli errori della Lambda DailyExport DynamoDB nelle sorgenti configurate.',
       version: '1.0.0',
       type: 'alarm-resolution',
       team: 'GO',
-      tags: ['lambda', 'dynamodb', 'daily-export', 'core', 'confinfo'],
+      tags: ['lambda', 'dynamodb', 'daily-export'],
     },
     lambda: LAMBDA_FUNCTION,
     errorQueryStep: new QueryDailyExportAccountsStep('errors'),
