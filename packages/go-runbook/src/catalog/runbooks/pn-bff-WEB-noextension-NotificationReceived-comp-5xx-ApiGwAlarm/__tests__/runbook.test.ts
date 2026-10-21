@@ -45,7 +45,7 @@ function matches(id: string, ctx: RunbookContext): boolean {
 
 async function executePaymentsTrace(
   checkoutMessage: string | undefined,
-  { followCheckout = true, checkoutFails = false } = {},
+  { followCheckout = true, checkoutFails = false, earlierDeliverySuccess = false } = {},
 ): Promise<{ result: RunbookExecutionResult; calls: ReadonlyArray<string> }> {
   const calls: string[] = [];
   const cloudWatchLogs = {
@@ -67,6 +67,20 @@ async function executePaymentsTrace(
         ];
       } else if (group === '/aws/ecs/pn-bff') {
         rows = [
+          ...(earlierDeliverySuccess
+            ? [
+                row({
+                  level: 'INFO',
+                  '@message': 'Invoking external service http://internal.example:8080/delivery/notifications/received',
+                  trace_id: ROOT,
+                }),
+                row({
+                  level: 'INFO',
+                  '@message': 'Delivery call completed with status 200',
+                  trace_id: ROOT,
+                }),
+              ]
+            : []),
           row({
             level: 'ERROR',
             '@message':
@@ -342,6 +356,20 @@ describe('NotificationReceived WEB diagnosis', () => {
       ['checkout-connect-timeout'],
     );
     assert.strictEqual(result.resolvedAtStep, 'analyze-pn-external-registries-checkout');
+  });
+
+  it('follows failing external registries through checkout instead of an earlier successful Delivery invocation', async () => {
+    const { result, calls } = await executePaymentsTrace(CHECKOUT_TIMEOUT, { earlierDeliverySuccess: true });
+    assert.strictEqual(result.status, 'completed');
+    assert.deepStrictEqual(
+      calls.filter((group) => group.startsWith('/aws/ecs/')),
+      ['/aws/ecs/pn-bff', '/aws/ecs/pn-external-registries', '/aws/ecs/pn-external-registries-checkout'],
+    );
+    assert.deepStrictEqual(
+      result.matchedCases.map(({ id }) => id),
+      ['checkout-connect-timeout'],
+    );
+    assert.strictEqual(result.finalContext.vars.get('bffNextUrlTarget'), 'pn-external-registries');
   });
 
   it('resolves the BFF timeout only after checkout traversal ends without a specific diagnosis', async () => {

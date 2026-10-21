@@ -44,7 +44,7 @@ export interface AnalyzeServiceLogsConfig {
  *
  * It:
  * - derives the most representative error message from the rows;
- * - scans the rows for the first URL matching the {@link KnownUrlsRegistry};
+ * - selects a known URL from failure rows before falling back to invocation evidence;
  * - extracts a new `FALLBACK-UUID` token only when the same result set
  *   also points to a known downstream URL;
  * - records a `trace_id` when the query was driven by an existing
