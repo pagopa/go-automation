@@ -10,6 +10,31 @@ import { all } from '../common/conditions.js';
 import { stepEvidenceMatches } from '../common/evidenceConditions.js';
 /** Known SelfcarePG failures evaluated against the pn-data-vault SEP log group. */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
+  // Watchtower analysis 01a06822-d18d-75cc-bf4d-45bf7adbfbcd and retained AWS logs, 3 September 2026.
+  knownCase({
+    id: 'selfcarepg-institutions-add-http-500',
+    description: '[DOWNSTREAM SelfcarePG] HTTP 500 durante l’aggiunta di un’istituzione',
+    priority: 120,
+    condition: stepEvidenceMatches(
+      'query-pn-data-vault',
+      '\\[DOWNSTREAM\\] Service SelfcarePG returned errors=500 Internal Server Error from POST ' +
+        'https://api\\.selfcare\\.pagopa\\.it/external/data-vault/v1/pn-pg/institutions/add(?=[;\\s"\\\\]|$)',
+    ),
+    resolution: 'Risoluzione non documentata.',
+    details: [
+      ['Servizio', 'pn-data-vault'],
+      ['Endpoint', 'https://api.selfcare.pagopa.it/external/data-vault/v1/pn-pg/institutions/add'],
+      ['Errore', '{{vars.dataVaultErrorMsg}}'],
+      ['Trace ID', '{{vars.dataVaultTraceId}}'],
+    ],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      errorDetails:
+        'HTTP 500 restituito da SelfcarePG alla chiamata POST /external/data-vault/v1/pn-pg/institutions/add.',
+      downstreams: [SEND_DOWNSTREAMS.SELFCARE],
+    },
+  }),
   knownCase({
     id: 'selfcarepg-read-timeout-with-empty-error',
     description: '[DOWNSTREAM SelfcarePG] Timeout di lettura con dettaglio errore vuoto',

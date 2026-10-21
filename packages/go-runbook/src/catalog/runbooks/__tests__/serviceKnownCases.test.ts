@@ -743,6 +743,8 @@ describe('service runbook known cases', () => {
       kind: 'named',
       name: SEND_DOWNSTREAMS.SELFCARE,
       emittedAs: 'SelfcarePG',
+      errorLevelOnly: true,
+      matchStructuredMessage: true,
     });
   });
 
@@ -760,10 +762,13 @@ describe('service runbook known cases', () => {
       buildNationalRegistriesInfoCamereDownstreamDetectionAlarmRunbook(),
       buildNationalRegistriesInadDownstreamDetectionAlarmRunbook(),
       buildAddressManagerPostelDownstreamDetectionAlarmRunbook(),
-      buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook(),
     ]) {
       assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 10, afterMinutes: 5 });
     }
+    assert.deepStrictEqual(buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook().occurrenceTimeWindow, {
+      beforeMinutes: 30,
+      afterMinutes: 5,
+    });
     assert.deepStrictEqual(buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook().occurrenceTimeWindow, {
       beforeMinutes: 30,
       afterMinutes: 5,

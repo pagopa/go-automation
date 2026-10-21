@@ -7,10 +7,8 @@ import type { ApiGwAlarmConfig } from '../types/ApiGwAlarmConfig.js';
  * They stay product-agnostic on purpose: this function is shared, while the
  * downstream catalogs are per product, so no catalog value belongs here.
  */
-const TIMEOUT_RESOLUTION =
-  "Timeout del Lambda authorizer di API Gateway. Verificare la durata e la disponibilità dell'authorizer indicato.";
-const ERROR_RESOLUTION =
-  "Errore del Lambda authorizer di API Gateway. Verificare il dettaglio dell'errore e l'authorizerRequestId nei log dell'authorizer.";
+const TIMEOUT_RESOLUTION = 'Risoluzione non documentata.';
+const ERROR_RESOLUTION = 'Risoluzione non documentata.';
 
 export function builtinApiGwAuthorizerKnownCases(config: ApiGwAlarmConfig): ReadonlyArray<KnownCase> {
   if (config.authorizerFailureCheck === undefined) return [];
