@@ -255,4 +255,39 @@ describe('IO_EXP diagnosis', () => {
     assert.strictEqual(result.matchedCases[0]?.id, 'f24-metadata-gone');
     assert.strictEqual(draft?.proposedStatus, 'IN_PROGRESS');
   });
+
+  it('follows an F24 failure instead of an earlier INFO invocation of Data Vault', async () => {
+    for (const level of ['ERROR', 'WARN']) {
+      const { result, calls } = await execute(access(), [], {
+        '/aws/ecs/pn-delivery': [
+          row({
+            level: 'INFO',
+            trace_id: ROOT,
+            '@timestamp': '2026-10-15T14:05:18Z',
+            '@message':
+              'Invoking external service http://internal.example:8080/datavault-private/v1/recipients/internal',
+          }),
+          row({
+            level,
+            trace_id: ROOT,
+            '@timestamp': '2026-10-15T14:05:19Z',
+            '@message': 'Request to GET http://internal.example:8080/f24-private/pdf/EXAMPLE failed',
+          }),
+        ],
+        '/aws/ecs/pn-f24': [
+          row({
+            level: 'WARN',
+            trace_id: ROOT,
+            '@message': '410 Gone from GET http://storage.example:8080/safe-storage/v1/files/PN_F24_META-example.json',
+          }),
+        ],
+      });
+      assert.deepStrictEqual(
+        calls.filter(({ group }) => group.startsWith('/aws/ecs/')).map(({ group }) => group),
+        ['/aws/ecs/pn-delivery', '/aws/ecs/pn-f24'],
+      );
+      assert.strictEqual(result.finalContext.vars.get('deliveryNextUrlTarget'), 'pn-f24');
+      assert.strictEqual(result.matchedCases[0]?.id, 'f24-metadata-gone');
+    }
+  });
 });
