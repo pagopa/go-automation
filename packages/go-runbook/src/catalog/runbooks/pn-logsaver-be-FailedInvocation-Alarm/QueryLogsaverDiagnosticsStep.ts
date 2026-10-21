@@ -37,14 +37,14 @@ const STREAM_QUERY: string = `stats min(@timestamp) as firstLog, max(@timestamp)
 
 type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
 
-/** OAM exposes logs, not Batch jobs: collect evidence and require a human Batch check. */
+/** Collect the logs and streams available for the logsaver occurrence. */
 export class QueryLogsaverDiagnosticsStep implements Step<Rows> {
   readonly id = 'query-logsaver-diagnostics';
   readonly label = 'Log e stream del job logsaver';
   readonly kind = 'data' as const;
 
   getTraceInfo(): Readonly<Record<string, unknown>> {
-    return { logGroup: LOG_GROUP, errorQuery: ERROR_QUERY, streamQuery: STREAM_QUERY, batchVerification: 'MANUAL' };
+    return { logGroup: LOG_GROUP, errorQuery: ERROR_QUERY, streamQuery: STREAM_QUERY };
   }
 
   async execute(context: RunbookContext): Promise<StepResult<Rows>> {
@@ -106,7 +106,7 @@ export class QueryLogsaverDiagnosticsStep implements Step<Rows> {
       }
       const diagnostics = results.flatMap((result) => result.diagnostics?.cloudWatchLogs ?? []);
       context.services.reporter.add({
-        label: `Logsaver: ${String(errorCount)} log di errore, ${String(streamCount)} stream. Verifica Batch ancora necessaria.`,
+        label: `Logsaver: ${String(errorCount)} log di errore, ${String(streamCount)} stream.`,
       });
       return {
         success: true,

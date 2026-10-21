@@ -118,7 +118,6 @@ describe('IO_EXP diagnosis', () => {
       [API_GW_LOG_GROUP, EXECUTION_GROUP],
     );
     assert.strictEqual(draft?.proposedStatus, 'IN_PROGRESS');
-    assert.match(draft.conclusionNotes, /non prova un timeout del codice Lambda/);
   });
 
   it('distinguishes integration signature failure after successful authorization from generic configuration errors', async () => {
@@ -147,7 +146,6 @@ describe('IO_EXP diagnosis', () => {
     assert.ok(calls.some((c) => c.group === EXECUTION_GROUP));
     assert.strictEqual(result.matchedCases[0]?.id, 'integration-502');
     assert.strictEqual(draft?.proposedStatus, 'IN_PROGRESS');
-    assert.match(draft.conclusionNotes, /non prova che pn-delivery fosse indisponibile/);
   });
 
   it('continues past inconclusive execution logs and follows Delivery to Data Vault using the full root', async () => {

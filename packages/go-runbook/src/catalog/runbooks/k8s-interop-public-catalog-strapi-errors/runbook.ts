@@ -22,7 +22,7 @@ export function buildRunbook(): Runbook {
     metadata: {
       name: alarm.runbookKey,
       description:
-        'Analizza errori di rete e warning di avvio di Strapi nel catalogo pubblico INTEROP, raccogliendo anche il contesto senza CID per verificare manutenzione e ripresa.',
+        'Analizza errori di rete e warning di avvio di Strapi nel catalogo pubblico INTEROP, raccogliendo anche il contesto senza CID.',
       version: '1.0.0',
       type: 'alarm-resolution',
       team: 'GO',

@@ -145,7 +145,6 @@ describe('INTEROP public catalog Strapi runbook', () => {
       assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
       assert.strictEqual(draft.analysisType, 'ANALYZABLE');
       assert.strictEqual(draft.ignoreReasonCode, undefined);
-      assert.deepStrictEqual(draft.finalActions, ['Necessario confronto con il team di prodotto']);
     });
   }
 

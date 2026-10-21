@@ -66,11 +66,7 @@ describe('logsaver Batch diagnostic runbook', () => {
     assert.strictEqual(calls.length, 2);
     assert.ok(calls.every(({ accountId, profile }) => accountId === '350578575906' && profile === undefined));
     assert.strictEqual(result.finalContext.vars.get('logsaverErrorLogCount'), '0');
-    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    assert.match(draft.conclusionNotes, /Status reason/);
-    assert.match(draft.conclusionNotes, /stessi dati e intervalli/);
-    assert.deepStrictEqual(draft.finalActions, []);
+    assert.notStrictEqual(draft?.kind, 'KNOWN_CASE');
   });
 
   it('retains equal messages from both accounts without deduplication or a recovery claim', async () => {
@@ -95,15 +91,16 @@ describe('logsaver Batch diagnostic runbook', () => {
       output.map((row) => row.find(({ field }) => field === 'sourceAccount')?.value),
       ['core', 'confinfo'],
     );
-    assert.strictEqual(draft?.kind === 'KNOWN_CASE' ? draft.proposedStatus : undefined, 'IN_PROGRESS');
+    assert.notStrictEqual(draft?.kind, 'KNOWN_CASE');
   });
 
-  it('keeps a Spot signature open until Batch status and recovery have been checked', async () => {
+  it('applies the documented no-action resolution only to the actual Spot signature', async () => {
     const { draft } = await execute(
       [['awsAccountId', '350578575906']],
       [[{ field: '@message', value: 'Your Spot Task was interrupted.' }]],
     );
-    assert.strictEqual(draft?.kind === 'KNOWN_CASE' ? draft.proposedStatus : undefined, 'IN_PROGRESS');
+    assert.strictEqual(draft?.kind === 'KNOWN_CASE' ? draft.proposedStatus : undefined, 'COMPLETED');
+    assert.strictEqual(draft?.kind === 'KNOWN_CASE' ? draft.conclusionNotes : undefined, 'Nessuna azione necessaria');
   });
 
   it('rejects UAT, unsupported regions and incomplete local account selection before reading', async () => {

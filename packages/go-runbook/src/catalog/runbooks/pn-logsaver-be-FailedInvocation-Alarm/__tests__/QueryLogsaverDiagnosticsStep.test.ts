@@ -115,7 +115,7 @@ describe('QueryLogsaverDiagnosticsStep', () => {
         `${CONFINFO_ACCOUNT}-streams`,
       ],
     );
-    assert.ok(labels.includes('Logsaver: 2 log di errore, 4 stream. Verifica Batch ancora necessaria.'));
+    assert.ok(labels.includes('Logsaver: 2 log di errore, 4 stream.'));
   });
 
   it('omits aggregated diagnostics when any target cannot report query statistics', async () => {
@@ -140,12 +140,12 @@ describe('QueryLogsaverDiagnosticsStep', () => {
     assert.match(result.error ?? '', /Logsaver streams in confinfo reached 1000 rows/);
   });
 
-  it('traces the log group, both queries and the pending manual Batch check', () => {
+  it('traces the log group and both diagnostic queries', () => {
     const trace = new QueryLogsaverDiagnosticsStep().getTraceInfo();
 
     assert.strictEqual(trace['logGroup'], LOG_GROUP);
     assert.strictEqual(trace['errorQuery'], ERROR_QUERY);
     assert.match(String(trace['streamQuery']), /by @logStream/);
-    assert.strictEqual(trace['batchVerification'], 'MANUAL');
+    assert.strictEqual(trace['batchVerification'], undefined);
   });
 });

@@ -6,11 +6,9 @@ import { varEquals } from '../common/varConditions.js';
  * shared generic timeout case (higher priority) with the documented
  * resolution; the remaining shared runtime cases (out-of-memory) are spread in.
  */
-
 import { lambda } from '../framework.js';
 import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
-
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'delivery-insert-trigger-eb-timeout-single-occurrence',
@@ -18,7 +16,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 110,
     condition: varEquals('lambdaErrorCategory', 'timeout'),
     title: 'Timeout pn-delivery-insert-trigger-eb-lambda',
-    resolution: 'solitamente occorrenza singola non anomala. Nessuna azione specifica richiesta.',
+    resolution: 'Il runbook descrive occorrenze singole per le quali non \u00E8 richiesta un\u2019azione specifica.',
     details: [
       ['Duration', '{{vars.lambdaDurationMs}} ms'],
       ['requestId', '{{vars.lambdaRequestId}}'],
@@ -26,6 +24,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     analysis: {
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
     },
   }),
   ...lambda.LAMBDA_RUNTIME_KNOWN_CASES,

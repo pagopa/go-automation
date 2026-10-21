@@ -12,8 +12,7 @@ export function buildRunbook(): Runbook {
     id: alarm.runbookKey,
     metadata: {
       name: alarm.runbookKey,
-      description:
-        'Analizza gli errori Kafka del delegation items archiver, raccoglie il contesto anche senza CID e richiede la verifica della ripresa delle archiviazioni.',
+      description: 'Analizza gli errori Kafka del delegation items archiver e raccoglie il contesto anche senza CID.',
       version: '1.1.0',
       type: 'alarm-resolution',
       team: 'GO',

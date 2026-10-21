@@ -138,18 +138,7 @@ describe('async token generation readmodel checker', () => {
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
     assert.strictEqual(draft.analysisType, 'ANALYZABLE');
     assert.deepStrictEqual(draft.downstreams, [INTEROP_DOWNSTREAMS.NESSUNO]);
-    assert.ok(
-      draft.finalActions.includes(
-        'Consultare PIN-10541 e il thread Slack collegato e verificare la versione installata in attestazione',
-      ),
-    );
-    assert.ok(
-      draft.finalActions.includes(
-        'Confrontare la voce ESERVICEDESCRIPTOR nei platform state e verificare il collegamento a PIN-10541 con il team di prodotto',
-      ),
-    );
-    assert.match(draft.conclusionNotes, /Archiving e ArchivingSuspended/u);
-    assert.match(draft.conclusionNotes, /verificare la versione effettivamente installata/u);
+
     assert.ok(draft.links.some(({ url }) => url === CONFLUENCE_URL));
     assert.ok(draft.links.some(({ url }) => url === 'https://pagopa.atlassian.net/browse/PIN-10541'));
     assert.ok(draft.links.some(({ url }) => url.endsWith('/p1784019090399849')));
@@ -223,10 +212,5 @@ describe('async token generation readmodel checker', () => {
     assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
     assert.strictEqual(queries.length, 1);
     assert.ok(draft.links.some(({ url }) => url === CONFLUENCE_URL));
-    assert.ok(
-      draft.finalActions.includes(
-        'Documentare l’esito dell’analisi e aggiornare i casi noti o gli step operativi quando emergono nuove casistiche',
-      ),
-    );
   });
 });

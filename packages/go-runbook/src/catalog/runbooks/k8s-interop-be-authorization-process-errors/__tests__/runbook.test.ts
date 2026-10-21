@@ -120,14 +120,13 @@ describe('authorization-process runbook', () => {
     }
   });
 
-  it('closes only the non-impacting duplicate handled by retry', () => {
+  it('does not close a duplicate whose resolution was not documented', () => {
     const completed = KNOWN_CASES.filter(({ analysis }) => analysis?.proposedStatus === 'COMPLETED');
     assert.deepStrictEqual(
       completed.map(({ id }) => id),
-      ['authorization-process-duplicate-event-stream-version'],
+      [],
     );
     for (const knownCase of KNOWN_CASES.filter(({ analysis }) => analysis?.proposedStatus === 'IN_PROGRESS')) {
-      assert.ok((knownCase.analysis?.finalActions?.length ?? 0) > 0);
       assert.ok(knownCase.priority > (completed[0]?.priority ?? 0));
     }
   });

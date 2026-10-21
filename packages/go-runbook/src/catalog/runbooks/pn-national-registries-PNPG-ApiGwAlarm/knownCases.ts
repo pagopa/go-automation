@@ -2,22 +2,12 @@ import { varEquals, varMatches } from '../common/varConditions.js';
 /**
  * Known cases for the pn-national-registries-PNPG-ApiGwAlarm runbook.
  */
-
 import type { KnownCase } from '../framework.js';
 import { knownCase } from '../framework.js';
 import { SEND_DOWNSTREAMS } from '../framework.js';
-
 import { apiGwPathMatches, apiGwStatusIs } from '../../../apigw/knownCases/conditions.js';
 import { all } from '../common/conditions.js';
 import { stepEvidenceMatches } from '../common/evidenceConditions.js';
-
-const INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION =
-  'Correlare l’errore InfoCamere con trace e risposta API Gateway. Verificare connettività, latenza e stato del servizio ' +
-  'senza attribuire automaticamente la causa al sistema remoto. Verificare richieste successive sullo stesso endpoint; ' +
-  'se il problema persiste o manca evidenza di ripresa, mantenere aperta l’analisi e coinvolgere il team prodotto.';
-const FOLLOW_UP_FINAL_ACTION =
-  'Verificare richieste successive e coinvolgere il team prodotto se il problema persiste o la causa non è confermata';
-
 /**
  * Known cases evaluated against the resulting context, highest priority
  * first.
@@ -37,15 +27,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Checking \\[INFO CAMERE\\] legal institutions passed',
       ),
     ),
-    resolution:
-      'Lo stesso trace contiene il completamento del controllo applicativo legal-institutions, pur con un 504 API Gateway. ' +
-      'Confrontare gli orari di avvio e completamento e la latenza del gateway: una risposta remota o un completamento ' +
-      'successivo non dimostrano che il chiamante abbia ricevuto un esito positivo. Verificare richieste successive ' +
-      'e coinvolgere il team prodotto se l’attesa elevata persiste; non attribuire il timeout a INAD senza evidenze correlate.',
+    resolution: 'Risoluzione non documentata.',
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP_FINAL_ACTION],
+      finalActions: [],
+      links: [],
     },
   }),
   knownCase({
@@ -57,14 +44,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       '\\[DOWNSTREAM\\] Service INAD returned errors=connection timed out after [0-9]+ ms: api\\.inad\\.gov\\.it',
     ),
     resolution:
-      'Correlare trace e risposta API Gateway; il timeout di connessione non identifica da solo la causa remota. ' +
-      'Verificare connettività, DNS, risorse del servizio e richieste successive. Segnalare al team prodotto ' +
-      'se ricorre in un intervallo ristretto, persiste o manca evidenza di ripresa.',
+      'Da segnalare se si presenta pi\u00F9 volte in un intervallo di tempo ristretto. Vedi Thread Slack 05/03/2026',
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.INAD],
-      finalActions: [FOLLOW_UP_FINAL_ACTION],
+      finalActions: [],
+      links: [],
     },
   }),
   knownCase({
@@ -75,15 +61,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       'query-pn-national-registries',
       '\\[DOWNSTREAM\\] Service AdE returned errors=connection timed out after [0-9]+ ms: gatewaywebservices\\.agenziaentrate\\.it',
     ),
-    resolution:
-      'Correlare trace e risposta API Gateway; verificare connettività, DNS, latenza e risorse del servizio. ' +
-      'Consultare la segnalazione storica senza assumerla come causa attuale. Verificare richieste successive ' +
-      'e coinvolgere il team prodotto se il problema persiste o la ripresa non è confermata.',
+    resolution: 'Thread Slack 21/09/2026',
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.ADE],
-      finalActions: [FOLLOW_UP_FINAL_ACTION],
+      finalActions: [],
+      links: [],
     },
   }),
   knownCase({
@@ -92,19 +76,17 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 110,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-
       '\\[DOWNSTREAM\\] Service AdE returned errors=500 Internal Server Error from POST https://gatewaywebservices\\.agenziaentrate\\.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService',
     ),
     title: '[DOWNSTREAM] Service AdE returned errors=500 Internal Server Error',
-    resolution:
-      'Correlare il 500 AdE con trace e risposta API Gateway. Verificare persistenza, impatto e richieste successive ' +
-      'sullo stesso endpoint; coinvolgere il team prodotto se il problema persiste o manca evidenza di ripresa.',
+    resolution: 'Thread Slack 23/04/2026',
     details: [['Downstream', 'AdE']],
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP_FINAL_ACTION],
+      finalActions: [],
       downstreams: [SEND_DOWNSTREAMS.ADE],
+      links: [],
     },
   }),
   knownCase({
@@ -118,15 +100,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       varEquals('nationalRegistriesNextUrlTarget', 'AdE'),
       stepEvidenceMatches(
         'query-pn-national-registries',
-
         '\\[DOWNSTREAM\\] Service AdE returned errors=<not specified>.*Request to POST https://gatewaywebservices\\.agenziaentrate\\.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService.*ReadTimeoutException',
       ),
     ),
     title: 'Timeout downstream AdE - VerificaRappresentanteEnteService',
-    resolution:
-      'Il log documenta una ReadTimeoutException durante la chiamata AdE. Correlare trace e risposta 504, ' +
-      'verificare rete, latenza e stato del servizio e confrontare richieste successive. Mantenere aperta l’analisi ' +
-      'se il problema persiste o la ripresa non è confermata; coinvolgere il team prodotto.',
+    resolution: 'Risoluzione non documentata.',
     details: [
       ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
       ['Status Code', '{{vars.apiGwStatusCode}}'],
@@ -136,8 +114,9 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP_FINAL_ACTION],
+      finalActions: [],
       downstreams: [SEND_DOWNSTREAMS.ADE],
+      links: [],
     },
   }),
   knownCase({
@@ -152,10 +131,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       apiGwPathMatches('^/national-registries-private/agenzia-entrate/legal$'),
     ),
     title: 'API Gateway 504 - Endpoint request timed out su AdE legal',
-    resolution:
-      'Il 504 prova la scadenza dell’attesa del gateway sul percorso AdE, non un disservizio AdE accertato. ' +
-      'Se mancano log correlati, verificare account, regione, trace, intervallo, permessi, ingestione e retention; ' +
-      'analizzare latenza e risorse del backend e richieste successive. Non chiudere sulla sola assenza di log o sullo stato OK.',
+    resolution: 'Risoluzione non documentata.',
     details: [
       ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
       ['Status Code', '{{vars.apiGwStatusCode}}'],
@@ -165,7 +141,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP_FINAL_ACTION],
+      finalActions: [],
+      links: [],
     },
   }),
   knownCase({
@@ -174,14 +151,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 107,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-
       '\\[DOWNSTREAM\\] Service InfoCamere returned errors=<not specified>' +
         '[\\s\\S]*Request to POST ' +
         'https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/authentication' +
         '[\\s\\S]*io\\.netty\\.handler\\.timeout\\.ReadTimeoutException',
     ),
     title: 'Timeout downstream InfoCamere durante autenticazione',
-    resolution: INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION,
+    resolution: 'Risoluzione non documentata.',
     details: [
       ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
       ['Status Code', '{{vars.apiGwStatusCode}}'],
@@ -190,9 +166,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP_FINAL_ACTION],
+      finalActions: [],
       errorDetails: 'ReadTimeoutException durante la chiamata POST verso l’endpoint di autenticazione InfoCamere.',
       downstreams: [SEND_DOWNSTREAMS.INFOCAMERE],
+      links: [],
     },
   }),
   knownCase({
@@ -201,13 +178,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 106,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-
       '\\[DOWNSTREAM\\] Service InfoCamere returned errors=recvAddress\\(\\.\\.\\) failed: ' +
         'Connection reset by peer[\\s\\S]*Request to POST ' +
         'https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/authentication',
     ),
     title: 'Connessione downstream InfoCamere chiusa durante autenticazione',
-    resolution: INFOCAMERE_TRANSIENT_FAILURE_RESOLUTION,
+    resolution: 'Risoluzione non documentata.',
     details: [
       ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
       ['Status Code', '{{vars.apiGwStatusCode}}'],
@@ -216,9 +192,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP_FINAL_ACTION],
+      finalActions: [],
       errorDetails: 'Connessione verso InfoCamere interrotta dal peer remoto durante l’autenticazione.',
       downstreams: [SEND_DOWNSTREAMS.INFOCAMERE],
+      links: [],
     },
   }),
   knownCase({
@@ -227,20 +204,18 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 105,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-
       '\\[DOWNSTREAM\\] Service InfoCamere returned errors=500 Internal Server Error from GET https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/listaLegaleRappresentante/',
     ),
     title: '[DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error',
     resolution:
-      'Correlare il 500 di listaLegaleRappresentante con trace e risposta API Gateway; consultare la segnalazione ' +
-      'storica senza considerarla prova della causa attuale. Verificare persistenza e richieste successive ' +
-      'e coinvolgere il team prodotto se necessario. Oscurare codici fiscali, identificativi e query string nelle evidenze.',
+      'Scenario di errore gi\u00E0 noto e dipendente da una problematica del downstream Infocamere gi\u00E0 segnalata. Si sta cercando di ovviare a questo problema implementando un meccanismo di retry. Thread Slack 02/10/2026 (CF oscurati) Thread Slack 30/09/2025',
     details: [['Downstream', 'InfoCamere']],
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP_FINAL_ACTION],
+      finalActions: [],
       downstreams: [SEND_DOWNSTREAMS.INFOCAMERE],
+      links: [],
     },
   }),
   knownCase({
@@ -249,20 +224,17 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 104,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-
       '\\[DOWNSTREAM\\] Service InfoCamere returned errors=500 Internal Server Error from POST https://icapis\\.infocamere\\.it/ic/pe/wspa/wspa/rest/authentication(?:\\?client_id=[^\\s"]*)?',
     ),
     title: '[DOWNSTREAM] Service InfoCamere returned errors=500 Internal Server Error',
-    resolution:
-      'Correlare il 500 di autenticazione InfoCamere con trace e risposta API Gateway. Verificare persistenza, ' +
-      'errori di accesso e richieste successive senza esporre credenziali o query string. ' +
-      'Coinvolgere il team prodotto se il problema persiste o la ripresa non è dimostrata.',
+    resolution: 'Risoluzione non documentata.',
     details: [['Downstream', 'InfoCamere']],
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP_FINAL_ACTION],
+      finalActions: [],
       downstreams: [SEND_DOWNSTREAMS.INFOCAMERE],
+      links: [],
     },
   }),
   knownCase({
@@ -276,12 +248,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       apiGwPathMatches('^/national-registries-private/infocamere/legal-institutions$'),
     ),
     title: 'API Gateway 504 - Endpoint request timed out su INAD/InfoCamere',
-    resolution:
-      'Il 504 sul percorso legal-institutions documenta una scadenza dell’attesa del gateway; ' +
-      'non identifica da solo INAD o InfoCamere come causa. Verificare trace e log applicativi, account, intervallo, ' +
-      'permessi, ingestione e retention; confrontare latenza, CPU/memoria e richieste successive. ' +
-      'Un allarme di latenza nella stessa finestra è un indizio da correlare, non una prova della causa. ' +
-      'Mantenere aperta l’analisi se la causa o la ripresa non sono confermate.',
+    resolution: 'Nessuna azione necessaria',
     details: [
       ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
       ['Status Code', '{{vars.apiGwStatusCode}}'],
@@ -291,7 +258,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP_FINAL_ACTION],
+      finalActions: [],
+      links: [],
     },
   }),
   knownCase({
@@ -300,14 +268,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 100,
     condition: all(apiGwStatusIs('504'), varMatches('apiGwErrorMessage', 'Execution failed due to a timeout error')),
     title: 'API Gateway 504 - Execution failed due to a timeout error',
-    resolution:
-      'Il gateway ha terminato l’attesa del backend. Correlare trace e log applicativi, verificare latenza, ' +
-      'CPU/memoria, errori di accesso e richieste successive sullo stesso endpoint. Il messaggio non dimostra ' +
-      'che l’errore sia transitorio o risolto: mantenere aperta l’analisi finché causa e impatto non sono chiariti.',
+    resolution: 'Nessuna azione necessaria',
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP_FINAL_ACTION],
+      finalActions: [],
+      links: [],
     },
   }),
 ];

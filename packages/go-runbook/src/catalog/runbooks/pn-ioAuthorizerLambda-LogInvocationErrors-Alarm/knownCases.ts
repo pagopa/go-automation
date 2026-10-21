@@ -5,13 +5,10 @@
  * `lambda.LAMBDA_RUNTIME_KNOWN_CASES`; the cases below are alarm-specific,
  * matched on the log rows.
  */
-
 import { lambda } from '../framework.js';
 import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
-
 import { lambdaLogEvidenceMatches } from '../common/evidenceConditions.js';
-
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   ...lambda.LAMBDA_RUNTIME_KNOWN_CASES,
   knownCase({
@@ -20,11 +17,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 90,
     condition: lambdaLogEvidenceMatches('socket hang up'),
     title: 'Error generating IAM policy: socket hang up verso pn-data-vault',
-    resolution: 'occorrenza singola, interruzione momentanea di connessione con pn-data-vault. Nessuna azione.',
+    resolution: 'Occorrenza singola per la quale non si \u00E8 deciso di procedere con qualche azione in particolare.',
     details: [['requestId', '{{vars.lambdaRequestId}}']],
     analysis: {
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
     },
   }),
   knownCase({
@@ -33,10 +32,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 89,
     condition: lambdaLogEvidenceMatches('Invalid source details header QRCODE'),
     title: 'Invalid source details header QRCODE',
-    resolution: 'header della richiesta non valido pervenuto alla Lambda authorizer. Nessuna azione.',
+    resolution: 'Errore per il quale non \u00E8 necessaro procedere con qualche azione in particolare.',
     analysis: {
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
     },
   }),
 ];

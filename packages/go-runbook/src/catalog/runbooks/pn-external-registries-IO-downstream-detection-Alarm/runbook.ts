@@ -1,13 +1,10 @@
 import { downstream } from '../framework.js';
 import type { Runbook } from '../framework.js';
-
 import { EXTERNAL_REGISTRIES_IO_ALARM } from './alarmDefinition.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { DOWNSTREAM, SERVICE } from './knownServices.js';
-
 const RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3312976074/pn-external-registries-IO-downstream-detection-Alarm';
-
 /** Builds the read-only IO downstream runbook documented by Confluence page 3312976074. */
 export function buildRunbook(): Runbook {
   return downstream.createDownstreamAlarmRunbook({
@@ -16,7 +13,7 @@ export function buildRunbook(): Runbook {
       name: EXTERNAL_REGISTRIES_IO_ALARM,
       description:
         'Analizza gli errori del downstream IO su pn-external-registries, correlando il trace_id ' +
-        'e distinguendo timeout, errori di attivazione, indisponibilità IO/Cosmos DB ed errori applicativi.',
+        'e riconoscendo i casi documentati di timeout, errori di attivazione ed errori applicativi.',
       version: '1.0.1',
       type: 'alarm-resolution',
       team: 'GO',
@@ -33,7 +30,7 @@ export function buildRunbook(): Runbook {
     },
     analysisDefaults: {
       runbookName: EXTERNAL_REGISTRIES_IO_ALARM,
-      finalActions: ['Documentare la causa verificata e aggiornare il runbook se emerge una nuova casistica'],
+      finalActions: [],
       links: [{ url: RUNBOOK_URL, name: EXTERNAL_REGISTRIES_IO_ALARM, type: 'CONFLUENCE' }],
     },
   });

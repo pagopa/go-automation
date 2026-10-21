@@ -12,8 +12,7 @@ export function buildRunbook(): Runbook {
     id: alarm.runbookKey,
     metadata: {
       name: alarm.runbookKey,
-      description:
-        'Analizza gli errori Kafka del delegation outbound writer, raccoglie il contesto anche senza CID e richiede la verifica della ripresa degli aggiornamenti attesi delle deleghe nella destinazione.',
+      description: 'Analizza gli errori Kafka del delegation outbound writer e raccoglie il contesto anche senza CID.',
       version: '1.0.0',
       type: 'alarm-resolution',
       team: 'GO',

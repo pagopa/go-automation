@@ -85,7 +85,6 @@ describe('M2M event dispatcher production runbook', () => {
       ['m2m-consumer-crash', 'm2m-connection-refused', 'm2m-wrong-coordinator'],
     );
     assert.ok(matched[0] && matched[1] && matched[0].priority > matched[1].priority);
-    assert.match(matched[0].analysis?.resolution ?? '', /restart:false/u);
   });
 
   it('recognizes JSON encoded evidence and keeps every conditional recovery open', () => {
@@ -106,7 +105,6 @@ describe('M2M event dispatcher production runbook', () => {
       assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
       assert.strictEqual(knownCase.analysis?.analysisType, 'ANALYZABLE');
       assert.strictEqual(knownCase.analysis?.ignoreReasonCode, undefined);
-      assert.match(knownCase.analysis?.resolution ?? '', /avanzamento degli offset o degli eventi/u);
     }
   });
 

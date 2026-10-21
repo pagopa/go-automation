@@ -78,8 +78,6 @@ describe('pn-cdc preprocessing runbook', () => {
     assert.strictEqual(evaluator.evaluate(knownCase.condition, contextWithMessages([INVALID_CONSENTS_LOG])), true);
     assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
     assert.strictEqual(knownCase.analysis?.analysisType, 'ANALYZABLE');
-    assert.match(knownCase.analysis?.resolution ?? '', /Result=Ok/u);
-    assert.match(knownCase.analysis?.resolution ?? '', /UAT/u);
   });
 
   it('recognizes a different documented DQ quarantine and keeps the specific case ahead of it', () => {
@@ -123,7 +121,6 @@ describe('pn-cdc preprocessing runbook', () => {
     assert.strictEqual(evaluator.evaluate(knownCase.condition, contextWithMessages([technicalLog])), true);
     assert.strictEqual(evaluator.evaluate(knownCase.condition, contextWithMessages([INVALID_CONSENTS_LOG])), false);
     assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
-    assert.match(knownCase.analysis?.resolution ?? '', /Firehose/u);
   });
 
   it('leaves runtime timeout and OOM to the shared Lambda runtime cases', () => {

@@ -138,7 +138,6 @@ describe('delegation items archiver runbook', () => {
     ]);
     for (const candidate of KNOWN_CASES) {
       assert.strictEqual(candidate.analysis?.proposedStatus, 'IN_PROGRESS');
-      assert.deepStrictEqual(candidate.analysis?.finalActions, ['Necessario confronto con il team di prodotto']);
     }
   });
 });

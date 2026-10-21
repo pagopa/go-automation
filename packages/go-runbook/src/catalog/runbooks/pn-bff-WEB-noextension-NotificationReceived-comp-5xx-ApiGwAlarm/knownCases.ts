@@ -2,10 +2,6 @@ import { knownCase, SEND_DOWNSTREAMS, type KnownCase } from '../framework.js';
 import { all, any } from '../common/conditions.js';
 import { stepEvidenceMatches, anyStepEvidenceMatches } from '../common/evidenceConditions.js';
 import { varExists } from '../common/varConditions.js';
-import { jiraLink } from '../common/analysisLinks.js';
-
-const FOLLOW_UP =
-  'Verificare ricorrenza, impatto e richieste successive; coinvolgere il team prodotto se causa o ripresa non sono confermate';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
@@ -16,15 +12,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       'query-pn-delivery',
       '^(?=[\\s\\S]*PnInternalException)(?=[\\s\\S]*java\\.lang\\.IndexOutOfBoundsException: Index -1 out of bounds for length [0-9]+\\b)',
     ),
-    resolution:
-      'Correlare trace, stack_trace di pn-delivery e risposta API Gateway 500. Consultare PN-21515 e verificare stato del ticket e versione distribuita; la lunghezza riportata può variare e non va fissata a 53. Verificare le altre richieste fallite e le richieste successive: il riferimento al bug non prova il recupero della nuova occorrenza.',
+    resolution: 'PN-21515',
     level: 'warn',
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP],
+      finalActions: [],
       resources: [{ name: 'pn-delivery' }],
-      links: [jiraLink('PN-21515')],
+      links: [{ url: 'https://pagopa.atlassian.net/browse/PN-21515', name: 'PN-21515', type: 'JIRA' }],
     },
   }),
   knownCase({
@@ -35,14 +30,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       'query-pn-delivery',
       'DynamoDbException:[\\s\\S]*Invalid FilterExpression: Expression size has exceeded the maximum allowed size',
     ),
-    resolution:
-      'Il codice 400 nel messaggio è restituito da DynamoDB e non identifica da solo lo status HTTP del BFF. Correlare trace e access log, ricostruire il filtro di ricerca e coinvolgere il team pn-delivery. Non modificare limiti o dati DynamoDB come correzione automatica.',
+    resolution: 'Risoluzione non documentata.',
     level: 'warn',
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP],
+      finalActions: [],
       resources: [{ name: 'pn-delivery' }],
+      links: [],
     },
   }),
   knownCase({
@@ -53,15 +48,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       'query-pn-delivery',
       'IllegalArgumentException:[\\s\\S]*Start \\(YearAndMonth\\([\\s\\S]*can.t be after end \\(YearAndMonth',
     ),
-    resolution:
-      'Verificare i parametri startDate ed endDate senza copiare identificativi personali. Consultare PN-18576 e verificarne stato e versione distribuita; far correggere al chiamante l’intervallo e verificare una nuova richiesta. La casistica documentata non dimostra che ogni 500 della finestra abbia questa origine.',
+    resolution: 'Bug: PN-18576 Thread Slack: 23/02/2026',
     level: 'warn',
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP],
+      finalActions: [],
       resources: [{ name: 'pn-delivery' }],
-      links: [jiraLink('PN-18576')],
+      links: [{ url: 'https://pagopa.atlassian.net/browse/PN-18576', name: 'PN-18576', type: 'JIRA' }],
     },
   }),
   knownCase({
@@ -73,13 +67,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       '^(?=[\\s\\S]*ResourceAccessException)(?=[\\s\\S]*/datavault-private/v1/recipients/internal)(?=[\\s\\S]*SocketTimeoutException: Read timed out)',
     ),
     resolution:
-      'Correlare trace e chiamata a Personal Data Vault. Leggere anche WARN e stack_trace di Exception caught by retry; verificare esito e tempi dei tentativi e delle richieste successive. La presenza di un retry non dimostra che sia riuscito né che il chiamante abbia ricevuto una risposta positiva.',
+      'Note: l\u2019errore si \u00E8 presentato con poche volte in un intervallo temporale di circa mezzora. I messaggi riportati in questa tabella erano in log con severity warning. La stringa sul timeout di pn-delivery verso data-vault si trovava all\u2019interno dello stack-trace, il messaggio invece era del tipo Exception caught by retry . Da verificare se \u00E8 possibile trattarlo come un errore gestito.',
     level: 'warn',
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP],
+      finalActions: [],
       resources: [{ name: 'pn-delivery' }, { name: 'pn-data-vault' }],
+      links: [],
     },
   }),
   knownCase({
@@ -90,15 +85,15 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       ['query-pn-external-registries', 'query-pn-external-registries-checkout'],
       '\\[DOWNSTREAM\\] Service Checkout returned errors=connection timed out after [0-9]+ ms: api\\.platform\\.pagopa\\.it',
     ),
-    resolution:
-      'Correlare trace e access log BFF; identificare il servizio checkout effettivamente invocato e verificare rete, DNS e richieste successive. Il messaggio non prova una causa esclusivamente remota. Oscurare token, codici fiscali e identificativi di pagamento nelle evidenze; coinvolgere il team prodotto se il problema persiste.',
+    resolution: 'Thread Slack 21/09/2026',
     level: 'warn',
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP],
+      finalActions: [],
       resources: [{ name: 'pn-external-registries-checkout' }],
       downstreams: [SEND_DOWNSTREAMS.CHECKOUT_PAGOPA],
+      links: [],
     },
   }),
   knownCase({
@@ -113,13 +108,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       ),
     ),
     resolution:
-      'Verificare log correlati di pn-external-registries e, se invocato, del servizio checkout. Ricostruire tempi, retry e risposte; l’errore non dimostra una fluttuazione innocua della connettività. Se mancano log, verificare identificatori, intervallo, permessi, ingestione e retention.',
+      'Considerando la natura sporadica dell\u2019anomalia, viene considerata una normale fluttuazione randomica della connettivit\u00E0 tra i ms',
     level: 'warn',
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP],
+      finalActions: [],
       resources: [{ name: 'pn-external-registries' }],
+      links: [],
     },
   }),
   knownCase({
@@ -134,13 +130,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       ),
     ),
     resolution:
-      'Confrontare trace e timestamp BFF/pn-delivery, cercando l’errore e l’esito delle richieste a valle. Verificare rete, risorse e richieste successive. Un 200 successivo in pn-delivery o un retry non dimostrano che il BFF abbia ricevuto il risultato entro la propria attesa.',
+      'Problema causato da errori di connettivit\u00E0 (ReadTimeout) verso pn-delivery. Nota: in alcune analisi \u00E8 stato possibile verificare che il problema \u00E8 stato temporaneo e che \u00E8 stato comunque gestito tramite retry da pn-delivery con un 200 sul',
     level: 'warn',
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP],
+      finalActions: [],
       resources: [{ name: 'pn-delivery' }],
+      links: [],
     },
   }),
   knownCase({
@@ -152,12 +149,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       stepEvidenceMatches('query-pn-bff', 'The connection observed an error'),
     ),
     resolution:
-      'Il warning è un sintomo: identificare destinazione ed eccezione sottostante nello stesso trace. Non attribuire automaticamente un disservizio a rete, pn-delivery o pn-external-registries e non chiudere per la sola sporadicità. Verificare impatto e richieste successive; coinvolgere il prodotto se mancano evidenze sufficienti.',
+      'Considerando la natura sporadica dell\u2019anomalia, viene considerata una normale fluttuazione randomica della connettivit\u00E0 tra i ms',
     level: 'warn',
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [FOLLOW_UP],
+      finalActions: [],
+      links: [],
     },
   }),
 ];

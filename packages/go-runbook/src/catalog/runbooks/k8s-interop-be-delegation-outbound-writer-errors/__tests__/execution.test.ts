@@ -95,9 +95,6 @@ describe('delegation outbound writer evidence execution', () => {
       assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
       assert.strictEqual(draft.analysisType, 'ANALYZABLE');
       assert.strictEqual(draft.ignoreReasonCode, undefined);
-      assert.deepStrictEqual(draft.finalActions, ['Necessario confronto con il team di prodotto']);
-      assert.match(draft.conclusionNotes, /aggiornamenti attesi delle deleghe nella destinazione/);
-      assert.match(draft.conclusionNotes, /non provano il recupero/);
     });
   }
   it('prioritizes the crash when connection failures and coordinator errors coexist', async () => {

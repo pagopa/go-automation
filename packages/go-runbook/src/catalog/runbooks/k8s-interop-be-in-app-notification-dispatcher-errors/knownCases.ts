@@ -1,10 +1,9 @@
 import { INTEROP_DOWNSTREAMS, knownCase, type KnownCase } from '../framework.js';
-import { jiraLink } from '../common/analysisLinks.js';
+
 import { all } from '../common/conditions.js';
 import { stepEvidenceMatches } from '../common/evidenceConditions.js';
 import { varEquals } from '../common/varConditions.js';
 import { IN_APP_NOTIFICATION_DISPATCHER_ALARM as alarm } from './alarmDefinition.js';
-
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'in-app-notification-dispatcher-kafka-coordinator-member-rejoin',
@@ -19,11 +18,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'The coordinator is not aware of this member,\\s*re-joining the group\\b',
       ),
     ),
-    resolution:
-      'Consultare PIN-7325 e raccogliere timestamp, frequenza delle ricorrenze e log del dispatcher, anche senza CID. ' +
-      'Verificare la ripresa del consumer e approfondire con il team di prodotto se il fenomeno persiste. ' +
-      'La card descrive una perdita della sessione Kafka, possibile anche con elaborazione lenta o problemi di rete, ' +
-      'e non documenta una correzione definitiva né criteri di chiusura.',
+    resolution: 'PIN-7325',
     details: [
       ['Ambiente', '{{vars.interopEnvironment}}'],
       ['Log group', '{{vars.interopLogGroup}}'],
@@ -36,8 +31,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       errorDetails: 'Il consumer Kafka ha perso la sessione di gruppo e tenta di effettuare il rejoin.',
       // Selfcare è il downstream dichiarato dalla pagina; l’attribuzione resta da confermare.
       downstreams: [INTEROP_DOWNSTREAMS.SELFCARE],
-      finalActions: ['Verificare la ripresa del consumer e la persistenza del problema con il team di prodotto'],
-      links: [jiraLink('PIN-7325')],
+      finalActions: [],
+      links: [{ url: 'https://pagopa.atlassian.net/browse/PIN-7325', name: 'PIN-7325', type: 'JIRA' }],
     },
   }),
 ];

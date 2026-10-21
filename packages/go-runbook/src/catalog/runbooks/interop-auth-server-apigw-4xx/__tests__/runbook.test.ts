@@ -120,7 +120,6 @@ describe('buildRunbook', () => {
     const draft = buildAnalysisDraft(buildRunbook(), result);
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    assert.match(draft.conclusionNotes, /Lo status 403 da solo non prova/u);
   });
 });
 

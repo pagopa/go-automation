@@ -26,13 +26,6 @@ export function buildRunbook(): Runbook {
     .step(new QuerySpidHubDiagnosticsStep(), { silent: true });
   for (const knownCase of KNOWN_CASES) builder.knownCase(knownCase);
   return builder
-    .fallback(
-      unknownCaseFallback('Diagnosi SPID Hub non disponibile', [
-        [
-          'Azione',
-          'Verificare accesso a confinfo, regione e finestra; proseguire con la correlazione degli access log ALB.',
-        ],
-      ]),
-    )
+    .fallback(unknownCaseFallback('Diagnosi SPID Hub non disponibile', [['Azione', 'Risoluzione non documentata.']]))
     .build();
 }
