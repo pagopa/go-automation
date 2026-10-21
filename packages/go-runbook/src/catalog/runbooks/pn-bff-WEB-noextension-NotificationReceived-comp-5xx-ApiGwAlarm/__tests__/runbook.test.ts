@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
 import { GOLogger } from '@go-automation/go-common/core';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
+import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionResult.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { assertCloudExecutableRunbook } from '../../../../validation/assertCloudExecutableRunbook.js';
@@ -16,6 +17,10 @@ import { NOTIFICATION_RECEIVED_QUERY_PROFILE as PROFILE } from '../queryProfile.
 const ROOT = '1-6ac5cc09-67ca536f1c9e14130fb3b03e';
 const BFF_FALLBACK = '11111111-1111-1111-1111-111111111111';
 const ALARM = 'pn-bff-WEB-noextension-NotificationReceived-comp-5xx-ApiGwAlarm';
+const PAYMENTS_TIMEOUT =
+  'Ending process _getPaymentsInfoV1 with errors=nested exception is io.netty.handler.timeout.ReadTimeoutException';
+const CHECKOUT_TIMEOUT =
+  '[DOWNSTREAM] Service Checkout returned errors=connection timed out after 3000 ms: api.platform.pagopa.it/192.0.2.1:443';
 const row = (values: Record<string, string>): ReadonlyArray<ResultField> =>
   Object.entries(values).map(([field, value]) => ({ field, value }));
 
@@ -36,6 +41,72 @@ function matches(id: string, ctx: RunbookContext): boolean {
   const candidate = KNOWN_CASES.find((entry) => entry.id === id);
   assert.ok(candidate);
   return new ConditionEvaluator().evaluate(candidate.condition, ctx);
+}
+
+async function executePaymentsTrace(
+  checkoutMessage: string | undefined,
+  { followCheckout = true, checkoutFails = false } = {},
+): Promise<{ result: RunbookExecutionResult; calls: ReadonlyArray<string> }> {
+  const calls: string[] = [];
+  const cloudWatchLogs = {
+    // eslint-disable-next-line @typescript-eslint/require-await
+    async queryWithStatistics(groups: ReadonlyArray<string>, query: string): Promise<AWSCloudWatchLogsQueryResult> {
+      const group = groups[0] ?? '';
+      calls.push(group);
+      let rows: ReadonlyArray<ReadonlyArray<ResultField>> = [];
+      if (group === API_GW_LOG_GROUP) {
+        rows = [
+          row({
+            status: '500',
+            xrayTraceId: `Root=${ROOT}`,
+            requestId: 'payments-request',
+            authorizerStatus: '200',
+            httpMethod: 'GET',
+            resourcePath: '/v1/notifications/received/{iun}/payments/{attachmentName}',
+          }),
+        ];
+      } else if (group === '/aws/ecs/pn-bff') {
+        rows = [
+          row({
+            level: 'ERROR',
+            '@message':
+              `${PAYMENTS_TIMEOUT}; The connection observed an error; ` +
+              'Request to GET http://internal.example:8080/ext-registry-private/payments',
+            trace_id: ROOT,
+          }),
+        ];
+      } else if (group === '/aws/ecs/pn-external-registries') {
+        assert.ok(query.includes(ROOT));
+        rows = followCheckout
+          ? [
+              row({
+                level: 'INFO',
+                '@message': 'Invoking external service http://pn-external-registries-checkout:8080/checkout/payments',
+                trace_id: ROOT,
+              }),
+            ]
+          : [];
+      } else if (group === '/aws/ecs/pn-external-registries-checkout') {
+        assert.ok(query.includes(ROOT));
+        if (checkoutFails) throw new Error('Checkout logs unavailable');
+        rows = checkoutMessage === undefined ? [] : [row({ level: 'ERROR', '@message': checkoutMessage })];
+      }
+      return {
+        rows,
+        statistics: { recordsMatched: rows.length, recordsScanned: rows.length, bytesScanned: 1 },
+        queryExecutions: [],
+      };
+    },
+  };
+  const result = await new RunbookEngine(new GOLogger()).execute(
+    buildRunbook(),
+    new Map([
+      ['startTime', '2026-10-07T04:31:55Z'],
+      ['endTime', '2026-10-07T04:41:56Z'],
+    ]),
+    createTestServiceRegistry({ cloudWatchLogs }),
+  );
+  return { result, calls };
 }
 
 describe('NotificationReceived WEB diagnosis', () => {
@@ -154,18 +225,41 @@ describe('NotificationReceived WEB diagnosis', () => {
     );
   });
 
-  it('does not end the BFF analysis before the relevant service was queried', () => {
-    const payment =
-      'Ending process _getPaymentsInfoV1 with errors=nested exception is io.netty.handler.timeout.ReadTimeoutException';
-    assert.strictEqual(matches('bff-payments-info-read-timeout', context('query-pn-bff', payment)), false);
-    assert.strictEqual(
-      matches('bff-payments-info-read-timeout', context('query-pn-bff', payment, { externalRegistriesLogCount: '0' })),
-      true,
-    );
-    assert.strictEqual(
-      matches('bff-connection-observed-error', context('query-pn-bff', 'The connection observed an error')),
-      false,
-    );
+  it('defers all BFF symptom fallbacks until traversal has stopped', () => {
+    const fixtures = [
+      { id: 'bff-payments-info-read-timeout', message: PAYMENTS_TIMEOUT, vars: { externalRegistriesLogCount: '0' } },
+      {
+        id: 'bff-delivery-read-timeout',
+        message: 'ReadTimeoutException Request to GET http://internal.example:8080/delivery/notifications/received',
+        vars: { deliveryLogCount: '0' },
+      },
+      {
+        id: 'bff-connection-observed-error',
+        message: 'The connection observed an error',
+        vars: { externalRegistriesLogCount: '1' },
+      },
+    ];
+    for (const { id, message, vars } of fixtures) {
+      assert.strictEqual(matches(id, context('query-pn-bff', message)), false, id);
+      for (const terminationReason of [undefined, '']) {
+        assert.strictEqual(
+          matches(
+            id,
+            context('query-pn-bff', message, {
+              ...vars,
+              ...(terminationReason === undefined ? {} : { terminationReason }),
+            }),
+          ),
+          false,
+          id,
+        );
+      }
+      assert.strictEqual(
+        matches(id, context('query-pn-bff', message, { ...vars, terminationReason: 'no-match' })),
+        true,
+        id,
+      );
+    }
   });
 
   it('traverses BFF to delivery using X-Ray instead of a BFF-only fallback UUID', async () => {
@@ -234,5 +328,46 @@ describe('NotificationReceived WEB diagnosis', () => {
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
     assert.ok(draft.links.some(({ url }) => url.endsWith('/PN-21515')));
     assert.strictEqual(result.finalContext.vars.get('bffFallbackUuid'), BFF_FALLBACK);
+  });
+
+  it('reaches checkout and diagnoses its timeout before either BFF fallback can resolve', async () => {
+    const { result, calls } = await executePaymentsTrace(CHECKOUT_TIMEOUT);
+    assert.strictEqual(result.status, 'completed');
+    assert.deepStrictEqual(
+      calls.filter((group) => group.startsWith('/aws/ecs/')),
+      ['/aws/ecs/pn-bff', '/aws/ecs/pn-external-registries', '/aws/ecs/pn-external-registries-checkout'],
+    );
+    assert.deepStrictEqual(
+      result.matchedCases.map(({ id }) => id),
+      ['checkout-connect-timeout'],
+    );
+    assert.strictEqual(result.resolvedAtStep, 'analyze-pn-external-registries-checkout');
+  });
+
+  it('resolves the BFF timeout only after checkout traversal ends without a specific diagnosis', async () => {
+    for (const message of [undefined, 'ERROR - Unrecognized checkout failure']) {
+      const { result, calls } = await executePaymentsTrace(message);
+      assert.strictEqual(result.status, 'completed');
+      assert.ok(calls.includes('/aws/ecs/pn-external-registries-checkout'));
+      assert.strictEqual(result.finalContext.vars.get('terminationReason'), 'no-match');
+      assert.strictEqual(result.matchedCases[0]?.id, 'bff-payments-info-read-timeout');
+      assert.notStrictEqual(result.earlyResolution, true);
+    }
+  });
+
+  it('keeps the BFF fallback available when external registries has no reachable checkout', async () => {
+    const { result, calls } = await executePaymentsTrace(undefined, { followCheckout: false });
+    assert.strictEqual(result.status, 'completed');
+    assert.ok(!calls.includes('/aws/ecs/pn-external-registries-checkout'));
+    assert.strictEqual(result.finalContext.vars.get('terminationReason'), 'no-match');
+    assert.strictEqual(result.matchedCases[0]?.id, 'bff-payments-info-read-timeout');
+    assert.notStrictEqual(result.earlyResolution, true);
+  });
+
+  it('surfaces a failed checkout query instead of resolving the upstream BFF timeout', async () => {
+    const { result, calls } = await executePaymentsTrace(undefined, { checkoutFails: true });
+    assert.ok(calls.includes('/aws/ecs/pn-external-registries-checkout'));
+    assert.strictEqual(result.status, 'failed');
+    assert.deepStrictEqual(result.matchedCases, []);
   });
 });

@@ -3,6 +3,9 @@ import { all, any } from '../common/conditions.js';
 import { stepEvidenceMatches, anyStepEvidenceMatches } from '../common/evidenceConditions.js';
 import { varExists } from '../common/varConditions.js';
 
+// DecideNextStep sets this only when the reachable traversal stops.
+const TRAVERSAL_FINISHED = varExists('terminationReason');
+
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'delivery-index-out-of-bounds',
@@ -101,6 +104,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: 'Timeout BFF durante getPaymentsInfoV1 verso pn-external-registries',
     priority: 500,
     condition: all(
+      TRAVERSAL_FINISHED,
       varExists('externalRegistriesLogCount'),
       stepEvidenceMatches(
         'query-pn-bff',
@@ -123,6 +127,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: 'Timeout BFF durante la chiamata a pn-delivery',
     priority: 490,
     condition: all(
+      TRAVERSAL_FINISHED,
       varExists('deliveryLogCount'),
       stepEvidenceMatches(
         'query-pn-bff',
@@ -145,6 +150,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     description: 'Errore di connessione osservato dal BFF con causa da verificare',
     priority: 100,
     condition: all(
+      TRAVERSAL_FINISHED,
       any(varExists('deliveryLogCount'), varExists('externalRegistriesLogCount')),
       stepEvidenceMatches('query-pn-bff', 'The connection observed an error'),
     ),

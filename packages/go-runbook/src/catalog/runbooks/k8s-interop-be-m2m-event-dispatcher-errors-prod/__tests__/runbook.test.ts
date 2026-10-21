@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import type { ResultField } from '@go-automation/go-common/aws';
 import { ConditionEvaluator, type RunbookContext } from '../../framework.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { assertCloudExecutableRunbook } from '../../../../validation/assertCloudExecutableRunbook.js';
@@ -8,11 +9,24 @@ import { KNOWN_CASES } from '../knownCases.js';
 import { M2M_EVENT_DISPATCHER_REGISTRATION } from '../registration.js';
 import { buildRunbook } from '../runbook.js';
 
-function context(messages: ReadonlyArray<string>, stepId = ALARM.stepIds.queryApplicationLogs): RunbookContext {
+const CID = 'dispatcher-cid';
+
+function logRows(messages: ReadonlyArray<string>, podApp: string): ReadonlyArray<ReadonlyArray<ResultField>> {
+  return messages.map((message) => [
+    { field: 'pod_app', value: podApp },
+    { field: 'cid', value: CID },
+    { field: '@message', value: message },
+  ]);
+}
+
+function context(messages: ReadonlyArray<string>, trackerMessages: ReadonlyArray<string> = []): RunbookContext {
   return {
     executionId: 'm2m-test',
     startedAt: new Date('2026-10-06T17:28:13Z'),
-    stepResults: new Map([[stepId, messages.map((message) => [{ field: '@message', value: message }])]]),
+    stepResults: new Map<string, unknown>([
+      [ALARM.stepIds.queryApplicationLogs, logRows(messages, ALARM.podApp)],
+      [ALARM.stepIds.queryCidTracker, [{ cid: CID, rows: logRows(trackerMessages, 'interop-be-another-service') }]],
+    ]),
     vars: new Map([
       ['interopPodApp', ALARM.podApp],
       ['interopLogGroup', '/aws/eks/interop-eks-cluster-prod/application'],
@@ -94,10 +108,7 @@ describe('M2M event dispatcher production runbook', () => {
     assert.strictEqual(
       evaluator.evaluate(
         member.condition,
-        context(
-          [JSON.stringify({ log: 'The coordinator is not aware of this member' })],
-          ALARM.stepIds.queryCidTracker,
-        ),
+        context([JSON.stringify({ log: 'The coordinator is not aware of this member' })]),
       ),
       true,
     );
@@ -106,6 +117,40 @@ describe('M2M event dispatcher production runbook', () => {
       assert.strictEqual(knownCase.analysis?.analysisType, 'ANALYZABLE');
       assert.strictEqual(knownCase.analysis?.ignoreReasonCode, undefined);
     }
+  });
+
+  it('does not match any dispatcher case from another service sharing the same CID', () => {
+    const evaluator = new ConditionEvaluator();
+    const trackerMessages = [
+      'Crash: KafkaJSNumberOfRetriesExceeded',
+      'Error Consumer crashed',
+      'Connection error: connect ECONNREFUSED broker:9098',
+      'This is not the correct coordinator for this group',
+      'The coordinator is not aware of this member',
+      'Connection timeout',
+      'Connection error: Client network socket disconnected before secure TLS connection was established',
+    ];
+    for (const messages of [[], ['ERROR - Unrecognized dispatcher error']]) {
+      for (const knownCase of KNOWN_CASES) {
+        assert.strictEqual(
+          evaluator.evaluate(knownCase.condition, context(messages, trackerMessages)),
+          false,
+          knownCase.id,
+        );
+      }
+    }
+  });
+
+  it('does not let an unrelated tracker crash override the dispatcher connection failure', () => {
+    const evaluator = new ConditionEvaluator();
+    const ctx = context(
+      ['ERROR - Connection error: connect ECONNREFUSED broker:9098'],
+      ['ERROR - Crash: KafkaJSNumberOfRetriesExceeded'],
+    );
+    assert.deepStrictEqual(
+      KNOWN_CASES.filter((knownCase) => evaluator.evaluate(knownCase.condition, ctx)).map(({ id }) => id),
+      ['m2m-connection-refused'],
+    );
   });
 
   it('does not infer a known case or maintenance from empty logs, tokens or unrelated errors', () => {
