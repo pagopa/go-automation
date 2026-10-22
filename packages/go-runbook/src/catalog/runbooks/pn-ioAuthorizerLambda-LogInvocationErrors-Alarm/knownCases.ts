@@ -32,7 +32,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 89,
     condition: lambdaLogEvidenceMatches('Invalid source details header QRCODE'),
     title: 'Invalid source details header QRCODE',
-    resolution: 'Errore per il quale non \u00E8 necessaro procedere con qualche azione in particolare.',
+    resolution: 'Errore per il quale non \u00E8 necessario procedere con qualche azione in particolare.',
     analysis: {
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',

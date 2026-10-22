@@ -33,7 +33,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     condition: lambdaLogEvidenceMatches('Error in get retrievalId'),
     title: '[DOWNSTREAM pn-emd-integration] GenerateKoResponse: Error in get retrievalId (HTTP 404)',
     resolution:
-      'Nessuna azione da intraprendere in quando il servizio non \u00E8 ancora abilitato e dunque non ancora in funzione.',
+      'Nessuna azione da intraprendere in quanto il servizio non \u00E8 ancora abilitato e dunque non ancora in funzione.',
     details: [['requestId', '{{vars.lambdaRequestId}}']],
     analysis: {
       proposedStatus: 'COMPLETED',
@@ -49,7 +49,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     condition: lambdaLogEvidenceMatches('Error getting retrieval payload'),
     title: '[DOWNSTREAM pn-emd-integration] Ending process _tokenCheckTPP: Error getting retrieval payload (HTTP 404)',
     resolution:
-      'Nessuna azione da intraprendere in quando il servizio non \u00E8 ancora abilitato e dunque non ancora in funzione. Da confermare. Dai log \u00E8 possibile notare la stringa [Service disabled]',
+      'Nessuna azione da intraprendere in quanto il servizio non \u00E8 ancora abilitato e dunque non ancora in funzione. Da confermare. Dai log \u00E8 possibile notare la stringa [Service disabled]',
     details: [['requestId', '{{vars.lambdaRequestId}}']],
     analysis: {
       proposedStatus: 'IN_PROGRESS',

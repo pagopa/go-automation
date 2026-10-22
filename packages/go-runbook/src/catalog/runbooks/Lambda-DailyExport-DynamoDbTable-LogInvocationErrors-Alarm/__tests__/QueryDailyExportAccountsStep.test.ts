@@ -93,13 +93,45 @@ describe('DailyExport queries configured sources', () => {
     assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 3);
     assert.ok(calls.every(({ query }) => query.includes('Status:\\s*timeout')));
   });
-  it('fails if the configured scope has fewer than two sources', async () => {
-    for (const keys of [[], ['single-reader']]) {
+  it('queries and correlates within a single occurrence-scoped source', async () => {
+    const key = '170533023216';
+    for (const kind of ['errors', 'invocation'] as const) {
       const calls: Call[] = [];
-      const result = await new QueryDailyExportAccountsStep('errors').execute(context(calls, keys));
+      const input = context(calls, [key]);
+      (input.stepResults as Map<string, unknown>).set('query-lambda-errors', [row('request-1', key)]);
+      const result = await new QueryDailyExportAccountsStep(kind).execute(input);
+      assert.strictEqual(result.success, true);
+      assert.deepStrictEqual(
+        calls.map((call) => call.key),
+        [key],
+      );
+      assert.strictEqual(result.output?.[0]?.find(({ field }) => field === 'sourceKey')?.value, key);
+      assert.strictEqual(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 1);
+      if (kind === 'invocation') assert.ok(calls[0]?.query.includes('request-1'));
+    }
+  });
+  it('fails if no log source is configured', async () => {
+    for (const kind of ['errors', 'invocation'] as const) {
+      const calls: Call[] = [];
+      const result = await new QueryDailyExportAccountsStep(kind).execute(context(calls, []));
       assert.strictEqual(result.success, false);
       assert.deepStrictEqual(calls, []);
     }
+  });
+  it('returns empty evidence for a single source with no errors and skips invocation queries', async () => {
+    const calls: Call[] = [];
+    const key = '170533023216';
+    const input = context(calls, [key], () => []);
+    const errors = await new QueryDailyExportAccountsStep('errors').execute(input);
+    assert.strictEqual(errors.success, true);
+    assert.deepStrictEqual(errors.output, []);
+    assert.strictEqual(errors.vars?.['dailyExportSourcesChecked'], key);
+    assert.strictEqual(errors.vars?.['dailyExportErrorLogCount'], '0');
+    (input.stepResults as Map<string, unknown>).set('query-lambda-errors', errors.output);
+    const invocation = await new QueryDailyExportAccountsStep('invocation').execute(input);
+    assert.strictEqual(invocation.success, true);
+    assert.deepStrictEqual(invocation.output, []);
+    assert.strictEqual(calls.length, 1);
   });
   it('does not convert access failures into empty source evidence', async () => {
     const calls: Call[] = [];

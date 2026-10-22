@@ -29,7 +29,7 @@ const ERROR_QUERY = `fields @timestamp, @requestId, @message
 | sort @timestamp asc
 | limit ${QUERY_ROW_LIMIT}`;
 
-/** Reads the configured sources independently, failing if a source cannot be checked. */
+/** Reads one cloud occurrence source or all configured local sources without widening the scope. */
 export class QueryDailyExportAccountsStep implements Step<Rows> {
   readonly id: string;
   readonly label: string;
@@ -66,7 +66,7 @@ export class QueryDailyExportAccountsStep implements Step<Rows> {
 
     return executeStep('Lambda logs in configured sources', async () => {
       const sources = context.services.cloudWatchLogs.getConfiguredSources();
-      if (sources.length < 2) throw new Error('DailyExport requires at least two configured log sources');
+      if (sources.length === 0) throw new Error('DailyExport requires at least one configured log source');
       const invocationRequestIds =
         upstream === undefined
           ? undefined
