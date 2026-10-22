@@ -10,6 +10,7 @@ import { ConditionEvaluator, type RunbookContext } from '../../framework.js';
 import { KNOWN_CASES } from '../knownCases.js';
 import { API_GW_LOG_GROUP } from '../knownServices.js';
 import { buildRunbook } from '../runbook.js';
+import { executeRunbookForOccurrence } from '../../../executeRunbookForOccurrence.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
 const TRACE = '1-6ad1eae3-493a74b231f3e345492729e9';
@@ -95,6 +96,82 @@ describe('PNPG national registries diagnosis', () => {
     assert.ok(query?.includes('message = "Checking [INFO CAMERE] legal institutions passed"'));
     assert.match(query ?? '', /display @timestamp, level, message, trace_id/u);
     assert.doesNotMatch(query ?? '', /display.*@message|Using jwt|Result: <200/u);
+  });
+
+  it('exports completion timestamps and trace alongside the 504 when the application error scan is empty', async () => {
+    const completion = [
+      { timestamp: '2026-10-16T09:13:40Z', message: 'Starting process _infoCamereLegalInstitutions' },
+      { timestamp: '2026-10-16T09:14:43Z', message: 'Checking [INFO CAMERE] legal institutions passed' },
+      { timestamp: '2026-10-16T09:14:44Z', message: 'Ending process _infoCamereLegalInstitutions' },
+    ];
+    const queries: string[] = [];
+    const output = await executeRunbookForOccurrence(
+      {
+        logger: new GOLogger(),
+        services: createTestServiceRegistry({
+          cloudWatchLogs: {
+            // eslint-disable-next-line @typescript-eslint/require-await
+            async queryWithStatistics(groups: ReadonlyArray<string>, query: string) {
+              queries.push(query);
+              const resultRows: Rows =
+                groups[0] === API_GW_LOG_GROUP
+                  ? [
+                      [
+                        { field: '@timestamp', value: '2026-10-16T09:14:11Z' },
+                        { field: 'xrayTraceId', value: `Root=${TRACE}` },
+                        { field: 'status', value: '504' },
+                        { field: 'httpMethod', value: 'POST' },
+                        { field: 'path', value: '/national-registries-private/infocamere/legal-institutions' },
+                        { field: 'errorMessage', value: 'Endpoint request timed out' },
+                        { field: '@message', value: JSON.stringify({ status: 504, xrayTraceId: `Root=${TRACE}` }) },
+                      ],
+                    ]
+                  : query.includes('Checking [INFO CAMERE] legal institutions passed')
+                    ? completion.map(({ timestamp, message }) => [
+                        { field: '@timestamp', value: timestamp },
+                        { field: 'level', value: 'INFO' },
+                        { field: 'message', value: message },
+                        { field: 'trace_id', value: TRACE },
+                      ])
+                    : [];
+              return {
+                rows: resultRows,
+                statistics: { bytesScanned: 1, recordsMatched: resultRows.length, recordsScanned: resultRows.length },
+                queryExecutions: [],
+              };
+            },
+          },
+        }),
+      },
+      {
+        alarmName: 'pn-national-registries-PNPG-ApiGwAlarm',
+        firedAt: '2026-10-16T09:15:04Z',
+        awsAccountId: '111111111111',
+        region: 'eu-south-1',
+        awsProfiles: [],
+        executionMode: 'cloud',
+      },
+    );
+    const serialized = JSON.parse(JSON.stringify(output)) as typeof output;
+    const evidence = serialized.context.evidence.find(
+      ({ sourceStep }) => sourceStep === 'query-national-registries-completion',
+    );
+    assert.ok(evidence, 'missing application completion evidence in the occurrence result');
+    assert.strictEqual(evidence.type, 'log-sample');
+    assert.strictEqual(evidence.truncated, false);
+    assert.deepStrictEqual(
+      evidence.items?.map(({ timestamp, message, trace_id: traceId }) => ({ timestamp, message, trace_id: traceId })),
+      completion.map(({ timestamp, message }) => ({ timestamp, message, trace_id: TRACE })),
+    );
+    const gateway = serialized.context.evidence.find(({ sourceStep }) => sourceStep === 'query-api-gw-logs');
+    assert.strictEqual(gateway?.items?.[0]?.['timestamp'], '2026-10-16T09:14:11Z');
+    assert.ok(gateway?.items?.[0]?.['message']?.includes('504'));
+    assert.ok(queries.some((query) => query.includes("level == 'ERROR'")));
+    assert.ok(!serialized.context.evidence.some(({ sourceStep }) => sourceStep === 'query-pn-national-registries'));
+    assert.strictEqual(serialized.outcome.kind, 'known-case-matched');
+    assert.strictEqual(serialized.outcome.primaryCaseId, 'apigw-504-legal-institutions-completion-observed');
+    assert.strictEqual(serialized.analysis?.kind, 'KNOWN_CASE');
+    assert.strictEqual(serialized.analysis.proposedStatus, 'IN_PROGRESS');
   });
 
   it('keeps a 504 with no application evidence open without assigning INAD or InfoCamere as cause', async () => {

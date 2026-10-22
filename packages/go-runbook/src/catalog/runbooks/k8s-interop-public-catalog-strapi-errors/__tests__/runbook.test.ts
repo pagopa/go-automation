@@ -232,6 +232,10 @@ describe('INTEROP public catalog Strapi runbook', () => {
     assert.strictEqual(evidence.truncated, false);
     assert.deepStrictEqual(
       evidence.items?.map(({ message }) => message),
+      contextMessages.map(({ log }) => log.trim()),
+    );
+    assert.deepStrictEqual(
+      evidence.items?.map((item) => item['@message']),
       contextMessages.map(({ log, stream }) => JSON.stringify({ log, stream, pod_app: alarm.podApp })),
     );
     assert.ok(serialized.context.evidence.some(({ sourceStep }) => sourceStep === alarm.stepIds.queryApplicationLogs));

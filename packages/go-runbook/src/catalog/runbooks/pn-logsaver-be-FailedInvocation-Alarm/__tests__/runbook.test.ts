@@ -7,6 +7,7 @@ import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionResult.js';
 import type { AnalysisDraftV1 } from '../../../../output/AnalysisDraft.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
+import { buildRunbookOutput } from '../../../../output/buildRunbookOutput.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { assertCloudExecutableRunbook } from '../../../../validation/assertCloudExecutableRunbook.js';
 import { buildRunbook } from '../runbook.js';
@@ -92,6 +93,17 @@ describe('logsaver Batch diagnostic runbook', () => {
       ['core', 'confinfo'],
     );
     assert.notStrictEqual(draft?.kind, 'KNOWN_CASE');
+    const occurrenceOutput = buildRunbookOutput(buildRunbook(), result);
+    assert.deepStrictEqual(occurrenceOutput.context.details?.['diagnostics'], {
+      logsaverDiagnostics: 'COLLECTED',
+      logsaverAccountsChecked: 'core,confinfo',
+      logsaverErrorLogCount: 2,
+      logsaverStreamCount: 0,
+    });
+    assert.deepStrictEqual(
+      occurrenceOutput.context.evidence[0]?.items?.map((item) => item['sourceAccountId']),
+      ['510769970275', '350578575906'],
+    );
   });
 
   it('applies the documented no-action resolution only to the actual Spot signature', async () => {

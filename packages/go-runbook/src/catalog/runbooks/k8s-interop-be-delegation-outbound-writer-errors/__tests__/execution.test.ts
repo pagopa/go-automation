@@ -178,6 +178,10 @@ describe('delegation outbound writer evidence execution', () => {
     assert.strictEqual(evidence.truncated, false);
     assert.deepStrictEqual(
       evidence.items?.map(({ message }) => message),
+      contextMessages,
+    );
+    assert.deepStrictEqual(
+      evidence.items?.map((item) => item['@message']),
       contextMessages.map((log) => JSON.stringify({ pod_app: alarm.podApp, log })),
     );
     assert.ok(serialized.context.evidence.some(({ sourceStep }) => sourceStep === alarm.stepIds.queryApplicationLogs));

@@ -46,6 +46,14 @@ export function buildRunbook(): Runbook {
     hooks: [
       {
         at: 'after-entry-analysis',
+        evidence: [
+          {
+            id: 'versioning-lambda-errors',
+            label: 'Errori Lambda versioning',
+            type: 'log-sample',
+            retention: { mode: 'latest', limit: 5, timestampField: '@timestamp' },
+          },
+        ],
         step: new QueryVersioningLambdaErrorsStep({
           id: VERSIONING_LAMBDA_PROBE_STEP_ID,
           label: 'Verifica errori Lambda versioning',

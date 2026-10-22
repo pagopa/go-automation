@@ -112,7 +112,17 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
           ? { maxRequestIdsOverride: config.executionLogMaxRequestIds }
           : {}),
       }),
-      { silent: true },
+      {
+        silent: true,
+        evidence: [
+          {
+            id: 'api-gw-execution-logs',
+            label: 'API Gateway execution logs per richiesta',
+            type: 'log-sample',
+            retention: { mode: 'latest', limit: 5, timestampField: '@timestamp' },
+          },
+        ],
+      },
     );
 
     if (executionLogAnalysisMode === 'terminal') {

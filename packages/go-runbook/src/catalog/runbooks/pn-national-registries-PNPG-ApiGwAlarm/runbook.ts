@@ -34,6 +34,14 @@ export function buildRunbook(): Runbook {
       {
         at: 'before-service-traversal',
         silent: true,
+        evidence: [
+          {
+            id: 'national-registries-completion',
+            label: 'Avvio e completamento applicativo legal-institutions per trace',
+            type: 'log-sample',
+            retention: { mode: 'all' },
+          },
+        ],
         step: new apigw.QueryServiceLogsStep({
           id: 'query-national-registries-completion',
           label: 'Verifica completamento applicativo legal-institutions per trace',

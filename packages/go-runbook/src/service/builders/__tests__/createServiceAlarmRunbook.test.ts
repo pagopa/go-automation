@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import type { ResultField } from '@go-automation/go-common/aws';
 import { GOLogger } from '@go-automation/go-common/core';
 
+import { CloudWatchLogsQueryStep } from '../../../steps/data/CloudWatchLogsQueryStep.js';
+import { buildRunbookOutput } from '../../../output/buildRunbookOutput.js';
 import { RunbookEngine } from '../../../core/RunbookEngine.js';
 import { knownCase } from '../../../builders/knownCase.js';
 import { createServiceAlarmRunbook } from '../createServiceAlarmRunbook.js';
@@ -143,20 +145,29 @@ describe('createServiceAlarmRunbook', () => {
     assert.strictEqual(context.evidence.length, 2);
   });
 
-  it('exports declared extra log evidence with explicit limits and omits missing or empty sources', () => {
-    const base = createServiceAlarmRunbook(baseConfig());
-    assert.ok(isServiceRunbookContext(base.runbookContext));
-    const runbook = {
-      ...base,
-      runbookContext: {
-        ...base.runbookContext,
-        additionalLogEvidence: [
-          { id: 'context', label: 'Restart context', sourceStep: 'query-context', maxLogLines: 2 },
-          { id: 'missing', label: 'Missing context', sourceStep: 'query-missing' },
-          { id: 'empty', label: 'Empty context', sourceStep: 'query-empty' },
-        ],
-      },
-    };
+  it('composes hook evidence once and keeps its retention independent of the family log limit', () => {
+    const runbook = createServiceAlarmRunbook(
+      baseConfig({
+        hooks: ['context', 'missing', 'empty'].map((name) => ({
+          at: 'after-service-analysis',
+          step: new CloudWatchLogsQueryStep({
+            id: `query-${name}`,
+            label: name,
+            logGroups: ['/aws/ecs/pn-service'],
+            query: 'fields @timestamp, @message',
+            timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+          }),
+          evidence: [
+            {
+              id: name,
+              label: `${name} context`,
+              type: 'log-sample',
+              retention: { mode: 'latest', limit: 2, timestampField: '@timestamp' },
+            },
+          ],
+        })),
+      }),
+    );
     const baseResult = fakeResult();
     const result = {
       ...baseResult,
@@ -176,22 +187,34 @@ describe('createServiceAlarmRunbook', () => {
         ]),
       },
     };
-    const output = buildServiceOutputContext(runbook, result);
-    assert.strictEqual(output?.evidence.length, 3);
+    const output = buildRunbookOutput(runbook, result, { contextBuilder: buildServiceOutputContext }).context;
+    assert.strictEqual(output.evidence.length, 3);
     assert.deepStrictEqual(output.evidence[2], {
       id: 'context',
-      label: 'Restart context',
+      label: 'context context',
       type: 'log-sample',
       sourceStep: 'query-context',
       items: [
-        { timestamp: '2026-06-09T00:00:02Z', message: 'recovering' },
-        { timestamp: '2026-06-09T00:00:03Z', message: 'recovery completed' },
+        {
+          '@timestamp': '2026-06-09T00:00:02Z',
+          '@message': 'recovering',
+          timestamp: '2026-06-09T00:00:02Z',
+          message: 'recovering',
+        },
+        {
+          '@timestamp': '2026-06-09T00:00:03Z',
+          '@message': 'recovery completed',
+          timestamp: '2026-06-09T00:00:03Z',
+          message: 'recovery completed',
+        },
       ],
       truncated: true,
     });
-    const limited = buildServiceOutputContext(runbook, result, { maxRecentLogs: 1 });
-    assert.strictEqual(limited?.evidence[2]?.items?.length, 1);
-    assert.strictEqual(limited?.evidence[2]?.truncated, true);
+    const limited = buildRunbookOutput(runbook, result, {
+      contextBuilder: (rb, executionResult) => buildServiceOutputContext(rb, executionResult, { maxRecentLogs: 1 }),
+    }).context;
+    assert.strictEqual(limited.evidence[2]?.items?.length, 2);
+    assert.strictEqual(limited.evidence[2]?.truncated, true);
   });
 
   for (const matchKnownCase of [false, true]) {

@@ -17,6 +17,7 @@ import { emptyRunbookOutputContext } from './RunbookOutputContext.js';
 import { buildAnalysisDraft } from './buildAnalysisDraft.js';
 import { interpolatePlaceholders } from '../core/templatePlaceholders.js';
 import { renderLogActionText } from '../actions/renderLogAction.js';
+import { buildDeclaredOutputContext } from './buildDeclaredOutputContext.js';
 
 export interface BuildRunbookOutputOptions {
   readonly traceFile?: string;
@@ -65,7 +66,11 @@ export function buildRunbookOutput(
     outcome: buildOutcome(runbook, result),
     ...(analysis !== undefined ? { analysis } : {}),
     ...(telemetry !== undefined ? { telemetry } : {}),
-    context: options.contextBuilder?.(runbook, result) ?? emptyRunbookOutputContext(),
+    context: buildDeclaredOutputContext(
+      runbook,
+      result,
+      options.contextBuilder?.(runbook, result) ?? emptyRunbookOutputContext(),
+    ),
   };
 }
 

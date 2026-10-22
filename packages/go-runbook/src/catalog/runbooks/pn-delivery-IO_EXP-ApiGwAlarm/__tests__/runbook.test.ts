@@ -6,6 +6,7 @@ import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionR
 import type { KnownCaseAnalysisDraft } from '../../../../output/KnownCaseAnalysisDraft.js';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
+import { buildRunbookOutput } from '../../../../output/buildRunbookOutput.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { assertCloudExecutableRunbook } from '../../../../validation/assertCloudExecutableRunbook.js';
 import { ConditionEvaluator, type RunbookContext } from '../../framework.js';
@@ -126,6 +127,12 @@ describe('IO_EXP diagnosis', () => {
       [API_GW_LOG_GROUP, EXECUTION_GROUP],
     );
     assert.strictEqual(draft?.proposedStatus, 'IN_PROGRESS');
+    const evidence = buildRunbookOutput(buildRunbook(), result).context.evidence;
+    assert.strictEqual(evidence.length, 1);
+    assert.strictEqual(evidence[0]?.sourceStep, 'query-api-gw-execution-logs');
+    assert.strictEqual(evidence[0]?.items?.length, 3);
+    assert.ok(evidence[0]?.items?.every((item) => item['requestId'] === REQUEST));
+    assert.ok(evidence[0]?.items?.some((item) => item['message']?.includes(INVOCATION_504)));
   });
 
   it('distinguishes integration signature failure after successful authorization from generic configuration errors', async () => {

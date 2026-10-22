@@ -38,23 +38,14 @@ export function buildServiceOutputContext(
   const traceRows = readResultFieldRows(result.finalContext.stepResults.get(`query-${service.name}-trace`));
   const recentLogs = extractRecentLogLines(errorRows, maxRecentLogs);
   const traceLogs = extractRecentLogLines(traceRows, maxRecentLogs);
-  const evidence = [
-    ...buildEvidence(service.name, recentLogs, traceLogs, errorRows.length, traceRows.length, maxRecentLogs),
-  ];
-  for (const source of runbook.runbookContext.additionalLogEvidence ?? []) {
-    const rows = readResultFieldRows(result.finalContext.stepResults.get(source.sourceStep));
-    const limit = options.maxRecentLogs ?? source.maxLogLines ?? DEFAULT_MAX_RECENT_LOGS;
-    const logs = extractRecentLogLines(rows, limit);
-    if (logs.length === 0) continue;
-    evidence.push({
-      id: source.id,
-      label: source.label,
-      type: 'log-sample',
-      sourceStep: source.sourceStep,
-      items: logs.map(logLineToRecord),
-      truncated: rows.length > logs.length,
-    });
-  }
+  const evidence = buildEvidence(
+    service.name,
+    recentLogs,
+    traceLogs,
+    errorRows.length,
+    traceRows.length,
+    maxRecentLogs,
+  );
 
   const details: ServiceOutputContext = {
     alarm: {

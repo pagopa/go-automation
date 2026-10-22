@@ -3,6 +3,9 @@
 > **Documentazione di riferimento per il motore di esecuzione runbook**
 > Package: `@go-automation/go-runbook-engine`
 
+Per il contratto delle evidenze custom e dei campi diagnostici, vedere
+[Output delle diagnostiche dei runbook](architecture/runbook-evidence.md).
+
 ---
 
 ## 1. Panoramica
