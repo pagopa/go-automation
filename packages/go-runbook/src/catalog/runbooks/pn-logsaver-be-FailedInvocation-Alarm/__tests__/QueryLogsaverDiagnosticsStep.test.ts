@@ -102,6 +102,8 @@ describe('QueryLogsaverDiagnosticsStep', () => {
       logsaverAccountsChecked: 'core,confinfo',
       logsaverErrorLogCount: '2',
       logsaverStreamCount: '4',
+      logsaverSpotInterruptionLogCount: '0',
+      logsaverUnaccountedErrorLogCount: '2',
     });
     const diagnostics = result.diagnostics?.cloudWatchLogs;
     assert.strictEqual(diagnostics?.rowsReturned, 6);

@@ -10,6 +10,7 @@ import { resolveTimeRange } from '../../../steps/data/resolveTimeRange.js';
 
 export const LOG_GROUP = '/aws/ecs/pn-logsaver-be';
 const ROW_LIMIT = 1000;
+const SPOT_INTERRUPTION_MESSAGE = 'Your Spot Task was interrupted.';
 const SOURCES = [
   {
     name: 'core',
@@ -71,6 +72,8 @@ export class QueryLogsaverDiagnosticsStep implements Step<Rows> {
       const rows: ResultField[][] = [];
       let errorCount = 0;
       let streamCount = 0;
+      let spotInterruptionCount = 0;
+      let unaccountedErrorCount = 0;
       for (const { source, profile } of targets) {
         const cloudWatchLogs = context.services.cloudWatchLogs.forTarget({
           accountId: source.accountId,
@@ -91,9 +94,28 @@ export class QueryLogsaverDiagnosticsStep implements Step<Rows> {
               `Logsaver ${queryKind} in ${source.name} reached ${String(ROW_LIMIT)} rows; narrow the time range`,
             );
           }
+          if (
+            queryKind === 'errors' &&
+            (result.diagnostics?.cloudWatchLogs?.statistics.recordsMatched ?? 0) > result.rows.length
+          ) {
+            throw new Error(`Logsaver errors in ${source.name} returned incomplete results; narrow the time range`);
+          }
           results.push(result);
-          if (queryKind === 'errors') errorCount += result.rows.length;
-          else streamCount += result.rows.length;
+          if (queryKind === 'errors') {
+            errorCount += result.rows.length;
+            for (const row of result.rows) {
+              const messages = row
+                .filter(({ field }) => field === '@message' || field === 'message')
+                .map(({ value }) => value?.trim())
+                .filter((value): value is string => value !== undefined && value !== '' && value !== '-');
+              if (messages.some((message) => message.includes(SPOT_INTERRUPTION_MESSAGE))) spotInterruptionCount += 1;
+              // A substring hit cannot account for another failure in the same row.
+              // Unknown layouts, compound messages and missing messages need follow-up.
+              if (messages.length === 0 || !messages.every((message) => message === SPOT_INTERRUPTION_MESSAGE)) {
+                unaccountedErrorCount += 1;
+              }
+            }
+          } else streamCount += result.rows.length;
           rows.push(
             ...result.rows.map((row) => [
               ...row,
@@ -116,6 +138,8 @@ export class QueryLogsaverDiagnosticsStep implements Step<Rows> {
           logsaverAccountsChecked: sources.map((source) => source.name).join(','),
           logsaverErrorLogCount: String(errorCount),
           logsaverStreamCount: String(streamCount),
+          logsaverSpotInterruptionLogCount: String(spotInterruptionCount),
+          logsaverUnaccountedErrorLogCount: String(unaccountedErrorCount),
         },
         ...(diagnostics.length !== results.length
           ? {}

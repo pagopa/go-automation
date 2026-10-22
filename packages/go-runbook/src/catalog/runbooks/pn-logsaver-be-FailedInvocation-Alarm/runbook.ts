@@ -2,9 +2,19 @@ import { RunbookBuilder } from '../../../builders/RunbookBuilder.js';
 import { unknownCaseFallback } from '../../../actions/unknownCaseFallback.js';
 import { knownCase } from '../framework.js';
 import type { Runbook } from '../framework.js';
-import { stepEvidenceMatches } from '../common/evidenceConditions.js';
+import { all } from '../common/conditions.js';
+import { varEquals } from '../common/varConditions.js';
 import { LOGSAVER_ALARM, RUNBOOK_URL } from './alarmDefinition.js';
 import { LOG_GROUP, QueryLogsaverDiagnosticsStep } from './QueryLogsaverDiagnosticsStep.js';
+
+const DIAGNOSTIC_DETAILS = [
+  ['Account verificati', '{{vars.logsaverAccountsChecked}}'],
+  ['Log di errore', '{{vars.logsaverErrorLogCount}}'],
+  ['Stream osservati', '{{vars.logsaverStreamCount}}'],
+  ['Log con firma Spot', '{{vars.logsaverSpotInterruptionLogCount}}'],
+  ['Log di errore non spiegati', '{{vars.logsaverUnaccountedErrorLogCount}}'],
+] as const;
+
 export function buildRunbook(): Runbook {
   return RunbookBuilder.create(LOGSAVER_ALARM)
     .metadata({
@@ -45,6 +55,18 @@ export function buildRunbook(): Runbook {
           ref: 'vars.logsaverStreamCount',
           valueType: 'integer',
         },
+        {
+          name: 'logsaverSpotInterruptionLogCount',
+          label: 'Log con firma Spot',
+          ref: 'vars.logsaverSpotInterruptionLogCount',
+          valueType: 'integer',
+        },
+        {
+          name: 'logsaverUnaccountedErrorLogCount',
+          label: 'Log di errore non spiegati',
+          ref: 'vars.logsaverUnaccountedErrorLogCount',
+          valueType: 'integer',
+        },
       ],
     })
     .analysisDefaults({
@@ -74,17 +96,34 @@ export function buildRunbook(): Runbook {
     .knownCase(
       knownCase({
         id: 'logsaver-batch-verification-required',
-        description: 'Interruzione del task Fargate Spot',
+        description: 'Soli errori di interruzione del task Fargate Spot',
         priority: 100,
-        condition: stepEvidenceMatches('query-logsaver-diagnostics', 'Your Spot Task was interrupted\\.'),
+        condition: all(
+          varEquals('logsaverDiagnostics', 'COLLECTED'),
+          { type: 'compare', ref: 'vars.logsaverSpotInterruptionLogCount', operator: '>', value: 0 },
+          varEquals('logsaverUnaccountedErrorLogCount', '0'),
+        ),
         level: 'warn',
         resolution: 'Nessuna azione necessaria',
-        details: [
-          ['Account verificati', '{{vars.logsaverAccountsChecked}}'],
-          ['Log di errore', '{{vars.logsaverErrorLogCount}}'],
-          ['Stream osservati', '{{vars.logsaverStreamCount}}'],
-        ],
+        details: DIAGNOSTIC_DETAILS,
         analysis: { proposedStatus: 'COMPLETED', analysisType: 'ANALYZABLE', finalActions: [], links: [] },
+      }),
+    )
+    .knownCase(
+      knownCase({
+        id: 'logsaver-spot-with-unaccounted-errors',
+        description: 'Firma Spot presente con errori ancora da verificare',
+        priority: 90,
+        condition: all(
+          varEquals('logsaverDiagnostics', 'COLLECTED'),
+          { type: 'compare', ref: 'vars.logsaverSpotInterruptionLogCount', operator: '>', value: 0 },
+          { type: 'compare', ref: 'vars.logsaverUnaccountedErrorLogCount', operator: '>', value: 0 },
+        ),
+        level: 'warn',
+        resolution:
+          'Verificare i {{vars.logsaverUnaccountedErrorLogCount}} log di errore non attribuiti alla sola interruzione Spot prima di chiudere l’occorrenza.',
+        details: DIAGNOSTIC_DETAILS,
+        analysis: { proposedStatus: 'IN_PROGRESS', analysisType: 'ANALYZABLE', finalActions: [], links: [] },
       }),
     )
     .fallback(
