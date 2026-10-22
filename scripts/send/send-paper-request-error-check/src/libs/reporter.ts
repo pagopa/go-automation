@@ -92,8 +92,6 @@ export class PaperRequestReporter {
    */
   public recordRetrieveAttachments(result: RetrieveAttachmentsResult): void {
     this.retrieveAttachmentsResult = result;
-    this.metrics.attachmentsFoundCount =
-      (this.metrics.attachmentsFoundCount ?? 0) + result.attachmentsExtractedCount + result.aarsExtractedCount;
     this.metrics.glacierEligibleAarCount =
       (this.metrics.glacierEligibleAarCount ?? 0) + (result.glacierEligibleAarKeys?.length ?? 0);
     this.metrics.pdfEligibleAttachmentsCount =

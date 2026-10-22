@@ -1,6 +1,5 @@
-import { RestoreObjectCommand } from '@aws-sdk/client-s3';
-import { Core, AWS } from '@go-automation/go-common';
-import { getConfinfoS3Client, getCoreDynamoDBService } from '../utils/awsClients.js';
+import { Core } from '@go-automation/go-common';
+import { getConfinfoS3Service, getCoreDynamoDBService } from '../utils/awsClients.js';
 import type { SendPaperRequestErrorCheckConfig, RetrieveGlacierResult } from '../types/index.js';
 import { isNotificationOlderThanOneYear } from './verifyNotification.js';
 import { get } from '../utils/get.js';
@@ -83,10 +82,14 @@ async function resolveSafestorageBucket(
     return configuredBucket;
   }
   try {
-    const s3Service = new AWS.AWSS3Service(getConfinfoS3Client(script, config));
+    const s3Service = getConfinfoS3Service(script, config);
     const buckets = await s3Service.listBuckets();
     const target = buckets.find(
-      (b) => b.name?.includes('safestorage') || b.name?.includes('safe-storage') || b.name?.includes('pn-safestorage'),
+      (b) =>
+        (b.name !== undefined &&
+          !b.name.includes('staging') &&
+          (b.name.includes('safestorage') || b.name.includes('safe-storage'))) ||
+        b.name?.includes('pn-safestorage'),
     );
     if (target?.name) {
       return target.name;
@@ -160,7 +163,7 @@ export async function retrieveGlacierS3(
 ): Promise<RetrieveGlacierResult> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
   const logger = script.logger;
-  const s3Client = getConfinfoS3Client(script, config);
+  const s3Service = getConfinfoS3Service(script, config);
 
   const parsedItems = parseGlacierItems(rawItems);
 
@@ -210,8 +213,8 @@ export async function retrieveGlacierS3(
   }
 
   const bucketName = await resolveSafestorageBucket(script, config, config.bucket);
-  const expirationDays = config.glacier?.expirationDays ?? 7;
-  const tier = config.glacier?.tier ?? 'Standard';
+  const expirationDays = config.glacierExpirationDays ?? 7;
+  const tier = config.glacierTier ?? 'Standard';
 
   logger.info(
     `Avvio restore da Glacier sul bucket [${bucketName}], giorni mantenimento: ${expirationDays}, tier: ${tier}...`,
@@ -229,19 +232,12 @@ export async function retrieveGlacierS3(
     logger.info(`[${i + 1}/${glacierItems.length}] Invio richiesta restore per IUN ${item.iun} (Key: ${item.fileKey})`);
 
     try {
-      const command = new RestoreObjectCommand({
-        Bucket: bucketName,
-        Key: item.fileKey,
-        RestoreRequest: {
-          Days: expirationDays,
-          GlacierJobParameters: {
-            Tier: tier,
-          },
-        },
-      });
-
-      const response = await s3Client.send(command);
-      const statusCode = response.$metadata?.httpStatusCode;
+      const { httpStatusCode: statusCode } = await s3Service.restoreObject(
+        bucketName,
+        item.fileKey,
+        expirationDays,
+        tier,
+      );
 
       if (statusCode === 200 || statusCode === 202) {
         logger.info(`✅ IUN ${item.iun}: Retrieve avviato con successo (HTTP ${statusCode})`);
@@ -264,7 +260,7 @@ export async function retrieveGlacierS3(
       if (statusCode === 409 || errorName === 'RestoreAlreadyInProgress') {
         logger.info(`ℹ️ IUN ${item.iun}: Restore già in corso (${errorName || 'HTTP 409'})`);
         alreadyInProgressCount++;
-      } else if (statusCode === 403 || errorName === 'ObjectAlreadyInActiveTierError') {
+      } else if (errorName === 'ObjectAlreadyInActiveTierError') {
         logger.info(`ℹ️ IUN ${item.iun}: Oggetto già disponibile (${errorName || 'HTTP 403'})`);
         alreadyAvailableCount++;
       } else {

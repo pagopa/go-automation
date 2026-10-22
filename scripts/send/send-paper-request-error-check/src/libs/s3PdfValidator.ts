@@ -1,30 +1,10 @@
 import path from 'path';
-import { GetObjectCommand, type S3Client } from '@aws-sdk/client-s3';
-import { getConfinfoS3Client } from '../utils/awsClients.js';
-import type { Readable } from 'stream';
 import { Core, AWS } from '@go-automation/go-common';
+import { getConfinfoS3Service } from '../utils/awsClients.js';
 import type { SendPaperRequestErrorCheckConfig, PdfValidationResult } from '../types/index.js';
 
 /** Signature Magic Bytes del formato PDF ("%PDF" = 0x25 0x50 0x44 0x46) */
 const PDF_MAGIC_BYTES = Buffer.from([0x25, 0x50, 0x44, 0x46]);
-
-/**
- * Converte uno stream di risposta S3 in un Buffer limitato ai primi byte richiesti.
- */
-async function streamToBuffer(stream: Readable, maxBytes = 5): Promise<Buffer> {
-  const chunks: Uint8Array[] = [];
-  let totalLength = 0;
-
-  for await (const chunk of stream) {
-    const uint8Chunk = chunk instanceof Uint8Array ? chunk : Buffer.from(chunk);
-    chunks.push(uint8Chunk);
-    totalLength += uint8Chunk.length;
-    if (totalLength >= maxBytes) break;
-  }
-
-  const concatenated = Buffer.concat(chunks, Math.min(totalLength, maxBytes));
-  return concatenated;
-}
 
 /**
  * Esito della validazione dei magic bytes di un singolo file S3.
@@ -39,23 +19,12 @@ interface SinglePdfValidationOutcome {
  * Valida se un oggetto S3 è un PDF valido leggendo solo i primi 5 byte (Range request: bytes=0-4).
  */
 async function validatePDFMagicBytes(
-  s3Client: S3Client,
+  s3Service: AWS.AWSS3Service,
   bucket: string,
   fileKey: string,
 ): Promise<SinglePdfValidationOutcome> {
   try {
-    const command = new GetObjectCommand({
-      Bucket: bucket,
-      Key: fileKey,
-      Range: 'bytes=0-4',
-    });
-
-    const response = await s3Client.send(command);
-    if (!response.Body) {
-      return { fileKey, valid: false, error: 'EmptyResponseBody' };
-    }
-
-    const buffer = await streamToBuffer(response.Body as Readable, 5);
+    const buffer = await s3Service.getObjectBytes(bucket, fileKey, 0, 4);
 
     const isPdf =
       buffer.length >= 4 &&
@@ -92,7 +61,7 @@ async function resolveSafestorageBucket(
   if (configuredBucket) return configuredBucket;
 
   try {
-    const s3Service = new AWS.AWSS3Service(getConfinfoS3Client(script, config));
+    const s3Service = getConfinfoS3Service(script, config);
     const buckets = await s3Service.listBuckets();
     const target = buckets.find((b) => b.name && b.name.includes('safestorage') && !b.name.includes('staging'));
     if (target?.name) return target.name;
@@ -115,7 +84,7 @@ export async function validateS3Pdfs(
   inputKeys?: ReadonlyArray<string>,
 ): Promise<PdfValidationResult> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
-  const s3Client = getConfinfoS3Client(script, config);
+  const s3Service = getConfinfoS3Service(script, config);
   const logger = script.logger;
 
   const outputDir = config.outputDir || 'results';
@@ -129,7 +98,7 @@ export async function validateS3Pdfs(
       // Supporta sia formato semplice 'fileKey' che CSV 'IUN,fileKey'
       const parts = trimmed.split(',');
       const key = parts.length >= 2 ? parts[1]?.trim() : parts[0]?.trim();
-      if (key) {
+      if (key && !(parts[0]?.trim() === 'IUN' && key === 'fileKey')) {
         const upper = key.toUpperCase();
         if (upper.includes('AAR') || upper.includes('LEGAL_FACT')) {
           logger.info(`ℹ️ File ${key} è un documento AAR, escluso dalla validazione PDF allegati.`);
@@ -151,7 +120,7 @@ export async function validateS3Pdfs(
   }
 
   const bucket = await resolveSafestorageBucket(script, config, config.bucket);
-  const concurrency = Math.max(1, config.pdfValidation?.concurrency || 20);
+  const concurrency = Math.max(1, config.pdfValidationConcurrency ?? 20);
 
   logger.info(
     `Inizio validazione magic bytes su ${fileKeys.length} oggetti S3 nel bucket [${bucket}] (Concorrenza: ${concurrency})...`,
@@ -182,7 +151,7 @@ export async function validateS3Pdfs(
     const batch = fileKeys.slice(i, i + concurrency);
     logger.info(`Validazione batch [${i + 1}-${Math.min(i + concurrency, fileKeys.length)}/${fileKeys.length}]...`);
 
-    const promises = batch.map(async (fileKey) => validatePDFMagicBytes(s3Client, bucket, fileKey));
+    const promises = batch.map(async (fileKey) => validatePDFMagicBytes(s3Service, bucket, fileKey));
     const results = await Promise.all(promises);
 
     for (const res of results) {

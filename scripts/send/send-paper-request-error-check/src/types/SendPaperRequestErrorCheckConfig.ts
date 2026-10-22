@@ -18,23 +18,6 @@ type ExecutionMode =
   | 'fetch-timelines';
 
 /**
- * Configurazione per il ripristino S3 Glacier
- */
-interface GlacierRestoreConfig {
-  readonly expirationDays: number;
-  readonly tier: 'Bulk' | 'Standard' | 'Expedited';
-}
-
-/**
- * Configurazione per la validazione PDF S3
- */
-interface PdfValidationConfig {
-  readonly concurrency: number;
-  readonly batchSize: number;
-  readonly dryRun: boolean;
-}
-
-/**
  * Struttura delle metriche di report finale per l'elaborazione
  */
 export interface PaperRequestMetrics {
@@ -88,8 +71,8 @@ export interface GetNotificationAttachmentsResult {
  */
 export interface RetrieveAttachmentsResult {
   readonly totalIuns: number;
-  readonly attachmentsExtractedCount: number;
-  readonly aarsExtractedCount: number;
+  readonly attachmentsExtractedCount?: number;
+  readonly aarsExtractedCount?: number;
   readonly errorsCount: number;
   readonly extractedKeys?: ReadonlyArray<string> | undefined;
   readonly attachmentKeys?: ReadonlyArray<string> | undefined;
@@ -147,11 +130,12 @@ export interface SendPaperRequestErrorCheckConfig {
   /** Directory di output per risultati e report */
   readonly outputDir: string;
 
-  /** Configurazione specifica per il restore da Glacier */
-  readonly glacier: GlacierRestoreConfig;
+  readonly glacierExpirationDays?: number;
+
+  readonly glacierTier?: 'Bulk' | 'Standard' | 'Expedited';
 
   /** Configurazione specifica per la validazione PDF */
-  readonly pdfValidation: PdfValidationConfig;
+  readonly pdfValidationConcurrency?: number;
 
   /** Nome del profilo AWS SSO per autenticazione account Core*/
   awsProfileCore?: string;

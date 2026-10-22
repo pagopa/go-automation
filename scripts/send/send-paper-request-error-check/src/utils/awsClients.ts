@@ -1,6 +1,5 @@
 import type { Core } from '@go-automation/go-common';
 import { AWS } from '@go-automation/go-common';
-import type { S3Client } from '@aws-sdk/client-s3';
 import type { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import type { SendPaperRequestErrorCheckConfig } from '../types/index.js';
 
@@ -19,11 +18,14 @@ function getConfinfoProfile(config: SendPaperRequestErrorCheckConfig): string {
 }
 
 /**
- * Ottiene il client S3 associato al profilo Confinfo (utilizzato per tutte le operazioni SafeStorage S3).
+ * Ottiene il servizio S3 associato al profilo Confinfo (utilizzato per tutte le operazioni SafeStorage S3).
  */
-export function getConfinfoS3Client(script: Core.GOScript, config: SendPaperRequestErrorCheckConfig): S3Client {
+export function getConfinfoS3Service(
+  script: Core.GOScript,
+  config: SendPaperRequestErrorCheckConfig,
+): AWS.AWSS3Service {
   const confinfoProfile = getConfinfoProfile(config);
-  return script.aws.clients.get(confinfoProfile).s3;
+  return new AWS.AWSS3Service(script.aws.clients.get(confinfoProfile).s3);
 }
 
 /**
