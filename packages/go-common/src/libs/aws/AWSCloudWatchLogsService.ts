@@ -191,9 +191,19 @@ export class AWSCloudWatchLogsService {
       const region = this.target.region;
       const sources = targetSources(this.target);
       if (sources.length > 0) {
+        // Keep the target's OAM identity without setting source.profile: that
+        // would turn an ARN-based cross-account query into a direct name query.
+        const monitoringReader =
+          this.target.profile === undefined
+            ? this
+            : new AWSCloudWatchLogsService(
+                new AWSAccountProfileSet(this.clientProvider, [this.target.profile]),
+                undefined,
+                this.activeOperations,
+              );
         return sources.map((source) => ({
           key: source.accountId,
-          service: this.forTarget({ ...source, region }),
+          service: (source.profile === undefined ? monitoringReader : this).forTarget({ ...source, region }),
         }));
       }
       return [{ key: this.target.profile ?? this.clientProvider.first.getProfile(), service: this }];
