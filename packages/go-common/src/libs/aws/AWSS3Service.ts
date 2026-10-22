@@ -29,7 +29,15 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-import { GetObjectCommand, ListBucketsCommand, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3';
+import {
+  GetObjectCommand,
+  ListBucketsCommand,
+  ListObjectsV2Command,
+  ListObjectVersionsCommand,
+  PutObjectCommand,
+  RestoreObjectCommand,
+  Tier,
+} from '@aws-sdk/client-s3';
 import type { S3Client } from '@aws-sdk/client-s3';
 
 /** MIME type map for common file extensions */
@@ -53,6 +61,30 @@ const DEFAULT_MIME_TYPE = 'application/octet-stream';
  * Lambda's shared network stack.
  */
 const UPLOAD_DIRECTORY_CONCURRENCY = 5;
+
+/**
+ * Represents an S3 version or delete-marker entry from a listObjectVersions operation
+ */
+export interface AWSS3VersionEntry {
+  /** S3 object key */
+  readonly key: string;
+  /** Version ID */
+  readonly versionId?: string;
+  /** Whether this is the latest version */
+  readonly isLatest?: boolean;
+  /** Whether this entry is a delete marker (true) or an actual object version (false) */
+  readonly isDeleteMarker: boolean;
+  /** Last modified timestamp */
+  readonly lastModified?: Date;
+}
+
+/**
+ * Result of a restoreObject operation
+ */
+export interface AWSS3RestoreResult {
+  /** HTTP status code returned by S3 (200 = restored, 202 = in progress, 403 = already in active tier, 409 = already in progress) */
+  readonly httpStatusCode: number | undefined;
+}
 
 /**
  * Represents an S3 object entry from a listing operation
@@ -297,6 +329,120 @@ export class AWSS3Service {
     } while (continuationToken);
 
     return results;
+  }
+
+  // ==========================================================================
+  // Versioning & Glacier
+  // ==========================================================================
+
+  /**
+   * Lists all versions and delete markers for an object in S3.
+   * Results are filtered by exact key match (the Prefix parameter may return
+   * entries for keys that share the same prefix, so we filter client-side).
+   * Complexity: O(1) — single ListObjectVersions call
+   *
+   * @param bucket - S3 bucket name
+   * @param key - S3 object key to look up
+   * @returns Array of version and delete-marker entries for that exact key
+   */
+  async listObjectVersions(bucket: string, key: string): Promise<ReadonlyArray<AWSS3VersionEntry>> {
+    const response = await this.client.send(
+      new ListObjectVersionsCommand({
+        Bucket: bucket,
+        Prefix: key,
+      }),
+    );
+
+    const results: AWSS3VersionEntry[] = [];
+
+    for (const v of response.Versions ?? []) {
+      if (v.Key === key) {
+        results.push({
+          key: v.Key,
+          ...(v.VersionId !== undefined ? { versionId: v.VersionId } : {}),
+          ...(v.IsLatest !== undefined ? { isLatest: v.IsLatest } : {}),
+          isDeleteMarker: false,
+          ...(v.LastModified ? { lastModified: v.LastModified } : {}),
+        });
+      }
+    }
+
+    for (const dm of response.DeleteMarkers ?? []) {
+      if (dm.Key === key) {
+        results.push({
+          key: dm.Key,
+          ...(dm.VersionId !== undefined ? { versionId: dm.VersionId } : {}),
+          ...(dm.IsLatest !== undefined ? { isLatest: dm.IsLatest } : {}),
+          isDeleteMarker: true,
+          ...(dm.LastModified ? { lastModified: dm.LastModified } : {}),
+        });
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Downloads a byte range of an S3 object as a Buffer.
+   * Useful for reading file headers without fetching the full object.
+   * Complexity: O(1) — single GetObject call with a Range header
+   *
+   * @param bucket - S3 bucket name
+   * @param key - S3 object key
+   * @param startByte - First byte to read (inclusive, zero-based)
+   * @param endByte - Last byte to read (inclusive)
+   * @returns Buffer containing the requested byte range
+   * @throws Error if the object does not exist or the response body is empty
+   */
+  async getObjectBytes(bucket: string, key: string, startByte: number, endByte: number): Promise<Buffer> {
+    const response = await this.client.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Range: `bytes=${startByte}-${endByte}`,
+      }),
+    );
+
+    if (response.Body === undefined) {
+      throw new Error(`Empty response body for s3://${bucket}/${key} range bytes=${startByte}-${endByte}`);
+    }
+
+    const bytes = await response.Body.transformToByteArray();
+    return Buffer.from(bytes);
+  }
+
+  /**
+   * Initiates a restore of an object from S3 Glacier (Flexible Retrieval / Deep Archive).
+   * The raw HTTP status code is returned so callers can distinguish:
+   *  - 200 / 202: restore accepted or already in progress
+   *  - 403: object is already in the active tier
+   *  - 409: a restore is already in progress
+   * Other errors are thrown as-is so the caller can handle them.
+   * Complexity: O(1) — single RestoreObject call
+   *
+   * @param bucket - S3 bucket name
+   * @param key - S3 object key to restore
+   * @param days - Number of days the restored copy is kept available
+   * @param tier - Glacier retrieval tier ('Standard' | 'Expedited' | 'Bulk')
+   * @returns Result containing the HTTP status code from S3
+   */
+  async restoreObject(
+    bucket: string,
+    key: string,
+    days: number,
+    tier: Tier = Tier.Standard,
+  ): Promise<AWSS3RestoreResult> {
+    const response = await this.client.send(
+      new RestoreObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        RestoreRequest: {
+          Days: days,
+          GlacierJobParameters: { Tier: tier },
+        },
+      }),
+    );
+    return { httpStatusCode: response.$metadata?.httpStatusCode };
   }
 
   // ==========================================================================
