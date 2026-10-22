@@ -10,7 +10,7 @@ const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3298033847/k8s-interop-be-catalog-platformstate-writer-errors';
 
 export function buildRunbook(): Runbook {
-  const runbook = interop.k8s.createInteropK8sAlarmRunbook({
+  return interop.k8s.createInteropK8sAlarmRunbook({
     id: CATALOG_PLATFORMSTATE_WRITER_ALARM.runbookKey,
     metadata: {
       name: CATALOG_PLATFORMSTATE_WRITER_ALARM.runbookKey,
@@ -30,6 +30,22 @@ export function buildRunbook(): Runbook {
     resolveAlarmContext: CATALOG_PLATFORMSTATE_WRITER_ALARM.resolveContext,
     queryProfile: PLATFORMSTATE_WRITER_QUERY_PROFILE,
     knownCases: KNOWN_CASES,
+    hooks: [
+      {
+        at: 'before-cid-analysis',
+        step: new QueryWriterContextStep(),
+        evidence: [
+          {
+            id: 'platformstate-writer-context',
+            label: 'Contesto di riavvio e rejoin del catalog platformstate writer',
+            type: 'log-sample',
+            messageFields: ['log', '@message'],
+            // The query rejects capped results: keep the whole episode, including its start.
+            retention: { mode: 'all' },
+          },
+        ],
+      },
+    ],
     analysisDefaults: {
       runbookName: CATALOG_PLATFORMSTATE_WRITER_ALARM.runbookKey,
       links: [
@@ -41,14 +57,4 @@ export function buildRunbook(): Runbook {
       ],
     },
   });
-  const contextStep = { step: new QueryWriterContextStep() };
-  // AnalyzeCidTracker signals early resolution: collect context before that step.
-  return {
-    ...runbook,
-    steps: runbook.steps.flatMap((descriptor) =>
-      descriptor.step.id === CATALOG_PLATFORMSTATE_WRITER_ALARM.stepIds.analyzeCidTracker
-        ? [contextStep, descriptor]
-        : [descriptor],
-    ),
-  };
 }

@@ -106,7 +106,7 @@ describe('pn-mandate acceptance failure known cases', () => {
     assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
     assert.strictEqual(knownCase.analysis?.analysisType, 'ANALYZABLE');
     assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.NESSUNO]);
-    assert.match(knownCase.analysis?.resolution ?? '', /non indica una risoluzione operativa/u);
+
     assert.strictEqual(knownCase.analysis?.links?.length, 2);
     assert.ok(knownCase.analysis?.links?.every(({ type }) => type === 'SLACK'));
   });

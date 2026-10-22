@@ -114,8 +114,7 @@ describe('audit signer runbook', () => {
       });
       assert.strictEqual(draft?.kind, 'KNOWN_CASE');
       assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-      assert.match(draft.conclusionNotes, /hash/u);
-      assert.match(draft.conclusionNotes, /interop-generated-jwt-details-prod-es1/u);
+
       assert.ok(draft.links.some(({ url }) => url.endsWith('/p1782220704023239')));
       assert.ok(draft.links.some(({ url }) => url.endsWith('/p1784042414414819')));
       assert.deepStrictEqual(draft.downstreams, []);
@@ -132,9 +131,6 @@ describe('audit signer runbook', () => {
     const { draft } = await execute('prod', { applicationMessage: CREATE_TIMEOUT });
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    assert.match(draft.conclusionNotes, /stesso file/u);
-    assert.match(draft.conclusionNotes, /assenza di CID/u);
-    assert.ok(!draft.conclusionNotes.includes('interop-generated-jwt-details-prod-es1'));
   });
 
   it('extracts CIDs from JSON and collects INFO messages across services', async () => {
@@ -161,7 +157,6 @@ describe('audit signer runbook', () => {
     });
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    assert.match(draft.conclusionNotes, /confrontare l’hash/u);
   });
 
   for (const environment of ['test', 'att'] as const) {

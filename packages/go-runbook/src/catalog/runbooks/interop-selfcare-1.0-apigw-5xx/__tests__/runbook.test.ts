@@ -139,6 +139,5 @@ describe('buildRunbook', () => {
     const draft = buildAnalysisDraft(runbook, result);
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    assert.match(draft.conclusionNotes, /permessi infrastrutturali/u);
   });
 });

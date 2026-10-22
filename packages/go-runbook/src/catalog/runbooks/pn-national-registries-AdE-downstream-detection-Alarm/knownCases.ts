@@ -1,24 +1,12 @@
 /**
  * Known cases for the pn-national-registries-AdE-downstream-detection-Alarm runbook.
  */
-
 import { SEND_DOWNSTREAMS } from '../framework.js';
 import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
-
 import { stepEvidenceMatches } from '../common/evidenceConditions.js';
-
 const ADE_LEGAL_REPRESENTATIVE_ENDPOINT =
   'https://gatewaywebservices.agenziaentrate.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService';
-const ANALYSIS_COMPLETED_FINAL_ACTION =
-  'Analisi conclusa in autonomia dal team di GO. Non è necessario altro confronto';
-const SPORADIC_TIMEOUT_RESOLUTION =
-  'Nessuna azione necessaria se il timeout è sporadico. Se il problema persiste o si presenta la versione on-call ' +
-  "dell'allarme, contattare i riferimenti del downstream Agenzia delle Entrate.";
-const TRANSIENT_INTERNAL_SERVER_ERROR_RESOLUTION =
-  'Nessuna azione operativa locale disponibile. Monitorare il downstream Agenzia delle Entrate e attenderne il ' +
-  'ripristino; se il problema persiste o si presenta la versione on-call dell’allarme, contattare i riferimenti AdE.';
-
 /** Known AdE timeouts evaluated against the pn-national-registries downstream query. */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
@@ -27,11 +15,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 120,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-
       '\\[DOWNSTREAM\\] Service AdE returned errors=500 Internal Server Error from POST ' +
         'https://gatewaywebservices\\.agenziaentrate\\.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService',
     ),
-    resolution: TRANSIENT_INTERNAL_SERVER_ERROR_RESOLUTION,
+    resolution: 'Risoluzione non documentata.',
     details: [
       ['Servizio', 'pn-national-registries'],
       ['Endpoint', ADE_LEGAL_REPRESENTATIVE_ENDPOINT],
@@ -39,11 +26,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       ['Trace ID', '{{vars.nationalRegistriesTraceId}}'],
     ],
     analysis: {
-      proposedStatus: 'COMPLETED',
+      proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
       errorDetails: `HTTP 500 restituito da AdE durante la chiamata POST ${ADE_LEGAL_REPRESENTATIVE_ENDPOINT}.`,
       downstreams: [SEND_DOWNSTREAMS.VERIFICA_LEGALE_RAPPRESENTANTE_ADE],
-      finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
+      finalActions: [],
+      links: [],
     },
   }),
   knownCase({
@@ -52,13 +40,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 110,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-
       '\\[DOWNSTREAM\\] Service AdE returned errors=<not specified>[\\s\\S]*Request to POST ' +
         'https://gatewaywebservices\\.agenziaentrate\\.it/SPCBooleanoRappWS/VerificaRappresentanteEnteService' +
         '[\\s\\S]*ReadTimeoutException',
     ),
     title: '[DOWNSTREAM AdE] Timeout verifica rappresentante legale',
-    resolution: SPORADIC_TIMEOUT_RESOLUTION,
+    resolution:
+      'Nessuna azione necessaria se l\u2019errore si verifica sporadicamente. Se dovesse presentarsi la versione oncall di questo allarme, specialmente se in reperibilit\u00E0, valutare la possibilit\u00E0 di contattare gli opportuni contatti di Downstream presenti in Runbook downstream',
     details: [
       ['Servizio', 'pn-national-registries'],
       ['Endpoint', ADE_LEGAL_REPRESENTATIVE_ENDPOINT],
@@ -70,7 +58,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       analysisType: 'ANALYZABLE',
       errorDetails: `Timeout di lettura restituito da AdE durante la chiamata POST ${ADE_LEGAL_REPRESENTATIVE_ENDPOINT}.`,
       downstreams: [SEND_DOWNSTREAMS.VERIFICA_LEGALE_RAPPRESENTANTE_ADE],
-      finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
+      finalActions: [],
+      links: [],
     },
   }),
   knownCase({
@@ -79,12 +68,12 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 100,
     condition: stepEvidenceMatches(
       'query-pn-national-registries',
-
       '\\[DOWNSTREAM\\] Service AdE returned errors=nested exception is ' +
         'io\\.netty\\.handler\\.timeout\\.ReadTimeoutException',
     ),
     title: '[DOWNSTREAM AdE] Timeout di lettura',
-    resolution: SPORADIC_TIMEOUT_RESOLUTION,
+    resolution:
+      'Nessuna azione necessaria se l\u2019errore si verifica sporadicamente. Se dovesse presentarsi la versione oncall di questo allarme, specialmente se in reperibilit\u00E0, valutare la possibilit\u00E0 di contattare gli opportuni contatti di Downstream presenti in Runbook downstream',
     details: [
       ['Servizio', 'pn-national-registries'],
       ['Errore', '{{vars.nationalRegistriesErrorMsg}}'],
@@ -95,7 +84,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       analysisType: 'ANALYZABLE',
       errorDetails: 'Timeout di lettura restituito dal downstream Agenzia delle Entrate a pn-national-registries.',
       downstreams: [SEND_DOWNSTREAMS.ADE],
-      finalActions: [ANALYSIS_COMPLETED_FINAL_ACTION],
+      finalActions: [],
+      links: [],
     },
   }),
 ];

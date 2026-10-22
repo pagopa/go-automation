@@ -170,6 +170,51 @@ const timeRange = {
 };
 
 describe('AWSCloudWatchLogsService', () => {
+  it('exposes independent readers for exactly the configured local profiles', async () => {
+    const provider = new FakeMultiProvider(
+      new Map([
+        ['reader-one', {}],
+        ['reader-two', {}],
+      ]),
+    );
+    const sources = createService(provider).getConfiguredSources();
+    assert.deepStrictEqual(
+      sources.map(({ key }) => key),
+      ['reader-one', 'reader-two'],
+    );
+    for (const source of sources) {
+      const result = await source.service.query(['/aws/ecs/service'], 'fields @message', timeRange, {
+        logGroupResolutionMode: 'search-configured-profiles',
+      });
+      assert.deepStrictEqual(result.map(profileValue), [source.key]);
+    }
+    assert.strictEqual(provider.client('reader-one').commands.filter((c) => c instanceof StartQueryCommand).length, 1);
+    assert.strictEqual(provider.client('reader-two').commands.filter((c) => c instanceof StartQueryCommand).length, 1);
+  });
+
+  it('exposes only the current target and declared fallbacks in account-scoped execution', async () => {
+    const provider = new FakeMultiProvider(
+      new Map([
+        ['reader-one', {}],
+        ['reader-two', {}],
+        ['outside-scope', {}],
+      ]),
+    );
+    const service = createService(provider).forTarget({
+      accountId: '111111111111',
+      region: 'eu-south-1',
+      profile: 'reader-one',
+      fallbacks: [{ accountId: '222222222222', profile: 'reader-two' }],
+    });
+    const sources = service.getConfiguredSources();
+    assert.deepStrictEqual(
+      sources.map(({ key }) => key),
+      ['111111111111', '222222222222'],
+    );
+    for (const source of sources) await source.service.query(['/aws/ecs/service'], 'fields @message', timeRange);
+    assert.strictEqual(provider.client('outside-scope').commands.length, 0);
+  });
+
   it('uses OAM logGroupIdentifiers for an execution-scoped source account', async () => {
     const provider = new FakeMultiProvider(new Map([['default', {}]]));
     const service = createService(provider).forTarget({ accountId: '123456789012', region: 'eu-south-1' });
@@ -183,6 +228,114 @@ describe('AWSCloudWatchLogsService', () => {
       'arn:aws:logs:eu-south-1:123456789012:log-group:/aws/lambda/source',
     ]);
     assert.strictEqual(start?.input.logGroupNames, undefined);
+  });
+
+  it('preserves the target monitoring identity for profile-less fallback readers without making it a source profile', async () => {
+    const denied = Object.assign(new Error('AccessDeniedException'), { name: 'AccessDeniedException' });
+    const activeOperations = new AWSActiveOperationRegistry();
+    let monitoredQueries = 0;
+    const provider = new FakeMultiProvider(
+      new Map<string, FakeClientOptions>([
+        ['interop-monitor', { startError: denied }],
+        [
+          'send-monitor',
+          {
+            onGetQueryResults: () => {
+              assert.strictEqual(activeOperations.size, 1);
+              monitoredQueries += 1;
+            },
+          },
+        ],
+        ['fallback-direct', {}],
+      ]),
+    );
+    const service = createService(provider)
+      .forExecution(activeOperations)
+      .forTarget({
+        accountId: '350578575906',
+        region: 'eu-south-1',
+        profile: 'send-monitor',
+        fallbacks: [{ accountId: '510769970275' }, { accountId: '222222222222', profile: 'fallback-direct' }],
+      });
+    const fallbackArn = 'arn:aws:logs:eu-south-1:510769970275:log-group:/aws/ecs/service';
+    const normal = await service.queryWithStatistics([fallbackArn], 'fields @message', timeRange);
+    assert.strictEqual(normal.queryExecutions[0]?.profile, 'send-monitor');
+
+    const sources = service.getConfiguredSources();
+    assert.deepStrictEqual(
+      sources.map(({ key }) => key),
+      ['350578575906', '510769970275', '222222222222'],
+    );
+    const [primary, fallback, direct] = sources;
+    assert.ok(primary && fallback && direct);
+    for (const source of sources) {
+      await source.service.query(['/aws/ecs/service'], 'fields @message', timeRange, {
+        logGroupResolutionMode: 'search-configured-profiles',
+      });
+    }
+    const starts = provider
+      .client('send-monitor')
+      .commands.filter((command): command is StartQueryCommand => command instanceof StartQueryCommand);
+    assert.deepStrictEqual(
+      starts.map(({ input }) => ({ names: input.logGroupNames, identifiers: input.logGroupIdentifiers })),
+      [
+        { names: undefined, identifiers: [fallbackArn] },
+        { names: ['/aws/ecs/service'], identifiers: undefined },
+        { names: undefined, identifiers: [fallbackArn] },
+      ],
+    );
+    const directStart = provider
+      .client('fallback-direct')
+      .commands.find((command): command is StartQueryCommand => command instanceof StartQueryCommand);
+    assert.deepStrictEqual(directStart?.input.logGroupNames, ['/aws/ecs/service']);
+    assert.strictEqual(directStart?.input.logGroupIdentifiers, undefined);
+    assert.strictEqual(provider.client('interop-monitor').commands.length, 0);
+
+    // Re-enumerating a source must retain the monitoring view and the one-account allowlist.
+    const nested = fallback.service.getConfiguredSources();
+    assert.deepStrictEqual(
+      nested.map(({ key }) => key),
+      ['510769970275'],
+    );
+    assert.deepStrictEqual(
+      (await nested[0]?.service.query(['/aws/ecs/service'], 'fields @message', timeRange))?.map(profileValue),
+      ['send-monitor'],
+    );
+    await assert.rejects(
+      fallback.service.query(
+        ['arn:aws:logs:eu-south-1:350578575906:log-group:/aws/ecs/service'],
+        'fields @message',
+        timeRange,
+      ),
+      (error: unknown) => isAWSCloudWatchLogsConfigurationError(error) && error.code === 'INVALID_OAM_TARGET',
+    );
+    assert.strictEqual(monitoredQueries, 4);
+    assert.strictEqual(activeOperations.size, 0);
+  });
+
+  it('retains the implicit monitoring profile when no target profile is configured', async () => {
+    const provider = new FakeMultiProvider(
+      new Map([
+        ['default-monitor', {}],
+        ['other-monitor', {}],
+      ]),
+    );
+    const sources = createService(provider)
+      .forTarget({
+        accountId: '350578575906',
+        region: 'eu-south-1',
+        fallbacks: [{ accountId: '510769970275' }],
+      })
+      .getConfiguredSources();
+    for (const { key, service } of sources) {
+      const result = await service.queryWithStatistics(['/aws/ecs/service'], 'fields @message', timeRange);
+      assert.strictEqual(result.queryExecutions[0]?.profile, 'default-monitor');
+      assert.deepStrictEqual(result.queryExecutions[0]?.logGroups, [
+        `arn:aws:logs:eu-south-1:${key}:log-group:/aws/ecs/service`,
+      ]);
+    }
+    assert.strictEqual(sources.length, 2);
+    assert.strictEqual(provider.client('other-monitor').commands.length, 0);
   });
 
   it('falls back to an allowed account when the log group is not in the occurrence account', async () => {

@@ -204,7 +204,7 @@ describe('lambda runbook known cases', () => {
     );
   });
 
-  it('classifies BE IO as AppIO and waits for its backend to recover', () => {
+  it('classifies BE IO as AppIO without prescribing an undocumented resolution', () => {
     const appIoCase = knownCaseById(LOLLIPOP_AUTHORIZER_CASES, 'app-io-backend-idp-keys-unavailable');
     const runtimeTimeout = knownCaseById(LOLLIPOP_AUTHORIZER_CASES, 'lambda-timeout');
     const evaluator = new ConditionEvaluator();
@@ -220,8 +220,8 @@ describe('lambda runbook known cases', () => {
       true,
     );
     assert.deepStrictEqual(appIoCase.analysis?.downstreams, [SEND_DOWNSTREAMS.APP_IO]);
-    assert.strictEqual(appIoCase.analysis?.proposedStatus, 'COMPLETED');
-    assert.match(appIoCase.analysis?.resolution ?? '', /attendere il ripristino del backend di IO/i);
+    assert.strictEqual(appIoCase.analysis?.proposedStatus, 'IN_PROGRESS');
+
     assert.strictEqual(
       lambda.matchDownstreamErrorPattern(
         'ERROR Errore nella chiamata idpKeysSpidTagGet: undefined - Message: Timeout of 1000ms exceeded',

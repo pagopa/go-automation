@@ -9,7 +9,7 @@ const RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3363635346/k8s-interop-be-scheduled-notification-scheduler-errors';
 
 export function buildRunbook(): Runbook {
-  const runbook = interop.k8s.createInteropK8sAlarmRunbook({
+  return interop.k8s.createInteropK8sAlarmRunbook({
     id: NOTIFICATION_SCHEDULER_ALARM.runbookKey,
     metadata: {
       name: NOTIFICATION_SCHEDULER_ALARM.runbookKey,
@@ -29,19 +29,25 @@ export function buildRunbook(): Runbook {
     queryProfile: NOTIFICATION_SCHEDULER_QUERY_PROFILE,
     knownCases: KNOWN_CASES,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 5 },
+    hooks: [
+      {
+        at: 'before-cid-analysis',
+        step: new QueryNotificationSchedulerContextStep(),
+        evidence: [
+          {
+            id: 'notification-scheduler-context',
+            label: 'Contesto Kafka del notification scheduler',
+            type: 'log-sample',
+            messageFields: ['log', '@message'],
+            // The query rejects capped results: keep the whole episode, including its start.
+            retention: { mode: 'all' },
+          },
+        ],
+      },
+    ],
     analysisDefaults: {
       runbookName: NOTIFICATION_SCHEDULER_ALARM.runbookKey,
       links: [{ url: RUNBOOK_URL, name: NOTIFICATION_SCHEDULER_ALARM.runbookKey, type: 'CONFLUENCE' }],
     },
   });
-  const contextStep = { step: new QueryNotificationSchedulerContextStep() };
-  // Collect context before AnalyzeCidTracker can resolve a known case early.
-  return {
-    ...runbook,
-    steps: runbook.steps.flatMap((descriptor) =>
-      descriptor.step.id === NOTIFICATION_SCHEDULER_ALARM.stepIds.analyzeCidTracker
-        ? [contextStep, descriptor]
-        : [descriptor],
-    ),
-  };
 }

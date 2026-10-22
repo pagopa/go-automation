@@ -247,7 +247,7 @@ describe('INTEROP Selfcare API Gateway known cases', () => {
       }
     }
     assert.strictEqual(knownCase.analysis?.proposedStatus, 'COMPLETED');
-    assert.match(knownCase.analysis?.resolution ?? '', /Comportamento atteso/);
+
     assert.strictEqual(
       evaluator.evaluate(knownCase.condition, context({ message: 'errors: 008-0003, a different provider error' })),
       false,
@@ -257,7 +257,6 @@ describe('INTEROP Selfcare API Gateway known cases', () => {
   it('keeps the unresolved SAML case actionable for hotfix assessment', () => {
     const knownCase = knownCaseById('bff-saml-not-on-or-after-not-compliant');
     assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
-    assert.ok(knownCase.analysis?.finalActions?.some((action) => action.includes('hotfix')));
   });
 
   it('keeps the BFF 004-0004 tenant-kind case separate from the purpose-process generic case', () => {

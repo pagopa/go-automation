@@ -5,6 +5,7 @@ export type { RunbookBuilderFn } from './RunbookBuilderFn.js';
 export type { RunbookKind } from '../types/RunbookKind.js';
 export { RunbookKinds } from '../types/RunbookKind.js';
 export { executeRunbookForOccurrence } from './executeRunbookForOccurrence.js';
+export { buildCatalogOutputContext } from './buildCatalogOutputContext.js';
 export type {
   ExecuteRunbookForOccurrenceDeps,
   ExecuteRunbookForOccurrenceInput,

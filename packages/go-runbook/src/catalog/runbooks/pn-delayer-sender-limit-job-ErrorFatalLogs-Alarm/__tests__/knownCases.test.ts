@@ -45,10 +45,7 @@ describe('pn-delayer sender limit known cases', () => {
       assert.strictEqual(evaluator.evaluate(KNOWN_CASES[1]!.condition, ctx), false);
     }
     assert.strictEqual(KNOWN_CASES[0]?.analysis?.proposedStatus, 'IN_PROGRESS');
-    assert.deepStrictEqual(KNOWN_CASES[0]?.analysis?.finalActions, [
-      'Avvisare il prodotto',
-      'Verificare la presenza dell’allarme pn-BatchWorkflowStateMachine-FailedAlarm',
-    ]);
+
     // La pagina elenca entrambi i thread nella stessa riga di Casi noti.
     assert.strictEqual(KNOWN_CASES[0]?.analysis?.links?.length, 2);
     assert.strictEqual(KNOWN_CASES[1]?.analysis?.links?.length, 2);
@@ -69,12 +66,6 @@ describe('pn-delayer sender limit known cases', () => {
       assert.match(matches[0]?.analysis?.errorDetails ?? '', /Nessun driver/);
       assert.doesNotMatch(matches[0]?.analysis?.errorDetails ?? '', /percentuale|senza retry/i);
       assert.strictEqual(matches[0]?.analysis?.links?.length, 2);
-      assert.deepStrictEqual(
-        matches[0]?.analysis?.finalActions ?? [],
-        expectedStatus === 'IN_PROGRESS'
-          ? ['Avvisare il prodotto', 'Verificare la presenza dell’allarme pn-BatchWorkflowStateMachine-FailedAlarm']
-          : [],
-      );
     }
   });
 

@@ -5,10 +5,8 @@ import { API_GW_LOG_GROUP, ENTRY_SERVICE, REACHABLE_SERVICES } from './knownServ
 import { KNOWN_URLS } from './knownUrls.js';
 import { INFO_PA_QUERY_PROFILE } from './queryProfile.js';
 import { SetVarStep } from '../../../steps/control/SetVarStep.js';
-
 export const INFO_PA_ALARM = 'pn-bff-WEB-noextension-InfoPa-comp-5xx-ApiGwAlarm';
 const RUNBOOK_URL: string = `https://pagopa.atlassian.net/wiki/spaces/GO/pages/2913599691/${INFO_PA_ALARM}`;
-
 export function buildRunbook(): Runbook {
   return apigw.createApiGwAlarmRunbook({
     id: INFO_PA_ALARM,
@@ -55,9 +53,7 @@ export function buildRunbook(): Runbook {
     knownCases: KNOWN_CASES,
     analysisDefaults: {
       runbookName: INFO_PA_ALARM,
-      finalActions: [
-        "Ho dubbi sulla criticità dell'allarme, riporto nel canale ufficiale il link all'analisi e chiedo un feedback al team Architettura",
-      ],
+      finalActions: [],
       links: [{ url: RUNBOOK_URL, name: INFO_PA_ALARM, type: 'CONFLUENCE' }],
     },
   });

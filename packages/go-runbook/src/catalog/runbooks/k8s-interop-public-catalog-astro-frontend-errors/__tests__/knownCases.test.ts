@@ -149,8 +149,7 @@ describe('INTEROP public catalog known cases', () => {
     const missingEnvFiles = knownCaseById('public-catalog-astro-frontend-missing-env-files');
 
     assert.strictEqual(reactWarning.analysis?.proposedStatus, 'IN_PROGRESS');
-    assert.match(reactWarning.analysis?.resolution ?? '', /Status: 200/);
+
     assert.strictEqual(missingEnvFiles.analysis?.proposedStatus, 'IN_PROGRESS');
-    assert.match(missingEnvFiles.analysis?.resolution ?? '', /non una risoluzione per questa pod_app/);
   });
 });

@@ -115,14 +115,12 @@ describe('tenant readmodel writer SQL runbook', () => {
     }
   });
 
-  it('keeps the unresolved case open and links the documented hotfix', () => {
+  it('keeps the TLS case open without assigning a ticket from a different case', () => {
     const knownCase = KNOWN_CASES[0];
     assert.ok(knownCase);
     assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
     assert.strictEqual(knownCase.analysis?.analysisType, 'ANALYZABLE');
     assert.deepStrictEqual(knownCase.analysis?.downstreams, [INTEROP_DOWNSTREAMS.NESSUNO]);
-    assert.deepStrictEqual(knownCase.analysis?.links, [
-      { url: 'https://pagopa.atlassian.net/browse/PIN-7325', name: 'PIN-7325', type: 'JIRA' },
-    ]);
+    assert.deepStrictEqual(knownCase.analysis?.links ?? [], []);
   });
 });

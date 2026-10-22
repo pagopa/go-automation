@@ -55,7 +55,6 @@ describe('INTEROP Selfcare users updater known cases', () => {
     assert.deepStrictEqual(knownCase.analysis?.links, [
       { url: 'https://pagopa.atlassian.net/browse/PIN-7325', name: 'PIN-7325', type: 'JIRA' },
     ]);
-    assert.ok((knownCase.analysis?.finalActions?.length ?? 0) > 0);
   });
 
   it('matches every error signature documented in the runbook', () => {

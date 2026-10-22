@@ -23,10 +23,7 @@ export function applyPipelineHooks<TAnchor extends string>(
     if (hook.at !== anchor) {
       continue;
     }
-    const options: { continueOnFailure?: boolean; silent?: boolean } = {};
-    if (hook.continueOnFailure === true) options.continueOnFailure = true;
-    if (hook.silent === true) options.silent = true;
-    builder.step(hook.step, options);
+    builder.step(hook.step, hook);
   }
 }
 

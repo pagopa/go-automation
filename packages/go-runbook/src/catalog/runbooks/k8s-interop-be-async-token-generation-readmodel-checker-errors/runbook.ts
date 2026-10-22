@@ -2,10 +2,8 @@ import { interop, type Runbook } from '../framework.js';
 import { ASYNC_TOKEN_GENERATION_READMODEL_CHECKER_ALARM as alarm } from './alarmDefinition.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { ASYNC_TOKEN_GENERATION_READMODEL_CHECKER_QUERY_PROFILE } from './queryProfile.js';
-
 const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3206578389/k8s-interop-be-async-token-generation-readmodel-checker-errors';
-
 export function buildRunbook(): Runbook {
   return interop.k8s.createInteropK8sAlarmRunbook({
     id: alarm.runbookKey,
@@ -25,10 +23,7 @@ export function buildRunbook(): Runbook {
     knownCases: KNOWN_CASES,
     analysisDefaults: {
       runbookName: alarm.runbookKey,
-      finalActions: [
-        'Allegare all’analisi i log del pod e i CID disponibili',
-        'Documentare l’esito dell’analisi e aggiornare i casi noti o gli step operativi quando emergono nuove casistiche',
-      ],
+      finalActions: [],
       links: [{ url: CONFLUENCE_RUNBOOK_URL, name: alarm.runbookKey, type: 'CONFLUENCE' }],
     },
   });

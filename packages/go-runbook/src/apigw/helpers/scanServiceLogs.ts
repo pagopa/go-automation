@@ -60,7 +60,7 @@ export interface TraceIdCandidateMatch {
 export interface ServiceLogsScan {
   /** Most representative error message (empty string when none). */
   readonly errorMessage: string;
-  /** First known URL observed in the logs, or `undefined`. */
+  /** First known URL in the strongest failure evidence, falling back to other rows. */
   readonly knownUrl: KnownUrlInLogs | undefined;
   /** First `FALLBACK-UUID` token found, or `undefined`. */
   readonly fallbackUuid: string | undefined;
@@ -74,7 +74,8 @@ export interface ServiceLogsScan {
  *
  * - the most representative error message (ERROR/WARN level wins; keyword
  *   heuristic as fallback);
- * - the first known URL matching `registry` (skipped when `registry` is omitted);
+ * - a known URL, preferring ERROR/WARN rows, then level-less error keywords,
+ *   then other rows; the first match wins within each priority;
  * - the first `FALLBACK-UUID` token;
  * - the first valid trace id candidate.
  *
@@ -97,6 +98,7 @@ export function scanServiceLogs(
   let bestByLevel = '';
   let bestByKeyword = '';
   let knownUrl: KnownUrlInLogs | undefined;
+  let knownUrlPriority = -1;
   let fallbackUuid: string | undefined;
   let traceIdCandidate: TraceIdCandidateMatch | undefined;
 
@@ -115,6 +117,7 @@ export function scanServiceLogs(
     if (message !== '') {
       const level = (fields.get(schema.levelField) ?? '').toLowerCase();
       const isErrorLevel = level.includes('error') || level.includes('warn');
+      const hasErrorKeyword = ERROR_KEYWORDS.some((keyword) => message.includes(keyword));
 
       // Error message — level pass: an explicit ERROR/WARN row is the
       // strongest signal; keep the longest such message.
@@ -125,14 +128,19 @@ export function scanServiceLogs(
       // Error message — keyword fallback pass: only rows without a level
       // or with an ERROR/WARN level are eligible (avoids DEBUG noise).
       if ((level === '' || isErrorLevel) && message.length > bestByKeyword.length) {
-        if (ERROR_KEYWORDS.some((keyword) => message.includes(keyword))) {
+        if (hasErrorKeyword) {
           bestByKeyword = message;
         }
       }
 
-      // Known URL — first match wins.
-      if (knownUrl === undefined && registry !== undefined) {
-        knownUrl = matchKnownUrl(message, registry);
+      // Prefer failure evidence over earlier invocation/success rows.
+      const urlPriority = isErrorLevel ? 2 : level === '' && hasErrorKeyword ? 1 : 0;
+      if (urlPriority > knownUrlPriority && registry !== undefined) {
+        const candidate = matchKnownUrl(message, registry);
+        if (candidate !== undefined) {
+          knownUrl = candidate;
+          knownUrlPriority = urlPriority;
+        }
       }
 
       // Fallback UUID — first match wins.

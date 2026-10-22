@@ -2,16 +2,24 @@ import { RunbookBuilder } from '../../../builders/RunbookBuilder.js';
 import { unknownCaseFallback } from '../../../actions/unknownCaseFallback.js';
 import { knownCase } from '../framework.js';
 import type { Runbook } from '../framework.js';
+import { all } from '../common/conditions.js';
 import { varEquals } from '../common/varConditions.js';
-
 import { LOGSAVER_ALARM, RUNBOOK_URL } from './alarmDefinition.js';
-import { QueryLogsaverDiagnosticsStep } from './QueryLogsaverDiagnosticsStep.js';
+import { LOG_GROUP, QueryLogsaverDiagnosticsStep } from './QueryLogsaverDiagnosticsStep.js';
+
+const DIAGNOSTIC_DETAILS = [
+  ['Account verificati', '{{vars.logsaverAccountsChecked}}'],
+  ['Log di errore', '{{vars.logsaverErrorLogCount}}'],
+  ['Stream osservati', '{{vars.logsaverStreamCount}}'],
+  ['Log con firma Spot', '{{vars.logsaverSpotInterruptionLogCount}}'],
+  ['Log di errore non spiegati', '{{vars.logsaverUnaccountedErrorLogCount}}'],
+] as const;
 
 export function buildRunbook(): Runbook {
   return RunbookBuilder.create(LOGSAVER_ALARM)
     .metadata({
       name: LOGSAVER_ALARM,
-      description: 'Raccoglie i log del job logsaver e prepara la verifica del fallimento e del recupero in AWS Batch.',
+      description: 'Raccoglie i log del job logsaver e riconosce l’interruzione del task Fargate Spot.',
       version: '1.0.0',
       type: 'alarm-resolution',
       team: 'GO',
@@ -19,46 +27,108 @@ export function buildRunbook(): Runbook {
     })
     .cloudExecutionPolicy({ sideEffects: 'NONE' })
     .occurrenceTimeWindow({ beforeMinutes: 60, afterMinutes: 5 })
+    .output({
+      metadata: { service: 'pn-logsaver-be', logGroup: LOG_GROUP, region: 'eu-south-1' },
+      fields: [
+        { name: 'alarmName', label: 'Alarm', ref: 'params.alarmName', valueType: 'string' },
+        {
+          name: 'logsaverDiagnostics',
+          label: 'Diagnostica Logsaver',
+          ref: 'vars.logsaverDiagnostics',
+          valueType: 'string',
+        },
+        {
+          name: 'logsaverAccountsChecked',
+          label: 'Account verificati',
+          ref: 'vars.logsaverAccountsChecked',
+          valueType: 'string',
+        },
+        {
+          name: 'logsaverErrorLogCount',
+          label: 'Log di errore',
+          ref: 'vars.logsaverErrorLogCount',
+          valueType: 'integer',
+        },
+        {
+          name: 'logsaverStreamCount',
+          label: 'Stream osservati',
+          ref: 'vars.logsaverStreamCount',
+          valueType: 'integer',
+        },
+        {
+          name: 'logsaverSpotInterruptionLogCount',
+          label: 'Log con firma Spot',
+          ref: 'vars.logsaverSpotInterruptionLogCount',
+          valueType: 'integer',
+        },
+        {
+          name: 'logsaverUnaccountedErrorLogCount',
+          label: 'Log di errore non spiegati',
+          ref: 'vars.logsaverUnaccountedErrorLogCount',
+          valueType: 'integer',
+        },
+      ],
+    })
     .analysisDefaults({
       runbookName: LOGSAVER_ALARM,
       resources: [{ name: 'pn-logsaver-be', type: 'Service', role: 'PRIMARY' }],
       links: [{ url: RUNBOOK_URL, name: LOGSAVER_ALARM, type: 'CONFLUENCE' }],
     })
-    .step(new QueryLogsaverDiagnosticsStep(), { silent: true })
+    .step(new QueryLogsaverDiagnosticsStep(), {
+      silent: true,
+      evidence: [
+        {
+          id: 'logsaver-errors',
+          label: 'Errori del job Logsaver',
+          type: 'log-sample',
+          filter: { field: 'queryKind', equals: 'errors' },
+          retention: { mode: 'latest', limit: 5, timestampField: '@timestamp' },
+        },
+        {
+          id: 'logsaver-streams',
+          label: 'Stream del job Logsaver',
+          type: 'step-output',
+          filter: { field: 'queryKind', equals: 'streams' },
+          retention: { mode: 'latest', limit: 5, timestampField: 'lastLog' },
+        },
+      ],
+    })
     .knownCase(
       knownCase({
         id: 'logsaver-batch-verification-required',
-        description: 'Log raccolti: causa del fallimento Batch e recupero ancora da verificare',
+        description: 'Soli errori di interruzione del task Fargate Spot',
         priority: 100,
-        condition: varEquals('logsaverDiagnostics', 'COLLECTED'),
+        condition: all(
+          varEquals('logsaverDiagnostics', 'COLLECTED'),
+          { type: 'compare', ref: 'vars.logsaverSpotInterruptionLogCount', operator: '>', value: 0 },
+          varEquals('logsaverUnaccountedErrorLogCount', '0'),
+        ),
+        level: 'warn',
+        resolution: 'Nessuna azione necessaria',
+        details: DIAGNOSTIC_DETAILS,
+        analysis: { proposedStatus: 'COMPLETED', analysisType: 'ANALYZABLE', finalActions: [], links: [] },
+      }),
+    )
+    .knownCase(
+      knownCase({
+        id: 'logsaver-spot-with-unaccounted-errors',
+        description: 'Firma Spot presente con errori ancora da verificare',
+        priority: 90,
+        condition: all(
+          varEquals('logsaverDiagnostics', 'COLLECTED'),
+          { type: 'compare', ref: 'vars.logsaverSpotInterruptionLogCount', operator: '>', value: 0 },
+          { type: 'compare', ref: 'vars.logsaverUnaccountedErrorLogCount', operator: '>', value: 0 },
+        ),
         level: 'warn',
         resolution:
-          'Nell’account dell’occorrenza aprire AWS Batch, coda pn-logsaver-be-job-queue. ' +
-          'Identificare tutti i job FAILED correlati per job ID e orario di fine, verificando anche la job definition. ' +
-          'Controllare Status reason, Job attempts, motivo del container, exit code e strategia di retry effettiva; ' +
-          'aprire il log stream di ciascun tentativo e ampliare la finestra all’intera esecuzione. ' +
-          'Your Spot Task was interrupted. indica un’interruzione del task Fargate Spot solo se confermata nel job. ' +
-          'Non dedurre questa causa da log vuoti e non assumere retry automatici. ' +
-          'Verificare che un’elaborazione successiva abbia recuperato gli stessi dati e intervalli del job fallito: ' +
-          'il solo stato SUCCEEDED di un altro job non basta. Mantenere l’analisi aperta finché il recupero non è documentato; ' +
-          'se mancano evidenze, il fallimento si ripete o vi è rischio di perdita dei log, coinvolgere Infra e l’owner di pn-logsaver. ' +
-          'Per job storici non più consultabili usare le evidenze dell’evento e dell’analisi, dichiarando il limite. ' +
-          'Non rilanciare o modificare job durante questa verifica.',
-        details: [
-          ['Account verificati', '{{vars.logsaverAccountsChecked}}'],
-          ['Log di errore', '{{vars.logsaverErrorLogCount}}'],
-          ['Stream osservati', '{{vars.logsaverStreamCount}}'],
-          ['Verifica Batch', 'Da completare nell’account dell’occorrenza'],
-        ],
-        analysis: { proposedStatus: 'IN_PROGRESS', analysisType: 'ANALYZABLE' },
+          'Verificare i {{vars.logsaverUnaccountedErrorLogCount}} log di errore non attribuiti alla sola interruzione Spot prima di chiudere l’occorrenza.',
+        details: DIAGNOSTIC_DETAILS,
+        analysis: { proposedStatus: 'IN_PROGRESS', analysisType: 'ANALYZABLE', finalActions: [], links: [] },
       }),
     )
     .fallback(
       unknownCaseFallback('Evidenze insufficienti sul fallimento del job logsaver', [
-        [
-          'Azione',
-          'Verificare account, regione, intervallo e accesso ai log; proseguire con la verifica del job Batch.',
-        ],
+        ['Risoluzione', 'Risoluzione non documentata.'],
       ]),
     )
     .build();

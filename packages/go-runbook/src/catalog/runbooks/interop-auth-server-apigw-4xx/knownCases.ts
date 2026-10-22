@@ -1,17 +1,7 @@
 import { AUTH_SERVER_ALARM } from './alarmDefinition.js';
 import type { KnownCase } from '../framework.js';
-import { slackLink } from '../common/analysisLinks.js';
+
 import { createInteropApiGwKnownCaseFactory } from '../interop/interopApiGwKnownCases.js';
-
-const PRODUCT_REVIEW_ACTION = 'Necessario confronto con il team di prodotto';
-const DEPLOYMENT_DOCUMENTATION =
-  'https://github.com/pagopa/interop-core-deployment/tree/main/microservices/authorization-server-node';
-const AUDIENCE_EXAMPLE = 'https://pagopaspa.slack.com/archives/C06D24MANNN/p1763121511282499';
-const TEST_RATE_LIMIT_THREAD = 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1779291404615129';
-const TOKEN_STATE_THREAD = 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1773161605955019';
-const UNEXPECTED_KID_THREAD =
-  'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1780490021408979?thread_ts=1780471525.339529&cid=C0A7F9XQAT0';
-
 const knownCase = createInteropApiGwKnownCaseFactory({
   apiGatewayStepId: AUTH_SERVER_ALARM.stepIds.queryApiGwAggregates,
   applicationLogsStepId: AUTH_SERVER_ALARM.stepIds.queryApplicationLogs,
@@ -19,8 +9,37 @@ const knownCase = createInteropApiGwKnownCaseFactory({
   varPrefix: AUTH_SERVER_ALARM.varPrefix,
   applicationLogsLabel: 'Warning auth-server',
 });
-
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
+  knownCase({
+    id: 'auth-server-invalid-client-id-uuid',
+    description: 'client_id nel body non valido come UUID',
+    priority: 600,
+    regex: String.raw`Validation error: Invalid uuid at[\s\\"]+client_id\b`,
+    resolution: 'Risoluzione non documentata.',
+    proposedStatus: 'IN_PROGRESS',
+    finalActions: [],
+    links: [],
+  }),
+  knownCase({
+    id: 'auth-server-required-client-assertion-type',
+    description: 'client_assertion_type richiesto ma non disponibile nel body',
+    priority: 590,
+    regex: String.raw`Validation error: Required at[\s\\"]+client_assertion_type\b`,
+    resolution: 'Thread Slack 14/09/2026 Thread Slack 17/09/2026',
+    proposedStatus: 'IN_PROGRESS',
+    finalActions: [],
+    links: [],
+  }),
+  knownCase({
+    id: 'auth-server-invalid-purpose-id-uuid',
+    description: 'Purpose Id della client assertion non valido come UUID',
+    priority: 580,
+    regex: 'Purpose Id claim\\s+[^\\s]+\\s+is not a valid UUID',
+    resolution: 'Thread Slack 17/09/2026',
+    proposedStatus: 'IN_PROGRESS',
+    finalActions: [],
+    links: [],
+  }),
   knownCase({
     id: 'auth-server-test-rate-limit-known-organization',
     description: 'Rate limit noto dell’organizzazione di test',
@@ -28,13 +47,17 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     regex:
       'Rate limit triggered for organization 738b2cc0-401b-4226-89ea-f49c9441d40f:\\s*' +
       'maximum of 10 requests in 1000ms exceeded\\.',
-    resolution:
-      'Il limite di 10 richieste al secondo è stato superato dall’organizzazione di test indicata. ' +
-      'Il documento è in attesa di riscontro dal team di prodotto.',
+    resolution: 'In attesa di feedback da parte del team di prodotto.',
     proposedStatus: 'IN_PROGRESS',
     environments: ['test'],
-    finalActions: [PRODUCT_REVIEW_ACTION],
-    links: [slackLink(TEST_RATE_LIMIT_THREAD, 'Thread rate limit ambiente test')],
+    finalActions: [],
+    links: [
+      {
+        url: 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1779291404615129',
+        name: 'Thread rate limit ambiente test',
+        type: 'SLACK',
+      },
+    ],
   }),
   knownCase({
     id: 'auth-server-unexpected-client-assertion-audience',
@@ -45,15 +68,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       'Unexpected client assertion audience:',
     ].join(''),
     resolution:
-      'Verificare CLIENT_ASSERTION_JWT_AUDIENCE nei values dell’ambiente: prod accetta ' +
-      'auth.interop.pagopa.it/client-assertion, att e test auth.uat.interop.pagopa.it/client-assertion. ' +
-      'Se la claim usa l’audience di un altro ambiente non è necessaria una segnalazione.',
+      'Confrontare l\u2019audience della client assertion con CLIENT_ASSERTION_JWT_AUDIENCE dell\u2019ambiente, come indicato nelle verifiche finali del runbook. Se la richiesta usa l\u2019audience di un altro ambiente, non \u00E8 necessaria una segnalazione.',
     proposedStatus: 'IN_PROGRESS',
-    finalActions: [PRODUCT_REVIEW_ACTION],
-    links: [
-      { url: DEPLOYMENT_DOCUMENTATION, name: 'Deployment authorization-server-node', type: 'DOCUMENTATION' },
-      slackLink(AUDIENCE_EXAMPLE, 'Esempio audience non valida'),
-    ],
+    finalActions: [],
+    links: [],
   }),
   knownCase({
     id: 'auth-server-organization-request-limit-exceeded',
@@ -61,10 +79,10 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 550,
     regex: 'Too Many Requests\\s*-\\s*detail:\\s*Requests limit exceeded for organization',
     resolution:
-      'Ricavare consumerId e nome dell’ente dai DB read_model client e tenant dell’ambiente usando ' +
-      'organizationId/producerId/consumerId presenti nel messaggio, quindi valutare il confronto con il prodotto.',
+      'Seguire le verifiche finali del runbook per identificare l\u2019ente tramite organizationId/consumerId nel read model. La notifica al team prodotto \u00E8 indicata come da definire.',
     proposedStatus: 'IN_PROGRESS',
-    finalActions: [PRODUCT_REVIEW_ACTION],
+    finalActions: [],
+    links: [],
   }),
   knownCase({
     id: 'auth-server-token-generation-state-entry-not-found',
@@ -72,34 +90,57 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 540,
     regex: 'Entry with PK\\s+[^\\s]+\\s+not found in token-generation-states table',
     resolution:
-      'Verificare client_id e kid nella vista read_model client.client_key e confrontarli con la PK DynamoDB. ' +
-      'La risoluzione nel documento è marcata TBV, quindi il caso resta aperto.',
+      "[TBV] Query sul read model select client_id,kid from prod_client.client_key where client_id = '<CLIENT>'",
     proposedStatus: 'IN_PROGRESS',
-    finalActions: [PRODUCT_REVIEW_ACTION],
-    links: [slackLink(TOKEN_STATE_THREAD, 'Thread token-generation-states')],
+    finalActions: [],
+    links: [
+      {
+        url: 'https://pagopaspa.slack.com/archives/C0A7F9XQAT0/p1773161605955019',
+        name: 'Thread token-generation-states',
+        type: 'SLACK',
+      },
+    ],
+  }),
+  knownCase({
+    id: 'auth-server-client-assertion-not-before',
+    description: 'Client assertion utilizzata prima dell’inizio validità',
+    priority: 535,
+    regex: 'Current time is before not before time in client assertion signature validation',
+    resolution: 'Risoluzione non documentata.',
+    proposedStatus: 'IN_PROGRESS',
+    finalActions: [],
+    links: [],
+  }),
+  knownCase({
+    id: 'auth-server-client-assertion-expired',
+    description: 'Client assertion scaduta',
+    priority: 534,
+    regex: 'Token expired in client assertion signature validation',
+    resolution: 'Risoluzione non documentata.',
+    proposedStatus: 'IN_PROGRESS',
+    finalActions: [],
+    links: [],
   }),
   knownCase({
     id: 'auth-server-client-assertion-signature-validation-failed',
     description: 'Validazione della firma della client assertion fallita',
     priority: 530,
-    regex: 'Client assertion signature validation failed for client\\s+',
-    resolution:
-      'Identificare client ed ente tramite read_model e verificare chiave e firma della client assertion. ' +
-      'Il documento non indica una risoluzione conclusiva.',
+    regex:
+      'Client assertion signature validation failed for client\\s+[^\\s]+\\s*-\\s*Client assertion signature is invalid',
+    resolution: 'Thread Slack segnalazioni 25-27/08/2026 Thread Slack 17/09/2026',
     proposedStatus: 'IN_PROGRESS',
-    finalActions: [PRODUCT_REVIEW_ACTION],
+    finalActions: [],
+    links: [],
   }),
   knownCase({
     id: 'auth-server-unexpected-kid-format',
     description: 'Formato inatteso del kid nella client assertion',
     priority: 520,
     regex: 'Client assertion validation failed for clientId:\\s*[0-9a-fA-F-]+\\s*-\\s*Unexpected format for kid',
-    resolution:
-      'Identificare il client e l’ente e verificare il formato del kid inviato. ' +
-      'Il documento non indica una risoluzione automatica.',
+    resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
-    finalActions: [PRODUCT_REVIEW_ACTION],
-    links: [slackLink(UNEXPECTED_KID_THREAD, 'Thread formato kid inatteso')],
+    finalActions: [],
+    links: [],
   }),
   knownCase({
     id: 'auth-server-platform-state-inactive',
@@ -108,19 +149,30 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     regex:
       'errors:\\s*007-0008,\\s*Platform state validation failed\\s*-\\s*' +
       'Agreement state is:\\s*INACTIVE,\\s*Purpose state is:\\s*INACTIVE',
-    resolution:
-      'Identificare client ed ente e verificare perché Agreement e Purpose risultano entrambi INACTIVE. ' +
-      'Il documento non fornisce una risoluzione conclusiva.',
+    resolution: 'Risoluzione non documentata.',
     proposedStatus: 'IN_PROGRESS',
-    finalActions: [PRODUCT_REVIEW_ACTION],
+    finalActions: [],
+    links: [],
+  }),
+  knownCase({
+    id: 'auth-server-platform-state-agreement-or-purpose-inactive',
+    description: 'Agreement o Purpose inattivo durante la validazione di piattaforma',
+    priority: 505,
+    regex: 'Platform state validation failed\\s*-\\s*(?:Agreement|Purpose) state is:\\s*INACTIVE',
+    resolution: 'Risoluzione non documentata.',
+    proposedStatus: 'IN_PROGRESS',
+    finalActions: [],
+    links: [],
   }),
   knownCase({
     id: 'auth-server-api-gateway-forbidden-403',
     description: 'Richiesta autenticata ma non autorizzata bloccata da API Gateway',
     priority: 100,
     regex: 'API Gateway\\s+403\\b',
-    resolution: 'La richiesta è stata bloccata direttamente da API Gateway: nessuna azione necessaria.',
-    proposedStatus: 'COMPLETED',
+    resolution: 'Nessuna azione necessaria',
+    proposedStatus: 'IN_PROGRESS',
+    finalActions: [],
     evidence: 'API_GATEWAY',
+    links: [],
   }),
 ];

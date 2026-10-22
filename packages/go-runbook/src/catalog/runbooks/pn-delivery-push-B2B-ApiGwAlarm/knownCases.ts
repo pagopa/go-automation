@@ -2,14 +2,12 @@ import { varMatches } from '../common/varConditions.js';
 /**
  * Known cases for the pn-delivery-push-B2B-ApiGwAlarm runbook.
  */
-
 import type { KnownCase } from '../framework.js';
 import { knownCase } from '../framework.js';
 import { SEND_DOWNSTREAMS } from '../framework.js';
 import { all } from '../common/conditions.js';
 import { anyStepEvidenceMatches, stepEvidenceMatches } from '../common/evidenceConditions.js';
 import { apiGwStatusIs } from '../../../apigw/knownCases/conditions.js';
-
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'safestorage-file-not-found',
@@ -21,12 +19,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     ),
     title: 'File not found from safeStorage fileKey=<filekey>',
     resolution:
-      'Chiusura - caso noto. Verificare se la fileKey e il documento sono presenti sul bucket SafeStorage; se la richiesta risulta anticipata, monitorare i cxId rumorosi o nuovi.',
+      'Monitorare l\u2019allarme per individuare i cxId pi\u00F9 frequenti o nuovi. Riferimenti ai thread Slack indicati nella pagina.',
     details: [['Downstream', 'SafeStorage']],
     analysis: {
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       resources: [{ name: 'pn-ss' }],
+      finalActions: [],
+      links: [],
     },
   }),
   knownCase({
@@ -38,12 +38,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       'Object restore is already in progress.*Status Code: 409',
     ),
     title: 'Object restore is already in progress (S3 409)',
-    resolution: 'Chiusura - caso noto. Richiesta di restore del documento duplicata.',
+    resolution: 'Thread Slack: 26/03/2026',
     details: [['Downstream', 'SafeStorage/S3']],
     analysis: {
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       resources: [{ name: 'pn-ss' }],
+      finalActions: [],
+      links: [],
     },
   }),
   knownCase({
@@ -56,12 +58,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     ),
     title: '[DOWNSTREAM] Service SelfcarePG returned errors=503 Service Unavailable',
     resolution:
-      "Chiusura - caso noto. Se l'errore si protrae nel tempo, contattare i riferimenti del downstream Selfcare.",
+      'Se l\u2019errore si protrae nel tempo \u00E8 necessario contattare gli opportuni contatti Downstream per Selfcare.',
     details: [['Downstream', 'Selfcare']],
     analysis: {
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.SELFCARE],
+      finalActions: [],
+      links: [],
     },
   }),
   knownCase({
@@ -73,13 +77,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       varMatches('apiGwErrorMessage', 'Invalid key=value pair \\(missing equal-sign\\) in Authorization header'),
     ),
     title: 'Exception in call getFile fileKey=PN_EXTERNAL_LEGAL_FACTS',
-    resolution:
-      "Chiusura - caso noto. Errore probabilmente legato a indisponibilità di SelfcarePG, verificare se il caso è correlato al precedente 'downstream-selfcarepg-503-service-unavailable'.",
+    resolution: 'Risoluzione non documentata.',
     details: [['Downstream', 'Safe Storage']],
     analysis: {
-      proposedStatus: 'COMPLETED',
+      proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
       resources: [{ name: 'pn-ss' }],
+      finalActions: [],
+      links: [],
     },
   }),
 ];

@@ -41,6 +41,56 @@ describe('scanApplicationLogs', () => {
     assert.strictEqual(scan.traceIdCandidate?.canonical, CANONICAL);
   });
 
+  it('keeps the first valid trace from the full log when trace_id contains a batch identifier', () => {
+    const scan = scanApplicationLogs(
+      [
+        row({
+          level: 'ERROR',
+          message: 'Exception: first failure',
+          trace_id: 'batch_id:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+          '@message': JSON.stringify({ 'AWS-XRAY-TRACE-ID': `${CANONICAL}@0123456789abcdef` }),
+        }),
+        row({
+          level: 'ERROR',
+          message: 'Exception: latest failure',
+          trace_id: '1-abcdef12-1234567890abcdef12345678',
+        }),
+      ],
+      SCHEMA,
+    );
+
+    assert.deepStrictEqual(scan.traceIdCandidate, { raw: CANONICAL, canonical: CANONICAL });
+    assert.strictEqual(scan.errorMessage, 'Exception: latest failure');
+  });
+
+  for (const message of ['', 'Exception: short description']) {
+    it(`checks the full message for a labeled trace when the preferred message is ${message === '' ? 'empty' : 'present'}`, () => {
+      const scan = scanApplicationLogs(
+        [row({ level: 'ERROR', message, '@message': JSON.stringify({ trace_id: RAW_32 }) })],
+        SCHEMA,
+      );
+
+      assert.deepStrictEqual(scan.traceIdCandidate, { raw: RAW_32, canonical: CANONICAL });
+      assert.strictEqual(scan.errorMessage, message);
+    });
+  }
+
+  it('prefers a valid structured trace field over a different trace in the full message', () => {
+    const scan = scanApplicationLogs(
+      [
+        row({
+          level: 'ERROR',
+          message: 'Exception: failure',
+          trace_id: RAW_32,
+          '@message': 'Root=1-abcdef12-1234567890abcdef12345678',
+        }),
+      ],
+      SCHEMA,
+    );
+
+    assert.deepStrictEqual(scan.traceIdCandidate, { raw: RAW_32, canonical: CANONICAL });
+  });
+
   it('extracts a labeled trace id embedded in a JSON message (no separate field)', () => {
     const scan = scanApplicationLogs([row({ level: 'ERROR', '@message': `{"trace_id":"${RAW_32}"}` })], SCHEMA);
 

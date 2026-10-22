@@ -16,12 +16,10 @@ export const SELFCARE_KAFKA_BROKER_COMMUNICATION_PATTERN: string = [
 export function createSelfcareKafkaBrokerCommunicationKnownCase(refs: InteropKnownCaseRefs): KnownCase {
   return interopKnownCase(refs, {
     id: 'selfcare-kafka-broker-communication-errors',
-    description: 'Errore di comunicazione KafkaJS verso i broker Selfcare',
+    description: 'Errore di comunicazione KafkaJS del consumer Selfcare',
     priority: 100,
     regex: SELFCARE_KAFKA_BROKER_COMMUNICATION_PATTERN,
-    resolution:
-      'Caso noto legato ai broker Kafka di Selfcare o a una temporanea indisponibilità di rete. ' +
-      'Verificare PIN-7325 e, se il problema persiste, coinvolgere il team Selfcare.',
+    resolution: 'PIN-7325',
     proposedStatus: 'IN_PROGRESS',
     analysisType: 'ANALYZABLE',
     downstreams: [INTEROP_DOWNSTREAMS.SELFCARE],

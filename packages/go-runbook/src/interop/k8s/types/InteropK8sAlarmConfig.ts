@@ -8,6 +8,8 @@ import type { InteropK8sQueryProfile } from '../profiles/InteropK8sQueryProfile.
 import type { ResolveInteropK8sAlarmContextFn } from './InteropK8sAlarmContext.js';
 import type { InteropK8sRunbookStepIds } from './InteropK8sRunbookStepIds.js';
 import type { InteropK8sServiceDescriptor } from './InteropK8sServiceDescriptor.js';
+import type { PipelineHook } from '../../../types/PipelineHook.js';
+import type { InteropK8sPipelineAnchor } from './InteropK8sPipelineAnchor.js';
 
 /** Configuration accepted by `createInteropK8sAlarmRunbook`. */
 export interface InteropK8sAlarmConfig {
@@ -27,4 +29,6 @@ export interface InteropK8sAlarmConfig {
   readonly timeRangeFromParams?: TimeRangeFromParams;
   readonly occurrenceTimeWindow?: OccurrenceTimeWindow;
   readonly maxIterations?: number;
+  /** Custom diagnostic steps collected before CID analysis can resolve the runbook. */
+  readonly hooks?: ReadonlyArray<PipelineHook<InteropK8sPipelineAnchor>>;
 }
