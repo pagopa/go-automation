@@ -11,8 +11,8 @@ export type {
 } from './RunbookOutcome.js';
 export type { RunbookOutputContext, RunbookResultField, RunbookEvidence } from './RunbookOutputContext.js';
 export { emptyRunbookOutputContext } from './RunbookOutputContext.js';
-export type { StepEvidence, EvidenceRetention } from './StepEvidence.js';
-export type { RunbookOutputDefinition, RunbookOutputField } from './RunbookOutputDefinition.js';
+export type { StepEvidence } from './StepEvidence.js';
+export type { RunbookOutputDefinition } from './RunbookOutputDefinition.js';
 export type {
   RunbookTelemetry,
   CloudWatchLogsTelemetry,
