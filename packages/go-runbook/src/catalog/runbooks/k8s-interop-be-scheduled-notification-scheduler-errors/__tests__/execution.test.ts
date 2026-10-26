@@ -77,13 +77,12 @@ describe('notification scheduler verified occurrence execution', () => {
       assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
       assert.strictEqual(draft.analysisType, 'ANALYZABLE');
       assert.strictEqual(draft.ignoreReasonCode, undefined);
-      assert.deepStrictEqual(draft.finalActions, ['Necessario confronto con il team di prodotto']);
+
       assert.strictEqual(queries.length, 2);
       assert.ok(queries[0]?.includes(`pod_app = "${alarm.podApp}"`));
       assert.ok(!queries[0]?.includes('@message like /ERROR/'));
       assert.ok(!queries[1]?.includes('log like /ERROR/'));
       assert.strictEqual(result.finalContext.vars.get('interopCidTrackerExecuted'), 'false');
-      assert.match(draft.conclusionNotes, /non provano da soli il recupero/);
     });
   }
   it('does not attribute another service’s coordinator error to the scheduler', async () => {

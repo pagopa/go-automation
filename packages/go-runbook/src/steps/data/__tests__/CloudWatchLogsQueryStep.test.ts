@@ -99,6 +99,117 @@ describe('CloudWatchLogsQueryStep.getTraceInfo', () => {
 });
 
 describe('CloudWatchLogsQueryStep.execute', () => {
+  it('falls back only after an empty successful query and preserves both query statistics', async () => {
+    const queries: string[] = [];
+    const step = new CloudWatchLogsQueryStep({
+      id: 'fallback',
+      label: 'fallback',
+      logGroups: ['lg'],
+      query: 'initial',
+      emptyResultFallbackQuery: 'fallback {{params.code}}',
+      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+      paginateResults: true,
+    });
+    const ctx: RunbookContext = {
+      ...makeContext([
+        ['startTime', '2026-01-01T00:00:00Z'],
+        ['endTime', '2026-01-01T00:10:00Z'],
+        ['code', '400'],
+      ]),
+      services: createTestServiceRegistry({
+        cloudWatchLogs: {
+          queryWithStatistics: async (
+            _groups: unknown,
+            query: string,
+            _range: unknown,
+            options: AWSCloudWatchLogsQueryOptions,
+          ) => {
+            await Promise.resolve();
+            queries.push(query);
+            assert.equal(options.paginateResults, true);
+            const rows = query === 'initial' ? [] : [[{ field: 'status', value: '403' }]];
+            return {
+              rows,
+              statistics: { bytesScanned: 100, recordsScanned: 10, recordsMatched: rows.length },
+              queryExecutions: [
+                {
+                  queryId: query,
+                  profile: 'configured',
+                  logGroups: ['lg'],
+                  statistics: { bytesScanned: 100, recordsScanned: 10, recordsMatched: rows.length },
+                },
+              ],
+            };
+          },
+        },
+      }),
+    };
+    const result = await step.execute(ctx);
+    assert.equal(result.success, true);
+    assert.deepEqual(queries, ['initial', 'fallback 400']);
+    assert.equal(result.output?.length, 1);
+    assert.equal(result.diagnostics?.cloudWatchLogs?.statistics.bytesScanned, 200);
+    assert.equal(result.diagnostics?.cloudWatchLogs?.queryExecutions.length, 2);
+    assert.equal(step.getTraceInfo(ctx)['emptyResultFallbackQuery'], 'fallback 400');
+  });
+  it('does not fall back after a nonempty result or a failed query', async () => {
+    const step = new CloudWatchLogsQueryStep({
+      id: 'fallback',
+      label: 'fallback',
+      logGroups: ['lg'],
+      query: 'initial',
+      emptyResultFallbackQuery: 'fallback',
+      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+    });
+    for (const fail of [false, true]) {
+      let calls = 0;
+      const ctx: RunbookContext = {
+        ...makeContext([
+          ['startTime', '2026-01-01T00:00:00Z'],
+          ['endTime', '2026-01-01T00:10:00Z'],
+        ]),
+        services: createTestServiceRegistry({
+          cloudWatchLogs: {
+            query: async () => {
+              await Promise.resolve();
+              calls++;
+              if (fail) throw new Error('AccessDenied');
+              return [[{ field: 'status', value: '500' }]];
+            },
+          },
+        }),
+      };
+      const result = await step.execute(ctx);
+      assert.equal(result.success, !fail);
+      assert.equal(calls, 1);
+    }
+  });
+  it('keeps a failed fallback query as a failure rather than reporting empty evidence', async () => {
+    const step = new CloudWatchLogsQueryStep({
+      id: 'fallback',
+      label: 'fallback',
+      logGroups: ['lg'],
+      query: 'initial',
+      emptyResultFallbackQuery: 'fallback',
+      timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+    });
+    const ctx: RunbookContext = {
+      ...makeContext([
+        ['startTime', '2026-01-01T00:00:00Z'],
+        ['endTime', '2026-01-01T00:10:00Z'],
+      ]),
+      services: createTestServiceRegistry({
+        cloudWatchLogs: {
+          query: async (_groups: unknown, query: string) => {
+            await Promise.resolve();
+            if (query === 'fallback') throw new Error('AccessDenied');
+            return [];
+          },
+        },
+      }),
+    };
+    assert.equal((await step.execute(ctx)).success, false);
+  });
   it('returns rows and stores CloudWatch Logs statistics as diagnostics', async () => {
     const rows: ReadonlyArray<ReadonlyArray<ResultField>> = [
       [{ field: '@timestamp', value: '2026-01-01T00:00:01.000Z' }],

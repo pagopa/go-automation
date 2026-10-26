@@ -131,8 +131,6 @@ describe('INTEROP catalog readmodel writer SQL known cases', () => {
       assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
       assert.strictEqual(knownCase.analysis?.analysisType, 'ANALYZABLE');
       assert.deepStrictEqual(knownCase.analysis?.downstreams, [INTEROP_DOWNSTREAMS.NESSUNO]);
-      assert.ok(knownCase.analysis?.resolution.includes('proseguire l’analisi'));
-      assert.ok(knownCase.analysis?.resolution.includes('in loro assenza cercare per pod'));
     }
 
     assert.deepStrictEqual(knownCaseById('catalog-readmodel-writer-kafka-coordinator-member-rejoin').analysis?.links, [

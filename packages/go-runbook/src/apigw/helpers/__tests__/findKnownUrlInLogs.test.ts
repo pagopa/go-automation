@@ -32,6 +32,64 @@ describe('scanServiceLogs knownUrl projection', () => {
     assert.strictEqual(match.observedUrl, 'https://api.io.pagopa.it/api/v1/activations/abc');
   });
 
+  it('prefers ERROR and WARN URLs over INFO invocations regardless of row order', () => {
+    const invocation = [
+      { field: 'level', value: 'INFO' },
+      ...row('Invoking external service https://api.io.pagopa.it/api/v1/activations/abc'),
+    ];
+    for (const level of ['ERROR', 'WARN']) {
+      const failure = [
+        { field: 'level', value: level },
+        ...row('Request failed to GET http://internal-EcsA-123:8080/ext-registry-private/payments'),
+      ];
+      for (const rows of [
+        [invocation, failure],
+        [failure, invocation],
+      ]) {
+        assert.strictEqual(scanServiceLogs(rows, SCHEMA, registry).knownUrl?.known.target, 'pn-external-registries');
+      }
+    }
+  });
+
+  it('uses failure keywords without a level but prefers an explicit failure level', () => {
+    const invocation = [
+      { field: 'level', value: 'INFO' },
+      ...row('Invoking external service https://api.io.pagopa.it/api/v1/activations/abc'),
+    ];
+    const implicitFailure = row('Exception calling http://internal-EcsA-123:8080/ext-registry-private/payments');
+    assert.strictEqual(
+      scanServiceLogs([invocation, implicitFailure], SCHEMA, registry).knownUrl?.known.target,
+      'pn-external-registries',
+    );
+    const explicitFailure = [
+      { field: 'level', value: 'WARN' },
+      ...row('Request failed to GET https://api.io.pagopa.it/api/v1/activations/abc'),
+    ];
+    assert.strictEqual(
+      scanServiceLogs([implicitFailure, explicitFailure], SCHEMA, registry).knownUrl?.known.target,
+      'AppIO',
+    );
+  });
+
+  it('preserves invocation fallback when failure rows have no known URL', () => {
+    const rows = [
+      [{ field: 'level', value: 'INFO' }, ...row('Invoking https://api.io.pagopa.it/api/v1/activations/abc')],
+      [{ field: 'level', value: 'ERROR' }, ...row('Exception calling http://unknown.example/path')],
+    ];
+    assert.strictEqual(scanServiceLogs(rows, SCHEMA, registry).knownUrl?.known.target, 'AppIO');
+  });
+
+  it('keeps the first known URL among rows with equal failure priority', () => {
+    const rows = [
+      [{ field: 'level', value: 'WARN' }, ...row('Request failed https://api.io.pagopa.it/api/v1/activations/abc')],
+      [
+        { field: 'level', value: 'ERROR' },
+        ...row('Request failed http://internal-EcsA-123:8080/ext-registry-private/payments'),
+      ],
+    ];
+    assert.strictEqual(scanServiceLogs(rows, SCHEMA, registry).knownUrl?.known.target, 'AppIO');
+  });
+
   it('trims trailing punctuation before probing the registry', () => {
     const match = scanServiceLogs(
       [row('called http://internal-EcsA-123:8080/ext-registry-private/io/v1/activations.')],

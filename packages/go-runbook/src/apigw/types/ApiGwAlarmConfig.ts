@@ -63,6 +63,8 @@ export interface ApiGwAlarmConfig {
    * coerente con la query canonica di `go-runbooks`.
    */
   readonly minStatusCode?: number;
+  /** Search this lower threshold only when the initial AccessLog query returns no rows. */
+  readonly fallbackMinStatusCode?: number;
   /**
    * Abilita la paginazione opzionale dei risultati della query AccessLog.
    * Default `false` per preservare il comportamento legacy.

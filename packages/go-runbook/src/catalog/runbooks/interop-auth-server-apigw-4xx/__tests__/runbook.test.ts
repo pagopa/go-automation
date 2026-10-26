@@ -39,7 +39,8 @@ describe('buildRunbook', () => {
     assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
     assert.ok(apigw.isApiGwRunbookContext(runbook.runbookContext));
     assert.strictEqual(runbook.runbookContext.services[0]?.name, AUTH_SERVER_ALARM.serviceName);
-    assert.strictEqual(runbook.knownCases.length, 8);
+    assert.strictEqual(runbook.knownCases.length, 14);
+    assert.strictEqual(runbook.analysisDefaults?.links?.[0]?.type, 'CONFLUENCE');
   });
 
   it('uses X-2/X+1 for APIGW and CID but X-2/X for auth-server warnings', async () => {
@@ -89,7 +90,7 @@ describe('buildRunbook', () => {
     assert.strictEqual(seen[2]?.range.end.toISOString(), '2026-08-24T10:01:00.000Z');
   });
 
-  it('completes the documented API Gateway 403 case without an application warning', async () => {
+  it('keeps API Gateway 403 open even when no application warning was found', async () => {
     const accessRows: ReadonlyArray<ReadonlyArray<ResultField>> = [
       [
         { field: 'latestTimestamp', value: '2026-08-24 10:00:00.000' },
@@ -118,8 +119,7 @@ describe('buildRunbook', () => {
     );
     const draft = buildAnalysisDraft(buildRunbook(), result);
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'COMPLETED');
-    assert.match(draft.conclusionNotes, /nessuna azione necessaria/u);
+    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
   });
 });
 

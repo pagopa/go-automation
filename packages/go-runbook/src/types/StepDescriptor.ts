@@ -1,4 +1,5 @@
 import type { Step } from './Step.js';
+import type { StepEvidence } from '../output/StepEvidence.js';
 
 /**
  * Descriptor wrapping a step with execution options.
@@ -18,4 +19,6 @@ export interface StepDescriptor<TOutput = unknown> {
    * use this flag to keep the user-facing output clean.
    */
   readonly silent?: boolean;
+  /** Evidence exported from this step's successful output, independently of its toolkit. */
+  readonly evidence?: ReadonlyArray<StepEvidence>;
 }

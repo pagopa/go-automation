@@ -6,7 +6,6 @@ import { DOWNSTREAM_ERROR_PATTERNS } from './knownErrors.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { DOWNSTREAMS, LAMBDA_FUNCTION } from './knownServices.js';
 import { QueryBothLambdaAccountsStep } from './QueryBothLambdaAccountsStep.js';
-import { AnalyzeS3RecoveryStep } from './AnalyzeS3RecoveryStep.js';
 
 const RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3317137556/pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm';
@@ -30,7 +29,6 @@ export function buildRunbook(): Runbook {
     downstreams: DOWNSTREAMS,
     downstreamErrorPatterns: DOWNSTREAM_ERROR_PATTERNS,
     knownCases: KNOWN_CASES,
-    hooks: [{ at: 'before-downstream-queries', step: new AnalyzeS3RecoveryStep(), silent: true }],
     analysisDefaults: {
       runbookName: DOWNSTREAM_MONITORING_LAMBDA_ALARM,
       links: [

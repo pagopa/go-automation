@@ -1,5 +1,7 @@
 import { RunbookBuilder } from '../../../builders/RunbookBuilder.js';
 import { finishAlarmRunbook } from '../../../builders/finishAlarmRunbook.js';
+import { applyPipelineHooks } from '../../../builders/applyPipelineHooks.js';
+import type { InteropK8sPipelineAnchor } from '../types/InteropK8sPipelineAnchor.js';
 import type { Runbook } from '../../../types/Runbook.js';
 import type { InteropK8sAlarmConfig } from '../types/InteropK8sAlarmConfig.js';
 import type { InteropK8sRunbookStepIds } from '../types/InteropK8sRunbookStepIds.js';
@@ -22,6 +24,7 @@ export function createInteropK8sAlarmRunbook(config: InteropK8sAlarmConfig): Run
   const profile = config.queryProfile ?? INTEROP_K8S_QUERY_PROFILE;
   const timeRangeFromParams = config.timeRangeFromParams ?? DEFAULT_TIME_RANGE;
   const stepIds = resolveInteropK8sRunbookStepIds(service.name, config.stepIds);
+  const reachedAnchors = new Set<InteropK8sPipelineAnchor>();
 
   const builder = RunbookBuilder.create(config.id)
     .metadata(config.metadata)
@@ -69,6 +72,8 @@ export function createInteropK8sAlarmRunbook(config: InteropK8sAlarmConfig): Run
     }),
   );
 
+  applyPipelineHooks(builder, config.hooks ?? [], 'before-cid-analysis', reachedAnchors);
+
   builder.step(
     new AnalyzeInteropK8sCidTrackerStep({
       id: stepIds.analyzeCidTracker,
@@ -86,6 +91,7 @@ export function createInteropK8sAlarmRunbook(config: InteropK8sAlarmConfig): Run
       queryProfileId: profile.id,
     },
     primaryResource: service.name,
+    anchors: { hooks: config.hooks ?? [], reached: reachedAnchors, pipelineName: 'INTEROP k8s' },
   });
 }
 

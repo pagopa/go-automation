@@ -10,9 +10,11 @@ import type { SwitchBranchConfig } from '../types/SwitchBranchConfig.js';
 import type { CaseAction } from '../actions/CaseAction.js';
 import type { CloudExecutionPolicy } from '../types/CloudExecutionPolicy.js';
 import type { OccurrenceTimeWindow } from '../types/OccurrenceTimeWindow.js';
+import type { RunbookOutputDefinition } from '../output/RunbookOutputDefinition.js';
 import type { ValidationErrorEntry } from '../validation/ValidationErrorEntry.js';
 import type { GoToReference } from '../validation/GoToGraphAnalyzer.js';
 import { RunbookValidationError } from '../validation/RunbookValidationError.js';
+import { validateOutputDefinitions } from '../validation/validateOutputDefinitions.js';
 import { GoToGraphAnalyzer } from '../validation/GoToGraphAnalyzer.js';
 import { IfBranchStep } from '../steps/control/IfBranchStep.js';
 import { SwitchBranchStep } from '../steps/control/SwitchBranchStep.js';
@@ -66,6 +68,7 @@ export class RunbookBuilder {
   private fallbackAction?: CaseAction;
   private iterationsLimit?: number;
   private structuredContext?: unknown;
+  private outputDefinition?: RunbookOutputDefinition;
   private cloudPolicy?: CloudExecutionPolicy;
   private analysisDefaultRefs?: RunbookAnalysisDefaults;
   private occurrenceWindow?: OccurrenceTimeWindow;
@@ -128,11 +131,12 @@ export class RunbookBuilder {
    * @param options - Execution options (e.g. continueOnFailure)
    * @returns This builder for chaining
    */
-  step(step: Step, options?: { readonly continueOnFailure?: boolean; readonly silent?: boolean }): RunbookBuilder {
+  step(step: Step, options?: Omit<StepDescriptor, 'step'>): RunbookBuilder {
     const descriptor: StepDescriptor = {
       step,
       ...(options?.continueOnFailure === true ? { continueOnFailure: true } : {}),
       ...(options?.silent === true ? { silent: true } : {}),
+      ...(options?.evidence === undefined ? {} : { evidence: options.evidence }),
     };
     this.stepDescriptors.push(descriptor);
     return this;
@@ -216,6 +220,12 @@ export class RunbookBuilder {
    */
   runbookContext(value: unknown): RunbookBuilder {
     this.structuredContext = value;
+    return this;
+  }
+
+  /** Declares diagnostics exported by the shared output builder. */
+  output(definition: RunbookOutputDefinition): RunbookBuilder {
+    this.outputDefinition = definition;
     return this;
   }
 
@@ -333,6 +343,7 @@ export class RunbookBuilder {
       casePriorities.set(knownCase.priority, knownCase.id);
     }
 
+    errors.push(...validateOutputDefinitions(this.stepDescriptors, this.outputDefinition));
     return errors;
   }
 
@@ -368,6 +379,7 @@ export class RunbookBuilder {
       ...omitUndefined({
         occurrenceTimeWindow,
         runbookContext: this.structuredContext,
+        output: this.outputDefinition,
         cloudExecutionPolicy: this.cloudPolicy,
         analysisDefaults: this.analysisDefaultRefs,
       }),

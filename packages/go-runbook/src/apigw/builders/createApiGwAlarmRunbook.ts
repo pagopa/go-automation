@@ -52,6 +52,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
       label: 'Query API Gateway AccessLog per errori HTTP',
       logGroups: [config.apiGwLogGroup],
       query: apiGwQuery,
+      ...(ctx.apiGwFallbackQuery !== undefined ? { emptyResultFallbackQuery: ctx.apiGwFallbackQuery } : {}),
       timeRangeFromParams: { start: 'startTime', end: 'endTime' },
       logGroupResolutionMode: 'search-configured-profiles',
       ...(config.paginateAccessLogResults !== undefined ? { paginateResults: config.paginateAccessLogResults } : {}),
@@ -112,7 +113,17 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
           ? { maxRequestIdsOverride: config.executionLogMaxRequestIds }
           : {}),
       }),
-      { silent: true },
+      {
+        silent: true,
+        evidence: [
+          {
+            id: 'api-gw-execution-logs',
+            label: 'API Gateway execution logs per richiesta',
+            type: 'log-sample',
+            retention: { mode: 'latest', limit: 5, timestampField: '@timestamp' },
+          },
+        ],
+      },
     );
 
     if (executionLogAnalysisMode === 'terminal') {

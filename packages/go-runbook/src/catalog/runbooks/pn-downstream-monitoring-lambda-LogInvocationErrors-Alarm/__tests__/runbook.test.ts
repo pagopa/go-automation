@@ -45,7 +45,6 @@ describe('pn-downstream-monitoring-lambda runbook', () => {
         'parse-lambda-errors',
         'query-lambda-invocation',
         'analyze-lambda-invocation',
-        'analyze-s3-recovery',
       ],
     );
   });

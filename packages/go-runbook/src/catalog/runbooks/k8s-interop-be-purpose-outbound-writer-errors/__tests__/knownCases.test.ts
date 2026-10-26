@@ -43,7 +43,7 @@ describe('INTEROP purpose outbound writer known cases', () => {
     assert.strictEqual(knownCase.id, 'purpose-outbound-writer-kafka-member-rejoin');
     assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
     assert.deepStrictEqual(knownCase.analysis?.downstreams, [INTEROP_DOWNSTREAMS.NESSUNO]);
-    assert.deepStrictEqual(knownCase.analysis?.links, undefined);
+    assert.deepStrictEqual(knownCase.analysis?.links ?? [], []);
   });
 
   it('matches the documented error in the application logs', () => {

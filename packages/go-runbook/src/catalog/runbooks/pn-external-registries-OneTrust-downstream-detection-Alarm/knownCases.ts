@@ -1,18 +1,12 @@
 /**
  * Known cases for the pn-external-registries-OneTrust-downstream-detection-Alarm runbook.
  */
-
 import { SEND_DOWNSTREAMS } from '../framework.js';
 import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
-
 import { stepEvidenceMatches } from '../common/evidenceConditions.js';
-
 const ONE_TRUST_PUBLISHED_VERSION_ENDPOINT =
   'https://app-de.onetrust.com/api/enterprise-policy/v1/privacynotices/{uuid}/published-version';
-const ONE_TRUST_TRANSIENT_FAILURE_RESOLUTION =
-  'Nessuna azione operativa locale se l’errore è un picco circoscritto; monitorare il downstream One-Trust e attenderne il ripristino.';
-
 /** Known OneTrust failures evaluated against the pn-external-registries downstream query. */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
@@ -21,11 +15,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 110,
     condition: stepEvidenceMatches(
       'query-pn-external-registries',
-
       '\\[DOWNSTREAM\\] Service OneTrust returned errors=(?:nested exception is )?' +
         'io\\.netty\\.handler\\.timeout\\.ReadTimeoutException',
     ),
-    resolution: ONE_TRUST_TRANSIENT_FAILURE_RESOLUTION,
+    resolution:
+      'Nessuna azione necessaria qualora sia solo un picco circoscritto in un intervallo di tempo limitato. Si tratterebbe di un disservizio momentaneo.',
     details: [
       ['Servizio', 'pn-external-registries'],
       ['Errore', '{{vars.externalRegistriesErrorMsg}}'],
@@ -36,6 +30,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       analysisType: 'ANALYZABLE',
       errorDetails: 'ReadTimeoutException durante la comunicazione con il downstream One-Trust.',
       downstreams: [SEND_DOWNSTREAMS.ONE_TRUST],
+      finalActions: [],
+      links: [],
     },
   }),
   knownCase({
@@ -44,11 +40,11 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 100,
     condition: stepEvidenceMatches(
       'query-pn-external-registries',
-
       '\\[DOWNSTREAM\\] Service OneTrust returned errors=503 Service Unavailable from GET ' +
         'https://app-de\\.onetrust\\.com/api/enterprise-policy/v1/privacynotices/[^/\\s"]+/published-version',
     ),
-    resolution: ONE_TRUST_TRANSIENT_FAILURE_RESOLUTION,
+    resolution:
+      'Nessuna azione necessaria qualora sia solo un picco circoscritto in un intervallo di tempo limitato. Si tratterebbe di un disservizio momentaneo.',
     details: [
       ['Servizio', 'pn-external-registries'],
       ['Endpoint', ONE_TRUST_PUBLISHED_VERSION_ENDPOINT],
@@ -60,6 +56,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       analysisType: 'ANALYZABLE',
       errorDetails: `HTTP 503 Service Unavailable restituito da One-Trust durante la chiamata GET ${ONE_TRUST_PUBLISHED_VERSION_ENDPOINT}.`,
       downstreams: [SEND_DOWNSTREAMS.ONE_TRUST],
+      finalActions: [],
+      links: [],
     },
   }),
 ];

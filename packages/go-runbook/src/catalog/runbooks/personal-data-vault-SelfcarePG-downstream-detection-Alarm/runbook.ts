@@ -24,8 +24,18 @@ export function buildRunbook(): Runbook {
     service: SERVICE,
     downstream: DOWNSTREAM,
     knownCases: KNOWN_CASES,
+    analysisDefaults: {
+      runbookName: 'personal-data-vault-SelfcarePG-downstream-detection-Alarm',
+      links: [
+        {
+          url: 'https://pagopa.atlassian.net/wiki/spaces/GO/pages/2405990619/personal-data-vault-SelfcarePG-downstream-detection-Alarm',
+          name: 'personal-data-vault-SelfcarePG-downstream-detection-Alarm',
+          type: 'CONFLUENCE',
+        },
+      ],
+    },
     occurrenceTimeWindow: {
-      beforeMinutes: 10,
+      beforeMinutes: 30,
       afterMinutes: 5,
     },
   });

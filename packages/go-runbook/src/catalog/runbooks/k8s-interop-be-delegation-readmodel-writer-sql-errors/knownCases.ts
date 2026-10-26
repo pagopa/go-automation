@@ -1,10 +1,9 @@
 import { INTEROP_DOWNSTREAMS, knownCase, type KnownCase } from '../framework.js';
-import { jiraLink } from '../common/analysisLinks.js';
+
 import { all, any } from '../common/conditions.js';
 import { stepEvidenceMatches } from '../common/evidenceConditions.js';
 import { varEquals } from '../common/varConditions.js';
 import { DELEGATION_READMODEL_WRITER_SQL_ALARM as alarm } from './alarmDefinition.js';
-
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'delegation-readmodel-writer-sql-kafka-coordinator-member-rejoin',
@@ -20,10 +19,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       ),
     ),
     resolution:
-      'Consultare PIN-7325 e raccogliere timestamp, frequenza delle ricorrenze e log del writer SQL, anche senza CID. ' +
-      'Verificare la ripresa del consumer e approfondire con il team di prodotto se il fenomeno persiste. ' +
-      'La card descrive una perdita della sessione Kafka, possibile anche con elaborazione lenta o problemi di rete, ' +
-      'e non documenta una correzione definitiva né criteri di chiusura.',
+      'Nessuna azione se le occorrenze sono concentrate in una finestra di pochi minuti: \u00E8 una riconnessione momentanea al broker Kafka. Se persistono per ore, verificare lo stato del pod e segnalare al team di prodotto. PIN-7325',
     details: [
       ['Ambiente', '{{vars.interopEnvironment}}'],
       ['Log group', '{{vars.interopLogGroup}}'],
@@ -36,8 +32,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       errorDetails: 'Il consumer Kafka ha perso la sessione di gruppo e tenta di effettuare il rejoin.',
       // La tabella indica NA: non viene attribuito un downstream esterno senza evidenze.
       downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-      finalActions: ['Verificare la ripresa del consumer e la persistenza del problema con il team di prodotto'],
-      links: [jiraLink('PIN-7325')],
+      finalActions: [],
+      links: [{ url: 'https://pagopa.atlassian.net/browse/PIN-7325', name: 'PIN-7325', type: 'JIRA' }],
     },
   }),
 ];

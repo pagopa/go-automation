@@ -67,7 +67,7 @@ export function interopKnownCase(refs: InteropKnownCaseRefs, config: InteropKnow
  * @param regex - Pattern evaluated against the JSON-stringified evidence rows
  * @returns An `or` condition over both query steps
  */
-export function anyInteropEvidenceMatches(refs: InteropKnownCaseRefs, regex: string): Condition {
+function anyInteropEvidenceMatches(refs: InteropKnownCaseRefs, regex: string): Condition {
   return anyStepEvidenceMatches([refs.applicationLogsStepId, refs.cidTrackerStepId], regex);
 }
 
@@ -79,7 +79,7 @@ export function anyInteropEvidenceMatches(refs: InteropKnownCaseRefs, regex: str
  * @param resolution - Operational resolution text
  * @returns The log action
  */
-export function interopKnownCaseAction(refs: InteropKnownCaseRefs, title: string, resolution: string): CaseAction {
+function interopKnownCaseAction(refs: InteropKnownCaseRefs, title: string, resolution: string): CaseAction {
   return {
     type: 'log',
     level: 'info',

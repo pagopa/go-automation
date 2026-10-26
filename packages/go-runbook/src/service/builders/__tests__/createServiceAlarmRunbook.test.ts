@@ -2,7 +2,12 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { ResultField } from '@go-automation/go-common/aws';
+import { GOLogger } from '@go-automation/go-common/core';
 
+import { CloudWatchLogsQueryStep } from '../../../steps/data/CloudWatchLogsQueryStep.js';
+import { buildRunbookOutput } from '../../../output/buildRunbookOutput.js';
+import { RunbookEngine } from '../../../core/RunbookEngine.js';
+import { knownCase } from '../../../builders/knownCase.js';
 import { createServiceAlarmRunbook } from '../createServiceAlarmRunbook.js';
 import type { ServiceAlarmConfig } from '../../types/ServiceAlarmConfig.js';
 import { isServiceRunbookContext } from '../../output/ServiceRunbookContext.js';
@@ -139,6 +144,155 @@ describe('createServiceAlarmRunbook', () => {
     );
     assert.strictEqual(context.evidence.length, 2);
   });
+
+  it('composes hook evidence once and keeps its retention independent of the family log limit', () => {
+    const runbook = createServiceAlarmRunbook(
+      baseConfig({
+        hooks: ['context', 'missing', 'empty'].map((name) => ({
+          at: 'after-service-analysis',
+          step: new CloudWatchLogsQueryStep({
+            id: `query-${name}`,
+            label: name,
+            logGroups: ['/aws/ecs/pn-service'],
+            query: 'fields @timestamp, @message',
+            timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+          }),
+          evidence: [
+            {
+              id: name,
+              label: `${name} context`,
+              type: 'log-sample',
+              retention: { mode: 'latest', limit: 2, timestampField: '@timestamp' },
+            },
+          ],
+        })),
+      }),
+    );
+    const baseResult = fakeResult();
+    const result = {
+      ...baseResult,
+      finalContext: {
+        ...baseResult.finalContext,
+        stepResults: new Map([
+          ...baseResult.finalContext.stepResults,
+          [
+            'query-context',
+            [
+              row({ '@timestamp': '2026-06-09T00:00:03Z', '@message': 'recovery completed' }),
+              row({ '@timestamp': '2026-06-09T00:00:01Z', '@message': 'restart' }),
+              row({ '@timestamp': '2026-06-09T00:00:02Z', '@message': 'recovering' }),
+            ],
+          ],
+          ['query-empty', []],
+        ]),
+      },
+    };
+    const output = buildRunbookOutput(runbook, result, { contextBuilder: buildServiceOutputContext }).context;
+    assert.strictEqual(output.evidence.length, 3);
+    assert.deepStrictEqual(output.evidence[2], {
+      id: 'context',
+      label: 'context context',
+      type: 'log-sample',
+      sourceStep: 'query-context',
+      items: [
+        {
+          '@timestamp': '2026-06-09T00:00:02Z',
+          '@message': 'recovering',
+          timestamp: '2026-06-09T00:00:02Z',
+          message: 'recovering',
+        },
+        {
+          '@timestamp': '2026-06-09T00:00:03Z',
+          '@message': 'recovery completed',
+          timestamp: '2026-06-09T00:00:03Z',
+          message: 'recovery completed',
+        },
+      ],
+      truncated: true,
+    });
+    const limited = buildRunbookOutput(runbook, result, {
+      contextBuilder: (rb, executionResult) => buildServiceOutputContext(rb, executionResult, { maxRecentLogs: 1 }),
+    }).context;
+    assert.strictEqual(limited.evidence[2]?.items?.length, 2);
+    assert.strictEqual(limited.evidence[2]?.truncated, true);
+  });
+
+  for (const matchKnownCase of [false, true]) {
+    it(`retains the first extracted trace in the output ${matchKnownCase ? 'on early resolution' : 'and the correlation query'}`, async () => {
+      const firstTraceId = '1-6ad86e11-bbc9b685f973172eb4c3377e';
+      const laterTraceId = '1-6ad86f35-b3cff4717d51f014d43d8d23';
+      const queries: string[] = [];
+      const runbook = createServiceAlarmRunbook(
+        baseConfig({
+          knownCases: matchKnownCase
+            ? [
+                knownCase({
+                  id: 'known-error',
+                  description: 'Known application error',
+                  priority: 100,
+                  condition: {
+                    type: 'compare',
+                    ref: 'vars.pnServiceErrorMsg',
+                    operator: '==',
+                    value: 'Exception: latest failure',
+                  },
+                  resolution: 'Documented resolution.',
+                  analysis: { proposedStatus: 'IN_PROGRESS', analysisType: 'ANALYZABLE' },
+                }),
+              ]
+            : [],
+        }),
+      );
+      const result = await new RunbookEngine(new GOLogger()).execute(
+        runbook,
+        new Map([
+          ['startTime', '2026-10-21T07:43:00Z'],
+          ['endTime', '2026-10-21T07:58:00Z'],
+        ]),
+        createTestServiceRegistry({
+          cloudWatchLogs: {
+            // eslint-disable-next-line @typescript-eslint/require-await
+            async queryWithStatistics(_groups: ReadonlyArray<string>, query: string) {
+              queries.push(query);
+              const rows =
+                queries.length === 1
+                  ? [
+                      row({
+                        level: 'ERROR',
+                        message: 'Exception: first failure',
+                        trace_id: 'batch_id:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+                        '@message': JSON.stringify({ 'AWS-XRAY-TRACE-ID': `${firstTraceId}@0123456789abcdef` }),
+                      }),
+                      row({ level: 'ERROR', message: 'Exception: latest failure', trace_id: laterTraceId }),
+                    ]
+                  : [];
+              return {
+                rows,
+                statistics: { bytesScanned: 1, recordsScanned: rows.length, recordsMatched: rows.length },
+                queryExecutions: [],
+              };
+            },
+          },
+        }),
+      );
+
+      assert.strictEqual(result.status, 'completed');
+      assert.strictEqual(result.finalContext.vars.get('pnServiceTraceId'), firstTraceId);
+      assert.strictEqual(result.finalContext.vars.get('pnServiceErrorMsg'), 'Exception: latest failure');
+      const output = buildServiceOutputContext(runbook, result);
+      assert.strictEqual(output?.fields.find(({ name }) => name === 'traceId')?.value, firstTraceId);
+      assert.strictEqual(queries.length, matchKnownCase ? 1 : 2);
+      if (matchKnownCase) {
+        assert.deepStrictEqual(
+          result.matchedCases.map(({ id }) => id),
+          ['known-error'],
+        );
+      } else {
+        assert.ok(queries[1]?.includes(firstTraceId));
+        assert.ok(!queries[1]?.includes(laterTraceId));
+      }
+    });
+  }
 
   it('rejects a service.name that is not a slug (would break step ids)', () => {
     assert.throws(

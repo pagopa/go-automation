@@ -13,6 +13,65 @@ function row(fields: Record<string, string>): ResultField[] {
 }
 
 describe('scanServiceLogs', () => {
+  const firstUuid = '11111111-1111-1111-1111-111111111111';
+  const secondUuid = '22222222-2222-2222-2222-222222222222';
+  const routing = new KnownUrlsRegistry([
+    { url: 'https://service-a.example/', target: 'service-a' },
+    { url: 'https://service-b.example/', target: 'service-b' },
+  ]);
+
+  for (const level of ['ERROR', 'WARN', '']) {
+    it(`pairs the selected ${level || 'keyword'} failure URL with its own fallback UUID`, () => {
+      const scan = scanServiceLogs(
+        [
+          row({ level: 'INFO', message: `Invoking https://service-a.example/call FALLBACK-UUID:${firstUuid}` }),
+          row({ level, message: `Error calling https://service-b.example/call FALLBACK-UUID:${secondUuid}` }),
+        ],
+        SCHEMA,
+        routing,
+      );
+      assert.equal(scan.knownUrl?.known.target, 'service-b');
+      assert.equal(scan.fallbackUuid, secondUuid);
+    });
+  }
+
+  it('does not borrow a UUID when the selected URL row has none', () => {
+    const scan = scanServiceLogs(
+      [
+        row({ level: 'INFO', message: `Invoking https://service-a.example/call FALLBACK-UUID:${firstUuid}` }),
+        row({ level: 'ERROR', message: 'Error calling https://service-b.example/call' }),
+        row({ level: 'ERROR', message: `Other operation FALLBACK-UUID:${secondUuid}` }),
+      ],
+      SCHEMA,
+      routing,
+    );
+    assert.equal(scan.knownUrl?.known.target, 'service-b');
+    assert.equal(scan.fallbackUuid, undefined);
+  });
+
+  it('keeps the UUID paired with the first URL at equal priority', () => {
+    const scan = scanServiceLogs(
+      [
+        row({ level: 'ERROR', message: `Error calling https://service-a.example/call FALLBACK-UUID:${firstUuid}` }),
+        row({ level: 'ERROR', message: `Error calling https://service-b.example/call FALLBACK-UUID:${secondUuid}` }),
+      ],
+      SCHEMA,
+      routing,
+    );
+    assert.equal(scan.knownUrl?.known.target, 'service-a');
+    assert.equal(scan.fallbackUuid, firstUuid);
+  });
+
+  for (const message of [
+    `Error calling https://service-b.example/call FALLBACK-UUID:${firstUuid} FALLBACK-UUID:${secondUuid}`,
+    `Error calling https://service-a.example/call and https://service-b.example/call FALLBACK-UUID:${secondUuid}`,
+  ]) {
+    it(`rejects ambiguous invocation correlation: ${message}`, () => {
+      const scan = scanServiceLogs([row({ level: 'ERROR', message })], SCHEMA, routing);
+      assert.ok(scan.knownUrl);
+      assert.equal(scan.fallbackUuid, undefined);
+    });
+  }
   it('derives error message, known URL, fallback UUID and trace id in a single pass', () => {
     const registry = new KnownUrlsRegistry([{ url: 'https://api.io.pagopa.it/api/v1/activations/', target: 'AppIO' }]);
     const rows: ReadonlyArray<ResultField[]> = [

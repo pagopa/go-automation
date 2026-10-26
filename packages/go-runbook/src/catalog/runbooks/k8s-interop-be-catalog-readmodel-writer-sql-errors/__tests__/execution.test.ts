@@ -92,7 +92,7 @@ describe('catalog readmodel writer SQL execution', () => {
       assert.strictEqual(draft?.kind, 'KNOWN_CASE');
       assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
       assert.deepStrictEqual(draft.downstreams, [INTEROP_DOWNSTREAMS.NESSUNO]);
-      assert.match(draft.conclusionNotes, /in loro assenza cercare per pod e intervallo temporale/u);
+
       assert.deepStrictEqual(logGroups, ['/aws/eks/interop-eks-cluster-prod/application']);
       assert.strictEqual(queries.length, 1);
       assert.ok(queries[0]?.includes('(log like /ERROR/ or stream = "stderr")'));
@@ -106,9 +106,7 @@ describe('catalog readmodel writer SQL execution', () => {
   it('keeps the Kafka cause, service association and recovery open for verification', async () => {
     const { draft } = await execute('prod', { applicationMessage: KAFKA_REJOIN });
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.match(draft.conclusionNotes, /elaborazione lenta/u);
-    assert.match(draft.conclusionNotes, /20 commenti consultati non citano/u);
-    assert.match(draft.conclusionNotes, /il tentativo di rejoin non prova il recupero/u);
+
     assert.ok(draft.links.some(({ url }) => url === 'https://pagopa.atlassian.net/browse/PIN-7325'));
   });
 

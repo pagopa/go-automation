@@ -2,24 +2,13 @@ import { varEquals, varExists, varMatches } from '../common/varConditions.js';
 /**
  * Known cases for the pn-delivery-B2B-ApiGwAlarm runbook.
  */
-
 import { SEND_DOWNSTREAMS, knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
 
-import { slackLink } from '../common/analysisLinks.js';
 import { all, any, not } from '../common/conditions.js';
 import { stepEvidenceMatches } from '../common/evidenceConditions.js';
 import { apiGwPathMatches, apiGwStatusIs } from '../../../apigw/knownCases/conditions.js';
 import { VERSIONING_LAMBDA_ERROR_COUNT_VAR, VERSIONING_LAMBDA_PROBE_STATE_VAR } from './versioningLambdaProbe.js';
-
-const SELFCARE_500_THREAD = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1763476967853039';
-const NO_APPLICATION_LOGS_THREAD = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1771856191424399';
-const F24_GONE_THREAD_27_MAY = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1779875991448379';
-const F24_GONE_THREAD_7_JULY = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1783422596434969';
-const MISSING_PAYMENT_THREAD_GO = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1779973763295549';
-const MISSING_PAYMENT_THREAD_DELIVERY = 'https://pagopaspa.slack.com/archives/C064KJYNLPL/p1779974451222819';
-const DOCUMENT_INDEX_THREAD = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1786977695806849';
-
 const EXTERNAL_REGISTRIES_SELFCARE_READ_TIMEOUT = any(
   stepEvidenceMatches(
     'query-pn-external-registries',
@@ -36,7 +25,6 @@ const EXTERNAL_REGISTRIES_SELFCARE_READ_TIMEOUT = any(
     ),
   ),
 );
-
 const EXTERNAL_REGISTRIES_SELFCARE_RETRY_TIMEOUT = all(
   stepEvidenceMatches('query-pn-external-registries', 'Exception caught by retry'),
   stepEvidenceMatches(
@@ -44,18 +32,15 @@ const EXTERNAL_REGISTRIES_SELFCARE_RETRY_TIMEOUT = all(
     'ResourceAccessException:[\\s\\S]*ext-registry-private/pa/v1/groups-all[\\s\\S]*Read timed out',
   ),
 );
-
 const EXTERNAL_REGISTRIES_CONNECTION_ABORTED = stepEvidenceMatches(
   'query-pn-external-registries',
   'reactor\\.netty\\.channel\\.AbortedException: Connection has been closed BEFORE send operation',
 );
-
 const GENERIC_API_GATEWAY_500 = any(
   not(varExists('apiGwErrorMessage')),
   varEquals('apiGwErrorMessage', '-'),
   varMatches('apiGwErrorMessage', '^Internal server error$'),
 );
-
 /**
  * Actionable/manual cases use the 500 range. Automatically closable cases
  * use the 200 range, so a benign overlap can never hide work still required.
@@ -64,13 +49,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'pdv-tokenizer-404-tbd',
     description: 'Personal Data Vault Tokenizer restituisce 404 Not Found',
-    priority: 550,
+    priority: 1550,
     condition: stepEvidenceMatches(
       'query-pn-data-vault',
       '\\[DOWNSTREAM\\] Service PersonalDataVault_Tokenizer returned errors=404 Not Found',
     ),
     title: '[DOWNSTREAM] PersonalDataVault_Tokenizer - 404 Not Found',
-    resolution: 'TBD nel documento: approfondire la risposta 404 del downstream Personal Data Vault.',
+    resolution: 'Risoluzione non documentata.',
     details: [
       ['Downstream', 'Personal Data Vault'],
       ['Errore', '{{vars.dataVaultErrorMsg}}'],
@@ -79,21 +64,21 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.PERSONAL_DATA_VAULT],
-      finalActions: ['Approfondire la risposta 404 del tokenizer Personal Data Vault'],
+      finalActions: [],
+      links: [],
     },
   }),
-
   knownCase({
     id: 'pn-ss-pn-f24-read-forbidden',
     description: 'Il client pn-f24 non ha i privilegi di lettura sul documento Safe Storage',
-    priority: 540,
+    priority: 1540,
     condition: stepEvidenceMatches(
       'query-pn-safestorage',
       'Ending process getFile\\(\\) with errors=403 FORBIDDEN[\\s\\S]*Client\\s*:\\s*pn-f24 not has privilege for read document',
     ),
     title: 'Safe Storage 403 - pn-f24 privo dei privilegi di lettura',
     resolution:
-      'Verificare che la notifica sia associata all’ente “Comune di Monte San Savino” prima di chiudere il caso.',
+      'Verificare che la notifica sia associata all\u2019ente \u201CComune di Monte San Savino\u201D. Vedi link',
     details: [
       ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
       ['Errore', '{{vars.safeStorageErrorMsg}}'],
@@ -102,17 +87,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
       resources: [{ name: 'pn-ss' }],
-      finalActions: [
-        'Estrapolare lo IUN e verificare senderDenomination nella tabella pn-Notifications',
-        'Confermare che il mittente sia Comune di Monte San Savino',
-      ],
+      finalActions: [],
+      links: [],
     },
   }),
-
   knownCase({
     id: 'pn-f24-safe-storage-metadata-gone',
     description: 'PN-F24 riceve 410 Gone recuperando i metadati F24 da Safe Storage',
-    priority: 530,
+    priority: 1530,
     condition: all(
       apiGwStatusIs('500'),
       apiGwPathMatches('/attachments/payment/[^/]+/F24$'),
@@ -123,7 +105,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     ),
     title: 'PN-F24 - metadati Safe Storage rimossi (410 Gone)',
     resolution:
-      'Verificare l’ente mittente della notifica; nei casi osservati il mittente era Comune di Monte San Savino.',
+      'Nei casi documentati la notifica era associata al Comune di Monte San Savino; il mittente \u00E8 verificabile tramite la tabella pn-Notifications nell\u2019account core. Riferimento ai thread indicati nel runbook.',
     details: [
       ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
       ['Errore PN-F24', '{{vars.f24ErrorMsg}}'],
@@ -131,17 +113,21 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: [
-        'Estrapolare lo IUN e verificare senderDenomination nella tabella pn-Notifications',
-        'Confermare che il mittente sia Comune di Monte San Savino',
-      ],
+      finalActions: [],
       links: [
-        slackLink(F24_GONE_THREAD_27_MAY, 'Thread Slack 27/05/2026'),
-        slackLink(F24_GONE_THREAD_7_JULY, 'Thread Slack 07/07/2026'),
+        {
+          url: 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1779875991448379',
+          name: 'Thread Slack 27/05/2026',
+          type: 'SLACK',
+        },
+        {
+          url: 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1783422596434969',
+          name: 'Thread Slack 07/07/2026',
+          type: 'SLACK',
+        },
       ],
     },
   }),
-
   knownCase({
     id: 'delivery-document-index-out-of-bounds',
     description: 'Indice documento fuori dai limiti causa ArrayIndexOutOfBoundsException su pn-delivery',
@@ -155,7 +141,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       ),
     ),
     title: 'pn-delivery - indice documento fuori dai limiti',
-    resolution: 'Caso noto documentato nel thread Slack del 17/08/2026.',
+    resolution: 'Thread Slack 17/08/2026 Bug Produzione: PN-21372',
     details: [
       ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
       ['Errore', '{{vars.deliveryErrorMsg}}'],
@@ -163,10 +149,16 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     analysis: {
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
-      links: [slackLink(DOCUMENT_INDEX_THREAD, 'Thread Slack 17/08/2026')],
+      links: [
+        {
+          url: 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1786977695806849',
+          name: 'Thread Slack 17/08/2026',
+          type: 'SLACK',
+        },
+      ],
+      finalActions: [],
     },
   }),
-
   knownCase({
     id: 'delivery-missing-payment-attachment-index',
     description: 'Notifica priva dell’indice dell’allegato di pagamento richiesto',
@@ -180,7 +172,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       ),
     ),
     title: 'pn-delivery - payment attachment index assente',
-    resolution: 'Caso noto documentato nei thread Slack del 28/05/2026.',
+    resolution: 'Thread Slack 28/05/2026 - 1 Thread Slack 28/05/2026 - 2',
     details: [
       ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
       ['Errore', '{{vars.deliveryErrorMsg}}'],
@@ -189,16 +181,24 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       links: [
-        slackLink(MISSING_PAYMENT_THREAD_GO, 'Thread Slack GO 28/05/2026'),
-        slackLink(MISSING_PAYMENT_THREAD_DELIVERY, 'Thread Slack Delivery 28/05/2026'),
+        {
+          url: 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1779973763295549',
+          name: 'Thread Slack GO 28/05/2026',
+          type: 'SLACK',
+        },
+        {
+          url: 'https://pagopaspa.slack.com/archives/C064KJYNLPL/p1779974451222819',
+          name: 'Thread Slack Delivery 28/05/2026',
+          type: 'SLACK',
+        },
       ],
+      finalActions: [],
     },
   }),
-
   knownCase({
     id: 'apigw-lambda-invocation-503',
     description: 'API Gateway non riesce a invocare temporaneamente la Lambda di integrazione (503)',
-    priority: 297,
+    priority: 1297,
     condition: all(
       apiGwStatusIs('503'),
       varMatches('apiGwErrorMessage', 'Internal server error'),
@@ -208,28 +208,28 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       ),
     ),
     title: 'API Gateway 503 - Lambda invocation failed',
-    resolution: 'Nessuna azione al momento: errore di rete AWS temporaneo.',
+    resolution: 'Risoluzione non documentata.',
     details: [
       ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
       ['Execution log', '{{vars.apiGwExecutionLogGroup}}'],
     ],
     analysis: {
-      proposedStatus: 'COMPLETED',
+      proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
     },
   }),
-
   knownCase({
     id: 'selfcare-tls-hostname-mismatch',
     description: 'Chiamata a Selfcare fallita per certificato TLS non corrispondente all’hostname',
-    priority: 520,
+    priority: 1520,
     condition: stepEvidenceMatches(
       'query-pn-data-vault',
       'No subject alternative DNS name matching api\\.selfcare\\.pagopa\\.it found',
     ),
     title: 'Selfcare - certificato TLS non valido per api.selfcare.pagopa.it',
-    resolution:
-      'Il certificato presentato da Selfcare non copre l’hostname richiesto: segnalare al team Selfcare se ricorrente.',
+    resolution: 'Risoluzione non documentata.',
     details: [
       ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
       ['Errore', '{{vars.dataVaultErrorMsg}}'],
@@ -237,62 +237,64 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
     },
   }),
-
   knownCase({
     id: 'pn-ss-get-file-document-deleted',
     description: 'safe-storage restituisce 410 GONE perché il documento è stato cancellato',
-    priority: 283,
+    priority: 1283,
     condition: stepEvidenceMatches('query-pn-f24', 'Ending process getFile\\(\\) with errors=410 GONE'),
     title: 'safe-storage 410 GONE - documento cancellato',
-    resolution: 'Risorsa rimossa permanentemente da safe-storage: nessuna azione di ripristino possibile.',
+    resolution: 'Risoluzione non documentata.',
     details: [
       ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
       ['Errore', '{{vars.f24ErrorMsg}}'],
     ],
     analysis: {
-      proposedStatus: 'COMPLETED',
+      proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
     },
   }),
-
   knownCase({
     id: 'apigw-waf-rule-evaluation-error',
     description: 'API Gateway 500 per errore di valutazione delle regole AWS WAF',
-    priority: 286,
+    priority: 1286,
     condition: all(apiGwStatusIs('500'), varMatches('apiGwErrorMessage', 'error evaluating the AWS WAF rules')),
     title: 'API Gateway 500 - errore di valutazione WAF',
-    resolution:
-      'Errore infrastrutturale AWS nella valutazione delle regole WAF: non dipende da pn-delivery e non richiede azioni.',
+    resolution: 'Risoluzione non documentata.',
     details: [
       ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
       ['Errore', '{{vars.apiGwErrorMessage}}'],
     ],
     analysis: {
-      proposedStatus: 'COMPLETED',
+      proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
     },
   }),
-
   knownCase({
     id: 'apigw-endpoint-network-error',
     description: 'API Gateway 504 per errore di rete nella comunicazione con l’integrazione',
-    priority: 285,
+    priority: 1285,
     condition: all(apiGwStatusIs('504'), varMatches('apiGwErrorMessage', 'Network error communicating with endpoint')),
     title: 'API Gateway 504 - Network error communicating with endpoint',
-    resolution:
-      'Errore di rete transitorio fra API Gateway e l’integrazione: nessuna azione necessaria salvo ricorrenza.',
+    resolution: 'Risoluzione non documentata.',
     details: [
       ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
       ['Errore', '{{vars.apiGwErrorMessage}}'],
     ],
     analysis: {
-      proposedStatus: 'COMPLETED',
+      proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
     },
   }),
-
   knownCase({
     id: 'apigw-endpoint-timeout-no-delivery-logs',
     description: 'API Gateway 504 per superamento del timeout di integrazione senza errori su pn-delivery',
@@ -303,7 +305,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       varEquals('deliveryLogCount', '0'),
     ),
     title: 'API Gateway 504 - Endpoint request timed out',
-    resolution: 'Nessuna azione necessaria; API Gateway ha superato il timeout di risposta di circa 29 secondi.',
+    resolution: 'Nessuna azione necessaria.',
     details: [
       ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
       ['Status Code', '{{vars.apiGwStatusCode}}'],
@@ -312,13 +314,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     analysis: {
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
     },
   }),
-
   knownCase({
     id: 'apigw-500-no-application-logs',
     description: 'API Gateway 500 senza errori correlati su pn-delivery o sulla Lambda di versioning',
-    priority: 295,
+    priority: 1295,
     condition: all(
       apiGwStatusIs('500'),
       varEquals('deliveryLogCount', '0'),
@@ -337,20 +340,25 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       GENERIC_API_GATEWAY_500,
     ),
     title: 'API Gateway 500 senza log applicativi correlati',
-    resolution:
-      'Nessun errore trovato né su pn-delivery né sulla Lambda di versioning; non sono richieste azioni ulteriori.',
+    resolution: 'Riferimento al thread Slack indicato nella pagina; non \u00E8 documentata una risoluzione.',
     details: [
       ['Endpoint', '{{vars.apiGwHttpMethod}} {{vars.apiGwPath}}'],
       ['Verifica Lambda versioning', '{{vars.versioningLambdaProbeState}}'],
       ['Errori Lambda versioning', '{{vars.versioningLambdaErrorCount}}'],
     ],
     analysis: {
-      proposedStatus: 'COMPLETED',
+      proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      links: [slackLink(NO_APPLICATION_LOGS_THREAD, 'Thread Slack del caso senza log applicativi')],
+      links: [
+        {
+          url: 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1771856191424399',
+          name: 'Thread Slack del caso senza log applicativi',
+          type: 'SLACK',
+        },
+      ],
+      finalActions: [],
     },
   }),
-
   knownCase({
     id: 'data-vault-selfcarepg-500',
     description: 'SelfcarePG restituisce 500 durante l’inserimento dell’istituzione in pn-data-vault',
@@ -361,7 +369,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     ),
     title: '[DOWNSTREAM] SelfcarePG - 500 Internal Server Error',
     resolution:
-      'Disservizio solitamente temporaneo del downstream Selfcare; se non ricorre nel breve non è necessaria alcuna azione.',
+      'Solitamente causato da un disservizio temporaneo. Se non si riverifica nel breve \u00E8 possibile ignorarlo https://pagopaspa.slack.com/archives/C087KRMD16E/p1763476967853039',
     details: [
       ['Downstream', 'SelfcarePG'],
       ['Errore', '{{vars.dataVaultErrorMsg}}'],
@@ -370,10 +378,16 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.SELFCARE],
-      links: [slackLink(SELFCARE_500_THREAD, 'Thread Slack SelfcarePG 500')],
+      links: [
+        {
+          url: 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1763476967853039',
+          name: 'Thread Slack SelfcarePG 500',
+          type: 'SLACK',
+        },
+      ],
+      finalActions: [],
     },
   }),
-
   knownCase({
     id: 'data-vault-selfcare-read-timeout',
     description: 'ReadTimeout verso Selfcare durante l’inserimento dell’istituzione in pn-data-vault',
@@ -383,66 +397,67 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       'WebClientRequestException:[\\s\\S]*ReadTimeoutException[\\s\\S]*Request to POST https://api\\.selfcare\\.pagopa\\.it/external/data-vault/v1/pn-pg/institutions/add',
     ),
     title: '[DOWNSTREAM] Selfcare - ReadTimeout da pn-data-vault',
-    resolution: 'Problematica già segnalata al downstream Selfcare; attendere il ripristino.',
+    resolution: 'Problematica segnalata gi\u00E0 da tempo al downstream coinvolto.',
     details: [['Errore', '{{vars.dataVaultErrorMsg}}']],
     analysis: {
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.SELFCARE],
-      finalActions: ['Attendere il ripristino del downstream Selfcare'],
+      finalActions: [],
+      links: [],
     },
   }),
-
   knownCase({
     id: 'external-registries-selfcarepg-read-timeout',
     description: 'ReadTimeout del downstream SelfcarePG da pn-external-registries',
     priority: 292,
     condition: EXTERNAL_REGISTRIES_SELFCARE_READ_TIMEOUT,
     title: '[DOWNSTREAM] SelfcarePG - ReadTimeout da pn-external-registries',
-    resolution: 'Problematica già segnalata al downstream Selfcare; attendere il ripristino.',
+    resolution: 'Problematica segnalata gi\u00E0 da tempo al downstream coinvolto.',
     details: [['Errore', '{{vars.externalRegistriesErrorMsg}}']],
     analysis: {
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.SELFCARE],
-      finalActions: ['Attendere il ripristino del downstream Selfcare'],
+      finalActions: [],
+      links: [],
     },
   }),
-
   knownCase({
     id: 'external-registries-selfcare-retry-timeout',
     description: 'Retry fallito per timeout verso Selfcare da pn-external-registries',
     priority: 291,
     condition: EXTERNAL_REGISTRIES_SELFCARE_RETRY_TIMEOUT,
     title: '[DOWNSTREAM] Selfcare - retry fallito per ReadTimeout',
-    resolution: 'Problematica già segnalata al downstream Selfcare; attendere il ripristino.',
+    resolution: 'Problematica segnalata gi\u00E0 da tempo al downstream coinvolto.',
     details: [['Errore', '{{vars.externalRegistriesErrorMsg}}']],
     analysis: {
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.SELFCARE],
-      finalActions: ['Attendere il ripristino del downstream Selfcare'],
+      finalActions: [],
+      links: [],
     },
   }),
-
   knownCase({
     id: 'external-registries-connection-aborted',
     description: 'Connessione chiusa prima dell’invio da pn-external-registries',
     priority: 290,
     condition: EXTERNAL_REGISTRIES_CONNECTION_ABORTED,
     title: 'pn-external-registries - Connection Aborted prima dell’invio',
-    resolution: 'Evento di rete occasionale; nessuna azione da intraprendere al momento.',
+    resolution: "Trattandosi di un\u2019evento occasionale non c'\u00E8 nessuna azione da intraprendere.",
     details: [['Errore', '{{vars.externalRegistriesErrorMsg}}']],
     analysis: {
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
     },
   }),
-
   knownCase({
     id: 'data-vault-connection-aborted-after-success',
     description: 'Connessione pn-data-vault chiusa dopo il completamento corretto dell’operazione',
-    priority: 289,
+    priority: 1289,
     condition: all(
       stepEvidenceMatches(
         'query-pn-data-vault',
@@ -455,15 +470,15 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       stepEvidenceMatches('query-pn-data-vault', 'Ending process _getRecipientDenominationByInternalId'),
     ),
     title: 'pn-data-vault - Connection Aborted dopo operazione riuscita',
-    resolution:
-      'Evento occasionale successivo a un’operazione conclusa correttamente; nessuna azione da intraprendere.',
+    resolution: 'Risoluzione non documentata.',
     details: [['Errore', '{{vars.dataVaultErrorMsg}}']],
     analysis: {
-      proposedStatus: 'COMPLETED',
+      proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
     },
   }),
-
   knownCase({
     id: 'delivery-external-registries-read-timeout',
     description: 'pn-delivery non riesce a recuperare i gruppi per timeout verso pn-external-registries',
@@ -483,19 +498,19 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       ),
     ),
     title: 'pn-delivery - timeout verso pn-external-registries',
-    resolution: 'Errore di rete noto; segnalare il caso se si protrae nel tempo.',
+    resolution: 'Da segnalare se si protrae nel tempo.',
     details: [['Errore', '{{vars.deliveryErrorMsg}}']],
     analysis: {
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
-      finalActions: ['Monitorare la ricorrenza e segnalare se il timeout si protrae nel tempo'],
+      finalActions: [],
+      links: [],
     },
   }),
-
   knownCase({
     id: 'delivery-data-vault-read-timeout',
     description: 'pn-delivery riceve un ReadTimeout chiamando pn-data-vault',
-    priority: 287,
+    priority: 1287,
     condition: all(
       stepEvidenceMatches(
         'query-pn-delivery',
@@ -504,12 +519,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       varExists('dataVaultLogCount'),
     ),
     title: 'pn-delivery - ReadTimeout verso pn-data-vault',
-    resolution: 'Timeout di rete noto nella chiamata a pn-data-vault; monitorare se ricorrente.',
+    resolution: 'Risoluzione non documentata.',
     details: [['Errore', '{{vars.deliveryErrorMsg}}']],
     analysis: {
-      proposedStatus: 'COMPLETED',
+      proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      finalActions: ['Monitorare la ricorrenza del timeout verso pn-data-vault'],
+      finalActions: [],
+      links: [],
     },
   }),
 ];

@@ -97,6 +97,46 @@ describe('AnalyzeServiceLogsStep', () => {
     assert.strictEqual(result.output?.fallbackUuidExtracted, undefined);
   });
 
+  it('clears an inherited fallback when the selected downstream row has no associated UUID', async () => {
+    const step = new AnalyzeServiceLogsStep({
+      id: 'analyze',
+      label: 'Analyze',
+      fromStep: 'query',
+      varPrefix: 'svc',
+      registry,
+    });
+    const result = await step.execute(
+      createContext({
+        vars: { fallbackUuid: '11111111-2222-3333-4444-555555555555', xRayTraceId: '1-original' },
+        stepOutput: [
+          row('FALLBACK-UUID:11111111-2222-3333-4444-555555555555 unrelated operation', 'INFO'),
+          row('Error calling https://api.io.pagopa.it/api/v1/activations/foo'),
+        ],
+      }),
+    );
+    assert.equal(result.vars?.['fallbackUuid'], '');
+    assert.equal(result.vars?.['svcFallbackUuidFresh'], 'false');
+    assert.equal(result.output?.fallbackUuidExtracted, undefined);
+    assert.equal(result.vars?.['xRayTraceId'], undefined);
+  });
+
+  it('preserves an existing query fallback when no downstream URL is selected', async () => {
+    const step = new AnalyzeServiceLogsStep({
+      id: 'analyze',
+      label: 'Analyze',
+      fromStep: 'query',
+      varPrefix: 'svc',
+      registry,
+    });
+    const result = await step.execute(
+      createContext({
+        vars: { fallbackUuid: '11111111-2222-3333-4444-555555555555' },
+        stepOutput: [row('Error without a downstream invocation')],
+      }),
+    );
+    assert.equal(result.vars?.['fallbackUuid'], undefined);
+  });
+
   it('marks FallbackUuidFresh=false when the UUID matches the existing one', async () => {
     const step = new AnalyzeServiceLogsStep({
       id: 'analyze',

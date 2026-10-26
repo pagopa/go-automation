@@ -36,18 +36,12 @@ function byId(id: string): KnownCase {
 describe('pn-downstream-monitoring-lambda known cases', () => {
   const evaluator = new ConditionEvaluator();
 
-  it('requires monitoring and Infra verification after observed S3 recovery', () => {
-    const knownCase = byId('downstream-monitoring-s3-slow-down-recovered');
-    assert.strictEqual(knownCase.analysis?.proposedStatus, 'COMPLETED');
-    const finalActions = knownCase.analysis?.finalActions?.join(' ') ?? '';
-    assert.match(finalActions, /Monitorare la ricorrenza/u);
-    assert.match(finalActions, /verificare con Infra lo stato/u);
-    assert.match(finalActions, /intervento citato nella segnalazione storica/u);
-    assert.doesNotMatch(finalActions, /Non è necessario altro confronto/u);
+  it('does not include the undocumented S3 recovery classification', () => {
+    assert.ok(!KNOWN_CASES.some(({ id }) => id === 'downstream-monitoring-s3-slow-down-recovered'));
   });
 
   for (const runtimeCase of lambda.LAMBDA_RUNTIME_KNOWN_CASES) {
-    it(`preserves console evidence for ${runtimeCase.id} while replacing the resolution`, () => {
+    it(`preserves console evidence for ${runtimeCase.id} without adding instructions`, () => {
       const knownCase = byId(runtimeCase.id);
       assert.strictEqual(runtimeCase.action.type, 'log');
       assert.strictEqual(knownCase.action.type, 'log');
@@ -59,16 +53,12 @@ describe('pn-downstream-monitoring-lambda known cases', () => {
         details.filter(([label]) => label !== 'Risoluzione' && label !== 'Account con errori'),
         (runtimeCase.action.details ?? []).filter(([label]) => label !== 'Risoluzione'),
       );
-      assert.deepStrictEqual(
-        details.filter(([label]) => label === 'Account con errori'),
-        [['Account con errori', '{{vars.downstreamMonitoringErrorAccounts}}']],
-      );
+      assert.deepStrictEqual(knownCase.analysis?.finalActions ?? [], []);
       assert.deepStrictEqual(
         details.filter(([label]) => label === 'Risoluzione'),
         [['Risoluzione', knownCase.analysis?.resolution]],
       );
-      assert.notStrictEqual(knownCase.analysis?.resolution, runtimeCase.analysis?.resolution);
-      assert.match(knownCase.analysis?.resolution ?? '', /analisi aperta/u);
+
       assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
     });
   }
@@ -80,9 +70,7 @@ describe('pn-downstream-monitoring-lambda known cases', () => {
 
     assert.strictEqual(evaluator.evaluate(knownCase.condition, contextWithError(message)), true);
     assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
-    assert.match(knownCase.analysis?.resolution ?? '', /account core/u);
-    assert.match(knownCase.analysis?.resolution ?? '', /core e confinfo/u);
-    assert.match(knownCase.analysis?.resolution ?? '', /sezione Monitoring della Lambda/u);
+
     assert.doesNotMatch(knownCase.analysis?.resolution ?? '', /Written|recupero dei record|remediation completata/u);
   });
 

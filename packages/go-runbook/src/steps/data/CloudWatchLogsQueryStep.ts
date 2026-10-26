@@ -1,4 +1,5 @@
 import { omitUndefined } from '@go-automation/go-common/core';
+import { sumCloudWatchLogsQueryStatistics } from '@go-automation/go-common/aws';
 import type { ResultField } from '@go-automation/go-common/aws';
 import type { AWSCloudWatchLogsLogGroupResolutionMode } from '@go-automation/go-common/aws';
 import type { Step } from '../../types/Step.js';
@@ -25,6 +26,8 @@ export interface CloudWatchLogsQueryConfig {
   readonly logGroups: ReadonlyArray<string>;
   /** CloudWatch Logs Insights query string (supports {{params.xxx}} and {{vars.xxx}} templates) */
   readonly query: string;
+  /** Query used only after a successful first query returns no rows. */
+  readonly emptyResultFallbackQuery?: string;
   /** Parameter names to resolve start/end dates from context.params */
   readonly timeRangeFromParams: TimeRangeFromParams;
   /**
@@ -73,6 +76,7 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
 
   private readonly logGroups: ReadonlyArray<string>;
   private readonly query: string;
+  private readonly emptyResultFallbackQuery: string | undefined;
   private readonly timeRangeFromParams: TimeRangeFromParams;
   private readonly traceMetadata: Readonly<Record<string, unknown>> | undefined;
   private readonly logGroupResolutionMode: AWSCloudWatchLogsLogGroupResolutionMode | undefined;
@@ -83,6 +87,7 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
     this.label = config.label;
     this.logGroups = config.logGroups;
     this.query = config.query;
+    this.emptyResultFallbackQuery = config.emptyResultFallbackQuery;
     this.timeRangeFromParams = config.timeRangeFromParams;
     this.traceMetadata = config.traceMetadata;
     this.logGroupResolutionMode = config.logGroupResolutionMode;
@@ -106,6 +111,9 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
     return {
       ...(this.traceMetadata ?? {}),
       query: interpolatedQuery,
+      ...(this.emptyResultFallbackQuery !== undefined
+        ? { emptyResultFallbackQuery: interpolatePlaceholders(this.emptyResultFallbackQuery, context) }
+        : {}),
       logGroups: [...this.logGroups],
       timeRange: { start: startStr ?? null, end: endStr ?? null },
     };
@@ -122,18 +130,39 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
       const interpolatedQuery = interpolatePlaceholders(this.query, context);
 
-      const result = await executeCloudWatchLogsQuery(context, this.logGroups, interpolatedQuery, timeRange, {
-        ...omitUndefined({
-          signal: context.signal,
-          logGroupResolutionMode: this.logGroupResolutionMode,
-          paginateResults: this.paginateResults,
-        }),
+      const options = omitUndefined({
+        signal: context.signal,
+        logGroupResolutionMode: this.logGroupResolutionMode,
+        paginateResults: this.paginateResults,
       });
+      const initial = await executeCloudWatchLogsQuery(context, this.logGroups, interpolatedQuery, timeRange, options);
+      const result =
+        initial.rows.length === 0 && this.emptyResultFallbackQuery !== undefined
+          ? await executeCloudWatchLogsQuery(
+              context,
+              this.logGroups,
+              interpolatePlaceholders(this.emptyResultFallbackQuery, context),
+              timeRange,
+              options,
+            )
+          : initial;
+      const first = initial.diagnostics?.cloudWatchLogs;
+      const second = result.diagnostics?.cloudWatchLogs;
+      const diagnostics =
+        result !== initial && first !== undefined && second !== undefined
+          ? {
+              cloudWatchLogs: {
+                rowsReturned: result.rows.length,
+                statistics: sumCloudWatchLogsQueryStatistics([first.statistics, second.statistics]),
+                queryExecutions: [...first.queryExecutions, ...second.queryExecutions],
+              },
+            }
+          : result.diagnostics;
 
       return {
         success: true,
         output: result.rows,
-        ...(result.diagnostics !== undefined ? { diagnostics: result.diagnostics } : {}),
+        ...(diagnostics !== undefined ? { diagnostics } : {}),
       };
     });
   }

@@ -134,8 +134,6 @@ describe('INTEROP attribute registry readmodel writer SQL known cases', () => {
       assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
       assert.strictEqual(knownCase.analysis?.analysisType, 'ANALYZABLE');
       assert.deepStrictEqual(knownCase.analysis?.downstreams, [INTEROP_DOWNSTREAMS.NESSUNO]);
-      assert.ok(knownCase.analysis?.resolution.includes('proseguire l’analisi'));
-      assert.ok(knownCase.analysis?.resolution.includes('in loro assenza cercare per pod'));
     }
 
     assert.deepStrictEqual(knownCaseById('attribute-registry-kafka-coordinator-member-rejoin').analysis?.links, [

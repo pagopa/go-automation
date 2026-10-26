@@ -124,9 +124,7 @@ describe('eservice template instances updater runbook', () => {
       assert.strictEqual(draft?.kind, 'KNOWN_CASE');
       assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
       assert.deepStrictEqual(draft.downstreams, [INTEROP_DOWNSTREAMS.NESSUNO]);
-      assert.match(draft.conclusionNotes, /commento 354627/u);
-      assert.match(draft.conclusionNotes, /elaborazione lenta/u);
-      assert.match(draft.conclusionNotes, /assenza cercare per pod e intervallo temporale/u);
+
       assert.ok(draft.links.some(({ url }) => url === 'https://pagopa.atlassian.net/browse/PIN-7325'));
       assert.deepStrictEqual(logGroups, ['/aws/eks/interop-eks-cluster-prod/application']);
       assert.strictEqual(queries.length, 1);

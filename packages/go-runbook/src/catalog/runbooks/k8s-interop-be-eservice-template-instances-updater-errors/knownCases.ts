@@ -1,10 +1,9 @@
 import { INTEROP_DOWNSTREAMS, knownCase, type KnownCase } from '../framework.js';
-import { jiraLink } from '../common/analysisLinks.js';
+
 import { all, any } from '../common/conditions.js';
 import { stepEvidenceMatches } from '../common/evidenceConditions.js';
 import { varEquals } from '../common/varConditions.js';
 import { ESERVICE_TEMPLATE_INSTANCES_UPDATER_ALARM as alarm } from './alarmDefinition.js';
-
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'eservice-template-instances-updater-kafka-coordinator-unknown-member',
@@ -26,15 +25,7 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       ),
     ),
     resolution:
-      'Consultare PIN-7325: il commento 354627 documenta questo updater in Prod il 30/09/2026, senza CID, ' +
-      'con errore di heartbeat e successivo tentativo di rejoin. Il coordinator non riconosce il consumer come membro del gruppo. ' +
-      'La card contempla perdita della sessione per problemi di rete o elaborazione lenta; il messaggio da solo ' +
-      'non dimostra un problema di connessione al cluster né il recupero del consumer. ' +
-      'Raccogliere timestamp, frequenza delle ricorrenze e log dell’updater e verificare la ripresa del consumer. ' +
-      'Usare i CID quando disponibili; in loro assenza cercare per pod e intervallo temporale, ampliando la finestra se necessario. ' +
-      'Se il fenomeno persiste o la ripresa non è verificabile, coinvolgere il team di prodotto con le evidenze raccolte. ' +
-      'Pagina e card non indicano una correzione definitiva, soglie di durata e frequenza o criteri di chiusura ed escalation: ' +
-      'il riconoscimento dell’heartbeat o del rejoin mantiene l’analisi aperta.',
+      'PIN-7325 Nessuna azione se le occorrenze sono concentrate in una finestra di pochi minuti: \u00E8 una riconnessione momentanea al broker Kafka. Se persistono per ore, verificare lo stato del pod e segnalare al team di prodotto.',
     details: [
       ['Ambiente', '{{vars.interopEnvironment}}'],
       ['Log group', '{{vars.interopLogGroup}}'],
@@ -50,8 +41,8 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
         'Il coordinator Kafka non riconosce il consumer dell’updater; causa e ripresa dell’elaborazione da verificare.',
       // Downstream NA nella pagina: nessuna attribuzione a servizi esterni senza evidenze.
       downstreams: [INTEROP_DOWNSTREAMS.NESSUNO],
-      finalActions: ['Raccogliere le ricorrenze e verificare la ripresa del consumer con il team di prodotto'],
-      links: [jiraLink('PIN-7325')],
+      finalActions: [],
+      links: [{ url: 'https://pagopa.atlassian.net/browse/PIN-7325', name: 'PIN-7325', type: 'JIRA' }],
     },
   }),
 ];
