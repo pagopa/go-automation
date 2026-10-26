@@ -22,6 +22,36 @@ const SELFCARE_FAILURE = stepEvidenceMatches(
 );
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
+    id: 'selfcare-user-groups-invalid-tenant-context',
+    description: 'SelfcarePA restituisce 400 Invalid tenant context durante la lettura dei gruppi PA',
+    priority: 650,
+    condition: all(
+      apiGwStatusIs('500'),
+      varEquals('apiGwHttpMethod', 'GET'),
+      apiGwPathMatches('/v1/pa/groups$'),
+      stepEvidenceMatches(
+        'query-pn-bff',
+        '500 Internal Server Error from GET http://[^\\s"\\\\]+/ext-registry/pa/v1/groups\\b',
+      ),
+      stepEvidenceMatches(
+        'query-pn-external-registries',
+        '\\[DOWNSTREAM\\] Service SelfcarePA returned errors=400 Bad Request from GET https://api\\.selfcare\\.pagopa\\.it/external/v2/user-groups\\b',
+      ),
+      stepEvidenceMatches('query-pn-external-registries', 'Invalid tenant context'),
+    ),
+    resolution: 'Risoluzione non documentata.',
+    level: 'warn',
+    details: [['Errore', '{{vars.externalRegistriesErrorMsg}}']],
+    analysis: {
+      proposedStatus: 'IN_PROGRESS',
+      analysisType: 'ANALYZABLE',
+      resources: [{ name: 'pn-external-registries' }],
+      downstreams: [SEND_DOWNSTREAMS.SELFCARE],
+      finalActions: [],
+      links: [],
+    },
+  }),
+  knownCase({
     id: 'external-registries-selfcare-read-timeout',
     description: 'Timeout di lettura di pn-external-registries nelle chiamate Selfcare InfoPa',
     priority: 600,
