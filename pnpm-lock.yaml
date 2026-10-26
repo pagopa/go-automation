@@ -84,9 +84,6 @@ catalogs:
     '@types/luxon':
       specifier: ^3.7.6
       version: 3.7.6
-    '@types/mailparser':
-      specifier: ^3.9.0
-      version: 3.9.0
     '@types/node':
       specifier: ^24.19.2
       version: 24.19.2
@@ -558,9 +555,6 @@ importers:
       '@types/luxon':
         specifier: 'catalog:'
         version: 3.7.6
-      '@types/mailparser':
-        specifier: 'catalog:'
-        version: 3.9.0
       '@types/node':
         specifier: 'catalog:'
         version: 24.19.2
@@ -1878,9 +1872,6 @@ packages:
   '@types/luxon@3.7.6':
     resolution: {integrity: sha512-6KSjliQAXK8ZLgFQO4B7iE4Rpf/B3rItzCFuXezBY/XIAGxOdLd7vRNK9/StRPwiS/yJsVbB7HKpW46B8tcEuQ==}
 
-  '@types/mailparser@3.9.0':
-    resolution: {integrity: sha512-YnhrRiRVDiEAphFvd72hKa1n8y2b9Q3rgSQiONZQyhQz67h5g4MZHNApET3XWXVEFdInWtHqDHKEwnyjxU3QVw==}
-
   '@types/node-forge@1.3.14':
     resolution: {integrity: sha512-mhVF2BnD4BO+jtOp7z1CdzaK4mbuK0LLQYAvdOLqHTavxFNq4zA1EmYkpnFjP8HOUzedfQkRnp0E2ulSAYSzAw==}
 
@@ -2436,10 +2427,6 @@ packages:
   https-proxy-agent@7.0.6:
     resolution: {integrity: sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw==}
     engines: {node: '>= 14'}
-
-  iconv-lite@0.6.3:
-    resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
-    engines: {node: '>=0.10.0'}
 
   iconv-lite@0.7.3:
     resolution: {integrity: sha512-IKXpvIzjnC9XTAUbVBcMfGS0EPaIXtW6v+zr+RRp+hqULEpo0owZax6wyRwPOJbWbzjYspQwusTsfVr0ifh4uQ==}
@@ -4281,11 +4268,6 @@ snapshots:
 
   '@types/luxon@3.7.6': {}
 
-  '@types/mailparser@3.9.0':
-    dependencies:
-      '@types/node': 24.19.2
-      iconv-lite: 0.6.3
-
   '@types/node-forge@1.3.14':
     dependencies:
       '@types/node': 24.19.2
@@ -4908,10 +4890,6 @@ snapshots:
       debug: 4.4.3(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
-
-  iconv-lite@0.6.3:
-    dependencies:
-      safer-buffer: 2.1.2
 
   iconv-lite@0.7.3:
     dependencies:
