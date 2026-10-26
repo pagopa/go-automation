@@ -42,8 +42,6 @@ describe('SenderDashboardDataIndexer known cases', () => {
 
     assert.strictEqual(evaluator.evaluate(knownCase.condition, context), true);
     assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
-    assert.match(knownCase.analysis?.resolution ?? '', /ambienti inferiori/u);
-    assert.match(knownCase.analysis?.resolution ?? '', /produzione/u);
   });
 
   it('matches missing and undersized DataLake objects from the verified implementation', () => {

@@ -74,10 +74,13 @@ Questo file descrive i cluster e le regole da monitorare per ciascun profilo/amb
     "profile": "profile-1",
     "env": "production",
     "clusters": ["cluster-a", "cluster-b"],
-    "rules": ["rule-1", "rule-2"]
+    "rules": ["rule-1", "rule-2"],
+    "ssmParameters": ["param1", "param2"]
   }
 ]
 ```
+
+Nota: il campo ssmParameters è opzionale e può essere omesso o dichiarato come array vuoto [].
 
 ### Priorità di Configurazione
 
@@ -131,19 +134,35 @@ Descrivere il formato dell'output generato:
 
 ```
 ...
-⏵ Starting aws-fetch-ecs-clusters-infos
+⏵ Starting send-fetch-ecs-clusters-infos
 
-⏵ AWS Profile profile1 (env1)
+⏵ AWS Profile aws_profile (env)
+
     ℹ Clusters state
-    - cluster1: ACTIVE (PendingTasks: 0, RunningTasks: 14)
-    - cluster2: ACTIVE (PendingTasks: 0, RunningTasks: 23)
+    ┌─────────────────────────────┬────────┬───────────────────┬───────────────────┐
+    │ ClusterName                 │ Status │ PendingTasksCount │ RunningTasksCount │
+    ├─────────────────────────────┼────────┼───────────────────┼───────────────────┤
+    │ cluster1                    │ ACTIVE │ 0                 │ 16                │
+    ├─────────────────────────────┼────────┼───────────────────┼───────────────────┤
+    │ cluster2                    │ ACTIVE │ 0                 │ 3                 │
+    └─────────────────────────────┴────────┴───────────────────┴───────────────────┘
 
     ℹ Scheduled actions
-    - RuleName1 (ENABLED) - cron(0 6 ? * MON-FRI *) Europe/Rome
-    - RuleName2 (ENABLED) - cron(0 20 ? * MON-FRI *) Europe/Rome
+    ┌─────────────────────────────────┬──────────┬─────────────────────────┬─────────────┐
+    │ RuleName                        │ State    │ Expression              │ Timezone    │
+    ├─────────────────────────────────┼──────────┼─────────────────────────┼─────────────┤
+    │ rule1                           │ DISABLED │ cron(0 20 ? * * *)      │ Europe/Rome │
+    ├─────────────────────────────────┼──────────┼─────────────────────────┼─────────────┤
+    │ rule1                           │ DISABLED │ cron(0 6 ? * MON-FRI *) │ Europe/Rome │
+    └─────────────────────────────────┴──────────┴─────────────────────────┴─────────────┘
 
-⏵ AWS Profile profile2 (env2)
-...
+    ℹ Useful SSM parameter key/value
+    ┌──────────────────────────────────┬───────┐
+    │ Name                             │ Value │
+    ├──────────────────────────────────┼───────┤
+    │ param1                           │ value │
+    └──────────────────────────────────┴───────┘
+
 ```
 
 ## Troubleshooting

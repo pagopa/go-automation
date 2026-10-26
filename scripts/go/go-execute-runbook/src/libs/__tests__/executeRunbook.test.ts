@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Core } from '@go-automation/go-common';
-import type { AWS } from '@go-automation/go-common';
-import type { ServiceRegistry } from '@go-automation/go-runbook';
+import { AWS, Core } from '@go-automation/go-common';
+import type { RunbookOutput, ServiceRegistry } from '@go-automation/go-runbook';
 import type { WatchtowerClient } from '@go-automation/go-watchtower-client';
 import { RUNBOOK_CATALOG } from '@go-automation/go-runbook/catalog';
 
@@ -357,6 +356,110 @@ describe('executeRunbook', () => {
     assert.match(completeBody?.errorMessage ?? '', /query failed after remote operation registration/);
     assert.strictEqual(queryCalls, 1);
     assert.strictEqual(stopCalls, 1);
+  });
+
+  it('runs DailyExport error and invocation queries in the worker single-account OAM scope', async () => {
+    const registered = RUNBOOK_CATALOG.resolveByKey('Lambda-DailyExport-DynamoDbTable-LogInvocationErrors-Alarm');
+    assert.ok(registered);
+    const descriptor = registered.descriptor;
+    const requestId = 'fa3cf895-a2ae-46e6-9d44-d75bb2230d33';
+    const queries: {
+      readonly queryString?: string;
+      readonly logGroupIdentifiers?: ReadonlyArray<string>;
+      readonly logGroupNames?: ReadonlyArray<string>;
+    }[] = [];
+    const clientProvider = {
+      getProfile: () => 'worker-role',
+      getRegion: () => 'eu-south-1',
+      cloudWatchLogs: {
+        async send(command: {
+          input: {
+            queryString?: string;
+            logGroupIdentifiers?: ReadonlyArray<string>;
+            logGroupNames?: ReadonlyArray<string>;
+          };
+        }) {
+          await Promise.resolve();
+          if (command.input.queryString !== undefined) {
+            queries.push(command.input);
+            return { queryId: `query-${String(queries.length)}` };
+          }
+          return {
+            status: 'Complete',
+            results: [
+              [
+                { field: '@timestamp', value: '2026-06-22T10:00:00.000Z' },
+                { field: '@requestId', value: requestId },
+                { field: '@message', value: `REPORT RequestId: ${requestId}\tDuration: 3000.00 ms\tStatus: timeout` },
+              ],
+            ],
+            statistics: { recordsMatched: 1, recordsScanned: 1, bytesScanned: 1 },
+          };
+        },
+      },
+    } as unknown as AWS.AWSClientProvider;
+    const cloudWatchLogs = new AWS.AWSCloudWatchLogsService({
+      profileNames: ['worker-role'],
+      first: clientProvider,
+      getClientProvider: (profile) => {
+        assert.strictEqual(profile, 'worker-role');
+        return clientProvider;
+      },
+    });
+    let output: RunbookOutput | undefined;
+    const deps = fakeDeps(
+      {
+        startExecution: async () => {
+          await Promise.resolve();
+          return {
+            disposition: 'START',
+            attemptId: '0192c000-0000-7000-8000-0000000000e1',
+            workerDeadlineAt: DELIVERY.workerDeadlineAt,
+          };
+        },
+        progressExecution: async () => {
+          await Promise.resolve();
+          return { cancelRequested: false };
+        },
+        completeExecution: async (_id: string, body: { readonly analysisPayload: RunbookOutput }) => {
+          await Promise.resolve();
+          output = body.analysisPayload;
+          return { status: 'SUCCEEDED', outcome: 'KNOWN_CASE' };
+        },
+      },
+      { cloudWatchLogs },
+    );
+    const result = await executeRunbook(
+      deps,
+      {
+        ...INPUT,
+        alarmEvent: { ...INPUT.alarmEvent, alarmName: descriptor.alarmNames[0] },
+        runbook: {
+          ...INPUT.runbook,
+          key: descriptor.key,
+          version: descriptor.version,
+          definitionDigest: descriptor.definitionDigest,
+        },
+      },
+      DELIVERY,
+    );
+
+    assert.strictEqual(result.status, 'SUCCEEDED');
+    assert.strictEqual(output?.execution.status, 'completed');
+    assert.strictEqual(output?.outcome.kind, 'known-case-matched');
+    assert.strictEqual(
+      output?.analysis?.kind === 'KNOWN_CASE' ? output.analysis.proposedStatus : undefined,
+      'IN_PROGRESS',
+    );
+    assert.strictEqual(queries.length, 2);
+    assert.ok(queries[0]?.queryString?.includes("@message like 'ERROR'"));
+    assert.ok(queries[1]?.queryString?.includes(requestId));
+    for (const query of queries) {
+      assert.deepStrictEqual(query.logGroupIdentifiers, [
+        `arn:aws:logs:eu-south-1:${INPUT.alarmEvent.awsAccountId}:log-group:/aws/lambda/Lambda-DailyExport-DynamoDbTable`,
+      ]);
+      assert.strictEqual(query.logGroupNames, undefined);
+    }
   });
 });
 

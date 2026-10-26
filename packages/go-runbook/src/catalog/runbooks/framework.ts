@@ -9,7 +9,6 @@ export { knownCase } from '../../builders/knownCase.js';
 export type { CaseAction } from '../../actions/CaseAction.js';
 export type { Condition } from '../../types/Condition.js';
 export type { KnownCase } from '../../types/KnownCase.js';
-export type { KnownCaseAnalysis } from '../../types/KnownCaseAnalysis.js';
 export type { AnalysisLinkRef } from '../../types/AnalysisLinkRef.js';
 export { INTEROP_DOWNSTREAMS, SEND_DOWNSTREAMS } from '../../analysis/downstreams/index.js';
 export type { InteropDownstream } from '../../analysis/downstreams/index.js';

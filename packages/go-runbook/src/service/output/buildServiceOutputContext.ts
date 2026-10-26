@@ -38,6 +38,14 @@ export function buildServiceOutputContext(
   const traceRows = readResultFieldRows(result.finalContext.stepResults.get(`query-${service.name}-trace`));
   const recentLogs = extractRecentLogLines(errorRows, maxRecentLogs);
   const traceLogs = extractRecentLogLines(traceRows, maxRecentLogs);
+  const evidence = buildEvidence(
+    service.name,
+    recentLogs,
+    traceLogs,
+    errorRows.length,
+    traceRows.length,
+    maxRecentLogs,
+  );
 
   const details: ServiceOutputContext = {
     alarm: {
@@ -64,7 +72,7 @@ export function buildServiceOutputContext(
 
   return {
     fields: buildFields(service.name, service.varPrefix, vars, params),
-    evidence: buildEvidence(service.name, recentLogs, traceLogs, errorRows.length, traceRows.length, maxRecentLogs),
+    evidence,
     details: toRunbookOutputDetails(details),
   };
 }

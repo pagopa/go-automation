@@ -6,6 +6,7 @@ const VALUE_OPTIONS: ReadonlySet<string> = new Set([
   '--config-dir',
   '--change-note',
   '--drain-timeout',
+  '--watchtower-url',
 ]);
 const FLAG_OPTIONS: ReadonlySet<string> = new Set(['--dry-run', '--allow-empty-catalog']);
 const DEFAULT_CHANGE_NOTE = 'No change note provided';
@@ -18,6 +19,8 @@ export interface EnvironmentDeployOptions {
   readonly drainTimeoutMs: number;
   readonly dryRun: boolean;
   readonly allowEmptyCatalog: boolean;
+  /** Operator-selected authentication destination, independent of regional files. */
+  readonly watchtowerUrl?: string;
 }
 
 /**
@@ -63,6 +66,7 @@ export function parseOptions(args: ReadonlyArray<string>): EnvironmentDeployOpti
     drainTimeoutMs: parseDuration(values.get('--drain-timeout') ?? '2h'),
     dryRun: flags.has('--dry-run'),
     allowEmptyCatalog: flags.has('--allow-empty-catalog'),
+    ...(values.has('--watchtower-url') ? { watchtowerUrl: option(values, '--watchtower-url') } : {}),
   };
 }
 

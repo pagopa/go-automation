@@ -14,6 +14,27 @@ interface Fixture {
 
 const FIXTURES: ReadonlyMap<string, Fixture> = new Map([
   [
+    'auth-server-client-assertion-expired',
+    {
+      message:
+        'Client assertion signature validation failed for client client-123 - Token expired in client assertion signature validation',
+    },
+  ],
+  ['auth-server-invalid-client-id-uuid', { message: 'Validation error: Invalid uuid at "client_id"' }],
+  ['auth-server-required-client-assertion-type', { message: 'Validation error: Required at "client_assertion_type"' }],
+  ['auth-server-invalid-purpose-id-uuid', { message: 'Purpose Id claim invalid-purpose is not a valid UUID' }],
+  [
+    'auth-server-client-assertion-not-before',
+    {
+      message:
+        'Client assertion signature validation failed for client client-123 - Current time is before not before time in client assertion signature validation',
+    },
+  ],
+  [
+    'auth-server-platform-state-agreement-or-purpose-inactive',
+    { message: 'errors: 007-0008, Platform state validation failed - Agreement state is: INACTIVE' },
+  ],
+  [
     'auth-server-test-rate-limit-known-organization',
     {
       message:
@@ -40,7 +61,10 @@ const FIXTURES: ReadonlyMap<string, Fixture> = new Map([
   ],
   [
     'auth-server-client-assertion-signature-validation-failed',
-    { message: 'Client assertion signature validation failed for client client-123' },
+    {
+      message:
+        'Client assertion signature validation failed for client client-123 - Client assertion signature is invalid',
+    },
   ],
   [
     'auth-server-unexpected-kid-format',
@@ -73,12 +97,87 @@ describe('INTEROP auth-server API Gateway known cases', () => {
     assert.strictEqual(new Set(KNOWN_CASES.map(({ priority }) => priority)).size, KNOWN_CASES.length);
   });
 
-  it('keeps every actionable case above the completed API Gateway 403 case', () => {
-    const actionable = KNOWN_CASES.filter(({ analysis }) => analysis?.proposedStatus === 'IN_PROGRESS');
-    const completed = KNOWN_CASES.filter(({ analysis }) => analysis?.proposedStatus === 'COMPLETED');
+  it('keeps every case open until correlation, impact and subsequent requests have been checked', () => {
+    assert.ok(KNOWN_CASES.every(({ analysis }) => analysis?.proposedStatus === 'IN_PROGRESS'));
+    const forbidden = knownCaseById('auth-server-api-gateway-forbidden-403');
     assert.ok(
-      Math.min(...actionable.map(({ priority }) => priority)) > Math.max(...completed.map(({ priority }) => priority)),
+      KNOWN_CASES.filter(({ id }) => id !== forbidden.id).every(({ priority }) => priority > forbidden.priority),
     );
+  });
+
+  it('distinguishes not-before validation from an invalid cryptographic signature', () => {
+    const message = FIXTURES.get('auth-server-client-assertion-not-before')?.message ?? '';
+    assert.strictEqual(
+      evaluator.evaluate(knownCaseById('auth-server-client-assertion-not-before').condition, context({ message })),
+      true,
+    );
+    assert.strictEqual(
+      evaluator.evaluate(
+        knownCaseById('auth-server-client-assertion-signature-validation-failed').condition,
+        context({ message }),
+      ),
+      false,
+    );
+  });
+
+  it('distinguishes expired assertions from invalid signatures and not-before failures', () => {
+    const message = FIXTURES.get('auth-server-client-assertion-expired')?.message ?? '';
+    assert.strictEqual(
+      evaluator.evaluate(knownCaseById('auth-server-client-assertion-expired').condition, context({ message })),
+      true,
+    );
+    for (const id of [
+      'auth-server-client-assertion-not-before',
+      'auth-server-client-assertion-signature-validation-failed',
+    ]) {
+      assert.strictEqual(evaluator.evaluate(knownCaseById(id).condition, context({ message })), false);
+    }
+  });
+
+  it('matches validation fields through JSON escaping without matching different field names', () => {
+    for (const [id, field, detail] of [
+      ['auth-server-invalid-client-id-uuid', 'client_id', 'Invalid uuid'],
+      ['auth-server-required-client-assertion-type', 'client_assertion_type', 'Required'],
+    ]) {
+      assert.ok(id && field && detail);
+      const knownCase = knownCaseById(id);
+      for (const encode of [false, true]) {
+        const message: string = `Validation error: ${detail} at "${field}"`;
+        assert.strictEqual(
+          evaluator.evaluate(
+            knownCase.condition,
+            context({ message: encode ? JSON.stringify({ log: message }) : message }),
+          ),
+          true,
+        );
+      }
+      for (const message of [
+        `Validation error: ${detail} at "${field}_backup"`,
+        `Validation error: ${detail} at "other_field", ${field} is present`,
+      ]) {
+        assert.strictEqual(evaluator.evaluate(knownCase.condition, context({ message })), false);
+      }
+    }
+  });
+
+  it('recognizes either inactive state without requiring both to be inactive', () => {
+    const knownCase = knownCaseById('auth-server-platform-state-agreement-or-purpose-inactive');
+    for (const entity of ['Agreement', 'Purpose']) {
+      assert.strictEqual(
+        evaluator.evaluate(
+          knownCase.condition,
+          context({ message: `Platform state validation failed - ${entity} state is: INACTIVE` }),
+        ),
+        true,
+      );
+      assert.strictEqual(
+        evaluator.evaluate(
+          knownCase.condition,
+          context({ message: `Platform state validation failed - ${entity} state is: ACTIVE` }),
+        ),
+        false,
+      );
+    }
   });
 
   it('matches every case against its documented evidence', () => {

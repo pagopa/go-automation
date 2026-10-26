@@ -112,10 +112,7 @@ describe('national registries and delayer documented execution', () => {
     );
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    assert.deepStrictEqual(draft.finalActions, [
-      'Consultare il thread Slack del 30/09/2025',
-      'Verificare l’oscuramento del codice fiscale nei log',
-    ]);
+
     assert.deepStrictEqual(draft.downstreams, [SEND_DOWNSTREAMS.ELENCO_LEGALE_RAPPRESENTANTE_INFOCAMERE]);
     assert.match(queries[0] ?? '', /level = 'ERROR'/u);
     assert.ok(queries[0]?.includes("message like '[DOWNSTREAM] Service InfoCamere returned errors='"));
@@ -148,10 +145,7 @@ describe('national registries and delayer documented execution', () => {
     );
     assert.match(draft.errorDetails ?? '', /Nessun driver/u);
     assert.doesNotMatch(draft.errorDetails ?? '', /percentuale|senza retry/iu);
-    assert.deepStrictEqual(draft.finalActions, [
-      'Avvisare il prodotto',
-      'Verificare la presenza dell’allarme pn-BatchWorkflowStateMachine-FailedAlarm',
-    ]);
+
     assert.match(queries[0] ?? '', /\| dedup message\n\| limit 1000$/u);
     assert.ok(draft.links.some(({ url }) => url.endsWith('/p1790861502607049')));
     assert.ok(draft.links.some(({ url }) => url.endsWith('/p1790086829253919')));
@@ -169,7 +163,7 @@ describe('national registries and delayer documented execution', () => {
       result.matchedCases.map(({ id }) => id),
       ['no-drivers-other-day'],
     );
-    assert.deepStrictEqual(draft.finalActions, []);
+
     assert.match(draft.errorDetails ?? '', /Nessun driver/u);
     assert.doesNotMatch(draft.errorDetails ?? '', /percentuale|senza retry/iu);
   });

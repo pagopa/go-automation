@@ -60,9 +60,9 @@ export interface TraceIdCandidateMatch {
 export interface ServiceLogsScan {
   /** Most representative error message (empty string when none). */
   readonly errorMessage: string;
-  /** First known URL observed in the logs, or `undefined`. */
+  /** First known URL in the strongest failure evidence, falling back to other rows. */
   readonly knownUrl: KnownUrlInLogs | undefined;
-  /** First `FALLBACK-UUID` token found, or `undefined`. */
+  /** UUID associated with the selected URL; first token when no URL is selected. */
   readonly fallbackUuid: string | undefined;
   /** First valid trace id candidate, or `undefined`. */
   readonly traceIdCandidate: TraceIdCandidateMatch | undefined;
@@ -74,8 +74,9 @@ export interface ServiceLogsScan {
  *
  * - the most representative error message (ERROR/WARN level wins; keyword
  *   heuristic as fallback);
- * - the first known URL matching `registry` (skipped when `registry` is omitted);
- * - the first `FALLBACK-UUID` token;
+ * - a known URL, preferring ERROR/WARN rows, then level-less error keywords,
+ *   then other rows; the first match wins within each priority;
+ * - the selected URL's `FALLBACK-UUID`, or the first token when no URL is selected;
  * - the first valid trace id candidate.
  *
  * Each row is materialised into a `Map<field, value>` exactly once, so
@@ -97,6 +98,8 @@ export function scanServiceLogs(
   let bestByLevel = '';
   let bestByKeyword = '';
   let knownUrl: KnownUrlInLogs | undefined;
+  let knownUrlPriority = -1;
+  let knownUrlFallbackUuid: string | undefined;
   let fallbackUuid: string | undefined;
   let traceIdCandidate: TraceIdCandidateMatch | undefined;
 
@@ -115,6 +118,7 @@ export function scanServiceLogs(
     if (message !== '') {
       const level = (fields.get(schema.levelField) ?? '').toLowerCase();
       const isErrorLevel = level.includes('error') || level.includes('warn');
+      const hasErrorKeyword = ERROR_KEYWORDS.some((keyword) => message.includes(keyword));
 
       // Error message — level pass: an explicit ERROR/WARN row is the
       // strongest signal; keep the longest such message.
@@ -125,14 +129,20 @@ export function scanServiceLogs(
       // Error message — keyword fallback pass: only rows without a level
       // or with an ERROR/WARN level are eligible (avoids DEBUG noise).
       if ((level === '' || isErrorLevel) && message.length > bestByKeyword.length) {
-        if (ERROR_KEYWORDS.some((keyword) => message.includes(keyword))) {
+        if (hasErrorKeyword) {
           bestByKeyword = message;
         }
       }
 
-      // Known URL — first match wins.
-      if (knownUrl === undefined && registry !== undefined) {
-        knownUrl = matchKnownUrl(message, registry);
+      // Prefer failure evidence over earlier invocation/success rows.
+      const urlPriority = isErrorLevel ? 2 : level === '' && hasErrorKeyword ? 1 : 0;
+      if (urlPriority > knownUrlPriority && registry !== undefined) {
+        const candidate = matchKnownUrl(message, registry);
+        if (candidate !== undefined) {
+          knownUrl = candidate;
+          knownUrlPriority = urlPriority;
+          knownUrlFallbackUuid = associatedFallbackUuid(message, registry);
+        }
       }
 
       // Fallback UUID — first match wins.
@@ -153,9 +163,21 @@ export function scanServiceLogs(
   return {
     errorMessage: bestByLevel !== '' ? bestByLevel : bestByKeyword,
     knownUrl,
-    fallbackUuid,
+    fallbackUuid: knownUrl !== undefined ? knownUrlFallbackUuid : fallbackUuid,
     traceIdCandidate,
   };
+}
+
+/** A message must identify one known invocation and one UUID to pair them. */
+function associatedFallbackUuid(message: string, registry: KnownUrlsRegistry): string | undefined {
+  const uuids = new Set([...message.matchAll(new RegExp(FALLBACK_UUID_PATTERN.source, 'g'))].map((match) => match[1]));
+  if (uuids.size !== 1) return undefined;
+  const knownUrls = new Set(
+    (message.match(URL_PATTERN) ?? [])
+      .map((url) => url.replace(TRAILING_TRIM, ''))
+      .filter((url) => registry.match(url) !== undefined),
+  );
+  return knownUrls.size === 1 ? uuids.values().next().value : undefined;
 }
 
 /**

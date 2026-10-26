@@ -147,7 +147,6 @@ describe('e-service template readmodel writer SQL runbook', () => {
     assert.ok(knownCase !== undefined);
     assert.deepStrictEqual(knownCase.analysis?.downstreams, [INTEROP_DOWNSTREAMS.NESSUNO]);
     assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
-    assert.ok((knownCase.analysis?.finalActions?.length ?? 0) > 0);
 
     for (const message of [
       'The coordinator is not aware of another member, re-joining the group',

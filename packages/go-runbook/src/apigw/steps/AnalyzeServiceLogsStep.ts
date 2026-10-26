@@ -44,9 +44,8 @@ export interface AnalyzeServiceLogsConfig {
  *
  * It:
  * - derives the most representative error message from the rows;
- * - scans the rows for the first URL matching the {@link KnownUrlsRegistry};
- * - extracts a new `FALLBACK-UUID` token only when the same result set
- *   also points to a known downstream URL;
+ * - selects a known URL from failure rows before falling back to invocation evidence;
+ * - extracts a new `FALLBACK-UUID` only from the selected downstream URL's row;
  * - records a `trace_id` when the query was driven by an existing
  *   fallback UUID.
  *
@@ -65,7 +64,8 @@ export interface AnalyzeServiceLogsConfig {
  *   and a new fallback UUID were detected during this analysis call
  * - `<varPrefix>FreshTraceId`: canonical trace id found after a fallback query
  * - `<varPrefix>FreshTraceIdRaw`: raw trace id value observed in logs
- * - `fallbackUuid`: updated only when a new value is extracted (sticky otherwise)
+ * - `fallbackUuid`: updated with the selected URL's UUID, cleared when that URL
+ *   has no unambiguous UUID, and preserved when no downstream URL is selected
  */
 export class AnalyzeServiceLogsStep implements Step<ServiceLogsAnalysis> {
   readonly id: string;
@@ -129,8 +129,7 @@ export class AnalyzeServiceLogsStep implements Step<ServiceLogsAnalysis> {
     const errorMessage = scan.errorMessage;
     const knownUrl = scan.knownUrl;
 
-    // A fallback UUID is only meaningful when the same result set also
-    // points to a known downstream URL.
+    // The scan pairs the UUID with the selected downstream URL's row.
     const extractedFallback = knownUrl !== undefined ? scan.fallbackUuid : undefined;
     const fallbackIsFresh = extractedFallback !== undefined && extractedFallback !== fallbackUuidExisting;
     // A trace id is only consumed when the query was driven by an
@@ -150,6 +149,10 @@ export class AnalyzeServiceLogsStep implements Step<ServiceLogsAnalysis> {
 
     if (fallbackIsFresh && extractedFallback !== undefined) {
       vars['fallbackUuid'] = extractedFallback;
+    } else if (knownUrl !== undefined && extractedFallback === undefined) {
+      // Do not carry an earlier invocation's identifier to a new destination.
+      // QueryServiceLogsStep will use the current trace when available.
+      vars['fallbackUuid'] = '';
     }
 
     reporter?.analysisFindings({

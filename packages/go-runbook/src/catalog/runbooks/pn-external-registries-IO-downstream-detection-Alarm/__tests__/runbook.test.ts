@@ -68,7 +68,7 @@ describe('external-registries IO downstream runbook', () => {
     assert.deepStrictEqual(runbook.analysisDefaults, {
       runbookName: EXTERNAL_REGISTRIES_IO_ALARM,
       resources: [{ name: 'pn-external-registries', role: 'PRIMARY' }],
-      finalActions: ['Documentare la causa verificata e aggiornare il runbook se emerge una nuova casistica'],
+      finalActions: [],
       links: [
         {
           url: 'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3312976074/pn-external-registries-IO-downstream-detection-Alarm',
@@ -119,9 +119,7 @@ describe('external-registries IO downstream runbook', () => {
     assert.strictEqual(queries.length, 2);
     const draft = buildAnalysisDraft(runbook, result);
     assert.strictEqual(draft?.kind, 'UNKNOWN_CASE_CONTEXT');
-    assert.deepStrictEqual(draft.finalActions, [
-      'Documentare la causa verificata e aggiornare il runbook se emerge una nuova casistica',
-    ]);
+
     // The scan keeps both predicates of the metric filter and the canonical
     // projection, whichever way the query is assembled.
     assert.match(queries[0] ?? '', /level = 'ERROR'/u);
@@ -209,23 +207,11 @@ describe('external-registries IO downstream runbook', () => {
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
     assert.deepStrictEqual(draft.downstreams, [SEND_DOWNSTREAMS.APP_IO]);
-    assert.ok(draft.finalActions.includes('Consultare PN-21426 e i due thread di segnalazione del 07/09/2026'));
-    assert.ok(
-      draft.finalActions.includes(
-        'Correlare trace_id, IUN e ioMode nei log di pn-external-registries e delivery-push-workflow',
-      ),
-    );
-    assert.ok(
-      draft.finalActions.includes(
-        'Per ioMode Courtesy verificare l’esito dell’invio su IO e l’evento SEND_COURTESY_MESSAGE in timeline',
-      ),
-    );
-    assert.match(draft.conclusionNotes, /Per ioMode Courtesy/u);
-    assert.match(draft.conclusionNotes, /il solo successo di un retry non prova/u);
+
     assert.ok(draft.links.some(({ url }) => url === 'https://pagopa.atlassian.net/browse/PN-21426'));
   });
 
-  it('identifies the missing Micrometer counter as an application failure in the draft', async () => {
+  it('leaves the unverified Micrometer addition unclassified', async () => {
     const runbook = buildRunbook();
     const services = createTestServiceRegistry({
       cloudWatchLogs: {
@@ -254,14 +240,6 @@ describe('external-registries IO downstream runbook', () => {
       services,
     );
     const draft = buildAnalysisDraft(runbook, result);
-    assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
-    assert.deepStrictEqual(draft.downstreams, [SEND_DOWNSTREAMS.NESSUNO]);
-    assert.ok(
-      draft.finalActions.includes(
-        'Verificare la registrazione del contatore NumberOfIOMessageSentSuccessfully e il deployment di pn-external-registries',
-      ),
-    );
-    assert.match(draft.conclusionNotes, /errore applicativo non dimostra un disservizio IO/u);
+    assert.notStrictEqual(draft?.kind, 'KNOWN_CASE');
   });
 });

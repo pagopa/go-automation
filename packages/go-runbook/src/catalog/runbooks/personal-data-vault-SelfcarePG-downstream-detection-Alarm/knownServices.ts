@@ -19,4 +19,6 @@ export const DOWNSTREAM: downstream.DownstreamSelector = {
   kind: 'named',
   name: SEND_DOWNSTREAMS.SELFCARE,
   emittedAs: 'SelfcarePG',
+  errorLevelOnly: true,
+  matchStructuredMessage: true,
 };

@@ -3,7 +3,8 @@
  */
 
 import { Core } from '@go-automation/go-common';
-import { apigw, lambda, service, buildRunbookOutput } from '@go-automation/go-runbook';
+import { buildRunbookOutput } from '@go-automation/go-runbook';
+import { buildCatalogOutputContext } from '@go-automation/go-runbook/catalog';
 import type { Runbook, RunbookExecutionResult } from '@go-automation/go-runbook';
 
 import { formatOutputSuffix } from './formatOutputSuffix.js';
@@ -17,10 +18,7 @@ export async function saveExecutionOutput(
 ): Promise<string> {
   const output = buildRunbookOutput(runbook, result, {
     ...(traceFile !== undefined ? { traceFile } : {}),
-    contextBuilder: (rb, executionResult) =>
-      apigw.buildApiGwOutputContext(rb, executionResult) ??
-      lambda.buildLambdaOutputContext(rb, executionResult) ??
-      service.buildServiceOutputContext(rb, executionResult),
+    contextBuilder: buildCatalogOutputContext,
   });
 
   const fileName = `result-${runbook.metadata.id}${formatOutputSuffix(outputSuffix)}.json`;

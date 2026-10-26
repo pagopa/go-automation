@@ -1,20 +1,12 @@
 /**
  * Known cases for the pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm runbook.
  */
-
 import { lambda, SEND_DOWNSTREAMS } from '../framework.js';
 import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
 
-import { jiraLink, slackLink } from '../common/analysisLinks.js';
 import { all, any } from '../common/conditions.js';
 import { lambdaLogEvidenceMatches } from '../common/evidenceConditions.js';
-
-const XRAY_SLACK_11_MAY = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1778514522543109';
-const XRAY_SLACK_25_MAY = 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1779714501970569';
-const APP_IO_SLACK =
-  'https://pagopaspa.slack.com/archives/C064KJYNLPL/p1779713635239249?thread_ts=1779460059.183959&cid=C064KJYNLPL';
-
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
     id: 'app-io-backend-idp-keys-unavailable',
@@ -27,14 +19,14 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       lambdaLogEvidenceMatches('IDP_CERT_DATA_RETRIEVING_ERROR'),
     ),
     title: '[DOWNSTREAM AppIO - backend IO] Recupero chiavi CIE/SPID non disponibile',
-    resolution: 'Nessuna azione possibile al momento; attendere il ripristino del backend di IO.',
+    resolution: 'Risoluzione non documentata.',
     details: [['requestId', '{{vars.lambdaRequestId}}']],
     analysis: {
-      proposedStatus: 'COMPLETED',
+      proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
       downstreams: [SEND_DOWNSTREAMS.APP_IO],
-      finalActions: ['Attendere il ripristino del backend di IO'],
-      links: [slackLink(APP_IO_SLACK, 'Thread Slack 25/05/2026')],
+      finalActions: [],
+      links: [],
     },
   }),
   ...lambda.LAMBDA_RUNTIME_KNOWN_CASES,
@@ -44,16 +36,25 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 90,
     condition: lambdaLogEvidenceMatches('Missing AWS Lambda trace data for X-Ray'),
     title: 'Missing AWS Lambda trace data for X-Ray',
-    resolution: 'Nessuna azione; falso positivo causato da librerie Node già rimosse dalle Lambda interessate.',
+    resolution: 'PN-20042',
     details: [['requestId', '{{vars.lambdaRequestId}}']],
     analysis: {
-      proposedStatus: 'COMPLETED',
+      proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
       links: [
-        jiraLink('PN-20042'),
-        slackLink(XRAY_SLACK_11_MAY, 'Thread Slack 11/05/2026'),
-        slackLink(XRAY_SLACK_25_MAY, 'Thread Slack 25/05/2026'),
+        { url: 'https://pagopa.atlassian.net/browse/PN-20042', name: 'PN-20042', type: 'JIRA' },
+        {
+          url: 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1778514522543109',
+          name: 'Thread Slack 11/05/2026',
+          type: 'SLACK',
+        },
+        {
+          url: 'https://pagopaspa.slack.com/archives/C087KRMD16E/p1779714501970569',
+          name: 'Thread Slack 25/05/2026',
+          type: 'SLACK',
+        },
       ],
+      finalActions: [],
     },
   }),
   knownCase({
@@ -65,13 +66,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       lambdaLogEvidenceMatches("entityID:\\s*'https://spid\\.register\\.it'"),
     ),
     title: 'Firma non valida per il provider SPID register.it',
-    resolution:
-      'Nessuna azione per entityID https://spid.register.it; segnalare il caso se riguarda un provider differente.',
+    resolution: 'PN-19959',
     details: [['requestId', '{{vars.lambdaRequestId}}']],
     analysis: {
-      proposedStatus: 'COMPLETED',
+      proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
-      links: [jiraLink('PN-19959')],
+      links: [{ url: 'https://pagopa.atlassian.net/browse/PN-19959', name: 'PN-19959', type: 'JIRA' }],
+      finalActions: [],
     },
   }),
 ];

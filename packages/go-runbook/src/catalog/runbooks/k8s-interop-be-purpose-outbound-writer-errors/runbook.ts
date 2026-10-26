@@ -9,7 +9,7 @@ const RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3317530626/k8s-interop-be-purpose-outbound-writer-errors';
 
 export function buildRunbook(): Runbook {
-  const runbook = interop.k8s.createInteropK8sAlarmRunbook({
+  return interop.k8s.createInteropK8sAlarmRunbook({
     id: PURPOSE_OUTBOUND_WRITER_ALARM.runbookKey,
     metadata: {
       name: PURPOSE_OUTBOUND_WRITER_ALARM.runbookKey,
@@ -29,19 +29,25 @@ export function buildRunbook(): Runbook {
     queryProfile: PURPOSE_OUTBOUND_WRITER_QUERY_PROFILE,
     knownCases: KNOWN_CASES,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 5 },
+    hooks: [
+      {
+        at: 'before-cid-analysis',
+        step: new QueryPurposeOutboundContextStep(),
+        evidence: [
+          {
+            id: 'purpose-outbound-writer-context',
+            label: 'Contesto Kafka del purpose outbound writer',
+            type: 'log-sample',
+            messageFields: ['log', '@message'],
+            // The query rejects capped results: keep the whole episode, including its start.
+            retention: { mode: 'all' },
+          },
+        ],
+      },
+    ],
     analysisDefaults: {
       runbookName: PURPOSE_OUTBOUND_WRITER_ALARM.runbookKey,
       links: [{ url: RUNBOOK_URL, name: PURPOSE_OUTBOUND_WRITER_ALARM.runbookKey, type: 'CONFLUENCE' }],
     },
   });
-  const contextStep = { step: new QueryPurposeOutboundContextStep() };
-  // Collect context before AnalyzeCidTracker can resolve a known case early.
-  return {
-    ...runbook,
-    steps: runbook.steps.flatMap((descriptor) =>
-      descriptor.step.id === PURPOSE_OUTBOUND_WRITER_ALARM.stepIds.analyzeCidTracker
-        ? [contextStep, descriptor]
-        : [descriptor],
-    ),
-  };
 }

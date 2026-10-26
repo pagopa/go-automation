@@ -13,13 +13,12 @@ export const LAMBDA_RUNTIME_KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 100,
     condition: { type: 'compare', ref: 'vars.lambdaErrorCategory', operator: '==', value: 'timeout' },
     title: 'Timeout Lambda {{vars.lambdaFunctionName}}',
-    resolution: 'Verificare il timeout configurato e la Max Concurrency della Lambda.',
+    resolution: 'Risoluzione non documentata.',
     details: [
       ['Duration', '{{vars.lambdaDurationMs}} ms'],
       ['requestId', '{{vars.lambdaRequestId}}'],
     ],
     analysis: {
-      // Richiede una verifica di configurazione: l'occorrenza resta aperta.
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
     },
@@ -30,13 +29,12 @@ export const LAMBDA_RUNTIME_KNOWN_CASES: ReadonlyArray<KnownCase> = [
     priority: 99,
     condition: { type: 'compare', ref: 'vars.lambdaErrorCategory', operator: '==', value: 'out-of-memory' },
     title: 'OutOfMemory Lambda {{vars.lambdaFunctionName}}',
-    resolution: 'Aumentare la memoria allocata alla Lambda.',
+    resolution: 'Risoluzione non documentata.',
     details: [
       ['Max Memory Used', '{{vars.lambdaMaxMemoryUsedMb}}/{{vars.lambdaMemorySizeMb}} MB'],
       ['requestId', '{{vars.lambdaRequestId}}'],
     ],
     analysis: {
-      // Serve un intervento di configurazione: l'occorrenza resta aperta.
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
     },

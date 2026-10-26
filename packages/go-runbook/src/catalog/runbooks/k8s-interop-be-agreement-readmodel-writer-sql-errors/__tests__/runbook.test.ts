@@ -118,10 +118,7 @@ describe('agreement readmodel writer SQL runbook', () => {
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
     assert.deepStrictEqual(draft.downstreams, [INTEROP_DOWNSTREAMS.NESSUNO]);
-    assert.match(draft.conclusionNotes, /causa.*resta da verificare/u);
-    assert.match(draft.conclusionNotes, /elaborazione lenta/u);
-    assert.match(draft.conclusionNotes, /commento 293001/u);
-    assert.match(draft.conclusionNotes, /assenza.*pod e intervallo temporale/u);
+
     assert.ok(draft.links.some(({ url }) => url === 'https://pagopa.atlassian.net/browse/PIN-7325'));
     assert.ok(draft.links.some(({ url }) => url.endsWith('/p1773057607941239')));
     assert.deepStrictEqual(logGroups, ['/aws/eks/interop-eks-cluster-prod/application']);

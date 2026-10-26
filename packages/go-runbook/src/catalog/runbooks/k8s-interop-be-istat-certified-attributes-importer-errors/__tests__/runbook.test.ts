@@ -119,7 +119,6 @@ describe('ISTAT certified attributes importer runbook', () => {
     for (const item of KNOWN_CASES) {
       assert.deepStrictEqual(item.analysis?.downstreams, [INTEROP_DOWNSTREAMS.NESSUNO]);
       assert.strictEqual(item.analysis?.proposedStatus, 'IN_PROGRESS');
-      assert.ok((item.analysis?.finalActions?.length ?? 0) > 0);
     }
   });
 
@@ -190,9 +189,7 @@ describe('ISTAT certified attributes importer runbook', () => {
   it('links the 409 to its actual logging fix instead of treating October 1 as deployment proof', async () => {
     const { draft } = await execute({ environment: 'prod', applicationMessage: CONFLICT });
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
-    assert.match(draft.conclusionNotes, /PIN-10823/u);
-    assert.match(draft.conclusionNotes, /ERROR a WARN/u);
-    assert.match(draft.conclusionNotes, /versione installata/u);
+
     assert.ok(
       KNOWN_CASES.find(
         (item) => item.id === 'istat-discrete-certified-attribute-already-assigned',

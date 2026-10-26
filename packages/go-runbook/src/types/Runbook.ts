@@ -5,6 +5,7 @@ import type { CaseAction } from '../actions/CaseAction.js';
 import type { CloudExecutionPolicy } from './CloudExecutionPolicy.js';
 import type { RunbookAnalysisDefaults } from './RunbookAnalysisDefaults.js';
 import type { OccurrenceTimeWindow } from './OccurrenceTimeWindow.js';
+import type { RunbookOutputDefinition } from '../output/RunbookOutputDefinition.js';
 
 /**
  * Complete definition of a runbook.
@@ -41,4 +42,6 @@ export interface Runbook {
    * must be read through public type guards.
    */
   readonly runbookContext?: unknown;
+  /** Explicit scalar diagnostics and source metadata; step evidence lives on StepDescriptor. */
+  readonly output?: RunbookOutputDefinition;
 }

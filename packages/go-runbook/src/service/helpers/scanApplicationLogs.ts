@@ -78,7 +78,8 @@ export function scanApplicationLogs(
       }
     }
 
-    traceIdCandidate ??= matchTraceIdCandidate(fields, schema, message);
+    // Keep the first valid identifier independently of the representative error.
+    traceIdCandidate ??= matchTraceIdCandidate(fields, schema);
   }
 
   return {
@@ -99,7 +100,6 @@ function readMessage(fields: ReadonlyMap<string, string>, schema: ServiceLogSche
 function matchTraceIdCandidate(
   fields: ReadonlyMap<string, string>,
   schema: ServiceLogSchema,
-  message: string,
 ): TraceIdCandidateMatch | undefined {
   const primary = fields.get(schema.traceIdField);
   const aliased = fields.get(`@${schema.traceIdField}`);
@@ -109,14 +109,22 @@ function matchTraceIdCandidate(
     return { raw: rawFromField, canonical: fromField };
   }
 
-  const xray = XRAY_TRACE_ID_PATTERN.exec(message)?.[0];
-  if (xray !== undefined) {
-    return { raw: xray, canonical: xray };
-  }
+  // A structured message can omit identifiers carried by the full @message.
+  // Search each configured field without changing the short error description.
+  for (const candidate of schema.messageFieldCandidates) {
+    const message = fields.get(candidate) ?? '';
+    const xray = XRAY_TRACE_ID_PATTERN.exec(message)?.[0];
+    if (xray !== undefined) {
+      return { raw: xray, canonical: xray };
+    }
 
-  const labeled = LABELED_TRACE_ID_PATTERN.exec(message)?.[1];
-  const fromMessage = labeled === undefined ? undefined : canonicalTraceId(labeled);
-  return labeled !== undefined && fromMessage !== undefined ? { raw: labeled, canonical: fromMessage } : undefined;
+    const labeled = LABELED_TRACE_ID_PATTERN.exec(message)?.[1];
+    const fromMessage = labeled === undefined ? undefined : canonicalTraceId(labeled);
+    if (labeled !== undefined && fromMessage !== undefined) {
+      return { raw: labeled, canonical: fromMessage };
+    }
+  }
+  return undefined;
 }
 
 function canonicalTraceId(raw: string): string | undefined {

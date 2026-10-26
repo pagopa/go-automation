@@ -108,7 +108,6 @@ describe('INTEROP compute agreements consumer known cases', () => {
       assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
       assert.strictEqual(knownCase.analysis?.analysisType, 'ANALYZABLE');
       assert.deepStrictEqual(knownCase.analysis?.downstreams, [INTEROP_DOWNSTREAMS.NESSUNO]);
-      assert.ok((knownCase.analysis?.finalActions?.length ?? 0) > 0);
     }
   });
 
@@ -122,7 +121,7 @@ describe('INTEROP compute agreements consumer known cases', () => {
         type: 'SLACK',
       },
     ]);
-    assert.strictEqual(knownCaseById('compute-agreements-kafka-member-rejoin').analysis?.links, undefined);
-    assert.strictEqual(knownCaseById('compute-agreements-tls-connection-error').analysis?.links, undefined);
+    assert.deepStrictEqual(knownCaseById('compute-agreements-kafka-member-rejoin').analysis?.links ?? [], []);
+    assert.deepStrictEqual(knownCaseById('compute-agreements-tls-connection-error').analysis?.links ?? [], []);
   });
 });

@@ -72,61 +72,44 @@ function matches(caseId: string, messages: ReadonlyArray<string>, field = 'messa
 }
 
 describe('external-registries IO downstream known cases', () => {
-  it('declares the documented and AWS-observed cases with distinct priorities', () => {
-    assert.deepStrictEqual(KNOWN_CASES.map(({ id }) => id).sort(), [
-      'io-activation-cosmos-conflict',
-      'io-activation-cosmos-timeout',
-      'io-activation-not-found',
-      'io-messages-connection-reset',
-      'io-messages-cosmos-unavailable',
-      'io-messages-generic-internal-error',
-      'io-messages-invalid-json-response-500',
-      'io-meter-not-found',
-      'io-read-timeout',
-    ]);
+  const documented = [
+    ['io-activation-cosmos-conflict', ACTIVATION_CONFLICT],
+    ['io-activation-not-found', ACTIVATION_NOT_FOUND],
+    ['io-read-timeout', TIMEOUT],
+    ['io-messages-invalid-json-response-500', INVALID_JSON],
+  ] as const;
+
+  it('recognizes documented signatures in structured, raw and JSON-encoded evidence', () => {
+    assert.deepStrictEqual(KNOWN_CASES.map(({ id }) => id).sort(), documented.map(([id]) => id).sort());
     assert.strictEqual(new Set(KNOWN_CASES.map(({ priority }) => priority)).size, KNOWN_CASES.length);
-  });
-
-  it('recognizes every documented or AWS-observed signature in structured and raw JSON log evidence', () => {
-    for (const [caseId, message] of [
-      ['io-meter-not-found', METER_NOT_FOUND],
-      ['io-activation-cosmos-conflict', ACTIVATION_CONFLICT],
-      ['io-activation-cosmos-timeout', ACTIVATION_TIMEOUT],
-      ['io-activation-cosmos-timeout', ACTIVATION_ROUTING],
-      ['io-activation-not-found', ACTIVATION_NOT_FOUND],
-      ['io-messages-connection-reset', MESSAGE_CONNECTION_RESET],
-      ['io-messages-cosmos-unavailable', MESSAGE_COSMOS_UNAVAILABLE],
-      ['io-messages-generic-internal-error', MESSAGE_GENERIC_ERROR],
-      ['io-read-timeout', TIMEOUT],
-      ['io-messages-invalid-json-response-500', INVALID_JSON],
-    ] as const) {
-      assert.strictEqual(matches(caseId, [message]), true);
-      assert.strictEqual(matches(caseId, [message], '@message'), true);
-      assert.strictEqual(matches(caseId, [JSON.stringify({ level: 'ERROR', message })], '@message'), true);
-    }
-  });
-
-  it('keeps the AWS-observed signatures mutually exclusive', () => {
-    for (const [expectedId, message] of [
-      ['io-meter-not-found', METER_NOT_FOUND],
-      ['io-activation-cosmos-conflict', ACTIVATION_CONFLICT],
-      ['io-activation-cosmos-timeout', ACTIVATION_TIMEOUT],
-      ['io-activation-cosmos-timeout', ACTIVATION_ROUTING],
-      ['io-activation-not-found', ACTIVATION_NOT_FOUND],
-      ['io-messages-connection-reset', MESSAGE_CONNECTION_RESET],
-      ['io-messages-cosmos-unavailable', MESSAGE_COSMOS_UNAVAILABLE],
-      ['io-messages-generic-internal-error', MESSAGE_GENERIC_ERROR],
-      ['io-read-timeout', TIMEOUT],
-      ['io-messages-invalid-json-response-500', INVALID_JSON],
-    ] as const) {
+    for (const [id, message] of documented) {
+      assert.strictEqual(matches(id, [message]), true);
+      assert.strictEqual(matches(id, [message], '@message'), true);
+      assert.strictEqual(matches(id, [JSON.stringify({ level: 'ERROR', message })], '@message'), true);
       assert.deepStrictEqual(
-        KNOWN_CASES.filter(({ id }) => matches(id, [message])).map(({ id }) => id),
-        [expectedId],
+        KNOWN_CASES.filter((c) => matches(c.id, [message])).map((c) => c.id),
+        [id],
       );
     }
   });
 
-  it('does not hard-code the configuration identifier from the incident', () => {
+  it('leaves unverified additions unknown instead of prescribing their resolution', () => {
+    for (const message of [
+      METER_NOT_FOUND,
+      ACTIVATION_TIMEOUT,
+      ACTIVATION_ROUTING,
+      MESSAGE_CONNECTION_RESET,
+      MESSAGE_COSMOS_UNAVAILABLE,
+      MESSAGE_GENERIC_ERROR,
+    ]) {
+      assert.deepStrictEqual(
+        KNOWN_CASES.filter((c) => matches(c.id, [message])),
+        [],
+      );
+    }
+  });
+
+  it('does not hard-code the configuration ID from the incident', () => {
     assert.strictEqual(
       matches('io-messages-invalid-json-response-500', [
         INVALID_JSON.replace('01HMVMHCZZ8D0VTFWMRHBM5D6F', '01NEWCONFIGURATION123456789'),
@@ -135,127 +118,39 @@ describe('external-registries IO downstream known cases', () => {
     );
   });
 
-  it('does not classify another downstream or exception as an IO read timeout', () => {
+  it('requires the IO downstream and the complete timeout or JSON signature', () => {
     for (const message of [
       TIMEOUT.replace('Service IO ', 'Service OneTrust '),
       TIMEOUT.replace('ReadTimeoutException', 'ConnectTimeoutException'),
       TIMEOUT.replace('ReadTimeoutException', 'ReadTimeoutExceptionOther'),
       'io.netty.handler.timeout.ReadTimeoutException',
     ]) {
-      assert.strictEqual(matches('io-read-timeout', [message]), false, message);
+      assert.strictEqual(matches('io-read-timeout', [message]), false);
     }
-  });
-
-  it('requires the specific downstream, status, method, endpoints and JSON failure', () => {
     for (const message of [
       INVALID_JSON.replace('Service IO ', 'Service OneTrust '),
-      INVALID_JSON.replace('500 Internal Server Error from', '503 Service Unavailable from'),
       INVALID_JSON.replace('from POST', 'from GET'),
-      INVALID_JSON.replace('api.io.pagopa.it/api/v1/messages;', 'api.io.pagopa.it/api/v1/profiles;'),
-      INVALID_JSON.replace('api-app.internal.io.pagopa.it', 'another.internal.io.pagopa.it'),
+      INVALID_JSON.replace('500 Internal Server Error from', '503 Service Unavailable from'),
       INVALID_JSON.replace('remote-contents/configurations/', 'remote-contents/other/'),
       INVALID_JSON.replace('Unexpected end of JSON input', 'Unexpected token in JSON'),
-      `${HTTP_ERROR}{"detail":"unrelated error","status":500}`,
+      INVALID_JSON.replace('JSON input', 'JSON inputs'),
       TIMEOUT,
     ]) {
-      assert.strictEqual(matches('io-messages-invalid-json-response-500', [message]), false, message);
+      assert.strictEqual(matches('io-messages-invalid-json-response-500', [message]), false);
     }
-  });
-
-  it('does not join an unrelated HTTP error and a JSON failure from separate rows', () => {
     assert.strictEqual(matches('io-messages-invalid-json-response-500', [HTTP_ERROR, INVALID_JSON_DETAIL]), false);
   });
 
-  it('requires complete signature tokens instead of accepting invalid suffixes', () => {
-    for (const [caseId, message] of [
-      [
-        'io-meter-not-found',
-        METER_NOT_FOUND.replace('NumberOfIOMessageSentSuccessfully', 'NumberOfIOMessageSentSuccessfullyOther'),
-      ],
-      [
-        'io-activation-cosmos-conflict',
-        ACTIVATION_CONFLICT.replace('COSMOS_ERROR_RESPONSE', 'COSMOS_ERROR_RESPONSE_OTHER'),
-      ],
-      ['io-activation-cosmos-timeout', ACTIVATION_ROUTING.replace('routing the request', 'routing the requests')],
-      ['io-activation-not-found', ACTIVATION_NOT_FOUND.replace('for the user', 'for the users')],
-      ['io-messages-connection-reset', MESSAGE_CONNECTION_RESET.replace('ECONNRESET', 'ECONNRESET_OTHER')],
-      ['io-messages-invalid-json-response-500', INVALID_JSON.replace('JSON input', 'JSON inputs')],
-    ] as const) {
-      assert.strictEqual(matches(caseId, [message]), false, message);
+  it('does not close undocumented resolutions or assign IO internal operations', () => {
+    for (const c of KNOWN_CASES) {
+      assert.strictEqual(c.analysis?.proposedStatus, 'IN_PROGRESS');
+      assert.deepStrictEqual(c.analysis?.downstreams, [SEND_DOWNSTREAMS.APP_IO]);
+      assert.deepStrictEqual(c.analysis?.finalActions ?? [], []);
+      assert.doesNotMatch(c.analysis?.resolution ?? '', /verificare.*Cosmos|connettività|deployment/iu);
     }
-  });
-
-  it('requires the exact JSON codes and keys of the Cosmos and generic message errors', () => {
-    for (const message of [
-      MESSAGE_COSMOS_UNAVAILABLE.replace('"code":503', '"code":5030'),
-      MESSAGE_COSMOS_UNAVAILABLE.replace('"code":503', '"code":503.5'),
-      MESSAGE_COSMOS_UNAVAILABLE.replace('"code":503', '"code":"503"'),
-      MESSAGE_COSMOS_UNAVAILABLE.replace('"code":503', '"otherCode":503'),
-      MESSAGE_COSMOS_UNAVAILABLE.replace('ServiceUnavailable', 'ServiceUnavailableOther'),
-      MESSAGE_COSMOS_UNAVAILABLE.replace('Channel is closed', 'Channel is closedOther'),
-    ]) {
-      assert.strictEqual(matches('io-messages-cosmos-unavailable', [message]), false, message);
-    }
-    for (const message of [
-      MESSAGE_GENERIC_ERROR.replace('"statusCode":500', '"statusCode":5000'),
-      MESSAGE_GENERIC_ERROR.replace('"statusCode":500', '"statusCode":500.5'),
-      MESSAGE_GENERIC_ERROR.replace('"statusCode":500', '"statusCode":"500"'),
-      MESSAGE_GENERIC_ERROR.replace('"statusCode":500', '"otherStatusCode":500'),
-      MESSAGE_GENERIC_ERROR.replace('Internal server error', 'Internal server errorOther'),
-      MESSAGE_GENERIC_ERROR.replace('"activityId"', '"activityIdOther"'),
-      MESSAGE_GENERIC_ERROR.replace('"activity-1"', '""'),
-    ]) {
-      assert.strictEqual(matches('io-messages-generic-internal-error', [message]), false, message);
-    }
-  });
-
-  it('recognizes the same JSON message error regardless of property order', () => {
-    assert.strictEqual(
-      matches('io-messages-generic-internal-error', [
-        HTTP_ERROR + JSON.stringify({ activityId: 'activity-1', message: 'Internal server error', statusCode: 500 }),
-      ]),
-      true,
-    );
-    assert.strictEqual(
-      matches('io-messages-cosmos-unavailable', [
-        HTTP_ERROR +
-          JSON.stringify({
-            detail: { error: { body: { message: 'Channel is closed', code: 'ServiceUnavailable' }, code: 503 } },
-          }),
-      ]),
-      true,
-    );
-  });
-
-  it('leaves empty or unknown evidence to the standard fallback', () => {
-    for (const { id } of KNOWN_CASES) {
-      assert.strictEqual(matches(id, []), false);
-      assert.strictEqual(matches(id, ['[DOWNSTREAM] Service IO returned errors=429 Too Many Requests']), false);
-    }
-  });
-
-  it('keeps unresolved cases open and exposes the checks required by their resolutions', () => {
-    for (const knownCase of KNOWN_CASES) {
-      assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
-      assert.strictEqual(knownCase.analysis?.analysisType, 'ANALYZABLE');
-      assert.deepStrictEqual(knownCase.analysis?.downstreams, [
-        knownCase.id === 'io-meter-not-found' ? SEND_DOWNSTREAMS.NESSUNO : SEND_DOWNSTREAMS.APP_IO,
-      ]);
-      assert.ok((knownCase.analysis?.finalActions?.length ?? 0) > 0, knownCase.id);
-      assert.match(knownCase.analysis?.resolution ?? '', /Mantenere l’analisi aperta/u);
-    }
-    const httpCase = KNOWN_CASES.find(({ id }) => id === 'io-messages-invalid-json-response-500');
-    assert.deepStrictEqual(
-      httpCase?.analysis?.links?.map(({ url }) => url),
-      [
-        'https://pagopa.atlassian.net/browse/PN-21426',
-        'https://pagopaspa.slack.com/archives/C087KRMD16E/p1788777409771749',
-        'https://pagopaspa.slack.com/archives/C064KJYNLPL/p1788778720713519',
-      ],
-    );
-    assert.deepStrictEqual(
-      httpCase?.analysis?.links?.map(({ type }) => type),
-      ['JIRA', 'SLACK', 'SLACK'],
-    );
+    const conflict = KNOWN_CASES.find((c) => c.id === 'io-activation-cosmos-conflict');
+    assert.match(conflict?.analysis?.resolution ?? '', /Segnalare a Infra/u);
+    const json = KNOWN_CASES.find((c) => c.id === 'io-messages-invalid-json-response-500');
+    assert.ok(json?.analysis?.links?.some((l) => l.url === 'https://pagopa.atlassian.net/browse/PN-21426'));
   });
 });

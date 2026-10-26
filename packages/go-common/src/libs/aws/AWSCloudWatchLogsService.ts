@@ -14,6 +14,7 @@ import {
 import { GOPoller, GOPollingPolicies } from '../core/polling/index.js';
 
 import type { AWSProfileSet } from './AWSProfileSet.js';
+import { AWSAccountProfileSet } from './AWSAccountProfileSet.js';
 import { AWSActiveOperationRegistry } from './AWSActiveOperationRegistry.js';
 import type { AWSRemoteCleanupWarningHandler } from './AWSActiveOperationRegistry.js';
 
@@ -182,6 +183,39 @@ export class AWSCloudWatchLogsService {
   /** Returns a service bound to the active-operation registry of one execution. */
   forExecution(activeOperations: AWSActiveOperationRegistry): AWSCloudWatchLogsService {
     return new AWSCloudWatchLogsService(this.clientProvider, this.target, activeOperations);
+  }
+
+  /** Independent readers for exactly the sources allowed by this execution's configuration. */
+  getConfiguredSources(): ReadonlyArray<{ readonly key: string; readonly service: AWSCloudWatchLogsService }> {
+    if (this.target !== undefined) {
+      const region = this.target.region;
+      const sources = targetSources(this.target);
+      if (sources.length > 0) {
+        // Keep the target's OAM identity without setting source.profile: that
+        // would turn an ARN-based cross-account query into a direct name query.
+        const monitoringReader =
+          this.target.profile === undefined
+            ? this
+            : new AWSCloudWatchLogsService(
+                new AWSAccountProfileSet(this.clientProvider, [this.target.profile]),
+                undefined,
+                this.activeOperations,
+              );
+        return sources.map((source) => ({
+          key: source.accountId,
+          service: (source.profile === undefined ? monitoringReader : this).forTarget({ ...source, region }),
+        }));
+      }
+      return [{ key: this.target.profile ?? this.clientProvider.first.getProfile(), service: this }];
+    }
+    return this.clientProvider.profileNames.map((profile) => ({
+      key: profile,
+      service: new AWSCloudWatchLogsService(
+        new AWSAccountProfileSet(this.clientProvider, [profile]),
+        undefined,
+        this.activeOperations,
+      ),
+    }));
   }
 
   async query(

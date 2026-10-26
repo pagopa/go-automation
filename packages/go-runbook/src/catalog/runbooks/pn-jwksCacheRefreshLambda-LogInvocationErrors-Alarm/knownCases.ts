@@ -1,13 +1,10 @@
 /**
  * Known cases for the pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm runbook.
  */
-
 import { lambda } from '../framework.js';
 import { knownCase } from '../framework.js';
 import type { KnownCase } from '../framework.js';
-
 import { lambdaLogEvidenceMatches } from '../common/evidenceConditions.js';
-
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   ...lambda.LAMBDA_RUNTIME_KNOWN_CASES,
   knownCase({
@@ -18,11 +15,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       'Error during addJwksCacheEntry.*caftfdc_pagopa\\.it.*iqpanel\\.inquery\\.it.*status:\\s*503.*Service Unavailable',
     ),
     title: 'JWKS cache refresh: Inquery caftfdc_pagopa.it non raggiungibile (HTTP 503)',
-    resolution: 'casistica nota di irraggiungibilita temporanea del servizio. Verificare eventuale retry successivo.',
+    resolution: 'Casuale irraggiungibilit\u00E0 del servizio ad ora rientrata.',
     details: [['requestId', '{{vars.lambdaRequestId}}']],
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
     },
   }),
   knownCase({
@@ -34,11 +33,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     ),
     title: 'JWKS cache refresh: gestione.sedi.uci.it ha risposto Bad Gateway (HTTP 502)',
     resolution:
-      'spesso errore di rete temporaneo. Estendere di qualche minuto la finestra log e verificare il retry positivo.',
+      'Spesso \u00E8 un errore di rete temporaneo. Estendendo di qualche minuto l\u2019intervallo temporale di ricerca nei log sar\u00E0 possibile verificare l\u2019esito positivo dell\u2019operazione tramite retry.',
     details: [['requestId', '{{vars.lambdaRequestId}}']],
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
     },
   }),
   knownCase({
@@ -48,11 +49,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
     condition: lambdaLogEvidenceMatches('Error during addJwksCacheEntry.*AxiosError:\\s*read ECONNRESET'),
     title: 'JWKS cache refresh: errore di rete ECONNRESET su sede RADD',
     resolution:
-      'solitamente il retry successivo risolve. Estendere la ricerca ai log successivi, anche con requestId differente.',
+      'Solitamente, estendendo l\u2019intervallo temporale di analisi dei log (@requestID differente) \u00E8 possibile verificare che la problematica viene risolta al retry successivo (5 min).',
     details: [['requestId', '{{vars.lambdaRequestId}}']],
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
     },
   }),
   knownCase({
@@ -63,11 +66,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       'Error downloading URL:\\s*https://www\\.cafconfagricoltura\\.it/\\.well-known/jwks\\.json.*status:\\s*500.*URL Rewrite Module Error',
     ),
     title: 'JWKS cache refresh: cafconfagricoltura.it risponde HTTP 500 URL Rewrite Module Error',
-    resolution: 'caso gia discusso nel thread Slack del 23/04/2026.',
+    resolution: 'Thread Slack 23/04/2026',
     details: [['requestId', '{{vars.lambdaRequestId}}']],
     analysis: {
       proposedStatus: 'COMPLETED',
       analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
     },
   }),
   knownCase({
@@ -78,11 +83,13 @@ export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
       'Error downloading URL:\\s*https://iqpanel\\.inquery\\.it/\\.well-known/jwks\\.json.*status:\\s*500.*Internal Server Error',
     ),
     title: 'JWKS cache refresh: Inquery risponde HTTP 500 Internal Server Error',
-    resolution: "aggiornamento dell'11/05/2026 al thread Slack del 23/04/2026.",
+    resolution: '11/05/2026: Aggiornamento del thread 23/04/2026',
     details: [['requestId', '{{vars.lambdaRequestId}}']],
     analysis: {
       proposedStatus: 'IN_PROGRESS',
       analysisType: 'ANALYZABLE',
+      finalActions: [],
+      links: [],
     },
   }),
 ];

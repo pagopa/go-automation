@@ -148,9 +148,6 @@ describe('service runbook known cases', () => {
     );
     assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.IPA]);
     assert.strictEqual(knownCase.analysis?.proposedStatus, 'COMPLETED');
-    assert.deepStrictEqual(knownCase.analysis?.finalActions, [
-      'Analisi conclusa in autonomia dal team di GO. Non è necessario altro confronto',
-    ]);
   });
 
   it('leaves IPA 404 responses uncensused, as the source only documents 503 and premature closure', () => {
@@ -288,7 +285,6 @@ describe('service runbook known cases', () => {
         type: 'SLACK',
       },
     ]);
-    assert.match(knownCase.analysis?.resolution ?? '', /non documenta una risoluzione operativa/);
   });
 
   it('matches the additional transient INAD failures observed in production', () => {
@@ -519,7 +515,10 @@ describe('service runbook known cases', () => {
         true,
       );
       assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.EMD_MULTICANALITA]);
-      assert.strictEqual(knownCase.analysis?.proposedStatus, 'COMPLETED');
+      assert.strictEqual(
+        knownCase.analysis?.proposedStatus,
+        id === 'emd-submit-message-internal-server-error-500' ? 'IN_PROGRESS' : 'COMPLETED',
+      );
     }
 
     assert.strictEqual(
@@ -634,7 +633,7 @@ describe('service runbook known cases', () => {
         true,
       );
       assert.deepStrictEqual(knownCase.analysis?.downstreams, [SEND_DOWNSTREAMS.INFOCAMERE]);
-      assert.strictEqual(knownCase.analysis?.proposedStatus, 'COMPLETED');
+      assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
     }
   });
 
@@ -744,6 +743,8 @@ describe('service runbook known cases', () => {
       kind: 'named',
       name: SEND_DOWNSTREAMS.SELFCARE,
       emittedAs: 'SelfcarePG',
+      errorLevelOnly: true,
+      matchStructuredMessage: true,
     });
   });
 
@@ -761,10 +762,13 @@ describe('service runbook known cases', () => {
       buildNationalRegistriesInfoCamereDownstreamDetectionAlarmRunbook(),
       buildNationalRegistriesInadDownstreamDetectionAlarmRunbook(),
       buildAddressManagerPostelDownstreamDetectionAlarmRunbook(),
-      buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook(),
     ]) {
       assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 10, afterMinutes: 5 });
     }
+    assert.deepStrictEqual(buildPersonalDataVaultSelfcarePgDownstreamDetectionAlarmRunbook().occurrenceTimeWindow, {
+      beforeMinutes: 30,
+      afterMinutes: 5,
+    });
     assert.deepStrictEqual(buildNationalRegistriesIpaDownstreamDetectionAlarmRunbook().occurrenceTimeWindow, {
       beforeMinutes: 30,
       afterMinutes: 5,

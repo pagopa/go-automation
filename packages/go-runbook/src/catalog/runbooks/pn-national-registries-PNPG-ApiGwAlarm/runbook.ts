@@ -30,7 +30,45 @@ export function buildRunbook(): Runbook {
     minStatusCode: 400,
     entryService: ENTRY_SERVICE,
     services: REACHABLE_SERVICES,
+    hooks: [
+      {
+        at: 'before-service-traversal',
+        silent: true,
+        evidence: [
+          {
+            id: 'national-registries-completion',
+            label: 'Avvio e completamento applicativo legal-institutions per trace',
+            type: 'log-sample',
+            retention: { mode: 'all' },
+          },
+        ],
+        step: new apigw.QueryServiceLogsStep({
+          id: 'query-national-registries-completion',
+          label: 'Verifica completamento applicativo legal-institutions per trace',
+          serviceName: ENTRY_SERVICE.name,
+          entryService: true,
+          logGroups: [ENTRY_SERVICE.logGroup],
+          timeRangeFromParams: { start: 'startTime', end: 'endTime' },
+          queryTemplateOverride:
+            '{{FILTER_CLAUSE}}\n' +
+            '| filter message = "Starting process _infoCamereLegalInstitutions" ' +
+            'or message = "Ending process _infoCamereLegalInstitutions" ' +
+            'or message = "Checking [INFO CAMERE] legal institutions passed"\n' +
+            '| sort @timestamp asc\n| limit 1000\n| display @timestamp, level, message, trace_id',
+        }),
+      },
+    ],
     knownUrls: KNOWN_URLS,
     knownCases: KNOWN_CASES,
+    analysisDefaults: {
+      runbookName: 'pn-national-registries-PNPG-ApiGwAlarm',
+      links: [
+        {
+          url: 'https://pagopa.atlassian.net/wiki/spaces/GO/pages/2111700993/pn-national-registries-PNPG-ApiGwAlarm',
+          name: 'pn-national-registries-PNPG-ApiGwAlarm',
+          type: 'CONFLUENCE',
+        },
+      ],
+    },
   });
 }
