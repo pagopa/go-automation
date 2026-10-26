@@ -18,6 +18,7 @@ export interface ApiGwAlarmBuildContext {
   readonly hooks: ReadonlyArray<PipelineHook<ApiGwPipelineAnchor>>;
   readonly minStatus: number;
   readonly apiGwQuery: string;
+  readonly apiGwFallbackQuery?: string;
   readonly registry: KnownUrlsRegistry;
   readonly allServices: ReadonlyArray<ApiGwService>;
   readonly servicesInRunbook: ReadonlySet<string>;
@@ -32,6 +33,10 @@ export function resolveApiGwAlarmBuildContext(config: ApiGwAlarmConfig): ApiGwAl
   validateApiGwAlarmConfig(config, profile);
 
   const minStatus = config.minStatusCode ?? DEFAULT_MIN_STATUS_CODE;
+  const fallbackMin = config.fallbackMinStatusCode;
+  if (fallbackMin !== undefined && (!Number.isInteger(fallbackMin) || fallbackMin < 400 || fallbackMin >= minStatus)) {
+    throw new Error('fallbackMinStatusCode must be an integer >= 400 and lower than minStatusCode');
+  }
   const apiGwQuery = renderQueryTemplate(profile.accessLog.query, {
     values: { '{{minStatusCode}}': String(minStatus) },
     queryId: `${profile.id}.accessLog`,
@@ -45,8 +50,16 @@ export function resolveApiGwAlarmBuildContext(config: ApiGwAlarmConfig): ApiGwAl
     config,
     profile,
     hooks: config.hooks ?? [],
-    minStatus,
+    minStatus: fallbackMin ?? minStatus,
     apiGwQuery,
+    ...(fallbackMin !== undefined
+      ? {
+          apiGwFallbackQuery: renderQueryTemplate(profile.accessLog.query, {
+            values: { '{{minStatusCode}}': String(fallbackMin) },
+            queryId: `${profile.id}.accessLog.fallback`,
+          }),
+        }
+      : {}),
     registry: new KnownUrlsRegistry(config.knownUrls),
     allServices,
     servicesInRunbook: new Set(allServices.map((service) => service.name)),

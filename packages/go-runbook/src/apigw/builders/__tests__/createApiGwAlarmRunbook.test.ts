@@ -69,6 +69,19 @@ function baseConfig(overrides: Partial<ApiGwAlarmConfig> = {}): ApiGwAlarmConfig
   };
 }
 
+describe('API Gateway AccessLog threshold fallback', () => {
+  it('wires the lower threshold only as an empty-result fallback', () => {
+    const runbook = createApiGwAlarmRunbook(baseConfig({ fallbackMinStatusCode: 400 }));
+    const query = runbook.steps.find((d) => d.step.id === 'query-api-gw-logs')?.step;
+    const info = query?.getTraceInfo?.(fakeContext([]));
+    assert.match(String(info?.['query']), /status >= 500/);
+    assert.match(String(info?.['emptyResultFallbackQuery']), /status >= 400/);
+    for (const fallbackMinStatusCode of [500, 600, 399, 400.5, NaN]) {
+      assert.throws(() => createApiGwAlarmRunbook(baseConfig({ fallbackMinStatusCode })), /fallbackMinStatusCode/);
+    }
+  });
+});
+
 describe('createApiGwAlarmRunbook', () => {
   it('builds the canonical step ordering with AccessLog parsing under the preparation section', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig());

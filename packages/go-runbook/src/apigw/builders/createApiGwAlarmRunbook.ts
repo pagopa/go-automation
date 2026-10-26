@@ -52,6 +52,7 @@ export function createApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
       label: 'Query API Gateway AccessLog per errori HTTP',
       logGroups: [config.apiGwLogGroup],
       query: apiGwQuery,
+      ...(ctx.apiGwFallbackQuery !== undefined ? { emptyResultFallbackQuery: ctx.apiGwFallbackQuery } : {}),
       timeRangeFromParams: { start: 'startTime', end: 'endTime' },
       logGroupResolutionMode: 'search-configured-profiles',
       ...(config.paginateAccessLogResults !== undefined ? { paginateResults: config.paginateAccessLogResults } : {}),
