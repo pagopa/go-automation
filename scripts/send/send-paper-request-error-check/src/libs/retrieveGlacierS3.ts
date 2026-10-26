@@ -86,10 +86,9 @@ async function resolveSafestorageBucket(
     const buckets = await s3Service.listBuckets();
     const target = buckets.find(
       (b) =>
-        (b.name !== undefined &&
-          !b.name.includes('staging') &&
-          (b.name.includes('safestorage') || b.name.includes('safe-storage'))) ||
-        b.name?.includes('pn-safestorage'),
+        b.name !== undefined &&
+        !b.name.includes('staging') &&
+        (b.name.includes('safestorage') || b.name.includes('safe-storage')),
     );
     if (target?.name) {
       return target.name;

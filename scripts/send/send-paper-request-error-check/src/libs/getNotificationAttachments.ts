@@ -79,7 +79,6 @@ export async function getNotificationAttachments(
   }
 
   logger.info(`Bucket SafeStorage di riferimento: ${bucket}`);
-  logger.info(`Modalità ripristino (--restore): ${config.restore ? 'ATTIVA' : 'DISATTIVATA'}`);
 
   const csvFile = path.join(outputDir, `notification_attachments_${timestamp}.csv`);
   const notFoundNotificationsFile = path.join(outputDir, `not_found_notifications_${timestamp}.txt`);

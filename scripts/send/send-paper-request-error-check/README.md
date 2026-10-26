@@ -26,7 +26,7 @@ tramite la CLI `--mode` (`-m`).
 2. **`check-feedback`**: Verifica la presenza degli eventi `SEND_ANALOG_FEEDBACK` o `COMPLETELY_UNREACHABLE` su
    DynamoDB (`pn-Timelines`) a partire da un elenco di `requestId`.
 3. **`get-attachments`**: Verifica l'esistenza degli allegati su S3 e `pn-SsDocumenti` per una lista di IUN, rimuovendo
-   gli S3 Delete Markers ed aggiornando lo stato in caso di `--restore`.
+   gli S3 Delete Markers.
 4. **`retrieve-attachments`**: Recupera le chiavi S3 degli allegati e dei documenti AAR (`AAR_GENERATION`) per ogni IUN.
 5. **`retrieve-glacier`**: Richiede il ripristino da S3 Glacier degli oggetti archiviati. **Include una richiesta di
    conferma interattiva all'utente** prima di inviare le richieste di restore. Se l'utente risponde "No", lo step viene
@@ -38,18 +38,17 @@ tramite la CLI `--mode` (`-m`).
 
 ### Parametri CLI
 
-| Parametro                     | Alias             | Tipo    | Default     | Descrizione                                                                                                                                        |
-| ----------------------------- | ----------------- | ------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Parametro                     | Alias             | Tipo    | Default     | Descrizione                                                                                                                                       |
+| ----------------------------- | ----------------- | ------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--mode`                      | `-m`              | string  | `all`       | Modalità di esecuzione (`all`, `check-feedback`, `get-attachments`, `retrieve-attachments`, `retrieve-glacier`, `validate-pdf`, `fetch-timelines`) |
-| `--aws.profile`               | `-p`, `--profile` | string  | -           | Nome del profilo AWS SSO                                                                                                                           |
-| `--envName`                   | `-e`              | string  | -           | Nome dell'ambiente (`dev`, `uat`, `test`, `prod`, `hotfix`)                                                                                        |
-| `--inputFile`                 | `-f`, `--input`   | string  | -           | Percorso del file di input contenente IUN, requestId o chiavi S3                                                                                   |
-| `--bucket`                    | `-b`              | string  | -           | Nome del bucket S3 (risolto automaticamente se non specificato)                                                                                    |
-| `--restore`                   | `-r`              | boolean | `false`     | Abilita il ripristino per allegati e marker di cancellazione                                                                                       |
-| `--outputDir`                 | `-o`              | string  | `./results` | Directory di output per i report e file di risultato                                                                                               |
-| `--glacier.expirationDays`    | -                 | number  | `30`        | Giorni di disponibilità per i documenti ripristinati da Glacier                                                                                    |
-| `--glacier.tier`              | -                 | string  | `Bulk`      | Velocità di ripristino Glacier (`Bulk`, `Standard`, `Expedited`)                                                                                   |
-| `--pdfValidation.concurrency` | -                 | number  | `20`        | Richieste S3 concorrenti per la validazione dei PDF                                                                                                |
+| `--aws.profile`               | `-p`, `--profile` | string  | -           | Nome del profilo AWS SSO                                                                                                                          |
+| `--envName`                   | `-e`              | string  | -           | Nome dell'ambiente (`dev`, `uat`, `test`, `prod`, `hotfix`)                                                                                       |
+| `--inputFile`                 | `-f`, `--input`   | string  | -           | Percorso del file di input contenente IUN, requestId o chiavi S3                                                                                  |
+| `--bucket`                    | `-b`              | string  | -           | Nome del bucket S3 (risolto automaticamente se non specificato)                                                                                   |
+| `--outputDir`                 | `-o`              | string  | `./results` | Directory di output per i report e file di risultato                                                                                              |
+| `--glacier.expirationDays`    | -                 | number  | `30`        | Giorni di disponibilità per i documenti ripristinati da Glacier                                                                                   |
+| `--glacier.tier`              | -                 | string  | `Bulk`      | Velocità di ripristino Glacier (`Bulk`, `Standard`, `Expedited`)                                                                                  |
+| `--pdfValidation.concurrency` | -                 | number  | `20`        | Richieste S3 concorrenti per la validazione dei PDF                                                                                               |
 
 ## Utilizzo
 
@@ -66,7 +65,7 @@ pnpm --filter=send-paper-request-error-check dev --inputFile ./input_iuns.txt --
 pnpm --filter=send-paper-request-error-check dev --mode check-feedback --inputFile ./requestIds.txt --envName dev
 
 # 2. Ripristino allegati da notifiche con remove delete markers
-pnpm --filter=send-paper-request-error-check dev --mode get-attachments --inputFile ./iuns.txt --restore --envName dev
+pnpm --filter=send-paper-request-error-check dev --mode get-attachments --inputFile ./iuns.txt --envName dev
 
 # 3. Restore da S3 Glacier (con prompt di conferma utente)
 pnpm --filter=send-paper-request-error-check dev --mode retrieve-glacier --inputFile ./glacier_keys.txt --envName dev

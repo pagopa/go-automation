@@ -121,9 +121,6 @@ export interface SendPaperRequestErrorCheckConfig {
   /** Nome del bucket S3 di destinazione */
   readonly bucket?: string;
 
-  /** Abilita la modalità di ripristino/restore allegati */
-  readonly restore: boolean;
-
   /** Forza l'esecuzione senza richiedere conferme interattive */
   readonly force?: boolean;
 

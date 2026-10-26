@@ -30,7 +30,10 @@ export async function main(script: Core.GOScript): Promise<void> {
   await executeStepByMode(script, config, inputLines, reporter);
 
   // Report finale con metriche
-  await reporter.generateReport(config.outputDir, script.logger);
+  const metrics = await reporter.generateReport(config.outputDir, script.logger);
+  if ((metrics.errorsCount ?? 0) > 0) {
+    throw new Error(`Paper Request Error Check completed with ${metrics.errorsCount} operational errors`);
+  }
 
   script.logger.success('Paper Request Error Check run completed successfully');
 }
