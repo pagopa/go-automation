@@ -62,7 +62,7 @@ export interface ServiceLogsScan {
   readonly errorMessage: string;
   /** First known URL in the strongest failure evidence, falling back to other rows. */
   readonly knownUrl: KnownUrlInLogs | undefined;
-  /** First `FALLBACK-UUID` token found, or `undefined`. */
+  /** UUID associated with the selected URL; first token when no URL is selected. */
   readonly fallbackUuid: string | undefined;
   /** First valid trace id candidate, or `undefined`. */
   readonly traceIdCandidate: TraceIdCandidateMatch | undefined;
@@ -76,7 +76,7 @@ export interface ServiceLogsScan {
  *   heuristic as fallback);
  * - a known URL, preferring ERROR/WARN rows, then level-less error keywords,
  *   then other rows; the first match wins within each priority;
- * - the first `FALLBACK-UUID` token;
+ * - the selected URL's `FALLBACK-UUID`, or the first token when no URL is selected;
  * - the first valid trace id candidate.
  *
  * Each row is materialised into a `Map<field, value>` exactly once, so
@@ -99,6 +99,7 @@ export function scanServiceLogs(
   let bestByKeyword = '';
   let knownUrl: KnownUrlInLogs | undefined;
   let knownUrlPriority = -1;
+  let knownUrlFallbackUuid: string | undefined;
   let fallbackUuid: string | undefined;
   let traceIdCandidate: TraceIdCandidateMatch | undefined;
 
@@ -140,6 +141,7 @@ export function scanServiceLogs(
         if (candidate !== undefined) {
           knownUrl = candidate;
           knownUrlPriority = urlPriority;
+          knownUrlFallbackUuid = associatedFallbackUuid(message, registry);
         }
       }
 
@@ -161,9 +163,21 @@ export function scanServiceLogs(
   return {
     errorMessage: bestByLevel !== '' ? bestByLevel : bestByKeyword,
     knownUrl,
-    fallbackUuid,
+    fallbackUuid: knownUrl !== undefined ? knownUrlFallbackUuid : fallbackUuid,
     traceIdCandidate,
   };
+}
+
+/** A message must identify one known invocation and one UUID to pair them. */
+function associatedFallbackUuid(message: string, registry: KnownUrlsRegistry): string | undefined {
+  const uuids = new Set([...message.matchAll(new RegExp(FALLBACK_UUID_PATTERN.source, 'g'))].map((match) => match[1]));
+  if (uuids.size !== 1) return undefined;
+  const knownUrls = new Set(
+    (message.match(URL_PATTERN) ?? [])
+      .map((url) => url.replace(TRAILING_TRIM, ''))
+      .filter((url) => registry.match(url) !== undefined),
+  );
+  return knownUrls.size === 1 ? uuids.values().next().value : undefined;
 }
 
 /**

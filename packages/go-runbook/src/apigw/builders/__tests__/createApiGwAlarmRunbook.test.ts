@@ -83,6 +83,78 @@ describe('API Gateway AccessLog threshold fallback', () => {
 });
 
 describe('createApiGwAlarmRunbook', () => {
+  for (const useFallback of [true, false]) {
+    it(`queries the selected downstream with ${useFallback ? 'its own fallback UUID' : 'the original trace when its UUID is missing'}`, async () => {
+      const firstUuid = '11111111-1111-1111-1111-111111111111';
+      const secondUuid = '22222222-2222-2222-2222-222222222222';
+      const originalTrace = '1-69b158e8-28c211881e5339480367ede0';
+      const calls: { group: string; query: string }[] = [];
+      const services = createTestServiceRegistry({
+        cloudWatchLogs: {
+          query: async (groups: ReadonlyArray<string>, query: string) => {
+            await Promise.resolve();
+            const group = groups[0] ?? '';
+            calls.push({ group, query });
+            if (group === '/aws/apigw/main') return [cwRow({ status: '500', xrayTraceId: `Root=${originalTrace}` })];
+            if (group === '/aws/ecs/pn-a')
+              return [
+                cwRow({
+                  level: 'INFO',
+                  '@message': `Invoking http://internal/service-a/call FALLBACK-UUID:${firstUuid}`,
+                }),
+                cwRow({
+                  level: 'ERROR',
+                  '@message': `Error calling http://internal/service-b/call${useFallback ? ` FALLBACK-UUID:${secondUuid}` : ''}`,
+                }),
+              ];
+            if (group === '/aws/ecs/pn-b')
+              return [cwRow({ level: 'ERROR', '@message': 'Failure in selected downstream B' })];
+            assert.fail(`Unexpected query: ${group}`);
+          },
+        },
+      });
+      const runbook = createApiGwAlarmRunbook(
+        baseConfig({
+          entryService: {
+            name: 'pn-a',
+            logGroup: '/aws/ecs/pn-a',
+            varPrefix: 'a',
+            queryOverride: "{{FILTER_CLAUSE}}\n| filter level = 'ERROR' or @message like 'Invoking'",
+          },
+          knownUrls: [
+            { url: 'http://internal/service-a/', target: 'pn-a' },
+            { url: 'http://internal/service-b/', target: 'pn-b' },
+          ],
+          knownCases: [
+            {
+              id: 'downstream-b-failure',
+              description: 'Correlated B failure',
+              priority: 1,
+              condition: { type: 'contains', ref: 'steps.query-pn-b', regex: 'Failure in selected downstream B' },
+              action: { type: 'log', level: 'info', title: 'B failure' },
+            },
+          ],
+        }),
+      );
+      const result = await new RunbookEngine(new GOLogger()).execute(
+        runbook,
+        new Map([
+          ['startTime', '2026-01-01T00:00:00Z'],
+          ['endTime', '2026-01-01T00:10:00Z'],
+        ]),
+        services,
+      );
+      assert.deepEqual(
+        calls.map((call) => call.group),
+        ['/aws/apigw/main', '/aws/ecs/pn-a', '/aws/ecs/pn-b'],
+      );
+      const downstreamQuery = calls[2]?.query ?? '';
+      assert.ok(downstreamQuery.includes(useFallback ? secondUuid : originalTrace));
+      assert.ok(!downstreamQuery.includes(firstUuid));
+      if (useFallback) assert.ok(!downstreamQuery.includes(originalTrace));
+      assert.equal(result.matchedCases[0]?.id, 'downstream-b-failure');
+    });
+  }
   it('builds the canonical step ordering with AccessLog parsing under the preparation section', () => {
     const runbook = createApiGwAlarmRunbook(baseConfig());
     const stepIds = runbook.steps.map((d) => d.step.id);
