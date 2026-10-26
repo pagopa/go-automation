@@ -1,4 +1,5 @@
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
+import { WATCHTOWER_PRODUCTION_BASE_URL } from './external.js';
 
 const POLL_INTERVAL_MS = 15_000;
 
@@ -24,6 +25,8 @@ type LoginResult =
  */
 export async function waitForWatchtowerDeploymentStatus(input: {
   readonly baseUrl: string;
+  /** Explicit CLI override; must never be sourced from the regional .env file. */
+  readonly trustedBaseUrl?: string;
   readonly secretArn: string;
   readonly region: string;
   readonly catalogRevision: string;
@@ -31,10 +34,11 @@ export async function waitForWatchtowerDeploymentStatus(input: {
   readonly timeoutMs: number;
   readonly requireDrained: boolean;
 }): Promise<void> {
+  const baseUrl = validateWatchtowerBaseUrl(input.baseUrl, input.trustedBaseUrl);
   const password = await loadSecret(input.secretArn, input.region);
   const query = new URLSearchParams({ catalogRevision: input.catalogRevision });
   if (input.runbookKeys.length > 0) query.set('runbookKeys', input.runbookKeys.join(','));
-  const statusUrl = `${normalizeBaseUrl(input.baseUrl)}/api/internal/automatic-runbooks/deployment-status?${query.toString()}`;
+  const statusUrl = `${baseUrl}/api/internal/automatic-runbooks/deployment-status?${query.toString()}`;
   const deadline = Date.now() + input.timeoutMs;
   let authentication: { readonly token: string } | undefined;
   let tokenWasJustRefreshed = false;
@@ -42,7 +46,7 @@ export async function waitForWatchtowerDeploymentStatus(input: {
   let lastProgressSummary: string | undefined;
   while (Date.now() < deadline) {
     if (authentication === undefined) {
-      const loginResult = await login(input.baseUrl, password);
+      const loginResult = await login(baseUrl, password);
       if (loginResult.kind === 'transient') {
         lastTransientDetail = loginResult.detail;
         console.warn(`Watchtower service login not available yet: ${loginResult.detail}; retrying until timeout`);
@@ -83,7 +87,10 @@ export async function waitForWatchtowerDeploymentStatus(input: {
 async function pollDeploymentStatus(url: string, token: string): Promise<PollResult> {
   let response: Response;
   try {
-    response = await fetch(url, { headers: { authorization: `Bearer ${token}`, accept: 'application/json' } });
+    response = await fetch(url, {
+      redirect: 'error',
+      headers: { authorization: `Bearer ${token}`, accept: 'application/json' },
+    });
   } catch (error: unknown) {
     return { kind: 'transient', detail: errorMessage(error) };
   }
@@ -109,8 +116,9 @@ async function loadSecret(secretArn: string, region: string): Promise<string> {
 async function login(baseUrl: string, password: string): Promise<LoginResult> {
   let response: Response;
   try {
-    response = await fetch(`${normalizeBaseUrl(baseUrl)}/auth/service/login`, {
+    response = await fetch(`${baseUrl}/auth/service/login`, {
       method: 'POST',
+      redirect: 'error',
       headers: { accept: 'application/json', 'content-type': 'application/json' },
       body: JSON.stringify({ serviceId: 'runbook-automation-worker', password }),
     });
@@ -131,6 +139,38 @@ function errorMessage(error: unknown): string {
 
 function normalizeBaseUrl(value: string): string {
   return value.replace(/\/+$/u, '').replace(/\/api$/u, '');
+}
+
+/** Binds file configuration to a code default or an explicit operator-selected destination. */
+export function validateWatchtowerBaseUrl(configuredUrl: string, trustedUrl = WATCHTOWER_PRODUCTION_BASE_URL): string {
+  const trusted = parseWatchtowerBaseUrl(trustedUrl);
+  const configured = parseWatchtowerBaseUrl(configuredUrl);
+  if (configured !== trusted) {
+    throw new Error(
+      'WATCHTOWER_INTERNAL_URL does not match the trusted Watchtower endpoint; use --watchtower-url to explicitly select a different destination',
+    );
+  }
+  // Return the independent trusted input, never the file-derived URL.
+  return trusted;
+}
+
+function parseWatchtowerBaseUrl(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error('Watchtower endpoint must be an absolute HTTPS URL');
+  }
+  if (
+    url.protocol !== 'https:' ||
+    url.username !== '' ||
+    url.password !== '' ||
+    url.href.includes('?') ||
+    url.href.includes('#')
+  ) {
+    throw new Error('Watchtower endpoint must use HTTPS without credentials, query or fragment');
+  }
+  return normalizeBaseUrl(url.href);
 }
 
 async function delay(ms: number): Promise<void> {

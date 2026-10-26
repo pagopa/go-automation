@@ -19,7 +19,7 @@ import {
 import { loadRunbookDescriptors } from './loadRunbookDescriptors.js';
 import { parseOptions } from './options.js';
 import { publishCatalog, readCurrentCatalog } from './publish.js';
-import { waitForWatchtowerDeploymentStatus } from './watchtower.js';
+import { validateWatchtowerBaseUrl, waitForWatchtowerDeploymentStatus } from './watchtower.js';
 
 /** Raw env file values for the SST subprocess plus the validated control-plane coordinates. */
 interface RegionalDeployment {
@@ -27,6 +27,7 @@ interface RegionalDeployment {
   readonly watchtowerInternalUrl: string;
   readonly watchtowerBackendRoleArn: string;
   readonly servicePrincipalSecretArn: string;
+  readonly trustedWatchtowerUrl?: string;
 }
 
 async function main(): Promise<void> {
@@ -56,8 +57,9 @@ async function main(): Promise<void> {
       },
       new Set(options.regions),
     );
+    const watchtowerInternalUrl = validateWatchtowerBaseUrl(validated.watchtowerInternalUrl, options.watchtowerUrl);
     const regionAccountId = accountIdFromArn(validated.watchtowerBackendRoleArn);
-    if (expectedWatchtowerUrl !== undefined && expectedWatchtowerUrl !== validated.watchtowerInternalUrl) {
+    if (expectedWatchtowerUrl !== undefined && expectedWatchtowerUrl !== watchtowerInternalUrl) {
       throw new Error('Regional configs must use the same Watchtower URL');
     }
     if (expectedAccountId !== undefined && expectedAccountId !== regionAccountId) {
@@ -66,13 +68,14 @@ async function main(): Promise<void> {
     if (validated.servicePrincipalSecretArn === undefined) {
       throw new Error(`${region}.env must provide WATCHTOWER_SERVICE_PRINCIPAL_SECRET_ARN`);
     }
-    expectedWatchtowerUrl = validated.watchtowerInternalUrl;
+    expectedWatchtowerUrl = watchtowerInternalUrl;
     expectedAccountId = regionAccountId;
     regionalDeployments.set(region, {
       values,
-      watchtowerInternalUrl: validated.watchtowerInternalUrl,
+      watchtowerInternalUrl,
       watchtowerBackendRoleArn: validated.watchtowerBackendRoleArn,
       servicePrincipalSecretArn: validated.servicePrincipalSecretArn,
+      ...(options.watchtowerUrl === undefined ? {} : { trustedWatchtowerUrl: options.watchtowerUrl }),
     });
   }
   logStep(`preflight ok: environment ${options.environment}, regions ${options.regions.join(', ')}`);
@@ -203,6 +206,7 @@ async function waitForWatchtower(
 ): Promise<void> {
   await waitForWatchtowerDeploymentStatus({
     baseUrl: control.watchtowerInternalUrl,
+    ...(control.trustedWatchtowerUrl === undefined ? {} : { trustedBaseUrl: control.trustedWatchtowerUrl }),
     secretArn: control.servicePrincipalSecretArn,
     region: EXECUTE_RUNBOOK_REGISTRY_CONTROL_REGION,
     catalogRevision: revision,

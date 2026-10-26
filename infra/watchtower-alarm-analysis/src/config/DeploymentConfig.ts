@@ -28,8 +28,10 @@ interface WatchtowerDeploymentDefaults {
   readonly oamSourceAccountIds: ReadonlyArray<string>;
 }
 
+export const WATCHTOWER_PRODUCTION_BASE_URL = 'https://d2xwbj6sp8axq2.cloudfront.net/bff';
+
 const WATCHTOWER_PRODUCTION_EU_SOUTH_1_DEFAULTS: WatchtowerDeploymentDefaults = {
-  watchtowerInternalUrl: 'https://d2xwbj6sp8axq2.cloudfront.net/bff',
+  watchtowerInternalUrl: WATCHTOWER_PRODUCTION_BASE_URL,
   vpcId: 'vpc-043f4b7213d4ca900',
   watchtowerPrivateSubnetId: 'subnet-079dcb5ef09865dc2',
   watchtowerNatGatewayId: 'nat-0b886fee7edcdc400',

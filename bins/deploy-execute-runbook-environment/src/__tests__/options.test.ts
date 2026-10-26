@@ -6,6 +6,14 @@ import { parseOptions } from '../options.js';
 const BASE_ARGS = ['--environment', 'dev', '--regions', 'eu-south-1', '--config-dir', './deploy/dev'];
 
 describe('environment deploy options', () => {
+  it('accepts a trusted Watchtower destination only as an explicit CLI option', () => {
+    assert.equal(parseOptions(BASE_ARGS).watchtowerUrl, undefined);
+    assert.equal(
+      parseOptions([...BASE_ARGS, '--watchtower-url', 'https://watchtower.example.test/bff']).watchtowerUrl,
+      'https://watchtower.example.test/bff',
+    );
+    assert.throws(() => parseOptions([...BASE_ARGS, '--watchtower-url', '   ']), /--watchtower-url is required/);
+  });
   it('rejects unknown options instead of silently ignoring them', () => {
     assert.throws(() => parseOptions([...BASE_ARGS, '--drain-timeut', '1h']), /Unknown option: --drain-timeut/u);
   });

@@ -22,4 +22,7 @@ export {
   EXECUTE_RUNBOOK_LAMBDA_NAME,
   EXECUTE_RUNBOOK_REGISTRY_CONTROL_REGION,
 } from '../../../infra/watchtower-alarm-analysis/src/config/constants.js';
-export { loadExecuteRunbookDeploymentConfig } from '../../../infra/watchtower-alarm-analysis/src/config/DeploymentConfig.js';
+export {
+  loadExecuteRunbookDeploymentConfig,
+  WATCHTOWER_PRODUCTION_BASE_URL,
+} from '../../../infra/watchtower-alarm-analysis/src/config/DeploymentConfig.js';
