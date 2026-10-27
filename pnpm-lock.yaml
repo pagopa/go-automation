@@ -852,15 +852,12 @@ importers:
 
   scripts/send/send-download-safestorage-attachments:
     dependencies:
-      '@aws-sdk/client-s3':
-        specifier: 'catalog:'
-        version: 3.1156.0
-      '@aws-sdk/credential-provider-ini':
-        specifier: 'catalog:'
-        version: 3.973.21
       '@go-automation/go-common':
         specifier: workspace:*
         version: link:../../../packages/go-common
+      '@go-automation/go-send':
+        specifier: workspace:*
+        version: link:../../../packages/go-send
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
