@@ -230,7 +230,6 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
 
   {
     name: 'No direct @aws-sdk/* dependencies (use go-common)',
-    severity: 'warning',
     check: 'custom',
     validate: async (scriptPath) => {
       const pkgPath = path.join(scriptPath, 'package.json');
@@ -286,7 +285,6 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
 
   {
     name: 'README documents all config parameters',
-    severity: 'warning',
     check: 'custom',
     validate: async (scriptPath) => {
       const ruleName = 'README documents all config parameters';
@@ -330,7 +328,6 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
   },
   {
     name: 'Config parameters do not restate the default envVar or cliFlag',
-    severity: 'warning',
     check: 'custom',
     validate: async (scriptPath) => {
       const ruleName = 'Config parameters do not restate the default envVar or cliFlag';
@@ -350,7 +347,6 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
   },
   {
     name: 'README documents AWS services used',
-    severity: 'warning',
     check: 'custom',
     validate: async (scriptPath) => {
       const ruleName = 'README documents AWS services used';
@@ -424,7 +420,6 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
   },
   {
     name: 'README has required sections',
-    severity: 'warning',
     check: 'custom',
     validate: async (scriptPath) => {
       const ruleName = 'README has required sections';

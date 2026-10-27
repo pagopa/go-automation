@@ -23,9 +23,8 @@
   "author": "Team GO - Gestione Operativa",
   "license": "EUPL-1.2",
   "dependencies": {
-    "@aws-sdk/client-s3": "catalog:",
-    "@aws-sdk/credential-provider-ini": "catalog:",
-    "@go-automation/go-common": "workspace:*"
+    "@go-automation/go-common": "workspace:*",
+    "@go-automation/go-send": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:"

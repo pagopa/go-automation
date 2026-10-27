@@ -29,9 +29,7 @@
       "go-analyze-alarm": ["scripts/go/go-analyze-alarm/src/index.ts"],
       "go-analyze-alarm/*": ["scripts/go/go-analyze-alarm/src/*"],
       "send-monitor-athena-query": ["scripts/send/send-monitor-athena-query/src/index.ts"],
-      "send-monitor-athena-query/*": ["scripts/send/send-monitor-athena-query/src/*"],
-      "send-monitor-tpp-messages": ["scripts/send/send-monitor-tpp-messages/src/index.ts"],
-      "send-monitor-tpp-messages/*": ["scripts/send/send-monitor-tpp-messages/src/*"]
+      "send-monitor-athena-query/*": ["scripts/send/send-monitor-athena-query/src/*"]
     }
   },
   "include": ["packages/*/src/**/*.ts", "scripts/*/*/src/**/*.ts", "functions/*/src/**/*.ts", "bins/*/src/**/*.ts"],

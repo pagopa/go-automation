@@ -75,6 +75,9 @@ export type {
 export { AWSCloudWatchMetricsService } from './AWSCloudWatchMetricsService.js';
 export { AWSDynamoDBService } from './AWSDynamoDBService.js';
 
+// Lambda service
+export { AWSLambdaService } from './AWSLambdaService.js';
+
 // S3 service
 export { AWSS3Service } from './AWSS3Service.js';
 export type { AWSS3ObjectEntry, AWSS3BucketEntry } from './AWSS3Service.js';

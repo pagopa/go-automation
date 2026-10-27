@@ -13,6 +13,7 @@ import { AthenaClient } from '@aws-sdk/client-athena';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { ECSClient } from '@aws-sdk/client-ecs';
+import { LambdaClient } from '@aws-sdk/client-lambda';
 import { SchedulerClient } from '@aws-sdk/client-scheduler';
 import { SSMClient } from '@aws-sdk/client-ssm';
 import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
@@ -54,6 +55,7 @@ export class AWSClientProvider {
   private cachedSQSClient: SQSClient | null = null;
   private cachedS3Client: S3Client | null = null;
   private cachedECSClient: ECSClient | null = null;
+  private cachedLambdaClient: LambdaClient | null = null;
   private cachedSecretsManagerClient: SecretsManagerClient | null = null;
   private cachedSchedulerClient: SchedulerClient | null = null;
   private cachedSSMClient: SSMClient | null = null;
@@ -127,6 +129,14 @@ export class AWSClientProvider {
   get ecs(): ECSClient {
     this.cachedECSClient ??= new ECSClient(this.clientConfig);
     return this.cachedECSClient;
+  }
+
+  /**
+   * Returns the cached LambdaClient instance.
+   */
+  get lambda(): LambdaClient {
+    this.cachedLambdaClient ??= new LambdaClient(this.clientConfig);
+    return this.cachedLambdaClient;
   }
 
   get secretsManager(): SecretsManagerClient {
@@ -212,6 +222,7 @@ export class AWSClientProvider {
     this.cachedAthenaClient?.destroy();
     this.cachedSQSClient?.destroy();
     this.cachedECSClient?.destroy();
+    this.cachedLambdaClient?.destroy();
     this.cachedS3Client?.destroy();
     this.cachedSecretsManagerClient?.destroy();
     this.cachedSchedulerClient?.destroy();
@@ -224,6 +235,7 @@ export class AWSClientProvider {
     this.cachedAthenaClient = null;
     this.cachedSQSClient = null;
     this.cachedECSClient = null;
+    this.cachedLambdaClient = null;
     this.cachedS3Client = null;
     this.cachedSecretsManagerClient = null;
     this.cachedSchedulerClient = null;

@@ -215,6 +215,8 @@ export default tseslint.config(
     ignores: [
       'node_modules/',
       '**/node_modules/',
+      // Archived scripts and functions: kept for reference, outside the workspace
+      'archive/',
       '**/.sst/',
       'packages/go-watchtower-client/src/generated/',
       'dist/',

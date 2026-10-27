@@ -39,11 +39,6 @@ const config: KnipConfig = {
     'scripts/send/*': {
       project: ['src/**/*.ts'],
     },
-    // SEND script with cron entry point
-    'scripts/send/send-monitor-tpp-messages': {
-      entry: ['src/cron.ts'],
-      project: ['src/**/*.ts'],
-    },
     // Lambda functions
     'functions/*': {
       project: ['src/**/*.ts'],
@@ -53,6 +48,8 @@ const config: KnipConfig = {
     },
   },
   ignore: [
+    // Archived scripts and functions: kept for reference, outside the workspace
+    'archive/**',
     // Barrel index.ts files: re-export hubs for module organization.
     // knip flags them as unused because their parent barrel re-exports transitively.
     '**/index.ts',
@@ -60,8 +57,6 @@ const config: KnipConfig = {
     'packages/go-watchtower-client/src/generated/**',
   ],
   ignoreDependencies: [
-    // yaml is consumed transitively by go-common GOYAMLParser at runtime
-    'yaml',
     // ESLint plugins used in flat config (eslint.config.mjs)
     '@typescript-eslint/eslint-plugin',
     '@typescript-eslint/parser',

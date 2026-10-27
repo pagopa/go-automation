@@ -4,7 +4,8 @@
 
 import { Core } from '@go-automation/go-common';
 
-import { SafeStorageS3Client } from './SafeStorageS3Client.js';
+import { SENDSafeStorageS3Service } from '@go-automation/go-send';
+
 import { buildTasksFromUriList, buildTasksFromJsonlRecord } from './taskBuilders.js';
 import type { JsonlRecord } from './taskBuilders.js';
 import type { DownloadSafestorageAttachmentsConfig, InputMode } from '../types/DownloadSafestorageAttachmentsConfig.js';
@@ -29,7 +30,7 @@ async function loadTasksFromUriList(
     commentPrefix: '#',
     deduplicate: true,
     rowValidator: (line) => {
-      if (!SafeStorageS3Client.isSafeStorageUri(line)) {
+      if (!SENDSafeStorageS3Service.isSafeStorageUri(line)) {
         throw new Error(`Not a Safe Storage URI: ${line}`);
       }
     },

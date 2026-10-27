@@ -3,6 +3,7 @@ import type { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
 import type { CloudWatchLogsClient } from '@aws-sdk/client-cloudwatch-logs';
 import type { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import type { ECSClient } from '@aws-sdk/client-ecs';
+import type { LambdaClient } from '@aws-sdk/client-lambda';
 import type { S3Client } from '@aws-sdk/client-s3';
 import type { SQSClient } from '@aws-sdk/client-sqs';
 
@@ -75,6 +76,10 @@ export class AWSClientsProvider {
 
   get ecs(): ECSClient {
     return this.first.ecs;
+  }
+
+  get lambda(): LambdaClient {
+    return this.first.lambda;
   }
 
   /**
