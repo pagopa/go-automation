@@ -56,7 +56,6 @@ catalog:
   '@typescript-eslint/parser': '^8.72.0'
   'better-sqlite3': '^13.0.3'
   'commander': '^15.0.0'
-  'croner': '^10.0.1'
   'csv-parse': '^7.0.3'
   'csv-stringify': '^6.9.0'
   'esbuild': '^0.28.2'

@@ -12,7 +12,6 @@
     { "path": "./functions/go-BotQESlackHandler" },
     { "path": "./functions/go-ExecuteRunbookLambda" },
     { "path": "./functions/go-SendMonitorAthenaQueryLambda" },
-    { "path": "./functions/go-SendMonitorTppMessagesLambda" },
     { "path": "./infra/watchtower-alarm-analysis" },
     { "path": "./packages/go-ai" },
     { "path": "./packages/go-cli" },
@@ -43,7 +42,6 @@
     { "path": "./scripts/send/send-fetch-timeline-from-iun" },
     { "path": "./scripts/send/send-import-notifications" },
     { "path": "./scripts/send/send-monitor-athena-query" },
-    { "path": "./scripts/send/send-monitor-tpp-messages" },
     { "path": "./scripts/send/send-report-dlq" },
     { "path": "./scripts/send/send-upload-attachments" }
   ]

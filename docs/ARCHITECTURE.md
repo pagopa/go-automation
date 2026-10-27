@@ -87,13 +87,13 @@ go-automation/
 │   │   ├── send-dump-sqs/
 │   │   ├── send-fetch-timeline-from-iun/
 │   │   ├── send-import-notifications/
-│   │   ├── send-monitor-tpp-messages/
+│   │   ├── send-monitor-athena-query/
 │   │   ├── send-query-dynamodb/
 │   │   └── send-report-dlq/
 │   └── interop/
 │
 ├── functions/
-│   └── go-SendMonitorTppMessagesLambda/
+│   └── go-SendMonitorAthenaQueryLambda/
 │       ├── src/handler.ts       # Adapter Lambda che riusa uno script CLI
 │       ├── src/test-local.ts    # Invocazione locale
 │       ├── esbuild.config.mjs   # Bundling esbuild verso artifacts/
@@ -110,10 +110,12 @@ go-automation/
 │   │   ├── dist/
 │   │   ├── node_modules/
 │   │   └── configs/
-│   └── go-SendMonitorTppMessagesLambda/
+│   └── go-SendMonitorAthenaQueryLambda/
 │       ├── handler.mjs
 │       ├── handler.mjs.map
 │       └── configs/
+│
+├── archive/                     # Script e function dismessi (fuori dal workspace e dai quality gate)
 │
 ├── bins/
 │   ├── create-script.sh
@@ -177,7 +179,7 @@ La cartella `functions/` contiene package workspace dedicati agli entry point se
 
 ```
 functions/
-└── go-SendMonitorTppMessagesLambda/
+└── go-SendMonitorAthenaQueryLambda/
     ├── src/
     │   ├── handler.ts         # Adapter Lambda che delega a main(script)
     │   └── test-local.ts      # Esecuzione locale della function
@@ -223,7 +225,7 @@ infra/
 
 ```bash
 # Build immagine usando l'infrastruttura condivisa
-./bins/build-image.sh send-monitor-tpp-messages latest
+./bins/build-image.sh send-monitor-athena-query latest
 ```
 
 ---
@@ -241,7 +243,7 @@ artifacts/
 │   ├── configs/               # File di configurazione
 │   └── package.json           # Manifest con dipendenze
 │
-└── go-SendMonitorTppMessagesLambda/
+└── go-SendMonitorAthenaQueryLambda/
     ├── handler.mjs            # Bundle ESM singolo file
     ├── handler.mjs.map        # Sourcemap per debug
     ├── configs/
@@ -270,7 +272,7 @@ artifacts/
 ./bins/deploy.sh go-report-alarms
 
 # Bundle Lambda
-pnpm --filter=go-send-monitor-tpp-messages-lambda build
+pnpm --filter=go-send-monitor-athena-query-lambda build
 ```
 
 ---
@@ -311,11 +313,11 @@ bins/
 ./bins/create-script.sh
 
 # Build immagine Docker
-./bins/build-image.sh send-monitor-tpp-messages latest
+./bins/build-image.sh send-monitor-athena-query latest
 
 # Eseguire container
-./bins/docker-run.sh send-monitor-tpp-messages run
-./bins/docker-run.sh send-monitor-tpp-messages up --scheduled
+./bins/docker-run.sh <script-name> run
+./bins/docker-run.sh <script-name> up --scheduled
 
 # Deploy standalone
 ./bins/deploy.sh go-report-alarms
@@ -517,7 +519,7 @@ allowBuilds:
 | --------- | ------------------------- | ------------------------------------------------------- |
 | Packages  | `@go-automation/{name}`   | `@go-automation/go-common`, `@go-automation/go-runbook` |
 | Scripts   | `{team}-{name}`           | `go-report-alarms`, `send-import-notifications`         |
-| Functions | `go-{descrizione}-lambda` | `go-send-monitor-tpp-messages-lambda`                   |
+| Functions | `go-{descrizione}-lambda` | `go-send-monitor-athena-query-lambda`                   |
 
 ### Comandi Workspace
 
@@ -567,7 +569,7 @@ Le function possono referenziare **sia** `go-common` **sia** uno script workspac
 {
   "dependencies": {
     "@go-automation/go-common": "workspace:*",
-    "send-monitor-tpp-messages": "workspace:*"
+    "send-monitor-athena-query": "workspace:*"
   }
 }
 ```
@@ -620,7 +622,7 @@ pnpm build:functions
 pnpm --filter=go-report-alarms build
 
 # Function specifica
-pnpm --filter=go-send-monitor-tpp-messages-lambda build
+pnpm --filter=go-send-monitor-athena-query-lambda build
 ```
 
 ### Script nel Root package.json
@@ -804,11 +806,11 @@ I project references abilitano:
 
 Pattern: `{prodotto}-{verbo}-{descrizione}`
 
-| Prodotto     | Prefisso   | Esempi                                          |
-| ------------ | ---------- | ----------------------------------------------- |
-| GO (interno) | `go-`      | `go-report-alarms`, `go-manage-lambda`          |
-| SEND         | `send-`    | `send-import-notifications`, `send-monitor-tpp` |
-| INTEROP      | `interop-` | `interop-sync-catalog`                          |
+| Prodotto     | Prefisso   | Esempi                                                   |
+| ------------ | ---------- | -------------------------------------------------------- |
+| GO (interno) | `go-`      | `go-report-alarms`, `go-manage-lambda`                   |
+| SEND         | `send-`    | `send-import-notifications`, `send-monitor-athena-query` |
+| INTEROP      | `interop-` | `interop-sync-catalog`                                   |
 
 ### Verbi Standard
 
@@ -847,7 +849,7 @@ Pattern: `{prodotto}-{verbo}-{descrizione}`
 
 | Verbo     | Uso                      | Esempio                          |
 | --------- | ------------------------ | -------------------------------- |
-| `monitor` | Monitoraggio continuo    | `send-monitor-tpp-messages`      |
+| `monitor` | Monitoraggio continuo    | `send-monitor-athena-query`      |
 | `analyze` | Analisi dati/logs        | `send-analyze-delivery-failures` |
 | `report`  | Generazione report       | `go-report-alarms`               |
 | `audit`   | Controllo conformita     | `go-audit-iam-policies`          |
@@ -1195,10 +1197,10 @@ Il sistema rileva automaticamente la modalità cercando marker del monorepo:
 La novità architetturale principale delle ultime settimane è l'introduzione di un adapter Lambda che **riusa esattamente lo stesso contratto** dello script CLI:
 
 ```text
-scripts/send/send-monitor-tpp-messages/src/index.ts
+scripts/send/send-monitor-athena-query/src/index.ts
   └── GOScript.run() ───────────────▶ main(script)
 
-functions/go-SendMonitorTppMessagesLambda/src/handler.ts
+functions/go-SendMonitorAthenaQueryLambda/src/handler.ts
   └── GOScript.createLambdaHandler() ▶ main(script)
 ```
 
@@ -1277,13 +1279,13 @@ Per costruire il bundle della Lambda:
 
 ```bash
 # Build del package function
-pnpm --filter=go-send-monitor-tpp-messages-lambda build
+pnpm --filter=go-send-monitor-athena-query-lambda build
 
 # Test locale della function
-pnpm --filter=go-send-monitor-tpp-messages-lambda test:local
+pnpm --filter=go-send-monitor-athena-query-lambda test:local
 ```
 
-Il package function dipende sia da `@go-automation/go-common` sia dallo script `send-monitor-tpp-messages`, quindi il deploy Lambda eredita automaticamente la business logic e il contratto di configurazione dello script sorgente.
+Il package function dipende sia da `@go-automation/go-common` sia dallo script `send-monitor-athena-query`, quindi il deploy Lambda eredita automaticamente la business logic e il contratto di configurazione dello script sorgente.
 
 ---
 

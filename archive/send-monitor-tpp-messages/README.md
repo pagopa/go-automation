@@ -1,5 +1,8 @@
 # SEND Monitor TPP Messages
 
+> ⚠️ **ARCHIVIATO** — sostituito da [`send-monitor-athena-query`](../../scripts/send/send-monitor-athena-query/) (preset equivalente in `configs/presets.json`).
+> Il codice è conservato solo come riferimento: è fuori dal workspace pnpm, non viene compilato né verificato dai quality gate, e i comandi riportati sotto non sono più eseguibili.
+
 > Versione: 2.0.0 | Autore: Team GO - Gestione Operativa
 
 Script di monitoraggio messaggi TPP (Third Party Provider) tramite query Athena con generazione report CSV e notifiche Slack opzionali.

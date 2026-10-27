@@ -1,5 +1,8 @@
 # go-SendMonitorTppMessagesLambda
 
+> ⚠️ **ARCHIVIATO** — sostituita da [`go-SendMonitorAthenaQueryLambda`](../../functions/go-SendMonitorAthenaQueryLambda/).
+> Il codice è conservato solo come riferimento: è fuori dal workspace pnpm, non viene compilato né verificato dai quality gate, e i comandi riportati sotto non sono più eseguibili.
+
 Lambda wrapper per `send-monitor-tpp-messages`: monitora i messaggi TPP
 tramite query Athena e genera report, con notifica Slack opzionale.
 
