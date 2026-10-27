@@ -1,6 +1,5 @@
 import type { Core } from '@go-automation/go-common';
 import { AWS } from '@go-automation/go-common';
-import type { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import type { SendPaperRequestErrorCheckConfig } from '../types/index.js';
 
 /**
@@ -29,20 +28,12 @@ export function getConfinfoS3Service(
 }
 
 /**
- * Ottiene il client DynamoDB associato al profilo Core.
- */
-function getCoreDynamoDBClient(script: Core.GOScript, config: SendPaperRequestErrorCheckConfig): DynamoDBClient {
-  const coreProfile = getCoreProfile(config);
-  return script.aws.clients.get(coreProfile).dynamoDB;
-}
-
-/**
  * Ottiene il servizio DynamoDB associato al profilo Core.
  */
 export function getCoreDynamoDBService(
   script: Core.GOScript,
   config: SendPaperRequestErrorCheckConfig,
 ): AWS.AWSDynamoDBService {
-  const client = getCoreDynamoDBClient(script, config);
-  return new AWS.AWSDynamoDBService(client);
+  const coreProfile = getCoreProfile(config);
+  return new AWS.AWSDynamoDBService(script.aws.clients.get(coreProfile).dynamoDB);
 }
