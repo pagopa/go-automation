@@ -57,6 +57,59 @@ function matches(id: string, ctx: RunbookContext): boolean {
 }
 
 describe('InfoPa API Gateway runbook', () => {
+  it('broadens to scoped 4xx only after a successful empty 5xx query', async () => {
+    const queries: string[] = [];
+    const services = createTestServiceRegistry({
+      cloudWatchLogs: {
+        query: async (groups: ReadonlyArray<string>, query: string) => {
+          await Promise.resolve();
+          assert.equal(groups[0], API_GW_LOG_GROUP);
+          queries.push(query);
+          return [];
+        },
+      },
+    });
+    const result = await new RunbookEngine(new GOLogger()).execute(
+      buildRunbook(),
+      new Map([
+        ['startTime', '2026-10-02T07:22:00Z'],
+        ['endTime', '2026-10-02T07:33:00Z'],
+      ]),
+      services,
+    );
+    assert.equal(queries.length, 2);
+    assert.ok(queries[0]?.includes('status >= 500'));
+    assert.ok(queries[1]?.includes('status >= 400'));
+    for (const query of queries) {
+      assert.ok(query.includes("resourcePath in ['/v1/institutions'"));
+      assert.ok(query.includes("httpMethod = 'PUT'"));
+    }
+    assert.deepEqual(result.matchedCases, []);
+  });
+
+  it('does not broaden the search after a failed 5xx query', async () => {
+    let queries = 0;
+    const services = createTestServiceRegistry({
+      cloudWatchLogs: {
+        query: async () => {
+          await Promise.resolve();
+          queries++;
+          throw new Error('AccessDenied');
+        },
+      },
+    });
+    const result = await new RunbookEngine(new GOLogger()).execute(
+      buildRunbook(),
+      new Map([
+        ['startTime', '2026-10-02T07:22:00Z'],
+        ['endTime', '2026-10-02T07:33:00Z'],
+      ]),
+      services,
+    );
+    assert.equal(queries, 1);
+    assert.equal(result.status, 'failed');
+    assert.deepEqual(result.matchedCases, []);
+  });
   it('registers a cloud-executable read-only SEND runbook', () => {
     const entry = RUNBOOK_CATALOG.resolveByAlarmName(INFO_PA_ALARM);
     assert.ok(entry);
@@ -80,6 +133,44 @@ describe('InfoPa API Gateway runbook', () => {
     ]) {
       assert.strictEqual(matches('external-registries-selfcare-read-timeout', context([message])), false);
     }
+  });
+
+  it('requires the complete correlated groups/invalid-tenant signature observed on September 1', () => {
+    const bff =
+      'WebClientResponseException$InternalServerError: 500 Internal Server Error from GET http://internal.example:8080/ext-registry/pa/v1/groups';
+    const failure =
+      '[DOWNSTREAM] Service SelfcarePA returned errors=400 Bad Request from GET https://api.selfcare.pagopa.it/external/v2/user-groups: {"detail":"Invalid tenant context"}';
+    const ctx = context([failure]);
+    const steps = new Map(ctx.stepResults);
+    steps.set('query-pn-bff', [row({ '@message': bff })]);
+    const vars = new Map(ctx.vars);
+    vars.set('apiGwPath', '/bff/v1/pa/groups');
+    const correlated = { ...ctx, vars, stepResults: steps };
+    const id = 'selfcare-user-groups-invalid-tenant-context';
+    assert.equal(matches(id, correlated), true);
+    assert.equal(
+      matches(id, { ...correlated, vars: new Map([...vars, ['apiGwPath', '/bff/v1/institutions']]) }),
+      false,
+    );
+    assert.equal(matches(id, { ...correlated, stepResults: new Map([...steps, ['query-pn-bff', []]]) }), false);
+    for (const unrelated of [
+      failure.replace('api.selfcare.pagopa.it', 'other.example'),
+      failure.replace('user-groups', 'users'),
+      failure.replace('Invalid tenant context', 'Another error'),
+      failure.replace('400 Bad Request', '500 Internal Server Error'),
+    ]) {
+      assert.equal(
+        matches(id, {
+          ...correlated,
+          stepResults: new Map([...steps, ['query-pn-external-registries', [row({ '@message': unrelated })]]]),
+        }),
+        false,
+      );
+    }
+    const known = KNOWN_CASES.find((c) => c.id === id);
+    assert.equal(known?.analysis?.proposedStatus, 'IN_PROGRESS');
+    assert.equal(known?.analysis?.resolution, 'Risoluzione non documentata.');
+    assert.deepEqual(known?.analysis?.finalActions, []);
   });
 
   it('recognizes retry timeouts only with correlated failed Selfcare telemetry', () => {

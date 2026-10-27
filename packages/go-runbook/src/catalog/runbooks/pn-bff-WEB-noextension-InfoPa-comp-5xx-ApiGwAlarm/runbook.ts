@@ -13,7 +13,7 @@ export function buildRunbook(): Runbook {
     metadata: {
       name: INFO_PA_ALARM,
       description: 'Analizza gli errori 5xx delle API WEB InfoPa e le chiamate correlate a pn-external-registries.',
-      version: '1.0.0',
+      version: '1.1.0',
       type: 'alarm-resolution',
       team: 'GO',
       tags: ['api-gateway', 'pn-bff', 'info-pa', 'pn-external-registries', 'selfcare'],
@@ -24,6 +24,7 @@ export function buildRunbook(): Runbook {
     knownUrls: KNOWN_URLS,
     queryProfile: INFO_PA_QUERY_PROFILE,
     paginateAccessLogResults: true,
+    fallbackMinStatusCode: 400,
     authorizerFailureCheck: { defaultAuthorizer: apigw.API_GW_AUTHORIZER_LAMBDAS['pn-jwtAuthorizerLambda'] },
     executionLogAnalysisMode: 'best-effort',
     // The BFF and downstream generate different FALLBACK-UUIDs for the same

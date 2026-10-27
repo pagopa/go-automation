@@ -2,6 +2,9 @@
 dist/
 *.tsbuildinfo
 
+# Archived scripts and functions (kept for reference, outside the workspace)
+archive/
+
 # Dependencies
 node_modules/
 pnpm-lock.yaml

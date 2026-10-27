@@ -1,6 +1,4 @@
-import { LambdaClient, InvokeCommand, InvocationType } from '@aws-sdk/client-lambda';
-import { fromIni } from '@aws-sdk/credential-provider-ini';
-
+import type { AWS } from '@go-automation/go-common';
 import { GOBedrockClient, type GOAIRequest, type GOAIResponse } from '@go-automation/go-ai';
 
 import type { GoAIClientConfig } from '../types/index.js';
@@ -13,30 +11,15 @@ export async function invokeDirect(req: GOAIRequest, config: GoAIClientConfig): 
   return client.invoke(req);
 }
 
-export async function invokeLambda(req: GOAIRequest, config: GoAIClientConfig): Promise<GOAIResponse> {
-  const lambda = new LambdaClient({
-    region: config.awsRegion,
-    credentials: fromIni({ profile: config.awsProfile }),
-  });
-
-  const command = new InvokeCommand({
-    FunctionName: config.goAiLambdaName,
-    InvocationType: InvocationType.RequestResponse,
-    Payload: JSON.stringify(req),
-  });
-
-  const response = await lambda.send(command);
-
-  if (!response.Payload) {
-    throw new Error('Empty Lambda response');
+export async function invokeLambda(
+  req: GOAIRequest,
+  config: GoAIClientConfig,
+  lambda: AWS.AWSLambdaService,
+): Promise<GOAIResponse> {
+  try {
+    return (await lambda.invokeJson(config.goAiLambdaName, req)) as GOAIResponse;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`GO-AI Lambda error: ${message}`, { cause: error });
   }
-
-  const body = JSON.parse(Buffer.from(response.Payload).toString('utf-8')) as GOAIResponse | { errorMessage: string };
-
-  if (response.FunctionError) {
-    const err = body as { errorMessage: string };
-    throw new Error(`GO-AI Lambda error: ${err.errorMessage}`);
-  }
-
-  return body as GOAIResponse;
 }

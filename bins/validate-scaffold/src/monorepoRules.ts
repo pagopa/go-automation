@@ -347,7 +347,6 @@ export function createMonorepoRules(context: MonorepoRulesContext): ReadonlyArra
 
     {
       name: 'Root tsconfig.json references are sorted',
-      severity: 'warning',
       check: 'custom',
       validate: async (rootDir) => {
         const ruleName = 'Root tsconfig.json references are sorted';
@@ -427,7 +426,6 @@ export function createMonorepoRules(context: MonorepoRulesContext): ReadonlyArra
 
     {
       name: 'Framework parameters do not restate the default envVar or cliFlag',
-      severity: 'warning',
       check: 'custom',
       validate: async (rootDir) => {
         const ruleName = 'Framework parameters do not restate the default envVar or cliFlag';

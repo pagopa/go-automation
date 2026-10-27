@@ -800,7 +800,7 @@ Le Lambda vivono in una directory dedicata `functions/` nella root del monorepo:
 
 ```
 functions/
-└── go-SendMonitorTppMessagesLambda/
+└── go-SendMonitorAthenaQueryLambda/
     ├── src/
     │   ├── handler.ts       # Lambda handler
     │   └── test-local.ts    # Test locale
@@ -813,27 +813,25 @@ functions/
 
 ```typescript
 import type { ScheduledEvent } from 'aws-lambda';
-import { Core, AWS } from '@go-automation/go-common';
-import { scriptMetadata, scriptParameters } from 'send-monitor-tpp-messages/config';
-import { main } from 'send-monitor-tpp-messages/main';
+
+import { Core } from '@go-automation/go-common';
+import { prepareConfig, scriptMetadata, scriptParameters } from 'send-monitor-athena-query/config';
+import { main } from 'send-monitor-athena-query/main';
 
 // GOScript istanziato a scope di modulo per container reuse
 const script = new Core.GOScript({
   metadata: scriptMetadata,
-  config: { parameters: scriptParameters },
+  config: {
+    parameters: scriptParameters,
+  },
+  hooks: {
+    onAfterConfigLoad: prepareConfig,
+  },
 });
 
-// Handler Lambda
+// Handler Lambda: delega alla stessa main() dello script CLI
 export const handler = script.createLambdaHandler<ScheduledEvent>(async (_event) => {
   await main(script);
-
-  // Post-execution: upload report su S3
-  const reportsBucket = process.env['REPORTS_S3_BUCKET'];
-  if (reportsBucket) {
-    const s3Service = new AWS.AWSS3Service(new S3Client({}));
-    const uploaded = await s3Service.uploadDirectory(reportsDir, reportsBucket, prefix);
-    // ...
-  }
 });
 ```
 
@@ -842,6 +840,7 @@ Punti chiave:
 - **Importa `config` e `main` dallo script originale** — nessuna duplicazione
 - **`createLambdaHandler()`** gestisce il lifecycle Lambda (init, invoke, error handling)
 - **GOScript è istanziato fuori dall'handler** per sfruttare il container reuse di Lambda
+- **Gli hook dello script** (es. `onAfterConfigLoad: prepareConfig`) vengono riusati così come sono
 - **La configurazione arriva dalle env vars** (`GOEnvironmentConfigProvider`) e dall'event payload (`GOLambdaEventConfigProvider`), non da CLI args
 - **Credenziali AWS** vengono dal execution role IAM (no SSO)
 
@@ -903,7 +902,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 
 const MONOREPO_ROOT = path.resolve('..', '..');
-const ARTIFACT_DIR = path.join(MONOREPO_ROOT, 'artifacts', 'go-SendMonitorTppMessagesLambda');
+const ARTIFACT_DIR = path.join(MONOREPO_ROOT, 'artifacts', 'go-SendMonitorAthenaQueryLambda');
 
 // Pulisci e ricrea la directory artifact
 await fs.rm(ARTIFACT_DIR, { recursive: true, force: true });
@@ -953,8 +952,8 @@ src/handler.ts
       ▼
 ┌─────────────────────────────────────────────────┐
 │  handler.ts importa:                             │
-│  ├── send-monitor-tpp-messages/config            │
-│  ├── send-monitor-tpp-messages/main              │
+│  ├── send-monitor-athena-query/config            │
+│  ├── send-monitor-athena-query/main              │
 │  ├── @go-automation/go-common (Core, AWS, SEND)  │
 │  ├── csv-parse, yaml, prompts, ...               │
 │  └── (tutto viene inlined)                       │
@@ -964,7 +963,7 @@ src/handler.ts
 └─────────────────────────────────────────────────┘
       │
       ▼
-artifacts/go-SendMonitorTppMessagesLambda/
+artifacts/go-SendMonitorAthenaQueryLambda/
 ├── handler.mjs          # Singolo file con tutto il codice
 ├── handler.mjs.map      # Source map per debug
 └── configs/             # File di configurazione copiati
@@ -1034,7 +1033,7 @@ L'artefatto contiene `dist/`, `node_modules/` (solo production), e `configs/`. P
 `bins/build-image.sh` crea un'immagine Docker ottimizzata:
 
 ```bash
-./bins/build-image.sh send-monitor-tpp-messages v1.2.0
+./bins/build-image.sh send-monitor-athena-query v1.2.0
 ```
 
 Il flusso: `deploy.sh` → artifacts → `Dockerfile.runtime` → immagine Docker.

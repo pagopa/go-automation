@@ -6,13 +6,13 @@
  *  - "jsonl"     : JSONL file where each row contains a record with nested attachments;
  *                  the `keyValue` field is used as a sub-folder name for the downloaded files
  *
- * Files are downloaded directly from the Safe Storage S3 bucket via AWS SDK,
+ * Files are downloaded directly from the Safe Storage S3 bucket via go-send's SENDSafeStorageS3Service,
  * using the AWS profile configured with access to the confinfo account.
  */
 
-import { Core } from '@go-automation/go-common';
+import { AWS, Core } from '@go-automation/go-common';
+import { SENDSafeStorageS3Service } from '@go-automation/go-send';
 
-import { SafeStorageS3Client } from './libs/SafeStorageS3Client.js';
 import { loadTasks } from './libs/loadTasks.js';
 import { parseExtensions, filterTasksByExtension } from './libs/extensionFilter.js';
 import { runDownloads } from './libs/runDownloads.js';
@@ -49,14 +49,14 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.info(`Output dir  : ${outputDir}`);
 
   const reportFilePath = script.paths.getExecutionOutputFilePath('download-report.jsonl');
-  const s3Client = new SafeStorageS3Client(script.aws.clients.s3);
+  const safeStorage = new SENDSafeStorageS3Service(new AWS.AWSS3Service(script.aws.clients.s3));
   const exporter = new Core.GOJSONListExporter<DownloadResult>({ outputPath: reportFilePath, jsonl: true });
   script.prompt.startSpinner('Loading input file...');
 
   try {
     // Discover the Safe Storage bucket once upfront so any auth error is caught early
     script.prompt.spinLog('Resolving Safe Storage bucket...');
-    const bucketName = await s3Client.findSafeStorageBucket();
+    const bucketName = await safeStorage.findBucket();
     script.prompt.spinLog(`Safe Storage bucket: ${bucketName}`);
 
     // Load tasks from input file
@@ -86,7 +86,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     script.logger.newline();
 
     // Download all attachments
-    const results = await runDownloads(tasks, s3Client, script.prompt);
+    const results = await runDownloads(tasks, safeStorage, script.prompt);
 
     script.prompt.spinSucceed('downloading', `Downloads completed: ${results.length} processed`);
 
@@ -99,6 +99,5 @@ export async function main(script: Core.GOScript): Promise<void> {
     script.logger.success('Done');
   } finally {
     script.prompt.stopSpinner();
-    s3Client.destroy();
   }
 }

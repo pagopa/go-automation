@@ -12,7 +12,6 @@
     { "path": "./functions/go-BotQESlackHandler" },
     { "path": "./functions/go-ExecuteRunbookLambda" },
     { "path": "./functions/go-SendMonitorAthenaQueryLambda" },
-    { "path": "./functions/go-SendMonitorTppMessagesLambda" },
     { "path": "./infra/watchtower-alarm-analysis" },
     { "path": "./packages/go-ai" },
     { "path": "./packages/go-cli" },
@@ -25,6 +24,7 @@
     { "path": "./scripts/aws/aws-check-ecs" },
     { "path": "./scripts/aws/aws-delete-sqs" },
     { "path": "./scripts/aws/aws-dump-sqs" },
+    { "path": "./scripts/aws/aws-fetch-ecs-clusters-infos" },
     { "path": "./scripts/aws/aws-put-sqs" },
     { "path": "./scripts/aws/aws-query-dynamodb" },
     { "path": "./scripts/aws/aws-redrive-sqs" },
@@ -39,11 +39,9 @@
     { "path": "./scripts/interop/interop-analyze-alarms" },
     { "path": "./scripts/interop/interop-token-hash-verification" },
     { "path": "./scripts/send/send-download-safestorage-attachments" },
-    { "path": "./scripts/aws/aws-fetch-ecs-clusters-infos" },
     { "path": "./scripts/send/send-fetch-timeline-from-iun" },
     { "path": "./scripts/send/send-import-notifications" },
     { "path": "./scripts/send/send-monitor-athena-query" },
-    { "path": "./scripts/send/send-monitor-tpp-messages" },
     { "path": "./scripts/send/send-report-dlq" },
     { "path": "./scripts/send/send-upload-attachments" }
   ]

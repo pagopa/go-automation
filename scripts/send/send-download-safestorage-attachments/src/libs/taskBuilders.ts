@@ -4,7 +4,8 @@
 
 import path from 'path';
 
-import { SafeStorageS3Client } from './SafeStorageS3Client.js';
+import { SENDSafeStorageS3Service } from '@go-automation/go-send';
+
 import type { Attachment } from '../types/Attachment.js';
 import type { AttachmentDownloadTask } from '../types/AttachmentDownloadTask.js';
 
@@ -63,13 +64,13 @@ export function buildTasksFromUriList(
   const tasks: AttachmentDownloadTask[] = [];
 
   for (const uri of uris) {
-    if (!SafeStorageS3Client.isSafeStorageUri(uri)) {
+    if (!SENDSafeStorageS3Service.isSafeStorageUri(uri)) {
       continue;
     }
 
     tasks.push({
       uri,
-      key: SafeStorageS3Client.extractKey(uri),
+      key: SENDSafeStorageS3Service.extractKey(uri),
       outputDir: baseOutputDir,
     });
   }
@@ -99,13 +100,13 @@ export function buildTasksFromJsonlRecord(
       const attachments = event.paperProgrStatus?.attachments ?? [];
 
       for (const attachment of attachments) {
-        if (!SafeStorageS3Client.isSafeStorageUri(attachment.uri)) {
+        if (!SENDSafeStorageS3Service.isSafeStorageUri(attachment.uri)) {
           continue;
         }
 
         tasks.push({
           uri: attachment.uri,
-          key: SafeStorageS3Client.extractKey(attachment.uri),
+          key: SENDSafeStorageS3Service.extractKey(attachment.uri),
           outputDir: subDir,
           documentType: attachment.documentType,
           sha256: attachment.sha256,

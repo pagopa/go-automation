@@ -398,7 +398,6 @@ export const functionRules: ReadonlyArray<ScaffoldRule> = [
   },
   {
     name: 'Wrapper Lambda build prebuilds the wrapped script',
-    severity: 'warning',
     check: 'custom',
     validate: async (functionPath) => {
       const ruleName = 'Wrapper Lambda build prebuilds the wrapped script';
@@ -434,7 +433,6 @@ export const functionRules: ReadonlyArray<ScaffoldRule> = [
   },
   {
     name: 'Wrapper Lambda copies configs when the wrapped script has configs',
-    severity: 'warning',
     check: 'custom',
     validate: async (functionPath) => {
       const ruleName = 'Wrapper Lambda copies configs when the wrapped script has configs';

@@ -194,7 +194,7 @@ validate_lambda_name() {
     fi
 
     if ! [[ "$name" =~ ^[a-z]+-[A-Za-z][A-Za-z0-9]*$ ]]; then
-        print_error "Lambda name must be in format 'prefix-PascalCaseName' (e.g., 'go-AILambda', 'go-SendMonitorTppMessagesLambda')"
+        print_error "Lambda name must be in format 'prefix-PascalCaseName' (e.g., 'go-AILambda', 'go-SendMonitorAthenaQueryLambda')"
         print_error "Use a lowercase prefix, a single hyphen, and then a PascalCase suffix"
         return 1
     fi
@@ -491,7 +491,7 @@ print_header
 
 # Step 1: Get Lambda Name
 print_step "Enter the Lambda name"
-echo -e "    ${YELLOW}Examples: go-AILambda, go-BotQESlackHandler, go-SendMonitorTppMessagesLambda${NC}"
+echo -e "    ${YELLOW}Examples: go-AILambda, go-BotQESlackHandler, go-SendMonitorAthenaQueryLambda${NC}"
 echo ""
 
 while true; do
