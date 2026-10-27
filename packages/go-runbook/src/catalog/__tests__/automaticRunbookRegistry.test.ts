@@ -77,6 +77,7 @@ describe('RUNBOOK_CATALOG', () => {
     const alarms: ReadonlyArray<readonly [string, string]> = [
       ['emd-downstream-detection-Alarm', 'INTEGRATION'],
       ['pn-external-registries-OneTrust-downstream-detection-Alarm', 'INTEGRATION'],
+      ['pn-external-registries-SelfcarePA-downstream-detection-Alarm', 'INTEGRATION'],
       ['pn-external-registries-IO-downstream-detection-Alarm', 'INTEGRATION'],
       ['pn-national-registries-AdE-downstream-detection-Alarm', 'INTEGRATION'],
       ['pn-national-registries-ANPR-downstream-detection-Alarm', 'INTEGRATION'],

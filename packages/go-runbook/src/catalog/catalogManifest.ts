@@ -81,6 +81,7 @@ import { LAMBDA_DAILY_EXPORT_DYNAMO_DB_TABLE_LOG_INVOCATION_ERRORS_ALARM_REGISTR
 import { SERVICE_DESK_ALB_ALARM_REGISTRATION } from './runbooks/pn-service-desk-alb-alarm/registration.js';
 import { STREAM_DELIVERY_PROGRESS_B2B_API_GW_ALARM_REGISTRATION } from './runbooks/pn-stream-delivery-progress-B2B-ApiGwAlarm/registration.js';
 import { K8S_INTEROP_BE_ONE_TRUST_NOTICES_ERRORS_PROD_REGISTRATION } from './runbooks/k8s-interop-be-one-trust-notices-errors-prod/registration.js';
+import { EXTERNAL_REGISTRIES_SELFCARE_PA_DOWNSTREAM_DETECTION_ALARM_REGISTRATION } from './runbooks/pn-external-registries-SelfcarePA-downstream-detection-Alarm/registration.js';
 
 export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   // api gateway
@@ -154,4 +155,5 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   SERVICE_DESK_ALB_ALARM_REGISTRATION,
   STREAM_DELIVERY_PROGRESS_B2B_API_GW_ALARM_REGISTRATION,
   K8S_INTEROP_BE_ONE_TRUST_NOTICES_ERRORS_PROD_REGISTRATION,
+  EXTERNAL_REGISTRIES_SELFCARE_PA_DOWNSTREAM_DETECTION_ALARM_REGISTRATION,
 ];
