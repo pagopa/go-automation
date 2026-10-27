@@ -3,6 +3,7 @@ import { interop } from '../framework.js';
 import type { Runbook } from '../framework.js';
 
 import { KNOWN_CASES } from './knownCases.js';
+import { SELFCARE_USERS_UPDATER_QUERY_PROFILE } from './queryProfile.js';
 
 const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/2129330177/k8s-interop-be-selfcare-client-users-updater-errors';
@@ -14,7 +15,7 @@ export function buildRunbook(): Runbook {
       name: SELFCARE_USERS_UPDATER_ALARM.runbookKey,
       description:
         'Analizza gli allarmi k8s INTEROP del selfcare client users updater leggendo i log applicativi, estraendo i CID e consultando il CID tracker.',
-      version: '1.0.0',
+      version: '1.0.1',
       type: 'alarm-resolution',
       team: 'GO',
       tags: ['interop', 'k8s', 'service', 'selfcare', 'kafka'],
@@ -25,6 +26,7 @@ export function buildRunbook(): Runbook {
       varPrefix: SELFCARE_USERS_UPDATER_ALARM.varPrefix,
     },
     resolveAlarmContext: SELFCARE_USERS_UPDATER_ALARM.resolveContext,
+    queryProfile: SELFCARE_USERS_UPDATER_QUERY_PROFILE,
     knownCases: KNOWN_CASES,
     occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 1 },
     analysisDefaults: {
