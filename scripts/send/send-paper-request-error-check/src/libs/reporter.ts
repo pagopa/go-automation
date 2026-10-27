@@ -18,6 +18,7 @@ export class PaperRequestReporter {
     totalInitialRequestIds: 0,
     withFeedback: 0,
     withoutFeedback: 0,
+    failedFeedbackCount: 0,
     timelinesFetchedCount: 0,
     canceledCount: 0,
     perfectedCount: 0,
@@ -76,6 +77,9 @@ export class PaperRequestReporter {
       }
     }
     this.metrics.withoutFeedback += result.notFoundCount;
+    const failedCount = result.failedCount ?? result.failedRequestIds?.length ?? 0;
+    this.metrics.failedFeedbackCount = (this.metrics.failedFeedbackCount ?? 0) + failedCount;
+    this.metrics.errorsCount = (this.metrics.errorsCount ?? 0) + failedCount;
   }
 
   /**
@@ -167,6 +171,7 @@ export class PaperRequestReporter {
         totalChecked: cf.totalChecked,
         withFeedback: cf.foundCount,
         withoutFeedback: cf.notFoundCount,
+        failed: cf.failedCount ?? cf.failedRequestIds?.length ?? 0,
       };
     }
 
@@ -248,6 +253,7 @@ export class PaperRequestReporter {
       `toResubmitCount,${this.metrics.toResubmitCount}`,
       `withFeedback,${this.metrics.withFeedback}`,
       `withoutFeedback,${this.metrics.withoutFeedback}`,
+      `failedFeedbackCount,${this.metrics.failedFeedbackCount ?? 0}`,
       `glacierRestoredCount,${this.metrics.glacierRestoredCount}`,
       `glacierEligibleAarCount,${this.metrics.glacierEligibleAarCount ?? 0}`,
       `pdfEligibleAttachmentsCount,${this.metrics.pdfEligibleAttachmentsCount ?? 0}`,
@@ -274,9 +280,11 @@ export class PaperRequestReporter {
     // Dettaglio per step: Check Analog Feedback
     if (this.checkFeedbackResult) {
       const cf = this.checkFeedbackResult;
+      const failedCount = cf.failedCount ?? cf.failedRequestIds?.length ?? 0;
+      const failedMsg = failedCount > 0 ? `, errori/falliti: ${failedCount}` : '';
       logger.info(
         `[Check Feedback]     Request IDs iniziali: ${cf.totalChecked}` +
-          ` → con feedback: ${cf.foundCount}, senza feedback: ${cf.notFoundCount}`,
+          ` → con feedback: ${cf.foundCount}, senza feedback: ${cf.notFoundCount}${failedMsg}`,
       );
     }
 

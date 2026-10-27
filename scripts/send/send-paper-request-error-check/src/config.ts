@@ -108,13 +108,6 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     required: false,
     defaultValue: 1000,
   },
-  {
-    name: 'pdfValidation.dryRun',
-    type: Core.GOConfigParameterType.BOOL,
-    description: 'Esegue una simulazione della validazione PDF senza fare chiamate reali',
-    required: false,
-    defaultValue: false,
-  },
 ] as const;
 
 /**

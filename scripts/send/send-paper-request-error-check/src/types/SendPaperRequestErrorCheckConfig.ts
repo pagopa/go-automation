@@ -30,6 +30,7 @@ export interface PaperRequestMetrics {
   toResubmitCount: number;
   withFeedback: number;
   withoutFeedback: number;
+  failedFeedbackCount?: number | undefined;
   glacierRestoredCount: number;
   attachmentsFoundCount?: number | undefined;
   validPdfCount?: number | undefined;
@@ -49,8 +50,10 @@ export interface CheckFeedbackResult {
   readonly totalChecked: number;
   readonly foundCount: number;
   readonly notFoundCount: number;
+  readonly failedCount: number;
   readonly foundRequestIds: ReadonlyArray<{ requestId: string; event: Record<string, unknown> }>;
   readonly notFoundRequestIds: ReadonlyArray<string>;
+  readonly failedRequestIds: ReadonlyArray<string>;
 }
 
 /**

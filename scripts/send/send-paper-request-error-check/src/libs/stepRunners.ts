@@ -31,14 +31,17 @@ async function runCheckFeedbackStep(
       totalChecked: 0,
       foundCount: 0,
       notFoundCount: 0,
+      failedCount: 0,
       foundRequestIds: [],
       notFoundRequestIds: [],
+      failedRequestIds: [],
     };
   }
   const result = await checkFeedbackFromRequestIds(script, inputLines);
   reporter.recordCheckFeedback(result);
+  const failedMsg = result.failedCount > 0 ? `, ${result.failedCount} falliti` : '';
   script.logger.info(
-    `Risultato Check Feedback: ${result.foundCount}/${result.totalChecked} trovati, ${result.notFoundCount} non trovati.`,
+    `Risultato Check Feedback: ${result.foundCount}/${result.totalChecked} trovati, ${result.notFoundCount} non trovati${failedMsg}.`,
   );
   return result;
 }

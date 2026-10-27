@@ -83,5 +83,5 @@ Al termine dell'esecuzione, la directory `results/` viene popolata con:
 
 - `summary_report.json`: Report JSON sintetico con la tabella completa delle metriche tracciate.
 - `summary_report.csv`: Report CSV con la chiave e il valore di ciascuna metrica.
-- File di dettaglio specifici dei singoli moduli (`found.json`, `not_found.txt`, `valid_pdfs.csv`, `invalid_pdfs.csv`,
+- File di dettaglio specifici dei singoli moduli (`found.json`, `not_found.txt`, `failed.txt`, `valid_pdfs.csv`, `invalid_pdfs.csv`,
   `timelines.json`, ecc.).

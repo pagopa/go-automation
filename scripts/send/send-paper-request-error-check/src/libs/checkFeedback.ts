@@ -25,76 +25,87 @@ export async function checkFeedbackFromRequestIds(
 
   const foundRequestIds: { requestId: string; event: Record<string, unknown> }[] = [];
   const notFoundRequestIds: string[] = [];
+  const failedRequestIds: string[] = [];
 
   const foundFilePath = path.join(outputDir, 'found.json');
   const notFoundFilePath = path.join(outputDir, 'not_found.txt');
+  const failedFilePath = path.join(outputDir, 'failed.txt');
 
   const foundExporter = new Core.GOFileListExporter({ outputPath: foundFilePath });
   const notFoundExporter = new Core.GOFileListExporter({ outputPath: notFoundFilePath });
+  const failedExporter = new Core.GOFileListExporter({ outputPath: failedFilePath });
   const foundStream = await foundExporter.exportStream();
   const notFoundStream = await notFoundExporter.exportStream();
+  const failedStream = await failedExporter.exportStream();
 
   logger.info(`Inizio verifica feedback su pn-Timelines per ${requestIds.length} requestId...`);
 
-  for (let i = 0; i < requestIds.length; i++) {
-    const requestId = requestIds[i]?.trim();
-    if (!requestId) continue;
+  try {
+    for (let i = 0; i < requestIds.length; i++) {
+      const requestId = requestIds[i]?.trim();
+      if (!requestId) continue;
 
-    logger.text(`[${i + 1}/${requestIds.length}] Verifica requestId: ${requestId}`);
-    const iun = extractIun(requestId);
+      logger.text(`[${i + 1}/${requestIds.length}] Verifica requestId: ${requestId}`);
+      const iun = extractIun(requestId);
 
-    try {
-      const items = await dynamoDbService.query(TIMELINES_TABLE_NAME, 'iun = :val', {
-        ':val': { S: iun },
-      });
-
-      if (items.length > 0) {
-        const partsAfterIun = requestId.includes(iun) ? (requestId.split(iun)[1] ?? '') : '';
-        const feedbackSuffix = partsAfterIun.split('.PCRETRY')[0] ?? '';
-        const completelyUnreachableSuffix = partsAfterIun.split('.ATTEMPT')[0] ?? '';
-
-        const feedbackString = `SEND_ANALOG_FEEDBACK.IUN_${iun}${feedbackSuffix}`;
-        const completelyUnreachableString = `COMPLETELY_UNREACHABLE.IUN_${iun}${completelyUnreachableSuffix}`;
-
-        const feedbackEvent = items.find((item: Record<string, unknown>) => {
-          const id = get<string>(item, 'timelineElementId');
-          return id === feedbackString || id === completelyUnreachableString;
+      try {
+        const items = await dynamoDbService.query(TIMELINES_TABLE_NAME, 'iun = :val', {
+          ':val': { S: iun },
         });
 
-        if (feedbackEvent) {
-          logger.info(`✅ Trovato feedback per ${requestId}`);
-          foundRequestIds.push({ requestId, event: feedbackEvent });
-          await foundStream.append(JSON.stringify({ [requestId]: feedbackEvent }));
+        if (items.length > 0) {
+          const partsAfterIun = requestId.includes(iun) ? (requestId.split(iun)[1] ?? '') : '';
+          const feedbackSuffix = partsAfterIun.split('.PCRETRY')[0] ?? '';
+          const completelyUnreachableSuffix = partsAfterIun.split('.ATTEMPT')[0] ?? '';
+
+          const feedbackString = `SEND_ANALOG_FEEDBACK.IUN_${iun}${feedbackSuffix}`;
+          const completelyUnreachableString = `COMPLETELY_UNREACHABLE.IUN_${iun}${completelyUnreachableSuffix}`;
+
+          const feedbackEvent = items.find((item: Record<string, unknown>) => {
+            const id = get<string>(item, 'timelineElementId');
+            return id === feedbackString || id === completelyUnreachableString;
+          });
+
+          if (feedbackEvent) {
+            logger.info(`✅ Trovato feedback per ${requestId}`);
+            foundRequestIds.push({ requestId, event: feedbackEvent });
+            await foundStream.append(JSON.stringify({ [requestId]: feedbackEvent }));
+          } else {
+            logger.warning(`❌ Feedback non trovato per ${requestId}`);
+            notFoundRequestIds.push(requestId);
+            await notFoundStream.append(requestId);
+          }
         } else {
-          logger.warning(`❌ Feedback non trovato per ${requestId}`);
+          logger.warning(`❌ Nessun elemento timeline trovato per IUN ${iun} (${requestId})`);
           notFoundRequestIds.push(requestId);
           await notFoundStream.append(requestId);
         }
-      } else {
-        logger.warning(`❌ Nessun elemento timeline trovato per IUN ${iun} (${requestId})`);
-        notFoundRequestIds.push(requestId);
-        await notFoundStream.append(requestId);
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        logger.error(`Errore durante la query per ${requestId} (IUN: ${iun}): ${errorMsg}`);
+        failedRequestIds.push(requestId);
+        await failedStream.append(requestId);
       }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      logger.error(`Errore durante la query per ${requestId} (IUN: ${iun}): ${errorMsg}`);
-      notFoundRequestIds.push(requestId);
-      await notFoundStream.append(requestId);
     }
+  } finally {
+    await Promise.allSettled([
+      foundStream.close(),
+      notFoundStream.close(),
+      failedStream.close(),
+    ]);
   }
 
   logger.info(
-    `Verifica feedback completata: ${foundRequestIds.length} trovati, ${notFoundRequestIds.length} non trovati su ${requestIds.length} totali.`,
+    `Verifica feedback completata: ${foundRequestIds.length} trovati, ${notFoundRequestIds.length} non trovati, ${failedRequestIds.length} falliti su ${requestIds.length} totali.`,
   );
-
-  await foundStream.close();
-  await notFoundStream.close();
 
   return {
     totalChecked: requestIds.length,
     foundCount: foundRequestIds.length,
     notFoundCount: notFoundRequestIds.length,
+    failedCount: failedRequestIds.length,
     foundRequestIds,
     notFoundRequestIds,
+    failedRequestIds,
   };
 }
