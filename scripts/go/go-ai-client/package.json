@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Local CLI client for GO-AI — invokes the deployed Lambda or calls Bedrock directly.",
+  "description": "Local CLI client for GO-AI \u2014 invokes the deployed Lambda or calls Bedrock directly.",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc -b",
@@ -20,8 +20,6 @@
   "author": "Team GO - Gestione Operativa",
   "license": "EUPL-1.2",
   "dependencies": {
-    "@aws-sdk/client-lambda": "catalog:",
-    "@aws-sdk/credential-provider-ini": "catalog:",
     "@go-automation/go-ai": "workspace:*",
     "@go-automation/go-common": "workspace:*"
   },

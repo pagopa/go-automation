@@ -4,7 +4,7 @@
  * Resolves the invocation mode, loads the input, and calls GO-AI.
  */
 
-import { Core } from '@go-automation/go-common';
+import { AWS, Core } from '@go-automation/go-common';
 import { GOAIHat, parseGOAIOutput, type GOAIRequest } from '@go-automation/go-ai';
 import { loadInput } from './libs/inputUtils.js';
 import { printHats } from './libs/printHats.js';
@@ -47,7 +47,10 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.info(`Profile: ${config.awsProfile}`);
   script.logger.info(`Input:   ${req.input.length} chars`);
 
-  const response = config.goAiMode === 'lambda' ? await invokeLambda(req, config) : await invokeDirect(req, config);
+  const response =
+    config.goAiMode === 'lambda'
+      ? await invokeLambda(req, config, new AWS.AWSLambdaService(script.aws.clients.lambda))
+      : await invokeDirect(req, config);
 
   script.logger.info(`${response.inputTokens} in / ${response.outputTokens} out tokens`);
 

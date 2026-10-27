@@ -720,12 +720,6 @@ importers:
 
   scripts/go/go-ai-client:
     dependencies:
-      '@aws-sdk/client-lambda':
-        specifier: 'catalog:'
-        version: 3.1156.0
-      '@aws-sdk/credential-provider-ini':
-        specifier: 'catalog:'
-        version: 3.973.21
       '@go-automation/go-ai':
         specifier: workspace:*
         version: link:../../../packages/go-ai
