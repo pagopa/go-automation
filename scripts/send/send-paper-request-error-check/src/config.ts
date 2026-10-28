@@ -101,13 +101,6 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     required: false,
     defaultValue: 100,
   },
-  {
-    name: 'pdfValidation.batchSize',
-    type: Core.GOConfigParameterType.INT,
-    description: 'Dimensione del batch per chiavi S3 nella validazione PDF',
-    required: false,
-    defaultValue: 1000,
-  },
 ] as const;
 
 /**

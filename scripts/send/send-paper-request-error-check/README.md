@@ -38,17 +38,17 @@ tramite la CLI `--mode` (`-m`).
 
 ### Parametri CLI
 
-| Parametro                     | Alias             | Tipo    | Default     | Descrizione                                                                                                                                       |
-| ----------------------------- | ----------------- | ------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--mode`                      | `-m`              | string  | `all`       | Modalità di esecuzione (`all`, `check-feedback`, `get-attachments`, `retrieve-attachments`, `retrieve-glacier`, `validate-pdf`, `fetch-timelines`) |
-| `--aws.profile`               | `-p`, `--profile` | string  | -           | Nome del profilo AWS SSO                                                                                                                          |
-| `--envName`                   | `-e`              | string  | -           | Nome dell'ambiente (`dev`, `uat`, `test`, `prod`, `hotfix`)                                                                                       |
-| `--inputFile`                 | `-f`, `--input`   | string  | -           | Percorso del file di input contenente IUN, requestId o chiavi S3                                                                                  |
-| `--bucket`                    | `-b`              | string  | -           | Nome del bucket S3 (risolto automaticamente se non specificato)                                                                                   |
-| `--outputDir`                 | `-o`              | string  | `./results` | Directory di output per i report e file di risultato                                                                                              |
-| `--glacier.expirationDays`    | -                 | number  | `30`        | Giorni di disponibilità per i documenti ripristinati da Glacier                                                                                   |
-| `--glacier.tier`              | -                 | string  | `Bulk`      | Velocità di ripristino Glacier (`Bulk`, `Standard`, `Expedited`)                                                                                  |
-| `--pdfValidation.concurrency` | -                 | number  | `20`        | Richieste S3 concorrenti per la validazione dei PDF                                                                                               |
+| Parametro                     | Alias             | Tipo   | Default     | Descrizione                                                                                                                                        |
+| ----------------------------- | ----------------- | ------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--mode`                      | `-m`              | string | `all`       | Modalità di esecuzione (`all`, `check-feedback`, `get-attachments`, `retrieve-attachments`, `retrieve-glacier`, `validate-pdf`, `fetch-timelines`) |
+| `--aws.profile`               | `-p`, `--profile` | string | -           | Nome del profilo AWS SSO                                                                                                                           |
+| `--envName`                   | `-e`              | string | -           | Nome dell'ambiente (`dev`, `uat`, `test`, `prod`, `hotfix`)                                                                                        |
+| `--inputFile`                 | `-f`, `--input`   | string | -           | Percorso del file di input contenente IUN, requestId o chiavi S3                                                                                   |
+| `--bucket`                    | `-b`              | string | -           | Nome del bucket S3 (risolto automaticamente se non specificato)                                                                                    |
+| `--outputDir`                 | `-o`              | string | `./results` | Directory di output per i report e file di risultato                                                                                               |
+| `--glacier.expirationDays`    | -                 | number | `30`        | Giorni di disponibilità per i documenti ripristinati da Glacier                                                                                    |
+| `--glacier.tier`              | -                 | string | `Bulk`      | Velocità di ripristino Glacier (`Bulk`, `Standard`, `Expedited`)                                                                                   |
+| `--pdfValidation.concurrency` | -                 | number | `20`        | Richieste S3 concorrenti per la validazione dei PDF                                                                                                |
 
 ## Utilizzo
 
