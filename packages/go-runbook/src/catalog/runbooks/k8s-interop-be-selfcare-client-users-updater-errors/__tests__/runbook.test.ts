@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { service } from '../../framework.js';
-import { GOLogger } from '@go-automation/go-common';
+import { GOLogger } from '@go-automation/go-common/core';
+import type { AWSCloudWatchLogsQueryResult } from '@go-automation/go-common/aws';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
@@ -66,7 +67,11 @@ describe('buildRunbook', () => {
       ]),
       createTestServiceRegistry({
         cloudWatchLogs: {
-          async queryWithStatistics(groups, query) {
+          async queryWithStatistics(
+            groups: ReadonlyArray<string>,
+            query: string,
+          ): Promise<AWSCloudWatchLogsQueryResult> {
+            await Promise.resolve();
             assert.deepStrictEqual(groups, ['/aws/eks/interop-eks-cluster-test/application']);
             const application = calls++ === 0;
             assert.strictEqual(
@@ -89,7 +94,7 @@ describe('buildRunbook', () => {
                   },
                 ],
               ],
-              statistics: { recordsMatched: 1 },
+              statistics: { bytesScanned: 1, recordsScanned: 1, recordsMatched: 1 },
               queryExecutions: [],
             };
           },
