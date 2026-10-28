@@ -88,11 +88,7 @@ export async function checkFeedbackFromRequestIds(
       }
     }
   } finally {
-    await Promise.allSettled([
-      foundStream.close(),
-      notFoundStream.close(),
-      failedStream.close(),
-    ]);
+    await Promise.allSettled([foundStream.close(), notFoundStream.close(), failedStream.close()]);
   }
 
   logger.info(
