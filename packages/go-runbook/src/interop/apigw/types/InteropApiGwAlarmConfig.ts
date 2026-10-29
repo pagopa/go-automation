@@ -9,6 +9,8 @@ import type { InteropApiGwApplicationLogConfig } from './InteropApiGwApplication
 import type { InteropApiGwQueryProfile } from '../profiles/InteropApiGwQueryProfile.js';
 import type { ResolveInteropApiGwAlarmContextFn } from './InteropApiGwAlarmContext.js';
 import type { InteropApiGwRunbookStepIds } from './InteropApiGwRunbookStepIds.js';
+import type { PipelineHook } from '../../../types/PipelineHook.js';
+import type { InteropApiGwPipelineAnchor } from './InteropApiGwPipelineAnchor.js';
 
 /** Configuration accepted by `createInteropApiGwAlarmRunbook`. */
 export interface InteropApiGwAlarmConfig {
@@ -29,4 +31,6 @@ export interface InteropApiGwAlarmConfig {
   readonly fallbackAction?: CaseAction;
   readonly stepIds?: Partial<InteropApiGwRunbookStepIds>;
   readonly maxIterations?: number;
+  /** Custom diagnostics collected before CID analysis can resolve the runbook. */
+  readonly hooks?: ReadonlyArray<PipelineHook<InteropApiGwPipelineAnchor>>;
 }

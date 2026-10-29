@@ -1,5 +1,6 @@
 import { RunbookBuilder } from '../../../builders/RunbookBuilder.js';
 import { finishAlarmRunbook } from '../../../builders/finishAlarmRunbook.js';
+import { applyPipelineHooks } from '../../../builders/applyPipelineHooks.js';
 import type { Runbook } from '../../../types/Runbook.js';
 import type { TimeRangeFromParams } from '../../../steps/data/TimeRangeFromParams.js';
 
@@ -13,6 +14,7 @@ import { QueryInteropApiGwAggregatesStep } from '../steps/QueryInteropApiGwAggre
 import { ResolveInteropApiGwAlarmContextStep } from '../steps/ResolveInteropApiGwAlarmContextStep.js';
 import type { InteropApiGwAlarmConfig } from '../types/InteropApiGwAlarmConfig.js';
 import type { InteropApiGwRunbookStepIds } from '../types/InteropApiGwRunbookStepIds.js';
+import type { InteropApiGwPipelineAnchor } from '../types/InteropApiGwPipelineAnchor.js';
 import { defaultInteropApiGwUnknownCaseFallback } from './defaultInteropApiGwUnknownCaseFallback.js';
 
 const DEFAULT_TIME_RANGE: TimeRangeFromParams = { start: 'startTime', end: 'endTime' };
@@ -53,6 +55,7 @@ export function defaultInteropApiGwRunbookStepIds(serviceName: string): InteropA
 export function createInteropApiGwAlarmRunbook(config: InteropApiGwAlarmConfig): Runbook {
   const { apiGw, application, queryProfile } = config;
   const stepIds = { ...defaultInteropApiGwRunbookStepIds(application.serviceName), ...config.stepIds };
+  const reachedAnchors = new Set<InteropApiGwPipelineAnchor>();
   const timeRange = config.timeRangeFromParams ?? DEFAULT_TIME_RANGE;
   const applicationTimeRange = application.timeRangeFromParams ?? timeRange;
   const applicationLabel = application.label ?? `log applicativi ${application.serviceName}`;
@@ -129,6 +132,8 @@ export function createInteropApiGwAlarmRunbook(config: InteropApiGwAlarmConfig):
     }),
   );
 
+  applyPipelineHooks(builder, config.hooks ?? [], 'before-cid-analysis', reachedAnchors);
+
   builder.step(
     new AnalyzeInteropK8sCidTrackerStep({
       id: stepIds.analyzeCidTracker,
@@ -154,5 +159,6 @@ export function createInteropApiGwAlarmRunbook(config: InteropApiGwAlarmConfig):
     },
     primaryResource: application.serviceName,
     defaultRunbookName: config.id,
+    anchors: { hooks: config.hooks ?? [], reached: reachedAnchors, pipelineName: 'INTEROP API Gateway' },
   });
 }

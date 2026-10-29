@@ -5,13 +5,13 @@ import { KNOWN_CASES } from './knownCases.js';
 import { AnalyzeAuditFallbackStep, AUDIT_FALLBACK_PATTERN } from './AnalyzeAuditFallbackStep.js';
 
 export function buildRunbook(): Runbook {
-  const runbook = interop.apigw.createInteropApiGwAlarmRunbook({
+  return interop.apigw.createInteropApiGwAlarmRunbook({
     id: alarm.runbookKey,
     metadata: {
       name: alarm.runbookKey,
       description:
         'Analizza gli errori 5xx dell’API Gateway authorization-server INTEROP e verifica il recupero dell’audit tramite fallback S3 per CID.',
-      version: '1.0.0',
+      version: '1.0.1',
       type: 'alarm-resolution',
       team: 'GO',
       tags: ['interop', 'api-gateway', '5xx', 'authorization', 'auth-server'],
@@ -33,17 +33,8 @@ export function buildRunbook(): Runbook {
       podAppFilter: 'interop-be-authorization-server',
     },
     knownCases: KNOWN_CASES,
-  });
-  return {
-    ...runbook,
-    // The final CID analyzer resolves the runbook: insert verification before it.
-    steps: runbook.steps.flatMap((descriptor) =>
-      descriptor.step.id === alarm.stepIds.analyzeCidTracker
-        ? [{ step: new AnalyzeAuditFallbackStep() }, descriptor]
-        : [descriptor],
-    ),
+    hooks: [{ at: 'before-cid-analysis', step: new AnalyzeAuditFallbackStep() }],
     analysisDefaults: {
-      ...runbook.analysisDefaults,
       links: [
         {
           url: 'https://pagopa.atlassian.net/wiki/spaces/GO/pages/2111078419/interop-auth-server-prod-apigw-5xx',
@@ -52,5 +43,5 @@ export function buildRunbook(): Runbook {
         },
       ],
     },
-  };
+  });
 }

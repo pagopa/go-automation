@@ -29,7 +29,7 @@ interface AuditFallbackAnalysis {
   readonly apiGatewayEvidenceComplete: boolean;
 }
 
-/** Confirms every fallback CID and permits completion only when no other application or gateway error remains. */
+/** Verifies fallback sequences per CID and reports the remaining application and gateway evidence. */
 export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
   readonly id = 'analyze-auth-server-audit-fallback';
   readonly label = 'Verifica fallback audit S3 e generazione token per CID';
@@ -211,13 +211,39 @@ function isTrackerError(row: ReadonlyArray<ResultField>, message: string): boole
 }
 
 function hasCompletedFallback(messages: ReadonlyArray<string>, expectedBucket: string): boolean {
-  // CID tracker returns chronological logs. Every new failure invalidates prior success.
+  // CloudWatch collection timestamps can reorder application events. Use the
+  // embedded ISO time when every marker has one; equal-time markers are unordered.
+  // Without embedded times, retain the chronological order supplied by the tracker.
+  const timed = messages.map((message) => {
+    const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\b/u.exec(message)?.[0];
+    return { message, time: timestamp === undefined ? Number.NaN : Date.parse(timestamp) };
+  });
+  const hasApplicationTimes = timed.every(({ time }) => Number.isFinite(time));
+  if (hasApplicationTimes) timed.sort((left, right) => left.time - right.time);
+
   let stage = 0;
-  for (const message of messages) {
-    if (isAuditFailure(message)) stage = message.includes(AUDIT_FALLBACK_PATTERN) ? 1 : 0;
-    else if (stage === 1 && FALLBACK_STORAGE_PATTERN.exec(message)?.[1] === expectedBucket) stage = 2;
-    else if (stage === 2 && message.includes(AUDIT_FALLBACK_SUCCEEDED_PATTERN)) stage = 3;
-    else if (stage === 3 && message.includes('Token generated')) stage = 4;
+  for (let index = 0; index < timed.length; index += 1) {
+    const first = timed[index];
+    if (first === undefined) continue;
+    const group = [first.message];
+    while (hasApplicationTimes && timed[index + 1]?.time === first.time) {
+      index += 1;
+      const next = timed[index];
+      if (next !== undefined) group.push(next.message);
+    }
+    // A later failure invalidates earlier success; markers at the same precision
+    // are checked for presence together, without relying on their ingestion order.
+    const markers = new Set<number>();
+    for (const message of group) {
+      if (isAuditFailure(message)) markers.add(message.includes(AUDIT_FALLBACK_PATTERN) ? 1 : 0);
+      else if (FALLBACK_STORAGE_PATTERN.exec(message)?.[1] === expectedBucket) markers.add(2);
+      else if (message.includes(AUDIT_FALLBACK_SUCCEEDED_PATTERN)) markers.add(3);
+      else if (message.includes('Token generated')) markers.add(4);
+    }
+    if (markers.has(0) || markers.has(1)) stage = markers.has(1) ? 1 : 0;
+    if (stage === 1 && markers.has(2)) stage = 2;
+    if (stage === 2 && markers.has(3)) stage = 3;
+    if (stage === 3 && markers.has(4)) stage = 4;
   }
   return stage === 4;
 }

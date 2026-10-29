@@ -132,6 +132,86 @@ describe('AnalyzeAuditFallbackStep', () => {
     assert.deepStrictEqual(result.output?.confirmedCids, ['a']);
   });
 
+  it('uses application timestamps when collection timestamps reorder a real-shaped fallback sequence', async () => {
+    const ctx = context();
+    ctx.stepResults.set(alarm.stepIds.queryApplicationLogs, [
+      [
+        { field: 'cid', value: 'a' },
+        { field: 'log', value: AUDIT_FALLBACK_PATTERN },
+      ],
+    ]);
+    const markers = [
+      '2026-10-25T18:52:52.805Z INFO - Token generated',
+      '2026-10-25T18:52:52.805Z INFO - Auditing succeeded through fallback',
+      '2026-10-25T18:52:52.730Z WARN - Main auditing flow failed, going through fallback',
+      '2026-10-25T18:52:52.730Z INFO - Storing file token-details/a.ndjson in bucket interop-generated-jwt-details-fallback-prod-es1',
+    ];
+    ctx.stepResults.set(alarm.stepIds.queryCidTracker, [
+      {
+        cid: 'a',
+        rows: markers.map((log) => [
+          { field: '@timestamp', value: '2026-10-25 18:52:52.894' },
+          { field: 'pod_app', value: alarm.serviceName },
+          { field: '@message', value: JSON.stringify({ log }) },
+        ]),
+      },
+    ]);
+    const result = await new AnalyzeAuditFallbackStep().execute(ctx);
+    assert.strictEqual(result.vars?.[AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR], 'true');
+    assert.deepStrictEqual(result.output?.confirmedCids, ['a']);
+  });
+
+  it('invalidates success when application time places a new failure after token generation', async () => {
+    const ctx = context();
+    ctx.stepResults.set(alarm.stepIds.queryApplicationLogs, [
+      [
+        { field: 'cid', value: 'a' },
+        { field: 'log', value: AUDIT_FALLBACK_PATTERN },
+      ],
+    ]);
+    const messages = [
+      `2026-10-26T20:45:01.000Z ${AUDIT_FALLBACK_PATTERN}`,
+      `2026-10-26T20:45:00.000Z ${AUDIT_FALLBACK_PATTERN}`,
+      `2026-10-26T20:45:00.001Z ${SUCCESS[1]}`,
+      '2026-10-26T20:45:00.002Z Auditing succeeded through fallback',
+      '2026-10-26T20:45:00.002Z Token generated',
+    ];
+    ctx.stepResults.set(alarm.stepIds.queryCidTracker, [
+      {
+        cid: 'a',
+        rows: messages.map((message) => [
+          { field: 'pod_app', value: alarm.serviceName },
+          { field: 'log', value: message },
+        ]),
+      },
+    ]);
+    const result = await new AnalyzeAuditFallbackStep().execute(ctx);
+    assert.strictEqual(result.vars?.[AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR], 'false');
+  });
+
+  it('does not turn one quoted summary of the whole flow into four independent markers', async () => {
+    const ctx = context();
+    ctx.stepResults.set(alarm.stepIds.queryApplicationLogs, [
+      [
+        { field: 'cid', value: 'a' },
+        { field: 'log', value: AUDIT_FALLBACK_PATTERN },
+      ],
+    ]);
+    ctx.stepResults.set(alarm.stepIds.queryCidTracker, [
+      {
+        cid: 'a',
+        rows: [
+          [
+            { field: 'pod_app', value: alarm.serviceName },
+            { field: 'log', value: SUCCESS.join(' ') },
+          ],
+        ],
+      },
+    ]);
+    const result = await new AnalyzeAuditFallbackStep().execute(ctx);
+    assert.strictEqual(result.vars?.[AUDIT_FALLBACK_SEQUENCE_CONFIRMED_VAR], 'false');
+  });
+
   it('blocks completion when a correlated service emits an unclassified error', async () => {
     for (const errorRow of [
       [
