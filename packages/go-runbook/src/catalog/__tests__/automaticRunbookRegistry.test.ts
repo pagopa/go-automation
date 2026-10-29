@@ -9,7 +9,10 @@ describe('RUNBOOK_CATALOG', () => {
       if (!descriptor.categories.includes('INTEROP')) continue;
       if (
         descriptor.key === 'k8s-interop-be-m2m-event-dispatcher-errors-prod' ||
-        descriptor.key === 'k8s-interop-be-one-trust-notices-errors-prod'
+        descriptor.key === 'k8s-interop-be-one-trust-notices-errors-prod' ||
+        descriptor.key === 'k8s-interop-be-signed-objects-persister-errors-prod' ||
+        descriptor.key === 'k8s-interop-be-tenant-kind-history-consumer-errors-prod' ||
+        descriptor.key === 'interop-att-eservices-att-apigw-4xx'
       ) {
         assert.deepStrictEqual(descriptor.alarmNames, [descriptor.key]);
         continue;

@@ -83,6 +83,10 @@ import { STREAM_DELIVERY_PROGRESS_B2B_API_GW_ALARM_REGISTRATION } from './runboo
 import { K8S_INTEROP_BE_ONE_TRUST_NOTICES_ERRORS_PROD_REGISTRATION } from './runbooks/k8s-interop-be-one-trust-notices-errors-prod/registration.js';
 import { EXTERNAL_REGISTRIES_SELFCARE_PA_DOWNSTREAM_DETECTION_ALARM_REGISTRATION } from './runbooks/pn-external-registries-SelfcarePA-downstream-detection-Alarm/registration.js';
 import { JWT_AUTHORIZER_LAMBDA_LOG_INVOCATION_ERRORS_ALARM_REGISTRATION } from './runbooks/pn-jwtAuthorizerLambda-LogInvocationErrors-Alarm/registration.js';
+import { K8S_INTEROP_BE_SIGNED_OBJECTS_PERSISTER_ERRORS_PROD_REGISTRATION } from './runbooks/k8s-interop-be-signed-objects-persister-errors-prod/registration.js';
+import { BFF_WEB_NOEXTENSION_ADDRESSES_COMP_5XX_API_GW_ALARM_REGISTRATION } from './runbooks/pn-bff-WEB-noextension-Addresses-comp-5xx-ApiGwAlarm/registration.js';
+import { K8S_INTEROP_BE_TENANT_KIND_HISTORY_CONSUMER_ERRORS_PROD_REGISTRATION } from './runbooks/k8s-interop-be-tenant-kind-history-consumer-errors-prod/registration.js';
+import { INTEROP_ATT_ESERVICES_4XX_REGISTRATION } from './runbooks/interop-att-eservices-att-apigw-4xx/registration.js';
 
 export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   // api gateway
@@ -158,4 +162,8 @@ export const CATALOG_MANIFEST: ReadonlyArray<RunbookRegistration> = [
   K8S_INTEROP_BE_ONE_TRUST_NOTICES_ERRORS_PROD_REGISTRATION,
   EXTERNAL_REGISTRIES_SELFCARE_PA_DOWNSTREAM_DETECTION_ALARM_REGISTRATION,
   JWT_AUTHORIZER_LAMBDA_LOG_INVOCATION_ERRORS_ALARM_REGISTRATION,
+  K8S_INTEROP_BE_SIGNED_OBJECTS_PERSISTER_ERRORS_PROD_REGISTRATION,
+  BFF_WEB_NOEXTENSION_ADDRESSES_COMP_5XX_API_GW_ALARM_REGISTRATION,
+  K8S_INTEROP_BE_TENANT_KIND_HISTORY_CONSUMER_ERRORS_PROD_REGISTRATION,
+  INTEROP_ATT_ESERVICES_4XX_REGISTRATION,
 ];
