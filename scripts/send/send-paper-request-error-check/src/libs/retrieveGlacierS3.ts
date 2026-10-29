@@ -133,19 +133,22 @@ async function filterGlacierEligibleItems(
       }
     }
 
-    if (sentAt) {
-      const older1Y = isNotificationOlderThanOneYear(sentAt);
-      if (!older1Y) {
-        logger.info(
-          `IUN ${item.iun}: AAR ${item.fileKey} appartiene a notifica non più vecchia di 1 anno (sentAt: ${sentAt}). Skip Glacier (attivo in S3).`,
-        );
-        continue;
-      }
+    if (!sentAt) {
+      logger.warning(
+        `IUN ${item.iun}: data sentAt non disponibile per AAR ${item.fileKey}. Impossibile confermare età > 1 anno, file scartato dal restore Glacier.`,
+      );
+      continue;
     }
-
+    // 4. Controllo età > 1 anno
+    const older1Y = isNotificationOlderThanOneYear(sentAt);
+    if (!older1Y) {
+      logger.info(
+        `IUN ${item.iun}: AAR ${item.fileKey} appartiene a notifica non più vecchia di 1 anno (sentAt: ${sentAt}). Skip Glacier (attivo in S3).`,
+      );
+      continue;
+    }
     eligibleItems.push(item);
   }
-
   return eligibleItems;
 }
 

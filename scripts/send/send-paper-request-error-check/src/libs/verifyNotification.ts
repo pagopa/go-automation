@@ -191,6 +191,7 @@ export async function processTimelines<
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error(`Errore durante il salvataggio dei file di report filtro: ${errorMsg}`);
+    throw error;
   }
 
   return keptItems;

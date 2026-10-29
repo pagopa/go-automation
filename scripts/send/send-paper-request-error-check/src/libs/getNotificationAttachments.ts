@@ -104,6 +104,7 @@ export async function getNotificationAttachments(
   let attachmentsNotFound = 0;
   let deleteMarkersFound = 0;
   const dynamoUpdateErrors = 0;
+  let errorsCount = 0;
 
   for (let i = 0; i < iuns.length; i++) {
     //const iun = iuns[i]?.trim();
@@ -148,6 +149,7 @@ export async function getNotificationAttachments(
         const s3State = await checkS3ObjectState(s3Service, bucket, documentKey);
 
         if (s3State.error) {
+          errorsCount++;
           let errorMessage = 'Errore Sconosciuto';
 
           if (s3State.error instanceof Error) {
@@ -200,6 +202,7 @@ export async function getNotificationAttachments(
         );
       }
     } catch (err: unknown) {
+      errorsCount++;
       const errorMsg = err instanceof Error ? err.message : String(err);
       logger.error(`Errore nell'elaborazione dell'IUN ${iun}: ${errorMsg}`);
     }
@@ -212,6 +215,7 @@ export async function getNotificationAttachments(
   await csvStream.close();
   await notFoundNotificationsStream.close();
   await notFoundAttachmentsStream.close();
+  await errorAttachmentsStream.close();
 
   return {
     totalProcessed: iuns.length,
@@ -221,5 +225,6 @@ export async function getNotificationAttachments(
     attachmentsNotFound,
     deleteMarkersFound,
     dynamoUpdateErrors,
+    errorsCount,
   };
 }

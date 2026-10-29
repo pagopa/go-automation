@@ -101,6 +101,12 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     required: false,
     defaultValue: 100,
   },
+  {
+    name: 'aws.profiles',
+    type: Core.GOConfigParameterType.STRING_ARRAY,
+    description: 'Profili AWS SSO derivati da prepareConfig per gli account Core e Confinfo',
+    required: false,
+  },
 ] as const;
 
 /**

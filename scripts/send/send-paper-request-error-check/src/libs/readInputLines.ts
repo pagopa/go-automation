@@ -16,21 +16,6 @@ export async function readInputLines(filePath?: string): Promise<string[]> {
   }
 
   const importer = new Core.GOFileListImporter({ trim: true, skipEmptyLines: true, commentPrefix: '#' });
-  try {
-    const { items } = await importer.import(filePath);
-    return items;
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      const errWithCode = error as Error & { code?: string };
-      if (errWithCode.code === 'ENOENT' || error.message.includes('ENOENT')) {
-        return [];
-      }
-    } else if (typeof error === 'object' && error !== null && 'code' in error) {
-      const errObj = error as { code?: unknown };
-      if (errObj.code === 'ENOENT') {
-        return [];
-      }
-    }
-    throw error;
-  }
+  const { items } = await importer.import(filePath);
+  return items;
 }

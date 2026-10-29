@@ -88,7 +88,7 @@ export class PaperRequestReporter {
   public recordGetNotificationAttachments(result: GetNotificationAttachmentsResult): void {
     this.getAttachmentsResult = result;
     this.metrics.attachmentsFoundCount = (this.metrics.attachmentsFoundCount ?? 0) + result.attachmentsFound;
-    this.metrics.errorsCount = (this.metrics.errorsCount ?? 0) + result.dynamoUpdateErrors;
+    this.metrics.errorsCount = (this.metrics.errorsCount ?? 0) + (result.errorsCount ?? result.dynamoUpdateErrors ?? 0);
   }
 
   /**
@@ -184,6 +184,7 @@ export class PaperRequestReporter {
         attachmentsFound: ga.attachmentsFound,
         attachmentsNotFound: ga.attachmentsNotFound,
         deleteMarkersFound: ga.deleteMarkersFound,
+        errors: ga.errorsCount ?? ga.dynamoUpdateErrors ?? 0,
       };
     }
 

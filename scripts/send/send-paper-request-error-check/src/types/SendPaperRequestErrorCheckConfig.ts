@@ -67,6 +67,7 @@ export interface GetNotificationAttachmentsResult {
   readonly attachmentsNotFound: number;
   readonly deleteMarkersFound: number;
   readonly dynamoUpdateErrors: number;
+  readonly errorsCount: number;
 }
 
 /**
