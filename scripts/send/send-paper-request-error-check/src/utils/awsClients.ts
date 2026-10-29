@@ -37,3 +37,11 @@ export function getCoreDynamoDBService(
   const coreProfile = getCoreProfile(config);
   return new AWS.AWSDynamoDBService(script.aws.clients.get(coreProfile).dynamoDB);
 }
+
+export function getConfinfoDynamoDBService(
+  script: Core.GOScript,
+  config: SendPaperRequestErrorCheckConfig,
+): AWS.AWSDynamoDBService {
+  const confinfoProfile = getConfinfoProfile(config);
+  return new AWS.AWSDynamoDBService(script.aws.clients.get(confinfoProfile).dynamoDB);
+}

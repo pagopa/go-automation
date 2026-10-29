@@ -213,6 +213,10 @@ export async function retrieveAttachmentsFromIun(
           await glacierEligibleStream.append(`${iun},${k},${effectiveSentAt ?? 'UNKNOWN'}`);
         } else {
           skippedAarActiveTierCount++;
+          if (!exclusionResult.excluded) {
+            validPdfAttachmentKeys.push(itemLine);
+            await validPdfAttachmentsStream.append(`${iun},${k}`);
+          }
         }
       }
 

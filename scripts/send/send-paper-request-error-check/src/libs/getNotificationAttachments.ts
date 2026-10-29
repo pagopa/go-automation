@@ -1,6 +1,6 @@
 import path from 'path';
 import { AWS, Core } from '@go-automation/go-common';
-import { getConfinfoS3Service } from '../utils/awsClients.js';
+import { getConfinfoS3Service, getConfinfoDynamoDBService } from '../utils/awsClients.js';
 import type { SendPaperRequestErrorCheckConfig, GetNotificationAttachmentsResult } from '../types/index.js';
 import { get, iunFromRid } from '../utils/get.js';
 
@@ -131,6 +131,8 @@ export async function getNotificationAttachments(
 
       const documents = get<Record<string, unknown>[]>(notif, 'documents', []);
 
+      const confinfoDynamoDBService = getConfinfoDynamoDBService(script, config);
+
       for (const doc of documents) {
         const docRef = get<Record<string, unknown>>(doc, 'ref');
         const documentKey = get<string>(docRef, 'key');
@@ -177,7 +179,7 @@ export async function getNotificationAttachments(
         }
 
         // 3. Query pn-SsDocumenti per stato documento via DynamoDB Service
-        const docItems = await dynamoDbService.query(SS_DOCUMENTI_TABLE_NAME, 'documentKey = :val', {
+        const docItems = await confinfoDynamoDBService.query(SS_DOCUMENTI_TABLE_NAME, 'documentKey = :val', {
           ':val': { S: documentKey },
         });
 

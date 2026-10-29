@@ -1,10 +1,22 @@
 import path from 'path';
 import { Core, AWS } from '@go-automation/go-common';
-import { getConfinfoS3Service } from '../utils/awsClients.js';
+import { getConfinfoS3Service, getCoreDynamoDBService } from '../utils/awsClients.js';
 import type { SendPaperRequestErrorCheckConfig, PdfValidationResult } from '../types/index.js';
+import { isNotificationOlderThanOneYear } from './verifyNotification.js';
+import { get } from '../utils/get.js';
+
+const NOTIFICATIONS_TABLE_NAME = 'pn-Notifications';
 
 /** Signature Magic Bytes del formato PDF ("%PDF" = 0x25 0x50 0x44 0x46) */
 const PDF_MAGIC_BYTES = Buffer.from([0x25, 0x50, 0x44, 0x46]);
+
+/**
+ * Verifica se una chiave file appartiene a un documento AAR (Avviso di Avvenuta Ricezione).
+ */
+function isAarFileKey(fileKey: string): boolean {
+  const upper = fileKey.toUpperCase();
+  return upper.includes('AAR') || upper.includes('LEGAL_FACT');
+}
 
 /**
  * Esito della validazione dei magic bytes di un singolo file S3.
@@ -89,23 +101,64 @@ export async function validateS3Pdfs(
 
   const outputDir = config.outputDir || 'results';
 
-  // Estrazione delle chiavi S3 pulite (escludendo gli AAR se presenti)
+  // Estrazione e filtraggio delle chiavi S3 da validare (inclusi allegati ed AAR in active tier, esclusi AAR in Glacier)
   const fileKeys: string[] = [];
+  const sentAtCache = new Map<string, string | undefined>();
+  let dynamoDbService: AWS.AWSDynamoDBService | undefined;
+
   if (inputKeys) {
     for (const line of inputKeys) {
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith('#')) continue;
-      // Supporta sia formato semplice 'fileKey' che CSV 'IUN,fileKey'
+
+      // Supporta sia formato semplice 'fileKey', CSV 'IUN,fileKey' e 'IUN,fileKey,sentAt'
       const parts = trimmed.split(',');
-      const key = parts.length >= 2 ? parts[1]?.trim() : parts[0]?.trim();
-      if (key && !(parts[0]?.trim() === 'IUN' && key === 'fileKey')) {
-        const upper = key.toUpperCase();
-        if (upper.includes('AAR') || upper.includes('LEGAL_FACT')) {
-          logger.info(`ℹ️ File ${key} è un documento AAR, escluso dalla validazione PDF allegati.`);
+      let iun: string | undefined;
+      let key: string | undefined;
+      let sentAt: string | undefined;
+
+      if (parts.length >= 3) {
+        iun = parts[0]?.trim();
+        key = parts[1]?.trim();
+        sentAt = parts[2]?.trim();
+      } else if (parts.length === 2) {
+        iun = parts[0]?.trim();
+        key = parts[1]?.trim();
+      } else {
+        key = parts[0]?.trim();
+      }
+
+      if (!key || (iun === 'IUN' && key === 'fileKey')) continue;
+
+      if (isAarFileKey(key)) {
+        // Se è un documento AAR, verifichiamo se appartiene a una notifica > 1 anno (tier Glacier)
+        if (!sentAt && iun && iun !== 'N/A') {
+          if (!sentAtCache.has(iun)) {
+            try {
+              dynamoDbService ??= getCoreDynamoDBService(script, config);
+              const notifItems = await dynamoDbService.query(NOTIFICATIONS_TABLE_NAME, 'iun = :val', {
+                ':val': { S: iun },
+              });
+              const retrievedSentAt = notifItems[0] ? get<string>(notifItems[0], 'sentAt') : undefined;
+              sentAtCache.set(iun, retrievedSentAt);
+            } catch {
+              sentAtCache.set(iun, undefined);
+            }
+          }
+          sentAt = sentAtCache.get(iun);
+        }
+
+        if (sentAt && isNotificationOlderThanOneYear(sentAt)) {
+          logger.info(
+            `ℹ️ File AAR ${key} (IUN: ${iun ?? 'N/A'}) appartiene a notifica > 1 anno in tier Glacier, escluso dalla validazione PDF.`,
+          );
           continue;
         }
-        fileKeys.push(key);
+
+        logger.info(`📄 Inclusione file AAR ${key} per la validazione PDF (active tier).`);
       }
+
+      fileKeys.push(key);
     }
   }
 
@@ -158,6 +211,10 @@ export async function validateS3Pdfs(
       if (res.valid) {
         validPdfCount++;
         await validStream.append(res.fileKey);
+      } else if (res.error === 'InvalidObjectState' && isAarFileKey(res.fileKey)) {
+        logger.info(
+          `ℹ️ File AAR ${res.fileKey} è in tier Glacier (non accessibile immediatamente), escluso dalla validazione PDF.`,
+        );
       } else if (res.error === 'InvalidMagicBytes') {
         invalidPdfCount++;
         logger.warning(`❌ PDF Non Valido (Magic Bytes errati): ${res.fileKey}`);
