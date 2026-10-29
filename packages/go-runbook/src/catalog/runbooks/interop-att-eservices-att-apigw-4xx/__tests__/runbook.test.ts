@@ -8,8 +8,9 @@ import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionR
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { assertCloudExecutableRunbook } from '../../../../validation/assertCloudExecutableRunbook.js';
 import { RUNBOOK_CATALOG } from '../../../RunbookCatalog.js';
+import { executeRunbookForOccurrence } from '../../../executeRunbookForOccurrence.js';
 import { computeRunbookTimeRange } from '../../../computeRunbookTimeRange.js';
-import { ALARM_NAME, API_GW_ID, API_GW_LOG_GROUP } from '../alarmDefinition.js';
+import { ALARM_NAME, API_GW_ID, API_GW_LOG_GROUP, QUERY_STEP_ID } from '../alarmDefinition.js';
 import { KNOWN_CASES } from '../knownCases.js';
 import { buildRunbook } from '../runbook.js';
 
@@ -143,5 +144,65 @@ describe('Attestazione e-services API Gateway 4xx runbook', () => {
     assert.equal(KNOWN_CASES[0]?.analysis?.proposedStatus, 'IN_PROGRESS');
     assert.equal(KNOWN_CASES[0]?.analysis?.downstreams, undefined);
     assert.deepEqual(KNOWN_CASES[0]?.analysis?.finalActions, []);
+  });
+
+  it('exports the latest structured requests as bounded evidence for unexplained 4xx occurrences', async () => {
+    const rows = [4, 0, 6, 1, 5, 2, 3].map((index) =>
+      row({
+        '@timestamp': `2026-10-29T04:37:0${String(index)}.000Z`,
+        status: '404',
+        requestPath: '/residence-verification/status',
+        integrationStatus: '404',
+        integrationError: `Unexpected response ${String(index)}`,
+        requestId: `request-${String(index)}`,
+      }),
+    );
+    const output = await executeRunbookForOccurrence(
+      {
+        logger: new GOLogger(),
+        services: createTestServiceRegistry({
+          cloudWatchLogs: {
+            async queryWithStatistics(): Promise<AWSCloudWatchLogsQueryResult> {
+              await Promise.resolve();
+              return {
+                rows,
+                statistics: { bytesScanned: 1, recordsScanned: rows.length, recordsMatched: rows.length },
+                queryExecutions: [],
+              };
+            },
+          },
+        }),
+      },
+      {
+        alarmName: ALARM_NAME,
+        firedAt: '2026-10-29T04:41:26.000Z',
+        awsAccountId: '123456789012',
+        region: 'eu-west-1',
+        awsProfiles: ['test-source'],
+        executionMode: 'cloud',
+      },
+    );
+
+    assert.equal(output.execution.status, 'completed');
+    assert.equal(output.outcome.kind, 'unknown-case');
+    const evidence = output.context.evidence.find(({ id }) => id === 'att-eservices-access-requests');
+    assert.ok(evidence);
+    assert.equal(evidence.type, 'step-output');
+    assert.equal(evidence.sourceStep, QUERY_STEP_ID);
+    assert.equal(evidence.truncated, true);
+    assert.deepEqual(
+      evidence.items?.map((item) => item['requestId']),
+      ['request-2', 'request-3', 'request-4', 'request-5', 'request-6'],
+    );
+    assert.deepEqual(evidence.items?.[0], {
+      apigwId: API_GW_ID,
+      '@timestamp': '2026-10-29T04:37:02.000Z',
+      status: '404',
+      httpMethod: 'GET',
+      requestPath: '/residence-verification/status',
+      integrationStatus: '404',
+      integrationError: 'Unexpected response 2',
+      requestId: 'request-2',
+    });
   });
 });

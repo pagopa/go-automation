@@ -45,6 +45,16 @@ export function buildRunbook(): Runbook {
         paginateResults: true,
         traceMetadata: { queryProfileId: 'interop-att-eservices-4xx', queryKind: 'access-log', identifierMode: 'none' },
       }),
+      {
+        evidence: [
+          {
+            id: 'att-eservices-access-requests',
+            label: 'Richieste 4xx API Gateway e-services',
+            type: 'step-output',
+            retention: { mode: 'latest', limit: 5, timestampField: '@timestamp' },
+          },
+        ],
+      },
     )
     .step(new AnalyzeAttEservicesAccessStep())
     .runbookContext({
