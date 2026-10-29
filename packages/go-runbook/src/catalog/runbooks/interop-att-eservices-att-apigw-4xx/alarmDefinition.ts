@@ -1,7 +1,7 @@
 /** Verified Confluence source, AWS alarm and REST API resources in Attestazione. */
 export const ALARM_NAME = 'interop-att-eservices-att-apigw-4xx';
 export const API_GW_ID = '6iyn5o8ge4';
-export const API_GW_NAME = 'interop-att-eservices-att';
+const API_GW_NAME = 'interop-att-eservices-att';
 export const API_GW_RESOURCE_NAME: string = `${API_GW_NAME} (${API_GW_ID})`;
 export const API_GW_LOG_GROUP = 'amazon-apigateway-interop-att-eservices-access-logs-att';
 export const QUERY_STEP_ID = 'query-att-eservices-access-logs';
