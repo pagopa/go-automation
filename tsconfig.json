@@ -42,6 +42,7 @@
     { "path": "./scripts/send/send-fetch-timeline-from-iun" },
     { "path": "./scripts/send/send-import-notifications" },
     { "path": "./scripts/send/send-monitor-athena-query" },
+    { "path": "./scripts/send/send-paper-request-error-check" },
     { "path": "./scripts/send/send-report-dlq" },
     { "path": "./scripts/send/send-upload-attachments" }
   ]
