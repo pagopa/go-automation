@@ -13,12 +13,34 @@ interface LogRowField {
 }
 
 const CASE_FIXTURES: ReadonlyMap<string, ReadonlyArray<string>> = new Map([
+  ['notification-kafka-no-broker', ['ERROR - Crash: KafkaJSNoBrokerAvailableError: No broker available']],
+  [
+    'notification-kafka-metadata-timeout',
+    ['ERROR - Crash: KafkaJSNumberOfRetriesExceeded: Request Metadata(key: 3, version: 6) timed out'],
+  ],
+  [
+    'notification-kafka-replica-retries-exhausted',
+    ['ERROR - Crash: KafkaJSNumberOfRetriesExceeded: The replica is not available for the requested topic-partition'],
+  ],
   ['notification-kafka-broker-communication-errors', ['ERROR - Connection error: read ECONNRESET']],
+  ['notification-kafka-read-timeout', ['ERROR - Connection error: read ETIMEDOUT']],
   [
     'notification-duplicate-event-stream-version',
     ['Error creating event: error: duplicate key value violates unique constraint "events_stream_id_version_key"'],
   ],
   ['notification-certifier-tenant-istat-not-found', ['Message: Certifier tenant ISTAT not found']],
+  [
+    'notification-remove-api-role-conflict',
+    [
+      'Error handling Kafka message. Topic: sc-users. Reason: Error removing role api from notification config for user <user> in tenant <tenant>. Reason: AxiosError: Request failed with status code 409',
+    ],
+  ],
+  [
+    'notification-selfcare-tenant-not-found',
+    [
+      'Error handling Kafka message. Topic: sc-users. Partition number: 0. Offset: 1. Message: Error consuming message. Reason: Error: Tenant not found for selfcareId: <uuid>',
+    ],
+  ],
 ]);
 
 function applicationLogRows(messages: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<LogRowField>> {
@@ -29,12 +51,12 @@ function applicationLogRows(messages: ReadonlyArray<string>): ReadonlyArray<Read
   ]);
 }
 
-function context(stepResults: ReadonlyArray<readonly [string, unknown]>): RunbookContext {
+function context(stepResults: ReadonlyArray<readonly [string, unknown]>, environment: string = 'prod'): RunbookContext {
   return {
     executionId: 'test',
     startedAt: new Date('2026-07-15T10:00:00.000Z'),
     stepResults: new Map<string, unknown>(stepResults),
-    vars: new Map(),
+    vars: new Map([['interopEnvironment', environment]]),
     params: new Map(),
     logs: [],
     services: createTestServiceRegistry(),
@@ -56,17 +78,15 @@ describe('INTEROP notification user lifecycle known cases', () => {
     assert.strictEqual(new Set(KNOWN_CASES.map((knownCase) => knownCase.priority)).size, KNOWN_CASES.length);
   });
 
-  it('classifies the Kafka/Selfcare communication variants observed in production', () => {
+  it('keeps observed Kafka connection failures separate from the Selfcare timeout', () => {
     const knownCase = knownCaseById('notification-kafka-broker-communication-errors');
     const messages = [
       'Connection error: read ECONNRESET',
-      'Connection error: read ETIMEDOUT',
+      'Connection error: Client network socket disconnected before secure TLS connection was established',
       'The group coordinator is not available',
-      'The coordinator is not aware of this member',
-      'KafkaJSNumberOfRetriesExceeded: The replica is not available for the requested topic-partition',
     ];
 
-    assert.deepStrictEqual(knownCase.analysis?.downstreams, [INTEROP_DOWNSTREAMS.SELFCARE]);
+    assert.deepStrictEqual(knownCase.analysis?.downstreams, [INTEROP_DOWNSTREAMS.NESSUNO]);
     for (const message of messages) {
       const ctx = context([
         [NOTIFICATION_USER_LIFECYCLE_ALARM.stepIds.queryApplicationLogs, applicationLogRows([message])],
@@ -86,16 +106,16 @@ describe('INTEROP notification user lifecycle known cases', () => {
     }
   });
 
-  it('matches the KafkaJS retry exhaustion variant in CID tracker evidence', () => {
+  it('does not classify Kafka failures found only in CID tracker evidence', () => {
     const knownCase = knownCaseById('notification-kafka-broker-communication-errors');
     const rows = applicationLogRows([
       'ERROR - Crash: KafkaJSNumberOfRetriesExceeded: The replica is not available for the requested topic-partition',
     ]);
     const ctx = context([[NOTIFICATION_USER_LIFECYCLE_ALARM.stepIds.queryCidTracker, [{ cid: 'cid-1', rows }]]]);
-    assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), true);
+    assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), false);
   });
 
-  it('matches the duplicate-event case in JSON-encoded CID tracker evidence', () => {
+  it('does not close the case from a duplicate-event signature found only in CID tracker evidence', () => {
     const knownCase = knownCaseById('notification-duplicate-event-stream-version');
     const rawMessage = JSON.stringify({
       log: 'Error creating event: error: duplicate key value violates unique constraint "events_stream_id_version_key"',
@@ -103,7 +123,103 @@ describe('INTEROP notification user lifecycle known cases', () => {
     const rows = applicationLogRows([rawMessage]);
     const ctx = context([[NOTIFICATION_USER_LIFECYCLE_ALARM.stepIds.queryCidTracker, [{ cid: 'cid-1', rows }]]]);
 
-    assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), true);
+    assert.strictEqual(evaluator.evaluate(knownCase.condition, ctx), false);
+  });
+
+  it('recognizes JSON-encoded application errors while keeping tracker errors from other services out', () => {
+    const messages = [...CASE_FIXTURES.values()].flat();
+    for (const knownCase of KNOWN_CASES) {
+      const fixture = CASE_FIXTURES.get(knownCase.id);
+      assert.ok(fixture);
+      assert.strictEqual(
+        evaluator.evaluate(
+          knownCase.condition,
+          context([
+            [
+              NOTIFICATION_USER_LIFECYCLE_ALARM.stepIds.queryApplicationLogs,
+              applicationLogRows(fixture.map((log) => JSON.stringify({ log }))),
+            ],
+          ]),
+        ),
+        true,
+        knownCase.id,
+      );
+      const rows = applicationLogRows(messages).map((row) =>
+        row.map((field) => (field.field === 'pod_app' ? { ...field, value: 'interop-be-another-service' } : field)),
+      );
+      assert.strictEqual(
+        evaluator.evaluate(
+          knownCase.condition,
+          context([
+            [
+              NOTIFICATION_USER_LIFECYCLE_ALARM.stepIds.queryApplicationLogs,
+              applicationLogRows(['ERROR - Unknown failure']),
+            ],
+            [NOTIFICATION_USER_LIFECYCLE_ALARM.stepIds.queryCidTracker, [{ cid: 'shared', rows }]],
+          ]),
+        ),
+        false,
+        knownCase.id,
+      );
+    }
+  });
+
+  it('retains PIN-7325 only for the documented replica failure and preserves documented no-action cases', () => {
+    for (const knownCase of KNOWN_CASES) {
+      const closes = [
+        'notification-duplicate-event-stream-version',
+        'notification-certifier-tenant-istat-not-found',
+      ].includes(knownCase.id);
+      assert.strictEqual(knownCase.analysis?.proposedStatus, closes ? 'COMPLETED' : 'IN_PROGRESS');
+      assert.deepStrictEqual(knownCase.analysis?.finalActions, []);
+      const citesTicket = knownCase.analysis?.links?.some((link) => link.url.endsWith('/PIN-7325'));
+      assert.strictEqual(citesTicket ?? false, knownCase.id === 'notification-kafka-replica-retries-exhausted');
+    }
+    assert.deepStrictEqual(knownCaseById('notification-kafka-read-timeout').analysis?.downstreams, [
+      INTEROP_DOWNSTREAMS.SELFCARE,
+    ]);
+    assert.ok(
+      knownCaseById('notification-selfcare-tenant-not-found').analysis?.resolution.includes(
+        "select * from <env>_tenant.tenant where selfcare_id = '<uuid>';",
+      ),
+    );
+  });
+
+  it('respects the environments recorded for the documented and newly observed signatures', () => {
+    for (const id of [
+      'notification-kafka-no-broker',
+      'notification-kafka-metadata-timeout',
+      'notification-kafka-read-timeout',
+      'notification-remove-api-role-conflict',
+    ]) {
+      const fixture = CASE_FIXTURES.get(id);
+      assert.ok(fixture);
+      for (const environment of ['att', 'test']) {
+        assert.strictEqual(
+          evaluator.evaluate(
+            knownCaseById(id).condition,
+            context(
+              [[NOTIFICATION_USER_LIFECYCLE_ALARM.stepIds.queryApplicationLogs, applicationLogRows(fixture)]],
+              environment,
+            ),
+          ),
+          false,
+          `${id}: ${environment}`,
+        );
+      }
+    }
+    const replica = CASE_FIXTURES.get('notification-kafka-replica-retries-exhausted');
+    assert.ok(replica);
+    assert.strictEqual(
+      evaluator.evaluate(
+        knownCaseById('notification-kafka-replica-retries-exhausted').condition,
+        context(
+          [[NOTIFICATION_USER_LIFECYCLE_ALARM.stepIds.queryApplicationLogs, applicationLogRows(replica)]],
+          'test',
+        ),
+      ),
+      true,
+    );
   });
 
   it('does not classify a generic connection reset or duplicate-key error', () => {

@@ -7,7 +7,13 @@ describe('RUNBOOK_CATALOG', () => {
   it('registers INTEROP runbooks for their documented environments', () => {
     for (const descriptor of RUNBOOK_CATALOG.listDescriptors()) {
       if (!descriptor.categories.includes('INTEROP')) continue;
-      if (descriptor.key === 'k8s-interop-be-m2m-event-dispatcher-errors-prod') {
+      if (
+        descriptor.key === 'k8s-interop-be-m2m-event-dispatcher-errors-prod' ||
+        descriptor.key === 'k8s-interop-be-one-trust-notices-errors-prod' ||
+        descriptor.key === 'k8s-interop-be-signed-objects-persister-errors-prod' ||
+        descriptor.key === 'k8s-interop-be-tenant-kind-history-consumer-errors-prod' ||
+        descriptor.key === 'interop-att-eservices-att-apigw-4xx'
+      ) {
         assert.deepStrictEqual(descriptor.alarmNames, [descriptor.key]);
         continue;
       }
@@ -74,6 +80,7 @@ describe('RUNBOOK_CATALOG', () => {
     const alarms: ReadonlyArray<readonly [string, string]> = [
       ['emd-downstream-detection-Alarm', 'INTEGRATION'],
       ['pn-external-registries-OneTrust-downstream-detection-Alarm', 'INTEGRATION'],
+      ['pn-external-registries-SelfcarePA-downstream-detection-Alarm', 'INTEGRATION'],
       ['pn-external-registries-IO-downstream-detection-Alarm', 'INTEGRATION'],
       ['pn-national-registries-AdE-downstream-detection-Alarm', 'INTEGRATION'],
       ['pn-national-registries-ANPR-downstream-detection-Alarm', 'INTEGRATION'],
