@@ -9,6 +9,12 @@ export interface ValidationSummary {
   readonly invalidRows: number;
   /** Row keys used by more than one row: blocking, nothing is sent. */
   readonly duplicateRowKeys: ReadonlyArray<string>;
+  /**
+   * Direct mode: requestIds rendered for more than one row. Blocking, nothing
+   * is sent: pn-external-channels would answer `409` to every row after the
+   * first, which is journaled as `SENT`.
+   */
+  readonly duplicateRequestIds: ReadonlyArray<string>;
   /** Count by canonical product (`AR`, `890`). */
   readonly products: ReadonlyMap<string, number>;
   /** Count by `taxId — denomination` of the sender. */

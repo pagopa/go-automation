@@ -17,6 +17,10 @@ export interface SendDispatchNotificationsConfig {
   readonly senderTaxId?: string | undefined;
   readonly senderDenomination?: string | undefined;
   readonly apiVersion: string;
+  readonly defaults?: ReadonlyArray<string> | undefined;
+  readonly ecBaseUrl?: string | undefined;
+  readonly ecClientId: string;
+  readonly directRequestIdTemplate: string;
 
   readonly documentFile?: ReadonlyArray<string> | undefined;
   readonly documentTitle?: string | undefined;
@@ -39,7 +43,7 @@ export interface SendDispatchNotificationsConfig {
   readonly sendRetryAmbiguous: boolean;
   readonly sendTimeout: string;
 
-  readonly rate: number;
+  readonly rate?: number | undefined;
   readonly burst: number;
   readonly rateAdaptive: boolean;
   readonly maxInFlight: number;

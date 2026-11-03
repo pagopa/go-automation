@@ -747,6 +747,14 @@ const pdf = await new Core.GOBinaryFileImporter({
 | `optional`  | `false` | con `true` un file assente restituisce `undefined`                                            |
 | `maxBytes`  | —       | dimensione massima; un file più grande rifiuta con `GOFileTooLargeError` (`size`, `maxBytes`) |
 
+Per file grandi (hash, copie) `importStream()` legge a blocchi, a memoria costante, come l'`importStream()` degli importer di liste. Le opzioni valgono allo stesso modo: con `optional` un file assente non produce blocchi, e `maxBytes` rifiuta prima del primo blocco.
+
+```typescript
+const hash = createHash('sha256');
+for await (const chunk of new Core.GOBinaryFileImporter({ inputPath }).importStream()) hash.update(chunk);
+const digest = hash.digest('hex');
+```
+
 ---
 
 ## Core - File Operations

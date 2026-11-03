@@ -23,13 +23,18 @@ const { STRING, INT, DOUBLE, BOOL, STRING_ARRAY } = Core.GOConfigParameterType;
  */
 export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   // Mode and input
-  { name: 'mode', type: STRING, description: 'Modalità di invio: e2e (direct: fase 3)', defaultValue: 'e2e' },
+  {
+    name: 'mode',
+    type: STRING,
+    description: 'Modalità di invio: e2e (API B2B di SEND) o direct (pn-external-channels via tunnel)',
+    defaultValue: 'e2e',
+  },
   { name: 'input.file', type: STRING, description: 'File di input (CSV, JSON, JSONL)', aliases: ['i'] },
   { name: 'input.format', type: STRING, description: 'Formato dell input: csv, json, jsonl (default: da estensione)' },
   {
     name: 'mapping.profile',
     type: STRING,
-    description: 'Profilo di mapping: standard, qa-test o path di un JSON',
+    description: 'Profilo di mapping: standard, qa-test, direct o path di un JSON',
     defaultValue: 'standard',
   },
   { name: 'row.key.column', type: STRING, description: 'Colonna con la chiave stabile della riga' },
@@ -52,6 +57,26 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     type: STRING,
     description: 'Versione dell endpoint requests: v2.4, v2.5, v2.6',
     defaultValue: 'v2.6',
+  },
+
+  {
+    name: 'defaults',
+    type: STRING_ARRAY,
+    description: 'Default di campi canonici, campo=valore (es. direct.aar.key=PN_AAR-…pdf)',
+  },
+
+  // Direct mode (pn-external-channels)
+  {
+    name: 'ec.base.url',
+    type: STRING,
+    description: 'Base URL di pn-external-channels (tunnel, es. http://localhost:8888)',
+  },
+  { name: 'ec.client.id', type: STRING, description: 'Header x-pagopa-extch-cx-id', defaultValue: 'pn-cons-000' },
+  {
+    name: 'direct.request.id.template',
+    type: STRING,
+    description: 'Template del requestId: {runId} {rowKey} {rowIndex} {attempt} {col:<colonna>}',
+    defaultValue: 'PNMAN.GO-{runId}.{rowKey}.PCRETRY_0',
   },
 
   // Documents
@@ -82,7 +107,11 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   { name: 'fail.fast', type: BOOL, description: 'Si ferma alla prima riga non valida o fallita', defaultValue: false },
 
   // Resume and retries
-  { name: 'resume', type: STRING, description: 'runId o path della directory del run da riprendere' },
+  {
+    name: 'resume',
+    type: STRING,
+    description: 'Directory di esecuzione (nome sotto outputs/ o path) del run da riprendere',
+  },
   {
     name: 'retry.failed',
     type: BOOL,
@@ -104,7 +133,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
 
   // Throughput
-  { name: 'rate', type: DOUBLE, description: 'Chiamate B2B al secondo', defaultValue: 20 },
+  { name: 'rate', type: DOUBLE, description: 'Chiamate al secondo (default: 20 in e2e, 5 in direct)' },
   { name: 'burst', type: INT, description: 'Capienza del bucket', defaultValue: 1 },
   { name: 'rate.adaptive', type: BOOL, description: 'Riduce il rate ai 429', defaultValue: true },
   { name: 'max.in.flight', type: INT, description: 'Richieste HTTP contemporanee', defaultValue: 40 },

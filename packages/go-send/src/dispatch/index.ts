@@ -85,6 +85,17 @@ export { buildNotificationRequest } from './channels/buildNotificationRequest.js
 export { classifySendFailure } from './channels/classifySendFailure.js';
 export type { SendFailure } from './channels/SendFailure.js';
 
+// Direct mode (pn-external-channels, §9)
+export type { ExternalChannelsApi } from './direct/ExternalChannelsApi.js';
+export type { PaperEngagementRequest } from './direct/PaperEngagementRequest.js';
+export type { PaperEngagementAttachment } from './direct/PaperEngagementAttachment.js';
+export { ExternalChannelsChannel } from './direct/ExternalChannelsChannel.js';
+export { buildPaperEngagement } from './direct/buildPaperEngagement.js';
+export { DirectSendStage } from './direct/DirectSendStage.js';
+export { RequestIdTemplate, DEFAULT_DIRECT_REQUEST_ID_TEMPLATE } from './ids/RequestIdTemplate.js';
+export type { DirectModeOptions } from './run/DirectModeOptions.js';
+export type { DispatchDirectOptions } from './model/DispatchDirectOptions.js';
+
 // Journal
 export type { JournalEntry } from './journal/JournalEntry.js';
 export type { TransitionHandler } from './journal/TransitionHandler.js';

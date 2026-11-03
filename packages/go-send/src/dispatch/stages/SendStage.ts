@@ -10,6 +10,7 @@ import type { DispatchRecord } from '../model/DispatchRecord.js';
 import type { RowError } from '../model/RowError.js';
 import type { RowState } from '../model/RowState.js';
 import type { SendContext } from './SendContext.js';
+import type { RowSender } from './RowSender.js';
 import type { SendStageOptions } from './SendStageOptions.js';
 import { acquireUnlessStopped, sleepUnlessStopped } from './abortableWaits.js';
 
@@ -31,7 +32,7 @@ const RECONCILE_ON_RESUME: ReadonlySet<string> = new Set(['SENDING', 'RECONCILIN
  * `404`, and SEND rejects a duplicate atomically (`409`), so a row never
  * produces two notifications.
  */
-export class SendStage {
+export class SendStage implements RowSender {
   private readonly reconcileDelayMs: number;
   private readonly maxReconcilePosts: number;
   private readonly maxLookupFailures: number;

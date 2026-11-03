@@ -27,9 +27,8 @@ const SUPPORTED_PHASES: ReadonlySet<string> = new Set(['send', 'verify', 'reques
  * @throws Error with the reason
  */
 export function assertSupportedConfig(config: SendDispatchNotificationsConfig): void {
-  if (config.mode !== 'e2e') {
-    throw new Error(`--mode ${config.mode}: only e2e is available (direct mode comes with phase 3)`);
-  }
+  if (config.mode !== 'e2e' && config.mode !== 'direct') throw new Error(`--mode ${config.mode}: use e2e or direct`);
+  if (config.mode === 'direct') assertDirectConfig(config);
   for (const phase of config.phases) {
     if (!SUPPORTED_PHASES.has(phase)) throw new Error(`--phases: unknown phase "${phase}"`);
   }
@@ -46,6 +45,53 @@ export function assertSupportedConfig(config: SendDispatchNotificationsConfig): 
 }
 
 /**
+ * Checks the `direct` mode: only the `send` phase (verification is open
+ * point A7, requestId comes from the template), a pn-ec base URL and a valid
+ * requestId template.
+ *
+ * @param config - Script configuration
+ * @throws Error with the reason
+ */
+function assertDirectConfig(config: SendDispatchNotificationsConfig): void {
+  if (config.phases.includes('verify')) {
+    throw new Error(
+      '--mode direct: verify is not available yet (A7, to be agreed with the SEND team); use --phases send',
+    );
+  }
+  if (config.phases.includes('request-id')) {
+    throw new Error('--mode direct: the requestId comes from the template, --phases request-id does not apply');
+  }
+  if (config.ecBaseUrl === undefined)
+    throw new Error('--mode direct requires --ec-base-url (tunnel to pn-external-channels)');
+  Dispatch.RequestIdTemplate.parse(config.directRequestIdTemplate);
+}
+
+/** Calls per second: `--rate`, or 20 in e2e and 5 in direct (§9.2, A8). */
+export function effectiveRate(config: SendDispatchNotificationsConfig): number {
+  return config.rate ?? (config.mode === 'direct' ? 5 : 20);
+}
+
+/**
+ * Parses `--defaults campo=valore` into canonical field values (RF-04).
+ *
+ * @param entries - Raw entries
+ * @returns Field values
+ * @throws Error on malformed entries or unknown fields
+ */
+export function parseDefaults(entries: ReadonlyArray<string>): Map<Dispatch.CanonicalField, string> {
+  const values = new Map<Dispatch.CanonicalField, string>();
+  for (const entry of entries) {
+    const separator = entry.indexOf('=');
+    const field = separator < 0 ? entry : entry.slice(0, separator).trim();
+    const value = separator < 0 ? '' : entry.slice(separator + 1).trim();
+    if (!Dispatch.isCanonicalField(field)) throw new Error(`--defaults: unknown field "${field}"`);
+    if (value === '') throw new Error(`--defaults: missing value for ${field} (use ${field}=value)`);
+    values.set(field, value);
+  }
+  return values;
+}
+
+/**
  * Resolves this session: a new run, or the resume of the session named by
  * `--resume` (a directory under the GOPaths outputs dir, or an absolute path).
  * The execution directory of this session always comes from GOPaths.
@@ -54,7 +100,7 @@ export function assertSupportedConfig(config: SendDispatchNotificationsConfig): 
  * @param config - Script configuration
  * @returns Identity, directory and input of the session
  */
-export async function resolveRun(script: Core.GOScript, config: SendDispatchNotificationsConfig): Promise<ResolvedRun> {
+async function resolveRun(script: Core.GOScript, config: SendDispatchNotificationsConfig): Promise<ResolvedRun> {
   const runDir = script.paths.createExecutionOutputDir();
   const runName = path.basename(runDir);
   if (config.resume === undefined) {
@@ -80,7 +126,7 @@ export async function resolveRun(script: Core.GOScript, config: SendDispatchNoti
  * @param nameOrPath - `--mapping-profile`
  * @returns The validated profile
  */
-export async function loadMappingProfile(script: Core.GOScript, nameOrPath: string): Promise<Dispatch.MappingProfile> {
+async function loadMappingProfile(script: Core.GOScript, nameOrPath: string): Promise<Dispatch.MappingProfile> {
   const builtIn = Dispatch.BUILT_IN_PROFILES.get(nameOrPath);
   if (builtIn !== undefined) return builtIn;
   const file = script.paths.resolvePath(nameOrPath, Core.GOPathType.CONFIG);
@@ -107,12 +153,16 @@ export async function createSessionOptions(
   const profile = await loadMappingProfile(script, config.mappingProfile);
   const inputFormat = parseFormat(config.inputFormat, inputFile, profile);
   const outputFormat = parseFormat(config.outputFormat, undefined, profile) ?? inputFormat;
-  const sdk = new SENDNotifications({
-    basePath: target.basePath,
-    apiKey: target.apiKey,
-    timeout: Core.parseDuration(config.httpTimeout, 'http.timeout'),
-    ...(config.proxyUrl !== undefined && { proxyUrl: config.proxyUrl }),
-  });
+  const httpTimeoutMs = Core.parseDuration(config.httpTimeout, 'http.timeout');
+  const sdk =
+    config.mode === 'direct'
+      ? undefined
+      : new SENDNotifications({
+          basePath: target.basePath,
+          apiKey: target.apiKey,
+          timeout: httpTimeoutMs,
+          ...(config.proxyUrl !== undefined && { proxyUrl: config.proxyUrl }),
+        });
   const attachments =
     config.attachmentsFile === undefined
       ? undefined
@@ -147,14 +197,23 @@ export async function createSessionOptions(
         ? path.dirname(inputFile)
         : script.paths.resolvePath(config.documentsDir, Core.GOPathType.INPUT),
     ...(attachments !== undefined && { attachmentsByPratica: attachments.attachmentsByPratica }),
-    api: new Dispatch.B2BChannel(sdk.notifications),
-    gateway: new Dispatch.AttachmentServiceGateway(sdk.attachment),
+    mode: config.mode === 'direct' ? 'direct' : 'e2e',
+    ...(sdk !== undefined && {
+      api: new Dispatch.B2BChannel(sdk.notifications),
+      gateway: new Dispatch.AttachmentServiceGateway(sdk.attachment),
+    }),
+    ...(config.mode === 'direct' && {
+      direct: {
+        api: new Dispatch.ExternalChannelsChannel(config.ecBaseUrl ?? '', config.ecClientId, httpTimeoutMs),
+        requestIdTemplate: Dispatch.RequestIdTemplate.parse(config.directRequestIdTemplate),
+      },
+    }),
     apiVersion: config.apiVersion as SENDApiVersion, // Safe: checked by assertSupportedConfig
     send: config.phases.includes('send'),
     verify: config.phases.includes('verify'),
     ...(config.phases.includes('request-id') && { requestId: requestIdOptions(script, config, target) }),
     tuning: {
-      rate: config.rate,
+      rate: effectiveRate(config),
       burst: config.burst,
       rateAdaptive: config.rateAdaptive,
       maxInFlight: config.maxInFlight,
@@ -214,7 +273,7 @@ function cliSharedDocument(
 }
 
 function cliFieldValues(config: SendDispatchNotificationsConfig): Dispatch.FieldValues {
-  const values = new Map<Dispatch.CanonicalField, string>();
+  const values = parseDefaults(config.defaults ?? []);
   if (config.groupId !== undefined) values.set('notificationOptions.group', config.groupId);
   if (config.senderTaxId !== undefined) values.set('sender.taxId', config.senderTaxId);
   if (config.senderDenomination !== undefined) values.set('sender.denomination', config.senderDenomination);
@@ -251,7 +310,7 @@ function runParameters(
     phases: config.phases,
     awsProfiles: config.awsProfiles ?? [],
     mappingProfile: profile.name,
-    rate: config.rate,
+    rate: effectiveRate(config),
     burst: config.burst,
     maxInFlight: config.maxInFlight,
     sendRetryAmbiguous: config.sendRetryAmbiguous,

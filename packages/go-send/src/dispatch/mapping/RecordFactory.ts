@@ -1,11 +1,13 @@
 import type { InputRow } from '../input/InputRow.js';
 import { resolveRowKey } from '../ids/identifiers.js';
 import { buildPreset } from './buildPreset.js';
+import { buildDirectRecord } from './buildDirectRecord.js';
 import { buildRecord } from './buildRecord.js';
 import type { CreatedRecord } from './CreatedRecord.js';
 import { mapRow, mergeFieldValues } from './mapRow.js';
 import type { PresetBuildResult } from './PresetBuildResult.js';
 import type { RecordFactoryOptions } from './RecordFactoryOptions.js';
+import type { ValidationIssue } from './ValidationIssue.js';
 
 /**
  * Turns input rows into records: row key, column mapping, precedence
@@ -28,6 +30,22 @@ export class RecordFactory {
       this.options.cliValues,
       this.options.environmentValues,
     );
+    const direct = this.options.direct;
+    if (this.options.context.mode === 'direct' && direct !== undefined) {
+      const requestId = direct.template.render(direct.runId, rowKey, row.rowIndex, row.values);
+      const result = buildDirectRecord(row.rowIndex, rowKey, values, this.options.context, requestId);
+      const emptyColumns = direct.template.emptyColumns(row.values);
+      if (emptyColumns.length === 0) return { rowIndex: row.rowIndex, rowKey, result };
+      const issues: ReadonlyArray<ValidationIssue> = emptyColumns.map((column) => ({
+        code: 'MISSING_FIELD',
+        message: `requestId template: column "${column}" is empty`,
+      }));
+      return {
+        rowIndex: row.rowIndex,
+        rowKey,
+        result: { ok: false, issues: result.ok ? issues : [...result.issues, ...issues] },
+      };
+    }
     return { rowIndex: row.rowIndex, rowKey, result: buildRecord(row.rowIndex, rowKey, values, this.options.context) };
   }
 

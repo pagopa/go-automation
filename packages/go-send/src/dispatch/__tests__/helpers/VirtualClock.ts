@@ -12,7 +12,7 @@ interface VirtualTimer {
 }
 
 /** Start of virtual time: 2026-11-03T10:00:00.000Z. */
-export const VIRTUAL_EPOCH: number = Date.UTC(2026, 10, 3, 10, 0, 0);
+const VIRTUAL_EPOCH: number = Date.UTC(2026, 10, 3, 10, 0, 0);
 
 /**
  * Deterministic clock for tests: `sleep` registers a virtual timer, and

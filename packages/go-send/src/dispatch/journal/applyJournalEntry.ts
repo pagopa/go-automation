@@ -93,6 +93,9 @@ function withIdentifiers(state: RowState, entry: JournalEntry): RowState {
     ...(entry.paProtocolNumber !== undefined && { paProtocolNumber: entry.paProtocolNumber }),
     ...(entry.idempotenceToken !== undefined && { idempotenceToken: entry.idempotenceToken }),
     ...(entry.groupId !== undefined && { groupId: entry.groupId }),
+    // SENDING carries the requestId of an attempt that may still fail: only the
+    // outcome (SENT, REQUEST_ID_FOUND) makes it the requestId of the row.
+    ...(entry.requestId !== undefined && entry.event !== 'SENDING' && { requestId: entry.requestId }),
     ...(entry.documents !== undefined && {
       documentSource: entry.documents.source,
       documentKeys: entry.documents.keys,

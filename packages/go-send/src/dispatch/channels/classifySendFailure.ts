@@ -61,7 +61,8 @@ function problemErrors(body: unknown): ReadonlyArray<ProblemErrorItem> {
   if (typeof body !== 'object' || body === null) return [];
   const errors = (body as { readonly errors?: unknown }).errors;
   if (!Array.isArray(errors)) return [];
-  return errors
+  const items: ReadonlyArray<unknown> = errors;
+  return items
     .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
     .map((item) => ({
       ...(typeof item['code'] === 'string' && { code: item['code'] }),

@@ -47,6 +47,20 @@ describe('applyJournalEntry', () => {
     state = applyJournalEntry(state, { ts: 't', event: 'SENDING', ...ROW });
     assert.equal(state?.error, undefined);
   });
+
+  it('takes the direct requestId from SENT, never from a SENDING attempt', () => {
+    let state = applyJournalEntry(undefined, { ts: 't1', event: 'SENDING', ...ROW, requestId: 'R', attempt: 1 });
+    assert.equal(state?.requestId, undefined);
+    const failed = applyJournalEntry(state, {
+      ts: 't2',
+      event: 'SEND_FAILED',
+      ...ROW,
+      error: { code: 'HTTP_400', message: 'm' },
+    });
+    assert.equal(failed?.requestId, undefined, 'a rejected row has no requestId in the output');
+    state = applyJournalEntry(state, { ts: 't2', event: 'SENT', ...ROW, requestId: 'R', attempt: 1 });
+    assert.equal(state?.requestId, 'R');
+  });
 });
 
 describe('RowLedger', () => {

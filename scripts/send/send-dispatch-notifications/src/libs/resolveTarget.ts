@@ -60,6 +60,7 @@ export async function resolveTarget(
   config: SendDispatchNotificationsConfig,
   loader: Dispatch.EnvironmentLoader,
 ): Promise<DispatchTarget> {
+  if (config.mode === 'direct') return directTarget(config);
   if (config.env === undefined) return adHocTarget(config);
 
   const filePath = resolveEnvironmentsFile(script, config);
@@ -103,6 +104,19 @@ function adHocTarget(config: SendDispatchNotificationsConfig): DispatchTarget {
     defaults: new Map(),
     ...(config.groupId !== undefined && { groupId: config.groupId }),
     ...(sender !== undefined && { sender }),
+  };
+}
+
+/** `direct` mode: pn-external-channels through the tunnel, no API key (§9.1). */
+function directTarget(config: SendDispatchNotificationsConfig): DispatchTarget {
+  return {
+    name: 'direct',
+    description: 'pn-external-channels',
+    basePath: config.ecBaseUrl ?? '',
+    apiKey: '',
+    apiKeyLabel: `x-pagopa-extch-cx-id ${config.ecClientId}`,
+    production: false,
+    defaults: new Map(),
   };
 }
 

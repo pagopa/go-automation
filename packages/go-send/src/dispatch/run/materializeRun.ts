@@ -28,7 +28,7 @@ export async function materializeRun(options: MaterializerOptions): Promise<void
     for await (const row of options.reader.rows()) {
       const state = options.ledger.get(row.rowIndex);
       const status = state?.status ?? options.unsentStatus;
-      if (!options.onlySuccess || state?.iun !== undefined) {
+      if (!options.onlySuccess || isSuccessful(state)) {
         await output.append({
           ...row.original,
           [iunColumn]: state?.iun ?? '',
@@ -47,6 +47,15 @@ export async function materializeRun(options: MaterializerOptions): Promise<void
     await output.close();
     await report.close();
   }
+}
+
+/**
+ * Whether a row belongs to the success-only output: it has an IUN (e2e), or
+ * pn-external-channels accepted its requestId (direct, where there is no IUN).
+ */
+function isSuccessful(state: RowState | undefined): boolean {
+  if (state === undefined) return false;
+  return state.iun !== undefined || (state.status === 'SENT' && state.requestId !== undefined);
 }
 
 function reportRow(

@@ -1,7 +1,7 @@
 import type { InputReader } from '../input/InputReader.js';
 import type { RowLedger } from '../journal/RowLedger.js';
 import type { RecordFactory } from '../mapping/RecordFactory.js';
-import type { SendStage } from '../stages/SendStage.js';
+import type { RowSender } from '../stages/RowSender.js';
 import type { VerifyStage } from '../stages/VerifyStage.js';
 import type { RequestIdStage } from '../requestId/RequestIdStage.js';
 
@@ -13,7 +13,7 @@ export interface DispatchRunOptions {
   readonly factory: RecordFactory;
   readonly ledger: RowLedger;
   /** Absent when `send` is not among the phases (RF-12). */
-  readonly sendStage?: SendStage;
+  readonly sendStage?: RowSender;
   /** Absent when `verify` is not among the phases. */
   readonly verifyStage?: VerifyStage;
   /** Absent when `request-id` is not among the phases. */
@@ -22,7 +22,7 @@ export interface DispatchRunOptions {
   readonly maxInFlight?: number;
   /** Resend `SEND_FAILED` rows marked retryable (resume, `--retry-failed`). */
   readonly retryFailed: boolean;
-  /** Reconcile `SEND_UNCERTAIN` rows (resume; default with `send.retry.ambiguous`). */
+  /** Reconcile `SEND_UNCERTAIN` rows on resume (`--retry-uncertain`). */
   readonly retryUncertain: boolean;
   /** Stop at the first failed row. */
   readonly failFast: boolean;

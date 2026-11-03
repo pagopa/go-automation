@@ -142,10 +142,8 @@ export function parseSharedDocument(value: unknown, where: string, baseDir: stri
   if (hasFiles === hasReference) throw new Error(`${where}: set exactly one of "files" and "reference"`);
 
   if (hasFiles) {
-    const files = block['files'];
-    if (!Array.isArray(files) || files.length === 0 || !files.every((f): f is string => typeof f === 'string')) {
-      throw new Error(`${where}.files: must be a non-empty list of paths`);
-    }
+    const files = stringList(block['files']);
+    if (files === undefined || files.length === 0) throw new Error(`${where}.files: must be a non-empty list of paths`);
     return { files: files.map((file) => path.resolve(baseDir, file)), ...(title !== undefined && { title }) };
   }
 
@@ -201,4 +199,11 @@ function codeString(value: unknown, where: string): string {
     );
   }
   return requiredString(value, where);
+}
+
+/** A list of strings, or `undefined` when the value is not one. */
+function stringList(value: unknown): ReadonlyArray<string> | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const items: ReadonlyArray<unknown> = value;
+  return items.every((item): item is string => typeof item === 'string') ? items : undefined;
 }

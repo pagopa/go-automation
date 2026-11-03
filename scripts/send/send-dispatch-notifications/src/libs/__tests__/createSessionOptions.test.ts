@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import type { DispatchTarget } from '../../types/DispatchTarget.js';
 import type { SendDispatchNotificationsConfig } from '../../types/SendDispatchNotificationsConfig.js';
-import { assertSupportedConfig, timelinesProfile } from '../createSessionOptions.js';
+import { assertSupportedConfig, effectiveRate, parseDefaults, timelinesProfile } from '../createSessionOptions.js';
 
 const CONFIG: SendDispatchNotificationsConfig = {
   mode: 'e2e',
@@ -11,6 +11,8 @@ const CONFIG: SendDispatchNotificationsConfig = {
   mappingProfile: 'qa-test',
   listEnvs: false,
   apiVersion: 'v2.6',
+  ecClientId: 'pn-cons-000',
+  directRequestIdTemplate: 'PNMAN.GO-{runId}.{rowKey}.PCRETRY_0',
   uploadConcurrency: 5,
   preloadBatchSize: 15,
   uploadReuseMaxAge: '72h',
@@ -56,8 +58,20 @@ describe('assertSupportedConfig', () => {
     assertSupportedConfig({ ...CONFIG, inputFile: undefined, resume: 'send-dispatch-notifications_x' });
   });
 
-  it('rejects direct mode, unknown phases and invalid values', () => {
-    assert.throws(() => assertSupportedConfig({ ...CONFIG, mode: 'direct' }), /phase 3/);
+  it('accepts direct mode with only the send phase and a tunnel URL', () => {
+    const direct = { ...CONFIG, mode: 'direct', phases: ['send'], ecBaseUrl: 'http://localhost:8888' };
+    assertSupportedConfig(direct);
+    assert.throws(() => assertSupportedConfig({ ...direct, phases: ['send', 'verify'] }), /A7/);
+    assert.throws(() => assertSupportedConfig({ ...direct, phases: ['send', 'request-id'] }), /template/);
+    assert.throws(() => assertSupportedConfig({ ...direct, ecBaseUrl: undefined }), /ec-base-url/);
+    assert.throws(
+      () => assertSupportedConfig({ ...direct, directRequestIdTemplate: 'X-{iun}' }),
+      /unknown placeholder/,
+    );
+  });
+
+  it('rejects unknown modes, unknown phases and invalid values', () => {
+    assert.throws(() => assertSupportedConfig({ ...CONFIG, mode: 'fax' }), /use e2e or direct/);
     assert.throws(() => assertSupportedConfig({ ...CONFIG, phases: ['send', 'publish'] }), /unknown phase/);
     assert.throws(() => assertSupportedConfig({ ...CONFIG, phases: [] }), /at least one phase/);
     assert.throws(() => assertSupportedConfig({ ...CONFIG, apiVersion: 'v3' }), /api-version/);
@@ -85,5 +99,25 @@ describe('timelinesProfile', () => {
       /add it to --aws-profiles/,
     );
     assert.throws(() => timelinesProfile({ ...CONFIG, awsProfiles: ['sso_a', 'sso_b'] }, TARGET), /several profiles/);
+  });
+});
+
+describe('effectiveRate and parseDefaults', () => {
+  it('defaults the rate to 20/s in e2e and 5/s in direct', () => {
+    assert.equal(effectiveRate({ ...CONFIG, rate: undefined }), 20);
+    assert.equal(effectiveRate({ ...CONFIG, rate: undefined, mode: 'direct' }), 5);
+    assert.equal(effectiveRate({ ...CONFIG, rate: 2, mode: 'direct' }), 2);
+  });
+
+  it('parses canonical field defaults and rejects typos', () => {
+    assert.deepEqual(
+      [...parseDefaults(['direct.aar.key = PN_AAR-1.pdf', 'sender.taxId=00000000001'])],
+      [
+        ['direct.aar.key', 'PN_AAR-1.pdf'],
+        ['sender.taxId', '00000000001'],
+      ],
+    );
+    assert.throws(() => parseDefaults(['sender.taxid=1']), /unknown field/);
+    assert.throws(() => parseDefaults(['sender.taxId']), /missing value/);
   });
 });

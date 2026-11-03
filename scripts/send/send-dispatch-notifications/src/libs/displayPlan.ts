@@ -23,7 +23,10 @@ export function displayPlan(logger: Core.GOLogger, plan: PlanContext): void {
   logger.keyValueTable({
     Run: `${options.runId}${run.previousRunInfoPath === undefined ? '' : ` (ripresa di ${run.previousRunInfoPath})`}`,
     Ambiente: target.description === undefined ? target.name : `${target.name} — ${target.description}`,
-    Modalità: `e2e → ${target.basePath} (API ${options.apiVersion}, chiave ${target.apiKeyLabel})`,
+    Modalità:
+      options.mode === 'direct'
+        ? `direct → ${target.basePath} (${target.apiKeyLabel}), requestId ${options.direct?.requestIdTemplate.template ?? ''}`
+        : `e2e → ${target.basePath} (API ${options.apiVersion}, chiave ${target.apiKeyLabel})`,
     Produzione: target.production ? 'SÌ' : 'no',
     'A nome di': groupLine(target, preflight),
     'Righe con group diverso': countOther(summary.groups, target.groupId ?? ''),
@@ -41,6 +44,11 @@ export function displayPlan(logger: Core.GOLogger, plan: PlanContext): void {
     logger.warning('Il file contiene mittenti diversi: di solito è un errore di preparazione');
   if (summary.duplicateRowKeys.length > 0) {
     logger.error(`Chiavi di riga duplicate (bloccante): ${summary.duplicateRowKeys.slice(0, 10).join(', ')}`);
+  }
+  if (summary.duplicateRequestIds.length > 0) {
+    logger.error(
+      `requestId duplicati, rivedere --direct-request-id-template (bloccante): ${summary.duplicateRequestIds.slice(0, 10).join(', ')}`,
+    );
   }
 }
 

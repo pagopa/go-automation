@@ -84,7 +84,8 @@ function parseTransforms(
     const fieldPath = `${path}.${field}`;
     const canonical = canonicalField(field, fieldPath);
     if (!Array.isArray(steps)) throw new Error(`${fieldPath}: must be an array of transforms`);
-    transforms[canonical] = steps.map((step, index) => parseTransform(step, `${fieldPath}[${index}]`));
+    const items: ReadonlyArray<unknown> = steps;
+    transforms[canonical] = items.map((step, index) => parseTransform(step, `${fieldPath}[${index}]`));
   }
   return transforms;
 }
@@ -170,10 +171,11 @@ function requiredString(value: unknown, path: string): string {
 }
 
 function stringArray(value: unknown, path: string): ReadonlyArray<string> {
-  if (!Array.isArray(value) || !value.every((item): item is string => typeof item === 'string')) {
+  const items: ReadonlyArray<unknown> = Array.isArray(value) ? value : [];
+  if (!Array.isArray(value) || !items.every((item): item is string => typeof item === 'string')) {
     throw new Error(`${path}: must be an array of strings`);
   }
-  return value;
+  return items;
 }
 
 function stringRecord(value: unknown, path: string): Readonly<Record<string, string>> {

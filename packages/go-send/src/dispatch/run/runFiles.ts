@@ -13,16 +13,15 @@ export const RUN_FILES = {
 } as const;
 
 /**
- * Hex SHA-256 of a file.
+ * Hex SHA-256 of a file, read in chunks: memory never holds the whole input.
  *
  * @param filePath - File to hash
  * @returns Hex digest
  */
 export async function hashFileHex(filePath: string): Promise<string> {
-  const content = await new GOBinaryFileImporter({ inputPath: filePath }).import();
-  return createHash('sha256')
-    .update(content ?? Buffer.alloc(0))
-    .digest('hex');
+  const hash = createHash('sha256');
+  for await (const chunk of new GOBinaryFileImporter({ inputPath: filePath }).importStream()) hash.update(chunk);
+  return hash.digest('hex');
 }
 
 /**

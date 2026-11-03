@@ -91,6 +91,16 @@ describe('UploadStage', () => {
     assert.equal(gateway.puts.filter((p) => p === '/docs/file-1.pdf').length, 3, 'PUT retried 3 times');
   });
 
+  it('retries a content whose previous upload failed, instead of reusing the failure', async () => {
+    const { clock, gateway, stage } = setup();
+    gateway.failingPaths.add('/docs/file-1.pdf');
+    await assert.rejects(clock.run(stage.upload(inspected(1))), UploadError);
+    gateway.failingPaths.clear(); // the outage is over
+    const file = await clock.run(stage.upload(inspected(1)));
+    assert.equal(file.versionToken, `version-${file.key}`);
+    assert.equal(gateway.puts.length, 4, '3 failed attempts, then 1 new upload');
+  });
+
   it('rejects the batch with UPLOAD_REJECTED on a preload 4xx', async () => {
     const { clock, gateway, stage } = setup();
     gateway.preloadFailure = httpError(400);
@@ -189,21 +199,28 @@ describe('DocumentResolver', () => {
       { reference: { key: 'K', versionToken: 'v1', sha256: 'S' }, title: 'Atto' },
       inspector,
       undefined,
+      false,
     );
     assert.deepEqual(reference, [
       { key: 'K', versionToken: 'v1', sha256: 'S', contentType: 'application/pdf', title: 'Atto' },
     ]);
 
-    const placeholder = await DocumentResolver.prepareShared({ files: [pdf] }, inspector, undefined);
+    const placeholder = await DocumentResolver.prepareShared({ files: [pdf] }, inspector, undefined, true);
     assert.match(placeholder[0]?.key ?? '', /^<upload:/);
     assert.equal(placeholder[0]?.title, 'atto');
 
+    // Outside a dry run, a file without an upload stage never becomes a placeholder.
     await assert.rejects(
-      DocumentResolver.prepareShared({ files: [path.join(dir, 'missing.pdf')] }, inspector, undefined),
+      DocumentResolver.prepareShared({ files: [pdf] }, inspector, undefined, false),
+      /SafeStorage gateway is not configured/,
+    );
+
+    await assert.rejects(
+      DocumentResolver.prepareShared({ files: [path.join(dir, 'missing.pdf')] }, inspector, undefined, true),
       /file not found/,
     );
 
-    const resolver = new DocumentResolver({ inspector, shared: reference });
+    const resolver = new DocumentResolver({ inspector, shared: reference, placeholders: false });
     assert.deepEqual(await resolver.resolve({ kind: 'shared' }), reference);
   });
 });

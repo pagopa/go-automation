@@ -38,7 +38,11 @@ export async function runDispatch(
   const session = await Dispatch.DispatchSession.open(options);
   try {
     script.logger.section('Preflight');
-    const usesB2B = options.send || options.verify;
+    const usesB2B = options.mode !== 'direct' && (options.send || options.verify);
+    if (options.mode === 'direct' && !options.dryRun) {
+      await session.checkExternalChannels();
+      script.logger.success(`pn-external-channels raggiungibile su ${target.basePath}`);
+    }
     const preflight = usesB2B
       ? await session.preflight({
           basePath: target.basePath,
@@ -67,6 +71,7 @@ export async function runDispatch(
     });
 
     if (summary.duplicateRowKeys.length > 0) throw new Error('Duplicate row keys: nothing was sent');
+    if (summary.duplicateRequestIds.length > 0) throw new Error('Duplicate direct requestIds: nothing was sent');
     if (config.failFast && summary.invalidRows > 0)
       throw new Error('--fail-fast: invalid rows found, nothing was sent');
     if (options.dryRun || summary.validRows === 0 || !(await confirmRun(script, config, target, summary))) {

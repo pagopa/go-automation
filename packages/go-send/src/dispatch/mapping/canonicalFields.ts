@@ -42,6 +42,17 @@ export const CANONICAL_FIELDS = [
   'notificationOptions.paymentExpirationDate',
   'preset.iun',
   'preset.notificationRequestId',
+  'direct.printType',
+  'direct.aar.key',
+  'direct.aar.sha256',
+  'direct.sender.address',
+  'direct.sender.city',
+  'direct.sender.province',
+  'direct.sender.digitalAddress',
+  'direct.returnAddress.name',
+  'direct.returnAddress.address',
+  'direct.returnAddress.zip',
+  'direct.returnAddress.city',
 ] as const;
 
 const CANONICAL_FIELD_SET: ReadonlySet<string> = new Set<string>(CANONICAL_FIELDS);

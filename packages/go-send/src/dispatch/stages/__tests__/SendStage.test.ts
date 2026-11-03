@@ -65,7 +65,7 @@ function harness(retryAmbiguous = true): Harness {
     rateAdapter: new RateAdapter(limiter, 20, clock, true),
     ledger,
     clock,
-    resolver: new DocumentResolver({ inspector: new LocalDocumentInspector(), shared: SHARED }),
+    resolver: new DocumentResolver({ inspector: new LocalDocumentInspector(), shared: SHARED, placeholders: false }),
     runId: 'run',
     apiVersion: 'v2.6',
     retryAmbiguous,
@@ -261,5 +261,17 @@ describe('RateAdapter', () => {
     assert.equal(adapter.throttledCount, 1);
     const fixed = new RateAdapter(limiter, 20, clock, false);
     assert.equal(fixed.onThrottled(), undefined);
+  });
+
+  it('lowers the rate once per throttling episode, not once per 429 in flight', () => {
+    const clock = new VirtualClock();
+    const limiter = new GORateLimiter({ ratePerSecond: 20, sleeper: clock, now: () => clock.now() });
+    const adapter = new RateAdapter(limiter, 20, clock, true);
+    assert.equal(adapter.onThrottled(), 15);
+    for (let i = 0; i < 14; i++) assert.equal(adapter.onThrottled(), undefined);
+    assert.equal(limiter.ratePerSecond, 15);
+    assert.equal(adapter.throttledCount, 15);
+    clock.advance(1_000);
+    assert.equal(adapter.onThrottled(), 11.25, 'a 429 after the cooldown is a new episode');
   });
 });

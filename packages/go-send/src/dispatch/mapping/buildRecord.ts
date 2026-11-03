@@ -1,29 +1,21 @@
-import * as path from 'node:path';
-
-import type { DispatchDigitalDomicile } from '../model/DispatchDigitalDomicile.js';
 import type { DispatchNotificationOptions } from '../model/DispatchNotificationOptions.js';
 import type { DispatchPayment } from '../model/DispatchPayment.js';
-import type { DispatchPhysicalAddress } from '../model/DispatchPhysicalAddress.js';
-import type { DocumentSource } from '../model/DocumentSource.js';
 import type { NotificationFeePolicy } from '../model/NotificationFeePolicy.js';
 import type { PagoPaIntMode } from '../model/PagoPaIntMode.js';
-import type { PresetIds } from '../model/PresetIds.js';
 import type { RecipientType } from '../model/RecipientType.js';
 import type { CanonicalField } from './CanonicalField.js';
 import type { FieldValues } from './FieldValues.js';
 import type { RecordBuildContext } from './RecordBuildContext.js';
 import type { RecordBuildResult } from './RecordBuildResult.js';
-import type { ValidationIssue } from './ValidationIssue.js';
+import { FieldReader } from './FieldReader.js';
+import { readDigitalDomicile, readDocuments, readPhysicalAddress, readPreset } from './recordReaders.js';
 
 // Limits and formats of NewNotificationRequestV26 (pn-delivery OpenAPI).
 const SENDER_TAX_ID = /^\d{1,11}$/;
 const TAXONOMY_CODE = /^\d{6}[A-Z]$/;
-const ITALIAN_ZIP = /^\d{5}$/;
-const SHA256_BASE64 = /^[A-Za-z0-9+/]{43}=$/;
 const DATE = /^\d{4}-(1[0-2]|0[1-9])-(3[01]|[12]\d|0[1-9])$/;
 const NOTICE_CODE = /^\d{18}$/;
 const CREDITOR_TAX_ID = /^\d{11}$/;
-const NON_NEGATIVE_INTEGER = /^\d+$/;
 
 const PRODUCTS: ReadonlyMap<string, string> = new Map([
   ['AR', 'AR'],
@@ -63,7 +55,7 @@ export function buildRecord(
   values: FieldValues,
   context: RecordBuildContext,
 ): RecordBuildResult {
-  const reader = new FieldReader(values);
+  const reader = new FieldReader(values, NEUTRAL_DEFAULTS);
 
   const subject = reader.required('subject', 134);
   const abstract = reader.optional('abstract', 1024);
@@ -84,7 +76,7 @@ export function buildRecord(
   const recipientType = reader.oneOf('recipient.type', RECIPIENT_TYPES) as RecipientType | undefined;
   const recipientTaxId = reader.required('recipient.taxId', 32);
   const recipientDenomination = reader.required('recipient.denomination', 1024);
-  const physicalAddress = readPhysicalAddress(reader);
+  const physicalAddress = readPhysicalAddress(reader, false);
   const digitalDomicile = readDigitalDomicile(reader);
   const product = readProduct(reader);
   const payment = readPayment(reader);
@@ -115,41 +107,6 @@ export function buildRecord(
       ...(preset !== undefined && { preset }),
     },
   };
-}
-
-function readPhysicalAddress(reader: FieldReader): DispatchPhysicalAddress | undefined {
-  const address = reader.required('physicalAddress.address', 1024);
-  const municipality = reader.required('physicalAddress.municipality', 256);
-  const foreignState = reader.optional('physicalAddress.foreignState', 256);
-  const zip =
-    foreignState === undefined
-      ? reader.matching('physicalAddress.zip', ITALIAN_ZIP, 'an Italian ZIP code of 5 digits', true)
-      : reader.optional('physicalAddress.zip', 15);
-  const at = reader.optional('physicalAddress.at', 44);
-  const addressDetails = reader.optional('physicalAddress.addressDetails', 1024);
-  const municipalityDetails = reader.optional('physicalAddress.municipalityDetails', 256);
-  const province = reader.optional('physicalAddress.province', 256);
-  if (address === undefined || municipality === undefined) return undefined;
-  return {
-    address,
-    municipality,
-    ...(at !== undefined && { at }),
-    ...(addressDetails !== undefined && { addressDetails }),
-    ...(zip !== undefined && { zip }),
-    ...(municipalityDetails !== undefined && { municipalityDetails }),
-    ...(province !== undefined && { province }),
-    ...(foreignState !== undefined && { foreignState }),
-  };
-}
-
-function readDigitalDomicile(reader: FieldReader): DispatchDigitalDomicile | undefined {
-  const address = reader.optional('digitalDomicile.address', 320);
-  const type = reader.value('digitalDomicile.type');
-  if (address === undefined) return undefined;
-  if (type !== undefined && type !== 'PEC') {
-    reader.issue('INVALID_ENUM', 'digitalDomicile.type', `digitalDomicile.type "${type}" is not supported: only PEC`);
-  }
-  return { type: 'PEC', address };
 }
 
 function readProduct(reader: FieldReader): string | undefined {
@@ -201,135 +158,4 @@ function readOptions(reader: FieldReader): DispatchNotificationOptions | undefin
     ...(paProtocolNumber !== undefined && { paProtocolNumber }),
     ...(expiration !== undefined && { paymentExpirationDate: expiration }),
   };
-}
-
-function readDocuments(reader: FieldReader, context: RecordBuildContext): DocumentSource | undefined {
-  const pratica = reader.value('documents.pratica');
-  if (pratica !== undefined) {
-    if (context.knownPratiche === undefined) {
-      reader.issue('NO_ATTACHMENTS_FILE', 'documents.pratica', `pratica "${pratica}" requires --attachments-file`);
-    } else if (!context.knownPratiche.has(pratica)) {
-      reader.issue('UNKNOWN_PRATICA', 'documents.pratica', `pratica "${pratica}" is not in the attachments file`);
-    }
-    return { kind: 'pratica', pratica };
-  }
-
-  const files = splitList(reader.value('documents.files'));
-  if (files.length > 0) {
-    const titles = splitList(reader.value('documents.titles'));
-    return {
-      kind: 'rowFiles',
-      files: files.map((file, index) => ({
-        path: path.resolve(context.documentsDir, file),
-        title: titles[index] ?? path.basename(file, path.extname(file)),
-      })),
-    };
-  }
-
-  const key = reader.value('documents.reference.key');
-  const versionToken = reader.value('documents.reference.versionToken');
-  const sha256 = reader.value('documents.reference.sha256');
-  if (key !== undefined || versionToken !== undefined || sha256 !== undefined) {
-    reader.required('documents.reference.key', 512);
-    reader.required('documents.reference.versionToken', 256);
-    reader.matching('documents.reference.sha256', SHA256_BASE64, 'Base64 SHA-256 of 44 characters', true);
-    if (key === undefined || versionToken === undefined || sha256 === undefined) return undefined;
-    const title = reader.optional('documents.reference.title', 512) ?? 'Documento';
-    return { kind: 'reference', refs: [{ key, versionToken, sha256, contentType: 'application/pdf', title }] };
-  }
-
-  if (context.sharedDocumentAvailable) return { kind: 'shared' };
-  reader.issue(
-    'NO_DOCUMENTS',
-    undefined,
-    'no document: set a pratica, document files, a reference or a shared document',
-  );
-  return undefined;
-}
-
-function readPreset(reader: FieldReader): PresetIds | undefined {
-  const iun = reader.value('preset.iun');
-  const notificationRequestId = reader.value('preset.notificationRequestId');
-  if (iun === undefined && notificationRequestId === undefined) return undefined;
-  return {
-    ...(iun !== undefined && { iun }),
-    ...(notificationRequestId !== undefined && { notificationRequestId }),
-  };
-}
-
-function splitList(value: string | undefined): ReadonlyArray<string> {
-  if (value === undefined) return [];
-  return value
-    .split('|')
-    .map((item) => item.trim())
-    .filter((item) => item !== '');
-}
-
-/** Reads field values and accumulates validation issues. */
-class FieldReader {
-  public readonly issues: ValidationIssue[] = [];
-
-  constructor(private readonly values: FieldValues) {}
-
-  public value(field: CanonicalField): string | undefined {
-    return this.values.get(field);
-  }
-
-  public valueOrDefault(field: CanonicalField): string | undefined {
-    return this.values.get(field) ?? NEUTRAL_DEFAULTS.get(field);
-  }
-
-  public issue(code: string, field: CanonicalField | undefined, message: string): void {
-    this.issues.push({ code, message, ...(field !== undefined && { field }) });
-  }
-
-  public required(field: CanonicalField, maxLength: number): string | undefined {
-    const value = this.valueOrDefault(field);
-    if (value === undefined) {
-      this.issue('MISSING_FIELD', field, `${field} is required`);
-      return undefined;
-    }
-    return this.checkLength(field, value, maxLength);
-  }
-
-  public optional(field: CanonicalField, maxLength: number): string | undefined {
-    const value = this.values.get(field);
-    return value === undefined ? undefined : this.checkLength(field, value, maxLength);
-  }
-
-  public matching(field: CanonicalField, pattern: RegExp, expected: string, isRequired: boolean): string | undefined {
-    const value = this.valueOrDefault(field);
-    if (value === undefined) {
-      if (isRequired) this.issue('MISSING_FIELD', field, `${field} is required`);
-      return undefined;
-    }
-    if (!pattern.test(value)) {
-      this.issue('INVALID_FORMAT', field, `${field} "${value}" must be ${expected}`);
-      return undefined;
-    }
-    return value;
-  }
-
-  public oneOf(field: CanonicalField, allowed: ReadonlySet<string>): string | undefined {
-    const value = this.valueOrDefault(field)?.toUpperCase();
-    if (value === undefined || allowed.has(value)) return value;
-    this.issue('INVALID_ENUM', field, `${field} "${value}" must be one of ${[...allowed].join(', ')}`);
-    return undefined;
-  }
-
-  public integer(field: CanonicalField): number | undefined {
-    const value = this.values.get(field);
-    if (value === undefined) return undefined;
-    if (!NON_NEGATIVE_INTEGER.test(value)) {
-      this.issue('INVALID_FORMAT', field, `${field} "${value}" must be a non-negative integer (euro cents)`);
-      return undefined;
-    }
-    return Number(value);
-  }
-
-  private checkLength(field: CanonicalField, value: string, maxLength: number): string | undefined {
-    if (value.length <= maxLength) return value;
-    this.issue('TOO_LONG', field, `${field} exceeds ${maxLength} characters (${value.length})`);
-    return undefined;
-  }
 }

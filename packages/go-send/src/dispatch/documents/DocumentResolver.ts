@@ -23,14 +23,17 @@ export class DocumentResolver {
    *
    * @param config - Shared document of the CLI or of the environment
    * @param inspector - Local document inspector
-   * @param uploadStage - Upload stage; absent in a dry run (placeholder keys)
+   * @param uploadStage - Upload stage; absent in a dry run
+   * @param placeholders - Dry run: files get a placeholder key instead of an upload
    * @returns The references, in `docIdx` order
-   * @throws DispatchError `SHARED_DOCUMENT_INVALID` when a file cannot be sent
+   * @throws DispatchError `SHARED_DOCUMENT_INVALID` when a file cannot be sent,
+   *   `CONFIGURATION` when a file must be uploaded and there is no upload stage
    */
   public static async prepareShared(
     config: SharedDocumentConfig,
     inspector: LocalDocumentInspector,
     uploadStage: UploadStage | undefined,
+    placeholders: boolean,
   ): Promise<ReadonlyArray<DocumentRef>> {
     if (config.reference !== undefined) {
       const { key, versionToken, sha256 } = config.reference;
@@ -42,7 +45,7 @@ export class DocumentResolver {
       title: config.title ?? path.basename(file, path.extname(file)),
     }));
     const documents = await inspectAll(files, inspector, 'SHARED_DOCUMENT_INVALID');
-    return uploadOrPlaceholder(documents, uploadStage);
+    return uploadOrPlaceholder(documents, uploadStage, placeholders);
   }
 
   /**
@@ -50,7 +53,8 @@ export class DocumentResolver {
    *
    * @param source - Document source of the record
    * @returns References in `docIdx` order
-   * @throws UploadError when a row file cannot be uploaded
+   * @throws UploadError when a row file cannot be uploaded; DispatchError
+   *   `CONFIGURATION` when it must be uploaded and there is no upload stage
    */
   public async resolve(source: DocumentSource): Promise<ReadonlyArray<DocumentRef>> {
     switch (source.kind) {
@@ -68,7 +72,7 @@ export class DocumentResolver {
         }));
       case 'rowFiles': {
         const documents = await inspectAll(source.files, this.options.inspector, 'DOCUMENT_INVALID');
-        return uploadOrPlaceholder(documents, this.options.uploadStage);
+        return uploadOrPlaceholder(documents, this.options.uploadStage, this.options.placeholders);
       }
       default: {
         const exhaustive: never = source;
@@ -97,8 +101,15 @@ async function inspectAll(
 async function uploadOrPlaceholder(
   documents: ReadonlyArray<DocumentToUpload>,
   uploadStage: UploadStage | undefined,
+  placeholders: boolean,
 ): Promise<ReadonlyArray<DocumentRef>> {
   if (uploadStage !== undefined) return uploadStage.resolve(documents);
+  if (!placeholders) {
+    throw new DispatchError(
+      'CONFIGURATION',
+      'documents must be uploaded but the SafeStorage gateway is not configured',
+    );
+  }
   return documents.map(({ title, inspected }) => ({
     key: `<upload:${inspected.sha256}>`,
     versionToken: '<upload>',

@@ -12,6 +12,8 @@ import { readFixture, tempDir, writeFixture } from '../../__tests__/helpers/test
 import { VirtualClock } from '../../__tests__/helpers/VirtualClock.js';
 import type { SafeStorageGateway } from '../../documents/SafeStorageGateway.js';
 import { QA_TEST_PROFILE } from '../../mapping/profiles/qaTestProfile.js';
+import { DIRECT_PROFILE } from '../../mapping/profiles/directProfile.js';
+import { RequestIdTemplate } from '../../ids/RequestIdTemplate.js';
 import type { CanonicalField } from '../../mapping/CanonicalField.js';
 import { Journal } from '../../journal/Journal.js';
 import { DispatchSession } from '../DispatchSession.js';
@@ -169,6 +171,59 @@ function options(
   };
 }
 
+const DIRECT_HEADER =
+  'id,requestPaId,senderName,receiverName,receiverFiscalCode,receiverAddress,receiverCap,receiverCity,receiverPr,productType,aarKey,aarSha256,attoKey,attoSha256';
+const DIRECT_SHA = 'XwRVE/PUU1TEi9r3Pmq2KEkmQ2yr7ge8jUDQKPL0e/Y=';
+
+function directLine(id: string, cap: string): string {
+  return `${id},00000000001,Ente,Destinatario,TSTTST80A01H501U,Via Roma 1,${cap},Roma,RM,AR,PN_AAR-1.pdf,${DIRECT_SHA},PN_NOTIFICATION_ATTACHMENTS-1.pdf,${DIRECT_SHA}`;
+}
+
+/** Direct-mode session options on `consolidatore.csv` (TC-1, TC-2 valid; TC-3 invalid CAP). */
+async function directOptions(
+  prefix: string,
+  clock: VirtualClock,
+  sent: string[],
+  template: string,
+  overrides: Partial<DispatchSessionOptions> = {},
+): Promise<{ dir: string; options: DispatchSessionOptions }> {
+  const dir = tempDir(prefix);
+  const input = path.join(dir, 'consolidatore.csv');
+  await writeFixture(
+    input,
+    `${DIRECT_HEADER}\n${directLine('TC-1', '00100')}\n${directLine('TC-2', '00100')}\n${directLine('TC-3', '1')}\n`,
+  );
+  await writeFixture(path.join(dir, 'session-1', '.keep'), '');
+  const api = {
+    sendPaper: async (request: { readonly requestId: string }): Promise<void> => {
+      await Promise.resolve();
+      sent.push(request.requestId);
+    },
+    healthCheck: async (): Promise<void> => Promise.resolve(),
+  };
+  const base = { dir, input, pdf: path.join(dir, 'unused.pdf') };
+  const {
+    sharedDocument: _shared,
+    api: _api,
+    gateway: _gateway,
+    ...common
+  } = options(base, new FakeB2BApi(clock), new CountingGateway(), clock, {
+    profile: DIRECT_PROFILE,
+    verify: false,
+    environmentValues: new Map(),
+  });
+  return {
+    dir,
+    options: {
+      ...common,
+      output: { ...common.output, outputColumns: DIRECT_PROFILE.outputColumns ?? {} },
+      mode: 'direct',
+      direct: { api, requestIdTemplate: RequestIdTemplate.parse(template) },
+      ...overrides,
+    },
+  };
+}
+
 async function readCsv(file: string): Promise<ReadonlyArray<string>> {
   return ((await readFixture(file)) ?? '').trim().split('\n');
 }
@@ -270,6 +325,52 @@ describe('DispatchSession', () => {
     assert.equal(resumed.progress().byStatus.get('ACCEPTED'), 40);
   });
 
+  it('a resume never turns a row already sent into INVALID', async () => {
+    const base = await fixture(5);
+    const clock = new VirtualClock();
+    const api = new FakeB2BApi(clock);
+    const gateway = new CountingGateway();
+    await runSession(await DispatchSession.open(options(base, api, gateway, clock)), clock);
+    assert.equal(api.created.size, 5);
+
+    // The resume maps the rows differently (no sender any more): every row is
+    // now invalid, but all of them were already accepted by SEND.
+    const previousRunInfoPath = path.join(base.dir, 'session-1', 'run.json');
+    const previousRun = await readRunInfo(previousRunInfoPath);
+    const resumed = await DispatchSession.open(
+      options(
+        base,
+        api,
+        gateway,
+        clock,
+        { previousRun, previousRunInfoPath, environmentValues: new Map(), verify: false },
+        'session-2',
+      ),
+    );
+    const summary = await clock.run(resumed.validate());
+    assert.equal(summary.invalidRows, 0);
+    assert.equal(summary.validRows, 5);
+    await clock.run(resumed.execute());
+    await resumed.materialize();
+    await resumed.close();
+    assert.equal(api.created.size, 5, 'nothing sent again');
+    assert.equal(resumed.progress().byStatus.get('ACCEPTED'), 5);
+    assert.equal(resumed.progress().byStatus.get('INVALID'), undefined);
+    const journal = await Journal.read([path.join(base.dir, 'session-2', 'journal.jsonl')]);
+    assert.equal(journal.filter((entry) => entry.event === 'ROW_INVALID').length, 0);
+  });
+
+  it('refuses to send row files without a SafeStorage gateway instead of sending placeholder keys', async () => {
+    const base = await fixture(2);
+    const clock = new VirtualClock();
+    const api = new FakeB2BApi(clock);
+    const { gateway: _gateway, ...withoutGateway } = options(base, api, new CountingGateway(), clock);
+    const session = await DispatchSession.open(withoutGateway);
+    await assert.rejects(clock.run(session.prepareDocuments()), /SafeStorage gateway is not configured/);
+    await session.close();
+    assert.equal(api.created.size, 0);
+  });
+
   it('refuses a resume when the input changed', async () => {
     const base = await fixture(3);
     const clock = new VirtualClock();
@@ -336,5 +437,80 @@ describe('DispatchSession', () => {
     const report = await readCsv(path.join(dir, 'session-1', 'report.csv'));
     assert.match(report[1] ?? '', new RegExp(`^0,S-1,REQUEST_ID_FOUND,.*IUN_${iuns[0]}`));
     assert.match(report[3] ?? '', /^2,S-3,INVALID/);
+  });
+
+  it('direct mode: PUTs to pn-ec with template requestIds and fills the requestId column', async () => {
+    const clock = new VirtualClock();
+    const sent: string[] = [];
+    const { dir, options: direct } = await directOptions(
+      'dispatch-direct',
+      clock,
+      sent,
+      'PNMAN.GO-{runId}.{rowKey}.PCRETRY_0',
+    );
+    const session = await DispatchSession.open(direct);
+    await session.checkExternalChannels();
+    const summary = await clock.run(session.validate());
+    assert.equal(summary.validRows, 2);
+    assert.deepEqual(summary.duplicateRequestIds, []);
+    await clock.run(session.execute());
+    await session.materialize();
+    await session.close();
+
+    assert.deepEqual(sent, [
+      'PNMAN.GO-20261103-100000-abcd.TC-1.PCRETRY_0',
+      'PNMAN.GO-20261103-100000-abcd.TC-2.PCRETRY_0',
+    ]);
+    const lines = await readCsv(path.join(dir, 'session-1', 'output.csv'));
+    assert.match(lines[0] ?? '', /,requestId$/);
+    assert.match(lines[1] ?? '', /,PNMAN\.GO-20261103-100000-abcd\.TC-1\.PCRETRY_0$/);
+    assert.match(lines[3] ?? '', /^TC-3,.*,$/, 'invalid row kept with empty requestId');
+  });
+
+  it('direct mode: the success-only output keeps the rows pn-ec accepted (no IUN)', async () => {
+    const clock = new VirtualClock();
+    const sent: string[] = [];
+    const { dir, options: direct } = await directOptions(
+      'dispatch-direct-success',
+      clock,
+      sent,
+      'PNMAN.GO-{runId}.{rowKey}.PCRETRY_0',
+    );
+    const session = await DispatchSession.open({ ...direct, output: { ...direct.output, onlySuccess: true } });
+    await clock.run(session.validate());
+    await clock.run(session.execute());
+    await session.materialize();
+    await session.close();
+
+    const lines = await readCsv(path.join(dir, 'session-1', 'output.csv'));
+    assert.equal(lines.length, 3, 'header + the 2 sent rows');
+    assert.match(lines[1] ?? '', /^TC-1,/);
+    assert.match(lines[2] ?? '', /^TC-2,/);
+  });
+
+  it('direct mode: requestIds shared by several rows, or rendered from an empty column, are caught before sending', async () => {
+    const clock = new VirtualClock();
+    const shared = await directOptions(
+      'dispatch-direct-dup',
+      clock,
+      [],
+      'PNMAN.GO-{runId}.{col:receiverPr}.PCRETRY_0',
+      {
+        dryRun: true,
+      },
+    );
+    const duplicated = await clock.run((await DispatchSession.open(shared.options)).validate());
+    assert.deepEqual(duplicated.duplicateRequestIds, ['PNMAN.GO-20261103-100000-abcd.RM.PCRETRY_0']);
+
+    const empty = await directOptions('dispatch-direct-empty', clock, [], 'PNMAN.GO-{runId}.{col:pratica}.PCRETRY_0', {
+      dryRun: true,
+    });
+    const session = await DispatchSession.open(empty.options);
+    const summary = await clock.run(session.validate());
+    assert.equal(summary.validRows, 0);
+    assert.equal(summary.invalidRows, 3);
+    await session.materialize();
+    const report = await readCsv(path.join(empty.dir, 'session-1', 'report.csv'));
+    assert.match(report[1] ?? '', /requestId template: column "+pratica"+ is empty/);
   });
 });

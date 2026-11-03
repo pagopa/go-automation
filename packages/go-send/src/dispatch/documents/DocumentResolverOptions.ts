@@ -12,6 +12,12 @@ export interface DocumentResolverOptions {
   /** Output of `send-upload-attachments`, by pratica. */
   readonly attachmentsByPratica?: ReadonlyMap<string, ReadonlyArray<SENDUploadedAttachment>>;
   readonly inspector: LocalDocumentInspector;
-  /** Absent in a dry run: row files get a placeholder key `<upload:sha256>`. */
+  /** Absent in a dry run, or when no SafeStorage gateway is configured. */
   readonly uploadStage?: UploadStage;
+  /**
+   * Dry run: without an upload stage, row files get a placeholder key
+   * `<upload:sha256>`. Outside a dry run a missing upload stage is a
+   * `CONFIGURATION` error: placeholders must never reach SEND.
+   */
+  readonly placeholders: boolean;
 }

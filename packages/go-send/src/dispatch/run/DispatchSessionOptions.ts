@@ -7,6 +7,8 @@ import type { InputReaderOptions } from '../input/InputReaderOptions.js';
 import type { FieldValues } from '../mapping/FieldValues.js';
 import type { MappingProfile } from '../mapping/MappingProfile.js';
 import type { DispatchClock } from '../model/DispatchClock.js';
+import type { DispatchMode } from '../model/DispatchMode.js';
+import type { DirectModeOptions } from './DirectModeOptions.js';
 import type { TransitionHandler } from '../journal/TransitionHandler.js';
 import type { DispatchRequestIdOptions } from './DispatchRequestIdOptions.js';
 import type { DispatchRunFiles } from './DispatchRunFiles.js';
@@ -38,8 +40,14 @@ export interface DispatchSessionOptions {
   readonly sharedDocument?: SharedDocumentConfig;
   readonly documentsDir: string;
   readonly attachmentsByPratica?: ReadonlyMap<string, ReadonlyArray<SENDUploadedAttachment>>;
-  readonly api: B2BApi;
-  readonly gateway: SafeStorageGateway;
+  /** `e2e` (default) or `direct` (§9). */
+  readonly mode?: DispatchMode;
+  /** SEND B2B API: required in `e2e`. */
+  readonly api?: B2BApi;
+  /** SafeStorage uploads: required in `e2e` when documents must be uploaded. */
+  readonly gateway?: SafeStorageGateway;
+  /** Required in `direct` mode. */
+  readonly direct?: DirectModeOptions;
   readonly apiVersion: SENDApiVersion;
   /** `send` among the phases; without it the input must carry `preset.*` identifiers (RF-12). */
   readonly send: boolean;

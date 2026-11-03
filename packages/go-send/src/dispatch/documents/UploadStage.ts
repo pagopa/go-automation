@@ -23,7 +23,8 @@ const RETRY_BASE_MS = 1_000;
  * the sends.
  *
  * - **Deduplication by SHA-256:** the same content is uploaded once per run,
- *   whatever its path; concurrent requests share the same promise.
+ *   whatever its path; concurrent requests share the same promise. A failed
+ *   upload leaves the cache, so a later row with that content tries again.
  * - **Batched preload:** up to `batchSize` distinct files per preload call
  *   (one B2B call through the limiter), or whatever arrived within
  *   `batchWaitMs`; then the PUTs run in parallel (`uploadConcurrency`,
@@ -93,6 +94,11 @@ export class UploadStage {
       });
     });
     this.uploads.set(inspected.sha256, upload);
+    // A failure is shared only by the rows already waiting on it: the next row
+    // with the same content tries again (the outage may be over by then).
+    upload.catch(() => {
+      if (this.uploads.get(inspected.sha256) === upload) this.uploads.delete(inspected.sha256);
+    });
     return upload;
   }
 

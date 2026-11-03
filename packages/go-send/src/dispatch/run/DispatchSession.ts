@@ -21,6 +21,9 @@ import { SendStage } from '../stages/SendStage.js';
 import { VerifyStage } from '../stages/VerifyStage.js';
 import type { GlobalErrorHandler } from '../stages/GlobalErrorHandler.js';
 import { RequestIdStage } from '../requestId/RequestIdStage.js';
+import type { B2BApi } from '../channels/B2BApi.js';
+import { DirectSendStage } from '../direct/DirectSendStage.js';
+import type { DirectModeOptions } from './DirectModeOptions.js';
 import { DispatchRun } from './DispatchRun.js';
 import type { DispatchProgress } from './DispatchProgress.js';
 import type { DispatchSessionOptions } from './DispatchSessionOptions.js';
@@ -83,7 +86,11 @@ export class DispatchSession {
       cliValues: options.cliValues,
       environmentValues: options.environmentValues,
       ...(options.rowKeyColumn !== undefined && { rowKeyColumn: options.rowKeyColumn }),
+      ...(options.direct !== undefined && {
+        direct: { runId: options.runId, template: options.direct.requestIdTemplate },
+      }),
       context: {
+        mode: options.mode ?? 'e2e',
         documentsDir: options.documentsDir,
         sharedDocumentAvailable: options.sharedDocument !== undefined,
         ...(options.attachmentsByPratica !== undefined && {
@@ -94,18 +101,19 @@ export class DispatchSession {
         }),
       },
     });
-    this.uploadStage = options.dryRun
-      ? undefined
-      : new UploadStage({
-          gateway: options.gateway,
-          limiter: this.limiter,
-          ledger,
-          clock,
-          batchSize: options.tuning.preloadBatchSize,
-          uploadConcurrency: options.tuning.uploadConcurrency,
-          reuseMaxAgeMs: options.tuning.uploadReuseMaxAgeMs,
-          previousUploads: ledger.recordedUploads(),
-        });
+    this.uploadStage =
+      options.dryRun || options.gateway === undefined
+        ? undefined
+        : new UploadStage({
+            gateway: options.gateway,
+            limiter: this.limiter,
+            ledger,
+            clock,
+            batchSize: options.tuning.preloadBatchSize,
+            uploadConcurrency: options.tuning.uploadConcurrency,
+            reuseMaxAgeMs: options.tuning.uploadReuseMaxAgeMs,
+            previousUploads: ledger.recordedUploads(),
+          });
   }
 
   /**
@@ -159,9 +167,10 @@ export class DispatchSession {
       assertProductionCoherence(input);
       return undefined;
     }
+    const api = this.b2b();
     return runEnvironmentPreflight(input, async () => {
       await this.limiter.acquire(0);
-      return this.options.api.groups();
+      return api.groups();
     });
   }
 
@@ -176,6 +185,7 @@ export class DispatchSession {
       this.options.sharedDocument,
       this.inspector,
       this.uploadStage,
+      this.options.dryRun,
     );
     return this.sharedRefs;
   }
@@ -184,9 +194,11 @@ export class DispatchSession {
    * Validation pass (no call): maps, validates and inspects every row.
    *
    * @returns Figures for the send plan
+   * @throws DispatchError `CONFIGURATION` when rows have files to upload and
+   *   no SafeStorage gateway is configured (outside a dry run)
    */
   public async validate(): Promise<ValidationSummary> {
-    return runValidationPass({
+    const summary = await runValidationPass({
       reader: this.reader(),
       factory: this.factory,
       inspector: this.inspector,
@@ -194,6 +206,13 @@ export class DispatchSession {
       runId: this.options.runId,
       presetMode: !this.options.send,
     });
+    if (!this.options.dryRun && this.options.send && summary.rowFiles > 0 && this.uploadStage === undefined) {
+      throw new DispatchError(
+        'CONFIGURATION',
+        `${summary.rowFiles} row files must be uploaded but the SafeStorage gateway is not configured`,
+      );
+    }
+    return summary;
   }
 
   /**
@@ -212,7 +231,7 @@ export class DispatchSession {
     this.requestIdStage = requestIdStage;
     const verifyStage = this.options.verify
       ? new VerifyStage({
-          api: this.options.api,
+          api: this.b2b(),
           limiter: this.limiter,
           ledger: this.ledger,
           clock: this.clock,
@@ -229,7 +248,11 @@ export class DispatchSession {
         })
       : undefined;
     this.verifyStage = verifyStage;
-    const sendStage = this.options.send ? this.createSendStage(verifyStage, requestIdStage, onGlobalError) : undefined;
+    const sendStage = this.options.send
+      ? this.options.mode === 'direct'
+        ? this.createDirectSendStage(onGlobalError)
+        : this.createSendStage(verifyStage, requestIdStage, onGlobalError)
+      : undefined;
     await new DispatchRun({
       reader: this.reader(),
       factory: this.factory,
@@ -239,7 +262,7 @@ export class DispatchSession {
       ...(requestIdStage !== undefined && { requestIdStage }),
       maxInFlight: this.options.tuning.maxInFlight,
       retryFailed: this.options.tuning.retryFailed,
-      retryUncertain: this.options.tuning.retryUncertain || this.options.tuning.retryAmbiguous,
+      retryUncertain: this.options.tuning.retryUncertain,
       failFast: this.options.tuning.failFast,
       controller: this.controller,
     }).execute();
@@ -255,6 +278,17 @@ export class DispatchSession {
   public async checkTimelines(): Promise<void> {
     if (this.options.dryRun || this.options.requestId === undefined) return;
     await this.options.requestId.source.query('AAAA-AAAA-AAAA-000000-A-0');
+  }
+
+  /**
+   * Checks that pn-external-channels answers through the tunnel (§9.1),
+   * before any send. Skipped in a dry run.
+   *
+   * @throws The transport error (tunnel closed, wrong port)
+   */
+  public async checkExternalChannels(): Promise<void> {
+    if (this.options.dryRun) return;
+    await this.directOptions().api.healthCheck();
   }
 
   /** Whether the requestId phase stopped because the AWS credentials expired. */
@@ -345,7 +379,7 @@ export class DispatchSession {
     onGlobalError: GlobalErrorHandler,
   ): SendStage {
     return new SendStage({
-      api: this.options.api,
+      api: this.b2b(),
       limiter: this.limiter,
       rateAdapter: this.rateAdapter,
       ledger: this.ledger,
@@ -368,6 +402,30 @@ export class DispatchSession {
     });
   }
 
+  private createDirectSendStage(onGlobalError: GlobalErrorHandler): DirectSendStage {
+    return new DirectSendStage({
+      api: this.directOptions().api,
+      limiter: this.limiter,
+      ledger: this.ledger,
+      clock: this.clock,
+      resolver: this.resolver(),
+      onGlobalError,
+      signal: this.controller.signal,
+    });
+  }
+
+  private b2b(): B2BApi {
+    if (this.options.api === undefined) throw new DispatchError('CONFIGURATION', 'the SEND B2B API is not configured');
+    return this.options.api;
+  }
+
+  private directOptions(): DirectModeOptions {
+    if (this.options.direct === undefined) {
+      throw new DispatchError('CONFIGURATION', 'direct mode requires pn-external-channels settings');
+    }
+    return this.options.direct;
+  }
+
   private reader(): InputReader {
     return new InputReader(this.options.input);
   }
@@ -375,6 +433,7 @@ export class DispatchSession {
   private resolver(): DocumentResolver {
     return new DocumentResolver({
       inspector: this.inspector,
+      placeholders: this.options.dryRun,
       ...(this.sharedRefs !== undefined && { shared: this.sharedRefs }),
       ...(this.options.attachmentsByPratica !== undefined && {
         attachmentsByPratica: this.options.attachmentsByPratica,
