@@ -1,5 +1,5 @@
 import { AWS, Core } from '@go-automation/go-common';
-import { getConfinfoS3Service, getConfinfoDynamoDBService } from '../utils/awsClients.js';
+import { getConfinfoS3Service, getConfinfoDynamoDBService, getCoreDynamoDBService } from '../utils/awsClients.js';
 import type { SendPaperRequestErrorCheckConfig, GetNotificationAttachmentsResult } from '../types/index.js';
 import { get, iunFromRid } from '../utils/get.js';
 import { resolveOutputPath } from '../utils/resolveOutputPath.js';
@@ -57,7 +57,7 @@ export async function getNotificationAttachments(
   iuns: ReadonlyArray<string>,
 ): Promise<GetNotificationAttachmentsResult> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
-  const dynamoDbService = script.aws.services.dynamoDB;
+  const dynamoDbService = getCoreDynamoDBService(script, config);
   const s3Service = getConfinfoS3Service(script, config);
   const logger = script.logger;
 
