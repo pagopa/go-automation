@@ -70,8 +70,16 @@ export async function getNotificationAttachments(
   logger.info(`Bucket SafeStorage di riferimento: ${bucket}`);
 
   const csvFile = resolveOutputPath(script.paths, `notification_attachments_${timestamp}.csv`, config.outputDir);
-  const notFoundNotificationsFile = resolveOutputPath(script.paths, `not_found_notifications_${timestamp}.txt`, config.outputDir);
-  const notFoundAttachmentsFile = resolveOutputPath(script.paths, `not_found_attachments_${timestamp}.csv`, config.outputDir);
+  const notFoundNotificationsFile = resolveOutputPath(
+    script.paths,
+    `not_found_notifications_${timestamp}.txt`,
+    config.outputDir,
+  );
+  const notFoundAttachmentsFile = resolveOutputPath(
+    script.paths,
+    `not_found_attachments_${timestamp}.csv`,
+    config.outputDir,
+  );
   const errorAttachmentsFile = resolveOutputPath(script.paths, `error_attachments_${timestamp}.csv`, config.outputDir);
 
   const csvExporter = new Core.GOFileListExporter({ outputPath: csvFile });
@@ -202,7 +210,6 @@ export async function getNotificationAttachments(
           `${iun},${documentKey},${documentLogicalState},${documentState},${s3State.hasDeleteMarker}`,
         );
       }
-
     } catch (err: unknown) {
       errorsCount++;
       const errorMsg = err instanceof Error ? err.message : String(err);

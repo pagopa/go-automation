@@ -75,7 +75,8 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'outputDir',
     type: Core.GOConfigParameterType.STRING,
-    description: 'Sottocartella o directory di output per i file di risultato e report (relativa alla cartella di esecuzione GOScript)',
+    description:
+      'Sottocartella o directory di output per i file di risultato e report (relativa alla cartella di esecuzione GOScript)',
     required: false,
     aliases: ['o'],
   },

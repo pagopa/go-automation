@@ -9,13 +9,9 @@ function getCoreProfile(script: Core.GOScript, config: SendPaperRequestErrorChec
   if (config.awsProfileCore) return config.awsProfileCore;
   const match = script.aws.clients.profileNames.find((p) => p.toLowerCase().includes('core'));
   if (match) return match;
-  if (script.aws.clients.profileNames.length === 1) {
-    return script.aws.clients.profileNames[0]!;
-  }
-
   throw new Error(
     `Impossibile identificare il profilo AWS Core tra quelli configurati: [${script.aws.clients.profileNames.join(', ')}]. ` +
-    `Assicurati che il nome del profilo contenga "core" o specifica --awsProfileCore.`
+      `Assicurati che il nome del profilo contenga "core" o specifica --awsProfileCore.`,
   );
 }
 
@@ -28,7 +24,7 @@ function getConfinfoProfile(script: Core.GOScript, config: SendPaperRequestError
   if (match) return match;
   throw new Error(
     `Impossibile identificare il profilo AWS Confinfo tra quelli configurati: [${script.aws.clients.profileNames.join(', ')}]. ` +
-    `Assicurati che il nome del profilo contenga "confinfo" o specifica --awsProfileConfinfo.`
+      `Assicurati che il nome del profilo contenga "confinfo" o specifica --awsProfileConfinfo.`,
   );
 }
 

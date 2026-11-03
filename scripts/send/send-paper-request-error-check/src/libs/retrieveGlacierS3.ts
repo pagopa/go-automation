@@ -28,7 +28,7 @@ function isAarFileKey(fileKey: string): boolean {
 /**
  * Legge ed estrae l'elenco degli elementi (IUN, fileKey, sentAt) da file o da array.
  */
-function parseGlacierItems(rawItems: ReadonlyArray<string>): GlacierItem[] {
+function parseGlacierItems(rawItems: ReadonlyArray<string>, script: Core.GOScript): GlacierItem[] {
   const result: GlacierItem[] = [];
   for (const rawLine of rawItems) {
     const trimmed = rawLine.trim();
@@ -48,7 +48,7 @@ function parseGlacierItems(rawItems: ReadonlyArray<string>): GlacierItem[] {
       });
     } else {
       // Riga malformata: formato atteso IUN,fileKey[,sentAt]
-      Core.GOLogger.warning(`⚠️ Riga ignorata (formato non valido, atteso IUN,fileKey[,sentAt]): "${trimmed}"`);
+      script.logger.warning(`⚠️ Riga ignorata (formato non valido, atteso IUN,fileKey[,sentAt]): "${trimmed}"`);
     }
   }
   return result;
@@ -151,7 +151,9 @@ async function saveFailedGlacierItems(
     await exporter.export(lines);
     script.logger.info(`💾 Elementi Glacier falliti salvati in: ${failedFilePath}`);
   } catch (err) {
-    script.logger.warning(`Impossibile salvare il file glacier_failed.csv: ${err instanceof Error ? err.message : String(err)}`);
+    script.logger.warning(
+      `Impossibile salvare il file glacier_failed.csv: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
@@ -163,7 +165,7 @@ export async function retrieveGlacierS3(
   const logger = script.logger;
   const s3Service = getConfinfoS3Service(script, config);
 
-  const parsedItems = parseGlacierItems(rawItems);
+  const parsedItems = parseGlacierItems(rawItems, script);
 
   if (parsedItems.length === 0) {
     logger.warning('Nessun elemento valido fornito per il restore da Glacier S3.');
@@ -178,8 +180,11 @@ export async function retrieveGlacierS3(
   }
 
   // Filtra rigorosamente solo AAR di notifiche > 1 anno
-  const { eligibleItems, failedItems: filterFailedItems, errorCount: filterErrors } =
-    await filterGlacierEligibleItems(script, config, parsedItems);
+  const {
+    eligibleItems,
+    failedItems: filterFailedItems,
+    errorCount: filterErrors,
+  } = await filterGlacierEligibleItems(script, config, parsedItems);
 
   let errorsCount = filterErrors;
   const failedItems: GlacierItem[] = [...filterFailedItems];
@@ -228,10 +233,7 @@ export async function retrieveGlacierS3(
   let alreadyInProgressCount = 0;
   let alreadyAvailableCount = 0;
 
-  for (let i = 0; i < eligibleItems.length; i++) {
-    const item = eligibleItems[i];
-    if (!item) continue;
-
+  for (const item of eligibleItems) {
     try {
       const { httpStatusCode: statusCode } = await s3Service.restoreObject(
         bucketName,

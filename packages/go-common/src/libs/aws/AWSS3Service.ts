@@ -348,7 +348,7 @@ export class AWSS3Service {
    */
   async listObjectVersions(bucket: string, key: string): Promise<ReadonlyArray<AWSS3VersionEntry>> {
     const results: AWSS3VersionEntry[] = [];
-    let isTruncated = false;
+    let isTruncated: boolean;
     let keyMarker: string | undefined;
     let versionIdMarker: string | undefined;
 

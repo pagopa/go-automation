@@ -163,7 +163,7 @@ export class PaperRequestReporter {
    * @param outputDir - Cartella di destinazione dei file di report
    * @param script
    */
-  public async generateReport(outputDir: string, script: Core.GOScript,): Promise<PaperRequestMetrics> {
+  public async generateReport(outputDir: string, script: Core.GOScript): Promise<PaperRequestMetrics> {
     const timestamp = new Date().toISOString();
     const stepDetails: Record<string, unknown> = {};
 
