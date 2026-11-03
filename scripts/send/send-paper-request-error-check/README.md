@@ -68,7 +68,12 @@ pnpm --filter=send-paper-request-error-check dev --mode check-feedback --inputFi
 pnpm --filter=send-paper-request-error-check dev --mode get-attachments --inputFile ./iuns.txt --envName dev
 
 # 3. Restore da S3 Glacier (con prompt di conferma utente)
-pnpm --filter=send-paper-request-error-check dev --mode retrieve-glacier --inputFile ./glacier_keys.txt --envName dev
+# Formato del file --inputFile per retrieve-glacier:
+# IUN,fileKey[,sentAt]   (una voce per riga; le righe che iniziano con # sono ignorate)
+# Es:
+# AAAA-BBBB-CCCC-202401-X-1,PN_AAR-AAAA-BBBB-CCCC-202401-X-1-uuid.pdf
+# AAAA-BBBB-CCCC-202312-Y-2,PN_AAR-uuid.pdf,2023-12-15T10:00:00Z
+pnpm --filter=send-paper-request-error-check dev --mode retrieve-glacier --inputFile ./glacier_items.txt --envName dev
 
 # 4. Validazione Magic Bytes PDF su S3
 pnpm --filter=send-paper-request-error-check dev --mode validate-pdf --inputFile ./s3_keys.txt --envName dev

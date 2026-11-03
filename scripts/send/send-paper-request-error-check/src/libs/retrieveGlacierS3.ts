@@ -46,11 +46,9 @@ function parseGlacierItems(rawItems: ReadonlyArray<string>): GlacierItem[] {
         iun: parts[0].trim(),
         fileKey: parts[1].trim(),
       });
-    } else if (parts[0]) {
-      result.push({
-        iun: 'N/A',
-        fileKey: parts[0].trim(),
-      });
+    } else {
+      // Riga malformata: formato atteso IUN,fileKey[,sentAt]
+      Core.GOLogger.warning(`⚠️ Riga ignorata (formato non valido, atteso IUN,fileKey[,sentAt]): "${trimmed}"`);
     }
   }
   return result;
