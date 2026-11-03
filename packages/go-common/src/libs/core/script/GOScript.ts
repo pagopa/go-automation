@@ -41,6 +41,7 @@ import type { GOPathTypeValue } from '../utils/index.js';
 import { GOScriptConfigLoader } from './GOScriptConfigLoader.js';
 import { defaultAwsCredentialsOptions, configTableWidths } from './GOScriptDefaults.js';
 import { GOScriptPresetLoader } from './GOScriptPresetLoader.js';
+import { signalExitCode } from './signalExitCode.js';
 import {
   GOSCRIPT_PRESET_FILE_PARAMETER,
   GOSCRIPT_PRESET_NAME_PARAMETER,
@@ -1304,7 +1305,8 @@ export class GOScript {
    * On signal reception:
    * 1. Logs warning about shutdown initiation
    * 2. Calls cleanup() to release resources
-   * 3. Exits with code 0 (or 1 if forced by repeated signal)
+   * 3. Exits with code 128 + signal number (130 for SIGINT, 143 for SIGTERM),
+   *    or 1 if forced by a repeated signal or if cleanup fails
    */
   /**
    * Detect whether the process is running under a test runner.
@@ -1373,7 +1375,7 @@ export class GOScript {
         this.cleanup()
           .then(() => {
             this.logger.info('Cleanup completed, exiting...');
-            process.exit(0);
+            process.exit(signalExitCode(signal));
           })
           .catch((error: unknown) => {
             this.logger.error(`Error during cleanup: ${getErrorMessage(error)}`);

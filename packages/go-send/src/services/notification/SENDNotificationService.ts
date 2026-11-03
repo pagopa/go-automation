@@ -11,6 +11,7 @@ import type { SENDNotificationServiceConfig } from './models/SENDNotificationSer
 import type { SENDNotificationStatusError } from './models/SENDNotificationStatusResponse.js';
 import type { SENDNotificationStatusResponse } from './models/SENDNotificationStatusResponse.js';
 import { SENDNotificationStatus } from './models/SENDNotificationStatus.js';
+import type { SENDApiVersion } from './models/SENDApiVersion.js';
 
 /**
  * Group information from PA registry
@@ -112,7 +113,7 @@ export class SENDNotificationService {
    */
   async sendNotification(
     notification: SENDNotificationRequest,
-    apiVersion: 'v2.5' | 'v2.4' = 'v2.4',
+    apiVersion: SENDApiVersion = 'v2.4',
   ): Promise<SENDNotificationCreationResponse> {
     const path = `/delivery/${apiVersion}/requests`;
 
@@ -127,9 +128,46 @@ export class SENDNotificationService {
    * @returns Notification status
    */
   async getNotificationStatus(notificationRequestId: string): Promise<SENDNotificationStatusResponse> {
-    const path = `/delivery/requests?notificationRequestId=${notificationRequestId}`;
+    // Base64 ids contain '+', '/' and '=': unencoded, '+' would reach the server as a space
+    const path = `/delivery/requests?notificationRequestId=${encodeURIComponent(notificationRequestId)}`;
     const response = await this.httpClient.get<SENDNotificationStatusResponse>(path);
     return response;
+  }
+
+  /**
+   * Get notification status from a versioned endpoint
+   * @param notificationRequestId - Notification request ID
+   * @param apiVersion - API version (same as the send)
+   * @returns Notification status, with `retryAfter` while `WAITING`
+   */
+  async getNotificationRequestStatus(
+    notificationRequestId: string,
+    apiVersion: SENDApiVersion,
+  ): Promise<SENDNotificationStatusResponse> {
+    const query = `notificationRequestId=${encodeURIComponent(notificationRequestId)}`;
+    return await this.httpClient.get<SENDNotificationStatusResponse>(`/delivery/${apiVersion}/requests?${query}`);
+  }
+
+  /**
+   * Look up a notification request by protocol number and idempotence token
+   *
+   * Used to reconcile an ambiguous send outcome: `404` (GOHttpClientError)
+   * means the notification was not created.
+   *
+   * @param paProtocolNumber - Protocol number sent with the request
+   * @param idempotenceToken - Idempotence token sent with the request
+   * @param apiVersion - API version (same as the send)
+   * @returns Notification status of the existing request
+   */
+  async getNotificationStatusByProtocol(
+    paProtocolNumber: string,
+    idempotenceToken: string,
+    apiVersion: SENDApiVersion,
+  ): Promise<SENDNotificationStatusResponse> {
+    const query =
+      `paProtocolNumber=${encodeURIComponent(paProtocolNumber)}` +
+      `&idempotenceToken=${encodeURIComponent(idempotenceToken)}`;
+    return await this.httpClient.get<SENDNotificationStatusResponse>(`/delivery/${apiVersion}/requests?${query}`);
   }
 
   /**
@@ -248,7 +286,7 @@ export class SENDNotificationService {
    * @returns Abortable request with promise and abort function
    */
   getNotificationStatusAbortable(notificationRequestId: string): GOAbortableRequest<SENDNotificationStatusResponse> {
-    const path = `/delivery/requests?notificationRequestId=${notificationRequestId}`;
+    const path = `/delivery/requests?notificationRequestId=${encodeURIComponent(notificationRequestId)}`;
     return this.httpClient.getAbortable<SENDNotificationStatusResponse>(path);
   }
 }

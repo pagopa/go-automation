@@ -816,6 +816,19 @@ importers:
         specifier: 'catalog:'
         version: 1.3.14
 
+  scripts/send/send-dispatch-notifications:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+      '@go-automation/go-send':
+        specifier: workspace:*
+        version: link:../../../packages/go-send
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.19.2
+
   scripts/send/send-download-safestorage-attachments:
     dependencies:
       '@go-automation/go-common':

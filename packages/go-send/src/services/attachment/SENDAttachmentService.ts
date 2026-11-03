@@ -51,6 +51,37 @@ function truncateForError(value: unknown): string {
   return redacted.length > maxLength ? `${redacted.slice(0, maxLength)}…` : redacted;
 }
 
+/**
+ * Validates one item of a preload response: the fields required by the
+ * presigned upload must be present (a malformed response would otherwise
+ * surface as a cryptic fetch error later, e.g. "Failed to parse URL from
+ * undefined"), and only PUT uploads are supported.
+ */
+function validatePreloadItem(item: unknown): SENDPreloadResponse {
+  if (item === null || typeof item !== 'object') {
+    throw new Error('Empty preload response from SafeStorage');
+  }
+  const candidate = item as Record<string, unknown>;
+  const missingFields = (['url', 'key', 'secret'] as const).filter(
+    (field) => typeof candidate[field] !== 'string' || candidate[field] === '',
+  );
+  if (missingFields.length > 0) {
+    throw new Error(
+      `Invalid preload response from SafeStorage (missing or empty: ${missingFields.join(', ')}): ${formatPreloadResponseForError(
+        candidate,
+      )}`,
+    );
+  }
+  if (candidate['httpMethod'] === 'POST') {
+    throw new Error(
+      `SafeStorage requested an HTTP POST upload, which is not supported yet (expected PUT): ${formatPreloadResponseForError(
+        candidate,
+      )}`,
+    );
+  }
+  return candidate as unknown as SENDPreloadResponse; // Safe: url, key and secret validated above
+}
+
 export class SENDAttachmentService {
   constructor(private readonly httpClient: GOHttpClient) {}
 
@@ -77,17 +108,28 @@ export class SENDAttachmentService {
     sha256: string,
     contentType: string = DEFAULT_CONTENT_TYPE,
   ): Promise<SENDPreloadResponse> {
-    const preloadRequest: SENDPreloadRequest[] = [
-      {
-        preloadIdx: '0',
-        contentType,
-        sha256,
-      },
-    ];
+    const [response] = await this.preloadMany([{ preloadIdx: '0', contentType, sha256 }]);
+    if (response === undefined) {
+      throw new Error('Empty preload response from SafeStorage');
+    }
+    return response;
+  }
 
+  /**
+   * Requests presigned upload URLs for several files in one call.
+   *
+   * SEND accepts at most 15 items per call (`400 PN_GENERIC_INVALIDPARAMETER_SIZE`
+   * beyond). Every response item is validated (url, key and secret present,
+   * PUT upload); responses are returned in request order, matched by
+   * `preloadIdx` when the API returns it.
+   *
+   * @param requests - Preload requests, each with a distinct `preloadIdx`
+   * @returns One validated preload response per request, in request order
+   */
+  async preloadMany(requests: ReadonlyArray<SENDPreloadRequest>): Promise<ReadonlyArray<SENDPreloadResponse>> {
     const rawResponse = await this.httpClient.post<SENDPreloadResponse[] | string>(
       '/delivery/attachments/preload',
-      preloadRequest,
+      requests,
     );
 
     // Some PN environments return the JSON body with a non-JSON content
@@ -99,42 +141,42 @@ export class SENDAttachmentService {
         `Unexpected preload response from SafeStorage (expected a JSON array): ${truncateForError(response)}`,
       );
     }
-
     if (response.length === 0) {
       throw new Error('Empty preload response from SafeStorage');
     }
-
-    const firstResponse: unknown = response[0];
-    if (firstResponse === null || typeof firstResponse !== 'object') {
-      throw new Error('Empty preload response from SafeStorage');
+    if (response.length !== requests.length) {
+      throw new Error(`Preload response from SafeStorage has ${response.length} items for ${requests.length} requests`);
     }
 
-    const candidate = firstResponse as Record<string, unknown>;
-
-    // Validate the fields required by the presigned upload: a malformed
-    // response would otherwise surface as a cryptic fetch error later
-    // (e.g. "Failed to parse URL from undefined")
-    const missingFields = (['url', 'key', 'secret'] as const).filter(
-      (field) => typeof candidate[field] !== 'string' || candidate[field] === '',
-    );
-    if (missingFields.length > 0) {
-      throw new Error(
-        `Invalid preload response from SafeStorage (missing or empty: ${missingFields.join(', ')}): ${formatPreloadResponseForError(
-          candidate,
-        )}`,
-      );
+    const validated = response.map((item: unknown) => validatePreloadItem(item));
+    const byIdx = new Map<string, SENDPreloadResponse>();
+    for (const item of validated) {
+      if (item.preloadIdx !== undefined) byIdx.set(item.preloadIdx, item);
     }
+    return requests.map((request, index) => {
+      const item = byIdx.get(request.preloadIdx) ?? validated[index];
+      if (item === undefined) throw new Error(`Preload response missing for preloadIdx ${request.preloadIdx}`);
+      return item;
+    });
+  }
 
-    // The API may request a presigned POST upload; only PUT is supported
-    if (candidate['httpMethod'] === 'POST') {
-      throw new Error(
-        `SafeStorage requested an HTTP POST upload, which is not supported yet (expected PUT): ${formatPreloadResponseForError(
-          candidate,
-        )}`,
-      );
-    }
-
-    return candidate as unknown as SENDPreloadResponse; // Safe: url, key and secret validated above
+  /**
+   * Uploads content to a presigned URL obtained from {@link preloadMany}.
+   *
+   * @param preload - Preload response of the file
+   * @param buffer - File content
+   * @param sha256 - Base64 SHA-256 of `buffer`, as sent in the preload request
+   * @param contentType - MIME type, as sent in the preload request
+   * @returns The version token (`x-amz-version-id`, or the preload one, or `v1`)
+   */
+  async uploadToPresignedUrl(
+    preload: SENDPreloadResponse,
+    buffer: Buffer,
+    sha256: string,
+    contentType: string,
+  ): Promise<string> {
+    const headers = await this.uploadToSafeStorage(preload.url, buffer, sha256, preload.secret, contentType);
+    return this.buildResult(preload, sha256, buffer, headers['x-amz-version-id']).ref.versionToken;
   }
 
   /**

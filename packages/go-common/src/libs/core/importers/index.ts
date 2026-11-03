@@ -27,3 +27,6 @@ export * from './file/GOFileListImporterOptions.js';
 // Text Importers
 export * from './text/GOTextFileImporter.js';
 export * from './text/GOTextFileImporterOptions.js';
+export * from './binary/GOBinaryFileImporter.js';
+export * from './binary/GOBinaryFileImporterOptions.js';
+export * from './binary/GOFileTooLargeError.js';

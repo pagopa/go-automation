@@ -15,10 +15,11 @@
 9. [Core - File Operations](#core---file-operations)
 10. [Core - Environment Detection](#core---environment-detection)
 11. [Core - Deployment Mode](#core---deployment-mode)
-12. [Core - DynamoDB Query Service](#core---dynamodb-query-service)
-13. [AWS - Credentials Management](#aws---credentials-management)
-14. [SEND SDK](#send-sdk)
-15. [SEND - Timeline Service](#send---timeline-service)
+12. [Core - Rate Limiter](#core---rate-limiter)
+13. [Core - DynamoDB Query Service](#core---dynamodb-query-service)
+14. [AWS - Credentials Management](#aws---credentials-management)
+15. [SEND SDK](#send-sdk)
+16. [SEND - Timeline Service](#send---timeline-service)
 
 ---
 
@@ -293,7 +294,7 @@ Quando viene ricevuto un segnale:
 
 1. **Log warning**: Viene loggato l'inizio dello shutdown
 2. **Cleanup**: Viene chiamato il metodo `cleanup()` per rilasciare le risorse
-3. **Exit**: Il processo termina con codice 0
+3. **Exit**: Il processo termina con codice `128 + numero del segnale` (130 per SIGINT, 143 per SIGTERM), così shell e scheduler distinguono un run interrotto da uno concluso; se il cleanup fallisce, codice 1
 
 Se viene ricevuto un secondo segnale durante lo shutdown, il processo termina immediatamente con codice 1.
 
@@ -308,7 +309,7 @@ $ node dist/main.js
 [INFO] Waiting for current operations to complete...
 [INFO] Cleanup completed
 $ echo $?
-0
+130
 ```
 
 #### Hook onCleanup
@@ -1167,6 +1168,39 @@ La nuova funzionalità e **completamente retrocompatibile**:
 - Script esistenti funzionano senza modifiche
 - Il comportamento di default nel monorepo non cambia
 - Le nuove variabili d'ambiente sono opzionali
+
+---
+
+## Core - Rate Limiter
+
+`Core.GORateLimiter` limita la **frequenza** delle operazioni con un token bucket; `Core.GOConcurrencyPool` limita invece quante operazioni sono in corso contemporaneamente. I due si combinano: il limiter decide quando partire, il pool quante richieste restano aperte.
+
+```typescript
+import { Core } from '@go-automation/go-common';
+
+const limiter = new Core.GORateLimiter({ ratePerSecond: 20, priorities: 2 });
+
+await limiter.acquire(0); // priorità alta (es. invio)
+await limiter.acquire(1, signal); // priorità bassa (es. verifica), annullabile
+
+limiter.setRate(15); // es. dopo un 429
+console.log(limiter.stats); // granted, queued, queuedByPriority, averageWaitMs, maxWaitMs
+```
+
+| Opzione         | Default             | Descrizione                                                                           |
+| --------------- | ------------------- | ------------------------------------------------------------------------------------- |
+| `ratePerSecond` | —                   | permessi generati al secondo (> 0)                                                    |
+| `burst`         | `1`                 | capienza del bucket; con `1` i permessi sono distanziati di `1000 / ratePerSecond` ms |
+| `priorities`    | `1`                 | numero di code; `0` è la priorità più alta                                            |
+| `sleeper`       | `GODefaultSleeper`  | timer interno, iniettabile nei test                                                   |
+| `now`           | `performance.now()` | clock in millisecondi, iniettabile nei test                                           |
+
+Caratteristiche:
+
+- **Priorità rigorosa:** un permesso va alla priorità `p` solo se le code più prioritarie sono vuote; FIFO nella stessa priorità. Un chiamante nuovo non scavalca chi è già in coda.
+- **Un solo timer** interno, attivo solo mentre qualcuno aspetta; `acquire` e assegnazione O(1).
+- **Abort:** con un `AbortSignal` il chiamante esce dalla coda senza consumare permessi; la promise viene rifiutata con il `reason` del segnale.
+- **Stato per istanza:** si crea un limiter per run e lo si passa ai componenti che condividono lo stesso budget.
 
 ---
 

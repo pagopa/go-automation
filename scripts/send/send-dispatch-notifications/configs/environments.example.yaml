@@ -1,0 +1,40 @@
+# environments.example.yaml — copia in data/send-dispatch-notifications/configs/environments.yaml
+# (data/ è fuori da git) e sostituisci i placeholder.
+#
+# Un ambiente = una combinazione ente × ambiente SEND (§7.4 di EVO-SENDNOTIF-OPUS-01).
+# - apiKey è SOLO un riferimento a variabile d'ambiente: la chiave sta nella shell
+#   o nel .env di GOScript, mai in questo file;
+# - i codici (codici fiscali, CAP) vanno tra virgolette: senza, YAML li legge come
+#   numeri e perde gli zeri iniziali;
+# - sender.taxId deve essere la PA proprietaria dell'API key (altrimenti SEND risponde 403).
+environments:
+  ente-test:
+    description: Ente di esempio — TEST
+    basePath: api.test.notifichedigitali.it
+    apiKey: ${PN_API_KEY_ENTE_TEST}
+    groupId: '<group-id>' # ente/gruppo a nome del quale si invia; omettere se la chiave non ha gruppi
+    production: false
+    sender:
+      taxId: '<codice-fiscale-PA>'
+      denomination: Ente di esempio
+    defaults: # stessi nomi dei campi canonici (§6.1)
+      recipient.type: PF
+      notificationOptions.taxonomyCode: 010202N
+      documents.shared:
+        files: [./documenti/atto-test.pdf] # caricato una volta per run, path relativo a questo file
+        title: Atto
+
+  ente-uat:
+    description: Ente di esempio — UAT, documento già caricato
+    basePath: api.uat.notifichedigitali.it
+    apiKey: ${PN_API_KEY_ENTE_UAT}
+    groupId: '<group-id>'
+    production: false
+    sender: { taxId: '<codice-fiscale-PA>', denomination: Ente di esempio }
+    defaults:
+      documents.shared:
+        reference: # documento già su SafeStorage in questo ambiente
+          key: PN_NOTIFICATION_ATTACHMENTS-<hash>.pdf
+          versionToken: v1
+          sha256: <base64>
+          title: Atto
