@@ -339,45 +339,64 @@ export class AWSS3Service {
    * Lists all versions and delete markers for an object in S3.
    * Results are filtered by exact key match (the Prefix parameter may return
    * entries for keys that share the same prefix, so we filter client-side).
-   * Complexity: O(1) — single ListObjectVersions call
+   * Paginates automatically across multiple pages if the result is truncated.
+   * Complexity: O(P) where P is the number of pages returned by S3
    *
    * @param bucket - S3 bucket name
    * @param key - S3 object key to look up
    * @returns Array of version and delete-marker entries for that exact key
    */
   async listObjectVersions(bucket: string, key: string): Promise<ReadonlyArray<AWSS3VersionEntry>> {
-    const response = await this.client.send(
-      new ListObjectVersionsCommand({
-        Bucket: bucket,
-        Prefix: key,
-      }),
-    );
-
     const results: AWSS3VersionEntry[] = [];
+    let isTruncated = false;
+    let keyMarker: string | undefined;
+    let versionIdMarker: string | undefined;
 
-    for (const v of response.Versions ?? []) {
-      if (v.Key === key) {
-        results.push({
-          key: v.Key,
-          ...(v.VersionId !== undefined ? { versionId: v.VersionId } : {}),
-          ...(v.IsLatest !== undefined ? { isLatest: v.IsLatest } : {}),
-          isDeleteMarker: false,
-          ...(v.LastModified ? { lastModified: v.LastModified } : {}),
-        });
-      }
-    }
+    do {
+      const response = await this.client.send(
+        new ListObjectVersionsCommand({
+          Bucket: bucket,
+          Prefix: key,
+          ...(keyMarker ? { KeyMarker: keyMarker } : {}),
+          ...(versionIdMarker ? { VersionIdMarker: versionIdMarker } : {}),
+        }),
+      );
 
-    for (const dm of response.DeleteMarkers ?? []) {
-      if (dm.Key === key) {
-        results.push({
-          key: dm.Key,
-          ...(dm.VersionId !== undefined ? { versionId: dm.VersionId } : {}),
-          ...(dm.IsLatest !== undefined ? { isLatest: dm.IsLatest } : {}),
-          isDeleteMarker: true,
-          ...(dm.LastModified ? { lastModified: dm.LastModified } : {}),
-        });
+      for (const v of response.Versions ?? []) {
+        if (v.Key === key) {
+          results.push({
+            key: v.Key,
+            ...(v.VersionId !== undefined ? { versionId: v.VersionId } : {}),
+            ...(v.IsLatest !== undefined ? { isLatest: v.IsLatest } : {}),
+            isDeleteMarker: false,
+            ...(v.LastModified ? { lastModified: v.LastModified } : {}),
+          });
+        }
       }
-    }
+
+      for (const dm of response.DeleteMarkers ?? []) {
+        if (dm.Key === key) {
+          results.push({
+            key: dm.Key,
+            ...(dm.VersionId !== undefined ? { versionId: dm.VersionId } : {}),
+            ...(dm.IsLatest !== undefined ? { isLatest: dm.IsLatest } : {}),
+            isDeleteMarker: true,
+            ...(dm.LastModified ? { lastModified: dm.LastModified } : {}),
+          });
+        }
+      }
+
+      isTruncated = response.IsTruncated ?? false;
+      keyMarker = response.NextKeyMarker;
+      versionIdMarker = response.NextVersionIdMarker;
+
+      // Ottimizzazione: S3 ordina le chiavi in modo strettamente lessicografico.
+      // Se il prossimo NextKeyMarker è già diverso da 'key', significa che tutte
+      // le versioni di 'key' sono già state restituite e possiamo fermarci.
+      if (keyMarker && keyMarker !== key) {
+        break;
+      }
+    } while (isTruncated && (keyMarker !== undefined || versionIdMarker !== undefined));
 
     return results;
   }
