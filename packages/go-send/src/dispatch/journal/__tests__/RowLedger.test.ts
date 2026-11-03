@@ -4,6 +4,7 @@ import * as path from 'node:path';
 
 import type { RowState } from '../../model/RowState.js';
 import { decideRowAction } from '../../run/decideRowAction.js';
+import type { RowActionPolicy } from '../../run/RowActionPolicy.js';
 import { MemorySink } from '../../__tests__/helpers/MemorySink.js';
 import { readFixture, tempDir, writeFixture } from '../../__tests__/helpers/testFiles.js';
 import { applyJournalEntry } from '../applyJournalEntry.js';
@@ -101,22 +102,43 @@ describe('decideRowAction', () => {
       status,
       sendAttempts: 1,
       verifyChecks: 0,
+      requestIdChecks: 0,
       warnings: [],
       ...(retryable !== undefined && { error: { code: 'E', message: 'm', retryable } }),
     }) as RowState;
 
+  const policy = (
+    retryFailed: boolean,
+    retryUncertain: boolean,
+    verify: boolean,
+    requestId = false,
+  ): RowActionPolicy => ({
+    retryFailed,
+    retryUncertain,
+    verify,
+    requestId,
+  });
+
   it('maps resume states to actions', () => {
-    assert.equal(decideRowAction(undefined, false, false, true), 'send');
-    assert.equal(decideRowAction(state('SENDING'), false, false, true), 'send');
-    assert.equal(decideRowAction(state('SEND_UNCERTAIN'), false, false, true), 'skip');
-    assert.equal(decideRowAction(state('SEND_UNCERTAIN'), false, true, true), 'send');
-    assert.equal(decideRowAction(state('SEND_FAILED', true), false, false, true), 'skip');
-    assert.equal(decideRowAction(state('SEND_FAILED', true), true, false, true), 'send');
-    assert.equal(decideRowAction(state('SEND_FAILED', false), true, false, true), 'skip');
-    assert.equal(decideRowAction(state('SENT'), false, false, true), 'verify');
-    assert.equal(decideRowAction(state('SENT'), false, false, false), 'skip');
-    assert.equal(decideRowAction(state('VERIFY_TIMEOUT'), false, false, true), 'verify');
-    assert.equal(decideRowAction(state('ACCEPTED'), true, true, true), 'skip');
-    assert.equal(decideRowAction(state('INVALID'), true, true, true), 'skip');
+    assert.equal(decideRowAction(undefined, policy(false, false, true)), 'send');
+    assert.equal(decideRowAction(state('SENDING'), policy(false, false, true)), 'send');
+    assert.equal(decideRowAction(state('SEND_UNCERTAIN'), policy(false, false, true)), 'skip');
+    assert.equal(decideRowAction(state('SEND_UNCERTAIN'), policy(false, true, true)), 'send');
+    assert.equal(decideRowAction(state('SEND_FAILED', true), policy(false, false, true)), 'skip');
+    assert.equal(decideRowAction(state('SEND_FAILED', true), policy(true, false, true)), 'send');
+    assert.equal(decideRowAction(state('SEND_FAILED', false), policy(true, false, true)), 'skip');
+    assert.equal(decideRowAction(state('SENT'), policy(false, false, true)), 'verify');
+    assert.equal(decideRowAction(state('SENT'), policy(false, false, false)), 'skip');
+    assert.equal(decideRowAction(state('VERIFY_TIMEOUT'), policy(false, false, true)), 'verify');
+    assert.equal(decideRowAction(state('ACCEPTED'), policy(true, true, true)), 'skip');
+    assert.equal(decideRowAction(state('INVALID'), policy(true, true, true)), 'skip');
+  });
+
+  it('routes rows to the requestId phase', () => {
+    assert.equal(decideRowAction(state('SENT'), policy(false, false, false, true)), 'request-id');
+    assert.equal(decideRowAction(state('ACCEPTED'), policy(false, false, true, true)), 'request-id');
+    assert.equal(decideRowAction(state('REQUEST_ID_NOT_FOUND'), policy(false, false, true, true)), 'request-id');
+    assert.equal(decideRowAction(state('REQUEST_ID_FOUND'), policy(false, false, true, true)), 'skip');
+    assert.equal(decideRowAction(state('REFUSED'), policy(false, false, true, true)), 'skip');
   });
 });

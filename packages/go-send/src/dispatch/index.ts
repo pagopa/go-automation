@@ -87,15 +87,31 @@ export type { SendFailure } from './channels/SendFailure.js';
 
 // Journal
 export type { JournalEntry } from './journal/JournalEntry.js';
+export type { TransitionHandler } from './journal/TransitionHandler.js';
 export { Journal } from './journal/Journal.js';
 
+// requestId (§8.3)
+export type { RequestIdSelect } from './requestId/RequestIdSelect.js';
+export type { RequestIdWait } from './requestId/RequestIdWait.js';
+export type { RequestIdSelection } from './requestId/RequestIdSelection.js';
+export type { RequestIdSelectionOptions } from './requestId/RequestIdSelectionOptions.js';
+export type { TimelineSource } from './requestId/TimelineSource.js';
+export type { CredentialErrorPredicate } from './requestId/CredentialErrorPredicate.js';
+export { DEFAULT_REQUEST_ID_OPTIONS } from './requestId/defaultRequestIdOptions.js';
+export { selectRequestIds } from './requestId/selectRequestIds.js';
+export { DynamoTimelineSource } from './requestId/DynamoTimelineSource.js';
+export { RequestIdStage } from './requestId/RequestIdStage.js';
+
 // Run
+export type { DispatchRequestIdOptions } from './run/DispatchRequestIdOptions.js';
 export type { DispatchSessionOptions } from './run/DispatchSessionOptions.js';
 export type { DispatchSessionTuning } from './run/DispatchSessionTuning.js';
 export type { DispatchSessionOutput } from './run/DispatchSessionOutput.js';
 export type { DispatchProgress } from './run/DispatchProgress.js';
 export type { ValidationSummary } from './run/ValidationSummary.js';
 export type { RunInfo } from './run/RunInfo.js';
+export type { FailureGroup } from './run/FailureGroup.js';
+export type { SendStatistics } from './run/SendStatistics.js';
 export { DispatchSession } from './run/DispatchSession.js';
 export type { DispatchRunFiles } from './run/DispatchRunFiles.js';
 export { RUN_FILES, readRunInfo } from './run/runFiles.js';

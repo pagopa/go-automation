@@ -70,6 +70,7 @@ export async function resolveTarget(
   const apiKey = config.pnApiKey ?? environment.apiKey;
   const groupId = config.groupId ?? environment.groupId;
   const sender = environment.sender ?? cliSender(config);
+  const awsProfile = environment.awsProfile;
   return {
     name: environment.name,
     basePath: config.basePath === undefined ? environment.basePath : Dispatch.normalizeBasePath(config.basePath),
@@ -84,6 +85,7 @@ export async function resolveTarget(
     ...(groupId !== undefined && { groupId }),
     ...(sender !== undefined && { sender }),
     ...(environment.sharedDocument !== undefined && { sharedDocument: environment.sharedDocument }),
+    ...(awsProfile !== undefined && { awsProfile }),
   };
 }
 

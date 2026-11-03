@@ -7,10 +7,10 @@ import type { Core } from '@go-automation/go-common';
 import { Dispatch } from '@go-automation/go-send';
 
 import type { DispatchTarget } from '../types/DispatchTarget.js';
-import type { ResolvedRun } from '../types/ResolvedRun.js';
+import type { ExecutionContext } from '../types/ExecutionContext.js';
 import type { SendDispatchNotificationsConfig } from '../types/SendDispatchNotificationsConfig.js';
 import { confirmRun } from './confirmRun.js';
-import { createSessionOptions } from './createSessionOptions.js';
+import { createSessionOptions, timelinesProfile } from './createSessionOptions.js';
 import type { DispatchShutdown } from './DispatchShutdown.js';
 import { displayPlan } from './displayPlan.js';
 import { displaySummary, exitCodeFor } from './displaySummary.js';
@@ -38,14 +38,33 @@ export async function runDispatch(
   const session = await Dispatch.DispatchSession.open(options);
   try {
     script.logger.section('Preflight');
-    const preflight = await session.preflight({
-      basePath: target.basePath,
-      production: target.production,
-      ...(target.groupId !== undefined && { groupId: target.groupId }),
-    });
+    const usesB2B = options.send || options.verify;
+    const preflight = usesB2B
+      ? await session.preflight({
+          basePath: target.basePath,
+          production: target.production,
+          ...(target.groupId !== undefined && { groupId: target.groupId }),
+        })
+      : undefined;
+    if (options.requestId !== undefined && !options.dryRun) {
+      // Credentials of --aws-profiles are validated by GOScript at startup; this checks the table.
+      await session.checkTimelines();
+      script.logger.success('pn-Timelines leggibile');
+    }
     const shared = await session.prepareDocuments();
+    const validationStarted = Date.now();
     const summary = await session.validate();
-    displayPlan(script.logger, { target, options, run, preflight, shared, summary });
+    const validationMs = Date.now() - validationStarted;
+    const awsProfile = options.requestId === undefined ? undefined : timelinesProfile(config, target);
+    displayPlan(script.logger, {
+      target,
+      options,
+      run,
+      preflight,
+      shared,
+      summary,
+      ...(awsProfile !== undefined && { timelinesProfile: awsProfile }),
+    });
 
     if (summary.duplicateRowKeys.length > 0) throw new Error('Duplicate row keys: nothing was sent');
     if (config.failFast && summary.invalidRows > 0)
@@ -56,24 +75,19 @@ export async function runDispatch(
       return summary.invalidRows > 0 ? 2 : 0;
     }
 
-    return await execute(script, session, run, options, summary, shutdown);
+    return await execute(script, { session, run, options, summary, shutdown, validationMs });
   } finally {
     await session.close();
   }
 }
 
-async function execute(
-  script: Core.GOScript,
-  session: Dispatch.DispatchSession,
-  run: ResolvedRun,
-  options: Dispatch.DispatchSessionOptions,
-  summary: Dispatch.ValidationSummary,
-  shutdown: DispatchShutdown,
-): Promise<number> {
+async function execute(script: Core.GOScript, context: ExecutionContext): Promise<number> {
+  const { session, run, options, summary, shutdown } = context;
   script.logger.section('Invio');
   const reporter = new ProgressReporter(script.prompt, session, summary.validRows);
   shutdown.attach(session);
   reporter.start();
+  const started = Date.now();
   let globalError: Dispatch.DispatchError | undefined;
   try {
     await session.execute();
@@ -87,10 +101,24 @@ async function execute(
   }
 
   const progress = session.progress();
-  displaySummary(script.logger, progress, options.output, run.runDir);
+  displaySummary(script.logger, {
+    progress,
+    failures: session.failures(),
+    statistics: session.sendStatistics(),
+    validationMs: context.validationMs,
+    executionMs: Date.now() - started,
+    output: options.output,
+    runDir: run.runDir,
+  });
   if (globalError !== undefined) {
     script.logger.error(`Run fermato: ${globalError.code} — ${globalError.message}`);
     return 1;
+  }
+  if (session.requestIdCredentialsExpired) {
+    script.logger.warning(
+      `Credenziali AWS scadute durante l'attesa del requestId: esegui aws sso login, poi --resume ${run.runName}`,
+    );
+    return 2;
   }
   if (shutdown.wasInterrupted) {
     script.logger.warning(`Run interrotto: riprendi con --resume ${run.runName}`);

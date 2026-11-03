@@ -14,6 +14,9 @@ const STATUS_BY_EVENT: ReadonlyMap<JournalEvent, RowStatus> = new Map<JournalEve
   ['ACCEPTED', 'ACCEPTED'],
   ['REFUSED', 'REFUSED'],
   ['VERIFY_TIMEOUT', 'VERIFY_TIMEOUT'],
+  ['PRESET', 'SENT'],
+  ['REQUEST_ID_FOUND', 'REQUEST_ID_FOUND'],
+  ['REQUEST_ID_NOT_FOUND', 'REQUEST_ID_NOT_FOUND'],
 ]);
 
 /**
@@ -35,6 +38,7 @@ export function applyJournalEntry(state: RowState | undefined, entry: JournalEnt
     status: 'PENDING',
     sendAttempts: 0,
     verifyChecks: 0,
+    requestIdChecks: 0,
     warnings: [],
   };
 
@@ -59,7 +63,23 @@ export function applyJournalEntry(state: RowState | undefined, entry: JournalEnt
     case 'VERIFY_TIMEOUT':
       return withError({ ...next, verifyChecks: entry.attempt ?? base.verifyChecks }, entry);
     case 'RECONCILING':
+    case 'PRESET':
       return next;
+    case 'REQUEST_ID_FOUND':
+      return {
+        ...next,
+        ...(entry.requestId !== undefined && { requestId: entry.requestId }),
+        ...(entry.requestIds !== undefined && { requestIds: entry.requestIds }),
+        requestIdReason: entry.requestIdReason ?? 'FOUND',
+        requestIdFoundAt: entry.ts,
+        requestIdChecks: entry.attempt ?? base.requestIdChecks,
+      };
+    case 'REQUEST_ID_NOT_FOUND':
+      return {
+        ...next,
+        ...(entry.requestIdReason !== undefined && { requestIdReason: entry.requestIdReason }),
+        requestIdChecks: entry.attempt ?? base.requestIdChecks,
+      };
     default:
       return withError(next, entry);
   }

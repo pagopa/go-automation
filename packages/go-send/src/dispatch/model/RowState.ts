@@ -22,6 +22,11 @@ export interface RowState {
   readonly acceptedAt?: string;
   readonly sendAttempts: number;
   readonly verifyChecks: number;
+  readonly requestId?: string;
+  readonly requestIds?: Readonly<Record<string, string>>;
+  readonly requestIdReason?: string;
+  readonly requestIdFoundAt?: string;
+  readonly requestIdChecks: number;
   readonly error?: RowError;
   readonly warnings: ReadonlyArray<string>;
 }

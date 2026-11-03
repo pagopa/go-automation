@@ -13,4 +13,6 @@ export interface PlanContext {
   readonly preflight: Dispatch.PreflightReport | undefined;
   readonly shared: ReadonlyArray<Dispatch.DocumentRef> | undefined;
   readonly summary: Dispatch.ValidationSummary;
+  /** Profile of `--aws-profiles` used for `pn-Timelines`, with the request-id phase. */
+  readonly timelinesProfile?: string;
 }

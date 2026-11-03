@@ -13,4 +13,6 @@ export interface ValidationPassOptions {
   /** Invalid rows are recorded here as `ROW_INVALID`. */
   readonly ledger: RowLedger;
   readonly runId: string;
+  /** Phases without `send` (RF-12): only `preset.iun` / `preset.notificationRequestId` are required. */
+  readonly presetMode?: boolean;
 }

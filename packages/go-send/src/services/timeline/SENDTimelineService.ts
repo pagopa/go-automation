@@ -4,7 +4,7 @@
 
 import type { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { QueryCommand } from '@aws-sdk/client-dynamodb';
-import type { QueryCommandInput, QueryCommandOutput } from '@aws-sdk/client-dynamodb';
+import type { AttributeValue, QueryCommandInput, QueryCommandOutput } from '@aws-sdk/client-dynamodb';
 
 import type { SENDParsedIun } from './models/SENDParsedIun.js';
 import type { SENDTimelineElement } from './models/SENDTimelineElement.js';
@@ -67,11 +67,56 @@ export class SENDTimelineService {
       },
     };
 
-    const command: QueryCommand = new QueryCommand(input);
-    const response: QueryCommandOutput = await this.client.send(command);
-    const items = (response.Items ?? []) as ReadonlyArray<DynamoDBTimelineItem>;
-
+    const items = await this.queryAllPages(input);
     return this.buildTimelineResult(parsedIun, items);
+  }
+
+  /**
+   * Queries only `timelineElementId`, `category` and `timestamp` of the
+   * timeline of an IUN (all pages), sorted by timestamp.
+   *
+   * Lighter than {@link queryTimeline}: used by polling loops that check the
+   * timeline many times (e.g. the requestId stage of `Dispatch`).
+   *
+   * @param iun - Notification IUN
+   * @returns Timeline elements sorted by timestamp, then by id
+   */
+  async queryTimelineElements(iun: string): Promise<ReadonlyArray<SENDTimelineElement>> {
+    const items = await this.queryAllPages({
+      TableName: TIMELINES_TABLE_NAME,
+      KeyConditionExpression: 'iun = :val',
+      ExpressionAttributeValues: { ':val': { S: iun } },
+      ExpressionAttributeNames: { '#ts': 'timestamp' },
+      ProjectionExpression: 'timelineElementId, category, #ts',
+    });
+    const elements: SENDTimelineElement[] = [];
+    for (const item of items) {
+      const timelineElementId = item.timelineElementId?.S;
+      const category = item.category?.S;
+      const timestamp = item.timestamp?.S;
+      if (timelineElementId && category && timestamp) elements.push({ timelineElementId, category, timestamp });
+    }
+    return elements.sort(
+      (a, b) => a.timestamp.localeCompare(b.timestamp) || a.timelineElementId.localeCompare(b.timelineElementId),
+    );
+  }
+
+  /**
+   * Runs a query following `LastEvaluatedKey` until the last page.
+   */
+  private async queryAllPages(input: QueryCommandInput): Promise<ReadonlyArray<DynamoDBTimelineItem>> {
+    const items: DynamoDBTimelineItem[] = [];
+    let exclusiveStartKey: Record<string, AttributeValue> | undefined;
+    do {
+      const command: QueryCommand = new QueryCommand({
+        ...input,
+        ...(exclusiveStartKey !== undefined && { ExclusiveStartKey: exclusiveStartKey }),
+      });
+      const response: QueryCommandOutput = await this.client.send(command);
+      items.push(...((response.Items ?? []) as ReadonlyArray<DynamoDBTimelineItem>));
+      exclusiveStartKey = response.LastEvaluatedKey;
+    } while (exclusiveStartKey !== undefined);
+    return items;
   }
 
   /**

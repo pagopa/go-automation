@@ -5,6 +5,7 @@ import type { SENDNotificationStatusResponse } from '../../services/notification
 import { DispatchError } from '../DispatchError.js';
 import type { VerifyStageOptions } from './VerifyStageOptions.js';
 import { acquireUnlessStopped, sleepUnlessStopped } from './abortableWaits.js';
+import { PendingTasks } from './PendingTasks.js';
 
 const DEFAULT_INITIAL_DELAY_MS = 10_000;
 const DEFAULT_TIMEOUT_MS = 15 * 60_000;
@@ -21,7 +22,7 @@ const BACKOFF_BASE_MS = 10_000;
  * reschedule.
  */
 export class VerifyStage {
-  private readonly pending = new Set<Promise<void>>();
+  private readonly pending = new PendingTasks();
   private readonly initialDelayMs: number;
   private readonly timeoutMs: number;
   private readonly backoff: GOBackoffFn;
@@ -45,15 +46,12 @@ export class VerifyStage {
    * @param notificationRequestId - Id returned by the send
    */
   public schedule(rowIndex: number, rowKey: string, notificationRequestId: string): void {
-    const task = this.verify(rowIndex, rowKey, notificationRequestId).finally(() => {
-      this.pending.delete(task);
-    });
-    this.pending.add(task);
+    this.pending.track(this.verify(rowIndex, rowKey, notificationRequestId));
   }
 
   /** Resolves when every scheduled row is concluded (or the run stopped). */
   public async drain(): Promise<void> {
-    while (this.pending.size > 0) await Promise.all([...this.pending]);
+    await this.pending.drain();
   }
 
   private async verify(rowIndex: number, rowKey: string, notificationRequestId: string): Promise<void> {
@@ -89,6 +87,7 @@ export class VerifyStage {
           await ledger.record({ event: 'WARNING', rowIndex, rowKey, warning: 'IUN_MISMATCH' });
         }
         await ledger.record({ event: 'ACCEPTED', ...base, iun: status.iun });
+        this.options.onAccepted?.(rowIndex, rowKey, status.iun);
         return;
       }
       if (status?.notificationRequestStatus === 'REFUSED') {

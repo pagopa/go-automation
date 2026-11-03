@@ -22,6 +22,18 @@ export async function runValidationPass(options: ValidationPassOptions): Promise
 
   for await (const row of options.reader.rows()) {
     counters.totalRows += 1;
+    if (options.presetMode === true) {
+      const preset = options.factory.createPreset(row);
+      const rowKey = preset.ok ? preset.preset.rowKey : options.factory.create(row).rowKey;
+      if (firstRowByKey.has(rowKey)) duplicates.add(rowKey);
+      else firstRowByKey.set(rowKey, row.rowIndex);
+      if (preset.ok) counters.addPreset();
+      else {
+        counters.invalidRows += 1;
+        await recordInvalid(options, row.rowIndex, rowKey, preset.issues);
+      }
+      continue;
+    }
     const created = options.factory.create(row);
     if (firstRowByKey.has(created.rowKey)) duplicates.add(created.rowKey);
     else firstRowByKey.set(created.rowKey, row.rowIndex);
@@ -96,6 +108,11 @@ class SummaryCounters {
   private readonly senders = new Map<string, number>();
   private readonly groups = new Map<string, number>();
   private readonly documentSources = new Map<DocumentSourceKind, number>();
+
+  /** Counts a valid row of the phases without `send`. */
+  public addPreset(): void {
+    this.validRows += 1;
+  }
 
   public async addValid(record: DispatchRecord, options: ValidationPassOptions): Promise<void> {
     this.validRows += 1;

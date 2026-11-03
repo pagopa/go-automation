@@ -15,7 +15,7 @@ import type { PlanContext } from '../types/PlanContext.js';
  * @param plan - Target, options, preflight and validation summary
  */
 export function displayPlan(logger: Core.GOLogger, plan: PlanContext): void {
-  const { target, options, run, preflight, shared, summary } = plan;
+  const { target, options, run, preflight, shared, summary, timelinesProfile } = plan;
   const sendingRows = summary.validRows;
   const estimatedSeconds = Math.ceil(sendingRows / options.tuning.rate);
 
@@ -32,7 +32,7 @@ export function displayPlan(logger: Core.GOLogger, plan: PlanContext): void {
     Righe: `${summary.totalRows} lette · ${summary.validRows} valide · ${summary.invalidRows} non valide`,
     Prodotti: formatCounts(summary.products),
     'Con PEC': summary.digitalRows,
-    Fasi: options.verify ? 'send → verify' : 'send',
+    Fasi: phasesLine(options, timelinesProfile),
     Rate: `${options.tuning.rate}/s → invio stimato ~${estimatedSeconds} s`,
     Output: options.output.outputPath,
   });
@@ -81,4 +81,13 @@ function countOther(groups: ReadonlyMap<string, number>, expected: string): numb
   let other = 0;
   for (const [group, count] of groups) if (group !== expected) other += count;
   return other;
+}
+
+function phasesLine(options: Dispatch.DispatchSessionOptions, timelinesProfile: string | undefined): string {
+  const phases = [
+    ...(options.send ? ['send'] : ['(IUN dall input)']),
+    ...(options.verify ? ['verify'] : []),
+    ...(options.requestId === undefined ? [] : [`request-id (AWS: ${timelinesProfile ?? '?'})`]),
+  ];
+  return phases.join(' → ');
 }

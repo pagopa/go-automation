@@ -27,6 +27,7 @@ export const QA_TEST_PROFILE: MappingProfile = {
     Pratica: 'documents.pratica',
     Documento: 'documents.files',
     'Titolo documento': 'documents.titles',
+    iun: 'preset.iun',
   },
   transforms: COMMON_TRANSFORMS,
   rowKeyColumn: 'ID_Scenario',

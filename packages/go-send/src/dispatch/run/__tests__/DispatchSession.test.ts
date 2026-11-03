@@ -15,6 +15,10 @@ import { QA_TEST_PROFILE } from '../../mapping/profiles/qaTestProfile.js';
 import type { CanonicalField } from '../../mapping/CanonicalField.js';
 import { Journal } from '../../journal/Journal.js';
 import { DispatchSession } from '../DispatchSession.js';
+import type { DispatchRequestIdOptions } from '../DispatchRequestIdOptions.js';
+import { DEFAULT_REQUEST_ID_OPTIONS } from '../../requestId/defaultRequestIdOptions.js';
+import type { TimelineSource } from '../../requestId/TimelineSource.js';
+import type { SENDTimelineElement } from '../../../services/timeline/models/SENDTimelineElement.js';
 import { readRunInfo } from '../runFiles.js';
 import type { DispatchSessionOptions } from '../DispatchSessionOptions.js';
 
@@ -41,6 +45,34 @@ class CountingGateway implements SafeStorageGateway {
     await Promise.resolve();
     return 'v1';
   }
+}
+
+/** Timeline where every notification has its analog PREPARE right away. */
+class ImmediateTimelineSource implements TimelineSource {
+  public queries = 0;
+
+  public async query(iun: string): Promise<ReadonlyArray<SENDTimelineElement>> {
+    await Promise.resolve();
+    this.queries += 1;
+    return [
+      {
+        category: 'PREPARE_ANALOG_DOMICILE',
+        timelineElementId: `PREPARE_ANALOG_DOMICILE.IUN_${iun}.RECINDEX_0.ATTEMPT_0`,
+        timestamp: '2026-11-03T10:05:00.000Z',
+      },
+    ];
+  }
+}
+
+function requestIdOptions(source: TimelineSource): DispatchRequestIdOptions {
+  return {
+    source,
+    selection: DEFAULT_REQUEST_ID_OPTIONS,
+    initialDelayMs: 60_000,
+    timeoutMs: 2 * 3_600_000,
+    concurrency: 10,
+    isCredentialError: () => false,
+  };
 }
 
 /** Fake API that stops the session after a number of sends (simulated SIGINT). */
@@ -105,6 +137,7 @@ function options(
     api,
     gateway,
     apiVersion: 'v2.6',
+    send: true,
     verify: true,
     tuning: {
       rate: 20,
@@ -253,5 +286,55 @@ describe('DispatchSession', () => {
       ),
       /input file changed/,
     );
+  });
+
+  it('send → verify → request-id: fills the requestId column', async () => {
+    const base = await fixture(5);
+    const clock = new VirtualClock();
+    const api = new FakeB2BApi(clock);
+    const source = new ImmediateTimelineSource();
+    const session = await DispatchSession.open(
+      options(base, api, new CountingGateway(), clock, { requestId: requestIdOptions(source) }),
+    );
+    await runSession(session, clock);
+
+    assert.equal(session.progress().byStatus.get('REQUEST_ID_FOUND'), 5);
+    const output = await readCsv(path.join(base.dir, 'session-1', 'output.csv'));
+    // QA profile: requestId goes into the existing RequestID column.
+    assert.match(output[1] ?? '', /,PREPARE_ANALOG_DOMICILE\.IUN_[A-Z-0-9]+\.RECINDEX_0\.ATTEMPT_0,[A-Z]{4}-/);
+    const report = await readCsv(path.join(base.dir, 'session-1', 'report.csv'));
+    assert.match(report[0] ?? '', /analogRequestId,digitalRequestId,requestIds,requestIdReason/);
+    assert.match(report[1] ?? '', /REQUEST_ID_FOUND/);
+  });
+
+  it('phases without send: retrieves requestIds for the IUNs of the input (RF-12)', async () => {
+    const dir = tempDir('dispatch-preset');
+    const input = path.join(dir, 'sent.csv');
+    const iuns = ['PAYK-MWDR-ZUAZ-202601-K-1', 'TQJZ-VKMH-QDYX-202601-Q-1'];
+    await writeFixture(input, `ID_Scenario,iun\nS-1,${iuns[0]}\nS-2,${iuns[1]}\nS-3,not-an-iun\n`);
+    await writeFixture(path.join(dir, 'session-1', '.keep'), '');
+    const clock = new VirtualClock();
+    const api = new FakeB2BApi(clock);
+    const source = new ImmediateTimelineSource();
+    const base = { dir, input, pdf: path.join(dir, 'unused.pdf') };
+    const { sharedDocument: _shared, ...noDocuments } = options(base, api, new CountingGateway(), clock, {
+      send: false,
+      verify: false,
+      requestId: requestIdOptions(source),
+      profile: { ...QA_TEST_PROFILE, columns: { ...QA_TEST_PROFILE.columns, iun: 'preset.iun' } },
+    });
+    const session = await DispatchSession.open(noDocuments);
+    const summary = await clock.run(session.validate());
+    assert.equal(summary.validRows, 2);
+    assert.equal(summary.invalidRows, 1);
+    await clock.run(session.execute());
+    await session.materialize();
+    await session.close();
+
+    assert.equal(api.calls.length, 0, 'no B2B call without send and verify');
+    assert.equal(source.queries, 2);
+    const report = await readCsv(path.join(dir, 'session-1', 'report.csv'));
+    assert.match(report[1] ?? '', new RegExp(`^0,S-1,REQUEST_ID_FOUND,.*IUN_${iuns[0]}`));
+    assert.match(report[3] ?? '', /^2,S-3,INVALID/);
   });
 });

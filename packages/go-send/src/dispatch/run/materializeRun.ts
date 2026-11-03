@@ -32,7 +32,7 @@ export async function materializeRun(options: MaterializerOptions): Promise<void
         await output.append({
           ...row.original,
           [iunColumn]: state?.iun ?? '',
-          [requestIdColumn]: '',
+          [requestIdColumn]: state?.requestId ?? '',
           ...(options.includeStatus && {
             _status: status,
             _notificationRequestId: state?.notificationRequestId ?? '',
@@ -61,7 +61,13 @@ function reportRow(
     status,
     notificationRequestId: state?.notificationRequestId ?? '',
     iun: state?.iun ?? '',
-    requestId: '',
+    requestId: state?.requestId ?? '',
+    analogRequestId: state?.requestIds?.['PREPARE_ANALOG_DOMICILE'] ?? '',
+    digitalRequestId: state?.requestIds?.['PREPARE_DIGITAL_DOMICILE'] ?? '',
+    requestIds: Object.entries(state?.requestIds ?? {})
+      .map(([category, id]) => `${category}=${id}`)
+      .join('|'),
+    requestIdReason: state?.requestIdReason ?? '',
     groupId: state?.groupId ?? '',
     documentSource: state?.documentSource ?? '',
     documentKeys: (state?.documentKeys ?? []).join('|'),
@@ -70,8 +76,10 @@ function reportRow(
     idempotenceToken: state?.idempotenceToken ?? '',
     sentAt: state?.sentAt ?? '',
     acceptedAt: state?.acceptedAt ?? '',
+    requestIdFoundAt: state?.requestIdFoundAt ?? '',
     sendAttempts: state?.sendAttempts ?? 0,
     verifyChecks: state?.verifyChecks ?? 0,
+    requestIdChecks: state?.requestIdChecks ?? 0,
     errorCode: state?.error?.code ?? '',
     errorMessage: (state?.error?.message ?? '').slice(0, MAX_ERROR_MESSAGE),
     errorDetails: state?.error?.details ?? '',

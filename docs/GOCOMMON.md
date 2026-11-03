@@ -727,6 +727,26 @@ const htmlExporter = new Core.GOHTMLListExporter<DataRow>({
 await htmlExporter.export(data);
 ```
 
+### Binary File Importer
+
+`Core.GOBinaryFileImporter` legge un file come `Buffer`: è il gemello di `GOBinaryFileExporter`. Serve per documenti da caricare, hash di contenuti, allegati.
+
+```typescript
+import { Core } from '@go-automation/go-common';
+
+const pdf = await new Core.GOBinaryFileImporter({
+  inputPath: script.paths.resolvePath('atto.pdf', Core.GOPathType.INPUT),
+  optional: true, // file assente → undefined invece di un errore
+  maxBytes: 200 * 1024 * 1024, // oltre: GOFileTooLargeError, senza leggere il file
+}).import();
+```
+
+| Opzione     | Default | Descrizione                                                                                   |
+| ----------- | ------- | --------------------------------------------------------------------------------------------- |
+| `inputPath` | —       | path assoluto (da `GOPaths`)                                                                  |
+| `optional`  | `false` | con `true` un file assente restituisce `undefined`                                            |
+| `maxBytes`  | —       | dimensione massima; un file più grande rifiuta con `GOFileTooLargeError` (`size`, `maxBytes`) |
+
 ---
 
 ## Core - File Operations
@@ -1201,6 +1221,18 @@ Caratteristiche:
 - **Un solo timer** interno, attivo solo mentre qualcuno aspetta; `acquire` e assegnazione O(1).
 - **Abort:** con un `AbortSignal` il chiamante esce dalla coda senza consumare permessi; la promise viene rifiutata con il `reason` del segnale.
 - **Stato per istanza:** si crea un limiter per run e lo si passa ai componenti che condividono lo stesso budget.
+
+### Durate (`Core.parseDuration`)
+
+Converte una durata di configurazione o CLI in millisecondi: unità `ms`, `s`, `m`, `h`, `d`, anche con decimali.
+
+```typescript
+Core.parseDuration('10s', 'verify.timeout'); // 10000
+Core.parseDuration('1.5h', 'request.id.timeout'); // 5400000
+Core.parseDuration('10', 'verify.timeout'); // Error: verify.timeout: invalid duration "10" (examples: 500ms, 10s, 15m, 2h)
+```
+
+Il secondo argomento è il nome del parametro, usato nel messaggio d'errore.
 
 ---
 

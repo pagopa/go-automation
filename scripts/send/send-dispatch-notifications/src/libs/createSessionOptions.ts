@@ -6,16 +6,18 @@
 import * as path from 'node:path';
 
 import { Core } from '@go-automation/go-common';
-import { Dispatch, SENDNotifications, loadUploadedAttachments } from '@go-automation/go-send';
+import { Dispatch, SENDNotifications, SENDTimelineService, loadUploadedAttachments } from '@go-automation/go-send';
 import type { SENDApiVersion } from '@go-automation/go-send';
 
 import type { DispatchTarget } from '../types/DispatchTarget.js';
+import { isAwsCredentialError } from './isAwsCredentialError.js';
+import { TransitionLogger } from './TransitionLogger.js';
 import type { PreparedSession } from '../types/PreparedSession.js';
 import type { ResolvedRun } from '../types/ResolvedRun.js';
 import type { SendDispatchNotificationsConfig } from '../types/SendDispatchNotificationsConfig.js';
 
 const API_VERSIONS: ReadonlySet<string> = new Set<SENDApiVersion>(['v2.4', 'v2.5', 'v2.6']);
-const SUPPORTED_PHASES: ReadonlySet<string> = new Set(['send', 'verify']);
+const SUPPORTED_PHASES: ReadonlySet<string> = new Set(['send', 'verify', 'request-id']);
 
 /**
  * Checks the combinations the script does not support yet (§17) or rejects
@@ -29,12 +31,17 @@ export function assertSupportedConfig(config: SendDispatchNotificationsConfig): 
     throw new Error(`--mode ${config.mode}: only e2e is available (direct mode comes with phase 3)`);
   }
   for (const phase of config.phases) {
-    if (phase === 'request-id') throw new Error('--phases request-id comes with phase 2 of the implementation');
     if (!SUPPORTED_PHASES.has(phase)) throw new Error(`--phases: unknown phase "${phase}"`);
   }
-  if (!config.phases.includes('send')) throw new Error('--phases without send comes with phase 2 (RF-12)');
+  if (config.phases.length === 0) throw new Error('--phases: at least one phase is required');
   if (!API_VERSIONS.has(config.apiVersion))
     throw new Error(`--api-version ${config.apiVersion}: use v2.4, v2.5 or v2.6`);
+  if (config.requestIdSelect !== 'per-category' && config.requestIdSelect !== 'priority') {
+    throw new Error(`--request-id-select ${config.requestIdSelect}: use per-category or priority`);
+  }
+  if (config.requestIdWait !== 'any' && config.requestIdWait !== 'all') {
+    throw new Error(`--request-id-wait ${config.requestIdWait}: use any or all`);
+  }
   if (config.inputFile === undefined && config.resume === undefined) throw new Error('--input-file is required');
 }
 
@@ -95,6 +102,7 @@ export async function createSessionOptions(
   target: DispatchTarget,
 ): Promise<PreparedSession> {
   const run = await resolveRun(script, config);
+  const transitions = new TransitionLogger(script.logger, config.verbose);
   const { inputFile } = run;
   const profile = await loadMappingProfile(script, config.mappingProfile);
   const inputFormat = parseFormat(config.inputFormat, inputFile, profile);
@@ -142,7 +150,9 @@ export async function createSessionOptions(
     api: new Dispatch.B2BChannel(sdk.notifications),
     gateway: new Dispatch.AttachmentServiceGateway(sdk.attachment),
     apiVersion: config.apiVersion as SENDApiVersion, // Safe: checked by assertSupportedConfig
+    send: config.phases.includes('send'),
     verify: config.phases.includes('verify'),
+    ...(config.phases.includes('request-id') && { requestId: requestIdOptions(script, config, target) }),
     tuning: {
       rate: config.rate,
       burst: config.burst,
@@ -172,6 +182,9 @@ export async function createSessionOptions(
       onlySuccess: config.outputOnlySuccess,
     },
     parameters: runParameters(config, target, profile),
+    onTransition: (entry: Dispatch.JournalEntry): void => {
+      transitions.handle(entry);
+    },
   };
   return { run, options };
 }
@@ -236,10 +249,64 @@ function runParameters(
     production: target.production,
     apiVersion: config.apiVersion,
     phases: config.phases,
+    awsProfiles: config.awsProfiles ?? [],
     mappingProfile: profile.name,
     rate: config.rate,
     burst: config.burst,
     maxInFlight: config.maxInFlight,
     sendRetryAmbiguous: config.sendRetryAmbiguous,
   };
+}
+
+/**
+ * Settings of the requestId phase: `pn-Timelines` read with the DynamoDB
+ * client of GOScript (`--aws-profiles`, validated at startup), selection
+ * rule of §8.3.
+ */
+function requestIdOptions(
+  script: Core.GOScript,
+  config: SendDispatchNotificationsConfig,
+  target: DispatchTarget,
+): Dispatch.DispatchRequestIdOptions {
+  const client = script.aws.clients.get(timelinesProfile(config, target)).dynamoDB;
+  return {
+    source: new Dispatch.DynamoTimelineSource(new SENDTimelineService(client)),
+    selection: {
+      categories: config.requestIdCategories,
+      select: config.requestIdSelect === 'priority' ? 'priority' : 'per-category',
+      wait: config.requestIdWait === 'all' ? 'all' : 'any',
+      endCategories: config.requestIdEndCategories ?? Dispatch.DEFAULT_REQUEST_ID_OPTIONS.endCategories,
+    },
+    initialDelayMs: Core.parseDuration(config.requestIdInitialDelay, 'request.id.initial.delay'),
+    timeoutMs: Core.parseDuration(config.requestIdTimeout, 'request.id.timeout'),
+    concurrency: config.dynamodbConcurrency,
+    isCredentialError: isAwsCredentialError,
+  };
+}
+
+/**
+ * Profile of `--aws-profiles` used for `pn-Timelines`: the one the
+ * environment declares (`awsProfile`), or the only one given.
+ *
+ * @param config - Script configuration
+ * @param target - Resolved target
+ * @returns The profile
+ * @throws Error when no profile is given, the environment profile is missing, or the choice is ambiguous
+ */
+export function timelinesProfile(config: SendDispatchNotificationsConfig, target: DispatchTarget): string {
+  const profiles = config.awsProfiles ?? [];
+  if (profiles.length === 0) throw new Error('--phases request-id requires --aws-profiles (pn-Timelines)');
+  if (target.awsProfile !== undefined) {
+    if (!profiles.includes(target.awsProfile)) {
+      throw new Error(
+        `Environment ${target.name} reads pn-Timelines with profile ${target.awsProfile}: add it to --aws-profiles`,
+      );
+    }
+    return target.awsProfile;
+  }
+  const [only] = profiles;
+  if (profiles.length > 1 || only === undefined) {
+    throw new Error('--aws-profiles has several profiles: set awsProfile in the environment to choose one');
+  }
+  return only;
 }

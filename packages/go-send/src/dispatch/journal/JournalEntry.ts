@@ -23,4 +23,10 @@ export interface JournalEntry {
   readonly upload?: JournalUpload;
   readonly error?: RowError;
   readonly warning?: string;
+  /** Value of the `requestId` column (§8.3). */
+  readonly requestId?: string;
+  /** First id of each category found. */
+  readonly requestIds?: Readonly<Record<string, string>>;
+  /** `FOUND`, `TIMEOUT` or `WORKFLOW_ENDED:<category>`. */
+  readonly requestIdReason?: string;
 }

@@ -13,6 +13,7 @@ environments:
     basePath: api.test.notifichedigitali.it
     apiKey: ${PN_API_KEY_ENTE_TEST}
     groupId: '<group-id>' # ente/gruppo a nome del quale si invia; omettere se la chiave non ha gruppi
+    awsProfile: sso_pn-core-test # fase request-id: deve essere fra i --aws-profiles
     production: false
     sender:
       taxId: '<codice-fiscale-PA>'

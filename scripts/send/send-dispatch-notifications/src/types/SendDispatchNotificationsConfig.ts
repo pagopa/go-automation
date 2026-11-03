@@ -31,6 +31,7 @@ export interface SendDispatchNotificationsConfig {
   readonly yes: boolean;
   readonly confirmProduction?: number | undefined;
   readonly failFast: boolean;
+  readonly verbose: boolean;
 
   readonly resume?: string | undefined;
   readonly retryFailed: boolean;
@@ -47,6 +48,15 @@ export interface SendDispatchNotificationsConfig {
 
   readonly verifyInitialDelay: string;
   readonly verifyTimeout: string;
+
+  readonly awsProfiles?: ReadonlyArray<string> | undefined;
+  readonly requestIdCategories: ReadonlyArray<string>;
+  readonly requestIdSelect: string;
+  readonly requestIdWait: string;
+  readonly requestIdEndCategories?: ReadonlyArray<string> | undefined;
+  readonly requestIdInitialDelay: string;
+  readonly requestIdTimeout: string;
+  readonly dynamodbConcurrency: number;
 
   readonly outputFormat?: string | undefined;
   readonly outputFile?: string | undefined;

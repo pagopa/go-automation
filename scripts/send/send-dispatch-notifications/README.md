@@ -2,7 +2,7 @@
 
 Invio di notifiche SEND tramite API B2B (`e2e`), con throttling a 20 chiamate/s, verifica dell'accettazione, journal durevole con ripresa e output 1:1 con l'input. Specifica: [`docs/evolutions/EVO-SENDNOTIF-OPUS-01.md`](../../../docs/evolutions/EVO-SENDNOTIF-OPUS-01.md).
 
-Stato: **Fase 1** (invio + verifica). Il recupero del `requestId` (`--phases request-id`) arriva con la Fase 2, la modalità `direct` con la Fase 3.
+Stato: **Fasi 1 e 2** (invio, verifica, `requestId` da `pn-Timelines`). La modalità `direct` arriva con la Fase 3.
 
 ## Uso rapido
 
@@ -18,7 +18,13 @@ pnpm send:dispatch:notifications:dev --env ente-test --input-file /percorso/qa.c
 # 3. invio reale
 pnpm send:dispatch:notifications:dev --env ente-test --input-file /percorso/qa.csv --mapping-profile qa-test --dry-run=false
 
-# 4. ripresa dopo un'interruzione (stesso file di input): il nome della directory lo stampa il riepilogo
+# 4. invio + verifica + requestId (profilo AWS obbligatorio con --aws-profiles, validato da GOScript)
+pnpm send:dispatch:notifications:dev --env ente-test --input-file /percorso/qa.csv --mapping-profile qa-test --phases send,verify,request-id --aws-profiles sso_pn-core-test --dry-run=false
+
+# 5. solo requestId per IUN già inviati (colonna iun dell'input, o output di un run precedente)
+pnpm send:dispatch:notifications:dev --env ente-test --input-file /percorso/output.csv --mapping-profile qa-test --phases request-id --aws-profiles sso_pn-core-test --dry-run=false
+
+# 6. ripresa dopo un'interruzione (stesso file di input): il nome della directory lo stampa il riepilogo
 pnpm send:dispatch:notifications:dev --resume send-dispatch-notifications_<timestamp> --dry-run=false
 ```
 
@@ -31,7 +37,12 @@ L'API key non va mai nel file di ambienti: `apiKey: ${PN_API_KEY_ENTE_TEST}` e l
 3. **Piano di invio** e conferma (in produzione serve anche `--confirm-production=<righe valide>`).
 4. **Invio** a 20/s, con IUN ricavato subito dal `notificationRequestId`. Gli esiti ambigui (timeout, 5xx) si riconciliano con la ricerca per protocollo, senza mai creare due notifiche.
 5. **Verifica** (`ACCEPTED`/`REFUSED`) a priorità bassa: non rallenta l'invio.
-6. **Output** nella directory di esecuzione `data/send-dispatch-notifications/outputs/send-dispatch-notifications_<timestamp>/`: `output.<fmt>` (input + `iun`), `report.<fmt>` (stato ed errori per riga), `journal.jsonl`, `run.json`. Una ripresa scrive in una directory nuova e rimanda al journal delle sessioni precedenti.
+6. **requestId** (`--phases …,request-id`): una query su `pn-Timelines` per IUN, ripetuta con backoff fino a 2 h; stessa regola del `jq` (primo `PREPARE_ANALOG_DOMICILE`, poi `PREPARE_DIGITAL_DOMICILE`). Se le credenziali AWS scadono durante l'attesa: `aws sso login`, poi `--resume`.
+7. **Output** nella directory di esecuzione `data/send-dispatch-notifications/outputs/send-dispatch-notifications_<timestamp>/`: `output.<fmt>` (input + `iun`), `report.<fmt>` (stato ed errori per riga), `journal.jsonl`, `run.json`. Una ripresa scrive in una directory nuova e rimanda al journal delle sessioni precedenti.
+
+## Log
+
+Gli errori di riga finiscono sempre nel log (console ed `execution.log` della directory di esecuzione) con codice e dettaglio di SEND; `--verbose` aggiunge una riga per ogni transizione. Il riepilogo finale raggruppa le righe con errori per codice.
 
 ## Documenti
 

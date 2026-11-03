@@ -15,4 +15,6 @@ export type RowStatus =
   | 'ACCEPTED'
   | 'REFUSED'
   | 'VERIFY_TIMEOUT'
+  | 'REQUEST_ID_FOUND'
+  | 'REQUEST_ID_NOT_FOUND'
   | 'DONE';

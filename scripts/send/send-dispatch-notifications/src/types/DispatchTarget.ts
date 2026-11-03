@@ -19,4 +19,9 @@ export interface DispatchTarget {
   readonly sender?: Dispatch.DispatchSender;
   readonly defaults: Dispatch.FieldValues;
   readonly sharedDocument?: Dispatch.SharedDocumentConfig;
+  /**
+   * AWS SSO profile the environment expects for `pn-Timelines`: it must be
+   * among `--aws-profiles` (consistency check, the clients come from GOScript).
+   */
+  readonly awsProfile?: string;
 }

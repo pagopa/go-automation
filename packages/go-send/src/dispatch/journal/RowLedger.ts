@@ -28,8 +28,12 @@ export class RowLedger {
    * @param sink - Journal to append new entries to
    * @returns Ledger with the replayed state
    */
-  public static replay(entries: ReadonlyArray<JournalEntry>, sink: JournalSink | undefined): RowLedger {
-    const ledger = new RowLedger(sink);
+  public static replay(
+    entries: ReadonlyArray<JournalEntry>,
+    sink: JournalSink | undefined,
+    now?: WallClockFn,
+  ): RowLedger {
+    const ledger = new RowLedger(sink, now);
     for (const entry of entries) ledger.apply(entry);
     return ledger;
   }

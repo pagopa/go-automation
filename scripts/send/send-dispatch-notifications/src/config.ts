@@ -72,12 +72,13 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'phases',
     type: STRING_ARRAY,
-    description: 'Fasi: send, verify (request-id: fase 2)',
+    description: 'Fasi: send, verify, request-id (senza send: IUN già presenti nell input)',
     defaultValue: ['send', 'verify'],
   },
   { name: 'dry.run', type: BOOL, description: 'Nessuna chiamata (default sicuro)', defaultValue: true },
   { name: 'yes', type: BOOL, description: 'Salta la conferma (non in produzione)', defaultValue: false },
   { name: 'confirm.production', type: INT, description: 'In produzione: numero di righe valide da confermare' },
+  { name: 'verbose', type: BOOL, description: 'Una riga di log per ogni transizione di riga', defaultValue: false },
   { name: 'fail.fast', type: BOOL, description: 'Si ferma alla prima riga non valida o fallita', defaultValue: false },
 
   // Resume and retries
@@ -113,6 +114,36 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   // Verify
   { name: 'verify.initial.delay', type: STRING, description: 'Primo controllo di stato', defaultValue: '10s' },
   { name: 'verify.timeout', type: STRING, description: 'Timeout della verifica per riga', defaultValue: '15m' },
+
+  // requestId (pn-Timelines)
+  {
+    name: 'aws.profiles',
+    type: STRING_ARRAY,
+    description: 'Profili AWS SSO (pn-Timelines per la fase request-id), validati da GOScript all avvio',
+    aliases: ['aps'],
+  },
+  {
+    name: 'request.id.categories',
+    type: STRING_ARRAY,
+    description: 'Categorie cercate, in ordine di priorità',
+    defaultValue: ['PREPARE_ANALOG_DOMICILE', 'PREPARE_DIGITAL_DOMICILE'],
+  },
+  {
+    name: 'request.id.select',
+    type: STRING,
+    description: 'Colonna requestId: per-category o priority',
+    defaultValue: 'per-category',
+  },
+  { name: 'request.id.wait', type: STRING, description: 'Chiusura della riga: any o all', defaultValue: 'any' },
+  { name: 'request.id.end.categories', type: STRING_ARRAY, description: 'Categorie di fine workflow (default §8.3)' },
+  {
+    name: 'request.id.initial.delay',
+    type: STRING,
+    description: 'Primo controllo della timeline',
+    defaultValue: '60s',
+  },
+  { name: 'request.id.timeout', type: STRING, description: 'Timeout del requestId per riga', defaultValue: '2h' },
+  { name: 'dynamodb.concurrency', type: INT, description: 'Query DynamoDB in parallelo', defaultValue: 10 },
 
   // Output
   { name: 'output.format', type: STRING, description: 'Formato dell output: csv, json, jsonl (default: come input)' },

@@ -9,6 +9,8 @@ import type { PreflightInput } from '../environment/PreflightInput.js';
 import type { PreflightReport } from '../environment/PreflightReport.js';
 import { InputReader } from '../input/InputReader.js';
 import { Journal } from '../journal/Journal.js';
+import { ObservedSink } from '../journal/ObservedSink.js';
+import type { JournalSink } from '../journal/JournalSink.js';
 import { RowLedger } from '../journal/RowLedger.js';
 import { RecordFactory } from '../mapping/RecordFactory.js';
 import type { DispatchClock } from '../model/DispatchClock.js';
@@ -17,12 +19,17 @@ import { SystemClock } from '../model/SystemClock.js';
 import { RateAdapter } from '../stages/RateAdapter.js';
 import { SendStage } from '../stages/SendStage.js';
 import { VerifyStage } from '../stages/VerifyStage.js';
+import type { GlobalErrorHandler } from '../stages/GlobalErrorHandler.js';
+import { RequestIdStage } from '../requestId/RequestIdStage.js';
 import { DispatchRun } from './DispatchRun.js';
 import type { DispatchProgress } from './DispatchProgress.js';
 import type { DispatchSessionOptions } from './DispatchSessionOptions.js';
 import { materializeRun } from './materializeRun.js';
 import { hashFileHex, writeRunInfo } from './runFiles.js';
 import { runValidationPass } from './runValidationPass.js';
+import type { FailureGroup } from './FailureGroup.js';
+import type { SendStatistics } from './SendStatistics.js';
+import { groupFailures, sendStatistics } from './summarizeLedger.js';
 import type { ValidationSummary } from './ValidationSummary.js';
 
 /** Priorities of the shared B2B limiter (§10.2). */
@@ -54,6 +61,7 @@ export class DispatchSession {
   private readonly uploadStage: UploadStage | undefined;
   private sharedRefs: ReadonlyArray<DocumentRef> | undefined;
   private verifyStage: VerifyStage | undefined;
+  private requestIdStage: RequestIdStage | undefined;
   private globalError: DispatchError | undefined;
 
   private constructor(
@@ -112,7 +120,9 @@ export class DispatchSession {
   public static async open(options: DispatchSessionOptions): Promise<DispatchSession> {
     const clock = options.clock ?? new SystemClock();
     const now = (): Date => new Date(clock.now());
-    if (options.dryRun) return new DispatchSession(options, clock, new RowLedger(undefined, now), undefined);
+    if (options.dryRun) {
+      return new DispatchSession(options, clock, new RowLedger(observe(undefined, options), now), undefined);
+    }
 
     const inputSha256 = await hashFileHex(options.input.filePath);
     const previous = options.previousRun;
@@ -133,7 +143,7 @@ export class DispatchSession {
       parameters: options.parameters,
     });
     const journal = await Journal.open(options.files.journalPath);
-    const ledger = RowLedger.replay(entries, journal);
+    const ledger = RowLedger.replay(entries, observe(journal, options), now);
     return new DispatchSession(options, clock, ledger, journal);
   }
 
@@ -182,6 +192,7 @@ export class DispatchSession {
       inspector: this.inspector,
       ledger: this.ledger,
       runId: this.options.runId,
+      presetMode: !this.options.send,
     });
   }
 
@@ -197,6 +208,8 @@ export class DispatchSession {
       this.globalError ??= error;
       this.controller.abort();
     };
+    const requestIdStage = this.createRequestIdStage();
+    this.requestIdStage = requestIdStage;
     const verifyStage = this.options.verify
       ? new VerifyStage({
           api: this.options.api,
@@ -207,33 +220,23 @@ export class DispatchSession {
           initialDelayMs: this.options.tuning.verifyInitialDelayMs,
           timeoutMs: this.options.tuning.verifyTimeoutMs,
           onGlobalError,
+          ...(requestIdStage !== undefined && {
+            onAccepted: (rowIndex: number, rowKey: string, iun: string): void => {
+              requestIdStage.schedule(rowIndex, rowKey, iun);
+            },
+          }),
           signal: this.controller.signal,
         })
       : undefined;
     this.verifyStage = verifyStage;
-    const sendStage = new SendStage({
-      api: this.options.api,
-      limiter: this.limiter,
-      rateAdapter: this.rateAdapter,
-      ledger: this.ledger,
-      clock: this.clock,
-      resolver: this.resolver(),
-      runId: this.options.runId,
-      apiVersion: this.options.apiVersion,
-      retryAmbiguous: this.options.tuning.retryAmbiguous,
-      sendTimeoutMs: this.options.tuning.sendTimeoutMs,
-      onSent: (rowIndex, rowKey, notificationRequestId): void => {
-        verifyStage?.schedule(rowIndex, rowKey, notificationRequestId);
-      },
-      onGlobalError,
-      signal: this.controller.signal,
-    });
+    const sendStage = this.options.send ? this.createSendStage(verifyStage, requestIdStage, onGlobalError) : undefined;
     await new DispatchRun({
       reader: this.reader(),
       factory: this.factory,
       ledger: this.ledger,
-      sendStage,
+      ...(sendStage !== undefined && { sendStage }),
       ...(verifyStage !== undefined && { verifyStage }),
+      ...(requestIdStage !== undefined && { requestIdStage }),
       maxInFlight: this.options.tuning.maxInFlight,
       retryFailed: this.options.tuning.retryFailed,
       retryUncertain: this.options.tuning.retryUncertain || this.options.tuning.retryAmbiguous,
@@ -241,6 +244,22 @@ export class DispatchSession {
       controller: this.controller,
     }).execute();
     if (this.globalError !== undefined) throw this.globalError;
+  }
+
+  /**
+   * Checks that the timeline table can be read (one query on a fake IUN),
+   * before any send. Skipped in a dry run and without the requestId phase.
+   *
+   * @throws The AWS error (credentials, permissions)
+   */
+  public async checkTimelines(): Promise<void> {
+    if (this.options.dryRun || this.options.requestId === undefined) return;
+    await this.options.requestId.source.query('AAAA-AAAA-AAAA-000000-A-0');
+  }
+
+  /** Whether the requestId phase stopped because the AWS credentials expired. */
+  public get requestIdCredentialsExpired(): boolean {
+    return this.requestIdStage?.credentialsExpired ?? false;
   }
 
   /** Stops the run: no new call starts; calls in flight complete and are journaled. */
@@ -279,13 +298,74 @@ export class DispatchSession {
       ratePerSecond: this.limiter.ratePerSecond,
       throttled: this.rateAdapter.throttledCount,
       verifyPending: this.verifyStage?.pendingCount ?? 0,
+      requestIdPending: this.requestIdStage?.pendingCount ?? 0,
       queuedCalls: this.limiter.stats.queued,
     };
+  }
+
+  /**
+   * Rows with an error, grouped by code (largest first).
+   *
+   * @param sample - Row keys kept per group (default 5)
+   * @returns Failure groups
+   */
+  public failures(sample: number = 5): ReadonlyArray<FailureGroup> {
+    return groupFailures(this.ledger.values(), sample);
+  }
+
+  /** Timing of the send phase. */
+  public sendStatistics(): SendStatistics {
+    return sendStatistics(this.ledger.values());
   }
 
   /** Closes the journal. */
   public async close(): Promise<void> {
     await this.journal?.close();
+  }
+
+  private createRequestIdStage(): RequestIdStage | undefined {
+    const settings = this.options.requestId;
+    if (settings === undefined) return undefined;
+    return new RequestIdStage({
+      source: settings.source,
+      ledger: this.ledger,
+      clock: this.clock,
+      selection: settings.selection,
+      initialDelayMs: settings.initialDelayMs,
+      timeoutMs: settings.timeoutMs,
+      concurrency: settings.concurrency,
+      isCredentialError: settings.isCredentialError,
+      signal: this.controller.signal,
+    });
+  }
+
+  private createSendStage(
+    verifyStage: VerifyStage | undefined,
+    requestIdStage: RequestIdStage | undefined,
+    onGlobalError: GlobalErrorHandler,
+  ): SendStage {
+    return new SendStage({
+      api: this.options.api,
+      limiter: this.limiter,
+      rateAdapter: this.rateAdapter,
+      ledger: this.ledger,
+      clock: this.clock,
+      resolver: this.resolver(),
+      runId: this.options.runId,
+      apiVersion: this.options.apiVersion,
+      retryAmbiguous: this.options.tuning.retryAmbiguous,
+      sendTimeoutMs: this.options.tuning.sendTimeoutMs,
+      onSent: (rowIndex, rowKey, notificationRequestId): void => {
+        if (verifyStage !== undefined) {
+          verifyStage.schedule(rowIndex, rowKey, notificationRequestId);
+          return;
+        }
+        const iun = this.ledger.get(rowIndex)?.iun;
+        if (iun !== undefined) requestIdStage?.schedule(rowIndex, rowKey, iun);
+      },
+      onGlobalError,
+      signal: this.controller.signal,
+    });
   }
 
   private reader(): InputReader {
@@ -302,4 +382,8 @@ export class DispatchSession {
       ...(this.uploadStage !== undefined && { uploadStage: this.uploadStage }),
     });
   }
+}
+
+function observe(journal: JournalSink | undefined, options: DispatchSessionOptions): JournalSink | undefined {
+  return options.onTransition === undefined ? journal : new ObservedSink(journal, options.onTransition);
 }

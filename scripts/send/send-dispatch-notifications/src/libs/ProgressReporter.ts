@@ -38,11 +38,13 @@ export class ProgressReporter {
   private line(): string {
     const progress = this.session.progress();
     const count = (status: Dispatch.RowStatus): number => progress.byStatus.get(status) ?? 0;
-    const sent = count('SENT') + count('ACCEPTED') + count('REFUSED') + count('VERIFY_TIMEOUT');
+    const accepted = count('ACCEPTED') + count('REQUEST_ID_FOUND') + count('REQUEST_ID_NOT_FOUND');
+    const sent = count('SENT') + accepted + count('REFUSED') + count('VERIFY_TIMEOUT');
     const errors = count('SEND_FAILED') + count('SEND_UNCERTAIN');
     return (
       `invio ${sent}/${this.validRows} · ${progress.ratePerSecond.toFixed(1)}/s · ` +
-      `verifica ${count('ACCEPTED')} ok / ${count('REFUSED')} refused / ${progress.verifyPending} in attesa · ` +
+      `verifica ${accepted} ok / ${count('REFUSED')} refused / ${progress.verifyPending} in attesa · ` +
+      `requestId ${count('REQUEST_ID_FOUND')} trovati / ${progress.requestIdPending} in attesa · ` +
       `errori ${errors}${progress.throttled > 0 ? ` · 429: ${progress.throttled}` : ''}`
     );
   }

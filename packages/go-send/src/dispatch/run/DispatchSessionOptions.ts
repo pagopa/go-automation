@@ -7,6 +7,8 @@ import type { InputReaderOptions } from '../input/InputReaderOptions.js';
 import type { FieldValues } from '../mapping/FieldValues.js';
 import type { MappingProfile } from '../mapping/MappingProfile.js';
 import type { DispatchClock } from '../model/DispatchClock.js';
+import type { TransitionHandler } from '../journal/TransitionHandler.js';
+import type { DispatchRequestIdOptions } from './DispatchRequestIdOptions.js';
 import type { DispatchRunFiles } from './DispatchRunFiles.js';
 import type { DispatchSessionOutput } from './DispatchSessionOutput.js';
 import type { RunInfo } from './RunInfo.js';
@@ -39,10 +41,16 @@ export interface DispatchSessionOptions {
   readonly api: B2BApi;
   readonly gateway: SafeStorageGateway;
   readonly apiVersion: SENDApiVersion;
+  /** `send` among the phases; without it the input must carry `preset.*` identifiers (RF-12). */
+  readonly send: boolean;
   readonly verify: boolean;
+  /** Present when `request-id` is among the phases. */
+  readonly requestId?: DispatchRequestIdOptions;
   readonly tuning: DispatchSessionTuning;
   readonly output: DispatchSessionOutput;
   /** Non-secret parameters saved in `run.json`. */
   readonly parameters: Readonly<Record<string, unknown>>;
   readonly clock?: DispatchClock;
+  /** Observer of every transition (logging, `--verbose`). */
+  readonly onTransition?: TransitionHandler;
 }

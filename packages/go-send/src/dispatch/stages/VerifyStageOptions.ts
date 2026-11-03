@@ -4,6 +4,7 @@ import type { SENDApiVersion } from '../../services/notification/models/SENDApiV
 import type { B2BApi } from '../channels/B2BApi.js';
 import type { RowLedger } from '../journal/RowLedger.js';
 import type { DispatchClock } from '../model/DispatchClock.js';
+import type { AcceptedHandler } from './AcceptedHandler.js';
 import type { GlobalErrorHandler } from './GlobalErrorHandler.js';
 
 /**
@@ -23,6 +24,8 @@ export interface VerifyStageOptions {
   /** Maximum delay between checks, ms (default 60 s). */
   readonly maxDelayMs?: number;
   readonly onGlobalError: GlobalErrorHandler;
+  /** Called on `ACCEPTED` (e.g. to start the requestId retrieval). */
+  readonly onAccepted?: AcceptedHandler;
   /** Aborted when the run stops: pending checks are dropped (resume continues them). */
   readonly signal: AbortSignal;
 }
