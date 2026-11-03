@@ -3,6 +3,7 @@ import { getConfinfoS3Service, getCoreDynamoDBService } from '../utils/awsClient
 import type { SendPaperRequestErrorCheckConfig, RetrieveGlacierResult } from '../types/index.js';
 import { isNotificationOlderThanOneYear } from './verifyNotification.js';
 import { get } from '../utils/get.js';
+import { resolveOutputPath } from '../utils/resolveOutputPath.js';
 
 const NOTIFICATIONS_TABLE_NAME = 'pn-Notifications';
 
@@ -99,6 +100,12 @@ async function resolveSafestorageBucket(
   return 'pn-safestorage-eu-south-1';
 }
 
+interface FilterGlacierResult {
+  eligibleItems: GlacierItem[];
+  failedItems: GlacierItem[];
+  errorCount: number;
+}
+
 /**
  * Filtra gli elementi Glacier ammettendo SOLO file denominati AAR e con notifica più vecchia di 1 anno.
  */
@@ -106,9 +113,11 @@ async function filterGlacierEligibleItems(
   script: Core.GOScript,
   config: SendPaperRequestErrorCheckConfig,
   items: GlacierItem[],
-): Promise<GlacierItem[]> {
+): Promise<FilterGlacierResult> {
   const logger = script.logger;
   const eligibleItems: GlacierItem[] = [];
+  const failedItems: GlacierItem[] = [];
+  let errorCount = 0;
 
   for (const item of items) {
     // 1. Controllo denominazione AAR
@@ -128,17 +137,24 @@ async function filterGlacierEligibleItems(
         if (notifItems.length > 0 && notifItems[0]) {
           sentAt = get<string>(notifItems[0], 'sentAt');
         }
-      } catch {
-        // Ignora errore query
+      } catch (err: unknown) {
+        // 🔥 PROPAGAZIONE / CONTEGGIO ERRORE DYNAMODB:
+        errorCount++;
+        failedItems.push(item);
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        logger.error(`❌ IUN ${item.iun}: Errore DynamoDB durante query ${NOTIFICATIONS_TABLE_NAME}: ${errorMsg}`);
+        continue;
       }
     }
 
+    // 3. Verifica sentAt (se non presente ma senza errori di query, es. non trovata)
     if (!sentAt) {
       logger.warning(
         `IUN ${item.iun}: data sentAt non disponibile per AAR ${item.fileKey}. Impossibile confermare età > 1 anno, file scartato dal restore Glacier.`,
       );
       continue;
     }
+
     // 4. Controllo età > 1 anno
     const older1Y = isNotificationOlderThanOneYear(sentAt);
     if (!older1Y) {
@@ -149,16 +165,27 @@ async function filterGlacierEligibleItems(
     }
     eligibleItems.push(item);
   }
-  return eligibleItems;
+
+  return { eligibleItems, failedItems, errorCount };
 }
 
-/**
- * Esegue il ripristino (RestoreObject) da S3 Glacier per soli documenti AAR di notifiche > 1 anno.
- *
- * @param script - Istanza GOScript
- * @param rawItems - Righe di input contenenti IUN o IUN,fileKey[,sentAt]
- * @returns Risultati dell'operazione di restore da Glacier
- */
+async function saveFailedGlacierItems(
+  script: Core.GOScript,
+  config: SendPaperRequestErrorCheckConfig,
+  failedItems: GlacierItem[],
+): Promise<void> {
+  if (failedItems.length === 0) return;
+  try {
+    const failedFilePath = resolveOutputPath(script.paths, 'glacier_failed.csv', config.outputDir);
+    const exporter = new Core.GOFileListExporter({ outputPath: failedFilePath });
+    const lines = ['iun,fileKey', ...failedItems.map((item) => `${item.iun},${item.fileKey}`)];
+    await exporter.export(lines);
+    script.logger.info(`💾 Elementi Glacier falliti salvati in: ${failedFilePath}`);
+  } catch (err) {
+    script.logger.warning(`Impossibile salvare il file glacier_failed.csv: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 export async function retrieveGlacierS3(
   script: Core.GOScript,
   rawItems: ReadonlyArray<string>,
@@ -182,34 +209,44 @@ export async function retrieveGlacierS3(
   }
 
   // Filtra rigorosamente solo AAR di notifiche > 1 anno
-  const glacierItems = await filterGlacierEligibleItems(script, config, parsedItems);
+  const { eligibleItems, failedItems: filterFailedItems, errorCount: filterErrors } =
+    await filterGlacierEligibleItems(script, config, parsedItems);
 
-  if (glacierItems.length === 0) {
-    logger.info('Nessun file AAR con notifica più vecchia di 1 anno da ripristinare da Glacier. Step completato.');
+  let errorsCount = filterErrors;
+  const failedItems: GlacierItem[] = [...filterFailedItems];
+
+  // Se nessun elemento è idoneo, verifichiamo se è a causa di errori o semplicemente nessun dato
+  if (eligibleItems.length === 0) {
+    if (errorsCount > 0) {
+      logger.error(`Verifica Glacier terminata con ${errorsCount} errori (nessun file idoneo elaborabile).`);
+      await saveFailedGlacierItems(script, config, failedItems);
+    } else {
+      logger.info('Nessun file AAR con notifica più vecchia di 1 anno da ripristinare da Glacier. Step completato.');
+    }
     return {
-      totalItems: 0,
+      totalItems: parsedItems.length,
       skippedByUser: false,
       restoredCount: 0,
       alreadyInProgressCount: 0,
       alreadyAvailableCount: 0,
-      errorsCount: 0,
+      errorsCount,
+      failedItems,
     };
   }
 
-  logger.info(`Trovati ${glacierItems.length} file AAR eleggibili per il ripristino da Glacier S3 (> 1 anno).`);
-
-  // Chiede conferma all'utente se non in modalità force / non-interattiva
+  // Chiede conferma all'utente se non in modalità force
   if (!config.force) {
-    const userConfirmed = await promptUserConfirmation(script, glacierItems.length);
+    const userConfirmed = await promptUserConfirmation(script, eligibleItems.length);
     if (!userConfirmed) {
       logger.info("Ripristino da Glacier annullato dall'utente.");
       return {
-        totalItems: glacierItems.length,
+        totalItems: eligibleItems.length,
         skippedByUser: true,
         restoredCount: 0,
         alreadyInProgressCount: 0,
         alreadyAvailableCount: 0,
-        errorsCount: 0,
+        errorsCount,
+        failedItems,
       };
     }
   }
@@ -218,20 +255,13 @@ export async function retrieveGlacierS3(
   const expirationDays = config.glacierExpirationDays ?? 7;
   const tier = config.glacierTier ?? 'Standard';
 
-  logger.info(
-    `Avvio restore da Glacier sul bucket [${bucketName}], giorni mantenimento: ${expirationDays}, tier: ${tier}...`,
-  );
-
   let restoredCount = 0;
   let alreadyInProgressCount = 0;
   let alreadyAvailableCount = 0;
-  let errorsCount = 0;
 
-  for (let i = 0; i < glacierItems.length; i++) {
-    const item = glacierItems[i];
+  for (let i = 0; i < eligibleItems.length; i++) {
+    const item = eligibleItems[i];
     if (!item) continue;
-
-    logger.info(`[${i + 1}/${glacierItems.length}] Invio richiesta restore per IUN ${item.iun} (Key: ${item.fileKey})`);
 
     try {
       const { httpStatusCode: statusCode } = await s3Service.restoreObject(
@@ -242,16 +272,12 @@ export async function retrieveGlacierS3(
       );
 
       if (statusCode === 200 || statusCode === 202) {
-        logger.info(`✅ IUN ${item.iun}: Retrieve avviato con successo (HTTP ${statusCode})`);
         restoredCount++;
       } else if (statusCode === 409) {
-        logger.info(`ℹ️ IUN ${item.iun}: Restore già in corso (HTTP 409)`);
         alreadyInProgressCount++;
       } else if (statusCode === 403) {
-        logger.info(`ℹ️ IUN ${item.iun}: Oggetto già disponibile in Active Tier (HTTP 403)`);
         alreadyAvailableCount++;
       } else {
-        logger.info(`✅ IUN ${item.iun}: Risposta ricevuta (HTTP ${statusCode ?? 'UNKNOWN'})`);
         restoredCount++;
       }
     } catch (err: unknown) {
@@ -260,29 +286,30 @@ export async function retrieveGlacierS3(
       const errorName = errorObj.name ?? '';
 
       if (statusCode === 409 || errorName === 'RestoreAlreadyInProgress') {
-        logger.info(`ℹ️ IUN ${item.iun}: Restore già in corso (${errorName || 'HTTP 409'})`);
         alreadyInProgressCount++;
       } else if (errorName === 'ObjectAlreadyInActiveTierError') {
-        logger.info(`ℹ️ IUN ${item.iun}: Oggetto già disponibile (${errorName || 'HTTP 403'})`);
         alreadyAvailableCount++;
       } else {
         errorsCount++;
+        failedItems.push(item);
         const errorMsg = errorObj.message ?? String(err);
-        logger.error(`❌ IUN ${item.iun}: Errore durante la richiesta di restore: ${errorMsg}`);
+        logger.error(`❌ IUN ${item.iun}: Errore durante restore: ${errorMsg}`);
       }
     }
   }
 
-  logger.info(
-    `Ripristino da Glacier completato: ${restoredCount} avviati, ${alreadyInProgressCount} in corso, ${alreadyAvailableCount} già disponibili, ${errorsCount} errori su ${glacierItems.length} totali.`,
-  );
+  // Se ci sono stati elementi falliti (sia da DynamoDB che da S3), esportali
+  if (failedItems.length > 0) {
+    await saveFailedGlacierItems(script, config, failedItems);
+  }
 
   return {
-    totalItems: glacierItems.length,
+    totalItems: parsedItems.length,
     skippedByUser: false,
     restoredCount,
     alreadyInProgressCount,
     alreadyAvailableCount,
     errorsCount,
+    failedItems,
   };
 }

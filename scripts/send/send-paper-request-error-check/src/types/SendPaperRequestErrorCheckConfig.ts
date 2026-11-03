@@ -97,6 +97,7 @@ export interface RetrieveGlacierResult {
   readonly alreadyInProgressCount: number;
   readonly alreadyAvailableCount: number;
   readonly errorsCount: number;
+  readonly failedItems?: ReadonlyArray<unknown>;
 }
 
 /**
