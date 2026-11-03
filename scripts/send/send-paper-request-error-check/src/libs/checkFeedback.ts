@@ -9,6 +9,7 @@ const TIMELINES_TABLE_NAME = 'pn-Timelines';
 
 /**
  * Verifica per ciascun requestId l'esistenza di un evento di feedback in DynamoDB (pn-Timelines).
+ * Raggruppa per IUN per minimizzare le query a DynamoDB e indicizza gli eventi con Map (O(1)).
  *
  * @param script - Istanza di Core.GOScript per accedere ai client e logger
  * @param requestIds - Lista dei requestId da verificare
@@ -37,15 +38,37 @@ export async function checkFeedbackFromRequestIds(
   const notFoundStream = await notFoundExporter.exportStream();
   const failedStream = await failedExporter.exportStream();
 
-  logger.info(`Inizio verifica feedback su pn-Timelines per ${requestIds.length} requestId...`);
+  // 1️⃣ Raggruppa i requestId per IUN
+  const requestsByIun = new Map<string, string[]>();
+  for (const raw of requestIds) {
+    const requestId = raw?.trim();
+    if (!requestId) continue;
+    const iun = extractIun(requestId);
+    if (!iun) {
+      notFoundRequestIds.push(requestId);
+      await notFoundStream.append(requestId);
+      continue;
+    }
+    const group = requestsByIun.get(iun);
+    if (group) {
+      group.push(requestId);
+    } else {
+      requestsByIun.set(iun, [requestId]);
+    }
+  }
+
+  logger.info(
+    `Inizio verifica feedback su pn-Timelines: ${requestIds.length} requestId raggruppati in ${requestsByIun.size} IUN univoci...`,
+  );
+
+  let iunIndex = 0;
+  const totalIuns = requestsByIun.size;
 
   try {
-    for (let i = 0; i < requestIds.length; i++) {
-      const requestId = requestIds[i]?.trim();
-      if (!requestId) continue;
-
-      logger.text(`[${i + 1}/${requestIds.length}] Verifica requestId: ${requestId}`);
-      const iun = extractIun(requestId);
+    // 2️⃣ Itera per IUN univoco (1 sola query DynamoDB per IUN)
+    for (const [iun, groupedRequestIds] of requestsByIun.entries()) {
+      iunIndex++;
+      logger.text(`[${iunIndex}/${totalIuns}] Query timeline per IUN: ${iun} (${groupedRequestIds.length} requestId)`);
 
       try {
         const items = await dynamoDbService.query(TIMELINES_TABLE_NAME, 'iun = :val', {
@@ -53,37 +76,50 @@ export async function checkFeedbackFromRequestIds(
         });
 
         if (items.length > 0) {
-          const partsAfterIun = requestId.includes(iun) ? (requestId.split(iun)[1] ?? '') : '';
-          const feedbackSuffix = partsAfterIun.split('.PCRETRY')[0] ?? '';
-          const completelyUnreachableSuffix = partsAfterIun.split('.ATTEMPT')[0] ?? '';
+          // 3️⃣ Indicizza gli eventi della timeline per timelineElementId (lookup O(1))
+          const eventsById = new Map<string, Record<string, unknown>>();
+          for (const item of items) {
+            const elementId = get<string>(item, 'timelineElementId');
+            if (elementId) {
+              eventsById.set(elementId, item);
+            }
+          }
 
-          const feedbackString = `SEND_ANALOG_FEEDBACK.IUN_${iun}${feedbackSuffix}`;
-          const completelyUnreachableString = `COMPLETELY_UNREACHABLE.IUN_${iun}${completelyUnreachableSuffix}`;
+          // 4️⃣ Risolve ciascun requestId associato a questo IUN
+          for (const requestId of groupedRequestIds) {
+            const partsAfterIun = requestId.includes(iun) ? (requestId.split(iun)[1] ?? '') : '';
+            const feedbackSuffix = partsAfterIun.split('.PCRETRY')[0] ?? '';
+            const completelyUnreachableSuffix = partsAfterIun.split('.ATTEMPT')[0] ?? '';
 
-          const feedbackEvent = items.find((item: Record<string, unknown>) => {
-            const id = get<string>(item, 'timelineElementId');
-            return id === feedbackString || id === completelyUnreachableString;
-          });
+            const feedbackString = `SEND_ANALOG_FEEDBACK.IUN_${iun}${feedbackSuffix}`;
+            const completelyUnreachableString = `COMPLETELY_UNREACHABLE.IUN_${iun}${completelyUnreachableSuffix}`;
 
-          if (feedbackEvent) {
-            logger.info(`✅ Trovato feedback per ${requestId}`);
-            foundRequestIds.push({ requestId, event: feedbackEvent });
-            await foundStream.append(JSON.stringify({ [requestId]: feedbackEvent }));
-          } else {
-            logger.warning(`❌ Feedback non trovato per ${requestId}`);
+            const feedbackEvent = eventsById.get(feedbackString) ?? eventsById.get(completelyUnreachableString);
+
+            if (feedbackEvent) {
+              logger.info(`✅ Trovato feedback per ${requestId}`);
+              foundRequestIds.push({ requestId, event: feedbackEvent });
+              await foundStream.append(JSON.stringify({ [requestId]: feedbackEvent }));
+            } else {
+              logger.warning(`❌ Feedback non trovato per ${requestId}`);
+              notFoundRequestIds.push(requestId);
+              await notFoundStream.append(requestId);
+            }
+          }
+        } else {
+          logger.warning(`❌ Nessun elemento timeline trovato per IUN ${iun} (${groupedRequestIds.length} requestId)`);
+          for (const requestId of groupedRequestIds) {
             notFoundRequestIds.push(requestId);
             await notFoundStream.append(requestId);
           }
-        } else {
-          logger.warning(`❌ Nessun elemento timeline trovato per IUN ${iun} (${requestId})`);
-          notFoundRequestIds.push(requestId);
-          await notFoundStream.append(requestId);
         }
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        logger.error(`Errore durante la query per ${requestId} (IUN: ${iun}): ${errorMsg}`);
-        failedRequestIds.push(requestId);
-        await failedStream.append(requestId);
+        logger.error(`❌ Errore durante la query per IUN ${iun}: ${errorMsg}`);
+        for (const requestId of groupedRequestIds) {
+          failedRequestIds.push(requestId);
+          await failedStream.append(requestId);
+        }
       }
     }
   } finally {
