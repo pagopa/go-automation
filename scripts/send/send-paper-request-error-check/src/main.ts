@@ -21,8 +21,14 @@ export async function main(script: Core.GOScript): Promise<void> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
   const reporter = new PaperRequestReporter();
 
+  const outputPathInfo = script.paths.resolvePathWithInfo(config.outputDir ?? '', Core.GOPathType.OUTPUT);
+
   script.logger.info(`Execution mode: ${config.mode}`);
-  script.logger.info(`Output directory: ${config.outputDir}`);
+  if (outputPathInfo.isAbsolute) {
+    script.logger.info(`Output directory (absolute): ${outputPathInfo.path}`);
+  } else {
+    script.logger.info(`Output directory: ${outputPathInfo.path}`);
+  }
 
   const inputLines = await readInputLines(config.inputFile);
   reporter.setInitialTotal(inputLines.length);
@@ -30,7 +36,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   await executeStepByMode(script, config, inputLines, reporter);
 
   // Report finale con metriche
-  const metrics = await reporter.generateReport(config.outputDir, script.logger);
+  const metrics = await reporter.generateReport(outputPathInfo.path, script);
   if ((metrics.errorsCount ?? 0) > 0) {
     throw new Error(`Paper Request Error Check completed with ${metrics.errorsCount} operational errors`);
   }

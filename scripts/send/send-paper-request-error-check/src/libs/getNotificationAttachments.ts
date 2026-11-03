@@ -1,8 +1,9 @@
-import path from 'path';
 import { AWS, Core } from '@go-automation/go-common';
 import { getConfinfoS3Service, getConfinfoDynamoDBService } from '../utils/awsClients.js';
 import type { SendPaperRequestErrorCheckConfig, GetNotificationAttachmentsResult } from '../types/index.js';
 import { get, iunFromRid } from '../utils/get.js';
+import { resolveOutputPath } from '../utils/resolveOutputPath.js';
+//const { unmarshall } = require('@aws-sdk/util-dynamodb');
 
 /** Tabelle DynamoDB coinvolte */
 const NOTIFICATIONS_TABLE_NAME = 'pn-Notifications';
@@ -60,7 +61,6 @@ export async function getNotificationAttachments(
   const s3Service = getConfinfoS3Service(script, config);
   const logger = script.logger;
 
-  const outputDir = config.outputDir || 'results';
   const timestamp = new Date().toISOString().replace(/:/g, '-').replace('.', '-');
 
   // Risoluzione bucket di destinazione tramite servizio S3 di common
@@ -80,10 +80,10 @@ export async function getNotificationAttachments(
 
   logger.info(`Bucket SafeStorage di riferimento: ${bucket}`);
 
-  const csvFile = path.join(outputDir, `notification_attachments_${timestamp}.csv`);
-  const notFoundNotificationsFile = path.join(outputDir, `not_found_notifications_${timestamp}.txt`);
-  const notFoundAttachmentsFile = path.join(outputDir, `not_found_attachments_${timestamp}.csv`);
-  const errorAttachmentsFile = path.join(outputDir, `error_attachments_${timestamp}.csv`);
+  const csvFile = resolveOutputPath(script.paths, `notification_attachments_${timestamp}.csv`, config.outputDir);
+  const notFoundNotificationsFile = resolveOutputPath(script.paths, `not_found_notifications_${timestamp}.txt`, config.outputDir);
+  const notFoundAttachmentsFile = resolveOutputPath(script.paths, `not_found_attachments_${timestamp}.csv`, config.outputDir);
+  const errorAttachmentsFile = resolveOutputPath(script.paths, `error_attachments_${timestamp}.csv`, config.outputDir);
 
   const csvExporter = new Core.GOFileListExporter({ outputPath: csvFile });
   const notFoundNotificationsExporter = new Core.GOFileListExporter({ outputPath: notFoundNotificationsFile });
@@ -131,6 +131,18 @@ export async function getNotificationAttachments(
       if (!notif) continue;
 
       const documents = get<Record<string, unknown>[]>(notif, 'documents', []);
+
+      /*const recipients = get<Record<string, unknown>[]>(notif, 'recipients', []);
+
+      for(const recipient of recipients) {
+
+        if(recipient.payments != null) {
+          for(const payment of recipient.payments) {
+            payment.pagoPaForm ? temp.attachments.push(payment.pagoPaForm.ref.key) : null
+          }
+        }
+
+      }*/
 
       const confinfoDynamoDBService = getConfinfoDynamoDBService(script, config);
 

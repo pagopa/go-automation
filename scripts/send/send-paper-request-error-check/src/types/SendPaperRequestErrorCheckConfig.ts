@@ -129,7 +129,7 @@ export interface SendPaperRequestErrorCheckConfig {
   readonly force?: boolean;
 
   /** Directory di output per risultati e report */
-  readonly outputDir: string;
+  readonly outputDir?: string;
 
   readonly glacierExpirationDays?: number;
 

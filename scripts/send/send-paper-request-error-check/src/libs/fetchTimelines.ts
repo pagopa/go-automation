@@ -1,10 +1,10 @@
-import path from 'path';
 import { Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig } from '../types/index.js';
 import { getCoreDynamoDBService } from '../utils/awsClients.js';
 import { extractIun, get } from '../utils/get.js';
 import { processTimelines } from './verifyNotification.js';
 import type { PaperRequestReporter } from './reporter.js';
+import { resolveOutputPath } from '../utils/resolveOutputPath.js';
 
 /** Nome della tabella DynamoDB delle timeline */
 const TIMELINES_TABLE_NAME = 'pn-Timelines';
@@ -51,8 +51,6 @@ export async function fetchTimelines(
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
   const dynamoDbService = getCoreDynamoDBService(script, config);
   const logger = script.logger;
-
-  const outputDir = config.outputDir || 'results';
 
   // Estrazione lista univoca di IUN
   const iunSet = new Set<string>();
@@ -153,7 +151,7 @@ export async function fetchTimelines(
   const filteredIuns: string[] = filteredTimelines.map((item) => item.iun);
 
   // Scrittura del file JSON di output via GOJSONListExporter
-  const destinationFile = path.join(outputDir, 'timelines.json');
+  const destinationFile = resolveOutputPath(script.paths, 'timelines.json', config.outputDir);
   const exporter = new Core.GOJSONListExporter({ outputPath: destinationFile, jsonl: false });
   await exporter.export(filteredTimelines as unknown as ReadonlyArray<Record<string, unknown>>);
 

@@ -1,9 +1,9 @@
-import path from 'path';
 import { Core, AWS } from '@go-automation/go-common';
 import { getConfinfoS3Service, getCoreDynamoDBService } from '../utils/awsClients.js';
 import type { SendPaperRequestErrorCheckConfig, PdfValidationResult } from '../types/index.js';
 import { isNotificationOlderThanOneYear } from './verifyNotification.js';
 import { get } from '../utils/get.js';
+import { resolveOutputPath } from '../utils/resolveOutputPath.js';
 
 const NOTIFICATIONS_TABLE_NAME = 'pn-Notifications';
 
@@ -99,8 +99,6 @@ export async function validateS3Pdfs(
   const s3Service = getConfinfoS3Service(script, config);
   const logger = script.logger;
 
-  const outputDir = config.outputDir || 'results';
-
   // Estrazione e filtraggio delle chiavi S3 da validare (inclusi allegati ed AAR in active tier, esclusi AAR in Glacier)
   const fileKeys: string[] = [];
   const sentAtCache = new Map<string, string | undefined>();
@@ -179,9 +177,9 @@ export async function validateS3Pdfs(
     `Inizio validazione magic bytes su ${fileKeys.length} oggetti S3 nel bucket [${bucket}] (Concorrenza: ${concurrency})...`,
   );
 
-  const validPdfsFile = path.join(outputDir, 'valid_pdfs.csv');
-  const invalidPdfsFile = path.join(outputDir, 'invalid_pdfs.csv');
-  const errorsFile = path.join(outputDir, 'pdf_validation_errors.csv');
+  const validPdfsFile = resolveOutputPath(script.paths, 'valid_pdfs.csv', config.outputDir);
+  const invalidPdfsFile = resolveOutputPath(script.paths, 'invalid_pdfs.csv', config.outputDir);
+  const errorsFile = resolveOutputPath(script.paths, 'pdf_validation_errors.csv', config.outputDir);
 
   const validExporter = new Core.GOFileListExporter({ outputPath: validPdfsFile });
   const invalidExporter = new Core.GOFileListExporter({ outputPath: invalidPdfsFile });

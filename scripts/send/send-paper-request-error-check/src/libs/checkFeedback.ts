@@ -1,8 +1,8 @@
-import path from 'path';
 import { Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig, CheckFeedbackResult } from '../types/index.js';
 import { getCoreDynamoDBService } from '../utils/awsClients.js';
 import { extractIun, get } from '../utils/get.js';
+import { resolveOutputPath } from '../utils/resolveOutputPath.js';
 
 /** Nome della tabella DynamoDB delle timeline */
 const TIMELINES_TABLE_NAME = 'pn-Timelines';
@@ -21,15 +21,14 @@ export async function checkFeedbackFromRequestIds(
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
   const dynamoDbService = getCoreDynamoDBService(script, config);
   const logger = script.logger;
-  const outputDir = config.outputDir || 'results';
 
   const foundRequestIds: { requestId: string; event: Record<string, unknown> }[] = [];
   const notFoundRequestIds: string[] = [];
   const failedRequestIds: string[] = [];
 
-  const foundFilePath = path.join(outputDir, 'found.json');
-  const notFoundFilePath = path.join(outputDir, 'not_found.txt');
-  const failedFilePath = path.join(outputDir, 'failed.txt');
+  const foundFilePath = resolveOutputPath(script.paths, 'found.json', config.outputDir);
+  const notFoundFilePath = resolveOutputPath(script.paths, 'not_found.txt', config.outputDir);
+  const failedFilePath = resolveOutputPath(script.paths, 'failed.txt', config.outputDir);
 
   const foundExporter = new Core.GOFileListExporter({ outputPath: foundFilePath });
   const notFoundExporter = new Core.GOFileListExporter({ outputPath: notFoundFilePath });

@@ -1,3 +1,4 @@
+import { mkdir } from 'node:fs/promises';
 import path from 'path';
 import { Core } from '@go-automation/go-common';
 import { get } from '../utils/get.js';
@@ -9,6 +10,7 @@ import type {
   RetrieveAttachmentsResult,
   RetrieveGlacierResult,
 } from '../types/index.js';
+import { resolveOutputPath } from '../utils/resolveOutputPath.js';
 
 /**
  * Gestore delle metriche e della generazione del report finale di elaborazione.
@@ -159,9 +161,9 @@ export class PaperRequestReporter {
    * Genera i report finali (`summary_report.json` e `summary_report.csv`) e stampa la tabella riepilogativa su console.
    *
    * @param outputDir - Cartella di destinazione dei file di report
-   * @param logger - Istanza del logger di GOScript
+   * @param script
    */
-  public async generateReport(outputDir: string, logger: Core.GOLogger): Promise<PaperRequestMetrics> {
+  public async generateReport(outputDir: string, script: Core.GOScript,): Promise<PaperRequestMetrics> {
     const timestamp = new Date().toISOString();
     const stepDetails: Record<string, unknown> = {};
 
@@ -240,11 +242,17 @@ export class PaperRequestReporter {
 
     // 1. Salvataggio JSON via GOJSONListExporter
     const jsonPath = path.join(outputDir, 'summary_report.json');
+
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- output path is generated through GOPaths or explicit operator-provided path.
+    await mkdir(path.dirname(jsonPath), { recursive: true });
+
     const jsonExporter = new Core.GOJSONListExporter({ outputPath: jsonPath, jsonl: false });
     await jsonExporter.export([reportData]);
 
+    await jsonExporter.export([reportData]);
+
     // 2. Salvataggio CSV via GOFileListExporter
-    const csvPath = path.join(outputDir, 'summary_report.csv');
+    const csvPath = resolveOutputPath(script.paths, 'summary_report.csv');
     const csvLines = [
       'Metric,Value',
       `totalInitialRequestIds,${this.metrics.totalInitialRequestIds}`,
@@ -270,20 +278,20 @@ export class PaperRequestReporter {
     await fileExporter.export(csvLines);
 
     // 3. Stampa tabella di riepilogo a console
-    logger.section('SUMMARY REPORT METRICS');
-    logger.info(`📄 Report salvato in:`);
-    logger.info(`   - JSON: ${jsonPath}`);
-    logger.info(`   - CSV:  ${csvPath}`);
-    logger.info('----------------------------------------------------');
-    logger.info(`Total Initial RequestIDs / IUNs : ${this.metrics.totalInitialRequestIds}`);
-    logger.info('----------------------------------------------------');
+    script.logger.section('SUMMARY REPORT METRICS');
+    script.logger.info(`📄 Report salvato in:`);
+    script.logger.info(`   - JSON: ${jsonPath}`);
+    script.logger.info(`   - CSV:  ${csvPath}`);
+    script.logger.info('----------------------------------------------------');
+    script.logger.info(`Total Initial RequestIDs / IUNs : ${this.metrics.totalInitialRequestIds}`);
+    script.logger.info('----------------------------------------------------');
 
     // Dettaglio per step: Check Analog Feedback
     if (this.checkFeedbackResult) {
       const cf = this.checkFeedbackResult;
       const failedCount = cf.failedCount ?? cf.failedRequestIds?.length ?? 0;
       const failedMsg = failedCount > 0 ? `, errori/falliti: ${failedCount}` : '';
-      logger.info(
+      script.logger.info(
         `[Check Feedback]     Request IDs iniziali: ${cf.totalChecked}` +
           ` → con feedback: ${cf.foundCount}, senza feedback: ${cf.notFoundCount}${failedMsg}`,
       );
@@ -292,7 +300,7 @@ export class PaperRequestReporter {
     // Dettaglio per step: Get Notification Attachments
     if (this.getAttachmentsResult) {
       const ga = this.getAttachmentsResult;
-      logger.info(
+      script.logger.info(
         `[Get Attachments]    Notifiche processate: ${ga.totalProcessed}` +
           ` → trovate: ${ga.notificationsFound}, non trovate: ${ga.notificationsNotFound}` +
           ` | Allegati: trovati: ${ga.attachmentsFound}, non trovati: ${ga.attachmentsNotFound}` +
@@ -303,7 +311,7 @@ export class PaperRequestReporter {
     // Dettaglio per step: Retrieve Attachments & AARs
     if (this.retrieveAttachmentsResult) {
       const ra = this.retrieveAttachmentsResult;
-      logger.info(
+      script.logger.info(
         `[Retrieve Attachments] IUN processati: ${ra.totalIuns}` +
           ` → allegati estratti: ${ra.attachmentsExtractedCount} (${ra.validPdfAttachmentKeys?.length ?? 0} per validazione PDF, ${ra.skippedAttachmentsDeleteMarkerCount ?? 0} scartati delete marker)` +
           `, AAR estratti: ${ra.aarsExtractedCount} (${ra.glacierEligibleAarKeys?.length ?? 0} eleggibili Glacier >1 anno, ${ra.skippedAarActiveTierCount ?? 0} active tier)` +
@@ -315,9 +323,9 @@ export class PaperRequestReporter {
     if (this.glacierResult) {
       const gr = this.glacierResult;
       if (gr.skippedByUser) {
-        logger.info(`[Glacier Restore]    Saltato dall'utente (${gr.totalItems} elementi).`);
+        script.logger.info(`[Glacier Restore]    Saltato dall'utente (${gr.totalItems} elementi).`);
       } else {
-        logger.info(
+        script.logger.info(
           `[Glacier Restore]    Elementi totali: ${gr.totalItems}` +
             ` → restore avviati: ${gr.restoredCount}, già in corso: ${gr.alreadyInProgressCount}` +
             `, già disponibili: ${gr.alreadyAvailableCount}, errori: ${gr.errorsCount}`,
@@ -328,7 +336,7 @@ export class PaperRequestReporter {
     // Dettaglio per step: Validate S3 PDFs
     if (this.pdfValidationResult) {
       const pv = this.pdfValidationResult;
-      logger.info(
+      script.logger.info(
         `[Validate PDF]       PDF controllati: ${pv.totalChecked}` +
           ` → validi: ${pv.validPdfCount}, non validi: ${pv.invalidPdfCount}, errori: ${pv.errorCount}`,
       );
@@ -337,28 +345,28 @@ export class PaperRequestReporter {
     // Dettaglio per step: Fetch Timelines
     if (this.fetchTimelinesResult) {
       const ft = this.fetchTimelinesResult;
-      logger.info(
+      script.logger.info(
         `[Fetch Timelines]    IUN processati: ${ft.totalIuns}` +
           ` → timeline scaricate: ${ft.timelinesFetchedCount}, vuote: ${ft.emptyTimelinesCount}` +
           `, errori: ${ft.errorsCount}`,
       );
     }
 
-    logger.info('----------------------------------------------------');
-    logger.info(`Total initial Requests         : ${this.metrics.totalInitialRequestIds}`);
-    logger.info(`Requests with Feedback         : ${this.metrics.withFeedback}`);
-    logger.info(`Requests without Feedback      : ${this.metrics.withoutFeedback}`);
-    logger.info(`Timelines Fetched              : ${this.metrics.timelinesFetchedCount ?? 0}`);
-    logger.info(`Perfected Requests             : ${this.metrics.perfectedCount}`);
-    logger.info(`Viewed Requests                : ${this.metrics.viewedCount}`);
-    logger.info(`Canceled Requests              : ${this.metrics.canceledCount}`);
-    logger.info(`Refined Requests               : ${this.metrics.refinedCount}`);
-    logger.info(`Invalid Attachments            : ${this.metrics.invalidAttachmentsCount}`);
-    logger.info(`Glacier Restored Objects       : ${this.metrics.glacierRestoredCount}`);
-    logger.info(`Valid PDFs Checked             : ${this.metrics.validPdfCount ?? 0}`);
-    logger.info(`Invalid PDFs Checked           : ${this.metrics.invalidPdfCount ?? 0}`);
-    logger.info(`Total Errors                   : ${this.metrics.errorsCount ?? 0}`);
-    logger.info('----------------------------------------------------');
+    script.logger.info('----------------------------------------------------');
+    script.logger.info(`Total initial Requests         : ${this.metrics.totalInitialRequestIds}`);
+    script.logger.info(`Requests with Feedback         : ${this.metrics.withFeedback}`);
+    script.logger.info(`Requests without Feedback      : ${this.metrics.withoutFeedback}`);
+    script.logger.info(`Timelines Fetched              : ${this.metrics.timelinesFetchedCount ?? 0}`);
+    script.logger.info(`Perfected Requests             : ${this.metrics.perfectedCount}`);
+    script.logger.info(`Viewed Requests                : ${this.metrics.viewedCount}`);
+    script.logger.info(`Canceled Requests              : ${this.metrics.canceledCount}`);
+    script.logger.info(`Refined Requests               : ${this.metrics.refinedCount}`);
+    script.logger.info(`Invalid Attachments            : ${this.metrics.invalidAttachmentsCount}`);
+    script.logger.info(`Glacier Restored Objects       : ${this.metrics.glacierRestoredCount}`);
+    script.logger.info(`Valid PDFs Checked             : ${this.metrics.validPdfCount ?? 0}`);
+    script.logger.info(`Invalid PDFs Checked           : ${this.metrics.invalidPdfCount ?? 0}`);
+    script.logger.info(`Total Errors                   : ${this.metrics.errorsCount ?? 0}`);
+    script.logger.info('----------------------------------------------------');
 
     return { ...this.metrics };
   }

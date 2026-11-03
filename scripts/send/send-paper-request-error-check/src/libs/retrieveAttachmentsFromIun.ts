@@ -1,9 +1,9 @@
-import path from 'path';
 import { Core, AWS } from '@go-automation/go-common';
 import { getCoreDynamoDBService } from '../utils/awsClients.js';
 import type { SendPaperRequestErrorCheckConfig, RetrieveAttachmentsResult } from '../types/index.js';
 import { get, iunFromRid } from '../utils/get.js';
 import { isNotificationOlderThanOneYear, isNotificationExcluded, type TimelineEvent } from './verifyNotification.js';
+import { resolveOutputPath } from '../utils/resolveOutputPath.js';
 
 /** Tabelle DynamoDB coinvolte */
 const NOTIFICATIONS_TABLE_NAME = 'pn-Notifications';
@@ -147,13 +147,11 @@ export async function retrieveAttachmentsFromIun(
   const dynamoDbService = getCoreDynamoDBService(script, config);
   const logger = script.logger;
 
-  const outputDir = config.outputDir || 'results';
-
-  const attachmentsFilePath = path.join(outputDir, 'attachments.json');
-  const aarFilePath = path.join(outputDir, 'aar.json');
-  const glacierEligibleFilePath = path.join(outputDir, 'glacier_eligible_aar.csv');
-  const validPdfAttachmentsFilePath = path.join(outputDir, 'pdf_validation_eligible_attachments.csv');
-  const skippedAttachmentsFilePath = path.join(outputDir, 'skipped_attachments_delete_marker.csv');
+  const attachmentsFilePath = resolveOutputPath(script.paths, 'attachments.json', config.outputDir);
+  const aarFilePath = resolveOutputPath(script.paths, 'aar.json', config.outputDir);
+  const glacierEligibleFilePath = resolveOutputPath(script.paths, 'glacier_eligible_aar.csv', config.outputDir);
+  const validPdfAttachmentsFilePath = resolveOutputPath(script.paths, 'pdf_validation_eligible_attachments.csv', config.outputDir);
+  const skippedAttachmentsFilePath = resolveOutputPath(script.paths, 'skipped_attachments_delete_marker.csv', config.outputDir);
 
   const attachmentsExporter = new Core.GOFileListExporter({ outputPath: attachmentsFilePath });
   const aarExporter = new Core.GOFileListExporter({ outputPath: aarFilePath });

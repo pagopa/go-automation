@@ -1,7 +1,7 @@
-import path from 'path';
 import { Core } from '@go-automation/go-common';
 import type { SendPaperRequestErrorCheckConfig } from '../types/index.js';
 import type { PaperRequestReporter } from './reporter.js';
+import { resolveOutputPath } from '../utils/resolveOutputPath.js';
 
 export interface TimelineEvent {
   category?: string;
@@ -129,7 +129,6 @@ export async function processTimelines<
   const refinementOutput: string[] = [];
   const keptItems: T[] = [];
   const logger = script.logger;
-  const outputDir = config.outputDir ?? 'results';
 
   for (const item of data) {
     const timeline = item.timeline;
@@ -165,9 +164,9 @@ export async function processTimelines<
   }
 
   try {
-    const notificationCancelledPath = path.join(outputDir, 'NOTIFICATION_CANCELLED.txt');
-    const notificationViewedPath = path.join(outputDir, 'NOTIFICATION_VIEWED.txt');
-    const refinementPath = path.join(outputDir, 'REFINEMENT.txt');
+    const notificationCancelledPath = resolveOutputPath(script.paths, 'NOTIFICATION_CANCELLED.txt', config.outputDir);
+    const notificationViewedPath = resolveOutputPath(script.paths, 'NOTIFICATION_VIEWED.txt', config.outputDir);
+    const refinementPath = resolveOutputPath(script.paths, 'REFINEMENT.txt', config.outputDir);
 
     const cancelledExporter = new Core.GOFileListExporter({ outputPath: notificationCancelledPath });
     const viewedExporter = new Core.GOFileListExporter({ outputPath: notificationViewedPath });
