@@ -4,6 +4,7 @@ import type { SendPaperRequestErrorCheckConfig, RetrieveGlacierResult } from '..
 import { isNotificationOlderThanOneYear } from './verifyNotification.js';
 import { get } from '../utils/get.js';
 import { resolveOutputPath } from '../utils/resolveOutputPath.js';
+import { resolveSafestorageBucket } from '../utils/resolveSafestorageBucket.js';
 
 const NOTIFICATIONS_TABLE_NAME = 'pn-Notifications';
 
@@ -68,36 +69,6 @@ async function promptUserConfirmation(script: Core.GOScript, count: number): Pro
     false,
   );
   return result ?? false;
-}
-
-/**
- * Risolve il nome del bucket S3 SafeStorage se non specificato in configurazione.
- * Usa il profilo Confinfo per elencare i bucket (SafeStorage è nell'account Confinfo).
- */
-async function resolveSafestorageBucket(
-  script: Core.GOScript,
-  config: SendPaperRequestErrorCheckConfig,
-  configuredBucket?: string,
-): Promise<string> {
-  if (configuredBucket) {
-    return configuredBucket;
-  }
-  try {
-    const s3Service = getConfinfoS3Service(script, config);
-    const buckets = await s3Service.listBuckets();
-    const target = buckets.find(
-      (b) =>
-        b.name !== undefined &&
-        !b.name.includes('staging') &&
-        (b.name.includes('safestorage') || b.name.includes('safe-storage')),
-    );
-    if (target?.name) {
-      return target.name;
-    }
-  } catch {
-    script.logger.warning('Impossibile elencare i bucket S3, uso bucket predefinito safe-storage');
-  }
-  return 'pn-safestorage-eu-south-1';
 }
 
 interface FilterGlacierResult {

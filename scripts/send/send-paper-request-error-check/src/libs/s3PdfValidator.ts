@@ -4,6 +4,7 @@ import type { SendPaperRequestErrorCheckConfig, PdfValidationResult } from '../t
 import { isNotificationOlderThanOneYear } from './verifyNotification.js';
 import { get } from '../utils/get.js';
 import { resolveOutputPath } from '../utils/resolveOutputPath.js';
+import { resolveSafestorageBucket } from '../utils/resolveSafestorageBucket.js';
 
 const NOTIFICATIONS_TABLE_NAME = 'pn-Notifications';
 
@@ -59,29 +60,6 @@ async function validatePDFMagicBytes(
       error: errorType,
     };
   }
-}
-
-/**
- * Risolve il bucket S3 SafeStorage se non configurato esplicitamente.
- * Usa il profilo Confinfo per elencare i bucket (SafeStorage è nell'account Confinfo).
- */
-async function resolveSafestorageBucket(
-  script: Core.GOScript,
-  config: SendPaperRequestErrorCheckConfig,
-  configuredBucket?: string,
-): Promise<string> {
-  if (configuredBucket) return configuredBucket;
-
-  try {
-    const s3Service = getConfinfoS3Service(script, config);
-    const buckets = await s3Service.listBuckets();
-    const target = buckets.find((b) => b.name && b.name.includes('safestorage') && !b.name.includes('staging'));
-    if (target?.name) return target.name;
-  } catch {
-    // Fallback
-  }
-
-  return 'pn-safestorage-eu-south-1';
 }
 
 /**

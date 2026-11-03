@@ -3,7 +3,7 @@ import { getConfinfoS3Service, getConfinfoDynamoDBService, getCoreDynamoDBServic
 import type { SendPaperRequestErrorCheckConfig, GetNotificationAttachmentsResult } from '../types/index.js';
 import { get, iunFromRid } from '../utils/get.js';
 import { resolveOutputPath } from '../utils/resolveOutputPath.js';
-//const { unmarshall } = require('@aws-sdk/util-dynamodb');
+import { resolveSafestorageBucket } from '../utils/resolveSafestorageBucket.js';
 
 /** Tabelle DynamoDB coinvolte */
 const NOTIFICATIONS_TABLE_NAME = 'pn-Notifications';
@@ -64,19 +64,8 @@ export async function getNotificationAttachments(
   const timestamp = new Date().toISOString().replace(/:/g, '-').replace('.', '-');
 
   // Risoluzione bucket di destinazione tramite servizio S3 di common
-  let bucket = config.bucket;
-  if (!bucket) {
-    try {
-      const buckets = await s3Service.listBuckets();
-      const target = buckets.find((b) => b.name && b.name.includes('safestorage') && !b.name.includes('staging'));
-      if (target?.name) {
-        bucket = target.name;
-      }
-    } catch {
-      logger.warning(`Impossibile elencare i bucket via S3 Service, imposto bucket predefinito safe-storage`);
-    }
-    bucket ??= 'pn-safestorage-eu-south-1';
-  }
+  const bucket = await resolveSafestorageBucket(script, config, config.bucket);
+  logger.info(`Bucket SafeStorage di riferimento: ${bucket}`);
 
   logger.info(`Bucket SafeStorage di riferimento: ${bucket}`);
 
@@ -130,60 +119,64 @@ export async function getNotificationAttachments(
       const notif = items[0];
       if (!notif) continue;
 
+      // 1. Estrazione di tutti gli allegati: documents + recipients[].payments[].pagoPaForm
+      const attachmentKeys: string[] = [];
+      // Allegati principali (documents)
       const documents = get<Record<string, unknown>[]>(notif, 'documents', []);
-
-      /*const recipients = get<Record<string, unknown>[]>(notif, 'recipients', []);
-
-      for(const recipient of recipients) {
-
-        if(recipient.payments != null) {
-          for(const payment of recipient.payments) {
-            payment.pagoPaForm ? temp.attachments.push(payment.pagoPaForm.ref.key) : null
-          }
-        }
-
-      }*/
-
-      const confinfoDynamoDBService = getConfinfoDynamoDBService(script, config);
-
       for (const doc of documents) {
         const docRef = get<Record<string, unknown>>(doc, 'ref');
         const documentKey = get<string>(docRef, 'key');
-
-        if (!documentKey) {
-          attachmentsNotFound++;
-          await notFoundAttachmentsStream.append(`${iun},`);
-          logger.warning(`Nessun documentKey trovato nei documenti per IUN ${iun}`);
-          continue;
+        if (documentKey) {
+          attachmentKeys.push(documentKey);
         }
-
-        // 2. Controllo S3
+      }
+      // Modelli PagoPA dei destinatari (recipients -> payments -> pagoPaForm)
+      const recipients = get<Record<string, unknown>[]>(notif, 'recipients', []);
+      for (const recipient of recipients) {
+        const payments = get<Record<string, unknown>[]>(recipient, 'payments', []);
+        for (const payment of payments) {
+          const pagoPaForm = get<Record<string, unknown>>(payment, 'pagoPaForm');
+          const ref = get<Record<string, unknown>>(pagoPaForm, 'ref');
+          const key = get<string>(ref, 'key');
+          if (key) {
+            attachmentKeys.push(key);
+          }
+        }
+      }
+      // Deduplica eventuali chiavi ripetute
+      const uniqueAttachmentKeys = [...new Set(attachmentKeys)];
+      if (uniqueAttachmentKeys.length === 0) {
+        attachmentsNotFound++;
+        await notFoundAttachmentsStream.append(`${iun},`);
+        logger.warning(`Nessun allegato trovato (documents o pagoPaForm) per IUN ${iun}`);
+        continue;
+      }
+      const confinfoDynamoDBService = getConfinfoDynamoDBService(script, config);
+      // 2. Loop di verifica per ciascun allegato (S3 + pn-SsDocumenti)
+      for (const documentKey of uniqueAttachmentKeys) {
+        // Controllo S3
         const s3State = await checkS3ObjectState(s3Service, bucket, documentKey);
-
         if (s3State.error) {
           errorsCount++;
           let errorMessage = 'Errore Sconosciuto';
-
           if (s3State.error instanceof Error) {
             errorMessage = s3State.error.message;
-          } else if (typeof s3State.error === 'object')
+          } else if (typeof s3State.error === 'object') {
             if ('message' in s3State.error && typeof s3State.error.message === 'string') {
               errorMessage = s3State.error.message;
             } else {
               errorMessage = JSON.stringify(s3State.error);
             }
-
+          }
           logger.error(`Errore S3 per IUN ${iun} (Key: ${documentKey}): ${errorMessage}`);
           await errorAttachmentsStream.append(`${iun},${documentKey},${errorMessage}`);
         }
-
         if (!s3State.found) {
           attachmentsNotFound++;
           await notFoundAttachmentsStream.append(`${iun},${documentKey}`);
           logger.warning(`Allegato non trovato su S3 per IUN ${iun} (Key: ${documentKey})`);
           continue;
         }
-
         if (s3State.hasDeleteMarker) {
           deleteMarkersFound++;
           attachmentsNotFound++;
@@ -191,15 +184,12 @@ export async function getNotificationAttachments(
           logger.warning(`Allegato con Delete Marker su S3 per IUN ${iun} (Key: ${documentKey})`);
           continue;
         }
-
-        // 3. Query pn-SsDocumenti per stato documento via DynamoDB Service
+        // Controllo pn-SsDocumenti
         const docItems = await confinfoDynamoDBService.query(SS_DOCUMENTI_TABLE_NAME, 'documentKey = :val', {
           ':val': { S: documentKey },
         });
-
         let documentLogicalState = 'UNKNOWN';
         let documentState = 'UNKNOWN';
-
         if (docItems.length > 0) {
           const docObj = docItems[0];
           if (docObj) {
@@ -207,12 +197,12 @@ export async function getNotificationAttachments(
             documentState = get<string>(docObj, 'documentState', 'UNKNOWN');
           }
         }
-
         attachmentsFound++;
         await csvStream.append(
           `${iun},${documentKey},${documentLogicalState},${documentState},${s3State.hasDeleteMarker}`,
         );
       }
+
     } catch (err: unknown) {
       errorsCount++;
       const errorMsg = err instanceof Error ? err.message : String(err);
