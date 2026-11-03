@@ -147,8 +147,8 @@ export async function retrieveAttachmentsFromIun(
   const dynamoDbService = getCoreDynamoDBService(script, config);
   const logger = script.logger;
 
-  const attachmentsFilePath = resolveOutputPath(script.paths, 'attachments.json', config.outputDir);
-  const aarFilePath = resolveOutputPath(script.paths, 'aar.json', config.outputDir);
+  const attachmentsFilePath = resolveOutputPath(script.paths, 'attachments.jsonl', config.outputDir);
+  const aarFilePath = resolveOutputPath(script.paths, 'aar.csv', config.outputDir);
   const glacierEligibleFilePath = resolveOutputPath(script.paths, 'glacier_eligible_aar.csv', config.outputDir);
   const validPdfAttachmentsFilePath = resolveOutputPath(script.paths, 'pdf_validation_eligible_attachments.csv', config.outputDir);
   const skippedAttachmentsFilePath = resolveOutputPath(script.paths, 'skipped_attachments_delete_marker.csv', config.outputDir);
@@ -165,6 +165,7 @@ export async function retrieveAttachmentsFromIun(
   const validPdfAttachmentsStream = await validPdfAttachmentsExporter.exportStream();
   const skippedAttachmentsStream = await skippedAttachmentsExporter.exportStream();
 
+  await aarStream.append('IUN,fileKey');
   await glacierEligibleStream.append('IUN,fileKey,sentAt');
   await validPdfAttachmentsStream.append('IUN,fileKey');
   await skippedAttachmentsStream.append('IUN,fileKey,reason');

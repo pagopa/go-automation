@@ -27,7 +27,7 @@ export async function checkFeedbackFromRequestIds(
   const notFoundRequestIds: string[] = [];
   const failedRequestIds: string[] = [];
 
-  const foundFilePath = resolveOutputPath(script.paths, 'found.json', config.outputDir);
+  const foundFilePath = resolveOutputPath(script.paths, 'found.jsonl', config.outputDir);
   const notFoundFilePath = resolveOutputPath(script.paths, 'not_found.txt', config.outputDir);
   const failedFilePath = resolveOutputPath(script.paths, 'failed.txt', config.outputDir);
 
