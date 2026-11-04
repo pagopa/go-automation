@@ -1,0 +1,32 @@
+{
+  "name": "go-report-error-patterns",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Genera un report sui pattern di errore nei log di AWS CloudWatch correlati all'attivazione degli allarmi.",
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "dev": "tsx src/index.ts",
+    "start": "pnpm build && node dist/index.js",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
+    "watch": "tsc -b --watch"
+  },
+  "keywords": [
+    "go",
+    "go-automation"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "ISC",
+  "dependencies": {
+    "@go-automation/go-common": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

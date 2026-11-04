@@ -752,6 +752,16 @@ importers:
         specifier: 'catalog:'
         version: 24.19.2
 
+  scripts/go/go-report-error-patterns:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.19.2
+
   scripts/go/go-rta-check:
     dependencies:
       '@go-automation/go-ai':
