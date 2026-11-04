@@ -1,4 +1,5 @@
 import type { SENDTimelineElement } from '../../services/timeline/models/SENDTimelineElement.js';
+import { sortTimelineElements } from '../../services/timeline/sortTimelineElements.js';
 import type { RequestIdSelection } from './RequestIdSelection.js';
 import type { RequestIdSelectionOptions } from './RequestIdSelectionOptions.js';
 
@@ -8,6 +9,8 @@ import type { RequestIdSelectionOptions } from './RequestIdSelectionOptions.js';
  * Same rule as the `jq` used so far: elements ordered by `timestamp` (ties by
  * `timelineElementId`), for each category the **first** element whose
  * `category` is **equal** to it, `timelineElementId` returned as is.
+ * Timestamps are compared as instants ({@link sortTimelineElements}), not as
+ * strings: `pn-Timelines` mixes precisions (`…:00Z`, `…:00.5Z`).
  *
  * @param elements - Timeline elements, in any order
  * @param options - Categories, column rule, wait rule, end categories
@@ -22,10 +25,7 @@ export function selectRequestIds(
   const firstByCategory = new Map<string, string>();
   let endedBy: string | undefined;
 
-  const ordered = [...elements].sort(
-    (a, b) => a.timestamp.localeCompare(b.timestamp) || a.timelineElementId.localeCompare(b.timelineElementId),
-  );
-  for (const element of ordered) {
+  for (const element of sortTimelineElements(elements)) {
     if (wanted.has(element.category) && !firstByCategory.has(element.category)) {
       firstByCategory.set(element.category, element.timelineElementId);
     }
