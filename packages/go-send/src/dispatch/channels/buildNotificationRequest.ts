@@ -1,13 +1,35 @@
 import { SENDNotificationBuilder } from '../../builders/SENDNotificationBuilder.js';
-import type { SENDNotificationFeePolicy } from '../../services/notification/models/SENDNotificationFeePolicy.js';
+import { SENDNotificationFeePolicy } from '../../services/notification/models/SENDNotificationFeePolicy.js';
 import type { SENDNotificationRequest } from '../../services/notification/models/SENDNotificationRequest.js';
-import type { SENDPagoPaIntMode } from '../../services/notification/models/SENDPagoPaIntMode.js';
+import { SENDPagoPaIntMode } from '../../services/notification/models/SENDPagoPaIntMode.js';
 import type { SENDPhysicalAddress } from '../../services/notification/models/SENDPhysicalAddress.js';
 import { SENDPhysicalCommunicationType } from '../../services/notification/models/SENDPhysicalCommunicationType.js';
-import type { SENDRecipientType } from '../../services/notification/models/SENDRecipientType.js';
+import { SENDRecipientType } from '../../services/notification/models/SENDRecipientType.js';
 import type { RowIdentifiers } from '../ids/RowIdentifiers.js';
 import type { DispatchRecord } from '../model/DispatchRecord.js';
 import type { DocumentRef } from '../model/DocumentRef.js';
+import type { NotificationFeePolicy } from '../model/NotificationFeePolicy.js';
+import type { PagoPaIntMode } from '../model/PagoPaIntMode.js';
+import type { RecipientType } from '../model/RecipientType.js';
+
+/** SEND fee policy of each record fee policy (exhaustive: a new value fails to compile). */
+const FEE_POLICIES: Readonly<Record<NotificationFeePolicy, SENDNotificationFeePolicy>> = {
+  FLAT_RATE: SENDNotificationFeePolicy.FLAT_RATE,
+  DELIVERY_MODE: SENDNotificationFeePolicy.DELIVERY_MODE,
+};
+
+/** SEND pagoPA integration mode of each record mode. */
+const PAGOPA_INT_MODES: Readonly<Record<PagoPaIntMode, SENDPagoPaIntMode>> = {
+  NONE: SENDPagoPaIntMode.NONE,
+  SYNC: SENDPagoPaIntMode.SYNC,
+  ASYNC: SENDPagoPaIntMode.ASYNC,
+};
+
+/** SEND recipient type of each record recipient type. */
+const RECIPIENT_TYPES: Readonly<Record<RecipientType, SENDRecipientType>> = {
+  PF: SENDRecipientType.PF,
+  PG: SENDRecipientType.PG,
+};
 
 /**
  * Builds the `POST requests` payload of a record (`e2e`), with the
@@ -36,8 +58,8 @@ export function buildNotificationRequest(
         : SENDPhysicalCommunicationType.AR_REGISTERED_LETTER,
     )
     .setTaxonomyCode(record.options.taxonomyCode)
-    .setNotificationFeePolicy(record.options.notificationFeePolicy as SENDNotificationFeePolicy)
-    .setPagoPaIntMode(record.options.pagoPaIntMode as SENDPagoPaIntMode);
+    .setNotificationFeePolicy(FEE_POLICIES[record.options.notificationFeePolicy])
+    .setPagoPaIntMode(PAGOPA_INT_MODES[record.options.pagoPaIntMode]);
 
   const { options } = record;
   if (record.abstract !== undefined) builder.setAbstract(record.abstract);
@@ -47,7 +69,7 @@ export function buildNotificationRequest(
   if (options.paymentExpirationDate !== undefined) builder.setPaymentExpirationDate(options.paymentExpirationDate);
 
   const address = toPhysicalAddress(record);
-  const recipientType = record.recipient.type as SENDRecipientType;
+  const recipientType = RECIPIENT_TYPES[record.recipient.type];
   if (record.digitalDomicile === undefined) {
     builder.addAnalogRecipient(record.recipient.taxId, record.recipient.denomination, address, recipientType);
   } else {

@@ -1,5 +1,7 @@
 /** Placeholders of the template, besides `{col:<column>}`. */
 const VARIABLES: ReadonlySet<string> = new Set(['runId', 'rowKey', 'rowIndex', 'attempt']);
+/** Placeholders that differ from row to row: at least one is required. */
+const ROW_VARIABLES: ReadonlySet<string> = new Set(['rowKey', 'rowIndex']);
 const PLACEHOLDER = /\{([^{}]+)\}/g;
 const COLUMN_PREFIX = 'col:';
 
@@ -14,24 +16,45 @@ export const DEFAULT_DIRECT_REQUEST_ID_TEMPLATE = 'PNMAN.GO-{runId}.{rowKey}.PCR
  * an unknown placeholder is a configuration error, not a wrong id later.
  */
 export class RequestIdTemplate {
-  private constructor(public readonly template: string) {}
+  private constructor(
+    public readonly template: string,
+    /** Columns of the `{col:…}` placeholders, in template order, without duplicates. */
+    private readonly columns: ReadonlyArray<string>,
+  ) {}
 
   /**
    * Parses and validates a template.
    *
+   * The template must contain at least one placeholder that differs between
+   * rows (`{rowKey}`, `{rowIndex}` or `{col:…}`): otherwise every row of the
+   * run would get the same requestId.
+   *
    * @param template - Template text
    * @returns The template
-   * @throws Error naming the unknown placeholder
+   * @throws Error naming the unknown placeholder, or when no placeholder is row-specific
    */
   public static parse(template: string): RequestIdTemplate {
     if (template.trim() === '') throw new Error('direct.request.id.template: empty template');
+    const columns = new Set<string>();
+    let rowSpecific = false;
     for (const match of template.matchAll(PLACEHOLDER)) {
       const name = match[1] ?? '';
-      if (!VARIABLES.has(name) && !(name.startsWith(COLUMN_PREFIX) && name.length > COLUMN_PREFIX.length)) {
+      if (name.startsWith(COLUMN_PREFIX) && name.length > COLUMN_PREFIX.length) {
+        columns.add(name.slice(COLUMN_PREFIX.length));
+        rowSpecific = true;
+      } else if (VARIABLES.has(name)) {
+        rowSpecific ||= ROW_VARIABLES.has(name);
+      } else {
         throw new Error(`direct.request.id.template: unknown placeholder {${name}}`);
       }
     }
-    return new RequestIdTemplate(template);
+    if (!rowSpecific) {
+      throw new Error(
+        `direct.request.id.template: "${template}" has no row-specific placeholder ` +
+          '({rowKey}, {rowIndex} or {col:<column>}): every row would share the same requestId',
+      );
+    }
+    return new RequestIdTemplate(template, [...columns]);
   }
 
   /**
@@ -75,13 +98,6 @@ export class RequestIdTemplate {
    * @returns Names of the empty columns (empty when the row is complete)
    */
   public emptyColumns(columns: Readonly<Record<string, string>>): ReadonlyArray<string> {
-    const empty: string[] = [];
-    for (const match of this.template.matchAll(PLACEHOLDER)) {
-      const name = match[1] ?? '';
-      if (!name.startsWith(COLUMN_PREFIX)) continue;
-      const column = name.slice(COLUMN_PREFIX.length);
-      if ((columns[column]?.trim() ?? '') === '') empty.push(column);
-    }
-    return empty;
+    return this.columns.filter((column) => (columns[column]?.trim() ?? '') === '');
   }
 }

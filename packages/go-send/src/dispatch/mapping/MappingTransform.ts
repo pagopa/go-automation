@@ -1,17 +1,9 @@
-import type { CanonicalField } from './CanonicalField.js';
-import type { MappingTransformOp } from './MappingTransformOp.js';
-import type { MappingTransformValues } from './MappingTransformValues.js';
+import type { MappingFillTransform } from './MappingFillTransform.js';
+import type { MappingNormalizeTransform } from './MappingNormalizeTransform.js';
 
 /**
- * One transform step of a mapping profile. Which parameters are required
- * depends on `op` and is checked by `parseMappingProfile`.
+ * One transform step of a mapping profile, discriminated by `op` (§7.3).
+ * Within the steps of a field, normalizing transforms come before fill
+ * transforms (checked by `parseMappingProfile`).
  */
-export interface MappingTransform {
-  readonly op: MappingTransformOp;
-  /** `emptyIfIn`: list of values; `map`: dictionary. */
-  readonly values?: MappingTransformValues;
-  /** `constantIfPresent`: field whose presence triggers the transform. */
-  readonly field?: CanonicalField;
-  /** `constantIfPresent`, `default`: value to set. */
-  readonly value?: string;
-}
+export type MappingTransform = MappingNormalizeTransform | MappingFillTransform;

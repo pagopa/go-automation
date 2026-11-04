@@ -1,15 +1,13 @@
-import type { CredentialErrorPredicate } from '../requestId/CredentialErrorPredicate.js';
-import type { RequestIdSelectionOptions } from '../requestId/RequestIdSelectionOptions.js';
-import type { TimelineSource } from '../requestId/TimelineSource.js';
+import type { RequestIdStageOptions } from '../requestId/RequestIdStageOptions.js';
 
 /**
- * Settings of the requestId phase of a session (§8.3).
+ * Settings of the requestId phase of a session (§8.3): the options of the
+ * requestId stage the script resolves. Ledger, clock and stop signal are
+ * wired by the session.
  */
-export interface DispatchRequestIdOptions {
-  readonly source: TimelineSource;
-  readonly selection: RequestIdSelectionOptions;
-  readonly initialDelayMs: number;
-  readonly timeoutMs: number;
-  readonly concurrency: number;
-  readonly isCredentialError: CredentialErrorPredicate;
-}
+export type DispatchRequestIdOptions = Required<
+  Pick<
+    RequestIdStageOptions,
+    'source' | 'selection' | 'initialDelayMs' | 'timeoutMs' | 'concurrency' | 'isCredentialError'
+  >
+>;

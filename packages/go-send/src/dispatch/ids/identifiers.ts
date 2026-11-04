@@ -62,6 +62,16 @@ export function deriveRowIdentifiers(runId: string, rowKey: string, paProtocolNu
 }
 
 /**
+ * Whether a value has the IUN format (e.g. `PAYK-MWDR-ZUAZ-202601-K-1`).
+ *
+ * @param value - Candidate IUN
+ * @returns Whether `value` is an IUN
+ */
+export function isIun(value: string): boolean {
+  return IUN_PATTERN.test(value);
+}
+
+/**
  * Decodes the IUN from a `notificationRequestId` (Base64 of the IUN, A1).
  *
  * @param notificationRequestId - Value returned by `POST requests`
@@ -69,5 +79,16 @@ export function deriveRowIdentifiers(runId: string, rowKey: string, paProtocolNu
  */
 export function decodeIun(notificationRequestId: string): string | undefined {
   const decoded = Buffer.from(notificationRequestId, 'base64').toString('utf8');
-  return IUN_PATTERN.test(decoded) ? decoded : undefined;
+  return isIun(decoded) ? decoded : undefined;
+}
+
+/**
+ * Encodes an IUN as its `notificationRequestId` (Base64 of the IUN, A1):
+ * the inverse of {@link decodeIun}.
+ *
+ * @param iun - A valid IUN
+ * @returns The notification request id
+ */
+export function encodeNotificationRequestId(iun: string): string {
+  return Buffer.from(iun, 'utf8').toString('base64');
 }

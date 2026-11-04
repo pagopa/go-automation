@@ -5,8 +5,12 @@
 import { Core } from '@go-automation/go-common';
 import { Dispatch } from '@go-automation/go-send';
 
+import type { B2BAccess } from '../types/B2BAccess.js';
+import type { DirectDispatchConfig } from '../types/DirectDispatchConfig.js';
 import type { DispatchTarget } from '../types/DispatchTarget.js';
 import type { SendDispatchNotificationsConfig } from '../types/SendDispatchNotificationsConfig.js';
+import type { ValidatedConfig } from '../types/ValidatedConfig.js';
+import { DispatchUsageError } from './DispatchUsageError.js';
 
 const ENVIRONMENTS_FILE = 'environments.yaml';
 
@@ -37,7 +41,7 @@ export function createEnvironmentLoader(script: Core.GOScript): Dispatch.Environ
  */
 export function resolveEnvironmentsFile(
   script: Core.GOScript,
-  config: SendDispatchNotificationsConfig,
+  config: Pick<SendDispatchNotificationsConfig, 'environmentsFile'>,
 ): string | undefined {
   if (config.environmentsFile !== undefined) {
     return script.paths.resolvePath(config.environmentsFile, Core.GOPathType.CONFIG);
@@ -47,80 +51,150 @@ export function resolveEnvironmentsFile(
 }
 
 /**
+ * Whether the run calls the B2B API of SEND: `e2e` with `send` or `verify`.
+ * With only `request-id` the run reads `pn-Timelines` and needs neither an
+ * API key nor a base path.
+ *
+ * @param config - Validated configuration
+ * @returns Whether a B2B target is required
+ */
+export function usesB2B(config: ValidatedConfig): boolean {
+  return config.mode === 'e2e' && (config.phases.includes('send') || config.phases.includes('verify'));
+}
+
+/**
  * Builds the target of the run: the selected environment with the CLI
- * overrides, or an ad-hoc target from `--base-path` and `--pn-api-key`.
+ * overrides, or an ad-hoc target from `--base-path` and `--pn-api-key`; in
+ * `direct`, pn-external-channels through the tunnel. The B2B API key is
+ * resolved only when the run calls the B2B API.
  *
  * @param script - GOScript instance
- * @param config - Script configuration
+ * @param config - Validated configuration
  * @param loader - Environment loader
  * @returns The target
+ * @throws DispatchUsageError when the environment or the B2B parameters are missing
  */
 export async function resolveTarget(
   script: Core.GOScript,
-  config: SendDispatchNotificationsConfig,
+  config: ValidatedConfig,
   loader: Dispatch.EnvironmentLoader,
 ): Promise<DispatchTarget> {
   if (config.mode === 'direct') return directTarget(config);
-  if (config.env === undefined) return adHocTarget(config);
+  const b2bNeeded = usesB2B(config);
+  if (config.env === undefined) return adHocTarget(config, b2bNeeded);
 
   const filePath = resolveEnvironmentsFile(script, config);
   if (filePath === undefined) {
-    throw new Error(`--env ${config.env}: no ${ENVIRONMENTS_FILE} found (see configs/environments.example.yaml)`);
+    throw new DispatchUsageError(
+      `--env ${config.env}: no ${ENVIRONMENTS_FILE} found (see configs/environments.example.yaml)`,
+    );
   }
-  const environment = loader.resolve(await loader.load(filePath), config.env);
-  const apiKey = config.pnApiKey ?? environment.apiKey;
-  const groupId = config.groupId ?? environment.groupId;
-  const sender = environment.sender ?? cliSender(config);
-  const awsProfile = environment.awsProfile;
+  const file = await loader.load(filePath).catch((error: unknown) => {
+    throw DispatchUsageError.from(error);
+  });
+  const definition = file.environments.get(config.env);
+  if (definition === undefined) {
+    const known = [...file.environments.keys()].join(', ');
+    throw new DispatchUsageError(`Environment "${config.env}" not found in ${file.source} (available: ${known})`);
+  }
+  const groupId = config.groupId ?? definition.groupId;
+  const sender = definition.sender ?? cliSender(config);
+  const b2b = b2bNeeded ? environmentB2B(config, loader, file, config.env) : undefined;
   return {
-    name: environment.name,
-    basePath: config.basePath === undefined ? environment.basePath : Dispatch.normalizeBasePath(config.basePath),
+    name: definition.name,
+    production: definition.production,
+    defaults: definition.defaults,
+    ...(definition.description !== undefined && { description: definition.description }),
+    ...(b2b !== undefined && { b2b }),
+    ...(groupId !== undefined && { groupId }),
+    ...(sender !== undefined && { sender }),
+    ...(definition.sharedDocument !== undefined && { sharedDocument: definition.sharedDocument }),
+    ...(definition.awsProfile !== undefined && { awsProfile: definition.awsProfile }),
+  };
+}
+
+/** B2B access of an environment: API key from its variable unless `--pn-api-key`. */
+function environmentB2B(
+  config: ValidatedConfig,
+  loader: Dispatch.EnvironmentLoader,
+  file: Dispatch.EnvironmentsFile,
+  name: string,
+): B2BAccess {
+  const environment = resolveEnvironment(loader, file, name);
+  const apiKey = config.pnApiKey ?? environment.apiKey;
+  const override = config.basePath;
+  return {
+    basePath: override === undefined ? environment.basePath : normalizeCliBasePath(override),
     apiKey,
     apiKeyLabel:
       config.pnApiKey === undefined
         ? `$${environment.apiKeyVariable} ${Dispatch.apiKeyFingerprint(apiKey)}`
         : `--pn-api-key ${Dispatch.apiKeyFingerprint(apiKey)}`,
-    production: environment.production,
-    defaults: environment.defaults,
-    ...(environment.description !== undefined && { description: environment.description }),
-    ...(groupId !== undefined && { groupId }),
-    ...(sender !== undefined && { sender }),
-    ...(environment.sharedDocument !== undefined && { sharedDocument: environment.sharedDocument }),
-    ...(awsProfile !== undefined && { awsProfile }),
   };
 }
 
-function adHocTarget(config: SendDispatchNotificationsConfig): DispatchTarget {
-  if (config.basePath === undefined || config.pnApiKey === undefined) {
-    throw new Error('Set --env, or both --base-path and --pn-api-key for an ad-hoc run');
-  }
+function adHocTarget(config: ValidatedConfig, b2bNeeded: boolean): DispatchTarget {
   const sender = cliSender(config);
-  return {
+  const common = {
     name: 'ad-hoc',
-    basePath: Dispatch.normalizeBasePath(config.basePath),
-    apiKey: config.pnApiKey,
-    apiKeyLabel: `--pn-api-key ${Dispatch.apiKeyFingerprint(config.pnApiKey)}`,
     production: false,
-    defaults: new Map(),
+    defaults: new Map<Dispatch.CanonicalField, string>(),
     ...(config.groupId !== undefined && { groupId: config.groupId }),
     ...(sender !== undefined && { sender }),
   };
+  if (!b2bNeeded) return common;
+  const { basePath } = config;
+  if (basePath === undefined || config.pnApiKey === undefined) {
+    throw new DispatchUsageError('Set --env, or both --base-path and --pn-api-key for an ad-hoc run');
+  }
+  return {
+    ...common,
+    b2b: {
+      basePath: normalizeCliBasePath(basePath),
+      apiKey: config.pnApiKey,
+      apiKeyLabel: `--pn-api-key ${Dispatch.apiKeyFingerprint(config.pnApiKey)}`,
+    },
+  };
 }
 
-/** `direct` mode: pn-external-channels through the tunnel, no API key (§9.1). */
-function directTarget(config: SendDispatchNotificationsConfig): DispatchTarget {
+/**
+ * `direct` mode: pn-external-channels through the tunnel, no API key (§9.1).
+ * The tunnel host cannot tell production apart, so `--ec-production` marks
+ * the target as production (confirmation with `--confirm-production`).
+ */
+function directTarget(config: DirectDispatchConfig): DispatchTarget {
   return {
     name: 'direct',
     description: 'pn-external-channels',
-    basePath: config.ecBaseUrl ?? '',
-    apiKey: '',
-    apiKeyLabel: `x-pagopa-extch-cx-id ${config.ecClientId}`,
-    production: false,
+    externalChannels: { baseUrl: config.ecBaseUrl, clientId: config.ecClientId },
+    production: config.ecProduction,
     defaults: new Map(),
   };
 }
 
-function cliSender(config: SendDispatchNotificationsConfig): Dispatch.DispatchSender | undefined {
+function cliSender(config: ValidatedConfig): Dispatch.DispatchSender | undefined {
   if (config.senderTaxId === undefined || config.senderDenomination === undefined) return undefined;
   return { taxId: config.senderTaxId, denomination: config.senderDenomination };
+}
+
+/** Selects the environment and resolves its API key; a missing variable is a usage error. */
+function resolveEnvironment(
+  loader: Dispatch.EnvironmentLoader,
+  file: Dispatch.EnvironmentsFile,
+  name: string,
+): Dispatch.Environment {
+  try {
+    return loader.resolve(file, name);
+  } catch (error: unknown) {
+    throw DispatchUsageError.from(error);
+  }
+}
+
+/** `--base-path` with scheme and without trailing slashes; a malformed value is a usage error. */
+function normalizeCliBasePath(basePath: string): string {
+  try {
+    return Dispatch.normalizeBasePath(basePath, '--base-path');
+  } catch (error: unknown) {
+    throw DispatchUsageError.from(error);
+  }
 }

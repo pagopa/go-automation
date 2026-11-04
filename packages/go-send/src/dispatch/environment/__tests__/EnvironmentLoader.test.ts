@@ -9,8 +9,10 @@ import { httpError } from '../../__tests__/helpers/FakeB2BApi.js';
 import { tempDir, writeFixture } from '../../__tests__/helpers/testFiles.js';
 import { apiKeyFingerprint } from '../apiKeyFingerprint.js';
 import { EnvironmentLoader } from '../EnvironmentLoader.js';
-import { parseEnvironmentsFile } from '../parseEnvironmentsFile.js';
+import { normalizeBasePath, parseEnvironmentsFile, parseSharedDocument } from '../parseEnvironmentsFile.js';
 import { assertProductionCoherence, runEnvironmentPreflight } from '../runEnvironmentPreflight.js';
+
+const SHA = 'XwRVE/PUU1TEi9r3Pmq2KEkmQ2yr7ge8jUDQKPL0e/Y=';
 
 const YAML = `
 environments:
@@ -34,7 +36,7 @@ environments:
     apiKey: \${PN_API_KEY_COMO_UAT}
     defaults:
       documents.shared:
-        reference: { key: PN_NOTIFICATION_ATTACHMENTS-x.pdf, versionToken: v1, sha256: abc }
+        reference: { key: PN_NOTIFICATION_ATTACHMENTS-x.pdf, versionToken: v1, sha256: '${SHA}' }
 `;
 
 async function writeFile(name: string, content: string): Promise<string> {
@@ -123,6 +125,73 @@ describe('parseEnvironmentsFile', () => {
   });
 });
 
+describe('parseSharedDocument reference', () => {
+  const reference = (fields: Record<string, unknown>): unknown => ({
+    reference: { key: 'PN_NOTIFICATION_ATTACHMENTS-x.pdf', versionToken: 'v1', sha256: SHA, ...fields },
+  });
+
+  it('accepts a valid reference, trimming its strings', () => {
+    assert.deepEqual(parseSharedDocument(reference({ key: ' k.pdf ', title: ' Atto ' }), 'w', '/base'), {
+      reference: { key: 'k.pdf', versionToken: 'v1', sha256: SHA, title: 'Atto' },
+    });
+  });
+
+  it('checks the sha256 format at load time', () => {
+    for (const sha256 of ['abc', `${SHA}=`, SHA.replace('=', 'A'), 42]) {
+      assert.throws(
+        () => parseSharedDocument(reference({ sha256 }), 'w', '/base'),
+        /w\.reference\.sha256: must be a/,
+        String(sha256),
+      );
+    }
+  });
+
+  it('checks the versionToken at load time', () => {
+    assert.throws(
+      () => parseSharedDocument(reference({ versionToken: ' ' }), 'w', '/base'),
+      /versionToken: must be a non-empty string/,
+    );
+    assert.throws(
+      () => parseSharedDocument(reference({ versionToken: 1 }), 'w', '/base'),
+      /versionToken: write the value in quotes/,
+    );
+    assert.throws(
+      () => parseSharedDocument(reference({ versionToken: 'v'.repeat(257) }), 'w', '/base'),
+      /versionToken: exceeds 256 characters/,
+    );
+    assert.throws(
+      () => parseSharedDocument(reference({ versionToken: undefined }), 'w', '/base'),
+      /versionToken: must be a non-empty string/,
+    );
+  });
+
+  it('requires a non-empty list of non-blank file paths', () => {
+    assert.throws(() => parseSharedDocument({ files: [] }, 'w', '/base'), /w\.files: must be a non-empty list/);
+    assert.throws(() => parseSharedDocument({ files: 'a.pdf' }, 'w', '/base'), /w\.files: must be an array of strings/);
+    assert.throws(
+      () => parseSharedDocument({ files: ['a.pdf', ' '] }, 'w', '/base'),
+      /w\.files\[1\]: must be a non-empty string/,
+    );
+    assert.deepEqual(parseSharedDocument({ files: [' a.pdf '] }, 'w', '/base'), { files: ['/base/a.pdf'] });
+  });
+});
+
+describe('normalizeBasePath', () => {
+  it('adds the scheme and drops trailing slashes', () => {
+    assert.equal(normalizeBasePath('api.uat.notifichedigitali.it/'), 'https://api.uat.notifichedigitali.it');
+    assert.equal(normalizeBasePath(' http://localhost:8080// '), 'http://localhost:8080');
+  });
+
+  it('rejects malformed hosts with a clear message', () => {
+    assert.throws(() => normalizeBasePath('api uat.it'), /^Error: basePath: "api uat\.it" is not a valid host or URL/);
+    assert.throws(() => normalizeBasePath('https://'), /is not a valid host or URL/);
+    assert.throws(
+      () => parseEnvironmentsFile({ environments: { e: { basePath: 'a b', apiKey: '${K}' } } }, 'f'),
+      /f: environments\.e\.basePath: "a b" is not a valid host or URL/,
+    );
+  });
+});
+
 describe('runEnvironmentPreflight', () => {
   const input = { basePath: 'https://api.test.notifichedigitali.it', production: false, groupId: 'group-1' };
   const groups =
@@ -157,6 +226,13 @@ describe('runEnvironmentPreflight', () => {
     const { groupId: _groupId, ...withoutGroup } = input;
     const report = await runEnvironmentPreflight(withoutGroup, groups([{ id: 'g', name: 'G', status: 'ACTIVE' }]));
     assert.equal(report.warnings.length, 1);
+  });
+
+  it('reports a malformed base path as a DispatchError', () => {
+    assert.throws(
+      () => assertProductionCoherence({ basePath: 'not a url', production: false }),
+      (error: unknown) => error instanceof DispatchError && error.code === 'INVALID_BASE_PATH',
+    );
   });
 
   it('stops on a production host without production: true', () => {

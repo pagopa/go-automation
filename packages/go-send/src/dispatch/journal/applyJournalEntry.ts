@@ -6,6 +6,7 @@ import type { JournalEvent } from './JournalEvent.js';
 /** Status reached by each row event. */
 const STATUS_BY_EVENT: ReadonlyMap<JournalEvent, RowStatus> = new Map<JournalEvent, RowStatus>([
   ['ROW_INVALID', 'INVALID'],
+  ['ROW_REVALIDATED', 'PENDING'],
   ['SENDING', 'SENDING'],
   ['SENT', 'SENT'],
   ['SEND_FAILED', 'SEND_FAILED'],
@@ -62,13 +63,14 @@ export function applyJournalEntry(state: RowState | undefined, entry: JournalEnt
     case 'REFUSED':
     case 'VERIFY_TIMEOUT':
       return withError({ ...next, verifyChecks: entry.attempt ?? base.verifyChecks }, entry);
+    case 'ROW_REVALIDATED':
+      return withoutError(next);
     case 'RECONCILING':
     case 'PRESET':
       return next;
     case 'REQUEST_ID_FOUND':
       return {
         ...next,
-        ...(entry.requestId !== undefined && { requestId: entry.requestId }),
         ...(entry.requestIds !== undefined && { requestIds: entry.requestIds }),
         requestIdReason: entry.requestIdReason ?? 'FOUND',
         requestIdFoundAt: entry.ts,

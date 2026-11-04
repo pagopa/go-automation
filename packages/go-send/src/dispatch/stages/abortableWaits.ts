@@ -9,6 +9,7 @@ import type { DispatchClock } from '../model/DispatchClock.js';
  * @param priority - Queue priority (0 = sends)
  * @param signal - Run stop signal
  * @returns `false` when the run is stopping
+ * @throws Any limiter error that is not caused by the stop
  */
 export async function acquireUnlessStopped(
   limiter: GORateLimiter,
@@ -19,8 +20,9 @@ export async function acquireUnlessStopped(
   try {
     await limiter.acquire(priority, signal);
     return true;
-  } catch {
-    return false;
+  } catch (error: unknown) {
+    if (signal.aborted) return false;
+    throw error;
   }
 }
 
@@ -31,12 +33,14 @@ export async function acquireUnlessStopped(
  * @param ms - Delay
  * @param signal - Run stop signal
  * @returns `false` when the run is stopping
+ * @throws Any sleeper error that is not caused by the stop
  */
 export async function sleepUnlessStopped(clock: DispatchClock, ms: number, signal: AbortSignal): Promise<boolean> {
   try {
     await clock.sleep(ms, signal);
     return true;
-  } catch {
-    return false;
+  } catch (error: unknown) {
+    if (signal.aborted) return false;
+    throw error;
   }
 }

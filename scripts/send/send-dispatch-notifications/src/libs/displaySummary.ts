@@ -6,6 +6,7 @@ import type { Core } from '@go-automation/go-common';
 import type { Dispatch } from '@go-automation/go-send';
 
 import type { SummaryContext } from '../types/SummaryContext.js';
+import { countOutcomes } from './outcomeCounts.js';
 
 /** Statuses that make the run "completed with problems" (exit code 2). */
 const PROBLEM_STATUSES: ReadonlyArray<Dispatch.RowStatus> = [
@@ -33,11 +34,11 @@ const MESSAGE_PREVIEW = 100;
 export function displaySummary(logger: Core.GOLogger, context: SummaryContext): void {
   const { progress, statistics } = context;
   const count = (status: Dispatch.RowStatus): number => progress.byStatus.get(status) ?? 0;
-  const accepted = count('ACCEPTED') + count('REQUEST_ID_FOUND') + count('REQUEST_ID_NOT_FOUND');
+  const { accepted, sent } = countOutcomes(progress.byStatus);
   logger.section('Riepilogo');
   logger.keyValueTable({
     'Non valide': count('INVALID'),
-    Inviate: count('SENT') + accepted + count('REFUSED') + count('VERIFY_TIMEOUT'),
+    Inviate: sent,
     Accettate: accepted,
     Rifiutate: count('REFUSED'),
     'Verifica in timeout': count('VERIFY_TIMEOUT'),
@@ -46,7 +47,8 @@ export function displaySummary(logger: Core.GOLogger, context: SummaryContext): 
     'requestId in attesa': progress.requestIdPending,
     'Fallite all invio': count('SEND_FAILED'),
     'INCERTE (SEND_UNCERTAIN)': count('SEND_UNCERTAIN'),
-    'Non inviate (interruzione)': count('SENDING') + count('RECONCILING'),
+    'In corso all interruzione (da riconciliare)': count('SENDING') + count('RECONCILING'),
+    'Non inviate': unprocessedRows(progress, context.totalRows),
     '429 ricevuti': progress.throttled,
     'Durata validazione': formatDuration(context.validationMs),
     'Durata invio e verifiche': formatDuration(context.executionMs),
@@ -66,6 +68,9 @@ export function displaySummary(logger: Core.GOLogger, context: SummaryContext): 
           failure.message.length > MESSAGE_PREVIEW ? `${failure.message.slice(0, MESSAGE_PREVIEW)}…` : failure.message,
       })),
     );
+  }
+  if (count('SENDING') + count('RECONCILING') > 0) {
+    logger.warning('Righe in corso all interruzione: la notifica potrebbe esistere. Il --resume le riconcilia.');
   }
   if (count('SEND_UNCERTAIN') > 0) {
     logger.warning('Righe incerte: la notifica potrebbe esistere. Rilancia con --resume per riconciliarle.');
@@ -89,12 +94,28 @@ export function formatDuration(ms: number): string {
 }
 
 /**
- * Exit code of a completed run: 0 without problems, 2 with failed,
- * uncertain, invalid, refused or timed-out rows.
+ * Rows still `PENDING`: never journaled (no status in the ledger) or brought
+ * back to `PENDING` by a revalidation, and not sent by this session.
  *
  * @param progress - Final progress snapshot
+ * @param totalRows - Rows of the input
+ * @returns Rows not sent
+ */
+export function unprocessedRows(progress: Dispatch.DispatchProgress, totalRows: number): number {
+  let withStatus = 0;
+  for (const count of progress.byStatus.values()) withStatus += count;
+  return Math.max(0, totalRows - withStatus) + (progress.byStatus.get('PENDING') ?? 0);
+}
+
+/**
+ * Exit code of a completed run: 0 without problems, 2 with failed,
+ * uncertain, invalid, refused, timed-out or unsent rows.
+ *
+ * @param progress - Final progress snapshot
+ * @param totalRows - Rows of the input
  * @returns Exit code
  */
-export function exitCodeFor(progress: Dispatch.DispatchProgress): number {
-  return PROBLEM_STATUSES.some((status) => (progress.byStatus.get(status) ?? 0) > 0) ? 2 : 0;
+export function exitCodeFor(progress: Dispatch.DispatchProgress, totalRows: number): number {
+  const problems = PROBLEM_STATUSES.some((status) => (progress.byStatus.get(status) ?? 0) > 0);
+  return problems || unprocessedRows(progress, totalRows) > 0 ? 2 : 0;
 }

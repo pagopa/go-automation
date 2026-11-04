@@ -20,7 +20,7 @@ const DECREASE_COOLDOWN_MS = 1_000;
  * events, no timers.
  */
 export class RateAdapter {
-  private lastChangeAt = 0;
+  private lastChangeAt: number;
   private lastDecreaseAt = Number.NEGATIVE_INFINITY;
   private throttled = 0;
 
@@ -29,7 +29,9 @@ export class RateAdapter {
     private readonly targetRate: number,
     private readonly clock: DispatchClock,
     private readonly enabled: boolean,
-  ) {}
+  ) {
+    this.lastChangeAt = clock.monotonic();
+  }
 
   /** Number of `429` received. */
   public get throttledCount(): number {
@@ -44,7 +46,7 @@ export class RateAdapter {
   public onThrottled(): number | undefined {
     this.throttled += 1;
     if (!this.enabled) return undefined;
-    const now = this.clock.now();
+    const now = this.clock.monotonic();
     this.lastChangeAt = now; // any 429 postpones the recovery
     if (now - this.lastDecreaseAt < DECREASE_COOLDOWN_MS) return undefined;
     this.lastDecreaseAt = now;
@@ -62,7 +64,7 @@ export class RateAdapter {
    */
   public onSuccess(): number | undefined {
     if (!this.enabled || this.limiter.ratePerSecond >= this.targetRate) return undefined;
-    const now = this.clock.now();
+    const now = this.clock.monotonic();
     if (now - this.lastChangeAt < RECOVERY_INTERVAL_MS) return undefined;
     const next = Math.min(this.targetRate, this.limiter.ratePerSecond * INCREASE_FACTOR);
     this.lastChangeAt = now;

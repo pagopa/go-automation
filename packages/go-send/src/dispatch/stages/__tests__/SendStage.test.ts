@@ -1,16 +1,22 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import * as os from 'node:os';
 
 import { GORateLimiter } from '@go-automation/go-common/core';
 
 import { FakeB2BApi, httpError, transportError } from '../../__tests__/helpers/FakeB2BApi.js';
 import { MemorySink } from '../../__tests__/helpers/MemorySink.js';
 import { VirtualClock } from '../../__tests__/helpers/VirtualClock.js';
+import type { SENDApiVersion } from '../../../services/notification/models/SENDApiVersion.js';
+import type { SENDNotificationStatusResponse } from '../../../services/notification/models/SENDNotificationStatusResponse.js';
 import type { DispatchError } from '../../DispatchError.js';
+import { DispatchError as DispatchErrorClass } from '../../DispatchError.js';
+import { UploadError } from '../../documents/UploadError.js';
 import { DocumentResolver } from '../../documents/DocumentResolver.js';
 import { LocalDocumentInspector } from '../../documents/LocalDocumentInspector.js';
 import { RowLedger } from '../../journal/RowLedger.js';
 import type { DispatchRecord } from '../../model/DispatchRecord.js';
+import { acquireUnlessStopped, sleepUnlessStopped } from '../abortableWaits.js';
 import { RateAdapter } from '../RateAdapter.js';
 import { SendStage } from '../SendStage.js';
 import { VerifyStage } from '../VerifyStage.js';
@@ -48,14 +54,22 @@ interface Harness {
   readonly sent: number[];
   readonly globalErrors: DispatchError[];
   readonly limiter: GORateLimiter;
+  readonly controller: AbortController;
 }
 
-function harness(retryAmbiguous = true): Harness {
+function harness(
+  retryAmbiguous = true,
+  resolver: DocumentResolver = new DocumentResolver({
+    inspector: new LocalDocumentInspector(os.tmpdir()),
+    shared: SHARED,
+    placeholders: false,
+  }),
+): Harness {
   const clock = new VirtualClock();
   const api = new FakeB2BApi(clock);
   const sink = new MemorySink();
   const ledger = new RowLedger(sink, () => new Date(clock.now()));
-  const limiter = new GORateLimiter({ ratePerSecond: 20, priorities: 2, sleeper: clock, now: () => clock.now() });
+  const limiter = new GORateLimiter({ ratePerSecond: 20, priorities: 2, sleeper: clock, now: () => clock.monotonic() });
   const sent: number[] = [];
   const globalErrors: DispatchError[] = [];
   const controller = new AbortController();
@@ -65,7 +79,7 @@ function harness(retryAmbiguous = true): Harness {
     rateAdapter: new RateAdapter(limiter, 20, clock, true),
     ledger,
     clock,
-    resolver: new DocumentResolver({ inspector: new LocalDocumentInspector(), shared: SHARED, placeholders: false }),
+    resolver,
     runId: 'run',
     apiVersion: 'v2.6',
     retryAmbiguous,
@@ -77,7 +91,32 @@ function harness(retryAmbiguous = true): Harness {
     },
     signal: controller.signal,
   });
-  return { clock, api, sink, ledger, stage, sent, globalErrors, limiter };
+  return { clock, api, sink, ledger, stage, sent, globalErrors, limiter, controller };
+}
+
+/** Resolver whose `resolve` always rejects with `error`. */
+function failingResolver(error: unknown): DocumentResolver {
+  return {
+    resolve: async (): Promise<never> => {
+      await Promise.resolve();
+      throw error;
+    },
+  } as unknown as DocumentResolver;
+}
+
+/** B2B API that records the abort signals of the read-only calls. */
+class SignalRecordingApi extends FakeB2BApi {
+  public readonly signals: (AbortSignal | undefined)[] = [];
+
+  public override async lookup(
+    paProtocolNumber: string,
+    idempotenceToken: string,
+    apiVersion: SENDApiVersion,
+    signal?: AbortSignal,
+  ): Promise<SENDNotificationStatusResponse> {
+    this.signals.push(signal);
+    return super.lookup(paProtocolNumber, idempotenceToken, apiVersion);
+  }
 }
 
 describe('SendStage', () => {
@@ -159,15 +198,122 @@ describe('SendStage', () => {
     assert.equal(h.api.created.size, 1);
   });
 
-  it('turns a 409 duplicate into the existing notification', async () => {
+  it('turns a 409 duplicate into the existing notification, looking it up at once', async () => {
     const h = harness();
     await h.clock.run(h.stage.send(record(0)));
     const first = h.ledger.get(0)?.notificationRequestId;
+    const before = h.clock.elapsed;
     await h.clock.run(h.stage.send(record(0))); // same keys, no previous state: POST gets 409
     assert.equal(h.api.count('send'), 2);
     assert.equal(h.api.count('lookup'), 1);
     assert.equal(h.ledger.get(0)?.notificationRequestId, first);
     assert.equal(h.api.created.size, 1);
+    assert.ok(h.clock.elapsed - before < 1_000, `duplicate reconciled after ${h.clock.elapsed - before} ms`);
+  });
+
+  it('records SEND_FAILED THROTTLED (retryable) when the run stops during a 429 backoff', async () => {
+    const h = harness();
+    h.api.sendScript.push(httpError(429, undefined, 60_000));
+    const sending = h.stage.send(record(0));
+    const stopper = (async (): Promise<void> => {
+      await h.clock.sleep(1_000);
+      h.controller.abort();
+    })();
+    await h.clock.run(Promise.all([sending, stopper]));
+    const state = h.ledger.get(0);
+    assert.equal(state?.status, 'SEND_FAILED');
+    assert.equal(state?.error?.code, 'THROTTLED');
+    assert.equal(state?.error?.retryable, true);
+    assert.equal(h.api.count('send'), 1);
+  });
+
+  it('records a document failure on the row and stops the run when it is run-level', async () => {
+    const configuration = harness(true, failingResolver(new DispatchErrorClass('CONFIGURATION', 'no gateway')));
+    await configuration.clock.run(configuration.stage.send(record(0)));
+    assert.equal(configuration.ledger.get(0)?.status, 'SEND_FAILED');
+    assert.equal(configuration.globalErrors[0]?.code, 'CONFIGURATION');
+
+    const rejected = harness(
+      true,
+      failingResolver(new UploadError('UPLOAD_REJECTED', 'preload failed', { cause: httpError(401) })),
+    );
+    await rejected.clock.run(rejected.stage.send(record(0)));
+    assert.equal(rejected.ledger.get(0)?.error?.code, 'UPLOAD_REJECTED');
+    assert.equal(rejected.globalErrors[0]?.code, 'HTTP_401', 'a preload 401 is an API key problem');
+
+    const rowLevel = harness(
+      true,
+      failingResolver(new UploadError('UPLOAD_REJECTED', 'preload failed', { cause: httpError(400) })),
+    );
+    await rowLevel.clock.run(rowLevel.stage.send(record(0)));
+    assert.equal(rowLevel.ledger.get(0)?.error?.code, 'UPLOAD_REJECTED');
+    assert.equal(rowLevel.globalErrors.length, 0);
+
+    const empty = harness(true, failingResolver(new DispatchErrorClass('PRATICA_EMPTY', 'no attachment')));
+    await empty.clock.run(empty.stage.send(record(0)));
+    assert.equal(empty.ledger.get(0)?.error?.retryable, false);
+  });
+
+  it('rethrows an error that is not a document problem instead of failing the row', async () => {
+    const h = harness(true, failingResolver(new Error('journal write failed')));
+    await assert.rejects(h.clock.run(h.stage.send(record(0))), /journal write failed/);
+    assert.equal(h.ledger.get(0), undefined);
+  });
+
+  it('records nothing when the run stops while the documents are being uploaded', async () => {
+    const controller = new AbortController();
+    const resolver = {
+      resolve: async (): Promise<never> => {
+        await Promise.resolve();
+        controller.abort();
+        throw new UploadError('UPLOAD_FAILED', 'aborted');
+      },
+    } as unknown as DocumentResolver;
+    const h = harness(true, resolver);
+    controller.signal.addEventListener('abort', () => h.controller.abort());
+    await h.clock.run(h.stage.send(record(0)));
+    assert.equal(h.ledger.get(0), undefined, 'the resume sends the row');
+  });
+
+  it('passes the stop signal to the lookup and leaves the row RECONCILING when it is abandoned', async () => {
+    const h = harness();
+    const api = new SignalRecordingApi(h.clock);
+    const stage = new SendStage({
+      api,
+      limiter: h.limiter,
+      rateAdapter: new RateAdapter(h.limiter, 20, h.clock, true),
+      ledger: h.ledger,
+      clock: h.clock,
+      resolver: new DocumentResolver({
+        inspector: new LocalDocumentInspector(os.tmpdir()),
+        shared: SHARED,
+        placeholders: false,
+      }),
+      runId: 'run',
+      apiVersion: 'v2.6',
+      retryAmbiguous: true,
+      sendTimeoutMs: 600_000,
+      onSent: () => undefined,
+      onGlobalError: () => undefined,
+      signal: h.controller.signal,
+    });
+    api.sendScript.push(httpError(503));
+    await h.clock.run(stage.send(record(0)));
+    assert.equal(api.signals[0], h.controller.signal);
+
+    api.sendScript.push(httpError(503));
+    const abortingLookup = api.lookup.bind(api);
+    api.lookup = async (
+      paProtocolNumber: string,
+      idempotenceToken: string,
+      apiVersion: SENDApiVersion,
+    ): Promise<SENDNotificationStatusResponse> => {
+      h.controller.abort();
+      await abortingLookup(paProtocolNumber, idempotenceToken, apiVersion);
+      throw transportError();
+    };
+    await h.clock.run(stage.send(record(1)));
+    assert.equal(h.ledger.get(1)?.status, 'RECONCILING', 'no SEND_UNCERTAIN for an abandoned lookup');
   });
 
   it('marks the row SEND_UNCERTAIN without reconciliation when disabled', async () => {
@@ -239,6 +385,47 @@ describe('VerifyStage', () => {
     assert.match(h.ledger.get(0)?.error?.details ?? '', /FILE_NOTFOUND/);
   });
 
+  it('starts the timeout at the first granted check, not while checks wait behind the sends', async () => {
+    const h = verifyHarness(60_000);
+    await h.clock.run(h.stage.send(record(0)));
+    h.api.statusScript = ['WAITING', 'ACCEPTED'];
+    h.limiter.setRate(1);
+    // 120 sends queued at priority 0: the first check (priority 1) waits about 2 minutes.
+    const sends = Array.from({ length: 120 }, async () => h.limiter.acquire(0));
+    h.verify.schedule(0, 'S-0', h.ledger.get(0)?.notificationRequestId ?? '');
+    await h.clock.run(Promise.all([...sends, h.verify.drain()]));
+    assert.equal(h.ledger.get(0)?.status, 'ACCEPTED');
+  });
+
+  it('passes the stop signal to the status check and records nothing when it is abandoned', async () => {
+    const h = harness();
+    const controller = new AbortController();
+    const signals: (AbortSignal | undefined)[] = [];
+    const api = {
+      status: async (_id: string, _version: SENDApiVersion, signal?: AbortSignal): Promise<never> => {
+        signals.push(signal);
+        controller.abort();
+        await Promise.resolve();
+        throw transportError();
+      },
+    } as unknown as FakeB2BApi;
+    const verify = new VerifyStage({
+      api,
+      limiter: h.limiter,
+      ledger: h.ledger,
+      clock: h.clock,
+      apiVersion: 'v2.6',
+      initialDelayMs: 0,
+      timeoutMs: 0,
+      onGlobalError: (error) => h.globalErrors.push(error),
+      signal: controller.signal,
+    });
+    verify.schedule(0, 'S-0', 'N');
+    await h.clock.run(verify.drain());
+    assert.equal(signals[0], controller.signal);
+    assert.equal(h.ledger.get(0), undefined, 'no VERIFY_TIMEOUT for a check abandoned by the stop');
+  });
+
   it('times out and tolerates 5xx in between', async () => {
     const h = verifyHarness(60_000);
     await h.clock.run(h.stage.send(record(0)));
@@ -273,5 +460,28 @@ describe('RateAdapter', () => {
     assert.equal(adapter.throttledCount, 15);
     clock.advance(1_000);
     assert.equal(adapter.onThrottled(), 11.25, 'a 429 after the cooldown is a new episode');
+  });
+});
+
+describe('abortableWaits', () => {
+  it('returns false on stop but rethrows any other failure', async () => {
+    const clock = new VirtualClock();
+    const limiter = new GORateLimiter({ ratePerSecond: 1, sleeper: clock, now: () => clock.monotonic() });
+    const running = new AbortController();
+    await assert.rejects(acquireUnlessStopped(limiter, 7, running.signal), /priority must be an integer/);
+    const stopped = new AbortController();
+    stopped.abort();
+    assert.equal(await acquireUnlessStopped(limiter, 0, stopped.signal), false);
+
+    const failingClock = {
+      now: () => 0,
+      monotonic: () => 0,
+      sleep: async (): Promise<void> => {
+        await Promise.resolve();
+        throw new Error('timer broken');
+      },
+    };
+    await assert.rejects(sleepUnlessStopped(failingClock, 10, running.signal), /timer broken/);
+    assert.equal(await sleepUnlessStopped(clock, 10, stopped.signal), false);
   });
 });

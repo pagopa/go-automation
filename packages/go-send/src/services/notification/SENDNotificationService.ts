@@ -2,7 +2,7 @@
  * Notification Service for sending and managing notifications
  */
 
-import type { GOAbortableRequest } from '@go-automation/go-common/core';
+import type { GOAbortableRequest, GOHttpRequestOptions } from '@go-automation/go-common/core';
 import { GOBackoff, GOHttpClient, GOPoller, GOPollingError } from '@go-automation/go-common/core';
 
 import type { SENDNotificationCreationResponse } from './models/SENDNotificationCreationResponse.js';
@@ -138,14 +138,20 @@ export class SENDNotificationService {
    * Get notification status from a versioned endpoint
    * @param notificationRequestId - Notification request ID
    * @param apiVersion - API version (same as the send)
+   * @param options - Per-request controls (e.g. an abort `signal`: a status check is safe to abort)
    * @returns Notification status, with `retryAfter` while `WAITING`
    */
   async getNotificationRequestStatus(
     notificationRequestId: string,
     apiVersion: SENDApiVersion,
+    options?: GOHttpRequestOptions,
   ): Promise<SENDNotificationStatusResponse> {
     const query = `notificationRequestId=${encodeURIComponent(notificationRequestId)}`;
-    return await this.httpClient.get<SENDNotificationStatusResponse>(`/delivery/${apiVersion}/requests?${query}`);
+    return await this.httpClient.get<SENDNotificationStatusResponse>(
+      `/delivery/${apiVersion}/requests?${query}`,
+      undefined,
+      options,
+    );
   }
 
   /**
@@ -157,17 +163,23 @@ export class SENDNotificationService {
    * @param paProtocolNumber - Protocol number sent with the request
    * @param idempotenceToken - Idempotence token sent with the request
    * @param apiVersion - API version (same as the send)
+   * @param options - Per-request controls (e.g. an abort `signal`: a lookup is safe to abort)
    * @returns Notification status of the existing request
    */
   async getNotificationStatusByProtocol(
     paProtocolNumber: string,
     idempotenceToken: string,
     apiVersion: SENDApiVersion,
+    options?: GOHttpRequestOptions,
   ): Promise<SENDNotificationStatusResponse> {
     const query =
       `paProtocolNumber=${encodeURIComponent(paProtocolNumber)}` +
       `&idempotenceToken=${encodeURIComponent(idempotenceToken)}`;
-    return await this.httpClient.get<SENDNotificationStatusResponse>(`/delivery/${apiVersion}/requests?${query}`);
+    return await this.httpClient.get<SENDNotificationStatusResponse>(
+      `/delivery/${apiVersion}/requests?${query}`,
+      undefined,
+      options,
+    );
   }
 
   /**

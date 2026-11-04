@@ -19,7 +19,8 @@ const BACKOFF_BASE_MS = 10_000;
  * slot while waiting, and every check is a single status call through the
  * shared B2B limiter at low priority, so checks never slow down the sends.
  * `WAITING` honours `retryAfter`; `5xx`, `429` and transport errors only
- * reschedule.
+ * reschedule. The per-row timeout runs from the first check that gets a
+ * limiter permit, not from the send. A stop abandons the checks in flight.
  */
 export class VerifyStage {
   private readonly pending = new PendingTasks();
@@ -55,24 +56,23 @@ export class VerifyStage {
   }
 
   private async verify(rowIndex: number, rowKey: string, notificationRequestId: string): Promise<void> {
-    const { clock, ledger } = this.options;
-    const deadline = clock.now() + this.timeoutMs;
+    const { clock, ledger, signal } = this.options;
+    // The timeout starts at the first check SEND actually receives: checks
+    // run after every send in the shared limiter (priority 1), so the time a
+    // check waits behind a long send queue must not consume it.
+    let deadline: number | undefined;
     let delayMs = this.initialDelayMs;
     for (let check = 1; ; check++) {
-      if (
-        !(await sleepUnlessStopped(
-          this.options.clock,
-          Math.min(delayMs, Math.max(0, deadline - clock.now())),
-          this.options.signal,
-        ))
-      )
-        return;
-      if (!(await acquireUnlessStopped(this.options.limiter, 1, this.options.signal))) return;
+      const wait = deadline === undefined ? delayMs : Math.min(delayMs, Math.max(0, deadline - clock.monotonic()));
+      if (!(await sleepUnlessStopped(clock, wait, signal))) return;
+      if (!(await acquireUnlessStopped(this.options.limiter, 1, signal))) return;
+      deadline ??= clock.monotonic() + this.timeoutMs;
 
       let status: SENDNotificationStatusResponse | undefined;
       try {
-        status = await this.options.api.status(notificationRequestId, this.options.apiVersion);
+        status = await this.options.api.status(notificationRequestId, this.options.apiVersion, signal);
       } catch (error: unknown) {
+        if (signal.aborted) return; // check abandoned by the stop: the resume verifies the row
         if (error instanceof GOHttpClientError && (error.statusCode === 401 || error.statusCode === 403)) {
           this.options.onGlobalError(new DispatchError(`HTTP_${error.statusCode}`, 'status check rejected by SEND'));
           return;
@@ -103,7 +103,7 @@ export class VerifyStage {
         });
         return;
       }
-      if (clock.now() >= deadline) {
+      if (clock.monotonic() >= deadline) {
         await ledger.record({
           event: 'VERIFY_TIMEOUT',
           ...base,

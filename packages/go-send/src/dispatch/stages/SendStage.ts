@@ -1,14 +1,15 @@
-import { GOHttpClientError } from '@go-automation/go-common/core';
+import { getErrorMessage, GOHttpClientError } from '@go-automation/go-common/core';
 
 import { buildNotificationRequest } from '../channels/buildNotificationRequest.js';
 import { classifySendFailure } from '../channels/classifySendFailure.js';
 import type { SendFailure } from '../channels/SendFailure.js';
 import { DispatchError } from '../DispatchError.js';
-import { UploadError } from '../documents/UploadError.js';
+import { toDocumentFailure } from '../documents/toDocumentFailure.js';
 import { decodeIun, deriveRowIdentifiers } from '../ids/identifiers.js';
 import type { DispatchRecord } from '../model/DispatchRecord.js';
 import type { RowError } from '../model/RowError.js';
 import type { RowState } from '../model/RowState.js';
+import type { RowStatus } from '../model/RowStatus.js';
 import type { SendContext } from './SendContext.js';
 import type { RowSender } from './RowSender.js';
 import type { SendStageOptions } from './SendStageOptions.js';
@@ -20,7 +21,7 @@ const DEFAULT_MAX_LOOKUP_FAILURES = 3;
 const DEFAULT_THROTTLE_WAIT_MS = 1_000;
 
 /** States from which a row resumes with the reconciliation instead of a POST. */
-const RECONCILE_ON_RESUME: ReadonlySet<string> = new Set(['SENDING', 'RECONCILING', 'SEND_UNCERTAIN']);
+const RECONCILE_ON_RESUME: ReadonlySet<RowStatus> = new Set<RowStatus>(['SENDING', 'RECONCILING', 'SEND_UNCERTAIN']);
 
 /**
  * Sends one row through `POST requests` (§8.1.2–8.1.4).
@@ -31,6 +32,9 @@ const RECONCILE_ON_RESUME: ReadonlySet<string> = new Set(['SENDING', 'RECONCILIN
  * lookup; a new POST with the same keys is made only when the lookup returns
  * `404`, and SEND rejects a duplicate atomically (`409`), so a row never
  * produces two notifications.
+ *
+ * A stop never aborts a POST in flight (its outcome is journaled); waits,
+ * limiter permits and protocol lookups are abandoned.
  */
 export class SendStage implements RowSender {
   private readonly reconcileDelayMs: number;
@@ -51,6 +55,7 @@ export class SendStage implements RowSender {
    *
    * @param record - Valid record
    * @param previous - State from a previous session (resume), if any
+   * @throws Errors that are not row-level (e.g. the journal can no longer be written)
    */
   public async send(record: DispatchRecord, previous?: RowState): Promise<void> {
     if (this.options.signal.aborted) return;
@@ -61,7 +66,7 @@ export class SendStage implements RowSender {
       reconcilePosts: 0,
     };
     if (previous !== undefined && RECONCILE_ON_RESUME.has(previous.status)) {
-      await this.reconcile(context);
+      await this.reconcile(context, true);
       return;
     }
     if (await this.prepare(context)) await this.post(context);
@@ -74,8 +79,12 @@ export class SendStage implements RowSender {
       context.request = buildNotificationRequest(context.record, context.documents, context.ids);
       return true;
     } catch (error: unknown) {
-      const code = error instanceof UploadError || error instanceof DispatchError ? error.code : 'DOCUMENT_ERROR';
-      await this.fail(context, { code, message: errorMessage(error), retryable: true });
+      const failure = toDocumentFailure(error);
+      if (failure === undefined) throw error;
+      // Stopped while uploading: nothing reached SEND, the resume sends the row.
+      if (this.options.signal.aborted) return false;
+      await this.fail(context, failure.rowError);
+      if (failure.runError !== undefined) this.options.onGlobalError(failure.runError);
       return false;
     }
   }
@@ -83,9 +92,15 @@ export class SendStage implements RowSender {
   private async post(context: SendContext): Promise<void> {
     const request = context.request;
     if (request === undefined) return;
-    const deadline = this.options.clock.now() + this.options.sendTimeoutMs;
+    const { clock, signal } = this.options;
+    const deadline = clock.monotonic() + this.options.sendTimeoutMs;
+    /** Last `429`: SEND rejected the previous POST, so a stop leaves nothing ambiguous. */
+    let throttled: SendFailure | undefined;
     for (;;) {
-      if (!(await acquireUnlessStopped(this.options.limiter, 0, this.options.signal))) return;
+      if (!(await acquireUnlessStopped(this.options.limiter, 0, signal))) {
+        await this.stoppedAfterThrottling(context, throttled);
+        return;
+      }
       context.attempts += 1;
       await this.options.ledger.record({
         event: 'SENDING',
@@ -102,10 +117,14 @@ export class SendStage implements RowSender {
 
       // The run may have stopped while the entry was being written: the row
       // stays SENDING and the resume reconciles it (lookup, then POST if absent).
-      if (this.options.signal.aborted) return;
+      if (signal.aborted) {
+        await this.stoppedAfterThrottling(context, throttled);
+        return;
+      }
 
       let failure: SendFailure;
       try {
+        // Never aborted: a POST in flight completes and its outcome is journaled.
         const response = await this.options.api.send(request, this.options.apiVersion);
         this.options.rateAdapter.onSuccess();
         await this.markSent(context, response.notificationRequestId, response.iun);
@@ -117,24 +136,22 @@ export class SendStage implements RowSender {
       switch (failure.kind) {
         case 'throttled':
           this.options.rateAdapter.onThrottled();
-          if (this.options.clock.now() >= deadline) {
+          if (clock.monotonic() >= deadline) {
             await this.fail(context, { ...toRowError(failure), retryable: true });
             return;
           }
-          if (
-            !(await sleepUnlessStopped(
-              this.options.clock,
-              failure.retryAfterMs ?? DEFAULT_THROTTLE_WAIT_MS,
-              this.options.signal,
-            ))
-          )
+          throttled = failure;
+          if (!(await sleepUnlessStopped(clock, failure.retryAfterMs ?? DEFAULT_THROTTLE_WAIT_MS, signal))) {
+            await this.stoppedAfterThrottling(context, failure);
             return;
+          }
           continue;
         case 'duplicate':
-          await this.reconcile(context);
+          // The notification certainly exists: look it up at once.
+          await this.reconcile(context, false);
           return;
         case 'ambiguous':
-          if (this.options.retryAmbiguous) await this.reconcile(context);
+          if (this.options.retryAmbiguous) await this.reconcile(context, true);
           else await this.uncertain(context, toRowError(failure));
           return;
         case 'row':
@@ -154,21 +171,44 @@ export class SendStage implements RowSender {
     }
   }
 
-  private async reconcile(context: SendContext): Promise<void> {
+  /**
+   * The run stopped while the row was waiting to POST again after a `429`:
+   * SEND rejected the last POST, so the row is a retryable failure instead
+   * of staying `SENDING`.
+   */
+  private async stoppedAfterThrottling(context: SendContext, throttled: SendFailure | undefined): Promise<void> {
+    if (throttled === undefined) return;
+    await this.fail(context, { ...toRowError(throttled), retryable: true });
+  }
+
+  /**
+   * Looks the notification up by protocol until it is found (`SENT`), absent
+   * (`404`: new POST) or the lookups keep failing (`SEND_UNCERTAIN`).
+   *
+   * @param context - Row being sent
+   * @param delayFirstLookup - Wait `reconcileDelayMs` before the first lookup
+   *   (an ambiguous POST may still be completing); not needed after a `409`
+   */
+  private async reconcile(context: SendContext, delayFirstLookup: boolean): Promise<void> {
+    const { clock, signal } = this.options;
     await this.options.ledger.record({ event: 'RECONCILING', ...this.rowRef(context), ...context.ids });
     let lookupFailures = 0;
-    for (;;) {
-      if (!(await sleepUnlessStopped(this.options.clock, this.reconcileDelayMs, this.options.signal))) return;
-      if (!(await acquireUnlessStopped(this.options.limiter, 0, this.options.signal))) return;
+    for (let lookup = 0; ; lookup++) {
+      if ((delayFirstLookup || lookup > 0) && !(await sleepUnlessStopped(clock, this.reconcileDelayMs, signal))) {
+        return;
+      }
+      if (!(await acquireUnlessStopped(this.options.limiter, 0, signal))) return;
       try {
         const found = await this.options.api.lookup(
           context.ids.paProtocolNumber,
           context.ids.idempotenceToken,
           this.options.apiVersion,
+          signal,
         );
         await this.markSent(context, found.notificationRequestId, found.iun);
         return;
       } catch (error: unknown) {
+        if (signal.aborted) return; // lookup abandoned by the stop: the row stays RECONCILING
         const status = error instanceof GOHttpClientError ? error.statusCode : undefined;
         if (status === 404) {
           await this.repost(context);
@@ -182,7 +222,7 @@ export class SendStage implements RowSender {
         }
         lookupFailures += 1;
         if (lookupFailures > this.maxLookupFailures) {
-          await this.uncertain(context, { code: 'LOOKUP_FAILED', message: errorMessage(error) });
+          await this.uncertain(context, { code: 'LOOKUP_FAILED', message: getErrorMessage(error) });
           return;
         }
       }
@@ -235,8 +275,4 @@ function toRowError(failure: SendFailure): RowError {
     message: failure.status === undefined ? failure.message : `HTTP ${failure.status}: ${failure.message}`,
     ...(failure.details !== undefined && { details: failure.details }),
   };
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

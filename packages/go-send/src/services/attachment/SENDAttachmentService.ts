@@ -3,15 +3,20 @@
  */
 
 import { createHash } from 'crypto';
-import { readFile } from 'fs/promises';
-import { GOHttpClient } from '@go-automation/go-common/core';
-import type { GOAbortableRequest } from '@go-automation/go-common/core';
+import { GOBinaryFileImporter, GOHttpClient } from '@go-automation/go-common/core';
+import type { GOAbortableRequest, GOHttpRequestOptions } from '@go-automation/go-common/core';
 import type { SENDPreloadResponse } from './models/SENDPreloadResponse.js';
 import type { SENDPreloadRequest } from './models/SENDPreloadRequest.js';
 import type { SENDAttachmentResult } from './models/SENDAttachmentResult.js';
 
 /** Default content type used when none is specified */
 const DEFAULT_CONTENT_TYPE = 'application/pdf';
+
+/** Items accepted by one preload call (`400 PN_GENERIC_INVALIDPARAMETER_SIZE` beyond) */
+export const MAX_PRELOAD_ITEMS = 15;
+
+/** Version token used when neither the upload nor the preload returns one */
+const FALLBACK_VERSION_TOKEN = 'v1';
 
 /**
  * Serializes a preload response for error messages, redacting the secret
@@ -38,6 +43,64 @@ function parsePreloadBody(raw: string): unknown {
 
 function nonEmptyString(value: string | undefined): string | undefined {
   return value === undefined || value === '' ? undefined : value;
+}
+
+/**
+ * Version token of an uploaded file: the `x-amz-version-id` of the presigned
+ * upload, else the (legacy) preload one, else `v1`
+ *
+ * @param preload - Preload response of the file
+ * @param versionId - `x-amz-version-id` response header of the upload, if any
+ * @returns The version token to put in `ref.versionToken`
+ */
+function resolveVersionToken(preload: SENDPreloadResponse, versionId: string | undefined): string {
+  return nonEmptyString(versionId) ?? nonEmptyString(preload.versionToken) ?? FALLBACK_VERSION_TOKEN;
+}
+
+/**
+ * Checks the preload requests before the call: at most
+ * {@link MAX_PRELOAD_ITEMS} items, each with a distinct `preloadIdx`
+ */
+function validatePreloadRequests(requests: ReadonlyArray<SENDPreloadRequest>): void {
+  if (requests.length > MAX_PRELOAD_ITEMS) {
+    throw new Error(`At most ${MAX_PRELOAD_ITEMS} files per preload call (got ${requests.length})`);
+  }
+  const indexes = new Set<string>();
+  for (const request of requests) {
+    if (indexes.has(request.preloadIdx))
+      throw new Error(`Duplicate preloadIdx ${request.preloadIdx} in preload request`);
+    indexes.add(request.preloadIdx);
+  }
+}
+
+/**
+ * Pairs each request with its response item. When every item carries
+ * `preloadIdx` the pairing is strict (a missing or repeated index throws);
+ * otherwise it is purely positional, so a partial `preloadIdx` can never give
+ * the same presigned URL to two files
+ */
+function matchPreloadResponses(
+  requests: ReadonlyArray<SENDPreloadRequest>,
+  items: ReadonlyArray<SENDPreloadResponse>,
+): ReadonlyArray<SENDPreloadResponse> {
+  if (!items.every((item) => item.preloadIdx !== undefined)) {
+    return requests.map((request, index) => {
+      const item = items[index];
+      if (item === undefined) throw new Error(`Preload response missing for preloadIdx ${request.preloadIdx}`);
+      return item;
+    });
+  }
+  const byIdx = new Map<string, SENDPreloadResponse>();
+  for (const item of items) {
+    const idx = item.preloadIdx ?? '';
+    if (byIdx.has(idx)) throw new Error(`Preload response from SafeStorage repeats preloadIdx ${idx}`);
+    byIdx.set(idx, item);
+  }
+  return requests.map((request) => {
+    const item = byIdx.get(request.preloadIdx);
+    if (item === undefined) throw new Error(`Preload response missing for preloadIdx ${request.preloadIdx}`);
+    return item;
+  });
 }
 
 /**
@@ -98,7 +161,10 @@ export class SENDAttachmentService {
    * Read file from disk
    */
   async readFileFromDisk(filePath: string): Promise<Buffer> {
-    return await readFile(filePath);
+    const content = await new GOBinaryFileImporter({ inputPath: filePath }).import();
+    // Not `optional`: a missing file already rejects with ENOENT, so this only guards the type.
+    if (content === undefined) throw new Error(`${filePath}: file not readable`);
+    return content;
   }
 
   /**
@@ -118,18 +184,29 @@ export class SENDAttachmentService {
   /**
    * Requests presigned upload URLs for several files in one call.
    *
-   * SEND accepts at most 15 items per call (`400 PN_GENERIC_INVALIDPARAMETER_SIZE`
-   * beyond). Every response item is validated (url, key and secret present,
-   * PUT upload); responses are returned in request order, matched by
-   * `preloadIdx` when the API returns it.
+   * SEND accepts at most {@link MAX_PRELOAD_ITEMS} items per call
+   * (`400 PN_GENERIC_INVALIDPARAMETER_SIZE` beyond). Every response item is
+   * validated (url, key and secret present, PUT upload); responses are
+   * returned in request order, matched strictly by `preloadIdx` when every
+   * item carries it, by position otherwise.
    *
-   * @param requests - Preload requests, each with a distinct `preloadIdx`
+   * @param requests - Preload requests, each with a distinct `preloadIdx`; none: no call
+   * @param options - Per-request controls (e.g. an abort `signal`)
    * @returns One validated preload response per request, in request order
+   * @throws Error when the requests are more than {@link MAX_PRELOAD_ITEMS} or
+   *   repeat a `preloadIdx`, or the response does not match them
    */
-  async preloadMany(requests: ReadonlyArray<SENDPreloadRequest>): Promise<ReadonlyArray<SENDPreloadResponse>> {
+  async preloadMany(
+    requests: ReadonlyArray<SENDPreloadRequest>,
+    options?: GOHttpRequestOptions,
+  ): Promise<ReadonlyArray<SENDPreloadResponse>> {
+    if (requests.length === 0) return [];
+    validatePreloadRequests(requests);
     const rawResponse = await this.httpClient.post<SENDPreloadResponse[] | string>(
       '/delivery/attachments/preload',
       requests,
+      undefined,
+      options,
     );
 
     // Some PN environments return the JSON body with a non-JSON content
@@ -149,15 +226,7 @@ export class SENDAttachmentService {
     }
 
     const validated = response.map((item: unknown) => validatePreloadItem(item));
-    const byIdx = new Map<string, SENDPreloadResponse>();
-    for (const item of validated) {
-      if (item.preloadIdx !== undefined) byIdx.set(item.preloadIdx, item);
-    }
-    return requests.map((request, index) => {
-      const item = byIdx.get(request.preloadIdx) ?? validated[index];
-      if (item === undefined) throw new Error(`Preload response missing for preloadIdx ${request.preloadIdx}`);
-      return item;
-    });
+    return matchPreloadResponses(requests, validated);
   }
 
   /**
@@ -167,6 +236,7 @@ export class SENDAttachmentService {
    * @param buffer - File content
    * @param sha256 - Base64 SHA-256 of `buffer`, as sent in the preload request
    * @param contentType - MIME type, as sent in the preload request
+   * @param options - Per-request controls (e.g. an abort `signal`)
    * @returns The version token (`x-amz-version-id`, or the preload one, or `v1`)
    */
   async uploadToPresignedUrl(
@@ -174,9 +244,10 @@ export class SENDAttachmentService {
     buffer: Buffer,
     sha256: string,
     contentType: string,
+    options?: GOHttpRequestOptions,
   ): Promise<string> {
-    const headers = await this.uploadToSafeStorage(preload.url, buffer, sha256, preload.secret, contentType);
-    return this.buildResult(preload, sha256, buffer, headers['x-amz-version-id']).ref.versionToken;
+    const headers = await this.uploadToSafeStorage(preload.url, buffer, sha256, preload.secret, contentType, options);
+    return resolveVersionToken(preload, headers['x-amz-version-id']);
   }
 
   /**
@@ -205,8 +276,9 @@ export class SENDAttachmentService {
     sha256: string,
     secret: string,
     contentType: string,
+    options?: GOHttpRequestOptions,
   ): Promise<Record<string, string>> {
-    return await this.httpClient.put(url, buffer, this.buildUploadHeaders(sha256, secret, contentType));
+    return await this.httpClient.put(url, buffer, this.buildUploadHeaders(sha256, secret, contentType), options);
   }
 
   /**
@@ -223,7 +295,7 @@ export class SENDAttachmentService {
     return {
       ref: {
         key: preloadResponse.key,
-        versionToken: nonEmptyString(versionId) ?? nonEmptyString(preloadResponse.versionToken) ?? 'v1',
+        versionToken: resolveVersionToken(preloadResponse, versionId),
       },
       digests: {
         sha256,

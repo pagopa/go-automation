@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { GOConfigReader } from '../../GOConfigReader.js';
 import { GOSecretsSpecifierFactory } from '../../GOSecretsSpecifier.js';
 import { GOCommandLineConfigProvider } from '../GOCommandLineConfigProvider.js';
 
@@ -95,5 +96,24 @@ describe('GOCommandLineConfigProvider', () => {
     } finally {
       process.argv = originalArgv;
     }
+  });
+  it('delivers a string with commas or = intact and still splits array parameters', () => {
+    const reader = new GOConfigReader([
+      new GOCommandLineConfigProvider({
+        arguments: [
+          '--sender-denomination',
+          'Comune di X, Ufficio Y',
+          '--endpoint=https://h/api?a=1&b=2',
+          '--phases',
+          'send,verify',
+          '--defaults=sender.taxId=123',
+        ],
+      }),
+    ]);
+
+    assert.equal(reader.string('sender.denomination'), 'Comune di X, Ufficio Y');
+    assert.equal(reader.string('endpoint'), 'https://h/api?a=1&b=2');
+    assert.deepEqual(reader.stringArray('phases'), ['send', 'verify']);
+    assert.deepEqual(reader.stringArray('defaults'), ['sender.taxId=123']);
   });
 });

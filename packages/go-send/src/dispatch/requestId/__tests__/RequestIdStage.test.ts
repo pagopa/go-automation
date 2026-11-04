@@ -140,6 +140,25 @@ describe('RequestIdStage', () => {
     assert.equal(h.stage.pendingCount, 0, 'nothing is scheduled after the stop');
   });
 
+  it('runs no query queued behind the pool after the credentials expired', async () => {
+    const clock = new VirtualClock();
+    const source = new FakeTimelineSource(clock, new Map());
+    source.failWith = new CredentialsExpiredError();
+    const stage = new RequestIdStage({
+      source,
+      ledger: new RowLedger(undefined),
+      clock,
+      selection: DEFAULT_REQUEST_ID_OPTIONS,
+      concurrency: 1,
+      isCredentialError: (error) => error instanceof CredentialsExpiredError,
+      signal: new AbortController().signal,
+    });
+    for (let i = 0; i < 5; i++) stage.schedule(i, `S-${i}`, `IUN-${i}`);
+    await clock.run(stage.drain());
+    assert.equal(stage.credentialsExpired, true);
+    assert.equal(source.queries, 1, 'the 4 queued queries never reach DynamoDB');
+  });
+
   it('reads pn-Timelines through SENDTimelineService', async () => {
     const elements = [{ category: 'PREPARE_ANALOG_DOMICILE', timelineElementId: 'P', timestamp: 't' }];
     const service = {

@@ -1,3 +1,5 @@
+import { toError } from '@go-automation/go-common/core';
+
 /**
  * Set of row tasks running in background (verification, requestId), with a
  * drain that waits for tasks added while draining too.
@@ -42,7 +44,7 @@ export class PendingTasks {
   public async drain(): Promise<void> {
     while (this.tasks.size > 0) await Promise.all([...this.tasks]);
     if (this.failed) {
-      throw this.firstError instanceof Error ? this.firstError : new Error(String(this.firstError));
+      throw toError(this.firstError);
     }
   }
 }

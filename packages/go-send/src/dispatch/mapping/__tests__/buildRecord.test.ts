@@ -5,7 +5,7 @@ import type { InputRow } from '../../input/InputRow.js';
 import { BUILT_IN_PROFILES } from '../builtInProfiles.js';
 import { buildRecord } from '../buildRecord.js';
 import type { CanonicalField } from '../CanonicalField.js';
-import { mapRow, mergeFieldValues } from '../mapRow.js';
+import { applyFillTransforms, mapRow, mergeFieldValues } from '../mapRow.js';
 import { parseMappingProfile } from '../parseMappingProfile.js';
 import { QA_TEST_PROFILE } from '../profiles/qaTestProfile.js';
 import { RecordFactory } from '../RecordFactory.js';
@@ -73,7 +73,7 @@ describe('mapRow', () => {
     assert.equal(mapped.get('physicalAddress.foreignState'), undefined, 'ITALIA is emptied');
     assert.equal(mapped.get('digitalDomicile.address'), undefined);
     assert.equal(mapped.get('digitalDomicile.type'), undefined, 'no PEC → no type');
-    assert.equal(mapped.get('product'), '890', 'mapped from REGISTERED_LETTER_890');
+    assert.equal(mapped.get('product'), 'REGISTERED_LETTER_890', 'product names are translated by buildRecord');
   });
 
   it('takes the first non-empty column when several map the same field', () => {
@@ -81,9 +81,10 @@ describe('mapRow', () => {
     assert.equal(mapped.get('product'), 'AR');
   });
 
-  it('sets PEC when a digital address is present', () => {
+  it('sets PEC when a digital address is present (fill transform, after the merge)', () => {
     const mapped = mapRow({ ...QA_ROW, 'Indirizzo PEC': 'mario@pec.it' }, QA_TEST_PROFILE);
-    assert.equal(mapped.get('digitalDomicile.type'), 'PEC');
+    assert.equal(mapped.get('digitalDomicile.type'), undefined, 'fills do not run in mapRow');
+    assert.equal(applyFillTransforms(mapped, QA_TEST_PROFILE).get('digitalDomicile.type'), 'PEC');
   });
 
   it('merges layers by precedence: row > CLI > environment', () => {
@@ -184,6 +185,210 @@ describe('buildRecord', () => {
     row.set('physicalAddress.foreignState', 'FRANCIA');
     row.set('physicalAddress.zip', '75001 X');
     assert.ok(buildRecord(0, 'k', row, CONTEXT).ok);
+  });
+});
+
+function issueKeys(result: ReturnType<typeof buildRecord>): ReadonlyArray<string> {
+  return result.ok ? [] : result.issues.map((issue) => `${issue.code}:${issue.field ?? ''}`).sort();
+}
+
+describe('buildRecord: products, options and dates', () => {
+  it('translates the API product names (single source: buildRecord)', () => {
+    for (const [raw, expected] of [
+      ['AR_REGISTERED_LETTER', 'AR'],
+      ['registered_letter_890', '890'],
+      ['ar', 'AR'],
+    ] as const) {
+      const row = validValues();
+      row.set('product', raw);
+      const result = buildRecord(0, 'k', row, CONTEXT);
+      assert.ok(result.ok, raw);
+      assert.equal(result.record.product, expected);
+    }
+  });
+
+  it('requires paFee and vat with DELIVERY_MODE', () => {
+    const row = validValues();
+    row.set('notificationOptions.notificationFeePolicy', 'delivery_mode');
+    assert.deepEqual(issueKeys(buildRecord(0, 'k', row, CONTEXT)), [
+      'MISSING_FIELD:notificationOptions.paFee',
+      'MISSING_FIELD:notificationOptions.vat',
+    ]);
+    row.set('notificationOptions.paFee', '100');
+    row.set('notificationOptions.vat', '22');
+    const result = buildRecord(0, 'k', row, CONTEXT);
+    assert.ok(result.ok);
+    assert.equal(result.record.options.notificationFeePolicy, 'DELIVERY_MODE');
+    assert.equal(result.record.options.paFee, 100);
+    assert.equal(result.record.options.vat, 22);
+  });
+
+  it('bounds vat to 0-100 and names the unit of each integer', () => {
+    const row = validValues();
+    row.set('notificationOptions.vat', '101');
+    const tooHigh = buildRecord(0, 'k', row, CONTEXT);
+    assert.deepEqual(issueKeys(tooHigh), ['OUT_OF_RANGE:notificationOptions.vat']);
+    row.set('notificationOptions.vat', '-1');
+    row.set('notificationOptions.paFee', '1.5');
+    const malformed = buildRecord(0, 'k', row, CONTEXT);
+    assert.ok(!malformed.ok);
+    const messages = malformed.issues.map((issue) => issue.message).join('\n');
+    assert.match(messages, /vat "-1" must be a non-negative integer \(percent\)/);
+    assert.match(messages, /paFee "1\.5" must be a non-negative integer \(euro cents\)/);
+  });
+
+  it('accepts taxonomy codes ending in A or N only', () => {
+    const row = validValues();
+    row.set('notificationOptions.taxonomyCode', '010101A');
+    assert.ok(buildRecord(0, 'k', row, CONTEXT).ok);
+    row.set('notificationOptions.taxonomyCode', '010101P');
+    assert.deepEqual(issueKeys(buildRecord(0, 'k', row, CONTEXT)), ['INVALID_FORMAT:notificationOptions.taxonomyCode']);
+  });
+
+  it('rejects enum values outside the allowed set', () => {
+    const row = validValues();
+    row.set('notificationOptions.pagoPaIntMode', 'MAYBE');
+    row.set('recipient.type', 'XX');
+    assert.deepEqual(issueKeys(buildRecord(0, 'k', row, CONTEXT)), [
+      'INVALID_ENUM:notificationOptions.pagoPaIntMode',
+      'INVALID_ENUM:recipient.type',
+    ]);
+  });
+
+  it('rejects impossible payment expiration dates', () => {
+    const row = validValues();
+    row.set('notificationOptions.paymentExpirationDate', '2028-02-29');
+    assert.ok(buildRecord(0, 'k', row, CONTEXT).ok, 'leap day');
+    for (const date of ['2026-02-31', '2026-04-31', '2027-02-29']) {
+      row.set('notificationOptions.paymentExpirationDate', date);
+      assert.deepEqual(
+        issueKeys(buildRecord(0, 'k', row, CONTEXT)),
+        ['INVALID_FORMAT:notificationOptions.paymentExpirationDate'],
+        date,
+      );
+    }
+  });
+
+  it('does not read preset identifiers in e2e', () => {
+    const row = validValues();
+    row.set('preset.iun', 'not-an-iun');
+    const result = buildRecord(0, 'k', row, CONTEXT);
+    assert.ok(result.ok);
+    assert.equal(result.record.preset, undefined);
+  });
+});
+
+describe('buildRecord: recipient', () => {
+  it('upper-cases the tax id and accepts codice fiscale (with omocodia) or partita IVA', () => {
+    for (const [raw, expected] of [
+      ['rssmra80a01h501u', 'RSSMRA80A01H501U'],
+      ['RSSMRA80A01H50RU', 'RSSMRA80A01H50RU'],
+      ['MRTMTT91D08F2O5L', undefined],
+      ['12345678901', '12345678901'],
+    ] as const) {
+      const row = validValues();
+      row.set('recipient.taxId', raw);
+      const result = buildRecord(0, 'k', row, CONTEXT);
+      if (expected === undefined) {
+        assert.deepEqual(issueKeys(result), ['INVALID_FORMAT:recipient.taxId'], raw);
+      } else {
+        assert.ok(result.ok, raw);
+        assert.equal(result.record.recipient.taxId, expected);
+      }
+    }
+  });
+
+  it('rejects malformed tax ids', () => {
+    for (const raw of ['RSSMRA80A01H501', '1234567890', 'RSSMRA80Z01H501U', 'RSSMRA80A01H501U1']) {
+      const row = validValues();
+      row.set('recipient.taxId', raw);
+      assert.deepEqual(issueKeys(buildRecord(0, 'k', row, CONTEXT)), ['INVALID_FORMAT:recipient.taxId'], raw);
+    }
+  });
+});
+
+describe('buildRecord: payment', () => {
+  it('is absent without notice code and creditor', () => {
+    const result = buildRecord(0, 'k', validValues(), CONTEXT);
+    assert.ok(result.ok);
+    assert.equal(result.record.payment, undefined);
+  });
+
+  it('requires both notice code and creditor, with their formats', () => {
+    const row = validValues();
+    row.set('payment.noticeCode', '30200001');
+    assert.deepEqual(issueKeys(buildRecord(0, 'k', row, CONTEXT)), [
+      'INVALID_FORMAT:payment.noticeCode',
+      'MISSING_FIELD:payment.creditorTaxId',
+    ]);
+    row.set('payment.noticeCode', '302000100000019421');
+    row.set('payment.creditorTaxId', '7701');
+    assert.deepEqual(issueKeys(buildRecord(0, 'k', row, CONTEXT)), ['INVALID_FORMAT:payment.creditorTaxId']);
+  });
+
+  it('reads applyCost as a boolean, default false', () => {
+    const row = validValues();
+    row.set('payment.noticeCode', '302000100000019421');
+    row.set('payment.creditorTaxId', '77777777777');
+    const byDefault = buildRecord(0, 'k', row, CONTEXT);
+    assert.ok(byDefault.ok);
+    assert.deepEqual(byDefault.record.payment, {
+      noticeCode: '302000100000019421',
+      creditorTaxId: '77777777777',
+      applyCost: false,
+    });
+    row.set('payment.applyCost', 'TRUE');
+    const applied = buildRecord(0, 'k', row, CONTEXT);
+    assert.ok(applied.ok);
+    assert.equal(applied.record.payment?.applyCost, true);
+    row.set('payment.applyCost', 'yes');
+    assert.deepEqual(issueKeys(buildRecord(0, 'k', row, CONTEXT)), ['INVALID_FORMAT:payment.applyCost']);
+  });
+});
+
+describe('buildRecord: row files', () => {
+  it('pairs titles with files by position, also with empty items', () => {
+    const row = validValues();
+    row.set('documents.files', 'a.pdf|b.pdf|c.pdf');
+    row.set('documents.titles', 'A||C');
+    const result = buildRecord(0, 'k', row, CONTEXT);
+    assert.ok(result.ok);
+    assert.deepEqual(result.record.documents, {
+      kind: 'rowFiles',
+      files: [
+        { path: '/docs/a.pdf', title: 'A' },
+        { path: '/docs/b.pdf', title: 'b' },
+        { path: '/docs/c.pdf', title: 'C' },
+      ],
+    });
+
+    row.set('documents.files', 'a.pdf||c.pdf');
+    row.set('documents.titles', 'A|B|C');
+    const skipped = buildRecord(0, 'k', row, CONTEXT);
+    assert.ok(skipped.ok);
+    assert.deepEqual(skipped.record.documents, {
+      kind: 'rowFiles',
+      files: [
+        { path: '/docs/a.pdf', title: 'A' },
+        { path: '/docs/c.pdf', title: 'C' },
+      ],
+    });
+  });
+
+  it('rejects files outside the documents directory', () => {
+    for (const file of ['../secret.pdf', '/etc/passwd', 'sub/../../x.pdf', '.']) {
+      const row = validValues();
+      row.set('documents.files', `ok.pdf|${file}`);
+      assert.deepEqual(issueKeys(buildRecord(0, 'k', row, CONTEXT)), ['DOCUMENT_OUTSIDE_DIR:documents.files'], file);
+    }
+    const row = validValues();
+    row.set('documents.files', '/docs/sub/in.pdf|..name.pdf');
+    const inside = buildRecord(0, 'k', row, CONTEXT);
+    assert.ok(inside.ok);
+    assert.deepEqual(
+      inside.record.documents.kind === 'rowFiles' ? inside.record.documents.files.map((file) => file.path) : [],
+      ['/docs/sub/in.pdf', '/docs/..name.pdf'],
+    );
   });
 });
 

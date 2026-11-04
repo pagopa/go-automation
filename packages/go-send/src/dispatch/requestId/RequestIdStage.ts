@@ -75,10 +75,10 @@ export class RequestIdStage {
 
   private async retrieve(rowIndex: number, rowKey: string, iun: string): Promise<void> {
     const { clock, ledger, selection } = this.options;
-    const deadline = clock.now() + this.timeoutMs;
+    const deadline = clock.monotonic() + this.timeoutMs;
     let delayMs = this.initialDelayMs;
     for (let check = 1; ; check++) {
-      const wait = Math.min(delayMs, Math.max(0, deadline - clock.now()));
+      const wait = Math.min(delayMs, Math.max(0, deadline - clock.monotonic()));
       if (!(await sleepUnlessStopped(clock, wait, this.signal))) return;
 
       const elements = await this.query(iun);
@@ -106,7 +106,7 @@ export class RequestIdStage {
           return;
         }
       }
-      if (clock.now() >= deadline) {
+      if (clock.monotonic() >= deadline) {
         await ledger.record({ event: 'REQUEST_ID_NOT_FOUND', ...base, requestIdReason: 'TIMEOUT' });
         return;
       }
@@ -114,16 +114,25 @@ export class RequestIdStage {
     }
   }
 
-  /** One timeline query; `undefined` on a transient error (retried at the next check). */
+  /**
+   * One timeline query; `undefined` on a transient error (retried at the next
+   * check) or when the stage stopped while the query waited for a pool slot
+   * (stop, expired credentials): no query starts after a stop. Expired
+   * credentials stop the stage before the pool slot is released, so the
+   * queries queued behind it never run.
+   */
   private async query(iun: string): Promise<ReadonlyArray<SENDTimelineElement> | undefined> {
-    try {
-      return await this.pool.run(async () => this.options.source.query(iun));
-    } catch (error: unknown) {
-      if (this.isCredentialError(error)) {
-        this.expired = true;
-        this.controller.abort();
+    return this.pool.run(async () => {
+      if (this.signal.aborted) return undefined;
+      try {
+        return await this.options.source.query(iun);
+      } catch (error: unknown) {
+        if (this.isCredentialError(error)) {
+          this.expired = true;
+          this.controller.abort();
+        }
+        return undefined;
       }
-      return undefined;
-    }
+    });
   }
 }

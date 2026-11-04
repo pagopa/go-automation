@@ -1,3 +1,4 @@
+import { toError } from '../errors/GOErrorUtils.js';
 import { GODefaultSleeper } from '../polling/GODefaultSleeper.js';
 import type { GOSleeper } from '../polling/GOSleeper.js';
 import type { GORateLimiterClockFn } from './GORateLimiterClockFn.js';
@@ -23,8 +24,16 @@ const COMPACT_THRESHOLD = 1024;
  *   `acquire` and grant.
  * - Strict priority: a permit goes to priority `p` only when every queue with
  *   a higher priority (lower number) is empty. FIFO within the same priority.
+ *   There is no aging: while higher priorities keep the bucket saturated
+ *   (they always have someone queued), lower priorities get **no** permit at
+ *   all and wait indefinitely. Size the rate so that higher priorities leave
+ *   spare capacity, or give low-priority callers an `AbortSignal` with a
+ *   timeout.
  * - State is per instance: create one limiter per run and pass it to the
  *   components that share the budget.
+ * - The clock (`options.now`) must be monotonic. If it goes backwards the
+ *   limiter re-anchors on the new reading (no tokens are created or lost),
+ *   so it does not stall waiting for the clock to catch up.
  *
  * @example
  * ```typescript
@@ -44,6 +53,7 @@ export class GORateLimiter {
   private rate: number;
   private tokens: number;
   private lastRefill: number;
+  private queued = 0;
   private pumping = false;
   private pumpWake: AbortController | undefined = undefined;
 
@@ -77,9 +87,18 @@ export class GORateLimiter {
   /**
    * Waits for a permit.
    *
+   * Rejections:
+   * - the signal aborts (before or while queued): no permit is consumed and
+   *   the promise rejects with the signal's `reason` when it is an `Error`;
+   *   any other reason (e.g. a string) is wrapped in an `Error` whose
+   *   `cause` is the original reason;
+   * - the internal timer fails (the injected sleeper rejects for a reason
+   *   other than an internal wake-up): every queued caller rejects with that
+   *   error.
+   *
    * @param priority - Queue to wait in, `0` (default) is the highest
    * @param signal - Optional signal; aborting removes the caller from the queue
-   *   without consuming a permit and rejects with the signal's reason
+   *   without consuming a permit
    * @returns Promise resolved when the permit is granted
    */
   public async acquire(priority: number = 0, signal?: AbortSignal): Promise<void> {
@@ -91,10 +110,10 @@ export class GORateLimiter {
     }
 
     this.refill();
-    if (this.queuedCount() === 0 && this.tokens >= 1 - TOKEN_EPSILON) {
+    if (this.queued === 0 && this.tokens >= 1 - TOKEN_EPSILON) {
       this.tokens -= 1;
       this.recordGrant(0);
-      return Promise.resolve();
+      return;
     }
 
     return new Promise<void>((resolve, reject) => {
@@ -102,8 +121,8 @@ export class GORateLimiter {
       const onAbort = (): void => {
         if (waiter.settled) return;
         waiter.settled = true;
-        this.decrementLive(priority);
         this.aborted += 1;
+        this.removeAborted(priority);
         reject(abortReason(signal));
       };
       const waiter: GORateLimiterWaiter = {
@@ -113,10 +132,15 @@ export class GORateLimiter {
           this.recordGrant(this.now() - enqueuedAt);
           resolve();
         },
+        fail: (error: Error): void => {
+          signal?.removeEventListener('abort', onAbort);
+          reject(error);
+        },
       };
       signal?.addEventListener('abort', onAbort, { once: true });
       this.queueAt(priority).push(waiter);
       this.live[priority] = this.liveAt(priority) + 1;
+      this.queued += 1;
       this.ensurePump();
     });
   }
@@ -145,7 +169,7 @@ export class GORateLimiter {
       ratePerSecond: this.rate,
       granted: this.granted,
       aborted: this.aborted,
-      queued: this.queuedCount(),
+      queued: this.queued,
       queuedByPriority: [...this.live],
       averageWaitMs: this.granted === 0 ? 0 : this.totalWaitMs / this.granted,
       maxWaitMs: this.maxWaitMs,
@@ -160,7 +184,7 @@ export class GORateLimiter {
 
   private async pump(): Promise<void> {
     try {
-      while (this.queuedCount() > 0) {
+      while (this.queued > 0) {
         this.refill();
         while (this.tokens >= 1 - TOKEN_EPSILON) {
           const waiter = this.nextWaiter();
@@ -168,22 +192,31 @@ export class GORateLimiter {
           this.tokens -= 1;
           waiter.grant();
         }
-        if (this.queuedCount() === 0) break;
+        if (this.queued === 0) break;
         await this.sleepUntilNextToken();
       }
+    } catch (error: unknown) {
+      // The sleeper failed for a reason other than an internal wake-up:
+      // retrying would spin, so the queued callers get the error instead.
+      this.failQueued(toError(error));
     } finally {
       this.pumping = false;
     }
   }
 
+  /**
+   * Sleeps until the next token is due. An internal wake-up (`setRate()`, or
+   * the last queued caller aborting) ends the sleep early and is not an error;
+   * any other sleeper failure propagates to `pump()`.
+   */
   private async sleepUntilNextToken(): Promise<void> {
     const waitMs = Math.max(1, Math.ceil(((1 - this.tokens) * 1000) / this.rate));
     const wake = new AbortController();
     this.pumpWake = wake;
     try {
       await this.sleeper.sleep(waitMs, wake.signal);
-    } catch {
-      // Woken early by setRate(): the loop recomputes the wait at the new rate.
+    } catch (error: unknown) {
+      if (!wake.signal.aborted) throw error;
     } finally {
       this.pumpWake = undefined;
     }
@@ -211,6 +244,42 @@ export class GORateLimiter {
     return undefined;
   }
 
+  /**
+   * Accounts for a waiter that aborted while queued. Its entry stays in the
+   * array (lazy removal), but when no live waiter is left in that priority the
+   * whole queue is dropped, so aborted entries cannot pile up behind a
+   * starved priority. When nobody is queued any more the pump's sleep is cut
+   * short, so the timer does not keep the event loop alive.
+   */
+  private removeAborted(priority: number): void {
+    this.decrementLive(priority);
+    if (this.liveAt(priority) === 0) {
+      this.queueAt(priority).length = 0;
+      this.heads[priority] = 0;
+    }
+    if (this.queued === 0) {
+      this.pumpWake?.abort();
+    }
+  }
+
+  /** Rejects every queued caller with `error` and empties the queues. */
+  private failQueued(error: Error): void {
+    for (let priority = 0; priority < this.queues.length; priority++) {
+      const queue = this.queueAt(priority);
+      for (let index = this.heads[priority] ?? 0; index < queue.length; index++) {
+        const waiter = queue[index];
+        if (waiter !== undefined && !waiter.settled) {
+          waiter.settled = true;
+          waiter.fail(error);
+        }
+      }
+      queue.length = 0;
+      this.heads[priority] = 0;
+      this.live[priority] = 0;
+    }
+    this.queued = 0;
+  }
+
   private compact(priority: number): void {
     const queue = this.queueAt(priority);
     const head = this.heads[priority] ?? 0;
@@ -228,20 +297,16 @@ export class GORateLimiter {
     const elapsed = current - this.lastRefill;
     if (elapsed > 0) {
       this.tokens = Math.min(this.burst, this.tokens + (elapsed * this.rate) / 1000);
-      this.lastRefill = current;
     }
+    // Always re-anchor: if the clock went backwards (elapsed < 0) keeping the
+    // old anchor would stall the refill until the clock caught up with it.
+    this.lastRefill = current;
   }
 
   private recordGrant(waitMs: number): void {
     this.granted += 1;
     this.totalWaitMs += waitMs;
     if (waitMs > this.maxWaitMs) this.maxWaitMs = waitMs;
-  }
-
-  private queuedCount(): number {
-    let total = 0;
-    for (const count of this.live) total += count;
-    return total;
   }
 
   private queueAt(priority: number): GORateLimiterWaiter[] {
@@ -256,6 +321,7 @@ export class GORateLimiter {
 
   private decrementLive(priority: number): void {
     this.live[priority] = this.liveAt(priority) - 1;
+    this.queued -= 1;
   }
 }
 
@@ -265,7 +331,11 @@ function assertPositiveRate(ratePerSecond: number): void {
   }
 }
 
+/**
+ * Error an aborted `acquire()` rejects with: the signal's reason when it is
+ * an `Error`, otherwise a generic `Error` carrying the reason as `cause`.
+ */
 function abortReason(signal: AbortSignal | undefined): Error {
   const reason: unknown = signal?.reason;
-  return reason instanceof Error ? reason : new Error('GORateLimiter: acquire aborted');
+  return reason instanceof Error ? reason : new Error('GORateLimiter: acquire aborted', { cause: reason });
 }

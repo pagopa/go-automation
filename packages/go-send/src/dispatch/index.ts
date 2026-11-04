@@ -13,7 +13,6 @@ export { DispatchError } from './DispatchError.js';
 
 // Model
 export type { DispatchMode } from './model/DispatchMode.js';
-export type { DispatchPhase } from './model/DispatchPhase.js';
 export type { DispatchRecord } from './model/DispatchRecord.js';
 export type { DispatchSender } from './model/DispatchSender.js';
 export type { DispatchRecipient } from './model/DispatchRecipient.js';
@@ -60,13 +59,20 @@ export type { ValidationIssue } from './mapping/ValidationIssue.js';
 export { CANONICAL_FIELDS, isCanonicalField } from './mapping/canonicalFields.js';
 export { BUILT_IN_PROFILES } from './mapping/builtInProfiles.js';
 export { parseMappingProfile } from './mapping/parseMappingProfile.js';
-export { mapRow, mergeFieldValues } from './mapping/mapRow.js';
+export { mapRow, mergeFieldValues, applyFillTransforms } from './mapping/mapRow.js';
 export { buildRecord } from './mapping/buildRecord.js';
 export { RecordFactory } from './mapping/RecordFactory.js';
 export { environmentFieldValues } from './mapping/environmentFieldValues.js';
 
 // Identifiers
-export { createRunId, decodeIun, deriveRowIdentifiers, resolveRowKey } from './ids/identifiers.js';
+export {
+  createRunId,
+  decodeIun,
+  deriveRowIdentifiers,
+  resolveRowKey,
+  isIun,
+  encodeNotificationRequestId,
+} from './ids/identifiers.js';
 
 // Input
 export type { InputFormat } from './input/InputFormat.js';
@@ -90,16 +96,12 @@ export type { ExternalChannelsApi } from './direct/ExternalChannelsApi.js';
 export type { PaperEngagementRequest } from './direct/PaperEngagementRequest.js';
 export type { PaperEngagementAttachment } from './direct/PaperEngagementAttachment.js';
 export { ExternalChannelsChannel } from './direct/ExternalChannelsChannel.js';
-export { buildPaperEngagement } from './direct/buildPaperEngagement.js';
-export { DirectSendStage } from './direct/DirectSendStage.js';
 export { RequestIdTemplate, DEFAULT_DIRECT_REQUEST_ID_TEMPLATE } from './ids/RequestIdTemplate.js';
 export type { DirectModeOptions } from './run/DirectModeOptions.js';
 export type { DispatchDirectOptions } from './model/DispatchDirectOptions.js';
 
 // Journal
 export type { JournalEntry } from './journal/JournalEntry.js';
-export type { TransitionHandler } from './journal/TransitionHandler.js';
-export { Journal } from './journal/Journal.js';
 
 // requestId (§8.3)
 export type { RequestIdSelect } from './requestId/RequestIdSelect.js';
@@ -109,9 +111,7 @@ export type { RequestIdSelectionOptions } from './requestId/RequestIdSelectionOp
 export type { TimelineSource } from './requestId/TimelineSource.js';
 export type { CredentialErrorPredicate } from './requestId/CredentialErrorPredicate.js';
 export { DEFAULT_REQUEST_ID_OPTIONS } from './requestId/defaultRequestIdOptions.js';
-export { selectRequestIds } from './requestId/selectRequestIds.js';
 export { DynamoTimelineSource } from './requestId/DynamoTimelineSource.js';
-export { RequestIdStage } from './requestId/RequestIdStage.js';
 
 // Run
 export type { DispatchRequestIdOptions } from './run/DispatchRequestIdOptions.js';
@@ -124,5 +124,4 @@ export type { RunInfo } from './run/RunInfo.js';
 export type { FailureGroup } from './run/FailureGroup.js';
 export type { SendStatistics } from './run/SendStatistics.js';
 export { DispatchSession } from './run/DispatchSession.js';
-export type { DispatchRunFiles } from './run/DispatchRunFiles.js';
 export { RUN_FILES, readRunInfo } from './run/runFiles.js';

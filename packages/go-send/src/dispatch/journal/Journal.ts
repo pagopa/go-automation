@@ -1,4 +1,4 @@
-import { GOJSONListExporter, GOJSONListImporter } from '@go-automation/go-common/core';
+import { GOJSONListExporter, GOJSONListImporter, toError } from '@go-automation/go-common/core';
 import type { GOListExporterStreamWriter } from '@go-automation/go-common/core';
 
 import type { JournalEntry } from './JournalEntry.js';
@@ -21,10 +21,7 @@ export class Journal implements JournalSink {
   private chain: Promise<void> = Promise.resolve();
   private failure: Error | undefined = undefined;
 
-  private constructor(
-    private readonly writer: GOListExporterStreamWriter<JournalEntry>,
-    public readonly path: string,
-  ) {}
+  private constructor(private readonly writer: GOListExporterStreamWriter<JournalEntry>) {}
 
   /**
    * Creates a new journal segment.
@@ -34,23 +31,22 @@ export class Journal implements JournalSink {
    */
   public static async open(path: string): Promise<Journal> {
     const exporter = new GOJSONListExporter<JournalEntry>({ outputPath: path, jsonl: true });
-    return new Journal(await exporter.exportStream(), path);
+    return new Journal(await exporter.exportStream());
   }
 
   /**
-   * Reads the entries of journal segments, in order. A truncated last line
-   * (crash mid-write) is skipped: that entry was never acknowledged.
+   * Streams the entries of journal segments, in order: memory never holds
+   * more than one entry, whatever the size of the journal. A truncated last
+   * line (crash mid-write) is skipped: that entry was never acknowledged.
    *
    * @param paths - Segments, oldest first
    * @returns Entries in write order
    */
-  public static async read(paths: ReadonlyArray<string>): Promise<ReadonlyArray<JournalEntry>> {
-    const entries: JournalEntry[] = [];
+  public static async *entries(paths: ReadonlyArray<string>): AsyncGenerator<JournalEntry, void, undefined> {
     for (const segment of paths) {
       const importer = new GOJSONListImporter<JournalEntry>({ jsonl: true, skipInvalidItems: true });
-      for await (const entry of importer.importStream(segment)) entries.push(entry);
+      yield* importer.importStream(segment);
     }
-    return entries;
   }
 
   /**
@@ -64,7 +60,7 @@ export class Journal implements JournalSink {
       await this.writer.append(entry);
     });
     this.chain = write.catch((error: unknown) => {
-      this.failure ??= error instanceof Error ? error : new Error(String(error));
+      this.failure ??= toError(error);
     });
     return write;
   }

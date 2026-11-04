@@ -30,3 +30,4 @@ export * from './text/GOTextFileImporterOptions.js';
 export * from './binary/GOBinaryFileImporter.js';
 export * from './binary/GOBinaryFileImporterOptions.js';
 export * from './binary/GOFileTooLargeError.js';
+export * from './binary/GOPathOutsideRootError.js';

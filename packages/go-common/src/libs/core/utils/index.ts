@@ -52,7 +52,8 @@ export {
   hasMessage,
 } from './GOTypeGuards.js';
 export { parseInteger, parseFiniteNumber } from './GONumberParse.js';
-export { parseDuration } from './GODurationParse.js';
+export { parseDuration, SET_TIMEOUT_MAX_MS } from './GODurationParse.js';
+export type { GODurationParseOptions } from './GODurationParseOptions.js';
 export { omitUndefined } from './GOObjectUtils.js';
 export { GOConcurrencyPool } from './GOConcurrencyPool.js';
 export { GORateLimiter } from './GORateLimiter.js';

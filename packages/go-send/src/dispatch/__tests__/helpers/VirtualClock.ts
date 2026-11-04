@@ -28,6 +28,11 @@ export class VirtualClock implements DispatchClock {
     return this.current;
   }
 
+  /** Virtual time is monotonic: the same counter as {@link now}. */
+  public monotonic(): number {
+    return this.current;
+  }
+
   /** Milliseconds elapsed since {@link VIRTUAL_EPOCH}. */
   public get elapsed(): number {
     return this.current - VIRTUAL_EPOCH;

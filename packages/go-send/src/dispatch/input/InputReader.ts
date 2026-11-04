@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 
-import { GOCSVListImporter, GOJSONListImporter } from '@go-automation/go-common/core';
+import { GOCSVListImporter, GOJSONListImporter, isPlainObject } from '@go-automation/go-common/core';
 
 import type { InputFormat } from './InputFormat.js';
 import type { InputReaderOptions } from './InputReaderOptions.js';
@@ -54,7 +54,7 @@ export class InputReader {
       skipInvalidItems: false,
     });
     for await (const item of importer.importStream(this.options.filePath)) {
-      const original = isRecord(item) ? item : { value: item };
+      const original = isPlainObject(item) ? item : { value: item };
       yield { rowIndex: rowIndex++, values: flatten(original), original };
     }
   }
@@ -74,17 +74,13 @@ function flatten(
     if (value === null || value === undefined) continue;
     if (Array.isArray(value)) {
       into[name] = value.map((element: unknown) => scalarToString(element)).join('|');
-    } else if (isRecord(value)) {
+    } else if (isPlainObject(value)) {
       flatten(value, name, into);
     } else {
       into[name] = scalarToString(value);
     }
   }
   return into;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function scalarToString(value: unknown): string {

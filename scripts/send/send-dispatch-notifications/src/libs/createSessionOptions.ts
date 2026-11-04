@@ -1,94 +1,76 @@
 /**
- * Translation of the script configuration into the options of a
+ * Translation of the validated configuration into the options of a
  * `Dispatch.DispatchSession`.
  */
 
+import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 
 import { Core } from '@go-automation/go-common';
 import { Dispatch, SENDNotifications, SENDTimelineService, loadUploadedAttachments } from '@go-automation/go-send';
-import type { SENDApiVersion } from '@go-automation/go-send';
 
+import { scriptMetadata } from '../config.js';
 import type { DispatchTarget } from '../types/DispatchTarget.js';
-import { isAwsCredentialError } from './isAwsCredentialError.js';
-import { TransitionLogger } from './TransitionLogger.js';
+import type { LoadedProfile } from '../types/LoadedProfile.js';
 import type { PreparedSession } from '../types/PreparedSession.js';
 import type { ResolvedRun } from '../types/ResolvedRun.js';
-import type { SendDispatchNotificationsConfig } from '../types/SendDispatchNotificationsConfig.js';
-
-const API_VERSIONS: ReadonlySet<string> = new Set<SENDApiVersion>(['v2.4', 'v2.5', 'v2.6']);
-const SUPPORTED_PHASES: ReadonlySet<string> = new Set(['send', 'verify', 'request-id']);
-
-/**
- * Checks the combinations the script does not support yet (§17) or rejects
- * by design (§13), before any file is read.
- *
- * @param config - Script configuration
- * @throws Error with the reason
- */
-export function assertSupportedConfig(config: SendDispatchNotificationsConfig): void {
-  if (config.mode !== 'e2e' && config.mode !== 'direct') throw new Error(`--mode ${config.mode}: use e2e or direct`);
-  if (config.mode === 'direct') assertDirectConfig(config);
-  for (const phase of config.phases) {
-    if (!SUPPORTED_PHASES.has(phase)) throw new Error(`--phases: unknown phase "${phase}"`);
-  }
-  if (config.phases.length === 0) throw new Error('--phases: at least one phase is required');
-  if (!API_VERSIONS.has(config.apiVersion))
-    throw new Error(`--api-version ${config.apiVersion}: use v2.4, v2.5 or v2.6`);
-  if (config.requestIdSelect !== 'per-category' && config.requestIdSelect !== 'priority') {
-    throw new Error(`--request-id-select ${config.requestIdSelect}: use per-category or priority`);
-  }
-  if (config.requestIdWait !== 'any' && config.requestIdWait !== 'all') {
-    throw new Error(`--request-id-wait ${config.requestIdWait}: use any or all`);
-  }
-  if (config.inputFile === undefined && config.resume === undefined) throw new Error('--input-file is required');
-}
+import type { RunIdentity } from '../types/RunIdentity.js';
+import type { ValidatedConfig } from '../types/ValidatedConfig.js';
+import { AwsCredentialErrorDetector } from './AwsCredentialErrorDetector.js';
+import { DispatchUsageError } from './DispatchUsageError.js';
+import {
+  RUN_IDENTITY_PARAMETER,
+  assertSameRunIdentity,
+  formatFieldValues,
+  formatSharedDocument,
+} from './runIdentity.js';
+import { TransitionLogger } from './TransitionLogger.js';
 
 /**
- * Checks the `direct` mode: only the `send` phase (verification is open
- * point A7, requestId comes from the template), a pn-ec base URL and a valid
- * requestId template.
+ * Calls per second: `--rate`, or 20 in e2e and 5 in direct (§9.2, A8).
  *
- * @param config - Script configuration
- * @throws Error with the reason
+ * @param config - Validated configuration
+ * @returns The rate
  */
-function assertDirectConfig(config: SendDispatchNotificationsConfig): void {
-  if (config.phases.includes('verify')) {
-    throw new Error(
-      '--mode direct: verify is not available yet (A7, to be agreed with the SEND team); use --phases send',
-    );
-  }
-  if (config.phases.includes('request-id')) {
-    throw new Error('--mode direct: the requestId comes from the template, --phases request-id does not apply');
-  }
-  if (config.ecBaseUrl === undefined)
-    throw new Error('--mode direct requires --ec-base-url (tunnel to pn-external-channels)');
-  Dispatch.RequestIdTemplate.parse(config.directRequestIdTemplate);
-}
-
-/** Calls per second: `--rate`, or 20 in e2e and 5 in direct (§9.2, A8). */
-export function effectiveRate(config: SendDispatchNotificationsConfig): number {
+export function effectiveRate(config: Pick<ValidatedConfig, 'rate' | 'mode'>): number {
   return config.rate ?? (config.mode === 'direct' ? 5 : 20);
 }
 
 /**
- * Parses `--defaults campo=valore` into canonical field values (RF-04).
+ * Format of the input: `--input-format`, else the file extension, else the
+ * profile format.
  *
- * @param entries - Raw entries
- * @returns Field values
- * @throws Error on malformed entries or unknown fields
+ * @param explicit - `--input-format`
+ * @param filePath - Input file
+ * @param profile - Mapping profile
+ * @returns The input format
+ * @throws DispatchUsageError when no source gives a supported format
  */
-export function parseDefaults(entries: ReadonlyArray<string>): Map<Dispatch.CanonicalField, string> {
-  const values = new Map<Dispatch.CanonicalField, string>();
-  for (const entry of entries) {
-    const separator = entry.indexOf('=');
-    const field = separator < 0 ? entry : entry.slice(0, separator).trim();
-    const value = separator < 0 ? '' : entry.slice(separator + 1).trim();
-    if (!Dispatch.isCanonicalField(field)) throw new Error(`--defaults: unknown field "${field}"`);
-    if (value === '') throw new Error(`--defaults: missing value for ${field} (use ${field}=value)`);
-    values.set(field, value);
+export function resolveInputFormat(
+  explicit: Dispatch.InputFormat | undefined,
+  filePath: string,
+  profile: Dispatch.MappingProfile,
+): Dispatch.InputFormat {
+  const format = explicit ?? Dispatch.InputReader.formatFromPath(filePath) ?? profile.format?.type;
+  if (format === undefined) {
+    throw new DispatchUsageError(`${filePath}: unknown input format, set --input-format (csv, json or jsonl)`);
   }
-  return values;
+  return format;
+}
+
+/**
+ * Format of the output: `--output-format`, else the format of the input
+ * (never the profile format: a JSON input with a CSV profile gives JSON).
+ *
+ * @param explicit - `--output-format`
+ * @param inputFormat - Resolved input format
+ * @returns The output format
+ */
+export function resolveOutputFormat(
+  explicit: Dispatch.InputFormat | undefined,
+  inputFormat: Dispatch.InputFormat,
+): Dispatch.InputFormat {
+  return explicit ?? inputFormat;
 }
 
 /**
@@ -97,78 +79,140 @@ export function parseDefaults(entries: ReadonlyArray<string>): Map<Dispatch.Cano
  * The execution directory of this session always comes from GOPaths.
  *
  * @param script - GOScript instance
- * @param config - Script configuration
+ * @param config - Validated configuration
  * @returns Identity, directory and input of the session
+ * @throws DispatchUsageError when the `run.json` to resume cannot be read
  */
-async function resolveRun(script: Core.GOScript, config: SendDispatchNotificationsConfig): Promise<ResolvedRun> {
-  const runDir = script.paths.createExecutionOutputDir();
-  const runName = path.basename(runDir);
+async function resolveRun(script: Core.GOScript, config: ValidatedConfig): Promise<ResolvedRun> {
   if (config.resume === undefined) {
+    const runDir = script.paths.createExecutionOutputDir();
     const inputFile = script.paths.resolvePath(config.inputFile ?? '', Core.GOPathType.INPUT);
-    return { runId: Dispatch.createRunId(new Date()), runDir, runName, inputFile };
+    return { runId: Dispatch.createRunId(new Date()), runDir, runName: path.basename(runDir), inputFile };
   }
   const previousDir = path.isAbsolute(config.resume)
     ? config.resume
     : path.join(script.paths.getOutputsBaseDir(), config.resume);
   const previousRunInfoPath = path.join(previousDir, Dispatch.RUN_FILES.info);
-  const previousRun = await Dispatch.readRunInfo(previousRunInfoPath);
+  let previousRun: Dispatch.RunInfo;
+  try {
+    previousRun = await Dispatch.readRunInfo(previousRunInfoPath);
+  } catch (error: unknown) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new DispatchUsageError(
+      `--resume ${config.resume}: cannot read ${previousRunInfoPath} (${reason}). ` +
+        'Only a run with --dry-run=false writes run.json: a dry run has nothing to resume.',
+      { cause: error },
+    );
+  }
+  const runDir = script.paths.createExecutionOutputDir();
   const inputFile =
     config.inputFile === undefined
       ? previousRun.inputPath
       : script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT);
-  return { runId: previousRun.runId, runDir, runName, inputFile, previousRun, previousRunInfoPath };
+  return {
+    runId: previousRun.runId,
+    runDir,
+    runName: path.basename(runDir),
+    inputFile,
+    previousRun,
+    previousRunInfoPath,
+  };
 }
 
 /**
- * Loads the mapping profile: a built-in name or a JSON file.
+ * Loads the mapping profile: a built-in name, or a JSON file (whose content
+ * hash becomes part of the run identity).
  *
  * @param script - GOScript instance
  * @param nameOrPath - `--mapping-profile`
  * @returns The validated profile
  */
-async function loadMappingProfile(script: Core.GOScript, nameOrPath: string): Promise<Dispatch.MappingProfile> {
+async function loadMappingProfile(script: Core.GOScript, nameOrPath: string): Promise<LoadedProfile> {
   const builtIn = Dispatch.BUILT_IN_PROFILES.get(nameOrPath);
-  if (builtIn !== undefined) return builtIn;
+  if (builtIn !== undefined) return { profile: builtIn };
   const file = script.paths.resolvePath(nameOrPath, Core.GOPathType.CONFIG);
-  const content = await new Core.GOJSONFileImporter<unknown>({ inputPath: file }).import();
-  return Dispatch.parseMappingProfile(content, file);
+  try {
+    const content = await new Core.GOJSONFileImporter<unknown>({ inputPath: file }).import();
+    const sha256 = createHash('sha256').update(JSON.stringify(content)).digest('hex');
+    return { profile: Dispatch.parseMappingProfile(content, file), sha256 };
+  } catch (error: unknown) {
+    throw DispatchUsageError.from(error);
+  }
 }
 
 /**
- * Builds the session options from configuration and target.
+ * Builds the session options from configuration and target. On resume, the
+ * settings that identify the rows must match those of the resumed run.
  *
  * @param script - GOScript instance
- * @param config - Script configuration
+ * @param config - Validated configuration
  * @param target - Resolved target
- * @returns Options of the session and identity of the run
+ * @returns Options of the session, identity of the run, `pn-Timelines` profile
+ * @throws DispatchUsageError on a resume with different settings, missing
+ *   `--aws-profiles` or an unknown input format
  */
 export async function createSessionOptions(
   script: Core.GOScript,
-  config: SendDispatchNotificationsConfig,
+  config: ValidatedConfig,
   target: DispatchTarget,
 ): Promise<PreparedSession> {
+  const send = config.phases.includes('send');
+  const awsProfile = config.phases.includes('request-id') ? timelinesProfile(config, target) : undefined;
   const run = await resolveRun(script, config);
   const transitions = new TransitionLogger(script.logger, config.verbose);
   const { inputFile } = run;
-  const profile = await loadMappingProfile(script, config.mappingProfile);
-  const inputFormat = parseFormat(config.inputFormat, inputFile, profile);
-  const outputFormat = parseFormat(config.outputFormat, undefined, profile) ?? inputFormat;
-  const httpTimeoutMs = Core.parseDuration(config.httpTimeout, 'http.timeout');
+  const loaded = await loadMappingProfile(script, config.mappingProfile);
+  const { profile } = loaded;
+  const inputFormat = resolveInputFormat(config.inputFormat, inputFile, profile);
+  const outputFormat = resolveOutputFormat(config.outputFormat, inputFormat);
+  const { durations } = config;
   const sdk =
-    config.mode === 'direct'
+    target.b2b === undefined
       ? undefined
       : new SENDNotifications({
-          basePath: target.basePath,
-          apiKey: target.apiKey,
-          timeout: httpTimeoutMs,
+          basePath: target.b2b.basePath,
+          apiKey: target.b2b.apiKey,
+          timeout: durations.httpTimeoutMs,
           ...(config.proxyUrl !== undefined && { proxyUrl: config.proxyUrl }),
         });
-  const attachments =
+  const attachmentsFile =
     config.attachmentsFile === undefined
       ? undefined
-      : await loadUploadedAttachments(script.paths.resolvePath(config.attachmentsFile, Core.GOPathType.INPUT));
-  const sharedDocument = cliSharedDocument(script, config) ?? target.sharedDocument;
+      : script.paths.resolvePath(config.attachmentsFile, Core.GOPathType.INPUT);
+  // Documents matter only when the session sends: without `send` the rows are presets.
+  const attachments =
+    send && attachmentsFile !== undefined
+      ? await loadUploadedAttachments(attachmentsFile).catch((error: unknown) => {
+          throw DispatchUsageError.from(error);
+        })
+      : undefined;
+  const sharedDocument = send ? (cliSharedDocument(script, config) ?? target.sharedDocument) : undefined;
   const delimiter = inputFormat === 'csv' ? profile.format?.delimiter : undefined;
+  const documentsDir =
+    config.documentsDir === undefined
+      ? path.dirname(inputFile)
+      : script.paths.resolvePath(config.documentsDir, Core.GOPathType.INPUT);
+  const cliValues = cliFieldValues(config);
+  const environmentValues = Dispatch.environmentFieldValues(target);
+
+  const identity: RunIdentity = {
+    mode: config.mode,
+    inputFormat,
+    mappingProfile: profile.name,
+    mappingProfileSha256: loaded.sha256 ?? '',
+    rowKeyColumn: config.rowKeyColumn ?? '',
+    directRequestIdTemplate: config.mode === 'direct' ? config.requestIdTemplate.template : '',
+    env: target.name,
+    endpoint: target.b2b?.basePath ?? target.externalChannels?.baseUrl ?? '',
+    cliValues: formatFieldValues(cliValues),
+    environmentValues: formatFieldValues(environmentValues),
+    sharedDocument: formatSharedDocument(cliSharedDocument(script, config) ?? target.sharedDocument),
+    documentsDir,
+    attachmentsFile: attachmentsFile ?? '',
+  };
+  if (run.previousRun !== undefined && run.previousRunInfoPath !== undefined) {
+    assertSameRunIdentity(run.previousRun, run.previousRunInfoPath, identity, config.phases);
+  }
 
   const options: Dispatch.DispatchSessionOptions = {
     runId: run.runId,
@@ -188,45 +232,42 @@ export async function createSessionOptions(
     },
     profile,
     ...(config.rowKeyColumn !== undefined && { rowKeyColumn: config.rowKeyColumn }),
-    cliValues: cliFieldValues(config),
-    environmentValues: environmentValues(target),
+    cliValues,
+    environmentValues,
     ...(target.sender !== undefined && { environmentSenderTaxId: target.sender.taxId }),
     ...(sharedDocument !== undefined && { sharedDocument }),
-    documentsDir:
-      config.documentsDir === undefined
-        ? path.dirname(inputFile)
-        : script.paths.resolvePath(config.documentsDir, Core.GOPathType.INPUT),
+    documentsDir,
     ...(attachments !== undefined && { attachmentsByPratica: attachments.attachmentsByPratica }),
-    mode: config.mode === 'direct' ? 'direct' : 'e2e',
+    mode: config.mode,
     ...(sdk !== undefined && {
       api: new Dispatch.B2BChannel(sdk.notifications),
       gateway: new Dispatch.AttachmentServiceGateway(sdk.attachment),
     }),
     ...(config.mode === 'direct' && {
       direct: {
-        api: new Dispatch.ExternalChannelsChannel(config.ecBaseUrl ?? '', config.ecClientId, httpTimeoutMs),
-        requestIdTemplate: Dispatch.RequestIdTemplate.parse(config.directRequestIdTemplate),
+        api: new Dispatch.ExternalChannelsChannel(config.ecBaseUrl, config.ecClientId, durations.httpTimeoutMs),
+        requestIdTemplate: config.requestIdTemplate,
       },
     }),
-    apiVersion: config.apiVersion as SENDApiVersion, // Safe: checked by assertSupportedConfig
-    send: config.phases.includes('send'),
+    apiVersion: config.apiVersion,
+    send,
     verify: config.phases.includes('verify'),
-    ...(config.phases.includes('request-id') && { requestId: requestIdOptions(script, config, target) }),
+    ...(awsProfile !== undefined && { requestId: requestIdOptions(script, config, awsProfile) }),
     tuning: {
       rate: effectiveRate(config),
       burst: config.burst,
       rateAdaptive: config.rateAdaptive,
       maxInFlight: config.maxInFlight,
-      sendTimeoutMs: Core.parseDuration(config.sendTimeout, 'send.timeout'),
+      sendTimeoutMs: durations.sendTimeoutMs,
       retryAmbiguous: config.sendRetryAmbiguous,
       retryFailed: config.retryFailed,
       retryUncertain: config.retryUncertain,
       failFast: config.failFast,
-      verifyInitialDelayMs: Core.parseDuration(config.verifyInitialDelay, 'verify.initial.delay'),
-      verifyTimeoutMs: Core.parseDuration(config.verifyTimeout, 'verify.timeout'),
+      verifyInitialDelayMs: durations.verifyInitialDelayMs,
+      verifyTimeoutMs: durations.verifyTimeoutMs,
       preloadBatchSize: config.preloadBatchSize,
       uploadConcurrency: config.uploadConcurrency,
-      uploadReuseMaxAgeMs: Core.parseDuration(config.uploadReuseMaxAge, 'upload.reuse.max.age'),
+      uploadReuseMaxAgeMs: durations.uploadReuseMaxAgeMs,
     },
     output: {
       format: outputFormat,
@@ -240,31 +281,15 @@ export async function createSessionOptions(
       includeStatus: config.outputIncludeStatus,
       onlySuccess: config.outputOnlySuccess,
     },
-    parameters: runParameters(config, target, profile),
+    parameters: runParameters(config, target, identity),
     onTransition: (entry: Dispatch.JournalEntry): void => {
       transitions.handle(entry);
     },
   };
-  return { run, options };
+  return { run, options, ...(awsProfile !== undefined && { timelinesProfile: awsProfile }) };
 }
 
-function parseFormat(
-  explicit: string | undefined,
-  filePath: string | undefined,
-  profile: Dispatch.MappingProfile,
-): Dispatch.InputFormat {
-  const value =
-    explicit ??
-    (filePath === undefined ? undefined : Dispatch.InputReader.formatFromPath(filePath)) ??
-    profile.format?.type;
-  if (value === 'csv' || value === 'json' || value === 'jsonl') return value;
-  throw new Error(`Unknown format "${String(value)}": use csv, json or jsonl`);
-}
-
-function cliSharedDocument(
-  script: Core.GOScript,
-  config: SendDispatchNotificationsConfig,
-): Dispatch.SharedDocumentConfig | undefined {
+function cliSharedDocument(script: Core.GOScript, config: ValidatedConfig): Dispatch.SharedDocumentConfig | undefined {
   if (config.documentFile === undefined || config.documentFile.length === 0) return undefined;
   return {
     files: config.documentFile.map((file) => script.paths.resolvePath(file, Core.GOPathType.INPUT)),
@@ -272,74 +297,72 @@ function cliSharedDocument(
   };
 }
 
-function cliFieldValues(config: SendDispatchNotificationsConfig): Dispatch.FieldValues {
-  const values = parseDefaults(config.defaults ?? []);
+/**
+ * Field values of the command line: `--defaults`, then `--group-id`,
+ * `--sender-tax-id` and `--sender-denomination` (which win over `--defaults`).
+ *
+ * @param config - Validated configuration
+ * @returns CLI field values
+ */
+export function cliFieldValues(config: ValidatedConfig): Dispatch.FieldValues {
+  const values = new Map<Dispatch.CanonicalField, string>(config.fieldDefaults);
   if (config.groupId !== undefined) values.set('notificationOptions.group', config.groupId);
   if (config.senderTaxId !== undefined) values.set('sender.taxId', config.senderTaxId);
   if (config.senderDenomination !== undefined) values.set('sender.denomination', config.senderDenomination);
   return values;
 }
 
-function environmentValues(target: DispatchTarget): Dispatch.FieldValues {
-  const values = new Map<Dispatch.CanonicalField, string>();
-  if (target.sender !== undefined) {
-    values.set('sender.taxId', target.sender.taxId);
-    values.set('sender.denomination', target.sender.denomination);
-  }
-  if (target.groupId !== undefined) values.set('notificationOptions.group', target.groupId);
-  for (const [field, value] of target.defaults) if (!values.has(field)) values.set(field, value);
-  return values;
-}
-
-/** Non-secret parameters saved in run.json. */
+/** Non-secret parameters saved in run.json, with the identity checked on resume. */
 function runParameters(
-  config: SendDispatchNotificationsConfig,
+  config: ValidatedConfig,
   target: DispatchTarget,
-  profile: Dispatch.MappingProfile,
+  identity: RunIdentity,
 ): Readonly<Record<string, unknown>> {
   return {
-    scriptVersion: '1.0.0',
+    scriptVersion: scriptMetadata.version,
     mode: config.mode,
     env: target.name,
-    basePath: target.basePath,
-    apiKey: target.apiKeyLabel,
+    basePath: target.b2b?.basePath ?? target.externalChannels?.baseUrl ?? null,
+    apiKey: target.b2b?.apiKeyLabel ?? null,
     groupId: target.groupId ?? null,
     senderTaxId: target.sender?.taxId ?? null,
     production: target.production,
     apiVersion: config.apiVersion,
     phases: config.phases,
     awsProfiles: config.awsProfiles ?? [],
-    mappingProfile: profile.name,
+    mappingProfile: identity.mappingProfile,
     rate: effectiveRate(config),
     burst: config.burst,
     maxInFlight: config.maxInFlight,
     sendRetryAmbiguous: config.sendRetryAmbiguous,
+    [RUN_IDENTITY_PARAMETER]: identity,
   };
 }
 
 /**
  * Settings of the requestId phase: `pn-Timelines` read with the DynamoDB
  * client of GOScript (`--aws-profiles`, validated at startup), selection
- * rule of §8.3.
+ * rule of §8.3, one credential-error detector for the run.
  */
 function requestIdOptions(
   script: Core.GOScript,
-  config: SendDispatchNotificationsConfig,
-  target: DispatchTarget,
+  config: ValidatedConfig,
+  awsProfile: string,
 ): Dispatch.DispatchRequestIdOptions {
-  const client = script.aws.clients.get(timelinesProfile(config, target)).dynamoDB;
+  const client = script.aws.clients.get(awsProfile).dynamoDB;
+  const detector = new AwsCredentialErrorDetector();
   return {
     source: new Dispatch.DynamoTimelineSource(new SENDTimelineService(client)),
     selection: {
       categories: config.requestIdCategories,
-      select: config.requestIdSelect === 'priority' ? 'priority' : 'per-category',
-      wait: config.requestIdWait === 'all' ? 'all' : 'any',
+      select: config.requestIdSelect,
+      wait: config.requestIdWait,
       endCategories: config.requestIdEndCategories ?? Dispatch.DEFAULT_REQUEST_ID_OPTIONS.endCategories,
     },
-    initialDelayMs: Core.parseDuration(config.requestIdInitialDelay, 'request.id.initial.delay'),
-    timeoutMs: Core.parseDuration(config.requestIdTimeout, 'request.id.timeout'),
+    initialDelayMs: config.durations.requestIdInitialDelayMs,
+    timeoutMs: config.durations.requestIdTimeoutMs,
     concurrency: config.dynamodbConcurrency,
-    isCredentialError: isAwsCredentialError,
+    isCredentialError: detector.isCredentialError,
   };
 }
 
@@ -347,17 +370,23 @@ function requestIdOptions(
  * Profile of `--aws-profiles` used for `pn-Timelines`: the one the
  * environment declares (`awsProfile`), or the only one given.
  *
- * @param config - Script configuration
+ * @param config - Validated configuration
  * @param target - Resolved target
  * @returns The profile
- * @throws Error when no profile is given, the environment profile is missing, or the choice is ambiguous
+ * @throws DispatchUsageError when no profile is given, the environment
+ *   profile is missing, or the choice is ambiguous
  */
-export function timelinesProfile(config: SendDispatchNotificationsConfig, target: DispatchTarget): string {
+export function timelinesProfile(
+  config: Pick<ValidatedConfig, 'awsProfiles'>,
+  target: Pick<DispatchTarget, 'name' | 'awsProfile'>,
+): string {
   const profiles = config.awsProfiles ?? [];
-  if (profiles.length === 0) throw new Error('--phases request-id requires --aws-profiles (pn-Timelines)');
+  if (profiles.length === 0) {
+    throw new DispatchUsageError('--phases request-id requires --aws-profiles (pn-Timelines)');
+  }
   if (target.awsProfile !== undefined) {
     if (!profiles.includes(target.awsProfile)) {
-      throw new Error(
+      throw new DispatchUsageError(
         `Environment ${target.name} reads pn-Timelines with profile ${target.awsProfile}: add it to --aws-profiles`,
       );
     }
@@ -365,7 +394,9 @@ export function timelinesProfile(config: SendDispatchNotificationsConfig, target
   }
   const [only] = profiles;
   if (profiles.length > 1 || only === undefined) {
-    throw new Error('--aws-profiles has several profiles: set awsProfile in the environment to choose one');
+    throw new DispatchUsageError(
+      '--aws-profiles has several profiles: set awsProfile in the environment to choose one',
+    );
   }
   return only;
 }

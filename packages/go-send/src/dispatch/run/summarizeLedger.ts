@@ -1,5 +1,6 @@
 import type { RowState } from '../model/RowState.js';
 import type { FailureGroup } from './FailureGroup.js';
+import type { FailureGroupAccumulator } from './FailureGroupAccumulator.js';
 import type { SendStatistics } from './SendStatistics.js';
 
 /**
@@ -10,13 +11,16 @@ import type { SendStatistics } from './SendStatistics.js';
  * @returns One group per error code
  */
 export function groupFailures(states: Iterable<RowState>, sample: number): ReadonlyArray<FailureGroup> {
-  const groups = new Map<string, { count: number; rowKeys: string[]; message: string }>();
+  const groups = new Map<string, FailureGroupAccumulator>();
   for (const state of states) {
     if (state.error === undefined) continue;
-    const group = groups.get(state.error.code) ?? { count: 0, rowKeys: [], message: state.error.message };
+    let group = groups.get(state.error.code);
+    if (group === undefined) {
+      group = { count: 0, rowKeys: [], message: state.error.message };
+      groups.set(state.error.code, group);
+    }
     group.count += 1;
     if (group.rowKeys.length < sample) group.rowKeys.push(state.rowKey);
-    groups.set(state.error.code, group);
   }
   return [...groups.entries()]
     .map(([code, group]) => ({ code, ...group }))

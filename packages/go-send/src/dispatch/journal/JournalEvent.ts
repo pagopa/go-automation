@@ -4,9 +4,13 @@
  * Row events carry `rowIndex`/`rowKey`; `DOCUMENT_UPLOADED` is run-level and
  * feeds the upload cache on resume. `PRESET` imports a row already sent
  * (identifiers from the input, phases without `send`, RF-12).
+ * `ROW_REVALIDATED` brings back to `PENDING` a row a previous session
+ * recorded as `INVALID` and that now validates (input mapping or documents
+ * fixed before the resume).
  */
 export type JournalEvent =
   | 'ROW_INVALID'
+  | 'ROW_REVALIDATED'
   | 'DOCUMENT_UPLOADED'
   | 'SENDING'
   | 'SENT'

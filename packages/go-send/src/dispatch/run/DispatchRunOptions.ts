@@ -4,6 +4,7 @@ import type { RecordFactory } from '../mapping/RecordFactory.js';
 import type { RowSender } from '../stages/RowSender.js';
 import type { VerifyStage } from '../stages/VerifyStage.js';
 import type { RequestIdStage } from '../requestId/RequestIdStage.js';
+import type { RowActionPolicy } from './RowActionPolicy.js';
 
 /**
  * Options of {@link ./DispatchRun.DispatchRun}.
@@ -20,12 +21,13 @@ export interface DispatchRunOptions {
   readonly requestIdStage?: RequestIdStage;
   /** HTTP requests open at the same time (default 40). */
   readonly maxInFlight?: number;
-  /** Resend `SEND_FAILED` rows marked retryable (resume, `--retry-failed`). */
-  readonly retryFailed: boolean;
-  /** Reconcile `SEND_UNCERTAIN` rows on resume (`--retry-uncertain`). */
-  readonly retryUncertain: boolean;
+  /**
+   * What happens to each row on (re)start: the same policy the validation
+   * pass used. `verify` / `requestId` must match the stages given above.
+   */
+  readonly policy: RowActionPolicy;
   /** Stop at the first failed row. */
   readonly failFast: boolean;
-  /** Aborted to stop the run (signal, global error, fail-fast). */
+  /** Aborted to stop the run (signal, global error, fail-fast, failure). */
   readonly controller: AbortController;
 }

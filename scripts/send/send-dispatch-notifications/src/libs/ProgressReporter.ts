@@ -5,20 +5,35 @@
 import type { Core } from '@go-automation/go-common';
 import type { Dispatch } from '@go-automation/go-send';
 
+import type { PlannedWork } from '../types/PlannedWork.js';
+import { countOutcomes } from './outcomeCounts.js';
+
 const REFRESH_MS = 1_000;
 
 /**
  * Shows one progress line (no spinner per notification) refreshed every
- * second: sent/total, current rate, verification outcomes, errors.
+ * second: sent/to send and current rate (when the session sends),
+ * verification outcomes, requestIds, errors.
+ *
+ * The rows a previous session already sent (resume) are not counted in
+ * "invio": the denominator is the number of rows this session sends.
  */
 export class ProgressReporter {
   private timer: ReturnType<typeof setInterval> | undefined;
+  private readonly alreadySent: number;
 
+  /**
+   * @param prompt - Prompt of the script (spinner)
+   * @param session - Session being executed
+   * @param work - What the session does (rows and whether it sends)
+   */
   constructor(
     private readonly prompt: Core.GOPrompt,
     private readonly session: Dispatch.DispatchSession,
-    private readonly validRows: number,
-  ) {}
+    private readonly work: PlannedWork,
+  ) {
+    this.alreadySent = countOutcomes(session.progress().byStatus).sent;
+  }
 
   /** Starts the refresh. */
   public start(): void {
@@ -37,15 +52,14 @@ export class ProgressReporter {
 
   private line(): string {
     const progress = this.session.progress();
+    const outcomes = countOutcomes(progress.byStatus);
     const count = (status: Dispatch.RowStatus): number => progress.byStatus.get(status) ?? 0;
-    const accepted = count('ACCEPTED') + count('REQUEST_ID_FOUND') + count('REQUEST_ID_NOT_FOUND');
-    const sent = count('SENT') + accepted + count('REFUSED') + count('VERIFY_TIMEOUT');
-    const errors = count('SEND_FAILED') + count('SEND_UNCERTAIN');
-    return (
-      `invio ${sent}/${this.validRows} · ${progress.ratePerSecond.toFixed(1)}/s · ` +
-      `verifica ${accepted} ok / ${count('REFUSED')} refused / ${progress.verifyPending} in attesa · ` +
-      `requestId ${count('REQUEST_ID_FOUND')} trovati / ${progress.requestIdPending} in attesa · ` +
-      `errori ${errors}${progress.throttled > 0 ? ` · 429: ${progress.throttled}` : ''}`
-    );
+    const head = this.work.sending
+      ? `invio ${outcomes.sent - this.alreadySent}/${this.work.rows} · ${progress.ratePerSecond.toFixed(1)}/s · `
+      : `righe da elaborare ${this.work.rows} · `;
+    const verify = `verifica ${outcomes.accepted} ok / ${count('REFUSED')} refused / ${progress.verifyPending} in attesa`;
+    const requestId = `requestId ${count('REQUEST_ID_FOUND')} trovati / ${progress.requestIdPending} in attesa`;
+    const throttled = progress.throttled > 0 ? ` · 429: ${progress.throttled}` : '';
+    return `${head}${verify} · ${requestId} · errori ${outcomes.errors}${throttled}`;
   }
 }

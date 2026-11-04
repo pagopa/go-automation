@@ -196,6 +196,8 @@ script
 | `DOUBLE_ARRAY` | Array decimali | `--values 1.5,2.5` |
 | `BUFFER`       | Dati binari    | `--data <base64>`  |
 
+**Valori con `=` o virgole.** Nella forma `--param=valore` solo il primo `=` separa nome e valore: `--defaults=sender.taxId=123` vale `sender.taxId=123`. Un valore singolo arriva intatto, virgole comprese, quindi un parametro `STRING` riceve esattamente quanto scritto (`--sender-denomination "Comune di X, Ufficio Y"`). I parametri array lo dividono sulle virgole nella conversione (`--tags a,b,c`). Un flag ripetuto (`--tags a,b --tags c`) o seguito da più valori (`--tags a b,c`) produce già una lista, i cui elementi vengono divisi sulle virgole.
+
 ### Async Fallback per Parametri
 
 La proprietà `asyncFallback` permette di fornire un valore di default tramite una funzione asincrona quando il parametro non e presente in CLI, file di configurazione o variabili d'ambiente.
@@ -294,9 +296,17 @@ Quando viene ricevuto un segnale:
 
 1. **Log warning**: Viene loggato l'inizio dello shutdown
 2. **Cleanup**: Viene chiamato il metodo `cleanup()` per rilasciare le risorse
-3. **Exit**: Il processo termina con codice `128 + numero del segnale` (130 per SIGINT, 143 per SIGTERM), così shell e scheduler distinguono un run interrotto da uno concluso; se il cleanup fallisce, codice 1
+3. **Exit**: Il processo termina con codice `128 + numero del segnale` (130 per SIGINT, 131 per SIGQUIT, 143 per SIGTERM), così shell e scheduler distinguono un run interrotto da uno concluso; se un passo del cleanup fallisce (incluso l'hook `onCleanup`), codice 1
+
+I numeri dei segnali sono quelli POSIX, fissi su ogni piattaforma (anche su Windows, dove `os.constants.signals` non ha `SIGQUIT`).
 
 Se viene ricevuto un secondo segnale durante lo shutdown, il processo termina immediatamente con codice 1.
+
+**Ctrl+C su un prompt.** Mentre un prompt di `GOPrompt` attende una risposta il terminale è in raw mode, quindi Ctrl+C arriva come tasto e non come `SIGINT`. Il prompt lancia `GOPromptInterruptedError`: i blocchi `finally` del chiamante vengono eseguiti, `run()` fa il cleanup ordinario (incluso `onCleanup`) e il processo esce con `130`, o `1` se un passo del cleanup fallisce. Non viene loggato come errore e non chiama `onError`. Non intercettare questo errore in un `catch` generico: l'interruzione non arriverebbe a `run()`.
+
+> **Cambio di comportamento (exit code).** In precedenza un graceful shutdown terminava con codice `0`, indistinguibile da un run concluso. Ora termina con `128 + n` (130/131/143), o `1` se il cleanup fallisce. Wrapper, cron, pipeline CI o scheduler che trattavano l'interruzione come successo (es. `&&` dopo lo script, controlli `exit code == 0`) vanno rivisti.
+>
+> Il metodo pubblico `cleanup()` invece non cambia: non rifiuta mai (l'errore viene loggato in console). Solo il percorso dei segnali riflette il fallimento nel codice di uscita.
 
 #### Esempio di Flow
 
@@ -573,6 +583,8 @@ const features = await script.prompt.multiselect('Features:', [
 const city = await script.prompt.autocomplete('Citta:', ['Roma', 'Milano', 'Napoli', 'Torino']);
 ```
 
+Esc chiude il prompt senza risposta (`undefined`). Ctrl+C lancia `GOPromptInterruptedError`: dentro `GOScript.run()` lo script termina con `130` dopo il cleanup (vedi [Signal Handlers Automatici](#signal-handlers-automatici)). Chi usa `GOPrompt` fuori da `run()`, come `go-cli`, deve gestirlo ed uscire con `130`. `GOPrompt` ascolta `SIGINT` solo mentre un prompt è aperto: importare go-common non cambia la risposta del processo a Ctrl+C.
+
 ---
 
 ## Core - Configuration
@@ -741,13 +753,18 @@ const pdf = await new Core.GOBinaryFileImporter({
 }).import();
 ```
 
-| Opzione     | Default | Descrizione                                                                                   |
-| ----------- | ------- | --------------------------------------------------------------------------------------------- |
-| `inputPath` | —       | path assoluto (da `GOPaths`)                                                                  |
-| `optional`  | `false` | con `true` un file assente restituisce `undefined`                                            |
-| `maxBytes`  | —       | dimensione massima; un file più grande rifiuta con `GOFileTooLargeError` (`size`, `maxBytes`) |
+| Opzione     | Default | Descrizione                                                                                                                                                                                       |
+| ----------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `inputPath` | —       | path assoluto (da `GOPaths`)                                                                                                                                                                      |
+| `optional`  | `false` | con `true` un file assente restituisce `undefined`                                                                                                                                                |
+| `maxBytes`  | —       | dimensione massima; un file più grande rifiuta con `GOFileTooLargeError` (`size`, `maxBytes`)                                                                                                     |
+| `confineTo` | —       | directory in cui il file deve trovarsi: confronta i path reali (symlink risolti), altrimenti rifiuta con `GOPathOutsideRootError` (`realPath`, `root`); per path che arrivano da input non fidati |
 
-Per file grandi (hash, copie) `importStream()` legge a blocchi, a memoria costante, come l'`importStream()` degli importer di liste. Le opzioni valgono allo stesso modo: con `optional` un file assente non produce blocchi, e `maxBytes` rifiuta prima del primo blocco.
+Con `maxBytes` il file viene prima aperto e la dimensione controllata sull'handle aperto (niente finestra tra controllo e apertura); inoltre i byte letti vengono contati, quindi un file che cresce durante la lettura si ferma comunque al limite con `GOFileTooLargeError` (in quel caso `size` è il numero di byte letti quando il limite è stato superato).
+
+Per file grandi (hash, copie) `importStream()` legge a blocchi, a memoria costante, come l'`importStream()` degli importer di liste. Le opzioni valgono allo stesso modo: con `optional` un file assente non produce blocchi, e `maxBytes` rifiuta prima del primo blocco (o, se il file cresce durante la lettura, appena i byte letti superano il limite: i blocchi già prodotti restano prodotti). Interrompere l'iterazione (`break`, `return`, errore) chiude il file.
+
+`import()` restituisce `Buffer | undefined` anche senza `optional`, come `GOJSONFileImporter` e `GOTextFileImporter`.
 
 ```typescript
 const hash = createHash('sha256');
@@ -1221,26 +1238,40 @@ console.log(limiter.stats); // granted, queued, queuedByPriority, averageWaitMs,
 | `burst`         | `1`                 | capienza del bucket; con `1` i permessi sono distanziati di `1000 / ratePerSecond` ms |
 | `priorities`    | `1`                 | numero di code; `0` è la priorità più alta                                            |
 | `sleeper`       | `GODefaultSleeper`  | timer interno, iniettabile nei test                                                   |
-| `now`           | `performance.now()` | clock in millisecondi, iniettabile nei test                                           |
+| `now`           | `performance.now()` | clock **monotono** in millisecondi, iniettabile nei test (non usare `Date.now`)       |
 
 Caratteristiche:
 
 - **Priorità rigorosa:** un permesso va alla priorità `p` solo se le code più prioritarie sono vuote; FIFO nella stessa priorità. Un chiamante nuovo non scavalca chi è già in coda.
-- **Un solo timer** interno, attivo solo mentre qualcuno aspetta; `acquire` e assegnazione O(1).
-- **Abort:** con un `AbortSignal` il chiamante esce dalla coda senza consumare permessi; la promise viene rifiutata con il `reason` del segnale.
+- **Starvation delle priorità basse:** non c'è aging. Finché le priorità più alte hanno sempre qualcuno in coda (cioè saturano il bucket), le priorità più basse non ricevono **nessun** permesso e aspettano indefinitamente. Dimensionare il rate in modo che le priorità alte lascino capacità libera, oppure dare ai chiamanti a bassa priorità un `AbortSignal` con timeout.
+- **Un solo timer** interno, attivo solo mentre qualcuno aspetta; `acquire` e assegnazione O(1). Se l'ultimo chiamante in coda abortisce, il timer viene fermato subito (non tiene vivo l'event loop fino al token successivo).
+- **Abort:** con un `AbortSignal` il chiamante esce dalla coda senza consumare permessi; la promise viene rifiutata con il `reason` del segnale se è un `Error`, altrimenti (es. una stringa) con un `Error` generico che porta il `reason` originale in `cause`. Le voci abortite non si accumulano: quando una priorità non ha più chiamanti vivi la sua coda viene svuotata.
+- **Errori del timer:** se lo `sleeper` iniettato rifiuta per un motivo diverso dal risveglio interno, tutti i chiamanti in coda vengono rifiutati con quell'errore (nessun retry in loop); il limiter resta utilizzabile.
+- **Clock:** `now` deve essere monotono. Se torna indietro, il limiter si riallinea sulla nuova lettura (senza creare token) invece di bloccarsi finché il clock non recupera.
 - **Stato per istanza:** si crea un limiter per run e lo si passa ai componenti che condividono lo stesso budget.
 
 ### Durate (`Core.parseDuration`)
 
-Converte una durata di configurazione o CLI in millisecondi: unità `ms`, `s`, `m`, `h`, `d`, anche con decimali.
+Converte una durata di configurazione o CLI in millisecondi interi: unità `ms`, `s`, `m`, `h`, `d`, anche con decimali.
 
 ```typescript
 Core.parseDuration('10s', 'verify.timeout'); // 10000
 Core.parseDuration('1.5h', 'request.id.timeout'); // 5400000
 Core.parseDuration('10', 'verify.timeout'); // Error: verify.timeout: invalid duration "10" (examples: 500ms, 10s, 15m, 2h)
+Core.parseDuration('0s', 'send.timeout', { minMs: 1 }); // Error: send.timeout: duration "0s" is 0 ms, below the minimum of 1 ms
+Core.parseDuration('25d', 'verify.timeout'); // Error: verify.timeout: duration "25d" is 2160000000 ms, above the maximum of 2147483647 ms
 ```
 
-Il secondo argomento è il nome del parametro, usato nel messaggio d'errore.
+Il secondo argomento è il nome del parametro, usato nei messaggi d'errore.
+
+Grammatica: un solo numero decimale non negativo seguito subito da una sola unità in minuscolo; gli spazi attorno vengono ignorati. Non sono ammessi unità combinate (`1h30m`), segni, spazi interni (`10 s`) né unità maiuscole (`10S`; `M` sarebbe ambiguo). Il risultato è arrotondato al millisecondo (`0.0001s` → `0`).
+
+Il terzo argomento opzionale (`Core.GODurationParseOptions`) delimita l'intervallo ammesso, estremi inclusi, applicato dopo l'arrotondamento:
+
+| Opzione | Default                                                | Descrizione                                         |
+| ------- | ------------------------------------------------------ | --------------------------------------------------- |
+| `minMs` | `0`                                                    | minimo; `1` rifiuta le durate nulle (`0s`, `0.1ms`) |
+| `maxMs` | `2147483647` (`Core.SET_TIMEOUT_MAX_MS`, ~24,8 giorni) | massimo; oltre, `setTimeout` scatterebbe dopo 1 ms  |
 
 ---
 

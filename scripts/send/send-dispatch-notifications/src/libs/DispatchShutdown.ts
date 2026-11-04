@@ -1,19 +1,20 @@
 import type { Dispatch } from '@go-automation/go-send';
 
-import type { ShutdownDoneFn } from '../types/ShutdownDoneFn.js';
-
 /**
- * Graceful stop of a run on SIGINT/SIGTERM (§11.3).
+ * Graceful stop of a run on SIGINT/SIGTERM/SIGQUIT (§11.3).
  *
  * GOScript calls its `onCleanup` hook on the first signal and exits when the
- * hook resolves: the hook stops the session (no new call starts) and waits
- * until `main` has drained the calls in flight and materialized the output.
- * Created per run in `index.ts` and passed to `main` explicitly.
+ * hook resolves (code `128 + signal`). The hook stops the session (no new
+ * call starts) and waits until `runDispatch` has drained the calls in flight,
+ * materialized the output and closed the journal. Created per run in
+ * `index.ts` and passed to `main` explicitly.
+ *
+ * `runDispatch` attaches the session right after opening it and calls
+ * `done()` in its outermost `finally`, after closing it.
  */
 export class DispatchShutdown {
   private session: Dispatch.DispatchSession | undefined;
-  private finished: Promise<void> = Promise.resolve();
-  private markFinished: ShutdownDoneFn | undefined;
+  private finished: PromiseWithResolvers<void> | undefined;
   private interrupted = false;
 
   /** Whether the run was stopped by a signal. */
@@ -22,29 +23,26 @@ export class DispatchShutdown {
   }
 
   /**
-   * Registers the running session; `done()` must be called when the output
-   * has been materialized.
+   * Registers the open session; `done()` must follow once it is closed.
    *
-   * @param session - The session being executed
+   * @param session - The session just opened
    */
   public attach(session: Dispatch.DispatchSession): void {
     this.session = session;
-    this.finished = new Promise<void>((resolve) => {
-      this.markFinished = resolve;
-    });
+    this.finished = Promise.withResolvers<void>();
   }
 
-  /** Marks the run as finished (output materialized). */
+  /** Marks the run as finished (output materialized, journal closed). Idempotent. */
   public done(): void {
     this.session = undefined;
-    this.markFinished?.();
+    this.finished?.resolve();
   }
 
-  /** `onCleanup` hook: stops the session and waits for the materialization. */
+  /** `onCleanup` hook: stops the session and waits for `done()`. */
   public async stopAndWait(): Promise<void> {
-    if (this.session === undefined) return;
+    if (this.session === undefined || this.finished === undefined) return;
     this.interrupted = true;
     this.session.stop();
-    await this.finished;
+    await this.finished.promise;
   }
 }

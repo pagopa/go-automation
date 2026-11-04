@@ -19,13 +19,13 @@ export interface VerifyStageOptions {
   readonly apiVersion: SENDApiVersion;
   /** First check after the send, ms (default 10 s). */
   readonly initialDelayMs?: number;
-  /** Timeout per row, ms (default 15 min). */
+  /** Timeout per row, from its first granted check, ms (default 15 min). */
   readonly timeoutMs?: number;
   /** Maximum delay between checks, ms (default 60 s). */
   readonly maxDelayMs?: number;
   readonly onGlobalError: GlobalErrorHandler;
   /** Called on `ACCEPTED` (e.g. to start the requestId retrieval). */
   readonly onAccepted?: AcceptedHandler;
-  /** Aborted when the run stops: pending checks are dropped (resume continues them). */
+  /** Aborted when the run stops: pending checks and checks in flight are dropped (resume continues them). */
   readonly signal: AbortSignal;
 }

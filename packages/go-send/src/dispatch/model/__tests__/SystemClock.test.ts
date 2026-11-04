@@ -10,6 +10,18 @@ describe('SystemClock', () => {
     assert.ok(now >= before && now <= Date.now());
   });
 
+  it('measures intervals on a monotonic clock, not on the adjustable wall clock', () => {
+    const clock = new SystemClock();
+    const originalNow = Date.now;
+    const first = clock.monotonic();
+    try {
+      Date.now = (): number => originalNow() - 3_600_000; // system clock set back one hour
+      assert.ok(clock.monotonic() >= first, 'monotonic time never goes backwards');
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+
   it('sleeps with real timers and rejects when aborted', async () => {
     const clock = new SystemClock();
     const started = Date.now();

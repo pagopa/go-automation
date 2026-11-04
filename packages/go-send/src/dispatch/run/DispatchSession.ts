@@ -26,6 +26,8 @@ import { DirectSendStage } from '../direct/DirectSendStage.js';
 import type { DirectModeOptions } from './DirectModeOptions.js';
 import { DispatchRun } from './DispatchRun.js';
 import type { DispatchProgress } from './DispatchProgress.js';
+import type { RowActionPolicy } from './RowActionPolicy.js';
+import type { RunInfo } from './RunInfo.js';
 import type { DispatchSessionOptions } from './DispatchSessionOptions.js';
 import { materializeRun } from './materializeRun.js';
 import { hashFileHex, writeRunInfo } from './runFiles.js';
@@ -59,7 +61,7 @@ export class DispatchSession {
   private readonly controller = new AbortController();
   private readonly limiter: GORateLimiter;
   private readonly rateAdapter: RateAdapter;
-  private readonly inspector = new LocalDocumentInspector();
+  private readonly inspector: LocalDocumentInspector;
   private readonly factory: RecordFactory;
   private readonly uploadStage: UploadStage | undefined;
   private sharedRefs: ReadonlyArray<DocumentRef> | undefined;
@@ -73,12 +75,13 @@ export class DispatchSession {
     private readonly ledger: RowLedger,
     private readonly journal: Journal | undefined,
   ) {
+    this.inspector = new LocalDocumentInspector(options.documentsDir);
     this.limiter = new GORateLimiter({
       ratePerSecond: options.tuning.rate,
       burst: options.tuning.burst,
       priorities: PRIORITIES,
       sleeper: clock,
-      now: (): number => clock.now(),
+      now: (): number => clock.monotonic(),
     });
     this.rateAdapter = new RateAdapter(this.limiter, options.tuning.rate, clock, options.tuning.rateAdaptive);
     this.factory = new RecordFactory({
@@ -113,34 +116,38 @@ export class DispatchSession {
             uploadConcurrency: options.tuning.uploadConcurrency,
             reuseMaxAgeMs: options.tuning.uploadReuseMaxAgeMs,
             previousUploads: ledger.recordedUploads(),
+            signal: this.controller.signal,
           });
   }
 
   /**
    * Opens a session: writes `run.json` and a new journal segment (paths from
    * the caller, resolved through GOPaths) and, on resume, replays the
-   * segments of the previous sessions. A resume with a different input file
-   * stops.
+   * segments of the previous sessions (streamed, never loaded at once). A
+   * resume with a different input file stops.
+   *
+   * A dry run writes nothing: on resume it replays the previous journal
+   * read-only, so the plan reflects what was already done.
    *
    * @param options - Resolved options
    * @returns The session
+   * @throws DispatchError `RESUME_INPUT_CHANGED` when the input changed since the previous run
    */
   public static async open(options: DispatchSessionOptions): Promise<DispatchSession> {
     const clock = options.clock ?? new SystemClock();
     const now = (): Date => new Date(clock.now());
+    const previous = options.previousRun;
     if (options.dryRun) {
-      return new DispatchSession(options, clock, new RowLedger(observe(undefined, options), now), undefined);
+      if (previous !== undefined) await assertSameInput(previous, options.input.filePath);
+      const sink = observe(undefined, options);
+      const ledger =
+        previous === undefined
+          ? new RowLedger(sink, now)
+          : await RowLedger.replay(Journal.entries(previous.journalFiles), sink, now);
+      return new DispatchSession(options, clock, ledger, undefined);
     }
 
-    const inputSha256 = await hashFileHex(options.input.filePath);
-    const previous = options.previousRun;
-    if (previous !== undefined && previous.inputSha256 !== inputSha256) {
-      throw new DispatchError(
-        'RESUME_INPUT_CHANGED',
-        `the input file changed since run ${previous.runId}: resume refused`,
-      );
-    }
-    const entries = previous === undefined ? [] : await Journal.read(previous.journalFiles);
+    const inputSha256 = await assertSameInput(previous, options.input.filePath);
     await writeRunInfo(options.files.runInfoPath, {
       runId: options.runId,
       createdAt: now().toISOString(),
@@ -151,8 +158,17 @@ export class DispatchSession {
       parameters: options.parameters,
     });
     const journal = await Journal.open(options.files.journalPath);
-    const ledger = RowLedger.replay(entries, observe(journal, options), now);
-    return new DispatchSession(options, clock, ledger, journal);
+    const sink = observe(journal, options);
+    try {
+      const ledger =
+        previous === undefined
+          ? new RowLedger(sink, now)
+          : await RowLedger.replay(Journal.entries(previous.journalFiles), sink, now);
+      return new DispatchSession(options, clock, ledger, journal);
+    } catch (error: unknown) {
+      await journal.close();
+      throw error;
+    }
   }
 
   /**
@@ -181,30 +197,39 @@ export class DispatchSession {
    */
   public async prepareDocuments(): Promise<ReadonlyArray<DocumentRef> | undefined> {
     if (this.options.sharedDocument === undefined) return undefined;
-    this.sharedRefs = await DocumentResolver.prepareShared(
-      this.options.sharedDocument,
-      this.inspector,
-      this.uploadStage,
-      this.options.dryRun,
-    );
+    this.sharedRefs = await DocumentResolver.prepareShared({
+      config: this.options.sharedDocument,
+      inspector: this.inspector,
+      ...(this.uploadStage !== undefined && { uploadStage: this.uploadStage }),
+      placeholders: this.options.dryRun,
+    });
     return this.sharedRefs;
   }
 
   /**
-   * Validation pass (no call): maps, validates and inspects every row.
+   * Validation pass (no call): maps, validates and inspects every row, and
+   * classifies it with the phases and retry flags of the session (on resume,
+   * rows already processed are not counted in `rowsToSend`).
    *
-   * @returns Figures for the send plan
+   * {@link stop} ends the pass before the next row: check {@link stopped}
+   * afterwards, because the figures then cover only part of the input.
+   *
+   * @returns Figures for the send plan (incomplete when stopped)
    * @throws DispatchError `CONFIGURATION` when rows have files to upload and
    *   no SafeStorage gateway is configured (outside a dry run)
    */
   public async validate(): Promise<ValidationSummary> {
+    const rowKeyColumn = this.rowKeyColumn();
     const summary = await runValidationPass({
       reader: this.reader(),
       factory: this.factory,
       inspector: this.inspector,
       ledger: this.ledger,
       runId: this.options.runId,
+      policy: this.policy(),
+      ...(rowKeyColumn !== undefined && { rowKeyColumn }),
       presetMode: !this.options.send,
+      signal: this.controller.signal,
     });
     if (!this.options.dryRun && this.options.send && summary.rowFiles > 0 && this.uploadStage === undefined) {
       throw new DispatchError(
@@ -261,8 +286,7 @@ export class DispatchSession {
       ...(verifyStage !== undefined && { verifyStage }),
       ...(requestIdStage !== undefined && { requestIdStage }),
       maxInFlight: this.options.tuning.maxInFlight,
-      retryFailed: this.options.tuning.retryFailed,
-      retryUncertain: this.options.tuning.retryUncertain,
+      policy: this.policy(),
       failFast: this.options.tuning.failFast,
       controller: this.controller,
     }).execute();
@@ -309,7 +333,7 @@ export class DispatchSession {
   /** Writes output and report from the current state (also after a stop). */
   public async materialize(): Promise<void> {
     const output = this.options.output;
-    const rowKeyColumn = this.options.rowKeyColumn ?? this.options.profile.rowKeyColumn;
+    const rowKeyColumn = this.rowKeyColumn();
     await materializeRun({
       reader: this.reader(),
       ledger: this.ledger,
@@ -360,17 +384,7 @@ export class DispatchSession {
   private createRequestIdStage(): RequestIdStage | undefined {
     const settings = this.options.requestId;
     if (settings === undefined) return undefined;
-    return new RequestIdStage({
-      source: settings.source,
-      ledger: this.ledger,
-      clock: this.clock,
-      selection: settings.selection,
-      initialDelayMs: settings.initialDelayMs,
-      timeoutMs: settings.timeoutMs,
-      concurrency: settings.concurrency,
-      isCredentialError: settings.isCredentialError,
-      signal: this.controller.signal,
-    });
+    return new RequestIdStage({ ...settings, ledger: this.ledger, clock: this.clock, signal: this.controller.signal });
   }
 
   private createSendStage(
@@ -406,12 +420,28 @@ export class DispatchSession {
     return new DirectSendStage({
       api: this.directOptions().api,
       limiter: this.limiter,
+      rateAdapter: this.rateAdapter,
       ledger: this.ledger,
       clock: this.clock,
       resolver: this.resolver(),
       onGlobalError,
       signal: this.controller.signal,
     });
+  }
+
+  /** Phases and retry flags: the same for the validation pass and the run. */
+  private policy(): RowActionPolicy {
+    return {
+      retryFailed: this.options.tuning.retryFailed,
+      retryUncertain: this.options.tuning.retryUncertain,
+      verify: this.options.verify,
+      requestId: this.options.requestId !== undefined,
+    };
+  }
+
+  /** Key column the record factory uses. */
+  private rowKeyColumn(): string | undefined {
+    return this.options.rowKeyColumn ?? this.options.profile.rowKeyColumn;
   }
 
   private b2b(): B2BApi {
@@ -445,4 +475,21 @@ export class DispatchSession {
 
 function observe(journal: JournalSink | undefined, options: DispatchSessionOptions): JournalSink | undefined {
   return options.onTransition === undefined ? journal : new ObservedSink(journal, options.onTransition);
+}
+
+/**
+ * Hashes the input and, on resume, checks it is the file of the previous run.
+ *
+ * @returns Hex SHA-256 of the input
+ * @throws DispatchError `RESUME_INPUT_CHANGED` when the input changed
+ */
+async function assertSameInput(previous: RunInfo | undefined, inputPath: string): Promise<string> {
+  const inputSha256 = await hashFileHex(inputPath);
+  if (previous !== undefined && previous.inputSha256 !== inputSha256) {
+    throw new DispatchError(
+      'RESUME_INPUT_CHANGED',
+      `the input file changed since run ${previous.runId}: resume refused`,
+    );
+  }
+  return inputSha256;
 }

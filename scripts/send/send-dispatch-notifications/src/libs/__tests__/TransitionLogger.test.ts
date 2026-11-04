@@ -2,25 +2,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { Core } from '@go-automation/go-common';
-import type { Dispatch } from '@go-automation/go-send';
 
-import { exitCodeFor, formatDuration } from '../displaySummary.js';
 import { TransitionLogger } from '../TransitionLogger.js';
-
-/** Logger double that records info and warning lines. */
-class FakeLogger {
-  public readonly info: string[] = [];
-  public readonly warnings: string[] = [];
-
-  public readonly logger = {
-    info: (message: string): void => {
-      this.info.push(message);
-    },
-    warning: (message: string): void => {
-      this.warnings.push(message);
-    },
-  } as unknown as Core.GOLogger;
-}
+import { FakeLogger } from './helpers/testScript.js';
 
 describe('TransitionLogger', () => {
   it('logs errors always and the other transitions only with --verbose', () => {
@@ -35,37 +19,44 @@ describe('TransitionLogger', () => {
     const sent = { ts: 't', event: 'SENT' as const, rowKey: 'S-2', iun: 'IUN', attempt: 1 };
 
     for (const target of [quiet, verbose]) {
-      const logger = new TransitionLogger(target.logger, target === verbose);
+      const logger = new TransitionLogger(target as unknown as Core.GOLogger, target === verbose);
       logger.handle(failed);
       logger.handle(sent);
       logger.handle({ ts: 't', event: 'DOCUMENT_UPLOADED' });
     }
 
-    assert.deepEqual(quiet.warnings, ['[S-1] SEND_FAILED PN_X: bad [{"code":"PN_X"}]']);
-    assert.deepEqual(quiet.info, []);
-    assert.deepEqual(verbose.info, ['[S-2] SENT #1 iun=IUN'], 'run-level entries are not logged');
-  });
-});
-
-describe('displaySummary helpers', () => {
-  it('formats durations', () => {
-    assert.equal(formatDuration(12_400), '12s');
-    assert.equal(formatDuration(185_000), '3m 05s');
-    assert.equal(formatDuration(3_720_000), '1h 02m');
+    assert.deepEqual(quiet.of('warning'), ['[S-1] SEND_FAILED PN_X: bad [{"code":"PN_X"}]']);
+    assert.deepEqual(quiet.of('info'), []);
+    assert.deepEqual(verbose.of('info'), ['[S-2] SENT #1 iun=IUN'], 'run-level entries are not logged');
   });
 
-  it('returns 2 when some rows ended with a problem', () => {
-    const progress = (status: Dispatch.RowStatus): Dispatch.DispatchProgress => ({
-      byStatus: new Map<Dispatch.RowStatus, number>([[status, 1]]),
-      ratePerSecond: 20,
-      throttled: 0,
-      verifyPending: 0,
-      requestIdPending: 0,
-      queuedCalls: 0,
+  it('always logs invalid rows with codes and fields only, never the row values', () => {
+    const quiet = new FakeLogger();
+    const logger = new TransitionLogger(quiet as unknown as Core.GOLogger, false);
+    const issues = [
+      { code: 'INVALID_FORMAT', field: 'recipient.taxId', message: 'recipient.taxId "RSSMRA80" must be a tax id' },
+      { code: 'MISSING_FIELD', field: 'subject', message: 'subject is required' },
+    ];
+    logger.handle({
+      ts: 't',
+      event: 'ROW_INVALID',
+      rowKey: 'S-3',
+      error: {
+        code: 'INVALID_FORMAT',
+        message: issues.map((i) => i.message).join('; '),
+        details: JSON.stringify(issues),
+      },
     });
-    assert.equal(exitCodeFor(progress('REQUEST_ID_FOUND')), 0);
-    assert.equal(exitCodeFor(progress('ACCEPTED')), 0);
-    assert.equal(exitCodeFor(progress('SEND_UNCERTAIN')), 2);
-    assert.equal(exitCodeFor(progress('REQUEST_ID_NOT_FOUND')), 2);
+    logger.handle({
+      ts: 't',
+      event: 'ROW_INVALID',
+      rowKey: 'S-4',
+      error: { code: 'INVALID', message: 'x', details: '{' },
+    });
+
+    assert.deepEqual(quiet.of('warning'), [
+      '[S-3] ROW_INVALID INVALID_FORMAT(recipient.taxId), MISSING_FIELD(subject) (dettagli nel report)',
+      '[S-4] ROW_INVALID INVALID (dettagli nel report)',
+    ]);
   });
 });

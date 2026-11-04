@@ -26,4 +26,6 @@ export interface UploadStageOptions {
   readonly previousUploads?: ReadonlyArray<RecordedUpload>;
   /** Maximum age of a reusable previous upload, ms (default 72 h). */
   readonly reuseMaxAgeMs?: number;
+  /** Aborted when the run stops: preloads, PUTs and retry waits are abandoned. */
+  readonly signal?: AbortSignal;
 }

@@ -5,6 +5,8 @@ import type { Dispatch } from '@go-automation/go-send';
  */
 export interface SummaryContext {
   readonly progress: Dispatch.DispatchProgress;
+  /** Rows of the input (rows never journaled have no status in `progress`). */
+  readonly totalRows: number;
   readonly failures: ReadonlyArray<Dispatch.FailureGroup>;
   readonly statistics: Dispatch.SendStatistics;
   /** Duration of the validation pass, ms. */

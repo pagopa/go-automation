@@ -21,6 +21,9 @@ export interface GORateLimiterOptions {
   /** Sleeper used by the internal timer (default: `GODefaultSleeper`). */
   readonly sleeper?: GOSleeper;
 
-  /** Clock in milliseconds (default: `performance.now()`). */
+  /**
+   * Monotonic clock in milliseconds (default: `performance.now()`). Do not
+   * pass `Date.now`, which jumps with wall-clock adjustments.
+   */
   readonly now?: GORateLimiterClockFn;
 }

@@ -22,6 +22,45 @@ class FakeTime implements GOSleeper {
   }
 }
 
+/** Rejects a pending sleep. */
+type SleepRejectFn = (error: Error) => void;
+
+/**
+ * Sleeper that never fires on its own: it only settles when its signal aborts
+ * (rejecting, like `GODefaultSleeper`) or when the test calls `fail()`.
+ */
+class ManualSleeper implements GOSleeper {
+  public readonly signals: AbortSignal[] = [];
+  public calls = 0;
+  private rejectCurrent: SleepRejectFn | undefined = undefined;
+
+  async sleep(_ms: number, signal?: AbortSignal): Promise<void> {
+    this.calls += 1;
+    if (signal !== undefined) this.signals.push(signal);
+    return new Promise<void>((_resolve, reject) => {
+      this.rejectCurrent = reject;
+      signal?.addEventListener(
+        'abort',
+        () => {
+          reject(new Error('woken'));
+        },
+        { once: true },
+      );
+    });
+  }
+
+  public fail(error: Error): void {
+    this.rejectCurrent?.(error);
+  }
+}
+
+/** Lets pending promise continuations and immediates run. */
+async function flush(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    setImmediate(resolve);
+  });
+}
+
 function createLimiter(time: FakeTime, ratePerSecond: number, burst = 1, priorities = 1): GORateLimiter {
   return new GORateLimiter({ ratePerSecond, burst, priorities, sleeper: time, now: time.now });
 }
@@ -204,5 +243,131 @@ describe('GORateLimiter', () => {
     const started = performance.now();
     await Promise.all(Array.from({ length: 5 }, async () => limiter.acquire()));
     assert.ok(performance.now() - started >= 35, 'four waits of ~10 ms each');
+  });
+
+  it('re-anchors when the clock goes backwards instead of stalling', async () => {
+    const time = new FakeTime();
+    time.current = 10_000;
+    const limiter = createLimiter(time, 10);
+    await limiter.acquire(); // consumes the initial token, anchor at 10 000
+
+    time.current = 0; // clock jumps back 10 s
+    await limiter.acquire();
+    assert.equal(time.current, 100, 'one token interval after the jump, not 10 s later');
+  });
+
+  it('drops the entries of a priority once all its waiters aborted', async () => {
+    const time = new FakeTime();
+    const limiter = createLimiter(time, 10, 1, 2);
+    await limiter.acquire(0);
+    const kept = limiter.acquire(0);
+    const controller = new AbortController();
+    const aborted = Array.from({ length: 50 }, async () => limiter.acquire(1, controller.signal));
+    controller.abort();
+    await Promise.all(aborted.map(async (promise) => assert.rejects(promise)));
+
+    // Bracket access: the queue array is private, the point is its memory footprint.
+    const queues = limiter['queues'];
+    assert.equal(queues[1]?.length, 0, 'aborted entries are not retained');
+    assert.deepEqual(limiter.stats.queuedByPriority, [1, 0]);
+    assert.equal(limiter.stats.queued, 1);
+    await kept;
+    assert.equal(limiter.stats.queued, 0);
+    assert.equal(limiter.stats.aborted, 50);
+  });
+
+  it('wakes the timer when the last queued caller aborts', async () => {
+    const time = new FakeTime();
+    const sleeper = new ManualSleeper();
+    const limiter = new GORateLimiter({ ratePerSecond: 1, sleeper, now: time.now });
+    await limiter.acquire();
+    const controller = new AbortController();
+    const pending = limiter.acquire(0, controller.signal);
+    await flush();
+    assert.equal(sleeper.signals.length, 1);
+    assert.equal(sleeper.signals[0]?.aborted, false);
+
+    controller.abort();
+    await assert.rejects(pending);
+    assert.equal(sleeper.signals[0]?.aborted, true, 'the pending sleep was cut short');
+    await flush();
+    assert.equal(sleeper.calls, 1, 'the pump stopped instead of sleeping again');
+  });
+
+  it('keeps sleeping while other callers are still queued after an abort', async () => {
+    const time = new FakeTime();
+    const sleeper = new ManualSleeper();
+    const limiter = new GORateLimiter({ ratePerSecond: 1, sleeper, now: time.now });
+    await limiter.acquire();
+    const controller = new AbortController();
+    const aborted = limiter.acquire(0, controller.signal);
+    const kept = limiter.acquire();
+    await flush();
+
+    controller.abort();
+    await assert.rejects(aborted);
+    assert.equal(sleeper.signals[0]?.aborted, false);
+    assert.equal(limiter.stats.queued, 1);
+
+    sleeper.fail(new Error('teardown'));
+    await assert.rejects(kept, /teardown/);
+  });
+
+  it('rejects the queued callers when the sleeper fails, without spinning', async () => {
+    const time = new FakeTime();
+    const sleeper = new ManualSleeper();
+    const limiter = new GORateLimiter({ ratePerSecond: 1, priorities: 2, sleeper, now: time.now });
+    await limiter.acquire();
+    const first = limiter.acquire(0);
+    const second = limiter.acquire(1);
+    await flush();
+
+    sleeper.fail(new Error('timer broken'));
+    await assert.rejects(first, /timer broken/);
+    await assert.rejects(second, /timer broken/);
+    await flush();
+    assert.equal(sleeper.calls, 1, 'no retry loop');
+    assert.equal(limiter.stats.queued, 0);
+    assert.deepEqual(limiter.stats.queuedByPriority, [0, 0]);
+
+    // The limiter stays usable: a new caller starts a new timer.
+    time.current += 1000;
+    await limiter.acquire();
+    assert.equal(limiter.stats.granted, 2);
+  });
+
+  it('preserves a non-Error abort reason as cause', async () => {
+    const time = new FakeTime();
+    const limiter = createLimiter(time, 10);
+    const early = new AbortController();
+    early.abort('user cancelled');
+    await assert.rejects(
+      limiter.acquire(0, early.signal),
+      (error: unknown) => error instanceof Error && error.cause === 'user cancelled',
+    );
+
+    await limiter.acquire();
+    const late = new AbortController();
+    const pending = limiter.acquire(0, late.signal);
+    late.abort(42);
+    await assert.rejects(pending, (error: unknown) => error instanceof Error && error.cause === 42);
+  });
+
+  it('keeps the queued counter in sync across grants and aborts', async () => {
+    const time = new FakeTime();
+    const limiter = createLimiter(time, 10, 1, 3);
+    await limiter.acquire();
+    const controller = new AbortController();
+    const pending = [limiter.acquire(0), limiter.acquire(1), limiter.acquire(2), limiter.acquire(2)];
+    const aborted = limiter.acquire(1, controller.signal);
+    assert.equal(limiter.stats.queued, 5);
+    assert.deepEqual(limiter.stats.queuedByPriority, [1, 2, 2]);
+
+    controller.abort();
+    await assert.rejects(aborted);
+    assert.equal(limiter.stats.queued, 4);
+    await Promise.all(pending);
+    assert.equal(limiter.stats.queued, 0);
+    assert.deepEqual(limiter.stats.queuedByPriority, [0, 0, 0]);
   });
 });

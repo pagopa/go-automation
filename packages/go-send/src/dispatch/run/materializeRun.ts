@@ -4,9 +4,18 @@ import type { GOListExporter } from '@go-automation/go-common/core';
 import { resolveRowKey } from '../ids/identifiers.js';
 import type { InputFormat } from '../input/InputFormat.js';
 import type { RowState } from '../model/RowState.js';
+import type { RowStatus } from '../model/RowStatus.js';
 import type { MaterializerOptions } from './MaterializerOptions.js';
 
 const MAX_ERROR_MESSAGE = 1_000;
+
+/** Statuses of a notification SEND (or pn-external-channels) accepted. */
+const SUCCESSFUL_STATUSES: ReadonlySet<RowStatus> = new Set<RowStatus>([
+  'SENT',
+  'ACCEPTED',
+  'REQUEST_ID_FOUND',
+  'REQUEST_ID_NOT_FOUND',
+]);
 
 /**
  * Writes the output (input + `iun` + `requestId`, 1:1 with the input) and the
@@ -19,43 +28,49 @@ const MAX_ERROR_MESSAGE = 1_000;
  * @param options - Input, ledger, formats and paths
  */
 export async function materializeRun(options: MaterializerOptions): Promise<void> {
-  const output = await createExporter(options.format, options.outputPath, options.delimiter).exportStream();
-  const report = await createExporter(options.format, options.reportPath, options.delimiter).exportStream();
   const iunColumn = options.outputColumns?.iun ?? 'iun';
   const requestIdColumn = options.outputColumns?.requestId ?? 'requestId';
-
+  const output = await createExporter(options.format, options.outputPath, options.delimiter).exportStream();
   try {
-    for await (const row of options.reader.rows()) {
-      const state = options.ledger.get(row.rowIndex);
-      const status = state?.status ?? options.unsentStatus;
-      if (!options.onlySuccess || isSuccessful(state)) {
-        await output.append({
-          ...row.original,
-          [iunColumn]: state?.iun ?? '',
-          [requestIdColumn]: state?.requestId ?? '',
-          ...(options.includeStatus && {
-            _status: status,
-            _notificationRequestId: state?.notificationRequestId ?? '',
-            _error: state?.error?.code ?? '',
-          }),
-        });
+    const report = await createExporter(options.format, options.reportPath, options.delimiter).exportStream();
+    try {
+      for await (const row of options.reader.rows()) {
+        const state = options.ledger.get(row.rowIndex);
+        const status = state?.status ?? options.unsentStatus;
+        if (!options.onlySuccess || isSuccessful(state)) {
+          await output.append({
+            ...row.original,
+            // A refused notification is not delivered: its IUN must not be used downstream.
+            [iunColumn]: state?.status === 'REFUSED' ? '' : (state?.iun ?? ''),
+            [requestIdColumn]: state?.requestId ?? '',
+            ...(options.includeStatus && {
+              _status: status,
+              _notificationRequestId: state?.notificationRequestId ?? '',
+              _error: state?.error?.code ?? '',
+            }),
+          });
+        }
+        const rowKey = state?.rowKey ?? resolveRowKey(row.values, options.rowKeyColumn, row.rowIndex);
+        await report.append(reportRow(row.rowIndex, rowKey, status, state));
       }
-      const rowKey = state?.rowKey ?? resolveRowKey(row.values, options.rowKeyColumn, row.rowIndex);
-      await report.append(reportRow(row.rowIndex, rowKey, status, state));
+    } finally {
+      await report.close();
     }
   } finally {
     await output.close();
-    await report.close();
   }
 }
 
 /**
- * Whether a row belongs to the success-only output: it has an IUN (e2e), or
- * pn-external-channels accepted its requestId (direct, where there is no IUN).
+ * Whether a row belongs to the success-only output: it reached a successful
+ * status and has an identifier to show, the IUN (e2e) or the requestId
+ * accepted by pn-external-channels (direct, where there is no IUN). The IUN
+ * alone is not enough: e2e stores it at `SENT`, and `REFUSED` /
+ * `VERIFY_TIMEOUT` rows keep it.
  */
 function isSuccessful(state: RowState | undefined): boolean {
-  if (state === undefined) return false;
-  return state.iun !== undefined || (state.status === 'SENT' && state.requestId !== undefined);
+  if (state === undefined || !SUCCESSFUL_STATUSES.has(state.status)) return false;
+  return state.iun !== undefined || state.requestId !== undefined;
 }
 
 function reportRow(

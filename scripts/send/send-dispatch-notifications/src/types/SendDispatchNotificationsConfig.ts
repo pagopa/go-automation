@@ -20,6 +20,7 @@ export interface SendDispatchNotificationsConfig {
   readonly defaults?: ReadonlyArray<string> | undefined;
   readonly ecBaseUrl?: string | undefined;
   readonly ecClientId: string;
+  readonly ecProduction: boolean;
   readonly directRequestIdTemplate: string;
 
   readonly documentFile?: ReadonlyArray<string> | undefined;

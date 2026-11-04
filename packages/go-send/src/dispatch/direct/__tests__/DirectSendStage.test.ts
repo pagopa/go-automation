@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import * as os from 'node:os';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
@@ -13,7 +14,9 @@ import type { DispatchError } from '../../DispatchError.js';
 import { DocumentResolver } from '../../documents/DocumentResolver.js';
 import { LocalDocumentInspector } from '../../documents/LocalDocumentInspector.js';
 import { RequestIdTemplate } from '../../ids/RequestIdTemplate.js';
+import { UploadError } from '../../documents/UploadError.js';
 import { RowLedger } from '../../journal/RowLedger.js';
+import { RateAdapter } from '../../stages/RateAdapter.js';
 import { buildDirectRecord } from '../../mapping/buildDirectRecord.js';
 import type { CanonicalField } from '../../mapping/CanonicalField.js';
 import { mapRow } from '../../mapping/mapRow.js';
@@ -158,29 +161,43 @@ class FakeExternalChannels implements ExternalChannelsApi {
   }
 }
 
-function stage(api: FakeExternalChannels): {
-  clock: VirtualClock;
-  ledger: RowLedger;
-  sink: MemorySink;
-  errors: DispatchError[];
-  stage: DirectSendStage;
-} {
+interface DirectHarness {
+  readonly clock: VirtualClock;
+  readonly ledger: RowLedger;
+  readonly sink: MemorySink;
+  readonly errors: DispatchError[];
+  readonly limiter: GORateLimiter;
+  readonly controller: AbortController;
+  readonly stage: DirectSendStage;
+}
+
+function stage(
+  api: FakeExternalChannels,
+  resolver: DocumentResolver = new DocumentResolver({
+    inspector: new LocalDocumentInspector(os.tmpdir()),
+    placeholders: false,
+  }),
+): DirectHarness {
   const clock = new VirtualClock();
   const sink = new MemorySink();
   const ledger = new RowLedger(sink, () => new Date(clock.now()));
   const errors: DispatchError[] = [];
   const controller = new AbortController();
+  const limiter = new GORateLimiter({ ratePerSecond: 5, sleeper: clock, now: () => clock.monotonic() });
   return {
     clock,
     ledger,
     sink,
     errors,
+    limiter,
+    controller,
     stage: new DirectSendStage({
       api,
-      limiter: new GORateLimiter({ ratePerSecond: 5, sleeper: clock, now: () => clock.now() }),
+      limiter,
+      rateAdapter: new RateAdapter(limiter, 5, clock, true),
       ledger,
       clock,
-      resolver: new DocumentResolver({ inspector: new LocalDocumentInspector(), placeholders: false }),
+      resolver,
       onGlobalError: (error) => {
         errors.push(error);
         controller.abort();
@@ -231,6 +248,54 @@ describe('DirectSendStage', () => {
     const h3 = stage(forbidden);
     await h3.clock.run(h3.stage.send(record()));
     assert.equal(h3.errors[0]?.code, 'HTTP_401');
+  });
+});
+
+describe('DirectSendStage (resume, throttling, documents)', () => {
+  it('numbers attempts after those of previous sessions, with maxAttempts per session', async () => {
+    const api = new FakeExternalChannels();
+    api.script.push(httpError(503), httpError(503), httpError(503));
+    const h = stage(api);
+    const previous = {
+      rowIndex: 0,
+      rowKey: 'TC-1',
+      status: 'SEND_FAILED' as const,
+      sendAttempts: 3,
+      verifyChecks: 0,
+      requestIdChecks: 0,
+      warnings: [],
+    };
+    await h.clock.run(h.stage.send(record(), previous));
+    assert.deepEqual(
+      h.sink.events('SENDING').map((entry) => entry.attempt),
+      [4, 5, 6],
+    );
+    assert.equal(h.ledger.get(0)?.sendAttempts, 6);
+    assert.equal(h.ledger.get(0)?.status, 'SEND_FAILED');
+  });
+
+  it('lowers the shared limiter rate on 429', async () => {
+    const api = new FakeExternalChannels();
+    api.script.push(httpError(429));
+    const h = stage(api);
+    await h.clock.run(h.stage.send(record()));
+    assert.equal(h.ledger.get(0)?.status, 'SENT');
+    assert.ok(h.limiter.ratePerSecond < 5, `rate ${h.limiter.ratePerSecond}`);
+  });
+
+  it('maps document failures like the e2e stage and stops the run on run-level ones', async () => {
+    const rejecting = {
+      resolve: async (): Promise<never> => {
+        await Promise.resolve();
+        throw new UploadError('UPLOAD_REJECTED', 'preload failed', { cause: httpError(403) });
+      },
+    } as unknown as DocumentResolver;
+    const api = new FakeExternalChannels();
+    const h = stage(api, rejecting);
+    await h.clock.run(h.stage.send(record()));
+    assert.equal(h.ledger.get(0)?.error?.code, 'UPLOAD_REJECTED');
+    assert.equal(h.errors[0]?.code, 'HTTP_403');
+    assert.equal(api.requests.length, 0);
   });
 });
 

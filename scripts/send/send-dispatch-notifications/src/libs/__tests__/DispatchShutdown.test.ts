@@ -25,7 +25,7 @@ describe('DispatchShutdown', () => {
     assert.equal(shutdown.wasInterrupted, false);
   });
 
-  it('stops the session and waits until the output is materialized', async () => {
+  it('stops the session and waits until done()', async () => {
     const shutdown = new DispatchShutdown();
     const fake = new FakeSession();
     shutdown.attach(fake.session);
@@ -42,5 +42,16 @@ describe('DispatchShutdown', () => {
     shutdown.done();
     await waiting;
     assert.equal(resolved, true);
+  });
+
+  it('returns at once after done(), and done() is idempotent', async () => {
+    const shutdown = new DispatchShutdown();
+    const fake = new FakeSession();
+    shutdown.attach(fake.session);
+    shutdown.done();
+    shutdown.done();
+    await shutdown.stopAndWait();
+    assert.equal(fake.stops, 0);
+    assert.equal(shutdown.wasInterrupted, false);
   });
 });

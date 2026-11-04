@@ -1,7 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createRunId, decodeIun, deriveRowIdentifiers, resolveRowKey } from '../identifiers.js';
+import {
+  createRunId,
+  decodeIun,
+  deriveRowIdentifiers,
+  encodeNotificationRequestId,
+  isIun,
+  resolveRowKey,
+} from '../identifiers.js';
 
 describe('identifiers', () => {
   it('creates run ids as yyyyMMdd-HHmmss-xxxx', () => {
@@ -35,5 +42,14 @@ describe('identifiers', () => {
     const iun = 'PAYK-MWDR-ZUAZ-202601-K-1';
     assert.equal(decodeIun(Buffer.from(iun).toString('base64')), iun);
     assert.equal(decodeIun(Buffer.from('not an iun').toString('base64')), undefined);
+  });
+
+  it('recognizes IUNs and encodes them as notificationRequestId', () => {
+    const iun = 'PAYK-MWDR-ZUAZ-202601-K-1';
+    assert.ok(isIun(iun));
+    assert.ok(!isIun('payk-mwdr-zuaz-202601-k-1'));
+    assert.ok(!isIun(`${iun} `));
+    assert.equal(encodeNotificationRequestId(iun), Buffer.from(iun).toString('base64'));
+    assert.equal(decodeIun(encodeNotificationRequestId(iun)), iun);
   });
 });

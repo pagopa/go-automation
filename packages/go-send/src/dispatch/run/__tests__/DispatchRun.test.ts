@@ -65,6 +65,8 @@ function factory(): RecordFactory {
   });
 }
 
+const NO_RETRY = { retryFailed: false, retryUncertain: false, verify: false, requestId: false } as const;
+
 const row = (key: string, iun = ''): string => `${key},Test,RSSMRA80A01H501U,Mario,00100,Roma,Via Roma 1,${iun}`;
 
 describe('DispatchRun', () => {
@@ -83,8 +85,7 @@ describe('DispatchRun', () => {
       sendStage: recorder.sendStage,
       verifyStage: recorder.verifyStage,
       requestIdStage: recorder.requestIdStage,
-      retryFailed: false,
-      retryUncertain: false,
+      policy: { retryFailed: false, retryUncertain: false, verify: true, requestId: true },
       failFast: false,
       controller: new AbortController(),
     }).execute();
@@ -103,8 +104,7 @@ describe('DispatchRun', () => {
       factory: factory(),
       ledger,
       requestIdStage: recorder.requestIdStage,
-      retryFailed: false,
-      retryUncertain: false,
+      policy: { retryFailed: false, retryUncertain: false, verify: false, requestId: true },
       failFast: false,
       controller: new AbortController(),
     }).execute();
@@ -127,12 +127,106 @@ describe('DispatchRun', () => {
       factory: factory(),
       ledger: new RowLedger(undefined),
       sendStage: recorder.sendStage,
-      retryFailed: false,
-      retryUncertain: false,
+      policy: NO_RETRY,
       failFast: false,
       controller,
     }).execute();
     assert.deepEqual(recorder.sent, []);
+  });
+});
+
+describe('DispatchRun (failures and resume edge cases)', () => {
+  /** Background stage whose drain records its order and takes a while. */
+  function drainingStage(name: string, order: string[], failure?: Error): VerifyStage & RequestIdStage {
+    return {
+      schedule: (): void => undefined,
+      drain: async (): Promise<void> => {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        order.push(name);
+        if (failure !== undefined) throw failure;
+      },
+    } as unknown as VerifyStage & RequestIdStage;
+  }
+
+  it('stops the run and drains both stages before rethrowing a send failure', async () => {
+    const controller = new AbortController();
+    const order: string[] = [];
+    const failing = {
+      send: async (): Promise<void> => {
+        await Promise.resolve();
+        throw new Error('journal write failed');
+      },
+    } as unknown as SendStage;
+    await assert.rejects(
+      new DispatchRun({
+        reader: await input([row('S-0'), row('S-1')]),
+        factory: factory(),
+        ledger: new RowLedger(undefined),
+        sendStage: failing,
+        verifyStage: drainingStage('verify', order),
+        requestIdStage: drainingStage('request-id', order),
+        policy: { retryFailed: false, retryUncertain: false, verify: true, requestId: true },
+        failFast: false,
+        controller,
+      }).execute(),
+      /journal write failed/,
+    );
+    assert.ok(controller.signal.aborted, 'the stages see the stop');
+    assert.deepEqual(order, ['verify', 'request-id']);
+  });
+
+  it('still drains the requestId stage when the verification drain fails', async () => {
+    const order: string[] = [];
+    await assert.rejects(
+      new DispatchRun({
+        reader: await input([]),
+        factory: factory(),
+        ledger: new RowLedger(undefined),
+        verifyStage: drainingStage('verify', order, new Error('verify failed')),
+        requestIdStage: drainingStage('request-id', order),
+        policy: { retryFailed: false, retryUncertain: false, verify: true, requestId: true },
+        failFast: false,
+        controller: new AbortController(),
+      }).execute(),
+      /verify failed/,
+    );
+    assert.deepEqual(order, ['verify', 'request-id']);
+  });
+
+  it('marks SEND_UNCERTAIN (MAPPING_CHANGED) a row left SENDING whose mapping now fails', async () => {
+    const ledger = new RowLedger(undefined);
+    await ledger.record({ event: 'SENDING', rowIndex: 0, rowKey: 'S-0', attempt: 1 });
+    const recorder = new Recorder();
+    await new DispatchRun({
+      reader: await input(['S-0,Test,RSSMRA80A01H501U,Mario,12,Roma,Via Roma 1,']),
+      factory: factory(),
+      ledger,
+      sendStage: recorder.sendStage,
+      policy: NO_RETRY,
+      failFast: false,
+      controller: new AbortController(),
+    }).execute();
+    assert.deepEqual(recorder.sent, []);
+    assert.equal(ledger.get(0)?.status, 'SEND_UNCERTAIN');
+    assert.equal(ledger.get(0)?.error?.code, 'MAPPING_CHANGED');
+  });
+
+  it('imports a revalidated preset row instead of leaving it PENDING forever', async () => {
+    const ledger = new RowLedger(undefined);
+    await ledger.record({ event: 'ROW_INVALID', rowIndex: 0, rowKey: 'S-0', error: { code: 'X', message: 'm' } });
+    await ledger.record({ event: 'ROW_REVALIDATED', rowIndex: 0, rowKey: 'S-0' });
+    const recorder = new Recorder();
+    await new DispatchRun({
+      reader: await input([row('S-0', 'PAYK-MWDR-ZUAZ-202601-K-1')]),
+      factory: factory(),
+      ledger,
+      requestIdStage: recorder.requestIdStage,
+      policy: { retryFailed: false, retryUncertain: false, verify: false, requestId: true },
+      failFast: false,
+      controller: new AbortController(),
+    }).execute();
+    assert.deepEqual(recorder.requestIds, ['S-0']);
+    assert.equal(ledger.get(0)?.status, 'SENT');
   });
 });
 

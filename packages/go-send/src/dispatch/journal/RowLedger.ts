@@ -10,10 +10,13 @@ import type { WallClockFn } from '../model/WallClockFn.js';
  * Single source of truth of a run: applies every entry to the in-memory
  * state **and** appends it to the journal, so the two cannot diverge.
  *
- * Memory is O(rows) on compact {@link RowState} objects only.
+ * Memory is O(rows) on compact {@link RowState} objects only; the count of
+ * rows per status is kept up to date on every transition, so a progress
+ * snapshot never rescans the rows.
  */
 export class RowLedger {
   private readonly rows = new Map<number, RowState>();
+  private readonly statusCounts = new Map<RowStatus, number>();
   private readonly uploads: RecordedUpload[] = [];
 
   constructor(
@@ -22,19 +25,22 @@ export class RowLedger {
   ) {}
 
   /**
-   * Rebuilds a ledger from journal entries (resume).
+   * Rebuilds a ledger from journal entries (resume), consuming them as a
+   * stream: replayed entries are never appended to `sink`.
    *
-   * @param entries - Entries read from the journal
-   * @param sink - Journal to append new entries to
+   * @param entries - Entries read from the journal (e.g. `Journal.entries`)
+   * @param sink - Journal to append new entries to; `undefined` for a
+   *   read-only ledger (dry run)
+   * @param now - Wall clock of the new entries
    * @returns Ledger with the replayed state
    */
-  public static replay(
-    entries: ReadonlyArray<JournalEntry>,
+  public static async replay(
+    entries: AsyncIterable<JournalEntry> | Iterable<JournalEntry>,
     sink: JournalSink | undefined,
     now?: WallClockFn,
-  ): RowLedger {
+  ): Promise<RowLedger> {
     const ledger = new RowLedger(sink, now);
-    for (const entry of entries) ledger.apply(entry);
+    for await (const entry of entries) ledger.apply(entry);
     return ledger;
   }
 
@@ -66,11 +72,13 @@ export class RowLedger {
     return this.uploads;
   }
 
-  /** Number of rows per status. */
+  /**
+   * Number of rows per status (statuses without rows are absent). O(statuses).
+   *
+   * @returns A snapshot: later transitions do not change it
+   */
   public countByStatus(): ReadonlyMap<RowStatus, number> {
-    const counts = new Map<RowStatus, number>();
-    for (const state of this.rows.values()) counts.set(state.status, (counts.get(state.status) ?? 0) + 1);
-    return counts;
+    return new Map(this.statusCounts);
   }
 
   private apply(entry: JournalEntry): RowState | undefined {
@@ -79,8 +87,21 @@ export class RowLedger {
       return undefined;
     }
     if (entry.rowIndex === undefined) return undefined;
-    const next = applyJournalEntry(this.rows.get(entry.rowIndex), entry);
-    if (next !== undefined) this.rows.set(entry.rowIndex, next);
+    const previous = this.rows.get(entry.rowIndex);
+    const next = applyJournalEntry(previous, entry);
+    if (next !== undefined && next !== previous) {
+      this.rows.set(entry.rowIndex, next);
+      if (previous?.status !== next.status) {
+        if (previous !== undefined) this.adjustCount(previous.status, -1);
+        this.adjustCount(next.status, 1);
+      }
+    }
     return next;
+  }
+
+  private adjustCount(status: RowStatus, delta: number): void {
+    const count = (this.statusCounts.get(status) ?? 0) + delta;
+    if (count > 0) this.statusCounts.set(status, count);
+    else this.statusCounts.delete(status);
   }
 }

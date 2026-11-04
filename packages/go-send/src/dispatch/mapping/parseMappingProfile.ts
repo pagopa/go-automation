@@ -1,9 +1,19 @@
+import {
+  asRecord,
+  optionalString,
+  rejectUnknownKeys,
+  requiredString,
+  stringList,
+  stringRecord,
+} from '../config/configGuards.js';
 import { isCanonicalField } from './canonicalFields.js';
 import type { CanonicalField } from './CanonicalField.js';
 import type { MappingFormat } from './MappingFormat.js';
+import type { MappingOutputColumns } from './MappingOutputColumns.js';
 import type { MappingProfile } from './MappingProfile.js';
 import type { MappingTransform } from './MappingTransform.js';
-import type { MappingTransformOp } from './MappingTransformOp.js';
+import type { MappingTransforms } from './MappingTransforms.js';
+import { isFillTransform, isMappingTransformOp } from './mappingTransformOps.js';
 
 const PROFILE_KEYS: ReadonlySet<string> = new Set([
   'name',
@@ -14,20 +24,17 @@ const PROFILE_KEYS: ReadonlySet<string> = new Set([
   'outputColumns',
 ]);
 const FORMAT_KEYS: ReadonlySet<string> = new Set(['type', 'delimiter', 'skipRows', 'encoding']);
-const OPS: ReadonlySet<string> = new Set<MappingTransformOp>([
-  'trim',
-  'upper',
-  'emptyIfIn',
-  'map',
-  'constantIfPresent',
-  'default',
-]);
+const OUTPUT_COLUMN_KEYS: ReadonlySet<string> = new Set(['iun', 'requestId']);
+const TRANSFORM_KEYS: ReadonlySet<string> = new Set(['op', 'values', 'field', 'value']);
 
 /**
  * Validates an untrusted value (a parsed JSON file) as a mapping profile.
  *
  * Unknown keys, unknown canonical fields and transforms with missing
- * parameters are rejected, with a message naming the offending path.
+ * parameters are rejected, with a message naming the offending path. String
+ * parameters are trimmed and must not be blank. Within the steps of a field,
+ * normalizing transforms must precede fill transforms, because fills run
+ * after the merge with CLI and environment values (see `applyFillTransforms`).
  *
  * @param value - Parsed JSON
  * @param source - Name used in error messages (file path or profile name)
@@ -38,19 +45,16 @@ export function parseMappingProfile(value: unknown, source: string): MappingProf
   const profile = asRecord(value, source);
   rejectUnknownKeys(profile, PROFILE_KEYS, source);
 
-  const name = profile['name'];
-  if (typeof name !== 'string' || name.trim() === '') throw new Error(`${source}: "name" must be a non-empty string`);
-
+  const name = requiredString(profile['name'], `${source}.name`);
   const columns = parseColumns(profile['columns'], `${source}.columns`);
   const transforms =
     profile['transforms'] === undefined ? undefined : parseTransforms(profile['transforms'], `${source}.transforms`);
   const format = profile['format'] === undefined ? undefined : parseFormat(profile['format'], `${source}.format`);
   const rowKeyColumn = optionalString(profile['rowKeyColumn'], `${source}.rowKeyColumn`);
-  const outputColumns = profile['outputColumns'] === undefined ? undefined : asRecord(profile['outputColumns'], source);
-  if (outputColumns !== undefined)
-    rejectUnknownKeys(outputColumns, new Set(['iun', 'requestId']), `${source}.outputColumns`);
-  const iun = optionalString(outputColumns?.['iun'], `${source}.outputColumns.iun`);
-  const requestId = optionalString(outputColumns?.['requestId'], `${source}.outputColumns.requestId`);
+  const outputColumns =
+    profile['outputColumns'] === undefined
+      ? undefined
+      : parseOutputColumns(profile['outputColumns'], `${source}.outputColumns`);
 
   return {
     name,
@@ -58,62 +62,70 @@ export function parseMappingProfile(value: unknown, source: string): MappingProf
     ...(format !== undefined && { format }),
     ...(transforms !== undefined && { transforms }),
     ...(rowKeyColumn !== undefined && { rowKeyColumn }),
-    ...(outputColumns !== undefined && {
-      outputColumns: { ...(iun !== undefined && { iun }), ...(requestId !== undefined && { requestId }) },
-    }),
+    ...(outputColumns !== undefined && { outputColumns }),
   };
 }
 
 function parseColumns(value: unknown, path: string): Readonly<Record<string, CanonicalField>> {
-  const record = asRecord(value, path);
-  const columns: Record<string, CanonicalField> = {};
-  for (const [column, field] of Object.entries(record)) {
-    columns[column] = canonicalField(field, `${path}.${column}`);
-  }
-  if (Object.keys(columns).length === 0) throw new Error(`${path}: at least one column is required`);
-  return columns;
+  const entries = Object.entries(asRecord(value, path)).map(([column, field]): readonly [string, CanonicalField] => [
+    column,
+    canonicalField(field, `${path}.${column}`),
+  ]);
+  if (entries.length === 0) throw new Error(`${path}: at least one column is required`);
+  return Object.fromEntries(entries);
 }
 
-function parseTransforms(
-  value: unknown,
-  path: string,
-): Readonly<Partial<Record<CanonicalField, ReadonlyArray<MappingTransform>>>> {
-  const record = asRecord(value, path);
+function parseTransforms(value: unknown, path: string): MappingTransforms {
   const transforms: Partial<Record<CanonicalField, ReadonlyArray<MappingTransform>>> = {};
-  for (const [field, steps] of Object.entries(record)) {
+  for (const [field, steps] of Object.entries(asRecord(value, path))) {
     const fieldPath = `${path}.${field}`;
     const canonical = canonicalField(field, fieldPath);
     if (!Array.isArray(steps)) throw new Error(`${fieldPath}: must be an array of transforms`);
     const items: ReadonlyArray<unknown> = steps;
-    transforms[canonical] = items.map((step, index) => parseTransform(step, `${fieldPath}[${index}]`));
+    const parsed = items.map((step, index) => parseTransform(step, `${fieldPath}[${index}]`));
+    assertFillsLast(parsed, fieldPath);
+    transforms[canonical] = parsed;
   }
   return transforms;
 }
 
+/** A normalizing step after a fill would never see the filled value: reject the ambiguous order. */
+function assertFillsLast(steps: ReadonlyArray<MappingTransform>, path: string): void {
+  let fillSeen = false;
+  for (const [index, step] of steps.entries()) {
+    if (isFillTransform(step)) fillSeen = true;
+    else if (fillSeen) {
+      throw new Error(
+        `${path}[${index}]: "${step.op}" must come before constantIfPresent/default ` +
+          '(fills apply after merging CLI and environment values)',
+      );
+    }
+  }
+}
+
 function parseTransform(value: unknown, path: string): MappingTransform {
   const step = asRecord(value, path);
-  rejectUnknownKeys(step, new Set(['op', 'values', 'field', 'value']), path);
+  rejectUnknownKeys(step, TRANSFORM_KEYS, path);
   const op = step['op'];
-  if (typeof op !== 'string' || !OPS.has(op)) throw new Error(`${path}.op: unknown transform "${String(op)}"`);
-  const typedOp = op as MappingTransformOp; // Safe: checked against OPS above
-  switch (typedOp) {
+  if (!isMappingTransformOp(op)) throw new Error(`${path}.op: unknown transform "${String(op)}"`);
+  switch (op) {
     case 'trim':
     case 'upper':
-      return { op: typedOp };
+      return { op };
     case 'emptyIfIn':
-      return { op: typedOp, values: stringArray(step['values'], `${path}.values`) };
+      return { op, values: stringList(step['values'], `${path}.values`) };
     case 'map':
-      return { op: typedOp, values: stringRecord(step['values'], `${path}.values`) };
+      return { op, values: stringRecord(step['values'], `${path}.values`) };
     case 'constantIfPresent':
       return {
-        op: typedOp,
+        op,
         field: canonicalField(step['field'], `${path}.field`),
         value: requiredString(step['value'], `${path}.value`),
       };
     case 'default':
-      return { op: typedOp, value: requiredString(step['value'], `${path}.value`) };
+      return { op, value: requiredString(step['value'], `${path}.value`) };
     default: {
-      const exhaustive: never = typedOp;
+      const exhaustive: never = op;
       throw new Error(`${path}.op: unhandled transform ${String(exhaustive)}`);
     }
   }
@@ -127,18 +139,30 @@ function parseFormat(value: unknown, path: string): MappingFormat {
     throw new Error(`${path}.type: must be csv, json or jsonl`);
   }
   const skipRows = format['skipRows'];
-  if (skipRows !== undefined && (!Number.isInteger(skipRows) || (skipRows as number) < 0)) {
+  if (skipRows !== undefined && (typeof skipRows !== 'number' || !Number.isInteger(skipRows) || skipRows < 0)) {
     throw new Error(`${path}.skipRows: must be a non-negative integer`);
   }
-  const delimiter = optionalString(format['delimiter'], `${path}.delimiter`);
+  // Not trimmed: a tab is a valid delimiter.
+  const delimiter = format['delimiter'];
+  if (delimiter !== undefined && (typeof delimiter !== 'string' || delimiter === '')) {
+    throw new Error(`${path}.delimiter: must be a non-empty string`);
+  }
   const encoding = optionalString(format['encoding'], `${path}.encoding`);
   if (encoding !== undefined && !Buffer.isEncoding(encoding)) throw new Error(`${path}.encoding: unknown encoding`);
   return {
     ...(type !== undefined && { type }),
     ...(delimiter !== undefined && { delimiter }),
-    ...(skipRows !== undefined && { skipRows: skipRows as number }),
+    ...(skipRows !== undefined && { skipRows }),
     ...(encoding !== undefined && { encoding }),
   };
+}
+
+function parseOutputColumns(value: unknown, path: string): MappingOutputColumns {
+  const outputColumns = asRecord(value, path);
+  rejectUnknownKeys(outputColumns, OUTPUT_COLUMN_KEYS, path);
+  const iun = optionalString(outputColumns['iun'], `${path}.iun`);
+  const requestId = optionalString(outputColumns['requestId'], `${path}.requestId`);
+  return { ...(iun !== undefined && { iun }), ...(requestId !== undefined && { requestId }) };
 }
 
 function canonicalField(value: unknown, path: string): CanonicalField {
@@ -146,42 +170,4 @@ function canonicalField(value: unknown, path: string): CanonicalField {
     throw new Error(`${path}: unknown canonical field "${String(value)}"`);
   }
   return value;
-}
-
-function asRecord(value: unknown, path: string): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value))
-    throw new Error(`${path}: must be an object`);
-  return value as Record<string, unknown>;
-}
-
-function rejectUnknownKeys(record: Record<string, unknown>, allowed: ReadonlySet<string>, path: string): void {
-  for (const key of Object.keys(record)) {
-    if (!allowed.has(key)) throw new Error(`${path}: unknown key "${key}"`);
-  }
-}
-
-function optionalString(value: unknown, path: string): string | undefined {
-  if (value === undefined) return undefined;
-  return requiredString(value, path);
-}
-
-function requiredString(value: unknown, path: string): string {
-  if (typeof value !== 'string' || value === '') throw new Error(`${path}: must be a non-empty string`);
-  return value;
-}
-
-function stringArray(value: unknown, path: string): ReadonlyArray<string> {
-  const items: ReadonlyArray<unknown> = Array.isArray(value) ? value : [];
-  if (!Array.isArray(value) || !items.every((item): item is string => typeof item === 'string')) {
-    throw new Error(`${path}: must be an array of strings`);
-  }
-  return items;
-}
-
-function stringRecord(value: unknown, path: string): Readonly<Record<string, string>> {
-  const record = asRecord(value, path);
-  for (const [key, item] of Object.entries(record)) {
-    if (typeof item !== 'string') throw new Error(`${path}.${key}: must be a string`);
-  }
-  return record as Record<string, string>; // Safe: every value checked above
 }

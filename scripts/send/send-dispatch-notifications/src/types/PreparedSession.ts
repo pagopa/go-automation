@@ -8,4 +8,6 @@ import type { ResolvedRun } from './ResolvedRun.js';
 export interface PreparedSession {
   readonly run: ResolvedRun;
   readonly options: Dispatch.DispatchSessionOptions;
+  /** Profile of `--aws-profiles` used for `pn-Timelines`, with the request-id phase. */
+  readonly timelinesProfile?: string;
 }

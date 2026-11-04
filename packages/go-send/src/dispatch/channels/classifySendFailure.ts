@@ -1,4 +1,4 @@
-import { GOHttpClientError } from '@go-automation/go-common/core';
+import { getErrorMessage, GOHttpClientError, isPlainObject } from '@go-automation/go-common/core';
 
 import type { ProblemErrorItem } from './ProblemErrorItem.js';
 import type { SendFailure } from './SendFailure.js';
@@ -25,8 +25,7 @@ const KEY_SEPARATOR = '##';
  */
 export function classifySendFailure(error: unknown): SendFailure {
   if (!(error instanceof GOHttpClientError) || error.statusCode === undefined) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { kind: 'ambiguous', code: 'TRANSPORT_ERROR', message };
+    return { kind: 'ambiguous', code: 'TRANSPORT_ERROR', message: getErrorMessage(error) };
   }
 
   const status = error.statusCode;
@@ -58,23 +57,22 @@ export function classifySendFailure(error: unknown): SendFailure {
 }
 
 function problemErrors(body: unknown): ReadonlyArray<ProblemErrorItem> {
-  if (typeof body !== 'object' || body === null) return [];
-  const errors = (body as { readonly errors?: unknown }).errors;
+  if (!isPlainObject(body)) return [];
+  const errors = body['errors'];
   if (!Array.isArray(errors)) return [];
   const items: ReadonlyArray<unknown> = errors;
-  return items
-    .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
-    .map((item) => ({
-      ...(typeof item['code'] === 'string' && { code: item['code'] }),
-      ...(typeof item['element'] === 'string' && { element: item['element'] }),
-      ...(typeof item['detail'] === 'string' && { detail: item['detail'] }),
-    }));
+  return items.filter(isPlainObject).map((item) => ({
+    ...(typeof item['code'] === 'string' && { code: item['code'] }),
+    ...(typeof item['element'] === 'string' && { element: item['element'] }),
+    ...(typeof item['detail'] === 'string' && { detail: item['detail'] }),
+  }));
 }
 
 function problemMessage(body: unknown): string | undefined {
-  if (typeof body !== 'object' || body === null) return typeof body === 'string' && body !== '' ? body : undefined;
-  const { title, detail } = body as { readonly title?: unknown; readonly detail?: unknown };
-  const parts = [title, detail].filter((part): part is string => typeof part === 'string' && part !== '');
+  if (!isPlainObject(body)) return typeof body === 'string' && body !== '' ? body : undefined;
+  const parts = [body['title'], body['detail']].filter(
+    (part): part is string => typeof part === 'string' && part !== '',
+  );
   return parts.length > 0 ? parts.join(': ') : undefined;
 }
 

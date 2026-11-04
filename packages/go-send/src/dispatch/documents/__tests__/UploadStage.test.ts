@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import * as os from 'node:os';
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 
@@ -12,7 +13,9 @@ import { MemorySink } from '../../__tests__/helpers/MemorySink.js';
 import { tempDir, writeFixture } from '../../__tests__/helpers/testFiles.js';
 import { VirtualClock } from '../../__tests__/helpers/VirtualClock.js';
 import { RowLedger } from '../../journal/RowLedger.js';
+import { DispatchError } from '../../DispatchError.js';
 import { DocumentResolver } from '../DocumentResolver.js';
+import { toDocumentFailure } from '../toDocumentFailure.js';
 import type { InspectedDocument } from '../InspectedDocument.js';
 import { isInspectionFailure } from '../isInspectionFailure.js';
 import { LocalDocumentInspector, MAX_DOCUMENT_BYTES } from '../LocalDocumentInspector.js';
@@ -26,11 +29,16 @@ class FakeGateway implements SafeStorageGateway {
   public preloadFailure: Error | undefined;
   public failingPaths = new Set<string>();
   public putDelayMs = 0;
+  public readonly signals: (AbortSignal | undefined)[] = [];
 
   constructor(private readonly clock: VirtualClock) {}
 
-  public async preload(requests: ReadonlyArray<SENDPreloadRequest>): Promise<ReadonlyArray<SENDPreloadResponse>> {
+  public async preload(
+    requests: ReadonlyArray<SENDPreloadRequest>,
+    signal?: AbortSignal,
+  ): Promise<ReadonlyArray<SENDPreloadResponse>> {
     await Promise.resolve();
+    this.signals.push(signal);
     this.preloads.push(requests);
     if (this.preloadFailure !== undefined) throw this.preloadFailure;
     return requests.map((request) => ({
@@ -42,7 +50,14 @@ class FakeGateway implements SafeStorageGateway {
     }));
   }
 
-  public async upload(preload: SENDPreloadResponse, filePath: string): Promise<string> {
+  public async upload(
+    preload: SENDPreloadResponse,
+    filePath: string,
+    _sha256: string,
+    _contentType: string,
+    signal?: AbortSignal,
+  ): Promise<string> {
+    this.signals.push(signal);
     if (this.putDelayMs > 0) await this.clock.sleep(this.putDelayMs);
     this.puts.push(filePath);
     if (this.failingPaths.has(filePath)) throw httpError(500);
@@ -162,6 +177,60 @@ describe('UploadStage', () => {
   });
 });
 
+describe('UploadStage (resume, journal, stop)', () => {
+  it('never reuses a previous upload whose timestamp cannot be parsed', async () => {
+    const clock = new VirtualClock();
+    const gateway = new FakeGateway(clock);
+    const limiter = new GORateLimiter({ ratePerSecond: 20, sleeper: clock, now: () => clock.monotonic() });
+    const doc = inspected(7);
+    const stage = new UploadStage({
+      gateway,
+      limiter,
+      ledger: new RowLedger(undefined),
+      clock,
+      previousUploads: [
+        { sha256: doc.sha256, key: 'GARBLED', versionToken: 'v', contentType: 'application/pdf', ts: 'not-a-date' },
+      ],
+    });
+    const file = await clock.run(stage.upload(doc));
+    assert.notEqual(file.key, 'GARBLED');
+    assert.equal(gateway.puts.length, 1);
+  });
+
+  it('rejects with the journal error, not UPLOAD_FAILED, when the upload cannot be journaled', async () => {
+    const clock = new VirtualClock();
+    const gateway = new FakeGateway(clock);
+    const limiter = new GORateLimiter({ ratePerSecond: 20, sleeper: clock, now: () => clock.monotonic() });
+    const brokenJournal = {
+      append: async (): Promise<void> => {
+        await Promise.resolve();
+        throw new Error('journal write failed');
+      },
+    };
+    const stage = new UploadStage({ gateway, limiter, ledger: new RowLedger(brokenJournal), clock });
+    await assert.rejects(clock.run(stage.upload(inspected(0))), (error: unknown) => {
+      return !(error instanceof UploadError) && error instanceof Error && /journal write failed/.test(error.message);
+    });
+    assert.equal(gateway.puts.length, 1, 'the PUT succeeded once and is not retried');
+  });
+
+  it('passes the stop signal to preload and PUT', async () => {
+    const clock = new VirtualClock();
+    const gateway = new FakeGateway(clock);
+    const limiter = new GORateLimiter({ ratePerSecond: 20, sleeper: clock, now: () => clock.monotonic() });
+    const controller = new AbortController();
+    const stage = new UploadStage({
+      gateway,
+      limiter,
+      ledger: new RowLedger(undefined),
+      clock,
+      signal: controller.signal,
+    });
+    await clock.run(stage.upload(inspected(0)));
+    assert.deepEqual(gateway.signals, [controller.signal, controller.signal]);
+  });
+});
+
 describe('LocalDocumentInspector', () => {
   it('checks extension, existence, magic number and hashes the content', async () => {
     const dir = tempDir('dispatch-docs');
@@ -171,7 +240,7 @@ describe('LocalDocumentInspector', () => {
     await writeFixture(pdf, '%PDF-1.7 test');
     await writeFixture(fake, 'hello');
     await writeFixture(json, '{}');
-    const inspector = new LocalDocumentInspector();
+    const inspector = new LocalDocumentInspector(os.tmpdir());
 
     const ok = await inspector.inspect(pdf);
     assert.ok(!isInspectionFailure(ok));
@@ -186,6 +255,22 @@ describe('LocalDocumentInspector', () => {
     );
     assert.equal(MAX_DOCUMENT_BYTES, 209_715_200);
   });
+
+  it('confines row files to the documents directory; not the shared document', async () => {
+    const dir = tempDir('dispatch-confined');
+    const documentsDir = path.join(dir, 'documents');
+    const outside = path.join(dir, 'outside.pdf');
+    await writeFixture(path.join(documentsDir, 'atto.pdf'), '%PDF-1.7 in');
+    await writeFixture(outside, '%PDF-1.7 out');
+    // Symlinks escaping the directory are covered by the go-common confineTo tests.
+    const escaping = path.join(documentsDir, '..', 'outside.pdf');
+    const inspector = new LocalDocumentInspector(documentsDir);
+
+    assert.ok(!isInspectionFailure(await inspector.inspectRowFile(path.join(documentsDir, 'atto.pdf'))));
+    const escaped = await inspector.inspectRowFile(escaping);
+    assert.equal(isInspectionFailure(escaped) ? escaped.failure : 'ok', 'DOCUMENT_OUTSIDE_DIR');
+    assert.ok(!isInspectionFailure(await inspector.inspect(outside)), 'the shared document is not confined');
+  });
 });
 
 describe('DocumentResolver', () => {
@@ -193,34 +278,61 @@ describe('DocumentResolver', () => {
     const dir = tempDir('dispatch-shared');
     const pdf = path.join(dir, 'atto.pdf');
     await writeFixture(pdf, '%PDF-1.4');
-    const inspector = new LocalDocumentInspector();
+    const inspector = new LocalDocumentInspector(os.tmpdir());
 
-    const reference = await DocumentResolver.prepareShared(
-      { reference: { key: 'K', versionToken: 'v1', sha256: 'S' }, title: 'Atto' },
+    const reference = await DocumentResolver.prepareShared({
+      config: { reference: { key: 'K', versionToken: 'v1', sha256: 'S' }, title: 'Atto' },
       inspector,
-      undefined,
-      false,
-    );
+      placeholders: false,
+    });
     assert.deepEqual(reference, [
       { key: 'K', versionToken: 'v1', sha256: 'S', contentType: 'application/pdf', title: 'Atto' },
     ]);
 
-    const placeholder = await DocumentResolver.prepareShared({ files: [pdf] }, inspector, undefined, true);
+    const placeholder = await DocumentResolver.prepareShared({
+      config: { files: [pdf] },
+      inspector,
+      placeholders: true,
+    });
     assert.match(placeholder[0]?.key ?? '', /^<upload:/);
     assert.equal(placeholder[0]?.title, 'atto');
 
     // Outside a dry run, a file without an upload stage never becomes a placeholder.
     await assert.rejects(
-      DocumentResolver.prepareShared({ files: [pdf] }, inspector, undefined, false),
+      DocumentResolver.prepareShared({ config: { files: [pdf] }, inspector, placeholders: false }),
       /SafeStorage gateway is not configured/,
     );
 
     await assert.rejects(
-      DocumentResolver.prepareShared({ files: [path.join(dir, 'missing.pdf')] }, inspector, undefined, true),
+      DocumentResolver.prepareShared({
+        config: { files: [path.join(dir, 'missing.pdf')] },
+        inspector,
+        placeholders: true,
+      }),
       /file not found/,
     );
 
     const resolver = new DocumentResolver({ inspector, shared: reference, placeholders: false });
     assert.deepEqual(await resolver.resolve({ kind: 'shared' }), reference);
+  });
+
+  it('rejects a pratica without attachments with a non-retryable error', async () => {
+    const resolver = new DocumentResolver({
+      inspector: new LocalDocumentInspector(os.tmpdir()),
+      placeholders: false,
+      attachmentsByPratica: new Map([['P-EMPTY', []]]),
+    });
+    for (const [pratica, code] of [
+      ['P-EMPTY', 'PRATICA_EMPTY'],
+      ['P-UNKNOWN', 'PRATICA_UNKNOWN'],
+    ] as const) {
+      const error = await resolver.resolve({ kind: 'pratica', pratica }).then(
+        () => undefined,
+        (rejection: unknown) => rejection,
+      );
+      assert.ok(error instanceof DispatchError, `${pratica} rejects`);
+      assert.equal(error.code, code);
+      assert.equal(toDocumentFailure(error)?.rowError.retryable, false);
+    }
   });
 });

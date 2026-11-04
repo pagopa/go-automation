@@ -2,6 +2,9 @@ import type { RowState } from '../model/RowState.js';
 import type { RowAction } from './RowAction.js';
 import type { RowActionPolicy } from './RowActionPolicy.js';
 
+/** Prefix of the `requestIdReason` of a workflow that ended without the wanted categories. */
+const WORKFLOW_ENDED_PREFIX = 'WORKFLOW_ENDED';
+
 /**
  * Decides what to do with a row on (re)start (§11.3). Pure.
  *
@@ -14,7 +17,6 @@ export function decideRowAction(state: RowState | undefined, policy: RowActionPo
   switch (status) {
     case undefined:
     case 'PENDING':
-    case 'UPLOADING':
     case 'SENDING':
     case 'RECONCILING':
       return 'send';
@@ -23,19 +25,19 @@ export function decideRowAction(state: RowState | undefined, policy: RowActionPo
     case 'SEND_FAILED':
       return policy.retryFailed && state?.error?.retryable === true ? 'send' : 'skip';
     case 'SENT':
-    case 'VERIFYING':
       if (policy.verify) return 'verify';
       return policy.requestId ? 'request-id' : 'skip';
     case 'VERIFY_TIMEOUT':
       return policy.verify ? 'verify' : 'skip';
     case 'ACCEPTED':
+      return policy.requestId ? 'request-id' : 'skip';
     case 'REQUEST_ID_NOT_FOUND':
+      // The workflow ended without the wanted categories: querying again cannot find them.
+      if (state?.requestIdReason?.startsWith(WORKFLOW_ENDED_PREFIX) === true) return 'skip';
       return policy.requestId ? 'request-id' : 'skip';
     case 'INVALID':
-    case 'DRY_RUN':
     case 'REFUSED':
     case 'REQUEST_ID_FOUND':
-    case 'DONE':
       return 'skip';
     default: {
       const exhaustive: never = status;

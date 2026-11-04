@@ -1,3 +1,5 @@
+import type { GOHttpRequestOptions } from '@go-automation/go-common/core';
+
 import type { SENDApiVersion } from '../../services/notification/models/SENDApiVersion.js';
 import type { SENDNotificationCreationResponse } from '../../services/notification/models/SENDNotificationCreationResponse.js';
 import type { SENDNotificationRequest } from '../../services/notification/models/SENDNotificationRequest.js';
@@ -22,19 +24,30 @@ export class B2BChannel implements B2BApi {
   public async status(
     notificationRequestId: string,
     apiVersion: SENDApiVersion,
+    signal?: AbortSignal,
   ): Promise<SENDNotificationStatusResponse> {
-    return this.service.getNotificationRequestStatus(notificationRequestId, apiVersion);
+    return this.service.getNotificationRequestStatus(notificationRequestId, apiVersion, requestOptions(signal));
   }
 
   public async lookup(
     paProtocolNumber: string,
     idempotenceToken: string,
     apiVersion: SENDApiVersion,
+    signal?: AbortSignal,
   ): Promise<SENDNotificationStatusResponse> {
-    return this.service.getNotificationStatusByProtocol(paProtocolNumber, idempotenceToken, apiVersion);
+    return this.service.getNotificationStatusByProtocol(
+      paProtocolNumber,
+      idempotenceToken,
+      apiVersion,
+      requestOptions(signal),
+    );
   }
 
   public async groups(): Promise<ReadonlyArray<DispatchGroup>> {
     return this.service.getGroups(true);
   }
+}
+
+function requestOptions(signal: AbortSignal | undefined): GOHttpRequestOptions | undefined {
+  return signal === undefined ? undefined : { signal };
 }

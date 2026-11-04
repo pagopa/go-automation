@@ -34,6 +34,7 @@ import { GOConsoleLoggerHandler } from '../logging/handlers/GOConsoleLoggerHandl
 import { GOFileLoggerHandler } from '../logging/handlers/GOFileLoggerHandler.js';
 import { GOJsonLoggerHandler } from '../logging/handlers/GOJsonLoggerHandler.js';
 import { GOPrompt } from '../prompt/GOPrompt.js';
+import { GOPromptInterruptedError } from '../prompt/GOPromptInterruptedError.js';
 import { getErrorMessage, getErrorStack, toError } from '../errors/GOErrorUtils.js';
 import { GOPaths, formatConfigValueDisplay, formatConfigSourceDisplay, valueToString } from '../utils/index.js';
 import type { GOPathTypeValue } from '../utils/index.js';
@@ -123,6 +124,9 @@ export class GOScript {
   private readonly env: GOEnv = new GOEnv();
   private signalHandlersSetup: boolean = false;
   private isShuttingDown: boolean = false;
+  // Outcome of the cleanup run by the last executeLifecycle(): run() needs it to
+  // pick the exit code after a Ctrl+C on a prompt (130, or 1 if the cleanup failed).
+  private lastCleanupSucceeded: boolean = true;
 
   // Signal handler references kept for removal in cleanup() (prevents memory leaks)
   private readonly signalHandlerRefs: GOScriptSignalHandlerRef[] = [];
@@ -809,7 +813,10 @@ export class GOScript {
 
       return result;
     } catch (error) {
-      if (error instanceof Error && this.preloggedErrors.has(error)) {
+      if (error instanceof GOPromptInterruptedError) {
+        // Ctrl+C on a prompt: the user stopped the run, nothing failed — no error log, no onError.
+        this.logger.warning('Interrupted by the user (Ctrl+C)');
+      } else if (error instanceof Error && this.preloggedErrors.has(error)) {
         // Already logged by a specific throw site — only call the hook, skip generic re-logging.
         await this.hooks.onError?.(toError(error), this.buildHookContext());
       } else {
@@ -818,7 +825,7 @@ export class GOScript {
       }
       throw error;
     } finally {
-      await this.cleanup();
+      this.lastCleanupSucceeded = await this.releaseResources();
     }
   }
 
@@ -849,6 +856,9 @@ export class GOScript {
    * - AWS credentials retry (if enabled)
    * - Lifecycle hooks (onBeforeRun, onAfterRun)
    * - Cleanup (including file copying)
+   * - Ctrl+C on a prompt ({@link GOPromptInterruptedError}): after the normal
+   *   cleanup (including `onCleanup`) the process exits with `130`, as on
+   *   `SIGINT`, or `1` if a cleanup step failed
    *
    * @param mainFunction - The main script logic to execute
    *
@@ -867,7 +877,16 @@ export class GOScript {
     this.setupProcessGuards();
     // Setup graceful shutdown handlers (once, local/CI only — skipped in Lambda)
     this.setupSignalHandlers();
-    await this.executeLifecycle(async () => Promise.resolve(mainFunction()), 'Script completed successfully');
+    try {
+      await this.executeLifecycle(async () => Promise.resolve(mainFunction()), 'Script completed successfully');
+    } catch (error) {
+      if (error instanceof GOPromptInterruptedError) {
+        // In raw mode Ctrl+C is a key, not SIGINT: end the process as the SIGINT handler
+        // would. executeLifecycle() has already run the cleanup.
+        process.exit(this.lastCleanupSucceeded ? signalExitCode('SIGINT') : 1);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -1260,8 +1279,22 @@ export class GOScript {
    * (Lambda/ECS/CodeBuild) to allow connection-pool reuse across invocations.
    * They are only closed in local/CI environments where the process exits after
    * each script run anyway.
+   *
+   * Never rejects: a failing step (e.g. the `onCleanup` hook) is logged to the
+   * console and stops the remaining steps. On the signal path the failure is
+   * also reflected in the exit code (`1`).
    */
   public async cleanup(): Promise<void> {
+    await this.releaseResources();
+  }
+
+  /**
+   * Body of {@link cleanup}: runs the cleanup steps and reports the outcome.
+   *
+   * @returns `true` when every step succeeded, `false` when one threw (the
+   *   error is logged to the console and the remaining steps are skipped)
+   */
+  private async releaseResources(): Promise<boolean> {
     try {
       // Cleanup hook
       await this.hooks.onCleanup?.(this.buildHookContext());
@@ -1289,25 +1322,13 @@ export class GOScript {
           await handler.close();
         }
       }
+      return true;
     } catch (error) {
       console.error('Error during cleanup:', error);
+      return false;
     }
   }
 
-  /**
-   * Setup graceful shutdown handlers for container environments.
-   * Handles SIGTERM, SIGINT, and SIGQUIT signals for clean termination.
-   *
-   * - SIGTERM: Sent by Docker stop, Kubernetes pod termination
-   * - SIGINT: Sent by Ctrl+C in terminal
-   * - SIGQUIT: Sent by Ctrl+\ in terminal
-   *
-   * On signal reception:
-   * 1. Logs warning about shutdown initiation
-   * 2. Calls cleanup() to release resources
-   * 3. Exits with code 128 + signal number (130 for SIGINT, 143 for SIGTERM),
-   *    or 1 if forced by a repeated signal or if cleanup fails
-   */
   /**
    * Detect whether the process is running under a test runner.
    *
@@ -1343,6 +1364,21 @@ export class GOScript {
     installProcessGuards({ exitOnFatal: true, includeBeforeExit: this.environment.isAWSManaged });
   }
 
+  /**
+   * Setup graceful shutdown handlers for container environments.
+   * Handles SIGTERM, SIGINT, and SIGQUIT signals for clean termination.
+   *
+   * - SIGTERM: Sent by Docker stop, Kubernetes pod termination
+   * - SIGINT: Sent by Ctrl+C in terminal
+   * - SIGQUIT: Sent by Ctrl+\ in terminal
+   *
+   * On signal reception:
+   * 1. Logs warning about shutdown initiation
+   * 2. Runs the cleanup steps of cleanup() to release resources
+   * 3. Exits with code 128 + signal number (130 for SIGINT, 131 for SIGQUIT,
+   *    143 for SIGTERM), or 1 if forced by a repeated signal or if a cleanup
+   *    step (including the `onCleanup` hook) fails
+   */
   private setupSignalHandlers(): void {
     // Prevent duplicate handler registration
     if (this.signalHandlersSetup) {
@@ -1372,15 +1408,15 @@ export class GOScript {
         this.logger.warning(`Received ${signal}, initiating graceful shutdown...`);
         this.logger.info('Waiting for current operations to complete...');
 
-        this.cleanup()
-          .then(() => {
+        // releaseResources() never rejects: a failing step resolves to false.
+        void this.releaseResources().then((succeeded) => {
+          if (succeeded) {
             this.logger.info('Cleanup completed, exiting...');
-            process.exit(signalExitCode(signal));
-          })
-          .catch((error: unknown) => {
-            this.logger.error(`Error during cleanup: ${getErrorMessage(error)}`);
-            process.exit(1);
-          });
+          } else {
+            this.logger.error('Cleanup failed, exiting with code 1');
+          }
+          process.exit(succeeded ? signalExitCode(signal) : 1);
+        });
       };
 
       // Store reference so cleanup() can remove it, preventing listener accumulation

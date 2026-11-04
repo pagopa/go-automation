@@ -8,6 +8,7 @@ import type { SENDNotificationRequest } from '../../../services/notification/mod
 import type { SENDPreloadRequest } from '../../../services/attachment/models/SENDPreloadRequest.js';
 import type { SENDPreloadResponse } from '../../../services/attachment/models/SENDPreloadResponse.js';
 import { FakeB2BApi } from '../../__tests__/helpers/FakeB2BApi.js';
+import { collect } from '../../__tests__/helpers/collect.js';
 import { readFixture, tempDir, writeFixture } from '../../__tests__/helpers/testFiles.js';
 import { VirtualClock } from '../../__tests__/helpers/VirtualClock.js';
 import type { SafeStorageGateway } from '../../documents/SafeStorageGateway.js';
@@ -266,6 +267,21 @@ describe('DispatchSession', () => {
     assert.equal(await readFixture(path.join(base.dir, 'session-1', 'run.json')), undefined);
   });
 
+  it('validate() after stop() reads no row and the session reports stopped', async () => {
+    const base = await fixture(8, [3]);
+    const clock = new VirtualClock();
+    const session = await DispatchSession.open(
+      options(base, new FakeB2BApi(clock), new CountingGateway(), clock, { dryRun: true }),
+    );
+    session.stop();
+
+    const summary = await session.validate();
+    await session.close();
+
+    assert.equal(session.stopped, true);
+    assert.equal(summary.totalRows, 0);
+  });
+
   it('sends every valid row once, uploads the shared document once, writes output 1:1', async () => {
     const base = await fixture(50, [7]);
     const clock = new VirtualClock();
@@ -320,7 +336,7 @@ describe('DispatchSession', () => {
       path.join(base.dir, 'session-1', 'journal.jsonl'),
       path.join(base.dir, 'session-2', 'journal.jsonl'),
     ]);
-    const journal = await Journal.read(info.journalFiles);
+    const journal = await collect(Journal.entries(info.journalFiles));
     assert.equal(journal.filter((entry) => entry.event === 'SENT').length, 40);
     assert.equal(resumed.progress().byStatus.get('ACCEPTED'), 40);
   });
@@ -356,8 +372,75 @@ describe('DispatchSession', () => {
     assert.equal(api.created.size, 5, 'nothing sent again');
     assert.equal(resumed.progress().byStatus.get('ACCEPTED'), 5);
     assert.equal(resumed.progress().byStatus.get('INVALID'), undefined);
-    const journal = await Journal.read([path.join(base.dir, 'session-2', 'journal.jsonl')]);
+    const journal = await collect(Journal.entries([path.join(base.dir, 'session-2', 'journal.jsonl')]));
     assert.equal(journal.filter((entry) => entry.event === 'ROW_INVALID').length, 0);
+  });
+
+  it('a resume sends the rows a previous session recorded INVALID once they validate', async () => {
+    const base = await fixture(4);
+    const clock = new VirtualClock();
+    const api = new FakeB2BApi(clock);
+    const gateway = new CountingGateway();
+    // First session: no sender configured, every row is invalid.
+    const first = await DispatchSession.open(options(base, api, gateway, clock, { environmentValues: new Map() }));
+    const before = await clock.run(first.validate());
+    assert.equal(before.invalidRows, 4);
+    await first.close();
+
+    const previousRunInfoPath = path.join(base.dir, 'session-1', 'run.json');
+    const previousRun = await readRunInfo(previousRunInfoPath);
+    const resumed = await DispatchSession.open(
+      options(base, api, gateway, clock, { previousRun, previousRunInfoPath }, 'session-2'),
+    );
+    await clock.run(resumed.prepareDocuments());
+    const summary = await clock.run(resumed.validate());
+    assert.equal(summary.invalidRows, 0);
+    assert.equal(summary.rowsToSend, 4);
+    await clock.run(resumed.execute());
+    await resumed.close();
+    assert.equal(api.created.size, 4, 'revalidated rows are sent, not skipped forever');
+  });
+
+  it('on resume the plan counts only the rows still to send; a dry-run resume replays the journal read-only', async () => {
+    const base = await fixture(10);
+    const clock = new VirtualClock();
+    const api = new InterruptingApi(clock);
+    api.stopAfter = 4;
+    const gateway = new CountingGateway();
+    const first = await DispatchSession.open(options(base, api, gateway, clock, { verify: false }));
+    api.session = first;
+    await runSession(first, clock);
+    const sent = api.created.size;
+    assert.ok(sent >= 4 && sent < 10, `sent before stop: ${sent}`);
+
+    const previousRunInfoPath = path.join(base.dir, 'session-1', 'run.json');
+    const previousRun = await readRunInfo(previousRunInfoPath);
+    const dryRun = await DispatchSession.open(
+      options(
+        base,
+        api,
+        gateway,
+        clock,
+        { previousRun, previousRunInfoPath, dryRun: true, verify: false },
+        'session-2',
+      ),
+    );
+    const summary = await clock.run(dryRun.validate());
+    assert.equal(summary.validRows, 10);
+    assert.equal(summary.rowsToSend, 10 - sent);
+    assert.equal(summary.rowsToProcess, 10 - sent);
+    assert.equal(dryRun.progress().byStatus.get('SENT'), sent, 'the previous journal is replayed');
+    await dryRun.close();
+    assert.equal(await readFixture(path.join(base.dir, 'session-2', 'journal.jsonl')), undefined, 'nothing written');
+
+    const content = (await readFixture(base.input)) ?? '';
+    await writeFixture(base.input, `${content}S-99,x,RSSMRA80A01H501U,y,00100,Roma,Via,ITALIA,\n`);
+    await assert.rejects(
+      DispatchSession.open(
+        options(base, api, gateway, clock, { previousRun, previousRunInfoPath, dryRun: true }, 'session-2'),
+      ),
+      /input file changed/,
+    );
   });
 
   it('refuses to send row files without a SafeStorage gateway instead of sending placeholder keys', async () => {

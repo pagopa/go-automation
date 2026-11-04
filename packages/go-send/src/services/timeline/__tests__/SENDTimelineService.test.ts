@@ -62,4 +62,21 @@ describe('SENDTimelineService', () => {
       ['A', 'B'],
     );
   });
+
+  it('orders timestamps as instants, not as strings', async () => {
+    const client = new PagedClient([
+      [
+        item('LATER', 'B', '2026-01-01T10:00:30.5Z'),
+        item('EARLIER', 'A', '2026-01-01T10:00:30Z'),
+        item('SUB_MS_LATE', 'C', '2026-01-01T10:00:30.5009Z'),
+        item('SUB_MS_EARLY', 'D', '2026-01-01T10:00:30.5001Z'),
+      ],
+    ]);
+    const service = new SENDTimelineService(client as unknown as DynamoDBClient);
+    const elements = await service.queryTimelineElements('IUN');
+    assert.deepEqual(
+      elements.map((element) => element.timelineElementId),
+      ['EARLIER', 'LATER', 'SUB_MS_EARLY', 'SUB_MS_LATE'],
+    );
+  });
 });

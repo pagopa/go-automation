@@ -25,7 +25,7 @@ export interface SendStageOptions {
   readonly retryAmbiguous: boolean;
   /** Longest time a row may keep being rescheduled because of `429`, ms. */
   readonly sendTimeoutMs: number;
-  /** Wait before the lookup of an ambiguous send, ms (default 5 s). */
+  /** Wait before the lookup of an ambiguous send (not after a `409`), ms (default 5 s). */
   readonly reconcileDelayMs?: number;
   /** New POSTs after a `404` lookup, at most (default 3). */
   readonly maxReconcilePosts?: number;
@@ -33,6 +33,6 @@ export interface SendStageOptions {
   readonly maxLookupFailures?: number;
   readonly onSent: SentHandler;
   readonly onGlobalError: GlobalErrorHandler;
-  /** Aborted when the run stops: no new POST starts. */
+  /** Aborted when the run stops: no new POST starts; POSTs in flight are never aborted. */
   readonly signal: AbortSignal;
 }

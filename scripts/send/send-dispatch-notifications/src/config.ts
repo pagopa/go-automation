@@ -5,6 +5,7 @@
  */
 
 import { Core } from '@go-automation/go-common';
+import { Dispatch } from '@go-automation/go-send';
 
 /**
  * Script metadata
@@ -62,7 +63,8 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'defaults',
     type: STRING_ARRAY,
-    description: 'Default di campi canonici, campo=valore (es. direct.aar.key=PN_AAR-…pdf)',
+    description:
+      'Default di campi canonici, campo=valore (es. direct.aar.key=PN_AAR-…pdf); una voce senza campo= continua la precedente',
   },
 
   // Direct mode (pn-external-channels)
@@ -73,10 +75,16 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   { name: 'ec.client.id', type: STRING, description: 'Header x-pagopa-extch-cx-id', defaultValue: 'pn-cons-000' },
   {
+    name: 'ec.production',
+    type: BOOL,
+    description: 'Il tunnel punta a pn-external-channels di produzione: serve --confirm-production',
+    defaultValue: false,
+  },
+  {
     name: 'direct.request.id.template',
     type: STRING,
     description: 'Template del requestId: {runId} {rowKey} {rowIndex} {attempt} {col:<colonna>}',
-    defaultValue: 'PNMAN.GO-{runId}.{rowKey}.PCRETRY_0',
+    defaultValue: Dispatch.DEFAULT_DIRECT_REQUEST_ID_TEMPLATE,
   },
 
   // Documents
@@ -102,7 +110,11 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   { name: 'dry.run', type: BOOL, description: 'Nessuna chiamata (default sicuro)', defaultValue: true },
   { name: 'yes', type: BOOL, description: 'Salta la conferma (non in produzione)', defaultValue: false },
-  { name: 'confirm.production', type: INT, description: 'In produzione: numero di righe valide da confermare' },
+  {
+    name: 'confirm.production',
+    type: INT,
+    description: 'In produzione: numero di righe da inviare (o da elaborare, senza invii) mostrato dal piano',
+  },
   { name: 'verbose', type: BOOL, description: 'Una riga di log per ogni transizione di riga', defaultValue: false },
   { name: 'fail.fast', type: BOOL, description: 'Si ferma alla prima riga non valida o fallita', defaultValue: false },
 
@@ -110,7 +122,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'resume',
     type: STRING,
-    description: 'Directory di esecuzione (nome sotto outputs/ o path) del run da riprendere',
+    description: 'Directory di esecuzione (nome sotto outputs/ o path) del run da riprendere, con gli stessi parametri',
   },
   {
     name: 'retry.failed',
@@ -186,7 +198,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'output.only.success',
     type: BOOL,
-    description: 'Solo righe con IUN nel file principale',
+    description: 'Solo righe SENT, ACCEPTED, REQUEST_ID_FOUND, REQUEST_ID_NOT_FOUND nel file principale',
     defaultValue: false,
   },
 ];

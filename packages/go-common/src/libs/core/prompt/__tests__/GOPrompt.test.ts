@@ -4,6 +4,8 @@
 
 import { describe, it, mock, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 
 import {
   GO_PROMPT_BACK,
@@ -12,6 +14,7 @@ import {
   type GOPromptInputOptions,
   type GOPromptSelectInputOptions,
 } from '../GOPrompt.js';
+import { GOPromptInterruptedError } from '../GOPromptInterruptedError.js';
 import { GOLogger } from '../../logging/GOLogger.js';
 
 // Mock logger
@@ -601,5 +604,97 @@ describe('GOPrompt.dateRangeWithBack', () => {
     await prompt.dateRange('Period', { now: NOW, backLabel: '← Back' });
 
     assert.ok(!(offered[0] ?? []).includes('← Back'));
+  });
+});
+
+/** How a test delivers Ctrl+C to an open prompt. */
+type InterruptFn = () => void;
+
+describe('Ctrl+C on a prompt', () => {
+  /** Error inquirer rejects with when its prompt is closed by Ctrl+C. */
+  function exitPromptError(): Error {
+    const error = new Error('User force closed the prompt with SIGINT');
+    error.name = 'ExitPromptError';
+    return error;
+  }
+
+  /** Prompt whose every method runs `interrupt` (the way Ctrl+C reaches it) and then rejects like inquirer. */
+  function createInterruptedPrompt(interrupt: InterruptFn): GOPrompt {
+    const fail = async (): Promise<never> => {
+      interrupt();
+      return await Promise.reject(exitPromptError());
+    };
+    const adapter: GOPromptAdapter = {
+      text: fail,
+      password: fail,
+      number: fail,
+      confirm: fail,
+      select: fail,
+      checkbox: fail,
+      search: fail,
+    };
+    return new GOPrompt(logger, false, adapter);
+  }
+
+  const pressCtrlC: InterruptFn = () => {
+    process.stdin.emit('keypress', '\u0003', { ctrl: true, name: 'c' });
+  };
+
+  it('throws GOPromptInterruptedError instead of exiting the process', async (t) => {
+    const exit = t.mock.method(process, 'exit', (): never => undefined as never);
+    const prompt = createInterruptedPrompt(pressCtrlC);
+
+    await assert.rejects(prompt.confirm('Proceed?', false), GOPromptInterruptedError);
+    assert.strictEqual(exit.mock.callCount(), 0);
+  });
+
+  it('throws GOPromptInterruptedError from the prompts that offer ←', async () => {
+    const prompt = createInterruptedPrompt(pressCtrlC);
+
+    await assert.rejects(
+      prompt.selectWithBack<string>('Ambiente', [{ title: 'Produzione', value: 'prod' }]),
+      GOPromptInterruptedError,
+    );
+  });
+
+  it('treats SIGINT during the prompt (stdin not in raw mode) as Ctrl+C', async () => {
+    const prompt = createInterruptedPrompt(() => process.emit('SIGINT', 'SIGINT'));
+
+    await assert.rejects(prompt.text('Name'), GOPromptInterruptedError);
+  });
+
+  it('still resolves to undefined when the prompt is closed without Ctrl+C', async () => {
+    const prompt = createInterruptedPrompt(() => undefined);
+
+    assert.strictEqual(await prompt.text('Name'), undefined);
+  });
+
+  it('registers no SIGINT listener when the module is imported', async () => {
+    // A fresh process: in this one the module is already loaded.
+    const moduleUrl = new URL('../GOPrompt.ts', import.meta.url).href;
+    const code = `await import(${JSON.stringify(moduleUrl)}); console.log(process.listenerCount('SIGINT'));`;
+
+    const { stdout } = await promisify(execFile)(process.execPath, [
+      '--import',
+      'tsx/esm',
+      '--input-type=module',
+      '-e',
+      code,
+    ]);
+
+    assert.strictEqual(stdout.trim(), '0');
+  });
+
+  it('listens to SIGINT only while a prompt is open', async () => {
+    const before = process.listenerCount('SIGINT');
+    let during = -1;
+    const prompt = createInterruptedPrompt(() => {
+      during = process.listenerCount('SIGINT');
+    });
+
+    await prompt.text('Name');
+
+    assert.strictEqual(during, before + 1);
+    assert.strictEqual(process.listenerCount('SIGINT'), before);
   });
 });

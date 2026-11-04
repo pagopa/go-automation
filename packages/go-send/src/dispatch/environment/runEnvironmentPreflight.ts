@@ -24,7 +24,7 @@ export const DEFAULT_PRODUCTION_HOSTS: ReadonlyArray<string> = ['api.notifichedi
  * @param input - Environment facts to check
  * @param fetchGroups - Reads the PA groups (one B2B call, through the limiter)
  * @returns Report with the group shown in the send plan
- * @throws DispatchError with codes `PRODUCTION_HOST`, `API_KEY_REJECTED`, `GROUP_NOT_FOUND`, `GROUP_NOT_ACTIVE`
+ * @throws DispatchError with codes `INVALID_BASE_PATH`, `PRODUCTION_HOST`, `API_KEY_REJECTED`, `GROUP_NOT_FOUND`, `GROUP_NOT_ACTIVE`
  */
 export async function runEnvironmentPreflight(
   input: PreflightInput,
@@ -72,9 +72,12 @@ export async function runEnvironmentPreflight(
  *
  * @param input - Base path and production flag
  * @returns The host of the base path
- * @throws DispatchError `PRODUCTION_HOST`
+ * @throws DispatchError `INVALID_BASE_PATH` (malformed URL) or `PRODUCTION_HOST`
  */
 export function assertProductionCoherence(input: PreflightInput): string {
+  if (!URL.canParse(input.basePath)) {
+    throw new DispatchError('INVALID_BASE_PATH', `basePath "${input.basePath}" is not a valid URL`);
+  }
   const host = new URL(input.basePath).hostname.toLowerCase();
   const productionHosts = input.productionHosts ?? DEFAULT_PRODUCTION_HOSTS;
   if (!input.production && productionHosts.some((candidate) => candidate.toLowerCase() === host)) {

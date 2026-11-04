@@ -1,10 +1,13 @@
 import * as path from 'node:path';
 
+import { asRecord, optionalString, rejectUnknownKeys, requiredString, stringList } from '../config/configGuards.js';
 import type { DispatchSender } from '../model/DispatchSender.js';
 import { isCanonicalField } from '../mapping/canonicalFields.js';
 import type { CanonicalField } from '../mapping/CanonicalField.js';
+import { SHA256_BASE64 } from '../mapping/fieldPatterns.js';
 import type { EnvironmentDefinition } from './EnvironmentDefinition.js';
 import type { EnvironmentsFile } from './EnvironmentsFile.js';
+import type { ParsedEnvironmentDefaults } from './ParsedEnvironmentDefaults.js';
 import type { SharedDocumentConfig } from './SharedDocumentConfig.js';
 
 const ENVIRONMENT_KEYS: ReadonlySet<string> = new Set([
@@ -21,6 +24,11 @@ const SHARED_DOCUMENT_FIELD = 'documents.shared';
 const VARIABLE_REFERENCE = /^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$/;
 /** Fields holding codes whose leading zeros YAML would drop if unquoted. */
 const CODE_FIELDS = /(taxId|zip|noticeCode|creditorTaxId)$/;
+const HTTP_SCHEME = /^https?:\/\//i;
+const TRAILING_SLASHES = /\/+$/;
+/** Same limits as a per-row `documents.reference` (see `recordReaders`). */
+const MAX_REFERENCE_KEY_LENGTH = 512;
+const MAX_VERSION_TOKEN_LENGTH = 256;
 
 /**
  * Validates an untrusted value (a parsed YAML/JSON file) as an environments
@@ -71,7 +79,7 @@ function parseEnvironment(name: string, value: unknown, where: string, baseDir: 
 
   return {
     name,
-    basePath: normalizeBasePath(requiredString(env['basePath'], `${where}.basePath`)),
+    basePath: normalizeBasePath(requiredString(env['basePath'], `${where}.basePath`), `${where}.basePath`),
     apiKeyVariable: variable,
     production,
     defaults,
@@ -88,11 +96,18 @@ function parseEnvironment(name: string, value: unknown, where: string, baseDir: 
  * a trailing slash.
  *
  * @param basePath - Host or URL
+ * @param where - Name of the setting, for the error message (default `basePath`)
  * @returns URL with scheme
+ * @throws Error when the result is not a valid URL
  */
-export function normalizeBasePath(basePath: string): string {
-  const withScheme = /^https?:\/\//i.test(basePath) ? basePath : `https://${basePath}`;
-  return withScheme.replace(/\/+$/, '');
+export function normalizeBasePath(basePath: string, where: string = 'basePath'): string {
+  const trimmed = basePath.trim();
+  const withScheme = HTTP_SCHEME.test(trimmed) ? trimmed : `https://${trimmed}`;
+  const normalized = withScheme.replace(TRAILING_SLASHES, '');
+  if (!URL.canParse(normalized)) {
+    throw new Error(`${where}: "${basePath}" is not a valid host or URL (e.g. api.uat.notifichedigitali.it)`);
+  }
+  return normalized;
 }
 
 function parseSender(value: unknown, where: string): DispatchSender {
@@ -104,11 +119,7 @@ function parseSender(value: unknown, where: string): DispatchSender {
   };
 }
 
-function parseDefaults(
-  value: unknown,
-  where: string,
-  baseDir: string,
-): { readonly defaults: ReadonlyMap<CanonicalField, string>; readonly sharedDocument?: SharedDocumentConfig } {
+function parseDefaults(value: unknown, where: string, baseDir: string): ParsedEnvironmentDefaults {
   const defaults = new Map<CanonicalField, string>();
   if (value === undefined) return { defaults };
   let sharedDocument: SharedDocumentConfig | undefined;
@@ -142,44 +153,32 @@ export function parseSharedDocument(value: unknown, where: string, baseDir: stri
   if (hasFiles === hasReference) throw new Error(`${where}: set exactly one of "files" and "reference"`);
 
   if (hasFiles) {
-    const files = stringList(block['files']);
-    if (files === undefined || files.length === 0) throw new Error(`${where}.files: must be a non-empty list of paths`);
+    const files = stringList(block['files'], `${where}.files`);
+    if (files.length === 0) throw new Error(`${where}.files: must be a non-empty list of paths`);
     return { files: files.map((file) => path.resolve(baseDir, file)), ...(title !== undefined && { title }) };
   }
 
-  const reference = asRecord(block['reference'], `${where}.reference`);
-  rejectUnknownKeys(reference, new Set(['key', 'versionToken', 'sha256', 'title']), `${where}.reference`);
-  const referenceTitle = optionalString(reference['title'], `${where}.reference.title`) ?? title;
+  const referenceWhere = `${where}.reference`;
+  const reference = asRecord(block['reference'], referenceWhere);
+  rejectUnknownKeys(reference, new Set(['key', 'versionToken', 'sha256', 'title']), referenceWhere);
+  const referenceTitle = optionalString(reference['title'], `${referenceWhere}.title`) ?? title;
   return {
     reference: {
-      key: requiredString(reference['key'], `${where}.reference.key`),
-      versionToken: scalarString(reference['versionToken'], `${where}.reference.versionToken`),
-      sha256: requiredString(reference['sha256'], `${where}.reference.sha256`),
+      key: maxLength(
+        requiredString(reference['key'], `${referenceWhere}.key`),
+        MAX_REFERENCE_KEY_LENGTH,
+        `${referenceWhere}.key`,
+      ),
+      versionToken: maxLength(
+        codeString(reference['versionToken'], `${referenceWhere}.versionToken`),
+        MAX_VERSION_TOKEN_LENGTH,
+        `${referenceWhere}.versionToken`,
+      ),
+      sha256: sha256String(reference['sha256'], `${referenceWhere}.sha256`),
       ...(referenceTitle !== undefined && { title: referenceTitle }),
     },
     ...(title !== undefined && { title }),
   };
-}
-
-function asRecord(value: unknown, where: string): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value))
-    throw new Error(`${where}: must be an object`);
-  return value as Record<string, unknown>;
-}
-
-function rejectUnknownKeys(record: Record<string, unknown>, allowed: ReadonlySet<string>, where: string): void {
-  for (const key of Object.keys(record)) {
-    if (!allowed.has(key)) throw new Error(`${where}: unknown key "${key}"`);
-  }
-}
-
-function requiredString(value: unknown, where: string): string {
-  if (typeof value !== 'string' || value.trim() === '') throw new Error(`${where}: must be a non-empty string`);
-  return value.trim();
-}
-
-function optionalString(value: unknown, where: string): string | undefined {
-  return value === undefined ? undefined : requiredString(value, where);
 }
 
 /** Accepts strings, numbers and booleans (YAML turns `100` or `true` into non-strings). */
@@ -201,9 +200,14 @@ function codeString(value: unknown, where: string): string {
   return requiredString(value, where);
 }
 
-/** A list of strings, or `undefined` when the value is not one. */
-function stringList(value: unknown): ReadonlyArray<string> | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const items: ReadonlyArray<unknown> = value;
-  return items.every((item): item is string => typeof item === 'string') ? items : undefined;
+/** A Base64 SHA-256 digest (44 characters), as SafeStorage expects it. */
+function sha256String(value: unknown, where: string): string {
+  const digest = requiredString(value, where);
+  if (!SHA256_BASE64.test(digest)) throw new Error(`${where}: must be a Base64 SHA-256 of 44 characters`);
+  return digest;
+}
+
+function maxLength(value: string, limit: number, where: string): string {
+  if (value.length > limit) throw new Error(`${where}: exceeds ${limit} characters (${value.length})`);
+  return value;
 }

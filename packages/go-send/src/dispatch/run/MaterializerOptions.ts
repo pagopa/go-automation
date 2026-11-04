@@ -19,7 +19,7 @@ export interface MaterializerOptions {
   readonly rowKeyColumn?: string;
   /** Add `_status`, `_notificationRequestId`, `_error` to the output. */
   readonly includeStatus: boolean;
-  /** Only rows with an IUN in the output. */
+  /** Only rows SEND (or pn-ec) accepted in the output: never refused, failed or timed out ones. */
   readonly onlySuccess: boolean;
   /** Status shown for valid rows never sent: `DRY_RUN` in a dry run, else `PENDING`. */
   readonly unsentStatus: 'DRY_RUN' | 'PENDING';

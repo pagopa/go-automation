@@ -29,16 +29,7 @@ import { valueToString } from '../utils/GOValueToString.js';
 
 import { GOLoadingBar } from './GOLoadingBar.js';
 import { GOMultiSpinner } from './GOMultiSpinner.js';
-
-/**
- * Flag to track if the process was interrupted via Ctrl+C.
- */
-let isCtrlC = false;
-
-// Handle SIGINT (Ctrl+C)
-process.on('SIGINT', () => {
-  isCtrlC = true;
-});
+import { GOPromptInterruptedError } from './GOPromptInterruptedError.js';
 
 export type GOPromptTextValidator = (value: string) => boolean | string;
 
@@ -362,6 +353,8 @@ interface PromptExitKeys {
   esc: boolean;
   /** ←, only where a "go back" destination exists. */
   back: boolean;
+  /** Ctrl+C (as a key in raw mode, or as `SIGINT`): the prompt throws {@link GOPromptInterruptedError}. */
+  ctrlC: boolean;
 }
 
 /** Shape of the key object emitted by `readline` keypress events. */
@@ -370,7 +363,7 @@ interface KeypressEvent {
   readonly name?: string;
 }
 
-/** Removes the stdin listener installed for the duration of a prompt. */
+/** Removes the listeners installed for the duration of a prompt. */
 type DetachKeypressFn = () => void;
 /** Called when ← is pressed; returns whether the prompt was left because of it. */
 type PromptBackHandlerFn = () => boolean;
@@ -388,22 +381,34 @@ type GOPromptContextRunnerFn<T> = (context: GOPromptRunContext) => Promise<T | u
  * must win over the prompt's own handling: Ctrl+C has to stop the process, and
  * the exit keys have to be observable even when the prompt swallows them.
  *
+ * Ctrl+C is also watched as `SIGINT`, which is how it arrives when stdin is
+ * not in raw mode. That listener exists only while the prompt is open: one
+ * installed for the whole process lifetime would stop Node from terminating
+ * on `SIGINT` in every program that merely imports go-common.
+ *
  * @param keys - State updated in place as the keys are pressed
  * @param onBack - Called when ← is pressed; absent when going back is not offered
- * @returns The function removing the listener
+ * @returns The function removing the listeners
  */
 function watchExitKeys(keys: PromptExitKeys, onBack?: PromptBackHandlerFn): DetachKeypressFn {
   const onKeypress = (_str: string, key: KeypressEvent | undefined): void => {
     if (!key) return;
-    if (key.ctrl === true && key.name === 'c') isCtrlC = true;
+    if (key.ctrl === true && key.name === 'c') keys.ctrlC = true;
     if (key.name === 'escape') keys.esc = true;
     if (onBack !== undefined && !keys.back && key.name === 'left' && onBack()) {
       keys.back = true;
     }
   };
+  const onSigint = (): void => {
+    keys.ctrlC = true;
+  };
 
   process.stdin.on('keypress', onKeypress);
-  return () => process.stdin.removeListener('keypress', onKeypress);
+  process.on('SIGINT', onSigint);
+  return () => {
+    process.stdin.removeListener('keypress', onKeypress);
+    process.removeListener('SIGINT', onSigint);
+  };
 }
 
 /**
@@ -431,10 +436,11 @@ export class GOPrompt {
 
   /**
    * Internal wrapper to distinguish Ctrl+C from Esc and ensure Esc always returns undefined
+   *
+   * @throws {GOPromptInterruptedError} When the user presses Ctrl+C
    */
   private async runPrompt<T>(prompt: GOPromptRunnerFn<T>): Promise<T | undefined> {
-    const keys: PromptExitKeys = { esc: false, back: false };
-    isCtrlC = false;
+    const keys: PromptExitKeys = { esc: false, back: false, ctrlC: false };
 
     const detach = watchExitKeys(keys);
 
@@ -449,8 +455,8 @@ export class GOPrompt {
 
       return value;
     } catch (error) {
-      if (isCtrlC) {
-        process.exit(130);
+      if (keys.ctrlC) {
+        throw new GOPromptInterruptedError();
       }
       if (keys.esc || isExitPromptError(error)) {
         return undefined;
@@ -471,13 +477,13 @@ export class GOPrompt {
    * @param prompt - Prompt to run, which must forward the context to its implementation
    * @param canGoBack - Consulted on every ←; when it returns false the key is left to the prompt
    * @returns The answer, `GO_PROMPT_BACK`, or `undefined` when the prompt was aborted
+   * @throws {GOPromptInterruptedError} When the user presses Ctrl+C
    */
   private async runPromptWithBack<T>(
     prompt: GOPromptContextRunnerFn<T>,
     canGoBack?: PromptBackGuardFn,
   ): Promise<T | typeof GO_PROMPT_BACK | undefined> {
-    const keys: PromptExitKeys = { esc: false, back: false };
-    isCtrlC = false;
+    const keys: PromptExitKeys = { esc: false, back: false, ctrlC: false };
 
     const controller = new AbortController();
     const detach = watchExitKeys(keys, () => {
@@ -494,8 +500,8 @@ export class GOPrompt {
       if (keys.esc || value === undefined) return undefined;
       return value;
     } catch (error) {
-      if (isCtrlC) {
-        process.exit(130);
+      if (keys.ctrlC) {
+        throw new GOPromptInterruptedError();
       }
       if (keys.back) return GO_PROMPT_BACK;
       if (keys.esc || isExitPromptError(error)) {

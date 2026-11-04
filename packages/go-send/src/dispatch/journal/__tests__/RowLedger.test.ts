@@ -6,8 +6,10 @@ import type { RowState } from '../../model/RowState.js';
 import { decideRowAction } from '../../run/decideRowAction.js';
 import type { RowActionPolicy } from '../../run/RowActionPolicy.js';
 import { MemorySink } from '../../__tests__/helpers/MemorySink.js';
+import { collect } from '../../__tests__/helpers/collect.js';
 import { readFixture, tempDir, writeFixture } from '../../__tests__/helpers/testFiles.js';
 import { applyJournalEntry } from '../applyJournalEntry.js';
+import type { JournalEntry } from '../JournalEntry.js';
 import { Journal } from '../Journal.js';
 import { RowLedger } from '../RowLedger.js';
 
@@ -48,6 +50,24 @@ describe('applyJournalEntry', () => {
     assert.equal(state?.error, undefined);
   });
 
+  it('brings a revalidated row back to PENDING without its old error', () => {
+    const invalid = applyJournalEntry(undefined, {
+      ts: 't1',
+      event: 'ROW_INVALID',
+      ...ROW,
+      error: { code: 'MISSING_FIELD', message: 'm' },
+    });
+    const revalidated = applyJournalEntry(invalid, { ts: 't2', event: 'ROW_REVALIDATED', ...ROW });
+    assert.equal(revalidated?.status, 'PENDING');
+    assert.equal(revalidated?.error, undefined);
+  });
+
+  it('takes the requestId of REQUEST_ID_FOUND', () => {
+    const state = applyJournalEntry(undefined, { ts: 't', event: 'REQUEST_ID_FOUND', ...ROW, requestId: 'R' });
+    assert.equal(state?.requestId, 'R');
+    assert.equal(state?.requestIdReason, 'FOUND');
+  });
+
   it('takes the direct requestId from SENT, never from a SENDING attempt', () => {
     let state = applyJournalEntry(undefined, { ts: 't1', event: 'SENDING', ...ROW, requestId: 'R', attempt: 1 });
     assert.equal(state?.requestId, undefined);
@@ -75,10 +95,41 @@ describe('RowLedger', () => {
     });
     assert.equal(sink.entries.length, 3);
 
-    const replayed = RowLedger.replay(sink.entries, undefined);
+    const replayed = await RowLedger.replay(sink.entries, undefined);
     assert.deepEqual(replayed.get(3), ledger.get(3));
     assert.equal(replayed.recordedUploads()[0]?.key, 'k');
     assert.equal(replayed.countByStatus().get('SENT'), 1);
+  });
+});
+
+describe('RowLedger.countByStatus', () => {
+  it('follows every transition without rescanning, and returns snapshots', async () => {
+    const ledger = new RowLedger(undefined);
+    await ledger.record({ event: 'SENDING', rowIndex: 0, rowKey: 'A' });
+    await ledger.record({ event: 'SENDING', rowIndex: 1, rowKey: 'B' });
+    const before = ledger.countByStatus();
+    await ledger.record({ event: 'SENT', rowIndex: 0, rowKey: 'A' });
+    await ledger.record({ event: 'WARNING', rowIndex: 0, rowKey: 'A', warning: 'W' });
+    await ledger.record({ event: 'SEND_FAILED', rowIndex: 1, rowKey: 'B', error: { code: 'X', message: 'm' } });
+    const after = ledger.countByStatus();
+    assert.deepEqual([...before], [['SENDING', 2]], 'an earlier snapshot is not changed');
+    assert.deepEqual(
+      [...after].sort(),
+      [
+        ['SEND_FAILED', 1],
+        ['SENT', 1],
+      ],
+      'statuses left by every row are removed',
+    );
+    const replayed = await RowLedger.replay(
+      (async function* entries(): AsyncGenerator<JournalEntry> {
+        await Promise.resolve();
+        yield { ts: 't', event: 'SENDING', rowIndex: 0, rowKey: 'A' };
+        yield { ts: 't', event: 'SENT', rowIndex: 0, rowKey: 'A' };
+      })(),
+      undefined,
+    );
+    assert.deepEqual([...replayed.countByStatus()], [['SENT', 1]]);
   });
 });
 
@@ -101,7 +152,7 @@ describe('Journal', () => {
     await resumed.append({ ts: 't4', event: 'ACCEPTED', ...ROW });
     await resumed.close();
 
-    const entries = await Journal.read([first, second]);
+    const entries = await collect(Journal.entries([first, second]));
     assert.deepEqual(
       entries.map((entry) => entry.event),
       ['SENDING', 'SENT', 'ACCEPTED'],
@@ -153,6 +204,10 @@ describe('decideRowAction', () => {
     assert.equal(decideRowAction(state('ACCEPTED'), policy(false, false, true, true)), 'request-id');
     assert.equal(decideRowAction(state('REQUEST_ID_NOT_FOUND'), policy(false, false, true, true)), 'request-id');
     assert.equal(decideRowAction(state('REQUEST_ID_FOUND'), policy(false, false, true, true)), 'skip');
+    const ended = { ...state('REQUEST_ID_NOT_FOUND'), requestIdReason: 'WORKFLOW_ENDED:COMPLETELY_UNREACHABLE' };
+    assert.equal(decideRowAction(ended, policy(false, false, true, true)), 'skip', 'the workflow ended: final');
+    const timedOut = { ...state('REQUEST_ID_NOT_FOUND'), requestIdReason: 'TIMEOUT' };
+    assert.equal(decideRowAction(timedOut, policy(false, false, true, true)), 'request-id');
     assert.equal(decideRowAction(state('REFUSED'), policy(false, false, true, true)), 'skip');
   });
 });
