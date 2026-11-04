@@ -216,7 +216,7 @@ export async function retrieveAttachmentsFromIun(
         aarKeys.push(itemLine);
 
         if (isOlder1Y) {
-          glacierEligibleAarKeys.push(itemLine);
+          glacierEligibleAarKeys.push(`${itemLine},${effectiveSentAt ?? 'UNKNOWN'}`);
           await glacierEligibleStream.append(`${iun},${k},${effectiveSentAt ?? 'UNKNOWN'}`);
         } else {
           skippedAarActiveTierCount++;

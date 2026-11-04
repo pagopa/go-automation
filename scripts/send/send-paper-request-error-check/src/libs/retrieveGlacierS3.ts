@@ -147,7 +147,10 @@ async function saveFailedGlacierItems(
   try {
     const failedFilePath = resolveOutputPath(script.paths, 'glacier_failed.csv', config.outputDir);
     const exporter = new Core.GOFileListExporter({ outputPath: failedFilePath });
-    const lines = ['iun,fileKey', ...failedItems.map((item) => `${item.iun},${item.fileKey}`)];
+    const lines = [
+      'iun,fileKey,sentAt',
+      ...failedItems.map((item) => `${item.iun},${item.fileKey},${item.sentAt ?? ''}`),
+    ];
     await exporter.export(lines);
     script.logger.info(`💾 Elementi Glacier falliti salvati in: ${failedFilePath}`);
   } catch (err) {
@@ -242,14 +245,22 @@ export async function retrieveGlacierS3(
         tier,
       );
 
-      if (statusCode === 200 || statusCode === 202) {
+      if (statusCode === 202) {
+        // Restore appena avviato
         restoredCount++;
+      } else if (statusCode === 200) {
+        // Già disponibile da restore precedente
+        alreadyAvailableCount++;
       } else if (statusCode === 409) {
         alreadyInProgressCount++;
       } else if (statusCode === 403) {
+        // Già in active tier
         alreadyAvailableCount++;
       } else {
-        restoredCount++;
+        // Errore: status inatteso
+        errorsCount++;
+        failedItems.push(item);
+        logger.error(`❌ IUN ${item.iun}: Restore status inatteso: HTTP ${statusCode ?? 'undefined'} per ${item.fileKey}`);
       }
     } catch (err: unknown) {
       const errorObj = err as { name?: string; $metadata?: { httpStatusCode?: number }; message?: string };

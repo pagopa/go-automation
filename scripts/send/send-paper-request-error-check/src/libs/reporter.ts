@@ -1,7 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import path from 'path';
 import { Core } from '@go-automation/go-common';
-import { get } from '../utils/get.js';
 import type {
   CheckFeedbackResult,
   GetNotificationAttachmentsResult,
@@ -66,18 +65,7 @@ export class PaperRequestReporter {
     if (this.metrics.totalInitialRequestIds === 0) {
       this.metrics.totalInitialRequestIds = result.totalChecked;
     }
-    // Esempio classificazione logica feedback
-    for (const found of result.foundRequestIds) {
-      const category = get<string>(found.event, 'category', '');
-      this.metrics.withFeedback++;
-      if (category === 'PERFECTED') {
-        this.metrics.perfectedCount++;
-      } else if (category === 'REFINEMENT') {
-        this.metrics.refinedCount++;
-      } else if (category === 'CANCELED' || category === 'CANCELLED') {
-        this.metrics.canceledCount++;
-      }
-    }
+    this.metrics.withFeedback += result.foundRequestIds.length;
     this.metrics.withoutFeedback += result.notFoundCount;
     const failedCount = result.failedCount ?? result.failedRequestIds?.length ?? 0;
     this.metrics.failedFeedbackCount = (this.metrics.failedFeedbackCount ?? 0) + failedCount;
@@ -252,12 +240,14 @@ export class PaperRequestReporter {
     await jsonExporter.export([reportData]);
 
     // 2. Salvataggio CSV via GOFileListExporter
-    const csvPath = resolveOutputPath(script.paths, 'summary_report.csv');
+    const csvPath = resolveOutputPath(script.paths, 'summary_report.csv', outputDir);
     const csvLines = [
       'Metric,Value',
       `totalInitialRequestIds,${this.metrics.totalInitialRequestIds}`,
       `canceledCount,${this.metrics.canceledCount}`,
       `perfectedCount,${this.metrics.perfectedCount}`,
+      `viewedCount,${this.metrics.viewedCount}`,
+      `refinedCount,${this.metrics.refinedCount}`,
       `invalidAttachmentsCount,${this.metrics.invalidAttachmentsCount}`,
       `toResubmitCount,${this.metrics.toResubmitCount}`,
       `withFeedback,${this.metrics.withFeedback}`,

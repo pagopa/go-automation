@@ -82,7 +82,7 @@ export interface AWSS3VersionEntry {
  * Result of a restoreObject operation
  */
 export interface AWSS3RestoreResult {
-  /** HTTP status code returned by S3 (200 = restored, 202 = in progress, 403 = already in active tier, 409 = already in progress) */
+  /** HTTP status code returned by S3 (202 = restore accepted/started, 200 = restored copy already available, 409 = restore already in progress, 403 = object already in active tier) */
   readonly httpStatusCode: number | undefined;
 }
 
@@ -433,9 +433,10 @@ export class AWSS3Service {
   /**
    * Initiates a restore of an object from S3 Glacier (Flexible Retrieval / Deep Archive).
    * The raw HTTP status code is returned so callers can distinguish:
-   *  - 200 / 202: restore accepted or already in progress
-   *  - 403: object is already in the active tier
-   *  - 409: a restore is already in progress
+   *  - 202: restore accepted and started
+   *  - 200: a restored copy is already available (previous restore completed)
+   *  - 409: a restore is already in progress (not yet completed)
+   *  - 403: object is already in the active tier (not in Glacier)
    * Other errors are thrown as-is so the caller can handle them.
    * Complexity: O(1) — single RestoreObject call
    *

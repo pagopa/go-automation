@@ -178,6 +178,7 @@ export async function getNotificationAttachments(
           }
           logger.error(`Errore S3 per IUN ${iun} (Key: ${documentKey}): ${errorMessage}`);
           await errorAttachmentsStream.append(`${iun},${documentKey},${errorMessage}`);
+          continue;
         }
         if (!s3State.found) {
           attachmentsNotFound++;

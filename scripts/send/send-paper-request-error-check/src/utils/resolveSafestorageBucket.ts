@@ -13,14 +13,14 @@ export async function resolveSafestorageBucket(
 ): Promise<string> {
   if (configuredBucket) return configuredBucket;
 
-  try {
-    const s3Service = getConfinfoS3Service(script, config);
-    const buckets = await s3Service.listBuckets();
-    const target = buckets.find((b) => b.name && b.name.includes('safestorage') && !b.name.includes('staging'));
-    if (target?.name) return target.name;
-  } catch {
-    script.logger.warning('Impossibile elencare i bucket S3, imposto bucket predefinito safe-storage');
+  const s3Service = getConfinfoS3Service(script, config);
+  const buckets = await s3Service.listBuckets();
+  const target = buckets.find((b) => b.name.includes('safestorage') && !b.name.includes('staging'));
+  if (target === undefined) {
+    throw new Error(
+      'Bucket SafeStorage non trovato con il profilo Confinfo: verificare le credenziali AWS o specificare --bucket.',
+    );
   }
 
-  return 'pn-safestorage-eu-south-1';
+  return target.name;
 }

@@ -30,7 +30,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     script.logger.info(`Output directory: ${outputPathInfo.path}`);
   }
 
-  const inputLines = await readInputLines(config.inputFile);
+  const inputLines = await readInputLines(script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT));
   reporter.setInitialTotal(inputLines.length);
 
   await executeStepByMode(script, config, inputLines, reporter);

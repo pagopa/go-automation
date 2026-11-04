@@ -64,6 +64,8 @@ export async function checkFeedbackFromRequestIds(
   let iunIndex = 0;
   const totalIuns = requestsByIun.size;
 
+  let closeResults: PromiseSettledResult<void>[] | undefined;
+
   try {
     // 2️⃣ Itera per IUN univoco (1 sola query DynamoDB per IUN)
     for (const [iun, groupedRequestIds] of requestsByIun.entries()) {
@@ -123,7 +125,18 @@ export async function checkFeedbackFromRequestIds(
       }
     }
   } finally {
-    await Promise.allSettled([foundStream.close(), notFoundStream.close(), failedStream.close()]);
+    closeResults = await Promise.allSettled([
+      foundStream.close(),
+      notFoundStream.close(),
+      failedStream.close(),
+    ]);
+  }
+
+  const closeErrors = (closeResults ?? [])
+    .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+    .map((r) => r.reason as unknown);
+  if (closeErrors.length > 0) {
+    throw new AggregateError(closeErrors, 'One or more feedback report streams failed to close');
   }
 
   logger.info(
