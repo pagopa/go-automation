@@ -238,7 +238,7 @@ Le righe `REFUSED` restano solo nel report, e nel file principale hanno la colon
 
 ## Interruzione (Ctrl-C)
 
-Al primo segnale lo script smette di avviare chiamate, completa quelle in volo, scrive output e report, chiude il journal ed esce. Il riepilogo distingue le righe **in corso all'interruzione** (`SENDING`/`RECONCILING`: la notifica potrebbe esistere, il `--resume` le riconcilia) da quelle **non inviate** (`PENDING`). Un segnale durante preflight o validazione chiude comunque il journal e non invia nulla; la validazione si ferma alla riga successiva. Ctrl-C mentre è aperta la domanda di conferma (o un'altra domanda interattiva) chiude il journal ed esce con `130`, senza inviare nulla. Un secondo Ctrl-C esce subito (il journal resta coerente perché è append-only).
+Al primo segnale lo script smette di avviare chiamate, completa quelle in volo, scrive output e report, chiude il journal ed esce. Il riepilogo distingue le righe **in corso all'interruzione** (`SENDING`/`RECONCILING`: la notifica potrebbe esistere, il `--resume` le riconcilia) da quelle **non inviate** (`PENDING`). Un segnale durante preflight o validazione chiude comunque il journal e non invia nulla; la validazione si ferma alla riga successiva. Ctrl-C o un segnale (es. `SIGTERM`) mentre è aperta la domanda di conferma (o un'altra domanda interattiva) chiudono la domanda e il journal ed escono con il codice del segnale (`130`, `143`…), senza inviare nulla. Un secondo Ctrl-C esce subito (il journal resta coerente perché è append-only).
 
 ## Log
 

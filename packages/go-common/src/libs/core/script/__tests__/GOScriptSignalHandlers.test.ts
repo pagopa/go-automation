@@ -115,6 +115,25 @@ describe('GOScript signal handlers', { skip: createScript({}).environment.isAWSM
     assert.equal(onErrorCalls, 0, 'an interruption is not an error');
   });
 
+  it('exits with 143 when a prompt is interrupted by SIGTERM', async (t) => {
+    let cleaned = false;
+    const script = createScript({
+      onCleanup: () => {
+        cleaned = true;
+      },
+    });
+    const exit = captureExit(t);
+
+    void script
+      .run(() => {
+        throw new GOPromptInterruptedError('SIGTERM');
+      })
+      .catch(() => undefined);
+
+    assert.equal(await exit, 143);
+    assert.equal(cleaned, true);
+  });
+
   it('exits with 1 when the cleanup after a Ctrl+C on a prompt fails', async (t) => {
     t.mock.method(console, 'error', () => undefined);
     const script = createScript({

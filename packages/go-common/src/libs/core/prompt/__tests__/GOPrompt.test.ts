@@ -644,7 +644,12 @@ describe('Ctrl+C on a prompt', () => {
     const exit = t.mock.method(process, 'exit', (): never => undefined as never);
     const prompt = createInterruptedPrompt(pressCtrlC);
 
-    await assert.rejects(prompt.confirm('Proceed?', false), GOPromptInterruptedError);
+    await assert.rejects(prompt.confirm('Proceed?', false), (error: unknown) => {
+      assert.ok(error instanceof GOPromptInterruptedError);
+      assert.strictEqual(error.signal, 'SIGINT');
+      assert.strictEqual(error.exitCode, 130);
+      return true;
+    });
     assert.strictEqual(exit.mock.callCount(), 0);
   });
 
@@ -669,10 +674,10 @@ describe('Ctrl+C on a prompt', () => {
     assert.strictEqual(await prompt.text('Name'), undefined);
   });
 
-  it('registers no SIGINT listener when the module is imported', async () => {
+  it('registers no signal listener when the module is imported', async () => {
     // A fresh process: in this one the module is already loaded.
     const moduleUrl = new URL('../GOPrompt.ts', import.meta.url).href;
-    const code = `await import(${JSON.stringify(moduleUrl)}); console.log(process.listenerCount('SIGINT'));`;
+    const code = `await import(${JSON.stringify(moduleUrl)}); console.log(['SIGINT', 'SIGTERM', 'SIGQUIT'].map((s) => process.listenerCount(s)).join());`;
 
     const { stdout } = await promisify(execFile)(process.execPath, [
       '--import',
@@ -682,19 +687,64 @@ describe('Ctrl+C on a prompt', () => {
       code,
     ]);
 
-    assert.strictEqual(stdout.trim(), '0');
+    assert.strictEqual(stdout.trim(), '0,0,0');
   });
 
-  it('listens to SIGINT only while a prompt is open', async () => {
-    const before = process.listenerCount('SIGINT');
-    let during = -1;
+  it('listens to SIGINT, SIGTERM and SIGQUIT only while a prompt is open', async () => {
+    const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGQUIT'];
+    const before = signals.map((signal) => process.listenerCount(signal));
+    let during: number[] = [];
     const prompt = createInterruptedPrompt(() => {
-      during = process.listenerCount('SIGINT');
+      during = signals.map((signal) => process.listenerCount(signal));
     });
 
     await prompt.text('Name');
 
-    assert.strictEqual(during, before + 1);
-    assert.strictEqual(process.listenerCount('SIGINT'), before);
+    assert.deepStrictEqual(
+      during,
+      before.map((count) => count + 1),
+    );
+    assert.deepStrictEqual(
+      signals.map((signal) => process.listenerCount(signal)),
+      before,
+    );
+  });
+
+  it('closes a prompt waiting for input when SIGTERM arrives, with exit code 143', async () => {
+    // Like inquirer under GOScript: the prompt never settles by itself on a signal,
+    // only when the context signal is aborted.
+    const waitForAbort = async (_options: unknown, context?: { readonly signal?: AbortSignal }): Promise<never> =>
+      new Promise<never>((_resolve, reject) => {
+        context?.signal?.addEventListener('abort', () => {
+          const error = new Error('Prompt was aborted');
+          error.name = 'AbortPromptError';
+          reject(error);
+        });
+      });
+    const adapter: GOPromptAdapter = {
+      text: waitForAbort,
+      password: waitForAbort,
+      number: waitForAbort,
+      confirm: waitForAbort,
+      select: waitForAbort,
+      checkbox: waitForAbort,
+      search: waitForAbort,
+    };
+    const prompt = new GOPrompt(logger, false, adapter);
+
+    const answer = prompt.confirm('Inviare?', false);
+    // Call the listener installed by the prompt (the last one) rather than emitting
+    // SIGTERM, which would also reach the listeners of the test runner.
+    const onSigterm = process.listeners('SIGTERM').at(-1);
+    assert.ok(onSigterm !== undefined);
+    onSigterm('SIGTERM');
+
+    const error = await answer.then(
+      () => assert.fail('the prompt must be interrupted'),
+      (reason: unknown) => reason,
+    );
+    assert.ok(error instanceof GOPromptInterruptedError);
+    assert.strictEqual(error.signal, 'SIGTERM');
+    assert.strictEqual(error.exitCode, 143);
   });
 });

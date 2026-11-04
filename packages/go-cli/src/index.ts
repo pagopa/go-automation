@@ -741,9 +741,9 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
 }
 
 main().catch((err: Error) => {
-  // Ctrl+C on a prompt: an interruption, not an error (exit code as for SIGINT).
+  // A prompt interrupted by Ctrl+C or a signal: not an error (exit code 128 + signal).
   if (err instanceof Core.GOPromptInterruptedError) {
-    process.exit(130);
+    process.exit(err.exitCode);
   }
   logger.error(`CLI Error: ${err.message}`);
   process.exit(1);

@@ -814,8 +814,8 @@ export class GOScript {
       return result;
     } catch (error) {
       if (error instanceof GOPromptInterruptedError) {
-        // Ctrl+C on a prompt: the user stopped the run, nothing failed — no error log, no onError.
-        this.logger.warning('Interrupted by the user (Ctrl+C)');
+        // A prompt interrupted by Ctrl+C or a signal: nothing failed — no error log, no onError.
+        this.logger.warning(error.message);
       } else if (error instanceof Error && this.preloggedErrors.has(error)) {
         // Already logged by a specific throw site — only call the hook, skip generic re-logging.
         await this.hooks.onError?.(toError(error), this.buildHookContext());
@@ -856,9 +856,10 @@ export class GOScript {
    * - AWS credentials retry (if enabled)
    * - Lifecycle hooks (onBeforeRun, onAfterRun)
    * - Cleanup (including file copying)
-   * - Ctrl+C on a prompt ({@link GOPromptInterruptedError}): after the normal
-   *   cleanup (including `onCleanup`) the process exits with `130`, as on
-   *   `SIGINT`, or `1` if a cleanup step failed
+   * - A prompt interrupted by Ctrl+C or by a signal ({@link GOPromptInterruptedError}):
+   *   after the normal cleanup (including `onCleanup`) the process exits with
+   *   `128 + signal` (130 for Ctrl+C, 143 for SIGTERM), as the signal handler
+   *   does, or `1` if a cleanup step failed
    *
    * @param mainFunction - The main script logic to execute
    *
@@ -881,9 +882,10 @@ export class GOScript {
       await this.executeLifecycle(async () => Promise.resolve(mainFunction()), 'Script completed successfully');
     } catch (error) {
       if (error instanceof GOPromptInterruptedError) {
-        // In raw mode Ctrl+C is a key, not SIGINT: end the process as the SIGINT handler
-        // would. executeLifecycle() has already run the cleanup.
-        process.exit(this.lastCleanupSucceeded ? signalExitCode('SIGINT') : 1);
+        // A prompt closed by Ctrl+C (a key in raw mode) or by a signal: end the process
+        // with the code the signal handler would use. executeLifecycle() has already
+        // run the cleanup.
+        process.exit(this.lastCleanupSucceeded ? error.exitCode : 1);
       }
       throw error;
     }

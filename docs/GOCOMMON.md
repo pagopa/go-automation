@@ -302,7 +302,7 @@ I numeri dei segnali sono quelli POSIX, fissi su ogni piattaforma (anche su Wind
 
 Se viene ricevuto un secondo segnale durante lo shutdown, il processo termina immediatamente con codice 1.
 
-**Ctrl+C su un prompt.** Mentre un prompt di `GOPrompt` attende una risposta il terminale è in raw mode, quindi Ctrl+C arriva come tasto e non come `SIGINT`. Il prompt lancia `GOPromptInterruptedError`: i blocchi `finally` del chiamante vengono eseguiti, `run()` fa il cleanup ordinario (incluso `onCleanup`) e il processo esce con `130`, o `1` se un passo del cleanup fallisce. Non viene loggato come errore e non chiama `onError`. Non intercettare questo errore in un `catch` generico: l'interruzione non arriverebbe a `run()`.
+**Interruzione durante un prompt.** Mentre un prompt di `GOPrompt` attende una risposta il terminale è in raw mode, quindi Ctrl+C arriva come tasto e non come `SIGINT`; un segnale mandato da fuori (`docker stop`, `kill`) invece non chiuderebbe il prompt, perché inquirer lo saprebbe solo da `signal-exit`, che tace quando c'è anche l'handler di GOScript. In entrambi i casi il prompt si chiude e lancia `GOPromptInterruptedError`, con il segnale (`signal`) e il codice d'uscita (`exitCode`). I blocchi `finally` del chiamante vengono eseguiti, `run()` fa il cleanup ordinario (incluso `onCleanup`) e il processo esce con `128 + segnale` (130 Ctrl+C, 143 SIGTERM, 131 SIGQUIT), lo stesso codice dell'handler dei segnali, o `1` se un passo del cleanup fallisce. Non viene loggato come errore e non chiama `onError`. Non intercettare questo errore in un `catch` generico: l'interruzione non arriverebbe a `run()`.
 
 > **Cambio di comportamento (exit code).** In precedenza un graceful shutdown terminava con codice `0`, indistinguibile da un run concluso. Ora termina con `128 + n` (130/131/143), o `1` se il cleanup fallisce. Wrapper, cron, pipeline CI o scheduler che trattavano l'interruzione come successo (es. `&&` dopo lo script, controlli `exit code == 0`) vanno rivisti.
 >
@@ -583,7 +583,7 @@ const features = await script.prompt.multiselect('Features:', [
 const city = await script.prompt.autocomplete('Citta:', ['Roma', 'Milano', 'Napoli', 'Torino']);
 ```
 
-Esc chiude il prompt senza risposta (`undefined`). Ctrl+C lancia `GOPromptInterruptedError`: dentro `GOScript.run()` lo script termina con `130` dopo il cleanup (vedi [Signal Handlers Automatici](#signal-handlers-automatici)). Chi usa `GOPrompt` fuori da `run()`, come `go-cli`, deve gestirlo ed uscire con `130`. `GOPrompt` ascolta `SIGINT` solo mentre un prompt è aperto: importare go-common non cambia la risposta del processo a Ctrl+C.
+Esc chiude il prompt senza risposta (`undefined`). Ctrl+C, `SIGINT`, `SIGTERM` o `SIGQUIT` lo chiudono con `GOPromptInterruptedError`: dentro `GOScript.run()` lo script termina dopo il cleanup con `error.exitCode` (130, 143 o 131; vedi [Signal Handlers Automatici](#signal-handlers-automatici)). Chi usa `GOPrompt` fuori da `run()`, come `go-cli`, deve gestirlo ed uscire con `error.exitCode`. `GOPrompt` ascolta questi segnali solo mentre un prompt è aperto: importare go-common non cambia la risposta del processo ai segnali. Gli adapter ricevono come secondo argomento un contesto con l'`AbortSignal` che chiude il prompt, e devono passarlo all'implementazione.
 
 ---
 
