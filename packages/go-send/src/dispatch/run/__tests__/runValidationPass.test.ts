@@ -25,7 +25,7 @@ async function options(
   ledger: RowLedger,
   overrides: Partial<ValidationPassOptions> = {},
 ): Promise<ValidationPassOptions> {
-  const file = path.join(tempDir('dispatch-validation'), 'in.csv');
+  const file = path.join(await tempDir('dispatch-validation'), 'in.csv');
   await writeFixture(file, `${[HEADER, ...lines].join('\n')}\n`);
   return {
     reader: new InputReader({ filePath: file, format: 'csv' }),

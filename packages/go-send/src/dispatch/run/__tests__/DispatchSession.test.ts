@@ -97,7 +97,7 @@ async function fixture(
   rows: number,
   invalidRows: ReadonlyArray<number> = [],
 ): Promise<{ dir: string; input: string; pdf: string }> {
-  const dir = tempDir('dispatch-session');
+  const dir = await tempDir('dispatch-session');
   const pdf = path.join(dir, 'atto.pdf');
   await writeFixture(pdf, '%PDF-1.4 atto di test');
   const lines = [HEADER];
@@ -188,7 +188,7 @@ async function directOptions(
   template: string,
   overrides: Partial<DispatchSessionOptions> = {},
 ): Promise<{ dir: string; options: DispatchSessionOptions }> {
-  const dir = tempDir(prefix);
+  const dir = await tempDir(prefix);
   const input = path.join(dir, 'consolidatore.csv');
   await writeFixture(
     input,
@@ -492,7 +492,7 @@ describe('DispatchSession', () => {
   });
 
   it('phases without send: retrieves requestIds for the IUNs of the input (RF-12)', async () => {
-    const dir = tempDir('dispatch-preset');
+    const dir = await tempDir('dispatch-preset');
     const input = path.join(dir, 'sent.csv');
     const iuns = ['PAYK-MWDR-ZUAZ-202601-K-1', 'TQJZ-VKMH-QDYX-202601-Q-1'];
     await writeFixture(input, `ID_Scenario,iun\nS-1,${iuns[0]}\nS-2,${iuns[1]}\nS-3,not-an-iun\n`);

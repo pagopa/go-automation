@@ -46,7 +46,7 @@ describe('AttachmentServiceGateway', () => {
   it('delegates preload and uploads the file content read from disk', async () => {
     const service = new FakeAttachmentService();
     const gateway = new AttachmentServiceGateway(service as unknown as SENDAttachmentService);
-    const file = path.join(tempDir('dispatch-gateway'), 'atto.pdf');
+    const file = path.join(await tempDir('dispatch-gateway'), 'atto.pdf');
     await writeFixture(file, '%PDF-1.4 content');
 
     assert.deepEqual(await gateway.preload([{ preloadIdx: '0', contentType: 'application/pdf', sha256: 'S' }]), [
@@ -59,7 +59,7 @@ describe('AttachmentServiceGateway', () => {
   it('passes the stop signal to preload and PUT', async () => {
     const service = new FakeAttachmentService();
     const gateway = new AttachmentServiceGateway(service as unknown as SENDAttachmentService);
-    const file = path.join(tempDir('dispatch-gateway'), 'atto.pdf');
+    const file = path.join(await tempDir('dispatch-gateway'), 'atto.pdf');
     await writeFixture(file, '%PDF-1.4 content');
     const controller = new AbortController();
     await gateway.preload([{ preloadIdx: '0', contentType: 'application/pdf', sha256: 'S' }], controller.signal);
@@ -70,7 +70,7 @@ describe('AttachmentServiceGateway', () => {
   it('fails clearly when the file does not exist', async () => {
     const gateway = new AttachmentServiceGateway(new FakeAttachmentService() as unknown as SENDAttachmentService);
     await assert.rejects(
-      gateway.upload(PRELOAD, path.join(tempDir('dispatch-gateway'), 'x.pdf'), 'S', 'application/pdf'),
+      gateway.upload(PRELOAD, path.join(await tempDir('dispatch-gateway'), 'x.pdf'), 'S', 'application/pdf'),
     );
   });
 });

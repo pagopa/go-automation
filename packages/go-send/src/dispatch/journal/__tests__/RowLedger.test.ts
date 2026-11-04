@@ -135,7 +135,7 @@ describe('RowLedger.countByStatus', () => {
 
 describe('Journal', () => {
   it('writes one segment per session and replays them in order, skipping a truncated line', async () => {
-    const dir = tempDir('dispatch-journal');
+    const dir = await tempDir('dispatch-journal');
     const first = path.join(dir, 'session-1', 'journal.jsonl');
     const second = path.join(dir, 'session-2', 'journal.jsonl');
     await writeFixture(path.join(dir, 'session-1', '.keep'), '');

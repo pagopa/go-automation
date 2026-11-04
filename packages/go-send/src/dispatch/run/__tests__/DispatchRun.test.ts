@@ -48,7 +48,7 @@ class Recorder {
 const HEADER = 'ID_Scenario,Scenario,Destinatario,Denomination,CAP,Citta,Indirizzo,iun';
 
 async function input(lines: ReadonlyArray<string>): Promise<InputReader> {
-  const file = path.join(tempDir('dispatch-run'), 'in.csv');
+  const file = path.join(await tempDir('dispatch-run'), 'in.csv');
   await writeFixture(file, `${[HEADER, ...lines].join('\n')}\n`);
   return new InputReader({ filePath: file, format: 'csv' });
 }

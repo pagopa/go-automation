@@ -40,7 +40,7 @@ environments:
 `;
 
 async function writeFile(name: string, content: string): Promise<string> {
-  const dir = tempDir('dispatch-env');
+  const dir = await tempDir('dispatch-env');
   const file = path.join(dir, name);
   await writeFixture(file, content);
   return file;

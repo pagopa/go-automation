@@ -22,7 +22,7 @@ describe('InputReader', () => {
   });
 
   it('reads CSV rows with index, delimiter and skipped lines', async () => {
-    const file = path.join(tempDir('dispatch-input'), 'in.csv');
+    const file = path.join(await tempDir('dispatch-input'), 'in.csv');
     await writeFixture(file, 'titolo del file\nID;Nome\n1;Mario\n2;Anna\n');
     const rows = await readAll(new InputReader({ filePath: file, format: 'csv', delimiter: ';', skipRows: 1 }));
     assert.deepEqual(
@@ -35,7 +35,7 @@ describe('InputReader', () => {
   });
 
   it('flattens nested JSON with dots and keeps the original item', async () => {
-    const file = path.join(tempDir('dispatch-input'), 'in.json');
+    const file = path.join(await tempDir('dispatch-input'), 'in.json');
     const item = { id: 7, recipient: { taxId: 'RSS', address: { zip: '00100' } }, tags: ['a', 'b'], active: true };
     await writeFixture(file, JSON.stringify([item]));
     const [row] = await readAll(new InputReader({ filePath: file, format: 'json' }));
@@ -50,7 +50,7 @@ describe('InputReader', () => {
   });
 
   it('reads JSONL line by line', async () => {
-    const file = path.join(tempDir('dispatch-input'), 'in.jsonl');
+    const file = path.join(await tempDir('dispatch-input'), 'in.jsonl');
     await writeFixture(file, '{"iun":"A"}\n{"iun":"B"}\n');
     const rows = await readAll(new InputReader({ filePath: file, format: 'jsonl' }));
     assert.deepEqual(

@@ -233,7 +233,7 @@ describe('UploadStage (resume, journal, stop)', () => {
 
 describe('LocalDocumentInspector', () => {
   it('checks extension, existence, magic number and hashes the content', async () => {
-    const dir = tempDir('dispatch-docs');
+    const dir = await tempDir('dispatch-docs');
     const pdf = path.join(dir, 'atto.pdf');
     const fake = path.join(dir, 'fake.pdf');
     const json = path.join(dir, 'meta.json');
@@ -257,7 +257,7 @@ describe('LocalDocumentInspector', () => {
   });
 
   it('confines row files to the documents directory; not the shared document', async () => {
-    const dir = tempDir('dispatch-confined');
+    const dir = await tempDir('dispatch-confined');
     const documentsDir = path.join(dir, 'documents');
     const outside = path.join(dir, 'outside.pdf');
     await writeFixture(path.join(documentsDir, 'atto.pdf'), '%PDF-1.7 in');
@@ -275,7 +275,7 @@ describe('LocalDocumentInspector', () => {
 
 describe('DocumentResolver', () => {
   it('uses the shared reference as is and placeholders in a dry run', async () => {
-    const dir = tempDir('dispatch-shared');
+    const dir = await tempDir('dispatch-shared');
     const pdf = path.join(dir, 'atto.pdf');
     await writeFixture(pdf, '%PDF-1.4');
     const inspector = new LocalDocumentInspector(os.tmpdir());

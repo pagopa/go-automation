@@ -10,7 +10,7 @@ import { materializeRun } from '../materializeRun.js';
 const IUN = 'PAYK-MWDR-ZUAZ-202601-K-1';
 
 async function materialize(ledger: RowLedger, rows: number, onlySuccess: boolean): Promise<ReadonlyArray<string>> {
-  const dir = tempDir('dispatch-materialize');
+  const dir = await tempDir('dispatch-materialize');
   const input = path.join(dir, 'in.csv');
   const lines = ['key', ...Array.from({ length: rows }, (_, i) => `K-${i}`)];
   await writeFixture(input, `${lines.join('\n')}\n`);

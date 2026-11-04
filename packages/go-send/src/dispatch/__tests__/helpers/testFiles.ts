@@ -1,17 +1,18 @@
-import { randomUUID } from 'node:crypto';
+import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { GOBinaryFileExporter, GOTextFileImporter } from '@go-automation/go-common/core';
 
 /**
- * Creates a fresh directory path under the OS temp dir (created on first write).
+ * Creates a fresh, private directory under the OS temp dir with `mkdtemp`
+ * (unique name, mode 0700), so no other user can pre-create or read it.
  *
  * @param prefix - Readable prefix
- * @returns Absolute directory path
+ * @returns Absolute path of the created directory
  */
-export function tempDir(prefix: string): string {
-  return path.join(os.tmpdir(), `${prefix}-${randomUUID()}`);
+export async function tempDir(prefix: string): Promise<string> {
+  return fs.mkdtemp(path.join(os.tmpdir(), `${prefix}-`));
 }
 
 /**
