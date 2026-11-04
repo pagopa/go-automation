@@ -8,8 +8,9 @@ import type { InputRow } from './InputRow.js';
 
 /**
  * Streams the input file (CSV, JSON array or JSONL) with the go-common
- * importers. The file is read once per pass (validation, send,
- * materialization), so memory never holds the whole input as rows.
+ * importers, one row at a time (a JSON array is split element by element by
+ * `GOJSONListImporter.importStream()`). The file is read once per pass
+ * (validation, send, materialization), so memory never holds the whole input.
  */
 export class InputReader {
   constructor(private readonly options: InputReaderOptions) {}

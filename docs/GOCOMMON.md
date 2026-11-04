@@ -724,6 +724,14 @@ const jsonExporter = new Core.GOJSONListExporter<DataRow>({
 await jsonExporter.export(data);
 ```
 
+**Streaming.** `importStream(path)` legge a memoria costante sia JSONL (riga per riga) sia un JSON il cui valore di primo livello è un array: il file viene letto a blocchi e ogni elemento viene analizzato appena è completo (`GOJSONArrayScanner`), quindi in memoria c'è un elemento alla volta, mai il documento intero. Gli elementi validi prima di un errore di sintassi vengono già restituiti; l'errore arriva quando il lettore lo incontra. Gli eventi di progresso non hanno `totalItems` (e `percentage` vale `undefined` fino al 100% finale). Con `jsonPath`, o con un oggetto di primo livello (`wrapSingleObject`), il documento viene invece analizzato per intero, come in `import()`.
+
+```typescript
+for await (const row of new Core.GOJSONListImporter<DataRow>().importStream('./data/input.json')) {
+  process(row); // un elemento alla volta
+}
+```
+
 ### HTML Exporter
 
 ```typescript
