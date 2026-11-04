@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
@@ -177,15 +177,16 @@ export interface TestScript {
 }
 
 /**
- * Creates a GOScript double: paths under a fresh temp directory (with the
- * execution directory already created, as GOPaths does), logger and prompt
- * doubles, AWS clients whose DynamoDB returns empty timelines.
+ * Creates a GOScript double: paths under a fresh, private temp directory
+ * (`mkdtemp`: unique name, mode 0700; the execution directory already
+ * created, as GOPaths does), logger and prompt doubles, AWS clients whose
+ * DynamoDB returns empty timelines.
  *
  * @param answer - Answer of the confirmation prompt
  * @returns The double and its parts
  */
 export async function createTestScript(answer: boolean | undefined = true): Promise<TestScript> {
-  const dir = path.join(os.tmpdir(), `send-dispatch-notifications-${randomUUID()}`);
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'send-dispatch-notifications-'));
   const paths = new TestPaths(dir);
   await writeFixture(paths.getExecutionOutputFilePath('.keep'), '');
   const logger = new FakeLogger();
