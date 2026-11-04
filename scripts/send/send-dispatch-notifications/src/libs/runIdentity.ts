@@ -72,7 +72,7 @@ export function formatSharedDocument(document: Dispatch.SharedDocumentConfig | u
  * @param parameters - `parameters` of the previous `run.json`
  * @returns The saved identity
  */
-export function savedRunIdentity(parameters: Readonly<Record<string, unknown>>): RunIdentity | undefined {
+function savedRunIdentity(parameters: Readonly<Record<string, unknown>>): RunIdentity | undefined {
   const saved: unknown = parameters[RUN_IDENTITY_PARAMETER];
   if (typeof saved !== 'object' || saved === null) return undefined;
   const entries = new Map<string, unknown>(Object.entries(saved));

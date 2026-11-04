@@ -304,7 +304,7 @@ function cliSharedDocument(script: Core.GOScript, config: ValidatedConfig): Disp
  * @param config - Validated configuration
  * @returns CLI field values
  */
-export function cliFieldValues(config: ValidatedConfig): Dispatch.FieldValues {
+function cliFieldValues(config: ValidatedConfig): Dispatch.FieldValues {
   const values = new Map<Dispatch.CanonicalField, string>(config.fieldDefaults);
   if (config.groupId !== undefined) values.set('notificationOptions.group', config.groupId);
   if (config.senderTaxId !== undefined) values.set('sender.taxId', config.senderTaxId);

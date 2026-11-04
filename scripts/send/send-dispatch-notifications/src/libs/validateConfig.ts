@@ -28,7 +28,7 @@ const TIMER = { minMs: 1 } as const;
  * @param value - Raw value
  * @returns Whether it is a supported SEND API version
  */
-export function isSendApiVersion(value: string): value is SENDApiVersion {
+function isSendApiVersion(value: string): value is SENDApiVersion {
   return API_VERSIONS.has(value);
 }
 
@@ -38,7 +38,7 @@ export function isSendApiVersion(value: string): value is SENDApiVersion {
  * @param value - Raw value
  * @returns Whether it is a known phase
  */
-export function isDispatchPhase(value: string): value is DispatchPhaseName {
+function isDispatchPhase(value: string): value is DispatchPhaseName {
   return PHASES.has(value);
 }
 
@@ -48,7 +48,7 @@ export function isDispatchPhase(value: string): value is DispatchPhaseName {
  * @param value - Raw value
  * @returns Whether it is a supported format
  */
-export function isInputFormat(value: string): value is Dispatch.InputFormat {
+function isInputFormat(value: string): value is Dispatch.InputFormat {
   return FORMATS.has(value);
 }
 

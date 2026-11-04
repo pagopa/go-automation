@@ -10,9 +10,9 @@ import type { PlannedWork } from '../types/PlannedWork.js';
 import type { ValidatedConfig } from '../types/ValidatedConfig.js';
 
 /** Exit code when production confirmation is missing or wrong. */
-export const EXIT_NOT_CONFIRMED = 1;
+const EXIT_NOT_CONFIRMED = 1;
 /** Exit code when the user declines the interactive confirmation: nothing sent. */
-export const EXIT_DECLINED = 3;
+const EXIT_DECLINED = 3;
 
 /**
  * Asks for confirmation. In production both `--confirm-production=<N>` (N =

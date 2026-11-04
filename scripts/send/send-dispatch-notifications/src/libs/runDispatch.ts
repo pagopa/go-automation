@@ -69,7 +69,7 @@ export async function runDispatch(
  * @param failFast - `--fail-fast`
  * @returns The reason, or `undefined` when the run may proceed
  */
-export function blockingProblem(summary: Dispatch.ValidationSummary, failFast: boolean): string | undefined {
+function blockingProblem(summary: Dispatch.ValidationSummary, failFast: boolean): string | undefined {
   if (summary.duplicateRowKeys.length > 0) return 'Chiavi di riga duplicate';
   if (summary.duplicateRequestIds.length > 0) return 'requestId duplicati (--direct-request-id-template)';
   if (failFast && summary.invalidRows > 0) return '--fail-fast: righe non valide';
