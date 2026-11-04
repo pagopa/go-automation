@@ -3,6 +3,7 @@ import type { GOListExporter } from '@go-automation/go-common/core';
 
 import { resolveRowKey } from '../ids/identifiers.js';
 import type { InputFormat } from '../input/InputFormat.js';
+import { acceptanceOf } from '../model/acceptanceOf.js';
 import type { RowState } from '../model/RowState.js';
 import type { RowStatus } from '../model/RowStatus.js';
 import type { MaterializerOptions } from './MaterializerOptions.js';
@@ -41,7 +42,7 @@ export async function materializeRun(options: MaterializerOptions): Promise<void
           await output.append({
             ...row.original,
             // A refused notification is not delivered: its IUN must not be used downstream.
-            [iunColumn]: state?.status === 'REFUSED' ? '' : (state?.iun ?? ''),
+            [iunColumn]: state === undefined || acceptanceOf(state) === 'REFUSED' ? '' : (state.iun ?? ''),
             [requestIdColumn]: state?.requestId ?? '',
             ...(options.includeStatus && {
               _status: status,
@@ -63,13 +64,15 @@ export async function materializeRun(options: MaterializerOptions): Promise<void
 
 /**
  * Whether a row belongs to the success-only output: it reached a successful
- * status and has an identifier to show, the IUN (e2e) or the requestId
- * accepted by pn-external-channels (direct, where there is no IUN). The IUN
- * alone is not enough: e2e stores it at `SENT`, and `REFUSED` /
- * `VERIFY_TIMEOUT` rows keep it.
+ * status, is not known to be refused, and has an identifier to show, the IUN
+ * (e2e) or the requestId accepted by pn-external-channels (direct, where
+ * there is no IUN). The IUN alone is not enough: e2e stores it at `SENT`, and
+ * `REFUSED` / `VERIFY_TIMEOUT` rows keep it. `REQUEST_ID_NOT_FOUND` is not
+ * enough either: it also follows a `REQUEST_REFUSED` timeline.
  */
 function isSuccessful(state: RowState | undefined): boolean {
   if (state === undefined || !SUCCESSFUL_STATUSES.has(state.status)) return false;
+  if (acceptanceOf(state) === 'REFUSED') return false;
   return state.iun !== undefined || state.requestId !== undefined;
 }
 

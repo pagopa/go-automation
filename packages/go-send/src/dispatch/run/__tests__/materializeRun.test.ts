@@ -30,7 +30,7 @@ async function materialize(ledger: RowLedger, rows: number, onlySuccess: boolean
 }
 
 describe('materializeRun', () => {
-  it('keeps only accepted notifications in the success-only output, never refused or timed out ones', async () => {
+  it('keeps only accepted notifications in the success-only output, never refused (verify or timeline) or timed out ones', async () => {
     const ledger = new RowLedger(undefined);
     const sent = { notificationRequestId: 'N', iun: IUN } as const;
     await ledger.record({ event: 'SENT', rowIndex: 0, rowKey: 'K-0', ...sent });
@@ -44,6 +44,13 @@ describe('materializeRun', () => {
     await ledger.record({ event: 'REQUEST_ID_NOT_FOUND', rowIndex: 5, rowKey: 'K-5', iun: IUN });
     await ledger.record({ event: 'SENT', rowIndex: 6, rowKey: 'K-6', requestId: 'PNMAN.R6' }); // direct: no IUN
     await ledger.record({ event: 'SEND_FAILED', rowIndex: 7, rowKey: 'K-7', error: { code: 'X', message: 'm' } });
+    await ledger.record({ event: 'SENT', rowIndex: 8, rowKey: 'K-8', ...sent });
+    await ledger.record({
+      event: 'REQUEST_ID_NOT_FOUND',
+      rowIndex: 8,
+      rowKey: 'K-8',
+      requestIdReason: 'WORKFLOW_ENDED:REQUEST_REFUSED',
+    });
 
     const success = await materialize(ledger, 9, true);
     assert.deepEqual(
@@ -54,5 +61,6 @@ describe('materializeRun', () => {
     const all = await materialize(ledger, 9, false);
     assert.match(all[3] ?? '', /^K-2,,,REFUSED,/, 'a refused notification has no IUN in the output');
     assert.match(all[4] ?? '', new RegExp(`^K-3,${IUN},`));
+    assert.match(all[9] ?? '', /^K-8,,,REQUEST_ID_NOT_FOUND,/, 'refused per the timeline: no IUN either');
   });
 });

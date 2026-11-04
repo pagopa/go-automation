@@ -133,6 +133,33 @@ describe('RowLedger.countByStatus', () => {
   });
 });
 
+describe('RowLedger.countByAcceptance', () => {
+  it('counts acceptance from evidence, not from the status alone', async () => {
+    const ledger = new RowLedger(undefined);
+    await ledger.record({ event: 'SENT', rowIndex: 0, rowKey: 'A', iun: 'I' });
+    await ledger.record({ event: 'SENT', rowIndex: 1, rowKey: 'B', iun: 'I' });
+    await ledger.record({ event: 'SENT', rowIndex: 2, rowKey: 'C', iun: 'I' });
+    assert.deepEqual([...ledger.countByAcceptance()], [['UNKNOWN', 3]]);
+
+    await ledger.record({ event: 'ACCEPTED', rowIndex: 0, rowKey: 'A', iun: 'I' });
+    await ledger.record({
+      event: 'REQUEST_ID_NOT_FOUND',
+      rowIndex: 1,
+      rowKey: 'B',
+      requestIdReason: 'WORKFLOW_ENDED:REQUEST_REFUSED',
+    });
+    await ledger.record({ event: 'REQUEST_ID_NOT_FOUND', rowIndex: 2, rowKey: 'C', requestIdReason: 'TIMEOUT' });
+    await ledger.record({ event: 'REQUEST_ID_FOUND', rowIndex: 0, rowKey: 'A', requestId: 'R' });
+
+    assert.deepEqual([...ledger.countByAcceptance()].sort(), [
+      ['ACCEPTED', 1],
+      ['REFUSED', 1],
+      ['UNKNOWN', 1],
+    ]);
+    assert.equal(ledger.countByStatus().get('REQUEST_ID_NOT_FOUND'), 2, 'same status, different acceptance');
+  });
+});
+
 describe('Journal', () => {
   it('writes one segment per session and replays them in order, skipping a truncated line', async () => {
     const dir = await tempDir('dispatch-journal');

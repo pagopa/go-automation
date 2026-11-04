@@ -203,12 +203,12 @@ I documenti servono solo con la fase `send`: senza, il documento condiviso non v
 
 ### Output
 
-| Parametro                 | Default                 | Descrizione                                                                                     |
-| ------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------- |
-| `--output-format`         | come l'input            | `csv`, `json` o `jsonl` (non il formato del profilo: un input JSON dà un output JSON)           |
-| `--output-file`           | directory di esecuzione | path esplicito del file principale                                                              |
-| `--output-include-status` | `false`                 | colonne `_status`, `_notificationRequestId`, `_error`                                           |
-| `--output-only-success`   | `false`                 | solo le righe `SENT`, `ACCEPTED`, `REQUEST_ID_FOUND`, `REQUEST_ID_NOT_FOUND` (non le `REFUSED`) |
+| Parametro                 | Default                 | Descrizione                                                                                                                                             |
+| ------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--output-format`         | come l'input            | `csv`, `json` o `jsonl` (non il formato del profilo: un input JSON dà un output JSON)                                                                   |
+| `--output-file`           | directory di esecuzione | path esplicito del file principale                                                                                                                      |
+| `--output-include-status` | `false`                 | colonne `_status`, `_notificationRequestId`, `_error`                                                                                                   |
+| `--output-only-success`   | `false`                 | solo le righe `SENT`, `ACCEPTED`, `REQUEST_ID_FOUND`, `REQUEST_ID_NOT_FOUND`, escluse le rifiutate (`REFUSED`, o timeline chiusa con `REQUEST_REFUSED`) |
 
 Le righe `REFUSED` restano solo nel report, e nel file principale hanno la colonna `iun` vuota: la notifica non esiste.
 

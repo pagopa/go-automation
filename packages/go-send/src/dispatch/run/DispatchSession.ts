@@ -353,6 +353,7 @@ export class DispatchSession {
   public progress(): DispatchProgress {
     return {
       byStatus: this.ledger.countByStatus(),
+      byAcceptance: this.ledger.countByAcceptance(),
       ratePerSecond: this.limiter.ratePerSecond,
       throttled: this.rateAdapter.throttledCount,
       verifyPending: this.verifyStage?.pendingCount ?? 0,

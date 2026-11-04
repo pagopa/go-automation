@@ -32,7 +32,7 @@ export class ProgressReporter {
     private readonly session: Dispatch.DispatchSession,
     private readonly work: PlannedWork,
   ) {
-    this.alreadySent = countOutcomes(session.progress().byStatus).sent;
+    this.alreadySent = countOutcomes(session.progress()).sent;
   }
 
   /** Starts the refresh. */
@@ -52,12 +52,12 @@ export class ProgressReporter {
 
   private line(): string {
     const progress = this.session.progress();
-    const outcomes = countOutcomes(progress.byStatus);
+    const outcomes = countOutcomes(progress);
     const count = (status: Dispatch.RowStatus): number => progress.byStatus.get(status) ?? 0;
     const head = this.work.sending
       ? `invio ${outcomes.sent - this.alreadySent}/${this.work.rows} · ${progress.ratePerSecond.toFixed(1)}/s · `
       : `righe da elaborare ${this.work.rows} · `;
-    const verify = `verifica ${outcomes.accepted} ok / ${count('REFUSED')} refused / ${progress.verifyPending} in attesa`;
+    const verify = `verifica ${outcomes.accepted} ok / ${outcomes.refused} refused / ${progress.verifyPending} in attesa`;
     const requestId = `requestId ${count('REQUEST_ID_FOUND')} trovati / ${progress.requestIdPending} in attesa`;
     const throttled = progress.throttled > 0 ? ` · 429: ${progress.throttled}` : '';
     return `${head}${verify} · ${requestId} · errori ${outcomes.errors}${throttled}`;

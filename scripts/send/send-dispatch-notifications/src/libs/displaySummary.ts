@@ -34,13 +34,13 @@ const MESSAGE_PREVIEW = 100;
 export function displaySummary(logger: Core.GOLogger, context: SummaryContext): void {
   const { progress, statistics } = context;
   const count = (status: Dispatch.RowStatus): number => progress.byStatus.get(status) ?? 0;
-  const { accepted, sent } = countOutcomes(progress.byStatus);
+  const { accepted, refused, sent } = countOutcomes(progress);
   logger.section('Riepilogo');
   logger.keyValueTable({
     'Non valide': count('INVALID'),
     Inviate: sent,
     Accettate: accepted,
-    Rifiutate: count('REFUSED'),
+    Rifiutate: refused,
     'Verifica in timeout': count('VERIFY_TIMEOUT'),
     'requestId trovati': count('REQUEST_ID_FOUND'),
     'requestId non trovati': count('REQUEST_ID_NOT_FOUND'),

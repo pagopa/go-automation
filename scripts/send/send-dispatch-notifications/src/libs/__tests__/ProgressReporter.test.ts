@@ -24,9 +24,13 @@ class FakePrompt {
   }
 }
 
-function snapshot(entries: ReadonlyArray<[Dispatch.RowStatus, number]>): Dispatch.DispatchProgress {
+function snapshot(
+  entries: ReadonlyArray<[Dispatch.RowStatus, number]>,
+  acceptance: ReadonlyArray<[Dispatch.RowAcceptance, number]> = [],
+): Dispatch.DispatchProgress {
   return {
     byStatus: new Map<Dispatch.RowStatus, number>(entries),
+    byAcceptance: new Map<Dispatch.RowAcceptance, number>(acceptance),
     ratePerSecond: 19.6,
     throttled: 2,
     verifyPending: 2,
@@ -46,13 +50,20 @@ function session(before: Dispatch.DispatchProgress, during: Dispatch.DispatchPro
   } as unknown as Dispatch.DispatchSession;
 }
 
-const DURING = snapshot([
-  ['SENT', 2],
-  ['ACCEPTED', 3],
-  ['REFUSED', 1],
-  ['REQUEST_ID_FOUND', 4],
-  ['SEND_FAILED', 1],
-]);
+const DURING = snapshot(
+  [
+    ['SENT', 2],
+    ['ACCEPTED', 3],
+    ['REFUSED', 1],
+    ['REQUEST_ID_FOUND', 4],
+    ['SEND_FAILED', 1],
+  ],
+  [
+    ['ACCEPTED', 7],
+    ['REFUSED', 1],
+    ['UNKNOWN', 3],
+  ],
+);
 
 describe('ProgressReporter', () => {
   it('shows sent/to send, rate, verification and requestId counters on one line', () => {

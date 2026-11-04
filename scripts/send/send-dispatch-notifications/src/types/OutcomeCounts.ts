@@ -1,11 +1,12 @@
 /**
- * Row outcomes derived from the status counts, shared by the progress line
- * and the final summary.
+ * Row outcomes shared by the progress line and the final summary.
  */
 export interface OutcomeCounts {
-  /** Accepted by SEND: `ACCEPTED` plus the requestId statuses that follow it. */
+  /** Accepted by SEND, from explicit evidence (`Dispatch.acceptanceOf`), not from the status alone. */
   readonly accepted: number;
-  /** Sent: `SENT`, accepted, `REFUSED` and `VERIFY_TIMEOUT`. */
+  /** Refused by SEND: by the verification or by a `REQUEST_REFUSED` timeline. */
+  readonly refused: number;
+  /** Sent: `SENT` and every status after it (`ACCEPTED`, `REFUSED`, `VERIFY_TIMEOUT`, `REQUEST_ID_*`). */
   readonly sent: number;
   /** `SEND_FAILED` plus `SEND_UNCERTAIN`. */
   readonly errors: number;

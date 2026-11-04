@@ -29,6 +29,7 @@ export type { DocumentSourceKind } from './model/DocumentSourceKind.js';
 export type { LocalDocument } from './model/LocalDocument.js';
 export type { RowError } from './model/RowError.js';
 export type { RowState } from './model/RowState.js';
+export type { RowAcceptance } from './model/RowAcceptance.js';
 export type { RowStatus } from './model/RowStatus.js';
 
 // Environments

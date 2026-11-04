@@ -8,9 +8,13 @@ import { displaySummary, exitCodeFor, formatDuration, unprocessedRows } from '..
 import { countOutcomes } from '../outcomeCounts.js';
 import { FakeLogger } from './helpers/testScript.js';
 
-function progress(entries: ReadonlyArray<[Dispatch.RowStatus, number]>): Dispatch.DispatchProgress {
+function progress(
+  entries: ReadonlyArray<[Dispatch.RowStatus, number]>,
+  acceptance: ReadonlyArray<[Dispatch.RowAcceptance, number]> = [],
+): Dispatch.DispatchProgress {
   return {
     byStatus: new Map<Dispatch.RowStatus, number>(entries),
+    byAcceptance: new Map<Dispatch.RowAcceptance, number>(acceptance),
     ratePerSecond: 20,
     throttled: 0,
     verifyPending: 0,
@@ -48,20 +52,28 @@ describe('displaySummary helpers', () => {
     assert.equal(unprocessedRows(progress([['SENT', 2]]), 2), 0);
   });
 
-  it('derives sent, accepted and errors in one place', () => {
+  it('derives sent and errors from the statuses, accepted and refused from the evidence', () => {
     const counts = countOutcomes(
-      progress([
-        ['SENT', 2],
-        ['ACCEPTED', 3],
-        ['REFUSED', 1],
-        ['VERIFY_TIMEOUT', 1],
-        ['REQUEST_ID_FOUND', 4],
-        ['REQUEST_ID_NOT_FOUND', 1],
-        ['SEND_FAILED', 1],
-        ['SEND_UNCERTAIN', 2],
-      ]).byStatus,
+      progress(
+        [
+          ['SENT', 2],
+          ['ACCEPTED', 3],
+          ['REFUSED', 1],
+          ['VERIFY_TIMEOUT', 1],
+          ['REQUEST_ID_FOUND', 4],
+          ['REQUEST_ID_NOT_FOUND', 2],
+          ['SEND_FAILED', 1],
+          ['SEND_UNCERTAIN', 2],
+        ],
+        // One REQUEST_ID_NOT_FOUND ended with REQUEST_REFUSED, the other timed out unverified.
+        [
+          ['ACCEPTED', 7],
+          ['REFUSED', 2],
+          ['UNKNOWN', 4],
+        ],
+      ),
     );
-    assert.deepEqual(counts, { accepted: 8, sent: 12, errors: 3 });
+    assert.deepEqual(counts, { accepted: 7, refused: 2, sent: 13, errors: 3 });
   });
 });
 
@@ -88,5 +100,22 @@ describe('displaySummary', () => {
     assert.ok(table.includes('In corso all interruzione (da riconciliare)=2'));
     assert.ok(table.includes('Non inviate=3'), 'two rows never journaled plus one PENDING');
     assert.ok(logger.of('warning').some((line) => line.startsWith('Righe in corso all interruzione')));
+  });
+  it('does not report as accepted a REQUEST_ID_NOT_FOUND row whose timeline ended with REQUEST_REFUSED', () => {
+    // --phases request-id: no verification, the refusal comes from the timeline.
+    const logger = new FakeLogger();
+    displaySummary(logger as unknown as Core.GOLogger, {
+      progress: progress([['REQUEST_ID_NOT_FOUND', 1]], [['REFUSED', 1]]),
+      totalRows: 1,
+      failures: [],
+      statistics: { averageRate: undefined } as unknown as Dispatch.SendStatistics,
+      validationMs: 1_000,
+      executionMs: 2_000,
+      output: { format: 'csv', outputPath: '/o.csv', reportPath: '/r.csv', includeStatus: false, onlySuccess: false },
+      runDir: '/run',
+    });
+    const table = logger.of('kv');
+    assert.ok(table.includes('Accettate=0'));
+    assert.ok(table.includes('Rifiutate=1'));
   });
 });

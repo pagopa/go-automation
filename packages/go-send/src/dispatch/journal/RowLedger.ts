@@ -1,3 +1,5 @@
+import { acceptanceOf } from '../model/acceptanceOf.js';
+import type { RowAcceptance } from '../model/RowAcceptance.js';
 import type { RowState } from '../model/RowState.js';
 import type { RowStatus } from '../model/RowStatus.js';
 import { applyJournalEntry } from './applyJournalEntry.js';
@@ -17,6 +19,7 @@ import type { WallClockFn } from '../model/WallClockFn.js';
 export class RowLedger {
   private readonly rows = new Map<number, RowState>();
   private readonly statusCounts = new Map<RowStatus, number>();
+  private readonly acceptanceCounts = new Map<RowAcceptance, number>();
   private readonly uploads: RecordedUpload[] = [];
 
   constructor(
@@ -81,6 +84,16 @@ export class RowLedger {
     return new Map(this.statusCounts);
   }
 
+  /**
+   * Number of rows per SEND acceptance ({@link acceptanceOf}; values without
+   * rows are absent), kept up to date on every entry.
+   *
+   * @returns A snapshot: later transitions do not change it
+   */
+  public countByAcceptance(): ReadonlyMap<RowAcceptance, number> {
+    return new Map(this.acceptanceCounts);
+  }
+
   private apply(entry: JournalEntry): RowState | undefined {
     if (entry.event === 'DOCUMENT_UPLOADED' && entry.upload !== undefined) {
       this.uploads.push({ ...entry.upload, ts: entry.ts });
@@ -92,16 +105,23 @@ export class RowLedger {
     if (next !== undefined && next !== previous) {
       this.rows.set(entry.rowIndex, next);
       if (previous?.status !== next.status) {
-        if (previous !== undefined) this.adjustCount(previous.status, -1);
-        this.adjustCount(next.status, 1);
+        if (previous !== undefined) adjustCount(this.statusCounts, previous.status, -1);
+        adjustCount(this.statusCounts, next.status, 1);
+      }
+      const previousAcceptance = previous === undefined ? undefined : acceptanceOf(previous);
+      const nextAcceptance = acceptanceOf(next);
+      if (previousAcceptance !== nextAcceptance) {
+        if (previousAcceptance !== undefined) adjustCount(this.acceptanceCounts, previousAcceptance, -1);
+        adjustCount(this.acceptanceCounts, nextAcceptance, 1);
       }
     }
     return next;
   }
+}
 
-  private adjustCount(status: RowStatus, delta: number): void {
-    const count = (this.statusCounts.get(status) ?? 0) + delta;
-    if (count > 0) this.statusCounts.set(status, count);
-    else this.statusCounts.delete(status);
-  }
+/** Adds `delta` to the count of `key`, dropping keys that reach zero. */
+function adjustCount<K>(counts: Map<K, number>, key: K, delta: number): void {
+  const count = (counts.get(key) ?? 0) + delta;
+  if (count > 0) counts.set(key, count);
+  else counts.delete(key);
 }
