@@ -70,6 +70,20 @@ describe('selectRequestIds', () => {
     assert.equal(selectRequestIds(timeline, options).complete, false);
   });
 
+  it('completes wait=all with a repeated category once every distinct category is found', () => {
+    const timeline = [element('PREPARE_ANALOG_DOMICILE', '2026-01-02T10:00:00Z', 'A0')];
+    const options = {
+      ...DEFAULT_REQUEST_ID_OPTIONS,
+      categories: ['PREPARE_ANALOG_DOMICILE', 'PREPARE_ANALOG_DOMICILE'],
+      wait: 'all' as const,
+    };
+
+    const selection = selectRequestIds(timeline, options);
+
+    assert.equal(selection.complete, true);
+    assert.equal(selection.requestId, 'A0');
+  });
+
   it('reports the end of the workflow, but not DIGITAL_FAILURE_WORKFLOW', () => {
     const ended = selectRequestIds(
       [element('REQUEST_ACCEPTED', '2026-01-02T09:00:00Z'), element('COMPLETELY_UNREACHABLE', '2026-01-03T09:00:00Z')],

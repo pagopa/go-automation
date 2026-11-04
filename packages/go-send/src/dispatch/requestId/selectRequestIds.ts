@@ -40,7 +40,8 @@ export function selectRequestIds(
 
   const ids = [...requestIds.values()];
   const requestId = options.select === 'priority' ? ids[0] : ids.length > 0 ? ids.join('|') : undefined;
-  const complete = options.wait === 'any' ? requestIds.size > 0 : requestIds.size === options.categories.length;
+  // Distinct categories: a category repeated in the options must not make `all` unreachable.
+  const complete = options.wait === 'any' ? requestIds.size > 0 : requestIds.size === wanted.size;
   return {
     requestIds,
     complete,
