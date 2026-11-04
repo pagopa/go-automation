@@ -4,6 +4,7 @@
  */
 
 import { createReadStream } from 'fs';
+import { pipeline } from 'stream';
 import { parse } from 'csv-parse';
 import type { Options } from 'csv-parse';
 
@@ -140,6 +141,15 @@ export class GOCSVListImporter<TItem = CSVRecord>
 
   /**
    * Import items in streaming mode
+   *
+   * The file and the parser are joined with `stream.pipeline`, so a read error
+   * (e.g. a missing file) rejects the iteration instead of being emitted on a
+   * stream nobody listens to (an `uncaughtException`), and stopping early
+   * closes the file.
+   *
+   * @param source - CSV file path
+   * @returns AsyncGenerator yielding the parsed and transformed items
+   * @throws When the file cannot be read or the CSV cannot be parsed
    */
   async *importStream(source: string): AsyncGenerator<TItem, void, unknown> {
     if (typeof source !== 'string') {
@@ -156,8 +166,12 @@ export class GOCSVListImporter<TItem = CSVRecord>
 
     const stream = createReadStream(source, { encoding: this.options.encoding ?? 'utf8' });
     // Type assertion needed: csv-parse overloads are incompatible with exactOptionalPropertyTypes
-    const parser = stream.pipe(
+    const parser = pipeline(
+      stream,
       (parse as (options: CSVParseOptions) => ReturnType<typeof parse>)(this.getParserOptions()),
+      () => {
+        // A failure destroys the parser with the error, so the loop below rejects with it.
+      },
     );
 
     for await (const record of parser) {
