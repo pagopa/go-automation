@@ -4,6 +4,7 @@ import type { DispatchClock } from '../model/DispatchClock.js';
 
 const DECREASE_FACTOR = 0.75;
 const INCREASE_FACTOR = 1.1;
+/** Floor of the reductions, unless the configured rate is already lower. */
 const MIN_RATE = 1;
 const RECOVERY_INTERVAL_MS = 30_000;
 /**
@@ -15,9 +16,10 @@ const DECREASE_COOLDOWN_MS = 1_000;
 
 /**
  * Adapts the limiter rate to `429` responses (§10.3): −25% per throttling
- * episode (the `429`s within 1 s of a decrease count once; minimum 1/s), +10%
- * after every 30 s without `429`, up to the configured rate. Driven by
- * events, no timers.
+ * episode (the `429`s within 1 s of a decrease count once; minimum 1/s, or
+ * the configured rate when it is lower), +10% after every 30 s without
+ * `429`, up to the configured rate. The rate never exceeds the configured
+ * one. Driven by events, no timers.
  */
 export class RateAdapter {
   private lastChangeAt: number;
@@ -50,8 +52,10 @@ export class RateAdapter {
     this.lastChangeAt = now; // any 429 postpones the recovery
     if (now - this.lastDecreaseAt < DECREASE_COOLDOWN_MS) return undefined;
     this.lastDecreaseAt = now;
-    const next = Math.max(MIN_RATE, this.limiter.ratePerSecond * DECREASE_FACTOR);
-    if (next === this.limiter.ratePerSecond) return undefined;
+    // Never above the configured rate: with --rate 0.5 a floor of 1/s would raise it.
+    const floor = Math.min(MIN_RATE, this.targetRate);
+    const next = Math.max(floor, this.limiter.ratePerSecond * DECREASE_FACTOR);
+    if (next >= this.limiter.ratePerSecond) return undefined;
     this.limiter.setRate(next);
     return next;
   }

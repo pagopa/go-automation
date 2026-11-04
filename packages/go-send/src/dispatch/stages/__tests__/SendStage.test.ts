@@ -461,6 +461,29 @@ describe('RateAdapter', () => {
     clock.advance(1_000);
     assert.equal(adapter.onThrottled(), 11.25, 'a 429 after the cooldown is a new episode');
   });
+
+  it('never raises the rate above a configured rate below the 1/s floor', () => {
+    const clock = new VirtualClock();
+    const limiter = new GORateLimiter({ ratePerSecond: 0.5, sleeper: clock, now: () => clock.now() });
+    const adapter = new RateAdapter(limiter, 0.5, clock, true);
+
+    assert.equal(adapter.onThrottled(), undefined, 'already at the floor: nothing to lower');
+    assert.equal(limiter.ratePerSecond, 0.5);
+    clock.advance(30_000);
+    assert.equal(adapter.onSuccess(), undefined);
+    assert.equal(limiter.ratePerSecond, 0.5);
+  });
+
+  it('stops lowering at 1/s when the configured rate is higher', () => {
+    const clock = new VirtualClock();
+    const limiter = new GORateLimiter({ ratePerSecond: 1.2, sleeper: clock, now: () => clock.now() });
+    const adapter = new RateAdapter(limiter, 1.2, clock, true);
+
+    assert.equal(adapter.onThrottled(), 1);
+    clock.advance(1_000);
+    assert.equal(adapter.onThrottled(), undefined, 'already at 1/s');
+    assert.equal(limiter.ratePerSecond, 1);
+  });
 });
 
 describe('abortableWaits', () => {
