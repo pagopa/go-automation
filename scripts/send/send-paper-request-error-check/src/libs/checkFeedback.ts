@@ -125,11 +125,7 @@ export async function checkFeedbackFromRequestIds(
       }
     }
   } finally {
-    closeResults = await Promise.allSettled([
-      foundStream.close(),
-      notFoundStream.close(),
-      failedStream.close(),
-    ]);
+    closeResults = await Promise.allSettled([foundStream.close(), notFoundStream.close(), failedStream.close()]);
   }
 
   const closeErrors = (closeResults ?? [])

@@ -260,7 +260,9 @@ export async function retrieveGlacierS3(
         // Errore: status inatteso
         errorsCount++;
         failedItems.push(item);
-        logger.error(`❌ IUN ${item.iun}: Restore status inatteso: HTTP ${statusCode ?? 'undefined'} per ${item.fileKey}`);
+        logger.error(
+          `❌ IUN ${item.iun}: Restore status inatteso: HTTP ${statusCode ?? 'undefined'} per ${item.fileKey}`,
+        );
       }
     } catch (err: unknown) {
       const errorObj = err as { name?: string; $metadata?: { httpStatusCode?: number }; message?: string };
