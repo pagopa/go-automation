@@ -24,7 +24,13 @@ const ENVIRONMENTS_FILE = 'environments.yaml';
  */
 export function createEnvironmentLoader(script: Core.GOScript): Dispatch.EnvironmentLoader {
   const envFile = script.paths.getConfigFilePathWithInfo('.env');
-  const dotEnv = envFile.source === 'none' ? new Map<string, string>() : Core.GOEnvFileParser.parseFile(envFile.path);
+  let dotEnv: ReadonlyMap<string, string>;
+  try {
+    dotEnv = envFile.source === 'none' ? new Map<string, string>() : Core.GOEnvFileParser.parseFile(envFile.path);
+  } catch (error: unknown) {
+    // A malformed .env is the operator's to fix: a one-line usage error, not a stack trace.
+    throw DispatchUsageError.from(error);
+  }
   return new Dispatch.EnvironmentLoader(
     (name: string): string | undefined => Dispatch.processEnvironmentLookup(name) ?? dotEnv.get(name),
   );
@@ -99,7 +105,7 @@ export async function resolveTarget(
   }
   const groupId = config.groupId ?? definition.groupId;
   const sender = definition.sender ?? cliSender(config);
-  const b2b = b2bNeeded ? environmentB2B(config, loader, file, config.env) : undefined;
+  const b2b = b2bNeeded ? environmentB2B(config, loader, file, definition) : undefined;
   return {
     name: definition.name,
     production: definition.production,
@@ -113,23 +119,31 @@ export async function resolveTarget(
   };
 }
 
-/** B2B access of an environment: API key from its variable unless `--pn-api-key`. */
+/**
+ * B2B access of an environment: API key from its variable unless
+ * `--pn-api-key`. With `--pn-api-key` the variable is not read, so it may be
+ * unset.
+ */
 function environmentB2B(
   config: ValidatedConfig,
   loader: Dispatch.EnvironmentLoader,
   file: Dispatch.EnvironmentsFile,
-  name: string,
+  definition: Dispatch.EnvironmentDefinition,
 ): B2BAccess {
-  const environment = resolveEnvironment(loader, file, name);
-  const apiKey = config.pnApiKey ?? environment.apiKey;
   const override = config.basePath;
+  const basePath = override === undefined ? definition.basePath : normalizeCliBasePath(override);
+  if (config.pnApiKey !== undefined) {
+    return {
+      basePath,
+      apiKey: config.pnApiKey,
+      apiKeyLabel: `--pn-api-key ${Dispatch.apiKeyFingerprint(config.pnApiKey)}`,
+    };
+  }
+  const environment = resolveEnvironment(loader, file, definition.name);
   return {
-    basePath: override === undefined ? environment.basePath : normalizeCliBasePath(override),
-    apiKey,
-    apiKeyLabel:
-      config.pnApiKey === undefined
-        ? `$${environment.apiKeyVariable} ${Dispatch.apiKeyFingerprint(apiKey)}`
-        : `--pn-api-key ${Dispatch.apiKeyFingerprint(apiKey)}`,
+    basePath,
+    apiKey: environment.apiKey,
+    apiKeyLabel: `$${environment.apiKeyVariable} ${Dispatch.apiKeyFingerprint(environment.apiKey)}`,
   };
 }
 

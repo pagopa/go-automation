@@ -2,6 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as path from 'node:path';
 
+import { Core } from '@go-automation/go-common';
+
 import type { DispatchTarget } from '../../types/DispatchTarget.js';
 import type { SendDispatchNotificationsConfig } from '../../types/SendDispatchNotificationsConfig.js';
 import { DispatchShutdown } from '../DispatchShutdown.js';
@@ -148,6 +150,25 @@ describe('runDispatch confirmation', () => {
     assert.equal(code, 1);
     assert.equal(shutdown.wasInterrupted, true);
     assert.ok(test.logger.of('warning').some((line) => line.startsWith("Run interrotto prima dell'invio")));
+    const report = await readFixture(test.script.paths.getExecutionOutputFilePath('report.csv'));
+    assert.ok(report !== undefined, 'the rows validated so far are reported');
+  });
+
+  it('writes the report before a Ctrl-C on the confirmation reaches GOScript', async () => {
+    const test = await createTestScript(true);
+    const input = path.join(test.dir, 'in', 'input.csv');
+    await writeFixture(input, `${[QA_HEADER, ...rows].join('\n')}\n`);
+    test.prompt.onConfirm = (): void => {
+      throw new Core.GOPromptInterruptedError();
+    };
+    const config = validateConfig({ ...RAW_CONFIG, ...REQUEST_ID_RUN, inputFile: input });
+
+    await assert.rejects(
+      runDispatch(test.script, config, TIMELINES_ONLY, new DispatchShutdown()),
+      Core.GOPromptInterruptedError,
+    );
+    const report = await readFixture(test.script.paths.getExecutionOutputFilePath('report.csv'));
+    assert.ok(report !== undefined);
   });
 
   it('releases the cleanup hook even when the materialization fails', async () => {
@@ -164,6 +185,30 @@ describe('runDispatch confirmation', () => {
     });
     await assert.rejects(runDispatch(test.script, config, TIMELINES_ONLY, shutdown));
     assert.equal(await cleanupHook(shutdown), 'released');
+  });
+
+  it('returns 2 on a resume with nothing left to do but rows still without requestId', async () => {
+    const first = await run(rows, REQUEST_ID_RUN, TIMELINES_ONLY);
+    const previousDir = path.dirname(first.test.script.paths.getExecutionOutputFilePath('run.json'));
+    // Both workflows ended without PREPARE_*: a resume has nothing left to query.
+    const journalPath = path.join(previousDir, 'journal.jsonl');
+    const ended = [0, 1].map((rowIndex) =>
+      JSON.stringify({
+        ts: '2026-11-05T10:00:00.000Z',
+        event: 'REQUEST_ID_NOT_FOUND',
+        rowIndex,
+        rowKey: `S-${rowIndex + 1}`,
+        requestIdReason: 'WORKFLOW_ENDED:COMPLETELY_UNREACHABLE',
+      }),
+    );
+    await writeFixture(journalPath, `${(await readFixture(journalPath)) ?? ''}${ended.join('\n')}\n`);
+
+    const test = await createTestScript(true);
+    const config = validateConfig({ ...RAW_CONFIG, ...REQUEST_ID_RUN, inputFile: undefined, resume: previousDir });
+    const code = await runDispatch(test.script, config, TIMELINES_ONLY, new DispatchShutdown());
+
+    assert.ok(test.logger.of('info').includes('Nessuna riga da elaborare: nessun invio'));
+    assert.equal(code, 2, 'rows left without requestId are still problems');
   });
 
   it('replays the previous journal in a dry run of the resume', async () => {

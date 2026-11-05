@@ -43,17 +43,20 @@ export class TransitionLogger {
   /**
    * One-line description of an entry: row, event, identifiers, error.
    *
-   * A `ROW_INVALID` shows only the codes and fields of its validation issues:
-   * their messages may quote the row values (tax ids, addresses), which stay
-   * in the report.
+   * The error details are never logged as they are: the messages of the
+   * validation issues (`ROW_INVALID`) and the `detail` of the errors returned
+   * by SEND (`REFUSED`, `SEND_FAILED`) may quote the row values (tax ids,
+   * addresses). Only their codes and fields are shown; the details stay in
+   * the report.
    *
    * @param entry - Journal entry
    * @returns The log line
    */
   public static format(entry: Dispatch.JournalEntry): string {
     if (entry.event === 'ROW_INVALID') {
-      return `[${entry.rowKey ?? '-'}] ROW_INVALID ${invalidRowIssues(entry)} (dettagli nel report)`;
+      return `[${entry.rowKey ?? '-'}] ROW_INVALID ${issueCodes(entry.error?.details) ?? entry.error?.code ?? 'INVALID'} (dettagli nel report)`;
     }
+    const detailCodes = issueCodes(entry.error?.details);
     const parts = [
       `[${entry.rowKey ?? '-'}]`,
       entry.event,
@@ -63,7 +66,7 @@ export class TransitionLogger {
       ...(entry.requestId === undefined ? [] : [`requestId=${entry.requestId}`]),
       ...(entry.requestIdReason === undefined || entry.requestIdReason === 'FOUND' ? [] : [entry.requestIdReason]),
       ...(entry.error === undefined ? [] : [`${entry.error.code}: ${entry.error.message}`]),
-      ...(entry.error?.details === undefined ? [] : [entry.error.details]),
+      ...(detailCodes === undefined ? [] : [`[${detailCodes}] (dettagli nel report)`]),
       ...(entry.warning === undefined ? [] : [entry.warning]),
     ];
     return parts.join(' ');
@@ -71,27 +74,26 @@ export class TransitionLogger {
 }
 
 /**
- * `CODE(field)` of each validation issue of a `ROW_INVALID` entry (the
- * details are the JSON array of the issues), or the error code alone.
+ * `CODE(field)` of each item of error details that are a JSON array: the
+ * validation issues of `ROW_INVALID` (`field`) or the errors returned by
+ * SEND (`element`). Messages and `detail` texts are left out.
+ *
+ * @returns The codes, or `undefined` when the details are absent or not such an array
  */
-function invalidRowIssues(entry: Dispatch.JournalEntry): string {
-  const fallback = entry.error?.code ?? 'INVALID';
-  const details = entry.error?.details;
-  if (details === undefined) return fallback;
+function issueCodes(details: string | undefined): string | undefined {
+  if (details === undefined) return undefined;
   let parsed: unknown;
   try {
     parsed = JSON.parse(details);
   } catch {
-    return fallback;
+    return undefined;
   }
-  if (!Array.isArray(parsed)) return fallback;
-  const issues = parsed
-    .filter(isIssue)
-    .map((issue) => (issue.field === undefined ? issue.code : `${issue.code}(${issue.field})`));
-  return issues.length === 0 ? fallback : issues.join(', ');
-}
-
-function isIssue(value: unknown): value is Pick<Dispatch.ValidationIssue, 'code' | 'field'> {
-  if (typeof value !== 'object' || value === null || !('code' in value) || typeof value.code !== 'string') return false;
-  return !('field' in value) || typeof value.field === 'string';
+  if (!Array.isArray(parsed)) return undefined;
+  const items: ReadonlyArray<unknown> = parsed;
+  const codes = items.flatMap((item) => {
+    if (typeof item !== 'object' || item === null || !('code' in item) || typeof item.code !== 'string') return [];
+    const field = 'field' in item ? item.field : 'element' in item ? item.element : undefined;
+    return [typeof field === 'string' ? `${item.code}(${field})` : item.code];
+  });
+  return codes.length === 0 ? undefined : codes.join(', ');
 }

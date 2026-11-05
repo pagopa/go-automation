@@ -3,15 +3,17 @@
  * confirmation → send/verify → materialization → summary.
  */
 
-import type { Core } from '@go-automation/go-common';
+import { Core } from '@go-automation/go-common';
 import { Dispatch } from '@go-automation/go-send';
 
+import type { ConfirmOutcome } from '../types/ConfirmOutcome.js';
 import type { DispatchTarget } from '../types/DispatchTarget.js';
 import type { ExecutionContext } from '../types/ExecutionContext.js';
 import type { PlannedWork } from '../types/PlannedWork.js';
 import type { PreparedSession } from '../types/PreparedSession.js';
 import type { ResolvedRun } from '../types/ResolvedRun.js';
 import type { ValidatedConfig } from '../types/ValidatedConfig.js';
+import type { ConfirmFn } from '../types/ConfirmFn.js';
 import { confirmRun, exitCodeForConfirmation } from './confirmRun.js';
 import { createSessionOptions } from './createSessionOptions.js';
 import type { DispatchShutdown } from './DispatchShutdown.js';
@@ -107,7 +109,7 @@ async function runSession(
   const validationStarted = Date.now();
   const summary = await session.validate();
   const validationMs = Date.now() - validationStarted;
-  if (session.stopped) return stoppedBeforeSending(script, run, options);
+  if (session.stopped) return stoppedBeforeSending(script, run, session, options);
 
   const work = plannedWork(summary, options.send);
   displayPlan(script.logger, {
@@ -127,18 +129,25 @@ async function runSession(
     script.logger.error(`${blocking}: nessun invio. Report in ${run.runDir}`);
     return EXIT_ERROR;
   }
-  if (options.dryRun || work.rows === 0) {
+  if (options.dryRun) {
     await session.materialize();
-    script.logger.info(options.dryRun ? dryRunMessage(run, work) : 'Nessuna riga da elaborare: nessun invio');
+    script.logger.info(dryRunMessage(run, work));
+    // A dry run judges the plan: only invalid rows make it fail.
     return summary.invalidRows > 0 ? EXIT_PROBLEMS : 0;
   }
-  const outcome = await confirmRun(script, config, target, work);
+  if (work.rows === 0) {
+    await session.materialize();
+    script.logger.info('Nessuna riga da elaborare: nessun invio');
+    // On resume rows left failed or uncertain by a previous session (no --retry-*) are still problems.
+    return exitCodeFor(session.progress(), summary.totalRows);
+  }
+  const outcome = await confirmBeforeSending(session, async () => confirmRun(script, config, target, work));
   if (outcome !== 'CONFIRMED') {
     await session.materialize();
     script.logger.info('Nessun invio eseguito');
     return exitCodeForConfirmation(outcome);
   }
-  if (session.stopped) return stoppedBeforeSending(script, run, options);
+  if (session.stopped) return stoppedBeforeSending(script, run, session, options);
   return execute(script, { session, run, options, work, shutdown, totalRows: summary.totalRows, validationMs });
 }
 
@@ -149,11 +158,28 @@ function dryRunMessage(run: ResolvedRun, work: PlannedWork): string {
   return `${kind}: ${what}. Piano e report in ${run.runDir}`;
 }
 
-function stoppedBeforeSending(
+/**
+ * Asks for the confirmation. When it is interrupted (Ctrl-C or a signal on
+ * the prompt) the output and the report of the validated rows are written
+ * before the interruption reaches GOScript, like on every other early exit.
+ */
+async function confirmBeforeSending(session: Dispatch.DispatchSession, confirm: ConfirmFn): Promise<ConfirmOutcome> {
+  try {
+    return await confirm();
+  } catch (error: unknown) {
+    if (error instanceof Core.GOPromptInterruptedError) await session.materialize();
+    throw error;
+  }
+}
+
+async function stoppedBeforeSending(
   script: Core.GOScript,
   run: ResolvedRun,
+  session: Dispatch.DispatchSession,
   options: Dispatch.DispatchSessionOptions,
-): number {
+): Promise<number> {
+  // Output and report of the rows validated so far, as on every other early exit.
+  await session.materialize();
   const resume = options.dryRun ? '' : `; riprendi con --resume ${run.runName} e gli stessi parametri`;
   script.logger.warning(`Run interrotto prima dell'invio: nessuna notifica inviata${resume}`);
   return EXIT_ERROR;

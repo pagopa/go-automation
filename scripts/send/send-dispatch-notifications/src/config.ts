@@ -122,7 +122,8 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   {
     name: 'resume',
     type: STRING,
-    description: 'Directory di esecuzione (nome sotto outputs/ o path) del run da riprendere, con gli stessi parametri',
+    description:
+      'Directory di esecuzione del run da riprendere (nome sotto outputs/ o path assoluto), con gli stessi parametri',
   },
   {
     name: 'retry.failed',

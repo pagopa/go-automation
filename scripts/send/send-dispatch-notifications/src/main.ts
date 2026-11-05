@@ -30,8 +30,8 @@ import type { SendDispatchNotificationsConfig } from './types/SendDispatchNotifi
  */
 export async function main(script: Core.GOScript, shutdown: DispatchShutdown): Promise<void> {
   const raw = await script.getConfiguration<SendDispatchNotificationsConfig>();
-  const loader = createEnvironmentLoader(script);
   try {
+    const loader = createEnvironmentLoader(script);
     if (raw.listEnvs) {
       const filePath = resolveEnvironmentsFile(script, raw);
       if (filePath === undefined) {

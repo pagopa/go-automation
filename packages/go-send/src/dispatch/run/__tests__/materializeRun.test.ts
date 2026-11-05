@@ -30,7 +30,7 @@ async function materialize(ledger: RowLedger, rows: number, onlySuccess: boolean
 }
 
 describe('materializeRun', () => {
-  it('keeps only accepted notifications in the success-only output, never refused (verify or timeline) or timed out ones', async () => {
+  it('keeps only successful notifications in the success-only output: not refused, timed out or without requestId', async () => {
     const ledger = new RowLedger(undefined);
     const sent = { notificationRequestId: 'N', iun: IUN } as const;
     await ledger.record({ event: 'SENT', rowIndex: 0, rowKey: 'K-0', ...sent });
@@ -55,7 +55,8 @@ describe('materializeRun', () => {
     const success = await materialize(ledger, 9, true);
     assert.deepEqual(
       success.slice(1).map((line) => line.split(',')[0]),
-      ['K-0', 'K-1', 'K-4', 'K-5', 'K-6'],
+      ['K-0', 'K-1', 'K-4', 'K-6'],
+      'K-5 (REQUEST_ID_NOT_FOUND) is a problem: the run looked for its requestId',
     );
 
     const all = await materialize(ledger, 9, false);

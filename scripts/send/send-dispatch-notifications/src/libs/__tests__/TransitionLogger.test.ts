@@ -25,7 +25,7 @@ describe('TransitionLogger', () => {
       logger.handle({ ts: 't', event: 'DOCUMENT_UPLOADED' });
     }
 
-    assert.deepEqual(quiet.of('warning'), ['[S-1] SEND_FAILED PN_X: bad [{"code":"PN_X"}]']);
+    assert.deepEqual(quiet.of('warning'), ['[S-1] SEND_FAILED PN_X: bad [PN_X] (dettagli nel report)']);
     assert.deepEqual(quiet.of('info'), []);
     assert.deepEqual(verbose.of('info'), ['[S-2] SENT #1 iun=IUN'], 'run-level entries are not logged');
   });
@@ -58,5 +58,25 @@ describe('TransitionLogger', () => {
       '[S-3] ROW_INVALID INVALID_FORMAT(recipient.taxId), MISSING_FIELD(subject) (dettagli nel report)',
       '[S-4] ROW_INVALID INVALID (dettagli nel report)',
     ]);
+  });
+  it('logs only the codes of the errors returned by SEND, never their detail', () => {
+    const quiet = new FakeLogger();
+    const logger = new TransitionLogger(quiet as unknown as Core.GOLogger, false);
+    const sendErrors = [
+      { code: 'PN_INVALID_TAXID', element: 'recipients[0].taxId', detail: 'taxId RSSMRA80A01H501U not valid' },
+    ];
+    logger.handle({
+      ts: 't',
+      event: 'REFUSED',
+      rowKey: 'S-5',
+      error: { code: 'REFUSED', message: 'notification refused by SEND', details: JSON.stringify(sendErrors) },
+    });
+
+    const [line] = quiet.of('warning');
+    assert.equal(
+      line,
+      '[S-5] REFUSED REFUSED: notification refused by SEND [PN_INVALID_TAXID(recipients[0].taxId)] (dettagli nel report)',
+    );
+    assert.doesNotMatch(line ?? '', /RSSMRA80A01H501U/);
   });
 });

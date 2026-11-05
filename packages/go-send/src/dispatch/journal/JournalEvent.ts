@@ -6,11 +6,14 @@
  * (identifiers from the input, phases without `send`, RF-12).
  * `ROW_REVALIDATED` brings back to `PENDING` a row a previous session
  * recorded as `INVALID` and that now validates (input mapping or documents
- * fixed before the resume).
+ * fixed before the resume). `SEND_DEFERRED` brings back to `PENDING` a row
+ * whose last POST SEND rejected with `429` when the run stopped before the
+ * next attempt: SEND never created it, so a plain resume sends it.
  */
 export type JournalEvent =
   | 'ROW_INVALID'
   | 'ROW_REVALIDATED'
+  | 'SEND_DEFERRED'
   | 'DOCUMENT_UPLOADED'
   | 'SENDING'
   | 'SENT'

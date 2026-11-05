@@ -186,7 +186,9 @@ export async function createSessionOptions(
           throw DispatchUsageError.from(error);
         })
       : undefined;
-  const sharedDocument = send ? (cliSharedDocument(script, config) ?? target.sharedDocument) : undefined;
+  // The configured shared document is part of the run identity even when this session does not send.
+  const configuredSharedDocument = cliSharedDocument(script, config) ?? target.sharedDocument;
+  const sharedDocument = send ? configuredSharedDocument : undefined;
   const delimiter = inputFormat === 'csv' ? profile.format?.delimiter : undefined;
   const documentsDir =
     config.documentsDir === undefined
@@ -206,7 +208,7 @@ export async function createSessionOptions(
     endpoint: target.b2b?.basePath ?? target.externalChannels?.baseUrl ?? '',
     cliValues: formatFieldValues(cliValues),
     environmentValues: formatFieldValues(environmentValues),
-    sharedDocument: formatSharedDocument(cliSharedDocument(script, config) ?? target.sharedDocument),
+    sharedDocument: formatSharedDocument(configuredSharedDocument),
     documentsDir,
     attachmentsFile: attachmentsFile ?? '',
   };

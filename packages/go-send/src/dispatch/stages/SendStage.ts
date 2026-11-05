@@ -169,13 +169,17 @@ export class SendStage implements RowSender {
   }
 
   /**
-   * The run stopped while the row was waiting to POST again after a `429`:
-   * SEND rejected the last POST, so the row is a retryable failure instead
-   * of staying `SENDING`.
+   * The run stopped while the row was waiting to POST again after a `429`.
+   * SEND rejected the last POST, so the notification does not exist: the row
+   * goes back to `PENDING` (`SEND_DEFERRED`) and a plain resume sends it,
+   * like any row not sent yet. Without a previous `429` the row stays as it
+   * is (a resume reconciles a `SENDING` row). Giving up after
+   * `--send-timeout` of `429`s is a real failure instead (`SEND_FAILED`
+   * `THROTTLED`, retried with `--retry-failed`).
    */
   private async stoppedAfterThrottling(context: SendContext, throttled: SendFailure | undefined): Promise<void> {
     if (throttled === undefined) return;
-    await this.fail(context, { ...toRowError(throttled), retryable: true });
+    await this.options.ledger.record({ event: 'SEND_DEFERRED', ...this.rowRef(context) });
   }
 
   /**

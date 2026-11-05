@@ -15,6 +15,7 @@ import { UploadError } from '../../documents/UploadError.js';
 import { DocumentResolver } from '../../documents/DocumentResolver.js';
 import { LocalDocumentInspector } from '../../documents/LocalDocumentInspector.js';
 import { RowLedger } from '../../journal/RowLedger.js';
+import { decideRowAction } from '../../run/decideRowAction.js';
 import type { DispatchRecord } from '../../model/DispatchRecord.js';
 import { acquireUnlessStopped, sleepUnlessStopped } from '../abortableWaits.js';
 import { RateAdapter } from '../RateAdapter.js';
@@ -254,7 +255,7 @@ describe('SendStage', () => {
     assert.equal(h.ledger.get(0)?.error?.code, 'DUPLICATE_NOT_FOUND');
   });
 
-  it('records SEND_FAILED THROTTLED (retryable) when the run stops during a 429 backoff', async () => {
+  it('brings the row back to PENDING when the run stops during a 429 backoff: a plain resume sends it', async () => {
     const h = harness();
     h.api.sendScript.push(httpError(429, undefined, 60_000));
     const sending = h.stage.send(record(0));
@@ -264,10 +265,24 @@ describe('SendStage', () => {
     })();
     await h.clock.run(Promise.all([sending, stopper]));
     const state = h.ledger.get(0);
+    assert.equal(state?.status, 'PENDING', 'SEND rejected the POST: the notification does not exist');
+    assert.equal(state?.error, undefined);
+    assert.equal(
+      decideRowAction(state, { retryFailed: false, retryUncertain: false, verify: true, requestId: false }),
+      'send',
+      'no --retry-failed needed',
+    );
+    assert.equal(h.api.count('send'), 1);
+  });
+
+  it('records SEND_FAILED THROTTLED (retryable) when the 429s last longer than --send-timeout', async () => {
+    const h = harness(); // sendTimeoutMs: 10 minutes
+    for (let i = 0; i < 20; i++) h.api.sendScript.push(httpError(429, undefined, 60_000));
+    await h.clock.run(h.stage.send(record(0)));
+    const state = h.ledger.get(0);
     assert.equal(state?.status, 'SEND_FAILED');
     assert.equal(state?.error?.code, 'THROTTLED');
     assert.equal(state?.error?.retryable, true);
-    assert.equal(h.api.count('send'), 1);
   });
 
   it('records a document failure on the row and stops the run when it is run-level', async () => {

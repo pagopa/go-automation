@@ -10,13 +10,12 @@ import type { MaterializerOptions } from './MaterializerOptions.js';
 
 const MAX_ERROR_MESSAGE = 1_000;
 
-/** Statuses of a notification SEND (or pn-external-channels) accepted. */
-const SUCCESSFUL_STATUSES: ReadonlySet<RowStatus> = new Set<RowStatus>([
-  'SENT',
-  'ACCEPTED',
-  'REQUEST_ID_FOUND',
-  'REQUEST_ID_NOT_FOUND',
-]);
+/**
+ * Statuses of a notification SEND (or pn-external-channels) accepted.
+ * `REQUEST_ID_NOT_FOUND` is not one: when the run looks for the requestId it
+ * is expected to find it, so a row left without is a problem (exit code 2).
+ */
+const SUCCESSFUL_STATUSES: ReadonlySet<RowStatus> = new Set<RowStatus>(['SENT', 'ACCEPTED', 'REQUEST_ID_FOUND']);
 
 /**
  * Writes the output (input + `iun` + `requestId`, 1:1 with the input) and the
@@ -64,15 +63,13 @@ export async function materializeRun(options: MaterializerOptions): Promise<void
 
 /**
  * Whether a row belongs to the success-only output: it reached a successful
- * status, is not known to be refused, and has an identifier to show, the IUN
- * (e2e) or the requestId accepted by pn-external-channels (direct, where
- * there is no IUN). The IUN alone is not enough: e2e stores it at `SENT`, and
- * `REFUSED` / `VERIFY_TIMEOUT` rows keep it. `REQUEST_ID_NOT_FOUND` is not
- * enough either: it also follows a `REQUEST_REFUSED` timeline.
+ * status and has an identifier to show, the IUN (e2e) or the requestId
+ * accepted by pn-external-channels (direct, where there is no IUN). The IUN
+ * alone is not enough: e2e stores it at `SENT`, and `REFUSED` /
+ * `VERIFY_TIMEOUT` / `REQUEST_ID_NOT_FOUND` rows keep it.
  */
 function isSuccessful(state: RowState | undefined): boolean {
   if (state === undefined || !SUCCESSFUL_STATUSES.has(state.status)) return false;
-  if (acceptanceOf(state) === 'REFUSED') return false;
   return state.iun !== undefined || state.requestId !== undefined;
 }
 

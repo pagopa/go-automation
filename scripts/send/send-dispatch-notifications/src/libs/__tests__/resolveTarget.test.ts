@@ -59,6 +59,13 @@ describe('resolveTarget', () => {
     assert.equal(target.groupId, 'g2');
   });
 
+  it('accepts --pn-api-key when the variable of the environment is not set', async () => {
+    const target = await resolve({ env: 'ente-prod', pnApiKey: 'override-9876' }); // PN_API_KEY_PROD unset
+    assert.equal(target.b2b?.basePath, 'https://api.prod.example');
+    assert.equal(target.b2b?.apiKey, 'override-9876');
+    assert.match(target.b2b?.apiKeyLabel ?? '', /^--pn-api-key /);
+  });
+
   it('needs neither API key nor base path with only the request-id phase', async () => {
     assert.equal(usesB2B(validateConfig({ ...RAW_CONFIG, phases: ['request-id'] })), false);
     const fromEnv = await resolve({ env: 'ente-prod', phases: ['request-id'] });

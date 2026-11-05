@@ -4,7 +4,7 @@
  */
 
 import { Core } from '@go-automation/go-common';
-import { Dispatch } from '@go-automation/go-send';
+import { Dispatch, MAX_PRELOAD_ITEMS } from '@go-automation/go-send';
 import type { SENDApiVersion } from '@go-automation/go-send';
 
 import type { DispatchDurations } from '../types/DispatchDurations.js';
@@ -78,6 +78,7 @@ export function validateConfig(config: SendDispatchNotificationsConfig): Validat
 }
 
 function validateBase(config: SendDispatchNotificationsConfig): ValidatedConfigBase {
+  validateTuning(config);
   const phases = validatePhases(config.phases);
   if (!isSendApiVersion(config.apiVersion)) {
     throw new DispatchUsageError(`--api-version ${config.apiVersion}: use v2.4, v2.5 or v2.6`);
@@ -124,6 +125,29 @@ function validateBase(config: SendDispatchNotificationsConfig): ValidatedConfigB
     requestIdWait,
     durations: parseDurations(config),
   };
+}
+
+/**
+ * Throughput and concurrency parameters: rejected here, as usage errors, so
+ * a bad value never reaches the session (where it would fail with a stack
+ * trace, after `run.json` is written, and only in a real run).
+ */
+function validateTuning(config: SendDispatchNotificationsConfig): void {
+  if (config.rate !== undefined && !(Number.isFinite(config.rate) && config.rate > 0)) {
+    throw new DispatchUsageError(`--rate ${config.rate}: must be a positive number of calls per second`);
+  }
+  requirePositiveInteger(config.burst, '--burst');
+  requirePositiveInteger(config.maxInFlight, '--max-in-flight');
+  requirePositiveInteger(config.uploadConcurrency, '--upload-concurrency');
+  requirePositiveInteger(config.dynamodbConcurrency, '--dynamodb-concurrency');
+  requirePositiveInteger(config.preloadBatchSize, '--preload-batch-size', MAX_PRELOAD_ITEMS);
+}
+
+function requirePositiveInteger(value: number, flag: string, max?: number): void {
+  if (!Number.isInteger(value) || value < 1 || (max !== undefined && value > max)) {
+    const range = max === undefined ? 'a positive integer' : `an integer from 1 to ${max}`;
+    throw new DispatchUsageError(`${flag} ${value}: must be ${range}`);
+  }
 }
 
 function validatePhases(raw: ReadonlyArray<string>): ReadonlyArray<DispatchPhaseName> {

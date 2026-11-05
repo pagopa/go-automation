@@ -5,6 +5,8 @@
 import type { Core } from '@go-automation/go-common';
 import { Dispatch } from '@go-automation/go-send';
 
+import { DispatchUsageError } from './DispatchUsageError.js';
+
 /**
  * Prints the environments of the file: name, description, URL, group, API
  * key variable and whether it is set (with fingerprint only).
@@ -18,7 +20,9 @@ export async function listEnvironments(
   loader: Dispatch.EnvironmentLoader,
   filePath: string,
 ): Promise<void> {
-  const file = await loader.load(filePath);
+  const file = await loader.load(filePath).catch((error: unknown) => {
+    throw DispatchUsageError.from(error);
+  });
   logger.section(`Ambienti in ${filePath}`);
   logger.simpleTable(
     [...file.environments.values()].map((environment) => {

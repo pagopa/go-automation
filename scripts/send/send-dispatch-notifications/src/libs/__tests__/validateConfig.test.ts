@@ -53,6 +53,29 @@ describe('validateConfig', () => {
     assert.throws(() => validateConfig({ ...RAW_CONFIG, defaults: ['sender.taxid=1'] }), DispatchUsageError);
   });
 
+  it('rejects throughput and concurrency values the session cannot use, before any file is read', () => {
+    const invalid: ReadonlyArray<[Partial<typeof RAW_CONFIG>, RegExp]> = [
+      [{ rate: 0 }, /--rate 0: must be a positive number/],
+      [{ rate: -5 }, /--rate -5/],
+      [{ burst: 0 }, /--burst 0: must be a positive integer/],
+      [{ maxInFlight: 0 }, /--max-in-flight 0/],
+      [{ uploadConcurrency: 1.5 }, /--upload-concurrency 1.5/],
+      [{ dynamodbConcurrency: -1 }, /--dynamodb-concurrency -1/],
+      [{ preloadBatchSize: 20 }, /--preload-batch-size 20: must be an integer from 1 to 15/],
+    ];
+    for (const [overrides, message] of invalid) {
+      assert.throws(
+        () => validateConfig({ ...RAW_CONFIG, ...overrides }),
+        (error: unknown) => {
+          assert.ok(error instanceof DispatchUsageError);
+          assert.match(error.message, message);
+          return true;
+        },
+      );
+    }
+    assert.doesNotThrow(() => validateConfig({ ...RAW_CONFIG, rate: 0.5, preloadBatchSize: 15 }));
+  });
+
   it('parses --defaults into field values', () => {
     const config = validateConfig({ ...RAW_CONFIG, defaults: ['sender.denomination=Comune di X', 'Ufficio Y'] });
     assert.equal(config.fieldDefaults.get('sender.denomination'), 'Comune di X, Ufficio Y');

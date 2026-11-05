@@ -59,7 +59,7 @@ pnpm send:dispatch:notifications:dev --env ente-test --mapping-profile qa-test \
 - Possono cambiare: `--phases`, retry (`--retry-failed`, `--retry-uncertain`, `--send-retry-ambiguous`), throughput (`--rate`, `--burst`, `--max-in-flight`…), timeout, `--aws-profiles` e le opzioni di output.
 - Un `run.json` scritto da una versione precedente dello script non contiene queste impostazioni: la ripresa viene rifiutata (avviare un nuovo run sulle righe rimaste).
 - Il file di input deve essere identico (SHA-256), altrimenti la ripresa si ferma con `RESUME_INPUT_CHANGED`.
-- Cosa riparte: le righe `SENDING` senza esito diventano `SEND_UNCERTAIN` e si riconciliano; `SENT`/`ACCEPTED` non concluse e `VERIFY_TIMEOUT`/`REQUEST_ID_NOT_FOUND` rientrano nella verifica / nel `requestId`; le `SEND_FAILED` ripetibili (compresa `THROTTLED`, vedi sotto) si reinviano solo con `--retry-failed`; una riga `INVALID` in una sessione precedente che ora risulta valida (input o documenti corretti) viene inviata.
+- Cosa riparte: le righe `SENDING` senza esito diventano `SEND_UNCERTAIN` e si riconciliano; `SENT`/`ACCEPTED` non concluse e `VERIFY_TIMEOUT`/`REQUEST_ID_NOT_FOUND` rientrano nella verifica / nel `requestId`; le `SEND_FAILED` ripetibili (compresa `THROTTLED`, vedi sotto) si reinviano solo con `--retry-failed`; una riga fermata dall'interruzione mentre aspettava di riprovare dopo un `429` è tornata `PENDING` e si invia senza flag; una riga `INVALID` in una sessione precedente che ora risulta valida (input o documenti corretti) viene inviata.
 - `--dry-run` con `--resume` rilegge il journal del run precedente (e controlla l'hash dell'input) senza scrivere nulla: il piano mostra le righe ancora da inviare e da elaborare.
 
 ### Modalità `direct` (pn-external-channels)
@@ -162,18 +162,18 @@ I documenti servono solo con la fase `send`: senza, il documento condiviso non v
 
 ### Sicurezza, ripresa e retry
 
-| Parametro                | Default | Descrizione                                                                                      |
-| ------------------------ | ------- | ------------------------------------------------------------------------------------------------ |
-| `--dry-run`              | `true`  | nessuna chiamata: piano, output e report con stato `DRY_RUN`                                     |
-| `--yes`                  | `false` | salta la conferma interattiva (non in produzione)                                                |
-| `--confirm-production`   | —       | in produzione: numero di righe **da inviare** mostrato dal piano (da elaborare, se non si invia) |
-| `--fail-fast`            | `false` | si ferma alla prima riga non valida o fallita                                                    |
-| `--verbose`              | `false` | una riga di log per ogni transizione di riga                                                     |
-| `--resume`               | —       | directory di esecuzione (nome sotto `outputs/` o path) da riprendere, con gli stessi parametri   |
-| `--retry-failed`         | `false` | con `--resume`, reinvia le righe `SEND_FAILED` ripetibili (compresa `THROTTLED`)                 |
-| `--retry-uncertain`      | `false` | con `--resume`, riconcilia le righe `SEND_UNCERTAIN`                                             |
-| `--send-retry-ambiguous` | `true`  | riconcilia gli esiti ambigui (timeout, 5xx) con la ricerca per protocollo                        |
-| `--send-timeout`         | `10m`   | tempo massimo per riga in rischedulazione da 429                                                 |
+| Parametro                | Default | Descrizione                                                                                             |
+| ------------------------ | ------- | ------------------------------------------------------------------------------------------------------- |
+| `--dry-run`              | `true`  | nessuna chiamata: piano, output e report con stato `DRY_RUN`                                            |
+| `--yes`                  | `false` | salta la conferma interattiva (non in produzione)                                                       |
+| `--confirm-production`   | —       | in produzione: numero di righe **da inviare** mostrato dal piano (da elaborare, se non si invia)        |
+| `--fail-fast`            | `false` | si ferma alla prima riga non valida o fallita                                                           |
+| `--verbose`              | `false` | una riga di log per ogni transizione di riga                                                            |
+| `--resume`               | —       | directory di esecuzione (nome sotto `outputs/` o path assoluto) da riprendere, con gli stessi parametri |
+| `--retry-failed`         | `false` | con `--resume`, reinvia le righe `SEND_FAILED` ripetibili (compresa `THROTTLED`)                        |
+| `--retry-uncertain`      | `false` | con `--resume`, riconcilia le righe `SEND_UNCERTAIN`                                                    |
+| `--send-retry-ambiguous` | `true`  | riconcilia gli esiti ambigui (timeout, 5xx) con la ricerca per protocollo                               |
+| `--send-timeout`         | `10m`   | tempo massimo per riga in rischedulazione da 429                                                        |
 
 ### Throughput e HTTP
 
@@ -203,12 +203,12 @@ I documenti servono solo con la fase `send`: senza, il documento condiviso non v
 
 ### Output
 
-| Parametro                 | Default                 | Descrizione                                                                                                                                             |
-| ------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--output-format`         | come l'input            | `csv`, `json` o `jsonl` (non il formato del profilo: un input JSON dà un output JSON)                                                                   |
-| `--output-file`           | directory di esecuzione | path esplicito del file principale                                                                                                                      |
-| `--output-include-status` | `false`                 | colonne `_status`, `_notificationRequestId`, `_error`                                                                                                   |
-| `--output-only-success`   | `false`                 | solo le righe `SENT`, `ACCEPTED`, `REQUEST_ID_FOUND`, `REQUEST_ID_NOT_FOUND`, escluse le rifiutate (`REFUSED`, o timeline chiusa con `REQUEST_REFUSED`) |
+| Parametro                 | Default                 | Descrizione                                                                                                                                       |
+| ------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--output-format`         | come l'input            | `csv`, `json` o `jsonl` (non il formato del profilo: un input JSON dà un output JSON)                                                             |
+| `--output-file`           | directory di esecuzione | path esplicito del file principale                                                                                                                |
+| `--output-include-status` | `false`                 | colonne `_status`, `_notificationRequestId`, `_error`                                                                                             |
+| `--output-only-success`   | `false`                 | solo le righe `SENT`, `ACCEPTED`, `REQUEST_ID_FOUND`: escluse le rifiutate, quelle in timeout e quelle senza `requestId` (`REQUEST_ID_NOT_FOUND`) |
 
 Le righe `REFUSED` restano solo nel report, e nel file principale hanno la colonna `iun` vuota: la notifica non esiste.
 
@@ -222,7 +222,9 @@ Le righe `REFUSED` restano solo nel report, e nel file principale hanno la colon
 3. **Piano di invio**: righe lette, valide, non valide, da inviare e da elaborare (in ripresa anche quelle già elaborate), stima della durata dell'invio. Chiavi di riga o `requestId` duplicati e, con `--fail-fast`, righe non valide bloccano il run: lo script scrive comunque report e output ed esce con `1`.
 4. **Conferma**: `Inviare N notifiche?` (N = righe da inviare), oppure `Elaborare N righe (nessun invio)?` quando la sessione verifica o cerca solo i `requestId`. In produzione serve anche `--confirm-production=<N>`.
 5. **Invio** a 20/s, con lo IUN ricavato subito dal `notificationRequestId`. Gli esiti ambigui (timeout, 5xx) si riconciliano con la ricerca per protocollo, senza mai creare due notifiche.
-   - Una riga rischedulata dopo un `429` e fermata (interruzione, `--send-timeout`) diventa `SEND_FAILED` con codice `THROTTLED`, ripetibile: al resume si reinvia solo con `--retry-failed`.
+   - Una riga rischedulata dopo un `429`:
+     - se il run viene interrotto durante l'attesa torna `PENDING` (SEND non l'ha creata) e il resume la invia come le altre righe non ancora partite;
+     - se i `429` durano più di `--send-timeout` diventa `SEND_FAILED` con codice `THROTTLED`, ripetibile: al resume si reinvia solo con `--retry-failed`.
    - Fermano l'intero run: gli errori di configurazione (`CONFIGURATION`), un `401`/`403` di SafeStorage e gli errori sui documenti diversi da quelli di upload o di configurazione (es. scrittura del journal fallita). Gli errori di upload di un file restano errori della riga.
 6. **Verifica** (`ACCEPTED`/`REFUSED`) a priorità bassa: non rallenta l'invio.
 7. **requestId** (`--phases …,request-id`):
@@ -255,7 +257,7 @@ Gli errori di riga finiscono sempre nel log, sia in console sia in `execution.lo
 
 | Codice | Significato                                                                                                                                                                                                                             |
 | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0`    | tutto ok (anche: dry run senza righe non valide, nessuna riga da elaborare)                                                                                                                                                             |
+| `0`    | tutto ok (anche: dry run senza righe non valide; ripresa senza righe da elaborare e senza righe rimaste con problemi)                                                                                                                   |
 | `2`    | run concluso con righe non valide, fallite, incerte, rifiutate, in timeout o non inviate; credenziali AWS scadute durante l'attesa del `requestId`                                                                                      |
 | `1`    | errore globale (API key, gruppo, quota, SafeStorage…), parametri non validi, ripresa con parametri diversi, chiavi o `requestId` duplicati, `--fail-fast` con righe non valide, `--confirm-production` mancante o diverso in produzione |
 | `3`    | conferma interattiva negata (o abbandonata con Esc): nessun invio                                                                                                                                                                       |
