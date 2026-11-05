@@ -3,14 +3,11 @@ import { GOConcurrencyPool, toError } from '@go-automation/go-common/core';
 import { decideRowAction } from './decideRowAction.js';
 import type { DispatchRunOptions } from './DispatchRunOptions.js';
 import type { InputRow } from '../input/InputRow.js';
+import { AMBIGUOUS_STATUSES } from '../model/ambiguousStatuses.js';
 import type { RowState } from '../model/RowState.js';
-import type { RowStatus } from '../model/RowStatus.js';
 import type { RowToSend } from './RowToSend.js';
 
 const DEFAULT_MAX_IN_FLIGHT = 40;
-
-/** States of a row SEND may have received: they can only be reconciled, never dropped. */
-const AMBIGUOUS_STATUSES: ReadonlySet<RowStatus> = new Set<RowStatus>(['SENDING', 'RECONCILING', 'SEND_UNCERTAIN']);
 
 /**
  * Second pass over the input: sends the valid rows (§5.1).
@@ -68,7 +65,7 @@ export class DispatchRun {
       const action = decideRowAction(previous, policy);
       if (action === 'verify' && previous?.notificationRequestId !== undefined) {
         verifyStage?.schedule(row.rowIndex, previous.rowKey, previous.notificationRequestId);
-      } else if (action === 'request-id' && previous?.iun !== undefined) {
+      } else if (action === 'request-id' && previous !== undefined) {
         requestIdStage?.schedule(row.rowIndex, previous.rowKey, previous.iun);
       } else if (action === 'send' && this.options.sendStage !== undefined) {
         const created = this.options.factory.create(row);

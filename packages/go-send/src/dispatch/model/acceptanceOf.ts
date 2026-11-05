@@ -1,10 +1,6 @@
+import { REFUSED_BY_TIMELINE, WORKFLOW_ENDED_PREFIX } from './requestIdReasons.js';
 import type { RowAcceptance } from './RowAcceptance.js';
 import type { RowState } from './RowState.js';
-
-/** `requestIdReason` of a timeline that ended with SEND refusing the notification. */
-const REFUSED_BY_TIMELINE = 'WORKFLOW_ENDED:REQUEST_REFUSED';
-/** Prefix of `requestIdReason` when the timeline reached an end-of-workflow category. */
-const WORKFLOW_ENDED = 'WORKFLOW_ENDED:';
 
 /**
  * SEND's acceptance of a row's notification, from explicit evidence only. Pure.
@@ -27,7 +23,7 @@ export function acceptanceOf(state: RowState): RowAcceptance {
   if (state.acceptedAt !== undefined || state.status === 'ACCEPTED' || state.status === 'REQUEST_ID_FOUND') {
     return 'ACCEPTED';
   }
-  if (state.status === 'REQUEST_ID_NOT_FOUND' && state.requestIdReason?.startsWith(WORKFLOW_ENDED) === true) {
+  if (state.status === 'REQUEST_ID_NOT_FOUND' && state.requestIdReason?.startsWith(WORKFLOW_ENDED_PREFIX) === true) {
     return 'ACCEPTED';
   }
   return 'UNKNOWN';

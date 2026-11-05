@@ -30,6 +30,8 @@ import type { RecordBuildContext } from './RecordBuildContext.js';
 import type { ResolvedPresetIds } from './ResolvedPresetIds.js';
 
 const RECIPIENT_TYPES: ReadonlySet<RecipientType> = new Set<RecipientType>(['PF', 'PG']);
+/** Digital domicile types SEND accepts on a notification request. */
+const DIGITAL_DOMICILE_TYPES: ReadonlySet<'PEC'> = new Set<'PEC'>(['PEC']);
 const MAX_DENOMINATION_LENGTH = 1024;
 const DEFAULT_REFERENCE_TITLE = 'Documento';
 
@@ -118,18 +120,16 @@ export function readPhysicalAddress(
 }
 
 /**
- * Reads the digital domicile (optional); only `PEC` is accepted.
+ * Reads the digital domicile (optional); only `PEC` is accepted, in any case
+ * (`pec`, `Pec`), like the other enumerated fields.
  *
  * @param reader - Field reader of the row
  * @returns The domicile, or `undefined` when the row has no digital address
  */
 export function readDigitalDomicile(reader: FieldReader): DispatchDigitalDomicile | undefined {
   const address = reader.optional('digitalDomicile.address', 320);
-  const type = reader.value('digitalDomicile.type');
   if (address === undefined) return undefined;
-  if (type !== undefined && type !== 'PEC') {
-    reader.issue('INVALID_ENUM', 'digitalDomicile.type', `digitalDomicile.type "${type}" is not supported: only PEC`);
-  }
+  reader.oneOf('digitalDomicile.type', DIGITAL_DOMICILE_TYPES, false);
   return { type: 'PEC', address };
 }
 

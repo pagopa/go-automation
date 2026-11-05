@@ -409,8 +409,7 @@ export class DispatchSession {
           verifyStage.schedule(rowIndex, rowKey, notificationRequestId);
           return;
         }
-        const iun = this.ledger.get(rowIndex)?.iun;
-        if (iun !== undefined) requestIdStage?.schedule(rowIndex, rowKey, iun);
+        requestIdStage?.schedule(rowIndex, rowKey, this.ledger.get(rowIndex)?.iun);
       },
       onGlobalError,
       signal: this.controller.signal,

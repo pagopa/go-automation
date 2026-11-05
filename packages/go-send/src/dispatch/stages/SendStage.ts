@@ -6,10 +6,10 @@ import type { SendFailure } from '../channels/SendFailure.js';
 import { DispatchError } from '../DispatchError.js';
 import { toDocumentFailure } from '../documents/toDocumentFailure.js';
 import { decodeIun, deriveRowIdentifiers } from '../ids/identifiers.js';
+import { AMBIGUOUS_STATUSES } from '../model/ambiguousStatuses.js';
 import type { DispatchRecord } from '../model/DispatchRecord.js';
 import type { RowError } from '../model/RowError.js';
 import type { RowState } from '../model/RowState.js';
-import type { RowStatus } from '../model/RowStatus.js';
 import type { SendContext } from './SendContext.js';
 import type { RowSender } from './RowSender.js';
 import type { SendStageOptions } from './SendStageOptions.js';
@@ -19,9 +19,6 @@ const DEFAULT_RECONCILE_DELAY_MS = 5_000;
 const DEFAULT_MAX_RECONCILE_POSTS = 3;
 const DEFAULT_MAX_LOOKUP_FAILURES = 3;
 const DEFAULT_THROTTLE_WAIT_MS = 1_000;
-
-/** States from which a row resumes with the reconciliation instead of a POST. */
-const RECONCILE_ON_RESUME: ReadonlySet<RowStatus> = new Set<RowStatus>(['SENDING', 'RECONCILING', 'SEND_UNCERTAIN']);
 
 /**
  * Sends one row through `POST requests` (§8.1.2–8.1.4).
@@ -65,8 +62,8 @@ export class SendStage implements RowSender {
       attempts: previous?.sendAttempts ?? 0,
       reconcilePosts: 0,
     };
-    if (previous !== undefined && RECONCILE_ON_RESUME.has(previous.status)) {
-      await this.reconcile(context, true);
+    if (previous !== undefined && AMBIGUOUS_STATUSES.has(previous.status)) {
+      await this.reconcile(context, 'ambiguous');
       return;
     }
     if (await this.prepare(context)) await this.post(context);
@@ -147,11 +144,11 @@ export class SendStage implements RowSender {
           }
           continue;
         case 'duplicate':
-          // The notification certainly exists: look it up at once.
-          await this.reconcile(context, false);
+          // The notification certainly exists: look it up at once, never POST again.
+          await this.reconcile(context, 'duplicate');
           return;
         case 'ambiguous':
-          if (this.options.retryAmbiguous) await this.reconcile(context, true);
+          if (this.options.retryAmbiguous) await this.reconcile(context, 'ambiguous');
           else await this.uncertain(context, toRowError(failure));
           return;
         case 'row':
@@ -183,18 +180,25 @@ export class SendStage implements RowSender {
 
   /**
    * Looks the notification up by protocol until it is found (`SENT`), absent
-   * (`404`: new POST) or the lookups keep failing (`SEND_UNCERTAIN`).
+   * or the lookups keep failing (`SEND_UNCERTAIN`).
+   *
+   * - After an ambiguous outcome (timeout, 5xx) the first lookup waits
+   *   `reconcileDelayMs` (the POST may still be completing), and a `404`
+   *   means the notification does not exist: new POST with the same keys.
+   * - After a `409` the notification certainly exists: the first lookup is
+   *   immediate, and a `404` only means the lookup does not see it yet. It is
+   *   retried after `reconcileDelayMs`, like a failed lookup, and never leads
+   *   to a new POST (it would only get another `409`).
    *
    * @param context - Row being sent
-   * @param delayFirstLookup - Wait `reconcileDelayMs` before the first lookup
-   *   (an ambiguous POST may still be completing); not needed after a `409`
+   * @param cause - What made the outcome of the POST unknown
    */
-  private async reconcile(context: SendContext, delayFirstLookup: boolean): Promise<void> {
+  private async reconcile(context: SendContext, cause: 'ambiguous' | 'duplicate'): Promise<void> {
     const { clock, signal } = this.options;
     await this.options.ledger.record({ event: 'RECONCILING', ...this.rowRef(context), ...context.ids });
     let lookupFailures = 0;
     for (let lookup = 0; ; lookup++) {
-      if ((delayFirstLookup || lookup > 0) && !(await sleepUnlessStopped(clock, this.reconcileDelayMs, signal))) {
+      if ((cause === 'ambiguous' || lookup > 0) && !(await sleepUnlessStopped(clock, this.reconcileDelayMs, signal))) {
         return;
       }
       if (!(await acquireUnlessStopped(this.options.limiter, 0, signal))) return;
@@ -210,7 +214,7 @@ export class SendStage implements RowSender {
       } catch (error: unknown) {
         if (signal.aborted) return; // lookup abandoned by the stop: the row stays RECONCILING
         const status = error instanceof GOHttpClientError ? error.statusCode : undefined;
-        if (status === 404) {
+        if (status === 404 && cause === 'ambiguous') {
           await this.repost(context);
           return;
         }
@@ -222,7 +226,15 @@ export class SendStage implements RowSender {
         }
         lookupFailures += 1;
         if (lookupFailures > this.maxLookupFailures) {
-          await this.uncertain(context, { code: 'LOOKUP_FAILED', message: getErrorMessage(error) });
+          await this.uncertain(
+            context,
+            status === 404
+              ? {
+                  code: 'DUPLICATE_NOT_FOUND',
+                  message: `SEND answered 409 (duplicate) but the protocol lookup did not find the notification after ${lookupFailures} attempts`,
+                }
+              : { code: 'LOOKUP_FAILED', message: getErrorMessage(error) },
+          );
           return;
         }
       }

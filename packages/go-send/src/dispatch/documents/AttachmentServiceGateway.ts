@@ -12,6 +12,13 @@ import type { SafeStorageGateway } from './SafeStorageGateway.js';
 export class AttachmentServiceGateway implements SafeStorageGateway {
   constructor(private readonly attachments: SENDAttachmentService) {}
 
+  /**
+   * Requests presigned upload URLs for several files in one call.
+   *
+   * @param requests - One request per file (at most 15)
+   * @param signal - Abandons the call on a stop
+   * @returns One response per request, matched by `preloadIdx`
+   */
   public async preload(
     requests: ReadonlyArray<SENDPreloadRequest>,
     signal?: AbortSignal,

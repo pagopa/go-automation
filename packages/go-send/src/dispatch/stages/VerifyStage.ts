@@ -1,4 +1,4 @@
-import { GOBackoff, GOHttpClientError } from '@go-automation/go-common/core';
+import { getErrorMessage, GOBackoff, GOHttpClientError } from '@go-automation/go-common/core';
 import type { GOBackoffFn } from '@go-automation/go-common/core';
 
 import type { SENDNotificationStatusResponse } from '../../services/notification/models/SENDNotificationStatusResponse.js';
@@ -62,6 +62,8 @@ export class VerifyStage {
     // check waits behind a long send queue must not consume it.
     let deadline: number | undefined;
     let delayMs = this.initialDelayMs;
+    // Error of the last status check, if it failed: the cause of a VERIFY_TIMEOUT.
+    let lastError: unknown;
     for (let check = 1; ; check++) {
       const wait = deadline === undefined ? delayMs : Math.min(delayMs, Math.max(0, deadline - clock.monotonic()));
       if (!(await sleepUnlessStopped(clock, wait, signal))) return;
@@ -69,9 +71,11 @@ export class VerifyStage {
       deadline ??= clock.monotonic() + this.timeoutMs;
 
       let status: SENDNotificationStatusResponse | undefined;
+      lastError = undefined;
       try {
         status = await this.options.api.status(notificationRequestId, this.options.apiVersion, signal);
       } catch (error: unknown) {
+        lastError = error;
         if (signal.aborted) return; // check abandoned by the stop: the resume verifies the row
         if (error instanceof GOHttpClientError && (error.statusCode === 401 || error.statusCode === 403)) {
           this.options.onGlobalError(new DispatchError(`HTTP_${error.statusCode}`, 'status check rejected by SEND'));
@@ -107,7 +111,13 @@ export class VerifyStage {
         await ledger.record({
           event: 'VERIFY_TIMEOUT',
           ...base,
-          error: { code: 'VERIFY_TIMEOUT', message: `not accepted within ${Math.round(this.timeoutMs / 1000)} s` },
+          error: {
+            code: 'VERIFY_TIMEOUT',
+            // Without the cause a persistent check failure would look like a notification SEND is still processing.
+            message: `not accepted within ${Math.round(this.timeoutMs / 1000)} s${
+              lastError === undefined ? '' : `; last status check failed: ${getErrorMessage(lastError)}`
+            }`,
+          },
         });
         return;
       }

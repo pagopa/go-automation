@@ -133,6 +133,23 @@ describe('buildRecord', () => {
     ]);
   });
 
+  it('accepts the digital domicile type in any case and rejects other types', () => {
+    const row = validValues();
+    row.set('digitalDomicile.address', 'mario.rossi@pec.it');
+    row.set('digitalDomicile.type', 'pec');
+    const lower = buildRecord(0, 'S-01', row, CONTEXT);
+    assert.ok(lower.ok);
+    assert.deepEqual(lower.record.digitalDomicile, { type: 'PEC', address: 'mario.rossi@pec.it' });
+
+    row.set('digitalDomicile.type', 'EMAIL');
+    const other = buildRecord(0, 'S-01', row, CONTEXT);
+    assert.ok(!other.ok);
+    assert.deepEqual(
+      other.issues.map((issue) => `${issue.code}:${issue.field ?? ''}`),
+      ['INVALID_ENUM:digitalDomicile.type'],
+    );
+  });
+
   it('rejects a sender different from the environment one', () => {
     const result = buildRecord(0, 'S-01', validValues(), { ...CONTEXT, environmentSenderTaxId: '00000000002' });
     assert.ok(!result.ok);

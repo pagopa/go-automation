@@ -256,6 +256,35 @@ describe('LocalDocumentInspector', () => {
     assert.equal(MAX_DOCUMENT_BYTES, 209_715_200);
   });
 
+  it('streams a PDF larger than one read chunk: same size and hash as the whole content', async () => {
+    const dir = await tempDir('dispatch-docs-large');
+    const pdf = path.join(dir, 'big.pdf');
+    const content = Buffer.concat([Buffer.from('%PDF-1.7\n'), Buffer.alloc(300 * 1024, 7)]);
+    await writeFixture(pdf, content);
+
+    const inspected = await new LocalDocumentInspector(os.tmpdir()).inspect(pdf);
+
+    assert.ok(!isInspectionFailure(inspected));
+    assert.equal(inspected.size, content.length);
+    assert.equal(inspected.sha256, createHash('sha256').update(content).digest('base64'));
+  });
+
+  it('reports an empty file and a file shorter than the PDF header', async () => {
+    const dir = await tempDir('dispatch-docs-short');
+    const empty = path.join(dir, 'empty.pdf');
+    const short = path.join(dir, 'short.pdf');
+    await writeFixture(empty, '');
+    await writeFixture(short, '%PD');
+    const inspector = new LocalDocumentInspector(os.tmpdir());
+
+    const results = await Promise.all([inspector.inspect(empty), inspector.inspect(short)]);
+
+    assert.deepEqual(
+      results.map((result) => (isInspectionFailure(result) ? result.failure : 'ok')),
+      ['FILE_EMPTY', 'NOT_A_PDF'],
+    );
+  });
+
   it('confines row files to the documents directory; not the shared document', async () => {
     const dir = await tempDir('dispatch-confined');
     const documentsDir = path.join(dir, 'documents');

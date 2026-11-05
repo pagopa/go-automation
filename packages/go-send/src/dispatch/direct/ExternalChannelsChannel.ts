@@ -21,6 +21,12 @@ export class ExternalChannelsChannel implements ExternalChannelsApi {
     });
   }
 
+  /**
+   * Sends a paper engagement (`PUT paper-deliveries-engagements/{requestId}`).
+   *
+   * @param request - Paper engagement, keyed by its `requestId`
+   * @throws GOHttpClientError on an HTTP error (`409` when the requestId was already used)
+   */
   public async sendPaper(request: PaperEngagementRequest): Promise<void> {
     const path = `/external-channels/v1/paper-deliveries-engagements/${encodeURIComponent(request.requestId)}`;
     await this.http.request<unknown>('PUT', path, request);

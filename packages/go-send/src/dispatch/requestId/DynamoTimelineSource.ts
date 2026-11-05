@@ -9,6 +9,12 @@ import type { TimelineSource } from './TimelineSource.js';
 export class DynamoTimelineSource implements TimelineSource {
   constructor(private readonly service: SENDTimelineService) {}
 
+  /**
+   * Reads the timeline of a notification.
+   *
+   * @param iun - IUN of the notification
+   * @returns Elements sorted by instant, then by id
+   */
   public async query(iun: string): Promise<ReadonlyArray<SENDTimelineElement>> {
     return this.service.queryTimelineElements(iun);
   }

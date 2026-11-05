@@ -1,7 +1,8 @@
-import { GOBackoff, GOConcurrencyPool } from '@go-automation/go-common/core';
+import { GOBackoff, GOConcurrencyPool, toError } from '@go-automation/go-common/core';
 import type { GOBackoffFn } from '@go-automation/go-common/core';
 
 import type { SENDTimelineElement } from '../../services/timeline/models/SENDTimelineElement.js';
+import { IUN_UNKNOWN, WORKFLOW_ENDED_PREFIX } from '../model/requestIdReasons.js';
 import { sleepUnlessStopped } from '../stages/abortableWaits.js';
 import type { CredentialErrorPredicate } from './CredentialErrorPredicate.js';
 import type { RequestIdStageOptions } from './RequestIdStageOptions.js';
@@ -59,13 +60,20 @@ export class RequestIdStage {
   /**
    * Schedules the retrieval for an accepted (or sent) row.
    *
+   * Without an IUN (the `notificationRequestId` could not be decoded) the
+   * timeline cannot be read: the row is recorded `REQUEST_ID_NOT_FOUND`
+   * `IUN_UNKNOWN` instead of being dropped silently; the verification can
+   * still obtain the IUN on a resume.
+   *
    * @param rowIndex - Row position
    * @param rowKey - Row key
-   * @param iun - IUN of the notification
+   * @param iun - IUN of the notification, `undefined` when unknown
    */
-  public schedule(rowIndex: number, rowKey: string, iun: string): void {
+  public schedule(rowIndex: number, rowKey: string, iun: string | undefined): void {
     if (this.signal.aborted) return;
-    this.pending.track(this.retrieve(rowIndex, rowKey, iun));
+    this.pending.track(
+      iun === undefined ? this.recordUnknownIun(rowIndex, rowKey) : this.retrieve(rowIndex, rowKey, iun),
+    );
   }
 
   /** Resolves when every scheduled row is concluded (or the stage stopped). */
@@ -73,17 +81,35 @@ export class RequestIdStage {
     await this.pending.drain();
   }
 
+  private async recordUnknownIun(rowIndex: number, rowKey: string): Promise<void> {
+    await this.options.ledger.record({
+      event: 'REQUEST_ID_NOT_FOUND',
+      rowIndex,
+      rowKey,
+      requestIdReason: IUN_UNKNOWN,
+      error: {
+        code: IUN_UNKNOWN,
+        message:
+          'the IUN could not be derived from the notificationRequestId: resume with the verify phase to obtain it',
+      },
+    });
+  }
+
   private async retrieve(rowIndex: number, rowKey: string, iun: string): Promise<void> {
     const { clock, ledger, selection } = this.options;
     const deadline = clock.monotonic() + this.timeoutMs;
     let delayMs = this.initialDelayMs;
+    // Error of the last query, if it failed: the cause of a TIMEOUT.
+    let lastError: Error | undefined;
     for (let check = 1; ; check++) {
       const wait = Math.min(delayMs, Math.max(0, deadline - clock.monotonic()));
       if (!(await sleepUnlessStopped(clock, wait, this.signal))) return;
 
-      const elements = await this.query(iun);
+      const outcome = await this.query(iun);
       if (this.signal.aborted) return;
       const base = { rowIndex, rowKey, attempt: check };
+      lastError = outcome instanceof Error ? outcome : undefined;
+      const elements = outcome instanceof Error ? undefined : outcome;
       if (elements !== undefined) {
         const result = selectRequestIds(elements, selection);
         const endedWithSome = result.endedBy !== undefined && result.requestIds.size > 0;
@@ -101,13 +127,21 @@ export class RequestIdStage {
           await ledger.record({
             event: 'REQUEST_ID_NOT_FOUND',
             ...base,
-            requestIdReason: `WORKFLOW_ENDED:${result.endedBy}`,
+            requestIdReason: `${WORKFLOW_ENDED_PREFIX}${result.endedBy}`,
           });
           return;
         }
       }
       if (clock.monotonic() >= deadline) {
-        await ledger.record({ event: 'REQUEST_ID_NOT_FOUND', ...base, requestIdReason: 'TIMEOUT' });
+        await ledger.record({
+          event: 'REQUEST_ID_NOT_FOUND',
+          ...base,
+          requestIdReason: 'TIMEOUT',
+          // Without it a persistent query failure would look like a timeline that never had the category.
+          ...(lastError !== undefined && {
+            error: { code: 'TIMELINE_QUERY_FAILED', message: `last pn-Timelines query failed: ${lastError.message}` },
+          }),
+        });
         return;
       }
       delayMs = this.backoff({ attempt: check });
@@ -115,13 +149,14 @@ export class RequestIdStage {
   }
 
   /**
-   * One timeline query; `undefined` on a transient error (retried at the next
-   * check) or when the stage stopped while the query waited for a pool slot
+   * One timeline query: the elements; the error of a failed query (transient,
+   * retried at the next check, and reported if the row times out); or
+   * `undefined` when the stage stopped while the query waited for a pool slot
    * (stop, expired credentials): no query starts after a stop. Expired
    * credentials stop the stage before the pool slot is released, so the
    * queries queued behind it never run.
    */
-  private async query(iun: string): Promise<ReadonlyArray<SENDTimelineElement> | undefined> {
+  private async query(iun: string): Promise<ReadonlyArray<SENDTimelineElement> | Error | undefined> {
     return this.pool.run(async () => {
       if (this.signal.aborted) return undefined;
       try {
@@ -131,7 +166,7 @@ export class RequestIdStage {
           this.expired = true;
           this.controller.abort();
         }
-        return undefined;
+        return toError(error);
       }
     });
   }

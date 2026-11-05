@@ -14,6 +14,14 @@ import type { B2BApi } from './B2BApi.js';
 export class B2BChannel implements B2BApi {
   constructor(private readonly service: SENDNotificationService) {}
 
+  /**
+   * Creates a notification (`POST requests`).
+   *
+   * @param request - Notification request
+   * @param apiVersion - Version of the `requests` endpoint
+   * @returns The `notificationRequestId` assigned by SEND
+   * @throws GOHttpClientError on an HTTP error, classified by `classifySendFailure`
+   */
   public async send(
     request: SENDNotificationRequest,
     apiVersion: SENDApiVersion,
@@ -21,6 +29,14 @@ export class B2BChannel implements B2BApi {
     return this.service.sendNotification(request, apiVersion);
   }
 
+  /**
+   * Reads the status of a notification request (verification).
+   *
+   * @param notificationRequestId - Id returned by `send`
+   * @param apiVersion - Version of the `requests` endpoint
+   * @param signal - Abandons the check on a stop
+   * @returns Status, with the IUN once accepted
+   */
   public async status(
     notificationRequestId: string,
     apiVersion: SENDApiVersion,
@@ -29,6 +45,16 @@ export class B2BChannel implements B2BApi {
     return this.service.getNotificationRequestStatus(notificationRequestId, apiVersion, requestOptions(signal));
   }
 
+  /**
+   * Finds a notification request by its idempotency keys (reconciliation).
+   *
+   * @param paProtocolNumber - Protocol number of the row
+   * @param idempotenceToken - Idempotence token of the row
+   * @param apiVersion - Version of the `requests` endpoint
+   * @param signal - Abandons the lookup on a stop
+   * @returns Status of the request
+   * @throws GOHttpClientError `404` when no request has these keys
+   */
   public async lookup(
     paProtocolNumber: string,
     idempotenceToken: string,
@@ -43,6 +69,11 @@ export class B2BChannel implements B2BApi {
     );
   }
 
+  /**
+   * Lists the active groups of the API key (preflight).
+   *
+   * @returns The groups
+   */
   public async groups(): Promise<ReadonlyArray<DispatchGroup>> {
     return this.service.getGroups(true);
   }

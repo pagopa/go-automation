@@ -133,6 +133,25 @@ describe('RowLedger.countByStatus', () => {
   });
 });
 
+describe('RowLedger.record', () => {
+  it('leaves the state untouched when the journal append fails', async () => {
+    let failing = false;
+    const ledger = new RowLedger({
+      append: async (): Promise<void> => {
+        await Promise.resolve();
+        if (failing) throw new Error('ENOSPC: no space left on device');
+      },
+    });
+    await ledger.record({ event: 'SENDING', rowIndex: 0, rowKey: 'A' });
+    failing = true;
+
+    await assert.rejects(ledger.record({ event: 'SENT', rowIndex: 0, rowKey: 'A', iun: 'I' }), /ENOSPC/);
+
+    assert.equal(ledger.get(0)?.status, 'SENDING', 'memory matches what the journal holds');
+    assert.deepEqual([...ledger.countByStatus()], [['SENDING', 1]]);
+  });
+});
+
 describe('RowLedger.countByAcceptance', () => {
   it('counts acceptance from evidence, not from the status alone', async () => {
     const ledger = new RowLedger(undefined);
@@ -222,6 +241,19 @@ describe('decideRowAction', () => {
     assert.equal(decideRowAction(state('SENT'), policy(false, false, true)), 'verify');
     assert.equal(decideRowAction(state('SENT'), policy(false, false, false)), 'skip');
     assert.equal(decideRowAction(state('VERIFY_TIMEOUT'), policy(false, false, true)), 'verify');
+    assert.equal(
+      decideRowAction(state('VERIFY_TIMEOUT'), policy(false, false, false, true)),
+      'request-id',
+      '--phases request-id still retrieves the requestId of a row whose verification timed out',
+    );
+    assert.equal(decideRowAction(state('VERIFY_TIMEOUT'), policy(false, false, false)), 'skip');
+    const unknownIun = { ...state('REQUEST_ID_NOT_FOUND'), requestIdReason: 'IUN_UNKNOWN' };
+    assert.equal(
+      decideRowAction(unknownIun, policy(false, false, true, true)),
+      'verify',
+      'only verify can obtain the IUN',
+    );
+    assert.equal(decideRowAction(unknownIun, policy(false, false, false, true)), 'skip');
     assert.equal(decideRowAction(state('ACCEPTED'), policy(true, true, true)), 'skip');
     assert.equal(decideRowAction(state('INVALID'), policy(true, true, true)), 'skip');
   });

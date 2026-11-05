@@ -1,7 +1,12 @@
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 
-import { GOBinaryFileImporter, GOFileTooLargeError, GOPathOutsideRootError } from '@go-automation/go-common/core';
+import {
+  GOBinaryFileImporter,
+  GOFileTooLargeError,
+  GOPathOutsideRootError,
+  isEnoentError,
+} from '@go-automation/go-common/core';
 
 import type { DocumentInspection } from './DocumentInspection.js';
 
@@ -15,8 +20,10 @@ const PDF_MAGIC = Buffer.from('%PDF-', 'ascii');
  * path so a file shared by many rows is read once.
  *
  * Notification documents must be PDF (`contentType` is `^application/pdf$`
- * in `NotificationDocument` v2.6). Files are read with
- * `GOBinaryFileImporter`, which refuses a file above 200 MB without loading it.
+ * in `NotificationDocument` v2.6). Files are streamed with
+ * `GOBinaryFileImporter.importStream`, which refuses a file above 200 MB
+ * before reading it: hash, size and header check use O(chunk) memory, so
+ * many rows inspected in parallel never hold whole PDFs.
  *
  * Row files come from the input, so they are confined to the documents
  * directory on their real path (symlinks resolved): the mapping already
@@ -72,15 +79,26 @@ export class LocalDocumentInspector {
       return failure(filePath, 'UNSUPPORTED_EXTENSION', 'only PDF documents can be attached to a notification');
     }
 
-    let content: Buffer | undefined;
+    const hash = createHash('sha256');
+    let size = 0;
+    let header = Buffer.alloc(0);
     try {
-      content = await new GOBinaryFileImporter({
+      const chunks = new GOBinaryFileImporter({
         inputPath: filePath,
-        optional: true,
         maxBytes: MAX_DOCUMENT_BYTES,
         ...(confineTo !== undefined && { confineTo }),
-      }).import();
+      }).importStream();
+      for await (const chunk of chunks) {
+        if (header.length < PDF_MAGIC.length) {
+          header = Buffer.concat([header, chunk.subarray(0, PDF_MAGIC.length - header.length)]);
+          // Not a PDF: no need to read (and hash) the rest.
+          if (header.length === PDF_MAGIC.length && !header.equals(PDF_MAGIC)) break;
+        }
+        hash.update(chunk);
+        size += chunk.length;
+      }
     } catch (error: unknown) {
+      if (isEnoentError(error)) return failure(filePath, 'FILE_NOT_FOUND', 'file not found');
       if (error instanceof GOPathOutsideRootError) {
         return failure(filePath, 'DOCUMENT_OUTSIDE_DIR', `resolves to ${error.realPath}, outside ${error.root}`);
       }
@@ -91,17 +109,9 @@ export class LocalDocumentInspector {
       return failure(filePath, 'FILE_UNREADABLE', `cannot read file: ${reason}`);
     }
 
-    if (content === undefined) return failure(filePath, 'FILE_NOT_FOUND', 'file not found');
-    if (content.length === 0) return failure(filePath, 'FILE_EMPTY', 'file is empty');
-    if (!content.subarray(0, PDF_MAGIC.length).equals(PDF_MAGIC)) {
-      return failure(filePath, 'NOT_A_PDF', 'file does not start with %PDF-');
-    }
-    return {
-      path: filePath,
-      size: content.length,
-      sha256: createHash('sha256').update(content).digest('base64'),
-      contentType: 'application/pdf',
-    };
+    if (header.length === 0) return failure(filePath, 'FILE_EMPTY', 'file is empty');
+    if (!header.equals(PDF_MAGIC)) return failure(filePath, 'NOT_A_PDF', 'file does not start with %PDF-');
+    return { path: filePath, size, sha256: hash.digest('base64'), contentType: 'application/pdf' };
   }
 }
 

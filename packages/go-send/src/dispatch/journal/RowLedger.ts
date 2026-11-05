@@ -48,16 +48,19 @@ export class RowLedger {
   }
 
   /**
-   * Records a transition: updates the state, then appends to the journal.
+   * Records a transition: appends it to the journal, then updates the state.
+   * A failed append leaves the state untouched, so memory (and the output
+   * and report materialized from it) never shows a transition a resume
+   * would not replay.
    *
    * @param entry - Entry without timestamp (added here)
    * @returns The new state of the row, if the entry is row-level
+   * @throws The error of the journal append (the state is not changed)
    */
   public async record(entry: Omit<JournalEntry, 'ts'>): Promise<RowState | undefined> {
     const stamped: JournalEntry = { ts: this.now().toISOString(), ...entry };
-    const state = this.apply(stamped);
     await this.sink?.append(stamped);
-    return state;
+    return this.apply(stamped);
   }
 
   /** State of a row, if any transition was recorded. */

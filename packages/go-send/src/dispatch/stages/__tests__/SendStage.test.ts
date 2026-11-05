@@ -211,6 +211,49 @@ describe('SendStage', () => {
     assert.ok(h.clock.elapsed - before < 1_000, `duplicate reconciled after ${h.clock.elapsed - before} ms`);
   });
 
+  it('after a 409 never POSTs again: a 404 lookup is retried with a delay until the notification shows up', async () => {
+    const h = harness();
+    await h.clock.run(h.stage.send(record(0)));
+    // The protocol lookup does not see the notification for the first two attempts.
+    let hidden = 2;
+    const lookup = h.api.lookup.bind(h.api);
+    h.api.lookup = async (
+      paProtocolNumber: string,
+      idempotenceToken: string,
+      apiVersion: SENDApiVersion,
+    ): Promise<SENDNotificationStatusResponse> => {
+      if (hidden > 0) {
+        hidden -= 1;
+        h.api.calls.push({ at: h.clock.now(), op: 'lookup' });
+        throw httpError(404);
+      }
+      return lookup(paProtocolNumber, idempotenceToken, apiVersion);
+    };
+
+    await h.clock.run(h.stage.send(record(0))); // same keys: POST gets 409
+
+    assert.equal(h.api.count('send'), 2, 'no POST after the 409');
+    assert.equal(h.api.count('lookup'), 3);
+    assert.equal(h.ledger.get(0)?.status, 'SENT');
+    assert.equal(h.api.created.size, 1);
+  });
+
+  it('after a 409 ends SEND_UNCERTAIN DUPLICATE_NOT_FOUND if the lookup never sees the notification', async () => {
+    const h = harness();
+    await h.clock.run(h.stage.send(record(0)));
+    h.api.lookup = async (): Promise<never> => {
+      await Promise.resolve();
+      h.api.calls.push({ at: h.clock.now(), op: 'lookup' });
+      throw httpError(404);
+    };
+
+    await h.clock.run(h.stage.send(record(0)));
+
+    assert.equal(h.api.count('send'), 2, 'no POST after the 409');
+    assert.equal(h.ledger.get(0)?.status, 'SEND_UNCERTAIN');
+    assert.equal(h.ledger.get(0)?.error?.code, 'DUPLICATE_NOT_FOUND');
+  });
+
   it('records SEND_FAILED THROTTLED (retryable) when the run stops during a 429 backoff', async () => {
     const h = harness();
     h.api.sendScript.push(httpError(429, undefined, 60_000));
@@ -433,6 +476,17 @@ describe('VerifyStage', () => {
     h.verify.schedule(0, 'S-0', h.ledger.get(0)?.notificationRequestId ?? '');
     await h.clock.run(h.verify.drain());
     assert.equal(h.ledger.get(0)?.status, 'VERIFY_TIMEOUT');
+    assert.doesNotMatch(h.ledger.get(0)?.error?.message ?? '', /last status check failed/, 'the last check worked');
+  });
+
+  it('reports the cause of a timeout when the status checks kept failing', async () => {
+    const h = verifyHarness(60_000);
+    await h.clock.run(h.stage.send(record(0)));
+    h.api.statusScript = Array.from({ length: 20 }, () => httpError(404));
+    h.verify.schedule(0, 'S-0', h.ledger.get(0)?.notificationRequestId ?? '');
+    await h.clock.run(h.verify.drain());
+    assert.equal(h.ledger.get(0)?.status, 'VERIFY_TIMEOUT');
+    assert.match(h.ledger.get(0)?.error?.message ?? '', /last status check failed: .*404/);
   });
 });
 

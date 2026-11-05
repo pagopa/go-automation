@@ -1,9 +1,7 @@
+import { IUN_UNKNOWN, WORKFLOW_ENDED_PREFIX } from '../model/requestIdReasons.js';
 import type { RowState } from '../model/RowState.js';
 import type { RowAction } from './RowAction.js';
 import type { RowActionPolicy } from './RowActionPolicy.js';
-
-/** Prefix of the `requestIdReason` of a workflow that ended without the wanted categories. */
-const WORKFLOW_ENDED_PREFIX = 'WORKFLOW_ENDED';
 
 /**
  * Decides what to do with a row on (re)start (§11.3). Pure.
@@ -25,15 +23,18 @@ export function decideRowAction(state: RowState | undefined, policy: RowActionPo
     case 'SEND_FAILED':
       return policy.retryFailed && state?.error?.retryable === true ? 'send' : 'skip';
     case 'SENT':
+    case 'VERIFY_TIMEOUT':
+      // A verification that timed out says nothing about the notification: like SENT,
+      // verified again if verify is on, otherwise straight to the requestId phase.
       if (policy.verify) return 'verify';
       return policy.requestId ? 'request-id' : 'skip';
-    case 'VERIFY_TIMEOUT':
-      return policy.verify ? 'verify' : 'skip';
     case 'ACCEPTED':
       return policy.requestId ? 'request-id' : 'skip';
     case 'REQUEST_ID_NOT_FOUND':
       // The workflow ended without the wanted categories: querying again cannot find them.
       if (state?.requestIdReason?.startsWith(WORKFLOW_ENDED_PREFIX) === true) return 'skip';
+      // Without the IUN the timeline cannot be read: only the verification can obtain it.
+      if (state?.requestIdReason === IUN_UNKNOWN) return policy.verify ? 'verify' : 'skip';
       return policy.requestId ? 'request-id' : 'skip';
     case 'INVALID':
     case 'REFUSED':

@@ -115,7 +115,28 @@ describe('RequestIdStage', () => {
     h.stage.schedule(0, 'S-0', 'IUN-C');
     await h.clock.run(h.stage.drain());
     assert.equal(h.ledger.get(0)?.requestIdReason, 'TIMEOUT');
+    assert.equal(h.ledger.get(0)?.error, undefined, 'the queries worked: no cause to report');
     assert.equal(h.clock.elapsed, 2 * 3_600_000);
+  });
+
+  it('records a row without IUN as REQUEST_ID_NOT_FOUND IUN_UNKNOWN instead of dropping it', async () => {
+    const h = setup(new Map());
+    h.stage.schedule(0, 'S-0', undefined);
+    await h.clock.run(h.stage.drain());
+    assert.equal(h.ledger.get(0)?.status, 'REQUEST_ID_NOT_FOUND');
+    assert.equal(h.ledger.get(0)?.requestIdReason, 'IUN_UNKNOWN');
+    assert.equal(h.ledger.get(0)?.error?.code, 'IUN_UNKNOWN');
+    assert.equal(h.source.queries, 0, 'no timeline query without the IUN');
+  });
+
+  it('reports the cause of a timeout when the queries kept failing', async () => {
+    const h = setup(new Map());
+    h.source.failWith = new Error('ResourceNotFoundException: Requested resource not found');
+    h.stage.schedule(0, 'S-0', 'IUN-C');
+    await h.clock.run(h.stage.drain());
+    assert.equal(h.ledger.get(0)?.requestIdReason, 'TIMEOUT');
+    assert.equal(h.ledger.get(0)?.error?.code, 'TIMELINE_QUERY_FAILED');
+    assert.match(h.ledger.get(0)?.error?.message ?? '', /ResourceNotFoundException/);
   });
 
   it('tolerates transient query errors', async () => {
@@ -126,6 +147,7 @@ describe('RequestIdStage', () => {
     await h.clock.run(h.stage.drain());
     assert.equal(h.ledger.get(0)?.status, 'REQUEST_ID_FOUND');
     assert.equal(h.ledger.get(0)?.requestIdChecks, 3);
+    assert.equal(h.ledger.get(0)?.error, undefined);
   });
 
   it('stops on expired credentials without closing any row', async () => {

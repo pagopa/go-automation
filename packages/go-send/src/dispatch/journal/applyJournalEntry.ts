@@ -77,11 +77,15 @@ export function applyJournalEntry(state: RowState | undefined, entry: JournalEnt
         requestIdChecks: entry.attempt ?? base.requestIdChecks,
       };
     case 'REQUEST_ID_NOT_FOUND':
-      return {
-        ...next,
-        ...(entry.requestIdReason !== undefined && { requestIdReason: entry.requestIdReason }),
-        requestIdChecks: entry.attempt ?? base.requestIdChecks,
-      };
+      // A TIMEOUT may carry the cause (last pn-Timelines query failed).
+      return withError(
+        {
+          ...next,
+          ...(entry.requestIdReason !== undefined && { requestIdReason: entry.requestIdReason }),
+          requestIdChecks: entry.attempt ?? base.requestIdChecks,
+        },
+        entry,
+      );
     default:
       return withError(next, entry);
   }
