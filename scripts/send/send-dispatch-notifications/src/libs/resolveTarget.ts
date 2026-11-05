@@ -105,6 +105,13 @@ export async function resolveTarget(
   }
   const groupId = config.groupId ?? definition.groupId;
   const sender = definition.sender ?? cliSender(config);
+  if (b2bNeeded && config.pnApiKey !== undefined) {
+    // GOScript also fills pn.api.key from the PN_API_KEY variable: with --env it must never replace the key.
+    script.logger.warning(
+      `pn.api.key ignorata (--pn-api-key o variabile PN_API_KEY): con --env la chiave viene solo da ` +
+        `$${definition.apiKeyVariable} (${file.source})`,
+    );
+  }
   const b2b = b2bNeeded ? environmentB2B(config, loader, file, definition) : undefined;
   return {
     name: definition.name,
@@ -120,9 +127,11 @@ export async function resolveTarget(
 }
 
 /**
- * B2B access of an environment: API key from its variable unless
- * `--pn-api-key`. With `--pn-api-key` the variable is not read, so it may be
- * unset.
+ * B2B access of an environment. The API key comes only from the variable the
+ * environment names (`apiKey: ${VAR}`): `pn.api.key` is not an override here,
+ * because GOScript also fills it from the `PN_API_KEY` variable, which would
+ * silently replace the key of the chosen environment. `--pn-api-key` is for
+ * ad-hoc runs (without `--env`).
  */
 function environmentB2B(
   config: ValidatedConfig,
@@ -132,13 +141,6 @@ function environmentB2B(
 ): B2BAccess {
   const override = config.basePath;
   const basePath = override === undefined ? definition.basePath : normalizeCliBasePath(override);
-  if (config.pnApiKey !== undefined) {
-    return {
-      basePath,
-      apiKey: config.pnApiKey,
-      apiKeyLabel: `--pn-api-key ${Dispatch.apiKeyFingerprint(config.pnApiKey)}`,
-    };
-  }
   const environment = resolveEnvironment(loader, file, definition.name);
   return {
     basePath,
@@ -166,7 +168,8 @@ function adHocTarget(config: ValidatedConfig, b2bNeeded: boolean): DispatchTarge
     b2b: {
       basePath: normalizeCliBasePath(basePath),
       apiKey: config.pnApiKey,
-      apiKeyLabel: `--pn-api-key ${Dispatch.apiKeyFingerprint(config.pnApiKey)}`,
+      // GOScript fills pn.api.key from the flag or from the PN_API_KEY variable: the label names both.
+      apiKeyLabel: `--pn-api-key/PN_API_KEY ${Dispatch.apiKeyFingerprint(config.pnApiKey)}`,
     },
   };
 }

@@ -49,7 +49,13 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   { name: 'list.envs', type: BOOL, description: 'Elenca gli ambienti (senza API key) ed esce', defaultValue: false },
   { name: 'base.path', type: STRING, description: 'Override dell host dell API B2B' },
-  { name: 'pn.api.key', type: STRING, description: 'Override dell API key', sensitive: true },
+  {
+    name: 'pn.api.key',
+    type: STRING,
+    description:
+      'API key dei run senza --env (ad hoc); con --env viene ignorata: la chiave viene dalla variabile dell ambiente',
+    sensitive: true,
+  },
   { name: 'group.id', type: STRING, description: 'Override del groupId (ente a nome del quale si invia)' },
   { name: 'sender.tax.id', type: STRING, description: 'Codice fiscale del mittente (run senza --env)' },
   { name: 'sender.denomination', type: STRING, description: 'Denominazione del mittente (run senza --env)' },

@@ -116,19 +116,21 @@ Per le liste (`--phases`, `--defaults`, `--document-file`…) i valori si separa
 
 ### Ambiente e mittente (`e2e`)
 
-| Parametro               | Default                                                                         | Descrizione                                               |
-| ----------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `--env`                 | —                                                                               | nome dell'ambiente nel file di ambienti                   |
-| `--environments-file`   | `environments.yaml` in `data/send-dispatch-notifications/configs/` o `configs/` | file di ambienti YAML/JSON                                |
-| `--list-envs`           | `false`                                                                         | elenca gli ambienti (senza API key) ed esce               |
-| `--base-path`           | dall'ambiente                                                                   | override dell'host dell'API B2B                           |
-| `--pn-api-key`          | dall'ambiente                                                                   | override dell'API key (parametro sensibile, mai nei log)  |
-| `--group-id`            | dall'ambiente                                                                   | override del `groupId` (ente a nome del quale si invia)   |
-| `--sender-tax-id`       | dall'ambiente                                                                   | codice fiscale del mittente (run senza `--env`)           |
-| `--sender-denomination` | dall'ambiente                                                                   | denominazione del mittente (run senza `--env`)            |
-| `--api-version`         | `v2.6`                                                                          | versione dell'endpoint `requests`: `v2.4`, `v2.5`, `v2.6` |
+| Parametro               | Default                                                                         | Descrizione                                                          |
+| ----------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `--env`                 | —                                                                               | nome dell'ambiente nel file di ambienti                              |
+| `--environments-file`   | `environments.yaml` in `data/send-dispatch-notifications/configs/` o `configs/` | file di ambienti YAML/JSON                                           |
+| `--list-envs`           | `false`                                                                         | elenca gli ambienti (senza API key) ed esce                          |
+| `--base-path`           | dall'ambiente                                                                   | override dell'host dell'API B2B                                      |
+| `--pn-api-key`          | —                                                                               | API key dei run **senza** `--env` (parametro sensibile, mai nei log) |
+| `--group-id`            | dall'ambiente                                                                   | override del `groupId` (ente a nome del quale si invia)              |
+| `--sender-tax-id`       | dall'ambiente                                                                   | codice fiscale del mittente (run senza `--env`)                      |
+| `--sender-denomination` | dall'ambiente                                                                   | denominazione del mittente (run senza `--env`)                       |
+| `--api-version`         | `v2.6`                                                                          | versione dell'endpoint `requests`: `v2.4`, `v2.5`, `v2.6`            |
 
 Senza `--env` serve un run ad hoc con `--base-path` e `--pn-api-key`, salvo con la sola fase `request-id`.
+
+**API key con `--env`**: viene **solo** dalla variabile indicata nel file di ambienti (`apiKey: ${PN_API_KEY_ENTE_TEST}`). GOScript legge ogni parametro anche dalle variabili d'ambiente, quindi `--pn-api-key` arriverebbe anche da una `PN_API_KEY` rimasta nella shell (per esempio dal vecchio `send-import-notifications`) e sostituirebbe in silenzio la chiave dell'ambiente: con `--env` viene ignorata, con un avviso. Il piano mostra sempre da quale variabile arriva la chiave e le sue ultime 4 cifre.
 
 ### Modalità `direct`
 

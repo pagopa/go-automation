@@ -9,6 +9,7 @@ import type { SendDispatchNotificationsConfig } from '../../types/SendDispatchNo
 import { DispatchUsageError } from '../DispatchUsageError.js';
 import { resolveTarget, usesB2B } from '../resolveTarget.js';
 import { validateConfig } from '../validateConfig.js';
+import type { FakeLogger } from './helpers/testScript.js';
 import { RAW_CONFIG, createTestScript, writeFixture } from './helpers/testScript.js';
 
 const ENVIRONMENTS = `environments:
@@ -28,11 +29,18 @@ const ENVIRONMENTS = `environments:
 /** Loader whose only variable is PN_API_KEY_TEST. */
 const LOADER = new Dispatch.EnvironmentLoader((name: string) => (name === 'PN_API_KEY_TEST' ? 'key-1234' : undefined));
 
-async function resolve(overrides: Partial<SendDispatchNotificationsConfig>): Promise<DispatchTarget> {
-  const { script, dir } = await createTestScript();
+async function resolveWithLogger(
+  overrides: Partial<SendDispatchNotificationsConfig>,
+): Promise<{ target: DispatchTarget; logger: FakeLogger }> {
+  const { script, dir, logger } = await createTestScript();
   const environmentsFile = path.join(dir, 'environments.yaml');
   await writeFixture(environmentsFile, ENVIRONMENTS);
-  return resolveTarget(script, validateConfig({ ...RAW_CONFIG, environmentsFile, ...overrides }), LOADER);
+  const target = await resolveTarget(script, validateConfig({ ...RAW_CONFIG, environmentsFile, ...overrides }), LOADER);
+  return { target, logger };
+}
+
+async function resolve(overrides: Partial<SendDispatchNotificationsConfig>): Promise<DispatchTarget> {
+  return (await resolveWithLogger(overrides)).target;
 }
 
 describe('resolveTarget', () => {
@@ -46,24 +54,23 @@ describe('resolveTarget', () => {
     assert.equal(target.awsProfile, 'sso_test');
   });
 
-  it('applies the CLI overrides', async () => {
-    const target = await resolve({
-      env: 'ente-test',
-      basePath: 'api.uat.example/',
-      pnApiKey: 'override-9876',
-      groupId: 'g2',
-    });
+  it('applies the CLI overrides of base path and group', async () => {
+    const target = await resolve({ env: 'ente-test', basePath: 'api.uat.example/', groupId: 'g2' });
     assert.equal(target.b2b?.basePath, 'https://api.uat.example');
-    assert.equal(target.b2b?.apiKey, 'override-9876');
-    assert.match(target.b2b?.apiKeyLabel ?? '', /^--pn-api-key /);
     assert.equal(target.groupId, 'g2');
   });
 
-  it('accepts --pn-api-key when the variable of the environment is not set', async () => {
-    const target = await resolve({ env: 'ente-prod', pnApiKey: 'override-9876' }); // PN_API_KEY_PROD unset
-    assert.equal(target.b2b?.basePath, 'https://api.prod.example');
-    assert.equal(target.b2b?.apiKey, 'override-9876');
-    assert.match(target.b2b?.apiKeyLabel ?? '', /^--pn-api-key /);
+  it('takes the API key only from the variable of the environment, ignoring pn.api.key (e.g. PN_API_KEY)', async () => {
+    const { target, logger } = await resolveWithLogger({ env: 'ente-test', pnApiKey: 'stale-key-from-PN_API_KEY' });
+    assert.equal(target.b2b?.apiKey, 'key-1234', 'the key of $PN_API_KEY_TEST');
+    assert.match(target.b2b?.apiKeyLabel ?? '', /^\$PN_API_KEY_TEST /);
+    assert.ok(
+      logger.of('warning').some((line) => line.includes('pn.api.key ignorata') && line.includes('$PN_API_KEY_TEST')),
+    );
+  });
+
+  it('does not let pn.api.key stand in for an unset variable of the environment', async () => {
+    await assert.rejects(resolve({ env: 'ente-prod', pnApiKey: 'stale-key' }), /PN_API_KEY_PROD is not set/);
   });
 
   it('needs neither API key nor base path with only the request-id phase', async () => {
