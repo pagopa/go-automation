@@ -562,6 +562,12 @@ importers:
       '@aws-sdk/client-dynamodb':
         specifier: 'catalog:'
         version: 3.1161.0
+      '@aws-sdk/client-ec2':
+        specifier: 'catalog:'
+        version: 3.1161.0
+      '@aws-sdk/client-ssm':
+        specifier: 'catalog:'
+        version: 3.1161.0
       '@types/node':
         specifier: 'catalog:'
         version: 24.19.2

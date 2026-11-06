@@ -16,10 +16,11 @@
 10. [Core - Environment Detection](#core---environment-detection)
 11. [Core - Deployment Mode](#core---deployment-mode)
 12. [Core - Rate Limiter](#core---rate-limiter)
-13. [Core - DynamoDB Query Service](#core---dynamodb-query-service)
-14. [AWS - Credentials Management](#aws---credentials-management)
-15. [SEND SDK](#send-sdk)
-16. [SEND - Timeline Service](#send---timeline-service)
+13. [Core - Child Process](#core---child-process)
+14. [Core - DynamoDB Query Service](#core---dynamodb-query-service)
+15. [AWS - Credentials Management](#aws---credentials-management)
+16. [SEND SDK](#send-sdk)
+17. [SEND - Timeline Service](#send---timeline-service)
 
 ---
 
@@ -1280,6 +1281,31 @@ Il terzo argomento opzionale (`Core.GODurationParseOptions`) delimita l'interval
 | ------- | ------------------------------------------------------ | --------------------------------------------------- |
 | `minMs` | `0`                                                    | minimo; `1` rifiuta le durate nulle (`0s`, `0.1ms`) |
 | `maxMs` | `2147483647` (`Core.SET_TIMEOUT_MAX_MS`, ~24,8 giorni) | massimo; oltre, `setTimeout` scatterebbe dopo 1 ms  |
+
+---
+
+## Core - Child Process
+
+`GOChildProcess` gestisce un processo esterno di lunga durata posseduto dallo script, per esempio un port forwarding (`aws ssm start-session`): lo avvia, aspetta che serva una porta TCP e lo ferma a fine run.
+
+- Nessuna shell: gli argomenti passano così come sono.
+- Tiene le ultime righe di stdout/stderr (`outputTail`, default 20) e le mette nei messaggi di errore (`GOChildProcessError`): di solito spiegano il motivo (plugin mancante, credenziali scadute).
+- `waitForTcpPort(host, port, { timeoutMs, intervalMs })` rifiuta se il comando non parte (non installato), se il processo esce prima che la porta si apra, o allo scadere del timeout (default 30 s; in quel caso ferma il processo).
+- `stop(timeoutMs)` manda `SIGTERM` e, se dopo il periodo di grazia (default 5 s) il processo è ancora vivo, `SIGKILL`.
+- Finché è in esecuzione, il processo viene ucciso anche se lo script esce senza chiamare `stop()` (per esempio con `process.exit` dopo un errore fatale): non sopravvive mai allo script.
+
+`isTcpPortOpen(host, port, timeoutMs)` dice se qualcosa accetta connessioni TCP su `host:port` (handshake completato, nessun dato inviato); utile anche per riusare un tunnel già aperto.
+
+```typescript
+const tunnel = new Core.GOChildProcess({ command: 'aws', args: ['ssm', 'start-session', ...] });
+tunnel.start();
+try {
+  await tunnel.waitForTcpPort('127.0.0.1', 8888);
+  // ... chiamate attraverso il tunnel
+} finally {
+  await tunnel.stop();
+}
+```
 
 ---
 

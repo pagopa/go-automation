@@ -36,6 +36,8 @@ export type { RowStatus } from './model/RowStatus.js';
 export type { Environment } from './environment/Environment.js';
 export type { EnvironmentDefinition } from './environment/EnvironmentDefinition.js';
 export type { EnvironmentsFile } from './environment/EnvironmentsFile.js';
+export type { DirectEnvironmentDefinition } from './environment/DirectEnvironmentDefinition.js';
+export type { SsmTunnelDefinition } from './environment/SsmTunnelDefinition.js';
 export type { EnvironmentVariableLookupFn } from './environment/EnvironmentVariableLookupFn.js';
 export type { SharedDocumentConfig } from './environment/SharedDocumentConfig.js';
 export type { SharedDocumentReference } from './environment/SharedDocumentReference.js';
@@ -94,6 +96,12 @@ export type { SendFailure } from './channels/SendFailure.js';
 
 // Direct mode (pn-external-channels, §9)
 export type { ExternalChannelsApi } from './direct/ExternalChannelsApi.js';
+export { SsmTunnel } from './direct/SsmTunnel.js';
+export type { SsmTunnelOptions } from './direct/SsmTunnelOptions.js';
+export type { SsmTunnelHandle } from './direct/SsmTunnelHandle.js';
+export type { BastionStartConfirmFn } from './direct/BastionStartConfirmFn.js';
+export type { TunnelProcess } from './direct/TunnelProcess.js';
+export type { TunnelProcessFactoryFn } from './direct/TunnelProcessFactoryFn.js';
 export type { PaperEngagementRequest } from './direct/PaperEngagementRequest.js';
 export type { PaperEngagementAttachment } from './direct/PaperEngagementAttachment.js';
 export { ExternalChannelsChannel } from './direct/ExternalChannelsChannel.js';

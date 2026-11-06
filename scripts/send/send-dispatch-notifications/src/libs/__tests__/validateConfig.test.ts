@@ -30,6 +30,13 @@ describe('validateConfig', () => {
     assert.equal(validateConfig({ ...DIRECT, ecProduction: true }).ecProduction, true);
   });
 
+  it('accepts direct mode without --ec-base-url when --env names a direct environment', () => {
+    const config = validateConfig({ ...DIRECT, ecBaseUrl: undefined, env: 'consolidatore-test' });
+    assert.equal(config.mode, 'direct');
+    if (config.mode !== 'direct') return;
+    assert.equal(config.ecBaseUrl, undefined);
+  });
+
   it('rejects the direct combinations that are not supported', () => {
     assert.throws(() => validateConfig({ ...DIRECT, phases: ['send', 'verify'] }), /A7/);
     assert.throws(() => validateConfig({ ...DIRECT, phases: ['send', 'request-id'] }), /template/);

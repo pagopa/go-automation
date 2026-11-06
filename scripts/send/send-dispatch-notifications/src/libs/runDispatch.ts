@@ -18,6 +18,7 @@ import { confirmRun, exitCodeForConfirmation } from './confirmRun.js';
 import { createSessionOptions } from './createSessionOptions.js';
 import type { DispatchShutdown } from './DispatchShutdown.js';
 import { displayPlan } from './displayPlan.js';
+import { openTunnel } from './openTunnel.js';
 import { displaySummary, exitCodeFor } from './displaySummary.js';
 import { plannedWork } from './plannedWork.js';
 import { ProgressReporter } from './ProgressReporter.js';
@@ -51,7 +52,15 @@ export async function runDispatch(
   shutdown: DispatchShutdown,
 ): Promise<number> {
   const prepared = await createSessionOptions(script, config, target);
-  const session = await Dispatch.DispatchSession.open(prepared.options);
+  // Before the session: the preflight already calls pn-external-channels through the tunnel.
+  const tunnel = await openTunnel(script, target, prepared.options.dryRun);
+  let session: Dispatch.DispatchSession;
+  try {
+    session = await Dispatch.DispatchSession.open(prepared.options);
+  } catch (error: unknown) {
+    await tunnel?.close();
+    throw error;
+  }
   shutdown.attach(session);
   try {
     return await runSession(script, config, target, prepared, session, shutdown);
@@ -59,7 +68,12 @@ export async function runDispatch(
     try {
       await session.close();
     } finally {
-      shutdown.done();
+      try {
+        // After the session (calls in flight drained), before done(): GOScript may exit right after it.
+        await tunnel?.close();
+      } finally {
+        shutdown.done();
+      }
     }
   }
 }

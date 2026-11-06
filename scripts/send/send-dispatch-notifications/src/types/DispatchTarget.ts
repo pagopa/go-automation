@@ -30,4 +30,6 @@ export interface DispatchTarget {
    * among `--aws-profiles` (consistency check, the clients come from GOScript).
    */
   readonly awsProfile?: string;
+  /** `direct` environment whose tunnel the script opens (real runs only). */
+  readonly tunnel?: Dispatch.SsmTunnelDefinition;
 }

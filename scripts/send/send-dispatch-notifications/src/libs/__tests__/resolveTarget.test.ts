@@ -24,6 +24,19 @@ const ENVIRONMENTS = `environments:
     basePath: api.prod.example
     apiKey: \${PN_API_KEY_PROD}
     production: true
+  consolidatore-test:
+    mode: direct
+    description: Consolidatore TEST
+    ecBaseUrl: http://localhost:8888
+    sender: { taxId: '00000000001', denomination: Comune di Test }
+    defaults:
+      direct.aar.key: PN_AAR-1.pdf
+    tunnel:
+      awsProfile: sso_pn-confinfo-test
+      target: i-065a7d9f4a91add01
+      remoteHost: internal-EcsA-1.eu-south-1.elb.amazonaws.com
+      remotePort: 8080
+      localPort: 8888
 `;
 
 /** Loader whose only variable is PN_API_KEY_TEST. */
@@ -102,5 +115,39 @@ describe('resolveTarget', () => {
     assert.equal(test.b2b, undefined);
     assert.equal(test.production, false);
     assert.equal((await resolve({ ...direct, ecProduction: true })).production, true);
+  });
+});
+
+describe('resolveTarget (direct environments)', () => {
+  const directRun: Partial<SendDispatchNotificationsConfig> = {
+    mode: 'direct',
+    phases: ['send'],
+    env: 'consolidatore-test',
+    awsProfiles: ['sso_pn-confinfo-test'],
+  };
+
+  it('takes pn-external-channels, sender, defaults and tunnel from the environment', async () => {
+    const target = await resolve(directRun);
+    assert.equal(target.name, 'consolidatore-test');
+    assert.deepEqual(target.externalChannels, { baseUrl: 'http://localhost:8888', clientId: 'pn-cons-000' });
+    assert.equal(target.sender?.taxId, '00000000001');
+    assert.equal(target.defaults.get('direct.aar.key'), 'PN_AAR-1.pdf');
+    assert.equal(target.tunnel?.target, 'i-065a7d9f4a91add01');
+    assert.equal(target.b2b, undefined);
+  });
+
+  it('ignores --ec-base-url (or EC_BASE_URL) with --env, with a warning', async () => {
+    const { target, logger } = await resolveWithLogger({ ...directRun, ecBaseUrl: 'http://localhost:9999' });
+    assert.equal(target.externalChannels?.baseUrl, 'http://localhost:8888');
+    assert.ok(logger.of('warning').some((line) => line.startsWith('--ec-base-url ignorato')));
+  });
+
+  it('requires the tunnel profile among --aws-profiles', async () => {
+    await assert.rejects(resolve({ ...directRun, awsProfiles: ['sso_other'] }), /add it to --aws-profiles/);
+  });
+
+  it('tells which mode an environment belongs to', async () => {
+    await assert.rejects(resolve({ ...directRun, env: 'ente-test' }), /is an e2e environment: use --mode e2e/);
+    await assert.rejects(resolve({ env: 'consolidatore-test' }), /is a direct environment: use --mode direct/);
   });
 });

@@ -9,6 +9,7 @@ import type { ValidatedConfigBase } from './ValidatedConfigBase.js';
 export interface DirectDispatchConfig extends ValidatedConfigBase {
   readonly mode: 'direct';
   /** `--ec-base-url`, with scheme and without trailing slashes. */
-  readonly ecBaseUrl: string;
+  /** `--ec-base-url`; absent when the direct environment (`--env`) gives it. */
+  readonly ecBaseUrl?: string;
   readonly requestIdTemplate: Dispatch.RequestIdTemplate;
 }

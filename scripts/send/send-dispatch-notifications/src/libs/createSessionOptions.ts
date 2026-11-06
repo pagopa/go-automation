@@ -245,12 +245,17 @@ export async function createSessionOptions(
       api: new Dispatch.B2BChannel(sdk.notifications),
       gateway: new Dispatch.AttachmentServiceGateway(sdk.attachment),
     }),
-    ...(config.mode === 'direct' && {
-      direct: {
-        api: new Dispatch.ExternalChannelsChannel(config.ecBaseUrl, config.ecClientId, durations.httpTimeoutMs),
-        requestIdTemplate: config.requestIdTemplate,
-      },
-    }),
+    ...(config.mode === 'direct' &&
+      target.externalChannels !== undefined && {
+        direct: {
+          api: new Dispatch.ExternalChannelsChannel(
+            target.externalChannels.baseUrl,
+            target.externalChannels.clientId,
+            durations.httpTimeoutMs,
+          ),
+          requestIdTemplate: config.requestIdTemplate,
+        },
+      }),
     apiVersion: config.apiVersion,
     send,
     verify: config.phases.includes('verify'),

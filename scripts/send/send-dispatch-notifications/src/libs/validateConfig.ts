@@ -208,19 +208,20 @@ function validateDirect(config: SendDispatchNotificationsConfig, base: Validated
       '--mode direct: the requestId comes from the template, --phases request-id does not apply',
     );
   }
-  if (config.ecBaseUrl === undefined) {
-    throw new DispatchUsageError('--mode direct requires --ec-base-url (tunnel to pn-external-channels)');
-  }
-  if (!HTTP_URL.test(config.ecBaseUrl.trim())) {
+  const { ecBaseUrl } = config;
+  if (ecBaseUrl === undefined && config.env === undefined) {
     throw new DispatchUsageError(
-      `--ec-base-url "${config.ecBaseUrl}": include the scheme (e.g. http://localhost:8888)`,
+      '--mode direct requires --ec-base-url (tunnel to pn-external-channels) or --env with a direct environment',
     );
+  }
+  if (ecBaseUrl !== undefined && !HTTP_URL.test(ecBaseUrl.trim())) {
+    throw new DispatchUsageError(`--ec-base-url "${ecBaseUrl}": include the scheme (e.g. http://localhost:8888)`);
   }
   try {
     return {
       ...base,
       mode: 'direct',
-      ecBaseUrl: Dispatch.normalizeBasePath(config.ecBaseUrl, '--ec-base-url'),
+      ...(ecBaseUrl !== undefined && { ecBaseUrl: Dispatch.normalizeBasePath(ecBaseUrl, '--ec-base-url') }),
       requestIdTemplate: Dispatch.RequestIdTemplate.parse(config.directRequestIdTemplate),
     };
   } catch (error: unknown) {

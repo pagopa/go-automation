@@ -39,3 +39,23 @@ environments:
           versionToken: v1
           sha256: <base64>
           title: Atto
+
+  # Modalità direct (§7.4.4): pn-external-channels attraverso il tunnel SSM che apre lo script.
+  # Lancio: --mode direct --env consolidatore-test --aws-profiles sso_pn-confinfo-test
+  consolidatore-test:
+    mode: direct
+    description: Consolidatore — pn-external-channels TEST
+    ecBaseUrl: http://localhost:8888 # localhost con la porta di tunnel.localPort
+    production: false
+    sender: { taxId: '<codice-fiscale-PA>', denomination: Ente di esempio }
+    defaults: # riferimenti SafeStorage già caricati (oppure --defaults da riga di comando)
+      direct.aar.key: PN_AAR-<hash>.pdf
+      direct.aar.sha256: <base64>
+      documents.reference.key: PN_NOTIFICATION_ATTACHMENTS-<hash>.pdf
+      documents.reference.sha256: <base64>
+    tunnel: # facoltativo: senza, il tunnel lo apre l'operatore
+      awsProfile: sso_pn-confinfo-test # deve essere fra i --aws-profiles
+      target: <id-istanza-bastion> # i-…, bastion-host-postel (confinfo)
+      remoteHost: <dns-name-elb-ecsa> # internal-EcsA-….eu-south-1.elb.amazonaws.com
+      remotePort: 8080
+      localPort: 8888

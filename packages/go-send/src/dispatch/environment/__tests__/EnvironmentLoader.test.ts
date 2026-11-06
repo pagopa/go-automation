@@ -192,6 +192,59 @@ describe('normalizeBasePath', () => {
   });
 });
 
+describe('parseEnvironmentsFile (direct environments)', () => {
+  const directEnv = {
+    mode: 'direct',
+    description: 'Consolidatore TEST',
+    ecBaseUrl: 'http://localhost:8888',
+    sender: { taxId: '00000000001', denomination: 'Ente' },
+    defaults: { 'direct.aar.key': 'PN_AAR-1.pdf' },
+    tunnel: {
+      awsProfile: 'sso_pn-confinfo-test',
+      target: 'i-065a7d9f4a91add01',
+      remoteHost: 'internal-EcsA-1.eu-south-1.elb.amazonaws.com',
+      remotePort: 8080,
+      localPort: 8888,
+    },
+  };
+  const parse = (direct: Record<string, unknown>): ReturnType<typeof parseEnvironmentsFile> =>
+    parseEnvironmentsFile({ environments: { 'ente-test': { basePath: 'h', apiKey: '${K}' }, cons: direct } }, 'f');
+
+  it('keeps direct environments apart from the e2e ones', () => {
+    const file = parse(directEnv);
+    assert.deepEqual([...file.environments.keys()], ['ente-test']);
+    const cons = file.directEnvironments.get('cons');
+    assert.equal(cons?.ecBaseUrl, 'http://localhost:8888');
+    assert.equal(cons?.tunnel?.target, 'i-065a7d9f4a91add01');
+    assert.equal(cons?.tunnel?.remotePort, 8080);
+    assert.equal(cons?.defaults.get('direct.aar.key'), 'PN_AAR-1.pdf');
+    assert.equal(cons?.production, false);
+  });
+
+  it('accepts a direct environment without tunnel (opened by the operator)', () => {
+    const { tunnel: _tunnel, ...withoutTunnel } = directEnv;
+    assert.equal(parse(withoutTunnel).directEnvironments.get('cons')?.tunnel, undefined);
+  });
+
+  it('rejects a tunnel whose local end is not ecBaseUrl, and malformed tunnel values', () => {
+    assert.throws(() => parse({ ...directEnv, ecBaseUrl: 'http://localhost:9999' }), /local end of the tunnel/);
+    assert.throws(() => parse({ ...directEnv, ecBaseUrl: 'http://10.0.0.1:8888' }), /local end of the tunnel/);
+    assert.throws(() => parse({ ...directEnv, tunnel: { ...directEnv.tunnel, target: 'bastion' } }), /EC2 instance id/);
+    assert.throws(() => parse({ ...directEnv, tunnel: { ...directEnv.tunnel, remotePort: '8080' } }), /port number/);
+    assert.throws(() => parse({ ...directEnv, tunnel: { ...directEnv.tunnel, port: 1 } }), /unknown key "port"/);
+  });
+
+  it('rejects e2e-only settings, a shared document and an unknown mode', () => {
+    assert.throws(() => parse({ ...directEnv, apiKey: '${K}' }), /unknown key "apiKey"/);
+    assert.throws(
+      () => parse({ ...directEnv, defaults: { 'documents.shared': { reference: {} } } }),
+      /not available in direct mode/,
+    );
+    assert.throws(() => parse({ ...directEnv, mode: 'fax' }), /must be e2e or direct/);
+    assert.throws(() => parse({ ...directEnv, ecBaseUrl: 'localhost:8888' }), /include the scheme/);
+  });
+});
+
 describe('runEnvironmentPreflight', () => {
   const input = { basePath: 'https://api.test.notifichedigitali.it', production: false, groupId: 'group-1' };
   const groups =

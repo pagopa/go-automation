@@ -25,6 +25,7 @@ export function displayPlan(logger: Core.GOLogger, plan: PlanContext): void {
     Run: `${options.runId}${run.previousRunInfoPath === undefined ? '' : ` (ripresa di ${run.previousRunInfoPath})`}`,
     Ambiente: target.description === undefined ? target.name : `${target.name} — ${target.description}`,
     Modalità: modeLine(target, options),
+    ...(target.tunnel !== undefined && { Tunnel: tunnelLine(target.tunnel, options.dryRun) }),
     Produzione: target.production ? 'SÌ' : 'no',
     'A nome di': groupLine(target, preflight),
     'Righe con group diverso': countOther(summary.groups, target.groupId ?? ''),
@@ -71,6 +72,11 @@ function rowsLine(summary: Dispatch.ValidationSummary, run: ResolvedRun): string
   const done =
     run.previousRun === undefined ? '' : ` · ${summary.validRows - summary.rowsToProcess} già elaborate (non riprese)`;
   return `${read} → ${work}${done}`;
+}
+
+function tunnelLine(tunnel: Dispatch.SsmTunnelDefinition, dryRun: boolean): string {
+  const route = `localhost:${tunnel.localPort} → ${tunnel.remoteHost}:${tunnel.remotePort} via ${tunnel.target} (${tunnel.awsProfile})`;
+  return dryRun ? `${route}, aperto solo nei run reali` : route;
 }
 
 function groupLine(target: DispatchTarget, preflight: Dispatch.PreflightReport | undefined): string {

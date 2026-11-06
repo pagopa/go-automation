@@ -66,6 +66,28 @@ pnpm send:dispatch:notifications:dev --env ente-test --mapping-profile qa-test \
 
 Invio diretto al consolidatore, senza passare dal workflow di SEND. Prima di inviare, lo script controlla che il tunnel risponda.
 
+**Con un ambiente `direct`** (consigliato): indirizzo, mittente, default e tunnel stanno in `environments.yaml` (vedi `consolidatore-test` in `configs/environments.example.yaml`); lo script apre e chiude il tunnel da solo.
+
+```bash
+pnpm send:dispatch:notifications:dev --mode direct --phases send --env consolidatore-test \
+  --aws-profiles sso_pn-confinfo-test \
+  --input-file direct.csv --mapping-profile direct --dry-run=false
+```
+
+**Apertura del tunnel** (solo nei run reali, prima del preflight):
+
+1. Se la porta locale (`tunnel.localPort`) risponde già, lo script usa quel tunnel e a fine run non lo chiude (è dell'operatore).
+2. Legge lo stato del bastion (`tunnel.target`) via SDK con il profilo `tunnel.awsProfile`, che deve essere fra i `--aws-profiles` (GOScript ne verifica il login SSO all'avvio):
+   - `running`: prosegue; `pending`: attende;
+   - `stopped`: chiede se accenderlo. Sì → lo avvia e attende che sia `running` e online in SSM (fino a 5 minuti); no → il run si ferma (`TUNNEL_BASTION_STOPPED`) senza inviare nulla;
+   - altri stati (`stopping`, `terminated`…): il run si ferma (`TUNNEL_BASTION_UNAVAILABLE`).
+3. Avvia `aws ssm start-session --document-name AWS-StartPortForwardingSessionToRemoteHost` con target, profilo, `remoteHost`, `remotePort` e `localPort` dell'ambiente, e attende che la porta locale risponda (fino a 60 s). Il port forwarding passa per forza dalla CLI: l'SDK AWS non implementa il canale dati di Session Manager. Servono quindi la **AWS CLI** e il **session-manager-plugin** installati; se mancano, o se la sessione SSO è scaduta, il run si ferma (`TUNNEL_FAILED`) mostrando l'output della CLI.
+4. A fine run (anche dopo un errore o un Ctrl-C, dopo aver completato le chiamate in volo) lo script chiude il tunnel. Il processo del tunnel non riceve il Ctrl-C del terminale, così resta su durante la chiusura ordinata.
+
+In un dry run non si apre nessun tunnel (nessuna chiamata); il piano mostra la riga `Tunnel`. Con `--env`, `--ec-base-url` viene ignorato con un avviso (l'indirizzo viene dall'ambiente) e `ecClientId` dell'ambiente vince su `--ec-client-id`.
+
+**Senza ambiente**: il tunnel lo apre l'operatore e l'indirizzo si passa con `--ec-base-url`:
+
 ```bash
 pnpm send:dispatch:notifications:dev --mode direct --phases send \
   --input-file /percorso/consolidatore.csv --mapping-profile direct \

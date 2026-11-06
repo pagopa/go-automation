@@ -85,21 +85,20 @@ export async function resolveTarget(
   config: ValidatedConfig,
   loader: Dispatch.EnvironmentLoader,
 ): Promise<DispatchTarget> {
-  if (config.mode === 'direct') return directTarget(config);
+  if (config.mode === 'direct') {
+    if (config.env === undefined) return directTarget(config);
+    const file = await loadEnvironmentsFile(script, config, config.env, loader);
+    return directEnvironmentTarget(script, config, file, config.env);
+  }
   const b2bNeeded = usesB2B(config);
   if (config.env === undefined) return adHocTarget(config, b2bNeeded);
 
-  const filePath = resolveEnvironmentsFile(script, config);
-  if (filePath === undefined) {
-    throw new DispatchUsageError(
-      `--env ${config.env}: no ${ENVIRONMENTS_FILE} found (see configs/environments.example.yaml)`,
-    );
-  }
-  const file = await loader.load(filePath).catch((error: unknown) => {
-    throw DispatchUsageError.from(error);
-  });
+  const file = await loadEnvironmentsFile(script, config, config.env, loader);
   const definition = file.environments.get(config.env);
   if (definition === undefined) {
+    if (file.directEnvironments.has(config.env)) {
+      throw new DispatchUsageError(`Environment "${config.env}" is a direct environment: use --mode direct`);
+    }
     const known = [...file.environments.keys()].join(', ');
     throw new DispatchUsageError(`Environment "${config.env}" not found in ${file.source} (available: ${known})`);
   }
@@ -179,13 +178,79 @@ function adHocTarget(config: ValidatedConfig, b2bNeeded: boolean): DispatchTarge
  * The tunnel host cannot tell production apart, so `--ec-production` marks
  * the target as production (confirmation with `--confirm-production`).
  */
+/** Reads the environments file named by `--environments-file` or found in the configs dir. */
+async function loadEnvironmentsFile(
+  script: Core.GOScript,
+  config: ValidatedConfig,
+  env: string,
+  loader: Dispatch.EnvironmentLoader,
+): Promise<Dispatch.EnvironmentsFile> {
+  const filePath = resolveEnvironmentsFile(script, config);
+  if (filePath === undefined) {
+    throw new DispatchUsageError(`--env ${env}: no ${ENVIRONMENTS_FILE} found (see configs/environments.example.yaml)`);
+  }
+  return loader.load(filePath).catch((error: unknown) => {
+    throw DispatchUsageError.from(error);
+  });
+}
+
+/** `direct` without `--env`: pn-external-channels from the CLI, tunnel opened by the operator. */
 function directTarget(config: DirectDispatchConfig): DispatchTarget {
+  if (config.ecBaseUrl === undefined) {
+    // validateConfig requires --ec-base-url without --env.
+    throw new DispatchUsageError('--mode direct requires --ec-base-url or --env with a direct environment');
+  }
   return {
     name: 'direct',
     description: 'pn-external-channels',
     externalChannels: { baseUrl: config.ecBaseUrl, clientId: config.ecClientId },
     production: config.ecProduction,
     defaults: new Map(),
+  };
+}
+
+/**
+ * `direct` with `--env`: pn-external-channels, sender, defaults and tunnel
+ * from the environment. Like the API key of an e2e environment, the
+ * environment wins over `--ec-base-url`/`--ec-client-id`, which GOScript also
+ * fills from the `EC_BASE_URL`/`EC_CLIENT_ID` variables: they are ignored with
+ * a warning. The tunnel profile must be among `--aws-profiles` (validated by
+ * GOScript at startup).
+ */
+function directEnvironmentTarget(
+  script: Core.GOScript,
+  config: DirectDispatchConfig,
+  file: Dispatch.EnvironmentsFile,
+  env: string,
+): DispatchTarget {
+  const definition = file.directEnvironments.get(env);
+  if (definition === undefined) {
+    if (file.environments.has(env)) {
+      throw new DispatchUsageError(`Environment "${env}" is an e2e environment: use --mode e2e`);
+    }
+    const known = [...file.directEnvironments.keys()].join(', ') || 'none';
+    throw new DispatchUsageError(`Direct environment "${env}" not found in ${file.source} (available: ${known})`);
+  }
+  if (config.ecBaseUrl !== undefined) {
+    script.logger.warning(
+      `--ec-base-url ignorato (o variabile EC_BASE_URL): con --env l'indirizzo viene da ${file.source}`,
+    );
+  }
+  const { tunnel } = definition;
+  if (tunnel !== undefined && !(config.awsProfiles ?? []).includes(tunnel.awsProfile)) {
+    throw new DispatchUsageError(
+      `Environment "${env}": the tunnel needs the AWS profile ${tunnel.awsProfile}; add it to --aws-profiles`,
+    );
+  }
+  const sender = definition.sender ?? cliSender(config);
+  return {
+    name: definition.name,
+    description: definition.description ?? 'pn-external-channels',
+    externalChannels: { baseUrl: definition.ecBaseUrl, clientId: definition.ecClientId ?? config.ecClientId },
+    production: definition.production || config.ecProduction,
+    defaults: definition.defaults,
+    ...(sender !== undefined && { sender }),
+    ...(tunnel !== undefined && { tunnel }),
   };
 }
 

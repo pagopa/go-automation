@@ -74,3 +74,17 @@ describe('AWSClientProvider — account identity', () => {
     await assert.rejects(async () => provider.resolveAccountId(), /sso_uat/u);
   });
 });
+
+describe('AWSClientProvider — ec2', () => {
+  it('creates the EC2 client once, in the region of the provider, and releases it on close', async () => {
+    const provider = new AWSClientProvider({ region: 'eu-south-1' });
+
+    const first = provider.ec2;
+    assert.strictEqual(provider.ec2, first, 'the client is cached');
+    assert.strictEqual(await first.config.region(), 'eu-south-1');
+
+    provider.close();
+    assert.notStrictEqual(provider.ec2, first, 'close() drops the cached client');
+    provider.close();
+  });
+});
