@@ -1,63 +1,106 @@
 import { Core } from '@go-automation/go-common';
-import type { AlarmOccurrencePatternReport } from '../types/PatternTypes.js';
+import type {
+  DominantPatternReport,
+  PatternCoverageReport,
+  TiedPatternCombinationsReport,
+  OccurrenceQueryResult,
+} from '../types/PatternTypes.js';
+import {
+  DominantPatternReportModule,
+  PatternCoverageReportModule,
+  TiedPatternCombinationsReportModule,
+} from './reports/index.js';
 
-export const DEFAULT_REPORT_FILENAME = 'error-patterns-report.json';
+export interface GeneratedReports {
+  readonly dominantReport: DominantPatternReport;
+  readonly patternCoverageReport: PatternCoverageReport;
+  readonly tiedCombinationsReport: TiedPatternCombinationsReport;
+}
 
-/**
- * Prints a formatted summary table of the patterns report to the logger.
- * Sezione con:
- * - Nome allarme
- * - Numero di transizioni di stato (attivazioni dell'allarme)
- * - Numero totale di pattern individuati
- * Tabella con la percentuale di presenza di ciascun pattern calcolata sul totale dei pattern.
- */
-export function printPatternReport(script: Core.GOScript, report: AlarmOccurrencePatternReport): void {
-  script.logger.section(`Report Pattern Allarmi - Profilo: ${report.profile}`);
-  script.logger.info(`Nome allarme: ${report.alarmName}`);
-  script.logger.info(`Numero di transizioni di stato (attivazioni dell'allarme): ${report.totalOccurrences}`);
-  script.logger.info(`Numero totale di pattern individuati: ${report.totalPatternsCount}`);
-
-  if (report.totalOccurrences === 0) {
-    script.logger.warning('Nessuna transizione di stato rilevata per i criteri specificati.');
-    return;
-  }
-
-  script.logger.newline();
-
-  if (report.patternFrequency.length === 0) {
-    script.logger.warning('Nessun pattern individuato nei log durante le finestre temporali analizzate.');
-  } else {
-    const tableRows = report.patternFrequency.map((p, idx) => ({
-      '#': idx + 1,
-      Pattern: p.pattern.length > 120 ? `${p.pattern.slice(0, 117)}...` : p.pattern,
-      Occorrenze: p.count,
-      'Percentuale Presenza': `${p.percentage.toFixed(2)}%`,
-    }));
-    script.logger.simpleTable(tableRows);
-  }
-
-  script.logger.newline();
+export interface AllReportsContainer {
+  readonly dominantReports: ReadonlyArray<DominantPatternReport>;
+  readonly patternCoverageReports: ReadonlyArray<PatternCoverageReport>;
+  readonly tiedCombinationsReports: ReadonlyArray<TiedPatternCombinationsReport>;
 }
 
 /**
- * Exports the pattern reports to a JSON file in the script execution output directory.
- *
- * @param script - The GOScript instance
- * @param reports - Array of reports to export
- * @returns Path of the exported file
+ * Builds all 3 report types for a given alarm analysis result.
  */
-export async function exportPatternReports(
+export function buildAllReports(
+  profile: string,
+  alarmName: string,
+  occurrenceResults: ReadonlyArray<OccurrenceQueryResult>,
+): GeneratedReports {
+  const dominantReport = DominantPatternReportModule.buildReport(profile, alarmName, occurrenceResults);
+  const patternCoverageReport = PatternCoverageReportModule.buildReport(profile, alarmName, occurrenceResults);
+  const tiedCombinationsReport = TiedPatternCombinationsReportModule.buildReport(profile, alarmName, occurrenceResults);
+
+  return {
+    dominantReport,
+    patternCoverageReport,
+    tiedCombinationsReport,
+  };
+}
+
+/**
+ * Prints all 3 reports to the logger via their respective modules.
+ */
+export function printAllReports(script: Core.GOScript, reports: GeneratedReports): void {
+  DominantPatternReportModule.printReport(script, reports.dominantReport);
+  PatternCoverageReportModule.printReport(script, reports.patternCoverageReport);
+  TiedPatternCombinationsReportModule.printReport(script, reports.tiedCombinationsReport);
+}
+
+/**
+ * Exports a single report file to the script execution output directory using GOJSONFileExporter.
+ */
+export async function exportReportFile<T>(
   script: Core.GOScript,
-  reports: ReadonlyArray<AlarmOccurrencePatternReport>,
+  fileName: string,
+  data: T,
 ): Promise<string> {
-  const outputPath = script.paths.getExecutionOutputFilePath(DEFAULT_REPORT_FILENAME);
+  const outputPath = script.paths.getExecutionOutputFilePath(fileName);
   const exporter = new Core.GOJSONFileExporter({
     outputPath,
     pretty: true,
     indent: 2,
   });
 
-  await exporter.export(reports);
+  await exporter.export(data);
   script.logger.info(`Report JSON salvato in: ${outputPath}`);
   return outputPath;
+}
+
+/**
+ * Exports all reports to their dedicated JSON files in the execution output directory.
+ */
+export async function exportAllReports(
+  script: Core.GOScript,
+  reports: AllReportsContainer,
+): Promise<{
+  readonly dominantReportPath: string;
+  readonly patternCoverageReportPath: string;
+  readonly tiedCombinationsReportPath: string;
+}> {
+  const dominantReportPath = await exportReportFile(
+    script,
+    DominantPatternReportModule.REPORT_FILENAME,
+    reports.dominantReports,
+  );
+  const patternCoverageReportPath = await exportReportFile(
+    script,
+    PatternCoverageReportModule.REPORT_FILENAME,
+    reports.patternCoverageReports,
+  );
+  const tiedCombinationsReportPath = await exportReportFile(
+    script,
+    TiedPatternCombinationsReportModule.REPORT_FILENAME,
+    reports.tiedCombinationsReports,
+  );
+
+  return {
+    dominantReportPath,
+    patternCoverageReportPath,
+    tiedCombinationsReportPath,
+  };
 }

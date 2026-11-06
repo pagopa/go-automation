@@ -1,8 +1,20 @@
-{
-  "alarm-name": "my-service-5xx-errors-alarm",
-  "alarm-history-start-date": "2026-11-01T00:00:00Z",
-  "alarm-history-end-date": "2026-11-03T23:59:59Z",
-  "log-group": "/aws/ecs/my-service",
-  "query aws cloudwatch": "fields @timestamp, @message | filter @message like /ERROR/ | pattern @message",
-  "buffer-seconds": 30
-}
+[
+  {
+    "profile": "prod-account",
+    "alarm-name": "service-a-5xx",
+    "log-group": "/aws/ecs/service-a",
+    "alarm-history-start-date": "2026-11-01T00:00:00Z",
+    "alarm-history-end-date": "2026-11-03T23:59:59Z",
+    "query-aws-cloudwatch": "fields @timestamp, @message | filter @message like /ERROR/ | pattern @message",
+    "time-window-extra-seconds": 30
+  },
+  {
+    "profile": "dev-account",
+    "alarm-name": "service-b-latency",
+    "log-group": "/aws/ecs/service-b",
+    "alarm-history-start-date": "2026-11-01T00:00:00Z",
+    "alarm-history-end-date": "2026-11-03T23:59:59Z",
+    "query-aws-cloudwatch": "fields @timestamp, @message | pattern @message",
+    "time-window-extra-seconds": 0
+  }
+]

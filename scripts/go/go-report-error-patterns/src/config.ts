@@ -25,7 +25,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     name: 'aws.profiles',
     type: Core.GOConfigParameterType.STRING_ARRAY,
     description: 'AWS SSO profile names',
-    required: true,
+    required: false,
     aliases: ['aps'],
   },
   {

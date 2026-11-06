@@ -4,10 +4,19 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import type { Core } from '@go-automation/go-common';
-import { exportPatternReports, DEFAULT_REPORT_FILENAME } from '../report.js';
-import type { AlarmOccurrencePatternReport } from '../../types/PatternTypes.js';
+import { exportAllReports } from '../report.js';
+import {
+  DominantPatternReportModule,
+  PatternCoverageReportModule,
+  TiedPatternCombinationsReportModule,
+} from '../reports/index.js';
+import type {
+  DominantPatternReport,
+  PatternCoverageReport,
+  TiedPatternCombinationsReport,
+} from '../../types/PatternTypes.js';
 
-test('exportPatternReports exports reports array to execution output directory', async () => {
+test('exportAllReports exports all three reports to execution output directory', async () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'error-patterns-test-'));
 
   const mockScript = {
@@ -23,48 +32,93 @@ test('exportPatternReports exports reports array to execution output directory',
     },
   } as unknown as Core.GOScript;
 
-  const mockReports: AlarmOccurrencePatternReport[] = [
+  const mockDominantReports: DominantPatternReport[] = [
     {
+      reportType: 'dominant-pattern',
+      description: DominantPatternReportModule.REPORT_DESCRIPTION,
       profile: 'test-profile',
       alarmName: 'test-alarm',
       totalOccurrences: 1,
-      totalPatternsCount: 2,
-      occurrences: [
-        {
-          occurrenceTimestamp: '2026-10-28T17:35:05.731Z',
-          queryWindow: {
-            start: '2026-10-28T17:33:35.731Z',
-            end: '2026-10-28T17:35:35.731Z',
-          },
-          patternsFound: [
-            { pattern: 'Error: timeout', sampleCount: 2, ratio: 1.0 },
-          ],
-        },
-      ],
-      patternFrequency: [
+      occurrencesWithPatterns: 1,
+      occurrencesWithoutPatterns: 0,
+      dominantPatterns: [
         {
           pattern: 'Error: timeout',
-          count: 2,
+          count: 1,
+          percentage: 100,
+          hasTies: false,
+        },
+      ],
+    },
+  ];
+
+  const mockCoverageReports: PatternCoverageReport[] = [
+    {
+      reportType: 'pattern-coverage',
+      description: PatternCoverageReportModule.REPORT_DESCRIPTION,
+      profile: 'test-profile',
+      alarmName: 'test-alarm',
+      totalOccurrences: 1,
+      occurrencesWithPatterns: 1,
+      occurrencesWithoutPatterns: 0,
+      patternCoverage: [
+        {
+          pattern: 'Error: timeout',
+          count: 1,
           percentage: 100,
         },
       ],
     },
   ];
 
-  const resultPath = await exportPatternReports(mockScript, mockReports);
+  const mockTiedReports: TiedPatternCombinationsReport[] = [
+    {
+      reportType: 'tied-pattern-combinations',
+      description: TiedPatternCombinationsReportModule.REPORT_DESCRIPTION,
+      profile: 'test-profile',
+      alarmName: 'test-alarm',
+      totalOccurrences: 1,
+      message: 'Nessuna occorrenza con pattern in pareggio rilevata.',
+      tiedCombinations: [],
+    },
+  ];
 
-  assert.strictEqual(resultPath, path.join(tmpDir, DEFAULT_REPORT_FILENAME));
-  assert.ok(fs.existsSync(resultPath));
+  const resultPaths = await exportAllReports(mockScript, {
+    dominantReports: mockDominantReports,
+    patternCoverageReports: mockCoverageReports,
+    tiedCombinationsReports: mockTiedReports,
+  });
 
-  const parsed = JSON.parse(fs.readFileSync(resultPath, 'utf-8'));
-  assert.ok(Array.isArray(parsed));
-  assert.strictEqual(parsed.length, 1);
-  assert.strictEqual(parsed[0].profile, 'test-profile');
-  assert.strictEqual(parsed[0].alarmName, 'test-alarm');
-  assert.strictEqual(parsed[0].totalOccurrences, 1);
-  assert.strictEqual(parsed[0].totalPatternsCount, 2);
-  assert.strictEqual(parsed[0].patternFrequency[0].pattern, 'Error: timeout');
-  assert.strictEqual(parsed[0].patternFrequency[0].percentage, 100);
+  const expectedDominantPath = path.join(tmpDir, DominantPatternReportModule.REPORT_FILENAME);
+  const expectedCoveragePath = path.join(tmpDir, PatternCoverageReportModule.REPORT_FILENAME);
+  const expectedTiedPath = path.join(tmpDir, TiedPatternCombinationsReportModule.REPORT_FILENAME);
+
+  assert.strictEqual(resultPaths.dominantReportPath, expectedDominantPath);
+  assert.strictEqual(resultPaths.patternCoverageReportPath, expectedCoveragePath);
+  assert.strictEqual(resultPaths.tiedCombinationsReportPath, expectedTiedPath);
+
+  assert.ok(fs.existsSync(expectedDominantPath));
+  assert.ok(fs.existsSync(expectedCoveragePath));
+  assert.ok(fs.existsSync(expectedTiedPath));
+
+  const parsedDominant = JSON.parse(fs.readFileSync(expectedDominantPath, 'utf-8'));
+  assert.ok(Array.isArray(parsedDominant));
+  assert.strictEqual(parsedDominant.length, 1);
+  assert.strictEqual(parsedDominant[0].reportType, 'dominant-pattern');
+  assert.strictEqual(parsedDominant[0].dominantPatterns[0].pattern, 'Error: timeout');
+
+  const parsedCoverage = JSON.parse(fs.readFileSync(expectedCoveragePath, 'utf-8'));
+  assert.ok(Array.isArray(parsedCoverage));
+  assert.strictEqual(parsedCoverage.length, 1);
+  assert.strictEqual(parsedCoverage[0].reportType, 'pattern-coverage');
+  assert.strictEqual(parsedCoverage[0].patternCoverage[0].pattern, 'Error: timeout');
+
+  const parsedTied = JSON.parse(fs.readFileSync(expectedTiedPath, 'utf-8'));
+  assert.ok(Array.isArray(parsedTied));
+  assert.strictEqual(parsedTied.length, 1);
+  assert.strictEqual(parsedTied[0].reportType, 'tied-pattern-combinations');
+  assert.strictEqual(parsedTied[0].message, 'Nessuna occorrenza con pattern in pareggio rilevata.');
+  assert.deepStrictEqual(parsedTied[0].tiedCombinations, []);
 
   // Clean up
   fs.rmSync(tmpDir, { recursive: true, force: true });
