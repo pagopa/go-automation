@@ -4,6 +4,8 @@
 
 import { describe, it, mock, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 
 import {
   GO_PROMPT_BACK,
@@ -12,6 +14,7 @@ import {
   type GOPromptInputOptions,
   type GOPromptSelectInputOptions,
 } from '../GOPrompt.js';
+import { GOPromptInterruptedError } from '../GOPromptInterruptedError.js';
 import { GOLogger } from '../../logging/GOLogger.js';
 
 // Mock logger
@@ -601,5 +604,147 @@ describe('GOPrompt.dateRangeWithBack', () => {
     await prompt.dateRange('Period', { now: NOW, backLabel: '← Back' });
 
     assert.ok(!(offered[0] ?? []).includes('← Back'));
+  });
+});
+
+/** How a test delivers Ctrl+C to an open prompt. */
+type InterruptFn = () => void;
+
+describe('Ctrl+C on a prompt', () => {
+  /** Error inquirer rejects with when its prompt is closed by Ctrl+C. */
+  function exitPromptError(): Error {
+    const error = new Error('User force closed the prompt with SIGINT');
+    error.name = 'ExitPromptError';
+    return error;
+  }
+
+  /** Prompt whose every method runs `interrupt` (the way Ctrl+C reaches it) and then rejects like inquirer. */
+  function createInterruptedPrompt(interrupt: InterruptFn): GOPrompt {
+    const fail = async (): Promise<never> => {
+      interrupt();
+      return await Promise.reject(exitPromptError());
+    };
+    const adapter: GOPromptAdapter = {
+      text: fail,
+      password: fail,
+      number: fail,
+      confirm: fail,
+      select: fail,
+      checkbox: fail,
+      search: fail,
+    };
+    return new GOPrompt(logger, false, adapter);
+  }
+
+  const pressCtrlC: InterruptFn = () => {
+    process.stdin.emit('keypress', '\u0003', { ctrl: true, name: 'c' });
+  };
+
+  it('throws GOPromptInterruptedError instead of exiting the process', async (t) => {
+    const exit = t.mock.method(process, 'exit', (): never => undefined as never);
+    const prompt = createInterruptedPrompt(pressCtrlC);
+
+    await assert.rejects(prompt.confirm('Proceed?', false), (error: unknown) => {
+      assert.ok(error instanceof GOPromptInterruptedError);
+      assert.strictEqual(error.signal, 'SIGINT');
+      assert.strictEqual(error.exitCode, 130);
+      return true;
+    });
+    assert.strictEqual(exit.mock.callCount(), 0);
+  });
+
+  it('throws GOPromptInterruptedError from the prompts that offer ←', async () => {
+    const prompt = createInterruptedPrompt(pressCtrlC);
+
+    await assert.rejects(
+      prompt.selectWithBack<string>('Ambiente', [{ title: 'Produzione', value: 'prod' }]),
+      GOPromptInterruptedError,
+    );
+  });
+
+  it('treats SIGINT during the prompt (stdin not in raw mode) as Ctrl+C', async () => {
+    const prompt = createInterruptedPrompt(() => process.emit('SIGINT', 'SIGINT'));
+
+    await assert.rejects(prompt.text('Name'), GOPromptInterruptedError);
+  });
+
+  it('still resolves to undefined when the prompt is closed without Ctrl+C', async () => {
+    const prompt = createInterruptedPrompt(() => undefined);
+
+    assert.strictEqual(await prompt.text('Name'), undefined);
+  });
+
+  it('registers no signal listener when the module is imported', async () => {
+    // A fresh process: in this one the module is already loaded.
+    const moduleUrl = new URL('../GOPrompt.ts', import.meta.url).href;
+    const code = `await import(${JSON.stringify(moduleUrl)}); console.log(['SIGINT', 'SIGTERM', 'SIGQUIT'].map((s) => process.listenerCount(s)).join());`;
+
+    const { stdout } = await promisify(execFile)(process.execPath, [
+      '--import',
+      'tsx/esm',
+      '--input-type=module',
+      '-e',
+      code,
+    ]);
+
+    assert.strictEqual(stdout.trim(), '0,0,0');
+  });
+
+  it('listens to SIGINT, SIGTERM and SIGQUIT only while a prompt is open', async () => {
+    const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGQUIT'];
+    const before = signals.map((signal) => process.listenerCount(signal));
+    let during: number[] = [];
+    const prompt = createInterruptedPrompt(() => {
+      during = signals.map((signal) => process.listenerCount(signal));
+    });
+
+    await prompt.text('Name');
+
+    assert.deepStrictEqual(
+      during,
+      before.map((count) => count + 1),
+    );
+    assert.deepStrictEqual(
+      signals.map((signal) => process.listenerCount(signal)),
+      before,
+    );
+  });
+
+  it('closes a prompt waiting for input when SIGTERM arrives, with exit code 143', async () => {
+    // Like inquirer under GOScript: the prompt never settles by itself on a signal,
+    // only when the context signal is aborted.
+    const waitForAbort = async (_options: unknown, context?: { readonly signal?: AbortSignal }): Promise<never> =>
+      new Promise<never>((_resolve, reject) => {
+        context?.signal?.addEventListener('abort', () => {
+          const error = new Error('Prompt was aborted');
+          error.name = 'AbortPromptError';
+          reject(error);
+        });
+      });
+    const adapter: GOPromptAdapter = {
+      text: waitForAbort,
+      password: waitForAbort,
+      number: waitForAbort,
+      confirm: waitForAbort,
+      select: waitForAbort,
+      checkbox: waitForAbort,
+      search: waitForAbort,
+    };
+    const prompt = new GOPrompt(logger, false, adapter);
+
+    const answer = prompt.confirm('Inviare?', false);
+    // Call the listener installed by the prompt (the last one) rather than emitting
+    // SIGTERM, which would also reach the listeners of the test runner.
+    const onSigterm = process.listeners('SIGTERM').at(-1);
+    assert.ok(onSigterm !== undefined);
+    onSigterm('SIGTERM');
+
+    const error = await answer.then(
+      () => assert.fail('the prompt must be interrupted'),
+      (reason: unknown) => reason,
+    );
+    assert.ok(error instanceof GOPromptInterruptedError);
+    assert.strictEqual(error.signal, 'SIGTERM');
+    assert.strictEqual(error.exitCode, 143);
   });
 });

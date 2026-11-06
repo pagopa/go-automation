@@ -4,11 +4,17 @@
  * Parses command line arguments into configuration key-value pairs.
  * Supports:
  * - --key value (separate arguments)
- * - --key=value (equals sign)
+ * - --key=value (equals sign; only the first `=` separates, so `--k=a=b` gives `a=b`)
  * - --flag (boolean flag, treated as true)
  * - --key val1 val2 (arrays with space-separated values)
  * - --key val1 --key val2 (arrays with repeated flags)
- * - --key val1,val2 (arrays with comma-separated values)
+ * - --key val1,val2 (comma-separated lists)
+ *
+ * A single value is kept verbatim, commas included, so a string parameter
+ * receives exactly what was typed; array parameters split it on commas when
+ * the value is converted (`GOConfigTypeConverter.toStringArray`). Only when a
+ * flag collects several values (repeated flag or space-separated values) is
+ * every item split on commas here, because the result is already a list.
  */
 
 /**
@@ -41,18 +47,7 @@ export class GOCLIArgumentParser {
         }
 
         const { key, value, consumed } = parsed;
-
-        // Handle multiple values for the same key (accumulate into array)
-        const existing = result.get(key);
-        if (existing !== undefined) {
-          // Merge values
-          const existingArray = Array.isArray(existing) ? existing : [existing];
-          const newArray = Array.isArray(value) ? value : [value];
-          result.set(key, [...existingArray, ...newArray]);
-        } else {
-          result.set(key, value);
-        }
-
+        this.mergeValue(result, key, value);
         i += consumed;
       } else {
         // Non-flag argument - skip
@@ -74,32 +69,13 @@ export class GOCLIArgumentParser {
     const arg = args[index];
     if (!arg) return null;
 
-    // Extract flag name
-    let flagName: string;
-    let inlineValue: string | undefined;
+    const split = this.splitFlag(arg);
+    if (!split) return null;
+    const { key, inlineValue } = split;
 
-    if (arg.includes('=')) {
-      // Format: --key=value
-      const parts = arg.split('=', 2);
-      const part0 = parts[0];
-      if (!part0) return null;
-      flagName = part0;
-      inlineValue = parts[1];
-    } else {
-      // Format: --key
-      flagName = arg;
-    }
-
-    // Remove leading dashes
-    const key = flagName.replace(/^--?/, '');
-
-    // If there's an inline value, use it
+    // If there's an inline value, use it verbatim
     if (inlineValue !== undefined) {
-      return {
-        key,
-        value: this.parseValue(inlineValue),
-        consumed: 1,
-      };
+      return { key, value: inlineValue, consumed: 1 };
     }
 
     // Check if next argument is a value (not a flag)
@@ -131,15 +107,9 @@ export class GOCLIArgumentParser {
       consumed++;
     }
 
-    // If we collected multiple values, return as array
+    // If we collected multiple values, return as a list
     if (values.length > 1) {
-      // Flatten any comma-separated values
-      const flattened = values.flatMap((v) => this.parseValue(v));
-      return {
-        key,
-        value: Array.isArray(flattened) ? flattened.flat() : flattened,
-        consumed,
-      };
+      return { key, value: this.toList(values), consumed };
     }
 
     // Single value
@@ -153,26 +123,37 @@ export class GOCLIArgumentParser {
       };
     }
 
-    return {
-      key,
-      value: this.parseValue(firstValue),
-      consumed,
-    };
+    return { key, value: firstValue, consumed };
   }
 
   /**
-   * Parse a value (handle comma-separated lists)
+   * Splits a flag argument into its name (without leading dashes) and inline value.
+   * Only the first `=` separates name and value: `--defaults=a=b` gives `a=b`.
+   *
+   * @param arg - Flag argument, e.g. `--key`, `--key=value`, `-k=value`
+   * @returns Name and optional inline value, or null when the name is empty
    */
-  private static parseValue(value: string): string | string[] {
-    // Check if value contains commas (array)
-    if (value.includes(',')) {
-      return value
-        .split(',')
-        .map((v) => v.trim())
-        .filter((v) => v.length > 0);
-    }
+  private static splitFlag(arg: string): { key: string; inlineValue?: string } | null {
+    const separator = arg.indexOf('=');
+    const name = separator < 0 ? arg : arg.slice(0, separator);
+    if (!name) return null;
+    const key = name.replace(/^--?/, '');
+    return separator < 0 ? { key } : { key, inlineValue: arg.slice(separator + 1) };
+  }
 
-    return value;
+  /**
+   * Turns the values collected for one flag into a list, splitting every item on commas.
+   *
+   * @param values - Values collected for the flag
+   * @returns Trimmed, non-empty items
+   */
+  private static toList(values: ReadonlyArray<string>): string[] {
+    return values.flatMap((value) =>
+      value
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0),
+    );
   }
 
   /**
@@ -202,21 +183,13 @@ export class GOCLIArgumentParser {
         continue;
       }
 
-      let flagName: string;
-      let inlineValue: string | undefined;
-
-      if (arg.includes('=')) {
-        const parts = arg.split('=', 2);
-        const part0 = parts[0];
-        if (!part0) {
-          i++;
-          continue;
-        }
-        flagName = part0.replace(/^--?/, '');
-        inlineValue = parts[1];
-      } else {
-        flagName = arg.replace(/^--?/, '');
+      const split = this.splitFlag(arg);
+      if (!split) {
+        i++;
+        continue;
       }
+      const flagName = split.key;
+      const inlineValue = split.inlineValue;
 
       // Check if this is a boolean flag
       if (booleanFlags.has(flagName)) {
@@ -227,8 +200,7 @@ export class GOCLIArgumentParser {
 
       // Handle inline value
       if (inlineValue !== undefined) {
-        const value = this.parseValue(inlineValue);
-        this.mergeValue(result, flagName, value);
+        this.mergeValue(result, flagName, inlineValue);
         i++;
         continue;
       }
@@ -250,12 +222,10 @@ export class GOCLIArgumentParser {
       } else if (values.length === 1) {
         const firstVal = values[0];
         if (firstVal) {
-          const value = this.parseValue(firstVal);
-          this.mergeValue(result, flagName, value);
+          this.mergeValue(result, flagName, firstVal);
         }
       } else {
-        const flattened = values.flatMap((v) => this.parseValue(v));
-        this.mergeValue(result, flagName, flattened);
+        this.mergeValue(result, flagName, this.toList(values));
       }
 
       i = j;
@@ -265,7 +235,8 @@ export class GOCLIArgumentParser {
   }
 
   /**
-   * Merge a value into the result map
+   * Merges a value into the result map. A repeated flag turns the value into a
+   * list, so the verbatim single values merged here are split on commas.
    */
   private static mergeValue(result: Map<string, string | string[]>, key: string, value: string | string[]): void {
     const existing = result.get(key);
@@ -275,9 +246,8 @@ export class GOCLIArgumentParser {
       return;
     }
 
-    // Merge with existing value
-    const existingArray = Array.isArray(existing) ? existing : [existing];
-    const newArray = Array.isArray(value) ? value : [value];
-    result.set(key, [...existingArray, ...newArray]);
+    const existingList = Array.isArray(existing) ? existing : this.toList([existing]);
+    const newList = Array.isArray(value) ? value : this.toList([value]);
+    result.set(key, [...existingList, ...newList]);
   }
 }

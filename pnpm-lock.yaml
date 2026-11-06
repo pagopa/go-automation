@@ -563,6 +563,12 @@ importers:
       '@aws-sdk/client-dynamodb':
         specifier: 'catalog:'
         version: 3.1161.0
+      '@aws-sdk/client-ec2':
+        specifier: 'catalog:'
+        version: 3.1161.0
+      '@aws-sdk/client-ssm':
+        specifier: 'catalog:'
+        version: 3.1161.0
       '@types/node':
         specifier: 'catalog:'
         version: 24.19.2
@@ -816,6 +822,19 @@ importers:
       '@types/node-forge':
         specifier: 'catalog:'
         version: 1.3.14
+
+  scripts/send/send-dispatch-notifications:
+    dependencies:
+      '@go-automation/go-common':
+        specifier: workspace:*
+        version: link:../../../packages/go-common
+      '@go-automation/go-send':
+        specifier: workspace:*
+        version: link:../../../packages/go-send
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.19.2
 
   scripts/send/send-download-safestorage-attachments:
     dependencies:

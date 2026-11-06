@@ -216,4 +216,94 @@ describe('SENDAttachmentService', () => {
       return true;
     });
   });
+
+  describe('preloadMany', () => {
+    const request = (preloadIdx: string): SENDPreloadRequest => ({
+      preloadIdx,
+      contentType: 'application/pdf',
+      sha256: `sha-${preloadIdx}`,
+    });
+    const item = (key: string, preloadIdx?: string): Record<string, string> => ({
+      key,
+      url: `https://s3.example/${key}`,
+      secret: 's',
+      httpMethod: 'PUT',
+      ...(preloadIdx !== undefined && { preloadIdx }),
+    });
+    function serviceReturning(items: ReadonlyArray<Record<string, string>>): {
+      service: SENDAttachmentService;
+      posts: unknown[][];
+    } {
+      const posts: unknown[][] = [];
+      const post = mock.fn(async (...args: unknown[]): Promise<unknown> => {
+        await Promise.resolve();
+        posts.push(args);
+        return items;
+      });
+      return { service: new SENDAttachmentService({ post } as unknown as GOHttpClient), posts };
+    }
+
+    it('makes no call for no request', async () => {
+      const { service, posts } = serviceReturning([]);
+      assert.deepEqual(await service.preloadMany([]), []);
+      assert.strictEqual(posts.length, 0);
+    });
+
+    it('rejects more than 15 files and repeated request indexes before calling', async () => {
+      const { service, posts } = serviceReturning([]);
+      await assert.rejects(
+        service.preloadMany(Array.from({ length: 16 }, (_, i) => request(String(i)))),
+        /At most 15 files/,
+      );
+      await assert.rejects(service.preloadMany([request('0'), request('0')]), /Duplicate preloadIdx 0/);
+      assert.strictEqual(posts.length, 0);
+    });
+
+    it('matches strictly by preloadIdx when every item carries it', async () => {
+      const { service } = serviceReturning([item('B', '1'), item('A', '0')]);
+      const result = await service.preloadMany([request('0'), request('1')]);
+      assert.deepEqual(
+        result.map((preload) => preload.key),
+        ['A', 'B'],
+      );
+      await assert.rejects(
+        serviceReturning([item('A', '0'), item('A2', '0')]).service.preloadMany([request('0'), request('1')]),
+        /repeats preloadIdx 0/,
+      );
+      await assert.rejects(
+        serviceReturning([item('A', '0'), item('X', '9')]).service.preloadMany([request('0'), request('1')]),
+        /missing for preloadIdx 1/,
+      );
+    });
+
+    it('matches by position when only some items carry preloadIdx, never giving one URL to two files', async () => {
+      const { service } = serviceReturning([item('FIRST', '1'), item('SECOND')]);
+      const result = await service.preloadMany([request('0'), request('1')]);
+      assert.deepEqual(
+        result.map((preload) => preload.key),
+        ['FIRST', 'SECOND'],
+      );
+    });
+
+    it('passes the request options to the preload POST and the presigned PUT', async () => {
+      const { service, posts } = serviceReturning([item('A', '0')]);
+      const options = { signal: new AbortController().signal };
+      await service.preloadMany([request('0')], options);
+      assert.strictEqual(posts[0]?.[3], options);
+
+      const putArgs: unknown[][] = [];
+      const put = mock.fn(async (...args: unknown[]): Promise<Record<string, string>> => {
+        await Promise.resolve();
+        putArgs.push(args);
+        return { 'x-amz-version-id': 'v9' };
+      });
+      const uploader = new SENDAttachmentService({ put } as unknown as GOHttpClient);
+      const preload = { key: 'K', url: 'https://s3', secret: 's', httpMethod: 'PUT' };
+      assert.strictEqual(
+        await uploader.uploadToPresignedUrl(preload, Buffer.from('x'), 'S', 'application/pdf', options),
+        'v9',
+      );
+      assert.strictEqual(putArgs[0]?.[3], options);
+    });
+  });
 });

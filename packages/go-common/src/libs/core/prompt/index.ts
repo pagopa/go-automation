@@ -3,6 +3,7 @@
  */
 
 export { GOPrompt } from './GOPrompt.js';
+export { GOPromptInterruptedError } from './GOPromptInterruptedError.js';
 export { GOMultiSpinner } from './GOMultiSpinner.js';
 export type { GOMultiSpinnerOptions } from './GOMultiSpinner.js';
 export { GOLoadingBar } from './GOLoadingBar.js';

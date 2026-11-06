@@ -1,0 +1,32 @@
+{
+  "name": "send-dispatch-notifications",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Invio unificato di notifiche SEND (e2e via API B2B) con throttling, verifica, journal e ripresa",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "pnpm build && node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "keywords": [
+    "send",
+    "notifications",
+    "dispatch",
+    "pn",
+    "go-automation"
+  ],
+  "author": "Team GO - Gestione Operativa",
+  "license": "EUPL-1.2",
+  "dependencies": {
+    "@go-automation/go-common": "workspace:*",
+    "@go-automation/go-send": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

@@ -7,6 +7,7 @@
 
 import { S3Client } from '@aws-sdk/client-s3';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { EC2Client } from '@aws-sdk/client-ec2';
 import { CloudWatchClient } from '@aws-sdk/client-cloudwatch';
 import { CloudWatchLogsClient } from '@aws-sdk/client-cloudwatch-logs';
 import { AthenaClient } from '@aws-sdk/client-athena';
@@ -55,6 +56,7 @@ export class AWSClientProvider {
   private cachedSQSClient: SQSClient | null = null;
   private cachedS3Client: S3Client | null = null;
   private cachedECSClient: ECSClient | null = null;
+  private cachedEC2Client: EC2Client | null = null;
   private cachedLambdaClient: LambdaClient | null = null;
   private cachedSecretsManagerClient: SecretsManagerClient | null = null;
   private cachedSchedulerClient: SchedulerClient | null = null;
@@ -153,6 +155,14 @@ export class AWSClientProvider {
   }
 
   /**
+   * Returns the cached EC2Client instance.
+   */
+  get ec2(): EC2Client {
+    this.cachedEC2Client ??= new EC2Client(this.clientConfig);
+    return this.cachedEC2Client;
+  }
+
+  /**
    * Returns the cached SSMClient instance.
    */
   get ssm(): SSMClient {
@@ -222,6 +232,7 @@ export class AWSClientProvider {
     this.cachedAthenaClient?.destroy();
     this.cachedSQSClient?.destroy();
     this.cachedECSClient?.destroy();
+    this.cachedEC2Client?.destroy();
     this.cachedLambdaClient?.destroy();
     this.cachedS3Client?.destroy();
     this.cachedSecretsManagerClient?.destroy();
@@ -235,6 +246,7 @@ export class AWSClientProvider {
     this.cachedAthenaClient = null;
     this.cachedSQSClient = null;
     this.cachedECSClient = null;
+    this.cachedEC2Client = null;
     this.cachedLambdaClient = null;
     this.cachedS3Client = null;
     this.cachedSecretsManagerClient = null;

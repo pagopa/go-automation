@@ -14,6 +14,7 @@ import type { GOListImporterEventMap } from '../GOListImporterEvents.js';
 import { getErrorMessage, toError } from '../../errors/GOErrorUtils.js';
 import { navigateFieldPath } from '../../json/fieldPath.js';
 import { GOJSONFormatDetector } from '../../json/GOJSONFormatDetector.js';
+import { GOJSONArrayScanner } from './GOJSONArrayScanner.js';
 
 /**
  * Generic JSON List Importer
@@ -130,8 +131,13 @@ export class GOJSONListImporter<TItem = unknown>
   /**
    * Import items in streaming mode
    *
-   * For standard JSON: loads all data and yields items one by one (JSON does not support true streaming).
-   * For JSONL mode: uses true line-by-line streaming via readline.createInterface.
+   * - JSONL mode: line-by-line streaming via readline.createInterface.
+   * - JSON whose top-level value is an array (and no `jsonPath`): the file is
+   *   read in chunks and each element is parsed as soon as it is complete
+   *   ({@link GOJSONArrayScanner}), so memory holds one element at a time,
+   *   never the whole document. Progress events carry no `totalItems`.
+   * - Otherwise (`jsonPath`, or a top-level object wrapped by
+   *   `wrapSingleObject`): the whole document is parsed, then yielded item by item.
    */
   async *importStream(source: string): AsyncGenerator<TItem, void, unknown> {
     if (typeof source !== 'string') {
@@ -156,19 +162,9 @@ export class GOJSONListImporter<TItem = unknown>
     this.emit('import:started', { source, mode: 'stream' });
 
     try {
-      // Parse JSON data
-      const data = await this.parseJSON(source);
-      const totalItems = data.length;
-
       // Process and yield each item
-      for (let i = 0; i < totalItems; i++) {
+      for await (const currentItem of this.readItems(source)) {
         processedItems++;
-        const currentItem = data[i];
-
-        // Safety check for undefined (noUncheckedIndexedAccess)
-        if (currentItem === undefined) {
-          continue;
-        }
 
         try {
           const item = this.transformItem(currentItem);
@@ -200,10 +196,17 @@ export class GOJSONListImporter<TItem = unknown>
         this.emit('import:progress', {
           processedItems,
           invalidItems,
-          totalItems,
-          percentage: Math.round((processedItems / totalItems) * 100),
+          percentage: undefined,
         });
       }
+
+      // Emit final progress
+      this.emit('import:progress', {
+        processedItems,
+        invalidItems,
+        totalItems: validItems,
+        percentage: 100,
+      });
 
       // Emit completion event
       this.emit('import:completed', {
@@ -221,6 +224,33 @@ export class GOJSONListImporter<TItem = unknown>
       });
       throw finalError;
     }
+  }
+
+  /**
+   * Raw items of a JSON (not JSONL) file: streamed element by element when
+   * the top-level value is an array and no `jsonPath` is set, otherwise from
+   * the whole parsed document (same rules as `import()`).
+   *
+   * @param source - File path
+   * @returns AsyncGenerator yielding the raw items
+   * @throws {SyntaxError} When the document is not valid JSON
+   */
+  private async *readItems(source: string): AsyncGenerator<unknown, void, unknown> {
+    if (this.options.jsonPath === undefined) {
+      const scanner = new GOJSONArrayScanner();
+      const fileStream = createReadStream(source, { encoding: this.options.encoding ?? 'utf8' });
+      // Leaving the loop (fallback, error, early stop of the consumer) destroys the stream.
+      for await (const chunk of fileStream) {
+        const texts = scanner.push(String(chunk));
+        if (scanner.isArray === false) break;
+        for (const text of texts) yield parseElement(text);
+      }
+      if (scanner.isArray === true) {
+        scanner.end();
+        return;
+      }
+    }
+    yield* await this.parseJSON(source);
   }
 
   /**
@@ -414,5 +444,20 @@ export class GOJSONListImporter<TItem = unknown>
     }
 
     return item as TItem;
+  }
+}
+
+/**
+ * Parses the text of one element of a streamed JSON array.
+ *
+ * @param text - Source text of the element
+ * @returns The parsed value
+ * @throws {SyntaxError} When the element is not valid JSON
+ */
+function parseElement(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch (error: unknown) {
+    throw new SyntaxError(`Invalid JSON array element: ${getErrorMessage(error)}`, { cause: error });
   }
 }
