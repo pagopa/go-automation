@@ -3,8 +3,8 @@
  * Represents all validated configuration parameters
  */
 export interface GoReportErrorPatternsConfig {
-  /** AWS profile names */
-  readonly awsProfiles: ReadonlyArray<string>;
+  /** AWS profile names (optional if specified in config file) */
+  readonly awsProfiles?: ReadonlyArray<string> | undefined;
   /** Path to the JSON configuration file */
   readonly configFile: string;
 }

@@ -56,8 +56,14 @@ export function parseDateInput(value: string | number | Date): Date {
 /**
  * Extracts evaluating datapoints and calculates optimal query time range
  * for an alarm state transition to ALARM.
+ *
+ * @param item - The alarm history item containing transition data
+ * @param timeWindowExtraSeconds - Extra seconds to pad before and after the calculated query window
  */
-export function extractAlarmOccurrenceWindow(item: AlarmHistoryItem, bufferSeconds = 0): AlarmOccurrence | undefined {
+export function extractAlarmOccurrenceWindow(
+  item: AlarmHistoryItem,
+  timeWindowExtraSeconds = 0,
+): AlarmOccurrence | undefined {
   if (!item.HistoryData) {
     return undefined;
   }
@@ -85,7 +91,7 @@ export function extractAlarmOccurrenceWindow(item: AlarmHistoryItem, bufferSecon
   }
 
   const periodSeconds = parsed.trigger?.period ?? 60;
-  const paddingMs = Math.max(bufferSeconds, 0) * 1000;
+  const paddingMs = Math.max(timeWindowExtraSeconds, 0) * 1000;
 
   let queryStartTime: Date;
   let queryEndTime: Date;
@@ -100,7 +106,7 @@ export function extractAlarmOccurrenceWindow(item: AlarmHistoryItem, bufferSecon
     const maxTimestamp = datapointTimestamps[datapointTimestamps.length - 1]?.getTime() ?? lastDp.getTime();
 
     // Query range covers the datapoints window, minus one period before minTimestamp
-    // and up to the end of the last period + user buffer
+    // and up to the end of the last period + user extra seconds
     queryStartTime = new Date(minTimestamp - periodSeconds * 1000 - paddingMs);
     queryEndTime = new Date(maxTimestamp + paddingMs);
   } else {
