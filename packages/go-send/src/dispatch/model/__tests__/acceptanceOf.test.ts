@@ -19,10 +19,23 @@ function state(status: RowStatus, extra: Partial<RowState> = {}): RowState {
 }
 
 describe('acceptanceOf', () => {
-  it('reads REFUSED from the verification or from a REQUEST_REFUSED timeline', () => {
+  it('reads REFUSED from the verification or from the timeline', () => {
     assert.equal(acceptanceOf(state('REFUSED')), 'REFUSED');
     assert.equal(
-      acceptanceOf(state('REQUEST_ID_NOT_FOUND', { requestIdReason: 'WORKFLOW_ENDED:REQUEST_REFUSED' })),
+      acceptanceOf(
+        state('REQUEST_ID_NOT_FOUND', {
+          requestIdReason: 'WORKFLOW_ENDED:REQUEST_REFUSED',
+          timelineAcceptance: 'REFUSED',
+        }),
+      ),
+      'REFUSED',
+    );
+  });
+
+  it('reads REFUSED from the timeline even when the refused category was selected and found', () => {
+    // --request-id-categories REQUEST_REFUSED: the row is REQUEST_ID_FOUND, the notification refused.
+    assert.equal(
+      acceptanceOf(state('REQUEST_ID_FOUND', { requestIdReason: 'FOUND', timelineAcceptance: 'REFUSED' })),
       'REFUSED',
     );
   });
@@ -35,15 +48,34 @@ describe('acceptanceOf', () => {
     );
   });
 
-  it('reads ACCEPTED from timeline steps that only follow acceptance', () => {
-    assert.equal(acceptanceOf(state('REQUEST_ID_FOUND', { requestIdReason: 'FOUND' })), 'ACCEPTED');
-    for (const category of ['ANALOG_SUCCESS_WORKFLOW', 'COMPLETELY_UNREACHABLE', 'NOTIFICATION_CANCELLED']) {
-      assert.equal(
-        acceptanceOf(state('REQUEST_ID_NOT_FOUND', { requestIdReason: `WORKFLOW_ENDED:${category}` })),
-        'ACCEPTED',
-        category,
-      );
-    }
+  it('reads ACCEPTED from the timeline, whatever the requestId outcome', () => {
+    assert.equal(
+      acceptanceOf(state('REQUEST_ID_FOUND', { requestIdReason: 'FOUND', timelineAcceptance: 'ACCEPTED' })),
+      'ACCEPTED',
+    );
+    assert.equal(
+      acceptanceOf(
+        state('REQUEST_ID_NOT_FOUND', {
+          requestIdReason: 'WORKFLOW_ENDED:COMPLETELY_UNREACHABLE',
+          timelineAcceptance: 'ACCEPTED',
+        }),
+      ),
+      'ACCEPTED',
+    );
+    assert.equal(
+      acceptanceOf(state('REQUEST_ID_NOT_FOUND', { requestIdReason: 'TIMEOUT', timelineAcceptance: 'ACCEPTED' })),
+      'ACCEPTED',
+      'accepted, PREPARE never appeared within the timeout',
+    );
+  });
+
+  it('does not infer acceptance from REQUEST_ID_FOUND or from a workflow end alone', () => {
+    // The selected and end categories are configurable: finding them proves nothing.
+    assert.equal(acceptanceOf(state('REQUEST_ID_FOUND', { requestIdReason: 'FOUND' })), 'UNKNOWN');
+    assert.equal(
+      acceptanceOf(state('REQUEST_ID_NOT_FOUND', { requestIdReason: 'WORKFLOW_ENDED:VALIDATED_F24' })),
+      'UNKNOWN',
+    );
   });
 
   it('is UNKNOWN without evidence', () => {

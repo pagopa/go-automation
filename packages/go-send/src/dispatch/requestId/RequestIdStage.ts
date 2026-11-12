@@ -3,9 +3,11 @@ import type { GOBackoffFn } from '@go-automation/go-common/core';
 
 import type { SENDTimelineElement } from '../../services/timeline/models/SENDTimelineElement.js';
 import { IUN_UNKNOWN, WORKFLOW_ENDED_PREFIX } from '../model/requestIdReasons.js';
+import type { TimelineAcceptance } from '../model/TimelineAcceptance.js';
 import { sleepUnlessStopped } from '../stages/abortableWaits.js';
 import type { CredentialErrorPredicate } from './CredentialErrorPredicate.js';
 import type { RequestIdStageOptions } from './RequestIdStageOptions.js';
+import { acceptanceFromTimeline } from './acceptanceFromTimeline.js';
 import { selectRequestIds } from './selectRequestIds.js';
 import { PendingTasks } from '../stages/PendingTasks.js';
 
@@ -23,6 +25,11 @@ const DEFAULT_CONCURRENCY = 10;
  * - `REQUEST_ID_FOUND` when the `wait` rule is satisfied (or the workflow
  *   ended with some category found);
  * - `REQUEST_ID_NOT_FOUND` with `WORKFLOW_ENDED:<category>` or `TIMEOUT`.
+ *
+ * Every outcome also carries SEND's acceptance read from the last timeline
+ * ({@link acceptanceFromTimeline}), independent of the selected categories:
+ * a found category is not acceptance evidence, and a refused notification
+ * whose category was selected must not pass as accepted.
  *
  * When the AWS credentials expire, the stage stops without closing any row:
  * the rows stay open and `--resume` continues them after `aws sso login`.
@@ -101,15 +108,23 @@ export class RequestIdStage {
     let delayMs = this.initialDelayMs;
     // Error of the last query, if it failed: the cause of a TIMEOUT.
     let lastError: Error | undefined;
+    // Acceptance read from the last timeline that could be read.
+    let acceptance: TimelineAcceptance | undefined;
     for (let check = 1; ; check++) {
       const wait = Math.min(delayMs, Math.max(0, deadline - clock.monotonic()));
       if (!(await sleepUnlessStopped(clock, wait, this.signal))) return;
 
       const outcome = await this.query(iun);
       if (this.signal.aborted) return;
-      const base = { rowIndex, rowKey, attempt: check };
       lastError = outcome instanceof Error ? outcome : undefined;
       const elements = outcome instanceof Error ? undefined : outcome;
+      if (elements !== undefined) acceptance = acceptanceFromTimeline(elements);
+      const base = {
+        rowIndex,
+        rowKey,
+        attempt: check,
+        ...(acceptance !== undefined && { timelineAcceptance: acceptance }),
+      };
       if (elements !== undefined) {
         const result = selectRequestIds(elements, selection);
         const endedWithSome = result.endedBy !== undefined && result.requestIds.size > 0;

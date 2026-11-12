@@ -1,6 +1,7 @@
 import type { DocumentSourceKind } from './DocumentSourceKind.js';
 import type { RowError } from './RowError.js';
 import type { RowStatus } from './RowStatus.js';
+import type { TimelineAcceptance } from './TimelineAcceptance.js';
 
 /**
  * Compact in-memory state of a row (§6.2). Immutable: every transition
@@ -27,6 +28,8 @@ export interface RowState {
   readonly requestIdReason?: string;
   readonly requestIdFoundAt?: string;
   readonly requestIdChecks: number;
+  /** Acceptance read from the timeline by the requestId phase, kept by later entries. */
+  readonly timelineAcceptance?: TimelineAcceptance;
   readonly error?: RowError;
   readonly warnings: ReadonlyArray<string>;
 }

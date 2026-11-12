@@ -50,6 +50,7 @@ describe('materializeRun', () => {
       rowIndex: 8,
       rowKey: 'K-8',
       requestIdReason: 'WORKFLOW_ENDED:REQUEST_REFUSED',
+      timelineAcceptance: 'REFUSED',
     });
 
     const success = await materialize(ledger, 9, true);

@@ -9,6 +9,7 @@ import { RowLedger } from '../../journal/RowLedger.js';
 import { DEFAULT_REQUEST_ID_OPTIONS } from '../defaultRequestIdOptions.js';
 import { DynamoTimelineSource } from '../DynamoTimelineSource.js';
 import { RequestIdStage } from '../RequestIdStage.js';
+import type { RequestIdSelectionOptions } from '../RequestIdSelectionOptions.js';
 import type { TimelineSource } from '../TimelineSource.js';
 
 /** Element that appears in the timeline after `afterMs` of virtual time. */
@@ -60,6 +61,7 @@ class FakeTimelineSource implements TimelineSource {
 function setup(
   timelines: ReadonlyMap<string, ReadonlyArray<ScheduledElement>>,
   isCredentialError = (error: unknown): boolean => error instanceof CredentialsExpiredError,
+  selection: RequestIdSelectionOptions = DEFAULT_REQUEST_ID_OPTIONS,
 ): { clock: VirtualClock; source: FakeTimelineSource; ledger: RowLedger; sink: MemorySink; stage: RequestIdStage } {
   const clock = new VirtualClock();
   const source = new FakeTimelineSource(clock, timelines);
@@ -69,7 +71,7 @@ function setup(
     source,
     ledger,
     clock,
-    selection: DEFAULT_REQUEST_ID_OPTIONS,
+    selection,
     isCredentialError,
     signal: new AbortController().signal,
   });
@@ -98,6 +100,7 @@ describe('RequestIdStage', () => {
     assert.equal(state?.status, 'REQUEST_ID_FOUND');
     assert.equal(state?.requestId, 'PREPARE_ANALOG_DOMICILE.IUN_IUN-A.RECINDEX_0.ATTEMPT_0');
     assert.equal(state?.requestIdReason, 'FOUND');
+    assert.equal(state?.timelineAcceptance, 'ACCEPTED');
     assert.ok(h.clock.elapsed >= 70 * MINUTE && h.clock.elapsed <= 72 * MINUTE, `closed at ${h.clock.elapsed} ms`);
     assert.ok(h.source.queries <= 40, `${h.source.queries} queries`);
   });
@@ -108,6 +111,52 @@ describe('RequestIdStage', () => {
     await h.clock.run(h.stage.drain());
     assert.equal(h.ledger.get(0)?.status, 'REQUEST_ID_NOT_FOUND');
     assert.equal(h.ledger.get(0)?.requestIdReason, 'WORKFLOW_ENDED:COMPLETELY_UNREACHABLE');
+    assert.equal(h.ledger.get(0)?.timelineAcceptance, 'ACCEPTED', 'COMPLETELY_UNREACHABLE follows the acceptance');
+  });
+
+  it('records the refusal of a REQUEST_REFUSED timeline, closed without requestId', async () => {
+    const h = setup(new Map([['IUN-R', [{ afterMs: 1 * MINUTE, category: 'REQUEST_REFUSED' }]]]));
+    h.stage.schedule(0, 'S-0', 'IUN-R');
+    await h.clock.run(h.stage.drain());
+    assert.equal(h.ledger.get(0)?.status, 'REQUEST_ID_NOT_FOUND');
+    assert.equal(h.ledger.get(0)?.requestIdReason, 'WORKFLOW_ENDED:REQUEST_REFUSED');
+    assert.equal(h.ledger.get(0)?.timelineAcceptance, 'REFUSED');
+    assert.deepEqual([...h.ledger.countByAcceptance()], [['REFUSED', 1]]);
+  });
+
+  it('keeps the refusal when the refused category itself is selected and found', async () => {
+    // --request-id-categories REQUEST_REFUSED: the id is found, the notification is still refused.
+    const h = setup(new Map([['IUN-R', [{ afterMs: 1 * MINUTE, category: 'REQUEST_REFUSED' }]]]), undefined, {
+      ...DEFAULT_REQUEST_ID_OPTIONS,
+      categories: ['REQUEST_REFUSED'],
+    });
+    h.stage.schedule(0, 'S-0', 'IUN-R');
+    await h.clock.run(h.stage.drain());
+    assert.equal(h.ledger.get(0)?.status, 'REQUEST_ID_FOUND');
+    assert.equal(h.ledger.get(0)?.requestId, 'REQUEST_REFUSED.IUN_IUN-R.RECINDEX_0.ATTEMPT_0');
+    assert.equal(h.ledger.get(0)?.timelineAcceptance, 'REFUSED');
+    assert.deepEqual([...h.ledger.countByAcceptance()], [['REFUSED', 1]]);
+  });
+
+  it('does not take a selected category that precedes the acceptance as acceptance evidence', async () => {
+    const h = setup(
+      new Map([['IUN-V', [{ afterMs: 1 * MINUTE, category: 'VALIDATE_NORMALIZE_ADDRESSES_REQUEST' }]]]),
+      undefined,
+      { ...DEFAULT_REQUEST_ID_OPTIONS, categories: ['VALIDATE_NORMALIZE_ADDRESSES_REQUEST'] },
+    );
+    h.stage.schedule(0, 'S-0', 'IUN-V');
+    await h.clock.run(h.stage.drain());
+    assert.equal(h.ledger.get(0)?.status, 'REQUEST_ID_FOUND');
+    assert.equal(h.ledger.get(0)?.timelineAcceptance, undefined);
+    assert.deepEqual([...h.ledger.countByAcceptance()], [['UNKNOWN', 1]]);
+  });
+
+  it('carries the acceptance read before a timeout', async () => {
+    const h = setup(new Map([['IUN-T', [{ afterMs: 1 * MINUTE, category: 'REQUEST_ACCEPTED' }]]]));
+    h.stage.schedule(0, 'S-0', 'IUN-T');
+    await h.clock.run(h.stage.drain());
+    assert.equal(h.ledger.get(0)?.requestIdReason, 'TIMEOUT');
+    assert.equal(h.ledger.get(0)?.timelineAcceptance, 'ACCEPTED', 'accepted, PREPARE never appeared');
   });
 
   it('times out after 2 hours with an empty timeline', async () => {

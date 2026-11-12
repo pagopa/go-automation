@@ -68,6 +68,24 @@ describe('applyJournalEntry', () => {
     assert.equal(state?.requestIdReason, 'FOUND');
   });
 
+  it('keeps the acceptance read from the timeline across later requestId entries', () => {
+    const found = applyJournalEntry(undefined, {
+      ts: 't1',
+      event: 'REQUEST_ID_FOUND',
+      ...ROW,
+      requestId: 'R',
+      timelineAcceptance: 'REFUSED',
+    });
+    assert.equal(found?.timelineAcceptance, 'REFUSED');
+    const later = applyJournalEntry(found, {
+      ts: 't2',
+      event: 'REQUEST_ID_NOT_FOUND',
+      ...ROW,
+      requestIdReason: 'TIMEOUT',
+    });
+    assert.equal(later?.timelineAcceptance, 'REFUSED', 'an entry without evidence does not erase it');
+  });
+
   it('takes the direct requestId from SENT, never from a SENDING attempt', () => {
     let state = applyJournalEntry(undefined, { ts: 't1', event: 'SENDING', ...ROW, requestId: 'R', attempt: 1 });
     assert.equal(state?.requestId, undefined);
@@ -166,6 +184,7 @@ describe('RowLedger.countByAcceptance', () => {
       rowIndex: 1,
       rowKey: 'B',
       requestIdReason: 'WORKFLOW_ENDED:REQUEST_REFUSED',
+      timelineAcceptance: 'REFUSED',
     });
     await ledger.record({ event: 'REQUEST_ID_NOT_FOUND', rowIndex: 2, rowKey: 'C', requestIdReason: 'TIMEOUT' });
     await ledger.record({ event: 'REQUEST_ID_FOUND', rowIndex: 0, rowKey: 'A', requestId: 'R' });

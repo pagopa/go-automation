@@ -72,7 +72,7 @@ export function applyJournalEntry(state: RowState | undefined, entry: JournalEnt
       return next;
     case 'REQUEST_ID_FOUND':
       return {
-        ...next,
+        ...withTimelineAcceptance(next, entry),
         ...(entry.requestIds !== undefined && { requestIds: entry.requestIds }),
         requestIdReason: entry.requestIdReason ?? 'FOUND',
         requestIdFoundAt: entry.ts,
@@ -82,7 +82,7 @@ export function applyJournalEntry(state: RowState | undefined, entry: JournalEnt
       // A TIMEOUT may carry the cause (last pn-Timelines query failed).
       return withError(
         {
-          ...next,
+          ...withTimelineAcceptance(next, entry),
           ...(entry.requestIdReason !== undefined && { requestIdReason: entry.requestIdReason }),
           requestIdChecks: entry.attempt ?? base.requestIdChecks,
         },
@@ -110,6 +110,11 @@ function withIdentifiers(state: RowState, entry: JournalEntry): RowState {
       documentSha256: entry.documents.sha256,
     }),
   };
+}
+
+/** Keeps the acceptance read from the timeline; a later entry without one does not erase it. */
+function withTimelineAcceptance(state: RowState, entry: JournalEntry): RowState {
+  return entry.timelineAcceptance === undefined ? state : { ...state, timelineAcceptance: entry.timelineAcceptance };
 }
 
 function withError(state: RowState, entry: JournalEntry): RowState {

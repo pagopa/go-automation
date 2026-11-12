@@ -1,4 +1,5 @@
 import type { RowError } from '../model/RowError.js';
+import type { TimelineAcceptance } from '../model/TimelineAcceptance.js';
 import type { JournalDocuments } from './JournalDocuments.js';
 import type { JournalEvent } from './JournalEvent.js';
 import type { JournalUpload } from './JournalUpload.js';
@@ -29,4 +30,6 @@ export interface JournalEntry {
   readonly requestIds?: Readonly<Record<string, string>>;
   /** `FOUND`, `TIMEOUT` or `WORKFLOW_ENDED:<category>`. */
   readonly requestIdReason?: string;
+  /** SEND's acceptance read from the timeline (`REQUEST_ID_*` events), when it shows one. */
+  readonly timelineAcceptance?: TimelineAcceptance;
 }
