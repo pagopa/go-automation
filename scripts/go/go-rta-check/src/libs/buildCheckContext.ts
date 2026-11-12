@@ -6,13 +6,13 @@ import type { AlarmAnalysisDto } from '@go-automation/go-watchtower-client';
 import { resolveRunbookCacheDescriptor } from '@go-automation/go-watchtower-runbook';
 import type { RunbookCheckContext } from '@go-automation/go-watchtower-runbook';
 import type { ServiceRegistryResolverFn } from '@pagopa/go-runbook';
-import { buildServiceRegistry } from '@pagopa/go-runbook/catalog';
+import { buildServiceRegistry } from '@pagopa/go-runbook/runtime';
 
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
 import type { Connection } from './resolveClient.js';
 import type { ProductAlarm } from '../types/ProductAlarm.js';
 import type { ResolvedAnalysisMatcher } from './resolveAnalysisMatcher.js';
-import { NOOP_RUNBOOK_REPORTER } from '@pagopa/go-runbook/catalog';
+import { NOOP_RUNBOOK_REPORTER } from '@pagopa/go-runbook/runtime';
 
 export interface BuildCheckContextOptions {
   readonly script: GOScript;

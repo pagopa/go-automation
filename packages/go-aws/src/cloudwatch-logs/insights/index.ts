@@ -7,3 +7,11 @@ export { readRowField, readRowFields, readResultFieldRows } from './AWSCloudWatc
 export { escapeLogsInsightsString, escapeLogsInsightsRegexLiteral } from './AWSCloudWatchLogsInsightsEscape.js';
 export type { AWSCloudWatchLogsQueryStatistics } from './AWSCloudWatchLogsQueryStatistics.js';
 export { sumCloudWatchLogsQueryStatistics } from './sumCloudWatchLogsQueryStatistics.js';
+export type { AWSCloudWatchLogsLogGroupResolutionMode } from './AWSCloudWatchLogsLogGroupResolutionMode.js';
+export type { AWSCloudWatchLogsTimeRange } from './AWSCloudWatchLogsTimeRange.js';
+export type { AWSCloudWatchLogsQueryOptions } from './AWSCloudWatchLogsQueryOptions.js';
+export type { AWSCloudWatchLogsSource } from './AWSCloudWatchLogsSource.js';
+export type { AWSCloudWatchLogsTarget } from './AWSCloudWatchLogsTarget.js';
+export type { AWSCloudWatchLogsQueryExecution } from './AWSCloudWatchLogsQueryExecution.js';
+export type { AWSCloudWatchLogsQueryResult } from './AWSCloudWatchLogsQueryResult.js';
+export type { AWSCloudWatchLogsQueryService } from './AWSCloudWatchLogsQueryService.js';

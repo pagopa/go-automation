@@ -1,5 +1,5 @@
 import type { RunbookProduct } from '@pagopa/go-runbook';
-import type { RunbookKind } from '@pagopa/go-runbook/catalog';
+import type { RunbookKind } from '@pagopa/go-runbook/inventory';
 
 /**
  * Flattened view of a single runbook registered in the local catalog.

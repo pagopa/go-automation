@@ -6,7 +6,7 @@ import type { GOScript } from '@go-automation/go-script';
 import { GOJSONFileExporter } from '@pagopa/go-common/exporters';
 import { GOPathType } from '@pagopa/go-common/files';
 import { buildRunbookOutput } from '@pagopa/go-runbook';
-import { buildCatalogOutputContext } from '@pagopa/go-runbook/catalog';
+import { buildCatalogOutputContext } from '@pagopa/go-runbook/runtime';
 import type { Runbook, RunbookExecutionResult } from '@pagopa/go-runbook';
 
 import { formatOutputSuffix } from './formatOutputSuffix.js';

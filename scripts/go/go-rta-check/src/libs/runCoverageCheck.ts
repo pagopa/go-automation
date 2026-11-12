@@ -1,6 +1,6 @@
 import type { GOLogger } from '@pagopa/go-common/logging';
 import { valueToString } from '@pagopa/go-common/utils';
-import { RUNBOOK_CATALOG } from '@pagopa/go-runbook/catalog';
+import { RUNBOOK_CATALOG } from '@pagopa/go-runbook/inventory';
 import type { ProductCensus, WatchtowerClient } from '@go-automation/go-watchtower-client';
 import type { CoverageReport } from '@go-automation/go-watchtower-runbook';
 import { checkRunbookCoverage, COVERAGE_ERROR_CODES } from '@go-automation/go-watchtower-runbook';

@@ -1,4 +1,7 @@
-import type { AWSCloudWatchLogsQueryOptions, AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type {
+  AWSCloudWatchLogsQueryOptions,
+  AWSCloudWatchLogsQueryResult,
+} from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';

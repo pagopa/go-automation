@@ -1,4 +1,7 @@
-import type { AWSCloudWatchLogsQueryOptions, AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type {
+  AWSCloudWatchLogsQueryOptions,
+  AWSCloudWatchLogsQueryResult,
+} from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { resolveTimeRange } from '../../../steps/data/resolveTimeRange.js';
 import type { TimeRangeFromParams } from '../../../steps/data/TimeRangeFromParams.js';

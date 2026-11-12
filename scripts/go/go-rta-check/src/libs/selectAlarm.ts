@@ -9,7 +9,7 @@
  * for every environment even when the window is empty.
  */
 import type { GOPromptSelectOption, GOScript } from '@go-automation/go-script';
-import { RUNBOOK_REGISTRY } from '@pagopa/go-runbook/catalog';
+import { RUNBOOK_REGISTRY } from '@pagopa/go-runbook/inventory';
 import type { AlarmDto, WatchtowerClient } from '@go-automation/go-watchtower-client';
 
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';

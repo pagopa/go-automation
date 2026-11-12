@@ -17,9 +17,15 @@ import type { AWSProfileSet } from '../AWSProfileSet.js';
 import { AWSAccountProfileSet } from '../AWSAccountProfileSet.js';
 import { AWSActiveOperationRegistry } from '../AWSActiveOperationRegistry.js';
 import { CLOUDWATCH_LOGS_CLIENT } from './CLOUDWATCH_LOGS_CLIENT.js';
+import type { AWSCloudWatchLogsQueryOptions } from './insights/AWSCloudWatchLogsQueryOptions.js';
+import type { AWSCloudWatchLogsQueryResult } from './insights/AWSCloudWatchLogsQueryResult.js';
+import type { AWSCloudWatchLogsQueryService } from './insights/AWSCloudWatchLogsQueryService.js';
 import type { AWSCloudWatchLogsQueryStatistics } from './insights/AWSCloudWatchLogsQueryStatistics.js';
+import type { AWSCloudWatchLogsSource } from './insights/AWSCloudWatchLogsSource.js';
+import type { AWSCloudWatchLogsTarget } from './insights/AWSCloudWatchLogsTarget.js';
+import type { AWSCloudWatchLogsTimeRange } from './insights/AWSCloudWatchLogsTimeRange.js';
+import type { GOLogsInsightsResultField } from './insights/GOLogsInsightsResultField.js';
 import { sumCloudWatchLogsQueryStatistics } from './insights/sumCloudWatchLogsQueryStatistics.js';
-import type { AWSRemoteCleanupWarningHandler } from '../AWSActiveOperationRegistry.js';
 
 /** Non-success terminal statuses for CloudWatch Logs Insights queries (Complete handled separately). */
 const FAILURE_STATUSES: ReadonlySet<string> = new Set(['Failed', 'Cancelled', 'Timeout']);
@@ -33,79 +39,6 @@ const RECOVERABLE_PROFILE_ERROR_NAMES: ReadonlySet<string> = new Set([
   'ResourceNotFoundException',
   'UnrecognizedClientException',
 ]);
-
-export type AWSCloudWatchLogsLogGroupResolutionMode = 'default-profile-only' | 'search-configured-profiles';
-
-export interface AWSCloudWatchLogsTimeRange {
-  readonly start: Date;
-  readonly end: Date;
-}
-
-export interface AWSCloudWatchLogsQueryOptions {
-  /** Abort signal to cancel the query. */
-  readonly signal?: AbortSignal;
-  /** Override max poll attempts (default from `GOPollingPolicies.cloudWatchLogsQuery()`). */
-  readonly maxPollAttempts?: number;
-  /**
-   * When true, fetch every available GetQueryResults page for a completed
-   * CloudWatch Logs Insights query. Disabled by default to preserve the
-   * previous single-page behaviour for existing scripts.
-   */
-  readonly paginateResults?: boolean;
-  /** Page size for paginated GetQueryResults calls. Default and max: 10,000. */
-  readonly queryResultsPageSize?: number;
-  /** Safety cap for paginated GetQueryResults calls. Default: 10 pages (100,000 rows max). */
-  readonly maxResultPages?: number;
-  /**
-   * Log group resolution strategy.
-   *
-   * - `default-profile-only`: query only the first configured profile.
-   * - `search-configured-profiles`: try configured profiles in order until
-   *   the log group can be queried, caching successful resolutions.
-   */
-  readonly logGroupResolutionMode?: AWSCloudWatchLogsLogGroupResolutionMode;
-  /** Receives bounded cleanup warnings without changing the runbook outcome. */
-  readonly onCleanupWarning?: AWSRemoteCleanupWarningHandler;
-}
-
-/**
- * A place a log group may live, and how its credentials are obtained.
- *
- * When {@link profile} is set the log group is read directly by name with that
- * profile: holding credentials for the owning account is both cheaper and less
- * demanding than an OAM link. Without it the group is read as a cross-account
- * ARN through the OAM links of the first configured profile, which is the only
- * option for an AWS-managed worker, since it runs on a task role and has no
- * profiles to name.
- */
-export interface AWSCloudWatchLogsSource {
-  /** Account owning the log group. */
-  readonly accountId: string;
-  /** Configured profile whose credentials belong to {@link accountId}. */
-  readonly profile?: string;
-}
-
-/** Source account and region fixed for one OAM-backed execution. */
-export interface AWSCloudWatchLogsTarget {
-  readonly accountId?: string;
-  readonly region: string;
-  /** Profile bound to {@link accountId}, when the run holds its credentials. */
-  readonly profile?: string;
-  /**
-   * Further places to look, in order, when the log group is not in
-   * {@link accountId}.
-   *
-   * A product does not always keep the alarm and the log group in the same
-   * account: SEND fires an alarm in one and writes the application logs in
-   * another. The occurrence still names the account that fired, so without this
-   * the query asks the wrong account and comes back as a configuration error.
-   *
-   * This is an allowlist, not a search: log group names repeat identically
-   * across environments, so a name found in an account of another environment
-   * would answer with the wrong data.
-   */
-  readonly fallbacks?: ReadonlyArray<AWSCloudWatchLogsSource>;
-}
 
 export type AWSCloudWatchLogsConfigurationErrorCode =
   'OAM_ACCESS_DENIED' | 'LOG_GROUP_NOT_FOUND' | 'OAM_REGION_MISMATCH' | 'INVALID_OAM_TARGET';
@@ -121,19 +54,6 @@ export function isAWSCloudWatchLogsConfigurationError(error: unknown): error is 
     typeof error.code === 'string' &&
     CONFIGURATION_ERROR_CODES.has(error.code)
   );
-}
-
-export interface AWSCloudWatchLogsQueryExecution {
-  readonly queryId: string;
-  readonly profile: string;
-  readonly logGroups: ReadonlyArray<string>;
-  readonly statistics: AWSCloudWatchLogsQueryStatistics;
-}
-
-export interface AWSCloudWatchLogsQueryResult {
-  readonly rows: ReadonlyArray<ReadonlyArray<ResultField>>;
-  readonly statistics: AWSCloudWatchLogsQueryStatistics;
-  readonly queryExecutions: ReadonlyArray<AWSCloudWatchLogsQueryExecution>;
 }
 
 interface ProfileAttemptError {
@@ -154,7 +74,7 @@ interface ProfileAttemptError {
  * Callers that need log group discovery opt into `search-configured-profiles`
  * per query.
  */
-export class AWSCloudWatchLogsService {
+export class AWSCloudWatchLogsService implements AWSCloudWatchLogsQueryService {
   private readonly logGroupProfileCache = new Map<string, string>();
   private readonly logGroupAccountCache = new Map<string, string>();
 
@@ -217,7 +137,7 @@ export class AWSCloudWatchLogsService {
     query: string,
     timeRange: AWSCloudWatchLogsTimeRange,
     options: AWSCloudWatchLogsQueryOptions = {},
-  ): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
+  ): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
     const result = await this.queryWithStatistics(logGroups, query, timeRange, options);
     return result.rows;
   }

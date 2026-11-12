@@ -158,7 +158,7 @@ const workspaceBoundaryRules = [
  * - go-common kernel areas are ordered by level: an area may import only areas of the same or a lower level.
  * - go-aws never imports packages above it; each service subpath imports only its own SDK clients.
  * - A published package never depends on a private one.
- * - go-runbook never uses EC2 (D5).
+ * - go-runbook never uses EC2 (D5); its engine uses only SDK-free go-aws types.
  *
  * Cross-package edges are matched on the import specifier (workspace packages are not resolved yet: K8).
  */
@@ -247,6 +247,30 @@ function packageLayerRules() {
       comment: 'A published package (@pagopa/*) never depends on a private workspace package (@go-automation/*).',
       from: { path: publishedNames.map((name) => `^packages/${escapeRegExp(name.split('/')[1])}/`) },
       to: { path: packageReferencePatterns(privateNames) },
+    },
+    {
+      name: 'runbook-engine-sdk-free',
+      severity: 'error',
+      comment:
+        'go-runbook engine (everything outside catalog/, inventory/, runtime/) uses only SDK-free go-aws types: ' +
+        'the core and ./cloudwatch-logs/insights. Service ports live in registry/ports (S6, §10.2).',
+      from: {
+        path: '^packages/go-runbook/src/',
+        pathNot: ['^packages/go-runbook/src/(?:catalog|inventory|runtime)/', '/__tests__/'],
+      },
+      to: { path: ['^@aws-sdk/', '^@pagopa/go-aws/(?!cloudwatch-logs/insights$)'] },
+    },
+    {
+      name: 'runbook-engine-not-on-composition',
+      severity: 'error',
+      comment:
+        'go-runbook engine never imports the composition layers (catalog/, inventory/, runtime/): they reach ' +
+        'SDK-bearing go-aws subpaths, so an edge from the engine would bypass runbook-engine-sdk-free transitively.',
+      from: {
+        path: '^packages/go-runbook/src/',
+        pathNot: ['^packages/go-runbook/src/(?:catalog|inventory|runtime)/', '/__tests__/'],
+      },
+      to: { path: '^packages/go-runbook/src/(?:catalog|inventory|runtime)/' },
     },
     {
       name: 'runbook-not-on-ec2',

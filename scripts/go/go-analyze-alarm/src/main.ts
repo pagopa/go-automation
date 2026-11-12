@@ -6,7 +6,7 @@
  */
 
 import type { GOScript } from '@go-automation/go-script';
-import { RUNBOOK_REGISTRY } from '@pagopa/go-runbook/catalog';
+import { RUNBOOK_REGISTRY } from '@pagopa/go-runbook/inventory';
 
 import type { GoAnalyzeAlarmConfig } from './types/GoAnalyzeAlarmConfig.js';
 import { analyzeOccurrence } from './libs/analyzeOccurrence.js';

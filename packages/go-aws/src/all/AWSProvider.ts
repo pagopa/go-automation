@@ -3,7 +3,8 @@ import { AWSMultiClientProvider } from './AWSMultiClientProvider.js';
 import type { AWSMultiClientProviderConfig } from './AWSMultiClientProvider.js';
 import { AWSClientsProvider } from './AWSClientsProvider.js';
 import { AWSServiceProvider } from './AWSServiceProvider.js';
-import type { AWSCloudWatchLogsService, AWSCloudWatchLogsSource } from '../cloudwatch-logs/AWSCloudWatchLogsService.js';
+import type { AWSCloudWatchLogsService } from '../cloudwatch-logs/AWSCloudWatchLogsService.js';
+import type { AWSCloudWatchLogsSource } from '../cloudwatch-logs/insights/AWSCloudWatchLogsSource.js';
 
 /**
  * Unified AWS facade exposed by GOScript.

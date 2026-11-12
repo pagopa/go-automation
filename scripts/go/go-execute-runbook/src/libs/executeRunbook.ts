@@ -1,6 +1,6 @@
 import { AWSActiveOperationRegistry } from '@pagopa/go-aws';
 import { classifyRunbookOutcome } from '@pagopa/go-runbook';
-import type { AnalysisDraftV1, RunbookCheck, RunbookOutput, ServiceRegistry } from '@pagopa/go-runbook';
+import type { AnalysisDraftV1, RunbookCheck, RunbookOutput } from '@pagopa/go-runbook';
 import type {
   AcknowledgeCancellationRequest,
   AutomaticRunbookOutcome,
@@ -8,7 +8,7 @@ import type {
   AutomaticRunbookExecutionStatus,
   StartExecutionRequest,
 } from '@go-automation/go-watchtower-client';
-import { executeRunbookForOccurrence } from '@pagopa/go-runbook/catalog';
+import { bindServicesToOccurrence, executeRunbookForOccurrence } from '@pagopa/go-runbook/runtime';
 
 import type { ExecuteRunbookDelivery } from '../types/ExecuteRunbookDelivery.js';
 import type { ExecuteRunbookDeps } from '../types/ExecuteRunbookDeps.js';
@@ -274,7 +274,14 @@ async function runOccurrence(
   activeOperations: AWSActiveOperationRegistry,
 ): Promise<RunbookOutput> {
   return await executeRunbookForOccurrence(
-    { logger: deps.logger, services: scopedServices(deps, input, activeOperations) },
+    {
+      logger: deps.logger,
+      services: bindServicesToOccurrence(deps.services, {
+        target: { accountId: input.alarmEvent.awsAccountId, region: input.alarmEvent.awsRegion },
+        activeOperations,
+        mode: deps.useConfiguredAwsProfiles ? 'configured-profiles' : 'oam-target',
+      }),
+    },
     {
       alarmName: input.alarmEvent.alarmName,
       runbookKey: input.runbook.key,
@@ -286,24 +293,6 @@ async function runOccurrence(
       signal: coordinator.signal,
     },
   );
-}
-
-function scopedServices(
-  deps: ExecuteRunbookDeps,
-  input: ExecuteRunbookInput,
-  activeOperations: AWSActiveOperationRegistry,
-): ServiceRegistry {
-  const cwService = deps.services.cloudWatchLogs;
-  const target = { accountId: input.alarmEvent.awsAccountId, region: input.alarmEvent.awsRegion };
-  const cloudWatchLogs = deps.useConfiguredAwsProfiles
-    ? cwService.forExecution(activeOperations)
-    : cwService.forTarget(target, activeOperations);
-
-  return {
-    ...deps.services,
-    cloudWatchLogs,
-    athena: deps.services.athena.forExecution(activeOperations),
-  };
 }
 
 function buildCompleteRequest(

@@ -2,7 +2,7 @@ import { isAWSTargetNotConfiguredError } from '@pagopa/go-aws';
 import type { GOLogger } from '@pagopa/go-common/logging';
 
 import type { AlarmAnalysisDto, AlarmEventDto, WatchtowerClient } from '@go-automation/go-watchtower-client';
-import { executeRunbookForOccurrence } from '@pagopa/go-runbook/catalog';
+import { executeRunbookForOccurrence } from '@pagopa/go-runbook/runtime';
 import { classifyRunbookOutcome } from '@pagopa/go-runbook';
 import type { ServiceRegistryResolverFn } from '@pagopa/go-runbook';
 

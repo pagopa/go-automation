@@ -10,7 +10,8 @@
 import { createHash } from 'node:crypto';
 
 import { safeJsonStringify } from '@pagopa/go-common/utils';
-import { RUNBOOK_REGISTRY, resolveOccurrenceTimeWindow } from '@pagopa/go-runbook/catalog';
+import { RUNBOOK_REGISTRY } from '@pagopa/go-runbook/inventory';
+import { resolveOccurrenceTimeWindow } from '@pagopa/go-runbook/runtime';
 import type { Runbook } from '@pagopa/go-runbook';
 
 import type { RunbookCacheDescriptor } from './RunbookCacheDescriptor.js';

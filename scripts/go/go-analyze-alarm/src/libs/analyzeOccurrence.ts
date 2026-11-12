@@ -1,18 +1,14 @@
 import { GOHttpClient } from '@pagopa/go-common/http';
 import type { GOScript } from '@go-automation/go-script';
-import {
-  computeRunbookTimeRange,
-  createServiceRegistry,
-  createTimeRangeReference,
-  type RunbookBuilderFn,
-} from '@pagopa/go-runbook/catalog';
+import { type RunbookBuilderFn } from '@pagopa/go-runbook/inventory';
+import { computeRunbookTimeRange, createServiceRegistry, createTimeRangeReference } from '@pagopa/go-runbook/runtime';
 import { RunbookEngine, apigw, lambda, service } from '@pagopa/go-runbook';
 import type { ExecutionEnvironment, Runbook, RunbookExecutionResult } from '@pagopa/go-runbook';
 
 import type { AnalyzableAlarmConfig } from '../types/AnalyzableAlarmConfig.js';
 import { saveExecutionTrace } from './saveExecutionTrace.js';
 import { saveExecutionOutput } from './saveExecutionOutput.js';
-import { ConsoleRunbookReporter } from '@pagopa/go-runbook/catalog';
+import { ConsoleRunbookReporter } from '@pagopa/go-runbook/runtime';
 
 export interface AnalyzeOccurrenceInput {
   readonly alarmDatetime: string;

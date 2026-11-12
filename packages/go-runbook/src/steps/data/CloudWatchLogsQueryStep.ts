@@ -1,4 +1,4 @@
-import type { AWSCloudWatchLogsLogGroupResolutionMode } from '@pagopa/go-aws/cloudwatch-logs';
+import type { AWSCloudWatchLogsLogGroupResolutionMode } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { type GOLogsInsightsResultField, sumCloudWatchLogsQueryStatistics } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { omitUndefined } from '@pagopa/go-common/utils';
 import type { Step } from '../../types/Step.js';

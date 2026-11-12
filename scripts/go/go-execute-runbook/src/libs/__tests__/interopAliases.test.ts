@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { GOLogger } from '@pagopa/go-common/logging';
 import { createTestServiceRegistry } from '@pagopa/go-runbook';
 import type { WatchtowerClient } from '@go-automation/go-watchtower-client';
-import { RUNBOOK_CATALOG } from '@pagopa/go-runbook/catalog';
+import { RUNBOOK_CATALOG } from '@pagopa/go-runbook/inventory';
 
 import type { ExecuteRunbookCliConfig } from '../../types/ExecuteRunbookConfig.js';
 import type { ExecuteRunbookDeps } from '../../types/ExecuteRunbookDeps.js';

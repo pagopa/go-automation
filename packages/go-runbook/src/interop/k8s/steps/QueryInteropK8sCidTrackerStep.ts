@@ -1,4 +1,7 @@
-import type { AWSCloudWatchLogsQueryExecution, AWSCloudWatchLogsQueryOptions } from '@pagopa/go-aws/cloudwatch-logs';
+import type {
+  AWSCloudWatchLogsQueryExecution,
+  AWSCloudWatchLogsQueryOptions,
+} from '@pagopa/go-aws/cloudwatch-logs/insights';
 import {
   type AWSCloudWatchLogsQueryStatistics,
   type GOLogsInsightsResultField,

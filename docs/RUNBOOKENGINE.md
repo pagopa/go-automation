@@ -834,13 +834,21 @@ I servizi sono iniettati nel contesto e disponibili a tutti gli step. Questo per
  * Segue il pattern di dependency injection.
  */
 interface ServiceRegistry {
-  readonly cloudWatchLogs: AWSCloudWatchLogsService;
-  readonly cloudWatchMetrics: AWSCloudWatchMetricsService;
-  readonly athena: AWSAthenaService;
-  readonly dynamodb: AWSDynamoDBService;
+  readonly cloudWatchLogs: AWSCloudWatchLogsQueryService; // @pagopa/go-aws/cloudwatch-logs/insights
+  readonly cloudWatchMetrics: RunbookCloudWatchMetricsPort;
+  readonly athena: RunbookAthenaPort;
+  readonly dynamodb: RunbookDynamoDBPort;
   readonly http: GOHttpClient;
+  readonly reporter: RunbookReporter;
 }
 ```
+
+I campi AWS sono tipizzati con contratti senza SDK: il contratto Logs Insights di go-aws e le porte di
+go-runbook (`registry/ports/`). I servizi concreti di go-aws (`AWSCloudWatchLogsService`,
+`AWSCloudWatchMetricsService`, `AWSAthenaService`, `AWSDynamoDBService`) li soddisfano strutturalmente, e
+`createServiceRegistry` (`@pagopa/go-runbook/runtime`) li compone. Così i `.d.ts` dell'engine non richiedono
+nessun pacchetto `@aws-sdk/*`. Per eseguire un runbook su un'occorrenza, il registry costruito una volta si lega
+all'account e alla regione dell'occorrenza con `bindServicesToOccurrence`.
 
 ---
 

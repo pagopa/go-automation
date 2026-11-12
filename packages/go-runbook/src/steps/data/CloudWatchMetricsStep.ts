@@ -2,7 +2,8 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
-import type { MetricDatapoint, MetricDimension } from '@pagopa/go-aws/cloudwatch-metrics';
+import type { RunbookMetricDatapoint } from '../../registry/ports/RunbookMetricDatapoint.js';
+import type { RunbookMetricDimension } from '../../registry/ports/RunbookMetricDimension.js';
 import type { TimeRangeFromParams } from './TimeRangeFromParams.js';
 import { interpolatePlaceholders } from '../../core/templatePlaceholders.js';
 import { resolveTimeRange } from './resolveTimeRange.js';
@@ -21,7 +22,7 @@ export interface CloudWatchMetricsConfig {
   /** Metric name (e.g. '5XXError') */
   readonly metricName: string;
   /** Metric dimensions (supports {{params.xxx}} and {{vars.xxx}} in values) */
-  readonly dimensions: ReadonlyArray<MetricDimension>;
+  readonly dimensions: ReadonlyArray<RunbookMetricDimension>;
   /** Aggregation period in seconds (default 300) */
   readonly periodSeconds?: number;
   /** Statistic to retrieve (default 'Sum') */
@@ -46,14 +47,14 @@ export interface CloudWatchMetricsConfig {
  * });
  * ```
  */
-export class CloudWatchMetricsStep implements Step<ReadonlyArray<MetricDatapoint>> {
+export class CloudWatchMetricsStep implements Step<ReadonlyArray<RunbookMetricDatapoint>> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
 
   private readonly namespace: string;
   private readonly metricName: string;
-  private readonly dimensions: ReadonlyArray<MetricDimension>;
+  private readonly dimensions: ReadonlyArray<RunbookMetricDimension>;
   private readonly periodSeconds: number;
   private readonly stat: string;
   private readonly timeRangeFromParams: TimeRangeFromParams;
@@ -95,7 +96,7 @@ export class CloudWatchMetricsStep implements Step<ReadonlyArray<MetricDatapoint
    * @param context - The runbook execution context
    * @returns Step result containing an array of metric datapoints
    */
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<MetricDatapoint>>> {
+  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<RunbookMetricDatapoint>>> {
     return executeStep('CloudWatch Metrics query', async () => {
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
       const resolvedDimensions = resolveDimensions(this.dimensions, context);
@@ -119,9 +120,9 @@ export class CloudWatchMetricsStep implements Step<ReadonlyArray<MetricDatapoint
  * Resolves template placeholders in dimension values.
  */
 function resolveDimensions(
-  dimensions: ReadonlyArray<MetricDimension>,
+  dimensions: ReadonlyArray<RunbookMetricDimension>,
   context: RunbookContext,
-): ReadonlyArray<MetricDimension> {
+): ReadonlyArray<RunbookMetricDimension> {
   return dimensions.map((dim) => ({
     name: dim.name,
     value: interpolatePlaceholders(dim.value, context),

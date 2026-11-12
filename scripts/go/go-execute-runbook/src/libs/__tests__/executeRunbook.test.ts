@@ -8,7 +8,7 @@ import { AWSCloudWatchLogsService } from '@pagopa/go-aws/cloudwatch-logs';
 import { GOLogger } from '@pagopa/go-common/logging';
 import type { RunbookOutput, ServiceRegistry } from '@pagopa/go-runbook';
 import type { WatchtowerClient } from '@go-automation/go-watchtower-client';
-import { RUNBOOK_CATALOG } from '@pagopa/go-runbook/catalog';
+import { RUNBOOK_CATALOG } from '@pagopa/go-runbook/inventory';
 
 import type { ExecuteRunbookDeps } from '../../types/ExecuteRunbookDeps.js';
 import type { ExecuteRunbookInput } from '../../types/ExecuteRunbookInput.js';

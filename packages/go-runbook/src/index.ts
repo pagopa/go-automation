@@ -143,6 +143,13 @@ export { logAction, notifyAction, escalateAction, compositeAction } from './acti
 
 // Services
 export type { ServiceRegistry } from './registry/ServiceRegistry.js';
+export type { RunbookAthenaPort } from './registry/ports/RunbookAthenaPort.js';
+export type { RunbookAthenaQueryOptions } from './registry/ports/RunbookAthenaQueryOptions.js';
+export type { RunbookCloudWatchMetricsPort } from './registry/ports/RunbookCloudWatchMetricsPort.js';
+export type { RunbookMetricDatapoint } from './registry/ports/RunbookMetricDatapoint.js';
+export type { RunbookMetricDimension } from './registry/ports/RunbookMetricDimension.js';
+export type { RunbookDynamoDBPort } from './registry/ports/RunbookDynamoDBPort.js';
+export type { RunbookDynamoDBAttributeValue } from './registry/ports/RunbookDynamoDBAttributeValue.js';
 export type { ResolvedServiceRegistry } from './registry/ResolvedServiceRegistry.js';
 export type { ServiceRegistryResolverFn } from './registry/ServiceRegistryResolverFn.js';
 export type { RunbookReporter } from './registry/RunbookReporter.js';

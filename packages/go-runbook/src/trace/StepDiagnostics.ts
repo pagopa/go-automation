@@ -1,5 +1,7 @@
-import type { AWSCloudWatchLogsQueryExecution } from '@pagopa/go-aws/cloudwatch-logs';
-import type { AWSCloudWatchLogsQueryStatistics } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type {
+  AWSCloudWatchLogsQueryExecution,
+  AWSCloudWatchLogsQueryStatistics,
+} from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 export interface CloudWatchLogsStepDiagnostics {
   readonly rowsReturned: number;

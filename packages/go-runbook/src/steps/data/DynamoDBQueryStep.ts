@@ -1,4 +1,4 @@
-import type { AttributeValue } from '@pagopa/go-aws/dynamodb';
+import type { RunbookDynamoDBAttributeValue } from '../../registry/ports/RunbookDynamoDBAttributeValue.js';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
@@ -23,7 +23,7 @@ export interface DynamoDBQueryConfig {
    */
   readonly keyConditionExpression: string;
   /** Expression attribute values for the key condition (string S values support {{params.xxx}} templates) */
-  readonly expressionAttributeValues: Readonly<Record<string, AttributeValue>>;
+  readonly expressionAttributeValues: Readonly<Record<string, RunbookDynamoDBAttributeValue>>;
   /** Optional expression attribute names for reserved words or dynamic field references (values support {{params.xxx}} templates) */
   readonly expressionAttributeNames?: Readonly<Record<string, string>>;
 }
@@ -50,7 +50,7 @@ export class DynamoDBQueryStep implements Step<ReadonlyArray<Record<string, unkn
 
   private readonly tableName: string;
   private readonly keyConditionExpression: string;
-  private readonly expressionAttributeValues: Readonly<Record<string, AttributeValue>>;
+  private readonly expressionAttributeValues: Readonly<Record<string, RunbookDynamoDBAttributeValue>>;
   private readonly expressionAttributeNames: Readonly<Record<string, string>> | undefined;
 
   constructor(config: DynamoDBQueryConfig) {
@@ -113,10 +113,10 @@ export class DynamoDBQueryStep implements Step<ReadonlyArray<Record<string, unkn
  * Non-string attribute values are passed through unchanged.
  */
 function resolveAttributeValues(
-  values: Readonly<Record<string, AttributeValue>>,
+  values: Readonly<Record<string, RunbookDynamoDBAttributeValue>>,
   context: RunbookContext,
-): Record<string, AttributeValue> {
-  const resolved: Record<string, AttributeValue> = {};
+): Record<string, RunbookDynamoDBAttributeValue> {
+  const resolved: Record<string, RunbookDynamoDBAttributeValue> = {};
   for (const [key, attr] of Object.entries(values)) {
     if ('S' in attr && typeof attr.S === 'string') {
       resolved[key] = { ...attr, S: interpolatePlaceholders(attr.S, context) };

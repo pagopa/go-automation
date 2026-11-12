@@ -2,11 +2,11 @@ import { GOHttpClient } from '@pagopa/go-common/http';
 import type { GOScript } from '@go-automation/go-script';
 import { WatchtowerClient } from '@go-automation/go-watchtower-client';
 import type { WatchtowerAuthCredentials } from '@go-automation/go-watchtower-client';
-import { createServiceRegistry } from '@pagopa/go-runbook/catalog';
+import { createServiceRegistry } from '@pagopa/go-runbook/runtime';
 
 import type { ExecuteRunbookConfig } from '../types/ExecuteRunbookConfig.js';
 import type { ExecuteRunbookDeps } from '../types/ExecuteRunbookDeps.js';
-import { ConsoleRunbookReporter } from '@pagopa/go-runbook/catalog';
+import { ConsoleRunbookReporter } from '@pagopa/go-runbook/runtime';
 
 type ExecuteRunbookAuthMode = 'SERVICE' | 'CLI_PAT';
 

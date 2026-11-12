@@ -3,8 +3,8 @@ import { describe, it } from 'node:test';
 
 import type { KnownCase, KnownCaseAnalysis, Runbook, RunbookAnalysisDefaults } from '@pagopa/go-runbook';
 import { INTEROP_DOWNSTREAMS, SEND_DOWNSTREAMS } from '@pagopa/go-runbook';
-import { RunbookCatalog } from '@pagopa/go-runbook/catalog';
-import type { RunbookRegistration } from '@pagopa/go-runbook/catalog';
+import { RunbookCatalog } from '@pagopa/go-runbook/inventory';
+import type { RunbookRegistration } from '@pagopa/go-runbook/inventory';
 import type { IgnoreReasonDto, ProductCensus, ProductDto } from '@go-automation/go-watchtower-client';
 
 import { checkRunbookCoverage } from '../checkRunbookCoverage.js';

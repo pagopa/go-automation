@@ -16,9 +16,19 @@ Il package espone:
 - **Toolkit per dominio** (`apigw`, `lambda`, `service`, `downstream`,
   `interop`) — step e helper pre-costruiti per le famiglie di allarmi più
   comuni del repository.
-- **`catalog/`** (subpath export `@pagopa/go-runbook/catalog`) —
-  il catalogo concreto dei runbook, uno per `src/catalog/runbooks/<alarm-name>/`,
-  ciascuno con la propria `registration.ts` e `knownCases.ts`.
+- **`@pagopa/go-runbook/inventory`** — i runbook concreti e il loro registro
+  (`RUNBOOK_CATALOG`, `RUNBOOK_REGISTRY`, `RunbookDescriptor`, …). I sorgenti
+  sono in `src/catalog/runbooks/<alarm-name>/`, ciascuno con la propria
+  `registration.ts` e `knownCases.ts`.
+- **`@pagopa/go-runbook/runtime`** — esecuzione per occorrenza
+  (`executeRunbookForOccurrence`), legame dei servizi all'occorrenza
+  (`bindServicesToOccurrence`), registry dei servizi (`createServiceRegistry`),
+  reporter e calcolo della finestra temporale.
+
+I tipi dell'engine (`.`) non dipendono dagli SDK AWS: `ServiceRegistry` usa il
+contratto `AWSCloudWatchLogsQueryService` di `@pagopa/go-aws/cloudwatch-logs/insights`
+e le porte `RunbookAthenaPort`, `RunbookCloudWatchMetricsPort` e
+`RunbookDynamoDBPort`, che i servizi di go-aws soddisfano strutturalmente.
 
 Consumato da `go-watchtower-runbook`, e dagli script che eseguono o
 analizzano runbook: `go-analyze-alarm`, `go-execute-runbook`,
