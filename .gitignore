@@ -20,6 +20,8 @@ reports/
 
 # Eccezione: mantieni l'esempio
 !example_output.csv
+# Eccezione: le fixture dei test fanno parte del codice
+!**/__fixtures__/**/*.csv
 
 # Log files
 *.log

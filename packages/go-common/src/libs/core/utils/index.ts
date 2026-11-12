@@ -52,8 +52,14 @@ export {
   hasMessage,
 } from './GOTypeGuards.js';
 export { parseInteger, parseFiniteNumber } from './GONumberParse.js';
+export { parseDuration, SET_TIMEOUT_MAX_MS } from './GODurationParse.js';
+export type { GODurationParseOptions } from './GODurationParseOptions.js';
 export { omitUndefined } from './GOObjectUtils.js';
 export { GOConcurrencyPool } from './GOConcurrencyPool.js';
+export { GORateLimiter } from './GORateLimiter.js';
+export type { GORateLimiterOptions } from './GORateLimiterOptions.js';
+export type { GORateLimiterStats } from './GORateLimiterStats.js';
+export type { GORateLimiterClockFn } from './GORateLimiterClockFn.js';
 export { formatUtcDateTime } from './GODateUtils.js';
 export { GODateTokens } from './GODateTokens.js';
 export type { GODateTokenRange } from './GODateTokens.js';

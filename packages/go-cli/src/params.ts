@@ -1,6 +1,15 @@
 import { Core } from '@go-automation/go-common';
 import type { DiscoveredScript } from './discovery.js';
 
+/** Parameter types whose value is a list. */
+const ARRAY_PARAMETER_TYPES: ReadonlySet<Core.GOConfigParameterType> = new Set([
+  Core.GOConfigParameterType.STRING_ARRAY,
+  Core.GOConfigParameterType.INT_ARRAY,
+  Core.GOConfigParameterType.DOUBLE_ARRAY,
+  Core.GOConfigParameterType.BOOL_ARRAY,
+  Core.GOConfigParameterType.BUFFER_ARRAY,
+]);
+
 /**
  * Validates and informs the user about script parameters.
  * If in interactive mode, prompts for missing mandatory parameters.
@@ -203,6 +212,19 @@ function isParamProvided(param: Core.GOConfigParameterOptions, parsed: Map<strin
  * Get parameter value from parsed arguments
  */
 function getParamValue(
+  param: Core.GOConfigParameterOptions,
+  parsed: Map<string, string | string[]>,
+): string | string[] {
+  const raw = getRawParamValue(param, parsed);
+  // The parser keeps a single value verbatim (commas included): array
+  // parameters split it here, as GOConfigReader does when converting.
+  return ARRAY_PARAMETER_TYPES.has(param.type) ? Core.GOConfigTypeConverter.toStringArray(raw) : raw;
+}
+
+/**
+ * Get the raw parsed value of a parameter, by flag or alias
+ */
+function getRawParamValue(
   param: Core.GOConfigParameterOptions,
   parsed: Map<string, string | string[]>,
 ): string | string[] {

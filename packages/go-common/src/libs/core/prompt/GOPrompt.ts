@@ -29,16 +29,7 @@ import { valueToString } from '../utils/GOValueToString.js';
 
 import { GOLoadingBar } from './GOLoadingBar.js';
 import { GOMultiSpinner } from './GOMultiSpinner.js';
-
-/**
- * Flag to track if the process was interrupted via Ctrl+C.
- */
-let isCtrlC = false;
-
-// Handle SIGINT (Ctrl+C)
-process.on('SIGINT', () => {
-  isCtrlC = true;
-});
+import { GOPromptInterruptedError } from './GOPromptInterruptedError.js';
 
 export type GOPromptTextValidator = (value: string) => boolean | string;
 
@@ -230,15 +221,26 @@ export interface GOPromptRunContext {
 
 export type GOPromptNumberInputValidator = (value: number | undefined) => boolean | string;
 export type GOPromptSelectSourceFn<T> = (term: string | undefined) => Promise<ReadonlyArray<GOPromptChoice<T>>>;
-export type GOPromptRunnerFn<T> = () => Promise<T | undefined>;
-export type GOPromptTextHandler = (options: GOPromptInputOptions) => Promise<string | undefined>;
-export type GOPromptNumberHandler = (options: GOPromptNumberInputOptions) => Promise<number | undefined>;
-export type GOPromptConfirmHandler = (options: GOPromptConfirmInputOptions) => Promise<boolean | undefined>;
+export type GOPromptTextHandler = (
+  options: GOPromptInputOptions,
+  context?: GOPromptRunContext,
+) => Promise<string | undefined>;
+export type GOPromptNumberHandler = (
+  options: GOPromptNumberInputOptions,
+  context?: GOPromptRunContext,
+) => Promise<number | undefined>;
+export type GOPromptConfirmHandler = (
+  options: GOPromptConfirmInputOptions,
+  context?: GOPromptRunContext,
+) => Promise<boolean | undefined>;
 export type GOPromptSelectHandler = <T>(
   options: GOPromptSelectInputOptions<T>,
   context?: GOPromptRunContext,
 ) => Promise<T | undefined>;
-export type GOPromptCheckboxHandler = <T>(options: GOPromptSelectInputOptions<T>) => Promise<T[] | undefined>;
+export type GOPromptCheckboxHandler = <T>(
+  options: GOPromptSelectInputOptions<T>,
+  context?: GOPromptRunContext,
+) => Promise<T[] | undefined>;
 
 export interface GOPromptAdapter {
   readonly text: GOPromptTextHandler;
@@ -362,6 +364,12 @@ interface PromptExitKeys {
   esc: boolean;
   /** ←, only where a "go back" destination exists. */
   back: boolean;
+  /**
+   * Interruption that closed the prompt: `SIGINT` for Ctrl+C (a key in raw
+   * mode), or the signal delivered to the process. The prompt throws
+   * {@link GOPromptInterruptedError}.
+   */
+  interrupt?: NodeJS.Signals;
 }
 
 /** Shape of the key object emitted by `readline` keypress events. */
@@ -370,7 +378,7 @@ interface KeypressEvent {
   readonly name?: string;
 }
 
-/** Removes the stdin listener installed for the duration of a prompt. */
+/** Removes the listeners installed for the duration of a prompt. */
 type DetachKeypressFn = () => void;
 /** Called when ← is pressed; returns whether the prompt was left because of it. */
 type PromptBackHandlerFn = () => boolean;
@@ -380,30 +388,53 @@ type PromptBackGuardFn = () => boolean;
 type PromptSearchTermFn = (term: string) => void;
 /** Prompt implementation that must forward the run context to its own runner. */
 type GOPromptContextRunnerFn<T> = (context: GOPromptRunContext) => Promise<T | undefined>;
+/** Closes the open prompt from the outside (it rejects with an `AbortPromptError`). */
+type PromptAbortFn = () => void;
+
+/** Signals that close an open prompt: those `GOScript` handles with a graceful shutdown. */
+const INTERRUPT_SIGNALS: ReadonlyArray<NodeJS.Signals> = ['SIGINT', 'SIGTERM', 'SIGQUIT'];
 
 /**
- * Watches stdin for the keys that end a prompt without answering it.
+ * Watches stdin for the keys that end a prompt without answering it, and the
+ * process for the signals that interrupt it.
  *
  * The listener is installed next to the one inquirer owns because these keys
  * must win over the prompt's own handling: Ctrl+C has to stop the process, and
  * the exit keys have to be observable even when the prompt swallows them.
  *
- * @param keys - State updated in place as the keys are pressed
+ * `SIGINT`, `SIGTERM` and `SIGQUIT` close the prompt through `abort`. Inquirer
+ * would not close it itself: it learns about signals from `signal-exit`, which
+ * stays silent when another listener (e.g. `GOScript`'s graceful shutdown) is
+ * registered, so the prompt would wait forever while the shutdown waits for
+ * the script. The signal listeners exist only while the prompt is open: ones
+ * installed for the whole process lifetime would stop Node from terminating
+ * on these signals in every program that merely imports go-common.
+ *
+ * @param keys - State updated in place as the keys are pressed and signals arrive
+ * @param abort - Closes the prompt; called on an interrupting signal
  * @param onBack - Called when ← is pressed; absent when going back is not offered
- * @returns The function removing the listener
+ * @returns The function removing the listeners
  */
-function watchExitKeys(keys: PromptExitKeys, onBack?: PromptBackHandlerFn): DetachKeypressFn {
+function watchExitKeys(keys: PromptExitKeys, abort: PromptAbortFn, onBack?: PromptBackHandlerFn): DetachKeypressFn {
   const onKeypress = (_str: string, key: KeypressEvent | undefined): void => {
     if (!key) return;
-    if (key.ctrl === true && key.name === 'c') isCtrlC = true;
+    if (key.ctrl === true && key.name === 'c') keys.interrupt ??= 'SIGINT';
     if (key.name === 'escape') keys.esc = true;
     if (onBack !== undefined && !keys.back && key.name === 'left' && onBack()) {
       keys.back = true;
     }
   };
+  const onSignal = (signal: NodeJS.Signals): void => {
+    keys.interrupt ??= signal;
+    abort();
+  };
 
   process.stdin.on('keypress', onKeypress);
-  return () => process.stdin.removeListener('keypress', onKeypress);
+  for (const signal of INTERRUPT_SIGNALS) process.on(signal, onSignal);
+  return () => {
+    process.stdin.removeListener('keypress', onKeypress);
+    for (const signal of INTERRUPT_SIGNALS) process.removeListener(signal, onSignal);
+  };
 }
 
 /**
@@ -431,15 +462,22 @@ export class GOPrompt {
 
   /**
    * Internal wrapper to distinguish Ctrl+C from Esc and ensure Esc always returns undefined
+   *
+   * @param prompt - Prompt to run, which must forward the context to its implementation
+   * @throws {GOPromptInterruptedError} On Ctrl+C or an interrupting signal
    */
-  private async runPrompt<T>(prompt: GOPromptRunnerFn<T>): Promise<T | undefined> {
+  private async runPrompt<T>(prompt: GOPromptContextRunnerFn<T>): Promise<T | undefined> {
     const keys: PromptExitKeys = { esc: false, back: false };
-    isCtrlC = false;
 
-    const detach = watchExitKeys(keys);
+    const controller = new AbortController();
+    const detach = watchExitKeys(keys, () => {
+      controller.abort();
+    });
 
     try {
-      const value = await prompt();
+      const value = await prompt({ signal: controller.signal });
+      // A signal wins over an answer that landed at the same time: the process is stopping.
+      if (keys.interrupt !== undefined) throw new GOPromptInterruptedError(keys.interrupt);
 
       // If Esc was pressed, we ALWAYS want to return undefined,
       // even if the prompt somehow returned a value.
@@ -449,8 +487,8 @@ export class GOPrompt {
 
       return value;
     } catch (error) {
-      if (isCtrlC) {
-        process.exit(130);
+      if (keys.interrupt !== undefined) {
+        throw error instanceof GOPromptInterruptedError ? error : new GOPromptInterruptedError(keys.interrupt);
       }
       if (keys.esc || isExitPromptError(error)) {
         return undefined;
@@ -471,31 +509,39 @@ export class GOPrompt {
    * @param prompt - Prompt to run, which must forward the context to its implementation
    * @param canGoBack - Consulted on every ←; when it returns false the key is left to the prompt
    * @returns The answer, `GO_PROMPT_BACK`, or `undefined` when the prompt was aborted
+   * @throws {GOPromptInterruptedError} On Ctrl+C or an interrupting signal
    */
   private async runPromptWithBack<T>(
     prompt: GOPromptContextRunnerFn<T>,
     canGoBack?: PromptBackGuardFn,
   ): Promise<T | typeof GO_PROMPT_BACK | undefined> {
     const keys: PromptExitKeys = { esc: false, back: false };
-    isCtrlC = false;
 
     const controller = new AbortController();
-    const detach = watchExitKeys(keys, () => {
-      if (canGoBack !== undefined && !canGoBack()) return false;
-      controller.abort();
-      return true;
-    });
+    const detach = watchExitKeys(
+      keys,
+      () => {
+        controller.abort();
+      },
+      () => {
+        if (canGoBack !== undefined && !canGoBack()) return false;
+        controller.abort();
+        return true;
+      },
+    );
 
     try {
       const value = await prompt({ signal: controller.signal });
+      // A signal wins over an answer that landed at the same time: the process is stopping.
+      if (keys.interrupt !== undefined) throw new GOPromptInterruptedError(keys.interrupt);
       // The prompt may still answer before the abort lands: the key came first,
       // so it is what the user asked for.
       if (keys.back) return GO_PROMPT_BACK;
       if (keys.esc || value === undefined) return undefined;
       return value;
     } catch (error) {
-      if (isCtrlC) {
-        process.exit(130);
+      if (keys.interrupt !== undefined) {
+        throw error instanceof GOPromptInterruptedError ? error : new GOPromptInterruptedError(keys.interrupt);
       }
       if (keys.back) return GO_PROMPT_BACK;
       if (keys.esc || isExitPromptError(error)) {
@@ -721,12 +767,15 @@ export class GOPrompt {
    * Ask for text input
    */
   public async text(message: string, options?: GOPromptTextOptions): Promise<string | undefined> {
-    const value = await this.runPrompt(async () =>
-      this.promptAdapter.text({
-        message: message,
-        ...(options?.initial !== undefined ? { default: options.initial } : {}),
-        ...(options?.validate !== undefined ? { validate: options.validate } : {}),
-      }),
+    const value = await this.runPrompt(async (context) =>
+      this.promptAdapter.text(
+        {
+          message: message,
+          ...(options?.initial !== undefined ? { default: options.initial } : {}),
+          ...(options?.validate !== undefined ? { validate: options.validate } : {}),
+        },
+        context,
+      ),
     );
 
     if (value !== undefined && this.logger && this.logResponses) {
@@ -740,12 +789,15 @@ export class GOPrompt {
    * Ask for password input (hidden)
    */
   public async password(message: string, options?: GOPromptTextOptions): Promise<string | undefined> {
-    const value = await this.runPrompt(async () =>
-      this.promptAdapter.password({
-        message: message,
-        ...(options?.initial !== undefined ? { default: options.initial } : {}),
-        ...(options?.validate !== undefined ? { validate: options.validate } : {}),
-      }),
+    const value = await this.runPrompt(async (context) =>
+      this.promptAdapter.password(
+        {
+          message: message,
+          ...(options?.initial !== undefined ? { default: options.initial } : {}),
+          ...(options?.validate !== undefined ? { validate: options.validate } : {}),
+        },
+        context,
+      ),
     );
 
     if (value !== undefined && this.logger && this.logResponses) {
@@ -759,17 +811,20 @@ export class GOPrompt {
    * Ask for number input
    */
   public async number(message: string, options?: GOPromptNumberOptions): Promise<number | undefined> {
-    const value = await this.runPrompt(async () =>
-      this.promptAdapter.number({
-        message: message,
-        ...(options?.initial !== undefined ? { default: options.initial } : {}),
-        validate: (value) => {
-          if (value === undefined) return 'Value is required';
-          if (options?.min !== undefined && value < options.min) return `Value must be >= ${String(options.min)}`;
-          if (options?.max !== undefined && value > options.max) return `Value must be <= ${String(options.max)}`;
-          return options?.validate?.(value) ?? true;
+    const value = await this.runPrompt(async (context) =>
+      this.promptAdapter.number(
+        {
+          message: message,
+          ...(options?.initial !== undefined ? { default: options.initial } : {}),
+          validate: (value) => {
+            if (value === undefined) return 'Value is required';
+            if (options?.min !== undefined && value < options.min) return `Value must be >= ${String(options.min)}`;
+            if (options?.max !== undefined && value > options.max) return `Value must be <= ${String(options.max)}`;
+            return options?.validate?.(value) ?? true;
+          },
         },
-      }),
+        context,
+      ),
     );
 
     if (value !== undefined && this.logger && this.logResponses) {
@@ -806,12 +861,15 @@ export class GOPrompt {
     const parseOptions = toDateInputOptions(options);
     const initial = formatInitialDate(options?.initial);
 
-    const value = await this.runPrompt(async () =>
-      this.promptAdapter.text({
-        message: message,
-        ...(initial !== undefined ? { default: initial } : {}),
-        validate: (answer) => validateDateAnswer(answer, options, parseOptions),
-      }),
+    const value = await this.runPrompt(async (context) =>
+      this.promptAdapter.text(
+        {
+          message: message,
+          ...(initial !== undefined ? { default: initial } : {}),
+          validate: (answer) => validateDateAnswer(answer, options, parseOptions),
+        },
+        context,
+      ),
     );
 
     if (value === undefined || value.trim().length === 0) {
@@ -948,11 +1006,14 @@ export class GOPrompt {
           ? { initial: initialOrOptions }
           : {};
 
-    const value = await this.runPrompt(async () =>
-      this.promptAdapter.confirm({
-        message: message,
-        ...(options.initial !== undefined ? { default: options.initial } : {}),
-      }),
+    const value = await this.runPrompt(async (context) =>
+      this.promptAdapter.confirm(
+        {
+          message: message,
+          ...(options.initial !== undefined ? { default: options.initial } : {}),
+        },
+        context,
+      ),
     );
 
     if (value !== undefined && this.logger && this.logResponses) {
@@ -966,15 +1027,18 @@ export class GOPrompt {
    * Ask to select one option from a list
    */
   public async select<T = unknown>(message: string, choices: GOPromptSelectOption[]): Promise<T | undefined> {
-    const value = await this.runPrompt(async () =>
-      this.promptAdapter.select<T>({
-        message: message,
-        choices: choices.map((choice) => ({
-          name: choice.title,
-          value: choice.value as T,
-          ...(choice.description !== undefined ? { description: choice.description } : {}),
-        })),
-      }),
+    const value = await this.runPrompt(async (context) =>
+      this.promptAdapter.select<T>(
+        {
+          message: message,
+          choices: choices.map((choice) => ({
+            name: choice.title,
+            value: choice.value as T,
+            ...(choice.description !== undefined ? { description: choice.description } : {}),
+          })),
+        },
+        context,
+      ),
     );
 
     if (value !== undefined && this.logger && this.logResponses) {
@@ -1036,16 +1100,19 @@ export class GOPrompt {
     message: string,
     choices: GOPromptMultiselectOption[],
   ): Promise<T[] | undefined> {
-    const value = await this.runPrompt(async () =>
-      this.promptAdapter.checkbox<T>({
-        message: message,
-        choices: choices.map((choice) => ({
-          name: choice.title,
-          value: choice.value as T,
-          checked: choice.selected ?? false,
-          ...(choice.description !== undefined ? { description: choice.description } : {}),
-        })),
-      }),
+    const value = await this.runPrompt(async (context) =>
+      this.promptAdapter.checkbox<T>(
+        {
+          message: message,
+          choices: choices.map((choice) => ({
+            name: choice.title,
+            value: choice.value as T,
+            checked: choice.selected ?? false,
+            ...(choice.description !== undefined ? { description: choice.description } : {}),
+          })),
+        },
+        context,
+      ),
     );
 
     if (value !== undefined && this.logger && this.logResponses) {
@@ -1067,7 +1134,7 @@ export class GOPrompt {
   ): Promise<T | undefined> {
     const searchOptions = this.buildSearchOptions<T>(message, choices, options);
 
-    const value = await this.runPrompt(async () => this.promptAdapter.search<T>(searchOptions));
+    const value = await this.runPrompt(async (context) => this.promptAdapter.search<T>(searchOptions, context));
 
     if (value !== undefined && this.logger && this.logResponses) {
       this.logger.log(GOLogEventCategory.INFO, `${message} → ${valueToString(value)}`);
