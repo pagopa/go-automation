@@ -5,13 +5,24 @@
 
 import { AWS } from '@go-automation/go-common';
 
-/** SDK error names of credentials rejected by the service. */
-const REJECTED_CREDENTIALS: ReadonlySet<string> = new Set(['UnrecognizedClientException', 'InvalidSignatureException']);
+/**
+ * SDK error names of credentials rejected by the service, or expired by the
+ * time the request reached it. Matched by name: the go-common analysis reads
+ * the message only, and the expired-token message (`The security token
+ * included in the request is expired`) names no token.
+ */
+const REJECTED_CREDENTIALS: ReadonlySet<string> = new Set([
+  'UnrecognizedClientException',
+  'InvalidSignatureException',
+  'ExpiredTokenException',
+  'ExpiredToken',
+]);
 
 /**
  * Tells whether a timeline query failed because the AWS credentials expired
  * or were rejected: SSO session expired/invalid and credential provider
- * failures (go-common analysis), or credentials refused by DynamoDB.
+ * failures (go-common analysis), or credentials refused or expired per
+ * DynamoDB.
  *
  * Created once per run (the go-common analyzer is reused for every failed
  * query) and passed to the session as `isCredentialError`.
