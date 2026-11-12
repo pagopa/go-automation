@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ResultField } from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import type { ServiceRegistry } from '../../../../registry/ServiceRegistry.js';
@@ -102,7 +102,7 @@ const REAL_OCCURRENCES: ReadonlyArray<RealOccurrence> = [
   },
 ];
 
-function row(fields: Record<string, string>): ResultField[] {
+function row(fields: Record<string, string>): GOLogsInsightsResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
 }
 
@@ -110,7 +110,7 @@ function assertNever(value: never): never {
   throw new Error(`Unsupported evidence kind: ${String(value)}`);
 }
 
-function accessLogRow(kind: EvidenceKind): ResultField[] {
+function accessLogRow(kind: EvidenceKind): GOLogsInsightsResultField[] {
   const common = {
     authorizerStatus: '200',
     authorizerLatency: '0',
@@ -172,7 +172,7 @@ function accessLogRow(kind: EvidenceKind): ResultField[] {
   }
 }
 
-function deliveryRows(kind: EvidenceKind): ReadonlyArray<ReadonlyArray<ResultField>> {
+function deliveryRows(kind: EvidenceKind): ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> {
   switch (kind) {
     case 'no-application-logs':
     case 'no-application-logs-internal-error':
@@ -229,7 +229,9 @@ function deliveryRows(kind: EvidenceKind): ReadonlyArray<ReadonlyArray<ResultFie
 function createServices(kind: EvidenceKind, calls: string[]): ServiceRegistry {
   return createTestServiceRegistry({
     cloudWatchLogs: {
-      query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+      query: async (
+        logGroups: ReadonlyArray<string>,
+      ): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> => {
         await Promise.resolve();
         const logGroup = logGroups[0] ?? '';
         calls.push(logGroup);

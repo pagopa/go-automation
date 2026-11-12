@@ -1,6 +1,5 @@
-import { omitUndefined } from '@go-automation/go-common/core';
-import { readRowField } from '@go-automation/go-common/aws';
-import type { ResultField } from '@go-automation/go-common/aws';
+import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { omitUndefined } from '@pagopa/go-common/utils';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
@@ -66,7 +65,7 @@ export class ParseApiGwErrorsStep implements Step<ApiGwErrorInfo> {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<ApiGwErrorInfo>> {
-    const upstream = readStepOutput<ReadonlyArray<ResultField[]>>(context, this.fromStep);
+    const upstream = readStepOutput<ReadonlyArray<GOLogsInsightsResultField[]>>(context, this.fromStep);
     if (!upstream.ok) return upstream.failure;
     const results = upstream.value;
 
@@ -78,7 +77,7 @@ export class ParseApiGwErrorsStep implements Step<ApiGwErrorInfo> {
     // (e.g. an authorizer 500 with `status=-`).
     // Rows are only ever read downstream (extractTraceId, pickPrimaryStatusCode,
     // readRowField) — no defensive clone needed.
-    const errorRows: ResultField[][] = [];
+    const errorRows: GOLogsInsightsResultField[][] = [];
     for (const row of results) {
       if (rowMeetsThreshold(row, this.minStatusCode, this.schema)) {
         errorRows.push(row);
@@ -168,7 +167,9 @@ export class ParseApiGwErrorsStep implements Step<ApiGwErrorInfo> {
     return this.schema.notApplicableSentinels.includes(value);
   }
 
-  private sortErrorRowsBySeverity(rows: ReadonlyArray<ResultField[]>): ReadonlyArray<ResultField[]> {
+  private sortErrorRowsBySeverity(
+    rows: ReadonlyArray<GOLogsInsightsResultField[]>,
+  ): ReadonlyArray<GOLogsInsightsResultField[]> {
     return rows
       .map((row, index) => ({ row, index, statusCode: pickHighestStatusCode(row, this.schema) ?? -1 }))
       .sort((a, b) => {

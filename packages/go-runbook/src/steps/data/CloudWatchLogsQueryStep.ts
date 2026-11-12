@@ -1,7 +1,6 @@
-import { omitUndefined } from '@go-automation/go-common/core';
-import { sumCloudWatchLogsQueryStatistics } from '@go-automation/go-common/aws';
-import type { ResultField } from '@go-automation/go-common/aws';
-import type { AWSCloudWatchLogsLogGroupResolutionMode } from '@go-automation/go-common/aws';
+import type { AWSCloudWatchLogsLogGroupResolutionMode } from '@pagopa/go-aws/cloudwatch-logs';
+import { type GOLogsInsightsResultField, sumCloudWatchLogsQueryStatistics } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { omitUndefined } from '@pagopa/go-common/utils';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
@@ -69,7 +68,7 @@ export interface CloudWatchLogsQueryConfig {
  * });
  * ```
  */
-export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
+export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -125,7 +124,7 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
    * @param context - The runbook execution context
    * @returns Step result containing an array of result rows
    */
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<ResultField>>>> {
+  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
     return executeStep('CloudWatch Logs query', async () => {
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
       const interpolatedQuery = interpolatePlaceholders(this.query, context);

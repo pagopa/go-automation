@@ -5,7 +5,7 @@
  * Watchtower call and no credential is involved.
  */
 
-import { RUNBOOK_CATALOG, type RunbookCatalog } from '@go-automation/go-runbook/catalog';
+import { RUNBOOK_CATALOG, type RunbookCatalog } from '@pagopa/go-runbook/catalog';
 
 import type { RunbookCatalogEntry } from '../../types/RunbookCatalogEntry.js';
 

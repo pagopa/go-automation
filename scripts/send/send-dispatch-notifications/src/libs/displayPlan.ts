@@ -2,7 +2,7 @@
  * Send plan shown before the confirmation (§14.2).
  */
 
-import type { Core } from '@go-automation/go-common';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import type { Dispatch } from '@go-automation/go-send';
 
 import type { DispatchTarget } from '../types/DispatchTarget.js';
@@ -15,7 +15,7 @@ import type { ResolvedRun } from '../types/ResolvedRun.js';
  * @param logger - Script logger
  * @param plan - Target, options, preflight and validation summary
  */
-export function displayPlan(logger: Core.GOLogger, plan: PlanContext): void {
+export function displayPlan(logger: GOLogger, plan: PlanContext): void {
   const { target, options, run, preflight, shared, summary, work, timelinesProfile } = plan;
   const toSend = work.sending ? summary.rowsToSend : 0;
   const estimatedSeconds = Math.ceil(toSend / options.tuning.rate);

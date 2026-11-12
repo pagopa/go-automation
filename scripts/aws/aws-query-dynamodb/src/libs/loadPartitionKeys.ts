@@ -2,7 +2,8 @@
  * Loads and deduplicates partition keys from CLI input or file.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOPathType } from '@pagopa/go-common/files';
 
 import { importPks } from './PkImporter.js';
 import type { AwsQueryDynamodbConfig } from '../types/index.js';
@@ -16,14 +17,14 @@ import type { AwsQueryDynamodbConfig } from '../types/index.js';
  * @returns Deduplicated array of partition key strings
  * @throws If neither inputPks nor inputFile is configured
  */
-export async function loadPartitionKeys(config: AwsQueryDynamodbConfig, script: Core.GOScript): Promise<string[]> {
+export async function loadPartitionKeys(config: AwsQueryDynamodbConfig, script: GOScript): Promise<string[]> {
   let pks: string[];
 
   if (config.inputPks) {
     pks = config.inputPks.map((pk) => pk.trim()).filter((pk) => pk !== '');
     script.logger.info(`Found ${pks.length} PKs from command line`);
   } else if (config.inputFile) {
-    const inputPathInfo = script.paths.resolvePathWithInfo(config.inputFile, Core.GOPathType.INPUT);
+    const inputPathInfo = script.paths.resolvePathWithInfo(config.inputFile, GOPathType.INPUT);
 
     script.prompt.startSpinner(`Reading PKs from ${inputPathInfo.path}...`);
     const imported = await importPks(inputPathInfo.path, {

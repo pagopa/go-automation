@@ -8,8 +8,8 @@
  * explicit "show all" entry instead of being dropped — SEND runbooks are valid
  * for every environment even when the window is empty.
  */
-import type { Core } from '@go-automation/go-common';
-import { RUNBOOK_REGISTRY } from '@go-automation/go-runbook/catalog';
+import type { GOPromptSelectOption, GOScript } from '@go-automation/go-script';
+import { RUNBOOK_REGISTRY } from '@pagopa/go-runbook/catalog';
 import type { AlarmDto, WatchtowerClient } from '@go-automation/go-watchtower-client';
 
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
@@ -31,7 +31,7 @@ const UNKNOWN_COUNT_RANK = 0.5;
 export type AlarmReader = Pick<WatchtowerClient, 'listProductAlarms' | 'countAlarmEvents'>;
 
 export interface SelectAlarmOptions {
-  readonly script: Core.GOScript;
+  readonly script: GOScript;
   readonly client: AlarmReader;
   readonly product: SelectedProduct;
   readonly environment: ResolvedEnvironment;
@@ -140,7 +140,7 @@ function rank(entry: AlarmOccurrences): number {
   return entry.count ?? UNKNOWN_COUNT_RANK;
 }
 
-function toChoice(entry: AlarmOccurrences): Core.GOPromptSelectOption {
+function toChoice(entry: AlarmOccurrences): GOPromptSelectOption {
   const description = entry.alarm.description;
   return {
     title: `${entry.alarm.name} · ${occurrencesLabel(entry.count)}`,

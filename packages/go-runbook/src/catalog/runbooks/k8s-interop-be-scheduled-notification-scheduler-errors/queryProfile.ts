@@ -1,4 +1,4 @@
-import { escapeLogsInsightsString } from '@go-automation/go-common/aws';
+import { escapeLogsInsightsString } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { interop } from '../framework.js';
 
 /** Exact scheduler; select errors in the application log rather than unrelated JSON metadata. */

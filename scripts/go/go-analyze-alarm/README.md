@@ -357,7 +357,7 @@ aws sts get-caller-identity --profile sso_pn-core-prod  # verifica
 - I log potrebbero non essere ancora disponibili (latenza di ingestione CloudWatch ~1-2 min)
 - Verificare che il profilo SSO abbia i permessi `logs:StartQuery` / `logs:GetQueryResults`
 
-### "Cannot find module '@go-automation/go-common'"
+### "Cannot find module '@pagopa/go-common'"
 
 ```bash
 # Dalla root del monorepo

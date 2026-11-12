@@ -4,12 +4,12 @@
  * Contains script metadata and parameters definition.
  */
 
-import { Core } from '@go-automation/go-common';
+import { type GOConfigParameterOptions, GOConfigParameterType, type GOScriptMetadata } from '@go-automation/go-script';
 
 /**
  * Script metadata
  */
-export const scriptMetadata: Core.GOScriptMetadata = {
+export const scriptMetadata: GOScriptMetadata = {
   name: 'Interop Verifica Hash Token',
   version: '1.0.0',
   description: 'Verifica hash dei token per gli allarmi audit-signer',
@@ -39,17 +39,17 @@ export const DEFAULT_CW_QUERY_CID = `fields @timestamp, @message
 /**
  * Script parameter definitions
  */
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
   {
     name: 'aws.profile',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'AWS SSO profile name',
     required: true,
     aliases: ['ap'],
   },
   {
     name: 'aws.region',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'AWS Region',
     required: false,
     defaultValue: 'eu-south-1',
@@ -57,14 +57,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'cw.logGroup',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'CloudWatch Log Group Name',
     required: true,
     aliases: ['lg'],
   },
   {
     name: 'cw.queryApplication',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'CloudWatch Logs query string for application logs',
     required: false,
     defaultValue: DEFAULT_CW_QUERY_APPLICATION,
@@ -72,7 +72,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'cw.queryCid',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'CloudWatch Logs query string for CID log details',
     required: false,
     defaultValue: DEFAULT_CW_QUERY_CID,
@@ -80,14 +80,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 's3.bucketNameNdjson',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'S3 bucket name for NDJSON tokens',
     required: true,
     aliases: ['bn'],
   },
   {
     name: 's3.prefixNdjson',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'S3 prefix for NDJSON tokens',
     required: false,
     defaultValue: 'token-details',
@@ -95,14 +95,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 's3.bucketNameP7m',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'S3 bucket name for signed P7M tokens',
     required: true,
     aliases: ['bp'],
   },
   {
     name: 's3.prefixP7m',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'S3 prefix for signed P7M tokens',
     required: false,
     defaultValue: 'token-details',
@@ -110,21 +110,21 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'startUtc',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Start time in UTC (format: YYYY-MM-DD HH:MM:SS or ISO 8601)',
     required: true,
     aliases: ['su'],
   },
   {
     name: 'endUtc',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'End time in UTC (format: YYYY-MM-DD HH:MM:SS or ISO 8601)',
     required: true,
     aliases: ['eu'],
   },
   {
     name: 'm2m',
-    type: Core.GOConfigParameterType.BOOL,
+    type: GOConfigParameterType.BOOL,
     description: 'End time in UTC (format: YYYY-MM-DD HH:MM:SS or ISO 8601)',
     required: false,
     defaultValue: false,

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { ConditionEvaluator } from '../../framework.js';
 import type { RunbookContext } from '../../framework.js';
@@ -15,7 +15,7 @@ const SECOND_DOCUMENTED_ERROR = 'Invalid senderLimit percentage: job will fail w
 const THIRD_DOCUMENTED_ERROR = 'No drivers found for province: RM';
 
 function context(message: string, alarmDatetime: string, alarmDatetimeEnd?: string): RunbookContext {
-  const row: ReadonlyArray<ResultField> = [{ field: 'message', value: message }];
+  const row: ReadonlyArray<GOLogsInsightsResultField> = [{ field: 'message', value: message }];
   return {
     executionId: 'delayer-test',
     startedAt: new Date('2026-09-28T12:00:00.000Z'),

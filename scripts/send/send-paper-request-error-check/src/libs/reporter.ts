@@ -1,6 +1,7 @@
 import { mkdir } from 'node:fs/promises';
 import path from 'path';
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOFileListExporter, GOJSONListExporter } from '@pagopa/go-common/exporters';
 import type {
   CheckFeedbackResult,
   GetNotificationAttachmentsResult,
@@ -151,7 +152,7 @@ export class PaperRequestReporter {
    * @param outputDir - Cartella di destinazione dei file di report
    * @param script
    */
-  public async generateReport(outputDir: string, script: Core.GOScript): Promise<PaperRequestMetrics> {
+  public async generateReport(outputDir: string, script: GOScript): Promise<PaperRequestMetrics> {
     const timestamp = new Date().toISOString();
     const stepDetails: Record<string, unknown> = {};
 
@@ -234,7 +235,7 @@ export class PaperRequestReporter {
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- output path is generated through GOPaths or explicit operator-provided path.
     await mkdir(path.dirname(jsonPath), { recursive: true });
 
-    const jsonExporter = new Core.GOJSONListExporter({ outputPath: jsonPath, jsonl: false });
+    const jsonExporter = new GOJSONListExporter({ outputPath: jsonPath, jsonl: false });
     await jsonExporter.export([reportData]);
 
     await jsonExporter.export([reportData]);
@@ -264,7 +265,7 @@ export class PaperRequestReporter {
       `timelinesFetchedCount,${this.metrics.timelinesFetchedCount ?? 0}`,
       `errorsCount,${this.metrics.errorsCount ?? 0}`,
     ];
-    const fileExporter = new Core.GOFileListExporter({ outputPath: csvPath });
+    const fileExporter = new GOFileListExporter({ outputPath: csvPath });
     await fileExporter.export(csvLines);
 
     // 3. Stampa tabella di riepilogo a console

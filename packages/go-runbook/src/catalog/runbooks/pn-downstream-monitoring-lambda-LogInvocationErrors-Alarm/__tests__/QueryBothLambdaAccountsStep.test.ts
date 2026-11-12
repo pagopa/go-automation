@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { ConditionEvaluator } from '../../framework.js';
@@ -17,7 +17,7 @@ interface QueryCall {
   readonly paginateResults?: boolean;
 }
 
-type RowsForQueryFn = (accountId: string, query: string) => ReadonlyArray<ReadonlyArray<ResultField>>;
+type RowsForQueryFn = (accountId: string, query: string) => ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
 const CORE_REQUEST_ID = 'b95bb742-cc30-4f07-80bc-45a38011e5c4';
 const SECOND_CORE_REQUEST_ID = '1a1bf5ea-2088-4ea7-9133-12fcbfaabacc';
@@ -27,7 +27,7 @@ function context(
   params: ReadonlyArray<readonly [string, string]>,
   calls: QueryCall[],
   failingAccount?: string,
-  rowsByAccount?: ReadonlyMap<string, ReadonlyArray<ReadonlyArray<ResultField>>>,
+  rowsByAccount?: ReadonlyMap<string, ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>,
   rowsForQuery?: RowsForQueryFn,
 ): RunbookContext {
   return {
@@ -70,7 +70,7 @@ function context(
                 ...(options.paginateResults === undefined ? {} : { paginateResults: options.paginateResults }),
               });
               if (target.accountId === failingAccount) throw new Error('AccessDenied');
-              const defaultRows: ReadonlyArray<ReadonlyArray<ResultField>> = [
+              const defaultRows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
                 [
                   { field: '@timestamp', value: '2026-09-08T14:00:00.000Z' },
                   { field: '@message', value: `${target.accountId} ERROR Invoke Error` },
@@ -478,7 +478,7 @@ describe('pn-downstream-monitoring-lambda dual account query', () => {
 
   it('recognizes SlowDown when only confinfo has an error row', async () => {
     const calls: QueryCall[] = [];
-    const rowsByAccount = new Map<string, ReadonlyArray<ReadonlyArray<ResultField>>>([
+    const rowsByAccount = new Map<string, ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>([
       ['510769970275', []],
       [
         '350578575906',

@@ -6,7 +6,12 @@
  * that contains messages. Exports results to JSON, JSONL, CSV, HTML, or TXT.
  */
 
-import { AWS, Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { AWSMultiClientProvider } from '@pagopa/go-aws/all';
+import { AWSSQSService } from '@pagopa/go-aws/sqs';
+import { GO_EXPORT_FORMAT_EXTENSIONS } from '@pagopa/go-common/exporters';
+import { GOPathType } from '@pagopa/go-common/files';
+import { valueToString } from '@pagopa/go-common/utils';
 
 import { displayProfileResults, displaySummary } from './libs/DLQReportDisplay.js';
 import { exportReport } from './libs/DLQReportExporter.js';
@@ -24,16 +29,16 @@ import type { SendReportDlqConfig } from './types/index.js';
  *
  * @param script - The GOScript instance for logging and prompts
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<SendReportDlqConfig>();
 
   const outputFormat = config.outputFormat;
 
   // Resolve output path — default to script name + today's ISO date
   const today = new Date().toISOString().slice(0, 10);
-  const extension = Core.GO_EXPORT_FORMAT_EXTENSIONS[outputFormat];
+  const extension = GO_EXPORT_FORMAT_EXTENSIONS[outputFormat];
   const outputFile = config.outputFile ?? `send-report-dlq_${today}.${extension}`;
-  const outputPathInfo = script.paths.resolvePathWithInfo(outputFile, Core.GOPathType.OUTPUT);
+  const outputPathInfo = script.paths.resolvePathWithInfo(outputFile, GOPathType.OUTPUT);
 
   script.logger.section('DLQ Report');
   script.logger.info(`Profiles: ${config.awsProfiles.join(', ')}`);
@@ -48,13 +53,13 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   script.logger.newline();
 
-  const multiProvider = new AWS.AWSMultiClientProvider({ profiles: config.awsProfiles });
+  const multiProvider = new AWSMultiClientProvider({ profiles: config.awsProfiles });
 
   try {
     script.prompt.spin('fetch', 'Fetching DLQ data from all profiles...');
 
     const { results, errors } = await multiProvider.mapParallelSettled(async (_profile, clientProvider) => {
-      const sqsService = new AWS.AWSSQSService(clientProvider.sqs, clientProvider.cloudWatch);
+      const sqsService = new AWSSQSService(clientProvider.sqs, clientProvider.cloudWatch);
       return sqsService.listDLQsWithStats();
     });
 
@@ -72,7 +77,7 @@ export async function main(script: Core.GOScript): Promise<void> {
       script.logger.section(`Profile: ${profile}`);
       script.logger.error(`Failed: ${error.message}`);
       if (error.cause !== undefined) {
-        const causeMsg = error.cause instanceof Error ? error.cause.message : Core.valueToString(error.cause);
+        const causeMsg = error.cause instanceof Error ? error.cause.message : valueToString(error.cause);
         script.logger.error(`Caused by: ${causeMsg}`);
       }
       script.logger.newline();

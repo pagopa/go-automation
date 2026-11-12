@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { GOLogger } from '@go-automation/go-common/core';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { ConditionEvaluator } from '../../../../core/ConditionEvaluator.js';
 import type { RunbookContext } from '../../../../types/RunbookContext.js';
@@ -12,7 +12,7 @@ import { KNOWN_CASES } from '../knownCases.js';
 import { API_GW_LOG_GROUP, AUTHORIZER_LOG_GROUP, ENTRY_SERVICE, VERSIONING_LOG_GROUP } from '../knownServices.js';
 
 const ID = 'a2240f30-32dc-407d-80d9-4fd363aeaeb4';
-const row = (fields: Record<string, string>): ResultField[] =>
+const row = (fields: Record<string, string>): GOLogsInsightsResultField[] =>
   Object.entries(fields).map(([field, value]) => ({ field, value }));
 const params = new Map([
   ['startTime', '2026-10-16T08:10:00Z'],
@@ -20,10 +20,10 @@ const params = new Map([
 ]);
 
 async function run(
-  access: ResultField[][],
-  execution: ResultField[][] = [],
-  authorizer: ResultField[][] = [],
-  versioning: ResultField[][] = [],
+  access: GOLogsInsightsResultField[][],
+  execution: GOLogsInsightsResultField[][] = [],
+  authorizer: GOLogsInsightsResultField[][] = [],
+  versioning: GOLogsInsightsResultField[][] = [],
   unavailable = false,
 ): Promise<{ result: RunbookExecutionResult; calls: string[] }> {
   const calls: string[] = [];

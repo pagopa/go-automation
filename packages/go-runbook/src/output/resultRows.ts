@@ -1,4 +1,4 @@
-import { readRowField, type ResultField } from '@go-automation/go-common/aws';
+import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { LogLine } from './LogLine.js';
 import { normalizeOutputValue } from './outputValues.js';
@@ -22,7 +22,7 @@ const TIMESTAMP_FIELDS: ReadonlyArray<string> = ['@timestamp', 'timestamp'];
  * @returns The raw value of the first field that carries content
  */
 export function readFirstRowField(
-  row: ReadonlyArray<ResultField>,
+  row: ReadonlyArray<GOLogsInsightsResultField>,
   fieldNames: ReadonlyArray<string>,
 ): string | undefined {
   for (const fieldName of fieldNames) {
@@ -44,7 +44,7 @@ export function readFirstRowField(
  * @returns The trailing log lines, in chronological order
  */
 export function extractRecentLogLines(
-  rows: ReadonlyArray<ReadonlyArray<ResultField>>,
+  rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
   maxLogLines: number,
 ): ReadonlyArray<LogLine> {
   const logLines = rows
@@ -54,7 +54,7 @@ export function extractRecentLogLines(
   return logLines.slice(Math.max(0, logLines.length - maxLogLines));
 }
 
-function rowToLogLine(row: ReadonlyArray<ResultField>): LogLine | undefined {
+function rowToLogLine(row: ReadonlyArray<GOLogsInsightsResultField>): LogLine | undefined {
   const message = normalizeOutputValue(readFirstRowField(row, MESSAGE_FIELDS));
   if (message === undefined) return undefined;
   return {

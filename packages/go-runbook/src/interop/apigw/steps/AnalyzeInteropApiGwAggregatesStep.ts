@@ -1,5 +1,4 @@
-import { readRowField } from '@go-automation/go-common/aws';
-import type { ResultField } from '@go-automation/go-common/aws';
+import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { readCloudWatchResultRows } from '../../../steps/data/readCloudWatchResultRows.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
@@ -88,9 +87,9 @@ export class AnalyzeInteropApiGwAggregatesStep implements Step<InteropApiGwAggre
 }
 
 function selectPrimaryAggregateRow(
-  rows: ReadonlyArray<ReadonlyArray<ResultField>>,
-): ReadonlyArray<ResultField> | undefined {
-  let primary: ReadonlyArray<ResultField> | undefined;
+  rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
+): ReadonlyArray<GOLogsInsightsResultField> | undefined {
+  let primary: ReadonlyArray<GOLogsInsightsResultField> | undefined;
   let primaryCount = -1;
 
   for (const row of rows) {
@@ -117,7 +116,10 @@ const REPRESENTATIVE_FIELDS = [
   'sourceIp',
 ] as const;
 
-function compareRepresentativeFields(left: ReadonlyArray<ResultField>, right: ReadonlyArray<ResultField>): number {
+function compareRepresentativeFields(
+  left: ReadonlyArray<GOLogsInsightsResultField>,
+  right: ReadonlyArray<GOLogsInsightsResultField>,
+): number {
   for (const field of REPRESENTATIVE_FIELDS) {
     const leftValue = readNormalizedField(left, field);
     const rightValue = readNormalizedField(right, field);
@@ -139,6 +141,9 @@ function addNormalized(target: Set<string>, value: string | undefined): void {
   if (normalized !== undefined) target.add(normalized);
 }
 
-function readNormalizedField(row: ReadonlyArray<ResultField> | undefined, name: string): string | undefined {
+function readNormalizedField(
+  row: ReadonlyArray<GOLogsInsightsResultField> | undefined,
+  name: string,
+): string | undefined {
   return row === undefined ? undefined : normalizeInteropApiGwAggregateValue(readRowField(row, name));
 }

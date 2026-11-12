@@ -1,14 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { scanServiceLogs } from '../scanServiceLogs.js';
 import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
 
 const SCHEMA = SEND_API_GW_PROFILE.serviceLog.schema;
 
-function row(level: string, message: string): ResultField[] {
-  const fields: ResultField[] = [{ field: 'message', value: message }];
+function row(level: string, message: string): GOLogsInsightsResultField[] {
+  const fields: GOLogsInsightsResultField[] = [{ field: 'message', value: message }];
   if (level !== '') {
     fields.push({ field: 'level', value: level });
   }
@@ -21,7 +21,7 @@ describe('scanServiceLogs errorMessage projection', () => {
   });
 
   it('picks the longest ERROR/WARN level row over any other row', () => {
-    const rows: ReadonlyArray<ResultField[]> = [
+    const rows: ReadonlyArray<GOLogsInsightsResultField[]> = [
       row('ERROR', 'short err'),
       row('DEBUG', 'a'.repeat(500)),
       row('WARN', 'b'.repeat(200)),
@@ -45,13 +45,16 @@ describe('scanServiceLogs errorMessage projection', () => {
   });
 
   it('falls back to keyword detection when no row carries a level field', () => {
-    const rows: ReadonlyArray<ResultField[]> = [row('', 'something noisy'), row('', 'NullPointerException at ...')];
+    const rows: ReadonlyArray<GOLogsInsightsResultField[]> = [
+      row('', 'something noisy'),
+      row('', 'NullPointerException at ...'),
+    ];
     const result = scanServiceLogs(rows, SCHEMA).errorMessage;
     assert.strictEqual(result, 'NullPointerException at ...');
   });
 
   it('on keyword fallback, still ignores rows declaring a non-error level', () => {
-    const rows: ReadonlyArray<ResultField[]> = [
+    const rows: ReadonlyArray<GOLogsInsightsResultField[]> = [
       row('DEBUG', 'something failed during retry'),
       row('INFO', 'Exception raised but recovered'),
       row('', 'failed to acquire lock'),
@@ -61,7 +64,7 @@ describe('scanServiceLogs errorMessage projection', () => {
   });
 
   it('returns empty string when no row qualifies under either pass', () => {
-    const rows: ReadonlyArray<ResultField[]> = [row('DEBUG', 'all good'), row('INFO', 'still good')];
+    const rows: ReadonlyArray<GOLogsInsightsResultField[]> = [row('DEBUG', 'all good'), row('INFO', 'still good')];
     assert.strictEqual(scanServiceLogs(rows, SCHEMA).errorMessage, '');
   });
 

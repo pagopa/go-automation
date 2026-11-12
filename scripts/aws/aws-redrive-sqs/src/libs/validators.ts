@@ -1,4 +1,4 @@
-import type { Core } from '@go-automation/go-common';
+import type { GOConfigParameterValue } from '@go-automation/go-script';
 
 /** SQS hard limit for VisibilityTimeout (12 hours, in seconds) */
 export const MAX_VISIBILITY_TIMEOUT_SECONDS = 43200;
@@ -14,7 +14,7 @@ export const MAX_BATCH_SIZE = 10;
  */
 export const positiveIntegerValidator =
   (flag: string) =>
-  (value: Core.GOConfigParameterValue): boolean | string =>
+  (value: GOConfigParameterValue): boolean | string =>
     typeof value === 'number' && Number.isInteger(value) && value >= 1
       ? true
       : `Invalid ${flag}: ${String(value)}. Must be a positive integer.`;

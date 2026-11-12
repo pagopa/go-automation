@@ -1,4 +1,4 @@
-import { navigateFieldPath } from '@go-automation/go-common/core';
+import { navigateFieldPath } from '@pagopa/go-common/json';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 
 /**

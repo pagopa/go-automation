@@ -10,7 +10,7 @@ import { KNOWN_URLS } from './knownUrls.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { SetVarStep } from '../../../steps/control/SetVarStep.js';
 import { readStepOutput } from '../../../steps/data/readStepOutput.js';
-import { readRowField, type ResultField } from '@go-automation/go-common/aws';
+import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 /**
  * Builds the pn-delivery-IO_EXP-ApiGwAlarm runbook definition.
@@ -46,7 +46,7 @@ export function buildRunbook(): Runbook {
           kind: 'transform',
           // eslint-disable-next-line @typescript-eslint/require-await
           execute: async (context) => {
-            const upstream = readStepOutput<ReadonlyArray<ReadonlyArray<ResultField>>>(
+            const upstream = readStepOutput<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>(
               context,
               'query-api-gw-execution-logs',
             );

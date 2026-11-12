@@ -1,4 +1,4 @@
-import type { GOLogger } from '@go-automation/go-common/core';
+import type { GOLogger } from '@pagopa/go-common/logging';
 
 import { ConsoleRunbookReporter } from '../registry/reporters/ConsoleRunbookReporter.js';
 import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js';

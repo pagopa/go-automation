@@ -1,5 +1,4 @@
-import { readRowField } from '@go-automation/go-common/aws';
-import type { ResultField } from '@go-automation/go-common/aws';
+import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { DownstreamErrorPattern } from '../types/DownstreamErrorPattern.js';
 
@@ -44,7 +43,7 @@ export interface DownstreamMatch {
  * @returns The first match, or `undefined`
  */
 export function findDownstreamInRows(
-  rows: ReadonlyArray<ReadonlyArray<ResultField>>,
+  rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
   patterns: ReadonlyArray<DownstreamErrorPattern>,
 ): DownstreamMatch | undefined {
   if (patterns.length === 0) return undefined;

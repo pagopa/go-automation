@@ -5,8 +5,8 @@
  * selects the appropriate runbook, and executes it via the RunbookEngine.
  */
 
-import { Core } from '@go-automation/go-common';
-import { RUNBOOK_REGISTRY } from '@go-automation/go-runbook/catalog';
+import type { GOScript } from '@go-automation/go-script';
+import { RUNBOOK_REGISTRY } from '@pagopa/go-runbook/catalog';
 
 import type { GoAnalyzeAlarmConfig } from './types/GoAnalyzeAlarmConfig.js';
 import { analyzeOccurrence } from './libs/analyzeOccurrence.js';
@@ -19,7 +19,7 @@ import { toAnalyzableConfig } from './libs/toAnalyzableConfig.js';
  *
  * @param script - The GOScript instance for logging and configuration
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const rawConfig = await script.getConfiguration<GoAnalyzeAlarmConfig>();
 
   if (rawConfig.analysisMode === 'stats') {

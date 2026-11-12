@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { KnownCase, KnownCaseAnalysis, Runbook, RunbookAnalysisDefaults } from '@go-automation/go-runbook';
-import { INTEROP_DOWNSTREAMS, SEND_DOWNSTREAMS } from '@go-automation/go-runbook';
-import { RunbookCatalog } from '@go-automation/go-runbook/catalog';
-import type { RunbookRegistration } from '@go-automation/go-runbook/catalog';
+import type { KnownCase, KnownCaseAnalysis, Runbook, RunbookAnalysisDefaults } from '@pagopa/go-runbook';
+import { INTEROP_DOWNSTREAMS, SEND_DOWNSTREAMS } from '@pagopa/go-runbook';
+import { RunbookCatalog } from '@pagopa/go-runbook/catalog';
+import type { RunbookRegistration } from '@pagopa/go-runbook/catalog';
 import type { IgnoreReasonDto, ProductCensus, ProductDto } from '@go-automation/go-watchtower-client';
 
 import { checkRunbookCoverage } from '../checkRunbookCoverage.js';

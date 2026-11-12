@@ -1,4 +1,4 @@
-import { GODefaultSleeper } from '@go-automation/go-common/core';
+import { GODefaultSleeper } from '@pagopa/go-common/polling';
 
 import type { DispatchClock } from './DispatchClock.js';
 

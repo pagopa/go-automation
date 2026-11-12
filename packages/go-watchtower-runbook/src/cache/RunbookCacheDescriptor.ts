@@ -1,4 +1,4 @@
-import type { OccurrenceTimeWindow } from '@go-automation/go-runbook';
+import type { OccurrenceTimeWindow } from '@pagopa/go-runbook';
 
 /**
  * Identity + structural fingerprint of a runbook definition, computed once per

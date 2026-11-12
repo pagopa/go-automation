@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { GOLogger } from '@go-automation/go-common/core';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { assertCloudExecutableRunbook } from '../../../../validation/assertCloudExecutableRunbook.js';
@@ -12,9 +12,9 @@ const TRACE_ID = '1-6ac782cf-29dda2b21b4f9db14013b7a0';
 const HOST = 'http://internal-lb.example:8080';
 const NOT_FOUND = `[AUD_CA_VIEW_NOTIFICATION] FAILURE - errorReason = 404 Not Found from GET ${HOST}/delivery-private/notifications/TEST-IUN, An error occurred while calling the service to obtain sent notifications`;
 const GONE = `errorReason = 410 Gone from GET ${HOST}/delivery-private/notifications/received/TEST-IUN/attachments/documents/0, An error occurred while calling the service to obtain notification document`;
-type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
-function row(message: string): ReadonlyArray<ResultField> {
+function row(message: string): ReadonlyArray<GOLogsInsightsResultField> {
   return [
     { field: 'level', value: 'ERROR' },
     { field: 'message', value: message },

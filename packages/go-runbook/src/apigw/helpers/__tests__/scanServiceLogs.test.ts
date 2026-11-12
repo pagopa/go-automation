@@ -1,14 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { scanServiceLogs } from '../scanServiceLogs.js';
 import { KnownUrlsRegistry } from '../../registries/KnownUrlsRegistry.js';
 import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
 
 const SCHEMA = SEND_API_GW_PROFILE.serviceLog.schema;
 
-function row(fields: Record<string, string>): ResultField[] {
+function row(fields: Record<string, string>): GOLogsInsightsResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
 }
 
@@ -74,7 +74,7 @@ describe('scanServiceLogs', () => {
   }
   it('derives error message, known URL, fallback UUID and trace id in a single pass', () => {
     const registry = new KnownUrlsRegistry([{ url: 'https://api.io.pagopa.it/api/v1/activations/', target: 'AppIO' }]);
-    const rows: ReadonlyArray<ResultField[]> = [
+    const rows: ReadonlyArray<GOLogsInsightsResultField[]> = [
       row({
         level: 'ERROR',
         '@message':
@@ -96,7 +96,7 @@ describe('scanServiceLogs', () => {
   });
 
   it('leaves knownUrl undefined when no registry is supplied', () => {
-    const rows: ReadonlyArray<ResultField[]> = [
+    const rows: ReadonlyArray<GOLogsInsightsResultField[]> = [
       row({ '@message': 'see https://api.io.pagopa.it/api/v1/activations/9' }),
     ];
 
@@ -106,7 +106,7 @@ describe('scanServiceLogs', () => {
   });
 
   it('falls back to the keyword heuristic when no row carries an ERROR level', () => {
-    const rows: ReadonlyArray<ResultField[]> = [
+    const rows: ReadonlyArray<GOLogsInsightsResultField[]> = [
       row({ level: 'DEBUG', '@message': 'failedAttempts=0 retry scheduled' }),
       row({ '@message': 'REPORT Duration: 5000 ms Status: timeout' }),
     ];

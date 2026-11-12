@@ -1,4 +1,4 @@
-import { GORateLimiter } from '@go-automation/go-common/core';
+import { GORateLimiter } from '@pagopa/go-common/concurrency';
 
 import { DispatchError } from '../DispatchError.js';
 import { DocumentResolver } from '../documents/DocumentResolver.js';

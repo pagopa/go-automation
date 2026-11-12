@@ -1,4 +1,4 @@
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { ServiceLogSchema } from '../profiles/schemas/ServiceLogSchema.js';
 import type { KnownUrlsRegistry } from '../registries/KnownUrlsRegistry.js';
@@ -91,7 +91,7 @@ export interface ServiceLogsScan {
  * @returns The aggregated {@link ServiceLogsScan}
  */
 export function scanServiceLogs(
-  results: ReadonlyArray<ReadonlyArray<ResultField>>,
+  results: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
   schema: ServiceLogSchema,
   registry?: KnownUrlsRegistry,
 ): ServiceLogsScan {

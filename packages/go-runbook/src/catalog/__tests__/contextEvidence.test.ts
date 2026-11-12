@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { GOLogger } from '@go-automation/go-common/core';
+import { GOLogger } from '@pagopa/go-common/logging';
 import { createTestServiceRegistry } from '../../registry/createTestServiceRegistry.js';
 import { RUNBOOK_CATALOG } from '../RunbookCatalog.js';
 import { executeRunbookForOccurrence } from '../executeRunbookForOccurrence.js';

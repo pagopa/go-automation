@@ -1,4 +1,4 @@
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { Step } from '../../../types/Step.js';
 import type { StepKind } from '../../../types/StepKind.js';
@@ -21,7 +21,7 @@ import {
   type VersioningLambdaProbeState,
 } from './versioningLambdaProbe.js';
 
-type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
 export interface QueryVersioningLambdaErrorsConfig {
   readonly id: string;

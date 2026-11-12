@@ -1,4 +1,4 @@
-import { valueToString } from '@go-automation/go-common/core';
+import { valueToString } from '@pagopa/go-common/utils';
 import type { FlowDirective } from '../../types/FlowDirective.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { Step } from '../../types/Step.js';

@@ -1,5 +1,8 @@
-import { parseAwsProfileEntries, sumCloudWatchLogsQueryStatistics } from '@go-automation/go-common/aws';
-import type { ResultField } from '@go-automation/go-common/aws';
+import { parseAwsProfileEntries } from '@pagopa/go-aws';
+import {
+  type GOLogsInsightsResultField,
+  sumCloudWatchLogsQueryStatistics,
+} from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
@@ -36,7 +39,7 @@ const STREAM_QUERY: string = `stats min(@timestamp) as firstLog, max(@timestamp)
 | sort lastLog desc
 | limit ${ROW_LIMIT}`;
 
-type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
 /** Collect the logs and streams available for the logsaver occurrence. */
 export class QueryLogsaverDiagnosticsStep implements Step<Rows> {
@@ -69,7 +72,7 @@ export class QueryLogsaverDiagnosticsStep implements Step<Rows> {
       });
       const timeRange = resolveTimeRange(context, { start: 'startTime', end: 'endTime' });
       const results: Awaited<ReturnType<typeof executeCloudWatchLogsQuery>>[] = [];
-      const rows: ResultField[][] = [];
+      const rows: GOLogsInsightsResultField[][] = [];
       let errorCount = 0;
       let streamCount = 0;
       let spotInterruptionCount = 0;

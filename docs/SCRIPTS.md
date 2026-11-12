@@ -24,7 +24,7 @@
 
 Uno **script** è un programma TypeScript autonomo che esegue un compito specifico: analizzare allarmi CloudWatch, importare notifiche da CSV, interrogare tabelle DynamoDB, monitorare code SQS. Ogni script vive dentro il monorepo `go-automation` ed è un progetto npm a sé stante, con il proprio `package.json`, `tsconfig.json` e struttura di directory.
 
-Gli script non partono da zero. Si appoggiano su **`@go-automation/go-common`**, la libreria condivisa del monorepo che fornisce:
+Gli script non partono da zero. Si appoggiano su **`@pagopa/go-common`**, la libreria condivisa del monorepo che fornisce:
 
 - **GOScript** — il framework che gestisce il ciclo di vita (avvio, configurazione, cleanup, signal handling)
 - **GOLogger** — logging strutturato su console e file
@@ -77,12 +77,12 @@ Vediamo ogni file in dettaglio.
 Il file `index.ts` ha il solo compito di **collegare i pezzi**: importa la configurazione, crea l'istanza `GOScript`, e lancia la funzione `main()`. Non contiene logica di business.
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
 
 import { scriptMetadata, scriptParameters } from './config.js';
 import { main } from './main.js';
 
-const script = new Core.GOScript({
+const script = new GOScript({
   metadata: scriptMetadata,
   config: {
     parameters: scriptParameters,
@@ -113,26 +113,26 @@ Il file `config.ts` centralizza **cosa** lo script si aspetta dal mondo esterno:
 - **`scriptParameters`** — definizione dei parametri CLI (tipo, obbligatorietà, alias, valori di default)
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { type GOConfigParameterOptions, GOConfigParameterType, type GOScriptMetadata } from '@go-automation/go-script';
 
-export const scriptMetadata: Core.GOScriptMetadata = {
+export const scriptMetadata: GOScriptMetadata = {
   name: 'GO Report Alarms',
   version: '1.0.0',
   description: 'Analizza e genera report degli allarmi CloudWatch',
   authors: ['Team GO - Gestione Operativa'],
 };
 
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
   {
     name: 'aws.profile',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'AWS SSO profile name',
     required: true,
     aliases: ['ap'],
   },
   {
     name: 'days',
-    type: Core.GOConfigParameterType.NUMBER,
+    type: GOConfigParameterType.NUMBER,
     description: 'Number of days to analyze',
     required: false,
     defaultValue: 7,
@@ -148,11 +148,11 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
 Il file `main.ts` contiene la logica di business dello script. Esporta una singola funzione `main()`:
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import type { ReportAlarmsConfig } from './types/index.js';
 
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<ReportAlarmsConfig>();
 
   script.logger.section('Fetching alarms');
@@ -313,7 +313,8 @@ mkdir -p scripts/go/go-my-script/{configs,data}
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
-    "@go-automation/go-common": "workspace:*"
+    "@go-automation/go-script": "workspace:*",
+    "@pagopa/go-common": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.10.9"
@@ -344,6 +345,9 @@ Punti chiave:
   "references": [
     {
       "path": "../../../packages/go-common"
+    },
+    {
+      "path": "../../../packages/go-script"
     }
   ]
 }
@@ -609,7 +613,7 @@ Il **Scaffold Validator** (`bins/validate-scaffold/`) verifica che ogni script r
 
 **Contenuto `index.ts`:**
 
-- Importa da `@go-automation/go-common`
+- Importa da `@pagopa/go-common`
 - Importa da `./config.js` e `./main.js`
 
 **Contenuto `main.ts`:**
@@ -620,7 +624,7 @@ Il **Scaffold Validator** (`bins/validate-scaffold/`) verifica che ogni script r
 **`package.json`:**
 
 - `private: true`, `type: "module"`, `main: "dist/index.js"`
-- Dipende da `@go-automation/go-common` con `workspace:*`
+- Dipende da `@pagopa/go-common` con `workspace:*`
 - Ha gli script `build`, `start`, `dev`, `watch`, `clean`
 
 **`tsconfig.json`:**
@@ -814,12 +818,12 @@ functions/
 ```typescript
 import type { ScheduledEvent } from 'aws-lambda';
 
-import { Core } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
 import { prepareConfig, scriptMetadata, scriptParameters } from 'send-monitor-athena-query/config';
 import { main } from 'send-monitor-athena-query/main';
 
 // GOScript istanziato a scope di modulo per container reuse
-const script = new Core.GOScript({
+const script = new GOScript({
   metadata: scriptMetadata,
   config: {
     parameters: scriptParameters,
@@ -864,7 +868,7 @@ Per parametri sensibili (come token), la Lambda li riceve da AWS Secrets Manager
 
 Quando deployi su Lambda, devi fornire un **singolo artefatto** (zip o directory) che contiene tutto il codice necessario. In un monorepo con workspace dependencies, questo è un problema:
 
-- Lo script importa da `@go-automation/go-common` (workspace dependency)
+- Lo script importa da `@pagopa/go-common` (workspace dependency)
 - `go-common` importa da `@aws-sdk/*`, `csv-parse`, `yaml`, ecc.
 - Lambda ha un limite di 250 MB per il package
 - I `node_modules` con le dipendenze transitive possono essere enormi
@@ -954,7 +958,7 @@ src/handler.ts
 │  handler.ts importa:                             │
 │  ├── send-monitor-athena-query/config            │
 │  ├── send-monitor-athena-query/main              │
-│  ├── @go-automation/go-common (Core, AWS, SEND)  │
+│  ├── @pagopa/go-common, go-aws, go-script        │
 │  ├── csv-parse, yaml, prompts, ...               │
 │  └── (tutto viene inlined)                       │
 │                                                  │
@@ -1134,7 +1138,7 @@ Le opzioni strict più importanti:
 | `noUnusedLocals`             | Variabili locali inutilizzate sono errore               |
 | `noUnusedParameters`         | Parametri inutilizzati sono errore                      |
 
-**Project References**: Ogni script dichiara la dipendenza da go-common in `tsconfig.json` con `"references": [{ "path": "../../../packages/go-common" }]`. Questo abilita build incrementali e garanzia sull'ordine di compilazione.
+**Project References**: Ogni script dichiara in `tsconfig.json` i package del workspace che usa, per esempio `"references": [{ "path": "../../../packages/go-common" }, { "path": "../../../packages/go-script" }]` (più `go-aws` se usa AWS). Questo abilita build incrementali e garanzia sull'ordine di compilazione.
 
 ### ESLint 9 (Linter)
 

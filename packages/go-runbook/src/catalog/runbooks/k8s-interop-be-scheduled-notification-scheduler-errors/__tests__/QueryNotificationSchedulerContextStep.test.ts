@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { AWSCloudWatchLogsQueryOptions, ResultField } from '@go-automation/go-common/aws';
+import type { AWSCloudWatchLogsQueryOptions } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import type { RunbookContext } from '../../framework.js';
@@ -48,7 +49,7 @@ function context(
         ) {
           calls.push({ groups, query, timeRange, options });
           if (queryError !== undefined) throw queryError;
-          const rows: ReadonlyArray<ReadonlyArray<ResultField>> = Array.from({ length: rowCount }, () => [
+          const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = Array.from({ length: rowCount }, () => [
             { field: 'pod_app', value: alarm.podApp },
             { field: 'log', value: 'INFO - AWS authentication token obtained' },
           ]);

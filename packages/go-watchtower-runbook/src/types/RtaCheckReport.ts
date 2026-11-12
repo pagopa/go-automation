@@ -3,7 +3,7 @@
  * Cohesive module; intentionally not split per type.
  */
 
-import type { ClassifiedRunbookCheck, RunbookCheckStatus } from '@go-automation/go-runbook';
+import type { ClassifiedRunbookCheck, RunbookCheckStatus } from '@pagopa/go-runbook';
 
 /** V1 (runbook coverage) outcome for one executed occurrence. */
 export type V1Status = Exclude<RunbookCheckStatus, 'NO_RUNBOOK'>;

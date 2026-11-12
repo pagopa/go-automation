@@ -1,6 +1,5 @@
-import { omitUndefined } from '@go-automation/go-common/core';
-import { readRowField } from '@go-automation/go-common/aws';
-import type { ResultField } from '@go-automation/go-common/aws';
+import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { omitUndefined } from '@pagopa/go-common/utils';
 
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
@@ -77,7 +76,7 @@ export class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAuthorizerF
   }
 
   private evaluate(context: RunbookContext): StepResult<ApiGwAuthorizerFailureInfo | undefined> {
-    const upstream = readStepOutput<ReadonlyArray<ResultField[]>>(context, this.fromStep);
+    const upstream = readStepOutput<ReadonlyArray<GOLogsInsightsResultField[]>>(context, this.fromStep);
     if (!upstream.ok) return upstream.failure;
     if (this.schema.authorizer === undefined) {
       return {
@@ -124,7 +123,7 @@ export class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAuthorizerF
     return this.toNoErrorResult(firstEvidence);
   }
 
-  private evaluateRow(row: ReadonlyArray<ResultField>): ApiGwAuthorizerFailureInfo | undefined {
+  private evaluateRow(row: ReadonlyArray<GOLogsInsightsResultField>): ApiGwAuthorizerFailureInfo | undefined {
     const evidence = this.extractEvidence(row);
     if (evidence === undefined) return undefined;
 
@@ -154,7 +153,7 @@ export class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAuthorizerF
     return undefined;
   }
 
-  private extractEvidence(row: ReadonlyArray<ResultField> | undefined): AuthorizerEvidence | undefined {
+  private extractEvidence(row: ReadonlyArray<GOLogsInsightsResultField> | undefined): AuthorizerEvidence | undefined {
     if (row === undefined || this.schema.authorizer === undefined) return undefined;
 
     const path = this.sanitize(readRowField(row, this.schema.pathField));
@@ -230,7 +229,10 @@ export class EvaluateApiGwAuthorizerFailureStep implements Step<ApiGwAuthorizerF
     return this.check.defaultAuthorizer;
   }
 
-  private pickFirstMeaningfulField(row: ReadonlyArray<ResultField>, fields: ReadonlyArray<string>): string | undefined {
+  private pickFirstMeaningfulField(
+    row: ReadonlyArray<GOLogsInsightsResultField>,
+    fields: ReadonlyArray<string>,
+  ): string | undefined {
     for (const field of fields) {
       const value = this.sanitize(readRowField(row, field));
       if (value !== undefined) return value;

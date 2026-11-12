@@ -1,5 +1,4 @@
-import { readRowField } from '@go-automation/go-common/aws';
-import type { ResultField } from '@go-automation/go-common/aws';
+import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
@@ -66,7 +65,7 @@ export interface QueryApiGwExecutionLogsConfig {
   readonly analysisMode?: ApiGwExecutionLogAnalysisMode;
 }
 
-export class QueryApiGwExecutionLogsStep implements Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
+export class QueryApiGwExecutionLogsStep implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -112,9 +111,9 @@ export class QueryApiGwExecutionLogsStep implements Step<ReadonlyArray<ReadonlyA
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<ResultField>>>> {
+  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
     return executeStep('API Gateway execution logs query', async () => {
-      const upstream = readStepOutput<ReadonlyArray<ResultField[]>>(context, this.fromStep);
+      const upstream = readStepOutput<ReadonlyArray<GOLogsInsightsResultField[]>>(context, this.fromStep);
       if (!upstream.ok) return upstream.failure;
       const accessLogRows = upstream.value;
       const rowsWithErrorMessage = accessLogRows.filter((row) => this.rowHasApiGwErrorMessage(row));
@@ -209,7 +208,7 @@ export class QueryApiGwExecutionLogsStep implements Step<ReadonlyArray<ReadonlyA
       // usa predicate `@message like '<id>'` quindi `includes` su
       // `@message` è corretto. Per profili con predicate strutturati la
       // riassociazione andrà spostata nel profilo (roadmap §12.3).
-      const output: ResultField[][] = [];
+      const output: GOLogsInsightsResultField[][] = [];
       for (const row of rows) {
         const message = readRowField(row, '@message') ?? '';
         const matched = requestIds.find((req) => message.includes(req.requestId));
@@ -250,7 +249,7 @@ export class QueryApiGwExecutionLogsStep implements Step<ReadonlyArray<ReadonlyA
     accessLogVars: Readonly<Record<string, string>>,
     requestIds: ReadonlyArray<RequestIdWithPath>,
     reason: string,
-  ): StepResult<ReadonlyArray<ReadonlyArray<ResultField>>> {
+  ): StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
     return {
       success: true,
       output: [],
@@ -267,7 +266,7 @@ export class QueryApiGwExecutionLogsStep implements Step<ReadonlyArray<ReadonlyA
     };
   }
 
-  private rowHasApiGwErrorMessage(row: ReadonlyArray<ResultField>): boolean {
+  private rowHasApiGwErrorMessage(row: ReadonlyArray<GOLogsInsightsResultField>): boolean {
     if (!rowMeetsThreshold(row, this.minStatusCode, this.accessLogSchema)) return false;
     return sanitizeApiGwField(readRowField(row, this.accessLogSchema.errorMessageField), this.accessLogSchema) !== '';
   }
@@ -295,7 +294,7 @@ export class QueryApiGwExecutionLogsStep implements Step<ReadonlyArray<ReadonlyA
 }
 
 function collectRequestIds(
-  rows: ReadonlyArray<ResultField[]>,
+  rows: ReadonlyArray<GOLogsInsightsResultField[]>,
   schema: AccessLogSchema,
 ): ReadonlyArray<RequestIdWithPath> {
   const byRequestId = new Map<string, RequestIdWithPath>();

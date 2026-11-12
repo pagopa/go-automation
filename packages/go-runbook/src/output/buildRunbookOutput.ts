@@ -1,4 +1,8 @@
-import { omitUndefined } from '@go-automation/go-common/core';
+import {
+  type AWSCloudWatchLogsQueryStatistics,
+  sumCloudWatchLogsQueryStatistics,
+} from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { omitUndefined } from '@pagopa/go-common/utils';
 import type { CaseAction } from '../actions/CaseAction.js';
 import type { KnownCase } from '../types/KnownCase.js';
 import type { Runbook } from '../types/Runbook.js';
@@ -12,7 +16,6 @@ import type {
   CloudWatchLogsTelemetry,
   CloudWatchLogsTelemetryQueryExecution,
 } from './RunbookTelemetry.js';
-import { sumCloudWatchLogsQueryStatistics, type AWSCloudWatchLogsQueryStatistics } from '@go-automation/go-common/aws';
 import { emptyRunbookOutputContext } from './RunbookOutputContext.js';
 import { buildAnalysisDraft } from './buildAnalysisDraft.js';
 import { interpolatePlaceholders } from '../core/templatePlaceholders.js';

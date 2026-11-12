@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { GOLogger } from '@go-automation/go-common/core';
+import { GOLogger } from '@pagopa/go-common/logging';
 
 import { ActionExecutor } from '../ActionExecutor.js';
 import { renderLogActionText } from '../renderLogAction.js';

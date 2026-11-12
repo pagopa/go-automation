@@ -25,7 +25,15 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { AWS, Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { AWSClientProvider } from '@pagopa/go-aws/all';
+import type {
+  GetScheduleCommandOutput,
+  SchedulerClient,
+  ScheduleState,
+  ScheduleSummary,
+} from '@pagopa/go-aws/scheduler';
+import type { GOTableOptions } from '@pagopa/go-common/render';
 
 import { applyScheduleSweep } from '../libs/applyScheduleSweep.js';
 import { confirmScheduleSweep } from '../libs/confirmScheduleSweep.js';
@@ -51,10 +59,10 @@ interface CommandRecord {
 /** How one account behaves for the duration of a test. */
 interface ProfileFixture {
   /** Schedule returned by `GetSchedule`; absent means the account does not have it */
-  readonly schedule?: AWS.GetScheduleCommandOutput;
+  readonly schedule?: GetScheduleCommandOutput;
 
   /** Summaries returned by `ListSchedules` */
-  readonly summaries?: ReadonlyArray<AWS.ScheduleSummary>;
+  readonly summaries?: ReadonlyArray<ScheduleSummary>;
 
   /** Error every read rejects with, taking precedence over `schedule` and `summaries` */
   readonly failWith?: Error;
@@ -69,14 +77,14 @@ interface ProfileFixture {
   readonly accountIdFails?: boolean;
 
   /** What a re-read sees, to drive the window between the preview and the write */
-  readonly rereadAs?: AWS.GetScheduleCommandOutput;
+  readonly rereadAs?: GetScheduleCommandOutput;
 
   /** Drops this profile from both result maps, reproducing the go-common hole */
   readonly dropResult?: boolean;
 }
 
 interface SweepHarness {
-  readonly script: Core.GOScript;
+  readonly script: GOScript;
   readonly commands: CommandRecord[];
   readonly calls: LoggedCall[];
   readonly confirmCalls: string[];
@@ -88,7 +96,7 @@ interface SweepHarnessOptions {
   readonly confirmResult?: boolean;
 }
 
-type MultiProfileOperationFn<T> = (profile: string, clients: AWS.AWSClientProvider) => Promise<T>;
+type MultiProfileOperationFn<T> = (profile: string, clients: AWSClientProvider) => Promise<T>;
 
 /** The error EventBridge Scheduler raises for a schedule that does not exist. */
 function notFoundError(): Error {
@@ -98,7 +106,7 @@ function notFoundError(): Error {
 }
 
 /** A fully populated schedule, so a full-replacement assertion has something to check. */
-function scheduleIn(state: AWS.ScheduleState): AWS.GetScheduleCommandOutput {
+function scheduleIn(state: ScheduleState): GetScheduleCommandOutput {
   return {
     $metadata: {},
     Arn: 'arn:aws:scheduler:eu-south-1:123456789012:schedule/default/nightly-job',
@@ -128,7 +136,7 @@ function createFakeSchedulerClient(
   fixture: ProfileFixture,
   commands: CommandRecord[],
   readCounts: Map<string, number>,
-): AWS.SchedulerClient {
+): SchedulerClient {
   const client = {
     async send(command: unknown): Promise<unknown> {
       const name = (command as { readonly constructor: { readonly name: string } }).constructor.name;
@@ -155,7 +163,7 @@ function createFakeSchedulerClient(
     },
   };
 
-  return client as unknown as AWS.SchedulerClient;
+  return client as unknown as SchedulerClient;
 }
 
 /** Builds an AWSClientProvider double, recording every access to the Scheduler client. */
@@ -165,9 +173,9 @@ function createFakeClientProvider(
   commands: CommandRecord[],
   schedulerAccesses: string[],
   readCounts: Map<string, number>,
-): AWS.AWSClientProvider {
+): AWSClientProvider {
   const provider = {
-    get scheduler(): AWS.SchedulerClient {
+    get scheduler(): SchedulerClient {
       schedulerAccesses.push(profile);
       return createFakeSchedulerClient(profile, fixture, commands, readCounts);
     },
@@ -177,7 +185,7 @@ function createFakeClientProvider(
     },
   };
 
-  return provider as unknown as AWS.AWSClientProvider;
+  return provider as unknown as AWSClientProvider;
 }
 
 /** Builds a GOScript double with a multi-profile AWS provider over the given fixtures. */
@@ -252,7 +260,7 @@ function createSweepHarness(options: SweepHarnessOptions): SweepHarness {
       spinWarn: (): void => {},
       spinFail: (): void => {},
     },
-  } as unknown as Core.GOScript;
+  } as unknown as GOScript;
 
   return { script, commands, calls, confirmCalls, schedulerAccesses };
 }
@@ -580,8 +588,8 @@ function listCommands(commands: ReadonlyArray<CommandRecord>): ReadonlyArray<Com
 }
 
 /** The single table the renderer emitted, if any. */
-function renderedTable(calls: ReadonlyArray<LoggedCall>, index = 0): Core.GOTableOptions | undefined {
-  return calls.filter((call) => call.method === 'table')[index]?.payload as Core.GOTableOptions | undefined;
+function renderedTable(calls: ReadonlyArray<LoggedCall>, index = 0): GOTableOptions | undefined {
+  return calls.filter((call) => call.method === 'table')[index]?.payload as GOTableOptions | undefined;
 }
 
 describe('runListSchedules', () => {

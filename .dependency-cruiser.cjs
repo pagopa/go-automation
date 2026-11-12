@@ -65,7 +65,7 @@ function dependencyNames(workspace) {
 
 const packageWorkspaces = listWorkspaces('packages');
 const nonCommonPackageWorkspaces = packageWorkspaces.filter(
-  (workspace) => workspace.directory !== 'packages/go-common' && packageName(workspace) !== '@go-automation/go-common',
+  (workspace) => workspace.directory !== 'packages/go-common' && packageName(workspace) !== '@pagopa/go-common',
 );
 const scriptWorkspaces = [
   ...listWorkspaces('scripts/aws'),
@@ -153,13 +153,16 @@ const workspaceBoundaryRules = [
 ];
 
 /**
- * go-common internal layering (EVO-PKGPUB-OPUS-01 §7.1.2, Fase 1).
+ * Package layering of the published family (EVO-PKGPUB-OPUS-01 §6.1, §7.1.2, §7.2.1, §10.5).
  *
- * Kernel areas are ordered by level: an area may import only areas of the same or a lower level.
- * Areas destined to leave go-common (go-script, go-aws, go-documents, go-slack) must never be
- * imported by the kernel, so that Phase 2 can extract them without cutting any kernel edge.
+ * - go-common kernel areas are ordered by level: an area may import only areas of the same or a lower level.
+ * - go-aws never imports packages above it; each service subpath imports only its own SDK clients.
+ * - A published package never depends on a private one.
+ * - go-runbook never uses EC2 (D5).
+ *
+ * Cross-package edges are matched on the import specifier (workspace packages are not resolved yet: K8).
  */
-const GO_COMMON_CORE = '^packages/go-common/src/libs/core/';
+const GO_COMMON_SRC = '^packages/go-common/src/';
 const GO_COMMON_KERNEL_LEVELS = [
   ['utils', 'security', 'json', 'events'],
   ['errors', 'analysis'],
@@ -168,53 +171,91 @@ const GO_COMMON_KERNEL_LEVELS = [
   ['importers', 'exporters', 'http'],
   ['logging'],
 ];
-const GO_COMMON_LEAVING_AREAS = {
-  'go-script': ['config', 'environment', 'prompt', 'script', 'paths'],
-  'go-documents': ['text', 'storage'],
-  'go-slack': ['messaging'],
+/** Allowed `@aws-sdk/client-*` packages per go-aws source folder ('' = core files at the package root). */
+const GO_AWS_ALLOWED_CLIENTS = {
+  '': ['sts'],
+  s3: ['s3'],
+  sqs: ['sqs', 'cloudwatch'],
+  dynamodb: ['dynamodb'],
+  athena: ['athena'],
+  'cloudwatch-logs': ['cloudwatch-logs'],
+  'cloudwatch-logs/insights': [],
+  'cloudwatch-metrics': ['cloudwatch'],
+  'cloudwatch-alarms': ['cloudwatch'],
+  ecs: ['ecs'],
+  lambda: ['lambda'],
+  scheduler: ['scheduler'],
+  'secrets-manager': ['secrets-manager'],
+  ssm: ['ssm'],
+  ec2: ['ec2'],
 };
 
 function goCommonAreaPattern(areas) {
-  return `${GO_COMMON_CORE}(?:${areas.join('|')})/`;
+  return `${GO_COMMON_SRC}(?:${areas.join('|')})/`;
 }
 
-function goCommonLayerRules() {
-  const kernelAreas = GO_COMMON_KERNEL_LEVELS.flat();
-  const scriptAreas = GO_COMMON_LEAVING_AREAS['go-script'];
-  const extractedLeafAreas = [...GO_COMMON_LEAVING_AREAS['go-documents'], ...GO_COMMON_LEAVING_AREAS['go-slack']];
-  const levelRules = GO_COMMON_KERNEL_LEVELS.slice(0, -1).map((areas, level) => ({
+function packageReferencePatterns(names) {
+  return names.flatMap((name) => [packageImportPattern(name), `^packages/${escapeRegExp(name.split('/')[1])}/`]);
+}
+
+function goAwsFolderPattern(folder) {
+  if (folder === '') return '^packages/go-aws/src/[^/]+$';
+  // Production sources only: tests may use any SDK to build fixtures or check type compatibility.
+  return `^packages/go-aws/src/${escapeRegExp(folder)}/(?:[^/]+|models/.+)$`;
+}
+
+function packageLayerRules() {
+  const kernelLevelRules = GO_COMMON_KERNEL_LEVELS.slice(0, -1).map((areas, level) => ({
     name: `go-common-kernel-level-${level}`,
     severity: 'error',
     comment: `go-common kernel level ${level} (${areas.join(', ')}) must not import higher kernel levels.`,
     from: { path: goCommonAreaPattern(areas) },
     to: { path: goCommonAreaPattern(GO_COMMON_KERNEL_LEVELS.slice(level + 1).flat()) },
   }));
+  // The scope says whether a package is published: @pagopa/* is published, everything else is private.
+  const publishedNames = compact(packageWorkspaces.map(packageName)).filter((name) => name.startsWith('@pagopa/'));
+  const privateNames = compact(packageWorkspaces.map(packageName)).filter((name) => !name.startsWith('@pagopa/'));
+  const awsIsolationRules = Object.entries(GO_AWS_ALLOWED_CLIENTS).map(([folder, clients]) => ({
+    name: `go-aws-service-isolation:${folder === '' ? 'core' : folder}`,
+    severity: 'error',
+    comment: `go-aws ${folder === '' ? 'core' : `./${folder}`} may import only these SDK clients: ${clients.join(', ') || 'none'}.`,
+    from: { path: goAwsFolderPattern(folder) },
+    to: {
+      path: '@aws-sdk/client-',
+      ...(clients.length > 0 ? { pathNot: `@aws-sdk/client-(?:${clients.map(escapeRegExp).join('|')})(?:/|$)` } : {}),
+    },
+  }));
   return [
-    ...levelRules,
+    ...kernelLevelRules,
     {
-      name: 'go-common-kernel-not-on-leaving-areas',
+      name: 'go-aws-no-upward',
       severity: 'error',
       comment:
-        'The go-common kernel must not import areas that will leave go-common (go-script, go-aws, go-documents, go-slack).',
-      from: { path: goCommonAreaPattern(kernelAreas) },
+        'go-aws sits on go-common only: it never imports go-script, go-send, go-runbook or other packages above it.',
+      from: { path: '^packages/go-aws/' },
       to: {
-        path: [goCommonAreaPattern([...scriptAreas, ...extractedLeafAreas]), '^packages/go-common/src/libs/aws/'],
+        path: packageReferencePatterns(
+          compact(packageWorkspaces.map(packageName)).filter(
+            (name) => !['@pagopa/go-common', '@pagopa/go-aws'].includes(name),
+          ),
+        ),
       },
     },
     {
-      name: 'go-common-aws-not-on-script-or-leaf-areas',
+      name: 'published-not-on-private',
       severity: 'error',
-      comment: 'The future go-aws must depend only on the kernel, never on go-script, go-documents or go-slack areas.',
-      from: { path: '^packages/go-common/src/libs/aws/' },
-      to: { path: goCommonAreaPattern([...scriptAreas, ...extractedLeafAreas]) },
+      comment: 'A published package (@pagopa/*) never depends on a private workspace package (@go-automation/*).',
+      from: { path: publishedNames.map((name) => `^packages/${escapeRegExp(name.split('/')[1])}/`) },
+      to: { path: packageReferencePatterns(privateNames) },
     },
     {
-      name: 'go-common-leaf-areas-only-on-kernel',
+      name: 'runbook-not-on-ec2',
       severity: 'error',
-      comment: 'go-documents and go-slack areas must not depend on go-script or go-aws areas.',
-      from: { path: goCommonAreaPattern(extractedLeafAreas) },
-      to: { path: [goCommonAreaPattern(scriptAreas), '^packages/go-common/src/libs/aws/'] },
+      comment: 'D5: go-runbook (engine, inventory, runtime) never uses EC2.',
+      from: { path: '^packages/go-runbook/' },
+      to: { path: ['@aws-sdk/client-ec2(?:/|$)', '^@pagopa/go-aws/ec2$', '^packages/go-aws/src/ec2/'] },
     },
+    ...awsIsolationRules,
   ];
 }
 
@@ -263,7 +304,7 @@ module.exports = {
         path: [...nonCommonPackageDependencyPatterns, ...appDependencyPatterns],
       },
     },
-    ...goCommonLayerRules(),
+    ...packageLayerRules(),
     {
       name: 'packages-do-not-import-apps',
       severity: 'error',
@@ -314,15 +355,7 @@ module.exports = {
       from: {},
       to: {
         dependencyTypes: ['core'],
-        path: [
-          '^async_hooks$',
-          '^constants$',
-          '^domain$',
-          '^punycode$',
-          '^sys$',
-          '^_linklist$',
-          '^_stream_wrap$',
-        ],
+        path: ['^async_hooks$', '^constants$', '^domain$', '^punycode$', '^sys$', '^_linklist$', '^_stream_wrap$'],
       },
     },
     {

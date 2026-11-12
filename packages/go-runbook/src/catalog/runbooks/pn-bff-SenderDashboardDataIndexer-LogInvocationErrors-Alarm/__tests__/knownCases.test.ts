@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { ConditionEvaluator } from '../../framework.js';
 import type { KnownCase, RunbookContext } from '../../framework.js';
@@ -9,7 +9,7 @@ import { createTestServiceRegistry } from '../../../../registry/createTestServic
 import { KNOWN_CASES } from '../knownCases.js';
 
 function contextWithError(message: string): RunbookContext {
-  const row: ReadonlyArray<ResultField> = [
+  const row: ReadonlyArray<GOLogsInsightsResultField> = [
     { field: '@timestamp', value: '2026-08-27T16:00:30.127Z' },
     { field: '@requestId', value: '5761d2d6-a0a6-40df-afab-357b640d31b2' },
     { field: '@message', value: message },

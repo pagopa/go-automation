@@ -1,4 +1,4 @@
-import { readRowField, type ResultField } from '@go-automation/go-common/aws';
+import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { Step } from '../../../types/Step.js';
 import type { StepResult } from '../../../types/StepResult.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
@@ -171,12 +171,12 @@ export class AnalyzeAuditFallbackStep implements Step<AuditFallbackAnalysis> {
   }
 }
 
-function readAggregateCount(row: ReadonlyArray<ResultField>): number | undefined {
+function readAggregateCount(row: ReadonlyArray<GOLogsInsightsResultField>): number | undefined {
   const count = Number(readRowField(row, 'count'));
   return Number.isSafeInteger(count) && count > 0 ? count : undefined;
 }
 
-function readMessage(row: ReadonlyArray<ResultField>): string {
+function readMessage(row: ReadonlyArray<GOLogsInsightsResultField>): string {
   const raw = row.find((field) => ['log', '@message', 'message'].includes(field.field ?? ''))?.value ?? '';
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -188,7 +188,7 @@ function readMessage(row: ReadonlyArray<ResultField>): string {
   return raw;
 }
 
-function isAuthServerRow(row: ReadonlyArray<ResultField>): boolean {
+function isAuthServerRow(row: ReadonlyArray<GOLogsInsightsResultField>): boolean {
   return row.find((field) => field.field === 'pod_app')?.value?.startsWith('interop-be-authorization-server') === true;
 }
 
@@ -202,7 +202,7 @@ function isPortableFallbackEvidence(message: string): boolean {
   return FALLBACK_STORAGE_PATTERN.test(message) || message.includes(AUDIT_FALLBACK_SUCCEEDED_PATTERN);
 }
 
-function isTrackerError(row: ReadonlyArray<ResultField>, message: string): boolean {
+function isTrackerError(row: ReadonlyArray<GOLogsInsightsResultField>, message: string): boolean {
   return (
     readRowField(row, 'stream') === 'stderr' ||
     message.includes('ERROR') ||

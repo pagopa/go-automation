@@ -1,4 +1,4 @@
-import { GOHttpClientError } from '@go-automation/go-common/core';
+import { GOHttpClientError } from '@pagopa/go-common/http';
 
 import type { SENDApiVersion } from '../../../services/notification/models/SENDApiVersion.js';
 import type { SENDNotificationCreationResponse } from '../../../services/notification/models/SENDNotificationCreationResponse.js';

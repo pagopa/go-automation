@@ -28,7 +28,8 @@
     "pnpm": ">=10.28.0"
   },
   "dependencies": {
-    "@go-automation/go-common": "workspace:*",
+    "@go-automation/go-script": "workspace:*",
+    "@pagopa/go-common": "workspace:*",
     "commander": "catalog:",
     "fuse.js": "catalog:",
     "tsx": "catalog:"

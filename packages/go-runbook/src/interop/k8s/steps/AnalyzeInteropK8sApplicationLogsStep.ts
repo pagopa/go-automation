@@ -1,4 +1,4 @@
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
 import type { StepKind } from '../../../types/StepKind.js';
@@ -100,7 +100,7 @@ export class AnalyzeInteropK8sApplicationLogsStep implements Step<InteropK8sAppl
   }
 }
 
-function extractCid(row: ReadonlyArray<ResultField>): string | undefined {
+function extractCid(row: ReadonlyArray<GOLogsInsightsResultField>): string | undefined {
   const explicit = normalize(readField(row, ['cid', 'CID']));
   if (explicit !== undefined) return explicit;
 
@@ -113,7 +113,7 @@ function extractCid(row: ReadonlyArray<ResultField>): string | undefined {
   return undefined;
 }
 
-function extractRepresentativeMessage(row: ReadonlyArray<ResultField>): string | undefined {
+function extractRepresentativeMessage(row: ReadonlyArray<GOLogsInsightsResultField>): string | undefined {
   for (const fieldName of REPRESENTATIVE_MESSAGE_FIELDS) {
     const message = normalize(readField(row, [fieldName]));
     if (message !== undefined) return message;
@@ -121,17 +121,20 @@ function extractRepresentativeMessage(row: ReadonlyArray<ResultField>): string |
   return undefined;
 }
 
-function readRowCount(row: ReadonlyArray<ResultField>, countField: string | undefined): number {
+function readRowCount(row: ReadonlyArray<GOLogsInsightsResultField>, countField: string | undefined): number {
   if (countField === undefined) return 1;
   const parsed = Number(readField(row, [countField]));
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 1;
 }
 
-function readField(row: ReadonlyArray<ResultField>, names: ReadonlyArray<string>): string | undefined {
+function readField(row: ReadonlyArray<GOLogsInsightsResultField>, names: ReadonlyArray<string>): string | undefined {
   return readFields(row, names)[0];
 }
 
-function readFields(row: ReadonlyArray<ResultField>, names: ReadonlyArray<string>): ReadonlyArray<string> {
+function readFields(
+  row: ReadonlyArray<GOLogsInsightsResultField>,
+  names: ReadonlyArray<string>,
+): ReadonlyArray<string> {
   const values: string[] = [];
   for (const field of row) {
     const fieldName = field.field;

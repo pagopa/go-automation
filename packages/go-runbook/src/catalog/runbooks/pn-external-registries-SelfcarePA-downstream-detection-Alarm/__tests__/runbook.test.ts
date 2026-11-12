@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { ResultField } from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
@@ -35,7 +35,10 @@ async function execute(
   const queries: string[] = [];
   const services = createTestServiceRegistry({
     cloudWatchLogs: {
-      async query(groups: ReadonlyArray<string>, query: string): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
+      async query(
+        groups: ReadonlyArray<string>,
+        query: string,
+      ): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
         await Promise.resolve();
         assert.deepStrictEqual(groups, ['/aws/ecs/pn-external-registries']);
         queries.push(query);

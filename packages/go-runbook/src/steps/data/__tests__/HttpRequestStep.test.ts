@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { GOHttpRequestOptions, GOHttpResponse } from '@go-automation/go-common/core';
+import type { GOHttpRequestOptions, GOHttpResponse } from '@pagopa/go-common/http';
 
 import type { ServiceRegistry } from '../../../registry/ServiceRegistry.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';

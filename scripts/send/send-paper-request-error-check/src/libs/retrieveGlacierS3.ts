@@ -1,4 +1,5 @@
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOFileListExporter } from '@pagopa/go-common/exporters';
 import { getConfinfoS3Service, getCoreDynamoDBService } from '../utils/awsClients.js';
 import type { SendPaperRequestErrorCheckConfig, RetrieveGlacierResult } from '../types/index.js';
 import { isNotificationOlderThanOneYear } from './verifyNotification.js';
@@ -28,7 +29,7 @@ function isAarFileKey(fileKey: string): boolean {
 /**
  * Legge ed estrae l'elenco degli elementi (IUN, fileKey, sentAt) da file o da array.
  */
-function parseGlacierItems(rawItems: ReadonlyArray<string>, script: Core.GOScript): GlacierItem[] {
+function parseGlacierItems(rawItems: ReadonlyArray<string>, script: GOScript): GlacierItem[] {
   const result: GlacierItem[] = [];
   for (const rawLine of rawItems) {
     const trimmed = rawLine.trim();
@@ -61,7 +62,7 @@ function parseGlacierItems(rawItems: ReadonlyArray<string>, script: Core.GOScrip
  * @param count - Numero di oggetti da ripristinare
  * @returns boolean `true` se l'utente accetta, `false` se rifiuta o annulla
  */
-async function promptUserConfirmation(script: Core.GOScript, count: number): Promise<boolean> {
+async function promptUserConfirmation(script: GOScript, count: number): Promise<boolean> {
   const result = await script.prompt.confirm(
     `⚠️  ATTENZIONE: Si sta per avviare il ripristino da S3 Glacier per ${count} documenti AAR (notifiche > 1 anno).\nVuoi procedere con il restore da Glacier?`,
     false,
@@ -79,7 +80,7 @@ interface FilterGlacierResult {
  * Filtra gli elementi Glacier ammettendo SOLO file denominati AAR e con notifica più vecchia di 1 anno.
  */
 async function filterGlacierEligibleItems(
-  script: Core.GOScript,
+  script: GOScript,
   config: SendPaperRequestErrorCheckConfig,
   items: GlacierItem[],
 ): Promise<FilterGlacierResult> {
@@ -139,14 +140,14 @@ async function filterGlacierEligibleItems(
 }
 
 async function saveFailedGlacierItems(
-  script: Core.GOScript,
+  script: GOScript,
   config: SendPaperRequestErrorCheckConfig,
   failedItems: GlacierItem[],
 ): Promise<void> {
   if (failedItems.length === 0) return;
   try {
     const failedFilePath = resolveOutputPath(script.paths, 'glacier_failed.csv', config.outputDir);
-    const exporter = new Core.GOFileListExporter({ outputPath: failedFilePath });
+    const exporter = new GOFileListExporter({ outputPath: failedFilePath });
     const lines = [
       'iun,fileKey,sentAt',
       ...failedItems.map((item) => `${item.iun},${item.fileKey},${item.sentAt ?? ''}`),
@@ -161,7 +162,7 @@ async function saveFailedGlacierItems(
 }
 
 export async function retrieveGlacierS3(
-  script: Core.GOScript,
+  script: GOScript,
   rawItems: ReadonlyArray<string>,
 ): Promise<RetrieveGlacierResult> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();

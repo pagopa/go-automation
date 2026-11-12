@@ -1,19 +1,23 @@
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GO_EXPORT_FORMAT_EXTENSIONS, type GOExportFormat } from '@pagopa/go-common/exporters';
+import { GOPathType } from '@pagopa/go-common/files';
+import { GOJSONListImporter, type GOJSONListImporterOptions } from '@pagopa/go-common/importers';
+import { GOJSONFieldExtractor } from '@pagopa/go-common/json';
 import type { GoParseJsonConfig } from './types/GoParseJsonConfig.js';
 import { exportValues } from './libs/createExporter.js';
 import { matchesFilter } from './libs/matchesFilter.js';
 
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<GoParseJsonConfig>();
   const logger = script.logger;
 
-  const outputFormat = config.outputFormat as Core.GOExportFormat;
+  const outputFormat = config.outputFormat as GOExportFormat;
   const fieldNames = [...config.field];
 
-  const finalInputPath = script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT);
+  const finalInputPath = script.paths.resolvePath(config.inputFile, GOPathType.INPUT);
 
-  const extractor = new Core.GOJSONFieldExtractor({ parseEmbeddedJson: true });
-  const importer = new Core.GOJSONListImporter<Record<string, unknown> | undefined>({
+  const extractor = new GOJSONFieldExtractor({ parseEmbeddedJson: true });
+  const importer = new GOJSONListImporter<Record<string, unknown> | undefined>({
     jsonl: 'auto',
     skipInvalidItems: true,
     jsonPath: config.jsonPath ?? undefined,
@@ -38,7 +42,7 @@ export async function main(script: Core.GOScript): Promise<void> {
 
       return hasAnyValue ? result : undefined;
     },
-  } as Core.GOJSONListImporterOptions<unknown, Record<string, unknown> | undefined>);
+  } as GOJSONListImporterOptions<unknown, Record<string, unknown> | undefined>);
 
   importer.on('import:error', (event) => {
     logger.warning(`Errore durante l'importazione: ${event.message}`);
@@ -58,10 +62,10 @@ export async function main(script: Core.GOScript): Promise<void> {
     }
   }
 
-  const extension = Core.GO_EXPORT_FORMAT_EXTENSIONS[outputFormat];
+  const extension = GO_EXPORT_FORMAT_EXTENSIONS[outputFormat];
   const outputPath = script.paths.resolvePath(
     config.outputFile ?? `extracted_${Date.now()}.${extension}`,
-    Core.GOPathType.OUTPUT,
+    GOPathType.OUTPUT,
   );
 
   await exportValues(dataList, outputPath, outputFormat, fieldNames);

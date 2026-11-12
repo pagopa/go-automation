@@ -1,5 +1,4 @@
-import { readRowField } from '@go-automation/go-common/aws';
-import type { ResultField } from '@go-automation/go-common/aws';
+import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { Step } from '../../../types/Step.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { StepResult } from '../../../types/StepResult.js';
@@ -8,7 +7,7 @@ import { executeStep } from '../../../steps/data/executeStep.js';
 import { executeCloudWatchLogsQuery } from '../../../steps/data/executeCloudWatchLogsQuery.js';
 import { resolveTimeRange } from '../../../steps/data/resolveTimeRange.js';
 
-type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
 interface Config {
   readonly id: string;

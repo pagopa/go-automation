@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { GOLogger } from '@go-automation/go-common/core';
-import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
+import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
@@ -25,7 +26,7 @@ const SUCCESS = [
   'Token generated',
 ];
 
-function row(message: string, cid?: string): ReadonlyArray<ResultField> {
+function row(message: string, cid?: string): ReadonlyArray<GOLogsInsightsResultField> {
   return [
     { field: '@timestamp', value: '2026-09-11 10:00:00.000' },
     { field: 'pod_app', value: alarm.serviceName },
@@ -41,7 +42,7 @@ interface Scenario {
     readonly count: number;
     readonly integrationError?: string;
   }>;
-  readonly application?: ReadonlyArray<ReadonlyArray<ResultField>>;
+  readonly application?: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
   readonly traces?: Readonly<Record<string, ReadonlyArray<string | TrackerMessage>>>;
 }
 
@@ -64,7 +65,7 @@ async function execute(scenario: Scenario): Promise<{
       await Promise.resolve();
       queries.push(query);
       queriedLogGroups.push(...logGroups);
-      let rows: ReadonlyArray<ReadonlyArray<ResultField>>;
+      let rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
       if (logGroups[0]?.startsWith('amazon-apigateway') === true) {
         rows = (scenario.apiGatewayAggregates ?? [{ count: 1, integrationError: scenario.integrationError }]).map(
           ({ count, integrationError }) => [

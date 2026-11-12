@@ -1,0 +1,35 @@
+{
+  "name": "@go-automation/go-documents",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Document text extraction (PDF, DOCX, XLSX, EML, ZIP) and SQLite FTS5 full-text index.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "watch": "tsc --build --watch",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'"
+  },
+  "author": "Team GO - Gestione Operativa",
+  "license": "EUPL-1.2",
+  "dependencies": {
+    "better-sqlite3": "catalog:",
+    "mailparser": "catalog:",
+    "mammoth": "catalog:",
+    "read-excel-file": "catalog:",
+    "unpdf": "catalog:",
+    "unzipper-esm": "catalog:",
+    "@pagopa/go-common": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "catalog:",
+    "@types/node": "catalog:"
+  }
+}

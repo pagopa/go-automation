@@ -19,7 +19,7 @@
     "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'"
   },
   "dependencies": {
-    "@go-automation/go-common": "workspace:*",
+    "@pagopa/go-common": "workspace:*",
     "ajv": "catalog:",
     "ajv-formats": "catalog:"
   },

@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { ResultField } from '@go-automation/go-common/aws';
-import type { TreeNode } from '@go-automation/go-common/core';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type { TreeNode } from '@pagopa/go-common/render';
 
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import type { RunbookContext } from '../../framework.js';
 import { ERROR_QUERY, LOG_GROUP, QueryLogsaverDiagnosticsStep } from '../QueryLogsaverDiagnosticsStep.js';
 
-type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 type RowsForQueryFn = (accountId: string, queryKind: 'errors' | 'streams') => Rows;
 
 const CORE_ACCOUNT = '510769970275';

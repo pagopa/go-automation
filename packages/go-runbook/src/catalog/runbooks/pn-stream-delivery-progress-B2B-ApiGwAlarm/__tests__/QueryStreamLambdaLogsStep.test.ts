@@ -1,13 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { QueryStreamLambdaLogsStep } from '../QueryStreamLambdaLogsStep.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import type { RunbookContext } from '../../../../types/RunbookContext.js';
 
 const ID = 'a2240f30-32dc-407d-80d9-4fd363aeaeb4';
 const OTHER_ID = 'b2240f30-32dc-407d-80d9-4fd363aeaeb4';
-const row = (fields: Record<string, string>): ResultField[] =>
+const row = (fields: Record<string, string>): GOLogsInsightsResultField[] =>
   Object.entries(fields).map(([field, value]) => ({ field, value }));
 const step = new QueryStreamLambdaLogsStep({
   id: 'lambda',
@@ -17,7 +17,7 @@ const step = new QueryStreamLambdaLogsStep({
 });
 
 function context(
-  rows: ResultField[][],
+  rows: GOLogsInsightsResultField[][],
   query: unknown = async () => {
     await Promise.resolve();
     return [];

@@ -2,8 +2,8 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
-import { navigateFieldPath } from '@go-automation/go-common/core';
-import { valueToString } from '@go-automation/go-common/core';
+import { navigateFieldPath } from '@pagopa/go-common/json';
+import { valueToString } from '@pagopa/go-common/utils';
 import { readStepOutput } from '../data/readStepOutput.js';
 
 /**

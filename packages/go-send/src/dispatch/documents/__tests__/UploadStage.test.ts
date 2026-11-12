@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 
-import { GORateLimiter } from '@go-automation/go-common/core';
+import { GORateLimiter } from '@pagopa/go-common/concurrency';
 
 import type { SENDPreloadRequest } from '../../../services/attachment/models/SENDPreloadRequest.js';
 import type { SENDPreloadResponse } from '../../../services/attachment/models/SENDPreloadResponse.js';

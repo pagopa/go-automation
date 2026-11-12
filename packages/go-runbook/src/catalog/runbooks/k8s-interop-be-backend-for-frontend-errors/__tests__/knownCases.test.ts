@@ -5,7 +5,7 @@ import { AnalyzeBffEvidenceStep, BFF_EVIDENCE_STEP_ID } from '../AnalyzeBffEvide
 import { KNOWN_CASES } from '../knownCases.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { ConditionEvaluator, INTEROP_DOWNSTREAMS, type KnownCase, type RunbookContext } from '../../framework.js';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 const DUPLICATE =
   'errors: 004-9991, Error creating event: error: duplicate key value violates unique constraint "events_stream_id_version_key"';
@@ -15,7 +15,7 @@ const USERS_WARN = 'Error while retrieving users corresponding to tenant tenant-
 const USERS_504 =
   'errors: 008-9991, Unexpected error - original error: AxiosError: Request failed with status code 504';
 
-function row(message: string, podApp = BFF_ALARM.podApp, cid?: string): ReadonlyArray<ResultField> {
+function row(message: string, podApp = BFF_ALARM.podApp, cid?: string): ReadonlyArray<GOLogsInsightsResultField> {
   return [
     { field: 'pod_app', value: podApp },
     { field: 'log', value: message },
@@ -24,8 +24,11 @@ function row(message: string, podApp = BFF_ALARM.podApp, cid?: string): Readonly
 }
 
 async function context(
-  application: ReadonlyArray<ReadonlyArray<ResultField>>,
-  tracker: ReadonlyArray<{ readonly cid: string; readonly rows: ReadonlyArray<ReadonlyArray<ResultField>> }> = [],
+  application: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
+  tracker: ReadonlyArray<{
+    readonly cid: string;
+    readonly rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
+  }> = [],
   environment = 'prod',
 ): Promise<RunbookContext> {
   const stepResults = new Map<string, unknown>([

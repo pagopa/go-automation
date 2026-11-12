@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { ConditionEvaluator, INTEROP_DOWNSTREAMS, type RunbookContext } from '../../framework.js';
 import { RUNBOOK_CATALOG } from '../../../RunbookCatalog.js';
@@ -14,7 +14,7 @@ import { buildRunbook } from '../runbook.js';
 const DOCUMENTED_MESSAGE =
   'ERROR - Connection error: Client network socket disconnected before secure TLS connection was established';
 
-function rows(message: string): ReadonlyArray<ReadonlyArray<ResultField>> {
+function rows(message: string): ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> {
   return [
     [
       { field: 'pod_app', value: alarm.podApp },

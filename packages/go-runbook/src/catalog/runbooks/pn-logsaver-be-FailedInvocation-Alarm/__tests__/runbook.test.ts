@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { GOLogger } from '@go-automation/go-common/core';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionResult.js';
@@ -13,7 +13,7 @@ import { assertCloudExecutableRunbook } from '../../../../validation/assertCloud
 import { buildRunbook } from '../runbook.js';
 import { ERROR_QUERY, LOG_GROUP } from '../QueryLogsaverDiagnosticsStep.js';
 
-type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 type ReadQueryRowsFn = (accountId: string, query: string) => Rows;
 interface QueryOptions {
   readonly failQuery?: string;

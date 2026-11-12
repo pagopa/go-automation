@@ -11,6 +11,7 @@ export type {
   ExecuteRunbookForOccurrenceInput,
 } from './executeRunbookForOccurrence.js';
 export { createServiceRegistry, buildServiceRegistry } from './createServiceRegistry.js';
+export type { CreateServiceRegistryDeps } from './CreateServiceRegistryDeps.js';
 export type { RunbookReporter } from '../registry/RunbookReporter.js';
 export { ConsoleRunbookReporter } from '../registry/reporters/ConsoleRunbookReporter.js';
 export { NOOP_RUNBOOK_REPORTER } from '../registry/reporters/NOOP_RUNBOOK_REPORTER.js';

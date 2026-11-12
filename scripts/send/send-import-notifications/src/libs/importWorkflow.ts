@@ -1,4 +1,7 @@
-import { Core } from '@go-automation/go-common';
+import type { GOPathResolutionResult, GOScript } from '@go-automation/go-script';
+import { GOCSVListExporter } from '@pagopa/go-common/exporters';
+import { GOPathType } from '@pagopa/go-common/files';
+import { GOCSVListImporter } from '@pagopa/go-common/importers';
 import {
   QATestFormatAdapter,
   SENDNotificationImportWorker,
@@ -10,14 +13,14 @@ import type { SENDNotificationRow, SENDUploadedAttachment } from '@go-automation
 import { displayResults } from './displayResults.js';
 import type { ImportNotificationsConfig } from '../types/ImportNotificationsConfig.js';
 
-type ExportPathInfo = Core.GOPathResolutionResult | undefined;
+type ExportPathInfo = GOPathResolutionResult | undefined;
 type AttachmentsByPratica = ReadonlyMap<string, ReadonlyArray<SENDUploadedAttachment>>;
 
 export interface ImportWorkflowComponents {
   readonly attachmentsByPratica: AttachmentsByPratica | undefined;
-  readonly exporter: Core.GOCSVListExporter<Record<string, unknown>> | undefined;
+  readonly exporter: GOCSVListExporter<Record<string, unknown>> | undefined;
   readonly exportPathInfo: ExportPathInfo;
-  readonly importer: Core.GOCSVListImporter<SENDNotificationRow>;
+  readonly importer: GOCSVListImporter<SENDNotificationRow>;
   readonly worker: SENDNotificationImportWorker;
 }
 
@@ -47,7 +50,7 @@ const BASE_EXPORT_COLUMNS = [
 ];
 
 export async function createImportWorkflowComponents(
-  script: Core.GOScript,
+  script: GOScript,
   config: ImportNotificationsConfig,
 ): Promise<ImportWorkflowComponents> {
   const exportPathInfo = resolveExportPath(script, config);
@@ -66,11 +69,11 @@ export async function createImportWorkflowComponents(
 }
 
 export async function executeImportWorkflow(
-  script: Core.GOScript,
+  script: GOScript,
   config: ImportNotificationsConfig,
   components: ImportWorkflowComponents,
 ): Promise<void> {
-  const csvInputPath = script.paths.resolvePath(config.csvFile, Core.GOPathType.INPUT);
+  const csvInputPath = script.paths.resolvePath(config.csvFile, GOPathType.INPUT);
   logWorkflowStart(script, config, csvInputPath);
 
   const result = await components.worker.process(csvInputPath, {
@@ -93,8 +96,8 @@ export async function executeImportWorkflow(
   script.logger.success('Workflow completed successfully');
 }
 
-function resolveExportPath(script: Core.GOScript, config: ImportNotificationsConfig): ExportPathInfo {
-  const exportPathInfo = script.paths.resolvePathWithInfo(config.exportFile, Core.GOPathType.OUTPUT);
+function resolveExportPath(script: GOScript, config: ImportNotificationsConfig): ExportPathInfo {
+  const exportPathInfo = script.paths.resolvePathWithInfo(config.exportFile, GOPathType.OUTPUT);
   if (exportPathInfo === undefined) return undefined;
 
   if (exportPathInfo.isAbsolute) {
@@ -107,7 +110,7 @@ function resolveExportPath(script: Core.GOScript, config: ImportNotificationsCon
   return exportPathInfo;
 }
 
-function createSdk(script: Core.GOScript, config: ImportNotificationsConfig): SENDNotifications {
+function createSdk(script: GOScript, config: ImportNotificationsConfig): SENDNotifications {
   script.logger.section('Initializing SEND SDK');
   const sdk = new SENDNotifications({
     basePath: config.basePath,
@@ -126,13 +129,13 @@ function createSdk(script: Core.GOScript, config: ImportNotificationsConfig): SE
 }
 
 async function loadAttachments(
-  script: Core.GOScript,
+  script: GOScript,
   config: ImportNotificationsConfig,
 ): Promise<AttachmentsByPratica | undefined> {
   if (config.attachmentsFile === undefined) return undefined;
 
   script.logger.section('Loading Uploaded Attachments');
-  const attachmentsPath = script.paths.resolvePath(config.attachmentsFile, Core.GOPathType.INPUT);
+  const attachmentsPath = script.paths.resolvePath(config.attachmentsFile, GOPathType.INPUT);
   script.logger.info(`Attachments file: ${attachmentsPath}`);
 
   const loadResult = await loadUploadedAttachments(attachmentsPath);
@@ -151,27 +154,24 @@ async function loadAttachments(
   return loadResult.attachmentsByPratica;
 }
 
-function createImporter(
-  script: Core.GOScript,
-  config: ImportNotificationsConfig,
-): Core.GOCSVListImporter<SENDNotificationRow> {
+function createImporter(script: GOScript, config: ImportNotificationsConfig): GOCSVListImporter<SENDNotificationRow> {
   script.logger.section('Setting up CSV Importer');
   const importerAdapter = new QATestFormatAdapter();
-  return new Core.GOCSVListImporter<SENDNotificationRow>({
+  return new GOCSVListImporter<SENDNotificationRow>({
     ...importerAdapter.getOptions(),
     preserveOriginalData: config.preserveAllColumns,
   });
 }
 
 function createExporter(
-  script: Core.GOScript,
+  script: GOScript,
   config: ImportNotificationsConfig,
   exportPathInfo: ExportPathInfo,
-): Core.GOCSVListExporter<Record<string, unknown>> | undefined {
+): GOCSVListExporter<Record<string, unknown>> | undefined {
   if (exportPathInfo === undefined) return undefined;
 
   script.logger.info(`Export file: ${exportPathInfo.path}`);
-  const exporter = new Core.GOCSVListExporter<Record<string, unknown>>({
+  const exporter = new GOCSVListExporter<Record<string, unknown>>({
     outputPath: exportPathInfo.path,
     includeHeader: true,
     delimiter: ',',
@@ -188,7 +188,7 @@ function createExporter(
   return exporter;
 }
 
-function logWorkflowStart(script: Core.GOScript, config: ImportNotificationsConfig, csvInputPath: string): void {
+function logWorkflowStart(script: GOScript, config: ImportNotificationsConfig, csvInputPath: string): void {
   script.logger.section('Starting Import Workflow');
   script.logger.info(`Input file: ${csvInputPath}`);
   script.logger.info(`Send mode: ${config.sendNotifications ? 'LIVE' : 'DRY-RUN'}`);

@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { AnalyzeInteropApiGwAggregatesStep } from '../steps/AnalyzeInteropApiGwAggregatesStep.js';
 import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
-function row(fields: ReadonlyArray<readonly [string, string]>): ReadonlyArray<ResultField> {
+function row(fields: ReadonlyArray<readonly [string, string]>): ReadonlyArray<GOLogsInsightsResultField> {
   return fields.map(([field, value]) => ({ field, value }));
 }
 
@@ -129,7 +129,7 @@ describe('AnalyzeInteropApiGwAggregatesStep', () => {
   });
 });
 
-function contextWithRows(rows: ReadonlyArray<ReadonlyArray<ResultField>>): RunbookContext {
+function contextWithRows(rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>): RunbookContext {
   return {
     executionId: 'test',
     startedAt: new Date('2026-08-24T10:00:00.000Z'),

@@ -1,4 +1,4 @@
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
@@ -90,7 +90,7 @@ export class AnalyzeServiceLogsStep implements Step<ServiceLogsAnalysis> {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<ServiceLogsAnalysis>> {
-    const upstream = readStepOutput<ReadonlyArray<ResultField[]>>(context, this.fromStep);
+    const upstream = readStepOutput<ReadonlyArray<GOLogsInsightsResultField[]>>(context, this.fromStep);
     if (!upstream.ok) return upstream.failure;
     const results = upstream.value;
     const reporter = new ApiGwReporter(context.services.reporter);

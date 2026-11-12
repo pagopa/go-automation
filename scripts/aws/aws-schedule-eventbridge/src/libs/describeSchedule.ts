@@ -2,14 +2,14 @@
  * `describe` action: prints the full detail of a schedule, per account.
  */
 
-import type { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import type { AwsScheduleEventbridgeConfig, ScheduleRead } from '../types/index.js';
 import { readSchedules } from './readSchedules.js';
 import { displayScheduleDetail, displayScheduleDrift } from './scheduleDisplay.js';
 
 /** Prints one account's block: the detail when it has the schedule, why not otherwise. */
-function reportRead(script: Core.GOScript, read: ScheduleRead, scheduleName: string): void {
+function reportRead(script: GOScript, read: ScheduleRead, scheduleName: string): void {
   const account = read.accountId === undefined ? '' : ` (${read.accountId})`;
   script.logger.section(`Profile: ${read.profile}${account}`);
 
@@ -37,7 +37,7 @@ function reportRead(script: Core.GOScript, read: ScheduleRead, scheduleName: str
  * @param config - Validated script configuration, with `scheduleName` already checked
  * @throws When every profile failed, or an account is missing the schedule under `--fail-on-missing`
  */
-export async function runDescribeSchedule(script: Core.GOScript, config: AwsScheduleEventbridgeConfig): Promise<void> {
+export async function runDescribeSchedule(script: GOScript, config: AwsScheduleEventbridgeConfig): Promise<void> {
   const scheduleName = config.scheduleName;
   if (scheduleName === undefined) {
     throw new Error('--schedule-name is required for the describe action');

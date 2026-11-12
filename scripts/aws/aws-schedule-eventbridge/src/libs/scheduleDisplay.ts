@@ -5,7 +5,9 @@
  * exporter involved.
  */
 
-import type { AWS, Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { GetScheduleCommandOutput, ScheduleSummary } from '@pagopa/go-aws/scheduler';
+import type { GOTableColumn } from '@pagopa/go-common/render';
 
 import type { ScheduleRead } from '../types/index.js';
 
@@ -15,7 +17,7 @@ import type { ScheduleRead } from '../types/index.js';
  * `Profile` leads, and the other widths were rebalanced to pay for it rather
  * than appended to: the total stays around 150 characters, as before.
  */
-const LIST_COLUMNS: ReadonlyArray<Core.GOTableColumn> = [
+const LIST_COLUMNS: ReadonlyArray<GOTableColumn> = [
   { header: 'Profile', key: 'profile', width: 24 },
   { header: 'Name', key: 'name', width: 36 },
   { header: 'Group', key: 'group', width: 14 },
@@ -25,7 +27,7 @@ const LIST_COLUMNS: ReadonlyArray<Core.GOTableColumn> = [
 ];
 
 /** Columns of the drift table: only the fields that actually diverge between accounts */
-const DRIFT_COLUMNS: ReadonlyArray<Core.GOTableColumn> = [
+const DRIFT_COLUMNS: ReadonlyArray<GOTableColumn> = [
   { header: 'Profile', key: 'profile', width: 24 },
   { header: 'Account', key: 'accountId', width: 14 },
   { header: 'State', key: 'state', width: 10 },
@@ -51,8 +53,8 @@ function formatDate(value: Date | undefined): string {
  * @param byProfile - Schedule summaries per profile, in configuration order
  */
 export function displayScheduleTable(
-  script: Core.GOScript,
-  byProfile: ReadonlyMap<string, ReadonlyArray<AWS.ScheduleSummary>>,
+  script: GOScript,
+  byProfile: ReadonlyMap<string, ReadonlyArray<ScheduleSummary>>,
 ): void {
   const data = Array.from(byProfile).flatMap(([profile, summaries]) =>
     summaries.map((summary) => ({
@@ -78,7 +80,7 @@ export function displayScheduleTable(
  * @param script - The GOScript instance providing the logger
  * @param reads - One read per configured profile, in configuration order
  */
-export function displayScheduleDrift(script: Core.GOScript, reads: ReadonlyArray<ScheduleRead>): void {
+export function displayScheduleDrift(script: GOScript, reads: ReadonlyArray<ScheduleRead>): void {
   const data = reads.map((read) => ({
     profile: read.profile,
     accountId: read.accountId ?? '-',
@@ -109,7 +111,7 @@ const TARGET_PARAMETER_KEYS = [
  * to print every field, and silently dropping the ECS or SQS parameters would
  * make that false.
  */
-function formatTargetParameters(schedule: AWS.GetScheduleCommandOutput): string {
+function formatTargetParameters(schedule: GetScheduleCommandOutput): string {
   const target = schedule.Target;
   const declared = TARGET_PARAMETER_KEYS.filter((key) => target?.[key] !== undefined).map(
     (key) => `${key}=${JSON.stringify(target?.[key])}`,
@@ -124,7 +126,7 @@ function formatTargetParameters(schedule: AWS.GetScheduleCommandOutput): string 
  * @param script - The GOScript instance providing the logger
  * @param schedule - Schedule as returned by `getSchedule`
  */
-export function displayScheduleDetail(script: Core.GOScript, schedule: AWS.GetScheduleCommandOutput): void {
+export function displayScheduleDetail(script: GOScript, schedule: GetScheduleCommandOutput): void {
   script.logger.keyValueTable({
     Name: schedule.Name ?? '-',
     Group: schedule.GroupName ?? '-',

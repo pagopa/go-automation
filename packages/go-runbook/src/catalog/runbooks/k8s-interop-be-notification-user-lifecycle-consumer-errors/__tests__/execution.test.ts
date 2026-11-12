@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
@@ -37,19 +38,19 @@ async function execute(
         queries.push(query);
         const tracker = query.includes('filter cid =');
         const podApp = tracker ? 'interop-be-another-service' : ALARM.podApp;
-        const rows: ReadonlyArray<ReadonlyArray<ResultField>> = (tracker ? trackerMessages : messages).map(
-          (message) => [
-            { field: 'pod_app', value: podApp },
-            {
-              field: '@message',
-              value: JSON.stringify({
-                pod_app: podApp,
-                stream: 'stderr',
-                log: `2026-10-23T02:19:34.344Z ${cid === undefined ? '' : `[CID=${cid}] `}${message}`,
-              }),
-            },
-          ],
-        );
+        const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = (
+          tracker ? trackerMessages : messages
+        ).map((message) => [
+          { field: 'pod_app', value: podApp },
+          {
+            field: '@message',
+            value: JSON.stringify({
+              pod_app: podApp,
+              stream: 'stderr',
+              log: `2026-10-23T02:19:34.344Z ${cid === undefined ? '' : `[CID=${cid}] `}${message}`,
+            }),
+          },
+        ]);
         return {
           rows,
           statistics: { bytesScanned: 1, recordsScanned: rows.length, recordsMatched: rows.length },

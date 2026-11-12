@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { GOLogger } from '@go-automation/go-common/core';
+import { GOLogger } from '@pagopa/go-common/logging';
 
 import { RunbookEngine } from '../RunbookEngine.js';
 import type { CaseAction } from '../../actions/CaseAction.js';

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { ConditionEvaluator, type RunbookContext } from '../../framework.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { assertCloudExecutableRunbook } from '../../../../validation/assertCloudExecutableRunbook.js';
@@ -11,7 +11,10 @@ import { buildRunbook } from '../runbook.js';
 
 const CID = 'dispatcher-cid';
 
-function logRows(messages: ReadonlyArray<string>, podApp: string): ReadonlyArray<ReadonlyArray<ResultField>> {
+function logRows(
+  messages: ReadonlyArray<string>,
+  podApp: string,
+): ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> {
   return messages.map((message) => [
     { field: 'pod_app', value: podApp },
     { field: 'cid', value: CID },

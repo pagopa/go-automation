@@ -1,4 +1,8 @@
-import { readResultFieldRows, readRowField, type ResultField } from '@go-automation/go-common/aws';
+import {
+  type GOLogsInsightsResultField,
+  readResultFieldRows,
+  readRowField,
+} from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { StepDescriptor } from '../types/StepDescriptor.js';
 import type { RunbookEvidence } from './RunbookOutputContext.js';
 import type { StepEvidence } from './StepEvidence.js';
@@ -45,7 +49,7 @@ export function buildStepEvidence(
 }
 
 function toEvidenceItem(
-  row: ReadonlyArray<ResultField>,
+  row: ReadonlyArray<GOLogsInsightsResultField>,
   definition: StepEvidence,
 ): ReadonlyArray<Record<string, string>> {
   const fields = new Map<string, string>();

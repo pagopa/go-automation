@@ -4,12 +4,12 @@
  * Contains script metadata and parameters definition.
  */
 
-import { Core } from '@go-automation/go-common';
+{{GO_SCRIPT_CONFIG_IMPORT}}
 
 /**
  * Script metadata
  */
-export const scriptMetadata: Core.GOScriptMetadata = {
+export const scriptMetadata: GOScriptMetadata = {
   name: '{{SCRIPT_TITLE}}',
   version: '1.0.0',
   description: '{{SCRIPT_DESCRIPTION}}',
@@ -19,6 +19,6 @@ export const scriptMetadata: Core.GOScriptMetadata = {
 /**
  * Script parameter definitions
  */
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
 {{PARAMETERS_CONTENT}}
 ] as const;

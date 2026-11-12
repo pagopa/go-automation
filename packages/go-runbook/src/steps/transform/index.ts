@@ -6,4 +6,4 @@ export { MapStep } from './MapStep.js';
 export type { MapArrayConfig } from './MapStep.js';
 export { TemplateStep } from './TemplateStep.js';
 export type { TemplateConfig } from './TemplateStep.js';
-export { navigateFieldPath, parseFieldPath } from '@go-automation/go-common/core';
+export { navigateFieldPath, parseFieldPath } from '@pagopa/go-common/json';

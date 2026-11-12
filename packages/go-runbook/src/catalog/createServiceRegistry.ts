@@ -1,17 +1,18 @@
 /**
- * Factory for creating the AWS ServiceRegistry from the script AWS provider.
+ * Factory for creating the AWS ServiceRegistry from an AWS service provider.
  */
 
-import { Core } from '@go-automation/go-common';
-import type { AWSServiceProvider } from '@go-automation/go-common/aws';
+import type { AWSServiceProvider } from '@pagopa/go-aws/all';
+import type { GOHttpClient } from '@pagopa/go-common/http';
 
+import type { CreateServiceRegistryDeps } from './CreateServiceRegistryDeps.js';
 import type { RunbookReporter } from '../registry/RunbookReporter.js';
 import type { ServiceRegistry } from '../registry/ServiceRegistry.js';
 
 /**
- * Creates a ServiceRegistry from the unified script AWS provider.
+ * Creates a ServiceRegistry from an AWS service provider and an HTTP client.
  *
- * The registry reads whichever account the script's AWS profiles resolve to
+ * The registry reads whichever account the provider's AWS profiles resolve to
  * first. That is correct only for callers pinned to a single account: anything
  * executing occurrences across several accounts must go through a
  * `ServiceRegistryResolverFn`, which binds the services to the account of
@@ -21,12 +22,17 @@ import type { ServiceRegistry } from '../registry/ServiceRegistry.js';
  * would silently route step output to `script.logger`, which is wrong for
  * callers that render their own report (see `go-rta-check`).
  *
- * @param script - GOScript instance with initialized AWS providers
+ * @param deps - AWS services and HTTP client of the run
  * @param reporter - Where steps report their narrative
  * @returns ServiceRegistry with all services initialized
+ *
+ * @example
+ * ```typescript
+ * const services = createServiceRegistry({ services: script.aws.services, http: new GOHttpClient({}) }, reporter);
+ * ```
  */
-export function createServiceRegistry(script: Core.GOScript, reporter: RunbookReporter): ServiceRegistry {
-  return buildServiceRegistry(script.aws.services, reporter, new Core.GOHttpClient({}));
+export function createServiceRegistry(deps: CreateServiceRegistryDeps, reporter: RunbookReporter): ServiceRegistry {
+  return buildServiceRegistry(deps.services, reporter, deps.http);
 }
 
 /**
@@ -41,7 +47,7 @@ export function createServiceRegistry(script: Core.GOScript, reporter: RunbookRe
 export function buildServiceRegistry(
   services: AWSServiceProvider,
   reporter: RunbookReporter,
-  http: Core.GOHttpClient,
+  http: GOHttpClient,
 ): ServiceRegistry {
   return {
     cloudWatchLogs: services.cloudWatchLogs,

@@ -2,7 +2,7 @@
  * `--list-envs`: environments of the file, without API keys (§7.4.1).
  */
 
-import type { Core } from '@go-automation/go-common';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import { Dispatch } from '@go-automation/go-send';
 
 import { DispatchUsageError } from './DispatchUsageError.js';
@@ -29,7 +29,7 @@ interface EnvironmentRow extends Record<string, string> {
  * @param filePath - Environments file
  */
 export async function listEnvironments(
-  logger: Core.GOLogger,
+  logger: GOLogger,
   loader: Dispatch.EnvironmentLoader,
   filePath: string,
 ): Promise<void> {

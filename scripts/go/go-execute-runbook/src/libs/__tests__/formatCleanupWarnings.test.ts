@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { AWS } from '@go-automation/go-common';
+import type { AWSRemoteCleanupWarning } from '@pagopa/go-aws';
 
 import { formatCleanupWarnings } from '../formatCleanupWarnings.js';
 
 describe('formatCleanupWarnings', () => {
   it('respects the Watchtower maximum item count and item length', () => {
-    const warnings: AWS.AWSRemoteCleanupWarning[] = Array.from({ length: 40 }, (_, index) => ({
+    const warnings: AWSRemoteCleanupWarning[] = Array.from({ length: 40 }, (_, index) => ({
       service: index % 2 === 0 ? 'LOGS' : 'ATHENA',
       operationId: `query-${index}`,
       code: 'REMOTE_QUERY_STOP_FAILED',

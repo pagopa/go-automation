@@ -1,4 +1,4 @@
-import { parseInteger } from '@go-automation/go-common/core';
+import { parseInteger } from '@pagopa/go-common/utils';
 import type { Runbook } from '../types/Runbook.js';
 import type { RunbookExecutionResult } from '../types/RunbookExecutionResult.js';
 import type { RunbookOutputContext } from './RunbookOutputContext.js';

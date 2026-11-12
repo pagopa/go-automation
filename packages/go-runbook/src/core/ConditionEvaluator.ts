@@ -1,4 +1,4 @@
-import { valueToString } from '@go-automation/go-common/core';
+import { valueToString } from '@pagopa/go-common/utils';
 import type { Condition, ContainsCondition } from '../types/Condition.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
 import { resolveRef } from '../steps/check/resolveRef.js';

@@ -2,7 +2,8 @@
  * Phase 4 of the sweep: writes the planned state to the accounts that need it.
  */
 
-import { AWS, type Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { AWSSchedulerService } from '@pagopa/go-aws/scheduler';
 
 import type { AwsScheduleEventbridgeConfig, ScheduleMutation, ScheduleSweepPlan } from '../types/index.js';
 
@@ -63,7 +64,7 @@ function indexByProfile(
  * @returns One mutation per configured profile, in configuration order
  */
 export async function applyScheduleSweep(
-  script: Core.GOScript,
+  script: GOScript,
   config: AwsScheduleEventbridgeConfig,
   plan: ScheduleSweepPlan,
 ): Promise<ReadonlyArray<ScheduleMutation>> {
@@ -81,7 +82,7 @@ export async function applyScheduleSweep(
       }
 
       script.prompt.spin(profile, `${profile}: setting "${scheduleName}" to ${plan.targetState}...`);
-      const service = new AWS.AWSSchedulerService(clientProvider.scheduler);
+      const service = new AWSSchedulerService(clientProvider.scheduler);
 
       try {
         const change = await service.setScheduleState(scheduleName, plan.targetState, config.scheduleGroup);

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { GOLogger } from '@go-automation/go-common/core';
+import type { GOLogger } from '@pagopa/go-common/logging';
 
 import type { RunbookReporter } from '../../../registry/RunbookReporter.js';
 

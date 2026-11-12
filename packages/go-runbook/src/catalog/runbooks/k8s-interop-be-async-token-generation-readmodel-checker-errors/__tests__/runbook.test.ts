@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
@@ -49,7 +50,7 @@ async function execute(scenario: Scenario): Promise<Execution> {
       const log = `2026-10-12T10:00:00.000Z ERROR [async-token-generation-readmodel-checker] - ${
         scenario.cid === undefined ? '' : `[CID=${scenario.cid}] `
       }${message ?? ''}`;
-      const rows: ReadonlyArray<ReadonlyArray<ResultField>> =
+      const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> =
         message === undefined
           ? []
           : [

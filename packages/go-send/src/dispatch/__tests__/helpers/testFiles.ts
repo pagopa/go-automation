@@ -2,7 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { GOBinaryFileExporter, GOTextFileImporter } from '@go-automation/go-common/core';
+import { GOBinaryFileExporter } from '@pagopa/go-common/exporters';
+import { GOTextFileImporter } from '@pagopa/go-common/importers';
 
 /**
  * Creates a fresh, private directory under the OS temp dir with `mkdtemp`

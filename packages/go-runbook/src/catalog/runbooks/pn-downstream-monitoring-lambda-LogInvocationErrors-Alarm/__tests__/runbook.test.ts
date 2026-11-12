@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { GOLogger } from '@go-automation/go-common/core';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
@@ -53,7 +53,7 @@ describe('pn-downstream-monitoring-lambda runbook', () => {
     const coreRequestId = 'b95bb742-cc30-4f07-80bc-45a38011e5c4';
     const confinfoRequestId = 'd848f0c5-1089-5c2b-9a3b-91a94511ee52';
     const invocationCalls: { accountId: string; query: string }[] = [];
-    const row = (message: string, requestId: string): ReadonlyArray<ResultField> => [
+    const row = (message: string, requestId: string): ReadonlyArray<GOLogsInsightsResultField> => [
       { field: '@timestamp', value: '2026-09-08T14:00:00.000Z' },
       { field: '@requestId', value: requestId },
       { field: '@message', value: message },
@@ -118,7 +118,7 @@ describe('pn-downstream-monitoring-lambda runbook', () => {
       ['downstream-monitoring-aws-slow-down'],
     );
     const invocationRows = result.finalContext.stepResults.get('query-lambda-invocation') as ReadonlyArray<
-      ReadonlyArray<ResultField>
+      ReadonlyArray<GOLogsInsightsResultField>
     >;
     assert.deepStrictEqual(
       invocationRows.map((logRow) => logRow.find((field) => field.field === 'sourceAccount')?.value),
@@ -136,7 +136,7 @@ describe('pn-downstream-monitoring-lambda runbook', () => {
           async queryWithStatistics(_groups: ReadonlyArray<string>, query: string) {
             const isErrorScan = query.includes("@message like 'ERROR'");
             if (!isErrorScan) invocationCalls.push({ accountId, query });
-            const rows: ReadonlyArray<ReadonlyArray<ResultField>> =
+            const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> =
               isErrorScan &&
               accountId === '350578575906' &&
               query.includes('Runtime exited with error:\\s*signal:\\s*killed')

@@ -22,7 +22,7 @@
   "scripts": {
     "build": "tsc -b",
     "start": "pnpm build && node dist/index.js",
-    "dev": "pnpm --filter=@go-automation/go-runbook build && tsx src/index.ts",
+    "dev": "pnpm --filter=@pagopa/go-runbook build && tsx src/index.ts",
     "watch": "tsc --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
     "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'"
@@ -34,8 +34,9 @@
   "author": "Team GO - Gestione Operativa",
   "license": "EUPL-1.2",
   "dependencies": {
-    "@go-automation/go-common": "workspace:*",
-    "@go-automation/go-runbook": "workspace:*"
+    "@go-automation/go-script": "workspace:*",
+    "@pagopa/go-common": "workspace:*",
+    "@pagopa/go-runbook": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:"

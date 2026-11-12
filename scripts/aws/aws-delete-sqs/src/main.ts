@@ -10,7 +10,10 @@
  * - Long polling and batch operations for efficiency.
  */
 
-import { Core, AWS } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { AWSSQSService, type Message, SQSProcessAction } from '@pagopa/go-aws/sqs';
+import { GOPathType } from '@pagopa/go-common/files';
+import { GOJSONListImporter } from '@pagopa/go-common/importers';
 import type { AwsDeleteSqsConfig } from './types/AwsDeleteSqsConfig.js';
 
 /**
@@ -18,7 +21,7 @@ import type { AwsDeleteSqsConfig } from './types/AwsDeleteSqsConfig.js';
  *
  * @param script - The GOScript instance
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const configValues = await script.getConfiguration<AwsDeleteSqsConfig>();
 
   script.logger.section('AWS Delete SQS');
@@ -34,7 +37,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     throw new Error('Either --queue-name or --queue-url must be provided');
   }
 
-  const sqsService = new AWS.AWSSQSService(script.aws.clients.sqs, script.aws.clients.cloudWatch);
+  const sqsService = new AWSSQSService(script.aws.clients.sqs, script.aws.clients.cloudWatch);
   const metadata = await sqsService.resolveQueueMetadata(queueNameOrUrl);
   const queueUrl = metadata.queueUrl;
 
@@ -44,13 +47,13 @@ export async function main(script: Core.GOScript): Promise<void> {
   let targetIds: Set<string> | undefined;
   if (configValues.inputFile) {
     script.logger.info(`Loading target messages from: ${configValues.inputFile}`);
-    const inputPath = script.paths.resolvePath(configValues.inputFile, Core.GOPathType.INPUT);
-    const importer = new Core.GOJSONListImporter<AWS.Message>({
+    const inputPath = script.paths.resolvePath(configValues.inputFile, GOPathType.INPUT);
+    const importer = new GOJSONListImporter<Message>({
       jsonl: true,
     });
     const result = await importer.import(inputPath);
     targetIds = new Set(
-      result.items.map((m: AWS.Message) => m.MessageId).filter((id: string | undefined): id is string => !!id),
+      result.items.map((m: Message) => m.MessageId).filter((id: string | undefined): id is string => !!id),
     );
     script.logger.info(`Loaded ${targetIds.size} unique MessageIds to delete.`);
   }
@@ -85,15 +88,15 @@ export async function main(script: Core.GOScript): Promise<void> {
     (message) => {
       // Determine action
       if (configValues.purgeAll) {
-        return AWS.SQSProcessAction.DELETE;
+        return SQSProcessAction.DELETE;
       }
 
       if (message.MessageId && targetIds?.has(message.MessageId)) {
-        return AWS.SQSProcessAction.DELETE;
+        return SQSProcessAction.DELETE;
       }
 
       // If not matching, release immediately to keep queue clean for others
-      return AWS.SQSProcessAction.RELEASE;
+      return SQSProcessAction.RELEASE;
     },
     {
       onProgress: (received, deleted, released, skipped) => {

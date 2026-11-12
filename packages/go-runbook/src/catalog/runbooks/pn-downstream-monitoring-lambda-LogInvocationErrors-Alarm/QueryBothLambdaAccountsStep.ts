@@ -1,5 +1,9 @@
-import { parseAwsProfileEntries, readRowField, sumCloudWatchLogsQueryStatistics } from '@go-automation/go-common/aws';
-import type { ResultField } from '@go-automation/go-common/aws';
+import { parseAwsProfileEntries } from '@pagopa/go-aws';
+import {
+  type GOLogsInsightsResultField,
+  readRowField,
+  sumCloudWatchLogsQueryStatistics,
+} from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
@@ -13,7 +17,7 @@ import { extractLambdaRequestId } from '../../../lambda/helpers/extractLambdaReq
 
 import { LAMBDA_FUNCTION, LAMBDA_LOG_SOURCES } from './knownServices.js';
 
-type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 type QueryKind = 'errors' | 'invocation';
 /** At most 80 initial queries for the 2,000 rows that the two error scans can return. */
 const INVOCATION_BATCH_SIZE = 25;

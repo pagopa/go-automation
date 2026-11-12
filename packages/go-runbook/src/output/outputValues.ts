@@ -1,4 +1,4 @@
-import { trimToUndefined } from '@go-automation/go-common/core';
+import { trimToUndefined } from '@pagopa/go-common/utils';
 
 import type { RunbookResultField } from './RunbookOutputContext.js';
 

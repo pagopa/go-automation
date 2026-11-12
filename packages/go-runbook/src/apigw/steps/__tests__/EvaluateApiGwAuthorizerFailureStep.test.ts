@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
 import { EvaluateApiGwAuthorizerFailureStep } from '../EvaluateApiGwAuthorizerFailureStep.js';
@@ -22,7 +22,7 @@ function createContext(stepOutput: unknown): RunbookContext {
   };
 }
 
-function buildRow(fields: Record<string, string>): ResultField[] {
+function buildRow(fields: Record<string, string>): GOLogsInsightsResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
 }
 

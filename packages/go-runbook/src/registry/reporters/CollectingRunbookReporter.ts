@@ -1,4 +1,4 @@
-import type { TreeNode } from '@go-automation/go-common/core';
+import type { TreeNode } from '@pagopa/go-common/render';
 
 import type { RunbookReporter } from '../RunbookReporter.js';
 

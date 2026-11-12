@@ -1,5 +1,7 @@
-import { sumCloudWatchLogsQueryStatistics } from '@go-automation/go-common/aws';
-import type { ResultField } from '@go-automation/go-common/aws';
+import {
+  type GOLogsInsightsResultField,
+  sumCloudWatchLogsQueryStatistics,
+} from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
@@ -17,7 +19,7 @@ import {
   STREAM_QUERY,
 } from './alarmDefinition.js';
 
-type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 const RESPONDER_SIGNATURE =
   'Spid Authentication|Authentication Error|ERROR=Error: Value attribute of StatusCode is invalid: ' +
   'urn:oasis:names:tc:SAML:2.0:status:Responder';
@@ -58,7 +60,7 @@ export class QuerySpidHubDiagnosticsStep implements Step<Rows> {
       const scopedContext = { ...context, services: { ...context.services, cloudWatchLogs } };
       const timeRange = resolveTimeRange(context, { start: 'startTime', end: 'endTime' });
       const queries: Awaited<ReturnType<typeof executeCloudWatchLogsQuery>>[] = [];
-      const rows: ResultField[][] = [];
+      const rows: GOLogsInsightsResultField[][] = [];
       let errorCount = 0;
       let streamCount = 0;
       let responderCount = 0;

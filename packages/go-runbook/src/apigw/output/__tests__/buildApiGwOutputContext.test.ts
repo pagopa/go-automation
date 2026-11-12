@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { Runbook } from '../../../types/Runbook.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { RunbookExecutionResult } from '../../../types/RunbookExecutionResult.js';
@@ -10,7 +10,7 @@ import type { ApiGwOutputContext } from '../ApiGwOutputContext.js';
 import { buildApiGwOutputContext } from '../buildApiGwOutputContext.js';
 import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
-function row(fields: Record<string, string>): ResultField[] {
+function row(fields: Record<string, string>): GOLogsInsightsResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
 }
 

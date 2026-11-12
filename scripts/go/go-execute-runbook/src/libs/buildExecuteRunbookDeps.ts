@@ -1,11 +1,12 @@
-import { Core } from '@go-automation/go-common';
+import { GOHttpClient } from '@pagopa/go-common/http';
+import type { GOScript } from '@go-automation/go-script';
 import { WatchtowerClient } from '@go-automation/go-watchtower-client';
 import type { WatchtowerAuthCredentials } from '@go-automation/go-watchtower-client';
-import { createServiceRegistry } from '@go-automation/go-runbook/catalog';
+import { createServiceRegistry } from '@pagopa/go-runbook/catalog';
 
 import type { ExecuteRunbookConfig } from '../types/ExecuteRunbookConfig.js';
 import type { ExecuteRunbookDeps } from '../types/ExecuteRunbookDeps.js';
-import { ConsoleRunbookReporter } from '@go-automation/go-runbook/catalog';
+import { ConsoleRunbookReporter } from '@pagopa/go-runbook/catalog';
 
 type ExecuteRunbookAuthMode = 'SERVICE' | 'CLI_PAT';
 
@@ -16,7 +17,7 @@ export interface BuildExecuteRunbookDepsOptions {
 type WatchtowerCredentialsLoaderFn = () => Promise<WatchtowerAuthCredentials> | WatchtowerAuthCredentials;
 
 export async function buildExecuteRunbookDeps(
-  script: Core.GOScript,
+  script: GOScript,
   config: ExecuteRunbookConfig,
   options: BuildExecuteRunbookDepsOptions = { auth: 'SERVICE' },
 ): Promise<ExecuteRunbookDeps> {
@@ -29,7 +30,10 @@ export async function buildExecuteRunbookDeps(
     baseUrl: config.watchtowerUrl,
     credentials: await resolveWatchtowerCredentials(script, config, options.auth),
   });
-  const services = createServiceRegistry(script, new ConsoleRunbookReporter(script.logger));
+  const services = createServiceRegistry(
+    { services: script.aws.services, http: new GOHttpClient({}) },
+    new ConsoleRunbookReporter(script.logger),
+  );
   return {
     watchtower,
     logger: script.logger,
@@ -41,7 +45,7 @@ export async function buildExecuteRunbookDeps(
 }
 
 async function resolveWatchtowerCredentials(
-  script: Core.GOScript,
+  script: GOScript,
   config: ExecuteRunbookConfig,
   auth: ExecuteRunbookAuthMode,
 ): Promise<WatchtowerAuthCredentials> {
@@ -61,7 +65,7 @@ function resolveCliPatCredentials(config: ExecuteRunbookConfig): WatchtowerAuthC
 }
 
 async function resolveServiceCredentials(
-  script: Core.GOScript,
+  script: GOScript,
   config: ExecuteRunbookConfig,
 ): Promise<WatchtowerAuthCredentials> {
   const password = await loadServicePassword(script, config);
@@ -74,7 +78,7 @@ async function resolveServiceCredentials(
   };
 }
 
-async function loadServicePassword(script: Core.GOScript, config: ExecuteRunbookConfig): Promise<string> {
+async function loadServicePassword(script: GOScript, config: ExecuteRunbookConfig): Promise<string> {
   const password = config.watchtowerPassword?.trim();
   if (password !== undefined && password !== '') return password;
   const serviceSecretArn = config.watchtowerServiceSecretArn?.trim();

@@ -1,16 +1,20 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { AWS, Core } from '@go-automation/go-common';
-import type { RunbookOutput, ServiceRegistry } from '@go-automation/go-runbook';
+import type { AWSActiveOperationRegistry } from '@pagopa/go-aws';
+import type { AWSClientProvider } from '@pagopa/go-aws/all';
+import type { AWSAthenaService } from '@pagopa/go-aws/athena';
+import { AWSCloudWatchLogsService } from '@pagopa/go-aws/cloudwatch-logs';
+import { GOLogger } from '@pagopa/go-common/logging';
+import type { RunbookOutput, ServiceRegistry } from '@pagopa/go-runbook';
 import type { WatchtowerClient } from '@go-automation/go-watchtower-client';
-import { RUNBOOK_CATALOG } from '@go-automation/go-runbook/catalog';
+import { RUNBOOK_CATALOG } from '@pagopa/go-runbook/catalog';
 
 import type { ExecuteRunbookDeps } from '../../types/ExecuteRunbookDeps.js';
 import type { ExecuteRunbookInput } from '../../types/ExecuteRunbookInput.js';
 import { assertRunbookCapability } from '../assertRunbookCapability.js';
 import { executeRunbook } from '../executeRunbook.js';
-import { createTestServiceRegistry } from '@go-automation/go-runbook';
+import { createTestServiceRegistry } from '@pagopa/go-runbook';
 
 const RUNBOOK = RUNBOOK_CATALOG.resolveByKey('pn-tokenExchangeLambda-LogInvocationErrors-Alarm')!.descriptor;
 
@@ -368,37 +372,39 @@ describe('executeRunbook', () => {
       readonly logGroupIdentifiers?: ReadonlyArray<string>;
       readonly logGroupNames?: ReadonlyArray<string>;
     }[] = [];
+    const cloudWatchLogsClient = {
+      async send(command: {
+        input: {
+          queryString?: string;
+          logGroupIdentifiers?: ReadonlyArray<string>;
+          logGroupNames?: ReadonlyArray<string>;
+        };
+      }) {
+        await Promise.resolve();
+        if (command.input.queryString !== undefined) {
+          queries.push(command.input);
+          return { queryId: `query-${String(queries.length)}` };
+        }
+        return {
+          status: 'Complete',
+          results: [
+            [
+              { field: '@timestamp', value: '2026-06-22T10:00:00.000Z' },
+              { field: '@requestId', value: requestId },
+              { field: '@message', value: `REPORT RequestId: ${requestId}\tDuration: 3000.00 ms\tStatus: timeout` },
+            ],
+          ],
+          statistics: { recordsMatched: 1, recordsScanned: 1, bytesScanned: 1 },
+        };
+      },
+    };
     const clientProvider = {
       getProfile: () => 'worker-role',
       getRegion: () => 'eu-south-1',
-      cloudWatchLogs: {
-        async send(command: {
-          input: {
-            queryString?: string;
-            logGroupIdentifiers?: ReadonlyArray<string>;
-            logGroupNames?: ReadonlyArray<string>;
-          };
-        }) {
-          await Promise.resolve();
-          if (command.input.queryString !== undefined) {
-            queries.push(command.input);
-            return { queryId: `query-${String(queries.length)}` };
-          }
-          return {
-            status: 'Complete',
-            results: [
-              [
-                { field: '@timestamp', value: '2026-06-22T10:00:00.000Z' },
-                { field: '@requestId', value: requestId },
-                { field: '@message', value: `REPORT RequestId: ${requestId}\tDuration: 3000.00 ms\tStatus: timeout` },
-              ],
-            ],
-            statistics: { recordsMatched: 1, recordsScanned: 1, bytesScanned: 1 },
-          };
-        },
-      },
-    } as unknown as AWS.AWSClientProvider;
-    const cloudWatchLogs = new AWS.AWSCloudWatchLogsService({
+      cloudWatchLogs: cloudWatchLogsClient,
+      client: (): unknown => cloudWatchLogsClient,
+    } as unknown as AWSClientProvider;
+    const cloudWatchLogs = new AWSCloudWatchLogsService({
       profileNames: ['worker-role'],
       first: clientProvider,
       getClientProvider: (profile) => {
@@ -469,10 +475,10 @@ function fakeDeps(
 ): ExecuteRunbookDeps {
   return {
     watchtower: watchtower as unknown as WatchtowerClient,
-    logger: new Core.GOLogger(),
+    logger: new GOLogger(),
     services: createTestServiceRegistry({
       cloudWatchLogs: successfulCloudWatchLogsService(),
-      athena: { forExecution: () => ({}) } as unknown as AWS.AWSAthenaService,
+      athena: { forExecution: () => ({}) } as unknown as AWSAthenaService,
       ...services,
     }),
     awsProfiles: [],
@@ -481,7 +487,7 @@ function fakeDeps(
   };
 }
 
-function successfulCloudWatchLogsService(): AWS.AWSCloudWatchLogsService {
+function successfulCloudWatchLogsService(): AWSCloudWatchLogsService {
   return {
     forTarget: () => ({
       queryWithStatistics: async () => {
@@ -493,12 +499,12 @@ function successfulCloudWatchLogsService(): AWS.AWSCloudWatchLogsService {
         };
       },
     }),
-  } as unknown as AWS.AWSCloudWatchLogsService;
+  } as unknown as AWSCloudWatchLogsService;
 }
 
-function failingCloudWatchLogsService(onQuery: StopObserverFn, onStop: StopObserverFn): AWS.AWSCloudWatchLogsService {
+function failingCloudWatchLogsService(onQuery: StopObserverFn, onStop: StopObserverFn): AWSCloudWatchLogsService {
   return {
-    forTarget: (_target: unknown, activeOperations: AWS.AWSActiveOperationRegistry) => ({
+    forTarget: (_target: unknown, activeOperations: AWSActiveOperationRegistry) => ({
       queryWithStatistics: async () => {
         await Promise.resolve();
         onQuery();
@@ -513,5 +519,5 @@ function failingCloudWatchLogsService(onQuery: StopObserverFn, onStop: StopObser
         throw new Error('query failed after remote operation registration');
       },
     }),
-  } as unknown as AWS.AWSCloudWatchLogsService;
+  } as unknown as AWSCloudWatchLogsService;
 }

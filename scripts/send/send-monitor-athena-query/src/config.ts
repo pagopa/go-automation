@@ -4,12 +4,19 @@
  * Contains script metadata and parameters definition.
  */
 
-import { AWS, Core } from '@go-automation/go-common';
+import {
+  type GOConfigParameterOptions,
+  GOConfigParameterType,
+  type GOConfigParameterValue,
+  type GOScriptHookContext,
+  type GOScriptMetadata,
+} from '@go-automation/go-script';
+import { AWSS3Uri } from '@pagopa/go-aws/s3';
 
 /**
  * Script metadata
  */
-export const scriptMetadata: Core.GOScriptMetadata = {
+export const scriptMetadata: GOScriptMetadata = {
   name: 'Send Monitor Athena Query',
   version: '1.0.0',
   description:
@@ -20,24 +27,24 @@ export const scriptMetadata: Core.GOScriptMetadata = {
 /**
  * Script parameter definitions
  */
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
   {
     name: 'from',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Start date/time for the query range. Supports ISO, date-only, SQL datetime, epoch seconds/ms.',
     required: false,
     aliases: ['f'],
   },
   {
     name: 'to',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'End date/time for the query range. Defaults to current time.',
     required: false,
     aliases: ['t'],
   },
   {
     name: 'time.lookback.hours',
-    type: Core.GOConfigParameterType.INT,
+    type: GOConfigParameterType.INT,
     description: 'Lookback window used when from is not provided.',
     required: false,
     aliases: ['tlh'],
@@ -46,7 +53,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'time.zone',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Timezone used for date parsing and template tokens.',
     required: false,
     aliases: ['tz'],
@@ -54,7 +61,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'aws.profile',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description:
       'AWS SSO profile name. Optional in AWS-managed environments or when default credentials are available.',
     required: false,
@@ -62,7 +69,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'aws.region',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'AWS region.',
     required: false,
     aliases: ['ar'],
@@ -70,14 +77,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'athena.database',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Athena database name.',
     required: true,
     aliases: ['ad'],
   },
   {
     name: 'athena.catalog',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Athena data catalog.',
     required: false,
     aliases: ['ac'],
@@ -85,7 +92,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'athena.workgroup',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Athena workgroup.',
     required: false,
     aliases: ['aw'],
@@ -93,28 +100,28 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'athena.output.location',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'S3 output location for Athena query results.',
     required: true,
     aliases: ['ao'],
   },
   {
     name: 'athena.query',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Inline SQL query template.',
     required: false,
     aliases: ['aq'],
   },
   {
     name: 'athena.query.file',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'SQL query template file. Relative paths are resolved from the script config directory.',
     required: false,
     aliases: ['aqf'],
   },
   {
     name: 'athena.max.poll.attempts',
-    type: Core.GOConfigParameterType.INT,
+    type: GOConfigParameterType.INT,
     description: 'Maximum Athena query status polling attempts.',
     required: false,
     aliases: ['ampa'],
@@ -123,7 +130,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'athena.poll.interval.ms',
-    type: Core.GOConfigParameterType.INT,
+    type: GOConfigParameterType.INT,
     description: 'Constant delay between Athena query status polling attempts.',
     required: false,
     aliases: ['apim'],
@@ -132,7 +139,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'template.params',
-    type: Core.GOConfigParameterType.STRING_ARRAY,
+    type: GOConfigParameterType.STRING_ARRAY,
     description: 'Template parameters as key=value entries or JSON objects. Used by {{param.key}} placeholders.',
     required: false,
     aliases: ['tp'],
@@ -140,7 +147,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'template.raw',
-    type: Core.GOConfigParameterType.STRING_ARRAY,
+    type: GOConfigParameterType.STRING_ARRAY,
     description: 'Validated raw template values as key=value entries. Used by {{raw.key}} placeholders.',
     required: false,
     aliases: ['tr'],
@@ -148,7 +155,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'template.legacy.aliases',
-    type: Core.GOConfigParameterType.BOOL,
+    type: GOConfigParameterType.BOOL,
     description: 'Enable legacy TPP aliases such as {{startYear}} and {{endDate}}.',
     required: false,
     aliases: ['tla'],
@@ -156,7 +163,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'output.folder',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Local output folder. Relative paths are created under the execution output directory.',
     required: false,
     aliases: ['of'],
@@ -164,7 +171,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'output.format',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Artifact format: csv, json, or jsonl.',
     required: false,
     aliases: ['fmt'],
@@ -173,7 +180,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'output.file.prefix',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Generated artifact file prefix.',
     required: false,
     aliases: ['ofp'],
@@ -181,7 +188,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'output.attach.when.empty',
-    type: Core.GOConfigParameterType.BOOL,
+    type: GOConfigParameterType.BOOL,
     description: 'Attach the generated artifact to Slack even when the query returns zero rows.',
     required: false,
     aliases: ['oawe'],
@@ -189,14 +196,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'artifact.s3.location',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Optional S3 location where the final local artifact is uploaded.',
     required: false,
     aliases: ['asl'],
   },
   {
     name: 'slack.token',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Slack bot token for report notifications.',
     required: false,
     sensitive: true,
@@ -204,14 +211,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'slack.channel',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Slack channel ID or name.',
     required: false,
     aliases: ['sc'],
   },
   {
     name: 'slack.message.template',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Slack message template using {{key}} placeholders.',
     required: false,
     aliases: ['smt'],
@@ -220,7 +227,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'slack.send.on.empty',
-    type: Core.GOConfigParameterType.BOOL,
+    type: GOConfigParameterType.BOOL,
     description: 'Send a Slack message even when the query returns zero rows.',
     required: false,
     aliases: ['ssoe'],
@@ -228,7 +235,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'slack.send.on.error',
-    type: Core.GOConfigParameterType.BOOL,
+    type: GOConfigParameterType.BOOL,
     description: 'Send a Slack error message when execution fails after config load.',
     required: false,
     aliases: ['ssoerr'],
@@ -236,7 +243,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'analysis.rules',
-    type: Core.GOConfigParameterType.STRING_ARRAY,
+    type: GOConfigParameterType.STRING_ARRAY,
     description:
       'Threshold rules as JSON strings or semicolon DSL entries: name=x;field=count;operator=>;value=10;aggregation=sum.',
     required: false,
@@ -245,14 +252,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'analysis.threshold.field',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Legacy single threshold field.',
     required: false,
     aliases: ['atf'],
   },
   {
     name: 'analysis.threshold',
-    type: Core.GOConfigParameterType.INT,
+    type: GOConfigParameterType.INT,
     description: 'Legacy single threshold value.',
     required: false,
     aliases: ['at'],
@@ -270,7 +277,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
  * value coming from the preset is treated as a fallback that this composition
  * overrides. With no bucket configured (typical local run) nothing is changed.
  */
-export function prepareConfig(context: Core.GOScriptHookContext): void {
+export function prepareConfig(context: GOScriptHookContext): void {
   const bucket = context.env.get('REPORTS_S3_BUCKET')?.trim();
   if (bucket === undefined || bucket.length === 0) {
     return;
@@ -284,18 +291,18 @@ export function prepareConfig(context: Core.GOScriptHookContext): void {
 
   const presetName = context.config.getString('script.preset.name')?.trim();
   const folder = presetName !== undefined && presetName.length > 0 ? presetName : 'reports';
-  context.config.set('artifact.s3.location', AWS.AWSS3Uri.format(bucket, folder));
+  context.config.set('artifact.s3.location', AWSS3Uri.format(bucket, folder));
 }
 
-function positiveInteger(value: Core.GOConfigParameterValue): boolean | string {
+function positiveInteger(value: GOConfigParameterValue): boolean | string {
   return typeof value === 'number' && Number.isInteger(value) && value > 0 ? true : 'Expected a positive integer';
 }
 
-function nonNegativeInteger(value: Core.GOConfigParameterValue): boolean | string {
+function nonNegativeInteger(value: GOConfigParameterValue): boolean | string {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? true : 'Expected a non-negative integer';
 }
 
-function outputFormat(value: Core.GOConfigParameterValue): boolean | string {
+function outputFormat(value: GOConfigParameterValue): boolean | string {
   return typeof value === 'string' && ['csv', 'json', 'jsonl'].includes(value)
     ? true
     : 'Expected one of: csv, json, jsonl';

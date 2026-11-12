@@ -1,9 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { RunbookOutcome, RunbookOutput } from '@go-automation/go-runbook';
+import type { RunbookOutcome, RunbookOutput } from '@pagopa/go-runbook';
 
-import { classifyRunbookOutcome } from '@go-automation/go-runbook';
+import { classifyRunbookOutcome } from '@pagopa/go-runbook';
 
 interface MakeOptions {
   readonly recordsMatched?: number;

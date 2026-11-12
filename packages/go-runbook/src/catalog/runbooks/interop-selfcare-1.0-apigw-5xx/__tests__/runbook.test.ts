@@ -2,8 +2,9 @@ import { SELFCARE_ALARM } from '../alarmDefinition.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 
 import { apigw } from '../../framework.js';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
@@ -37,7 +38,7 @@ describe('buildRunbook', () => {
   });
 
   it('matches an API Gateway-only timeout and exposes it as output evidence', async () => {
-    const accessRows: ReadonlyArray<ReadonlyArray<ResultField>> = [
+    const accessRows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
       [
         { field: 'latestTimestamp', value: '2026-08-24 09:10:00.000' },
         { field: 'count', value: '1' },
@@ -78,7 +79,7 @@ describe('buildRunbook', () => {
   });
 
   it('keeps an actionable IAM failure primary when a benign SelfcareID suppression also matches', async () => {
-    const accessRows: ReadonlyArray<ReadonlyArray<ResultField>> = [
+    const accessRows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
       [
         { field: 'latestTimestamp', value: '2026-08-24 09:10:00.000' },
         { field: 'count', value: '1' },
@@ -87,7 +88,7 @@ describe('buildRunbook', () => {
         { field: 'requestPath', value: '/1.0/backend-for-frontend/catalog' },
       ],
     ];
-    const applicationRows: ReadonlyArray<ReadonlyArray<ResultField>> = [
+    const applicationRows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
       [
         { field: '@timestamp', value: '2026-08-24 09:09:30.000' },
         { field: 'pod_app', value: 'interop-be-backend-for-frontend' },

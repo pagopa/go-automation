@@ -1,4 +1,4 @@
-import { omitUndefined } from '@go-automation/go-common/core';
+import { omitUndefined } from '@pagopa/go-common/utils';
 import type { StepKind } from '../types/StepKind.js';
 import type { StepTrace } from './StepTrace.js';
 import type { CaseEvaluationTrace } from './CaseEvaluationTrace.js';

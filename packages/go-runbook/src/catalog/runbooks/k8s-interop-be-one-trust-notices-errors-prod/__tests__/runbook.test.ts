@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
@@ -44,7 +45,7 @@ async function execute(scenario: Scenario): Promise<TestExecution> {
       const tracker = query.includes('filter cid =');
       const podApp = tracker ? 'interop-be-another-service' : ALARM.podApp;
       const messages = (tracker ? scenario.trackerMessages : scenario.messages) ?? [];
-      const rows: ReadonlyArray<ReadonlyArray<ResultField>> = messages.map((message) => [
+      const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = messages.map((message) => [
         { field: 'pod_app', value: podApp },
         {
           field: '@message',

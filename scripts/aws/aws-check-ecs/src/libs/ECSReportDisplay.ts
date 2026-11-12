@@ -1,4 +1,5 @@
-import { Core, AWS } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { ECSClusterHealthReport } from '@pagopa/go-aws/ecs';
 
 /**
  * Funzione per la visualizzazione a console del report di salute di un cluster ECS
@@ -12,7 +13,7 @@ import { Core, AWS } from '@go-automation/go-common';
  * displayClusterReport(script, clusterReport);
  * ```
  */
-export function displayClusterReport(script: Core.GOScript, report: AWS.ECSClusterHealthReport): void {
+export function displayClusterReport(script: GOScript, report: ECSClusterHealthReport): void {
   if (report.isHealthy) {
     script.logger.section(`Cluster: ${report.clusterName} (HEALTHY)`);
   } else {

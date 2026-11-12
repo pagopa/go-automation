@@ -8,7 +8,8 @@
  * switch of `main.ts`.
  */
 
-import type { AWS, Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { ScheduleState } from '@pagopa/go-aws/scheduler';
 
 import type { AwsScheduleEventbridgeConfig, ScheduleMutation, ScheduleSweepVerdict } from '../types/index.js';
 import { applyScheduleSweep } from './applyScheduleSweep.js';
@@ -40,9 +41,9 @@ function formatVerdict(verdict: ScheduleSweepVerdict): string {
  * @throws When any account failed, or an account is missing the schedule under `--fail-on-missing`
  */
 export async function runScheduleSweep(
-  script: Core.GOScript,
+  script: GOScript,
   config: AwsScheduleEventbridgeConfig,
-  targetState: AWS.ScheduleState,
+  targetState: ScheduleState,
 ): Promise<void> {
   const reads = await readSchedules(script, config);
   const plan = planScheduleSweep(reads, targetState);

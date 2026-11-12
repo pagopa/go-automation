@@ -1,4 +1,4 @@
-import type { AWSExecutionTarget } from '@go-automation/go-common/aws';
+import type { AWSExecutionTarget } from '@pagopa/go-aws';
 
 import type { ResolvedServiceRegistry } from './ResolvedServiceRegistry.js';
 

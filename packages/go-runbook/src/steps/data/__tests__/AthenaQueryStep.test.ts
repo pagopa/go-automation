@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { AthenaQueryStep } from '../AthenaQueryStep.js';
-import type { AWSAthenaQueryOptions } from '@go-automation/go-common/aws';
+import type { AWSAthenaQueryOptions } from '@pagopa/go-aws/athena';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 

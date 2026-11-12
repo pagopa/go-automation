@@ -5,7 +5,8 @@
  * and CSV (extract PK from a specific column) using go-common importers.
  */
 
-import { Core } from '@go-automation/go-common';
+import { GOCSVListImporter, GOFileListImporter, GOJSONListImporter } from '@pagopa/go-common/importers';
+import { valueToString } from '@pagopa/go-common/utils';
 
 import type { InputFormat } from '../types/index.js';
 
@@ -54,7 +55,7 @@ export async function importPks(filePath: string, options: PkImportOptions): Pro
     case 'csv':
       return importFromCsv(filePath, options.csvColumn, options.csvDelimiter);
     default: {
-      throw new Error(`Unsupported input format: ${Core.valueToString(options.format)}`);
+      throw new Error(`Unsupported input format: ${valueToString(options.format)}`);
     }
   }
 }
@@ -64,7 +65,7 @@ export async function importPks(filePath: string, options: PkImportOptions): Pro
  * Uses GOFileListImporter with trim, skip empty, and deduplication.
  */
 async function importFromTxt(filePath: string): Promise<ReadonlyArray<string>> {
-  const importer = new Core.GOFileListImporter<string>({
+  const importer = new GOFileListImporter<string>({
     trim: true,
     skipEmptyLines: true,
     deduplicate: true,
@@ -81,7 +82,7 @@ async function importFromTxt(filePath: string): Promise<ReadonlyArray<string>> {
  * Uses GOJSONListImporter in jsonl mode with deduplication.
  */
 async function importFromJsonl(filePath: string): Promise<ReadonlyArray<string>> {
-  const importer = new Core.GOJSONListImporter<string>({
+  const importer = new GOJSONListImporter<string>({
     jsonl: true,
     skipInvalidItems: true,
     rowTransformer: (item) => {
@@ -106,7 +107,7 @@ async function importFromCsv(
   columnName?: string,
   delimiter?: string,
 ): Promise<ReadonlyArray<string>> {
-  const importer = new Core.GOCSVListImporter<string>({
+  const importer = new GOCSVListImporter<string>({
     hasHeaders: true,
     skipInvalidItems: true,
     ...(delimiter !== undefined ? { delimiter } : {}),

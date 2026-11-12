@@ -1,4 +1,4 @@
-import { getErrorMessage } from '@go-automation/go-common/core';
+import { getErrorMessage } from '@pagopa/go-common/errors';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
 import type { StepKind } from '../../../types/StepKind.js';

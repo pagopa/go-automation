@@ -1,4 +1,4 @@
-import { escapeLogsInsightsRegexLiteral } from '@go-automation/go-common/aws';
+import { escapeLogsInsightsRegexLiteral } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 /** Maximum number of rows returned by an INTEROP API Gateway application-log query. */
 export const INTEROP_API_GW_APPLICATION_QUERY_LIMIT = 10_000;

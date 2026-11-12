@@ -10,14 +10,15 @@
 
 import * as fs from 'fs';
 
-import { GOEventEmitterBase } from '@go-automation/go-common/core';
-import type { GOListImporter } from '@go-automation/go-common/core';
+import { getErrorMessage } from '@pagopa/go-common/errors';
+import { GOEventEmitterBase } from '@pagopa/go-common/events';
+import type { GOListExporterStreamWriter } from '@pagopa/go-common/exporters';
 import type {
+  GOListImporter,
   GOListImportError,
   GOListImportErrorEvent,
   GOListImportProgressEvent,
-} from '@go-automation/go-common/core';
-import type { GOListExporterStreamWriter } from '@go-automation/go-common/core';
+} from '@pagopa/go-common/importers';
 import { SENDNotifications } from '../../SENDNotifications.js';
 
 import { SENDNotificationImportBatchProcessor } from './SENDNotificationImportBatchProcessor.js';
@@ -32,7 +33,6 @@ import type { SENDNotificationImportWorkerEventMap } from './SENDNotificationImp
 import type { SENDNotificationImportWorkerOptions } from './SENDNotificationImportWorkerOptions.js';
 import type { SENDNotificationImportWorkerResult } from './SENDNotificationImportWorkerResult.js';
 import type { SENDNotificationRow } from './SENDNotificationRow.js';
-import { getErrorMessage } from '@go-automation/go-common/core';
 
 type ImportSource = string | Buffer;
 type NotificationExportWriter = GOListExporterStreamWriter<unknown>;

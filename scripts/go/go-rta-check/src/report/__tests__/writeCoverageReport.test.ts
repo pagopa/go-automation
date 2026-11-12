@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import * as nodePath from 'node:path';
 import { describe, it } from 'node:test';
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 import type { CoverageReport } from '@go-automation/go-watchtower-runbook';
 
 import { COVERAGE_EXIT_CODES } from '../../libs/runCoverageCheck.js';
@@ -17,7 +17,7 @@ describe('writeCoverageReport', () => {
     const outputPath = nodePath.join(temporaryDirectory, 'coverage.json');
     const script = {
       paths: { resolvePath: () => outputPath },
-    } as unknown as Core.GOScript;
+    } as unknown as GOScript;
 
     try {
       const writtenPath = await writeCoverageReport(script, REPORT, COVERAGE_EXIT_CODES.INVALID_COVERAGE);

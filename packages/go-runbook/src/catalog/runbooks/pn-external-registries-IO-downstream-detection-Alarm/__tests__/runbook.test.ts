@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { GOLogger } from '@go-automation/go-common/core';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 
 import { computeRunbookTimeRange } from '../../../computeRunbookTimeRange.js';
 import { SEND_DOWNSTREAMS, service } from '../../framework.js';
@@ -87,7 +87,7 @@ describe('external-registries IO downstream runbook', () => {
         async query(
           logGroups: ReadonlyArray<string>,
           query: string,
-        ): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
+        ): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
           assert.deepStrictEqual(logGroups, ['/aws/ecs/pn-external-registries']);
           queries.push(query);
           return Promise.resolve(
@@ -139,7 +139,7 @@ describe('external-registries IO downstream runbook', () => {
     let calls = 0;
     const services = createTestServiceRegistry({
       cloudWatchLogs: {
-        async query(): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
+        async query(): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
           calls += 1;
           return Promise.resolve([
             [
@@ -183,7 +183,7 @@ describe('external-registries IO downstream runbook', () => {
       })}`;
     const services = createTestServiceRegistry({
       cloudWatchLogs: {
-        async query(): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
+        async query(): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
           await Promise.resolve();
           return [
             [
@@ -215,7 +215,7 @@ describe('external-registries IO downstream runbook', () => {
     const runbook = buildRunbook();
     const services = createTestServiceRegistry({
       cloudWatchLogs: {
-        async query(): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
+        async query(): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
           await Promise.resolve();
           return [
             [

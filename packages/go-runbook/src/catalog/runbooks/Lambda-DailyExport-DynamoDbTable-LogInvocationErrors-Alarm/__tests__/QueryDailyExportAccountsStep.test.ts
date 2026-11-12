@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import type { RunbookContext } from '../../framework.js';
 import { QueryDailyExportAccountsStep } from '../QueryDailyExportAccountsStep.js';
 
-type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 interface Call {
   key: string;
   query: string;
@@ -13,7 +13,7 @@ interface Call {
 type RowsForQueryFn = (key: string, query: string) => Rows;
 const SOURCES = ['configured-reader-a', 'configured-reader-b'];
 
-function row(requestId: string, key?: string): ReadonlyArray<ResultField> {
+function row(requestId: string, key?: string): ReadonlyArray<GOLogsInsightsResultField> {
   return [
     { field: '@requestId', value: requestId },
     { field: '@message', value: 'ERROR' },

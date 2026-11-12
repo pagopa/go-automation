@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { GOLogger } from '@go-automation/go-common/core';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionResult.js';
@@ -14,7 +14,7 @@ const ENDPOINT = 'https://api.selfcare.pagopa.it/external/data-vault/v1/pn-pg/in
 const HTTP_500 = `[DOWNSTREAM] Service SelfcarePG returned errors=500 Internal Server Error from POST ${ENDPOINT}`;
 const TRACE_ID = '1-6a998383-6af3ccaf345f6ec60aa6e431';
 
-function row(message: string): ReadonlyArray<ResultField> {
+function row(message: string): ReadonlyArray<GOLogsInsightsResultField> {
   return [
     { field: '@timestamp', value: '2026-09-03T14:30:35.262Z' },
     { field: 'level', value: 'ERROR' },

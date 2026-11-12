@@ -1,5 +1,5 @@
-import { Core } from '@go-automation/go-common';
-import { interop } from '@go-automation/go-runbook';
+import type { GOScript } from '@go-automation/go-script';
+import { interop } from '@pagopa/go-runbook';
 
 import type { InteropAlarmOccurrence } from '../types/index.js';
 import { createOccurrenceTimeRange } from './createOccurrenceTimeRange.js';
@@ -10,7 +10,7 @@ const WINDOW_SECONDS_BEFORE_ALARM = 300;
 const WINDOW_SECONDS_AFTER_ALARM = 120;
 
 interface AnalyzeInteropAlarmOccurrenceInput {
-  readonly script: Core.GOScript;
+  readonly script: GOScript;
   readonly occurrence: InteropAlarmOccurrence;
   readonly requestedAlarmName?: string;
   readonly noCidLogArray: string[];

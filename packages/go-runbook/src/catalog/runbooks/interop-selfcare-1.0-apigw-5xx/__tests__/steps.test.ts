@@ -5,8 +5,8 @@ import type {
   AWSCloudWatchLogsQueryOptions,
   AWSCloudWatchLogsQueryResult,
   AWSCloudWatchLogsTimeRange,
-  ResultField,
-} from '@go-automation/go-common/aws';
+} from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../../types/RunbookContext.js';
 import { interop } from '../../framework.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
@@ -42,7 +42,7 @@ function context(cloudWatchLogs: unknown, stepResults = new Map<string, unknown>
 describe('INTEROP Selfcare API Gateway custom steps', () => {
   it('queries the runtime-resolved access log group and API Gateway id', async () => {
     let seen: SeenQuery | undefined;
-    const rows: ReadonlyArray<ReadonlyArray<ResultField>> = [
+    const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
       [
         { field: 'count', value: '3' },
         { field: 'status', value: '504' },
@@ -92,7 +92,7 @@ describe('INTEROP Selfcare API Gateway custom steps', () => {
   });
 
   it('sums aggregate counts and exposes the primary APIGW output variables', async () => {
-    const rows: ReadonlyArray<ReadonlyArray<ResultField>> = [
+    const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
       [
         { field: 'count', value: '3' },
         { field: 'status', value: '504' },
@@ -125,7 +125,7 @@ describe('INTEROP Selfcare API Gateway custom steps', () => {
   });
 
   it('takes every representative APIGW variable from the aggregate row with the highest count', async () => {
-    const rows: ReadonlyArray<ReadonlyArray<ResultField>> = [
+    const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
       [
         { field: 'count', value: '1' },
         { field: 'status', value: '504' },

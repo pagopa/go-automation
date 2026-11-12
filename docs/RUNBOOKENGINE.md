@@ -1,7 +1,7 @@
 # Runbook Engine - Reference
 
 > **Documentazione di riferimento per il motore di esecuzione runbook**
-> Package: `@go-automation/go-runbook-engine`
+> Package: `@pagopa/go-runbook-engine`
 
 Per il contratto delle evidenze custom e dei campi diagnostici, vedere
 [Output delle diagnostiche dei runbook](architecture/runbook-evidence.md).
@@ -1339,7 +1339,7 @@ import {
   logAction,
   notifyAction,
   escalateAction,
-} from '@go-automation/go-runbook-engine';
+} from '@pagopa/go-runbook-engine';
 
 // ---------------------------------------------------------------
 // Runbook: API Gateway 5xx Alarm Resolution
@@ -1650,12 +1650,12 @@ const apiGateway5xxRunbook = RunbookBuilder.create('alarm-api-gw-5xx')
 ### Esecuzione del Runbook
 
 ```typescript
-import { Core, AWS } from '@go-automation/go-common';
-import { RunbookEngine, ConditionEvaluator, createServiceRegistry } from '@go-automation/go-runbook-engine';
+import { GOScript } from '@go-automation/go-script';
+import { RunbookEngine, ConditionEvaluator, createServiceRegistry } from '@pagopa/go-runbook-engine';
 import { apiGateway5xxRunbook } from './runbooks/apiGateway5xx';
 
 // Dentro uno script GOScript
-const script = new Core.GOScript({
+const script = new GOScript({
   metadata: { name: 'Runbook Runner', version: '1.0.0', description: 'Esegue runbook' },
   config: {
     parameters: [

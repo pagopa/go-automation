@@ -1,4 +1,4 @@
-import { escapeLogsInsightsString } from '@go-automation/go-common/aws';
+import { escapeLogsInsightsString } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { interop } from '../framework.js';
 import { buildInteropK8sCidTrackerQuery } from '../../../interop/k8s/queries/interopK8sQueries.js';
 

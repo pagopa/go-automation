@@ -1,7 +1,9 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { AWSCloudWatchLogsService, ResultField } from '@go-automation/go-common/aws';
+import type { AWSCloudWatchLogsService } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { TimeRange } from '../../../types/TimeRange.js';
 
@@ -9,7 +11,6 @@ import { QueryServiceLogsStep } from '../QueryServiceLogsStep.js';
 import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 import { ConsoleRunbookReporter } from '../../../registry/reporters/ConsoleRunbookReporter.js';
 import { NOOP_RUNBOOK_REPORTER } from '../../../registry/reporters/NOOP_RUNBOOK_REPORTER.js';
-import type { GOLogger } from '@go-automation/go-common/core';
 
 interface CapturedCall {
   readonly logGroups: ReadonlyArray<string>;
@@ -17,7 +18,7 @@ interface CapturedCall {
   readonly timeRange: TimeRange;
 }
 
-function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<ResultField>> = []): {
+function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = []): {
   service: AWSCloudWatchLogsService;
   calls: CapturedCall[];
 } {
@@ -28,7 +29,7 @@ function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<ResultField>> = [
         logGroups: ReadonlyArray<string>,
         query: string,
         timeRange: TimeRange,
-      ): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+      ): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> => {
         await Promise.resolve();
         calls.push({ logGroups: [...logGroups], query, timeRange });
         return results;
@@ -201,7 +202,7 @@ describe('queryServiceLogs', () => {
   });
 
   it('returns the rows produced by the CloudWatch Logs service', async () => {
-    const rows: ReadonlyArray<ReadonlyArray<ResultField>> = [
+    const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
       [{ field: '@message', value: 'row1' }],
       [{ field: '@message', value: 'row2' }],
     ];

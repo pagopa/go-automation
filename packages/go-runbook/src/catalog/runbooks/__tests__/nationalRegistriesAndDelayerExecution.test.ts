@@ -1,5 +1,6 @@
-import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -34,7 +35,7 @@ async function execute(
       await Promise.resolve();
       logGroups.push(...groups);
       queries.push(query);
-      const rows: ReadonlyArray<ReadonlyArray<ResultField>> = [
+      const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
         [
           { field: '@timestamp', value: alarmDatetime },
           { field: 'level', value: 'ERROR' },

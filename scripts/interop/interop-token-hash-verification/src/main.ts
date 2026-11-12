@@ -7,7 +7,7 @@
 
 import * as path from 'node:path';
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import { DEFAULT_CW_QUERY_APPLICATION, DEFAULT_CW_QUERY_CID } from './config.js';
 import {
@@ -31,7 +31,7 @@ const EXTRACT_FIELD = '@message';
  *
  * @param script - The GOScript instance for logging and prompts
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   script.logger.section('Starting Interop Verifica Hash Token');
 
   // Load configuration

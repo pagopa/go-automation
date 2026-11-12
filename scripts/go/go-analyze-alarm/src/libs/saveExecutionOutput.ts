@@ -2,15 +2,17 @@
  * Utility for persisting the compact runbook execution result to disk.
  */
 
-import { Core } from '@go-automation/go-common';
-import { buildRunbookOutput } from '@go-automation/go-runbook';
-import { buildCatalogOutputContext } from '@go-automation/go-runbook/catalog';
-import type { Runbook, RunbookExecutionResult } from '@go-automation/go-runbook';
+import type { GOScript } from '@go-automation/go-script';
+import { GOJSONFileExporter } from '@pagopa/go-common/exporters';
+import { GOPathType } from '@pagopa/go-common/files';
+import { buildRunbookOutput } from '@pagopa/go-runbook';
+import { buildCatalogOutputContext } from '@pagopa/go-runbook/catalog';
+import type { Runbook, RunbookExecutionResult } from '@pagopa/go-runbook';
 
 import { formatOutputSuffix } from './formatOutputSuffix.js';
 
 export async function saveExecutionOutput(
-  script: Core.GOScript,
+  script: GOScript,
   runbook: Runbook,
   result: RunbookExecutionResult,
   traceFile?: string,
@@ -22,10 +24,10 @@ export async function saveExecutionOutput(
   });
 
   const fileName = `result-${runbook.metadata.id}${formatOutputSuffix(outputSuffix)}.json`;
-  const resultInfoPath = script.paths.resolvePathWithInfo(fileName, Core.GOPathType.OUTPUT);
+  const resultInfoPath = script.paths.resolvePathWithInfo(fileName, GOPathType.OUTPUT);
   const resultPath = resultInfoPath.path;
 
-  const exporter = new Core.GOJSONFileExporter({ outputPath: resultPath, pretty: true, indent: 2 });
+  const exporter = new GOJSONFileExporter({ outputPath: resultPath, pretty: true, indent: 2 });
   await exporter.export(output);
 
   script.logger.info(`Execution result saved: ${resultPath}`);

@@ -1,4 +1,4 @@
-import type { Core } from '@go-automation/go-common';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import type { CoverageIssue, CoverageReport } from '@go-automation/go-watchtower-runbook';
 
 /**
@@ -7,7 +7,7 @@ import type { CoverageIssue, CoverageReport } from '@go-automation/go-watchtower
  * @param logger - GOScript logger
  * @param report - The data-only report produced by the library
  */
-export function renderCoverage(logger: Core.GOLogger, report: CoverageReport): void {
+export function renderCoverage(logger: GOLogger, report: CoverageReport): void {
   logger.section('Copertura dichiarazioni ↔ censimento');
   logger.info(`Runbook analizzati: ${report.checkedRunbooks}`);
   logger.info(`Casi noti analizzati: ${report.checkedKnownCases}`);

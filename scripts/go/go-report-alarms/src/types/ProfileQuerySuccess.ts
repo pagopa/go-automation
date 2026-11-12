@@ -2,7 +2,7 @@
  * ProfileQuerySuccess - Successful result of querying a single AWS profile
  */
 
-import type { AWS } from '@go-automation/go-common';
+import type { AlarmHistoryItem } from '@pagopa/go-aws/cloudwatch-alarms';
 
 /**
  * Successful profile query result
@@ -10,6 +10,6 @@ import type { AWS } from '@go-automation/go-common';
 export interface ProfileQuerySuccess {
   readonly status: 'success';
   readonly profile: string;
-  readonly items: ReadonlyArray<AWS.AlarmHistoryItem>;
+  readonly items: ReadonlyArray<AlarmHistoryItem>;
   readonly itemCount: number;
 }

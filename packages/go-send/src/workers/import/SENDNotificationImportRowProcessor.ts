@@ -19,7 +19,7 @@ import { SENDPagoPaIntMode } from '../../services/notification/models/SENDPagoPa
 import { SENDNotificationStatus } from '../../services/notification/models/SENDNotificationStatus.js';
 import { isSENDNotificationPollingTerminalError } from '../../services/notification/SENDNotificationService.js';
 import type { SENDNotificationImportWorkerOptions } from './SENDNotificationImportWorkerOptions.js';
-import { GOEventEmitterBase } from '@go-automation/go-common/core';
+import { GOEventEmitterBase } from '@pagopa/go-common/events';
 import type { SENDNotificationImportWorkerEventMap } from './SENDNotificationImportWorkerEvents.js';
 
 const REFUSED_NOTIFICATION_STATUS = String(SENDNotificationStatus.REFUSED);

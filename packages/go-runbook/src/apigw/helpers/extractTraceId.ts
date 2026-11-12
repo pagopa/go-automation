@@ -1,5 +1,4 @@
-import { readRowField } from '@go-automation/go-common/aws';
-import type { ResultField } from '@go-automation/go-common/aws';
+import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { AccessLogSchema } from '../profiles/schemas/AccessLogSchema.js';
 
 /**
@@ -22,7 +21,10 @@ import type { AccessLogSchema } from '../profiles/schemas/AccessLogSchema.js';
  *                 `traceIdExtractPattern`)
  * @returns il trace id estratto, oppure `undefined` se il campo è assente
  */
-export function extractTraceId(row: ReadonlyArray<ResultField>, schema: AccessLogSchema): string | undefined {
+export function extractTraceId(
+  row: ReadonlyArray<GOLogsInsightsResultField>,
+  schema: AccessLogSchema,
+): string | undefined {
   const raw = readRowField(row, schema.traceIdField);
   if (raw === undefined) return undefined;
 

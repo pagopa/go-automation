@@ -1,10 +1,10 @@
-import type { AWS } from '@go-automation/go-common';
+import type { ResultField } from '@pagopa/go-aws/cloudwatch-logs';
 
 /**
  * Extracts the file name from query results
  */
 export function extractFileNameFromCwResults(
-  results: ReadonlyArray<ReadonlyArray<AWS.ResultField>>,
+  results: ReadonlyArray<ReadonlyArray<ResultField>>,
   fieldName: string,
 ): string {
   for (const row of results) {

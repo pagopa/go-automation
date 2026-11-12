@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
@@ -68,14 +69,16 @@ async function execute(
         queries.push(query);
         sourceModes.push(options?.logGroupResolutionMode);
         const isInvocation = query.includes(REQUEST_ID);
-        const rows: ReadonlyArray<ReadonlyArray<ResultField>> = (isInvocation ? invocation : errors).map((message) => [
-          { field: '@timestamp', value: '2026-10-13 05:39:20.757' },
-          {
-            field: '@message',
-            value: isInvocation ? message : `2026-10-13T05:39:20.757Z\t${requestId}\tERROR\t${message}`,
-          },
-          ...(requestId ? [{ field: '@requestId', value: requestId }] : []),
-        ]);
+        const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = (isInvocation ? invocation : errors).map(
+          (message) => [
+            { field: '@timestamp', value: '2026-10-13 05:39:20.757' },
+            {
+              field: '@message',
+              value: isInvocation ? message : `2026-10-13T05:39:20.757Z\t${requestId}\tERROR\t${message}`,
+            },
+            ...(requestId ? [{ field: '@requestId', value: requestId }] : []),
+          ],
+        );
         return {
           rows,
           statistics: { bytesScanned: 1, recordsScanned: rows.length, recordsMatched: rows.length },

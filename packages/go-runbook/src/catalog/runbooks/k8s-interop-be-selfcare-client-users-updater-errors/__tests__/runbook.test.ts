@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { service } from '../../framework.js';
-import { GOLogger } from '@go-automation/go-common/core';
-import type { AWSCloudWatchLogsQueryResult } from '@go-automation/go-common/aws';
+import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';

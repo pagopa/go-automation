@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { AnalyzeInteropK8sApplicationLogsStep } from '../steps/AnalyzeInteropK8sApplicationLogsStep.js';
 import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
@@ -19,7 +19,7 @@ function context(stepResults: ReadonlyArray<readonly [string, unknown]>): Runboo
   };
 }
 
-function row(fields: ReadonlyArray<readonly [string, string]>): ReadonlyArray<ResultField> {
+function row(fields: ReadonlyArray<readonly [string, string]>): ReadonlyArray<GOLogsInsightsResultField> {
   return fields.map(([field, value]) => ({ field, value }));
 }
 

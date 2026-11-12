@@ -3,11 +3,11 @@
  *
  * Provides reusable building blocks (helpers, steps, types) for runbooks
  * that analyse alarms originating from API Gateway access logs. Consumed
- * via the `apigw` namespace re-exported from `@go-automation/go-runbook`.
+ * via the `apigw` namespace re-exported from `@pagopa/go-runbook`.
  *
  * @example
  * ```typescript
- * import { apigw } from '@go-automation/go-runbook';
+ * import { apigw } from '@pagopa/go-runbook';
  *
  * const step = apigw.parseApiGwErrors({
  *   id: 'parse-errors',

@@ -2,7 +2,7 @@
  * Confirmation before the run (§14.2).
  */
 
-import type { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import type { ConfirmOutcome } from '../types/ConfirmOutcome.js';
 import type { DispatchTarget } from '../types/DispatchTarget.js';
@@ -26,7 +26,7 @@ const EXIT_DECLINED = 3;
  * @returns The outcome: proceed, declined by the user, or not confirmed
  */
 export async function confirmRun(
-  script: Pick<Core.GOScript, 'logger' | 'prompt'>,
+  script: Pick<GOScript, 'logger' | 'prompt'>,
   config: Pick<ValidatedConfig, 'yes' | 'confirmProduction'>,
   target: Pick<DispatchTarget, 'production'>,
   work: PlannedWork,

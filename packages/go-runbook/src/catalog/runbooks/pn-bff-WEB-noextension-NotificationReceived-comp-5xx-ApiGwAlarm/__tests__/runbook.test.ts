@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionResult.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
@@ -21,7 +22,7 @@ const PAYMENTS_TIMEOUT =
   'Ending process _getPaymentsInfoV1 with errors=nested exception is io.netty.handler.timeout.ReadTimeoutException';
 const CHECKOUT_TIMEOUT =
   '[DOWNSTREAM] Service Checkout returned errors=connection timed out after 3000 ms: api.platform.pagopa.it/192.0.2.1:443';
-const row = (values: Record<string, string>): ReadonlyArray<ResultField> =>
+const row = (values: Record<string, string>): ReadonlyArray<GOLogsInsightsResultField> =>
   Object.entries(values).map(([field, value]) => ({ field, value }));
 
 function context(stepId: string, message: string, vars: Record<string, string> = {}): RunbookContext {
@@ -53,7 +54,7 @@ async function executePaymentsTrace(
     async queryWithStatistics(groups: ReadonlyArray<string>, query: string): Promise<AWSCloudWatchLogsQueryResult> {
       const group = groups[0] ?? '';
       calls.push(group);
-      let rows: ReadonlyArray<ReadonlyArray<ResultField>> = [];
+      let rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [];
       if (group === API_GW_LOG_GROUP) {
         rows = [
           row({
@@ -283,7 +284,7 @@ describe('NotificationReceived WEB diagnosis', () => {
         await Promise.resolve();
         const group = groups[0] ?? '';
         calls.push(group);
-        let rows: ReadonlyArray<ReadonlyArray<ResultField>> = [];
+        let rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [];
         if (group === API_GW_LOG_GROUP)
           rows = [
             row({

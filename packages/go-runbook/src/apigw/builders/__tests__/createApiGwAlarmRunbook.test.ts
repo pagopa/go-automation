@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { GOLogger } from '@go-automation/go-common/core';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 
 import { createApiGwAlarmRunbook } from '../createApiGwAlarmRunbook.js';
 import type { ApiGwAlarmConfig } from '../../types/ApiGwAlarmConfig.js';
@@ -36,7 +36,7 @@ function getTraceQuery(traceInfo: Readonly<Record<string, unknown>> | undefined)
   return typeof value === 'string' ? value : '';
 }
 
-function cwRow(fields: Record<string, string>): ResultField[] {
+function cwRow(fields: Record<string, string>): GOLogsInsightsResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
 }
 
@@ -486,7 +486,7 @@ describe('createApiGwAlarmRunbook', () => {
         query: async (
           logGroups: ReadonlyArray<string>,
           _query: string,
-        ): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+        ): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> => {
           await Promise.resolve();
           const logGroup = logGroups[0] ?? '';
           calls.push(logGroup);
@@ -541,7 +541,9 @@ describe('createApiGwAlarmRunbook', () => {
     const calls: string[] = [];
     const services = createTestServiceRegistry({
       cloudWatchLogs: {
-        query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+        query: async (
+          logGroups: ReadonlyArray<string>,
+        ): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> => {
           await Promise.resolve();
           const logGroup = logGroups[0] ?? '';
           calls.push(logGroup);
@@ -593,7 +595,9 @@ describe('createApiGwAlarmRunbook', () => {
     const calls: string[] = [];
     const services = createTestServiceRegistry({
       cloudWatchLogs: {
-        query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+        query: async (
+          logGroups: ReadonlyArray<string>,
+        ): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> => {
           await Promise.resolve();
           const logGroup = logGroups[0] ?? '';
           calls.push(logGroup);
@@ -660,7 +664,7 @@ describe('createApiGwAlarmRunbook', () => {
         query: async (
           logGroups: ReadonlyArray<string>,
           query: string,
-        ): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+        ): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> => {
           await Promise.resolve();
           const logGroup = logGroups[0] ?? '';
           calls.push({ logGroup, query });
@@ -745,7 +749,9 @@ describe('createApiGwAlarmRunbook', () => {
     const calls: string[] = [];
     const services = createTestServiceRegistry({
       cloudWatchLogs: {
-        query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+        query: async (
+          logGroups: ReadonlyArray<string>,
+        ): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> => {
           await Promise.resolve();
           const logGroup = logGroups[0] ?? '';
           calls.push(logGroup);
@@ -795,7 +801,9 @@ describe('createApiGwAlarmRunbook', () => {
     const calls: string[] = [];
     const services = createTestServiceRegistry({
       cloudWatchLogs: {
-        query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+        query: async (
+          logGroups: ReadonlyArray<string>,
+        ): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> => {
           await Promise.resolve();
           const logGroup = logGroups[0] ?? '';
           calls.push(logGroup);

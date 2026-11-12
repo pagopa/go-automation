@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, it, mock } from 'node:test';
 
-import { Core } from '@go-automation/go-common';
+import { GOHttpClient } from '@pagopa/go-common/http';
 
 import { WatchtowerAuth } from '../WatchtowerAuth.js';
 
@@ -35,7 +35,7 @@ describe('WatchtowerAuth', () => {
         }),
       );
     });
-    const auth = new WatchtowerAuth(new Core.GOHttpClient({ baseUrl: 'https://watchtower.internal' }), {
+    const auth = new WatchtowerAuth(new GOHttpClient({ baseUrl: 'https://watchtower.internal' }), {
       kind: 'SERVICE',
       serviceId: 'runbook-automation-worker',
       password: 'secret',
@@ -64,7 +64,7 @@ describe('WatchtowerAuth', () => {
         }),
       );
     });
-    const auth = new WatchtowerAuth(new Core.GOHttpClient({ baseUrl: 'https://watchtower.internal' }), {
+    const auth = new WatchtowerAuth(new GOHttpClient({ baseUrl: 'https://watchtower.internal' }), {
       kind: 'CLI_PAT',
       token: 'wtcli_token',
     });

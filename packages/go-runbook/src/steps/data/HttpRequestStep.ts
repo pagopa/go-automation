@@ -2,7 +2,7 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
-import type { GOHttpResponse } from '@go-automation/go-common/core';
+import type { GOHttpResponse } from '@pagopa/go-common/http';
 import { interpolatePlaceholders } from '../../core/templatePlaceholders.js';
 import { executeStep } from './executeStep.js';
 

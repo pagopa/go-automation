@@ -1,10 +1,8 @@
-import type {
-  AWSAthenaService,
-  AWSCloudWatchLogsService,
-  AWSCloudWatchMetricsService,
-  AWSDynamoDBService,
-} from '@go-automation/go-common/aws';
-import type { GOHttpClient } from '@go-automation/go-common/core';
+import type { AWSAthenaService } from '@pagopa/go-aws/athena';
+import type { AWSCloudWatchLogsService } from '@pagopa/go-aws/cloudwatch-logs';
+import type { AWSCloudWatchMetricsService } from '@pagopa/go-aws/cloudwatch-metrics';
+import type { AWSDynamoDBService } from '@pagopa/go-aws/dynamodb';
+import type { GOHttpClient } from '@pagopa/go-common/http';
 
 import type { RunbookReporter } from './RunbookReporter.js';
 

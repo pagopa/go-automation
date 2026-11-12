@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../../types/RunbookContext.js';
 import type { StepResult } from '../../../../types/StepResult.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { AnalyzeAttEservicesAccessStep, type AttEservicesAccessAnalysis } from '../AnalyzeAttEservicesAccessStep.js';
 import { API_GW_ID, QUERY_STEP_ID } from '../alarmDefinition.js';
 
-function row(overrides: Readonly<Record<string, string>> = {}): ReadonlyArray<ResultField> {
+function row(overrides: Readonly<Record<string, string>> = {}): ReadonlyArray<GOLogsInsightsResultField> {
   return Object.entries({
     apigwId: API_GW_ID,
     status: '403',
@@ -24,7 +24,7 @@ interface TestAnalysis {
   readonly context: RunbookContext;
 }
 
-async function analyze(rows?: ReadonlyArray<ReadonlyArray<ResultField>>): Promise<TestAnalysis> {
+async function analyze(rows?: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>): Promise<TestAnalysis> {
   const context: RunbookContext = {
     executionId: 'test',
     startedAt: new Date('2026-10-29T04:41:26.000Z'),

@@ -1,4 +1,4 @@
-import { isNonBlankString, isPlainObject } from '@go-automation/go-common/core';
+import { isNonBlankString, isPlainObject } from '@pagopa/go-common/utils';
 import type { LambdaFunction } from '../types/LambdaFunction.js';
 import type { LambdaDownstream } from '../types/LambdaDownstream.js';
 

@@ -5,8 +5,8 @@ import type {
   AWSCloudWatchLogsQueryOptions,
   AWSCloudWatchLogsQueryResult,
   AWSCloudWatchLogsTimeRange,
-  ResultField,
-} from '@go-automation/go-common/aws';
+} from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { QueryInteropK8sApplicationLogsStep } from '../steps/QueryInteropK8sApplicationLogsStep.js';
 import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
@@ -41,7 +41,7 @@ function context(cloudWatchLogs: unknown): RunbookContext {
 describe('QueryInteropK8sApplicationLogsStep', () => {
   it('queries the runtime-resolved log group with search-configured-profiles', async () => {
     let seen: SeenQuery | undefined;
-    const rows: ReadonlyArray<ReadonlyArray<ResultField>> = [[{ field: '@message', value: 'ERROR' }]];
+    const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [[{ field: '@message', value: 'ERROR' }]];
     const service = {
       async queryWithStatistics(
         logGroups: ReadonlyArray<string>,

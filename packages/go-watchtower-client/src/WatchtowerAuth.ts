@@ -1,4 +1,4 @@
-import { Core } from '@go-automation/go-common';
+import type { GOHttpClient } from '@pagopa/go-common/http';
 
 import type {
   CliLoginRequest,
@@ -35,7 +35,7 @@ export class WatchtowerAuth {
   private renewal: Promise<string> | undefined;
 
   constructor(
-    private readonly http: Pick<Core.GOHttpClient, 'post'>,
+    private readonly http: Pick<GOHttpClient, 'post'>,
     private readonly credentials: WatchtowerAuthCredentials,
   ) {}
 

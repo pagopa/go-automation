@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Core } from '@go-automation/go-common';
+import { GO_PROMPT_BACK, type GOPromptSelectOption, type GOScript } from '@go-automation/go-script';
 
 import { createTargetWizardSession, selectTarget } from '../selectTarget.js';
 import type { TargetSelection } from '../selectTarget.js';
@@ -14,7 +14,7 @@ const TESTABLE_ALARM = 'pn-delivery-B2B-ApiGwAlarm';
 const OTHER_TESTABLE_ALARM = 'pn-ioAuthorizerLambda-LogInvocationErrors-Alarm';
 const NOT_TESTABLE_ALARM = 'pn-some-alarm-without-runbook';
 
-type Choices = ReadonlyArray<Core.GOPromptSelectOption>;
+type Choices = ReadonlyArray<GOPromptSelectOption>;
 type AnswerFn = (choices: Choices) => unknown;
 
 interface AskedPrompt {
@@ -23,7 +23,7 @@ interface AskedPrompt {
 }
 
 interface Harness {
-  readonly script: Core.GOScript;
+  readonly script: GOScript;
   readonly asked: ReadonlyArray<AskedPrompt>;
   readonly warnings: ReadonlyArray<string>;
   readonly errors: ReadonlyArray<string>;
@@ -38,7 +38,7 @@ function byTitle(needle: string): AnswerFn {
 const goBack: AnswerFn = () => BACK_CHOICE;
 
 /** Leaves the prompt with ← instead of picking the "go back" entry. */
-const pressBackKey: AnswerFn = () => Core.GO_PROMPT_BACK;
+const pressBackKey: AnswerFn = () => GO_PROMPT_BACK;
 
 /** Fails the test unless the wizard completed, and narrows the outcome. */
 function selected(outcome: TargetSelection): Extract<TargetSelection, { kind: 'VALUE' }> {
@@ -80,7 +80,7 @@ function harness(answers: ReadonlyArray<AnswerFn>): Harness {
       startSpinner: (): void => undefined,
       stopSpinner: (): void => undefined,
     },
-  } as unknown as Core.GOScript;
+  } as unknown as GOScript;
 
   return { script, asked, warnings, errors };
 }

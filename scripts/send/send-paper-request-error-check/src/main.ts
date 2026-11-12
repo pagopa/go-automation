@@ -4,7 +4,8 @@
  * Logica principale di orchestrazione dello script.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOPathType } from '@pagopa/go-common/files';
 
 import type { SendPaperRequestErrorCheckConfig } from './types/index.js';
 import { readInputLines } from './libs/readInputLines.js';
@@ -16,12 +17,12 @@ import { PaperRequestReporter } from './libs/reporter.js';
  *
  * @param script - Istanza GOScript per il logging ed il ciclo di vita
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   script.logger.section('Starting Send Paper Request Error Check');
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
   const reporter = new PaperRequestReporter();
 
-  const outputPathInfo = script.paths.resolvePathWithInfo(config.outputDir ?? '', Core.GOPathType.OUTPUT);
+  const outputPathInfo = script.paths.resolvePathWithInfo(config.outputDir ?? '', GOPathType.OUTPUT);
 
   script.logger.info(`Execution mode: ${config.mode}`);
   if (outputPathInfo.isAbsolute) {
@@ -30,7 +31,7 @@ export async function main(script: Core.GOScript): Promise<void> {
     script.logger.info(`Output directory: ${outputPathInfo.path}`);
   }
 
-  const inputLines = await readInputLines(script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT));
+  const inputLines = await readInputLines(script.paths.resolvePath(config.inputFile, GOPathType.INPUT));
   reporter.setInitialTotal(inputLines.length);
 
   await executeStepByMode(script, config, inputLines, reporter);

@@ -1,4 +1,4 @@
-import { AWS } from '@go-automation/go-common';
+import type { SQSReceiveDeduplicationMode } from '@pagopa/go-aws/sqs';
 
 /**
  * Script configuration interface
@@ -20,7 +20,7 @@ export interface AwsDumpSqsConfig {
   readonly limit: number | undefined;
 
   /** Deduplication strategy */
-  readonly dedupMode: AWS.SQSReceiveDeduplicationMode;
+  readonly dedupMode: SQSReceiveDeduplicationMode;
 
   /** Number of consecutive empty polls before stopping */
   readonly maxEmptyReceives: number;

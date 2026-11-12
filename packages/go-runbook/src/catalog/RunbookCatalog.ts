@@ -1,7 +1,7 @@
 /** Typed automatic-runbook registry shared by CLI, worker and catalog generator. */
 import { createHash } from 'node:crypto';
 
-import { canonicalizeJson } from '@go-automation/go-common/core';
+import { canonicalizeJson } from '@pagopa/go-common/json';
 
 import type { RunbookDescriptor } from './RunbookDescriptor.js';
 

@@ -6,45 +6,137 @@
   },
   "files": [],
   "references": [
-    { "path": "./bins/check-new-class-tests" },
-    { "path": "./bins/validate-scaffold" },
-    { "path": "./functions/go-AILambda" },
-    { "path": "./functions/go-BotQESlackHandler" },
-    { "path": "./functions/go-ExecuteRunbookLambda" },
-    { "path": "./functions/go-SendMonitorAthenaQueryLambda" },
-    { "path": "./infra/watchtower-alarm-analysis" },
-    { "path": "./packages/go-ai" },
-    { "path": "./packages/go-cli" },
-    { "path": "./packages/go-common" },
-    { "path": "./packages/go-execute-runbook-contracts" },
-    { "path": "./packages/go-runbook" },
-    { "path": "./packages/go-send" },
-    { "path": "./packages/go-watchtower-client" },
-    { "path": "./packages/go-watchtower-runbook" },
-    { "path": "./scripts/aws/aws-check-ecs" },
-    { "path": "./scripts/aws/aws-delete-sqs" },
-    { "path": "./scripts/aws/aws-dump-sqs" },
-    { "path": "./scripts/aws/aws-fetch-ecs-clusters-infos" },
-    { "path": "./scripts/aws/aws-put-sqs" },
-    { "path": "./scripts/aws/aws-query-dynamodb" },
-    { "path": "./scripts/aws/aws-redrive-sqs" },
-    { "path": "./scripts/aws/aws-schedule-eventbridge" },
-    { "path": "./scripts/go/go-ai-client" },
-    { "path": "./scripts/go/go-analyze-alarm" },
-    { "path": "./scripts/go/go-execute-runbook" },
-    { "path": "./scripts/go/go-parse-json" },
-    { "path": "./scripts/go/go-report-alarms" },
-    { "path": "./scripts/go/go-rta-check" },
-    { "path": "./scripts/go/go-search-jira" },
-    { "path": "./scripts/interop/interop-analyze-alarms" },
-    { "path": "./scripts/interop/interop-token-hash-verification" },
-    { "path": "./scripts/send/send-dispatch-notifications" },
-    { "path": "./scripts/send/send-download-safestorage-attachments" },
-    { "path": "./scripts/send/send-fetch-timeline-from-iun" },
-    { "path": "./scripts/send/send-import-notifications" },
-    { "path": "./scripts/send/send-monitor-athena-query" },
-    { "path": "./scripts/send/send-paper-request-error-check" },
-    { "path": "./scripts/send/send-report-dlq" },
-    { "path": "./scripts/send/send-upload-attachments" }
+    {
+      "path": "./bins/check-new-class-tests"
+    },
+    {
+      "path": "./bins/validate-scaffold"
+    },
+    {
+      "path": "./functions/go-AILambda"
+    },
+    {
+      "path": "./functions/go-BotQESlackHandler"
+    },
+    {
+      "path": "./functions/go-ExecuteRunbookLambda"
+    },
+    {
+      "path": "./functions/go-SendMonitorAthenaQueryLambda"
+    },
+    {
+      "path": "./infra/watchtower-alarm-analysis"
+    },
+    {
+      "path": "./packages/go-ai"
+    },
+    {
+      "path": "./packages/go-aws"
+    },
+    {
+      "path": "./packages/go-cli"
+    },
+    {
+      "path": "./packages/go-common"
+    },
+    {
+      "path": "./packages/go-documents"
+    },
+    {
+      "path": "./packages/go-execute-runbook-contracts"
+    },
+    {
+      "path": "./packages/go-runbook"
+    },
+    {
+      "path": "./packages/go-script"
+    },
+    {
+      "path": "./packages/go-send"
+    },
+    {
+      "path": "./packages/go-slack"
+    },
+    {
+      "path": "./packages/go-watchtower-client"
+    },
+    {
+      "path": "./packages/go-watchtower-runbook"
+    },
+    {
+      "path": "./scripts/aws/aws-check-ecs"
+    },
+    {
+      "path": "./scripts/aws/aws-delete-sqs"
+    },
+    {
+      "path": "./scripts/aws/aws-dump-sqs"
+    },
+    {
+      "path": "./scripts/aws/aws-fetch-ecs-clusters-infos"
+    },
+    {
+      "path": "./scripts/aws/aws-put-sqs"
+    },
+    {
+      "path": "./scripts/aws/aws-query-dynamodb"
+    },
+    {
+      "path": "./scripts/aws/aws-redrive-sqs"
+    },
+    {
+      "path": "./scripts/aws/aws-schedule-eventbridge"
+    },
+    {
+      "path": "./scripts/go/go-ai-client"
+    },
+    {
+      "path": "./scripts/go/go-analyze-alarm"
+    },
+    {
+      "path": "./scripts/go/go-execute-runbook"
+    },
+    {
+      "path": "./scripts/go/go-parse-json"
+    },
+    {
+      "path": "./scripts/go/go-report-alarms"
+    },
+    {
+      "path": "./scripts/go/go-rta-check"
+    },
+    {
+      "path": "./scripts/go/go-search-jira"
+    },
+    {
+      "path": "./scripts/interop/interop-analyze-alarms"
+    },
+    {
+      "path": "./scripts/interop/interop-token-hash-verification"
+    },
+    {
+      "path": "./scripts/send/send-dispatch-notifications"
+    },
+    {
+      "path": "./scripts/send/send-download-safestorage-attachments"
+    },
+    {
+      "path": "./scripts/send/send-fetch-timeline-from-iun"
+    },
+    {
+      "path": "./scripts/send/send-import-notifications"
+    },
+    {
+      "path": "./scripts/send/send-monitor-athena-query"
+    },
+    {
+      "path": "./scripts/send/send-paper-request-error-check"
+    },
+    {
+      "path": "./scripts/send/send-report-dlq"
+    },
+    {
+      "path": "./scripts/send/send-upload-attachments"
+    }
   ]
 }

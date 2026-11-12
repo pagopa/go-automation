@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { matchDownstreamErrorPattern, findDownstreamInRows } from '../matchDownstreamErrorPattern.js';
 import type { DownstreamErrorPattern } from '../../types/DownstreamErrorPattern.js';
@@ -9,7 +9,7 @@ const PATTERNS: ReadonlyArray<DownstreamErrorPattern> = [
   { pattern: 'External service pn-emd-integration returned errors', target: 'pn-emd-integration' },
 ];
 
-function row(message: string): ReadonlyArray<ResultField> {
+function row(message: string): ReadonlyArray<GOLogsInsightsResultField> {
   return [
     { field: '@timestamp', value: '2026-01-01T00:00:00.000Z' },
     { field: '@message', value: message },

@@ -1,4 +1,4 @@
-import { escapeLogsInsightsString } from '@go-automation/go-common/aws';
+import { escapeLogsInsightsString } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { interop } from '../framework.js';
 
 export const BFF_QUERY_PROFILE: interop.k8s.InteropK8sQueryProfile = {

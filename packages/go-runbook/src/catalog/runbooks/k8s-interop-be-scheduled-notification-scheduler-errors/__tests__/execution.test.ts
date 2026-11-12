@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { GOLogger } from '@go-automation/go-common/core';
-import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
+import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionResult.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
@@ -42,7 +43,7 @@ async function execute(
           const context = !tracker && !query.includes('log like /ERROR/');
           if (context && failContext) throw new Error('AccessDenied');
           const log = tracker ? HEARTBEAT : context ? 'INFO - AWS authentication token obtained' : message;
-          const rows: ReadonlyArray<ReadonlyArray<ResultField>> =
+          const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> =
             log === undefined
               ? []
               : [

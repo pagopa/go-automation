@@ -1,4 +1,4 @@
-import { omitUndefined } from '@go-automation/go-common/core';
+import { omitUndefined } from '@pagopa/go-common/utils';
 /**
  * Structured fields extracted from a Lambda `REPORT` runtime log line.
  */

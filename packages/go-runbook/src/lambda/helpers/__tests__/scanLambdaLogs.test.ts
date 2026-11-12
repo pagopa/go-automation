@@ -1,10 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { scanLambdaLogs } from '../scanLambdaLogs.js';
 
-function row(message: string, timestamp = '2026-01-01T00:00:00.000Z'): ReadonlyArray<ResultField> {
+function row(message: string, timestamp = '2026-01-01T00:00:00.000Z'): ReadonlyArray<GOLogsInsightsResultField> {
   return [
     { field: '@timestamp', value: timestamp },
     { field: '@message', value: message },
@@ -88,7 +88,7 @@ describe('scanLambdaLogs', () => {
   });
 
   it('prefers the @requestId field when the message has no RequestId: token', () => {
-    const rowWithField: ReadonlyArray<ResultField> = [
+    const rowWithField: ReadonlyArray<GOLogsInsightsResultField> = [
       { field: '@timestamp', value: '2026-01-01T00:00:00.000Z' },
       { field: '@message', value: 'ERROR Something failed without a request id token' },
       { field: '@requestId', value: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' },

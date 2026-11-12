@@ -1,5 +1,4 @@
-import { escapeLogsInsightsString } from '@go-automation/go-common/aws';
-import type { ResultField } from '@go-automation/go-common/aws';
+import { escapeLogsInsightsString, type GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
 import type { StepResult } from '../../../types/StepResult.js';
@@ -7,7 +6,7 @@ import { executeCloudWatchLogsQuery } from '../../../steps/data/executeCloudWatc
 import { executeStep } from '../../../steps/data/executeStep.js';
 import { resolveTimeRange } from '../../../steps/data/resolveTimeRange.js';
 
-type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
 /** Includes INFO/WARN and works without a request CID, as Kafka errors commonly do. */
 export class QueryWriterContextStep implements Step<Rows> {

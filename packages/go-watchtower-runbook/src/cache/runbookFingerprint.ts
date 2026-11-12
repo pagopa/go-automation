@@ -9,9 +9,9 @@
  */
 import { createHash } from 'node:crypto';
 
-import { Core } from '@go-automation/go-common';
-import { RUNBOOK_REGISTRY, resolveOccurrenceTimeWindow } from '@go-automation/go-runbook/catalog';
-import type { Runbook } from '@go-automation/go-runbook';
+import { safeJsonStringify } from '@pagopa/go-common/utils';
+import { RUNBOOK_REGISTRY, resolveOccurrenceTimeWindow } from '@pagopa/go-runbook/catalog';
+import type { Runbook } from '@pagopa/go-runbook';
 
 import type { RunbookCacheDescriptor } from './RunbookCacheDescriptor.js';
 import type { CachedRunbookMeta } from './CachedRunbookMeta.js';
@@ -33,7 +33,7 @@ function sha256(input: string): string {
 
 /** Hashes the serializable structure of a runbook (functions are ignored). */
 function hashRunbookDefinition(runbook: Runbook): string {
-  return sha256(Core.safeJsonStringify(runbook, { maxDepth: 64 }));
+  return sha256(safeJsonStringify(runbook, { maxDepth: 64 }));
 }
 
 /**
@@ -95,5 +95,5 @@ export function buildCacheMeta(
  * @returns Hex fingerprint string
  */
 export function computeFingerprint(meta: CachedRunbookMeta): string {
-  return sha256(Core.safeJsonStringify(meta, { maxDepth: 16 }));
+  return sha256(safeJsonStringify(meta, { maxDepth: 16 }));
 }

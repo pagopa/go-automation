@@ -1,10 +1,10 @@
 import type { ScheduledEvent } from 'aws-lambda';
 
-import { Core } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
 import { prepareConfig, scriptMetadata, scriptParameters } from 'send-monitor-athena-query/config';
 import { main } from 'send-monitor-athena-query/main';
 
-const script = new Core.GOScript({
+const script = new GOScript({
   metadata: scriptMetadata,
   config: {
     parameters: scriptParameters,

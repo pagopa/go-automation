@@ -1,10 +1,11 @@
-import type { AWS, Core } from '@go-automation/go-common';
+import type { AWSAthenaQueryResult } from '@pagopa/go-aws/athena';
+import type { GOThresholdEvaluation } from '@pagopa/go-common/analysis';
 
 import type { ReportArtifact } from './ReportArtifact.js';
 
 export interface ReportPipelineResult {
-  readonly athenaResult: AWS.AWSAthenaQueryResult;
+  readonly athenaResult: AWSAthenaQueryResult;
   readonly artifact: ReportArtifact;
-  readonly evaluation: Core.GOThresholdEvaluation;
+  readonly evaluation: GOThresholdEvaluation;
   readonly slackSent: boolean;
 }

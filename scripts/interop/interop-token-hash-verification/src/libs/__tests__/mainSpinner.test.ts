@@ -1,5 +1,6 @@
 /* eslint-disable security/detect-non-literal-fs-filename -- isolated temporary file fixtures */
-import type { AWS, Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { ResultField } from '@pagopa/go-aws/cloudwatch-logs';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -42,7 +43,7 @@ describe('main hash verification spinner cleanup', () => {
         aws: {
           services: {
             cloudWatchLogs: {
-              async query(): Promise<ReadonlyArray<ReadonlyArray<AWS.ResultField>>> {
+              async query(): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
                 await Promise.resolve();
                 return [
                   [
@@ -94,7 +95,7 @@ describe('main hash verification spinner cleanup', () => {
             activeSpinner = undefined;
           },
         },
-      } as unknown as Core.GOScript;
+      } as unknown as GOScript;
       try {
         if (outcome === 'matching') {
           await main(script);

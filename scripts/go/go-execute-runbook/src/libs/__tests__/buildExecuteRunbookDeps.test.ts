@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { AWS, Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { AWSAthenaService } from '@pagopa/go-aws/athena';
+import type { AWSCloudWatchLogsService } from '@pagopa/go-aws/cloudwatch-logs';
+import type { AWSCloudWatchMetricsService } from '@pagopa/go-aws/cloudwatch-metrics';
+import type { AWSDynamoDBService } from '@pagopa/go-aws/dynamodb';
+import type { GOLogger } from '@pagopa/go-common/logging';
 
 import type { ExecuteRunbookConfig } from '../../types/ExecuteRunbookConfig.js';
 import { buildExecuteRunbookDeps } from '../buildExecuteRunbookDeps.js';
@@ -102,16 +107,16 @@ describe('buildExecuteRunbookDeps', () => {
   });
 });
 
-function fakeScript(readSecretString: FakeSecretStringLoaderFn, isAWSManaged = false): Core.GOScript {
+function fakeScript(readSecretString: FakeSecretStringLoaderFn, isAWSManaged = false): GOScript {
   return {
     environment: { isAWSManaged },
-    logger: {} as Core.GOLogger,
+    logger: {} as GOLogger,
     aws: {
       services: {
-        cloudWatchLogs: {} as AWS.AWSCloudWatchLogsService,
-        cloudWatchMetrics: {} as AWS.AWSCloudWatchMetricsService,
-        athena: {} as AWS.AWSAthenaService,
-        dynamoDB: {} as AWS.AWSDynamoDBService,
+        cloudWatchLogs: {} as AWSCloudWatchLogsService,
+        cloudWatchMetrics: {} as AWSCloudWatchMetricsService,
+        athena: {} as AWSAthenaService,
+        dynamoDB: {} as AWSDynamoDBService,
         secretsManager: {
           async getSecretString(secretId: string): Promise<string> {
             const value = await Promise.resolve(readSecretString(secretId));
@@ -120,7 +125,7 @@ function fakeScript(readSecretString: FakeSecretStringLoaderFn, isAWSManaged = f
         },
       },
     },
-  } as unknown as Core.GOScript;
+  } as unknown as GOScript;
 }
 
 function servicePassword(watchtower: unknown): string {

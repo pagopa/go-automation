@@ -2,7 +2,7 @@
  * Worker options
  */
 
-import type { GOListExporter } from '@go-automation/go-common/core';
+import type { GOListExporter } from '@pagopa/go-common/exporters';
 
 export interface SENDAttachmentUploadWorkerOptions {
   /** Number of files to upload in parallel (default: 3) */

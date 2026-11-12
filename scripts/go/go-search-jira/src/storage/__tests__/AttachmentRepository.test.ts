@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { Core } from '@go-automation/go-common';
+import { GOFtsIndex } from '@go-automation/go-documents';
 
 import { AttachmentRepository } from '../AttachmentRepository.js';
 import { IndexSchemaManager } from '../IndexSchemaManager.js';
@@ -32,10 +32,10 @@ function makeIssue(attachment: JiraAttachment): JiraIssue {
 }
 
 async function openRepository(): Promise<{
-  readonly index: Core.GOFtsIndex;
+  readonly index: GOFtsIndex;
   readonly repository: AttachmentRepository;
 }> {
-  const index = new Core.GOFtsIndex({
+  const index = new GOFtsIndex({
     databasePath: ':memory:',
     ftsTableName: 'attachments_fts',
     metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],

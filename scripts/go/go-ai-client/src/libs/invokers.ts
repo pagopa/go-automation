@@ -1,4 +1,4 @@
-import type { AWS } from '@go-automation/go-common';
+import type { AWSLambdaService } from '@pagopa/go-aws/lambda';
 import { GOBedrockClient, type GOAIRequest, type GOAIResponse } from '@go-automation/go-ai';
 
 import type { GoAIClientConfig } from '../types/index.js';
@@ -14,7 +14,7 @@ export async function invokeDirect(req: GOAIRequest, config: GoAIClientConfig): 
 export async function invokeLambda(
   req: GOAIRequest,
   config: GoAIClientConfig,
-  lambda: AWS.AWSLambdaService,
+  lambda: AWSLambdaService,
 ): Promise<GOAIResponse> {
   try {
     return (await lambda.invokeJson(config.goAiLambdaName, req)) as GOAIResponse;

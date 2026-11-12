@@ -1,4 +1,4 @@
-import type { Core } from '@go-automation/go-common';
+import type { GOExportFormat } from '@pagopa/go-common/exporters';
 
 import type { GoSearchJiraActionValue } from './GoSearchJiraAction.js';
 import type { JiraAuthModeValue } from './JiraAuthMode.js';
@@ -47,7 +47,7 @@ export interface GoSearchJiraConfig {
 
   // === output (search results) ===
   readonly outputFile: string;
-  readonly outputFormat: Core.GOExportFormat;
+  readonly outputFormat: GOExportFormat;
 
   // === clean ===
   readonly cleanRawOnly: boolean;

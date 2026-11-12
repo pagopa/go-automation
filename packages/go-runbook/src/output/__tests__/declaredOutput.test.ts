@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { GOLogger } from '@go-automation/go-common/core';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookBuilder } from '../../builders/RunbookBuilder.js';
 import { RunbookEngine } from '../../core/RunbookEngine.js';
 import { createTestServiceRegistry } from '../../registry/createTestServiceRegistry.js';
@@ -10,7 +10,7 @@ import type { StepEvidence } from '../StepEvidence.js';
 import { buildStepEvidence } from '../buildStepEvidence.js';
 import { buildRunbookOutput } from '../buildRunbookOutput.js';
 
-function row(values: Record<string, string>): ReadonlyArray<ResultField> {
+function row(values: Record<string, string>): ReadonlyArray<GOLogsInsightsResultField> {
   return Object.entries(values).map(([field, value]) => ({ field, value }));
 }
 

@@ -6,7 +6,7 @@
  * external tools (e.g. `go-rta-check`) can run a runbook per occurrence
  * without spawning a subprocess or parsing files.
  */
-import { Core } from '@go-automation/go-common';
+import type { GOLogger } from '@pagopa/go-common/logging';
 
 import { RunbookEngine } from '../core/RunbookEngine.js';
 import { buildRunbookOutput } from '../output/buildRunbookOutput.js';
@@ -23,7 +23,7 @@ import { createTimeRangeReference } from './createTimeRangeReference.js';
 /** Dependencies built once and reused across occurrences. */
 export interface ExecuteRunbookForOccurrenceDeps {
   readonly services: ServiceRegistry;
-  readonly logger: Core.GOLogger;
+  readonly logger: GOLogger;
 }
 
 /** Per-occurrence input. */

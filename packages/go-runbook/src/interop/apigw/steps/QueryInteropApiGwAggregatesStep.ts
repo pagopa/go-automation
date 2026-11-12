@@ -1,9 +1,5 @@
-import { readRowField } from '@go-automation/go-common/aws';
-import type {
-  AWSCloudWatchLogsQueryOptions,
-  AWSCloudWatchLogsQueryResult,
-  ResultField,
-} from '@go-automation/go-common/aws';
+import type { AWSCloudWatchLogsQueryOptions, AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { resolveTimeRange } from '../../../steps/data/resolveTimeRange.js';
 import type { TimeRangeFromParams } from '../../../steps/data/TimeRangeFromParams.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
@@ -30,7 +26,7 @@ export interface QueryInteropApiGwAggregatesStepConfig {
 const DEFAULT_API_GW_ID_VAR = 'interopApiGwId';
 const DEFAULT_LOG_GROUP_VAR = 'interopApiGwLogGroup';
 
-export class QueryInteropApiGwAggregatesStep implements Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
+export class QueryInteropApiGwAggregatesStep implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -72,7 +68,7 @@ export class QueryInteropApiGwAggregatesStep implements Step<ReadonlyArray<Reado
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<ResultField>>>> {
+  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
     const apiGwId = readRequiredVar(context, this.apiGwIdVar);
     if (apiGwId === undefined) return missingVarFailure(this.apiGwIdVar);
     const logGroup = readRequiredVar(context, this.logGroupVar);
@@ -98,10 +94,10 @@ export class QueryInteropApiGwAggregatesStep implements Step<ReadonlyArray<Reado
 }
 
 function enrichAggregateRows(
-  rows: ReadonlyArray<ReadonlyArray<ResultField>>,
-): ReadonlyArray<ReadonlyArray<ResultField>> {
+  rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
+): ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> {
   return rows.map((row) => {
-    const additions: ResultField[] = [];
+    const additions: GOLogsInsightsResultField[] = [];
     if (readRowField(row, '@timestamp') === undefined) {
       const latestTimestamp = readRowField(row, 'latestTimestamp');
       if (latestTimestamp !== undefined) additions.push({ field: '@timestamp', value: latestTimestamp });
@@ -114,7 +110,7 @@ function enrichAggregateRows(
   });
 }
 
-function buildAggregateMessage(row: ReadonlyArray<ResultField>): string | undefined {
+function buildAggregateMessage(row: ReadonlyArray<GOLogsInsightsResultField>): string | undefined {
   const readNormalized = (field: string): string | undefined =>
     normalizeInteropApiGwAggregateValue(readRowField(row, field));
   const sourceIp = readNormalized('sourceIp');

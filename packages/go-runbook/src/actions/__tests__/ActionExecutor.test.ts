@@ -1,8 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { GOLogEvent, GOLogEventCategory, GOLogger } from '@go-automation/go-common/core';
-import type { GOLoggerHandler } from '@go-automation/go-common/core';
+import { GOLogEvent, GOLogEventCategory, GOLogger, type GOLoggerHandler } from '@pagopa/go-common/logging';
 
 import { ActionExecutor } from '../ActionExecutor.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';

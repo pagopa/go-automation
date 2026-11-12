@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionResult.js';
 import type { KnownCaseAnalysisDraft } from '../../../../output/KnownCaseAnalysisDraft.js';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
@@ -22,9 +23,9 @@ const INVOCATION_504 = 'Lambda invocation failed with status: 504. Lambda reques
 const AUTHORIZER_ERROR = 'Gateway response type: AUTHORIZER_CONFIGURATION_ERROR with status code: 500';
 const FALLBACK = '11111111-1111-1111-1111-111111111111';
 const EXECUTION_GROUP = 'API-Gateway-Execution-Logs_64pohg7bg0/unique';
-const row = (values: Record<string, string>): ReadonlyArray<ResultField> =>
+const row = (values: Record<string, string>): ReadonlyArray<GOLogsInsightsResultField> =>
   Object.entries(values).map(([field, value]) => ({ field, value }));
-const access = (values: Record<string, string> = {}): ReadonlyArray<ResultField> =>
+const access = (values: Record<string, string> = {}): ReadonlyArray<GOLogsInsightsResultField> =>
   row({
     xrayTraceId: `Root=${ROOT}`,
     requestId: REQUEST,
@@ -37,10 +38,10 @@ const access = (values: Record<string, string> = {}): ReadonlyArray<ResultField>
   });
 
 async function execute(
-  accessRow: ReadonlyArray<ResultField>,
+  accessRow: ReadonlyArray<GOLogsInsightsResultField>,
   executionMessages: ReadonlyArray<string | { requestId: string; message: string }> | Error = [],
-  application: Record<string, ReadonlyArray<ReadonlyArray<ResultField>>> = {},
-  additionalAccessRows: ReadonlyArray<ReadonlyArray<ResultField>> = [],
+  application: Record<string, ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> = {},
+  additionalAccessRows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [],
 ): Promise<{
   result: RunbookExecutionResult;
   draft: KnownCaseAnalysisDraft;
@@ -52,7 +53,7 @@ async function execute(
       await Promise.resolve();
       const group = groups[0] ?? '';
       calls.push({ group, query });
-      let rows: ReadonlyArray<ReadonlyArray<ResultField>>;
+      let rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
       if (group === API_GW_LOG_GROUP) rows = [accessRow, ...additionalAccessRows];
       else if (group === EXECUTION_GROUP) {
         if (executionMessages instanceof Error) throw executionMessages;

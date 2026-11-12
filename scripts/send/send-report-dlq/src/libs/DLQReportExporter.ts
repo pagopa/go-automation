@@ -4,7 +4,17 @@
  * Handles exporting DLQ statistics to JSON, JSONL, CSV, HTML, or TXT.
  */
 
-import { AWS, Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { DLQStats } from '@pagopa/go-aws/sqs';
+import {
+  GOCSVListExporter,
+  type GOExportFormat,
+  GOFileListExporter,
+  GOHTMLListExporter,
+  GOJSONFileExporter,
+  GOJSONListExporter,
+  type GOListExporter,
+} from '@pagopa/go-common/exporters';
 
 import type { DLQReportRow } from '../types/index.js';
 
@@ -35,14 +45,14 @@ function columnMapper(name: string): string {
  */
 function createStructuredExporter(
   outputPath: string,
-  format: Exclude<Core.GOExportFormat, 'json' | 'txt'>,
-): Core.GOListExporter<Record<string, unknown>> {
+  format: Exclude<GOExportFormat, 'json' | 'txt'>,
+): GOListExporter<Record<string, unknown>> {
   switch (format) {
     case 'jsonl':
-      return new Core.GOJSONListExporter<Record<string, unknown>>({ outputPath, jsonl: true });
+      return new GOJSONListExporter<Record<string, unknown>>({ outputPath, jsonl: true });
 
     case 'csv':
-      return new Core.GOCSVListExporter<Record<string, unknown>>({
+      return new GOCSVListExporter<Record<string, unknown>>({
         outputPath,
         includeHeader: true,
         delimiter: ',',
@@ -51,7 +61,7 @@ function createStructuredExporter(
       });
 
     case 'html':
-      return new Core.GOHTMLListExporter<Record<string, unknown>>({ outputPath });
+      return new GOHTMLListExporter<Record<string, unknown>>({ outputPath });
 
     default: {
       const exhaustiveCheck: never = format;
@@ -76,7 +86,7 @@ function formatRowAsText(row: DLQReportRow): string {
  * @param results - Map of profile → DLQ stats
  * @returns Flat array of report rows
  */
-function buildReportRows(results: ReadonlyMap<string, ReadonlyArray<AWS.DLQStats>>): ReadonlyArray<DLQReportRow> {
+function buildReportRows(results: ReadonlyMap<string, ReadonlyArray<DLQStats>>): ReadonlyArray<DLQReportRow> {
   const rows: DLQReportRow[] = [];
 
   for (const [profile, stats] of results) {
@@ -113,8 +123,8 @@ function buildReportRows(results: ReadonlyMap<string, ReadonlyArray<AWS.DLQStats
  * @param outputPath - Resolved absolute output file path
  */
 async function exportJsonGrouped(
-  script: Core.GOScript,
-  results: ReadonlyMap<string, ReadonlyArray<AWS.DLQStats>>,
+  script: GOScript,
+  results: ReadonlyMap<string, ReadonlyArray<DLQStats>>,
   outputPath: string,
 ): Promise<void> {
   const profiles: Record<string, unknown> = {};
@@ -135,7 +145,7 @@ async function exportJsonGrouped(
   };
 
   const startTime = Date.now();
-  const exporter = new Core.GOJSONFileExporter({ outputPath, pretty: true, indent: 2 });
+  const exporter = new GOJSONFileExporter({ outputPath, pretty: true, indent: 2 });
   await exporter.export(output);
   const duration = Date.now() - startTime;
 
@@ -156,10 +166,10 @@ async function exportJsonGrouped(
  * @param format - Validated output format
  */
 export async function exportReport(
-  script: Core.GOScript,
-  results: ReadonlyMap<string, ReadonlyArray<AWS.DLQStats>>,
+  script: GOScript,
+  results: ReadonlyMap<string, ReadonlyArray<DLQStats>>,
   outputPath: string,
-  format: Core.GOExportFormat,
+  format: GOExportFormat,
 ): Promise<void> {
   if (format === 'json') {
     await exportJsonGrouped(script, results, outputPath);
@@ -169,7 +179,7 @@ export async function exportReport(
   const rows = buildReportRows(results);
 
   if (format === 'txt') {
-    const textExporter = new Core.GOFileListExporter({ outputPath });
+    const textExporter = new GOFileListExporter({ outputPath });
     textExporter.on('export:completed', (event) => {
       script.logger.success(`Exported ${event.totalItems} rows to: ${event.destination} (${event.duration}ms)`);
     });

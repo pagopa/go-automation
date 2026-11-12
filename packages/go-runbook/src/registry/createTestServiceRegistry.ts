@@ -1,4 +1,4 @@
-import { omitUndefined } from '@go-automation/go-common/core';
+import { omitUndefined } from '@pagopa/go-common/utils';
 
 import { NOOP_RUNBOOK_REPORTER } from './reporters/NOOP_RUNBOOK_REPORTER.js';
 import type { ServiceRegistry } from './ServiceRegistry.js';

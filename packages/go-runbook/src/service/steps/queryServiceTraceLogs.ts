@@ -1,4 +1,4 @@
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
@@ -23,7 +23,7 @@ export interface QueryServiceTraceLogsConfig {
   readonly timeRangeFromParams: TimeRangeFromParams;
 }
 
-export class QueryServiceTraceLogsStep implements Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
+export class QueryServiceTraceLogsStep implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -65,7 +65,7 @@ export class QueryServiceTraceLogsStep implements Step<ReadonlyArray<ReadonlyArr
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<ResultField>>>> {
+  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
     return executeStep('CloudWatch service trace logs query', async () => {
       const traceId = this.resolveTraceId(context);
       if (traceId === '') {

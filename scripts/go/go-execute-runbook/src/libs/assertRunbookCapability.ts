@@ -1,4 +1,4 @@
-import { RUNBOOK_CATALOG } from '@go-automation/go-runbook/catalog';
+import { RUNBOOK_CATALOG } from '@pagopa/go-runbook/catalog';
 
 import type { ExecuteRunbookInput } from '../types/ExecuteRunbookInput.js';
 

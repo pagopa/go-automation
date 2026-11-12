@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import type { RunbookContext } from '../../framework.js';
 import { QuerySpidHubDiagnosticsStep } from '../QuerySpidHubDiagnosticsStep.js';
 import { ERROR_QUERY, SPIDHUB_ACCOUNT_ID, SPIDHUB_LOG_GROUP, STREAM_QUERY } from '../alarmDefinition.js';
 
-type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 type ReadQueryFn = (query: string) => Rows;
 const RESPONDER =
   '[io-spid-commons] error: Spid Authentication|Authentication Error|ERROR=Error: Value attribute of StatusCode is invalid: urn:oasis:names:tc:SAML:2.0:status:Responder';

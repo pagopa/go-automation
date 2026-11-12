@@ -11,16 +11,18 @@
  */
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOPathType } from '@pagopa/go-common/files';
+import type { GOLogger } from '@pagopa/go-common/logging';
 
 import { AttachmentCachePaths } from '../sync/AttachmentCachePaths.js';
 import type { GoSearchJiraConfig } from '../types/GoSearchJiraConfig.js';
 
 export class CleanCommand {
-  public async execute(script: Core.GOScript, config: GoSearchJiraConfig): Promise<void> {
+  public async execute(script: GOScript, config: GoSearchJiraConfig): Promise<void> {
     const dataDir =
       config.storageDataDir.length > 0
-        ? script.paths.resolvePathWithInfo(config.storageDataDir, Core.GOPathType.OUTPUT).path
+        ? script.paths.resolvePathWithInfo(config.storageDataDir, GOPathType.OUTPUT).path
         : script.paths.getDataDir();
     const dbPath = path.join(dataDir, config.storageIndexFileName);
     const cachePaths = new AttachmentCachePaths(dataDir);
@@ -56,7 +58,7 @@ export class CleanCommand {
     script.logger.info('Index and cache removed. Run `--action sync` to recreate.');
   }
 
-  private async removeIndexAtomically(dbPath: string, logger: Core.GOLogger): Promise<void> {
+  private async removeIndexAtomically(dbPath: string, logger: GOLogger): Promise<void> {
     if (!(await fileExists(dbPath))) {
       logger.text(`No index file at ${dbPath}; nothing to remove.`);
       // Still clean up WAL/SHM siblings if they happen to exist
@@ -75,7 +77,7 @@ export class CleanCommand {
     logger.text(`Removed ${dbPath}`);
   }
 
-  private async removeDirectory(dir: string, logger: Core.GOLogger): Promise<void> {
+  private async removeDirectory(dir: string, logger: GOLogger): Promise<void> {
     try {
       await fs.rm(dir, { recursive: true, force: true });
       logger.text(`Removed ${dir}`);

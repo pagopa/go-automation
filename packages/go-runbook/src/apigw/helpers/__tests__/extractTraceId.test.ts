@@ -1,14 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { extractTraceId } from '../extractTraceId.js';
 import { SEND_API_GW_PROFILE } from '../../profiles/SEND_API_GW_PROFILE.js';
 import type { AccessLogSchema } from '../../profiles/schemas/AccessLogSchema.js';
 
 const SEND_SCHEMA = SEND_API_GW_PROFILE.accessLog.schema;
 
-function row(fields: Record<string, string>): ResultField[] {
+function row(fields: Record<string, string>): GOLogsInsightsResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
 }
 

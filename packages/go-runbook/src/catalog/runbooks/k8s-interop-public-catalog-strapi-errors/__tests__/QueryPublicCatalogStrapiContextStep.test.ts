@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AWSCloudWatchLogsQueryOptions } from '@go-automation/go-common/aws';
+import type { AWSCloudWatchLogsQueryOptions } from '@pagopa/go-aws/cloudwatch-logs';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import type { RunbookContext } from '../../framework.js';
 import { QueryPublicCatalogStrapiContextStep } from '../QueryPublicCatalogStrapiContextStep.js';

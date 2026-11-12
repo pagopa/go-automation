@@ -1,10 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { extractRecentLogLines, logLineToRecord, readFirstRowField } from '../resultRows.js';
 
-function row(timestamp: string, message: string): ReadonlyArray<ResultField> {
+function row(timestamp: string, message: string): ReadonlyArray<GOLogsInsightsResultField> {
   return [
     { field: '@timestamp', value: timestamp },
     { field: '@message', value: message },
@@ -13,7 +13,7 @@ function row(timestamp: string, message: string): ReadonlyArray<ResultField> {
 
 describe('readFirstRowField', () => {
   it('falls back to the next name when the first holds the "-" placeholder', () => {
-    const candidate: ReadonlyArray<ResultField> = [
+    const candidate: ReadonlyArray<GOLogsInsightsResultField> = [
       { field: '@message', value: '-' },
       { field: 'message', value: 'real message' },
     ];

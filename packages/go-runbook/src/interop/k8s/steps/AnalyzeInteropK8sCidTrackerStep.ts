@@ -1,4 +1,4 @@
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
 import type { StepKind } from '../../../types/StepKind.js';
@@ -98,7 +98,7 @@ function isCidTrackerResult(value: unknown): value is InteropK8sCidTrackerResult
   return typeof record['cid'] === 'string' && Array.isArray(record['rows']);
 }
 
-function readField(row: ReadonlyArray<ResultField>, names: ReadonlyArray<string>): string | undefined {
+function readField(row: ReadonlyArray<GOLogsInsightsResultField>, names: ReadonlyArray<string>): string | undefined {
   for (const field of row) {
     const fieldName = field.field;
     if (fieldName === undefined || !names.includes(fieldName)) continue;

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { GOLogger } from '@go-automation/go-common/core';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionResult.js';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
@@ -52,7 +52,7 @@ async function execute(
             : context
               ? ['WARN - Error during restart service', ...messages]
               : messages;
-          const rows: ReadonlyArray<ReadonlyArray<ResultField>> = values.map((log) => [
+          const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = values.map((log) => [
             { field: 'pod_app', value: tracker ? 'another-service' : alarm.podApp },
             { field: 'log', value: log },
             { field: '@message', value: JSON.stringify({ log: `${cid ? '[CID=test-cid] ' : ''}${log}` }) },

@@ -14,7 +14,7 @@
  * session the worst outcome wins, so a failed run never hides behind a later
  * successful one.
  */
-import type { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import { renderPreview, renderSummary } from '../report/renderConsole.js';
 import { reportSubdirectory, writeReport } from '../report/writeReport.js';
@@ -45,7 +45,7 @@ import { shouldExecute } from './shouldExecute.js';
  * @returns `0` when every run completed or was deliberately stopped, `2` when one could not run
  */
 export async function runAnalysesMode(
-  script: Core.GOScript,
+  script: GOScript,
   config: GoRtaCheckConfig,
   options: AnalysesRunOptions,
 ): Promise<CoverageExitCode> {
@@ -103,7 +103,7 @@ export async function runAnalysesMode(
 
 /** Inputs of a single runbook analysis. */
 interface SingleAnalysisOptions {
-  readonly script: Core.GOScript;
+  readonly script: GOScript;
   readonly config: GoRtaCheckConfig;
   readonly options: AnalysesRunOptions;
   readonly connection: Connection;

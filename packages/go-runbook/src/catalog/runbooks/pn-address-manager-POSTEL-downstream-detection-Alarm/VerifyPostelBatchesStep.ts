@@ -1,4 +1,4 @@
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
@@ -10,7 +10,7 @@ import { executeCloudWatchLogsQuery } from '../../../steps/data/executeCloudWatc
 import { executeStep } from '../../../steps/data/executeStep.js';
 import { readStepOutput } from '../../../steps/data/readStepOutput.js';
 
-type CloudWatchRows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type CloudWatchRows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
 const BATCH_TRACE_ID_PATTERN = /^batch_id:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const MAX_BATCH_ID_SAMPLES = 10;
@@ -219,7 +219,10 @@ function formatBatchIdSamples(ids: ReadonlyArray<string>): string {
   return omitted > 0 ? `${samples} (+${String(omitted)} ulteriori)` : samples;
 }
 
-function fieldValue(row: ReadonlyArray<ResultField>, candidates: ReadonlyArray<string>): string | undefined {
+function fieldValue(
+  row: ReadonlyArray<GOLogsInsightsResultField>,
+  candidates: ReadonlyArray<string>,
+): string | undefined {
   for (const candidate of candidates) {
     const value = row.find((field) => field.field === candidate)?.value;
     if (value !== undefined) return value;

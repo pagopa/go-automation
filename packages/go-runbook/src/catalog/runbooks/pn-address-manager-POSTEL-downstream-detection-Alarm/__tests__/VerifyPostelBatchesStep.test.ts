@@ -5,9 +5,9 @@ import type {
   AWSCloudWatchLogsQueryOptions,
   AWSCloudWatchLogsQueryResult,
   AWSCloudWatchLogsTimeRange,
-  ResultField,
-} from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+} from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { SEND_SERVICE_PROFILE } from '../../../../service/profiles/SEND_SERVICE_PROFILE.js';
@@ -26,13 +26,13 @@ interface QueryCall {
   readonly options: AWSCloudWatchLogsQueryOptions | undefined;
 }
 
-function row(fields: Readonly<Record<string, string>>): ReadonlyArray<ResultField> {
+function row(fields: Readonly<Record<string, string>>): ReadonlyArray<GOLogsInsightsResultField> {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
 }
 
 function context(
-  errorRows: ReadonlyArray<ReadonlyArray<ResultField>>,
-  statusRows: ReadonlyArray<ReadonlyArray<ResultField>>,
+  errorRows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
+  statusRows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
   calls: QueryCall[],
   params: ReadonlyArray<readonly [string, string]> = [
     ['alarmDatetime', '2026-07-24T12:30:00.000Z'],

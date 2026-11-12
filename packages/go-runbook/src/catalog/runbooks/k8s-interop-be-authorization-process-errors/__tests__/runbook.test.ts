@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { ConditionEvaluator, INTEROP_DOWNSTREAMS, service, type RunbookContext } from '../../framework.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { assertCloudExecutableRunbook } from '../../../../validation/assertCloudExecutableRunbook.js';
@@ -26,7 +26,7 @@ const FIXTURES = new Map<string, string>([
   ],
 ]);
 
-function rows(messages: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<ResultField>> {
+function rows(messages: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> {
   return messages.map((message) => [
     { field: '@timestamp', value: '2026-09-08 15:31:00.000' },
     { field: 'pod_app', value: alarm.podApp },

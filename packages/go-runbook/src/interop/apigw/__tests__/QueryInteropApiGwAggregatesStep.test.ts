@@ -5,8 +5,8 @@ import type {
   AWSCloudWatchLogsQueryOptions,
   AWSCloudWatchLogsQueryResult,
   AWSCloudWatchLogsTimeRange,
-  ResultField,
-} from '@go-automation/go-common/aws';
+} from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { QueryInteropApiGwAggregatesStep } from '../steps/QueryInteropApiGwAggregatesStep.js';
 import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
@@ -14,7 +14,7 @@ import { createTestServiceRegistry } from '../../../registry/createTestServiceRe
 describe('QueryInteropApiGwAggregatesStep', () => {
   it('queries the resolved group and enriches aggregate rows as output evidence', async () => {
     let seenRange: AWSCloudWatchLogsTimeRange | undefined;
-    const rows: ReadonlyArray<ReadonlyArray<ResultField>> = [
+    const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
       [
         { field: 'latestTimestamp', value: '2026-08-24 09:59:00.000' },
         { field: 'count', value: '2' },

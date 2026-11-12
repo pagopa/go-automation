@@ -1,17 +1,18 @@
-import { Core } from '@go-automation/go-common';
+import { GOHttpClient } from '@pagopa/go-common/http';
+import type { GOScript } from '@go-automation/go-script';
 import {
   computeRunbookTimeRange,
   createServiceRegistry,
   createTimeRangeReference,
   type RunbookBuilderFn,
-} from '@go-automation/go-runbook/catalog';
-import { RunbookEngine, apigw, lambda, service } from '@go-automation/go-runbook';
-import type { ExecutionEnvironment, Runbook, RunbookExecutionResult } from '@go-automation/go-runbook';
+} from '@pagopa/go-runbook/catalog';
+import { RunbookEngine, apigw, lambda, service } from '@pagopa/go-runbook';
+import type { ExecutionEnvironment, Runbook, RunbookExecutionResult } from '@pagopa/go-runbook';
 
 import type { AnalyzableAlarmConfig } from '../types/AnalyzableAlarmConfig.js';
 import { saveExecutionTrace } from './saveExecutionTrace.js';
 import { saveExecutionOutput } from './saveExecutionOutput.js';
-import { ConsoleRunbookReporter } from '@go-automation/go-runbook/catalog';
+import { ConsoleRunbookReporter } from '@pagopa/go-runbook/catalog';
 
 export interface AnalyzeOccurrenceInput {
   readonly alarmDatetime: string;
@@ -20,7 +21,7 @@ export interface AnalyzeOccurrenceInput {
 }
 
 export async function analyzeOccurrence(
-  script: Core.GOScript,
+  script: GOScript,
   config: AnalyzableAlarmConfig,
   runbookBuilder: RunbookBuilderFn,
   input: AnalyzeOccurrenceInput,
@@ -47,7 +48,10 @@ export async function analyzeOccurrence(
 
   script.logger.info(`Using AWS profiles: ${script.aws.clients.profileNames.join(', ')}`);
 
-  const services = createServiceRegistry(script, new ConsoleRunbookReporter(script.logger));
+  const services = createServiceRegistry(
+    { services: script.aws.services, http: new GOHttpClient({}) },
+    new ConsoleRunbookReporter(script.logger),
+  );
 
   script.logger.section('Executing Runbook');
 
@@ -67,7 +71,7 @@ export async function analyzeOccurrence(
   await saveExecutionOutput(script, runbook, result, traceFile, input.outputSuffix);
 }
 
-function renderFinalSummary(script: Core.GOScript, runbook: Runbook, result: RunbookExecutionResult): void {
+function renderFinalSummary(script: GOScript, runbook: Runbook, result: RunbookExecutionResult): void {
   const finalSummaryInput = {
     logger: script.logger,
     status: result.status,
@@ -94,7 +98,7 @@ function renderFinalSummary(script: Core.GOScript, runbook: Runbook, result: Run
   }
 }
 
-function renderRunbookResult(script: Core.GOScript, result: RunbookExecutionResult): void {
+function renderRunbookResult(script: GOScript, result: RunbookExecutionResult): void {
   script.logger.section('Runbook Result');
   script.logger.info(`Status: ${result.status}`);
   script.logger.info(`Steps executed: ${result.stepsExecuted}`);

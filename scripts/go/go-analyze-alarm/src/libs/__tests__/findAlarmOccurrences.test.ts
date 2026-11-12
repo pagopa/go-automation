@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import { assertRangeModeConfig, findAlarmOccurrences } from '../findAlarmOccurrences.js';
 import type { AnalyzableAlarmConfig } from '../../types/AnalyzableAlarmConfig.js';
@@ -28,7 +28,7 @@ describe('findAlarmOccurrences', () => {
           },
         },
       },
-    } as unknown as Core.GOScript;
+    } as unknown as GOScript;
 
     const occurrences = await findAlarmOccurrences(script, {
       alarmName: 'k8s-interop-be-backend-for-frontend-errors-att',

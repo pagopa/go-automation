@@ -1,4 +1,4 @@
-import { omitUndefined } from '@go-automation/go-common/core';
+import { omitUndefined } from '@pagopa/go-common/utils';
 import type { Runbook } from '../types/Runbook.js';
 import type { RunbookMetadata } from '../types/RunbookMetadata.js';
 import type { RunbookAnalysisDefaults } from '../types/RunbookAnalysisDefaults.js';

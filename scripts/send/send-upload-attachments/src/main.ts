@@ -6,7 +6,8 @@
  * an output file (input data + upload results) incrementally, in input order.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOPathType } from '@pagopa/go-common/files';
 import { SENDNotifications, SENDAttachmentUploadWorker } from '@go-automation/go-send';
 
 import { createExporter } from './libs/createExporter.js';
@@ -25,11 +26,11 @@ import type { SendUploadAttachmentsConfig } from './types/index.js';
  *
  * @param script - The GOScript instance for logging and prompts
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<SendUploadAttachmentsConfig>();
 
   // Resolve input file and formats
-  const inputPath = script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT);
+  const inputPath = script.paths.resolvePath(config.inputFile, GOPathType.INPUT);
   const inputFormat = resolveFileFormat(inputPath);
 
   const outputFormat =
@@ -39,7 +40,7 @@ export async function main(script: Core.GOScript): Promise<void> {
         ? resolveFileFormat(config.outputFile)
         : inputFormat;
   const outputFile = config.outputFile ?? buildDefaultOutputFileName(config.inputFile, outputFormat);
-  const outputPathInfo = script.paths.resolvePathWithInfo(outputFile, Core.GOPathType.OUTPUT);
+  const outputPathInfo = script.paths.resolvePathWithInfo(outputFile, GOPathType.OUTPUT);
 
   script.logger.info(`Input file: ${inputPath} (${inputFormat})`);
   script.logger.info(`Output file: ${outputPathInfo.path} (${outputFormat})`);

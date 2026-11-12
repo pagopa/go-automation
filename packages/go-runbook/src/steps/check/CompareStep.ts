@@ -3,7 +3,7 @@ import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import { resolveRef } from './resolveRef.js';
-import { valueToString } from '@go-automation/go-common/core';
+import { valueToString } from '@pagopa/go-common/utils';
 import { compareValues } from '../../core/compareValues.js';
 import type { CompareOperator } from '../../core/CompareOperator.js';
 

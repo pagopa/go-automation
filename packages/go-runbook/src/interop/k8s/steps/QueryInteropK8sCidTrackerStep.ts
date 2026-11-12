@@ -1,10 +1,9 @@
-import { sumCloudWatchLogsQueryStatistics } from '@go-automation/go-common/aws';
-import type {
-  AWSCloudWatchLogsQueryExecution,
-  AWSCloudWatchLogsQueryOptions,
-  AWSCloudWatchLogsQueryStatistics,
-  ResultField,
-} from '@go-automation/go-common/aws';
+import type { AWSCloudWatchLogsQueryExecution, AWSCloudWatchLogsQueryOptions } from '@pagopa/go-aws/cloudwatch-logs';
+import {
+  type AWSCloudWatchLogsQueryStatistics,
+  type GOLogsInsightsResultField,
+  sumCloudWatchLogsQueryStatistics,
+} from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
 import type { StepKind } from '../../../types/StepKind.js';
@@ -18,7 +17,7 @@ import type { InteropK8sApplicationLogAnalysis } from './AnalyzeInteropK8sApplic
 
 export interface InteropK8sCidTrackerResult {
   readonly cid: string;
-  readonly rows: ReadonlyArray<ReadonlyArray<ResultField>>;
+  readonly rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 }
 
 export interface QueryInteropK8sCidTrackerStepConfig {

@@ -1,13 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type {
-  AWSCloudWatchLogsQueryOptions,
-  AWSCloudWatchLogsQueryResult,
-  AWSCloudWatchLogsTimeRange,
-  ResultField,
-} from '@go-automation/go-common/aws';
-import type { GOLogger } from '@go-automation/go-common/core';
+import type { AWSCloudWatchLogsQueryOptions, AWSCloudWatchLogsQueryResult, AWSCloudWatchLogsTimeRange } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import { CloudWatchLogsQueryStep } from '../CloudWatchLogsQueryStep.js';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
@@ -211,7 +207,7 @@ describe('CloudWatchLogsQueryStep.execute', () => {
     assert.equal((await step.execute(ctx)).success, false);
   });
   it('returns rows and stores CloudWatch Logs statistics as diagnostics', async () => {
-    const rows: ReadonlyArray<ReadonlyArray<ResultField>> = [
+    const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
       [{ field: '@timestamp', value: '2026-01-01T00:00:01.000Z' }],
     ];
     const logLines: string[] = [];
@@ -248,7 +244,7 @@ describe('CloudWatchLogsQueryStep.execute', () => {
               ],
             };
           },
-          async query(): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
+          async query(): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
             await Promise.resolve();
             throw new Error('query() should not be used when queryWithStatistics is available');
           },
@@ -297,7 +293,7 @@ describe('CloudWatchLogsQueryStep.execute', () => {
               queryExecutions: [],
             };
           },
-          async query(): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> {
+          async query(): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
             await Promise.resolve();
             throw new Error('query() should not be used when queryWithStatistics is available');
           },

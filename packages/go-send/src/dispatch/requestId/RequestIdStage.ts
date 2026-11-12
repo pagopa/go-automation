@@ -1,5 +1,6 @@
-import { GOBackoff, GOConcurrencyPool, toError } from '@go-automation/go-common/core';
-import type { GOBackoffFn } from '@go-automation/go-common/core';
+import { GOConcurrencyPool } from '@pagopa/go-common/concurrency';
+import { toError } from '@pagopa/go-common/errors';
+import { GOBackoff, type GOBackoffFn } from '@pagopa/go-common/polling';
 
 import type { SENDTimelineElement } from '../../services/timeline/models/SENDTimelineElement.js';
 import { IUN_UNKNOWN, WORKFLOW_ENDED_PREFIX } from '../model/requestIdReasons.js';

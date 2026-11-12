@@ -1,13 +1,24 @@
-import { Core } from '@go-automation/go-common';
+import {
+  GOCLIArgumentParser,
+  GOConfigKeyTransformer,
+  type GOConfigParameterOptions,
+  GOConfigParameterType,
+  GOConfigTypeConverter,
+  type GOPrompt,
+  type GOPromptMultiselectOption,
+  type GOPromptNumberOptions,
+  type GOPromptTextOptions,
+} from '@go-automation/go-script';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import type { DiscoveredScript } from './discovery.js';
 
 /** Parameter types whose value is a list. */
-const ARRAY_PARAMETER_TYPES: ReadonlySet<Core.GOConfigParameterType> = new Set([
-  Core.GOConfigParameterType.STRING_ARRAY,
-  Core.GOConfigParameterType.INT_ARRAY,
-  Core.GOConfigParameterType.DOUBLE_ARRAY,
-  Core.GOConfigParameterType.BOOL_ARRAY,
-  Core.GOConfigParameterType.BUFFER_ARRAY,
+const ARRAY_PARAMETER_TYPES: ReadonlySet<GOConfigParameterType> = new Set([
+  GOConfigParameterType.STRING_ARRAY,
+  GOConfigParameterType.INT_ARRAY,
+  GOConfigParameterType.DOUBLE_ARRAY,
+  GOConfigParameterType.BOOL_ARRAY,
+  GOConfigParameterType.BUFFER_ARRAY,
 ]);
 
 /**
@@ -17,8 +28,8 @@ const ARRAY_PARAMETER_TYPES: ReadonlySet<Core.GOConfigParameterType> = new Set([
 export async function validateAndInformParameters(
   script: DiscoveredScript,
   args: string[],
-  prompt: Core.GOPrompt,
-  logger: Core.GOLogger,
+  prompt: GOPrompt,
+  logger: GOLogger,
   isInteractive: boolean,
 ): Promise<{ valid: boolean; back?: boolean; finalArgs: string[] }> {
   if (!script.parameters) {
@@ -27,7 +38,7 @@ export async function validateAndInformParameters(
   }
 
   const parameters = script.parameters;
-  const parsed = Core.GOCLIArgumentParser.parse(args);
+  const parsed = GOCLIArgumentParser.parse(args);
   const finalArgs = [...args];
 
   console.log(`\nScript: ${script.metadata.name} (v${script.metadata.version ?? '1.0.0'})`);
@@ -38,7 +49,7 @@ export async function validateAndInformParameters(
   const mandatoryParams = parameters.filter((p) => p.required);
   const optionalParams = parameters.filter((p) => !p.required);
 
-  const missingMandatory: Core.GOConfigParameterOptions[] = [];
+  const missingMandatory: GOConfigParameterOptions[] = [];
 
   // 1. Validate already provided arguments
   for (const param of parameters) {
@@ -47,7 +58,7 @@ export async function validateAndInformParameters(
       if (param.validator) {
         const validationResult = param.validator(value);
         if (validationResult !== true) {
-          const flag = Core.GOConfigKeyTransformer.toCLIFlag(param.name);
+          const flag = GOConfigKeyTransformer.toCLIFlag(param.name);
           logger.error(`Invalid value for ${flag}: ${String(validationResult)}`);
           return { valid: false, finalArgs: args };
         }
@@ -61,7 +72,7 @@ export async function validateAndInformParameters(
     for (const param of mandatoryParams) {
       const isProvided = isParamProvided(param, parsed);
       const status = isProvided ? '✔' : '✖';
-      const flag = Core.GOConfigKeyTransformer.toCLIFlag(param.name);
+      const flag = GOConfigKeyTransformer.toCLIFlag(param.name);
       const value = isProvided ? formatValue(getParamValue(param, parsed)) : 'Missing!';
       console.log(`  ${status} ${flag.padEnd(25)} ${value.toString().padEnd(30)} (${param.description ?? ''})`);
 
@@ -77,7 +88,7 @@ export async function validateAndInformParameters(
     console.log('OPTIONAL PARAMETERS:');
     for (const param of optionalParams) {
       const isProvided = isParamProvided(param, parsed);
-      const flag = Core.GOConfigKeyTransformer.toCLIFlag(param.name);
+      const flag = GOConfigKeyTransformer.toCLIFlag(param.name);
       let value = '[Not provided]';
       if (isProvided) {
         value = formatValue(getParamValue(param, parsed));
@@ -94,7 +105,7 @@ export async function validateAndInformParameters(
     if (isInteractive) {
       console.log('Some mandatory parameters are missing. Please provide them:\n');
       for (const param of missingMandatory) {
-        const flag = Core.GOConfigKeyTransformer.toCLIFlag(param.name);
+        const flag = GOConfigKeyTransformer.toCLIFlag(param.name);
         const value = await promptForParam(param, prompt);
 
         if (value === undefined) {
@@ -133,8 +144,8 @@ export async function validateAndInformParameters(
         const selectedNames = await prompt.multiselect<string>(
           'Select optional parameters to configure:',
           unprovidedOptional.map((p) => {
-            const option: Core.GOPromptMultiselectOption = {
-              title: `${Core.GOConfigKeyTransformer.toCLIFlag(p.name)} (${p.name})`,
+            const option: GOPromptMultiselectOption = {
+              title: `${GOConfigKeyTransformer.toCLIFlag(p.name)} (${p.name})`,
               value: p.name,
             };
             if (p.description) option.description = p.description;
@@ -149,7 +160,7 @@ export async function validateAndInformParameters(
         for (const name of selectedNames) {
           const param = unprovidedOptional.find((p) => p.name === name);
           if (param) {
-            const flag = Core.GOConfigKeyTransformer.toCLIFlag(param.name);
+            const flag = GOConfigKeyTransformer.toCLIFlag(param.name);
             const value = await promptForParam(param, prompt);
 
             if (value === undefined) {
@@ -175,9 +186,9 @@ function pushArg(
   args: string[],
   flag: string,
   value: string | number | boolean | string[],
-  type: Core.GOConfigParameterType,
+  type: GOConfigParameterType,
 ): void {
-  if (type === Core.GOConfigParameterType.BOOL) {
+  if (type === GOConfigParameterType.BOOL) {
     if (value === true) {
       args.push(flag);
     }
@@ -191,9 +202,9 @@ function pushArg(
 /**
  * Check if a parameter is provided in the parsed arguments
  */
-function isParamProvided(param: Core.GOConfigParameterOptions, parsed: Map<string, string | string[]>): boolean {
+function isParamProvided(param: GOConfigParameterOptions, parsed: Map<string, string | string[]>): boolean {
   // GOCLIArgumentParser returns flags as they are in the command line (without dashes)
-  const cliFlag = Core.GOConfigKeyTransformer.toCLIFlag(param.name).replace(/^--/, '');
+  const cliFlag = GOConfigKeyTransformer.toCLIFlag(param.name).replace(/^--/, '');
 
   if (parsed.has(cliFlag)) return true;
 
@@ -211,24 +222,18 @@ function isParamProvided(param: Core.GOConfigParameterOptions, parsed: Map<strin
 /**
  * Get parameter value from parsed arguments
  */
-function getParamValue(
-  param: Core.GOConfigParameterOptions,
-  parsed: Map<string, string | string[]>,
-): string | string[] {
+function getParamValue(param: GOConfigParameterOptions, parsed: Map<string, string | string[]>): string | string[] {
   const raw = getRawParamValue(param, parsed);
   // The parser keeps a single value verbatim (commas included): array
   // parameters split it here, as GOConfigReader does when converting.
-  return ARRAY_PARAMETER_TYPES.has(param.type) ? Core.GOConfigTypeConverter.toStringArray(raw) : raw;
+  return ARRAY_PARAMETER_TYPES.has(param.type) ? GOConfigTypeConverter.toStringArray(raw) : raw;
 }
 
 /**
  * Get the raw parsed value of a parameter, by flag or alias
  */
-function getRawParamValue(
-  param: Core.GOConfigParameterOptions,
-  parsed: Map<string, string | string[]>,
-): string | string[] {
-  const cliFlag = Core.GOConfigKeyTransformer.toCLIFlag(param.name).replace(/^--/, '');
+function getRawParamValue(param: GOConfigParameterOptions, parsed: Map<string, string | string[]>): string | string[] {
+  const cliFlag = GOConfigKeyTransformer.toCLIFlag(param.name).replace(/^--/, '');
 
   const val = parsed.get(cliFlag);
   if (val !== undefined) return val;
@@ -258,20 +263,20 @@ function formatValue(value: unknown): string {
  * Prompt for a parameter value based on its type with live validation
  */
 async function promptForParam(
-  param: Core.GOConfigParameterOptions,
-  prompt: Core.GOPrompt,
+  param: GOConfigParameterOptions,
+  prompt: GOPrompt,
 ): Promise<string | number | boolean | string[] | undefined> {
-  const flag = Core.GOConfigKeyTransformer.toCLIFlag(param.name);
+  const flag = GOConfigKeyTransformer.toCLIFlag(param.name);
   const message = `Enter value for ${flag} (${param.description ?? ''})`;
 
   switch (param.type) {
-    case Core.GOConfigParameterType.BOOL:
+    case GOConfigParameterType.BOOL:
       return await prompt.confirm(message, param.defaultValue as boolean);
 
-    case Core.GOConfigParameterType.INT:
-    case Core.GOConfigParameterType.DOUBLE: {
+    case GOConfigParameterType.INT:
+    case GOConfigParameterType.DOUBLE: {
       const initial = typeof param.defaultValue === 'number' ? param.defaultValue : undefined;
-      const options: Core.GOPromptNumberOptions = {
+      const options: GOPromptNumberOptions = {
         validate: (val: number) => {
           if (param.validator) {
             return param.validator(val);
@@ -283,11 +288,11 @@ async function promptForParam(
       return await prompt.number(message, options);
     }
 
-    case Core.GOConfigParameterType.STRING_ARRAY:
-    case Core.GOConfigParameterType.INT_ARRAY:
-    case Core.GOConfigParameterType.DOUBLE_ARRAY: {
+    case GOConfigParameterType.STRING_ARRAY:
+    case GOConfigParameterType.INT_ARRAY:
+    case GOConfigParameterType.DOUBLE_ARRAY: {
       const initial = Array.isArray(param.defaultValue) ? (param.defaultValue as string[]).join(',') : undefined;
-      const options: Core.GOPromptTextOptions = {
+      const options: GOPromptTextOptions = {
         validate: (val: string) => {
           if (param.validator) {
             const parts = val.split(',').map((s) => s.trim());
@@ -304,7 +309,7 @@ async function promptForParam(
 
     default: {
       const initial = typeof param.defaultValue === 'string' ? param.defaultValue : undefined;
-      const options: Core.GOPromptTextOptions = {
+      const options: GOPromptTextOptions = {
         validate: (val: string) => {
           if (param.validator) {
             return param.validator(val);

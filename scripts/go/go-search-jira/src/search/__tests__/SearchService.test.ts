@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { Core } from '@go-automation/go-common';
+import { GOFtsIndex } from '@go-automation/go-documents';
 
 import { SearchService } from '../SearchService.js';
 import { AttachmentRepository } from '../../storage/AttachmentRepository.js';
@@ -34,7 +34,7 @@ function makeIssue(attachment: JiraAttachment): JiraIssue {
 
 describe('SearchService', () => {
   it('allows empty issueUrl values when Jira URL generation is disabled', async () => {
-    const index = new Core.GOFtsIndex({
+    const index = new GOFtsIndex({
       databasePath: ':memory:',
       ftsTableName: 'attachments_fts',
       metadataColumns: ['issue_key', 'project_key', 'filename', 'mime_type'],

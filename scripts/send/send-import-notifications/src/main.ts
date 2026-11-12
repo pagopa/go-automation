@@ -5,7 +5,7 @@
  * Receives typed dependencies (script) for clean separation of concerns.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import { setupEventListeners } from './libs/setupEventListeners.js';
 import { handleWorkflowError } from './libs/handleWorkflowError.js';
@@ -20,7 +20,7 @@ import type { ImportNotificationsConfig } from './types/ImportNotificationsConfi
  *
  * @param script - The GOScript instance for logging and prompts
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<ImportNotificationsConfig>();
   const components = await createImportWorkflowComponents(script, config);
 

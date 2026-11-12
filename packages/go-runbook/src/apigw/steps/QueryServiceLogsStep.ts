@@ -1,4 +1,4 @@
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
@@ -64,7 +64,7 @@ interface ActiveIdentifier {
   readonly value: string;
 }
 
-export class QueryServiceLogsStep implements Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
+export class QueryServiceLogsStep implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -120,7 +120,7 @@ export class QueryServiceLogsStep implements Step<ReadonlyArray<ReadonlyArray<Re
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<ResultField>>>> {
+  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
     return executeStep('CloudWatch service logs query', async () => {
       const traceId = (context.vars.get(this.traceIdVar) ?? '').trim();
       const fallback = (context.vars.get('fallbackUuid') ?? '').trim();
@@ -154,7 +154,7 @@ export class QueryServiceLogsStep implements Step<ReadonlyArray<ReadonlyArray<Re
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
       const query = this.buildQuery(traceId, fallback);
 
-      let results: ReadonlyArray<ReadonlyArray<ResultField>>;
+      let results: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
       let diagnostics: StepDiagnostics | undefined;
       try {
         const queryResult = await executeCloudWatchLogsQuery(context, this.logGroups, query, timeRange, {

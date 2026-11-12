@@ -199,7 +199,7 @@ const scriptRestrictedSyntaxRules = [
   {
     selector: "NewExpression[callee.name='EventEmitter']",
     message:
-      'Extend GOEventEmitterBase from @go-automation/go-common instead of using EventEmitter directly. See CONVENTIONS.md.',
+      'Extend GOEventEmitterBase from @pagopa/go-common/events instead of using EventEmitter directly. See CONVENTIONS.md.',
   },
 ];
 
@@ -423,6 +423,10 @@ export default tseslint.config(
   {
     files: [
       'packages/go-common/**/*.ts',
+      'packages/go-aws/**/*.ts',
+      'packages/go-script/**/*.ts',
+      'packages/go-documents/**/*.ts',
+      'packages/go-slack/**/*.ts',
       'packages/go-cli/**/*.ts',
       'packages/go-execute-runbook-contracts/**/*.ts',
       'packages/go-watchtower-client/**/*.ts',
@@ -516,7 +520,7 @@ export default tseslint.config(
   },
 
   // ===== Scripts: enforce go-common usage =====
-  // Prevents scripts from reimplementing features already provided by @go-automation/go-common.
+  // Prevents scripts from reimplementing features already provided by @pagopa/go-common and @go-automation/go-script.
   // Bypass with: // eslint-disable-next-line <rule> -- <justification>
   // See CONVENTIONS.md for the full mapping of go-common capabilities.
   {
@@ -531,131 +535,131 @@ export default tseslint.config(
             // CSV processing → GOCSVListExporter / GOCSVListImporter
             {
               name: 'csv-stringify',
-              message: 'Use GOCSVListExporter from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOCSVListExporter from @pagopa/go-common/exporters. See CONVENTIONS.md.',
             },
             {
               name: 'csv-stringify/sync',
-              message: 'Use GOCSVListExporter from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOCSVListExporter from @pagopa/go-common/exporters. See CONVENTIONS.md.',
             },
             {
               name: 'csv-parse',
-              message: 'Use GOCSVListImporter from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOCSVListImporter from @pagopa/go-common/importers. See CONVENTIONS.md.',
             },
             {
               name: 'csv-parse/sync',
-              message: 'Use GOCSVListImporter from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOCSVListImporter from @pagopa/go-common/importers. See CONVENTIONS.md.',
             },
             // Prompts → GOPrompt
             {
               name: 'prompts',
-              message: 'Use GOPrompt from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOPrompt from @go-automation/go-script. See CONVENTIONS.md.',
             },
             {
               name: '@inquirer/prompts',
-              message: 'Use GOPrompt from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOPrompt from @go-automation/go-script. See CONVENTIONS.md.',
             },
             {
               name: 'enquirer',
-              message: 'Use GOPrompt from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOPrompt from @go-automation/go-script. See CONVENTIONS.md.',
             },
             {
               name: 'inquirer',
-              message: 'Use GOPrompt from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOPrompt from @go-automation/go-script. See CONVENTIONS.md.',
             },
             // Spinners / progress → GOMultiSpinner / GOLoadingBar
             {
               name: 'ora',
-              message: 'Use GOMultiSpinner or GOLoadingBar from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOMultiSpinner or GOLoadingBar from @go-automation/go-script. See CONVENTIONS.md.',
             },
             {
               name: 'cli-spinners',
-              message: 'Use GOMultiSpinner or GOLoadingBar from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOMultiSpinner or GOLoadingBar from @go-automation/go-script. See CONVENTIONS.md.',
             },
             // Colors → GOLogger (handles colors internally)
             {
               name: 'chalk',
-              message: 'Use GOLogger from @go-automation/go-common for colored output. See CONVENTIONS.md.',
+              message: 'Use GOLogger from @pagopa/go-common/logging for colored output. See CONVENTIONS.md.',
             },
             {
               name: 'kleur',
-              message: 'Use GOLogger from @go-automation/go-common for colored output. See CONVENTIONS.md.',
+              message: 'Use GOLogger from @pagopa/go-common/logging for colored output. See CONVENTIONS.md.',
             },
             {
               name: 'picocolors',
-              message: 'Use GOLogger from @go-automation/go-common for colored output. See CONVENTIONS.md.',
+              message: 'Use GOLogger from @pagopa/go-common/logging for colored output. See CONVENTIONS.md.',
             },
             {
               name: 'colorette',
-              message: 'Use GOLogger from @go-automation/go-common for colored output. See CONVENTIONS.md.',
+              message: 'Use GOLogger from @pagopa/go-common/logging for colored output. See CONVENTIONS.md.',
             },
             // HTTP client → GOHttpClient
             {
               name: 'undici',
-              message: 'Use GOHttpClient from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOHttpClient from @pagopa/go-common/http. See CONVENTIONS.md.',
             },
             {
               name: 'node-fetch',
-              message: 'Use GOHttpClient from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOHttpClient from @pagopa/go-common/http. See CONVENTIONS.md.',
             },
             {
               name: 'axios',
-              message: 'Use GOHttpClient from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOHttpClient from @pagopa/go-common/http. See CONVENTIONS.md.',
             },
             {
               name: 'got',
-              message: 'Use GOHttpClient from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOHttpClient from @pagopa/go-common/http. See CONVENTIONS.md.',
             },
             // CLI argument parsing → GOScript / GOConfigReader
             {
               name: 'yargs',
-              message: 'Use GOScript config from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOScript config from @go-automation/go-script. See CONVENTIONS.md.',
             },
             {
               name: 'commander',
-              message: 'Use GOScript config from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOScript config from @go-automation/go-script. See CONVENTIONS.md.',
             },
             {
               name: 'minimist',
-              message: 'Use GOScript config from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOScript config from @go-automation/go-script. See CONVENTIONS.md.',
             },
             {
               name: 'meow',
-              message: 'Use GOScript config from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOScript config from @go-automation/go-script. See CONVENTIONS.md.',
             },
             // Tables → GOTableFormatter
             {
               name: 'cli-table3',
-              message: 'Use GOTableFormatter from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOTableFormatter from @pagopa/go-common/render. See CONVENTIONS.md.',
             },
             {
               name: 'table',
-              message: 'Use GOTableFormatter from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOTableFormatter from @pagopa/go-common/render. See CONVENTIONS.md.',
             },
             // Logging → GOLogger
             {
               name: 'winston',
-              message: 'Use GOLogger from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOLogger from @pagopa/go-common/logging. See CONVENTIONS.md.',
             },
             {
               name: 'pino',
-              message: 'Use GOLogger from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOLogger from @pagopa/go-common/logging. See CONVENTIONS.md.',
             },
             {
               name: 'bunyan',
-              message: 'Use GOLogger from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOLogger from @pagopa/go-common/logging. See CONVENTIONS.md.',
             },
             {
               name: 'log4js',
-              message: 'Use GOLogger from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use GOLogger from @pagopa/go-common/logging. See CONVENTIONS.md.',
             },
             // YAML → go-common utilities
             {
               name: 'yaml',
-              message: 'Use utilities from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use utilities from @pagopa/go-common. See CONVENTIONS.md.',
             },
             {
               name: 'js-yaml',
-              message: 'Use utilities from @go-automation/go-common. See CONVENTIONS.md.',
+              message: 'Use utilities from @pagopa/go-common. See CONVENTIONS.md.',
             },
           ],
         },

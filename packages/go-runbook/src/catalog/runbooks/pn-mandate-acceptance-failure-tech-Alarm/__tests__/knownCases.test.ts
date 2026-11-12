@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { ConditionEvaluator, SEND_DOWNSTREAMS } from '../../framework.js';
 import type { RunbookContext } from '../../framework.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { KNOWN_CASES } from '../knownCases.js';
 
-function row(fields: Readonly<Record<string, string>>): ReadonlyArray<ResultField> {
+function row(fields: Readonly<Record<string, string>>): ReadonlyArray<GOLogsInsightsResultField> {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
 }
 

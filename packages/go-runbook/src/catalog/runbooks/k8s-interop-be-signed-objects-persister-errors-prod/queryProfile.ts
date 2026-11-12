@@ -1,4 +1,4 @@
-import { escapeLogsInsightsString } from '@go-automation/go-common/aws';
+import { escapeLogsInsightsString } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { interop } from '../framework.js';
 
 /** Follow the embedded application date in CID traces, as documented in the source. */

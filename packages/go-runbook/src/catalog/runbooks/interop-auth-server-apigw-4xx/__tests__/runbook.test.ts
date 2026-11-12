@@ -6,9 +6,9 @@ import type {
   AWSCloudWatchLogsQueryOptions,
   AWSCloudWatchLogsQueryResult,
   AWSCloudWatchLogsTimeRange,
-  ResultField,
-} from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+} from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
@@ -45,7 +45,7 @@ describe('buildRunbook', () => {
 
   it('uses X-2/X+1 for APIGW and CID but X-2/X for auth-server warnings', async () => {
     const seen: { readonly query: string; readonly range: AWSCloudWatchLogsTimeRange }[] = [];
-    const applicationRows: ReadonlyArray<ReadonlyArray<ResultField>> = [
+    const applicationRows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
       [
         { field: 'count', value: '1' },
         { field: 'cid', value: 'cid-1' },
@@ -91,7 +91,7 @@ describe('buildRunbook', () => {
   });
 
   it('keeps API Gateway 403 open even when no application warning was found', async () => {
-    const accessRows: ReadonlyArray<ReadonlyArray<ResultField>> = [
+    const accessRows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
       [
         { field: 'latestTimestamp', value: '2026-08-24 10:00:00.000' },
         { field: 'count', value: '2' },

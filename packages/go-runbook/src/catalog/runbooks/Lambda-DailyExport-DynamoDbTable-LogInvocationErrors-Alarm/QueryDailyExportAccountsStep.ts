@@ -1,5 +1,8 @@
-import { readRowField, sumCloudWatchLogsQueryStatistics } from '@go-automation/go-common/aws';
-import type { ResultField } from '@go-automation/go-common/aws';
+import {
+  type GOLogsInsightsResultField,
+  readRowField,
+  sumCloudWatchLogsQueryStatistics,
+} from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
@@ -13,7 +16,7 @@ import { extractLambdaRequestId } from '../../../lambda/helpers/extractLambdaReq
 
 import { LAMBDA_FUNCTION } from './knownServices.js';
 
-type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 type QueryKind = 'errors' | 'invocation';
 /** Request IDs per query; the total fan-out remains bounded across all configured sources. */
 const INVOCATION_BATCH_SIZE = 25;

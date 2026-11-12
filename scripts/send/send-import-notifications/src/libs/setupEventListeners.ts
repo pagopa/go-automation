@@ -2,7 +2,9 @@
  * Registers event listeners for monitoring import workflow progress.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOPrompt } from '@go-automation/go-script';
+import type { GOCSVListExporter } from '@pagopa/go-common/exporters';
+import type { GOCSVListImporter } from '@pagopa/go-common/importers';
 import type { SENDNotificationImportWorker, SENDNotificationRow } from '@go-automation/go-send';
 
 /**
@@ -15,9 +17,9 @@ import type { SENDNotificationImportWorker, SENDNotificationRow } from '@go-auto
  */
 export function setupEventListeners(
   worker: SENDNotificationImportWorker,
-  importer: Core.GOCSVListImporter<SENDNotificationRow>,
-  exporter: Core.GOCSVListExporter<Record<string, unknown>> | undefined,
-  prompt: Core.GOPrompt,
+  importer: GOCSVListImporter<SENDNotificationRow>,
+  exporter: GOCSVListExporter<Record<string, unknown>> | undefined,
+  prompt: GOPrompt,
 ): void {
   // Worker events
   worker.on('worker:progress', (event) => {

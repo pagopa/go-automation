@@ -1,4 +1,4 @@
-import type { RunbookOutput } from '@go-automation/go-runbook';
+import type { RunbookOutput } from '@pagopa/go-runbook';
 
 import type { CachedRunbookMeta } from './CachedRunbookMeta.js';
 

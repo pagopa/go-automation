@@ -1,4 +1,4 @@
-import { isNonBlankString, isPlainObject } from '@go-automation/go-common/core';
+import { isNonBlankString, isPlainObject } from '@pagopa/go-common/utils';
 import type { ServiceDescriptor } from '../types/ServiceDescriptor.js';
 
 export interface ServiceRunbookContext {

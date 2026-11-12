@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Core } from '@go-automation/go-common';
+import { GOHttpClientError } from '@pagopa/go-common/http';
 
 import { watchtowerErrorReason, withWatchtowerReason } from '../watchtowerErrorReason.js';
 
-function httpError(status: number, body: unknown): Core.GOHttpClientError {
-  return new Core.GOHttpClientError(`HTTP ${status}: Unprocessable Entity`, status, body, 1, undefined);
+function httpError(status: number, body: unknown): GOHttpClientError {
+  return new GOHttpClientError(`HTTP ${status}: Unprocessable Entity`, status, body, 1, undefined);
 }
 
 describe('watchtowerErrorReason', () => {
@@ -38,14 +38,14 @@ describe('withWatchtowerReason', () => {
   it('keeps type, status and body so the callers keep deciding as before', () => {
     const original = httpError(422, { error: 'catalogo scaduto' });
     const enriched = withWatchtowerReason(original);
-    assert.ok(enriched instanceof Core.GOHttpClientError);
+    assert.ok(enriched instanceof GOHttpClientError);
     assert.equal(enriched.statusCode, 422);
     assert.deepEqual(enriched.response, { error: 'catalogo scaduto' });
     assert.match(enriched.message, /HTTP 422.*catalogo scaduto/u);
   });
 
   it('does not duplicate a reason already present in the message', () => {
-    const already = new Core.GOHttpClientError('HTTP 422: x — catalogo scaduto', 422, { error: 'catalogo scaduto' });
+    const already = new GOHttpClientError('HTTP 422: x — catalogo scaduto', 422, { error: 'catalogo scaduto' });
     assert.equal(withWatchtowerReason(already), already);
   });
 

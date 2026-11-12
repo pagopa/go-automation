@@ -2,7 +2,8 @@
  * Fetches alarm history from AWS CloudWatch using multi-profile mode.
  */
 
-import { AWS, Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { type AlarmHistoryItem, AWSCloudWatchAlarmsService } from '@pagopa/go-aws/cloudwatch-alarms';
 
 import type { GoReportAlarmsConfig } from '../types/GoReportAlarmsConfig.js';
 import type { MultiProfileQueryResult } from '../types/MultiProfileQueryResult.js';
@@ -20,9 +21,9 @@ import { displayProfileSummary } from './displayReports.js';
  * @throws If all profile queries fail
  */
 export async function fetchAlarms(
-  script: Core.GOScript,
+  script: GOScript,
   config: GoReportAlarmsConfig,
-): Promise<ReadonlyArray<AWS.AlarmHistoryItem>> {
+): Promise<ReadonlyArray<AlarmHistoryItem>> {
   const profiles = script.aws.clients.profileNames;
 
   script.logger.section('Fetching Alarm History (Multi-Profile)');
@@ -32,7 +33,7 @@ export async function fetchAlarms(
 
   const queryResult = await script.aws.clients.mapParallelSettled(async (profile, clients) => {
     script.prompt.updateSpinner(`Querying profile: ${profile}...`);
-    const service = new AWS.AWSCloudWatchAlarmsService(clients.cloudWatch);
+    const service = new AWSCloudWatchAlarmsService(clients.cloudWatch);
     return await service.describeAlarmHistory({
       timeRange: { start: new Date(config.startDate), end: new Date(config.endDate) },
       historyItemType: 'Action',
@@ -65,7 +66,7 @@ export async function fetchAlarms(
 }
 
 function aggregateProfileResults(
-  results: ReadonlyMap<string, ReadonlyArray<AWS.AlarmHistoryItem>>,
+  results: ReadonlyMap<string, ReadonlyArray<AlarmHistoryItem>>,
   errors: ReadonlyMap<string, Error>,
   profileCount: number,
 ): MultiProfileQueryResult {
@@ -92,8 +93,8 @@ function aggregateProfileResults(
   };
 }
 
-function deduplicateAlarmItems(items: ReadonlyArray<AWS.AlarmHistoryItem>): ReadonlyArray<AWS.AlarmHistoryItem> {
-  const uniqueItems = new Map<string, AWS.AlarmHistoryItem>();
+function deduplicateAlarmItems(items: ReadonlyArray<AlarmHistoryItem>): ReadonlyArray<AlarmHistoryItem> {
+  const uniqueItems = new Map<string, AlarmHistoryItem>();
 
   for (const item of items) {
     const key = [item.AlarmName ?? '', item.Timestamp?.toISOString() ?? '', item.HistoryItemType ?? ''].join('|');

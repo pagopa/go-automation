@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
@@ -17,7 +18,7 @@ const ROOT = '1-68ef9670-111111111111111111111111';
 const TIMEOUT =
   'Ending process _getAddressesV1 with errors=nested exception is io.netty.handler.timeout.ReadTimeoutException';
 
-function row(fields: Record<string, string>): ReadonlyArray<ResultField> {
+function row(fields: Record<string, string>): ReadonlyArray<GOLogsInsightsResultField> {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
 }
 
@@ -62,7 +63,7 @@ async function execute(scenario: Scenario = {}): Promise<TestExecution> {
           assert.equal(options?.logGroupResolutionMode, 'search-configured-profiles');
           const group = groups[0] ?? '';
           queries.push({ group, query });
-          let rows: ReadonlyArray<ReadonlyArray<ResultField>>;
+          let rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
           if (group === API_GW_LOG_GROUP) {
             if (scenario.denyAccess === true) throw new Error('AccessDenied');
             rows =

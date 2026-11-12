@@ -1,4 +1,4 @@
-import type { AWSCloudWatchLogsQueryStatistics } from '@go-automation/go-common/aws';
+import type { AWSCloudWatchLogsQueryStatistics } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 export interface RunbookTelemetry {
   readonly cloudWatchLogs?: CloudWatchLogsTelemetry;

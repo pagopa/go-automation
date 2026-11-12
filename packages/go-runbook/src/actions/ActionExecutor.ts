@@ -1,4 +1,4 @@
-import type { GOLogger } from '@go-automation/go-common/core';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import type { CaseAction, CaseActionType, LogAction } from './CaseAction.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
 import { interpolatePlaceholders } from '../core/templatePlaceholders.js';

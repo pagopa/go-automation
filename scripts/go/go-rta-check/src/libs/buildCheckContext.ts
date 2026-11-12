@@ -1,19 +1,21 @@
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOHttpClient } from '@pagopa/go-common/http';
+import { GOLogger } from '@pagopa/go-common/logging';
 
 import type { AlarmAnalysisDto } from '@go-automation/go-watchtower-client';
 import { resolveRunbookCacheDescriptor } from '@go-automation/go-watchtower-runbook';
 import type { RunbookCheckContext } from '@go-automation/go-watchtower-runbook';
-import type { ServiceRegistryResolverFn } from '@go-automation/go-runbook';
-import { buildServiceRegistry } from '@go-automation/go-runbook/catalog';
+import type { ServiceRegistryResolverFn } from '@pagopa/go-runbook';
+import { buildServiceRegistry } from '@pagopa/go-runbook/catalog';
 
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
 import type { Connection } from './resolveClient.js';
 import type { ProductAlarm } from '../types/ProductAlarm.js';
 import type { ResolvedAnalysisMatcher } from './resolveAnalysisMatcher.js';
-import { NOOP_RUNBOOK_REPORTER } from '@go-automation/go-runbook/catalog';
+import { NOOP_RUNBOOK_REPORTER } from '@pagopa/go-runbook/catalog';
 
 export interface BuildCheckContextOptions {
-  readonly script: Core.GOScript;
+  readonly script: GOScript;
   readonly connection: Connection;
   readonly target: ProductAlarm;
   readonly config: GoRtaCheckConfig;
@@ -30,7 +32,7 @@ export interface BuildCheckContextOptions {
 export function buildCheckContext(options: BuildCheckContextOptions): RunbookCheckContext {
   return {
     servicesFor: buildAccountScopedServices(options.script),
-    engineLogger: new Core.GOLogger(),
+    engineLogger: new GOLogger(),
     client: options.connection.client,
     productId: options.target.productId,
     productName: options.target.productName,
@@ -59,8 +61,8 @@ export function buildCheckContext(options: BuildCheckContextOptions): RunbookChe
  * @param script - The running script, with its AWS providers
  * @returns A resolver from execution target to services
  */
-function buildAccountScopedServices(script: Core.GOScript): ServiceRegistryResolverFn {
-  const http = new Core.GOHttpClient({});
+function buildAccountScopedServices(script: GOScript): ServiceRegistryResolverFn {
+  const http = new GOHttpClient({});
   return async (target) => {
     const services = await script.aws.servicesFor(target);
     return {

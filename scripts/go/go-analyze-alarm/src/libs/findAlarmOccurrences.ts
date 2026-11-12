@@ -1,4 +1,4 @@
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import type { AnalyzableAlarmConfig } from '../types/AnalyzableAlarmConfig.js';
 
@@ -9,7 +9,7 @@ export interface FindAlarmOccurrencesConfig {
 }
 
 export async function findAlarmOccurrences(
-  script: Core.GOScript,
+  script: GOScript,
   config: FindAlarmOccurrencesConfig,
 ): Promise<ReadonlyArray<string>> {
   const start = parseDate(config.alarmDatetime, 'alarm.datetime');

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
 import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionResult.js';
@@ -14,7 +15,7 @@ import { ALARM_NAME, API_GW_ID, API_GW_LOG_GROUP, QUERY_STEP_ID } from '../alarm
 import { KNOWN_CASES } from '../knownCases.js';
 import { buildRunbook } from '../runbook.js';
 
-function row(overrides: Readonly<Record<string, string>> = {}): ReadonlyArray<ResultField> {
+function row(overrides: Readonly<Record<string, string>> = {}): ReadonlyArray<GOLogsInsightsResultField> {
   return Object.entries({
     apigwId: API_GW_ID,
     status: '403',
@@ -32,7 +33,10 @@ interface TestExecution {
   readonly queries: ReadonlyArray<string>;
 }
 
-async function execute(rows: ReadonlyArray<ReadonlyArray<ResultField>>, failure = false): Promise<TestExecution> {
+async function execute(
+  rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
+  failure = false,
+): Promise<TestExecution> {
   const queries: string[] = [];
   const runbook = buildRunbook();
   const result = await new RunbookEngine(new GOLogger()).execute(

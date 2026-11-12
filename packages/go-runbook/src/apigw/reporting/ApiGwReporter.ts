@@ -1,6 +1,7 @@
 import type { RunbookExecutionStatus } from '../../types/RunbookExecutionStatus.js';
 import { renderExecutionFailureSummary } from '../../reporting/renderExecutionFailureSummary.js';
-import type { GOLogger, TreeNode } from '@go-automation/go-common/core';
+import type { GOLogger } from '@pagopa/go-common/logging';
+import type { TreeNode } from '@pagopa/go-common/render';
 
 import { ConsoleRunbookReporter } from '../../registry/reporters/ConsoleRunbookReporter.js';
 import type { RunbookReporter } from '../../registry/RunbookReporter.js';

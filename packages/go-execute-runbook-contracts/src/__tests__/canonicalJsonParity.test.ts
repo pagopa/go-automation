@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { describe, it } from 'node:test';
 
-import { canonicalizeJson as goCommonCanonicalizeJson } from '@go-automation/go-common/core';
+import { canonicalizeJson as goCommonCanonicalizeJson } from '@pagopa/go-common/json';
 
 import { canonicalizeJson as contractsCanonicalizeJson } from '../canonicalJson.js';
 

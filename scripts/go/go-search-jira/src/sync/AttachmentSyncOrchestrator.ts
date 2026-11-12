@@ -14,7 +14,9 @@
  *  - Hard errors (auth, schema, IO) bubble up and abort the run.
  *  - On clean exit, performs a WAL checkpoint.
  */
-import { Core } from '@go-automation/go-common';
+import type { GOFtsIndex, GOTextExtractorRegistry } from '@go-automation/go-documents';
+import { GOConcurrencyPool } from '@pagopa/go-common/concurrency';
+import type { GOLogger } from '@pagopa/go-common/logging';
 
 import type { JiraClient } from '../jira/JiraClient.js';
 import type { IssueDiscovery } from '../discovery/IssueDiscovery.js';
@@ -60,10 +62,10 @@ export interface SyncProgressSnapshot {
 type OnSyncProgressFn = (snapshot: SyncProgressSnapshot) => void;
 
 export interface AttachmentSyncOrchestratorDeps {
-  readonly logger: Core.GOLogger;
-  readonly index: Core.GOFtsIndex;
+  readonly logger: GOLogger;
+  readonly index: GOFtsIndex;
   readonly repository: AttachmentRepository;
-  readonly registry: Core.GOTextExtractorRegistry;
+  readonly registry: GOTextExtractorRegistry;
   readonly client: JiraClient;
   readonly discovery: IssueDiscovery;
   readonly indexer: AttachmentIndexer;
@@ -93,7 +95,7 @@ export class AttachmentSyncOrchestrator {
   public async run(options: AttachmentSyncOrchestratorOptions): Promise<AttachmentSyncReport> {
     const startedAt = Date.now();
     const planner = new AttachmentPlanner();
-    const pool = new Core.GOConcurrencyPool(options.maxParallelDownloads);
+    const pool = new GOConcurrencyPool(options.maxParallelDownloads);
     const report: MutableReport = {
       issuesProcessed: 0,
       indexed: 0,
@@ -147,7 +149,7 @@ export class AttachmentSyncOrchestrator {
     planner: AttachmentPlanner,
     plannerOptions: AttachmentPlannerOptions,
     report: MutableReport,
-    pool: Core.GOConcurrencyPool,
+    pool: GOConcurrencyPool,
   ): AsyncIterableIterator<DownloadWorkItem> {
     for await (const issue of this.deps.discovery.discover({ jql: options.jql, issueKeys: options.issueKeys })) {
       report.issuesProcessed += 1;

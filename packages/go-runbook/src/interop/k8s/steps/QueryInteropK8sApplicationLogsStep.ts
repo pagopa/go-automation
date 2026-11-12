@@ -1,8 +1,5 @@
-import type {
-  AWSCloudWatchLogsQueryOptions,
-  AWSCloudWatchLogsQueryResult,
-  ResultField,
-} from '@go-automation/go-common/aws';
+import type { AWSCloudWatchLogsQueryOptions, AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
 import type { StepKind } from '../../../types/StepKind.js';
@@ -28,7 +25,9 @@ const DEFAULT_LOG_GROUP_VAR = 'interopLogGroup';
 const DEFAULT_POD_APP_VAR = 'interopPodApp';
 const DEFAULT_ENVIRONMENT_VAR = 'interopEnvironment';
 
-export class QueryInteropK8sApplicationLogsStep implements Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
+export class QueryInteropK8sApplicationLogsStep implements Step<
+  ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>
+> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -67,7 +66,7 @@ export class QueryInteropK8sApplicationLogsStep implements Step<ReadonlyArray<Re
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<ResultField>>>> {
+  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
     const logGroup = readRequiredVar(context, this.logGroupVar);
     if (logGroup === undefined) return missingVarFailure(this.logGroupVar);
     const podApp = readRequiredVar(context, this.podAppVar);

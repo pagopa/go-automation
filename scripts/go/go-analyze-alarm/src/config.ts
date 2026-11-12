@@ -5,12 +5,12 @@
  * and configuration builder function.
  */
 
-import { Core } from '@go-automation/go-common';
+import { type GOConfigParameterOptions, GOConfigParameterType, type GOScriptMetadata } from '@go-automation/go-script';
 
 /**
  * Script metadata
  */
-export const scriptMetadata: Core.GOScriptMetadata = {
+export const scriptMetadata: GOScriptMetadata = {
   name: 'Go Analyze Alarm',
   version: '1.0.0',
   description:
@@ -21,10 +21,10 @@ export const scriptMetadata: Core.GOScriptMetadata = {
 /**
  * Script parameter definitions
  */
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
   {
     name: 'analysis.mode',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description:
       'Analysis mode: "single" occurrence, "range" of occurrences for the configured alarm, ' +
       'or "stats" for offline statistics of the local runbook catalog',
@@ -36,14 +36,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'alarm.name',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Name of the CloudWatch alarm that triggered (required unless analysis.mode=stats)',
     required: false,
     aliases: ['an'],
   },
   {
     name: 'alarm.datetime',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description:
       'Timestamp when the alarm triggered, or first occurrence for multi-occurrence ' +
       'alarms (ISO 8601 format, e.g. 2025-10-01T18:55:00Z). Required unless analysis.mode=stats',
@@ -57,7 +57,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
     // dash in the property name and `config.alarmDatetimeEnd` would stay
     // `undefined`). The CLI flag stays `--alarm-datetime-end`.
     name: 'alarm.datetime.end',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description:
       'Optional timestamp of the last occurrence for multi-occurrence alarms ' +
       '(ISO 8601). When provided, the analysis window spans first→last padded ' +
@@ -67,7 +67,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'aws.profiles',
-    type: Core.GOConfigParameterType.STRING_ARRAY,
+    type: GOConfigParameterType.STRING_ARRAY,
     description:
       'AWS SSO profile names for multi-account mode (comma-separated). ' +
       'Required unless analysis.mode=stats, which runs fully offline',
@@ -76,7 +76,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'aws.region',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'AWS region for alarm analysis (default: eu-south-1)',
     required: false,
     defaultValue: 'eu-south-1',
@@ -84,7 +84,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'stats.detail',
-    type: Core.GOConfigParameterType.BOOL,
+    type: GOConfigParameterType.BOOL,
     description: 'In stats mode, print the per-runbook detail table',
     required: false,
     defaultValue: true,
@@ -92,7 +92,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'stats.save',
-    type: Core.GOConfigParameterType.BOOL,
+    type: GOConfigParameterType.BOOL,
     description: 'In stats mode, save the report as runbook-stats.json in the output directory',
     required: false,
     defaultValue: false,
@@ -100,7 +100,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'stats.product',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'In stats mode, restrict the report to a single product (e.g. SEND, INTEROP)',
     required: false,
     aliases: ['spr'],

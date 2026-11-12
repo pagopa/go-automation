@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionResult.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
@@ -12,7 +13,7 @@ import { API_GW_LOG_GROUP } from '../knownServices.js';
 import { buildRunbook } from '../runbook.js';
 import { executeRunbookForOccurrence } from '../../../executeRunbookForOccurrence.js';
 
-type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 const TRACE = '1-6ad1eae3-493a74b231f3e345492729e9';
 
 async function execute(

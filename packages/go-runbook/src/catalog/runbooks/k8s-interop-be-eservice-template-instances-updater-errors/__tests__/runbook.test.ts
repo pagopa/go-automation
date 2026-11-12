@@ -1,5 +1,6 @@
-import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -47,7 +48,7 @@ async function execute(environment: InteropEnvironment, scenario: Scenario): Pro
         : (scenario.applicationMessages ?? []);
       const podApp = tracker ? 'interop-be-eservice-template-readmodel-writer-sql' : alarm.podApp;
       const cidBlock = scenario.cid === undefined ? '' : `[CID=${scenario.cid}] `;
-      const rows: ReadonlyArray<ReadonlyArray<ResultField>> = messages.map((message) => [
+      const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = messages.map((message) => [
         { field: '@timestamp', value: '2026-09-30 12:58:01.056' },
         { field: 'pod_app', value: podApp },
         {

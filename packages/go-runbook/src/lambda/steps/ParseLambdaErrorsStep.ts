@@ -1,5 +1,5 @@
-import { omitUndefined } from '@go-automation/go-common/core';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { omitUndefined } from '@pagopa/go-common/utils';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
@@ -47,7 +47,7 @@ export class ParseLambdaErrorsStep implements Step<LambdaErrorScan> {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<LambdaErrorScan>> {
-    const upstream = readStepOutput<ReadonlyArray<ReadonlyArray<ResultField>>>(context, this.fromStep);
+    const upstream = readStepOutput<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>(context, this.fromStep);
     if (!upstream.ok) return upstream.failure;
 
     const scan = scanLambdaLogs(upstream.value);

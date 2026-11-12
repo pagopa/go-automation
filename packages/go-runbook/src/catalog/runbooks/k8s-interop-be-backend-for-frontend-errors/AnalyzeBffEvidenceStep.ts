@@ -1,4 +1,4 @@
-import { readRowField, type ResultField } from '@go-automation/go-common/aws';
+import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
 import type { StepResult } from '../../../types/StepResult.js';
@@ -92,7 +92,7 @@ export class AnalyzeBffEvidenceStep implements Step<BffCaseEvidence> {
   }
 }
 
-function normalizeRow(row: ReadonlyArray<ResultField>, trackerCid?: string): LogEvidence {
+function normalizeRow(row: ReadonlyArray<GOLogsInsightsResultField>, trackerCid?: string): LogEvidence {
   const raw = readRowField(row, 'log') ?? readRowField(row, '@message') ?? readRowField(row, 'message') ?? '';
   let message = raw;
   let podApp = readRowField(row, 'pod_app') ?? '';

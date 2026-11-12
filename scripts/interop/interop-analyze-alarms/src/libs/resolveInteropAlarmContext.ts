@@ -1,4 +1,4 @@
-import { trimToUndefined } from '@go-automation/go-common/core';
+import { trimToUndefined } from '@pagopa/go-common/utils';
 import type { InteropAlarmContext, InteropEnvironment } from '../types/index.js';
 
 const INTEROP_ENVIRONMENTS: readonly [InteropEnvironment, ...InteropEnvironment[]] = ['prod', 'att', 'test'];

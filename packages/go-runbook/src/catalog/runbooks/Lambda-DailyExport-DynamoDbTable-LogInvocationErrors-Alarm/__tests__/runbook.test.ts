@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { GOLogger } from '@go-automation/go-common/core';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionResult.js';
@@ -10,11 +10,11 @@ import { createTestServiceRegistry } from '../../../../registry/createTestServic
 import { assertCloudExecutableRunbook } from '../../../../validation/assertCloudExecutableRunbook.js';
 import { buildRunbook } from '../runbook.js';
 
-type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 const REQUEST_ID = 'fa3cf895-a2ae-46e6-9d44-d75bb2230d33';
 const REPORT = `REPORT RequestId: ${REQUEST_ID}\tDuration: 3000.00 ms\tBilled Duration: 3434 ms\tMemory Size: 128 MB\tMax Memory Used: 96 MB\tStatus: timeout`;
 
-function row(message: string): ReadonlyArray<ResultField> {
+function row(message: string): ReadonlyArray<GOLogsInsightsResultField> {
   return [
     { field: '@timestamp', value: '2026-10-20T01:00:43.912Z' },
     { field: '@requestId', value: REQUEST_ID },

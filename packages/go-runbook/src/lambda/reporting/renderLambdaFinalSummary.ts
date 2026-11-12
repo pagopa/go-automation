@@ -1,4 +1,4 @@
-import type { GOLogger } from '@go-automation/go-common/core';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import type { TerminationReason } from '../types/TerminationReason.js';
 import { LambdaReporter } from './LambdaReporter.js';
 import { ConsoleRunbookReporter } from '../../registry/reporters/ConsoleRunbookReporter.js';

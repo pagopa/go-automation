@@ -4,7 +4,7 @@ import type { PipelineHook } from '../types/PipelineHook.js';
 import type { Runbook } from '../types/Runbook.js';
 import type { RunbookAnalysisDefaults } from '../types/RunbookAnalysisDefaults.js';
 import type { RunbookBuilder } from './RunbookBuilder.js';
-import { omitUndefined } from '@go-automation/go-common/core';
+import { omitUndefined } from '@pagopa/go-common/utils';
 
 import { assertKnownCaseStepRefs } from '../validation/alarmConfigValidation.js';
 import { orphanHookAnchors } from './applyPipelineHooks.js';

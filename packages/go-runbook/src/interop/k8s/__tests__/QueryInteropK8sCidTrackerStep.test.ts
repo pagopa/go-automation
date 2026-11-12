@@ -5,8 +5,8 @@ import type {
   AWSCloudWatchLogsQueryOptions,
   AWSCloudWatchLogsQueryResult,
   AWSCloudWatchLogsTimeRange,
-  ResultField,
-} from '@go-automation/go-common/aws';
+} from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { InteropK8sApplicationLogAnalysis } from '../steps/AnalyzeInteropK8sApplicationLogsStep.js';
 import { QueryInteropK8sCidTrackerStep } from '../steps/QueryInteropK8sCidTrackerStep.js';
@@ -73,7 +73,9 @@ describe('QueryInteropK8sCidTrackerStep', () => {
 
   it('queries CloudWatch once per CID using the resolved log group', async () => {
     const seen: SeenQuery[] = [];
-    const rows: ReadonlyArray<ReadonlyArray<ResultField>> = [[{ field: '@message', value: '[CID=cid-1] ok' }]];
+    const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = [
+      [{ field: '@message', value: '[CID=cid-1] ok' }],
+    ];
     const result = await step().execute(
       context(
         { logCount: 2, cidCount: 2, cids: ['cid-1', 'cid-2'], logsWithoutCidCount: 0, representativeMessages: [] },

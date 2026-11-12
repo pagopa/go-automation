@@ -1,7 +1,6 @@
-import { omitUndefined, parseFiniteNumber, parseInteger } from '@go-automation/go-common/core';
-import { readResultFieldRows } from '@go-automation/go-common/aws';
+import { type GOLogsInsightsResultField, readResultFieldRows } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { omitUndefined, parseFiniteNumber, parseInteger } from '@pagopa/go-common/utils';
 import type { LogLine } from '../../output/LogLine.js';
-import type { ResultField } from '@go-automation/go-common/aws';
 
 import type { Runbook } from '../../types/Runbook.js';
 import type { RunbookExecutionResult } from '../../types/RunbookExecutionResult.js';
@@ -138,7 +137,7 @@ function buildFields(
 
 function buildEvidence(
   recentErrors: ReadonlyArray<LogLine>,
-  invocationRows: ReadonlyArray<ReadonlyArray<ResultField>>,
+  invocationRows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
   downstream: LambdaDownstreamOutput | undefined,
   maxRecentLogs: number,
   errorTotalRows: number,

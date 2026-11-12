@@ -1,5 +1,5 @@
-import type { Core } from '@go-automation/go-common';
-import type { AnalysisDraftV1 } from '@go-automation/go-runbook';
+import type { GOScript } from '@go-automation/go-script';
+import type { AnalysisDraftV1 } from '@pagopa/go-runbook';
 
 /**
  * Mostra nel dry-run l'analisi che il `complete` proporrebbe.
@@ -12,7 +12,7 @@ import type { AnalysisDraftV1 } from '@go-automation/go-runbook';
  * @param script - Script GO corrente, per il logger
  * @param analysis - Draft prodotto dal dry-run; assente se l'esito non porta analisi
  */
-export function logDryRunAnalysis(script: Core.GOScript, analysis: AnalysisDraftV1 | undefined): void {
+export function logDryRunAnalysis(script: GOScript, analysis: AnalysisDraftV1 | undefined): void {
   if (analysis === undefined) {
     script.logger.info('[dry-run] Nessuna analisi proposta per questo esito.');
     return;
@@ -35,7 +35,7 @@ export function logDryRunAnalysis(script: Core.GOScript, analysis: AnalysisDraft
   script.logger.info('[dry-run] I riferimenti dichiarati devono esistere nel censimento del prodotto.');
 }
 
-function logReferences(script: Core.GOScript, analysis: AnalysisDraftV1): void {
+function logReferences(script: GOScript, analysis: AnalysisDraftV1): void {
   if (analysis.runbookName !== undefined) script.logger.info(`[dry-run]   runbook: ${analysis.runbookName}`);
   if (analysis.resources.length > 0) {
     script.logger.info(`[dry-run]   risorse: ${analysis.resources.map((r) => r.name).join(', ')}`);

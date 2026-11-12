@@ -1,4 +1,4 @@
-import type { OccurrenceTimeWindow } from '@go-automation/go-runbook';
+import type { OccurrenceTimeWindow } from '@pagopa/go-runbook';
 
 /**
  * Inputs that determine a cached runbook result. The cache fingerprint is the

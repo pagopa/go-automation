@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ResultField } from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 
 import { CloudWatchLogsQueryStep } from '../../../steps/data/CloudWatchLogsQueryStep.js';
 import { buildRunbookOutput } from '../../../output/buildRunbookOutput.js';
@@ -37,7 +37,7 @@ function baseConfig(overrides: Partial<ServiceAlarmConfig> = {}): ServiceAlarmCo
   };
 }
 
-function row(fields: Record<string, string>): ResultField[] {
+function row(fields: Record<string, string>): GOLogsInsightsResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
 }
 

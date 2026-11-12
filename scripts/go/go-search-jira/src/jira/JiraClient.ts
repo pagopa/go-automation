@@ -2,15 +2,15 @@
  * Thin wrapper around the Jira Cloud REST API v3 consumed by go-search-jira.
  *
  * Composes:
- *  - `Core.GOHttpClient` for JSON endpoints (issue search, single issue lookup).
- *  - `Core.GOFileDownloader` for binary attachment downloads (streaming + retry).
+ *  - `GOHttpClient` for JSON endpoints (issue search, single issue lookup).
+ *  - `GOFileDownloader` for binary attachment downloads (streaming + retry).
  *
  * Authorization is injected via `defaultHeaders` once and never logged or
  * surfaced in errors. Pagination on `/rest/api/3/search/jql` is exposed as an
  * async iterable. Jira Data Center / Server is not implemented here because it
  * uses different API paths and `startAt`/`maxResults` pagination.
  */
-import { Core } from '@go-automation/go-common';
+import { GOFileDownloader, GOHttpClient } from '@pagopa/go-common/http';
 
 import type { JiraIssue } from '../types/JiraIssue.js';
 import type { JiraAttachment } from '../types/JiraAttachment.js';
@@ -48,15 +48,15 @@ const DEFAULT_PAGE_SIZE = 50;
 
 export class JiraClient {
   private readonly baseUrl: string;
-  private readonly http: Core.GOHttpClient;
-  private readonly downloader: Core.GOFileDownloader;
+  private readonly http: GOHttpClient;
+  private readonly downloader: GOFileDownloader;
   private readonly authorizationHeader: string;
 
   constructor(config: JiraClientConfig) {
     this.baseUrl = normaliseBaseUrl(config.baseUrl);
     this.authorizationHeader = config.authorizationHeader;
 
-    this.http = new Core.GOHttpClient({
+    this.http = new GOHttpClient({
       baseUrl: this.baseUrl,
       defaultHeaders: {
         Authorization: this.authorizationHeader,
@@ -65,7 +65,7 @@ export class JiraClient {
       timeout: config.timeoutMs ?? 60_000,
     });
 
-    this.downloader = new Core.GOFileDownloader({
+    this.downloader = new GOFileDownloader({
       defaultHeaders: { Authorization: this.authorizationHeader },
       timeoutMs: config.timeoutMs ?? 60_000,
       maxRetries: config.maxRetries ?? 3,

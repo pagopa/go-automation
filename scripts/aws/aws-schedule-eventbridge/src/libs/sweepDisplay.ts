@@ -6,12 +6,13 @@
  * neither file grows into a grab bag.
  */
 
-import type { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { GOTableColumn } from '@pagopa/go-common/render';
 
 import type { ScheduleMutation, ScheduleSweepPlan } from '../types/index.js';
 
 /** Columns of the preview table */
-const PLAN_COLUMNS: ReadonlyArray<Core.GOTableColumn> = [
+const PLAN_COLUMNS: ReadonlyArray<GOTableColumn> = [
   { header: 'Profile', key: 'profile', width: 24 },
   { header: 'Account', key: 'accountId', width: 14 },
   { header: 'Current State', key: 'currentState', width: 14 },
@@ -21,7 +22,7 @@ const PLAN_COLUMNS: ReadonlyArray<Core.GOTableColumn> = [
 ];
 
 /** Columns of the result table */
-const RESULT_COLUMNS: ReadonlyArray<Core.GOTableColumn> = [
+const RESULT_COLUMNS: ReadonlyArray<GOTableColumn> = [
   { header: 'Profile', key: 'profile', width: 24 },
   { header: 'Outcome', key: 'outcome', width: 12 },
   { header: 'From', key: 'previousState', width: 12 },
@@ -43,7 +44,7 @@ const RESULT_COLUMNS: ReadonlyArray<Core.GOTableColumn> = [
  * @param script - The GOScript instance providing the logger
  * @param plan - The plan produced by `planScheduleSweep`
  */
-export function displaySweepPlan(script: Core.GOScript, plan: ScheduleSweepPlan): void {
+export function displaySweepPlan(script: GOScript, plan: ScheduleSweepPlan): void {
   const data = plan.entries.map((entry) => ({
     profile: entry.profile,
     accountId: entry.accountId ?? '-',
@@ -68,7 +69,7 @@ export function displaySweepPlan(script: Core.GOScript, plan: ScheduleSweepPlan)
  * @param script - The GOScript instance providing the logger
  * @param mutations - Write outcomes produced by `applyScheduleSweep`
  */
-export function displaySweepResult(script: Core.GOScript, mutations: ReadonlyArray<ScheduleMutation>): void {
+export function displaySweepResult(script: GOScript, mutations: ReadonlyArray<ScheduleMutation>): void {
   const data = mutations.map((mutation) => ({
     profile: mutation.profile,
     outcome: mutation.outcome.toUpperCase(),

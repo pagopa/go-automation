@@ -4,9 +4,10 @@
  * Dot-separated parameter names map to camelCase config properties
  * (e.g. `watchtower.url` → `watchtowerUrl`, `aws.profiles` → `awsProfiles`).
  */
-import { Core } from '@go-automation/go-common';
+import { type GOConfigParameterOptions, GOConfigParameterType, type GOScriptMetadata } from '@go-automation/go-script';
+import { describeDateInputFormats } from '@pagopa/go-common/dates';
 
-export const scriptMetadata: Core.GOScriptMetadata = {
+export const scriptMetadata: GOScriptMetadata = {
   name: 'Go RTA Check',
   version: '1.0.0',
   description:
@@ -14,23 +15,23 @@ export const scriptMetadata: Core.GOScriptMetadata = {
   authors: ['Team GO - Gestione Operativa'],
 };
 
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
   {
     name: 'exit.code.on.findings',
-    type: Core.GOConfigParameterType.BOOL,
+    type: GOConfigParameterType.BOOL,
     description:
       'Propaga il verdetto nell exit code del processo (1 = non conforme). Serve in CI; da terminale lasciarlo spento evita che un esito misurato sembri un comando fallito',
     required: false,
   },
   {
     name: 'readiness.window.days',
-    type: Core.GOConfigParameterType.INT,
+    type: GOConfigParameterType.INT,
     description: 'Finestra di osservazione dello shadow in mode readiness (default 14 giorni)',
     required: false,
   },
   {
     name: 'mode',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description:
       'Modalità: analyses | coverage | readiness. Default analyses (esecuzioni ↔ analisi). coverage confronta le dichiarazioni dei runbook con il censimento Watchtower. readiness unisce la copertura statica allo shadow osservato ed è il gate di attivazione di APPLY_KNOWN. coverage e readiness sono sola lettura, senza AWS né esecuzione runbook',
     required: false,
@@ -38,7 +39,7 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'watchtower.url',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description:
       'Watchtower base URL — root del backend (un "/api" finale viene rimosso). Fallback: env GOScript, poi prompt',
     required: false,
@@ -46,13 +47,13 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'watchtower.email',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Watchtower login email (fallback: env gestita da GOScript, poi prompt)',
     required: false,
   },
   {
     name: 'watchtower.password',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description:
       'Watchtower login password. Preferire la env WATCHTOWER_PASSWORD o il prompt interattivo; il flag CLI è sconsigliato (resta in shell history / process list). Redatta nei log.',
     required: false,
@@ -60,14 +61,14 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'targets',
-    type: Core.GOConfigParameterType.STRING_ARRAY,
+    type: GOConfigParameterType.STRING_ARRAY,
     description:
       'Scope della selezione: un prodotto per voce, con i propri ambienti. In config.json usa oggetti {"productId":"…","environmentIds":["…"]}; da CLI la forma compatta productId:envId1|envId2. Se omesso: nessun vincolo (tutti i prodotti leggibili)',
     required: false,
   },
   {
     name: 'non.interactive',
-    type: Core.GOConfigParameterType.BOOL,
+    type: GOConfigParameterType.BOOL,
     description:
       'Disattiva ogni prompt del wizard: prodotto e runbook devono essere fissati da flag, mentre l\u2019ambiente omesso vale "tutti quelli in scope". Implicito senza TTY o con alarm.name + date.from',
     required: false,
@@ -75,90 +76,90 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'product.id',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Watchtower product id (se omesso: selezione interattiva nello scope di targets)',
     required: false,
   },
   {
     name: 'environment.id',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description:
       'Watchtower environment id per filtrare le occorrenze (se omesso: selezione interattiva, oppure tutti gli ambienti in scope in modalità non interattiva)',
     required: false,
   },
   {
     name: 'alarm.name',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Nome allarme (= runbook id). Se omesso: selezione interattiva',
     required: false,
     aliases: ['an'],
   },
   {
     name: 'date.from',
-    type: Core.GOConfigParameterType.STRING,
-    description: `Inizio periodo su firedAt (${Core.describeDateInputFormats()}). Se omesso: prompt`,
+    type: GOConfigParameterType.STRING,
+    description: `Inizio periodo su firedAt (${describeDateInputFormats()}). Se omesso: prompt`,
     required: false,
     aliases: ['df'],
   },
   {
     name: 'date.to',
-    type: Core.GOConfigParameterType.STRING,
-    description: `Fine periodo su firedAt (${Core.describeDateInputFormats()}). Se omesso: prompt`,
+    type: GOConfigParameterType.STRING,
+    description: `Fine periodo su firedAt (${describeDateInputFormats()}). Se omesso: prompt`,
     required: false,
     aliases: ['dt'],
   },
   {
     name: 'aws.profiles',
-    type: Core.GOConfigParameterType.STRING_ARRAY,
+    type: GOConfigParameterType.STRING_ARRAY,
     description: 'Profili AWS SSO per eseguire il runbook (comma-separated). Non richiesti in --dry-run',
     required: false,
     aliases: ['aps'],
   },
   {
     name: 'concurrency',
-    type: Core.GOConfigParameterType.INT,
+    type: GOConfigParameterType.INT,
     description: 'Esecuzioni runbook concorrenti: intero >= 1 (default 1)',
     required: false,
   },
   {
     name: 'limit',
-    type: Core.GOConfigParameterType.INT,
+    type: GOConfigParameterType.INT,
     description: 'Numero massimo di occorrenze da processare (per test rapidi)',
     required: false,
   },
   {
     name: 'dry.run',
-    type: Core.GOConfigParameterType.BOOL,
+    type: GOConfigParameterType.BOOL,
     description: 'Recupera i dati Watchtower e mostra la preview, senza eseguire alcun runbook',
     required: false,
   },
   {
     name: 'force',
-    type: Core.GOConfigParameterType.BOOL,
+    type: GOConfigParameterType.BOOL,
     description: 'Ignora la cache di resume e riesegui ogni occorrenza',
     required: false,
   },
   {
     name: 'output.format',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Artifact da scrivere: json | md | all (default all)',
     required: false,
   },
   {
     name: 'include.ignorable',
-    type: Core.GOConfigParameterType.BOOL,
+    type: GOConfigParameterType.BOOL,
     description: 'Usa anche le analisi IGNORABLE come oracolo del confronto',
     required: false,
   },
   {
     name: 'include.incomplete',
-    type: Core.GOConfigParameterType.BOOL,
+    type: GOConfigParameterType.BOOL,
     description: 'Usa anche le analisi non COMPLETED come oracolo del confronto',
     required: false,
   },
   {
     name: 'analysis.matcher',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Strategia V2: ai | lexical. Default ai; ai usa GO-AI semantic-match via Bedrock diretto',
     required: false,
     defaultValue: 'ai',
@@ -166,28 +167,28 @@ export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
   },
   {
     name: 'go.ai.semanticThreshold',
-    type: Core.GOConfigParameterType.INT,
+    type: GOConfigParameterType.INT,
     description: 'Soglia 0..100 per considerare equivalente il semantic-match GO-AI',
     required: false,
     defaultValue: 70,
   },
   {
     name: 'go.ai.fallbackToLexical',
-    type: Core.GOConfigParameterType.BOOL,
+    type: GOConfigParameterType.BOOL,
     description: 'Se GO-AI fallisce, usa il matcher lessicale invece di marcare NO_EVIDENCE',
     required: false,
     defaultValue: true,
   },
   {
     name: 'aws.region',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Regione AWS standard per la gestione credenziali/profili',
     required: false,
     defaultValue: 'eu-south-1',
   },
   {
     name: 'aws.profile',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Profilo AWS SSO per GO-AI/Bedrock (default sso_pn-analytics solo in mode analyses)',
     required: false,
   },

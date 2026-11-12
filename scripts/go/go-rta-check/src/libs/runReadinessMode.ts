@@ -1,4 +1,5 @@
-import type { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import type { ShadowCapabilityReport } from '@go-automation/go-watchtower-client';
 
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
@@ -7,7 +8,7 @@ import type { Connection } from './resolveClient.js';
 import { COVERAGE_EXIT_CODES, runCoverageCheck } from './runCoverageCheck.js';
 import type { CoverageExitCode } from './runCoverageCheck.js';
 
-type ResolveConnectionFn = (script: Core.GOScript, config: GoRtaCheckConfig) => Promise<Connection | undefined>;
+type ResolveConnectionFn = (script: GOScript, config: GoRtaCheckConfig) => Promise<Connection | undefined>;
 
 interface ReadinessModeDependencies {
   readonly resolveConnection: ResolveConnectionFn;
@@ -43,7 +44,7 @@ const DEFAULT_WINDOW_DAYS = 14;
  * @returns Exit code `0` se attivabile, `1` se non pronto, `2` su errore operativo
  */
 export async function runReadinessMode(
-  script: Core.GOScript,
+  script: GOScript,
   config: GoRtaCheckConfig,
   dependencies: ReadinessModeDependencies = DEFAULT_DEPENDENCIES,
 ): Promise<CoverageExitCode> {
@@ -99,7 +100,7 @@ export async function runReadinessMode(
   }
 }
 
-function renderCapability(logger: Core.GOLogger, capability: ShadowCapabilityReport): void {
+function renderCapability(logger: GOLogger, capability: ShadowCapabilityReport): void {
   const label = `${capability.productName}/${capability.runbookKey ?? '—'}`;
   const verdict = capability.ready ? 'PRONTA' : 'NON PRONTA';
   logger.info(

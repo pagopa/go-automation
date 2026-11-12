@@ -1,4 +1,4 @@
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
@@ -10,7 +10,7 @@ import { executeStep } from '../../steps/data/executeStep.js';
 import { executeCloudWatchLogsQuery } from '../../steps/data/executeCloudWatchLogsQuery.js';
 import { LambdaReporter } from '../reporting/LambdaReporter.js';
 
-type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
 /**
  * Configuration for {@link QueryLambdaInvocationStep}.

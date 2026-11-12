@@ -23,7 +23,8 @@
   "author": "Team GO - Gestione Operativa",
   "license": "EUPL-1.2",
   "dependencies": {
-    "@go-automation/go-common": "workspace:*"
+    "@go-automation/go-script": "workspace:*",
+    "@pagopa/go-aws": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:"

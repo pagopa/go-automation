@@ -6,13 +6,13 @@
  * already paid for are reused, and only the steps the user wants to change are
  * asked again.
  */
-import type { Core } from '@go-automation/go-common';
+import type { GOPromptSelectOption, GOScript } from '@go-automation/go-script';
 
 import type { NextRunChoice } from '../types/NextRunChoice.js';
 
 /** Inputs deciding which continuations make sense. */
 export interface PromptNextRunOptions {
-  readonly script: Core.GOScript;
+  readonly script: GOScript;
   /** Product of the run that just ended, named in the menu. */
   readonly productName: string;
   /**
@@ -37,7 +37,7 @@ export interface PromptNextRunOptions {
  * ```
  */
 export async function promptNextRun(options: PromptNextRunOptions): Promise<NextRunChoice> {
-  const choices: Core.GOPromptSelectOption[] = [
+  const choices: GOPromptSelectOption[] = [
     { title: `Analizza un altro runbook di ${options.productName}`, value: 'SAME_PRODUCT' },
   ];
   if (options.canChangeProduct) {

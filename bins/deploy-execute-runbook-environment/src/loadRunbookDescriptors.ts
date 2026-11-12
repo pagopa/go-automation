@@ -4,7 +4,7 @@ import type { AutomaticRunbookDescriptorV1, RunbookDescriptor } from './external
 
 /** Loads descriptors directly from the source catalog. */
 export function loadRunbookDescriptors(): ReadonlyArray<AutomaticRunbookDescriptorV1> {
-  const output = execFileSync('pnpm', ['--silent', '--filter', '@go-automation/go-runbook', 'catalog:descriptors'], {
+  const output = execFileSync('pnpm', ['--silent', '--filter', '@pagopa/go-runbook', 'catalog:descriptors'], {
     cwd: process.cwd(),
     encoding: 'utf8',
   });

@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Core } from '@go-automation/go-common';
-import { AWSTargetNotConfiguredError } from '@go-automation/go-common/aws';
-import type { AWSExecutionTarget, ResultField } from '@go-automation/go-common/aws';
-import { createTestServiceRegistry } from '@go-automation/go-runbook';
-import type { ResolvedServiceRegistry, ServiceRegistry, ServiceRegistryResolverFn } from '@go-automation/go-runbook';
+import { type AWSExecutionTarget, AWSTargetNotConfiguredError } from '@pagopa/go-aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
+import { createTestServiceRegistry } from '@pagopa/go-runbook';
+import type { ResolvedServiceRegistry, ServiceRegistry, ServiceRegistryResolverFn } from '@pagopa/go-runbook';
 import type { AlarmEventDto } from '@go-automation/go-watchtower-client';
 
 import { checkOccurrence } from '../checkOccurrence.js';
@@ -38,7 +38,7 @@ function contextWith(failure: Error): { context: RunbookCheckContext; targets: A
   // descriptor are read.
   const context = {
     servicesFor,
-    engineLogger: new Core.GOLogger(),
+    engineLogger: new GOLogger(),
     alarmName: ALARM_NAME,
     awsProfiles: ['sso_prod'],
     runbook: undefined,
@@ -88,7 +88,9 @@ function accountScopedResolver(): AccountScopedResolver {
   const registryFor = (profile: string): ServiceRegistry =>
     createTestServiceRegistry({
       cloudWatchLogs: {
-        query: async (logGroups: ReadonlyArray<string>): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+        query: async (
+          logGroups: ReadonlyArray<string>,
+        ): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> => {
           await Promise.resolve();
           // Safe: both profiles are seeded above.
           queriedBy.get(profile)!.push(...logGroups);
@@ -115,7 +117,7 @@ describe('checkOccurrence', () => {
     // never reached.
     const context = {
       servicesFor: resolver.servicesFor,
-      engineLogger: new Core.GOLogger(),
+      engineLogger: new GOLogger(),
       alarmName: ALARM_NAME,
       awsProfiles: ['sso_prod', 'sso_uat'],
       runbook: undefined,
@@ -142,7 +144,7 @@ describe('checkOccurrence', () => {
     // Safe: same shape as the test above.
     const context = {
       servicesFor: resolver.servicesFor,
-      engineLogger: new Core.GOLogger(),
+      engineLogger: new GOLogger(),
       alarmName: ALARM_NAME,
       awsProfiles: ['sso_prod', 'sso_uat'],
       runbook: undefined,

@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as path from 'node:path';
 
-import { GOFileListImporter, GOJSONListImporter } from '@go-automation/go-common/core';
+import { GOFileListImporter, GOJSONListImporter } from '@pagopa/go-common/importers';
 
 import type { SENDTimelineElement } from '../../../services/timeline/models/SENDTimelineElement.js';
 import { DEFAULT_REQUEST_ID_OPTIONS } from '../defaultRequestIdOptions.js';

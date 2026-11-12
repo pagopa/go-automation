@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { ServiceLogSchema } from '../../types/ServiceLogSchema.js';
 import { scanApplicationLogs } from '../scanApplicationLogs.js';
@@ -15,7 +15,7 @@ const SCHEMA: ServiceLogSchema = {
 const RAW_32 = '6a1d12cde853a9726be9c7c20da54682';
 const CANONICAL = '1-6a1d12cd-e853a9726be9c7c20da54682';
 
-function row(fields: Record<string, string>): ResultField[] {
+function row(fields: Record<string, string>): GOLogsInsightsResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
 }
 

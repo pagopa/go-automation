@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import type { RunbookContext } from '../../framework.js';
@@ -38,7 +38,7 @@ function context(vars: ReadonlyArray<readonly [string, string]>, calls: QueryCal
           options: { logGroupResolutionMode?: string; paginateResults?: boolean },
         ) {
           calls.push({ groups, query, timeRange, options });
-          const rows: ReadonlyArray<ReadonlyArray<ResultField>> = Array.from({ length: rowCount }, () => [
+          const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = Array.from({ length: rowCount }, () => [
             { field: 'pod_app', value: alarm.podApp },
             { field: 'log', value: 'INFO - Consumer subscribed topic event-store.prod_purpose.events' },
           ]);

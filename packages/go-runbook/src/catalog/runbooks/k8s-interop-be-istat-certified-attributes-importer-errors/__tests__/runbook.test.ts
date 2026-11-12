@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { GOLogger } from '@go-automation/go-common/core';
-import type { AWSCloudWatchLogsQueryResult, ResultField } from '@go-automation/go-common/aws';
+import type { AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import type { RunbookExecutionResult } from '../../../../types/RunbookExecutionResult.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
@@ -43,7 +44,7 @@ async function execute(scenario: Scenario): Promise<{
       logGroups.push(...groups);
       const tracker = query.includes('filter cid =');
       const message = tracker ? scenario.trackerMessage : scenario.applicationMessage;
-      const rows: ReadonlyArray<ReadonlyArray<ResultField>> =
+      const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> =
         message === undefined
           ? []
           : [

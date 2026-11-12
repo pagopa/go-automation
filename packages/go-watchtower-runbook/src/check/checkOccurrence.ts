@@ -1,10 +1,10 @@
-import type { Core } from '@go-automation/go-common';
-import { isAWSTargetNotConfiguredError } from '@go-automation/go-common/aws';
+import { isAWSTargetNotConfiguredError } from '@pagopa/go-aws';
+import type { GOLogger } from '@pagopa/go-common/logging';
 
 import type { AlarmAnalysisDto, AlarmEventDto, WatchtowerClient } from '@go-automation/go-watchtower-client';
-import { executeRunbookForOccurrence } from '@go-automation/go-runbook/catalog';
-import { classifyRunbookOutcome } from '@go-automation/go-runbook';
-import type { ServiceRegistryResolverFn } from '@go-automation/go-runbook';
+import { executeRunbookForOccurrence } from '@pagopa/go-runbook/catalog';
+import { classifyRunbookOutcome } from '@pagopa/go-runbook';
+import type { ServiceRegistryResolverFn } from '@pagopa/go-runbook';
 
 import type { AnalysisMatch, RtaCheckEvent, RtaCheckRow } from '../types/RtaCheckReport.js';
 import type { AnalysisMatcherFn } from '../comparison/AnalysisMatcher.js';
@@ -27,7 +27,7 @@ export interface RunbookCheckContext {
    */
   readonly servicesFor: ServiceRegistryResolverFn;
   /** Silent logger for the runbook engine, so its verbose logs are suppressed. */
-  readonly engineLogger: Core.GOLogger;
+  readonly engineLogger: GOLogger;
   readonly client: WatchtowerClient;
   readonly productId: string;
   readonly productName: string;

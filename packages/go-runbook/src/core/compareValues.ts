@@ -1,4 +1,4 @@
-import { valueToString } from '@go-automation/go-common/core';
+import { valueToString } from '@pagopa/go-common/utils';
 
 import type { CompareOperator } from './CompareOperator.js';
 

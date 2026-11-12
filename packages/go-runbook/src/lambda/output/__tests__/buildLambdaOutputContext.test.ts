@@ -1,13 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { Runbook } from '../../../types/Runbook.js';
 import type { RunbookExecutionResult } from '../../../types/RunbookExecutionResult.js';
 import { createLambdaAlarmRunbook } from '../../builders/createLambdaAlarmRunbook.js';
 import { buildLambdaOutputContext } from '../buildLambdaOutputContext.js';
 
-function row(message: string): ReadonlyArray<ResultField> {
+function row(message: string): ReadonlyArray<GOLogsInsightsResultField> {
   return [
     { field: '@timestamp', value: '2026-01-01T00:00:00.000Z' },
     { field: '@message', value: message },

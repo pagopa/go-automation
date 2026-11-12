@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { resolveOccurrenceTimeWindow } from '../../../computeRunbookTimeRange.js';
 import { RUNBOOK_CATALOG } from '../../../RunbookCatalog.js';
@@ -15,7 +15,7 @@ import { LAMBDA_FUNCTION } from '../knownServices.js';
 import { buildRunbook } from '../runbook.js';
 
 function contextWithMessages(messages: ReadonlyArray<string>, category?: string): RunbookContext {
-  const rows: ReadonlyArray<ReadonlyArray<ResultField>> = messages.map((message) => [
+  const rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = messages.map((message) => [
     { field: '@timestamp', value: '2026-08-25T08:06:00.000Z' },
     { field: '@requestId', value: 'c6b49674-286d-424f-8074-5e19a69dc7a8' },
     { field: '@message', value: message },

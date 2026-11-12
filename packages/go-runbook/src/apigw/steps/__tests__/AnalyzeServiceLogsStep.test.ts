@@ -1,21 +1,21 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 
 import { AnalyzeServiceLogsStep } from '../AnalyzeServiceLogsStep.js';
 import { KnownUrlsRegistry } from '../../registries/KnownUrlsRegistry.js';
 import { createTestServiceRegistry } from '../../../registry/createTestServiceRegistry.js';
 
-function row(message: string, level: string = 'ERROR'): ResultField[] {
-  const fields: ResultField[] = [{ field: '@message', value: message }];
+function row(message: string, level: string = 'ERROR'): GOLogsInsightsResultField[] {
+  const fields: GOLogsInsightsResultField[] = [{ field: '@message', value: message }];
   if (level !== '') fields.push({ field: 'level', value: level });
   return fields;
 }
 
 function createContext(args: {
-  readonly stepOutput: ReadonlyArray<ResultField[]>;
+  readonly stepOutput: ReadonlyArray<GOLogsInsightsResultField[]>;
   readonly vars?: Record<string, string>;
 }): RunbookContext {
   return {
@@ -267,7 +267,7 @@ describe('AnalyzeServiceLogsStep', () => {
       serviceName: 'pn-user-attributes',
     });
 
-    const traceIdRow: ResultField[] = [
+    const traceIdRow: GOLogsInsightsResultField[] = [
       { field: '@message', value: 'application log line' },
       { field: 'level', value: 'ERROR' },
       { field: 'trace_id', value: '3d472be72977635208a92722b97b5e24' },
@@ -296,7 +296,7 @@ describe('AnalyzeServiceLogsStep', () => {
       serviceName: 'pn-user-attributes',
     });
 
-    const traceIdRow: ResultField[] = [
+    const traceIdRow: GOLogsInsightsResultField[] = [
       { field: '@message', value: 'application log line' },
       { field: 'level', value: 'ERROR' },
       { field: 'trace_id', value: '3d472be72977635208a92722b97b5e24' },
@@ -324,7 +324,7 @@ describe('AnalyzeServiceLogsStep', () => {
       serviceName: 'pn-user-attributes',
     });
 
-    const traceIdRow: ResultField[] = [
+    const traceIdRow: GOLogsInsightsResultField[] = [
       { field: '@message', value: 'application log line' },
       { field: 'level', value: 'ERROR' },
       { field: 'trace_id', value: '69b158e828c211881e5339480367ede0' },
@@ -353,7 +353,7 @@ describe('AnalyzeServiceLogsStep', () => {
       serviceName: 'pn-user-attributes',
     });
 
-    const traceIdRow: ResultField[] = [
+    const traceIdRow: GOLogsInsightsResultField[] = [
       { field: '@message', value: 'application log line' },
       { field: 'level', value: 'ERROR' },
       { field: 'trace_id', value: '3d472be72977635208a92722b97b5e24' },

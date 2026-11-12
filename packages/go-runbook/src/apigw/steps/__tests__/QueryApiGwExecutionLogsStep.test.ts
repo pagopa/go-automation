@@ -1,12 +1,9 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type {
-  AWSCloudWatchLogsQueryOptions,
-  AWSCloudWatchLogsService,
-  ResultField,
-} from '@go-automation/go-common/aws';
-import type { GOLogger } from '@go-automation/go-common/core';
+import type { AWSCloudWatchLogsQueryOptions, AWSCloudWatchLogsService } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import type { RunbookContext } from '../../../types/RunbookContext.js';
 import type { Step } from '../../../types/Step.js';
 import type { TimeRange } from '../../../types/TimeRange.js';
@@ -24,7 +21,7 @@ interface CapturedCall {
   readonly options?: AWSCloudWatchLogsQueryOptions;
 }
 
-function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<ResultField>> = []): {
+function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> = []): {
   service: AWSCloudWatchLogsService;
   calls: CapturedCall[];
 } {
@@ -36,7 +33,7 @@ function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<ResultField>> = [
         query: string,
         timeRange: TimeRange,
         options?: AWSCloudWatchLogsQueryOptions,
-      ): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+      ): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> => {
         await Promise.resolve();
         calls.push({
           logGroups: [...logGroups],
@@ -52,7 +49,7 @@ function createFakeCwLogs(results: ReadonlyArray<ReadonlyArray<ResultField>> = [
 }
 
 function createContext(args: {
-  readonly stepOutput: ReadonlyArray<ReadonlyArray<ResultField>>;
+  readonly stepOutput: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
   readonly cloudWatchLogs: AWSCloudWatchLogsService;
   readonly reporter?: RunbookReporter;
 }): RunbookContext {
@@ -74,7 +71,7 @@ function createContext(args: {
   };
 }
 
-function buildRow(fields: Record<string, string>): ResultField[] {
+function buildRow(fields: Record<string, string>): GOLogsInsightsResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
 }
 
@@ -92,7 +89,7 @@ function createStep(
     readonly maxRequestIdsOverride?: number;
     readonly analysisMode?: ApiGwExecutionLogAnalysisMode;
   } = {},
-): Step<ReadonlyArray<ReadonlyArray<ResultField>>> {
+): Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
   return new QueryApiGwExecutionLogsStep({
     id: 'query-execution-logs',
     label: 'Query execution logs',
@@ -263,7 +260,7 @@ describe('queryApiGwExecutionLogs', () => {
 
   it('degrades to unavailable and continues when a best-effort execution-log query fails', async () => {
     const service = {
-      query: mock.fn(async (): Promise<ReadonlyArray<ReadonlyArray<ResultField>>> => {
+      query: mock.fn(async (): Promise<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> => {
         await Promise.resolve();
         throw new Error('MalformedQueryException: time range exceeds the log retention settings');
       }),
@@ -344,6 +341,6 @@ describe('queryApiGwExecutionLogs', () => {
   });
 });
 
-function buildField(field: string, value: string): ResultField {
+function buildField(field: string, value: string): GOLogsInsightsResultField {
   return { field, value };
 }

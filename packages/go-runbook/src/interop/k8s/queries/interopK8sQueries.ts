@@ -1,4 +1,4 @@
-import { escapeLogsInsightsRegexLiteral, escapeLogsInsightsString } from '@go-automation/go-common/aws';
+import { escapeLogsInsightsRegexLiteral, escapeLogsInsightsString } from '@pagopa/go-aws/cloudwatch-logs/insights';
 export function buildInteropK8sApplicationLogsQuery(podApp: string): string {
   const escapedPodApp = escapeLogsInsightsRegexLiteral(podApp);
   return `

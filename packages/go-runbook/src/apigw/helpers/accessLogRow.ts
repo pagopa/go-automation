@@ -1,5 +1,4 @@
-import { readRowField } from '@go-automation/go-common/aws';
-import type { ResultField } from '@go-automation/go-common/aws';
+import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { AccessLogSchema } from '../profiles/schemas/AccessLogSchema.js';
 
@@ -19,7 +18,7 @@ import type { AccessLogSchema } from '../profiles/schemas/AccessLogSchema.js';
  * `notApplicableSentinels` (typically `'-'`) are skipped.
  */
 export function rowMeetsThreshold(
-  row: ReadonlyArray<ResultField>,
+  row: ReadonlyArray<GOLogsInsightsResultField>,
   minStatusCode: number,
   schema: AccessLogSchema,
 ): boolean {
@@ -41,7 +40,7 @@ export function rowMeetsThreshold(
  * meaningful code even when the row's error signal is on a secondary
  * field (`authorizerStatus`, `integrationServiceStatus`).
  */
-export function pickPrimaryStatusCode(row: ReadonlyArray<ResultField>, schema: AccessLogSchema): string {
+export function pickPrimaryStatusCode(row: ReadonlyArray<GOLogsInsightsResultField>, schema: AccessLogSchema): string {
   for (const field of schema.statusFields) {
     const raw = readRowField(row, field);
     if (raw === undefined) continue;
@@ -59,7 +58,10 @@ export function pickPrimaryStatusCode(row: ReadonlyArray<ResultField>, schema: A
  * uses {@link pickPrimaryStatusCode}, which preserves the schema's
  * canonical field precedence.
  */
-export function pickHighestStatusCode(row: ReadonlyArray<ResultField>, schema: AccessLogSchema): number | undefined {
+export function pickHighestStatusCode(
+  row: ReadonlyArray<GOLogsInsightsResultField>,
+  schema: AccessLogSchema,
+): number | undefined {
   let highest: number | undefined;
   for (const field of schema.statusFields) {
     const raw = readRowField(row, field);
@@ -92,7 +94,7 @@ export function sanitizeApiGwField(raw: string | undefined, schema: AccessLogSch
  * `apiGwErrorMessage`, `httpMethod` → `apiGwHttpMethod`).
  */
 export function buildApiGwVars(
-  row: ReadonlyArray<ResultField>,
+  row: ReadonlyArray<GOLogsInsightsResultField>,
   errorCount: number,
   schema: AccessLogSchema,
 ): Record<string, string> {

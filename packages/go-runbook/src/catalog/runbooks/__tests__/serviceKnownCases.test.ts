@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { ConditionEvaluator, SEND_DOWNSTREAMS, type KnownCase, type RunbookContext } from '../framework.js';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { KNOWN_CASES as EMD_DOWNSTREAM_CASES } from '../emd-downstream-detection-Alarm/knownCases.js';
 import { DOWNSTREAM as EMD_DOWNSTREAM } from '../emd-downstream-detection-Alarm/knownServices.js';
@@ -57,7 +57,7 @@ function knownCaseById(cases: ReadonlyArray<KnownCase>, id: string): KnownCase {
   return knownCase;
 }
 
-function cwRow(fields: Record<string, string>): ResultField[] {
+function cwRow(fields: Record<string, string>): GOLogsInsightsResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
 }
 

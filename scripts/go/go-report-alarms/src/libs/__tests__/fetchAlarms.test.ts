@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Core } from '@go-automation/go-common';
-import type { AWS } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { AWSClientProvider } from '@pagopa/go-aws/all';
+import type { AlarmHistoryItem } from '@pagopa/go-aws/cloudwatch-alarms';
 
 import type { GoReportAlarmsConfig } from '../../types/GoReportAlarmsConfig.js';
 
@@ -16,7 +17,7 @@ interface FakeDescribeAlarmHistoryInput {
 }
 
 interface FakeScriptHarness {
-  readonly script: Core.GOScript;
+  readonly script: GOScript;
   readonly calls: { readonly profile: string; readonly input: FakeDescribeAlarmHistoryInput }[];
   readonly warnings: string[];
 }
@@ -24,9 +25,9 @@ interface FakeScriptHarness {
 type ProfileResponderFn = (
   profile: string,
   input: FakeDescribeAlarmHistoryInput,
-) => ReadonlyArray<AWS.AlarmHistoryItem> | Promise<ReadonlyArray<AWS.AlarmHistoryItem>>;
+) => ReadonlyArray<AlarmHistoryItem> | Promise<ReadonlyArray<AlarmHistoryItem>>;
 
-type MultiProfileOperationFn<T> = (profile: string, clients: AWS.AWSClientProvider) => Promise<T>;
+type MultiProfileOperationFn<T> = (profile: string, clients: AWSClientProvider) => Promise<T>;
 
 const CONFIG: GoReportAlarmsConfig = {
   startDate: '2025-01-01T00:00:00Z',
@@ -49,15 +50,13 @@ function createFakeScript(profiles: ReadonlyArray<string>, responder: ProfileRes
         profiles.map(async (profile) => {
           const clientProvider = {
             cloudWatch: {
-              async send(
-                command: unknown,
-              ): Promise<{ readonly AlarmHistoryItems: ReadonlyArray<AWS.AlarmHistoryItem> }> {
+              async send(command: unknown): Promise<{ readonly AlarmHistoryItems: ReadonlyArray<AlarmHistoryItem> }> {
                 const input = (command as { readonly input: FakeDescribeAlarmHistoryInput }).input;
                 calls.push({ profile, input });
                 return { AlarmHistoryItems: await responder(profile, input) };
               },
             },
-          } as unknown as AWS.AWSClientProvider;
+          } as unknown as AWSClientProvider;
           try {
             return { profile, result: await operation(profile, clientProvider) };
           } catch (error) {
@@ -91,14 +90,14 @@ function createFakeScript(profiles: ReadonlyArray<string>, responder: ProfileRes
       updateSpinner() {},
       spinnerStop() {},
     },
-  } as unknown as Core.GOScript;
+  } as unknown as GOScript;
 
   return { script, calls, warnings };
 }
 
 describe('fetchAlarms', () => {
   it('queries every configured provider profile and deduplicates the aggregated items', async () => {
-    const item: AWS.AlarmHistoryItem = {
+    const item: AlarmHistoryItem = {
       AlarmName: 'shared-alarm',
       Timestamp: new Date('2025-01-10T12:00:00Z'),
       HistoryItemType: 'Action',
@@ -121,7 +120,7 @@ describe('fetchAlarms', () => {
   });
 
   it('keeps successful results when another profile fails', async () => {
-    const item: AWS.AlarmHistoryItem = { AlarmName: 'dev-alarm' };
+    const item: AlarmHistoryItem = { AlarmName: 'dev-alarm' };
     const { script, warnings } = createFakeScript(['dev', 'uat'], (profile) => {
       if (profile === 'uat') throw new Error('Expired credentials');
       return [item];

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { GOLogger } from '@go-automation/go-common/core';
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import { RunbookEngine } from '../../../../core/RunbookEngine.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { buildAnalysisDraft } from '../../../../output/buildAnalysisDraft.js';
@@ -15,7 +15,7 @@ import { KNOWN_CASES } from '../knownCases.js';
 import { STRAPI_QUERY_PROFILE } from '../queryProfile.js';
 import { executeRunbookForOccurrence } from '../../../executeRunbookForOccurrence.js';
 
-function rows(messages: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<ResultField>> {
+function rows(messages: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> {
   return messages.map((log) => [
     { field: '@timestamp', value: '2026-10-06 00:35:22.766' },
     { field: 'pod_app', value: alarm.podApp },

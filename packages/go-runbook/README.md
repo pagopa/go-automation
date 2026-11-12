@@ -16,7 +16,7 @@ Il package espone:
 - **Toolkit per dominio** (`apigw`, `lambda`, `service`, `downstream`,
   `interop`) — step e helper pre-costruiti per le famiglie di allarmi più
   comuni del repository.
-- **`catalog/`** (subpath export `@go-automation/go-runbook/catalog`) —
+- **`catalog/`** (subpath export `@pagopa/go-runbook/catalog`) —
   il catalogo concreto dei runbook, uno per `src/catalog/runbooks/<alarm-name>/`,
   ciascuno con la propria `registration.ts` e `knownCases.ts`.
 
@@ -27,7 +27,7 @@ analizzano runbook: `go-analyze-alarm`, `go-execute-runbook`,
 ## Esempio
 
 ```typescript
-import { RunbookBuilder, RunbookEngine, CloudWatchLogsQueryStep, logAction } from '@go-automation/go-runbook';
+import { RunbookBuilder, RunbookEngine, CloudWatchLogsQueryStep, logAction } from '@pagopa/go-runbook';
 
 const runbook = RunbookBuilder.create('alarm-api-gw-5xx')
   .metadata({ name: 'API GW 5xx' /* ... */ })
@@ -50,6 +50,6 @@ con `pnpm create:runbook`, registrazione nel manifest, `knownCases.ts`):
 ## Test e build
 
 ```bash
-pnpm --filter=@go-automation/go-runbook test
-pnpm --filter=@go-automation/go-runbook build
+pnpm --filter=@pagopa/go-runbook test
+pnpm --filter=@pagopa/go-runbook build
 ```

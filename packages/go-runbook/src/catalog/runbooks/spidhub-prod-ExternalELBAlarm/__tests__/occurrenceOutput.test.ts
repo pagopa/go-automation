@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { ResultField } from '@go-automation/go-common/aws';
-import { GOLogger } from '@go-automation/go-common/core';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { GOLogger } from '@pagopa/go-common/logging';
 import type { RunbookOutput } from '../../../../output/RunbookOutput.js';
 import { createTestServiceRegistry } from '../../../../registry/createTestServiceRegistry.js';
 import { executeRunbookForOccurrence } from '../../../executeRunbookForOccurrence.js';
 import { ERROR_QUERY, SPIDHUB_ACCOUNT_ID, SPIDHUB_ALARM, SPIDHUB_REGION, STREAM_QUERY } from '../alarmDefinition.js';
 
-type Rows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 type ReadQueryFn = (query: string) => Rows;
 const HEADERS_ERROR = 'Error [ERR_HTTP_HEADERS_SENT]: Cannot set headers after they are sent';
 const RESPONDER_ERROR =

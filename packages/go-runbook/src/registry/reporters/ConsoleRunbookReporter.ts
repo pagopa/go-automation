@@ -1,5 +1,5 @@
-import type { GOLogger, TreeNode } from '@go-automation/go-common/core';
-import { renderTree } from '@go-automation/go-common/core';
+import type { GOLogger } from '@pagopa/go-common/logging';
+import { renderTree, type TreeNode } from '@pagopa/go-common/render';
 
 import type { RunbookReporter } from '../RunbookReporter.js';
 

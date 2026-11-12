@@ -1,4 +1,4 @@
-import type { ResultField } from '@go-automation/go-common/aws';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import type { ServiceLogSchema } from '../types/ServiceLogSchema.js';
 
@@ -39,7 +39,7 @@ export interface ApplicationLogsScan {
 }
 
 export function scanApplicationLogs(
-  results: ReadonlyArray<ReadonlyArray<ResultField>>,
+  results: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
   schema: ServiceLogSchema,
 ): ApplicationLogsScan {
   // Representative error message, surfaced as "Ultimo errore" (`lastErrorMsg`).

@@ -1,15 +1,12 @@
-import type {
-  AWSCloudWatchLogsQueryOptions,
-  AWSCloudWatchLogsQueryResult,
-  ResultField,
-} from '@go-automation/go-common/aws';
-import { formatBytes } from '@go-automation/go-common/core';
+import type { AWSCloudWatchLogsQueryOptions, AWSCloudWatchLogsQueryResult } from '@pagopa/go-aws/cloudwatch-logs';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { formatBytes } from '@pagopa/go-common/utils';
 
 import type { TimeRange } from '../../types/TimeRange.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
 import type { CloudWatchLogsStepDiagnostics, StepDiagnostics } from '../../trace/StepDiagnostics.js';
 
-type CloudWatchLogsRows = ReadonlyArray<ReadonlyArray<ResultField>>;
+type CloudWatchLogsRows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
 export interface ExecutedCloudWatchLogsQuery {
   readonly rows: CloudWatchLogsRows;

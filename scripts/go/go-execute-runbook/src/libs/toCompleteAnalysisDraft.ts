@@ -1,4 +1,4 @@
-import { ANALYSIS_DRAFT_BOUNDS, type AnalysisDraftV1 } from '@go-automation/go-runbook';
+import { ANALYSIS_DRAFT_BOUNDS, type AnalysisDraftV1 } from '@pagopa/go-runbook';
 
 import type { CompleteExecutionAnalysisDraft } from '@go-automation/go-watchtower-client';
 

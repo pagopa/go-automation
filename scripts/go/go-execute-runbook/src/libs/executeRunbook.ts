@@ -1,6 +1,6 @@
-import { AWS } from '@go-automation/go-common';
-import { classifyRunbookOutcome } from '@go-automation/go-runbook';
-import type { AnalysisDraftV1, RunbookCheck, RunbookOutput, ServiceRegistry } from '@go-automation/go-runbook';
+import { AWSActiveOperationRegistry } from '@pagopa/go-aws';
+import { classifyRunbookOutcome } from '@pagopa/go-runbook';
+import type { AnalysisDraftV1, RunbookCheck, RunbookOutput, ServiceRegistry } from '@pagopa/go-runbook';
 import type {
   AcknowledgeCancellationRequest,
   AutomaticRunbookOutcome,
@@ -8,7 +8,7 @@ import type {
   AutomaticRunbookExecutionStatus,
   StartExecutionRequest,
 } from '@go-automation/go-watchtower-client';
-import { executeRunbookForOccurrence } from '@go-automation/go-runbook/catalog';
+import { executeRunbookForOccurrence } from '@pagopa/go-runbook/catalog';
 
 import type { ExecuteRunbookDelivery } from '../types/ExecuteRunbookDelivery.js';
 import type { ExecuteRunbookDeps } from '../types/ExecuteRunbookDeps.js';
@@ -52,7 +52,7 @@ export async function executeRunbookDryRun(
 ): Promise<ExecuteRunbookDryRunResult> {
   assertRunbookCapability(input, deps.workerArtifactRevision);
   const coordinator = new ExecutionAbortCoordinator();
-  const activeOperations = new AWS.AWSActiveOperationRegistry();
+  const activeOperations = new AWSActiveOperationRegistry();
   let timeout: ReturnType<typeof setTimeout> | undefined;
   const abortOnSignal = (): void => coordinator.abort('SHUTDOWN');
   if (options.signal?.aborted === true) {
@@ -118,7 +118,7 @@ export async function executeRunbook(
   let activeDelivery: ExecuteRunbookDelivery = { ...delivery, workerDeadlineAt: start.workerDeadlineAt };
   let activeDeadlineAtMs = Date.parse(activeDelivery.workerDeadlineAt);
   const coordinator = new ExecutionAbortCoordinator();
-  const activeOperations = new AWS.AWSActiveOperationRegistry();
+  const activeOperations = new AWSActiveOperationRegistry();
   let budgetTimer: ReturnType<typeof setTimeout> | undefined;
   const rescheduleBudgetTimer = (): void => {
     if (budgetTimer !== undefined) clearTimeout(budgetTimer);
@@ -231,7 +231,7 @@ export async function executeRunbook(
 
 async function stopMonitorAndActiveOperations(
   monitor: CancellationMonitor,
-  activeOperations: AWS.AWSActiveOperationRegistry,
+  activeOperations: AWSActiveOperationRegistry,
 ): Promise<void> {
   const [monitorResult, activeOperationsResult] = await Promise.allSettled([
     monitor.stop(),
@@ -254,7 +254,7 @@ async function suppressStaleAttempt(
   executionId: string,
   attemptId: string,
   monitor: CancellationMonitor,
-  activeOperations: AWS.AWSActiveOperationRegistry,
+  activeOperations: AWSActiveOperationRegistry,
 ): Promise<ExecuteRunbookResult> {
   await monitor.stop();
   await activeOperations.stopAll();
@@ -271,7 +271,7 @@ async function runOccurrence(
   deps: ExecuteRunbookDeps,
   input: ExecuteRunbookInput,
   coordinator: ExecutionAbortCoordinator,
-  activeOperations: AWS.AWSActiveOperationRegistry,
+  activeOperations: AWSActiveOperationRegistry,
 ): Promise<RunbookOutput> {
   return await executeRunbookForOccurrence(
     { logger: deps.logger, services: scopedServices(deps, input, activeOperations) },
@@ -291,7 +291,7 @@ async function runOccurrence(
 function scopedServices(
   deps: ExecuteRunbookDeps,
   input: ExecuteRunbookInput,
-  activeOperations: AWS.AWSActiveOperationRegistry,
+  activeOperations: AWSActiveOperationRegistry,
 ): ServiceRegistry {
   const cwService = deps.services.cloudWatchLogs;
   const target = { accountId: input.alarmEvent.awsAccountId, region: input.alarmEvent.awsRegion };
@@ -351,7 +351,7 @@ async function acknowledgeCancellation(
   deadlineAtMs: number,
   coordinator: ExecutionAbortCoordinator,
   monitor: CancellationMonitor,
-  activeOperations: AWS.AWSActiveOperationRegistry,
+  activeOperations: AWSActiveOperationRegistry,
 ): Promise<ExecuteRunbookResult> {
   await monitor.stop();
   const warnings = await activeOperations.stopAll();

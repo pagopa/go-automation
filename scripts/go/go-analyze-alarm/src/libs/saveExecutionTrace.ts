@@ -2,8 +2,10 @@
  * Utility for persisting runbook execution traces to disk.
  */
 
-import { Core } from '@go-automation/go-common';
-import type { RunbookExecutionResult } from '@go-automation/go-runbook';
+import type { GOScript } from '@go-automation/go-script';
+import { GOJSONFileExporter } from '@pagopa/go-common/exporters';
+import { GOPathType } from '@pagopa/go-common/files';
+import type { RunbookExecutionResult } from '@pagopa/go-runbook';
 
 import { formatOutputSuffix } from './formatOutputSuffix.js';
 
@@ -16,16 +18,16 @@ import { formatOutputSuffix } from './formatOutputSuffix.js';
  * @param alarmName - Alarm name used in the file name
  */
 export async function saveExecutionTrace(
-  script: Core.GOScript,
+  script: GOScript,
   result: RunbookExecutionResult,
   alarmName: string,
   outputSuffix?: string,
 ): Promise<string> {
   const fileName = `trace-${alarmName}${formatOutputSuffix(outputSuffix)}.json`;
-  const traceInfoPath = script.paths.resolvePathWithInfo(fileName, Core.GOPathType.OUTPUT);
+  const traceInfoPath = script.paths.resolvePathWithInfo(fileName, GOPathType.OUTPUT);
   const tracePath = traceInfoPath.path;
 
-  const exporter = new Core.GOJSONFileExporter({ outputPath: tracePath, pretty: true, indent: 2 });
+  const exporter = new GOJSONFileExporter({ outputPath: tracePath, pretty: true, indent: 2 });
   await exporter.export(result.trace);
 
   script.logger.info(`Execution trace saved: ${tracePath}`);
