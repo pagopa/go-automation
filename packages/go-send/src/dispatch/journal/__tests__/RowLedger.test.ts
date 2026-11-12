@@ -273,19 +273,56 @@ describe('decideRowAction', () => {
       'only verify can obtain the IUN',
     );
     assert.equal(decideRowAction(unknownIun, policy(false, false, false, true)), 'skip');
+    const unknownIunAccepted = { ...unknownIun, acceptedAt: 't' };
+    assert.equal(
+      decideRowAction(unknownIunAccepted, policy(false, false, true, true)),
+      'verify',
+      'accepted, but the IUN is still missing: only verify obtains it',
+    );
     assert.equal(decideRowAction(state('ACCEPTED'), policy(true, true, true)), 'skip');
     assert.equal(decideRowAction(state('INVALID'), policy(true, true, true)), 'skip');
   });
 
-  it('routes rows to the requestId phase', () => {
+  it('routes rows with a known acceptance to the requestId phase', () => {
+    const accepted = (status: string, requestIdReason?: string): RowState => ({
+      ...state(status),
+      acceptedAt: 't',
+      ...(requestIdReason !== undefined && { requestIdReason }),
+    });
     assert.equal(decideRowAction(state('SENT'), policy(false, false, false, true)), 'request-id');
     assert.equal(decideRowAction(state('ACCEPTED'), policy(false, false, true, true)), 'request-id');
-    assert.equal(decideRowAction(state('REQUEST_ID_NOT_FOUND'), policy(false, false, true, true)), 'request-id');
-    assert.equal(decideRowAction(state('REQUEST_ID_FOUND'), policy(false, false, true, true)), 'skip');
-    const ended = { ...state('REQUEST_ID_NOT_FOUND'), requestIdReason: 'WORKFLOW_ENDED:COMPLETELY_UNREACHABLE' };
+    assert.equal(decideRowAction(accepted('REQUEST_ID_NOT_FOUND'), policy(false, false, true, true)), 'request-id');
+    assert.equal(decideRowAction(accepted('REQUEST_ID_FOUND'), policy(false, false, true, true)), 'skip');
+    const ended = accepted('REQUEST_ID_NOT_FOUND', 'WORKFLOW_ENDED:COMPLETELY_UNREACHABLE');
     assert.equal(decideRowAction(ended, policy(false, false, true, true)), 'skip', 'the workflow ended: final');
-    const timedOut = { ...state('REQUEST_ID_NOT_FOUND'), requestIdReason: 'TIMEOUT' };
-    assert.equal(decideRowAction(timedOut, policy(false, false, true, true)), 'request-id');
+    assert.equal(
+      decideRowAction(accepted('REQUEST_ID_NOT_FOUND', 'TIMEOUT'), policy(false, false, true, true)),
+      'request-id',
+    );
+    const refusedPerTimeline: RowState = {
+      ...state('REQUEST_ID_FOUND'),
+      requestIdReason: 'FOUND',
+      timelineAcceptance: 'REFUSED',
+    };
+    assert.equal(decideRowAction(refusedPerTimeline, policy(false, false, true, true)), 'skip', 'refused: final');
     assert.equal(decideRowAction(state('REFUSED'), policy(false, false, true, true)), 'skip');
+  });
+
+  it('verifies requestId outcomes whose acceptance is unknown before anything else', () => {
+    // --phases request-id, or categories that precede the acceptance: the outcome proves nothing.
+    const found = { ...state('REQUEST_ID_FOUND'), requestIdReason: 'FOUND' };
+    assert.equal(decideRowAction(found, policy(false, false, true, true)), 'verify');
+    assert.equal(decideRowAction(found, policy(false, false, true, false)), 'verify');
+    assert.equal(decideRowAction(found, policy(false, false, false, true)), 'skip', 'no verify: nothing to do');
+    const timedOut = { ...state('REQUEST_ID_NOT_FOUND'), requestIdReason: 'TIMEOUT' };
+    assert.equal(decideRowAction(timedOut, policy(false, false, true, true)), 'verify');
+    assert.equal(decideRowAction(timedOut, policy(false, false, false, true)), 'request-id', 'no verify: query again');
+    const ended = { ...state('REQUEST_ID_NOT_FOUND'), requestIdReason: 'WORKFLOW_ENDED:VALIDATED_F24' };
+    assert.equal(
+      decideRowAction(ended, policy(false, false, true, true)),
+      'verify',
+      'an end category before acceptance',
+    );
+    assert.equal(decideRowAction(ended, policy(false, false, false, true)), 'skip', 'no verify: the workflow ended');
   });
 });

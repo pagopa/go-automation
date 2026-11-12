@@ -1,3 +1,4 @@
+import { acceptanceOf } from '../model/acceptanceOf.js';
 import { IUN_UNKNOWN, WORKFLOW_ENDED_PREFIX } from '../model/requestIdReasons.js';
 import type { RowState } from '../model/RowState.js';
 import type { RowAction } from './RowAction.js';
@@ -5,6 +6,12 @@ import type { RowActionPolicy } from './RowActionPolicy.js';
 
 /**
  * Decides what to do with a row on (re)start (§11.3). Pure.
+ *
+ * A requestId outcome (`REQUEST_ID_FOUND` / `REQUEST_ID_NOT_FOUND`) whose
+ * acceptance is still unknown (`--phases request-id`, or selected categories
+ * that precede the acceptance) is verified first when the verify phase is
+ * on: the outcome says nothing about SEND accepting or refusing the
+ * notification. The requestId rules apply only once the acceptance is known.
  *
  * @param state - State from the journal, `undefined` for a new row
  * @param policy - Active phases and retry flags
@@ -30,7 +37,11 @@ export function decideRowAction(state: RowState | undefined, policy: RowActionPo
       return policy.requestId ? 'request-id' : 'skip';
     case 'ACCEPTED':
       return policy.requestId ? 'request-id' : 'skip';
+    case 'REQUEST_ID_FOUND':
     case 'REQUEST_ID_NOT_FOUND':
+      // Acceptance never established: only the verification can tell accepted from refused.
+      if (policy.verify && state !== undefined && acceptanceOf(state) === 'UNKNOWN') return 'verify';
+      if (status === 'REQUEST_ID_FOUND') return 'skip';
       // The workflow ended without the wanted categories: querying again cannot find them.
       if (state?.requestIdReason?.startsWith(WORKFLOW_ENDED_PREFIX) === true) return 'skip';
       // Without the IUN the timeline cannot be read: only the verification can obtain it.
@@ -38,7 +49,6 @@ export function decideRowAction(state: RowState | undefined, policy: RowActionPo
       return policy.requestId ? 'request-id' : 'skip';
     case 'INVALID':
     case 'REFUSED':
-    case 'REQUEST_ID_FOUND':
       return 'skip';
     default: {
       const exhaustive: never = status;
