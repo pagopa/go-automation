@@ -4,9 +4,10 @@
  */
 import { GOFileListExporter } from '../../exporters/file/GOFileListExporter.js';
 import type { GOListExporterStreamWriter } from '../../exporters/GOListExporterStreamWriter.js';
-import { GOPaths } from '../../utils/GOPaths.js';
 import { GOLogEvent } from '../GOLogEvent.js';
 import type { GOLoggerHandler } from '../GOLoggerHandler.js';
+
+import type { GOExecutionLogPathProvider } from './GOExecutionLogPathProvider.js';
 
 import { GOFileLoggerStyle } from './GOFileLoggerStyle.js';
 
@@ -23,7 +24,7 @@ export class GOFileLoggerHandler implements GOLoggerHandler {
   private eventQueue: GOLogEvent[] = [];
   private writeQueue: Promise<void> = Promise.resolve(); // Sequential write queue
 
-  constructor(paths: GOPaths, style?: GOFileLoggerStyle, outputPath?: string) {
+  constructor(paths: GOExecutionLogPathProvider, style?: GOFileLoggerStyle, outputPath?: string) {
     this.style = style ?? new GOFileLoggerStyle();
 
     // Get output path from GOPaths if not provided

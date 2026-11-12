@@ -1,5 +1,5 @@
 /**
- * Utilities export
+ * HTTP Module Export
  */
 
 export * from './GOAbortableRequest.js';
@@ -13,4 +13,3 @@ export * from './GOFileDownloader.js';
 export * from './GOFileDownloaderConfig.js';
 export * from './GOFileDownloaderError.js';
 export * from './GOFileDownloadResult.js';
-export * from './isTcpPortOpen.js';

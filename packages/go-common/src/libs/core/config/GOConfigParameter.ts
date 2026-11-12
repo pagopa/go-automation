@@ -8,7 +8,7 @@
 import { GOConfigParameterType, getTypePlaceholder } from './GOConfigParameterType.js';
 import { GOConfigReader } from './GOConfigReader.js';
 import { GOConfigKeyTransformer } from './GOConfigKeyTransformer.js';
-import type { GOPaths } from '../utils/GOPaths.js';
+import type { GOPaths } from '../paths/GOPaths.js';
 
 /**
  * Union type for all possible configuration parameter values.

@@ -4,6 +4,7 @@
 
 export { GOScript } from './GOScript.js';
 export * from './GOScriptOptions.js';
+export type { GOScriptPathsOptions } from './GOScriptPathsOptions.js';
 export type { GOScriptHookContext } from './GOScriptHookContext.js';
 export { GOScriptConfigLoader } from './GOScriptConfigLoader.js';
 export type { ConfigLoadResult } from './GOScriptConfigLoader.js';

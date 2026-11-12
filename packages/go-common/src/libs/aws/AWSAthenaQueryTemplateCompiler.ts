@@ -1,4 +1,4 @@
-import { GODateTokens } from '../core/utils/index.js';
+import { GODateTokens } from '../core/dates/GODateTokens.js';
 
 export interface AWSAthenaQueryTemplateCompileOptions {
   readonly template: string;

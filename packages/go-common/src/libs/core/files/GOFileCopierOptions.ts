@@ -3,7 +3,7 @@
  * Supports flexible destination paths based on file type
  */
 
-import type { GOPathTypeValue } from '../utils/GOPaths.js';
+import type { GOPathTypeValue } from './GOPathType.js';
 
 export type GOFileCopierLogHandler = (message: string, level: 'info' | 'warn' | 'error') => void;
 

@@ -12,7 +12,7 @@
  */
 
 import * as fs from 'fs';
-import { getErrorMessage } from '../../errors/GOErrorUtils.js';
+import { getErrorMessage } from '../errors/GOErrorUtils.js';
 
 /**
  * Parses .env style environment files

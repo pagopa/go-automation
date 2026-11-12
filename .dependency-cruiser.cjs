@@ -152,6 +152,72 @@ const workspaceBoundaryRules = [
   ...functionScriptBoundaryRules(),
 ];
 
+/**
+ * go-common internal layering (EVO-PKGPUB-OPUS-01 §7.1.2, Fase 1).
+ *
+ * Kernel areas are ordered by level: an area may import only areas of the same or a lower level.
+ * Areas destined to leave go-common (go-script, go-aws, go-documents, go-slack) must never be
+ * imported by the kernel, so that Phase 2 can extract them without cutting any kernel edge.
+ */
+const GO_COMMON_CORE = '^packages/go-common/src/libs/core/';
+const GO_COMMON_KERNEL_LEVELS = [
+  ['utils', 'security', 'json', 'events'],
+  ['errors', 'analysis'],
+  ['dates', 'polling'],
+  ['concurrency', 'process', 'files', 'parsers', 'render'],
+  ['importers', 'exporters', 'http'],
+  ['logging'],
+];
+const GO_COMMON_LEAVING_AREAS = {
+  'go-script': ['config', 'environment', 'prompt', 'script', 'paths'],
+  'go-documents': ['text', 'storage'],
+  'go-slack': ['messaging'],
+};
+
+function goCommonAreaPattern(areas) {
+  return `${GO_COMMON_CORE}(?:${areas.join('|')})/`;
+}
+
+function goCommonLayerRules() {
+  const kernelAreas = GO_COMMON_KERNEL_LEVELS.flat();
+  const scriptAreas = GO_COMMON_LEAVING_AREAS['go-script'];
+  const extractedLeafAreas = [...GO_COMMON_LEAVING_AREAS['go-documents'], ...GO_COMMON_LEAVING_AREAS['go-slack']];
+  const levelRules = GO_COMMON_KERNEL_LEVELS.slice(0, -1).map((areas, level) => ({
+    name: `go-common-kernel-level-${level}`,
+    severity: 'error',
+    comment: `go-common kernel level ${level} (${areas.join(', ')}) must not import higher kernel levels.`,
+    from: { path: goCommonAreaPattern(areas) },
+    to: { path: goCommonAreaPattern(GO_COMMON_KERNEL_LEVELS.slice(level + 1).flat()) },
+  }));
+  return [
+    ...levelRules,
+    {
+      name: 'go-common-kernel-not-on-leaving-areas',
+      severity: 'error',
+      comment:
+        'The go-common kernel must not import areas that will leave go-common (go-script, go-aws, go-documents, go-slack).',
+      from: { path: goCommonAreaPattern(kernelAreas) },
+      to: {
+        path: [goCommonAreaPattern([...scriptAreas, ...extractedLeafAreas]), '^packages/go-common/src/libs/aws/'],
+      },
+    },
+    {
+      name: 'go-common-aws-not-on-script-or-leaf-areas',
+      severity: 'error',
+      comment: 'The future go-aws must depend only on the kernel, never on go-script, go-documents or go-slack areas.',
+      from: { path: '^packages/go-common/src/libs/aws/' },
+      to: { path: goCommonAreaPattern([...scriptAreas, ...extractedLeafAreas]) },
+    },
+    {
+      name: 'go-common-leaf-areas-only-on-kernel',
+      severity: 'error',
+      comment: 'go-documents and go-slack areas must not depend on go-script or go-aws areas.',
+      from: { path: goCommonAreaPattern(extractedLeafAreas) },
+      to: { path: [goCommonAreaPattern(scriptAreas), '^packages/go-common/src/libs/aws/'] },
+    },
+  ];
+}
+
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
   forbidden: [
@@ -197,6 +263,7 @@ module.exports = {
         path: [...nonCommonPackageDependencyPatterns, ...appDependencyPatterns],
       },
     },
+    ...goCommonLayerRules(),
     {
       name: 'packages-do-not-import-apps',
       severity: 'error',

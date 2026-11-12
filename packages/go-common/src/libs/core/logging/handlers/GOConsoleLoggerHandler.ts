@@ -3,7 +3,7 @@
  * Outputs log events to the console with colors and hierarchical indentation
  */
 
-import { consoleColorsEnabled, stripAnsi } from '../ansi.js';
+import { consoleColorsEnabled, stripAnsi } from '../../render/ansi.js';
 import { GOLogEvent } from '../GOLogEvent.js';
 import { GOLogEventCategory } from '../GOLogEventCategory.js';
 import type { GOLoggerHandler } from '../GOLoggerHandler.js';

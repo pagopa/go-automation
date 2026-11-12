@@ -5,7 +5,7 @@ import { GOConfigHelpGenerator } from '../GOConfigHelpGenerator.js';
 import { GOConfigParameter } from '../GOConfigParameter.js';
 import type { GOConfigParameterOptions } from '../GOConfigParameter.js';
 import { GOConfigParameterType } from '../GOConfigParameterType.js';
-import { stripAnsi } from '../../logging/ansi.js';
+import { stripAnsi } from '../../render/ansi.js';
 
 function createParameter(options: GOConfigParameterOptions): GOConfigParameter {
   return new GOConfigParameter(options);

@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 
-import { isTcpPortOpen } from '../network/isTcpPortOpen.js';
+import { isTcpPortOpen } from './isTcpPortOpen.js';
 import { GOChildProcessError } from './GOChildProcessError.js';
 import type { GOChildProcessOptions } from './GOChildProcessOptions.js';
 import type { GOChildProcessReadyOptions } from './GOChildProcessReadyOptions.js';

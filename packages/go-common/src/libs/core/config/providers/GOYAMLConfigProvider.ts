@@ -10,8 +10,8 @@ import { GOConfigObjectFlattener } from '../GOConfigObjectFlattener.js';
 import { GOConfigProviderBase } from '../GOConfigProvider.js';
 import { GOSecretRedactor, GOSecretsSpecifierFactory } from '../GOSecretsSpecifier.js';
 import type { GOSecretsSpecifier } from '../GOSecretsSpecifier.js';
-import { GOYAMLParser, isYAMLObject } from '../parsers/GOYAMLParser.js';
-import type { YAMLValue } from '../parsers/GOYAMLParser.js';
+import { GOYAMLParser, isYAMLObject } from '../../parsers/GOYAMLParser.js';
+import type { YAMLValue } from '../../parsers/GOYAMLParser.js';
 import { getErrorMessage } from '../../errors/GOErrorUtils.js';
 
 /**

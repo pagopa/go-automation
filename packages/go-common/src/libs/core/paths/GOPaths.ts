@@ -29,22 +29,9 @@ import { DateTime } from 'luxon';
 
 import { GODeploymentMode, GOExecutionEnvironment } from '../environment/index.js';
 import type { GOExecutionEnvironmentInfo } from '../environment/index.js';
+import { GOPathType } from '../files/GOPathType.js';
+import type { GOPathTypeValue } from '../files/GOPathType.js';
 import { GOPathEnvironmentVariables } from './GOPathEnvironmentVariables.js';
-
-/**
- * Path type constants for resolution
- */
-export const GOPathType = {
-  INPUT: 'input',
-  OUTPUT: 'output',
-  CONFIG: 'config',
-  CACHE: 'cache',
-} as const;
-
-/**
- * Type of path resolution
- */
-export type GOPathTypeValue = (typeof GOPathType)[keyof typeof GOPathType];
 
 /**
  * Result of file path resolution.
@@ -91,6 +78,11 @@ export interface GOPathsOptions {
   readonly scriptName?: string;
   /** Override base directory (overrides GO_BASE_DIR env var) */
   readonly baseDir?: string;
+  /**
+   * Explicit go-automation root. When set, paths resolve in monorepo mode under this
+   * directory, with precedence over environment detection, for this instance only.
+   */
+  readonly rootDir?: string;
 }
 
 export class GOPaths {
@@ -111,7 +103,11 @@ export class GOPaths {
     const argv1 = process.argv[1] ?? 'unknown-script';
     this.scriptName = this.options.scriptName ?? path.basename(argv1, path.extname(argv1));
     this.startTime = new Date();
-    this.environmentInfo = GOExecutionEnvironment.detect();
+    const detected = GOExecutionEnvironment.detect();
+    this.environmentInfo =
+      this.options.rootDir !== undefined && this.options.rootDir.trim() !== ''
+        ? GOExecutionEnvironment.withRoot(detected, this.options.rootDir)
+        : detected;
     this.baseDir = this.resolveBaseDir();
   }
 

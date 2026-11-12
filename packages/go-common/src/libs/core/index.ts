@@ -25,10 +25,17 @@ export * from './files/index.js';
 // Export JSON utilities
 export * from './json/index.js';
 
+// Export parsers (YAML, .env)
+export * from './parsers/index.js';
+
 // Export utilities
-export * from './network/index.js';
+export * from './http/index.js';
 export * from './process/index.js';
 export * from './utils/index.js';
+export * from './dates/index.js';
+export * from './concurrency/index.js';
+export * from './paths/index.js';
+export * from './render/index.js';
 
 // Export polling & retry primitives
 export * from './polling/index.js';

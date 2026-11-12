@@ -4,18 +4,14 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import type { GOPaths } from '../../../utils/GOPaths.js';
 import { GOLogEvent } from '../../GOLogEvent.js';
 import { GOLogEventCategory } from '../../GOLogEventCategory.js';
+import type { GOExecutionLogPathProvider } from '../GOExecutionLogPathProvider.js';
 import { GOFileLoggerHandler } from '../GOFileLoggerHandler.js';
 import { GOFileLoggerStyle } from '../GOFileLoggerStyle.js';
 
-interface FakeGOPaths {
-  getExecutionLogFilePath(): string;
-}
-
-function asGOPaths(paths: FakeGOPaths): GOPaths {
-  return paths as unknown as GOPaths;
+function logPathProvider(paths: GOExecutionLogPathProvider): GOExecutionLogPathProvider {
+  return paths;
 }
 
 async function makeTempDir(): Promise<string> {
@@ -49,7 +45,7 @@ describe('GOFileLoggerHandler', () => {
     const dir = await makeTempDir();
     const logPath = path.join(dir, 'default.log');
     const handler = new GOFileLoggerHandler(
-      asGOPaths({
+      logPathProvider({
         getExecutionLogFilePath: () => logPath,
       }),
     );
@@ -67,7 +63,7 @@ describe('GOFileLoggerHandler', () => {
     const dir = await makeTempDir();
     const logPath = path.join(dir, 'nested', 'execution.log');
     const handler = new GOFileLoggerHandler(
-      asGOPaths({
+      logPathProvider({
         getExecutionLogFilePath: () => path.join(dir, 'unused.log'),
       }),
       createPlainFileStyle(),
@@ -87,7 +83,7 @@ describe('GOFileLoggerHandler', () => {
     const dir = await makeTempDir();
     const logPath = path.join(dir, 'execution.log');
     const handler = new GOFileLoggerHandler(
-      asGOPaths({
+      logPathProvider({
         getExecutionLogFilePath: () => logPath,
       }),
       createPlainFileStyle(),
@@ -110,7 +106,7 @@ describe('GOFileLoggerHandler', () => {
     const initialStyle = createPlainFileStyle();
     const replacementStyle = createPlainFileStyle();
     const handler = new GOFileLoggerHandler(
-      asGOPaths({
+      logPathProvider({
         getExecutionLogFilePath: () => '/tmp/unused.log',
       }),
       initialStyle,

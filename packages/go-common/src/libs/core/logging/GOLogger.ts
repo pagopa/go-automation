@@ -6,8 +6,8 @@
 import { GOLogEvent } from './GOLogEvent.js';
 import { GOLogEventCategory } from './GOLogEventCategory.js';
 import type { GOLoggerHandler } from './GOLoggerHandler.js';
-import { GOTableFormatter } from './GOTableFormatter.js';
-import type { GOTableOptions, GOTableColumn } from './GOTableFormatter.js';
+import { GOTableFormatter } from '../render/GOTableFormatter.js';
+import type { GOTableOptions, GOTableColumn } from '../render/GOTableFormatter.js';
 import { valueToString } from '../utils/GOValueToString.js';
 
 /**

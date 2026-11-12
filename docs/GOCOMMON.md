@@ -894,14 +894,15 @@ paths.getExecutionOutputDir(); // outputs/{script}_{timestamp}/
 
 Tutte le directory possono essere sovrascritte tramite variabili d'ambiente:
 
-| Variabile            | Descrizione                            | Priorita    |
-| -------------------- | -------------------------------------- | ----------- |
-| `GO_DEPLOYMENT_MODE` | Forza `monorepo` o `standalone`        | 1 (massima) |
-| `GO_BASE_DIR`        | Override base directory per standalone | 2           |
-| `GO_DATA_DIR`        | Override data directory                | 3           |
-| `GO_CONFIG_DIR`      | Override config directory              | 3           |
-| `GO_INPUT_DIR`       | Override input directory               | 3           |
-| `GO_OUTPUT_DIR`      | Override output directory              | 3           |
+| Variabile            | Descrizione                                                                                                                         | Priorita    |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `GO_DEPLOYMENT_MODE` | Forza `monorepo` o `standalone`                                                                                                     | 1 (massima) |
+| `GO_ROOT_DIR`        | Root esplicita del monorepo (anche: opzione `GOScript({ paths: { rootDir } })`, che ha la precedenza; marker `.go-automation-root`) | 2           |
+| `GO_BASE_DIR`        | Override base directory per standalone                                                                                              | 2           |
+| `GO_DATA_DIR`        | Override data directory                                                                                                             | 3           |
+| `GO_CONFIG_DIR`      | Override config directory                                                                                                           | 3           |
+| `GO_INPUT_DIR`       | Override input directory                                                                                                            | 3           |
+| `GO_OUTPUT_DIR`      | Override output directory                                                                                                           | 3           |
 
 ```bash
 # Forza standalone mode con directory custom

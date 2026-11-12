@@ -4,11 +4,12 @@ import path from 'path';
 import { GOConfigObjectFlattener } from '../config/GOConfigObjectFlattener.js';
 import type { GOFlattenedConfigValue } from '../config/GOConfigObjectFlattener.js';
 import type { GOConfigSchema } from '../config/GOConfigSchema.js';
-import { GOYAMLParser } from '../config/parsers/GOYAMLParser.js';
+import { GOYAMLParser } from '../parsers/GOYAMLParser.js';
 import { damerauLevenshteinDistance } from '../config/validation/GOStringDistance.js';
 import { getErrorMessage } from '../errors/GOErrorUtils.js';
 import { isDangerousKey } from '../security/DangerousKeys.js';
-import { GOPathType, type GOPaths } from '../utils/GOPaths.js';
+import { GOPathType } from '../files/GOPathType.js';
+import type { GOPaths } from '../paths/GOPaths.js';
 import { GOPresetUnknownKeysError } from './GOPresetUnknownKeysError.js';
 import { isPlainObject } from '../utils/GOTypeGuards.js';
 

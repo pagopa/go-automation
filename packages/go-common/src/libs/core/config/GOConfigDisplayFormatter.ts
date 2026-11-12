@@ -3,7 +3,7 @@
  * Handles smart formatting of config values and sources for optimal readability
  */
 
-import { smartTruncate } from './GOStringUtils.js';
+import { smartTruncate } from '../utils/GOStringUtils.js';
 
 /**
  * Pattern for structured source formats: TYPE(path)

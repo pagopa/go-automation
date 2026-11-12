@@ -1167,25 +1167,31 @@ Gli script supportano due modalità runtime principali, **monorepo** e **standal
 
 ### Rilevamento Automatico
 
-Il sistema rileva automaticamente la modalità cercando marker del monorepo:
+Il sistema rileva automaticamente la modalità cercando **la root di go-automation**, non un workspace qualsiasi:
 
 ```
+0. GOScript({ paths: { rootDir } }) → root esplicita per quello script → MONOREPO
+   (solo per l'istanza: non cambia variabili d'ambiente né la cache di rilevamento)
+   ↓
 1. GO_DEPLOYMENT_MODE env → usa valore esplicito se presente
    ↓
-2. Cerca pnpm-workspace.yaml salendo dalla cwd
-   → Trovato → MONOREPO
+2. GO_ROOT_DIR env → quella directory è la root → MONOREPO
    ↓
-3. Cerca package.json con "workspaces" o name="go-automation"
+3. Cerca, salendo dalla cwd, il file marcatore .go-automation-root
+   oppure un package.json con name="go-automation"
    → Trovato → MONOREPO
    ↓
 4. Default → STANDALONE
 ```
+
+Un `pnpm-workspace.yaml` o un `package.json` con `workspaces` di **un altro repository** non rende la root un monorepo go-automation: lo script gira in standalone e non scrive `data/` nella root di quel repository (EVO-PKGPUB-OPUS-01, K6).
 
 ### Variabili d'Ambiente
 
 | Variabile            | Descrizione                 | Esempio                   |
 | -------------------- | --------------------------- | ------------------------- |
 | `GO_DEPLOYMENT_MODE` | Forza modalità deployment   | `monorepo` o `standalone` |
+| `GO_ROOT_DIR`        | Root esplicita del monorepo | `/repos/go-automation`    |
 | `GO_BASE_DIR`        | Base directory (standalone) | `/app`                    |
 | `GO_DATA_DIR`        | Override data directory     | `/app/data`               |
 | `GO_CONFIG_DIR`      | Override config directory   | `/app/configs`            |

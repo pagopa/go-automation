@@ -3,6 +3,7 @@
  * Configuration options for creating a new script
  */
 
+import type { GOScriptPathsOptions } from './GOScriptPathsOptions.js';
 import type { GOConfigParameterOptions } from '../config/GOConfigParameter.js';
 import type { GOConfigProvider } from '../config/GOConfigProvider.js';
 import type { GOSecretsSpecifier } from '../config/GOSecretsSpecifier.js';
@@ -245,6 +246,9 @@ export interface GOScriptOptions {
 
   /** File copier configuration */
   fileCopier?: GOScriptFileCopierOptions | undefined;
+
+  /** Path options: explicit go-automation root (`paths.rootDir`) */
+  paths?: GOScriptPathsOptions | undefined;
 
   /** Lifecycle hooks */
   hooks?: GOScriptLifecycleHooks | undefined;

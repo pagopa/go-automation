@@ -15,7 +15,7 @@ import type { GOConfig } from '../config/GOConfig.js';
 import type { GOEnv } from '../environment/GOEnv.js';
 import type { GOExecutionEnvironmentInfo } from '../environment/GOExecutionEnvironmentInfo.js';
 import type { GOLogger } from '../logging/GOLogger.js';
-import type { GOPaths } from '../utils/index.js';
+import type { GOPaths } from '../paths/GOPaths.js';
 
 export interface GOScriptHookContext {
   /** Live resolved-configuration store (read + override with source tracking). */

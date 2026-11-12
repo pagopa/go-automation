@@ -87,12 +87,12 @@ export interface GOEnvironmentDetectionDetails {
   /** GO_DEPLOYMENT_MODE environment variable value */
   readonly envDeploymentMode: string | undefined;
 
-  /** Whether pnpm-workspace.yaml was found */
+  /** Whether the detected go-automation root contains pnpm-workspace.yaml */
   readonly hasPnpmWorkspace: boolean;
 
-  /** Whether package.json with workspaces was found */
+  /** Whether the detected go-automation root package.json declares workspaces */
   readonly hasPackageJsonWorkspaces: boolean;
 
-  /** Detected monorepo root path (if found) */
+  /** Detected go-automation root (GO_ROOT_DIR, `.go-automation-root` marker or package.json named `go-automation`) */
   readonly detectedMonorepoRoot: string | undefined;
 }

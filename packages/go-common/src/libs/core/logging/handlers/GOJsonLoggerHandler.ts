@@ -16,7 +16,7 @@
  * newlines) are dropped to avoid noise.
  */
 
-import { stripAnsi } from '../ansi.js';
+import { stripAnsi } from '../../render/ansi.js';
 import { GOLogEvent } from '../GOLogEvent.js';
 import { GOLogEventCategory } from '../GOLogEventCategory.js';
 import type { GOLoggerHandler } from '../GOLoggerHandler.js';

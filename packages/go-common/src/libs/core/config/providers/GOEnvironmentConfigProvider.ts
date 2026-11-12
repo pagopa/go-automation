@@ -15,7 +15,7 @@ import { GOConfigProviderBase } from '../GOConfigProvider.js';
 import { GOSecretRedactor, GOSecretsSpecifierFactory } from '../GOSecretsSpecifier.js';
 import type { GOSecretsSpecifier } from '../GOSecretsSpecifier.js';
 import { GOConfigKeyTransformer } from '../GOConfigKeyTransformer.js';
-import { GOEnvFileParser } from '../parsers/GOEnvFileParser.js';
+import { GOEnvFileParser } from '../../parsers/GOEnvFileParser.js';
 import { getErrorMessage } from '../../errors/GOErrorUtils.js';
 
 /**

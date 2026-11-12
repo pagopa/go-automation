@@ -6,8 +6,8 @@
 
 import { GOConfigParameter } from './GOConfigParameter.js';
 import { GOConfigKeyTransformer } from './GOConfigKeyTransformer.js';
-import type { ChalkLikeColor } from '../logging/tableRenderer/colorize.js';
-import { colorize } from '../logging/tableRenderer/colorize.js';
+import type { ChalkLikeColor } from '../render/tableRenderer/colorize.js';
+import { colorize } from '../render/tableRenderer/colorize.js';
 import { valueToString } from '../utils/GOValueToString.js';
 
 /**

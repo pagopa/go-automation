@@ -24,7 +24,7 @@ import {
   tryParseDateInput,
   type GODateBoundary,
   type GODateInputOptions,
-} from '../utils/GODateInput.js';
+} from '../dates/GODateInput.js';
 import { valueToString } from '../utils/GOValueToString.js';
 
 import { GOLoadingBar } from './GOLoadingBar.js';

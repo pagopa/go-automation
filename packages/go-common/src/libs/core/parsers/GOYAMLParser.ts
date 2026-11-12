@@ -7,8 +7,8 @@
 
 import * as fs from 'fs';
 import * as YAML from 'yaml';
-import { getErrorMessage } from '../../errors/GOErrorUtils.js';
-import { isDangerousKey } from '../../security/DangerousKeys.js';
+import { getErrorMessage } from '../errors/GOErrorUtils.js';
+import { isDangerousKey } from '../security/DangerousKeys.js';
 
 const SAFE_YAML_PARSE_OPTIONS: YAML.ParseOptions & YAML.DocumentOptions & YAML.SchemaOptions = {
   logLevel: 'error',

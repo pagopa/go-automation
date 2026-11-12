@@ -1,4 +1,4 @@
-import { signalExitCode } from '../script/signalExitCode.js';
+import { signalExitCode } from '../process/signalExitCode.js';
 
 /**
  * A `GOPrompt` prompt was closed by an interruption while waiting for an answer:

@@ -5,7 +5,9 @@ import path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
 
 import { GOPathEnvironmentVariables } from '../GOPathEnvironmentVariables.js';
-import { GOPaths, GOPathType } from '../GOPaths.js';
+import { GOPathType } from '../../files/GOPathType.js';
+import { GOExecutionEnvironment } from '../../environment/GOExecutionEnvironment.js';
+import { GOPaths } from '../GOPaths.js';
 
 const managedEnvVars = [
   GOPathEnvironmentVariables.BASE_DIR,
@@ -55,6 +57,19 @@ function setPathEnv(root: string): {
 }
 
 describe('GOPaths', () => {
+  it('uses an explicit rootDir for this instance only, in monorepo mode', () => {
+    for (const name of managedEnvVars) {
+      delete process.env[name];
+    }
+    const root = createTempRoot();
+    const paths = new GOPaths({ scriptName: 'rooted-script', rootDir: root });
+
+    assert.strictEqual(paths.isMonorepo(), true);
+    assert.strictEqual(paths.getProjectRoot(), root);
+    assert.strictEqual(paths.getDataDir(), path.join(root, 'data', 'rooted-script'));
+    assert.notStrictEqual(GOExecutionEnvironment.detect().monorepoRoot, root);
+  });
+
   it('resolves configured directories and standard file paths', () => {
     const root = createTempRoot();
     const dirs = setPathEnv(root);

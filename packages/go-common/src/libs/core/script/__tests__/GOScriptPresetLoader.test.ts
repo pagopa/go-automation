@@ -5,8 +5,8 @@ import path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
 
 import type { GOConfigSchema } from '../../config/GOConfigSchema.js';
-import { GOPathEnvironmentVariables } from '../../utils/GOPathEnvironmentVariables.js';
-import { GOPaths } from '../../utils/GOPaths.js';
+import { GOPathEnvironmentVariables } from '../../paths/GOPathEnvironmentVariables.js';
+import { GOPaths } from '../../paths/GOPaths.js';
 import { GOPresetUnknownKeysError } from '../GOPresetUnknownKeysError.js';
 import { GOScriptPresetLoader } from '../GOScriptPresetLoader.js';
 

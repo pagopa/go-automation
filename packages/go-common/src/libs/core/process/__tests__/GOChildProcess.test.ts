@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:net';
 import type { AddressInfo } from 'node:net';
 
-import { isTcpPortOpen } from '../../network/isTcpPortOpen.js';
+import { isTcpPortOpen } from '../isTcpPortOpen.js';
 import { GOChildProcess } from '../GOChildProcess.js';
 import { GOChildProcessError } from '../GOChildProcessError.js';
 

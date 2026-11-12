@@ -35,6 +35,25 @@ import { GOExecutionEnvironmentType } from './GOExecutionEnvironmentType.js';
 const GO_DEPLOYMENT_MODE_ENV = 'GO_DEPLOYMENT_MODE';
 
 /**
+ * Environment variable that pins the go-automation root explicitly.
+ * Takes precedence over the upward search from the working directory.
+ */
+const GO_ROOT_DIR_ENV = 'GO_ROOT_DIR';
+
+/**
+ * `package.json` name that identifies the go-automation monorepo root.
+ * A generic pnpm/npm workspace of another repository is NOT a go-automation root:
+ * treating it as one would make GOPaths write `data/` into a consumer repository.
+ */
+const GO_AUTOMATION_ROOT_PACKAGE_NAME = 'go-automation';
+
+/**
+ * Marker file that identifies a go-automation root regardless of its `package.json`
+ * (e.g. a checkout or an artifact whose root manifest has a different name).
+ */
+const GO_AUTOMATION_ROOT_MARKER = '.go-automation-root';
+
+/**
  * Known CI system environment variables
  */
 const CI_SYSTEMS: ReadonlyArray<{ readonly envVar: string; readonly name: string }> = [
@@ -74,6 +93,37 @@ export class GOExecutionEnvironment {
 
     this.cachedInfo = this.detectFresh();
     return this.cachedInfo;
+  }
+
+  /**
+   * Returns a copy of `info` bound to an explicit go-automation root.
+   *
+   * The shared detection cache and the process environment are not modified: the
+   * explicit root applies only to the caller (e.g. one `GOPaths`/`GOScript` instance).
+   *
+   * @param info - Detected environment information
+   * @param rootDir - Explicit go-automation root (relative paths resolve against cwd)
+   * @returns Environment information in monorepo mode rooted at `rootDir`
+   *
+   * @example
+   * ```typescript
+   * const env = GOExecutionEnvironment.withRoot(GOExecutionEnvironment.detect(), '/repos/go-automation');
+   * env.monorepoRoot; // '/repos/go-automation'
+   * ```
+   */
+  public static withRoot(info: GOExecutionEnvironmentInfo, rootDir: string): GOExecutionEnvironmentInfo {
+    const root = this.describeMonorepoRoot(path.resolve(rootDir));
+    return {
+      ...info,
+      deploymentMode: GODeploymentMode.MONOREPO,
+      monorepoRoot: root.root,
+      detectionDetails: {
+        ...info.detectionDetails,
+        hasPnpmWorkspace: root.hasPnpmWorkspace,
+        hasPackageJsonWorkspaces: root.hasPackageJsonWorkspaces,
+        detectedMonorepoRoot: root.root,
+      },
+    };
   }
 
   /**
@@ -322,49 +372,40 @@ export class GOExecutionEnvironment {
   }
 
   /**
-   * Find monorepo root by searching for markers
+   * Find the go-automation monorepo root.
    *
-   * Searches upward from cwd for:
-   * 1. pnpm-workspace.yaml
-   * 2. package.json with workspaces field
+   * Resolution order:
+   * 1. `GO_ROOT_DIR` environment variable (explicit root)
+   * 2. Upward search from cwd for a `.go-automation-root` marker file or a
+   *    `package.json` named `go-automation`
+   *
+   * An explicit root given in code (`GOScript({ paths: { rootDir } })`) does not go
+   * through this search: it is applied per instance with {@link withRoot}.
+   *
+   * Any other workspace (a `pnpm-workspace.yaml` or a `package.json` with
+   * `workspaces` belonging to another repository) is ignored: in that case the
+   * script runs in standalone mode.
    */
   private static findMonorepoRoot(): {
     readonly root: string | undefined;
     readonly hasPnpmWorkspace: boolean;
     readonly hasPackageJsonWorkspaces: boolean;
   } {
+    const explicitRoot = process.env[GO_ROOT_DIR_ENV]?.trim();
+    if (explicitRoot !== undefined && explicitRoot !== '') {
+      return this.describeMonorepoRoot(path.resolve(explicitRoot));
+    }
+
     let currentDir = process.cwd();
-    const root = path.parse(currentDir).root;
+    const fsRoot = path.parse(currentDir).root;
 
-    while (currentDir !== root) {
-      // Check for pnpm-workspace.yaml
-      const pnpmWorkspacePath = path.join(currentDir, 'pnpm-workspace.yaml');
-      if (fs.existsSync(pnpmWorkspacePath)) {
-        return {
-          root: currentDir,
-          hasPnpmWorkspace: true,
-          hasPackageJsonWorkspaces: false,
-        };
+    while (currentDir !== fsRoot) {
+      if (
+        fs.existsSync(path.join(currentDir, GO_AUTOMATION_ROOT_MARKER)) ||
+        this.readPackageJson(currentDir)?.name === GO_AUTOMATION_ROOT_PACKAGE_NAME
+      ) {
+        return this.describeMonorepoRoot(currentDir);
       }
-
-      // Check for package.json with workspaces
-      const packageJsonPath = path.join(currentDir, 'package.json');
-      if (fs.existsSync(packageJsonPath)) {
-        try {
-          const content = fs.readFileSync(packageJsonPath, 'utf8');
-          const pkg = JSON.parse(content) as { workspaces?: unknown; name?: string };
-          if (pkg.workspaces || pkg.name === 'go-automation') {
-            return {
-              root: currentDir,
-              hasPnpmWorkspace: false,
-              hasPackageJsonWorkspaces: true,
-            };
-          }
-        } catch {
-          // Invalid package.json, continue searching
-        }
-      }
-
       currentDir = path.dirname(currentDir);
     }
 
@@ -376,11 +417,43 @@ export class GOExecutionEnvironment {
   }
 
   /**
+   * Describes the workspace markers present in a go-automation root directory.
+   */
+  private static describeMonorepoRoot(root: string): {
+    readonly root: string;
+    readonly hasPnpmWorkspace: boolean;
+    readonly hasPackageJsonWorkspaces: boolean;
+  } {
+    return {
+      root,
+      hasPnpmWorkspace: fs.existsSync(path.join(root, 'pnpm-workspace.yaml')),
+      hasPackageJsonWorkspaces: this.readPackageJson(root)?.workspaces !== undefined,
+    };
+  }
+
+  /**
+   * Reads the `name` and `workspaces` fields of `dir/package.json`, if present and valid.
+   */
+  private static readPackageJson(dir: string): { readonly name?: unknown; readonly workspaces?: unknown } | undefined {
+    const packageJsonPath = path.join(dir, 'package.json');
+    if (!fs.existsSync(packageJsonPath)) {
+      return undefined;
+    }
+    try {
+      const parsed: unknown = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+      return typeof parsed === 'object' && parsed !== null ? parsed : undefined;
+    } catch {
+      // Invalid package.json: not a root marker
+      return undefined;
+    }
+  }
+
+  /**
    * Determine deployment mode based on detection details
    *
    * Priority:
    * 1. GO_DEPLOYMENT_MODE env → explicit value
-   * 2. Monorepo markers found → MONOREPO
+   * 2. go-automation root found (GO_ROOT_DIR or package.json name) → MONOREPO
    * 3. Default → STANDALONE
    */
   private static determineDeploymentMode(details: GOEnvironmentDetectionDetails): GODeploymentMode {
@@ -394,8 +467,8 @@ export class GOExecutionEnvironment {
       return GODeploymentMode.STANDALONE;
     }
 
-    // Priority 2: Monorepo markers detected
-    if (details.hasPnpmWorkspace || details.hasPackageJsonWorkspaces) {
+    // Priority 2: go-automation root detected
+    if (details.detectedMonorepoRoot !== undefined) {
       return GODeploymentMode.MONOREPO;
     }
 

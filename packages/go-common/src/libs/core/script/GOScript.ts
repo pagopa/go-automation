@@ -25,7 +25,7 @@ import { GOFileCopier } from '../files/GOFileCopier.js';
 import { getDefaultSubdirForPathType } from '../files/GOFileCopierOptions.js';
 import type { GOFileCopyFileOptions } from '../files/GOFileCopierOptions.js';
 import type { GOFileCopyReport } from '../files/GOFileCopyReport.js';
-import { consoleColorsEnabled } from '../logging/ansi.js';
+import { consoleColorsEnabled } from '../render/ansi.js';
 import { GOLogger } from '../logging/GOLogger.js';
 import { GOLogEvent } from '../logging/GOLogEvent.js';
 import { GOLogEventCategory } from '../logging/GOLogEventCategory.js';
@@ -36,13 +36,15 @@ import { GOJsonLoggerHandler } from '../logging/handlers/GOJsonLoggerHandler.js'
 import { GOPrompt } from '../prompt/GOPrompt.js';
 import { GOPromptInterruptedError } from '../prompt/GOPromptInterruptedError.js';
 import { getErrorMessage, getErrorStack, toError } from '../errors/GOErrorUtils.js';
-import { GOPaths, formatConfigValueDisplay, formatConfigSourceDisplay, valueToString } from '../utils/index.js';
-import type { GOPathTypeValue } from '../utils/index.js';
+import { formatConfigSourceDisplay, formatConfigValueDisplay } from '../config/GOConfigDisplayFormatter.js';
+import type { GOPathTypeValue } from '../files/GOPathType.js';
+import { GOPaths } from '../paths/GOPaths.js';
+import { valueToString } from '../utils/GOValueToString.js';
 
 import { GOScriptConfigLoader } from './GOScriptConfigLoader.js';
 import { defaultAwsCredentialsOptions, configTableWidths } from './GOScriptDefaults.js';
 import { GOScriptPresetLoader } from './GOScriptPresetLoader.js';
-import { signalExitCode } from './signalExitCode.js';
+import { signalExitCode } from '../process/signalExitCode.js';
 import {
   GOSCRIPT_PRESET_FILE_PARAMETER,
   GOSCRIPT_PRESET_NAME_PARAMETER,
@@ -145,7 +147,13 @@ export class GOScript {
     this.hooks = options.hooks ?? {};
 
     // Detect execution environment
-    this.environment = GOExecutionEnvironment.detect();
+    const rootDir = options.paths?.rootDir?.trim();
+    const explicitRootDir = rootDir === undefined || rootDir === '' ? undefined : rootDir;
+    const detectedEnvironment = GOExecutionEnvironment.detect();
+    this.environment =
+      explicitRootDir === undefined
+        ? detectedEnvironment
+        : GOExecutionEnvironment.withRoot(detectedEnvironment, explicitRootDir);
 
     // Cache AWS parameter presence flags (single scan — reused by handleAWSCredentials and client getters)
     this.hasAwsProfileParam = options.config?.parameters?.some((p) => p.name === 'aws.profile') ?? false;
@@ -153,7 +161,7 @@ export class GOScript {
 
     // Initialize
     const scriptName = this.metadata.name.replace(/\s+/g, '-').toLowerCase();
-    this.paths = new GOPaths(scriptName);
+    this.paths = new GOPaths(explicitRootDir === undefined ? scriptName : { scriptName, rootDir: explicitRootDir });
     this.logger = this.initializeLogger(options.logging);
     this.prompt = new GOPrompt(this.logger);
 

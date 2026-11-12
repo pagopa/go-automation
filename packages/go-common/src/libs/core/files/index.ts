@@ -5,6 +5,8 @@
 
 // File Copier
 export { GOFileCopier } from './GOFileCopier.js';
+export { GOPathType } from './GOPathType.js';
+export type { GOPathTypeValue } from './GOPathType.js';
 
 // Options and Configuration
 export { GO_FILE_COPIER_DEFAULTS, getDefaultSubdirForPathType } from './GOFileCopierOptions.js';

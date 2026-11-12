@@ -29,10 +29,11 @@ export * from './providers/GOCommandLineConfigProvider.js';
 export * from './providers/GOLambdaEventConfigProvider.js';
 export * from './providers/GOPresetConfigProvider.js';
 
-// Parsers
-export * from './parsers/GOEnvFileParser.js';
+// Parsers (CLI arguments; file parsers live in ../parsers)
 export * from './parsers/GOCLIArgumentParser.js';
-export * from './parsers/GOYAMLParser.js';
+
+// Display
+export * from './GOConfigDisplayFormatter.js';
 
 // Validation
 export * from './validation/index.js';
