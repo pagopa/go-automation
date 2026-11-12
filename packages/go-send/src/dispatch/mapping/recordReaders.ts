@@ -81,8 +81,10 @@ export function readRecipient(reader: FieldReader): DispatchRecipient | undefine
 
 /**
  * Reads the physical address of the recipient (required). The ZIP code must
- * be Italian when there is no foreign state; `requireProvince` (direct mode)
- * also requires the province for Italian addresses.
+ * be Italian (5 digits) when there is no foreign state; a foreign ZIP code is
+ * not checked at all (any format or length goes to SEND as is).
+ * `requireProvince` (direct mode) also requires the province for Italian
+ * addresses.
  *
  * @param reader - Field reader of the row
  * @param requireProvince - Province mandatory for Italian addresses
@@ -95,10 +97,11 @@ export function readPhysicalAddress(
   const address = reader.required('physicalAddress.address', 1024);
   const municipality = reader.required('physicalAddress.municipality', 256);
   const foreignState = reader.optional('physicalAddress.foreignState', 256);
+  // Only the Italian ZIP is validated; a foreign one is sent as is: SEND is the one judging it.
   const zip =
     foreignState === undefined
       ? reader.matching('physicalAddress.zip', ITALIAN_ZIP, 'an Italian ZIP code of 5 digits', true)
-      : reader.optional('physicalAddress.zip', 15);
+      : reader.value('physicalAddress.zip');
   const at = reader.optional('physicalAddress.at', 44);
   const addressDetails = reader.optional('physicalAddress.addressDetails', 1024);
   const municipalityDetails = reader.optional('physicalAddress.municipalityDetails', 256);

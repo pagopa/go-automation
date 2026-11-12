@@ -203,6 +203,24 @@ describe('buildRecord', () => {
     row.set('physicalAddress.zip', '75001 X');
     assert.ok(buildRecord(0, 'k', row, CONTEXT).ok);
   });
+
+  it('sends any foreign ZIP code as is, whatever its length or characters', () => {
+    for (const zip of ['PLT 60 BLK B N.NW 16', 'PLT 60 BLK B N.NW 16 PLT 60', 'X'.repeat(64)]) {
+      const row = validValues();
+      row.set('physicalAddress.foreignState', 'GHANA');
+      row.set('physicalAddress.zip', zip);
+      const result = buildRecord(0, 'k', row, CONTEXT);
+      assert.ok(result.ok, `foreign zip "${zip}" must be accepted`);
+      assert.equal(result.record.physicalAddress.zip, zip);
+    }
+  });
+
+  it('accepts a foreign address without a ZIP code', () => {
+    const row = validValues();
+    row.set('physicalAddress.foreignState', 'GHANA');
+    row.delete('physicalAddress.zip');
+    assert.ok(buildRecord(0, 'k', row, CONTEXT).ok);
+  });
 });
 
 function issueKeys(result: ReturnType<typeof buildRecord>): ReadonlyArray<string> {
