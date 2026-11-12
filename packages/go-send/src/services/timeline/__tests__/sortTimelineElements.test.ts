@@ -36,6 +36,17 @@ describe('sortTimelineElements', () => {
     assert.deepEqual(ids(sorted), ['early', 'late', 'x', 'y']);
   });
 
+  it('orders equal instants by id even when the timestamp strings say otherwise', () => {
+    // '…00.200Z' < '…00.2Z' as strings: the id must decide, not the precision.
+    const sorted = sortTimelineElements([
+      element('z', '2026-01-02T10:00:00.200Z'),
+      element('a', '2026-01-02T10:00:00.2Z'),
+      element('m', '2026-01-02T10:00:00.200000000Z'),
+    ]);
+
+    assert.deepEqual(ids(sorted), ['a', 'm', 'z']);
+  });
+
   it('puts unparsable timestamps last and returns a new array', () => {
     const input = [element('bad', 'not-a-date'), element('ok', '2026-01-02T10:00:00Z')];
 

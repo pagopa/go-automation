@@ -16,7 +16,9 @@ interface SortableTimelineElement {
 /**
  * Sorts timeline elements chronologically, then by id. Timestamps are
  * compared as instants, not as strings (`…:30.5Z` is after `…:30Z`), with
- * sub-millisecond digits as a tie-break; unparsable timestamps go last.
+ * sub-millisecond digits as a tie-break; equal instants are ordered by id
+ * alone, whatever the precision of their strings; unparsable timestamps go
+ * last.
  * Keys are computed once per element: O(N log N).
  *
  * `pn-Timelines` timestamps have variable precision (Java `Instant.toString()`
@@ -36,10 +38,9 @@ export function sortTimelineElements(elements: ReadonlyArray<SENDTimelineElement
   });
   sortable.sort((a, b) => {
     if (a.epochMs !== b.epochMs) return a.epochMs < b.epochMs ? -1 : 1;
+    // Same instant: the raw timestamp strings differ only in precision, never in time.
     return (
-      a.fraction.localeCompare(b.fraction) ||
-      a.element.timestamp.localeCompare(b.element.timestamp) ||
-      a.element.timelineElementId.localeCompare(b.element.timelineElementId)
+      a.fraction.localeCompare(b.fraction) || a.element.timelineElementId.localeCompare(b.element.timelineElementId)
     );
   });
   return sortable.map((item) => item.element);
