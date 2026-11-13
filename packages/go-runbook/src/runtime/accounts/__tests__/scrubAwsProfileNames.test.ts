@@ -40,3 +40,28 @@ describe('scrubAwsProfileNames', () => {
     );
   });
 });
+
+describe('scrubAwsProfileNames — linear time on uncontrolled input (CodeQL js/polynomial-redos)', () => {
+  const large = 200_000;
+
+  for (const [label, message] of [
+    ['many unclosed "(profile: "', '(profile: '.repeat(large)],
+    ['a long whitespace run without a reference', `${' '.repeat(large)}x`],
+    ['many unclosed "profile: ["', 'profile: ['.repeat(large)],
+    ['many unclosed "profile \'"', "profile '".repeat(large)],
+    ['a long whitespace run before many references', `${' '.repeat(large)}${'(profile: a)'.repeat(large / 10)}`],
+  ] as const) {
+    it(`handles ${label} quickly`, () => {
+      const started = performance.now();
+      scrubAwsProfileNames(message, ['a']);
+      assert.ok(performance.now() - started < 1000, `${label} took ${String(performance.now() - started)} ms`);
+    });
+  }
+
+  it('keeps the regular-expression semantics: first closer, leading whitespace, nested openers', () => {
+    assert.equal(scrubAwsProfileNames('denied \t (profile: a) (profile: b)'), 'denied');
+    assert.equal(scrubAwsProfileNames('x (profile: (profile: a) y'), 'x y');
+    assert.equal(scrubAwsProfileNames('unclosed (profile: a'), 'unclosed (profile: a');
+    assert.equal(scrubAwsProfileNames("profile 'a' and profile 'b'"), "profile '<profile>' and profile '<profile>'");
+  });
+});
