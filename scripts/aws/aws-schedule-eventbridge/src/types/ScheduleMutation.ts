@@ -1,4 +1,4 @@
-import type { AWS } from '@go-automation/go-common';
+import type { ScheduleState } from '@pagopa/go-aws/scheduler';
 
 import type { ScheduleMutationOutcome } from './ScheduleMutationOutcome.js';
 
@@ -17,10 +17,10 @@ export interface ScheduleMutation {
   readonly outcome: ScheduleMutationOutcome;
 
   /** State the schedule had before the write */
-  readonly previousState: AWS.ScheduleState | undefined;
+  readonly previousState: ScheduleState | undefined;
 
   /** State the schedule has after the write */
-  readonly currentState: AWS.ScheduleState | undefined;
+  readonly currentState: ScheduleState | undefined;
 
   /** ARN of the schedule that was written */
   readonly scheduleArn: string | undefined;

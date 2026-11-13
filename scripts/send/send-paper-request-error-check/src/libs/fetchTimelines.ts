@@ -1,4 +1,5 @@
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOJSONListExporter } from '@pagopa/go-common/exporters';
 import type { SendPaperRequestErrorCheckConfig } from '../types/index.js';
 import { getCoreDynamoDBService } from '../utils/awsClients.js';
 import { extractIun, get } from '../utils/get.js';
@@ -38,7 +39,7 @@ interface IunTimelineDocument {
  * @returns Risultati dell'estrazione timeline
  */
 export async function fetchTimelines(
-  script: Core.GOScript,
+  script: GOScript,
   reporter: PaperRequestReporter,
   iunsInput?: ReadonlyArray<string>,
 ): Promise<{
@@ -152,7 +153,7 @@ export async function fetchTimelines(
 
   // Scrittura del file JSON di output via GOJSONListExporter
   const destinationFile = resolveOutputPath(script.paths, 'timelines.json', config.outputDir);
-  const exporter = new Core.GOJSONListExporter({ outputPath: destinationFile, jsonl: false });
+  const exporter = new GOJSONListExporter({ outputPath: destinationFile, jsonl: false });
   await exporter.export(filteredTimelines as unknown as ReadonlyArray<Record<string, unknown>>);
 
   logger.info(

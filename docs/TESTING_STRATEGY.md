@@ -25,7 +25,7 @@ ha uno: `packages/*` (incluso `go-cli`), `scripts/go/*`, `scripts/send/*`,
 
 - `packages/go-watchtower-runbook`, `scripts/go/go-execute-runbook` e
   `scripts/go/go-rta-check` anteponono un build step:
-  `pnpm --filter=@go-automation/go-runbook build && node --import tsx/esm --test ...`.
+  `pnpm --filter=@pagopa/go-runbook build && node --import tsx/esm --test ...`.
   Dipendono da `go-runbook` compilato, non dai suoi sorgenti TypeScript.
 - `bins/` non sono package pnpm del workspace (non hanno `package.json` nel
   grafo `references[]`): dove hanno test, usano glob più permissivi e un

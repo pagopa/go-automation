@@ -4,7 +4,7 @@
  * Creates the appropriate go-common list importer based on the input format.
  */
 
-import { Core } from '@go-automation/go-common';
+import { GOCSVListImporter, GOJSONListImporter, type GOListImporter } from '@pagopa/go-common/importers';
 import type { SENDAttachmentUploadRow } from '@go-automation/go-send';
 
 import type { UploadFileFormat } from '../types/index.js';
@@ -82,10 +82,10 @@ function transformJsonItem(item: unknown): SENDAttachmentUploadRow {
 export function createImporter(
   format: UploadFileFormat,
   skipOnError: boolean,
-): Core.GOListImporter<SENDAttachmentUploadRow> {
+): GOListImporter<SENDAttachmentUploadRow> {
   switch (format) {
     case 'csv':
-      return new Core.GOCSVListImporter<SENDAttachmentUploadRow>({
+      return new GOCSVListImporter<SENDAttachmentUploadRow>({
         preserveOriginalData: true,
         skipInvalidItems: skipOnError,
         rowValidator: validateCsvRecord,
@@ -94,7 +94,7 @@ export function createImporter(
 
     case 'json':
     case 'jsonl':
-      return new Core.GOJSONListImporter<SENDAttachmentUploadRow>({
+      return new GOJSONListImporter<SENDAttachmentUploadRow>({
         jsonl: format === 'jsonl' ? true : 'auto',
         skipInvalidItems: skipOnError,
         rowValidator: validateJsonItem,

@@ -50,6 +50,8 @@ function apiGatewayPlaceholders(answers: RunbookAnswers): ReadonlyMap<string, st
  */
 export const API_GATEWAY_TEMPLATE: RunbookTemplate = {
   id: 'api-gateway',
+  products: ['SEND'],
+  family: 'apigw',
   label: 'API Gateway alarm (4 file)',
   description: 'Runbook completo per allarmi API Gateway: knownServices, knownUrls, knownCases, runbook.',
   templateDir: 'api-gateway',

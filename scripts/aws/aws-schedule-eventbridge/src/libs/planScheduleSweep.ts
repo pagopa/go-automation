@@ -5,12 +5,12 @@
  * here, so it is testable without a single test double.
  */
 
-import type { AWS } from '@go-automation/go-common';
+import type { ScheduleState } from '@pagopa/go-aws/scheduler';
 
 import type { ScheduleRead, ScheduleSweepAction, ScheduleSweepEntry, ScheduleSweepPlan } from '../types/index.js';
 
 /** Decides the action for one account, given where it is and where it must go. */
-function classifyRead(read: ScheduleRead, targetState: AWS.ScheduleState): ScheduleSweepAction {
+function classifyRead(read: ScheduleRead, targetState: ScheduleState): ScheduleSweepAction {
   switch (read.status) {
     case 'error':
       return 'error';
@@ -32,10 +32,7 @@ function classifyRead(read: ScheduleRead, targetState: AWS.ScheduleState): Sched
  * @param targetState - State every account must end up in
  * @returns The plan, preserving the order of `reads`
  */
-export function planScheduleSweep(
-  reads: ReadonlyArray<ScheduleRead>,
-  targetState: AWS.ScheduleState,
-): ScheduleSweepPlan {
+export function planScheduleSweep(reads: ReadonlyArray<ScheduleRead>, targetState: ScheduleState): ScheduleSweepPlan {
   const entries: ReadonlyArray<ScheduleSweepEntry> = reads.map((read) => ({
     ...read,
     action: classifyRead(read, targetState),

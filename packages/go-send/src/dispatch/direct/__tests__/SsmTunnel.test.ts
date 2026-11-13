@@ -5,8 +5,8 @@ import type { AddressInfo } from 'node:net';
 
 import type { EC2Client } from '@aws-sdk/client-ec2';
 import type { SSMClient } from '@aws-sdk/client-ssm';
-import { GOChildProcessError } from '@go-automation/go-common/core';
-import type { GOLogger } from '@go-automation/go-common/core';
+import type { GOLogger } from '@pagopa/go-common/logging';
+import { GOChildProcessError } from '@pagopa/go-common/process';
 
 import { DispatchError } from '../../DispatchError.js';
 import type { SsmTunnelDefinition } from '../../environment/SsmTunnelDefinition.js';

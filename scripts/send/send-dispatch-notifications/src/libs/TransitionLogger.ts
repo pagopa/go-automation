@@ -4,7 +4,7 @@
  * the personal data of the rows (§14.4).
  */
 
-import type { Core } from '@go-automation/go-common';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import type { Dispatch } from '@go-automation/go-send';
 
 /** Events logged even without `--verbose`. */
@@ -23,7 +23,7 @@ const ERROR_EVENTS: ReadonlySet<string> = new Set([
  */
 export class TransitionLogger {
   constructor(
-    private readonly logger: Core.GOLogger,
+    private readonly logger: GOLogger,
     private readonly verbose: boolean,
   ) {}
 

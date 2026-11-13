@@ -1,9 +1,11 @@
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { AWSECSService } from '@pagopa/go-aws/ecs';
+import { AWSSchedulerService } from '@pagopa/go-aws/scheduler';
+import { AWSSSMService } from '@pagopa/go-aws/ssm';
 import type { ConfigFileItem } from '../types/ConfigFile.js';
-import { AWSSSMService, AWSECSService, AWSSchedulerService } from '@go-automation/go-common/aws';
 
 export async function getAndPrintEcsClustersStatus(
-  script: Core.GOScript,
+  script: GOScript,
   item: ConfigFileItem,
 ): Promise<Record<string, unknown>[]> {
   const tableRows: Record<string, unknown>[] = [];
@@ -45,7 +47,7 @@ export async function getAndPrintEcsClustersStatus(
 }
 
 export async function getAndPrintScheduledActions(
-  script: Core.GOScript,
+  script: GOScript,
   item: ConfigFileItem,
 ): Promise<Record<string, unknown>[]> {
   const tableRows: Record<string, unknown>[] = [];
@@ -71,7 +73,7 @@ export async function getAndPrintScheduledActions(
 }
 
 export async function getAndPrintSSMParametersValues(
-  script: Core.GOScript,
+  script: GOScript,
   item: ConfigFileItem,
 ): Promise<Record<string, unknown>[]> {
   const tableRows: Record<string, unknown>[] = [];

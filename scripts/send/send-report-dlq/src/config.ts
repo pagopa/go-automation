@@ -5,12 +5,12 @@
  * and configuration builder function.
  */
 
-import { Core } from '@go-automation/go-common';
+import { type GOConfigParameterOptions, GOConfigParameterType, type GOScriptMetadata } from '@go-automation/go-script';
 
 /**
  * Script metadata
  */
-export const scriptMetadata: Core.GOScriptMetadata = {
+export const scriptMetadata: GOScriptMetadata = {
   name: 'Send Report DLQ',
   version: '1.0.0',
   description:
@@ -22,24 +22,24 @@ export const scriptMetadata: Core.GOScriptMetadata = {
 /**
  * Script parameter definitions
  */
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
   {
     name: 'aws.profiles',
-    type: Core.GOConfigParameterType.STRING_ARRAY,
+    type: GOConfigParameterType.STRING_ARRAY,
     description: 'AWS SSO profile names for multi-account mode (comma-separated)',
     required: true,
     aliases: ['aps'],
   },
   {
     name: 'output.file',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Output file path (absolute, or filename relative to the output directory)',
     required: false,
     aliases: ['of'],
   },
   {
     name: 'output.format',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Output format: json | jsonl | csv | html | txt (default: json)',
     required: false,
     aliases: ['ff'],

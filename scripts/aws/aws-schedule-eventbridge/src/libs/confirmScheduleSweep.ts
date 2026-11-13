@@ -2,7 +2,7 @@
  * Phase 3 of the sweep: the single gate between the preview and the writes.
  */
 
-import type { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import type { AwsScheduleEventbridgeConfig, ScheduleSweepGate, ScheduleSweepPlan } from '../types/index.js';
 
@@ -53,7 +53,7 @@ function buildConfirmMessage(scheduleName: string, plan: ScheduleSweepPlan): str
  * @returns Which of the three gate states the run is in
  */
 export async function confirmScheduleSweep(
-  script: Core.GOScript,
+  script: GOScript,
   config: AwsScheduleEventbridgeConfig,
   plan: ScheduleSweepPlan,
 ): Promise<ScheduleSweepGate> {

@@ -3,7 +3,7 @@
  * phase (§8.3).
  */
 
-import { AWS } from '@go-automation/go-common';
+import { GOAWSCredentialsErrorType, GOAWSCredentialsManager } from '@pagopa/go-aws';
 
 /**
  * SDK error names of credentials rejected by the service, or expired by the
@@ -28,7 +28,7 @@ const REJECTED_CREDENTIALS: ReadonlySet<string> = new Set([
  * query) and passed to the session as `isCredentialError`.
  */
 export class AwsCredentialErrorDetector {
-  private readonly analyzer = new AWS.GOAWSCredentialsManager({ autoLogin: false, interactive: false });
+  private readonly analyzer = new GOAWSCredentialsManager({ autoLogin: false, interactive: false });
 
   /**
    * Classifies an error of a timeline query (bound: usable as a predicate).
@@ -38,6 +38,6 @@ export class AwsCredentialErrorDetector {
    */
   public readonly isCredentialError = (error: unknown): boolean => {
     if (error instanceof Error && REJECTED_CREDENTIALS.has(error.name)) return true;
-    return this.analyzer.analyzeError(error).type !== AWS.GOAWSCredentialsErrorType.UNKNOWN;
+    return this.analyzer.analyzeError(error).type !== GOAWSCredentialsErrorType.UNKNOWN;
   };
 }

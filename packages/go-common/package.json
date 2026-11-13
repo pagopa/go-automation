@@ -1,23 +1,101 @@
 {
-  "name": "@go-automation/go-common",
-  "version": "1.0.0",
+  "name": "@pagopa/go-common",
+  "version": "0.0.0",
+  "description": "GO automation kernel: errors, utilities, dates, concurrency, polling, JSON, processes, files, importers/exporters, parsers, logging, rendering and HTTP. One subpath per area.",
   "type": "module",
-  "description": "Libreria condivisa per operazioni AWS comuni utilizzata negli script GO automation",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pagopa/go-automation.git",
+    "directory": "packages/go-common"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "files": [
+    "dist",
+    "!dist/**/__tests__",
+    "!dist/**/*.test.*",
+    "!dist/**/*.tsbuildinfo",
+    "src",
+    "!src/**/__tests__",
+    "!src/**/*.test.ts",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+    "./errors": {
+      "types": "./dist/errors/index.d.ts",
+      "default": "./dist/errors/index.js"
     },
-    "./core": {
-      "types": "./dist/libs/core/index.d.ts",
-      "default": "./dist/libs/core/index.js"
+    "./events": {
+      "types": "./dist/events/index.d.ts",
+      "default": "./dist/events/index.js"
     },
-    "./aws": {
-      "types": "./dist/libs/aws/index.d.ts",
-      "default": "./dist/libs/aws/index.js"
-    }
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "default": "./dist/utils/index.js"
+    },
+    "./dates": {
+      "types": "./dist/dates/index.d.ts",
+      "default": "./dist/dates/index.js"
+    },
+    "./concurrency": {
+      "types": "./dist/concurrency/index.d.ts",
+      "default": "./dist/concurrency/index.js"
+    },
+    "./polling": {
+      "types": "./dist/polling/index.d.ts",
+      "default": "./dist/polling/index.js"
+    },
+    "./json": {
+      "types": "./dist/json/index.d.ts",
+      "default": "./dist/json/index.js"
+    },
+    "./process": {
+      "types": "./dist/process/index.d.ts",
+      "default": "./dist/process/index.js"
+    },
+    "./security": {
+      "types": "./dist/security/index.d.ts",
+      "default": "./dist/security/index.js"
+    },
+    "./analysis": {
+      "types": "./dist/analysis/index.d.ts",
+      "default": "./dist/analysis/index.js"
+    },
+    "./files": {
+      "types": "./dist/files/index.d.ts",
+      "default": "./dist/files/index.js"
+    },
+    "./importers": {
+      "types": "./dist/importers/index.d.ts",
+      "default": "./dist/importers/index.js"
+    },
+    "./exporters": {
+      "types": "./dist/exporters/index.d.ts",
+      "default": "./dist/exporters/index.js"
+    },
+    "./parsers": {
+      "types": "./dist/parsers/index.d.ts",
+      "default": "./dist/parsers/index.js"
+    },
+    "./logging": {
+      "types": "./dist/logging/index.d.ts",
+      "default": "./dist/logging/index.js"
+    },
+    "./render": {
+      "types": "./dist/render/index.d.ts",
+      "default": "./dist/render/index.js"
+    },
+    "./http": {
+      "types": "./dist/http/index.d.ts",
+      "default": "./dist/http/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "scripts": {
     "build": "tsc -b",
@@ -25,71 +103,25 @@
     "clean": "rm -rf dist *.tsbuildinfo",
     "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
     "test:coverage": "mkdir -p coverage && node --import tsx/esm --test --experimental-test-coverage --test-coverage-include='src/**/*.ts' --test-coverage-exclude='src/**/__tests__/**' --test-coverage-lines=${GO_COVERAGE_LINES_THRESHOLD:-90} --test-coverage-branches=${GO_COVERAGE_BRANCHES_THRESHOLD:-80} --test-coverage-functions=${GO_COVERAGE_FUNCTIONS_THRESHOLD:-90} --test-reporter=lcov --test-reporter-destination=coverage/lcov.info --test-reporter=spec --test-reporter-destination=stdout 'src/**/__tests__/**/*.test.ts'",
-    "prepare": "pnpm run build"
+    "prepack": "pnpm run clean && pnpm run build"
   },
   "keywords": [
-    "aws",
-    "wrapper",
-    "athena",
-    "sts",
-    "dynamodb",
-    "sqs",
-    "go-automation"
+    "go-automation",
+    "utilities",
+    "logging",
+    "http"
   ],
   "author": "Team GO - Gestione Operativa",
   "license": "EUPL-1.2",
-  "peerDependencies": {
-    "@aws-sdk/client-athena": "catalog:",
-    "@aws-sdk/client-cloudformation": "catalog:",
-    "@aws-sdk/client-cloudwatch": "catalog:",
-    "@aws-sdk/client-cloudwatch-logs": "catalog:",
-    "@aws-sdk/client-dynamodb": "catalog:",
-    "@aws-sdk/client-ec2": "catalog:",
-    "@aws-sdk/client-ecs": "catalog:",
-    "@aws-sdk/client-eventbridge": "catalog:",
-    "@aws-sdk/client-scheduler": "catalog:",
-    "@aws-sdk/client-kinesis": "catalog:",
-    "@aws-sdk/client-kms": "catalog:",
-    "@aws-sdk/client-lambda": "catalog:",
-    "@aws-sdk/client-s3": "catalog:",
-    "@aws-sdk/client-secrets-manager": "catalog:",
-    "@aws-sdk/client-sqs": "catalog:",
-    "@aws-sdk/client-ssm": "catalog:",
-    "@aws-sdk/client-sts": "catalog:",
-    "@aws-sdk/credential-provider-ini": "catalog:"
-  },
   "dependencies": {
-    "@aws-sdk/client-athena": "catalog:",
-    "@aws-sdk/client-cloudwatch": "catalog:",
-    "@aws-sdk/client-cloudwatch-logs": "catalog:",
-    "@aws-sdk/client-dynamodb": "catalog:",
-    "@aws-sdk/client-ecs": "catalog:",
-    "@aws-sdk/client-lambda": "catalog:",
-    "@aws-sdk/client-scheduler": "catalog:",
-    "@aws-sdk/client-s3": "catalog:",
-    "@aws-sdk/client-secrets-manager": "catalog:",
-    "@aws-sdk/client-sqs": "catalog:",
-    "@aws-sdk/client-ssm": "catalog:",
-    "@aws-sdk/client-sts": "catalog:",
-    "@aws-sdk/credential-provider-ini": "catalog:",
-    "@aws-sdk/util-dynamodb": "catalog:",
-    "@inquirer/prompts": "catalog:",
-    "@slack/web-api": "catalog:",
-    "better-sqlite3": "catalog:",
     "csv-parse": "catalog:",
     "csv-stringify": "catalog:",
     "luxon": "catalog:",
-    "mailparser": "catalog:",
-    "mammoth": "catalog:",
-    "read-excel-file": "catalog:",
     "string-width": "catalog:",
     "undici": "catalog:",
-    "unpdf": "catalog:",
-    "unzipper-esm": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "catalog:",
     "@types/luxon": "catalog:",
     "@types/node": "catalog:"
   }

@@ -11,6 +11,15 @@
   "references": [
     {
       "path": "../../../packages/go-common"
+    },
+    {
+      "path": "../../../packages/go-script"
+    },
+    {
+      "path": "../../../packages/go-aws"
+    },
+    {
+      "path": "../../../packages/go-slack"
     }
   ]
 }

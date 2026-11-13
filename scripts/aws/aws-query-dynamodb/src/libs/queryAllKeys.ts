@@ -2,7 +2,8 @@
  * Queries DynamoDB for all partition keys in parallel batches.
  */
 
-import { Core, AWS } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { DynamoDBQueryService } from '@pagopa/go-aws/dynamodb';
 import type { AwsQueryDynamodbConfig, QueryFailure, ResultMap } from '../types/index.js';
 
 /**
@@ -32,7 +33,7 @@ interface QueryAllKeysResult {
 export async function queryAllKeys(
   pks: ReadonlyArray<string>,
   config: AwsQueryDynamodbConfig,
-  script: Core.GOScript,
+  script: GOScript,
 ): Promise<QueryAllKeysResult> {
   const isRaw = config.outputFormat === 'dynamo-json';
   const projection = config.outputAttributes
@@ -48,7 +49,7 @@ export async function queryAllKeys(
     resultMap[pk] = [];
   }
 
-  const queryService = new AWS.DynamoDBQueryService(script.aws.clients.dynamoDB);
+  const queryService = new DynamoDBQueryService(script.aws.clients.dynamoDB);
 
   script.prompt.startSpinner(`Querying ${pks.length} PKs...`);
 

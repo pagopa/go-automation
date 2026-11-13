@@ -1,4 +1,4 @@
-import type { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 import type { AlarmEventDto } from '@go-automation/go-watchtower-client';
 import { checkOccurrences } from '@go-automation/go-watchtower-runbook';
 import type { RtaCheckInput, RtaCheckReport, RunbookCheckContext } from '@go-automation/go-watchtower-runbook';
@@ -7,7 +7,7 @@ import { productEnvLabel, renderResultsHeader, renderResultsRow } from '../repor
 import { GOScriptRunbookCheckCache } from '../runner/resumeCache.js';
 
 export interface RunOccurrencesOptions {
-  readonly script: Core.GOScript;
+  readonly script: GOScript;
   readonly context: RunbookCheckContext;
   readonly occurrences: ReadonlyArray<AlarmEventDto>;
   readonly reportInput: RtaCheckInput;

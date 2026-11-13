@@ -7,17 +7,19 @@
  */
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOPathType } from '@pagopa/go-common/files';
+import { formatBytes } from '@pagopa/go-common/utils';
 
 import { AttachmentRepository } from '../storage/AttachmentRepository.js';
 import { closeIndex, openIndex } from '../storage/IndexLifecycle.js';
 import type { GoSearchJiraConfig } from '../types/GoSearchJiraConfig.js';
 
 export class StatusCommand {
-  public async execute(script: Core.GOScript, config: GoSearchJiraConfig): Promise<void> {
+  public async execute(script: GOScript, config: GoSearchJiraConfig): Promise<void> {
     const dataDir =
       config.storageDataDir.length > 0
-        ? script.paths.resolvePathWithInfo(config.storageDataDir, Core.GOPathType.OUTPUT).path
+        ? script.paths.resolvePathWithInfo(config.storageDataDir, GOPathType.OUTPUT).path
         : script.paths.getDataDir();
     const dbPath = path.join(dataDir, config.storageIndexFileName);
 
@@ -38,7 +40,7 @@ export class StatusCommand {
     try {
       const stats = index.stats();
       script.logger.info(
-        `Index size:        ${Core.formatBytes(stats.databaseSizeBytes, { autoFractionDigitsBelow: 100 })}`,
+        `Index size:        ${formatBytes(stats.databaseSizeBytes, { autoFractionDigitsBelow: 100 })}`,
       );
       script.logger.info(`Tokenizer:         ${stats.tokenizer}`);
       script.logger.info(`Indexed documents: ${stats.documentCount}`);

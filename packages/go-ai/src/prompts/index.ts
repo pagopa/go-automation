@@ -7,7 +7,7 @@
 import { fileURLToPath } from 'node:url';
 import { resolve, dirname } from 'node:path';
 
-import { Core } from '@go-automation/go-common';
+import { GOYAMLParser } from '@pagopa/go-common/parsers';
 
 import type { GOAIHat } from '../types/index.js';
 
@@ -23,7 +23,7 @@ function loadPromptsFile(yamlPath?: string): PromptsFile {
   const defaultPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../prompts.yaml');
 
   const resolvedPath = yamlPath ?? process.env['GO_AI_PROMPTS_PATH'] ?? defaultPath;
-  return Core.GOYAMLParser.parseFile(resolvedPath) as PromptsFile;
+  return GOYAMLParser.parseFile(resolvedPath) as PromptsFile;
 }
 
 // Loaded once at module init

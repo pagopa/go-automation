@@ -2,7 +2,7 @@
  * Known services for the {{RUNBOOK_ID}} runbook.
  */
 
-import type { service } from '../framework.js';
+import type { service } from '../../../../toolkits/send/index.js';
 
 /** Application service whose logs are the primary diagnostic source. */
 export const SERVICE: service.ServiceDescriptor = {

@@ -1,10 +1,15 @@
-import type { Core } from '@go-automation/go-common';
-import { isAWSTargetNotConfiguredError } from '@go-automation/go-common/aws';
+import { AWSActiveOperationRegistry, isAWSTargetNotConfiguredError } from '@pagopa/go-aws';
+import type { GOLogger } from '@pagopa/go-common/logging';
 
 import type { AlarmAnalysisDto, AlarmEventDto, WatchtowerClient } from '@go-automation/go-watchtower-client';
-import { executeRunbookForOccurrence } from '@go-automation/go-runbook/catalog';
-import { classifyRunbookOutcome } from '@go-automation/go-runbook';
-import type { ServiceRegistryResolverFn } from '@go-automation/go-runbook';
+import { executeRunbookForOccurrence, scrubAwsProfileNames } from '@pagopa/go-runbook/runtime';
+import { classifyRunbookOutcome, type RunbookOutput } from '@pagopa/go-runbook/output';
+import {
+  isAwsAccountError,
+  parseAwsLogicalAccount,
+  type AwsAccountsPort,
+  type ServiceRegistryResolverFn,
+} from '@pagopa/go-runbook/toolkits/common';
 
 import type { AnalysisMatch, RtaCheckEvent, RtaCheckRow } from '../types/RtaCheckReport.js';
 import type { AnalysisMatcherFn } from '../comparison/AnalysisMatcher.js';
@@ -14,6 +19,8 @@ import type { RunbookCheckCache } from '../cache/RunbookCheckCache.js';
 import { runbookCheckCacheKey } from '../cache/RunbookCheckCache.js';
 import { persistRunbookOutput, readFreshRunbookOutput } from '../cache/RunbookCheckCacheIO.js';
 import { buildCacheMeta, computeFingerprint } from '../cache/runbookFingerprint.js';
+import type { CachedRunbookAccounts } from '../cache/CachedRunbookAccounts.js';
+import type { RunbookCheckAccounts } from './RunbookCheckAccounts.js';
 
 /** Per-occurrence orchestration context (built once, reused across occurrences). */
 export interface RunbookCheckContext {
@@ -27,7 +34,7 @@ export interface RunbookCheckContext {
    */
   readonly servicesFor: ServiceRegistryResolverFn;
   /** Silent logger for the runbook engine, so its verbose logs are suppressed. */
-  readonly engineLogger: Core.GOLogger;
+  readonly engineLogger: GOLogger;
   readonly client: WatchtowerClient;
   readonly productId: string;
   readonly productName: string;
@@ -47,6 +54,8 @@ export interface RunbookCheckContext {
   readonly analysisMatcher: AnalysisMatcherFn;
   readonly matchOptions: MatchAnalysisOptions;
   readonly force: boolean;
+  /** Logical AWS accounts of the run, for runbooks that declare them (EVO-AWSACCT-OPUS-01). */
+  readonly accounts?: RunbookCheckAccounts;
 }
 
 export interface CheckOccurrenceInput {
@@ -64,10 +73,37 @@ export interface CheckOccurrenceInput {
  * @returns The assembled report row
  */
 export async function checkOccurrence(input: CheckOccurrenceInput): Promise<RtaCheckRow> {
+  const activeOperations = new AWSActiveOperationRegistry();
+  try {
+    return await checkBoundOccurrence(input, activeOperations);
+  } finally {
+    await activeOperations.stopAll();
+  }
+}
+
+async function checkBoundOccurrence(
+  input: CheckOccurrenceInput,
+  activeOperations: AWSActiveOperationRegistry,
+): Promise<RtaCheckRow> {
   const { context, occurrence: event, cache } = input;
+  // Logical accounts are checked before the cache: a missing directory entry must not
+  // hide behind a cached result, and the entries are part of the fingerprint.
+  let bound: { readonly port: AwsAccountsPort; readonly meta: CachedRunbookAccounts } | undefined;
+  try {
+    bound = bindAccounts(context, event, activeOperations);
+  } catch (error) {
+    return failedRow(event, error, context.awsProfiles);
+  }
   const meta =
     context.runbook !== undefined
-      ? buildCacheMeta(context.runbook, context.awsProfiles, event.firedAt, event.awsAccountId, event.awsRegion)
+      ? buildCacheMeta(
+          context.runbook,
+          context.awsProfiles,
+          event.firedAt,
+          event.awsAccountId,
+          event.awsRegion,
+          bound?.meta,
+        )
       : undefined;
   const fingerprint = meta !== undefined ? computeFingerprint(meta) : undefined;
   const key = runbookCheckCacheKey(context.alarmName, event.id);
@@ -80,9 +116,13 @@ export async function checkOccurrence(input: CheckOccurrenceInput): Promise<RtaC
 
   if (output === undefined) {
     try {
-      const resolved = await context.servicesFor({ accountId: event.awsAccountId, region: event.awsRegion });
+      const resolved = await context.servicesFor(
+        { accountId: event.awsAccountId, region: event.awsRegion },
+        activeOperations,
+      );
+      const services = bound === undefined ? resolved.services : { ...resolved.services, awsAccounts: bound.port };
       output = await executeRunbookForOccurrence(
-        { services: resolved.services, logger: context.engineLogger },
+        { services, logger: context.engineLogger },
         {
           alarmName: context.alarmName,
           firedAt: event.firedAt,
@@ -94,16 +134,9 @@ export async function checkOccurrence(input: CheckOccurrenceInput): Promise<RtaC
         },
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const status = classifyExecutionFailure(error);
-      return {
-        event: toEventInfo(event),
-        runbook: { status, matchedCaseIds: [], error: message },
-        comparison: failedComparison(event.analysisId !== null, status),
-        fromCache: false,
-      };
+      return failedRow(event, error, context.awsProfiles);
     }
-    if (cache !== undefined && meta !== undefined && fingerprint !== undefined) {
+    if (cache !== undefined && meta !== undefined && fingerprint !== undefined && !isCredentialFailure(output)) {
       await persistRunbookOutput(cache, key, {
         fingerprint,
         savedAt: new Date().toISOString(),
@@ -116,7 +149,10 @@ export async function checkOccurrence(input: CheckOccurrenceInput): Promise<RtaC
   const check = classifyRunbookOutcome(output);
   const analysis = event.analysisId !== null ? await fetchAnalysisCached(context, event.analysisId) : undefined;
   const comparison = await context.analysisMatcher(output, check, analysis, event.firedAt, context.matchOptions);
-  return { event: toEventInfo(event), runbook: check, comparison, fromCache };
+  // The report leaves the host: the runbook's own error text carries no local profile name.
+  const runbook =
+    check.error === undefined ? check : { ...check, error: scrubAwsProfileNames(check.error, context.awsProfiles) };
+  return { event: toEventInfo(event), runbook, comparison, fromCache };
 }
 
 async function fetchAnalysisCached(
@@ -147,7 +183,66 @@ async function fetchAnalysisCached(
  * @returns The V1 status to report
  */
 function classifyExecutionFailure(error: unknown): 'CONFIG-ERROR' | 'EXECUTION-ERROR' {
-  return isAWSTargetNotConfiguredError(error) ? 'CONFIG-ERROR' : 'EXECUTION-ERROR';
+  return isAWSTargetNotConfiguredError(error) || isAwsAccountError(error) ? 'CONFIG-ERROR' : 'EXECUTION-ERROR';
+}
+
+/**
+ * The report row of an occurrence whose runbook did not produce an output. The
+ * message carries no local profile name (EVO-AWSACCT-OPUS-01 §6.1).
+ */
+function failedRow(event: AlarmEventDto, error: unknown, profileNames: ReadonlyArray<string>): RtaCheckRow {
+  const message = scrubAwsProfileNames(error instanceof Error ? error.message : String(error), profileNames);
+  const status = classifyExecutionFailure(error);
+  return {
+    event: toEventInfo(event),
+    runbook: { status, matchedCaseIds: [], error: message },
+    comparison: failedComparison(event.analysisId !== null, status),
+    fromCache: false,
+  };
+}
+
+/**
+ * Binds the run's account port to the occurrence and resolves the runbook's logical
+ * accounts in the occurrence environment (EVO-AWSACCT-OPUS-01 §6.5).
+ *
+ * @returns The bound port and its fingerprint inputs, or `undefined` when the runbook declares no logical account
+ * @throws AwsAccountError when the directory cannot serve the occurrence
+ */
+function bindAccounts(
+  context: RunbookCheckContext,
+  event: AlarmEventDto,
+  activeOperations: AWSActiveOperationRegistry,
+): { readonly port: AwsAccountsPort; readonly meta: CachedRunbookAccounts } | undefined {
+  const declared = context.runbook?.logicalAccounts ?? [];
+  if (declared.length === 0 || context.accounts === undefined) return undefined;
+  const port = context.accounts.port.bindToOccurrence(
+    { accountId: event.awsAccountId, region: event.awsRegion },
+    activeOperations,
+  );
+  const environment = port.environment();
+  const entries = declared.map((account) => ({
+    account,
+    accountId: port.resolve(parseAwsLogicalAccount(account)).accountId,
+  }));
+  return {
+    port,
+    meta: {
+      binding: context.accounts.binding,
+      environment,
+      entries,
+      permissionSets: [...context.accounts.permissionSets],
+      profiles: [...context.awsProfiles],
+    },
+  };
+}
+
+/** Failures that depend on credentials or the directory: a later run with other settings may succeed. */
+const CREDENTIAL_FAILURE =
+  /AccessDenied|access denied|not authorized|ProviderError|AWS credentials could not be resolved|AWS_ACCOUNT_|AWS_OCCURRENCE_ACCOUNT_/iu;
+
+function isCredentialFailure(output: RunbookOutput): boolean {
+  const check = classifyRunbookOutcome(output);
+  return check.error !== undefined && CREDENTIAL_FAILURE.test(check.error);
 }
 
 function toEventInfo(event: AlarmEventDto): RtaCheckEvent {

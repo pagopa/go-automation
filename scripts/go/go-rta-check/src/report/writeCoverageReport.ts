@@ -1,4 +1,6 @@
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOJSONFileExporter } from '@pagopa/go-common/exporters';
+import { GOPathType } from '@pagopa/go-common/files';
 import type { CoverageReport } from '@go-automation/go-watchtower-runbook';
 
 import type { CoverageExitCode } from '../libs/runCoverageCheck.js';
@@ -19,11 +21,11 @@ export interface CoverageArtifactV1 {
  * @returns The written artifact path
  */
 export async function writeCoverageReport(
-  script: Core.GOScript,
+  script: GOScript,
   report: CoverageReport,
   exitCode: CoverageExitCode,
 ): Promise<string> {
-  const outputPath = script.paths.resolvePath('coverage.json', Core.GOPathType.OUTPUT);
+  const outputPath = script.paths.resolvePath('coverage.json', GOPathType.OUTPUT);
   const artifact: CoverageArtifactV1 = {
     schemaVersion: 1,
     generatedAt: new Date().toISOString(),
@@ -31,6 +33,6 @@ export async function writeCoverageReport(
     report,
   };
 
-  await new Core.GOJSONFileExporter({ outputPath, pretty: true, indent: 2 }).export(artifact);
+  await new GOJSONFileExporter({ outputPath, pretty: true, indent: 2 }).export(artifact);
   return outputPath;
 }

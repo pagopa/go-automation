@@ -5,15 +5,23 @@
  * The ZIP extractor is wired with a back-reference to the registry so it can
  * recursively dispatch each archive entry through it.
  */
-import { Core } from '@go-automation/go-common';
+import {
+  GODocxTextExtractor,
+  GOEmailTextExtractor,
+  GOPdfTextExtractor,
+  GOPlainTextExtractor,
+  GOTextExtractorRegistry,
+  GOXlsxTextExtractor,
+  GOZipTextExtractor,
+} from '@go-automation/go-documents';
 
-export function buildExtractorRegistry(): Core.GOTextExtractorRegistry {
-  const registry = new Core.GOTextExtractorRegistry();
-  registry.register(new Core.GOPlainTextExtractor());
-  registry.register(new Core.GOPdfTextExtractor());
-  registry.register(new Core.GODocxTextExtractor());
-  registry.register(new Core.GOXlsxTextExtractor());
-  registry.register(new Core.GOEmailTextExtractor());
-  registry.register(new Core.GOZipTextExtractor({ registry }));
+export function buildExtractorRegistry(): GOTextExtractorRegistry {
+  const registry = new GOTextExtractorRegistry();
+  registry.register(new GOPlainTextExtractor());
+  registry.register(new GOPdfTextExtractor());
+  registry.register(new GODocxTextExtractor());
+  registry.register(new GOXlsxTextExtractor());
+  registry.register(new GOEmailTextExtractor());
+  registry.register(new GOZipTextExtractor({ registry }));
   return registry;
 }

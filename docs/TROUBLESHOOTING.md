@@ -4,7 +4,7 @@ Questa guida raccoglie soluzioni ai problemi comuni riscontrati lavorando sul mo
 
 ## Problemi di Build e pnpm
 
-### `Cannot find module '@go-automation/go-common'`
+### `Cannot find module '@pagopa/go-common'`
 
 **Causa:** La libreria `go-common` non è stata compilata o non è linkata correttamente.
 **Soluzione:**
@@ -23,7 +23,8 @@ Assicurati che il `tsconfig.json` del tuo script includa `composite: true` e ref
 
 ```json
 "references": [
-  { "path": "../../../packages/go-common" }
+  { "path": "../../../packages/go-common" },
+  { "path": "../../../packages/go-script" }
 ]
 ```
 

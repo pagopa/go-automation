@@ -65,7 +65,7 @@ function dependencyNames(workspace) {
 
 const packageWorkspaces = listWorkspaces('packages');
 const nonCommonPackageWorkspaces = packageWorkspaces.filter(
-  (workspace) => workspace.directory !== 'packages/go-common' && packageName(workspace) !== '@go-automation/go-common',
+  (workspace) => workspace.directory !== 'packages/go-common' && packageName(workspace) !== '@pagopa/go-common',
 );
 const scriptWorkspaces = [
   ...listWorkspaces('scripts/aws'),
@@ -152,6 +152,220 @@ const workspaceBoundaryRules = [
   ...functionScriptBoundaryRules(),
 ];
 
+/**
+ * Package layering of the published family (EVO-PKGPUB-OPUS-01 §6.1, §7.1.2, §7.2.1, §10.5).
+ *
+ * - go-common kernel areas are ordered by level: an area may import only areas of the same or a lower level.
+ * - go-aws never imports packages above it; each service subpath imports only its own SDK clients.
+ * - A published package never depends on a private one.
+ * - go-runbook never uses EC2 (D5); its engine uses only SDK-free go-aws types.
+ *
+ * Cross-package edges are matched on the import specifier (workspace packages are not resolved yet: K8).
+ */
+const GO_COMMON_SRC = '^packages/go-common/src/';
+const GO_COMMON_KERNEL_LEVELS = [
+  ['utils', 'security', 'json', 'events'],
+  ['errors', 'analysis'],
+  ['dates', 'polling'],
+  ['concurrency', 'process', 'files', 'parsers', 'render'],
+  ['importers', 'exporters', 'http'],
+  ['logging'],
+];
+/** Allowed `@aws-sdk/client-*` packages per go-aws source folder ('' = core files at the package root). */
+const GO_AWS_ALLOWED_CLIENTS = {
+  '': ['sts'],
+  s3: ['s3'],
+  sqs: ['sqs', 'cloudwatch'],
+  dynamodb: ['dynamodb'],
+  athena: ['athena'],
+  'cloudwatch-logs': ['cloudwatch-logs'],
+  'cloudwatch-logs/insights': [],
+  profiles: [],
+  'cloudwatch-metrics': ['cloudwatch'],
+  'cloudwatch-alarms': ['cloudwatch'],
+  ecs: ['ecs'],
+  lambda: ['lambda'],
+  scheduler: ['scheduler'],
+  'secrets-manager': ['secrets-manager'],
+  ssm: ['ssm'],
+  ec2: ['ec2'],
+};
+
+function goCommonAreaPattern(areas) {
+  return `${GO_COMMON_SRC}(?:${areas.join('|')})/`;
+}
+
+function packageReferencePatterns(names) {
+  return names.flatMap((name) => [packageImportPattern(name), `^packages/${escapeRegExp(name.split('/')[1])}/`]);
+}
+
+function goAwsFolderPattern(folder) {
+  if (folder === '') return '^packages/go-aws/src/[^/]+$';
+  // Production sources only: tests may use any SDK to build fixtures or check type compatibility.
+  return `^packages/go-aws/src/${escapeRegExp(folder)}/(?:[^/]+|models/.+)$`;
+}
+
+function packageLayerRules() {
+  const kernelLevelRules = GO_COMMON_KERNEL_LEVELS.slice(0, -1).map((areas, level) => ({
+    name: `go-common-kernel-level-${level}`,
+    severity: 'error',
+    comment: `go-common kernel level ${level} (${areas.join(', ')}) must not import higher kernel levels.`,
+    from: { path: goCommonAreaPattern(areas) },
+    to: { path: goCommonAreaPattern(GO_COMMON_KERNEL_LEVELS.slice(level + 1).flat()) },
+  }));
+  // The scope says whether a package is published: @pagopa/* is published, everything else is private.
+  const publishedNames = compact(packageWorkspaces.map(packageName)).filter((name) => name.startsWith('@pagopa/'));
+  const privateNames = compact(packageWorkspaces.map(packageName)).filter((name) => !name.startsWith('@pagopa/'));
+  const awsIsolationRules = Object.entries(GO_AWS_ALLOWED_CLIENTS).map(([folder, clients]) => ({
+    name: `go-aws-service-isolation:${folder === '' ? 'core' : folder}`,
+    severity: 'error',
+    comment: `go-aws ${folder === '' ? 'core' : `./${folder}`} may import only these SDK clients: ${clients.join(', ') || 'none'}.`,
+    from: { path: goAwsFolderPattern(folder) },
+    to: {
+      path: '@aws-sdk/client-',
+      ...(clients.length > 0 ? { pathNot: `@aws-sdk/client-(?:${clients.map(escapeRegExp).join('|')})(?:/|$)` } : {}),
+    },
+  }));
+  return [
+    ...kernelLevelRules,
+    {
+      name: 'go-aws-no-upward',
+      severity: 'error',
+      comment:
+        'go-aws sits on go-common only: it never imports go-script, go-send, go-runbook or other packages above it.',
+      from: { path: '^packages/go-aws/' },
+      to: {
+        path: packageReferencePatterns(
+          compact(packageWorkspaces.map(packageName)).filter(
+            (name) => !['@pagopa/go-common', '@pagopa/go-aws'].includes(name),
+          ),
+        ),
+      },
+    },
+    {
+      name: 'published-not-on-private',
+      severity: 'error',
+      comment: 'A published package (@pagopa/*) never depends on a private workspace package (@go-automation/*).',
+      from: { path: publishedNames.map((name) => `^packages/${escapeRegExp(name.split('/')[1])}/`) },
+      to: { path: packageReferencePatterns(privateNames) },
+    },
+    {
+      name: 'only-runtime-touches-sdk',
+      severity: 'error',
+      comment:
+        'EVO-RBREORG-OPUS-01 G3: only runtime/ uses the AWS SDK. Engine, toolkits and inventory import from go-aws ' +
+        'only the root (type-only, rule below), ./cloudwatch-logs/insights and ./profiles. Service ports live in toolkits/common.',
+      from: {
+        path: '^packages/go-runbook/src/(?:engine|toolkits|inventory)/',
+        pathNot: ['/__tests__/'],
+      },
+      to: {
+        path: [
+          '^@aws-sdk/',
+          '^@pagopa/go-aws/(?!(?:cloudwatch-logs/insights|profiles)$)[^/]',
+          '^packages/go-aws/src/(?!index[.]ts$|cloudwatch-logs/insights/|profiles/)',
+        ],
+      },
+    },
+    {
+      name: 'toolkits-do-not-know-runbooks',
+      severity: 'error',
+      comment: 'EVO-RBREORG-OPUS-01 §10: toolkits never import the inventory or the runtime (composition root).',
+      from: { path: '^packages/go-runbook/src/toolkits/', pathNot: ['/__tests__/'] },
+      to: { path: '^packages/go-runbook/src/(?:inventory|runtime)/' },
+    },
+    {
+      name: 'common-does-not-know-products',
+      severity: 'error',
+      comment:
+        'EVO-RBREORG-OPUS-01 G4: toolkits/common knows no product; SEND and INTEROP data live in their toolkits.',
+      from: { path: '^packages/go-runbook/src/toolkits/common/', pathNot: ['/__tests__/'] },
+      to: { path: '^packages/go-runbook/src/toolkits/(?:send|interop)/' },
+    },
+    {
+      name: 'runbooks-do-not-cross',
+      severity: 'error',
+      comment:
+        'EVO-RBREORG-OPUS-01 §10: a runbook never imports another runbook folder; sharing goes through ' +
+        'inventory/<product>/shared/.',
+      from: { path: '^packages/go-runbook/src/inventory/(send|interop)/((?!shared/)[^/]+)/([^/]+)/' },
+      to: {
+        path: '^packages/go-runbook/src/inventory/(?:send|interop)/(?!shared/)[^/]+/[^/]+/',
+        pathNot: '^packages/go-runbook/src/inventory/$1/$2/$3/',
+      },
+    },
+    {
+      name: 'engine-is-a-foundation',
+      severity: 'error',
+      comment:
+        'EVO-RBREORG-OPUS-01 G2: the engine knows no AWS, product, alarm or Watchtower. It never imports toolkits, ' +
+        'inventory or runtime, any go-aws module, or the I/O areas of go-common.',
+      from: {
+        path: '^packages/go-runbook/src/engine/',
+        pathNot: ['/__tests__/'],
+      },
+      to: {
+        path: [
+          '^packages/go-runbook/src/(?:toolkits|inventory|runtime)/',
+          '^@pagopa/go-aws(?:/|$)',
+          '^packages/go-aws/',
+          '^@pagopa/go-common/(?:http|files|importers|exporters|process)(?:/|$)',
+          '^packages/go-common/src/(?:http|files|importers|exporters|process)/',
+        ],
+      },
+    },
+    {
+      name: 'inventory-uses-product-api',
+      severity: 'error',
+      comment:
+        'EVO-RBREORG-OPUS-01 §7.5: a runbook imports only the engine barrel, the barrel of its own product, the ' +
+        'shared data of its product and the files of its own folder (no deep imports, no other runbook).',
+      from: {
+        path: '^packages/go-runbook/src/inventory/(send|interop)/((?!shared/)[^/]+)/([^/]+)/',
+        pathNot: '/__tests__/',
+      },
+      to: {
+        path: '^packages/go-runbook/src/',
+        pathNot: [
+          '^packages/go-runbook/src/inventory/$1/$2/$3/',
+          '^packages/go-runbook/src/inventory/$1/shared/',
+          '^packages/go-runbook/src/engine/index[.]ts$',
+          '^packages/go-runbook/src/toolkits/$1/index[.]ts$',
+        ],
+      },
+    },
+    {
+      name: 'products-do-not-cross:send',
+      severity: 'error',
+      comment: 'EVO-RBREORG-OPUS-01 §10: SEND code never imports INTEROP code.',
+      from: { path: '^packages/go-runbook/src/(?:toolkits|inventory)/send/' },
+      to: { path: '^packages/go-runbook/src/(?:toolkits|inventory)/interop/' },
+    },
+    {
+      name: 'products-do-not-cross:interop',
+      severity: 'error',
+      comment: 'EVO-RBREORG-OPUS-01 §10: INTEROP code never imports SEND code.',
+      from: { path: '^packages/go-runbook/src/(?:toolkits|inventory)/interop/' },
+      to: { path: '^packages/go-runbook/src/(?:toolkits|inventory)/send/' },
+    },
+    {
+      name: 'inventory-does-not-know-runtime',
+      severity: 'error',
+      comment: 'EVO-RBREORG-OPUS-01 §10: the inventory never imports the runtime (composition root).',
+      from: { path: '^packages/go-runbook/src/inventory/', pathNot: '/__tests__/' },
+      to: { path: '^packages/go-runbook/src/runtime/' },
+    },
+    {
+      name: 'runbook-not-on-ec2',
+      severity: 'error',
+      comment: 'D5: go-runbook (engine, inventory, runtime) never uses EC2.',
+      from: { path: '^packages/go-runbook/' },
+      to: { path: ['@aws-sdk/client-ec2(?:/|$)', '^@pagopa/go-aws/ec2$', '^packages/go-aws/src/ec2/'] },
+    },
+    ...awsIsolationRules,
+  ];
+}
+
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
   forbidden: [
@@ -197,6 +411,7 @@ module.exports = {
         path: [...nonCommonPackageDependencyPatterns, ...appDependencyPatterns],
       },
     },
+    ...packageLayerRules(),
     {
       name: 'packages-do-not-import-apps',
       severity: 'error',
@@ -247,15 +462,7 @@ module.exports = {
       from: {},
       to: {
         dependencyTypes: ['core'],
-        path: [
-          '^async_hooks$',
-          '^constants$',
-          '^domain$',
-          '^punycode$',
-          '^sys$',
-          '^_linklist$',
-          '^_stream_wrap$',
-        ],
+        path: ['^async_hooks$', '^constants$', '^domain$', '^punycode$', '^sys$', '^_linklist$', '^_stream_wrap$'],
       },
     },
     {

@@ -1,0 +1,150 @@
+import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { resolveTimeRange } from '../../../../common/time/resolveTimeRange.js';
+import type { TimeRangeFromParams } from '../../../../common/time/TimeRangeFromParams.js';
+import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
+import type { Step } from '../../../../../engine/types/Step.js';
+import type { StepKind } from '../../../../../engine/types/StepKind.js';
+import type { StepResult } from '../../../../../engine/types/StepResult.js';
+import { normalizeInteropApiGwAggregateValue } from '../helpers/normalizeInteropApiGwAggregateValue.js';
+import { OperationalStep } from '../../../../common/steps/OperationalStep.js';
+import { executeCloudWatchLogsQuery } from '../../../../common/steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
+import { interopLogsQueryOptions } from '../../../helpers/interopLogsQueryOptions.js';
+import { readNonBlankVar } from '../../../helpers/readNonBlankVar.js';
+import type { OperationalContext } from '../../../../common/services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../../common/services/OperationalServiceName.js';
+
+export type BuildInteropApiGwAggregateQueryFn = (apiGwId: string) => string;
+
+export interface QueryInteropApiGwAggregatesStepConfig {
+  readonly id: string;
+  readonly label: string;
+  readonly timeRangeFromParams: TimeRangeFromParams;
+  readonly queryProfileId: string;
+  readonly queryKind: string;
+  readonly errorFamilyLabel: string;
+  readonly buildQuery: BuildInteropApiGwAggregateQueryFn;
+  readonly apiGwIdVar?: string;
+  readonly logGroupVar?: string;
+}
+
+const DEFAULT_API_GW_ID_VAR = 'interopApiGwId';
+const DEFAULT_LOG_GROUP_VAR = 'interopApiGwLogGroup';
+
+export class QueryInteropApiGwAggregatesStep
+  extends OperationalStep<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+  implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+{
+  readonly id: string;
+  readonly label: string;
+  readonly kind: StepKind = 'data';
+
+  private readonly timeRangeFromParams: TimeRangeFromParams;
+  private readonly queryProfileId: string;
+  private readonly queryKind: string;
+  private readonly errorFamilyLabel: string;
+  private readonly buildQuery: BuildInteropApiGwAggregateQueryFn;
+  private readonly apiGwIdVar: string;
+  private readonly logGroupVar: string;
+
+  constructor(config: QueryInteropApiGwAggregatesStepConfig) {
+    super();
+    this.id = config.id;
+    this.label = config.label;
+    this.timeRangeFromParams = { ...config.timeRangeFromParams };
+    this.queryProfileId = config.queryProfileId;
+    this.queryKind = config.queryKind;
+    this.errorFamilyLabel = config.errorFamilyLabel;
+    this.buildQuery = config.buildQuery;
+    this.apiGwIdVar = config.apiGwIdVar ?? DEFAULT_API_GW_ID_VAR;
+    this.logGroupVar = config.logGroupVar ?? DEFAULT_LOG_GROUP_VAR;
+  }
+
+  getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
+    const apiGwId = context.vars.get(this.apiGwIdVar);
+    const logGroup = context.vars.get(this.logGroupVar);
+    return {
+      queryProfileId: this.queryProfileId,
+      queryKind: this.queryKind,
+      identifierMode: 'api-gateway-id',
+      identifiers: { apiGwId: apiGwId ?? null },
+      query: apiGwId === undefined ? '' : this.buildQuery(apiGwId),
+      logGroups: logGroup === undefined ? [] : [logGroup],
+      timeRange: {
+        start: context.params.get(this.timeRangeFromParams.start) ?? null,
+        end: context.params.get(this.timeRangeFromParams.end) ?? null,
+      },
+    };
+  }
+
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(
+    context: OperationalContext,
+  ): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
+    const apiGwId = readNonBlankVar(context, this.apiGwIdVar);
+    if (apiGwId === undefined) return missingVarFailure(this.apiGwIdVar);
+    const logGroup = readNonBlankVar(context, this.logGroupVar);
+    if (logGroup === undefined) return missingVarFailure(this.logGroupVar);
+
+    const query = this.buildQuery(apiGwId);
+    const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
+    context.services.reporter.add({ label: `Query access log API Gateway INTEROP [apigwId=${apiGwId}]` });
+    const result = await executeCloudWatchLogsQuery(
+      context,
+      [logGroup],
+      query,
+      timeRange,
+      interopLogsQueryOptions(context),
+    );
+    context.services.reporter.add({ label: `Aggregati ${this.errorFamilyLabel} trovati: ${result.rows.length}` });
+
+    return {
+      success: true,
+      output: enrichAggregateRows(result.rows),
+      ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
+    };
+  }
+}
+
+function enrichAggregateRows(
+  rows: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>,
+): ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>> {
+  return rows.map((row) => {
+    const additions: GOLogsInsightsResultField[] = [];
+    if (readRowField(row, '@timestamp') === undefined) {
+      const latestTimestamp = readRowField(row, 'latestTimestamp');
+      if (latestTimestamp !== undefined) additions.push({ field: '@timestamp', value: latestTimestamp });
+    }
+    if (readRowField(row, '@message') === undefined && readRowField(row, 'message') === undefined) {
+      const message = buildAggregateMessage(row);
+      if (message !== undefined) additions.push({ field: 'message', value: message });
+    }
+    return additions.length === 0 ? row : [...row, ...additions];
+  });
+}
+
+function buildAggregateMessage(row: ReadonlyArray<GOLogsInsightsResultField>): string | undefined {
+  const readNormalized = (field: string): string | undefined =>
+    normalizeInteropApiGwAggregateValue(readRowField(row, field));
+  const sourceIp = readNormalized('sourceIp');
+  const parts = [
+    'API Gateway',
+    readNormalized('status'),
+    readNormalized('httpMethod'),
+    readNormalized('requestPath'),
+    readNormalized('integrationError'),
+    sourceIp === undefined ? undefined : `sourceIp=${sourceIp}`,
+  ].filter((part): part is string => part !== undefined);
+  return parts.length === 1 ? undefined : parts.join(' ');
+}
+
+function missingVarFailure(key: string): StepResult<never> {
+  return { success: false, error: `Missing required runbook variable: ${key}` };
+}

@@ -1,5 +1,6 @@
-import { getErrorMessage, GOBackoff, GOHttpClientError } from '@go-automation/go-common/core';
-import type { GOBackoffFn } from '@go-automation/go-common/core';
+import { getErrorMessage } from '@pagopa/go-common/errors';
+import { GOHttpClientError } from '@pagopa/go-common/http';
+import { GOBackoff, type GOBackoffFn } from '@pagopa/go-common/polling';
 
 import { DispatchError } from '../DispatchError.js';
 import { toDocumentFailure } from '../documents/toDocumentFailure.js';

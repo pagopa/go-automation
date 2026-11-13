@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as path from 'node:path';
 
-import { Core } from '@go-automation/go-common';
+import { GOPromptInterruptedError } from '@go-automation/go-script';
 
 import type { DispatchTarget } from '../../types/DispatchTarget.js';
 import type { SendDispatchNotificationsConfig } from '../../types/SendDispatchNotificationsConfig.js';
@@ -159,13 +159,13 @@ describe('runDispatch confirmation', () => {
     const input = path.join(test.dir, 'in', 'input.csv');
     await writeFixture(input, `${[QA_HEADER, ...rows].join('\n')}\n`);
     test.prompt.onConfirm = (): void => {
-      throw new Core.GOPromptInterruptedError();
+      throw new GOPromptInterruptedError();
     };
     const config = validateConfig({ ...RAW_CONFIG, ...REQUEST_ID_RUN, inputFile: input });
 
     await assert.rejects(
       runDispatch(test.script, config, TIMELINES_ONLY, new DispatchShutdown()),
-      Core.GOPromptInterruptedError,
+      GOPromptInterruptedError,
     );
     const report = await readFixture(test.script.paths.getExecutionOutputFilePath('report.csv'));
     assert.ok(report !== undefined);

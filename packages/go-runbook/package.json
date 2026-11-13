@@ -1,27 +1,69 @@
 {
-  "name": "@go-automation/go-runbook",
-  "version": "1.0.0",
-  "type": "module",
+  "name": "@pagopa/go-runbook",
+  "version": "0.0.0",
   "description": "Declarative runbook engine for operational automation with AWS service integration",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pagopa/go-automation.git",
+    "directory": "packages/go-runbook"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "files": [
+    "dist",
+    "!dist/**/__tests__",
+    "!dist/**/*.test.*",
+    "!dist/**/*.tsbuildinfo",
+    "src",
+    "!src/**/__tests__",
+    "!src/**/*.test.ts",
+    "!src/__baseline__",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./catalog": {
-      "types": "./dist/catalog/index.d.ts",
-      "default": "./dist/catalog/index.js"
+    "./output": {
+      "types": "./dist/toolkits/common/output/index.d.ts",
+      "default": "./dist/toolkits/common/output/index.js"
+    },
+    "./toolkits/common": {
+      "types": "./dist/toolkits/common/index.d.ts",
+      "default": "./dist/toolkits/common/index.js"
+    },
+    "./toolkits/send": {
+      "types": "./dist/toolkits/send/index.d.ts",
+      "default": "./dist/toolkits/send/index.js"
+    },
+    "./toolkits/interop": {
+      "types": "./dist/toolkits/interop/index.d.ts",
+      "default": "./dist/toolkits/interop/index.js"
+    },
+    "./inventory": {
+      "types": "./dist/inventory/index.d.ts",
+      "default": "./dist/inventory/index.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "default": "./dist/runtime/index.js"
     }
   },
   "scripts": {
     "build": "tsc -b",
-    "catalog:descriptors": "tsx src/catalog/exportAutomaticRunbookDescriptors.ts",
+    "catalog:descriptors": "tsx src/runtime/commands/exportAutomaticRunbookDescriptors.ts",
     "watch": "tsc --build --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
     "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
-    "prepare": "pnpm run build"
+    "prepack": "pnpm run clean && pnpm run build",
+    "baseline:update": "tsx src/__tests__/baseline/updateBaseline.ts"
   },
   "keywords": [
     "go-automation",
@@ -32,10 +74,76 @@
   "author": "Team GO - Gestione Operativa",
   "license": "EUPL-1.2",
   "dependencies": {
-    "@go-automation/go-common": "workspace:*"
+    "@pagopa/go-aws": "workspace:^",
+    "@pagopa/go-common": "workspace:^"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-athena": "catalog:",
+    "@aws-sdk/client-cloudwatch": "catalog:",
+    "@aws-sdk/client-cloudwatch-logs": "catalog:",
+    "@aws-sdk/client-dynamodb": "catalog:",
+    "@aws-sdk/client-ecs": "catalog:",
+    "@aws-sdk/client-lambda": "catalog:",
+    "@aws-sdk/client-s3": "catalog:",
+    "@aws-sdk/client-scheduler": "catalog:",
+    "@aws-sdk/client-secrets-manager": "catalog:",
+    "@aws-sdk/client-sqs": "catalog:",
+    "@aws-sdk/client-ssm": "catalog:",
+    "@aws-sdk/util-dynamodb": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@aws-sdk/client-athena": {
+      "optional": true
+    },
+    "@aws-sdk/client-cloudwatch": {
+      "optional": true
+    },
+    "@aws-sdk/client-cloudwatch-logs": {
+      "optional": true
+    },
+    "@aws-sdk/client-dynamodb": {
+      "optional": true
+    },
+    "@aws-sdk/client-ecs": {
+      "optional": true
+    },
+    "@aws-sdk/client-lambda": {
+      "optional": true
+    },
+    "@aws-sdk/client-s3": {
+      "optional": true
+    },
+    "@aws-sdk/client-scheduler": {
+      "optional": true
+    },
+    "@aws-sdk/client-secrets-manager": {
+      "optional": true
+    },
+    "@aws-sdk/client-sqs": {
+      "optional": true
+    },
+    "@aws-sdk/client-ssm": {
+      "optional": true
+    },
+    "@aws-sdk/util-dynamodb": {
+      "optional": true
+    }
   },
   "devDependencies": {
+    "@aws-sdk/client-athena": "catalog:",
+    "@aws-sdk/client-cloudwatch": "catalog:",
+    "@aws-sdk/client-cloudwatch-logs": "catalog:",
+    "@aws-sdk/client-dynamodb": "catalog:",
+    "@aws-sdk/client-ecs": "catalog:",
+    "@aws-sdk/client-lambda": "catalog:",
+    "@aws-sdk/client-s3": "catalog:",
+    "@aws-sdk/client-scheduler": "catalog:",
+    "@aws-sdk/client-secrets-manager": "catalog:",
+    "@aws-sdk/client-sqs": "catalog:",
+    "@aws-sdk/client-ssm": "catalog:",
+    "@aws-sdk/util-dynamodb": "catalog:",
     "@types/node": "catalog:",
-    "tsx": "catalog:"
+    "tsx": "catalog:",
+    "typescript": "catalog:"
   }
 }

@@ -11,7 +11,10 @@
  * - Progress estimation and capacity warnings.
  */
 
-import { Core, AWS } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { AWSSQSService, type Message } from '@pagopa/go-aws/sqs';
+import { GOJSONListExporter } from '@pagopa/go-common/exporters';
+import { GOPathType } from '@pagopa/go-common/files';
 
 import { initializeQueue } from './libs/initializeQueue.js';
 import type { AwsDumpSqsConfig } from './types/index.js';
@@ -24,7 +27,7 @@ const WAIT_TIME_SECONDS = 20;
  *
  * @param script - The GOScript instance for logging and prompts
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<AwsDumpSqsConfig>();
 
   script.logger.section('AWS Dump SQS');
@@ -42,7 +45,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const defaultOutputFile = `dump_${config.queueName}_${timestamp}.ndjson`;
   const outputFile = config.outputFile ?? defaultOutputFile;
-  const outputPathInfo = script.paths.resolvePathWithInfo(outputFile, Core.GOPathType.OUTPUT);
+  const outputPathInfo = script.paths.resolvePathWithInfo(outputFile, GOPathType.OUTPUT);
 
   script.logger.info(`Output file: ${outputPathInfo.path}`);
   script.logger.newline();
@@ -63,7 +66,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   );
 
   // Initialize service
-  const sqsService = new AWS.AWSSQSService(script.aws.clients.sqs, script.aws.clients.cloudWatch);
+  const sqsService = new AWSSQSService(script.aws.clients.sqs, script.aws.clients.cloudWatch);
 
   // Dump messages
   script.prompt.startSpinner('Dumping messages...');
@@ -87,7 +90,7 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   // Write all collected messages to NDJSON file
   if (result.messages.length > 0) {
-    const exporter = new Core.GOJSONListExporter<AWS.Message>({
+    const exporter = new GOJSONListExporter<Message>({
       outputPath: outputPathInfo.path,
       jsonl: true,
     });

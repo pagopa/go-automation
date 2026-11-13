@@ -1,4 +1,4 @@
-import type { OccurrenceTimeWindow } from '@go-automation/go-runbook';
+import type { OccurrenceTimeWindow } from '@pagopa/go-runbook/runtime';
 
 /**
  * Identity + structural fingerprint of a runbook definition, computed once per
@@ -14,4 +14,6 @@ export interface RunbookCacheDescriptor {
   readonly hash: string;
   /** Resolved occurrence window, including the catalog default when omitted. */
   readonly occurrenceTimeWindow: OccurrenceTimeWindow;
+  /** Logical AWS accounts the runbook's steps declare, sorted (EVO-AWSACCT-OPUS-01). */
+  readonly logicalAccounts: ReadonlyArray<string>;
 }

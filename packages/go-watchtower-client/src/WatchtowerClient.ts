@@ -1,4 +1,9 @@
-import { Core } from '@go-automation/go-common';
+import {
+  GOHttpClient,
+  GOHttpClientError,
+  type GOHttpRequestOptions,
+  type GOHttpRetryPolicy,
+} from '@pagopa/go-common/http';
 
 import { withWatchtowerReason } from './watchtowerErrorReason.js';
 
@@ -60,11 +65,11 @@ type AuthenticatedMethod = 'GET' | 'POST' | 'PATCH';
 
 /** Generated-contract Watchtower client for shared read and worker lifecycle operations. */
 export class WatchtowerClient {
-  private readonly http: Core.GOHttpClient;
+  private readonly http: GOHttpClient;
   private readonly auth: WatchtowerAuth;
 
   constructor(options: WatchtowerClientOptions) {
-    this.http = new Core.GOHttpClient({
+    this.http = new GOHttpClient({
       baseUrl: normalizeBaseUrl(options.baseUrl),
       timeout: options.timeoutMs,
       proxyUrl: options.proxyUrl,
@@ -303,7 +308,7 @@ export class WatchtowerClient {
         body,
       );
     } catch (error: unknown) {
-      if (error instanceof Core.GOHttpClientError && error.statusCode === 409) {
+      if (error instanceof GOHttpClientError && error.statusCode === 409) {
         return error.response as CancelExecutionResult;
       }
       throw error;
@@ -318,7 +323,7 @@ export class WatchtowerClient {
     try {
       return await this.lifecycleRequest<T>('POST', path, body, options);
     } catch (error: unknown) {
-      if (error instanceof Core.GOHttpClientError && error.statusCode === 409) return error.response as T;
+      if (error instanceof GOHttpClientError && error.statusCode === 409) return error.response as T;
       throw error;
     }
   }
@@ -340,13 +345,13 @@ export class WatchtowerClient {
     method: AuthenticatedMethod,
     path: string,
     body?: unknown,
-    requestOptions?: Core.GOHttpRequestOptions,
+    requestOptions?: GOHttpRequestOptions,
   ): Promise<T> {
     let token = await this.auth.getAccessToken();
     try {
       return await this.send<T>(method, path, body, token, requestOptions);
     } catch (error: unknown) {
-      if (!(error instanceof Core.GOHttpClientError) || error.statusCode !== 401) throw error;
+      if (!(error instanceof GOHttpClientError) || error.statusCode !== 401) throw error;
       token = await this.auth.renewAccessToken();
       const attemptsRemaining = requestOptions?.retryPolicy === undefined ? undefined : 3 - error.attemptsUsed;
       return await this.send<T>(method, path, body, token, {
@@ -363,7 +368,7 @@ export class WatchtowerClient {
     path: string,
     body: unknown,
     token: string,
-    options: Core.GOHttpRequestOptions | undefined,
+    options: GOHttpRequestOptions | undefined,
   ): Promise<T> {
     const headers = { authorization: `Bearer ${token}` };
     try {
@@ -379,7 +384,7 @@ export class WatchtowerClient {
   }
 }
 
-function lifecycleRetryPolicy(idempotencyKey: string): Core.GOHttpRetryPolicy {
+function lifecycleRetryPolicy(idempotencyKey: string): GOHttpRetryPolicy {
   return {
     enabled: true,
     idempotencyKey,

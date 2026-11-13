@@ -4,12 +4,12 @@
  * Contains script metadata and parameters definition.
  */
 
-import { Core } from '@go-automation/go-common';
+import { type GOConfigParameterOptions, GOConfigParameterType, type GOScriptMetadata } from '@go-automation/go-script';
 
 /**
  * Script metadata
  */
-export const scriptMetadata: Core.GOScriptMetadata = {
+export const scriptMetadata: GOScriptMetadata = {
   name: 'Send Fetch Ecs Clusters Infos',
   version: '1.0.0',
   description: 'For each configured environment and cluster, this script retrieves:',
@@ -19,17 +19,17 @@ export const scriptMetadata: Core.GOScriptMetadata = {
 /**
  * Script parameter definitions
  */
-export const scriptParameters: ReadonlyArray<Core.GOConfigParameterOptions> = [
+export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
   {
     name: 'aws.profiles',
-    type: Core.GOConfigParameterType.STRING_ARRAY,
+    type: GOConfigParameterType.STRING_ARRAY,
     description: 'AWS SSO profile names',
     required: true,
     aliases: ['aps'],
   },
   {
     name: 'config.file',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'Configuration file',
     required: true,
     aliases: ['f'],

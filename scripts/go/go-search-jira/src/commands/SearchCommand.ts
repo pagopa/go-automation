@@ -8,7 +8,9 @@
  */
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GO_EXPORT_FORMAT_EXTENSIONS } from '@pagopa/go-common/exporters';
+import { GOPathType } from '@pagopa/go-common/files';
 
 import { JiraClient } from '../jira/JiraClient.js';
 import { SearchService, type IssueUrlBuilder } from '../search/SearchService.js';
@@ -18,7 +20,7 @@ import { closeIndex, openIndex } from '../storage/IndexLifecycle.js';
 import type { GoSearchJiraConfig } from '../types/GoSearchJiraConfig.js';
 
 export class SearchCommand {
-  public async execute(script: Core.GOScript, config: GoSearchJiraConfig): Promise<void> {
+  public async execute(script: GOScript, config: GoSearchJiraConfig): Promise<void> {
     if (config.searchQuery.trim().length === 0) {
       script.logger.error('search action requires --search-query (or -q)');
       throw new Error('Empty search query');
@@ -29,7 +31,7 @@ export class SearchCommand {
 
     const dataDir =
       config.storageDataDir.length > 0
-        ? script.paths.resolvePathWithInfo(config.storageDataDir, Core.GOPathType.OUTPUT).path
+        ? script.paths.resolvePathWithInfo(config.storageDataDir, GOPathType.OUTPUT).path
         : script.paths.getDataDir();
     const dbPath = path.join(dataDir, config.storageIndexFileName);
     if (!(await fileExists(dbPath))) {
@@ -38,10 +40,10 @@ export class SearchCommand {
     }
 
     const today = new Date().toISOString().slice(0, 10);
-    const extension = Core.GO_EXPORT_FORMAT_EXTENSIONS[config.outputFormat];
+    const extension = GO_EXPORT_FORMAT_EXTENSIONS[config.outputFormat];
     const requestedOutputFile =
       config.outputFile.length > 0 ? config.outputFile : `go-search-jira_${today}.${extension}`;
-    const outputPathInfo = script.paths.resolvePathWithInfo(requestedOutputFile, Core.GOPathType.OUTPUT);
+    const outputPathInfo = script.paths.resolvePathWithInfo(requestedOutputFile, GOPathType.OUTPUT);
 
     script.logger.section('Search');
     script.logger.info(`Query:         ${config.searchQuery}`);

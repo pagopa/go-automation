@@ -5,7 +5,8 @@
  * `--product-id` is resolved *inside* the scope, so a pinned product outside it
  * fails instead of silently escaping the configured limits.
  */
-import type { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import type { ProductDto } from '@go-automation/go-watchtower-client';
 
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
@@ -32,7 +33,7 @@ export interface SelectedProduct {
  * @returns The selected product, or an abort when nothing can be selected
  */
 export async function selectProduct(
-  script: Core.GOScript,
+  script: GOScript,
   products: ReadonlyArray<ProductDto>,
   scope: ReadonlyArray<ScopeTarget>,
   config: GoRtaCheckConfig,
@@ -96,7 +97,7 @@ export async function selectProduct(
 
 /** Applies the configured scope, keeping its declaration order and reporting unknown ids. */
 function scopedProducts(
-  logger: Core.GOLogger,
+  logger: GOLogger,
   products: ReadonlyArray<ProductDto>,
   scope: ReadonlyArray<ScopeTarget>,
 ): ReadonlyArray<ProductDto> {

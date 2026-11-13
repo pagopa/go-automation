@@ -100,10 +100,10 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
   // ── index.ts wiring ─────────────────────────────────────────────────
 
   {
-    name: 'index.ts imports from @go-automation/go-common',
+    name: 'index.ts imports from @go-automation/go-script',
     check: 'file-contains',
     file: 'src/index.ts',
-    pattern: /from '@go-automation\/go-common'/,
+    pattern: /from '@go-automation\/go-script'/,
   },
   {
     name: 'index.ts imports from ./config.js',
@@ -157,16 +157,16 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
     value: 'dist/index.js',
   },
   {
-    name: 'package.json depends on @go-automation/go-common',
+    name: 'package.json depends on @go-automation/go-script',
     check: 'json-has-key',
     file: 'package.json',
-    key: 'dependencies.@go-automation/go-common',
+    key: 'dependencies.@go-automation/go-script',
   },
   {
-    name: 'package.json go-common uses workspace protocol',
+    name: 'package.json go-script uses workspace protocol',
     check: 'json-key-equals',
     file: 'package.json',
-    key: 'dependencies.@go-automation/go-common',
+    key: 'dependencies.@go-automation/go-script',
     value: 'workspace:*',
   },
   {
@@ -220,16 +220,16 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
     pattern: /"composite":\s*true/,
   },
   {
-    name: 'tsconfig.json references go-common',
+    name: 'tsconfig.json references go-script',
     check: 'file-contains',
     file: 'tsconfig.json',
-    pattern: /go-common/,
+    pattern: /packages\/go-script/,
   },
 
   // ── Dependency hygiene ─────────────────────────────────────────────
 
   {
-    name: 'No direct @aws-sdk/* dependencies (use go-common)',
+    name: 'No direct @aws-sdk/* dependencies (use go-aws)',
     check: 'custom',
     validate: async (scriptPath) => {
       const pkgPath = path.join(scriptPath, 'package.json');
@@ -237,20 +237,20 @@ export const scaffoldRules: ReadonlyArray<ScaffoldRule> = [
       const pkg: Record<string, unknown> = JSON.parse(content) as Record<string, unknown>;
       const deps = pkg['dependencies'];
       if (typeof deps !== 'object' || deps === null) {
-        return { rule: 'No direct @aws-sdk/* dependencies (use go-common)', passed: true };
+        return { rule: 'No direct @aws-sdk/* dependencies (use go-aws)', passed: true };
       }
       const awsSdkPackages = Object.keys(deps as Record<string, unknown>).filter((key) => key.startsWith('@aws-sdk/'));
       if (awsSdkPackages.length > 0) {
         const firstPkg = awsSdkPackages[0];
         return {
-          rule: 'No direct @aws-sdk/* dependencies (use go-common)',
+          rule: 'No direct @aws-sdk/* dependencies (use go-aws)',
           passed: false,
           file: 'package.json',
           line: firstPkg !== undefined ? findLine(content, firstPkg) : undefined,
-          message: `Found @aws-sdk/* in dependencies: ${awsSdkPackages.join(', ')}. Use go-common instead.`,
+          message: `Found @aws-sdk/* in dependencies: ${awsSdkPackages.join(', ')}. Use @pagopa/go-aws (script.aws) instead.`,
         };
       }
-      return { rule: 'No direct @aws-sdk/* dependencies (use go-common)', passed: true };
+      return { rule: 'No direct @aws-sdk/* dependencies (use go-aws)', passed: true };
     },
   },
   {

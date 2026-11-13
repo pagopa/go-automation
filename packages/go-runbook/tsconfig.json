@@ -8,5 +8,12 @@
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../go-common" }]
+  "references": [
+    {
+      "path": "../go-common"
+    },
+    {
+      "path": "../go-aws"
+    }
+  ]
 }

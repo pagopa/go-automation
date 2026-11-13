@@ -1,5 +1,5 @@
 import type { AutomaticRunbookOutcome } from '@go-automation/go-watchtower-client';
-import type { RunbookCheck } from '@go-automation/go-runbook';
+import type { RunbookCheck } from '@pagopa/go-runbook/output';
 
 export function classifyAutomationOutcome(check: RunbookCheck): AutomaticRunbookOutcome {
   switch (check.status) {

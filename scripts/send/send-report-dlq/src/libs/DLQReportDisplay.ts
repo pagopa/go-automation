@@ -4,7 +4,8 @@
  * Handles rendering DLQ statistics to the console (tables and summary).
  */
 
-import { AWS, Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { DLQStats } from '@pagopa/go-aws/sqs';
 
 // ============================================================================
 // Public
@@ -17,11 +18,7 @@ import { AWS, Core } from '@go-automation/go-common';
  * @param profile - AWS profile name (used as section title)
  * @param dlqStats - DLQ statistics to display
  */
-export function displayProfileResults(
-  script: Core.GOScript,
-  profile: string,
-  dlqStats: ReadonlyArray<AWS.DLQStats>,
-): void {
+export function displayProfileResults(script: GOScript, profile: string, dlqStats: ReadonlyArray<DLQStats>): void {
   script.logger.section(`Profile: ${profile}`);
 
   if (dlqStats.length === 0) {
@@ -53,7 +50,7 @@ export function displayProfileResults(
  * @param script - The GOScript instance for logging
  * @param results - Map of profile → DLQ stats
  */
-export function displaySummary(script: Core.GOScript, results: ReadonlyMap<string, ReadonlyArray<AWS.DLQStats>>): void {
+export function displaySummary(script: GOScript, results: ReadonlyMap<string, ReadonlyArray<DLQStats>>): void {
   script.logger.section('Summary');
 
   let totalDlqs = 0;

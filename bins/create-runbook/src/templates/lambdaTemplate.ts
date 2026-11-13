@@ -34,10 +34,12 @@ function lambdaPlaceholders(answers: RunbookAnswers): ReadonlyMap<string, string
 /**
  * Template for Lambda `LogInvocationErrors` alarm runbooks: emits the
  * four-file layout (knownServices, knownErrors, knownCases, runbook) built
- * on `lambda.createLambdaAlarmRunbook`.
+ * on `lambda.createSendLambdaAlarmRunbook`.
  */
 export const LAMBDA_TEMPLATE: RunbookTemplate = {
   id: 'lambda',
+  products: ['SEND'],
+  family: 'lambda',
   label: 'Lambda alarm (4 file)',
   description: 'Runbook per allarmi Lambda LogInvocationErrors: knownServices, knownErrors, knownCases, runbook.',
   templateDir: 'lambda',

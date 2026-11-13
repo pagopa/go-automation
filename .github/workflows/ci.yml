@@ -127,6 +127,17 @@ jobs:
       timeout-minutes: 25
       download-artifact-name: workspace-build
 
+  # EVO-AWSACCT-OPUS-01 §9 G-pub-1: packs every published @pagopa/* package (prepack:
+  # clean + build) and scans the real archive. No package is published without it.
+  published:
+    name: Published Sensitive Data
+    needs: build
+    uses: ./.github/workflows/ci-job.yml
+    with:
+      command: check:published
+      install-args: --frozen-lockfile --ignore-scripts
+      timeout-minutes: 25
+
   coverage:
     name: Coverage
     needs: build
@@ -168,6 +179,7 @@ jobs:
         new-class-tests,
         build,
         test,
+        published,
         coverage,
         macos-smoke,
       ]
@@ -177,7 +189,7 @@ jobs:
     steps:
       - name: Check all jobs passed
         run: |
-          results=("${{ needs.lint.result }}" "${{ needs.format.result }}" "${{ needs.knip.result }}" "${{ needs.deps-check.result }}" "${{ needs.duplication.result }}" "${{ needs.type-coverage.result }}" "${{ needs.scaffold.result }}" "${{ needs.new-class-tests.result }}" "${{ needs.build.result }}" "${{ needs.test.result }}" "${{ needs.coverage.result }}" "${{ needs.macos-smoke.result }}")
+          results=("${{ needs.lint.result }}" "${{ needs.format.result }}" "${{ needs.knip.result }}" "${{ needs.deps-check.result }}" "${{ needs.duplication.result }}" "${{ needs.type-coverage.result }}" "${{ needs.scaffold.result }}" "${{ needs.new-class-tests.result }}" "${{ needs.build.result }}" "${{ needs.test.result }}" "${{ needs.published.result }}" "${{ needs.coverage.result }}" "${{ needs.macos-smoke.result }}")
           for result in "${results[@]}"; do
             if [[ "$result" != "success" ]]; then
               echo "One or more checks failed"

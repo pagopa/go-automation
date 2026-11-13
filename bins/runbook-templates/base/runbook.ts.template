@@ -2,10 +2,7 @@
  * Runbook: {{RUNBOOK_ID}}
  */
 
-import { logAction } from '../../../actions/ActionFactories.js';
-import { RunbookBuilder } from '../../../builders/RunbookBuilder.js';
-import { LogStep } from '../../../steps/control/LogStep.js';
-import type { Runbook } from '../../../types/Runbook.js';
+import { LogStep, logAction, RunbookBuilder, type Runbook } from '../../../../engine/index.js';
 
 /**
  * Builds the {{RUNBOOK_ID}} runbook definition.

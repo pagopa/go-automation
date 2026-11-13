@@ -2,7 +2,7 @@
  * Display helpers for upload workflow results.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 import type { SENDAttachmentUploadWorkerResult, SENDAttachmentUploadWorkerError } from '@go-automation/go-send';
 
 /**
@@ -13,7 +13,7 @@ import type { SENDAttachmentUploadWorkerResult, SENDAttachmentUploadWorkerError 
  * @param outputFilePath - Path to the output file
  */
 export function displayResults(
-  script: Core.GOScript,
+  script: GOScript,
   result: SENDAttachmentUploadWorkerResult,
   outputFilePath: string,
 ): void {

@@ -2,7 +2,9 @@
  * Resolution of the send target: environment file + CLI overrides (§7.4).
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOPathType } from '@pagopa/go-common/files';
+import { GOEnvFileParser } from '@pagopa/go-common/parsers';
 import { Dispatch } from '@go-automation/go-send';
 
 import type { B2BAccess } from '../types/B2BAccess.js';
@@ -22,11 +24,11 @@ const ENVIRONMENTS_FILE = 'environments.yaml';
  * @param script - GOScript instance (for the `.env` path)
  * @returns The loader
  */
-export function createEnvironmentLoader(script: Core.GOScript): Dispatch.EnvironmentLoader {
+export function createEnvironmentLoader(script: GOScript): Dispatch.EnvironmentLoader {
   const envFile = script.paths.getConfigFilePathWithInfo('.env');
   let dotEnv: ReadonlyMap<string, string>;
   try {
-    dotEnv = envFile.source === 'none' ? new Map<string, string>() : Core.GOEnvFileParser.parseFile(envFile.path);
+    dotEnv = envFile.source === 'none' ? new Map<string, string>() : GOEnvFileParser.parseFile(envFile.path);
   } catch (error: unknown) {
     // A malformed .env is the operator's to fix: a one-line usage error, not a stack trace.
     throw DispatchUsageError.from(error);
@@ -46,11 +48,11 @@ export function createEnvironmentLoader(script: Core.GOScript): Dispatch.Environ
  * @returns Absolute path, or `undefined` when no file exists
  */
 export function resolveEnvironmentsFile(
-  script: Core.GOScript,
+  script: GOScript,
   config: Pick<SendDispatchNotificationsConfig, 'environmentsFile'>,
 ): string | undefined {
   if (config.environmentsFile !== undefined) {
-    return script.paths.resolvePath(config.environmentsFile, Core.GOPathType.CONFIG);
+    return script.paths.resolvePath(config.environmentsFile, GOPathType.CONFIG);
   }
   const info = script.paths.getConfigFilePathWithInfo(ENVIRONMENTS_FILE);
   return info.source === 'none' ? undefined : info.path;
@@ -81,7 +83,7 @@ export function usesB2B(config: ValidatedConfig): boolean {
  * @throws DispatchUsageError when the environment or the B2B parameters are missing
  */
 export async function resolveTarget(
-  script: Core.GOScript,
+  script: GOScript,
   config: ValidatedConfig,
   loader: Dispatch.EnvironmentLoader,
 ): Promise<DispatchTarget> {
@@ -180,7 +182,7 @@ function adHocTarget(config: ValidatedConfig, b2bNeeded: boolean): DispatchTarge
  */
 /** Reads the environments file named by `--environments-file` or found in the configs dir. */
 async function loadEnvironmentsFile(
-  script: Core.GOScript,
+  script: GOScript,
   config: ValidatedConfig,
   env: string,
   loader: Dispatch.EnvironmentLoader,
@@ -218,7 +220,7 @@ function directTarget(config: DirectDispatchConfig): DispatchTarget {
  * GOScript at startup).
  */
 function directEnvironmentTarget(
-  script: Core.GOScript,
+  script: GOScript,
   config: DirectDispatchConfig,
   file: Dispatch.EnvironmentsFile,
   env: string,

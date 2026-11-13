@@ -3,6 +3,12 @@ export interface ExecuteRunbookConfig {
   readonly executionId?: string;
   readonly awsProfiles?: ReadonlyArray<string>;
   readonly awsRegion?: string;
+  /** Account directory of the logical AWS accounts (`aws.account.directory`). */
+  readonly awsAccountDirectory?: ReadonlyArray<string>;
+  /** How logical accounts are reached (`aws.account.binding`). */
+  readonly awsAccountBinding?: string;
+  /** Preferred SSO permission sets (`aws.account.permission.sets`). */
+  readonly awsAccountPermissionSets?: ReadonlyArray<string>;
   readonly watchtowerUrl: string;
   readonly watchtowerServiceId: string;
   readonly watchtowerPassword?: string;

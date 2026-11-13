@@ -1,4 +1,6 @@
-import { AWS, Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { type AWSAthenaQueryResult, AWSAthenaQueryTemplateCompiler } from '@pagopa/go-aws/athena';
+import { GOThresholdEvaluator } from '@pagopa/go-common/analysis';
 
 import { buildTimeRange } from './buildTimeRange.js';
 import { loadQueryTemplate } from './loadQueryTemplate.js';
@@ -11,7 +13,7 @@ import { writeResultArtifact } from './writeResultArtifact.js';
 import type { ReportPipelineResult, SendMonitorAthenaQueryConfig } from '../types/index.js';
 
 export async function runAthenaMonitorCycle(
-  script: Core.GOScript,
+  script: GOScript,
   config: SendMonitorAthenaQueryConfig,
 ): Promise<ReportPipelineResult> {
   validateConfig(config);
@@ -22,7 +24,7 @@ export async function runAthenaMonitorCycle(
   script.logger.info(`To: ${timeRange.to.toISOString()}`);
 
   const queryTemplate = await loadQueryTemplate(config, script.paths);
-  const compiledQuery = new AWS.AWSAthenaQueryTemplateCompiler().compile({
+  const compiledQuery = new AWSAthenaQueryTemplateCompiler().compile({
     template: queryTemplate,
     values: parseKeyValueList(config.templateParams),
     rawValues: parseKeyValueList(config.templateRaw),
@@ -38,7 +40,7 @@ export async function runAthenaMonitorCycle(
 
   script.prompt.setSpinnerIndent('    ');
   script.prompt.startSpinner('Running Athena query...');
-  let athenaResult: AWS.AWSAthenaQueryResult;
+  let athenaResult: AWSAthenaQueryResult;
   try {
     athenaResult = await script.aws.services.athena.executeQuery(config.athenaDatabase, compiledQuery.query, {
       catalog: config.athenaCatalog,
@@ -74,7 +76,7 @@ export async function runAthenaMonitorCycle(
   }
 
   const rules = parseThresholdRules(config);
-  const evaluation = new Core.GOThresholdEvaluator().evaluate(athenaResult.rows, rules);
+  const evaluation = new GOThresholdEvaluator().evaluate(athenaResult.rows, rules);
   script.logger.section('Threshold Analysis');
   script.logger.info(evaluation.summary);
 

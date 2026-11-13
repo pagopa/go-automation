@@ -5,7 +5,7 @@
  * here beyond percentages and averages.
  */
 
-import type { Core } from '@go-automation/go-common';
+import type { GOLogger } from '@pagopa/go-common/logging';
 
 import type { RunbookCatalogEntry } from '../../types/RunbookCatalogEntry.js';
 import type { RunbookStatisticsBucket } from '../../types/RunbookStatisticsBucket.js';
@@ -40,7 +40,7 @@ export interface RenderRunbookStatisticsOptions {
  * ```
  */
 export function renderRunbookStatistics(
-  logger: Core.GOLogger,
+  logger: GOLogger,
   report: RunbookStatisticsReport,
   options: RenderRunbookStatisticsOptions,
 ): void {
@@ -53,7 +53,7 @@ export function renderRunbookStatistics(
   if (options.detail) renderDetail(logger, report.entries);
 }
 
-function renderTotals(logger: Core.GOLogger, report: RunbookStatisticsReport): void {
+function renderTotals(logger: GOLogger, report: RunbookStatisticsReport): void {
   const { totals } = report;
   logger.section('Runbook Catalog Statistics');
   logger.info('Source: local registry (offline) — no AWS, no Watchtower');
@@ -82,7 +82,7 @@ function renderTotals(logger: Core.GOLogger, report: RunbookStatisticsReport): v
 }
 
 function renderBucketSection(
-  logger: Core.GOLogger,
+  logger: GOLogger,
   title: string,
   header: string,
   buckets: ReadonlyArray<RunbookStatisticsBucket>,
@@ -109,7 +109,7 @@ function renderBucketSection(
   });
 }
 
-function renderMatrix(logger: Core.GOLogger, report: RunbookStatisticsReport): void {
+function renderMatrix(logger: GOLogger, report: RunbookStatisticsReport): void {
   const kinds = [...report.byKind].map((bucket) => bucket.label).sort((left, right) => left.localeCompare(right));
   const products = report.byProduct.map((bucket) => bucket.label);
 
@@ -145,7 +145,7 @@ function renderMatrix(logger: Core.GOLogger, report: RunbookStatisticsReport): v
   });
 }
 
-function renderCategories(logger: Core.GOLogger, report: RunbookStatisticsReport): void {
+function renderCategories(logger: GOLogger, report: RunbookStatisticsReport): void {
   const assignments = report.byCategory.reduce((sum, bucket) => sum + bucket.runbooks, 0);
   renderBucketSection(logger, 'By Category', 'Category', report.byCategory, report.totals.runbooks);
   if (assignments !== report.totals.runbooks) {
@@ -156,7 +156,7 @@ function renderCategories(logger: Core.GOLogger, report: RunbookStatisticsReport
   }
 }
 
-function renderTags(logger: Core.GOLogger, report: RunbookStatisticsReport): void {
+function renderTags(logger: GOLogger, report: RunbookStatisticsReport): void {
   logger.section('Top Tags');
   logger.table({
     columns: [
@@ -173,7 +173,7 @@ function renderTags(logger: Core.GOLogger, report: RunbookStatisticsReport): voi
   logger.info(`Distinct tags: ${String(report.byTag.length)}`);
 }
 
-function renderDetail(logger: Core.GOLogger, entries: ReadonlyArray<RunbookCatalogEntry>): void {
+function renderDetail(logger: GOLogger, entries: ReadonlyArray<RunbookCatalogEntry>): void {
   const rows = entries.map((entry) => ({
     key: entry.key,
     product: entry.product,

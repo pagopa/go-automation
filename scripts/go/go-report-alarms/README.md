@@ -247,7 +247,7 @@ aws sso login --profile sso_pn-confinfo-prod
 --start-date "01/12/2024"
 ```
 
-### Errore: "Cannot find module '@go-automation/go-common'"
+### Errore: "Cannot find module '@pagopa/go-common'"
 
 **Causa**: La libreria comune non e stata compilata.
 

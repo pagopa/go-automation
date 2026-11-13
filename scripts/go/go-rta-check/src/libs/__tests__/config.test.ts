@@ -1,14 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { Core } from '@go-automation/go-common';
+import { GOCommandLineConfigProvider, GOScript } from '@go-automation/go-script';
 
 import { scriptMetadata, scriptParameters } from '../../config.js';
 import type { GoRtaCheckConfig } from '../../types/GoRtaCheckConfig.js';
 
 describe('go-rta-check config', () => {
   it('does not preload the analyses-only AWS profile', async () => {
-    const script = new Core.GOScript({
+    const script = new GOScript({
       metadata: scriptMetadata,
       logging: {
         console: false,
@@ -19,7 +19,7 @@ describe('go-rta-check config', () => {
         autoHelp: false,
         rejectUnknownParameters: false,
         parameters: scriptParameters,
-        configProviders: [new Core.GOCommandLineConfigProvider({ arguments: [] })],
+        configProviders: [new GOCommandLineConfigProvider({ arguments: [] })],
       },
     });
 
@@ -29,7 +29,7 @@ describe('go-rta-check config', () => {
   });
 
   it('loads --aws-profile into awsProfile', async () => {
-    const script = new Core.GOScript({
+    const script = new GOScript({
       metadata: scriptMetadata,
       logging: {
         console: false,
@@ -41,7 +41,7 @@ describe('go-rta-check config', () => {
         rejectUnknownParameters: false,
         parameters: scriptParameters,
         configProviders: [
-          new Core.GOCommandLineConfigProvider({
+          new GOCommandLineConfigProvider({
             arguments: ['--aws-profile', 'standard-profile'],
           }),
         ],

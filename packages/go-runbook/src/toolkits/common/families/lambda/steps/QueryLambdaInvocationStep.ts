@@ -1,0 +1,94 @@
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type { Step } from '../../../../../engine/types/Step.js';
+import type { StepKind } from '../../../../../engine/types/StepKind.js';
+import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
+import type { StepResult } from '../../../../../engine/types/StepResult.js';
+import type { TimeRangeFromParams } from '../../../time/TimeRangeFromParams.js';
+import { interpolatePlaceholders } from '../../../../../engine/context/templatePlaceholders.js';
+import { resolveTimeRange } from '../../../time/resolveTimeRange.js';
+import { executeStep } from '../../../../../engine/steps/execution/executeStep.js';
+import { executeCloudWatchLogsQuery } from '../../../steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
+import { LambdaReporter } from '../reporting/LambdaReporter.js';
+import { OperationalStep } from '../../../steps/OperationalStep.js';
+import type { OperationalContext } from '../../../services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
+
+type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
+
+/**
+ * Configuration for {@link QueryLambdaInvocationStep}.
+ */
+export interface QueryLambdaInvocationConfig {
+  readonly id: string;
+  readonly label: string;
+  readonly lambdaLogGroup: string;
+  /** Query template filtered by `{{vars.lambdaRequestId}}`. */
+  readonly queryTemplate: string;
+  readonly timeRangeFromParams: TimeRangeFromParams;
+}
+
+/**
+ * Reconstructs the full Lambda invocation flow for the extracted `requestId`
+ * (same log group, sorted ascending). No-ops when no requestId is available.
+ * Its rows are stored as step output so runbook known cases can match on
+ * `steps.<id>`.
+ */
+export class QueryLambdaInvocationStep extends OperationalStep<Rows> implements Step<Rows> {
+  readonly id: string;
+  readonly label: string;
+  readonly kind: StepKind = 'data';
+
+  private readonly lambdaLogGroup: string;
+  private readonly queryTemplate: string;
+  private readonly timeRangeFromParams: TimeRangeFromParams;
+
+  constructor(config: QueryLambdaInvocationConfig) {
+    super();
+    this.id = config.id;
+    this.label = config.label;
+    this.lambdaLogGroup = config.lambdaLogGroup;
+    this.queryTemplate = config.queryTemplate;
+    this.timeRangeFromParams = config.timeRangeFromParams;
+  }
+
+  getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
+    return {
+      query: interpolatePlaceholders(this.queryTemplate, context),
+      logGroups: [this.lambdaLogGroup],
+      queryKind: 'lambda-invocation-flow',
+    };
+  }
+
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
+    const requestId = (context.vars.get('lambdaRequestId') ?? '').trim();
+    if (requestId === '') {
+      // No requestId extracted: nothing to reconstruct, skip the query.
+      return { success: true, vars: { lambdaInvocationLogCount: '0' } };
+    }
+
+    return executeStep('Lambda invocation query', async () => {
+      const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
+      const query = interpolatePlaceholders(this.queryTemplate, context);
+      const result = await executeCloudWatchLogsQuery(context, [this.lambdaLogGroup], query, timeRange, {
+        ...(context.signal !== undefined ? { signal: context.signal } : {}),
+        logGroupResolutionMode: 'search-configured-profiles',
+      });
+      new LambdaReporter(context.services.reporter).invocation(requestId, result.rows.length);
+      return {
+        success: true,
+        output: result.rows,
+        vars: { lambdaInvocationLogCount: String(result.rows.length) },
+        ...(result.diagnostics !== undefined ? { diagnostics: result.diagnostics } : {}),
+      };
+    });
+  }
+}

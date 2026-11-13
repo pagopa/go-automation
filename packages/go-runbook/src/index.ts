@@ -1,173 +1,24 @@
 /**
- * Runbook Engine
+ * Runbook engine: entrypoint `@pagopa/go-runbook` (EVO-RBREORG-OPUS-01 §8.1).
  *
- * Provides a declarative, composable framework for defining and executing
- * operational runbooks with support for AWS service integration, flow control,
- * condition-based case matching, and detailed execution tracing.
+ * The language and the execution of a workflow: types, context, conditions,
+ * control/check/transform steps, actions, traces, reporters, builder, graph
+ * validation and errors. No AWS, product, alarm or Watchtower knowledge: the
+ * operational toolkits are in `./toolkits/*`, the Watchtower contract in
+ * `./output`, the runbooks in `./inventory` and the composition in `./runtime`.
  *
  * @example
  * ```typescript
- * import { RunbookBuilder, RunbookEngine, CloudWatchLogsQueryStep, logAction } from '@go-automation/go-runbook';
+ * import { RunbookBuilder, RunbookEngine, logAction } from '@pagopa/go-runbook';
  *
- * const runbook = RunbookBuilder.create('alarm-api-gw-5xx')
- *   .metadata({ name: 'API GW 5xx', ... })
- *   .step(new CloudWatchLogsQueryStep({ ... }))
+ * const runbook = RunbookBuilder.create('example')
+ *   .metadata({ name: 'Example', ... })
  *   .knownCase({ ... })
  *   .fallback(logAction({ ... }))
  *   .build();
  *
- * const engine = new RunbookEngine(logger);
- * const result = await engine.execute(runbook, params, services);
+ * const result = await new RunbookEngine(logger).execute(runbook, params, services);
  * ```
  */
 
-// Types
-export type { StepKind } from './types/StepKind.js';
-export type { FlowDirective } from './types/FlowDirective.js';
-export type { Step } from './types/Step.js';
-export type { StepResult } from './types/StepResult.js';
-export type { StepDescriptor } from './types/StepDescriptor.js';
-export type { PipelineHook } from './types/PipelineHook.js';
-export type { RunbookType } from './types/RunbookType.js';
-export type { RunbookMetadata } from './types/RunbookMetadata.js';
-export type { RunbookContext } from './types/RunbookContext.js';
-export type { RunbookExecutionResult } from './types/RunbookExecutionResult.js';
-export type { RunbookExecutionStatus } from './types/RunbookExecutionStatus.js';
-export type { Runbook } from './types/Runbook.js';
-export type { OccurrenceTimeWindow } from './types/OccurrenceTimeWindow.js';
-export type { CloudExecutionPolicy } from './types/CloudExecutionPolicy.js';
-export type { KnownCase } from './types/KnownCase.js';
-export type { KnownCaseAnalysis } from './types/KnownCaseAnalysis.js';
-export type { RunbookAnalysisDefaults } from './types/RunbookAnalysisDefaults.js';
-export type { AnalysisResourceRef } from './types/AnalysisResourceRef.js';
-export type { AnalysisLinkRef } from './types/AnalysisLinkRef.js';
-export { RunbookProducts } from './types/RunbookProduct.js';
-export type { RunbookProduct } from './types/RunbookProduct.js';
-export { INTEROP_DOWNSTREAMS, SEND_DOWNSTREAMS } from './analysis/downstreams/index.js';
-export type { InteropDownstream, SendDownstream } from './analysis/downstreams/index.js';
-export type {
-  Condition,
-  CompareCondition,
-  PatternCondition,
-  ExistsCondition,
-  AndCondition,
-  OrCondition,
-  NotCondition,
-} from './types/Condition.js';
-export type { LogEntry } from './types/LogEntry.js';
-export type { TimeRange } from './types/TimeRange.js';
-export type { ErrorRecoveryInfo } from './types/ErrorRecoveryInfo.js';
-export type { IfBranchConfig } from './types/IfBranchConfig.js';
-export type { SwitchBranchConfig } from './types/SwitchBranchConfig.js';
-
-// Core
-export { RunbookEngine } from './core/RunbookEngine.js';
-export { ConditionEvaluator } from './core/ConditionEvaluator.js';
-
-// Context
-export {
-  createInitialContext,
-  updateContextWithStepResult,
-  addLogEntry,
-  addRecoveredError,
-  mergeChildContext,
-} from './context/RunbookContextHelper.js';
-
-// Errors
-export { RunbookMaxIterationsError } from './errors/RunbookMaxIterationsError.js';
-
-// Validation
-export { RunbookValidationError } from './validation/RunbookValidationError.js';
-export type { ValidationErrorEntry } from './validation/ValidationErrorEntry.js';
-export type { ValidationErrorCode } from './validation/ValidationErrorCode.js';
-export { GoToGraphAnalyzer } from './validation/GoToGraphAnalyzer.js';
-export { assertCloudExecutableRunbook } from './validation/assertCloudExecutableRunbook.js';
-export type { GoToReference } from './validation/GoToGraphAnalyzer.js';
-
-// Trace
-export type { RunbookExecutionTrace } from './trace/RunbookExecutionTrace.js';
-export type { ExecutionInfo, ExecutionEnvironment } from './trace/ExecutionInfo.js';
-export type { StepTrace } from './trace/StepTrace.js';
-export type { CaseMatchingTrace } from './trace/CaseMatchingTrace.js';
-export type { CaseEvaluationTrace } from './trace/CaseEvaluationTrace.js';
-export type { ActionTrace } from './trace/ActionTrace.js';
-export type { ExecutionSummary } from './trace/ExecutionSummary.js';
-export type { EarlyResolutionTrace } from './trace/EarlyResolutionTrace.js';
-export { TraceBuilder } from './trace/TraceBuilder.js';
-
-// Output
-export type { RunbookOutput } from './output/RunbookOutput.js';
-export type { LogLine } from './output/LogLine.js';
-export { buildAnalysisDraft } from './output/buildAnalysisDraft.js';
-export { ANALYSIS_DRAFT_BOUNDS } from './output/analysisDraftBounds.js';
-export type { AnalysisDraftV1 } from './output/AnalysisDraft.js';
-export type { KnownCaseAnalysisDraft } from './output/KnownCaseAnalysisDraft.js';
-export type { UnknownCaseContextDraft } from './output/UnknownCaseContextDraft.js';
-export type { ClassifiedRunbookCheck, RunbookCheck, RunbookCheckStatus } from './output/RunbookCheck.js';
-export { classifyRunbookOutcome, noRunbookCheck } from './output/classifyRunbookOutcome.js';
-export type {
-  RunbookOutcome,
-  KnownCaseMatchedOutcome,
-  UnknownCaseOutcome,
-  ProcedureSuccessOutcome,
-  ProcedureFailureOutcome,
-  FailedOutcome,
-  AbortedOutcome,
-} from './output/RunbookOutcome.js';
-export type { RunbookOutputContext, RunbookResultField, RunbookEvidence } from './output/RunbookOutputContext.js';
-export { emptyRunbookOutputContext } from './output/RunbookOutputContext.js';
-export type {
-  RunbookTelemetry,
-  CloudWatchLogsTelemetry,
-  CloudWatchLogsTelemetryQueryExecution,
-} from './output/RunbookTelemetry.js';
-export { buildRunbookOutput } from './output/buildRunbookOutput.js';
-export type { BuildRunbookOutputOptions, RunbookOutputContextBuilderFn } from './output/buildRunbookOutput.js';
-export type { StepDiagnostics, CloudWatchLogsStepDiagnostics } from './trace/StepDiagnostics.js';
-export { interpolatePlaceholders } from './core/templatePlaceholders.js';
-export { throwIfRunbookAborted } from './core/throwIfRunbookAborted.js';
-
-// Actions
-export type {
-  CaseAction,
-  CaseActionType,
-  LogAction,
-  NotifyAction,
-  UpdateAction,
-  EscalateAction,
-  CompositeAction,
-} from './actions/CaseAction.js';
-export { ActionExecutor } from './actions/ActionExecutor.js';
-export type { ActionExecutionResult } from './actions/ActionExecutor.js';
-export { logAction, notifyAction, escalateAction, compositeAction } from './actions/ActionFactories.js';
-
-// Services
-export type { ServiceRegistry } from './registry/ServiceRegistry.js';
-export type { ResolvedServiceRegistry } from './registry/ResolvedServiceRegistry.js';
-export type { ServiceRegistryResolverFn } from './registry/ServiceRegistryResolverFn.js';
-export type { RunbookReporter } from './registry/RunbookReporter.js';
-export { ConsoleRunbookReporter } from './registry/reporters/ConsoleRunbookReporter.js';
-export { CollectingRunbookReporter } from './registry/reporters/CollectingRunbookReporter.js';
-export { NOOP_RUNBOOK_REPORTER } from './registry/reporters/NOOP_RUNBOOK_REPORTER.js';
-export { createTestServiceRegistry } from './registry/createTestServiceRegistry.js';
-
-// Steps
-export * from './steps/index.js';
-
-// Builder
-export { RunbookBuilder } from './builders/RunbookBuilder.js';
-
-// API Gateway runbook toolkit
-export * as apigw from './apigw/index.js';
-
-// Lambda runbook toolkit
-export * as lambda from './lambda/index.js';
-
-// Service log runbook toolkit
-export * as service from './service/index.js';
-
-// Downstream detection runbook toolkit
-export * as downstream from './downstream/index.js';
-
-// INTEROP runbook toolkit
-export * as interop from './interop/index.js';
+export * from './engine/index.js';

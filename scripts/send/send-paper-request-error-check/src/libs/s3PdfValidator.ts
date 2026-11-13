@@ -1,4 +1,7 @@
-import { Core, AWS } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import type { AWSDynamoDBService } from '@pagopa/go-aws/dynamodb';
+import type { AWSS3Service } from '@pagopa/go-aws/s3';
+import { GOFileListExporter } from '@pagopa/go-common/exporters';
 import { getConfinfoS3Service, getCoreDynamoDBService } from '../utils/awsClients.js';
 import type { SendPaperRequestErrorCheckConfig, PdfValidationResult } from '../types/index.js';
 import { isNotificationOlderThanOneYear } from './verifyNotification.js';
@@ -32,7 +35,7 @@ interface SinglePdfValidationOutcome {
  * Valida se un oggetto S3 è un PDF valido leggendo solo i primi 5 byte (Range request: bytes=0-4).
  */
 async function validatePDFMagicBytes(
-  s3Service: AWS.AWSS3Service,
+  s3Service: AWSS3Service,
   bucket: string,
   fileKey: string,
 ): Promise<SinglePdfValidationOutcome> {
@@ -70,7 +73,7 @@ async function validatePDFMagicBytes(
  * @returns Risultati aggregati della validazione PDF
  */
 export async function validateS3Pdfs(
-  script: Core.GOScript,
+  script: GOScript,
   inputKeys?: ReadonlyArray<string>,
 ): Promise<PdfValidationResult> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
@@ -80,7 +83,7 @@ export async function validateS3Pdfs(
   // Estrazione e filtraggio delle chiavi S3 da validare (inclusi allegati ed AAR in active tier, esclusi AAR in Glacier)
   const fileKeys: string[] = [];
   const sentAtCache = new Map<string, string | undefined>();
-  let dynamoDbService: AWS.AWSDynamoDBService | undefined;
+  let dynamoDbService: AWSDynamoDBService | undefined;
 
   if (inputKeys) {
     for (const line of inputKeys) {
@@ -159,9 +162,9 @@ export async function validateS3Pdfs(
   const invalidPdfsFile = resolveOutputPath(script.paths, 'invalid_pdfs.csv', config.outputDir);
   const errorsFile = resolveOutputPath(script.paths, 'pdf_validation_errors.csv', config.outputDir);
 
-  const validExporter = new Core.GOFileListExporter({ outputPath: validPdfsFile });
-  const invalidExporter = new Core.GOFileListExporter({ outputPath: invalidPdfsFile });
-  const errorsExporter = new Core.GOFileListExporter({ outputPath: errorsFile });
+  const validExporter = new GOFileListExporter({ outputPath: validPdfsFile });
+  const invalidExporter = new GOFileListExporter({ outputPath: invalidPdfsFile });
+  const errorsExporter = new GOFileListExporter({ outputPath: errorsFile });
 
   const validStream = await validExporter.exportStream();
   const invalidStream = await invalidExporter.exportStream();

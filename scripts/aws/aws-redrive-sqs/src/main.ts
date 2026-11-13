@@ -5,7 +5,8 @@
  * Ensures type parity and preserves attributes during the move.
  */
 
-import { Core, AWS } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { AWSSQSService, SQSUtils } from '@pagopa/go-aws/sqs';
 import type { AwsRedriveSqsConfig } from './types/index.js';
 
 /**
@@ -22,11 +23,11 @@ import type { AwsRedriveSqsConfig } from './types/index.js';
  *
  * @param script - The GOScript instance providing config, AWS clients, and prompts
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<AwsRedriveSqsConfig>();
   script.logger.section('AWS Redrive SQS');
 
-  const sqsService = new AWS.AWSSQSService(script.aws.clients.sqs, script.aws.clients.cloudWatch);
+  const sqsService = new AWSSQSService(script.aws.clients.sqs, script.aws.clients.cloudWatch);
 
   // Resolve metadata for both queues
   const [sourceMeta, targetMeta] = await Promise.all([
@@ -37,7 +38,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   // Guard against accidental same-queue redrive (would loop forever)
   if (sourceMeta.queueUrl === targetMeta.queueUrl) {
     throw new Error(
-      `Source and target resolve to the same queue (${AWS.SQSUtils.redactQueueUrl(sourceMeta.queueUrl)}). Refusing to redrive.`,
+      `Source and target resolve to the same queue (${SQSUtils.redactQueueUrl(sourceMeta.queueUrl)}). Refusing to redrive.`,
     );
   }
 
@@ -51,8 +52,8 @@ export async function main(script: Core.GOScript): Promise<void> {
   }
 
   // Account ID redacted from logs to avoid leaking it into shared output (CI, tickets).
-  script.logger.info(`Source: ${AWS.SQSUtils.redactQueueUrl(sourceMeta.queueUrl)}`);
-  script.logger.info(`Target: ${AWS.SQSUtils.redactQueueUrl(targetMeta.queueUrl)}`);
+  script.logger.info(`Source: ${SQSUtils.redactQueueUrl(sourceMeta.queueUrl)}`);
+  script.logger.info(`Target: ${SQSUtils.redactQueueUrl(targetMeta.queueUrl)}`);
 
   if (config.dryRun) {
     script.logger.warning('DRY RUN ENABLED - No messages will be sent or deleted.');

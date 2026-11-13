@@ -1,10 +1,19 @@
 /**
  * Exports `SearchResultItem[]` to a file using the appropriate go-common
- * exporter based on `Core.GOExportFormat`. Mirrors the pattern adopted by
+ * exporter based on `GOExportFormat`. Mirrors the pattern adopted by
  * `scripts/send/send-report-dlq` so that callers can plug `output.file` /
  * `output.format` directly.
  */
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import {
+  GOCSVListExporter,
+  type GOExportFormat,
+  GOFileListExporter,
+  GOHTMLListExporter,
+  GOJSONFileExporter,
+  GOJSONListExporter,
+  type GOListExporter,
+} from '@pagopa/go-common/exporters';
 
 import type { SearchResultItem } from '../types/SearchResultItem.js';
 
@@ -48,22 +57,22 @@ function formatRowAsText(row: SearchResultItem): string {
  * `format`. Emits an `export:completed` log line once done.
  */
 export async function exportSearchResults(
-  script: Core.GOScript,
+  script: GOScript,
   results: ReadonlyArray<SearchResultItem>,
   outputPath: string,
-  format: Core.GOExportFormat,
+  format: GOExportFormat,
 ): Promise<void> {
   const startedAt = Date.now();
 
   if (format === 'json') {
-    const exporter = new Core.GOJSONFileExporter({ outputPath, pretty: true, indent: 2 });
+    const exporter = new GOJSONFileExporter({ outputPath, pretty: true, indent: 2 });
     await exporter.export({ generatedAt: new Date().toISOString(), count: results.length, results });
     script.logger.success(`Exported ${results.length} results to: ${outputPath} (${Date.now() - startedAt}ms)`);
     return;
   }
 
   if (format === 'txt') {
-    const exporter = new Core.GOFileListExporter({ outputPath });
+    const exporter = new GOFileListExporter({ outputPath });
     exporter.on('export:completed', (event) => {
       script.logger.success(`Exported ${event.totalItems} results to: ${event.destination} (${event.duration}ms)`);
     });
@@ -81,13 +90,13 @@ export async function exportSearchResults(
 
 function createStructuredExporter(
   outputPath: string,
-  format: Exclude<Core.GOExportFormat, 'json' | 'txt'>,
-): Core.GOListExporter<Record<string, unknown>> {
+  format: Exclude<GOExportFormat, 'json' | 'txt'>,
+): GOListExporter<Record<string, unknown>> {
   switch (format) {
     case 'jsonl':
-      return new Core.GOJSONListExporter<Record<string, unknown>>({ outputPath, jsonl: true });
+      return new GOJSONListExporter<Record<string, unknown>>({ outputPath, jsonl: true });
     case 'csv':
-      return new Core.GOCSVListExporter<Record<string, unknown>>({
+      return new GOCSVListExporter<Record<string, unknown>>({
         outputPath,
         includeHeader: true,
         delimiter: ',',
@@ -95,7 +104,7 @@ function createStructuredExporter(
         columnMapper,
       });
     case 'html':
-      return new Core.GOHTMLListExporter<Record<string, unknown>>({ outputPath });
+      return new GOHTMLListExporter<Record<string, unknown>>({ outputPath });
     default: {
       const exhaustive: never = format;
       throw new Error(`Unhandled export format: ${String(exhaustive)}`);

@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises';
-import { Core } from '@go-automation/go-common';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import type { DiscoveredScript } from './discovery.js';
 import type { ExecutionMode } from './runner.js';
 
@@ -7,9 +7,9 @@ import type { ExecutionMode } from './runner.js';
  * Pre-flight Checker - Performs sanity checks before script execution
  */
 export class PreFlightChecker {
-  private readonly logger: Core.GOLogger;
+  private readonly logger: GOLogger;
 
-  constructor(logger: Core.GOLogger) {
+  constructor(logger: GOLogger) {
     this.logger = logger;
   }
 

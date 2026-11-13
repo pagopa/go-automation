@@ -1,13 +1,18 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Core } from '@go-automation/go-common';
+import {
+  GO_PROMPT_BACK,
+  type GOPromptDateRange,
+  type GOPromptDateRangeOptions,
+  type GOScript,
+} from '@go-automation/go-script';
 
 import { resolvePeriod } from '../promptInputs.js';
 import type { GoRtaCheckConfig } from '../../types/GoRtaCheckConfig.js';
 
 interface Harness {
-  readonly script: Core.GOScript;
+  readonly script: GOScript;
   /** Messages of the date questions asked, in order. */
   readonly askedDates: ReadonlyArray<string>;
   /** Preset titles offered by the range picker, when it was shown. */
@@ -18,7 +23,7 @@ interface Harness {
 
 interface Answers {
   /** Range returned by the picker, when the picker is the one asked. */
-  readonly range?: Core.GOPromptDateRange;
+  readonly range?: GOPromptDateRange;
   /** Answers to the single-bound questions, in order. */
   readonly dates?: ReadonlyArray<Date | undefined>;
   /** Makes the picker answer with the shortcut instead of a range. */
@@ -33,11 +38,11 @@ function harness(answers: Answers = {}): Harness {
 
   const pickRange = async (
     _message: string,
-    options?: Core.GOPromptDateRangeOptions,
-  ): Promise<Core.GOPromptDateRange | typeof Core.GO_PROMPT_BACK | undefined> => {
+    options?: GOPromptDateRangeOptions,
+  ): Promise<GOPromptDateRange | typeof GO_PROMPT_BACK | undefined> => {
     offeredPresets.push(...(options?.presets ?? []).map((preset) => preset.title));
     if (options?.backLabel !== undefined) offeredBack.push(options.backLabel);
-    return await Promise.resolve(answers.goBack === true ? Core.GO_PROMPT_BACK : answers.range);
+    return await Promise.resolve(answers.goBack === true ? GO_PROMPT_BACK : answers.range);
   };
 
   const script = {
@@ -49,7 +54,7 @@ function harness(answers: Answers = {}): Harness {
         return Promise.resolve(dates.shift());
       },
     },
-  } as unknown as Core.GOScript;
+  } as unknown as GOScript;
 
   return { script, askedDates, offeredPresets, offeredBack };
 }

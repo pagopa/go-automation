@@ -215,7 +215,7 @@ aws sso login --profile sso_pn-core-prod
 aws sts get-caller-identity --profile sso_pn-core-prod
 ```
 
-### `Cannot find module '@go-automation/go-common'`
+### `Cannot find module '@pagopa/go-common'`
 
 ```bash
 pnpm build:common

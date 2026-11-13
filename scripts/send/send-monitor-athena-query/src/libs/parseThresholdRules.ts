@@ -1,12 +1,17 @@
-import { Core } from '@go-automation/go-common';
+import type {
+  GOThresholdAggregation,
+  GOThresholdOperator,
+  GOThresholdRule,
+  GOThresholdSeverity,
+} from '@pagopa/go-common/analysis';
 
 import type { SendMonitorAthenaQueryConfig } from '../types/index.js';
 
-const OPERATORS: ReadonlyArray<Core.GOThresholdOperator> = ['>', '>=', '<', '<=', '==', '!='];
-const AGGREGATIONS: ReadonlyArray<Core.GOThresholdAggregation> = ['any-row', 'count', 'sum', 'avg', 'min', 'max'];
-const SEVERITIES: ReadonlyArray<Core.GOThresholdSeverity> = ['info', 'warning', 'critical'];
+const OPERATORS: ReadonlyArray<GOThresholdOperator> = ['>', '>=', '<', '<=', '==', '!='];
+const AGGREGATIONS: ReadonlyArray<GOThresholdAggregation> = ['any-row', 'count', 'sum', 'avg', 'min', 'max'];
+const SEVERITIES: ReadonlyArray<GOThresholdSeverity> = ['info', 'warning', 'critical'];
 
-export function parseThresholdRules(config: SendMonitorAthenaQueryConfig): ReadonlyArray<Core.GOThresholdRule> {
+export function parseThresholdRules(config: SendMonitorAthenaQueryConfig): ReadonlyArray<GOThresholdRule> {
   const ruleEntries = config.analysisRules.map((entry) => entry.trim()).filter((entry) => entry.length > 0);
 
   if (ruleEntries.length > 0) {
@@ -29,7 +34,7 @@ export function parseThresholdRules(config: SendMonitorAthenaQueryConfig): Reado
   return [];
 }
 
-function parseThresholdRule(entry: string, index: number): Core.GOThresholdRule {
+function parseThresholdRule(entry: string, index: number): GOThresholdRule {
   const rawRule = entry.startsWith('{') ? parseJsonRule(entry, index) : parseDslRule(entry);
   const value = toNumber(rawRule['value'], `analysis.rules[${String(index)}].value`);
   const field = toOptionalString(rawRule['field']);
@@ -121,21 +126,21 @@ function toOptionalString(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function toOperator(value: unknown): Core.GOThresholdOperator {
+function toOperator(value: unknown): GOThresholdOperator {
   if (typeof value === 'string' && isOneOf(value, OPERATORS)) {
     return value;
   }
   throw new Error(`Invalid threshold operator '${String(value)}'. Expected one of: ${OPERATORS.join(', ')}`);
 }
 
-function toAggregation(value: unknown): Core.GOThresholdAggregation {
+function toAggregation(value: unknown): GOThresholdAggregation {
   if (typeof value === 'string' && isOneOf(value, AGGREGATIONS)) {
     return value;
   }
   throw new Error(`Invalid threshold aggregation '${String(value)}'. Expected one of: ${AGGREGATIONS.join(', ')}`);
 }
 
-function toSeverity(value: unknown): Core.GOThresholdSeverity {
+function toSeverity(value: unknown): GOThresholdSeverity {
   if (typeof value === 'string' && isOneOf(value, SEVERITIES)) {
     return value;
   }

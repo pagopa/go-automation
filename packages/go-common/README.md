@@ -23,8 +23,8 @@ Il package espone due namespace:
   Secrets Manager, oltre ai provider multi-account/multi-profilo
   (`AWSProfileSet`, `AWSMultiClientProvider`).
 
-Sono disponibili anche i subpath export `@go-automation/go-common/core` e
-`@go-automation/go-common/aws`, per importare un solo namespace.
+Sono disponibili anche i subpath export `@pagopa/go-common` e
+`@pagopa/go-aws`, per importare un solo namespace.
 
 Consumato da: ogni package e script del monorepo (`packages/*`,
 `scripts/*`, `functions/*`) tranne `go-common` stesso.
@@ -32,9 +32,9 @@ Consumato da: ogni package e script del monorepo (`packages/*`,
 ## Esempio
 
 ```typescript
-import { Core } from '@go-automation/go-common';
+import { GOScript } from '@go-automation/go-script';
 
-const script = new Core.GOScript({
+const script = new GOScript({
   metadata: scriptMetadata,
   parameters: scriptParameters,
 });
@@ -52,7 +52,7 @@ GOPaths, prompt, HTTP, errori, eventi, credenziali AWS): `docs/GOCOMMON.md`.
 ## Test e build
 
 ```bash
-pnpm --filter=@go-automation/go-common test
-pnpm --filter=@go-automation/go-common test:coverage
+pnpm --filter=@pagopa/go-common test
+pnpm --filter=@pagopa/go-common test:coverage
 pnpm build:common
 ```

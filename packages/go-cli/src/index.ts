@@ -10,7 +10,13 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import Fuse from 'fuse.js';
 import { Command } from 'commander';
-import { Core } from '@go-automation/go-common';
+import {
+  GOConfigKeyTransformer,
+  type GOConfigParameterOptions,
+  GOPrompt,
+  GOPromptInterruptedError,
+} from '@go-automation/go-script';
+import { GOConsoleLoggerHandler, GOLogger } from '@pagopa/go-common/logging';
 import {
   discoverScripts,
   loadScriptParameters,
@@ -27,8 +33,8 @@ import { PreFlightChecker } from './checker.js';
 import { getCategoryMenuLabel } from './categories.js';
 
 // Setup dependencies
-const logger = new Core.GOLogger([new Core.GOConsoleLoggerHandler()]);
-const prompt = new Core.GOPrompt(logger);
+const logger = new GOLogger([new GOConsoleLoggerHandler()]);
+const prompt = new GOPrompt(logger);
 const history = new HistoryManager();
 const scaffolder = new Scaffolder(prompt, logger);
 const presets = new PresetManager();
@@ -37,10 +43,7 @@ const checker = new PreFlightChecker(logger);
 /**
  * Shared utility to display script parameters in a consistent way
  */
-function displayScriptParameters(
-  parameters: ReadonlyArray<Core.GOConfigParameterOptions>,
-  detailed: boolean = false,
-): void {
+function displayScriptParameters(parameters: ReadonlyArray<GOConfigParameterOptions>, detailed: boolean = false): void {
   if (parameters.length === 0) {
     console.log('  No parameters defined.');
     return;
@@ -53,7 +56,7 @@ function displayScriptParameters(
     console.log(`  ${'-'.repeat(header.length)}`);
 
     parameters.forEach((param) => {
-      const name = Core.GOConfigKeyTransformer.toCLIFlag(param.name);
+      const name = GOConfigKeyTransformer.toCLIFlag(param.name);
       const type = param.type.toUpperCase();
       const required = param.required ? 'Yes' : 'No';
       const defaultValue = param.defaultValue !== undefined ? String(param.defaultValue) : '-';
@@ -69,7 +72,7 @@ function displayScriptParameters(
     console.log(`  ${'-'.repeat(header.length)}`);
 
     parameters.forEach((param) => {
-      const name = Core.GOConfigKeyTransformer.toCLIFlag(param.name);
+      const name = GOConfigKeyTransformer.toCLIFlag(param.name);
       const aliases = param.aliases?.map(formatAlias).join(', ') ?? '-';
       const defaultValue = param.defaultValue !== undefined ? ` (Default: ${String(param.defaultValue)})` : '';
       console.log(`  ${name.padEnd(25)} ${aliases.padEnd(12)} ${param.description}${defaultValue}`);
@@ -79,7 +82,7 @@ function displayScriptParameters(
 
 function formatAlias(alias: string): string {
   if (alias.startsWith('-')) return alias;
-  return Core.GOConfigKeyTransformer.toCLIFlag(alias).replace(/^--/, '-');
+  return GOConfigKeyTransformer.toCLIFlag(alias).replace(/^--/, '-');
 }
 
 async function main(): Promise<void> {
@@ -635,7 +638,7 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
 
         const mandatoryFlags = parameters
           .filter((p) => p.required)
-          .map((p) => Core.GOConfigKeyTransformer.toCLIFlag(p.name))
+          .map((p) => GOConfigKeyTransformer.toCLIFlag(p.name))
           .join(', ');
 
         const promptMsg = mandatoryFlags
@@ -742,7 +745,7 @@ async function runInteractive(scripts: DiscoveredScript[]): Promise<void> {
 
 main().catch((err: Error) => {
   // A prompt interrupted by Ctrl+C or a signal: not an error (exit code 128 + signal).
-  if (err instanceof Core.GOPromptInterruptedError) {
+  if (err instanceof GOPromptInterruptedError) {
     process.exit(err.exitCode);
   }
   logger.error(`CLI Error: ${err.message}`);

@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 
-import { GOTextFileImporter, GOYAMLParser } from '@go-automation/go-common/core';
+import { GOTextFileImporter } from '@pagopa/go-common/importers';
+import { GOYAMLParser } from '@pagopa/go-common/parsers';
 
 import type { Environment } from './Environment.js';
 import type { EnvironmentDefinition } from './EnvironmentDefinition.js';

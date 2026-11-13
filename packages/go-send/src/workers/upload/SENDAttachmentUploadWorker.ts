@@ -8,13 +8,11 @@
  *    including failed rows with their error message
  */
 
-import {
-  GOConcurrencyPool,
-  GOEventEmitterBase,
-  GOOrderedListExporterStreamWriter,
-  getErrorMessage,
-} from '@go-automation/go-common/core';
-import type { GOListImporter, GOListImportErrorEvent } from '@go-automation/go-common/core';
+import { GOConcurrencyPool } from '@pagopa/go-common/concurrency';
+import { getErrorMessage } from '@pagopa/go-common/errors';
+import { GOEventEmitterBase } from '@pagopa/go-common/events';
+import { GOOrderedListExporterStreamWriter } from '@pagopa/go-common/exporters';
+import type { GOListImporter, GOListImportErrorEvent } from '@pagopa/go-common/importers';
 
 import { SENDNotifications } from '../../SENDNotifications.js';
 import { inferAttachmentContentType } from './SENDAttachmentContentTypes.js';

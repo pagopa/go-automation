@@ -1,6 +1,6 @@
-import { AWS } from '@go-automation/go-common';
-import { classifyRunbookOutcome } from '@go-automation/go-runbook';
-import type { AnalysisDraftV1, RunbookCheck, RunbookOutput, ServiceRegistry } from '@go-automation/go-runbook';
+import { AWSActiveOperationRegistry } from '@pagopa/go-aws';
+import { classifyRunbookOutcome } from '@pagopa/go-runbook/output';
+import type { AnalysisDraftV1, RunbookCheck, RunbookOutput } from '@pagopa/go-runbook/output';
 import type {
   AcknowledgeCancellationRequest,
   AutomaticRunbookOutcome,
@@ -8,7 +8,8 @@ import type {
   AutomaticRunbookExecutionStatus,
   StartExecutionRequest,
 } from '@go-automation/go-watchtower-client';
-import { executeRunbookForOccurrence } from '@go-automation/go-runbook/catalog';
+import { bindServicesToOccurrence, executeRunbookForOccurrence } from '@pagopa/go-runbook/runtime';
+import { isAwsAccountError } from '@pagopa/go-runbook/toolkits/common';
 
 import type { ExecuteRunbookDelivery } from '../types/ExecuteRunbookDelivery.js';
 import type { ExecuteRunbookDeps } from '../types/ExecuteRunbookDeps.js';
@@ -18,6 +19,7 @@ import type { ExecuteRunbookSuppressedReason } from '../types/ExecuteRunbookResu
 import type { ExecutionAbortCause } from '../types/ExecutionAbortCause.js';
 import { buildTrackingEntries } from './buildTrackingEntries.js';
 import { toCompleteAnalysisDraft } from './toCompleteAnalysisDraft.js';
+import { failAccountErrorAttempt } from './failAccountErrorAttempt.js';
 import { failActiveAttemptCommand, isPermanentCallbackRejection } from './failActiveAttemptCommand.js';
 import { assertRunbookCapability } from './assertRunbookCapability.js';
 import { CancellationMonitor } from './CancellationMonitor.js';
@@ -52,7 +54,7 @@ export async function executeRunbookDryRun(
 ): Promise<ExecuteRunbookDryRunResult> {
   assertRunbookCapability(input, deps.workerArtifactRevision);
   const coordinator = new ExecutionAbortCoordinator();
-  const activeOperations = new AWS.AWSActiveOperationRegistry();
+  const activeOperations = new AWSActiveOperationRegistry();
   let timeout: ReturnType<typeof setTimeout> | undefined;
   const abortOnSignal = (): void => coordinator.abort('SHUTDOWN');
   if (options.signal?.aborted === true) {
@@ -118,7 +120,7 @@ export async function executeRunbook(
   let activeDelivery: ExecuteRunbookDelivery = { ...delivery, workerDeadlineAt: start.workerDeadlineAt };
   let activeDeadlineAtMs = Date.parse(activeDelivery.workerDeadlineAt);
   const coordinator = new ExecutionAbortCoordinator();
-  const activeOperations = new AWS.AWSActiveOperationRegistry();
+  const activeOperations = new AWSActiveOperationRegistry();
   let budgetTimer: ReturnType<typeof setTimeout> | undefined;
   const rescheduleBudgetTimer = (): void => {
     if (budgetTimer !== undefined) clearTimeout(budgetTimer);
@@ -222,6 +224,14 @@ export async function executeRunbook(
         activeOperations,
       );
     }
+    // The runbook cannot read its logical accounts: a configuration or occurrence
+    // failure of the attempt already started, not worth a redelivery (EVO-AWSACCT-OPUS-01 §6.4).
+    if (
+      isAwsAccountError(error) &&
+      (await failAccountErrorAttempt(deps, executionId, attemptId, error, activeDeadlineAtMs))
+    ) {
+      return { disposition: 'FAIL_EXECUTION', executionId, attemptId, status: 'FAILED' };
+    }
     throw error;
   } finally {
     if (budgetTimer !== undefined) clearTimeout(budgetTimer);
@@ -231,7 +241,7 @@ export async function executeRunbook(
 
 async function stopMonitorAndActiveOperations(
   monitor: CancellationMonitor,
-  activeOperations: AWS.AWSActiveOperationRegistry,
+  activeOperations: AWSActiveOperationRegistry,
 ): Promise<void> {
   const [monitorResult, activeOperationsResult] = await Promise.allSettled([
     monitor.stop(),
@@ -254,7 +264,7 @@ async function suppressStaleAttempt(
   executionId: string,
   attemptId: string,
   monitor: CancellationMonitor,
-  activeOperations: AWS.AWSActiveOperationRegistry,
+  activeOperations: AWSActiveOperationRegistry,
 ): Promise<ExecuteRunbookResult> {
   await monitor.stop();
   await activeOperations.stopAll();
@@ -271,10 +281,17 @@ async function runOccurrence(
   deps: ExecuteRunbookDeps,
   input: ExecuteRunbookInput,
   coordinator: ExecutionAbortCoordinator,
-  activeOperations: AWS.AWSActiveOperationRegistry,
+  activeOperations: AWSActiveOperationRegistry,
 ): Promise<RunbookOutput> {
   return await executeRunbookForOccurrence(
-    { logger: deps.logger, services: scopedServices(deps, input, activeOperations) },
+    {
+      logger: deps.logger,
+      services: bindServicesToOccurrence(deps.services, {
+        target: { accountId: input.alarmEvent.awsAccountId, region: input.alarmEvent.awsRegion },
+        activeOperations,
+        mode: deps.useConfiguredAwsProfiles ? 'configured-profiles' : 'oam-target',
+      }),
+    },
     {
       alarmName: input.alarmEvent.alarmName,
       runbookKey: input.runbook.key,
@@ -286,24 +303,6 @@ async function runOccurrence(
       signal: coordinator.signal,
     },
   );
-}
-
-function scopedServices(
-  deps: ExecuteRunbookDeps,
-  input: ExecuteRunbookInput,
-  activeOperations: AWS.AWSActiveOperationRegistry,
-): ServiceRegistry {
-  const cwService = deps.services.cloudWatchLogs;
-  const target = { accountId: input.alarmEvent.awsAccountId, region: input.alarmEvent.awsRegion };
-  const cloudWatchLogs = deps.useConfiguredAwsProfiles
-    ? cwService.forExecution(activeOperations)
-    : cwService.forTarget(target, activeOperations);
-
-  return {
-    ...deps.services,
-    cloudWatchLogs,
-    athena: deps.services.athena.forExecution(activeOperations),
-  };
 }
 
 function buildCompleteRequest(
@@ -351,7 +350,7 @@ async function acknowledgeCancellation(
   deadlineAtMs: number,
   coordinator: ExecutionAbortCoordinator,
   monitor: CancellationMonitor,
-  activeOperations: AWS.AWSActiveOperationRegistry,
+  activeOperations: AWSActiveOperationRegistry,
 ): Promise<ExecuteRunbookResult> {
   await monitor.stop();
   const warnings = await activeOperations.stopAll();

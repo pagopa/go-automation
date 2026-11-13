@@ -1,4 +1,4 @@
-import { Core } from '@go-automation/go-common';
+import { GOConfigKeyTransformer, type GOScript } from '@go-automation/go-script';
 
 import type { ExecuteRunbookConfig } from './types/ExecuteRunbookConfig.js';
 import { buildExecuteRunbookDeps } from './libs/buildExecuteRunbookDeps.js';
@@ -16,7 +16,7 @@ import {
 } from './libs/syntheticDelivery.js';
 import { validateModeCombination } from './libs/validateModeCombination.js';
 
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<ExecuteRunbookConfig>();
   const alarmEventId = config.alarmEventId?.trim();
   const trimmedExecutionId = config.executionId?.trim();
@@ -25,7 +25,7 @@ export async function main(script: Core.GOScript): Promise<void> {
   const applyMode = resolveApplyMode(config.apply);
   const dryRunTimeoutMs = dryRun ? resolveDryRunTimeoutMs(config.dryRunTimeoutMs) : undefined;
   if (!alarmEventId) {
-    const alarmEventIdFlag = Core.GOConfigKeyTransformer.toCLIFlag('alarm.event.id');
+    const alarmEventIdFlag = GOConfigKeyTransformer.toCLIFlag('alarm.event.id');
     throw new Error(`${alarmEventIdFlag} is required for CLI execution`);
   }
   validateModeCombination(executionId, dryRun, applyMode);
@@ -45,9 +45,9 @@ export async function main(script: Core.GOScript): Promise<void> {
 
   const humanToken = config.watchtowerHumanToken?.trim();
   if (!humanToken) {
-    const tokenFlag = Core.GOConfigKeyTransformer.toCLIFlag('watchtower.human.token');
+    const tokenFlag = GOConfigKeyTransformer.toCLIFlag('watchtower.human.token');
     throw new Error(
-      `${tokenFlag} is required when ${Core.GOConfigKeyTransformer.toCLIFlag('execution.id')} is not provided`,
+      `${tokenFlag} is required when ${GOConfigKeyTransformer.toCLIFlag('execution.id')} is not provided`,
     );
   }
 

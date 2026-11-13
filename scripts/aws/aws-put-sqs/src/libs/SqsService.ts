@@ -2,7 +2,14 @@
  * SQS Service Helpers for aws-put-sqs
  */
 
-import { Core, AWS } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { AWSSQSService, type SendMessageBatchRequestEntry, SQSUtils } from '@pagopa/go-aws/sqs';
+import {
+  GOCSVListImporter,
+  GOFileListImporter,
+  GOJSONListImporter,
+  type GOListImporter,
+} from '@pagopa/go-common/importers';
 
 import type { AwsPutSqsConfig } from '../types/AwsPutSqsConfig.js';
 
@@ -19,25 +26,25 @@ export interface BulkStats {
 /**
  * Initializes the appropriate importer based on configuration or file extension
  */
-export function initializeImporter(_script: Core.GOScript, config: AwsPutSqsConfig): Core.GOListImporter<unknown> {
+export function initializeImporter(_script: GOScript, config: AwsPutSqsConfig): GOListImporter<unknown> {
   const extension = config.inputFile.split('.').pop()?.toLowerCase();
   const format = config.fileFormat === 'auto' ? extension : config.fileFormat;
 
   switch (format) {
     case 'json':
-      return new Core.GOJSONListImporter({
+      return new GOJSONListImporter({
         jsonl: 'auto',
         wrapSingleObject: true,
       });
     case 'csv':
-      return new Core.GOCSVListImporter({
+      return new GOCSVListImporter({
         hasHeaders: true,
         rowTransformer: (row: Record<string, string | undefined>) => row[config.csvColumn],
       });
     case 'text':
     case 'txt':
     default:
-      return new Core.GOFileListImporter();
+      return new GOFileListImporter();
   }
 }
 
@@ -45,18 +52,18 @@ export function initializeImporter(_script: Core.GOScript, config: AwsPutSqsConf
  * Processes a single batch of messages with retries
  */
 export async function processBatch(
-  script: Core.GOScript,
+  script: GOScript,
   config: AwsPutSqsConfig,
   queueUrl: string,
   messages: string[],
   stats: BulkStats,
 ): Promise<void> {
   const batchId = Math.random().toString(36).substring(2, 7);
-  const sqsService = new AWS.AWSSQSService(script.aws.clients.sqs, script.aws.clients.cloudWatch);
+  const sqsService = new AWSSQSService(script.aws.clients.sqs, script.aws.clients.cloudWatch);
 
-  const entries: AWS.SendMessageBatchRequestEntry[] = messages.map((body, index) => {
+  const entries: SendMessageBatchRequestEntry[] = messages.map((body, index) => {
     // Validate message size and content
-    AWS.SQSUtils.validateMessageSize(body);
+    SQSUtils.validateMessageSize(body);
 
     return {
       Id: `${batchId}-${index}`,
@@ -100,6 +107,6 @@ export async function processBatch(
 /**
  * Updates the spinner with current progress
  */
-export function updateProgress(script: Core.GOScript, stats: BulkStats): void {
+export function updateProgress(script: GOScript, stats: BulkStats): void {
   script.prompt.updateSpinner(`Sent: ${stats.success} | Failed: ${stats.failed} | Retries: ${stats.retries}`);
 }

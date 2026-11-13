@@ -1,4 +1,4 @@
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
 
 import { GOAIHat } from '@go-automation/go-ai';
 
@@ -12,7 +12,7 @@ const HAT_DESCRIPTIONS: Record<GOAIHat, string> = {
   [GOAIHat.SemanticMatch]: 'semantic comparison between two operational outcomes (JSON)',
 };
 
-export function printHats(script: Core.GOScript): void {
+export function printHats(script: GOScript): void {
   script.logger.section('Available hats');
   for (const [hat, desc] of Object.entries(HAT_DESCRIPTIONS)) {
     script.logger.text(`  ${hat.padEnd(20)} ${desc}`);

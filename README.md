@@ -24,7 +24,7 @@ Il sistema di type-checking e integrato da strumenti di **analisi statica (ESLin
 
 ### Common Core
 
-La libreria `@go-automation/go-common` implementa il livello di astrazione condiviso dell'SDK. Questo componente centralizza le funzionalità trasversali, fornendo un'interfaccia unificata per:
+La libreria `@pagopa/go-common` implementa il livello di astrazione condiviso dell'SDK. Questo componente centralizza le funzionalità trasversali, fornendo un'interfaccia unificata per:
 
 | Funzionalità     | Descrizione                                                |
 | ---------------- | ---------------------------------------------------------- |
@@ -77,7 +77,7 @@ Le dipendenze condivise del monorepo sono centralizzate nel catalogo di `pnpm-wo
 | ---------------------------------------------- | -------------------------------------------------------------- |
 | [**Onboarding**](docs/ONBOARDING.md)           | **Guida rapida per i nuovi sviluppatori (Setup IDE, AWS SSO)** |
 | [Architettura](docs/ARCHITECTURE.md)           | Struttura del monorepo, workspace pnpm, build system           |
-| [go-common](docs/GOCOMMON.md)                  | Documentazione della libreria `@go-automation/go-common`       |
+| [go-common](docs/GOCOMMON.md)                  | Documentazione della libreria `@pagopa/go-common`              |
 | [Coding Guidelines](docs/GUIDE_LINES.md)       | Standard di codifica, naming conventions, best practices       |
 | [Scripts - Guida Completa](docs/SCRIPTS.md)    | Architettura, convenzioni, quality gates, Lambda, toolchain    |
 | [**Deploy**](docs/DEPLOY.md)                   | **Guida alla pacchettizzazione e rilascio degli script**       |

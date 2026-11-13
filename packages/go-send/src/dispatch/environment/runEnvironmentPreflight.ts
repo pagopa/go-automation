@@ -1,4 +1,4 @@
-import { GOHttpClientError } from '@go-automation/go-common/core';
+import { GOHttpClientError } from '@pagopa/go-common/http';
 
 import { DispatchError } from '../DispatchError.js';
 import type { DispatchGroup } from '../model/DispatchGroup.js';

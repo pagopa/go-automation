@@ -1,10 +1,10 @@
-import type { Core } from '@go-automation/go-common';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import type { WatchtowerClient } from '@go-automation/go-watchtower-client';
-import type { ServiceRegistry } from '@go-automation/go-runbook';
+import type { ServiceRegistry } from '@pagopa/go-runbook/toolkits/common';
 
 export interface ExecuteRunbookDeps {
   readonly watchtower: WatchtowerClient;
-  readonly logger: Core.GOLogger;
+  readonly logger: GOLogger;
   readonly services: ServiceRegistry;
   readonly awsProfiles: ReadonlyArray<string>;
   readonly useConfiguredAwsProfiles: boolean;

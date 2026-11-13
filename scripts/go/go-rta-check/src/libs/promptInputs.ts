@@ -1,4 +1,10 @@
-import { Core } from '@go-automation/go-common';
+import {
+  GO_PROMPT_BACK,
+  type GOPromptDateRange,
+  type GOPromptDateRangePreset,
+  type GOScript,
+} from '@go-automation/go-script';
+import { describeDateInputFormats, type GODateBoundary, tryParseDateInput } from '@pagopa/go-common/dates';
 
 import type { GoRtaCheckConfig } from '../types/GoRtaCheckConfig.js';
 import { BACK_SHORTCUT_HINT } from './promptChoice.js';
@@ -29,7 +35,7 @@ export type PeriodOutcome = ({ readonly kind: 'VALUE' } & ResolvedPeriod) | { re
  * Month start is computed in UTC, the time zone every bound of this script is
  * resolved in, so the preset agrees with the dates typed by hand.
  */
-const PERIOD_PRESETS: ReadonlyArray<Core.GOPromptDateRangePreset> = [
+const PERIOD_PRESETS: ReadonlyArray<GOPromptDateRangePreset> = [
   { title: 'Ultime 24 ore', from: (now) => shift(now, -24 * 3_600_000), to: (now) => new Date(now.getTime()) },
   { title: 'Ultimi 7 giorni', from: (now) => shift(now, -7 * 86_400_000), to: (now) => new Date(now.getTime()) },
   { title: 'Ultimi 30 giorni', from: (now) => shift(now, -30 * 86_400_000), to: (now) => new Date(now.getTime()) },
@@ -71,14 +77,14 @@ export async function resolveInput(value: string | undefined, prompt: PromptFn):
  * @throws Error when a bound given by flag cannot be parsed
  */
 export async function resolvePeriod(
-  script: Core.GOScript,
+  script: GOScript,
   config: GoRtaCheckConfig,
   allowPrompt: boolean,
   canGoBack: boolean = false,
 ): Promise<PeriodOutcome> {
   if (allowPrompt && config.dateFrom === undefined && config.dateTo === undefined) {
     const period = await askPeriod(script, canGoBack);
-    if (period === Core.GO_PROMPT_BACK) return { kind: 'BACK' };
+    if (period === GO_PROMPT_BACK) return { kind: 'BACK' };
     return {
       kind: 'VALUE',
       dateFrom: period?.from?.toISOString() ?? '',
@@ -95,9 +101,9 @@ export async function resolvePeriod(
 
 /** Asks for the period, offering the way back only where there is one. */
 async function askPeriod(
-  script: Core.GOScript,
+  script: GOScript,
   canGoBack: boolean,
-): Promise<Core.GOPromptDateRange | typeof Core.GO_PROMPT_BACK | undefined> {
+): Promise<GOPromptDateRange | typeof GO_PROMPT_BACK | undefined> {
   if (!canGoBack) return await script.prompt.dateRange(PERIOD_MESSAGE, { presets: PERIOD_PRESETS });
 
   return await script.prompt.dateRangeWithBack(PERIOD_MESSAGE, {
@@ -118,9 +124,9 @@ async function askPeriod(
  * @throws Error when `value` cannot be parsed
  */
 async function resolveBound(
-  script: Core.GOScript,
+  script: GOScript,
   value: string | undefined,
-  boundary: Core.GODateBoundary,
+  boundary: GODateBoundary,
   allowPrompt: boolean,
   label: string,
 ): Promise<string> {
@@ -128,9 +134,9 @@ async function resolveBound(
     const trimmed = value.trim();
     if (trimmed === '') return '';
 
-    const parsed = Core.tryParseDateInput(trimmed, { boundary });
+    const parsed = tryParseDateInput(trimmed, { boundary });
     if (parsed === undefined) {
-      throw new Error(`${label} non valida: "${trimmed}". Formati accettati: ${Core.describeDateInputFormats()}`);
+      throw new Error(`${label} non valida: "${trimmed}". Formati accettati: ${describeDateInputFormats()}`);
     }
     return parsed.iso;
   }
@@ -150,7 +156,7 @@ async function resolveBound(
  * @param allowPrompt - Whether the confirmation may be asked for
  * @returns `true` when the run is confirmed
  */
-export async function confirmRun(script: Core.GOScript, count: number, allowPrompt: boolean): Promise<boolean> {
+export async function confirmRun(script: GOScript, count: number, allowPrompt: boolean): Promise<boolean> {
   if (!allowPrompt) return true;
   return (await script.prompt.confirm(`Eseguo il runbook su ${count} occorrenze?`)) ?? false;
 }

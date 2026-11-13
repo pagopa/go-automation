@@ -10,7 +10,10 @@
  * using the AWS profile configured with access to the confinfo account.
  */
 
-import { AWS, Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { AWSS3Service } from '@pagopa/go-aws/s3';
+import { GOJSONListExporter } from '@pagopa/go-common/exporters';
+import { GOPathType } from '@pagopa/go-common/files';
 import { SENDSafeStorageS3Service } from '@go-automation/go-send';
 
 import { loadTasks } from './libs/loadTasks.js';
@@ -29,12 +32,12 @@ import type { DownloadResult } from './types/DownloadResult.js';
  *
  * @param script - The GOScript instance for logging and prompts
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   script.logger.section('Starting Send Download Safestorage Attachments');
 
   const config = await script.getConfiguration<DownloadSafestorageAttachmentsConfig>();
 
-  const inputFilePath = script.paths.resolvePath(config.inputFile, Core.GOPathType.INPUT);
+  const inputFilePath = script.paths.resolvePath(config.inputFile, GOPathType.INPUT);
   script.logger.info(`Input file  : ${inputFilePath}`);
   script.logger.info(`Input mode  : ${config.inputMode}`);
   script.logger.info(`AWS profile : ${config.awsProfile}`);
@@ -49,8 +52,8 @@ export async function main(script: Core.GOScript): Promise<void> {
   script.logger.info(`Output dir  : ${outputDir}`);
 
   const reportFilePath = script.paths.getExecutionOutputFilePath('download-report.jsonl');
-  const safeStorage = new SENDSafeStorageS3Service(new AWS.AWSS3Service(script.aws.clients.s3));
-  const exporter = new Core.GOJSONListExporter<DownloadResult>({ outputPath: reportFilePath, jsonl: true });
+  const safeStorage = new SENDSafeStorageS3Service(new AWSS3Service(script.aws.clients.s3));
+  const exporter = new GOJSONListExporter<DownloadResult>({ outputPath: reportFilePath, jsonl: true });
   script.prompt.startSpinner('Loading input file...');
 
   try {

@@ -1,4 +1,4 @@
-import { Core } from '@go-automation/go-common';
+import { GOConfigKeyTransformer } from '@go-automation/go-script';
 
 import type { WatchtowerApplyMode } from '../types/WatchtowerApplyMode.js';
 
@@ -10,8 +10,8 @@ export function resolveApplyMode(value: string | undefined): WatchtowerApplyMode
   // un errore qui dice perché invece di far scoprire un 400 a valle.
   if (normalized === 'all') {
     throw new Error(
-      `${Core.GOConfigKeyTransformer.toCLIFlag('apply')}=all is not available: APPLY_ALL is disabled in v1; use "known".`,
+      `${GOConfigKeyTransformer.toCLIFlag('apply')}=all is not available: APPLY_ALL is disabled in v1; use "known".`,
     );
   }
-  throw new Error(`${Core.GOConfigKeyTransformer.toCLIFlag('apply')} must be one of: none, known`);
+  throw new Error(`${GOConfigKeyTransformer.toCLIFlag('apply')} must be one of: none, known`);
 }

@@ -1,4 +1,4 @@
-import type { RunbookOutput } from '@go-automation/go-runbook';
+import type { RunbookOutput } from '@pagopa/go-runbook/output';
 
 import type { AlarmAnalysisDto } from '@go-automation/go-watchtower-client';
 import type { AnalysisMatch, AnalysisMatchSignals, RunbookCheck, V2Status } from '../types/RtaCheckReport.js';

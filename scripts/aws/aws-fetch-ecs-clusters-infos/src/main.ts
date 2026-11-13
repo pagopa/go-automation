@@ -5,7 +5,8 @@
  * Receives typed dependencies (script + config) for clean separation of concerns.
  */
 
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOJSONFileImporter } from '@pagopa/go-common/importers';
 import type { ConfigFileItem, SendFetchEcsClustersInfosConfig } from './types/index.js';
 import {
   getAndPrintSSMParametersValues,
@@ -21,9 +22,9 @@ import {
  *
  * @param script - The GOScript instance for logging and prompts
  */
-export async function main(script: Core.GOScript): Promise<void> {
+export async function main(script: GOScript): Promise<void> {
   const config = await script.getConfiguration<SendFetchEcsClustersInfosConfig>();
-  const configFileImporter = new Core.GOJSONFileImporter({
+  const configFileImporter = new GOJSONFileImporter({
     inputPath: config.configFile,
   });
   const configFile: ConfigFileItem[] = (await configFileImporter.import()) as ConfigFileItem[];

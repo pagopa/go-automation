@@ -2,11 +2,11 @@
  * Known cases for the {{RUNBOOK_ID}} runbook.
  */
 
-import { lambda } from '../framework.js';
-import type { KnownCase } from '../framework.js';
+import { lambda } from '../../../../toolkits/send/index.js';
+import type { KnownCase } from '../../../../engine/index.js';
 // Uncomment with the example below:
-// import { knownCase } from '../framework.js';
-// import { stepEvidenceMatches } from '../common/evidenceConditions.js';
+// import { knownCase } from '../../../../toolkits/send/index.js';
+// import { stepEvidenceMatches } from '../../../../engine/index.js';
 
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   ...lambda.LAMBDA_RUNTIME_KNOWN_CASES,

@@ -9,6 +9,18 @@ const config: KnipConfig = {
     'packages/go-common': {
       project: ['src/**/*.ts'],
     },
+    'packages/go-aws': {
+      project: ['src/**/*.ts'],
+    },
+    'packages/go-script': {
+      project: ['src/**/*.ts'],
+    },
+    'packages/go-documents': {
+      project: ['src/**/*.ts'],
+    },
+    'packages/go-slack': {
+      project: ['src/**/*.ts'],
+    },
     'packages/go-execute-runbook-contracts': {
       project: ['src/**/*.ts'],
     },

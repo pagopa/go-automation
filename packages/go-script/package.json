@@ -1,0 +1,56 @@
+{
+  "name": "@go-automation/go-script",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GO automation CLI/Lambda script framework: GOScript, configuration, prompts, execution environment and paths.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "default": "./dist/config/index.js"
+    },
+    "./prompt": {
+      "types": "./dist/prompt/index.d.ts",
+      "default": "./dist/prompt/index.js"
+    },
+    "./environment": {
+      "types": "./dist/environment/index.d.ts",
+      "default": "./dist/environment/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "watch": "tsc --build --watch",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'"
+  },
+  "author": "Team GO - Gestione Operativa",
+  "license": "EUPL-1.2",
+  "dependencies": {
+    "@aws-sdk/client-athena": "catalog:",
+    "@aws-sdk/client-cloudwatch": "catalog:",
+    "@aws-sdk/client-cloudwatch-logs": "catalog:",
+    "@aws-sdk/client-dynamodb": "catalog:",
+    "@aws-sdk/client-ecs": "catalog:",
+    "@aws-sdk/client-lambda": "catalog:",
+    "@aws-sdk/client-s3": "catalog:",
+    "@aws-sdk/client-scheduler": "catalog:",
+    "@aws-sdk/client-secrets-manager": "catalog:",
+    "@aws-sdk/client-sqs": "catalog:",
+    "@aws-sdk/client-ssm": "catalog:",
+    "@aws-sdk/util-dynamodb": "catalog:",
+    "@inquirer/prompts": "catalog:",
+    "luxon": "catalog:",
+    "@pagopa/go-aws": "workspace:*",
+    "@pagopa/go-common": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/luxon": "catalog:",
+    "@types/node": "catalog:"
+  }
+}

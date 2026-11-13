@@ -1,4 +1,4 @@
-import type { Core } from '@go-automation/go-common';
+import type { GOExportFormat } from '@pagopa/go-common/exporters';
 
 /**
  * Script configuration interface
@@ -12,5 +12,5 @@ export interface SendReportDlqConfig {
   readonly outputFile: string;
 
   /** Output format */
-  readonly outputFormat: Core.GOExportFormat;
+  readonly outputFormat: GOExportFormat;
 }

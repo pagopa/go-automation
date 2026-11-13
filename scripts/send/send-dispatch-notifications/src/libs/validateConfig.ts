@@ -3,7 +3,7 @@
  * result has literal types, parsed durations and parsed `--defaults`.
  */
 
-import { Core } from '@go-automation/go-common';
+import { parseDuration } from '@pagopa/go-common/dates';
 import { Dispatch, MAX_PRELOAD_ITEMS } from '@go-automation/go-send';
 import type { SENDApiVersion } from '@go-automation/go-send';
 
@@ -177,13 +177,13 @@ function optionalFormat(value: string | undefined, name: string): Dispatch.Input
 export function parseDurations(config: SendDispatchNotificationsConfig): DispatchDurations {
   try {
     return {
-      httpTimeoutMs: Core.parseDuration(config.httpTimeout, 'http.timeout', TIMER),
-      sendTimeoutMs: Core.parseDuration(config.sendTimeout, 'send.timeout', TIMER),
-      verifyInitialDelayMs: Core.parseDuration(config.verifyInitialDelay, 'verify.initial.delay', TIMER),
-      verifyTimeoutMs: Core.parseDuration(config.verifyTimeout, 'verify.timeout', TIMER),
-      requestIdInitialDelayMs: Core.parseDuration(config.requestIdInitialDelay, 'request.id.initial.delay', TIMER),
-      requestIdTimeoutMs: Core.parseDuration(config.requestIdTimeout, 'request.id.timeout', TIMER),
-      uploadReuseMaxAgeMs: Core.parseDuration(config.uploadReuseMaxAge, 'upload.reuse.max.age', {
+      httpTimeoutMs: parseDuration(config.httpTimeout, 'http.timeout', TIMER),
+      sendTimeoutMs: parseDuration(config.sendTimeout, 'send.timeout', TIMER),
+      verifyInitialDelayMs: parseDuration(config.verifyInitialDelay, 'verify.initial.delay', TIMER),
+      verifyTimeoutMs: parseDuration(config.verifyTimeout, 'verify.timeout', TIMER),
+      requestIdInitialDelayMs: parseDuration(config.requestIdInitialDelay, 'request.id.initial.delay', TIMER),
+      requestIdTimeoutMs: parseDuration(config.requestIdTimeout, 'request.id.timeout', TIMER),
+      uploadReuseMaxAgeMs: parseDuration(config.uploadReuseMaxAge, 'upload.reuse.max.age', {
         maxMs: Number.MAX_SAFE_INTEGER,
       }),
     };

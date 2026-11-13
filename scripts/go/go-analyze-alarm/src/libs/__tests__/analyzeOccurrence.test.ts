@@ -4,8 +4,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
 
-import { Core } from '@go-automation/go-common';
-import type { Runbook, RunbookExecutionTrace } from '@go-automation/go-runbook';
+import type { GOScript } from '@go-automation/go-script';
+import { GOLogger } from '@pagopa/go-common/logging';
+import type { Runbook, RunbookExecutionTrace } from '@pagopa/go-runbook';
 
 import { analyzeOccurrence } from '../analyzeOccurrence.js';
 import type { AnalyzableAlarmConfig } from '../../types/AnalyzableAlarmConfig.js';
@@ -15,7 +16,7 @@ describe('analyzeOccurrence', () => {
     const outputDir = await mkdtemp(join(tmpdir(), 'go-analyze-alarm-region-'));
     t.after(async () => rm(outputDir, { recursive: true, force: true }));
 
-    const logger = new Core.GOLogger();
+    const logger = new GOLogger();
     const script = {
       logger,
       aws: {
@@ -26,7 +27,7 @@ describe('analyzeOccurrence', () => {
         services: { cloudWatchLogs: {}, cloudWatchMetrics: {}, athena: {}, dynamoDB: {} },
       },
       paths: { resolvePathWithInfo: (fileName: string) => ({ path: join(outputDir, fileName) }) },
-    } as unknown as Core.GOScript;
+    } as unknown as GOScript;
     const config: AnalyzableAlarmConfig = {
       analysisMode: 'single',
       alarmName: 'example-alarm',

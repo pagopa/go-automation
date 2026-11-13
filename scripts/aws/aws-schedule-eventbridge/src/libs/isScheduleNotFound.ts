@@ -2,7 +2,7 @@
  * Recognises the one Scheduler error that is drift rather than a failure.
  */
 
-import { Core } from '@go-automation/go-common';
+import { hasErrorName } from '@pagopa/go-common/errors';
 
 /** The error name EventBridge Scheduler uses for a schedule that does not exist */
 const NOT_FOUND_ERROR_NAME = 'ResourceNotFoundException';
@@ -17,5 +17,5 @@ const NOT_FOUND_ERROR_NAME = 'ResourceNotFoundException';
  * @returns True when the error says the schedule does not exist
  */
 export function isScheduleNotFound(error: unknown): boolean {
-  return Core.hasErrorName(error, NOT_FOUND_ERROR_NAME);
+  return hasErrorName(error, NOT_FOUND_ERROR_NAME);
 }

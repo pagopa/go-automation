@@ -1,4 +1,5 @@
-import { Core } from '@go-automation/go-common';
+import type { GOScript } from '@go-automation/go-script';
+import { GOFileListExporter } from '@pagopa/go-common/exporters';
 import type { SendPaperRequestErrorCheckConfig, CheckFeedbackResult } from '../types/index.js';
 import { getCoreDynamoDBService } from '../utils/awsClients.js';
 import { extractIun, get } from '../utils/get.js';
@@ -11,12 +12,12 @@ const TIMELINES_TABLE_NAME = 'pn-Timelines';
  * Verifica per ciascun requestId l'esistenza di un evento di feedback in DynamoDB (pn-Timelines).
  * Raggruppa per IUN per minimizzare le query a DynamoDB e indicizza gli eventi con Map (O(1)).
  *
- * @param script - Istanza di Core.GOScript per accedere ai client e logger
+ * @param script - Istanza di GOScript per accedere ai client e logger
  * @param requestIds - Lista dei requestId da verificare
  * @returns Oggetto CheckFeedbackResult con l'esito delle verifiche
  */
 export async function checkFeedbackFromRequestIds(
-  script: Core.GOScript,
+  script: GOScript,
   requestIds: ReadonlyArray<string>,
 ): Promise<CheckFeedbackResult> {
   const config = await script.getConfiguration<SendPaperRequestErrorCheckConfig>();
@@ -31,9 +32,9 @@ export async function checkFeedbackFromRequestIds(
   const notFoundFilePath = resolveOutputPath(script.paths, 'not_found.txt', config.outputDir);
   const failedFilePath = resolveOutputPath(script.paths, 'failed.txt', config.outputDir);
 
-  const foundExporter = new Core.GOFileListExporter({ outputPath: foundFilePath });
-  const notFoundExporter = new Core.GOFileListExporter({ outputPath: notFoundFilePath });
-  const failedExporter = new Core.GOFileListExporter({ outputPath: failedFilePath });
+  const foundExporter = new GOFileListExporter({ outputPath: foundFilePath });
+  const notFoundExporter = new GOFileListExporter({ outputPath: notFoundFilePath });
+  const failedExporter = new GOFileListExporter({ outputPath: failedFilePath });
   const foundStream = await foundExporter.exportStream();
   const notFoundStream = await notFoundExporter.exportStream();
   const failedStream = await failedExporter.exportStream();

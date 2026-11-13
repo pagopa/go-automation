@@ -363,10 +363,11 @@ TEMP_CONFIG=$(mktemp)
 trap "rm -f $TEMP_PARAMS $TEMP_CONFIG" EXIT
 
 if [[ "$INCLUDE_AWS_PROFILE" == "true" ]]; then
+    GO_SCRIPT_CONFIG_IMPORT="import { type GOConfigParameterOptions, GOConfigParameterType, type GOScriptMetadata } from '@go-automation/go-script';"
     cat > "$TEMP_PARAMS" << 'PARAMS_EOF'
   {
     name: 'aws.profile',
-    type: Core.GOConfigParameterType.STRING,
+    type: GOConfigParameterType.STRING,
     description: 'AWS SSO profile name',
     required: true,
     aliases: ['ap'],
@@ -377,12 +378,13 @@ PARAMS_EOF
   readonly awsProfile: string;
 CONFIG_EOF
 else
+    GO_SCRIPT_CONFIG_IMPORT="import type { GOConfigParameterOptions, GOScriptMetadata } from '@go-automation/go-script';"
     cat > "$TEMP_PARAMS" << 'PARAMS_EOF'
   // Add your parameters here
   // Example:
   // {
   //   name: 'input.file',
-  //   type: Core.GOConfigParameterType.STRING,
+  //   type: GOConfigParameterType.STRING,
   //   description: 'Path to input file',
   //   required: true,
   //   aliases: ['i'],
@@ -397,6 +399,7 @@ fi
 
 sed -e "s|{{SCRIPT_TITLE}}|$SCRIPT_TITLE|g" \
     -e "s|{{SCRIPT_DESCRIPTION}}|$SCRIPT_DESCRIPTION|g" \
+    -e "s|{{GO_SCRIPT_CONFIG_IMPORT}}|$GO_SCRIPT_CONFIG_IMPORT|g" \
     "$TEMPLATES_DIR/config.ts.template" | \
     awk -v pfile="$TEMP_PARAMS" '
         /{{PARAMETERS_CONTENT}}/ { while ((getline line < pfile) > 0) print line; close(pfile); next }
@@ -476,7 +479,7 @@ else
     print_warning "Build had issues:"
     echo "$BUILD_OUTPUT" | tail -15
     echo ""
-    print_warning "Tip: ensure go-common is built first (pnpm build:common)"
+    print_warning "Tip: ensure go-common, go-aws and go-script are built first (pnpm build)"
 fi
 
 echo ""

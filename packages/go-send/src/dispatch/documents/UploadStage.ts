@@ -1,5 +1,7 @@
-import { getErrorMessage, GOBackoff, GOConcurrencyPool, GOHttpClientError } from '@go-automation/go-common/core';
-import type { GOBackoffFn } from '@go-automation/go-common/core';
+import { GOConcurrencyPool } from '@pagopa/go-common/concurrency';
+import { getErrorMessage } from '@pagopa/go-common/errors';
+import { GOHttpClientError } from '@pagopa/go-common/http';
+import { GOBackoff, type GOBackoffFn } from '@pagopa/go-common/polling';
 
 import type { SENDPreloadResponse } from '../../services/attachment/models/SENDPreloadResponse.js';
 import { MAX_PRELOAD_ITEMS } from '../../services/attachment/SENDAttachmentService.js';

@@ -1,4 +1,4 @@
-import { GOHttpClient, GOHttpClientError } from '@go-automation/go-common/core';
+import { GOHttpClient, GOHttpClientError } from '@pagopa/go-common/http';
 
 import type { ExternalChannelsApi } from './ExternalChannelsApi.js';
 import type { PaperEngagementRequest } from './PaperEngagementRequest.js';

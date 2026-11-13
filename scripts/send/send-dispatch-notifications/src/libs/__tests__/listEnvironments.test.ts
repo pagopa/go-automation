@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as path from 'node:path';
 
-import type { Core } from '@go-automation/go-common';
+import type { GOLogger } from '@pagopa/go-common/logging';
 import { Dispatch } from '@go-automation/go-send';
 
 import { DispatchUsageError } from '../DispatchUsageError.js';
@@ -34,8 +34,8 @@ class TableLogger {
     this.rows = rows;
   }
 
-  public get logger(): Core.GOLogger {
-    return this as unknown as Core.GOLogger;
+  public get logger(): GOLogger {
+    return this as unknown as GOLogger;
   }
 }
 
@@ -74,6 +74,6 @@ describe('listEnvironments', () => {
     await writeFixture(file, 'environments:\n  ente-test: [unclosed\n');
     const loader = new Dispatch.EnvironmentLoader(() => undefined);
 
-    await assert.rejects(listEnvironments(logger as unknown as Core.GOLogger, loader, file), DispatchUsageError);
+    await assert.rejects(listEnvironments(logger as unknown as GOLogger, loader, file), DispatchUsageError);
   });
 });

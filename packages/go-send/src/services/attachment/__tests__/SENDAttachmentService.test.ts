@@ -2,7 +2,7 @@ import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'crypto';
 
-import type { GOHttpClient } from '@go-automation/go-common/core';
+import type { GOHttpClient } from '@pagopa/go-common/http';
 import { SENDAttachmentService } from '../SENDAttachmentService.js';
 import type { SENDPreloadRequest } from '../models/SENDPreloadRequest.js';
 import type { SENDPreloadResponse } from '../models/SENDPreloadResponse.js';
