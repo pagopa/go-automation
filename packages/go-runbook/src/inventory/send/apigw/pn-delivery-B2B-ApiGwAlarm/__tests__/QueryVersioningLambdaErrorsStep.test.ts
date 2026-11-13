@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
-import type { RunbookContext } from '../../../../../engine/index.js';
 import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
 
 import { QueryVersioningLambdaErrorsStep } from '../QueryVersioningLambdaErrorsStep.js';
@@ -15,6 +14,7 @@ import {
   VERSIONING_LAMBDA_PROBE_STEP_ID,
   VERSIONING_LAMBDA_UNAVAILABLE_REASON_VAR,
 } from '../versioningLambdaProbe.js';
+import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
 
 type CloudWatchQueryFn = (
   logGroups: ReadonlyArray<string>,
@@ -25,7 +25,7 @@ function row(fields: Record<string, string>): GOLogsInsightsResultField[] {
   return Object.entries(fields).map(([field, value]) => ({ field, value }));
 }
 
-function buildContext(vars: Readonly<Record<string, string>>, query: CloudWatchQueryFn): RunbookContext {
+function buildContext(vars: Readonly<Record<string, string>>, query: CloudWatchQueryFn): OperationalContext {
   return {
     executionId: 'versioning-lambda-probe-test',
     startedAt: new Date('2026-09-01T10:00:00.000Z'),

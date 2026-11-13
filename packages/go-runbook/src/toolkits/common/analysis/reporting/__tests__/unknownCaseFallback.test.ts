@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { GOLogger } from '@pagopa/go-common/logging';
 
 import { ActionExecutor } from '../../../../../engine/actions/ActionExecutor.js';
+import { ANALYSIS_LOG_ACTION_RENDERER } from '../ANALYSIS_LOG_ACTION_RENDERER.js';
 import { renderLogActionText } from '../renderLogAction.js';
 import { unknownCaseFallback } from '../unknownCaseFallback.js';
 import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
@@ -32,7 +33,7 @@ async function renderedRows(
   }): void => {
     rows.push(...arg.data);
   };
-  await new ActionExecutor(logger).execute(action, contextWith(vars));
+  await new ActionExecutor(logger, ANALYSIS_LOG_ACTION_RENDERER).execute(action, contextWith(vars));
   return rows;
 }
 

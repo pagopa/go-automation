@@ -490,35 +490,42 @@ function fakeDeps(
 
 function successfulCloudWatchLogsService(): AWSCloudWatchLogsService {
   return {
-    forTarget: () => ({
-      queryWithStatistics: async () => {
-        await Promise.resolve();
-        return {
-          rows: [],
-          statistics: { bytesScanned: 0, recordsScanned: 0, recordsMatched: 0 },
-          queryExecutions: [],
-        };
-      },
-    }),
+    // A complete scoped reader: the operational engine checks the bound services (RBREORG-18).
+    forTarget: () =>
+      createTestServiceRegistry({
+        cloudWatchLogs: {
+          queryWithStatistics: async () => {
+            await Promise.resolve();
+            return {
+              rows: [],
+              statistics: { bytesScanned: 0, recordsScanned: 0, recordsMatched: 0 },
+              queryExecutions: [],
+            };
+          },
+        },
+      }).cloudWatchLogs,
   } as unknown as AWSCloudWatchLogsService;
 }
 
 function failingCloudWatchLogsService(onQuery: StopObserverFn, onStop: StopObserverFn): AWSCloudWatchLogsService {
   return {
-    forTarget: (_target: unknown, activeOperations: AWSActiveOperationRegistry) => ({
-      queryWithStatistics: async () => {
-        await Promise.resolve();
-        onQuery();
-        activeOperations.register({
-          service: 'LOGS',
-          operationId: 'query-1',
-          stop: async () => {
+    forTarget: (_target: unknown, activeOperations: AWSActiveOperationRegistry) =>
+      createTestServiceRegistry({
+        cloudWatchLogs: {
+          queryWithStatistics: async () => {
             await Promise.resolve();
-            onStop();
+            onQuery();
+            activeOperations.register({
+              service: 'LOGS',
+              operationId: 'query-1',
+              stop: async () => {
+                await Promise.resolve();
+                onStop();
+              },
+            });
+            throw new Error('query failed after remote operation registration');
           },
-        });
-        throw new Error('query failed after remote operation registration');
-      },
-    }),
+        },
+      }).cloudWatchLogs,
   } as unknown as AWSCloudWatchLogsService;
 }

@@ -9,6 +9,9 @@ import { resolveTimeRange } from '../../../time/resolveTimeRange.js';
 import { executeStep } from '../../../../../engine/steps/execution/executeStep.js';
 import { executeCloudWatchLogsQuery } from '../../../steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
 import { LambdaReporter } from '../reporting/LambdaReporter.js';
+import { OperationalStep } from '../../../steps/OperationalStep.js';
+import type { OperationalContext } from '../../../services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
@@ -30,7 +33,7 @@ export interface QueryLambdaInvocationConfig {
  * Its rows are stored as step output so runbook known cases can match on
  * `steps.<id>`.
  */
-export class QueryLambdaInvocationStep implements Step<Rows> {
+export class QueryLambdaInvocationStep extends OperationalStep<Rows> implements Step<Rows> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -40,6 +43,7 @@ export class QueryLambdaInvocationStep implements Step<Rows> {
   private readonly timeRangeFromParams: TimeRangeFromParams;
 
   constructor(config: QueryLambdaInvocationConfig) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.lambdaLogGroup = config.lambdaLogGroup;
@@ -55,7 +59,16 @@ export class QueryLambdaInvocationStep implements Step<Rows> {
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<Rows>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
     const requestId = (context.vars.get('lambdaRequestId') ?? '').trim();
     if (requestId === '') {
       // No requestId extracted: nothing to reconstruct, skip the query.

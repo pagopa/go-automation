@@ -51,7 +51,7 @@ export function classifyLambdaError(
   if (THROTTLE_RE.test(message)) {
     return 'throttle';
   }
-  if (downstreamSignatures.some((signature) => signature.test(message))) {
+  if (downstreamSignatures.some((signature) => matchesStatelessly(signature, message))) {
     return 'downstream';
   }
   if (APPLICATION_ERROR_RE.test(message)) {
@@ -63,4 +63,17 @@ export function classifyLambdaError(
     return 'out-of-memory';
   }
   return 'unknown';
+}
+
+/**
+ * Tests a profile signature without depending on, or changing, its `lastIndex`:
+ * a `g` or `y` signature is shared by every row and execution of the profile.
+ *
+ * @param signature - Product signature from the query profile
+ * @param message - Message to test
+ * @returns Whether the message matches
+ */
+function matchesStatelessly(signature: RegExp, message: string): boolean {
+  if (!signature.global && !signature.sticky) return signature.test(message);
+  return new RegExp(signature.source, signature.flags.replace(/[gy]/gu, '')).test(message);
 }

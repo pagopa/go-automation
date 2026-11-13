@@ -1,11 +1,17 @@
 import { escapeLogsInsightsString, type GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { executeStep, type RunbookContext, type Step, type StepResult } from '../../../../engine/index.js';
-import { executeCloudWatchLogsQuery, resolveTimeRange } from '../../../../toolkits/interop/index.js';
+import {
+  executeCloudWatchLogsQuery,
+  resolveTimeRange,
+  OperationalStep,
+  type OperationalContext,
+  type OperationalServiceName,
+} from '../../../../toolkits/interop/index.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
 /** Include INFO and WARN for Kafka episodes that carry no request CID. */
-export class QueryDelegationOutboundWriterContextStep implements Step<Rows> {
+export class QueryDelegationOutboundWriterContextStep extends OperationalStep<Rows> implements Step<Rows> {
   readonly id = 'query-delegation-outbound-writer-context';
   readonly label = 'Contesto completo del delegation outbound writer';
   readonly kind = 'data' as const;
@@ -19,7 +25,16 @@ export class QueryDelegationOutboundWriterContextStep implements Step<Rows> {
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<Rows>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
     return executeStep('Delegation items writer context', async () => {
       const logGroup = context.vars.get('interopLogGroup')?.trim();
       const podApp = context.vars.get('interopPodApp')?.trim();

@@ -114,4 +114,14 @@ describe('scanLambdaLogs', () => {
     assert.ok(scan !== undefined);
     assert.strictEqual(scan.requestId, '99999999-8888-7777-6666-555555555555');
   });
+
+  it('keeps the downstream category across the two classification passes and repeated scans with a global signature', () => {
+    const signatures = [/External service\s+\S+\s+returned errors/gi];
+    const rows = [row('External service pn-emd-integration returned errors')];
+
+    assert.deepStrictEqual(
+      [1, 2].map(() => scanWithSignatures(rows, signatures)?.category),
+      ['downstream', 'downstream'],
+    );
+  });
 });

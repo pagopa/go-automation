@@ -9,6 +9,9 @@ import { resolveTimeRange } from '../../../time/resolveTimeRange.js';
 import { executeCloudWatchLogsQuery } from '../../../steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
 import { executeStep } from '../../../../../engine/steps/execution/executeStep.js';
 import { escapeSqlString } from '../../../queries/interpolateTemplate.js';
+import { OperationalStep } from '../../../steps/OperationalStep.js';
+import type { OperationalContext } from '../../../services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
 
 const TRACE_ID_PLACEHOLDER = '{{TRACE_ID}}';
 
@@ -23,7 +26,10 @@ export interface QueryServiceTraceLogsConfig {
   readonly timeRangeFromParams: TimeRangeFromParams;
 }
 
-export class QueryServiceTraceLogsStep implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
+export class QueryServiceTraceLogsStep
+  extends OperationalStep<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+  implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+{
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -36,6 +42,7 @@ export class QueryServiceTraceLogsStep implements Step<ReadonlyArray<ReadonlyArr
   private readonly timeRangeFromParams: TimeRangeFromParams;
 
   constructor(config: QueryServiceTraceLogsConfig) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.serviceName = config.serviceName;
@@ -65,7 +72,18 @@ export class QueryServiceTraceLogsStep implements Step<ReadonlyArray<ReadonlyArr
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(
+    context: OperationalContext,
+  ): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
     return executeStep('CloudWatch service trace logs query', async () => {
       const traceId = this.resolveTraceId(context);
       if (traceId === '') {

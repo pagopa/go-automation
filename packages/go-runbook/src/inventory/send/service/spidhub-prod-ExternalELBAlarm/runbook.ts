@@ -1,5 +1,5 @@
-import { type Runbook, RunbookBuilder } from '../../../../engine/index.js';
-import { unknownCaseFallback } from '../../../../toolkits/send/index.js';
+import type { Runbook } from '../../../../engine/index.js';
+import { unknownCaseFallback, AlarmRunbookBuilder } from '../../../../toolkits/send/index.js';
 import {
   SPIDHUB_ALARM,
   RUNBOOK_URL,
@@ -11,7 +11,7 @@ import { KNOWN_CASES } from './knownCases.js';
 import { QuerySpidHubDiagnosticsStep } from './QuerySpidHubDiagnosticsStep.js';
 
 export function buildRunbook(): Runbook {
-  const builder = RunbookBuilder.create(SPIDHUB_ALARM)
+  const builder = AlarmRunbookBuilder.create(SPIDHUB_ALARM)
     .metadata({
       name: SPIDHUB_ALARM,
       description:

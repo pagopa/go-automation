@@ -31,10 +31,11 @@ export interface LogAction {
   /** Evidence rows rendered under the title. */
   readonly details?: ReadonlyArray<LogActionRow>;
   /**
-   * How the console renders the action. `known-case` and `unknown-case`
-   * produce the banner + table block; `plain` (the default) logs the text.
+   * Rendering hint, opaque to the engine: the injected {@link LogActionRenderer}
+   * interprets it (the analysis renderer knows `known-case` and `unknown-case`).
+   * The key keeps its name because it is part of the definition digest.
    */
-  readonly renderAs?: 'plain' | 'known-case' | 'unknown-case';
+  readonly renderAs?: string;
 }
 
 /**

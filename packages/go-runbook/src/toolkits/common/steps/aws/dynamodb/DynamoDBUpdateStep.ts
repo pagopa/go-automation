@@ -1,8 +1,10 @@
 import type { Step } from '../../../../../engine/types/Step.js';
 import type { StepKind } from '../../../../../engine/types/StepKind.js';
 import type { StepResult } from '../../../../../engine/types/StepResult.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
 import { throwIfRunbookAborted } from '../../../../../engine/context/throwIfRunbookAborted.js';
+import { OperationalStep } from '../../OperationalStep.js';
+import type { OperationalContext } from '../../../services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
 
 /**
  * Configuration for the DynamoDB update step.
@@ -41,7 +43,7 @@ export interface DynamoDBUpdateConfig {
  * });
  * ```
  */
-export class DynamoDBUpdateStep implements Step<void> {
+export class DynamoDBUpdateStep extends OperationalStep<void> implements Step<void> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'mutation';
@@ -53,6 +55,7 @@ export class DynamoDBUpdateStep implements Step<void> {
   private readonly expressionAttributeNames: Readonly<Record<string, string>> | undefined;
 
   constructor(config: DynamoDBUpdateConfig) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.tableName = config.tableName;
@@ -63,12 +66,21 @@ export class DynamoDBUpdateStep implements Step<void> {
   }
 
   /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['dynamodb'];
+  }
+
+  /**
    * Executes the DynamoDB update operation.
    *
    * @param context - The runbook execution context
    * @returns Step result indicating success or failure
    */
-  async execute(context: RunbookContext): Promise<StepResult<void>> {
+  override async execute(context: OperationalContext): Promise<StepResult<void>> {
     try {
       throwIfRunbookAborted(context);
       await context.services.dynamodb.updateItem(

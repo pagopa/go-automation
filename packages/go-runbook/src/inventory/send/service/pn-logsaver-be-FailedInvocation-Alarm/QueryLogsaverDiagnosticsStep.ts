@@ -4,8 +4,14 @@ import {
   sumCloudWatchLogsQueryStatistics,
 } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
-import { executeStep, type RunbookContext, type Step, type StepResult } from '../../../../engine/index.js';
-import { executeCloudWatchLogsQuery, resolveTimeRange } from '../../../../toolkits/send/index.js';
+import { executeStep, type Step, type StepResult } from '../../../../engine/index.js';
+import {
+  executeCloudWatchLogsQuery,
+  resolveTimeRange,
+  OperationalStep,
+  type OperationalContext,
+  type OperationalServiceName,
+} from '../../../../toolkits/send/index.js';
 
 export const LOG_GROUP = '/aws/ecs/pn-logsaver-be';
 const ROW_LIMIT = 1000;
@@ -38,7 +44,7 @@ const STREAM_QUERY: string = `stats min(@timestamp) as firstLog, max(@timestamp)
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
 /** Collect the logs and streams available for the logsaver occurrence. */
-export class QueryLogsaverDiagnosticsStep implements Step<Rows> {
+export class QueryLogsaverDiagnosticsStep extends OperationalStep<Rows> implements Step<Rows> {
   readonly id = 'query-logsaver-diagnostics';
   readonly label = 'Log e stream del job logsaver';
   readonly kind = 'data' as const;
@@ -47,7 +53,16 @@ export class QueryLogsaverDiagnosticsStep implements Step<Rows> {
     return { logGroup: LOG_GROUP, errorQuery: ERROR_QUERY, streamQuery: STREAM_QUERY };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<Rows>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
     return executeStep('Logsaver diagnostics', async () => {
       const occurrenceAccount = context.params.get('awsAccountId');
       const region = context.params.get('awsRegion') ?? 'eu-south-1';

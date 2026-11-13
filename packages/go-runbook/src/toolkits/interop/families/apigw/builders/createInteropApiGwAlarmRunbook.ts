@@ -1,4 +1,4 @@
-import { RunbookBuilder } from '../../../../../engine/builders/RunbookBuilder.js';
+import { AlarmRunbookBuilder } from '../../../../common/builders/AlarmRunbookBuilder.js';
 import { finishAlarmRunbook } from '../../../../common/builders/finishAlarmRunbook.js';
 import { applyPipelineHooks } from '../../../../../engine/builders/applyPipelineHooks.js';
 import type { Runbook } from '../../../../../engine/types/Runbook.js';
@@ -67,7 +67,7 @@ export function createInteropApiGwAlarmRunbook(config: InteropApiGwAlarmConfig):
       ? queryProfile.buildApplicationLogsQuery
       : (): string => queryProfile.buildApplicationLogsQuery(podAppFilter);
 
-  const builder = RunbookBuilder.create(config.id)
+  const builder = AlarmRunbookBuilder.create(config.id)
     .metadata(config.metadata)
     .cloudExecutionPolicy({ sideEffects: 'NONE' });
 

@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { DynamoDBQueryStep } from '../DynamoDBQueryStep.js';
-import type { RunbookContext } from '../../../../../../engine/types/RunbookContext.js';
 import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
+import type { OperationalContext } from '../../../../services/OperationalContext.js';
 
 interface QueryCall {
   readonly tableName: string;
@@ -13,7 +13,7 @@ interface QueryCall {
 }
 
 function makeContext(params: ReadonlyArray<readonly [string, string]> = []): {
-  readonly context: RunbookContext;
+  readonly context: OperationalContext;
   readonly calls: QueryCall[];
 } {
   const calls: QueryCall[] = [];

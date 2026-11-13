@@ -1,20 +1,15 @@
-import { omitUndefined } from '@pagopa/go-common/utils';
 import type { Runbook } from '../types/Runbook.js';
+import type { RunbookExtensions } from '../types/RunbookExtensions.js';
 import type { RunbookMetadata } from '../types/RunbookMetadata.js';
-import type { RunbookAnalysisDefaults } from '../../toolkits/common/analysis/RunbookAnalysisDefaults.js';
 import type { Step } from '../types/Step.js';
 import type { StepDescriptor } from '../types/StepDescriptor.js';
 import type { KnownCase } from '../types/KnownCase.js';
 import type { IfBranchConfig } from '../types/IfBranchConfig.js';
 import type { SwitchBranchConfig } from '../types/SwitchBranchConfig.js';
 import type { CaseAction } from '../types/CaseAction.js';
-import type { CloudExecutionPolicy } from '../../toolkits/common/policies/CloudExecutionPolicy.js';
-import type { OccurrenceTimeWindow } from '../../toolkits/common/time/occurrence/OccurrenceTimeWindow.js';
-import type { RunbookOutputDefinition } from '../../toolkits/common/output/RunbookOutputDefinition.js';
 import type { ValidationErrorEntry } from '../validation/ValidationErrorEntry.js';
 import type { GoToReference } from '../validation/GoToGraphAnalyzer.js';
 import { RunbookValidationError } from '../validation/RunbookValidationError.js';
-import { validateOutputDefinitions } from '../../toolkits/common/output/validateOutputDefinitions.js';
 import { GoToGraphAnalyzer } from '../validation/GoToGraphAnalyzer.js';
 import { IfBranchStep } from '../steps/control/IfBranchStep.js';
 import { SwitchBranchStep } from '../steps/control/SwitchBranchStep.js';
@@ -63,17 +58,16 @@ function isSwitchStepWithGoTo(step: Step): step is Step & {
 export class RunbookBuilder {
   private readonly id: string;
   private meta?: Omit<RunbookMetadata, 'id'>;
-  private readonly stepDescriptors: StepDescriptor[] = [];
+  /** Steps wired so far, in order; subclasses read them to validate their extensions. */
+  protected readonly stepDescriptors: StepDescriptor[] = [];
   private readonly cases: KnownCase[] = [];
   private fallbackAction?: CaseAction;
   private iterationsLimit?: number;
-  private structuredContext?: unknown;
-  private outputDefinition?: RunbookOutputDefinition;
-  private cloudPolicy?: CloudExecutionPolicy;
-  private analysisDefaultRefs?: RunbookAnalysisDefaults;
-  private occurrenceWindow?: OccurrenceTimeWindow;
 
-  private constructor(id: string) {
+  /**
+   * @param id - Unique runbook identifier
+   */
+  protected constructor(id: string) {
     this.id = id;
   }
 
@@ -93,33 +87,8 @@ export class RunbookBuilder {
    * @param meta - Metadata without the ID (ID is set in create())
    * @returns This builder for chaining
    */
-  metadata(meta: Omit<RunbookMetadata, 'id'>): RunbookBuilder {
+  metadata(meta: Omit<RunbookMetadata, 'id'>): this {
     this.meta = meta;
-    return this;
-  }
-
-  /**
-   * Configures the diagnostic padding around alarm occurrences.
-   *
-   * @param window - Independent non-negative padding before and after the occurrence
-   * @returns This builder for chaining
-   */
-  occurrenceTimeWindow(window: OccurrenceTimeWindow): RunbookBuilder {
-    this.occurrenceWindow = { ...window };
-    return this;
-  }
-
-  /**
-   * Sets the analysis references shared by every known case.
-   *
-   * Declaring them marks the runbook as annotated: `validateForCloud` then
-   * requires the `analysis` directives on each of its known cases.
-   *
-   * @param defaults - References merged into every emitted analysis draft
-   * @returns This builder for chaining
-   */
-  analysisDefaults(defaults: RunbookAnalysisDefaults): RunbookBuilder {
-    this.analysisDefaultRefs = defaults;
     return this;
   }
 
@@ -131,15 +100,44 @@ export class RunbookBuilder {
    * @param options - Execution options (e.g. continueOnFailure)
    * @returns This builder for chaining
    */
-  step(step: Step, options?: Omit<StepDescriptor, 'step'>): RunbookBuilder {
-    const descriptor: StepDescriptor = {
+  step(step: Step, options?: Omit<StepDescriptor, 'step'>): this {
+    this.stepDescriptors.push(this.describeStep(step, options));
+    return this;
+  }
+
+  /**
+   * Builds the descriptor of a step. Copies only explicit keys, never a spread
+   * of `options`: a pipeline hook also carries `at` and `step`. Toolkits
+   * override it to add their descriptor fields (EVO-RBREORG-OPUS-01 §7.1.3 E).
+   *
+   * @param step - The step to describe
+   * @param options - Execution options
+   * @returns The descriptor stored in the runbook
+   */
+  protected describeStep(step: Step, options?: Omit<StepDescriptor, 'step'>): StepDescriptor {
+    return {
       step,
       ...(options?.continueOnFailure === true ? { continueOnFailure: true } : {}),
       ...(options?.silent === true ? { silent: true } : {}),
-      ...(options?.evidence === undefined ? {} : { evidence: options.evidence }),
     };
-    this.stepDescriptors.push(descriptor);
-    return this;
+  }
+
+  /**
+   * Fields a toolkit adds to the built runbook, after the engine fields.
+   *
+   * @returns The extension fields; none in the engine
+   */
+  protected buildExtensions(): RunbookExtensions {
+    return {};
+  }
+
+  /**
+   * Validation of the fields a toolkit adds, appended to the engine checks.
+   *
+   * @returns Validation errors of the extensions; none in the engine
+   */
+  protected validateExtensions(): ReadonlyArray<ValidationErrorEntry> {
+    return [];
   }
 
   /**
@@ -161,7 +159,7 @@ export class RunbookBuilder {
    * @param config - If branch configuration with sub-pipelines
    * @returns This builder for chaining
    */
-  ifBranch(config: IfBranchConfig): RunbookBuilder {
+  ifBranch(config: IfBranchConfig): this {
     const branchStep = new IfBranchStep(config);
     this.stepDescriptors.push({ step: branchStep });
     return this;
@@ -173,7 +171,7 @@ export class RunbookBuilder {
    * @param config - Switch branch configuration with sub-pipelines
    * @returns This builder for chaining
    */
-  switchBranch(config: SwitchBranchConfig): RunbookBuilder {
+  switchBranch(config: SwitchBranchConfig): this {
     const branchStep = new SwitchBranchStep(config);
     this.stepDescriptors.push({ step: branchStep });
     return this;
@@ -185,7 +183,7 @@ export class RunbookBuilder {
    * @param knownCase - Known case definition
    * @returns This builder for chaining
    */
-  knownCase(knownCase: KnownCase): RunbookBuilder {
+  knownCase(knownCase: KnownCase): this {
     this.cases.push(knownCase);
     return this;
   }
@@ -196,7 +194,7 @@ export class RunbookBuilder {
    * @param action - Fallback action
    * @returns This builder for chaining
    */
-  fallback(action: CaseAction): RunbookBuilder {
+  fallback(action: CaseAction): this {
     this.fallbackAction = action;
     return this;
   }
@@ -207,31 +205,8 @@ export class RunbookBuilder {
    * @param max - Maximum iteration limit (default: 1000)
    * @returns This builder for chaining
    */
-  maxIterations(max: number): RunbookBuilder {
+  maxIterations(max: number): this {
     this.iterationsLimit = max;
-    return this;
-  }
-
-  /**
-   * Attaches structured, family-specific context to the runbook.
-   *
-   * @param value - Context consumed by downstream builders
-   * @returns This builder for chaining
-   */
-  runbookContext(value: unknown): RunbookBuilder {
-    this.structuredContext = value;
-    return this;
-  }
-
-  /** Declares diagnostics exported by the shared output builder. */
-  output(definition: RunbookOutputDefinition): RunbookBuilder {
-    this.outputDefinition = definition;
-    return this;
-  }
-
-  /** Declares the constraints required to execute this runbook in cloud workers. */
-  cloudExecutionPolicy(policy: CloudExecutionPolicy): RunbookBuilder {
-    this.cloudPolicy = policy;
     return this;
   }
 
@@ -265,17 +240,6 @@ export class RunbookBuilder {
         code: 'EMPTY_STEPS',
         message: 'No steps defined. Add at least one step with .step().',
       });
-    }
-
-    if (this.occurrenceWindow !== undefined) {
-      for (const [field, value] of Object.entries(this.occurrenceWindow)) {
-        if (!Number.isFinite(value) || value < 0) {
-          errors.push({
-            code: 'INVALID_OCCURRENCE_TIME_WINDOW',
-            message: `Invalid occurrenceTimeWindow.${field}: ${String(value)}. Expected a finite, non-negative number.`,
-          });
-        }
-      }
     }
 
     // 2. Check duplicate step IDs
@@ -343,7 +307,7 @@ export class RunbookBuilder {
       casePriorities.set(knownCase.priority, knownCase.id);
     }
 
-    errors.push(...validateOutputDefinitions(this.stepDescriptors, this.outputDefinition));
+    errors.push(...this.validateExtensions());
     return errors;
   }
 
@@ -365,9 +329,6 @@ export class RunbookBuilder {
       throw new Error('Invalid runbook configuration: missing metadata or fallback action.');
     }
 
-    // Copied, not aliased: the built runbook must not share the builder's own window object.
-    const occurrenceTimeWindow = this.occurrenceWindow !== undefined ? { ...this.occurrenceWindow } : undefined;
-
     const result: Runbook = {
       metadata: {
         id: this.id,
@@ -376,13 +337,8 @@ export class RunbookBuilder {
       steps: [...this.stepDescriptors],
       knownCases: [...this.cases],
       fallbackAction: this.fallbackAction, // Safe: validated in validate()
-      ...omitUndefined({
-        occurrenceTimeWindow,
-        runbookContext: this.structuredContext,
-        output: this.outputDefinition,
-        cloudExecutionPolicy: this.cloudPolicy,
-        analysisDefaults: this.analysisDefaultRefs,
-      }),
+      // After the engine fields, in the toolkit's order: the RTA fingerprint depends on key order.
+      ...this.buildExtensions(),
     };
 
     if (this.iterationsLimit !== undefined) {

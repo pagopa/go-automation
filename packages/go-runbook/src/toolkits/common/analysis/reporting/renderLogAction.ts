@@ -1,5 +1,6 @@
 import type { LogAction } from '../../../../engine/types/CaseAction.js';
 import { interpolatePlaceholders } from '../../../../engine/context/templatePlaceholders.js';
+import type { LogActionValues } from '../../../../engine/actions/LogActionValues.js';
 
 /** Marker a matched known case is rendered under. */
 const KNOWN_CASE_PREFIX = '[CASO NOTO]';
@@ -14,12 +15,6 @@ export const UNAVAILABLE_VALUE = 'non disponibile';
 export interface ResolvedLogActionRow {
   readonly field: string;
   readonly value: string;
-}
-
-/** Values a log action interpolates against. */
-export interface LogActionValues {
-  readonly vars: ReadonlyMap<string, string>;
-  readonly params: ReadonlyMap<string, string>;
 }
 
 /**

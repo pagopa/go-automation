@@ -4,6 +4,9 @@ import type { StepResult } from '../../../../../engine/types/StepResult.js';
 import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
 import { interpolatePlaceholders } from '../../../../../engine/context/templatePlaceholders.js';
 import { executeStep } from '../../../../../engine/steps/execution/executeStep.js';
+import { OperationalStep } from '../../OperationalStep.js';
+import type { OperationalContext } from '../../../services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
 
 /**
  * Configuration for the DynamoDB GetItem data step.
@@ -33,7 +36,10 @@ export interface DynamoDBGetConfig {
  * });
  * ```
  */
-export class DynamoDBGetStep implements Step<Record<string, unknown> | undefined> {
+export class DynamoDBGetStep
+  extends OperationalStep<Record<string, unknown> | undefined>
+  implements Step<Record<string, unknown> | undefined>
+{
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -42,6 +48,7 @@ export class DynamoDBGetStep implements Step<Record<string, unknown> | undefined
   private readonly key: Readonly<Record<string, unknown>>;
 
   constructor(config: DynamoDBGetConfig) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.tableName = config.tableName;
@@ -62,12 +69,21 @@ export class DynamoDBGetStep implements Step<Record<string, unknown> | undefined
   }
 
   /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['dynamodb'];
+  }
+
+  /**
    * Retrieves a single item from DynamoDB using the configured key.
    *
    * @param context - The runbook execution context
    * @returns Step result containing the unmarshalled item, or undefined if not found
    */
-  async execute(context: RunbookContext): Promise<StepResult<Record<string, unknown> | undefined>> {
+  override async execute(context: OperationalContext): Promise<StepResult<Record<string, unknown> | undefined>> {
     return executeStep('DynamoDB GetItem', async () => {
       const resolvedTableName = interpolatePlaceholders(this.tableName, context);
       const resolvedKey = resolveKey(this.key, context);

@@ -6,8 +6,9 @@ import {
   CloudWatchLogsQueryStep,
   UNKNOWN_CASE_TITLE,
   unknownCaseFallback,
+  AlarmRunbookBuilder,
 } from '../../../../toolkits/interop/index.js';
-import { type Runbook, RunbookBuilder } from '../../../../engine/index.js';
+import type { Runbook } from '../../../../engine/index.js';
 import {
   ACCESS_LOG_QUERY,
   ALARM_NAME,
@@ -24,7 +25,7 @@ import { KNOWN_CASES } from './knownCases.js';
  * @returns A validated {@link Runbook} ready for execution
  */
 export function buildRunbook(): Runbook {
-  const builder = RunbookBuilder.create(ALARM_NAME)
+  const builder = AlarmRunbookBuilder.create(ALARM_NAME)
     .metadata({
       name: 'interop-att-eservices-att-apigw-4xx',
       description:

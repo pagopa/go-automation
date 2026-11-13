@@ -4,9 +4,9 @@ import { describe, it } from 'node:test';
 import type { GOHttpRequestOptions, GOHttpResponse } from '@pagopa/go-common/http';
 
 import type { ServiceRegistry } from '../../../services/ServiceRegistry.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
 import { HttpRequestStep } from '../HttpRequestStep.js';
 import { createTestServiceRegistry } from '../../../testing/createTestServiceRegistry.js';
+import type { OperationalContext } from '../../../services/OperationalContext.js';
 
 interface HttpCall {
   readonly method: string;
@@ -111,7 +111,7 @@ function makeContext(options: {
   readonly vars?: ReadonlyArray<readonly [string, string]>;
   readonly services?: ServiceRegistry;
   readonly signal?: AbortSignal;
-}): RunbookContext {
+}): OperationalContext {
   return {
     executionId: 'test',
     startedAt: new Date('2026-01-01T00:00:00.000Z'),

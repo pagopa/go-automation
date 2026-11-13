@@ -39,3 +39,6 @@ export { ANALYSIS_DRAFT_BOUNDS } from '../analysis/draft/analysisDraftBounds.js'
 export type { AnalysisDraftV1 } from '../analysis/draft/AnalysisDraft.js';
 export type { KnownCaseAnalysisDraft } from '../analysis/draft/KnownCaseAnalysisDraft.js';
 export type { UnknownCaseContextDraft } from '../analysis/draft/UnknownCaseContextDraft.js';
+
+// Operational model augmentations: keeps the operational fields in a consumer's program (EVO-RBREORG-OPUS-01 RBREORG-11).
+export type { OperationalModelAugmentations } from '../augmentations/index.js';

@@ -1,4 +1,4 @@
-import { RunbookBuilder } from '../../../../../engine/builders/RunbookBuilder.js';
+import { AlarmRunbookBuilder } from '../../../../common/builders/AlarmRunbookBuilder.js';
 import { CloudWatchLogsQueryStep } from '../../../../common/steps/aws/cloudwatch-logs/CloudWatchLogsQueryStep.js';
 import type { Runbook } from '../../../../../engine/types/Runbook.js';
 import type { ApiGwPipelineAnchor } from '../types/ApiGwPipelineAnchor.js';
@@ -31,7 +31,7 @@ export function createSendApiGwAlarmRunbook(config: ApiGwAlarmConfig): Runbook {
   const reachedAnchors = new Set<ApiGwPipelineAnchor>();
   const executionLogAnalysisMode = config.executionLogAnalysisMode ?? 'terminal';
 
-  const builder = RunbookBuilder.create(config.id)
+  const builder = AlarmRunbookBuilder.create(config.id)
     .metadata(config.metadata)
     .cloudExecutionPolicy({ sideEffects: 'NONE' });
 

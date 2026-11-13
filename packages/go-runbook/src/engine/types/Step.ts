@@ -28,4 +28,12 @@ export interface Step<TOutput = unknown> {
    * @returns Key-value record of resolved step configuration
    */
   getTraceInfo?(context: RunbookContext): Readonly<Record<string, unknown>>;
+  /**
+   * Names of the services (keys of the context services) the step uses besides
+   * the reporter. Declared on the prototype, so it never enters the definition
+   * digest. The engine checks them before the first step (§7.1.3 A).
+   */
+  requiredServices?(): ReadonlyArray<string>;
+  /** Steps this control step may run in a sub-pipeline, for the service check and the cloud policy. */
+  nestedSteps?(): ReadonlyArray<Step>;
 }

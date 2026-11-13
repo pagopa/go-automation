@@ -17,6 +17,9 @@ import {
   executeCloudWatchLogsQuery,
   extractLambdaRequestId,
   resolveTimeRange,
+  OperationalStep,
+  type OperationalContext,
+  type OperationalServiceName,
 } from '../../../../toolkits/send/index.js';
 
 import { LAMBDA_FUNCTION, LAMBDA_LOG_SOURCES } from './knownServices.js';
@@ -42,12 +45,13 @@ const BOTH_ACCOUNTS_ERROR_QUERY = `fields @timestamp, @xrayTraceId, @requestId, 
 | limit ${QUERY_ROW_LIMIT}`;
 
 /** Reads both production accounts independently, failing if either cannot be checked. */
-export class QueryBothLambdaAccountsStep implements Step<Rows> {
+export class QueryBothLambdaAccountsStep extends OperationalStep<Rows> implements Step<Rows> {
   readonly id: string;
   readonly label: string;
   readonly kind = 'data' as const;
 
   constructor(private readonly queryKind: QueryKind) {
+    super();
     this.id = queryKind === 'errors' ? 'query-lambda-errors' : 'query-lambda-invocation';
     this.label =
       queryKind === 'errors' ? 'Query errori Lambda core e confinfo' : 'Query invocazione Lambda core e confinfo';
@@ -70,7 +74,16 @@ export class QueryBothLambdaAccountsStep implements Step<Rows> {
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<Rows>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
     const upstream = this.queryKind === 'invocation' ? readStepOutput<Rows>(context, 'query-lambda-errors') : undefined;
     if (upstream !== undefined && !upstream.ok) return upstream.failure;
 

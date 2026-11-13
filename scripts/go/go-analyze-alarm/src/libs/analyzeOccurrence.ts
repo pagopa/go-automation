@@ -2,10 +2,14 @@ import { GOHttpClient } from '@pagopa/go-common/http';
 import type { GOScript } from '@go-automation/go-script';
 import { type RunbookBuilderFn } from '@pagopa/go-runbook/inventory';
 import { computeRunbookTimeRange, createServiceRegistry, createTimeRangeReference } from '@pagopa/go-runbook/runtime';
-import { RunbookEngine } from '@pagopa/go-runbook';
 import { apigw } from '@pagopa/go-runbook/toolkits/send';
-import { lambda, service } from '@pagopa/go-runbook/toolkits/common';
-import type { ExecutionEnvironment, Runbook, RunbookExecutionResult } from '@pagopa/go-runbook';
+import {
+  OperationalRunbookEngine,
+  lambda,
+  service,
+  type AwsExecutionEnvironment,
+} from '@pagopa/go-runbook/toolkits/common';
+import type { Runbook, RunbookExecutionResult } from '@pagopa/go-runbook';
 
 import type { AnalyzableAlarmConfig } from '../types/AnalyzableAlarmConfig.js';
 import { saveExecutionTrace } from './saveExecutionTrace.js';
@@ -53,8 +57,8 @@ export async function analyzeOccurrence(
 
   script.logger.section('Executing Runbook');
 
-  const engine = new RunbookEngine(script.logger);
-  const environment: ExecutionEnvironment = {
+  const engine = new OperationalRunbookEngine(script.logger);
+  const environment: AwsExecutionEnvironment = {
     awsProfiles: config.awsProfiles,
     region: awsRegion,
     invokedBy: 'manual',

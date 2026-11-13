@@ -7,9 +7,9 @@ import type {
   AWSCloudWatchLogsTimeRange,
 } from '@pagopa/go-aws/cloudwatch-logs';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import type { RunbookContext } from '../../../../../../engine/types/RunbookContext.js';
 import { QueryInteropApiGwAggregatesStep } from '../QueryInteropApiGwAggregatesStep.js';
 import { createTestServiceRegistry } from '../../../../../common/testing/createTestServiceRegistry.js';
+import type { OperationalContext } from '../../../../../common/services/OperationalContext.js';
 
 describe('QueryInteropApiGwAggregatesStep', () => {
   it('queries the resolved group and enriches aggregate rows as output evidence', async () => {
@@ -49,7 +49,7 @@ describe('QueryInteropApiGwAggregatesStep', () => {
         };
       },
     };
-    const context: RunbookContext = {
+    const context: OperationalContext = {
       executionId: 'test',
       startedAt: new Date('2026-08-24T10:00:00.000Z'),
       stepResults: new Map(),

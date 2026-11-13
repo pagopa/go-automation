@@ -13,6 +13,9 @@ import { interpolatePlaceholders } from '../../../../../engine/context/templateP
 import { resolveTimeRange } from '../../../time/resolveTimeRange.js';
 import { executeStep } from '../../../../../engine/steps/execution/executeStep.js';
 import { executeCloudWatchLogsQuery } from './executeCloudWatchLogsQuery.js';
+import { OperationalStep } from '../../OperationalStep.js';
+import type { OperationalContext } from '../../../services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
 
 export type { TimeRangeFromParams } from '../../../time/TimeRangeFromParams.js';
 
@@ -71,7 +74,10 @@ export interface CloudWatchLogsQueryConfig {
  * });
  * ```
  */
-export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
+export class CloudWatchLogsQueryStep
+  extends OperationalStep<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+  implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+{
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -85,6 +91,7 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
   private readonly paginateResults: boolean | undefined;
 
   constructor(config: CloudWatchLogsQueryConfig) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.logGroups = config.logGroups;
@@ -122,12 +129,23 @@ export class CloudWatchLogsQueryStep implements Step<ReadonlyArray<ReadonlyArray
   }
 
   /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  /**
    * Executes the CloudWatch Logs Insights query against the configured log groups.
    *
    * @param context - The runbook execution context
    * @returns Step result containing an array of result rows
    */
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
+  override async execute(
+    context: OperationalContext,
+  ): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
     return executeStep('CloudWatch Logs query', async () => {
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
       const interpolatedQuery = interpolatePlaceholders(this.query, context);

@@ -1,7 +1,6 @@
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { Step } from '../../../../../engine/types/Step.js';
 import type { StepKind } from '../../../../../engine/types/StepKind.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
 import type { StepResult } from '../../../../../engine/types/StepResult.js';
 import type { TimeRangeFromParams } from '../../../time/TimeRangeFromParams.js';
 import { interpolatePlaceholders } from '../../../../../engine/context/templatePlaceholders.js';
@@ -11,6 +10,9 @@ import { executeCloudWatchLogsQuery } from '../../../steps/aws/cloudwatch-logs/e
 import type { LambdaDownstream } from '../types/LambdaDownstream.js';
 import { scanLambdaLogs } from '../helpers/scanLambdaLogs.js';
 import { LambdaReporter } from '../reporting/LambdaReporter.js';
+import { OperationalStep } from '../../../steps/OperationalStep.js';
+import type { OperationalContext } from '../../../services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
@@ -32,7 +34,7 @@ export interface QueryDownstreamLogsConfig {
  * or no requestId). Flat (no recursion), mirroring the dynamic per-service
  * visit of the API Gateway pipeline.
  */
-export class QueryDownstreamLogsStep implements Step<Rows> {
+export class QueryDownstreamLogsStep extends OperationalStep<Rows> implements Step<Rows> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -42,6 +44,7 @@ export class QueryDownstreamLogsStep implements Step<Rows> {
   private readonly timeRangeFromParams: TimeRangeFromParams;
 
   constructor(config: QueryDownstreamLogsConfig) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.downstream = config.downstream;
@@ -49,7 +52,16 @@ export class QueryDownstreamLogsStep implements Step<Rows> {
     this.timeRangeFromParams = config.timeRangeFromParams;
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<Rows>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
     const target = (context.vars.get('lambdaDownstreamTarget') ?? '').trim();
     const requestId = (context.vars.get('lambdaRequestId') ?? '').trim();
     const logGroup = this.downstream.logGroup;

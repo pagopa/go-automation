@@ -3,8 +3,8 @@ import { describe, it } from 'node:test';
 
 import type { MetricDatapoint, MetricDimension } from '@pagopa/go-aws/cloudwatch-metrics';
 import { CloudWatchMetricsStep } from '../CloudWatchMetricsStep.js';
-import type { RunbookContext } from '../../../../../../engine/types/RunbookContext.js';
 import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
+import type { OperationalContext } from '../../../../services/OperationalContext.js';
 
 interface MetricsCall {
   readonly namespace: string;
@@ -17,7 +17,7 @@ interface MetricsCall {
 const DATAPOINTS: ReadonlyArray<MetricDatapoint> = [{ timestamp: new Date('2026-01-01T00:00:00.000Z'), value: 7 }];
 
 function makeContext(params: ReadonlyArray<readonly [string, string]>): {
-  readonly context: RunbookContext;
+  readonly context: OperationalContext;
   readonly calls: MetricsCall[];
 } {
   const calls: MetricsCall[] = [];

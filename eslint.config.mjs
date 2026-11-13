@@ -454,38 +454,15 @@ export default tseslint.config(
     },
   },
 
-  // EVO-RBREORG-OPUS-01 §10, go-aws-root-type-only: the go-aws root loads client-sts at
-  // runtime, so engine, toolkits and inventory import it for types only. The check lives
-  // here and not in dependency-cruiser because workspace packages resolve to dist/, which
-  // dependency-cruiser excludes: it cannot tell `import type` from a value import there.
-  {
-    files: [
-      'packages/go-runbook/src/engine/**/*.ts',
-      'packages/go-runbook/src/toolkits/**/*.ts',
-      'packages/go-runbook/src/inventory/**/*.ts',
-    ],
-    ignores: [
-      '**/__tests__/**',
-      // Named debt until F6 consolidates the multi-account steps (§15.5): they parse the
-      // profile parameter with the value export parseAwsProfileEntries of the go-aws root.
-      'packages/go-runbook/src/inventory/send/service/pn-logsaver-be-FailedInvocation-Alarm/QueryLogsaverDiagnosticsStep.ts',
-      'packages/go-runbook/src/inventory/send/lambda/pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm/QueryBothLambdaAccountsStep.ts',
-    ],
-    rules: {
-      '@typescript-eslint/no-restricted-imports': [
-        'error',
-        {
-          paths: [
-            {
-              name: '@pagopa/go-aws',
-              allowTypeImports: true,
-              message: 'The go-aws root loads client-sts at runtime: import types only (EVO-RBREORG-OPUS-01 §10).',
-            },
-          ],
-        },
-      ],
-    },
-  },
+  // EVO-RBREORG-OPUS-01 §10, import rules of go-runbook checked on the import specifier.
+  // dependency-cruiser keeps the path rules, but workspace packages resolve to dist/, which it
+  // excludes: on those imports it neither sees `import type` nor can be relied upon to keep the
+  // edge. These blocks enforce, independently of resolution:
+  // - go-aws-root-type-only: the go-aws root loads client-sts at runtime, types only;
+  // - only-runtime-touches-sdk: no @aws-sdk and no go-aws subpath but ./cloudwatch-logs/insights;
+  // - engine-is-a-foundation: the engine imports nothing from go-aws nor the go-common I/O areas;
+  // - no self-import of @pagopa/go-runbook, which would bypass every path rule.
+  ...goRunbookImportRules(),
 
   // ===== SonarJS: duplicated and redundant code =====
   // Added for the duplication family, which jscpd cannot cover: jscpd compares
@@ -800,3 +777,70 @@ export default tseslint.config(
   // Prettier integration - MUST be last to override other configs
   eslintPluginPrettierRecommended,
 );
+
+/**
+ * ESLint blocks enforcing the go-runbook import rules of EVO-RBREORG-OPUS-01 §10 on the import specifier.
+ *
+ * @returns Flat-config blocks for toolkits/inventory, their named debt, and the engine
+ */
+function goRunbookImportRules() {
+  const RULE = '@typescript-eslint/no-restricted-imports';
+  const SPEC = '(EVO-RBREORG-OPUS-01 §10)';
+  const goAwsRootTypeOnly = {
+    name: '@pagopa/go-aws',
+    allowTypeImports: true,
+    message: `The go-aws root loads client-sts at runtime: import types only ${SPEC}.`,
+  };
+  const selfImport = {
+    group: ['@pagopa/go-runbook', '@pagopa/go-runbook/*'],
+    message: `Import go-runbook modules by relative path: a self-import bypasses the layer rules ${SPEC}.`,
+  };
+  const sdk = {
+    // Anchored: exempts exactly ./cloudwatch-logs/insights, not its SDK-bearing parent ./cloudwatch-logs.
+    regex: '^(?:@aws-sdk/|@pagopa/go-aws/(?!cloudwatch-logs/insights$))',
+    message: `Only runtime/ uses the AWS SDK; outside it go-aws offers only ./cloudwatch-logs/insights ${SPEC}.`,
+  };
+  const debtFiles = [
+    // Named debt until F6 consolidates the multi-account steps (§15.5): they parse the
+    // profile parameter with the value export parseAwsProfileEntries of the go-aws root.
+    'packages/go-runbook/src/inventory/send/service/pn-logsaver-be-FailedInvocation-Alarm/QueryLogsaverDiagnosticsStep.ts',
+    'packages/go-runbook/src/inventory/send/lambda/pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm/QueryBothLambdaAccountsStep.ts',
+  ];
+  return [
+    {
+      files: ['packages/go-runbook/src/toolkits/**/*.ts', 'packages/go-runbook/src/inventory/**/*.ts'],
+      ignores: ['**/__tests__/**', ...debtFiles],
+      rules: { [RULE]: ['error', { paths: [goAwsRootTypeOnly], patterns: [sdk, selfImport] }] },
+    },
+    {
+      files: debtFiles,
+      rules: { [RULE]: ['error', { patterns: [sdk, selfImport] }] },
+    },
+    {
+      files: ['packages/go-runbook/src/engine/**/*.ts'],
+      ignores: ['**/__tests__/**'],
+      rules: {
+        [RULE]: [
+          'error',
+          {
+            paths: [{ name: '@pagopa/go-aws', message: `The engine knows no AWS ${SPEC}.` }],
+            patterns: [
+              { group: ['@aws-sdk/*', '@pagopa/go-aws/*'], message: `The engine knows no AWS ${SPEC}.` },
+              {
+                group: [
+                  '@pagopa/go-common/http',
+                  '@pagopa/go-common/files',
+                  '@pagopa/go-common/importers',
+                  '@pagopa/go-common/exporters',
+                  '@pagopa/go-common/process',
+                ],
+                message: `The engine does no I/O: it imports no go-common I/O area ${SPEC}.`,
+              },
+              selfImport,
+            ],
+          },
+        ],
+      },
+    },
+  ];
+}

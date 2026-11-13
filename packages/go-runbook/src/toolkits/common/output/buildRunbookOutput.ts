@@ -18,8 +18,8 @@ import type {
 } from '../telemetry/RunbookTelemetry.js';
 import { emptyRunbookOutputContext } from './RunbookOutputContext.js';
 import { buildAnalysisDraft } from '../analysis/draft/buildAnalysisDraft.js';
-import { interpolatePlaceholders } from '../../../engine/context/templatePlaceholders.js';
-import { renderLogActionText } from '../analysis/reporting/renderLogAction.js';
+import { ANALYSIS_LOG_ACTION_RENDERER } from '../analysis/reporting/ANALYSIS_LOG_ACTION_RENDERER.js';
+import { resolveActionMessage } from '../../../engine/actions/resolveActionMessage.js';
 import { buildDeclaredOutputContext } from './buildDeclaredOutputContext.js';
 
 export interface BuildRunbookOutputOptions {
@@ -187,7 +187,7 @@ function knownCaseOutput(
   const resolvedMessage =
     result.matchedCases[0]?.id === knownCase.id
       ? result.trace.actionsExecuted.find((action) => action.executed)?.resolvedMessage
-      : resolveActionMessage(knownCase.action, result);
+      : resolveOutcomeMessage(knownCase.action, result);
 
   return {
     id: knownCase.id,
@@ -235,33 +235,14 @@ function resolvedActionMessage(
   action: CaseAction,
   result: RunbookExecutionResult,
 ): { readonly fallbackMessage?: string } {
-  const resolved = resolveActionMessage(action, result);
+  const resolved = resolveOutcomeMessage(action, result);
   return resolved === undefined ? {} : { fallbackMessage: resolved };
 }
 
-function resolveActionMessage(action: CaseAction, result: RunbookExecutionResult): string | undefined {
-  switch (action.type) {
-    case 'log':
-      return renderLogActionText(action, {
-        vars: result.finalContext.vars,
-        params: result.finalContext.params,
-      });
-    case 'notify':
-      return interpolatePlaceholders(action.template, {
-        vars: result.finalContext.vars,
-        params: result.finalContext.params,
-      });
-    case 'escalate':
-      return interpolatePlaceholders(action.message, {
-        vars: result.finalContext.vars,
-        params: result.finalContext.params,
-      });
-    case 'update':
-    case 'composite':
-      return undefined;
-    default: {
-      const _exhaustive: never = action;
-      throw new Error(`Unknown action type: ${(_exhaustive as CaseAction).type}`);
-    }
-  }
+function resolveOutcomeMessage(action: CaseAction, result: RunbookExecutionResult): string | undefined {
+  return resolveActionMessage(
+    action,
+    { vars: result.finalContext.vars, params: result.finalContext.params },
+    ANALYSIS_LOG_ACTION_RENDERER,
+  );
 }

@@ -1,14 +1,7 @@
+import type { ValidationErrorCodes } from './ValidationErrorCodes.js';
+
 /**
- * Error codes for runbook validation.
+ * Error codes for runbook validation: the keys of {@link ValidationErrorCodes},
+ * engine codes plus those added by the toolkits.
  */
-export type ValidationErrorCode =
-  | 'DUPLICATE_STEP_ID'
-  | 'INVALID_GOTO_REF'
-  | 'LOOP_DETECTED'
-  | 'DUPLICATE_CASE_ID'
-  | 'DUPLICATE_CASE_PRIORITY'
-  | 'MISSING_METADATA'
-  | 'MISSING_FALLBACK'
-  | 'EMPTY_STEPS'
-  | 'INVALID_OUTPUT_DEFINITION'
-  | 'INVALID_OCCURRENCE_TIME_WINDOW';
+export type ValidationErrorCode = keyof ValidationErrorCodes;

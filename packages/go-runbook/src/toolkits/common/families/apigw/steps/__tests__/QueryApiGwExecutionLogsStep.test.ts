@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import type { AWSCloudWatchLogsQueryOptions, AWSCloudWatchLogsService } from '@pagopa/go-aws/cloudwatch-logs';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { GOLogger } from '@pagopa/go-common/logging';
-import type { RunbookContext } from '../../../../../../engine/types/RunbookContext.js';
 import type { Step } from '../../../../../../engine/types/Step.js';
 import type { TimeRange } from '../../../../time/TimeRange.js';
 
@@ -14,6 +13,7 @@ import { createTestServiceRegistry } from '../../../../testing/createTestService
 import { ConsoleRunbookReporter } from '../../../../../../engine/reporting/ConsoleRunbookReporter.js';
 import type { RunbookReporter } from '../../../../../../engine/reporting/RunbookReporter.js';
 import { SEND_API_GW_PROFILE } from '../../../../../send/families/apigw/profiles/SEND_API_GW_PROFILE.js';
+import type { OperationalContext } from '../../../../services/OperationalContext.js';
 
 // The step has no product default (EVO-RBREORG-OPUS-01 P11): the tests use the SEND profile.
 const SEND_EXECUTION_LOG = SEND_API_GW_PROFILE.executionLog;
@@ -62,7 +62,7 @@ function createContext(args: {
   readonly stepOutput: ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
   readonly cloudWatchLogs: AWSCloudWatchLogsService;
   readonly reporter?: RunbookReporter;
-}): RunbookContext {
+}): OperationalContext {
   return {
     executionId: 'test',
     startedAt: new Date('2026-01-01T00:00:00.000Z'),

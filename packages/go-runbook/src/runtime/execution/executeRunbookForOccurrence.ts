@@ -8,11 +8,11 @@
  */
 import type { GOLogger } from '@pagopa/go-common/logging';
 
-import { RunbookEngine } from '../../engine/core/RunbookEngine.js';
+import { OperationalRunbookEngine } from '../../toolkits/common/engine/OperationalRunbookEngine.js';
 import { buildRunbookOutput } from '../../toolkits/common/output/buildRunbookOutput.js';
 import type { RunbookOutput } from '../../toolkits/common/output/RunbookOutput.js';
 import type { ServiceRegistry } from '../../toolkits/common/services/ServiceRegistry.js';
-import type { ExecutionEnvironment } from '../../engine/tracing/ExecutionInfo.js';
+import type { AwsExecutionEnvironment } from '../../toolkits/common/telemetry/AwsExecutionEnvironment.js';
 import { assertCloudExecutableRunbook } from '../../toolkits/common/policies/assertCloudExecutableRunbook.js';
 
 import { RUNBOOK_CATALOG } from '../../inventory/registry/runbookRegistry.js';
@@ -94,14 +94,14 @@ export async function executeRunbookForOccurrence(
     params.set('alarmDatetimeEnd', input.alarmDatetimeEnd);
   }
 
-  const environment: ExecutionEnvironment = {
+  const environment: AwsExecutionEnvironment = {
     awsProfiles: [...input.awsProfiles],
     awsAccountId: input.awsAccountId,
     region: input.region,
     invokedBy: input.executionMode === 'cloud' ? 'alarm' : 'manual',
   };
 
-  const engine = new RunbookEngine(deps.logger);
+  const engine = new OperationalRunbookEngine(deps.logger);
   const result = await engine.execute(runbook, params, deps.services, environment, input.signal);
 
   return buildRunbookOutput(runbook, result, {

@@ -3,7 +3,8 @@ import type { KnownCase } from '../../../engine/types/KnownCase.js';
 import type { PipelineHook } from '../../../engine/types/PipelineHook.js';
 import type { Runbook } from '../../../engine/types/Runbook.js';
 import type { RunbookAnalysisDefaults } from '../analysis/RunbookAnalysisDefaults.js';
-import type { RunbookBuilder } from '../../../engine/builders/RunbookBuilder.js';
+import type { AlarmRunbookBuilder } from './AlarmRunbookBuilder.js';
+import type { AlarmRunbookContext } from '../output/AlarmRunbookContext.js';
 import { omitUndefined } from '@pagopa/go-common/utils';
 
 import { assertKnownCaseStepRefs } from './alarmConfigValidation.js';
@@ -46,7 +47,7 @@ export interface FinishAlarmRunbookOptions<TAnchor extends string> {
    */
   readonly defaultFallback: DefaultFallbackFn;
   /** Structured context describing the analysed component. */
-  readonly runbookContext: unknown;
+  readonly runbookContext: AlarmRunbookContext;
   /**
    * Name of the component under analysis, recorded as the draft's PRIMARY
    * resource. `type` stays undeclared until the Fase 0 coverage check confirms
@@ -92,7 +93,7 @@ export interface FinishAlarmRunbookOptions<TAnchor extends string> {
  * ```
  */
 export function finishAlarmRunbook<TAnchor extends string = never>(
-  builder: RunbookBuilder,
+  builder: AlarmRunbookBuilder,
   config: AlarmRunbookTailConfig,
   options: FinishAlarmRunbookOptions<TAnchor>,
 ): Runbook {

@@ -1,12 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { RunbookContext } from '../../../../../../engine/types/RunbookContext.js';
 import { QueryDownstreamLogsStep } from '../QueryDownstreamLogsStep.js';
 import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
+import type { OperationalContext } from '../../../../services/OperationalContext.js';
 
-function context(vars: Map<string, string>): RunbookContext {
-  return { vars, stepResults: new Map(), services: createTestServiceRegistry() } as unknown as RunbookContext;
+function context(vars: Map<string, string>): OperationalContext {
+  return { vars, stepResults: new Map(), services: createTestServiceRegistry() } as unknown as OperationalContext;
 }
 
 const step = new QueryDownstreamLogsStep({

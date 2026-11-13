@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { AWSCloudWatchLogsQueryOptions } from '@pagopa/go-aws/cloudwatch-logs';
 import { createTestServiceRegistry } from '../../../../../toolkits/interop/index.js';
-import type { RunbookContext } from '../../../../../engine/index.js';
 import { QueryPublicCatalogStrapiContextStep } from '../QueryPublicCatalogStrapiContextStep.js';
+import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
 
 interface Call {
   readonly groups: ReadonlyArray<string>;
@@ -24,7 +24,7 @@ function context(
   count = 1,
   matched = count,
   error?: Error,
-): RunbookContext {
+): OperationalContext {
   return {
     executionId: 'strapi-test',
     startedAt: new Date('2026-10-06T00:36:08Z'),

@@ -1,4 +1,4 @@
-import { RunbookBuilder } from '../../../../../engine/builders/RunbookBuilder.js';
+import { AlarmRunbookBuilder } from '../../../builders/AlarmRunbookBuilder.js';
 import { CloudWatchLogsQueryStep } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsQueryStep.js';
 import type { TimeRangeFromParams } from '../../../time/TimeRangeFromParams.js';
 import type { Runbook } from '../../../../../engine/types/Runbook.js';
@@ -35,7 +35,7 @@ export function createLambdaAlarmRunbook(config: LambdaAlarmConfig): Runbook {
   }
   const ctx = resolveLambdaAlarmBuildContext(config);
   const reachedAnchors = new Set<LambdaPipelineAnchor>();
-  const builder = RunbookBuilder.create(config.id)
+  const builder = AlarmRunbookBuilder.create(config.id)
     .metadata(config.metadata)
     .cloudExecutionPolicy({ sideEffects: 'NONE' });
 

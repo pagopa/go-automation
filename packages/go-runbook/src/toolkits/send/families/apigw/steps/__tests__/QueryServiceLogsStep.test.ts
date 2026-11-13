@@ -4,13 +4,13 @@ import assert from 'node:assert/strict';
 import type { AWSCloudWatchLogsService } from '@pagopa/go-aws/cloudwatch-logs';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { GOLogger } from '@pagopa/go-common/logging';
-import type { RunbookContext } from '../../../../../../engine/types/RunbookContext.js';
 import type { TimeRange } from '../../../../../common/time/TimeRange.js';
 
 import { QueryServiceLogsStep } from '../QueryServiceLogsStep.js';
 import { createTestServiceRegistry } from '../../../../../common/testing/createTestServiceRegistry.js';
 import { ConsoleRunbookReporter } from '../../../../../../engine/reporting/ConsoleRunbookReporter.js';
 import { NOOP_RUNBOOK_REPORTER } from '../../../../../../engine/reporting/NOOP_RUNBOOK_REPORTER.js';
+import type { OperationalContext } from '../../../../../common/services/OperationalContext.js';
 
 interface CapturedCall {
   readonly logGroups: ReadonlyArray<string>;
@@ -43,7 +43,7 @@ function createContext(args: {
   readonly vars?: Record<string, string>;
   readonly cloudWatchLogs: AWSCloudWatchLogsService;
   readonly capturedLines?: string[];
-}): RunbookContext {
+}): OperationalContext {
   const captured = args.capturedLines;
   const reporter =
     captured === undefined

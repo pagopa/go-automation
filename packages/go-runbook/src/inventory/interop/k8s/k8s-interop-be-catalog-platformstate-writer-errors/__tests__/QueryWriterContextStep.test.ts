@@ -4,9 +4,9 @@ import { describe, it } from 'node:test';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { createTestServiceRegistry } from '../../../../../toolkits/interop/index.js';
-import type { RunbookContext } from '../../../../../engine/index.js';
 import { CATALOG_PLATFORMSTATE_WRITER_ALARM as alarm } from '../alarmDefinition.js';
 import { QueryWriterContextStep } from '../QueryWriterContextStep.js';
+import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
 
 interface QueryCall {
   readonly groups: ReadonlyArray<string>;
@@ -17,7 +17,7 @@ interface QueryCall {
 
 const LOG_GROUP = '/aws/eks/interop-eks-cluster-prod/application';
 
-function context(vars: ReadonlyArray<readonly [string, string]>, calls: QueryCall[], rowCount = 1): RunbookContext {
+function context(vars: ReadonlyArray<readonly [string, string]>, calls: QueryCall[], rowCount = 1): OperationalContext {
   return {
     executionId: 'platformstate-writer-context-test',
     startedAt: new Date('2026-10-06T18:05:00.000Z'),

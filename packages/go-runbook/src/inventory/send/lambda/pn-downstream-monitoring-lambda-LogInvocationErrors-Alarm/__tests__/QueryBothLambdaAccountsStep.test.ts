@@ -4,9 +4,10 @@ import { describe, it } from 'node:test';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
-import { ConditionEvaluator, type RunbookContext } from '../../../../../engine/index.js';
+import { ConditionEvaluator } from '../../../../../engine/index.js';
 import { KNOWN_CASES } from '../knownCases.js';
 import { QueryBothLambdaAccountsStep } from '../QueryBothLambdaAccountsStep.js';
+import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
 
 interface QueryCall {
   readonly accountId: string;
@@ -28,7 +29,7 @@ function context(
   failingAccount?: string,
   rowsByAccount?: ReadonlyMap<string, ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>,
   rowsForQuery?: RowsForQueryFn,
-): RunbookContext {
+): OperationalContext {
   return {
     executionId: 'dual-account-test',
     startedAt: new Date('2026-09-08T14:00:00.000Z'),

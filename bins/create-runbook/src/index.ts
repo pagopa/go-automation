@@ -47,6 +47,7 @@ import { registerRunbookInCatalog, renderRegistrationFile } from './wiring/regis
 import type { RunbookRegistration } from './wiring/registerInCatalog.js';
 import { deriveRegistrationName } from './naming/deriveRegistrationName.js';
 import { runbookIdError } from './validation/runbookIdError.js';
+import { registeredRunbookIdError } from './validation/registeredRunbookIdError.js';
 import { REPO_ROOT, TEMPLATES_ROOT } from './constants.js';
 import { findExistingRunbookDir, manifestConstName, manifestFile, runbookDir } from './inventoryLayout.js';
 import type { RunbookAnswers } from './templates/RunbookAnswers.js';
@@ -193,6 +194,12 @@ async function run(): Promise<void> {
   const existing = await findExistingRunbookDir(answers.id);
   if (existing !== undefined) {
     throw new Error(`Esiste già un runbook con questo id: ${relativeToRepo(existing)}`);
+  }
+  // ...and among the registered keys and alarm names (aliases included), before anything is written.
+  const inventory = await import('../../../packages/go-runbook/src/inventory/manifest.js');
+  const registeredError = registeredRunbookIdError(answers.id, inventory.INVENTORY_MANIFEST);
+  if (registeredError !== undefined) {
+    throw new Error(registeredError);
   }
   const targetDir = runbookDir(answers.product, answers.family, answers.id);
 

@@ -16,7 +16,7 @@ const step: Step<void> = {
 };
 
 describe('RunbookBuilder', () => {
-  it('persists an explicit read-only cloud execution policy', () => {
+  it('builds only the engine fields, and copies only the engine options of a step', () => {
     const runbook = RunbookBuilder.create('test-runbook')
       .metadata({
         name: 'Test',
@@ -26,46 +26,20 @@ describe('RunbookBuilder', () => {
         team: 'GO',
         tags: [],
       })
-      .cloudExecutionPolicy({ sideEffects: 'NONE' })
-      .step(step)
+      .step(step, { continueOnFailure: true, silent: true })
       .fallback(logAction({ level: 'info', title: 'done' }))
       .build();
 
-    assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
+    assert.deepStrictEqual(Object.keys(runbook), ['metadata', 'steps', 'knownCases', 'fallbackAction']);
+    assert.deepStrictEqual(runbook.steps[0], { step, continueOnFailure: true, silent: true });
   });
 
-  it('persists an asymmetric occurrence window', () => {
-    const runbook = RunbookBuilder.create('test-runbook')
-      .metadata({
-        name: 'Test',
-        description: 'Test runbook',
-        version: '1.0.0',
-        type: 'alarm-resolution',
-        team: 'GO',
-        tags: [],
-      })
-      .occurrenceTimeWindow({ beforeMinutes: 10, afterMinutes: 5 })
-      .step(step)
-      .fallback(logAction({ level: 'info', title: 'done' }))
-      .build();
+  it('reports missing metadata and fallback with engine codes', () => {
+    const builder = RunbookBuilder.create('test-runbook').step(step);
 
-    assert.deepStrictEqual(runbook.occurrenceTimeWindow, { beforeMinutes: 10, afterMinutes: 5 });
-  });
-
-  it('rejects invalid occurrence-window padding', () => {
-    const builder = RunbookBuilder.create('test-runbook')
-      .metadata({
-        name: 'Test',
-        description: 'Test runbook',
-        version: '1.0.0',
-        type: 'alarm-resolution',
-        team: 'GO',
-        tags: [],
-      })
-      .occurrenceTimeWindow({ beforeMinutes: -1, afterMinutes: 5 })
-      .step(step)
-      .fallback(logAction({ level: 'info', title: 'done' }));
-
-    assert.throws(() => builder.build(), /Invalid occurrenceTimeWindow\.beforeMinutes/);
+    assert.deepStrictEqual(
+      builder.validate().map((error) => error.code),
+      ['MISSING_METADATA', 'MISSING_FALLBACK'],
+    );
   });
 });

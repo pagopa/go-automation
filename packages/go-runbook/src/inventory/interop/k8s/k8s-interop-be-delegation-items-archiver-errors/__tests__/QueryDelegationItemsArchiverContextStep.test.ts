@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { AWSCloudWatchLogsQueryOptions } from '@pagopa/go-aws/cloudwatch-logs';
-import type { RunbookContext } from '../../../../../engine/index.js';
 import { createTestServiceRegistry } from '../../../../../toolkits/interop/index.js';
 import { QueryDelegationItemsArchiverContextStep } from '../QueryDelegationItemsArchiverContextStep.js';
+import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
 
 const VARS = [
   ['interopLogGroup', '/aws/eks/interop-eks-cluster-prod/application'],
@@ -22,7 +22,7 @@ function context(
   count = 1,
   matched = count,
   denied = false,
-): RunbookContext {
+): OperationalContext {
   return {
     executionId: 'test',
     startedAt: new Date(),

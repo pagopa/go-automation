@@ -69,4 +69,17 @@ describe('classifyLambdaError', () => {
       'unknown',
     );
   });
+
+  it('classifies the same message the same way with a global or sticky signature, on every call', () => {
+    const message = 'External service pn-emd-integration returned errors';
+    for (const signature of [
+      /External service\s+\S+\s+returned errors/gi,
+      /External service\s+\S+\s+returned errors/y,
+    ]) {
+      const results = [1, 2, 3].map(() => classifyLambdaError(message, [signature]));
+
+      assert.deepStrictEqual(results, ['downstream', 'downstream', 'downstream']);
+      assert.strictEqual(signature.lastIndex, 0);
+    }
+  });
 });

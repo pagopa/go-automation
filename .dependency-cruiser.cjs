@@ -204,27 +204,6 @@ function goAwsFolderPattern(folder) {
   return `^packages/go-aws/src/${escapeRegExp(folder)}/(?:[^/]+|models/.+)$`;
 }
 
-/**
- * EVO-RBREORG-OPUS-01 F3: engine files that still reach operational code, exempted from
- * engine-is-a-foundation until F5 splits them (§7.1.3). F5 removes this list.
- * - ActionExecutor: renderLogAction (LogActionRenderer injected, §7.1.3 D);
- * - RunbookBuilder, Runbook: cloud policy, occurrence window, analysis defaults, output validation (§7.1.3 E);
- * - RunbookContext, RunbookContextHelper, RunbookEngine: ServiceRegistry (WorkflowServices, §7.1.3 A);
- * - KnownCase, StepDescriptor: KnownCaseAnalysis, StepEvidence (§7.1.3 E);
- * - StepDiagnostics: CloudWatch statistics (§7.1.3 B).
- */
-const ENGINE_PURIFICATION_DEBT = [
-  '^packages/go-runbook/src/engine/actions/ActionExecutor[.]ts$',
-  '^packages/go-runbook/src/engine/builders/RunbookBuilder[.]ts$',
-  '^packages/go-runbook/src/engine/types/Runbook[.]ts$',
-  '^packages/go-runbook/src/engine/types/RunbookContext[.]ts$',
-  '^packages/go-runbook/src/engine/context/RunbookContextHelper[.]ts$',
-  '^packages/go-runbook/src/engine/core/RunbookEngine[.]ts$',
-  '^packages/go-runbook/src/engine/types/KnownCase[.]ts$',
-  '^packages/go-runbook/src/engine/types/StepDescriptor[.]ts$',
-  '^packages/go-runbook/src/engine/tracing/StepDiagnostics[.]ts$',
-];
-
 function packageLayerRules() {
   const kernelLevelRules = GO_COMMON_KERNEL_LEVELS.slice(0, -1).map((areas, level) => ({
     name: `go-common-kernel-level-${level}`,
@@ -321,7 +300,7 @@ function packageLayerRules() {
         'inventory or runtime, any go-aws module, or the I/O areas of go-common.',
       from: {
         path: '^packages/go-runbook/src/engine/',
-        pathNot: ['/__tests__/', ...ENGINE_PURIFICATION_DEBT],
+        pathNot: ['/__tests__/'],
       },
       to: {
         path: [

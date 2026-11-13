@@ -7,7 +7,6 @@ import {
 import {
   executeStep,
   readStepOutput,
-  type RunbookContext,
   type Step,
   type StepDiagnostics,
   type StepResult,
@@ -16,6 +15,9 @@ import {
   executeCloudWatchLogsQuery,
   extractLambdaRequestId,
   resolveTimeRange,
+  OperationalStep,
+  type OperationalContext,
+  type OperationalServiceName,
 } from '../../../../toolkits/send/index.js';
 
 import { LAMBDA_FUNCTION } from './knownServices.js';
@@ -37,12 +39,13 @@ const ERROR_QUERY = `fields @timestamp, @requestId, @message
 | limit ${QUERY_ROW_LIMIT}`;
 
 /** Reads one cloud occurrence source or all configured local sources without widening the scope. */
-export class QueryDailyExportAccountsStep implements Step<Rows> {
+export class QueryDailyExportAccountsStep extends OperationalStep<Rows> implements Step<Rows> {
   readonly id: string;
   readonly label: string;
   readonly kind = 'data' as const;
 
   constructor(private readonly queryKind: QueryKind) {
+    super();
     this.id = queryKind === 'errors' ? 'query-lambda-errors' : 'query-lambda-invocation';
     this.label =
       queryKind === 'errors'
@@ -50,7 +53,7 @@ export class QueryDailyExportAccountsStep implements Step<Rows> {
         : 'Query invocazione Lambda sulle sorgenti configurate';
   }
 
-  getTraceInfo(context: RunbookContext): Readonly<Record<string, unknown>> {
+  getTraceInfo(context: OperationalContext): Readonly<Record<string, unknown>> {
     return {
       queryKind: this.queryKind === 'errors' ? 'lambda-error-scan' : 'lambda-invocation-flow',
       queryProfileId: 'send',
@@ -67,7 +70,16 @@ export class QueryDailyExportAccountsStep implements Step<Rows> {
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<Rows>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
     const upstream = this.queryKind === 'invocation' ? readStepOutput<Rows>(context, 'query-lambda-errors') : undefined;
     if (upstream !== undefined && !upstream.ok) return upstream.failure;
 

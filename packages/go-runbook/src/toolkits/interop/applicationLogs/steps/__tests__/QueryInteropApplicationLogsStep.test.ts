@@ -7,10 +7,10 @@ import type {
   AWSCloudWatchLogsTimeRange,
 } from '@pagopa/go-aws/cloudwatch-logs';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
 import { QueryInteropApplicationLogsStep } from '../QueryInteropApplicationLogsStep.js';
 import { createTestServiceRegistry } from '../../../../common/testing/createTestServiceRegistry.js';
 import { INTEROP_K8S_QUERY_PROFILE } from '../../../families/k8s/profiles/INTEROP_K8S_QUERY_PROFILE.js';
+import type { OperationalContext } from '../../../../common/services/OperationalContext.js';
 
 const PROFILE_FIELDS = {
   queryProfileId: INTEROP_K8S_QUERY_PROFILE.applicationLogsQueryProfileId,
@@ -24,7 +24,7 @@ interface SeenQuery {
   readonly options: AWSCloudWatchLogsQueryOptions;
 }
 
-function context(cloudWatchLogs: unknown): RunbookContext {
+function context(cloudWatchLogs: unknown): OperationalContext {
   return {
     executionId: 'test',
     startedAt: new Date('2026-07-09T10:00:00.000Z'),

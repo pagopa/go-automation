@@ -6,8 +6,9 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 import { formatBytes } from '@pagopa/go-common/utils';
 
 import type { TimeRange } from '../../../time/TimeRange.js';
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-import type { CloudWatchLogsStepDiagnostics, StepDiagnostics } from '../../../../../engine/tracing/StepDiagnostics.js';
+import type { OperationalContext } from '../../../services/OperationalContext.js';
+import type { StepDiagnostics } from '../../../../../engine/tracing/StepDiagnostics.js';
+import type { CloudWatchLogsStepDiagnostics } from '../../../telemetry/CloudWatchLogsStepDiagnostics.js';
 
 type CloudWatchLogsRows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
@@ -17,7 +18,7 @@ export interface ExecutedCloudWatchLogsQuery {
 }
 
 export async function executeCloudWatchLogsQuery(
-  context: RunbookContext,
+  context: OperationalContext,
   logGroups: ReadonlyArray<string>,
   query: string,
   timeRange: TimeRange,
@@ -43,7 +44,7 @@ function toCloudWatchLogsDiagnostics(result: AWSCloudWatchLogsQueryResult): Clou
   };
 }
 
-function logQueryStatistics(context: RunbookContext, diagnostics: CloudWatchLogsStepDiagnostics): void {
+function logQueryStatistics(context: OperationalContext, diagnostics: CloudWatchLogsStepDiagnostics): void {
   const stats = diagnostics.statistics;
   const queryIds = diagnostics.queryExecutions.map((execution) => execution.queryId).join(', ');
   const querySuffix = queryIds === '' ? '' : `, queryIds=${queryIds}`;

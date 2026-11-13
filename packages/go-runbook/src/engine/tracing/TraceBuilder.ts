@@ -5,7 +5,7 @@ import type { CaseEvaluationTrace } from './CaseEvaluationTrace.js';
 import type { EarlyResolutionTrace } from './EarlyResolutionTrace.js';
 import type { ActionTrace, ActionType } from './ActionTrace.js';
 import type { ExecutionSummary } from './ExecutionSummary.js';
-import type { ExecutionEnvironment } from './ExecutionInfo.js';
+import type { ExecutionEnvironment } from './ExecutionEnvironment.js';
 import type { RunbookExecutionTrace } from './RunbookExecutionTrace.js';
 import type { RunbookContext } from '../types/RunbookContext.js';
 import type { Runbook } from '../types/Runbook.js';

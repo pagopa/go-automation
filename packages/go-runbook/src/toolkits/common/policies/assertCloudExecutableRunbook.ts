@@ -5,6 +5,8 @@ import { DynamoDBGetStep } from '../steps/aws/dynamodb/DynamoDBGetStep.js';
 import { DynamoDBQueryStep } from '../steps/aws/dynamodb/DynamoDBQueryStep.js';
 import type { Runbook } from '../../../engine/types/Runbook.js';
 import type { Step } from '../../../engine/types/Step.js';
+import { collectRunbookSteps } from '../../../engine/core/collectRunbookSteps.js';
+import { HttpRequestStep } from '../steps/networking/HttpRequestStep.js';
 
 /**
  * Data sources the cloud worker cannot read in the occurrence's account.
@@ -28,19 +30,27 @@ export function assertCloudExecutableRunbook(runbook: Runbook): void {
     throw new Error(`Runbook "${runbook.metadata.id}" does not declare cloud sideEffects=NONE`);
   }
 
-  const mutationStep = runbook.steps.find((descriptor) => descriptor.step.kind === 'mutation');
+  // Every executable step: pipeline, nested sub-pipelines and the steps of the actions (RBREORG-21).
+  const steps = collectRunbookSteps(runbook);
+  const mutationStep = steps.find((step) => step.kind === 'mutation');
   if (mutationStep !== undefined) {
     throw new Error(
-      `Runbook "${runbook.metadata.id}" contains mutation step "${mutationStep.step.id}" and cannot run in cloud v1`,
+      `Runbook "${runbook.metadata.id}" contains mutation step "${mutationStep.id}" and cannot run in cloud v1`,
     );
   }
 
-  for (const descriptor of runbook.steps) {
-    const service = oamUnreachableService(descriptor.step);
+  for (const step of steps) {
+    const service = oamUnreachableService(step);
     if (service !== undefined) {
       throw new Error(
-        `Runbook "${runbook.metadata.id}" reads ${service} in step "${descriptor.step.id}", ` +
+        `Runbook "${runbook.metadata.id}" reads ${service} in step "${step.id}", ` +
           'which the cloud worker cannot reach in the source account: OAM shares telemetry, not credentials',
+      );
+    }
+    if (step instanceof HttpRequestStep && !step.isReadOnly()) {
+      throw new Error(
+        `Runbook "${runbook.metadata.id}" sends a non read-only HTTP request in step "${step.id}": ` +
+          'only a literal GET or HEAD can run in cloud',
       );
     }
   }

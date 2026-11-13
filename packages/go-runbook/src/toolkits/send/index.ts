@@ -40,3 +40,10 @@ export { RunbookProducts } from '../common/registration/RunbookProduct.js';
 export type { TimeRange } from '../common/time/TimeRange.js';
 export { assertAnalysisAnnotations } from '../common/analysis/validation/assertAnalysisAnnotations.js';
 export { assertCloudExecutableRunbook } from '../common/policies/assertCloudExecutableRunbook.js';
+export { OperationalStep } from '../common/steps/OperationalStep.js';
+export type { OperationalContext } from '../common/services/OperationalContext.js';
+export type { OperationalServiceName } from '../common/services/OperationalServiceName.js';
+
+// Operational model augmentations: keeps the operational fields in a consumer's program (EVO-RBREORG-OPUS-01 RBREORG-11).
+export type { OperationalModelAugmentations } from '../common/augmentations/index.js';
+export { AlarmRunbookBuilder } from '../common/builders/AlarmRunbookBuilder.js';

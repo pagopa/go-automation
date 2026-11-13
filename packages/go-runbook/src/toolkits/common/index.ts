@@ -24,7 +24,20 @@ export type { RunbookMetricDatapoint } from './services/ports/RunbookMetricDatap
 export type { RunbookMetricDimension } from './services/ports/RunbookMetricDimension.js';
 export type { RunbookDynamoDBPort } from './services/ports/RunbookDynamoDBPort.js';
 export type { RunbookDynamoDBAttributeValue } from './services/ports/RunbookDynamoDBAttributeValue.js';
-export { createTestServiceRegistry } from './testing/createTestServiceRegistry.js';
+export { createTestServiceRegistry, recordedServiceCalls } from './testing/createTestServiceRegistry.js';
+export type { TestServiceOverrides } from './testing/TestServiceOverrides.js';
+export type { TestServiceCall } from './testing/TestServiceCall.js';
+export { UnexpectedServiceCallError } from './testing/UnexpectedServiceCallError.js';
+
+// Operational steps and services contract
+export { OperationalStep } from './steps/OperationalStep.js';
+export type { OperationalContext } from './services/OperationalContext.js';
+export type { OperationalServiceName } from './services/OperationalServiceName.js';
+export {
+  OPERATIONAL_SERVICE_CAPABILITIES,
+  OPERATIONAL_SERVICE_METHODS,
+} from './services/OPERATIONAL_SERVICE_CAPABILITIES.js';
+export { OperationalRunbookEngine } from './engine/OperationalRunbookEngine.js';
 
 // AWS and HTTP steps
 export { CloudWatchLogsQueryStep } from './steps/aws/cloudwatch-logs/CloudWatchLogsQueryStep.js';
@@ -56,8 +69,10 @@ export type { TimeRange } from './time/TimeRange.js';
 export type { TimeRangeFromParams } from './time/TimeRangeFromParams.js';
 export { resolveTimeRange } from './time/resolveTimeRange.js';
 
-// Telemetry (the type moves to ./telemetry with the StepDiagnostics split, F5)
-export type { CloudWatchLogsStepDiagnostics } from '../../engine/tracing/StepDiagnostics.js';
+// Telemetry
+export type { CloudWatchLogsStepDiagnostics } from './telemetry/CloudWatchLogsStepDiagnostics.js';
+export type { AwsExecutionEnvironment } from './telemetry/AwsExecutionEnvironment.js';
+export type { AlarmRunbookContext } from './output/AlarmRunbookContext.js';
 
 // Policies
 export { assertCloudExecutableRunbook } from './policies/assertCloudExecutableRunbook.js';
@@ -72,6 +87,7 @@ export type { RunbookAnalysisDefaults } from './analysis/RunbookAnalysisDefaults
 export { knownCase } from './analysis/knownCase.js';
 export type { KnownCaseSpec } from './analysis/knownCase.js';
 export { UNKNOWN_CASE_TITLE, unknownCaseFallback } from './analysis/reporting/unknownCaseFallback.js';
+export { ANALYSIS_LOG_ACTION_RENDERER } from './analysis/reporting/ANALYSIS_LOG_ACTION_RENDERER.js';
 export { assertAnalysisAnnotations } from './analysis/validation/assertAnalysisAnnotations.js';
 export type { DownstreamCatalogs } from './analysis/validation/DownstreamCatalogs.js';
 
@@ -91,3 +107,7 @@ export type { RunbookProduct } from './registration/RunbookProduct.js';
 export * as apigw from './families/apigw/index.js';
 export * as lambda from './families/lambda/index.js';
 export * as service from './families/service/index.js';
+
+// Operational model augmentations: keeps the operational fields in a consumer's program (EVO-RBREORG-OPUS-01 RBREORG-11).
+export type { OperationalModelAugmentations } from './augmentations/index.js';
+export { AlarmRunbookBuilder } from './builders/AlarmRunbookBuilder.js';

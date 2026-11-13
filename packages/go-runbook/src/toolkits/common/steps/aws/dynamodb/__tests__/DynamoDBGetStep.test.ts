@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { DynamoDBGetStep } from '../DynamoDBGetStep.js';
-import type { RunbookContext } from '../../../../../../engine/types/RunbookContext.js';
 import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
+import type { OperationalContext } from '../../../../services/OperationalContext.js';
 
 interface GetItemCall {
   readonly tableName: string;
@@ -14,7 +14,7 @@ function makeContext(args: {
   readonly params?: ReadonlyArray<readonly [string, string]>;
   /** Item the stubbed table returns; omit to simulate a missing item. */
   readonly item?: Record<string, unknown>;
-}): { readonly context: RunbookContext; readonly calls: GetItemCall[] } {
+}): { readonly context: OperationalContext; readonly calls: GetItemCall[] } {
   const { params = [], item } = args;
   const calls: GetItemCall[] = [];
   const services = createTestServiceRegistry({

@@ -1,13 +1,15 @@
 import type { LogEntry } from './LogEntry.js';
 import type { ErrorRecoveryInfo } from './ErrorRecoveryInfo.js';
 import type { GORegexCache } from '@pagopa/go-common/utils';
-import type { ServiceRegistry } from '../../toolkits/common/services/ServiceRegistry.js';
+import type { WorkflowServices } from './WorkflowServices.js';
 
 /**
  * Immutable execution context of the runbook.
  * Updated (via copy) after each step execution.
+ *
+ * @typeParam TServices - Services of the execution (operational toolkits use their registry)
  */
-export interface RunbookContext {
+export interface RunbookContext<TServices extends WorkflowServices = WorkflowServices> {
   /** Unique ID of the current execution */
   readonly executionId: string;
   /** Execution start timestamp */
@@ -20,8 +22,8 @@ export interface RunbookContext {
   readonly params: ReadonlyMap<string, string>;
   /** Log entries collected during execution */
   readonly logs: ReadonlyArray<LogEntry>;
-  /** Injected AWS and HTTP services */
-  readonly services: ServiceRegistry;
+  /** Services of the execution: WorkflowServices, or an operational extension of them */
+  readonly services: TServices;
   /** Errors recovered from steps with continueOnFailure enabled. Allows inspection of which steps failed without blocking execution. */
   readonly recoveredErrors: ReadonlyArray<ErrorRecoveryInfo>;
   /** Abort signal for cancelling the execution. Propagated to all service calls. */

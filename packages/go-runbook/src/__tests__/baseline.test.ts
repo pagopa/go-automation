@@ -56,4 +56,11 @@ describe('go-runbook reorganization baseline', () => {
   it('keeps the public surface of every entrypoint, namespace and class members included', async () => {
     assert.deepStrictEqual(asStored(collectSurface()), await readBaseline('surface.json'));
   });
+
+  it('lists inherited public members, so losing a base class changes the surface', () => {
+    const send = collectSurface()['./toolkits/send'] ?? [];
+
+    assert.ok(send.includes('apigw.ApiGwServiceChainReporter#apiGwResult'));
+    assert.ok(send.includes('apigw.ApiGwServiceChainReporter#stopSummary'));
+  });
 });

@@ -41,6 +41,15 @@ export class SwitchBranchStep implements Step<void> {
   }
 
   /**
+   * Steps of every case and of the default, for the service check and the cloud policy.
+   *
+   * @returns The steps of all branches
+   */
+  nestedSteps(): ReadonlyArray<Step> {
+    return [...[...this.config.cases.values()].flat(), ...(this.config.defaultSteps ?? [])];
+  }
+
+  /**
    * Resolves the reference, finds the matching case, and executes the sub-pipeline.
    * Variables produced by sub-steps are merged and returned in the result.
    *

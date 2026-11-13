@@ -1,5 +1,5 @@
+import type { StepDescriptorExtensions } from './StepDescriptorExtensions.js';
 import type { Step } from './Step.js';
-import type { StepEvidence } from '../../toolkits/common/output/StepEvidence.js';
 
 /**
  * Descriptor wrapping a step with execution options.
@@ -7,7 +7,7 @@ import type { StepEvidence } from '../../toolkits/common/output/StepEvidence.js'
  *
  * @typeParam TOutput - The type of output produced by the wrapped step
  */
-export interface StepDescriptor<TOutput = unknown> {
+export interface StepDescriptor<TOutput = unknown> extends StepDescriptorExtensions {
   /** The step to execute */
   readonly step: Step<TOutput>;
   /** If true, a step failure does not interrupt execution */
@@ -19,6 +19,4 @@ export interface StepDescriptor<TOutput = unknown> {
    * use this flag to keep the user-facing output clean.
    */
   readonly silent?: boolean;
-  /** Evidence exported from this step's successful output, independently of its toolkit. */
-  readonly evidence?: ReadonlyArray<StepEvidence>;
 }

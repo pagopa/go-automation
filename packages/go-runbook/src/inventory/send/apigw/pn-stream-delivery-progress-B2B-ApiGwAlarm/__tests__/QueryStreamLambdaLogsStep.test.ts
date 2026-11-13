@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { QueryStreamLambdaLogsStep } from '../QueryStreamLambdaLogsStep.js';
 import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
-import type { RunbookContext } from '../../../../../engine/index.js';
+import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
 
 const ID = 'a2240f30-32dc-407d-80d9-4fd363aeaeb4';
 const OTHER_ID = 'b2240f30-32dc-407d-80d9-4fd363aeaeb4';
@@ -22,7 +22,7 @@ function context(
     await Promise.resolve();
     return [];
   },
-): RunbookContext {
+): OperationalContext {
   return {
     executionId: 'test',
     startedAt: new Date(),

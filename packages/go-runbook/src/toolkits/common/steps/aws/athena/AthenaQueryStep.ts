@@ -5,6 +5,9 @@ import type { RunbookContext } from '../../../../../engine/types/RunbookContext.
 import { interpolatePlaceholders } from '../../../../../engine/context/templatePlaceholders.js';
 import { extractTemplateParameters } from '../../../queries/interpolateTemplate.js';
 import { executeStep } from '../../../../../engine/steps/execution/executeStep.js';
+import { OperationalStep } from '../../OperationalStep.js';
+import type { OperationalContext } from '../../../services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
 
 /**
  * Configuration for the Athena query data step.
@@ -53,7 +56,10 @@ export interface AthenaQueryConfig {
  * //              parameters = ['ABCD-1234']
  * ```
  */
-export class AthenaQueryStep implements Step<ReadonlyArray<Record<string, string>>> {
+export class AthenaQueryStep
+  extends OperationalStep<ReadonlyArray<Record<string, string>>>
+  implements Step<ReadonlyArray<Record<string, string>>>
+{
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -64,6 +70,7 @@ export class AthenaQueryStep implements Step<ReadonlyArray<Record<string, string
   private readonly outputLocationParam: string | undefined;
 
   constructor(config: AthenaQueryConfig) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.database = config.database;
@@ -89,6 +96,15 @@ export class AthenaQueryStep implements Step<ReadonlyArray<Record<string, string
   }
 
   /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['athena'];
+  }
+
+  /**
    * Executes the Athena SQL query using parameterized execution.
    * Template placeholders are extracted and passed as `ExecutionParameters`
    * to prevent SQL injection.
@@ -96,7 +112,7 @@ export class AthenaQueryStep implements Step<ReadonlyArray<Record<string, string
    * @param context - The runbook execution context
    * @returns Step result containing an array of key-value result rows
    */
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<Record<string, string>>>> {
+  override async execute(context: OperationalContext): Promise<StepResult<ReadonlyArray<Record<string, string>>>> {
     return executeStep('Athena query', async () => {
       const { query, parameters } = extractTemplateParameters(this.query, context);
       const outputLocation = this.resolveOutputLocation(context, true);

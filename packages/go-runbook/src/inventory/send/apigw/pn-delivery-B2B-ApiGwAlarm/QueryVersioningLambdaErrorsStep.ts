@@ -15,6 +15,9 @@ import {
   resolveTimeRange,
   scanLambdaLogs,
   type TimeRangeFromParams,
+  OperationalStep,
+  type OperationalContext,
+  type OperationalServiceName,
 } from '../../../../toolkits/send/index.js';
 
 import {
@@ -41,7 +44,7 @@ export interface QueryVersioningLambdaErrorsConfig {
  * The probe deliberately models `queried` and `unavailable` as different
  * states: a failed CloudWatch query must never be interpreted as zero errors.
  */
-export class QueryVersioningLambdaErrorsStep implements Step<Rows> {
+export class QueryVersioningLambdaErrorsStep extends OperationalStep<Rows> implements Step<Rows> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -50,6 +53,7 @@ export class QueryVersioningLambdaErrorsStep implements Step<Rows> {
   private readonly timeRangeFromParams: TimeRangeFromParams;
 
   constructor(config: QueryVersioningLambdaErrorsConfig) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.lambdaLogGroup = config.lambdaLogGroup;
@@ -69,7 +73,16 @@ export class QueryVersioningLambdaErrorsStep implements Step<Rows> {
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<Rows>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
     return executeStep('Versioning Lambda error query', async () => {
       if (!shouldQueryVersioningLambda(context)) {
         return {

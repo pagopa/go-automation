@@ -16,6 +16,9 @@ import type { TimeRangeFromParams } from '../../../common/time/TimeRangeFromPara
 import { resolveTimeRange } from '../../../common/time/resolveTimeRange.js';
 import type { BuildInteropK8sCidTrackerQueryFn } from '../types/BuildInteropK8sCidTrackerQueryFn.js';
 import type { InteropK8sApplicationLogAnalysis } from './AnalyzeInteropApplicationLogsStep.js';
+import { OperationalStep } from '../../../common/steps/OperationalStep.js';
+import type { OperationalContext } from '../../../common/services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../common/services/OperationalServiceName.js';
 
 export interface InteropK8sCidTrackerResult {
   readonly cid: string;
@@ -57,7 +60,10 @@ const DEFAULT_VAR_PREFIX = 'interopCidTracker';
  */
 const DEFAULT_MAX_CIDS = 100;
 
-export class QueryInteropCidTrackerStep implements Step<ReadonlyArray<InteropK8sCidTrackerResult>> {
+export class QueryInteropCidTrackerStep
+  extends OperationalStep<ReadonlyArray<InteropK8sCidTrackerResult>>
+  implements Step<ReadonlyArray<InteropK8sCidTrackerResult>>
+{
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -71,6 +77,7 @@ export class QueryInteropCidTrackerStep implements Step<ReadonlyArray<InteropK8s
   private readonly maxCids: number;
 
   constructor(config: QueryInteropCidTrackerStepConfig) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.fromStep = config.fromStep;
@@ -99,7 +106,16 @@ export class QueryInteropCidTrackerStep implements Step<ReadonlyArray<InteropK8s
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<InteropK8sCidTrackerResult>>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(context: OperationalContext): Promise<StepResult<ReadonlyArray<InteropK8sCidTrackerResult>>> {
     const analysis = readApplicationAnalysis(context, this.fromStep);
     if (analysis === undefined) return { success: false, error: `Step output not found: "${this.fromStep}"` };
 

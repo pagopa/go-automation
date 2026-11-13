@@ -3,11 +3,9 @@ import type { CaseAction, CaseActionType, LogAction } from '../types/CaseAction.
 import type { RunbookContext } from '../types/RunbookContext.js';
 import { interpolatePlaceholders } from '../context/templatePlaceholders.js';
 import { throwIfRunbookAborted } from '../context/throwIfRunbookAborted.js';
-import {
-  renderLogActionText,
-  resolveLogActionRows,
-  UNAVAILABLE_VALUE,
-} from '../../toolkits/common/analysis/reporting/renderLogAction.js';
+import type { LogActionRenderer } from './LogActionRenderer.js';
+import { PLAIN_LOG_ACTION_RENDERER } from './PLAIN_LOG_ACTION_RENDERER.js';
+import { resolveActionMessage } from './resolveActionMessage.js';
 
 /**
  * Result of executing an action.
@@ -33,7 +31,14 @@ export interface ActionExecutionResult {
  * Handles template interpolation for message fields.
  */
 export class ActionExecutor {
-  constructor(private readonly logger: GOLogger) {}
+  /**
+   * @param logger - Logger of the execution
+   * @param renderer - Renderer of log actions (default: plain text)
+   */
+  constructor(
+    private readonly logger: GOLogger,
+    private readonly renderer: LogActionRenderer = PLAIN_LOG_ACTION_RENDERER,
+  ) {}
 
   /**
    * Executes a case action and returns execution result data.
@@ -81,26 +86,9 @@ export class ActionExecutor {
    * @returns Resolved message or undefined if action has no message
    */
   private getResolvedMessage(action: CaseAction, context: RunbookContext): string | undefined {
-    switch (action.type) {
-      case 'log':
-        return renderLogActionText(action, context);
-      case 'notify':
-        return interpolatePlaceholders(action.template, context);
-      case 'escalate':
-        return interpolatePlaceholders(action.message, context);
-      case 'update':
-      case 'composite':
-        return undefined;
-      default: {
-        const _exhaustive: never = action;
-        throw new Error(`Unknown action type: ${(_exhaustive as CaseAction).type}`);
-      }
-    }
+    return resolveActionMessage(action, context, this.renderer);
   }
 
-  /**
-   * Dispatches action execution by type.
-   */
   private async executeAction(action: CaseAction, context: RunbookContext): Promise<void> {
     throwIfRunbookAborted(context);
     switch (action.type) {
@@ -137,41 +125,13 @@ export class ActionExecutor {
    * the declared level.
    */
   private executeLogAction(action: LogAction, context: RunbookContext): void {
-    const banner = BANNERS[action.renderAs ?? 'plain'];
-    if (banner === undefined) {
-      this.logPlain(action, renderLogActionText(action, context));
+    if (this.renderer.renderToLogger !== undefined) {
+      this.renderer.renderToLogger(this.logger, action, context);
       return;
     }
-
-    const rows = resolveLogActionRows(action, context);
-    this.logger.newline();
-    if (banner.kind === 'success') this.logger.success(banner.text);
-    else this.logger.warning(banner.text);
-
-    this.logger.table({
-      columns: [
-        { header: 'Campo', key: 'field', width: 24 },
-        { header: 'Valore', key: 'value' },
-      ],
-      data: [
-        {
-          field: banner.titleField,
-          // Same fallback as the rows and as `renderLogActionText`: without it
-          // the title leaks a raw `{{vars.x}}` into the very table whose rows
-          // read `non disponibile`, and disagrees with the stored message.
-          value: interpolatePlaceholders(action.title, context, { missingValue: UNAVAILABLE_VALUE }),
-        },
-        // A row the run never produced tells the reader nothing.
-        ...rows
-          .filter((row) => !banner.dropUnavailable || row.value !== UNAVAILABLE_VALUE)
-          .map((row) => ({ field: row.field, value: row.value })),
-      ],
-      maxColumnWidth: 120,
-      style: { colors: false },
-    });
+    this.logPlain(action, this.renderer.renderText(action, context));
   }
 
-  /** Logs the rendered text at the action's level. */
   private logPlain(action: LogAction, message: string): void {
     switch (action.level) {
       case 'info':
@@ -209,19 +169,3 @@ export class ActionExecutor {
     // Future: integrate with PagerDuty, Jira, etc.
   }
 }
-
-/** Banner and table shape for one rendering mode. */
-interface StructuredLogBanner {
-  readonly kind: 'success' | 'warning';
-  readonly text: string;
-  /** Label of the first row, which carries the action title. */
-  readonly titleField: string;
-  /** Whether rows the run never resolved are dropped. */
-  readonly dropUnavailable: boolean;
-}
-
-const BANNERS: Readonly<Record<string, StructuredLogBanner | undefined>> = {
-  'known-case': { kind: 'success', text: 'Caso noto rilevato', titleField: 'Caso', dropUnavailable: false },
-  'unknown-case': { kind: 'warning', text: 'Caso non riconosciuto', titleField: 'Esito', dropUnavailable: true },
-  plain: undefined,
-};

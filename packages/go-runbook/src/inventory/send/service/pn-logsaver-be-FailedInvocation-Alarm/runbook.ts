@@ -1,5 +1,5 @@
-import { all, type Runbook, RunbookBuilder, varEquals } from '../../../../engine/index.js';
-import { knownCase, unknownCaseFallback } from '../../../../toolkits/send/index.js';
+import { all, type Runbook, varEquals } from '../../../../engine/index.js';
+import { knownCase, unknownCaseFallback, AlarmRunbookBuilder } from '../../../../toolkits/send/index.js';
 import { LOGSAVER_ALARM, RUNBOOK_URL } from './alarmDefinition.js';
 import { LOG_GROUP, QueryLogsaverDiagnosticsStep } from './QueryLogsaverDiagnosticsStep.js';
 
@@ -12,7 +12,7 @@ const DIAGNOSTIC_DETAILS = [
 ] as const;
 
 export function buildRunbook(): Runbook {
-  return RunbookBuilder.create(LOGSAVER_ALARM)
+  return AlarmRunbookBuilder.create(LOGSAVER_ALARM)
     .metadata({
       name: LOGSAVER_ALARM,
       description: 'Raccoglie i log del job logsaver e riconosce l’interruzione del task Fargate Spot.',

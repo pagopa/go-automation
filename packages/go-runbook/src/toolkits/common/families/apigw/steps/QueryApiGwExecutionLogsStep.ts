@@ -17,6 +17,9 @@ import type { ExecutionLogSpec } from '../executionLog/ExecutionLogSpec.js';
 import type { AccessLogSchema } from '../accessLog/AccessLogSchema.js';
 import { renderQueryTemplate } from '../../../queries/renderQueryTemplate.js';
 import type { ApiGwExecutionLogAnalysisMode } from '../types/ApiGwExecutionLogAnalysisMode.js';
+import { OperationalStep } from '../../../steps/OperationalStep.js';
+import type { OperationalContext } from '../../../services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
 
 const QUERY_MODE_VAR = 'apiGwExecutionLogMode';
 
@@ -59,11 +62,15 @@ export interface QueryApiGwExecutionLogsConfig {
    * Quando assente, viene usato `spec.maxRequestIds`.
    */
   readonly maxRequestIdsOverride?: number;
+
   /** Default `terminal`; see {@link ApiGwExecutionLogAnalysisMode}. */
   readonly analysisMode?: ApiGwExecutionLogAnalysisMode;
 }
 
-export class QueryApiGwExecutionLogsStep implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
+export class QueryApiGwExecutionLogsStep
+  extends OperationalStep<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+  implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+{
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -79,6 +86,7 @@ export class QueryApiGwExecutionLogsStep implements Step<ReadonlyArray<ReadonlyA
   private readonly analysisMode: ApiGwExecutionLogAnalysisMode;
 
   constructor(config: QueryApiGwExecutionLogsConfig) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.fromStep = config.fromStep;
@@ -106,7 +114,18 @@ export class QueryApiGwExecutionLogsStep implements Step<ReadonlyArray<ReadonlyA
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(
+    context: OperationalContext,
+  ): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
     return executeStep('API Gateway execution logs query', async () => {
       const upstream = readStepOutput<ReadonlyArray<GOLogsInsightsResultField[]>>(context, this.fromStep);
       if (!upstream.ok) return upstream.failure;

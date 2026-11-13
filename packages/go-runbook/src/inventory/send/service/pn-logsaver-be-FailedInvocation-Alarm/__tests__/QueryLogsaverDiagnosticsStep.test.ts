@@ -5,8 +5,8 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 import type { TreeNode } from '@pagopa/go-common/render';
 
 import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
-import type { RunbookContext } from '../../../../../engine/index.js';
 import { ERROR_QUERY, LOG_GROUP, QueryLogsaverDiagnosticsStep } from '../QueryLogsaverDiagnosticsStep.js';
+import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 type RowsForQueryFn = (accountId: string, queryKind: 'errors' | 'streams') => Rows;
@@ -27,7 +27,7 @@ function context(
   rowsForQuery: RowsForQueryFn,
   labels: string[],
   accountsWithoutStatistics: ReadonlySet<string> = new Set(),
-): RunbookContext {
+): OperationalContext {
   return {
     executionId: 'logsaver-diagnostics-test',
     startedAt: new Date('2026-09-10T10:11:01.000Z'),

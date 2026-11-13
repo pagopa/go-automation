@@ -7,8 +7,8 @@ import type {
   AWSCloudWatchLogsTimeRange,
 } from '@pagopa/go-aws/cloudwatch-logs';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
-import type { RunbookContext } from '../../../../../engine/index.js';
 import { createTestServiceRegistry, interop } from '../../../../../toolkits/interop/index.js';
+import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
 
 const PROFILE = interop.apigw.INTEROP_API_GW_5XX_SERVICE_ERRORS_PROFILE;
 
@@ -19,7 +19,7 @@ interface SeenQuery {
   readonly options: AWSCloudWatchLogsQueryOptions;
 }
 
-function context(cloudWatchLogs: unknown, stepResults = new Map<string, unknown>()): RunbookContext {
+function context(cloudWatchLogs: unknown, stepResults = new Map<string, unknown>()): OperationalContext {
   return {
     executionId: 'test',
     startedAt: new Date('2026-08-24T09:10:11.000Z'),

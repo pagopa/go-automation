@@ -1,4 +1,4 @@
-import { RunbookBuilder } from '../../../../../engine/builders/RunbookBuilder.js';
+import { AlarmRunbookBuilder } from '../../../../common/builders/AlarmRunbookBuilder.js';
 import { finishAlarmRunbook } from '../../../../common/builders/finishAlarmRunbook.js';
 import { applyPipelineHooks } from '../../../../../engine/builders/applyPipelineHooks.js';
 import type { InteropK8sPipelineAnchor } from '../types/InteropK8sPipelineAnchor.js';
@@ -26,7 +26,7 @@ export function createInteropK8sAlarmRunbook(config: InteropK8sAlarmConfig): Run
   const stepIds = resolveInteropK8sRunbookStepIds(service.name, config.stepIds);
   const reachedAnchors = new Set<InteropK8sPipelineAnchor>();
 
-  const builder = RunbookBuilder.create(config.id)
+  const builder = AlarmRunbookBuilder.create(config.id)
     .metadata(config.metadata)
     .cloudExecutionPolicy({ sideEffects: 'NONE' });
 

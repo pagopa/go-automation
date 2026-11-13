@@ -1,12 +1,12 @@
 import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { executeStep, readStepOutput, type Step, type StepResult } from '../../../../engine/index.js';
 import {
-  executeStep,
-  readStepOutput,
-  type RunbookContext,
-  type Step,
-  type StepResult,
-} from '../../../../engine/index.js';
-import { executeCloudWatchLogsQuery, resolveTimeRange } from '../../../../toolkits/send/index.js';
+  executeCloudWatchLogsQuery,
+  resolveTimeRange,
+  OperationalStep,
+  type OperationalContext,
+  type OperationalServiceName,
+} from '../../../../toolkits/send/index.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
@@ -18,13 +18,14 @@ interface Config {
 }
 
 /** Reads Lambda evidence only for invocation IDs carried by failed API requests. */
-export class QueryStreamLambdaLogsStep implements Step<Rows> {
+export class QueryStreamLambdaLogsStep extends OperationalStep<Rows> implements Step<Rows> {
   readonly id: string;
   readonly label: string;
   readonly kind = 'data' as const;
   private readonly config: Config;
 
   constructor(config: Config) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.config = config;
@@ -34,7 +35,16 @@ export class QueryStreamLambdaLogsStep implements Step<Rows> {
     return { logGroups: [this.config.logGroup], identifierMode: 'request-id', queryKind: 'lambda-invocation' };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<Rows>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
     return executeStep(this.label, async () => {
       const upstream = readStepOutput<Rows>(context, 'query-api-gw-logs');
       if (!upstream.ok) return upstream.failure;

@@ -5,6 +5,9 @@ import type { StepResult } from '../../../../../engine/types/StepResult.js';
 import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
 import { interpolatePlaceholders } from '../../../../../engine/context/templatePlaceholders.js';
 import { executeStep } from '../../../../../engine/steps/execution/executeStep.js';
+import { OperationalStep } from '../../OperationalStep.js';
+import type { OperationalContext } from '../../../services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
 
 /**
  * Configuration for the DynamoDB query data step.
@@ -43,7 +46,10 @@ export interface DynamoDBQueryConfig {
  * });
  * ```
  */
-export class DynamoDBQueryStep implements Step<ReadonlyArray<Record<string, unknown>>> {
+export class DynamoDBQueryStep
+  extends OperationalStep<ReadonlyArray<Record<string, unknown>>>
+  implements Step<ReadonlyArray<Record<string, unknown>>>
+{
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -54,6 +60,7 @@ export class DynamoDBQueryStep implements Step<ReadonlyArray<Record<string, unkn
   private readonly expressionAttributeNames: Readonly<Record<string, string>> | undefined;
 
   constructor(config: DynamoDBQueryConfig) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.tableName = config.tableName;
@@ -80,12 +87,21 @@ export class DynamoDBQueryStep implements Step<ReadonlyArray<Record<string, unkn
   }
 
   /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['dynamodb'];
+  }
+
+  /**
    * Executes a DynamoDB query with the configured key condition.
    *
    * @param context - The runbook execution context
    * @returns Step result containing an array of unmarshalled DynamoDB items
    */
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<Record<string, unknown>>>> {
+  override async execute(context: OperationalContext): Promise<StepResult<ReadonlyArray<Record<string, unknown>>>> {
     return executeStep('DynamoDB query', async () => {
       const resolvedTableName = interpolatePlaceholders(this.tableName, context);
       const resolvedValues = resolveAttributeValues(this.expressionAttributeValues, context);

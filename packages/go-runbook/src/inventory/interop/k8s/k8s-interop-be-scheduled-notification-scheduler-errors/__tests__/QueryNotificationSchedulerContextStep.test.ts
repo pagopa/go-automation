@@ -5,9 +5,9 @@ import type { AWSCloudWatchLogsQueryOptions } from '@pagopa/go-aws/cloudwatch-lo
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { createTestServiceRegistry } from '../../../../../toolkits/interop/index.js';
-import type { RunbookContext } from '../../../../../engine/index.js';
 import { NOTIFICATION_SCHEDULER_ALARM as alarm } from '../alarmDefinition.js';
 import { QueryNotificationSchedulerContextStep } from '../QueryNotificationSchedulerContextStep.js';
+import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
 
 interface QueryCall {
   readonly groups: ReadonlyArray<string>;
@@ -27,7 +27,7 @@ function context(
   calls: QueryCall[],
   rowCount = 1,
   queryError?: Error,
-): RunbookContext {
+): OperationalContext {
   return {
     executionId: 'notification-scheduler-context-test',
     startedAt: new Date('2026-10-10T00:11:59Z'),

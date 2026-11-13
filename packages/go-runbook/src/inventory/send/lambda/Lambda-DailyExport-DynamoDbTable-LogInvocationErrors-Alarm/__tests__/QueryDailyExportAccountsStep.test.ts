@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { createTestServiceRegistry } from '../../../../../toolkits/send/index.js';
-import type { RunbookContext } from '../../../../../engine/index.js';
 import { QueryDailyExportAccountsStep } from '../QueryDailyExportAccountsStep.js';
+import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 interface Call {
@@ -25,7 +25,7 @@ function context(
   calls: Call[],
   keys: ReadonlyArray<string> = SOURCES,
   rowsForQuery: RowsForQueryFn = () => [row('request-1')],
-): RunbookContext {
+): OperationalContext {
   return {
     executionId: 'test',
     startedAt: new Date(),

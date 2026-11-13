@@ -11,6 +11,9 @@ import type { StepDiagnostics } from '../../../../engine/tracing/StepDiagnostics
 import type { TimeRangeFromParams } from '../../../common/time/TimeRangeFromParams.js';
 import { resolveTimeRange } from '../../../common/time/resolveTimeRange.js';
 import type { BuildInteropK8sApplicationLogsQueryFn } from '../types/BuildInteropK8sApplicationLogsQueryFn.js';
+import { OperationalStep } from '../../../common/steps/OperationalStep.js';
+import type { OperationalContext } from '../../../common/services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../common/services/OperationalServiceName.js';
 
 export interface QueryInteropApplicationLogsStepConfig {
   readonly id: string;
@@ -21,6 +24,7 @@ export interface QueryInteropApplicationLogsStepConfig {
   readonly environmentVar?: string;
   /** Trace profile id of the query (from the product profile). */
   readonly queryProfileId: string;
+
   /** Query builder (from the product profile). */
   readonly buildQuery: BuildInteropK8sApplicationLogsQueryFn;
 }
@@ -29,7 +33,10 @@ const DEFAULT_LOG_GROUP_VAR = 'interopLogGroup';
 const DEFAULT_POD_APP_VAR = 'interopPodApp';
 const DEFAULT_ENVIRONMENT_VAR = 'interopEnvironment';
 
-export class QueryInteropApplicationLogsStep implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
+export class QueryInteropApplicationLogsStep
+  extends OperationalStep<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+  implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+{
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -42,6 +49,7 @@ export class QueryInteropApplicationLogsStep implements Step<ReadonlyArray<Reado
   private readonly buildQuery: BuildInteropK8sApplicationLogsQueryFn;
 
   constructor(config: QueryInteropApplicationLogsStepConfig) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.timeRangeFromParams = config.timeRangeFromParams;
@@ -68,7 +76,18 @@ export class QueryInteropApplicationLogsStep implements Step<ReadonlyArray<Reado
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(
+    context: OperationalContext,
+  ): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
     const logGroup = readRequiredVar(context, this.logGroupVar);
     if (logGroup === undefined) return missingVarFailure(this.logGroupVar);
     const podApp = readRequiredVar(context, this.podAppVar);

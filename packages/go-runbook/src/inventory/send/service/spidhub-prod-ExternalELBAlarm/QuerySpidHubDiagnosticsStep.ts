@@ -3,8 +3,14 @@ import {
   sumCloudWatchLogsQueryStatistics,
 } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
-import { executeStep, type RunbookContext, type Step, type StepResult } from '../../../../engine/index.js';
-import { executeCloudWatchLogsQuery, resolveTimeRange } from '../../../../toolkits/send/index.js';
+import { executeStep, type Step, type StepResult } from '../../../../engine/index.js';
+import {
+  executeCloudWatchLogsQuery,
+  resolveTimeRange,
+  OperationalStep,
+  type OperationalContext,
+  type OperationalServiceName,
+} from '../../../../toolkits/send/index.js';
 import {
   ERROR_QUERY,
   ROW_LIMIT,
@@ -21,7 +27,7 @@ const RESPONDER_SIGNATURE =
   'urn:oasis:names:tc:SAML:2.0:status:Responder';
 
 /** Collects application evidence; ALB request correlation remains a manual account-level check. */
-export class QuerySpidHubDiagnosticsStep implements Step<Rows> {
+export class QuerySpidHubDiagnosticsStep extends OperationalStep<Rows> implements Step<Rows> {
   readonly id = 'query-spidhub-diagnostics';
   readonly label = 'Errori e stream applicativi SPID Hub';
   readonly kind = 'data' as const;
@@ -37,7 +43,16 @@ export class QuerySpidHubDiagnosticsStep implements Step<Rows> {
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<Rows>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
     return executeStep('SPID Hub diagnostics', async () => {
       for (const [param, expected] of [
         ['alarmName', SPIDHUB_ALARM],

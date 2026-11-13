@@ -8,7 +8,14 @@ import {
   type StepKind,
   type StepResult,
 } from '../../../../engine/index.js';
-import { executeCloudWatchLogsQuery, SEND_SERVICE_PROFILE, type TimeRange } from '../../../../toolkits/send/index.js';
+import {
+  executeCloudWatchLogsQuery,
+  SEND_SERVICE_PROFILE,
+  type TimeRange,
+  OperationalStep,
+  type OperationalContext,
+  type OperationalServiceName,
+} from '../../../../toolkits/send/index.js';
 
 type CloudWatchRows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
@@ -53,7 +60,7 @@ export interface VerifyPostelBatchesConfig {
  * used here because they work for historical occurrences and through the
  * existing multi-profile CloudWatch resolution path.
  */
-export class VerifyPostelBatchesStep implements Step<PostelBatchRecovery> {
+export class VerifyPostelBatchesStep extends OperationalStep<PostelBatchRecovery> implements Step<PostelBatchRecovery> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -64,6 +71,7 @@ export class VerifyPostelBatchesStep implements Step<PostelBatchRecovery> {
   private readonly query: string = POSTEL_WORKED_BATCH_QUERY;
 
   constructor(config: VerifyPostelBatchesConfig) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.fromStep = config.fromStep;
@@ -92,7 +100,16 @@ export class VerifyPostelBatchesStep implements Step<PostelBatchRecovery> {
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<PostelBatchRecovery>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(context: OperationalContext): Promise<StepResult<PostelBatchRecovery>> {
     return executeStep('POSTEL batch recovery check', async () => {
       const upstream = readStepOutput<CloudWatchRows>(context, this.fromStep);
       if (!upstream.ok) return upstream.failure;

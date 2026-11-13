@@ -9,8 +9,10 @@ import type { KnownCase } from '../types/KnownCase.js';
 import type { ErrorRecoveryInfo } from '../types/ErrorRecoveryInfo.js';
 import type { FlowDirective, FlowDirectiveString } from '../types/FlowDirective.js';
 import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js';
-import type { ServiceRegistry } from '../../toolkits/common/services/ServiceRegistry.js';
-import type { ExecutionEnvironment } from '../tracing/ExecutionInfo.js';
+import type { WorkflowServices } from '../types/WorkflowServices.js';
+import type { RunbookEngineOptions } from '../types/RunbookEngineOptions.js';
+import { assertRequiredServices } from './assertRequiredServices.js';
+import type { ExecutionEnvironment } from '../tracing/ExecutionEnvironment.js';
 import type { EarlyResolutionTrace } from '../tracing/EarlyResolutionTrace.js';
 import type { CaseEvaluationTrace } from '../tracing/CaseEvaluationTrace.js';
 import { sharedConditionEvaluator } from './ConditionEvaluator.js';
@@ -31,8 +33,6 @@ const DEFAULT_MAX_ITERATIONS = 1000;
 
 /** Default execution environment when none is provided */
 const DEFAULT_ENVIRONMENT: ExecutionEnvironment = {
-  awsProfiles: [],
-  region: 'eu-south-1',
   invokedBy: 'manual',
 };
 
@@ -67,8 +67,15 @@ export class RunbookEngine {
   /** Compiled regexes of this engine, shared by the contexts it runs (R9). */
   private readonly regexCache = new GORegexCache();
 
-  constructor(private readonly logger: GOLogger) {
-    this.actionExecutor = new ActionExecutor(logger);
+  /**
+   * @param logger - Logger of the execution narrative
+   * @param options - Injected collaborators (service capability predicates, log action renderer)
+   */
+  constructor(
+    private readonly logger: GOLogger,
+    private readonly options: RunbookEngineOptions = {},
+  ) {
+    this.actionExecutor = new ActionExecutor(logger, options.logActionRenderer);
   }
 
   /**
@@ -83,19 +90,21 @@ export class RunbookEngine {
    *
    * @param runbook - Runbook definition to execute
    * @param params - Input parameters (alarmName, timeRange, etc.)
-   * @param services - AWS/HTTP service registry
+   * @param services - Services of the execution; every service a step requires must be usable
    * @param environment - Execution environment info (optional)
    * @param signal - Optional abort signal to cancel the execution
    * @returns Complete execution result with trace
+   * @throws RunbookMissingServicesError before the first step, if a required service is unusable
    * @throws RunbookMaxIterationsError if iteration limit is exceeded
    */
-  async execute(
+  async execute<TServices extends WorkflowServices>(
     runbook: Runbook,
     params: ReadonlyMap<string, string>,
-    services: ServiceRegistry,
+    services: TServices,
     environment?: ExecutionEnvironment,
     signal?: AbortSignal,
   ): Promise<RunbookExecutionResult> {
+    assertRequiredServices(runbook, services, this.options.serviceCapabilities);
     const context: RunbookContext = createInitialContext(params, services, signal, this.regexCache);
     const maxIterations = runbook.maxIterations ?? DEFAULT_MAX_ITERATIONS;
     const env = environment ?? DEFAULT_ENVIRONMENT;

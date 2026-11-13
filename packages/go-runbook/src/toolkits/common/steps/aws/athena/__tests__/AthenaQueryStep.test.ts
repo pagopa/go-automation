@@ -3,8 +3,8 @@ import { describe, it } from 'node:test';
 
 import { AthenaQueryStep } from '../AthenaQueryStep.js';
 import type { AWSAthenaQueryOptions } from '@pagopa/go-aws/athena';
-import type { RunbookContext } from '../../../../../../engine/types/RunbookContext.js';
 import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
+import type { OperationalContext } from '../../../../services/OperationalContext.js';
 
 interface AthenaCall {
   readonly database: string;
@@ -13,7 +13,7 @@ interface AthenaCall {
 }
 
 function makeContext(params: ReadonlyArray<readonly [string, string]> = []): {
-  readonly context: RunbookContext;
+  readonly context: OperationalContext;
   readonly calls: AthenaCall[];
 } {
   const calls: AthenaCall[] = [];

@@ -5,6 +5,12 @@ import type { RunbookContext } from '../../../../engine/types/RunbookContext.js'
 import type { GOHttpResponse } from '@pagopa/go-common/http';
 import { interpolatePlaceholders } from '../../../../engine/context/templatePlaceholders.js';
 import { executeStep } from '../../../../engine/steps/execution/executeStep.js';
+import { OperationalStep } from '../OperationalStep.js';
+import type { OperationalContext } from '../../services/OperationalContext.js';
+import type { OperationalServiceName } from '../../services/OperationalServiceName.js';
+
+/** HTTP methods a cloud runbook may use: they read without changing the remote state. */
+const READ_ONLY_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD']);
 
 /**
  * Configuration for the HTTP request data step.
@@ -39,7 +45,7 @@ export interface HttpRequestConfig {
  * });
  * ```
  */
-export class HttpRequestStep implements Step<GOHttpResponse<unknown>> {
+export class HttpRequestStep extends OperationalStep<GOHttpResponse<unknown>> implements Step<GOHttpResponse<unknown>> {
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -50,6 +56,7 @@ export class HttpRequestStep implements Step<GOHttpResponse<unknown>> {
   private readonly body: unknown;
 
   constructor(config: HttpRequestConfig) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.method = config.method;
@@ -79,6 +86,26 @@ export class HttpRequestStep implements Step<GOHttpResponse<unknown>> {
   }
 
   /**
+   * Whether the request is provably read-only: method `GET` or `HEAD`, written
+   * literally (a placeholder resolved at runtime cannot be proven read-only).
+   * Used by the cloud policy (EVO-RBREORG-OPUS-01 RBREORG-21).
+   *
+   * @returns `true` for a literal `GET` or `HEAD`
+   */
+  isReadOnly(): boolean {
+    return READ_ONLY_METHODS.has(this.method.trim().toUpperCase());
+  }
+
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['http'];
+  }
+
+  /**
    * Executes the HTTP request with interpolated URL, headers, and body.
    * URL values are encoded with `encodeURIComponent` to prevent SSRF.
    * Header values are validated to reject control characters.
@@ -86,7 +113,7 @@ export class HttpRequestStep implements Step<GOHttpResponse<unknown>> {
    * @param context - The runbook execution context
    * @returns Step result containing the HTTP response
    */
-  async execute(context: RunbookContext): Promise<StepResult<GOHttpResponse<unknown>>> {
+  override async execute(context: OperationalContext): Promise<StepResult<GOHttpResponse<unknown>>> {
     return executeStep('HTTP request', async () => {
       const resolvedUrl = interpolatePlaceholders(this.url, context, encodeURIComponent);
       const resolvedHeaders = this.headers !== undefined ? resolveHeaders(this.headers, context) : undefined;

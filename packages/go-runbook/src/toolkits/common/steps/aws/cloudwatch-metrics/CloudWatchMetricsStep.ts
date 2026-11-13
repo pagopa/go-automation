@@ -8,6 +8,9 @@ import type { TimeRangeFromParams } from '../../../time/TimeRangeFromParams.js';
 import { interpolatePlaceholders } from '../../../../../engine/context/templatePlaceholders.js';
 import { resolveTimeRange } from '../../../time/resolveTimeRange.js';
 import { executeStep } from '../../../../../engine/steps/execution/executeStep.js';
+import { OperationalStep } from '../../OperationalStep.js';
+import type { OperationalContext } from '../../../services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
 
 /**
  * Configuration for the CloudWatch Metrics data step.
@@ -47,7 +50,10 @@ export interface CloudWatchMetricsConfig {
  * });
  * ```
  */
-export class CloudWatchMetricsStep implements Step<ReadonlyArray<RunbookMetricDatapoint>> {
+export class CloudWatchMetricsStep
+  extends OperationalStep<ReadonlyArray<RunbookMetricDatapoint>>
+  implements Step<ReadonlyArray<RunbookMetricDatapoint>>
+{
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -60,6 +66,7 @@ export class CloudWatchMetricsStep implements Step<ReadonlyArray<RunbookMetricDa
   private readonly timeRangeFromParams: TimeRangeFromParams;
 
   constructor(config: CloudWatchMetricsConfig) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.namespace = config.namespace;
@@ -91,12 +98,21 @@ export class CloudWatchMetricsStep implements Step<ReadonlyArray<RunbookMetricDa
   }
 
   /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchMetrics'];
+  }
+
+  /**
    * Retrieves metric datapoints from CloudWatch Metrics.
    *
    * @param context - The runbook execution context
    * @returns Step result containing an array of metric datapoints
    */
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<RunbookMetricDatapoint>>> {
+  override async execute(context: OperationalContext): Promise<StepResult<ReadonlyArray<RunbookMetricDatapoint>>> {
     return executeStep('CloudWatch Metrics query', async () => {
       const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
       const resolvedDimensions = resolveDimensions(this.dimensions, context);

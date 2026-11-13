@@ -9,10 +9,11 @@ import type {
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { GOLogger } from '@pagopa/go-common/logging';
 
-import { type RunbookContext, RunbookEngine } from '../../../../../engine/index.js';
+import { RunbookEngine } from '../../../../../engine/index.js';
 import { createTestServiceRegistry, SEND_SERVICE_PROFILE } from '../../../../../toolkits/send/index.js';
 import { buildRunbook } from '../runbook.js';
 import { POSTEL_WORKED_BATCH_QUERY, VerifyPostelBatchesStep } from '../VerifyPostelBatchesStep.js';
+import type { OperationalContext } from '../../../../../toolkits/common/services/OperationalContext.js';
 
 const BATCH_1 = '4e761d4d-5b3d-4c7b-8d77-7f81353b2d5b';
 const BATCH_2 = '8a859d33-fb60-47da-a429-879ba7f9c609';
@@ -38,7 +39,7 @@ function context(
     ['startTime', '2026-07-24T12:20:00.000Z'],
     ['endTime', '2026-07-24T13:05:00.000Z'],
   ],
-): RunbookContext {
+): OperationalContext {
   return {
     executionId: 'test',
     startedAt: new Date('2026-07-24T12:00:00.000Z'),

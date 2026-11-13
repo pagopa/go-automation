@@ -1,11 +1,17 @@
 import { escapeLogsInsightsString, type GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { executeStep, type RunbookContext, type Step, type StepResult } from '../../../../engine/index.js';
-import { executeCloudWatchLogsQuery, resolveTimeRange } from '../../../../toolkits/interop/index.js';
+import {
+  executeCloudWatchLogsQuery,
+  resolveTimeRange,
+  OperationalStep,
+  type OperationalContext,
+  type OperationalServiceName,
+} from '../../../../toolkits/interop/index.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
 /** Read startup and request context even when Strapi does not emit a CID. */
-export class QueryPublicCatalogStrapiContextStep implements Step<Rows> {
+export class QueryPublicCatalogStrapiContextStep extends OperationalStep<Rows> implements Step<Rows> {
   readonly id = 'query-public-catalog-strapi-context';
   readonly label = 'Contesto completo Strapi del catalogo pubblico';
   readonly kind = 'data' as const;
@@ -14,7 +20,16 @@ export class QueryPublicCatalogStrapiContextStep implements Step<Rows> {
     return { logGroup: context.vars.get('interopLogGroup'), podApp: context.vars.get('interopPodApp'), levels: 'ALL' };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<Rows>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
     return executeStep('Public catalog Strapi context', async () => {
       const logGroup = context.vars.get('interopLogGroup')?.trim();
       const podApp = context.vars.get('interopPodApp')?.trim();

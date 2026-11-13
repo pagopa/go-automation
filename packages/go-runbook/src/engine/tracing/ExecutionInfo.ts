@@ -1,5 +1,6 @@
 import type { RunbookType } from '../types/RunbookType.js';
 import type { RunbookExecutionStatus } from '../types/RunbookExecutionStatus.js';
+import type { ExecutionEnvironment } from './ExecutionEnvironment.js';
 
 /**
  * General information about a runbook execution.
@@ -28,18 +29,4 @@ export interface ExecutionInfo {
   readonly failureReason?: string;
   /** Execution environment information */
   readonly environment: ExecutionEnvironment;
-}
-
-/**
- * Information about the execution environment.
- */
-export interface ExecutionEnvironment {
-  /** AWS profiles used */
-  readonly awsProfiles: ReadonlyArray<string>;
-  /** AWS region */
-  readonly region: string;
-  /** Source AWS account queried by an execution-scoped OAM worker. */
-  readonly awsAccountId?: string;
-  /** Runbook invocation mode */
-  readonly invokedBy: 'manual' | 'alarm' | 'schedule';
 }

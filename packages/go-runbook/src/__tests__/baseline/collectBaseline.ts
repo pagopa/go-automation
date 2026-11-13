@@ -131,30 +131,39 @@ function collectModuleExports(checker: ts.TypeChecker, moduleSymbol: ts.Symbol, 
     }
     lines.push(`${name} (${target.flags & ts.SymbolFlags.Value ? 'value' : 'type'})`);
     if (target.flags & ts.SymbolFlags.Class) {
-      collectClassMembers(target, name, lines);
+      collectClassMembers(checker, target, name, lines);
     }
   }
 }
 
-function collectClassMembers(classSymbol: ts.Symbol, className: string, lines: string[]): void {
-  for (const declaration of classSymbol.getDeclarations() ?? []) {
-    if (!ts.isClassDeclaration(declaration)) continue;
-    for (const member of declaration.members) {
-      if (member.name === undefined || ts.isPrivateIdentifier(member.name)) continue;
-      const modifiers = ts.getCombinedModifierFlags(member);
-      if (modifiers & (ts.ModifierFlags.Private | ts.ModifierFlags.Protected)) continue;
-      const memberName = member.name.getText();
-      const separator = modifiers & ts.ModifierFlags.Static ? '.' : '#';
-      lines.push(`${className}${separator}${memberName}`);
-    }
-    for (const member of declaration.members) {
-      if (!ts.isConstructorDeclaration(member)) continue;
-      for (const parameter of member.parameters) {
-        const modifiers = ts.getCombinedModifierFlags(parameter);
-        const isProperty = modifiers & (ts.ModifierFlags.Public | ts.ModifierFlags.Readonly);
-        if (!isProperty || modifiers & (ts.ModifierFlags.Private | ts.ModifierFlags.Protected)) continue;
-        lines.push(`${className}#${parameter.name.getText()}`);
-      }
+/**
+ * Public members of a class, inherited ones included: a class that stops
+ * extending its base loses public API even when its own declarations stay.
+ * Members declared by the TypeScript default library (e.g. `Error#stack`) are left out.
+ */
+function collectClassMembers(
+  checker: ts.TypeChecker,
+  classSymbol: ts.Symbol,
+  className: string,
+  lines: string[],
+): void {
+  const instanceType = checker.getDeclaredTypeOfSymbol(classSymbol);
+  const staticType = checker.getTypeOfSymbol(classSymbol);
+  for (const [members, separator] of [
+    [checker.getPropertiesOfType(instanceType), '#'],
+    [checker.getPropertiesOfType(staticType).filter((member) => member.name !== 'prototype'), '.'],
+  ] as const) {
+    for (const member of members) {
+      if (isPublicLibraryMember(member)) lines.push(`${className}${separator}${member.name}`);
     }
   }
+}
+
+function isPublicLibraryMember(member: ts.Symbol): boolean {
+  const declaration = member.valueDeclaration ?? member.getDeclarations()?.[0];
+  if (declaration === undefined) return false;
+  if (/[\\/]typescript[\\/]lib[\\/]/u.test(declaration.getSourceFile().fileName)) return false;
+  const name = ts.getNameOfDeclaration(declaration);
+  if (name !== undefined && ts.isPrivateIdentifier(name)) return false;
+  return (ts.getCombinedModifierFlags(declaration) & (ts.ModifierFlags.Private | ts.ModifierFlags.Protected)) === 0;
 }

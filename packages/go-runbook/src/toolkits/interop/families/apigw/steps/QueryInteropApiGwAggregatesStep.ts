@@ -11,6 +11,9 @@ import type { StepKind } from '../../../../../engine/types/StepKind.js';
 import type { StepResult } from '../../../../../engine/types/StepResult.js';
 import type { StepDiagnostics } from '../../../../../engine/tracing/StepDiagnostics.js';
 import { normalizeInteropApiGwAggregateValue } from '../helpers/normalizeInteropApiGwAggregateValue.js';
+import { OperationalStep } from '../../../../common/steps/OperationalStep.js';
+import type { OperationalContext } from '../../../../common/services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../../common/services/OperationalServiceName.js';
 
 export type BuildInteropApiGwAggregateQueryFn = (apiGwId: string) => string;
 
@@ -29,7 +32,10 @@ export interface QueryInteropApiGwAggregatesStepConfig {
 const DEFAULT_API_GW_ID_VAR = 'interopApiGwId';
 const DEFAULT_LOG_GROUP_VAR = 'interopApiGwLogGroup';
 
-export class QueryInteropApiGwAggregatesStep implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
+export class QueryInteropApiGwAggregatesStep
+  extends OperationalStep<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+  implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+{
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -43,6 +49,7 @@ export class QueryInteropApiGwAggregatesStep implements Step<ReadonlyArray<Reado
   private readonly logGroupVar: string;
 
   constructor(config: QueryInteropApiGwAggregatesStepConfig) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.timeRangeFromParams = { ...config.timeRangeFromParams };
@@ -71,7 +78,18 @@ export class QueryInteropApiGwAggregatesStep implements Step<ReadonlyArray<Reado
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(
+    context: OperationalContext,
+  ): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
     const apiGwId = readRequiredVar(context, this.apiGwIdVar);
     if (apiGwId === undefined) return missingVarFailure(this.apiGwIdVar);
     const logGroup = readRequiredVar(context, this.logGroupVar);

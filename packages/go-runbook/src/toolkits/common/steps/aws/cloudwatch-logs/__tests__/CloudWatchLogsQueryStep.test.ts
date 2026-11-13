@@ -9,11 +9,11 @@ import type {
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { GOLogger } from '@pagopa/go-common/logging';
 import { CloudWatchLogsQueryStep } from '../CloudWatchLogsQueryStep.js';
-import type { RunbookContext } from '../../../../../../engine/types/RunbookContext.js';
 import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
 import { ConsoleRunbookReporter } from '../../../../../../engine/reporting/ConsoleRunbookReporter.js';
+import type { OperationalContext } from '../../../../services/OperationalContext.js';
 
-function makeContext(params: ReadonlyArray<readonly [string, string]> = []): RunbookContext {
+function makeContext(params: ReadonlyArray<readonly [string, string]> = []): OperationalContext {
   return {
     executionId: 'test',
     startedAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -110,7 +110,7 @@ describe('CloudWatchLogsQueryStep.execute', () => {
       timeRangeFromParams: { start: 'startTime', end: 'endTime' },
       paginateResults: true,
     });
-    const ctx: RunbookContext = {
+    const ctx: OperationalContext = {
       ...makeContext([
         ['startTime', '2026-01-01T00:00:00Z'],
         ['endTime', '2026-01-01T00:10:00Z'],
@@ -163,7 +163,7 @@ describe('CloudWatchLogsQueryStep.execute', () => {
     });
     for (const fail of [false, true]) {
       let calls = 0;
-      const ctx: RunbookContext = {
+      const ctx: OperationalContext = {
         ...makeContext([
           ['startTime', '2026-01-01T00:00:00Z'],
           ['endTime', '2026-01-01T00:10:00Z'],
@@ -193,7 +193,7 @@ describe('CloudWatchLogsQueryStep.execute', () => {
       emptyResultFallbackQuery: 'fallback',
       timeRangeFromParams: { start: 'startTime', end: 'endTime' },
     });
-    const ctx: RunbookContext = {
+    const ctx: OperationalContext = {
       ...makeContext([
         ['startTime', '2026-01-01T00:00:00Z'],
         ['endTime', '2026-01-01T00:10:00Z'],
@@ -222,7 +222,7 @@ describe('CloudWatchLogsQueryStep.execute', () => {
       query: 'q',
       timeRangeFromParams: { start: 'startTime', end: 'endTime' },
     });
-    const context: RunbookContext = {
+    const context: OperationalContext = {
       ...makeContext([
         ['startTime', '2026-01-01T00:00:00.000Z'],
         ['endTime', '2026-01-01T00:10:00.000Z'],
@@ -276,7 +276,7 @@ describe('CloudWatchLogsQueryStep.execute', () => {
       timeRangeFromParams: { start: 'startTime', end: 'endTime' },
       paginateResults: true,
     });
-    const context: RunbookContext = {
+    const context: OperationalContext = {
       ...makeContext([
         ['startTime', '2026-01-01T00:00:00.000Z'],
         ['endTime', '2026-01-01T00:10:00.000Z'],

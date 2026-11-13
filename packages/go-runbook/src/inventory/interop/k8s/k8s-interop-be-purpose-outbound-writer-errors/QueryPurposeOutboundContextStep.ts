@@ -1,11 +1,17 @@
 import { escapeLogsInsightsString, type GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { executeStep, type RunbookContext, type Step, type StepResult } from '../../../../engine/index.js';
-import { executeCloudWatchLogsQuery, resolveTimeRange } from '../../../../toolkits/interop/index.js';
+import {
+  executeCloudWatchLogsQuery,
+  resolveTimeRange,
+  OperationalStep,
+  type OperationalContext,
+  type OperationalServiceName,
+} from '../../../../toolkits/interop/index.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 
 /** Includes INFO/WARN and works without a request CID, as Kafka errors commonly do. */
-export class QueryPurposeOutboundContextStep implements Step<Rows> {
+export class QueryPurposeOutboundContextStep extends OperationalStep<Rows> implements Step<Rows> {
   readonly id = 'query-purpose-outbound-writer-context';
   readonly label = 'Contesto completo del purpose outbound writer';
   readonly kind = 'data' as const;
@@ -14,7 +20,16 @@ export class QueryPurposeOutboundContextStep implements Step<Rows> {
     return { logGroup: context.vars.get('interopLogGroup'), podApp: context.vars.get('interopPodApp'), levels: 'ALL' };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<Rows>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
     return executeStep('Purpose outbound writer context', async () => {
       const logGroup = context.vars.get('interopLogGroup');
       const podApp = context.vars.get('interopPodApp');

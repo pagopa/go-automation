@@ -1,15 +1,16 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { RunbookContext } from '../../../../../engine/types/RunbookContext.js';
-import { createTestServiceRegistry, type TestServiceOverrides } from '../../../testing/createTestServiceRegistry.js';
+import { createTestServiceRegistry } from '../../../testing/createTestServiceRegistry.js';
+import type { TestServiceOverrides } from '../../../testing/TestServiceOverrides.js';
 import { HttpPostStep } from '../HttpPostStep.js';
+import type { OperationalContext } from '../../../services/OperationalContext.js';
 
 function createContext(args: {
   readonly vars?: Record<string, string>;
   readonly params?: Record<string, string>;
   readonly services?: TestServiceOverrides;
-}): RunbookContext {
+}): OperationalContext {
   return {
     executionId: 'test',
     startedAt: new Date('2026-01-01T00:00:00.000Z'),

@@ -14,6 +14,9 @@ import type { ServiceLogSpec } from '../profiles/ServiceLogSpec.js';
 import { SEND_API_GW_PROFILE } from '../profiles/SEND_API_GW_PROFILE.js';
 import { renderQueryTemplate } from '../../../../common/queries/renderQueryTemplate.js';
 import { apiGwServiceVisitVars, planApiGwServiceVisit } from '../state/ApiGwAnalysisState.js';
+import { OperationalStep } from '../../../../common/steps/OperationalStep.js';
+import type { OperationalContext } from '../../../../common/services/OperationalContext.js';
+import type { OperationalServiceName } from '../../../../common/services/OperationalServiceName.js';
 
 const FILTER_CLAUSE_PLACEHOLDER = '{{FILTER_CLAUSE}}';
 
@@ -49,6 +52,7 @@ export interface QueryServiceLogsConfig {
    * `spec.queryTemplate`: i predicate template restano quelli del profilo.
    */
   readonly queryTemplateOverride?: string;
+
   /**
    * Nome della var di contesto da cui leggere il trace id. Letto
    * dall'accessLog schema del profilo nella factory
@@ -64,7 +68,10 @@ interface ActiveIdentifier {
   readonly value: string;
 }
 
-export class QueryServiceLogsStep implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>> {
+export class QueryServiceLogsStep
+  extends OperationalStep<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+  implements Step<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>
+{
   readonly id: string;
   readonly label: string;
   readonly kind: StepKind = 'data';
@@ -79,6 +86,7 @@ export class QueryServiceLogsStep implements Step<ReadonlyArray<ReadonlyArray<GO
   private readonly queryTemplate: string;
 
   constructor(config: QueryServiceLogsConfig) {
+    super();
     this.id = config.id;
     this.label = config.label;
     this.serviceName = config.serviceName;
@@ -120,7 +128,18 @@ export class QueryServiceLogsStep implements Step<ReadonlyArray<ReadonlyArray<GO
     };
   }
 
-  async execute(context: RunbookContext): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
+  /**
+   * Operational services this step uses.
+   *
+   * @returns The required service names
+   */
+  override requiredServices(): ReadonlyArray<OperationalServiceName> {
+    return ['cloudWatchLogs'];
+  }
+
+  override async execute(
+    context: OperationalContext,
+  ): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
     return executeStep('CloudWatch service logs query', async () => {
       const traceId = (context.vars.get(this.traceIdVar) ?? '').trim();
       const fallback = (context.vars.get('fallbackUuid') ?? '').trim();

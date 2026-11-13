@@ -1,4 +1,4 @@
-import { RunbookBuilder } from '../../../../../engine/builders/RunbookBuilder.js';
+import { AlarmRunbookBuilder } from '../../../builders/AlarmRunbookBuilder.js';
 import { CloudWatchLogsQueryStep } from '../../../steps/aws/cloudwatch-logs/CloudWatchLogsQueryStep.js';
 import type { Runbook } from '../../../../../engine/types/Runbook.js';
 import type { ServiceAlarmConfig } from '../types/ServiceAlarmConfig.js';
@@ -32,7 +32,7 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
   const traceQuery = service.traceQueryOverride ?? profile.traceQueryTemplate;
 
   const reachedAnchors = new Set<ServicePipelineAnchor>();
-  const builder = RunbookBuilder.create(config.id)
+  const builder = AlarmRunbookBuilder.create(config.id)
     .metadata(config.metadata)
     .cloudExecutionPolicy({ sideEffects: 'NONE' });
 

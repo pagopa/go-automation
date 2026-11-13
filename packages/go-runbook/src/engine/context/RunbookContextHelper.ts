@@ -4,7 +4,7 @@ import type { StepResult } from '../types/StepResult.js';
 import type { LogEntry } from '../types/LogEntry.js';
 import type { ErrorRecoveryInfo } from '../types/ErrorRecoveryInfo.js';
 import type { GORegexCache } from '@pagopa/go-common/utils';
-import type { ServiceRegistry } from '../../toolkits/common/services/ServiceRegistry.js';
+import type { WorkflowServices } from '../types/WorkflowServices.js';
 
 /**
  * Helper functions for immutable RunbookContext operations.
@@ -15,17 +15,17 @@ import type { ServiceRegistry } from '../../toolkits/common/services/ServiceRegi
  * Creates an initial RunbookContext with the given parameters and services.
  *
  * @param params - Input parameters for the runbook
- * @param services - Service registry
+ * @param services - Services of the execution
  * @param signal - Optional abort signal to cancel the runbook execution
  * @param regexCache - Compiled-regex cache of the engine running the context
  * @returns A new initial context
  */
-export function createInitialContext(
+export function createInitialContext<TServices extends WorkflowServices>(
   params: ReadonlyMap<string, string>,
-  services: ServiceRegistry,
+  services: TServices,
   signal?: AbortSignal,
   regexCache?: GORegexCache,
-): RunbookContext {
+): RunbookContext<TServices> {
   return {
     executionId: randomUUID(),
     startedAt: new Date(),

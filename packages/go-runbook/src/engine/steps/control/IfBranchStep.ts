@@ -39,6 +39,15 @@ export class IfBranchStep implements Step<void> {
   }
 
   /**
+   * Steps of both branches, for the service check and the cloud policy.
+   *
+   * @returns The then and else steps
+   */
+  nestedSteps(): ReadonlyArray<Step> {
+    return [...this.config.thenSteps, ...(this.config.elseSteps ?? [])];
+  }
+
+  /**
    * Evaluates the condition and executes the appropriate sub-pipeline inline.
    * Variables produced by sub-steps are merged and returned in the result.
    *

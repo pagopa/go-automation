@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { GOLogger } from '@pagopa/go-common/logging';
-import { RunbookBuilder } from '../../../../engine/builders/RunbookBuilder.js';
+import { AlarmRunbookBuilder } from '../../builders/AlarmRunbookBuilder.js';
 import { RunbookEngine } from '../../../../engine/core/RunbookEngine.js';
 import { createTestServiceRegistry } from '../../testing/createTestServiceRegistry.js';
 import type { Step } from '../../../../engine/types/Step.js';
@@ -18,8 +18,8 @@ function step(id = 'query-context'): Step {
   return { id, label: id, kind: 'data', execute: async () => Promise.resolve({ success: true }) };
 }
 
-function builder(): RunbookBuilder {
-  return RunbookBuilder.create('diagnostics')
+function builder(): AlarmRunbookBuilder {
+  return AlarmRunbookBuilder.create('diagnostics')
     .metadata({
       name: 'Diagnostics',
       description: '',
