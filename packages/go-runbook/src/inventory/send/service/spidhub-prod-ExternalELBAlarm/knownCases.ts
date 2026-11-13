@@ -3,7 +3,7 @@ import type { KnownCase } from '../../../../engine/index.js';
 
 const DETAILS = [
   ['Servizio', 'pn-hub-spid-login-aws'],
-  ['Account', '350578575906'],
+  ['Account', '{{vars.spidHubAccountId}}'],
   ['Log di errore', '{{vars.spidHubErrorLogCount}}'],
   ['Stream osservati', '{{vars.spidHubStreamCount}}'],
   ['Errori SAML Responder', '{{vars.spidHubResponderCount}}'],

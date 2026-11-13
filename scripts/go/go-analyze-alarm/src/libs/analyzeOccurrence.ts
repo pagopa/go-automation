@@ -1,7 +1,12 @@
 import { GOHttpClient } from '@pagopa/go-common/http';
 import type { GOScript } from '@go-automation/go-script';
 import { type RunbookBuilderFn } from '@pagopa/go-runbook/inventory';
-import { computeRunbookTimeRange, createServiceRegistry, createTimeRangeReference } from '@pagopa/go-runbook/runtime';
+import {
+  computeRunbookTimeRange,
+  createServiceRegistry,
+  createTimeRangeReference,
+  toAwsAccountsConfig,
+} from '@pagopa/go-runbook/runtime';
 import { apigw } from '@pagopa/go-runbook/toolkits/send';
 import {
   OperationalRunbookEngine,
@@ -50,8 +55,23 @@ export async function analyzeOccurrence(
 
   script.logger.info(`Using AWS profiles: ${script.aws.clients.profileNames.join(', ')}`);
 
+  // Logical accounts of multi-account runbooks: the directory comes from the local
+  // configuration, never from the code; profiles are matched to accounts through STS.
   const services = createServiceRegistry(
-    { services: script.aws.services, http: new GOHttpClient({}) },
+    {
+      services: script.aws.services,
+      http: new GOHttpClient({}),
+      accounts: toAwsAccountsConfig({
+        ...(config.awsAccountDirectory === undefined ? {} : { directory: config.awsAccountDirectory }),
+        ...(config.awsAccountBinding === undefined ? {} : { binding: config.awsAccountBinding }),
+        ...(config.awsAccountEnvironment === undefined ? {} : { environment: config.awsAccountEnvironment }),
+        ...(config.awsAccountPermissionSets === undefined ? {} : { permissionSets: config.awsAccountPermissionSets }),
+        region: awsRegion,
+        defaultBinding: 'profiles',
+      }),
+      profiles: script.aws.clients,
+      accountDiagnostics: (message) => script.logger.info(message),
+    },
     new ConsoleRunbookReporter(script.logger),
   );
 

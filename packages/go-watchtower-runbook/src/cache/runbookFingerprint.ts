@@ -12,9 +12,11 @@ import { createHash } from 'node:crypto';
 import { safeJsonStringify } from '@pagopa/go-common/utils';
 import { RUNBOOK_REGISTRY } from '@pagopa/go-runbook/inventory';
 import { resolveOccurrenceTimeWindow } from '@pagopa/go-runbook/runtime';
-import type { Runbook } from '@pagopa/go-runbook';
+import { collectRunbookSteps, type Runbook } from '@pagopa/go-runbook';
+import type { AwsAccountSelection } from '@pagopa/go-runbook/toolkits/common';
 
 import type { RunbookCacheDescriptor } from './RunbookCacheDescriptor.js';
+import type { CachedRunbookAccounts } from './CachedRunbookAccounts.js';
 import type { CachedRunbookMeta } from './CachedRunbookMeta.js';
 
 /**
@@ -22,7 +24,7 @@ import type { CachedRunbookMeta } from './CachedRunbookMeta.js';
  * (e.g. after a change to the fingerprint inputs or a `go-runbook` upgrade whose
  * effect is not otherwise captured by the structural hash).
  */
-const CACHE_FINGERPRINT_VERSION = 4;
+const CACHE_FINGERPRINT_VERSION = 5;
 
 /** `RunbookOutput` schema version this build expects; mismatch ⇒ cache miss. */
 const EXPECTED_OUTPUT_SCHEMA_VERSION = '1.0.0';
@@ -35,6 +37,22 @@ function sha256(input: string): string {
 /** Hashes the serializable structure of a runbook (functions are ignored). */
 function hashRunbookDefinition(runbook: Runbook): string {
   return sha256(safeJsonStringify(runbook, { maxDepth: 64 }));
+}
+
+/** A step that declares the logical accounts it reads (`OperationalStep.accountSelections`). */
+interface AccountSelectingStep {
+  accountSelections?(): ReadonlyArray<AwsAccountSelection>;
+}
+
+/** Logical accounts declared by the runbook's steps, nested and action steps included, sorted. */
+function declaredLogicalAccounts(runbook: Runbook): ReadonlyArray<string> {
+  const accounts = new Set<string>();
+  for (const step of collectRunbookSteps(runbook)) {
+    for (const selection of (step as AccountSelectingStep).accountSelections?.() ?? []) {
+      for (const account of selection.accounts) accounts.add(account);
+    }
+  }
+  return [...accounts].sort((a, b) => a.localeCompare(b));
 }
 
 /**
@@ -55,6 +73,7 @@ export function resolveRunbookCacheDescriptor(alarmName: string): RunbookCacheDe
     version: runbook.metadata.version,
     hash: hashRunbookDefinition(runbook),
     occurrenceTimeWindow: { ...resolveOccurrenceTimeWindow(runbook) },
+    logicalAccounts: declaredLogicalAccounts(runbook),
   };
 }
 
@@ -66,6 +85,7 @@ export function resolveRunbookCacheDescriptor(alarmName: string): RunbookCacheDe
  * @param firedAt - Occurrence timestamp
  * @param awsAccountId - AWS account targeted by the occurrence
  * @param awsRegion - AWS region targeted by the occurrence
+ * @param accounts - Logical-account inputs, for runbooks that declare logical accounts
  * @returns The metadata whose hash is the cache fingerprint
  */
 export function buildCacheMeta(
@@ -74,6 +94,7 @@ export function buildCacheMeta(
   firedAt: string,
   awsAccountId: string,
   awsRegion: string,
+  accounts?: CachedRunbookAccounts,
 ): CachedRunbookMeta {
   return {
     fingerprintVersion: CACHE_FINGERPRINT_VERSION,
@@ -86,6 +107,7 @@ export function buildCacheMeta(
     awsProfiles: [...awsProfiles].sort((a, b) => a.localeCompare(b)),
     firedAt,
     occurrenceTimeWindow: { ...descriptor.occurrenceTimeWindow },
+    ...(accounts === undefined ? {} : { accounts }),
   };
 }
 

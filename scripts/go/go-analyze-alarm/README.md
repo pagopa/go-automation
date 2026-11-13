@@ -77,21 +77,41 @@ Lo script non include un file di configurazione dedicato: la configurazione oper
 
 ### Parametri CLI
 
-| Parametro              | Alias  | Tipo     | Obbligatorio | Descrizione                                                                                          |
-| ---------------------- | ------ | -------- | ------------ | ---------------------------------------------------------------------------------------------------- |
-| `--analysis-mode`      | `-am`  | string   | No           | Modalità: `single`, `range` oppure `stats`. Default: `single`                                        |
-| `--alarm-name`         | `-an`  | string   | Si\*         | Nome esatto dell'allarme CloudWatch                                                                  |
-| `--alarm-datetime`     | `-ad`  | string   | Si\*         | Timestamp allarme, o prima occorrenza per allarmi multi-occorrenza (ISO 8601)                        |
-| `--alarm-datetime-end` | `-ade` | string   | No           | Timestamp dell'ultima occorrenza per allarmi multi-occorrenza (ISO 8601). Estende la finestra finale |
-| `--aws-profiles`       | `-aps` | string[] | Si\*         | Profili AWS SSO (virgola-separati)                                                                   |
-| `--aws-region`         | `-ar`  | string   | No           | Regione AWS per client e runbook. Default: `eu-south-1`                                              |
-| `--stats-detail`       | `-sdt` | bool     | No           | Solo `stats`: stampa la tabella di dettaglio per runbook. Default: `true`                            |
-| `--stats-product`      | `-spr` | string   | No           | Solo `stats`: limita il report a un prodotto (`SEND`, `INTEROP`)                                     |
-| `--stats-save`         | `-ssv` | bool     | No           | Solo `stats`: salva il report JSON in `data/`. Default: `false`                                      |
+| Parametro                       | Alias   | Tipo     | Obbligatorio | Descrizione                                                                                          |
+| ------------------------------- | ------- | -------- | ------------ | ---------------------------------------------------------------------------------------------------- |
+| `--analysis-mode`               | `-am`   | string   | No           | Modalità: `single`, `range` oppure `stats`. Default: `single`                                        |
+| `--alarm-name`                  | `-an`   | string   | Si\*         | Nome esatto dell'allarme CloudWatch                                                                  |
+| `--alarm-datetime`              | `-ad`   | string   | Si\*         | Timestamp allarme, o prima occorrenza per allarmi multi-occorrenza (ISO 8601)                        |
+| `--alarm-datetime-end`          | `-ade`  | string   | No           | Timestamp dell'ultima occorrenza per allarmi multi-occorrenza (ISO 8601). Estende la finestra finale |
+| `--aws-profiles`                | `-aps`  | string[] | Si\*         | Profili AWS SSO (virgola-separati)                                                                   |
+| `--aws-region`                  | `-ar`   | string   | No           | Regione AWS per client e runbook. Default: `eu-south-1`                                              |
+| `--aws-account-directory`       | `-aad`  | string[] | No           | Rubrica degli account logici (`<prodotto>/<account>/<ambiente>=<id>`), per i runbook multi-account   |
+| `--aws-account-binding`         | `-aab`  | string   | No           | `profiles` (profili abbinati via STS) oppure `oam`. Default: `profiles`                              |
+| `--aws-account-environment`     | `-aae`  | string   | No           | Ambiente della rubrica da leggere (lo script non ha un account d'occorrenza)                         |
+| `--aws-account-permission-sets` | `-aaps` | string[] | No           | Permission set SSO preferiti quando più profili raggiungono lo stesso account                        |
+| `--stats-detail`                | `-sdt`  | bool     | No           | Solo `stats`: stampa la tabella di dettaglio per runbook. Default: `true`                            |
+| `--stats-product`               | `-spr`  | string   | No           | Solo `stats`: limita il report a un prodotto (`SEND`, `INTEROP`)                                     |
+| `--stats-save`                  | `-ssv`  | bool     | No           | Solo `stats`: salva il report JSON in `data/`. Default: `false`                                      |
 
 \* Obbligatori per `--analysis-mode single` e `range`; ignorati da `--analysis-mode stats`, che gira interamente offline.
 
 I timestamp devono essere in formato **ISO 8601**: `YYYY-MM-DDTHH:MM:SSZ`
+
+### Account AWS logici (runbook multi-account)
+
+Alcuni runbook leggono più account (per esempio SEND core e confinfo). Il codice
+dichiara solo **account logici** (`send/core`, `send/confinfo`); gli account id e
+l'ambiente stanno nella configurazione locale, mai nel codice (EVO-AWSACCT-OPUS-01).
+
+- `aws.account.directory`: voci `<prodotto>/<account>/<ambiente>=<id>`;
+- `aws.account.environment`: l'ambiente da leggere;
+- il **nome** dei profili non conta: lo script chiede a STS a quale account appartiene
+  ogni profilo di `--aws-profiles`, e tra più profili dello stesso account preferisce
+  i permission set di `aws.account.permission.sets`.
+
+Un esempio con id sintetici è in `configs/aws-accounts.example.env`: copialo fuori dal
+repository con gli id reali. Se manca una voce, il runbook fallisce prima di leggere
+qualsiasi log, indicando la chiave da impostare.
 
 Quando `--alarm-datetime-end` è fornito, la time window di analisi diventa
 `[alarm-datetime - beforeMinutes, alarm-datetime-end + afterMinutes]` usando

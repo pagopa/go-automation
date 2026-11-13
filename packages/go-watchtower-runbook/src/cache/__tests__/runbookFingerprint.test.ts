@@ -12,6 +12,7 @@ const descriptor: RunbookCacheDescriptor = {
   version: '1.0.0',
   hash: 'h0',
   occurrenceTimeWindow: { beforeMinutes: 5, afterMinutes: 5 },
+  logicalAccounts: [],
 };
 const awsAccountId = '170533023216';
 const awsRegion = 'eu-south-1';
@@ -77,5 +78,37 @@ describe('runbookFingerprint', () => {
 
   it('resolveRunbookCacheDescriptor returns undefined for an unregistered alarm', () => {
     assert.equal(resolveRunbookCacheDescriptor('does-not-exist-alarm'), undefined);
+  });
+
+  it('lists the logical accounts a runbook declares, and none for a single-account runbook', () => {
+    assert.deepEqual(resolveRunbookCacheDescriptor('pn-logsaver-be-FailedInvocation-Alarm')?.logicalAccounts, [
+      'send/confinfo',
+      'send/core',
+    ]);
+    assert.deepEqual(resolveRunbookCacheDescriptor('pn-delivery-B2B-ApiGwAlarm')?.logicalAccounts, []);
+  });
+
+  it('changes the fingerprint with every logical-account input', () => {
+    const accounts = {
+      binding: 'profiles',
+      environment: 'prod',
+      entries: [{ account: 'send/core', accountId: '000000000101' }],
+      permissionSets: ['ReadOnly', 'Operations'],
+      profiles: ['p1', 'p2'],
+    };
+    const base = computeFingerprint(buildCacheMeta(descriptor, ['p1', 'p2'], 'T', awsAccountId, awsRegion, accounts));
+    for (const changed of [
+      { ...accounts, binding: 'oam' },
+      { ...accounts, environment: 'uat' },
+      { ...accounts, entries: [{ account: 'send/core', accountId: '000000000201' }] },
+      { ...accounts, permissionSets: ['Operations', 'ReadOnly'] },
+      { ...accounts, profiles: ['p2', 'p1'] },
+    ]) {
+      assert.notEqual(
+        computeFingerprint(buildCacheMeta(descriptor, ['p1', 'p2'], 'T', awsAccountId, awsRegion, changed)),
+        base,
+      );
+    }
+    assert.notEqual(computeFingerprint(cacheMeta(descriptor, ['p1', 'p2'], 'T')), base);
   });
 });

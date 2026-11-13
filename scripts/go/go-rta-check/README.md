@@ -323,3 +323,17 @@ Per non ripagare ogni volta le query CloudWatch, l'esito del **runbook (V1)** di
 - **Resume / cache**: i risultati per occorrenza sono cache-ati; `--force` riesegue e sovrascrive. Dettagli, motivazioni e trabocchetti nella sezione [Cache (resume)](#cache-resume).
 - **Output**: `data/go-rta-check/outputs/<run>/<NN-nome-allarme>/` con `results.json`, `summary.json`, `report.html`. La sottocartella numerata tiene separati gli artifact dei runbook analizzati nella stessa sessione, che altrimenti si sovrascriverebbero.
 - La V2 è **assistita** (mai un verdetto secco): mostra sempre i segnali e va validata a mano.
+
+## Account AWS logici
+
+I runbook multi-account dichiarano solo account logici (`send/core`, `send/confinfo`).
+La rubrica che li collega agli account id sta nella configurazione (EVO-AWSACCT-OPUS-01):
+
+| Chiave                        | Variabile d'ambiente          | Descrizione                                                                                    |
+| ----------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------- |
+| `aws.account.directory`       | `AWS_ACCOUNT_DIRECTORY`       | Voci `<prodotto>/<account>/<ambiente>=<id>`; l'ambiente si ricava dall'account dell'occorrenza |
+| `aws.account.binding`         | `AWS_ACCOUNT_BINDING`         | `profiles` (profili abbinati via STS) oppure `oam`                                             |
+| `aws.account.permission.sets` | `AWS_ACCOUNT_PERMISSION_SETS` | Permission set SSO preferiti, solo per `profiles`                                              |
+
+Il formato è documentato con id sintetici in
+`scripts/go/go-analyze-alarm/configs/aws-accounts.example.env`.

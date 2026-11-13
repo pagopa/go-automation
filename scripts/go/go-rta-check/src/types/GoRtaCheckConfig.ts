@@ -38,6 +38,12 @@ export interface GoRtaCheckConfig {
   readonly dateTo?: string;
   /** AWS SSO profile names used to run the runbook (not needed for --dry-run). */
   readonly awsProfiles?: ReadonlyArray<string>;
+  /** Account directory of the logical AWS accounts (`aws.account.directory`). */
+  readonly awsAccountDirectory?: ReadonlyArray<string>;
+  /** How logical accounts are reached (`aws.account.binding`). */
+  readonly awsAccountBinding?: string;
+  /** Preferred SSO permission sets (`aws.account.permission.sets`). */
+  readonly awsAccountPermissionSets?: ReadonlyArray<string>;
   /** Max concurrent runbook executions (default 1). */
   readonly concurrency?: number;
   /** Cap the number of occurrences processed (for quick tests). */

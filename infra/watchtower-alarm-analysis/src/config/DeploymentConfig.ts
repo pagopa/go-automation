@@ -14,6 +14,11 @@ export interface ExecuteRunbookDeploymentConfig {
   readonly watchtowerBackendRoleArn: string;
   readonly servicePrincipalSecretArn?: string;
   readonly oamSourceAccountIds: ReadonlyArray<string>;
+  /**
+   * Account directory of the worker (`<product>/<account>/<environment>=<accountId>`,
+   * EVO-AWSACCT-OPUS-01 §8.2). Every account is an OAM source of the sink.
+   */
+  readonly executeRunbookAccountDirectory: ReadonlyArray<string>;
 }
 
 interface WatchtowerDeploymentDefaults {
@@ -71,6 +76,7 @@ export function loadExecuteRunbookDeploymentConfig(
     throw new Error('OAM_SOURCE_ACCOUNT_IDS must contain AWS account ids');
   }
   const servicePrincipalSecretArn = optionalArn(env, 'WATCHTOWER_SERVICE_PRINCIPAL_SECRET_ARN');
+  const executeRunbookAccountDirectory = accountDirectory(env, new Set(oamSourceAccountIds));
 
   return {
     environment,
@@ -90,7 +96,51 @@ export function loadExecuteRunbookDeploymentConfig(
     watchtowerBackendRoleArn: requiredArn(env, 'WATCHTOWER_BACKEND_ROLE_ARN', defaults?.watchtowerBackendRoleArn),
     ...(servicePrincipalSecretArn === undefined ? {} : { servicePrincipalSecretArn }),
     oamSourceAccountIds: [...new Set(oamSourceAccountIds)],
+    executeRunbookAccountDirectory,
   };
+}
+
+/** `<product>/<account>/<environment>=<12-digit account id>`, as parsed by the worker. */
+const ACCOUNT_DIRECTORY_ENTRY = /^([a-z0-9-]+\/[a-z0-9-]+)\/([a-z0-9-]+)=(\d{12})$/;
+
+/**
+ * Reads `EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY` (comma-separated, optional). The worker
+ * reads logical accounts through OAM in the stack region, so every account must be
+ * an OAM source of the sink; otherwise the deploy fails instead of the executions.
+ */
+function accountDirectory(
+  env: Readonly<Record<string, string | undefined>>,
+  oamSources: ReadonlySet<string>,
+): ReadonlyArray<string> {
+  const entries = (env['EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY'] ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  // Same invariants as the worker's parser (parseAwsAccountDirectory): a deploy
+  // must never ship a directory the worker would reject on every delivery.
+  const declared = new Set<string>();
+  const environmentByAccount = new Map<string, string>();
+  for (const entry of entries) {
+    const match = ACCOUNT_DIRECTORY_ENTRY.exec(entry);
+    const [, logicalAccount, environment, accountId] = match ?? [];
+    if (logicalAccount === undefined || environment === undefined || accountId === undefined) {
+      throw new Error(`EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY has an invalid entry: ${entry}`);
+    }
+    const key = `${logicalAccount}/${environment}`;
+    if (declared.has(key)) throw new Error(`EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY declares ${key} more than once`);
+    declared.add(key);
+    const known = environmentByAccount.get(accountId);
+    if (known !== undefined && known !== environment) {
+      throw new Error(
+        `EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY assigns account ${accountId} to environments ${known} and ${environment}`,
+      );
+    }
+    environmentByAccount.set(accountId, environment);
+    if (!oamSources.has(accountId)) {
+      throw new Error(`EXECUTE_RUNBOOK_ACCOUNT_DIRECTORY account ${accountId} is not in OAM_SOURCE_ACCOUNT_IDS`);
+    }
+  }
+  return entries;
 }
 
 function deploymentDefaults(environment: string, region: string): WatchtowerDeploymentDefaults | undefined {

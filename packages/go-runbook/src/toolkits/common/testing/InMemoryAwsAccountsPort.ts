@@ -14,7 +14,7 @@ import type { InMemoryAwsAccountsPortOptions } from './InMemoryAwsAccountsPortOp
  * @example
  * ```typescript
  * const awsAccounts = new InMemoryAwsAccountsPort({
- *   directory: parseAwsAccountDirectory(['send/core/uat=000000000001']),
+ *   directory: parseAwsAccountDirectory(['send/core/uat=000000000000']),
  *   region: 'eu-south-1',
  *   environment: 'uat',
  *   readers: { 'send/core': coreReader },

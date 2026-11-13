@@ -1,6 +1,6 @@
-import type { lambda } from '../../../../toolkits/send/index.js';
+import { SEND_ACCOUNTS, type lambda } from '../../../../toolkits/send/index.js';
 
-import { LAMBDA_FUNCTION, LAMBDA_LOG_SOURCES } from './knownServices.js';
+import { LAMBDA_FUNCTION } from './knownServices.js';
 
 /** Source q1, with the additional runtime signatures suggested in its comments. */
 const BOTH_ACCOUNTS_ERROR_QUERY = `fields @timestamp, @xrayTraceId, @requestId, @message
@@ -15,8 +15,8 @@ const BOTH_ACCOUNTS_ERROR_QUERY = `fields @timestamp, @xrayTraceId, @requestId, 
 | limit 1000`;
 
 /**
- * Reads the Lambda in both production accounts independently, failing if either
- * cannot be checked; in cloud execution the account without a profile is read through OAM.
+ * Reads the Lambda in the SEND core and confinfo accounts of the occurrence's
+ * environment independently, failing if either cannot be checked.
  */
 export const LAMBDA_LOG_READER: Omit<lambda.QueryLambdaAcrossAccountsConfig, 'queryKind'> = {
   queryProfileId: 'send',
@@ -24,9 +24,8 @@ export const LAMBDA_LOG_READER: Omit<lambda.QueryLambdaAcrossAccountsConfig, 'qu
   errorQuery: BOTH_ACCOUNTS_ERROR_QUERY,
   sources: {
     subject: 'pn-downstream-monitoring-lambda',
-    accounts: LAMBDA_LOG_SOURCES,
+    accounts: [SEND_ACCOUNTS.core, SEND_ACCOUNTS.confinfo],
     scope: 'every-account',
-    defaultRegion: 'eu-south-1',
   },
   labels: {
     errors: 'Query errori Lambda core e confinfo',

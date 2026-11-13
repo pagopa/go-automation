@@ -6,18 +6,19 @@ import {
 import { executeStep, type Step, type StepResult } from '../../../../engine/index.js';
 import {
   executeCloudWatchLogsQuery,
+  resolveAwsAccountSelection,
   resolveTimeRange,
   OperationalStep,
+  type AwsAccountSelection,
   type OperationalContext,
   type OperationalServiceName,
 } from '../../../../toolkits/send/index.js';
 import {
   ERROR_QUERY,
   ROW_LIMIT,
-  SPIDHUB_ACCOUNT_ID,
+  SPIDHUB_ACCOUNTS,
   SPIDHUB_ALARM,
   SPIDHUB_LOG_GROUP,
-  SPIDHUB_REGION,
   STREAM_QUERY,
 } from './alarmDefinition.js';
 
@@ -34,8 +35,7 @@ export class QuerySpidHubDiagnosticsStep extends OperationalStep<Rows> implement
 
   getTraceInfo(): Readonly<Record<string, unknown>> {
     return {
-      accountId: SPIDHUB_ACCOUNT_ID,
-      region: SPIDHUB_REGION,
+      accounts: SPIDHUB_ACCOUNTS.accounts,
       logGroup: SPIDHUB_LOG_GROUP,
       errorQuery: ERROR_QUERY,
       streamQuery: STREAM_QUERY,
@@ -49,25 +49,30 @@ export class QuerySpidHubDiagnosticsStep extends OperationalStep<Rows> implement
    * @returns The required service names
    */
   override requiredServices(): ReadonlyArray<OperationalServiceName> {
-    return ['cloudWatchLogs'];
+    return ['cloudWatchLogs', 'awsAccounts'];
+  }
+
+  /**
+   * The SEND confinfo account of production.
+   *
+   * @returns The account selection of the step
+   */
+  override accountSelections(): ReadonlyArray<AwsAccountSelection> {
+    return [SPIDHUB_ACCOUNTS];
   }
 
   override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
     return executeStep('SPID Hub diagnostics', async () => {
-      for (const [param, expected] of [
-        ['alarmName', SPIDHUB_ALARM],
-        ['awsAccountId', SPIDHUB_ACCOUNT_ID],
-        ['awsRegion', SPIDHUB_REGION],
-      ] as const) {
-        const actual = context.params.get(param);
-        if (actual !== undefined && actual !== expected) {
-          throw new Error(`Unsupported SPID Hub production ${param}: ${actual}`);
-        }
+      const alarmName = context.params.get('alarmName');
+      if (alarmName !== undefined && alarmName !== SPIDHUB_ALARM) {
+        throw new Error(`Unsupported SPID Hub production alarmName: ${alarmName}`);
       }
-      const cloudWatchLogs = context.services.cloudWatchLogs.forTarget({
-        accountId: SPIDHUB_ACCOUNT_ID,
-        region: SPIDHUB_REGION,
-      });
+      // Account and region come from the account directory; the pre-execution check
+      // already rejected an occurrence outside production SEND confinfo.
+      const [account] = resolveAwsAccountSelection(context, SPIDHUB_ACCOUNTS);
+      const port = context.services.awsAccounts;
+      if (account === undefined || port === undefined) throw new Error('SPID Hub account not resolved');
+      const cloudWatchLogs = port.cloudWatchLogsFor(account.account);
       const scopedContext = { ...context, services: { ...context.services, cloudWatchLogs } };
       const timeRange = resolveTimeRange(context, { start: 'startTime', end: 'endTime' });
       const queries: Awaited<ReturnType<typeof executeCloudWatchLogsQuery>>[] = [];
@@ -99,7 +104,7 @@ export class QuerySpidHubDiagnosticsStep extends OperationalStep<Rows> implement
         rows.push(
           ...result.rows.map((row) => [
             ...row,
-            { field: 'sourceAccountId', value: SPIDHUB_ACCOUNT_ID },
+            { field: 'sourceAccountId', value: account.accountId },
             { field: 'queryKind', value: queryKind },
           ]),
         );
@@ -110,6 +115,7 @@ export class QuerySpidHubDiagnosticsStep extends OperationalStep<Rows> implement
         output: rows,
         vars: {
           spidHubDiagnostics: 'COLLECTED',
+          spidHubAccountId: account.accountId,
           spidHubErrorLogCount: String(errorCount),
           spidHubStreamCount: String(streamCount),
           spidHubResponderCount: String(responderCount),

@@ -9,6 +9,7 @@ import type {
   StartExecutionRequest,
 } from '@go-automation/go-watchtower-client';
 import { bindServicesToOccurrence, executeRunbookForOccurrence } from '@pagopa/go-runbook/runtime';
+import { isAwsAccountError } from '@pagopa/go-runbook/toolkits/common';
 
 import type { ExecuteRunbookDelivery } from '../types/ExecuteRunbookDelivery.js';
 import type { ExecuteRunbookDeps } from '../types/ExecuteRunbookDeps.js';
@@ -18,6 +19,7 @@ import type { ExecuteRunbookSuppressedReason } from '../types/ExecuteRunbookResu
 import type { ExecutionAbortCause } from '../types/ExecutionAbortCause.js';
 import { buildTrackingEntries } from './buildTrackingEntries.js';
 import { toCompleteAnalysisDraft } from './toCompleteAnalysisDraft.js';
+import { failAccountErrorAttempt } from './failAccountErrorAttempt.js';
 import { failActiveAttemptCommand, isPermanentCallbackRejection } from './failActiveAttemptCommand.js';
 import { assertRunbookCapability } from './assertRunbookCapability.js';
 import { CancellationMonitor } from './CancellationMonitor.js';
@@ -221,6 +223,14 @@ export async function executeRunbook(
         monitor,
         activeOperations,
       );
+    }
+    // The runbook cannot read its logical accounts: a configuration or occurrence
+    // failure of the attempt already started, not worth a redelivery (EVO-AWSACCT-OPUS-01 §6.4).
+    if (
+      isAwsAccountError(error) &&
+      (await failAccountErrorAttempt(deps, executionId, attemptId, error, activeDeadlineAtMs))
+    ) {
+      return { disposition: 'FAIL_EXECUTION', executionId, attemptId, status: 'FAILED' };
     }
     throw error;
   } finally {

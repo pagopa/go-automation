@@ -2,13 +2,14 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 
 import { executeStep, type Step, type StepResult } from '../../../../engine/index.js';
 import {
+  awsLogicalAccountName,
   executeCloudWatchLogsQuery,
   mergeCloudWatchLogsDiagnostics,
-  resolveAwsAccountTargets,
+  resolveAwsAccountSelection,
   resolveTimeRange,
-  scopeCloudWatchLogsToAccount,
   OperationalStep,
-  type AwsAccountSourceSelection,
+  SEND_ACCOUNTS,
+  type AwsAccountSelection,
   type OperationalContext,
   type OperationalServiceName,
 } from '../../../../toolkits/send/index.js';
@@ -16,23 +17,15 @@ import {
 export const LOG_GROUP = '/aws/ecs/pn-logsaver-be';
 const ROW_LIMIT = 1000;
 const SPOT_INTERRUPTION_MESSAGE = 'Your Spot Task was interrupted.';
-/** Provisional runbook-local data (EVO-AWSACCT-OPUS-01 A0): replaced by logical accounts in A4. */
-const SOURCES = [
-  {
-    name: 'core',
-    accountId: '510769970275',
-    profiles: ['sso_pn-core-prod_readonly', 'sso_pn-core-prod', 'pn-core-prod'],
-  },
-  { name: 'confinfo', accountId: '350578575906', profiles: ['sso_pn-confinfo-prod'] },
-] as const;
-
-/** Both production accounts locally; only the occurrence account in cloud execution. */
-const ACCOUNTS: AwsAccountSourceSelection = {
+/**
+ * Both SEND production accounts locally; only the occurrence account with an occurrence.
+ * Production only, as before the logical accounts (EVO-AWSACCT-OPUS-01 A4).
+ */
+const ACCOUNTS: AwsAccountSelection = {
   subject: 'logsaver',
-  accounts: SOURCES,
+  accounts: [SEND_ACCOUNTS.core, SEND_ACCOUNTS.confinfo],
   scope: 'occurrence-account',
-  defaultRegion: 'eu-south-1',
-  restrictToDefaultRegion: true,
+  environments: ['prod'],
 };
 
 // Word boundaries avoid treating JAVA_TOOL_OPTIONS -XX:+ExitOnOutOfMemoryError
@@ -69,12 +62,28 @@ export class QueryLogsaverDiagnosticsStep extends OperationalStep<Rows> implemen
    * @returns The required service names
    */
   override requiredServices(): ReadonlyArray<OperationalServiceName> {
-    return ['cloudWatchLogs'];
+    return ['cloudWatchLogs', 'awsAccounts'];
+  }
+
+  /**
+   * The SEND core and confinfo accounts of production.
+   *
+   * @returns The account selection of the step
+   */
+  override accountSelections(): ReadonlyArray<AwsAccountSelection> {
+    return [ACCOUNTS];
   }
 
   override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
     return executeStep('Logsaver diagnostics', async () => {
-      const targets = resolveAwsAccountTargets(context, ACCOUNTS);
+      const port = context.services.awsAccounts;
+      if (port === undefined) throw new Error('Logsaver accounts not available');
+      // Resolved in the execution environment; the pre-execution check prepared their readers.
+      const targets = resolveAwsAccountSelection(context, ACCOUNTS).map((resolved) => ({
+        name: awsLogicalAccountName(resolved.account),
+        accountId: resolved.accountId,
+        cloudWatchLogs: port.cloudWatchLogsFor(resolved.account),
+      }));
       const timeRange = resolveTimeRange(context, { start: 'startTime', end: 'endTime' });
       const results: Awaited<ReturnType<typeof executeCloudWatchLogsQuery>>[] = [];
       const rows: GOLogsInsightsResultField[][] = [];
@@ -82,9 +91,8 @@ export class QueryLogsaverDiagnosticsStep extends OperationalStep<Rows> implemen
       let streamCount = 0;
       let spotInterruptionCount = 0;
       let unaccountedErrorCount = 0;
-      for (const target of targets) {
-        const source = target.account;
-        const scopedContext = scopeCloudWatchLogsToAccount(context, target);
+      for (const source of targets) {
+        const scopedContext = { ...context, services: { ...context.services, cloudWatchLogs: source.cloudWatchLogs } };
         for (const [queryKind, query] of [
           ['errors', ERROR_QUERY],
           ['streams', STREAM_QUERY],
@@ -139,7 +147,7 @@ export class QueryLogsaverDiagnosticsStep extends OperationalStep<Rows> implemen
         output: rows,
         vars: {
           logsaverDiagnostics: 'COLLECTED',
-          logsaverAccountsChecked: targets.map((target) => target.account.name).join(','),
+          logsaverAccountsChecked: targets.map((target) => target.name).join(','),
           logsaverErrorLogCount: String(errorCount),
           logsaverStreamCount: String(streamCount),
           logsaverSpotInterruptionLogCount: String(spotInterruptionCount),

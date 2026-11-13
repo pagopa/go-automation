@@ -1,5 +1,7 @@
 import type { OccurrenceTimeWindow } from '@pagopa/go-runbook/runtime';
 
+import type { CachedRunbookAccounts } from './CachedRunbookAccounts.js';
+
 /**
  * Inputs that determine a cached runbook result. The cache fingerprint is the
  * hash of this object; if any field changes, the cached entry is considered
@@ -26,4 +28,6 @@ export interface CachedRunbookMeta {
   readonly firedAt: string;
   /** Asymmetric time window applied around `firedAt`. */
   readonly occurrenceTimeWindow: OccurrenceTimeWindow;
+  /** Logical-account inputs, for runbooks that declare logical accounts. */
+  readonly accounts?: CachedRunbookAccounts;
 }

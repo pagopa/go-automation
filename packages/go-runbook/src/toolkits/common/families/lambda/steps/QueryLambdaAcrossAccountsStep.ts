@@ -6,8 +6,9 @@ import type { StepDiagnostics } from '../../../../../engine/tracing/StepDiagnost
 import type { Step } from '../../../../../engine/types/Step.js';
 import type { StepKind } from '../../../../../engine/types/StepKind.js';
 import type { StepResult } from '../../../../../engine/types/StepResult.js';
-import { resolveAwsAccountTargets } from '../../../accounts/resolveAwsAccountTargets.js';
-import { scopeCloudWatchLogsToAccount } from '../../../accounts/scopeCloudWatchLogsToAccount.js';
+import type { AwsAccountSelection } from '../../../accounts/AwsAccountSelection.js';
+import { awsLogicalAccountName } from '../../../accounts/awsLogicalAccountName.js';
+import { resolveAwsAccountSelection } from '../../../accounts/resolveAwsAccountSelection.js';
 import type { OperationalContext } from '../../../services/OperationalContext.js';
 import type { OperationalServiceName } from '../../../services/OperationalServiceName.js';
 import { executeCloudWatchLogsQuery } from '../../../steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
@@ -84,7 +85,7 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
       sources:
         sources === 'configured-sources'
           ? context.services.cloudWatchLogs.getConfiguredSources().map(({ key }) => key)
-          : sources.accounts.map(({ name, accountId }) => ({ name, accountId })),
+          : sources.accounts,
       ...(this.config.queryKind === 'errors'
         ? { query: this.config.errorQuery }
         : {
@@ -102,7 +103,16 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
    * @returns The required service names
    */
   override requiredServices(): ReadonlyArray<OperationalServiceName> {
-    return ['cloudWatchLogs'];
+    return this.config.sources === 'configured-sources' ? ['cloudWatchLogs'] : ['cloudWatchLogs', 'awsAccounts'];
+  }
+
+  /**
+   * The logical accounts the step reads, when it reads accounts rather than the configured sources.
+   *
+   * @returns The account selection of the step, if any
+   */
+  override accountSelections(): ReadonlyArray<AwsAccountSelection> {
+    return this.config.sources === 'configured-sources' ? [] : [this.config.sources];
   }
 
   /**
@@ -122,7 +132,9 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
         throw new Error('at least one configured log source is required');
       }
       const sourceKeys =
-        sources === 'configured-sources' ? configured.map(({ key }) => key) : sources.accounts.map(({ name }) => name);
+        sources === 'configured-sources'
+          ? configured.map(({ key }) => key)
+          : sources.accounts.map(awsLogicalAccountName);
       const requestIds = upstream === undefined ? undefined : this.requestIdsBySource(upstream.value, sourceKeys);
       if (requestIds !== undefined && [...requestIds.values()].every((ids) => ids.length === 0)) {
         return { success: true, output: [], vars: { lambdaInvocationLogCount: '0' } };
@@ -134,11 +146,7 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
               display: key,
               context: { ...context, services: { ...context.services, cloudWatchLogs: service } },
             }))
-          : resolveAwsAccountTargets(context, sources).map((target) => ({
-              key: target.account.name,
-              display: `${target.account.name} (${target.account.accountId})`,
-              context: scopeCloudWatchLogsToAccount(context, target),
-            }));
+          : this.accountReaders(context, sources);
 
       const run: InvocationRun = {
         timeRange: resolveTimeRange(context, { start: 'startTime', end: 'endTime' }),
@@ -253,6 +261,21 @@ export class QueryLambdaAcrossAccountsStep extends OperationalStep<Rows> impleme
         Object.entries(bySource ?? {}).map(([source, name]) => [name, String(counts.get(source) ?? 0)]),
       ),
     };
+  }
+
+  /** Readers of the resolved logical accounts, prepared by the pre-execution check. */
+  private accountReaders(context: OperationalContext, selection: AwsAccountSelection): ReadonlyArray<LambdaLogSource> {
+    const port = context.services.awsAccounts;
+    if (port === undefined) throw new Error('the account port is required to read logical accounts');
+    return resolveAwsAccountSelection(context, selection).map((resolved) => {
+      const name = awsLogicalAccountName(resolved.account);
+      const cloudWatchLogs = port.cloudWatchLogsFor(resolved.account);
+      return {
+        key: name,
+        display: `${name} (${resolved.accountId})`,
+        context: { ...context, services: { ...context.services, cloudWatchLogs } },
+      };
+    });
   }
 
   private sourceField(): 'sourceAccount' | 'sourceKey' {

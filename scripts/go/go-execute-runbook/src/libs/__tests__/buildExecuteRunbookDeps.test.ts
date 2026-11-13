@@ -9,6 +9,8 @@ import type { AWSDynamoDBService } from '@pagopa/go-aws/dynamodb';
 import type { GOLogger } from '@pagopa/go-common/logging';
 
 import type { ExecuteRunbookConfig } from '../../types/ExecuteRunbookConfig.js';
+import { isAwsAccountError } from '@pagopa/go-runbook/toolkits/common';
+import { RuntimeAwsAccountsPort } from '@pagopa/go-runbook/runtime';
 import { buildExecuteRunbookDeps } from '../buildExecuteRunbookDeps.js';
 
 type FakeSecretStringLoaderFn = (arn: string) => string | Promise<string>;
@@ -107,11 +109,57 @@ describe('buildExecuteRunbookDeps', () => {
   });
 });
 
+describe('buildExecuteRunbookDeps — logical AWS accounts (EVO-AWSACCT-OPUS-01)', () => {
+  const managed = { ...BASE_CONFIG, executeRunbookArtifactRevision: 'build-1', watchtowerPassword: 'secret' };
+
+  it('adds the account port, reading through OAM in AWS-managed execution', async () => {
+    const deps = await buildExecuteRunbookDeps(
+      fakeScript(() => 'unused', true),
+      {
+        ...managed,
+        awsAccountDirectory: ['send/core/prod=000000000101'],
+      },
+    );
+    assert.ok(deps.services.awsAccounts !== undefined);
+  });
+
+  it('keeps serving with a malformed directory: account runbooks fail with AWS_ACCOUNT_DIRECTORY_INVALID', async () => {
+    const deps = await buildExecuteRunbookDeps(
+      fakeScript(() => 'unused', true),
+      {
+        ...managed,
+        awsAccountDirectory: ['send/core=000000000101'],
+      },
+    );
+    assert.throws(
+      () => deps.services.awsAccounts?.environment(),
+      (error: unknown) => isAwsAccountError(error) && error.code === 'AWS_ACCOUNT_DIRECTORY_INVALID',
+    );
+  });
+
+  it('reads through OAM in AWS-managed execution even when another binding is configured', async () => {
+    const deps = await buildExecuteRunbookDeps(
+      fakeScript(() => 'unused', true),
+      {
+        ...managed,
+        awsAccountBinding: 'profiles',
+        awsAccountDirectory: ['send/core/prod=000000000101'],
+      },
+    );
+    assert.ok(deps.services.awsAccounts instanceof RuntimeAwsAccountsPort);
+  });
+});
+
 function fakeScript(readSecretString: FakeSecretStringLoaderFn, isAWSManaged = false): GOScript {
   return {
     environment: { isAWSManaged },
-    logger: {} as GOLogger,
+    logger: { info: () => undefined, error: () => undefined } as unknown as GOLogger,
     aws: {
+      clients: {
+        profileNames: ['profile-a'],
+        first: { getRegion: () => 'eu-south-1' },
+        getClientProvider: () => ({ getRegion: () => 'eu-south-1' }),
+      },
       services: {
         cloudWatchLogs: {} as AWSCloudWatchLogsService,
         cloudWatchMetrics: {} as AWSCloudWatchMetricsService,

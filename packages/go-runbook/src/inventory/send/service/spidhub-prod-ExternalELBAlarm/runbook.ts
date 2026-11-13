@@ -1,12 +1,6 @@
 import type { Runbook } from '../../../../engine/index.js';
 import { unknownCaseFallback, AlarmRunbookBuilder } from '../../../../toolkits/send/index.js';
-import {
-  SPIDHUB_ALARM,
-  RUNBOOK_URL,
-  SPIDHUB_ACCOUNT_ID,
-  SPIDHUB_LOG_GROUP,
-  SPIDHUB_REGION,
-} from './alarmDefinition.js';
+import { SPIDHUB_ALARM, RUNBOOK_URL, SPIDHUB_LOG_GROUP } from './alarmDefinition.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { QuerySpidHubDiagnosticsStep } from './QuerySpidHubDiagnosticsStep.js';
 
@@ -27,8 +21,6 @@ export function buildRunbook(): Runbook {
       metadata: {
         service: 'pn-hub-spid-login-aws',
         logGroup: SPIDHUB_LOG_GROUP,
-        accountId: SPIDHUB_ACCOUNT_ID,
-        region: SPIDHUB_REGION,
         albCorrelation: 'MANUAL',
       },
       fields: [

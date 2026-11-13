@@ -24,7 +24,7 @@ export function buildRunbook(): Runbook {
     .cloudExecutionPolicy({ sideEffects: 'NONE' })
     .occurrenceTimeWindow({ beforeMinutes: 60, afterMinutes: 5 })
     .output({
-      metadata: { service: 'pn-logsaver-be', logGroup: LOG_GROUP, region: 'eu-south-1' },
+      metadata: { service: 'pn-logsaver-be', logGroup: LOG_GROUP },
       fields: [
         { name: 'alarmName', label: 'Alarm', ref: 'params.alarmName', valueType: 'string' },
         {

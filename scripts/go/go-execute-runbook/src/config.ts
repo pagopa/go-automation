@@ -36,6 +36,31 @@ export const scriptParameters: ReadonlyArray<GOConfigParameterOptions> = [
     aliases: ['ar'],
   },
   {
+    name: 'aws.account.directory',
+    type: GOConfigParameterType.STRING_ARRAY,
+    description:
+      'Account directory of the logical AWS accounts read by multi-account runbooks: ' +
+      '<product>/<account>/<environment>=<accountId> entries (EVO-AWSACCT-OPUS-01)',
+    required: false,
+    aliases: ['aad'],
+  },
+  {
+    name: 'aws.account.binding',
+    type: GOConfigParameterType.STRING,
+    description:
+      'How logical accounts are reached: profiles (matched through STS) or oam. ' +
+      'Default: profiles with aws.profiles, oam otherwise; always oam in AWS-managed execution',
+    required: false,
+    aliases: ['aab'],
+  },
+  {
+    name: 'aws.account.permission.sets',
+    type: GOConfigParameterType.STRING_ARRAY,
+    description: 'Preferred SSO permission sets when several profiles reach the same account, most preferred first',
+    required: false,
+    aliases: ['aaps'],
+  },
+  {
     name: 'watchtower.url',
     type: GOConfigParameterType.STRING,
     description: 'Watchtower internal TLS endpoint',

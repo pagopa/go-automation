@@ -3,83 +3,114 @@ import { describe, it } from 'node:test';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { GOLogger } from '@pagopa/go-common/logging';
 
-import { RunbookEngine, type RunbookExecutionResult } from '../../../../../engine/index.js';
+import type { RunbookExecutionResult } from '../../../../../engine/index.js';
 import {
   type AnalysisDraftV1,
   assertCloudExecutableRunbook,
+  awsLogicalAccountName,
   buildAnalysisDraft,
   buildRunbookOutput,
   createTestServiceRegistry,
+  SEND_ACCOUNTS,
 } from '../../../../../toolkits/send/index.js';
+import { rejectsWith } from '../../../../../toolkits/common/accounts/__tests__/fixtures.js';
+import { OperationalRunbookEngine } from '../../../../../toolkits/common/engine/OperationalRunbookEngine.js';
+import type { InMemoryAwsAccountsPortOptions } from '../../../../../toolkits/common/testing/InMemoryAwsAccountsPortOptions.js';
+import {
+  fakeReader,
+  occurrenceIn,
+  SEND_ACCOUNT_IDS,
+  SEND_REGION,
+  sendAccountsPort,
+  SEND_TEST_ENVIRONMENT,
+} from '../../../../../toolkits/send/accounts/__tests__/fixtures.js';
 import { buildRunbook } from '../runbook.js';
 import { ERROR_QUERY, LOG_GROUP } from '../QueryLogsaverDiagnosticsStep.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
-type ReadQueryRowsFn = (accountId: string, query: string) => Rows;
+/** Rows a logical account (`core`, `confinfo`) returns for a query. */
+type ReadQueryRowsFn = (account: string, query: string) => Rows;
+type PortOptions = Partial<InMemoryAwsAccountsPortOptions>;
 interface QueryOptions {
   readonly failQuery?: string;
   readonly errorRecordsMatched?: number;
 }
 interface Call {
-  readonly accountId: string;
-  readonly profile?: string;
+  readonly account: string;
   readonly query: string;
 }
 
+/** An occurrence in production SEND confinfo. */
+const CONFINFO_OCCURRENCE: PortOptions = occurrenceIn(SEND_ACCOUNT_IDS.confinfoProd);
+/** A local execution in production, without an occurrence: both accounts. */
+const LOCAL_PROD: PortOptions = { environment: 'prod' };
+
+/**
+ * Runs the runbook through the operational engine, so the pre-execution account
+ * check resolves and prepares the accounts before the first step.
+ */
 async function execute(
-  params: ReadonlyArray<readonly [string, string]>,
+  portOptions: PortOptions,
   rows: Rows | ReadQueryRowsFn = [],
   queryOptions: QueryOptions = {},
 ): Promise<{ calls: Call[]; result: RunbookExecutionResult; draft: AnalysisDraftV1 | undefined }> {
   const calls: Call[] = [];
   const runbook = buildRunbook();
-  const result = await new RunbookEngine(new GOLogger()).execute(
-    runbook,
-    new Map([['startTime', '2026-09-10T09:06:01Z'], ['endTime', '2026-09-10T10:11:01Z'], ...params]),
-    createTestServiceRegistry({
-      cloudWatchLogs: {
-        forTarget(target: { accountId: string; region: string; profile?: string }) {
-          return {
-            // eslint-disable-next-line @typescript-eslint/require-await
-            async queryWithStatistics(
-              groups: ReadonlyArray<string>,
-              query: string,
-              _timeRange: unknown,
-              options: { paginateResults?: boolean },
-            ) {
-              assert.deepStrictEqual(groups, [LOG_GROUP]);
-              assert.strictEqual(options.paginateResults, true);
-              calls.push({ ...target, query });
-              if (query.includes(queryOptions.failQuery ?? 'NEVER_FAIL')) throw new Error('AccessDenied');
-              const output =
-                typeof rows === 'function' ? rows(target.accountId, query) : query === ERROR_QUERY ? rows : [];
-              return {
-                rows: output,
-                statistics: {
-                  bytesScanned: 1,
-                  recordsScanned: output.length,
-                  recordsMatched:
-                    query === ERROR_QUERY ? (queryOptions.errorRecordsMatched ?? output.length) : output.length,
-                },
-                queryExecutions: [],
-              };
-            },
-          };
-        },
+  const reader = (account: string): ReturnType<typeof fakeReader> =>
+    fakeReader({
+      // eslint-disable-next-line @typescript-eslint/require-await
+      async queryWithStatistics(
+        groups: ReadonlyArray<string>,
+        query: string,
+        _timeRange: unknown,
+        options: { paginateResults?: boolean },
+      ) {
+        assert.deepStrictEqual(groups, [LOG_GROUP]);
+        assert.strictEqual(options.paginateResults, true);
+        calls.push({ account, query });
+        if (query.includes(queryOptions.failQuery ?? 'NEVER_FAIL')) throw new Error('AccessDenied');
+        const output = typeof rows === 'function' ? rows(account, query) : query === ERROR_QUERY ? rows : [];
+        return {
+          rows: output,
+          statistics: {
+            bytesScanned: 1,
+            recordsScanned: output.length,
+            recordsMatched: query === ERROR_QUERY ? (queryOptions.errorRecordsMatched ?? output.length) : output.length,
+          },
+          queryExecutions: [],
+        };
       },
-    }),
+    });
+  const awsAccounts = sendAccountsPort({
+    ...portOptions,
+    readers: Object.fromEntries(
+      [SEND_ACCOUNTS.core, SEND_ACCOUNTS.confinfo].map((account) => [account, reader(awsLogicalAccountName(account))]),
+    ),
+  });
+  const result = await new OperationalRunbookEngine(new GOLogger()).execute(
+    runbook,
+    new Map([
+      ['startTime', '2026-09-10T09:06:01Z'],
+      ['endTime', '2026-09-10T10:11:01Z'],
+    ]),
+    createTestServiceRegistry({ awsAccounts }),
+    SEND_TEST_ENVIRONMENT,
   );
   return { calls, result, draft: buildAnalysisDraft(runbook, result) };
 }
 
 describe('logsaver Batch diagnostic runbook', () => {
   it('scopes cloud reads to the occurrence account and never closes an empty scan', async () => {
-    const { calls, result, draft } = await execute([['awsAccountId', '350578575906']]);
+    const { calls, result, draft } = await execute(CONFINFO_OCCURRENCE);
     assert.strictEqual(result.status, 'completed');
     assert.strictEqual(calls.length, 2);
-    assert.ok(calls.every(({ accountId, profile }) => accountId === '350578575906' && profile === undefined));
+    assert.ok(calls.every(({ account }) => account === 'confinfo'));
     assert.strictEqual(result.finalContext.vars.get('logsaverErrorLogCount'), '0');
+    assert.strictEqual(result.finalContext.vars.get('logsaverAccountsChecked'), 'confinfo');
     assert.notStrictEqual(draft?.kind, 'KNOWN_CASE');
+    assert.deepStrictEqual(buildRunbookOutput(buildRunbook(), result).context.details?.['awsAccounts'], [
+      { account: 'send/confinfo', environment: 'prod', accountId: SEND_ACCOUNT_IDS.confinfoProd, region: SEND_REGION },
+    ]);
   });
 
   it('retains equal messages from both accounts without deduplication or a recovery claim', async () => {
@@ -89,14 +120,11 @@ describe('logsaver Batch diagnostic runbook', () => {
         { field: '@logStream', value: 'task-1' },
       ],
     ];
-    const { result, calls, draft } = await execute(
-      [['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']],
-      rows,
-    );
+    const { result, calls, draft } = await execute(LOCAL_PROD, rows);
     assert.strictEqual(calls.length, 4);
     assert.deepStrictEqual(
-      calls.map(({ profile }) => profile),
-      ['sso_pn-core-prod_readonly', 'sso_pn-core-prod_readonly', 'sso_pn-confinfo-prod', 'sso_pn-confinfo-prod'],
+      calls.map(({ account }) => account),
+      ['core', 'core', 'confinfo', 'confinfo'],
     );
     const output = result.finalContext.stepResults.get('query-logsaver-diagnostics') as Rows;
     assert.strictEqual(output.length, 2);
@@ -116,52 +144,45 @@ describe('logsaver Batch diagnostic runbook', () => {
     });
     assert.deepStrictEqual(
       occurrenceOutput.context.evidence[0]?.items?.map((item) => item['sourceAccountId']),
-      ['510769970275', '350578575906'],
+      [SEND_ACCOUNT_IDS.coreProd, SEND_ACCOUNT_IDS.confinfoProd],
     );
   });
 
   it('applies the documented no-action resolution only to the actual Spot signature', async () => {
-    const { draft } = await execute(
-      [['awsAccountId', '350578575906']],
-      [[{ field: '@message', value: 'Your Spot Task was interrupted.' }]],
-    );
+    const { draft } = await execute(CONFINFO_OCCURRENCE, [
+      [{ field: '@message', value: 'Your Spot Task was interrupted.' }],
+    ]);
     assert.strictEqual(draft?.kind === 'KNOWN_CASE' ? draft.proposedStatus : undefined, 'COMPLETED');
     assert.strictEqual(draft?.kind === 'KNOWN_CASE' ? draft.conclusionNotes : undefined, 'Nessuna azione necessaria');
   });
 
   it('keeps the occurrence open when a Spot interruption accompanies an unrelated failure', async () => {
-    const { draft } = await execute(
-      [['awsAccountId', '350578575906']],
+    const { draft } = await execute(CONFINFO_OCCURRENCE, [
       [
-        [
-          { field: '@message', value: 'Your Spot Task was interrupted.' },
-          { field: '@logStream', value: 'spot-task' },
-        ],
-        [
-          { field: '@message', value: 'ERROR AccessDenied: cannot write archive' },
-          { field: '@logStream', value: 'other-task' },
-        ],
+        { field: '@message', value: 'Your Spot Task was interrupted.' },
+        { field: '@logStream', value: 'spot-task' },
       ],
-    );
+      [
+        { field: '@message', value: 'ERROR AccessDenied: cannot write archive' },
+        { field: '@logStream', value: 'other-task' },
+      ],
+    ]);
     assert.strictEqual(draft?.kind, 'KNOWN_CASE');
     assert.strictEqual(draft.proposedStatus, 'IN_PROGRESS');
     assert.doesNotMatch(draft.conclusionNotes, /Nessuna azione necessaria/u);
   });
 
   it('accounts for every error across accounts and streams before completing a Spot-only occurrence', async () => {
-    const { result, draft } = await execute(
-      [['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']],
+    const { result, draft } = await execute(LOCAL_PROD, [
       [
-        [
-          { field: '@message', value: 'Your Spot Task was interrupted.' },
-          { field: '@logStream', value: 'task-1' },
-        ],
-        [
-          { field: 'message', value: 'Your Spot Task was interrupted.' },
-          { field: '@logStream', value: 'task-2' },
-        ],
+        { field: '@message', value: 'Your Spot Task was interrupted.' },
+        { field: '@logStream', value: 'task-1' },
       ],
-    );
+      [
+        { field: 'message', value: 'Your Spot Task was interrupted.' },
+        { field: '@logStream', value: 'task-2' },
+      ],
+    ]);
     assert.strictEqual(draft?.kind === 'KNOWN_CASE' ? draft.proposedStatus : undefined, 'COMPLETED');
     assert.strictEqual(result.finalContext.vars.get('logsaverSpotInterruptionLogCount'), '4');
     assert.strictEqual(result.finalContext.vars.get('logsaverUnaccountedErrorLogCount'), '0');
@@ -169,41 +190,34 @@ describe('logsaver Batch diagnostic runbook', () => {
 
   for (const sameStream of [false, true]) {
     it(`keeps an application exception open in ${sameStream ? 'the same' : 'another'} stream as the Spot event`, async () => {
-      const { draft, result } = await execute(
-        [['awsAccountId', '350578575906']],
+      const { draft, result } = await execute(CONFINFO_OCCURRENCE, [
         [
-          [
-            { field: '@message', value: 'Your Spot Task was interrupted.' },
-            { field: '@logStream', value: 'spot-task' },
-          ],
-          [
-            { field: '@message', value: 'RuntimeException: export failed' },
-            { field: '@logStream', value: sameStream ? 'spot-task' : 'other-task' },
-          ],
+          { field: '@message', value: 'Your Spot Task was interrupted.' },
+          { field: '@logStream', value: 'spot-task' },
         ],
-      );
+        [
+          { field: '@message', value: 'RuntimeException: export failed' },
+          { field: '@logStream', value: sameStream ? 'spot-task' : 'other-task' },
+        ],
+      ]);
       assert.strictEqual(draft?.kind === 'KNOWN_CASE' ? draft.proposedStatus : undefined, 'IN_PROGRESS');
       assert.strictEqual(result.finalContext.vars.get('logsaverUnaccountedErrorLogCount'), '1');
     });
   }
 
   it('keeps an error in the other account open even when the first account contains only Spot interruptions', async () => {
-    const { draft, result } = await execute(
-      [['awsProfiles', 'sso_pn-core-prod_readonly,sso_pn-confinfo-prod']],
-      (accountId, query) =>
-        query === ERROR_QUERY
-          ? [
-              [
-                {
-                  field: '@message',
-                  value:
-                    accountId === '510769970275'
-                      ? 'Your Spot Task was interrupted.'
-                      : 'ERROR AccessDenied: cannot write archive',
-                },
-              ],
-            ]
-          : [],
+    const { draft, result } = await execute(LOCAL_PROD, (account, query) =>
+      query === ERROR_QUERY
+        ? [
+            [
+              {
+                field: '@message',
+                value:
+                  account === 'core' ? 'Your Spot Task was interrupted.' : 'ERROR AccessDenied: cannot write archive',
+              },
+            ],
+          ]
+        : [],
     );
     assert.strictEqual(draft?.kind === 'KNOWN_CASE' ? draft.proposedStatus : undefined, 'IN_PROGRESS');
     assert.strictEqual(result.finalContext.vars.get('logsaverErrorLogCount'), '2');
@@ -212,7 +226,7 @@ describe('logsaver Batch diagnostic runbook', () => {
 
   it('checks all error rows even when the output sample contains only later Spot messages', async () => {
     const { result } = await execute(
-      [['awsAccountId', '350578575906']],
+      CONFINFO_OCCURRENCE,
       [
         'ERROR AccessDenied: cannot write archive',
         ...Array.from({ length: 6 }, () => 'Your Spot Task was interrupted.'),
@@ -244,17 +258,17 @@ describe('logsaver Batch diagnostic runbook', () => {
     [{ field: '@logStream', value: 'unknown-error' }],
   ]) {
     it(`requires follow-up for compound or unclassified error evidence: ${JSON.stringify(row)}`, async () => {
-      const { draft, result } = await execute(
-        [['awsAccountId', '350578575906']],
-        [[{ field: '@message', value: 'Your Spot Task was interrupted.' }], row],
-      );
+      const { draft, result } = await execute(CONFINFO_OCCURRENCE, [
+        [{ field: '@message', value: 'Your Spot Task was interrupted.' }],
+        row,
+      ]);
       assert.strictEqual(draft?.kind === 'KNOWN_CASE' ? draft.proposedStatus : undefined, 'IN_PROGRESS');
       assert.strictEqual(result.finalContext.vars.get('logsaverUnaccountedErrorLogCount'), '1');
     });
   }
 
   it('does not interpret stream metadata containing the Spot signature as an explained failure', async () => {
-    const { draft, result } = await execute([['awsAccountId', '350578575906']], (_accountId, query) =>
+    const { draft, result } = await execute(CONFINFO_OCCURRENCE, (_account, query) =>
       query === ERROR_QUERY
         ? [
             [
@@ -276,7 +290,7 @@ describe('logsaver Batch diagnostic runbook', () => {
 
   it('does not complete a Spot-only sample when query statistics report missing error rows', async () => {
     const { result, draft } = await execute(
-      [['awsAccountId', '350578575906']],
+      CONFINFO_OCCURRENCE,
       [[{ field: '@message', value: 'Your Spot Task was interrupted.' }]],
       { errorRecordsMatched: 2 },
     );
@@ -286,30 +300,42 @@ describe('logsaver Batch diagnostic runbook', () => {
     assert.strictEqual(result.finalContext.vars.get('logsaverUnaccountedErrorLogCount'), undefined);
   });
 
-  it('rejects UAT, unsupported regions and incomplete local account selection before reading', async () => {
-    for (const params of [
-      [['awsAccountId', '956319218727']],
-      [
-        ['awsAccountId', '350578575906'],
-        ['awsRegion', 'eu-west-1'],
-      ],
-      [['awsProfiles', 'sso_pn-core-prod_readonly']],
-      [],
+  it('rejects UAT, region mismatches, foreign occurrences and unreachable accounts before reading', async () => {
+    for (const [portOptions, code] of [
+      [occurrenceIn(SEND_ACCOUNT_IDS.confinfoUat), 'AWS_ACCOUNT_ENVIRONMENT_NOT_ALLOWED'],
+      [{ environment: 'uat' }, 'AWS_ACCOUNT_ENVIRONMENT_NOT_ALLOWED'],
+      [occurrenceIn(SEND_ACCOUNT_IDS.confinfoProd, 'eu-west-1'), 'AWS_OCCURRENCE_ACCOUNT_MISMATCH'],
+      [occurrenceIn(SEND_ACCOUNT_IDS.unrelated), 'AWS_OCCURRENCE_ACCOUNT_MISMATCH'],
+      [{}, 'AWS_ACCOUNT_ENVIRONMENT_NOT_CONFIGURED'],
+      [{ ...LOCAL_PROD, unreachable: [SEND_ACCOUNTS.confinfo] }, 'AWS_ACCOUNT_UNREACHABLE'],
     ] as const) {
-      const { calls, result } = await execute(params);
-      assert.strictEqual(result.status, 'failed');
+      const calls: Call[] = [];
+      await assert.rejects(
+        async () =>
+          execute(portOptions, (account, query) => {
+            calls.push({ account, query });
+            return [];
+          }),
+        rejectsWith(code),
+      );
       assert.deepStrictEqual(calls, []);
     }
   });
 
+  it('needs no credentials for the account the occurrence excludes', async () => {
+    const { calls, result } = await execute({ ...CONFINFO_OCCURRENCE, unreachable: [SEND_ACCOUNTS.core] });
+    assert.strictEqual(result.status, 'completed');
+    assert.ok(calls.every(({ account }) => account === 'confinfo'));
+  });
+
   it('fails on query access errors and saturation instead of emitting a successful diagnostic draft', async () => {
     for (const failQuery of ['fields', 'stats']) {
-      const { result, draft } = await execute([['awsAccountId', '350578575906']], [], { failQuery });
+      const { result, draft } = await execute(CONFINFO_OCCURRENCE, [], { failQuery });
       assert.strictEqual(result.status, 'failed');
       assert.notStrictEqual(draft?.kind, 'KNOWN_CASE');
     }
     const { result, draft } = await execute(
-      [['awsAccountId', '350578575906']],
+      CONFINFO_OCCURRENCE,
       Array.from({ length: 1000 }, () => [{ field: '@message', value: 'ERROR' }]),
     );
     assert.strictEqual(result.status, 'failed');

@@ -40,9 +40,8 @@ export type { AwsAccountSelection } from '../common/accounts/AwsAccountSelection
 export type { ResolvedAwsAccount } from '../common/accounts/ResolvedAwsAccount.js';
 export { resolveAwsAccountSelection } from '../common/accounts/resolveAwsAccountSelection.js';
 export { InMemoryAwsAccountsPort } from '../common/testing/InMemoryAwsAccountsPort.js';
-export type { AwsAccountSourceSelection } from '../common/accounts/AwsAccountSourceSelection.js';
-export { resolveAwsAccountTargets } from '../common/accounts/resolveAwsAccountTargets.js';
-export { scopeCloudWatchLogsToAccount } from '../common/accounts/scopeCloudWatchLogsToAccount.js';
+export { awsLogicalAccountName } from '../common/accounts/awsLogicalAccountName.js';
+export { SEND_ACCOUNTS } from './accounts/SEND_ACCOUNTS.js';
 export { resolveTimeRange } from '../common/time/resolveTimeRange.js';
 export type { TimeRangeFromParams } from '../common/time/TimeRangeFromParams.js';
 export { RunbookKinds } from '../common/registration/RunbookKind.js';

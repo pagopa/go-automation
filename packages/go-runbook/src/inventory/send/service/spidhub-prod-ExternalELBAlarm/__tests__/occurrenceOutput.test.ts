@@ -2,38 +2,60 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { GOLogger } from '@pagopa/go-common/logging';
-import { createTestServiceRegistry, type RunbookOutput } from '../../../../../toolkits/send/index.js';
+import { createTestServiceRegistry, type RunbookOutput, SEND_ACCOUNTS } from '../../../../../toolkits/send/index.js';
 import { executeRunbookForOccurrence } from '../../../../../runtime/index.js';
-import { ERROR_QUERY, SPIDHUB_ACCOUNT_ID, SPIDHUB_ALARM, SPIDHUB_REGION, STREAM_QUERY } from '../alarmDefinition.js';
+import { rejectsWith } from '../../../../../toolkits/common/accounts/__tests__/fixtures.js';
+import type { InMemoryAwsAccountsPortOptions } from '../../../../../toolkits/common/testing/InMemoryAwsAccountsPortOptions.js';
+import {
+  fakeReader,
+  occurrenceIn,
+  SEND_ACCOUNT_IDS,
+  SEND_REGION,
+  sendAccountsPort,
+} from '../../../../../toolkits/send/accounts/__tests__/fixtures.js';
+import { ERROR_QUERY, SPIDHUB_ALARM, STREAM_QUERY } from '../alarmDefinition.js';
 
 type Rows = ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>;
 type ReadQueryFn = (query: string) => Rows;
+/** The SPID Hub account: SEND confinfo in production. */
+const SPIDHUB_ACCOUNT_ID = SEND_ACCOUNT_IDS.confinfoProd;
 const HEADERS_ERROR = 'Error [ERR_HTTP_HEADERS_SENT]: Cannot set headers after they are sent';
 const RESPONDER_ERROR =
   '[io-spid-commons] Spid Authentication|Authentication Error|ERROR=Error: Value attribute of StatusCode is invalid: urn:oasis:names:tc:SAML:2.0:status:Responder';
 
-async function execute(read: ReadQueryFn): Promise<RunbookOutput> {
+/**
+ * Runs the occurrence in cloud mode, with an account port bound to the occurrence.
+ * Only the confinfo reader exists, and it reports no query statistics.
+ */
+async function execute(
+  read: ReadQueryFn,
+  occurrence: Pick<InMemoryAwsAccountsPortOptions, 'occurrence'> = occurrenceIn(SPIDHUB_ACCOUNT_ID),
+  unreachable: ReadonlyArray<string> = [],
+): Promise<RunbookOutput> {
+  const awsAccountId = occurrence.occurrence?.accountId ?? SPIDHUB_ACCOUNT_ID;
   return executeRunbookForOccurrence(
     {
       logger: new GOLogger(),
       services: createTestServiceRegistry({
-        cloudWatchLogs: {
-          forTarget() {
-            return {
+        awsAccounts: sendAccountsPort({
+          ...occurrence,
+          unreachable,
+          readers: {
+            [SEND_ACCOUNTS.confinfo]: fakeReader({
               // eslint-disable-next-line @typescript-eslint/require-await
               async query(_groups: ReadonlyArray<string>, query: string) {
                 return read(query);
               },
-            };
+            }),
           },
-        },
+        }),
       }),
     },
     {
       alarmName: SPIDHUB_ALARM,
       firedAt: '2026-09-18T08:52:13Z',
-      awsAccountId: SPIDHUB_ACCOUNT_ID,
-      region: SPIDHUB_REGION,
+      awsAccountId,
+      region: occurrence.occurrence?.region ?? SEND_REGION,
       awsProfiles: [],
       executionMode: 'cloud',
     },
@@ -123,10 +145,19 @@ describe('SPID Hub occurrence output', () => {
       (output.context.details?.['diagnostics'] as Record<string, unknown> | undefined)?.['spidHubHeadersSentCount'],
       1,
     );
-    assert.strictEqual(
-      (output.context.details?.['metadata'] as Record<string, unknown> | undefined)?.['albCorrelation'],
-      'MANUAL',
-    );
+    // Account and region are no static metadata: the resolved account is reported at runtime.
+    assert.deepStrictEqual(output.context.details?.['metadata'], {
+      service: 'pn-hub-spid-login-aws',
+      logGroup: 'spidhub-prod-hub-login',
+      albCorrelation: 'MANUAL',
+    });
+    assert.deepStrictEqual(output.context.details?.['awsAccounts'], [
+      { account: 'send/confinfo', environment: 'prod', accountId: SPIDHUB_ACCOUNT_ID, region: SEND_REGION },
+    ]);
+    // The known-case details resolve {{vars.spidHubAccountId}} from the directory.
+    const matched = output.outcome.kind === 'known-case-matched' ? output.outcome.matchedCases : [];
+    assert.strictEqual(matched.length, 2);
+    assert.ok(matched.every(({ resolvedMessage }) => resolvedMessage?.includes(`Account: ${SPIDHUB_ACCOUNT_ID}`)));
     assert.deepStrictEqual(output.context.details?.['alarm'], {
       name: SPIDHUB_ALARM,
       datetime: '2026-09-18T08:52:13Z',
@@ -200,5 +231,28 @@ describe('SPID Hub occurrence output', () => {
       (output.context.details?.['diagnostics'] as Record<string, unknown> | undefined)?.['spidHubErrorLogCount'],
       undefined,
     );
+  });
+
+  it('rejects a non-production or foreign occurrence and an unreachable account before any query', async () => {
+    for (const [occurrence, unreachable, code] of [
+      [occurrenceIn(SEND_ACCOUNT_IDS.confinfoUat), [], 'AWS_ACCOUNT_ENVIRONMENT_NOT_ALLOWED'],
+      [occurrenceIn(SEND_ACCOUNT_IDS.coreProd), [], 'AWS_OCCURRENCE_ACCOUNT_MISMATCH'],
+      [occurrenceIn(SPIDHUB_ACCOUNT_ID), [SEND_ACCOUNTS.confinfo], 'AWS_ACCOUNT_UNREACHABLE'],
+    ] as const) {
+      const queries: string[] = [];
+      await assert.rejects(
+        async () =>
+          execute(
+            (query) => {
+              queries.push(query);
+              return [];
+            },
+            occurrence,
+            unreachable,
+          ),
+        rejectsWith(code),
+      );
+      assert.deepStrictEqual(queries, []);
+    }
   });
 });

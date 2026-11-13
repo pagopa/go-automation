@@ -8,6 +8,7 @@ import { AwsAccountsDirectoryPort } from '../../toolkits/common/accounts/AwsAcco
 import type { AwsAccountsOccurrence } from '../../toolkits/common/accounts/AwsAccountsOccurrence.js';
 import type { ResolvedAwsAccount } from '../../toolkits/common/accounts/ResolvedAwsAccount.js';
 import type { RuntimeAwsAccountsPortOptions } from './RuntimeAwsAccountsPortOptions.js';
+import { withScrubbedErrors } from './withScrubbedErrors.js';
 
 /** A configured profile and the account and permission set STS reports for it. */
 interface ProfileIdentity {
@@ -26,7 +27,8 @@ interface ProfileIdentity {
  * - `oam`: the monitoring reader, targeted at the account (cross-account by ARN).
  *
  * Every reader targets exactly the account and region, **without log fallbacks**,
- * so a missing log group can never be answered by another account.
+ * so a missing log group can never be answered by another account; its query
+ * errors carry no local profile name (the original goes to the diagnostics).
  */
 export class RuntimeAwsAccountsPort extends AwsAccountsDirectoryPort {
   /**
@@ -71,12 +73,15 @@ export class RuntimeAwsAccountsPort extends AwsAccountsDirectoryPort {
     if (this.runtimeOptions.binding === 'oam') {
       if (monitoring === undefined)
         throw new Error('The oam account binding needs the monitoring CloudWatch Logs reader');
-      return monitoring.forTarget(target, activeOperations);
+      return withScrubbedErrors(monitoring.forTarget(target, activeOperations), this.runtimeOptions.diagnostics);
     }
     if (profiles === undefined) throw new Error('The profiles account binding needs the configured AWS profiles');
     const profileSet = profiles;
     const profile = await this.chooseProfile(profileSet, account);
-    return this.createExactReader(new AWSAccountProfileSet(profileSet, [profile]), target);
+    return withScrubbedErrors(
+      this.createExactReader(new AWSAccountProfileSet(profileSet, [profile]), target),
+      this.runtimeOptions.diagnostics,
+    );
   }
 
   /**

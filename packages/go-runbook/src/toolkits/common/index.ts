@@ -48,6 +48,7 @@ export { mergeCloudWatchLogsDiagnostics } from './steps/aws/cloudwatch-logs/merg
 // Logical AWS accounts (EVO-AWSACCT-OPUS-01)
 export type { AwsLogicalAccount } from './accounts/AwsLogicalAccount.js';
 export { parseAwsLogicalAccount } from './accounts/parseAwsLogicalAccount.js';
+export { awsLogicalAccountName } from './accounts/awsLogicalAccountName.js';
 export type { AwsAccountSelection } from './accounts/AwsAccountSelection.js';
 export type { ResolvedAwsAccount } from './accounts/ResolvedAwsAccount.js';
 export type { AwsAccountErrorCode } from './accounts/AwsAccountErrorCode.js';
@@ -58,11 +59,6 @@ export { InMemoryAwsAccountsPort } from './testing/InMemoryAwsAccountsPort.js';
 export type { InMemoryAwsAccountsPortOptions } from './testing/InMemoryAwsAccountsPortOptions.js';
 export type { AwsAccountsDirectoryPortOptions } from './accounts/AwsAccountsDirectoryPortOptions.js';
 export type { AwsAccountsOccurrence } from './accounts/AwsAccountsOccurrence.js';
-export type { AwsAccountSource } from './accounts/AwsAccountSource.js';
-export type { AwsAccountSourceSelection } from './accounts/AwsAccountSourceSelection.js';
-export type { AwsAccountTarget } from './accounts/AwsAccountTarget.js';
-export { resolveAwsAccountTargets } from './accounts/resolveAwsAccountTargets.js';
-export { scopeCloudWatchLogsToAccount } from './accounts/scopeCloudWatchLogsToAccount.js';
 export { CloudWatchMetricsStep } from './steps/aws/cloudwatch-metrics/CloudWatchMetricsStep.js';
 export type { CloudWatchMetricsConfig } from './steps/aws/cloudwatch-metrics/CloudWatchMetricsStep.js';
 export { AthenaQueryStep } from './steps/aws/athena/AthenaQueryStep.js';

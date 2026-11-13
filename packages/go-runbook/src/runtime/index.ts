@@ -22,6 +22,10 @@ export type { RuntimeAwsAccountsPortOptions } from './accounts/RuntimeAwsAccount
 export type { AwsAccountsConfig } from './accounts/AwsAccountsConfig.js';
 export type { AwsAccountsBinding } from './accounts/AwsAccountsBinding.js';
 export type { AwsAccountsDiagnosticFn } from './accounts/AwsAccountsDiagnosticFn.js';
+export { toAwsAccountsConfig } from './accounts/toAwsAccountsConfig.js';
+export { UnavailableAwsAccountsPort } from './accounts/UnavailableAwsAccountsPort.js';
+export { scrubAwsProfileNames } from './accounts/scrubAwsProfileNames.js';
+export type { AwsAccountsSettings } from './accounts/AwsAccountsSettings.js';
 export { computeTimeRange } from '../toolkits/common/time/occurrence/computeTimeRange.js';
 export {
   computeRunbookTimeRange,

@@ -5,6 +5,7 @@ import type { AWSActiveOperationRegistry } from '@pagopa/go-aws';
 import type { AWSClientProvider } from '@pagopa/go-aws/all';
 import type { AWSAthenaService } from '@pagopa/go-aws/athena';
 import { AWSCloudWatchLogsService } from '@pagopa/go-aws/cloudwatch-logs';
+import { parseAwsAccountDirectory } from '@pagopa/go-aws/profiles';
 import { GOLogger } from '@pagopa/go-common/logging';
 import type { RunbookOutput } from '@pagopa/go-runbook/output';
 import type { ServiceRegistry } from '@pagopa/go-runbook/toolkits/common';
@@ -13,9 +14,15 @@ import { RUNBOOK_CATALOG } from '@pagopa/go-runbook/inventory';
 
 import type { ExecuteRunbookDeps } from '../../types/ExecuteRunbookDeps.js';
 import type { ExecuteRunbookInput } from '../../types/ExecuteRunbookInput.js';
+import type { ExecuteRunbookResult } from '../../types/ExecuteRunbookResult.js';
 import { assertRunbookCapability } from '../assertRunbookCapability.js';
 import { executeRunbook } from '../executeRunbook.js';
-import { createTestServiceRegistry } from '@pagopa/go-runbook/toolkits/common';
+import {
+  createTestServiceRegistry,
+  InMemoryAwsAccountsPort,
+  type AwsAccountsPort,
+} from '@pagopa/go-runbook/toolkits/common';
+import { UnavailableAwsAccountsPort } from '@pagopa/go-runbook/runtime';
 
 const RUNBOOK = RUNBOOK_CATALOG.resolveByKey('pn-tokenExchangeLambda-LogInvocationErrors-Alarm')!.descriptor;
 
@@ -54,6 +61,102 @@ interface LifecycleOptions {
 }
 
 type StopObserverFn = () => void;
+
+/** A request sent to Watchtower's fail callback. */
+interface FailCall {
+  readonly scope: string;
+  readonly errorCategory: string;
+  readonly errorCode: string;
+  readonly errorMessage: string;
+}
+
+/** Runs a multi-account runbook whose account directory cannot serve the occurrence. */
+async function executeWithAccounts(
+  runbookKey: string,
+  directory: ReadonlyArray<string> | AwsAccountsPort,
+): Promise<{ readonly result: ExecuteRunbookResult; readonly fails: FailCall[]; readonly completed: boolean }> {
+  const descriptor = RUNBOOK_CATALOG.resolveByKey(runbookKey)!.descriptor;
+  const fails: FailCall[] = [];
+  let completed = false;
+  const deps = fakeDeps(
+    {
+      startExecution: async () => {
+        await Promise.resolve();
+        return { disposition: 'START', attemptId: ATTEMPT_ID, workerDeadlineAt: DELIVERY.workerDeadlineAt };
+      },
+      progressExecution: async () => {
+        await Promise.resolve();
+        return { cancelRequested: false };
+      },
+      failExecution: async (_id: string, body: FailCall) => {
+        await Promise.resolve();
+        fails.push(body);
+        return { status: 'FAILED' };
+      },
+      completeExecution: async () => {
+        await Promise.resolve();
+        completed = true;
+        return { status: 'SUCCEEDED', outcome: 'KNOWN_CASE' };
+      },
+    },
+    {
+      awsAccounts:
+        'environment' in directory
+          ? directory
+          : new InMemoryAwsAccountsPort({ directory: parseAwsAccountDirectory(directory), region: 'eu-south-1' }),
+    },
+  );
+  const result = await executeRunbook(
+    deps,
+    {
+      ...INPUT,
+      alarmEvent: { ...INPUT.alarmEvent, alarmName: descriptor.alarmNames[0], awsAccountId: '000000000101' },
+      runbook: {
+        ...INPUT.runbook,
+        key: descriptor.key,
+        version: descriptor.version,
+        definitionDigest: descriptor.definitionDigest,
+      },
+    },
+    DELIVERY,
+  );
+  return { result, fails, completed };
+}
+
+const ATTEMPT_ID = '0192c000-0000-7000-8000-0000000000e1';
+
+describe('executeRunbook — logical AWS accounts (EVO-AWSACCT-OPUS-01 §6.4)', () => {
+  it('fails the active attempt as a capability mismatch when the occurrence account is outside the directory', async () => {
+    const { result, fails, completed } = await executeWithAccounts('pn-logsaver-be-FailedInvocation-Alarm', []);
+    assert.strictEqual(result.disposition, 'FAIL_EXECUTION');
+    assert.strictEqual(completed, false);
+    assert.strictEqual(fails.length, 1);
+    assert.strictEqual(fails[0]?.scope, 'ACTIVE_ATTEMPT');
+    assert.strictEqual(fails[0]?.errorCategory, 'CAPABILITY');
+    assert.strictEqual(fails[0]?.errorCode, 'RUNBOOK_CAPABILITY_MISMATCH');
+    assert.match(fails[0]?.errorMessage ?? '', /^\[AWS_OCCURRENCE_ACCOUNT_MISMATCH\]/u);
+  });
+
+  it('fails the active attempt as a worker configuration error when a read account has no entry', async () => {
+    const { result, fails } = await executeWithAccounts('pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm', [
+      'send/core/prod=000000000101',
+    ]);
+    assert.strictEqual(result.disposition, 'FAIL_EXECUTION');
+    assert.strictEqual(fails[0]?.errorCategory, 'WORKER_CONFIGURATION');
+    assert.strictEqual(fails[0]?.errorCode, 'WORKER_CONFIGURATION_ERROR');
+    assert.match(fails[0]?.errorMessage ?? '', /^\[AWS_ACCOUNT_NOT_CONFIGURED\] .*send\/confinfo\/prod/u);
+  });
+
+  it('fails the active attempt as a worker configuration error when the account configuration is invalid', async () => {
+    const { result, fails } = await executeWithAccounts(
+      'pn-logsaver-be-FailedInvocation-Alarm',
+      new UnavailableAwsAccountsPort('malformed directory entry'),
+    );
+    assert.strictEqual(result.disposition, 'FAIL_EXECUTION');
+    assert.strictEqual(fails[0]?.errorCategory, 'WORKER_CONFIGURATION');
+    assert.match(fails[0]?.errorMessage ?? '', /^\[AWS_ACCOUNT_DIRECTORY_INVALID\]/u);
+  });
+});
 
 describe('executeRunbook', () => {
   it('allows local capability validation when the worker revision is unspecified', () => {

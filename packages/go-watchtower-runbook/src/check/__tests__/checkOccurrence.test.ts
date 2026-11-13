@@ -4,7 +4,10 @@ import { describe, it } from 'node:test';
 import { type AWSExecutionTarget, AWSTargetNotConfiguredError } from '@pagopa/go-aws';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { GOLogger } from '@pagopa/go-common/logging';
-import { createTestServiceRegistry } from '@pagopa/go-runbook/toolkits/common';
+import { createTestServiceRegistry, InMemoryAwsAccountsPort } from '@pagopa/go-runbook/toolkits/common';
+import { parseAwsAccountDirectory } from '@pagopa/go-aws/profiles';
+import type { AWSCloudWatchLogsQueryService } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { RuntimeAwsAccountsPort } from '@pagopa/go-runbook/runtime';
 import type {
   ResolvedServiceRegistry,
   ServiceRegistry,
@@ -14,6 +17,8 @@ import type { AlarmEventDto } from '@go-automation/go-watchtower-client';
 
 import { checkOccurrence } from '../checkOccurrence.js';
 import type { RunbookCheckContext } from '../checkOccurrence.js';
+import { resolveRunbookCacheDescriptor } from '../../cache/runbookFingerprint.js';
+import type { RunbookCheckCache } from '../../cache/RunbookCheckCache.js';
 import type { AnalysisMatch } from '../../types/RtaCheckReport.js';
 
 /** An alarm with a registered runbook, so execution reaches the AWS binding. */
@@ -218,3 +223,187 @@ describe('checkOccurrence', () => {
     assert.deepStrictEqual(row.comparison.reasons, ['Runbook non eseguito (errore di esecuzione).']);
   });
 });
+
+describe('checkOccurrence — logical AWS accounts (EVO-AWSACCT-OPUS-01 §6.5)', () => {
+  it('reports a directory that cannot serve the occurrence as CONFIG-ERROR, before the cache and the services', async () => {
+    const targets: AWSExecutionTarget[] = [];
+    const cacheReads: string[] = [];
+    const context = {
+      servicesFor: async (target: AWSExecutionTarget): Promise<ResolvedServiceRegistry> => {
+        await Promise.resolve();
+        targets.push(target);
+        throw new Error('services must not be resolved');
+      },
+      engineLogger: new GOLogger(),
+      alarmName: 'pn-logsaver-be-FailedInvocation-Alarm',
+      awsProfiles: ['profile-a'],
+      runbook: resolveRunbookCacheDescriptor('pn-logsaver-be-FailedInvocation-Alarm'),
+      force: false,
+      analysisCache: new Map(),
+      accounts: {
+        port: new InMemoryAwsAccountsPort({
+          directory: parseAwsAccountDirectory(['send/core/prod=000000000101']),
+          region: 'eu-south-1',
+        }),
+        binding: 'profiles',
+        permissionSets: [],
+      },
+    } as unknown as RunbookCheckContext;
+    // Safe: only the read side of the cache is observed.
+    const cache = {
+      get: async (key: string) => {
+        await Promise.resolve();
+        cacheReads.push(key);
+        return undefined;
+      },
+    } as unknown as RunbookCheckCache;
+
+    const row = await checkOccurrence({ context, occurrence: OCCURRENCE, cache });
+
+    assert.strictEqual(row.runbook.status, 'CONFIG-ERROR');
+    assert.match(row.runbook.error ?? '', /not in the account directory/u);
+    assert.deepStrictEqual(targets, []);
+    assert.deepStrictEqual(cacheReads, []);
+  });
+
+  it('keeps local profile names out of a failed row', async () => {
+    const { context } = contextWith(
+      new AWSTargetNotConfiguredError(
+        'AWS_PROFILE_IDENTITY_UNAVAILABLE',
+        'Configured profiles: sso_prod — sso_prod: ExpiredToken (profile: sso_prod)',
+      ),
+    );
+
+    const row = await checkOccurrence({ context, occurrence: OCCURRENCE });
+
+    assert.doesNotMatch(row.runbook.error ?? '', /sso_prod/u);
+    assert.match(row.runbook.error ?? '', /ExpiredToken/u);
+  });
+
+  it('does not cache an output that failed because CloudWatch Logs denied access', async () => {
+    const writes: string[] = [];
+    const servicesFor = async (): Promise<ResolvedServiceRegistry> => {
+      await Promise.resolve();
+      const services = createTestServiceRegistry({
+        cloudWatchLogs: {
+          query: async () => {
+            await Promise.resolve();
+            // The message go-aws actually emits for an AccessDeniedException.
+            throw new Error('CloudWatch Logs StartQuery access denied (profile: profile-a)');
+          },
+        },
+      });
+      return { services, awsProfiles: ['profile-a'] };
+    };
+    // Safe: the occurrence has no analysis id, so client and matcher only see the output.
+    const context = {
+      servicesFor,
+      engineLogger: new GOLogger(),
+      alarmName: ALARM_NAME,
+      awsProfiles: ['profile-a'],
+      runbook: resolveRunbookCacheDescriptor(ALARM_NAME),
+      force: false,
+      analysisCache: new Map(),
+      analysisMatcher: async () => Promise.resolve(NO_MATCH),
+      matchOptions: { includeIgnorable: false, includeIncomplete: false },
+    } as unknown as RunbookCheckContext;
+    // Safe: only the cache calls are observed.
+    const cache = {
+      get: async () => Promise.resolve(undefined),
+      set: async (key: string) => {
+        await Promise.resolve();
+        writes.push(key);
+      },
+    } as unknown as RunbookCheckCache;
+
+    const row = await checkOccurrence({ context, occurrence: OCCURRENCE, cache });
+
+    assert.match(row.runbook.error ?? '', /access denied/u);
+    assert.doesNotMatch(row.runbook.error ?? '', /profile-a/u);
+    assert.deepStrictEqual(writes, []);
+  });
+
+  it('does not cache a denied read even when the profiles are called like the words of the failure', async () => {
+    // Profile names are arbitrary: 'access' and 'denied' must not hide an access denial
+    // from the cache classification (AWSACCT-A45-06).
+    const { row, writes } = await runLogsaverWithFailingReader(
+      new Error('CloudWatch Logs StartQuery access denied (profile: access)'),
+      ['access', 'denied'],
+    );
+
+    assert.match(row.runbook.error ?? '', /^Logsaver diagnostics failed: CloudWatch Logs StartQuery /u);
+    assert.doesNotMatch(row.runbook.error ?? '', /\(profile:/u);
+    assert.deepStrictEqual(writes, []);
+  });
+
+  // Every provider failure the account reader normalizes (AWSACCT-A45-08/09): the IMDS
+  // provider throws the base ProviderError on a metadata-service timeout.
+  for (const name of ['CredentialsProviderError', 'TokenProviderError', 'ProviderError']) {
+    it(`does not cache a read that failed with an SDK ${name}`, async () => {
+      const cause = Object.assign(new Error('Profile sso-secret could not resolve credentials'), { name });
+      const { row, writes } = await runLogsaverWithFailingReader(
+        new Error(`CloudWatch Logs StartQuery failed: ${cause.message} (profile: sso-secret)`, { cause }),
+        ['sso-secret'],
+      );
+
+      assert.match(row.runbook.error ?? '', new RegExp(`\\[${name}\\] AWS credentials could not be resolved`, 'u'));
+      assert.doesNotMatch(row.runbook.error ?? '', /secret/u);
+      assert.deepStrictEqual(writes, []);
+    });
+  }
+});
+
+/**
+ * Runs the logsaver runbook through a real oam `RuntimeAwsAccountsPort` whose monitoring
+ * reader throws `failure`, recording the cache writes.
+ */
+async function runLogsaverWithFailingReader(
+  failure: Error,
+  profiles: ReadonlyArray<string>,
+): Promise<{ readonly row: Awaited<ReturnType<typeof checkOccurrence>>; readonly writes: ReadonlyArray<string> }> {
+  const writes: string[] = [];
+  // Safe: the port only calls forTarget and query on the monitoring reader.
+  const monitoring = {
+    forTarget: () => monitoring,
+    query: async () => {
+      await Promise.resolve();
+      throw failure;
+    },
+  } as unknown as AWSCloudWatchLogsQueryService;
+  // Safe: the occurrence has no analysis id, so client and matcher only see the output.
+  const context = {
+    servicesFor: async (): Promise<ResolvedServiceRegistry> => {
+      await Promise.resolve();
+      return { services: createTestServiceRegistry({}), awsProfiles: [...profiles] };
+    },
+    engineLogger: new GOLogger(),
+    alarmName: 'pn-logsaver-be-FailedInvocation-Alarm',
+    awsProfiles: [...profiles],
+    runbook: resolveRunbookCacheDescriptor('pn-logsaver-be-FailedInvocation-Alarm'),
+    force: false,
+    analysisCache: new Map(),
+    analysisMatcher: async () => Promise.resolve(NO_MATCH),
+    matchOptions: { includeIgnorable: false, includeIncomplete: false },
+    accounts: {
+      port: new RuntimeAwsAccountsPort({
+        directory: parseAwsAccountDirectory(['send/core/prod=000000000101', 'send/confinfo/prod=000000000102']),
+        region: 'eu-south-1',
+        binding: 'oam',
+        monitoring,
+      }),
+      binding: 'oam',
+      permissionSets: [],
+    },
+  } as unknown as RunbookCheckContext;
+  // Safe: only the cache calls are observed.
+  const cache = {
+    get: async () => Promise.resolve(undefined),
+    set: async (key: string) => {
+      await Promise.resolve();
+      writes.push(key);
+    },
+  } as unknown as RunbookCheckCache;
+
+  const row = await checkOccurrence({ context, occurrence: { ...OCCURRENCE, awsAccountId: '000000000101' }, cache });
+  return { row, writes };
+}
