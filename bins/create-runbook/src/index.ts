@@ -38,6 +38,7 @@ import * as path from 'node:path';
 import { parseCliArgs } from './cli/parseArgs.js';
 import { resolveTemplate, collectAnswers, confirmGeneration } from './cli/prompts.js';
 import { renderRunbookFiles, writeGeneratedFiles } from './generate/scaffoldRunbook.js';
+import { awsAccountDataError } from './validation/awsAccountDataError.js';
 import { formatTypeScript } from './generate/formatTypeScript.js';
 import type { GeneratedFile } from './generate/scaffoldRunbook.js';
 import { RunbookKinds } from '../../../packages/go-runbook/src/toolkits/common/registration/RunbookKind.js';
@@ -206,6 +207,10 @@ async function run(): Promise<void> {
   const templateFiles = await renderRunbookFiles(template, answers, TEMPLATES_ROOT, targetDir);
   const wiring = wire ? await renderRegistration(answers, catalogKind, targetDir) : undefined;
   const files = wiring === undefined ? templateFiles : [...templateFiles, wiring.file];
+  const accountDataError = awsAccountDataError(files);
+  if (accountDataError !== undefined) {
+    throw new Error(accountDataError);
+  }
 
   printPlan(answers, files, wire);
 

@@ -46,6 +46,19 @@ is generated too, declaring the runbook's catalog identity.
 Template sources live in `bins/runbook-templates/<id>/*.template` and use
 `{{TOKEN}}` placeholders.
 
+## AWS accounts
+
+Runbooks ship in the published `@pagopa/go-runbook`: no generated file may contain an
+AWS account id, an ARN with an account or an AWS profile name. The scaffolder refuses
+to write a runbook whose answers would put one there (only the synthetic ids
+`000000000000` and `123456789012` are accepted).
+
+A runbook that reads accounts other than the occurrence's declares **logical accounts**
+(`<product>/<account>`, e.g. `SEND_ACCOUNTS.core`) through `accountSelections()`; the
+account ids live in the execution configuration (`aws.account.directory`). See
+[docs/RUNBOOKENGINE.md §7.1](../../docs/RUNBOOKENGINE.md#71-account-ambienti-e-permessi) and
+[EVO-AWSACCT-OPUS-01](../../docs/evolutions/EVO-AWSACCT-OPUS-01.md).
+
 ## Adding a new template type
 
 1. Create `bins/runbook-templates/<new-id>/` with the `*.template` files.
