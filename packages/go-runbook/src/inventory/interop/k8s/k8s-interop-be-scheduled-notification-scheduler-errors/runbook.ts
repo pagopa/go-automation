@@ -3,7 +3,7 @@ import type { Runbook } from '../../../../engine/index.js';
 import { NOTIFICATION_SCHEDULER_ALARM } from './alarmDefinition.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { NOTIFICATION_SCHEDULER_QUERY_PROFILE } from './queryProfile.js';
-import { QueryNotificationSchedulerContextStep } from './QueryNotificationSchedulerContextStep.js';
+import { POD_CONTEXT } from './podContext.js';
 
 const RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3363635346/k8s-interop-be-scheduled-notification-scheduler-errors';
@@ -32,7 +32,7 @@ export function buildRunbook(): Runbook {
     hooks: [
       {
         at: 'before-cid-analysis',
-        step: new QueryNotificationSchedulerContextStep(),
+        step: new interop.k8s.QueryInteropPodContextStep(POD_CONTEXT),
         evidence: [
           {
             id: 'notification-scheduler-context',

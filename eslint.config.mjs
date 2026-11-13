@@ -459,7 +459,7 @@ export default tseslint.config(
   // excludes: on those imports it neither sees `import type` nor can be relied upon to keep the
   // edge. These blocks enforce, independently of resolution:
   // - go-aws-root-type-only: the go-aws root loads client-sts at runtime, types only;
-  // - only-runtime-touches-sdk: no @aws-sdk and no go-aws subpath but ./cloudwatch-logs/insights;
+  // - only-runtime-touches-sdk: no @aws-sdk and no go-aws subpath but ./cloudwatch-logs/insights and ./profiles;
   // - engine-is-a-foundation: the engine imports nothing from go-aws nor the go-common I/O areas;
   // - no self-import of @pagopa/go-runbook, which would bypass every path rule.
   ...goRunbookImportRules(),
@@ -796,25 +796,15 @@ function goRunbookImportRules() {
     message: `Import go-runbook modules by relative path: a self-import bypasses the layer rules ${SPEC}.`,
   };
   const sdk = {
-    // Anchored: exempts exactly ./cloudwatch-logs/insights, not its SDK-bearing parent ./cloudwatch-logs.
-    regex: '^(?:@aws-sdk/|@pagopa/go-aws/(?!cloudwatch-logs/insights$))',
-    message: `Only runtime/ uses the AWS SDK; outside it go-aws offers only ./cloudwatch-logs/insights ${SPEC}.`,
+    // Anchored: exempts exactly the SDK-free ./cloudwatch-logs/insights and ./profiles, not the parent ./cloudwatch-logs.
+    regex: '^(?:@aws-sdk/|@pagopa/go-aws/(?!(?:cloudwatch-logs/insights|profiles)$))',
+    message: `Only runtime/ uses the AWS SDK; outside it go-aws offers only ./cloudwatch-logs/insights and ./profiles ${SPEC}.`,
   };
-  const debtFiles = [
-    // Named debt until F6 consolidates the multi-account steps (§15.5): they parse the
-    // profile parameter with the value export parseAwsProfileEntries of the go-aws root.
-    'packages/go-runbook/src/inventory/send/service/pn-logsaver-be-FailedInvocation-Alarm/QueryLogsaverDiagnosticsStep.ts',
-    'packages/go-runbook/src/inventory/send/lambda/pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm/QueryBothLambdaAccountsStep.ts',
-  ];
   return [
     {
       files: ['packages/go-runbook/src/toolkits/**/*.ts', 'packages/go-runbook/src/inventory/**/*.ts'],
-      ignores: ['**/__tests__/**', ...debtFiles],
+      ignores: ['**/__tests__/**'],
       rules: { [RULE]: ['error', { paths: [goAwsRootTypeOnly], patterns: [sdk, selfImport] }] },
-    },
-    {
-      files: debtFiles,
-      rules: { [RULE]: ['error', { patterns: [sdk, selfImport] }] },
     },
     {
       files: ['packages/go-runbook/src/engine/**/*.ts'],

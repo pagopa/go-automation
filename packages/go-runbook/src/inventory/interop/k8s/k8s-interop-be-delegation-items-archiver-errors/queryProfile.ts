@@ -1,14 +1,9 @@
-import { escapeLogsInsightsString } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { interop } from '../../../../toolkits/interop/index.js';
 
-export const ARCHIVER_QUERY_PROFILE: interop.k8s.InteropK8sQueryProfile = {
-  ...interop.k8s.INTEROP_K8S_QUERY_PROFILE,
-  id: 'interop-k8s-delegation-items-archiver',
-  applicationLogsQueryProfileId: 'interop-k8s-delegation-items-archiver-errors',
-  buildApplicationLogsQuery: (podApp) => `fields @timestamp, pod_app, pod_namespace, @logStream, stream, log, @message
-| filter pod_app = "${escapeLogsInsightsString(podApp)}"
-| filter @logStream not like /adot-collector/
-| filter log like /ERROR/ or stream = "stderr"
-| parse @message "[CID=*]" as cid
-| sort @timestamp asc`,
-};
+export const ARCHIVER_QUERY_PROFILE: interop.k8s.InteropK8sQueryProfile = interop.k8s.interopK8sExactPodQueryProfile(
+  'interop-k8s-delegation-items-archiver',
+  {
+    applicationLogsQueryProfileId: 'interop-k8s-delegation-items-archiver-errors',
+    form: 'fields',
+  },
+);

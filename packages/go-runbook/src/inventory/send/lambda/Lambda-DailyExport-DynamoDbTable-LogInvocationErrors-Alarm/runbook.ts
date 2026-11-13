@@ -8,7 +8,7 @@ import type { Runbook } from '../../../../engine/index.js';
 import { LAMBDA_FUNCTION } from './knownServices.js';
 import { DOWNSTREAM_ERROR_PATTERNS } from './knownErrors.js';
 import { KNOWN_CASES } from './knownCases.js';
-import { QueryDailyExportAccountsStep } from './QueryDailyExportAccountsStep.js';
+import { LAMBDA_LOG_READER } from './lambdaLogReader.js';
 
 /**
  * Builds the Lambda-DailyExport-DynamoDbTable-LogInvocationErrors-Alarm runbook definition.
@@ -27,8 +27,8 @@ export function buildRunbook(): Runbook {
       tags: ['lambda', 'dynamodb', 'daily-export'],
     },
     lambda: LAMBDA_FUNCTION,
-    errorQueryStep: new QueryDailyExportAccountsStep('errors'),
-    invocationQueryStep: new QueryDailyExportAccountsStep('invocation'),
+    errorQueryStep: new lambda.QueryLambdaAcrossAccountsStep({ ...LAMBDA_LOG_READER, queryKind: 'errors' }),
+    invocationQueryStep: new lambda.QueryLambdaAcrossAccountsStep({ ...LAMBDA_LOG_READER, queryKind: 'invocation' }),
     downstreamErrorPatterns: DOWNSTREAM_ERROR_PATTERNS,
     knownCases: KNOWN_CASES,
     analysisDefaults: {

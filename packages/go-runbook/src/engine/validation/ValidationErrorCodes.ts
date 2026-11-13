@@ -12,4 +12,5 @@ export interface ValidationErrorCodes {
   readonly MISSING_METADATA: true;
   readonly MISSING_FALLBACK: true;
   readonly EMPTY_STEPS: true;
+  readonly UNWIRED_CASE_STEP_REF: true;
 }

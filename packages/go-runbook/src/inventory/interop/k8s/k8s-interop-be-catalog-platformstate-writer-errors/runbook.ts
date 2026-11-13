@@ -4,7 +4,7 @@ import type { Runbook } from '../../../../engine/index.js';
 
 import { KNOWN_CASES } from './knownCases.js';
 import { PLATFORMSTATE_WRITER_QUERY_PROFILE } from './queryProfile.js';
-import { QueryWriterContextStep } from './QueryWriterContextStep.js';
+import { POD_CONTEXT } from './podContext.js';
 
 const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3298033847/k8s-interop-be-catalog-platformstate-writer-errors';
@@ -33,7 +33,7 @@ export function buildRunbook(): Runbook {
     hooks: [
       {
         at: 'before-cid-analysis',
-        step: new QueryWriterContextStep(),
+        step: new interop.k8s.QueryInteropPodContextStep(POD_CONTEXT),
         evidence: [
           {
             id: 'platformstate-writer-context',

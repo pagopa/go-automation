@@ -19,11 +19,16 @@ export type { BuildInteropK8sApplicationLogsQueryFn } from '../../applicationLog
 export type { BuildInteropK8sCidTrackerQueryFn } from '../../applicationLogs/types/BuildInteropK8sCidTrackerQueryFn.js';
 export type { InteropK8sQueryProfile } from './profiles/InteropK8sQueryProfile.js';
 export { INTEROP_K8S_QUERY_PROFILE } from './profiles/INTEROP_K8S_QUERY_PROFILE.js';
+export { interopK8sExactPodQueryProfile } from './profiles/interopK8sExactPodQueryProfile.js';
+export type { InteropK8sExactPodQueryOptions } from './types/InteropK8sExactPodQueryOptions.js';
 export {
   buildInteropK8sApplicationLogsQuery,
   buildInteropK8sCidTrackerQuery,
 } from '../../applicationLogs/queries/interopK8sQueries.js';
 export { ResolveInteropK8sAlarmContextStep } from './steps/ResolveInteropK8sAlarmContextStep.js';
+export { QueryInteropPodContextStep } from './steps/QueryInteropPodContextStep.js';
+export type { QueryInteropPodContextConfig } from './types/QueryInteropPodContextConfig.js';
+export type { InteropPodContextCompleteness } from './types/InteropPodContextCompleteness.js';
 export type { ResolveInteropK8sAlarmContextStepConfig } from './steps/ResolveInteropK8sAlarmContextStep.js';
 export { QueryInteropApplicationLogsStep } from '../../applicationLogs/steps/QueryInteropApplicationLogsStep.js';
 export type { QueryInteropApplicationLogsStepConfig } from '../../applicationLogs/steps/QueryInteropApplicationLogsStep.js';

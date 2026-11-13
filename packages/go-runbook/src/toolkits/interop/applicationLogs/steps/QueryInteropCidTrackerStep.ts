@@ -1,12 +1,4 @@
-import type {
-  AWSCloudWatchLogsQueryExecution,
-  AWSCloudWatchLogsQueryOptions,
-} from '@pagopa/go-aws/cloudwatch-logs/insights';
-import {
-  type AWSCloudWatchLogsQueryStatistics,
-  type GOLogsInsightsResultField,
-  sumCloudWatchLogsQueryStatistics,
-} from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../../engine/types/RunbookContext.js';
 import type { Step } from '../../../../engine/types/Step.js';
 import type { StepKind } from '../../../../engine/types/StepKind.js';
@@ -17,6 +9,10 @@ import { resolveTimeRange } from '../../../common/time/resolveTimeRange.js';
 import type { BuildInteropK8sCidTrackerQueryFn } from '../types/BuildInteropK8sCidTrackerQueryFn.js';
 import type { InteropK8sApplicationLogAnalysis } from './AnalyzeInteropApplicationLogsStep.js';
 import { OperationalStep } from '../../../common/steps/OperationalStep.js';
+import { executeCloudWatchLogsQuery } from '../../../common/steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
+import { mergeCloudWatchLogsDiagnostics } from '../../../common/steps/aws/cloudwatch-logs/mergeCloudWatchLogsDiagnostics.js';
+import { interopLogsQueryOptions } from '../../helpers/interopLogsQueryOptions.js';
+import { readNonBlankVar } from '../../helpers/readNonBlankVar.js';
 import type { OperationalContext } from '../../../common/services/OperationalContext.js';
 import type { OperationalServiceName } from '../../../common/services/OperationalServiceName.js';
 
@@ -119,7 +115,7 @@ export class QueryInteropCidTrackerStep
     const analysis = readApplicationAnalysis(context, this.fromStep);
     if (analysis === undefined) return { success: false, error: `Step output not found: "${this.fromStep}"` };
 
-    const logGroup = readRequiredVar(context, this.logGroupVar);
+    const logGroup = readNonBlankVar(context, this.logGroupVar);
     if (logGroup === undefined) {
       return { success: false, error: `Missing required runbook variable: ${this.logGroupVar}` };
     }
@@ -146,28 +142,27 @@ export class QueryInteropCidTrackerStep
     }
 
     const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
-    const options = buildQueryOptions(context);
+    const options = interopLogsQueryOptions(context);
     const cidResults: InteropK8sCidTrackerResult[] = [];
-    const statistics: AWSCloudWatchLogsQueryStatistics[] = [];
-    const queryExecutions: AWSCloudWatchLogsQueryExecution[] = [];
+    const diagnostics: (StepDiagnostics | undefined)[] = [];
     let totalRows = 0;
 
     for (const cid of queriedCids) {
       context.services.reporter.add({ label: `Query CID tracker [cid=${cid}]` });
       const query = this.buildQuery(cid);
-      const result = await context.services.cloudWatchLogs.queryWithStatistics([logGroup], query, timeRange, options);
+      const result = await executeCloudWatchLogsQuery(context, [logGroup], query, timeRange, options);
       totalRows += result.rows.length;
-      statistics.push(result.statistics);
-      queryExecutions.push(...result.queryExecutions);
+      diagnostics.push(result.diagnostics);
       cidResults.push({ cid, rows: result.rows });
     }
 
     context.services.reporter.add({ label: `Log CID tracker trovati: ${totalRows}` });
+    const merged = mergeCloudWatchLogsDiagnostics(diagnostics);
 
     return {
       success: true,
       output: cidResults,
-      diagnostics: toStepDiagnostics(totalRows, statistics, queryExecutions),
+      ...(merged === undefined ? {} : { diagnostics: merged }),
       vars: {
         [varName(this.varPrefix, 'Executed')]: 'true',
         [varName(this.varPrefix, 'CidCount')]: String(queriedCids.length),
@@ -191,32 +186,6 @@ function isApplicationAnalysis(value: unknown): value is InteropK8sApplicationLo
   if (typeof value !== 'object' || value === null) return false;
   const record = value as Readonly<Record<string, unknown>>;
   return Array.isArray(record['cids']) && typeof record['logCount'] === 'number';
-}
-
-function readRequiredVar(context: RunbookContext, key: string): string | undefined {
-  const value = context.vars.get(key)?.trim();
-  return value === undefined || value === '' ? undefined : value;
-}
-
-function buildQueryOptions(context: RunbookContext): AWSCloudWatchLogsQueryOptions {
-  return {
-    ...(context.signal === undefined ? {} : { signal: context.signal }),
-    logGroupResolutionMode: 'search-configured-profiles',
-  };
-}
-
-function toStepDiagnostics(
-  rowsReturned: number,
-  statistics: ReadonlyArray<AWSCloudWatchLogsQueryStatistics>,
-  queryExecutions: ReadonlyArray<AWSCloudWatchLogsQueryExecution>,
-): StepDiagnostics {
-  return {
-    cloudWatchLogs: {
-      rowsReturned,
-      statistics: sumCloudWatchLogsQueryStatistics(statistics),
-      queryExecutions,
-    },
-  };
 }
 
 function varName(prefix: string, suffix: string): string {

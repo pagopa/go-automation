@@ -180,6 +180,7 @@ const GO_AWS_ALLOWED_CLIENTS = {
   athena: ['athena'],
   'cloudwatch-logs': ['cloudwatch-logs'],
   'cloudwatch-logs/insights': [],
+  profiles: [],
   'cloudwatch-metrics': ['cloudwatch'],
   'cloudwatch-alarms': ['cloudwatch'],
   ecs: ['ecs'],
@@ -253,7 +254,7 @@ function packageLayerRules() {
       severity: 'error',
       comment:
         'EVO-RBREORG-OPUS-01 G3: only runtime/ uses the AWS SDK. Engine, toolkits and inventory import from go-aws ' +
-        'only the root (type-only, rule below) and ./cloudwatch-logs/insights. Service ports live in toolkits/common.',
+        'only the root (type-only, rule below), ./cloudwatch-logs/insights and ./profiles. Service ports live in toolkits/common.',
       from: {
         path: '^packages/go-runbook/src/(?:engine|toolkits|inventory)/',
         pathNot: ['/__tests__/'],
@@ -261,8 +262,8 @@ function packageLayerRules() {
       to: {
         path: [
           '^@aws-sdk/',
-          '^@pagopa/go-aws/(?!cloudwatch-logs/insights$)[^/]',
-          '^packages/go-aws/src/(?!index[.]ts$|cloudwatch-logs/insights/)',
+          '^@pagopa/go-aws/(?!(?:cloudwatch-logs/insights|profiles)$)[^/]',
+          '^packages/go-aws/src/(?!index[.]ts$|cloudwatch-logs/insights/|profiles/)',
         ],
       },
     },
@@ -276,7 +277,8 @@ function packageLayerRules() {
     {
       name: 'common-does-not-know-products',
       severity: 'error',
-      comment: 'EVO-RBREORG-OPUS-01 G4: toolkits/common knows no product; SEND and INTEROP data live in their toolkits.',
+      comment:
+        'EVO-RBREORG-OPUS-01 G4: toolkits/common knows no product; SEND and INTEROP data live in their toolkits.',
       from: { path: '^packages/go-runbook/src/toolkits/common/', pathNot: ['/__tests__/'] },
       to: { path: '^packages/go-runbook/src/toolkits/(?:send|interop)/' },
     },

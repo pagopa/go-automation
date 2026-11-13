@@ -7,7 +7,7 @@ import type { Runbook } from '../../../../engine/index.js';
 import { PUBLIC_CATALOG_STRAPI_ALARM as alarm } from './alarmDefinition.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { STRAPI_QUERY_PROFILE } from './queryProfile.js';
-import { QueryPublicCatalogStrapiContextStep } from './QueryPublicCatalogStrapiContextStep.js';
+import { POD_CONTEXT } from './podContext.js';
 
 const RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3339583646/k8s-interop-public-catalog-strapi-errors-public-catalog';
@@ -38,7 +38,7 @@ export function buildRunbook(): Runbook {
     hooks: [
       {
         at: 'before-cid-analysis',
-        step: new QueryPublicCatalogStrapiContextStep(),
+        step: new interop.k8s.QueryInteropPodContextStep(POD_CONTEXT),
         evidence: [
           {
             id: 'public-catalog-strapi-context',

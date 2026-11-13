@@ -24,8 +24,8 @@ export { AWSAccountProfileSet } from './AWSAccountProfileSet.js';
 export type { AWSProfileSet } from './AWSProfileSet.js';
 export type { AWSExecutionTarget } from './AWSExecutionTarget.js';
 export { AWSTargetNotConfiguredError, isAWSTargetNotConfiguredError } from './AWSTargetNotConfiguredError.js';
-export { parseAwsProfileEntries } from './parseAwsProfileEntries.js';
-export type { AWSProfileEntries } from './parseAwsProfileEntries.js';
+export { parseAwsProfileEntries } from './profiles/index.js';
+export type { AWSProfileEntries } from './profiles/index.js';
 
 // Remote operations tracking (cancellation cleanup)
 export { AWSActiveOperationRegistry } from './AWSActiveOperationRegistry.js';

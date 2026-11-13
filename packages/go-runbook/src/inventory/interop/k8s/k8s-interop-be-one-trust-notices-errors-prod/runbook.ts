@@ -1,3 +1,4 @@
+import { escapeLogsInsightsString } from '@pagopa/go-aws/cloudwatch-logs/insights';
 /**
  * Runbook: k8s-interop-be-one-trust-notices-errors-prod
  */
@@ -30,7 +31,9 @@ export function buildRunbook(): Runbook {
       ...interop.k8s.INTEROP_K8S_QUERY_PROFILE,
       id: 'interop-one-trust-notices-prod',
       applicationLogsQueryProfileId: 'interop-one-trust-notices-prod-errors',
-      buildApplicationLogsQuery: (podApp) => `filter pod_namespace = "prod" and pod_app = "${podApp}"
+      buildApplicationLogsQuery: (
+        podApp,
+      ) => `filter pod_namespace = "prod" and pod_app = "${escapeLogsInsightsString(podApp)}"
 | filter (@message like /ERROR/ or stream = "stderr")
 | filter @logStream not like /adot-collector/
 | parse @message "[CID=*]" as cid

@@ -1,4 +1,4 @@
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { type GOLogsInsightsResultField, readRowFields } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../../engine/types/RunbookContext.js';
 import type { Step } from '../../../../engine/types/Step.js';
 import type { StepKind } from '../../../../engine/types/StepKind.js';
@@ -101,10 +101,10 @@ export class AnalyzeInteropApplicationLogsStep implements Step<InteropK8sApplica
 }
 
 function extractCid(row: ReadonlyArray<GOLogsInsightsResultField>): string | undefined {
-  const explicit = normalize(readField(row, ['cid', 'CID']));
+  const explicit = normalize(readRowFields(row, ['cid', 'CID'])[0]);
   if (explicit !== undefined) return explicit;
 
-  for (const candidate of readFields(row, ['@message', 'message', 'log'])) {
+  for (const candidate of readRowFields(row, ['@message', 'message', 'log'])) {
     const match = CID_PATTERN.exec(candidate);
     const cid = normalize(match?.[1]);
     if (cid !== undefined) return cid;
@@ -115,7 +115,7 @@ function extractCid(row: ReadonlyArray<GOLogsInsightsResultField>): string | und
 
 function extractRepresentativeMessage(row: ReadonlyArray<GOLogsInsightsResultField>): string | undefined {
   for (const fieldName of REPRESENTATIVE_MESSAGE_FIELDS) {
-    const message = normalize(readField(row, [fieldName]));
+    const message = normalize(readRowFields(row, [fieldName])[0]);
     if (message !== undefined) return message;
   }
   return undefined;
@@ -123,25 +123,8 @@ function extractRepresentativeMessage(row: ReadonlyArray<GOLogsInsightsResultFie
 
 function readRowCount(row: ReadonlyArray<GOLogsInsightsResultField>, countField: string | undefined): number {
   if (countField === undefined) return 1;
-  const parsed = Number(readField(row, [countField]));
+  const parsed = Number(readRowFields(row, [countField])[0]);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 1;
-}
-
-function readField(row: ReadonlyArray<GOLogsInsightsResultField>, names: ReadonlyArray<string>): string | undefined {
-  return readFields(row, names)[0];
-}
-
-function readFields(
-  row: ReadonlyArray<GOLogsInsightsResultField>,
-  names: ReadonlyArray<string>,
-): ReadonlyArray<string> {
-  const values: string[] = [];
-  for (const field of row) {
-    const fieldName = field.field;
-    if (fieldName === undefined || !names.includes(fieldName)) continue;
-    if (field.value !== undefined) values.push(field.value);
-  }
-  return values;
 }
 
 function normalize(value: string | undefined): string | undefined {

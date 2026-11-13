@@ -3,6 +3,9 @@ export {
   defaultInteropApiGwRunbookStepIds,
 } from './builders/createInteropApiGwAlarmRunbook.js';
 export { defaultInteropApiGwUnknownCaseFallback } from './builders/defaultInteropApiGwUnknownCaseFallback.js';
+export { defineInteropApiGwAlarm } from './builders/defineInteropApiGwAlarm.js';
+export type { InteropApiGwAlarmSpec } from './types/InteropApiGwAlarmSpec.js';
+export type { InteropApiGwAlarmNameFn } from './types/InteropApiGwAlarmNameFn.js';
 export type { InteropApiGwQueryProfile } from './profiles/InteropApiGwQueryProfile.js';
 export { INTEROP_API_GW_5XX_SERVICE_ERRORS_PROFILE } from './profiles/INTEROP_API_GW_5XX_SERVICE_ERRORS_PROFILE.js';
 export {

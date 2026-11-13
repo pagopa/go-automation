@@ -3,11 +3,11 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 import type { ServiceLogSchema } from '../../../../common/parsing/applicationLogs/ServiceLogSchema.js';
 import type { KnownUrlsRegistry } from '../../../../common/parsing/knownUrls/KnownUrlsRegistry.js';
 import type { KnownUrl } from '../../../../common/parsing/knownUrls/KnownUrl.js';
-import { transformRawTraceId } from '../../../../common/parsing/traceIds/transformRawTraceId.js';
-import { ERROR_KEYWORDS } from '../../../../common/parsing/applicationLogs/ERROR_KEYWORDS.js';
-import { readServiceLogMessage } from '../../../../common/parsing/applicationLogs/readServiceLogMessage.js';
+import { matchTraceIdCandidate } from '../../../../common/parsing/applicationLogs/matchTraceIdCandidate.js';
+import { readServiceLogRow } from '../../../../common/parsing/applicationLogs/readServiceLogRow.js';
+import { RepresentativeErrorSelector } from '../../../../common/parsing/applicationLogs/RepresentativeErrorSelector.js';
 import type { TraceIdCandidateMatch } from '../../../../common/parsing/applicationLogs/TraceIdCandidateMatch.js';
-import { FALLBACK_UUID_PATTERN, extractFallbackUuid } from './extractFallbackUuid.js';
+import { FALLBACK_UUID_GLOBAL_PATTERN, extractFallbackUuid } from './extractFallbackUuid.js';
 
 /** Extracts `http(s)://…` tokens up to the first whitespace/quote/bracket. */
 const URL_PATTERN = /https?:\/\/[^\s'"<>`]+/g;
@@ -68,68 +68,40 @@ export function scanServiceLogs(
   schema: ServiceLogSchema,
   registry?: KnownUrlsRegistry,
 ): ServiceLogsScan {
-  let bestByLevel = '';
-  let bestByKeyword = '';
+  // The longest error describes the failure best along the chain of services.
+  const errorMessage = new RepresentativeErrorSelector('longest');
   let knownUrl: KnownUrlInLogs | undefined;
   let knownUrlPriority = -1;
   let knownUrlFallbackUuid: string | undefined;
   let fallbackUuid: string | undefined;
   let traceIdCandidate: TraceIdCandidateMatch | undefined;
 
-  for (const row of results) {
-    const fields = new Map<string, string>();
-    for (const field of row) {
-      // ResultField.field / .value are both optional in the AWS SDK type;
-      // a pair is only usable when both are present. First occurrence wins.
-      if (field.field !== undefined && field.value !== undefined && !fields.has(field.field)) {
-        fields.set(field.field, field.value);
-      }
-    }
+  for (const raw of results) {
+    const row = readServiceLogRow(raw, schema);
+    errorMessage.offer(row);
 
-    const message = readServiceLogMessage(fields, schema);
-
-    if (message !== '') {
-      const level = (fields.get(schema.levelField) ?? '').toLowerCase();
-      const isErrorLevel = level.includes('error') || level.includes('warn');
-      const hasErrorKeyword = ERROR_KEYWORDS.some((keyword) => message.includes(keyword));
-
-      // Error message — level pass: an explicit ERROR/WARN row is the
-      // strongest signal; keep the longest such message.
-      if (isErrorLevel && message.length > bestByLevel.length) {
-        bestByLevel = message;
-      }
-
-      // Error message — keyword fallback pass: only rows without a level
-      // or with an ERROR/WARN level are eligible (avoids DEBUG noise).
-      if ((level === '' || isErrorLevel) && message.length > bestByKeyword.length) {
-        if (hasErrorKeyword) {
-          bestByKeyword = message;
-        }
-      }
-
+    if (row.message !== '') {
       // Prefer failure evidence over earlier invocation/success rows.
-      const urlPriority = isErrorLevel ? 2 : level === '' && hasErrorKeyword ? 1 : 0;
+      const urlPriority = row.isErrorLevel ? 2 : row.level === '' && row.hasErrorKeyword ? 1 : 0;
       if (urlPriority > knownUrlPriority && registry !== undefined) {
-        const candidate = matchKnownUrl(message, registry);
+        const candidate = matchKnownUrl(row.message, registry);
         if (candidate !== undefined) {
           knownUrl = candidate;
           knownUrlPriority = urlPriority;
-          knownUrlFallbackUuid = associatedFallbackUuid(message, registry);
+          knownUrlFallbackUuid = associatedFallbackUuid(row.message, registry);
         }
       }
 
       // Fallback UUID — first match wins.
-      fallbackUuid ??= extractFallbackUuid(message);
+      fallbackUuid ??= extractFallbackUuid(row.message);
     }
 
-    // Trace id candidate — first match wins. Reads its own fields, so it
-    // runs regardless of whether the row carries a message. `??=`
-    // short-circuits: matchTraceIdCandidate is skipped once one is found.
-    traceIdCandidate ??= matchTraceIdCandidate(fields, schema);
+    // Trace id candidate — first match wins, from the trace-id field only.
+    traceIdCandidate ??= matchTraceIdCandidate(row.fields, schema, 'field');
   }
 
   return {
-    errorMessage: bestByLevel !== '' ? bestByLevel : bestByKeyword,
+    errorMessage: errorMessage.result(),
     knownUrl,
     fallbackUuid: knownUrl !== undefined ? knownUrlFallbackUuid : fallbackUuid,
     traceIdCandidate,
@@ -138,7 +110,7 @@ export function scanServiceLogs(
 
 /** A message must identify one known invocation and one UUID to pair them. */
 function associatedFallbackUuid(message: string, registry: KnownUrlsRegistry): string | undefined {
-  const uuids = new Set([...message.matchAll(new RegExp(FALLBACK_UUID_PATTERN.source, 'g'))].map((match) => match[1]));
+  const uuids = new Set([...message.matchAll(FALLBACK_UUID_GLOBAL_PATTERN)].map((match) => match[1]));
   if (uuids.size !== 1) return undefined;
   const knownUrls = new Set(
     (message.match(URL_PATTERN) ?? [])
@@ -147,10 +119,6 @@ function associatedFallbackUuid(message: string, registry: KnownUrlsRegistry): s
   );
   return knownUrls.size === 1 ? uuids.values().next().value : undefined;
 }
-
-/**
- * Returns the first non-empty message field declared by the schema.
- */
 
 /**
  * Probes a message for the first URL matching the registry.
@@ -168,23 +136,4 @@ function matchKnownUrl(message: string, registry: KnownUrlsRegistry): KnownUrlIn
     }
   }
   return undefined;
-}
-
-/**
- * Extracts a valid trace id candidate from the row's trace-id field
- * (or its `@`-aliased form).
- */
-function matchTraceIdCandidate(
-  fields: ReadonlyMap<string, string>,
-  schema: ServiceLogSchema,
-): TraceIdCandidateMatch | undefined {
-  const primary = fields.get(schema.traceIdField);
-  const aliased = fields.get(`@${schema.traceIdField}`);
-  const raw = (primary ?? aliased ?? '').trim();
-  if (raw === '' || raw === '-') return undefined;
-
-  const canonical = transformRawTraceId(raw);
-  if (canonical === undefined) return undefined;
-
-  return { raw, canonical };
 }

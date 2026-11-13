@@ -1,14 +1,16 @@
-import { parseAwsProfileEntries } from '@pagopa/go-aws';
-import {
-  type GOLogsInsightsResultField,
-  sumCloudWatchLogsQueryStatistics,
-} from '@pagopa/go-aws/cloudwatch-logs/insights';
+import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { executeStep, type Step, type StepResult } from '../../../../engine/index.js';
 import {
   executeCloudWatchLogsQuery,
+  mergeCloudWatchLogsDiagnostics,
+  resolveAwsAccountTargets,
   resolveTimeRange,
+  scopeCloudWatchLogsToAccount,
   OperationalStep,
+  SEND_PRODUCTION_ACCOUNTS,
+  SEND_PRODUCTION_REGION,
+  type AwsAccountSelection,
   type OperationalContext,
   type OperationalServiceName,
 } from '../../../../toolkits/send/index.js';
@@ -16,14 +18,14 @@ import {
 export const LOG_GROUP = '/aws/ecs/pn-logsaver-be';
 const ROW_LIMIT = 1000;
 const SPOT_INTERRUPTION_MESSAGE = 'Your Spot Task was interrupted.';
-const SOURCES = [
-  {
-    name: 'core',
-    accountId: '510769970275',
-    profiles: ['sso_pn-core-prod_readonly', 'sso_pn-core-prod', 'pn-core-prod'],
-  },
-  { name: 'confinfo', accountId: '350578575906', profiles: ['sso_pn-confinfo-prod'] },
-] as const;
+/** Both production accounts locally; only the occurrence account in cloud execution. */
+const ACCOUNTS: AwsAccountSelection = {
+  subject: 'logsaver',
+  accounts: SEND_PRODUCTION_ACCOUNTS,
+  scope: 'occurrence-account',
+  defaultRegion: SEND_PRODUCTION_REGION,
+  restrictToDefaultRegion: true,
+};
 
 // Word boundaries avoid treating JAVA_TOOL_OPTIONS -XX:+ExitOnOutOfMemoryError
 // as an application failure. Preserve raw messages and streams; never dedup.
@@ -64,23 +66,7 @@ export class QueryLogsaverDiagnosticsStep extends OperationalStep<Rows> implemen
 
   override async execute(context: OperationalContext): Promise<StepResult<Rows>> {
     return executeStep('Logsaver diagnostics', async () => {
-      const occurrenceAccount = context.params.get('awsAccountId');
-      const region = context.params.get('awsRegion') ?? 'eu-south-1';
-      if (region !== 'eu-south-1') throw new Error(`Unsupported logsaver production region: ${region}`);
-      if (occurrenceAccount !== undefined && !SOURCES.some((source) => source.accountId === occurrenceAccount)) {
-        throw new Error(`Unsupported logsaver production occurrence account: ${occurrenceAccount}`);
-      }
-      const sources = SOURCES.filter(
-        (source) => occurrenceAccount === undefined || source.accountId === occurrenceAccount,
-      );
-      const profiles = parseAwsProfileEntries((context.params.get('awsProfiles') ?? '').split(',')).profileNames;
-      const targets = sources.map((source) => {
-        const profile = source.profiles.find((candidate) => profiles.includes(candidate));
-        if (occurrenceAccount === undefined && profile === undefined) {
-          throw new Error(`Missing ${source.name} production profile; provide both profiles or an occurrence account`);
-        }
-        return { source, profile };
-      });
+      const targets = resolveAwsAccountTargets(context, ACCOUNTS);
       const timeRange = resolveTimeRange(context, { start: 'startTime', end: 'endTime' });
       const results: Awaited<ReturnType<typeof executeCloudWatchLogsQuery>>[] = [];
       const rows: GOLogsInsightsResultField[][] = [];
@@ -88,13 +74,9 @@ export class QueryLogsaverDiagnosticsStep extends OperationalStep<Rows> implemen
       let streamCount = 0;
       let spotInterruptionCount = 0;
       let unaccountedErrorCount = 0;
-      for (const { source, profile } of targets) {
-        const cloudWatchLogs = context.services.cloudWatchLogs.forTarget({
-          accountId: source.accountId,
-          region,
-          ...(profile === undefined ? {} : { profile }),
-        });
-        const scopedContext = { ...context, services: { ...context.services, cloudWatchLogs } };
+      for (const target of targets) {
+        const source = target.account;
+        const scopedContext = scopeCloudWatchLogsToAccount(context, target);
         for (const [queryKind, query] of [
           ['errors', ERROR_QUERY],
           ['streams', STREAM_QUERY],
@@ -140,7 +122,7 @@ export class QueryLogsaverDiagnosticsStep extends OperationalStep<Rows> implemen
           );
         }
       }
-      const diagnostics = results.flatMap((result) => result.diagnostics?.cloudWatchLogs ?? []);
+      const diagnostics = mergeCloudWatchLogsDiagnostics(results.map((result) => result.diagnostics));
       context.services.reporter.add({
         label: `Logsaver: ${String(errorCount)} log di errore, ${String(streamCount)} stream.`,
       });
@@ -149,23 +131,13 @@ export class QueryLogsaverDiagnosticsStep extends OperationalStep<Rows> implemen
         output: rows,
         vars: {
           logsaverDiagnostics: 'COLLECTED',
-          logsaverAccountsChecked: sources.map((source) => source.name).join(','),
+          logsaverAccountsChecked: targets.map((target) => target.account.name).join(','),
           logsaverErrorLogCount: String(errorCount),
           logsaverStreamCount: String(streamCount),
           logsaverSpotInterruptionLogCount: String(spotInterruptionCount),
           logsaverUnaccountedErrorLogCount: String(unaccountedErrorCount),
         },
-        ...(diagnostics.length !== results.length
-          ? {}
-          : {
-              diagnostics: {
-                cloudWatchLogs: {
-                  rowsReturned: rows.length,
-                  statistics: sumCloudWatchLogsQueryStatistics(diagnostics.map((value) => value.statistics)),
-                  queryExecutions: diagnostics.flatMap((value) => value.queryExecutions),
-                },
-              },
-            }),
+        ...(diagnostics === undefined ? {} : { diagnostics }),
       };
     });
   }

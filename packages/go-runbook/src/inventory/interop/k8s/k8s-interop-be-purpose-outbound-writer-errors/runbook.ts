@@ -3,7 +3,7 @@ import type { Runbook } from '../../../../engine/index.js';
 import { PURPOSE_OUTBOUND_WRITER_ALARM } from './alarmDefinition.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { PURPOSE_OUTBOUND_WRITER_QUERY_PROFILE } from './queryProfile.js';
-import { QueryPurposeOutboundContextStep } from './QueryPurposeOutboundContextStep.js';
+import { POD_CONTEXT } from './podContext.js';
 
 const RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3317530626/k8s-interop-be-purpose-outbound-writer-errors';
@@ -32,7 +32,7 @@ export function buildRunbook(): Runbook {
     hooks: [
       {
         at: 'before-cid-analysis',
-        step: new QueryPurposeOutboundContextStep(),
+        step: new interop.k8s.QueryInteropPodContextStep(POD_CONTEXT),
         evidence: [
           {
             id: 'purpose-outbound-writer-context',

@@ -3,7 +3,7 @@ import type { Runbook } from '../../../../engine/index.js';
 import { DELEGATION_ITEMS_ARCHIVER_ALARM as alarm } from './alarmDefinition.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { ARCHIVER_QUERY_PROFILE } from './queryProfile.js';
-import { QueryDelegationItemsArchiverContextStep } from './QueryDelegationItemsArchiverContextStep.js';
+import { POD_CONTEXT } from './podContext.js';
 
 const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3344762934/k8s-interop-be-delegation-items-archiver-errors';
@@ -28,7 +28,7 @@ export function buildRunbook(): Runbook {
     hooks: [
       {
         at: 'before-cid-analysis',
-        step: new QueryDelegationItemsArchiverContextStep(),
+        step: new interop.k8s.QueryInteropPodContextStep(POD_CONTEXT),
         evidence: [
           {
             id: 'delegation-items-archiver-context',

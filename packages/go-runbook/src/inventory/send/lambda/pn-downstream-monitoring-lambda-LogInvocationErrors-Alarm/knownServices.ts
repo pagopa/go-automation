@@ -9,19 +9,5 @@ export const LAMBDA_FUNCTION: lambda.LambdaFunction = {
   configuredTimeoutMs: 60_000,
 };
 
-/** The two production accounts that own the identically named Lambda log group. */
-export const LAMBDA_LOG_SOURCES = [
-  {
-    name: 'core',
-    accountId: '510769970275',
-    profiles: ['sso_pn-core-prod_readonly', 'sso_pn-core-prod', 'pn-core-prod'],
-  },
-  {
-    name: 'confinfo',
-    accountId: '350578575906',
-    profiles: ['sso_pn-confinfo-prod'],
-  },
-] as const;
-
 /** The documented SlowDown is an AWS service error, not a correlated SEND microservice. */
 export const DOWNSTREAMS: ReadonlyArray<lambda.LambdaDownstream> = [];

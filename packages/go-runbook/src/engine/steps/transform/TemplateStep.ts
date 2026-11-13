@@ -2,6 +2,7 @@ import type { Step } from '../../types/Step.js';
 import type { StepKind } from '../../types/StepKind.js';
 import type { StepResult } from '../../types/StepResult.js';
 import type { RunbookContext } from '../../types/RunbookContext.js';
+import { interpolatePlaceholders } from '../../context/templatePlaceholders.js';
 
 /**
  * Configuration for the TemplateStep.
@@ -16,18 +17,6 @@ export interface TemplateConfig {
   /** Variable name to save the interpolated result into context.vars */
   readonly saveAs: string;
 }
-
-/**
- * Regex pattern matching {{vars.xxx}} and {{params.xxx}} placeholders.
- * Compiled once and reused across all executions.
- *
- * The name class excludes both `}` (closing delimiter) and `{` (opening
- * delimiter of a nested placeholder). Excluding `{` is what guarantees
- * unambiguous match starts and prevents the polynomial ReDoS that arises
- * when an input like `{{vars.{{vars.{{vars....` lets the engine restart
- * the match at every inner `{{` (js/polynomial-redos).
- */
-const PLACEHOLDER_REGEX = /\{\{(vars|params)\.([^}{]+)\}\}/g;
 
 /**
  * Step that interpolates a template string using context vars and params.
@@ -67,10 +56,8 @@ export class TemplateStep implements Step<string> {
    */
   // eslint-disable-next-line @typescript-eslint/require-await
   async execute(context: RunbookContext): Promise<StepResult<string>> {
-    const result = this.template.replace(PLACEHOLDER_REGEX, (_match: string, source: string, key: string): string => {
-      const map = source === 'vars' ? context.vars : context.params;
-      return map.get(key) ?? '';
-    });
+    // The shared placeholder parser of the engine (P09); an unresolved placeholder becomes ''.
+    const result = interpolatePlaceholders(this.template, context, { missingValue: '' });
 
     return {
       success: true,

@@ -10,6 +10,7 @@ import type { CaseAction } from '../types/CaseAction.js';
 import type { ValidationErrorEntry } from '../validation/ValidationErrorEntry.js';
 import type { GoToReference } from '../validation/GoToGraphAnalyzer.js';
 import { RunbookValidationError } from '../validation/RunbookValidationError.js';
+import { findUnwiredKnownCaseStepRef } from '../validation/findUnwiredKnownCaseStepRef.js';
 import { GoToGraphAnalyzer } from '../validation/GoToGraphAnalyzer.js';
 import { IfBranchStep } from '../steps/control/IfBranchStep.js';
 import { SwitchBranchStep } from '../steps/control/SwitchBranchStep.js';
@@ -305,6 +306,16 @@ export class RunbookBuilder {
         });
       }
       casePriorities.set(knownCase.priority, knownCase.id);
+    }
+
+    // 7. Known cases must reference only steps the runbook wires (P10)
+    const unwired = findUnwiredKnownCaseStepRef(this.cases, stepIds);
+    if (unwired !== undefined) {
+      errors.push({
+        code: 'UNWIRED_CASE_STEP_REF',
+        message: `KnownCase "${unwired.caseId}" references step "${unwired.stepId}" which is not wired in this runbook.`,
+        caseId: unwired.caseId,
+      });
     }
 
     errors.push(...this.validateExtensions());

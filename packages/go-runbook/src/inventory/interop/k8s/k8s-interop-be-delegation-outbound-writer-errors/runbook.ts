@@ -3,7 +3,7 @@ import type { Runbook } from '../../../../engine/index.js';
 import { DELEGATION_OUTBOUND_WRITER_ALARM as alarm } from './alarmDefinition.js';
 import { KNOWN_CASES } from './knownCases.js';
 import { DELEGATION_OUTBOUND_WRITER_QUERY_PROFILE } from './queryProfile.js';
-import { QueryDelegationOutboundWriterContextStep } from './QueryDelegationOutboundWriterContextStep.js';
+import { POD_CONTEXT } from './podContext.js';
 
 const CONFLUENCE_RUNBOOK_URL =
   'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3375694080/k8s-interop-be-delegation-outbound-writer-errors';
@@ -28,7 +28,7 @@ export function buildRunbook(): Runbook {
     hooks: [
       {
         at: 'before-cid-analysis',
-        step: new QueryDelegationOutboundWriterContextStep(),
+        step: new interop.k8s.QueryInteropPodContextStep(POD_CONTEXT),
         evidence: [
           {
             id: 'delegation-outbound-writer-context',

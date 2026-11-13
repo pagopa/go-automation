@@ -8,11 +8,9 @@ type ResolveContextFn<TContext extends InteropApiGwAlarmContext> = (alarmName: s
  * Everything a runbook, its known cases and the registry need about one
  * INTEROP API Gateway alarm.
  *
- * The API Gateway counterpart of `InteropK8sAlarm`. It is assembled by hand
- * rather than by a factory because neither the alarm names nor the API
- * Gateway ids follow from the runbook key: one family carries the environment
- * in the middle of the name, the other has a variant that exists in two
- * environments out of three.
+ * The API Gateway counterpart of `InteropK8sAlarm`, declared with
+ * `defineInteropApiGwAlarm`: the alarm names and the API Gateway ids do not
+ * follow from the runbook key, so the declaration lists them.
  */
 export interface InteropApiGwAlarm<TContext extends InteropApiGwAlarmContext = InteropApiGwAlarmContext> {
   readonly runbookKey: string;

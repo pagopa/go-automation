@@ -55,6 +55,10 @@
       "types": "./dist/cloudwatch-logs/insights/index.d.ts",
       "default": "./dist/cloudwatch-logs/insights/index.js"
     },
+    "./profiles": {
+      "types": "./dist/profiles/index.d.ts",
+      "default": "./dist/profiles/index.js"
+    },
     "./cloudwatch-metrics": {
       "types": "./dist/cloudwatch-metrics/index.d.ts",
       "default": "./dist/cloudwatch-metrics/index.js"

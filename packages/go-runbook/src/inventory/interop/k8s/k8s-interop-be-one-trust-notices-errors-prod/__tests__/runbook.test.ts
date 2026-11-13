@@ -175,3 +175,21 @@ describe('OneTrust notices production runbook', () => {
     }
   });
 });
+
+// EVO-RBREORG-OPUS-01 P33: the pod app is escaped like every other Logs Insights string value.
+/** Private query builder of the application-log step. */
+type BuildQueryFn = (podApp: string) => string;
+
+describe('one-trust application-log query', () => {
+  it('escapes the interpolated pod app', () => {
+    const step = buildRunbook().steps.find(
+      (descriptor) => descriptor.step.id === ALARM.stepIds.queryApplicationLogs,
+    )?.step;
+    assert.ok(step);
+    // Safe: the query builder is the step's private, function-valued configuration.
+    const buildQuery = (step as unknown as { readonly buildQuery: BuildQueryFn }).buildQuery;
+
+    assert.match(buildQuery(ALARM.podApp), new RegExp(`pod_app = "${ALARM.podApp}"`, 'u'));
+    assert.match(buildQuery('evil" or pod_app = "x'), /pod_app = "evil\\" or pod_app = \\"x"/u);
+  });
+});

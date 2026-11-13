@@ -44,6 +44,12 @@ export { CloudWatchLogsQueryStep } from './steps/aws/cloudwatch-logs/CloudWatchL
 export type { CloudWatchLogsQueryConfig } from './steps/aws/cloudwatch-logs/CloudWatchLogsQueryStep.js';
 export { executeCloudWatchLogsQuery } from './steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
 export type { ExecutedCloudWatchLogsQuery } from './steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
+export { mergeCloudWatchLogsDiagnostics } from './steps/aws/cloudwatch-logs/mergeCloudWatchLogsDiagnostics.js';
+export type { AwsAccountSource } from './accounts/AwsAccountSource.js';
+export type { AwsAccountSelection } from './accounts/AwsAccountSelection.js';
+export type { AwsAccountTarget } from './accounts/AwsAccountTarget.js';
+export { resolveAwsAccountTargets } from './accounts/resolveAwsAccountTargets.js';
+export { scopeCloudWatchLogsToAccount } from './accounts/scopeCloudWatchLogsToAccount.js';
 export { CloudWatchMetricsStep } from './steps/aws/cloudwatch-metrics/CloudWatchMetricsStep.js';
 export type { CloudWatchMetricsConfig } from './steps/aws/cloudwatch-metrics/CloudWatchMetricsStep.js';
 export { AthenaQueryStep } from './steps/aws/athena/AthenaQueryStep.js';

@@ -1,7 +1,3 @@
-import type {
-  AWSCloudWatchLogsQueryOptions,
-  AWSCloudWatchLogsQueryResult,
-} from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { type GOLogsInsightsResultField, readRowField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { resolveTimeRange } from '../../../../common/time/resolveTimeRange.js';
 import type { TimeRangeFromParams } from '../../../../common/time/TimeRangeFromParams.js';
@@ -9,9 +5,11 @@ import type { RunbookContext } from '../../../../../engine/types/RunbookContext.
 import type { Step } from '../../../../../engine/types/Step.js';
 import type { StepKind } from '../../../../../engine/types/StepKind.js';
 import type { StepResult } from '../../../../../engine/types/StepResult.js';
-import type { StepDiagnostics } from '../../../../../engine/tracing/StepDiagnostics.js';
 import { normalizeInteropApiGwAggregateValue } from '../helpers/normalizeInteropApiGwAggregateValue.js';
 import { OperationalStep } from '../../../../common/steps/OperationalStep.js';
+import { executeCloudWatchLogsQuery } from '../../../../common/steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
+import { interopLogsQueryOptions } from '../../../helpers/interopLogsQueryOptions.js';
+import { readNonBlankVar } from '../../../helpers/readNonBlankVar.js';
 import type { OperationalContext } from '../../../../common/services/OperationalContext.js';
 import type { OperationalServiceName } from '../../../../common/services/OperationalServiceName.js';
 
@@ -90,26 +88,27 @@ export class QueryInteropApiGwAggregatesStep
   override async execute(
     context: OperationalContext,
   ): Promise<StepResult<ReadonlyArray<ReadonlyArray<GOLogsInsightsResultField>>>> {
-    const apiGwId = readRequiredVar(context, this.apiGwIdVar);
+    const apiGwId = readNonBlankVar(context, this.apiGwIdVar);
     if (apiGwId === undefined) return missingVarFailure(this.apiGwIdVar);
-    const logGroup = readRequiredVar(context, this.logGroupVar);
+    const logGroup = readNonBlankVar(context, this.logGroupVar);
     if (logGroup === undefined) return missingVarFailure(this.logGroupVar);
 
     const query = this.buildQuery(apiGwId);
     const timeRange = resolveTimeRange(context, this.timeRangeFromParams);
     context.services.reporter.add({ label: `Query access log API Gateway INTEROP [apigwId=${apiGwId}]` });
-    const result = await context.services.cloudWatchLogs.queryWithStatistics(
+    const result = await executeCloudWatchLogsQuery(
+      context,
       [logGroup],
       query,
       timeRange,
-      buildQueryOptions(context),
+      interopLogsQueryOptions(context),
     );
     context.services.reporter.add({ label: `Aggregati ${this.errorFamilyLabel} trovati: ${result.rows.length}` });
 
     return {
       success: true,
       output: enrichAggregateRows(result.rows),
-      diagnostics: toStepDiagnostics(result),
+      ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
     };
   }
 }
@@ -146,28 +145,6 @@ function buildAggregateMessage(row: ReadonlyArray<GOLogsInsightsResultField>): s
   return parts.length === 1 ? undefined : parts.join(' ');
 }
 
-function readRequiredVar(context: RunbookContext, key: string): string | undefined {
-  const value = context.vars.get(key)?.trim();
-  return value === undefined || value === '' ? undefined : value;
-}
-
 function missingVarFailure(key: string): StepResult<never> {
   return { success: false, error: `Missing required runbook variable: ${key}` };
-}
-
-function buildQueryOptions(context: RunbookContext): AWSCloudWatchLogsQueryOptions {
-  return {
-    ...(context.signal === undefined ? {} : { signal: context.signal }),
-    logGroupResolutionMode: 'search-configured-profiles',
-  };
-}
-
-function toStepDiagnostics(result: AWSCloudWatchLogsQueryResult): StepDiagnostics {
-  return {
-    cloudWatchLogs: {
-      rowsReturned: result.rows.length,
-      statistics: result.statistics,
-      queryExecutions: result.queryExecutions,
-    },
-  };
 }

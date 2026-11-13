@@ -17,6 +17,8 @@ export { AnalyzeLambdaInvocationStep } from './steps/AnalyzeLambdaInvocationStep
 export type { AnalyzeLambdaInvocationConfig } from './steps/AnalyzeLambdaInvocationStep.js';
 export { QueryDownstreamLogsStep } from './steps/QueryDownstreamLogsStep.js';
 export type { QueryDownstreamLogsConfig } from './steps/QueryDownstreamLogsStep.js';
+export { QueryLambdaAcrossAccountsStep } from './steps/QueryLambdaAcrossAccountsStep.js';
+export type { QueryLambdaAcrossAccountsConfig } from './types/QueryLambdaAcrossAccountsConfig.js';
 export { LambdaReporter } from './reporting/LambdaReporter.js';
 export type { LambdaResultInfo, LambdaTermination } from './reporting/LambdaReporter.js';
 export { renderLambdaFinalSummary } from './reporting/renderLambdaFinalSummary.js';

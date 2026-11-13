@@ -1,4 +1,4 @@
-import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { readRowFields } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { RunbookContext } from '../../../../engine/types/RunbookContext.js';
 import type { Step } from '../../../../engine/types/Step.js';
 import type { StepKind } from '../../../../engine/types/StepKind.js';
@@ -49,10 +49,10 @@ export class AnalyzeInteropCidTrackerStep implements Step<InteropK8sCidTrackerAn
     for (const cidResult of cidResults) {
       for (const row of cidResult.rows) {
         logCount += 1;
-        const podApp = normalize(readField(row, ['pod_app']));
+        const podApp = normalize(readRowFields(row, ['pod_app'])[0]);
         if (podApp !== undefined) podApps.add(podApp);
 
-        const message = normalize(readField(row, ['@message', 'message', 'log']));
+        const message = normalize(readRowFields(row, ['@message', 'message', 'log'])[0]);
         if (message !== undefined && messages.length < MAX_MESSAGES) messages.push(message);
       }
     }
@@ -96,15 +96,6 @@ function isCidTrackerResult(value: unknown): value is InteropK8sCidTrackerResult
   if (typeof value !== 'object' || value === null) return false;
   const record = value as Readonly<Record<string, unknown>>;
   return typeof record['cid'] === 'string' && Array.isArray(record['rows']);
-}
-
-function readField(row: ReadonlyArray<GOLogsInsightsResultField>, names: ReadonlyArray<string>): string | undefined {
-  for (const field of row) {
-    const fieldName = field.field;
-    if (fieldName === undefined || !names.includes(fieldName)) continue;
-    if (field.value !== undefined) return field.value;
-  }
-  return undefined;
 }
 
 function normalize(value: string | undefined): string | undefined {
