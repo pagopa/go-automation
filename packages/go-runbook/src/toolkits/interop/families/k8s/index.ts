@@ -53,3 +53,5 @@ export type { InteropK8sAlarmConfig } from './types/InteropK8sAlarmConfig.js';
 export type { InteropK8sPipelineAnchor } from './types/InteropK8sPipelineAnchor.js';
 export type { InteropK8sRunbookStepIds } from './types/InteropK8sRunbookStepIds.js';
 export type { InteropK8sServiceDescriptor } from './types/InteropK8sServiceDescriptor.js';
+export { isInteropK8sRunbookContext } from './output/InteropK8sRunbookContext.js';
+export type { InteropK8sRunbookContext } from './output/InteropK8sRunbookContext.js';

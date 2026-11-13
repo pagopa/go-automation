@@ -6,10 +6,18 @@
     "description": "Analizza gli errori della Lambda DailyExport DynamoDB nelle sorgenti configurate.",
     "team": "GO",
     "kind": "LAMBDA",
-    "categories": ["MONITORING"],
-    "tags": ["daily-export", "dynamodb", "lambda"],
-    "alarmNames": ["Lambda-DailyExport-DynamoDbTable-LogInvocationErrors-Alarm"],
-    "definitionDigest": "sha256-0ada732a4c3d08618e748af1d64b3c1d53fe426d03d4d9a4ce6463c9eb1ac2e8"
+    "categories": [
+      "MONITORING"
+    ],
+    "tags": [
+      "daily-export",
+      "dynamodb",
+      "lambda"
+    ],
+    "alarmNames": [
+      "Lambda-DailyExport-DynamoDbTable-LogInvocationErrors-Alarm"
+    ],
+    "definitionDigest": "sha256-e85cf93683c91a3964776f5cff0084f4ec7eddbc114e83129916131aa78d6841"
   },
   {
     "key": "emd-downstream-detection-Alarm",
@@ -18,10 +26,20 @@
     "description": "Gestire in modo standardizzato gli allarmi generati dagli errori del downstream EMD (Multicanalità) sul microservizio pn-emd-integration.",
     "team": "GO",
     "kind": "DOWNSTREAM",
-    "categories": ["INTEGRATION"],
-    "tags": ["EMD", "Multicanalità", "downstream", "pn-emd-integration", "service"],
-    "alarmNames": ["emd-downstream-detection-Alarm"],
-    "definitionDigest": "sha256-8eb208239b9405e22bad8cd339545c9b99b3b73e0b98f10b34aa4c484a111264"
+    "categories": [
+      "INTEGRATION"
+    ],
+    "tags": [
+      "EMD",
+      "Multicanalità",
+      "downstream",
+      "pn-emd-integration",
+      "service"
+    ],
+    "alarmNames": [
+      "emd-downstream-detection-Alarm"
+    ],
+    "definitionDigest": "sha256-94f4272a88eff31ab5b439a1a2c341327884d5717d0fe107c1b6a4d1616bd3b6"
   },
   {
     "key": "interop-api-v2-apigw-5xx",
@@ -30,10 +48,22 @@
     "description": "Analizza gli allarmi 5xx API Gateway M2M v2 INTEROP, i log del gateway applicativo e i CID correlati.",
     "team": "GO",
     "kind": "APIGW",
-    "categories": ["INTEROP"],
-    "tags": ["5xx", "api-gateway", "api-v2", "interop", "m2m"],
-    "alarmNames": ["interop-api-v2-att-apigw-5xx", "interop-api-v2-prod-apigw-5xx", "interop-api-v2-test-apigw-5xx"],
-    "definitionDigest": "sha256-8bf507be115bd0b506c8bb496a9e7a9471d4e866dc827490d5fdac6356ea6228"
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "5xx",
+      "api-gateway",
+      "api-v2",
+      "interop",
+      "m2m"
+    ],
+    "alarmNames": [
+      "interop-api-v2-att-apigw-5xx",
+      "interop-api-v2-prod-apigw-5xx",
+      "interop-api-v2-test-apigw-5xx"
+    ],
+    "definitionDigest": "sha256-5e1757c418d4cd91e00c48fc24caf449fbf772e2dcef38d5e4735d55eddfc249"
   },
   {
     "key": "interop-att-eservices-att-apigw-4xx",
@@ -42,10 +72,20 @@
     "description": "Analizza i 4xx dell’API Gateway e-services in Attestazione e riconosce le richieste 403 ai percorsi sospetti documentati.",
     "team": "GO",
     "kind": "APIGW",
-    "categories": ["INTEROP"],
-    "tags": ["4xx", "api-gateway", "attestation", "eservices", "interop"],
-    "alarmNames": ["interop-att-eservices-att-apigw-4xx"],
-    "definitionDigest": "sha256-6f883b0ca10ce84dc7c5bd39f31cde232408b28f7e055cfcd2118f50545129a4"
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "4xx",
+      "api-gateway",
+      "attestation",
+      "eservices",
+      "interop"
+    ],
+    "alarmNames": [
+      "interop-att-eservices-att-apigw-4xx"
+    ],
+    "definitionDigest": "sha256-4b8974f4f4eba0c28fc9d1e74a934058048176acefd96c09e07c80f456066931"
   },
   {
     "key": "interop-auth-server-apigw-4xx",
@@ -54,8 +94,16 @@
     "description": "Analizza gli allarmi 4xx dell’API Gateway authorization-server INTEROP, i warning applicativi e i log correlati tramite CID.",
     "team": "GO",
     "kind": "APIGW",
-    "categories": ["INTEROP"],
-    "tags": ["4xx", "api-gateway", "auth-server", "authorization", "interop"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "4xx",
+      "api-gateway",
+      "auth-server",
+      "authorization",
+      "interop"
+    ],
     "alarmNames": [
       "interop-auth-server-att-apigw-4xx",
       "interop-auth-server-att-apigw-4xx-low-requests",
@@ -63,7 +111,7 @@
       "interop-auth-server-test-apigw-4xx",
       "interop-auth-server-test-apigw-4xx-low-requests"
     ],
-    "definitionDigest": "sha256-1a46e845b632172c31a278074958de31f5b8949818069b0ff1de77ee0d1e5f3e"
+    "definitionDigest": "sha256-096847fa30c5a9999fda1d21147c1718ed352bdd0c4ca66b1d37ead9b7080929"
   },
   {
     "key": "interop-auth-server-apigw-5xx",
@@ -72,14 +120,22 @@
     "description": "Analizza gli errori 5xx dell’API Gateway authorization-server INTEROP e verifica il recupero dell’audit tramite fallback S3 per CID.",
     "team": "GO",
     "kind": "APIGW",
-    "categories": ["INTEROP"],
-    "tags": ["5xx", "api-gateway", "auth-server", "authorization", "interop"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "5xx",
+      "api-gateway",
+      "auth-server",
+      "authorization",
+      "interop"
+    ],
     "alarmNames": [
       "interop-auth-server-att-apigw-5xx",
       "interop-auth-server-prod-apigw-5xx",
       "interop-auth-server-test-apigw-5xx"
     ],
-    "definitionDigest": "sha256-ac8211c79daa9fd7cdb19b6612f0c95f449b2064a55e7258d93f5889a7914ad7"
+    "definitionDigest": "sha256-3af9ee672cd09972575d852f458acf1dbb01b6d432d0e769d433f475ea9a5f02"
   },
   {
     "key": "interop-selfcare-1.0-apigw-5xx",
@@ -88,14 +144,22 @@
     "description": "Analizza gli allarmi 5xx dell’API Gateway Selfcare INTEROP, i log del backend-for-frontend e i log correlati tramite CID.",
     "team": "GO",
     "kind": "APIGW",
-    "categories": ["INTEROP"],
-    "tags": ["5xx", "api-gateway", "backend-for-frontend", "interop", "selfcare"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "5xx",
+      "api-gateway",
+      "backend-for-frontend",
+      "interop",
+      "selfcare"
+    ],
     "alarmNames": [
       "interop-selfcare-1.0-att-apigw-5xx",
       "interop-selfcare-1.0-prod-apigw-5xx",
       "interop-selfcare-1.0-test-apigw-5xx"
     ],
-    "definitionDigest": "sha256-a5d00b215093c7b4068c1b9b2355304ad6b497226196de46ca43a6461f72a12a"
+    "definitionDigest": "sha256-090814794092cb2d2fe79d1dbf1c47c7c038d7ee509af4261e26f1dcf8cfffe5"
   },
   {
     "key": "k8s-interop-be-agreement-readmodel-writer-sql-errors",
@@ -104,14 +168,23 @@
     "description": "Analizza gli errori dell’agreement readmodel writer SQL INTEROP e raccoglie i CID e i log correlati per verificare il caso Kafka.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["agreement", "interop", "k8s", "kafka", "readmodel", "service"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "agreement",
+      "interop",
+      "k8s",
+      "kafka",
+      "readmodel",
+      "service"
+    ],
     "alarmNames": [
       "k8s-interop-be-agreement-readmodel-writer-sql-errors-att",
       "k8s-interop-be-agreement-readmodel-writer-sql-errors-prod",
       "k8s-interop-be-agreement-readmodel-writer-sql-errors-test"
     ],
-    "definitionDigest": "sha256-1a47f0cd876c5610b2c4eaa99ea1d06de8d6814d968dfc576baa5d095fe60835"
+    "definitionDigest": "sha256-7b12764b390c55c5bde666ffd0e3e7ab86e0beb131b6dcf3f5148b86471aacbb"
   },
   {
     "key": "k8s-interop-be-async-token-generation-readmodel-checker-errors",
@@ -120,10 +193,22 @@
     "description": "Analizza gli errori del checker asincrono del read model di token generation in attestazione, raccoglie i CID e verifica i disallineamenti dei platform state del catalogo.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["async-token-generation", "checker", "interop", "k8s", "platform-states", "readmodel", "service"],
-    "alarmNames": ["k8s-interop-be-async-token-generation-readmodel-checker-errors-att"],
-    "definitionDigest": "sha256-ebcaf61cdb11e24396a145a93813d405b94545f1dd0fd128fa247ae4897d3c5d"
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "async-token-generation",
+      "checker",
+      "interop",
+      "k8s",
+      "platform-states",
+      "readmodel",
+      "service"
+    ],
+    "alarmNames": [
+      "k8s-interop-be-async-token-generation-readmodel-checker-errors-att"
+    ],
+    "definitionDigest": "sha256-b36b213d16ff6c492d85683d92d8a5d683d89d6e57119633cf9174fd23984e08"
   },
   {
     "key": "k8s-interop-be-attribute-registry-readmodel-writer-sql-errors",
@@ -132,14 +217,24 @@
     "description": "Analizza gli allarmi k8s INTEROP dell’attribute registry readmodel writer SQL leggendo i log applicativi, estraendo i CID e consultando il CID tracker.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["attribute-registry", "interop", "k8s", "kafka", "readmodel", "service", "sql"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "attribute-registry",
+      "interop",
+      "k8s",
+      "kafka",
+      "readmodel",
+      "service",
+      "sql"
+    ],
     "alarmNames": [
       "k8s-interop-be-attribute-registry-readmodel-writer-sql-errors-att",
       "k8s-interop-be-attribute-registry-readmodel-writer-sql-errors-prod",
       "k8s-interop-be-attribute-registry-readmodel-writer-sql-errors-test"
     ],
-    "definitionDigest": "sha256-94252da33b6ce76d0dbb21ad59e77460bfb95efbd55ead7ed752b56e547dd7f0"
+    "definitionDigest": "sha256-e5b0de554b88d2cae21988cf0fcd2da3a09b5c1a7becac0fbab70f9b1e1dc65c"
   },
   {
     "key": "k8s-interop-be-audit-signer-errors",
@@ -148,14 +243,22 @@
     "description": "Analizza gli errori dell’audit signer INTEROP e raccoglie i log correlati per verificare upload e retry su Safe Storage.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["audit", "interop", "k8s", "safe-storage", "service"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "audit",
+      "interop",
+      "k8s",
+      "safe-storage",
+      "service"
+    ],
     "alarmNames": [
       "k8s-interop-be-audit-signer-errors-att",
       "k8s-interop-be-audit-signer-errors-prod",
       "k8s-interop-be-audit-signer-errors-test"
     ],
-    "definitionDigest": "sha256-eeae7f3c808badaf200da3d64be99c29ffa64e415a5ad5436843009a498eacc9"
+    "definitionDigest": "sha256-a70c088c0d7171e512a31ea52231a6dbab5c96d022ad62cacf362942b60d38a1"
   },
   {
     "key": "k8s-interop-be-authorization-process-errors",
@@ -164,14 +267,22 @@
     "description": "Analizza l’allarme k8s di produzione di authorization-process, estrae i CID e consulta i log correlati.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["authorization", "interop", "k8s", "kafka", "service"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "authorization",
+      "interop",
+      "k8s",
+      "kafka",
+      "service"
+    ],
     "alarmNames": [
       "k8s-interop-be-authorization-process-errors-att",
       "k8s-interop-be-authorization-process-errors-prod",
       "k8s-interop-be-authorization-process-errors-test"
     ],
-    "definitionDigest": "sha256-acc96f16b7d68778faa6e0d67fb5693398db50d831e00c63a8e2d211b0cc2765"
+    "definitionDigest": "sha256-d23385de6d6e12aba94b1a2c722415470ac3a81faea3b5daefb9c322739cc96d"
   },
   {
     "key": "k8s-interop-be-backend-for-frontend-errors",
@@ -180,14 +291,21 @@
     "description": "Analizza gli allarmi k8s INTEROP del backend-for-frontend leggendo i log applicativi, estraendo i CID e consultando il CID tracker.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["backend-for-frontend", "interop", "k8s", "service"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "backend-for-frontend",
+      "interop",
+      "k8s",
+      "service"
+    ],
     "alarmNames": [
       "k8s-interop-be-backend-for-frontend-errors-att",
       "k8s-interop-be-backend-for-frontend-errors-prod",
       "k8s-interop-be-backend-for-frontend-errors-test"
     ],
-    "definitionDigest": "sha256-374a631f61dc08d63355c6c250f28850711553efec89a3b56fa6542440429faf"
+    "definitionDigest": "sha256-5469b4e5a1d163d473d9f86be4e95037a6d1ec99bee5069e8dded71fa2690dcd"
   },
   {
     "key": "k8s-interop-be-catalog-platformstate-writer-errors",
@@ -196,14 +314,23 @@
     "description": "Analizza gli allarmi k8s INTEROP del catalog platformstate writer leggendo i log applicativi, estraendo i CID e consultando il CID tracker.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["catalog", "interop", "k8s", "kafka", "platformstate", "service"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "catalog",
+      "interop",
+      "k8s",
+      "kafka",
+      "platformstate",
+      "service"
+    ],
     "alarmNames": [
       "k8s-interop-be-catalog-platformstate-writer-errors-att",
       "k8s-interop-be-catalog-platformstate-writer-errors-prod",
       "k8s-interop-be-catalog-platformstate-writer-errors-test"
     ],
-    "definitionDigest": "sha256-e8207d86437e523e662356f06a4c6fe244234ab8bba9c89c1c4b87303abbefe7"
+    "definitionDigest": "sha256-59b6d9938f15a445714dd86f30be4684ae7ea879328fa3f78213d924cb7d215b"
   },
   {
     "key": "k8s-interop-be-catalog-readmodel-writer-sql-errors",
@@ -212,14 +339,24 @@
     "description": "Analizza gli allarmi k8s INTEROP del catalog readmodel writer SQL leggendo i log applicativi, estraendo i CID e consultando il CID tracker.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["catalog", "interop", "k8s", "kafka", "readmodel", "service", "sql"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "catalog",
+      "interop",
+      "k8s",
+      "kafka",
+      "readmodel",
+      "service",
+      "sql"
+    ],
     "alarmNames": [
       "k8s-interop-be-catalog-readmodel-writer-sql-errors-att",
       "k8s-interop-be-catalog-readmodel-writer-sql-errors-prod",
       "k8s-interop-be-catalog-readmodel-writer-sql-errors-test"
     ],
-    "definitionDigest": "sha256-0b595e95c834e3c526ef3cd5dfa39fec1d840b55e0a5e393151d42ad9aa06f02"
+    "definitionDigest": "sha256-02f969e85c500843337239b00451bf2de5a99e5b61d81c67691b1b914333eb2d"
   },
   {
     "key": "k8s-interop-be-compute-agreements-consumer-errors",
@@ -228,14 +365,24 @@
     "description": "Analizza gli allarmi k8s INTEROP del compute agreements consumer leggendo i log applicativi, estraendo i CID e consultando il CID tracker.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["agreements", "compute", "consumer", "interop", "k8s", "kafka", "service"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "agreements",
+      "compute",
+      "consumer",
+      "interop",
+      "k8s",
+      "kafka",
+      "service"
+    ],
     "alarmNames": [
       "k8s-interop-be-compute-agreements-consumer-errors-att",
       "k8s-interop-be-compute-agreements-consumer-errors-prod",
       "k8s-interop-be-compute-agreements-consumer-errors-test"
     ],
-    "definitionDigest": "sha256-f6c26c08ecd205a2cead27f25eb5471fa2717ceb2d317c4623b26ba942f79410"
+    "definitionDigest": "sha256-d2337ca2707752872022166b7d4452b33801052b4c8ec7487d2a153702da5b17"
   },
   {
     "key": "k8s-interop-be-delegation-items-archiver-errors",
@@ -244,14 +391,23 @@
     "description": "Analizza gli errori Kafka del delegation items archiver e raccoglie il contesto anche senza CID.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["archiver", "delegation", "interop", "k8s", "kafka", "service"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "archiver",
+      "delegation",
+      "interop",
+      "k8s",
+      "kafka",
+      "service"
+    ],
     "alarmNames": [
       "k8s-interop-be-delegation-items-archiver-errors-att",
       "k8s-interop-be-delegation-items-archiver-errors-prod",
       "k8s-interop-be-delegation-items-archiver-errors-test"
     ],
-    "definitionDigest": "sha256-fc53ccf75b1351413fb44ee2c1b90b48e07d6e0e823ad2c17c376ec8a7da539c"
+    "definitionDigest": "sha256-219a2fa28a06fdf52c7ded503ea6f3f38f4285776f5ead9598c7fed0b49049a1"
   },
   {
     "key": "k8s-interop-be-delegation-outbound-writer-errors",
@@ -260,14 +416,23 @@
     "description": "Analizza gli errori Kafka del delegation outbound writer e raccoglie il contesto anche senza CID.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["delegation", "interop", "k8s", "kafka", "service", "writer"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "delegation",
+      "interop",
+      "k8s",
+      "kafka",
+      "service",
+      "writer"
+    ],
     "alarmNames": [
       "k8s-interop-be-delegation-outbound-writer-errors-att",
       "k8s-interop-be-delegation-outbound-writer-errors-prod",
       "k8s-interop-be-delegation-outbound-writer-errors-test"
     ],
-    "definitionDigest": "sha256-8abc6848d65e6c8ac2ece2e2f59ea4caa2672d3c5b1d3c61cf234d7700ce14b3"
+    "definitionDigest": "sha256-cc9ddd0980f51ce90dc2dc1ee4c9f8f1d3e07c78cd9150a1bd10e3b6bbfc47fe"
   },
   {
     "key": "k8s-interop-be-delegation-readmodel-writer-sql-errors",
@@ -276,14 +441,23 @@
     "description": "Analizza gli allarmi k8s INTEROP del delegation readmodel writer SQL, estrae i CID e consulta i log correlati.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["delegation", "interop", "k8s", "kafka", "readmodel", "service"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "delegation",
+      "interop",
+      "k8s",
+      "kafka",
+      "readmodel",
+      "service"
+    ],
     "alarmNames": [
       "k8s-interop-be-delegation-readmodel-writer-sql-errors-att",
       "k8s-interop-be-delegation-readmodel-writer-sql-errors-prod",
       "k8s-interop-be-delegation-readmodel-writer-sql-errors-test"
     ],
-    "definitionDigest": "sha256-293156da1c2fe52b6df6042cbfcdd94bf8bd89495a376021918ea75e811696ce"
+    "definitionDigest": "sha256-0aedcfd83332f883c7d9fe4708317bbcb8195c41a27eaceafca4fc22dd005563"
   },
   {
     "key": "k8s-interop-be-eservice-template-instances-updater-errors",
@@ -292,14 +466,22 @@
     "description": "Analizza gli errori dell’updater delle istanze di template e-service INTEROP e raccoglie CID e log per verificare il caso Kafka.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["eservice-template", "interop", "k8s", "kafka", "service"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "eservice-template",
+      "interop",
+      "k8s",
+      "kafka",
+      "service"
+    ],
     "alarmNames": [
       "k8s-interop-be-eservice-template-instances-updater-errors-att",
       "k8s-interop-be-eservice-template-instances-updater-errors-prod",
       "k8s-interop-be-eservice-template-instances-updater-errors-test"
     ],
-    "definitionDigest": "sha256-e93c33be0dfcb68481e6dbfb5ca490bd6f9df1f8bdb38cc549a7334914a4a3ed"
+    "definitionDigest": "sha256-f918a6dd532b83185aa407dece4abedf733133e8f6184e3171c855495803e295"
   },
   {
     "key": "k8s-interop-be-eservice-template-readmodel-writer-sql-errors",
@@ -308,14 +490,24 @@
     "description": "Analizza gli allarmi k8s INTEROP del writer SQL del read model dei template e-service, estrae i CID e consulta i log correlati.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["eservice-template", "interop", "k8s", "kafka", "readmodel", "service", "sql"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "eservice-template",
+      "interop",
+      "k8s",
+      "kafka",
+      "readmodel",
+      "service",
+      "sql"
+    ],
     "alarmNames": [
       "k8s-interop-be-eservice-template-readmodel-writer-sql-errors-att",
       "k8s-interop-be-eservice-template-readmodel-writer-sql-errors-prod",
       "k8s-interop-be-eservice-template-readmodel-writer-sql-errors-test"
     ],
-    "definitionDigest": "sha256-f14ca1e085ed8dc34785e5214f659a78bcc4eebd5433097fcac1d25c9a819aa9"
+    "definitionDigest": "sha256-046d29e600a5f4fcb0abe33ff544e29af833a05bb9aec02a6b3fbaa87054c219"
   },
   {
     "key": "k8s-interop-be-in-app-notification-dispatcher-errors",
@@ -324,14 +516,22 @@
     "description": "Analizza gli allarmi k8s INTEROP dell’in-app notification dispatcher, estrae i CID e consulta i log correlati.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["interop", "k8s", "kafka", "notification", "service"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "interop",
+      "k8s",
+      "kafka",
+      "notification",
+      "service"
+    ],
     "alarmNames": [
       "k8s-interop-be-in-app-notification-dispatcher-errors-att",
       "k8s-interop-be-in-app-notification-dispatcher-errors-prod",
       "k8s-interop-be-in-app-notification-dispatcher-errors-test"
     ],
-    "definitionDigest": "sha256-cead8d2dd13551c03613f2423bc8ba4ef5c24781c132d86d0c8b543b2005001b"
+    "definitionDigest": "sha256-90f8919c30aa94a1b0d04dc65198c93bbc660bf7b747b6558137a3cb677707a4"
   },
   {
     "key": "k8s-interop-be-istat-certified-attributes-importer-errors",
@@ -340,14 +540,23 @@
     "description": "Analizza gli errori dell’importer degli attributi certificati ISTAT in prod, att e test, correlando i CID e le indicazioni delle card PIN-10543 e PIN-10823.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["certified-attributes", "importer", "interop", "istat", "k8s", "service"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "certified-attributes",
+      "importer",
+      "interop",
+      "istat",
+      "k8s",
+      "service"
+    ],
     "alarmNames": [
       "k8s-interop-be-istat-certified-attributes-importer-errors-att",
       "k8s-interop-be-istat-certified-attributes-importer-errors-prod",
       "k8s-interop-be-istat-certified-attributes-importer-errors-test"
     ],
-    "definitionDigest": "sha256-2de829717eefbe1a546eed2b96612303060d50346d6e3f4a165df3de9b319c2c"
+    "definitionDigest": "sha256-818d2c89c1b411ee484606e26cde6781ed2e70fe2987efc17ebf406db792d0e3"
   },
   {
     "key": "k8s-interop-be-m2m-event-dispatcher-errors-prod",
@@ -356,10 +565,19 @@
     "description": "Diagnosi degli errori Kafka del servizio interop-be-m2m-event-dispatcher in produzione",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["interop", "k8s", "kafka", "m2m"],
-    "alarmNames": ["k8s-interop-be-m2m-event-dispatcher-errors-prod"],
-    "definitionDigest": "sha256-3aa21aeefca5d307fe1cf694ef0eac7634b313d282c5d9516c5d995880865e4c"
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "interop",
+      "k8s",
+      "kafka",
+      "m2m"
+    ],
+    "alarmNames": [
+      "k8s-interop-be-m2m-event-dispatcher-errors-prod"
+    ],
+    "definitionDigest": "sha256-234b7d00277cc54b0c3f14ade1c6901d62e1a9b2d451dce7ddfe9fc3a4c55506"
   },
   {
     "key": "k8s-interop-be-notification-user-lifecycle-consumer-errors",
@@ -368,14 +586,22 @@
     "description": "Analizza gli allarmi k8s INTEROP del notification user lifecycle consumer leggendo i log applicativi, estraendo i CID e consultando il CID tracker.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["interop", "k8s", "kafka", "notification", "service"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "interop",
+      "k8s",
+      "kafka",
+      "notification",
+      "service"
+    ],
     "alarmNames": [
       "k8s-interop-be-notification-user-lifecycle-consumer-errors-att",
       "k8s-interop-be-notification-user-lifecycle-consumer-errors-prod",
       "k8s-interop-be-notification-user-lifecycle-consumer-errors-test"
     ],
-    "definitionDigest": "sha256-1d3fbab7348c5d7fd84b212920f4effd9795b991fcab62231bcd437ac2e3efc7"
+    "definitionDigest": "sha256-b897f042c32423602a0c3a6c4d1797979c4f1575f3b7e12fef1ebb5544dc462b"
   },
   {
     "key": "k8s-interop-be-notifier-errors",
@@ -384,14 +610,22 @@
     "description": "Analizza gli allarmi k8s INTEROP del notifier leggendo i log applicativi, estraendo i CID e consultando il CID tracker.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["interop", "k8s", "notifier", "service", "sqs"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "interop",
+      "k8s",
+      "notifier",
+      "service",
+      "sqs"
+    ],
     "alarmNames": [
       "k8s-interop-be-notifier-errors-att",
       "k8s-interop-be-notifier-errors-prod",
       "k8s-interop-be-notifier-errors-test"
     ],
-    "definitionDigest": "sha256-2a9a9d701f7c2407bed2a56e852b2c35e923b3c6e2916802f21845231a7de23a"
+    "definitionDigest": "sha256-ffaabc9d0da2ee82b0a481bed7e20d98b1c3cfe47d15911157ccb9d50a80905e"
   },
   {
     "key": "k8s-interop-be-one-trust-notices-errors-prod",
@@ -400,10 +634,18 @@
     "description": "Diagnosi degli errori OneTrust del servizio interop-be-one-trust-notices in produzione",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["interop", "k8s", "onetrust"],
-    "alarmNames": ["k8s-interop-be-one-trust-notices-errors-prod"],
-    "definitionDigest": "sha256-98591c0e5bbf82865b9c683d74eac11670cc3182da6b15098b3d444b09054447"
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "interop",
+      "k8s",
+      "onetrust"
+    ],
+    "alarmNames": [
+      "k8s-interop-be-one-trust-notices-errors-prod"
+    ],
+    "definitionDigest": "sha256-f260bee32a25043bd990961b380a93bd9663e24735228589a40caca0e5f8e544"
   },
   {
     "key": "k8s-interop-be-purpose-outbound-writer-errors",
@@ -412,14 +654,23 @@
     "description": "Analizza gli allarmi k8s INTEROP del purpose outbound writer leggendo i log applicativi, estraendo i CID e consultando il CID tracker.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["interop", "k8s", "kafka", "outbound-writer", "purpose", "service"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "interop",
+      "k8s",
+      "kafka",
+      "outbound-writer",
+      "purpose",
+      "service"
+    ],
     "alarmNames": [
       "k8s-interop-be-purpose-outbound-writer-errors-att",
       "k8s-interop-be-purpose-outbound-writer-errors-prod",
       "k8s-interop-be-purpose-outbound-writer-errors-test"
     ],
-    "definitionDigest": "sha256-f49170608f5a43648611c3a1b02f0c71bfa7fa3d5871d76c6460e5cb2ffea67e"
+    "definitionDigest": "sha256-4181157b5f40d4547c385a91b273692f4922c6b907f0a6c7a17313d4707e2b2a"
   },
   {
     "key": "k8s-interop-be-scheduled-notification-scheduler-errors",
@@ -428,14 +679,23 @@
     "description": "Analizza gli allarmi k8s INTEROP del scheduled notification scheduler leggendo i log applicativi, estraendo i CID e consultando il CID tracker.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["interop", "k8s", "kafka", "notification", "scheduler", "service"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "interop",
+      "k8s",
+      "kafka",
+      "notification",
+      "scheduler",
+      "service"
+    ],
     "alarmNames": [
       "k8s-interop-be-scheduled-notification-scheduler-errors-att",
       "k8s-interop-be-scheduled-notification-scheduler-errors-prod",
       "k8s-interop-be-scheduled-notification-scheduler-errors-test"
     ],
-    "definitionDigest": "sha256-cc1144271c80adb4d9ff177f57fb0fd8556f546f7c35e278e476428f6fbd9b35"
+    "definitionDigest": "sha256-6c6a1f8f17379329cc866a8c0d5c8faa59d7db4b63dc52916bd26a5b80c90794"
   },
   {
     "key": "k8s-interop-be-selfcare-client-users-updater-errors",
@@ -444,14 +704,22 @@
     "description": "Analizza gli allarmi k8s INTEROP del selfcare client users updater leggendo i log applicativi, estraendo i CID e consultando il CID tracker.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["interop", "k8s", "kafka", "selfcare", "service"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "interop",
+      "k8s",
+      "kafka",
+      "selfcare",
+      "service"
+    ],
     "alarmNames": [
       "k8s-interop-be-selfcare-client-users-updater-errors-att",
       "k8s-interop-be-selfcare-client-users-updater-errors-prod",
       "k8s-interop-be-selfcare-client-users-updater-errors-test"
     ],
-    "definitionDigest": "sha256-f3f9919e6a8302770819e9e1229423693e2ec41506f70f3563dffb2652d943da"
+    "definitionDigest": "sha256-185d4d2f18d0ce0319affe855773c5e4ed38d0ad66ec93d01cea1bd616f4630b"
   },
   {
     "key": "k8s-interop-be-selfcare-onboarding-consumer-errors",
@@ -460,14 +728,23 @@
     "description": "Analizza gli allarmi k8s INTEROP del selfcare onboarding consumer leggendo i log applicativi, estraendo i CID e consultando il CID tracker.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["interop", "k8s", "kafka", "onboarding", "selfcare", "service"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "interop",
+      "k8s",
+      "kafka",
+      "onboarding",
+      "selfcare",
+      "service"
+    ],
     "alarmNames": [
       "k8s-interop-be-selfcare-onboarding-consumer-errors-att",
       "k8s-interop-be-selfcare-onboarding-consumer-errors-prod",
       "k8s-interop-be-selfcare-onboarding-consumer-errors-test"
     ],
-    "definitionDigest": "sha256-74f7f05b39eae94e1e99125874ddb34528650a3435cd506d3a973bbcb79040a9"
+    "definitionDigest": "sha256-b3b2dc98f2129edb691e87081421c6fceb2524cb921f8d7bb99dec1e8c6826bd"
   },
   {
     "key": "k8s-interop-be-signed-objects-persister-errors-prod",
@@ -476,10 +753,20 @@
     "description": "Analizza gli errori del signed objects persister INTEROP nei log applicativi e nei CID correlati.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["interop", "k8s", "safe-storage", "service", "signed-objects"],
-    "alarmNames": ["k8s-interop-be-signed-objects-persister-errors-prod"],
-    "definitionDigest": "sha256-6ae1ebe88c254ebfaa2d3ed26c0a3a32802e142718b61cb2766f7d6d21a2aaa4"
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "interop",
+      "k8s",
+      "safe-storage",
+      "service",
+      "signed-objects"
+    ],
+    "alarmNames": [
+      "k8s-interop-be-signed-objects-persister-errors-prod"
+    ],
+    "definitionDigest": "sha256-63b58aac374b38d4eb8ff95873eed848e44042c25d3e6d74f2ab9012fe2ac104"
   },
   {
     "key": "k8s-interop-be-tenant-kind-history-consumer-errors-prod",
@@ -488,10 +775,20 @@
     "description": "Analizza gli errori Kafka del tenant kind history consumer INTEROP e i log correlati per CID.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["consumer", "interop", "k8s", "kafka", "tenant-kind-history"],
-    "alarmNames": ["k8s-interop-be-tenant-kind-history-consumer-errors-prod"],
-    "definitionDigest": "sha256-130d777a9ac94734e7e951bfcbd1935baa6810ba5531b37f552e02e7a1cdf021"
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "consumer",
+      "interop",
+      "k8s",
+      "kafka",
+      "tenant-kind-history"
+    ],
+    "alarmNames": [
+      "k8s-interop-be-tenant-kind-history-consumer-errors-prod"
+    ],
+    "definitionDigest": "sha256-3b3cc4859f186172487cb8931ce41046ac230a6ab13df52f71793f65ed4d55b6"
   },
   {
     "key": "k8s-interop-be-tenant-readmodel-writer-sql-errors",
@@ -500,14 +797,24 @@
     "description": "Analizza l’allarme k8s di produzione del tenant readmodel writer SQL, estrae i CID e consulta i log correlati.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["interop", "k8s", "kafka", "readmodel", "service", "sql", "tenant"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "interop",
+      "k8s",
+      "kafka",
+      "readmodel",
+      "service",
+      "sql",
+      "tenant"
+    ],
     "alarmNames": [
       "k8s-interop-be-tenant-readmodel-writer-sql-errors-att",
       "k8s-interop-be-tenant-readmodel-writer-sql-errors-prod",
       "k8s-interop-be-tenant-readmodel-writer-sql-errors-test"
     ],
-    "definitionDigest": "sha256-356689cb4d85cd750fbba0740a6c65f9bb452972f1c6309181a4ddb4c605973a"
+    "definitionDigest": "sha256-7ccff3d49fcb51a7ef85da3db230d0208805d1b3e681766ee338f499fd154c59"
   },
   {
     "key": "k8s-interop-public-catalog-astro-frontend-errors",
@@ -516,14 +823,21 @@
     "description": "Analizza gli allarmi k8s INTEROP del public catalog astro frontend leggendo i log applicativi, estraendo i CID e consultando il CID tracker.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["interop", "k8s", "public-catalog", "service"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "interop",
+      "k8s",
+      "public-catalog",
+      "service"
+    ],
     "alarmNames": [
       "k8s-interop-public-catalog-astro-frontend-errors-att-public-catalog",
       "k8s-interop-public-catalog-astro-frontend-errors-prod-public-catalog",
       "k8s-interop-public-catalog-astro-frontend-errors-test-public-catalog"
     ],
-    "definitionDigest": "sha256-98db4d217a52659e8a0af31dc498b3025f742d81b5f90f2f8e67c0517f7103b3"
+    "definitionDigest": "sha256-d97752ec2a073033104ad260a14751c81f0f8ae94b074584c1ec611d59dadfe0"
   },
   {
     "key": "k8s-interop-public-catalog-strapi-errors",
@@ -532,14 +846,21 @@
     "description": "Analizza errori di rete e warning di avvio di Strapi nel catalogo pubblico INTEROP, raccogliendo anche il contesto senza CID.",
     "team": "GO",
     "kind": "K8S",
-    "categories": ["INTEROP"],
-    "tags": ["interop", "k8s", "public-catalog", "strapi"],
+    "categories": [
+      "INTEROP"
+    ],
+    "tags": [
+      "interop",
+      "k8s",
+      "public-catalog",
+      "strapi"
+    ],
     "alarmNames": [
       "k8s-interop-public-catalog-strapi-errors-att-public-catalog",
       "k8s-interop-public-catalog-strapi-errors-prod-public-catalog",
       "k8s-interop-public-catalog-strapi-errors-test-public-catalog"
     ],
-    "definitionDigest": "sha256-3fd3ff4407f1b40de6c1d74cfceb64b7d35bffde242abaa006c74e2d7940379c"
+    "definitionDigest": "sha256-248984f87c186c40766dc13d782e6e2ef5fab2af0033f1300dd817d0b0263ebe"
   },
   {
     "key": "personal-data-vault-SelfcarePG-downstream-detection-Alarm",
@@ -548,10 +869,19 @@
     "description": "Gestire in modo standardizzato gli allarmi generati dagli errori del downstream SelfcarePG sul microservizio pn-data-vault.",
     "team": "GO",
     "kind": "DOWNSTREAM",
-    "categories": ["INTEGRATION"],
-    "tags": ["SelfcarePG", "downstream", "pn-data-vault", "service"],
-    "alarmNames": ["personal-data-vault-SelfcarePG-downstream-detection-Alarm"],
-    "definitionDigest": "sha256-bc727ebd5f54a9ec183c2a3664adfdeca9ff52ad2f0cd03a9c0399151c6fb78c"
+    "categories": [
+      "INTEGRATION"
+    ],
+    "tags": [
+      "SelfcarePG",
+      "downstream",
+      "pn-data-vault",
+      "service"
+    ],
+    "alarmNames": [
+      "personal-data-vault-SelfcarePG-downstream-detection-Alarm"
+    ],
+    "definitionDigest": "sha256-6f19f123aa332ecf464b8e337cf9df7610592dce85bf48511c5623a07816df98"
   },
   {
     "key": "pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm",
@@ -560,10 +890,18 @@
     "description": "Gestire in modo standardizzato gli allarmi generati dalla lambda pn-ApiKeyAuthorizerV2Lambda",
     "team": "GO",
     "kind": "LAMBDA",
-    "categories": ["AUTHORIZATION"],
-    "tags": ["lambda", "pn-ApiKeyAuthorizerV2Lambda", "pn-stream"],
-    "alarmNames": ["pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm"],
-    "definitionDigest": "sha256-382904a47eb4abccb1e7ef3ea75f55d572a201bb2c4320ec050b5898e8b11ed0"
+    "categories": [
+      "AUTHORIZATION"
+    ],
+    "tags": [
+      "lambda",
+      "pn-ApiKeyAuthorizerV2Lambda",
+      "pn-stream"
+    ],
+    "alarmNames": [
+      "pn-ApiKeyAuthorizerV2Lambda-LogInvocationErrors-Alarm"
+    ],
+    "definitionDigest": "sha256-f8ea5a624ac16417946c97a021ed435417dcfe646b723b30617ae04ce9fbe46d"
   },
   {
     "key": "pn-address-book-io-IO-ApiGwAlarm",
@@ -572,10 +910,20 @@
     "description": "Analizza gli allarmi API Gateway del microservizio pn-user-attributes",
     "team": "GO",
     "kind": "APIGW",
-    "categories": ["DELIVERY"],
-    "tags": ["api-gateway", "pn-data-vault", "pn-external-registries", "pn-ioAuthorizerLambda", "pn-user-attributes"],
-    "alarmNames": ["pn-address-book-io-IO-ApiGwAlarm"],
-    "definitionDigest": "sha256-873657c7116826e0d00214e38e19945a9571e4c13dafefdde4c689410e0bb981"
+    "categories": [
+      "DELIVERY"
+    ],
+    "tags": [
+      "api-gateway",
+      "pn-data-vault",
+      "pn-external-registries",
+      "pn-ioAuthorizerLambda",
+      "pn-user-attributes"
+    ],
+    "alarmNames": [
+      "pn-address-book-io-IO-ApiGwAlarm"
+    ],
+    "definitionDigest": "sha256-64234a6bdbce70a0649d384870d824e1fdfdfdadd5fcf6d8b97ed428df08be37"
   },
   {
     "key": "pn-address-manager-POSTEL-downstream-detection-Alarm",
@@ -584,10 +932,20 @@
     "description": "Gestire gli allarmi generati dagli errori POSTEL e verificare il recupero di tutti i batch di normalizzazione impattati.",
     "team": "GO",
     "kind": "DOWNSTREAM",
-    "categories": ["DELIVERY"],
-    "tags": ["POSTEL", "batch-retry", "downstream", "pn-address-manager", "service"],
-    "alarmNames": ["pn-address-manager-POSTEL-downstream-detection-Alarm"],
-    "definitionDigest": "sha256-ea00477f9f1372df71c557f58276ab5b832f9d1d3ae342102b43c276901679cd"
+    "categories": [
+      "DELIVERY"
+    ],
+    "tags": [
+      "POSTEL",
+      "batch-retry",
+      "downstream",
+      "pn-address-manager",
+      "service"
+    ],
+    "alarmNames": [
+      "pn-address-manager-POSTEL-downstream-detection-Alarm"
+    ],
+    "definitionDigest": "sha256-96b8fab2a6d05a09ed3f0d2df604ca0feb59ce9b3c81e3146a80cc0ab92b04c6"
   },
   {
     "key": "pn-bff-SenderDashboardDataIndexer-LogInvocationErrors-Alarm",
@@ -596,10 +954,21 @@
     "description": "Analizza gli errori della Lambda schedulata che genera l’indice dati della Dashboard Mittenti SEND.",
     "team": "GO",
     "kind": "LAMBDA",
-    "categories": ["DELIVERY"],
-    "tags": ["data-indexer", "datalake", "lambda", "pn-bff", "scheduled", "sender-dashboard"],
-    "alarmNames": ["pn-bff-SenderDashboardDataIndexer-LogInvocationErrors-Alarm"],
-    "definitionDigest": "sha256-06f0a0a1e7c90e4c04df797958929f4adfacbb872211f41baaff96aa9f4b625f"
+    "categories": [
+      "DELIVERY"
+    ],
+    "tags": [
+      "data-indexer",
+      "datalake",
+      "lambda",
+      "pn-bff",
+      "scheduled",
+      "sender-dashboard"
+    ],
+    "alarmNames": [
+      "pn-bff-SenderDashboardDataIndexer-LogInvocationErrors-Alarm"
+    ],
+    "definitionDigest": "sha256-0ffba29b7a88d69fc7b17e2a8a2f060b0dbe5d869d281ccd84785d226a167eb0"
   },
   {
     "key": "pn-bff-WEB-noextension-Addresses-comp-5xx-ApiGwAlarm",
@@ -608,10 +977,19 @@
     "description": "Analizza gli errori delle API WEB Addresses e il timeout del BFF verso pn-user-attributes.",
     "team": "GO",
     "kind": "APIGW",
-    "categories": ["INTEGRATION"],
-    "tags": ["addresses", "api-gateway", "pn-bff", "pn-user-attributes"],
-    "alarmNames": ["pn-bff-WEB-noextension-Addresses-comp-5xx-ApiGwAlarm"],
-    "definitionDigest": "sha256-97045c3a2493117ff6b62f7ffec4507e3c1614b3d7b67b6e5bfeaa50773634d4"
+    "categories": [
+      "INTEGRATION"
+    ],
+    "tags": [
+      "addresses",
+      "api-gateway",
+      "pn-bff",
+      "pn-user-attributes"
+    ],
+    "alarmNames": [
+      "pn-bff-WEB-noextension-Addresses-comp-5xx-ApiGwAlarm"
+    ],
+    "definitionDigest": "sha256-e7de6cfea2d156ee93ca7649d159f9a56087d0c4b094c4b273533528f67248c8"
   },
   {
     "key": "pn-bff-WEB-noextension-InfoPa-comp-5xx-ApiGwAlarm",
@@ -620,10 +998,20 @@
     "description": "Analizza gli errori 5xx delle API WEB InfoPa e le chiamate correlate a pn-external-registries.",
     "team": "GO",
     "kind": "APIGW",
-    "categories": ["INTEGRATION"],
-    "tags": ["api-gateway", "info-pa", "pn-bff", "pn-external-registries", "selfcare"],
-    "alarmNames": ["pn-bff-WEB-noextension-InfoPa-comp-5xx-ApiGwAlarm"],
-    "definitionDigest": "sha256-0d789471357e0f6704d28c9bae655d3c9c7a04f2d4fd4b02e384da2fdd63516c"
+    "categories": [
+      "INTEGRATION"
+    ],
+    "tags": [
+      "api-gateway",
+      "info-pa",
+      "pn-bff",
+      "pn-external-registries",
+      "selfcare"
+    ],
+    "alarmNames": [
+      "pn-bff-WEB-noextension-InfoPa-comp-5xx-ApiGwAlarm"
+    ],
+    "definitionDigest": "sha256-78522492822ca82566d87ecf51b695c152ef79db105a97b4cdc55f79ea234ef9"
   },
   {
     "key": "pn-bff-WEB-noextension-NotificationReceived-comp-5xx-ApiGwAlarm",
@@ -632,10 +1020,18 @@
     "description": "Diagnosi degli errori 5xx delle API WEB NotificationReceived e delle chiamate a pn-delivery e pn-external-registries",
     "team": "GO",
     "kind": "APIGW",
-    "categories": ["INTEGRATION"],
-    "tags": ["api-gateway", "notification-received", "pn-bff"],
-    "alarmNames": ["pn-bff-WEB-noextension-NotificationReceived-comp-5xx-ApiGwAlarm"],
-    "definitionDigest": "sha256-e7e5e202460a6a5159c70356040e13ec89a0fb3deec55fcef2facc386e529aba"
+    "categories": [
+      "INTEGRATION"
+    ],
+    "tags": [
+      "api-gateway",
+      "notification-received",
+      "pn-bff"
+    ],
+    "alarmNames": [
+      "pn-bff-WEB-noextension-NotificationReceived-comp-5xx-ApiGwAlarm"
+    ],
+    "definitionDigest": "sha256-9f8d45b2a3647c0f490208dfe7ba355bbf7eab029787c47f66a0b256b02bce32"
   },
   {
     "key": "pn-cdc-preproc-data-quality-filter-LogInvocationErrors-Alarm",
@@ -644,10 +1040,20 @@
     "description": "Analizza gli allarmi di log e invocazione della Lambda CDC di preprocessing e data quality.",
     "team": "GO",
     "kind": "LAMBDA",
-    "categories": ["INTEGRATION"],
-    "tags": ["data-quality", "firehose", "lambda", "pn-cdc", "quarantine"],
-    "alarmNames": ["pn-cdc-preproc-data-quality-filter-LogInvocationErrors-Alarm"],
-    "definitionDigest": "sha256-cd8ac871306d223232c671cc159efb157a183cb024bea519afb0680a4e552637"
+    "categories": [
+      "INTEGRATION"
+    ],
+    "tags": [
+      "data-quality",
+      "firehose",
+      "lambda",
+      "pn-cdc",
+      "quarantine"
+    ],
+    "alarmNames": [
+      "pn-cdc-preproc-data-quality-filter-LogInvocationErrors-Alarm"
+    ],
+    "definitionDigest": "sha256-edee45c63257cdf1752cb4683beb611192439a314420c524d0b3cbfed528ced8"
   },
   {
     "key": "pn-delayer-sender-limit-job-ErrorFatalLogs-Alarm",
@@ -656,10 +1062,19 @@
     "description": "Analizza gli errori del job pn-delayer sender limit e applica la procedura del caso noto.",
     "team": "GO",
     "kind": "SERVICE",
-    "categories": ["DELIVERY"],
-    "tags": ["batch-job", "pn-delayer", "sender-limit", "service"],
-    "alarmNames": ["pn-delayer-sender-limit-job-ErrorFatalLogs-Alarm"],
-    "definitionDigest": "sha256-18ee75f3732760675bdd3a23c9e4c33682d0ca94f86fce39e041a6e59182c037"
+    "categories": [
+      "DELIVERY"
+    ],
+    "tags": [
+      "batch-job",
+      "pn-delayer",
+      "sender-limit",
+      "service"
+    ],
+    "alarmNames": [
+      "pn-delayer-sender-limit-job-ErrorFatalLogs-Alarm"
+    ],
+    "definitionDigest": "sha256-ec1a52c24f706a3675057f16196d865a246c013b7ec0eb3ea2e618882be829db"
   },
   {
     "key": "pn-delivery-B2B-ApiGwAlarm",
@@ -668,7 +1083,9 @@
     "description": "Analizza gli errori 5xx della API pubblica B2B di pn-delivery e i servizi correlati.",
     "team": "GO",
     "kind": "APIGW",
-    "categories": ["DELIVERY"],
+    "categories": [
+      "DELIVERY"
+    ],
     "tags": [
       "api-gateway",
       "pn-b2bAuthorizerLambda",
@@ -678,8 +1095,10 @@
       "pn-f24",
       "pn-safestorage"
     ],
-    "alarmNames": ["pn-delivery-B2B-ApiGwAlarm"],
-    "definitionDigest": "sha256-5011009d2ed3a2eedb636fe3f0e7272005f97da40fbba046ec5e0be489df4dfa"
+    "alarmNames": [
+      "pn-delivery-B2B-ApiGwAlarm"
+    ],
+    "definitionDigest": "sha256-902b1503a1efe47639a88f73f56003bcf54cbeaec84653adb4498f5a53993f76"
   },
   {
     "key": "pn-delivery-IO_EXP-ApiGwAlarm",
@@ -688,10 +1107,14 @@
     "description": "Diagnosi degli errori API IO_EXP: invocazione authorizer, integrazione AWS e servizi applicativi",
     "team": "GO",
     "kind": "APIGW",
-    "categories": ["DELIVERY"],
+    "categories": [
+      "DELIVERY"
+    ],
     "tags": [],
-    "alarmNames": ["pn-delivery-IO_EXP-ApiGwAlarm"],
-    "definitionDigest": "sha256-1192048aabc5a8e34dc0d1f5c8af033b38d78609534c1887c6adb15997ea3b85"
+    "alarmNames": [
+      "pn-delivery-IO_EXP-ApiGwAlarm"
+    ],
+    "definitionDigest": "sha256-c57eeaf39b5c5bec973b6fef460c9f24d9372292a545d4aefa5b1b8309a9417c"
   },
   {
     "key": "pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm",
@@ -700,10 +1123,17 @@
     "description": "Gestire in modo standardizzato gli allarmi generati dalla lambda pn-delivery-insert-trigger-eb-lambda",
     "team": "GO",
     "kind": "LAMBDA",
-    "categories": ["DELIVERY"],
-    "tags": ["lambda", "pn-delivery-insert-trigger-eb-lambda"],
-    "alarmNames": ["pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm"],
-    "definitionDigest": "sha256-b0bbe0fbf9c32422567017ae747dd9fc68b8ad9b8bebfe28505d1350c8dd3c64"
+    "categories": [
+      "DELIVERY"
+    ],
+    "tags": [
+      "lambda",
+      "pn-delivery-insert-trigger-eb-lambda"
+    ],
+    "alarmNames": [
+      "pn-delivery-insert-trigger-eb-lambda-LogInvocationErrors-Alarm"
+    ],
+    "definitionDigest": "sha256-fd8e950d3cddc977c83da74deff6fa955ba4d3d8877011ae613078b1554945da"
   },
   {
     "key": "pn-delivery-push-B2B-ApiGwAlarm",
@@ -712,10 +1142,20 @@
     "description": "Analizza gli allarmi API Gateway del microservizio pn-delivery-push per le API B2B.",
     "team": "GO",
     "kind": "APIGW",
-    "categories": ["DELIVERY"],
-    "tags": ["api-gateway", "pn-b2bAuthorizerLambda", "pn-data-vault", "pn-delivery-push", "pn-safestorage"],
-    "alarmNames": ["pn-delivery-push-B2B-ApiGwAlarm"],
-    "definitionDigest": "sha256-2f8a1214c12057365ca3173180d5ffb348742745157087877742d3c285b1b8bd"
+    "categories": [
+      "DELIVERY"
+    ],
+    "tags": [
+      "api-gateway",
+      "pn-b2bAuthorizerLambda",
+      "pn-data-vault",
+      "pn-delivery-push",
+      "pn-safestorage"
+    ],
+    "alarmNames": [
+      "pn-delivery-push-B2B-ApiGwAlarm"
+    ],
+    "definitionDigest": "sha256-00686c8345f6e5decd27fcf35e838c783df540c5d1048573458c66e4b34e5d66"
   },
   {
     "key": "pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm",
@@ -724,10 +1164,21 @@
     "description": "Analizza gli errori di invocazione della Lambda SEND pn-downstream-monitoring-lambda negli account core e confinfo.",
     "team": "GO",
     "kind": "LAMBDA",
-    "categories": ["INTEGRATION"],
-    "tags": ["confinfo", "core", "downstream-monitoring", "lambda", "s3", "throttling"],
-    "alarmNames": ["pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm"],
-    "definitionDigest": "sha256-ff1db0c1f7fd19db457fffeffa1af5539d50f9851c9e82dbf0336ceb33eb2775"
+    "categories": [
+      "INTEGRATION"
+    ],
+    "tags": [
+      "confinfo",
+      "core",
+      "downstream-monitoring",
+      "lambda",
+      "s3",
+      "throttling"
+    ],
+    "alarmNames": [
+      "pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm"
+    ],
+    "definitionDigest": "sha256-4dc5c575f69a6df6c2f0ca06c5dce637dad6248ea1b24d7bccbf5dcfb5a55375"
   },
   {
     "key": "pn-external-registries-IO-downstream-detection-Alarm",
@@ -736,10 +1187,19 @@
     "description": "Analizza gli errori del downstream IO su pn-external-registries, correlando il trace_id e riconoscendo i casi documentati di timeout, errori di attivazione ed errori applicativi.",
     "team": "GO",
     "kind": "DOWNSTREAM",
-    "categories": ["INTEGRATION"],
-    "tags": ["IO", "downstream", "pn-external-registries", "service"],
-    "alarmNames": ["pn-external-registries-IO-downstream-detection-Alarm"],
-    "definitionDigest": "sha256-0fbfef12697561505f662aff4ed4bd6e1b55d304183a7d594de67fe91755107a"
+    "categories": [
+      "INTEGRATION"
+    ],
+    "tags": [
+      "IO",
+      "downstream",
+      "pn-external-registries",
+      "service"
+    ],
+    "alarmNames": [
+      "pn-external-registries-IO-downstream-detection-Alarm"
+    ],
+    "definitionDigest": "sha256-85169b32017f1e9f57a5798afc16affbb4fec4ac267c633bec3d6333099305b2"
   },
   {
     "key": "pn-external-registries-OneTrust-downstream-detection-Alarm",
@@ -748,10 +1208,19 @@
     "description": "Gestire in modo standardizzato gli allarmi generati dagli errori del downstream One-Trust sul microservizio pn-external-registries.",
     "team": "GO",
     "kind": "DOWNSTREAM",
-    "categories": ["INTEGRATION"],
-    "tags": ["OneTrust", "downstream", "pn-external-registries", "service"],
-    "alarmNames": ["pn-external-registries-OneTrust-downstream-detection-Alarm"],
-    "definitionDigest": "sha256-4d94808d7a3556a79e92821b159add6dee5f7cab0f1e8e3e0fe31dd783f26337"
+    "categories": [
+      "INTEGRATION"
+    ],
+    "tags": [
+      "OneTrust",
+      "downstream",
+      "pn-external-registries",
+      "service"
+    ],
+    "alarmNames": [
+      "pn-external-registries-OneTrust-downstream-detection-Alarm"
+    ],
+    "definitionDigest": "sha256-b1ad7bb6bcb2486443998015cec1beee4a7d8b4a20538a31b2f070ebbedd0edf"
   },
   {
     "key": "pn-external-registries-SelfcarePA-downstream-detection-Alarm",
@@ -760,10 +1229,19 @@
     "description": "Diagnosi degli errori SelfcarePA su pn-external-registries e correlazione del trace_id",
     "team": "GO",
     "kind": "DOWNSTREAM",
-    "categories": ["INTEGRATION"],
-    "tags": ["SelfcarePA", "downstream", "pn-external-registries", "service"],
-    "alarmNames": ["pn-external-registries-SelfcarePA-downstream-detection-Alarm"],
-    "definitionDigest": "sha256-314f0998714abdd8e985b3883f38d644f48300624b01c14425251931b9acd5c3"
+    "categories": [
+      "INTEGRATION"
+    ],
+    "tags": [
+      "SelfcarePA",
+      "downstream",
+      "pn-external-registries",
+      "service"
+    ],
+    "alarmNames": [
+      "pn-external-registries-SelfcarePA-downstream-detection-Alarm"
+    ],
+    "definitionDigest": "sha256-ec6d831add2475dbb985df537a4ee4825f675a7e8b98b3e4cadd67c5a5a51343"
   },
   {
     "key": "pn-ioAuthorizerLambda-LogInvocationErrors-Alarm",
@@ -772,10 +1250,17 @@
     "description": "Analizza gli allarmi LogInvocationErrors della lambda pn-ioAuthorizerLambda",
     "team": "GO",
     "kind": "LAMBDA",
-    "categories": ["AUTHORIZATION"],
-    "tags": ["lambda", "pn-ioAuthorizerLambda"],
-    "alarmNames": ["pn-ioAuthorizerLambda-LogInvocationErrors-Alarm"],
-    "definitionDigest": "sha256-e8ed5f7cb8c5fafab815ad5b115ed98d80de900fc2d8abdf9d34c9735ce0f647"
+    "categories": [
+      "AUTHORIZATION"
+    ],
+    "tags": [
+      "lambda",
+      "pn-ioAuthorizerLambda"
+    ],
+    "alarmNames": [
+      "pn-ioAuthorizerLambda-LogInvocationErrors-Alarm"
+    ],
+    "definitionDigest": "sha256-ca8ad587df99e885dd3c018e9773a1b6c9781fcce500d4dd0e3ebb39dd2ca748"
   },
   {
     "key": "pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm",
@@ -784,10 +1269,17 @@
     "description": "Gestire in modo standardizzato gli allarmi generati dalla lambda pn-jwksCacheRefreshLambda",
     "team": "GO",
     "kind": "LAMBDA",
-    "categories": ["AUTHORIZATION"],
-    "tags": ["lambda", "pn-jwksCacheRefreshLambda"],
-    "alarmNames": ["pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm"],
-    "definitionDigest": "sha256-bc0d4c7acca1875160a17b66007c2484eafbb30905d71498b1a2e669ca354d2e"
+    "categories": [
+      "AUTHORIZATION"
+    ],
+    "tags": [
+      "lambda",
+      "pn-jwksCacheRefreshLambda"
+    ],
+    "alarmNames": [
+      "pn-jwksCacheRefreshLambda-LogInvocationErrors-Alarm"
+    ],
+    "definitionDigest": "sha256-e5dcc3c00063c79a4412ff79f06e13c74a0d463819aa644f809eaffeb33b8b9d"
   },
   {
     "key": "pn-jwtAuthorizerLambda-LogInvocationErrors-Alarm",
@@ -796,10 +1288,18 @@
     "description": "Diagnosi degli errori IAM, KMS e Redis di pn-jwtAuthorizerLambda",
     "team": "GO",
     "kind": "LAMBDA",
-    "categories": ["AUTHORIZATION"],
-    "tags": ["authorization", "lambda", "pn-jwtAuthorizerLambda"],
-    "alarmNames": ["pn-jwtAuthorizerLambda-LogInvocationErrors-Alarm"],
-    "definitionDigest": "sha256-c1912dee90df8fb43df1c6491a6669ffbdfa3ffe95414411e7e5e03fe513051f"
+    "categories": [
+      "AUTHORIZATION"
+    ],
+    "tags": [
+      "authorization",
+      "lambda",
+      "pn-jwtAuthorizerLambda"
+    ],
+    "alarmNames": [
+      "pn-jwtAuthorizerLambda-LogInvocationErrors-Alarm"
+    ],
+    "definitionDigest": "sha256-5fe01cab6d554a9ec81afc7ec61fdbd41d3b518c730b56f69333a87fbd777161"
   },
   {
     "key": "pn-logsaver-be-FailedInvocation-Alarm",
@@ -808,9 +1308,18 @@
     "description": "Raccoglie i log del job logsaver e riconosce l’interruzione del task Fargate Spot.",
     "team": "GO",
     "kind": "SERVICE",
-    "categories": ["MONITORING"],
-    "tags": ["batch", "fargate-spot", "pn-logsaver-be", "service"],
-    "alarmNames": ["pn-logsaver-be-FailedInvocation-Alarm"],
+    "categories": [
+      "MONITORING"
+    ],
+    "tags": [
+      "batch",
+      "fargate-spot",
+      "pn-logsaver-be",
+      "service"
+    ],
+    "alarmNames": [
+      "pn-logsaver-be-FailedInvocation-Alarm"
+    ],
     "definitionDigest": "sha256-8e2af06ec99d521bdc7a4f7c91cadf10797657e683567a29986c1e43654c434a"
   },
   {
@@ -820,10 +1329,18 @@
     "description": "Gestire in modo standardizzato gli allarmi generati dalla lambda pn-lollipopAuthorizerLambda",
     "team": "GO",
     "kind": "LAMBDA",
-    "categories": ["AUTHORIZATION"],
-    "tags": ["AppIO", "lambda", "pn-lollipopAuthorizerLambda"],
-    "alarmNames": ["pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm"],
-    "definitionDigest": "sha256-25bfa0da99c0de2f584fb5fad0c87a401f652391dd326728a78167fa98e63387"
+    "categories": [
+      "AUTHORIZATION"
+    ],
+    "tags": [
+      "AppIO",
+      "lambda",
+      "pn-lollipopAuthorizerLambda"
+    ],
+    "alarmNames": [
+      "pn-lollipopAuthorizerLambda-LogInvocationErrors-Alarm"
+    ],
+    "definitionDigest": "sha256-6cdded7dccdb5f5445d1fc71ffb942812d39b4690ce9b1a49e465bda8b8114de"
   },
   {
     "key": "pn-mandate-acceptance-failure-tech-Alarm",
@@ -832,10 +1349,20 @@
     "description": "Analizza gli errori tecnici durante l’accettazione delle deleghe CIE e riconosce il caso documentato dei dati NIS mancanti.",
     "team": "GO",
     "kind": "SERVICE",
-    "categories": ["AUTHORIZATION"],
-    "tags": ["CIE", "TECH", "mandate-acceptance", "pn-mandate", "service"],
-    "alarmNames": ["pn-mandate-acceptance-failure-tech-Alarm"],
-    "definitionDigest": "sha256-a899bb4f881e550412843a97d986cdaf17f9e4d884949a29bacbafa894dc95a7"
+    "categories": [
+      "AUTHORIZATION"
+    ],
+    "tags": [
+      "CIE",
+      "TECH",
+      "mandate-acceptance",
+      "pn-mandate",
+      "service"
+    ],
+    "alarmNames": [
+      "pn-mandate-acceptance-failure-tech-Alarm"
+    ],
+    "definitionDigest": "sha256-923b486c4e27adba3d60cd81bcab7628980581e9b5166ea1636eeffa3018a526"
   },
   {
     "key": "pn-national-registries-ANPR-downstream-detection-Alarm",
@@ -844,10 +1371,19 @@
     "description": "Gestire in modo standardizzato gli allarmi generati dagli errori del downstream ANPR sul microservizio pn-national-registries.",
     "team": "GO",
     "kind": "DOWNSTREAM",
-    "categories": ["INTEGRATION"],
-    "tags": ["ANPR", "downstream", "pn-national-registries", "service"],
-    "alarmNames": ["pn-national-registries-ANPR-downstream-detection-Alarm"],
-    "definitionDigest": "sha256-61b835f313f481d7bc18de8976fce020961e8588fa484dc9e9a88913c1275e9f"
+    "categories": [
+      "INTEGRATION"
+    ],
+    "tags": [
+      "ANPR",
+      "downstream",
+      "pn-national-registries",
+      "service"
+    ],
+    "alarmNames": [
+      "pn-national-registries-ANPR-downstream-detection-Alarm"
+    ],
+    "definitionDigest": "sha256-5c947c1e69b61065e950b490e9a8fd09d1b0fafe7c26d209fb3166164f48022f"
   },
   {
     "key": "pn-national-registries-AdE-downstream-detection-Alarm",
@@ -856,10 +1392,19 @@
     "description": "Gestire in modo standardizzato gli allarmi generati dagli errori del downstream AdE sul microservizio pn-national-registries.",
     "team": "GO",
     "kind": "DOWNSTREAM",
-    "categories": ["INTEGRATION"],
-    "tags": ["AdE", "downstream", "pn-national-registries", "service"],
-    "alarmNames": ["pn-national-registries-AdE-downstream-detection-Alarm"],
-    "definitionDigest": "sha256-46ff2e2b358c935d0abcd58784fa65ad740600cbf361e62c207fd7b4a27696c8"
+    "categories": [
+      "INTEGRATION"
+    ],
+    "tags": [
+      "AdE",
+      "downstream",
+      "pn-national-registries",
+      "service"
+    ],
+    "alarmNames": [
+      "pn-national-registries-AdE-downstream-detection-Alarm"
+    ],
+    "definitionDigest": "sha256-6baf717973e6e6ed0d026ae496eb6c601b1c75235808425b340e24e641b91a14"
   },
   {
     "key": "pn-national-registries-INAD-downstream-detection-Alarm",
@@ -868,10 +1413,19 @@
     "description": "Gestire in modo standardizzato gli allarmi generati dagli errori del downstream INAD sul microservizio pn-national-registries.",
     "team": "GO",
     "kind": "DOWNSTREAM",
-    "categories": ["INTEGRATION"],
-    "tags": ["INAD", "downstream", "pn-national-registries", "service"],
-    "alarmNames": ["pn-national-registries-INAD-downstream-detection-Alarm"],
-    "definitionDigest": "sha256-6addae7f5888ddf3ade062660a89ae8f1aa98dea39f2152a07839aa005097fc6"
+    "categories": [
+      "INTEGRATION"
+    ],
+    "tags": [
+      "INAD",
+      "downstream",
+      "pn-national-registries",
+      "service"
+    ],
+    "alarmNames": [
+      "pn-national-registries-INAD-downstream-detection-Alarm"
+    ],
+    "definitionDigest": "sha256-4dfaab84fd0c7ba3b7fdf1172950f99e1005821793cbc9680621bf1894d4cc7f"
   },
   {
     "key": "pn-national-registries-IPA-downstream-detection-Alarm",
@@ -880,10 +1434,19 @@
     "description": "Gestire in modo standardizzato gli allarmi generati dagli errori del downstream IPA sul microservizio pn-national-registries.",
     "team": "GO",
     "kind": "DOWNSTREAM",
-    "categories": ["INTEGRATION"],
-    "tags": ["IPA", "downstream", "pn-national-registries", "service"],
-    "alarmNames": ["pn-national-registries-IPA-downstream-detection-Alarm"],
-    "definitionDigest": "sha256-1778477d50a5a4571ed7df2ca16a21d80646491af2dbca530559dd02d59fc3ad"
+    "categories": [
+      "INTEGRATION"
+    ],
+    "tags": [
+      "IPA",
+      "downstream",
+      "pn-national-registries",
+      "service"
+    ],
+    "alarmNames": [
+      "pn-national-registries-IPA-downstream-detection-Alarm"
+    ],
+    "definitionDigest": "sha256-a9e0618b16029aa9289fc6430553cdb37e606d3be63927141ee96f47b33e9b77"
   },
   {
     "key": "pn-national-registries-InfoCamere-downstream-detection-Alarm",
@@ -892,10 +1455,19 @@
     "description": "Gestire in modo standardizzato gli allarmi generati dagli errori del downstream InfoCamere sul microservizio pn-national-registries.",
     "team": "GO",
     "kind": "DOWNSTREAM",
-    "categories": ["INTEGRATION"],
-    "tags": ["InfoCamere", "downstream", "pn-national-registries", "service"],
-    "alarmNames": ["pn-national-registries-InfoCamere-downstream-detection-Alarm"],
-    "definitionDigest": "sha256-d30b2f1706f4f30c37eb9d47a560208788d8105343bb9ba6c2e56e665218da71"
+    "categories": [
+      "INTEGRATION"
+    ],
+    "tags": [
+      "InfoCamere",
+      "downstream",
+      "pn-national-registries",
+      "service"
+    ],
+    "alarmNames": [
+      "pn-national-registries-InfoCamere-downstream-detection-Alarm"
+    ],
+    "definitionDigest": "sha256-77c4caf12f0c4c691f0a782bcdc47972f1eafbb5c4cacb4c597e6e02ca8093a8"
   },
   {
     "key": "pn-national-registries-PNPG-ApiGwAlarm",
@@ -904,10 +1476,19 @@
     "description": "Gestire in modo standardizzato gli allarmi generati da Api Gateway quando si verificano errori sul microservizio pn-national-registries.",
     "team": "GO",
     "kind": "APIGW",
-    "categories": ["INTEGRATION"],
-    "tags": ["AdE", "InfoCamere", "api-gateway", "pn-national-registries"],
-    "alarmNames": ["pn-national-registries-PNPG-ApiGwAlarm"],
-    "definitionDigest": "sha256-9a627de3060983cc56d7e83bcd891f0d2435593d56b2cf4c46bd86db5ead8d3a"
+    "categories": [
+      "INTEGRATION"
+    ],
+    "tags": [
+      "AdE",
+      "InfoCamere",
+      "api-gateway",
+      "pn-national-registries"
+    ],
+    "alarmNames": [
+      "pn-national-registries-PNPG-ApiGwAlarm"
+    ],
+    "definitionDigest": "sha256-42de08331a0b257cf7b9aa7997173eae75de20d653463945024da99ec4dae126"
   },
   {
     "key": "pn-service-desk-alb-alarm",
@@ -916,10 +1497,18 @@
     "description": "Analizza gli errori applicativi di pn-service-desk associati all’allarme ALB.",
     "team": "GO",
     "kind": "SERVICE",
-    "categories": ["MONITORING"],
-    "tags": ["alb", "pn-service-desk", "service"],
-    "alarmNames": ["pn-service-desk-alb-alarm"],
-    "definitionDigest": "sha256-a26afabdcbff967fdd5b73263fbe6fef4201aef0090d4bcd853ee9ad9a9e334d"
+    "categories": [
+      "MONITORING"
+    ],
+    "tags": [
+      "alb",
+      "pn-service-desk",
+      "service"
+    ],
+    "alarmNames": [
+      "pn-service-desk-alb-alarm"
+    ],
+    "definitionDigest": "sha256-5eb9a3d4008ace016218c87165d55f0d7591fb08637074a9fcdb5b3415e37938"
   },
   {
     "key": "pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm",
@@ -928,10 +1517,18 @@
     "description": "Analizza gli allarmi LogInvocationErrors della lambda pn-slaViolationCheckerLambda-SQS",
     "team": "GO",
     "kind": "LAMBDA",
-    "categories": ["DELIVERY"],
-    "tags": ["lambda", "pn-slaViolationCheckerLambda-SQS", "sqs"],
-    "alarmNames": ["pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm"],
-    "definitionDigest": "sha256-bcd68cc1a62972e1d913febd6711a9cca5187625cf2037375f3aa0ff9f4325d9"
+    "categories": [
+      "DELIVERY"
+    ],
+    "tags": [
+      "lambda",
+      "pn-slaViolationCheckerLambda-SQS",
+      "sqs"
+    ],
+    "alarmNames": [
+      "pn-slaViolationCheckerLambda-SQS-LogInvocationErrors-Alarm"
+    ],
+    "definitionDigest": "sha256-adcc5ea24b13ac1e6617faf56ec45bfc6b8c3a42ea547e0168147a995f96f6ca"
   },
   {
     "key": "pn-stream-delivery-progress-B2B-ApiGwAlarm",
@@ -940,10 +1537,19 @@
     "description": "Analizza gli errori API Gateway B2B di pn-stream delivery progress, versioning e authorizer.",
     "team": "GO",
     "kind": "APIGW",
-    "categories": ["DELIVERY"],
-    "tags": ["api-gateway", "pn-ApiKeyAuthorizerV2Lambda", "pn-stream", "pn-versioningV1V2StreamLambda"],
-    "alarmNames": ["pn-stream-delivery-progress-B2B-ApiGwAlarm"],
-    "definitionDigest": "sha256-9180cd2df0b506d7f57bd518ea5470c4f927cd438b9007555a9060bac96ed6f5"
+    "categories": [
+      "DELIVERY"
+    ],
+    "tags": [
+      "api-gateway",
+      "pn-ApiKeyAuthorizerV2Lambda",
+      "pn-stream",
+      "pn-versioningV1V2StreamLambda"
+    ],
+    "alarmNames": [
+      "pn-stream-delivery-progress-B2B-ApiGwAlarm"
+    ],
+    "definitionDigest": "sha256-8c8e8dd7157baf68b90bbd671b3ad137630e35393b8967eba0670726dfa9ecae"
   },
   {
     "key": "pn-tokenExchangeLambda-LogInvocationErrors-Alarm",
@@ -952,10 +1558,19 @@
     "description": "Analizza gli allarmi LogInvocationErrors della lambda pn-tokenExchangeLambda",
     "team": "GO",
     "kind": "LAMBDA",
-    "categories": ["AUTHORIZATION", "INTEGRATION"],
-    "tags": ["lambda", "pn-emd-integration", "pn-tokenExchangeLambda"],
-    "alarmNames": ["pn-tokenExchangeLambda-LogInvocationErrors-Alarm"],
-    "definitionDigest": "sha256-f9f7759bfbdd81aa5c072184b0f5f32f260cff53aed3a65f47b174dac1ffd439"
+    "categories": [
+      "AUTHORIZATION",
+      "INTEGRATION"
+    ],
+    "tags": [
+      "lambda",
+      "pn-emd-integration",
+      "pn-tokenExchangeLambda"
+    ],
+    "alarmNames": [
+      "pn-tokenExchangeLambda-LogInvocationErrors-Alarm"
+    ],
+    "definitionDigest": "sha256-fadd3828cc8705bcf6b29f2740d5f267a545b11892f3b2e1e3636833fcb0cd21"
   },
   {
     "key": "spidhub-prod-ExternalELBAlarm",
@@ -964,9 +1579,19 @@
     "description": "Raccoglie gli errori e gli stream SPID Hub e prepara la correlazione con le richieste del load balancer.",
     "team": "GO",
     "kind": "SERVICE",
-    "categories": ["AUTHENTICATION"],
-    "tags": ["alb", "authentication", "saml", "service", "spidhub"],
-    "alarmNames": ["spidhub-prod-ExternalELBAlarm"],
+    "categories": [
+      "AUTHENTICATION"
+    ],
+    "tags": [
+      "alb",
+      "authentication",
+      "saml",
+      "service",
+      "spidhub"
+    ],
+    "alarmNames": [
+      "spidhub-prod-ExternalELBAlarm"
+    ],
     "definitionDigest": "sha256-b56a6fd4fc4d7bf9bd88dd739644f47ab08440ffab61b99a34a07ea7a9524211"
   },
   {
@@ -976,9 +1601,17 @@
     "description": "Gestire in modo standardizzato gli allarmi generati sul servizio pn-external-channel tramite analisi dei log applicativi.",
     "team": "GO",
     "kind": "SERVICE",
-    "categories": ["DELIVERY"],
-    "tags": ["pn-external-channel", "service", "workday"],
-    "alarmNames": ["workday-pn-external-channel-alb-alarm"],
-    "definitionDigest": "sha256-5a6f843bd04e603be5695c8d2287166572f1a7ca9b7faa5fae4268e5b86ea068"
+    "categories": [
+      "DELIVERY"
+    ],
+    "tags": [
+      "pn-external-channel",
+      "service",
+      "workday"
+    ],
+    "alarmNames": [
+      "workday-pn-external-channel-alb-alarm"
+    ],
+    "definitionDigest": "sha256-128d4b5502c32a902f70cd644bbf64ce768c542a235e986081d443d00fdb37f9"
   }
 ]

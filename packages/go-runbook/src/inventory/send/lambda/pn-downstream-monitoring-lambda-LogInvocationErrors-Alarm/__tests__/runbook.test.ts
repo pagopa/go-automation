@@ -80,6 +80,7 @@ describe('pn-downstream-monitoring-lambda runbook', () => {
     );
     assert.deepStrictEqual(runbook.runbookContext, {
       kind: 'lambda',
+      product: 'SEND',
       lambda: {
         name: 'pn-downstream-monitoring-lambda',
         logGroup: '/aws/lambda/pn-downstream-monitoring-lambda',

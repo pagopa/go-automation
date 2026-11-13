@@ -7,18 +7,13 @@ import {
   createTimeRangeReference,
   toAwsAccountsConfig,
 } from '@pagopa/go-runbook/runtime';
-import { apigw } from '@pagopa/go-runbook/toolkits/send';
-import {
-  OperationalRunbookEngine,
-  lambda,
-  service,
-  type AwsExecutionEnvironment,
-} from '@pagopa/go-runbook/toolkits/common';
-import type { Runbook, RunbookExecutionResult } from '@pagopa/go-runbook';
+import { OperationalRunbookEngine, type AwsExecutionEnvironment } from '@pagopa/go-runbook/toolkits/common';
+import type { RunbookExecutionResult } from '@pagopa/go-runbook';
 
 import type { AnalyzableAlarmConfig } from '../types/AnalyzableAlarmConfig.js';
 import { saveExecutionTrace } from './saveExecutionTrace.js';
 import { saveExecutionOutput } from './saveExecutionOutput.js';
+import { renderFinalSummary } from './renderFinalSummary.js';
 import { ConsoleRunbookReporter } from '@pagopa/go-runbook';
 
 export interface AnalyzeOccurrenceInput {
@@ -86,38 +81,11 @@ export async function analyzeOccurrence(
 
   const result = await engine.execute(runbook, params, services, environment);
 
-  renderFinalSummary(script, runbook, result);
+  renderFinalSummary(script.logger, runbook, result);
   renderRunbookResult(script, result);
 
   const traceFile = await saveExecutionTrace(script, result, config.alarmName, input.outputSuffix);
   await saveExecutionOutput(script, runbook, result, traceFile, input.outputSuffix);
-}
-
-function renderFinalSummary(script: GOScript, runbook: Runbook, result: RunbookExecutionResult): void {
-  const finalSummaryInput = {
-    logger: script.logger,
-    status: result.status,
-    matchedCaseIds: result.matchedCases.map((c) => c.id),
-    vars: result.finalContext.vars,
-    ...(result.trace.execution.failureReason !== undefined
-      ? { failureReason: result.trace.execution.failureReason }
-      : {}),
-  };
-
-  if (lambda.isLambdaRunbookContext(runbook.runbookContext)) {
-    lambda.renderLambdaFinalSummary(finalSummaryInput);
-    return;
-  }
-
-  if (apigw.isApiGwRunbookContext(runbook.runbookContext)) {
-    apigw.renderApiGwFinalSummary(finalSummaryInput);
-    return;
-  }
-
-  if (service.isServiceRunbookContext(runbook.runbookContext)) {
-    script.logger.section('Service Runbook Summary');
-    script.logger.info(`Service: ${runbook.runbookContext.service.name}`);
-  }
 }
 
 function renderRunbookResult(script: GOScript, result: RunbookExecutionResult): void {

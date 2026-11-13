@@ -98,7 +98,7 @@ export function createServiceAlarmRunbook(config: ServiceAlarmConfig): Runbook {
   return finishAlarmRunbook(builder, config, {
     builderName: 'createServiceAlarmRunbook',
     defaultFallback: () => defaultServiceUnknownCaseFallback(service),
-    runbookContext: { kind: 'service', service, queryProfileId: profile.id },
+    runbookContext: { kind: 'service', product: config.product, service, queryProfileId: profile.id },
     primaryResource: service.name,
     anchors: { hooks: config.hooks ?? [], reached: reachedAnchors, pipelineName: 'service' },
   });

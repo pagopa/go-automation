@@ -30,6 +30,7 @@ export function resolveLambdaAlarmBuildContext(config: LambdaAlarmConfig): Lambd
   const downstreams = config.downstreams ?? [];
   const runbookContext: LambdaRunbookContext = {
     kind: 'lambda',
+    product: config.product,
     lambda: config.lambda,
     downstreams,
     queryProfileId: profile.id,

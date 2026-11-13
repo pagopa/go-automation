@@ -1,3 +1,4 @@
+import type { RunbookProduct } from '../../../registration/RunbookProduct.js';
 import type { CaseAction } from '../../../../../engine/types/CaseAction.js';
 import type { KnownCase } from '../../../../../engine/types/KnownCase.js';
 import type { OccurrenceTimeWindow } from '../../../time/occurrence/OccurrenceTimeWindow.js';
@@ -42,6 +43,8 @@ export interface ServiceAlarmConfig {
   readonly fallbackAction?: CaseAction;
   /** Profilo query/schema (i wrapper di prodotto passano il proprio, es. SEND_SERVICE_PROFILE). */
   readonly queryProfile: ServiceLogQueryProfile;
+  /** Product whose pipeline builds the runbook; set by the product wrapper (EVO-RBREORG-OPUS-01 P19). */
+  readonly product: RunbookProduct;
   /** Limite iterazioni anti-loop opzionale forwarded all'engine. */
   readonly maxIterations?: number;
 }

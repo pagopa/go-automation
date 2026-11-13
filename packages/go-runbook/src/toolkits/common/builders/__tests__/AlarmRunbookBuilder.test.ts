@@ -81,7 +81,12 @@ describe('AlarmRunbookBuilder', () => {
       })
       .analysisDefaults({ runbookName: 'Test' })
       .cloudExecutionPolicy({ sideEffects: 'NONE' })
-      .runbookContext({ kind: 'service', service: { name: 's', logGroup: '/l', varPrefix: 's' }, queryProfileId: 'p' })
+      .runbookContext({
+        kind: 'service',
+        product: 'SEND',
+        service: { name: 's', logGroup: '/l', varPrefix: 's' },
+        queryProfileId: 'p',
+      })
       .occurrenceTimeWindow({ beforeMinutes: 1, afterMinutes: 2 })
       .step(step, {
         silent: true,

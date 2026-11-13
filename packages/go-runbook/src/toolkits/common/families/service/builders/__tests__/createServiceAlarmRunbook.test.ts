@@ -29,6 +29,7 @@ function baseConfig(overrides: Partial<ServiceAlarmConfig> = {}): ServiceAlarmCo
       tags: ['service'],
     },
     queryProfile: SEND_SERVICE_PROFILE,
+    product: 'SEND',
     service: {
       name: 'pn-service',
       logGroup: '/aws/ecs/pn-service',

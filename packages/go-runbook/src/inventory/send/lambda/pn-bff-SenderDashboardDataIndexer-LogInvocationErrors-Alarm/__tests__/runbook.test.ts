@@ -21,6 +21,7 @@ describe('SenderDashboardDataIndexer runbook', () => {
     assert.ok(context !== undefined && typeof context === 'object');
     assert.deepStrictEqual(context, {
       kind: 'lambda',
+      product: 'SEND',
       lambda: {
         name: 'pn-bff-SenderDashboardDataIndexer',
         logGroup: '/aws/lambda/pn-bff-SenderDashboardDataIndexer',

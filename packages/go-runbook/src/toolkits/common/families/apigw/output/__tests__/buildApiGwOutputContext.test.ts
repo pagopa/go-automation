@@ -32,6 +32,7 @@ function createRunbook(withContext: boolean = true): Runbook {
       ? {
           runbookContext: {
             kind: 'apigw',
+            product: 'SEND',
             apiGwLogGroup: 'access-log-group',
             queryProfileId: 'send',
             services: [{ name: 'pn-delivery', varPrefix: 'delivery', logGroup: '/aws/ecs/pn-delivery' }],

@@ -24,6 +24,7 @@ describe('pn-delayer sender limit job runbook', () => {
     assert.deepStrictEqual(runbook.cloudExecutionPolicy, { sideEffects: 'NONE' });
     assert.deepStrictEqual(runbook.runbookContext, {
       kind: 'service',
+      product: 'SEND',
       service: SERVICE,
       queryProfileId: 'send-service',
     });

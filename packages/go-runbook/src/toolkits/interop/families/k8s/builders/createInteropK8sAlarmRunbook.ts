@@ -1,3 +1,4 @@
+import { RunbookProducts } from '../../../../common/registration/RunbookProduct.js';
 import { AlarmRunbookBuilder } from '../../../../common/builders/AlarmRunbookBuilder.js';
 import { finishAlarmRunbook } from '../../../../common/builders/finishAlarmRunbook.js';
 import { applyPipelineHooks } from '../../../../../engine/builders/applyPipelineHooks.js';
@@ -87,6 +88,7 @@ export function createInteropK8sAlarmRunbook(config: InteropK8sAlarmConfig): Run
     defaultFallback: () => defaultInteropK8sUnknownCaseFallback(service),
     runbookContext: {
       kind: 'service',
+      product: RunbookProducts.INTEROP,
       service: { name: service.name, logGroup: service.logGroup, varPrefix: service.varPrefix },
       queryProfileId: profile.id,
     },

@@ -1,3 +1,4 @@
+import { RunbookProducts } from '../../../../common/registration/RunbookProduct.js';
 import type { PipelineHook } from '../../../../../engine/types/PipelineHook.js';
 import type { ApiGwPipelineAnchor } from '../types/ApiGwPipelineAnchor.js';
 import type { ApiGwRunbookContext } from '../../../../common/families/apigw/output/ApiGwRunbookContext.js';
@@ -66,6 +67,7 @@ export function resolveApiGwAlarmBuildContext(config: ApiGwAlarmConfig): ApiGwAl
     executionLogEnabled: isExecutionLogEnabled(config, profile),
     runbookContext: {
       kind: 'apigw',
+      product: RunbookProducts.SEND,
       services: allServices,
       apiGwLogGroup: config.apiGwLogGroup,
       queryProfileId: profile.id,

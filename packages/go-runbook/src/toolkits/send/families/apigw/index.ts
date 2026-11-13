@@ -19,6 +19,8 @@
 
 export * from '../../../common/families/apigw/index.js';
 export { createSendApiGwAlarmRunbook } from './builders/createSendApiGwAlarmRunbook.js';
+export { isSendApiGwRunbookContext } from './output/SendApiGwRunbookContext.js';
+export type { SendApiGwRunbookContext } from './output/SendApiGwRunbookContext.js';
 export { isExecutionLogEnabled, getEffectiveExecutionLogGroup } from './builders/executionLogEnablement.js';
 export { API_GW_AUTHORIZER_LAMBDAS } from './authorizers/ApiGwAuthorizerLambdaRegistry.js';
 export type { ApiGwAuthorizerLambdaName } from './authorizers/ApiGwAuthorizerLambdaRegistry.js';

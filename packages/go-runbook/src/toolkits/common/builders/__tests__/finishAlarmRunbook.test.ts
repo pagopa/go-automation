@@ -69,6 +69,7 @@ describe('finishAlarmRunbook known-case step refs', () => {
           service: { name: 'pn-foo', logGroup: '/aws/ecs/probe', varPrefix: 'foo' },
           knownCases: [caseOn('query-pn-bar')],
           queryProfile: SEND_SERVICE_PROFILE,
+          product: 'SEND',
         }),
       /references step "query-pn-bar" which is not wired/u,
     );

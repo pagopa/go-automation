@@ -39,3 +39,5 @@ export type { InteropApiGwRunbookStepIds } from './types/InteropApiGwRunbookStep
 export type { InteropApiGwPipelineAnchor } from './types/InteropApiGwPipelineAnchor.js';
 export type { InteropApiGwAccessLogConfig } from './types/InteropApiGwAccessLogConfig.js';
 export type { InteropApiGwApplicationLogConfig } from './types/InteropApiGwApplicationLogConfig.js';
+export { isInteropApiGwRunbookContext } from './output/InteropApiGwRunbookContext.js';
+export type { InteropApiGwRunbookContext } from './output/InteropApiGwRunbookContext.js';

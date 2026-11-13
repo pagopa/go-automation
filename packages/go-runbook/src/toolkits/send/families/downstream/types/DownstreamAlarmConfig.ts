@@ -8,7 +8,7 @@ import type { DownstreamSelector } from './DownstreamSelector.js';
  * The same shape as a service alarm, minus the query overrides: the query is
  * this toolkit's business, derived from {@link DownstreamAlarmConfig.downstream}.
  */
-export interface DownstreamAlarmConfig extends Omit<ServiceAlarmConfig, 'service' | 'queryProfile'> {
+export interface DownstreamAlarmConfig extends Omit<ServiceAlarmConfig, 'service' | 'queryProfile' | 'product'> {
   /** Service whose application logs carry the downstream markers. */
   readonly service: Omit<ServiceDescriptor, 'queryOverride'>;
   /** Which downstream failures to look for. */

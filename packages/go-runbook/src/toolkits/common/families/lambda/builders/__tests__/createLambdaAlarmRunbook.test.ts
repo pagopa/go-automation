@@ -13,6 +13,7 @@ function baseConfig(overrides: Partial<LambdaAlarmConfig> = {}): LambdaAlarmConf
     lambda: { name: 'pn-fooLambda', logGroup: '/aws/lambda/pn-fooLambda', varPrefix: 'foo' },
     knownCases: [],
     queryProfile: DEFAULT_LAMBDA_PROFILE,
+    product: 'SEND',
     ...overrides,
   };
 }

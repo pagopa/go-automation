@@ -36,6 +36,7 @@ describe('buildLambdaOutputContext', () => {
       lambda: { name: 'pn-fooLambda', logGroup: '/aws/lambda/pn-fooLambda', varPrefix: 'foo', eventSource: 'sqs' },
       knownCases: [],
       queryProfile: DEFAULT_LAMBDA_PROFILE,
+      product: 'SEND',
     });
 
     const vars = new Map<string, string>([
@@ -79,6 +80,7 @@ describe('buildLambdaOutputContext', () => {
       },
       knownCases: [],
       queryProfile: DEFAULT_LAMBDA_PROFILE,
+      product: 'SEND',
     });
 
     const ctx = buildLambdaOutputContext(

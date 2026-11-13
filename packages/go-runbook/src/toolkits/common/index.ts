@@ -117,6 +117,7 @@ export { RunbookKinds } from './registration/RunbookKind.js';
 export type { RunbookKind } from './registration/RunbookKind.js';
 export { RunbookProducts } from './registration/RunbookProduct.js';
 export type { RunbookProduct } from './registration/RunbookProduct.js';
+export { isRunbookProduct } from './registration/isRunbookProduct.js';
 
 // Families
 export * as apigw from './families/apigw/index.js';

@@ -1,3 +1,4 @@
+import { RunbookProducts } from '../../../../common/registration/RunbookProduct.js';
 import { AlarmRunbookBuilder } from '../../../../common/builders/AlarmRunbookBuilder.js';
 import { finishAlarmRunbook } from '../../../../common/builders/finishAlarmRunbook.js';
 import { applyPipelineHooks } from '../../../../../engine/builders/applyPipelineHooks.js';
@@ -151,6 +152,7 @@ export function createInteropApiGwAlarmRunbook(config: InteropApiGwAlarmConfig):
     defaultFallback: () => defaultInteropApiGwUnknownCaseFallback(config),
     runbookContext: {
       kind: 'apigw',
+      product: RunbookProducts.INTEROP,
       apiGwLogGroup: apiGw.logGroupTemplate,
       queryProfileId: apiGw.profileId,
       services: [

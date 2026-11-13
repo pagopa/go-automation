@@ -7,6 +7,7 @@ import {
   UNKNOWN_CASE_TITLE,
   unknownCaseFallback,
   AlarmRunbookBuilder,
+  RunbookProducts,
 } from '../../../../toolkits/interop/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 import {
@@ -62,6 +63,7 @@ export function buildRunbook(): Runbook {
     .step(new AnalyzeAttEservicesAccessStep())
     .runbookContext({
       kind: 'apigw',
+      product: RunbookProducts.INTEROP,
       services: [],
       apiGwLogGroup: API_GW_LOG_GROUP,
       queryProfileId: 'interop-att-eservices-4xx',

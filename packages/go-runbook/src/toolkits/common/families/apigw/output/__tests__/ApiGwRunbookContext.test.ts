@@ -8,6 +8,7 @@ describe('isApiGwRunbookContext', () => {
     assert.strictEqual(
       isApiGwRunbookContext({
         kind: 'apigw',
+        product: 'SEND',
         apiGwLogGroup: 'access-log-group',
         queryProfileId: 'send',
         services: [{ name: 'pn-delivery', varPrefix: 'delivery', logGroup: '/aws/ecs/pn-delivery' }],
@@ -20,6 +21,7 @@ describe('isApiGwRunbookContext', () => {
     assert.strictEqual(
       isApiGwRunbookContext({
         kind: 'apigw',
+        product: 'SEND',
         queryProfileId: 'send',
         services: [{ name: 'pn-delivery', varPrefix: 'delivery', logGroup: '/aws/ecs/pn-delivery' }],
       }),
@@ -28,6 +30,7 @@ describe('isApiGwRunbookContext', () => {
     assert.strictEqual(
       isApiGwRunbookContext({
         kind: 'apigw',
+        product: 'SEND',
         apiGwLogGroup: 'access-log-group',
         queryProfileId: ' ',
         services: [{ name: 'pn-delivery', varPrefix: 'delivery', logGroup: '/aws/ecs/pn-delivery' }],
@@ -40,6 +43,7 @@ describe('isApiGwRunbookContext', () => {
     assert.strictEqual(
       isApiGwRunbookContext({
         kind: 'apigw',
+        product: 'SEND',
         apiGwLogGroup: 'access-log-group',
         queryProfileId: 'send',
         services: [{ name: 'pn-delivery', varPrefix: 'delivery' }],
@@ -49,11 +53,24 @@ describe('isApiGwRunbookContext', () => {
     assert.strictEqual(
       isApiGwRunbookContext({
         kind: 'apigw',
+        product: 'SEND',
         apiGwLogGroup: 'access-log-group',
         queryProfileId: 'send',
         services: [{ name: 'pn-delivery', varPrefix: '', logGroup: '/aws/ecs/pn-delivery' }],
       }),
       false,
     );
+  });
+
+  it('requires a known product (EVO-RBREORG-OPUS-01 P19)', () => {
+    const context = {
+      kind: 'apigw',
+      apiGwLogGroup: 'access-log-group',
+      queryProfileId: 'send',
+      services: [{ name: 'pn-delivery', varPrefix: 'delivery', logGroup: '/aws/ecs/pn-delivery' }],
+    };
+    assert.strictEqual(isApiGwRunbookContext(context), false);
+    assert.strictEqual(isApiGwRunbookContext({ ...context, product: 'OTHER' }), false);
+    assert.strictEqual(isApiGwRunbookContext({ ...context, product: 'INTEROP' }), true);
   });
 });
