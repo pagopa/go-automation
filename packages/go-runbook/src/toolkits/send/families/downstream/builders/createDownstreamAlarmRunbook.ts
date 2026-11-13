@@ -2,6 +2,7 @@ import type { Runbook } from '../../../../../engine/types/Runbook.js';
 import { createSendServiceAlarmRunbook } from '../../service/builders/createSendServiceAlarmRunbook.js';
 import { buildDownstreamDetectionQuery } from '../queries/buildDownstreamDetectionQuery.js';
 import type { DownstreamAlarmConfig } from '../types/DownstreamAlarmConfig.js';
+import type { DownstreamScanShape } from '../types/DownstreamScanShape.js';
 import type { DownstreamSelector } from '../types/DownstreamSelector.js';
 
 /**
@@ -36,10 +37,48 @@ export function createDownstreamAlarmRunbook(config: DownstreamAlarmConfig): Run
   });
 }
 
+/**
+ * Rows a downstream scan may ask for. The service runbook reads one Logs Insights result page
+ * (no pagination), so a larger limit would silently drop the rows of the later pages.
+ */
+const MAX_SCAN_ROWS = 10_000;
+
+/** Options that only an exact (`named`) selector can carry. */
+const NAMED_ONLY_OPTIONS: ReadonlyArray<string> = [
+  'name',
+  'emittedAs',
+  'excludedStatusCodes',
+  'errorLevelOnly',
+  'matchStructuredMessage',
+  'markerField',
+];
+
+/** Row limit and projection of the scan, only when the selector declares them (defaults unchanged). */
+function scanShape(downstream: DownstreamSelector): DownstreamScanShape {
+  if (downstream.resultLimit !== undefined && downstream.resultLimit > MAX_SCAN_ROWS) {
+    throw new Error(
+      `createDownstreamAlarmRunbook: resultLimit ${String(downstream.resultLimit)} exceeds ${String(MAX_SCAN_ROWS)}, ` +
+        'the rows of one Logs Insights result page: the service scan does not paginate.',
+    );
+  }
+  return {
+    ...(downstream.resultLimit === undefined ? {} : { resultLimit: downstream.resultLimit }),
+    ...(downstream.projection === undefined ? {} : { projection: downstream.projection }),
+  };
+}
+
 function downstreamQuery(downstream: DownstreamSelector): string {
   switch (downstream.kind) {
-    case 'any':
-      return buildDownstreamDetectionQuery({ matchAnyService: true });
+    case 'any': {
+      // A selector built dynamically can carry exact-marker options the type forbids:
+      // dropping them silently would scan something other than what was declared.
+      const declared = downstream as Readonly<Record<string, unknown>>;
+      const misplaced = NAMED_ONLY_OPTIONS.filter((option) => declared[option] !== undefined);
+      if (misplaced.length > 0) {
+        throw new Error(`createDownstreamAlarmRunbook: ${misplaced.join(', ')} require a 'named' downstream selector.`);
+      }
+      return buildDownstreamDetectionQuery({ matchAnyService: true, ...scanShape(downstream) });
+    }
     case 'named':
       // `emittedAs` wins for the query: the log only ever contains what the
       // application writes, while the census name is what the analysis reports.
@@ -52,6 +91,8 @@ function downstreamQuery(downstream: DownstreamSelector): string {
         ...(downstream.matchStructuredMessage === undefined
           ? {}
           : { matchStructuredMessage: downstream.matchStructuredMessage }),
+        ...(downstream.markerField === undefined ? {} : { markerField: downstream.markerField }),
+        ...scanShape(downstream),
       });
     default: {
       // A third case added to the type breaks here, not at runtime.

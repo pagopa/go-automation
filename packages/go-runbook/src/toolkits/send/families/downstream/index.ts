@@ -10,3 +10,4 @@
 export { createDownstreamAlarmRunbook } from './builders/createDownstreamAlarmRunbook.js';
 export type { DownstreamAlarmConfig } from './types/DownstreamAlarmConfig.js';
 export type { DownstreamSelector } from './types/DownstreamSelector.js';
+export type { DownstreamMarkerField } from './types/DownstreamMarkerField.js';

@@ -1,4 +1,5 @@
 import type { SendDownstream } from '../../../analysis/SEND_DOWNSTREAMS.js';
+import type { DownstreamMarkerField } from './DownstreamMarkerField.js';
 
 /**
  * Which downstream failures the runbook looks for in the service logs.
@@ -19,6 +20,18 @@ export type DownstreamSelector =
        * narrowing to one name would drop occurrences the alarm counted.
        */
       readonly kind: 'any';
+      // Options of an exact marker, which this variant never builds: declared `never` so that
+      // passing one is a compile error, and rejected at runtime for selectors built dynamically.
+      readonly name?: never;
+      readonly emittedAs?: never;
+      readonly excludedStatusCodes?: never;
+      readonly errorLevelOnly?: never;
+      readonly matchStructuredMessage?: never;
+      readonly markerField?: never;
+      /** Row limit of the scan; default 1000, at most 10,000 (one result page). */
+      readonly resultLimit?: number;
+      /** Fields the scan selects; default `@timestamp, level, trace_id, message, @message`. */
+      readonly projection?: ReadonlyArray<string>;
     }
   | {
       readonly kind: 'named';
@@ -39,4 +52,16 @@ export type DownstreamSelector =
        * raw event. For alarms whose metric filter reads that field.
        */
       readonly matchStructuredMessage?: boolean;
+      /**
+       * Field searched for the marker: the raw `@message` (default) or **only** the structured
+       * `message`, with no raw predicate. Not combinable with {@link matchStructuredMessage}.
+       */
+      readonly markerField?: DownstreamMarkerField;
+      /** Row limit of the scan; default 1000, at most 10,000 (one result page). */
+      readonly resultLimit?: number;
+      /**
+       * Fields the scan selects; default `@timestamp, level, trace_id, message, @message`.
+       * Leave out `@message` when raw events are too large to return.
+       */
+      readonly projection?: ReadonlyArray<string>;
     };

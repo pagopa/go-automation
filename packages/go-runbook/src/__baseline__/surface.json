@@ -878,6 +878,7 @@
     "createTestServiceRegistry (value)",
     "downstream (namespace)",
     "downstream.DownstreamAlarmConfig (type)",
+    "downstream.DownstreamMarkerField (type)",
     "downstream.DownstreamSelector (type)",
     "downstream.createDownstreamAlarmRunbook (value)",
     "executeCloudWatchLogsQuery (value)",

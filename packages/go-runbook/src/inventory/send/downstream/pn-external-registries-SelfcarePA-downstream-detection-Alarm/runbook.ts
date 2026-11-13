@@ -2,10 +2,10 @@
  * Runbook: pn-external-registries-SelfcarePA-downstream-detection-Alarm
  */
 
-import { service } from '../../../../toolkits/send/index.js';
+import { downstream } from '../../../../toolkits/send/index.js';
 import type { Runbook } from '../../../../engine/index.js';
 
-import { SERVICE } from './knownServices.js';
+import { DOWNSTREAM, SERVICE } from './knownServices.js';
 import { KNOWN_CASES } from './knownCases.js';
 
 /**
@@ -14,7 +14,7 @@ import { KNOWN_CASES } from './knownCases.js';
  * @returns A validated {@link Runbook} ready for execution
  */
 export function buildRunbook(): Runbook {
-  return service.createSendServiceAlarmRunbook({
+  return downstream.createDownstreamAlarmRunbook({
     id: 'pn-external-registries-SelfcarePA-downstream-detection-Alarm',
     metadata: {
       name: 'pn-external-registries-SelfcarePA-downstream-detection-Alarm',
@@ -25,6 +25,7 @@ export function buildRunbook(): Runbook {
       tags: ['service', 'pn-external-registries', 'downstream', 'SelfcarePA'],
     },
     service: SERVICE,
+    downstream: DOWNSTREAM,
     knownCases: KNOWN_CASES,
     // The latest observed errors begin over 34 minutes before the event.
     occurrenceTimeWindow: { beforeMinutes: 40, afterMinutes: 5 },

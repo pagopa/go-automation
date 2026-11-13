@@ -1,5 +1,11 @@
+import type { DownstreamMarkerField } from '../types/DownstreamMarkerField.js';
+
 const DEFAULT_RESULT_LIMIT = 1000;
 const MAX_RESULT_LIMIT = 100_000;
+/** Fields selected when the caller declares no projection: the SEND service schema. */
+const DEFAULT_PROJECTION: ReadonlyArray<string> = ['@timestamp', 'level', 'trace_id', 'message', '@message'];
+/** A Logs Insights field name: optional `@`, then an identifier, dotted paths allowed. */
+const FIELD_NAME = /^@?[A-Za-z_][A-Za-z0-9_.]*$/u;
 
 /** Options for the canonical SEND downstream-detection query. */
 export type DownstreamDetectionQueryOptions = DownstreamDetectionQueryCommonOptions &
@@ -21,6 +27,17 @@ export type DownstreamDetectionQueryOptions = DownstreamDetectionQueryCommonOpti
          * raised.
          */
         readonly matchStructuredMessage?: boolean;
+        /**
+         * Field that carries the marker (EVO-RBREORG-OPUS-01 R4, RBREORG-25):
+         * - `'@message'` (default): the raw event, as every downstream query does today;
+         * - `'message'`: **only** the structured field, with no raw `@message` predicate. For
+         *   payloads too large to scan raw, and so a marker quoted in a raw stack trace never
+         *   counts. The exclusions read the same field.
+         *
+         * Not combinable with `matchStructuredMessage`, which adds the structured predicate
+         * to the raw one instead of replacing it.
+         */
+        readonly markerField?: DownstreamMarkerField;
       }
     | {
         /** Match the generic metric-filter contract when the alarm covers every emitted service name. */
@@ -34,6 +51,7 @@ export type DownstreamDetectionQueryOptions = DownstreamDetectionQueryCommonOpti
         // too, for options assembled dynamically.
         readonly excludedStatusCodes?: never;
         readonly matchStructuredMessage?: never;
+        readonly markerField?: never;
       }
   );
 
@@ -49,6 +67,11 @@ interface DownstreamDetectionQueryCommonOptions {
   readonly errorLevelOnly?: boolean;
   /** Maximum number of chronologically ordered rows returned by Logs Insights. */
   readonly resultLimit?: number;
+  /**
+   * Fields the query selects, in order; default `@timestamp, level, trace_id, message, @message`.
+   * Leaving out `@message` keeps very large raw events out of the result.
+   */
+  readonly projection?: ReadonlyArray<string>;
 }
 
 /**
@@ -69,6 +92,7 @@ export function buildDownstreamDetectionQuery(options: DownstreamDetectionQueryO
     );
   }
 
+  const projection = validProjection(options.projection ?? DEFAULT_PROJECTION);
   const excludedStatusCodes = [...new Set(options.excludedStatusCodes ?? [])].sort((left, right) => left - right);
   for (const statusCode of excludedStatusCodes) {
     if (!Number.isInteger(statusCode) || statusCode < 100 || statusCode > 599) {
@@ -91,6 +115,9 @@ export function buildDownstreamDetectionQuery(options: DownstreamDetectionQueryO
     if (options.matchStructuredMessage !== undefined) {
       throw new Error('buildDownstreamDetectionQuery: matchStructuredMessage requires an exact downstreamName.');
     }
+    if (options.markerField !== undefined) {
+      throw new Error('buildDownstreamDetectionQuery: markerField requires an exact downstreamName.');
+    }
     filters = [
       "level = 'ERROR'",
       `@message like ${quoteLogsInsightsString('[DOWNSTREAM]')}`,
@@ -111,8 +138,15 @@ export function buildDownstreamDetectionQuery(options: DownstreamDetectionQueryO
     // `@message not like '…errors=404'` if the raw event happened to quote a
     // 404 elsewhere, in a stack trace or a retry it embeds — suppressing an
     // occurrence the alarm counted.
-    const exclusionField = options.matchStructuredMessage === true ? 'message' : '@message';
-    filters = exactServiceFilters(downstreamName, excludedStatusCodes, exclusionField);
+    const markerField = validMarkerField(options.markerField);
+    if (markerField === 'message' && options.matchStructuredMessage !== undefined) {
+      throw new Error(
+        "buildDownstreamDetectionQuery: markerField 'message' already reads only the structured field; drop matchStructuredMessage.",
+      );
+    }
+    const exclusionField =
+      markerField === 'message' || options.matchStructuredMessage === true ? 'message' : '@message';
+    filters = exactServiceFilters(downstreamName, excludedStatusCodes, markerField, exclusionField);
     if (options.matchStructuredMessage === true) {
       filters = [`message like ${quoteLogsInsightsString(downstreamMarker(downstreamName))}`, ...filters];
     }
@@ -121,29 +155,47 @@ export function buildDownstreamDetectionQuery(options: DownstreamDetectionQueryO
 
   return [
     `filter ${filters.join('\n    and ')}`,
-    '| fields @timestamp, level, trace_id, message, @message',
+    `| fields ${projection.join(', ')}`,
     '| sort @timestamp asc',
     `| limit ${String(resultLimit)}`,
   ].join('\n');
 }
 
 /**
- * The raw event always carries the marker, so the inclusion stays on
- * `@message`. The exclusions take the field the caller is counting on, which
- * `exclusionField` names.
+ * The inclusion reads `markerField` (by default the raw event, which always carries the
+ * marker). The exclusions take the field the caller is counting on, which `exclusionField` names.
  */
 function exactServiceFilters(
   downstreamName: string,
   excludedStatusCodes: ReadonlyArray<number>,
+  markerField: DownstreamMarkerField,
   exclusionField: string,
 ): ReadonlyArray<string> {
   const marker = downstreamMarker(downstreamName);
   return [
-    `@message like ${quoteLogsInsightsString(marker)}`,
+    `${markerField} like ${quoteLogsInsightsString(marker)}`,
     ...excludedStatusCodes.map(
       (statusCode) => `${exclusionField} not like ${quoteLogsInsightsString(`${marker}${String(statusCode)}`)}`,
     ),
   ];
+}
+
+/** The marker field, validated also for options assembled at runtime. */
+function validMarkerField(value: unknown): DownstreamMarkerField {
+  if (value === undefined || value === '@message') return '@message';
+  if (value === 'message') return 'message';
+  throw new Error("buildDownstreamDetectionQuery: markerField must be '@message' or 'message'.");
+}
+
+/** A non-empty list of distinct Logs Insights field names. */
+function validProjection(projection: ReadonlyArray<string>): ReadonlyArray<string> {
+  if (projection.length === 0) {
+    throw new Error('buildDownstreamDetectionQuery: projection must select at least one field.');
+  }
+  if (new Set(projection).size !== projection.length || !projection.every((field) => FIELD_NAME.test(field))) {
+    throw new Error('buildDownstreamDetectionQuery: projection must list distinct Logs Insights field names.');
+  }
+  return projection;
 }
 
 /** The exact text the application writes before the failing status or error. */

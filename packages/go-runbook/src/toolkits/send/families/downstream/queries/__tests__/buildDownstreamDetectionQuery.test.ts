@@ -99,3 +99,79 @@ describe('buildDownstreamDetectionQuery', () => {
     assert.throws(() => untyped({ matchAnyService: true, matchStructuredMessage: false }), /exact downstreamName/);
   });
 });
+
+describe('buildDownstreamDetectionQuery — declarative scan options (EVO-RBREORG-OPUS-01 R4, RBREORG-25)', () => {
+  // Options assembled at runtime, outside the type: the guards must still reject them.
+  const untyped = (options: Record<string, unknown>): string =>
+    buildDownstreamDetectionQuery(options as unknown as DownstreamDetectionQueryOptions);
+
+  it('searches the marker only in the structured message, with no raw @message anywhere', () => {
+    const query = buildDownstreamDetectionQuery({
+      downstreamName: 'SelfcarePA',
+      markerField: 'message',
+      errorLevelOnly: true,
+      projection: ['@timestamp', 'level', 'trace_id', 'message'],
+      resultLimit: 10_000,
+    });
+    assert.strictEqual(
+      query,
+      `filter level = 'ERROR'
+    and message like '[DOWNSTREAM] Service SelfcarePA returned errors='
+| fields @timestamp, level, trace_id, message
+| sort @timestamp asc
+| limit 10000`,
+    );
+    assert.doesNotMatch(query, /@message/u);
+  });
+
+  it('applies the exclusions to the structured field the marker is read from', () => {
+    const query = buildDownstreamDetectionQuery({
+      downstreamName: 'IPA',
+      markerField: 'message',
+      excludedStatusCodes: [404],
+      projection: ['@timestamp', 'message'],
+    });
+    assert.match(query, /^filter message like '\[DOWNSTREAM\] Service IPA returned errors='$/mu);
+    assert.match(query, /and message not like '\[DOWNSTREAM\] Service IPA returned errors=404'/u);
+    assert.doesNotMatch(query, /@message/u);
+  });
+
+  it('keeps today’s query when no option is declared', () => {
+    assert.strictEqual(
+      buildDownstreamDetectionQuery({ downstreamName: 'IPA', markerField: '@message' }),
+      buildDownstreamDetectionQuery({ downstreamName: 'IPA' }),
+    );
+    assert.match(
+      buildDownstreamDetectionQuery({ downstreamName: 'IPA' }),
+      /\| fields @timestamp, level, trace_id, message, @message\n/u,
+    );
+  });
+
+  it('rejects inconsistent or malformed scan options', () => {
+    assert.throws(
+      () =>
+        buildDownstreamDetectionQuery({ downstreamName: 'IO', markerField: 'message', matchStructuredMessage: true }),
+      /drop matchStructuredMessage/u,
+    );
+    assert.throws(
+      () => untyped({ matchAnyService: true, markerField: 'message' }),
+      /markerField requires an exact downstreamName/u,
+    );
+    assert.throws(() => untyped({ downstreamName: 'IO', markerField: 'raw' }), /markerField must be/u);
+    assert.throws(() => buildDownstreamDetectionQuery({ downstreamName: 'IO', projection: [] }), /at least one field/u);
+    assert.throws(
+      () => buildDownstreamDetectionQuery({ downstreamName: 'IO', projection: ['message', 'message'] }),
+      /distinct Logs Insights field names/u,
+    );
+    assert.throws(
+      () => buildDownstreamDetectionQuery({ downstreamName: 'IO', projection: ['message | limit 1'] }),
+      /distinct Logs Insights field names/u,
+    );
+  });
+
+  it('applies row limit and projection to the any-service variant too', () => {
+    const query = buildDownstreamDetectionQuery({ matchAnyService: true, resultLimit: 50, projection: ['message'] });
+    assert.match(query, /\| fields message\n/u);
+    assert.match(query, /\| limit 50$/u);
+  });
+});
