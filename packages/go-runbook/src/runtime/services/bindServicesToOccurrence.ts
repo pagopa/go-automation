@@ -13,7 +13,9 @@ import type { BindServicesToOccurrenceOptions } from './BindServicesToOccurrence
  * - in `configured-profiles` mode, keeps the configured profiles
  *   (`forExecution`);
  * - in both modes, ties CloudWatch Logs and Athena to the occurrence's
- *   `activeOperations`, so that stopping it cancels the queries still running.
+ *   `activeOperations`, so that stopping it cancels the queries still running;
+ * - binds the account port, when present, to the occurrence account and region
+ *   (EVO-AWSACCT-OPUS-01 §6.2).
  *
  * The input registry is not modified.
  *
@@ -50,5 +52,8 @@ export function bindServicesToOccurrence(
     ...registry,
     cloudWatchLogs,
     athena: registry.athena.forExecution(activeOperations),
+    ...(registry.awsAccounts === undefined
+      ? {}
+      : { awsAccounts: registry.awsAccounts.bindToOccurrence(target, activeOperations) }),
   };
 }

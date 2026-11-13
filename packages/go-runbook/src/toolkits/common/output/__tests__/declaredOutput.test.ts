@@ -4,7 +4,10 @@ import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/i
 import { GOLogger } from '@pagopa/go-common/logging';
 import { AlarmRunbookBuilder } from '../../builders/AlarmRunbookBuilder.js';
 import { RunbookEngine } from '../../../../engine/core/RunbookEngine.js';
+import { parseAwsAccountDirectory } from '@pagopa/go-aws/profiles';
+import { parseAwsLogicalAccount } from '../../accounts/parseAwsLogicalAccount.js';
 import { createTestServiceRegistry } from '../../testing/createTestServiceRegistry.js';
+import { InMemoryAwsAccountsPort } from '../../testing/InMemoryAwsAccountsPort.js';
 import type { Step } from '../../../../engine/types/Step.js';
 import type { StepEvidence } from '../StepEvidence.js';
 import { buildStepEvidence } from '../buildStepEvidence.js';
@@ -312,5 +315,42 @@ describe('declared runbook output', () => {
           .build(),
       /Invalid output field/u,
     );
+  });
+});
+
+describe('resolved AWS accounts in the output (EVO-AWSACCT-OPUS-01 §5.6)', () => {
+  async function servicesWithPreparedAccount(): Promise<ReturnType<typeof createTestServiceRegistry>> {
+    const awsAccounts = new InMemoryAwsAccountsPort({
+      directory: parseAwsAccountDirectory(['shop/core/uat=000000000201']),
+      region: 'eu-south-1',
+      environment: 'uat',
+    });
+    await awsAccounts.prepare([parseAwsLogicalAccount('shop/core')]);
+    return createTestServiceRegistry({ awsAccounts });
+  }
+
+  const resolved = [{ account: 'shop/core', environment: 'uat', accountId: '000000000201', region: 'eu-south-1' }];
+
+  it('reports the accounts the execution read, with and without a declared output', async () => {
+    for (const runbook of [
+      builder().step(step()).build(),
+      builder()
+        .output({ metadata: { service: 'worker' }, fields: [] })
+        .step(step())
+        .build(),
+    ]) {
+      const result = await new RunbookEngine(new GOLogger()).execute(
+        runbook,
+        new Map(),
+        await servicesWithPreparedAccount(),
+      );
+      assert.deepStrictEqual(buildRunbookOutput(runbook, result).context.details?.['awsAccounts'], resolved);
+    }
+  });
+
+  it('adds nothing when the execution read no logical account', async () => {
+    const runbook = builder().output({ fields: [] }).step(step()).build();
+    const result = await new RunbookEngine(new GOLogger()).execute(runbook, new Map(), createTestServiceRegistry());
+    assert.strictEqual(buildRunbookOutput(runbook, result).context.details?.['awsAccounts'], undefined);
   });
 });

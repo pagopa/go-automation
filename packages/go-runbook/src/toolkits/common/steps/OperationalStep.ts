@@ -1,4 +1,5 @@
 import type { StepResult } from '../../../engine/types/StepResult.js';
+import type { AwsAccountSelection } from '../accounts/AwsAccountSelection.js';
 import type { OperationalContext } from '../services/OperationalContext.js';
 import type { OperationalServiceName } from '../services/OperationalServiceName.js';
 
@@ -18,6 +19,17 @@ export abstract class OperationalStep<TOutput = unknown> {
    * @returns Service names, keys of the {@link ServiceRegistry}
    */
   abstract requiredServices(): ReadonlyArray<OperationalServiceName>;
+
+  /**
+   * Logical AWS accounts the step reads, checked and prepared before the first
+   * step (EVO-AWSACCT-OPUS-01 §6.3). On the prototype, so it never changes the
+   * definition digest. A step that returns selections also requires `awsAccounts`.
+   *
+   * @returns The step's account selections; none by default
+   */
+  accountSelections(): ReadonlyArray<AwsAccountSelection> {
+    return [];
+  }
 
   /**
    * Executes the step with the operational services.

@@ -1,6 +1,6 @@
-import { lambda, SEND_PRODUCTION_ACCOUNTS, SEND_PRODUCTION_REGION } from '../../../../toolkits/send/index.js';
+import type { lambda } from '../../../../toolkits/send/index.js';
 
-import { LAMBDA_FUNCTION } from './knownServices.js';
+import { LAMBDA_FUNCTION, LAMBDA_LOG_SOURCES } from './knownServices.js';
 
 /** Source q1, with the additional runtime signatures suggested in its comments. */
 const BOTH_ACCOUNTS_ERROR_QUERY = `fields @timestamp, @xrayTraceId, @requestId, @message
@@ -24,9 +24,9 @@ export const LAMBDA_LOG_READER: Omit<lambda.QueryLambdaAcrossAccountsConfig, 'qu
   errorQuery: BOTH_ACCOUNTS_ERROR_QUERY,
   sources: {
     subject: 'pn-downstream-monitoring-lambda',
-    accounts: SEND_PRODUCTION_ACCOUNTS,
+    accounts: LAMBDA_LOG_SOURCES,
     scope: 'every-account',
-    defaultRegion: SEND_PRODUCTION_REGION,
+    defaultRegion: 'eu-south-1',
   },
   labels: {
     errors: 'Query errori Lambda core e confinfo',

@@ -2,6 +2,8 @@ import { parseInteger } from '@pagopa/go-common/utils';
 import type { Runbook } from '../../../engine/types/Runbook.js';
 import type { RunbookExecutionResult } from '../../../engine/types/RunbookExecutionResult.js';
 import type { RunbookOutputContext } from './RunbookOutputContext.js';
+import type { ResolvedAwsAccount } from '../accounts/ResolvedAwsAccount.js';
+import type { ServiceRegistry } from '../services/ServiceRegistry.js';
 import { addResultField, normalizeOutputValue, optionalString } from './outputValues.js';
 import { buildStepEvidence } from './buildStepEvidence.js';
 
@@ -13,8 +15,17 @@ export function buildDeclaredOutputContext(
 ): RunbookOutputContext {
   const { vars, params, stepResults } = result.finalContext;
   const evidence = buildStepEvidence(runbook.steps, stepResults);
+  // Logical accounts read in this execution, resolved from the account directory (EVO-AWSACCT-OPUS-01 §5.6).
+  const awsAccounts = readResolvedAwsAccounts(result.finalContext.services);
+  const accountDetails = awsAccounts.length === 0 ? {} : { awsAccounts };
   const definition = runbook.output;
-  if (definition === undefined) return { ...context, evidence: [...context.evidence, ...evidence] };
+  if (definition === undefined) {
+    return {
+      ...context,
+      evidence: [...context.evidence, ...evidence],
+      ...(awsAccounts.length === 0 ? {} : { details: { ...context.details, ...accountDetails } }),
+    };
+  }
 
   const fields = [...context.fields];
   const diagnostics: Record<string, string | number> = {};
@@ -42,7 +53,14 @@ export function buildDeclaredOutputContext(
       },
       ...context.details,
       ...(definition.metadata === undefined ? {} : { metadata: definition.metadata }),
+      ...accountDetails,
       diagnostics,
     },
   };
+}
+
+/** Resolved accounts of the execution's account port, if it has one. */
+function readResolvedAwsAccounts(services: unknown): ReadonlyArray<ResolvedAwsAccount> {
+  const port = (services as Partial<Pick<ServiceRegistry, 'awsAccounts'>> | undefined)?.awsAccounts;
+  return typeof port?.resolvedAccounts === 'function' ? port.resolvedAccounts() : [];
 }

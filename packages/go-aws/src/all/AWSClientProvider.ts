@@ -26,6 +26,7 @@ import type { STSClient } from '@aws-sdk/client-sts';
 
 import { ATHENA_CLIENT } from '../athena/ATHENA_CLIENT.js';
 import type { AWSClientFactory } from '../AWSClientFactory.js';
+import type { AWSCallerIdentity } from '../AWSCallerIdentity.js';
 import type { AWSClientProviderConfig } from '../AWSClientProviderConfig.js';
 import type { AWSDestroyableClient } from '../AWSDestroyableClient.js';
 import type { AWSProfileClients } from '../AWSProfileClients.js';
@@ -130,6 +131,16 @@ export class AWSClientProvider implements AWSProfileClients {
    */
   async resolveAccountId(): Promise<string> {
     return this.cache.resolveAccountId();
+  }
+
+  /**
+   * Resolves the identity backing this profile (account id and caller ARN) via `sts:GetCallerIdentity`.
+   *
+   * @returns The caller identity of the profile credentials
+   * @throws Error when the identity cannot be resolved
+   */
+  async resolveIdentity(): Promise<AWSCallerIdentity> {
+    return this.cache.resolveIdentity();
   }
 
   /**

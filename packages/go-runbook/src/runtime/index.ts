@@ -16,6 +16,12 @@ export type { OccurrenceServiceBindingMode } from './services/OccurrenceServiceB
 export { buildCatalogOutputContext } from './execution/buildCatalogOutputContext.js';
 export { createServiceRegistry, buildServiceRegistry } from './services/createServiceRegistry.js';
 export type { CreateServiceRegistryDeps } from './services/CreateServiceRegistryDeps.js';
+export { createAwsAccountsPort } from './accounts/createAwsAccountsPort.js';
+export { RuntimeAwsAccountsPort } from './accounts/RuntimeAwsAccountsPort.js';
+export type { RuntimeAwsAccountsPortOptions } from './accounts/RuntimeAwsAccountsPortOptions.js';
+export type { AwsAccountsConfig } from './accounts/AwsAccountsConfig.js';
+export type { AwsAccountsBinding } from './accounts/AwsAccountsBinding.js';
+export type { AwsAccountsDiagnosticFn } from './accounts/AwsAccountsDiagnosticFn.js';
 export { computeTimeRange } from '../toolkits/common/time/occurrence/computeTimeRange.js';
 export {
   computeRunbookTimeRange,

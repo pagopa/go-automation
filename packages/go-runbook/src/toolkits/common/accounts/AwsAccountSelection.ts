@@ -1,23 +1,19 @@
-import type { AwsAccountSource } from './AwsAccountSource.js';
+import type { AwsLogicalAccount } from './AwsLogicalAccount.js';
 
 /**
- * The accounts a multi-account step reads and how an execution narrows them
- * (EVO-RBREORG-OPUS-01 P30).
+ * The logical accounts a step reads, and how an execution narrows them
+ * (EVO-AWSACCT-OPUS-01 §5.4). Holds no account id, environment-specific data or credentials.
  */
 export interface AwsAccountSelection {
   /** Name of the reader in error messages. */
   readonly subject: string;
-  /** Accounts the step knows; an occurrence in any other account is rejected. */
-  readonly accounts: ReadonlyArray<AwsAccountSource>;
+  /** Logical accounts, in reading and tagging order. */
+  readonly accounts: ReadonlyArray<AwsLogicalAccount>;
   /**
-   * Which accounts an execution with an occurrence account reads:
-   * - `every-account`: all of them, through OAM where no local profile is configured;
-   * - `occurrence-account`: only the occurrence account.
-   * Without an occurrence account every account is read and each needs a configured profile.
+   * - `every-account`: every logical account, in the execution environment;
+   * - `occurrence-account`: only the logical account of the occurrence (all of them without an occurrence).
    */
   readonly scope: 'every-account' | 'occurrence-account';
-  /** Region used when the execution does not set `awsRegion`. */
-  readonly defaultRegion: string;
-  /** When true, an execution in any other region is rejected. */
-  readonly restrictToDefaultRegion?: boolean;
+  /** Environments in which the step may read; absent means every environment. */
+  readonly environments?: ReadonlyArray<string>;
 }

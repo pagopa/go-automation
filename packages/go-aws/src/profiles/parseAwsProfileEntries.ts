@@ -23,9 +23,9 @@ import type { AWSProfileEntries } from './AWSProfileEntries.js';
  *
  * @example
  * ```typescript
- * parseAwsProfileEntries(['sso_pn-core-prod', 'sso_pn-confinfo-prod:sso_pn-core-prod']);
- * // profileNames: ['sso_pn-core-prod', 'sso_pn-confinfo-prod']
- * // fallbacksByProfile: Map { 'sso_pn-confinfo-prod' => ['sso_pn-core-prod'] }
+ * parseAwsProfileEntries(['profile-a', 'profile-b:profile-a']);
+ * // profileNames: ['profile-a', 'profile-b']
+ * // fallbacksByProfile: Map { 'profile-b' => ['profile-a'] }
  * ```
  */
 export function parseAwsProfileEntries(entries: ReadonlyArray<string>): AWSProfileEntries {

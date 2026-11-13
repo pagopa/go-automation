@@ -8,9 +8,7 @@ import {
   resolveTimeRange,
   scopeCloudWatchLogsToAccount,
   OperationalStep,
-  SEND_PRODUCTION_ACCOUNTS,
-  SEND_PRODUCTION_REGION,
-  type AwsAccountSelection,
+  type AwsAccountSourceSelection,
   type OperationalContext,
   type OperationalServiceName,
 } from '../../../../toolkits/send/index.js';
@@ -18,12 +16,22 @@ import {
 export const LOG_GROUP = '/aws/ecs/pn-logsaver-be';
 const ROW_LIMIT = 1000;
 const SPOT_INTERRUPTION_MESSAGE = 'Your Spot Task was interrupted.';
+/** Provisional runbook-local data (EVO-AWSACCT-OPUS-01 A0): replaced by logical accounts in A4. */
+const SOURCES = [
+  {
+    name: 'core',
+    accountId: '510769970275',
+    profiles: ['sso_pn-core-prod_readonly', 'sso_pn-core-prod', 'pn-core-prod'],
+  },
+  { name: 'confinfo', accountId: '350578575906', profiles: ['sso_pn-confinfo-prod'] },
+] as const;
+
 /** Both production accounts locally; only the occurrence account in cloud execution. */
-const ACCOUNTS: AwsAccountSelection = {
+const ACCOUNTS: AwsAccountSourceSelection = {
   subject: 'logsaver',
-  accounts: SEND_PRODUCTION_ACCOUNTS,
+  accounts: SOURCES,
   scope: 'occurrence-account',
-  defaultRegion: SEND_PRODUCTION_REGION,
+  defaultRegion: 'eu-south-1',
   restrictToDefaultRegion: true,
 };
 

@@ -1,6 +1,7 @@
 import { GetCallerIdentityCommand } from '@aws-sdk/client-sts';
 import { fromIni } from '@aws-sdk/credential-provider-ini';
 
+import type { AWSCallerIdentity } from './AWSCallerIdentity.js';
 import type { AWSClientBaseConfig } from './AWSClientBaseConfig.js';
 import type { AWSClientFactory } from './AWSClientFactory.js';
 import type { AWSClientProviderConfig } from './AWSClientProviderConfig.js';
@@ -21,7 +22,7 @@ import { STS_CLIENT } from './STS_CLIENT.js';
  * import { AWSProfileClientCache } from '@pagopa/go-aws';
  * import { S3_CLIENT } from '@pagopa/go-aws/s3';
  *
- * const clients = new AWSProfileClientCache({ profile: 'sso_pn-core-prod' });
+ * const clients = new AWSProfileClientCache({ profile: 'my-readonly-profile' });
  * const s3 = clients.client(S3_CLIENT);
  * clients.close();
  * ```
@@ -31,7 +32,7 @@ export class AWSProfileClientCache implements AWSProfileClients {
   private readonly region: string;
   private readonly clientConfig: AWSClientBaseConfig;
   private readonly clients = new Map<string, AWSDestroyableClient>();
-  private cachedAccountId: Promise<string> | undefined;
+  private cachedIdentity: Promise<AWSCallerIdentity> | undefined;
 
   constructor(config: AWSClientProviderConfig) {
     const profile = config.profile?.trim();
@@ -63,31 +64,45 @@ export class AWSProfileClientCache implements AWSProfileClients {
   /**
    * Resolves the AWS account id backing this profile via `sts:GetCallerIdentity`.
    *
-   * The in-flight promise is cached, so concurrent callers share a single API
-   * call and the identity is resolved at most once per cache.
+   * Shares the single lookup of {@link resolveIdentity}.
    *
    * @returns The 12-digit AWS account id owning the profile credentials
    * @throws Error when the identity cannot be resolved
    */
   async resolveAccountId(): Promise<string> {
-    const pending = (this.cachedAccountId ??= this.requestAccountId());
+    return (await this.resolveIdentity()).accountId;
+  }
+
+  /**
+   * Resolves the identity backing this profile via `sts:GetCallerIdentity`:
+   * the account id and, when STS returns it, the caller ARN.
+   *
+   * The in-flight promise is cached, so concurrent callers share a single API
+   * call and the identity is resolved at most once per cache.
+   *
+   * @returns The caller identity of the profile credentials
+   * @throws Error when the identity cannot be resolved
+   */
+  async resolveIdentity(): Promise<AWSCallerIdentity> {
+    const pending = (this.cachedIdentity ??= this.requestIdentity());
     try {
       return await pending;
     } catch (error: unknown) {
       // A failed lookup must not be cached: credentials may be refreshed later.
       // Only this attempt is dropped, so a retry started meanwhile survives.
-      if (this.cachedAccountId === pending) this.cachedAccountId = undefined;
+      if (this.cachedIdentity === pending) this.cachedIdentity = undefined;
       throw error;
     }
   }
 
-  private async requestAccountId(): Promise<string> {
+  private async requestIdentity(): Promise<AWSCallerIdentity> {
     const identity = await this.client(STS_CLIENT).send(new GetCallerIdentityCommand({}));
     const accountId = identity.Account?.trim();
     if (accountId === undefined || accountId === '') {
       throw new Error(`GetCallerIdentity returned no account id for profile '${this.getProfile()}'`);
     }
-    return accountId;
+    const arn = identity.Arn?.trim();
+    return arn === undefined || arn === '' ? { accountId } : { accountId, arn };
   }
 
   /**
@@ -112,6 +127,6 @@ export class AWSProfileClientCache implements AWSProfileClients {
       client.destroy();
     }
     this.clients.clear();
-    this.cachedAccountId = undefined;
+    this.cachedIdentity = undefined;
   }
 }

@@ -90,7 +90,7 @@ const CONFIG_PROFILE_NOT_FOUND_SUFFIX = ') could not be found';
  *     const client = new S3Client(sdkConfig);
  *     return client.send(new ListBucketsCommand({}));
  *   },
- *   { profile: 'pn-core-hotfix_FullAdmin' }
+ *   { profile: 'profile-admin' }
  * );
  * ```
  */
@@ -411,7 +411,7 @@ export class GOAWSCredentialsManager {
    * const manager = new GOAWSCredentialsManager({ interactive: true, onPrompt: ... });
    *
    * // Validate credentials before starting heavy AWS work
-   * const isValid = await manager.ensureValidCredentials('sso_pn-core-prod');
+   * const isValid = await manager.ensureValidCredentials('profile-prod');
    * if (!isValid) {
    *   throw new Error('AWS credentials not available');
    * }
@@ -481,7 +481,7 @@ export class GOAWSCredentialsManager {
    * @example
    * ```typescript
    * const result = await manager.ensureValidCredentialsMultiple(
-   *   ['sso_pn-core-dev', 'sso_pn-core-uat', 'sso_pn-core-prod'],
+   *   ['profile-dev', 'profile-uat', 'profile-prod'],
    *   { failFast: false }
    * );
    *

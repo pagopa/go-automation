@@ -1,4 +1,4 @@
-import type { AwsAccountSelection } from '../../../accounts/AwsAccountSelection.js';
+import type { AwsAccountSourceSelection } from '../../../accounts/AwsAccountSourceSelection.js';
 
 /**
  * Configuration of {@link QueryLambdaAcrossAccountsStep}: a Lambda log group
@@ -17,7 +17,7 @@ export interface QueryLambdaAcrossAccountsConfig {
    * Where to read: the accounts of a selection (rows tagged `sourceAccount`), or
    * every source configured in the CloudWatch Logs service (rows tagged `sourceKey`).
    */
-  readonly sources: AwsAccountSelection | 'configured-sources';
+  readonly sources: AwsAccountSourceSelection | 'configured-sources';
   /** Texts of the step. */
   readonly labels: {
     /** Step label of the error scan. */

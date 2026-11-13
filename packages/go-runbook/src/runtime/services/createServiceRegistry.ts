@@ -5,6 +5,7 @@
 import type { AWSServiceProvider } from '@pagopa/go-aws/all';
 import type { GOHttpClient } from '@pagopa/go-common/http';
 
+import { createAwsAccountsPort } from '../accounts/createAwsAccountsPort.js';
 import type { CreateServiceRegistryDeps } from './CreateServiceRegistryDeps.js';
 import type { RunbookReporter } from '../../engine/reporting/RunbookReporter.js';
 import type { ServiceRegistry } from '../../toolkits/common/services/ServiceRegistry.js';
@@ -32,7 +33,14 @@ import type { ServiceRegistry } from '../../toolkits/common/services/ServiceRegi
  * ```
  */
 export function createServiceRegistry(deps: CreateServiceRegistryDeps, reporter: RunbookReporter): ServiceRegistry {
-  return buildServiceRegistry(deps.services, reporter, deps.http);
+  const registry = buildServiceRegistry(deps.services, reporter, deps.http);
+  if (deps.accounts === undefined) return registry;
+  const awsAccounts = createAwsAccountsPort(deps.accounts, {
+    ...(deps.profiles === undefined ? {} : { profiles: deps.profiles }),
+    monitoring: deps.services.cloudWatchLogs,
+    ...(deps.accountDiagnostics === undefined ? {} : { diagnostics: deps.accountDiagnostics }),
+  });
+  return { ...registry, awsAccounts };
 }
 
 /**

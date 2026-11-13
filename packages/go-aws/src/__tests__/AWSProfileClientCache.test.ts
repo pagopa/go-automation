@@ -11,21 +11,25 @@ import { STS_CLIENT } from '../STS_CLIENT.js';
 /** Counts the GetCallerIdentity calls a cache actually makes. */
 interface ScriptedSts {
   readonly sends: ReadonlyArray<unknown>;
-  send(command: unknown): Promise<{ readonly Account?: string }>;
+  send(command: unknown): Promise<{ readonly Account?: string; readonly Arn?: string }>;
   destroy(): void;
 }
 
-function scriptedSts(outcomes: ReadonlyArray<string | Error | undefined>): ScriptedSts {
+/** A scripted answer: an account id, a full identity, a failure, or an empty response. */
+type StsOutcome = string | { readonly Account: string; readonly Arn: string } | Error | undefined;
+
+function scriptedSts(outcomes: ReadonlyArray<StsOutcome>): ScriptedSts {
   const sends: unknown[] = [];
   const remaining = [...outcomes];
   return {
     sends,
-    async send(command: unknown): Promise<{ readonly Account?: string }> {
+    async send(command: unknown): Promise<{ readonly Account?: string; readonly Arn?: string }> {
       await Promise.resolve();
       sends.push(command);
       const next = remaining.shift();
       if (next instanceof Error) throw next;
-      return next === undefined ? {} : { Account: next };
+      if (next === undefined) return {};
+      return typeof next === 'string' ? { Account: next } : next;
     },
     destroy(): void {
       /* no resources */
@@ -142,5 +146,44 @@ describe('AWSProfileClientCache — account identity', () => {
     const cache = new AWSProfileClientCache({ profile: 'sso_uat', region: 'eu-south-1' });
 
     await assert.rejects(async () => cache.resolveAccountId(), /sso_uat/u);
+  });
+});
+
+describe('AWSProfileClientCache — caller identity', () => {
+  const ssoArn = 'arn:aws:sts::111111111111:assumed-role/AWSReservedSSO_ReadOnly_0123456789abcdef/user';
+
+  it('returns account id and ssoArn, sharing one lookup with resolveAccountId', async (t) => {
+    const sts = scriptedSts([{ Account: '111111111111', Arn: ssoArn }]);
+    t.mock.method(STS_CLIENT, 'create', () => sts as unknown as STSClient);
+    const cache = new AWSProfileClientCache({ profile: 'profile-a', region: 'eu-south-1' });
+
+    const [identity, accountId] = await Promise.all([cache.resolveIdentity(), cache.resolveAccountId()]);
+
+    assert.deepStrictEqual(identity, { accountId: '111111111111', arn: ssoArn });
+    assert.strictEqual(accountId, '111111111111');
+    assert.strictEqual(sts.sends.length, 1);
+  });
+
+  it('omits the ssoArn when STS does not return it', async (t) => {
+    const sts = scriptedSts(['111111111111']);
+    t.mock.method(STS_CLIENT, 'create', () => sts as unknown as STSClient);
+    const cache = new AWSProfileClientCache({ profile: 'profile-a', region: 'eu-south-1' });
+
+    assert.deepStrictEqual(await cache.resolveIdentity(), { accountId: '111111111111' });
+  });
+
+  it('forgets the identity on close', async (t) => {
+    const sts = scriptedSts([
+      { Account: '111111111111', Arn: ssoArn },
+      { Account: '111111111111', Arn: ssoArn },
+    ]);
+    t.mock.method(STS_CLIENT, 'create', () => sts as unknown as STSClient);
+    const cache = new AWSProfileClientCache({ profile: 'profile-a', region: 'eu-south-1' });
+
+    await cache.resolveIdentity();
+    cache.close();
+    await cache.resolveIdentity();
+
+    assert.strictEqual(sts.sends.length, 2);
   });
 });

@@ -1,7 +1,7 @@
 import { parseAwsProfileEntries } from '@pagopa/go-aws/profiles';
 
 import type { RunbookContext } from '../../../engine/types/RunbookContext.js';
-import type { AwsAccountSelection } from './AwsAccountSelection.js';
+import type { AwsAccountSourceSelection } from './AwsAccountSourceSelection.js';
 import type { AwsAccountTarget } from './AwsAccountTarget.js';
 
 /**
@@ -29,7 +29,7 @@ import type { AwsAccountTarget } from './AwsAccountTarget.js';
  */
 export function resolveAwsAccountTargets(
   context: RunbookContext,
-  selection: AwsAccountSelection,
+  selection: AwsAccountSourceSelection,
 ): ReadonlyArray<AwsAccountTarget> {
   const region = context.params.get('awsRegion') ?? selection.defaultRegion;
   if (selection.restrictToDefaultRegion === true && region !== selection.defaultRegion) {

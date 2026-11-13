@@ -26,6 +26,7 @@ export type { AWSExecutionTarget } from './AWSExecutionTarget.js';
 export { AWSTargetNotConfiguredError, isAWSTargetNotConfiguredError } from './AWSTargetNotConfiguredError.js';
 export { parseAwsProfileEntries } from './profiles/index.js';
 export type { AWSProfileEntries } from './profiles/index.js';
+export type { AWSCallerIdentity } from './AWSCallerIdentity.js';
 
 // Remote operations tracking (cancellation cleanup)
 export { AWSActiveOperationRegistry } from './AWSActiveOperationRegistry.js';

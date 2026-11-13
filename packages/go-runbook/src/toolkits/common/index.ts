@@ -45,8 +45,21 @@ export type { CloudWatchLogsQueryConfig } from './steps/aws/cloudwatch-logs/Clou
 export { executeCloudWatchLogsQuery } from './steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
 export type { ExecutedCloudWatchLogsQuery } from './steps/aws/cloudwatch-logs/executeCloudWatchLogsQuery.js';
 export { mergeCloudWatchLogsDiagnostics } from './steps/aws/cloudwatch-logs/mergeCloudWatchLogsDiagnostics.js';
-export type { AwsAccountSource } from './accounts/AwsAccountSource.js';
+// Logical AWS accounts (EVO-AWSACCT-OPUS-01)
+export type { AwsLogicalAccount } from './accounts/AwsLogicalAccount.js';
+export { parseAwsLogicalAccount } from './accounts/parseAwsLogicalAccount.js';
 export type { AwsAccountSelection } from './accounts/AwsAccountSelection.js';
+export type { ResolvedAwsAccount } from './accounts/ResolvedAwsAccount.js';
+export type { AwsAccountErrorCode } from './accounts/AwsAccountErrorCode.js';
+export { AwsAccountError, isAwsAccountError } from './accounts/AwsAccountError.js';
+export { resolveAwsAccountSelection } from './accounts/resolveAwsAccountSelection.js';
+export type { AwsAccountsPort } from './services/ports/AwsAccountsPort.js';
+export { InMemoryAwsAccountsPort } from './testing/InMemoryAwsAccountsPort.js';
+export type { InMemoryAwsAccountsPortOptions } from './testing/InMemoryAwsAccountsPortOptions.js';
+export type { AwsAccountsDirectoryPortOptions } from './accounts/AwsAccountsDirectoryPortOptions.js';
+export type { AwsAccountsOccurrence } from './accounts/AwsAccountsOccurrence.js';
+export type { AwsAccountSource } from './accounts/AwsAccountSource.js';
+export type { AwsAccountSourceSelection } from './accounts/AwsAccountSourceSelection.js';
 export type { AwsAccountTarget } from './accounts/AwsAccountTarget.js';
 export { resolveAwsAccountTargets } from './accounts/resolveAwsAccountTargets.js';
 export { scopeCloudWatchLogsToAccount } from './accounts/scopeCloudWatchLogsToAccount.js';

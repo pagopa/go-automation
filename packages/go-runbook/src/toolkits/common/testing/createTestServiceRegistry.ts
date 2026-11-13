@@ -5,6 +5,9 @@ import type { TestServiceCall } from './TestServiceCall.js';
 import type { TestServiceOverrides } from './TestServiceOverrides.js';
 import { UnexpectedServiceCallError } from './UnexpectedServiceCallError.js';
 
+/** Optional services of the registry: present only when the test provides them (EVO-AWSACCT-OPUS-01). */
+const OPTIONAL_SERVICES: ReadonlySet<string> = new Set(['awsAccounts']);
+
 /** Methods that derive a scoped service: the fake returns itself and records the arguments. */
 const SCOPING_METHODS: ReadonlySet<string> = new Set(['forTarget', 'forExecution']);
 
@@ -15,8 +18,8 @@ const RECORDED_CALLS = new WeakMap<object, TestServiceCall[]>();
  * Builds a {@link ServiceRegistry} for tests, **complete by construction**
  * (EVO-RBREORG-OPUS-01 RBREORG-18).
  *
- * Every operational service is present and exposes every method of
- * {@link OPERATIONAL_SERVICE_METHODS}, so the service check of the engine
+ * Every required operational service is present and exposes every method of
+ * {@link OPERATIONAL_SERVICE_METHODS} (the optional `awsAccounts` port only when provided), so the service check of the engine
  * accepts the registry. A test stubs only the methods its subject calls; the
  * stubs are merged **method by method** with a fake whose other methods throw
  * {@link UnexpectedServiceCallError} naming the method. `forTarget` and
@@ -40,6 +43,7 @@ export function createTestServiceRegistry(overrides: TestServiceOverrides = {}):
   const provided = overrides as Readonly<Record<string, unknown>>;
   const services: Record<string, unknown> = { reporter: overrides.reporter ?? NOOP_RUNBOOK_REPORTER };
   for (const [name, methods] of Object.entries(OPERATIONAL_SERVICE_METHODS)) {
+    if (OPTIONAL_SERVICES.has(name) && provided[name] === undefined) continue;
     services[name] = completeService(name, methods, provided[name]);
   }
   // Safe: every operational service exposes the methods its port declares (OPERATIONAL_SERVICE_METHODS).

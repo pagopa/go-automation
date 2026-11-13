@@ -3,10 +3,10 @@ import { describe, it } from 'node:test';
 
 import type { RunbookContext } from '../../../../engine/types/RunbookContext.js';
 import { NOOP_RUNBOOK_REPORTER } from '../../../../engine/reporting/NOOP_RUNBOOK_REPORTER.js';
-import type { AwsAccountSelection } from '../AwsAccountSelection.js';
+import type { AwsAccountSourceSelection } from '../AwsAccountSourceSelection.js';
 import { resolveAwsAccountTargets } from '../resolveAwsAccountTargets.js';
 
-const SELECTION: AwsAccountSelection = {
+const SELECTION: AwsAccountSourceSelection = {
   subject: 'example',
   accounts: [
     { name: 'a', accountId: '111111111111', profiles: ['a-readonly', 'a-admin'] },

@@ -46,6 +46,13 @@ class ScriptedMultiClientProvider extends AWSMultiClientProvider {
         resolved = next;
         return next;
       },
+      resolveIdentity: async (): Promise<{ accountId: string; arn: string }> => {
+        const accountId = await fake.resolveAccountId();
+        return {
+          accountId,
+          arn: `arn:aws:sts::${accountId}:assumed-role/AWSReservedSSO_Set_0123456789abcdef/${profile}`,
+        };
+      },
       // Safe: the tests only exercise identity resolution and profile selection.
     } as unknown as AWSClientProvider;
     this.fakes.set(profile, fake);
@@ -212,5 +219,24 @@ describe('AWSMultiClientProvider — identity resolution', () => {
     const scoped = await provider.profileSetFor({ accountId: '222222222222', region: REGION });
 
     assert.deepStrictEqual(scoped.profileNames, ['sso_uat']);
+  });
+});
+
+describe('AWSMultiClientProvider — identityByProfile', () => {
+  it('returns the identity of each resolvable profile, in configuration order, omitting failures', async () => {
+    const provider = new ScriptedMultiClientProvider(
+      scripted([
+        ['profile-b', ['222222222222']],
+        ['profile-x', [new Error('ExpiredToken')]],
+        ['profile-a', ['111111111111']],
+      ]),
+      ['profile-b', 'profile-x', 'profile-a'],
+    );
+
+    const identities = await provider.identityByProfile();
+
+    assert.deepStrictEqual([...identities.keys()], ['profile-b', 'profile-a']);
+    assert.strictEqual(identities.get('profile-a')?.accountId, '111111111111');
+    assert.match(identities.get('profile-a')?.arn ?? '', /AWSReservedSSO_Set_/u);
   });
 });

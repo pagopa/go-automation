@@ -7,6 +7,7 @@
 
 import { AWSAccountProfileSet } from '../AWSAccountProfileSet.js';
 import { AWSClientProvider } from './AWSClientProvider.js';
+import type { AWSCallerIdentity } from '../AWSCallerIdentity.js';
 import type { AWSExecutionTarget } from '../AWSExecutionTarget.js';
 import type { AWSProfileSet } from '../AWSProfileSet.js';
 import { AWS_REGION } from '../AWSRegion.js';
@@ -51,11 +52,11 @@ const DEFAULT_CREDENTIAL_CHAIN_PROFILE_NAME = 'default';
  * @example
  * ```typescript
  * const provider = new AWSMultiClientProvider({
- *   profiles: ['sso_pn-core-dev', 'sso_pn-core-uat', 'sso_pn-core-prod'],
+ *   profiles: ['profile-dev', 'profile-uat', 'profile-prod'],
  * });
  *
  * // Get client for specific profile
- * const devClient = provider.getClientProvider('sso_pn-core-dev');
+ * const devClient = provider.getClientProvider('profile-dev');
  * const devDynamoDB = devClient.dynamoDB;
  *
  * // Iterate over all profiles
@@ -219,6 +220,28 @@ export class AWSMultiClientProvider implements AWSProfileSet {
         .filter((identity): identity is AWSProfileIdentity & { accountId: string } => identity.accountId !== undefined)
         .map(({ profile, accountId }) => [profile, accountId]),
     );
+  }
+
+  /**
+   * The identity (account id and caller ARN) each configured profile's credentials belong to.
+   *
+   * Shares the single STS lookup per profile with {@link profileSetFor} and
+   * {@link accountIdByProfile}. Profiles whose identity cannot be resolved are
+   * omitted: the caller decides whether the missing one mattered.
+   *
+   * @returns Identity by profile name, in configuration order
+   */
+  async identityByProfile(): Promise<ReadonlyMap<string, AWSCallerIdentity>> {
+    const identities = await Promise.all(
+      this.profileNames.map(async (profile): Promise<readonly [string, AWSCallerIdentity] | undefined> => {
+        try {
+          return [profile, await this.getClientProvider(profile).resolveIdentity()];
+        } catch {
+          return undefined;
+        }
+      }),
+    );
+    return new Map(identities.filter((entry): entry is readonly [string, AWSCallerIdentity] => entry !== undefined));
   }
 
   /**

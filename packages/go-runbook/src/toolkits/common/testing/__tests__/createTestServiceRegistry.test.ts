@@ -22,12 +22,20 @@ describe('createTestServiceRegistry', () => {
     assert.strictEqual(createTestServiceRegistry({ reporter: undefined }).reporter, NOOP_RUNBOOK_REPORTER);
   });
 
-  it('is complete by construction: every service passes its capability check', () => {
+  it('is complete by construction: every required service passes its capability check', () => {
     const services = createTestServiceRegistry() as unknown as Readonly<Record<string, unknown>>;
 
     for (const [name, isCapable] of Object.entries(OPERATIONAL_SERVICE_CAPABILITIES)) {
+      if (name === 'awsAccounts') continue;
       assert.strictEqual(isCapable(services[name]), true, name);
     }
+  });
+
+  it('adds the optional account port only when provided, completing a partial stub', () => {
+    assert.strictEqual(createTestServiceRegistry().awsAccounts, undefined);
+    const services = createTestServiceRegistry({ awsAccounts: { environment: () => 'prod' } });
+    assert.strictEqual(OPERATIONAL_SERVICE_CAPABILITIES['awsAccounts']?.(services.awsAccounts), true);
+    assert.strictEqual(services.awsAccounts?.environment(), 'prod');
   });
 
   it('merges a partial stub method by method', async () => {

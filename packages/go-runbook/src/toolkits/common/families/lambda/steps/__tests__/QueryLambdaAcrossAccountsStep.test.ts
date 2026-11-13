@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 
 import { createTestServiceRegistry } from '../../../../testing/createTestServiceRegistry.js';
-import type { AwsAccountSelection } from '../../../../accounts/AwsAccountSelection.js';
+import type { AwsAccountSourceSelection } from '../../../../accounts/AwsAccountSourceSelection.js';
 import type { OperationalContext } from '../../../../services/OperationalContext.js';
 import type { QueryLambdaAcrossAccountsConfig } from '../../types/QueryLambdaAcrossAccountsConfig.js';
 import { QueryLambdaAcrossAccountsStep } from '../QueryLambdaAcrossAccountsStep.js';
@@ -26,7 +26,7 @@ const BASE: Omit<QueryLambdaAcrossAccountsConfig, 'queryKind' | 'sources'> = {
   errorVars: { checked: 'exampleChecked', total: 'exampleErrorCount', bySource: { a: 'exampleAErrorCount' } },
 };
 
-const ACCOUNTS: AwsAccountSelection = {
+const ACCOUNTS: AwsAccountSourceSelection = {
   subject: 'example',
   accounts: [
     { name: 'a', accountId: '111111111111', profiles: ['a'] },

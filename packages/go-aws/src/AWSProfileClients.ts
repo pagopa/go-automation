@@ -1,3 +1,4 @@
+import type { AWSCallerIdentity } from './AWSCallerIdentity.js';
 import type { AWSClientFactory } from './AWSClientFactory.js';
 import type { AWSDestroyableClient } from './AWSDestroyableClient.js';
 
@@ -22,6 +23,13 @@ export interface AWSProfileClients {
    * @returns The 12-digit AWS account id
    */
   resolveAccountId(): Promise<string>;
+
+  /**
+   * Resolves the identity backing this profile: account id and caller ARN.
+   *
+   * @returns The caller identity
+   */
+  resolveIdentity(): Promise<AWSCallerIdentity>;
 
   /**
    * @returns The configured profile name (`'default'` for the default credential chain)

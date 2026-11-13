@@ -1,10 +1,8 @@
-import { SEND_CONFINFO_PROD_ACCOUNT, SEND_PRODUCTION_REGION } from '../../../../toolkits/send/index.js';
-
 export const SPIDHUB_ALARM = 'spidhub-prod-ExternalELBAlarm';
 export const SPIDHUB_LOG_GROUP = 'spidhub-prod-hub-login';
-/** SPID hub runs in the SEND confinfo production account. */
-export const SPIDHUB_ACCOUNT_ID: string = SEND_CONFINFO_PROD_ACCOUNT.accountId;
-export const SPIDHUB_REGION: string = SEND_PRODUCTION_REGION;
+/** SPID hub runs in the SEND confinfo production account. Provisional runbook-local data (EVO-AWSACCT-OPUS-01 A0): replaced by logical accounts in A4. */
+export const SPIDHUB_ACCOUNT_ID = '350578575906';
+export const SPIDHUB_REGION = 'eu-south-1';
 export const RUNBOOK_URL = 'https://pagopa.atlassian.net/wiki/spaces/GO/pages/3377573008/spidhub-prod-ExternalELBAlarm';
 
 export const ROW_LIMIT = 1000;

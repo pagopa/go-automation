@@ -13,6 +13,16 @@ export const OPERATIONAL_SERVICE_METHODS: Readonly<Record<OperationalServiceName
   athena: ['query', 'forExecution'],
   dynamodb: ['query', 'getItem', 'updateItem', 'putItem'],
   http: ['request'],
+  awsAccounts: [
+    'environment',
+    'hasOccurrence',
+    'resolve',
+    'accountOfOccurrence',
+    'prepare',
+    'cloudWatchLogsFor',
+    'resolvedAccounts',
+    'bindToOccurrence',
+  ],
 };
 
 function exposes(methods: ReadonlyArray<string>): ServiceCapabilityPredicate {

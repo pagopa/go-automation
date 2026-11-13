@@ -1,6 +1,7 @@
 import type { AWSCloudWatchLogsQueryService } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import type { GOHttpClient } from '@pagopa/go-common/http';
 
+import type { AwsAccountsPort } from './ports/AwsAccountsPort.js';
 import type { RunbookAthenaPort } from './ports/RunbookAthenaPort.js';
 import type { RunbookCloudWatchMetricsPort } from './ports/RunbookCloudWatchMetricsPort.js';
 import type { RunbookDynamoDBPort } from './ports/RunbookDynamoDBPort.js';
@@ -23,4 +24,6 @@ export interface ServiceRegistry extends WorkflowServices {
   readonly athena: RunbookAthenaPort;
   readonly dynamodb: RunbookDynamoDBPort;
   readonly http: GOHttpClient;
+  /** Logical AWS accounts of the execution; required only by steps that declare account selections (EVO-AWSACCT-OPUS-01). */
+  readonly awsAccounts?: AwsAccountsPort;
 }
