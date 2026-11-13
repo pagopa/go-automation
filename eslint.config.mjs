@@ -454,6 +454,39 @@ export default tseslint.config(
     },
   },
 
+  // EVO-RBREORG-OPUS-01 §10, go-aws-root-type-only: the go-aws root loads client-sts at
+  // runtime, so engine, toolkits and inventory import it for types only. The check lives
+  // here and not in dependency-cruiser because workspace packages resolve to dist/, which
+  // dependency-cruiser excludes: it cannot tell `import type` from a value import there.
+  {
+    files: [
+      'packages/go-runbook/src/engine/**/*.ts',
+      'packages/go-runbook/src/toolkits/**/*.ts',
+      'packages/go-runbook/src/inventory/**/*.ts',
+    ],
+    ignores: [
+      '**/__tests__/**',
+      // Named debt until F6 consolidates the multi-account steps (§15.5): they parse the
+      // profile parameter with the value export parseAwsProfileEntries of the go-aws root.
+      'packages/go-runbook/src/inventory/send/service/pn-logsaver-be-FailedInvocation-Alarm/QueryLogsaverDiagnosticsStep.ts',
+      'packages/go-runbook/src/inventory/send/lambda/pn-downstream-monitoring-lambda-LogInvocationErrors-Alarm/QueryBothLambdaAccountsStep.ts',
+    ],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@pagopa/go-aws',
+              allowTypeImports: true,
+              message: 'The go-aws root loads client-sts at runtime: import types only (EVO-RBREORG-OPUS-01 §10).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // ===== SonarJS: duplicated and redundant code =====
   // Added for the duplication family, which jscpd cannot cover: jscpd compares
   // tokens across files and stops reporting a copy the moment it drifts, while

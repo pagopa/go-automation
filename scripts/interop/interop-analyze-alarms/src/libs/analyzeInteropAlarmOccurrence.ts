@@ -1,5 +1,5 @@
 import type { GOScript } from '@go-automation/go-script';
-import { interop } from '@pagopa/go-runbook';
+import { interop } from '@pagopa/go-runbook/toolkits/interop';
 
 import type { InteropAlarmOccurrence } from '../types/index.js';
 import { createOccurrenceTimeRange } from './createOccurrenceTimeRange.js';

@@ -28,6 +28,7 @@
       "@pagopa/go-aws/*": ["packages/go-aws/src/*/index.ts"],
       "@pagopa/go-common/*": ["packages/go-common/src/*/index.ts"],
       "@pagopa/go-runbook": ["packages/go-runbook/src/index.ts"],
+      "@pagopa/go-runbook/output": ["packages/go-runbook/src/toolkits/common/output/index.ts"],
       "@pagopa/go-runbook/*": ["packages/go-runbook/src/*/index.ts"],
       "go-analyze-alarm": ["scripts/go/go-analyze-alarm/src/index.ts"],
       "go-analyze-alarm/*": ["scripts/go/go-analyze-alarm/src/*"],

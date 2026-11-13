@@ -6,7 +6,8 @@ import type { AWSClientProvider } from '@pagopa/go-aws/all';
 import type { AWSAthenaService } from '@pagopa/go-aws/athena';
 import { AWSCloudWatchLogsService } from '@pagopa/go-aws/cloudwatch-logs';
 import { GOLogger } from '@pagopa/go-common/logging';
-import type { RunbookOutput, ServiceRegistry } from '@pagopa/go-runbook';
+import type { RunbookOutput } from '@pagopa/go-runbook/output';
+import type { ServiceRegistry } from '@pagopa/go-runbook/toolkits/common';
 import type { WatchtowerClient } from '@go-automation/go-watchtower-client';
 import { RUNBOOK_CATALOG } from '@pagopa/go-runbook/inventory';
 
@@ -14,7 +15,7 @@ import type { ExecuteRunbookDeps } from '../../types/ExecuteRunbookDeps.js';
 import type { ExecuteRunbookInput } from '../../types/ExecuteRunbookInput.js';
 import { assertRunbookCapability } from '../assertRunbookCapability.js';
 import { executeRunbook } from '../executeRunbook.js';
-import { createTestServiceRegistry } from '@pagopa/go-runbook';
+import { createTestServiceRegistry } from '@pagopa/go-runbook/toolkits/common';
 
 const RUNBOOK = RUNBOOK_CATALOG.resolveByKey('pn-tokenExchangeLambda-LogInvocationErrors-Alarm')!.descriptor;
 

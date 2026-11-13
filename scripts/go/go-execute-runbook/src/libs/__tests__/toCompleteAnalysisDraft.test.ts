@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { describe, it } from 'node:test';
 
-import { ANALYSIS_DRAFT_BOUNDS, type AnalysisDraftV1 } from '@pagopa/go-runbook';
+import { ANALYSIS_DRAFT_BOUNDS, type AnalysisDraftV1 } from '@pagopa/go-runbook/output';
 
 import { toCompleteAnalysisDraft } from '../toCompleteAnalysisDraft.js';
 import { resolveApplyMode } from '../resolveApplyMode.js';

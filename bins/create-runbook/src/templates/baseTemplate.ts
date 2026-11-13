@@ -18,6 +18,7 @@ function basePlaceholders(answers: RunbookAnswers): ReadonlyMap<string, string> 
  */
 export const BASE_TEMPLATE: RunbookTemplate = {
   id: 'base',
+  products: ['SEND', 'INTEROP'],
   label: 'Generic / Base runbook',
   description: 'Runbook generico minimale basato su RunbookBuilder, pronto da estendere.',
   templateDir: 'base',

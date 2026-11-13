@@ -12,6 +12,8 @@ export interface CliArgs {
   readonly tags?: string;
   readonly product?: string;
   readonly categories?: string;
+  /** Inventory family, required by templates that do not fix one (base). */
+  readonly family?: string;
   /** Template-specific flag values, keyed by input name. */
   readonly extras: ReadonlyMap<string, string>;
   /** Whether to wire the runbook into the automatic catalog (default true). */
@@ -31,6 +33,7 @@ interface MutableCliArgs {
   tags?: string;
   product?: string;
   categories?: string;
+  family?: string;
   extras: ReadonlyMap<string, string>;
   wire: boolean;
   dryRun: boolean;
@@ -73,6 +76,7 @@ export function parseCliArgs(argv: ReadonlyArray<string>): CliArgs {
     tags: { type: 'string' },
     product: { type: 'string' },
     categories: { type: 'string' },
+    family: { type: 'string' },
     'no-wire': { type: 'boolean' },
     'dry-run': { type: 'boolean' },
     yes: { type: 'boolean' },
@@ -114,6 +118,8 @@ export function parseCliArgs(argv: ReadonlyArray<string>): CliArgs {
   if (product !== undefined) args.product = product;
   const categories = asString(values['categories']);
   if (categories !== undefined) args.categories = categories;
+  const family = asString(values['family']);
+  if (family !== undefined) args.family = family;
 
   return args;
 }

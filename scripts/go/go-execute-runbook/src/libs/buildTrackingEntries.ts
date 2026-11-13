@@ -3,7 +3,7 @@ import type {
   CompleteExecutionTrackingEntry,
   TrackingIdentifierType,
 } from '@go-automation/go-watchtower-client';
-import type { RunbookResultField } from '@pagopa/go-runbook';
+import type { RunbookResultField } from '@pagopa/go-runbook/output';
 
 type TrackingEntries = CompleteExecutionTracking;
 type TrackingEntry = CompleteExecutionTrackingEntry;

@@ -1,3 +1,4 @@
+import type { RunbookProduct } from './RunbookProduct.js';
 import type { TemplateFile } from './TemplateFile.js';
 import type { TemplateInput } from './TemplateInput.js';
 import type { RunbookAnswers } from './RunbookAnswers.js';
@@ -30,4 +31,8 @@ export interface RunbookTemplate {
   readonly inputs: ReadonlyArray<TemplateInput>;
   /** Pure mapping from collected answers to `{{TOKEN}}` → value. */
   readonly buildPlaceholders: BuildPlaceholdersMapper;
+  /** Products whose toolkit the generated code uses; other products are rejected. */
+  readonly products: ReadonlyArray<RunbookProduct>;
+  /** Inventory family the template generates; `undefined` when the author chooses it (base template). */
+  readonly family?: string;
 }

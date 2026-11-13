@@ -6,7 +6,7 @@ import { createServiceRegistry } from '@pagopa/go-runbook/runtime';
 
 import type { ExecuteRunbookConfig } from '../types/ExecuteRunbookConfig.js';
 import type { ExecuteRunbookDeps } from '../types/ExecuteRunbookDeps.js';
-import { ConsoleRunbookReporter } from '@pagopa/go-runbook/runtime';
+import { ConsoleRunbookReporter } from '@pagopa/go-runbook';
 
 type ExecuteRunbookAuthMode = 'SERVICE' | 'CLI_PAT';
 

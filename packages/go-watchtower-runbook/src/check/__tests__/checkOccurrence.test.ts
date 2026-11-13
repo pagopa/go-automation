@@ -4,8 +4,12 @@ import { describe, it } from 'node:test';
 import { type AWSExecutionTarget, AWSTargetNotConfiguredError } from '@pagopa/go-aws';
 import type { GOLogsInsightsResultField } from '@pagopa/go-aws/cloudwatch-logs/insights';
 import { GOLogger } from '@pagopa/go-common/logging';
-import { createTestServiceRegistry } from '@pagopa/go-runbook';
-import type { ResolvedServiceRegistry, ServiceRegistry, ServiceRegistryResolverFn } from '@pagopa/go-runbook';
+import { createTestServiceRegistry } from '@pagopa/go-runbook/toolkits/common';
+import type {
+  ResolvedServiceRegistry,
+  ServiceRegistry,
+  ServiceRegistryResolverFn,
+} from '@pagopa/go-runbook/toolkits/common';
 import type { AlarmEventDto } from '@go-automation/go-watchtower-client';
 
 import { checkOccurrence } from '../checkOccurrence.js';

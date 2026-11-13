@@ -1,6 +1,6 @@
 import { AWSActiveOperationRegistry } from '@pagopa/go-aws';
-import { classifyRunbookOutcome } from '@pagopa/go-runbook';
-import type { AnalysisDraftV1, RunbookCheck, RunbookOutput } from '@pagopa/go-runbook';
+import { classifyRunbookOutcome } from '@pagopa/go-runbook/output';
+import type { AnalysisDraftV1, RunbookCheck, RunbookOutput } from '@pagopa/go-runbook/output';
 import type {
   AcknowledgeCancellationRequest,
   AutomaticRunbookOutcome,

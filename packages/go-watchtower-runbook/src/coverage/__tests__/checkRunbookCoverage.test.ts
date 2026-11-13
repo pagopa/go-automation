@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { KnownCase, KnownCaseAnalysis, Runbook, RunbookAnalysisDefaults } from '@pagopa/go-runbook';
-import { INTEROP_DOWNSTREAMS, SEND_DOWNSTREAMS } from '@pagopa/go-runbook';
+import type { KnownCase, Runbook } from '@pagopa/go-runbook';
+import type { KnownCaseAnalysis } from '@pagopa/go-runbook/output';
+import type { RunbookAnalysisDefaults } from '@pagopa/go-runbook/toolkits/common';
+import { INTEROP_DOWNSTREAMS } from '@pagopa/go-runbook/toolkits/interop';
+import { SEND_DOWNSTREAMS } from '@pagopa/go-runbook/toolkits/send';
 import { RunbookCatalog } from '@pagopa/go-runbook/inventory';
 import type { RunbookRegistration } from '@pagopa/go-runbook/inventory';
 import type { IgnoreReasonDto, ProductCensus, ProductDto } from '@go-automation/go-watchtower-client';
@@ -274,7 +277,12 @@ async function run(options: RunOptions): ReturnType<typeof checkRunbookCoverage>
 }
 
 function registryOf(registrations: ReadonlyArray<RunbookRegistration>): RunbookCatalog {
-  return new RunbookCatalog(registrations);
+  return new RunbookCatalog(registrations, {
+    downstreamCatalogs: {
+      SEND: new Set<string>(Object.values(SEND_DOWNSTREAMS)),
+      INTEROP: new Set<string>(Object.values(INTEROP_DOWNSTREAMS)),
+    },
+  });
 }
 
 function registration(

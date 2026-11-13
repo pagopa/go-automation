@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { GOLogger } from '@pagopa/go-common/logging';
-import { createTestServiceRegistry } from '@pagopa/go-runbook';
+import { createTestServiceRegistry } from '@pagopa/go-runbook/toolkits/common';
 import type { WatchtowerClient } from '@go-automation/go-watchtower-client';
 import { RUNBOOK_CATALOG } from '@pagopa/go-runbook/inventory';
 

@@ -1,5 +1,5 @@
 import type { GOScript } from '@go-automation/go-script';
-import type { AnalysisDraftV1 } from '@pagopa/go-runbook';
+import type { AnalysisDraftV1 } from '@pagopa/go-runbook/output';
 
 /**
  * Mostra nel dry-run l'analisi che il `complete` proporrebbe.

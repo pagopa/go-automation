@@ -22,6 +22,7 @@
     "src",
     "!src/**/__tests__",
     "!src/**/*.test.ts",
+    "!src/__baseline__",
     "README.md",
     "CHANGELOG.md"
   ],
@@ -29,6 +30,22 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./output": {
+      "types": "./dist/toolkits/common/output/index.d.ts",
+      "default": "./dist/toolkits/common/output/index.js"
+    },
+    "./toolkits/common": {
+      "types": "./dist/toolkits/common/index.d.ts",
+      "default": "./dist/toolkits/common/index.js"
+    },
+    "./toolkits/send": {
+      "types": "./dist/toolkits/send/index.d.ts",
+      "default": "./dist/toolkits/send/index.js"
+    },
+    "./toolkits/interop": {
+      "types": "./dist/toolkits/interop/index.d.ts",
+      "default": "./dist/toolkits/interop/index.js"
     },
     "./inventory": {
       "types": "./dist/inventory/index.d.ts",
@@ -41,11 +58,12 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "catalog:descriptors": "tsx src/catalog/exportAutomaticRunbookDescriptors.ts",
+    "catalog:descriptors": "tsx src/runtime/commands/exportAutomaticRunbookDescriptors.ts",
     "watch": "tsc --build --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
     "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
-    "prepack": "pnpm run build"
+    "prepack": "pnpm run build",
+    "baseline:update": "tsx src/__tests__/baseline/updateBaseline.ts"
   },
   "keywords": [
     "go-automation",
@@ -125,6 +143,7 @@
     "@aws-sdk/client-ssm": "catalog:",
     "@aws-sdk/util-dynamodb": "catalog:",
     "@types/node": "catalog:",
-    "tsx": "catalog:"
+    "tsx": "catalog:",
+    "typescript": "catalog:"
   }
 }

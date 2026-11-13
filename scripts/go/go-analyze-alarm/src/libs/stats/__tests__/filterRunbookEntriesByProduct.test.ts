@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import { filterRunbookEntriesByProduct, listRunbookEntryProducts } from '../filterRunbookEntriesByProduct.js';
 import type { RunbookCatalogEntry } from '../../../types/RunbookCatalogEntry.js';
-import type { RunbookProduct } from '@pagopa/go-runbook';
+import type { RunbookProduct } from '@pagopa/go-runbook/toolkits/common';
 
 function entry(key: string, product: RunbookProduct): RunbookCatalogEntry {
   return {

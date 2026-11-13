@@ -1,0 +1,14 @@
+import { escapeLogsInsightsString } from '@pagopa/go-aws/cloudwatch-logs/insights';
+import { interop } from '../../../../toolkits/interop/index.js';
+
+export const SELFCARE_ONBOARDING_QUERY_PROFILE: interop.k8s.InteropK8sQueryProfile = {
+  ...interop.k8s.INTEROP_K8S_QUERY_PROFILE,
+  id: 'interop-selfcare-onboarding',
+  applicationLogsQueryProfileId: 'interop-selfcare-onboarding-errors',
+  buildApplicationLogsQuery: (podApp) => `filter (log like /ERROR/ or stream = "stderr")
+| filter @logStream not like /adot-collector/
+| filter pod_app = "${escapeLogsInsightsString(podApp)}"
+| parse @message "[CID=*]" as cid
+| display @timestamp, pod_app, cid, @message
+| sort @timestamp asc`,
+};

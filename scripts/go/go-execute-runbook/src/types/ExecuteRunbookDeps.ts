@@ -1,6 +1,6 @@
 import type { GOLogger } from '@pagopa/go-common/logging';
 import type { WatchtowerClient } from '@go-automation/go-watchtower-client';
-import type { ServiceRegistry } from '@pagopa/go-runbook';
+import type { ServiceRegistry } from '@pagopa/go-runbook/toolkits/common';
 
 export interface ExecuteRunbookDeps {
   readonly watchtower: WatchtowerClient;

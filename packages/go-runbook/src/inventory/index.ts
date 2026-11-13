@@ -5,15 +5,11 @@
  * `RUNBOOK_CATALOG.listDescriptors` describes the registered runbooks.
  */
 
-export {
-  RUNBOOK_CATALOG,
-  RunbookCatalog,
-  RUNBOOK_REGISTRY,
-  validateCloudRunbookRegistry,
-} from '../catalog/RunbookCatalog.js';
-export type { RunbookRegistration } from '../catalog/RunbookRegistration.js';
-export type { ResolvedRunbook } from '../catalog/ResolvedRunbook.js';
-export type { RunbookBuilderFn } from '../catalog/RunbookBuilderFn.js';
-export type { RunbookDescriptor } from '../catalog/RunbookDescriptor.js';
-export type { RunbookKind } from '../types/RunbookKind.js';
-export { RunbookKinds } from '../types/RunbookKind.js';
+export { RunbookCatalog } from '../toolkits/common/registration/RunbookCatalog.js';
+export { RUNBOOK_CATALOG, RUNBOOK_REGISTRY, validateCloudRunbookRegistry } from './registry/runbookRegistry.js';
+export type { RunbookRegistration } from '../toolkits/common/registration/RunbookRegistration.js';
+export type { ResolvedRunbook } from '../toolkits/common/registration/ResolvedRunbook.js';
+export type { RunbookBuilderFn } from '../toolkits/common/registration/RunbookBuilderFn.js';
+export type { RunbookDescriptor } from '../toolkits/common/registration/RunbookDescriptor.js';
+export type { RunbookKind } from '../toolkits/common/registration/RunbookKind.js';
+export { RunbookKinds } from '../toolkits/common/registration/RunbookKind.js';

@@ -43,3 +43,5 @@ export {
 } from './GOTypeGuards.js';
 export { parseInteger, parseFiniteNumber } from './GONumberParse.js';
 export { omitUndefined } from './GOObjectUtils.js';
+export { isValidRegex, compileRegex } from './GORegexUtils.js';
+export { GORegexCache } from './GORegexCache.js';

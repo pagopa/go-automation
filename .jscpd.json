@@ -15,6 +15,6 @@
     "**/__tests__/**",
     "**/*.test.ts",
     "**/*.spec.ts",
-    "packages/go-runbook/src/catalog/runbooks/**"
+    "packages/go-runbook/src/inventory/**"
   ]
 }

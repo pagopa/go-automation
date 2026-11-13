@@ -2,7 +2,7 @@
  * Known URLs for the {{RUNBOOK_ID}} runbook.
  */
 
-import type { apigw } from '../framework.js';
+import type { apigw } from '../../../../toolkits/send/index.js';
 
 /**
  * Known URLs used to enrich the trace and drive the analysis loop.

@@ -1,0 +1,80 @@
+import type { Step } from '../../../../engine/types/Step.js';
+import type { StepKind } from '../../../../engine/types/StepKind.js';
+import type { StepResult } from '../../../../engine/types/StepResult.js';
+import type { RunbookContext } from '../../../../engine/types/RunbookContext.js';
+import type { GOHttpResponse } from '@pagopa/go-common/http';
+import { throwIfRunbookAborted } from '../../../../engine/context/throwIfRunbookAborted.js';
+
+/**
+ * Configuration for the HTTP POST step.
+ */
+export interface HttpPostConfig {
+  /** Unique step identifier */
+  readonly id: string;
+  /** Human-readable label for logs and UI */
+  readonly label: string;
+  /** Target URL for the POST request */
+  readonly url: string;
+  /** Request body (will be JSON-serialized if object) */
+  readonly body: unknown;
+  /** Optional HTTP headers */
+  readonly headers?: Readonly<Record<string, string>>;
+}
+
+/**
+ * Mutation step that performs an HTTP POST request.
+ * Delegates to the context's HTTP service for request execution.
+ *
+ * @example
+ * ```typescript
+ * const step = new HttpPostStep({
+ *   id: 'create-ticket',
+ *   label: 'Create support ticket',
+ *   url: 'https://api.example.com/tickets',
+ *   body: { title: 'Alarm triggered', severity: 'high' },
+ *   headers: { 'Authorization': 'Bearer token' },
+ * });
+ * ```
+ */
+export class HttpPostStep implements Step<GOHttpResponse<unknown>> {
+  readonly id: string;
+  readonly label: string;
+  readonly kind: StepKind = 'mutation';
+
+  private readonly url: string;
+  private readonly body: unknown;
+  private readonly headers: Readonly<Record<string, string>> | undefined;
+
+  constructor(config: HttpPostConfig) {
+    this.id = config.id;
+    this.label = config.label;
+    this.url = config.url;
+    this.body = config.body;
+    this.headers = config.headers;
+  }
+
+  /**
+   * Executes the HTTP POST request.
+   *
+   * @param context - The runbook execution context
+   * @returns Step result containing the HTTP response
+   */
+  async execute(context: RunbookContext): Promise<StepResult<GOHttpResponse<unknown>>> {
+    try {
+      throwIfRunbookAborted(context);
+      const response = await context.services.http.request(
+        'POST',
+        this.url,
+        this.body,
+        this.headers,
+        context.signal === undefined ? undefined : { signal: context.signal },
+      );
+
+      return { success: true, output: response };
+    } catch (error: unknown) {
+      if (context.signal?.aborted === true) throw error;
+      const message = error instanceof Error ? error.message : String(error);
+      return { success: false, error: `HTTP POST request failed: ${message}` };
+    }
+  }
+}

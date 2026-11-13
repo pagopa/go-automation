@@ -204,6 +204,27 @@ function goAwsFolderPattern(folder) {
   return `^packages/go-aws/src/${escapeRegExp(folder)}/(?:[^/]+|models/.+)$`;
 }
 
+/**
+ * EVO-RBREORG-OPUS-01 F3: engine files that still reach operational code, exempted from
+ * engine-is-a-foundation until F5 splits them (§7.1.3). F5 removes this list.
+ * - ActionExecutor: renderLogAction (LogActionRenderer injected, §7.1.3 D);
+ * - RunbookBuilder, Runbook: cloud policy, occurrence window, analysis defaults, output validation (§7.1.3 E);
+ * - RunbookContext, RunbookContextHelper, RunbookEngine: ServiceRegistry (WorkflowServices, §7.1.3 A);
+ * - KnownCase, StepDescriptor: KnownCaseAnalysis, StepEvidence (§7.1.3 E);
+ * - StepDiagnostics: CloudWatch statistics (§7.1.3 B).
+ */
+const ENGINE_PURIFICATION_DEBT = [
+  '^packages/go-runbook/src/engine/actions/ActionExecutor[.]ts$',
+  '^packages/go-runbook/src/engine/builders/RunbookBuilder[.]ts$',
+  '^packages/go-runbook/src/engine/types/Runbook[.]ts$',
+  '^packages/go-runbook/src/engine/types/RunbookContext[.]ts$',
+  '^packages/go-runbook/src/engine/context/RunbookContextHelper[.]ts$',
+  '^packages/go-runbook/src/engine/core/RunbookEngine[.]ts$',
+  '^packages/go-runbook/src/engine/types/KnownCase[.]ts$',
+  '^packages/go-runbook/src/engine/types/StepDescriptor[.]ts$',
+  '^packages/go-runbook/src/engine/tracing/StepDiagnostics[.]ts$',
+];
+
 function packageLayerRules() {
   const kernelLevelRules = GO_COMMON_KERNEL_LEVELS.slice(0, -1).map((areas, level) => ({
     name: `go-common-kernel-level-${level}`,
@@ -249,28 +270,109 @@ function packageLayerRules() {
       to: { path: packageReferencePatterns(privateNames) },
     },
     {
-      name: 'runbook-engine-sdk-free',
+      name: 'only-runtime-touches-sdk',
       severity: 'error',
       comment:
-        'go-runbook engine (everything outside catalog/, inventory/, runtime/) uses only SDK-free go-aws types: ' +
-        'the core and ./cloudwatch-logs/insights. Service ports live in registry/ports (S6, §10.2).',
+        'EVO-RBREORG-OPUS-01 G3: only runtime/ uses the AWS SDK. Engine, toolkits and inventory import from go-aws ' +
+        'only the root (type-only, rule below) and ./cloudwatch-logs/insights. Service ports live in toolkits/common.',
       from: {
-        path: '^packages/go-runbook/src/',
-        pathNot: ['^packages/go-runbook/src/(?:catalog|inventory|runtime)/', '/__tests__/'],
+        path: '^packages/go-runbook/src/(?:engine|toolkits|inventory)/',
+        pathNot: ['/__tests__/'],
       },
-      to: { path: ['^@aws-sdk/', '^@pagopa/go-aws/(?!cloudwatch-logs/insights$)'] },
+      to: {
+        path: [
+          '^@aws-sdk/',
+          '^@pagopa/go-aws/(?!cloudwatch-logs/insights$)[^/]',
+          '^packages/go-aws/src/(?!index[.]ts$|cloudwatch-logs/insights/)',
+        ],
+      },
     },
     {
-      name: 'runbook-engine-not-on-composition',
+      name: 'toolkits-do-not-know-runbooks',
+      severity: 'error',
+      comment: 'EVO-RBREORG-OPUS-01 §10: toolkits never import the inventory or the runtime (composition root).',
+      from: { path: '^packages/go-runbook/src/toolkits/', pathNot: ['/__tests__/'] },
+      to: { path: '^packages/go-runbook/src/(?:inventory|runtime)/' },
+    },
+    {
+      name: 'common-does-not-know-products',
+      severity: 'error',
+      comment: 'EVO-RBREORG-OPUS-01 G4: toolkits/common knows no product; SEND and INTEROP data live in their toolkits.',
+      from: { path: '^packages/go-runbook/src/toolkits/common/', pathNot: ['/__tests__/'] },
+      to: { path: '^packages/go-runbook/src/toolkits/(?:send|interop)/' },
+    },
+    {
+      name: 'runbooks-do-not-cross',
       severity: 'error',
       comment:
-        'go-runbook engine never imports the composition layers (catalog/, inventory/, runtime/): they reach ' +
-        'SDK-bearing go-aws subpaths, so an edge from the engine would bypass runbook-engine-sdk-free transitively.',
-      from: {
-        path: '^packages/go-runbook/src/',
-        pathNot: ['^packages/go-runbook/src/(?:catalog|inventory|runtime)/', '/__tests__/'],
+        'EVO-RBREORG-OPUS-01 §10: a runbook never imports another runbook folder; sharing goes through ' +
+        'inventory/<product>/shared/.',
+      from: { path: '^packages/go-runbook/src/inventory/(send|interop)/((?!shared/)[^/]+)/([^/]+)/' },
+      to: {
+        path: '^packages/go-runbook/src/inventory/(?:send|interop)/(?!shared/)[^/]+/[^/]+/',
+        pathNot: '^packages/go-runbook/src/inventory/$1/$2/$3/',
       },
-      to: { path: '^packages/go-runbook/src/(?:catalog|inventory|runtime)/' },
+    },
+    {
+      name: 'engine-is-a-foundation',
+      severity: 'error',
+      comment:
+        'EVO-RBREORG-OPUS-01 G2: the engine knows no AWS, product, alarm or Watchtower. It never imports toolkits, ' +
+        'inventory or runtime, any go-aws module, or the I/O areas of go-common.',
+      from: {
+        path: '^packages/go-runbook/src/engine/',
+        pathNot: ['/__tests__/', ...ENGINE_PURIFICATION_DEBT],
+      },
+      to: {
+        path: [
+          '^packages/go-runbook/src/(?:toolkits|inventory|runtime)/',
+          '^@pagopa/go-aws(?:/|$)',
+          '^packages/go-aws/',
+          '^@pagopa/go-common/(?:http|files|importers|exporters|process)(?:/|$)',
+          '^packages/go-common/src/(?:http|files|importers|exporters|process)/',
+        ],
+      },
+    },
+    {
+      name: 'inventory-uses-product-api',
+      severity: 'error',
+      comment:
+        'EVO-RBREORG-OPUS-01 §7.5: a runbook imports only the engine barrel, the barrel of its own product, the ' +
+        'shared data of its product and the files of its own folder (no deep imports, no other runbook).',
+      from: {
+        path: '^packages/go-runbook/src/inventory/(send|interop)/((?!shared/)[^/]+)/([^/]+)/',
+        pathNot: '/__tests__/',
+      },
+      to: {
+        path: '^packages/go-runbook/src/',
+        pathNot: [
+          '^packages/go-runbook/src/inventory/$1/$2/$3/',
+          '^packages/go-runbook/src/inventory/$1/shared/',
+          '^packages/go-runbook/src/engine/index[.]ts$',
+          '^packages/go-runbook/src/toolkits/$1/index[.]ts$',
+        ],
+      },
+    },
+    {
+      name: 'products-do-not-cross:send',
+      severity: 'error',
+      comment: 'EVO-RBREORG-OPUS-01 §10: SEND code never imports INTEROP code.',
+      from: { path: '^packages/go-runbook/src/(?:toolkits|inventory)/send/' },
+      to: { path: '^packages/go-runbook/src/(?:toolkits|inventory)/interop/' },
+    },
+    {
+      name: 'products-do-not-cross:interop',
+      severity: 'error',
+      comment: 'EVO-RBREORG-OPUS-01 §10: INTEROP code never imports SEND code.',
+      from: { path: '^packages/go-runbook/src/(?:toolkits|inventory)/interop/' },
+      to: { path: '^packages/go-runbook/src/(?:toolkits|inventory)/send/' },
+    },
+    {
+      name: 'inventory-does-not-know-runtime',
+      severity: 'error',
+      comment: 'EVO-RBREORG-OPUS-01 §10: the inventory never imports the runtime (composition root).',
+      from: { path: '^packages/go-runbook/src/inventory/', pathNot: '/__tests__/' },
+      to: { path: '^packages/go-runbook/src/runtime/' },
     },
     {
       name: 'runbook-not-on-ec2',

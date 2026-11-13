@@ -3,8 +3,8 @@ import type { GOLogger } from '@pagopa/go-common/logging';
 
 import type { AlarmAnalysisDto, AlarmEventDto, WatchtowerClient } from '@go-automation/go-watchtower-client';
 import { executeRunbookForOccurrence } from '@pagopa/go-runbook/runtime';
-import { classifyRunbookOutcome } from '@pagopa/go-runbook';
-import type { ServiceRegistryResolverFn } from '@pagopa/go-runbook';
+import { classifyRunbookOutcome } from '@pagopa/go-runbook/output';
+import type { ServiceRegistryResolverFn } from '@pagopa/go-runbook/toolkits/common';
 
 import type { AnalysisMatch, RtaCheckEvent, RtaCheckRow } from '../types/RtaCheckReport.js';
 import type { AnalysisMatcherFn } from '../comparison/AnalysisMatcher.js';

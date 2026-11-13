@@ -1,4 +1,4 @@
-import type { RunbookProduct } from '@pagopa/go-runbook';
+import type { RunbookProduct } from '@pagopa/go-runbook/toolkits/common';
 import type { RunbookKind } from '@pagopa/go-runbook/inventory';
 
 /**

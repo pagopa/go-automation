@@ -1,8 +1,9 @@
 /**
  * GO Automation - New Runbook Scaffolder
  *
- * Creates a new runbook in the go-runbook catalog from a template, and (by
- * default) registers it in the automatic catalog manifest.
+ * Creates a new runbook in the go-runbook inventory
+ * (`packages/go-runbook/src/inventory/<product>/<family>/<id>/`) from a template,
+ * and (by default) registers it in the manifest of its product.
  *
  * Usage:
  *   pnpm create:runbook
@@ -18,33 +19,36 @@
  *   --version <semver>       Runbook metadata version (default: 1.0.0)
  *   --team <team>            Runbook metadata team (default: GO)
  *   --tags <csv>             Comma-separated metadata tags
- *   --product <name>         Watchtower product: SEND | INTEROP (default: SEND); prompted when wiring
+ *   --product <name>         Watchtower product: SEND | INTEROP; prompted if omitted (always resolved:
+ *                            it chooses the inventory folder). The SEND templates reject INTEROP
+ *   --family <name>          Inventory family, required by the base template (SEND: apigw, lambda,
+ *                            downstream, service; INTEROP: apigw, k8s); fixed by the other templates
  *   --categories <csv>       Comma-separated automatic catalog categories
  *   --api-gw-log-group, --entry-service, --var-prefix, --log-group,
  *   --execution-log-group, --authorizer   (api-gateway template inputs)
  *   --entry-lambda, --var-prefix, --event-source   (lambda template inputs)
  *   --service-name, --var-prefix, --log-group   (service template inputs)
- *   --no-wire                Do not modify the automatic runbook catalog manifest
+ *   --no-wire                Do not modify the product manifest
  *   --dry-run                Render and print without writing or wiring
  *   --yes                    Skip the confirmation prompt
  */
 
 import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
 
 import { parseCliArgs } from './cli/parseArgs.js';
 import { resolveTemplate, collectAnswers, confirmGeneration } from './cli/prompts.js';
 import { renderRunbookFiles, writeGeneratedFiles } from './generate/scaffoldRunbook.js';
 import { formatTypeScript } from './generate/formatTypeScript.js';
 import type { GeneratedFile } from './generate/scaffoldRunbook.js';
-import { RunbookKinds } from '../../../packages/go-runbook/src/types/RunbookKind.js';
-import type { RunbookKind } from '../../../packages/go-runbook/src/types/RunbookKind.js';
+import { RunbookKinds } from '../../../packages/go-runbook/src/toolkits/common/registration/RunbookKind.js';
+import type { RunbookKind } from '../../../packages/go-runbook/src/toolkits/common/registration/RunbookKind.js';
 
 import { registerRunbookInCatalog, renderRegistrationFile } from './wiring/registerInCatalog.js';
 import type { RunbookRegistration } from './wiring/registerInCatalog.js';
 import { deriveRegistrationName } from './naming/deriveRegistrationName.js';
 import { runbookIdError } from './validation/runbookIdError.js';
-import { CATALOG_MANIFEST_FILE, REPO_ROOT, RUNBOOKS_DIR, TEMPLATES_ROOT } from './constants.js';
+import { REPO_ROOT, TEMPLATES_ROOT } from './constants.js';
+import { findExistingRunbookDir, manifestConstName, manifestFile, runbookDir } from './inventoryLayout.js';
 import type { RunbookAnswers } from './templates/RunbookAnswers.js';
 
 const BOLD = '\x1b[1m';
@@ -53,15 +57,6 @@ const CYAN = '\x1b[36m';
 const GREEN = '\x1b[32m';
 const YELLOW = '\x1b[33m';
 const RESET = '\x1b[0m';
-
-async function pathExists(target: string): Promise<boolean> {
-  try {
-    await fs.access(target);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 function relativeToRepo(target: string): string {
   return path.relative(REPO_ROOT, target);
@@ -75,7 +70,7 @@ function printPlan(answers: RunbookAnswers, files: ReadonlyArray<GeneratedFile>,
     console.log(`  ${CYAN}${relativeToRepo(file.path)}${RESET}`);
   }
   const wiringLabel = wire
-    ? `import + CATALOG_MANIFEST in ${relativeToRepo(CATALOG_MANIFEST_FILE)}`
+    ? `import + ${manifestConstName(answers.product)} in ${relativeToRepo(manifestFile(answers.product))}`
     : `${DIM}disabilitato${RESET}`;
   console.log(`${BOLD}Wiring${RESET}    ${wiringLabel}`);
 }
@@ -121,12 +116,13 @@ function printSuccess(
     console.log(`  ${GREEN}+${RESET} ${relativeToRepo(file.path)}`);
   }
 
+  const manifest = relativeToRepo(manifestFile(answers.product));
   if (wireRequested && wired) {
-    console.log(`  ${GREEN}~${RESET} ${relativeToRepo(CATALOG_MANIFEST_FILE)} (import + CATALOG_MANIFEST)`);
+    console.log(`  ${GREEN}~${RESET} ${manifest} (import + ${manifestConstName(answers.product)})`);
   } else if (wireRequested) {
-    console.log(`  ${YELLOW}!${RESET} ${relativeToRepo(CATALOG_MANIFEST_FILE)}: runbook già registrato`);
+    console.log(`  ${YELLOW}!${RESET} ${manifest}: runbook già registrato`);
   } else {
-    console.log(`\n  ${YELLOW}Wiring saltato.${RESET} Registra a mano in ${relativeToRepo(CATALOG_MANIFEST_FILE)}.`);
+    console.log(`\n  ${YELLOW}Wiring saltato.${RESET} Registra a mano in ${manifest}.`);
   }
 
   printNextSteps(answers);
@@ -169,6 +165,7 @@ async function renderRegistration(
     id: answers.id,
     constName: deriveRegistrationName(answers.id),
     product: answers.product,
+    family: answers.family,
     kind: catalogKind,
     categories: nonEmptyCategories(answers.categories),
   };
@@ -192,10 +189,12 @@ async function run(): Promise<void> {
   }
   const catalogKind = catalogKindForTemplate(answers.templateId);
 
-  const targetDir = path.join(RUNBOOKS_DIR, answers.id);
-  if (await pathExists(targetDir)) {
-    throw new Error(`La cartella runbook esiste già: ${relativeToRepo(targetDir)}`);
+  // Runbook keys are global: the id must be free in every product and family, not only in the target folder.
+  const existing = await findExistingRunbookDir(answers.id);
+  if (existing !== undefined) {
+    throw new Error(`Esiste già un runbook con questo id: ${relativeToRepo(existing)}`);
   }
+  const targetDir = runbookDir(answers.product, answers.family, answers.id);
 
   const templateFiles = await renderRunbookFiles(template, answers, TEMPLATES_ROOT, targetDir);
   const wiring = wire ? await renderRegistration(answers, catalogKind, targetDir) : undefined;
@@ -219,7 +218,8 @@ async function run(): Promise<void> {
 
   await writeGeneratedFiles(files);
 
-  const wired = wiring !== undefined && (await registerRunbookInCatalog(CATALOG_MANIFEST_FILE, wiring.registration));
+  const wired =
+    wiring !== undefined && (await registerRunbookInCatalog(manifestFile(answers.product), wiring.registration));
 
   printSuccess(answers, files, wired, wire);
 }
