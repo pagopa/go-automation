@@ -10,6 +10,8 @@ import globals from 'globals';
 import eslintPluginSecurity from 'eslint-plugin-security';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 import sonarjs from 'eslint-plugin-sonarjs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 /**
  * Custom plugin: enforces that main.ts only contains the main() function.
@@ -167,6 +169,30 @@ const sharedRestrictedSyntaxRules = [
     message: 'Use for...of, Object.keys(), or Object.entries() instead of for...in',
   },
 ];
+
+/**
+ * Source globs of the published packages (`packages/*` named `@pagopa/*`, not private), the
+ * same set `bins/check-published-sensitive-data` packs (EVO-AWSACCT-OPUS-01 §9, G-pub-3).
+ *
+ * @returns One `packages/<dir>/src/**\/*.ts` glob per published package
+ */
+function publishedPackageSources() {
+  // Resolved against this file, not the working directory: ESLint may run from a subdirectory.
+  const packagesRoot = join(import.meta.dirname, 'packages');
+  return readdirSync(packagesRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((entry) => {
+      let manifest;
+      try {
+        manifest = JSON.parse(readFileSync(join(packagesRoot, entry.name, 'package.json'), 'utf8'));
+      } catch {
+        return [];
+      }
+      const published =
+        typeof manifest.name === 'string' && manifest.name.startsWith('@pagopa/') && manifest.private !== true;
+      return published ? [`packages/${entry.name}/src/**/*.ts`] : [];
+    });
+}
 
 const scriptRestrictedSyntaxRules = [
   // File writing → use go-common exporters
@@ -451,6 +477,22 @@ export default tseslint.config(
     rules: {
       'security/detect-non-literal-fs-filename': 'off',
       'no-console': 'off',
+    },
+  },
+
+  // EVO-AWSACCT-OPUS-01 §9 G-pub-3: no account id literal in the published packages' code.
+  {
+    files: publishedPackageSources(),
+    ignores: ['**/__tests__/**', '**/*.test.ts', '**/__baseline__/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...sharedRestrictedSyntaxRules,
+        {
+          selector: 'Literal[value=/^[0-9]{12}$/]',
+          message: 'account id nel codice pubblicato: usa un account logico (EVO-AWSACCT)',
+        },
+      ],
     },
   },
 

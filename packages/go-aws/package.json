@@ -102,7 +102,7 @@
     "watch": "tsc --build --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
     "test": "node --import tsx/esm --test 'src/**/__tests__/**/*.test.ts'",
-    "prepack": "pnpm run build"
+    "prepack": "pnpm run clean && pnpm run build"
   },
   "keywords": [
     "go-automation",

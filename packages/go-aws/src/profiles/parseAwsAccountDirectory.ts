@@ -25,7 +25,7 @@ const ENTRY_PATTERN = /^(?<logical>[a-z0-9-]+\/[a-z0-9-]+)\/(?<environment>[a-z0
  *
  * @example
  * ```typescript
- * parseAwsAccountDirectory(['send/core/uat=000000000000', 'send/confinfo/uat=111111111111']);
+ * parseAwsAccountDirectory(['send/core/uat=000000000000', 'send/confinfo/uat=123456789012']);
  * // [{ logicalAccount: 'send/core', environment: 'uat', accountId: '000000000000' }, …]
  * ```
  */

@@ -10,6 +10,9 @@
       "path": "./bins/check-new-class-tests"
     },
     {
+      "path": "./bins/check-published-sensitive-data"
+    },
+    {
       "path": "./bins/validate-scaffold"
     },
     {

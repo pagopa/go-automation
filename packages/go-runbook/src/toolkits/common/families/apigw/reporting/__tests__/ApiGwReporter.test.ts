@@ -116,7 +116,7 @@ describe('ApiGwReporter', () => {
       const { narrative, lines } = captureLogger();
       new ApiGwReporter(narrative).queryFailed(
         ['/aws/ecs/pn-data-vault-sep'],
-        "Log group '/aws/ecs/pn-data-vault-sep' does not exist for account ID '510769970275'",
+        "Log group '/aws/ecs/pn-data-vault-sep' does not exist for account ID '000000000902'",
       );
       narrative.flush();
       const joined = lines.join('\n');

@@ -256,19 +256,19 @@ describe('AWSCloudWatchLogsService', () => {
     const service = createService(provider)
       .forExecution(activeOperations)
       .forTarget({
-        accountId: '350578575906',
+        accountId: '000000000901',
         region: 'eu-south-1',
         profile: 'send-monitor',
-        fallbacks: [{ accountId: '510769970275' }, { accountId: '222222222222', profile: 'fallback-direct' }],
+        fallbacks: [{ accountId: '000000000902' }, { accountId: '222222222222', profile: 'fallback-direct' }],
       });
-    const fallbackArn = 'arn:aws:logs:eu-south-1:510769970275:log-group:/aws/ecs/service';
+    const fallbackArn = 'arn:aws:logs:eu-south-1:000000000902:log-group:/aws/ecs/service';
     const normal = await service.queryWithStatistics([fallbackArn], 'fields @message', timeRange);
     assert.strictEqual(normal.queryExecutions[0]?.profile, 'send-monitor');
 
     const sources = service.getConfiguredSources();
     assert.deepStrictEqual(
       sources.map(({ key }) => key),
-      ['350578575906', '510769970275', '222222222222'],
+      ['000000000901', '000000000902', '222222222222'],
     );
     const [primary, fallback, direct] = sources;
     assert.ok(primary && fallback && direct);
@@ -299,7 +299,7 @@ describe('AWSCloudWatchLogsService', () => {
     const nested = fallback.service.getConfiguredSources();
     assert.deepStrictEqual(
       nested.map(({ key }) => key),
-      ['510769970275'],
+      ['000000000902'],
     );
     assert.deepStrictEqual(
       (await nested[0]?.service.query(['/aws/ecs/service'], 'fields @message', timeRange))?.map(profileValue),
@@ -307,7 +307,7 @@ describe('AWSCloudWatchLogsService', () => {
     );
     await assert.rejects(
       fallback.service.query(
-        ['arn:aws:logs:eu-south-1:350578575906:log-group:/aws/ecs/service'],
+        ['arn:aws:logs:eu-south-1:000000000901:log-group:/aws/ecs/service'],
         'fields @message',
         timeRange,
       ),
@@ -326,9 +326,9 @@ describe('AWSCloudWatchLogsService', () => {
     );
     const sources = createService(provider)
       .forTarget({
-        accountId: '350578575906',
+        accountId: '000000000901',
         region: 'eu-south-1',
-        fallbacks: [{ accountId: '510769970275' }],
+        fallbacks: [{ accountId: '000000000902' }],
       })
       .getConfiguredSources();
     for (const { key, service } of sources) {
@@ -350,15 +350,15 @@ describe('AWSCloudWatchLogsService', () => {
           'monitoring',
           {
             startErrorFor: (identifiers) =>
-              identifiers.some((identifier) => identifier.includes(':350578575906:')) ? notFound : undefined,
+              identifiers.some((identifier) => identifier.includes(':000000000901:')) ? notFound : undefined,
           },
         ],
       ]),
     );
     const service = createService(provider).forTarget({
-      accountId: '350578575906',
+      accountId: '000000000901',
       region: 'eu-south-1',
-      fallbacks: [{ accountId: '510769970275' }],
+      fallbacks: [{ accountId: '000000000902' }],
     });
 
     const result = await service.queryWithStatistics(
@@ -373,8 +373,8 @@ describe('AWSCloudWatchLogsService', () => {
     assert.deepStrictEqual(
       starts.map((start) => start.input.logGroupIdentifiers),
       [
-        ['arn:aws:logs:eu-south-1:350578575906:log-group:/aws/ecs/pn-external-registries'],
-        ['arn:aws:logs:eu-south-1:510769970275:log-group:/aws/ecs/pn-external-registries'],
+        ['arn:aws:logs:eu-south-1:000000000901:log-group:/aws/ecs/pn-external-registries'],
+        ['arn:aws:logs:eu-south-1:000000000902:log-group:/aws/ecs/pn-external-registries'],
       ],
     );
     // One monitoring identity throughout: OAM shares telemetry, not credentials.
@@ -392,16 +392,16 @@ describe('AWSCloudWatchLogsService', () => {
           'confinfo',
           {
             startErrorFor: (identifiers) =>
-              identifiers.some((identifier) => identifier.includes(':350578575906:')) ? notFound : undefined,
+              identifiers.some((identifier) => identifier.includes(':000000000901:')) ? notFound : undefined,
           },
         ],
         ['core', {}],
       ]),
     );
     const service = createService(provider).forTarget({
-      accountId: '350578575906',
+      accountId: '000000000901',
       region: 'eu-south-1',
-      fallbacks: [{ accountId: '510769970275', profile: 'core' }],
+      fallbacks: [{ accountId: '000000000902', profile: 'core' }],
     });
 
     const result = await service.queryWithStatistics(
@@ -431,15 +431,15 @@ describe('AWSCloudWatchLogsService', () => {
           'monitoring',
           {
             startErrorFor: (identifiers) =>
-              identifiers.some((identifier) => identifier.includes(':350578575906:')) ? notFound : undefined,
+              identifiers.some((identifier) => identifier.includes(':000000000901:')) ? notFound : undefined,
           },
         ],
       ]),
     );
     const service = createService(provider).forTarget({
-      accountId: '350578575906',
+      accountId: '000000000901',
       region: 'eu-south-1',
-      fallbacks: [{ accountId: '510769970275' }],
+      fallbacks: [{ accountId: '000000000902' }],
     });
 
     await service.query(['/aws/ecs/pn-external-registries'], 'fields @timestamp', timeRange);
@@ -451,7 +451,7 @@ describe('AWSCloudWatchLogsService', () => {
     // Three attempts, not four: the second query skips the account that failed.
     assert.strictEqual(starts.length, 3);
     assert.deepStrictEqual(starts[2]?.input.logGroupIdentifiers, [
-      'arn:aws:logs:eu-south-1:510769970275:log-group:/aws/ecs/pn-external-registries',
+      'arn:aws:logs:eu-south-1:000000000902:log-group:/aws/ecs/pn-external-registries',
     ]);
   });
 
@@ -459,9 +459,9 @@ describe('AWSCloudWatchLogsService', () => {
     const notFound = Object.assign(new Error('ResourceNotFoundException'), { name: 'ResourceNotFoundException' });
     const provider = new FakeMultiProvider(new Map([['monitoring', { startError: notFound }]]));
     const service = createService(provider).forTarget({
-      accountId: '350578575906',
+      accountId: '000000000901',
       region: 'eu-south-1',
-      fallbacks: [{ accountId: '510769970275' }],
+      fallbacks: [{ accountId: '000000000902' }],
     });
 
     await assert.rejects(
@@ -469,8 +469,8 @@ describe('AWSCloudWatchLogsService', () => {
       (error: unknown) =>
         isAWSCloudWatchLogsConfigurationError(error) &&
         error.code === 'LOG_GROUP_NOT_FOUND' &&
-        error.message.includes('350578575906') &&
-        error.message.includes('510769970275'),
+        error.message.includes('000000000901') &&
+        error.message.includes('000000000902'),
     );
   });
 
@@ -478,9 +478,9 @@ describe('AWSCloudWatchLogsService', () => {
     const throttled = Object.assign(new Error('Rate exceeded'), { name: 'ThrottlingException' });
     const provider = new FakeMultiProvider(new Map([['monitoring', { startError: throttled }]]));
     const service = createService(provider).forTarget({
-      accountId: '350578575906',
+      accountId: '000000000901',
       region: 'eu-south-1',
-      fallbacks: [{ accountId: '510769970275' }],
+      fallbacks: [{ accountId: '000000000902' }],
     });
 
     await assert.rejects(service.query(['/aws/ecs/x'], 'fields @timestamp', timeRange), /Rate exceeded/);
@@ -493,13 +493,13 @@ describe('AWSCloudWatchLogsService', () => {
   it('accepts an explicit ARN from a fallback account and rejects one outside the allowlist', async () => {
     const provider = new FakeMultiProvider(new Map([['monitoring', {}]]));
     const service = createService(provider).forTarget({
-      accountId: '350578575906',
+      accountId: '000000000901',
       region: 'eu-south-1',
-      fallbacks: [{ accountId: '510769970275' }],
+      fallbacks: [{ accountId: '000000000902' }],
     });
 
     await service.query(
-      ['arn:aws:logs:eu-south-1:510769970275:log-group:/aws/ecs/pn-external-registries'],
+      ['arn:aws:logs:eu-south-1:000000000902:log-group:/aws/ecs/pn-external-registries'],
       'fields @timestamp',
       timeRange,
     );
@@ -507,7 +507,7 @@ describe('AWSCloudWatchLogsService', () => {
       .client('monitoring')
       .commands.find((command): command is StartQueryCommand => command instanceof StartQueryCommand);
     assert.deepStrictEqual(start?.input.logGroupIdentifiers, [
-      'arn:aws:logs:eu-south-1:510769970275:log-group:/aws/ecs/pn-external-registries',
+      'arn:aws:logs:eu-south-1:000000000902:log-group:/aws/ecs/pn-external-registries',
     ]);
 
     await assert.rejects(
@@ -519,7 +519,7 @@ describe('AWSCloudWatchLogsService', () => {
   it('refuses fallback accounts declared without a target account', () => {
     const provider = new FakeMultiProvider(new Map([['monitoring', {}]]));
     assert.throws(
-      () => createService(provider).forTarget({ region: 'eu-south-1', fallbacks: [{ accountId: '510769970275' }] }),
+      () => createService(provider).forTarget({ region: 'eu-south-1', fallbacks: [{ accountId: '000000000902' }] }),
       (error: unknown) => isAWSCloudWatchLogsConfigurationError(error) && error.code === 'INVALID_OAM_TARGET',
     );
   });

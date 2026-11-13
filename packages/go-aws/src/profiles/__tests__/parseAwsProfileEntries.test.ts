@@ -3,8 +3,8 @@ import { describe, it } from 'node:test';
 
 import { parseAwsProfileEntries } from '../parseAwsProfileEntries.js';
 
-const CORE = 'sso_pn-core-prod';
-const CONFINFO = 'sso_pn-confinfo-prod';
+const CORE = 'profile-core';
+const CONFINFO = 'profile-confinfo';
 
 describe('parseAwsProfileEntries', () => {
   it('leaves a flat list exactly as it was', () => {
@@ -24,16 +24,16 @@ describe('parseAwsProfileEntries', () => {
   });
 
   it('accepts account ids and profile names as fallbacks', () => {
-    const parsed = parseAwsProfileEntries([`${CONFINFO}:${CORE}|510769970275`]);
+    const parsed = parseAwsProfileEntries([`${CONFINFO}:${CORE}|000000000902`]);
 
-    assert.deepStrictEqual(parsed.fallbacksByProfile.get(CONFINFO), [CORE, '510769970275']);
+    assert.deepStrictEqual(parsed.fallbacksByProfile.get(CONFINFO), [CORE, '000000000902']);
   });
 
   it('keeps declaration order and never repeats a profile', () => {
-    const parsed = parseAwsProfileEntries([`${CONFINFO}:${CORE}`, CONFINFO, `${CONFINFO}:510769970275|${CORE}`]);
+    const parsed = parseAwsProfileEntries([`${CONFINFO}:${CORE}`, CONFINFO, `${CONFINFO}:000000000902|${CORE}`]);
 
     assert.deepStrictEqual(parsed.profileNames, [CONFINFO]);
-    assert.deepStrictEqual(parsed.fallbacksByProfile.get(CONFINFO), [CORE, '510769970275']);
+    assert.deepStrictEqual(parsed.fallbacksByProfile.get(CONFINFO), [CORE, '000000000902']);
   });
 
   it('ignores blanks and surrounding whitespace', () => {

@@ -295,7 +295,7 @@ describe('queryServiceLogs', () => {
       query: async (): Promise<never> => {
         await Promise.resolve();
         throw new Error(
-          "[ResourceNotFoundException] Log group '/aws/ecs/pn-data-vault-sep' does not exist for account ID '510769970275'",
+          "[ResourceNotFoundException] Log group '/aws/ecs/pn-data-vault-sep' does not exist for account ID '000000000902'",
         );
       },
     } as unknown as AWSCloudWatchLogsService;
