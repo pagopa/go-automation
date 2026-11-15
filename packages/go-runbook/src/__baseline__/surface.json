@@ -257,6 +257,7 @@
   ],
   "./toolkits/common": [
     "ANALYSIS_LOG_ACTION_RENDERER (value)",
+    "AlarmOutput (type)",
     "AlarmRunbookBuilder (value)",
     "AlarmRunbookBuilder#analysisDefaults",
     "AlarmRunbookBuilder#build",

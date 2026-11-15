@@ -88,6 +88,7 @@ export { resolveTimeRange } from './time/resolveTimeRange.js';
 export type { CloudWatchLogsStepDiagnostics } from './telemetry/CloudWatchLogsStepDiagnostics.js';
 export type { AwsExecutionEnvironment } from './telemetry/AwsExecutionEnvironment.js';
 export type { AlarmRunbookContext } from './output/AlarmRunbookContext.js';
+export type { AlarmOutput } from './output/AlarmOutput.js';
 
 // Policies
 export { assertCloudExecutableRunbook } from './policies/assertCloudExecutableRunbook.js';

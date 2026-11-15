@@ -9,6 +9,7 @@ import {
   type RunbookOutputContext,
   type RunbookResultField,
 } from '../../../output/RunbookOutputContext.js';
+import { buildAlarmOutput } from '../../../output/buildAlarmOutput.js';
 import { addResultField, optionalNumber, optionalString } from '../../../output/outputValues.js';
 import { extractRecentLogLines, logLineToRecord } from '../../../parsing/aws/cloudwatch-logs/resultRows.js';
 import type { ServiceOutputContext } from './ServiceOutputContext.js';
@@ -48,15 +49,7 @@ export function buildServiceOutputContext(
   );
 
   const details: ServiceOutputContext = {
-    alarm: {
-      ...optionalString('name', params.get('alarmName')),
-      ...optionalString('datetime', params.get('alarmDatetime')),
-      ...optionalString('datetimeEnd', params.get('alarmDatetimeEnd')),
-      timeRange: {
-        ...optionalString('start', params.get('startTime')),
-        ...optionalString('end', params.get('endTime')),
-      },
-    },
+    alarm: buildAlarmOutput(params),
     service: {
       name: service.name,
       logGroup: service.logGroup,

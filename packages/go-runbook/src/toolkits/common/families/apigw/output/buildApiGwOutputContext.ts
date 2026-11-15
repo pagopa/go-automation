@@ -9,6 +9,7 @@ import {
   type RunbookOutputContext,
   type RunbookResultField,
 } from '../../../output/RunbookOutputContext.js';
+import { buildAlarmOutput } from '../../../output/buildAlarmOutput.js';
 import { addResultField, optionalNumber, optionalString, normalizeOutputValue } from '../../../output/outputValues.js';
 import { extractRecentLogLines, logLineToRecord } from '../../../parsing/aws/cloudwatch-logs/resultRows.js';
 import type {
@@ -54,15 +55,7 @@ export function buildApiGwOutputContext(
   });
 
   const apiGwContext: ApiGwOutputContext = {
-    alarm: {
-      ...optionalString('name', params.get('alarmName')),
-      ...optionalString('datetime', params.get('alarmDatetime')),
-      ...optionalString('datetimeEnd', params.get('alarmDatetimeEnd')),
-      timeRange: {
-        ...optionalString('start', params.get('startTime')),
-        ...optionalString('end', params.get('endTime')),
-      },
-    },
+    alarm: buildAlarmOutput(params),
     apiGateway: {
       logGroup: runbook.runbookContext.apiGwLogGroup,
       ...optionalNumber('errorCount', parseInteger(vars.get('apiGwErrorCount'))),

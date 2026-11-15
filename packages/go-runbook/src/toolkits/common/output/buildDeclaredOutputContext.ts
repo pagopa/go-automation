@@ -4,7 +4,8 @@ import type { RunbookExecutionResult } from '../../../engine/types/RunbookExecut
 import type { RunbookOutputContext } from './RunbookOutputContext.js';
 import type { ResolvedAwsAccount } from '../accounts/ResolvedAwsAccount.js';
 import type { ServiceRegistry } from '../services/ServiceRegistry.js';
-import { addResultField, normalizeOutputValue, optionalString } from './outputValues.js';
+import { addResultField, normalizeOutputValue } from './outputValues.js';
+import { buildAlarmOutput } from './buildAlarmOutput.js';
 import { buildStepEvidence } from './buildStepEvidence.js';
 
 /** Compose family context and explicitly declared output once, for every executor. */
@@ -42,15 +43,7 @@ export function buildDeclaredOutputContext(
     fields,
     evidence: [...context.evidence, ...evidence],
     details: {
-      alarm: {
-        ...optionalString('name', params.get('alarmName')),
-        ...optionalString('datetime', params.get('alarmDatetime')),
-        ...optionalString('datetimeEnd', params.get('alarmDatetimeEnd')),
-        timeRange: {
-          ...optionalString('start', params.get('startTime')),
-          ...optionalString('end', params.get('endTime')),
-        },
-      },
+      alarm: buildAlarmOutput(params),
       ...context.details,
       ...(definition.metadata === undefined ? {} : { metadata: definition.metadata }),
       ...accountDetails,

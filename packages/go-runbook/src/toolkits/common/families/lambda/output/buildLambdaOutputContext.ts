@@ -10,6 +10,7 @@ import {
   type RunbookOutputContext,
   type RunbookResultField,
 } from '../../../output/RunbookOutputContext.js';
+import { buildAlarmOutput } from '../../../output/buildAlarmOutput.js';
 import { addResultField, optionalNumber, optionalString, normalizeOutputValue } from '../../../output/outputValues.js';
 import { extractRecentLogLines, logLineToRecord } from '../../../parsing/aws/cloudwatch-logs/resultRows.js';
 import type { LambdaDownstreamOutput, LambdaOutputContext } from './LambdaOutputContext.js';
@@ -53,15 +54,7 @@ export function buildLambdaOutputContext(
   const downstream = buildDownstream(context.downstreams, downstreamTarget, result, vars, maxRecentLogs);
 
   const lambdaContext: LambdaOutputContext = {
-    alarm: {
-      ...optionalString('name', params.get('alarmName')),
-      ...optionalString('datetime', params.get('alarmDatetime')),
-      ...optionalString('datetimeEnd', params.get('alarmDatetimeEnd')),
-      timeRange: {
-        ...optionalString('start', params.get('startTime')),
-        ...optionalString('end', params.get('endTime')),
-      },
-    },
+    alarm: buildAlarmOutput(params),
     lambda: {
       functionName: vars.get('lambdaFunctionName') ?? context.lambda.name,
       logGroup: vars.get('lambdaLogGroup') ?? context.lambda.logGroup,

@@ -1,4 +1,5 @@
 import type { LogLine } from '../../../parsing/aws/cloudwatch-logs/LogLine.js';
+import type { AlarmOutput } from '../../../output/AlarmOutput.js';
 
 /** Downstream microservice block of the Lambda output context. */
 export interface LambdaDownstreamOutput {
@@ -11,15 +12,7 @@ export interface LambdaDownstreamOutput {
 
 /** Typed `details.lambda` payload of a Lambda runbook result. */
 export interface LambdaOutputContext {
-  readonly alarm: {
-    readonly name?: string;
-    readonly datetime?: string;
-    readonly datetimeEnd?: string;
-    readonly timeRange: {
-      readonly start?: string;
-      readonly end?: string;
-    };
-  };
+  readonly alarm: AlarmOutput;
   readonly lambda: {
     readonly functionName: string;
     readonly logGroup: string;
