@@ -24,7 +24,7 @@
   "author": "Team GO - Gestione Operativa",
   "license": "EUPL-1.2",
   "engines": {
-    "node": ">=22.14.0",
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0",
     "pnpm": ">=10.28.0"
   },
   "dependencies": {

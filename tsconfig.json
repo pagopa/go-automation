@@ -7,7 +7,16 @@
   "files": [],
   "references": [
     {
+      "path": "./bins/check-api-report"
+    },
+    {
+      "path": "./bins/check-import-cost"
+    },
+    {
       "path": "./bins/check-new-class-tests"
+    },
+    {
+      "path": "./bins/check-published-packages"
     },
     {
       "path": "./bins/check-published-sensitive-data"

@@ -5,6 +5,31 @@ strutturate come sequenze di step tipizzati, con branching condizionale,
 matching su casi noti e azioni associate. Contiene anche i toolkit per le
 famiglie di allarmi e i runbook concreti di SEND e INTEROP.
 
+## Installazione
+
+Il package è pubblicato su **GitHub Packages** dell'organizzazione `pagopa`. Nel repository che lo usa serve un `.npmrc`:
+
+```ini
+@pagopa:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+```
+
+- **In locale:** un PAT _classic_ con `read:packages`, autorizzato SSO per l'organizzazione `pagopa`, esportato come `NODE_AUTH_TOKEN`.
+- **In GitHub Actions:** `permissions: { packages: read }` e `NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`. Il repository consumatore va abilitato in _Package settings → Manage Actions access_.
+
+Richiede Node.js `>=22.19.0` ed è solo ESM.
+
+```bash
+pnpm add @pagopa/go-runbook @pagopa/go-aws @pagopa/go-common
+# solo se si usa ./runtime: i peer di @pagopa/go-aws/all (niente client-ec2)
+pnpm add @aws-sdk/client-athena @aws-sdk/client-cloudwatch @aws-sdk/client-cloudwatch-logs \
+         @aws-sdk/client-dynamodb @aws-sdk/util-dynamodb @aws-sdk/client-ecs @aws-sdk/client-lambda \
+         @aws-sdk/client-s3 @aws-sdk/client-scheduler @aws-sdk/client-secrets-manager \
+         @aws-sdk/client-sqs @aws-sdk/client-ssm
+```
+
+Solo `./runtime` carica gli SDK: gli altri sei entrypoint funzionano senza nessun peer installato.
+
 ## Entrypoint
 
 | Import                                | Contenuto                                                                                                                                                                   |
@@ -65,6 +90,9 @@ configurati.
   [docs/AWS_LOGICAL_ACCOUNTS.md](../../docs/AWS_LOGICAL_ACCOUNTS.md).
 - Riassetto del package (engine, toolkit, inventory, runtime):
   [EVO-RBREORG-OPUS-01](../../docs/evolutions/EVO-RBREORG-OPUS-01.md).
+- Superficie pubblica di ogni entrypoint: cartella [`api/`](api/).
+- Controlli prima della pubblicazione (report API, smoke test, budget di import): [docs/PUBLISHED_PACKAGES_CHECKS.md](../../docs/PUBLISHED_PACKAGES_CHECKS.md).
+- Modifiche tra le versioni: `CHANGELOG.md`, creato al primo rilascio.
 
 ## Consumatori
 
