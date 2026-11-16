@@ -140,6 +140,8 @@ ok   @pagopa/go-aws/s3: 50 ms (budget 80), 23 third-party packages
   IMPORT_COST_TIME_FACTOR=2 pnpm check:import-cost
   ```
 
+  In CI (job Published Packages e workflow Release) il fattore è già impostato a `2`, perché le macchine di GitHub sono circa due volte più lente di un computer di sviluppo.
+
 - **Per cambiare un budget** (una nuova soglia o un nuovo entrypoint): modifica `bins/check-import-cost/src/budgets.ts`. I valori vengono dalla SPEC (§10.4): un cambio va motivato.
 
 ### 4.5 `pnpm check:published`: nessun dato sensibile nei pacchetti

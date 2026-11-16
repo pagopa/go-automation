@@ -139,6 +139,9 @@ jobs:
       install-args: --frozen-lockfile --ignore-scripts
       timeout-minutes: 25
       download-artifact-name: workspace-build
+      # GitHub runners are about twice as slow as a workstation: only the time thresholds are widened,
+      # the checks on the loaded libraries stay the same (EVO-PKGPUB-OPUS-01 §10.4).
+      import-cost-time-factor: '2'
 
   # §10.2: the archives are packed once on the toolchain Node (24) and reused by every cell of
   # the smoke matrix. The cells come from the declared engines: each scenario runs on the minimum
