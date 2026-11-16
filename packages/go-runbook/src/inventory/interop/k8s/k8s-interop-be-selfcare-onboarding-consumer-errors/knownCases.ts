@@ -12,7 +12,7 @@ const DETAILS = [
 /** Sources: Confluence 2145419266 v5/v8-v12; the two additional cases are explicitly Test-only. */
 export const KNOWN_CASES: ReadonlyArray<KnownCase> = [
   knownCase({
-    id: 'selfcare-kafka-broker-communication-errors',
+    id: 'selfcare-onboarding-kafka-broker-errors',
     description: 'Errore di comunicazione KafkaJS verso i broker Selfcare',
     priority: 100,
     condition: all(

@@ -719,7 +719,7 @@
       "k8s-interop-be-selfcare-client-users-updater-errors-prod",
       "k8s-interop-be-selfcare-client-users-updater-errors-test"
     ],
-    "definitionDigest": "sha256-185d4d2f18d0ce0319affe855773c5e4ed38d0ad66ec93d01cea1bd616f4630b"
+    "definitionDigest": "sha256-f9b048434241a88ffc45f1d6963a8d5d2482055c1de81e5b2e75bc994e4ca657"
   },
   {
     "key": "k8s-interop-be-selfcare-onboarding-consumer-errors",
@@ -744,7 +744,7 @@
       "k8s-interop-be-selfcare-onboarding-consumer-errors-prod",
       "k8s-interop-be-selfcare-onboarding-consumer-errors-test"
     ],
-    "definitionDigest": "sha256-b3b2dc98f2129edb691e87081421c6fceb2524cb921f8d7bb99dec1e8c6826bd"
+    "definitionDigest": "sha256-4def8f05db7a10c609c37f9886c5bedff5103d8fa99bf61ddd7df84603b0dc5f"
   },
   {
     "key": "k8s-interop-be-signed-objects-persister-errors-prod",

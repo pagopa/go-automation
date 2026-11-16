@@ -45,7 +45,7 @@ describe('INTEROP Selfcare onboarding consumer known cases', () => {
 
   it('preserves the original Kafka title, evidence labels, ticket and downstream', () => {
     assert.ok(knownCase !== undefined);
-    assert.strictEqual(knownCase.id, 'selfcare-kafka-broker-communication-errors');
+    assert.strictEqual(knownCase.id, 'selfcare-onboarding-kafka-broker-errors');
     assert.strictEqual(knownCase.analysis?.proposedStatus, 'IN_PROGRESS');
     assert.deepStrictEqual(knownCase.analysis?.downstreams, [INTEROP_DOWNSTREAMS.SELFCARE]);
     assert.deepStrictEqual(knownCase.analysis?.links, [
