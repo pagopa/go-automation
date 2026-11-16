@@ -1,10 +1,9 @@
 /**
- * Internal barrel of the runbook engine (EVO-RBREORG-OPUS-01, phase F1).
+ * Barrel of the runbook engine: the content of the public entrypoint `.`
+ * (`@pagopa/go-runbook`, re-exported by `src/index.ts`).
  *
- * Runbooks and toolkits import the engine only from here. In F1 it re-exports
- * the engine symbols from their current folders; F3 moves the files under
- * `src/engine/` and F4 makes this the content of the public entrypoint `.`.
- * It is not reachable from any entrypoint yet.
+ * Toolkits and runbooks import the engine only from here. The engine knows no
+ * AWS, product, alarm or Watchtower (EVO-RBREORG-OPUS-01 §10).
  */
 
 export type { ActionExecutionResult } from './actions/ActionExecutor.js';

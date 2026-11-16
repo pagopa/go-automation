@@ -1,7 +1,7 @@
 # Runbook Engine - Reference
 
 > **Documentazione di riferimento per il motore di esecuzione runbook**
-> Package: `@pagopa/go-runbook-engine`
+> Package: `@pagopa/go-runbook`. L'engine descritto qui è l'entrypoint `.`; i toolkit operativi sono in `./toolkits/*`, i runbook in `./inventory`, la composizione in `./runtime` (struttura completa in §13).
 
 Per il contratto delle evidenze custom e dei campi diagnostici, vedere
 [Output delle diagnostiche dei runbook](architecture/runbook-evidence.md).
@@ -845,7 +845,7 @@ interface ServiceRegistry {
 ```
 
 I campi AWS sono tipizzati con contratti senza SDK: il contratto Logs Insights di go-aws e le porte di
-go-runbook (`registry/ports/`). I servizi concreti di go-aws (`AWSCloudWatchLogsService`,
+go-runbook (`toolkits/common/services/ports/`). I servizi concreti di go-aws (`AWSCloudWatchLogsService`,
 `AWSCloudWatchMetricsService`, `AWSAthenaService`, `AWSDynamoDBService`) li soddisfano strutturalmente, e
 `createServiceRegistry` (`@pagopa/go-runbook/runtime`) li compone. Così i `.d.ts` dell'engine non richiedono
 nessun pacchetto `@aws-sdk/*`. Per eseguire un runbook su un'occorrenza, il registry costruito una volta si lega
@@ -1476,6 +1476,8 @@ function escalateAction(config: EscalateActionConfig): EscalateAction;
 
 ## 9. Esempio Concreto: Alarm Resolution per API Gateway 5xx
 
+> **Esempio didattico.** Mostra i concetti del motore (step, early resolution, sub-pipeline, casi noti). Alcuni helper usati qui (`extractField`, `regexExtract`, `ifCondition`, `setVar`, `log`) e la firma semplificata di `createServiceRegistry` servono solo all'esempio e non fanno parte dell'API. I runbook reali sono in `packages/go-runbook/src/inventory/` e si costruiscono con i toolkit (`@pagopa/go-runbook/toolkits/send`, `…/toolkits/interop`).
+
 ### Scenario
 
 Un allarme CloudWatch `pn-address-book-io-IO-ApiGwAlarm` scatta. Il runbook deve:
@@ -1489,19 +1491,9 @@ Un allarme CloudWatch `pn-address-book-io-IO-ApiGwAlarm` scatta. Il runbook deve
 ### Definizione del Runbook
 
 ```typescript
-import {
-  RunbookBuilder,
-  CloudWatchLogsQueryStep,
-  CompareStep,
-  extractField,
-  regexExtract,
-  ifCondition,
-  setVar,
-  log,
-  logAction,
-  notifyAction,
-  escalateAction,
-} from '@pagopa/go-runbook-engine';
+import { RunbookBuilder, CompareStep, logAction, notifyAction, escalateAction } from '@pagopa/go-runbook';
+import { CloudWatchLogsQueryStep } from '@pagopa/go-runbook/toolkits/common';
+// extractField, regexExtract, ifCondition, setVar e log: helper illustrativi di questo esempio.
 
 // ---------------------------------------------------------------
 // Runbook: API Gateway 5xx Alarm Resolution
@@ -1813,7 +1805,8 @@ const apiGateway5xxRunbook = RunbookBuilder.create('alarm-api-gw-5xx')
 
 ```typescript
 import { GOScript } from '@go-automation/go-script';
-import { RunbookEngine, ConditionEvaluator, createServiceRegistry } from '@pagopa/go-runbook-engine';
+import { RunbookEngine, ConditionEvaluator } from '@pagopa/go-runbook';
+import { createServiceRegistry } from '@pagopa/go-runbook/runtime';
 import { apiGateway5xxRunbook } from './runbooks/apiGateway5xx';
 
 // Dentro uno script GOScript
@@ -2510,101 +2503,81 @@ Questo esempio mostra il trace prodotto dall'esecuzione del runbook **API Gatewa
 
 ---
 
-## 13. Struttura Package Proposta
+## 13. Struttura del package
+
+Il package è `@pagopa/go-runbook` (`packages/go-runbook`). È diviso in quattro strati, ognuno con il proprio entrypoint (EVO-RBREORG-OPUS-01).
+
+| Entrypoint                            | Cartella                      | Contenuto                                                                                                                    |
+| ------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `@pagopa/go-runbook`                  | `src/engine/`                 | Il linguaggio e l'esecuzione di un workflow. Nessuna conoscenza di AWS, prodotti, allarmi o Watchtower.                      |
+| `@pagopa/go-runbook/output`           | `src/toolkits/common/output/` | Il contratto dell'output dei runbook verso Watchtower.                                                                       |
+| `@pagopa/go-runbook/toolkits/common`  | `src/toolkits/common/`        | Il toolkit operativo comune: servizi, step AWS e HTTP, famiglie generiche, account logici, policy, helper di test.           |
+| `@pagopa/go-runbook/toolkits/send`    | `src/toolkits/send/`          | Pipeline, profili e dati di SEND.                                                                                            |
+| `@pagopa/go-runbook/toolkits/interop` | `src/toolkits/interop/`       | Pipeline, profili e dati di INTEROP.                                                                                         |
+| `@pagopa/go-runbook/inventory`        | `src/inventory/`              | I runbook concreti e il catalogo.                                                                                            |
+| `@pagopa/go-runbook/runtime`          | `src/runtime/`                | La composizione: registro dei servizi, legame all'occorrenza, account AWS, esecuzione. È l'unico strato che usa gli SDK AWS. |
 
 ```
-packages/
-  go-runbook-engine/
-    src/
-      index.ts                     # Public API exports
-
-      core/
-        RunbookEngine.ts           # Orchestratore principale
-        ConditionEvaluator.ts      # Valutazione condizioni
-
-      context/
-        RunbookContext.ts          # Contesto + helper immutabili
-
-      steps/
-        data/
-          CloudWatchLogsQueryStep.ts
-          AthenaQueryStep.ts
-          DynamoDBQueryStep.ts
-          HttpRequestStep.ts
-
-        transform/
-          ExtractFieldStep.ts
-          RegexExtractStep.ts
-
-        check/
-          AssertStep.ts
-          CompareStep.ts
-
-        control/
-          IfStep.ts
-          SwitchStep.ts
-          IfBranchStep.ts
-          SwitchBranchStep.ts
-          SetVarStep.ts
-          LogStep.ts
-
-        mutation/
-          DynamoDBUpdateStep.ts
-          HttpPostStep.ts
-
-      services/
-        ServiceRegistry.ts
-        CloudWatchLogsService.ts
-        AthenaService.ts
-        HttpService.ts
-
-      actions/
-        ActionExecutor.ts
-        CaseAction.ts
-
-      builders/
-        RunbookBuilder.ts          # Con validazione
-
-      validation/
-        RunbookValidationError.ts
-        ValidationErrorEntry.ts
-        ValidationErrorCode.ts
-        GoToGraphAnalyzer.ts
-
-      errors/
-        RunbookMaxIterationsError.ts
-        ErrorRecoveryInfo.ts
-
-      trace/
-        RunbookExecutionTrace.ts
-        TraceBuilder.ts
-        StepTrace.ts
-        CaseMatchingTrace.ts
-        ActionTrace.ts
-        ExecutionSummary.ts
-        EarlyResolutionTrace.ts
-
-      types/
-        Step.ts
-        StepDescriptor.ts
-        StepResult.ts
-        StepKind.ts
-        FlowDirective.ts
-        Runbook.ts
-        RunbookMetadata.ts
-        RunbookType.ts
-        RunbookContext.ts
-        RunbookExecutionResult.ts
-        KnownCase.ts
-        Condition.ts
-        LogEntry.ts
-        TimeRange.ts
-        IfBranchConfig.ts
-        SwitchBranchConfig.ts
-
-    package.json
-    tsconfig.json
+packages/go-runbook/src/
+  index.ts                  # entrypoint `.`: riesporta engine/
+  engine/                   # `.`
+    actions/                #   ActionExecutor, factory delle azioni
+    builders/               #   RunbookBuilder
+    conditions/             #   helper per costruire le condizioni
+    context/                #   contesto immutabile e helper
+    core/                   #   RunbookEngine, ConditionEvaluator, collectRunbookSteps, assertRequiredServices
+    errors/                 #   errori dell'engine (RunbookMissingServicesError, …)
+    reporting/              #   RunbookReporter e reporter (console, raccolta, nullo)
+    steps/                  #   step neutri: check, control (if/switch, sub-pipeline), transform; executeStep
+    testing/                #   createTestWorkflowServices
+    tracing/                #   trace dell'esecuzione
+    types/                  #   Step, StepResult, Runbook, KnownCase, Condition, …
+    validation/             #   validazione del grafo del runbook
+  toolkits/
+    common/                 # `./toolkits/common` (e `./output`)
+      accounts/             #   account AWS logici: selezioni, rubrica, errori
+      analysis/             #   bozze di analisi e casi noti (knownCase)
+      augmentations/        #   estensioni del modello dell'engine
+      builders/             #   AlarmRunbookBuilder, finishAlarmRunbook
+      engine/               #   OperationalRunbookEngine, assertAwsAccounts
+      families/             #   famiglie generiche: apigw, lambda, service
+      output/               #   output dei runbook (entrypoint `./output`)
+      parsing/ queries/     #   lettura dei risultati e modelli di query
+      policies/             #   policy di esecuzione in cloud
+      registration/         #   RunbookCatalog, registrazioni, prodotti, kind
+      services/             #   ServiceRegistry, OperationalContext, porte (services/ports/)
+      steps/                #   OperationalStep, step AWS e HTTP
+      telemetry/ time/      #   telemetria, finestre temporali delle occorrenze
+      testing/              #   createTestServiceRegistry, InMemoryAwsAccountsPort
+    send/                   # `./toolkits/send`
+      accounts/             #   SEND_ACCOUNTS
+      analysis/             #   SEND_DOWNSTREAMS
+      families/             #   apigw, downstream, lambda, service
+    interop/                # `./toolkits/interop`
+      analysis/ applicationLogs/ environment/ helpers/
+      families/             #   apigw, k8s
+  inventory/                # `./inventory`
+    send/                   #   apigw/, downstream/, lambda/, service/, shared/, manifest.ts
+    interop/                #   apigw/, k8s/, shared/, manifest.ts
+    registry/               #   RUNBOOK_CATALOG, RUNBOOK_REGISTRY
+    validation/             #   cataloghi dei downstream per prodotto
+  runtime/                  # `./runtime`
+    accounts/               #   RuntimeAwsAccountsPort, createAwsAccountsPort
+    commands/               #   comandi (export dei descrittori)
+    execution/              #   executeRunbookForOccurrence
+    services/               #   createServiceRegistry, bindServicesToOccurrence
+  __baseline__/             # baseline di digest, impronte e superficie (non pubblicate)
 ```
+
+Ogni runbook concreto sta in `inventory/<prodotto>/<famiglia>/<alarm-name>/`, con `runbook.ts` (`buildRunbook()`), `registration.ts` e di solito `knownCases.ts` e `knownServices.ts`. I dati condivisi tra runbook dello stesso prodotto stanno in `inventory/<prodotto>/shared/`.
+
+**Regole di dipendenza** (dependency-cruiser ed ESLint):
+
+- l'engine non importa toolkit, inventory, runtime, né go-aws o le aree di I/O di go-common;
+- solo `runtime/` usa gli SDK AWS. Gli altri strati usano solo i contratti senza SDK di go-aws (`./cloudwatch-logs/insights`, `./profiles`) e i tipi della sua root;
+- i toolkit non conoscono inventory e runtime; `toolkits/common` non conosce i prodotti;
+- SEND e INTEROP non si importano a vicenda, né nei toolkit né nell'inventory;
+- un runbook usa l'API pubblica del toolkit del suo prodotto, non i suoi file interni, e non importa le cartelle degli altri runbook (la condivisione passa da `shared/`).
 
 ---
 

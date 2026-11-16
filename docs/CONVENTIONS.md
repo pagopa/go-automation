@@ -34,6 +34,7 @@ Per bypassare una regola in casi eccezionali, usa:
   - [Events](#events)
   - [AWS Services](#aws-services)
   - [Utilities](#utilities)
+  - [Runbook: `Step.execute` resta un metodo (bivarianza)](#runbook-stepexecute-resta-un-metodo-bivarianza)
   - [Riepilogo Regole ESLint](#riepilogo-regole-eslint)
     - [`no-restricted-imports`](#no-restricted-imports)
     - [`no-restricted-syntax`](#no-restricted-syntax)
@@ -433,6 +434,39 @@ const dynamoClient = clientProvider.getClient(DynamoDBClient);
 | Polling stato + retry        | `GOPoller` / `GORetryRunner`      | Preset in `GOPollingPolicies`       |
 | Troncamento smart            | `smartTruncate`                   | Tronca stringhe lunghe con ellipsis |
 | File copy                    | `GOFileCopier`                    | Copia con progress e validazione    |
+
+---
+
+## Runbook: `Step.execute` resta un metodo (bivarianza)
+
+> Regola di go-runbook (EVO-RBREORG-OPUS-01 §7.1.3, RBREORG-06).
+
+**La regola.** In `Step` (`packages/go-runbook/src/engine/types/Step.ts`) e negli step che lo implementano, `execute` si dichiara come **metodo**:
+
+```typescript
+// ✅ CORRETTO: firma di metodo
+execute(context: OperationalContext): Promise<StepResult<Rows>>;
+
+// ❌ SBAGLIATO: proprietà con tipo funzione
+readonly execute: (context: OperationalContext) => Promise<StepResult<Rows>>;
+```
+
+**Non attivare** la regola ESLint `@typescript-eslint/method-signature-style: 'property'` e non riscrivere `execute` come proprietà.
+
+**Perché.**
+
+- `Step.execute` riceve il contesto neutro dell'engine (`RunbookContext`). Gli step AWS e HTTP lo dichiarano invece con il contesto operativo (`OperationalContext`, cioè `RunbookContext<ServiceRegistry>`), che ha più servizi.
+- TypeScript controlla i parametri dei **metodi** in modo bivariante: uno step con `execute(context: OperationalContext)` implementa comunque `Step`. Così l'engine resta senza servizi AWS e non servono generici su `Step`, `StepDescriptor`, `PipelineHook`, `IfBranchConfig`, `SwitchBranchConfig`, `Runbook`, `RunbookBuilder` e `RunbookBuilderFn`.
+- Con una firma di **proprietà** il parametro diventa controvariante: quegli step non implementerebbero più `Step`, e bisognerebbe propagare un generico in circa 170 file.
+
+**Il prezzo e come si paga.** Con la bivarianza il typecheck non garantisce che il runbook riceva i servizi di cui gli step hanno bisogno: un runbook operativo eseguito con soli `{ reporter }` compila. Il controllo si fa quindi **a runtime, prima del primo step**:
+
+- ogni step dichiara sul prototipo i servizi che usa con `requiredServices()`, e gli step che contengono sotto-pipeline dichiarano i loro step con `nestedSteps()`;
+- `RunbookEngine.execute` visita tutti gli step con `collectRunbookSteps` (pipeline, step annidati, azioni dei casi noti e del fallback) e, se manca un servizio, lancia `RunbookMissingServicesError` prima di eseguire qualsiasi step.
+
+**Per chi scrive uno step.** Se lo step usa `context.services.<servizio>`, quel servizio deve comparire in `requiredServices()`. Il modo più semplice è estendere `OperationalStep` (`@pagopa/go-runbook/toolkits/common`), che rende `requiredServices()` obbligatorio.
+
+**Il controllo.** Il test di tipo `packages/go-runbook/src/toolkits/common/steps/__tests__/stepMethodBivariance.test.ts` smette di compilare se `Step.execute` perde la bivarianza.
 
 ---
 

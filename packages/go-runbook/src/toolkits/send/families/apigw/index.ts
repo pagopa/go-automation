@@ -3,16 +3,19 @@
  *
  * Provides reusable building blocks (helpers, steps, types) for runbooks
  * that analyse alarms originating from API Gateway access logs. Consumed
- * via the `apigw` namespace re-exported from `@pagopa/go-runbook`.
+ * via the `apigw` namespace of `@pagopa/go-runbook/toolkits/send`, which adds the
+ * SEND pipeline and profile to the generic family of `./toolkits/common`.
  *
  * @example
  * ```typescript
- * import { apigw } from '@pagopa/go-runbook';
+ * import { apigw } from '@pagopa/go-runbook/toolkits/send';
  *
- * const step = apigw.parseApiGwErrors({
+ * const step = new apigw.ParseApiGwErrorsStep({
  *   id: 'parse-errors',
  *   label: 'Parse API Gateway errors',
  *   fromStep: 'query-api-gw',
+ *   schema: apigw.SEND_API_GW_PROFILE.accessLog.schema,
+ *   queryProfileId: apigw.SEND_API_GW_PROFILE.id,
  * });
  * ```
  */

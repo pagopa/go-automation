@@ -3,14 +3,14 @@
  *
  * Reusable building blocks for runbooks that analyse CloudWatch
  * `LogInvocationErrors` alarms on AWS Lambda functions. Consumed via the
- * `lambda` namespace re-exported from `@pagopa/go-runbook`, mirroring
- * the `apigw` toolkit.
+ * `lambda` namespace of `@pagopa/go-runbook/toolkits/send`, mirroring the
+ * `apigw` toolkit; the SEND wrapper supplies the query profile and the product.
  *
  * @example
  * ```typescript
- * import { lambda } from '@pagopa/go-runbook';
+ * import { lambda } from '@pagopa/go-runbook/toolkits/send';
  *
- * const runbook = lambda.createLambdaAlarmRunbook({
+ * const runbook = lambda.createSendLambdaAlarmRunbook({
  *   id: 'pn-tokenExchangeLambda-LogInvocationErrors-Alarm',
  *   metadata: { name: '...', description: '', version: '1.0.0', type: 'alarm-resolution', team: 'GO', tags: [] },
  *   lambda: { name: 'pn-tokenExchangeLambda', logGroup: '/aws/lambda/pn-tokenExchangeLambda', varPrefix: 'tokenExchange' },

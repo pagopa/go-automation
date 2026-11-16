@@ -387,7 +387,7 @@ export class ConditionEvaluator {
  * Shared {@link ConditionEvaluator} instance.
  *
  * `ConditionEvaluator` is stateless — every method is pure — so a single
- * frozen instance can be reused everywhere instead of allocating one per
- * step or per `execute()` call.
+ * instance can be reused everywhere instead of allocating one per step or
+ * per `execute()` call.
  */
 export const sharedConditionEvaluator: ConditionEvaluator = new ConditionEvaluator();
